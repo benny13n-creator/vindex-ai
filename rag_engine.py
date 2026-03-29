@@ -41,10 +41,20 @@ def preuzmi_vector_store():
     print("Raspakujem...")
     VECTOR_STORE_DIR.mkdir(exist_ok=True)
     with zipfile.ZipFile(zip_path, "r") as z:
-        print(f"Fajlovi u zipu: {z.namelist()[:3]}")
-        z.extractall(VECTOR_STORE_DIR)
-    zip_path.unlink()
-    print("Gotovo!")
+    imena = z.namelist()
+    print(f"Fajlovi u zipu: {imena[:5]}")
+    # Raspakuj direktno u BASE_DIR
+    z.extractall(BASE_DIR)
+    # Ako nije napravljen vector_store folder, napravi ga
+    if not VECTOR_STORE_DIR.exists():
+        VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
+        # Premesti fajlove u vector_store
+        for ime in imena:
+            src = BASE_DIR / ime
+            dst = VECTOR_STORE_DIR / ime
+            if src.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                src.rename(dst)
 
 
 preuzmi_vector_store()
