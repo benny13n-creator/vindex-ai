@@ -136,20 +136,40 @@ def preuzmi_vector_store() -> None:
 
         with zipfile.ZipFile(ZIP_PATH, "r") as z:
             z.extractall(temp_dir)
+            print("Sadržaj temp_dir:", [p.name for p in temp_dir.iterdir()])
 
+        # 1) prvo traži klasičan folder vector_store
         vector_store_src = None
         for p in temp_dir.rglob("vector_store"):
             if p.is_dir():
                 vector_store_src = p
                 break
 
+        # 2) ako ne postoji folder vector_store, proveri da li su chroma fajlovi direktno u root-u
         if vector_store_src is None:
-            raise RuntimeError("vector_store folder nije pronađen u zip arhivi.")
+            root_sqlite = temp_dir / "chroma.sqlite3"
+            if root_sqlite.exists():
+                vector_store_src = temp_dir
+
+        if vector_store_src is None:
+            raise RuntimeError("Ni vector_store folder ni chroma.sqlite3 nisu pronađeni u zip arhivi.")
 
         if VECTOR_STORE_DIR.exists():
             shutil.rmtree(VECTOR_STORE_DIR, ignore_errors=True)
 
-        shutil.move(str(vector_store_src), str(VECTOR_STORE_DIR))
+        # ako je source ceo temp_dir, napravi target pa prekopiraj sadržaj
+        if vector_store_src == temp_dir:
+            VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
+            for item in temp_dir.iterdir():
+                if item.name == ZIP_PATH.name:
+                    continue
+                target = VECTOR_STORE_DIR / item.name
+                if item.is_dir():
+                    shutil.copytree(item, target, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(item, target)
+        else:
+            shutil.move(str(vector_store_src), str(VECTOR_STORE_DIR))
 
         if not vector_store_is_ready():
             raise RuntimeError("Vector store je preuzet, ali nije validno pripremljen.")
