@@ -30,7 +30,7 @@ def preuzmi_vector_store():
     print("Preuzimam bazu zakona...")
     zip_path = BASE_DIR / "vector_store.zip"
     gdown.download(
-        id="1pwlGDwyOmTATMRKKosLbuQjxm2SQ13jo",
+        id="11eP6RrmdDcWfYvjWeh4UAsvtxOmLDumV",
         output=str(zip_path),
         quiet=False
     )
