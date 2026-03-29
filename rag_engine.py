@@ -6,7 +6,7 @@ Kompatibilan sa ingest_service.py (metadata: law, article, source, chunk).
 
 Autor: moj_prvi_agent
 """
-
+import os
 from __future__ import annotations
 
 import re
@@ -30,46 +30,40 @@ VECTOR_STORE_DIR = BASE_DIR / "vector_store"
 VECTOR_STORE_ZIP = BASE_DIR / "vector_store.zip"
 GOOGLE_DRIVE_FILE_ID = "1pwlGDwyOmTATMRKKosLbuQjxm2SQ13jo"
 
-
-def preuzmi_vector_store() -> None:
-    """Preuzima vector_store.zip sa Google Drive-a i raspakuje ga ako baza ne postoji."""
+def preuzmi_vector_store():
     if VECTOR_STORE_DIR.exists():
-        print("✅ vector_store već postoji, preskačem download.")
+        print("✅ Vector store već postoji!")
         return
 
-    try:
-        print("⬇️ Preuzimam bazu zakona...")
-        gdown.download(
-            id=GOOGLE_DRIVE_FILE_ID,
-            output=str(VECTOR_STORE_ZIP),
-            quiet=False,
-            fuzzy=True,
-        )
+    print("⬇️ Preuzimam bazu zakona...")
+    zip_path = BASE_DIR / "vector_store.zip"
 
-        if not VECTOR_STORE_ZIP.exists():
-            raise FileNotFoundError("vector_store.zip nije preuzet.")
+    gdown.download(
+        id="1pwlGDwyOmTATMRKKosLbuQjxm2SQ13jo",
+        output=str(zip_path),
+        quiet=False
+    )
 
-        print("📦 Raspakujem bazu...")
-        with zipfile.ZipFile(VECTOR_STORE_ZIP, "r") as zf:
-            extract_path = BASE_DIR / "vector_store"
-            extract_path.mkdir(parents=True, exist_ok=True)
-            zf.extractall(extract_path)
+    if zip_path.exists():
+        print(f"📦 Zip preuzet: True, velicina: {zip_path.stat().st_size}")
+    else:
+        print("❌ Zip NIJE preuzet!")
+        return
 
-        if not VECTOR_STORE_DIR.exists():
-            raise FileNotFoundError("Raspakivanje je završeno, ali folder vector_store ne postoji.")
+    print("📦 Raspakujem...")
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        imena = z.namelist()
+        print(f"Fajlovi u zipu: {imena[:5]}")
+        z.extractall(BASE_DIR)
 
-        print("✅ Baza spremna!")
+    print(f"📁 Sadrzaj foldera: {list(BASE_DIR.iterdir())}")
 
-    except Exception as e:
-        print(f"❌ Greška pri preuzimanju vector_store baze: {e}")
-        raise
+    if not VECTOR_STORE_DIR.exists():
+        print("❌ vector_store folder ne postoji nakon raspakivanja!")
+        VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 
-    finally:
-        if VECTOR_STORE_ZIP.exists():
-            VECTOR_STORE_ZIP.unlink()
-
-
-preuzmi_vector_store()
+    zip_path.unlink()
+    print("✅ Gotovo!")
 
 # ─────────────────────────────────────────────
 # KONSTANTE
