@@ -1,6 +1,4 @@
-"""
-rag_engine.py — Legal AI Agent za srpsko pravo
-"""
+
 from __future__ import annotations
 
 import os
