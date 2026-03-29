@@ -53,10 +53,11 @@ def preuzmi_vector_store():
     print(f"📦 Zip preuzet, velicina: {zip_path.stat().st_size}")
     print("📦 Raspakujem...")
 
-    with zipfile.ZipFile(zip_path, "r") as z:
-        imena = z.namelist()
-        print(f"Fajlovi u zipu: {imena[:5]}")
-        z.extractall(BASE_DIR)
+    with zipfile.ZipFile(zip_path, 'r') as z:
+    imena = z.namelist()
+    print(f"Fajlovi u zipu: {imena[:5]}")
+    VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
+    z.extractall(VECTOR_STORE_DIR)
 
     print(f"📁 Sadrzaj vector_store: {list(VECTOR_STORE_DIR.iterdir())[:5]}")
     zip_path.unlink()
