@@ -1,18 +1,15 @@
 """
 rag_engine.py — Legal AI Agent za srpsko pravo
-
-Bulletproof RAG sistem za advokate.
-Kompatibilan sa ingest_service.py (metadata: law, article, source, chunk).
-
-Autor: moj_prvi_agent
 """
-import os
 from __future__ import annotations
 
+import os
 import re
+import zipfile
 from pathlib import Path
 from typing import Optional
 
+import gdown
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
@@ -20,15 +17,23 @@ from openai import OpenAI
 
 load_dotenv()
 
-import zipfile
-from pathlib import Path
-
-import gdown
+# ─────────────────────────────────────────────
+# KONSTANTE
+# ─────────────────────────────────────────────
 
 BASE_DIR = Path(__file__).resolve().parent
 VECTOR_STORE_DIR = BASE_DIR / "vector_store"
-VECTOR_STORE_ZIP = BASE_DIR / "vector_store.zip"
-GOOGLE_DRIVE_FILE_ID = "1pwlGDwyOmTATMRKKosLbuQjxm2SQ13jo"
+
+EMBEDDING_MODEL = "text-embedding-3-large"
+LLM_MODEL = "gpt-4o"
+TEMPERATURE = 0
+TOP_K_RETRIEVE = 12
+TOP_K_FINAL = 6
+
+# ─────────────────────────────────────────────
+# AUTO-DOWNLOAD VECTOR STORE
+# ─────────────────────────────────────────────
+
 
 def preuzmi_vector_store():
     if VECTOR_STORE_DIR.exists():
@@ -44,39 +49,26 @@ def preuzmi_vector_store():
         quiet=False
     )
 
-    if zip_path.exists():
-        print(f"📦 Zip preuzet: True, velicina: {zip_path.stat().st_size}")
-    else:
+    if not zip_path.exists():
         print("❌ Zip NIJE preuzet!")
         return
 
+    print(f"📦 Zip preuzet, velicina: {zip_path.stat().st_size}")
     print("📦 Raspakujem...")
-    with zipfile.ZipFile(zip_path, 'r') as z:
+
+    with zipfile.ZipFile(zip_path, "r") as z:
         imena = z.namelist()
         print(f"Fajlovi u zipu: {imena[:5]}")
-        z.extractall(BASE_DIR)
+        extract_path = BASE_DIR / "vector_store"
+        extract_path.mkdir(exist_ok=True)
+        z.extractall(extract_path)
 
-    print(f"📁 Sadrzaj foldera: {list(BASE_DIR.iterdir())}")
-
-    if not VECTOR_STORE_DIR.exists():
-        print("❌ vector_store folder ne postoji nakon raspakivanja!")
-        VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
-
+    print(f"📁 Sadrzaj vector_store: {list(VECTOR_STORE_DIR.iterdir())[:5]}")
     zip_path.unlink()
     print("✅ Gotovo!")
 
-# ─────────────────────────────────────────────
-# KONSTANTE
-# ─────────────────────────────────────────────
 
-BASE_DIR = Path(__file__).resolve().parent
-VECTOR_STORE_DIR = BASE_DIR / "vector_store"
-
-EMBEDDING_MODEL = "text-embedding-3-large"   # Veći model = bolji recall
-LLM_MODEL = "gpt-4o"
-TEMPERATURE = 0                              # NULA — nikakve kreativnosti
-TOP_K_RETRIEVE = 12                          # Više kandidata → bolji rerank
-TOP_K_FINAL = 6                              # Koliko šaljemo u prompt
+preuzmi_vector_store()
 
 # ─────────────────────────────────────────────
 # MAPIRANJE ZAKONA
@@ -133,7 +125,6 @@ def get_db() -> Chroma:
 # ─────────────────────────────────────────────
 
 def normalize(text: str) -> str:
-    """Latinizacija + lowercase, bez izmene semantike."""
     text = (text or "").lower()
     for src, dst in {"š": "s", "đ": "dj", "č": "c", "ć": "c", "ž": "z"}.items():
         text = text.replace(src, dst)
@@ -163,7 +154,6 @@ def tokenize(query: str) -> list[str]:
 def deduplicate(docs: list) -> list:
     seen: set[tuple] = set()
     result = []
-
     for doc in docs:
         meta = getattr(doc, "metadata", {}) or {}
         content = getattr(doc, "page_content", "") or ""
@@ -175,22 +165,19 @@ def deduplicate(docs: list) -> list:
         if key not in seen:
             seen.add(key)
             result.append(doc)
-
     return result
 
 
 def format_doc(doc) -> str:
     metadata = getattr(doc, "metadata", {}) or {}
     text = (getattr(doc, "page_content", "") or "").strip()
-
     law = metadata.get("law", "Nepoznat zakon")
     article = metadata.get("article", "Nepoznat član")
-
     return f"ZAKON: {law}\nČLAN: {article}\n\n{text}"
 
 
 # ─────────────────────────────────────────────
-# SCORING — deterministički reranker
+# SCORING
 # ─────────────────────────────────────────────
 
 def score_doc(doc, query: str, guessed_law: Optional[str], article_label: Optional[str]) -> float:
@@ -204,7 +191,6 @@ def score_doc(doc, query: str, guessed_law: Optional[str], article_label: Option
     qn = normalize(query)
     tokens = tokenize(query)
 
-    # 1) Poklapanje zakona
     if guessed_law:
         gn = normalize(guessed_law)
         if gn == doc_law:
@@ -212,7 +198,6 @@ def score_doc(doc, query: str, guessed_law: Optional[str], article_label: Option
         elif gn in doc_law:
             score += 35
 
-    # 2) Poklapanje člana — najvažniji signal
     if article_label:
         an = normalize(article_label)
         if an == doc_article:
@@ -222,11 +207,9 @@ def score_doc(doc, query: str, guessed_law: Optional[str], article_label: Option
         elif an in text:
             score += 30
 
-    # 3) Token poklapanje u tekstu
     hits = sum(1 for t in tokens if t in text)
     score += min(hits * 5, 30)
 
-    # 4) Visokovredne fraze
     high_value = [
         "nematerijalna steta", "dusevni bol", "fizicki bol",
         "pretrpljeni strah", "umanjenje zivotne aktivnosti",
@@ -238,13 +221,11 @@ def score_doc(doc, query: str, guessed_law: Optional[str], article_label: Option
         if phrase in qn and phrase in text:
             score += 15
 
-    # 5) Penali za očigledni promašaj
     critical_terms = ["nematerijal", "stet", "otkaz", "zastarel", "krivic", "nasledj"]
     for term in critical_terms:
         if term in qn and term not in text:
             score -= 20
 
-    # 6) Blagi bonus ako zakon pominje sebe u tekstu
     if guessed_law and normalize(guessed_law) in text:
         score += 8
 
@@ -269,7 +250,6 @@ def retrieve_documents(query: str, k: int = TOP_K_FINAL) -> list[str]:
 
     collected: list = []
 
-    # ── Korak 1: Direktno gađanje po metapodacima (100% preciznost kad postoji)
     if article_label:
         try:
             where = (
@@ -278,16 +258,13 @@ def retrieve_documents(query: str, k: int = TOP_K_FINAL) -> list[str]:
                 else {"article": article_label}
             )
             results = db.get(where=where)
-
             if results and results.get("documents"):
                 for text, meta in zip(results["documents"], results["metadatas"]):
                     obj = type("Doc", (), {"page_content": text, "metadata": meta})()
                     collected.append(obj)
-
         except Exception as e:
             print(f"[DIRECT_FETCH] {e}")
 
-    # ── Korak 2: Semantička pretraga sa varijacijama upita
     variations = _build_variations(query, guessed_law, article_label)
     for v in variations:
         try:
@@ -296,7 +273,6 @@ def retrieve_documents(query: str, k: int = TOP_K_FINAL) -> list[str]:
         except Exception as e:
             print(f"[SIMILARITY] '{v}': {e}")
 
-    # ── Korak 3: Deduplikacija → reranking → slice
     collected = deduplicate(collected)
     ranked = rerank(collected, query, guessed_law, article_label)
     top = ranked[:k]
@@ -318,7 +294,6 @@ def _build_variations(query: str, guessed_law: Optional[str], article_label: Opt
         if guessed_law:
             variations.append(f"{article_label} {guessed_law}")
 
-    # Tematske ekspanzije
     qn = normalize(query)
     expansions = {
         "nematerijal": [
@@ -329,25 +304,16 @@ def _build_variations(query: str, guessed_law: Optional[str], article_label: Opt
             "otkaz ugovora o radu zakon o radu",
             "povreda radne obaveze otkazni rok",
         ],
-        "zastarel": [
-            "zastarelost potrazivanja rok zastarelosti",
-        ],
-        "nasledj": [
-            "nasledjivanje zakonski naslednici testamenat",
-        ],
-        "razvod": [
-            "razvod braka bračna zajednica porodični zakon",
-        ],
-        "staratelj": [
-            "starateljstvo maloletnik porodični zakon",
-        ],
+        "zastarel": ["zastarelost potrazivanja rok zastarelosti"],
+        "nasledj": ["nasledjivanje zakonski naslednici testamenat"],
+        "razvod": ["razvod braka bračna zajednica porodični zakon"],
+        "staratelj": ["starateljstvo maloletnik porodični zakon"],
     }
 
     for kw, extras in expansions.items():
         if kw in qn:
             variations.extend(extras)
 
-    # Dedupe varijacija
     seen: set[str] = set()
     result = []
     for v in variations:
@@ -360,7 +326,7 @@ def _build_variations(query: str, guessed_law: Optional[str], article_label: Opt
 
 
 # ─────────────────────────────────────────────
-# SISTEM PROMPT — stroga pravna logika
+# SISTEM PROMPT
 # ─────────────────────────────────────────────
 
 SYSTEM_PROMPT = """
@@ -380,12 +346,11 @@ DOZVOLJENO JE:
 • Preformulisati zakonsku normu u praktičan i jasan odgovor
 • Sažeti zakon u konkretne tačke koje su korisne advokatu
 • Kada je moguće, organizuj odgovor sledećim redosledom:
-  1. osnovno pravilo
-  2. izuzeci ili posebni slučajevi
-  3. pravna posledica
-  4. šta treba dodatno proveriti za konkretan slučaj
 
-• Na kraju odgovora, kada je to opravdano kontekstom, dodaj kratku praktičnu napomenu šta je ključno proveriti da bi odgovor bio pravilno primenjen u konkretnom slučaju
+1. osnovno pravilo
+1. izuzeci ili posebni slučajevi
+1. pravna posledica
+1. šta treba dodatno proveriti za konkretan slučaj
 
 NIJE DOZVOLJENO:
 
@@ -394,51 +359,40 @@ NIJE DOZVOLJENO:
 • Proširivanje odgovora van dostavljenog konteksta
 
 1. Odgovaraš ISKLJUČIVO na osnovu dostavljenog zakonskog konteksta.
-2. ZABRANJENO: korišćenje opšteg znanja, pretpostavki, analogija ili pravnih zaključaka koji nisu direktno podržani dostavljenim tekstom.
-3. ZABRANJENO: izmišljanje zakona, članova, stavova, tačaka, rokova, prava, obaveza ili pravnih posledica.
-4. ZABRANJENO: mešanje pravnih instituta (npr. opšta naknada štete ≠ nematerijalna šteta) ukoliko to nije eksplicitno podržano tekstom.
-5. Ako traženi odgovor NIJE u kontekstu → reci to jasno i precizno. Ne popunjavaj praznine.
-6. Ako je kontekst DELIMIČAN → navedi šta jeste pronađeno, ali jasno označi šta nedostaje.
-7. Ako postoji tačan zakon i član → OBAVEZNO ih navedi sa punim nazivom.
-8. Ako postoji stav ili tačka unutar člana → navedi ih precizno (npr. “stav 2, tačka 3”).
-9. Citiraj SAMO ono što postoji u dostavljenom kontekstu — doslovno, bez izmena.
-10. Nivo pouzdanosti mora biti realan: ako postoji i najmanja sumnja → “srednja” ili “niska”.
-11.Ako je pitanje preširoko, neodređeno ili može imati više pravnih režima, prvo jasno reci da tačan odgovor zavisi od vrste postupka, pravnog odnosa ili konkretnog zakona. Tek zatim navedi relevantne mogućnosti pregledno i hijerarhijski.
+1. ZABRANJENO: korišćenje opšteg znanja, pretpostavki, analogija ili pravnih zaključaka koji nisu direktno podržani dostavljenim tekstom.
+1. ZABRANJENO: izmišljanje zakona, članova, stavova, tačaka, rokova, prava, obaveza ili pravnih posledica.
+1. ZABRANJENO: mešanje pravnih instituta ukoliko to nije eksplicitno podržano tekstom.
+1. Ako traženi odgovor NIJE u kontekstu → reci to jasno i precizno.
+1. Ako je kontekst DELIMIČAN → navedi šta jeste pronađeno, ali jasno označi šta nedostaje.
+1. Ako postoji tačan zakon i član → OBAVEZNO ih navedi sa punim nazivom.
+1. Ako postoji stav ili tačka unutar člana → navedi ih precizno.
+1. Citiraj SAMO ono što postoji u dostavljenom kontekstu — doslovno, bez izmena.
+1. Nivo pouzdanosti mora biti realan.
 
 ═══════════════════════════════════════════════════════════
 OBAVEZAN FORMAT ODGOVORA
 ═══════════════════════════════════════════════════════════
 
 PRAVNI OSNOV:
-
 • Navedi zakon i član koji direktno odgovara na pitanje
-• Ako navodiš više članova:
-• ukratko objasni njihovu ulogu (npr. definicija + pravna posledica)
-•Navodi SAMO najrelevantnije članove zakona (maksimalno 3). Ako postoji jedan ključni član, navedi samo njega.
 
 ODGOVOR:
 • Daj direktan i jasan odgovor na pitanje
-• Ako je moguće, strukturiraj odgovor u kratke tačke
-• Ne prepričavaj zakon — objasni šta norma znači u praksi
-• Koristi isključivo informacije iz dostavljenog konteksta
-• Kada daješ definiciju, koristi formulaciju koja je što bliža zakonskom tekstu
 
 CITAT IZ ZAKONA:
-[Doslovan citat koji direktno podržava odgovor. Ako ne postoji: “Nije pronađen direktan citat koji u potpunosti odgovara pitanju.”]
+[Doslovan citat koji direktno podržava odgovor.]
 
 PRAVNA POSLEDICA:
 • Ako pravna posledica jasno proizlazi iz teksta → navedi je
-• Ako je delimično vidljiva → navedi samo ono što je sigurno
-• Ako nije jasno → napiši da nije moguće pouzdano zaključiti 
 
 POSTUPANJE U PRAKSI:
-[Samo ako je direktno podržano tekstom. Ako ne: “Za konkretno postupanje u praksi potreban je širi pravni i činjenični kontekst.”]
+[Samo ako je direktno podržano tekstom.]
 
 OGRANIČENJA ODGOVORA:
-[Šta kontekst NE pokriva, šta bi trebalo proveriti u izvornom tekstu zakona, eventualne izmene i dopune.]
+[Šta kontekst NE pokriva.]
 
 NAPOMENA O POUZDANOSTI:
-[VISOKA — citat je direktan i potpun / SREDNJA — kontekst je delimičan / NISKA — kontekst nije dovoljan]
+[VISOKA / SREDNJA / NISKA]
 
 ═══════════════════════════════════════════════════════════
 STIL
@@ -447,19 +401,8 @@ STIL
 • Srpski jezik, latinica
 • Profesionalan, precizan, bez generičkog uvoda
 • Kratke rečenice, jasna struktura
-• Nikad ne pretpostavljaj ono što zakon ne kaže eksplicitno
-
-═══════════════════════════════════════════════════════════
-PRIORITET
-═══════════════════════════════════════════════════════════
-
-Advokat koristi ovaj alat da uštedi vreme.
-
-Odgovor mora biti:
-• jasan
-• konkretan
-• odmah primenljiv
 """.strip()
+
 # ─────────────────────────────────────────────
 # ANSWER ENGINE
 # ─────────────────────────────────────────────
@@ -482,10 +425,6 @@ def build_context(docs: list[str]) -> str:
 
 
 def answer_question(question: str) -> str:
-    """
-    Glavni ulaz za agenta.
-    Prima pitanje, vraća strukturiran pravni odgovor.
-    """
     if not question or not question.strip():
         return _no_context_response("Pitanje je prazno.")
 
@@ -549,21 +488,3 @@ Preporučuje se direktna konsultacija izvornog teksta zakona ili nadležnih prav
 
 NAPOMENA O POUZDANOSTI:
 NISKA — relevantan zakonski kontekst nije pronađen u bazi.""".strip()
-
-
-# ─────────────────────────────────────────────
-# NAPOMENA ZA REINGEST
-# ─────────────────────────────────────────────
-
-"""
-⚠️ VAŽNO: Ovaj fajl koristi EMBEDDING_MODEL = "text-embedding-3-large".
-Ako je postojeći vector_store kreiran sa "text-embedding-3-small",
-mora se pokrenuti reingest:
-
-    python ingest_service.py
-
-Pre toga, u ingest_service.py promeni:
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-
-Bez reingest-a pretraga neće raditi ispravno.
-"""
