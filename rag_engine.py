@@ -56,9 +56,7 @@ def preuzmi_vector_store():
     with zipfile.ZipFile(zip_path, "r") as z:
         imena = z.namelist()
         print(f"Fajlovi u zipu: {imena[:5]}")
-        extract_path = BASE_DIR / "vector_store"
-        extract_path.mkdir(exist_ok=True)
-        z.extractall(extract_path)
+        z.extractall(BASE_DIR)
 
     print(f"📁 Sadrzaj vector_store: {list(VECTOR_STORE_DIR.iterdir())[:5]}")
     zip_path.unlink()
