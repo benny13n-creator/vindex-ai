@@ -452,7 +452,7 @@ def build_context(docs: list[str]) -> str:
 
 
 def answer_question(question: str) -> str:
-    print("=== CLOUD TEST MARKER 777 ===")
+    print("=== RAG VERSION V3 CLOUD ===")
     if not question or not question.strip():
         return _no_context_response("Pitanje je prazno.")
 
