@@ -20,6 +20,55 @@ from openai import OpenAI
 
 load_dotenv()
 
+import zipfile
+from pathlib import Path
+
+import gdown
+
+BASE_DIR = Path(__file__).resolve().parent
+VECTOR_STORE_DIR = BASE_DIR / "vector_store"
+VECTOR_STORE_ZIP = BASE_DIR / "vector_store.zip"
+GOOGLE_DRIVE_FILE_ID = "1pwlGDwyOmTATMRKKosLbuQjxm2SQ13jo"
+
+
+def preuzmi_vector_store() -> None:
+    """Preuzima vector_store.zip sa Google Drive-a i raspakuje ga ako baza ne postoji."""
+    if VECTOR_STORE_DIR.exists():
+        print("✅ vector_store već postoji, preskačem download.")
+        return
+
+    try:
+        print("⬇️ Preuzimam bazu zakona...")
+        gdown.download(
+            id=GOOGLE_DRIVE_FILE_ID,
+            output=str(VECTOR_STORE_ZIP),
+            quiet=False,
+            fuzzy=True,
+        )
+
+        if not VECTOR_STORE_ZIP.exists():
+            raise FileNotFoundError("vector_store.zip nije preuzet.")
+
+        print("📦 Raspakujem bazu...")
+        with zipfile.ZipFile(VECTOR_STORE_ZIP, "r") as zf:
+            zf.extractall(BASE_DIR)
+
+        if not VECTOR_STORE_DIR.exists():
+            raise FileNotFoundError("Raspakivanje je završeno, ali folder vector_store ne postoji.")
+
+        print("✅ Baza spremna!")
+
+    except Exception as e:
+        print(f"❌ Greška pri preuzimanju vector_store baze: {e}")
+        raise
+
+    finally:
+        if VECTOR_STORE_ZIP.exists():
+            VECTOR_STORE_ZIP.unlink()
+
+
+preuzmi_vector_store()
+
 # ─────────────────────────────────────────────
 # KONSTANTE
 # ─────────────────────────────────────────────
