@@ -52,6 +52,17 @@ LAW_KEYWORDS = {
     "naknada stete": "zakon o obligacionim odnosima",
     "steta": "zakon o obligacionim odnosima",
     "zastarelost": "zakon o obligacionim odnosima",
+    "nematerijalna": "zakon o obligacionim odnosima",
+    "nematerijalna steta": "zakon o obligacionim odnosima",
+    "fizicki bolovi": "zakon o obligacionim odnosima",
+    "dusevni bolovi": "zakon o obligacionim odnosima",
+    "umanjenje zivotne aktivnosti": "zakon o obligacionim odnosima",
+    "naruzenost": "zakon o obligacionim odnosima",
+    "povreda ugleda": "zakon o obligacionim odnosima",
+    "povreda casti": "zakon o obligacionim odnosima",
+    "povreda slobode": "zakon o obligacionim odnosima",
+    "smrt bliskog lica": "zakon o obligacionim odnosima",
+    "strah": "zakon o obligacionim odnosima",
     "privredn": "zakon o privrednim drustvima",
     "privredno drustvo": "zakon o privrednim drustvima",
     "doo": "zakon o privrednim drustvima",
@@ -302,8 +313,10 @@ def score_doc(doc, query: str, guessed_law: Optional[str]) -> float:
     doc_law = normalize(str(meta.get("law", "")))
     doc_article = normalize(str(meta.get("article", "")))
     text = normalize(content)
+    q = normalize(query)
     tokens = tokenize(query)
 
+    # 1. bonus za pogođen zakon
     if guessed_law:
         guessed_law_norm = normalize(guessed_law)
         if guessed_law_norm == doc_law:
@@ -311,9 +324,11 @@ def score_doc(doc, query: str, guessed_law: Optional[str]) -> float:
         elif guessed_law_norm in doc_law:
             score += 40
 
+    # 2. token hits
     token_hits = sum(1 for t in tokens if t in text)
     score += min(token_hits * 5, 30)
 
+    # 3. član/stav bonus
     asked_article = extract_article_number(query)
     if asked_article:
         if asked_article in doc_article:
@@ -332,6 +347,35 @@ def score_doc(doc, query: str, guessed_law: Optional[str]) -> float:
             and re.search(rf"\bstav\s+{re.escape(asked_paragraph)}\b", text)
         ):
             score += 18
+
+    # 4. AGRESIVNI BOOST za nematerijalnu štetu -> ZOO član 200
+    if "nematerijalna steta" in q or "nematerijalne stete" in q:
+        if "obligacion" in doc_law:
+            score += 50
+        if "200" in doc_article and "obligacion" in doc_law:
+            score += 70
+
+        # kazna za pogrešan domen
+        if any(x in doc_law for x in ["patent", "zig", "autors"]):
+            score -= 60
+
+    # 5. dodatni signal iz samog teksta člana 200
+    zoo_signals = [
+        "fizicke bolove",
+        "dusevne bolove",
+        "umanjenja zivotne aktivnosti",
+        "naruzenosti",
+        "povrede ugleda",
+        "casti",
+        "slobode",
+        "prava licnosti",
+        "smrti bliskog lica",
+        "straha",
+        "pravicnu novcanu naknadu",
+    ]
+    if "nematerijalna" in q or "steta" in q:
+        hits = sum(1 for s in zoo_signals if s in text)
+        score += hits * 6
 
     if len(text) < 120:
         score -= 5
