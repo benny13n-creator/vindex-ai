@@ -51,7 +51,9 @@ def preuzmi_vector_store() -> None:
 
         print("📦 Raspakujem bazu...")
         with zipfile.ZipFile(VECTOR_STORE_ZIP, "r") as zf:
-            zf.extractall(BASE_DIR)
+            extract_path = BASE_DIR / "vector_store"
+            extract_path.mkdir(parents=True, exist_ok=True)
+            zf.extractall(extract_path)
 
         if not VECTOR_STORE_DIR.exists():
             raise FileNotFoundError("Raspakivanje je završeno, ali folder vector_store ne postoji.")
