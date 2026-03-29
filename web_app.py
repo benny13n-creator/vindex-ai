@@ -10,9 +10,6 @@ from pathlib import Path
 
 VECTOR_STORE_DIR = Path("vector_store")
 
-if not VECTOR_STORE_DIR.exists():
-    from ingest_service 
-    ingest_service.main()
 
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
