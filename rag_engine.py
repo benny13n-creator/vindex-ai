@@ -1,4 +1,5 @@
-from __future__ import annotations
+from __future__ import annotations 
+from app.services.retrieve import retrieve_documents
 
 import re
 import shutil
@@ -383,35 +384,6 @@ def score_doc(doc, query: str, guessed_law: Optional[str]) -> float:
     return score
 
 
-def retrieve_documents(query: str, k: int = TOP_K_FINAL) -> list[str]:
-    db = get_db()
-    guessed_law = guess_law(query)
-
-    collected = []
-    variations = [query]
-
-    if guessed_law:
-        variations.append(f"{query} {guessed_law}")
-
-    article_num = extract_article_number(query)
-    if article_num:
-        variations.append(f"član {article_num}")
-        if guessed_law:
-            variations.append(f"{guessed_law} član {article_num}")
-
-    for variant in variations:
-        try:
-            docs = db.similarity_search(variant, k=TOP_K_RETRIEVE)
-            collected.extend(docs)
-        except Exception as e:
-            print(f"[SIMILARITY_ERROR] {e}")
-
-    collected = deduplicate(collected)
-    scored = [(score_doc(doc, query, guessed_law), doc) for doc in collected]
-    scored.sort(key=lambda x: x[0], reverse=True)
-
-    top_docs = [doc for _, doc in scored[:k]]
-    return [format_doc(doc) for doc in top_docs]
 
 
 SYSTEM_PROMPT = """Ti si stručni pravni AI asistent za advokate u Republici Srbiji.
