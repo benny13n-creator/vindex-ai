@@ -6,10 +6,7 @@ import certifi
 import streamlit as st
 from rag_engine import answer_question
 
-from pathlib import Path
-
 VECTOR_STORE_DIR = Path("vector_store")
-
 
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
@@ -77,8 +74,6 @@ st.markdown(
     margin: 4px 0;
 }}
 
-
-
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
 
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -98,7 +93,6 @@ div[data-testid="stHeader"] {{ background: transparent !important; }}
 
 section[data-testid="stSidebar"] {{ display: none; }}
 
-/* ── NAV ── */
 .vx-nav {{
     display: flex;
     align-items: center;
@@ -120,7 +114,6 @@ section[data-testid="stSidebar"] {{ display: none; }}
 
 .vx-logo span {{ color: #3b9eff; }}
 
-/* ── GLOBALNA GLAVNA DUGMAD ── */
 .stButton > button {{
     background: linear-gradient(135deg, #2b8fff, #1a6fd4) !important;
     color: #fff !important;
@@ -140,7 +133,6 @@ section[data-testid="stSidebar"] {{ display: none; }}
     box-shadow: 0 12px 32px rgba(43,143,255,0.4) !important;
 }}
 
-/* ── NAVBAR: prva 4 dugmeta vrati na staro ── */
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton > button,
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button,
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stHorizontalBlock"] > div:nth-child(3) .stButton > button,
@@ -167,7 +159,6 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stHoriz
     transform: none !important;
 }}
 
-/* ── NAVBAR: samo 'Počni besplatno' ostaje plavo i poravnato ── */
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stHorizontalBlock"] > div:nth-child(5) .stButton > button {{
     background: linear-gradient(135deg, #2b8fff, #1a6fd4) !important;
     color: #fff !important;
@@ -180,9 +171,8 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stHoriz
     margin-top: -8px !important;
     box-shadow: 0 4px 16px rgba(43,143,255,0.4) !important;
     line-height: 1.2 !important;
- }}
+}}
 
-  /* FIX ALIGN CTA */
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stHorizontalBlock"] > div:nth-child(5) {{
     display: flex !important;
     align-items: center !important;
@@ -204,7 +194,6 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stHoriz
     transform: translateY(-1px) !important;
 }}
 
-/* ── INPUTS - TAMNO SIVA SA CRNIM SLOVIMA ── */
 .stTextInput > div > div > input,
 .stTextArea > div > div > textarea {{
     background: rgba(200,210,230,0.92) !important;
@@ -236,7 +225,6 @@ label[data-testid="stWidgetLabel"] p {{
     text-transform: uppercase !important;
 }}
 
-/* ── SELECTBOX ── */
 .stSelectbox > div > div {{
     background: rgba(200,210,230,0.92) !important;
     border: 1px solid rgba(255,255,255,0.15) !important;
@@ -244,7 +232,6 @@ label[data-testid="stWidgetLabel"] p {{
     color: #1a1a2e !important;
 }}
 
-/* ── TABS ── */
 .stTabs [data-baseweb="tab-list"] {{
     gap: 0 !important;
     background: rgba(255,255,255,0.04) !important;
@@ -270,7 +257,6 @@ label[data-testid="stWidgetLabel"] p {{
     border: none !important;
 }}
 
-/* ── TOGGLE ── */
 div[data-testid="stToggle"] {{
     background: rgba(255,255,255,0.08) !important;
     border: 1px solid rgba(255,255,255,0.20) !important;
@@ -284,7 +270,6 @@ div[data-testid="stToggle"] label {{
     font-weight: 600 !important;
 }}
 
-/* ── RESPONSE ── */
 .vx-response {{
     margin-top: 1.4rem;
     background: rgba(59,158,255,0.05);
@@ -309,7 +294,6 @@ div[data-testid="stToggle"] label {{
     white-space: pre-wrap;
 }}
 
-/* ── HERO ── */
 .vx-hero-badge {{
     display: inline-flex;
     align-items: center;
@@ -359,7 +343,6 @@ div[data-testid="stToggle"] label {{
     max-width: 480px;
 }}
 
-/* ── PANEL ── */
 .vx-panel {{
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.10);
@@ -383,7 +366,6 @@ div[data-testid="stToggle"] label {{
     margin-bottom: 1.6rem;
 }}
 
-/* ── FEATURES ── */
 .vx-features {{
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -420,7 +402,6 @@ div[data-testid="stToggle"] label {{
     line-height: 1.65;
 }}
 
-/* ── PRICING ── */
 .vx-plan {{
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.09);
@@ -515,7 +496,6 @@ div[data-testid="stToggle"] label {{
     flex-shrink: 0;
 }}
 
-/* ── LOADING ── */
 .vx-loading {{
     display: flex;
     align-items: center;
@@ -540,7 +520,6 @@ div[data-testid="stToggle"] label {{
     50% {{ transform: translateY(-5px); opacity: 1; }}
 }}
 
-/* ── FOOTER ── */
 .vx-footer {{
     border-top: 1px solid rgba(255,255,255,0.07);
     padding-top: 2rem;
@@ -720,10 +699,8 @@ if st.session_state.page == "home":
                             """<div class="vx-loading"><div class="vx-dot"></div><div class="vx-dot"></div><div class="vx-dot"></div><span>Generišem nacrt...</span></div>""",
                             unsafe_allow_html=True,
                         )
-                        nacrt = answer_question(f"Sastavi {vrsta} na osnovu sledećih činjenica: {opis}")
-
+                        nacrt = answer_question(f"Sastavi {vrsta} na osnovu sledecih cinjenica: {opis}")
                     nacrt_html = "<p>" + nacrt.replace("\n\n", "</p><p>").replace("\n", "<br>") + "</p>"
-
                     st.markdown(
                         f"""
 <div class="vx-response">
@@ -734,7 +711,7 @@ if st.session_state.page == "home":
                         unsafe_allow_html=True,
                     )
                 else:
-                    st.warning("Unesite opis slučaja.")
+                    st.warning("Unesite opis slucaja.")
 
         with tab3:
             st.markdown(
@@ -774,10 +751,16 @@ if st.session_state.page == "home":
                         )
                         p = pitanje_doc if pitanje_doc else "Identifikuj pravne rizike i sporne odredbe."
                         analiza = answer_question(f"{p}\n\nTEKST DOKUMENTA:\n{tekst_doc[:3000]}")
+                    analiza_html = "<p>" + analiza.replace("\n\n", "</p><p>").replace("\n", "<br>") + "</p>"
                     st.markdown(
-                        f'<div class="vx-response"><div class="vx-response-label">🔎 Analiza dokumenta</div><div class="vx-response-text">{"<p>" + analiza.replace("\\n\\n", "</p><p>").replace("\\n", "<br>") + "</p>"}</div></div>',
+                        f"""
+<div class="vx-response">
+    <div class="vx-response-label">🔎 Analiza dokumenta</div>
+    <div class="vx-response-text">{analiza_html}</div>
+</div>
+""",
                         unsafe_allow_html=True,
-                        )
+                    )
                 else:
                     st.warning("Nalepite tekst dokumenta.")
 
@@ -785,7 +768,6 @@ if st.session_state.page == "home":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── STATS ──
     st.markdown(
         """
 <div style="text-align:center;margin-bottom:3rem;padding:2rem;background:rgba(255,255,255,0.02);border-radius:20px;border:1px solid rgba(255,255,255,0.06);">
@@ -813,7 +795,6 @@ if st.session_state.page == "home":
         unsafe_allow_html=True,
     )
 
-    # ── FEATURES ──
     st.markdown(
         """
 <div class="vx-features">
@@ -837,7 +818,6 @@ if st.session_state.page == "home":
         unsafe_allow_html=True,
     )
 
-    # ── ZA ADVOKATE I KANCELARIJE ──
     h1, h2 = st.columns([1.2, 1], gap="large")
 
     with h1:
@@ -892,10 +872,6 @@ if st.session_state.page == "home":
 """,
             unsafe_allow_html=True,
         )
-
-# ═══════════════════════════════════
-# PAGE: FUNKCIJE
-# ═══════════════════════════════════
 
 elif st.session_state.page == "funkcije":
     st.markdown(
@@ -971,10 +947,6 @@ elif st.session_state.page == "funkcije":
 """,
             unsafe_allow_html=True,
         )
-
-# ═══════════════════════════════════
-# PAGE: PAKETI
-# ═══════════════════════════════════
 
 elif st.session_state.page == "paketi":
     st.markdown(
@@ -1059,10 +1031,6 @@ elif st.session_state.page == "paketi":
             unsafe_allow_html=True,
         )
 
-# ═══════════════════════════════════
-# PAGE: O NAMA
-# ═══════════════════════════════════
-
 elif st.session_state.page == "o_nama":
     st.markdown(
         """
@@ -1130,10 +1098,6 @@ elif st.session_state.page == "o_nama":
 """,
         unsafe_allow_html=True,
     )
-
-# ═══════════════════════════════════
-# FOOTER
-# ═══════════════════════════════════
 
 st.markdown(
     """
