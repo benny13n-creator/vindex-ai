@@ -2,4 +2,4 @@ vector_store/
 __pycache__/
 *.pyc
 .env
-vector_store.zip
+vector_store.zipnvector_store/
