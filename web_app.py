@@ -721,8 +721,16 @@ if st.session_state.page == "home":
                             unsafe_allow_html=True,
                         )
                         nacrt = answer_question(f"Sastavi {vrsta} na osnovu sledećih činjenica: {opis}")
+
+                    nacrt_html = "<p>" + nacrt.replace("\n\n", "</p><p>").replace("\n", "<br>") + "</p>"
+
                     st.markdown(
-                        f'<div class="vx-response"><div class="vx-response-label">📄 Nacrt podneska</div><div class="vx-response-text">{'<p>' + nacrt.replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'}</div></div>',
+                        f"""
+<div class="vx-response">
+    <div class="vx-response-label">📄 Nacrt podneska</div>
+    <div class="vx-response-text">{nacrt_html}</div>
+</div>
+""",
                         unsafe_allow_html=True,
                     )
                 else:
