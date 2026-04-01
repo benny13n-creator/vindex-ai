@@ -72,7 +72,39 @@ def get_db() -> Chroma:
     if _DB is not None:
         return _DB
 
-    ensure_vector_store()  # ← DODAJ OVO
+    # Preuzmi vector store ako ne postoji
+    if not VECTOR_STORE_DIR.exists() or not any(VECTOR_STORE_DIR.iterdir()):
+        try:
+            import gdown, zipfile, tempfile, shutil
+
+            print("Preuzimam bazu zakona iz retrieve.py...")
+            zip_path = BASE_DIR / "vector_store.zip"
+
+            gdown.download(
+                id="11eP6RrmdDcWfYvjWeh4UAsvtxOmLDumV",
+                output=str(zip_path),
+                quiet=False,
+                fuzzy=False,
+            )
+
+            temp_dir = Path(tempfile.mkdtemp())
+
+            with zipfile.ZipFile(zip_path, "r") as z:
+                z.extractall(temp_dir)
+
+            for p in temp_dir.rglob("vector_store"):
+                if p.is_dir():
+                    shutil.move(str(p), str(VECTOR_STORE_DIR))
+                    break
+
+            if zip_path.exists():
+                zip_path.unlink()
+
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            print("Vector store spreman!")
+
+        except Exception as e:
+            print(f"[GET_DB] Download greška: {e}")
 
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
     _DB = Chroma(
