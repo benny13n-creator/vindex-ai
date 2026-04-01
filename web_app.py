@@ -635,7 +635,7 @@ if st.session_state.page == "home":
                 label_visibility="collapsed",
             )
             st.markdown('<div class="main-btn">', unsafe_allow_html=True)
-            dugme = st.button("Dobij odgovor V3→", key="btn_odgovor", use_container_width=True)
+            dugme = st.button("Dobij odgovor →", key="btn_odgovor", use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
             if dugme:
