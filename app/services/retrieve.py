@@ -65,10 +65,14 @@ STOPWORDS = {
 _DB: Optional[Chroma] = None
 
 
+from rag_engine import ensure_vector_store
+
 def get_db() -> Chroma:
     global _DB
     if _DB is not None:
         return _DB
+
+    ensure_vector_store()  # ← DODAJ OVO
 
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
     _DB = Chroma(
