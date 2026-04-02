@@ -1,23 +1,17 @@
 from pathlib import Path
 import re
-import gdown
-import zipfile
-import tempfile
-import shutil
+import os
 from typing import Optional, List, Any, Tuple
 
 from dotenv import load_dotenv
-from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from openai import OpenAI
+from pinecone import Pinecone
 
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parents[2]
-VECTOR_STORE_DIR = BASE_DIR / "vector_store"
-
 EMBEDDING_MODEL = "text-embedding-3-large"
-GDRIVE_FILE_ID = "11eP6RrmdDcWfYvjWeh4UAsvtxOmLDumV"
+PINECONE_INDEX = "vindex-ai"
 
 LAW_HINTS = {
     "rad": "zakon o radu",
@@ -27,11 +21,13 @@ LAW_HINTS = {
     "prestanak radnog odnosa": "zakon o radu",
     "tehnoloski visak": "zakon o radu",
     "visak zaposlenih": "zakon o radu",
+    "disciplinska": "zakon o radu",
     "porodic": "porodicni zakon",
     "brak": "porodicni zakon",
     "razvod": "porodicni zakon",
     "dete": "porodicni zakon",
     "aliment": "porodicni zakon",
+    "staratelj": "porodicni zakon",
     "krivic": "krivicni zakonik",
     "krivicni": "krivicni zakonik",
     "krivicno": "krivicni zakonik",
@@ -68,103 +64,34 @@ STOPWORDS = {
     "i", "ili", "a", "ali", "te", "uz", "kod", "sa", "bez", "prema",
     "ovo", "onaj", "ovaj", "taj", "njih", "njegov", "njen", "moze",
     "mogu", "ima", "imaju", "biti", "bio", "bila", "bilo", "nisu",
-    "jeste", "nije", "clan", "član", "zakon", "stav", "tacka"
+    "jeste", "nije", "clan", "zakon", "stav", "tacka"
 }
 
-_DB: Optional[Chroma] = None
-_CLIENT: Optional[OpenAI] = None
+_PINECONE_INDEX = None
+_EMBEDDINGS = None
+_CLIENT = None
 
+def get_pinecone_index():
+    global _PINECONE_INDEX
+    if _PINECONE_INDEX is not None:
+        return _PINECONE_INDEX
+    api_key = os.getenv("PINECONE_API_KEY")
+    pc = Pinecone(api_key=api_key)
+    _PINECONE_INDEX = pc.Index(PINECONE_INDEX)
+    print("Pinecone index povezan!")
+    return _PINECONE_INDEX
 
-def _get_client() -> OpenAI:
+def get_embeddings():
+    global _EMBEDDINGS
+    if _EMBEDDINGS is None:
+        _EMBEDDINGS = OpenAIEmbeddings(model=EMBEDDING_MODEL)
+    return _EMBEDDINGS
+
+def get_client():
     global _CLIENT
     if _CLIENT is None:
         _CLIENT = OpenAI()
     return _CLIENT
-
-
-def _download_vector_store() -> None:
-    if VECTOR_STORE_DIR.exists() and any(VECTOR_STORE_DIR.iterdir()):
-        print("Vector store vec postoji.")
-        return
-
-    print("Preuzimam bazu zakona...")
-    zip_path = BASE_DIR / "vector_store.zip"
-
-    try:
-        if zip_path.exists():
-            zip_path.unlink()
-
-        downloaded = gdown.download(
-            id=GDRIVE_FILE_ID,
-            output=str(zip_path),
-            quiet=False,
-            fuzzy=False,
-        )
-
-        if not downloaded or not zip_path.exists():
-            raise RuntimeError("Zip nije preuzet.")
-
-        print("Raspakujem vector store...")
-        temp_dir = Path(tempfile.mkdtemp())
-
-        with zipfile.ZipFile(zip_path, "r") as z:
-            z.extractall(temp_dir)
-
-        vector_store_src = None
-        for p in temp_dir.rglob("vector_store"):
-            if p.is_dir():
-                vector_store_src = p
-                break
-
-        if vector_store_src is None:
-            if (temp_dir / "chroma.sqlite3").exists():
-                vector_store_src = temp_dir
-
-        if vector_store_src is None:
-            raise RuntimeError("vector_store nije pronađen u zip arhivi.")
-
-        if VECTOR_STORE_DIR.exists():
-            shutil.rmtree(VECTOR_STORE_DIR, ignore_errors=True)
-
-        if vector_store_src == temp_dir:
-            VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
-            for item in temp_dir.iterdir():
-                if item.name == zip_path.name:
-                    continue
-                target = VECTOR_STORE_DIR / item.name
-                if item.is_dir():
-                    shutil.copytree(item, target, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(item, target)
-        else:
-            shutil.move(str(vector_store_src), str(VECTOR_STORE_DIR))
-
-        print("Vector store uspesno pripremljen!")
-
-    except Exception as e:
-        print(f"[DOWNLOAD_ERROR] {e}")
-
-    finally:
-        if zip_path.exists():
-            zip_path.unlink()
-        if 'temp_dir' in locals():
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-
-def get_db() -> Chroma:
-    global _DB
-    if _DB is not None:
-        return _DB
-
-    _download_vector_store()
-
-    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
-    _DB = Chroma(
-        persist_directory=str(VECTOR_STORE_DIR),
-        embedding_function=embeddings,
-    )
-    return _DB
-
 
 def normalize(text: str) -> str:
     text = (text or "").lower()
@@ -173,12 +100,10 @@ def normalize(text: str) -> str:
         text = text.replace(src, dst)
     return text
 
-
 def tokenize_query(query: str) -> List[str]:
     q = normalize(query)
     tokens = re.findall(r"[a-z0-9]+", q)
     return [t for t in tokens if len(t) >= 3 and t not in STOPWORDS]
-
 
 def guess_law(query: str) -> Optional[str]:
     q = normalize(query)
@@ -187,52 +112,6 @@ def guess_law(query: str) -> Optional[str]:
         if normalize(keyword) in q:
             return law_name
     return None
-
-
-def expand_query_with_gpt(query: str) -> List[str]:
-    """
-    Koristi GPT da proširi query sa pravnim terminima.
-    Ovo omogućava semantic search da pronađe relevantne članove
-    čak i kada pitanje ne sadrži tačne pravne termine.
-    """
-    try:
-        client = _get_client()
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0,
-            max_tokens=300,
-            messages=[
-                {
-                    "role": "system",
-                    "content": """Ti si ekspert za srpsko pravo.
-Tvoj zadatak je da za dato pravno pitanje generišeš 5 kratkih search query-ja
-koji će pomoći u pronalaženju relevantnih članova zakona u bazi podataka.
-
-PRAVILA:
-
-- Svaki query treba biti kratak (3-8 reči)
-- Koristi pravne termine koji se nalaze u zakonima
-- Uključi naziv relevantnog zakona ako ga znaš
-- Koristi srpski jezik
-- Vrati SAMO listu query-ja, jedan po liniji, bez numeracije i objašnjenja"""
-                },
-                {
-                    "role": "user",
-                    "content": f"Pitanje: {query}"
-                }
-            ]
-        )
-
-        result = response.choices[0].message.content.strip()
-        expanded = [q.strip() for q in result.split('\n') if q.strip()]
-        print(f"[QUERY_EXPANSION] Original: {query}")
-        print(f"[QUERY_EXPANSION] Expanded: {expanded}")
-        return expanded[:5]
-
-    except Exception as e:
-        print(f"[QUERY_EXPANSION_ERROR] {e}")
-        return []
-
 
 def extract_article_number(query: str) -> Optional[str]:
     q = query.lower()
@@ -246,230 +125,179 @@ def extract_article_number(query: str) -> Optional[str]:
             return match.group(1)
     return None
 
-
 def build_article_label(article_number: Optional[str]) -> Optional[str]:
     if not article_number:
         return None
     return f"Član {article_number}"
 
+def expand_query_with_gpt(query: str) -> List[str]:
+    """GPT proširuje query sa pravnim terminima za bolji semantic search."""
+    try:
+        client = get_client()
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0,
+            max_tokens=200,
+            messages=[
+                {
+                    "role": "system",
+                    "content": """Ti si ekspert za srpsko pravo.
+Za dato pitanje generiši 4 kratka search query-ja (3-7 reči svaki)
+koji će pronaći relevantne članove zakona.
+Koristi pravne termine iz srpskih zakona.
+Vrati SAMO query-je, jedan po liniji, bez numeracije."""
+                },
+                {"role": "user", "content": f"Pitanje: {query}"}
+            ]
+        )
+        result = response.choices[0].message.content.strip()
+        expanded = [q.strip() for q in result.split('\n') if q.strip()]
+        print(f"[GPT_EXPANSION] {expanded}")
+        return expanded[:4]
+    except Exception as e:
+        print(f"[GPT_EXPANSION_ERROR] {e}")
+        return []
 
-def make_doc(doc_text: str, metadata: dict) -> Any:
-    doc_obj = type("Doc", (), {})()
-    doc_obj.page_content = doc_text
-    doc_obj.metadata = metadata or {}
-    return doc_obj
+def embed_query(query: str) -> List[float]:
+    """Konvertuje query u embedding vektor."""
+    emb = get_embeddings()
+    return emb.embed_query(query)
 
+def pinecone_search(query: str, k: int = 10, law_filter: Optional[str] = None) -> List[dict]:
+    """Semantic search u Pinecone."""
+    index = get_pinecone_index()
+    vector = embed_query(query)
 
-def unique_docs(docs: List[Any]) -> List[Any]:
-    seen = set()
-    unique = []
-    for doc in docs:
-        meta = doc.metadata or {}
-        law = normalize(meta.get("law", ""))
-        article = normalize(meta.get("article", ""))
-        text_key = normalize(doc.page_content[:600])
-        key = (law, article, text_key)
-        if key not in seen:
-            seen.add(key)
-            unique.append(doc)
-    return unique
+    filter_dict = None
+    if law_filter:
+        filter_dict = {"law": {"$eq": law_filter}}
 
+    try:
+        results = index.query(
+            vector=vector,
+            top_k=k,
+            include_metadata=True,
+            filter=filter_dict,
+        )
+        return results.get("matches", [])
+    except Exception as e:
+        print(f"[PINECONE_SEARCH_ERROR] {e}")
+        return []
 
-def format_doc(doc: Any) -> str:
-    metadata = doc.metadata or {}
-    law = metadata.get("law", "Nepoznat zakon")
-    article = metadata.get("article", "Nepoznat član")
-    text = doc.page_content.strip()
+def pinecone_fetch_article(article_label: str, law: Optional[str] = None) -> List[dict]:
+    """Direktno pretražuje po metadati člana."""
+    index = get_pinecone_index()
+
+    filter_dict = {"article": {"$eq": article_label}}
+    if law:
+        filter_dict = {"$and": [{"article": {"$eq": article_label}}, {"law": {"$eq": law}}]}
+
+    try:
+        # Koristimo dummy vektor za metadata-only search
+        dummy_vector = [0.0] * 3072
+        results = index.query(
+            vector=dummy_vector,
+            top_k=5,
+            include_metadata=True,
+            filter=filter_dict,
+        )
+        return results.get("matches", [])
+    except Exception as e:
+        print(f"[PINECONE_FETCH_ERROR] {e}")
+        return []
+
+def format_match(match: dict) -> str:
+    meta = match.get("metadata", {})
+    law = meta.get("law", "Nepoznat zakon")
+    article = meta.get("article", "Nepoznat član")
+    text = meta.get("text", "").strip()
     return f"""ZAKON: {law}
 ČLAN: {article}
 
 {text}
 """
 
-
-def direct_article_fetch(
-    db: Chroma,
-    article_label: Optional[str],
-    guessed_law: Optional[str],
-) -> List[Any]:
-    if not article_label:
-        return []
-
-    collected = []
-    try:
-        if guessed_law:
-            results = db.get(
-                where={"$and": [{"article": article_label}, {"law": guessed_law}]}
-            )
-        else:
-            results = db.get(where={"article": article_label})
-
-        if results and results.get("documents"):
-            for doc_text, meta in zip(results["documents"], results["metadatas"]):
-                collected.append(make_doc(doc_text, meta))
-    except Exception as e:
-        print(f"[DIRECT_FETCH_ERROR] {e}")
-    return collected
-
-
-def priority_fetch(db: Chroma, query: str) -> List[Any]:
-    qn = normalize(query)
-    collected = []
-    try:
-        if "nematerijal" in qn and "stet" in qn:
-            results = db.get(where={"law": "zakon o obligacionim odnosima"})
-            if results and results.get("documents"):
-                for doc_text, meta in zip(results["documents"], results["metadatas"]):
-                    text_norm = normalize(doc_text)
-                    if any(x in text_norm for x in [
-                        "nematerijalna steta", "dusevni bol", "fizicki bol",
-                        "pretrpljeni strah", "umanjenje zivotne aktivnosti"
-                    ]):
-                        collected.append(make_doc(doc_text, meta))
-    except Exception as e:
-        print(f"[PRIORITY_FETCH_ERROR] {e}")
-    return collected
-
-
-def semantic_fetch(
-    db: Chroma,
-    query_variations: List[str],
-    per_query_k: int = 8,
-) -> List[Any]:
-    collected = []
-    for qv in query_variations:
-        try:
-            docs = db.similarity_search(qv, k=per_query_k)
-            if docs:
-                collected.extend(docs)
-        except Exception as e:
-            print(f"[SIMILARITY_FETCH_ERROR] {qv} -> {e}")
-    return collected
-
-
-def compute_doc_score(
-    query: str,
-    doc: Any,
-    guessed_law: Optional[str],
-    article_label: Optional[str],
-) -> float:
-    score = 0.0
-    meta = doc.metadata or {}
+def compute_score(match: dict, query: str, guessed_law: Optional[str], article_label: Optional[str]) -> float:
+    """Reranking skor na osnovu Pinecone score + metadata bonus."""
+    base_score = match.get("score", 0.0) * 100
+    meta = match.get("metadata", {})
     doc_law = normalize(meta.get("law", ""))
     doc_article = normalize(meta.get("article", ""))
-    text = normalize(doc.page_content)
+    text = normalize(meta.get("text", ""))
     qn = normalize(query)
-    query_tokens = tokenize_query(query)
 
+    # Bonus za tačan zakon
     if guessed_law:
         gl = normalize(guessed_law)
         if gl == doc_law:
-            score += 35
+            base_score += 30
         elif gl in doc_law:
-            score += 24
+            base_score += 15
 
+    # Bonus za tačan član
     if article_label:
         al = normalize(article_label)
         if al == doc_article:
-            score += 60
+            base_score += 50
         elif al in doc_article:
-            score += 45
-        elif al in text:
-            score += 20
+            base_score += 30
 
-    token_hits = sum(1 for token in query_tokens if token in text)
-    score += min(token_hits * 4, 32)
+    # Token hits
+    tokens = tokenize_query(query)
+    token_hits = sum(1 for t in tokens if t in text)
+    base_score += min(token_hits * 3, 20)
 
-    important_phrases = [
-        "nematerijalna steta", "dusevni bol", "fizicki bol",
-        "pretrpljeni strah", "umanjenje zivotne aktivnosti",
-        "zastarelost", "naknada stete", "otkaz ugovora o radu",
-        "povreda radne obaveze", "prestanak radnog odnosa",
-        "tehnoloski visak", "izgubljena dobit", "izmakla korist",
-    ]
-    for phrase in important_phrases:
-        if phrase in qn and phrase in text:
-            score += 10
-
+    # Specijalni boost za nematerijalnu štetu
     if "nematerijal" in qn and "stet" in qn:
         if "nematerijalna steta" in text:
-            score += 80
-        if "dusevni bol" in text:
-            score += 50
-        if "fizicki bol" in text:
-            score += 40
-        if "pretrpljeni strah" in text:
-            score += 50
-        elif "strah" in text:
-            score += 35
-        if "umanjenje zivotne aktivnosti" in text:
-            score += 50
-        if doc_law == "zakon o obligacionim odnosima":
-            score += 30
-        else:
-            score -= 40
-        if doc_article == normalize("Član 200"):
-            score += 120
+            base_score += 50
+        if "obligacion" in doc_law:
+            base_score += 20
+        if "200" in doc_article and "obligacion" in doc_law:
+            base_score += 80
 
-    if doc_article:
-        score += 2
+    return base_score
 
-    if "nematerijal" in qn and "nematerijal" not in text:
-        score -= 12
-    if "stet" in qn and "stet" not in text:
-        score -= 10
-    if "otkaz" in qn and "otkaz" not in text:
-        score -= 12
-    if "zastarel" in qn and "zastarel" not in text:
-        score -= 12
-
-    return score
-
-
-def rank_docs(
-    query: str,
-    docs: List[Any],
-    guessed_law: Optional[str],
-    article_label: Optional[str],
-) -> List[Any]:
-    scored: List[Tuple[float, Any]] = []
-    for doc in docs:
-        s = compute_doc_score(query, doc, guessed_law, article_label)
-        scored.append((s, doc))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return [doc for _, doc in scored]
-
-
-def retrieve_documents(query: str, k: int = 5) -> List[str]:
-    db = get_db()
-
+def retrieve_documents(query: str, k: int = 6) -> List[str]:
+    """Glavni retrieval pipeline koristeći Pinecone."""
     guessed_law = guess_law(query)
     article_number = extract_article_number(query)
     article_label = build_article_label(article_number)
 
-    collected_docs: List[Any] = []
-
-    # 0) Priority fetch za specijalne slučajeve
-    collected_docs.extend(priority_fetch(db, query))
+    all_matches = []
 
     # 1) Direktno gađanje člana ako je naveden
-    collected_docs.extend(direct_article_fetch(db, article_label, guessed_law))
+    if article_label:
+        matches = pinecone_fetch_article(article_label, guessed_law)
+        all_matches.extend(matches)
+        print(f"[DIRECT_FETCH] {len(matches)} rezultata za {article_label}")
 
-    # 2) Originalni query + keyword varijacije
-    base_variations = [query]
-    if guessed_law:
-        base_variations.append(f"{query} {guessed_law}")
-    collected_docs.extend(semantic_fetch(db, base_variations, per_query_k=10))
+    # 2) Semantic search sa originalnim queryjem
+    matches = pinecone_search(query, k=12, law_filter=guessed_law)
+    all_matches.extend(matches)
 
-    # 3) GPT Query Expansion — ključno za milion pitanja
-    expanded_queries = expand_query_with_gpt(query)
-    if expanded_queries:
-        collected_docs.extend(semantic_fetch(db, expanded_queries, per_query_k=8))
+    # 3) Semantic search bez filtera (širi zahvat)
+    matches = pinecone_search(query, k=8)
+    all_matches.extend(matches)
 
-    # 4) Dedupe
-    collected_docs = unique_docs(collected_docs)
+    # 4) GPT Query Expansion
+    expanded = expand_query_with_gpt(query)
+    for eq in expanded:
+        matches = pinecone_search(eq, k=6)
+        all_matches.extend(matches)
 
-    # 5) Rerank
-    ranked_docs = rank_docs(query, collected_docs, guessed_law, article_label)
+    # 5) Dedupe po ID-u
+    seen_ids = set()
+    unique_matches = []
+    for m in all_matches:
+        if m["id"] not in seen_ids:
+            seen_ids.add(m["id"])
+            unique_matches.append(m)
 
-    return [format_doc(doc) for doc in ranked_docs[:k]]
+    # 6) Rerank
+    scored = [(compute_score(m, query, guessed_law, article_label), m) for m in unique_matches]
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    print(f"[RETRIEVE] Ukupno unique: {len(unique_matches)}, vracam top {k}")
+
+    return [format_match(m) for _, m in scored[:k]]

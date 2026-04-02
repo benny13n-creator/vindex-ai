@@ -9,3 +9,6 @@ pypdf
 tiktoken
 langchain-chroma
 gdown
+pinecone
+
+pinecone
