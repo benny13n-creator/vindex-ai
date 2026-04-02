@@ -645,7 +645,7 @@ if st.session_state.page == "home":
                             """
 <div class="vx-loading">
     <div class="vx-dot"></div><div class="vx-dot"></div><div class="vx-dot"></div>
-    <span>Pretragujem pravnu bazu...</span>
+    <span>Pretražujem pravnu bazu...</span>
 </div>
 """,
                             unsafe_allow_html=True,
@@ -695,10 +695,7 @@ if st.session_state.page == "home":
             if dugme_nacrt:
                 if opis and opis.strip():
                     with st.spinner(""):
-                        st.markdown(
-                            """<div class="vx-loading"><div class="vx-dot"></div><div class="vx-dot"></div><div class="vx-dot"></div><span>Generišem nacrt...</span></div>""",
-                            unsafe_allow_html=True,
-                        )
+                       
                         nacrt = answer_question(f"Sastavi {vrsta} na osnovu sledecih cinjenica: {opis}")
                     nacrt_html = "<p>" + nacrt.replace("\n\n", "</p><p>").replace("\n", "<br>") + "</p>"
                     st.markdown(
