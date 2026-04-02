@@ -9,6 +9,7 @@ from typing import Optional, List, Any, Tuple
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
+from openai import OpenAI
 
 load_dotenv()
 
@@ -23,6 +24,9 @@ LAW_HINTS = {
     "radni odnos": "zakon o radu",
     "otkaz": "zakon o radu",
     "zarada": "zakon o radu",
+    "prestanak radnog odnosa": "zakon o radu",
+    "tehnoloski visak": "zakon o radu",
+    "visak zaposlenih": "zakon o radu",
     "porodic": "porodicni zakon",
     "brak": "porodicni zakon",
     "razvod": "porodicni zakon",
@@ -44,18 +48,18 @@ LAW_HINTS = {
     "naknada": "zakon o obligacionim odnosima",
     "ugovor": "zakon o obligacionim odnosima",
     "zastarel": "zakon o obligacionim odnosima",
+    "izgubljena dobit": "zakon o obligacionim odnosima",
+    "izmakla korist": "zakon o obligacionim odnosima",
+    "imovinska steta": "zakon o obligacionim odnosima",
     "privredn": "zakon o privrednim drustvima",
     "drustv": "zakon o privrednim drustvima",
     "upravni spor": "zakon o upravnim sporovima",
-    "upravnom sporu": "zakon o upravnim sporovima",
     "upravni postupak": "zakon o opstem upravnom postupku",
-    "upravnog postupka": "zakon o opstem upravnom postupku",
     "vanparnic": "zakon o vanparnicnom postupku",
     "nasledj": "zakon o nasledjivanju",
     "ostavina": "zakon o nasledjivanju",
     "ustav": "ustav republike srbije",
     "potrosac": "zakon o zastiti potrosaca",
-    "potroša": "zakon o zastiti potrosaca",
 }
 
 STOPWORDS = {
@@ -64,10 +68,18 @@ STOPWORDS = {
     "i", "ili", "a", "ali", "te", "uz", "kod", "sa", "bez", "prema",
     "ovo", "onaj", "ovaj", "taj", "njih", "njegov", "njen", "moze",
     "mogu", "ima", "imaju", "biti", "bio", "bila", "bilo", "nisu",
-    "jeste", "nije", "clan", "član", "zakon", "stav", "tačka", "tacka"
+    "jeste", "nije", "clan", "član", "zakon", "stav", "tacka"
 }
 
 _DB: Optional[Chroma] = None
+_CLIENT: Optional[OpenAI] = None
+
+
+def _get_client() -> OpenAI:
+    global _CLIENT
+    if _CLIENT is None:
+        _CLIENT = OpenAI()
+    return _CLIENT
 
 
 def _download_vector_store() -> None:
@@ -98,14 +110,12 @@ def _download_vector_store() -> None:
         with zipfile.ZipFile(zip_path, "r") as z:
             z.extractall(temp_dir)
 
-        # Trazi vector_store folder
         vector_store_src = None
         for p in temp_dir.rglob("vector_store"):
             if p.is_dir():
                 vector_store_src = p
                 break
 
-        # Ako nije folder, proveri da li je chroma.sqlite3 direktno u root-u
         if vector_store_src is None:
             if (temp_dir / "chroma.sqlite3").exists():
                 vector_store_src = temp_dir
@@ -137,7 +147,7 @@ def _download_vector_store() -> None:
     finally:
         if zip_path.exists():
             zip_path.unlink()
-        if "temp_dir" in locals():
+        if 'temp_dir' in locals():
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 
@@ -158,13 +168,7 @@ def get_db() -> Chroma:
 
 def normalize(text: str) -> str:
     text = (text or "").lower()
-    replacements = {
-        "š": "s",
-        "đ": "dj",
-        "č": "c",
-        "ć": "c",
-        "ž": "z",
-    }
+    replacements = {"š": "s", "đ": "dj", "č": "c", "ć": "c", "ž": "z"}
     for src, dst in replacements.items():
         text = text.replace(src, dst)
     return text
@@ -173,14 +177,7 @@ def normalize(text: str) -> str:
 def tokenize_query(query: str) -> List[str]:
     q = normalize(query)
     tokens = re.findall(r"[a-z0-9]+", q)
-    cleaned = []
-    for token in tokens:
-        if len(token) < 3:
-            continue
-        if token in STOPWORDS:
-            continue
-        cleaned.append(token)
-    return cleaned
+    return [t for t in tokens if len(t) >= 3 and t not in STOPWORDS]
 
 
 def guess_law(query: str) -> Optional[str]:
@@ -190,6 +187,51 @@ def guess_law(query: str) -> Optional[str]:
         if normalize(keyword) in q:
             return law_name
     return None
+
+
+def expand_query_with_gpt(query: str) -> List[str]:
+    """
+    Koristi GPT da proširi query sa pravnim terminima.
+    Ovo omogućava semantic search da pronađe relevantne članove
+    čak i kada pitanje ne sadrži tačne pravne termine.
+    """
+    try:
+        client = _get_client()
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0,
+            max_tokens=300,
+            messages=[
+                {
+                    "role": "system",
+                    "content": """Ti si ekspert za srpsko pravo.
+Tvoj zadatak je da za dato pravno pitanje generišeš 5 kratkih search query-ja
+koji će pomoći u pronalaženju relevantnih članova zakona u bazi podataka.
+
+PRAVILA:
+
+- Svaki query treba biti kratak (3-8 reči)
+- Koristi pravne termine koji se nalaze u zakonima
+- Uključi naziv relevantnog zakona ako ga znaš
+- Koristi srpski jezik
+- Vrati SAMO listu query-ja, jedan po liniji, bez numeracije i objašnjenja"""
+                },
+                {
+                    "role": "user",
+                    "content": f"Pitanje: {query}"
+                }
+            ]
+        )
+
+        result = response.choices[0].message.content.strip()
+        expanded = [q.strip() for q in result.split('\n') if q.strip()]
+        print(f"[QUERY_EXPANSION] Original: {query}")
+        print(f"[QUERY_EXPANSION] Expanded: {expanded}")
+        return expanded[:5]
+
+    except Exception as e:
+        print(f"[QUERY_EXPANSION_ERROR] {e}")
+        return []
 
 
 def extract_article_number(query: str) -> Optional[str]:
@@ -245,54 +287,6 @@ def format_doc(doc: Any) -> str:
 """
 
 
-def build_query_variations(
-    query: str,
-    guessed_law: Optional[str],
-    article_label: Optional[str],
-) -> List[str]:
-    qn = normalize(query)
-    tokens = tokenize_query(query)
-    token_str = " ".join(tokens[:8]) if tokens else query
-
-    variations = [query]
-
-    if token_str and token_str != query:
-        variations.append(token_str)
-
-    if guessed_law:
-        variations.append(f"{query} {guessed_law}")
-        variations.append(f"{token_str} {guessed_law}")
-
-    if article_label:
-        variations.append(f"{article_label}")
-        variations.append(f"{article_label} {query}")
-        if guessed_law:
-            variations.append(f"{article_label} {guessed_law}")
-            variations.append(f"{article_label} {guessed_law} {token_str}")
-
-    if "nematerijal" in qn and "stet" in qn:
-        variations.append("nematerijalna steta zakon o obligacionim odnosima")
-        variations.append("dusevni bol pretrpljeni strah umanjenje zivotne aktivnosti zakon o obligacionim odnosima")
-        variations.append("naknada nematerijalne stete clan 200 zakon o obligacionim odnosima")
-
-    if "otkaz" in qn and "rad" in qn:
-        variations.append("otkaz ugovora o radu zakon o radu")
-        variations.append("povreda radne obaveze zakon o radu")
-
-    if "zastarel" in qn:
-        variations.append("zastarelost potrazivanja zakon o obligacionim odnosima")
-
-    deduped = []
-    seen = set()
-    for v in variations:
-        key = normalize(v)
-        if key not in seen:
-            seen.add(key)
-            deduped.append(v)
-
-    return deduped
-
-
 def direct_article_fetch(
     db: Chroma,
     article_label: Optional[str],
@@ -305,12 +299,7 @@ def direct_article_fetch(
     try:
         if guessed_law:
             results = db.get(
-                where={
-                    "$and": [
-                        {"article": article_label},
-                        {"law": guessed_law},
-                    ]
-                }
+                where={"$and": [{"article": article_label}, {"law": guessed_law}]}
             )
         else:
             results = db.get(where={"article": article_label})
@@ -318,10 +307,8 @@ def direct_article_fetch(
         if results and results.get("documents"):
             for doc_text, meta in zip(results["documents"], results["metadatas"]):
                 collected.append(make_doc(doc_text, meta))
-
     except Exception as e:
         print(f"[DIRECT_FETCH_ERROR] {e}")
-
     return collected
 
 
@@ -334,14 +321,10 @@ def priority_fetch(db: Chroma, query: str) -> List[Any]:
             if results and results.get("documents"):
                 for doc_text, meta in zip(results["documents"], results["metadatas"]):
                     text_norm = normalize(doc_text)
-                    if (
-                        "nematerijalna steta" in text_norm
-                        or "dusevni bol" in text_norm
-                        or "fizicki bol" in text_norm
-                        or "pretrpljeni strah" in text_norm
-                        or "strah" in text_norm
-                        or "umanjenje zivotne aktivnosti" in text_norm
-                    ):
+                    if any(x in text_norm for x in [
+                        "nematerijalna steta", "dusevni bol", "fizicki bol",
+                        "pretrpljeni strah", "umanjenje zivotne aktivnosti"
+                    ]):
                         collected.append(make_doc(doc_text, meta))
     except Exception as e:
         print(f"[PRIORITY_FETCH_ERROR] {e}")
@@ -371,7 +354,6 @@ def compute_doc_score(
     article_label: Optional[str],
 ) -> float:
     score = 0.0
-
     meta = doc.metadata or {}
     doc_law = normalize(meta.get("law", ""))
     doc_article = normalize(meta.get("article", ""))
@@ -402,8 +384,8 @@ def compute_doc_score(
         "nematerijalna steta", "dusevni bol", "fizicki bol",
         "pretrpljeni strah", "umanjenje zivotne aktivnosti",
         "zastarelost", "naknada stete", "otkaz ugovora o radu",
-        "povreda radne obaveze", "rok za zalbu", "zabluda",
-        "prevara", "raskid ugovora",
+        "povreda radne obaveze", "prestanak radnog odnosa",
+        "tehnoloski visak", "izgubljena dobit", "izmakla korist",
     ]
     for phrase in important_phrases:
         if phrase in qn and phrase in text:
@@ -458,47 +440,6 @@ def rank_docs(
     return [doc for _, doc in scored]
 
 
-def retrieve_article_raw(query: str):
-    db = get_db()
-    qn = normalize(query)
-
-    if "nematerijal" in qn and "stet" in qn:
-        try:
-            results = db.get(
-                where={
-                    "$and": [
-                        {"law": "zakon o obligacionim odnosima"},
-                        {"article": "Član 200"},
-                    ]
-                }
-            )
-            if results and results.get("documents"):
-                return {
-                    "law": results["metadatas"][0].get("law", "Nepoznat zakon"),
-                    "article": results["metadatas"][0].get("article", "Član 200"),
-                    "text": results["documents"][0],
-                }
-        except Exception as e:
-            print(f"[PRIORITY_200_ERROR] {e}")
-
-    article_number = extract_article_number(query)
-    if not article_number:
-        return None
-
-    article_label = build_article_label(article_number)
-    guessed_law = guess_law(query)
-    docs = direct_article_fetch(db, article_label, guessed_law)
-    if not docs:
-        return None
-
-    best = docs[0]
-    return {
-        "law": best.metadata.get("law", "Nepoznat zakon"),
-        "article": best.metadata.get("article", article_label),
-        "text": best.page_content,
-    }
-
-
 def retrieve_documents(query: str, k: int = 5) -> List[str]:
     db = get_db()
 
@@ -508,15 +449,27 @@ def retrieve_documents(query: str, k: int = 5) -> List[str]:
 
     collected_docs: List[Any] = []
 
+    # 0) Priority fetch za specijalne slučajeve
     collected_docs.extend(priority_fetch(db, query))
+
+    # 1) Direktno gađanje člana ako je naveden
     collected_docs.extend(direct_article_fetch(db, article_label, guessed_law))
 
-    query_variations = build_query_variations(query, guessed_law, article_label)
-    collected_docs.extend(
-        semantic_fetch(db, query_variations, per_query_k=max(k * 3, 10))
-    )
+    # 2) Originalni query + keyword varijacije
+    base_variations = [query]
+    if guessed_law:
+        base_variations.append(f"{query} {guessed_law}")
+    collected_docs.extend(semantic_fetch(db, base_variations, per_query_k=10))
 
+    # 3) GPT Query Expansion — ključno za milion pitanja
+    expanded_queries = expand_query_with_gpt(query)
+    if expanded_queries:
+        collected_docs.extend(semantic_fetch(db, expanded_queries, per_query_k=8))
+
+    # 4) Dedupe
     collected_docs = unique_docs(collected_docs)
+
+    # 5) Rerank
     ranked_docs = rank_docs(query, collected_docs, guessed_law, article_label)
 
     return [format_doc(doc) for doc in ranked_docs[:k]]
