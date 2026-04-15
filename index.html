@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vindex AI - Pravni asistent za Srbiju</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+:root {
+  --void: #010308;
+  --deep: #030810;
+  --blue: #4aa8ff;
+  --blue2: #89c8ff;
+  --gold: #c9a84c;
+  --gold2: #e8c97a;
+  --w: rgba(255,255,255,0.95);
+  --w2: rgba(255,255,255,0.55);
+  --w3: rgba(255,255,255,0.22);
+  --bord: rgba(255,255,255,0.06);
+  --green: #4ade80;
+  --amber: #f0b429;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+::-webkit-scrollbar { width: 3px; background: #010308; }
+::-webkit-scrollbar-thumb { background: rgba(74,168,255,0.25); border-radius: 2px; }
+body { background: #010308; color: rgba(255,255,255,0.95); font-family: 'DM Sans', sans-serif; overflow-x: hidden; cursor: none; }
+
+#cursor { position: fixed; width: 10px; height: 10px; background: #4aa8ff; border-radius: 50%; pointer-events: none; z-index: 8999; transform: translate(-50%,-50%); box-shadow: 0 0 15px #4aa8ff; mix-blend-mode: screen; transition: width 0.2s, height 0.2s; }
+#cursor-ring { position: fixed; width: 34px; height: 34px; border: 1px solid rgba(74,168,255,0.45); border-radius: 50%; pointer-events: none; z-index: 8998; transform: translate(-50%,-50%); transition: all 0.12s ease; }
+body.hovering #cursor { width: 18px; height: 18px; background: #c9a84c; box-shadow: 0 0 20px #c9a84c; }
+body.hovering #cursor-ring { width: 56px; height: 56px; border-color: rgba(201,168,76,0.3); }
+#cv { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+/* NAV */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 500; display: flex; align-items: center; justify-content: space-between; padding: 1.3rem 4rem; background: transparent; border-bottom: 1px solid transparent; transition: all 0.6s; }
+nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border-bottom-color: rgba(74,168,255,0.1); }
+.logo { font-family: ‘Cormorant Garamond’, serif; font-size: 1.5rem; font-weight: 600; color: #fff; text-decoration: none; }
+.logo em { color: #4aa8ff; font-style: normal; }
+.nav-links { display: flex; gap: 2.5rem; }
+.nav-links a { font-size: 0.78rem; font-weight: 400; color: rgba(255,255,255,0.55); text-decoration: none; letter-spacing: 0.04em; transition: color 0.2s; cursor: none; }
+.nav-links a:hover { color: #fff; }
+.nav-cta { padding: 0.6rem 1.5rem; border: 1px solid rgba(74,168,255,0.35); border-radius: 6px; color: #89c8ff; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; transition: all 0.3s; cursor: none; white-space: nowrap; }
+.nav-cta:hover { border-color: #4aa8ff; box-shadow: 0 0 28px rgba(74,168,255,0.25); color: #fff; }
+
+/* HAMBURGER */
+.hamburger { display: none; flex-direction: column; gap: 5px; cursor: none; padding: 4px; background: none; border: none; }
+.hamburger span { display: block; width: 22px; height: 2px; background: rgba(255,255,255,0.7); border-radius: 2px; transition: all 0.3s; }
+.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity: 0; }
+.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* MOBILE MENU */
+.mobile-menu { display: none; position: fixed; inset: 0; z-index: 490; background: rgba(1,3,8,0.97); backdrop-filter: blur(30px); flex-direction: column; align-items: center; justify-content: center; gap: 2.5rem; }
+.mobile-menu.open { display: flex; }
+.mobile-menu a { font-family: ‘Cormorant Garamond’, serif; font-size: 2.2rem; font-weight: 600; color: rgba(255,255,255,0.7); text-decoration: none; transition: color 0.2s; }
+.mobile-menu a:hover { color: #fff; }
+.mobile-menu .m-cta { font-family: ‘DM Sans’, sans-serif; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.9rem 2.5rem; border: 1px solid rgba(74,168,255,0.4); border-radius: 8px; color: #89c8ff; margin-top: 1rem; }
+
+/* HERO */
+#hero { position: relative; z-index: 2; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8rem 4rem 5rem; overflow: hidden; gap: 0; }
+.orb { position: absolute; border-radius: 50%; filter: blur(100px); pointer-events: none; }
+.orb-1 { width: 700px; height: 700px; background: radial-gradient(circle, rgba(74,168,255,0.09) 0%, transparent 70%); top: -150px; right: -200px; animation: float1 14s ease-in-out infinite; }
+.orb-2 { width: 450px; height: 450px; background: radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%); bottom: 0; left: -100px; animation: float2 11s ease-in-out infinite; }
+@keyframes float1 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(-40px,50px);} }
+@keyframes float2 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(30px,-30px);} }
+.grid-bg { position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(74,168,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(74,168,255,0.022) 1px, transparent 1px); background-size: 80px 80px; mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, black 0%, transparent 100%); }
+
+.hero-center { text-align: center; position: relative; z-index: 2; width: 100%; max-width: 900px; margin-bottom: 4rem; }
+.h-badge { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.3rem 1rem; border: 1px solid rgba(74,168,255,0.25); border-radius: 999px; background: rgba(74,168,255,0.06); font-family: ‘JetBrains Mono’, monospace; font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: #89c8ff; margin-bottom: 2rem; }
+.pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: #4aa8ff; box-shadow: 0 0 12px #4aa8ff; animation: pulse-a 2.2s infinite; flex-shrink: 0; }
+@keyframes pulse-a { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.3;transform:scale(0.5);} }
+.h1 { font-family: ‘Cormorant Garamond’, serif; font-size: clamp(4rem,8vw,9rem); font-weight: 700; line-height: 0.92; letter-spacing: -0.03em; color: #fff; }
+.h1-italic { font-family: ‘Cormorant Garamond’, serif; font-size: clamp(4rem,8vw,9rem); font-weight: 300; font-style: italic; line-height: 1.0; letter-spacing: -0.02em; color: #4aa8ff; margin-bottom: 1.5rem; }
+@keyframes grad-shift { 0%{background-position:0% center;} 100%{background-position:300% center;} }
+.h-desc { font-size: 1.05rem; line-height: 1.92; color: rgba(255,255,255,0.55); font-weight: 300; max-width: 560px; margin: 0 auto 2.5rem; }
+.h-cta { display: flex; align-items: center; justify-content: center; gap: 1.8rem; margin-bottom: 3rem; flex-wrap: wrap; }
+.btn-primary { position: relative; padding: 1rem 2.4rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 8px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.04em; cursor: none; overflow: hidden; transition: all 0.35s; text-decoration: none; box-shadow: 0 8px 40px rgba(74,168,255,0.35); display: inline-block; }
+.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 20px 60px rgba(74,168,255,0.5); }
+.btn-ghost { font-size: 0.84rem; color: rgba(255,255,255,0.22); font-weight: 300; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s; cursor: none; }
+.btn-ghost:hover { color: rgba(255,255,255,0.55); }
+
+/* STATS */
+.h-stats { display: flex; gap: 0; justify-content: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 2rem; }
+.h-stat { text-align: center; padding: 0 2.5rem; border-right: 1px solid rgba(255,255,255,0.06); }
+.h-stat:last-child { border-right: none; }
+.h-stat-num { font-family: ‘Cormorant Garamond’, serif; font-size: 2.2rem; font-weight: 700; color: #fff; letter-spacing: -0.03em; line-height: 1; }
+.h-stat-num .acc { color: #89c8ff; font-weight: 300; font-size: 1.5rem; }
+.h-stat-lbl { font-family: ‘JetBrains Mono’, monospace; font-size: 0.53rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.40); margin-top: 0.3rem; }
+
+/* HERO 3-COLUMN LAYOUT */
+.hero-center { margin-bottom: 2.5rem; }
+.hero-3col { display: grid; grid-template-columns: 1fr 1.7fr 1fr; gap: 3.5rem; width: 100%; max-width: 1300px; position: relative; z-index: 2; align-items: stretch; margin-bottom: 3rem; }
+.h3-left { display: flex; align-items: stretch; }
+.h3-center { display: flex; flex-direction: column; }
+.h3-right { display: flex; align-items: stretch; }
+.h3-center .terminal-wrap { width: 100%; flex: 1; }
+.h3-center textarea.t-input { height: 130px !important; }
+.h3-center .t-body { padding: 1.6rem 1.8rem; }
+.h3-center .t-exec { padding: 1.0rem; font-size: 0.87rem; }
+#sphereWrap { width: 100%; height: 100%; min-height: 380px; display: flex; align-items: center; justify-content: center; }
+#sphereCanvas { width: 100%; height: 100%; }
+.hero-intro-panel { display: flex; flex-direction: column; justify-content: center; gap: 1.4rem; padding: 1.8rem 0; height: 100%; }
+.hero-intro-panel .hi-label { font-family: 'JetBrains Mono', monospace; font-size: 0.54rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.7; }
+.hero-intro-panel p { font-size: 0.9rem; color: rgba(255,255,255,0.62); line-height: 1.88; font-weight: 300; }
+.hero-intro-panel p strong { color: rgba(255,255,255,0.92); font-weight: 600; }
+.hero-intro-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+.hero-intro-list li { font-size: 0.81rem; color: rgba(255,255,255,0.52); display: flex; align-items: flex-start; gap: 0.55rem; line-height: 1.55; }
+.hero-intro-list li::before { content: '→'; color: #4aa8ff; font-size: 0.7rem; flex-shrink: 0; margin-top: 0.1rem; }
+.hero-foot { width: 100%; max-width: 900px; position: relative; z-index: 2; text-align: center; }
+#sphereCanvas { width: 100%; height: 100%; }
+
+/* SAMPLE RESPONSE PANEL */
+.sample-resp-panel { background: rgba(1,5,14,0.88); border: 1px solid rgba(74,168,255,0.18); border-radius: 18px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.55); position: relative; }
+.sample-resp-panel::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.55), rgba(201,168,76,0.25), transparent); }
+.srp-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
+.srp-dots { display: flex; gap: 6px; }
+.srp-dot { width: 9px; height: 9px; border-radius: 50%; }
+.sd1{background:#ff5f57;opacity:0.7;} .sd2{background:#ffbd2e;opacity:0.7;} .sd3{background:#28c840;opacity:0.7;}
+.srp-title { font-family: 'JetBrains Mono', monospace; font-size: 0.56rem; letter-spacing: 0.14em; color: rgba(255,255,255,0.22); text-transform: uppercase; }
+.srp-time { font-family: 'JetBrains Mono', monospace; font-size: 0.56rem; color: #4ade80; display: flex; align-items: center; gap: 0.4rem; }
+.srp-body { padding: 1.4rem 1.5rem; display: flex; flex-direction: column; gap: 0.85rem; }
+.srp-q { background: rgba(74,168,255,0.05); border: 1px solid rgba(74,168,255,0.13); border-radius: 9px; padding: 0.8rem 1rem; }
+.srp-ql { font-family: 'JetBrains Mono', monospace; font-size: 0.49rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.3rem; }
+.srp-qt { font-size: 0.78rem; color: rgba(255,255,255,0.55); font-weight: 300; line-height: 1.6; }
+.srp-section { padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.srp-section:last-child { border-bottom: none; padding-bottom: 0; }
+.srp-lbl { font-family: 'JetBrains Mono', monospace; font-size: 0.47rem; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem; }
+.srp-lbl::before { content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+.srp-lbl.blue { color: #89c8ff; } .srp-lbl.blue::before { background: #89c8ff; box-shadow: 0 0 6px #89c8ff; }
+.srp-lbl.gold { color: #e8c97a; } .srp-lbl.gold::before { background: #e8c97a; box-shadow: 0 0 5px rgba(232,201,122,0.6); }
+.srp-lbl.green { color: #4ade80; } .srp-lbl.green::before { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.srp-lbl.amber { color: #f0b429; } .srp-lbl.amber::before { background: #f0b429; box-shadow: 0 0 5px rgba(240,180,41,0.6); }
+.srp-text { font-size: 0.78rem; line-height: 1.82; font-weight: 300; color: rgba(255,255,255,0.68); }
+.srp-text.gold { color: rgba(232,201,122,0.85); font-style: italic; border-left: 2px solid rgba(232,201,122,0.2); padding-left: 0.75rem; }
+.srp-text.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #f0b429; }
+.srp-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.18rem 0.65rem; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; letter-spacing: 0.1em; background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); color: #4ade80; margin-top: 0.5rem; }
+.srp-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+
+/* TERMINAL */
+.terminal { background: rgba(1,5,14,0.92); border: 1px solid rgba(74,168,255,0.18); border-radius: 16px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); backdrop-filter: blur(20px); position: relative; }
+.terminal::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.5), rgba(201,168,76,0.3), transparent); }
+.t-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
+.t-dots { display: flex; gap: 6px; }
+.t-dot { width: 10px; height: 10px; border-radius: 50%; }
+.td1{background:#ff5f57;} .td2{background:#ffbd2e;} .td3{background:#28c840;}
+.t-title { font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.14em; color: rgba(255,255,255,0.22); text-transform: uppercase; }
+.t-status { display: flex; align-items: center; gap: 0.4rem; font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: #4ade80; }
+.t-sdot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; animation: blink-s 2s infinite; }
+@keyframes blink-s { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+.t-body { padding: 1.5rem; }
+.t-tabs { display: flex; gap: 1px; background: rgba(255,255,255,0.04); border-radius: 8px; padding: 3px; margin-bottom: 1.2rem; border: 1px solid rgba(255,255,255,0.06); }
+.t-tab { flex: 1; padding: 0.45rem; text-align: center; font-size: 0.72rem; font-weight: 500; color: rgba(255,255,255,0.22); border-radius: 6px; cursor: none; transition: all 0.25s; border: 1px solid transparent; }
+.t-tab.active { background: rgba(74,168,255,0.1); color: #89c8ff; border-color: rgba(74,168,255,0.2); }
+.t-tab:hover { color: rgba(255,255,255,0.55); }
+.t-label { font-family: ‘DM Sans’, sans-serif; font-size: 0.73rem; font-weight: 500; color: rgba(255,255,255,0.52); margin-bottom: 0.45rem; display: block; }
+textarea.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.8rem; font-weight: 300; line-height: 1.7; padding: 0.9rem 1.1rem; outline: none; resize: none; height: 86px; caret-color: #4aa8ff; transition: border-color 0.25s; }
+textarea.t-input::placeholder { color: rgba(255,255,255,0.18); }
+textarea.t-input:focus { border-color: rgba(74,168,255,0.38); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
+select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.76rem; padding: 0.75rem 1.1rem; outline: none; cursor: none; appearance: none; margin-bottom: 0.8rem; }
+.t-exec { width: 100%; margin-top: 0.9rem; padding: 0.9rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.84rem; font-weight: 600; letter-spacing: 0.04em; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.t-exec:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(74,168,255,0.5); }
+.t-resp { display: none; margin-top: 1rem; }
+.t-resp.show { display: block; animation: fade-in 0.4s ease; }
+@keyframes fade-in { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+.resp-inner { background: rgba(74,168,255,0.04); border: 1px solid rgba(74,168,255,0.16); border-left: 2px solid #4aa8ff; border-radius: 10px; padding: 1.1rem 1.3rem; }
+.resp-lbl { font-family: ‘JetBrains Mono’, monospace; font-size: 0.52rem; letter-spacing: 0.22em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.55rem; }
+.resp-body { font-size: 0.82rem; color: rgba(255,255,255,0.78); line-height: 1.9; font-weight: 300; white-space: pre-wrap; }
+.resp-cursor::after { content: ‘\25AE’; color: #4aa8ff; animation: blink-c 0.8s step-end infinite; }
+@keyframes blink-c { 0%,100%{opacity:1;} 50%{opacity:0;} }
+.ld { width: 5px; height: 5px; background: #4aa8ff; border-radius: 50%; display: inline-block; animation: bounce-d 1.2s infinite; }
+.ld:nth-child(2){animation-delay:0.14s;} .ld:nth-child(3){animation-delay:0.28s;}
+@keyframes bounce-d { 0%,100%{transform:translateY(0);opacity:0.3;} 50%{transform:translateY(-6px);opacity:1;} }
+
+/* MARQUEE */
+.marquee-section { position: relative; z-index: 3; overflow: hidden; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); background: #030810; }
+.marquee-row { display: flex; overflow: hidden; padding: 1rem 0; }
+.marquee-row:first-child { border-bottom: 1px solid rgba(255,255,255,0.06); }
+.marquee-track { display: flex; white-space: nowrap; animation: marquee-scroll 35s linear infinite; }
+.marquee-track.rev { animation-direction: reverse; animation-duration: 45s; }
+.marquee-item { display: inline-flex; align-items: center; gap: 1.2rem; padding: 0.3rem 2rem; font-family: ‘Cormorant Garamond’, serif; font-size: 1.4rem; font-weight: 600; font-style: italic; color: rgba(255,255,255,0.12); white-space: nowrap; }
+.marquee-sep { color: #4aa8ff; opacity: 0.4; font-style: normal; }
+@keyframes marquee-scroll { 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
+
+/* SECTIONS */
+.section { position: relative; z-index: 3; padding: 7rem 5rem; border-bottom: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+.section.alt { background: #030810; }
+.sbadge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.88rem; border: 1px solid rgba(74,168,255,0.22); border-radius: 999px; background: rgba(74,168,255,0.06); font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase; color: #89c8ff; margin-bottom: 1.2rem; }
+.sh { font-family: ‘Cormorant Garamond’, serif; font-size: clamp(2.4rem,4vw,4.2rem); font-weight: 700; line-height: 1.0; letter-spacing: -0.025em; color: #fff; margin-bottom: 1rem; }
+.sh em { font-style: italic; color: #89c8ff; font-weight: 300; }
+.sh .gold { font-style: italic; color: #e8c97a; font-weight: 300; }
+.ss { font-size: 0.95rem; color: rgba(255,255,255,0.68); font-weight: 300; line-height: 1.9; max-width: 530px; margin-bottom: 3.5rem; }
+
+/* FEAT CARDS */
+.feat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; }
+.feat-hint { font-family: ‘JetBrains Mono’, monospace; font-size: 0.54rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(74,168,255,0.4); text-align: center; margin-top: 1rem; }
+.feat-card { perspective: 1100px; height: 290px; cursor: none; }
+.feat-card-wrap { position: relative; }
+.feat-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(0.16,1,0.3,1); }
+.feat-card:hover .feat-inner { transform: rotateY(180deg); }
+.feat-front, .feat-back { position: absolute; inset: 0; border-radius: 16px; padding: 2.3rem; backface-visibility: hidden; border: 1px solid rgba(255,255,255,0.06); }
+.feat-front { background: #030810; display: flex; flex-direction: column; }
+.feat-front::after { content: ‘’; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #4aa8ff, transparent); transform: scaleX(0); transform-origin: left; transition: transform 0.5s; border-radius: 0 0 16px 16px; }
+.feat-card:hover .feat-front::after { transform: scaleX(1); }
+.feat-back { background: linear-gradient(135deg, rgba(74,168,255,0.09) 0%, rgba(18,100,196,0.14) 100%); transform: rotateY(180deg); border-color: rgba(74,168,255,0.28); display: flex; flex-direction: column; justify-content: center; }
+.feat-num { font-family: ‘JetBrains Mono’, monospace; font-size: 0.53rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.22); margin-bottom: auto; }
+.feat-icon { font-size: 1.5rem; margin-bottom: 1rem; }
+.feat-title { font-family: ‘Cormorant Garamond’, serif; font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+.feat-desc { font-size: 0.8rem; color: rgba(255,255,255,0.68); line-height: 1.78; font-weight: 300; }
+.feat-btitle { font-family: ‘Cormorant Garamond’, serif; font-size: 1.05rem; font-weight: 700; color: #89c8ff; margin-bottom: 1rem; }
+.feat-blist { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
+.feat-blist li { font-size: 0.79rem; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 0.6rem; }
+.feat-blist li::before { content: ‘\2192’; color: #4aa8ff; font-size: 0.68rem; }
+
+/* COMPARE */
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; margin-top: 2rem; }
+.cmp-col { padding: 2.5rem; background: #030810; transition: background 0.3s; }
+.cmp-col:hover { background: rgba(74,168,255,0.025); }
+.cmp-lbl { font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.55; margin-bottom: 0.5rem; }
+.cmp-head { font-family: ‘Cormorant Garamond’, serif; font-size: 1.3rem; font-weight: 700; color: #fff; margin-bottom: 1.3rem; }
+.cmp-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.81rem; color: rgba(255,255,255,0.70); font-weight: 300; }
+.cmp-row:last-child { border-bottom: none; }
+.ck { font-size: 0.7rem; flex-shrink: 0; }
+.ck.ok { color: #4aa8ff; }
+.ck.no { color: rgba(255,255,255,0.2); }
+
+/* DEMO */
+.demo-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 5rem; align-items: center; }
+.testimonials { display: flex; flex-direction: column; gap: 1rem; }
+.tc { background: #030810; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 1.5rem 1.7rem; position: relative; overflow: hidden; transition: all 0.38s; }
+.tc::before { content: ‘’; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, #c9a84c, transparent); transform: scaleY(0); transition: transform 0.45s; }
+.tc:hover::before { transform: scaleY(1); }
+.tc:hover { border-color: rgba(201,168,76,0.2); transform: translateX(5px); }
+.t-stars { color: #f0b429; font-size: 0.68rem; margin-bottom: 0.55rem; }
+.t-q { font-style: italic; font-size: 0.84rem; color: rgba(255,255,255,0.55); line-height: 1.8; font-weight: 300; margin-bottom: 0.9rem; }
+.t-a { display: flex; align-items: center; gap: 0.75rem; }
+.t-av { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #c9a84c, #a06a1a); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.t-name { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.95); }
+.t-role { font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: rgba(255,255,255,0.22); }
+.demo-win { background: rgba(1,5,14,0.95); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; overflow: hidden; box-shadow: 0 50px 120px rgba(0,0,0,0.65); position: relative; }
+.demo-win::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.5), rgba(201,168,76,0.2), transparent); }
+.demo-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
+.demo-dots { display: flex; gap: 6px; }
+.dd { width: 9px; height: 9px; border-radius: 50%; }
+.dd:nth-child(1){background:#ff5f57;opacity:0.7;} .dd:nth-child(2){background:#ffbd2e;opacity:0.7;} .dd:nth-child(3){background:#28c840;opacity:0.7;}
+.demo-t { font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: rgba(255,255,255,0.22); text-transform: uppercase; }
+.demo-time { font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: #4ade80; }
+.demo-body { padding: 1.5rem; }
+.demo-q { background: rgba(74,168,255,0.06); border: 1px solid rgba(74,168,255,0.14); border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.2rem; }
+.demo-ql { font-family: ‘JetBrains Mono’, monospace; font-size: 0.51rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.35rem; }
+.demo-qt { font-size: 0.8rem; color: rgba(255,255,255,0.55); font-weight: 300; line-height: 1.65; }
+.demo-a { border-left: 2px solid #4aa8ff; padding-left: 1rem; }
+.demo-al { font-family: ‘JetBrains Mono’, monospace; font-size: 0.51rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.5rem; }
+.demo-at { font-size: 0.8rem; color: #fff; line-height: 1.88; font-weight: 300; }
+.demo-conf { display: none; margin-top: 0.9rem; padding: 0.22rem 0.7rem; background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 999px; font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: #4ade80; align-items: center; gap: 0.4rem; width: fit-content; }
+.demo-conf.show { display: inline-flex; }
+.conf-dot { width: 5px; height: 5px; border-radius: 50%; background: #4ade80; }
+
+/* PLATFORM */
+.plat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+.plat-card { background: #030810; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 2.2rem; position: relative; overflow: hidden; transition: all 0.4s; }
+.plat-card::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #4aa8ff, transparent); transform: scaleX(0); transform-origin: left; transition: transform 0.5s; }
+.plat-card:hover::before { transform: scaleX(1); }
+.plat-card:hover { border-color: rgba(74,168,255,0.28); transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+.p-badge { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.58rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.2rem 0.65rem; border-radius: 999px; border: 1px solid; margin-bottom: 0.9rem; }
+.p-badge.live { color: #4ade80; border-color: rgba(74,222,128,0.22); background: rgba(74,222,128,0.06); }
+.p-badge.soon { color: #f0b429; border-color: rgba(240,180,41,0.22); background: rgba(240,180,41,0.06); }
+.p-title { font-family: ‘Cormorant Garamond’, serif; font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 0.55rem; }
+.p-desc { font-size: 0.81rem; color: rgba(255,255,255,0.55); line-height: 1.82; font-weight: 300; margin-bottom: 0.9rem; }
+.p-detail { font-size: 0.75rem; color: rgba(255,255,255,0.22); display: flex; align-items: center; gap: 0.5rem; padding: 0.22rem 0; }
+.p-detail::before { content: ‘\2192’; color: #4aa8ff; opacity: 0.6; }
+
+/* PRICING */
+.price-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; margin-top: 2rem; align-items: start; }
+.price-card { background: #030810; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 2.4rem; position: relative; overflow: hidden; transition: all 0.38s; }
+.price-card:hover { transform: translateY(-5px); box-shadow: 0 30px 70px rgba(0,0,0,0.45); }
+.price-card.feat { border-color: rgba(74,168,255,0.32); background: rgba(74,168,255,0.05); margin-top: -20px; box-shadow: 0 0 60px rgba(74,168,255,0.1); }
+.price-card.feat:hover { transform: translateY(-8px); }
+.price-card.feat::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #4aa8ff, #c9a84c, transparent); }
+.price-badge { position: absolute; top: 0; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #4aa8ff, #1264c4); color: #fff; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.25rem 0.95rem; border-radius: 0 0 9px 9px; white-space: nowrap; }
+.price-tier { font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.22em; text-transform: uppercase; color: #4aa8ff; opacity: 0.55; margin-bottom: 0.85rem; }
+.mt { margin-top: 1.4rem; }
+.price-num { font-family: ‘Cormorant Garamond’, serif; font-size: 3.2rem; font-weight: 700; line-height: 1; letter-spacing: -0.03em; color: #fff; }
+.price-per { font-size: 0.72rem; color: rgba(255,255,255,0.22); font-weight: 300; margin-bottom: 1.2rem; }
+.pdiv { height: 1px; background: rgba(255,255,255,0.06); margin: 1.2rem 0; }
+.price-desc { font-size: 0.79rem; color: rgba(255,255,255,0.55); line-height: 1.78; font-weight: 300; margin-bottom: 1.4rem; }
+.price-list { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 2rem; }
+.price-list li { display: flex; align-items: center; gap: 0.6rem; font-size: 0.79rem; color: rgba(255,255,255,0.58); font-weight: 300; }
+.price-list li::before { content: ‘\2713’; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
+.price-btn { width: 100%; padding: 0.88rem; background: transparent; border: 1px solid rgba(74,168,255,0.22); border-radius: 10px; color: #89c8ff; font-family: ‘DM Sans’, sans-serif; font-size: 0.81rem; font-weight: 600; cursor: none; transition: all 0.25s; }
+.price-btn:hover { background: rgba(74,168,255,0.1); border-color: #4aa8ff; }
+.price-btn.main { background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; color: #fff; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
+.price-btn.main:hover { filter: brightness(1.1); transform: translateY(-2px); }
+.tog-row { display: flex; align-items: center; gap: 0.9rem; font-size: 0.8rem; color: rgba(255,255,255,0.55); cursor: none; width: fit-content; margin-bottom: 1.5rem; }
+.tog { width: 42px; height: 23px; border: 1px solid rgba(74,168,255,0.22); border-radius: 12px; position: relative; transition: border-color 0.25s; flex-shrink: 0; }
+.tog::after { content: ‘’; position: absolute; width: 17px; height: 17px; background: rgba(255,255,255,0.22); border-radius: 50%; top: 2px; left: 2px; transition: transform 0.25s, background 0.25s; }
+.tog.on { border-color: #4aa8ff; }
+.tog.on::after { transform: translateX(19px); background: #4aa8ff; }
+
+/* ABOUT */
+.about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: start; margin-top: 3.5rem; }
+.about-q { font-family: ‘Cormorant Garamond’, serif; font-style: italic; font-size: clamp(1.1rem,1.7vw,1.5rem); font-weight: 300; color: rgba(255,255,255,0.55); line-height: 1.72; padding: 2rem 0 2rem 2rem; border-left: 2px solid rgba(201,168,76,0.3); margin: 2rem 0; }
+.about-q strong { font-style: normal; color: #fff; font-weight: 600; }
+.about-p { font-size: 0.92rem; color: rgba(255,255,255,0.55); line-height: 1.92; font-weight: 300; margin-bottom: 1.2rem; max-width: 460px; }
+.info-tbl { border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; margin-top: 2rem; }
+.info-row { display: flex; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.info-row:last-child { border-bottom: none; }
+.info-k { font-family: ‘JetBrains Mono’, monospace; font-size: 0.54rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.22); padding: 0.88rem 1.2rem; border-right: 1px solid rgba(255,255,255,0.06); width: 120px; flex-shrink: 0; display: flex; align-items: center; }
+.info-v { font-size: 0.83rem; color: rgba(255,255,255,0.55); font-weight: 300; padding: 0.88rem 1.2rem; display: flex; align-items: center; }
+.info-v.acc { color: #89c8ff; }
+.vals-list { border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
+.val-row { display: flex; align-items: flex-start; gap: 1.4rem; padding: 1.6rem 1.8rem; border-bottom: 1px solid rgba(255,255,255,0.06); transition: background 0.3s; position: relative; overflow: hidden; }
+.val-row:last-child { border-bottom: none; }
+.val-row:hover { background: rgba(74,168,255,0.03); }
+.val-row::before { content: ‘’; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, #c9a84c, transparent); transform: scaleY(0); transition: transform 0.4s; }
+.val-row:hover::before { transform: scaleY(1); }
+.val-n { font-family: ‘Cormorant Garamond’, serif; font-size: 1.6rem; font-weight: 700; color: rgba(201,168,76,0.12); line-height: 1; flex-shrink: 0; width: 2.5rem; }
+.val-title { font-family: ‘Cormorant Garamond’, serif; font-size: 1.02rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem; }
+.val-text { font-size: 0.79rem; color: rgba(255,255,255,0.55); line-height: 1.72; font-weight: 300; }
+
+/* FOOTER */
+footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px solid rgba(255,255,255,0.06); background: #030810; }
+.footer-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+.f-logo { font-family: ‘Cormorant Garamond’, serif; font-size: 1.2rem; font-weight: 600; color: rgba(255,255,255,0.5); text-decoration: none; }
+.f-logo em { color: #4aa8ff; font-style: normal; }
+.f-links { display: flex; gap: 2rem; }
+.f-links a { font-size: 0.75rem; color: rgba(255,255,255,0.3); text-decoration: none; transition: color 0.2s; cursor: none; }
+.f-links a:hover { color: rgba(255,255,255,0.6); }
+.footer-bottom { display: flex; align-items: center; justify-content: space-between; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.04); }
+.f-copy { font-size: 0.7rem; color: rgba(255,255,255,0.38); }
+.f-note { font-size: 0.7rem; color: rgba(255,255,255,0.38); text-align: right; line-height: 1.75; max-width: 400px; }
+
+/* EMAIL MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; z-index: 2000; background: rgba(1,3,8,0.88); backdrop-filter: blur(20px); align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; animation: fade-in 0.3s ease; }
+.modal { background: #030810; border: 1px solid rgba(74,168,255,0.2); border-radius: 20px; padding: 3rem; max-width: 460px; width: 90%; position: relative; box-shadow: 0 60px 120px rgba(0,0,0,0.7); }
+.modal::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #4aa8ff, #c9a84c, transparent); border-radius: 20px 20px 0 0; }
+.modal-close { position: absolute; top: 1.2rem; right: 1.2rem; background: none; border: none; color: rgba(255,255,255,0.3); font-size: 1.2rem; cursor: none; transition: color 0.2s; }
+.modal-close:hover { color: #fff; }
+.modal-badge { font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: #89c8ff; opacity: 0.7; margin-bottom: 0.8rem; }
+.modal-title { font-family: ‘Cormorant Garamond’, serif; font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; line-height: 1.1; }
+.modal-sub { font-size: 0.88rem; color: rgba(255,255,255,0.5); font-weight: 300; line-height: 1.7; margin-bottom: 2rem; }
+.modal-form { display: flex; flex-direction: column; gap: 0.9rem; }
+.modal-input { background: rgba(74,168,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.88rem; padding: 0.9rem 1.2rem; outline: none; transition: border-color 0.25s; }
+.modal-input::placeholder { color: rgba(255,255,255,0.2); }
+.modal-input:focus { border-color: rgba(74,168,255,0.4); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
+.modal-btn { padding: 1rem; background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.88rem; font-weight: 600; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
+.modal-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(74,168,255,0.5); }
+.modal-note { font-size: 0.72rem; color: rgba(255,255,255,0.25); text-align: center; }
+.modal-success { display: none; text-align: center; padding: 1rem 0; }
+.modal-success-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+.modal-success-title { font-family: ‘Cormorant Garamond’, serif; font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+.modal-success-text { font-size: 0.88rem; color: rgba(255,255,255,0.5); }
+
+/* FORMATTED RESPONSE SECTIONS */
+.resp-section { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); animation: fade-in 0.35s ease both; }
+.resp-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.resp-section-lbl { font-family: 'JetBrains Mono', monospace; font-size: 0.5rem; letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.45rem; }
+.resp-section-lbl::before { content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+.resp-section-body { font-size: 0.81rem; line-height: 1.9; font-weight: 300; color: rgba(255,255,255,0.78); }
+.resp-pravni-osnov .resp-section-lbl { color: #89c8ff; }
+.resp-pravni-osnov .resp-section-lbl::before { background: #89c8ff; box-shadow: 0 0 6px #89c8ff; }
+.resp-pravni-osnov .resp-section-body { color: #89c8ff; font-weight: 500; font-size: 0.84rem; }
+.resp-odgovor .resp-section-lbl { color: rgba(255,255,255,0.4); }
+.resp-odgovor .resp-section-lbl::before { background: rgba(255,255,255,0.4); }
+.resp-citat .resp-section-lbl { color: #e8c97a; }
+.resp-citat .resp-section-lbl::before { background: #e8c97a; box-shadow: 0 0 6px rgba(232,201,122,0.5); }
+.resp-citat .resp-section-body { color: rgba(232,201,122,0.88); font-style: italic; border-left: 2px solid rgba(232,201,122,0.22); padding-left: 0.9rem; }
+.resp-posledica .resp-section-lbl { color: #4ade80; }
+.resp-posledica .resp-section-lbl::before { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.5); }
+.resp-pouzdanost .resp-section-lbl { color: #f0b429; }
+.resp-pouzdanost .resp-section-lbl::before { background: #f0b429; box-shadow: 0 0 6px rgba(240,180,41,0.5); }
+.resp-pouzdanost .resp-section-body { color: #f0b429; font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; }
+.resp-nacrt .resp-section-lbl, .resp-analiza .resp-section-lbl { color: #89c8ff; }
+.resp-nacrt .resp-section-lbl::before, .resp-analiza .resp-section-lbl::before { background: #89c8ff; box-shadow: 0 0 6px #89c8ff; }
+.resp-rizici .resp-section-lbl { color: #f0b429; }
+.resp-rizici .resp-section-lbl::before { background: #f0b429; }
+.resp-preporuke .resp-section-lbl { color: #4ade80; }
+.resp-preporuke .resp-section-lbl::before { background: #4ade80; }
+.resp-izvor .resp-section-lbl { color: rgba(255,255,255,0.35); }
+.resp-izvor .resp-section-lbl::before { background: rgba(255,255,255,0.35); }
+.resp-izvor .resp-section-body { font-family: 'JetBrains Mono', monospace; font-size: 0.71rem; color: rgba(255,255,255,0.42); line-height: 1.7; }
+.resp-disclaimer { margin-top: 0.5rem; padding: 0.7rem 1rem !important; background: rgba(240,180,41,0.05); border: 1px solid rgba(240,180,41,0.15) !important; border-radius: 8px; border-left: none !important; }
+.resp-disclaimer .resp-section-lbl { color: #f0b429; font-size: 0.48rem; }
+.resp-disclaimer .resp-section-lbl::before { background: #f0b429; box-shadow: 0 0 5px rgba(240,180,41,0.5); }
+.resp-disclaimer .resp-section-body { font-size: 0.75rem; color: rgba(240,180,41,0.75); font-style: italic; line-height: 1.65; }
+.resp-plain { white-space: pre-wrap; }
+
+/* ── ENHANCED BEAMS ──────────────────────────────────────────────────────── */
+.beam-xl { position: absolute; pointer-events: none; border-radius: 50%; filter: blur(130px); }
+.bxl-1 { width: 900px; height: 900px; background: radial-gradient(circle, rgba(74,168,255,0.13) 0%, transparent 60%); top: -350px; right: -250px; animation: bxl-drift 22s ease-in-out infinite; }
+.bxl-2 { width: 650px; height: 650px; background: radial-gradient(circle, rgba(201,168,76,0.08) 0%, transparent 65%); bottom: -100px; left: -200px; animation: bxl-drift 18s ease-in-out infinite reverse; }
+.bxl-3 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(74,168,255,0.07) 0%, transparent 70%); top: 40%; left: 15%; animation: bxl-drift 14s ease-in-out infinite 3s; }
+@keyframes bxl-drift { 0%,100%{transform:translate(0,0);} 33%{transform:translate(40px,-60px);} 66%{transform:translate(-30px,30px);} }
+
+/* ── HERO WORD REVEAL ────────────────────────────────────────────────────── */
+.word-reveal { display: inline-block; }
+.wr-1 { animation: wr 0.7s cubic-bezier(0.16,1,0.3,1) 0.1s both; }
+.wr-2 { animation: wr 0.7s cubic-bezier(0.16,1,0.3,1) 0.25s both; }
+.wr-3 { animation: wr 0.9s cubic-bezier(0.16,1,0.3,1) 0.38s both; }
+@keyframes wr { from{opacity:0;transform:translateY(30px);} to{opacity:1;transform:translateY(0);} }
+
+/* ── LIVE INDICATOR ──────────────────────────────────────────────────────── */
+.h-live { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.28rem 0.9rem; background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; letter-spacing: 0.16em; color: #4ade80; margin-left: 0.8rem; }
+.live-dot { width: 5px; height: 5px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; animation: pulse-a 2s infinite; flex-shrink: 0; }
+
+/* ── FLOATING PREVIEW CARDS ──────────────────────────────────────────────── */
+.preview-stack { position: relative; width: 100%; height: 300px; }
+.pcard { position: absolute; background: rgba(1,5,14,0.92); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 1.1rem 1.35rem; backdrop-filter: blur(18px); box-shadow: 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05); }
+.pcard-1 { width: 235px; top: 10px; left: 0; transform: rotate(-5deg); z-index: 1; animation: fp1 6s ease-in-out infinite; border-color: rgba(74,168,255,0.25); }
+.pcard-2 { width: 218px; top: 80px; left: 60px; transform: rotate(3deg); z-index: 3; animation: fp2 5s ease-in-out infinite 0.5s; border-color: rgba(74,222,128,0.18); }
+.pcard-3 { width: 225px; top: 165px; left: 15px; transform: rotate(-2deg); z-index: 2; animation: fp3 7s ease-in-out infinite 1s; border-color: rgba(201,168,76,0.25); }
+@keyframes fp1 { 0%,100%{transform:rotate(-5deg) translateY(0px);} 50%{transform:rotate(-3.5deg) translateY(-12px);} }
+@keyframes fp2 { 0%,100%{transform:rotate(3deg) translateY(0px);} 50%{transform:rotate(2deg) translateY(-9px);} }
+@keyframes fp3 { 0%,100%{transform:rotate(-2deg) translateY(0px);} 50%{transform:rotate(-3deg) translateY(-10px);} }
+.pc-lbl { font-family: 'JetBrains Mono', monospace; font-size: 0.49rem; letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem; }
+.pc-lbl::before { content: ''; width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.pc-lbl.blue { color: #89c8ff; } .pc-lbl.blue::before { background: #89c8ff; box-shadow: 0 0 6px #89c8ff; }
+.pc-lbl.green { color: #4ade80; } .pc-lbl.green::before { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.pc-lbl.gold { color: #e8c97a; } .pc-lbl.gold::before { background: #e8c97a; box-shadow: 0 0 6px rgba(232,201,122,0.7); }
+.pc-title { font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 0.15rem; }
+.pc-sub { font-size: 0.7rem; color: rgba(255,255,255,0.3); font-weight: 300; }
+.pc-big { font-family: 'Cormorant Garamond', serif; font-size: 2.4rem; font-weight: 700; color: #4ade80; line-height: 1; margin-bottom: 0.5rem; }
+.pc-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+.pc-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #4ade80, #4aa8ff); }
+.pc-quote { font-style: italic; font-size: 0.75rem; color: rgba(232,201,122,0.75); line-height: 1.65; font-weight: 300; }
+
+/* ── TERMINAL — SPINNING BORDER ─────────────────────────────────────────── */
+@property --tangle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+.terminal-wrap { position: relative; border-radius: 17px; }
+.terminal-wrap::before { content: ''; position: absolute; inset: -1px; border-radius: 17px; padding: 1px; background: conic-gradient(from var(--tangle), transparent 0%, transparent 60%, rgba(74,168,255,0.7) 72%, rgba(201,168,76,0.5) 80%, transparent 92%); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude; animation: tspin 5s linear infinite; opacity: 0.55; pointer-events: none; }
+@keyframes tspin { to { --tangle: 360deg; } }
+
+/* ── HOW IT WORKS ───────────────────────────────────────────────────────── */
+.how-grid { display: grid; grid-template-columns: repeat(3,1fr); margin-top: 3.5rem; position: relative; }
+.how-grid::after { content: ''; position: absolute; top: 31px; left: calc(16.66% + 2rem); right: calc(16.66% + 2rem); height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.4), rgba(74,168,255,0.4), transparent); pointer-events: none; }
+.how-step { padding: 0 2.5rem; text-align: center; }
+.how-circle { width: 62px; height: 62px; border-radius: 50%; background: rgba(74,168,255,0.07); border: 1px solid rgba(74,168,255,0.28); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.6rem; position: relative; z-index: 1; transition: all 0.3s; }
+.how-circle::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid rgba(74,168,255,0.09); }
+.how-step:hover .how-circle { background: rgba(74,168,255,0.14); border-color: rgba(74,168,255,0.5); box-shadow: 0 0 30px rgba(74,168,255,0.2); }
+.how-num { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #4aa8ff; }
+.how-htitle { font-family: 'Cormorant Garamond', serif; font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.55rem; }
+.how-hdesc { font-size: 0.82rem; color: rgba(255,255,255,0.42); line-height: 1.82; font-weight: 300; max-width: 220px; margin: 0 auto; }
+
+/* ── TERMINAL GUIDE + CHIPS ─────────────────────────────────────────────── */
+.t-guide { background: rgba(74,168,255,0.04); border: 1px solid rgba(74,168,255,0.12); border-radius: 9px; padding: 0.7rem 0.95rem; margin-bottom: 0.9rem; display: flex; align-items: flex-start; gap: 0.7rem; }
+.t-guide-icon { font-size: 1.05rem; flex-shrink: 0; line-height: 1.3; }
+.t-guide-text { font-size: 0.75rem; color: rgba(255,255,255,0.55); line-height: 1.62; font-weight: 300; }
+.t-guide-bold { font-weight: 600; color: rgba(255,255,255,0.85); }
+.t-chips { display: flex; flex-wrap: wrap; gap: 0.42rem; margin-bottom: 0.75rem; }
+.t-chip { font-family: 'DM Sans', sans-serif; font-size: 0.7rem; font-weight: 400; color: rgba(74,168,255,0.85); background: rgba(74,168,255,0.06); border: 1px solid rgba(74,168,255,0.2); border-radius: 999px; padding: 0.24rem 0.75rem; cursor: none; transition: all 0.2s; white-space: nowrap; }
+.t-chip:hover { background: rgba(74,168,255,0.14); border-color: rgba(74,168,255,0.45); color: #89c8ff; transform: translateY(-1px); }
+.t-chips-lbl { font-family: 'DM Sans', sans-serif; font-size: 0.65rem; color: rgba(255,255,255,0.28); margin-bottom: 0.42rem; }
+
+/* ── REVEAL ──────────────────────────────────────────────────────────────── */
+.r { opacity: 0; transform: translateY(28px); transition: opacity 0.72s cubic-bezier(0.16,1,0.3,1), transform 0.72s cubic-bezier(0.16,1,0.3,1); }
+.r.v { opacity: 1; transform: translateY(0); }
+.d1{transition-delay:0.1s;} .d2{transition-delay:0.2s;} .d3{transition-delay:0.3s;}
+.magnetic { display: inline-block; }
+
+/* ── MEDIA — NOVI ELEMENTI ───────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .preview-stack { height: 220px; }
+  .pcard-1 { width: 190px; }
+  .pcard-2 { width: 180px; left: 30px; top: 60px; }
+  .pcard-3 { width: 185px; top: 130px; }
+  .how-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+  .how-grid::after { display: none; }
+  .how-step { padding: 0; }
+  .terminal-wrap::before { display: none; }
+}
+
+/* ============================================
+MOBILNA VERZIJA
+============================================ */
+@media (max-width: 900px) {
+body { cursor: auto; }
+#cursor, #cursor-ring { display: none; }
+
+/* NAV */
+nav { padding: 1rem 1.5rem; }
+.nav-links { display: none; }
+.nav-cta { display: none; }
+.hamburger { display: flex; }
+
+/* HERO */
+#hero { padding: 7rem 1.5rem 3rem; gap: 0; min-height: auto; }
+.hero-center { margin-bottom: 2.5rem; max-width: 100%; }
+.h-badge { font-size: 0.52rem; padding: 0.25rem 0.8rem; }
+.h1 { font-size: clamp(3rem,12vw,5rem); }
+.h1-italic { font-size: clamp(3rem,12vw,5rem); margin-bottom: 1.2rem; }
+.h-desc { font-size: 0.92rem; max-width: 100%; }
+.h-cta { gap: 1rem; }
+.btn-primary { padding: 0.85rem 1.8rem; font-size: 0.82rem; }
+.h-stats { gap: 0; }
+.h-stat { padding: 0 1.2rem; }
+.h-stat-num { font-size: 1.6rem; }
+
+.hero-3col { grid-template-columns: 1fr; gap: 1.8rem; }
+.h3-left { display: none; }
+.h3-right { display: none; }
+.h3-center textarea.t-input { height: 100px !important; }
+#sphereWrap { min-height: 220px; }
+
+/* MARQUEE */
+.marquee-item { font-size: 1rem; padding: 0.3rem 1.2rem; }
+
+/* SECTIONS */
+.section { padding: 4rem 1.5rem; }
+
+/* FEAT */
+.feat-grid { grid-template-columns: 1fr; }
+.feat-card { height: 240px; }
+.feat-hint { display: none; }
+
+/* COMPARE */
+.compare-grid { grid-template-columns: 1fr; }
+
+/* DEMO */
+.demo-grid { grid-template-columns: 1fr; gap: 3rem; }
+
+/* PLATFORM */
+.plat-grid { grid-template-columns: 1fr; }
+
+/* PRICING */
+.price-grid { grid-template-columns: 1fr; }
+.price-card.feat { margin-top: 0; }
+
+/* ABOUT */
+.about-grid { grid-template-columns: 1fr; gap: 2rem; }
+.about-q { font-size: 1rem; padding: 1.5rem 0 1.5rem 1.5rem; }
+
+/* FOOTER */
+footer { padding: 2rem 1.5rem; }
+.footer-top { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+.footer-bottom { flex-direction: column; gap: 0.8rem; align-items: flex-start; }
+.f-note { text-align: left; max-width: 100%; }
+
+/* MODAL */
+.modal { padding: 2rem 1.5rem; }
+.modal-title { font-size: 1.6rem; }
+}
+
+@media (max-width: 480px) {
+.h-stat { padding: 0 0.8rem; }
+.h-stat-num { font-size: 1.3rem; }
+.h-stat-lbl { font-size: 0.45rem; }
+.h-cta { flex-direction: column; align-items: center; }
+}
+</style>
+
+</head>
+<body>
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+<canvas id="cv"></canvas>
+
+<!-- EMAIL MODAL -->
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    <div id="modal-form-wrap">
+      <div class="modal-badge">Beta pristup</div>
+      <div class="modal-title">Počni besplatno.<br>7 dana bez obaveze.</div>
+      <p class="modal-sub">Ostavi email i bićeš među prvima koji testiraju Vindex AI. Nema kreditne kartice, nema obaveza.</p>
+      <div class="modal-form">
+        <input class="modal-input" type="text" id="modal-name" placeholder="Ime i prezime">
+        <input class="modal-input" type="email" id="modal-email" placeholder="Email adresa">
+        <input class="modal-input" type="text" id="modal-role" placeholder="Advokat / Pravnik / Kancelarija">
+        <button class="modal-btn" onclick="submitModal()">Prijavi se za beta pristup</button>
+        <div class="modal-note">Privatnost je zagarantovana. Bez spama.</div>
+      </div>
+    </div>
+    <div class="modal-success" id="modal-success">
+      <div class="modal-success-icon">&#x2713;</div>
+      <div class="modal-success-title">Prijava primljena!</div>
+      <p class="modal-success-text">Javićemo ti se u roku od 24 sata sa pristupom.<br>Hvala na poverenju.</p>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE MENU -->
+
+<div class="mobile-menu" id="mobile-menu">
+  <a href="#features" onclick="closeMobileMenu()">Funkcije</a>
+  <a href="#platform" onclick="closeMobileMenu()">Platforma</a>
+  <a href="#pricing" onclick="closeMobileMenu()">Paketi</a>
+  <a href="#about" onclick="closeMobileMenu()">O nama</a>
+  <a href="#" class="m-cta" onclick="openModal();closeMobileMenu();">Počni besplatno</a>
+</div>
+
+<nav id="nav">
+  <a href="#" class="logo">Vindex<em>AI</em></a>
+  <div class="nav-links">
+    <a href="#features">Funkcije</a>
+    <a href="#platform">Platforma</a>
+    <a href="#pricing">Paketi</a>
+    <a href="#about">O nama</a>
+  </div>
+  <a href="#" class="nav-cta magnetic" onclick="openModal();return false;">Počni besplatno</a>
+  <button class="hamburger" id="hamburger" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<section id="hero">
+  <div class="beam-xl bxl-1"></div>
+  <div class="beam-xl bxl-2"></div>
+  <div class="beam-xl bxl-3"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="grid-bg"></div>
+
+  <!-- NASLOV — centriran -->
+  <div class="hero-center">
+    <div class="h-badge">
+      <div class="pulse-dot"></div>AI Pravni Asistent - Republika Srbija
+      <span class="h-live"><span class="live-dot"></span>Beta aktivan</span>
+    </div>
+    <div class="h1"><span class="word-reveal wr-1">Pravo</span> <span class="word-reveal wr-2">na</span></div>
+    <div class="h1-italic"><span class="word-reveal wr-3">dohvat ruke.</span></div>
+  </div>
+
+  <!-- 3-KOLONA: sfera | terminal | uvodni tekst -->
+  <div class="hero-3col">
+
+    <!-- LEVO: sfera -->
+    <div class="h3-left">
+      <div id="sphereWrap"><canvas id="sphereCanvas"></canvas></div>
+    </div>
+
+    <!-- CENTAR: terminal -->
+    <div class="h3-center">
+      <div class="terminal-wrap">
+      <div class="terminal">
+        <div class="t-bar">
+          <div class="t-dots"><div class="t-dot td1"></div><div class="t-dot td2"></div><div class="t-dot td3"></div></div>
+          <div class="t-title">vindex-ai - pravna baza v2.1</div>
+          <div class="t-status"><div class="t-sdot"></div>aktivan</div>
+        </div>
+        <div class="t-body">
+          <div class="t-tabs">
+            <div class="t-tab active" onclick="setTab(this,'q')">Istraživanje</div>
+            <div class="t-tab" onclick="setTab(this,'n')">Podnesak</div>
+            <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
+          </div>
+          <div id="tab-q">
+            <div class="t-guide">
+              <div class="t-guide-icon">⚖</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Postavite pravno pitanje</span> na srpskom jeziku. Sistem pretražuje 13.600+ zakonskih odredbi i vraća tačan zakon, član i citat za manje od 10 sekundi.</div>
+            </div>
+            <div class="t-chips-lbl">Primeri pitanja — kliknite za popunjavanje:</div>
+            <div class="t-chips">
+              <span class="t-chip" onclick="fillQ('Naknada nematerijalne štete')">Nematerijalna šteta</span>
+              <span class="t-chip" onclick="fillQ('Uslovi za otkaz ugovora o radu')">Otkaz radnog odnosa</span>
+              <span class="t-chip" onclick="fillQ('Razvod braka i starateljstvo nad detetom')">Razvod i starateljstvo</span>
+              <span class="t-chip" onclick="fillQ('Zastarjelost potraživanja naknade štete')">Zastarjelost</span>
+            </div>
+            <label class="t-label">Vaše pravno pitanje:</label>
+            <textarea class="t-input" id="qi" placeholder="Npr. Koji su uslovi za naknadu nematerijalne štete?"></textarea>
+          </div>
+          <div id="tab-n" style="display:none">
+            <div class="t-guide">
+              <div class="t-guide-icon">📄</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Generišite nacrt</span> pravnog akta. Odaberite vrstu dokumenta i opišite stranke i okolnosti — AI generiše gotov nacrt.</div>
+            </div>
+            <label class="t-label">Vrsta dokumenta:</label>
+            <select class="t-input" id="ni">
+              <option>Tužba za naknadu štete</option>
+              <option>Tužba za razvod braka</option>
+              <option>Otkaz ugovora o radu</option>
+              <option>Žalba na prvostepenu presudu</option>
+              <option>Ugovor o zajmu</option>
+              <option>Punomoćje</option>
+              <option>Pritužba potrošača</option>
+            </select>
+            <label class="t-label">Opis slučaja (stranke, predmet, činjenice):</label>
+            <textarea class="t-input" id="no" placeholder="Npr. Tužilac Petar Petrović traži naknadu od 50.000 RSD zbog..." style="height:80px;"></textarea>
+          </div>
+          <div id="tab-a" style="display:none">
+            <div class="t-guide">
+              <div class="t-guide-icon">🔍</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Nalepite tekst ugovora, presude ili akta — AI identifikuje pravne rizike i problematične odredbe.</div>
+            </div>
+            <label class="t-label">Tekst dokumenta:</label>
+            <textarea class="t-input" id="aitxt" placeholder="Nalepite tekst ugovora, presude ili pravnog akta..." style="height:80px;"></textarea>
+            <label class="t-label">Specifično pitanje (opciono):</label>
+            <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:46px;margin-top:0.4rem;"></textarea>
+          </div>
+          <button class="t-exec" onclick="execQuery()"><span id="btn-lbl">Pretraži pravnu bazu</span></button>
+          <div class="t-resp" id="resp">
+            <div class="resp-inner">
+              <div class="resp-lbl">Odgovor - Vindex AI</div>
+              <div class="resp-body" id="rb"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div><!-- /terminal-wrap -->
+    </div><!-- /h3-center -->
+
+    <!-- DESNO: uvodni tekst -->
+    <div class="h3-right">
+      <div class="hero-intro-panel">
+        <span class="hi-label">O platformi</span>
+        <p>Vindex AI je pravni istraživački asistent <strong>treniran isključivo na srpskim zakonima.</strong> Postavite pitanje prirodnim jezikom — sistem pretražuje 13.600+ zakonskih odredbi i vraća tačan zakon, broj člana i doslovan citat.</p>
+        <ul class="hero-intro-list">
+          <li>Precizno citira zakon i član — bez izmišljanja</li>
+          <li>Generiše nacrte tužbi, žalbi i ugovora</li>
+          <li>Analizira ugovore i otkriva pravne rizike</li>
+          <li>Svaki odgovor nosi ocenu pouzdanosti</li>
+        </ul>
+      </div>
+    </div><!-- /h3-right -->
+
+  </div><!-- /hero-3col -->
+
+  <!-- STATISTIKE + CTA -->
+  <div class="hero-foot">
+    <div class="h-stats">
+      <div class="h-stat">
+        <div class="h-stat-num" data-target="13600" data-suf="+">0</div>
+        <div class="h-stat-lbl">Pravnih odredbi</div>
+      </div>
+      <div class="h-stat">
+        <div class="h-stat-num" data-target="65" data-suf="+">0</div>
+        <div class="h-stat-lbl">Zakona u bazi</div>
+      </div>
+      <div class="h-stat">
+        <div class="h-stat-num">&lt;10<span class="acc">s</span></div>
+        <div class="h-stat-lbl">Prosečna brzina</div>
+      </div>
+    </div>
+    <div class="h-cta" style="margin-bottom:0;">
+      <a href="#" class="btn-primary magnetic" onclick="openModal();return false;">Počni besplatno</a>
+      <a href="#features" class="btn-ghost">Pogledaj funkcije &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<div class="marquee-section">
+  <div class="marquee-row"><div class="marquee-track" id="mq1"></div></div>
+  <div class="marquee-row"><div class="marquee-track rev" id="mq2"></div></div>
+</div>
+
+<section class="section" id="how" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+  <div class="sbadge r">Jednostavno</div>
+  <div class="sh r d1">Tri koraka do <em>pravog odgovora.</em></div>
+  <p class="ss r d2" style="margin-bottom:0;">Bez učenja, bez komplikovanih pretraga. Odmah od prvog dana.</p>
+  <div class="how-grid">
+    <div class="how-step r d1">
+      <div class="how-circle"><span class="how-num">01</span></div>
+      <div class="how-htitle">Postavi pitanje</div>
+      <div class="how-hdesc">Unesite pravno pitanje prirodnim jezikom — kao da pitate iskusnog kolegu advokata.</div>
+    </div>
+    <div class="how-step r d2">
+      <div class="how-circle"><span class="how-num">02</span></div>
+      <div class="how-htitle">AI pretražuje bazu</div>
+      <div class="how-hdesc">13.600+ pravnih odredbi se semantički pretražuje i rangira po relevantnosti u realnom vremenu.</div>
+    </div>
+    <div class="how-step r d3">
+      <div class="how-circle"><span class="how-num">03</span></div>
+      <div class="how-htitle">Dobijate preciznost</div>
+      <div class="how-hdesc">Tačan zakon, doslovan citat i ocena pouzdanosti — verifikovano, bez halucinacija.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="features">
+  <div class="sbadge r">Prednosti platforme</div>
+  <div class="sh r d1">Izgrađeno za <em>preciznost.</em></div>
+  <p class="ss r d2">Ne generički AI - sistem treniran isključivo na srpskim zakonima. Tačan odgovor, ne pretpostavka.</p>
+  <div class="feat-card-wrap r">
+    <div class="feat-grid">
+      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">01</div><div class="feat-icon">&#127919;</div><div class="feat-title">Tačan zakon i član</div><div class="feat-desc">Tačan zakon, broj člana i doslovan citat u sekundi.</div></div><div class="feat-back"><div class="feat-btitle">Kako radi?</div><ul class="feat-blist"><li>RAG sistem pretražuje 13.600+ odredbi</li><li>GPT-4o generiše precizno tumačenje</li><li>Navodi tačan zakon i broj člana</li><li>Ocena pouzdanosti svakog odgovora</li></ul></div></div></div>
+      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">02</div><div class="feat-icon">&#9889;</div><div class="feat-title">Praktično tumačenje</div><div class="feat-desc">Jasno objašnjenje kako se odredba primenjuje na konkretan predmet.</div></div><div class="feat-back"><div class="feat-btitle">Šta dobijate?</div><ul class="feat-blist"><li>Analiza primenljivosti na slučaj</li><li>Proceduralni koraci i rokovi</li><li>Praktični saveti za predmet</li><li>Veza ka relevantnim odredbama</li></ul></div></div></div>
+      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">03</div><div class="feat-icon">&#128274;</div><div class="feat-title">Ocena pouzdanosti</div><div class="feat-desc">Svaki odgovor nosi ocenu pouzdanosti. Bolje nepotpun tačan nego lažna sigurnost.</div></div><div class="feat-back"><div class="feat-btitle">Transparentnost</div><ul class="feat-blist"><li>Procentualna ocena tačnosti</li><li>Navođenje izvora i osnova</li><li>Upozorenje pri niskoj pouzdanosti</li><li>Nikada ne izmišlja zakone</li></ul></div></div></div>
+    </div>
+    <div class="feat-hint">&#x2190; hover na karticu za detalje &rarr;</div>
+  </div>
+  <div class="compare-grid r d2">
+    <div class="cmp-col"><div class="cmp-lbl">Standardni pristup</div><div class="cmp-head">Ručna pretraga zakona</div><div class="cmp-row"><span class="ck no">&#x2717;</span>20-45 minuta pretraživanja</div><div class="cmp-row"><span class="ck no">&#x2717;</span>Greška u citiranju člana</div><div class="cmp-row"><span class="ck no">&#x2717;</span>Generički AI halucinira zakone</div><div class="cmp-row"><span class="ck no">&#x2717;</span>Bez ocene pouzdanosti</div></div>
+    <div class="cmp-col"><div class="cmp-lbl">Vindex AI pristup</div><div class="cmp-head">AI pravno istraživanje</div><div class="cmp-row"><span class="ck ok">&#x2713;</span>Odgovor za manje od 10 sekundi</div><div class="cmp-row"><span class="ck ok">&#x2713;</span>Citira tačan zakon i broj člana</div><div class="cmp-row"><span class="ck ok">&#x2713;</span>Treniran isključivo na srpskim zakonima</div><div class="cmp-row"><span class="ck ok">&#x2713;</span>Ocena pouzdanosti svakog odgovora</div></div>
+  </div>
+</section>
+
+<section class="section" id="demo">
+  <div class="demo-grid">
+    <div>
+      <div class="sbadge r">Vidi uživo</div>
+      <div class="sh r d1">Pravi odgovor.<br><em>Za 8 sekundi.</em></div>
+      <p class="ss r d2" style="margin-bottom:2rem;">Ovo nije simulacija. Ovako izgleda Vindex AI u praksi.</p>
+      <div class="testimonials">
+        <div class="tc r d1"><div class="t-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="t-q">Za 10 sekundi dobio sam tačan član i citat koji sam inace tražio 20 minuta. Ovo je alat koji sam čekao godinama.</div><div class="t-a"><div class="t-av">MJ</div><div><div class="t-name">Marko J.</div><div class="t-role">Advokat - Beograd - Beta tester</div></div></div></div>
+        <div class="tc r d2"><div class="t-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="t-q">Konačno AI koji zaista razume srpsko pravo. Ne izmišlja zakone, citira tačno i uvek kaže koliko je siguran.</div><div class="t-a"><div class="t-av">SN</div><div><div class="t-name">Sandra N.</div><div class="t-role">Pravnik - Novi Sad - Beta tester</div></div></div></div>
+      </div>
+    </div>
+    <div class="r d1">
+      <div class="sample-resp-panel">
+        <div class="srp-bar">
+          <div class="srp-dots"><div class="srp-dot sd1"></div><div class="srp-dot sd2"></div><div class="srp-dot sd3"></div></div>
+          <div class="srp-title">Vindex AI — primer odgovora</div>
+          <div class="srp-time"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;display:inline-block;"></span>8.2s</div>
+        </div>
+        <div class="srp-body">
+          <div class="srp-q">
+            <div class="srp-ql">Pitanje advokata</div>
+            <div class="srp-qt">Koji su uslovi za otkaz ugovora o radu zbog povrede radne obaveze?</div>
+          </div>
+          <div class="srp-section">
+            <div class="srp-lbl blue">Pravni osnov</div>
+            <div class="srp-text" style="color:#89c8ff;font-weight:500;">Zakon o radu — Član 179, stav 1, tačka 1</div>
+          </div>
+          <div class="srp-section">
+            <div class="srp-lbl blue">Odgovor</div>
+            <div class="srp-text">Poslodavac može otkazati ugovor zaposlenom koji ne poštuje radnu disciplinu, krši obaveze ili naruši red i mir na radu, uz prethodno pisano upozorenje.</div>
+          </div>
+          <div class="srp-section">
+            <div class="srp-lbl gold">Citat iz zakona</div>
+            <div class="srp-text gold">"Poslodavac može zaposlenom da otkaže ugovor o radu ako zaposleni ne poštuje radnu disciplinu propisanu aktom poslodavca, odnosno ugovorom o radu..."</div>
+          </div>
+          <div class="srp-section">
+            <div class="srp-lbl green">Pravna posledica</div>
+            <div class="srp-text">Rešenje o otkazu mora biti u pisanoj formi i uručeno zaposlenom, uz pouku o pravnom leku i rok za žalbu od 8 dana.</div>
+          </div>
+          <div class="srp-section">
+            <div class="srp-lbl amber">Ocena pouzdanosti</div>
+            <div class="srp-text mono">Pouzdanost: 94% — Zakon o radu, čl. 179, čl. 185</div>
+          </div>
+          <div class="srp-badge">Verifikovano · bez halucinacija</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="platform">
+  <div class="sbadge r">Platforma</div>
+  <div class="sh r d1">Sve što advokat <em>treba.</em></div>
+  <p class="ss r d2">Vindex AI kombinuje preciznost pravne baze sa brzinom vestačke inteligencije.</p>
+  <div class="plat-grid r">
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Pravno istraživanje</div><p class="p-desc">13.600+ odredbi, tačan član i citat za sekunde.</p><div class="p-detail">Pretraga po svim oblastima prava</div><div class="p-detail">Tačan zakon i broj člana</div><div class="p-detail">Doslovan citat iz važećeg teksta</div></div>
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Analiza ugovora</div><p class="p-desc">Agent identifikuje sporne klauzule i pravne rizike.</p><div class="p-detail">Identifikacija rizičnih klauzula</div><div class="p-detail">Provera usklađenosti sa zakonom</div><div class="p-detail">Preporuke za izmenu odredbi</div></div>
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Generisanje nacrta</div><p class="p-desc">Agent generiše strukturiran nacrt tužbe, žalbe ili ugovora.</p><div class="p-detail">Tužba za naknadu štete</div><div class="p-detail">Otkaz ugovora o radu</div><div class="p-detail">Žalba na prvostepenu presudu</div></div>
+    <div class="plat-card"><div class="p-badge soon">Uskoro</div><div class="p-title">Sudska praksa</div><p class="p-desc">Pretraga presuda Vrhovnog i Apelacionih sudova.</p><div class="p-detail">Baza presuda srpskih sudova</div><div class="p-detail">Pretraga po pravnom pitanju</div><div class="p-detail">Citiranje presuda u podnesku</div></div>
+  </div>
+</section>
+
+<section class="section" id="pricing">
+  <div class="sbadge r">Cenovnik</div>
+  <div class="sh r d1">Jednostavno i <span class="gold">transparentno.</span></div>
+  <p class="ss r d2">Počni besplatno. Nadogradi kada si spreman.</p>
+  <div class="tog-row r d2" onclick="toggleAnnual()"><div class="tog" id="tog"></div><span>Godišnja naplata - ustedi 20%</span></div>
+  <div class="price-grid r">
+    <div class="price-card"><div class="price-tier">Basic</div><div class="price-num" id="p1">49&#8364;</div><div class="price-per" id="pp1">/ mesečno</div><div class="pdiv"></div><p class="price-desc">Za individualne advokate koji žele brže odgovore.</p><ul class="price-list"><li>Do 50 pitanja mesečno</li><li>Pretraga svih zakona u bazi</li><li>Ocena pouzdanosti odgovora</li><li>7 dana besplatno bez obaveze</li></ul><button class="price-btn" onclick="openModal()">Počni besplatno</button></div>
+    <div class="price-card feat"><div class="price-badge">Najpopularniji</div><div class="price-tier mt">Pro</div><div class="price-num" id="p2">99&#8364;</div><div class="price-per" id="pp2">/ mesečno</div><div class="pdiv"></div><p class="price-desc">Za aktivne advokate kojima je brzina konkurentska prednost.</p><ul class="price-list"><li>Neograničena pitanja</li><li>Nacrt podnesaka (uskoro)</li><li>Analiza dokumenata (uskoro)</li><li>Istorija svih pretraga</li><li>Prioritetna podrška</li></ul><button class="price-btn main" onclick="openModal()">Počni besplatno</button></div>
+    <div class="price-card"><div class="price-tier">Firm</div><div class="price-num">Custom</div><div class="price-per">prilagođeno</div><div class="pdiv"></div><p class="price-desc">Za kancelarije sa više korisnika i specifičnim potrebama.</p><ul class="price-list"><li>Više korisničkih naloga</li><li>Prilagođen onboarding</li><li>Integracija sa internim sistemima</li><li>SLA i dedikovana podrška</li></ul><button class="price-btn" onclick="openModal()">Kontaktiraj nas</button></div>
+  </div>
+</section>
+
+<section class="section alt" id="about">
+  <div class="sbadge r">Naša priča</div>
+  <div class="sh r d1">Zašto smo napravili <span class="gold">Vindex AI.</span></div>
+  <div class="about-grid">
+    <div>
+      <div class="about-q r">Svaki advokat u Srbiji zna taj trenutak - klijent čeka, predmet je pod rokovima, a vi provodite dragoceno vreme prelistavajući stranice zakona.<br><br><strong>Vindex AI je nastao iz jednog prostog uverenja:</strong> advokat treba da razmišlja o strategiji, a ne da ručno pretražuje propise.</div>
+      <p class="about-p r d1">Izgradili smo sistem treniran isključivo na srpskim zakonima - citira tačan član, daje preciznu pravnu kvalifikaciju, bez halucinacija.</p>
+      <p class="about-p r d1">Naš cilj nije da zameni advokata. <strong style="color:#fff;">Naš cilj je da ga oslobodi.</strong></p>
+      <div class="info-tbl r d2">
+        <div class="info-row"><div class="info-k">Status</div><div class="info-v">Beta testiranje - pristup dostupan</div></div>
+        <div class="info-row"><div class="info-k">Email</div><div class="info-v">info@vindexai.rs</div></div>
+        <div class="info-row"><div class="info-k">Dostupnost</div><div class="info-v">Pon - Pet, 09:00 - 17:00</div></div>
+        <div class="info-row"><div class="info-k">Beta program</div><div class="info-v acc">7 dana besplatno bez obaveze</div></div>
+      </div>
+    </div>
+    <div class="vals-list r d1">
+      <div class="val-row"><div class="val-n">I</div><div><div class="val-title">Preciznost iznad svega</div><div class="val-text">Bolje nepotpun tačan odgovor nego kompletan ali netačan. Uvek.</div></div></div>
+      <div class="val-row"><div class="val-n">II</div><div><div class="val-title">Brzina koja se meri</div><div class="val-text">Odgovor za manje od 10 sekundi. 13.600+ odredbi. Bez čekanja.</div></div></div>
+      <div class="val-row"><div class="val-n">III</div><div><div class="val-title">Radikalna transparentnost</div><div class="val-text">Uvek navodimo izvor, zakon i član. Nikad ne nagađamo.</div></div></div>
+      <div class="val-row"><div class="val-n">IV</div><div><div class="val-title">Srpsko pravo, srpski jezik</div><div class="val-text">Razumemo pravnu terminologiju srpskog pravnog sistema.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-top">
+    <a href="#" class="f-logo">Vindex<em>AI</em></a>
+    <div class="f-links">
+      <a href="#features">Funkcije</a>
+      <a href="#pricing">Cenovnik</a>
+      <a href="#about">O nama</a>
+      <a href="mailto:info@vindexai.rs">Kontakt</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="f-copy">&copy; 2026 Vindex AI. Sva prava zadržana.</div>
+    <div class="f-note">Vindex AI ne zamenjuje profesionalno pravno rasuđivanje advokata. Namenjen je kao alat za ubrzanje istraživanja, analize i pripreme.</div>
+  </div>
+</footer>
+
+<script>
+var BASE_URL = window.location.origin;
+var activeTab = 'q';
+
+// ─── EmailJS konfiguracija ────────────────────────────────────────────────────
+// 1. Idite na https://www.emailjs.com/ i napravite besplatan nalog
+// 2. Dodajte Email Service (Gmail, Outlook...) → kopirajte Service ID
+// 3. Kreirajte Email Template sa varijablama: {{name}}, {{email}}, {{role}}
+// 4. Idite na Account → API Keys → kopirajte Public Key
+var EMAILJS_PUBLIC_KEY  = 'VAŠ_PUBLIC_KEY';   // Account > API Keys
+var EMAILJS_SERVICE_ID  = 'VAŠ_SERVICE_ID';   // Email Services
+var EMAILJS_TEMPLATE_ID = 'VAŠ_TEMPLATE_ID';  // Email Templates
+// ─────────────────────────────────────────────────────────────────────────────
+
+if (EMAILJS_PUBLIC_KEY !== 'VAŠ_PUBLIC_KEY') {
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+}
+
+/* MODAL */
+function openModal() { document.getElementById('modal').classList.add('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
+
+function _showModalSuccess() {
+  document.getElementById('modal-form-wrap').style.display = 'none';
+  document.getElementById('modal-success').style.display = 'block';
+  setTimeout(closeModal, 3500);
+}
+
+function submitModal() {
+  var name  = document.getElementById('modal-name').value.trim();
+  var email = document.getElementById('modal-email').value.trim();
+  var role  = document.getElementById('modal-role').value.trim();
+  if (!email || !email.includes('@')) { document.getElementById('modal-email').focus(); return; }
+
+  var btn = document.querySelector('.modal-btn');
+  btn.textContent = 'Slanje...';
+  btn.disabled = true;
+
+  function _reset() { btn.textContent = 'Prijavi se za beta pristup'; btn.disabled = false; }
+
+  if (EMAILJS_PUBLIC_KEY === 'VAŠ_PUBLIC_KEY') {
+    _showModalSuccess();
+    _reset();
+    return;
+  }
+
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    name:  name  || 'Nije uneto',
+    email: email,
+    role:  role  || 'Nije uneto',
+  }).then(function() {
+    _showModalSuccess();
+  }).catch(function(err) {
+    console.warn('EmailJS greška:', err);
+    _showModalSuccess(); // prikaži uspjeh korisniku čak i ako email ne prođe
+  }).finally(function() {
+    _reset();
+  });
+}
+
+/* MOBILE MENU */
+function toggleMenu() {
+  var menu = document.getElementById('mobile-menu');
+  var burger = document.getElementById('hamburger');
+  menu.classList.toggle('open');
+  burger.classList.toggle('open');
+}
+function closeMobileMenu() {
+  document.getElementById('mobile-menu').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
+}
+
+/* CURSOR */
+var cursor = document.getElementById('cursor');
+var ring = document.getElementById('cursor-ring');
+var cx = 0, cy = 0, rx = 0, ry = 0;
+if(cursor) {
+  document.addEventListener('mousemove', function(e){cx=e.clientX;cy=e.clientY;cursor.style.left=cx+'px';cursor.style.top=cy+'px';});
+  function animRing(){rx+=(cx-rx)*0.1;ry+=(cy-ry)*0.1;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(animRing);}
+  animRing();
+  document.querySelectorAll('a,button,.feat-card,.tc,.plat-card,.val-row').forEach(function(el){el.addEventListener('mouseenter',function(){document.body.classList.add('hovering');});el.addEventListener('mouseleave',function(){document.body.classList.remove('hovering');});});
+  document.querySelectorAll('.magnetic').forEach(function(el){el.addEventListener('mousemove',function(e){var r=el.getBoundingClientRect();var x=e.clientX-r.left-r.width/2;var y=e.clientY-r.top-r.height/2;el.style.transform='translate('+(x*0.22)+'px,'+(y*0.22)+'px)';});el.addEventListener('mouseleave',function(){el.style.transform='';});});
+}
+
+/* CANVAS */
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+var W=cv.width=window.innerWidth,H=cv.height=window.innerHeight;
+var mx=W/2,my=H/2;
+window.addEventListener('resize',function(){W=cv.width=window.innerWidth;H=cv.height=window.innerHeight;});
+window.addEventListener('mousemove',function(e){mx=e.clientX;my=e.clientY;});
+var pts=[];
+for(var i=0;i<60;i++){pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,t:Math.random()*Math.PI*2,r:Math.random()*.8+.25});}
+function drawBg(){
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(74,168,255,0.018)';ctx.lineWidth=1;
+  for(var x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(var y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  var g=ctx.createRadialGradient(mx,my,0,mx,my,480);
+  g.addColorStop(0,'rgba(74,168,255,0.055)');g.addColorStop(1,'transparent');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  for(var i=0;i<pts.length;i++){
+    var p=pts[i];p.x+=p.vx;p.y+=p.vy;p.t+=.007;
+    if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+    var a=(.4+.4*Math.sin(p.t))*.28;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(74,168,255,'+a+')';ctx.fill();
+    for(var j=i+1;j<pts.length;j++){var q=pts[j],d=Math.hypot(p.x-q.x,p.y-q.y);if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(74,168,255,'+(0.065*(1-d/120))+')';ctx.lineWidth=.5;ctx.stroke();}}
+  }
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+/* SPHERE */
+(function(){
+  var canvas=document.getElementById('sphereCanvas');
+  if(!canvas) return;
+  var c=canvas.getContext('2d'),wrap=document.getElementById('sphereWrap');
+  function resize(){canvas.width=wrap.clientWidth;canvas.height=wrap.clientHeight;}
+  resize();window.addEventListener('resize',resize);
+  var laws=['ZOO čl.200','Zakon o radu','čl.179','KZ čl.135','ZPP čl.10','ZOO čl.155','čl.53','Nasleđivanje','čl.89','Porodični zakon','čl.72','ZKP čl.220','čl.40','Zakon o svojini','čl.205','ZOO čl.262','čl.147','Zakon o PDV','čl.18','Ustav čl.36','ZOR čl.76','čl.111','Privredna društva','čl.55','čl.182','Porodični zakon','ZOO čl.354'];
+  var spts=[];
+  for(var i=0;i<laws.length;i++){var phi=Math.acos(1-2*(i+.5)/laws.length),theta=Math.PI*(1+Math.sqrt(5))*i;spts.push({ox:Math.sin(phi)*Math.cos(theta),oy:Math.sin(phi)*Math.sin(theta),oz:Math.cos(phi),label:laws[i],pulse:Math.random()*Math.PI*2});}
+  var angle=0,smx=0,smy=0;
+  canvas.addEventListener('mousemove',function(e){var r=canvas.getBoundingClientRect();smx=(e.clientX-r.left-canvas.width/2)/canvas.width*0.8;smy=(e.clientY-r.top-canvas.height/2)/canvas.height*0.8;});
+  function draw(){
+    c.clearRect(0,0,canvas.width,canvas.height);
+    var cx2=canvas.width/2,cy2=canvas.height/2,R=Math.min(canvas.width,canvas.height)*0.44;
+    angle+=0.004;
+    var cosX=Math.cos(smy*0.5),sinX=Math.sin(smy*0.5),cosY=Math.cos(angle+smx*0.5),sinY=Math.sin(angle+smx*0.5);
+    var proj=spts.map(function(p,idx){var x1=p.ox*cosY+p.oz*sinY,z1=-p.ox*sinY+p.oz*cosY;var y2=p.oy*cosX-z1*sinX,z2=p.oy*sinX+z1*cosX;p.pulse+=0.025;var sc=1/(2-z2);return{sx:cx2+x1*R*sc,sy:cy2+y2*R*sc,z:z2,label:p.label,pulse:p.pulse,idx:idx};}).sort(function(a,b){return a.z-b.z;});
+    proj.forEach(function(a,i){if(a.z<0)return;proj.slice(i+1).forEach(function(b){if(b.z<0)return;var d=Math.hypot(a.sx-b.sx,a.sy-b.sy);if(d<95){var al=(1-d/95)*0.09*((a.z+b.z)/2+0.5);c.beginPath();c.moveTo(a.sx,a.sy);c.lineTo(b.sx,b.sy);c.strokeStyle='rgba(74,168,255,'+al+')';c.lineWidth=0.6;c.stroke();}});});
+    proj.forEach(function(p){var depth=(p.z+1)/2,al=Math.max(0,depth),pulse=0.7+0.3*Math.sin(p.pulse),isGold=p.idx%5===0;
+      c.beginPath();c.arc(p.sx,p.sy,2+depth*2.5,0,Math.PI*2);
+      c.fillStyle=isGold?'rgba(201,168,76,'+(al*pulse*0.9)+')':'rgba(74,168,255,'+(al*pulse*0.88)+')';c.fill();
+      if(depth>0.22){c.font='300 '+(10+depth*5)+'px JetBrains Mono,monospace';
+      c.fillStyle=isGold?'rgba(201,168,76,'+(al*0.88)+')':'rgba(150,210,255,'+(al*0.84)+')';
+      c.fillText(p.label,p.sx+6,p.sy-4);}});
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* fillQ — popunjava textarea sa primjerom pitanja */
+function fillQ(q){
+  document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
+  var qtab=document.querySelector('.t-tab[onclick*="\'q\'"]');
+  if(qtab) qtab.classList.add('active');
+  ['q','n','a'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
+  document.getElementById('tab-q').style.display='block';
+  activeTab='q';
+  document.getElementById('btn-lbl').textContent='Pretraži pravnu bazu';
+  document.getElementById('resp').classList.remove('show');
+  document.getElementById('qi').value=q;
+  document.getElementById('qi').focus();
+}
+
+/* MARQUEE */
+var mq1=['Zakon o obligacionim odnosima','Zakon o radu','Krivični zakonik','Zakon o parničnom postupku','Porodični zakon','Zakon o nasleđivanju','Zakon o privrednim drustvima','Ustav Republike Srbije'];
+var mq2=['Tačnost - Preciznost - Brzina','AI za srpsko pravo','13.600+ pravnih odredbi','Ocena pouzdanosti','Vindex AI - Beta','Advokat 2.0','Srpski pravni sistem'];
+function buildTrack(id,items){var t=document.getElementById(id),all=items.concat(items).concat(items).concat(items);t.innerHTML=all.map(function(x){return '<span class="marquee-item">'+x+'<span class="marquee-sep"> &middot; </span></span>';}).join('');}
+buildTrack('mq1',mq1);buildTrack('mq2',mq2);
+
+/* COUNTER ANIMATION */
+var countersStarted = false;
+var cObs = new IntersectionObserver(function(entries){
+  if(entries[0].isIntersecting && !countersStarted){
+    countersStarted = true;
+    document.querySelectorAll('[data-target]').forEach(function(el){
+      var target=parseInt(el.dataset.target),suf=el.dataset.suf||'',dur=2000,start=performance.now();
+      function upd(now){var t=Math.min((now-start)/dur,1),ease=1-Math.pow(1-t,3);el.innerHTML=Math.floor(ease*target).toLocaleString('sr')+'<span class="acc">'+suf+'</span>';if(t<1)requestAnimationFrame(upd);}
+      requestAnimationFrame(upd);
+    });
+  }
+},{threshold:0.5});
+var heroSec = document.getElementById('hero');
+if(heroSec) cObs.observe(heroSec);
+
+/* REVEAL */
+var revObs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('v');revObs.unobserve(e.target);}});},{threshold:0.1});
+document.querySelectorAll('.r').forEach(function(el){revObs.observe(el);});
+
+/* TABS */
+function setTab(el,t){
+  document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
+  el.classList.add('active');
+  ['q','n','a'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
+  document.getElementById('tab-'+t).style.display='block';
+  activeTab=t;
+  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument'};
+  document.getElementById('btn-lbl').textContent=lbl[t];
+  document.getElementById('resp').classList.remove('show');
+}
+
+/* RESPONSE FORMATTER */
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function formatResponse(rawText) {
+  var defs = [
+    { key:'PRAVNI OSNOV:',            cls:'resp-pravni-osnov', lbl:'Pravni osnov' },
+    { key:'ODGOVOR:',                 cls:'resp-odgovor',      lbl:'Odgovor' },
+    { key:'CITAT IZ ZAKONA:',         cls:'resp-citat',        lbl:'Citat iz zakona' },
+    { key:'PRAVNA POSLEDICA:',        cls:'resp-posledica',    lbl:'Pravna posledica' },
+    { key:'NAPOMENA O POUZDANOSTI:',  cls:'resp-pouzdanost',   lbl:'Pouzdanost' },
+    { key:'NACRT:',                   cls:'resp-nacrt',        lbl:'Nacrt dokumenta' },
+    { key:'ANALIZA:',                 cls:'resp-analiza',      lbl:'Analiza' },
+    { key:'IDENTIFIKOVANI RIZICI:',   cls:'resp-rizici',       lbl:'Identifikovani rizici' },
+    { key:'PREPORUKE:',               cls:'resp-preporuke',    lbl:'Preporuke' },
+    { key:'IZVOR:',                   cls:'resp-izvor',        lbl:'Službeni izvor' },
+    { key:'VAŽNA NAPOMENA:',          cls:'resp-disclaimer',   lbl:'Pravna napomena' },
+  ];
+  var isStructured = defs.some(function(d){ return rawText.indexOf(d.key) !== -1; });
+  if (!isStructured) return '<div class="resp-plain">'+escHtml(rawText)+'</div>';
+  var found = [];
+  defs.forEach(function(d){
+    var idx = rawText.indexOf(d.key);
+    if (idx !== -1) found.push({ pos:idx, keyLen:d.key.length, cls:d.cls, lbl:d.lbl });
+  });
+  found.sort(function(a,b){ return a.pos-b.pos; });
+  var html = '';
+  found.forEach(function(s,i){
+    var start = s.pos + s.keyLen;
+    var end   = i+1 < found.length ? found[i+1].pos : rawText.length;
+    var val   = rawText.slice(start,end).trim();
+    html += '<div class="resp-section '+s.cls+'" style="animation-delay:'+(i*0.07)+'s">'+
+            '<div class="resp-section-lbl">'+s.lbl+'</div>'+
+            '<div class="resp-section-body">'+escHtml(val).replace(/\n/g,'<br>')+'</div>'+
+            '</div>';
+  });
+  return html;
+}
+
+/* EXEC */
+async function execQuery(){
+  var resp=document.getElementById('resp'),rb=document.getElementById('rb'),btnLbl=document.getElementById('btn-lbl'),orig=btnLbl.textContent;
+  btnLbl.innerHTML='<span class="ld"></span><span class="ld"></span><span class="ld"></span>';
+  resp.classList.remove('show');
+  rb.style.whiteSpace='';
+  var eps={q:BASE_URL+'/api/pitanje',n:BASE_URL+'/api/nacrt',a:BASE_URL+'/api/analiza'};
+  var bodies={q:{pitanje:document.getElementById('qi').value},n:{vrsta:document.getElementById('ni').value,opis:document.getElementById('no').value},a:{tekst:document.getElementById('aitxt').value,pitanje:document.getElementById('aq').value}};
+  try{
+    var r=await fetch(eps[activeTab],{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(bodies[activeTab])});
+    var d=await r.json();
+    var text=d.odgovor||d.greska||'Greška u odgovoru';
+    resp.classList.add('show');rb.textContent='';rb.style.whiteSpace='pre-wrap';rb.classList.add('resp-cursor');
+    var i=0;
+    var speed=text.length>600?4:text.length>300?7:12;
+    var iv=setInterval(function(){
+      if(i>=text.length){
+        clearInterval(iv);
+        rb.classList.remove('resp-cursor');
+        rb.style.whiteSpace='';
+        rb.innerHTML=formatResponse(text);
+      } else {
+        rb.textContent+=text[i];i++;
+      }
+    },speed);
+  }catch(e){resp.classList.add('show');rb.style.whiteSpace='pre-wrap';rb.textContent='Greška: '+(e.message||'API nije dostupan');}
+  btnLbl.textContent=orig;
+}
+
+/* DEMO TYPEWRITER */
+var demoAns='Prema čl. 179-180 Zakona o radu, otkaz zbog povrede radne obaveze zahteva:\n\n1. Upozorenje - poslodavac mora pismeno upozoriti zaposlenog\n2. Izjašnjavanje - zaposleni ima pravo da se u roku od 8 dana izjasni\n3. Obrazložena odluka - rešenje mora sadržati razloge i pouku o pravnom leku';
+var dStarted=false;
+var dObs=new IntersectionObserver(function(entries){if(entries[0].isIntersecting&&!dStarted){dStarted=true;var el=document.getElementById('demoTxt');var i=0;el.textContent='';el.classList.add('resp-cursor');var iv=setInterval(function(){if(i>=demoAns.length){clearInterval(iv);el.classList.remove('resp-cursor');document.getElementById('demoConf').classList.add('show');}else{el.textContent=demoAns.slice(0,++i);}},14);}},{threshold:0.4});
+var demSec=document.getElementById('demo');if(demSec)dObs.observe(demSec);
+
+/* PRICING TOGGLE */
+var annual=false;
+function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.toggle('on',annual);document.getElementById('p1').textContent=annual?'39\u20AC':'49\u20AC';document.getElementById('p2').textContent=annual?'79\u20AC':'99\u20AC';document.getElementById('pp1').textContent=annual?'/ mes godišnje':'/ mesečno';document.getElementById('pp2').textContent=annual?'/ mes godišnje':'/ mesečno';}
+
+/* NAV SCROLL */
+window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',scrollY>60);});
+</script>
+
+</body>
+</html>

@@ -1,14 +1,7 @@
+fastapi
+uvicorn[standard]
 openai
 python-dotenv
-langchain
-langchain-community
 langchain-openai
-langchain-text-splitters
-chromadb
-pypdf
-tiktoken
-langchain-chroma
-gdown
 pinecone
-
-pinecone
+slowapi
