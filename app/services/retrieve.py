@@ -23,8 +23,8 @@ logger = logging.getLogger("vindex.retrieve")
 EMBEDDING_MODEL = "text-embedding-3-large"
 PINECONE_INDEX  = "vindex-ai"
 
-# ─── Ključne riječi za prepoznavanje zakona ───────────────────────────────────
-# Vrijednosti moraju tačno odgovarati "law" metapodatku u Pinecone indeksu.
+# ─── Ključne reči za prepoznavanje zakona ───────────────────────────────────
+# Vrednosti moraju tačno odgovarati "law" metapodatku u Pinecone indeksu.
 
 LAW_HINTS = {
     # Zakon o radu
@@ -68,7 +68,7 @@ LAW_HINTS = {
     "zastarel":                   "zakon o obligacionim odnosima",
     "rok zastarelosti":           "zakon o obligacionim odnosima",
     "kada zastari":               "zakon o obligacionim odnosima",
-    "zastarelo potrazivanjs":     "zakon o obligacionim odnosima",
+    "zastarelo potrazivanje":     "zakon o obligacionim odnosima",
     "obligaci":                   "zakon o obligacionim odnosima",
     "naknada":                    "zakon o obligacionim odnosima",
     "ugovor":                     "zakon o obligacionim odnosima",
@@ -87,7 +87,7 @@ LAW_HINTS = {
     "potrosac":                   "zakon o zastiti potrosaca",
 }
 
-# Stop-riječi za token matching (bez dijakritika — koriste se u normalizovanom tekstu)
+# Stop-reči za token matching (bez dijakritika — koriste se u normalizovanom tekstu)
 STOPWORDS = {
     "koji", "koja", "koje", "kako", "kada", "zasto", "sta", "gde",
     "da", "li", "se", "su", "je", "u", "na", "po", "za", "od", "do",
@@ -251,7 +251,7 @@ def _prosiri_query_gpt(query: str) -> list[str]:
         logger.debug("[GPT_EXPANSION] %s", prošireni)
         return prošireni[:4]
     except Exception:
-        logger.warning("GPT query ekspanzija nije uspjela, nastavljam bez nje.")
+        logger.warning("GPT query ekspanzija nije uspela, nastavljam bez nje.")
         return []
 
 

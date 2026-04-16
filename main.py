@@ -66,12 +66,12 @@ DISCLAIMER_TEKST = (
 
 ODGOVOR_NIJE_PRONADJEN = (
     "PRAVNI OSNOV: Nije pronađen u bazi podataka\n\n"
-    "ODGOVOR: U dostavljenoj bazi zakona nema direktno primjenjive odredbe za ovo pitanje. "
+    "ODGOVOR: U dostavljenoj bazi zakona nema direktno primenljive odredbe za ovo pitanje. "
     "Moguće je da se radi o oblasti koja nije obuhvaćena trenutnom bazom, "
     "ili da pitanje zahteva specifičniju formulaciju.\n\n"
     "CITAT IZ ZAKONA: \"Nije dostupno\"\n\n"
     "PRAVNA POSLEDICA: Nije moguće utvrditi bez odgovarajuće zakonske osnove u bazi.\n\n"
-    "NAPOMENA O POUZDANOSTI: 0% — Odredba nije pronađena. Preporučujemo konsultaciju sa advokatom.\n\n"
+    "POUZDANOST: 0% — Odredba nije pronađena. Preporučujemo konsultaciju sa advokatom.\n\n"
     f"VAŽNA NAPOMENA: {DISCLAIMER_TEKST}"
 )
 
@@ -80,7 +80,7 @@ OBAVEZNE_SEKCIJE_QA = [
     "ODGOVOR:",
     "CITAT IZ ZAKONA:",
     "PRAVNA POSLEDICA:",
-    "NAPOMENA O POUZDANOSTI:",
+    "POUZDANOST:",
 ]
 
 # ─── System promptovi ────────────────────────────────────────────────────────
@@ -89,30 +89,30 @@ SYSTEM_PROMPT_QA = """Ti si stručni AI pravni asistent za advokate u Srbiji.
 Odgovaraš ISKLJUČIVO na osnovu dostavljenog KONTEKSTA iz baze srpskih zakona.
 
 ══════════════════════════════════════════
-OBAVEZNI FORMAT ODGOVORA — UVIJEK, BEZ IZUZETKA:
+OBAVEZNI FORMAT ODGOVORA — UVEK, BEZ IZUZETKA:
 ══════════════════════════════════════════
 
 PRAVNI OSNOV: [naziv zakona i broj člana iz konteksta, npr. "Zakon o obligacionim odnosima, član 200"]
 
 ODGOVOR: [jasan i konkretan odgovor na pitanje, zasnovan isključivo na kontekstu]
 
-CITAT IZ ZAKONA: "[doslovni citat relevantnog dijela teksta člana iz konteksta — bez izmjena]"
+CITAT IZ ZAKONA: "[doslovni citat relevantnog dela teksta člana iz konteksta — bez izmena]"
 
-PRAVNA POSLEDICA: [konkretna pravna posledica ili primjena odredbe na situaciju iz pitanja]
+PRAVNA POSLEDICA: [konkretna pravna posledica ili primena odredbe na situaciju iz pitanja]
 
-NAPOMENA O POUZDANOSTI: [X%] — [kratko obrazloženje: zašto je taj procenat, šta pokriva kontekst]
+POUZDANOST: [X%] — [kratko obrazloženje: zašto je taj procenat, šta pokriva kontekst]
 
 ══════════════════════════════════════════
 STROGA PRAVILA — NIKADA IH NE KRŠI:
 ══════════════════════════════════════════
 1. NIKADA ne izmišljaj zakone, članove, citiranja ili sadržaj koji NIJE u KONTEKSTU.
-2. Citat mora biti DOSLOVAN — preuzet direktno iz KONTEKSTA, bez ikakvih izmjena.
+2. Citat mora biti DOSLOVAN — preuzet direktno iz KONTEKSTA, bez ikakvih izmena.
 3. Ako KONTEKST ne sadrži relevantan odgovor, u SVIM poljima napiši odgovarajuću napomenu.
-4. Pouzdanost (NAPOMENA O POUZDANOSTI): 0% ako nema relevantnog konteksta; maksimum je 85% — nikada viši, jer AI sistem nije zamena za pravno mišljenje. Skala: 30–50% = delimično poklapanje, 51–70% = dobro poklapanje, 71–85% = visoko poklapanje sa bazom. Uvek dodaj kratko obrazloženje zašto si dao taj procenat.
-5. Uvijek piši sa srpskim dijakritičkim znacima (č, ć, ž, š, đ).
+4. POUZDANOST: 0% ako nema relevantnog konteksta; maksimum je 85% — nikada viši, jer AI sistem nije zamena za pravno mišljenje. Skala: 30–50% = delimično poklapanje, 51–70% = dobro poklapanje, 71–85% = visoko poklapanje sa bazom. Uvek dodaj kratko obrazloženje zašto si dao taj procenat.
+5. Uvek piši sa srpskim dijakritičkim znacima (č, ć, ž, š, đ).
 6. Ako je relevantno više zakona, navedi sve u PRAVNOM OSNOVU.
-7. Ne davaj pravne savjete van onoga što piše u zakonu — samo tumači tekst.
-8. Ako pitanje ima VIŠE MOGUĆIH TUMAČENJA ili postoje suprotni stavovi u praksi, eksplicitno to navedi u ODGOVORU: "Postoje različita tumačenja: (a)... (b)..." i u NAPOMENI smanji procenat odgovarajuće.
+7. Ne davaj pravne savete van onoga što piše u zakonu — samo tumači tekst.
+8. Ako pitanje ima VIŠE MOGUĆIH TUMAČENJA ili postoje suprotni stavovi u praksi, eksplicitno to navedi u ODGOVORU: "Postoje različita tumačenja: (a)... (b)..." i u POUZDANOSTI smanji procenat odgovarajuće.
 9. NIKADA ne ekstrapoluj pravne posledice koje nisu eksplicitno navedene u KONTEKSTU. Ako kontekst ne kaže doslovno da neka radnja ima određeno dejstvo — ne tvrdi da ga ima.
 
 ══════════════════════════════════════════
@@ -140,27 +140,27 @@ Ako kontekst ne sadrži eksplicitnu potvrdu za tvrdnju — ne tvrditi. Bolje re�
 KADA NEMA ODGOVORA — koristi TAČNO ovaj format:
 ══════════════════════════════════════════
 PRAVNI OSNOV: Nije pronađen u bazi podataka
-ODGOVOR: U dostavljenoj bazi zakona nema direktno primjenjive odredbe za ovo pitanje.
+ODGOVOR: U dostavljenoj bazi zakona nema direktno primenljive odredbe za ovo pitanje.
 CITAT IZ ZAKONA: "Nije dostupno"
 PRAVNA POSLEDICA: Nije moguće utvrditi bez odgovarajuće zakonske osnove u bazi.
-NAPOMENA O POUZDANOSTI: 0% — Odredba nije pronađena u dostupnoj bazi zakona."""
+POUZDANOST: 0% — Odredba nije pronađena u dostupnoj bazi zakona."""
 
 SYSTEM_PROMPT_NACRT = """Ti si stručni AI pravni asistent za advokate u Srbiji.
 Generišeš nacrte pravnih dokumenata na osnovu dostavljenih činjenica.
 
 OBAVEZNI FORMAT ODGOVORA:
 
-PRAVNI OSNOV: [zakoni i članovi koji se primjenjuju na ovu vrstu dokumenta]
+PRAVNI OSNOV: [zakoni i članovi koji se primenjuju na ovu vrstu dokumenta]
 
 NACRT:
 [potpuni tekst nacrta dokumenta — formalni pravni stil, srpska pravna terminologija]
 [nepoznate podatke označi sa [PODATAK_KOJI_TREBA_POPUNITI]]
 
-NAPOMENA: Ovaj nacrt je generisan uz pomoć AI i mora biti pregledan i potvrđen od strane ovlašćenog advokata prije upotrebe.
+NAPOMENA: Ovaj nacrt je generisan uz pomoć AI i mora biti pregledan i potvrđen od strane ovlašćenog advokata pre upotrebe.
 
 PRAVILA:
 1. Koristi formalni pravni stil i srpsku pravnu terminologiju.
-2. Uvijek piši sa srpskim dijakritičkim znacima (č, ć, ž, š, đ).
+2. Uvek piši sa srpskim dijakritičkim znacima (č, ć, ž, š, đ).
 3. Nacrt mora biti u skladu sa važećim srpskim zakonodavstvom.
 4. Ne izmišljaj činjenice koje nisu navedene u pitanju."""
 
@@ -169,20 +169,20 @@ Analiziraš sadržaj pravnih dokumenata.
 
 OBAVEZNI FORMAT ODGOVORA:
 
-PRAVNI OSNOV: [relevantni zakoni i članovi koji se primjenjuju na analizirani dokument]
+PRAVNI OSNOV: [relevantni zakoni i članovi koji se primenjuju na analizirani dokument]
 
 ANALIZA: [detaljna pravna analiza sadržaja dokumenta]
 
 IDENTIFIKOVANI RIZICI: [pravni rizici, sporne klauzule, potencijalni problemi]
 
-PREPORUKE: [konkretne preporuke za postupanje ili izmjene]
+PREPORUKE: [konkretne preporuke za postupanje ili izmene]
 
-NAPOMENA O POUZDANOSTI: [X%] — [obrazloženje]
+POUZDANOST: [X%] — [obrazloženje]
 
 PRAVILA:
-1. Uvijek piši sa srpskim dijakritičkim znacima (č, ć, ž, š, đ).
+1. Uvek piši sa srpskim dijakritičkim znacima (č, ć, ž, š, đ).
 2. Ako dostavljeni tekst nije pravne prirode, jasno to naglasi.
-3. Na kraju dodaj: "Analiza je generisana uz pomoć AI i mora biti provjerena od strane ovlašćenog advokata." """
+3. Na kraju dodaj: "Analiza je generisana uz pomoć AI i mora biti proverena od strane ovlašćenog advokata." """
 
 # ─── Interne pomoćne funkcije ────────────────────────────────────────────────
 
@@ -200,24 +200,24 @@ def _filtriraj_kontekst(docs: list[str]) -> list[str]:
 
 
 def _ima_obavezne_sekcije(odgovor: str) -> bool:
-    """Provjeri da li odgovor sadrži sve obavezne sekcije."""
+    """Proveri da li odgovor sadrži sve obavezne sekcije."""
     return all(sekcija in odgovor for sekcija in OBAVEZNE_SEKCIJE_QA)
 
 
-def _provjeri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
+def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
     """
-    Stroga anti-halucinacijska provjera.
+    Stroga anti-halucinacijska provera.
     Vraća (validan, razlog).
 
     Logika:
-    - Ako odgovor kaže 'nije pronađeno' → uvijek validan
+    - Ako odgovor kaže 'nije pronađeno' → uvek validan
     - Svaki citirani član zakona mora biti pronađen u kontekstu
     - Ako je citat u navodnicima, prvih 40 znakova mora biti u kontekstu
     """
-    # Odgovor "nije pronađeno" je uvijek validan
+    # Odgovor "nije pronađeno" je uvek validan
     markeri_nije_pronadjeno = [
         "nije pronađen u bazi",
-        "nema direktno primjenjive",
+        "nema direktno primenljive",
         "nije dostupno",
         "0% —",
     ]
@@ -228,17 +228,17 @@ def _provjeri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
     kontekst = " ".join(docs)
     kontekst_norm = _normalizuj(kontekst)
 
-    # 1) Provjeri sve citirane članove
+    # 1) Proveri sve citirane članove
     citirani_clanovi = re.findall(r"[Čč]lan\s+(\d+[a-zA-Z]?)", odgovor)
     for clan in citirani_clanovi:
         clan_norm = _normalizuj(clan)
-        # Word-boundary: "lan 5" ne smije matchati "lan 50"
+        # Word-boundary: "lan 5" ne sme da matchuje "lan 50"
         pattern = rf"lan\s+{re.escape(clan_norm)}(?!\d)"
         if not re.search(pattern, kontekst_norm):
             logger.warning("HALUCINACIJA: član %s nije u kontekstu", clan)
             return False, f"Član {clan} nije pronađen u dostavljenom kontekstu"
 
-    # 2) Provjeri citat (prvih 40 znakova normalizovanog citata mora biti u kontekstu)
+    # 2) Proveri citat (prvih 40 znakova normalizovanog citata mora biti u kontekstu)
     match_citat = re.search(r'CITAT IZ ZAKONA:\s*"([^"]{20,})"', odgovor)
     if match_citat:
         citat_raw = match_citat.group(1)
@@ -253,7 +253,7 @@ def _provjeri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
 # ─── Poznate kritične pravne greške — pattern → ispravka ─────────────────────
 #
 # Svaki unos: (regex_pattern, korekcija)
-# Pattern se primjenjuje na normalizovani (bez dijakritika, lowercase) odgovor.
+# Pattern se primenjuje na normalizovani (bez dijakritika, lowercase) odgovor.
 # Ako se pogodi → odgovor se odbacuje i vraća se siguran fallback.
 
 ZABRANJENE_GRESKE: list[tuple[str, str]] = [
@@ -261,7 +261,7 @@ ZABRANJENE_GRESKE: list[tuple[str, str]] = [
     (
         r"opomen\w*\s+\w{0,15}\s*prekid",
         "Opomena ne prekida zastarelost (ZOO čl. 388–393). "
-        "Zastarelost se prekida samo: tužbom/izvršenjem ili pisanim признanjem duga od strane dužnika.",
+        "Zastarelost se prekida samo: tužbom/izvršenjem ili pisanim priznavanjem duga od strane dužnika.",
     ),
     (
         r"slanj\w+\s+opomen\w*\s+\w{0,15}\s*(zastarel|rok)",
@@ -289,7 +289,7 @@ def _verifikuj_pravne_greske(odgovor: str) -> tuple[bool, str]:
     Vraća (validan, opis_greske).
     Greška se detektuje na normalizovanom tekstu (bez dijakritika).
     """
-    # "Nije pronađeno" odgovori su uvijek bezbjedni
+    # "Nije pronađeno" odgovori su uvek bezbedni
     if "nije pronadjen u bazi" in _normalizuj(odgovor) or "0% —" in odgovor:
         return True, "ok"
 
@@ -310,7 +310,7 @@ def _odgovor_pravna_greska(opis: str) -> str:
         f"NAPOMENA SISTEMA: {opis}\n\n"
         f"CITAT IZ ZAKONA: \"Nije primenljivo\"\n\n"
         f"PRAVNA POSLEDICA: Nije moguće utvrditi bez verifikovanog zakonskog osnova.\n\n"
-        f"NAPOMENA O POUZDANOSTI: 0% — Odgovor odbijen zbog detektovane pravne neispravnosti.\n\n"
+        f"POUZDANOST: 0% — Odgovor odbijen zbog detektovane pravne neispravnosti.\n\n"
         f"VAŽNA NAPOMENA: {DISCLAIMER_TEKST}"
     )
 
@@ -331,7 +331,7 @@ def _izvuci_zakone_iz_docs(docs: list[str]) -> list[str]:
 
 
 def _dodaj_izvor(odgovor: str, docs: list[str]) -> str:
-    """Pronalazi Sl. glasnik referendu iz konteksta i dodaje IZVOR: sekciju."""
+    """Pronalazi Sl. glasnik referencu iz konteksta i dodaje SLUŽBENI IZVOR: sekciju."""
     zakoni = _izvuci_zakone_iz_docs(docs)
     if not zakoni:
         return odgovor
@@ -344,12 +344,12 @@ def _dodaj_izvor(odgovor: str, docs: list[str]) -> str:
                 break
     if not reference:
         return odgovor
-    return odgovor + "\n\nIZVOR: " + " | ".join(reference)
+    return odgovor + "\n\nSLUŽBENI IZVOR: " + " | ".join(reference)
 
 
 def _ogranici_pouzdanost(odgovor: str) -> str:
     """Osigurava da procenat u NAPOMENI O POUZDANOSTI nije viši od 85%."""
-    idx = odgovor.find("NAPOMENA O POUZDANOSTI:")
+    idx = odgovor.find("POUZDANOST:")
     if idx == -1:
         return odgovor
 
@@ -369,7 +369,7 @@ def _dodaj_disclaimer(odgovor: str) -> str:
 
 
 def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o-mini") -> str:
-    """OpenAI poziv sa timeoutom. Baca iznimku pri grešci."""
+    """OpenAI poziv sa timeoutom. Baca izuzetak pri grešci."""
     odgovor = client.chat.completions.create(
         model=model,
         messages=[
@@ -413,18 +413,18 @@ def ask_agent(pitanje: str) -> dict:
         )
         odgovor = _pozovi_openai(SYSTEM_PROMPT_QA, user_content)
 
-        # Korak 3: Provjeri format
+        # Korak 3: Proveri format
         if not _ima_obavezne_sekcije(odgovor):
-            logger.warning("Odgovor nema propisanu strukturu — zamjenjujem sa 'nije pronađeno'")
+            logger.warning("Odgovor nema propisanu strukturu — zamenjujem sa 'nije pronađeno'")
             return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
 
-        # Korak 4: Anti-halucinacijska provjera
-        validan, razlog = _provjeri_halucinaciju(odgovor, filtrirani)
+        # Korak 4: Anti-halucinacijska provera
+        validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
         if not validan:
             logger.warning("Anti-halucinacija blokirala odgovor: %s", razlog)
             return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
 
-        # Korak 5: Provjera poznatih pravnih grešaka
+        # Korak 5: Provera poznatih pravnih grešaka
         pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
         if not pravno_validan:
             logger.error("Pravna greška blokirala odgovor: %s", pravna_greska)
@@ -435,7 +435,7 @@ def ask_agent(pitanje: str) -> dict:
         odgovor = _dodaj_izvor(odgovor, filtrirani)
         odgovor = _dodaj_disclaimer(odgovor)
 
-        logger.info("Uspješan odgovor za: %.80s", pitanje)
+        logger.info("Uspešan odgovor za: %.80s", pitanje)
         return {"status": "success", "data": odgovor}
 
     except Exception:

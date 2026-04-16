@@ -8,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
 <style>
 :root {
   --void: #010308;
@@ -158,7 +160,7 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .t-tab:hover { color: rgba(255,255,255,0.55); }
 .t-label { font-family: ‘DM Sans’, sans-serif; font-size: 0.73rem; font-weight: 500; color: rgba(255,255,255,0.52); margin-bottom: 0.45rem; display: block; }
 textarea.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.8rem; font-weight: 300; line-height: 1.7; padding: 0.9rem 1.1rem; outline: none; resize: none; height: 86px; caret-color: #4aa8ff; transition: border-color 0.25s; }
-textarea.t-input::placeholder { color: rgba(255,255,255,0.18); }
+textarea.t-input::placeholder { color: rgba(255,255,255,0.45); }
 textarea.t-input:focus { border-color: rgba(74,168,255,0.38); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
 select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.76rem; padding: 0.75rem 1.1rem; outline: none; cursor: none; appearance: none; margin-bottom: 0.8rem; }
 .t-exec { width: 100%; margin-top: 0.9rem; padding: 0.9rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.84rem; font-weight: 600; letter-spacing: 0.04em; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
@@ -345,7 +347,7 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .modal-sub { font-size: 0.88rem; color: rgba(255,255,255,0.5); font-weight: 300; line-height: 1.7; margin-bottom: 2rem; }
 .modal-form { display: flex; flex-direction: column; gap: 0.9rem; }
 .modal-input { background: rgba(74,168,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.88rem; padding: 0.9rem 1.2rem; outline: none; transition: border-color 0.25s; }
-.modal-input::placeholder { color: rgba(255,255,255,0.2); }
+.modal-input::placeholder { color: rgba(255,255,255,0.45); }
 .modal-input:focus { border-color: rgba(74,168,255,0.4); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
 .modal-btn { padding: 1rem; background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.88rem; font-weight: 600; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
 .modal-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(74,168,255,0.5); }
@@ -550,6 +552,41 @@ footer { padding: 2rem 1.5rem; }
 .h-stat-lbl { font-size: 0.45rem; }
 .h-cta { flex-direction: column; align-items: center; }
 }
+
+/* ── AUTH MODAL ─────────────────────────────────────────────────────────── */
+.auth-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.04); border-radius: 8px; padding: 3px; margin-bottom: 1.4rem; border: 1px solid rgba(255,255,255,0.06); }
+.auth-tab { flex: 1; padding: 0.5rem; text-align: center; font-size: 0.78rem; font-weight: 500; color: rgba(255,255,255,0.4); background: none; border: 1px solid transparent; border-radius: 6px; cursor: none; transition: all 0.25s; }
+.auth-tab.active { background: rgba(74,168,255,0.1); color: #89c8ff; border-color: rgba(74,168,255,0.2); }
+.auth-tab:hover { color: rgba(255,255,255,0.7); }
+.auth-error { min-height: 1.4rem; font-size: 0.78rem; color: #ff6b6b; text-align: center; margin-top: 0.5rem; line-height: 1.5; }
+.auth-credit-note { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.18); border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.75rem; color: rgba(74,222,128,0.85); text-align: center; margin-bottom: 1rem; }
+
+/* ── CREDIT COUNTER ──────────────────────────────────────────────────────── */
+.nav-user { display: none; align-items: center; gap: 0.85rem; }
+.nav-user-email { font-size: 0.7rem; color: rgba(255,255,255,0.38); font-weight: 300; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-credit-pill { display: inline-flex; align-items: center; gap: 0.38rem; font-family: 'JetBrains Mono',monospace; font-size: 0.56rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.55); background: rgba(74,168,255,0.07); border: 1px solid rgba(74,168,255,0.18); border-radius: 999px; padding: 0.25rem 0.75rem; white-space: nowrap; }
+.nav-credit-pill .cp-num { color: #4aa8ff; font-weight: 500; }
+.nav-credit-pill.warn { border-color: rgba(240,180,41,0.3); }
+.nav-credit-pill.warn .cp-num { color: #f0b429; }
+.nav-credit-pill.empty { border-color: rgba(255,100,100,0.3); }
+.nav-credit-pill.empty .cp-num { color: #ff6b6b; }
+.nav-logout { font-size: 0.7rem; color: rgba(255,255,255,0.28); background: none; border: 1px solid rgba(255,255,255,0.09); border-radius: 6px; padding: 0.28rem 0.7rem; cursor: none; transition: all 0.2s; }
+.nav-logout:hover { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
+.t-credits-row { display: flex; align-items: center; justify-content: space-between; margin-top: 0.55rem; padding: 0.35rem 0.5rem; background: rgba(74,168,255,0.03); border-radius: 7px; border: 1px solid rgba(74,168,255,0.08); }
+.t-credits-lbl { font-family: 'JetBrains Mono',monospace; font-size: 0.54rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.28); }
+.t-credits-val { font-family: 'JetBrains Mono',monospace; font-size: 0.54rem; color: #4aa8ff; font-weight: 500; }
+.t-credits-val.warn { color: #f0b429; }
+.t-credits-val.empty { color: #ff6b6b; }
+
+/* ── PAYWALL MODAL ───────────────────────────────────────────────────────── */
+.paywall-icon { font-size: 2.8rem; margin-bottom: 0.8rem; }
+.paywall-price-wrap { margin: 1.2rem 0 1.5rem; }
+.paywall-price-num { font-family: 'Cormorant Garamond',serif; font-size: 3.8rem; font-weight: 700; color: #fff; line-height: 1; }
+.paywall-price-cur { font-family: 'Cormorant Garamond',serif; font-size: 2rem; font-weight: 300; color: rgba(255,255,255,0.45); vertical-align: super; }
+.paywall-price-per { display: block; font-size: 0.78rem; color: rgba(255,255,255,0.35); margin-top: 0.3rem; }
+.paywall-features { list-style: none; text-align: left; margin: 0 0 1.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.paywall-features li { font-size: 0.8rem; color: rgba(255,255,255,0.55); display: flex; align-items: center; gap: 0.5rem; }
+.paywall-features li::before { content: '¹3'; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
 </style>
 
 </head>
@@ -558,28 +595,53 @@ footer { padding: 2rem 1.5rem; }
 <div id="cursor-ring"></div>
 <canvas id="cv"></canvas>
 
-<!-- EMAIL MODAL -->
-
-<div class="modal-overlay" id="modal">
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="auth-modal">
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">&#x2715;</button>
-    <div id="modal-form-wrap">
-      <div class="modal-badge">Beta pristup</div>
-      <div class="modal-title">Počni besplatno.<br>7 dana bez obaveze.</div>
-      <p class="modal-sub">Ostavi email i bićeš među prvima koji testiraju Vindex AI. Nema kreditne kartice, nema obaveza.</p>
-      <div class="modal-form">
-        <input class="modal-input" type="text" id="modal-name" placeholder="Ime i prezime">
-        <input class="modal-input" type="email" id="modal-email" placeholder="Email adresa">
-        <input class="modal-input" type="text" id="modal-role" placeholder="Advokat / Pravnik / Kancelarija">
-        <button class="modal-btn" onclick="submitModal()">Prijavi se za beta pristup</button>
-        <div class="modal-note">Privatnost je zagarantovana. Bez spama.</div>
-      </div>
+    <div class="modal-badge">Vindex AI — Beta</div>
+    <div class="modal-title">Dobrodošli.<br>15 besplatnih upita.</div>
+    <p class="modal-sub">Registrujte se ili se prijavite. Svaki novi nalog dobija 15 besplatnih pravnih upita bez kreditne kartice.</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="auth-login-tab" onclick="setAuthMode('login')">Prijava</button>
+      <button class="auth-tab" id="auth-reg-tab" onclick="setAuthMode('register')">Registracija</button>
     </div>
-    <div class="modal-success" id="modal-success">
-      <div class="modal-success-icon">&#x2713;</div>
-      <div class="modal-success-title">Prijava primljena!</div>
-      <p class="modal-success-text">Javićemo ti se u roku od 24 sata sa pristupom.<br>Hvala na poverenju.</p>
+    <div id="auth-login-form" style="display:flex;flex-direction:column;gap:0.9rem;">
+      <input class="modal-input" type="email" id="login-email" placeholder="Email adresa" autocomplete="email">
+      <input class="modal-input" type="password" id="login-password" placeholder="Lozinka" autocomplete="current-password">
+      <button class="modal-btn" id="login-btn" onclick="doLogin()">Prijavite se</button>
     </div>
+    <div id="auth-reg-form" style="display:none;flex-direction:column;gap:0.9rem;">
+      <div class="auth-credit-note">&#x2713;&nbsp; 15 besplatnih upita odmah po registraciji</div>
+      <input class="modal-input" type="email" id="reg-email" placeholder="Email adresa" autocomplete="email">
+      <input class="modal-input" type="password" id="reg-password" placeholder="Lozinka (min. 8 karaktera)" autocomplete="new-password">
+      <button class="modal-btn" id="reg-btn" onclick="doRegister()">Registrujte se besplatno</button>
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+    <div class="modal-note">Privatnost je zagarantovana. Bez spama.</div>
+  </div>
+</div>
+
+<!-- PAYWALL MODAL -->
+<div class="modal-overlay" id="paywall-modal">
+  <div class="modal" style="text-align:center;">
+    <button class="modal-close" onclick="closePaywall()">&#x2715;</button>
+    <div class="paywall-icon">&#9878;</div>
+    <div class="modal-badge">Besplatni plan</div>
+    <div class="modal-title" style="font-size:1.55rem;">Iskoristili ste<br>besplatne upite.</div>
+    <p class="modal-sub">Pređite na Basic paket za neograničen pristup svim zakonima i funkcijama.</p>
+    <div class="paywall-price-wrap">
+      <span class="paywall-price-cur">€</span><span class="paywall-price-num">49</span>
+      <span class="paywall-price-per">/ mesečno &nbsp;&middot;&nbsp; bez obaveza</span>
+    </div>
+    <ul class="paywall-features">
+      <li>Neograničen broj pravnih upita</li>
+      <li>Pretraga svih 13.600+ zakonskih odredbi</li>
+      <li>Generisanje nacrta tužbi i žalbi</li>
+      <li>Analiza ugovora i identifikacija rizika</li>
+    </ul>
+    <button class="modal-btn" onclick="closePaywall();setAuthMode('register');openModal();">Pređite na Basic paket &rarr;</button>
+    <div class="modal-note" style="margin-top:0.75rem;">Otkaži u svakom trenutku. Bez skrivenih troškova.</div>
   </div>
 </div>
 
@@ -601,7 +663,12 @@ footer { padding: 2rem 1.5rem; }
     <a href="#pricing">Paketi</a>
     <a href="#about">O nama</a>
   </div>
-  <a href="#" class="nav-cta magnetic" onclick="openModal();return false;">Počni besplatno</a>
+  <div class="nav-user" id="nav-user">
+    <span class="nav-user-email" id="nav-user-email"></span>
+    <span class="nav-credit-pill" id="nav-credit-pill"><span id="nav-credits-num" class="cp-num">15</span>&nbsp;/ 15 upita</span>
+    <button class="nav-logout" onclick="doLogout()">Odjava</button>
+  </div>
+  <a href="#" class="nav-cta magnetic" id="nav-cta-btn" onclick="openModal();return false;">Počni besplatno</a>
   <button class="hamburger" id="hamburger" onclick="toggleMenu()">
     <span></span><span></span><span></span>
   </button>
@@ -658,7 +725,7 @@ footer { padding: 2rem 1.5rem; }
               <span class="t-chip" onclick="fillQ('Naknada nematerijalne štete')">Nematerijalna šteta</span>
               <span class="t-chip" onclick="fillQ('Uslovi za otkaz ugovora o radu')">Otkaz radnog odnosa</span>
               <span class="t-chip" onclick="fillQ('Razvod braka i starateljstvo nad detetom')">Razvod i starateljstvo</span>
-              <span class="t-chip" onclick="fillQ('Zastarjelost potraživanja naknade štete')">Zastarjelost</span>
+              <span class="t-chip" onclick="fillQ('Zastarelost potraživanja naknade štete')">Zastarelost</span>
             </div>
             <label class="t-label">Vaše pravno pitanje:</label>
             <textarea class="t-input" id="qi" placeholder="Npr. Koji su uslovi za naknadu nematerijalne štete?"></textarea>
@@ -691,7 +758,11 @@ footer { padding: 2rem 1.5rem; }
             <label class="t-label">Specifično pitanje (opciono):</label>
             <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:46px;margin-top:0.4rem;"></textarea>
           </div>
-          <button class="t-exec" onclick="execQuery()"><span id="btn-lbl">Pretraži pravnu bazu</span></button>
+          <button class="t-exec" id="exec-btn" onclick="execQuery()"><span id="btn-lbl">Pretraži pravnu bazu</span></button>
+          <div class="t-credits-row" id="t-credits-row" style="display:none;">
+            <span class="t-credits-lbl">Preostalo upita:</span>
+            <span class="t-credits-val" id="t-credits-val">15 / 15</span>
+          </div>
           <div class="t-resp" id="resp">
             <div class="resp-inner">
               <div class="resp-lbl">Odgovor - Vindex AI</div>
@@ -906,61 +977,183 @@ footer { padding: 2rem 1.5rem; }
 var BASE_URL = window.location.origin;
 var activeTab = 'q';
 
-// ─── EmailJS konfiguracija ────────────────────────────────────────────────────
-// 1. Idite na https://www.emailjs.com/ i napravite besplatan nalog
-// 2. Dodajte Email Service (Gmail, Outlook...) → kopirajte Service ID
-// 3. Kreirajte Email Template sa varijablama: {{name}}, {{email}}, {{role}}
-// 4. Idite na Account → API Keys → kopirajte Public Key
-var EMAILJS_PUBLIC_KEY  = 'VAŠ_PUBLIC_KEY';   // Account > API Keys
-var EMAILJS_SERVICE_ID  = 'VAŠ_SERVICE_ID';   // Email Services
-var EMAILJS_TEMPLATE_ID = 'VAŠ_TEMPLATE_ID';  // Email Templates
+// ─── Supabase konfiguracija ───────────────────────────────────────────────────
+// Popunite sa vrednostima iz Supabase Dashboard → Settings → API
+var SUPABASE_URL      = 'VAŠA_SUPABASE_URL';   // https://xxx.supabase.co
+var SUPABASE_ANON_KEY = 'VAŠ_ANON_KEY';        // eyJ...
 // ─────────────────────────────────────────────────────────────────────────────
 
-if (EMAILJS_PUBLIC_KEY !== 'VAŠ_PUBLIC_KEY') {
-  emailjs.init(EMAILJS_PUBLIC_KEY);
-}
-
-/* MODAL */
-function openModal() { document.getElementById('modal').classList.add('open'); }
-function closeModal() { document.getElementById('modal').classList.remove('open'); }
-document.getElementById('modal').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
-
-function _showModalSuccess() {
-  document.getElementById('modal-form-wrap').style.display = 'none';
-  document.getElementById('modal-success').style.display = 'block';
-  setTimeout(closeModal, 3500);
-}
-
-function submitModal() {
-  var name  = document.getElementById('modal-name').value.trim();
-  var email = document.getElementById('modal-email').value.trim();
-  var role  = document.getElementById('modal-role').value.trim();
-  if (!email || !email.includes('@')) { document.getElementById('modal-email').focus(); return; }
-
-  var btn = document.querySelector('.modal-btn');
-  btn.textContent = 'Slanje...';
-  btn.disabled = true;
-
-  function _reset() { btn.textContent = 'Prijavi se za beta pristup'; btn.disabled = false; }
-
-  if (EMAILJS_PUBLIC_KEY === 'VAŠ_PUBLIC_KEY') {
-    _showModalSuccess();
-    _reset();
-    return;
+var _supa = null;
+function getSupabase() {
+  if (!_supa && SUPABASE_URL !== 'VAŠA_SUPABASE_URL' && window.supabase) {
+    _supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
+  return _supa;
+}
 
-  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-    name:  name  || 'Nije uneto',
-    email: email,
-    role:  role  || 'Nije uneto',
-  }).then(function() {
-    _showModalSuccess();
-  }).catch(function(err) {
-    console.warn('EmailJS greška:', err);
-    _showModalSuccess(); // prikaži uspjeh korisniku čak i ako email ne prođe
-  }).finally(function() {
-    _reset();
+// ─── Auth stanje ──────────────────────────────────────────────────────────────
+var currentUser    = null;
+var currentSession = null;
+var userCredits    = 0;
+var TOTAL_CREDITS  = 15;
+
+async function initAuth() {
+  var sb = getSupabase();
+  if (!sb) return;
+  var res = await sb.auth.getSession();
+  if (res.data && res.data.session) {
+    currentSession = res.data.session;
+    currentUser    = res.data.session.user;
+    await loadCredits();
+    updateAuthUI();
+  }
+  sb.auth.onAuthStateChange(async function(event, session) {
+    currentSession = session;
+    currentUser    = session ? session.user : null;
+    if (currentUser) { await loadCredits(); }
+    else { userCredits = 0; }
+    updateAuthUI();
   });
+}
+
+async function loadCredits() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/me', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (r.ok) {
+      var d = await r.json();
+      userCredits    = d.credits_remaining || 0;
+      TOTAL_CREDITS  = d.credits_total     || 15;
+      updateCreditDisplay();
+    }
+  } catch(e) { console.warn('Greška pri učitavanju kredita:', e); }
+}
+
+function updateCreditDisplay() {
+  var navNum  = document.getElementById('nav-credits-num');
+  var navPill = document.getElementById('nav-credit-pill');
+  var tVal    = document.getElementById('t-credits-val');
+  var execBtn = document.getElementById('exec-btn');
+
+  if (navNum)  navNum.textContent = userCredits;
+  if (tVal)    tVal.textContent   = userCredits + ' / ' + TOTAL_CREDITS;
+
+  var cls = userCredits > 3 ? '' : userCredits > 0 ? 'warn' : 'empty';
+  if (navPill) { navPill.className = 'nav-credit-pill ' + cls; }
+  if (tVal)    { tVal.className    = 't-credits-val ' + cls; }
+  if (execBtn) execBtn.disabled   = userCredits <= 0;
+}
+
+function updateAuthUI() {
+  var navUser  = document.getElementById('nav-user');
+  var navCta   = document.getElementById('nav-cta-btn');
+  var navEmail = document.getElementById('nav-user-email');
+  var tRow     = document.getElementById('t-credits-row');
+
+  if (currentUser) {
+    if (navUser)  navUser.style.display  = 'flex';
+    if (navCta)   navCta.style.display   = 'none';
+    if (navEmail) navEmail.textContent   = currentUser.email || '';
+    if (tRow)     tRow.style.display     = 'flex';
+    updateCreditDisplay();
+  } else {
+    if (navUser)  navUser.style.display  = 'none';
+    if (navCta)   navCta.style.display   = '';
+    if (tRow)     tRow.style.display     = 'none';
+  }
+}
+
+// ─── Auth modal ───────────────────────────────────────────────────────────────
+var authMode = 'login';
+
+function openModal() {
+  document.getElementById('auth-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('auth-modal').classList.remove('open');
+  document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-error').style.color = '';
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  document.getElementById('auth-login-tab').classList.toggle('active', mode === 'login');
+  document.getElementById('auth-reg-tab').classList.toggle('active', mode === 'register');
+  document.getElementById('auth-login-form').style.display = mode === 'login'    ? 'flex' : 'none';
+  document.getElementById('auth-reg-form').style.display   = mode === 'register' ? 'flex' : 'none';
+  document.getElementById('auth-error').textContent = '';
+}
+
+function _setAuthError(msg, isOk) {
+  var el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.color = isOk ? '#4ade80' : '#ff6b6b';
+}
+
+async function doLogin() {
+  var sb = getSupabase();
+  if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
+  var email = document.getElementById('login-email').value.trim();
+  var pass  = document.getElementById('login-password').value;
+  if (!email || !pass) { _setAuthError('Unesite email i lozinku.'); return; }
+  var btn = document.getElementById('login-btn');
+  btn.textContent = 'Prijava...'; btn.disabled = true;
+  var res = await sb.auth.signInWithPassword({ email: email, password: pass });
+  btn.textContent = 'Prijavite se'; btn.disabled = false;
+  if (res.error) { _setAuthError('Pogrešan email ili lozinka. Pokušajte ponovo.'); return; }
+  closeModal();
+}
+
+async function doRegister() {
+  var sb = getSupabase();
+  if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
+  var email = document.getElementById('reg-email').value.trim();
+  var pass  = document.getElementById('reg-password').value;
+  if (!email || !pass) { _setAuthError('Unesite email i lozinku.'); return; }
+  if (pass.length < 8) { _setAuthError('Lozinka mora imati najmanje 8 karaktera.'); return; }
+  var btn = document.getElementById('reg-btn');
+  btn.textContent = 'Registracija...'; btn.disabled = true;
+  try {
+    var chk = await fetch(BASE_URL + '/api/check-email', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email: email})
+    });
+    var chkData = await chk.json();
+    if (!chkData.valid) {
+      _setAuthError('Privremene email adrese nisu dozvoljene. Koristite pravu email adresu.');
+      btn.textContent = 'Registrujte se besplatno'; btn.disabled = false;
+      return;
+    }
+  } catch(e) { /* Nastavlja bez provere ako API nije dostupan */ }
+  var res = await sb.auth.signUp({ email: email, password: pass });
+  btn.textContent = 'Registrujte se besplatno'; btn.disabled = false;
+  if (res.error) { _setAuthError(res.error.message || 'Greška pri registraciji.'); return; }
+  _setAuthError('Proverite email za potvrdu. Nakon potvrde dobijate 15 besplatnih upita.', true);
+}
+
+async function doLogout() {
+  var sb = getSupabase();
+  if (sb) await sb.auth.signOut();
+  currentUser = null; currentSession = null; userCredits = 0;
+  updateAuthUI();
+}
+
+// ─── Paywall ──────────────────────────────────────────────────────────────────
+function showPaywall() {
+  document.getElementById('paywall-modal').classList.add('open');
+}
+function closePaywall() {
+  document.getElementById('paywall-modal').classList.remove('open');
+}
+
+// ─── EmailJS (zadržano) ───────────────────────────────────────────────────────
+var EMAILJS_PUBLIC_KEY  = 'VAŠ_PUBLIC_KEY';
+var EMAILJS_SERVICE_ID  = 'VAŠ_SERVICE_ID';
+var EMAILJS_TEMPLATE_ID = 'VAŠ_TEMPLATE_ID';
+if (EMAILJS_PUBLIC_KEY !== 'VAŠ_PUBLIC_KEY' && window.emailjs) {
+  emailjs.init(EMAILJS_PUBLIC_KEY);
 }
 
 /* MOBILE MENU */
@@ -977,11 +1170,11 @@ function closeMobileMenu() {
 
 /* CURSOR */
 var cursor = document.getElementById('cursor');
-var ring = document.getElementById('cursor-ring');
+var ring   = document.getElementById('cursor-ring');
 var cx = 0, cy = 0, rx = 0, ry = 0;
-if(cursor) {
-  document.addEventListener('mousemove', function(e){cx=e.clientX;cy=e.clientY;cursor.style.left=cx+'px';cursor.style.top=cy+'px';});
-  function animRing(){rx+=(cx-rx)*0.1;ry+=(cy-ry)*0.1;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(animRing);}
+if (cursor) {
+  document.addEventListener('mousemove', function(e) { cx=e.clientX; cy=e.clientY; cursor.style.left=cx+'px'; cursor.style.top=cy+'px'; });
+  function animRing() { rx+=(cx-rx)*0.1; ry+=(cy-ry)*0.1; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(animRing); }
   animRing();
   document.querySelectorAll('a,button,.feat-card,.tc,.plat-card,.val-row').forEach(function(el){el.addEventListener('mouseenter',function(){document.body.classList.add('hovering');});el.addEventListener('mouseleave',function(){document.body.classList.remove('hovering');});});
   document.querySelectorAll('.magnetic').forEach(function(el){el.addEventListener('mousemove',function(e){var r=el.getBoundingClientRect();var x=e.clientX-r.left-r.width/2;var y=e.clientY-r.top-r.height/2;el.style.transform='translate('+(x*0.22)+'px,'+(y*0.22)+'px)';});el.addEventListener('mouseleave',function(){el.style.transform='';});});
@@ -995,23 +1188,7 @@ window.addEventListener('resize',function(){W=cv.width=window.innerWidth;H=cv.he
 window.addEventListener('mousemove',function(e){mx=e.clientX;my=e.clientY;});
 var pts=[];
 for(var i=0;i<60;i++){pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,t:Math.random()*Math.PI*2,r:Math.random()*.8+.25});}
-function drawBg(){
-  ctx.clearRect(0,0,W,H);
-  ctx.strokeStyle='rgba(74,168,255,0.018)';ctx.lineWidth=1;
-  for(var x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-  for(var y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-  var g=ctx.createRadialGradient(mx,my,0,mx,my,480);
-  g.addColorStop(0,'rgba(74,168,255,0.055)');g.addColorStop(1,'transparent');
-  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  for(var i=0;i<pts.length;i++){
-    var p=pts[i];p.x+=p.vx;p.y+=p.vy;p.t+=.007;
-    if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
-    var a=(.4+.4*Math.sin(p.t))*.28;
-    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(74,168,255,'+a+')';ctx.fill();
-    for(var j=i+1;j<pts.length;j++){var q=pts[j],d=Math.hypot(p.x-q.x,p.y-q.y);if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(74,168,255,'+(0.065*(1-d/120))+')';ctx.lineWidth=.5;ctx.stroke();}}
-  }
-  requestAnimationFrame(drawBg);
-}
+function drawBg(){ctx.clearRect(0,0,W,H);ctx.strokeStyle='rgba(74,168,255,0.018)';ctx.lineWidth=1;for(var x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}for(var y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}var g=ctx.createRadialGradient(mx,my,0,mx,my,480);g.addColorStop(0,'rgba(74,168,255,0.055)');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;p.t+=.007;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;var a=(.4+.4*Math.sin(p.t))*.28;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(74,168,255,'+a+')';ctx.fill();for(var j=i+1;j<pts.length;j++){var q=pts[j],d=Math.hypot(p.x-q.x,p.y-q.y);if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(74,168,255,'+(0.065*(1-d/120))+')';ctx.lineWidth=.5;ctx.stroke();}}}requestAnimationFrame(drawBg);}
 drawBg();
 
 /* SPHERE */
@@ -1026,35 +1203,21 @@ drawBg();
   for(var i=0;i<laws.length;i++){var phi=Math.acos(1-2*(i+.5)/laws.length),theta=Math.PI*(1+Math.sqrt(5))*i;spts.push({ox:Math.sin(phi)*Math.cos(theta),oy:Math.sin(phi)*Math.sin(theta),oz:Math.cos(phi),label:laws[i],pulse:Math.random()*Math.PI*2});}
   var angle=0,smx=0,smy=0;
   canvas.addEventListener('mousemove',function(e){var r=canvas.getBoundingClientRect();smx=(e.clientX-r.left-canvas.width/2)/canvas.width*0.8;smy=(e.clientY-r.top-canvas.height/2)/canvas.height*0.8;});
-  function draw(){
-    c.clearRect(0,0,canvas.width,canvas.height);
-    var cx2=canvas.width/2,cy2=canvas.height/2,R=Math.min(canvas.width,canvas.height)*0.44;
-    angle+=0.004;
-    var cosX=Math.cos(smy*0.5),sinX=Math.sin(smy*0.5),cosY=Math.cos(angle+smx*0.5),sinY=Math.sin(angle+smx*0.5);
-    var proj=spts.map(function(p,idx){var x1=p.ox*cosY+p.oz*sinY,z1=-p.ox*sinY+p.oz*cosY;var y2=p.oy*cosX-z1*sinX,z2=p.oy*sinX+z1*cosX;p.pulse+=0.025;var sc=1/(2-z2);return{sx:cx2+x1*R*sc,sy:cy2+y2*R*sc,z:z2,label:p.label,pulse:p.pulse,idx:idx};}).sort(function(a,b){return a.z-b.z;});
-    proj.forEach(function(a,i){if(a.z<0)return;proj.slice(i+1).forEach(function(b){if(b.z<0)return;var d=Math.hypot(a.sx-b.sx,a.sy-b.sy);if(d<95){var al=(1-d/95)*0.09*((a.z+b.z)/2+0.5);c.beginPath();c.moveTo(a.sx,a.sy);c.lineTo(b.sx,b.sy);c.strokeStyle='rgba(74,168,255,'+al+')';c.lineWidth=0.6;c.stroke();}});});
-    proj.forEach(function(p){var depth=(p.z+1)/2,al=Math.max(0,depth),pulse=0.7+0.3*Math.sin(p.pulse),isGold=p.idx%5===0;
-      c.beginPath();c.arc(p.sx,p.sy,2+depth*2.5,0,Math.PI*2);
-      c.fillStyle=isGold?'rgba(201,168,76,'+(al*pulse*0.9)+')':'rgba(74,168,255,'+(al*pulse*0.88)+')';c.fill();
-      if(depth>0.22){c.font='300 '+(10+depth*5)+'px JetBrains Mono,monospace';
-      c.fillStyle=isGold?'rgba(201,168,76,'+(al*0.88)+')':'rgba(150,210,255,'+(al*0.84)+')';
-      c.fillText(p.label,p.sx+6,p.sy-4);}});
-    requestAnimationFrame(draw);
-  }
+  function draw(){c.clearRect(0,0,canvas.width,canvas.height);var cx2=canvas.width/2,cy2=canvas.height/2,R=Math.min(canvas.width,canvas.height)*0.44;angle+=0.004;var cosX=Math.cos(smy*0.5),sinX=Math.sin(smy*0.5),cosY=Math.cos(angle+smx*0.5),sinY=Math.sin(angle+smx*0.5);var proj=spts.map(function(p,idx){var x1=p.ox*cosY+p.oz*sinY,z1=-p.ox*sinY+p.oz*cosY;var y2=p.oy*cosX-z1*sinX,z2=p.oy*sinX+z1*cosX;p.pulse+=0.025;var sc=1/(2-z2);return{sx:cx2+x1*R*sc,sy:cy2+y2*R*sc,z:z2,label:p.label,pulse:p.pulse,idx:idx};}).sort(function(a,b){return a.z-b.z;});proj.forEach(function(a,i){if(a.z<0)return;proj.slice(i+1).forEach(function(b){if(b.z<0)return;var d=Math.hypot(a.sx-b.sx,a.sy-b.sy);if(d<95){var al=(1-d/95)*0.09*((a.z+b.z)/2+0.5);c.beginPath();c.moveTo(a.sx,a.sy);c.lineTo(b.sx,b.sy);c.strokeStyle='rgba(74,168,255,'+al+')';c.lineWidth=0.6;c.stroke();}});});proj.forEach(function(p){var depth=(p.z+1)/2,al=Math.max(0,depth),pulse=0.7+0.3*Math.sin(p.pulse),isGold=p.idx%5===0;c.beginPath();c.arc(p.sx,p.sy,2+depth*2.5,0,Math.PI*2);c.fillStyle=isGold?'rgba(201,168,76,'+(al*pulse*0.9)+')':'rgba(74,168,255,'+(al*pulse*0.88)+')';c.fill();if(depth>0.22){c.font='300 '+(10+depth*5)+'px JetBrains Mono,monospace';c.fillStyle=isGold?'rgba(201,168,76,'+(al*0.88)+')':'rgba(150,210,255,'+(al*0.84)+')';c.fillText(p.label,p.sx+6,p.sy-4);}});requestAnimationFrame(draw);}
   draw();
 })();
 
-/* fillQ — popunjava textarea sa primjerom pitanja */
-function fillQ(q){
+/* fillQ */
+function fillQ(q) {
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
-  var qtab=document.querySelector('.t-tab[onclick*="\'q\'"]');
-  if(qtab) qtab.classList.add('active');
+  var qtab = document.querySelector('.t-tab[onclick*="\'q\'"]');
+  if (qtab) qtab.classList.add('active');
   ['q','n','a'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
-  document.getElementById('tab-q').style.display='block';
-  activeTab='q';
-  document.getElementById('btn-lbl').textContent='Pretraži pravnu bazu';
+  document.getElementById('tab-q').style.display = 'block';
+  activeTab = 'q';
+  document.getElementById('btn-lbl').textContent = 'Pretraži pravnu bazu';
   document.getElementById('resp').classList.remove('show');
-  document.getElementById('qi').value=q;
+  document.getElementById('qi').value = q;
   document.getElementById('qi').focus();
 }
 
@@ -1099,25 +1262,31 @@ function setTab(el,t){
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function formatResponse(rawText) {
+  var today = new Date().toLocaleDateString('sr-RS', {day:'2-digit',month:'2-digit',year:'numeric'});
   var defs = [
-    { key:'PRAVNI OSNOV:',            cls:'resp-pravni-osnov', lbl:'Pravni osnov' },
-    { key:'ODGOVOR:',                 cls:'resp-odgovor',      lbl:'Odgovor' },
-    { key:'CITAT IZ ZAKONA:',         cls:'resp-citat',        lbl:'Citat iz zakona' },
-    { key:'PRAVNA POSLEDICA:',        cls:'resp-posledica',    lbl:'Pravna posledica' },
-    { key:'NAPOMENA O POUZDANOSTI:',  cls:'resp-pouzdanost',   lbl:'Pouzdanost' },
-    { key:'NACRT:',                   cls:'resp-nacrt',        lbl:'Nacrt dokumenta' },
-    { key:'ANALIZA:',                 cls:'resp-analiza',      lbl:'Analiza' },
-    { key:'IDENTIFIKOVANI RIZICI:',   cls:'resp-rizici',       lbl:'Identifikovani rizici' },
-    { key:'PREPORUKE:',               cls:'resp-preporuke',    lbl:'Preporuke' },
-    { key:'IZVOR:',                   cls:'resp-izvor',        lbl:'Službeni izvor' },
-    { key:'VAŽNA NAPOMENA:',          cls:'resp-disclaimer',   lbl:'Pravna napomena' },
+    { key:'PRAVNI OSNOV:',          cls:'resp-pravni-osnov', lbl:'Pravni osnov' },
+    { key:'ODGOVOR:',               cls:'resp-odgovor',      lbl:'Odgovor' },
+    { key:'CITAT IZ ZAKONA:',       cls:'resp-citat',        lbl:'Citat iz zakona' },
+    { key:'PRAVNA POSLEDICA:',      cls:'resp-posledica',    lbl:'Pravna posledica' },
+    { key:'POUZDANOST:',            cls:'resp-pouzdanost',   lbl:'Pouzdanost' },
+    { key:'NACRT:',                 cls:'resp-nacrt',        lbl:'Nacrt dokumenta' },
+    { key:'ANALIZA:',               cls:'resp-analiza',      lbl:'Analiza' },
+    { key:'IDENTIFIKOVANI RIZICI:', cls:'resp-rizici',       lbl:'Identifikovani rizici' },
+    { key:'PREPORUKE:',             cls:'resp-preporuke',    lbl:'Preporuke' },
+    { key:'SLUŽBENI IZVOR:',        cls:'resp-izvor',        lbl:'Službeni izvor  ·  Baza ažurirana: ' + today },
+    { key:'IZVOR:',                 cls:'resp-izvor',        lbl:'Službeni izvor  ·  Baza ažurirana: ' + today },
+    { key:'VAŽNA NAPOMENA:',        cls:'resp-disclaimer',   lbl:'Pravna napomena' },
   ];
   var isStructured = defs.some(function(d){ return rawText.indexOf(d.key) !== -1; });
   if (!isStructured) return '<div class="resp-plain">'+escHtml(rawText)+'</div>';
   var found = [];
+  var usedPos = {};
   defs.forEach(function(d){
     var idx = rawText.indexOf(d.key);
-    if (idx !== -1) found.push({ pos:idx, keyLen:d.key.length, cls:d.cls, lbl:d.lbl });
+    if (idx !== -1 && !usedPos[idx]) {
+      usedPos[idx] = true;
+      found.push({ pos:idx, keyLen:d.key.length, cls:d.cls, lbl:d.lbl });
+    }
   });
   found.sort(function(a,b){ return a.pos-b.pos; });
   var html = '';
@@ -1134,32 +1303,54 @@ function formatResponse(rawText) {
 }
 
 /* EXEC */
-async function execQuery(){
-  var resp=document.getElementById('resp'),rb=document.getElementById('rb'),btnLbl=document.getElementById('btn-lbl'),orig=btnLbl.textContent;
-  btnLbl.innerHTML='<span class="ld"></span><span class="ld"></span><span class="ld"></span>';
+async function execQuery() {
+  if (!currentUser) { openModal(); return; }
+  if (userCredits <= 0) { showPaywall(); return; }
+
+  var resp   = document.getElementById('resp');
+  var rb     = document.getElementById('rb');
+  var btnLbl = document.getElementById('btn-lbl');
+  var orig   = btnLbl.textContent;
+
+  btnLbl.innerHTML = '<span class="ld"></span><span class="ld"></span><span class="ld"></span>';
   resp.classList.remove('show');
-  rb.style.whiteSpace='';
-  var eps={q:BASE_URL+'/api/pitanje',n:BASE_URL+'/api/nacrt',a:BASE_URL+'/api/analiza'};
-  var bodies={q:{pitanje:document.getElementById('qi').value},n:{vrsta:document.getElementById('ni').value,opis:document.getElementById('no').value},a:{tekst:document.getElementById('aitxt').value,pitanje:document.getElementById('aq').value}};
-  try{
-    var r=await fetch(eps[activeTab],{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(bodies[activeTab])});
-    var d=await r.json();
-    var text=d.odgovor||d.greska||'Greška u odgovoru';
-    resp.classList.add('show');rb.textContent='';rb.style.whiteSpace='pre-wrap';rb.classList.add('resp-cursor');
-    var i=0;
-    var speed=text.length>600?4:text.length>300?7:12;
+  rb.style.whiteSpace = '';
+
+  var eps = { q:BASE_URL+'/api/pitanje', n:BASE_URL+'/api/nacrt', a:BASE_URL+'/api/analiza' };
+  var bodies = {
+    q: { pitanje: document.getElementById('qi').value },
+    n: { vrsta:   document.getElementById('ni').value, opis: document.getElementById('no').value },
+    a: { tekst:   document.getElementById('aitxt').value, pitanje: document.getElementById('aq').value }
+  };
+
+  try {
+    var r = await fetch(eps[activeTab], {
+      method:  'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
+      body:    JSON.stringify(bodies[activeTab])
+    });
+
+    if (r.status === 401) { btnLbl.textContent=orig; closeModal(); openModal(); return; }
+    if (r.status === 402) {
+      userCredits = 0; updateCreditDisplay(); showPaywall();
+      btnLbl.textContent = orig; return;
+    }
+
+    var d = await r.json();
+    if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
+
+    var text = d.odgovor || d.greska || 'Greška u odgovoru servera.';
+    resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
+    var i=0, speed=text.length>600?4:text.length>300?7:12;
     var iv=setInterval(function(){
-      if(i>=text.length){
-        clearInterval(iv);
-        rb.classList.remove('resp-cursor');
-        rb.style.whiteSpace='';
-        rb.innerHTML=formatResponse(text);
-      } else {
-        rb.textContent+=text[i];i++;
-      }
+      if(i>=text.length){clearInterval(iv);rb.classList.remove('resp-cursor');rb.style.whiteSpace='';rb.innerHTML=formatResponse(text);}
+      else{rb.textContent+=text[i];i++;}
     },speed);
-  }catch(e){resp.classList.add('show');rb.style.whiteSpace='pre-wrap';rb.textContent='Greška: '+(e.message||'API nije dostupan');}
-  btnLbl.textContent=orig;
+  } catch(e) {
+    resp.classList.add('show'); rb.style.whiteSpace='pre-wrap';
+    rb.textContent = 'Došlo je do greške: '+(e.message||'API nije dostupan. Proverite internet vezu i pokušajte ponovo.');
+  }
+  btnLbl.textContent = orig;
 }
 
 /* DEMO TYPEWRITER */
@@ -1174,6 +1365,14 @@ function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.
 
 /* NAV SCROLL */
 window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',scrollY>60);});
+
+/* MODAL CLOSE ON BACKDROP */
+document.getElementById('auth-modal').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
+document.getElementById('paywall-modal').addEventListener('click', function(e) { if(e.target===this) closePaywall(); });
+
+/* INIT */
+window.addEventListener('DOMContentLoaded', initAuth);
+
 </script>
 
 </body>

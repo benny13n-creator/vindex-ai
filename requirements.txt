@@ -5,3 +5,5 @@ python-dotenv
 langchain-openai
 pinecone
 slowapi
+supabase
+python-jose[cryptography]
