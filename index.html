@@ -560,6 +560,7 @@ footer { padding: 2rem 1.5rem; }
 .auth-tab:hover { color: rgba(255,255,255,0.7); }
 .auth-error { min-height: 1.4rem; font-size: 0.78rem; color: #ff6b6b; text-align: center; margin-top: 0.5rem; line-height: 1.5; }
 .auth-credit-note { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.18); border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.75rem; color: rgba(74,222,128,0.85); text-align: center; margin-bottom: 1rem; }
+.auth-trust { font-size: 0.72rem; color: rgba(255,255,255,0.38); text-align: center; line-height: 1.6; margin-top: 0.6rem; }
 
 /* ── CREDIT COUNTER ──────────────────────────────────────────────────────── */
 .nav-user { display: none; align-items: center; gap: 0.85rem; }
@@ -601,7 +602,7 @@ footer { padding: 2rem 1.5rem; }
     <button class="modal-close" onclick="closeModal()">&#x2715;</button>
     <div class="modal-badge">Vindex AI — Beta</div>
     <div class="modal-title">Dobrodošli.<br>15 besplatnih upita.</div>
-    <p class="modal-sub">Registrujte se ili se prijavite. Svaki novi nalog dobija 15 besplatnih pravnih upita bez kreditne kartice.</p>
+    <p class="modal-sub">Registracija je potpuno besplatna i ne zahteva podatke sa kartice.</p>
     <div class="auth-tabs">
       <button class="auth-tab active" id="auth-login-tab" onclick="setAuthMode('login')">Prijava</button>
       <button class="auth-tab" id="auth-reg-tab" onclick="setAuthMode('register')">Registracija</button>
@@ -615,7 +616,8 @@ footer { padding: 2rem 1.5rem; }
       <div class="auth-credit-note">&#x2713;&nbsp; 15 besplatnih upita odmah po registraciji</div>
       <input class="modal-input" type="email" id="reg-email" placeholder="Email adresa" autocomplete="email">
       <input class="modal-input" type="password" id="reg-password" placeholder="Lozinka (min. 8 karaktera)" autocomplete="new-password">
-      <button class="modal-btn" id="reg-btn" onclick="doRegister()">Registrujte se besplatno</button>
+      <button class="modal-btn" id="reg-btn" onclick="doRegister()">Preuzmi besplatne upite</button>
+      <p class="auth-trust">Nakon potrošenih 15 upita, vi odlučujete o daljem korišćenju. Bez automatske naplate i skrivenih troškova.</p>
     </div>
     <div id="auth-error" class="auth-error"></div>
     <div class="modal-note">Privatnost je zagarantovana. Bez spama.</div>
