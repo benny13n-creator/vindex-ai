@@ -1463,12 +1463,15 @@ function formatResponse(rawText) {
     var start = s.pos + s.keyLen;
     var end = i+1 < found.length ? found[i+1].pos : rawText.length;
     var val = rawText.slice(start,end).trim();
-    if (s.cls === 'resp-pouzdanost') return; // trust badge već prikazan gore
+    if (s.cls === 'resp-pouzdanost') return;
+    if (s.cls === 'resp-disclaimer') return; // disclaimer prikazan fiksno na dnu
     html += '<div class="resp-section '+s.cls+'" style="animation-delay:'+(i*0.07)+'s">'+
             '<div class="resp-section-lbl">'+s.lbl+'</div>'+
             '<div class="resp-section-body">'+escHtml(val).replace(/\n/g,'<br>')+'</div>'+
             '</div>';
   });
+
+  html += '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:1rem;font-style:italic;">⚠️ Ovo nije pravni savet. Konsultujte licenciranog advokata pre preduzimanja pravnih koraka.</div>';
 
   // Akciona dugmad
   var citatEnc = encodeURIComponent(citatVal);
