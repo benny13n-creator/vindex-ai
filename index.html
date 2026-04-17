@@ -421,6 +421,12 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .resp-pitanja .resp-section-lbl { color:#a78bfa; }
 .resp-pitanja .resp-section-lbl::before { background:#a78bfa; box-shadow:0 0 6px rgba(167,139,250,0.4); }
 .resp-pitanja .resp-section-body { color:rgba(167,139,250,0.85); }
+.resp-hijerarhija .resp-section-lbl { color:#60a5fa; font-size:0.48rem; }
+.resp-hijerarhija .resp-section-lbl::before { background:#60a5fa; box-shadow:0 0 5px rgba(96,165,250,0.4); }
+.resp-hijerarhija .resp-section-body { font-size:0.78rem; color:rgba(96,165,250,0.8); font-style:italic; line-height:1.6; }
+.resp-kljucno .resp-section-lbl { color:#34d399; }
+.resp-kljucno .resp-section-lbl::before { background:#34d399; box-shadow:0 0 8px rgba(52,211,153,0.5); }
+.resp-kljucno .resp-section-body { font-size:0.88rem; font-weight:500; color:rgba(52,211,153,0.9); line-height:1.7; border-left:2px solid rgba(52,211,153,0.3); padding-left:0.75rem; }
 .resp-actions { display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:1.2rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.07); }
 .resp-action-btn { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.7); font-size:0.74rem; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; transition:all 0.18s; font-family:inherit; }
 .resp-action-btn:hover { background:rgba(255,255,255,0.1); color:#fff; border-color:rgba(255,255,255,0.25); }
@@ -1398,6 +1404,7 @@ function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 
 function formatResponse(rawText) {
   var defs = [
+    { key:'HIJERARHIJA IZVORA:', cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora', icon:'hijerarhija' },
     { key:'PRAVNI ZAKLJUČAK:',  cls:'resp-zakljucak',  lbl:'⚖️ Pravni zaključak', icon:'zakljucak' },
     { key:'CITAT ZAKONA:',      cls:'resp-citat',      lbl:'📖 Citat zakona',       icon:'citat' },
     { key:'CITAT IZ ZAKONA:',   cls:'resp-citat',      lbl:'📖 Citat zakona',       icon:'citat' },
@@ -1405,7 +1412,8 @@ function formatResponse(rawText) {
     { key:'POUZDANOST:',        cls:'resp-pouzdanost', lbl:'Pouzdanost',            icon:'pouzdanost' },
     { key:'RIZICI I IZUZECI:',  cls:'resp-rizici',     lbl:'⚠️ Rizici i izuzeci',  icon:'rizici' },
     { key:'KADA OVO NE VAŽI:',  cls:'resp-edgecase',   lbl:'📍 Kada ovo ne važi',  icon:'edgecase' },
-    { key:'DODATNA PITANJA:',   cls:'resp-pitanja',    lbl:'🔍 Potrebne informacije za precizniji odgovor', icon:'pitanja' },
+    { key:'KLJUČNO PITANJE:',   cls:'resp-kljucno',    lbl:'🎯 Ključno pitanje',    icon:'kljucno' },
+    { key:'DODATNA PITANJA:',   cls:'resp-pitanja',    lbl:'🔍 Potrebne informacije', icon:'pitanja' },
     { key:'NACRT:',             cls:'resp-nacrt',      lbl:'Nacrt dokumenta',       icon:'' },
     { key:'ANALIZA:',           cls:'resp-analiza',    lbl:'Analiza',               icon:'' },
     { key:'IDENTIFIKOVANI RIZICI:', cls:'resp-rizici', lbl:'⚠️ Identifikovani rizici', icon:'' },
@@ -1471,7 +1479,7 @@ function formatResponse(rawText) {
             '</div>';
   });
 
-  html += '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:1rem;font-style:italic;">⚠️ Ovo nije pravni savet. Konsultujte licenciranog advokata pre preduzimanja pravnih koraka.</div>';
+  html += '<div style="font-size:0.68rem;color:rgba(255,255,255,0.28);margin-top:1rem;font-style:italic;">⚠️ Nije pravni savet. Podložno promenama u sudskoj praksi.</div>';
 
   // Akciona dugmad
   var citatEnc = encodeURIComponent(citatVal);
@@ -1479,11 +1487,11 @@ function formatResponse(rawText) {
   var zakljucakEnc = encodeURIComponent(zakljucakVal);
   var fullEnc = encodeURIComponent(rawText);
   html += '<div class="resp-actions">'+
-    '<button class="resp-action-btn" onclick="copyZakljucak(decodeURIComponent(\''+zakljucakEnc+'\'),this)">📋 Kopiraj zaključak</button>'+
-    '<button class="resp-action-btn" onclick="sazimiZaKlijenta(decodeURIComponent(\''+fullEnc+'\'),this)">✨ Sažmi za klijenta</button>'+
+    '<button class="resp-action-btn" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);color:#fff;font-weight:600;" onclick="copyZakljucak(decodeURIComponent(\''+zakljucakEnc+'\'),this)">📋 Kopiraj operativni zaključak</button>'+
+    '<button class="resp-action-btn" style="background:rgba(52,211,153,0.08);border-color:rgba(52,211,153,0.25);color:#34d399;font-weight:600;" onclick="sazimiZaKlijenta(decodeURIComponent(\''+fullEnc+'\'),this)">📲 Pripremi poruku za klijenta</button>'+
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\''+citatEnc+'\'),this)">📎 Kopiraj citat</button>'+
-    '<button class="resp-action-btn" onclick="showIzvor(decodeURIComponent(\''+osnovEnc+'\'),this)">🔗 Izvor: Sl. glasnik</button>'+
-    '<button class="resp-action-btn" onclick="focusInput()">🔁 Follow-up pitanje</button>'+
+    '<button class="resp-action-btn" onclick="showIzvor(decodeURIComponent(\''+osnovEnc+'\'),this)">🔗 Sl. glasnik</button>'+
+    '<button class="resp-action-btn" onclick="focusInput()">🔁 Follow-up</button>'+
     '</div>';
   return html;
 }

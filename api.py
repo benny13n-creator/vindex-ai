@@ -494,10 +494,15 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(get_curren
     from openai import OpenAI as _OAI
     try:
         klijent_prompt = (
-            "Advokat ti šalje pravni odgovor. Napiši kratku, jasnu verziju za klijenta koji nije pravnik. "
-            "Jezik: srpski, razumljiv, bez pravnih termina. Maksimalno 5 rečenica. "
-            "Počni direktno, bez uvoda poput 'Evo sažetka'. "
-            "Na kraju dodaj jednu rečenicu: 'Za precizno pravno mišljenje konsultujte svog advokata.'"
+            "Advokat ti šalje pravni odgovor koji treba da prepišeš za klijenta — laika koji ne zna pravo.\n"
+            "PRAVILA TONA: Profesionalan, smiren, poverljiv. BEZ: latinštine, paragrafa, citata, 'čl.', 'Sl. glasnik', 'lex specialis'.\n"
+            "STRUKTURA (4–6 rečenica):\n"
+            "  1. Šta znači situacija za klijenta u jednoj jasnoj rečenici.\n"
+            "  2. Šta je klijentov ključni dokaz ili korak — konkretan, bez teorije.\n"
+            "  3. Koji je rizik ako ne preduzme ništa (rok, zastarelost, gubitak prava).\n"
+            "  4. Šta je sledeći korak koji klijent treba da uradi — imperativ, ne upit.\n"
+            "  5. Kratka napomena: 'Pre preduzimanja koraka, konsultujte svog advokata za konačno mišljenje.'\n"
+            "Počni direktno prvom rečenicom. Bez uvoda, bez 'Evo sažetka', bez zaglavlja."
         )
         client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
         resp = client.chat.completions.create(
