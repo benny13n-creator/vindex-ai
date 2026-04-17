@@ -40,6 +40,17 @@ SUPABASE_URL         = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 SUPABASE_JWT_SECRET  = os.getenv("SUPABASE_JWT_SECRET", "")
 
+# Founder emailovi — neograničen pristup, krediti se ne oduzimaju
+FOUNDER_EMAILS: set[str] = {
+    e.strip().lower()
+    for e in os.getenv("FOUNDER_EMAILS", "benny13.n@gmail.com").split(",")
+    if e.strip()
+}
+
+
+def _is_founder(email: str) -> bool:
+    return (email or "").lower() in FOUNDER_EMAILS
+
 _supa: Optional[SupabaseClient] = None
 
 
@@ -193,8 +204,10 @@ def _get_credits(user_id: str) -> int:
     return _ensure_profile(user_id)
 
 
-def _deduct_credit(user_id: str) -> int:
-    """Atomično oduzima jedan kredit. Vraća preostali broj ili -1 ako nema kredita."""
+def _deduct_credit(user_id: str, email: str = "") -> int:
+    """Atomično oduzima jedan kredit. Founder nikad ne gubi kredit."""
+    if _is_founder(email):
+        return 9999
     try:
         result = _get_supa().rpc("deduct_credit", {"p_user_id": user_id}).execute()
         return result.data if result.data is not None else -1
@@ -204,7 +217,10 @@ def _deduct_credit(user_id: str) -> int:
 
 
 async def require_credits(user: dict = Depends(get_current_user)) -> dict:
-    """Dependency koji proverava da korisnik ima kredite pre izvršavanja upita."""
+    """Dependency koji proverava da korisnik ima kredite. Founder uvek prolazi."""
+    if _is_founder(user.get("email", "")):
+        user["credits_remaining"] = 9999
+        return user
     credits = await asyncio.to_thread(_get_credits, user["user_id"])
     if credits <= 0:
         raise HTTPException(
@@ -427,7 +443,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
     try:
         history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
         rezultat = await pokreni(ask_agent, req.pitanje, history)
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"])
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
         logger.exception("Neočekivana greška u /api/pitanje")
@@ -444,7 +460,7 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_cr
     logger.info("Nacrt [%s] vrsta=%s", user["email"], req.vrsta)
     try:
         rezultat = await pokreni(ask_nacrt, req.vrsta, req.opis)
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"])
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
         logger.exception("Neočekivana greška u /api/nacrt")
@@ -461,7 +477,7 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(requir
     logger.info("Analiza [%s] pitanje=%.60s", user["email"], req.pitanje)
     try:
         rezultat = await pokreni(ask_analiza, req.tekst, req.pitanje)
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"])
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
         logger.exception("Neočekivana greška u /api/analiza")
