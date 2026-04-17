@@ -9,7 +9,7 @@ import asyncio
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import FastAPI, Request, Depends, HTTPException, status
+from fastapi import FastAPI, Request, Depends, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -367,17 +367,16 @@ async def me(user: dict = Depends(get_current_user)):
 
 
 @app.get("/api/debug")
-async def debug_env():
-    """Dijagnostički endpoint — prikazuje status env varijabli (bez tajnih vrednosti)."""
+async def debug_env(x_admin_key: str = Header(default="")):
+    """Dijagnostički endpoint — zaštićen admin ključem."""
+    admin_key = os.getenv("ADMIN_DEBUG_KEY", "")
+    if not admin_key or x_admin_key != admin_key:
+        raise HTTPException(status_code=404, detail="Not found")
     try:
         import supabase as _supa_mod
         supa_version = getattr(_supa_mod, "__version__", "nepoznato")
     except ImportError:
         supa_version = "nije instalirano"
-    jwt_ok  = bool(SUPABASE_JWT_SECRET)
-    key_prefix = SUPABASE_SERVICE_KEY[:12] + "..." if SUPABASE_SERVICE_KEY else "(prazan)"
-    url_val    = SUPABASE_URL[:40] + "..." if len(SUPABASE_URL) > 40 else SUPABASE_URL
-    # probaj konekciju
     conn_status = "nije testirano"
     try:
         supa = _get_supa()
@@ -386,18 +385,18 @@ async def debug_env():
     except Exception as e:
         conn_status = f"GREŠKA: {e!r}"
     return {
-        "version": "2025-04-17-v3",
+        "version": "2025-04-17-v4",
         "supabase_py_version": supa_version,
-        "SUPABASE_URL":        url_val,
-        "SUPABASE_SERVICE_KEY_prefix": key_prefix,
-        "SUPABASE_JWT_SECRET_set": jwt_ok,
         "db_connection": conn_status,
     }
 
 
 @app.get("/api/test-pitanje")
-async def test_pitanje(q: str = "zastarelost dugova za struju"):
-    """Dijagnostika pipeline-a — ne oduzima kredite."""
+async def test_pitanje(q: str, x_admin_key: str = Header(default="")):
+    """Dijagnostika pipeline-a — zaštićena admin ključem."""
+    admin_key = os.getenv("ADMIN_DEBUG_KEY", "")
+    if not admin_key or x_admin_key != admin_key:
+        raise HTTPException(status_code=404, detail="Not found")
     from app.services.retrieve import retrieve_documents
     from main import _filtriraj_kontekst
     docs = retrieve_documents(q, k=10)
@@ -407,7 +406,6 @@ async def test_pitanje(q: str = "zastarelost dugova za struju"):
         "pinecone_docs_count": len(docs),
         "filtrirani_count": len(filtrirani),
         "clanovi": [d[:120] for d in filtrirani],
-        "fallback_ce_biti_koriscen": len(filtrirani) == 0,
     }
 
 
