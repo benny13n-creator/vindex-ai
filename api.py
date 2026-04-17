@@ -305,12 +305,6 @@ class FeedbackReq(BaseModel):
 class SazmiReq(BaseModel):
     odgovor: str = Field(..., max_length=6000)
 
-    @field_validator("tip")
-    @classmethod
-    def proveri_tip(cls, v: str) -> str:
-        dozvoljeni = {"greska", "netacno", "nepotpuno", "ostalo"}
-        return v if v in dozvoljeni else "ostalo"
-
 
 # ─── Helperi ──────────────────────────────────────────────────────────────────
 
@@ -516,7 +510,7 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(get_curren
             ],
         )
         tekst = resp.choices[0].message.content.strip()
-        return {"status": "ok", "tekst": tekst}
+        return {"status": "ok", "sazetak": tekst}
     except Exception:
         logger.exception("Greška u /api/sazmi")
         return greska_odgovor(500, "Greška pri generisanju sažetka.")
