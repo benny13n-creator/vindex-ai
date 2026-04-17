@@ -189,6 +189,37 @@ DISCLAIMER_TEKST = (
     "konsultujte licenciranog pravnog zastupnika."
 )
 
+# ─── Fallback system prompt kad Pinecone ne vrati rezultate ─────────────────
+
+SYSTEM_PROMPT_FALLBACK = """Ti si stručni AI pravni asistent za advokate u Srbiji.
+Baza zakona nije vratila relevantne dokumente za ovo pitanje, ali odgovaraj na osnovu svog znanja o srpskom pravu.
+Jezik: srpska ekavica, srpski pravni termini. NIKADA ne koristiš: izvanparnični, odvjetnik, tisuća, stoga, ukoliko, sukladno — umesto toga: vanparnični, advokat, hiljada, dakle, ako, u skladu.
+
+OBAVEZNI FORMAT ODGOVORA:
+
+PRAVNI OSNOV: [naziv zakona i broj člana — navedi samo ako si siguran da je tačan]
+
+ODGOVOR: [direktan odgovor iz opšteg znanja o srpskom pravu]
+
+CITAT IZ ZAKONA: "Okvirni sadržaj odredbe — nije preuzet iz baze već iz opšteg pravnog znanja"
+
+PRAVNA POSLEDICA: [konkretna pravna posledica na osnovu opšteg znanja]
+
+POUZDANOST: 45% — Odgovor iz opšteg znanja, nije potvrđen dokumentom iz baze zakona.
+
+STROGA PRAVILA:
+1. Ako nisi siguran za tačan broj člana — ne navoditi ga. Navedi samo zakon.
+2. Citat stavi u navodnike i označi da je okvirni sadržaj, ne doslovni tekst.
+3. Uvek preporuči proveru sa advokatom na kraju odgovora.
+4. NIKADA ne koristi reč "automatski" za pravne posledice osim ako zakon eksplicitno to kaže.
+
+KRITIČNA PRAVILA ZA ZASTARELOST (ZOO):
+- Periodična potraživanja (struja, voda, gas, telefon, kirija): zastareva za 1 GODINU (čl. 374 ZOO)
+- Opšti rok zastarelosti: 10 godina (čl. 371 ZOO)
+- Potraživanja naknade štete: 3 godine (čl. 376 ZOO)
+- Zastarelost prekida JEDINO tužba ili pisano priznanje duga od dužnika
+"""
+
 # ─── Odgovor kada nema relevantnog sadržaja u bazi ───────────────────────────
 
 ODGOVOR_NIJE_PRONADJEN = (
@@ -589,11 +620,19 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         docs = retrieve_documents(pitanje, k=10)
         filtrirani = _filtriraj_kontekst(docs)
 
+        # Korak 2: Ako nema Pinecone rezultata — fallback na GPT opšte znanje
         if not filtrirani:
-            logger.info("Nema relevantnih dokumenata za: %.80s", pitanje)
-            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+            logger.info("Pinecone: nema rezultata, koristim fallback za: %.80s", pitanje)
+            odgovor_fallback = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje}")
+            if not _ima_obavezne_sekcije(odgovor_fallback):
+                return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+            odgovor_fallback = _dodaj_disclaimer(odgovor_fallback)
+            rezultat = {"status": "success", "data": odgovor_fallback}
+            if not history:
+                _cache_set(pitanje, rezultat)
+            return rezultat
 
-        # Korak 2: Sastavi user_content sa opcionim history-jem
+        # Korak 3: Sastavi user_content sa opcionim history-jem
         kontekst = "\n\n---\n\n".join(filtrirani)
         history_blok = ""
         if history:
@@ -611,12 +650,12 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         )
         odgovor = _pozovi_openai(SYSTEM_PROMPT_QA, user_content)
 
-        # Korak 3: Proveri format
+        # Korak 4: Proveri format
         if not _ima_obavezne_sekcije(odgovor):
             logger.warning("Odgovor nema propisanu strukturu — zamenjujem sa 'nije pronađeno'")
             return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
 
-        # Korak 4: Anti-halucinacijska provera
+        # Korak 5: Anti-halucinacijska provera
         validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
         if not validan:
             logger.warning("Anti-halucinacija blokirala odgovor: %s", razlog)

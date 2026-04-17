@@ -1420,6 +1420,7 @@ function formatResponse(rawText) {
 }
 
 /* EXEC */
+var _execInProgress = false;
 async function execQuery() {
   console.log('[Vindex] execQuery: korisnik =', currentUser ? currentUser.email : 'nije ulogovan', '| krediti =', userCredits);
   if (!currentUser) { openModal(); return; }
@@ -1427,12 +1428,16 @@ async function execQuery() {
     console.warn('[Vindex] execQuery: blokiran — 0 kredita');
     showPaywall(); return;
   }
+  if (_execInProgress) { console.warn('[Vindex] execQuery: blokiran — upit u toku'); return; }
+  _execInProgress = true;
 
   var resp   = document.getElementById('resp');
   var rb     = document.getElementById('rb');
   var btnLbl = document.getElementById('btn-lbl');
+  var execBtn = document.getElementById('exec-btn');
   var orig   = btnLbl.textContent;
 
+  execBtn.disabled = true;
   btnLbl.textContent = 'Vindex AI pretražuje bazu...';
   console.log('[Vindex] execQuery: šaljem upit na', activeTab);
   resp.classList.remove('show');
@@ -1454,11 +1459,11 @@ async function execQuery() {
     });
 
     console.log('[Vindex] execQuery: odgovor status =', r.status);
-    if (r.status === 401) { btnLbl.textContent=orig; closeModal(); openModal(); return; }
+    if (r.status === 401) { _execInProgress=false; execBtn.disabled=false; btnLbl.textContent=orig; closeModal(); openModal(); return; }
     if (r.status === 402) {
       console.warn('[Vindex] execQuery: 402 — nema kredita');
       userCredits = 0; updateCreditDisplay(); showPaywall();
-      btnLbl.textContent = orig; return;
+      _execInProgress=false; execBtn.disabled=false; btnLbl.textContent = orig; return;
     }
 
     var d = await r.json();
@@ -1484,8 +1489,11 @@ async function execQuery() {
   } catch(e) {
     resp.classList.add('show'); rb.style.whiteSpace='pre-wrap';
     rb.textContent = 'Došlo je do greške: '+(e.message||'API nije dostupan. Proverite internet vezu i pokušajte ponovo.');
+  } finally {
+    _execInProgress = false;
+    execBtn.disabled = false;
+    btnLbl.textContent = orig;
   }
-  btnLbl.textContent = orig;
 }
 
 function _feedbackBar(pitanje, odgovor) {
