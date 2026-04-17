@@ -353,12 +353,44 @@ def serve_html():
 @app.get("/api/me")
 async def me(user: dict = Depends(get_current_user)):
     """Vraća podatke o prijavljenom korisniku i broj preostalih kredita. Auto-kreira profil ako ne postoji."""
-    credits = await asyncio.to_thread(_ensure_profile, user["user_id"], user.get("email", ""))
+    try:
+        credits = await asyncio.to_thread(_ensure_profile, user["user_id"], user.get("email", ""))
+        return {
+            "user_id":          user["user_id"],
+            "email":            user["email"],
+            "credits_remaining": credits,
+            "credits_total":    BESPLATNI_KREDITI,
+        }
+    except Exception as exc:
+        logger.exception("Greška u /api/me za korisnika %s", user.get("user_id"))
+        raise HTTPException(status_code=500, detail=f"Greška profila: {exc!r}")
+
+
+@app.get("/api/debug")
+async def debug_env():
+    """Dijagnostički endpoint — prikazuje status env varijabli (bez tajnih vrednosti)."""
+    try:
+        import supabase as _supa_mod
+        supa_version = getattr(_supa_mod, "__version__", "nepoznato")
+    except ImportError:
+        supa_version = "nije instalirano"
+    jwt_ok  = bool(SUPABASE_JWT_SECRET)
+    key_prefix = SUPABASE_SERVICE_KEY[:12] + "..." if SUPABASE_SERVICE_KEY else "(prazan)"
+    url_val    = SUPABASE_URL[:40] + "..." if len(SUPABASE_URL) > 40 else SUPABASE_URL
+    # probaj konekciju
+    conn_status = "nije testirano"
+    try:
+        supa = _get_supa()
+        result = supa.table("profiles").select("id").limit(1).execute()
+        conn_status = f"OK — {len(result.data)} redova"
+    except Exception as e:
+        conn_status = f"GREŠKA: {e!r}"
     return {
-        "user_id":          user["user_id"],
-        "email":            user["email"],
-        "credits_remaining": credits,
-        "credits_total":    BESPLATNI_KREDITI,
+        "supabase_py_version": supa_version,
+        "SUPABASE_URL":        url_val,
+        "SUPABASE_SERVICE_KEY_prefix": key_prefix,
+        "SUPABASE_JWT_SECRET_set": jwt_ok,
+        "db_connection": conn_status,
     }
 
 
