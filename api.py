@@ -43,7 +43,7 @@ SUPABASE_JWT_SECRET  = os.getenv("SUPABASE_JWT_SECRET", "")
 # Founder emailovi — neograničen pristup, krediti se ne oduzimaju
 FOUNDER_EMAILS: set[str] = {
     e.strip().lower()
-    for e in os.getenv("FOUNDER_EMAILS", "benny13.n@gmail.com").split(",")
+    for e in os.getenv("FOUNDER_EMAILS", "benny13.n@gmail.com,kristina.stojanovic@dsa.rs").split(",")
     if e.strip()
 }
 
