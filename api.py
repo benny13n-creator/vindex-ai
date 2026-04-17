@@ -386,6 +386,7 @@ async def debug_env():
     except Exception as e:
         conn_status = f"GREŠKA: {e!r}"
     return {
+        "version": "2025-04-17-v3",
         "supabase_py_version": supa_version,
         "SUPABASE_URL":        url_val,
         "SUPABASE_SERVICE_KEY_prefix": key_prefix,
