@@ -284,6 +284,31 @@ STROGA PRAVILA — NIKADA IH NE KRŠI:
     - Prigovor na optužnicu (ZKP): 8 dana — to je PRIGOVOR, ne žalba
     - Rok za pobijanje skupštinske odluke privrednog društva (ZPD): 30 dana od saznanja
 
+14. TAČNA UPOTREBA PRAVNIH LEKOVA — PROMAŠAJ TERMINA ZNAČI GUBITAK SPORA:
+    - TUŽBA: pokreće parnični, upravni ili krivični postupak pred sudom
+    - ŽALBA: redovni pravni lek protiv odluke prvostepenog organa/suda — uvek u roku i uvek pisano
+    - PRIGOVOR: poseban pravni lek (ZIO, ZKP) — NE meša se sa žalbom
+    - PREDLOG: pokreće vanparnični ili izvršni postupak (ne "tužba", ne "žalba")
+    - Na rešenje o odbacivanju tužbe (ZPP) → ŽALBA (ne prigovor)
+    - Na rešenje o izvršenju (ZIO) → PRIGOVOR u roku od 8 dana
+    - Na optužnicu (ZKP) → PRIGOVOR u roku od 8 dana
+    - Na prvostepeno upravno rešenje → ŽALBA drugostepenom organu
+    - Na konačno upravno rešenje (ćutanje adm.) → TUŽBA Upravnom sudu u roku od 30 dana
+
+15. SPORNOST U SUDSKOJ PRAKSI: Ako je situacija pravno sporna ili postoje suprotstavljena tumačenja sudova — OBAVEZNO navedi: "Sudska praksa nije jedinstvena: (a) jedan stav... (b) drugi stav..." i SMANJI pouzdanost na max 55%.
+
+16. SLUŽBENI GLASNIK: Ako je broj Sl. glasnika dostupan u kontekstu — UVEK ga navedi u sekciji PRAVNI OSNOV u formatu: "Zakon X, član Y (Sl. glasnik RS, br. Z)".
+
+17. SRPSKI PRAVNI TERMINI — NIKADA ne koristiš:
+    - "ukoliko" → koristiš "ako"
+    - "stoga" → koristiš "zbog toga" ili "stoga" je OK u srpskom, ali "ukoliko" NIJE
+    - "vlasnički list" → koristiš "list nepokretnosti"
+    - "očitovanje" → koristiš "izjašnjenje"
+    - "izvanparnični" → koristiš "vanparnični"
+    - "odvjetnik" → koristiš "advokat"
+    - "sukladno" → koristiš "u skladu sa"
+    - "glede" → koristiš "u pogledu" ili "po pitanju"
+
 ══════════════════════════════════════════
 KRITIČNE PRAVNE GREŠKE — NIKADA NE SMEŠ TVRDITI:
 ══════════════════════════════════════════
@@ -488,10 +513,10 @@ ZABRANJENE_GRESKE: list[tuple[str, str]] = [
         r"zalb\w*\s+\w{0,15}\s*na\s+optuznic",
         "Na optužnicu se ne podnosi žalba već PRIGOVOR u roku od 8 dana od dostavljanja (ZKP čl. 335).",
     ),
-    # Hrvatska/ijekavica terminologija
+    # Hrvatska terminologija — samo stvarno hrvatske reči, ne srpske kolokvijalnosti
     (
-        r"\b(izvanparnicn|odvjetnik|tisuc|stoga|ukoliko|kako\s+bi|glede|radi\s+cega|sukladno)\b",
-        "Odgovor sadrži hrvatsku pravnu terminologiju. Vindex AI koristi isključivo srpsku ekavicu i srpske pravne termine (vanparnični, advokat, hiljada, dakle, ako, da bi, u pogledu, zbog čega, u skladu).",
+        r"\b(izvanparnicn|odvjetnik|tisuc|glede|sukladno)\b",
+        "Odgovor sadrži hrvatsku pravnu terminologiju (izvanparnični/odvjetnik/tisuća/glede/sukladno). Koristiti: vanparnični, advokat, hiljada, u skladu sa.",
     ),
     # Hipoteka — ne ide tužbom nego direktno izvršenjem
     (
@@ -520,6 +545,22 @@ def _verifikuj_pravne_greske(odgovor: str) -> tuple[bool, str]:
 
 
 # ─── Fallback za detektovanu pravnu grešku ───────────────────────────────────
+
+def _srpski_termini(odgovor: str) -> str:
+    """Zamenjuje kolokvijalnosti srpskim pravnim terminima (bez blokiranja)."""
+    zamene = [
+        (r"\bukoliko\b", "ako"),
+        (r"\bstoga\b", "zbog toga"),
+        (r"\bkako bi\b", "da bi"),
+        (r"\bradi čega\b", "zbog čega"),
+        (r"\bvlasnički list\b", "list nepokretnosti"),
+        (r"\bočitovanje\b", "izjašnjenje"),
+        (r"\bočitovanj\b", "izjašnjenj"),
+    ]
+    for pattern, zamena in zamene:
+        odgovor = re.sub(pattern, zamena, odgovor, flags=re.IGNORECASE)
+    return odgovor
+
 
 def _odgovor_pravna_greska(opis: str) -> str:
     return (
@@ -681,6 +722,7 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
 
         # Korak 6: Post-processing
+        odgovor = _srpski_termini(odgovor)
         odgovor = _ogranici_pouzdanost(odgovor)
         odgovor = _dodaj_izvor(odgovor, filtrirani)
         odgovor = _dodaj_disclaimer(odgovor)
