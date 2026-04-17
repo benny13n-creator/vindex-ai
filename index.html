@@ -1148,7 +1148,11 @@ async function doRegister() {
       return;
     }
   } catch(e) { /* Nastavlja bez provere ako API nije dostupan */ }
-  var res = await sb.auth.signUp({ email: email, password: pass });
+  var res = await sb.auth.signUp({
+    email: email,
+    password: pass,
+    options: { emailRedirectTo: BASE_URL + '/app' }
+  });
   btn.textContent = 'Registrujte se besplatno'; btn.disabled = false;
   if (res.error) { _setAuthError(res.error.message || 'Greška pri registraciji.'); return; }
   _setAuthError('Proverite email za potvrdu. Nakon potvrde dobijate 15 besplatnih upita.', true);
