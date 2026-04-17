@@ -80,32 +80,49 @@ def _is_disposable_email(email: str) -> bool:
 security = HTTPBearer(auto_error=False)
 
 
-def _verify_jwt(token: str) -> Optional[dict]:
-    """Verifikuje Supabase JWT token i vraća payload."""
-    if not SUPABASE_JWT_SECRET or not token:
+def _verify_token(token: str) -> Optional[dict]:
+    """
+    Verifikuje token u dva koraka:
+    1. Supabase API get_user() — ne zavisi od JWT_SECRET konfiguracije
+    2. Lokalni JWT decode — fallback ako je JWT_SECRET ispravno postavljen
+    """
+    if not token:
         return None
+
+    # Primarna metoda: Supabase API verifikacija
     try:
-        payload = jose_jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
-        return payload
-    except JWTError:
-        return None
+        result = _get_supa().auth.get_user(token)
+        if result and result.user:
+            return {"sub": result.user.id, "email": result.user.email}
+    except Exception:
+        logger.debug("Supabase get_user fallback na JWT")
+
+    # Fallback: lokalni JWT decode
+    if SUPABASE_JWT_SECRET:
+        try:
+            payload = jose_jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                options={"verify_aud": False},
+            )
+            return payload
+        except JWTError:
+            pass
+
+    return None
 
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> dict:
-    """FastAPI dependency — verifikuje JWT i vraća korisničke podatke."""
+    """FastAPI dependency — verifikuje token i vraća korisničke podatke."""
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Prijava je obavezna za korišćenje Vindex AI.",
         )
-    payload = _verify_jwt(credentials.credentials)
+    payload = await asyncio.to_thread(_verify_token, credentials.credentials)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
