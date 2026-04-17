@@ -411,6 +411,7 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .trust-badge { font-size:0.78rem; font-weight:600; padding:0.55rem 1rem; border-radius:7px; margin-bottom:1rem; letter-spacing:0.01em; }
 .trust-high { background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.25); color:#4ade80; }
 .trust-mid  { background:rgba(240,180,41,0.08); border:1px solid rgba(240,180,41,0.25); color:#f0b429; }
+.trust-low  { background:rgba(239,68,68,0.07);  border:1px solid rgba(239,68,68,0.22);  color:#f87171; }
 .resp-zakljucak .resp-section-lbl { color:#fff; font-size:0.52rem; }
 .resp-zakljucak .resp-section-lbl::before { background:#fff; }
 .resp-zakljucak .resp-section-body { font-size:0.92rem; font-weight:500; color:rgba(255,255,255,0.95); line-height:1.7; }
@@ -1429,13 +1430,14 @@ function formatResponse(rawText) {
   found.sort(function(a,b){ return a.pos-b.pos; });
 
   // Izvuci vrednosti za akciona dugmad
-  var citatVal = '', osnovVal = '';
+  var citatVal = '', osnovVal = '', zakljucakVal = '';
   found.forEach(function(s,i){
     var start = s.pos + s.keyLen;
     var end = i+1 < found.length ? found[i+1].pos : rawText.length;
     var val = rawText.slice(start,end).trim();
     if (s.cls === 'resp-citat') citatVal = val;
     if (s.cls === 'resp-pravni-osnov') osnovVal = val;
+    if (s.cls === 'resp-zakljucak') zakljucakVal = val;
   });
 
   // Odredi signal pouzdanosti
@@ -1447,10 +1449,14 @@ function formatResponse(rawText) {
       pouzdanostVal = rawText.slice(start,end).trim();
     }
   });
-  var isHigh = pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1;
-  var trustBadge = isHigh
-    ? '<div class="trust-badge trust-high">✅ Visoka pouzdanost: Član direktno citiran iz zvanične baze zakona.</div>'
-    : '<div class="trust-badge trust-mid">⚠️ Srednja pouzdanost: Nije pronađen direktan član u bazi — odgovor generisan na osnovu pravne logike.</div>';
+  var trustBadge;
+  if (pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1) {
+    trustBadge = '<div class="trust-badge trust-high">✅ Doslovno citiran — član direktno pronađen u bazi zakona RS.</div>';
+  } else if (pouzdanostVal.indexOf('📝') !== -1 || pouzdanostVal.indexOf('Parafrazirano') !== -1) {
+    trustBadge = '<div class="trust-badge trust-mid">📝 Parafrazirano — sadržaj zakona potvrđen, nije doslovan citat.</div>';
+  } else {
+    trustBadge = '<div class="trust-badge trust-low">⚠️ Opšta pravna logika — nije pronađen direktan član, odgovor baziran na principima prava.</div>';
+  }
 
   var html = trustBadge;
   found.forEach(function(s,i){
@@ -1467,10 +1473,14 @@ function formatResponse(rawText) {
   // Akciona dugmad
   var citatEnc = encodeURIComponent(citatVal);
   var osnovEnc = encodeURIComponent(osnovVal);
+  var zakljucakEnc = encodeURIComponent(zakljucakVal);
+  var fullEnc = encodeURIComponent(rawText);
   html += '<div class="resp-actions">'+
-    '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\''+citatEnc+'\'),this)">📋 Kopiraj citat</button>'+
-    '<button class="resp-action-btn" onclick="showIzvor(decodeURIComponent(\''+osnovEnc+'\'),this)">📎 Izvor: Sl. glasnik</button>'+
-    '<button class="resp-action-btn" onclick="focusInput()">🔁 Postavi follow-up</button>'+
+    '<button class="resp-action-btn" onclick="copyZakljucak(decodeURIComponent(\''+zakljucakEnc+'\'),this)">📋 Kopiraj zaključak</button>'+
+    '<button class="resp-action-btn" onclick="sazimiZaKlijenta(decodeURIComponent(\''+fullEnc+'\'),this)">✨ Sažmi za klijenta</button>'+
+    '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\''+citatEnc+'\'),this)">📎 Kopiraj citat</button>'+
+    '<button class="resp-action-btn" onclick="showIzvor(decodeURIComponent(\''+osnovEnc+'\'),this)">🔗 Izvor: Sl. glasnik</button>'+
+    '<button class="resp-action-btn" onclick="focusInput()">🔁 Follow-up pitanje</button>'+
     '</div>';
   return html;
 }
@@ -1481,6 +1491,43 @@ function copyToClipboard(text, btn) {
     var orig = btn.textContent; btn.textContent = '✓ Kopirano!'; btn.disabled = true;
     setTimeout(function(){ btn.textContent = orig; btn.disabled = false; }, 2000);
   }).catch(function(){ btn.textContent = '⚠ Greška'; });
+}
+
+function copyZakljucak(text, btn) {
+  var clean = text.replace(/^"+|"+$/g,'').trim();
+  if (!clean) { btn.textContent = '⚠ Nema zaključka'; setTimeout(function(){ btn.textContent = '📋 Kopiraj zaključak'; }, 2000); return; }
+  navigator.clipboard.writeText(clean).then(function(){
+    var orig = btn.textContent; btn.textContent = '✓ Zaključak kopiran!'; btn.disabled = true;
+    setTimeout(function(){ btn.textContent = orig; btn.disabled = false; }, 2000);
+  }).catch(function(){ btn.textContent = '⚠ Greška'; });
+}
+
+function sazimiZaKlijenta(fullText, btn) {
+  var orig = btn.textContent;
+  btn.textContent = '⏳ Generišem...'; btn.disabled = true;
+  var token = localStorage.getItem('vindex_token') || '';
+  fetch('/api/sazmi', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ odgovor: fullText.substring(0, 6000) })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    btn.textContent = orig; btn.disabled = false;
+    var sazetak = data.sazetak || data.detail || 'Greška pri generisanju.';
+    var modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = '<div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:2rem;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;position:relative;">'
+      + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:0.75rem;">✨ Verzija za klijenta (Viber/Mejl)</div>'
+      + '<div style="font-size:0.9rem;line-height:1.7;color:rgba(255,255,255,0.85);white-space:pre-wrap;">' + escHtml(sazetak) + '</div>'
+      + '<div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;">'
+      + '<button onclick="navigator.clipboard.writeText('+JSON.stringify(sazetak)+').then(function(){this.textContent=\'✓ Kopirano!\';}.bind(this))" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);color:#4ade80;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.75rem;">📋 Kopiraj tekst</button>'
+      + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.75rem;">✕ Zatvori</button>'
+      + '</div></div>';
+    modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+    document.body.appendChild(modal);
+  })
+  .catch(function(){ btn.textContent = '⚠ Greška'; btn.disabled = false; setTimeout(function(){ btn.textContent = orig; }, 2000); });
 }
 
 function showIzvor(text, btn) {

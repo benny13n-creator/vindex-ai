@@ -301,6 +301,10 @@ class FeedbackReq(BaseModel):
     odgovor: str = Field("", max_length=5000)
     tip: str = Field("greska", max_length=50)
 
+
+class SazmiReq(BaseModel):
+    odgovor: str = Field(..., max_length=6000)
+
     @field_validator("tip")
     @classmethod
     def proveri_tip(cls, v: str) -> str:
@@ -488,6 +492,35 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(requir
 
 
 # ─── Feedback endpoint ────────────────────────────────────────────────────────
+
+@app.post("/api/sazmi")
+@limiter.limit("10/minute")
+async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(get_current_user)):
+    """Generiše verziju odgovora na 'ljudskom' jeziku za klijenta (Viber/Mejl)."""
+    from openai import OpenAI as _OAI
+    try:
+        klijent_prompt = (
+            "Advokat ti šalje pravni odgovor. Napiši kratku, jasnu verziju za klijenta koji nije pravnik. "
+            "Jezik: srpski, razumljiv, bez pravnih termina. Maksimalno 5 rečenica. "
+            "Počni direktno, bez uvoda poput 'Evo sažetka'. "
+            "Na kraju dodaj jednu rečenicu: 'Za precizno pravno mišljenje konsultujte svog advokata.'"
+        )
+        client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.3,
+            max_tokens=300,
+            messages=[
+                {"role": "system", "content": klijent_prompt},
+                {"role": "user", "content": req.odgovor[:4000]},
+            ],
+        )
+        tekst = resp.choices[0].message.content.strip()
+        return {"status": "ok", "tekst": tekst}
+    except Exception:
+        logger.exception("Greška u /api/sazmi")
+        return greska_odgovor(500, "Greška pri generisanju sažetka.")
+
 
 @app.post("/api/feedback")
 async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
