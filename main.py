@@ -420,14 +420,16 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
             logger.warning("HALUCINACIJA: član %s nije u kontekstu", clan)
             return False, f"Član {clan} nije pronađen u dostavljenom kontekstu"
 
-    # 2) Proveri citat (prvih 40 znakova normalizovanog citata mora biti u kontekstu)
-    match_citat = re.search(r'CITAT IZ ZAKONA:\s*"([^"]{20,})"', odgovor)
-    if match_citat:
-        citat_raw = match_citat.group(1)
-        citat_norm = _normalizuj(citat_raw)[:50].strip()
-        if citat_norm and citat_norm not in kontekst_norm:
-            logger.warning("HALUCINACIJA: citat nije pronađen u kontekstu: %s...", citat_norm[:30])
-            return False, f"Citat nije pronađen u dostavljenom kontekstu"
+    # 2) Proveri citat — samo ako nijedan od citiranih članova NIJE pronađen u kontekstu
+    # Ako su svi citirani članovi potvrđeni, dozvoljavamo parafrazirani citat
+    if not citirani_clanovi:
+        match_citat = re.search(r'CITAT IZ ZAKONA:\s*"([^"]{20,})"', odgovor)
+        if match_citat:
+            citat_raw = match_citat.group(1)
+            citat_norm = _normalizuj(citat_raw)[:50].strip()
+            if citat_norm and citat_norm not in kontekst_norm:
+                logger.warning("HALUCINACIJA: citat nije pronađen u kontekstu: %s...", citat_norm[:30])
+                return False, f"Citat nije pronađen u dostavljenom kontekstu"
 
     return True, "ok"
 
