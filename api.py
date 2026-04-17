@@ -395,6 +395,22 @@ async def debug_env():
     }
 
 
+@app.get("/api/test-pitanje")
+async def test_pitanje(q: str = "zastarelost dugova za struju"):
+    """Dijagnostika pipeline-a — ne oduzima kredite."""
+    from app.services.retrieve import retrieve_documents
+    from main import _filtriraj_kontekst
+    docs = retrieve_documents(q, k=10)
+    filtrirani = _filtriraj_kontekst(docs)
+    return {
+        "pitanje": q,
+        "pinecone_docs_count": len(docs),
+        "filtrirani_count": len(filtrirani),
+        "first_doc_preview": filtrirani[0][:200] if filtrirani else None,
+        "fallback_ce_biti_koriscen": len(filtrirani) == 0,
+    }
+
+
 @app.post("/api/check-email")
 async def check_email(req: EmailCheckReq):
     """Proverava da li je email adresa jednokratna (disposable)."""
