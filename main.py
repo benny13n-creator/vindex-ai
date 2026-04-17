@@ -87,6 +87,7 @@ OBAVEZNE_SEKCIJE_QA = [
 
 SYSTEM_PROMPT_QA = """Ti si stručni AI pravni asistent za advokate u Srbiji.
 Odgovaraš ISKLJUČIVO na osnovu dostavljenog KONTEKSTA iz baze srpskih zakona.
+Jezik: srpska ekavica, srpski pravni termini. NIKADA ne koristiš: izvanparnični, odvjetnik, tisuća, stoga, ukoliko, sukladno, glede — umesto toga: vanparnični, advokat, hiljada, dakle, ako, u skladu.
 
 ══════════════════════════════════════════
 OBAVEZNI FORMAT ODGOVORA — UVEK, BEZ IZUZETKA:
@@ -94,7 +95,7 @@ OBAVEZNI FORMAT ODGOVORA — UVEK, BEZ IZUZETKA:
 
 PRAVNI OSNOV: [naziv zakona i broj člana iz konteksta, npr. "Zakon o obligacionim odnosima, član 200"]
 
-ODGOVOR: [jasan i konkretan odgovor na pitanje, zasnovan isključivo na kontekstu]
+ODGOVOR: [direktan odgovor — počni odmah sa suštinom, bez uvodnih fraza. Ako postoje dva ili više relevantna zakona ili tumačenja, navedi SVA i objasni koji ima prednost (lex specialis).]
 
 CITAT IZ ZAKONA: "[doslovni citat relevantnog dela teksta člana iz konteksta — bez izmena]"
 
@@ -108,33 +109,56 @@ STROGA PRAVILA — NIKADA IH NE KRŠI:
 1. NIKADA ne izmišljaj zakone, članove, citiranja ili sadržaj koji NIJE u KONTEKSTU.
 2. Citat mora biti DOSLOVAN — preuzet direktno iz KONTEKSTA, bez ikakvih izmena.
 3. Ako KONTEKST ne sadrži relevantan odgovor, u SVIM poljima napiši odgovarajuću napomenu.
-4. POUZDANOST: 0% ako nema relevantnog konteksta; maksimum je 85% — nikada viši, jer AI sistem nije zamena za pravno mišljenje. Skala: 30–50% = delimično poklapanje, 51–70% = dobro poklapanje, 71–85% = visoko poklapanje sa bazom. Uvek dodaj kratko obrazloženje zašto si dao taj procenat.
-5. Uvek piši sa srpskim dijakritičkim znacima (č, ć, ž, š, đ).
+4. POUZDANOST: 0% ako nema relevantnog konteksta; maksimum je 85%. Skala: 30–50% = delimično poklapanje, 51–70% = dobro poklapanje, 71–85% = visoko poklapanje sa bazom. Uvek dodaj kratko obrazloženje.
+5. Uvek piši sa srpskim dijakritičkim znacima (č, ć, ž, š, đ) i srpskom ekavicom.
 6. Ako je relevantno više zakona, navedi sve u PRAVNOM OSNOVU.
 7. Ne davaj pravne savete van onoga što piše u zakonu — samo tumači tekst.
-8. Ako pitanje ima VIŠE MOGUĆIH TUMAČENJA ili postoje suprotni stavovi u praksi, eksplicitno to navedi u ODGOVORU: "Postoje različita tumačenja: (a)... (b)..." i u POUZDANOSTI smanji procenat odgovarajuće.
-9. NIKADA ne ekstrapoluj pravne posledice koje nisu eksplicitno navedene u KONTEKSTU. Ako kontekst ne kaže doslovno da neka radnja ima određeno dejstvo — ne tvrdi da ga ima.
+8. Ako pitanje ima VIŠE MOGUĆIH TUMAČENJA ili postoje suprotni stavovi, eksplicitno navedi: "Postoje različita tumačenja: (a)... (b)..." i smanji POUZDANOST.
+9. NIKADA ne ekstrapoluj pravne posledice koje nisu eksplicitno navedene u KONTEKSTU.
+10. LEX SPECIALIS PRAVILO: Ako postoji opšti zakon (npr. ZOO) i posebni zakon za isti slučaj (npr. Zakon o osiguranju, Zakon o radu, Zakon o zaštiti potrošača) — UVEK primeni posebni zakon i EKSPLICITNO navedi da on ima prednost nad opštim.
+11. TEMPORALNA VALIDNOST: Ako kontekst sadrži više verzija iste odredbe (različite izmene), primeni NAJNOVIJU verziju i navedi kada je stupila na snagu. Ako postoje prelazne odredbe koje određuju koji zakon se primenjuje na stare činjenice — obavezno to naglasi u ODGOVORU.
+12. NIKADA ne koristi reč "automatski" u kontekstu pravnih posledica, osim ako zakon eksplicitno propisuje da određena posledica nastupa "po sili zakona" ili "automatski". U svim ostalim slučajevima piši "potrebna je tužba/zahtev/odluka suda".
+13. PROCESNI ROKOVI — PAZI NA RAZLIKE:
+    - Žalba u parničnom postupku (ZPP): 15 dana
+    - Revizija (ZPP): 30 dana, vrednosni cenzus 40.000 EUR
+    - Žalba u upravnom postupku (ZUP): 15 dana
+    - Tužba u upravnom sporu (ZUS): 30 dana od dostavljanja
+    - Prigovor na optužnicu (ZKP): 8 dana — to je PRIGOVOR, ne žalba
+    - Rok za pobijanje skupštinske odluke privrednog društva (ZPD): 30 dana od saznanja
 
 ══════════════════════════════════════════
-KRITIČNE PRAVNE GREŠKE — NIKADA NE SMEŠ TVRDITI (čak i ako to "zvuči logično"):
+KRITIČNE PRAVNE GREŠKE — NIKADA NE SMEŠ TVRDITI:
 ══════════════════════════════════════════
 
 [ZASTARELOST — ZOO čl. 360–393]
 ❌ ZABRANJENA TVRDNJA: "Opomena/dopis/email/pismo/poziv prekida zastarelost"
-✅ TAČNO: Zastarelost se PREKIDA JEDINO kroz: (1) podnošenje tužbe ili pokretanje izvršenja, (2) pisano priznanje duga od strane DUŽNIKA (ne poverioca).
-✅ TAČNO: Opomena može imati poslovni efekat, ali NEMA pravno dejstvo na tok roka zastarelosti.
-Pravilo: Ako kontekst ne navodi eksplicitno da određena radnja "prekida" ili "zadržava" zastarelost, NE tvrditi da ima takvo dejstvo.
+✅ TAČNO: Zastarelost prekida JEDINO: (1) tužba ili pokretanje izvršenja, (2) pisano priznanje duga od strane DUŽNIKA.
+✅ IZUZETAK — OVO PREKIDA: Vansudsko poravnanje potpisano od strane dužnika = pisano priznanje = prekida zastarelost.
+❌ ZABRANJENA TVRDNJA: "Komunalne usluge zastarevaju za 3 godine"
+✅ TAČNO: Periodična potraživanja (struja, voda, gas, telefon, kirija) zastarevaju za 1 GODINU (ZOO čl. 374).
 
 [OTKAZ UGOVORA O RADU — Zakon o radu]
-❌ ZABRANJENA TVRDNJA: Da se otkaz može dati usmeno
+❌ ZABRANJENA TVRDNJA: Otkaz se može dati usmeno
 ✅ TAČNO: Rešenje o otkazu mora biti u pisanoj formi (čl. 185 ZOR) i uručeno zaposlenom.
 
+[IZDRŽAVANJE — Porodični zakon]
+❌ ZABRANJENA TVRDNJA: "Alimentacija/izdržavanje automatski prestaje" kada se promene okolnosti
+✅ TAČNO: Izdržavanje ne prestaje automatski. Potrebna je tužba za izmenu ili prestanak (PZ čl. 162). Sud donosi novu odluku.
+
 [NAKNADA ŠTETE — ZOO]
-❌ ZABRANJENA TVRDNJA: Da emotivna ili moralna podrška sama po sebi daje pravo na naknadu
+❌ ZABRANJENA TVRDNJA: Emotivna ili moralna podrška sama po sebi daje pravo na naknadu
 ✅ TAČNO: Nematerijalna šteta zahteva utvrđivanje konkretne povrede ličnog dobra (čl. 200 ZOO).
 
-[OPŠTE PRAVILO ZA SVE OBLASTI]
-Ako kontekst ne sadrži eksplicitnu potvrdu za tvrdnju — ne tvrditi. Bolje reći "kontekst ne pokriva ovaj aspekt" nego dati netačnu informaciju.
+[HIPOTEKA]
+❌ ZABRANJENA TVRDNJA: Hipotekarni poverilac mora podneti tužbu za naplatu
+✅ TAČNO: Zakon o hipoteci dozvoljava vansudsku naplatu — hipoteka je izvršna isprava (čl. 26).
+
+[POBIJANJE SKUPŠTINSKE ODLUKE]
+❌ ZABRANJENA TVRDNJA: Rok za pobijanje je 6 meseci
+✅ TAČNO: Rok je 30 dana od dana saznanja, a NAJKASNIJE 6 meseci od donošenja (ZPD čl. 376). Oba roka su prekluzivna.
+
+[OPŠTE PRAVILO]
+Ako kontekst ne sadrži eksplicitnu potvrdu za tvrdnju — ne tvrditi. Bolje "kontekst ne pokriva ovaj aspekt" nego netačna informacija.
 
 ══════════════════════════════════════════
 KADA NEMA ODGOVORA — koristi TAČNO ovaj format:
@@ -280,6 +304,40 @@ ZABRANJENE_GRESKE: list[tuple[str, str]] = [
         r"usmen\w+\s+\w{0,10}\s*otka[zž]",
         "Otkaz ugovora o radu mora biti u pisanoj formi (čl. 185 ZOR). Usmeni otkaz nije pravno validan.",
     ),
+    # Alimentacija ne prestaje automatski
+    (
+        r"aliment\w*\s+\w{0,15}\s*automatsk\w*\s*(prestaj|gasi|ukida)",
+        "Izdržavanje ne prestaje automatski (PZ čl. 162). Potrebna je tužba za izmenu ili prestanak izdržavanja.",
+    ),
+    (
+        r"izdrzavanj\w*\s+\w{0,15}\s*automatsk\w*\s*(prestaj|gasi|ukida)",
+        "Izdržavanje ne prestaje automatski (PZ čl. 162). Potrebna je tužba za izmenu ili prestanak izdržavanja.",
+    ),
+    # Komunalne usluge — rok je 1 godina, ne 3
+    (
+        r"komunaln\w*\s+\w{0,20}\s*(tri|3)\s*(god|mesec|rok|godin)\w*\s*(zastarel|zastarev)",
+        "Potraživanja za komunalne i slične periodične usluge zastarevaju za 1 godinu (ZOO čl. 374), ne za 3 godine.",
+    ),
+    # Pobijanje skupštinske odluke — 30 dana, ne 6 meseci
+    (
+        r"pobijanj\w*\s+\w{0,20}\s*skupstin\w*\s+\w{0,20}\s*(sest|6)\s*(mesec|god)\w*",
+        "Rok za pobijanje odluke skupštine privrednog društva je 30 dana od saznanja, a najkasnije 6 meseci od donošenja (ZPD čl. 376) — prekluzivni rok od 30 dana se ne sme izostaviti.",
+    ),
+    # Žalba na optužnicu — to je PRIGOVOR, ne žalba
+    (
+        r"zalb\w*\s+\w{0,15}\s*na\s+optuznic",
+        "Na optužnicu se ne podnosi žalba već PRIGOVOR u roku od 8 dana od dostavljanja (ZKP čl. 335).",
+    ),
+    # Hrvatska/ijekavica terminologija
+    (
+        r"\b(izvanparnicn|odvjetnik|tisuc|stoga|ukoliko|kako\s+bi|glede|radi\s+cega|sukladno)\b",
+        "Odgovor sadrži hrvatsku pravnu terminologiju. Vindex AI koristi isključivo srpsku ekavicu i srpske pravne termine (vanparnični, advokat, hiljada, dakle, ako, da bi, u pogledu, zbog čega, u skladu).",
+    ),
+    # Hipoteka — ne ide tužbom nego direktno izvršenjem
+    (
+        r"hipoteka\w*\s+\w{0,20}\s*(mora|treba|potrebno)\s+\w{0,15}\s*tuzb",
+        "Hipotekarni poverilac NE mora podneti tužbu — Zakon o hipoteci (čl. 26) dozvoljava vansudsku naplatu direktnim izvršenjem na osnovu hipoteke kao izvršne isprave.",
+    ),
 ]
 
 
@@ -368,7 +426,7 @@ def _dodaj_disclaimer(odgovor: str) -> str:
     return odgovor + f"\n\nVAŽNA NAPOMENA: {DISCLAIMER_TEKST}"
 
 
-def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o-mini") -> str:
+def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o") -> str:
     """OpenAI poziv sa timeoutom. Baca izuzetak pri grešci."""
     odgovor = client.chat.completions.create(
         model=model,
@@ -377,7 +435,7 @@ def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o-m
             {"role": "user", "content": user_content},
         ],
         temperature=0,
-        timeout=45.0,
+        timeout=60.0,
     )
     return (odgovor.choices[0].message.content or "").strip()
 
@@ -398,7 +456,7 @@ def ask_agent(pitanje: str) -> dict:
 
     try:
         # Korak 1: Dohvati relevantne dokumente
-        docs = retrieve_documents(pitanje, k=6)
+        docs = retrieve_documents(pitanje, k=10)
         filtrirani = _filtriraj_kontekst(docs)
 
         if not filtrirani:
