@@ -1020,17 +1020,22 @@ async function initAuth() {
 
 async function loadCredits() {
   if (!currentSession) return;
+  console.log('[Vindex] loadCredits: dohvatam /api/me...');
   try {
     var r = await fetch(BASE_URL + '/api/me', {
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
     });
+    console.log('[Vindex] /api/me status:', r.status);
     if (r.ok) {
       var d = await r.json();
-      userCredits    = d.credits_remaining || 0;
-      TOTAL_CREDITS  = d.credits_total     || 15;
+      console.log('[Vindex] /api/me odgovor:', d);
+      userCredits    = (d.credits_remaining !== undefined && d.credits_remaining !== null) ? d.credits_remaining : 0;
+      TOTAL_CREDITS  = d.credits_total || 15;
       updateCreditDisplay();
+    } else {
+      console.warn('[Vindex] /api/me greška, status:', r.status);
     }
-  } catch(e) { console.warn('Greška pri učitavanju kredita:', e); }
+  } catch(e) { console.warn('[Vindex] loadCredits greška:', e); }
 }
 
 function updateCreditDisplay() {
@@ -1038,6 +1043,9 @@ function updateCreditDisplay() {
   var navPill = document.getElementById('nav-credit-pill');
   var tVal    = document.getElementById('t-credits-val');
   var execBtn = document.getElementById('exec-btn');
+  var btnLbl  = document.getElementById('btn-lbl');
+
+  console.log('[Vindex] updateCreditDisplay: userCredits =', userCredits);
 
   if (navNum)  navNum.textContent = userCredits;
   if (tVal)    tVal.textContent   = userCredits + ' / ' + TOTAL_CREDITS;
@@ -1045,7 +1053,18 @@ function updateCreditDisplay() {
   var cls = userCredits > 3 ? '' : userCredits > 0 ? 'warn' : 'empty';
   if (navPill) { navPill.className = 'nav-credit-pill ' + cls; }
   if (tVal)    { tVal.className    = 't-credits-val ' + cls; }
-  if (execBtn) execBtn.disabled   = userCredits <= 0;
+
+  if (execBtn) {
+    if (userCredits <= 0) {
+      execBtn.disabled = true;
+      if (btnLbl) btnLbl.textContent = 'Nemate dovoljno kredita';
+    } else {
+      execBtn.disabled = false;
+      if (btnLbl && btnLbl.textContent === 'Nemate dovoljno kredita') {
+        btnLbl.textContent = 'Pretraži pravnu bazu';
+      }
+    }
+  }
 }
 
 function updateAuthUI() {
@@ -1306,15 +1325,20 @@ function formatResponse(rawText) {
 
 /* EXEC */
 async function execQuery() {
+  console.log('[Vindex] execQuery: korisnik =', currentUser ? currentUser.email : 'nije ulogovan', '| krediti =', userCredits);
   if (!currentUser) { openModal(); return; }
-  if (userCredits <= 0) { showPaywall(); return; }
+  if (userCredits <= 0) {
+    console.warn('[Vindex] execQuery: blokiran — 0 kredita');
+    showPaywall(); return;
+  }
 
   var resp   = document.getElementById('resp');
   var rb     = document.getElementById('rb');
   var btnLbl = document.getElementById('btn-lbl');
   var orig   = btnLbl.textContent;
 
-  btnLbl.innerHTML = '<span class="ld"></span><span class="ld"></span><span class="ld"></span>';
+  btnLbl.textContent = 'Vindex AI pretražuje bazu...';
+  console.log('[Vindex] execQuery: šaljem upit na', activeTab);
   resp.classList.remove('show');
   rb.style.whiteSpace = '';
 
@@ -1332,13 +1356,16 @@ async function execQuery() {
       body:    JSON.stringify(bodies[activeTab])
     });
 
+    console.log('[Vindex] execQuery: odgovor status =', r.status);
     if (r.status === 401) { btnLbl.textContent=orig; closeModal(); openModal(); return; }
     if (r.status === 402) {
+      console.warn('[Vindex] execQuery: 402 — nema kredita');
       userCredits = 0; updateCreditDisplay(); showPaywall();
       btnLbl.textContent = orig; return;
     }
 
     var d = await r.json();
+    console.log('[Vindex] execQuery: kredit posle upita =', d.credits_remaining);
     if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
 
     var text = d.odgovor || d.greska || 'Greška u odgovoru servera.';

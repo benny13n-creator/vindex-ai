@@ -118,21 +118,36 @@ async def get_current_user(
 BESPLATNI_KREDITI = 15
 
 
-def _get_credits(user_id: str) -> int:
-    """Čita broj preostalih kredita iz baze."""
+def _ensure_profile(user_id: str, email: str = "") -> int:
+    """
+    Čita kredite. Ako profil ne postoji, kreira ga sa 15 kredita (auto-heal).
+    Vraća broj preostalih kredita.
+    """
+    supa = _get_supa()
     try:
         result = (
-            _get_supa()
-            .table("profiles")
+            supa.table("profiles")
             .select("credits_remaining")
             .eq("id", user_id)
-            .single()
+            .maybe_single()
             .execute()
         )
-        return result.data.get("credits_remaining", 0) if result.data else 0
+        if result.data:
+            return result.data.get("credits_remaining", 0)
+        # Profil ne postoji — kreira se sa 15 kredita
+        logger.warning("Profil ne postoji za korisnika %s — kreiranje sa 15 kredita", user_id)
+        supa.table("profiles").insert(
+            {"id": user_id, "email": email, "credits_remaining": BESPLATNI_KREDITI}
+        ).execute()
+        return BESPLATNI_KREDITI
     except Exception:
-        logger.exception("Greška pri čitanju kredita za korisnika %s", user_id)
+        logger.exception("Greška pri čitanju/kreiranju profila za korisnika %s", user_id)
         return 0
+
+
+def _get_credits(user_id: str) -> int:
+    """Čita broj preostalih kredita iz baze."""
+    return _ensure_profile(user_id)
 
 
 def _deduct_credit(user_id: str) -> int:
@@ -276,8 +291,8 @@ def serve_html():
 
 @app.get("/api/me")
 async def me(user: dict = Depends(get_current_user)):
-    """Vraća podatke o prijavljenom korisniku i broj preostalih kredita."""
-    credits = await asyncio.to_thread(_get_credits, user["user_id"])
+    """Vraća podatke o prijavljenom korisniku i broj preostalih kredita. Auto-kreira profil ako ne postoji."""
+    credits = await asyncio.to_thread(_ensure_profile, user["user_id"], user.get("email", ""))
     return {
         "user_id":          user["user_id"],
         "email":            user["email"],
