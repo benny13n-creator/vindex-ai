@@ -37,7 +37,26 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 4. RPC funkcija za atomično oduzimanje jednog kredita
+-- 4. FEEDBACK tabela
+CREATE TABLE IF NOT EXISTS public.feedback (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  pitanje    TEXT,
+  odgovor    TEXT,
+  tip        TEXT DEFAULT 'greska',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "feedback_insert_own" ON public.feedback
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "feedback_service_all" ON public.feedback
+  USING (current_setting('request.jwt.claims', true)::json->>'role' = 'service_role')
+  WITH CHECK (current_setting('request.jwt.claims', true)::json->>'role' = 'service_role');
+
+-- 5. RPC funkcija za atomično oduzimanje jednog kredita
 CREATE OR REPLACE FUNCTION public.deduct_credit(p_user_id UUID)
 RETURNS INTEGER AS $$
 DECLARE

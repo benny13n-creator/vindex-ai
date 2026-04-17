@@ -7,7 +7,7 @@ import logging
 import os
 import asyncio
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -198,8 +198,14 @@ app.add_middleware(
 
 # ─── Modeli zahteva ───────────────────────────────────────────────────────────
 
+class HistoryItem(BaseModel):
+    q: str = Field("", max_length=500)
+    a: str = Field("", max_length=1000)
+
+
 class PitanjeReq(BaseModel):
     pitanje: str = Field(..., min_length=3, max_length=2000)
+    history: List[HistoryItem] = Field(default_factory=list, max_length=3)
 
     @field_validator("pitanje")
     @classmethod
@@ -229,6 +235,18 @@ class AnalizaReq(BaseModel):
 
 class EmailCheckReq(BaseModel):
     email: str = Field(..., min_length=5, max_length=254)
+
+
+class FeedbackReq(BaseModel):
+    pitanje: str = Field("", max_length=2000)
+    odgovor: str = Field("", max_length=5000)
+    tip: str = Field("greska", max_length=50)
+
+    @field_validator("tip")
+    @classmethod
+    def proveri_tip(cls, v: str) -> str:
+        dozvoljeni = {"greska", "netacno", "nepotpuno", "ostalo"}
+        return v if v in dozvoljeni else "ostalo"
 
 
 # ─── Helperi ──────────────────────────────────────────────────────────────────
@@ -317,7 +335,8 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
     """Pravno istraživanje — pretražuje bazu zakona."""
     logger.info("Pitanje [%s]: %.80s", user["email"], req.pitanje)
     try:
-        rezultat = await pokreni(ask_agent, req.pitanje)
+        history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
+        rezultat = await pokreni(ask_agent, req.pitanje, history)
         preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"])
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
@@ -360,3 +379,24 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(requir
             500,
             "Došlo je do greške na serveru. Pokušajte ponovo za nekoliko sekundi.",
         )
+
+
+# ─── Feedback endpoint ────────────────────────────────────────────────────────
+
+@app.post("/api/feedback")
+async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
+    """Korisnik prijavljuje netačan ili nepotpun odgovor."""
+    try:
+        await asyncio.to_thread(
+            lambda: _get_supa().table("feedback").insert({
+                "user_id": user["user_id"],
+                "pitanje": req.pitanje[:2000],
+                "odgovor": req.odgovor[:5000],
+                "tip":     req.tip,
+            }).execute()
+        )
+        logger.info("Feedback [%s] tip=%s", user["email"], req.tip)
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Greška u /api/feedback")
+        return {"status": "ok"}  # Ne blokiramo korisnika zbog greške u feedbacku

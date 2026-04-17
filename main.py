@@ -6,7 +6,9 @@ Odgovara isključivo na osnovu Pinecone baze srpskih zakona.
 
 import os
 import re
+import hashlib
 import logging
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from openai import OpenAI
 from app.services.retrieve import retrieve_documents
@@ -25,35 +27,160 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # ─── Sl. glasnik mapa — službeni izvori srpskih zakona ───────────────────────
 
 SL_GLASNIK_MAP = {
-    "zakon o radu":
-        "Sl. glasnik RS, br. 24/2005, 61/2005, 54/2009, 32/2013, 75/2014, 13/2017, 113/2017, 95/2018",
-    "zakon o obligacionim odnosima":
-        "Sl. list SFRJ, br. 29/78, 39/85, 57/89; Sl. list SRJ, br. 31/93; Sl. list SCG, br. 1/2003",
+    # ── Procesno pravo ────────────────────────────────────────────────────────
     "zakon o parnicnom postupku":
         "Sl. glasnik RS, br. 72/2011, 49/2013, 74/2013, 55/2014, 87/2018",
-    "krivicni zakonik":
-        "Sl. glasnik RS, br. 85/2005, 88/2005, 107/2005, 72/2009, 111/2009, 121/2012, 104/2013, 108/2014, 94/2016, 35/2019",
     "zakonik o krivicnom postupku":
         "Sl. glasnik RS, br. 72/2011, 101/2011, 121/2012, 32/2013, 45/2013, 55/2014, 35/2019",
-    "porodicni zakon":
-        "Sl. glasnik RS, br. 18/2005, 72/2011, 6/2015",
-    "zakon o privrednim drustvima":
-        "Sl. glasnik RS, br. 36/2011, 99/2011, 83/2014, 5/2015, 44/2018, 95/2018, 91/2019",
-    "zakon o izvrsenju i obezbedjenju":
-        "Sl. glasnik RS, br. 106/2015, 106/2016, 113/2017, 54/2019",
-    "zakon o zastiti potrosaca":
-        "Sl. glasnik RS, br. 62/2014, 6/2016, 44/2018",
-    "zakon o nasledjivanju":
-        "Sl. glasnik SRS, br. 52/74, 1/80; Sl. glasnik RS, br. 46/95, 101/2003, 6/2015",
     "zakon o vanparnicnom postupku":
         "Sl. glasnik SRS, br. 25/82, 48/88; Sl. glasnik RS, br. 46/95, 18/2005, 85/2012, 45/2013, 55/2014, 6/2015, 106/2015",
     "zakon o opstem upravnom postupku":
         "Sl. glasnik RS, br. 18/2016, 95/2018",
     "zakon o upravnim sporovima":
         "Sl. glasnik RS, br. 111/2009",
+    "zakon o izvrsenju i obezbedjenju":
+        "Sl. glasnik RS, br. 106/2015, 106/2016, 113/2017, 54/2019",
+    "zakon o mediaciji":
+        "Sl. glasnik RS, br. 55/2014",
+    # ── Krivično pravo ────────────────────────────────────────────────────────
+    "krivicni zakonik":
+        "Sl. glasnik RS, br. 85/2005, 88/2005, 107/2005, 72/2009, 111/2009, 121/2012, 104/2013, 108/2014, 94/2016, 35/2019",
+    "zakon o maloletnim uciniocima krivicnih dela":
+        "Sl. glasnik RS, br. 85/2005",
+    # ── Obligaciono i građansko pravo ─────────────────────────────────────────
+    "zakon o obligacionim odnosima":
+        "Sl. list SFRJ, br. 29/78, 39/85, 57/89; Sl. list SRJ, br. 31/93; Sl. list SCG, br. 1/2003",
+    "zakon o nasledjivanju":
+        "Sl. glasnik SRS, br. 52/74, 1/80; Sl. glasnik RS, br. 46/95, 101/2003, 6/2015",
+    "zakon o hipoteci":
+        "Sl. glasnik RS, br. 115/2005, 60/2015",
+    "zakon o zakupu stanova":
+        "Sl. glasnik RS, br. 26/1990, 27/1992, 42/1998, 33/2013",
+    "zakon o stanovanju i odrzavanju zgrada":
+        "Sl. glasnik RS, br. 104/2016, 9/2020, 52/2021",
+    "zakon o prometu nepokretnosti":
+        "Sl. glasnik RS, br. 93/2014, 121/2014, 6/2015",
+    # ── Porodično pravo ───────────────────────────────────────────────────────
+    "porodicni zakon":
+        "Sl. glasnik RS, br. 18/2005, 72/2011, 6/2015",
+    # ── Radno pravo ───────────────────────────────────────────────────────────
+    "zakon o radu":
+        "Sl. glasnik RS, br. 24/2005, 61/2005, 54/2009, 32/2013, 75/2014, 13/2017, 113/2017, 95/2018",
+    "zakon o zaposljavanju i osiguranju za slucaj nezaposlenosti":
+        "Sl. glasnik RS, br. 36/2009, 88/2010, 38/2015, 113/2017",
+    "zakon o bezbednosti i zdravlju na radu":
+        "Sl. glasnik RS, br. 101/2005, 91/2015, 113/2017",
+    "zakon o sprecavanju zlostavljanja na radu":
+        "Sl. glasnik RS, br. 36/2010",
+    "zakon o zabrani diskriminacije":
+        "Sl. glasnik RS, br. 22/2009, 52/2021",
+    # ── Privredno pravo ───────────────────────────────────────────────────────
+    "zakon o privrednim drustvima":
+        "Sl. glasnik RS, br. 36/2011, 99/2011, 83/2014, 5/2015, 44/2018, 95/2018, 91/2019",
+    "zakon o stecaju":
+        "Sl. glasnik RS, br. 104/2009, 99/2011, 71/2012, 83/2014, 113/2017, 44/2018, 95/2018",
+    "zakon o privatizaciji":
+        "Sl. glasnik RS, br. 83/2014, 46/2015, 112/2015, 20/2016",
+    "zakon o zastiti konkurencije":
+        "Sl. glasnik RS, br. 51/2009, 95/2013",
+    "zakon o javnim nabavkama":
+        "Sl. glasnik RS, br. 91/2019",
+    # ── Osiguranje i bankarstvo ───────────────────────────────────────────────
+    "zakon o osiguranju":
+        "Sl. glasnik RS, br. 139/2014, 44/2021",
+    "zakon o bankama":
+        "Sl. glasnik RS, br. 107/2005, 91/2010, 14/2015",
+    # ── Poresko pravo ─────────────────────────────────────────────────────────
+    "zakon o porezu na dohodak gradjana":
+        "Sl. glasnik RS, br. 24/2001, 80/2002, 135/2004, 62/2006, 18/2010, 50/2011, 93/2012, 114/2012, 47/2013, 108/2013, 57/2014, 68/2014, 112/2015, 113/2017, 95/2018, 86/2019, 153/2020",
+    "zakon o porezu na dodatu vrednost":
+        "Sl. glasnik RS, br. 84/2004, 86/2004, 61/2005, 61/2007, 93/2012, 108/2013, 6/2014, 68/2014, 83/2015, 108/2016, 113/2017, 30/2018, 72/2019, 153/2020",
+    "zakon o doprinosima za obavezno socijalno osiguranje":
+        "Sl. glasnik RS, br. 84/2004, 61/2005, 62/2006, 5/2009, 52/2011, 101/2011, 7/2012, 8/2013, 47/2013, 108/2013, 57/2014, 68/2014, 112/2015, 113/2017, 95/2018, 86/2019",
+    "zakon o penzijskom i invalidskom osiguranju":
+        "Sl. glasnik RS, br. 34/2003, 64/2004, 84/2004, 85/2005, 101/2005, 63/2006, 5/2009, 107/2009, 101/2010, 93/2012, 62/2013, 108/2013, 75/2014, 142/2014, 73/2018, 46/2019, 86/2019",
+    # ── Upravno i ustavno pravo ───────────────────────────────────────────────
     "ustav republike srbije":
         "Sl. glasnik RS, br. 98/2006",
+    "zakon o drzavnoj upravi":
+        "Sl. glasnik RS, br. 79/2005, 101/2007, 95/2010, 99/2014, 47/2018, 30/2018",
+    "zakon o lokalnoj samoupravi":
+        "Sl. glasnik RS, br. 129/2007, 83/2014, 101/2016, 47/2018",
+    "zakon o eksproprijaciji":
+        "Sl. glasnik RS, br. 53/1995, 23/2001, 20/2009, 55/2013, 106/2016",
+    "zakon o javnoj svojini":
+        "Sl. glasnik RS, br. 72/2011, 88/2013, 105/2014, 104/2016, 108/2016, 113/2017, 95/2018",
+    "zakon o planiranju i izgradnji":
+        "Sl. glasnik RS, br. 72/2009, 81/2009, 64/2010, 24/2011, 121/2012, 42/2013, 50/2013, 98/2013, 132/2014, 145/2014, 83/2018, 31/2019, 37/2019, 9/2020",
+    "zakon o komunalnim delatnostima":
+        "Sl. glasnik RS, br. 88/2011, 104/2016, 95/2018",
+    # ── Pravosuđe ─────────────────────────────────────────────────────────────
+    "zakon o uredenju sudova":
+        "Sl. glasnik RS, br. 116/2008, 104/2009, 101/2010, 31/2011, 78/2011, 101/2013, 106/2015, 40/2015, 13/2016, 108/2016, 113/2017, 65/2021",
+    "zakon o sudijama":
+        "Sl. glasnik RS, br. 116/2008, 58/2009, 104/2009, 101/2010, 8/2012, 121/2012, 101/2013, 111/2014, 117/2014, 31/2016, 47/2021",
+    "zakon o javnom beleznistvu":
+        "Sl. glasnik RS, br. 31/2011, 85/2012, 19/2013, 55/2014, 93/2014, 121/2014, 6/2015",
+    "zakon o advokaturi":
+        "Sl. glasnik RS, br. 31/2011, 24/2012, 30/2021",
+    "zakon o besplatnoj pravnoj pomoci":
+        "Sl. glasnik RS, br. 87/2018",
+    # ── Digitalno i mediijsko pravo ───────────────────────────────────────────
+    "zakon o zastiti podataka o licnosti":
+        "Sl. glasnik RS, br. 87/2018",
+    "zakon o elektronskoj trgovini":
+        "Sl. glasnik RS, br. 41/2009, 95/2013, 52/2019",
+    "zakon o elektronskim komunikacijama":
+        "Sl. glasnik RS, br. 44/2010, 60/2013, 62/2014, 95/2018",
+    "zakon o autorskim i srodnim pravima":
+        "Sl. glasnik RS, br. 104/2009, 99/2011, 119/2012, 29/2016, 66/2019",
+    # ── Zaštita potrošača i saobraćaj ─────────────────────────────────────────
+    "zakon o zastiti potrosaca":
+        "Sl. glasnik RS, br. 62/2014, 6/2016, 44/2018",
+    "zakon o bezbednosti saobracaja na putevima":
+        "Sl. glasnik RS, br. 41/2009, 53/2010, 101/2011, 32/2013, 55/2014, 96/2015, 9/2016, 24/2018, 41/2018, 87/2018, 23/2019, 128/2020",
+    # ── Katastar i upis ───────────────────────────────────────────────────────
+    "zakon o postupku upisa u katastar nepokretnosti i vodova":
+        "Sl. glasnik RS, br. 41/2018, 95/2018, 31/2019, 15/2020",
+    "zakon o drzavnom premeru i katastru":
+        "Sl. glasnik RS, br. 72/2009, 18/2010, 65/2013, 15/2015, 96/2015, 47/2017, 113/2017, 27/2018, 41/2018, 9/2020, 52/2021",
 }
+
+# ─── Query cache (TTL 1h, max 500 unosa) ────────────────────────────────────
+
+_CACHE: dict[str, tuple[dict, datetime]] = {}
+_CACHE_TTL = timedelta(hours=1)
+_CACHE_MAX = 500
+
+
+def _cache_kljuc(pitanje: str) -> str:
+    return hashlib.md5(_normalizuj_za_cache(pitanje).encode()).hexdigest()
+
+
+def _normalizuj_za_cache(tekst: str) -> str:
+    t = (tekst or "").lower().strip()
+    for src, dst in {"š": "s", "đ": "dj", "č": "c", "ć": "c", "ž": "z"}.items():
+        t = t.replace(src, dst)
+    return re.sub(r"\s+", " ", t)
+
+
+def _cache_get(pitanje: str) -> dict | None:
+    kljuc = _cache_kljuc(pitanje)
+    if kljuc in _CACHE:
+        rezultat, ts = _CACHE[kljuc]
+        if datetime.now() - ts < _CACHE_TTL:
+            logger.info("Cache HIT: %.60s", pitanje)
+            return rezultat
+        del _CACHE[kljuc]
+    return None
+
+
+def _cache_set(pitanje: str, rezultat: dict) -> None:
+    if len(_CACHE) >= _CACHE_MAX:
+        najstariji = min(_CACHE.keys(), key=lambda k: _CACHE[k][1])
+        del _CACHE[najstariji]
+    _CACHE[_cache_kljuc(pitanje)] = (rezultat, datetime.now())
+
 
 DISCLAIMER_TEKST = (
     "Ovaj odgovor je generisan AI alatom isključivo u informativne svrhe "
@@ -442,17 +569,20 @@ def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o")
 
 # ─── Javne funkcije agenta ───────────────────────────────────────────────────
 
-def ask_agent(pitanje: str) -> dict:
+def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
     """
     Pravno istraživanje — pretražuje Pinecone bazu i vraća strukturiran odgovor.
-
-    Vraća:
-        {"status": "success", "data": "<strukturiran odgovor>"}
-        {"status": "error", "message": "<poruka greške>"}
+    history: lista {'q': str, 'a': str} — poslednja 3 pitanja/odgovora iz sesije.
     """
     pitanje = (pitanje or "").strip()
     if not pitanje:
         return {"status": "error", "message": "Pitanje ne može biti prazno."}
+
+    # Cache samo kad nema history konteksta
+    if not history:
+        keš = _cache_get(pitanje)
+        if keš:
+            return keš
 
     try:
         # Korak 1: Dohvati relevantne dokumente
@@ -463,9 +593,19 @@ def ask_agent(pitanje: str) -> dict:
             logger.info("Nema relevantnih dokumenata za: %.80s", pitanje)
             return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
 
-        # Korak 2: Pozovi model
+        # Korak 2: Sastavi user_content sa opcionim history-jem
         kontekst = "\n\n---\n\n".join(filtrirani)
+        history_blok = ""
+        if history:
+            stavke = []
+            for i, h in enumerate(history[-3:], 1):
+                q = (h.get("q") or "")[:200]
+                a = (h.get("a") or "")[:400]
+                stavke.append(f"[{i}] Korisnik: {q}\n    Vindex AI: {a}...")
+            history_blok = "ISTORIJA RAZGOVORA (kontekst):\n" + "\n".join(stavke) + "\n\n"
+
         user_content = (
+            f"{history_blok}"
             f"PITANJE: {pitanje}\n\n"
             f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
         )
@@ -488,13 +628,17 @@ def ask_agent(pitanje: str) -> dict:
             logger.error("Pravna greška blokirala odgovor: %s", pravna_greska)
             return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
 
-        # Korak 6: Post-processing — cap pouzdanosti, dodaj izvor i disclaimer
+        # Korak 6: Post-processing
         odgovor = _ogranici_pouzdanost(odgovor)
         odgovor = _dodaj_izvor(odgovor, filtrirani)
         odgovor = _dodaj_disclaimer(odgovor)
 
+        rezultat = {"status": "success", "data": odgovor}
+        if not history:
+            _cache_set(pitanje, rezultat)
+
         logger.info("Uspešan odgovor za: %.80s", pitanje)
-        return {"status": "success", "data": odgovor}
+        return rezultat
 
     except Exception:
         logger.exception("Greška u ask_agent")
@@ -509,6 +653,13 @@ def ask_nacrt(vrsta: str, opis: str) -> dict:
             f"Činjenice i okolnosti: {opis}"
         )
         odgovor = _pozovi_openai(SYSTEM_PROMPT_NACRT, user_content)
+
+        # Provera poznatih pravnih grešaka
+        pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
+        if not pravno_validan:
+            logger.error("Pravna greška u nacrtu: %s", pravna_greska)
+            return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
+
         odgovor = _dodaj_disclaimer(odgovor)
         return {"status": "success", "data": odgovor}
     except Exception:
@@ -524,6 +675,13 @@ def ask_analiza(tekst: str, pitanje: str = "") -> dict:
             user_content += f"SPECIFIČNO PITANJE: {pitanje.strip()}\n\n"
         user_content += f"DOKUMENT ZA ANALIZU:\n{tekst}"
         odgovor = _pozovi_openai(SYSTEM_PROMPT_ANALIZA, user_content)
+
+        # Provera poznatih pravnih grešaka
+        pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
+        if not pravno_validan:
+            logger.error("Pravna greška u analizi: %s", pravna_greska)
+            return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
+
         odgovor = _ogranici_pouzdanost(odgovor)
         odgovor = _dodaj_disclaimer(odgovor)
         return {"status": "success", "data": odgovor}

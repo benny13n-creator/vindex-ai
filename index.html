@@ -561,6 +561,10 @@ footer { padding: 2rem 1.5rem; }
 .auth-error { min-height: 1.4rem; font-size: 0.78rem; color: #ff6b6b; text-align: center; margin-top: 0.5rem; line-height: 1.5; }
 .auth-credit-note { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.18); border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.75rem; color: rgba(74,222,128,0.85); text-align: center; margin-bottom: 1rem; }
 .auth-trust { font-size: 0.72rem; color: rgba(255,255,255,0.38); text-align: center; line-height: 1.6; margin-top: 0.6rem; }
+.feedback-bar { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.05); }
+.feedback-btn { font-size: 0.68rem; color: rgba(255,255,255,0.28); background: none; border: 1px solid rgba(255,255,255,0.08); border-radius: 5px; padding: 0.25rem 0.65rem; cursor: pointer; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.06em; }
+.feedback-btn:hover { color: #f0b429; border-color: rgba(240,180,41,0.3); }
+.feedback-btn.sent { color: #4ade80; border-color: rgba(74,222,128,0.25); cursor: default; }
 
 /* ── CREDIT COUNTER ──────────────────────────────────────────────────────── */
 .nav-user { display: none; align-items: center; gap: 0.85rem; }
@@ -994,10 +998,11 @@ function getSupabase() {
 }
 
 // ─── Auth stanje ──────────────────────────────────────────────────────────────
-var currentUser    = null;
-var currentSession = null;
-var userCredits    = 0;
-var TOTAL_CREDITS  = 15;
+var currentUser         = null;
+var currentSession      = null;
+var userCredits         = 0;
+var TOTAL_CREDITS       = 15;
+var conversationHistory = [];  // [{q, a}, ...] — max 3 para
 
 async function initAuth() {
   var sb = getSupabase();
@@ -1346,11 +1351,12 @@ async function execQuery() {
   resp.classList.remove('show');
   rb.style.whiteSpace = '';
 
+  var currentPitanje = activeTab === 'q' ? document.getElementById('qi').value : '';
   var eps = { q:BASE_URL+'/api/pitanje', n:BASE_URL+'/api/nacrt', a:BASE_URL+'/api/analiza' };
   var bodies = {
-    q: { pitanje: document.getElementById('qi').value },
-    n: { vrsta:   document.getElementById('ni').value, opis: document.getElementById('no').value },
-    a: { tekst:   document.getElementById('aitxt').value, pitanje: document.getElementById('aq').value }
+    q: { pitanje: currentPitanje, history: conversationHistory.slice(-3) },
+    n: { vrsta: document.getElementById('ni').value, opis: document.getElementById('no').value },
+    a: { tekst: document.getElementById('aitxt').value, pitanje: document.getElementById('aq').value }
   };
 
   try {
@@ -1373,17 +1379,47 @@ async function execQuery() {
     if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
 
     var text = d.odgovor || d.greska || 'Greška u odgovoru servera.';
+
+    // Sačuvaj u history (samo za tab Q)
+    if (activeTab === 'q' && currentPitanje && d.odgovor) {
+      conversationHistory.push({ q: currentPitanje, a: d.odgovor.substring(0, 600) });
+      if (conversationHistory.length > 3) conversationHistory.shift();
+    }
+
     resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
     var i=0, speed=text.length>600?4:text.length>300?7:12;
     var iv=setInterval(function(){
-      if(i>=text.length){clearInterval(iv);rb.classList.remove('resp-cursor');rb.style.whiteSpace='';rb.innerHTML=formatResponse(text);}
-      else{rb.textContent+=text[i];i++;}
+      if(i>=text.length){
+        clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
+        rb.innerHTML = formatResponse(text) + _feedbackBar(currentPitanje, text);
+      } else { rb.textContent+=text[i]; i++; }
     },speed);
   } catch(e) {
     resp.classList.add('show'); rb.style.whiteSpace='pre-wrap';
     rb.textContent = 'Došlo je do greške: '+(e.message||'API nije dostupan. Proverite internet vezu i pokušajte ponovo.');
   }
   btnLbl.textContent = orig;
+}
+
+function _feedbackBar(pitanje, odgovor) {
+  var p = encodeURIComponent(pitanje||'').substring(0,500);
+  var o = encodeURIComponent(odgovor||'').substring(0,1000);
+  return '<div class="feedback-bar"><button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">⚑ Prijavi netačan odgovor</button></div>';
+}
+
+async function sendFeedback(btn, pitanjeEnc, odgovorEnc) {
+  if (!currentSession) return;
+  btn.textContent = 'Šaljem...'; btn.disabled = true;
+  try {
+    await fetch(BASE_URL + '/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
+      body: JSON.stringify({ pitanje: decodeURIComponent(pitanjeEnc), odgovor: decodeURIComponent(odgovorEnc), tip: 'greska' })
+    });
+    btn.textContent = '✓ Prijavljeno — hvala'; btn.classList.add('sent'); btn.disabled = true;
+  } catch(e) {
+    btn.textContent = '⚑ Prijavi netačan odgovor'; btn.disabled = false;
+  }
 }
 
 /* DEMO TYPEWRITER */
