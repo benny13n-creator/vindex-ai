@@ -296,6 +296,23 @@ def _izracunaj_skor(match, query: str, zakon: Optional[str], label_clana: Option
         if "200" in clan_doc and "obligacion" in zakon_doc:
             skor += 80
 
+    # Boost za zastarelost (ZOO čl. 360–395)
+    if "zastarel" in query_norm:
+        if any(x in tekst_doc for x in ["zastareva", "zastari", "zastarelost", "zastarelih", "zastarelo"]):
+            skor += 45
+        if "obligacion" in zakon_doc:
+            try:
+                m = re.search(r"\d+", clan_doc or "")
+                if m and 360 <= int(m.group()) <= 395:
+                    skor += 70
+            except Exception:
+                pass
+
+    # Boost za periodična potraživanja (struja, komunalne)
+    if any(x in query_norm for x in ["struj", "komunal", "vod", "gas", "telefon", "kirij", "najam"]):
+        if any(x in tekst_doc for x in ["povremenih", "periodicn", "godisnje", "kracim razmacima"]):
+            skor += 60
+
     return skor
 
 

@@ -406,7 +406,7 @@ async def test_pitanje(q: str = "zastarelost dugova za struju"):
         "pitanje": q,
         "pinecone_docs_count": len(docs),
         "filtrirani_count": len(filtrirani),
-        "first_doc_preview": filtrirani[0][:200] if filtrirani else None,
+        "clanovi": [d[:120] for d in filtrirani],
         "fallback_ce_biti_koriscen": len(filtrirani) == 0,
     }
 
