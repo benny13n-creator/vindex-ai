@@ -279,23 +279,40 @@ select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px sol
 .price-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; margin-top: 2rem; align-items: start; }
 .price-card { background: #030810; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 2.4rem; position: relative; overflow: hidden; transition: all 0.38s; }
 .price-card:hover { transform: translateY(-5px); box-shadow: 0 30px 70px rgba(0,0,0,0.45); }
-.price-card.feat { border-color: rgba(74,168,255,0.32); background: rgba(74,168,255,0.05); margin-top: -20px; box-shadow: 0 0 60px rgba(74,168,255,0.1); }
-.price-card.feat:hover { transform: translateY(-8px); }
-.price-card.feat::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #4aa8ff, #c9a84c, transparent); }
-.price-badge { position: absolute; top: 0; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #4aa8ff, #1264c4); color: #fff; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.25rem 0.95rem; border-radius: 0 0 9px 9px; white-space: nowrap; }
+.price-card.feat { border-color: rgba(201,168,76,0.4); background: linear-gradient(160deg, rgba(201,168,76,0.06) 0%, rgba(1,3,8,0.98) 60%); margin-top: -24px; box-shadow: 0 0 80px rgba(201,168,76,0.12), 0 0 0 1px rgba(201,168,76,0.12); }
+.price-card.feat:hover { transform: translateY(-10px); box-shadow: 0 40px 100px rgba(201,168,76,0.18); }
+.price-card.feat::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #c9a84c, #e8c97a, #c9a84c, transparent); }
+.price-badge { position: absolute; top: 0; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #c9a84c, #a07830); color: #fff; font-size: 0.52rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 0.25rem 1rem; border-radius: 0 0 9px 9px; white-space: nowrap; }
 .price-tier { font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.22em; text-transform: uppercase; color: #4aa8ff; opacity: 0.55; margin-bottom: 0.85rem; }
-.mt { margin-top: 1.4rem; }
+.price-card.feat .price-tier { color: #c9a84c; opacity: 0.8; }
+.mt { margin-top: 1.6rem; }
 .price-num { font-family: ‘Cormorant Garamond’, serif; font-size: 3.2rem; font-weight: 700; line-height: 1; letter-spacing: -0.03em; color: #fff; }
+.price-card.feat .price-num { color: #e8c97a; }
 .price-per { font-size: 0.72rem; color: rgba(255,255,255,0.22); font-weight: 300; margin-bottom: 1.2rem; }
 .pdiv { height: 1px; background: rgba(255,255,255,0.06); margin: 1.2rem 0; }
+.price-card.feat .pdiv { background: rgba(201,168,76,0.15); }
 .price-desc { font-size: 0.79rem; color: rgba(255,255,255,0.55); line-height: 1.78; font-weight: 300; margin-bottom: 1.4rem; }
 .price-list { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 2rem; }
-.price-list li { display: flex; align-items: center; gap: 0.6rem; font-size: 0.79rem; color: rgba(255,255,255,0.58); font-weight: 300; }
+.price-list li { display: flex; align-items: center; gap: 0.6rem; font-size: 0.79rem; color: rgba(255,255,255,0.58); font-weight: 300; flex-wrap: wrap; }
 .price-list li::before { content: ‘\2713’; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
-.price-btn { width: 100%; padding: 0.88rem; background: transparent; border: 1px solid rgba(74,168,255,0.22); border-radius: 10px; color: #89c8ff; font-family: ‘DM Sans’, sans-serif; font-size: 0.81rem; font-weight: 600; cursor: none; transition: all 0.25s; }
+.price-card.feat .price-list li::before { color: #c9a84c; }
+.price-btn { width: 100%; padding: 0.88rem; background: transparent; border: 1px solid rgba(74,168,255,0.22); border-radius: 10px; color: #89c8ff; font-family: ‘DM Sans’, sans-serif; font-size: 0.81rem; font-weight: 600; cursor: pointer; transition: all 0.25s; }
 .price-btn:hover { background: rgba(74,168,255,0.1); border-color: #4aa8ff; }
 .price-btn.main { background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; color: #fff; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
 .price-btn.main:hover { filter: brightness(1.1); transform: translateY(-2px); }
+.price-btn.gold { background: linear-gradient(135deg, #c9a84c, #8a5e20); border: none; color: #fff; box-shadow: 0 6px 30px rgba(201,168,76,0.35); font-size: 0.78rem; letter-spacing: 0.03em; }
+.price-btn.gold:hover { filter: brightness(1.12); transform: translateY(-2px); box-shadow: 0 12px 45px rgba(201,168,76,0.45); }
+/* "USKORO" tag */
+.uskoro-tag { display: inline-flex; align-items: center; font-family: ‘JetBrains Mono’, monospace; font-size: 0.46rem; letter-spacing: 0.14em; text-transform: uppercase; color: #c9a84c; background: rgba(201,168,76,0.09); border: 1px solid rgba(201,168,76,0.22); border-radius: 4px; padding: 0.1rem 0.38rem; margin-left: 0.4rem; vertical-align: middle; white-space: nowrap; }
+/* PRO waitlist modal */
+#pro-modal .modal { max-width: 460px; text-align: left; }
+#pro-modal .modal-title { font-size: 1.55rem; }
+.pro-sub { font-size: 0.82rem; color: rgba(255,255,255,0.55); line-height: 1.78; margin-bottom: 1.4rem; }
+.pro-input { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.84rem; padding: 0.82rem 1rem; outline: none; transition: border-color 0.2s; margin-bottom: 0.8rem; }
+.pro-input:focus { border-color: rgba(201,168,76,0.45); }
+.pro-input::placeholder { color: rgba(255,255,255,0.28); }
+.pro-success { display: none; text-align: center; padding: 1rem 0; color: #4ade80; font-size: 0.84rem; }
+.pro-success.show { display: block; }
 .tog-row { display: flex; align-items: center; gap: 0.9rem; font-size: 0.8rem; color: rgba(255,255,255,0.55); cursor: none; width: fit-content; margin-bottom: 1.5rem; }
 .tog { width: 42px; height: 23px; border: 1px solid rgba(74,168,255,0.22); border-radius: 12px; position: relative; transition: border-color 0.25s; flex-shrink: 0; }
 .tog::after { content: ‘’; position: absolute; width: 17px; height: 17px; background: rgba(255,255,255,0.22); border-radius: 50%; top: 2px; left: 2px; transition: transform 0.25s, background 0.25s; }
@@ -651,6 +668,26 @@ footer { padding: 2rem 1.5rem; }
   </div>
 </div>
 
+<!-- PRO WAITLIST MODAL -->
+<div class="modal-overlay" id="pro-modal">
+  <div class="modal" style="max-width:460px;">
+    <button class="modal-close" onclick="closeProModal()">&#x2715;</button>
+    <div class="modal-badge" style="background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.22);color:#c9a84c;">Vindex AI PRO &mdash; Rana faza</div>
+    <div class="modal-title" style="margin-top:0.8rem;">Zatvoreno testiranje<br>za kancelarije.</div>
+    <p class="pro-sub" style="margin-top:0.7rem;">PRO verzija sa AI analizom dokumenata i generisanjem nacrta tužbi trenutno je u fazi zatvorenog testiranja za odabrane advokatske kancelarije. Prijavite se na listu čekanja kako biste osigurali <strong style="color:rgba(255,255,255,0.85);">promotivnu cenu</strong> i bili prvi obavešteni kada funkcija postane dostupna.</p>
+    <div id="pro-form">
+      <input class="pro-input" type="email" id="pro-email" placeholder="Vaša email adresa" autocomplete="email">
+      <button class="modal-btn" style="background:linear-gradient(135deg,#c9a84c,#8a5e20);box-shadow:0 6px 30px rgba(201,168,76,0.3);" onclick="submitWaitlist()">Prijavi se na listu čekanja</button>
+      <p style="font-size:0.7rem;color:rgba(255,255,255,0.28);text-align:center;margin-top:0.7rem;">Ne delimo podatke. Možete se odjaviti u svakom trenutku.</p>
+    </div>
+    <div class="pro-success" id="pro-success">
+      <div style="font-size:2rem;margin-bottom:0.5rem;">&#10003;</div>
+      <div style="font-weight:600;color:#fff;margin-bottom:0.4rem;">Prijavljeni ste!</div>
+      <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);">Bićete prvi obavešteni čim PRO verzija bude dostupna. Promotivna cena je garantovana.</div>
+    </div>
+  </div>
+</div>
+
 <!-- MOBILE MENU -->
 
 <div class="mobile-menu" id="mobile-menu">
@@ -933,9 +970,59 @@ footer { padding: 2rem 1.5rem; }
   <p class="ss r d2">Počni besplatno. Nadogradi kada si spreman.</p>
   <div class="tog-row r d2" onclick="toggleAnnual()"><div class="tog" id="tog"></div><span>Godišnja naplata - ustedi 20%</span></div>
   <div class="price-grid r">
-    <div class="price-card"><div class="price-tier">Basic</div><div class="price-num" id="p1">49&#8364;</div><div class="price-per" id="pp1">/ mesečno</div><div class="pdiv"></div><p class="price-desc">Za individualne advokate koji žele brže odgovore.</p><ul class="price-list"><li>Do 50 pitanja mesečno</li><li>Pretraga svih zakona u bazi</li><li>Ocena pouzdanosti odgovora</li><li>7 dana besplatno bez obaveze</li></ul><button class="price-btn" onclick="openModal()">Počni besplatno</button></div>
-    <div class="price-card feat"><div class="price-badge">Najpopularniji</div><div class="price-tier mt">Pro</div><div class="price-num" id="p2">99&#8364;</div><div class="price-per" id="pp2">/ mesečno</div><div class="pdiv"></div><p class="price-desc">Za aktivne advokate kojima je brzina konkurentska prednost.</p><ul class="price-list"><li>Neograničena pitanja</li><li>Nacrt podnesaka (uskoro)</li><li>Analiza dokumenata (uskoro)</li><li>Istorija svih pretraga</li><li>Prioritetna podrška</li></ul><button class="price-btn main" onclick="openModal()">Počni besplatno</button></div>
-    <div class="price-card"><div class="price-tier">Firm</div><div class="price-num">Custom</div><div class="price-per">prilagođeno</div><div class="pdiv"></div><p class="price-desc">Za kancelarije sa više korisnika i specifičnim potrebama.</p><ul class="price-list"><li>Više korisničkih naloga</li><li>Prilagođen onboarding</li><li>Integracija sa internim sistemima</li><li>SLA i dedikovana podrška</li></ul><button class="price-btn" onclick="openModal()">Kontaktiraj nas</button></div>
+
+    <!-- BASIC -->
+    <div class="price-card">
+      <div class="price-tier">Basic</div>
+      <div class="price-num" id="p1">49&#8364;</div>
+      <div class="price-per" id="pp1">/ mesečno</div>
+      <div class="pdiv"></div>
+      <p class="price-desc">Za individualne advokate koji žele brže, preciznije odgovore bez gubljenja vremena na pretragu.</p>
+      <ul class="price-list">
+        <li>Neograničena pravna istraživanja</li>
+        <li>Pretraga 13.600+ zakonskih odredbi</li>
+        <li>Ocena pouzdanosti odgovora</li>
+        <li>Citati sa Sl. glasnikom</li>
+        <li>7 dana besplatno — bez obaveze</li>
+      </ul>
+      <button class="price-btn main" onclick="openModal()">Počni besplatno &rarr;</button>
+    </div>
+
+    <!-- PRO -->
+    <div class="price-card feat">
+      <div class="price-badge">PREPORUKA ZA KANCELARIJE</div>
+      <div class="price-tier mt">Pro</div>
+      <div class="price-num" id="p2">149&#8364;</div>
+      <div class="price-per" id="pp2">/ mesečno &nbsp;&middot;&nbsp; po korisniku</div>
+      <div class="pdiv"></div>
+      <p class="price-desc">Kompletan AI pravni asistent za advokatske kancelarije. Sve funkcije Basic paketa plus AI generisanje dokumenata.</p>
+      <ul class="price-list">
+        <li>Sve iz Basic paketa</li>
+        <li>Nacrt podnesaka i tužbi<span class="uskoro-tag">USKORO</span></li>
+        <li>Analiza ugovora i dokumenata<span class="uskoro-tag">USKORO</span></li>
+        <li>Istorija svih pretraga<span class="uskoro-tag">USKORO</span></li>
+        <li>Prioritetna podrška 24/7</li>
+        <li>Rana cena — garantovana pri prijavi</li>
+      </ul>
+      <button class="price-btn gold" onclick="openProModal()">Osiguraj promotivnu cenu &rarr;</button>
+    </div>
+
+    <!-- FIRM -->
+    <div class="price-card">
+      <div class="price-tier">Firm</div>
+      <div class="price-num">Custom</div>
+      <div class="price-per">prilagođeno</div>
+      <div class="pdiv"></div>
+      <p class="price-desc">Za kancelarije sa više korisnika, specifičnim integracijama i SLA podrškom.</p>
+      <ul class="price-list">
+        <li>Više korisničkih naloga</li>
+        <li>Prilagođen onboarding</li>
+        <li>Integracija sa internim sistemima</li>
+        <li>SLA i dedikovana podrška</li>
+      </ul>
+      <button class="price-btn" onclick="openModal()">Kontaktiraj nas</button>
+    </div>
+
   </div>
 </section>
 
@@ -1430,7 +1517,37 @@ var demSec=document.getElementById('demo');if(demSec)dObs.observe(demSec);
 
 /* PRICING TOGGLE */
 var annual=false;
-function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.toggle('on',annual);document.getElementById('p1').textContent=annual?'39\u20AC':'49\u20AC';document.getElementById('p2').textContent=annual?'79\u20AC':'99\u20AC';document.getElementById('pp1').textContent=annual?'/ mes godišnje':'/ mesečno';document.getElementById('pp2').textContent=annual?'/ mes godišnje':'/ mesečno';}
+function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.toggle('on',annual);document.getElementById('p1').textContent=annual?'39\u20AC':'49\u20AC';document.getElementById('p2').textContent=annual?'119\u20AC':'149\u20AC';document.getElementById('pp1').textContent=annual?'/ mes \u00b7 godi\u0161nje':'/ mesečno';document.getElementById('pp2').textContent=annual?'/ mes \u00b7 godi\u0161nje':'/ mesečno \u00b7 po korisniku';}
+
+/* PRO WAITLIST MODAL */
+function openProModal() {
+  document.getElementById('pro-modal').classList.add('open');
+  document.getElementById('pro-form').style.display = '';
+  document.getElementById('pro-success').classList.remove('show');
+  document.getElementById('pro-email').value = '';
+}
+function closeProModal() {
+  document.getElementById('pro-modal').classList.remove('open');
+}
+async function submitWaitlist() {
+  var email = document.getElementById('pro-email').value.trim();
+  if (!email || !email.includes('@')) {
+    document.getElementById('pro-email').focus(); return;
+  }
+  var btn = document.querySelector('#pro-form .modal-btn');
+  btn.textContent = 'Slanje...'; btn.disabled = true;
+  try {
+    if (currentSession) {
+      await fetch(BASE_URL + '/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
+        body: JSON.stringify({ pitanje: 'WAITLIST: ' + email, odgovor: '', tip: 'ostalo' })
+      });
+    }
+  } catch(e) {}
+  document.getElementById('pro-form').style.display = 'none';
+  document.getElementById('pro-success').classList.add('show');
+}
 
 /* NAV SCROLL */
 window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',scrollY>60);});
@@ -1438,6 +1555,7 @@ window.addEventListener('scroll',function(){document.getElementById('nav').class
 /* MODAL CLOSE ON BACKDROP */
 document.getElementById('auth-modal').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
 document.getElementById('paywall-modal').addEventListener('click', function(e) { if(e.target===this) closePaywall(); });
+document.getElementById('pro-modal').addEventListener('click', function(e) { if(e.target===this) closeProModal(); });
 
 /* INIT */
 window.addEventListener('DOMContentLoaded', initAuth);
