@@ -129,11 +129,11 @@ def _ensure_profile(user_id: str, email: str = "") -> int:
             supa.table("profiles")
             .select("credits_remaining")
             .eq("id", user_id)
-            .maybe_single()
             .execute()
         )
-        if result.data:
-            return result.data.get("credits_remaining", 0)
+        rows = result.data or []
+        if rows:
+            return rows[0].get("credits_remaining", 0)
         # Profil ne postoji — kreira se sa 15 kredita
         logger.warning("Profil ne postoji za korisnika %s — kreiranje sa 15 kredita", user_id)
         supa.table("profiles").insert(
