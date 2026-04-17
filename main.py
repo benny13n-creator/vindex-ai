@@ -652,14 +652,25 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
 
         # Korak 4: Proveri format
         if not _ima_obavezne_sekcije(odgovor):
-            logger.warning("Odgovor nema propisanu strukturu — zamenjujem sa 'nije pronađeno'")
-            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+            logger.warning("Odgovor nema propisanu strukturu — aktiviram fallback")
+            odgovor = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje}")
+            if not _ima_obavezne_sekcije(odgovor):
+                return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+            odgovor = _dodaj_disclaimer(odgovor)
+            return {"status": "success", "data": odgovor}
 
-        # Korak 5: Anti-halucinacijska provera
+        # Korak 5: Anti-halucinacijska provera — ako kontekst ne sadrži pravi član, koristi fallback
         validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
         if not validan:
-            logger.warning("Anti-halucinacija blokirala odgovor: %s", razlog)
-            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+            logger.warning("Anti-halucinacija blokirala odgovor (%s) — aktiviram fallback", razlog)
+            odgovor_fallback = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje}")
+            if not _ima_obavezne_sekcije(odgovor_fallback):
+                return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+            odgovor_fallback = _dodaj_disclaimer(odgovor_fallback)
+            rezultat = {"status": "success", "data": odgovor_fallback}
+            if not history:
+                _cache_set(pitanje, rezultat)
+            return rezultat
 
         # Korak 5: Provera poznatih pravnih grešaka
         pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
