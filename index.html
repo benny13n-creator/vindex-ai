@@ -407,6 +407,23 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .resp-disclaimer .resp-section-lbl::before { background: #f0b429; box-shadow: 0 0 5px rgba(240,180,41,0.5); }
 .resp-disclaimer .resp-section-body { font-size: 0.75rem; color: rgba(240,180,41,0.75); font-style: italic; line-height: 1.65; }
 .resp-plain { white-space: pre-wrap; }
+/* Novi elementi */
+.trust-badge { font-size:0.78rem; font-weight:600; padding:0.55rem 1rem; border-radius:7px; margin-bottom:1rem; letter-spacing:0.01em; }
+.trust-high { background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.25); color:#4ade80; }
+.trust-mid  { background:rgba(240,180,41,0.08); border:1px solid rgba(240,180,41,0.25); color:#f0b429; }
+.resp-zakljucak .resp-section-lbl { color:#fff; font-size:0.52rem; }
+.resp-zakljucak .resp-section-lbl::before { background:#fff; }
+.resp-zakljucak .resp-section-body { font-size:0.92rem; font-weight:500; color:rgba(255,255,255,0.95); line-height:1.7; }
+.resp-edgecase .resp-section-lbl { color:#f87171; }
+.resp-edgecase .resp-section-lbl::before { background:#f87171; box-shadow:0 0 6px rgba(248,113,113,0.4); }
+.resp-edgecase .resp-section-body { color:rgba(248,113,113,0.85); }
+.resp-pitanja .resp-section-lbl { color:#a78bfa; }
+.resp-pitanja .resp-section-lbl::before { background:#a78bfa; box-shadow:0 0 6px rgba(167,139,250,0.4); }
+.resp-pitanja .resp-section-body { color:rgba(167,139,250,0.85); }
+.resp-actions { display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:1.2rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.07); }
+.resp-action-btn { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.7); font-size:0.74rem; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; transition:all 0.18s; font-family:inherit; }
+.resp-action-btn:hover { background:rgba(255,255,255,0.1); color:#fff; border-color:rgba(255,255,255,0.25); }
+.resp-action-btn:disabled { opacity:0.5; cursor:default; }
 
 /* ── ENHANCED BEAMS ──────────────────────────────────────────────────────── */
 .beam-xl { position: absolute; pointer-events: none; border-radius: 50%; filter: blur(130px); }
@@ -659,7 +676,7 @@ footer { padding: 2rem 1.5rem; }
     </div>
     <ul class="paywall-features">
       <li>Neograničen broj pravnih upita</li>
-      <li>Pretraga svih 13.600+ zakonskih odredbi</li>
+      <li>Pretraga svih Svi važeći zakoni Republike Srbije</li>
       <li>Generisanje nacrta tužbi i žalbi</li>
       <li>Analiza ugovora i identifikacija rizika</li>
     </ul>
@@ -761,7 +778,7 @@ footer { padding: 2rem 1.5rem; }
           <div id="tab-q">
             <div class="t-guide">
               <div class="t-guide-icon">⚖</div>
-              <div class="t-guide-text"><span class="t-guide-bold">Postavite pravno pitanje</span> na srpskom jeziku. Sistem pretražuje 13.600+ zakonskih odredbi i vraća tačan zakon, član i citat za manje od 10 sekundi.</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Postavite pravno pitanje</span> na srpskom jeziku. Sistem pretražuje Svi važeći zakoni Republike Srbije i vraća tačan zakon, član i citat za manje od 10 sekundi.</div>
             </div>
             <div class="t-chips-lbl">Primeri pitanja — kliknite za popunjavanje:</div>
             <div class="t-chips">
@@ -821,7 +838,7 @@ footer { padding: 2rem 1.5rem; }
     <div class="h3-right">
       <div class="hero-intro-panel">
         <span class="hi-label">O platformi</span>
-        <p>Vindex AI je pravni istraživački asistent <strong>treniran isključivo na srpskim zakonima.</strong> Postavite pitanje prirodnim jezikom — sistem pretražuje 13.600+ zakonskih odredbi i vraća tačan zakon, broj člana i doslovan citat.</p>
+        <p>Vindex AI je pravni istraživački asistent <strong>treniran isključivo na srpskim zakonima.</strong> Postavite pitanje prirodnim jezikom — sistem pretražuje Svi važeći zakoni Republike Srbije i vraća tačan zakon, broj člana i doslovan citat.</p>
         <ul class="hero-intro-list">
           <li>Precizno citira zakon i član — bez izmišljanja</li>
           <li>Generiše nacrte tužbi, žalbi i ugovora</li>
@@ -874,7 +891,7 @@ footer { padding: 2rem 1.5rem; }
     <div class="how-step r d2">
       <div class="how-circle"><span class="how-num">02</span></div>
       <div class="how-htitle">AI pretražuje bazu</div>
-      <div class="how-hdesc">13.600+ pravnih odredbi se semantički pretražuje i rangira po relevantnosti u realnom vremenu.</div>
+      <div class="how-hdesc">Svi važeći zakoni Republike Srbije se semantički pretražuje i rangira po relevantnosti u realnom vremenu.</div>
     </div>
     <div class="how-step r d3">
       <div class="how-circle"><span class="how-num">03</span></div>
@@ -890,7 +907,7 @@ footer { padding: 2rem 1.5rem; }
   <p class="ss r d2">Ne generički AI - sistem treniran isključivo na srpskim zakonima. Tačan odgovor, ne pretpostavka.</p>
   <div class="feat-card-wrap r">
     <div class="feat-grid">
-      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">01</div><div class="feat-icon">&#127919;</div><div class="feat-title">Tačan zakon i član</div><div class="feat-desc">Tačan zakon, broj člana i doslovan citat u sekundi.</div></div><div class="feat-back"><div class="feat-btitle">Kako radi?</div><ul class="feat-blist"><li>RAG sistem pretražuje 13.600+ odredbi</li><li>GPT-4o generiše precizno tumačenje</li><li>Navodi tačan zakon i broj člana</li><li>Ocena pouzdanosti svakog odgovora</li></ul></div></div></div>
+      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">01</div><div class="feat-icon">&#127919;</div><div class="feat-title">Tačan zakon i član</div><div class="feat-desc">Tačan zakon, broj člana i doslovan citat u sekundi.</div></div><div class="feat-back"><div class="feat-btitle">Kako radi?</div><ul class="feat-blist"><li>RAG sistem pretražuje Svi važeći zakoni RS</li><li>GPT-4o generiše precizno tumačenje</li><li>Navodi tačan zakon i broj člana</li><li>Ocena pouzdanosti svakog odgovora</li></ul></div></div></div>
       <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">02</div><div class="feat-icon">&#9889;</div><div class="feat-title">Praktično tumačenje</div><div class="feat-desc">Jasno objašnjenje kako se odredba primenjuje na konkretan predmet.</div></div><div class="feat-back"><div class="feat-btitle">Šta dobijate?</div><ul class="feat-blist"><li>Analiza primenljivosti na slučaj</li><li>Proceduralni koraci i rokovi</li><li>Praktični saveti za predmet</li><li>Veza ka relevantnim odredbama</li></ul></div></div></div>
       <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">03</div><div class="feat-icon">&#128274;</div><div class="feat-title">Ocena pouzdanosti</div><div class="feat-desc">Svaki odgovor nosi ocenu pouzdanosti. Bolje nepotpun tačan nego lažna sigurnost.</div></div><div class="feat-back"><div class="feat-btitle">Transparentnost</div><ul class="feat-blist"><li>Procentualna ocena tačnosti</li><li>Navođenje izvora i osnova</li><li>Upozorenje pri niskoj pouzdanosti</li><li>Nikada ne izmišlja zakone</li></ul></div></div></div>
     </div>
@@ -957,7 +974,7 @@ footer { padding: 2rem 1.5rem; }
   <div class="sh r d1">Sve što advokat <em>treba.</em></div>
   <p class="ss r d2">Vindex AI kombinuje preciznost pravne baze sa brzinom vestačke inteligencije.</p>
   <div class="plat-grid r">
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Pravno istraživanje</div><p class="p-desc">13.600+ odredbi, tačan član i citat za sekunde.</p><div class="p-detail">Pretraga po svim oblastima prava</div><div class="p-detail">Tačan zakon i broj člana</div><div class="p-detail">Doslovan citat iz važećeg teksta</div></div>
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Pravno istraživanje</div><p class="p-desc">Svi važeći zakoni RS, tačan član i citat za sekunde.</p><div class="p-detail">Pretraga po svim oblastima prava</div><div class="p-detail">Tačan zakon i broj člana</div><div class="p-detail">Doslovan citat iz važećeg teksta</div></div>
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Analiza ugovora</div><p class="p-desc">Agent identifikuje sporne klauzule i pravne rizike.</p><div class="p-detail">Identifikacija rizičnih klauzula</div><div class="p-detail">Provera usklađenosti sa zakonom</div><div class="p-detail">Preporuke za izmenu odredbi</div></div>
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Generisanje nacrta</div><p class="p-desc">Agent generiše strukturiran nacrt tužbe, žalbe ili ugovora.</p><div class="p-detail">Tužba za naknadu štete</div><div class="p-detail">Otkaz ugovora o radu</div><div class="p-detail">Žalba na prvostepenu presudu</div></div>
     <div class="plat-card"><div class="p-badge soon">Uskoro</div><div class="p-title">Sudska praksa</div><p class="p-desc">Pretraga presuda Vrhovnog i Apelacionih sudova.</p><div class="p-detail">Baza presuda srpskih sudova</div><div class="p-detail">Pretraga po pravnom pitanju</div><div class="p-detail">Citiranje presuda u podnesku</div></div>
@@ -980,7 +997,7 @@ footer { padding: 2rem 1.5rem; }
       <p class="price-desc">Za individualne advokate koji žele brže, preciznije odgovore bez gubljenja vremena na pretragu.</p>
       <ul class="price-list">
         <li>Neograničena pravna istraživanja</li>
-        <li>Pretraga 13.600+ zakonskih odredbi</li>
+        <li>Pretraga Svi važeći zakoni Republike Srbije</li>
         <li>Ocena pouzdanosti odgovora</li>
         <li>Citati sa Sl. glasnikom</li>
         <li>7 dana besplatno — bez obaveze</li>
@@ -1043,7 +1060,7 @@ footer { padding: 2rem 1.5rem; }
     </div>
     <div class="vals-list r d1">
       <div class="val-row"><div class="val-n">I</div><div><div class="val-title">Preciznost iznad svega</div><div class="val-text">Bolje nepotpun tačan odgovor nego kompletan ali netačan. Uvek.</div></div></div>
-      <div class="val-row"><div class="val-n">II</div><div><div class="val-title">Brzina koja se meri</div><div class="val-text">Odgovor za manje od 10 sekundi. 13.600+ odredbi. Bez čekanja.</div></div></div>
+      <div class="val-row"><div class="val-n">II</div><div><div class="val-title">Brzina koja se meri</div><div class="val-text">Odgovor za manje od 10 sekundi. Svi važeći zakoni RS. Bez čekanja.</div></div></div>
       <div class="val-row"><div class="val-n">III</div><div><div class="val-title">Radikalna transparentnost</div><div class="val-text">Uvek navodimo izvor, zakon i član. Nikad ne nagađamo.</div></div></div>
       <div class="val-row"><div class="val-n">IV</div><div><div class="val-title">Srpsko pravo, srpski jezik</div><div class="val-text">Razumemo pravnu terminologiju srpskog pravnog sistema.</div></div></div>
     </div>
@@ -1340,7 +1357,7 @@ function fillQ(q) {
 
 /* MARQUEE */
 var mq1=['Zakon o obligacionim odnosima','Zakon o radu','Krivični zakonik','Zakon o parničnom postupku','Porodični zakon','Zakon o nasleđivanju','Zakon o privrednim drustvima','Ustav Republike Srbije'];
-var mq2=['Tačnost - Preciznost - Brzina','AI za srpsko pravo','13.600+ pravnih odredbi','Ocena pouzdanosti','Vindex AI - Beta','Advokat 2.0','Srpski pravni sistem'];
+var mq2=['Tačnost - Preciznost - Brzina','AI za srpsko pravo','Svi važeći zakoni Republike Srbije','Ocena pouzdanosti','Vindex AI - Beta','Advokat 2.0','Srpski pravni sistem'];
 function buildTrack(id,items){var t=document.getElementById(id),all=items.concat(items).concat(items).concat(items);t.innerHTML=all.map(function(x){return '<span class="marquee-item">'+x+'<span class="marquee-sep"> &middot; </span></span>';}).join('');}
 buildTrack('mq1',mq1);buildTrack('mq2',mq2);
 
@@ -1379,44 +1396,103 @@ function setTab(el,t){
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function formatResponse(rawText) {
-  var today = new Date().toLocaleDateString('sr-RS', {day:'2-digit',month:'2-digit',year:'numeric'});
   var defs = [
-    { key:'PRAVNI OSNOV:',          cls:'resp-pravni-osnov', lbl:'Pravni osnov' },
-    { key:'ODGOVOR:',               cls:'resp-odgovor',      lbl:'Odgovor' },
-    { key:'CITAT IZ ZAKONA:',       cls:'resp-citat',        lbl:'Citat iz zakona' },
-    { key:'PRAVNA POSLEDICA:',      cls:'resp-posledica',    lbl:'Pravna posledica' },
-    { key:'POUZDANOST:',            cls:'resp-pouzdanost',   lbl:'Pouzdanost' },
-    { key:'NACRT:',                 cls:'resp-nacrt',        lbl:'Nacrt dokumenta' },
-    { key:'ANALIZA:',               cls:'resp-analiza',      lbl:'Analiza' },
-    { key:'IDENTIFIKOVANI RIZICI:', cls:'resp-rizici',       lbl:'Identifikovani rizici' },
-    { key:'PREPORUKE:',             cls:'resp-preporuke',    lbl:'Preporuke' },
-    { key:'SLUŽBENI IZVOR:',        cls:'resp-izvor',        lbl:'Službeni izvor  ·  Baza ažurirana: ' + today },
-    { key:'IZVOR:',                 cls:'resp-izvor',        lbl:'Službeni izvor  ·  Baza ažurirana: ' + today },
-    { key:'VAŽNA NAPOMENA:',        cls:'resp-disclaimer',   lbl:'Pravna napomena' },
+    { key:'PRAVNI ZAKLJUČAK:',  cls:'resp-zakljucak',  lbl:'⚖️ Pravni zaključak', icon:'zakljucak' },
+    { key:'CITAT ZAKONA:',      cls:'resp-citat',      lbl:'📖 Citat zakona',       icon:'citat' },
+    { key:'CITAT IZ ZAKONA:',   cls:'resp-citat',      lbl:'📖 Citat zakona',       icon:'citat' },
+    { key:'PRAVNI OSNOV:',      cls:'resp-pravni-osnov',lbl:'Pravni osnov',         icon:'osnov' },
+    { key:'POUZDANOST:',        cls:'resp-pouzdanost', lbl:'Pouzdanost',            icon:'pouzdanost' },
+    { key:'RIZICI I IZUZECI:',  cls:'resp-rizici',     lbl:'⚠️ Rizici i izuzeci',  icon:'rizici' },
+    { key:'KADA OVO NE VAŽI:',  cls:'resp-edgecase',   lbl:'📍 Kada ovo ne važi',  icon:'edgecase' },
+    { key:'DODATNA PITANJA:',   cls:'resp-pitanja',    lbl:'🔍 Potrebne informacije za precizniji odgovor', icon:'pitanja' },
+    { key:'NACRT:',             cls:'resp-nacrt',      lbl:'Nacrt dokumenta',       icon:'' },
+    { key:'ANALIZA:',           cls:'resp-analiza',    lbl:'Analiza',               icon:'' },
+    { key:'IDENTIFIKOVANI RIZICI:', cls:'resp-rizici', lbl:'⚠️ Identifikovani rizici', icon:'' },
+    { key:'PREPORUKE:',         cls:'resp-preporuke',  lbl:'Preporuke',             icon:'' },
+    { key:'ODGOVOR:',           cls:'resp-odgovor',    lbl:'Odgovor',               icon:'' },
+    { key:'PRAVNA POSLEDICA:',  cls:'resp-posledica',  lbl:'Pravna posledica',      icon:'' },
+    { key:'SLUŽBENI IZVOR:',    cls:'resp-izvor',      lbl:'Izvor',                 icon:'' },
+    { key:'IZVOR:',             cls:'resp-izvor',      lbl:'Izvor',                 icon:'' },
+    { key:'VAŽNA NAPOMENA:',    cls:'resp-disclaimer', lbl:'Pravna napomena',       icon:'' },
+    { key:'NAPOMENA SISTEMA:',  cls:'resp-disclaimer', lbl:'Napomena sistema',      icon:'' },
   ];
   var isStructured = defs.some(function(d){ return rawText.indexOf(d.key) !== -1; });
   if (!isStructured) return '<div class="resp-plain">'+escHtml(rawText)+'</div>';
-  var found = [];
-  var usedPos = {};
+  var found = []; var usedPos = {};
   defs.forEach(function(d){
     var idx = rawText.indexOf(d.key);
     if (idx !== -1 && !usedPos[idx]) {
       usedPos[idx] = true;
-      found.push({ pos:idx, keyLen:d.key.length, cls:d.cls, lbl:d.lbl });
+      found.push({ pos:idx, keyLen:d.key.length, cls:d.cls, lbl:d.lbl, icon:d.icon });
     }
   });
   found.sort(function(a,b){ return a.pos-b.pos; });
-  var html = '';
+
+  // Izvuci vrednosti za akciona dugmad
+  var citatVal = '', osnovVal = '';
   found.forEach(function(s,i){
     var start = s.pos + s.keyLen;
-    var end   = i+1 < found.length ? found[i+1].pos : rawText.length;
-    var val   = rawText.slice(start,end).trim();
+    var end = i+1 < found.length ? found[i+1].pos : rawText.length;
+    var val = rawText.slice(start,end).trim();
+    if (s.cls === 'resp-citat') citatVal = val;
+    if (s.cls === 'resp-pravni-osnov') osnovVal = val;
+  });
+
+  // Odredi signal pouzdanosti
+  var pouzdanostVal = '';
+  found.forEach(function(s,i){
+    if(s.cls === 'resp-pouzdanost'){
+      var start = s.pos + s.keyLen;
+      var end = i+1 < found.length ? found[i+1].pos : rawText.length;
+      pouzdanostVal = rawText.slice(start,end).trim();
+    }
+  });
+  var isHigh = pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1;
+  var trustBadge = isHigh
+    ? '<div class="trust-badge trust-high">✅ Visoka pouzdanost: Član direktno citiran iz zvanične baze zakona.</div>'
+    : '<div class="trust-badge trust-mid">⚠️ Srednja pouzdanost: Nije pronađen direktan član u bazi — odgovor generisan na osnovu pravne logike.</div>';
+
+  var html = trustBadge;
+  found.forEach(function(s,i){
+    var start = s.pos + s.keyLen;
+    var end = i+1 < found.length ? found[i+1].pos : rawText.length;
+    var val = rawText.slice(start,end).trim();
+    if (s.cls === 'resp-pouzdanost') return; // trust badge već prikazan gore
     html += '<div class="resp-section '+s.cls+'" style="animation-delay:'+(i*0.07)+'s">'+
             '<div class="resp-section-lbl">'+s.lbl+'</div>'+
             '<div class="resp-section-body">'+escHtml(val).replace(/\n/g,'<br>')+'</div>'+
             '</div>';
   });
+
+  // Akciona dugmad
+  var citatEnc = encodeURIComponent(citatVal);
+  var osnovEnc = encodeURIComponent(osnovVal);
+  html += '<div class="resp-actions">'+
+    '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\''+citatEnc+'\'),this)">📋 Kopiraj citat</button>'+
+    '<button class="resp-action-btn" onclick="showIzvor(decodeURIComponent(\''+osnovEnc+'\'),this)">📎 Izvor: Sl. glasnik</button>'+
+    '<button class="resp-action-btn" onclick="focusInput()">🔁 Postavi follow-up</button>'+
+    '</div>';
   return html;
+}
+
+function copyToClipboard(text, btn) {
+  var clean = text.replace(/^"+|"+$/g,'').trim();
+  navigator.clipboard.writeText(clean).then(function(){
+    var orig = btn.textContent; btn.textContent = '✓ Kopirano!'; btn.disabled = true;
+    setTimeout(function(){ btn.textContent = orig; btn.disabled = false; }, 2000);
+  }).catch(function(){ btn.textContent = '⚠ Greška'; });
+}
+
+function showIzvor(text, btn) {
+  var orig = btn.textContent;
+  btn.textContent = text.length > 5 ? text.substring(0, 80) : 'Izvor nije dostupan';
+  btn.style.whiteSpace = 'normal'; btn.style.maxWidth = '400px';
+  setTimeout(function(){ btn.textContent = orig; btn.style.whiteSpace = ''; btn.style.maxWidth = ''; }, 4000);
+}
+
+function focusInput() {
+  var el = document.getElementById('qi') || document.getElementById('ni') || document.getElementById('aitxt');
+  if (el) { el.focus(); el.scrollIntoView({behavior:'smooth', block:'center'}); }
 }
 
 /* EXEC */
