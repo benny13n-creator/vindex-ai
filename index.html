@@ -170,6 +170,11 @@ select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px sol
 @keyframes fade-in { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
 .resp-inner { background: rgba(74,168,255,0.04); border: 1px solid rgba(74,168,255,0.16); border-left: 2px solid #4aa8ff; border-radius: 10px; padding: 1.1rem 1.3rem; }
 .resp-lbl { font-family: ‘JetBrains Mono’, monospace; font-size: 0.52rem; letter-spacing: 0.22em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.55rem; }
+.resp-lbl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.55rem; }
+.resp-lbl-row .resp-lbl { margin-bottom: 0; }
+.cyr-toggle { font-family: ‘JetBrains Mono’, monospace; font-size: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 4px; border: 1px solid rgba(74,168,255,0.25); background: transparent; color: rgba(74,168,255,0.55); cursor: none; transition: all 0.2s; white-space: nowrap; }
+.cyr-toggle:hover { border-color: rgba(74,168,255,0.55); color: #89c8ff; }
+.cyr-toggle.active { border-color: rgba(201,168,76,0.6); background: rgba(201,168,76,0.08); color: #e8c97a; }
 .resp-body { font-size: 0.82rem; color: rgba(255,255,255,0.78); line-height: 1.9; font-weight: 300; white-space: pre-wrap; }
 .resp-cursor::after { content: ‘\25AE’; color: #4aa8ff; animation: blink-c 0.8s step-end infinite; }
 @keyframes blink-c { 0%,100%{opacity:1;} 50%{opacity:0;} }
@@ -908,7 +913,10 @@ footer { padding: 2rem 1.5rem; }
           </div>
           <div class="t-resp" id="resp">
             <div class="resp-inner">
-              <div class="resp-lbl">Odgovor - Vindex AI</div>
+              <div class="resp-lbl-row">
+                <div class="resp-lbl">Odgovor - Vindex AI</div>
+                <button class="cyr-toggle" id="cyr-toggle-btn" onclick="toggleCyrillic()" title="Preklopi pismo latinica/ćirilica">Пи: Ћирилица</button>
+              </div>
               <div class="resp-body" id="rb"></div>
             </div>
           </div>
@@ -1564,6 +1572,92 @@ function setTab(el,t){
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 var lastPitanje = '';
+var lastRawText  = '';
+var cyrillicMode = false;
+
+/* TRANSLITERACIJA LAT->CIR (sve Cirilicne vrednosti su \u escape-i) */
+var _CYR_MAP = {
+  'a':'\u0430','b':'\u0431','c':'\u0446','d':'\u0434','e':'\u0435','f':'\u0444',
+  'g':'\u0433','h':'\u0445','i':'\u0438','j':'\u0458','k':'\u043a','l':'\u043b',
+  'm':'\u043c','n':'\u043d','o':'\u043e','p':'\u043f','q':'\u043a','r':'\u0440',
+  's':'\u0441','t':'\u0442','u':'\u0443','v':'\u0432','w':'\u0432','x':'\u043a\u0441',
+  'y':'\u0438','z':'\u0437',
+  'A':'\u0410','B':'\u0411','C':'\u0426','D':'\u0414','E':'\u0415','F':'\u0424',
+  'G':'\u0413','H':'\u0425','I':'\u0418','J':'\u0408','K':'\u041a','L':'\u041b',
+  'M':'\u041c','N':'\u041d','O':'\u041e','P':'\u041f','Q':'\u041a','R':'\u0420',
+  'S':'\u0421','T':'\u0422','U':'\u0423','V':'\u0412','W':'\u0412','X':'\u041a\u0421',
+  'Y':'\u0418','Z':'\u0417',
+  '\u0161':'\u0448','\u0160':'\u0428',
+  '\u017e':'\u0436','\u017d':'\u0416',
+  '\u010d':'\u0447','\u010c':'\u0427',
+  '\u0107':'\u045b','\u0106':'\u040b',
+  '\u0111':'\u0452','\u0110':'\u0402'
+};
+
+function transliterateToCyrillic(str) {
+  var out = '', i = 0, L = str.length;
+  while (i < L) {
+    var c  = str[i];
+    var c2 = str.substr(i, 2).toLowerCase();
+    var c3 = str.substr(i, 3).toLowerCase();
+    /* trigraphs first */
+    if (c3 === 'lje') { out += (c === c.toUpperCase() && c !== c.toLowerCase()) ? '\u0409' : '\u0459'; i += 3; continue; }
+    if (c3 === 'nje') { out += (c === c.toUpperCase() && c !== c.toLowerCase()) ? '\u040a' : '\u045a'; i += 3; continue; }
+    /* digraphs */
+    if (c2 === 'lj') { var isUpper1 = (str[i] === 'L'); out += isUpper1 ? '\u0409' : '\u0459'; i += 2; continue; }
+    if (c2 === 'nj') { var isUpper2 = (str[i] === 'N'); out += isUpper2 ? '\u040a' : '\u045a'; i += 2; continue; }
+    if (c2 === 'd\u017e' || c2 === 'dz') { var isUpper3 = (str[i] === 'D'); out += isUpper3 ? '\u040f' : '\u045f'; i += 2; continue; }
+    if (str[i] === '\u0111') { out += '\u0452'; i++; continue; }
+    if (str[i] === '\u0110') { out += '\u0402'; i++; continue; }
+    if (c2 === 'dj') { var isUpper4 = (str[i] === 'D'); out += isUpper4 ? '\u0402' : '\u0452'; i += 2; continue; }
+    var mapped = _CYR_MAP[c];
+    out += mapped !== undefined ? mapped : c;
+    i++;
+  }
+  return out;
+}
+
+function _applyTransliterationToHtml(html) {
+  var tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  _walkNodes(tmp);
+  return tmp.innerHTML;
+}
+
+function _walkNodes(node) {
+  if (node.nodeType === 3) {
+    node.textContent = transliterateToCyrillic(node.textContent);
+  } else if (node.nodeType === 1) {
+    var skip = ['SCRIPT','STYLE','A','CODE'];
+    if (skip.indexOf(node.tagName) !== -1) return;
+    for (var i = 0; i < node.childNodes.length; i++) _walkNodes(node.childNodes[i]);
+  }
+}
+
+function toggleCyrillic() {
+  cyrillicMode = !cyrillicMode;
+  var btn = document.getElementById('cyr-toggle-btn');
+  if (btn) {
+    if (cyrillicMode) {
+      btn.classList.add('active');
+      btn.textContent = '\u041f\u0438: \u041b\u0430\u0442\u0438\u043d\u0438\u0446\u0430'; /* Пи: Латиница */
+    } else {
+      btn.classList.remove('active');
+      btn.textContent = '\u041f\u0438: \u040b\u0438\u0440\u0438\u043b\u0438\u0446\u0430'; /* Пи: Ћирилица */
+    }
+  }
+  if (lastRawText) {
+    var rb = document.getElementById('rb');
+    if (rb) {
+      var baseHtml = formatResponse(lastRawText) + _feedbackBar(lastPitanje, lastRawText);
+      rb.innerHTML = cyrillicMode ? _applyTransliterationToHtml(baseHtml) : baseHtml;
+    }
+  }
+}
+
+function _maybeCyr(text) {
+  return cyrillicMode ? transliterateToCyrillic(text) : text;
+}
 
 function _linkGlasnik(val) {
   // Pretvara "Sl. glasnik RS, br. X/YYYY" u klikabilni link ka PIS portalu
@@ -1690,20 +1784,20 @@ function formatResponse(rawText) {
 }
 
 function copyToClipboard(text, btn) {
-  var clean = text.replace(/^"+|"+$/g,'').trim();
+  var clean = _maybeCyr(text.replace(/^"+|"+$/g,'').trim());
   navigator.clipboard.writeText(clean).then(function(){
-    var orig = btn.textContent; btn.textContent = '✓ Kopirano!'; btn.disabled = true;
+    var orig = btn.textContent; btn.textContent = '\u2713 Kopirano!'; btn.disabled = true;
     setTimeout(function(){ btn.textContent = orig; btn.disabled = false; }, 2000);
-  }).catch(function(){ btn.textContent = '⚠ Greška'; });
+  }).catch(function(){ btn.textContent = '\u26a0 Gre\u0161ka'; });
 }
 
 function copyZakljucak(text, btn) {
-  var clean = text.replace(/^"+|"+$/g,'').trim();
-  if (!clean) { btn.textContent = '⚠ Nema zaključka'; setTimeout(function(){ btn.textContent = '📋 Kopiraj zaključak'; }, 2000); return; }
+  var clean = _maybeCyr(text.replace(/^"+|"+$/g,'').trim());
+  if (!clean) { btn.textContent = '\u26a0 Nema zaklju\u010dka'; setTimeout(function(){ btn.textContent = '\ud83d\udccb Kopiraj zaklju\u010dak'; }, 2000); return; }
   navigator.clipboard.writeText(clean).then(function(){
-    var orig = btn.textContent; btn.textContent = '✓ Zaključak kopiran!'; btn.disabled = true;
+    var orig = btn.textContent; btn.textContent = '\u2713 Zaklju\u010dak kopiran!'; btn.disabled = true;
     setTimeout(function(){ btn.textContent = orig; btn.disabled = false; }, 2000);
-  }).catch(function(){ btn.textContent = '⚠ Greška'; });
+  }).catch(function(){ btn.textContent = '\u26a0 Gre\u0161ka'; });
 }
 
 function sazimiZaKlijenta(fullText, btn) {
@@ -1823,6 +1917,7 @@ function copyToMarkdown(rawText, btn) {
     md += x.d.lbl + '\n\n' + val + '\n\n';
   });
   md += '---\n*Generisano putem Vindex AI | Nije pravni savet | ' + new Date().toLocaleDateString('sr-Latn-RS') + '*';
+  if (cyrillicMode) md = transliterateToCyrillic(md);
   navigator.clipboard.writeText(md).then(function(){
     var orig=btn.textContent; btn.textContent='\u2713 Markdown kopiran!'; btn.disabled=true;
     setTimeout(function(){btn.textContent=orig;btn.disabled=false;},2000);
@@ -1920,7 +2015,9 @@ async function execQuery() {
     var iv=setInterval(function(){
       if(i>=text.length){
         clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
-        rb.innerHTML = formatResponse(text) + _feedbackBar(currentPitanje, text);
+        lastRawText = text;
+        var renderedHtml = formatResponse(text) + _feedbackBar(currentPitanje, text);
+        rb.innerHTML = cyrillicMode ? _applyTransliterationToHtml(renderedHtml) : renderedHtml;
       } else { rb.textContent+=text[i]; i++; }
     },speed);
   } catch(e) {
