@@ -515,6 +515,14 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .resp-kljucno .resp-section-lbl { color:#34d399; }
 .resp-kljucno .resp-section-lbl::before { background:#34d399; box-shadow:0 0 8px rgba(52,211,153,0.5); }
 .resp-kljucno .resp-section-body { font-size:0.88rem; font-weight:500; color:rgba(52,211,153,0.9); line-height:1.7; border-left:2px solid rgba(52,211,153,0.3); padding-left:0.75rem; }
+/* ── Analiza štete ───────────────────────────────────────────────────────── */
+.resp-steta .resp-section-lbl { color:#fbbf24; }
+.resp-steta .resp-section-lbl::before { background:#fbbf24; box-shadow:0 0 6px rgba(251,191,36,0.4); }
+.resp-steta .resp-section-body { color:rgba(251,191,36,0.85); line-height:1.7; }
+/* ── Procesni koraci ─────────────────────────────────────────────────────── */
+.resp-procesni .resp-section-lbl { color:#38bdf8; }
+.resp-procesni .resp-section-lbl::before { background:#38bdf8; box-shadow:0 0 6px rgba(56,189,248,0.4); }
+.resp-procesni .resp-section-body { color:rgba(56,189,248,0.85); line-height:1.8; font-size:0.84rem; }
 .resp-actions { display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:1.2rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.07); }
 .resp-action-btn { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.7); font-size:0.74rem; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; transition:all 0.18s; font-family:inherit; }
 .resp-action-btn:hover { background:rgba(255,255,255,0.1); color:#fff; border-color:rgba(255,255,255,0.25); }
@@ -1827,16 +1835,18 @@ function _linkGlasnik(val) {
 
 function formatResponse(rawText) {
   var defs = [
-    { key:'HIJERARHIJA IZVORA:', cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora', icon:'hijerarhija' },
-    { key:'PRAVNI ZAKLJUČAK:',  cls:'resp-zakljucak',  lbl:'⚖️ Pravni zaključak', icon:'zakljucak' },
-    { key:'CITAT ZAKONA:',      cls:'resp-citat',      lbl:'📖 Citat zakona',       icon:'citat' },
-    { key:'CITAT IZ ZAKONA:',   cls:'resp-citat',      lbl:'📖 Citat zakona',       icon:'citat' },
-    { key:'PRAVNI OSNOV:',      cls:'resp-pravni-osnov',lbl:'Pravni osnov',         icon:'osnov' },
-    { key:'POUZDANOST:',        cls:'resp-pouzdanost', lbl:'Pouzdanost',            icon:'pouzdanost' },
-    { key:'RIZICI I IZUZECI:',  cls:'resp-rizici',     lbl:'⚠️ Rizici i izuzeci',  icon:'rizici' },
-    { key:'KADA OVO NE VAŽI:',  cls:'resp-edgecase',   lbl:'📍 Kada ovo ne važi',  icon:'edgecase' },
-    { key:'KLJUČNO PITANJE:',   cls:'resp-kljucno',    lbl:'🎯 Ključno pitanje',    icon:'kljucno' },
-    { key:'DODATNA PITANJA:',   cls:'resp-pitanja',    lbl:'🔍 Potrebne informacije', icon:'pitanja' },
+    { key:'HIJERARHIJA IZVORA:', cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora',   icon:'hijerarhija' },
+    { key:'PRAVNI ZAKLJUČAK:',  cls:'resp-zakljucak',  lbl:'⚖️ Pravni zaključak',    icon:'zakljucak' },
+    { key:'ANALIZA ŠTETE:',     cls:'resp-steta',      lbl:'⚖ Analiza štete',         icon:'steta' },
+    { key:'CITAT ZAKONA:',      cls:'resp-citat',      lbl:'📖 Citat zakona',          icon:'citat' },
+    { key:'CITAT IZ ZAKONA:',   cls:'resp-citat',      lbl:'📖 Citat zakona',          icon:'citat' },
+    { key:'PRAVNI OSNOV:',      cls:'resp-pravni-osnov',lbl:'Pravni osnov',            icon:'osnov' },
+    { key:'POUZDANOST:',        cls:'resp-pouzdanost', lbl:'Pouzdanost',               icon:'pouzdanost' },
+    { key:'RIZICI I IZUZECI:',  cls:'resp-rizici',     lbl:'⚠️ Rizici i izuzeci',     icon:'rizici' },
+    { key:'KADA OVO NE VAŽI:',  cls:'resp-edgecase',   lbl:'📍 Kada ovo ne važi',     icon:'edgecase' },
+    { key:'PROCESNI KORACI:',   cls:'resp-procesni',   lbl:'⚡ Procesni koraci',       icon:'procesni' },
+    { key:'KLJUČNO PITANJE:',   cls:'resp-kljucno',    lbl:'🎯 Ključno pitanje',       icon:'kljucno' },
+    { key:'DODATNA PITANJA:',   cls:'resp-pitanja',    lbl:'🔍 Potrebne informacije',  icon:'pitanja' },
     { key:'NACRT:',             cls:'resp-nacrt',      lbl:'Nacrt dokumenta',       icon:'' },
     { key:'ANALIZA:',           cls:'resp-analiza',    lbl:'Analiza',               icon:'' },
     { key:'IDENTIFIKOVANI RIZICI:', cls:'resp-rizici', lbl:'⚠️ Identifikovani rizici', icon:'' },

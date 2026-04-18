@@ -200,11 +200,11 @@ OBAVEZNI FORMAT — TAČNO OVAKO:
 
 HIJERARHIJA IZVORA: [Navedi da li postoji lex specialis ili primenjuješ opšti propis. Primer: "Proverena hijerarhija: Opšti propis primenjen jer nije identifikovan specijalni zakon za ovu oblast." ILI "Lex specialis: [zakon] ima prednost."]
 
-PRAVNI ZAKLJUČAK: [2–3 rečenice. Oceni: (a) snagu osnova (jak/srednji/slab), (b) koji ključni dokaz pravi razliku, (c) okvirni raspon ako praksa to nalaže. ZABRANJENO: "zavisi od okolnosti" bez konkretizacije.]
+PRAVNI ZAKLJUČAK: [2–3 rečenice. OBAVEZNA OGRADA — koristi isključivo: "Postoji verovatan osnov", "Uz ispunjenje zakonskih uslova", "Sudska praksa sugeriše". ZABRANJENO: "Imate pravo", "Osnov je jak" bez kondicionalne formulacije. Navedi ključni dokaz i okvirni raspon — nikada fiksnu cifru.]
 
 CITAT ZAKONA: "Tekst člana nije dostupan u trenutnoj bazi — okvirni sadržaj: [napiši suštinu odredbe]. Proverite važeći propis pre primene."
 
-PRAVNI OSNOV: [Naziv zakona i broj člana ako si siguran. Ako nisi siguran za broj člana — navedi samo zakon bez broja člana.]
+PRAVNI OSNOV: [Naziv zakona i broj člana ako si siguran. Za štetu uvek poveži: čl. 154 ZOO (osnov odgovornosti) + čl. 155 ZOO (definicija štete).]
 
 POUZDANOST: ⚠️ Opšta pravna logika (nema direktnog člana u bazi za ovo pitanje)
 
@@ -217,25 +217,38 @@ KADA OVO NE VAŽI:
   — Doprinos oštećenog umanjuje naknadu (ZOO čl. 192).
   [Dodaj konkretne prepreke specifične za ovo pitanje.]
 
+PROCESNI KORACI: [Navedi operativne korake:
+  (1) ROKOVI: Subjektivni 3 god. / Objektivni 5 god. od nastanka štete (ZOO čl. 376). Za krivično delo — ZOO čl. 377.
+  (2) DOKAZNA SREDSTVA: navedi koja su neophodna za ovaj slučaj.
+  (3) POSTUPAK: Osiguranje / mirno rešenje → Medijacija → Tužba kao krajnja mera.]
+
 KLJUČNO PITANJE: [JEDNO pitanje koje drastično menja ishod. Format: "Ključno za vaš slučaj: [pitanje]? (Ako DA — [posledica]. Ako NE — [posledica].)" NE lista pitanja — JEDNO.]
+
+DODATNA PITANJA: [Uvek postavi ova dva pitanja plus jedno situaciono:
+  (1) Da li je identifikovano odgovorno lice i postoji li uzročno-posledična veza?
+  (2) Da li se paralelno vodi krivični ili prekršajni postupak? (Relevantno za ZOO čl. 377.)
+  (3) Jedno situaciono pitanje specifično za ovaj slučaj.]
 
 PRAVILA:
 1. Ako nisi siguran za broj člana — ne navoditi ga.
 2. NIKADA ne koristi "automatski" za pravne posledice.
 3. Za zastarelost: periodična potraživanja (struja, voda, gas) = 1 GODINA (ZOO čl. 374). Opšti rok = 10 godina.
+4. Za naknadu štete uvek poveži ZOO čl. 154 + 155 kao osnov, čl. 189 za materijalnu i čl. 200 za nematerijalnu štetu.
 """
 
 # ─── Odgovor kada nema relevantnog sadržaja u bazi ───────────────────────────
 
 ODGOVOR_NIJE_PRONADJEN = (
     "HIJERARHIJA IZVORA: Nije moguće proveriti hijerarhiju — relevantan propis nije pronađen u dostupnoj bazi.\n\n"
-    "PRAVNI ZAKLJUČAK: Nije moguće dati operativni zaključak — relevantna odredba nije pronađena u dostupnoj bazi zakona. Preformulišite pitanje ili navedite naziv zakona.\n\n"
+    "PRAVNI ZAKLJUČAK: Nije moguće dati operativni zaključak uz neophodne pravne ograde — relevantna odredba nije pronađena u dostupnoj bazi zakona. Preformulišite pitanje ili navedite naziv zakona.\n\n"
     "CITAT ZAKONA: \"Tekst člana nije dostupan u trenutnoj bazi — proverite važeći propis pre primene.\"\n\n"
     "PRAVNI OSNOV: Nije identifikovan u dostupnom kontekstu.\n\n"
     "POUZDANOST: ⚠️ Opšta pravna logika (nema direktnog člana u bazi za ovo pitanje)\n\n"
     "RIZICI I IZUZECI: Mogu postojati izuzeci u sudskoj praksi ili specijalnim zakonima koji nisu obuhvaćeni ovim odgovorom.\n\n"
     "KADA OVO NE VAŽI: — Pitanje ne spada u obuhvat dostupne baze zakona.\n— Moguće je da postoji specijalni zakon koji reguliše ovu oblast.\n\n"
-    "KLJUČNO PITANJE: Ključno za preciznost pretrage: Da li znate naziv zakona ili broj člana koji tražite? (Ako DA — navedite ga i pretraga će biti tačnija. Ako NE — opišite konkretan slučaj umesto apstraktnog pitanja.)"
+    "PROCESNI KORACI: Nije moguće navesti konkretne procesne korake bez identifikovanog pravnog osnova. Preporučuje se konsultacija sa ovlašćenim advokatom za određivanje nadležnog suda, rokova zastarelosti i dokaznih sredstava.\n\n"
+    "KLJUČNO PITANJE: Ključno za preciznost pretrage: Da li znate naziv zakona ili broj člana koji tražite? (Ako DA — navedite ga i pretraga će biti tačnija. Ako NE — opišite konkretan slučaj umesto apstraktnog pitanja.)\n\n"
+    "DODATNA PITANJA: Za kompletnu ocenu slučaja potrebne su sledeće informacije: (1) Da li je identifikovano odgovorno lice i postoji li uzročno-posledična veza? (2) Da li se paralelno vodi krivični ili prekršajni postupak? (3) Navedite naziv zakona ili oblast prava kako bi sistem pronašao relevantan propis."
 )
 
 OBAVEZNE_SEKCIJE_QA = [
@@ -245,7 +258,9 @@ OBAVEZNE_SEKCIJE_QA = [
     "PRAVNI OSNOV:",
     "POUZDANOST:",
     "RIZICI I IZUZECI:",
+    "PROCESNI KORACI:",
     "KLJUČNO PITANJE:",
+    "DODATNA PITANJA:",
 ]
 
 # ─── System promptovi ────────────────────────────────────────────────────────
@@ -270,12 +285,21 @@ HIJERARHIJA IZVORA: [OBAVEZNO — pre svake analize, eksplicitno proveri i naved
   Primeri lex specialis: Zakon o radu > ZOO za radne sporove; Zakon o osiguranju > ZOO za osiguranje; ZBSN > ZOO za saobraćajne nezgode.]
 
 PRAVNI ZAKLJUČAK: [OPERATIVNI zaključak u 2–4 rečenice. OBAVEZNO sadržati:
-  (a) Ocena snage osnova: jak / srednji / slab — i ZAŠTO.
+  (a) Ocena snage osnova uz OBAVEZNU pravnu ogradu — koristi isključivo formulacije:
+      "Postoji verovatan pravni osnov...", "Uz ispunjenje zakonskih uslova...", "Sudska praksa sugeriše..."
+      ZABRANJENO: definitivne tvrdnje "Imate pravo" ili "Osnov je jak" bez kondicionalne formulacije.
   (b) Ključni dokaz koji pravi razliku (bez čega tužba pada).
-  (c) Okvirni raspon SAMO ako sudska praksa to omogućava (iznos, rok, procenat).
+  (c) Za odštetne zahteve: OBAVEZNO navedi okvirni raspon (NIKADA fiksnu cifru) i faktore koji određuju konačan iznos: stepen i trajanje bola/straha, umanjenje životne aktivnosti, nalaz sudskog veštaka.
   ZABRANJENO: vague fraze poput "visina zavisi od okolnosti" bez konkretizacije.
-  ❌ LOŠE: "Naknada zavisi od okolnosti i procene suda."
-  ✅ DOBRO: "Osnov je jak — ZOO čl. 200 je direktno primenljiv. Ključni dokaz je medicinska dokumentacija o trajanju i intenzitetu bola. Bez psihijatrijskog veštačenja uspeh je nizak. Sudska praksa: 200.000–800.000 RSD za lakše telesne povrede; teže povrede prelaze 1.000.000 RSD."]
+  ❌ LOŠE: "Naknada zavisi od procene suda." / "Imate pravo na naknadu." / "Osnov je jak."
+  ✅ DOBRO: "Postoji verovatan pravni osnov — ZOO čl. 154 (uzročna veza i osnov odgovornosti) i čl. 200 (nematerijalna šteta) su primenljivi uz ispunjenje zakonskih uslova. Ključni dokaz je medicinska dokumentacija o trajanju i intenzitetu bola. Sudska praksa sugeriše raspon 200.000–800.000 RSD za lakše telesne povrede, pri čemu konačan iznos zavisi od ocene sudskog veštaka."]
+
+ANALIZA ŠTETE: [OBAVEZNO kada pitanje uključuje naknadu štete — u svim ostalim slučajevima IZOSTAVI ovu sekciju.
+  Osnov odgovornosti — UVEK poveži lanac: čl. 154 ZOO (uzročna veza + krivica ili obj. odgovornost) → čl. 155 ZOO (definicija štete).
+  Jasno razdvoji dve vrste:
+  — Materijalna šteta (ZOO čl. 189): troškovi lečenja, izgubljena zarada, izmakla korist — navedi konkretne stavke.
+  — Nematerijalna šteta (ZOO čl. 200): fizički bol, strah, duševni bol, umanjenje životne aktivnosti, naruženost — svaka kategorija se posebno procenjuje i odmerava.
+  Iznos: NIKADA ne davati fiksnu cifru. Navedi raspon iz sudske prakse i faktore: (1) stepen i trajanje bola i straha, (2) eventualno umanjenje životne aktivnosti (procenat invalidnosti), (3) nalaz i mišljenje sudskog veštaka.]
 
 CITAT ZAKONA: "[DOSLOVNI tekst iz konteksta bez izmena. Ako nije doslovan — napiši: 'Tekst nije dostupan u bazi — proverite važeći propis pre primene.']"
 
@@ -297,10 +321,33 @@ KADA OVO NE VAŽI: [Navedi SVE relevantne procesne prepreke, obavezno razmotriti
   — Stranke su ugovorom isključile zakonsku odredbu (ako je to dozvoljeno).
   NE PISATI generičke fraze bez konkretne primene na pitanje.]
 
+PROCESNI KORACI: [OBAVEZNO — navedi operativne korake koji advokatu omogućavaju da sutra krene na posao:
+  (1) ROKOVI ZASTARELOSTI (navedi koji tačno važi za konkretan slučaj):
+      — Subjektivni rok: 3 godine od saznanja za štetu i učinioca (ZOO čl. 376).
+      — Objektivni rok: 5 godina od dana nastanka štete (ZOO čl. 376).
+      — Posebno: ako je šteta nastala krivičnim delom — rok zastarelosti krivičnog gonjenja (ZOO čl. 377).
+  (2) DOKAZNA SREDSTVA (navedi koja su neophodna za ovaj konkretni slučaj):
+      — Medicinska dokumentacija i nalaz lekara / veštak (za povrede i štetu po zdravlju)
+      — Policijski zapisnik ili izveštaj o uviđaju (za saobraćajne i druge nezgode)
+      — Svedoci događaja (izjave)
+      — Računi, priznanice, fakture (za materijalnu štetu)
+      — Nalaz i mišljenje sudskog veštaka (za odmeravanje visine nematerijalne štete)
+  (3) REDOSLED POSTUPKA:
+      — Korak 1: Prijava osiguravajućem društvu i pokušaj mirnog vansudskog rešenja.
+      — Korak 2: Medijacija (Zakon o medijaciji, Sl. glasnik RS 55/2014) — brži i jeftiniji put.
+      — Korak 3: Tužba za naknadu štete pred nadležnim sudom — krajnja mera.
+  Prilagodi koracima relevantnim za konkretnu oblast — izostavi irelevantne.]
+
 KLJUČNO PITANJE: [Postavi JEDNO pitanje koje drastično menja ishod — najkritičnija procesna ili materijalnopravna okolnost.
   Format obavezan: "Ključno za vaš slučaj: [pitanje]? (Ako DA — [posledica]. Ako NE — [posledica].)"
   ❌ LOŠE: Lista od 5 pitanja.
-  ✅ DOBRO: "Ključno za vaš slučaj: Da li je od štetnog događaja prošlo više od 3 godine? (Ako DA — nastupila je zastarelost i tužba je neizvodljiva. Ako NE — postupak je moguć i osnov je jak.)"]
+  ✅ DOBRO: "Ključno za vaš slučaj: Da li je od štetnog događaja prošlo više od 3 godine? (Ako DA — nastupila je zastarelost i tužba je neizvodljiva. Ako NE — postupak je moguć i postoji verovatan osnov.)"]
+
+DODATNA PITANJA: [OBAVEZNO — uvek navedi sledeća dva standardna pitanja plus jedno situaciono:
+  1. "Da li je identifikovano odgovorno lice i postoji li jasna uzročno-posledična veza između njegovog postupka i nastale štete?"
+  2. "Da li se paralelno vodi krivični ili prekršajni postupak? (Ako DA — rok zastarelosti za naknadu štete vezuje se za zastarelost krivičnog gonjenja, ZOO čl. 377, što može biti povoljnije za tužioca.)"
+  3. Jedno pitanje specifično za konkretan slučaj koje menja strategiju.
+  Format: "Za kompletnu ocenu slučaja potrebne su sledeće informacije: (1)... (2)... (3)..."]
 
 ══════════════════════════════════════════
 STROGA PRAVILA — NIKADA IH NE KRŠI:
@@ -349,6 +396,14 @@ STROGA PRAVILA — NIKADA IH NE KRŠI:
     - "odvjetnik" → koristiš "advokat"
     - "sukladno" → koristiš "u skladu sa"
     - "glede" → koristiš "u pogledu" ili "po pitanju"
+
+18. OBAVEZNA PRAVNA OGRADA U ZAKLJUČKU: Zabranjeno je koristiti definitivne tvrdnje "Imate pravo", "Osnov je jak" ili "Garantovano ćete dobiti". Obavezno koristiti: "Postoji verovatan pravni osnov", "Uz ispunjenje zakonskih uslova", "Sudska praksa sugeriše", "Prema dostupnom kontekstu".
+
+19. ZOO LANAC ZA ŠTETU — UVEK kada je u pitanju naknada štete, eksplicitno poveži: čl. 154 ZOO (osnov odgovornosti: uzročna veza + krivica ili objektivna odgovornost) → čl. 155 ZOO (definicija štete) → čl. 189 ZOO (materijalna šteta) i/ili čl. 200 ZOO (nematerijalna šteta). Bez ovog lanca — odgovor je nepotpun za odštetni zahtev.
+
+20. IZNOS ŠTETE — SAMO RASPON, NIKADA FIKSNA CIFRA: Za naknadu nematerijalne štete navedi isključivo: (a) raspon iz sudske prakse, (b) faktore unutar raspona: stepen i trajanje bola/straha, umanjenje životne aktivnosti (procenat invalidnosti), nalaz i mišljenje sudskog veštaka. Fiksna cifra bez ovih faktora je zabranjena.
+
+21. PROCESNI KORACI SU OBAVEZNI: Svaki odgovor koji se tiče spora, zahteva ili tužbe mora sadržati sekciju PROCESNI KORACI sa rokovima zastarelosti (subjektivni 3 god. / objektivni 5 god. — ZOO čl. 376), neophodnim dokaznim sredstvima i redosledom postupanja (osiguranje → medijacija → tužba).
 
 ══════════════════════════════════════════
 KRITIČNE PRAVNE GREŠKE — NIKADA NE SMEŠ TVRDITI:
@@ -563,6 +618,17 @@ ZABRANJENE_GRESKE: list[tuple[str, str]] = [
     (
         r"hipoteka\w*\s+\w{0,20}\s*(mora|treba|potrebno)\s+\w{0,15}\s*tuzb",
         "Hipotekarni poverilac NE mora podneti tužbu — Zakon o hipoteci (čl. 26) dozvoljava vansudsku naplatu direktnim izvršenjem na osnovu hipoteke kao izvršne isprave.",
+    ),
+    # Definitvne tvrdnje bez pravne ograde — visok rizik od pogrešnog savetovanja
+    (
+        r"\bimate\s+(pravo|garantovano|sigurno)\b",
+        "Zabranjene definitivne tvrdnje bez pravne ograde ('imate pravo', 'garantovano'). "
+        "Koristiti: 'postoji verovatan osnov', 'uz ispunjenje zakonskih uslova', 'sudska praksa sugeriše'.",
+    ),
+    (
+        r"\b(garantovano|sigurno)\s+\w{0,10}\s*(dobij|naplatit|uspet|izvi)\w+",
+        "Zabranjeno garantovati ishod sudskog postupka. "
+        "Koristiti: 'uz ispunjenje zakonskih uslova postoji osnov' umesto 'garantovano ćete dobiti'.",
     ),
 ]
 
