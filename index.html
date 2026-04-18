@@ -431,6 +431,27 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .resp-action-btn { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.7); font-size:0.74rem; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; transition:all 0.18s; font-family:inherit; }
 .resp-action-btn:hover { background:rgba(255,255,255,0.1); color:#fff; border-color:rgba(255,255,255,0.25); }
 .resp-action-btn:disabled { opacity:0.5; cursor:default; }
+/* ── RAG Verified badge ──────────────────────────────────────────────────── */
+.rag-verified { display:inline-flex; align-items:center; gap:3px; font-size:0.62rem; font-weight:700; letter-spacing:0.08em; color:#4ade80; background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.22); border-radius:4px; padding:1px 6px; margin-left:0.5rem; vertical-align:middle; }
+/* ── Sl. Glasnik links ───────────────────────────────────────────────────── */
+.glasnik-link { color:rgba(74,168,255,0.75); text-decoration:none; border-bottom:1px dotted rgba(74,168,255,0.35); transition:color 0.15s; }
+.glasnik-link:hover { color:#89c8ff; border-bottom-color:#89c8ff; }
+/* ── Redesigned disclaimer box ───────────────────────────────────────────── */
+.resp-disclaimer-box { display:flex; align-items:flex-start; gap:0.6rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.7rem 1rem; margin-top:1.1rem; }
+.resp-disclaimer-box .disc-icon { font-size:0.85rem; margin-top:1px; flex-shrink:0; color:rgba(255,255,255,0.35); }
+.resp-disclaimer-box .disc-text { font-size:0.71rem; color:rgba(255,255,255,0.38); line-height:1.65; font-style:italic; }
+/* ── Settings modal ──────────────────────────────────────────────────────── */
+.settings-btn { background:none; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:rgba(255,255,255,0.45); font-size:0.85rem; padding:0.3rem 0.55rem; cursor:pointer; transition:all 0.18s; margin-right:0.5rem; }
+.settings-btn:hover { color:#fff; border-color:rgba(255,255,255,0.3); }
+.settings-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9000; display:none; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+.settings-modal-overlay.open { display:flex; }
+.settings-modal { background:#0f0f1a; border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:2rem; width:min(480px,92vw); position:relative; }
+.settings-modal h3 { font-size:1rem; font-weight:600; color:#fff; margin:0 0 1.2rem; }
+.settings-label { font-size:0.72rem; color:rgba(255,255,255,0.45); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:0.35rem; }
+.settings-row { margin-bottom:1rem; }
+.settings-note { font-size:0.7rem; color:rgba(255,255,255,0.3); margin-top:0.5rem; font-style:italic; }
+.settings-save-btn { width:100%; padding:0.65rem; background:rgba(74,168,255,0.12); border:1px solid rgba(74,168,255,0.3); color:#89c8ff; border-radius:8px; font-family:inherit; font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; margin-top:0.5rem; }
+.settings-save-btn:hover { background:rgba(74,168,255,0.2); }
 
 /* ── ENHANCED BEAMS ──────────────────────────────────────────────────────── */
 .beam-xl { position: absolute; pointer-events: none; border-radius: 50%; filter: blur(130px); }
@@ -785,6 +806,7 @@ footer { padding: 2rem 1.5rem; }
     <a href="#about">O nama</a>
   </div>
   <div class="nav-user" id="nav-user">
+    <button class="settings-btn" onclick="openSettings()" title="Podešavanja kancelarije">⚙</button>
     <span class="nav-user-email" id="nav-user-email"></span>
     <span class="nav-credit-pill" id="nav-credit-pill"><span id="nav-credits-num" class="cp-num">15</span>&nbsp;/ 15 upita</span>
     <button class="nav-logout" onclick="doLogout()">Odjava</button>
@@ -1541,6 +1563,16 @@ function setTab(el,t){
 /* RESPONSE FORMATTER */
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+var lastPitanje = '';
+
+function _linkGlasnik(val) {
+  // Pretvara "Sl. glasnik RS, br. X/YYYY" u klikabilni link ka PIS portalu
+  return escHtml(val).replace(
+    /(Sl\.\s*(?:glasnik|list)\s*(?:RS|SRS|SFRJ|SRJ|SCG)[^<\n]{0,120})/g,
+    '<a class="glasnik-link" href="https://www.pravno-informacioni-sistem.rs/" target="_blank" rel="noopener" title="Pravno-informacioni sistem RS">$1</a>'
+  );
+}
+
 function formatResponse(rawText) {
   var defs = [
     { key:'HIJERARHIJA IZVORA:', cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora', icon:'hijerarhija' },
@@ -1605,20 +1637,41 @@ function formatResponse(rawText) {
     trustBadge = '<div class="trust-badge trust-low">⚠️ Opšta pravna logika — nije pronađen direktan član, odgovor baziran na principima prava.</div>';
   }
 
+    var isHigh = pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1;
+  var verifiedBadge = isHigh ? '<span class="rag-verified">✓ RAG</span>' : '';
+
   var html = trustBadge;
   found.forEach(function(s,i){
     var start = s.pos + s.keyLen;
     var end = i+1 < found.length ? found[i+1].pos : rawText.length;
     var val = rawText.slice(start,end).trim();
     if (s.cls === 'resp-pouzdanost') return;
-    if (s.cls === 'resp-disclaimer') return; // disclaimer prikazan fiksno na dnu
+    if (s.cls === 'resp-disclaimer') return;
+    var lbl = s.lbl;
+    var bodyHtml;
+    if (s.cls === 'resp-citat') {
+      lbl = s.lbl + verifiedBadge;
+      bodyHtml = escHtml(val).replace(/
+/g,'<br>');
+    } else if (s.cls === 'resp-pravni-osnov' || s.cls === 'resp-izvor') {
+      bodyHtml = _linkGlasnik(val).replace(/
+/g,'<br>');
+    } else {
+      bodyHtml = escHtml(val).replace(/
+/g,'<br>');
+    }
     html += '<div class="resp-section '+s.cls+'" style="animation-delay:'+(i*0.07)+'s">'+
-            '<div class="resp-section-lbl">'+s.lbl+'</div>'+
-            '<div class="resp-section-body">'+escHtml(val).replace(/\n/g,'<br>')+'</div>'+
+            '<div class="resp-section-lbl">'+lbl+'</div>'+
+            '<div class="resp-section-body">'+bodyHtml+'</div>'+
             '</div>';
   });
 
-  html += '<div style="font-size:0.68rem;color:rgba(255,255,255,0.28);margin-top:1rem;font-style:italic;">⚠️ Nije pravni savet. Podložno promenama u sudskoj praksi.</div>';
+  html += '<div class="resp-disclaimer-box">'+
+    '<span class="disc-icon">ℹ</span>'+
+    '<span class="disc-text">Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. '+
+    'Konsultujte originalni tekst propisa u Službenom glasniku RS. '+
+    'Nije pravni savet — podložno promenama u sudskoj praksi.</span>'+
+    '</div>';
 
   // Akciona dugmad
   var citatEnc = encodeURIComponent(citatVal);
@@ -1626,10 +1679,11 @@ function formatResponse(rawText) {
   var zakljucakEnc = encodeURIComponent(zakljucakVal);
   var fullEnc = encodeURIComponent(rawText);
   html += '<div class="resp-actions">'+
-    '<button class="resp-action-btn" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);color:#fff;font-weight:600;" onclick="copyZakljucak(decodeURIComponent(\''+zakljucakEnc+'\'),this)">📋 Kopiraj operativni zaključak</button>'+
-    '<button class="resp-action-btn" style="background:rgba(52,211,153,0.08);border-color:rgba(52,211,153,0.25);color:#34d399;font-weight:600;" onclick="sazimiZaKlijenta(decodeURIComponent(\''+fullEnc+'\'),this)">📲 Pripremi poruku za klijenta</button>'+
-    '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\''+citatEnc+'\'),this)">📎 Kopiraj citat</button>'+
-    '<button class="resp-action-btn" onclick="showIzvor(decodeURIComponent(\''+osnovEnc+'\'),this)">🔗 Sl. glasnik</button>'+
+    '<button class="resp-action-btn" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);color:#fff;font-weight:600;" onclick="copyZakljucak(decodeURIComponent('' +zakljucakEnc+ ''),this)">📋 Kopiraj operativni zaključak</button>'+
+    '<button class="resp-action-btn" style="background:rgba(52,211,153,0.08);border-color:rgba(52,211,153,0.25);color:#34d399;font-weight:600;" onclick="sazimiZaKlijenta(decodeURIComponent('' +fullEnc+ ''),this)">📲 Pripremi poruku za klijenta</button>'+
+    '<button class="resp-action-btn" style="background:rgba(74,168,255,0.07);border-color:rgba(74,168,255,0.25);color:#89c8ff;" onclick="exportPDF(decodeURIComponent('' +fullEnc+ ''),this)">📄 Izvezi PDF</button>'+
+    '<button class="resp-action-btn" onclick="copyToMarkdown(decodeURIComponent('' +fullEnc+ ''),this)"># Markdown</button>'+
+    '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent('' +citatEnc+ ''),this)">📎 Kopiraj citat</button>'+
     '<button class="resp-action-btn" onclick="focusInput()">🔁 Follow-up</button>'+
     '</div>';
   return html;
@@ -1687,6 +1741,115 @@ function showIzvor(text, btn) {
   setTimeout(function(){ btn.textContent = orig; btn.style.whiteSpace = ''; btn.style.maxWidth = ''; }, 4000);
 }
 
+
+function exportPDF(rawText, btn) {
+  var orig = btn.textContent; btn.textContent = '\u23f3 Priprema...'; btn.disabled = true;
+  var firma = JSON.parse(localStorage.getItem('vindex_firma') || '{}');
+  var datum = new Date().toLocaleDateString('sr-Latn-RS', {day:'2-digit',month:'2-digit',year:'numeric'});
+  var pitanje = lastPitanje || '';
+  var title = 'Pravna analiza';
+  if (pitanje.length > 5) title += ' \u2014 ' + pitanje.substring(0,80) + (pitanje.length>80?'...':'');
+  var sectionDefs = [
+    {key:'HIJERARHIJA IZVORA:', lbl:'Hijerarhija izvora'},
+    {key:'PRAVNI ZAKLJU\u010cAK:', lbl:'Pravni zaklju\u010dak'},
+    {key:'CITAT ZAKONA:', lbl:'Citat zakona'},
+    {key:'CITAT IZ ZAKONA:', lbl:'Citat zakona'},
+    {key:'PRAVNI OSNOV:', lbl:'Pravni osnov'},
+    {key:'RIZICI I IZUZECI:', lbl:'Rizici i izuzeci'},
+    {key:'KADA OVO NE VA\u017dI:', lbl:'Kada ovo ne va\u017ei'},
+    {key:'KLJ\u0160NO PITANJE:', lbl:'Klju\u010dno pitanje'},
+    {key:'SLU\u017dBENI IZVOR:', lbl:'Izvor'},
+  ];
+  var positions = sectionDefs.map(function(d){return{d:d,pos:rawText.indexOf(d.key)};}).filter(function(x){return x.pos!==-1;});
+  positions.sort(function(a,b){return a.pos-b.pos;});
+  var sectionsHtml = positions.map(function(x,i){
+    var start=x.pos+x.d.key.length;
+    var end=i+1<positions.length?positions[i+1].pos:rawText.length;
+    var val=rawText.slice(start,end).trim();
+    return '<div class="pdf-section"><div class="pdf-lbl">'+x.d.lbl.toUpperCase()+'</div><div class="pdf-val">'+val.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</div></div>';
+  }).join('');
+  var html = '<!DOCTYPE html><html lang="sr"><head><meta charset="UTF-8"><title>Vindex AI \u2014 Pravna analiza</title>'
+    +'<style>@page{size:A4;margin:20mm 22mm;}body{font-family:Arial,sans-serif;font-size:10pt;color:#111;line-height:1.6;}'
+    +'.header{border-bottom:2px solid #1a1a3e;padding-bottom:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end;}'
+    +'.firma-naziv{font-size:13pt;font-weight:bold;color:#1a1a3e;}.firma-info{font-size:8.5pt;color:#555;line-height:1.5;}'
+    +'.brand{font-size:8pt;color:#888;text-align:right;}'
+    +'.title{font-size:14pt;font-weight:bold;color:#1a1a3e;margin:12px 0 4px;}'
+    +'.datum{font-size:8.5pt;color:#888;margin-bottom:16px;border-bottom:1px solid #e0e0e0;padding-bottom:8px;}'
+    +'.pdf-section{margin-bottom:14px;page-break-inside:avoid;}'
+    +'.pdf-lbl{font-size:7.5pt;font-weight:bold;letter-spacing:0.1em;color:#1a1a3e;text-transform:uppercase;margin-bottom:3px;border-left:3px solid #1a1a3e;padding-left:6px;}'
+    +'.pdf-val{font-size:9.5pt;color:#333;padding-left:9px;}'
+    +'.footer{position:fixed;bottom:10mm;left:22mm;right:22mm;font-size:7.5pt;color:#aaa;border-top:1px solid #e0e0e0;padding-top:5px;display:flex;justify-content:space-between;}'
+    +'.disclaimer{background:#f8f8f8;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:8pt;color:#666;margin-top:20px;font-style:italic;}'
+    +'</style></head><body>'
+    +'<div class="header"><div><div class="firma-naziv">'+(firma.naziv||'')+'</div>'
+    +'<div class="firma-info">'+(firma.adresa?firma.adresa+'<br>':'')+(firma.pib?'PIB: '+firma.pib+'<br>':'')+(firma.kontakt||'')+'</div></div>'
+    +'<div class="brand">Generisano putem<br><strong>Vindex AI</strong></div></div>'
+    +'<div class="title">'+title+'</div>'
+    +'<div class="datum">Datum generisanja: '+datum+'</div>'
+    +sectionsHtml
+    +'<div class="disclaimer">Ovaj izve\u0161taj je generisan uz pomo\u0107 ve\u0161ta\u010dke inteligencije i slu\u017ei isklju\u010divo kao pomo\u0107no sredstvo u radu. Konsultujte originalni tekst propisa u Slu\u017ebenom glasniku RS. Nije pravni savet.</div>'
+    +'<div class="footer"><span>Vindex AI \u2014 AI asistent za srpsko pravo</span><span>'+datum+'</span></div>'
+    +'</body></html>';
+  setTimeout(function(){
+    btn.textContent = orig; btn.disabled = false;
+    var w = window.open('','_blank','width=900,height=700');
+    if (!w) { showToast('Dozvolite popup prozore za PDF export.', 'err'); return; }
+    w.document.write(html); w.document.close();
+    setTimeout(function(){ w.print(); }, 500);
+    showToast('PDF prozor otvoren \u2014 izaberite "Sa\u010duvaj kao PDF".', 'info');
+  }, 100);
+}
+
+function copyToMarkdown(rawText, btn) {
+  var sectionDefs = [
+    {key:'HIJERARHIJA IZVORA:', lbl:'## \u2696 Hijerarhija izvora'},
+    {key:'PRAVNI ZAKLJU\u010cAK:', lbl:'## \u2696\ufe0f Pravni zaklju\u010dak'},
+    {key:'CITAT ZAKONA:', lbl:'## \ud83d\udcd6 Citat zakona'},
+    {key:'CITAT IZ ZAKONA:', lbl:'## \ud83d\udcd6 Citat zakona'},
+    {key:'PRAVNI OSNOV:', lbl:'## Pravni osnov'},
+    {key:'RIZICI I IZUZECI:', lbl:'## \u26a0\ufe0f Rizici i izuzeci'},
+    {key:'KADA OVO NE VA\u017dI:', lbl:'## \ud83d\udccd Kada ovo ne va\u017ei'},
+    {key:'KLJ\u0160NO PITANJE:', lbl:'## \ud83c\udfaf Klju\u010dno pitanje'},
+    {key:'SLU\u017dBENI IZVOR:', lbl:'## Izvor'},
+  ];
+  var positions = sectionDefs.map(function(d){return{d:d,pos:rawText.indexOf(d.key)};}).filter(function(x){return x.pos!==-1;});
+  positions.sort(function(a,b){return a.pos-b.pos;});
+  var md = '';
+  if (lastPitanje) md += '# Pravna analiza\n\n**Pitanje:** ' + lastPitanje + '\n\n---\n\n';
+  positions.forEach(function(x,i){
+    var start=x.pos+x.d.key.length;
+    var end=i+1<positions.length?positions[i+1].pos:rawText.length;
+    var val=rawText.slice(start,end).trim();
+    md += x.d.lbl + '\n\n' + val + '\n\n';
+  });
+  md += '---\n*Generisano putem Vindex AI | Nije pravni savet | ' + new Date().toLocaleDateString('sr-Latn-RS') + '*';
+  navigator.clipboard.writeText(md).then(function(){
+    var orig=btn.textContent; btn.textContent='\u2713 Markdown kopiran!'; btn.disabled=true;
+    setTimeout(function(){btn.textContent=orig;btn.disabled=false;},2000);
+    showToast('Markdown format kopiran u clipboard.','ok');
+  }).catch(function(){showToast('Gre\u0161ka pri kopiranju.','err');});
+}
+
+function openSettings() {
+  var s = JSON.parse(localStorage.getItem('vindex_firma')||'{}');
+  ['naziv','adresa','pib','kontakt'].forEach(function(k){
+    var el=document.getElementById('s-'+k); if(el) el.value=s[k]||'';
+  });
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('open');
+}
+function saveSettings() {
+  var firma={};
+  ['naziv','adresa','pib','kontakt'].forEach(function(k){
+    var el=document.getElementById('s-'+k); if(el) firma[k]=el.value.trim();
+  });
+  localStorage.setItem('vindex_firma',JSON.stringify(firma));
+  closeSettings();
+  showToast('Pode\u0161avanja sa\u010duvana.','ok');
+}
+
 function focusInput() {
   var el = document.getElementById('qi') || document.getElementById('ni') || document.getElementById('aitxt');
   if (el) { el.focus(); el.scrollIntoView({behavior:'smooth', block:'center'}); }
@@ -1717,6 +1880,7 @@ async function execQuery() {
   rb.style.whiteSpace = '';
 
   var currentPitanje = activeTab === 'q' ? document.getElementById('qi').value : '';
+  lastPitanje = currentPitanje;
   var eps = { q:BASE_URL+'/api/pitanje', n:BASE_URL+'/api/nacrt', a:BASE_URL+'/api/analiza' };
   var bodies = {
     q: { pitanje: currentPitanje, history: conversationHistory.slice(-3) },
@@ -1852,5 +2016,32 @@ window.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <div class="toast-container" id="toast-container"></div>
+
+<!-- SETTINGS MODAL -->
+<div class="settings-modal-overlay" id="settings-modal" onclick="if(event.target===this)closeSettings()">
+  <div class="settings-modal">
+    <button class="modal-close" onclick="closeSettings()" style="position:absolute;top:1rem;right:1rem;">&#x2715;</button>
+    <h3>⚙ Podešavanja kancelarije</h3>
+    <p style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin:0 0 1.2rem;">Ovi podaci se prikazuju na PDF izveštajima. Čuvaju se lokalno u vašem pregledaču.</p>
+    <div class="settings-row">
+      <div class="settings-label">Naziv kancelarije</div>
+      <input class="modal-input" type="text" id="s-naziv" placeholder="npr. Adv. kancelarija Petrović" autocomplete="organization">
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">Adresa</div>
+      <input class="modal-input" type="text" id="s-adresa" placeholder="Ulica i broj, Grad" autocomplete="street-address">
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">PIB</div>
+      <input class="modal-input" type="text" id="s-pib" placeholder="123456789" maxlength="9" autocomplete="off">
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">Kontakt (email ili telefon)</div>
+      <input class="modal-input" type="text" id="s-kontakt" placeholder="advokat@kancelarija.rs" autocomplete="email">
+    </div>
+    <button class="settings-save-btn" onclick="saveSettings()">Sačuvaj podešavanja</button>
+    <p class="settings-note">Podaci se NE šalju na server. Čuvaju se isključivo u vašem pregledaču (localStorage).</p>
+  </div>
+</div>
 </body>
 </html>
