@@ -1651,14 +1651,11 @@ function formatResponse(rawText) {
     var bodyHtml;
     if (s.cls === 'resp-citat') {
       lbl = s.lbl + verifiedBadge;
-      bodyHtml = escHtml(val).replace(/
-/g,'<br>');
+      bodyHtml = escHtml(val).replace(/\n/g,'<br>');
     } else if (s.cls === 'resp-pravni-osnov' || s.cls === 'resp-izvor') {
-      bodyHtml = _linkGlasnik(val).replace(/
-/g,'<br>');
+      bodyHtml = _linkGlasnik(val).replace(/\n/g,'<br>');
     } else {
-      bodyHtml = escHtml(val).replace(/
-/g,'<br>');
+      bodyHtml = escHtml(val).replace(/\n/g,'<br>');
     }
     html += '<div class="resp-section '+s.cls+'" style="animation-delay:'+(i*0.07)+'s">'+
             '<div class="resp-section-lbl">'+lbl+'</div>'+
