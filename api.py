@@ -433,18 +433,48 @@ async def check_email(req: EmailCheckReq):
 
 # ─── AI endpointi (zahtevaju autentifikaciju i kredite) ───────────────────────
 
+import hashlib as _hashlib
+
+def _q_hash(tekst: str) -> str:
+    """SHA-256 (16 hex) od pitanja — za log bez curenja sadržaja."""
+    return _hashlib.sha256((tekst or "").encode()).hexdigest()[:16]
+
+
+async def _audit(user_id: str, akcija: str, q_hash: str) -> None:
+    """
+    Beleži pristup bez čuvanja sadržaja: ko + kada + šta (hash).
+    ZZPL čl. 5(1)(f) — integritet i poverljivost.
+    Fire-and-forget — greška u audit-u ne blokira odgovor.
+    Supabase tabela: audit_log(id uuid, user_id uuid, akcija text, q_hash text, ts timestamptz)
+    SQL migracija: CREATE TABLE audit_log (id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL, akcija VARCHAR(50), q_hash VARCHAR(16), ts TIMESTAMPTZ DEFAULT NOW());
+    """
+    try:
+        await asyncio.to_thread(
+            lambda: _get_supa().table("audit_log").insert({
+                "user_id": user_id,
+                "akcija": akcija,
+                "q_hash": q_hash,
+            }).execute()
+        )
+    except Exception:
+        logger.warning("Audit log neuspešan — ne blokira odgovor")
+
+
 @app.post("/api/pitanje")
 @limiter.limit("10/minute")
 async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(require_credits)):
     """Pravno istraživanje — pretražuje bazu zakona."""
-    logger.info("Pitanje [%s]: %.80s", user["email"], req.pitanje)
+    qh = _q_hash(req.pitanje)
+    logger.info("Pitanje [uid=%.8s] [q=%s]", user["user_id"], qh)
+    asyncio.create_task(_audit(user["user_id"], "pitanje", qh))
     try:
         history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
         rezultat = await pokreni(ask_agent, req.pitanje, history)
         preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
-        logger.exception("Neočekivana greška u /api/pitanje")
+        logger.exception("Greška u /api/pitanje [q=%s]", qh)
         return greska_odgovor(
             500,
             "Došlo je do greške na serveru. Pokušajte ponovo za nekoliko sekundi.",
@@ -455,13 +485,14 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
 @limiter.limit("10/minute")
 async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_credits)):
     """Generisanje nacrta pravnog dokumenta."""
-    logger.info("Nacrt [%s] vrsta=%s", user["email"], req.vrsta)
+    logger.info("Nacrt [uid=%.8s] vrsta=%s", user["user_id"], req.vrsta)
+    asyncio.create_task(_audit(user["user_id"], f"nacrt:{req.vrsta}", ""))
     try:
         rezultat = await pokreni(ask_nacrt, req.vrsta, req.opis)
         preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
-        logger.exception("Neočekivana greška u /api/nacrt")
+        logger.exception("Greška u /api/nacrt")
         return greska_odgovor(
             500,
             "Došlo je do greške na serveru. Pokušajte ponovo za nekoliko sekundi.",
@@ -472,7 +503,9 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_cr
 @limiter.limit("10/minute")
 async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(require_credits)):
     """Analiza pravnog dokumenta."""
-    logger.info("Analiza [%s] pitanje=%.60s", user["email"], req.pitanje)
+    qh = _q_hash(req.pitanje)
+    logger.info("Analiza [uid=%.8s] [q=%s]", user["user_id"], qh)
+    asyncio.create_task(_audit(user["user_id"], "analiza", qh))
     try:
         rezultat = await pokreni(ask_analiza, req.tekst, req.pitanje)
         preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))

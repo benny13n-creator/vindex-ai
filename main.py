@@ -603,6 +603,60 @@ def _srpski_termini(odgovor: str) -> str:
     return odgovor
 
 
+# ─── PII Stripping — GDPR/ZZPL sloj pre slanja na externe API-je ────────────
+#
+# Primenjuje se na svaki tekst koji napušta server (OpenAI, Pinecone embeddings).
+# Ne primenjuje se na odgovore koji se vraćaju korisniku.
+#
+# Pokriva: JMBG, PIB, broj pasoša/lične karte, telefon (SRB format),
+# broj bankovnog računa (18 cifara), broj sudskog predmeta, email adrese,
+# IBAN (RS format), matični broj (8 cifara).
+
+_PII_ZAMENE: list[tuple[re.Pattern, str]] = [
+    # JMBG: 13 cifara (može biti odvojen crticom na poz. 7)
+    (re.compile(r"\b\d{7}[-]?\d{6}\b"), "[JMBG-MASKED]"),
+    # PIB: 9 cifara (Serbian tax ID) — word boundary
+    (re.compile(r"\bPIB[:\s]*\d{9}\b", re.IGNORECASE), "[PIB-MASKED]"),
+    (re.compile(r"\b\d{9}\b(?=\s*(pib|poreski))", re.IGNORECASE), "[PIB-MASKED]"),
+    # Matični broj: 8 cifara (samo kad eksplicitno označen)
+    (re.compile(r"\b(MB|matični\s+broj)[:\s]*\d{8}\b", re.IGNORECASE), "[MB-MASKED]"),
+    # Broj lične karte: 9 cifara ili format XXX123456
+    (re.compile(r"\b(LK|lična\s+karta|broj\s+lk)[:\s]*[A-Z]{0,3}\d{6,9}\b", re.IGNORECASE), "[LK-MASKED]"),
+    # Broj pasoša: slovo + 7-8 cifara
+    (re.compile(r"\b[A-Z]{1,2}\d{7,8}\b"), "[PASOS-MASKED]"),
+    # Telefon SRB: 06x, 01x, +381, 00381
+    (re.compile(r"\b(\+381|00381|0)(6[0-9]|1[0-9]|2[0-9]|3[0-9])[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b"), "[TEL-MASKED]"),
+    # IBAN (RS + opšti)
+    (re.compile(r"\bRS\d{2}\s?\d{3}\s?\d{13}\s?\d{2}\b"), "[IBAN-MASKED]"),
+    (re.compile(r"\b[A-Z]{2}\d{2}[\s]?([A-Z0-9]{4}[\s]?){4,7}[A-Z0-9]{1,4}\b"), "[IBAN-MASKED]"),
+    # Broj tekućeg računa: 18 cifara (srpski format XXX-XXXXXXXXXXXXXXX-XX)
+    (re.compile(r"\b\d{3}[-]?\d{13,15}[-]?\d{2}\b"), "[RACUN-MASKED]"),
+    # Broj sudskog predmeta: P. 123/2024, K. 45/23, Gž. 12/2024, itd.
+    (re.compile(r"\b(P|K|Kž|Gž|Rev|Už|R|Su|I|Iv|Porodica|Porodicni|Pp|Pž|Up)\s*\.?\s*\d{1,6}\s*/\s*\d{2,4}\b", re.IGNORECASE), "[PREDMET-MASKED]"),
+    # Email adrese
+    (re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b"), "[EMAIL-MASKED]"),
+    # Adrese: ulica + broj (heuristika — smanjuje false positive)
+    (re.compile(r"\b(ulica|ul\.|bulevar|blvd\.|trg|put\s)\s+[A-ZŠĐČĆŽ][a-zšđčćž]+\s+\d+[a-zA-Z]?\b", re.IGNORECASE), "[ADRESA-MASKED]"),
+]
+
+
+def _skini_pii(tekst: str) -> str:
+    """
+    Maskira lične podatke pre slanja na eksterni API.
+    GDPR čl. 4(1), ZZPL čl. 4(1) — pseudonimizacija kao tehnička mera zaštite.
+    """
+    if not tekst:
+        return tekst
+    for pattern, zamena in _PII_ZAMENE:
+        tekst = pattern.sub(zamena, tekst)
+    return tekst
+
+
+def _hash_za_log(tekst: str) -> str:
+    """SHA-256 hash prvog dela pitanja — za logging bez curenja sadržaja."""
+    return hashlib.sha256((tekst or "")[:200].encode()).hexdigest()[:16]
+
+
 def _odgovor_pravna_greska(opis: str) -> str:
     return (
         f"PRAVNI OSNOV: Nije moguće dati siguran odgovor na osnovu dostupnog konteksta\n\n"
@@ -699,15 +753,19 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         if keš:
             return keš
 
+    # PII-čist tekst za slanje na eksterne API-je (OpenAI, Pinecone)
+    pitanje_api = _skini_pii(pitanje)
+    log_id = _hash_za_log(pitanje)
+
     try:
-        # Korak 1: Dohvati relevantne dokumente
-        docs = retrieve_documents(pitanje, k=10)
+        # Korak 1: Dohvati relevantne dokumente (šalje se PII-čist embedding)
+        docs = retrieve_documents(pitanje_api, k=10)
         filtrirani = _filtriraj_kontekst(docs)
 
         # Korak 2: Ako nema Pinecone rezultata — fallback na GPT opšte znanje
         if not filtrirani:
-            logger.info("Pinecone: nema rezultata, koristim fallback za: %.80s", pitanje)
-            odgovor_fallback = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje}")
+            logger.info("Pinecone: nema rezultata [q=%s]", log_id)
+            odgovor_fallback = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje_api}")
             if not _ima_obavezne_sekcije(odgovor_fallback):
                 return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
             odgovor_fallback = _dodaj_disclaimer(odgovor_fallback)
@@ -716,38 +774,38 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
                 _cache_set(pitanje, rezultat)
             return rezultat
 
-        # Korak 3: Sastavi user_content sa opcionim history-jem
+        # Korak 3: Sastavi user_content sa opcionim history-jem (PII-čist)
         kontekst = "\n\n---\n\n".join(filtrirani)
         history_blok = ""
         if history:
             stavke = []
             for i, h in enumerate(history[-3:], 1):
-                q = (h.get("q") or "")[:200]
+                q = _skini_pii((h.get("q") or "")[:200])
                 a = (h.get("a") or "")[:400]
                 stavke.append(f"[{i}] Korisnik: {q}\n    Vindex AI: {a}...")
             history_blok = "ISTORIJA RAZGOVORA (kontekst):\n" + "\n".join(stavke) + "\n\n"
 
         user_content = (
             f"{history_blok}"
-            f"PITANJE: {pitanje}\n\n"
+            f"PITANJE: {pitanje_api}\n\n"
             f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
         )
         odgovor = _pozovi_openai(SYSTEM_PROMPT_QA, user_content)
 
         # Korak 4: Proveri format
         if not _ima_obavezne_sekcije(odgovor):
-            logger.warning("Odgovor nema propisanu strukturu — aktiviram fallback")
-            odgovor = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje}")
+            logger.warning("Odgovor nema propisanu strukturu — fallback [q=%s]", log_id)
+            odgovor = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje_api}")
             if not _ima_obavezne_sekcije(odgovor):
                 return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
             odgovor = _dodaj_disclaimer(odgovor)
             return {"status": "success", "data": odgovor}
 
-        # Korak 5: Anti-halucinacijska provera — ako kontekst ne sadrži pravi član, koristi fallback
+        # Korak 5: Anti-halucinacijska provera
         validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
         if not validan:
-            logger.warning("Anti-halucinacija blokirala odgovor (%s) — aktiviram fallback", razlog)
-            odgovor_fallback = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje}")
+            logger.warning("Anti-halucinacija [q=%s] razlog=%s — fallback", log_id, razlog)
+            odgovor_fallback = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje_api}")
             if not _ima_obavezne_sekcije(odgovor_fallback):
                 return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
             odgovor_fallback = _dodaj_disclaimer(odgovor_fallback)
