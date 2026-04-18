@@ -338,6 +338,9 @@ def greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
 
 @app.get("/")
 def root():
+    path = BASE_DIR / "index.html"
+    if path.exists():
+        return FileResponse(path)
     return {"status": "ok", "servis": "Vindex AI"}
 
 
