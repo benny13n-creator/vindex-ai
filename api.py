@@ -537,6 +537,7 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(get_curren
             "  5. Kratka napomena: 'Pre preduzimanja koraka, konsultujte svog advokata za konačno mišljenje.'\n"
             "Počni direktno prvom rečenicom. Bez uvoda, bez 'Evo sažetka', bez zaglavlja."
         )
+        from main import _skini_pii as _pii
         client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -544,7 +545,7 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(get_curren
             max_tokens=300,
             messages=[
                 {"role": "system", "content": klijent_prompt},
-                {"role": "user", "content": req.odgovor[:4000]},
+                {"role": "user", "content": _pii(req.odgovor[:4000])},
             ],
         )
         tekst = resp.choices[0].message.content.strip()
@@ -556,18 +557,23 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(get_curren
 
 @app.post("/api/feedback")
 async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
-    """Korisnik prijavljuje netačan ili nepotpun odgovor."""
+    """
+    Korisnik prijavljuje netačan ili nepotpun odgovor.
+    NO-STORAGE POLICY (Basic API tier): čuvamo samo hash pitanja i tip — bez sadržaja.
+    ZZPL čl. 5(1)(c) — minimizacija podataka.
+    """
     try:
+        qh = _q_hash(req.pitanje)
         await asyncio.to_thread(
             lambda: _get_supa().table("feedback").insert({
                 "user_id": user["user_id"],
-                "pitanje": req.pitanje[:2000],
-                "odgovor": req.odgovor[:5000],
+                "q_hash":  qh,
                 "tip":     req.tip,
+                # pitanje i odgovor se NE čuvaju — samo hash za deduplication
             }).execute()
         )
-        logger.info("Feedback [%s] tip=%s", user["email"], req.tip)
+        logger.info("Feedback [uid=%.8s] tip=%s [q=%s]", user["user_id"], req.tip, qh)
         return {"status": "ok"}
     except Exception:
         logger.exception("Greška u /api/feedback")
-        return {"status": "ok"}  # Ne blokiramo korisnika zbog greške u feedbacku
+        return {"status": "ok"}

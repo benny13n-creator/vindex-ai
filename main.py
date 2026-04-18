@@ -169,7 +169,7 @@ def _cache_get(pitanje: str) -> dict | None:
     if kljuc in _CACHE:
         rezultat, ts = _CACHE[kljuc]
         if datetime.now() - ts < _CACHE_TTL:
-            logger.info("Cache HIT: %.60s", pitanje)
+            logger.info("Cache HIT [q=%s]", _hash_za_log(pitanje))
             return rezultat
         del _CACHE[kljuc]
     return None
@@ -830,7 +830,7 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         if not history:
             _cache_set(pitanje, rezultat)
 
-        logger.info("Uspešan odgovor za: %.80s", pitanje)
+        logger.info("Uspešan odgovor [q=%s]", log_id)
         return rezultat
 
     except Exception:
@@ -841,9 +841,10 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
 def ask_nacrt(vrsta: str, opis: str) -> dict:
     """Generisanje nacrta pravnog dokumenta."""
     try:
+        # PII stripping pre slanja na OpenAI (Basic API tier — bez DPA)
         user_content = (
             f"Vrsta dokumenta: {vrsta}\n\n"
-            f"Činjenice i okolnosti: {opis}"
+            f"Činjenice i okolnosti: {_skini_pii(opis)}"
         )
         odgovor = _pozovi_openai(SYSTEM_PROMPT_NACRT, user_content)
 
@@ -863,10 +864,13 @@ def ask_nacrt(vrsta: str, opis: str) -> dict:
 def ask_analiza(tekst: str, pitanje: str = "") -> dict:
     """Analiza pravnog dokumenta."""
     try:
+        # PII stripping pre slanja — dokument može sadržati JMBG, adrese, imena stranaka
+        tekst_api = _skini_pii(tekst)
+        pitanje_api = _skini_pii(pitanje)
         user_content = ""
-        if pitanje.strip():
-            user_content += f"SPECIFIČNO PITANJE: {pitanje.strip()}\n\n"
-        user_content += f"DOKUMENT ZA ANALIZU:\n{tekst}"
+        if pitanje_api.strip():
+            user_content += f"SPECIFIČNO PITANJE: {pitanje_api.strip()}\n\n"
+        user_content += f"DOKUMENT ZA ANALIZU:\n{tekst_api}"
         odgovor = _pozovi_openai(SYSTEM_PROMPT_ANALIZA, user_content)
 
         # Provera poznatih pravnih grešaka
