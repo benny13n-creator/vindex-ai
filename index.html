@@ -763,6 +763,20 @@ footer { padding: 2rem 1.5rem; }
 .paywall-features li { font-size: 0.8rem; color: rgba(255,255,255,0.55); display: flex; align-items: center; gap: 0.5rem; }
 .paywall-features li::before { content: '¹3'; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
 
+/* ── New Chat dugme ─────────────────────────────────────────────────────── */
+.t-newchat { background:none; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:rgba(255,255,255,0.32); font-family:'DM Sans',sans-serif; font-size:0.6rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; padding:0.22rem 0.55rem; cursor:none; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
+.t-newchat:hover { border-color:rgba(74,168,255,0.45); color:#89c8ff; background:rgba(74,168,255,0.06); }
+/* ── Chat history panel ──────────────────────────────────────────────────── */
+.chat-hist { display:none; max-height:200px; overflow-y:auto; margin-bottom:1rem; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:0.55rem 0.7rem; background:rgba(0,0,0,0.18); scrollbar-width:thin; scrollbar-color:rgba(74,168,255,0.2) transparent; }
+.chat-hist::-webkit-scrollbar { width:3px; } .chat-hist::-webkit-scrollbar-thumb { background:rgba(74,168,255,0.2); border-radius:2px; }
+.chat-turn { margin-bottom:0.65rem; padding-bottom:0.65rem; border-bottom:1px solid rgba(255,255,255,0.04); }
+.chat-turn:last-child { margin-bottom:0; padding-bottom:0; border-bottom:none; }
+.chat-q { font-size:0.7rem; color:rgba(74,168,255,0.85); font-weight:600; margin-bottom:0.25rem; display:flex; align-items:flex-start; gap:0.35rem; line-height:1.4; }
+.chat-q-icon { flex-shrink:0; font-size:0.65rem; margin-top:1px; }
+.chat-a { font-size:0.68rem; color:rgba(255,255,255,0.38); line-height:1.5; padding-left:1rem; }
+/* ── Privacy nota ────────────────────────────────────────────────────────── */
+.chat-privacy-note { font-size:0.6rem; color:rgba(255,255,255,0.2); text-align:center; margin-top:0.65rem; letter-spacing:0.02em; line-height:1.5; }
+.chat-privacy-note span { color:rgba(201,168,76,0.5); }
 /* ── Ćirilica toggle ─────────────────────────────────────────────────────── */
 .t-exec-row { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:0; }
 .t-exec-row .t-exec { flex:1; margin-top:0.9rem; margin-bottom:0; }
@@ -951,7 +965,10 @@ footer { padding: 2rem 1.5rem; }
         <div class="t-bar">
           <div class="t-dots"><div class="t-dot td1"></div><div class="t-dot td2"></div><div class="t-dot td3"></div></div>
           <div class="t-title">vindex-ai - pravna baza v2.1</div>
-          <div class="t-status"><div class="t-sdot"></div>aktivan</div>
+          <div style="display:flex;align-items:center;gap:0.6rem;">
+            <button class="t-newchat" onclick="newChat()" title="Počni novi razgovor — briše ekran i resetuje kontekst">⊕ Novi čet</button>
+            <div class="t-status"><div class="t-sdot"></div>aktivan</div>
+          </div>
         </div>
         <div class="t-body">
           <div class="t-tabs">
@@ -959,6 +976,7 @@ footer { padding: 2rem 1.5rem; }
             <div class="t-tab" onclick="setTab(this,'n')">Podnesak</div>
             <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
           </div>
+          <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
             <div class="t-guide">
               <div class="t-guide-icon">⚖</div>
@@ -1020,6 +1038,7 @@ footer { padding: 2rem 1.5rem; }
               <div class="resp-body" id="rb"></div>
             </div>
           </div>
+          <div class="chat-privacy-note">Sesije se čuvaju radi lakšeg rada. <span>Savetujemo korišćenje inicijala umesto punih imena stranaka.</span></div>
         </div>
       </div>
       </div><!-- /terminal-wrap -->
@@ -1282,11 +1301,14 @@ var _lastRawText = '';
 
 function toggleCyrillic() {
   _cyrillicOn = document.getElementById('cyr-toggle').checked;
+  // Ažuriraj trenutni odgovor
   var rb = document.getElementById('rb');
-  if (!_lastRawText || !rb || !document.getElementById('resp').classList.contains('show')) return;
-  // Ponovo renderiraj odgovor iz sirovih podataka i primeni pismo
-  rb.innerHTML = formatResponse(_lastRawText) + _feedbackBar(lastPitanje, _lastRawText);
-  if (_cyrillicOn) cirilicaElement(rb);
+  if (_lastRawText && rb && document.getElementById('resp').classList.contains('show')) {
+    rb.innerHTML = formatResponse(_lastRawText) + _feedbackBar(lastPitanje, _lastRawText);
+    if (_cyrillicOn) cirilicaElement(rb);
+  }
+  // Ažuriraj history panel
+  if (_chatHistoryRows.length) renderChatHistory(_chatHistoryRows);
 }
 
 function _applyPismo(rawText) {
@@ -1314,6 +1336,8 @@ var currentSession      = null;
 var userCredits         = 0;
 var TOTAL_CREDITS       = 15;
 var conversationHistory = [];  // [{q, a}, ...] — max 3 para
+var currentChatSessionId = null;
+var _chatHistoryRows     = [];
 
 async function initAuth() {
   var sb = getSupabase();
@@ -1324,12 +1348,13 @@ async function initAuth() {
     currentUser    = res.data.session.user;
     await loadCredits();
     updateAuthUI();
+    loadChatHistory();
   }
   sb.auth.onAuthStateChange(async function(event, session) {
     currentSession = session;
     currentUser    = session ? session.user : null;
-    if (currentUser) { await loadCredits(); }
-    else { userCredits = 0; }
+    if (currentUser) { await loadCredits(); loadChatHistory(); }
+    else { userCredits = 0; _chatHistoryRows = []; var h=document.getElementById('chat-hist'); if(h){h.innerHTML='';h.style.display='none';} }
     updateAuthUI();
   });
 }
@@ -1564,6 +1589,109 @@ async function doLogout() {
   if (sb) await sb.auth.signOut();
   currentUser = null; currentSession = null; userCredits = 0;
   updateAuthUI();
+}
+
+// ─── Chat sesija & memorija ───────────────────────────────────────────────────
+
+function _generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random()*16|0, v = c==='x' ? r : (r&0x3|0x8);
+    return v.toString(16);
+  });
+}
+
+// PII filter — uklanja JMBG, email, telefon, PIB pre slanja u bazu
+function _piiFilter(text) {
+  return (text || '')
+    .replace(/\b\d{13}\b/g, '[JMBG]')
+    .replace(/\b[\w.+\-]+@[\w\-]+\.\w+\b/gi, '[email]')
+    .replace(/\b0[67]\d[\s\-\/]?\d{3}[\s\-\/]?\d{3,4}\b/g, '[tel]')
+    .replace(/\b\+381[\s]?\d{2}[\s]?\d{3}[\s]?\d{3,4}\b/g, '[tel]')
+    .replace(/\b\d{9}\b/g, '[PIB]');
+}
+
+function initChatSession() {
+  currentChatSessionId = localStorage.getItem('vindex_session_id');
+  if (!currentChatSessionId) {
+    currentChatSessionId = _generateUUID();
+    localStorage.setItem('vindex_session_id', currentChatSessionId);
+  }
+}
+
+function newChat() {
+  // Čisti ekran i polja
+  document.getElementById('resp').classList.remove('show');
+  document.getElementById('rb').innerHTML = '';
+  ['qi','no','aitxt','aq'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  // Resetuje stanje
+  conversationHistory = [];
+  _lastRawText = '';
+  lastPitanje  = '';
+  // Nova sesija
+  currentChatSessionId = _generateUUID();
+  localStorage.setItem('vindex_session_id', currentChatSessionId);
+  // Čisti history panel
+  _chatHistoryRows = [];
+  var hist = document.getElementById('chat-hist');
+  if (hist) { hist.innerHTML = ''; hist.style.display = 'none'; }
+}
+
+async function saveTurnToSupabase(userMsg, assistantMsg) {
+  var sb = getSupabase();
+  if (!sb || !currentSession || !currentChatSessionId) return;
+  var uid = currentSession.user.id;
+  try {
+    await sb.from('conversations').insert([
+      { user_id:uid, session_id:currentChatSessionId, role:'user',      content:_piiFilter(userMsg).substring(0,2000),      tab:activeTab },
+      { user_id:uid, session_id:currentChatSessionId, role:'assistant', content:_piiFilter(assistantMsg).substring(0,3000), tab:activeTab }
+    ]);
+  } catch(e) { console.warn('[Vindex] saveTurn:', e.message); }
+}
+
+async function loadChatHistory() {
+  var sb = getSupabase();
+  if (!sb || !currentSession || !currentChatSessionId) return;
+  try {
+    var res = await sb.from('conversations')
+      .select('role,content,tab,created_at')
+      .eq('session_id', currentChatSessionId)
+      .order('created_at', { ascending: true })
+      .limit(20);
+    if (res.error) throw res.error;
+    _chatHistoryRows = res.data || [];
+    // Obnovi conversationHistory (max 3 para za AI kontekst)
+    conversationHistory = [];
+    for (var i = 0; i + 1 < _chatHistoryRows.length; i += 2) {
+      if (_chatHistoryRows[i].role === 'user' && _chatHistoryRows[i+1].role === 'assistant') {
+        conversationHistory.push({ q: _chatHistoryRows[i].content, a: _chatHistoryRows[i+1].content.substring(0,600) });
+      }
+    }
+    if (conversationHistory.length > 3) conversationHistory = conversationHistory.slice(-3);
+    renderChatHistory(_chatHistoryRows);
+  } catch(e) { console.warn('[Vindex] loadHistory:', e.message); }
+}
+
+function renderChatHistory(rows) {
+  var hist = document.getElementById('chat-hist');
+  if (!hist) return;
+  // Grupiše u parove user/assistant
+  var pairs = [];
+  for (var i = 0; i + 1 < rows.length; i += 2) {
+    if (rows[i].role === 'user' && rows[i+1].role === 'assistant') {
+      pairs.push({ q: rows[i].content, a: rows[i+1].content });
+    }
+  }
+  if (pairs.length === 0) { hist.style.display = 'none'; return; }
+  hist.innerHTML = pairs.map(function(p) {
+    var aShort = p.a.length > 180 ? p.a.substring(0, 180) + '\u2026' : p.a;
+    return '<div class="chat-turn">'
+      + '<div class="chat-q"><span class="chat-q-icon">\u2696</span>' + escHtml(p.q) + '</div>'
+      + '<div class="chat-a">' + escHtml(aShort) + '</div>'
+      + '</div>';
+  }).join('');
+  hist.style.display = 'block';
+  hist.scrollTop = hist.scrollHeight;
+  if (_cyrillicOn) cirilicaElement(hist);
 }
 
 // ─── Paywall ──────────────────────────────────────────────────────────────────
@@ -2032,10 +2160,20 @@ async function execQuery() {
 
     var text = d.odgovor || d.greska || 'Greška u odgovoru servera.';
 
-    // Sačuvaj u history (samo za tab Q)
-    if (activeTab === 'q' && currentPitanje && d.odgovor) {
-      conversationHistory.push({ q: currentPitanje, a: d.odgovor.substring(0, 600) });
-      if (conversationHistory.length > 3) conversationHistory.shift();
+    // Sačuvaj u in-memory i Supabase history
+    if (d.odgovor) {
+      var turnQ = activeTab === 'q' ? currentPitanje : ('[' + activeTab + '] ' + (document.getElementById('ni') ? document.getElementById('ni').value : '').substring(0,120));
+      if (activeTab === 'q' && currentPitanje) {
+        conversationHistory.push({ q: currentPitanje, a: d.odgovor.substring(0, 600) });
+        if (conversationHistory.length > 3) conversationHistory.shift();
+      }
+      saveTurnToSupabase(turnQ, d.odgovor);
+      // Dodaj u history panel
+      if (turnQ) {
+        _chatHistoryRows.push({ role:'user', content: turnQ });
+        _chatHistoryRows.push({ role:'assistant', content: d.odgovor.substring(0,600) });
+        renderChatHistory(_chatHistoryRows);
+      }
     }
 
     resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
@@ -2129,6 +2267,7 @@ document.getElementById('pro-modal').addEventListener('click', function(e) { if(
 
 /* INIT */
 window.addEventListener('DOMContentLoaded', function() {
+  initChatSession();
   initAuth();
   // Supabase šalje recovery token kao URL hash fragment: #access_token=...&type=recovery
   var hash = window.location.hash;

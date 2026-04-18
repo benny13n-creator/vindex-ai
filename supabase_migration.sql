@@ -70,3 +70,25 @@ BEGIN
   RETURN COALESCE(new_credits, -1);  -- -1 znači: krediti su već bili 0
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ─── 6. CONVERSATIONS tabela (istorija četa po sesijama) ──────────────────────
+CREATE TABLE IF NOT EXISTS public.conversations (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  session_id  UUID NOT NULL,
+  role        TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+  content     TEXT NOT NULL,
+  tab         TEXT NOT NULL DEFAULT 'q',
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Brz pristup po korisniku i sesiji
+CREATE INDEX IF NOT EXISTS conversations_user_session_idx
+  ON public.conversations(user_id, session_id, created_at);
+
+-- RLS: svaki korisnik vidi SAMO svoje redove
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "conversations_own" ON public.conversations
+  FOR ALL USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
