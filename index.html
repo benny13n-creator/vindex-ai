@@ -9,6 +9,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="src/utils/cyrillic_converter.js"></script>
 
 <style>
 :root {
@@ -674,6 +675,16 @@ footer { padding: 2rem 1.5rem; }
 .paywall-features { list-style: none; text-align: left; margin: 0 0 1.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
 .paywall-features li { font-size: 0.8rem; color: rgba(255,255,255,0.55); display: flex; align-items: center; gap: 0.5rem; }
 .paywall-features li::before { content: '¹3'; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
+
+/* ── Ćirilica toggle ─────────────────────────────────────────────────────── */
+.cyr-toggle-wrap { display:inline-flex; align-items:center; gap:0.45rem; cursor:pointer; user-select:none; }
+.cyr-toggle-wrap input { position:absolute; opacity:0; width:0; height:0; }
+.cyr-toggle-slider { position:relative; display:inline-block; width:32px; height:18px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); border-radius:9px; transition:background 0.2s,border-color 0.2s; flex-shrink:0; }
+.cyr-toggle-slider::after { content:''; position:absolute; top:2px; left:2px; width:12px; height:12px; background:rgba(255,255,255,0.55); border-radius:50%; transition:transform 0.2s,background 0.2s; }
+.cyr-toggle-wrap input:checked + .cyr-toggle-slider { background:rgba(201,168,76,0.25); border-color:rgba(201,168,76,0.5); }
+.cyr-toggle-wrap input:checked + .cyr-toggle-slider::after { transform:translateX(14px); background:#c9a84c; }
+.cyr-toggle-lbl { font-size:0.7rem; font-weight:600; letter-spacing:0.06em; color:rgba(255,255,255,0.4); transition:color 0.2s; }
+.cyr-toggle-wrap input:checked ~ .cyr-toggle-lbl { color:#c9a84c; }
 </style>
 
 </head>
@@ -908,7 +919,14 @@ footer { padding: 2rem 1.5rem; }
           </div>
           <div class="t-resp" id="resp">
             <div class="resp-inner">
-              <div class="resp-lbl">Odgovor - Vindex AI</div>
+              <div class="resp-lbl" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+                <span>Odgovor - Vindex AI</span>
+                <label class="cyr-toggle-wrap" title="Prikaži odgovor ćiriličnim pismom">
+                  <input type="checkbox" id="cyr-toggle" onchange="toggleCyrillic()">
+                  <span class="cyr-toggle-slider"></span>
+                  <span class="cyr-toggle-lbl">Ћирилица</span>
+                </label>
+              </div>
               <div class="resp-body" id="rb"></div>
             </div>
           </div>
@@ -1169,6 +1187,25 @@ footer { padding: 2rem 1.5rem; }
 <script>
 var BASE_URL = window.location.origin;
 var activeTab = 'q';
+var _cyrillicOn = false;
+var _lastRawText = '';
+
+function toggleCyrillic() {
+  _cyrillicOn = document.getElementById('cyr-toggle').checked;
+  var rb = document.getElementById('rb');
+  if (_lastRawText && rb && document.getElementById('resp').classList.contains('show')) {
+    var feedbackHtml = typeof _feedbackBar === 'function' ? _feedbackBar(lastPitanje, _lastRawText) : '';
+    rb.innerHTML = _applyPismo(_lastRawText) + feedbackHtml;
+  }
+}
+
+function _applyPismo(rawText) {
+  var html = formatResponse(rawText);
+  if (_cyrillicOn && typeof pretvoriUCirilicu === 'function') {
+    html = pretvoriUCirilicu(html);
+  }
+  return html;
+}
 
 // ─── Supabase konfiguracija ───────────────────────────────────────────────────
 // Popunite sa vrednostima iz Supabase Dashboard → Settings → API
@@ -1917,7 +1954,8 @@ async function execQuery() {
     var iv=setInterval(function(){
       if(i>=text.length){
         clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
-        rb.innerHTML = formatResponse(text) + _feedbackBar(currentPitanje, text);
+        _lastRawText = text;
+        rb.innerHTML = _applyPismo(text) + _feedbackBar(currentPitanje, text);
       } else { rb.textContent+=text[i]; i++; }
     },speed);
   } catch(e) {
