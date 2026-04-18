@@ -13,6 +13,8 @@
 /* ── Srpska ćirilica — Vukova azbuka (inline, bez eksternog fajla) ────────── */
 (function(global){
   'use strict';
+
+  // ── Fonetska mapa (za prevod reči) ─────────────────────────────────────────
   var MAP=[
     ['lj','\u0459'],['Lj','\u0409'],['LJ','\u0409'],
     ['nj','\u045a'],['Nj','\u040a'],['NJ','\u040a'],
@@ -34,13 +36,45 @@
   ];
   function _seg(t){for(var i=0;i<MAP.length;i++)t=t.split(MAP[i][0]).join(MAP[i][1]);return t;}
 
-  // Prolazi kroz DOM čvorove i konvertuje samo TEXT_NODE sadržaj — preskače tagove
+  // ── Azbučna mapa za nabrajanje (a=1→а, b=2→б, c=3→в …) ────────────────────
+  // 26 latiničnih slova → 26 ćiriličnih po azbučnom redosledu (bez dvoznaka)
+  var ENUM_LC=['\u0430','\u0431','\u0432','\u0433','\u0434','\u0435','\u0436',
+               '\u0437','\u0438','\u0458','\u043a','\u043b','\u043c','\u043d',
+               '\u043e','\u043f','\u0440','\u0441','\u0442','\u045b','\u0443',
+               '\u0444','\u0445','\u0446','\u0447','\u0448'];
+  var ENUM_UC=['\u0410','\u0411','\u0412','\u0413','\u0414','\u0415','\u0416',
+               '\u0417','\u0418','\u0408','\u041a','\u041b','\u041c','\u041d',
+               '\u041e','\u041f','\u0420','\u0421','\u0422','\u040b','\u0423',
+               '\u0424','\u0425','\u0426','\u0427','\u0428'];
+
+  function _enumCyr(ch){
+    var idx=ch.toLowerCase().charCodeAt(0)-97;
+    if(idx<0||idx>25) return null;
+    return ch===ch.toUpperCase()?ENUM_UC[idx]:ENUM_LC[idx];
+  }
+
+  // Zamenjuje oznake nabrajanja PRE fonetske konverzije:
+  //   (a) (b) (c)   — slovo u zagradi
+  //   a.  b.  c.    — slovo+tačka na početku reda ili posle razmaka
+  //   a)  b)  c)    — slovo+zagrada na početku reda ili posle razmaka
+  function _applyEnum(text){
+    // (x) — uvek, gde god se pojavi kao oznaka nabrajanja
+    text=text.replace(/\(([a-zA-Z])\)/g,function(m,ch){
+      var r=_enumCyr(ch); return r?'('+r+')':m;
+    });
+    // x. ili x) na početku teksta ili posle novog reda (sa opcionalnim razmakom)
+    text=text.replace(/(^|\n)([ \t]*)([a-zA-Z])([.)]) /g,function(m,nl,sp,ch,punct){
+      var r=_enumCyr(ch); return r?nl+sp+r+punct+' ':m;
+    });
+    return text;
+  }
+
+  // Prolazi kroz DOM čvorove i konvertuje samo TEXT_NODE — preskače tagove
   function _walkNode(node){
-    if(node.nodeType===3){          // TEXT_NODE
+    if(node.nodeType===3){
       var v=node.nodeValue;
-      if(v&&v.trim()) node.nodeValue=_seg(v);
-    } else if(node.nodeType===1){   // ELEMENT_NODE
-      // Preskači <script>, <style>, <code>, <pre>
+      if(v&&v.trim()) node.nodeValue=_seg(_applyEnum(v));
+    } else if(node.nodeType===1){
       var tag=node.nodeName.toUpperCase();
       if(tag==='SCRIPT'||tag==='STYLE'||tag==='CODE'||tag==='PRE') return;
       for(var i=0;i<node.childNodes.length;i++) _walkNode(node.childNodes[i]);
