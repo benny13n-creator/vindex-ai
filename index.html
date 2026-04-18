@@ -602,6 +602,26 @@ footer { padding: 2rem 1.5rem; }
 .auth-error { min-height: 1.4rem; font-size: 0.78rem; color: #ff6b6b; text-align: center; margin-top: 0.5rem; line-height: 1.5; }
 .auth-credit-note { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.18); border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.75rem; color: rgba(74,222,128,0.85); text-align: center; margin-bottom: 1rem; }
 .auth-trust { font-size: 0.72rem; color: rgba(255,255,255,0.38); text-align: center; line-height: 1.6; margin-top: 0.6rem; }
+/* ── Password eye toggle ─────────────────────────────────────────────────── */
+.pw-wrap { position: relative; }
+.pw-wrap .modal-input { padding-right: 2.8rem; width: 100%; box-sizing: border-box; }
+.pw-eye { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); padding: 0; display: flex; align-items: center; transition: color 0.18s; }
+.pw-eye:hover { color: rgba(255,255,255,0.65); }
+.pw-eye svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+/* ── Forgot password link ─────────────────────────────────────────────────── */
+.auth-forgot { text-align: right; margin-top: -0.25rem; }
+.auth-forgot a { font-size: 0.74rem; color: rgba(74,168,255,0.65); text-decoration: none; cursor: pointer; transition: color 0.18s; }
+.auth-forgot a:hover { color: #89c8ff; }
+.auth-back-link { font-size: 0.74rem; color: rgba(255,255,255,0.38); cursor: pointer; text-decoration: none; text-align: center; }
+.auth-back-link:hover { color: rgba(255,255,255,0.65); }
+.auth-form-hint { font-size: 0.78rem; color: rgba(255,255,255,0.45); line-height: 1.65; margin: 0; }
+/* ── Toast notifikacije ──────────────────────────────────────────────────── */
+.toast-container { position: fixed; bottom: 1.8rem; left: 50%; transform: translateX(-50%); z-index: 99999; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; }
+.toast { background: rgba(14,14,26,0.96); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.6rem 1.3rem; font-size: 0.78rem; color: rgba(255,255,255,0.8); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em; backdrop-filter: blur(12px); animation: toast-in 0.22s ease; max-width: 380px; text-align: center; white-space: nowrap; }
+.toast.toast-ok  { border-color: rgba(74,222,128,0.35); color: #4ade80; }
+.toast.toast-err { border-color: rgba(248,113,113,0.35); color: #f87171; }
+.toast.toast-info { border-color: rgba(74,168,255,0.35); color: #89c8ff; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .feedback-bar { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.05); }
 .feedback-btn { font-size: 0.68rem; color: rgba(255,255,255,0.28); background: none; border: 1px solid rgba(255,255,255,0.08); border-radius: 5px; padding: 0.25rem 0.65rem; cursor: pointer; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.06em; }
 .feedback-btn:hover { color: #f0b429; border-color: rgba(240,180,41,0.3); }
@@ -646,26 +666,60 @@ footer { padding: 2rem 1.5rem; }
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">&#x2715;</button>
     <div class="modal-badge">Vindex AI — Beta</div>
-    <div class="modal-title">Dobrodošli.<br>15 besplatnih upita.</div>
-    <p class="modal-sub">Registracija je potpuno besplatna i ne zahteva podatke sa kartice.</p>
-    <div class="auth-tabs">
+    <div class="modal-title" id="auth-modal-title">Dobrodošli.<br>15 besplatnih upita.</div>
+    <p class="modal-sub" id="auth-modal-sub">Registracija je potpuno besplatna i ne zahteva podatke sa kartice.</p>
+    <div class="auth-tabs" id="auth-tabs-row">
       <button class="auth-tab active" id="auth-login-tab" onclick="setAuthMode('login')">Prijava</button>
       <button class="auth-tab" id="auth-reg-tab" onclick="setAuthMode('register')">Registracija</button>
     </div>
+
+    <!-- LOGIN -->
     <div id="auth-login-form" style="display:flex;flex-direction:column;gap:0.9rem;">
       <input class="modal-input" type="email" id="login-email" placeholder="Email adresa" autocomplete="email">
-      <input class="modal-input" type="password" id="login-password" placeholder="Lozinka" autocomplete="current-password">
+      <div class="pw-wrap">
+        <input class="modal-input" type="password" id="login-password" placeholder="Lozinka" autocomplete="current-password">
+        <button type="button" class="pw-eye" onclick="togglePw('login-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <div class="auth-forgot"><a onclick="setAuthMode('forgot')">Zaboravili ste lozinku?</a></div>
       <button class="modal-btn" id="login-btn" onclick="doLogin()">Prijavite se</button>
     </div>
+
+    <!-- REGISTER -->
     <div id="auth-reg-form" style="display:none;flex-direction:column;gap:0.9rem;">
       <div class="auth-credit-note">&#x2713;&nbsp; 15 besplatnih upita odmah po registraciji</div>
       <input class="modal-input" type="email" id="reg-email" placeholder="Email adresa" autocomplete="email">
-      <input class="modal-input" type="password" id="reg-password" placeholder="Lozinka (min. 8 karaktera)" autocomplete="new-password">
+      <div class="pw-wrap">
+        <input class="modal-input" type="password" id="reg-password" placeholder="Lozinka (min. 8 karaktera)" autocomplete="new-password">
+        <button type="button" class="pw-eye" onclick="togglePw('reg-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
       <button class="modal-btn" id="reg-btn" onclick="doRegister()">Preuzmi besplatne upite</button>
       <p class="auth-trust">Nakon potrošenih 15 upita, vi odlučujete o daljem korišćenju. Bez automatske naplate i skrivenih troškova.</p>
     </div>
+
+    <!-- FORGOT PASSWORD -->
+    <div id="auth-forgot-form" style="display:none;flex-direction:column;gap:0.9rem;">
+      <p class="auth-form-hint">Unesite email adresu. Poslaćemo vam link za resetovanje lozinke.</p>
+      <input class="modal-input" type="email" id="forgot-email" placeholder="Email adresa" autocomplete="email">
+      <button class="modal-btn" id="forgot-btn" onclick="doForgotPassword()">Pošalji reset link</button>
+      <div style="text-align:center;"><a class="auth-back-link" onclick="setAuthMode('login')">← Nazad na prijavu</a></div>
+    </div>
+
+    <!-- RESET PASSWORD -->
+    <div id="auth-reset-form" style="display:none;flex-direction:column;gap:0.9rem;">
+      <p class="auth-form-hint">Unesite novu lozinku za vaš nalog.</p>
+      <div class="pw-wrap">
+        <input class="modal-input" type="password" id="reset-password" placeholder="Nova lozinka (min. 8 karaktera)" autocomplete="new-password">
+        <button type="button" class="pw-eye" onclick="togglePw('reset-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <div class="pw-wrap">
+        <input class="modal-input" type="password" id="reset-password2" placeholder="Potvrdite novu lozinku" autocomplete="new-password">
+        <button type="button" class="pw-eye" onclick="togglePw('reset-password2',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <button class="modal-btn" id="reset-btn" onclick="doResetPassword()">Sačuvaj novu lozinku</button>
+    </div>
+
     <div id="auth-error" class="auth-error"></div>
-    <div class="modal-note">Privatnost je zagarantovana. Bez spama.</div>
+    <div class="modal-note" id="auth-modal-note">Privatnost je zagarantovana. Bez spama.</div>
   </div>
 </div>
 
@@ -1214,13 +1268,98 @@ function closeModal() {
   document.getElementById('auth-error').style.color = '';
 }
 
+var _EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var _EYE_SHUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+function togglePw(inputId, btn) {
+  var inp = document.getElementById(inputId);
+  var showing = inp.type === 'text';
+  inp.type = showing ? 'password' : 'text';
+  btn.innerHTML = showing ? _EYE_OPEN : _EYE_SHUT;
+  btn.title = showing ? 'Prikaži lozinku' : 'Sakrij lozinku';
+}
+
+function showToast(msg, type) {
+  var c = document.getElementById('toast-container');
+  if (!c) return;
+  var t = document.createElement('div');
+  t.className = 'toast' + (type ? ' toast-' + type : '');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(function() {
+    t.style.transition = 'opacity 0.35s';
+    t.style.opacity = '0';
+    setTimeout(function() { t.remove(); }, 380);
+  }, 3200);
+}
+
 function setAuthMode(mode) {
   authMode = mode;
+  var allForms = ['auth-login-form','auth-reg-form','auth-forgot-form','auth-reset-form'];
+  allForms.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  var target = document.getElementById('auth-' + mode + '-form');
+  if (target) target.style.display = 'flex';
+
+  var showTabs = (mode === 'login' || mode === 'register');
+  var tabsEl = document.getElementById('auth-tabs-row');
+  if (tabsEl) tabsEl.style.display = showTabs ? '' : 'none';
   document.getElementById('auth-login-tab').classList.toggle('active', mode === 'login');
   document.getElementById('auth-reg-tab').classList.toggle('active', mode === 'register');
-  document.getElementById('auth-login-form').style.display = mode === 'login'    ? 'flex' : 'none';
-  document.getElementById('auth-reg-form').style.display   = mode === 'register' ? 'flex' : 'none';
+
+  var titles = {
+    login:    ['Dobrodošli.', 'Prijavite se na vaš nalog.'],
+    register: ['Dobrodošli.', 'Registracija je potpuno besplatna.'],
+    forgot:   ['Reset lozinke.', 'Poslaćemo vam link na email.'],
+    reset:    ['Nova lozinka.', 'Izaberite novu lozinku za nalog.'],
+  };
+  var t = titles[mode] || titles.login;
+  var titleEl = document.getElementById('auth-modal-title');
+  var subEl   = document.getElementById('auth-modal-sub');
+  if (titleEl) titleEl.innerHTML = t[0];
+  if (subEl)   subEl.textContent = t[1];
+
   document.getElementById('auth-error').textContent = '';
+}
+
+async function doForgotPassword() {
+  var sb = getSupabase();
+  if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
+  var email = document.getElementById('forgot-email').value.trim();
+  if (!email) { _setAuthError('Unesite email adresu.'); return; }
+  var btn = document.getElementById('forgot-btn');
+  btn.textContent = 'Šalje se...'; btn.disabled = true;
+  var redirectTo = window.location.origin + window.location.pathname;
+  var res = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectTo });
+  btn.textContent = 'Pošalji reset link'; btn.disabled = false;
+  if (res.error) { _setAuthError('Greška: ' + (res.error.message || 'Pokušajte ponovo.')); return; }
+  _setAuthError('Link je poslat! Proverite email (i Spam folder).', true);
+  showToast('Reset link poslat na ' + email, 'info');
+}
+
+async function doResetPassword() {
+  var sb = getSupabase();
+  if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
+  var p1 = document.getElementById('reset-password').value;
+  var p2 = document.getElementById('reset-password2').value;
+  if (!p1 || p1.length < 8) { _setAuthError('Lozinka mora imati najmanje 8 karaktera.'); return; }
+  if (p1 !== p2) {
+    _setAuthError('Lozinke se ne poklapaju.');
+    showToast('Lozinke se ne poklapaju.', 'err');
+    return;
+  }
+  var btn = document.getElementById('reset-btn');
+  btn.textContent = 'Čuvam...'; btn.disabled = true;
+  var res = await sb.auth.updateUser({ password: p1 });
+  btn.textContent = 'Sačuvaj novu lozinku'; btn.disabled = false;
+  if (res.error) { _setAuthError('Greška: ' + (res.error.message || 'Pokušajte ponovo.')); return; }
+  showToast('Lozinka uspešno promenjena!', 'ok');
+  history.replaceState(null, '', window.location.pathname);
+  setAuthMode('login');
+  document.getElementById('reset-password').value = '';
+  document.getElementById('reset-password2').value = '';
 }
 
 function _setAuthError(msg, isOk) {
@@ -1700,9 +1839,18 @@ document.getElementById('paywall-modal').addEventListener('click', function(e) {
 document.getElementById('pro-modal').addEventListener('click', function(e) { if(e.target===this) closeProModal(); });
 
 /* INIT */
-window.addEventListener('DOMContentLoaded', initAuth);
+window.addEventListener('DOMContentLoaded', function() {
+  initAuth();
+  // Supabase šalje recovery token kao URL hash fragment: #access_token=...&type=recovery
+  var hash = window.location.hash;
+  if (hash.indexOf('type=recovery') !== -1) {
+    openModal();
+    setAuthMode('reset');
+  }
+});
 
 </script>
 
+<div class="toast-container" id="toast-container"></div>
 </body>
 </html>
