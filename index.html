@@ -9,7 +9,60 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="src/utils/cyrillic_converter.js"></script>
+<script>
+/* ── Srpska ćirilica — Vukova azbuka (inline, bez eksternog fajla) ────────── */
+(function(global){
+  'use strict';
+  var MAP=[
+    ['lj','\u0459'],['Lj','\u0409'],['LJ','\u0409'],
+    ['nj','\u045a'],['Nj','\u040a'],['NJ','\u040a'],
+    ['d\u017e','\u045f'],['D\u017e','\u040f'],['D\u017d','\u040f'],
+    ['a','\u0430'],['A','\u0410'],['b','\u0431'],['B','\u0411'],
+    ['v','\u0432'],['V','\u0412'],['g','\u0433'],['G','\u0413'],
+    ['d','\u0434'],['D','\u0414'],['\u0111','\u0452'],['\u0110','\u0402'],
+    ['e','\u0435'],['E','\u0415'],['\u017e','\u0436'],['\u017d','\u0416'],
+    ['z','\u0437'],['Z','\u0417'],['i','\u0438'],['I','\u0418'],
+    ['j','\u0458'],['J','\u0408'],['k','\u043a'],['K','\u041a'],
+    ['l','\u043b'],['L','\u041b'],['m','\u043c'],['M','\u041c'],
+    ['n','\u043d'],['N','\u041d'],['o','\u043e'],['O','\u041e'],
+    ['p','\u043f'],['P','\u041f'],['r','\u0440'],['R','\u0420'],
+    ['s','\u0441'],['S','\u0421'],['t','\u0442'],['T','\u0422'],
+    ['\u0107','\u045b'],['\u0106','\u040b'],['\u010d','\u0447'],['\u010c','\u0427'],
+    ['\u0161','\u0448'],['\u0160','\u0428'],['u','\u0443'],['U','\u0423'],
+    ['f','\u0444'],['F','\u0424'],['h','\u0445'],['H','\u0425'],
+    ['c','\u0446'],['C','\u0426']
+  ];
+  function _seg(t){for(var i=0;i<MAP.length;i++)t=t.split(MAP[i][0]).join(MAP[i][1]);return t;}
+
+  // Prolazi kroz DOM čvorove i konvertuje samo TEXT_NODE sadržaj — preskače tagove
+  function _walkNode(node){
+    if(node.nodeType===3){          // TEXT_NODE
+      var v=node.nodeValue;
+      if(v&&v.trim()) node.nodeValue=_seg(v);
+    } else if(node.nodeType===1){   // ELEMENT_NODE
+      // Preskači <script>, <style>, <code>, <pre>
+      var tag=node.nodeName.toUpperCase();
+      if(tag==='SCRIPT'||tag==='STYLE'||tag==='CODE'||tag==='PRE') return;
+      for(var i=0;i<node.childNodes.length;i++) _walkNode(node.childNodes[i]);
+    }
+  }
+
+  // Konvertuje ceo element (in-place)
+  function cirilicaElement(el){if(el) _walkNode(el);}
+
+  // Konvertuje čisti string (za PDF export i slično)
+  function pretvoriUCirilicu(tekst){
+    if(!tekst||typeof tekst!=='string') return tekst;
+    var d=document.createElement('div');
+    d.innerHTML=tekst;
+    _walkNode(d);
+    return d.innerHTML;
+  }
+
+  global.pretvoriUCirilicu=pretvoriUCirilicu;
+  global.cirilicaElement=cirilicaElement;
+})(window);
+</script>
 
 <style>
 :root {
@@ -1196,18 +1249,15 @@ var _lastRawText = '';
 function toggleCyrillic() {
   _cyrillicOn = document.getElementById('cyr-toggle').checked;
   var rb = document.getElementById('rb');
-  if (_lastRawText && rb && document.getElementById('resp').classList.contains('show')) {
-    var feedbackHtml = typeof _feedbackBar === 'function' ? _feedbackBar(lastPitanje, _lastRawText) : '';
-    rb.innerHTML = _applyPismo(_lastRawText) + feedbackHtml;
-  }
+  if (!_lastRawText || !rb || !document.getElementById('resp').classList.contains('show')) return;
+  // Ponovo renderiraj odgovor iz sirovih podataka i primeni pismo
+  rb.innerHTML = formatResponse(_lastRawText) + _feedbackBar(lastPitanje, _lastRawText);
+  if (_cyrillicOn) cirilicaElement(rb);
 }
 
 function _applyPismo(rawText) {
-  var html = formatResponse(rawText);
-  if (_cyrillicOn && typeof pretvoriUCirilicu === 'function') {
-    html = pretvoriUCirilicu(html);
-  }
-  return html;
+  // Vraća samo HTML string; ćirilica se primenjuje naknadno na DOM čvorove
+  return formatResponse(rawText);
 }
 
 // ─── Supabase konfiguracija ───────────────────────────────────────────────────
@@ -1803,7 +1853,9 @@ function exportPDF(rawText, btn) {
     var start=x.pos+x.d.key.length;
     var end=i+1<positions.length?positions[i+1].pos:rawText.length;
     var val=rawText.slice(start,end).trim();
-    return '<div class="pdf-section"><div class="pdf-lbl">'+x.d.lbl.toUpperCase()+'</div><div class="pdf-val">'+val.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</div></div>';
+    var lbl=x.d.lbl;
+    if(_cyrillicOn && window.pretvoriUCirilicu){ val=pretvoriUCirilicu(val); lbl=pretvoriUCirilicu(lbl); }
+    return '<div class="pdf-section"><div class="pdf-lbl">'+lbl.toUpperCase()+'</div><div class="pdf-val">'+val.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</div></div>';
   }).join('');
   var html = '<!DOCTYPE html><html lang="sr"><head><meta charset="UTF-8"><title>Vindex AI \u2014 Pravna analiza</title>'
     +'<style>@page{size:A4;margin:20mm 22mm;}body{font-family:Arial,sans-serif;font-size:10pt;color:#111;line-height:1.6;}'
@@ -1958,7 +2010,8 @@ async function execQuery() {
       if(i>=text.length){
         clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
         _lastRawText = text;
-        rb.innerHTML = _applyPismo(text) + _feedbackBar(currentPitanje, text);
+        rb.innerHTML = formatResponse(text) + _feedbackBar(currentPitanje, text);
+        if (_cyrillicOn) cirilicaElement(rb);
       } else { rb.textContent+=text[i]; i++; }
     },speed);
   } catch(e) {
