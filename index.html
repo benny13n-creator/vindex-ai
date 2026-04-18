@@ -677,14 +677,17 @@ footer { padding: 2rem 1.5rem; }
 .paywall-features li::before { content: '¹3'; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
 
 /* ── Ćirilica toggle ─────────────────────────────────────────────────────── */
-.cyr-toggle-wrap { display:inline-flex; align-items:center; gap:0.45rem; cursor:pointer; user-select:none; }
+.t-exec-row { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:0; }
+.t-exec-row .t-exec { flex:1; margin-top:0.9rem; margin-bottom:0; }
+.cyr-toggle-wrap { display:inline-flex; align-items:center; gap:0.5rem; cursor:pointer; user-select:none; flex-shrink:0; padding:0.45rem 0.8rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.14); border-radius:8px; transition:border-color 0.2s,background 0.2s; }
+.cyr-toggle-wrap:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.25); }
 .cyr-toggle-wrap input { position:absolute; opacity:0; width:0; height:0; }
-.cyr-toggle-slider { position:relative; display:inline-block; width:32px; height:18px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); border-radius:9px; transition:background 0.2s,border-color 0.2s; flex-shrink:0; }
-.cyr-toggle-slider::after { content:''; position:absolute; top:2px; left:2px; width:12px; height:12px; background:rgba(255,255,255,0.55); border-radius:50%; transition:transform 0.2s,background 0.2s; }
-.cyr-toggle-wrap input:checked + .cyr-toggle-slider { background:rgba(201,168,76,0.25); border-color:rgba(201,168,76,0.5); }
-.cyr-toggle-wrap input:checked + .cyr-toggle-slider::after { transform:translateX(14px); background:#c9a84c; }
-.cyr-toggle-lbl { font-size:0.7rem; font-weight:600; letter-spacing:0.06em; color:rgba(255,255,255,0.4); transition:color 0.2s; }
-.cyr-toggle-wrap input:checked ~ .cyr-toggle-lbl { color:#c9a84c; }
+.cyr-toggle-slider { position:relative; display:inline-block; width:34px; height:19px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); border-radius:10px; transition:background 0.2s,border-color 0.2s; flex-shrink:0; }
+.cyr-toggle-slider::after { content:''; position:absolute; top:2px; left:2px; width:13px; height:13px; background:#fff; border-radius:50%; transition:transform 0.2s; }
+.cyr-toggle-wrap input:checked + .cyr-toggle-slider { background:rgba(201,168,76,0.3); border-color:#c9a84c; }
+.cyr-toggle-wrap input:checked + .cyr-toggle-slider::after { transform:translateX(15px); background:#c9a84c; }
+.cyr-toggle-lbl { font-size:0.72rem; font-weight:700; letter-spacing:0.07em; color:rgba(255,255,255,0.75); transition:color 0.2s; text-transform:uppercase; }
+.cyr-toggle-wrap input:checked ~ .cyr-toggle-lbl { color:#e8c97a; }
 </style>
 
 </head>
@@ -912,21 +915,21 @@ footer { padding: 2rem 1.5rem; }
             <label class="t-label">Specifično pitanje (opciono):</label>
             <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:46px;margin-top:0.4rem;"></textarea>
           </div>
-          <button class="t-exec" id="exec-btn" onclick="execQuery()"><span id="btn-lbl">Pretraži pravnu bazu</span></button>
+          <div class="t-exec-row">
+            <button class="t-exec" id="exec-btn" onclick="execQuery()"><span id="btn-lbl">Pretraži pravnu bazu</span></button>
+            <label class="cyr-toggle-wrap" title="Prikaži odgovor ćiriličnim pismom">
+              <input type="checkbox" id="cyr-toggle" onchange="toggleCyrillic()">
+              <span class="cyr-toggle-slider"></span>
+              <span class="cyr-toggle-lbl">Ћирилица</span>
+            </label>
+          </div>
           <div class="t-credits-row" id="t-credits-row" style="display:none;">
             <span class="t-credits-lbl">Preostalo upita:</span>
             <span class="t-credits-val" id="t-credits-val">15 / 15</span>
           </div>
           <div class="t-resp" id="resp">
             <div class="resp-inner">
-              <div class="resp-lbl" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
-                <span>Odgovor - Vindex AI</span>
-                <label class="cyr-toggle-wrap" title="Prikaži odgovor ćiriličnim pismom">
-                  <input type="checkbox" id="cyr-toggle" onchange="toggleCyrillic()">
-                  <span class="cyr-toggle-slider"></span>
-                  <span class="cyr-toggle-lbl">Ћирилица</span>
-                </label>
-              </div>
+              <div class="resp-lbl">Odgovor - Vindex AI</div>
               <div class="resp-body" id="rb"></div>
             </div>
           </div>
