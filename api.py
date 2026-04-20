@@ -22,7 +22,13 @@ from slowapi.errors import RateLimitExceeded
 BASE_DIR = Path(__file__).parent
 load_dotenv()
 
-from main import ask_agent, ask_nacrt, ask_analiza
+from main import ask_agent, ask_nacrt, ask_analiza, _skini_pii
+from templates.podnesci import (
+    TIPOVI as PODNESAK_TIPOVI,
+    EKSTRAKCIONI_PROMPTOVI,
+    OBOGACIVANJE_PROMPTOVI,
+    popuni_sablon,
+)
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -47,9 +53,22 @@ FOUNDER_EMAILS: set[str] = {
     if e.strip()
 }
 
+# PRO korisnici — pristup modulu za podneske i budućim PRO funkcijama
+# Founders su automatski PRO. Dodaj testere i plaćene korisnike ovde (env var) ili setuj is_pro=true u Supabase.
+PRO_EMAILS: set[str] = FOUNDER_EMAILS | {
+    e.strip().lower()
+    for e in os.getenv("PRO_EMAILS", "").split(",")
+    if e.strip()
+}
+
 
 def _is_founder(email: str) -> bool:
     return (email or "").lower() in FOUNDER_EMAILS
+
+
+def _is_pro(email: str, is_pro_db: bool = False) -> bool:
+    """PRO status: founder, PRO_EMAILS lista, ili is_pro=true u Supabase profiles."""
+    return is_pro_db or (email or "").lower() in PRO_EMAILS
 
 _supa: Optional[SupabaseClient] = None
 
@@ -172,36 +191,40 @@ async def get_current_user(
 BESPLATNI_KREDITI = 15
 
 
-def _ensure_profile(user_id: str, email: str = "") -> int:
+def _ensure_profile(user_id: str, email: str = "") -> dict:
     """
-    Čita kredite. Ako profil ne postoji, kreira ga sa 15 kredita (auto-heal).
-    Vraća broj preostalih kredita.
+    Čita profil korisnika. Ako ne postoji, kreira ga sa 15 kredita (auto-heal).
+    Vraća dict: { credits_remaining, is_pro }
     """
     supa = _get_supa()
     try:
         result = (
             supa.table("profiles")
-            .select("credits_remaining")
+            .select("credits_remaining, is_pro")
             .eq("id", user_id)
             .execute()
         )
         rows = result.data or []
         if rows:
-            return rows[0].get("credits_remaining", 0)
+            row = rows[0]
+            return {
+                "credits_remaining": row.get("credits_remaining", 0),
+                "is_pro": _is_pro(email, bool(row.get("is_pro", False))),
+            }
         # Profil ne postoji — kreira se sa 15 kredita
         logger.warning("Profil ne postoji za korisnika %s — kreiranje sa 15 kredita", user_id)
         supa.table("profiles").insert(
             {"id": user_id, "email": email, "credits_remaining": BESPLATNI_KREDITI}
         ).execute()
-        return BESPLATNI_KREDITI
+        return {"credits_remaining": BESPLATNI_KREDITI, "is_pro": _is_pro(email)}
     except Exception:
         logger.exception("Greška pri čitanju/kreiranju profila za korisnika %s", user_id)
-        return 0
+        return {"credits_remaining": 0, "is_pro": _is_pro(email)}
 
 
 def _get_credits(user_id: str) -> int:
     """Čita broj preostalih kredita iz baze."""
-    return _ensure_profile(user_id)
+    return _ensure_profile(user_id).get("credits_remaining", 0)
 
 
 def _deduct_credit(user_id: str, email: str = "") -> int:
@@ -302,6 +325,24 @@ class FeedbackReq(BaseModel):
     tip: str = Field("greska", max_length=50)
 
 
+class PodnesakReq(BaseModel):
+    tip: str = Field(..., max_length=50)
+    opis: str = Field(..., min_length=20, max_length=5000)
+
+    @field_validator("tip")
+    @classmethod
+    def validiraj_tip(cls, v: str) -> str:
+        dozvoljeni = {"tuzba_naknada_stete", "zalba_parnicna", "predlog_izvrsenje"}
+        if v not in dozvoljeni:
+            raise ValueError(f"Tip podneska mora biti jedan od: {dozvoljeni}")
+        return v
+
+    @field_validator("opis")
+    @classmethod
+    def ocisti_opis(cls, v: str) -> str:
+        return v.strip()
+
+
 class SazmiReq(BaseModel):
     odgovor: str = Field(..., max_length=6000)
 
@@ -369,18 +410,31 @@ def serve_html():
 
 @app.get("/api/me")
 async def me(user: dict = Depends(get_current_user)):
-    """Vraća podatke o prijavljenom korisniku i broj preostalih kredita. Auto-kreira profil ako ne postoji."""
+    """Vraća podatke o prijavljenom korisniku, kredite i PRO status."""
     try:
-        credits = await asyncio.to_thread(_ensure_profile, user["user_id"], user.get("email", ""))
+        profil = await asyncio.to_thread(_ensure_profile, user["user_id"], user.get("email", ""))
         return {
-            "user_id":          user["user_id"],
-            "email":            user["email"],
-            "credits_remaining": credits,
-            "credits_total":    BESPLATNI_KREDITI,
+            "user_id":           user["user_id"],
+            "email":             user["email"],
+            "credits_remaining": profil["credits_remaining"],
+            "credits_total":     BESPLATNI_KREDITI,
+            "is_pro":            profil["is_pro"],
         }
     except Exception as exc:
         logger.exception("Greška u /api/me za korisnika %s", user.get("user_id"))
         raise HTTPException(status_code=500, detail=f"Greška profila: {exc!r}")
+
+
+async def require_pro(user: dict = Depends(get_current_user)) -> dict:
+    """Dependency — blokira pristup ako korisnik nije PRO."""
+    profil = await asyncio.to_thread(_ensure_profile, user["user_id"], user.get("email", ""))
+    if not profil["is_pro"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ova funkcija zahteva PRO pretplatu. Nadogradite nalog na VindexAI PRO.",
+        )
+    user["is_pro"] = True
+    return user
 
 
 @app.get("/api/debug")
@@ -580,3 +634,93 @@ async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
     except Exception:
         logger.exception("Greška u /api/feedback")
         return {"status": "ok"}
+
+
+# ─── PRO: Modul podnesaka ─────────────────────────────────────────────────────
+
+@app.post("/api/podnesak")
+@limiter.limit("5/minute")
+async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(require_pro)):
+    """
+    Generiše nacrt sudskog podneska u dva koraka:
+    1. Ekstrakcija entiteta iz slobodnog opisa (GPT-4o-mini, brzo)
+    2. RAG + popunjavanje šablona (GPT-4o, precizno)
+    """
+    from openai import OpenAI as _OAI
+    import json
+
+    log_id = _q_hash(req.opis)
+    logger.info("Podnesak [uid=%.8s] tip=%s [q=%s]", user["user_id"], req.tip, log_id)
+
+    oai = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+    opis_api = _skini_pii(req.opis)  # PII filter pre slanja na OpenAI
+
+    # ── KORAK 1: Ekstrakcija entiteta (GPT-4o-mini, ~1s) ──────────────────────
+    ekstr_prompt = EKSTRAKCIONI_PROMPTOVI[req.tip]
+    try:
+        ekstr_resp = await asyncio.to_thread(
+            lambda: oai.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0,
+                max_tokens=800,
+                messages=[
+                    {"role": "system", "content": ekstr_prompt},
+                    {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}"},
+                ],
+            )
+        )
+        raw_json = (ekstr_resp.choices[0].message.content or "").strip()
+        # Ukloni eventualne ```json blokove
+        raw_json = raw_json.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        entiteti: dict = json.loads(raw_json)
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("Ekstrakcija entiteta neuspešna [q=%s]: %s", log_id, exc)
+        entiteti = {}
+
+    # ── KORAK 2: RAG — dohvati relevantne odredbe zakona ──────────────────────
+    rag_upit = f"{PODNESAK_TIPOVI[req.tip]}: {opis_api[:400]}"
+    try:
+        from app.services.retrieve import retrieve_documents
+        docs = await asyncio.to_thread(retrieve_documents, rag_upit, top_k=5)
+        kontekst = "\n\n".join(docs[:4]) if docs else ""
+    except Exception as exc:
+        logger.warning("RAG neuspešan za podnesak [q=%s]: %s", log_id, exc)
+        kontekst = ""
+
+    # ── KORAK 3: Obogaćivanje šablona (GPT-4o) ────────────────────────────────
+    obog_prompt = OBOGACIVANJE_PROMPTOVI[req.tip]
+    obog_user = (
+        f"EKSTRAKTOVANI PODACI (JSON):\n{json.dumps(entiteti, ensure_ascii=False)}\n\n"
+        f"ZAKONSKI KONTEKST (RAG):\n{kontekst or 'Nije pronađen relevantan kontekst.'}"
+    )
+    try:
+        obog_resp = await asyncio.to_thread(
+            lambda: oai.chat.completions.create(
+                model="gpt-4o",
+                temperature=0,
+                max_tokens=1200,
+                messages=[
+                    {"role": "system", "content": obog_prompt},
+                    {"role": "user",   "content": obog_user},
+                ],
+            )
+        )
+        raw_obog = (obog_resp.choices[0].message.content or "").strip()
+        raw_obog = raw_obog.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        obogacivanje: dict = json.loads(raw_obog)
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("Obogaćivanje neuspešno [q=%s]: %s", log_id, exc)
+        obogacivanje = {}
+
+    # ── KORAK 4: Popuni šablon ────────────────────────────────────────────────
+    nacrt = popuni_sablon(req.tip, entiteti, obogacivanje)
+
+    # Oduzmi kredit
+    await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+
+    return {
+        "status":  "success",
+        "odgovor": nacrt,
+        "tip":     req.tip,
+        "naziv":   PODNESAK_TIPOVI[req.tip],
+    }

@@ -9,6 +9,8 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer"/>
 <script>
 /* ── Srpska ćirilica — Vukova azbuka (inline, bez eksternog fajla) ────────── */
 (function(global){
@@ -515,6 +517,101 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .resp-kljucno .resp-section-lbl { color:#34d399; }
 .resp-kljucno .resp-section-lbl::before { background:#34d399; box-shadow:0 0 8px rgba(52,211,153,0.5); }
 .resp-kljucno .resp-section-body { font-size:0.88rem; font-weight:500; color:rgba(52,211,153,0.9); line-height:1.7; border-left:2px solid rgba(52,211,153,0.3); padding-left:0.75rem; }
+/* ── PRO badge i locked tab ──────────────────────────────────────────────── */
+.pro-badge { display:inline-block; font-size:0.52rem; font-weight:700; letter-spacing:0.1em; background:linear-gradient(135deg,rgba(201,168,76,0.25),rgba(201,168,76,0.1)); border:1px solid rgba(201,168,76,0.4); color:#c9a84c; border-radius:4px; padding:1px 5px; margin-left:4px; vertical-align:middle; }
+.t-tab-pro.locked .pro-badge { opacity:0.6; }
+.t-tab-pro.locked { color:rgba(255,255,255,0.22) !important; }
+/* PRO Upgrade Modal */
+.pro-upgrade-modal-inner { padding:2.2rem 2rem 1.8rem; }
+.pro-upgrade-lock-icon { font-size:2.2rem; margin-bottom:0.5rem; }
+.pro-upgrade-benefits { list-style:none; padding:0; margin:0 0 1.4rem; text-align:left; display:flex; flex-direction:column; gap:0.55rem; }
+.pro-upgrade-benefits li { font-size:0.8rem; color:rgba(255,255,255,0.68); display:flex; align-items:flex-start; gap:0.5rem; line-height:1.5; }
+.pub-icon { flex-shrink:0; font-size:0.9rem; }
+.pro-upgrade-cta { background:linear-gradient(135deg,#c9a84c,#8a5e20) !important; box-shadow:0 6px 28px rgba(201,168,76,0.28) !important; font-size:0.86rem !important; }
+/* ── Podnesak tab ─────────────────────────────────────────────────────────── */
+.podnesak-hint { font-size:0.75rem; color:rgba(255,255,255,0.45); background:rgba(74,168,255,0.05); border:1px solid rgba(74,168,255,0.12); border-radius:6px; padding:0.45rem 0.75rem; margin:0.3rem 0 0.6rem; line-height:1.55; min-height:1.5rem; }
+.podnesak-chips-lbl { font-size:0.66rem; color:rgba(255,255,255,0.3); letter-spacing:0.08em; text-transform:uppercase; margin:0.6rem 0 0.3rem; }
+.podnesak-chips { display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.2rem; }
+.podnesak-chip { background:rgba(74,168,255,0.07); border:1px solid rgba(74,168,255,0.2); color:rgba(74,168,255,0.85); font-size:0.72rem; padding:0.3rem 0.7rem; border-radius:14px; cursor:pointer; transition:all 0.15s; }
+.podnesak-chip:hover { background:rgba(74,168,255,0.15); border-color:rgba(74,168,255,0.4); }
+/* Nacrt podneska — monospace prikaz sudskog dokumenta */
+.resp-nacrt-podnesak { font-family:'JetBrains Mono',monospace; font-size:0.78rem; line-height:1.85; color:rgba(255,255,255,0.82); white-space:pre-wrap; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:1.1rem 1.3rem; }
+.resp-nacrt-podnesak .popuniti { background:rgba(240,180,41,0.15); color:#f0b429; border-radius:3px; padding:0 2px; }
+/* PREVIEW kontejner za generisani podnesak */
+.podnesak-preview { margin-top:1rem; animation:fade-in 0.4s ease; }
+.podnesak-preview-banner { display:flex; align-items:center; gap:0.6rem; background:rgba(240,180,41,0.1); border:1px solid rgba(240,180,41,0.35); border-radius:10px 10px 0 0; padding:0.7rem 1rem; font-size:0.76rem; color:#f0b429; font-weight:600; letter-spacing:0.03em; }
+.podnesak-preview-banner-icon { font-size:1rem; }
+.podnesak-preview-body { border-radius:0; border-top:none; }
+.podnesak-preview-actions { display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.75rem; }
+.podnesak-preview-btn { flex:1; min-width:120px; padding:0.7rem 1rem; border:none; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.78rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+.podnesak-preview-pdf { background:linear-gradient(135deg,#4aa8ff 0%,#1264c4 100%); color:#fff; box-shadow:0 4px 20px rgba(74,168,255,0.35); }
+.podnesak-preview-pdf:hover { transform:translateY(-1px); box-shadow:0 8px 30px rgba(74,168,255,0.5); }
+.podnesak-preview-copy { background:rgba(74,168,255,0.1); border:1px solid rgba(74,168,255,0.25); color:rgba(74,168,255,0.9); }
+.podnesak-preview-copy:hover { background:rgba(74,168,255,0.18); }
+.podnesak-preview-edit { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.6); }
+.podnesak-preview-edit:hover { background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.85); }
+/* ── Glasovni unos — mikrofon ────────────────────────────────────────────── */
+.mic-input-wrap { display: flex; align-items: flex-end; gap: 0.6rem; }
+.mic-input-wrap textarea.t-input { flex: 1; min-width: 0; width: auto !important; }
+.mic-btn {
+  flex-shrink: 0;
+  width: 2.5rem !important; height: 2.5rem !important;
+  min-width: 2.5rem !important; min-height: 2.5rem !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(74,168,255,0.45) !important;
+  background: rgba(74,168,255,0.12) !important;
+  color: #89c8ff !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  z-index: 999 !important;
+  position: relative !important;
+  padding: 0 !important; outline: none !important;
+  font-size: 0.85rem !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: all !important;
+  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s !important;
+}
+.mic-btn:hover {
+  background: rgba(74,168,255,0.28) !important;
+  border-color: rgba(74,168,255,0.8) !important;
+  box-shadow: 0 0 12px rgba(74,168,255,0.4) !important;
+  color: #fff !important;
+}
+.mic-btn.mic-active {
+  background: rgba(239,68,68,0.2) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  box-shadow: 0 0 14px rgba(239,68,68,0.5) !important;
+  animation: mic-pulse 1.1s ease-in-out infinite;
+}
+.mic-btn.mic-active i { animation: mic-shake 0.5s ease-in-out infinite alternate; display: inline-block; }
+@keyframes mic-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); }
+  55%      { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
+}
+@keyframes mic-shake {
+  from { transform: scale(1); }
+  to   { transform: scale(1.15); }
+}
+.mic-status {
+  display: none; align-items: center; gap: 0.4rem;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.62rem;
+  color: #ef4444; letter-spacing: 0.06em;
+  margin-top: 0.3rem; margin-bottom: 0.2rem;
+  padding-left: 0.2rem;
+}
+.mic-status.show { display: flex; }
+.mic-status-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
+  animation: mic-dot-blink 0.9s ease-in-out infinite;
+}
+@keyframes mic-dot-blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+/* ── TL;DR — kratak zaključak ─────────────────────────────────────────────── */
+.resp-tldr { border-radius:10px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3) !important; padding:0.85rem 1.1rem !important; margin-bottom:1.2rem !important; }
+.resp-tldr .resp-section-lbl { color:#a5b4fc; font-size:0.56rem; letter-spacing:0.25em; }
+.resp-tldr .resp-section-lbl::before { background:#a5b4fc; box-shadow:0 0 8px rgba(165,180,252,0.6); }
+.resp-tldr .resp-section-body { font-size:0.93rem; font-weight:500; color:rgba(255,255,255,0.95); line-height:1.75; }
 /* ── Analiza štete ───────────────────────────────────────────────────────── */
 .resp-steta .resp-section-lbl { color:#fbbf24; }
 .resp-steta .resp-section-lbl::before { background:#fbbf24; box-shadow:0 0 6px rgba(251,191,36,0.4); }
@@ -890,6 +987,26 @@ footer { padding: 2rem 1.5rem; }
   </div>
 </div>
 
+<!-- PRO UPGRADE MODAL — prikazuje se kada Basic korisnik klikne na zaključani tab -->
+<div class="modal-overlay" id="pro-upgrade-modal" onclick="if(event.target===this)closeProUpgradeModal()">
+  <div class="modal pro-upgrade-modal-inner" style="max-width:480px;text-align:center;">
+    <button class="modal-close" onclick="closeProUpgradeModal()">&#x2715;</button>
+    <div class="pro-upgrade-lock-icon">🔒</div>
+    <div class="modal-badge" style="background:rgba(201,168,76,0.1);border-color:rgba(201,168,76,0.3);color:#c9a84c;margin:0.6rem auto 1rem;display:inline-block;">VindexAI PRO</div>
+    <div class="modal-title" style="font-size:1.4rem;margin-bottom:0.9rem;">Otključajte VindexAI PRO</div>
+    <p style="font-size:0.82rem;color:rgba(255,255,255,0.52);margin-bottom:1.3rem;line-height:1.65;">Modul za podneske dostupan je isključivo PRO korisnicima. Nadogradite nalog i pristupite svim PRO funkcijama.</p>
+    <ul class="pro-upgrade-benefits">
+      <li><span class="pub-icon">⚡</span> Automatsko pisanje tužbi, žalbi i predloga za izvršenje uz AI asistenciju</li>
+      <li><span class="pub-icon">⚖</span> Pravno precizni šabloni usklađeni sa srpskim sudskim procedurama</li>
+      <li><span class="pub-icon">📄</span> PDF export gotovog podneska u jednom kliku</li>
+      <li><span class="pub-icon">🔍</span> RAG pretraga kroz 13.600+ zakonskih odredbi pri generisanju</li>
+      <li><span class="pub-icon">🔒</span> Zero-persistence protokol — dokumenti se ne čuvaju na serveru</li>
+    </ul>
+    <button class="modal-btn pro-upgrade-cta" onclick="closeProUpgradeModal();openProModal();">Saznaj više o PRO verziji &rarr;</button>
+    <p style="font-size:0.68rem;color:rgba(255,255,255,0.22);margin-top:0.8rem;">Promotivna cena garantovana pri ranoj prijavi.</p>
+  </div>
+</div>
+
 <!-- PRO WAITLIST MODAL -->
 <div class="modal-overlay" id="pro-modal">
   <div class="modal" style="max-width:460px;">
@@ -981,7 +1098,7 @@ footer { padding: 2rem 1.5rem; }
         <div class="t-body">
           <div class="t-tabs">
             <div class="t-tab active" onclick="setTab(this,'q')">Istraživanje</div>
-            <div class="t-tab" onclick="setTab(this,'n')">Podnesak</div>
+            <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Podnesak <span class="pro-badge" id="pro-badge-n">PRO</span></div>
             <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
           </div>
           <div id="chat-hist" class="chat-hist"></div>
@@ -998,25 +1115,36 @@ footer { padding: 2rem 1.5rem; }
               <span class="t-chip" onclick="fillQ('Zastarelost potraživanja naknade štete')">Zastarelost</span>
             </div>
             <label class="t-label">Vaše pravno pitanje:</label>
-            <textarea class="t-input" id="qi" placeholder="Npr. Koji su uslovi za naknadu nematerijalne štete?"></textarea>
+            <div class="mic-input-wrap">
+              <textarea class="t-input" id="qi" placeholder="Npr. Koji su uslovi za naknadu nematerijalne štete?"></textarea>
+              <button class="mic-btn" id="mic-qi" type="button" onclick="micToggle('qi')" title="Glasovni unos — kliknite da diktirate (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
+            </div>
+            <div class="mic-status" id="mic-status-qi"><span class="mic-status-dot"></span><span>Snimam... govorite na srpskom</span></div>
           </div>
           <div id="tab-n" style="display:none">
             <div class="t-guide">
               <div class="t-guide-icon">📄</div>
-              <div class="t-guide-text"><span class="t-guide-bold">Generišite nacrt</span> pravnog akta. Odaberite vrstu dokumenta i opišite stranke i okolnosti — AI generiše gotov nacrt.</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Generišite nacrt podneska.</span> Izaberite tip, opišite stranke i činjenice slobodnim tekstom — sistem ekstraktuje entitete i popunjava zvanični šablon.</div>
             </div>
-            <label class="t-label">Vrsta dokumenta:</label>
-            <select class="t-input" id="ni">
-              <option>Tužba za naknadu štete</option>
-              <option>Tužba za razvod braka</option>
-              <option>Otkaz ugovora o radu</option>
-              <option>Žalba na prvostepenu presudu</option>
-              <option>Ugovor o zajmu</option>
-              <option>Punomoćje</option>
-              <option>Pritužba potrošača</option>
+            <label class="t-label">Tip podneska:</label>
+            <select class="t-input" id="podnesak-tip" onchange="updatePodnesakHint()">
+              <option value="tuzba_naknada_stete">Tužba za naknadu štete</option>
+              <option value="zalba_parnicna">Žalba na prvostepenu presudu</option>
+              <option value="predlog_izvrsenje">Predlog za izvršenje</option>
             </select>
-            <label class="t-label">Opis slučaja (stranke, predmet, činjenice):</label>
-            <textarea class="t-input" id="no" placeholder="Npr. Tužilac Petar Petrović traži naknadu od 50.000 RSD zbog..." style="height:80px;"></textarea>
+            <div id="podnesak-hint" class="podnesak-hint"></div>
+            <label class="t-label">Opis slučaja (stranke, činjenice, iznosi):</label>
+            <div class="mic-input-wrap">
+              <textarea class="t-input" id="podnesak-opis" placeholder="Npr. Tužilac Petar Petrović, ul. Vojvode Mišića 5, Beograd traži naknadu štete od tuženog Jovana Jovanovića zbog saobraćajne nezgode dana 15.03.2024. Pretrpljene su telesne povrede i materijalna šteta u iznosu od 350.000 RSD. Štetnik je isključivo odgovoran..." style="height:100px;"></textarea>
+              <button class="mic-btn" id="mic-podnesak-opis" type="button" onclick="micToggle('podnesak-opis')" title="Glasovni unos — diktirajte opis slučaja (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
+            </div>
+            <div class="mic-status" id="mic-status-podnesak-opis"><span class="mic-status-dot"></span><span>Snimam... diktirajte činjenice slučaja</span></div>
+            <div class="podnesak-chips-lbl">Brzi unos — kliknite za primer:</div>
+            <div class="podnesak-chips">
+              <span class="podnesak-chip" onclick="fillPodnesakPrimer('tuzba')">Tužba — saobraćajna nezgoda</span>
+              <span class="podnesak-chip" onclick="fillPodnesakPrimer('zalba')">Žalba — odbijen zahtev</span>
+              <span class="podnesak-chip" onclick="fillPodnesakPrimer('izvrsenje')">Izvršenje — neplaćen dug</span>
+            </div>
           </div>
           <div id="tab-a" style="display:none">
             <div class="t-guide">
@@ -1024,7 +1152,11 @@ footer { padding: 2rem 1.5rem; }
               <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Nalepite tekst ugovora, presude ili akta — AI identifikuje pravne rizike i problematične odredbe.</div>
             </div>
             <label class="t-label">Tekst dokumenta:</label>
-            <textarea class="t-input" id="aitxt" placeholder="Nalepite tekst ugovora, presude ili pravnog akta..." style="height:80px;"></textarea>
+            <div class="mic-input-wrap">
+              <textarea class="t-input" id="aitxt" placeholder="Nalepite tekst ugovora, presude ili pravnog akta..." style="height:80px;"></textarea>
+              <button class="mic-btn" id="mic-aitxt" type="button" onclick="micToggle('aitxt')" title="Glasovni unos — sr-RS"><i class="fa-solid fa-microphone"></i></button>
+            </div>
+            <div class="mic-status" id="mic-status-aitxt"><span class="mic-status-dot"></span><span>Snimam... govorite na srpskom</span></div>
             <label class="t-label">Specifično pitanje (opciono):</label>
             <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:46px;margin-top:0.4rem;"></textarea>
           </div>
@@ -1044,6 +1176,18 @@ footer { padding: 2rem 1.5rem; }
             <div class="resp-inner">
               <div class="resp-lbl">Odgovor - Vindex AI</div>
               <div class="resp-body" id="rb"></div>
+            </div>
+          </div>
+          <div class="podnesak-preview" id="podnesak-preview" style="display:none;">
+            <div class="podnesak-preview-banner">
+              <span class="podnesak-preview-banner-icon">⚠</span>
+              <span>PREVIEW NACRTA — Nije finalna verzija. Pregledajte i popunite istaknuta polja pre podnošenja sudu.</span>
+            </div>
+            <div class="resp-nacrt-podnesak podnesak-preview-body" id="podnesak-preview-body"></div>
+            <div class="podnesak-preview-actions">
+              <button class="podnesak-preview-btn podnesak-preview-pdf" id="podnesak-pdf-btn" onclick="exportPDF(_lastRawText, this)">📄 Preuzmi PDF</button>
+              <button class="podnesak-preview-btn podnesak-preview-copy" id="podnesak-copy-btn" onclick="copyPodnesak(this)">📋 Kopiraj tekst</button>
+              <button class="podnesak-preview-btn podnesak-preview-edit" onclick="editPodnesak()">✏ Uredi / Follow-up</button>
             </div>
           </div>
           <div class="chat-privacy-note">Sesije se čuvaju radi lakšeg rada. <span>Savetujemo korišćenje inicijala umesto punih imena stranaka.</span></div>
@@ -1305,6 +1449,7 @@ footer { padding: 2rem 1.5rem; }
 var BASE_URL = window.location.origin;
 var activeTab = 'q';
 var _cyrillicOn = false;
+var currentUserIsPro = false;
 var _lastRawText = '';
 
 function toggleCyrillic() {
@@ -1378,8 +1523,10 @@ async function loadCredits() {
     if (r.ok) {
       var d = await r.json();
       console.log('[Vindex] /api/me odgovor:', d);
-      userCredits    = (d.credits_remaining !== undefined && d.credits_remaining !== null) ? d.credits_remaining : 0;
-      TOTAL_CREDITS  = d.credits_total || 15;
+      userCredits       = (d.credits_remaining !== undefined && d.credits_remaining !== null) ? d.credits_remaining : 0;
+      TOTAL_CREDITS     = d.credits_total || 15;
+      currentUserIsPro  = !!d.is_pro;
+      _updateProTabUI();
       updateCreditDisplay();
     } else {
       console.warn('[Vindex] /api/me greška, status:', r.status);
@@ -1779,6 +1926,7 @@ function fillQ(q) {
   activeTab = 'q';
   document.getElementById('btn-lbl').textContent = 'Pretraži pravnu bazu';
   document.getElementById('resp').classList.remove('show');
+  document.getElementById('podnesak-preview').style.display='none';
   document.getElementById('qi').value = q;
   document.getElementById('qi').focus();
 }
@@ -1810,15 +1958,193 @@ document.querySelectorAll('.r').forEach(function(el){revObs.observe(el);});
 
 /* TABS */
 function setTab(el,t){
+  // PRO gate — tab "n" zahteva PRO status
+  if (t === 'n' && !currentUserIsPro) {
+    openProUpgradeModal();
+    return;
+  }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
   ['q','n','a'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument'};
+  var lbl={q:'Pretraži pravnu bazu',n:'Generiši podnesak',a:'Analiziraj dokument'};
+  if (t==='n') updatePodnesakHint();
   document.getElementById('btn-lbl').textContent=lbl[t];
   document.getElementById('resp').classList.remove('show');
+  document.getElementById('podnesak-preview').style.display='none';
+  if (window.micStopAll) micStopAll();
 }
+
+function _updateProTabUI() {
+  var tabBtn = document.getElementById('tab-btn-n');
+  var badge  = document.getElementById('pro-badge-n');
+  if (!tabBtn) return;
+  if (currentUserIsPro) {
+    tabBtn.classList.remove('locked');
+    if (badge) { badge.textContent = 'PRO'; badge.style.background = ''; }
+    tabBtn.title = 'PRO funkcija — pristup omogućen';
+  } else {
+    tabBtn.classList.add('locked');
+    if (badge) badge.textContent = '\uD83D\uDD12 PRO';
+    tabBtn.title = 'Ova funkcija je dostupna isključivo PRO korisnicima';
+  }
+}
+
+function openProUpgradeModal() {
+  var m = document.getElementById('pro-upgrade-modal');
+  if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
+}
+function closeProUpgradeModal() {
+  var m = document.getElementById('pro-upgrade-modal');
+  if (m) { m.classList.remove('open'); document.body.style.overflow = ''; }
+}
+
+/* PODNESAK HELPERS */
+var _PODNESAK_HINTS = {
+  tuzba_naknada_stete: '⚖ Navedite: tužioca i tuženog (ime, adresa), opis štetnog dogadjaja, datum, vrstu i visinu štete, dostupne dokaze.',
+  zalba_parnicna:      '⚠ Navedite: naziv suda, broj predmeta, datum presude, razloge za žalbu (pogrešno utvrđeno činjenično stanje / pogrešna primena prava / bitna povreda ZPP).',
+  predlog_izvrsenje:   '⚡ Navedite: vrstu izvršne isprave (presuda/rešenje), broj i datum isprave, izvršenika (ime, adresa), iznos duga i željeno sredstvo izvršenja.',
+};
+var _PODNESAK_PRIMERI = {
+  tuzba: 'Tužilac Petar Petrović, ul. Vojvode Mišića 5, Beograd potražuje naknadu štete od tuženog Jovana Jovanovića, ul. Kneza Miloša 12, Beograd. Dana 15.03.2024. tuženi je vozilom reg. oznake BG 123-AB prouzrokovao saobraćajnu nezgodu na raskrsnici ul. Vojvode Mišića i Makedonske, usled čega je tužilac zadobio telesne povrede i pretrpeo materijalnu štetu (oštećeno vozilo) u ukupnom iznosu od 350.000 RSD. Postoji policijski zapisnik i nalaz lekara.',
+  zalba: 'Žalilac Ana Anić, ul. Svetog Save 3, Novi Sad izjavljuje žalbu na presudu Osnovnog suda u Novom Sadu P. 456/2023 od 10.01.2024, kojom je odbijen njen tužbeni zahtev za naknadu štete. Prvostepeni sud je pogrešno utvrdio da nema uzročno-posledične veze, uprkos medicinskom nalazu koji potvrđuje direktnu vezu između povrede i štetnog dogadjaja. Protivnik žalioca je Osiguravajuće društvo "X" d.o.o.',
+  izvrsenje: 'Tražilac izvršenja Dragan Dragić, ul. Cara Dušana 7, Kragujevac traži izvršenje na osnovu pravosnažne i izvršne presude Osnovnog suda u Kragujevcu P. 789/2022 od 05.06.2023, kojom je izvršenik Nikola Nikolić, ul. Toplička 2, Kragujevac obavezan da plati iznos od 180.000 RSD sa zakonskom zateznom kamatom od 05.06.2023. Izvršnik nije dobrovoljno izvršio obavezu. Predlažem zaplembu zarade izvršenika.',
+};
+function updatePodnesakHint() {
+  var tip = document.getElementById('podnesak-tip');
+  var hint = document.getElementById('podnesak-hint');
+  if (tip && hint) hint.textContent = _PODNESAK_HINTS[tip.value] || '';
+}
+function fillPodnesakPrimer(kljuc) {
+  var el = document.getElementById('podnesak-opis');
+  var sel = document.getElementById('podnesak-tip');
+  var mapa = { tuzba:'tuzba_naknada_stete', zalba:'zalba_parnicna', izvrsenje:'predlog_izvrsenje' };
+  if (sel && mapa[kljuc]) sel.value = mapa[kljuc];
+  if (el) { el.value = _PODNESAK_PRIMERI[kljuc] || ''; el.focus(); }
+  updatePodnesakHint();
+}
+
+function copyPodnesak(btn) {
+  var text = _lastRawText || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(function(){
+    var orig = btn.textContent;
+    btn.textContent = '✓ Kopirano!';
+    setTimeout(function(){ btn.textContent = orig; }, 1800);
+  }).catch(function(){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    var orig = btn.textContent;
+    btn.textContent = '✓ Kopirano!';
+    setTimeout(function(){ btn.textContent = orig; }, 1800);
+  });
+}
+
+function editPodnesak() {
+  document.getElementById('podnesak-preview').style.display='none';
+  var el = document.getElementById('podnesak-opis');
+  if (el) { el.focus(); el.scrollIntoView({behavior:'smooth', block:'center'}); }
+}
+
+/* ─── GLASOVNI UNOS (Web Speech API) ─────────────────────────────────────── */
+(function(){
+  var _rec = null;          // aktivni SpeechRecognition objekat
+  var _activeId = null;     // ID textarea koji se snima
+  var _baseText = '';       // tekst u textarea pre početka snimanja
+
+  function supported() {
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }
+
+  function _setStatus(id, on) {
+    var s = document.getElementById('mic-status-' + id);
+    var b = document.getElementById('mic-' + id);
+    if (s) on ? s.classList.add('show') : s.classList.remove('show');
+    if (b) on ? b.classList.add('mic-active') : b.classList.remove('mic-active');
+  }
+
+  function _stop(final) {
+    if (_rec) { try { _rec.stop(); } catch(e){} _rec = null; }
+    if (_activeId) { _setStatus(_activeId, false); _activeId = null; }
+  }
+
+  function _start(targetId) {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var rec = new SR();
+    rec.lang = 'sr-RS';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+
+    var ta = document.getElementById(targetId);
+    _baseText = ta ? ta.value.trimEnd() : '';
+    var pending = '';  // akumulirani finalni transkript od starta
+
+    rec.onstart = function() {
+      _activeId = targetId;
+      _setStatus(targetId, true);
+    };
+
+    rec.onresult = function(e) {
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var chunk = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          pending += (_baseText || pending ? ' ' : '') + chunk.trim();
+          _baseText = '';  // baza je sada uključena u pending
+        } else {
+          interim = chunk;
+        }
+      }
+      if (ta) {
+        var display = pending + (interim ? ' ' + interim : '');
+        ta.value = display.trimStart();
+        // pomeri kursor na kraj
+        ta.selectionStart = ta.selectionEnd = ta.value.length;
+      }
+    };
+
+    rec.onerror = function(ev) {
+      _stop();
+      if (ev.error === 'not-allowed' || ev.error === 'permission-denied') {
+        showToast('Pristup mikrofonu odbijen. Dozvolite pristup u podešavanjima pretraživača.', 'err');
+      } else if (ev.error !== 'aborted' && ev.error !== 'no-speech') {
+        showToast('Greška mikrofona: ' + ev.error, 'err');
+      }
+    };
+
+    rec.onend = function() {
+      // Browser auto-stop (tišina) — samo cleanup UI
+      if (_activeId === targetId) { _setStatus(targetId, false); _activeId = null; _rec = null; }
+    };
+
+    _rec = rec;
+    rec.start();
+  }
+
+  // ── Javna funkcija koju pozivaju onclick handleri ─────────────────────────
+  window.micToggle = function(targetId) {
+    if (!supported()) {
+      showToast('Vaš pretraživač ne podržava glasovni unos. Preporučujemo Chrome ili Edge.', 'err');
+      return;
+    }
+    if (_activeId === targetId) {
+      _stop();
+    } else {
+      if (_activeId) _stop();       // zaustavi prethodni ako postoji
+      _start(targetId);
+    }
+  };
+
+  // Zaustavi snimanje kad korisnik menja tab ili šalje upit
+  window.micStopAll = function() { _stop(); };
+})();
 
 /* RESPONSE FORMATTER */
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1835,6 +2161,7 @@ function _linkGlasnik(val) {
 
 function formatResponse(rawText) {
   var defs = [
+    { key:'KRATAK ZAKLJUČAK (TL;DR):', cls:'resp-tldr',       lbl:'⚡ TL;DR — Kratak zaključak', icon:'tldr' },
     { key:'HIJERARHIJA IZVORA:', cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora',   icon:'hijerarhija' },
     { key:'PRAVNI ZAKLJUČAK:',  cls:'resp-zakljucak',  lbl:'⚖️ Pravni zaključak',    icon:'zakljucak' },
     { key:'ANALIZA ŠTETE:',     cls:'resp-steta',      lbl:'⚖ Analiza štete',         icon:'steta' },
@@ -1858,6 +2185,15 @@ function formatResponse(rawText) {
     { key:'VAŽNA NAPOMENA:',    cls:'resp-disclaimer', lbl:'Pravna napomena',       icon:'' },
     { key:'NAPOMENA SISTEMA:',  cls:'resp-disclaimer', lbl:'Napomena sistema',      icon:'' },
   ];
+  // Nacrt podneska — prepoznaj po NAPOMENA SISTEMA markeru i odsustvu standardnih sekcija
+  var isPodnesak = rawText.indexOf('NAPOMENA SISTEMA: Ovaj nacrt je generisan') !== -1
+                && rawText.indexOf('PRAVNI ZAKLJUČAK:') === -1
+                && rawText.indexOf('HIJERARHIJA IZVORA:') === -1;
+  if (isPodnesak) {
+    var highlighted = escHtml(rawText).replace(/\[([A-ZŠĐČĆŽ\s\-—]+?)\s*—\s*POPUNITI\]/g,
+      '<span class="popuniti">[$1 — POPUNITI]</span>');
+    return '<div class="resp-nacrt-podnesak">'+highlighted+'</div>';
+  }
   var isStructured = defs.some(function(d){ return rawText.indexOf(d.key) !== -1; });
   if (!isStructured) return '<div class="resp-plain">'+escHtml(rawText)+'</div>';
   var found = []; var usedPos = {};
@@ -1966,10 +2302,14 @@ function copyZakljucak(text, btn) {
 }
 
 function sazimiZaKlijenta(fullText, btn) {
+  if (!currentSession) {
+    showToast('Morate biti prijavljeni za ovu funkciju.', 'err');
+    return;
+  }
   var orig = btn.textContent;
-  btn.textContent = '⏳ Generišem...'; btn.disabled = true;
-  var token = localStorage.getItem('vindex_token') || '';
-  fetch('/api/sazmi', {
+  btn.textContent = '\u23f3 Generi\u0161em...'; btn.disabled = true;
+  var token = currentSession.access_token;
+  fetch(BASE_URL + '/api/sazmi', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ odgovor: fullText.substring(0, 6000) })
@@ -2002,21 +2342,28 @@ function showIzvor(text, btn) {
 
 
 function exportPDF(rawText, btn) {
-  var orig = btn.textContent; btn.textContent = '\u23f3 Priprema...'; btn.disabled = true;
+  var orig = btn.textContent; btn.textContent = '\u23f3 Priprema PDF...'; btn.disabled = true;
   var firma = JSON.parse(localStorage.getItem('vindex_firma') || '{}');
-  var datum = new Date().toLocaleDateString('sr-Latn-RS', {day:'2-digit',month:'2-digit',year:'numeric'});
+  var datumObj = new Date();
+  var datum = datumObj.toLocaleDateString('sr-Latn-RS', {day:'2-digit',month:'2-digit',year:'numeric'});
+  var fileDate = [datumObj.getFullYear(), String(datumObj.getMonth()+1).padStart(2,'0'), String(datumObj.getDate()).padStart(2,'0')].join('_');
+  var fileName = 'Vindex_Izvestaj_' + fileDate + '.pdf';
   var pitanje = lastPitanje || '';
   var title = 'Pravna analiza';
   if (pitanje.length > 5) title += ' \u2014 ' + pitanje.substring(0,80) + (pitanje.length>80?'...':'');
   var sectionDefs = [
+    {key:'KRATAK ZAKLJU\u010cAK (TL;DR):', lbl:'TL;DR \u2014 Kratak zaklju\u010dak'},
     {key:'HIJERARHIJA IZVORA:', lbl:'Hijerarhija izvora'},
     {key:'PRAVNI ZAKLJU\u010cAK:', lbl:'Pravni zaklju\u010dak'},
+    {key:'ANALIZA \u0160TETE:', lbl:'Analiza \u0161tete'},
     {key:'CITAT ZAKONA:', lbl:'Citat zakona'},
     {key:'CITAT IZ ZAKONA:', lbl:'Citat zakona'},
     {key:'PRAVNI OSNOV:', lbl:'Pravni osnov'},
     {key:'RIZICI I IZUZECI:', lbl:'Rizici i izuzeci'},
     {key:'KADA OVO NE VA\u017dI:', lbl:'Kada ovo ne va\u017ei'},
-    {key:'KLJ\u0160NO PITANJE:', lbl:'Klju\u010dno pitanje'},
+    {key:'PROCESNI KORACI:', lbl:'Procesni koraci'},
+    {key:'KLJU\u010cNO PITANJE:', lbl:'Klju\u010dno pitanje'},
+    {key:'DODATNA PITANJA:', lbl:'Dodatna pitanja'},
     {key:'SLU\u017dBENI IZVOR:', lbl:'Izvor'},
   ];
   var positions = sectionDefs.map(function(d){return{d:d,pos:rawText.indexOf(d.key)};}).filter(function(x){return x.pos!==-1;});
@@ -2029,8 +2376,8 @@ function exportPDF(rawText, btn) {
     if(_cyrillicOn && window.pretvoriUCirilicu){ val=pretvoriUCirilicu(val); lbl=pretvoriUCirilicu(lbl); }
     return '<div class="pdf-section"><div class="pdf-lbl">'+lbl.toUpperCase()+'</div><div class="pdf-val">'+val.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</div></div>';
   }).join('');
-  var html = '<!DOCTYPE html><html lang="sr"><head><meta charset="UTF-8"><title>Vindex AI \u2014 Pravna analiza</title>'
-    +'<style>@page{size:A4;margin:20mm 22mm;}body{font-family:Arial,sans-serif;font-size:10pt;color:#111;line-height:1.6;}'
+
+  var css = '@page{size:A4;margin:20mm 22mm;}body{font-family:Arial,sans-serif;font-size:10pt;color:#111;line-height:1.6;margin:0;}'
     +'.header{border-bottom:2px solid #1a1a3e;padding-bottom:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end;}'
     +'.firma-naziv{font-size:13pt;font-weight:bold;color:#1a1a3e;}.firma-info{font-size:8.5pt;color:#555;line-height:1.5;}'
     +'.brand{font-size:8pt;color:#888;text-align:right;}'
@@ -2039,38 +2386,70 @@ function exportPDF(rawText, btn) {
     +'.pdf-section{margin-bottom:14px;page-break-inside:avoid;}'
     +'.pdf-lbl{font-size:7.5pt;font-weight:bold;letter-spacing:0.1em;color:#1a1a3e;text-transform:uppercase;margin-bottom:3px;border-left:3px solid #1a1a3e;padding-left:6px;}'
     +'.pdf-val{font-size:9.5pt;color:#333;padding-left:9px;}'
-    +'.footer{position:fixed;bottom:10mm;left:22mm;right:22mm;font-size:7.5pt;color:#aaa;border-top:1px solid #e0e0e0;padding-top:5px;display:flex;justify-content:space-between;}'
-    +'.disclaimer{background:#f8f8f8;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:8pt;color:#666;margin-top:20px;font-style:italic;}'
-    +'</style></head><body>'
-    +'<div class="header"><div><div class="firma-naziv">'+(firma.naziv||'')+'</div>'
+    +'.disclaimer{background:#f8f8f8;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:8pt;color:#666;margin-top:20px;font-style:italic;}';
+
+  var bodyHtml = '<style>'+css+'</style>'
+    +'<div class="header"><div><div class="firma-naziv">'+(firma.naziv||'Vindex AI')+'</div>'
     +'<div class="firma-info">'+(firma.adresa?firma.adresa+'<br>':'')+(firma.pib?'PIB: '+firma.pib+'<br>':'')+(firma.kontakt||'')+'</div></div>'
     +'<div class="brand">Generisano putem<br><strong>Vindex AI</strong></div></div>'
-    +'<div class="title">'+title+'</div>'
+    +'<div class="title">'+title.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'
     +'<div class="datum">Datum generisanja: '+datum+'</div>'
     +sectionsHtml
-    +'<div class="disclaimer">Ovaj izve\u0161taj je generisan uz pomo\u0107 ve\u0161ta\u010dke inteligencije i slu\u017ei isklju\u010divo kao pomo\u0107no sredstvo u radu. Konsultujte originalni tekst propisa u Slu\u017ebenom glasniku RS. Nije pravni savet.</div>'
-    +'<div class="footer"><span>Vindex AI \u2014 AI asistent za srpsko pravo</span><span>'+datum+'</span></div>'
-    +'</body></html>';
+    +'<div class="disclaimer">Ovaj izve\u0161taj je generisan uz pomo\u0107 ve\u0161ta\u010dke inteligencije i slu\u017ei isklju\u010divo kao pomo\u0107no sredstvo u radu. Konsultujte originalni tekst propisa u Slu\u017ebenom glasniku RS. Nije pravni savet.</div>';
+
+  // ── html2pdf download ─────────────────────────────────────────────────────
+  if (typeof html2pdf !== 'undefined') {
+    var container = document.createElement('div');
+    container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:794px;background:#fff;';
+    container.innerHTML = bodyHtml;
+    document.body.appendChild(container);
+    html2pdf().set({
+      margin: [15, 20, 15, 20],
+      filename: fileName,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(container).save().then(function(){
+      document.body.removeChild(container);
+      btn.textContent = orig; btn.disabled = false;
+      showToast('\u2713 PDF preuzet: ' + fileName, 'ok');
+    }).catch(function(){
+      document.body.removeChild(container);
+      btn.textContent = orig; btn.disabled = false;
+      showToast('Gre\u0161ka pri generisanju PDF-a.', 'err');
+    });
+    return;
+  }
+
+  // ── Fallback: Blob download kao HTML ako html2pdf nije učitan ────────────
   setTimeout(function(){
+    var fullHtml = '<!DOCTYPE html><html lang="sr"><head><meta charset="UTF-8"><title>Vindex AI \u2014 Pravna analiza</title></head><body>'+bodyHtml+'</body></html>';
+    var blob = new Blob([fullHtml], {type: 'text/html;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = fileName.replace('.pdf', '.html');
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     btn.textContent = orig; btn.disabled = false;
-    var w = window.open('','_blank','width=900,height=700');
-    if (!w) { showToast('Dozvolite popup prozore za PDF export.', 'err'); return; }
-    w.document.write(html); w.document.close();
-    setTimeout(function(){ w.print(); }, 500);
-    showToast('PDF prozor otvoren \u2014 izaberite "Sa\u010duvaj kao PDF".', 'info');
+    showToast('Izve\u0161taj preuzet (HTML format \u2014 otvorite u browser-u i koristite Ctrl+P za PDF).', 'info');
   }, 100);
 }
 
 function copyToMarkdown(rawText, btn) {
   var sectionDefs = [
+    {key:'KRATAK ZAKLJU\u010cAK (TL;DR):', lbl:'## \u26a1 TL;DR \u2014 Kratak zaklju\u010dak'},
     {key:'HIJERARHIJA IZVORA:', lbl:'## \u2696 Hijerarhija izvora'},
     {key:'PRAVNI ZAKLJU\u010cAK:', lbl:'## \u2696\ufe0f Pravni zaklju\u010dak'},
+    {key:'ANALIZA \u0160TETE:', lbl:'## \u2696 Analiza \u0161tete'},
     {key:'CITAT ZAKONA:', lbl:'## \ud83d\udcd6 Citat zakona'},
     {key:'CITAT IZ ZAKONA:', lbl:'## \ud83d\udcd6 Citat zakona'},
     {key:'PRAVNI OSNOV:', lbl:'## Pravni osnov'},
     {key:'RIZICI I IZUZECI:', lbl:'## \u26a0\ufe0f Rizici i izuzeci'},
     {key:'KADA OVO NE VA\u017dI:', lbl:'## \ud83d\udccd Kada ovo ne va\u017ei'},
-    {key:'KLJ\u0160NO PITANJE:', lbl:'## \ud83c\udfaf Klju\u010dno pitanje'},
+    {key:'PROCESNI KORACI:', lbl:'## \u26a1 Procesni koraci'},
+    {key:'KLJU\u010cNO PITANJE:', lbl:'## \ud83c\udfaf Klju\u010dno pitanje'},
+    {key:'DODATNA PITANJA:', lbl:'## \ud83d\udd0d Dodatna pitanja'},
     {key:'SLU\u017dBENI IZVOR:', lbl:'## Izvor'},
   ];
   var positions = sectionDefs.map(function(d){return{d:d,pos:rawText.indexOf(d.key)};}).filter(function(x){return x.pos!==-1;});
@@ -2135,17 +2514,19 @@ async function execQuery() {
   var orig   = btnLbl.textContent;
 
   execBtn.disabled = true;
-  btnLbl.textContent = 'Vindex AI pretražuje bazu...';
+  if (window.micStopAll) micStopAll();
+  btnLbl.textContent = activeTab === 'n' ? 'Generišem nacrt...' : 'Vindex AI pretražuje bazu...';
   console.log('[Vindex] execQuery: šaljem upit na', activeTab);
   resp.classList.remove('show');
+  document.getElementById('podnesak-preview').style.display='none';
   rb.style.whiteSpace = '';
 
   var currentPitanje = activeTab === 'q' ? document.getElementById('qi').value : '';
   lastPitanje = currentPitanje;
-  var eps = { q:BASE_URL+'/api/pitanje', n:BASE_URL+'/api/nacrt', a:BASE_URL+'/api/analiza' };
+  var eps = { q:BASE_URL+'/api/pitanje', n:BASE_URL+'/api/podnesak', a:BASE_URL+'/api/analiza' };
   var bodies = {
     q: { pitanje: currentPitanje, history: conversationHistory.slice(-3) },
-    n: { vrsta: document.getElementById('ni').value, opis: document.getElementById('no').value },
+    n: { tip: document.getElementById('podnesak-tip').value, opis: document.getElementById('podnesak-opis').value },
     a: { tekst: document.getElementById('aitxt').value, pitanje: document.getElementById('aq').value }
   };
 
@@ -2162,6 +2543,11 @@ async function execQuery() {
       console.warn('[Vindex] execQuery: 402 — nema kredita');
       userCredits = 0; updateCreditDisplay(); showPaywall();
       _execInProgress=false; execBtn.disabled=false; btnLbl.textContent = orig; return;
+    }
+    if (r.status === 403) {
+      console.warn('[Vindex] execQuery: 403 — nije PRO');
+      _execInProgress=false; execBtn.disabled=false; btnLbl.textContent = orig;
+      openProUpgradeModal(); return;
     }
 
     var d = await r.json();
@@ -2186,16 +2572,27 @@ async function execQuery() {
       }
     }
 
-    resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
-    var i=0, speed=text.length>600?4:text.length>300?7:12;
-    var iv=setInterval(function(){
-      if(i>=text.length){
-        clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
-        _lastRawText = text;
-        rb.innerHTML = formatResponse(text) + _feedbackBar(currentPitanje, text);
-        if (_cyrillicOn) cirilicaElement(rb);
-      } else { rb.textContent+=text[i]; i++; }
-    },speed);
+    _lastRawText = text;
+    if (activeTab === 'n') {
+      // PREVIEW mode za generisani podnesak
+      resp.classList.remove('show');
+      var previewEl = document.getElementById('podnesak-preview');
+      var previewBody = document.getElementById('podnesak-preview-body');
+      var highlighted = escHtml(text).replace(/\[([A-ZŠĐČĆŽ\s\-—]+?)\s*—\s*POPUNITI\]/g,
+        '<span class="popuniti">[$1 — POPUNITI]</span>');
+      previewBody.innerHTML = highlighted;
+      previewEl.style.display = 'block';
+    } else {
+      resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
+      var i=0, speed=text.length>600?4:text.length>300?7:12;
+      var iv=setInterval(function(){
+        if(i>=text.length){
+          clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
+          rb.innerHTML = formatResponse(text) + _feedbackBar(currentPitanje, text);
+          if (_cyrillicOn) cirilicaElement(rb);
+        } else { rb.textContent+=text[i]; i++; }
+      },speed);
+    }
   } catch(e) {
     resp.classList.add('show'); rb.style.whiteSpace='pre-wrap';
     rb.textContent = 'Došlo je do greške: '+(e.message||'API nije dostupan. Proverite internet vezu i pokušajte ponovo.');
@@ -2213,17 +2610,30 @@ function _feedbackBar(pitanje, odgovor) {
 }
 
 async function sendFeedback(btn, pitanjeEnc, odgovorEnc) {
-  if (!currentSession) return;
-  btn.textContent = 'Šaljem...'; btn.disabled = true;
+  if (!currentSession || !currentUser) { showToast('Morate biti prijavljeni da biste prijavili grešku.', 'err'); return; }
+  btn.textContent = '\u0160aljem...'; btn.disabled = true;
   try {
-    await fetch(BASE_URL + '/api/feedback', {
+    var sb = getSupabase();
+    var pitanje = decodeURIComponent(pitanjeEnc);
+    var odgovor = decodeURIComponent(odgovorEnc);
+    if (sb) {
+      await sb.from('reported_errors').insert({
+        user_id:         currentUser.id,
+        original_prompt: pitanje.substring(0, 4000),
+        ai_response:     odgovor.substring(0, 8000),
+        timestamp:       new Date().toISOString()
+      });
+    }
+    // Šalji i hash na backend (bez sadržaja, za serverski log)
+    fetch(BASE_URL + '/api/feedback', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
-      body: JSON.stringify({ pitanje: decodeURIComponent(pitanjeEnc), odgovor: decodeURIComponent(odgovorEnc), tip: 'greska' })
-    });
-    btn.textContent = '✓ Prijavljeno — hvala'; btn.classList.add('sent'); btn.disabled = true;
+      body: JSON.stringify({ pitanje: pitanje, odgovor: odgovor, tip: 'greska' })
+    }).catch(function(){});
+    btn.textContent = '\u2713 Prijavljeno \u2014 hvala'; btn.classList.add('sent'); btn.disabled = true;
   } catch(e) {
-    btn.textContent = '⚑ Prijavi netačan odgovor'; btn.disabled = false;
+    console.error('[Vindex] sendFeedback greška:', e);
+    btn.textContent = '\u26d1 Prijavi neta\u010dan odgovor'; btn.disabled = false;
   }
 }
 

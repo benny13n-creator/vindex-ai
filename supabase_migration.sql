@@ -6,8 +6,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id                UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email             TEXT,
   credits_remaining INTEGER NOT NULL DEFAULT 15,
+  is_pro            BOOLEAN NOT NULL DEFAULT FALSE,
   created_at        TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 1b. Ako tabela već postoji — dodaj kolonu is_pro (idempotentno)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_pro BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- 2. Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -92,3 +96,51 @@ ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "conversations_own" ON public.conversations
   FOR ALL USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- ─── 7. REPORTED_ERRORS tabela (prijave netačnih odgovora) ────────────────────
+CREATE TABLE IF NOT EXISTS public.reported_errors (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  original_prompt TEXT,
+  ai_response     TEXT,
+  timestamp       TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.reported_errors ENABLE ROW LEVEL SECURITY;
+
+-- Korisnik može samo da upisuje (ne čita tuđe prijave)
+CREATE POLICY "reported_errors_insert_own" ON public.reported_errors
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Admin (service_role) čita sve
+CREATE POLICY "reported_errors_service_select" ON public.reported_errors
+  FOR SELECT USING (
+    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
+  );
+
+-- ─── 8. PRO korisnici — admin postavljanje ────────────────────────────────────
+-- Pokrenite ovo da dodelite PRO status developerima i testerima.
+-- NAPOMENA: FOUNDER_EMAILS u api.py automatski dobijaju PRO status bez ove SQL komande.
+-- Ova tabela se koristi za plaćene korisnike koji nisu u env varijablama.
+
+-- Postavi is_pro = true za poznate emailove (zameni sa pravim email adresama)
+UPDATE public.profiles
+SET is_pro = TRUE
+WHERE email IN (
+  'benny13.n@gmail.com',          -- developer (admin)
+  'kristina.stojanovic@dsa.rs',   -- founder
+  'kristinap93@hotmail.com'       -- founder
+  -- Dodaj email testera ovde: 'tester@email.com'
+);
+
+-- Pomoćna funkcija za brzo dodeljivanje PRO statusa po emailu
+-- Primer upotrebe: SELECT set_user_pro('tester@email.com', true);
+CREATE OR REPLACE FUNCTION public.set_user_pro(p_email TEXT, p_is_pro BOOLEAN DEFAULT TRUE)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE public.profiles SET is_pro = p_is_pro WHERE email = p_email;
+  IF NOT FOUND THEN
+    RAISE NOTICE 'Korisnik sa emailom % nije pronađen u profiles tabeli.', p_email;
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
