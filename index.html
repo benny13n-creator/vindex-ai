@@ -2054,10 +2054,12 @@ function editPodnesak() {
 
 /* ─── GLASOVNI UNOS (Web Speech API) ─────────────────────────────────────── */
 (function(){
-  var _rec        = null;   // aktivni SpeechRecognition objekat
-  var _activeId   = null;   // ID textarea koji se snima
-  var _baseText   = '';     // tekst u textarea pre početka snimanja
-  var _useContinuous = true; // false = fallback mode (za service-not-allowed)
+  var _rec           = null;   // aktivni SpeechRecognition objekat
+  var _activeId      = null;   // ID textarea koji se snima
+  var _baseText      = '';     // tekst u textarea pre početka snimanja
+  var _useContinuous = true;   // false = fallback mode (za service-not-allowed)
+  var _silenceTimer  = null;   // setTimeout handle za auto-submit
+  var _SILENCE_MS    = 2500;   // ms tišine pre auto-submita
 
   function supported() {
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -2086,7 +2088,48 @@ function editPodnesak() {
     return msgs[code] || ('Greška glasovnog unosa: ' + code + '. Probajte ponovo ili koristite kucanje.');
   }
 
+  function _cancelSilenceTimer() {
+    if (_silenceTimer) { clearTimeout(_silenceTimer); _silenceTimer = null; }
+    // Ukloni countdown vizual
+    if (_activeId) _setStatus(_activeId, true, 'Snimam... govorite na srpskom (klik = stop)');
+  }
+
+  function _autoSubmit(targetId) {
+    _silenceTimer = null;
+    _stop();
+    // Pokreni execQuery samo ako ima teksta u ciljanom textarea
+    var ta = document.getElementById(targetId);
+    if (!ta || !ta.value.trim()) return;
+    // Vizuelni signal pre submita
+    var btn = document.getElementById('mic-' + targetId);
+    if (btn) { btn.classList.remove('mic-active'); }
+    showToast('🎙 Šaljem upit...', 'info');
+    // Kratka pauza da korisnik vidi toast, pa submit
+    setTimeout(function() {
+      if (typeof execQuery === 'function') execQuery();
+    }, 300);
+  }
+
+  function _resetSilenceTimer(targetId) {
+    _cancelSilenceTimer();
+    // Countdown vizual u status labeli
+    var count = Math.round(_SILENCE_MS / 1000);
+    _setStatus(targetId, true, 'Snimam... auto-slanje za ' + count + 's (klik = otkaži)');
+    var elapsed = 0;
+    var tickInterval = setInterval(function() {
+      elapsed += 500;
+      var remaining = ((_SILENCE_MS - elapsed) / 1000).toFixed(1);
+      if (elapsed >= _SILENCE_MS || !_activeId) { clearInterval(tickInterval); return; }
+      _setStatus(targetId, true, 'Šaljem za ' + remaining + 's — govorite za nastavak');
+    }, 500);
+    _silenceTimer = setTimeout(function() {
+      clearInterval(tickInterval);
+      _autoSubmit(targetId);
+    }, _SILENCE_MS);
+  }
+
   function _stop() {
+    _cancelSilenceTimer();
     if (_rec) { try { _rec.abort(); } catch(e){} _rec = null; }
     if (_activeId) { _setStatus(_activeId, false); _activeId = null; }
   }
@@ -2130,10 +2173,13 @@ function editPodnesak() {
           ta.value = (pending + (interim ? ' ' + interim : '')).trimStart();
           ta.selectionStart = ta.selectionEnd = ta.value.length;
         }
+        // Svaki novi tekst resetuje tajmer za tišinu
+        _resetSilenceTimer(targetId);
       };
 
       rec.onerror = function(ev) {
         var code = ev.error;
+        _cancelSilenceTimer();
         _stop();
         // service-not-allowed u continuous modu — retry bez continuous
         if (code === 'service-not-allowed' && useCont) {
@@ -2180,8 +2226,9 @@ function editPodnesak() {
         }
         var t = document.getElementById(tid);
         if (t) { t.value = (sharedPending + (interim?' '+interim:'')).trimStart(); t.selectionStart = t.selectionEnd = t.value.length; }
+        _resetSilenceTimer(tid);
       };
-      rec.onerror  = function(ev){ var m=_errorMsg(ev.error); if(m) showToast(m,'err'); _stop(); };
+      rec.onerror  = function(ev){ _cancelSilenceTimer(); var m=_errorMsg(ev.error); if(m) showToast(m,'err'); _stop(); };
       rec.onend    = function(){
         if (_activeId === tid && _rec === rec) {
           var nr = _buildRec(false); _attachHandlers(nr, tid, sharedPending); _rec = nr;
