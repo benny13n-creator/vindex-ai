@@ -2054,95 +2054,174 @@ function editPodnesak() {
 
 /* ─── GLASOVNI UNOS (Web Speech API) ─────────────────────────────────────── */
 (function(){
-  var _rec = null;          // aktivni SpeechRecognition objekat
-  var _activeId = null;     // ID textarea koji se snima
-  var _baseText = '';       // tekst u textarea pre početka snimanja
+  var _rec        = null;   // aktivni SpeechRecognition objekat
+  var _activeId   = null;   // ID textarea koji se snima
+  var _baseText   = '';     // tekst u textarea pre početka snimanja
+  var _useContinuous = true; // false = fallback mode (za service-not-allowed)
 
   function supported() {
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   }
 
-  function _setStatus(id, on) {
+  function _setStatus(id, on, msg) {
     var s = document.getElementById('mic-status-' + id);
     var b = document.getElementById('mic-' + id);
+    var span = s ? s.querySelector('span:last-child') : null;
     if (s) on ? s.classList.add('show') : s.classList.remove('show');
     if (b) on ? b.classList.add('mic-active') : b.classList.remove('mic-active');
+    if (span && msg) span.textContent = msg;
   }
 
-  function _stop(final) {
-    if (_rec) { try { _rec.stop(); } catch(e){} _rec = null; }
+  function _errorMsg(code) {
+    var msgs = {
+      'not-allowed':        '🔒 Mikrofon blokiran. Kliknite na katanac u URL baru → dozvolite mikrofon → osvežite stranicu.',
+      'permission-denied':  '🔒 Mikrofon blokiran. Kliknite na katanac u URL baru → dozvolite mikrofon → osvežite stranicu.',
+      'service-not-allowed':'⚙️ Servis blokiran. Probajte: Katanac → Mikrofon → Dozvoli. Ako ne radi, koristite Chrome na desktop-u.',
+      'no-speech':          '',  // tiho — normalna situacija
+      'aborted':            '',  // tiho — korisnik je sam zaustavio
+      'audio-capture':      '🎙️ Mikrofon nije pronađen. Proverite da li je uređaj priključen.',
+      'network':            '🌐 Nema internet konekcije. Glasovni unos zahteva online vezu.',
+      'language-not-supported': '🌍 Srpski jezik nije podržan na ovom uređaju. Probajte Chrome na Windows/Mac.',
+    };
+    return msgs[code] || ('Greška glasovnog unosa: ' + code + '. Probajte ponovo ili koristite kucanje.');
+  }
+
+  function _stop() {
+    if (_rec) { try { _rec.abort(); } catch(e){} _rec = null; }
     if (_activeId) { _setStatus(_activeId, false); _activeId = null; }
   }
 
-  function _start(targetId) {
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  function _buildRec(useContinuous) {
+    var SR  = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = new SR();
-    rec.lang = 'sr-RS';
-    rec.continuous = true;
-    rec.interimResults = true;
+    rec.lang            = 'sr-RS';
+    rec.continuous      = useContinuous;
+    rec.interimResults  = true;
     rec.maxAlternatives = 1;
-
-    var ta = document.getElementById(targetId);
-    _baseText = ta ? ta.value.trimEnd() : '';
-    var pending = '';  // akumulirani finalni transkript od starta
-
-    rec.onstart = function() {
-      _activeId = targetId;
-      _setStatus(targetId, true);
-    };
-
-    rec.onresult = function(e) {
-      var interim = '';
-      for (var i = e.resultIndex; i < e.results.length; i++) {
-        var chunk = e.results[i][0].transcript;
-        if (e.results[i].isFinal) {
-          pending += (_baseText || pending ? ' ' : '') + chunk.trim();
-          _baseText = '';  // baza je sada uključena u pending
-        } else {
-          interim = chunk;
-        }
-      }
-      if (ta) {
-        var display = pending + (interim ? ' ' + interim : '');
-        ta.value = display.trimStart();
-        // pomeri kursor na kraj
-        ta.selectionStart = ta.selectionEnd = ta.value.length;
-      }
-    };
-
-    rec.onerror = function(ev) {
-      _stop();
-      if (ev.error === 'not-allowed' || ev.error === 'permission-denied') {
-        showToast('Pristup mikrofonu odbijen. Dozvolite pristup u podešavanjima pretraživača.', 'err');
-      } else if (ev.error !== 'aborted' && ev.error !== 'no-speech') {
-        showToast('Greška mikrofona: ' + ev.error, 'err');
-      }
-    };
-
-    rec.onend = function() {
-      // Browser auto-stop (tišina) — samo cleanup UI
-      if (_activeId === targetId) { _setStatus(targetId, false); _activeId = null; _rec = null; }
-    };
-
-    _rec = rec;
-    rec.start();
+    return rec;
   }
 
-  // ── Javna funkcija koju pozivaju onclick handleri ─────────────────────────
+  function _start(targetId) {
+    var ta      = document.getElementById(targetId);
+    _baseText   = ta ? ta.value.trimEnd() : '';
+    var pending = '';
+
+    function tryStart(useCont) {
+      var rec = _buildRec(useCont);
+
+      rec.onstart = function() {
+        _activeId = targetId;
+        var lbl = useCont ? 'Snimam... govorite na srpskom (klik = stop)' : 'Snimam rečenicu... (klik = stop)';
+        _setStatus(targetId, true, lbl);
+      };
+
+      rec.onresult = function(e) {
+        var interim = '';
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          var chunk = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            pending += (_baseText || pending ? ' ' : '') + chunk.trim();
+            _baseText = '';
+          } else {
+            interim = chunk;
+          }
+        }
+        if (ta) {
+          ta.value = (pending + (interim ? ' ' + interim : '')).trimStart();
+          ta.selectionStart = ta.selectionEnd = ta.value.length;
+        }
+      };
+
+      rec.onerror = function(ev) {
+        var code = ev.error;
+        _stop();
+        // service-not-allowed u continuous modu — retry bez continuous
+        if (code === 'service-not-allowed' && useCont) {
+          _useContinuous = false;
+          showToast('ℹ️ Prebacujem na jednorečenični mod...', 'info');
+          setTimeout(function(){ tryStart(false); }, 400);
+          return;
+        }
+        var msg = _errorMsg(code);
+        if (msg) showToast(msg, 'err');
+      };
+
+      rec.onend = function() {
+        if (_activeId === targetId) {
+          // U non-continuous modu: automatski restart dok korisnik ne klikne stop
+          if (!useCont && _rec === rec) {
+            // rec je već završio — pokrenemo novi samo ako je _activeId još aktivan
+            var newRec = _buildRec(false);
+            _attachHandlers(newRec, targetId, pending);
+            _rec = newRec;
+            try { newRec.start(); } catch(e) { _stop(); }
+            return;
+          }
+          _setStatus(targetId, false);
+          _activeId = null;
+          _rec = null;
+        }
+      };
+
+      _rec = rec;
+      try { rec.start(); } catch(e) { _stop(); showToast(_errorMsg('service-not-allowed'), 'err'); }
+    }
+
+    // Pomoćna funkcija za reconnect u non-continuous modu
+    function _attachHandlers(rec, tid, sharedPending) {
+      rec.lang = 'sr-RS'; rec.continuous = false; rec.interimResults = true;
+      rec.onstart  = function(){ _setStatus(tid, true, 'Snimam rečenicu... (klik = stop)'); };
+      rec.onresult = function(e){
+        var interim = '';
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          var chunk = e.results[i][0].transcript;
+          if (e.results[i].isFinal) { sharedPending += (sharedPending ? ' ':'') + chunk.trim(); }
+          else { interim = chunk; }
+        }
+        var t = document.getElementById(tid);
+        if (t) { t.value = (sharedPending + (interim?' '+interim:'')).trimStart(); t.selectionStart = t.selectionEnd = t.value.length; }
+      };
+      rec.onerror  = function(ev){ var m=_errorMsg(ev.error); if(m) showToast(m,'err'); _stop(); };
+      rec.onend    = function(){
+        if (_activeId === tid && _rec === rec) {
+          var nr = _buildRec(false); _attachHandlers(nr, tid, sharedPending); _rec = nr;
+          try { nr.start(); } catch(e){ _stop(); }
+        }
+      };
+    }
+
+    tryStart(_useContinuous);
+  }
+
+  // ── Permission pre-check (async, non-blocking) ────────────────────────────
+  function _checkPermAndStart(targetId) {
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'microphone' }).then(function(result) {
+        if (result.state === 'denied') {
+          showToast('🔒 Mikrofon je blokiran u podešavanjima. Kliknite katanac pored URL adrese → Mikrofon → Dozvoli → Osvežite stranicu.', 'err');
+          return;
+        }
+        _start(targetId);
+      }).catch(function() { _start(targetId); });  // permissions API nije podržan — pokušaj direktno
+    } else {
+      _start(targetId);
+    }
+  }
+
+  // ── Javna API ─────────────────────────────────────────────────────────────
   window.micToggle = function(targetId) {
     if (!supported()) {
-      showToast('Vaš pretraživač ne podržava glasovni unos. Preporučujemo Chrome ili Edge.', 'err');
+      showToast('⚠️ Glasovni unos nije podržan. Koristite Chrome (desktop) ili Edge.', 'err');
       return;
     }
     if (_activeId === targetId) {
       _stop();
     } else {
-      if (_activeId) _stop();       // zaustavi prethodni ako postoji
-      _start(targetId);
+      if (_activeId) _stop();
+      _checkPermAndStart(targetId);
     }
   };
 
-  // Zaustavi snimanje kad korisnik menja tab ili šalje upit
   window.micStopAll = function() { _stop(); };
 })();
 
