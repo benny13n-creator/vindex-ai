@@ -256,42 +256,42 @@ SABLONI: dict[str, str] = {
 EKSTRAKCIONI_PROMPTOVI: dict[str, str] = {
 
 "tuzba_naknada_stete": """\
-Ti si asistent koji ekstraktuje pravne entitete iz opisa slučaja za tužbu radi naknade nematerijalne štete.
-Iz teksta izvuci TAČNO sledeća polja i vrati ČIST JSON objekat — bez komentara, bez markdown blokova.
+Ti si pravni asistent koji ekstraktuje ISKLJUČIVO faktičke podatke iz opisa slučaja.
+Vrati ČIST JSON objekat — bez komentara, bez markdown blokova, bez ikakvog teksta van JSON-a.
 
 {
-  "tuzilac_ime": "Puno ime tužioca",
-  "tuzilac_adresa": "Adresa tužioca ili prazno",
-  "tuzilac_jmbg": "JMBG tužioca ako je navedeno, inače prazno",
-  "tuzeni_ime": "Puno ime/naziv tuženog (fizičko lice ili osiguravajuće društvo)",
-  "tuzeni_adresa": "Adresa/sedište tuženog ili prazno",
-  "sud_naziv": "Nadležni sud: za štete do 3.000.000 RSD — Osnovni sud, iznad — Viši sud u [grad]",
+  "tuzilac_ime": "Puno ime tužioca (ime i prezime fizičkog lica ili naziv pravnog lica)",
+  "tuzilac_adresa": "Ulica, broj, grad — ili prazno ako nije navedeno",
+  "tuzilac_jmbg": "13-cifreni JMBG tužioca ako je eksplicitno naveden, inače prazno",
+  "tuzeni_ime": "Puno ime/naziv tuženog (fizičko lice, pravno lice ili osiguravajuće društvo sa punim nazivom)",
+  "tuzeni_adresa": "Adresa ili sedište tuženog, ili prazno",
+  "sud_naziv": "Nadležni sud po sledećem pravilu: ukupna vrednost spora do 3.000.000 RSD → 'Osnovni sud u [grad]'; iznad → 'Viši sud u [grad]'. Grad = mesto prebivališta tužioca ili mesto gde se desio štetni događaj.",
   "sud_adresa": "Adresa suda ili prazno",
-  "vrednost_spora": "Ukupan zbir svih traženih iznosa u dinarima",
-  "datum_dogadjaja": "Datum štetnog događaja u formatu DD.MM.YYYY",
-  "cinjenicno_stanje_raw": "Sažet opis štetnog događaja u pravnom stilu (2-4 rečenice): ko, šta, kada, gde, uzrok",
-  "dokazna_sredstva_raw": "Lista dokaza koji su pomenuti u opisu (zapisnici, nalaz lekara, fotografije...)",
-  "fizicki_bolovi_raw": "Opis fizičkih povreda i bolova ako je navedeno, inače prazno",
-  "iznos_fizicki_bolovi": "Traženi iznos za fizičke bolove u dinarima, ili prazno",
-  "strah_raw": "Opis pretrpljenog straha (primarni/sekundarni) ako je navedeno, inače prazno",
-  "iznos_strah": "Traženi iznos za strah u dinarima, ili prazno",
-  "ima_umanjenje": "true ako je navedeno trajno smanjenje životnih aktivnosti ili trajni invaliditet, inače false",
-  "umanjenje_raw": "Opis umanjenja opšte životne aktivnosti ako postoji, inače prazno",
-  "iznos_umanjenje": "Traženi iznos za umanjenje životne aktivnosti u dinarima, ili prazno",
-  "ima_naruzenost": "true ako su navedeni trajni ožiljci ili naruženost, inače false",
-  "naruzenost_raw": "Opis naruženosti/ožiljaka ako postoji, inače prazno",
-  "iznos_naruzenost": "Traženi iznos za naruženost u dinarima, ili prazno",
-  "advokat_ime": "Ime advokata ako je navedeno, inače prazno",
+  "vrednost_spora": "Samo cifra u dinarima bez simbola i slova — zbir SVIH traženih iznosa naknade. Ako iznosi nisu navedeni, ostavi prazno.",
+  "datum_dogadjaja": "Datum štetnog događaja u formatu DD.MM.YYYY — ako nije naveden, ostavi prazno",
+  "cinjenicno_stanje_raw": "Kratki opis štetnog događaja direktno iz teksta (3-5 rečenica): ko, šta, kada, gde — bez pravnih kvalifikacija",
+  "dokazna_sredstva_raw": "Eksplicitno pomenuti dokazi iz opisa (zapisnici, medicinska dokumentacija, fotografije, svedoci...)",
+  "fizicki_bolovi_raw": "Opis fizičkih povreda i bolova koji je naveden u tekstu, ili prazno",
+  "iznos_fizicki_bolovi": "Samo cifra u dinarima ako je korisnik eksplicitno naveo željeni iznos za fizičke bolove, inače prazno",
+  "strah_raw": "Opis pretrpljenog straha naveden u tekstu, ili prazno",
+  "iznos_strah": "Samo cifra u dinarima ako je korisnik eksplicitno naveo iznos za strah, inače prazno",
+  "ima_umanjenje": true ili false — true SAMO ako je eksplicitno pomenuto trajno umanjenje opšte životne aktivnosti ili trajni invaliditet,
+  "umanjenje_raw": "Opis umanjenja životne aktivnosti iz teksta, ili prazno",
+  "iznos_umanjenje": "Samo cifra u dinarima ako je korisnik eksplicitno naveo iznos, inače prazno",
+  "ima_naruzenost": true ili false — true SAMO ako su eksplicitno pomenuti trajni ožiljci, deformiteti ili naruženost,
+  "naruzenost_raw": "Opis naruženosti iz teksta, ili prazno",
+  "iznos_naruzenost": "Samo cifra u dinarima ako je korisnik eksplicitno naveo iznos, inače prazno",
+  "advokat_ime": "Puno ime advokata sa titulom ako je naveden, inače prazno",
   "advokat_adresa": "Adresa advokata ako je navedena, inače prazno",
-  "mesto": "Mesto podnošenja tužbe",
-  "datum": "Datum podnošenja u formatu [dan]. [mesec u slovima] [godina]. godine"
+  "mesto": "Grad u kome se podnosi tužba (po pravilu mesto suda)",
+  "datum": "Datum podnošenja u formatu: '20. aprila 2026. godine' — ako nije naveden, koristi današnji datum"
 }
 
-PRAVILA:
-- Ako polje nije pomenuto, ostavi prazno string ili false — NIKAD ne izmišljaj podatke.
-- Sud: za nematerijalne štete iz saobraćajnih nezgoda nadležan je Osnovni sud po mestu prebivališta tužioca.
-- Vrednost spora = zbir svih iznosa nematerijalne štete. Ako iznosi nisu precizni, proceni na osnovu opisa.
-- Ekavica, formalni pravni stil.
+APSOLUTNO ZABRANJENO:
+- Izmišljati ili pretpostavljati podatke koji nisu u tekstu.
+- Navoditi iznose koje korisnik nije eksplicitno naznačio.
+- Vrednost spora mora biti samo zbir iznosa koje je korisnik naveo — nikad procena.
+- JSON vrednosti moraju biti stringovi (osim ima_umanjenje i ima_naruzenost koji su boolean).
 """,
 
 "zalba_parnicna": """\
@@ -368,28 +368,30 @@ PRAVILA:
 OBOGACIVANJE_PROMPTOVI: dict[str, str] = {
 
 "tuzba_naknada_stete": """\
-Ti si pravni pisac koji popunjava tužbu radi naknade nematerijalne štete pred srpskim sudom.
+Ti si iskusni srpski advokat koji piše tužbu radi naknade nematerijalne štete pred srpskim redovnim sudom.
 Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
-Vrati ČIST JSON — bez komentara, bez markdown blokova.
+Stil pisanja: procesno-pravni, jasan, koncizan, bez književnih ulepšavanja. Svaka rečenica mora imati pravni smisao.
+Vrati ČIST JSON — bez komentara, bez markdown blokova, bez objašnjenja van JSON-a.
 
 {
-  "cinjenicno_stanje": "Pravno formulisano činjenično stanje (3-5 paragrafa): ko je štetnik, kada i gde se desio događaj, mehanizam nastanka povrede, uzročno-posledična veza. Koristi formalne fraze i ekavicu.",
-  "fizicki_bolovi_opis": "Opis fizičkih bolova: vrsta povreda, intenzitet (jak/srednji/blag), trajanje akutne faze, tok lečenja, zaostale tegobe. Referišaj na medicinsku dokumentaciju. NIKAD ne kvalifikuj povredu kao 'laku/tešku telesnu povredu' — to je isključivo sud.",
-  "strah_opis": "Opis pretrpljenog straha: primarni strah (u trenutku događaja — intenzitet, trajanje) i sekundarni strah (tokom lečenja, operacija, mogućih komplikacija). Referišaj na psihijatrijsku/psihološku dokumentaciju ako postoji.",
-  "umanjenje_sekcija": "Ako ima_umanjenje=true: napiši celu sekciju '3. Duševni bolovi zbog umanjenja opšte životne aktivnosti\\n\\n[opis: koji procenat invaliditeta, koje aktivnosti su pogođene, da li je trajno]. Inače: prazno string.",
-  "naruzenost_sekcija": "Ako ima_naruzenost=true: napiši celu sekciju '4. Duševni bolovi zbog naruženosti\\n\\n[opis: lokacija, veličina i vidljivost ožiljaka, psihološki uticaj]. Inače: prazno string.",
-  "pravna_kvalifikacija": "Pravna analiza: ZOO čl. 154 (osnov odgovornosti), čl. 155 (uzročna veza), čl. 200 (nematerijalna šteta) + odredbe iz RAG konteksta. KRITIČNO: ZOO je lex generalis — primenjuje se supsidijarno uz posebne zakone (ZOSOV za saobraćaj). Navedeni zakonski osnov mora biti iz dostavljenog konteksta.",
-  "dokazna_sredstva": "Numerisana lista dokaznih sredstava na osnovu pomenutih dokaza + standardni dokazi za ovu vrstu spora (nalaz lekara, fotografije, svedoci, veštak medicinske struke)",
-  "petitum_umanjenje": "Ako ima_umanjenje=true: '3. na ime duševnih bolova zbog umanjenja opšte životne aktivnosti iznos od [IZNOS UMANJENJE — POPUNITI] dinara;\\n'. Inače: prazno string.",
-  "petitum_naruzenost": "Ako ima_naruzenost=true: '4. na ime duševnih bolova zbog naruženosti iznos od [IZNOS NARUŽENOST — POPUNITI] dinara;\\n'. Inače: prazno string.",
-  "opcioni_petitum": "Eventualni dodatni zahtevi (privremena mera, osiguranje dokaza) ili prazno string"
+  "cinjenicno_stanje": "Pravno formulisano činjenično stanje u 3-5 paragrafa. Struktura: (1) identifikacija stranaka i odnos između njih; (2) opis štetnog događaja — datum, mesto, mehanizam nastanka, uzrok; (3) nastanak i vrsta povrede/štete sa uzročno-posledičnom vezom; (4) preduzete mere lečenja i njihov ishod; (5) trajanje i posledice. Fraze: 'Dana [datum], na [mestu], [štetnik] je [radnjom] prouzrokovao [posledicu].' — NIKAD ne pisati 'navodno' ili 'kako tužilac tvrdi'. Ekavica, formalni pravni stil.",
+  "fizicki_bolovi_opis": "Pravni opis fizičkih bolova u 2-3 paragrafa: (1) vrsta i lokalizacija anatomskih povreda utvrđenih medicinskom dokumentacijom; (2) intenzitet bola prema standardnoj VAS skali ili opisno (intenzivan/umeren/blag), trajanje akutne faze i tok lečenja (hospitalizacija, operacije, rehabilitacija); (3) zaostale tegobe i funkcionalna ograničenja. OBAVEZNO: referišaj na medicinsku dokumentaciju ('što se utvrđuje iz nalaza medicinskih organa priloženih uz tužbu'). ZABRANJENO: kvalifikovati povredu kao 'laku', 'tešku' ili 'naročito tešku telesnu povredu' — to je isključivo nadležnost suda.",
+  "strah_opis": "Pravni opis pretrpljenog straha u 2 paragrafa: (1) primarni strah — intenzitet i trajanje straha neposredno u trenutku i neposredno nakon štetnog događaja, sa opisom okolnosti koje su izazvale strah (neposredna opasnost po život, gubitak svesti, itd.); (2) sekundarni strah — strah tokom dijagnostičkih procedura, operativnih zahvata, straho od komplikacija i od trajnih posledica. Referišaj na psihijatrijsku ili psihološku dokumentaciju ako postoji. Koristiti formulaciju: 'Tužilac je, usled opisanog štetnog dogadjaja, pretrpeo primarni strah [opis], kao i sekundarni strah [opis].'",
+  "umanjenje_sekcija": "Ako ima_umanjenje=true: napiši CELU sekciju počevši sa tačno ovim tekstom: '3. Duševni bolovi zbog umanjenja opšte životne aktivnosti\\n\\nTužilac je, kao trajna posledica zadobijenih povreda, pretrpeo umanjenje opšte životne aktivnosti. [Opis: koji aspekti svakodnevnog života su pogođeni — rad, kretanje, sport, socijalni život, porodični život; da li je umanjenje delimično ili potpuno; koji procenat umanjenja je utvrđen od strane lekara ili veštaka.] Navedeno umanjenje je [trajno/privremeno] i direktna je posledica predmetnog štetnog dogadjaja, što se utvrđuje iz priložene medicinske dokumentacije.' Ako ima_umanjenje=false: prazno string.",
+  "naruzenost_sekcija": "Ako ima_naruzenost=true: napiši CELU sekciju počevši sa: '4. Duševni bolovi zbog naruženosti\\n\\nUsled zadobijenih povreda, tužilac je pretrpeo trajnu naruženost. [Opis: lokalizacija, dimenzije i morfologija vidljivih trajnih promena (ožiljci, deformiteti, amputacije); vidljivost u svakodnevnom životu; psihološki uticaj na samopouzdanje i socijalne odnose.] Naruženost je vidljiva i predstavlja trajnu estetsku i psihičku smetnju, što se utvrđuje iz fotografija i medicinske dokumentacije priložene uz tužbu.' Ako ima_naruzenost=false: prazno string.",
+  "pravna_kvalifikacija": "Pravna analiza u 2-3 paragrafa sa eksplicitnim pozivanjem na zakone: (1) osnov odštetne odgovornosti — ZOO čl. 154 st. 1 (opšta deliktna odgovornost), čl. 155 (uzročna veza), uz navođenje posebnog zakona iz RAG konteksta ako postoji (ZOSOV za saobraćajne nezgode, ZOR za radne nezgode); (2) pravna osnova za naknadu nematerijalne štete — ZOO čl. 200 st. 1 (fizički bolovi), čl. 200 st. 1 (duševni bolovi zbog umanjenja životne aktivnosti), čl. 200 st. 1 (naruženost), čl. 200 st. 1 (strah); (3) nadležnost i mesna nadležnost suda prema ZPP čl. 22 (opšta mesna nadležnost) ili čl. 41 (posebna mesna nadležnost za štete). KRITIČNO: navesti ISKLJUČIVO zakone koji su prisutni u RAG kontekstu ili su opštepoznati (ZOO, ZPP) — ne izmišljati Sl. glasnik brojeve.",
+  "dokazna_sredstva": "Numerisana lista dokaznih sredstava. Uvodni tekst: 'Tužilac predlaže izvođenje sledećih dokaza:'. Format svake stavke: '[redni broj]. [Vrsta dokaza] — [svrha dokazivanja]'. Standardni dokazi za ovu vrstu spora: 1. Medicinska dokumentacija (otpusna lista, RTG snimci, nalaz specijaliste) — radi dokazivanja vrste, obima i trajanja povreda; 2. Policijski/MUP zapisnik o uviđaju — radi dokazivanja mehanizma nastanka štete; 3. Svedoci [ili 'koje tužilac naknadno predloži'] — radi dokazivanja okolnosti štetnog dogadjaja; 4. Veštak medicinske struke — radi utvrđivanja uzročno-posledične veze i procene nematerijalne štete; 5. Fotografije — radi dokazivanja materijalnog i estetskog stanja. Dodaj i dokaze koji su eksplicitno pomenuti u opisu slučaja.",
+  "petitum_umanjenje": "Ako ima_umanjenje=true: tačno ovaj tekst: '3. na ime duševnih bolova zbog umanjenja opšte životne aktivnosti iznos od [IZNOS UMANJENJE — POPUNITI] dinara;\\n'. Ako ima_umanjenje=false: prazno string.",
+  "petitum_naruzenost": "Ako ima_naruzenost=true: tačno ovaj tekst: '4. na ime duševnih bolova zbog naruženosti iznos od [IZNOS NARUŽENOST — POPUNITI] dinara;\\n'. Ako ima_naruzenost=false: prazno string.",
+  "opcioni_petitum": "Ako postoje osnovi: predlog za privremenu meru (čl. 448 ZPP) ili predlog za osiguranje dokaza pre pokretanja postupka. U suprotnom: prazno string."
 }
 
-KRITIČNA PRAVILA:
-- NIKAD ne kvalifikuj telesnu povredu kao 'laku', 'tešku' ili 'naročito tešku' — to je isključivo sud.
-- Iznos nematerijalne štete navodi se samo ako je korisnik eksplicitno naznačio željeni iznos — inače ostavi placeholder.
-- Koristi ISKLJUČIVO zakone koji se pojavljuju u RAG kontekstu — ne izmišljaj brojeve Sl. glasnika.
-- Ekavica, formalni pravni stil, latinski termini (in dubio pro reo, res iudicata) samo gde je uobičajeno.
+APSOLUTNO ZABRANJENO:
+- Kvalifikovati povredu kao 'laku', 'tešku' ili 'naročito tešku telesnu povredu' (isključivo nadležnost suda).
+- Navoditi iznose nematerijalne štete koje korisnik nije eksplicitno naveo — ostavi placeholder [IZNOS — POPUNITI].
+- Izmišljati brojeve Sl. glasnika ili zakone koji nisu u RAG kontekstu.
+- Pisati u prvom licu ('tužilac kaže') — pisati u trećem licu procesnog stila ('tužilac je pretrpeo').
+- Koristiti razgovorni ili književni stil.
 """,
 
 "zalba_parnicna": """\

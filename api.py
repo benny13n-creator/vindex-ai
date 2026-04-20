@@ -112,10 +112,10 @@ security = HTTPBearer(auto_error=False)
 
 def _verify_token(token: str) -> Optional[dict]:
     """
-    Verifikuje token u tri koraka:
+    Verifikuje token u dva koraka:
     1. Direktan HTTP poziv na Supabase /auth/v1/user — najsigurnije, ne zavisi od JWT_SECRET
     2. Lokalni JWT decode — fallback ako je JWT_SECRET ispravno postavljen
-    3. JWT decode bez verifikacije — poslednji fallback (samo čita sub/email)
+    Fallback bez verifikacije potpisa je uklonjen iz sigurnosnih razloga.
     """
     if not token:
         return None
@@ -152,19 +152,6 @@ def _verify_token(token: str) -> Optional[dict]:
                 return payload
         except JWTError:
             pass
-
-    # Korak 3: JWT decode bez verifikacije potpisa (čita samo sub/email)
-    try:
-        payload = jose_jwt.decode(
-            token,
-            options={"verify_signature": False, "verify_aud": False},
-            algorithms=["HS256"],
-        )
-        if payload.get("sub"):
-            logger.warning("Token prihvaćen BEZ verifikacije potpisa za user %s", payload.get("sub"))
-            return payload
-    except JWTError:
-        pass
 
     return None
 
@@ -677,12 +664,28 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
 
     # ── KORAK 1: Ekstrakcija entiteta (GPT-4o-mini, ~1s) ──────────────────────
     ekstr_prompt = EKSTRAKCIONI_PROMPTOVI[req.tip]
+
+    def _parse_json_safe(raw: str) -> dict:
+        """Pokušava da parsira JSON; ako ne uspe, traži prvi {...} blok."""
+        raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            import re as _re
+            m = _re.search(r'\{[\s\S]+\}', raw)
+            if m:
+                try:
+                    return json.loads(m.group())
+                except json.JSONDecodeError:
+                    pass
+        return {}
+
     try:
         ekstr_resp = await asyncio.to_thread(
             lambda: oai.chat.completions.create(
                 model="gpt-4o-mini",
                 temperature=0,
-                max_tokens=800,
+                max_tokens=900,
                 messages=[
                     {"role": "system", "content": ekstr_prompt},
                     {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}"},
@@ -690,10 +693,22 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
             )
         )
         raw_json = (ekstr_resp.choices[0].message.content or "").strip()
-        # Ukloni eventualne ```json blokove
-        raw_json = raw_json.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        entiteti: dict = json.loads(raw_json)
-    except (json.JSONDecodeError, Exception) as exc:
+        entiteti: dict = _parse_json_safe(raw_json)
+        if not entiteti:
+            logger.warning("Ekstrakcija vratila prazan JSON [q=%s] — retry sa gpt-4o", log_id)
+            ekstr_resp2 = await asyncio.to_thread(
+                lambda: oai.chat.completions.create(
+                    model="gpt-4o",
+                    temperature=0,
+                    max_tokens=900,
+                    messages=[
+                        {"role": "system", "content": ekstr_prompt},
+                        {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}\n\nVrati ISKLJUČIVO validan JSON objekat, bez ikakvog drugog teksta."},
+                    ],
+                )
+            )
+            entiteti = _parse_json_safe(ekstr_resp2.choices[0].message.content or "")
+    except Exception as exc:
         logger.warning("Ekstrakcija entiteta neuspešna [q=%s]: %s", log_id, exc)
         entiteti = {}
 
@@ -718,7 +733,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
             lambda: oai.chat.completions.create(
                 model="gpt-4o",
                 temperature=0,
-                max_tokens=1200,
+                max_tokens=2500,
                 messages=[
                     {"role": "system", "content": obog_prompt},
                     {"role": "user",   "content": obog_user},

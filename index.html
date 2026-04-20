@@ -1460,6 +1460,15 @@ function toggleCyrillic() {
     rb.innerHTML = formatResponse(_lastRawText) + _feedbackBar(lastPitanje, _lastRawText);
     if (_cyrillicOn) cirilicaElement(rb);
   }
+  // Ažuriraj preview podneska ako je vidljiv
+  var previewBody = document.getElementById('podnesak-preview-body');
+  var previewEl   = document.getElementById('podnesak-preview');
+  if (_lastRawText && previewBody && previewEl && previewEl.style.display !== 'none') {
+    var highlighted = escHtml(_lastRawText).replace(/\[([A-ZŠĐČĆŽ\s\-—]+?)\s*—\s*POPUNITI\]/g,
+      '<span class="popuniti">[$1 — POPUNITI]</span>');
+    previewBody.innerHTML = highlighted;
+    if (_cyrillicOn) cirilicaElement(previewBody);
+  }
   // Ažuriraj history panel
   if (_chatHistoryRows.length) renderChatHistory(_chatHistoryRows);
 }
@@ -2097,14 +2106,17 @@ function editPodnesak() {
   function _autoSubmit(targetId) {
     _silenceTimer = null;
     _stop();
-    // Pokreni execQuery samo ako ima teksta u ciljanom textarea
     var ta = document.getElementById(targetId);
     if (!ta || !ta.value.trim()) return;
-    // Vizuelni signal pre submita
+    // Bez logovanog korisnika auto-submit samo otvara modal, ne šalje
+    if (!window.currentUser) {
+      showToast('🎙 Prijavite se da biste koristili glasovni unos.', 'err');
+      if (typeof openModal === 'function') openModal();
+      return;
+    }
     var btn = document.getElementById('mic-' + targetId);
-    if (btn) { btn.classList.remove('mic-active'); }
+    if (btn) btn.classList.remove('mic-active');
     showToast('🎙 Šaljem upit...', 'info');
-    // Kratka pauza da korisnik vidi toast, pa submit
     setTimeout(function() {
       if (typeof execQuery === 'function') execQuery();
     }, 300);
@@ -2692,7 +2704,7 @@ async function execQuery() {
 
     // Sačuvaj u in-memory i Supabase history
     if (d.odgovor) {
-      var turnQ = activeTab === 'q' ? currentPitanje : ('[' + activeTab + '] ' + (document.getElementById('ni') ? document.getElementById('ni').value : '').substring(0,120));
+      var turnQ = activeTab === 'q' ? currentPitanje : ('[' + activeTab + '] ' + (document.getElementById('podnesak-opis') ? document.getElementById('podnesak-opis').value : '').substring(0,120));
       if (activeTab === 'q' && currentPitanje) {
         conversationHistory.push({ q: currentPitanje, a: d.odgovor.substring(0, 600) });
         if (conversationHistory.length > 3) conversationHistory.shift();
