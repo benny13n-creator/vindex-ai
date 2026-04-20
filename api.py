@@ -412,12 +412,16 @@ def serve_html():
 async def me(user: dict = Depends(get_current_user)):
     """Vraća podatke o prijavljenom korisniku, kredite i PRO status."""
     try:
-        profil = await asyncio.to_thread(_ensure_profile, user["user_id"], user.get("email", ""))
+        email = user.get("email", "")
+        profil = await asyncio.to_thread(_ensure_profile, user["user_id"], email)
+        founder = _is_founder(email)
+        # Founder uvek vidi 9999 — frontend nikad ne prikazuje paywall
+        credits = 9999 if founder else profil["credits_remaining"]
         return {
             "user_id":           user["user_id"],
-            "email":             user["email"],
-            "credits_remaining": profil["credits_remaining"],
-            "credits_total":     BESPLATNI_KREDITI,
+            "email":             email,
+            "credits_remaining": credits,
+            "credits_total":     9999 if founder else BESPLATNI_KREDITI,
             "is_pro":            profil["is_pro"],
         }
     except Exception as exc:
