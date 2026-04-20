@@ -2193,44 +2193,40 @@ function editPodnesak() {
     tryStart(_useContinuous);
   }
 
-  // ── HTTPS provera ─────────────────────────────────────────────────────────
-  function _checkHttps() {
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-      showToast('⚠️ Glasovni unos zahteva HTTPS vezu. Aplikacija mora biti otvorena preko https://', 'err');
-      return false;
-    }
-    return true;
+  // ── AudioContext wake-up (iOS zahteva ovo unutar click handlera) ──────────
+  var _audioCtx = null;
+  function _wakeAudio() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!_audioCtx) _audioCtx = new AC();
+      if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    } catch(e) {}
   }
 
-  // ── Permission pre-check (async, non-blocking) ────────────────────────────
-  function _checkPermAndStart(targetId) {
-    if (navigator.permissions && navigator.permissions.query) {
-      navigator.permissions.query({ name: 'microphone' }).then(function(result) {
-        if (result.state === 'denied') {
-          showToast('🔒 Mikrofon blokiran. Katanac (🔒) pored URL-a → Mikrofon → Dozvoli → Osvežite stranicu (Ctrl+Shift+R).', 'err');
-          return;
-        }
-        _start(targetId);
-      }).catch(function() { _start(targetId); });
-    } else {
-      _start(targetId);
-    }
-  }
-
-  // ── Javna API ─────────────────────────────────────────────────────────────
+  // ── Javna API — sve SINHRONO unutar click handler-a ──────────────────────
   window.micToggle = function(targetId) {
+    // 1. Provjera podrške
     if (!supported()) {
-      showToast('⚠️ Glasovni unos nije podržan u ovom pretraživaču. Koristite Chrome (desktop) ili Edge.', 'err');
+      showToast('⚠️ Glasovni unos nije podržan. Koristite Chrome ili Safari (iOS 15+).', 'err');
       return;
     }
-    if (!_checkHttps()) return;
-    // Uvek ubij prethodnu instancu pre novog starta
+    // 2. HTTPS provjera
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      showToast('⚠️ Glasovni unos zahteva HTTPS. Otvorite aplikaciju preko https://', 'err');
+      return;
+    }
+    // 3. Probudi audio context SINHORNO (iOS user gesture rule)
+    _wakeAudio();
+    // 4. Ubij prethodnu instancu SINHRONO
     if (_rec) { try { _rec.abort(); } catch(e){} _rec = null; }
+    // 5. Stop ako je isti target aktivan, inače start
     if (_activeId === targetId) {
       _stop();
     } else {
       if (_activeId) _stop();
-      _checkPermAndStart(targetId);
+      // _start() mora biti pozvan direktno — bez Promise/setTimeout između
+      _start(targetId);
     }
   };
 
