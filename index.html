@@ -2193,16 +2193,25 @@ function editPodnesak() {
     tryStart(_useContinuous);
   }
 
+  // ── HTTPS provera ─────────────────────────────────────────────────────────
+  function _checkHttps() {
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      showToast('⚠️ Glasovni unos zahteva HTTPS vezu. Aplikacija mora biti otvorena preko https://', 'err');
+      return false;
+    }
+    return true;
+  }
+
   // ── Permission pre-check (async, non-blocking) ────────────────────────────
   function _checkPermAndStart(targetId) {
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'microphone' }).then(function(result) {
         if (result.state === 'denied') {
-          showToast('🔒 Mikrofon je blokiran u podešavanjima. Kliknite katanac pored URL adrese → Mikrofon → Dozvoli → Osvežite stranicu.', 'err');
+          showToast('🔒 Mikrofon blokiran. Katanac (🔒) pored URL-a → Mikrofon → Dozvoli → Osvežite stranicu (Ctrl+Shift+R).', 'err');
           return;
         }
         _start(targetId);
-      }).catch(function() { _start(targetId); });  // permissions API nije podržan — pokušaj direktno
+      }).catch(function() { _start(targetId); });
     } else {
       _start(targetId);
     }
@@ -2211,9 +2220,12 @@ function editPodnesak() {
   // ── Javna API ─────────────────────────────────────────────────────────────
   window.micToggle = function(targetId) {
     if (!supported()) {
-      showToast('⚠️ Glasovni unos nije podržan. Koristite Chrome (desktop) ili Edge.', 'err');
+      showToast('⚠️ Glasovni unos nije podržan u ovom pretraživaču. Koristite Chrome (desktop) ili Edge.', 'err');
       return;
     }
+    if (!_checkHttps()) return;
+    // Uvek ubij prethodnu instancu pre novog starta
+    if (_rec) { try { _rec.abort(); } catch(e){} _rec = null; }
     if (_activeId === targetId) {
       _stop();
     } else {

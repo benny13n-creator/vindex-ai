@@ -278,6 +278,22 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Dodaje security i permissions headere na svaki odgovor."""
+    response = await call_next(request)
+    # Dozvoljava Web Speech API (mikrofon) na self i Render domenu
+    response.headers["Permissions-Policy"] = (
+        "microphone=(self \"https://vindex-ai.onrender.com\")"
+    )
+    # Feature-Policy za starije Chrome verzije
+    response.headers["Feature-Policy"] = "microphone 'self'"
+    # Sprečava clickjacking
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
 # ─── Modeli zahteva ───────────────────────────────────────────────────────────
 
 class HistoryItem(BaseModel):
