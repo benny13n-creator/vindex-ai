@@ -607,6 +607,65 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
   animation: mic-dot-blink 0.9s ease-in-out infinite;
 }
 @keyframes mic-dot-blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+/* ── VIKI WAKE-WORD SISTEM ───────────────────────────────────────────────── */
+.viki-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  background: rgba(167,139,250,0.1) !important;
+  border: 1px solid rgba(167,139,250,0.35) !important;
+  border-radius: 6px; color: #a78bfa !important;
+  font-size: 0.62rem !important; font-weight: 700 !important;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0.28rem 0.7rem !important; cursor: pointer;
+  transition: all 0.2s !important; white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+}
+.viki-btn:hover { background: rgba(167,139,250,0.2) !important; border-color: #a78bfa !important; }
+.viki-btn.viki-on {
+  background: rgba(167,139,250,0.22) !important;
+  border-color: #a78bfa !important; color: #c4b5fd !important;
+  box-shadow: 0 0 14px rgba(167,139,250,0.35) !important;
+  animation: viki-glow 2s ease-in-out infinite;
+}
+.viki-btn .viki-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #a78bfa; flex-shrink: 0;
+}
+.viki-btn.viki-on .viki-dot { animation: mic-dot-blink 0.8s infinite; }
+@keyframes viki-glow { 0%,100%{box-shadow:0 0 8px rgba(167,139,250,0.3);} 50%{box-shadow:0 0 18px rgba(167,139,250,0.55);} }
+
+/* Banner koji se prikazuje kada Viki detektuje komandu */
+.viki-banner {
+  display: none; align-items: center; gap: 0.65rem;
+  background: rgba(167,139,250,0.1);
+  border: 1px solid rgba(167,139,250,0.35);
+  border-radius: 9px; padding: 0.6rem 1rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.75rem; color: #c4b5fd; line-height: 1.45;
+  animation: fade-in 0.25s ease;
+}
+.viki-banner.show { display: flex; }
+.viki-banner-icon { font-size: 1.1rem; flex-shrink: 0; }
+.viki-banner-text { flex: 1; }
+.viki-banner-text strong { color: #e9d5ff; font-weight: 600; }
+.viki-banner-close { background: none; border: none; color: rgba(167,139,250,0.5); cursor: pointer; font-size: 0.9rem; padding: 0; flex-shrink: 0; transition: color 0.15s; }
+.viki-banner-close:hover { color: #c4b5fd; }
+/* Viki radi naznaka u status baru */
+.viki-listen-bar {
+  display: none; align-items: center; gap: 0.5rem;
+  background: rgba(167,139,250,0.07);
+  border: 1px solid rgba(167,139,250,0.2);
+  border-radius: 7px; padding: 0.4rem 0.8rem;
+  margin-bottom: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem; color: rgba(167,139,250,0.7);
+  letter-spacing: 0.08em;
+}
+.viki-listen-bar.show { display: flex; }
+.viki-listen-bar .vlb-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #a78bfa; flex-shrink: 0;
+  animation: mic-dot-blink 1.2s infinite;
+}
 /* ── TL;DR — kratak zaključak ─────────────────────────────────────────────── */
 .resp-tldr { border-radius:10px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3) !important; padding:0.85rem 1.1rem !important; margin-bottom:1.2rem !important; }
 .resp-tldr .resp-section-lbl { color:#a5b4fc; font-size:0.56rem; letter-spacing:0.25em; }
@@ -1090,12 +1149,25 @@ footer { padding: 2rem 1.5rem; }
         <div class="t-bar">
           <div class="t-dots"><div class="t-dot td1"></div><div class="t-dot td2"></div><div class="t-dot td3"></div></div>
           <div class="t-title">vindex-ai - pravna baza v2.1</div>
-          <div style="display:flex;align-items:center;gap:0.6rem;">
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <button class="viki-btn" id="viki-btn" onclick="vikiToggle()" title="Aktiviraj Viki — glasovni asistent koji sluša na komande (recite 'Viki, generiši mi tužbu...')">
+              <span class="viki-dot"></span>Viki
+            </button>
             <button class="t-newchat" onclick="newChat()" title="Počni novi razgovor — briše ekran i resetuje kontekst">⊕ Novi čet</button>
             <div class="t-status"><div class="t-sdot"></div>aktivan</div>
           </div>
         </div>
         <div class="t-body">
+          <!-- VIKI STATUS BANERI — vidljivi samo kada je Viki aktivan/detektovao komandu -->
+          <div class="viki-listen-bar" id="viki-listen-bar">
+            <span class="vlb-dot"></span>
+            <span id="viki-listen-txt">Viki sluša... recite "Viki, generiši mi tužbu za..."</span>
+          </div>
+          <div class="viki-banner" id="viki-banner">
+            <span class="viki-banner-icon">🟣</span>
+            <span class="viki-banner-text" id="viki-banner-text"><strong>Viki:</strong> Čekam komandu...</span>
+            <button class="viki-banner-close" onclick="vikiBannerClose()" title="Zatvori">✕</button>
+          </div>
           <div class="t-tabs">
             <div class="t-tab active" onclick="setTab(this,'q')">Istraživanje</div>
             <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Podnesak <span class="pro-badge" id="pro-badge-n">PRO</span></div>
@@ -2144,6 +2216,8 @@ function editPodnesak() {
     _cancelSilenceTimer();
     if (_rec) { try { _rec.abort(); } catch(e){} _rec = null; }
     if (_activeId) { _setStatus(_activeId, false); _activeId = null; }
+    // Probudi Viki kada korisnikov mic prestane
+    if (typeof window._vikiResume === 'function') window._vikiResume();
   }
 
   function _buildRec(useContinuous) {
@@ -2157,6 +2231,8 @@ function editPodnesak() {
   }
 
   function _start(targetId) {
+    // Pauziraj Viki da ne bi konkurisao sa korisničkim mikrofonom
+    if (typeof window._vikiPause === 'function') window._vikiPause();
     var ta      = document.getElementById(targetId);
     _baseText   = ta ? ta.value.trimEnd() : '';
     var pending = '';
@@ -2290,6 +2366,327 @@ function editPodnesak() {
   };
 
   window.micStopAll = function() { _stop(); };
+
+  // Eksponuj status aktivnog snimanja da bi Viki sistem mogao da se pauzira
+  window._micIsActive = function() { return !!_rec; };
+})();
+
+/* ─── VIKI WAKE-WORD SISTEM ───────────────────────────────────────────────── */
+(function VikiSystem() {
+  'use strict';
+
+  // ── Konstante ──────────────────────────────────────────────────────────────
+  var WAKE_WORDS   = ['viki', 'vindeks', 'vindex', 'wiki'];
+  var SILENCE_AFTER_CMD_MS = 3000;  // ms tišine posle komande → execQuery
+
+  // ── Intent mapa: regexp → { tab, tip } ────────────────────────────────────
+  // Redosled je bitan — specifičniji paterni idu pre
+  var INTENT_MAP = [
+    { re: /generi[sš]i?\s*(mi\s+)?(tu[zž]bu|tu[zž]ba|naknadu [sš]tete|[sš]teta)/i,
+      tab: 'n', tip: 'tuzba_naknada_stete' },
+    { re: /generi[sš]i?\s*(mi\s+)?([zž]albu|[zž]alba)/i,
+      tab: 'n', tip: 'zalba_parnicna' },
+    { re: /generi[sš]i?\s*(mi\s+)?(predlog\s+(za\s+)?izvr[sš]enje|izvr[sš]enje)/i,
+      tab: 'n', tip: 'predlog_izvrsenje' },
+    { re: /generi[sš]i?\s*(mi\s+)?(dokument|akt|podnesak|nacrt)/i,
+      tab: 'n', tip: 'tuzba_naknada_stete' },
+    { re: /analiziraj|analiza|proveri\s+(ugovor|dokument|akt)/i,
+      tab: 'a', tip: null },
+    { re: /pretra[zž]i|prona[dđ]i|koji\s+zakon|[sš]ta\s+ka[zž]e|pitaj/i,
+      tab: 'q', tip: null },
+  ];
+
+  // ── Stanje ─────────────────────────────────────────────────────────────────
+  var _wakeRec        = null;
+  var _wakeActive     = false;
+  var _cmdTimer       = null;
+  var _accumulated    = '';
+
+  // ── UI helperi ──────────────────────────────────────────────────────────────
+  function _setBtn(on) {
+    var btn = document.getElementById('viki-btn');
+    if (!btn) return;
+    btn.classList.toggle('viki-on', on);
+    btn.title = on
+      ? 'Viki sluša — kliknite da isključite'
+      : 'Aktiviraj Viki — glasovni asistent koji sluša na komande';
+  }
+
+  function _setListenBar(on, txt) {
+    var bar = document.getElementById('viki-listen-bar');
+    var t   = document.getElementById('viki-listen-txt');
+    if (!bar) return;
+    bar.classList.toggle('show', on);
+    if (t && txt) t.textContent = txt;
+  }
+
+  function _showBanner(html) {
+    var b = document.getElementById('viki-banner');
+    var t = document.getElementById('viki-banner-text');
+    if (!b || !t) return;
+    t.innerHTML = html;
+    b.classList.add('show');
+  }
+
+  function _hideBanner() {
+    var b = document.getElementById('viki-banner');
+    if (b) b.classList.remove('show');
+  }
+
+  window.vikiBannerClose = _hideBanner;
+
+  // ── Detekcija wake-reči ────────────────────────────────────────────────────
+  function _hasWakeWord(text) {
+    var lower = text.trim().toLowerCase();
+    for (var i = 0; i < WAKE_WORDS.length; i++) {
+      // Wake reč mora biti na početku ili direktno iza razmaka (ne samo substring)
+      if (lower === WAKE_WORDS[i] ||
+          lower.startsWith(WAKE_WORDS[i] + ' ') ||
+          lower.startsWith(WAKE_WORDS[i] + ',') ||
+          lower.indexOf(' ' + WAKE_WORDS[i] + ' ') !== -1) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // ── Ekstrakcija teksta komande (posle wake-reči) ───────────────────────────
+  function _stripWakeWord(text) {
+    var lower = text.toLowerCase();
+    for (var i = 0; i < WAKE_WORDS.length; i++) {
+      var idx = lower.indexOf(WAKE_WORDS[i]);
+      if (idx !== -1) {
+        var after = text.slice(idx + WAKE_WORDS[i].length).replace(/^[\s,]+/, '');
+        if (after.length > 2) return after;
+      }
+    }
+    return text;
+  }
+
+  // ── Prepoznavanje namere ────────────────────────────────────────────────────
+  function _parseIntent(cmdText) {
+    for (var i = 0; i < INTENT_MAP.length; i++) {
+      if (INTENT_MAP[i].re.test(cmdText)) {
+        return { tab: INTENT_MAP[i].tab, tip: INTENT_MAP[i].tip };
+      }
+    }
+    // Default: pravno istraživanje
+    return { tab: 'q', tip: null };
+  }
+
+  // ── Ekstrakcija prve imenice (za feedback poruku) ──────────────────────────
+  function _extractSubject(text) {
+    // Traži ime iza reči: "za", "tužioca", "klijenta", "Petra", "Marko" itd.
+    var m = text.match(/\b(za|tužioca|klijenta|ime)\s+([A-ZŠĐČĆŽ][a-zšđčćž]+(?:\s+[A-ZŠĐČĆŽ][a-zšđčćž]+)?)/);
+    if (m) return m[2];
+    // Ili prvo vlastito ime (veliko slovo, nije početak rečenice)
+    var names = text.match(/(?<=[a-zšđčćž\s,])\b([A-ZŠĐČĆŽ][a-zšđčćž]{2,})\b/);
+    if (names) return names[1];
+    return null;
+  }
+
+  // ── Izvršavanje namere ─────────────────────────────────────────────────────
+  function _executeIntent(intent, cmdText) {
+    var subject = _extractSubject(cmdText);
+    var tipLabels = {
+      tuzba_naknada_stete: 'tužbu za naknadu štete',
+      zalba_parnicna:      'žalbu na presudu',
+      predlog_izvrsenje:   'predlog za izvršenje',
+    };
+
+    // Feedback poruka
+    var feedbackHtml;
+    if (intent.tab === 'n' && intent.tip) {
+      feedbackHtml = '<strong>Viki razume:</strong> Generišem ' +
+        (tipLabels[intent.tip] || 'podnesak') +
+        (subject ? ' za <strong>' + subject + '</strong>' : '') +
+        '. Prebacujem na tab Podnesak...';
+    } else if (intent.tab === 'a') {
+      feedbackHtml = '<strong>Viki razume:</strong> Prebacujem na analizu dokumenta...';
+    } else {
+      feedbackHtml = '<strong>Viki razume:</strong> Pretražujem pravnu bazu za: <em>' +
+        cmdText.substring(0, 80) + '</em>';
+    }
+    _showBanner(feedbackHtml);
+
+    // Prebaci tab
+    var tabEl = {
+      q: document.querySelector('.t-tab[onclick*="\'q\'"]'),
+      n: document.getElementById('tab-btn-n'),
+      a: document.querySelector('.t-tab[onclick*="\'a\'"]'),
+    };
+
+    if (intent.tab === 'n') {
+      // Provjeri PRO status pre prebacivanja
+      if (!window.currentUserIsPro) {
+        _showBanner('<strong>Viki:</strong> Generisanje podnesaka zahteva <strong>PRO nalog</strong>. Prebacujem na istraživanje...');
+        setTimeout(function() {
+          _fillAndSubmit('q', null, cmdText);
+        }, 800);
+        return;
+      }
+      if (tabEl.n) setTab(tabEl.n, 'n');
+      // Popuni select i textarea
+      var sel = document.getElementById('podnesak-tip');
+      if (sel && intent.tip) sel.value = intent.tip;
+      if (typeof updatePodnesakHint === 'function') updatePodnesakHint();
+      var opis = document.getElementById('podnesak-opis');
+      if (opis) { opis.value = cmdText; opis.focus(); }
+    } else if (intent.tab === 'a') {
+      if (tabEl.a) setTab(tabEl.a, 'a');
+      var aitxt = document.getElementById('aitxt');
+      if (aitxt) { aitxt.value = cmdText; aitxt.focus(); }
+    } else {
+      if (tabEl.q) setTab(tabEl.q, 'q');
+      var qi = document.getElementById('qi');
+      if (qi) { qi.value = cmdText; qi.focus(); }
+    }
+
+    // Auto-submit posle kratke pauze (da korisnik vidi banner)
+    setTimeout(function() {
+      if (!window.currentUser) {
+        _showBanner('<strong>Viki:</strong> Prijavite se da biste koristili glasovni asistent.');
+        if (typeof openModal === 'function') openModal();
+        return;
+      }
+      if (typeof execQuery === 'function') execQuery();
+    }, 900);
+  }
+
+  // ── Kreiranje SpeechRecognition instance za wake-word ─────────────────────
+  function _buildWakeRec() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+    var r = new SR();
+    r.lang = 'sr-RS';
+    r.continuous = false;   // restart ručno — sigurniji za hosted servere
+    r.interimResults = true;
+    r.maxAlternatives = 2;
+    return r;
+  }
+
+  function _startWakeListener() {
+    if (!_wakeActive) return;
+    // Ne pokrećaj ako je korisnikov mic aktivan
+    if (window._micIsActive && window._micIsActive()) return;
+
+    var r = _buildWakeRec();
+    if (!r) return;
+    _wakeRec = r;
+
+    r.onstart = function() {
+      _setListenBar(true, 'Viki sluša... recite "Viki, generiši mi tužbu za..."');
+    };
+
+    r.onresult = function(e) {
+      var combined = '';
+      for (var i = 0; i < e.results.length; i++) {
+        combined += e.results[i][0].transcript + ' ';
+      }
+      combined = combined.trim();
+
+      if (!_hasWakeWord(combined)) return;
+
+      // Wake word detektovan — izvuci komandu
+      var cmdText = _stripWakeWord(combined);
+      if (!cmdText || cmdText.length < 3) {
+        // Samo wake-reč, bez komande — čekaj još
+        _setListenBar(true, 'Viki čuje... recite komandu (npr. "generiši mi tužbu za...")');
+        _accumulated = combined;
+        return;
+      }
+
+      // Ima komanda — procesiraj
+      _accumulated = '';
+      _setListenBar(false);
+      if (_wakeRec) { try { _wakeRec.abort(); } catch(e2){} _wakeRec = null; }
+
+      var intent = _parseIntent(cmdText);
+      _executeIntent(intent, cmdText);
+
+      // Restartuj wake listener posle 8s (da se ne preklapa sa execQuery)
+      setTimeout(function() {
+        if (_wakeActive) _startWakeListener();
+      }, 8000);
+    };
+
+    r.onerror = function(ev) {
+      _wakeRec = null;
+      if (!_wakeActive) return;
+      var ignorable = ['no-speech', 'aborted'];
+      if (ignorable.indexOf(ev.error) === -1) {
+        // Ako service-not-allowed ili network — pauziraj, prikaži grešku
+        if (ev.error === 'service-not-allowed' || ev.error === 'not-allowed') {
+          _stopWakeMode();
+          _showBanner('<strong>Viki:</strong> Mikrofon nije dozvoljen. Kliknite na katanac u URL baru → dozvolite mikrofon.');
+          return;
+        }
+      }
+      // Restart posle kratke pauze
+      setTimeout(function() { if (_wakeActive) _startWakeListener(); }, 1500);
+    };
+
+    r.onend = function() {
+      _wakeRec = null;
+      if (!_wakeActive) return;
+      // Automatski restart (continuous emulacija)
+      setTimeout(function() { if (_wakeActive) _startWakeListener(); }, 400);
+    };
+
+    try { r.start(); }
+    catch(e) {
+      _wakeRec = null;
+      setTimeout(function() { if (_wakeActive) _startWakeListener(); }, 2000);
+    }
+  }
+
+  // ── Start / Stop ───────────────────────────────────────────────────────────
+  function _startWakeMode() {
+    _wakeActive = true;
+    _setBtn(true);
+    _hideBanner();
+    _setListenBar(true, 'Viki sluša... recite "Viki, generiši mi tužbu za..."');
+    _startWakeListener();
+    showToast('🟣 Viki aktiviran — slušam na wake-reč "Viki"', 'info');
+  }
+
+  function _stopWakeMode() {
+    _wakeActive = false;
+    if (_wakeRec) { try { _wakeRec.abort(); } catch(e){} _wakeRec = null; }
+    _setBtn(false);
+    _setListenBar(false);
+    showToast('🔇 Viki deaktiviran', 'info');
+  }
+
+  // ── Javna API ──────────────────────────────────────────────────────────────
+  window.vikiToggle = function() {
+    // Browser zahteva user gesture — ovde smo unutar click handlera, ok
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      showToast('⚠️ Glasovni unos nije podržan. Koristite Chrome ili Safari 15+.', 'err');
+      return;
+    }
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      showToast('⚠️ Viki zahteva HTTPS.', 'err');
+      return;
+    }
+    if (_wakeActive) { _stopWakeMode(); } else { _startWakeMode(); }
+  };
+
+  // Zaustavi wake listener kada korisnikov mic postane aktivan
+  window._micIsActive = function() { return false; };  // Mic IIFE overriduje ovo
+  window._vikiPause = function() {
+    if (_wakeActive && _wakeRec) {
+      try { _wakeRec.abort(); } catch(e){}
+      _wakeRec = null;
+      _setListenBar(true, 'Viki pauzan — korisnikov mikrofon aktivan...');
+    }
+  };
+  window._vikiResume = function() {
+    if (_wakeActive && !_wakeRec) {
+      setTimeout(_startWakeListener, 1200);
+    }
+  };
 })();
 
 /* RESPONSE FORMATTER */
