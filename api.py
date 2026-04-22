@@ -138,7 +138,7 @@ def _verify_token(token: str) -> Optional[dict]:
                 if data.get("id"):
                     return {"sub": data["id"], "email": data.get("email", "")}
         except Exception as e:
-            logger.debug("Supabase Auth API neuspešno: %s", e)
+            logger.warning("Supabase Auth API neuspešno: %s", e)
 
     # Korak 2: lokalni JWT decode sa tajnim ključem
     if SUPABASE_JWT_SECRET:
@@ -151,9 +151,13 @@ def _verify_token(token: str) -> Optional[dict]:
             )
             if payload.get("sub"):
                 return payload
-        except JWTError:
-            pass
+            logger.warning("JWT decode uspešan ali nema 'sub' u payload-u")
+        except JWTError as e:
+            logger.warning("JWT decode greška: %s", e)
+    else:
+        logger.warning("SUPABASE_JWT_SECRET nije postavljen")
 
+    logger.warning("_verify_token: oba koraka neuspešna — vraćam None")
     return None
 
 
