@@ -99,6 +99,28 @@ LAW_HINTS = {
     "ostavina":                   "zakon o nasledjivanju",
     "ustav":                      "ustav republike srbije",
     "potrosac":                   "zakon o zastiti potrosaca",
+    # Zakon o sprečavanju pranja novca i finansiranja terorizma (ZSPNFT)
+    "pranje novca":               "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    "pranja novca":               "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    "finansiranje terorizma":     "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    "aml":                        "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    "kyc":                        "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    "dubinska analiza":           "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    "zspnft":                     "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    "uprava za sprecavanje":      "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    "obveznik aml":               "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    # Zakon o digitalnoj imovini (ZDI)
+    "digitalna imovina":          "zakon o digitalnoj imovini",
+    "digitalna aktiva":           "zakon o digitalnoj imovini",
+    "kriptovaluta":               "zakon o digitalnoj imovini",
+    "kripto":                     "zakon o digitalnoj imovini",
+    "virtuelna valuta":           "zakon o digitalnoj imovini",
+    "usdt":                       "zakon o digitalnoj imovini",
+    "bitcoin":                    "zakon o digitalnoj imovini",
+    "ethereum":                   "zakon o digitalnoj imovini",
+    "zdi":                        "zakon o digitalnoj imovini",
+    "digitalni token":            "zakon o digitalnoj imovini",
+    "blockchain":                 "zakon o digitalnoj imovini",
 }
 
 # Stop-reči za token matching (bez dijakritika — koriste se u normalizovanom tekstu)
@@ -254,6 +276,8 @@ def _prosiri_query_gpt(query: str) -> list[str]:
                         "Za dato pravno pitanje generiši tačno 4 kratka search query-ja (3-7 reči svaki) "
                         "koji će pronaći relevantne odredbe zakona u vektorskoj bazi. "
                         "Koristi pravne termine iz srpskih zakona. "
+                        "Za pitanja o kriptovalutama, digitalnoj imovini ili USDT: obavezno uključi termine "
+                        "'digitalna imovina', 'kriptovaluta', 'virtuelna valuta', 'ZDI' u search query-je. "
                         "Vrati SAMO query-je, jedan po liniji, bez numeracije i bez dodatnog teksta."
                     ),
                 },
@@ -327,6 +351,11 @@ def _izracunaj_skor(match, query: str, zakon: Optional[str], label_clana: Option
         if any(x in tekst_doc for x in ["povremenih", "periodicn", "godisnje", "kracim razmacima"]):
             skor += 60
 
+    # Boost za ZDI pitanja (Zakon o digitalnoj imovini)
+    if any(x in query_norm for x in ["digital", "kripto", "bitcoin", "usdt", "ethereum", "token", "virtuelna", "zdi", "blockchain"]):
+        if "digitalna imovina" in zakon_doc or "digitaln" in zakon_doc:
+            skor += 40
+
     return skor
 
 
@@ -379,6 +408,22 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
     for eq in prosireni:
         matchevi = _semanticka_pretraga(eq, k=5)
         svi_matchevi.extend(matchevi)
+
+    # 4b) ZDI specifična ekspanzija — deterministički termini kad je detektovano kripto pitanje
+    _ZDI_TRIGERI = ["digital", "kripto", "bitcoin", "usdt", "ethereum", "token", "virtuelna", "zdi", "blockchain"]
+    _ZDI_TERMINI = [
+        "digitalna imovina zakon",
+        "kriptovaluta pravni status srbija",
+        "virtuelna valuta regulativa",
+        "ZDI digitalni token",
+        "digitalna aktiva pravo",
+    ]
+    q_norm_zdi = _normalizuj(query)
+    if any(x in q_norm_zdi for x in _ZDI_TRIGERI):
+        for term in _ZDI_TERMINI:
+            matchevi = _semanticka_pretraga(term, k=5, filter_zakon="zakon o digitalnoj imovini")
+            svi_matchevi.extend(matchevi)
+        logger.info("[ZDI_EXPANSION] Primenjena ZDI specifična ekspanzija za query: %s", query[:60])
 
     # 5) Dedupliciranje po ID-u
     vidjeni_ids = set()

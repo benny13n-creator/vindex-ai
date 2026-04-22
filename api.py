@@ -29,6 +29,7 @@ from templates.podnesci import (
     OBOGACIVANJE_PROMPTOVI,
     popuni_sablon,
 )
+from knowledge.vks_standards import preporuci_iznose as vks_preporuci
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -722,10 +723,22 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
         logger.warning("RAG neuspešan za podnesak [q=%s]: %s", log_id, exc)
         kontekst = ""
 
+    # ── KORAK 2b: VKS orijentacioni kriterijumi (samo za tužbu naknade štete) ─
+    vks_analiza = ""
+    vks_kontekst_blok = ""
+    if req.tip == "tuzba_naknada_stete":
+        try:
+            vks = vks_preporuci(entiteti)
+            vks_kontekst_blok = f"\n\nVKS ORIJENTACIONI KRITERIJUMI:\n{vks['kontekst_tekst']}"
+            vks_analiza = vks["analiza_tekst"]
+        except Exception as exc:
+            logger.warning("VKS preporuka neuspešna [q=%s]: %s", log_id, exc)
+
     # ── KORAK 3: Obogaćivanje šablona (GPT-4o) ────────────────────────────────
     obog_prompt = OBOGACIVANJE_PROMPTOVI[req.tip]
     obog_user = (
-        f"EKSTRAKTOVANI PODACI (JSON):\n{json.dumps(entiteti, ensure_ascii=False)}\n\n"
+        f"EKSTRAKTOVANI PODACI (JSON):\n{json.dumps(entiteti, ensure_ascii=False)}"
+        f"{vks_kontekst_blok}\n\n"
         f"ZAKONSKI KONTEKST (RAG):\n{kontekst or 'Nije pronađen relevantan kontekst.'}"
     )
     try:
@@ -748,7 +761,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
         obogacivanje = {}
 
     # ── KORAK 4: Popuni šablon ────────────────────────────────────────────────
-    nacrt = popuni_sablon(req.tip, entiteti, obogacivanje)
+    nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
 
     # Oduzmi kredit
     await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))

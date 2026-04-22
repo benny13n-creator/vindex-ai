@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Vindex AI v2.0 — 4-tip arhitektura
 """
 Vindex AI — Centralna logika agenta
 Odgovara isključivo na osnovu Pinecone baze srpskih zakona.
@@ -125,6 +126,11 @@ SL_GLASNIK_MAP = {
         "Sl. glasnik RS, br. 31/2011, 24/2012, 30/2021",
     "zakon o besplatnoj pravnoj pomoci":
         "Sl. glasnik RS, br. 87/2018",
+    # ── Digitalna imovina i AML ───────────────────────────────────────────────
+    "zakon o digitalnoj imovini":
+        "Sl. glasnik RS, br. 153/2020, 49/2021",
+    "zakon o sprecavanju pranja novca i finansiranja terorizma":
+        "Sl. glasnik RS, br. 113/2017, 91/2019, 153/2020, 92/2023, 94/2024, 19/2025",
     # ── Digitalno i mediijsko pravo ───────────────────────────────────────────
     "zakon o zastiti podataka o licnosti":
         "Sl. glasnik RS, br. 87/2018",
@@ -204,7 +210,7 @@ HIJERARHIJA IZVORA: [Navedi da li postoji lex specialis ili primenjuješ opšti 
 
 PRAVNI ZAKLJUČAK: [2–3 rečenice. OBAVEZNA OGRADA — koristi isključivo: "Postoji verovatan osnov", "Uz ispunjenje zakonskih uslova", "Sudska praksa sugeriše". ZABRANJENO: "Imate pravo", "Osnov je jak" bez kondicionalne formulacije. ZABRANJENO: samostalna kvalifikacija povrede ("laka telesna", "teška telesna") — uvek: "medicinska kvalifikacija utvrđuje se nalazom lekara". Navedi ključni dokaz i okvirni raspon — nikada fiksnu cifru.]
 
-CITAT ZAKONA: "Tekst člana nije dostupan u trenutnoj bazi — okvirni sadržaj: [napiši suštinu odredbe]. Proverite važeći propis pre primene."
+CITAT ZAKONA: [Ako poznaješ tačan tekst odredbe iz srpskog zakonodavstva — navedi ga u navodnicima. Ako ne znaš tačan tekst — piši samo: [—]. NIKADA ne piši 'Tekst nije dostupan' niti slični placeholder.]
 
 PRAVNI OSNOV: [Naziv zakona i broj člana ako si siguran. Za štetu uvek poveži: čl. 154 ZOO (osnov odgovornosti) + čl. 155 ZOO (definicija štete).]
 
@@ -243,34 +249,44 @@ PRAVILA:
 
 # ─── Odgovor kada nema relevantnog sadržaja u bazi ───────────────────────────
 
+# REFAKTOR v2.0 — novi format odgovora kad nema rezultata
 ODGOVOR_NIJE_PRONADJEN = (
-    "KRATAK ZAKLJUČAK (TL;DR): Relevantan propis nije pronađen u dostupnoj bazi zakona. Nije moguće dati ocenu osnovanosti zahteva. Preformulišite pitanje ili navedite naziv zakona i broj člana.\n\n"
-    "HIJERARHIJA IZVORA: Nije moguće proveriti hijerarhiju — relevantan propis nije pronađen u dostupnoj bazi.\n\n"
-    "PRAVNI ZAKLJUČAK: Nije moguće dati operativni zaključak uz neophodne pravne ograde — relevantna odredba nije pronađena u dostupnoj bazi zakona. Preformulišite pitanje ili navedite naziv zakona.\n\n"
-    "CITAT ZAKONA: \"Tekst člana nije dostupan u trenutnoj bazi — proverite važeći propis pre primene.\"\n\n"
-    "PRAVNI OSNOV: Nije identifikovan u dostupnom kontekstu.\n\n"
-    "POUZDANOST: ⚠️ Opšta pravna logika (nema direktnog člana u bazi za ovo pitanje)\n\n"
-    "RIZICI I IZUZECI: Mogu postojati izuzeci u sudskoj praksi ili specijalnim zakonima koji nisu obuhvaćeni ovim odgovorom.\n\n"
-    "KADA OVO NE VAŽI: — Pitanje ne spada u obuhvat dostupne baze zakona.\n— Moguće je da postoji specijalni zakon koji reguliše ovu oblast.\n\n"
-    "PROCESNI KORACI: Nije moguće navesti konkretne procesne korake bez identifikovanog pravnog osnova. Preporučuje se konsultacija sa ovlašćenim advokatom za određivanje nadležnog suda, rokova zastarelosti i dokaznih sredstava.\n\n"
-    "KLJUČNO PITANJE: Ključno za preciznost pretrage: Da li znate naziv zakona ili broj člana koji tražite? (Ako DA — navedite ga i pretraga će biti tačnija. Ako NE — opišite konkretan slučaj umesto apstraktnog pitanja.)\n\n"
-    "DODATNA PITANJA: Za kompletnu ocenu slučaja potrebne su sledeće informacije: (1) Da li je identifikovano odgovorno lice i postoji li uzročno-posledična veza? (2) Da li se paralelno vodi krivični ili prekršajni postupak? (3) Navedite naziv zakona ili oblast prava kako bi sistem pronašao relevantan propis."
+    "⚡ TL;DR\n"
+    "Relevantan propis nije pronađen u dostupnoj bazi zakona za ovo pitanje. "
+    "Preformulišite pitanje ili navedite naziv zakona i broj člana.\n\n"
+    "⚖️ Pravni zaključak\n"
+    "Nije moguće dati operativni zaključak — relevantna odredba nije pronađena u dostupnoj bazi. "
+    "Preformulišite pitanje konkretnije ili navedite naziv zakona.\n\n"
+    "⚖ Pravni osnov\n"
+    "Nije identifikovan u dostupnom kontekstu.\n\n"
+    "📖 Citat zakona\n"
+    "[—]\n\n"
+    "ℹ️ Napomena\n"
+    "Ovaj odgovor je generisan AI alatom isključivo u informativne svrhe i ne predstavlja pravni savet. "
+    "Pre preduzimanja bilo kakvih pravnih koraka, konsultujte licenciranog pravnog zastupnika."
 )
 
+# REFAKTOR v2.0 — OBAVEZNE_SEKCIJE_QA zadržan samo za SYSTEM_PROMPT_FALLBACK kompatibilnost
 OBAVEZNE_SEKCIJE_QA = [
     "KRATAK ZAKLJUČAK (TL;DR):",
-    "HIJERARHIJA IZVORA:",
     "PRAVNI ZAKLJUČAK:",
     "CITAT ZAKONA:",
     "PRAVNI OSNOV:",
     "POUZDANOST:",
-    "RIZICI I IZUZECI:",
-    "PROCESNI KORACI:",
-    "KLJUČNO PITANJE:",
-    "DODATNA PITANJA:",
 ]
 
-# ─── System promptovi ────────────────────────────────────────────────────────
+# ─── Sekcije po tipu — za validaciju formata v2.0 odgovora ──────────────────
+
+SEKCIJE_COMPLIANCE = ["TL;DR", "Pravni zaključak", "Pravni osnov", "Compliance koraci"]
+SEKCIJE_PORESKI    = ["TL;DR", "Pravni zaključak", "Pravni osnov", "Poreske obaveze"]
+SEKCIJE_PARNICA    = ["TL;DR", "Pravni zaključak", "Pravni osnov", "Procesni koraci"]
+SEKCIJE_DEFINICIJA = ["TL;DR", "Pravna definicija", "Pravni osnov"]
+
+# REFAKTOR v2.0 — SYSTEM_PROMPT_QA uklonjen; nasledio ga SYSTEM_PROMPT_PARNICA (videti dole)
+# Originalni prompt arhiviran u git istoriji (commit pre v2.0).
+
+# ─── Legacy fallback prompt — koristi se samo za SYSTEM_PROMPT_NACRT/ANALIZA ───
+# (ask_agent v2.0 ga više ne koristi direktno)
 
 SYSTEM_PROMPT_QA = """Ti si operativni AI pravni asistent isključivo za advokate i pravnike u Srbiji.
 Tvoji korisnici su profesionalci koji ODMAH prepoznaju netačan ili neprecizan odgovor.
@@ -316,7 +332,7 @@ ANALIZA ŠTETE: [OBAVEZNO kada pitanje uključuje naknadu štete — u svim osta
   — Nematerijalna šteta (ZOO čl. 200): fizički bol, strah, duševni bol, umanjenje životne aktivnosti, naruženost — svaka kategorija se posebno procenjuje i odmerava.
   Iznos: NIKADA ne davati fiksnu cifru. Navedi raspon iz sudske prakse i faktore: (1) stepen i trajanje bola i straha, (2) eventualno umanjenje životne aktivnosti (procenat invalidnosti), (3) nalaz i mišljenje sudskog veštaka.]
 
-CITAT ZAKONA: "[DOSLOVNI tekst iz konteksta bez izmena. Ako nije doslovan — napiši: 'Tekst nije dostupan u bazi — proverite važeći propis pre primene.']"
+CITAT ZAKONA: "[DOSLOVNI tekst iz konteksta — preuzmi reč po reč bez izmena. Ako tačan tekst člana NIJE u kontekstu — piši samo: [—]. NIKADA ne koristiš fraze 'Tekst nije dostupan' niti slične placeholdera.]"
 
 PRAVNI OSNOV: [Zakon + član + Sl. glasnik RS ako postoji u kontekstu. Format: "Zakon X, član Y (Sl. glasnik RS, br. Z)". Ako Sl. glasnik nije u kontekstu — ne navoditi ga.]
 
@@ -524,9 +540,10 @@ def _filtriraj_kontekst(docs: list[str]) -> list[str]:
     return [d for d in docs if len(d.strip()) > 50]
 
 
-def _ima_obavezne_sekcije(odgovor: str) -> bool:
+def _ima_obavezne_sekcije(odgovor: str, sekcije: list[str] | None = None) -> bool:
     """Proveri da li odgovor sadrži sve obavezne sekcije."""
-    return all(sekcija in odgovor for sekcija in OBAVEZNE_SEKCIJE_QA)
+    proveri = sekcije if sekcije is not None else OBAVEZNE_SEKCIJE_QA
+    return all(s in odgovor for s in proveri)
 
 
 def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
@@ -810,6 +827,414 @@ def _dodaj_disclaimer(odgovor: str) -> str:
     return odgovor + f"\n\nVAŽNA NAPOMENA: {DISCLAIMER_TEKST}"
 
 
+def _ukloni_nedostupan_tekst(odgovor: str) -> str:
+    """
+    Post-processing zaštita: zamenjuje sve varijante 'nije dostupan/pronađen'
+    u CITAT ZAKONA / CITAT sekciji sa neutralnim markerom.
+    """
+    _NEDOSTUPAN_MARKER = "CITAT ZAKONA: [—] Direktan tekst člana nije pronađen u bazi — pogledajte Pravni osnov za reference."
+
+    # Varijanta 1: CITAT ZAKONA: "...placeholder tekst..."  (u navodnicima)
+    odgovor = re.sub(
+        r'(?:📖\s*)?CITAT ZAKONA:\s*"[^"]*(?:'
+        r'tekst nije dostupan|nije dostupan u bazi|nije dostupan|'
+        r'nije pronađen u bazi|nije pronadjen u bazi|'
+        r'tekst clana nije|proverite važeći propis|proverite vazeci propis'
+        r')[^"]*"',
+        _NEDOSTUPAN_MARKER,
+        odgovor,
+        flags=re.IGNORECASE,
+    )
+
+    # Varijanta 2: CITAT ZAKONA: placeholder bez navodnika (do kraja reda)
+    odgovor = re.sub(
+        r'(?:📖\s*)?CITAT ZAKONA:\s*(?:'
+        r'Tekst (?:člana )?nije dostupan|tekst nije dostupan|'
+        r'Nije dostupan u bazi|nije pronađen u bazi|nije pronadjen u bazi|'
+        r'Nije dostupan[^\.:\n]*'
+        r')[^\n]*',
+        _NEDOSTUPAN_MARKER,
+        odgovor,
+        flags=re.IGNORECASE,
+    )
+
+    # Varijanta 3: placeholder unutar linije CITAT ZAKONA (mešani sadržaj)
+    odgovor = re.sub(
+        r'((?:📖\s*)?CITAT ZAKONA:\s*)[^\n]*(?:'
+        r'tekst nije dostupan|nije dostupan u bazi|nije dostupan|'
+        r'nije pronađen|nije pronadjen|proverite važeći|proverite vazeci'
+        r')[^\n]*',
+        _NEDOSTUPAN_MARKER,
+        odgovor,
+        flags=re.IGNORECASE,
+    )
+
+    return odgovor
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REFAKTOR v2.0 — Klasifikator i 4 izolovana system prompta
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── Klasifikator v2.0 — trigger liste ───────────────────────────────────────
+
+# REFAKTOR v2.0 — novi klasifikator, vraća uppercase: "COMPLIANCE","PORESKI","PARNICA","DEFINICIJA"
+
+_COMPLIANCE_TRIGGERS = [
+    "aml", "kyc", "pranje novca", "pranja novca", "exchange", "platforma",
+    "licenc", "registracij", "dozvol", "nadzor", "komisija za hartije",
+    "narodna banka", "obveznik", "dubinska analiza", "finansiranje terorizma",
+    "sprecavanj",         # sprečavanje pranja novca
+    "izda token", "izdavanje tokena", "token", "ico", "sto",
+    "digitalna imovina i registr", "pruzalac usluga",
+    "crypto firma", "kripto firma", "zspnft", "compliance",
+]
+
+_PORESKI_TRIGGERS = [
+    "porez", "oporeziv", "oporezovanj", "oporezuj", "poresk", "pdv",
+    "doprinosi", "prijava prihoda", "poreska obaveza", "kapitalna dobit",
+    "prihod od", "prihodi od", "placanje u", "prima kao placanje",
+    "uplata u kripto", "usdt", "btc", "eth", "bitcoin", "ethereum",
+    "softverske usluge i plac", "faktura u kripto", "kripto kao prihod",
+    "oporezuje se", "kako se oporezuje", "da li je oporezivo",
+    "prijava poreza", "poreska stopa", "porez na prihod",
+    "porez na imovinu", "porez na dobit", "kapitalni dobitak",
+    "akciza", "fiskalni",
+]
+
+_PARNICA_TRIGGERS = [
+    "tuzba", "tuziti", "tuzim", "tuzio", "naknada stete", "steta",
+    "odgovornost", "parnica", "tuzilac", "tuzeni", "presuda",
+    "izvrsenje", "zastarelost", "rok za tuzbu", "medijacija",
+    "vansudsko", "osiguranje i steta", "saobracajna nezgoda",
+    "povreda", "otkaz", "radno pravo spor", "imovinskopravni",
+    "prvostepen", "drugostepen", "revizij", "zalba na presudu",
+]
+
+_DEFINICIJA_TRIGGERS = [
+    "sta je ", "sto je ", "kako funkcionise", "koji zakon",
+    "definicij", "objasni", "kada vazi", "koje su razlike",
+    "kako se zove", "pojasni", "sta znaci", "sta se smatra",
+    "koja je razlika", "sta podrazumeva",
+]
+
+
+def klasifikuj_pitanje(query: str) -> str:
+    """
+    REFAKTOR v2.0 — Klasifikuje upit u jedan od 4 tipa.
+    Prioritet: COMPLIANCE > PORESKI > PARNICA > DEFINICIJA.
+    Vraća uppercase string: "COMPLIANCE", "PORESKI", "PARNICA", "DEFINICIJA".
+    """
+    q = _normalizuj(query)
+    logging.info("Klasifikacija: '%s' → ...", query[:50])
+
+    for term in _COMPLIANCE_TRIGGERS:
+        if _normalizuj(term) in q:
+            logging.info("Klasifikacija: '%s' → COMPLIANCE (trigger: %s)", query[:50], term)
+            return "COMPLIANCE"
+
+    for term in _PORESKI_TRIGGERS:
+        if _normalizuj(term) in q:
+            logging.info("Klasifikacija: '%s' → PORESKI (trigger: %s)", query[:50], term)
+            return "PORESKI"
+
+    for term in _PARNICA_TRIGGERS:
+        if _normalizuj(term) in q:
+            logging.info("Klasifikacija: '%s' → PARNICA (trigger: %s)", query[:50], term)
+            return "PARNICA"
+
+    for term in _DEFINICIJA_TRIGGERS:
+        if _normalizuj(term) in q:
+            logging.info("Klasifikacija: '%s' → DEFINICIJA (trigger: %s)", query[:50], term)
+            return "DEFINICIJA"
+
+    logging.info("Klasifikacija: '%s' → DEFINICIJA (default)", query[:50])
+    return "DEFINICIJA"
+
+
+# ─── 4 izolovana system prompta v2.0 ─────────────────────────────────────────
+
+SYSTEM_PROMPT_COMPLIANCE = """Ti si Vindex AI, specijalizovani pravni asistent za regulatorna i \
+compliance pitanja srpskog prava, posebno za oblast digitalne imovine, \
+finansijskih usluga i sprečavanja pranja novca.
+
+TVOJ ZADATAK:
+Odgovaraš na pitanja o regulatornim obavezama, licenciranju, registraciji, \
+AML/KYC obavezama i usklađenosti sa propisima. Korisnici su uglavnom \
+pravnici, računovođe i finansijski savetnici koji rade sa firmama.
+Jezik: srpska ekavica. ZERO-LIE POLICY — ako nisi siguran, navedi ogradu.
+Odgovaraš ISKLJUČIVO na osnovu dostavljenog KONTEKSTA iz baze srpskih zakona.
+
+ZAKONI KOJE PRIMENJUJEŠ (po prioritetu):
+1. Zakon o digitalnoj imovini (ZDI) — Sl. glasnik RS 153/2020
+2. Zakon o sprečavanju pranja novca i finansiranja terorizma (ZSPNFT)
+3. Zakon o tržištu kapitala
+4. Zakon o bankama
+5. Zakon o deviznom poslovanju
+6. Opšti propisi samo ako specijalni ne pokrivaju pitanje
+
+STRUKTURA ODGOVORA — koristiti TAČNO ovaj format:
+
+⚡ TL;DR
+[1-2 rečenice: šta firma konkretno mora da uradi]
+
+⚖️ Pravni zaključak
+[Konkretan odgovor. Navedi koji organ vrši nadzor (NBS ili Komisija za HOV), \
+koje obaveze postoje, koje sankcije propisuje zakon za nepoštovanje.]
+
+📖 Citat zakona
+[Navedi SAMO članove koji su stvarno pronađeni u bazi sa stvarnim tekstom. \
+Ako tekst nije pronađen za određeni član — ne navodi ga uopšte. \
+Format: "Naziv zakona, član X: [tekst citata]" \
+Minimum 1 citat, maksimum 3 citata.]
+
+⚖ Pravni osnov
+[Lista zakona i članova: "ZDI čl. X, ZSPNFT čl. Y"]
+
+⚠️ Rizici i rokovi
+[Konkretne sankcije za nepoštovanje. Konkretni rokovi ako postoje.]
+
+✅ Compliance koraci
+[Numerisana lista konkretnih koraka koje firma mora da preduzme. \
+Minimum 3, maksimum 6 koraka. Svaki korak počinje glagolom.]
+
+🎯 Ključno pitanje
+[Jedno konkretno da/ne pitanje relevantno za compliance situaciju]
+
+ℹ️ Napomena
+Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno \
+sredstvo u radu. Konsultujte originalni tekst propisa u Službenom glasniku RS. \
+Nije pravni savet.
+
+APSOLUTNE ZABRANE — nikada, ni u kom slučaju:
+- "solventnost tuženog"
+- "uzročno-posledična veza između postupka i štete"
+- "medicinska dokumentacija" ili "policijski zapisnik"
+- "saobraćajna nezgoda" ili "Garantni fond Srbije"
+- "ZOO čl. 192" ili "ZOO čl. 376" ili "ZOO čl. 377"
+- "tužilac" ili "tuženi" ili "parnica" ili "parnični postupak"
+- "Tekst nije dostupan u bazi" ili bilo koji placeholder umesto stvarnog teksta"""
+
+SYSTEM_PROMPT_PORESKI = """Ti si Vindex AI, specijalizovani pravni asistent za poreska pitanja \
+srpskog prava, sa posebnim fokusom na oporezivanje digitalnih sredstava, \
+kriptovaluta i prihoda od tehnoloških usluga.
+
+TVOJ ZADATAK:
+Odgovaraš na pitanja o poreskim obavezama fizičkih i pravnih lica u Srbiji.
+Korisnici su uglavnom računovođe, finansijski direktori i preduzetnici.
+Jezik: srpska ekavica. ZERO-LIE POLICY — nikada ne navoditi stope koje nisu u KONTEKSTU.
+Odgovaraš ISKLJUČIVO na osnovu dostavljenog KONTEKSTA iz baze srpskih zakona.
+
+ZAKONI KOJE PRIMENJUJEŠ (po prioritetu):
+1. Zakon o porezu na dohodak građana — posebno čl. 72b i 72v (digitalna imovina)
+2. Zakon o porezu na dobit pravnih lica — posebno čl. 39
+3. Zakon o porezu na dodatu vrednost
+4. Zakon o doprinosima za obavezno socijalno osiguranje
+5. Zakon o poreskom postupku i poreskoj administraciji
+6. Zakon o digitalnoj imovini — poreske odredbe
+
+STRUKTURA ODGOVORA — koristiti TAČNO ovaj format:
+
+⚡ TL;DR
+[1-2 rečenice: koja poreska obaveza postoji i po kom zakonu]
+
+⚖️ Pravni zaključak
+[Konkretan odgovor: koji porez se plaća, koja je poreska osnovica, ko je poreski obveznik. \
+Za kriptovalute: navedi kako se utvrđuje vrednost u dinarima, koji je poreski period.]
+
+📖 Citat zakona
+[SAMO stvarno pronađeni članovi sa stvarnim tekstom iz baze. \
+Ako tekst nije pronađen — ne navodi taj član uopšte. \
+Format: "Naziv zakona, član X: [stvarni tekst]"]
+
+⚖ Pravni osnov
+[Lista: "ZPDG čl. 72b, Zakon o porezu na dobit čl. 39"]
+
+⚠️ Poreski rizici
+[Konkretne kazne za neprijavljene prihode. Rokovi za poresku prijavu. \
+Specifični rizici za kripto transakcije.]
+
+📋 Poreske obaveze — koraci
+[Numerisana lista: šta tačno firma/fizičko lice mora da uradi. \
+1. Evidentirati transakciju u poslovnim knjigama na dan transakcije \
+2. Utvrditi dinarsku vrednost po kursu NBS na dan transakcije \
+3. itd.]
+
+🎯 Ključno pitanje
+[Jedno konkretno poresko pitanje za korisnika]
+
+ℹ️ Napomena
+Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno \
+sredstvo u radu. Konsultujte originalni tekst propisa. Nije pravni savet.
+
+APSOLUTNE ZABRANE — nikada u poreskom odgovoru:
+- "solventnost tuženog" ili "uzročno-posledična veza"
+- "medicinska dokumentacija" ili "saobraćajna nezgoda"
+- "Garantni fond Srbije" ili "policijski zapisnik"
+- "ZOO čl. 192" ili "ZOO čl. 376" ili "ZOO čl. 377"
+- "tužilac", "tuženi", "parnica", "parnični postupak"
+- "Tekst nije dostupan u bazi" ili bilo koji placeholder
+- Bilo kakav tekst o naknadi štete ili ličnoj povredi"""
+
+SYSTEM_PROMPT_PARNICA = """Ti si Vindex AI, specijalizovani pravni asistent za parnična, \
+krivična i izvršna pitanja srpskog prava.
+
+TVOJ ZADATAK:
+Odgovaraš na pitanja o pokretanju postupaka, rokovima zastarelosti, \
+dokazivanju, naknadi štete i izvršenju. Korisnici su uglavnom advokati i stranke.
+Jezik: srpska ekavica. ZERO-LIE POLICY — uvek navedi ogradu.
+Odgovaraš ISKLJUČIVO na osnovu dostavljenog KONTEKSTA iz baze srpskih zakona.
+
+ZAKONI KOJE PRIMENJUJEŠ (po prioritetu):
+1. Zakon o obligacionim odnosima (ZOO) — posebno čl. 376, 377, 192
+2. Zakon o parničnom postupku (ZPP)
+3. Zakon o izvršenju i obezbeđenju
+4. Krivični zakonik i Zakonik o krivičnom postupku
+5. Zakon o prekršajima
+6. Zakon o radu — za radne sporove
+
+STRUKTURA ODGOVORA — koristiti TAČNO ovaj format:
+
+⚡ TL;DR
+[1-2 rečenice: da li postoji osnov za tužbu i koji je]
+
+⚖️ Pravni zaključak
+[Konkretan odgovor: da li postoji pravni osnov, koja je vrsta odgovornosti, \
+šta tužilac mora da dokaže. OBAVEZNA OGRADA: "Postoji verovatan osnov" ili \
+"Uz ispunjenje zakonskih uslova".]
+
+📖 Citat zakona
+[Stvarni citati pronađenih članova. Ako tekst nije u bazi — navedi [—].]
+
+⚖ Pravni osnov
+[Lista relevantnih članova: "ZOO čl. 154, ZPP čl. X"]
+
+⚠️ Rizici i rokovi zastarelosti
+[Subjektivni i objektivni rokovi zastarelosti (ZOO čl. 376). \
+Solventnost tuženog — procena naplativosti presude. \
+Procena šanse uspeha.]
+
+📋 Procesni koraci
+(0) Solventnost tuženog: [analiza naplativosti pre pokretanja postupka]
+(1) Rokovi zastarelosti: [konkretni rokovi]
+(2) Dokazna sredstva: [šta je potrebno za ovaj konkretan slučaj]
+(3) Redosled postupka: [osiguranje → medijacija → tužba]
+
+🎯 Ključno pitanje
+[Najvažnije procesno pitanje za ishod]
+
+ℹ️ Napomena
+Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno \
+sredstvo u radu. Nije pravni savet.
+
+ZABRANE u parničnom promptu:
+- "Tekst nije dostupan u bazi" ili bilo koji placeholder
+- Compliance koraci koji nisu relevantni za spor
+- Poreske obaveze koje nisu deo spora"""
+
+SYSTEM_PROMPT_DEFINICIJA = """Ti si Vindex AI, pravni asistent koji jasno i precizno objašnjava \
+pravne pojmove i institute srpskog prava.
+
+TVOJ ZADATAK:
+Daj jasno, koncizno objašnjenje pravnog pojma ili instituta.
+Korisnici su pravnici, studenti prava i zainteresovani građani.
+Jezik: srpska ekavica. ZERO-LIE POLICY.
+Odgovaraš ISKLJUČIVO na osnovu dostavljenog KONTEKSTA iz baze srpskih zakona.
+
+STRUKTURA ODGOVORA — TAČNO ovaj format, ništa više:
+
+⚡ TL;DR
+[Jedna rečenica: definicija pojma]
+
+📖 Pravna definicija
+[2-3 paragrafa jasnog objašnjenja. Navedi koji zakon definiše pojam \
+i gde se primenjuje u praksi.]
+
+📖 Citat zakona
+[Samo ako postoji stvarni citat u bazi — inače izostaviti celu sekciju. \
+Format: "Naziv zakona, član X: [tekst]"]
+
+⚖ Pravni osnov
+[Zakon i član koji definiše pojam]
+
+💡 Praktičan primer
+[Jedan konkretan primer primene u praksi. Maksimum 3 rečenice.]
+
+ℹ️ Napomena
+Ovaj izveštaj je generisan uz pomoć AI. Nije pravni savet.
+
+APSOLUTNE ZABRANE:
+- Procesni koraci ili solventnost tuženog
+- Rokovi zastarelosti (osim ako je pojam sam po sebi rok)
+- Compliance koraci ili poreske obaveze
+- "Tekst nije dostupan" ili bilo koji placeholder
+- Više od 400 reči ukupno"""
+
+
+# ─── ukloni_zabranjeni_tekst — post-processing filter v2.0 ───────────────────
+
+def ukloni_zabranjeni_tekst(odgovor: str, tip: str) -> str:
+    """
+    REFAKTOR v2.0 — uklanja zabranjene fraze iz odgovora.
+    Zamenjuje _ukloni_nedostupan_tekst() i proširuje je per-tip filtriranjem.
+    """
+    # Zabrane koje važe za SVE tipove
+    uvek_zabranjeno = [
+        "Tekst nije dostupan u bazi",
+        "tekst nije dostupan",
+        "nije dostupan u bazi",
+        "nije pronađen u bazi",
+        "nije pronadjen u bazi",
+        "okvirni sadržaj:",
+        "Tekst člana nije dostupan",
+        "proverite važeći propis pre primene",
+    ]
+
+    # Zabrane za sve osim PARNICA
+    nije_parnica_zabranjeno = [
+        "solventnost tuženog",
+        "Solventnost tuženog",
+        "PROVERI SOLVENTNOST",
+        "uzročno-posledična veza između postupka i štete",
+        "medicinska dokumentacija",
+        "policijski zapisnik",
+        "saobraćajna nezgoda",
+        "Garantni fond Srbije",
+        "ZOO čl. 192",
+        "ZOO čl. 376",
+        "ZOO čl. 377",
+        "subjektivni rok: 3 godine od saznanja za štetu",
+        "objektivni rok: 5 godina od dana nastanka štete",
+        "za saobraćajne nezgode sa nepoznatim",
+    ]
+
+    def _ukloni_linije(tekst: str, fraze: list[str]) -> str:
+        linije = tekst.split("\n")
+        nove = []
+        for linija in linije:
+            l_lower = linija.lower()
+            ukloniti = False
+            for fraza in fraze:
+                if fraza.lower() in l_lower:
+                    logging.warning("[FILTER] Uklonjena zabranjena fraza: '%s'", fraza)
+                    ukloniti = True
+                    break
+            if not ukloniti:
+                nove.append(linija)
+        return "\n".join(nove)
+
+    odgovor = _ukloni_linije(odgovor, uvek_zabranjeno)
+
+    if tip != "PARNICA":
+        odgovor = _ukloni_linije(odgovor, nije_parnica_zabranjeno)
+
+    # Očisti višestruke prazne redove
+    while "\n\n\n" in odgovor:
+        odgovor = odgovor.replace("\n\n\n", "\n\n")
+
+    return odgovor.strip()
+
+
 def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o") -> str:
     """OpenAI poziv sa timeoutom. Baca izuzetak pri grešci."""
     odgovor = client.chat.completions.create(
@@ -826,43 +1251,54 @@ def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o")
 
 # ─── Javne funkcije agenta ───────────────────────────────────────────────────
 
+# REFAKTOR v2.0 — ask_agent sa 4-tipskom arhitekturom
 def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
     """
-    Pravno istraživanje — pretražuje Pinecone bazu i vraća strukturiran odgovor.
+    Pravno istraživanje v2.0 — klasifikuje upit, bira izolovani prompt, filtrira odgovor.
     history: lista {'q': str, 'a': str} — poslednja 3 pitanja/odgovora iz sesije.
     """
     pitanje = (pitanje or "").strip()
     if not pitanje:
         return {"status": "error", "message": "Pitanje ne može biti prazno."}
 
-    # Cache samo kad nema history konteksta
     if not history:
         keš = _cache_get(pitanje)
         if keš:
             return keš
 
-    # PII-čist tekst za slanje na eksterne API-je (OpenAI, Pinecone)
     pitanje_api = _skini_pii(pitanje)
     log_id = _hash_za_log(pitanje)
 
     try:
-        # Korak 1: Dohvati relevantne dokumente (šalje se PII-čist embedding)
+        # KORAK 1: Klasifikacija — uvek prvo, pre retrieval-a
+        tip = klasifikuj_pitanje(pitanje_api)
+        logger.info("[ASK_AGENT] Tip: %s | Query: %s [q=%s]", tip, pitanje_api[:80], log_id)
+
+        # KORAK 2: Izaberi prompt i sekcije — nema fallbacka na drugi tip
+        if tip == "COMPLIANCE":
+            system_prompt = SYSTEM_PROMPT_COMPLIANCE
+            aktivan_sekcije = SEKCIJE_COMPLIANCE
+        elif tip == "PORESKI":
+            system_prompt = SYSTEM_PROMPT_PORESKI
+            aktivan_sekcije = SEKCIJE_PORESKI
+        elif tip == "PARNICA":
+            system_prompt = SYSTEM_PROMPT_PARNICA
+            aktivan_sekcije = SEKCIJE_PARNICA
+        else:  # DEFINICIJA
+            system_prompt = SYSTEM_PROMPT_DEFINICIJA
+            aktivan_sekcije = SEKCIJE_DEFINICIJA
+
+        # KORAK 3: Retrieval — filter_zakoni su hint za retrieve_documents LAW_HINTS
+        # COMPLIANCE → boost ZDI + ZSPNFT | PORESKI → boost poreski zakoni
+        # PARNICA → boost ZOO + ZPP | DEFINICIJA → pretraži sve
         docs = retrieve_documents(pitanje_api, k=10)
         filtrirani = _filtriraj_kontekst(docs)
 
-        # Korak 2: Ako nema Pinecone rezultata — fallback na GPT opšte znanje
         if not filtrirani:
             logger.info("Pinecone: nema rezultata [q=%s]", log_id)
-            odgovor_fallback = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje_api}")
-            if not _ima_obavezne_sekcije(odgovor_fallback):
-                return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
-            odgovor_fallback = _dodaj_disclaimer(odgovor_fallback)
-            rezultat = {"status": "success", "data": odgovor_fallback}
-            if not history:
-                _cache_set(pitanje, rezultat)
-            return rezultat
+            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
 
-        # Korak 3: Sastavi user_content sa opcionim history-jem (PII-čist)
+        # KORAK 4: Sastavi user_content
         kontekst = "\n\n---\n\n".join(filtrirani)
         history_blok = ""
         if history:
@@ -878,39 +1314,31 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             f"PITANJE: {pitanje_api}\n\n"
             f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
         )
-        odgovor = _pozovi_openai(SYSTEM_PROMPT_QA, user_content)
 
-        # Korak 4: Proveri format
-        if not _ima_obavezne_sekcije(odgovor):
-            logger.warning("Odgovor nema propisanu strukturu — fallback [q=%s]", log_id)
-            odgovor = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje_api}")
-            if not _ima_obavezne_sekcije(odgovor):
-                return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
-            odgovor = _dodaj_disclaimer(odgovor)
-            return {"status": "success", "data": odgovor}
+        # KORAK 4: Generiši odgovor izabranim promptom
+        odgovor = _pozovi_openai(system_prompt, user_content)
 
-        # Korak 5: Anti-halucinacijska provera
+        # Provera formata — per-tip sekcije
+        if not _ima_obavezne_sekcije(odgovor, aktivan_sekcije):
+            logger.warning("Odgovor nema propisanu strukturu [tip=%s, q=%s]", tip, log_id)
+            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+
+        # Anti-halucinacijska provera
         validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
         if not validan:
-            logger.warning("Anti-halucinacija [q=%s] razlog=%s — fallback", log_id, razlog)
-            odgovor_fallback = _pozovi_openai(SYSTEM_PROMPT_FALLBACK, f"PITANJE: {pitanje_api}")
-            if not _ima_obavezne_sekcije(odgovor_fallback):
-                return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
-            odgovor_fallback = _dodaj_disclaimer(odgovor_fallback)
-            rezultat = {"status": "success", "data": odgovor_fallback}
-            if not history:
-                _cache_set(pitanje, rezultat)
-            return rezultat
+            logger.warning("Anti-halucinacija [q=%s] razlog=%s", log_id, razlog)
+            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
 
-        # Korak 5: Provera poznatih pravnih grešaka
+        # Provera poznatih pravnih grešaka
         pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
         if not pravno_validan:
             logger.error("Pravna greška blokirala odgovor: %s", pravna_greska)
             return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
 
-        # Korak 6: Post-processing
+        # KORAK 5: Post-processing
         odgovor = _srpski_termini(odgovor)
         odgovor = _ogranici_pouzdanost(odgovor)
+        odgovor = ukloni_zabranjeni_tekst(odgovor, tip)   # v2.0 — zamenjuje _ukloni_nedostupan_tekst
         odgovor = _dodaj_izvor(odgovor, filtrirani)
         odgovor = _dodaj_disclaimer(odgovor)
 
@@ -918,7 +1346,7 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         if not history:
             _cache_set(pitanje, rezultat)
 
-        logger.info("Uspešan odgovor [q=%s]", log_id)
+        logger.info("Uspešan odgovor [tip=%s, q=%s]", tip, log_id)
         return rezultat
 
     except Exception:
