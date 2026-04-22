@@ -717,7 +717,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
     rag_upit = f"{PODNESAK_TIPOVI[req.tip]}: {opis_api[:400]}"
     try:
         from app.services.retrieve import retrieve_documents
-        docs = await asyncio.to_thread(retrieve_documents, rag_upit, top_k=5)
+        docs = await asyncio.to_thread(retrieve_documents, rag_upit, 5)
         kontekst = "\n\n".join(docs[:4]) if docs else ""
     except Exception as exc:
         logger.warning("RAG neuspešan za podnesak [q=%s]: %s", log_id, exc)

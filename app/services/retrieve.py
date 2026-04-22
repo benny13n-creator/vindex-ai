@@ -162,7 +162,7 @@ def _get_embeddings():
 def _get_client():
     global _CLIENT
     if _CLIENT is None:
-        _CLIENT = OpenAI()
+        _CLIENT = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     return _CLIENT
 
 
