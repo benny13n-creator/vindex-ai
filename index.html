@@ -644,6 +644,17 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
   animation: fade-in 0.25s ease;
 }
 .viki-banner.show { display: flex; }
+/* Routing-mode banner — prikazuje se pri prelasku na drugi tab */
+.viki-banner.viki-routing {
+  background: rgba(139,92,246,0.22);
+  border-color: rgba(167,139,250,0.65);
+  padding: 0.85rem 1.1rem;
+}
+.viki-banner.viki-routing .viki-banner-text {
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
 .viki-banner-icon { font-size: 1.1rem; flex-shrink: 0; }
 .viki-banner-text { flex: 1; }
 .viki-banner-text strong { color: #e9d5ff; font-weight: 600; }
@@ -2180,6 +2191,21 @@ function editPodnesak() {
     _stop();
     var ta = document.getElementById(targetId);
     if (!ta || !ta.value.trim()) return;
+
+    // ── Viki global intercept ────────────────────────────────────────────────
+    // Ako je korisnik izgovorio "Viki, generiši tužbu..." dok je bio na bilo kom
+    // tabu, presrećemo tekst i rutiramo kroz Viki intent sistem umesto da
+    // šaljemo kao obični upit trenutnog taba.
+    if (typeof window._vikiRouteCommand === 'function') {
+      var _raw = ta.value.trim();
+      if (window._vikiRouteCommand(_raw)) {
+        ta.value = '';  // Viki preuzima — očisti textarea
+        var btn2 = document.getElementById('mic-' + targetId);
+        if (btn2) btn2.classList.remove('mic-active');
+        return;
+      }
+    }
+
     // Bez logovanog korisnika auto-submit samo otvara modal, ne šalje
     if (!window.currentUser) {
       showToast('🎙 Prijavite se da biste koristili glasovni unos.', 'err');
@@ -2376,25 +2402,47 @@ function editPodnesak() {
   'use strict';
 
   // ── Konstante ──────────────────────────────────────────────────────────────
-  var WAKE_WORDS   = ['viki', 'vindeks', 'vindex', 'wiki'];
-  var SILENCE_AFTER_CMD_MS = 3000;  // ms tišine posle komande → execQuery
+  var WAKE_WORDS = ['viki', 'vindeks', 'vindex', 'wiki'];
+
+  // Akcioni glagoli koji indiciraju generisanje dokumenta
+  var _DOC_VERBS = 'generi[sš]i?|napravi|na[cč]ini|sa[sš]tavi|pripremi|pi[sš]i|kreiraj|spremi';
 
   // ── Intent mapa: regexp → { tab, tip } ────────────────────────────────────
-  // Redosled je bitan — specifičniji paterni idu pre
   var INTENT_MAP = [
-    { re: /generi[sš]i?\s*(mi\s+)?(tu[zž]bu|tu[zž]ba|naknadu [sš]tete|[sš]teta)/i,
+    // Tužba
+    { re: new RegExp('(' + _DOC_VERBS + ')\\s*(mi\\s+)?(tu[zž]bu?|naknadu?\\s+[sš]tete?|odštetni\\s+zahtev)', 'i'),
       tab: 'n', tip: 'tuzba_naknada_stete' },
-    { re: /generi[sš]i?\s*(mi\s+)?([zž]albu|[zž]alba)/i,
+    // Žalba
+    { re: new RegExp('(' + _DOC_VERBS + ')\\s*(mi\\s+)?([zž]albu?)', 'i'),
       tab: 'n', tip: 'zalba_parnicna' },
-    { re: /generi[sš]i?\s*(mi\s+)?(predlog\s+(za\s+)?izvr[sš]enje|izvr[sš]enje)/i,
+    // Predlog za izvršenje
+    { re: new RegExp('(' + _DOC_VERBS + ')\\s*(mi\\s+)?(predlog\\s+(za\\s+)?izvr[sš]enje?|izvr[sš]enje)', 'i'),
       tab: 'n', tip: 'predlog_izvrsenje' },
-    { re: /generi[sš]i?\s*(mi\s+)?(dokument|akt|podnesak|nacrt)/i,
+    // Generički podnesak
+    { re: new RegExp('(' + _DOC_VERBS + ')\\s*(mi\\s+)?(dokument|akt|podnesak|nacrt|re[sš]enje|ugovor)', 'i'),
       tab: 'n', tip: 'tuzba_naknada_stete' },
-    { re: /analiziraj|analiza|proveri\s+(ugovor|dokument|akt)/i,
+    // Analiza
+    { re: /analiziraj|analiza|proveri\s+(ugovor|dokument|akt|klauzulu)/i,
       tab: 'a', tip: null },
-    { re: /pretra[zž]i|prona[dđ]i|koji\s+zakon|[sš]ta\s+ka[zž]e|pitaj/i,
+    // Pretraga
+    { re: /pretra[zž]i|prona[dđ]i|koji\s+zakon|[sš]ta\s+ka[zž]e|objasni|pitaj|[sš]ta\s+pi[sš]e/i,
       tab: 'q', tip: null },
   ];
+
+  // ── Placeholder instrukcije ─────────────────────────────────────────────────
+  // Detektuje zahtev korisnika da AI ostavi prazna lična polja
+  var PLACEHOLDER_PATTERNS = [
+    /ostavi\s+prazno/i,
+    /ostavi\s+prazne?\s+lini[ij]e/i,
+    /prazna\s+li[cč]na\s+polja/i,
+    /ne\s+popunjava[jt]/i,
+    /bez\s+li[cč]nih\s+podataka/i,
+    /popuni[tć]\s+ru[cč]no/i,
+  ];
+  var PLACEHOLDER_INSTRUCTION =
+    '\n[VIKI_INSTRUKCIJA: Ostavi PRAZNO sve placeholdere za lična polja — ' +
+    'ime, prezime, adresa, JMBG, naziv suda, datumi. ' +
+    'Svako nepoznato polje obeleži kao [POPUNITI].]';
 
   // ── Stanje ─────────────────────────────────────────────────────────────────
   var _wakeRec        = null;
@@ -2420,11 +2468,12 @@ function editPodnesak() {
     if (t && txt) t.textContent = txt;
   }
 
-  function _showBanner(html) {
+  function _showBanner(html, routing) {
     var b = document.getElementById('viki-banner');
     var t = document.getElementById('viki-banner-text');
     if (!b || !t) return;
     t.innerHTML = html;
+    b.classList.toggle('viki-routing', !!routing);
     b.classList.add('show');
   }
 
@@ -2476,81 +2525,112 @@ function editPodnesak() {
 
   // ── Ekstrakcija prve imenice (za feedback poruku) ──────────────────────────
   function _extractSubject(text) {
-    // Traži ime iza reči: "za", "tužioca", "klijenta", "Petra", "Marko" itd.
-    var m = text.match(/\b(za|tužioca|klijenta|ime)\s+([A-ZŠĐČĆŽ][a-zšđčćž]+(?:\s+[A-ZŠĐČĆŽ][a-zšđčćž]+)?)/);
-    if (m) return m[2];
-    // Ili prvo vlastito ime (veliko slovo, nije početak rečenice)
-    var names = text.match(/(?<=[a-zšđčćž\s,])\b([A-ZŠĐČĆŽ][a-zšđčćž]{2,})\b/);
-    if (names) return names[1];
+    var m = text.match(/\b(?:za|tužioca|klijenta|ime)\s+([A-ZŠĐČĆŽ][a-zšđčćž]+(?:\s+[A-ZŠĐČĆŽ][a-zšđčćž]+)?)/);
+    if (m) return m[1];
+    // Vlastito ime koje NIJE prva reč u rečenici (bez lookbehind)
+    var words = text.split(/\s+/);
+    for (var i = 1; i < words.length; i++) {
+      if (/^[A-ZŠĐČĆŽ][a-zšđčćž]{2,}$/.test(words[i])) return words[i];
+    }
     return null;
   }
 
   // ── Izvršavanje namere ─────────────────────────────────────────────────────
   function _executeIntent(intent, cmdText) {
-    var subject = _extractSubject(cmdText);
+    var subject   = _extractSubject(cmdText);
+    var targetTab = intent.tab;
     var tipLabels = {
       tuzba_naknada_stete: 'tužbu za naknadu štete',
       zalba_parnicna:      'žalbu na presudu',
       predlog_izvrsenje:   'predlog za izvršenje',
     };
 
-    // Feedback poruka
-    var feedbackHtml;
-    if (intent.tab === 'n' && intent.tip) {
-      feedbackHtml = '<strong>Viki razume:</strong> Generišem ' +
+    // ── Routing banner ───────────────────────────────────────────────────────
+    var bannerHtml;
+    var isRouting = (targetTab !== 'q');
+    if (targetTab === 'n' && intent.tip) {
+      bannerHtml =
+        '🔄 PREBACUJEM NA GENERISANJE PODNESKA — ' +
         (tipLabels[intent.tip] || 'podnesak') +
         (subject ? ' za <strong>' + subject + '</strong>' : '') +
-        '. Prebacujem na tab Podnesak...';
-    } else if (intent.tab === 'a') {
-      feedbackHtml = '<strong>Viki razume:</strong> Prebacujem na analizu dokumenta...';
+        ' <span style="opacity:.7;font-weight:400">— generišem nacrt...</span>';
+    } else if (targetTab === 'a') {
+      bannerHtml = '🔄 PREBACUJEM NA ANALIZU DOKUMENTA — Viki priprema analizu...';
     } else {
-      feedbackHtml = '<strong>Viki razume:</strong> Pretražujem pravnu bazu za: <em>' +
-        cmdText.substring(0, 80) + '</em>';
+      bannerHtml = '<strong>Viki razume:</strong> Pretražujem pravnu bazu za: <em>' +
+        escHtml(cmdText.substring(0, 90)) + '</em>';
+      isRouting = false;
     }
-    _showBanner(feedbackHtml);
+    _showBanner(bannerHtml, isRouting);
 
-    // Prebaci tab
+    // ── Prebaci tab i popuni formu ────────────────────────────────────────────
     var tabEl = {
       q: document.querySelector('.t-tab[onclick*="\'q\'"]'),
       n: document.getElementById('tab-btn-n'),
       a: document.querySelector('.t-tab[onclick*="\'a\'"]'),
     };
 
-    if (intent.tab === 'n') {
-      // Provjeri PRO status pre prebacivanja
+    if (targetTab === 'n') {
       if (!window.currentUserIsPro) {
-        _showBanner('<strong>Viki:</strong> Generisanje podnesaka zahteva <strong>PRO nalog</strong>. Prebacujem na istraživanje...');
+        // Fallback na istraživanje uz napomenu
+        _showBanner(
+          '🔄 PREBACUJEM NA ISTRAŽIVANJE — ' +
+          '<span style="font-weight:400">generisanje podnesaka zahteva <strong>PRO nalog</strong>.</span>',
+          true
+        );
         setTimeout(function() {
-          _fillAndSubmit('q', null, cmdText);
+          var tQ = document.querySelector('.t-tab[onclick*="\'q\'"]');
+          if (tQ && typeof setTab === 'function') setTab(tQ, 'q');
+          var qi = document.getElementById('qi');
+          if (qi) { qi.value = cmdText; qi.focus(); }
+          _vikiAutoExec('q', 900);
         }, 800);
         return;
       }
-      if (tabEl.n) setTab(tabEl.n, 'n');
-      // Popuni select i textarea
+      if (tabEl.n && typeof setTab === 'function') setTab(tabEl.n, 'n');
+      // PRO gate mogao blokirati — verifikuj
+      if (typeof activeTab !== 'undefined' && activeTab !== 'n') return;
+      var hasPlaceholder = PLACEHOLDER_PATTERNS.some(function(p) { return p.test(cmdText); });
+      var finalText = cmdText + (hasPlaceholder ? PLACEHOLDER_INSTRUCTION : '');
       var sel = document.getElementById('podnesak-tip');
       if (sel && intent.tip) sel.value = intent.tip;
       if (typeof updatePodnesakHint === 'function') updatePodnesakHint();
       var opis = document.getElementById('podnesak-opis');
-      if (opis) { opis.value = cmdText; opis.focus(); }
-    } else if (intent.tab === 'a') {
-      if (tabEl.a) setTab(tabEl.a, 'a');
+      if (opis) { opis.value = finalText; opis.focus(); }
+      _vikiAutoExec('n', 1500);
+    } else if (targetTab === 'a') {
+      if (tabEl.a && typeof setTab === 'function') setTab(tabEl.a, 'a');
       var aitxt = document.getElementById('aitxt');
       if (aitxt) { aitxt.value = cmdText; aitxt.focus(); }
+      _vikiAutoExec('a', 900);
     } else {
-      if (tabEl.q) setTab(tabEl.q, 'q');
+      if (tabEl.q && typeof setTab === 'function') setTab(tabEl.q, 'q');
       var qi = document.getElementById('qi');
       if (qi) { qi.value = cmdText; qi.focus(); }
+      _vikiAutoExec('q', 700);
     }
+  }
 
-    // Auto-submit posle kratke pauze (da korisnik vidi banner)
+  // Auto-submit sa verifikacijom taba — sprečava submitovanje na pogrešan tab
+  function _vikiAutoExec(expectedTab, delay) {
     setTimeout(function() {
       if (!window.currentUser) {
         _showBanner('<strong>Viki:</strong> Prijavite se da biste koristili glasovni asistent.');
         if (typeof openModal === 'function') openModal();
         return;
       }
+      // Verifikuj da je tab zaista prebačen
+      if (typeof activeTab !== 'undefined' && activeTab !== expectedTab) {
+        console.warn('[Viki] tab mismatch: očekivan', expectedTab, 'aktivan', activeTab);
+        return;
+      }
+      // Otpusti eventualni zaglavljeni lock
+      if (typeof _execInProgress !== 'undefined' && _execInProgress) {
+        console.warn('[Viki] _execInProgress zaglavljeno — resetujem');
+        _execInProgress = false;
+      }
       if (typeof execQuery === 'function') execQuery();
-    }, 900);
+    }, delay);
   }
 
   // ── Kreiranje SpeechRecognition instance za wake-word ─────────────────────
@@ -2686,6 +2766,18 @@ function editPodnesak() {
     if (_wakeActive && !_wakeRec) {
       setTimeout(_startWakeListener, 1200);
     }
+  };
+
+  // Globalni entry point: koristi mic IIFE ili bilo koji drugi pozivalac.
+  // Vraća true ako je komanda preuzeta, false ako je treba obraditi normalno.
+  window._vikiRouteCommand = function(rawText) {
+    if (!rawText || rawText.length < 5) return false;
+    if (!_hasWakeWord(rawText)) return false;
+    var cmdText = _stripWakeWord(rawText);
+    if (!cmdText || cmdText.length < 3) return false;
+    var intent = _parseIntent(cmdText);
+    _executeIntent(intent, cmdText);
+    return true;
   };
 })();
 

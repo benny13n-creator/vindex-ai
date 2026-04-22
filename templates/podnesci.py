@@ -93,7 +93,7 @@ Prilozi:
 {PRILOZI}
 
 NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.
-"""
+{VIKI_ANALIZA}"""
 
 # ─── ŠABLON 2: Žalba na prvostepenu presudu (parnični postupak) ──────────────
 SABLON_ZALBA_PARNICNA = """\
@@ -431,10 +431,12 @@ PRAVILA:
 
 
 # ─── Funkcija za popunjavanje šablona ────────────────────────────────────────
-def popuni_sablon(tip: str, entiteti: dict, obogacivanje: dict) -> str:
+def popuni_sablon(tip: str, entiteti: dict, obogacivanje: dict,
+                  vks_analiza: str = "") -> str:
     """
     Spaja ekstrahovane entitete i AI-obogaćene sekcije u finalni podnesak.
     Sve nepoznate {PLACEHOLDER} vrednosti ostaju vidljive kao [POPUNITI].
+    vks_analiza — opcioni tekst VIKI analize koji se dodaje na kraj tužbe.
     """
     sablon = SABLONI.get(tip, "")
     if not sablon:
@@ -479,6 +481,7 @@ def popuni_sablon(tip: str, entiteti: dict, obogacivanje: dict) -> str:
             "MESTO":                  entiteti.get("mesto", "[MESTO — POPUNITI]"),
             "DATUM":                  entiteti.get("datum", "[DATUM — POPUNITI]"),
             "PRILOZI":                "1. Medicinska dokumentacija\n2. Fotografije sa mesta događaja\n3. Policijski/MUP zapisnik\n4. Punomoćje\n[DODATNI PRILOZI — POPUNITI]",
+            "VIKI_ANALIZA":           vks_analiza,
         }
 
     elif tip == "zalba_parnicna":
