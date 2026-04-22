@@ -23,7 +23,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("vindex.agent")
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_client: OpenAI | None = None
+
+def _get_client() -> OpenAI:
+    global _client
+    if _client is None:
+        _client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return _client
 
 # ─── Sl. glasnik mapa — službeni izvori srpskih zakona ───────────────────────
 
@@ -1237,7 +1243,7 @@ def ukloni_zabranjeni_tekst(odgovor: str, tip: str) -> str:
 
 def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o") -> str:
     """OpenAI poziv sa timeoutom. Baca izuzetak pri grešci."""
-    odgovor = client.chat.completions.create(
+    odgovor = _get_client().chat.completions.create(
         model=model,
         messages=[
             {"role": "system", "content": system_prompt},
