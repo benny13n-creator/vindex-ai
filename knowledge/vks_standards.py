@@ -159,7 +159,7 @@ REGIONALNE_RAZLIKE: dict[str, dict] = {
         "procenat": 0,
         "napomena": (
             "Sudovi u Nišu i Kragujevcu: blizu nacionalnog proseka (±5%). "
-            "Sigurna „srednja" kalibacija."
+            'Sigurna "srednja" kalibacija.'
         ),
     },
     "unutrasnjost": {
