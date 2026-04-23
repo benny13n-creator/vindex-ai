@@ -442,6 +442,46 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/diagnose")
+async def diagnose():
+    """Testira konekciju sa Pinecone i OpenAI — samo za dijagnostiku."""
+    result = {}
+
+    # Test OpenAI
+    try:
+        from openai import OpenAI as _OAI
+        c = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+        c.models.list()
+        result["openai"] = "OK"
+    except Exception as e:
+        result["openai"] = f"GREŠKA: {type(e).__name__}: {str(e)[:200]}"
+
+    # Test Pinecone
+    try:
+        from pinecone import Pinecone as _PC
+        pc = _PC(api_key=os.getenv("PINECONE_API_KEY"))
+        host = os.getenv("PINECONE_HOST", "").strip()
+        if host:
+            idx = pc.Index(host=host)
+        else:
+            idx = pc.Index("vindex-ai")
+        stats = idx.describe_index_stats()
+        result["pinecone"] = f"OK — {stats.total_vector_count} vektora"
+    except Exception as e:
+        result["pinecone"] = f"GREŠKA: {type(e).__name__}: {str(e)[:200]}"
+
+    # Test OpenAI Embeddings
+    try:
+        from langchain_openai import OpenAIEmbeddings
+        emb = OpenAIEmbeddings(model="text-embedding-3-large")
+        vec = emb.embed_query("test")
+        result["embeddings"] = f"OK — dim={len(vec)}"
+    except Exception as e:
+        result["embeddings"] = f"GREŠKA: {type(e).__name__}: {str(e)[:200]}"
+
+    return result
+
+
 @app.get("/robots.txt")
 def robots():
     return PlainTextResponse(
