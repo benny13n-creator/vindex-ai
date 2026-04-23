@@ -210,7 +210,14 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Vaša sesija je istekla. Prijavite se ponovo.",
         )
-    return {"user_id": payload.get("sub"), "email": payload.get("email")}
+    email = (
+        payload.get("email")
+        or payload.get("user_metadata", {}).get("email")
+        or payload.get("email_claim")
+        or ""
+    )
+    logger.info("get_current_user: sub=%s email=%s", payload.get("sub", "?")[:8], email)
+    return {"user_id": payload.get("sub"), "email": email}
 
 
 # ─── Kredit sistem ────────────────────────────────────────────────────────────
@@ -267,7 +274,9 @@ def _deduct_credit(user_id: str, email: str = "") -> int:
 
 async def require_credits(user: dict = Depends(get_current_user)) -> dict:
     """Dependency koji proverava da korisnik ima kredite. Founder uvek prolazi."""
-    if _is_founder(user.get("email", "")):
+    email = user.get("email", "")
+    logger.info("require_credits: email=%s is_founder=%s", email, _is_founder(email))
+    if _is_founder(email):
         user["credits_remaining"] = 9999
         return user
     credits = await asyncio.to_thread(_get_credits, user["user_id"])
