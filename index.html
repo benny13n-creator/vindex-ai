@@ -483,6 +483,9 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .resp-pouzdanost .resp-section-lbl { color: #f0b429; }
 .resp-pouzdanost .resp-section-lbl::before { background: #f0b429; box-shadow: 0 0 6px rgba(240,180,41,0.5); }
 .resp-pouzdanost .resp-section-body { color: #f0b429; font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; }
+.resp-lanac .resp-section-lbl { color: #a78bfa; }
+.resp-lanac .resp-section-lbl::before { background: #a78bfa; box-shadow: 0 0 6px rgba(167,139,250,0.5); }
+.resp-lanac .resp-section-body { color: rgba(200,185,255,0.9); font-size: 0.84rem; line-height: 1.75; border-left: 2px solid rgba(167,139,250,0.3); padding-left: 0.9rem; }
 .resp-nacrt .resp-section-lbl, .resp-analiza .resp-section-lbl { color: #89c8ff; }
 .resp-nacrt .resp-section-lbl::before, .resp-analiza .resp-section-lbl::before { background: #89c8ff; box-shadow: 0 0 6px #89c8ff; }
 .resp-rizici .resp-section-lbl { color: #f0b429; }
@@ -2798,6 +2801,7 @@ function formatResponse(rawText) {
     { key:'⚖️ Pravni zaključak',           cls:'resp-zakljucak',   lbl:'⚖️ Pravni zaključak',        icon:'zakljucak' },
     { key:'📖 Citat zakona',               cls:'resp-citat',       lbl:'📖 Citat zakona',             icon:'citat' },
     { key:'📖 Pravna definicija',          cls:'resp-zakljucak',   lbl:'📖 Pravna definicija',        icon:'zakljucak' },
+    { key:'🔗 Lanac rezonovanja',          cls:'resp-lanac',       lbl:'🔗 Lanac rezonovanja',        icon:'lanac' },
     { key:'⚖ Pravni osnov',               cls:'resp-pravni-osnov',lbl:'⚖ Pravni osnov',             icon:'osnov' },
     { key:'⚠️ Rizici i rokovi zastarelosti', cls:'resp-rizici',   lbl:'⚠️ Rizici i rokovi',         icon:'rizici' },
     { key:'⚠️ Rizici i rokovi',            cls:'resp-rizici',      lbl:'⚠️ Rizici i rokovi',         icon:'rizici' },
