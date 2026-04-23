@@ -1297,7 +1297,11 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         # KORAK 3: Retrieval — filter_zakoni su hint za retrieve_documents LAW_HINTS
         # COMPLIANCE → boost ZDI + ZSPNFT | PORESKI → boost poreski zakoni
         # PARNICA → boost ZOO + ZPP | DEFINICIJA → pretraži sve
-        docs = retrieve_documents(pitanje_api, k=10)
+        try:
+            docs = retrieve_documents(pitanje_api, k=10)
+        except Exception as e:
+            logger.exception("PINECONE GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
+            return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
         filtrirani = _filtriraj_kontekst(docs)
 
         if not filtrirani:
@@ -1322,7 +1326,11 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         )
 
         # KORAK 4: Generiši odgovor izabranim promptom
-        odgovor = _pozovi_openai(system_prompt, user_content)
+        try:
+            odgovor = _pozovi_openai(system_prompt, user_content)
+        except Exception as e:
+            logger.exception("OPENAI GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
+            return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
 
         # Provera formata — per-tip sekcije
         if not _ima_obavezne_sekcije(odgovor, aktivan_sekcije):

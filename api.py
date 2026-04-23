@@ -294,6 +294,8 @@ logger.info("SUPABASE_URL    : %r", SUPABASE_URL)
 logger.info("SERVICE_KEY set : %s", bool(SUPABASE_SERVICE_KEY))
 logger.info("JWT_SECRET set  : %s", bool(SUPABASE_JWT_SECRET))
 logger.info("FOUNDER_EMAILS  : %s", FOUNDER_EMAILS)
+logger.info("PINECONE_API_KEY set : %s", bool(os.getenv("PINECONE_API_KEY", "")))
+logger.info("OPENAI_API_KEY set   : %s", bool(os.getenv("OPENAI_API_KEY", "")))
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/hour"])
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
