@@ -3239,7 +3239,15 @@ async function execQuery() {
       var iv=setInterval(function(){
         if(i>=text.length){
           clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
-          rb.innerHTML = formatResponse(text) + _feedbackBar(currentPitanje, text);
+          var parsedHtml = formatResponse(text);
+          console.log('[Vindex] RAW odgovor (500):', text.substring(0,500));
+          console.log('[Vindex] PARSED html (500):', parsedHtml ? parsedHtml.substring(0,500) : 'PRAZAN!');
+          if (!parsedHtml || parsedHtml.trim() === '') {
+            rb.style.whiteSpace = 'pre-wrap';
+            rb.textContent = text;
+          } else {
+            rb.innerHTML = parsedHtml + _feedbackBar(currentPitanje, text);
+          }
           if (_cyrillicOn) cirilicaElement(rb);
         } else { rb.textContent+=text[i]; i++; }
       },speed);
