@@ -2805,6 +2805,7 @@ function formatResponse(rawText) {
     { key:'✅ Compliance koraci',          cls:'resp-procesni',    lbl:'✅ Compliance koraci',        icon:'procesni' },
     { key:'📋 Poreske obaveze — koraci',   cls:'resp-procesni',    lbl:'📋 Poreske obaveze',         icon:'procesni' },
     { key:'📋 Procesni koraci',            cls:'resp-procesni',    lbl:'📋 Procesni koraci',          icon:'procesni' },
+    { key:'🎯 Pouzdanost',                 cls:'resp-pouzdanost',  lbl:'🎯 Pouzdanost',               icon:'pouzdanost' },
     { key:'🎯 Ključno pitanje',            cls:'resp-kljucno',     lbl:'🎯 Ključno pitanje',          icon:'kljucno' },
     { key:'💡 Praktičan primer',           cls:'resp-edgecase',    lbl:'💡 Praktičan primer',         icon:'' },
     { key:'ℹ️ Napomena',                   cls:'resp-disclaimer',  lbl:'Napomena',                   icon:'' },
@@ -2889,7 +2890,8 @@ function formatResponse(rawText) {
     var isHigh = pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1;
   var verifiedBadge = isHigh ? '<span class="rag-verified">✓ RAG</span>' : '';
 
-  var html = trustBadge;
+  var complianceBanner = isV2 ? '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:8px 14px;margin-bottom:12px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#ef4444;text-align:center;">⚠ INTERNAL COMPLIANCE TOOL — NOT LEGAL ADVICE</div>' : '';
+  var html = complianceBanner + trustBadge;
   found.forEach(function(s,i){
     var start = s.pos + s.keyLen;
     var end = i+1 < found.length ? found[i+1].pos : rawText.length;
