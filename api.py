@@ -161,28 +161,27 @@ def _verify_token(token: str) -> Optional[dict]:
         except JWTError as e:
             logger.warning("HS256 decode greška: %s", e)
 
-    # Korak 2b: RS256/ES256 sa JWKS javnim ključem
-    if alg in ("RS256", "ES256") and SUPABASE_URL:
+    # Korak 2b: ES256 sa hardkodovanim javnim ključem (JWKS offline)
+    if alg in ("RS256", "ES256"):
+        from jose import jwk as jose_jwk
+        _SUPABASE_JWK = {
+            "alg": "ES256", "crv": "P-256", "kty": "EC", "use": "sig",
+            "kid": "34474d56-eee6-41ed-a78d-4490889d6111",
+            "x": "StfqNCxcMFEJ--teLZgJtrF-wyQOyFZPwAakAvRf_Pg",
+            "y": "oZmdFqo0HMJD5iLXvjmQ8Golb61P-X71m5bO9zDf8gc",
+        }
         try:
-            import urllib.request as _ur, json as _jw
-            from jose import jwk as jose_jwk
-            jwks_url = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
-            with _ur.urlopen(jwks_url, timeout=8) as r:
-                jwks = _jw.loads(r.read())
-            for key_data in jwks.get("keys", []):
-                try:
-                    pub = jose_jwk.construct(key_data)
-                    payload = jose_jwt.decode(
-                        token, pub,
-                        algorithms=[alg],
-                        options={"verify_aud": False},
-                    )
-                    if payload.get("sub"):
-                        return payload
-                except JWTError:
-                    continue
-        except Exception as e:
-            logger.warning("JWKS verifikacija neuspešna: %s", e)
+            pub = jose_jwk.construct(_SUPABASE_JWK)
+            payload = jose_jwt.decode(
+                token, pub,
+                algorithms=[alg],
+                options={"verify_aud": False},
+            )
+            if payload.get("sub"):
+                return payload
+            logger.warning("ES256 hardkod: decode OK ali nema sub")
+        except JWTError as e:
+            logger.warning("ES256 hardkod greška: %s", e)
 
     logger.warning("_verify_token: svi koraci neuspešni — vraćam None")
     return None
