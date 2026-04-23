@@ -2824,22 +2824,35 @@ function _linkGlasnik(val) {
 
 function formatResponse(rawText) {
   var defs = [
-    // ── v1.1 sekcije ("--- CAPS" format — PARNICA standardni izlaz) ────────
-    { key:'[✓] STATUSNA POTVRDA:',         cls:'resp-status-ok',   lbl:'✓ Potvrda citiranja',          icon:'' },
-    { key:'[v] STATUSNA POTVRDA:',         cls:'resp-status-ok',   lbl:'✓ Potvrda citiranja',          icon:'' },
-    { key:'[~] STATUSNA POTVRDA:',         cls:'resp-status-warn', lbl:'~ Potvrda citiranja',          icon:'' },
-    { key:'[!] STATUSNA POTVRDA:',         cls:'resp-status-err',  lbl:'! Potvrda citiranja',          icon:'' },
-    { key:'--- HIJERARHIJA IZVORA',        cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora',         icon:'hijerarhija' },
-    { key:'--- PRAVNI ZAKLJUČAK',          cls:'resp-zakljucak',   lbl:'⚖️ Pravni zaključak',          icon:'zakljucak' },
-    { key:'--- ANALIZA',                   cls:'resp-steta',       lbl:'⚖ Analiza štete',              icon:'steta' },
-    { key:'--- CITAT ZAKONA',              cls:'resp-citat',       lbl:'📖 Citat zakona [RAG]',         icon:'citat' },
-    { key:'--- PRAVNI OSNOV',              cls:'resp-pravni-osnov',lbl:'⚖ Pravni osnov',               icon:'osnov' },
-    { key:'--- RIZICI I IZUZECI',          cls:'resp-rizici',      lbl:'⚠️ Rizici i izuzeci',          icon:'rizici' },
-    { key:'--- KADA OVO NE VAŽI',          cls:'resp-kad-ne-vazi', lbl:'⛔ Kada ovo ne važi',           icon:'' },
-    { key:'--- PROCESNI KORACI',           cls:'resp-procesni',    lbl:'📋 Procesni koraci',            icon:'procesni' },
-    { key:'--- KLJUČNO PITANJE',           cls:'resp-kljucno-parnica', lbl:'🎯 Ključno pitanje',       icon:'' },
-    { key:'--- POTREBNE INFORMACIJE',      cls:'resp-potrebne',    lbl:'📌 Potrebne informacije',       icon:'' },
-    { key:'--- IZVOR',                     cls:'resp-izvor',       lbl:'Izvor',                        icon:'' },
+    // ── "--- CAPS" format — svi tipovi (PARNICA, COMPLIANCE, PORESKI, DEFINICIJA) ──
+    { key:'[✓] STATUSNA POTVRDA:',              cls:'resp-status-ok',   lbl:'✓ Potvrda citiranja',             icon:'' },
+    { key:'[v] STATUSNA POTVRDA:',              cls:'resp-status-ok',   lbl:'✓ Potvrda citiranja',             icon:'' },
+    { key:'[~] STATUSNA POTVRDA:',              cls:'resp-status-warn', lbl:'~ Potvrda citiranja',             icon:'' },
+    { key:'[!] STATUSNA POTVRDA:',              cls:'resp-status-err',  lbl:'! Potvrda citiranja',             icon:'' },
+    { key:'--- HIJERARHIJA IZVORA',             cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora',            icon:'hijerarhija' },
+    { key:'--- PRAVNI ZAKLJUČAK',               cls:'resp-zakljucak',   lbl:'⚖️ Pravni zaključak',             icon:'zakljucak' },
+    // Specifičnije ANALIZA sekcije moraju biti pre generičke --- ANALIZA
+    { key:'--- ANALIZA USKLAĐENOSTI',           cls:'resp-steta',       lbl:'⚖ Analiza usklađenosti',          icon:'steta' },
+    { key:'--- ANALIZA PORESKE OBAVEZE',        cls:'resp-steta',       lbl:'⚖ Analiza poreske obaveze',       icon:'steta' },
+    { key:'--- ANALIZA ŠTETE',                  cls:'resp-steta',       lbl:'⚖ Analiza štete',                 icon:'steta' },
+    { key:'--- ANALIZA',                        cls:'resp-steta',       lbl:'⚖ Analiza',                       icon:'steta' },
+    { key:'--- CITAT ZAKONA',                   cls:'resp-citat',       lbl:'📖 Citat zakona [RAG]',            icon:'citat' },
+    { key:'--- PRAVNI OSNOV',                   cls:'resp-pravni-osnov',lbl:'⚖ Pravni osnov',                  icon:'osnov' },
+    // Specifičnije RIZICI sekcije pre generičke
+    { key:'--- RIZICI I ROKOVI',                cls:'resp-rizici',      lbl:'⚠️ Rizici i rokovi',              icon:'rizici' },
+    { key:'--- PORESKI RIZICI',                 cls:'resp-rizici',      lbl:'⚠️ Poreski rizici',               icon:'rizici' },
+    { key:'--- RIZICI I IZUZECI',               cls:'resp-rizici',      lbl:'⚠️ Rizici i izuzeci',             icon:'rizici' },
+    { key:'--- KADA OVO NE VAŽI',               cls:'resp-kad-ne-vazi', lbl:'⛔ Kada ovo ne važi',              icon:'' },
+    // Procesni koraci — specifičnije pre generičkog
+    { key:'--- COMPLIANCE KORACI',              cls:'resp-procesni',    lbl:'✅ Compliance koraci',             icon:'procesni' },
+    { key:'--- PORESKE OBAVEZE — KORACI', cls:'resp-procesni',    lbl:'📋 Poreske obaveze — koraci',      icon:'procesni' },
+    { key:'--- PROCESNI KORACI',                cls:'resp-procesni',    lbl:'📋 Procesni koraci',               icon:'procesni' },
+    // DEFINICIJA specifične sekcije
+    { key:'--- PRAVNA DEFINICIJA',              cls:'resp-pravna-def',  lbl:'📖 Pravna definicija',             icon:'citat' },
+    { key:'--- PRAKTIČAN PRIMER',               cls:'resp-edgecase',    lbl:'💡 Praktičan primer',              icon:'' },
+    { key:'--- KLJUČNO PITANJE',                cls:'resp-kljucno-parnica', lbl:'🎯 Ključno pitanje',          icon:'' },
+    { key:'--- POTREBNE INFORMACIJE',           cls:'resp-potrebne',    lbl:'📌 Potrebne informacije',          icon:'' },
+    { key:'--- IZVOR',                          cls:'resp-izvor',       lbl:'Izvor',                           icon:'' },
     // ── v2.0 sekcije (emoji + mixed case) ──────────────────────────────────
     { key:'⚡ TL;DR',                      cls:'resp-tldr',        lbl:'⚡ TL;DR — Kratak zaključak', icon:'tldr' },
     { key:'⚖️ Pravni zaključak',           cls:'resp-zakljucak',   lbl:'⚖️ Pravni zaključak',        icon:'zakljucak' },
@@ -2941,8 +2954,7 @@ function formatResponse(rawText) {
     var isHigh = pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1;
   var verifiedBadge = isHigh ? '<span class="rag-verified">✓ RAG</span>' : '';
 
-  var complianceBanner = isV2 ? '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:8px 14px;margin-bottom:12px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#ef4444;text-align:center;">⚠ INTERNAL COMPLIANCE TOOL — NOT LEGAL ADVICE</div>' : '';
-  var html = complianceBanner + trustBadge;
+  var html = trustBadge;
   found.forEach(function(s,i){
     var start = s.pos + s.keyLen;
     var end = i+1 < found.length ? found[i+1].pos : rawText.length;
@@ -2977,12 +2989,14 @@ function formatResponse(rawText) {
             '</div>';
   });
 
-  html += '<div class="resp-disclaimer-box">'+
-    '<span class="disc-icon">ℹ</span>'+
-    '<span class="disc-text">Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. '+
-    'Konsultujte originalni tekst propisa u Službenom glasniku RS. '+
-    'Nije pravni savet — podložno promenama u sudskoj praksi.</span>'+
-    '</div>';
+  if (!isNewFmt) {
+    html += '<div class="resp-disclaimer-box">'+
+      '<span class="disc-icon">ℹ</span>'+
+      '<span class="disc-text">Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. '+
+      'Konsultujte originalni tekst propisa u Službenom glasniku RS. '+
+      'Nije pravni savet — podložno promenama u sudskoj praksi.</span>'+
+      '</div>';
+  }
 
   // Akciona dugmad
   var citatEnc = encodeURIComponent(citatVal);
