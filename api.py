@@ -295,6 +295,7 @@ logger.info("SERVICE_KEY set : %s", bool(SUPABASE_SERVICE_KEY))
 logger.info("JWT_SECRET set  : %s", bool(SUPABASE_JWT_SECRET))
 logger.info("FOUNDER_EMAILS  : %s", FOUNDER_EMAILS)
 logger.info("PINECONE_API_KEY set : %s", bool(os.getenv("PINECONE_API_KEY", "")))
+logger.info("PINECONE_HOST       : %r", os.getenv("PINECONE_HOST", ""))
 logger.info("OPENAI_API_KEY set   : %s", bool(os.getenv("OPENAI_API_KEY", "")))
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/hour"])

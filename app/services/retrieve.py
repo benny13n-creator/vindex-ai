@@ -147,8 +147,13 @@ def _get_index():
         if not api_key:
             raise RuntimeError("PINECONE_API_KEY nije postavljen u .env fajlu.")
         pc = Pinecone(api_key=api_key)
-        _PINECONE_INDEX = pc.Index(PINECONE_INDEX)
-        logger.info("Pinecone index '%s' povezan.", PINECONE_INDEX)
+        host = os.getenv("PINECONE_HOST", "").strip()
+        if host:
+            _PINECONE_INDEX = pc.Index(host=host)
+            logger.info("Pinecone index povezan preko host=%s", host)
+        else:
+            _PINECONE_INDEX = pc.Index(PINECONE_INDEX)
+            logger.info("Pinecone index '%s' povezan.", PINECONE_INDEX)
     return _PINECONE_INDEX
 
 
