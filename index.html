@@ -2929,6 +2929,7 @@ function formatResponse(rawText) {
   html += '<div class="resp-actions">'+
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +citatEnc+ '\'),this)">📎 Kopiraj citat</button>'+
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +osnovEnc+ '\'),this)">📋 Izvor: '+ osnovLabel +'</button>'+
+    '<button class="resp-action-btn" style="background:rgba(74,168,255,0.07);border-color:rgba(74,168,255,0.25);color:#89c8ff;" onclick="exportPDF(decodeURIComponent(\'' +fullEnc+ '\'),this)">📄 Sačuvaj PDF</button>'+
     '<button class="resp-action-btn" onclick="focusInput()">🔁 Follow-up</button>'+
     '</div>';
   return html;
