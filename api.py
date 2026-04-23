@@ -43,9 +43,9 @@ logger = logging.getLogger("vindex.api")
 from jose import jwt as jose_jwt, JWTError
 from supabase import create_client, Client as SupabaseClient
 
-SUPABASE_URL         = os.getenv("SUPABASE_URL", "")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
-SUPABASE_JWT_SECRET  = os.getenv("SUPABASE_JWT_SECRET", "")
+SUPABASE_URL         = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
+SUPABASE_JWT_SECRET  = os.getenv("SUPABASE_JWT_SECRET", "").strip()
 
 # Founder emailovi — neograničen pristup, krediti se ne oduzimaju
 FOUNDER_EMAILS: set[str] = {
@@ -111,12 +111,23 @@ def _is_disposable_email(email: str) -> bool:
 security = HTTPBearer(auto_error=False)
 
 
+def _jwt_alg(token: str) -> str:
+    """Čita 'alg' iz JWT headera bez verifikacije."""
+    try:
+        import base64 as _b64, json as _jh
+        part = token.split(".")[0]
+        part += "=" * (4 - len(part) % 4)
+        return _jh.loads(_b64.b64decode(part)).get("alg", "HS256")
+    except Exception:
+        return "HS256"
+
+
 def _verify_token(token: str) -> Optional[dict]:
     """
-    Verifikuje token u dva koraka:
-    1. Direktan HTTP poziv na Supabase /auth/v1/user — najsigurnije, ne zavisi od JWT_SECRET
-    2. Lokalni JWT decode — fallback ako je JWT_SECRET ispravno postavljen
-    Fallback bez verifikacije potpisa je uklonjen iz sigurnosnih razloga.
+    Verifikuje Supabase token u tri koraka:
+    1. Supabase Auth API poziv (nezavisan od algoritma)
+    2. Lokalni HS256 decode sa JWT_SECRET
+    3. RS256/ES256 verifikacija sa JWKS javnim ključem
     """
     if not token:
         return None
@@ -138,26 +149,49 @@ def _verify_token(token: str) -> Optional[dict]:
                 if data.get("id"):
                     return {"sub": data["id"], "email": data.get("email", "")}
         except Exception as e:
-            logger.warning("Supabase Auth API neuspešno: %s", e)
+            logger.warning("Supabase Auth API neuspešno [URL=%s]: %s", SUPABASE_URL, e)
 
-    # Korak 2: lokalni JWT decode sa tajnim ključem
-    if SUPABASE_JWT_SECRET:
+    alg = _jwt_alg(token)
+    logger.info("JWT algoritam: %s", alg)
+
+    # Korak 2: HS256 sa JWT_SECRET
+    if alg == "HS256" and SUPABASE_JWT_SECRET:
         try:
             payload = jose_jwt.decode(
-                token,
-                SUPABASE_JWT_SECRET,
+                token, SUPABASE_JWT_SECRET,
                 algorithms=["HS256"],
                 options={"verify_aud": False},
             )
             if payload.get("sub"):
                 return payload
-            logger.warning("JWT decode uspešan ali nema 'sub' u payload-u")
+            logger.warning("HS256 decode OK ali nema 'sub'")
         except JWTError as e:
-            logger.warning("JWT decode greška: %s", e)
-    else:
-        logger.warning("SUPABASE_JWT_SECRET nije postavljen")
+            logger.warning("HS256 decode greška: %s", e)
 
-    logger.warning("_verify_token: oba koraka neuspešna — vraćam None")
+    # Korak 3: RS256/ES256 sa JWKS javnim ključem
+    if alg in ("RS256", "ES256") and SUPABASE_URL:
+        try:
+            import urllib.request as _ur, json as _jw
+            from jose import jwk as jose_jwk
+            jwks_url = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+            with _ur.urlopen(jwks_url, timeout=8) as r:
+                jwks = _jw.loads(r.read())
+            for key_data in jwks.get("keys", []):
+                try:
+                    pub = jose_jwk.construct(key_data)
+                    payload = jose_jwt.decode(
+                        token, pub,
+                        algorithms=[alg],
+                        options={"verify_aud": False},
+                    )
+                    if payload.get("sub"):
+                        return payload
+                except JWTError:
+                    continue
+        except Exception as e:
+            logger.warning("JWKS verifikacija neuspešna: %s", e)
+
+    logger.warning("_verify_token: svi koraci neuspešni — vraćam None")
     return None
 
 
