@@ -448,17 +448,20 @@ async def test_pinecone():
     def _run():
         try:
             from pinecone import Pinecone
+            from langchain_openai import OpenAIEmbeddings
             pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
             index = pc.Index("vindex-ai")
             stats = index.describe_index_stats()
+            emb = OpenAIEmbeddings(model="text-embedding-3-large")
+            vektor = emb.embed_query("ugovor o radu otkaz")
             test_results = index.query(
-                vector=[0.0] * 3072,
+                vector=vektor,
                 top_k=3,
                 include_metadata=True
             )
             return {
                 "total_vectors": stats.total_vector_count,
-                "namespaces": str(stats.namespaces),
+                "vector_dim": len(vektor),
                 "test_query_matches": len(test_results.matches),
                 "first_match_metadata": test_results.matches[0].metadata
                     if test_results.matches else "NEMA REZULTATA"
