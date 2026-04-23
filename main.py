@@ -1325,7 +1325,8 @@ APSOLUTNE ZABRANE:
 - "laka/teška telesna povreda" — to je zadatak lekara
 - Rokovi zastarelosti bez citata koji ih potvrđuje
 - Poreske obaveze koje nisu deo spora
-- "ukoliko" → koristiti "ako"; "izvanparnični" → "vanparnični"; "odvjetnik" → "advokat""""
+- "ukoliko" → koristiti "ako"; "izvanparnični" → "vanparnični"; "odvjetnik" → "advokat"
+"""
 
 SYSTEM_PROMPT_DEFINICIJA = """⚠️ INTERNAL COMPLIANCE TOOL — NOT LEGAL ADVICE ⚠️
 
