@@ -1363,8 +1363,9 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         logger.info("Uspešan odgovor [tip=%s, q=%s]", tip, log_id)
         return rezultat
 
-    except Exception:
-        logger.exception("Greška u ask_agent")
+    except Exception as e:
+        logger.error("ASK_AGENT GREŠKA: %s: %s", type(e).__name__, str(e)[:300])
+        logger.exception("ASK_AGENT stacktrace")
         return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
 
 

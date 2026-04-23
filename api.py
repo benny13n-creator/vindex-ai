@@ -81,6 +81,7 @@ def _get_supa() -> SupabaseClient:
             raise RuntimeError(
                 "SUPABASE_URL i SUPABASE_SERVICE_KEY moraju biti postavljeni u .env fajlu."
             )
+        logger.info("Supabase init: URL=%r", SUPABASE_URL)
         _supa = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     return _supa
 
