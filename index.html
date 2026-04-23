@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+var<!DOCTYPE html>
 
 <html lang="sr">
 <head>
@@ -2793,6 +2793,22 @@ function _linkGlasnik(val) {
 
 function formatResponse(rawText) {
   var defs = [
+    // ── v2.0 sekcije (emoji + mixed case) ──────────────────────────────────
+    { key:'⚡ TL;DR',                      cls:'resp-tldr',        lbl:'⚡ TL;DR — Kratak zaključak', icon:'tldr' },
+    { key:'⚖️ Pravni zaključak',           cls:'resp-zakljucak',   lbl:'⚖️ Pravni zaključak',        icon:'zakljucak' },
+    { key:'📖 Citat zakona',               cls:'resp-citat',       lbl:'📖 Citat zakona',             icon:'citat' },
+    { key:'📖 Pravna definicija',          cls:'resp-zakljucak',   lbl:'📖 Pravna definicija',        icon:'zakljucak' },
+    { key:'⚖ Pravni osnov',               cls:'resp-pravni-osnov',lbl:'⚖ Pravni osnov',             icon:'osnov' },
+    { key:'⚠️ Rizici i rokovi zastarelosti', cls:'resp-rizici',   lbl:'⚠️ Rizici i rokovi',         icon:'rizici' },
+    { key:'⚠️ Rizici i rokovi',            cls:'resp-rizici',      lbl:'⚠️ Rizici i rokovi',         icon:'rizici' },
+    { key:'⚠️ Poreski rizici',             cls:'resp-rizici',      lbl:'⚠️ Poreski rizici',          icon:'rizici' },
+    { key:'✅ Compliance koraci',          cls:'resp-procesni',    lbl:'✅ Compliance koraci',        icon:'procesni' },
+    { key:'📋 Poreske obaveze — koraci',   cls:'resp-procesni',    lbl:'📋 Poreske obaveze',         icon:'procesni' },
+    { key:'📋 Procesni koraci',            cls:'resp-procesni',    lbl:'📋 Procesni koraci',          icon:'procesni' },
+    { key:'🎯 Ključno pitanje',            cls:'resp-kljucno',     lbl:'🎯 Ključno pitanje',          icon:'kljucno' },
+    { key:'💡 Praktičan primer',           cls:'resp-edgecase',    lbl:'💡 Praktičan primer',         icon:'' },
+    { key:'ℹ️ Napomena',                   cls:'resp-disclaimer',  lbl:'Napomena',                   icon:'' },
+    // ── v1 sekcije (CAPS + colon) — zadržane za kompatibilnost ─────────────
     { key:'KRATAK ZAKLJUČAK (TL;DR):', cls:'resp-tldr',       lbl:'⚡ TL;DR — Kratak zaključak', icon:'tldr' },
     { key:'HIJERARHIJA IZVORA:', cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora',   icon:'hijerarhija' },
     { key:'PRAVNI ZAKLJUČAK:',  cls:'resp-zakljucak',  lbl:'⚖️ Pravni zaključak',    icon:'zakljucak' },
@@ -2859,10 +2875,13 @@ function formatResponse(rawText) {
     }
   });
   var trustBadge;
+  var isV2 = rawText.indexOf('⚡ TL;DR') !== -1;
   if (pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1) {
     trustBadge = '<div class="trust-badge trust-high">✅ Doslovno citiran — član direktno pronađen u bazi zakona RS.</div>';
   } else if (pouzdanostVal.indexOf('📝') !== -1 || pouzdanostVal.indexOf('Parafrazirano') !== -1) {
     trustBadge = '<div class="trust-badge trust-mid">📝 Parafrazirano — sadržaj zakona potvrđen, nije doslovan citat.</div>';
+  } else if (isV2) {
+    trustBadge = '';
   } else {
     trustBadge = '<div class="trust-badge trust-low">⚠️ Opšta pravna logika — nije pronađen direktan član, odgovor baziran na principima prava.</div>';
   }
