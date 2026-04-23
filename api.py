@@ -443,6 +443,31 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/test-pinecone")
+async def test_pinecone():
+    def _run():
+        try:
+            from pinecone import Pinecone
+            pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+            index = pc.Index("vindex-ai")
+            stats = index.describe_index_stats()
+            test_results = index.query(
+                vector=[0.0] * 3072,
+                top_k=3,
+                include_metadata=True
+            )
+            return {
+                "total_vectors": stats.total_vector_count,
+                "namespaces": str(stats.namespaces),
+                "test_query_matches": len(test_results.matches),
+                "first_match_metadata": test_results.matches[0].metadata
+                    if test_results.matches else "NEMA REZULTATA"
+            }
+        except Exception as e:
+            return {"error": type(e).__name__, "message": str(e)}
+    return await asyncio.to_thread(_run)
+
+
 @app.get("/api/diagnose")
 async def diagnose():
     """Testira konekciju sa Pinecone i OpenAI — sve u thread-u da ne blokira event loop."""
