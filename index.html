@@ -512,6 +512,8 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .resp-potrebne .resp-section-lbl { color: #89c8ff; }
 .resp-potrebne .resp-section-lbl::before { background: #89c8ff; }
 .resp-potrebne .resp-section-body { color: rgba(137,200,255,0.85); }
+/* ── Disclaimer box (deo --- IZVOR sekcije) ─────────────────────────────────── */
+.resp-disclaimer-box { margin-top: 0.9rem; padding: 0.6rem 1rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-size: 0.76rem; color: rgba(255,255,255,0.42); font-style: italic; line-height: 1.6; }
 .resp-nacrt .resp-section-lbl, .resp-analiza .resp-section-lbl { color: #89c8ff; }
 .resp-nacrt .resp-section-lbl::before, .resp-analiza .resp-section-lbl::before { background: #89c8ff; box-shadow: 0 0 6px #89c8ff; }
 .resp-rizici .resp-section-lbl { color: #f0b429; }
@@ -2829,7 +2831,7 @@ function formatResponse(rawText) {
     { key:'[!] STATUSNA POTVRDA:',         cls:'resp-status-err',  lbl:'! Potvrda citiranja',          icon:'' },
     { key:'--- HIJERARHIJA IZVORA',        cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora',         icon:'hijerarhija' },
     { key:'--- PRAVNI ZAKLJUČAK',          cls:'resp-zakljucak',   lbl:'⚖️ Pravni zaključak',          icon:'zakljucak' },
-    { key:'--- ANALIZA',                   cls:'resp-steta',       lbl:'⚖ Analiza',                    icon:'steta' },
+    { key:'--- ANALIZA',                   cls:'resp-steta',       lbl:'⚖ Analiza štete',              icon:'steta' },
     { key:'--- CITAT ZAKONA',              cls:'resp-citat',       lbl:'📖 Citat zakona [RAG]',         icon:'citat' },
     { key:'--- PRAVNI OSNOV',              cls:'resp-pravni-osnov',lbl:'⚖ Pravni osnov',               icon:'osnov' },
     { key:'--- RIZICI I IZUZECI',          cls:'resp-rizici',      lbl:'⚠️ Rizici i izuzeci',          icon:'rizici' },
@@ -2952,8 +2954,20 @@ function formatResponse(rawText) {
     if (s.cls === 'resp-citat') {
       lbl = s.lbl + verifiedBadge;
       bodyHtml = escHtml(val).replace(/\n/g,'<br>');
-    } else if (s.cls === 'resp-pravni-osnov' || s.cls === 'resp-izvor') {
+    } else if (s.cls === 'resp-pravni-osnov') {
       bodyHtml = _linkGlasnik(val).replace(/\n/g,'<br>');
+    } else if (s.cls === 'resp-izvor') {
+      // Razdvoji zakone od disclaimera (linija koja počinje sa ⚠️)
+      var discIdx = val.indexOf('\n⚠️');
+      if (discIdx === -1) discIdx = val.indexOf('\n⚠ ');
+      if (discIdx !== -1) {
+        var izvorDeo = val.slice(0, discIdx).trim();
+        var discDeo = val.slice(discIdx).trim();
+        bodyHtml = _linkGlasnik(izvorDeo).replace(/\n/g,'<br>') +
+          '<div class="resp-disclaimer-box">' + escHtml(discDeo) + '</div>';
+      } else {
+        bodyHtml = _linkGlasnik(val).replace(/\n/g,'<br>');
+      }
     } else {
       bodyHtml = escHtml(val).replace(/\n/g,'<br>');
     }

@@ -285,13 +285,13 @@ OBAVEZNE_SEKCIJE_QA = [
 
 SEKCIJE_COMPLIANCE = ["TL;DR", "Pravni zaključak", "Pravni osnov", "Compliance koraci"]
 SEKCIJE_PORESKI    = ["TL;DR", "Pravni zaključak", "Pravni osnov", "Poreske obaveze"]
-SEKCIJE_PARNICA    = ["HIJERARHIJA IZVORA", "PRAVNI ZAKLJUČAK", "CITAT ZAKONA", "PRAVNI OSNOV", "PROCESNI KORACI"]
+SEKCIJE_PARNICA    = ["HIJERARHIJA IZVORA", "PRAVNI ZAKLJUČAK", "PRAVNI OSNOV"]
 SEKCIJE_DEFINICIJA = ["TL;DR", "Pravna definicija", "Pravni osnov"]
 
 # v3.0 sekcije — šire validacione liste koje prihvataju i alternativne naslove
 SEKCIJE_COMPLIANCE_V3 = ["TL;DR", "Pravni zaključak", "Pravni osnov", "Compliance koraci"]
 SEKCIJE_PORESKI_V3    = ["TL;DR", "Pravni zaključak", "Pravni osnov", "Poreske obaveze"]
-SEKCIJE_PARNICA_V3    = ["HIJERARHIJA IZVORA", "PRAVNI ZAKLJUČAK", "CITAT ZAKONA", "PRAVNI OSNOV", "PROCESNI KORACI"]
+SEKCIJE_PARNICA_V3    = ["HIJERARHIJA IZVORA", "PRAVNI ZAKLJUČAK", "PRAVNI OSNOV"]
 SEKCIJE_DEFINICIJA_V3 = ["TL;DR", "Pravna definicija", "Pravni osnov"]
 
 # REFAKTOR v2.0 — SYSTEM_PROMPT_QA uklonjen; nasledio ga SYSTEM_PROMPT_PARNICA (videti dole)
@@ -1314,7 +1314,7 @@ Za kompletnu ocenu slučaja potrebne su:
 [Puni naziv zakona 1] ([Sl. glasnik RS, br. X/GGGG, Y/GGGG])
 [Puni naziv zakona 2] ([Sl. glasnik RS, br. X/GGGG])
 
-⚠️ Ovaj izveštaj je generisan AI alatom isključivo u informativne svrhe i ne predstavlja pravni savet. Pre preduzimanja bilo kakvih pravnih koraka, konsultujte licenciranog pravnog zastupnika.
+⚠️ Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. Konsultujte originalni tekst propisa u Službenom glasniku RS. Nije pravni savet — podložno promenama u sudskoj praksi.
 
 ══════════════════════════════════════════
 APSOLUTNE ZABRANE:
@@ -1552,9 +1552,12 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         # KORAK 5: Post-processing
         odgovor = _srpski_termini(odgovor)
         odgovor = _ogranici_pouzdanost(odgovor)
-        odgovor = ukloni_zabranjeni_tekst(odgovor, tip)   # v2.0 — zamenjuje _ukloni_nedostupan_tekst
-        odgovor = _dodaj_izvor(odgovor, filtrirani)
-        odgovor = _dodaj_disclaimer(odgovor)
+        odgovor = ukloni_zabranjeni_tekst(odgovor, tip)
+        # Novi "---" format (PARNICA) već sadrži --- IZVOR + disclaimer u samom odgovoru
+        _je_novi_format = "--- IZVOR" in odgovor or "--- HIJERARHIJA IZVORA" in odgovor
+        if not _je_novi_format:
+            odgovor = _dodaj_izvor(odgovor, filtrirani)
+            odgovor = _dodaj_disclaimer(odgovor)
 
         rezultat = {"status": "success", "data": odgovor}
         if not history:
