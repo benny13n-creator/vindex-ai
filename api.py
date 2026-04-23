@@ -445,42 +445,38 @@ def health():
 
 @app.get("/api/diagnose")
 async def diagnose():
-    """Testira konekciju sa Pinecone i OpenAI — samo za dijagnostiku."""
-    result = {}
+    """Testira konekciju sa Pinecone i OpenAI — sve u thread-u da ne blokira event loop."""
 
-    # Test OpenAI
-    try:
-        from openai import OpenAI as _OAI
-        c = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
-        c.models.list()
-        result["openai"] = "OK"
-    except Exception as e:
-        result["openai"] = f"GREŠKA: {type(e).__name__}: {str(e)[:200]}"
+    def _run_checks():
+        result = {}
+        try:
+            from openai import OpenAI as _OAI
+            c = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+            c.models.list()
+            result["openai"] = "OK"
+        except Exception as e:
+            result["openai"] = f"GREŠKA: {type(e).__name__}: {str(e)[:200]}"
 
-    # Test Pinecone
-    try:
-        from pinecone import Pinecone as _PC
-        pc = _PC(api_key=os.getenv("PINECONE_API_KEY"))
-        host = os.getenv("PINECONE_HOST", "").strip()
-        if host:
-            idx = pc.Index(host=host)
-        else:
+        try:
+            from pinecone import Pinecone as _PC
+            pc = _PC(api_key=os.getenv("PINECONE_API_KEY"))
             idx = pc.Index("vindex-ai")
-        stats = idx.describe_index_stats()
-        result["pinecone"] = f"OK — {stats.total_vector_count} vektora"
-    except Exception as e:
-        result["pinecone"] = f"GREŠKA: {type(e).__name__}: {str(e)[:200]}"
+            stats = idx.describe_index_stats()
+            result["pinecone"] = f"OK — {stats.total_vector_count} vektora"
+        except Exception as e:
+            result["pinecone"] = f"GREŠKA: {type(e).__name__}: {str(e)[:200]}"
 
-    # Test OpenAI Embeddings
-    try:
-        from langchain_openai import OpenAIEmbeddings
-        emb = OpenAIEmbeddings(model="text-embedding-3-large")
-        vec = emb.embed_query("test")
-        result["embeddings"] = f"OK — dim={len(vec)}"
-    except Exception as e:
-        result["embeddings"] = f"GREŠKA: {type(e).__name__}: {str(e)[:200]}"
+        try:
+            from langchain_openai import OpenAIEmbeddings
+            emb = OpenAIEmbeddings(model="text-embedding-3-large")
+            vec = emb.embed_query("test")
+            result["embeddings"] = f"OK — dim={len(vec)}"
+        except Exception as e:
+            result["embeddings"] = f"GREŠKA: {type(e).__name__}: {str(e)[:200]}"
 
-    return result
+        return result
+
+    return await asyncio.to_thread(_run_checks)
 
 
 @app.get("/robots.txt")
