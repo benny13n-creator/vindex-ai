@@ -124,37 +124,29 @@ def _jwt_alg(token: str) -> str:
 
 def _verify_token(token: str) -> Optional[dict]:
     """
-    Verifikuje Supabase token u tri koraka:
-    1. Supabase Auth API poziv (nezavisan od algoritma)
-    2. Lokalni HS256 decode sa JWT_SECRET
-    3. RS256/ES256 verifikacija sa JWKS javnim ključem
+    Verifikuje Supabase token:
+    1. Supabase Python SDK (get_user) — najrobusnije
+    2. Lokalni JWT decode (HS256 ili RS256 via JWKS)
     """
     if not token:
         return None
 
-    # Korak 1: Direktan Supabase Auth API poziv
-    if SUPABASE_URL and SUPABASE_SERVICE_KEY:
-        try:
-            import urllib.request, json as _json
-            url = f"{SUPABASE_URL}/auth/v1/user"
-            req = urllib.request.Request(
-                url,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "apikey": SUPABASE_SERVICE_KEY,
-                },
-            )
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                data = _json.loads(resp.read())
-                if data.get("id"):
-                    return {"sub": data["id"], "email": data.get("email", "")}
-        except Exception as e:
-            logger.warning("Supabase Auth API neuspešno [URL=%s]: %s", SUPABASE_URL, e)
+    # Korak 1: Supabase Python SDK
+    try:
+        supa = _get_supa()
+        resp = supa.auth.get_user(token)
+        if resp and resp.user and resp.user.id:
+            return {
+                "sub":   resp.user.id,
+                "email": resp.user.email or "",
+            }
+    except Exception as e:
+        logger.warning("Supabase SDK get_user neuspešno: %s", e)
 
     alg = _jwt_alg(token)
     logger.info("JWT algoritam: %s", alg)
 
-    # Korak 2: HS256 sa JWT_SECRET
+    # Korak 2a: HS256 sa JWT_SECRET
     if alg == "HS256" and SUPABASE_JWT_SECRET:
         try:
             payload = jose_jwt.decode(
@@ -164,11 +156,10 @@ def _verify_token(token: str) -> Optional[dict]:
             )
             if payload.get("sub"):
                 return payload
-            logger.warning("HS256 decode OK ali nema 'sub'")
         except JWTError as e:
             logger.warning("HS256 decode greška: %s", e)
 
-    # Korak 3: RS256/ES256 sa JWKS javnim ključem
+    # Korak 2b: RS256/ES256 sa JWKS javnim ključem
     if alg in ("RS256", "ES256") and SUPABASE_URL:
         try:
             import urllib.request as _ur, json as _jw
