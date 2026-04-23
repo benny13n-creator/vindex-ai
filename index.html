@@ -1042,10 +1042,7 @@ footer { padding: 2rem 1.5rem; }
     <div class="modal-badge">Besplatni plan</div>
     <div class="modal-title" style="font-size:1.55rem;">Iskoristili ste<br>besplatne upite.</div>
     <p class="modal-sub">Pređite na Basic paket za neograničen pristup svim zakonima i funkcijama.</p>
-    <div class="paywall-price-wrap">
-      <span class="paywall-price-cur">€</span><span class="paywall-price-num">49</span>
-      <span class="paywall-price-per">/ mesečno &nbsp;&middot;&nbsp; bez obaveza</span>
-    </div>
+    <div class="paywall-price-wrap"></div>
     <ul class="paywall-features">
       <li>Neograničen broj pravnih upita</li>
       <li>Pretraga svih Svi važeći zakoni Republike Srbije</li>
@@ -1436,8 +1433,8 @@ footer { padding: 2rem 1.5rem; }
     <!-- BASIC -->
     <div class="price-card">
       <div class="price-tier">Basic</div>
-      <div class="price-num" id="p1">49&#8364;</div>
-      <div class="price-per" id="pp1">/ mesečno</div>
+      <div class="price-num" id="p1"></div>
+      <div class="price-per" id="pp1"></div>
       <div class="pdiv"></div>
       <p class="price-desc">Za individualne advokate koji žele brže, preciznije odgovore bez gubljenja vremena na pretragu.</p>
       <ul class="price-list">
@@ -1445,7 +1442,7 @@ footer { padding: 2rem 1.5rem; }
         <li>Pretraga Svi važeći zakoni Republike Srbije</li>
         <li>Ocena pouzdanosti odgovora</li>
         <li>Citati sa Sl. glasnikom</li>
-        <li>7 dana besplatno — bez obaveze</li>
+        <li>15 besplatnih pitanja</li>
       </ul>
       <button class="price-btn main" onclick="openModal()">Počni besplatno &rarr;</button>
     </div>
@@ -1454,8 +1451,8 @@ footer { padding: 2rem 1.5rem; }
     <div class="price-card feat">
       <div class="price-badge">PREPORUKA ZA KANCELARIJE</div>
       <div class="price-tier mt">Pro</div>
-      <div class="price-num" id="p2">149&#8364;</div>
-      <div class="price-per" id="pp2">/ mesečno &nbsp;&middot;&nbsp; po korisniku</div>
+      <div class="price-num" id="p2"></div>
+      <div class="price-per" id="pp2"></div>
       <div class="pdiv"></div>
       <p class="price-desc">Kompletan AI pravni asistent za advokatske kancelarije. Sve funkcije Basic paketa plus AI generisanje dokumenata.</p>
       <ul class="price-list">
@@ -1500,7 +1497,7 @@ footer { padding: 2rem 1.5rem; }
         <div class="info-row"><div class="info-k">Status</div><div class="info-v">Beta testiranje - pristup dostupan</div></div>
         <div class="info-row"><div class="info-k">Email</div><div class="info-v">info@vindexai.rs</div></div>
         <div class="info-row"><div class="info-k">Dostupnost</div><div class="info-v">Pon - Pet, 09:00 - 17:00</div></div>
-        <div class="info-row"><div class="info-k">Beta program</div><div class="info-v acc">7 dana besplatno bez obaveze</div></div>
+        <div class="info-row"><div class="info-k">Beta program</div><div class="info-v acc">15 besplatnih pitanja</div></div>
       </div>
     </div>
     <div class="vals-list r d1">
@@ -3280,7 +3277,7 @@ var demSec=document.getElementById('demo');if(demSec)dObs.observe(demSec);
 
 /* PRICING TOGGLE */
 var annual=false;
-function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.toggle('on',annual);document.getElementById('p1').textContent=annual?'39\u20AC':'49\u20AC';document.getElementById('p2').textContent=annual?'119\u20AC':'149\u20AC';document.getElementById('pp1').textContent=annual?'/ mes \u00b7 godi\u0161nje':'/ mesečno';document.getElementById('pp2').textContent=annual?'/ mes \u00b7 godi\u0161nje':'/ mesečno \u00b7 po korisniku';}
+function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.toggle('on',annual);}
 
 /* PRO WAITLIST MODAL */
 function openProModal() {
