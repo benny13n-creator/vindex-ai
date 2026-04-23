@@ -431,17 +431,13 @@ def greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
 # ─── Rute ─────────────────────────────────────────────────────────────────────
 
 @app.get("/")
+@app.head("/")
 def root():
     path = BASE_DIR / "index.html"
     if path.exists():
         return FileResponse(path)
     return {"status": "ok", "servis": "Vindex AI"}
 
-
-@app.get("/")
-@app.head("/")
-def root():
-    return {"status": "ok"}
 
 @app.get("/health")
 @app.head("/health")
