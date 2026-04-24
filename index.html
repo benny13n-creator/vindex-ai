@@ -477,7 +477,19 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .resp-odgovor .resp-section-lbl::before { background: rgba(255,255,255,0.4); }
 .resp-citat .resp-section-lbl { color: #e8c97a; }
 .resp-citat .resp-section-lbl::before { background: #e8c97a; box-shadow: 0 0 6px rgba(232,201,122,0.5); }
-.resp-citat .resp-section-body { color: rgba(232,201,122,0.88); font-style: italic; border-left: 2px solid rgba(232,201,122,0.22); padding-left: 0.9rem; }
+.resp-citat .resp-section-body { color: rgba(232,201,122,0.88); font-style: normal; }
+/* Citat — novi blockquote stil (bez italic) */
+.citat-clan-title { font-weight: 700; font-size: 0.83rem; color: #e8c97a; margin-bottom: 0.5rem; letter-spacing: 0.02em; }
+blockquote.citat-blockquote { font-style: normal; border-left: 3px solid rgba(232,201,122,0.55); padding: 0.6rem 0.9rem; margin: 0; background: rgba(232,201,122,0.04); border-radius: 0 6px 6px 0; color: rgba(232,201,122,0.82); font-size: 0.84rem; line-height: 1.75; }
+blockquote.citat-collapsed { max-height: 4.8em; overflow: hidden; position: relative; }
+blockquote.citat-collapsed::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2em; background:linear-gradient(transparent, rgba(18,20,32,0.95)); pointer-events:none; }
+blockquote.citat-expanded { max-height: none; }
+.citat-toggle { background: none; border: 1px solid rgba(232,201,122,0.3); border-radius: 4px; color: rgba(232,201,122,0.7); font-size: 0.72rem; cursor: pointer; padding: 3px 10px; margin-top: 0.4rem; transition: all 0.2s; }
+.citat-toggle:hover { background: rgba(232,201,122,0.07); color: #e8c97a; }
+/* Procena vrednosti */
+.resp-procena .resp-section-lbl { color: #4ade80; }
+.resp-procena .resp-section-lbl::before { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.5); }
+.resp-procena .resp-section-body { color: rgba(200,240,210,0.9); font-size: 0.85rem; line-height: 1.8; border-left: 2px solid rgba(74,222,128,0.3); padding-left: 0.9rem; }
 .resp-posledica .resp-section-lbl { color: #4ade80; }
 .resp-posledica .resp-section-lbl::before { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.5); }
 .resp-pouzdanost .resp-section-lbl { color: #f0b429; }
@@ -1902,6 +1914,7 @@ function newChat() {
   conversationHistory = [];
   _lastRawText = '';
   lastPitanje  = '';
+  _followUpUsed = false;
   // Nova sesija
   currentChatSessionId = _generateUUID();
   localStorage.setItem('vindex_session_id', currentChatSessionId);
@@ -2836,6 +2849,7 @@ function formatResponse(rawText) {
     { key:'--- ANALIZA PORESKE OBAVEZE',        cls:'resp-steta',       lbl:'⚖ Analiza poreske obaveze',       icon:'steta' },
     { key:'--- ANALIZA ŠTETE',                  cls:'resp-steta',       lbl:'⚖ Analiza štete',                 icon:'steta' },
     { key:'--- ANALIZA',                        cls:'resp-steta',       lbl:'⚖ Analiza',                       icon:'steta' },
+    { key:'--- PROCENA VREDNOSTI ZAHTEVA',      cls:'resp-procena',     lbl:'💰 Procena vrednosti zahteva',     icon:'' },
     { key:'--- CITAT ZAKONA',                   cls:'resp-citat',       lbl:'📖 Citat zakona [RAG]',            icon:'citat' },
     { key:'--- PRAVNI OSNOV',                   cls:'resp-pravni-osnov',lbl:'⚖ Pravni osnov',                  icon:'osnov' },
     // Specifičnije RIZICI sekcije pre generičke
@@ -2965,7 +2979,35 @@ function formatResponse(rawText) {
     var bodyHtml;
     if (s.cls === 'resp-citat') {
       lbl = s.lbl + verifiedBadge;
-      bodyHtml = escHtml(val).replace(/\n/g,'<br>');
+      // Izvuci bold naslov — prva linija koja sadrži "Član X" ili naziv zakona
+      var citatLines = val.split('\n').filter(function(l){ return l.trim(); });
+      var titleLine = '';
+      var bodyLines = citatLines;
+      // Traži liniju oblika "Naziv zakona, član X..." ili "Član X ZOO"
+      var titleMatch = val.match(/^["„]?([^:\n]{5,80}(?:član|Član|čl\.|member)\s*\d+[^\n]*)/i)
+                    || val.match(/^["„]?((?:Zakon|ZOO|ZDI|ZOR|ZSPNFT|ZPDG)[^\n]{0,80})/i);
+      if (titleMatch) {
+        titleLine = titleMatch[1].replace(/^["„]+/, '').replace(/["]+$/, '').trim();
+        bodyLines = citatLines.slice(1);
+      } else if (citatLines.length > 0) {
+        // Prva linija kao naslov ako izgleda kao reference (sadrži "član" ili broj)
+        if (/član|Član|čl\.|zakon|Zakon/i.test(citatLines[0]) && citatLines[0].length < 100) {
+          titleLine = citatLines[0].replace(/^["„]+/, '').replace(/[":]+$/, '').trim();
+          bodyLines = citatLines.slice(1);
+        }
+      }
+      var citatBody = bodyLines.join('\n').replace(/^["„\s]+|["„\s]+$/g,'').trim();
+      var citatHtml = escHtml(citatBody).replace(/\n/g,'<br>');
+      var lineCount = bodyLines.length;
+      var titleHtml = titleLine ? '<div class="citat-clan-title">' + escHtml(titleLine) + '</div>' : '';
+      if (lineCount > 3) {
+        var uid = 'citat_' + i;
+        bodyHtml = titleHtml +
+          '<blockquote class="citat-blockquote citat-collapsed" id="' + uid + '">' + citatHtml + '</blockquote>' +
+          '<button class="citat-toggle" onclick="toggleCitat(\'' + uid + '\',this)">Prikaži ceo tekst ▼</button>';
+      } else {
+        bodyHtml = titleHtml + '<blockquote class="citat-blockquote">' + citatHtml + '</blockquote>';
+      }
     } else if (s.cls === 'resp-pravni-osnov') {
       bodyHtml = _linkGlasnik(val).replace(/\n/g,'<br>');
     } else if (s.cls === 'resp-izvor') {
@@ -3008,7 +3050,7 @@ function formatResponse(rawText) {
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +citatEnc+ '\'),this)">📎 Kopiraj citat</button>'+
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +osnovEnc+ '\'),this)">📋 Izvor: '+ osnovLabel +'</button>'+
     '<button class="resp-action-btn" style="background:rgba(74,168,255,0.07);border-color:rgba(74,168,255,0.25);color:#89c8ff;" onclick="exportPDF(decodeURIComponent(\'' +fullEnc+ '\'),this)">📄 Sačuvaj PDF</button>'+
-    '<button class="resp-action-btn" onclick="focusInput()">🔁 Follow-up</button>'+
+    '<button class="resp-action-btn follow-up-btn" id="followUpBtn" onclick="startFollowUp(this)">🔁 Follow-up</button>'+
     '</div>';
   return html;
 }
@@ -3222,6 +3264,41 @@ function saveSettings() {
 function focusInput() {
   var el = document.getElementById('qi') || document.getElementById('ni') || document.getElementById('aitxt');
   if (el) { el.focus(); el.scrollIntoView({behavior:'smooth', block:'center'}); }
+}
+
+function toggleCitat(id, btn) {
+  var bq = document.getElementById(id);
+  if (!bq) return;
+  var expanded = bq.classList.contains('citat-expanded');
+  if (expanded) {
+    bq.classList.remove('citat-expanded');
+    bq.classList.add('citat-collapsed');
+    btn.textContent = 'Prikaži ceo tekst ▼';
+  } else {
+    bq.classList.remove('citat-collapsed');
+    bq.classList.add('citat-expanded');
+    btn.textContent = 'Sakrij ▲';
+  }
+}
+
+var _followUpUsed = false;
+function startFollowUp(btn) {
+  if (_followUpUsed) {
+    // Novo pitanje — resetuj sesiju
+    newChat();
+    _followUpUsed = false;
+    if (btn) btn.textContent = '🔁 Follow-up';
+    return;
+  }
+  var el = document.getElementById('qi');
+  if (!el) return;
+  var prefix = 'Na osnovu prethodnog odgovora, imam dodatno pitanje: ';
+  el.value = prefix;
+  el.focus();
+  el.setSelectionRange(prefix.length, prefix.length);
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  _followUpUsed = true;
+  if (btn) btn.textContent = 'Novo pitanje ↺';
 }
 
 /* EXEC */

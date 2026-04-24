@@ -1230,10 +1230,14 @@ OBAVEZNI FORMAT — 12 SEKCIJA U TAČNOM REDOSLEDU
 [!] STATUSNA POTVRDA: Opšta pravna logika — nema direktnog člana u bazi za ovo pitanje.
 
 --- HIJERARHIJA IZVORA
-[Jedna rečenica — koji zakon je lex specialis za ovo pitanje.
-KRITIČNO: ZOO je LEX GENERALIS — nikada ga ne navodi kao lex specialis.
-Primer A: "Lex specialis: Zakon o radu ima prednost nad ZOO za radne sporove."
-Primer B: "Opšti propis: ZOO primenjen — nije identifikovan poseban zakon za ovu oblast."]
+[Jedna rečenica prema OVIM pravilima — primeni TAČNO ODGOVARAJUĆI primer:
+• Ako se primenjuje poseban zakon koji ima prednost nad ZOO:
+  "Lex specialis: [naziv zakona] ima prednost nad ZOO za ovu oblast."
+• Ako se primenjuje ZOO kao poseban propis za obligacione odnose (naknada štete, ugovor, itd.):
+  "Poseban propis: Zakon o obligacionim odnosima — matični zakon za [naknadu štete / ugovorne odnose / itd.]."
+• SAMO ako nema ni posebnog zakona ni ZOO relevantnih odredbi u kontekstu:
+  "Opšti principi: primenjena opšta građanskopravna načela — nije identifikovan poseban zakon."
+ZABRANA: NIKADA ne pisati "Opšti propis: ZOO" — ZOO je poseban zakon za obligacione odnose, ne opšti.]
 
 --- PRAVNI ZAKLJUČAK
 Postoji verovatan pravni osnov za [opis zahteva] prema [Zakon] čl. [X], uz ispunjenje zakonskih uslova.
@@ -1249,6 +1253,21 @@ Postoji verovatan pravni osnov za [opis zahteva] prema [Zakon] čl. [X], uz ispu
 [Za radne sporove: ZOR čl. [X] umesto ZOO za osnov odgovornosti]
 [Za štetu iz ugovora: izostaviti medicinsku analizu, prilagoditi kategorije]
 [ZABRANJENO: "laka/teška telesna povreda" — medicinska kvalifikacija je na ovlašćenom lekaru/veštaku]
+
+--- PROCENA VREDNOSTI ZAHTEVA
+[SAMO za telesne povrede — preskoči ako nema telesne povrede u pitanju]
+Na osnovu opisanih okolnosti, okvirna procena prema sudskoj praksi:
+• Nematerijalna šteta: Sudska praksa: [X.XXX] – [Y.YYY] RSD (zavisno od težine i trajanja posledica)
+  [Koristi sledeće okvire po vrsti povrede:
+   prelom ruke/noge: 250.000 – 600.000 RSD
+   potres mozga: 150.000 – 400.000 RSD
+   povreda kičme/kičmene moždine: 500.000 – 2.000.000 RSD
+   opekotine: 300.000 – 1.500.000 RSD
+   telesna povreda sa trajnim posledicama: 600.000 – 3.000.000 RSD
+   laka telesna povreda (contusio): 80.000 – 200.000 RSD
+   Ako vrsta povrede nije poznata: "Nije moguće procijeniti bez navođenja vrste povrede."]
+• Materijalna šteta: [troškovi lečenja + izgubljena zarada — samo ako navedeni u pitanju, inače izostavi]
+⚠️ Okvirna procena — konačan iznos utvrđuje sud na osnovu medicinske dokumentacije i veštačenja.
 
 --- CITAT ZAKONA [RAG]
 "[DOSLOVNI tekst iz dostavljenog konteksta — POTPUN, bez ijednog "..."]"
@@ -1341,10 +1360,11 @@ OBAVEZNI FORMAT — TAČNO OVAJ REDOSLED
 [!] STATUSNA POTVRDA: Opšta pravna logika — nema direktnog člana u bazi za ovo pitanje.
 
 --- HIJERARHIJA IZVORA
-[Jedna rečenica — koji zakon je lex specialis za ovo pitanje.
-KRITIČNO: ZOO je LEX GENERALIS — nikada ga ne navodi kao lex specialis.
-Primer A: "Lex specialis: ZDI definiše pojam digitalne imovine za srpsko pravo."
-Primer B: "Opšti propis: ZOO primenjen — nije identifikovan poseban zakon za ovu oblast."]
+[Jedna rečenica prema pravilima:
+• Ako poseban zakon ima prednost: "Lex specialis: [naziv] ima prednost za ovu oblast."
+• Ako se primenjuje ZOO: "Poseban propis: ZOO — matični zakon za [opis oblasti]."
+• Ako nema ni posebnog ni ZOO: "Opšti principi: primenjena opšta građanskopravna načela."
+ZABRANA: NIKADA "Opšti propis: ZOO" — ZOO je poseban zakon za obligacione odnose.]
 
 --- PRAVNI ZAKLJUČAK
 [Jedna precizna rečenica — definicija pojma kako je zakon koristi,
