@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from openai import OpenAI
-from app.services.retrieve import retrieve_documents
+from app.services.retrieve import retrieve_documents, proveri_zdi_indeksiranost
 
 load_dotenv()
 
@@ -1018,6 +1018,9 @@ PRIMARNA PRAVILA:
 3. APSOLUTNA ZABRANA: "..." u zakonskom tekstu. Citat mora biti potpun ili se izostavlja ([—]).
 4. Svaki zaključak mora imati referencu: [Zakon, čl. X, st. Y].
 5. Jezik: srpska ekavica. Stručni pravni registar.
+6. LEGAL FALLBACK: Ako lex specialis nije u kontekstu, analiziraj kroz ZOO opšta načela. \
+ZABRANJENO: "relevantan propis nije pronađen" dok ZOO postoji u kontekstu.
+7. SEMANTIČKO MAPIRANJE: "pametni ugovor" / "smart contract" → "algoritam", "IKT sistem" (ZDI čl. 2).
 
 ══════════════════════════════════════════
 OBAVEZNI FORMAT — TAČNO OVAJ REDOSLED
@@ -1107,6 +1110,8 @@ PRIMARNA PRAVILA:
 5. Razlikuj: fizičko lice rezident / fizičko lice nerezident / domaće pravno lice /
 strano pravno lice — jer se različito oporezuju.
 6. Jezik: srpska ekavica. Stručni poreski registar.
+7. LEGAL FALLBACK: Ako specifičan poreski propis nije u kontekstu, analiziraj kroz ZOO opšta načela. \
+ZABRANJENO: "relevantan propis nije pronađen" dok ZOO postoji u kontekstu.
 
 DETEKTUJ PORESKI SUBJEKT: Ko je poreski obveznik (fizičko/pravno lice, rezident/nerezident),
 koja vrsta prihoda/transakcije, da li postoji ugovor o izbegavanju dvostrukog oporezivanja.
@@ -1200,6 +1205,11 @@ PRIMARNA PRAVILA:
 5. Razlikuj: subjektivni rok (od saznanja) / objektivni rok (od nastanka štete).
 6. NIKADA ne kvalifikuj povredu ("laka/teška telesna") — to je nadležnost lekara/veštaka.
 7. Jezik: srpska ekavica. Stručni pravni registar.
+8. LEGAL FALLBACK — OBAVEZNO: Ako specifičan propis za pitanje nije u kontekstu, UVEK analiziraj \
+slučaj kroz opšta načela ZOO: odgovornost za štetu (čl. 154/155), naknada štete (čl. 189/200). \
+ZABRANJENO: prikazati "relevantan propis nije pronađen" dok ZOO postoji u dostavljenom kontekstu.
+9. SEMANTIČKO MAPIRANJE: "pametni ugovor" / "smart contract" / "greška u kodu" → \
+analiziraj kao "algoritam" i "IKT sistem" u smislu ZDI čl. 2 + odgovornost po ZOO čl. 154/155.
 
 KRITIČNE PRETPOSTAVKE — UVEK PROVERI:
 - Zastarelost subjektivni: 3 god. od saznanja za štetu i učinioca (ZOO čl. 376, st. 1)
@@ -1317,6 +1327,9 @@ PRIMARNA PRAVILA:
 3. Navedi koji tačno zakon i član definiše pojam.
 4. Ako pojam nije definisan u kontekstu: "Pojam nije eksplicitno definisan u dostavljenim izvorima — uputiti na [navesti relevantan zakon]."
 5. Jezik: srpska ekavica. Precizni pravni registar.
+6. LEGAL FALLBACK: Ako definicija nije u lex specialis, analiziraj kroz ZOO opšta načela (čl. 154/155/200). \
+ZABRANJENO: "relevantan propis nije pronađen" dok ZOO postoji u kontekstu.
+7. SEMANTIČKO MAPIRANJE: "pametni ugovor" / "smart contract" → "algoritam", "IKT sistem" (ZDI čl. 2).
 
 ══════════════════════════════════════════
 OBAVEZNI FORMAT — TAČNO OVAJ REDOSLED
@@ -1500,9 +1513,23 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
         filtrirani = _filtriraj_kontekst(docs)
 
+        # Legal Fallback — ZOO čl. 154/155/200 ako primarni retrieval ne vrati ništa.
+        # Zabrana: ne vraćamo "nije pronađen" dok opšti ZOO postoji u bazi.
         if not filtrirani:
-            logger.info("Pinecone: nema rezultata [q=%s]", log_id)
-            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+            logger.info("Pinecone: nema primarnih rezultata — pokušavam ZOO fallback [q=%s]", log_id)
+            try:
+                zoo_docs = retrieve_documents(
+                    "odgovornost za štetu zakon o obligacionim odnosima član 154 155", k=5
+                )
+                filtrirani = _filtriraj_kontekst(zoo_docs)
+                if filtrirani:
+                    logger.info("Legal Fallback: ZOO kontekst uspešno učitan [q=%s]", log_id)
+                else:
+                    logger.info("Legal Fallback: ZOO takođe prazan — vraćam ODGOVOR_NIJE_PRONADJEN [q=%s]", log_id)
+                    return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+            except Exception:
+                logger.exception("Greška u ZOO fallback [q=%s]", log_id)
+                return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
 
         # KORAK 4: Sastavi user_content
         kontekst = "\n\n---\n\n".join(filtrirani)

@@ -121,6 +121,14 @@ LAW_HINTS = {
     "zdi":                        "zakon o digitalnoj imovini",
     "digitalni token":            "zakon o digitalnoj imovini",
     "blockchain":                 "zakon o digitalnoj imovini",
+    # Pametni ugovor / Smart contract → ZDI (algoritam, IKT sistem)
+    "pametni ugovor":             "zakon o digitalnoj imovini",
+    "smart contract":             "zakon o digitalnoj imovini",
+    "greska u kodu":              "zakon o digitalnoj imovini",
+    "greska koda":                "zakon o digitalnoj imovini",
+    "algoritam":                  "zakon o digitalnoj imovini",
+    "ikt sistem":                 "zakon o digitalnoj imovini",
+    "softverska greska":          "zakon o obligacionim odnosima",
 }
 
 # Stop-reči za token matching (bez dijakritika — koriste se u normalizovanom tekstu)
@@ -266,7 +274,7 @@ def _prosiri_query_gpt(query: str) -> list[str]:
         odgovor = client.chat.completions.create(
             model="gpt-4o-mini",
             temperature=0,
-            max_tokens=150,
+            max_tokens=200,
             timeout=20.0,
             messages=[
                 {
@@ -276,8 +284,14 @@ def _prosiri_query_gpt(query: str) -> list[str]:
                         "Za dato pravno pitanje generiši tačno 4 kratka search query-ja (3-7 reči svaki) "
                         "koji će pronaći relevantne odredbe zakona u vektorskoj bazi. "
                         "Koristi pravne termine iz srpskih zakona. "
-                        "Za pitanja o kriptovalutama, digitalnoj imovini ili USDT: obavezno uključi termine "
-                        "'digitalna imovina', 'kriptovaluta', 'virtuelna valuta', 'ZDI' u search query-je. "
+                        "SEMANTIČKO MAPIRANJE — obavezno primeni:\n"
+                        "• 'pametni ugovor', 'smart contract', 'greška u kodu' → "
+                        "koristi termine 'algoritam', 'IKT sistem', 'digitalna imovina ZDI', "
+                        "'odgovornost za štetu ZOO čl. 154'\n"
+                        "• Za pitanja o kriptovalutama, digitalnoj imovini ili USDT: uključi "
+                        "'digitalna imovina', 'kriptovaluta', 'virtuelna valuta', 'ZDI'\n"
+                        "• Ako specifičan zakon nije jasan: uvek dodaj query sa "
+                        "'odgovornost za štetu ZOO član 154 155' kao poslednji\n"
                         "Vrati SAMO query-je, jedan po liniji, bez numeracije i bez dodatnog teksta."
                     ),
                 },
@@ -356,6 +370,21 @@ def _izracunaj_skor(match, query: str, zakon: Optional[str], label_clana: Option
         if "digitalna imovina" in zakon_doc or "digitaln" in zakon_doc:
             skor += 40
 
+    # Boost za pametne ugovore / smart contract → ZDI + ZOO odgovornost
+    _sc_trigeri = ["pametni ugovor", "smart contract", "greska u kodu", "greska koda", "algoritam", "ikt sistem", "softverska greska"]
+    if any(x in query_norm for x in _sc_trigeri):
+        if "digitaln" in zakon_doc:
+            skor += 35
+        # ZOO čl. 154/155/200 — osnov odgovornosti za greške algoritma
+        if "obligacion" in zakon_doc:
+            skor += 25
+            try:
+                m_clan = re.search(r"\d+", clan_doc or "")
+                if m_clan and int(m_clan.group()) in (154, 155, 200, 189):
+                    skor += 45
+            except Exception:
+                pass
+
     return skor
 
 
@@ -425,6 +454,27 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
             svi_matchevi.extend(matchevi)
         logger.info("[ZDI_EXPANSION] Primenjena ZDI specifična ekspanzija za query: %s", query[:60])
 
+    # 4c) Smart contract / pametni ugovor ekspanzija → ZDI algoritam + IKT sistem
+    _SC_TRIGERI = ["pametni ugovor", "smart contract", "greska u kodu", "greska koda",
+                   "algoritam", "ikt sistem", "softverska greska"]
+    _SC_TERMINI_ZDI = [
+        "algoritam IKT sistem digitalna imovina",
+        "pametni ugovor digitalni token ZDI",
+        "greška algoritma odgovornost digitalna imovina",
+    ]
+    _SC_TERMINI_ZOO = [
+        "odgovornost za štetu ZOO član 154",
+        "naknada štete greška algoritam",
+    ]
+    if any(x in q_norm_zdi for x in _SC_TRIGERI):
+        for term in _SC_TERMINI_ZDI:
+            matchevi = _semanticka_pretraga(term, k=5, filter_zakon="zakon o digitalnoj imovini")
+            svi_matchevi.extend(matchevi)
+        for term in _SC_TERMINI_ZOO:
+            matchevi = _semanticka_pretraga(term, k=4, filter_zakon="zakon o obligacionim odnosima")
+            svi_matchevi.extend(matchevi)
+        logger.info("[SC_EXPANSION] Smart contract ekspanzija (ZDI+ZOO) za query: %s", query[:60])
+
     # 5) Dedupliciranje po ID-u
     vidjeni_ids = set()
     jedinstveni = []
@@ -440,9 +490,47 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
     ]
     skorovani.sort(key=lambda x: x[0], reverse=True)
 
+    # 7) Legal Fallback — ako nema dovoljno rezultata, uvek uključi ZOO čl. 154/155/200
+    # Zabrana: sistem ne sme da vrati "nije pronađeno" dok ZOO postoji u bazi.
+    _ZOO_FALLBACK_CLANOVI = ["Član 154", "Član 155", "Član 200", "Član 189"]
+    vidjeni_ids_set = {m.id for _, m in skorovani}
+    top_skor = skorovani[0][0] if skorovani else 0
+    if len(skorovani) < 3 or top_skor < 50:
+        for clan in _ZOO_FALLBACK_CLANOVI:
+            fb_matchevi = _direktan_fetch_clana(clan, "zakon o obligacionim odnosima")
+            for m in fb_matchevi:
+                if m.id not in vidjeni_ids_set:
+                    vidjeni_ids_set.add(m.id)
+                    skor_fb = _izracunaj_skor(m, query, zakon, label_clana)
+                    skorovani.append((skor_fb, m))
+        skorovani.sort(key=lambda x: x[0], reverse=True)
+        logger.info("[ZOO_FALLBACK] Primenjen — top skor bio %.1f, dodati ZOO čl. 154/155/200/189", top_skor)
+
     logger.info(
         "[RETRIEVE] Ukupno unique: %d, vraćam top %d (zakon=%s, član=%s)",
         len(jedinstveni), k, zakon or "—", label_clana or "—",
     )
 
     return [_formatiraj_match(m) for _, m in skorovani[:k]]
+
+
+# ─── Dijagnostička funkcija: provera ZDI indeksiranosti ──────────────────────
+
+def proveri_zdi_indeksiranost() -> dict:
+    """
+    Proverava da li su ključni članovi ZDI (2, 74, 75, 78) indeksirani u Pinecone.
+    Vraća dict sa statusom svakog člana.
+    Returns: {"Član 2": True/False, "Član 74": True/False, ...}
+    """
+    ciljni_clanovi = ["Član 2", "Član 74", "Član 75", "Član 78"]
+    rezultat: dict[str, bool] = {}
+    for clan in ciljni_clanovi:
+        matchevi = _direktan_fetch_clana(clan, "zakon o digitalnoj imovini")
+        pronadjen = any(
+            _normalizuj(m.metadata.get("law", "")) == "zakon o digitalnoj imovini"
+            and _normalizuj(m.metadata.get("article", "")) == _normalizuj(clan)
+            for m in matchevi
+        )
+        rezultat[clan] = pronadjen
+        logger.info("[ZDI_CHECK] %s: %s", clan, "✓ pronađen" if pronadjen else "✗ NIJE indeksiran")
+    return rezultat

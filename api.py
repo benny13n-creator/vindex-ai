@@ -473,6 +473,28 @@ async def test_pinecone():
     return await asyncio.to_thread(_run)
 
 
+@app.get("/test-zdi")
+async def test_zdi_indeksiranost():
+    """
+    Proverava da li su ključni članovi ZDI (2, 74, 75, 78) indeksirani u Pinecone.
+    Vraća status svakog člana: pronađen/nije pronađen.
+    """
+    def _run():
+        try:
+            from app.services.retrieve import proveri_zdi_indeksiranost
+            rezultat = proveri_zdi_indeksiranost()
+            svi_ok = all(rezultat.values())
+            return {
+                "status": "ok" if svi_ok else "upozorenje",
+                "poruka": "Svi ključni ZDI članovi su indeksirani." if svi_ok
+                          else "Neki ZDI članovi NISU pronađeni u Pinecone indeksu — reindeksiranje preporučeno.",
+                "clanovi": rezultat,
+            }
+        except Exception as e:
+            return {"status": "error", "error": type(e).__name__, "message": str(e)}
+    return await asyncio.to_thread(_run)
+
+
 @app.get("/api/diagnose")
 async def diagnose():
     """Testira konekciju sa Pinecone i OpenAI — sve u thread-u da ne blokira event loop."""
