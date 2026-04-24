@@ -8,6 +8,7 @@ import re
 import os
 import logging
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
@@ -240,6 +241,23 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
         return []
 
 
+def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = None) -> list:
+    """Semantička pretraga sa pre-computed vektorom — nema ponovnog embedovanja."""
+    index = _get_index()
+    filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
+    try:
+        rezultati = index.query(
+            vector=vektor,
+            top_k=k,
+            include_metadata=True,
+            filter=filter_dict,
+        )
+        return rezultati.matches
+    except Exception:
+        logger.exception("Greška u pretraga_vec")
+        return []
+
+
 def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list:
     """Direktan fetch člana po metapodatku 'article'."""
     index = _get_index()
@@ -398,117 +416,144 @@ def _formatiraj_match(match) -> str:
     return f"ZAKON: {zakon}\nČLAN: {clan}\n\n{tekst}\n"
 
 
+# ─── Konstante za ekspanziju ─────────────────────────────────────────────────
+
+_ZDI_TRIGERI = frozenset([
+    "digital", "kripto", "bitcoin", "usdt", "ethereum", "token",
+    "virtuelna", "zdi", "blockchain",
+])
+_ZDI_TERMINI = [
+    "digitalna imovina zakon",
+    "kriptovaluta pravni status srbija",
+    "ZDI digitalni token",
+]
+_SC_TRIGERI = frozenset([
+    "pametni ugovor", "smart contract", "greska u kodu", "greska koda",
+    "algoritam", "ikt sistem", "softverska greska",
+])
+_SC_TERMINI_ZDI = [
+    "algoritam IKT sistem digitalna imovina",
+    "pametni ugovor digitalni token ZDI",
+]
+_SC_TERMINI_ZOO = [
+    "odgovornost za štetu ZOO član 154",
+]
+_ZOO_FALLBACK_CLANOVI = ["Član 154", "Član 155", "Član 200", "Član 189"]
+
 # ─── Glavna javna funkcija ────────────────────────────────────────────────────
 
 def retrieve_documents(query: str, k: int = 6) -> list[str]:
     """
-    Glavni retrieval pipeline.
+    Retrieval pipeline v2 — PARALELNI.
 
-    Koraci:
-    1. Direktan fetch ako je u pitanju naveden broj člana
-    2. Semantička pretraga sa filterom zakona (ako je prepoznat)
-    3. Semantička pretraga bez filtera (širi zahvat)
-    4. GPT query ekspanzija + semantička pretraga za svaki prošireni query
-    5. Dedupliciranje po ID-u
-    6. Reranking i vraćanje top-k rezultata
+    Sve Pinecone pretrage teku paralelno (ThreadPoolExecutor).
+    Embedding se računa jedanput i deli između svih poziva.
+    GPT ekspanzija teče u pozadini paralelno sa inicijalnim pretragama;
+    čeka se maksimalno 3 sekunde — ako kasni, preskočena.
     """
-    zakon        = _prepoznaj_zakon(query)
-    broj_clana   = _izvuci_broj_clana(query)
-    label_clana  = f"Član {broj_clana}" if broj_clana else None
+    import time
+    t0 = time.perf_counter()
 
-    svi_matchevi = []
+    zakon       = _prepoznaj_zakon(query)
+    broj_clana  = _izvuci_broj_clana(query)
+    label_clana = f"Član {broj_clana}" if broj_clana else None
+    q_norm      = _normalizuj(query)
 
-    # 1) Direktan fetch člana
+    # ── Faza 0: embed query jedanput ─────────────────────────────────────────
+    vektor = _ugradi_query(query)
+
+    # ── Faza 1: sve inicijalne pretrage + GPT ekspanzija — u PARALELI ────────
+    executor = ThreadPoolExecutor(max_workers=10)
+    fjobs: list[Future] = []
+
+    # a) Direktan fetch člana (ako je naveden)
     if label_clana:
-        matchevi = _direktan_fetch_clana(label_clana, zakon)
-        svi_matchevi.extend(matchevi)
-        logger.info("[DIREKTAN_FETCH] %d rezultata za %s", len(matchevi), label_clana)
+        fjobs.append(executor.submit(_direktan_fetch_clana, label_clana, zakon))
 
-    # 2) Semantička pretraga sa filterom
-    matchevi = _semanticka_pretraga(query, k=12, filter_zakon=zakon)
-    svi_matchevi.extend(matchevi)
+    # b) Semantička sa filterom (k=8)
+    fjobs.append(executor.submit(_pretraga_vec, vektor, 8, zakon))
 
-    # 3) Semantička pretraga bez filtera
-    matchevi = _semanticka_pretraga(query, k=8)
-    svi_matchevi.extend(matchevi)
+    # c) Semantička bez filtera (k=6)
+    fjobs.append(executor.submit(_pretraga_vec, vektor, 6, None))
 
-    # 4) GPT query ekspanzija
-    prosireni = _prosiri_query_gpt(query)
-    for eq in prosireni:
-        matchevi = _semanticka_pretraga(eq, k=5)
-        svi_matchevi.extend(matchevi)
-
-    # 4b) ZDI specifična ekspanzija — deterministički termini kad je detektovano kripto pitanje
-    _ZDI_TRIGERI = ["digital", "kripto", "bitcoin", "usdt", "ethereum", "token", "virtuelna", "zdi", "blockchain"]
-    _ZDI_TERMINI = [
-        "digitalna imovina zakon",
-        "kriptovaluta pravni status srbija",
-        "virtuelna valuta regulativa",
-        "ZDI digitalni token",
-        "digitalna aktiva pravo",
-    ]
-    q_norm_zdi = _normalizuj(query)
-    if any(x in q_norm_zdi for x in _ZDI_TRIGERI):
+    # d) ZDI specifična ekspanzija
+    if any(x in q_norm for x in _ZDI_TRIGERI):
         for term in _ZDI_TERMINI:
-            matchevi = _semanticka_pretraga(term, k=5, filter_zakon="zakon o digitalnoj imovini")
-            svi_matchevi.extend(matchevi)
-        logger.info("[ZDI_EXPANSION] Primenjena ZDI specifična ekspanzija za query: %s", query[:60])
+            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o digitalnoj imovini"))
 
-    # 4c) Smart contract / pametni ugovor ekspanzija → ZDI algoritam + IKT sistem
-    _SC_TRIGERI = ["pametni ugovor", "smart contract", "greska u kodu", "greska koda",
-                   "algoritam", "ikt sistem", "softverska greska"]
-    _SC_TERMINI_ZDI = [
-        "algoritam IKT sistem digitalna imovina",
-        "pametni ugovor digitalni token ZDI",
-        "greška algoritma odgovornost digitalna imovina",
-    ]
-    _SC_TERMINI_ZOO = [
-        "odgovornost za štetu ZOO član 154",
-        "naknada štete greška algoritam",
-    ]
-    if any(x in q_norm_zdi for x in _SC_TRIGERI):
+    # e) Smart contract ekspanzija
+    if any(x in q_norm for x in _SC_TRIGERI):
         for term in _SC_TERMINI_ZDI:
-            matchevi = _semanticka_pretraga(term, k=5, filter_zakon="zakon o digitalnoj imovini")
-            svi_matchevi.extend(matchevi)
+            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o digitalnoj imovini"))
         for term in _SC_TERMINI_ZOO:
-            matchevi = _semanticka_pretraga(term, k=4, filter_zakon="zakon o obligacionim odnosima")
-            svi_matchevi.extend(matchevi)
-        logger.info("[SC_EXPANSION] Smart contract ekspanzija (ZDI+ZOO) za query: %s", query[:60])
+            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o obligacionim odnosima"))
 
-    # 5) Dedupliciranje po ID-u
-    vidjeni_ids = set()
+    # f) GPT ekspanzija — paralelno, max 3s timeout
+    gpt_future: Future = executor.submit(_prosiri_query_gpt, query)
+
+    # Čekaj inicijalne pretrage
+    svi_matchevi: list = []
+    for f in as_completed(fjobs):
+        try:
+            svi_matchevi.extend(f.result())
+        except Exception:
+            pass
+
+    # ── Faza 2: proširene pretrage iz GPT ekspanzije (ako je stigla) ──────────
+    try:
+        prosireni = gpt_future.result(timeout=3.0)
+        exp_futs = [executor.submit(_semanticka_pretraga, eq, 3) for eq in prosireni[:3]]
+        for f in as_completed(exp_futs, timeout=2.0):
+            try:
+                svi_matchevi.extend(f.result())
+            except Exception:
+                pass
+        logger.debug("[GPT_EXP] Prosirene pretrage gotove")
+    except Exception:
+        logger.info("[GPT_EXP] Preskočena (timeout ili greška)")
+
+    executor.shutdown(wait=False)
+
+    # ── Faza 3: dedup + reranking ─────────────────────────────────────────────
+    vidjeni: set[str] = set()
     jedinstveni = []
     for m in svi_matchevi:
-        if m.id not in vidjeni_ids:
-            vidjeni_ids.add(m.id)
+        if m.id not in vidjeni:
+            vidjeni.add(m.id)
             jedinstveni.append(m)
 
-    # 6) Reranking
-    skorovani = [
-        (_izracunaj_skor(m, query, zakon, label_clana), m)
-        for m in jedinstveni
-    ]
-    skorovani.sort(key=lambda x: x[0], reverse=True)
+    skorovani = sorted(
+        [(_izracunaj_skor(m, query, zakon, label_clana), m) for m in jedinstveni],
+        key=lambda x: x[0], reverse=True,
+    )
 
-    # 7) Legal Fallback — ako nema dovoljno rezultata, uvek uključi ZOO čl. 154/155/200
-    # Zabrana: sistem ne sme da vrati "nije pronađeno" dok ZOO postoji u bazi.
-    _ZOO_FALLBACK_CLANOVI = ["Član 154", "Član 155", "Član 200", "Član 189"]
-    vidjeni_ids_set = {m.id for _, m in skorovani}
+    # ── Faza 4: ZOO Legal Fallback (paralelno, samo ako treba) ───────────────
     top_skor = skorovani[0][0] if skorovani else 0
     if len(skorovani) < 3 or top_skor < 50:
-        for clan in _ZOO_FALLBACK_CLANOVI:
-            fb_matchevi = _direktan_fetch_clana(clan, "zakon o obligacionim odnosima")
-            for m in fb_matchevi:
-                if m.id not in vidjeni_ids_set:
-                    vidjeni_ids_set.add(m.id)
-                    skor_fb = _izracunaj_skor(m, query, zakon, label_clana)
-                    skorovani.append((skor_fb, m))
+        fb_futures = [
+            executor  # executor je shut down — koristimo novi kratki
+        ]
+        with ThreadPoolExecutor(max_workers=4) as fb_exec:
+            fb_futs = [
+                fb_exec.submit(_direktan_fetch_clana, clan, "zakon o obligacionim odnosima")
+                for clan in _ZOO_FALLBACK_CLANOVI
+            ]
+            for f in as_completed(fb_futs):
+                try:
+                    for m in f.result():
+                        if m.id not in vidjeni:
+                            vidjeni.add(m.id)
+                            skor_fb = _izracunaj_skor(m, query, zakon, label_clana)
+                            skorovani.append((skor_fb, m))
+                except Exception:
+                    pass
         skorovani.sort(key=lambda x: x[0], reverse=True)
-        logger.info("[ZOO_FALLBACK] Primenjen — top skor bio %.1f, dodati ZOO čl. 154/155/200/189", top_skor)
+        logger.info("[ZOO_FALLBACK] top_skor=%.1f — dodati ZOO čl. 154/155/200/189", top_skor)
 
+    elapsed = time.perf_counter() - t0
     logger.info(
-        "[RETRIEVE] Ukupno unique: %d, vraćam top %d (zakon=%s, član=%s)",
-        len(jedinstveni), k, zakon or "—", label_clana or "—",
+        "[RETRIEVE] %.2fs | unique=%d | top=%d | zakon=%s | član=%s",
+        elapsed, len(jedinstveni), k, zakon or "—", label_clana or "—",
     )
 
     return [_formatiraj_match(m) for _, m in skorovani[:k]]

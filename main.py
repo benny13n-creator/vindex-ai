@@ -1470,8 +1470,13 @@ def ukloni_zabranjeni_tekst(odgovor: str, tip: str) -> str:
     return odgovor.strip()
 
 
-def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o") -> str:
-    """OpenAI poziv sa timeoutom. Baca izuzetak pri grešci."""
+def _pozovi_openai(
+    system_prompt: str,
+    user_content: str,
+    model: str = "gpt-4o",
+    max_tokens: int = 1000,
+) -> str:
+    """OpenAI poziv sa timeoutom i ograničenjem tokena. Baca izuzetak pri grešci."""
     odgovor = _get_client().chat.completions.create(
         model=model,
         messages=[
@@ -1479,7 +1484,8 @@ def _pozovi_openai(system_prompt: str, user_content: str, model: str = "gpt-4o")
             {"role": "user", "content": user_content},
         ],
         temperature=0,
-        timeout=60.0,
+        max_tokens=max_tokens,
+        timeout=25.0,
     )
     return (odgovor.choices[0].message.content or "").strip()
 
@@ -1509,19 +1515,27 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         tip = klasifikuj_pitanje(pitanje_api)
         logger.info("[ASK_AGENT] Tip: %s | Query: %s [q=%s]", tip, pitanje_api[:80], log_id)
 
-        # KORAK 2: Izaberi prompt i sekcije — nema fallbacka na drugi tip
+        # KORAK 2: Izaberi prompt, sekcije, model i max_tokens — nema fallbacka na drugi tip
         if tip == "COMPLIANCE":
-            system_prompt = SYSTEM_PROMPT_COMPLIANCE
-            aktivan_sekcije = SEKCIJE_COMPLIANCE
+            system_prompt    = SYSTEM_PROMPT_COMPLIANCE
+            aktivan_sekcije  = SEKCIJE_COMPLIANCE
+            _model           = "gpt-4o"
+            _max_tokens      = 1000
         elif tip == "PORESKI":
-            system_prompt = SYSTEM_PROMPT_PORESKI
-            aktivan_sekcije = SEKCIJE_PORESKI
+            system_prompt    = SYSTEM_PROMPT_PORESKI
+            aktivan_sekcije  = SEKCIJE_PORESKI
+            _model           = "gpt-4o"
+            _max_tokens      = 800
         elif tip == "PARNICA":
-            system_prompt = SYSTEM_PROMPT_PARNICA
-            aktivan_sekcije = SEKCIJE_PARNICA
+            system_prompt    = SYSTEM_PROMPT_PARNICA
+            aktivan_sekcije  = SEKCIJE_PARNICA
+            _model           = "gpt-4o"
+            _max_tokens      = 1000
         else:  # DEFINICIJA
-            system_prompt = SYSTEM_PROMPT_DEFINICIJA
-            aktivan_sekcije = SEKCIJE_DEFINICIJA
+            system_prompt    = SYSTEM_PROMPT_DEFINICIJA
+            aktivan_sekcije  = SEKCIJE_DEFINICIJA
+            _model           = "gpt-4o-mini"
+            _max_tokens      = 600
 
         # KORAK 3: Retrieval — filter_zakoni su hint za retrieve_documents LAW_HINTS
         # COMPLIANCE → boost ZDI + ZSPNFT | PORESKI → boost poreski zakoni
@@ -1570,7 +1584,7 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
 
         # KORAK 4: Generiši odgovor izabranim promptom
         try:
-            odgovor = _pozovi_openai(system_prompt, user_content)
+            odgovor = _pozovi_openai(system_prompt, user_content, model=_model, max_tokens=_max_tokens)
         except Exception as e:
             logger.exception("OPENAI GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
