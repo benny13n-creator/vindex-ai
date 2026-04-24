@@ -125,11 +125,28 @@ LAW_HINTS = {
     # Pametni ugovor / Smart contract → ZDI (algoritam, IKT sistem)
     "pametni ugovor":             "zakon o digitalnoj imovini",
     "smart contract":             "zakon o digitalnoj imovini",
+    "smart kontrakt":             "zakon o digitalnoj imovini",
     "greska u kodu":              "zakon o digitalnoj imovini",
     "greska koda":                "zakon o digitalnoj imovini",
     "algoritam":                  "zakon o digitalnoj imovini",
     "ikt sistem":                 "zakon o digitalnoj imovini",
     "softverska greska":          "zakon o obligacionim odnosima",
+    "nft":                        "zakon o digitalnoj imovini",
+    "nft nije isporucen":         "zakon o obligacionim odnosima",
+    # Web3 krivični scenariji → Krivični zakonik
+    "kripto ukraden":             "krivicni zakonik",
+    "novcanik hakovan":           "krivicni zakonik",
+    "hakovan":                    "krivicni zakonik",
+    "neovlascen pristup":         "krivicni zakonik",
+    "racunarski kriminal":        "krivicni zakonik",
+    "kradja kriptovalute":        "krivicni zakonik",
+    "kradja kripto":              "krivicni zakonik",
+    # Zarada od kripto → ZPDG
+    "zarada od kripto":           "zakon o porezu na dohodak gradjana",
+    "prihod od kripto":           "zakon o porezu na dohodak gradjana",
+    "kapitalni dobitak":          "zakon o porezu na dohodak gradjana",
+    "kapitaln":                   "zakon o porezu na dohodak gradjana",
+    "porez na kripto":            "zakon o porezu na dohodak gradjana",
 }
 
 # Stop-reči za token matching (bez dijakritika — koriste se u normalizovanom tekstu)
@@ -303,9 +320,18 @@ def _prosiri_query_gpt(query: str) -> list[str]:
                         "koji će pronaći relevantne odredbe zakona u vektorskoj bazi. "
                         "Koristi pravne termine iz srpskih zakona. "
                         "SEMANTIČKO MAPIRANJE — obavezno primeni:\n"
-                        "• 'pametni ugovor', 'smart contract', 'greška u kodu' → "
-                        "koristi termine 'algoritam', 'IKT sistem', 'digitalna imovina ZDI', "
+                        "• 'pametni ugovor', 'smart contract', 'smart kontrakt', 'greška u kodu' → "
+                        "koristi 'algoritam', 'IKT sistem', 'digitalna imovina ZDI', "
                         "'odgovornost za štetu ZOO čl. 154'\n"
+                        "• 'NFT nije isporučen', 'NFT', 'digitalni kolekcionarski predmet' → "
+                        "koristi 'naknada štete', 'ispunjenje obaveze', 'odgovornost prodavca ZOO'\n"
+                        "• 'kripto ukraden', 'novčanik hakovan', 'neovlašćen pristup' → "
+                        "koristi 'neovlašćen pristup računarskom sistemu', 'imovinska šteta', "
+                        "'krivična prijava Krivični zakonik čl. 302 303 304'\n"
+                        "• 'zarada od kripto', 'prihod od kriptovaluta', 'profit od digitalne imovine' → "
+                        "koristi 'kapitalni dobitak', 'porez na dohodak ZPDG čl. 72b', 'prijava prihoda'\n"
+                        "• 'novčanik hakovan', 'hack wallet' → "
+                        "koristi 'krivična prijava', 'imovinska šteta ZOO', 'neovlašćen pristup KZ čl. 303'\n"
                         "• Za pitanja o kriptovalutama, digitalnoj imovini ili USDT: uključi "
                         "'digitalna imovina', 'kriptovaluta', 'virtuelna valuta', 'ZDI'\n"
                         "• Ako specifičan zakon nije jasan: uvek dodaj query sa "
@@ -419,13 +445,31 @@ def _formatiraj_match(match) -> str:
 # ─── Konstante za ekspanziju ─────────────────────────────────────────────────
 
 _ZDI_TRIGERI = frozenset([
-    "digital", "kripto", "bitcoin", "usdt", "ethereum", "token",
+    "digital", "kripto", "bitcoin", "usdt", "ethereum", "token", "nft",
     "virtuelna", "zdi", "blockchain",
 ])
 _ZDI_TERMINI = [
     "digitalna imovina zakon",
     "kriptovaluta pravni status srbija",
-    "ZDI digitalni token",
+    "ZDI digitalni token NFT",
+]
+
+_KZ_TRIGERI = frozenset([
+    "hakovan", "ukraden", "kradja", "neovlascen", "racunarski kriminal",
+    "krivicna prijava", "krivicno delo",
+])
+_KZ_TERMINI = [
+    "neovlašćen pristup računarskom sistemu Krivični zakonik",
+    "imovinska šteta krivično delo KZ čl. 302",
+]
+
+_ZPDG_TRIGERI = frozenset([
+    "zarada od kripto", "prihod od kripto", "kapitalni dobitak",
+    "porez na kripto", "kapitaln dobitak",
+])
+_ZPDG_TERMINI = [
+    "kapitalni dobitak digitalna imovina ZPDG član 72",
+    "porez na dohodak kriptovaluta prijava",
 ]
 _SC_TRIGERI = frozenset([
     "pametni ugovor", "smart contract", "greska u kodu", "greska koda",
@@ -488,7 +532,17 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
         for term in _SC_TERMINI_ZOO:
             fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o obligacionim odnosima"))
 
-    # f) GPT ekspanzija — paralelno, max 3s timeout
+    # f) KZ ekspanzija — kripto krivična dela
+    if any(x in q_norm for x in _KZ_TRIGERI):
+        for term in _KZ_TERMINI:
+            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "krivicni zakonik"))
+
+    # g) ZPDG ekspanzija — zarada od kripto
+    if any(x in q_norm for x in _ZPDG_TRIGERI):
+        for term in _ZPDG_TERMINI:
+            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o porezu na dohodak gradjana"))
+
+    # i) GPT ekspanzija — paralelno, max 3s timeout
     gpt_future: Future = executor.submit(_prosiri_query_gpt, query)
 
     # Čekaj inicijalne pretrage

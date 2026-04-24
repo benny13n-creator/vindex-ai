@@ -304,6 +304,23 @@ app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Hvatanje svih neočekivanih izuzetaka — vraća JSON umesto HTML stranice greške."""
+    from starlette.exceptions import HTTPException as _HTTPExc
+    if isinstance(exc, _HTTPExc):
+        raise exc
+    logger.exception("Neočekivana greška [path=%s]: %s", request.url.path, exc)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": str(exc),
+            "type": type(exc).__name__,
+            "status": "error",
+        },
+    )
+
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 app.add_middleware(

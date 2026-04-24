@@ -2968,6 +2968,27 @@ function formatResponse(rawText) {
     var isHigh = pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1;
   var verifiedBadge = isHigh ? '<span class="rag-verified">✓ RAG</span>' : '';
 
+  // Detekcija tipa upita na osnovu HIJERARHIJA IZVORA sekcije — za dinamički prikaz
+  var _tipUpita = 'obligaciono';
+  found.forEach(function(s,i){
+    if (s.cls === 'resp-hijerarhija') {
+      var start = s.pos + s.keyLen;
+      var end = i+1 < found.length ? found[i+1].pos : rawText.length;
+      var hTxt = rawText.slice(start, end).toLowerCase();
+      if (/krivic[nš]|krivicni zakonik|kz\s*čl|kz\s*cl/.test(hTxt)) {
+        _tipUpita = 'krivicno';
+      } else if (/porez|poresk|zpdg|pdv|zakon o porezu/.test(hTxt)) {
+        _tipUpita = 'poresko';
+      }
+    }
+  });
+  // Sekcije koje se skrivaju po tipu — guardrail za slučaj kada AI generiše pogrešne sekcije
+  var _skriveneZaTip = {
+    krivicno: {'resp-steta':1, 'resp-procena':1},
+    poresko:  {'resp-steta':1, 'resp-procena':1}
+  };
+  var _skrivene = _skriveneZaTip[_tipUpita] || {};
+
   var html = trustBadge;
   found.forEach(function(s,i){
     var start = s.pos + s.keyLen;
@@ -2975,6 +2996,7 @@ function formatResponse(rawText) {
     var val = rawText.slice(start,end).trim();
     if (s.cls === 'resp-pouzdanost') return;
     if (s.cls === 'resp-disclaimer') return;
+    if (_skrivene[s.cls]) return;
     var lbl = s.lbl;
     var bodyHtml;
     if (s.cls === 'resp-citat') {
@@ -3336,76 +3358,103 @@ async function execQuery() {
     a: { tekst: document.getElementById('aitxt').value, pitanje: document.getElementById('aq').value }
   };
 
+  var _maxRetries = 2;
+  var _attempt = 0;
+
   try {
-    var r = await fetch(eps[activeTab], {
-      method:  'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
-      body:    JSON.stringify(bodies[activeTab])
-    });
+    while (true) {
+      var r = await fetch(eps[activeTab], {
+        method:  'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
+        body:    JSON.stringify(bodies[activeTab])
+      });
 
-    console.log('[Vindex] execQuery: odgovor status =', r.status);
-    if (r.status === 401) { _execInProgress=false; execBtn.disabled=false; btnLbl.textContent=orig; closeModal(); openModal(); return; }
-    if (r.status === 402) {
-      console.warn('[Vindex] execQuery: 402 — nema kredita');
-      userCredits = 0; updateCreditDisplay(); showPaywall();
-      _execInProgress=false; execBtn.disabled=false; btnLbl.textContent = orig; return;
-    }
-    if (r.status === 403) {
-      console.warn('[Vindex] execQuery: 403 — nije PRO');
-      _execInProgress=false; execBtn.disabled=false; btnLbl.textContent = orig;
-      openProUpgradeModal(); return;
-    }
+      console.log('[Vindex] execQuery: odgovor status =', r.status, '| pokušaj', _attempt+1);
 
-    var d = await r.json();
-    console.log('[Vindex] execQuery: kredit posle upita =', d.credits_remaining);
-    if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
-
-    var text = d.odgovor || d.greska || 'Greška u odgovoru servera.';
-
-    // Sačuvaj u in-memory i Supabase history
-    if (d.odgovor) {
-      var turnQ = activeTab === 'q' ? currentPitanje : ('[' + activeTab + '] ' + (document.getElementById('podnesak-opis') ? document.getElementById('podnesak-opis').value : '').substring(0,120));
-      if (activeTab === 'q' && currentPitanje) {
-        conversationHistory.push({ q: currentPitanje, a: d.odgovor.substring(0, 600) });
-        if (conversationHistory.length > 3) conversationHistory.shift();
+      // Cold-start / gateway retry
+      if ((r.status === 502 || r.status === 503) && _attempt < _maxRetries) {
+        _attempt++;
+        btnLbl.textContent = 'Uspostavljanje veze sa serverom...';
+        await new Promise(function(res){ setTimeout(res, 4000); });
+        continue;
       }
-      saveTurnToSupabase(turnQ, d.odgovor);
-      // Dodaj u history panel
-      if (turnQ) {
-        _chatHistoryRows.push({ role:'user', content: turnQ });
-        _chatHistoryRows.push({ role:'assistant', content: d.odgovor.substring(0,600) });
-        renderChatHistory(_chatHistoryRows);
-      }
-    }
 
-    _lastRawText = text;
-    if (activeTab === 'n') {
-      // PREVIEW mode za generisani podnesak
-      resp.classList.remove('show');
-      var previewEl = document.getElementById('podnesak-preview');
-      var previewBody = document.getElementById('podnesak-preview-body');
-      var highlighted = escHtml(text).replace(/\[([A-ZŠĐČĆŽ\s\-—]+?)\s*—\s*POPUNITI\]/g,
-        '<span class="popuniti">[$1 — POPUNITI]</span>');
-      previewBody.innerHTML = highlighted;
-      previewEl.style.display = 'block';
-    } else {
-      resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
-      var i=0, speed=text.length>600?4:text.length>300?7:12;
-      var iv=setInterval(function(){
-        if(i>=text.length){
-          clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
-          var parsedHtml = formatResponse(text);
-          console.log('[Vindex] RAW odgovor (500):', text.substring(0,500));
-          console.log('[Vindex] PARSED html (500):', parsedHtml ? parsedHtml.substring(0,500) : 'PRAZAN!');
-          if (!parsedHtml || parsedHtml.trim() === '') {
-            rb.style.whiteSpace = 'pre-wrap';
-            rb.textContent = text;
-          } else {
-            rb.innerHTML = parsedHtml + _feedbackBar(currentPitanje, text);
-          }
-          if (_cyrillicOn) cirilicaElement(rb);
-        } else { rb.textContent+=text[i]; i++; }
-      },speed);
+      if (r.status === 401) { closeModal(); openModal(); return; }
+      if (r.status === 402) {
+        console.warn('[Vindex] execQuery: 402 — nema kredita');
+        userCredits = 0; updateCreditDisplay(); showPaywall(); return;
+      }
+      if (r.status === 403) {
+        console.warn('[Vindex] execQuery: 403 — nije PRO');
+        openProUpgradeModal(); return;
+      }
+
+      // Content-type guard — server vratio HTML (cold start, nginx greška)
+      var _ct = r.headers.get('content-type');
+      if (!_ct || !_ct.includes('application/json')) {
+        if (_attempt < _maxRetries) {
+          _attempt++;
+          btnLbl.textContent = 'Uspostavljanje veze sa serverom...';
+          await new Promise(function(res){ setTimeout(res, 4000); });
+          continue;
+        }
+        resp.classList.add('show'); rb.style.whiteSpace='pre-wrap';
+        rb.textContent = 'Server se pokreće, pokušajte za 5 sekundi...';
+        return;
+      }
+
+      var d = await r.json();
+      console.log('[Vindex] execQuery: kredit posle upita =', d.credits_remaining);
+      if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
+
+      var text = d.odgovor || d.greska || 'Greška u odgovoru servera.';
+
+      // Sačuvaj u in-memory i Supabase history
+      if (d.odgovor) {
+        var turnQ = activeTab === 'q' ? currentPitanje : ('[' + activeTab + '] ' + (document.getElementById('podnesak-opis') ? document.getElementById('podnesak-opis').value : '').substring(0,120));
+        if (activeTab === 'q' && currentPitanje) {
+          conversationHistory.push({ q: currentPitanje, a: d.odgovor.substring(0, 600) });
+          if (conversationHistory.length > 3) conversationHistory.shift();
+        }
+        saveTurnToSupabase(turnQ, d.odgovor);
+        // Dodaj u history panel
+        if (turnQ) {
+          _chatHistoryRows.push({ role:'user', content: turnQ });
+          _chatHistoryRows.push({ role:'assistant', content: d.odgovor.substring(0,600) });
+          renderChatHistory(_chatHistoryRows);
+        }
+      }
+
+      _lastRawText = text;
+      if (activeTab === 'n') {
+        // PREVIEW mode za generisani podnesak
+        resp.classList.remove('show');
+        var previewEl = document.getElementById('podnesak-preview');
+        var previewBody = document.getElementById('podnesak-preview-body');
+        var highlighted = escHtml(text).replace(/\[([A-ZŠĐČĆŽ\s\-—]+?)\s*—\s*POPUNITI\]/g,
+          '<span class="popuniti">[$1 — POPUNITI]</span>');
+        previewBody.innerHTML = highlighted;
+        previewEl.style.display = 'block';
+      } else {
+        resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
+        var i=0, speed=text.length>600?4:text.length>300?7:12;
+        var iv=setInterval(function(){
+          if(i>=text.length){
+            clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
+            var parsedHtml = formatResponse(text);
+            console.log('[Vindex] RAW odgovor (500):', text.substring(0,500));
+            console.log('[Vindex] PARSED html (500):', parsedHtml ? parsedHtml.substring(0,500) : 'PRAZAN!');
+            if (!parsedHtml || parsedHtml.trim() === '') {
+              rb.style.whiteSpace = 'pre-wrap';
+              rb.textContent = text;
+            } else {
+              rb.innerHTML = parsedHtml + _feedbackBar(currentPitanje, text);
+            }
+            if (_cyrillicOn) cirilicaElement(rb);
+          } else { rb.textContent+=text[i]; i++; }
+        },speed);
+      }
+      break;
     }
   } catch(e) {
     resp.classList.add('show'); rb.style.whiteSpace='pre-wrap';
