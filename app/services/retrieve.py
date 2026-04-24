@@ -533,6 +533,15 @@ def _formatiraj_match(match) -> str:
     stav_tekst   = (meta.get("text") or "").strip()
     parent_tekst = _dohvati_parent_text(match)
 
+    logger.debug(
+        "[FORMAT] id=%s zakon=%s clan=%s | text_len=%d parent_len=%d | "
+        "metadata_keys=%s",
+        getattr(match, "id", "?"),
+        zakon, clan,
+        len(stav_tekst), len(parent_tekst),
+        list(meta.keys()),
+    )
+
     if parent_tekst and len(parent_tekst) > len(stav_tekst) + 50:
         return (
             f"ZAKON: {zakon}\nČLAN: {clan}\n\n"

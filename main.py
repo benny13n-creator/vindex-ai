@@ -1549,6 +1549,12 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             logger.exception("PINECONE GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
         filtrirani = _filtriraj_kontekst(docs)
+        logger.debug(
+            "[RAG_CTX] %d docs ukupno, %d posle filtera [q=%s]",
+            len(docs), len(filtrirani), log_id,
+        )
+        for _i, _d in enumerate(filtrirani[:3]):
+            logger.debug("[RAG_CTX doc%d] prvih 400 char:\n%s", _i, _d[:400])
 
         # Legal Fallback — ZOO čl. 154/155/200 ako primarni retrieval ne vrati ništa.
         # Zabrana: ne vraćamo "nije pronađen" dok opšti ZOO postoji u bazi.
