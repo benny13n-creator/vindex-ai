@@ -1049,9 +1049,9 @@ postaje obveznik po ZSPNFT čl. 4 →
 Svaka strelica → mora imati zakonsku referencu. Minimum 2 koraka u lancu.]
 
 --- CITAT ZAKONA [RAG]
-"[DOSLOVNI tekst iz dostavljenog konteksta — POTPUN, bez ijednog "..."]"
+"[Kopiraj CITABILNI TEKST iz konteksta — doslovno, bez ikakve izmene]"
 [Format: "Naziv zakona, član X, stav Y: [tekst]"]
-[SAMO iz dostavljenog konteksta. Ako tekst nije tu: [—]]
+[SAMO iz dostavljenog konteksta. Ako CITABILNI TEKST nije tu: [—]]
 
 --- PRAVNI OSNOV
 [Mapiranje sa lex specialis napomenom:
@@ -1148,9 +1148,9 @@ podleže oporezivanju stopom [SAMO iz konteksta] → obveznik podnosi prijavu do
 Svaki korak mora imati zakonsku referencu.]
 
 --- CITAT ZAKONA [RAG]
-"[DOSLOVNI tekst iz dostavljenog konteksta — POTPUN, bez ijednog "..."]"
+"[Kopiraj CITABILNI TEKST iz konteksta — doslovno, bez ikakve izmene]"
 [Format: "Naziv zakona, član X, stav Y: [tekst]"]
-[SAMO iz dostavljenog konteksta. Ako tekst nije tu: [—]]
+[SAMO iz dostavljenog konteksta. Ako CITABILNI TEKST nije tu: [—]]
 
 --- PRAVNI OSNOV
 [Mapiranje: [Zakon čl. X] → [poreska posledica koja sledi]]
@@ -1210,6 +1210,9 @@ slučaj kroz opšta načela ZOO: odgovornost za štetu (čl. 154/155), naknada �
 ZABRANJENO: prikazati "relevantan propis nije pronađen" dok ZOO postoji u dostavljenom kontekstu.
 9. SEMANTIČKO MAPIRANJE: "pametni ugovor" / "smart contract" / "greška u kodu" → \
 analiziraj kao "algoritam" i "IKT sistem" u smislu ZDI čl. 2 + odgovornost po ZOO čl. 154/155.
+10. PERSPEKTIVA: Kada korisnik pita "da li imam pravo", "mogu li da tražim", "šta mi pripada", \
+"da li mi sleduje naknada" — odgovaraj ISKLJUČIVO iz perspektive OŠTEĆENOG (lice koje traži naknadu), \
+NE iz perspektive obveznika/štetnika. Korisnik je uvek oštećeni, ne štetnik.
 
 KRITIČNE PRETPOSTAVKE — UVEK PROVERI:
 - Zastarelost subjektivni: 3 god. od saznanja za štetu i učinioca (ZOO čl. 376, st. 1)
@@ -1270,8 +1273,8 @@ Na osnovu opisanih okolnosti, okvirna procena prema sudskoj praksi:
 ⚠️ Okvirna procena — konačan iznos utvrđuje sud na osnovu medicinske dokumentacije i veštačenja.
 
 --- CITAT ZAKONA [RAG]
-"[DOSLOVNI tekst iz dostavljenog konteksta — POTPUN, bez ijednog "..."]"
-[Ako tačan tekst nije u kontekstu: [—]]
+"[Kopiraj CITABILNI TEKST iz konteksta — doslovno, bez ikakve izmene]"
+[Ako CITABILNI TEKST nije u kontekstu: [—]]
 
 --- PRAVNI OSNOV
 [Zakon], član [X] (Sl. glasnik RS, br. [Y] — samo ako dostupan u kontekstu)
@@ -1377,9 +1380,9 @@ Navedi specifične slučajeve primene: domaći subjekt / strani subjekt /
 fizičko lice / kripto platforma — ako je relevantno.]
 
 --- CITAT ZAKONA [RAG]
-"[DOSLOVNI tekst iz dostavljenog konteksta — POTPUN, bez ijednog "..."]"
+"[Kopiraj CITABILNI TEKST iz konteksta — doslovno, bez ikakve izmene]"
 [Format: "Naziv zakona, član X, stav Y: [tekst]"]
-[SAMO ako je stvarni tekst u dostavljenom kontekstu. Ako nije: [—]]
+[SAMO ako je CITABILNI TEKST u dostavljenom kontekstu. Ako nije: [—]]
 
 --- PRAVNI OSNOV
 [Zakon i član koji definiše ili reguliše pojam]

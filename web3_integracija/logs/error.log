@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-20T18:31:31.537Z", "transaction_id": "7b33724a-311b-555d-9e88-c2bb3fa0009c", "error_type": "RuntimeError", "error_msg": "Test UTF-8: đ/ž/č/š/ć", "context": ""}

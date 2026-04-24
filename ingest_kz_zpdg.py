@@ -47,13 +47,13 @@ PDF_FOLDER = Path(__file__).parent / "data" / "laws" / "pdfs"
 ZAKONI = [
     {
         "url":   "https://www.paragraf.rs/propisi/krivicni_zakonik.html",
-        "naziv": "krivicni zakonik",
+        "naziv": "KZ",
         "fajl":  "krivicni_zakonik.pdf",
         "prioritetni": [170, 208, 302, 303, 304],
     },
     {
         "url":   "https://www.paragraf.rs/propisi/zakon-o-porezu-na-dohodak-gradjana.html",
-        "naziv": "zakon o porezu na dohodak gradjana",
+        "naziv": "ZPDG",
         "fajl":  "zakon_o_porezu_na_dohodak_gradjana.pdf",
         "prioritetni": list(range(72, 80)),
     },

@@ -1,0 +1,1226 @@
+DBE
+Predmet uređivanja
+Član 1
+Ovim zakonom uređuju se:
+1) izdavanje digitalne imovine i sekundarno trgovanje digitalnom imovinom u Republici Srbiji (u daljem tekstu: Republika);
+2) pružanje usluga povezanih s digitalnom imovinom;
+3) založno i fiducijarno pravo na digitalnoj imovini;
+4) nadležnost Komisije za hartije od vrednosti (u daljem tekstu: Komisija) i Narodne banke Srbije;
+5) nadzor nad primenom ovog zakona.
+Pojmovi
+Član 2
+Pojedini pojmovi, u smislu ovog zakona, imaju sledeća značenja:
+1) digitalna imovina , odnosno virtuelna imovina, označava digitalni zapis vrednosti koji se može digitalno kupovati, prodavati, razmenjivati ili prenositi i koji se može koristiti kao sredstvo razmene ili u svrhu ulaganja, pri čemu digitalna imovina ne uključuje digitalne zapise valuta koje su zakonsko sredstvo plaćanja i drugu finansijsku imovinu koja je uređena drugim zakonima, osim kada je drugačije uređeno ovim zakonom;
+2) virtuelna valuta je vrsta digitalne imovine koju nije izdala i za čiju vrednost ne garantuje centralna banka, niti drugi organ javne vlasti, koja nije nužno vezana za zakonsko sredstvo plaćanja i nema pravni status novca ili valute, ali je fizička ili pravna lica prihvataju kao sredstvo razmene i može se kupovati, prodavati, razmenjivati, prenositi i čuvati elektronski;
+3) digitalni token je vrsta digitalne imovine i označava bilo koje nematerijalno imovinsko pravo koje u digitalnoj formi predstavlja jedno ili više drugih imovinskih prava, što može uključivati i pravo korisnika digitalnog tokena da mu budu pružene određene usluge;
+4) nadzorni organ označava Narodnu banku Srbije i Komisiju, u skladu sa nadležnostima utvrđenim ovim zakonom;
+5) pružalac usluga povezanih s digitalnom imovinom je pravno lice koje pruža jednu ili više usluga povezanih s digitalnom imovinom utvrđenih u članu 3. ovog zakona;
+6) pružalac savetodavnih usluga je lice koje pruža isključivo savetodavne usluge povezane s digitalnom imovinom;
+7) kriptomat jeste automatska mašina preko koje se obavljaju kupovina i prodaja digitalne imovine za novčana sredstva ili zamena digitalne imovine za drugu digitalnu imovinu;
+8) portfolio digitalne imovine je skup digitalne imovine u koju određeno lice ulaže svoja sredstva;
+9) beli papir je dokument koji se objavljuje prilikom izdavanja digitalne imovine u skladu sa ovim zakonom, koji sadrži podatke o izdavaocu digitalne imovine, digitalnoj imovini i rizicima povezanim s digitalnom imovinom i koji omogućava investitorima da donesu informisanu investicionu odluku;
+10) naknadni beli papir je dokument koji se objavljuje nakon izdavanja digitalne imovine za koju nije objavljen beli papir, koji sadrži podatke o izdavaocu digitalne imovine, digitalnoj imovini i rizicima povezanim s digitalnom imovinom i koji omogućava investitorima da donesu informisanu investicionu odluku;
+11) platforma za trgovanje digitalnom imovinom je multilateralni sistem koji organizuje trgovanje digitalnom imovinom, kojim upravlja organizator platforme i koji omogućava i olakšava spajanje interesa trećih lica za kupovinu i/ili prodaju digitalne imovine i/ili zamenu digitalne imovine za drugu digitalnu imovinu, u skladu sa njegovim obavezujućim pravilima i na način koji dovodi do zaključenja ugovora;
+12) član uprave označava direktora, izvršnog direktora, člana izvršnog odbora i člana nadzornog odbora pravnog lica, u zavisnosti od upravljačke strukture tog lica, kao i zakonskog zastupnika ortačkog i komanditnog društva, odnosno treće lice na koje je preneto ovlašćenje za poslovođenje u ortačkom i komanditnom društvu;
+13) izdavalac je domaće ili strano fizičko lice, preduzetnik ili pravno lice koje je izdalo digitalnu imovinu;
+14) OTC tržište digitalne imovine je tržište za trgovanje digitalnom imovinom na kom se transakcije obavljaju direktno između prodavca i kupca digitalne imovine bez obaveznog učešća pružaoca usluga povezanih s digitalnom imovinom i izvan platformi za trgovanje digitalnom imovinom;
+15) finansijske institucije pod nadzorom Narodne banke Srbije su banke, društva za osiguranje, društva za reosiguranje, društva za posredovanje u osiguranju, društva za zastupanje u osiguranju i zastupnici u osiguranju, davaoci finansijskog lizinga, društva za upravljanje dobrovoljnim penzijskim fondovima, platne institucije i institucije elektronskog novca, u skladu sa posebnim zakonima kojima se uređuje poslovanje ovih institucija;
+16) lica povezana s finansijskim institucijama pod nadzorom Narodne banke Srbije imaju značenje utvrđeno posebnim zakonima kojima se uređuje poslovanje ovih institucija;
+17) pružalac platnih usluga označava banku, platnu instituciju, instituciju elektronskog novca i javnog poštanskog operatora sa sedištem u Republici, u skladu sa zakonom kojim se uređuju platne usluge;
+18) kvalifikovano učešće postoji kada jedno lice ima:
+(1) direktno ili indirektno pravo ili mogućnost da ostvari najmanje 10% glasačkih prava u pravnom licu, odnosno direktno ili indirektno vlasništvo nad najmanje 10% kapitala tog pravnog lica, ili
+(2) mogućnost efektivnog vršenja znatnog uticaja na upravljanje drugim pravnim licem;
+19) kontrolno učešće postoji kada jedno lice ima:
+(1) direktno ili indirektno pravo ili mogućnost da ostvari najmanje 50% glasačkih prava u pravnom licu, odnosno direktno ili indirektno vlasništvo nad najmanje 50% kapitala tog pravnog lica, ili
+(2) mogućnost izbora i/ili razrešenja najmanje polovine članova uprave tog pravnog lica, ili
+(3) mogućnost efektivnog vršenja dominantnog uticaja na upravljanje drugim pravnim licem;
+20) grupa društava je grupa koju čine matično društvo, njegova zavisna društva i pravna lica u čijem kapitalu to matično društvo i/ili njegova zavisna društva imaju udeo, kao i društva koja su povezana zajedničkim upravljanjem;
+21) matično društvo pravnog lica označava društvo koje ima kontrolno učešće u tom pravnom licu;
+22) zavisno društvo pravnog lica označava društvo u kojem to pravno lice ima kontrolno učešće;
+23) društva povezana zajedničkim upravljanjem jesu društva koja nisu povezana odnosom matičnog i zavisnog društva, niti udelom u kapitalu u smislu tačke 20) ovog stava, a obuhvataju:
+(1) društva kojima se upravlja na jedinstven način u skladu sa ugovorom zaključenim između tih društava ili odredbama statuta ili osnivačkih akata tih društava, ili
+(2) društva kod kojih ista lica čine većinu članova uprave;
+24) bliska povezanost označava odnos između dva ili više pravnih i/ili fizičkih lica kada:
+(1) jedno od njih, direktno ili indirektno preko učešća u zavisnom društvu, ima pravo ili mogućnost da ostvari najmanje 20% glasačkih prava u pravnom licu, odnosno vlasništvo nad najmanje 20% kapitala u pravnom licu,
+(2) jedno od njih ima kontrolno učešće u drugom pravnom licu,
+(3) postoji trajna povezanost ovih lica sa istim trećim licem na osnovu kontrolnog učešća;
+25) novčana sredstva označavaju gotov novac, sredstva na računu i elektronski novac;
+26) gotov novac označava novčanice i kovani novac;
+27) elektronski novac ima značenje utvrđeno zakonom kojim se uređuje elektronski novac;
+28) finansijski instrument ima značenje utvrđeno zakonom kojim se uređuje tržište kapitala;
+29) organizator tržišta ima značenje utvrđeno zakonom kojim se uređuje tržište kapitala;
+30) brokersko-dilersko društvo ima značenje utvrđeno zakonom kojim se uređuje tržište kapitala;
+31) trgovina na malo ima značenje utvrđeno zakonom kojim se uređuje trgovina;
+32) potrošač ima značenje utvrđeno zakonom kojim se uređuje trgovina;
+33) oglašavanje ima značenje utvrđeno zakonom kojim se uređuje oglašavanje, osim ako je drugačije uređeno ovim zakonom;
+34) transakcija s digitalnom imovinom označava kupovinu, prodaju, prihvatanje ili prenos digitalne imovine ili zamenu digitalne imovine za drugu digitalnu imovinu;
+35) korisnik digitalne imovine označava fizičko lice, preduzetnika ili pravno lice koje koristi ili je koristilo uslugu povezanu s digitalnom imovinom ili se pružaocu usluga povezanih s digitalnom imovinom obratilo radi korišćenja te usluge;
+36) imalac digitalne imovine označava korisnika digitalne imovine i lice koje je steklo digitalnu imovinu nezavisno od poslovnog odnosa uspostavljenog s pružaocem usluga povezanih s digitalnom imovinom ili transakcije izvršene preko tog pružaoca (npr. lice koje je steklo digitalnu imovinu učestvovanjem u pružanju usluge računarskog potvrđivanja transakcija u informacionim sistemima koji se odnose na određenu digitalnu imovinu);
+37) adresa digitalne imovine označava jedinstvenu oznaku (eng. identifier ) virtuelnog mesta koje sadrži podatke o određenoj digitalnoj imovini;
+38) stabilna digitalna imovina je digitalna imovina koja je izdata s ciljem što manjih promena vrednosti te imovine, a čija je vrednost povezana s vrednošću zakonskog sredstva plaćanja ili jednog ili više imovinskih prava koja imaju male promene vrednosti (npr. vezivanje za zvaničan kurs dinara ili kurs strane valute koji je relativno stabilan);
+39) pametan ugovor je kompjuterski program ili protokol, zasnovan na tehnologiji distribuirane baze podataka ili sličnim tehnologijama, koji, u celini ili delimično, automatski izvršava, kontroliše ili dokumentuje pravno relevantne događaje i radnje u skladu sa već zaključenim ugovorom, pri čemu taj ugovor može biti zaključen elektronski putem tog programa ili protokola;
+40) poslovni dan je dan, odnosno deo dana u kojem pružalac usluga povezanih s digitalnom imovinom koji učestvuje u izvršenju transakcije s digitalnom imovinom posluje tako da omogući izvršenje te transakcije korisniku digitalne imovine.
+Vrste usluga povezanih s digitalnom imovinom
+Član 3
+Usluge povezane s digitalnom imovinom obuhvataju:
+1) prijem, prenos i izvršenje naloga koji se odnose na kupovinu i prodaju digitalne imovine za račun trećih lica;
+2) usluge kupovine i prodaje digitalne imovine za gotov novac i/ili sredstva na računu i/ili elektronski novac;
+3) usluge zamene digitalne imovine za drugu digitalnu imovinu;
+4) čuvanje i administriranje digitalne imovine za račun korisnika digitalne imovine i sa tim povezane usluge;
+5) usluge u vezi sa izdavanjem, ponudom i prodajom digitalne imovine, sa obavezom njenog otkupa (pokroviteljstvo) ili bez te obaveze (agentura);
+6) vođenje registra založnog prava na digitalnoj imovini;
+7) usluge prihvatanja/prenosa digitalne imovine;
+8) upravljanje portfoliom digitalne imovine;
+9) organizovanje platforme za trgovanje digitalnom imovinom.
+Čuvanje i administriranje digitalne imovine za račun korisnika digitalne imovine i sa tim povezane usluge obuhvataju kontrolu nad sredstvima pomoću kojih se pristupa digitalnoj imovini (npr. kriptografski ključevi), kao i sa tim povezane usluge (npr. administriranje sredstvima obezbeđenja).
+Upravljanje portfoliom digitalne imovine (u daljem tekstu: upravljanje portfoliom) označava upravljanje pojedinačnim portfolijima digitalne imovine na osnovu odobrenja iz posebnog ugovora zaključenog sa korisnikom digitalne imovine.
+Pokroviteljstvo označava uslugu u vezi sa ponudom i prodajom digitalne imovine uz obavezu otkupa te imovine od strane pokrovitelja emisije.
+Agentura označava uslugu u vezi sa ponudom i prodajom digitalne imovine bez obaveze otkupa te imovine od strane agenta emisije.
+Usluga prihvatanja/prenosa digitalne imovine označava uslugu koju pružalac usluga povezanih s digitalnom imovinom pruža trgovcu u smislu zakona kojim se uređuje trgovina, tako što od potrošača prihvata odgovarajuću vrednost digitalne imovine, koja odgovara ceni prodate robe i/ili pruženih usluga tom potrošaču, zamenjuje je za odgovarajući iznos zakonskog sredstva plaćanja i prenosi taj iznos na odgovarajući račun trgovca.
+Usluge iz stava 1. tač. 2) i 3) ovog člana se mogu pružati i pomoću kriptomata.
+Poslovi pružaoca usluga povezanih s digitalnom imovinom
+Član 4
+Pružalac usluga povezanih s digitalnom imovinom ovlašćen je da pruža te usluge nakon što dobije dozvolu nadzornog organa za pružanje usluga povezanih s digitalnom imovinom.
+Pružalac usluga povezanih s digitalnom imovinom pored usluga povezanih s digitalnom imovinom može da obavlja samo one poslove i usluge koji su neposredno povezani sa uslugama povezanim s digitalnom imovinom.
+Izuzetno od stava 2. ovog člana, pravna lica koja imaju dozvolu Komisije za obavljanje delatnosti brokersko-dilerskog društva ili organizatora tržišta u skladu sa zakonom kojim se uređuje tržište kapitala mogu da pružaju usluge povezane s digitalnom imovinom u skladu sa ovim zakonom po dobijanju dozvole nadzornog organa za pružanje usluga povezanih s digitalnom imovinom.
+Savetodavne usluge povezane s digitalnom imovinom
+Član 5
+Savetodavne usluge povezane s digitalnom imovinom (u daljem tekstu: savetodavne usluge) obuhvataju investiciono savetovanje, davanje investicionih preporuka, savetovanje u vezi sa strukturom kapitala, poslovnom strategijom, izdavanjem digitalne imovine i sličnim pitanjima, kao i druge savetodavne usluge povezane s digitalnom imovinom.
+Investicioni savet je pružanje lične preporuke korisniku digitalne imovine u pogledu jedne ili više transakcija koje uključuju digitalnu imovinu.
+Investiciona preporuka je istraživanje ili druga informacija namenjena javnosti u kojoj se izričito ili prećutno preporučuje ili predlaže strategija ulaganja u vezi sa digitalnom imovinom.
+Isključenja iz oblasti primene ovog zakona
+Član 6
+Odredbe ovog zakona ne primenjuju se na transakcije s digitalnom imovinom ako se te transakcije vrše isključivo u okviru ograničene mreže lica koja prihvataju tu digitalnu imovinu (npr. korišćenje digitalne imovine za određene proizvode ili usluge, kao oblika lojalnosti ili nagrade, bez mogućnosti njenog prenosa ili prodaje).
+Sticanje digitalne imovine učestvovanjem u pružanju usluge računarskog potvrđivanja transakcija u informacionim sistemima koji se odnose na određenu digitalnu imovinu (tzv. rudarenje digitalne imovine) je dozvoljeno, a na sticaoce se, prilikom tog sticanja, ne primenjuju odredbe ovog zakona.
+Digitalnom imovinom koju su stekli na način iz stava 2. ovog člana imaoci te imovine mogu slobodno raspolagati bilo korišćenjem usluga pružalaca usluga povezanih s digitalnom imovinom, u kom slučaju se na te imaoce primenjuju odredbe ovog zakona koje se odnose na korisnike digitalne imovine, bilo obavljanjem transakcija na OTC tržištu.
+Na izdavanje elektronskog novca i pružanje usluga povezanih sa elektronskim novcem ne primenjuju se odredbe ovog zakona, već odredbe zakona kojim se uređuju pružanje platnih usluga i izdavanje elektronskog novca.
+Nadzorni organ može bliže urediti uslove i način primene isključenja od primene ovog zakona iz stava 1. ovog člana.
+Digitalna imovina koja ima odlike finansijskog instrumenta
+Član 7
+Na izdavanje digitalne imovine koja ima sve odlike finansijskog instrumenta, kao i na sekundarno trgovanje i pružanje usluga povezanih s takvom digitalnom imovinom, primenjuje se zakon kojim se uređuje tržište kapitala, osim ako je drugačije propisano ovim zakonom.
+Izuzetno od stava 1. ovog člana, zakon kojim se uređuje tržište kapitala ne primenjuje se na izdavanje digitalne imovine koja ima sve odlike finansijskog instrumenta, niti na sekundarno trgovanje i pružanje usluga povezanih s takvom digitalnom imovinom, ako su ispunjeni svi sledeći uslovi:
+1) digitalna imovina nema odlike akcija;
+2) digitalna imovina nije zamenljiva za akcije;
+3) ukupna vrednost digitalne imovine koju tokom perioda od 12 meseci izdaje jedan izdavalac ne prelazi iznos od 3.000.000 evra u dinarskoj protivvrednosti po zvaničnom srednjem kursu dinara prema evru koji utvrđuje Narodna banka Srbije na dan izdavanja, odnosno tokom primarne prodaje.
+Načelo tehnološke neutralnosti
+Član 8
+Odredbe ovog zakona primenjuju se na svu digitalnu imovinu bez obzira na tehnologiju na kojoj je ta digitalna imovina zasnovana, uključujući stabilnu digitalnu imovinu.
+Odredbe ovog zakona primenjuju se na pružanje svih usluga povezanih s digitalnom imovinom iz člana 3. ovog zakona bez obzira na tehnologiju na kojoj se zasniva pružanje tih usluga.
+Načelo efikasnosti, ekonomičnosti i digitalizacije postupka
+Član 9
+Pravno i fizičko lice koje pokreće upravni postupak u skladu sa odredbama ovog zakona (npr. podnosi zahtev za odobrenje objavljivanja belog papira, zahtev za izdavanje dozvole za pružanje usluga povezanih s digitalnom imovinom i dr.) podnosi odgovarajući zahtev putem posebnog veb portala kojim upravlja služba Vlade Republike Srbije koja je nadležna za projektovanje, usklađivanje, razvoj i funkcionisanje sistema elektronske uprave, i uz taj zahtev dostavlja celokupnu dokumentaciju utvrđenu ovim zakonom i propisima donetim na osnovu ovog zakona kojom dokazuje ispunjenost uslova za usvajanje tog zahteva.
+Dokumentacija iz stava 1. ovog člana podnosi se u jednom primerku, a Narodna banka Srbije i Komisija su dužne da svaka iz svoje nadležnosti odluče o tom zahtevu u propisanom roku.
+Izdavalac digitalne imovine i privredno društvo koje pruža, odnosno namerava da pruža usluge povezane s digitalnom imovinom koje su u nadležnosti i Narodne banke Srbije, i Komisije, sve podatke, zahteve, obaveštenja i drugu dokumentaciju koja se podnosi i Narodnoj banci Srbije, i Komisiji - podnose putem veb portala iz stava 1. ovog člana, u jednom primerku. Rokovi za odlučivanje po zahtevu koji je podnet na veb portalu iz stava 1. ovog člana počinju da teku od dana kada je uredan zahtev primljen na tom portalu.
+Sva dokumentacija koja se podnosi nadzornom organu u skladu sa ovim zakonom može da se podnese i u elektronskom obliku u skladu sa zakonom kojim se uređuju elektronski dokument, elektronska identifikacija i usluge od poverenja u elektronskom poslovanju.
+Narodna banka Srbije i Komisija su dužne da podatke i dokumentaciju kojima raspolažu, a koji su neophodni za odlučivanje u skladu sa ovim zakonom, razmenjuju po službenoj dužnosti, a mogu ih razmenjivati i preko već razvijenih elektronskih kanala u okviru sistema elektronske uprave (tzv. servisna magistrala organa u skladu sa zakonom kojim se uređuje elektronska uprava) i drugih načina za dostavljanje elektronskih dokumenata između organa javne vlasti u skladu sa zakonom kojim se uređuju elektronski dokument, elektronska identifikacija i usluge od poverenja u elektronskom poslovanju.
+Podele nadležnosti
+Član 10
+Narodna banka Srbije nadležna je za pitanja iz ovog zakona koja se odnose na odlučivanje u upravnim postupcima, donošenje podzakonskih akata, nadzor nad obavljanjem poslova i ostvarivanje drugih prava i obaveza nadzornog organa u delu koji se odnosi na virtuelne valute kao vrstu digitalne imovine.
+Komisija je nadležna za pitanja iz ovog zakona koja se odnose na odlučivanje u upravnim postupcima, donošenje podzakonskih akata, nadzor nad obavljanjem poslova i ostvarivanje drugih prava i obaveza nadzornog organa u delu koji se odnosi na digitalne tokene kao vrstu digitalne imovine, kao i u delu koji se odnosi na digitalnu imovinu koja ima odlike finansijskih instrumenata.
+U vezi sa digitalnom imovinom koja ima karakteristike i virtuelne valute i digitalnog tokena, na odlučivanje u upravnim postupcima, donošenje podzakonskih akata, nadzor nad obavljanjem poslova i ostvarivanje drugih prava i obaveza nadzornog organa, shodno se primenjuju st. 1. i 2. ovog člana.
+Narodna banka Srbije i Komisija dužne su da sarađuju u vršenju svojih nadležnosti iz ovog zakona.
+Narodna banka Srbije priprema i daje mišljenja o primeni ovog zakona i propisa donetih na osnovu ovog zakona u delu koji se odnosi na virtuelne valute kao vrstu digitalne imovine, osim u vezi s primenom člana 14. ovog zakona, a Komisija priprema i daje mišljenja o primeni ovog zakona i propisa donetih na osnovu ovog zakona u delu koji se odnosi na digitalne tokene kao vrstu digitalne imovine, kao i u delu koji se odnosi na digitalnu imovinu koja ima odlike finansijskih instrumenata.
+Upravni postupak
+Član 11
+Na osnovu nadležnosti utvrđenih ovim zakonom, nadzorni organ rešava o pravima, obavezama i pravnim interesima lica u postupku utvrđenom ovim zakonom.
+Na postupak iz stava 1. ovog člana shodno se primenjuju odredbe zakona kojim se uređuje opšti upravni postupak, ako ovim zakonom nije drugačije uređeno.
+Nadzorni organ može u postupku iz stava 1. ovog člana preduzeti dodatne aktivnosti radi provere tačnosti podataka i dokumentacije koje su dostavila lica iz tog stava.
+Nadzorni organ donosi rešenje o upravnoj stvari koja je predmet postupka iz stava 1. ovog člana.
+Ako nadzorni organ ne odluči o zahtevu podnosioca tog zahteva u postupku utvrđenom ovim zakonom u propisanom roku (tzv. ćutanje uprave), smatra se da je taj zahtev usvojen narednog dana od dana isteka roka za odlučivanje.
+Rešenje iz stava 4. ovog člana je konačno. Protiv rešenja iz stava 4. ovog člana može se voditi upravni spor, ali tužba protiv ovog rešenja ne može sprečiti ni odložiti njegovo izvršenje.
+U upravnom sporu protiv rešenja iz stava 4. ovog člana sud ne može rešiti upravnu stvar za čije je rešavanje ovim zakonom utvrđena nadležnost nadzornog organa.
+Plaćanja povezana s digitalnom imovinom
+Član 12
+Sva plaćanja, naplate i prenosi u dinarima u vezi sa transakcijama s digitalnom imovinom obavljaju se u skladu s propisima kojima se uređuju platne usluge.
+Sva plaćanja, naplate i prenosi u devizama u vezi sa transakcijama s digitalnom imovinom obavljaju se u skladu s propisima kojima se uređuje devizno poslovanje.
+Narodna banka Srbije može bliže urediti plaćanja, prenose i naplate u devizama iz stava 2. ovog člana.
+Zabrana posedovanja digitalne imovine i pružanja usluga povezanih s digitalnom imovinom
+Član 13
+Finansijske institucije pod nadzorom Narodne banke Srbije ne mogu u svojoj imovini imati digitalnu imovinu, kao ni instrumente povezane s digitalnom imovinom, niti ulozi u kapital tih institucija mogu biti u digitalnoj imovini.
+Finansijske institucije pod nadzorom Narodne banke Srbije ne mogu pružati usluge povezane s digitalnom imovinom, niti mogu biti korisnici tih usluga.
+Izuzetno od stava 2. ovog člana, banke mogu pružati uslugu iz člana 3. stav 1. tačka 4) ovog zakona samo u delu čuvanja kriptografskih ključeva.
+Finansijske institucije pod nadzorom Narodne banke Srbije i lica povezana s tim finansijskim institucijama ne mogu biti osnivači, niti imati direktno ili indirektno vlasništvo u pravnom licu koje pruža usluge povezane s digitalnom imovinom, a te institucije i ta lica ne mogu ni učestvovati u upravljanju, niti biti članovi organa tog pravnog lica ili njegovi zastupnici, niti mogu biti lica koja neposredno rukovode poslovima pružanja usluga povezanih s digitalnom imovinom u tom pravnom licu.
+Izuzetno od stava 4. ovog člana, finansijske institucije pod nadzorom Narodne banke Srbije mogu imati vlasništvo u brokersko-dilerskom društvu i organizatoru tržišta koji pruža usluge povezane s digitalnom imovinom, osim ako to nije dozvoljeno zakonom kojim se uređuje poslovanje određene finansijske institucije.
+Finansijske institucije pod nadzorom Narodne banke Srbije ne mogu prihvatati digitalnu imovinu kao sredstvo obezbeđenja.
+Izuzetno od stava 1. ovog člana, Narodna banka Srbije može propisati uslove pod kojima i način na koji finansijske institucije pod nadzorom Narodne banke Srbije mogu ulagati u digitalne tokene koji imaju odlike finansijskog instrumenta ili koji se koriste isključivo u svrhu ulaganja.
+Poslovanje pravnih lica i preduzetnika u vezi s digitalnom imovinom
+Član 14
+Virtuelne valute ne mogu se unositi kao ulog u privredno društvo, već se mogu konvertovati (zameniti) za novac i kao novčani ulog uplatiti u društvo.
+Nenovčani ulozi u privredno društvo mogu biti u digitalnim tokenima koji se ne odnose na pružanje usluga ili izvršenje rada.
+Izuzetno od stava 2. ovog člana, nenovčani ulozi u ortačko i komanditno društvo mogu biti i u digitalnim tokenima koji se odnose na pružanje usluga ili izvršenje rada.
+Komisija utvrđuje listu digitalnih tokena iz stava 2. ovog člana.
+Na postupak prinudnog namirenja potraživanja izvršnih poverilaca na digitalnoj imovini shodno se primenjuju odredbe zakona kojim se uređuju izvršenje i obezbeđenje.
+Privredno društvo koje posluje u Republici koje ima svojstvo izvršnog dužnika u smislu zakona kojim se uređuju izvršenje i obezbeđenje dužno je da sarađuje sa nadležnim organima u izvršnom postupku u skladu s tim zakonom, kao i da pruži obaveštenja i dostavi sve podatke koji su potrebni radi sprovođenja namirenja na digitalnoj imovini, uključujući sredstva pomoću kojih se pristupa digitalnoj imovini (npr. kriptografske ključeve).
+Na druga pravna lica i preduzetnike koji posluju u Republici shodno se primenjuje stav 6. ovog člana.
+Imaoci digitalne imovine imaju status poznatih poverilaca, u smislu zakona kojim se uređuju privredna društva, kod likvidacije privrednog društva koje ima obaveze po osnovu te digitalne imovine.
+Isključenje odgovornosti
+Član 15
+Republika Srbija, Narodna banka Srbije, Komisija i drugi nadležni organi i organi javne vlasti ne garantuju za vrednost digitalne imovine i ne snose odgovornost za bilo koju eventualnu štetu i gubitke koje korisnici i drugi imaoci digitalne imovine i/ili pružaoci usluga povezanih s digitalnom imovinom i/ili treća lica pretrpe u vezi sa obavljanjem transakcija s digitalnom imovinom.
+Pružaoci usluga povezanih s digitalnom imovinom dužni su da pre uspostavljanja poslovnog odnosa s korisnikom digitalne imovine ili vršenja transakcije s digitalnom imovinom korisnika digitalne imovine obaveste o rizicima obavljanja transakcija s digitalnom imovinom, uključujući rizik od delimičnog ili potpunog gubitka novčanih sredstava, odnosno druge imovine, kao i o tome da se na transakcije s digitalnom imovinom ne primenjuju propisi kojima se uređuje osiguranje depozita ili zaštita investitora, kao ni propisi kojima se uređuje zaštita korisnika finansijskih usluga.
+II IZDAVANJE DIGITALNE IMOVINE
+Inicijalna ponuda digitalne imovine
+Član 16
+Odredbe ove glave primenjuju se na inicijalnu ponudu digitalne imovine koja se izdaje u Republici.
+Izdavanje digitalne imovine u Republici, bez obzira na to da li je za nju sačinjen i/ili odobren beli papir, dozvoljeno je.
+Oglašavanje inicijalne ponude digitalne imovine koja se izdaje u Republici dozvoljeno je samo u skladu sa odredbama ove glave.
+Oglašavanje inicijalne ponude digitalne imovine za koju nije odobren beli papir
+Član 17
+Inicijalna ponuda digitalne imovine za koju nije odobren beli papir se ne može oglašavati u Republici, osim u skladu sa aktom nadzornog organa.
+Izuzetno od stava 1. ovog člana, izdavalac može oglašavati inicijalnu ponudu digitalne imovine za koju nije odobren beli papir u sledećim slučajevima:
+1) inicijalna ponuda je upućena manjem broju od 20 fizičkih i/ili pravnih lica;
+2) ukupan broj digitalnih tokena koji se izdaju nije veći od 20;
+3) inicijalna ponuda je upućena kupcima/investitorima koji kupuju/ulažu u digitalnu imovinu u vrednosti od najmanje 50.000 evra u dinarskoj protivvrednosti po zvaničnom srednjem kursu dinara prema evru koji utvrđuje Narodna banka Srbije na dan kupovine/ulaganja, po kupcu/investitoru;
+4) ukupna vrednost digitalne imovine koju tokom perioda od 12 meseci izdaje jedan izdavalac je manja od 100.000 evra u dinarskoj protivvrednosti po zvaničnom srednjem kursu dinara prema evru koji utvrđuje Narodna banka Srbije.
+Objavljivanje belog papira koji nije odobren u skladu sa ovim zakonom je dozvoljeno pod uslovom da se prilikom njegovog objavljivanja i tokom inicijalne ponude digitalne imovine na koju se odnosi taj beli papir jasno navede da taj beli papir nije odobren.
+Oglašavanje inicijalne ponude digitalne imovine za koju je odobren beli papir
+Član 18
+Izdavalac je dužan da obezbedi da svaki vid oglašavanja povezanih sa inicijalnom ponudom digitalne imovine za koju je odobren beli papir bude u skladu sa odredbama ovog člana.
+Oglašavanje, u smislu ovog člana, odnosi se na oglase:
+1) u vezi sa određenom inicijalnom ponudom digitalne imovine;
+2) čiji je cilj promovisanje kupovine digitalne imovine, odnosno ulaganja u tu imovinu.
+U tekstu oglasa treba da bude jasno naznačeno da se radi o oglasu. Informacije sadržane u oglasu ne smeju biti netačne, niti dovoditi u zabludu, i moraju biti u skladu sa informacijama iz belog papira, ako je beli papir već objavljen, odnosno sa informacijama koje treba navesti u belom papiru, ako će beli papir biti objavljen.
+Izdavalac je dužan da pri oglašavanju navede da je beli papir objavljen ili da će biti objavljen uz informaciju o tome na kom mestu i na koji način investitori mogu da ga dobiju.
+Sve informacije u vezi sa inicijalnom ponudom, saopštene usmeno ili pismeno, čak i ako se ne koriste u svrhe oglašavanja, moraju da budu u skladu sa informacijama koje sadrži beli papir.
+Ako izdavalac usmeno ili pismeno obelodani važne informacije jednom ili više odabranih kupaca/investitora, takve informacije se uključuju u beli papir ili u njegov dodatak ako je beli papir već odobren.
+Nadzorni organ vrši nadzor nad aktivnostima izdavaoca u vezi sa oglašavanjem, a sve vrste oglasa moraju biti objavljene na internet prezentaciji izdavaoca najkasnije istog dana kada je taj oglas objavljen.
+Sačinjavanje belog papira
+Član 19
+Pre izdavanja digitalne imovine, izdavalac može sačiniti beli papir koji sadrži sve neophodne podatke koji, s obzirom na posebne karakteristike izdavaoca i digitalne imovine koja se nudi, omogućavaju investitorima da donesu odluku o investiranju i procene rizike vezane za ulaganje u digitalnu imovinu, i koji ispunjava sve druge uslove propisane za beli papir u skladu sa ovim zakonom.
+Informacije navedene u belom papiru moraju da budu sažete, pregledne i razumljive i moraju biti prikazane na način koji omogućava njihovu jednostavnu analizu.
+Podaci navedeni u belom papiru moraju biti tačni, potpuni i jasni i ne smeju navoditi na pogrešan zaključak.
+Beli papir iz stava 1. ovog člana odobrava nadzorni organ (u daljem tekstu: odobrenje objavljivanja belog papira).
+Ako izdavalac ne postupi u skladu sa stavom 1. ovog člana, ili ako objavljivanje belog papira ne bude odobreno u skladu sa stavom 4. ovog člana, na oglašavanje inicijalne ponude digitalne imovine primenjuje se član 17. ovog zakona.
+Sadržina belog papira
+Član 20
+Izdavalac je dužan da obezbedi da beli papir sadrži sve informacije o izdavaocu i inicijalnoj ponudi koja omogućava kupcima/investitorima da donesu informisanu odluku koja se odnosi na kupovinu/ulaganje u digitalnu imovinu i razumeju rizike vezane za inicijalnu ponudu i digitalnu imovinu koja se nudi.
+Beli papir obavezno sadrži sledeće podatke i informacije:
+1) podatke o izdavaocu, uključujući i glavne učesnike u dizajniranju i razvoju digitalne imovine;
+2) detaljan opis razloga za inicijalnu ponudu i namene sredstava prikupljenih inicijalnom ponudom;
+3) podatke o digitalnoj imovini koja se nudi, uključujući detaljan opis prava i obaveza koji proističu iz digitalne imovine, podatke o sekundarnom trgovanju digitalnom imovinom, kao i podatke o količini (broju jedinica) digitalne imovine koja se nudi, odnosno o načinu određivanja količine digitalne imovine koja se nudi;
+4) detaljan opis uslova inicijalne ponude, uključujući i detaljan opis svih posebnih uslova inicijalne ponude koji važe za različite kategorije sticalaca, posebno u pogledu digitalne imovine koju stiču izdavalac i sa njim povezana lica, i prag uspešnosti (ako postoji);
+5) opis rizika vezanih za izdavaoca, digitalnu imovinu, inicijalnu ponudu digitalne imovine i sprovođenje projekta koji se odnosi na tu imovinu;
+6) detaljan opis tehničkih procedura na osnovu kojih se vrši izdavanje digitalne imovine;
+7) detaljan opis procedura i tehnologije koji se primenjuju radi očuvanja sigurnosti novčanih sredstava i digitalne imovine prikupljene putem inicijalne ponude;
+8) opis procedura koje obezbeđuju ispunjenje obaveza u vezi sa sprečavanjem pranja novca i finansiranja terorizma;
+9) primenjivi propisi i nadležnost sudova;
+10) izjave odgovornih lica.
+Beli papir obavezno sadrži upozorenje o rizicima karakterističnim za kupovinu/ulaganje u digitalnu imovinu koja je predmet inicijalne ponude.
+Bližu sadržinu i dodatne elemente belog papira propisuje nadzorni organ.
+Odgovornost za sadržaj belog papira
+Član 21
+Ako beli papir sadrži pogrešne, netačne ili podatke koji dovode u zabludu, odnosno izostavljene su bitne činjenice, odgovornost snosi izdavalac i odgovorno lice izdavaoca, odnosno zastupnik izdavaoca.
+Pored izdavaoca, odgovornost za podatke iz stava 1. ovog člana snose:
+1) nezavisni revizori izdavaoca (društvo za reviziju, samostalni revizor i/ili ovlašćeni licencirani revizor), isključivo u vezi sa informacijama iz finansijskih izveštaja koji su uključeni u beli papir, a obuhvaćeni su njihovim izveštajem o reviziji;
+2) drugo lice koje preuzme odgovornost za tačnost i potpunost informacija u delu belog papira za koji je preuzelo odgovornost, isključivo u vezi sa tim informacijama.
+Beli papir mora da sadrži sve informacije o licima koja su odgovorna za tačnost i potpunost informacija u belom papiru. Za fizičko lice se navode ime, prezime i funkcija u pravnom licu, a za pravno lice se navode poslovno ime, odnosno naziv i sedište.
+Beli papir mora da sadrži i izjavu svakog lica koje je odgovorno za tačnost i potpunost informacija u belom papiru da su, prema njegovim saznanjima, informacije u belom papiru u skladu sa činjenicama, kao i da nisu izostavljene činjenice koje bi mogle da utiču na tačnost i potpunost belog papira.
+Nadzorni organ nije odgovoran za tačnost i potpunost informacija navedenih u bilo kom delu belog papira čije objavljivanje je odobreno.
+Podnošenje zahteva za odobrenje objavljivanja belog papira
+Član 22
+Zahtev za odobrenje objavljivanja belog papira nadzornom organu podnosi izdavalac ili ovlašćeno lice u ime izdavaoca.
+Uz zahtev iz stava 1. ovog člana, podnosilac dostavlja sledeću dokumentaciju:
+1) nacrt belog papira sačinjenog u skladu sa odredbama ovog zakona;
+2) odluku izdavaoca o izdavanju digitalne imovine;
+3) osnivački akt i statut izdavaoca;
+4) finansijske izveštaje izdavaoca za poslednju poslovnu godinu sa izveštajem revizora, ako je izdavalac u poslednjoj godini bio obveznik revizije;
+5) relevantnu dokumentaciju kojom se potvrđuju navodi iz belog papira;
+6) dokaz o uplati naknade nadzornom organu;
+7) ostalu dokumentaciju utvrđenu propisom nadzornog organa.
+Ako zahtev iz stava 1. ovog člana podnosi fizičko lice, uz taj zahtev se ne dostavlja dokumentacija iz stava 2. tač. 2) do 4) ovog člana.
+Nadzorni organ propisuje bližu sadržinu dokumentacije koja se podnosi uz zahtev za odobrenje objavljivanja belog papira i postupak odobrenja objavljivanja tog belog papira.
+Odobrenje objavljivanja belog papira
+Član 23
+Nadzorni organ rešenjem odobrava objavljivanje belog papira.
+U postupku odobravanja objavljivanja belog papira nadzorni organ proverava da li beli papir ispunjava uslove iz čl. 19. do 21. ovog zakona.
+Odobrenje objavljivanja belog papira ne znači da je nadzorni organ odobrio svrsishodnost izdavanja digitalne imovine niti da je potvrdio prikazane finansijske i tehničke informacije.
+Nadzorni organ donosi rešenje o odobrenju objavljivanja belog papira u roku od 30 dana od dana prijema urednog zahteva i dostavlja ga podnosiocu zahteva.
+Ako nacrt belog papira ne ispunjava uslove iz ovog zakona ili nije dostavljena odgovarajuća dokumentacija uz zahtev iz člana 22. stav 1. ovog zakona ili nisu ispunjeni drugi uslovi da bi se odobrilo objavljivanje tog belog papira, odnosno ako su potrebne izmene ili dodatne informacije, nadzorni organ u roku od 15 dana od dana prijema zahteva obaveštava o tome podnosioca zahteva i traži ispravku i/ili dopunu dokumentacije, odnosno ispunjenje drugih uslova za odobrenje objavljivanja belog papira i određuje rok za postupanje podnosioca zahteva.
+Odbacivanje zahteva za odobrenje objavljivanja belog papira
+Član 24
+Nadzorni organ rešenjem odbacuje zahtev za odobrenje objavljivanja belog papira iz jednog od sledećih razloga:
+1) zahtev je podnelo neovlašćeno lice;
+2) zahtev je nepotpun ili nerazumljiv i podnosilac nije u ostavljenom roku uredio zahtev;
+3) obavezne naknade propisane tarifom nadzornog organa nisu plaćene;
+4) nisu ispunjeni drugi uslovi za vođenje postupka.
+Odbijanje zahteva za odobrenje objavljivanja belog papira
+Član 25
+Nadzorni organ rešenjem odbija zahtev za odobrenje objavljivanja belog papira iz jednog od sledećih razloga:
+1) beli papir ili informacije, odnosno dokumentacija dostavljeni uz zahtev za odobrenje objavljivanja belog papira ne ispunjavaju uslove propisane ovim zakonom ili aktima donetim u skladu sa ovim zakonom, a podnosilac zahteva ih nije u ostavljenom roku uredio;
+2) beli papir sadrži informacije koje su pogrešne, netačne ili dovode u zabludu ili su izostavljene bitne činjenice, što za posledicu ima pogrešno, netačno ili obmanjujuće informisanje investitora, a podnosilac ih nije u ostavljenom roku uredio;
+3) podnosilac zahteva je izdavalac kome je nadzorni organ izrekao neku od nadzornih mera zbog nepoštovanja odredbi zakona kojim se uređuje tržište kapitala, zakona kojim se uređuju investicioni fondovi, zakona kojim se uređuju alternativni investicioni fondovi, zakona kojim se uređuje sprečavanje pranja novca i finansiranja terorizma, zakona kojim se uređuje poslovanje finansijskih institucija ili ovog zakona, a izdavalac nije postupio u skladu sa izrečenom merom;
+4) podaci iz belog papira nisu u skladu sa odlukom izdavaoca o izdavanju digitalne imovine ili ti podaci nisu u saglasnosti sa drugim podacima koje je potrebno dostaviti uz zahtev;
+5) odluka nadležnog organa izdavaoca o izdavanju digitalne imovine je ništava ili stavljena van snage;
+6) nad izdavaocem je pokrenut prethodni stečajni postupak;
+7) nad izdavaocem je otvoren postupak stečaja;
+8) nad izdavaocem je pokrenuta likvidacija ili prinudna likvidacija.
+Nadzorni organ može odbiti zahtev za odobrenje objavljivanja belog papira iz jednog od sledećih razloga:
+1) nad izdavaocem je pokrenut prethodni postupak za utvrđivanje ispunjenosti uslova za pokretanje stečajnog postupka u skladu sa unapred pripremljenim planom reorganizacije;
+2) izdavalac sprovodi reorganizaciju u skladu sa planom reorganizacije, odnosno u skladu sa unapred pripremljenim planom reorganizacije. 
+Dodatak belom papiru
+Član 26
+Ako u periodu od dana odobrenja objavljivanja belog papira do okončanja inicijalne ponude digitalne imovine nastane bitna nova činjenica, odnosno utvrdi se postojanje bitne greške ili nepreciznosti u vezi sa informacijama iz belog papira koje mogu uticati na odluku o kupovini/ulaganju u digitalnu imovinu, izdavalac je dužan da odmah sačini dodatak belom papiru i dostavi nadzornom organu zahtev za odobrenje njegovog objavljivanja.
+Izdavalac je dužan da na svojoj internet prezentaciji u najkraćem roku obavesti investitore o podnošenju dodatka belom papiru nadzornom organu, kao i da objavi dodatak belom papiru odmah nakon odobrenja njegovog objavljivanja.
+Na odlučivanje nadzornog organa o zahtevu za odobrenje objavljivanja dodatka belom papiru shodno se primenjuju odredbe čl. 19. do 25. ovog zakona, s tim što nadzorni organ odlučuje o tom zahtevu u roku od sedam dana od dana prijema urednog zahteva za odobrenje objavljivanja tog dodatka.
+Nadzorni organ objavljuje dodatak belom papiru shodnom primenom člana 27. st. 7. i 8. ovog zakona.
+Kupci/investitori koji su se obavezali da kupe ili upišu digitalnu imovinu pre objavljivanja dodatka belom papiru, imaju pravo da odustanu od kupovine ili upisa te digitalne imovine u roku određenom u tom dodatku, koji ne može biti kraći od dva radna dana od dana objavljivanja tog dodatka. 
+Objavljivanje belog papira nakon odobrenja
+Član 27
+Nakon odobrenja objavljivanja belog papira, izdavalac objavljuje beli papir u razumnom roku, a najkasnije do početka inicijalne ponude digitalne imovine.
+Izdavalac je dužan da beli papir objavi na svojoj internet prezentaciji na srpskom jeziku.
+Ako se beli papir objavljuje na više jezika, smatraće se da je verzija na srpskom jeziku preovlađujuća u slučaju da postoje razlike između različitih verzija belog papira, osim u slučaju objavljivanja belog papira izdavaoca koji je strano pravno lice kada je preovlađujuća verzija na jeziku koji je u belom papiru odredio izdavalac.
+Beli papir koji se objavljuje mora biti identičan belom papiru čije objavljivanje je odobrio nadzorni organ i ne sme se menjati nakon tog odobrenja, osim u slučajevima iz člana 26. ovog zakona.
+Beli papir se objavljuje na posebnom, za to određenom delu internet prezentacije izdavaoca, koji je lako dostupan pri ulasku na tu internet prezentaciju. Mora biti pripremljen tako da ga je moguće preuzeti, štampati i pretraživati u elektronskom obliku koji se ne može menjati.
+Za pristup belom papiru ne zahteva se registracija, davanje izjava o prihvatanju ograničenja pravne odgovornosti, niti plaćanje naknade.
+Nadzorni organ na svojoj internet prezentaciji objavljuje sve bele papire čije objavljivanje je odobreno ili njihov spisak sa linkovima do relevantnih delova internet prezentacija iz stava 2. ovog člana. Objavljen spisak iz ovog stava, uključujući linkove, redovno se ažurira.
+Svi beli papiri čije objavljivanje je odobreno ostaju javno dostupni u elektronskom obliku najmanje deset godina po njihovom objavljivanju na internet prezentaciji iz stava 2. ovog člana.
+Upis i uplata digitalne imovine
+Član 28
+Ako je za inicijalnu ponudu digitalne imovine odobreno objavljivanje belog papira, rok za početak upisa i uplate digitalne imovine počinje najkasnije u roku od 30 dana od dana prijema/donošenja rešenja o odobrenju objavljivanja belog papira.
+Uplata digitalne imovine vrši se u novčanim sredstvima, u digitalnoj imovini, i/ili u uslugama sticaoca te imovine (npr. prenos izdate digitalne imovine licima koja &quot;rudare&quot; tu digitalnu imovinu).
+Upis i uplata digitalne imovine, kao i prenos digitalne imovine na zakonite imaoce, vrše se u skladu sa karakteristikama tehnologije pomoću koje je izvršeno izdavanje digitalne imovine.
+Uplata digitalne imovine u novčanim sredstvima vrši se u skladu sa zakonom kojim se uređuju platne usluge.
+Nakon uspešno okončane inicijalne ponude digitalne imovine izdavalac je dužan da o tome odmah obavesti nadzorni organ.
+Nadzorni organ može bliže urediti postupak upisa i uplate digitalne imovine.
+Izveštaj o ishodu inicijalne ponude
+Član 29
+Ako je za inicijalnu ponudu digitalne imovine odobreno objavljivanje belog papira, izdavalac je dužan da, najkasnije u roku od tri radna dana od dana okončanja inicijalne ponude, na svojoj internet prezentaciji objavi izveštaj o ishodu te inicijalne ponude.
+Izveštaj iz stava 1. ovog člana mora da sadrži podatke o količini (broju jedinica) kupljene digitalne imovine, uplaćenim novčanim sredstvima, odnosno digitalnoj imovini, kao i o tome da li je inicijalna ponuda bila uspešna ili ne.
+Izveštaj iz stava 1. ovog člana se objavljuje na isti način na koji je objavljen beli papir.
+Nadzorni organ propisuje formu i sadržinu podataka koje izveštaj iz stava 1. ovog člana treba da sadrži.
+Nakon uspešnog okončanja inicijalne ponude digitalne imovine za koju je odobreno objavljivanje belog papira izdavalac na svojoj internet prezentaciji obaveštava investitore o sekundarnom trgovanju digitalnom imovinom.
+III SEKUNDARNO TRGOVANJE DIGITALNOM IMOVINOM
+Organizator platforme
+Član 30
+Poslove organizovanja platforme za trgovanje digitalnom imovinom može obavljati samo pružalac usluga povezanih s digitalnom imovinom koji ima dozvolu za pružanje usluge iz člana 3. stav 1. tačka 9) ovog zakona.
+Poslovi koje obavlja organizator platforme su:
+1) povezivanje ili olakšavanje povezivanja različitih interesa trećih lica za kupovinom, prodajom i/ili zamenom digitalne imovine na platformi za trgovanje digitalnom imovinom, a u skladu sa obavezujućim pravilima te platforme i na način koji dovodi do zaključenja ugovora u vezi sa digitalnom imovinom uključenom u trgovanje;
+2) čuvanje i obelodanjivanje informacija o tražnji, ponudi, kotaciji i tržišnim cenama digitalne imovine, kao i drugih informacija značajnih za trgovanje digitalnom imovinom, kako pre, tako i posle izvršene transakcije;
+3) uspostavljanje i sprovođenje, u skladu sa aktima i odobrenjem nadzornog organa:
+(1) uslova za dobijanje statusa korisnika digitalne imovine i zaključenje ugovora sa tim korisnikom,
+(2) uslova za uključenje digitalne imovine na platformu za trgovanje digitalnom imovinom, isključenje iz trgovanja i privremenu obustavu trgovanja određenim ili svim vrstama digitalne imovine,
+(3) uslova za kupovinu, prodaju i zamenu digitalne imovine koja je uključena u trgovanje na platformi za trgovanje digitalnom imovinom,
+(4) tržišnog nadzora nad trgovanjem digitalnom imovinom koja je uključena na platformu za trgovanje digitalnom imovinom u cilju sprečavanja i otkrivanja nepostupanja po pravilima u vezi sa platformom, odredbama ovog zakona i aktima nadzornog organa, a naročito nepostupanje po odredbama glave IV. ovog zakona,
+(5) procedura za pokretanje disciplinskih postupaka protiv korisnika digitalne imovine koji se ponašaju suprotno odredbama ovog zakona, akata nadzornog organa i opštih akata organizatora platforme,
+(6) procedura za rešavanje sporova između korisnika digitalne imovine, a u vezi sa transakcijama s digitalnom imovinom koja je uključena u trgovanje na platformi za trgovanje digitalnom imovinom;
+4) obavljanje drugih poslova u vezi sa platformom za trgovanje digitalnom imovinom u skladu sa ovim zakonom i aktima nadzornog organa.
+Pored poslova iz stava 2. ovog člana, organizator platforme može da pruža i sve druge usluge povezane s digitalnom imovinom iz člana 3. stav 1. ovog zakona, osim usluge iz tačke 8) tog stava. Organizator platforme ne može da pruža ni usluge investicionog savetovanja iz člana 5. ovog zakona.
+Sekundarno trgovanje digitalnom imovinom
+Član 31
+Sekundarno trgovanje digitalnom imovinom koja je izdata u Republici i za koju je odobren beli papir u skladu sa ovim zakonom, kao i digitalnom imovinom koja je izdata u inostranstvu i za koju je odobren beli papir u skladu sa ovim zakonom, je dozvoljeno.
+Pružanje usluga povezanih s digitalnom imovinom iz stava 1. ovog člana, kao i njihovo oglašavanje i uključivanje u trgovanje na platformi za trgovanje digitalnom imovinom, je dozvoljeno.
+Sekundarno trgovanje digitalnom imovinom koja je izdata u Republici za koju nije odobren beli papir u skladu sa ovim zakonom, kao i digitalnom imovinom koja je izdata u inostranstvu i za koju nije odobren beli papir u skladu sa ovim zakonom, je dozvoljeno.
+Pružanje usluga povezanih s digitalnom imovinom iz stava 3. ovog člana, kao i njihovo uključivanje u trgovanje na platformi za trgovanje digitalnom imovinom je dozvoljeno.
+Oglašavanje u vezi s digitalnom imovinom iz stava 3. ovog člana je dozvoljeno samo u skladu sa aktom nadzornog organa, osim u sledećim slučajevima:
+1) za takvu digitalnu imovinu je odobren naknadni beli papir;
+2) za takvu digitalnu imovinu je u državi članici Evropske unije odobren beli papir, odnosno dokument koji odgovara belom papiru;
+3) radi se o digitalnoj imovini kojom se u značajnoj meri trguje na globalnom tržištu preko licenciranih, odnosno registrovanih platformi u skladu s propisima Evropske unije kojima se uređuje sprečavanje pranja novca i finansiranja terorizma, odnosno u skladu sa drugim odgovarajućim propisima kojima se uređuje sprečavanje pranja novca i finansiranja terorizma.
+O uključivanju virtuelnih valuta iz stava 5. tačka 3) ovog člana u trgovanje na platformi za trgovanje digitalnom imovinom, organizator te platforme obaveštava Narodnu banku Srbije najkasnije 30 dana pre dana njihovog uključivanja u trgovanje.
+Na odobravanje objavljivanja naknadnog belog papira iz ovog člana shodno se primenjuju odredbe ovog zakona kojima se uređuje odobravanje objavljivanja belog papira.
+Nadzorni organ bliže uređuje sadržinu i način odobravanja objavljivanja naknadnog belog papira iz ovog člana.
+Trgovanje putem platforme
+Član 32
+Putem platforme za trgovanje digitalnom imovinom u Republici mogu da trguju društva koja imaju dozvolu nadzornog organa za pružanje usluga povezanih s digitalnom imovinom, kao i sva druga pravna lica, preduzetnici i fizička lica.
+Transparentnost pre vršenja transakcije
+Član 33
+Organizator platforme je dužan da objavi trenutne cene i obim ponude i tražnje za digitalnom imovinom po cenama koje se objavljuju preko sistema trgovanja za digitalnu imovinu koja je uključena u trgovanje i takvi podaci se redovno i kontinuirano dostavljaju na uvid javnosti tokom uobičajenog vremena trgovanja, što je moguće više u realnom vremenu.
+Transparentnost posle transakcije
+Član 34
+Organizator platforme je dužan da obelodani cenu, obim i vreme izvršenja transakcije s digitalnom imovinom uključenom u trgovanje. Podaci o svim transakcijama te vrste se objavljuju na prihvatljivoj komercijalnoj osnovi i što je moguće više u realnom vremenu.
+Privremena obustava trgovanja i isključenje digitalne imovine iz trgovanja
+Član 35
+Organizator platforme može privremeno da obustavi trgovanje digitalnom imovinom koja je uključena u trgovanje, ako proceni da je to neophodno radi zaštite investitora ili u cilju otklanjanja rizika u pogledu nesmetanog ili stabilnog trgovanja digitalnom imovinom. U tom slučaju, organizator platforme je dužan da bez odlaganja obavesti nadzorni organ o privremenoj obustavi tog trgovanja.
+Nadzorni organ može organizatoru platforme da naloži da privremeno ili trajno obustavi trgovanje određenom digitalnom imovinom ako se to trgovanje ne obavlja u skladu s ovim zakonom ili ako je to potrebno radi očuvanja finansijske stabilnosti.
+Organizator platforme može privremeno da obustavi trgovanje određenom digitalnom imovinom, ili da isključi digitalnu imovinu iz trgovanja ako takvo trgovanje više nije u saglasnosti sa pravilima organizatora platforme.
+Odluka o privremenoj obustavi objavljuje se na internet prezentacijama organizatora platforme na kojoj je takva digitalna imovina uključena u trgovanje i nadzornog organa.
+OTC trgovanje
+Član 36
+OTC trgovanje digitalnom imovinom u Republici je dozvoljeno, a za zaključivanje i sprovođenje transakcija putem OTC trgovanja ugovorne strane nisu dužne da koriste usluge bilo kog pružaoca usluga povezanih s digitalnom imovinom.
+Pametni ugovori
+Član 37
+Korišćenje pametnih ugovora u sekundarnom trgovanju digitalnom imovinom je dozvoljeno.
+Ako pružalac usluga povezanih s digitalnom imovinom pruža usluge koje uključuju korišćenje pametnih ugovora, dužan je da za korišćenje pametnih ugovora pribavi pristanak korisnika digitalne imovine.
+IV ZLOUPOTREBE NA TRŽIŠTU
+Primena
+Član 38
+Nadzorni organ primenjuje zabrane i zahteve iz ove glave nad aktivnostima koje se obavljaju u Republici, a u vezi sa digitalnom imovinom koja je uključena u trgovanje na platformi za trgovanje digitalnom imovinom, odnosno za koju je odobreno objavljivanje belog papira ili naknadnog belog papira.
+Insajderske informacije
+Član 39
+Insajderske informacije su informacije o tačno određenim činjenicama koje nisu javno objavljene, odnose se direktno ili indirektno na jednog ili više izdavalaca ili na jednu ili više vrsta digitalne imovine, a koje bi, da su javno objavljene, verovatno imale značajan uticaj na cenu te digitalne imovine.
+Značajan uticaj na cenu digitalne imovine postoji ako bi razumni ulagač verovatno uzeo u obzir takvu informaciju kao deo osnove za donošenje svojih investicionih odluka.
+Informacije iz stava 1. ovog člana su informacije o tačno određenim činjenicama ako se njima ukazuje na niz okolnosti koje postoje ili za koje se razumno može očekivati da će postojati, ili na događaj koji se dogodio ili se razumno može očekivati da će se dogoditi, ako su dovoljno specifične da omoguće zaključivanje o mogućem uticaju tog niza okolnosti ili događaja na cenu digitalne imovine.
+Za lica odgovorna za sprovođenje naloga u vezi sa digitalnom imovinom, insajderske informacije su i informacije o tačno određenim činjenicama dobijene od korisnika digitalne imovine u vezi sa budućim nalozima tog korisnika, odnose se direktno ili indirektno na jednog ili više izdavalaca ili na jednu ili više vrsta digitalne imovine, a koje bi, da su javno objavljene, verovatno imale značajan uticaj na cenu te digitalne imovine.
+Zabrana zloupotrebe insajderskih informacija
+Član 40
+Zabranjeno je svakom licu koje poseduje insajdersku informaciju da tu informaciju upotrebi neposredno ili posredno pri sticanju, otuđenju i pokušaju sticanja ili otuđenja za sopstveni račun ili za račun trećeg lica digitalne imovine na koju se ta informacija odnosi.
+Odredbe stava 1. ovog člana primenjuju se na lice koje je došlo u posed insajderske informacije putem:
+1) članstva u upravi izdavaoca;
+2) učešća u kapitalu izdavaoca;
+3) pristupa informacijama do kojih dolazi obavljanjem dužnosti na radnom mestu, vršenjem profesije ili drugih dužnosti;
+4) krivičnih dela koje je učinilo.
+Ako je lice iz stava 2. ovog člana pravno lice, zabrana iz tog stava odnosi se i na fizička lica koja učestvuju u donošenju odluke o vršenju transakcije za račun određenog pravnog lica.
+Odredbe ovog člana ne primenjuju se na transakcije koje se obavljaju prilikom izvršavanja dospele obaveze sticanja ili otuđenja digitalne imovine, ako je takva obaveza rezultat ugovora koji je zaključen pre nego što je lice došlo u posed insajderskih informacija.
+Razmena insajderskih informacija
+Član 41
+Zabranjeno je svakom licu iz člana 40. ovog zakona da:
+1) otkriva i čini dostupnim insajderske informacije bilo kom drugom licu, osim ako se informacija otkrije i učini dostupnom u redovnom poslovanju, profesiji ili dužnosti;
+2) preporučuje ili navodi drugo lice da na osnovu insajderske informacije stekne ili otuđi digitalnu imovinu na koju se ta informacija odnosi.
+Druga lica na koja se odnose zabrane zloupotrebe insajderskih informacija
+Član 42
+Odredbe čl. 40. i 41. ovog zakona odnose se i na drugo lice koje poseduje insajderske informacije, a zna ili je trebalo da zna da se radi o insajderskoj informaciji.
+Mehanizmi i postupci za sprečavanje zloupotrebe insajderskih informacija
+Član 43
+Sama činjenica da pravno lice poseduje ili je posedovalo insajderske informacije ne podrazumeva da je to lice koristilo te informacije u trgovanju, odnosno da je trgovalo na osnovu insajderskih informacija, ako je to pravno lice uvelo, sprovodilo i održavalo primerene i delotvorne unutrašnje mehanizme i postupke kojima se sprečava zloupotreba insajderskih informacija.
+Unutrašnji mehanizmi i postupci kojima se sprečava zloupotreba insajderskih informacija su takvi da se njima obezbeđuje da nijedno fizičko lice koje je u ime pravnog lica donelo odluku o sticanju ili otuđenju digitalne imovine na koju se odnose informacije, niti bilo koje drugo fizičko lice koje je moglo uticati na tu odluku, nije posedovalo insajderske informacije, odnosno da nije podstaklo, dalo preporuku ili na drugi način uticalo na fizičko lice koje je u ime pravnog lica odlučilo o sticanju ili otuđenju digitalne imovine na koju se te informacije odnose.
+Objavljivanje insajderskih informacija koje se neposredno odnose na izdavaoca
+Član 44
+Izdavalac je obavezan da bez odlaganja obavesti javnost o insajderskim informacijama koje se neposredno odnose na tog izdavaoca.
+Izdavaocu nije dozvoljeno da obaveštava javnost o informacijama iz ovog člana na način koji bi mogao da dovede javnost u zabludu.
+Izdavalac je obavezan da obavesti javnost na način koji omogućuje brz pristup informaciji i mogućnost potpune, tačne i pravovremene ocene te informacije.
+Izdavalac je obavezan da na svojoj internet prezentaciji objavi sve insajderske informacije koje je obavezan da javno objavljuje i da učini te informacije dostupnim najmanje pet godina od dana objavljivanja.
+Nadzorni organ propisuje koje činjenice bi trebalo uzeti u obzir pri donošenju odluke o objavljivanju insajderskih informacija.
+Promena insajderskih informacija koje se neposredno odnose na izdavaoca
+Član 45
+Svaku značajnu promenu u pogledu informacija iz člana 44. ovog zakona koje su već objavljene, izdavalac mora da objavi odmah nakon što je do te promene došlo, na isti način na koji je objavljena izvorna informacija.
+Odlaganje objavljivanja insajderskih informacija
+Član 46
+Izdavalac može na svoju odgovornost da odloži javno objavljivanje informacije iz člana 44. ovog zakona kako ne bi povredio svoje opravdane interese, pod uslovom da to odlaganje ne bi dovelo javnost u zabludu i da izdavalac može da obezbedi poverljivost te informacije.
+Izdavalac iz stava 1. ovog člana je dužan da bez odlaganja obavesti nadzorni organ o svojoj odluci da odloži javno objavljivanje insajderske informacije.
+Nadzorni organ propisuje bliže okolnosti koje mogu ukazivati na postojanje opravdanog interesa iz stava 1. ovog člana, kao i mere i rešenja koje je izdavalac obavezan da sprovede u svrhu obezbeđivanja poverljivosti insajderske informacije.
+Otkrivanje insajderskih informacija u redovnom obavljanju posla, profesije i dužnosti
+Član 47
+Ako izdavalac ili lice koje deluje u njegovo ime ili za njegov račun otkrije insajdersku informaciju trećoj strani u redovnom obavljanju svog posla, profesije ili dužnosti, obavezan je da tu informaciju u potpunosti jasno objavi javnosti, i to istovremeno u slučaju namernog otkrivanja i bez odlaganja u slučaju nenamernog otkrivanja, osim ako lice koje je primilo tu informaciju ima obavezu čuvanja poverljivosti tih informacija.
+Istraživanje tržišta
+Član 48
+Istraživanje tržišta obuhvata saopštavanje informacija jednom ili više potencijalnih investitora pre transakcije, kako bi se procenio interes potencijalnih investitora za moguću transakciju i njene uslove, kao što je potencijalni obim ili cena, od strane:
+1) izdavaoca;
+2) prodavca digitalne imovine na sekundarnom tržištu u tolikoj količini ili vrednosti da se transakcija razlikuje od redovnog trgovanja i uključuje način prodaje koji se zasniva na prethodnoj proceni interesa od strane potencijalnog investitora;
+3) trećeg lica koje deluje u ime ili za račun lica iz tač. 1) i 2) ovog stava.
+Učesnik na tržištu koji vrši saopštavanje informacija u skladu sa stavom 1. ovog člana dužan je da razmotri da li će u istraživanje tržišta uključiti objavljivanje insajderskih informacija, i o tome sastavlja i ažurira pisanu evidenciju koju na zahtev dostavlja nadzornom organu.
+Ova obaveza se primenjuje na svako saopštavanje informacija tokom istraživanja tržišta.
+Saopštavanje insajderskih informacija ne predstavlja zloupotrebu na tržištu ako lice koje saopštava informacije pre saopštavanja:
+1) pribavi pristanak lica koje je učestvovalo u istraživanju tržišta za primanje insajderskih informacija;
+2) obavesti lice koje je učestvovalo u istraživanju tržišta da mu je zabranjeno da upotrebi te informacije, ili pokuša da ih upotrebi, tako da stekne ili otuđi digitalnu imovinu na koju se te informacije odnose, za sopstveni račun ili za račun trećeg lica, posredno ili neposredno;
+3) obavesti lice koje je učestvovalo u istraživanju tržišta da mu je zabranjeno da te informacije upotrebi, ili pokuša da ih upotrebi tako da povuče ili izmeni nalog koji je već ispostavljen i povezan sa digitalnom imovinom na koju se te informacije odnose;
+4) obavesti lice koje je učestvovalo u istraživanju tržišta da je dužno da čuva dobijene informacije kao poverljive.
+Lice koje vrši saopštavanje informacija sastavlja i vodi evidenciju svih informacija koje su date licima koja su učestvovala u istraživanju tržišta, identitet potencijalnih investitora kojima su informacije saopštene, kao i pravnih i fizičkih lica koja deluju u ime potencijalnih investitora i datum i vreme svakog objavljivanja.
+Kada informacije saopštene tokom istraživanja tržišta prestanu da budu insajderske informacije u skladu sa procenom lica koje vrši objavljivanje, to lice što je pre moguće o tome obaveštava lice iz stava 4. ovog člana, a evidenciju o tome dostavlja nadzornom organu.
+Nezavisno od odredaba ovog člana, lice koje je učestvovalo u istraživanju tržišta samo procenjuje da li poseduje insajderske informacije, kao i kada prestaje da ih poseduje.
+Lice koje vrši saopštavanje informacija čuva evidenciju iz ovog člana u periodu od najmanje pet godina od dana saopštavanja tih informacija.
+Bliže uslove i način istraživanja tržišta i vođenja evidencija u smislu ovog člana može propisati nadzorni organ.
+Manipulacije na tržištu
+Član 49
+Manipulacije na tržištu predstavljaju:
+1) transakcije i naloge za trgovanje digitalnom imovinom:
+(1) kojima se daju ili koji će verovatno pružiti neistinite ili obmanjujuće signale ili informacije o ponudi, tražnji ili ceni digitalne imovine,
+(2) kojima lice, odnosno lica koja deluju zajednički, održavaju cenu jedne ili više digitalnih imovina na nerealnom ili veštačkom nivou, osim ako lice koje je učestvovalo u transakciji ili dalo nalog dokaže da za to ima osnovane razloge i da su te transakcije i nalozi u skladu sa prihvaćenim tržišnim praksama na tom tržištu;
+2) transakcije ili naloge za trgovanje digitalnom imovinom u kojima se upotrebljavaju fiktivni postupci ili svaki drugi oblik obmane i prevare;
+3) širenje informacija putem medija, uključujući i internet, ili bilo kojim drugim putem kojim se prenose, odnosno kojim bi se mogle prenositi neistinite vesti koje mogu izazvati zabludu o digitalnoj imovini, uključujući i širenje glasina i neistinitih vesti i vesti koje dovode u zabludu, a od strane lica koje je znalo ili je moralo znati da su te informacije neistinite ili da dovode u zabludu;
+4) prenošenje lažnih ili obmanjujućih informacija ili davanje lažnih ili obmanjujućih osnovnih podataka u odnosu na referentnu vrednost kada je lice koje je prenelo informaciju ili dalo osnovni podatak znalo ili trebalo da zna da su oni lažni ili obmanjujući, ili bilo koji drugi postupak kojim se manipuliše izračunavanjem referentne vrednosti.
+Širenje informacija iz stava 1. tačka 3) ovog člana od strane novinara koji obavljaju svoju profesionalnu dužnost procenjuje se uzimajući u obzir pravila koja uređuju njihovu profesiju, osim ako ta lica ne stiču, neposredno ili posredno, koristi ili prednosti od širenja tih informacija.
+U radnje i postupke koji se smatraju manipulacijama na tržištu, a proizlaze iz odredaba stava 1. ovog člana, naročito se ubraja sledeće:
+1) aktivnosti jednog ili više lica koja deluju zajednički kako bi obezbedio dominantan položaj nad ponudom ili tražnjom digitalne imovine koji za rezultat ima direktno ili indirektno nameštanje kupovnih ili prodajnih cena ili stvaranje drugih nepoštenih uslova trgovanja;
+2) kupovina ili prodaja digitalne imovine na početku ili pred kraj trgovačkog dana, koja ima ili bi mogla imati obmanjujući uticaj na investitore koji donose odluke na osnovu objavljenih cena, uključujući početne ili cene na zatvaranju;
+3) iskorišćavanje povremenog ili redovnog pristupa tradicionalnim ili elektronskim medijima iznošenjem mišljenja o digitalnoj imovini ili indirektno o izdavaocu, i to tako što je to lice prethodno zauzelo poziciju u toj digitalnoj imovini i ostvarivalo korist nakon uticaja koje je iznošenje mišljenja imalo na cenu te digitalne imovine, a da istovremeno javnosti nije objavilo postojanje sukoba interesa na odgovarajući i efikasan način.
+Nadzorni organ bliže uređuje postupke koji se mogu smatrati manipulacijama na tržištu i obaveze nadzornih organa i pružalaca usluga povezanih s digitalnom imovinom u cilju sprečavanja i otkrivanja tih manipulacija.
+Zabrana manipulacija na tržištu
+Član 50
+Manipulacije na tržištu iz člana 49. su zabranjene.
+Lica koja učestvuju u manipulacijama na tržištu solidarno su odgovorna za štetu koja nastane kao posledica manipulacije na tržištu.
+Organizator platforme za trgovanje digitalnom imovinom je dužan da propiše i primenjuje postupke i mere čiji je cilj otkrivanje i sprečavanje manipulacija na toj platformi, kao i da pruži punu pomoć nadzornom organu pri ispitivanju tih manipulacija i sprovođenju mera u nadzoru.
+Prijavljivanje zloupotreba na tržištu
+Član 51
+Pružaoci usluga povezanih s digitalnom imovinom obavezni su da, na osnovu njima dostupnih podataka, obaveste nadzorni organ o slučajevima za koje opravdano sumnjaju da predstavljaju zloupotrebe na tržištu.
+V PRUŽAOCI USLUGA POVEZANIH S DIGITALNOM IMOVINOM
+1. Pravna forma, kapital i dozvola za pružanje usluga
+Pravna forma pružaoca usluga povezanih s digitalnom imovinom
+Član 52
+Pružalac usluga povezanih s digitalnom imovinom mora imati pravnu formu privrednog društva u smislu zakona kojim se uređuju privredna društva.
+Primena zakona kojim se uređuju privredna društva
+Član 53
+Odredbe zakona kojim se uređuju privredna društva primenjuju se na pružaoce usluga povezanih s digitalnom imovinom ako nisu u suprotnosti sa ovim zakonom.
+Minimalni kapital
+Član 54
+Minimalni kapital privrednog društva koje podnosi zahtev za davanje dozvole za pružanje usluga povezanih s digitalnom imovinom ne može biti manji od:
+1) 20.000 evra u dinarskoj protivvrednosti prema zvaničnom srednjem kursu dinara prema evru koji utvrđuje Narodna banka Srbije - ako privredno društvo namerava da pruža usluge povezane s digitalnom imovinom iz člana 3. stav 1. tač. 1) do 6) ovog zakona;
+2) 50.000 evra u dinarskoj protivvrednosti prema zvaničnom srednjem kursu dinara prema evru koji utvrđuje Narodna banka Srbije - ako privredno društvo namerava da pruža usluge povezane s digitalnom imovinom iz člana 3. stav 1. tač. 7) i 8) ovog zakona;
+3) 125.000 evra u dinarskoj protivvrednosti prema zvaničnom srednjem kursu dinara prema evru koji utvrđuje Narodna banka Srbije - ako privredno društvo namerava da pruža usluge povezane s digitalnom imovinom iz člana 3. stav 1. tačka 9) ovog zakona.
+Izuzetno od stava 1. tačka 3) ovog člana, ako privredno društvo namerava da organizuje platformu za trgovanje digitalnim tokenima samo jednog izdavaoca, minimalni kapital tog društva ne može biti manji od 20.000 evra u dinarskoj protivvrednosti prema zvaničnom srednjem kursu dinara prema evru koji utvrđuje Narodna banka Srbije.
+Minimalni kapital iz ovog člana može biti novčani i nenovčani (npr. u softveru), s tim da najmanje polovina minimalnog kapitala mora biti upisana i uplaćena u novcu.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da obezbedi da njegov kapital uvek bude u visini koja nije manja od iznosa minimalnog kapitala iz st. 1. i 2. ovog člana.
+Nadzorni organ propisuje način izračunavanja kapitala iz stava 4. ovog člana.
+U slučaju da kapital pružaoca usluga povezanih s digitalnom imovinom padne ispod iznosa kapitala iz stava 4. ovog člana, nadzorni organ će takvom pružaocu usluga povezanih s digitalnom imovinom naložiti da u određenom periodu otkloni nepravilnosti, odnosno izreći neku od nadzornih mera propisanih odredbama ovog zakona.
+Nadzorni organ može utvrditi da se iznos kapitalnog zahteva pružaoca usluga povezanih s digitalnom imovinom izračunava primenom jednog od sledećih metoda:
+1) metoda ukupne vrednosti transakcija s digitalnom imovinom, odnosno ukupne vrednosti digitalne imovine koju čuva i kojom administrira taj pružalac usluga povezanih s digitalnom imovinom;
+2) metoda fiksnih troškova.
+Metod iz stava 7. ovog člana koji se jedinstveno primenjuje na sve pružaoce usluga povezanih s digitalnom imovinom, način izračunavanja kapitala i kapitalnog zahteva u skladu sa ovim metodom, kao i način i rokovi izveštavanja o kapitalu i kapitalnom zahtevu, bliže se uređuju propisom nadzornog organa.
+Pružaoci savetodavnih usluga
+Član 55
+Pružalac savetodavnih usluga nije dužan da za pružanje tih usluga pribavi dozvolu nadzornog organa.
+Pružalac savetodavnih usluga može pružati usluge povezane s digitalnom imovinom po dobijanju dozvole nadzornog organa za pružanje tih usluga u skladu sa ovim zakonom.
+Pružalac savetodavnih usluga je dužan da ima pravnu formu privrednog društva ili preduzetnika ili da bude registrovan kao fizičko lice koje u vidu zanimanja obavlja delatnost slobodne profesije u skladu sa posebnim propisima.
+Ako pružalac savetodavnih usluga posluje bez dozvole nadzornog organa, dužan je da to saopšti svakom svom korisniku, kao i da tu informaciju istakne na svojoj internet prezentaciji.
+Pružaoci usluga povezanih s digitalnom imovinom mogu da pružaju i savetodavne usluge.
+Zahtev za davanje dozvole
+Član 56
+Privredno društvo koje namerava da pruža usluge povezane s digitalnom imovinom podnosi nadzornom organu zahtev za davanje dozvole za pružanje usluga povezanih s digitalnom imovinom.
+Uz zahtev iz stava 1. ovog člana dostavljaju se:
+1) rešenje o upisu u registar privrednih subjekata;
+2) spisak usluga iz člana 3. stav 1. ovog zakona koje podnosilac zahteva namerava da pruža;
+3) opšta akta podnosioca zahteva;
+4) program aktivnosti kojim se bliže uređuju način i uslovi pružanja usluga povezanih s digitalnom imovinom;
+5) poslovni plan s projekcijom prihoda i rashoda za period od prve tri godine poslovanja na osnovu kojeg se može zaključiti da će podnosilac zahteva biti u stanju da obezbedi ispunjenost odgovarajućih organizacionih, kadrovskih, tehničkih i drugih uslova za kontinuirano, stabilno i sigurno poslovanje, uključujući i broj i vrstu očekivanih korisnika digitalne imovine, kao i očekivani obim i iznos transakcija s digitalnom imovinom, i to za svaku vrstu usluge povezane s digitalnom imovinom koju namerava da pruža;
+6) opis planiranih mera za zaštitu novčanih sredstava korisnika digitalne imovine u skladu s članom 78. ovog zakona;
+7) opis sistema upravljanja i sistema unutrašnjih kontrola u skladu s članom 92. ovog zakona;
+8) opis mera unutrašnje kontrole koje se uspostavljaju radi ispunjavanja obaveza utvrđenih propisima kojima se uređuju sprečavanje pranja novca i finansiranja terorizma;
+9) opis planiranih mera obuke zaposlenih u vezi sa obavljanjem transakcija s digitalnom imovinom;
+10) opis organizacione strukture, uključujući i podatke o planiranom poveravanju pojedinih operativnih poslova povezanih s pružanjem usluga povezanih s digitalnom imovinom;
+11) opis planiranih mera za upravljanje bezbednošću informaciono-komunikacionog sistema;
+12) podatke o licima koja su članovi uprave podnosioca zahteva i licima koja će neposredno rukovoditi poslovima pružanja usluga povezanih s digitalnom imovinom (u daljem tekstu: rukovodilac pružaoca usluga povezanih s digitalnom imovinom), s podacima i dokazima o tome da ova lica imaju dobru poslovnu reputaciju u skladu s članom 60. ovog zakona;
+13) podatke o licima s kvalifikovanim učešćem u podnosiocu zahteva, visini njihovog učešća, kao i dokaze o podobnosti tih lica u skladu s članom 65. ovog zakona;
+14) podatke o spoljnom revizoru koji obavlja reviziju finansijskih izveštaja podnosioca zahteva u godini u kojoj se podnosi zahtev, ako je za podnosioca zahteva obavezna revizija finansijskih izveštaja u skladu sa zakonom;
+15) podatke o licima blisko povezanim s podnosiocem zahteva i opis te povezanosti;
+16) dokaz o posedovanju minimalnog kapitala iz člana 54. ovog zakona;
+17) dokaz da podnosilac zahteva nije osuđen pravnosnažnom presudom za krivično delo, kao i da se protiv njega ne vodi krivični postupak, u smislu zakona kojim se uređuje odgovornost pravnih lica za krivična dela, kao i da nije osuđen pravnosnažnom presudom za privredni prestup koji ga čini nepodobnim za pružanje usluga povezanih s digitalnom imovinom, u smislu zakona kojim se uređuju privredni prestupi;
+18) dokaz o uplaćenoj naknadi u skladu sa tarifom nadzornog organa.
+Izuzetno od st. 1. i 2. ovog člana, banka koja namerava da pruža uslugu iz člana 3. stav 1. tačka 4) ovog zakona u delu čuvanja kriptografskih ključeva dužna je da, najkasnije 30 dana pre početka, odnosno prestanka pružanja te usluge, Narodnu banku Srbije obavesti o nameri početka ili prestanka pružanja te usluge, kao i da joj uz obaveštenje o nameri početka pružanja te usluge dostavi dokumentaciju iz stava 2. tač. 4) do 11) i tačka 18) ovog člana. Rok iz ovog stava računa se od dana dostavljanja uredne dokumentacije iz tog stava.
+Podacima o licima iz stava 2. tač. 12) do 15) ovog člana naročito se smatraju:
+1) za fizička lica:
+(1) ime i prezime fizičkog lica,
+(2) adresa prebivališta, odnosno boravišta fizičkog lica (mesto, ulica i broj), a za fizičko lice koje nema državljanstvo Republike i naziv države,
+(3) jedinstveni matični broj građana, odnosno druga odgovarajuća identifikaciona oznaka za fizičko lice koje nema državljanstvo Republike (npr. broj pasoša ili evidencioni broj koji određuje nadležni državni organ);
+2) za pravna lica:
+(1) poslovno ime ili skraćeno poslovno ime pravnog lica,
+(2) adresa sedišta pravnog lica (mesto, ulica i broj), a za pravno lice koje nema sedište u Republici i naziv države,
+(3) matični broj pravnog lica, odnosno druga odgovarajuća identifikaciona oznaka za pravno lice koje nema sedište u Republici (npr. evidencioni broj koji određuje nadležni državni organ),
+(4) poreski identifikacioni broj pravnog lica.
+Pored podataka iz stava 4. ovog člana, podaci o licima obuhvataju i druge podatke i dokumenta koja sadrže podatke o licima koje je neophodno dostaviti u skladu sa stavom 2. tač. 12) do 15) ovog člana (npr. podaci i dokazi da ova lica imaju dobru poslovnu reputaciju). Nadzorni organ propisuje bliže uslove i način davanja dozvole za pružanje usluga povezanih s digitalnom imovinom, a može propisati i dodatnu dokumentaciju koja se dostavlja uz zahtev za davanje te dozvole.
+Odlučivanje o davanju dozvole
+Član 57
+Nadzorni organ odlučuje o zahtevu za davanje dozvole za pružanje usluga povezanih s digitalnom imovinom u roku od 60 dana od dana prijema urednog zahteva.
+Ako je zahtev iz stava 1. ovog člana neuredan, nadzorni organ u roku od 20 dana od dana prijema tog zahteva obaveštava podnosioca zahteva na koji način da uredi taj zahtev, u kom slučaju rok iz stava 1. ovog člana počinje da teče od dana kada je podnet uredan zahtev u skladu sa obaveštenjem iz ovog stava.
+Nadzorni organ donosi rešenje o davanju dozvole kada utvrdi da su ispunjeni svi uslovi u skladu sa ovim zakonom.
+U rešenju o davanju dozvole za pružanje usluga povezanih s digitalnom imovinom, nadzorni organ navodi koje usluge iz člana 3. stav 1. ovog zakona pružalac usluga povezanih s digitalnom imovinom je ovlašćen da pruža.
+Nadzorni organ odbija zahtev iz stava 1. ovog člana kada utvrdi da:
+1) jedan ili više uslova za dobijanje dozvole iz ovog zakona i propisa donetih na osnovu ovog zakona nije ispunjen;
+2) članovi uprave podnosioca zahteva i rukovodilac pružaoca usluga povezanih s digitalnom imovinom nemaju dobru poslovnu reputaciju u skladu sa ovim zakonom;
+3) zbog bliske povezanosti podnosioca zahteva s drugim licima vršenje nadzora nad pružaocem usluga povezanih s digitalnom imovinom u skladu sa ovim zakonom bilo bi onemogućeno ili znatno otežano;
+4) vlasnička struktura podnosioca zahteva je takva da bi efikasan nadzor nad podnosiocem zahteva bio onemogućen;
+5) mere unutrašnje kontrole koje se uspostavljaju radi ispunjavanja obaveza utvrđenih propisima kojima se uređuju sprečavanje pranja novca i finansiranja terorizma nisu odgovarajuće;
+6) podaci koje zahtev sadrži nisu tačni, obmanjujući su ili su izostavljeni neophodni podaci kako bi se navodi iz zahteva mogli proveriti.
+Ako nadzorni organ odbije zahtev iz stava 1. ovog člana, podnosilac tog zahteva ne može podneti novi zahtev za davanje dozvole za pružanje usluga povezanih s digitalnom imovinom u roku od godinu dana od dana donošenja rešenja nadzornog organa.
+Dopuna dozvole pružaocu usluga
+Član 58
+Ako namerava da pruža i usluge iz člana 3. stav 1. ovog zakona koje nisu utvrđene u rešenju o davanju dozvole tom pružaocu usluga povezanih s digitalnom imovinom, pružalac usluga povezanih s digitalnom imovinom dužan je da podnese nadzornom organu zahtev za dopunu dozvole.
+Na postupak odlučivanja o zahtevu iz stava 1. ovog člana shodno se primenjuju odredbe čl. 56. i 57. ovog zakona.
+Promena okolnosti posle davanja dozvole pružaocu usluga povezanih s digitalnom imovinom
+Član 59
+Pružalac usluga povezanih s digitalnom imovinom dužan je da bez odlaganja obavesti nadzorni organ o svim promenama činjenica ili okolnosti na osnovu kojih je doneto rešenje o davanju dozvole iz člana 57. ovog zakona tom pružaocu, kao i da tom organu istovremeno dostavi izmenjenu dokumentaciju i podatke utvrđene članom 56. ovog zakona.
+U obaveštenju iz stava 1. ovog člana pružalac usluga povezanih s digitalnom imovinom dužan je da bliže opiše prirodu i obim nastalih promena.
+Uprava pružaoca usluga povezanih s digitalnom imovinom
+Član 60
+Član uprave i rukovodilac pružaoca usluga povezanih s digitalnom imovinom moraju imati dobru poslovnu reputaciju.
+Član uprave i rukovodilac pružaoca usluga povezanih s digitalnom imovinom ne može biti:
+1) lice pravnosnažno osuđeno za krivična dela protiv privrede, imovine, pravnog saobraćaja, javnog reda i službene dužnosti ili pravosuđa, ili za krivična dela pranja novca ili finansiranja terorizma ili za slična ili uporediva krivična dela u skladu s propisima strane države, i/ili za drugo krivično i/ili kažnjivo delo koje to lice čine nepodobnim za obavljanje ove funkcije;
+2) lice čiji saradnik je pravnosnažno osuđen za krivična dela iz tačke 1) ovog stava;
+3) lice kome je pravnosnažno izrečena zaštitna mera zabrane obavljanja delatnosti koja ga čini nepodobnim za obavljanje ove funkcije;
+4) lice koje je na dan oduzimanja dozvole za rad pravnom licu, odnosno na dan uvođenja prinudne uprave ili pokretanja postupka stečaja ili prinudne likvidacije nad pravnim licem bilo ovlašćeno za zastupanje i predstavljanje tog pravnog lica ili je bilo član uprave tog pravnog lica, osim prinudnog upravnika, osim ako je od pokretanja postupka stečaja ili prinudne likvidacije proteklo više od dve godine.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da pribavi saglasnost nadzornog organa na izbor člana uprave i rukovodioca tog pružaoca u skladu sa članom 61. ovog zakona, kao i da nadzorni organ obavesti o razrešenju, odnosno ostavci člana uprave ili rukovodioca tog pružaoca najkasnije narednog dana od dana tog razrešenja, odnosno ostavke.
+Član uprave pružaoca usluga povezanih s digitalnom imovinom iz ovog člana označava direktora, izvršnog direktora, člana izvršnog odbora, kao i zakonskog zastupnika ortačkog i komanditnog društva u smislu zakona kojim se uređuju privredna društva, odnosno treće lice na koje je preneto ovlašćenje za poslovođenje u ortačkom i komanditnom društvu.
+Član uprave i rukovodilac pružaoca usluga povezanih s digitalnom imovinom ne mogu biti članovi odbora tog pružaoca koji ima nadzorne funkcije u tom pružaocu.
+Nadzorni organ propisuje bliže uslove koje moraju ispuniti član uprave i rukovodilac pružaoca usluga povezanih s digitalnom imovinom, kao i dokaze koji se dostavljaju uz zahtev za davanje saglasnosti, odnosno obaveštenje iz stava 3. ovog člana.
+Davanje saglasnosti na izbor člana uprave i rukovodioca pružaoca usluga povezanih s digitalnom imovinom
+Član 61
+Nadzorni organ donosi rešenje o davanju saglasnosti na izbor predloženih članova uprave i rukovodioca pružaoca usluga povezanih s digitalnom imovinom na osnovu dokaza da su ispunjeni uslovi propisani ovim zakonom i propisima donetim na osnovu ovog zakona i kada proceni da predloženi članovi uprave i rukovodilac tog pružaoca imaju dobru poslovnu reputaciju.
+Rešenje iz stava 1. ovog člana nadzorni organ donosi u roku od 30 dana od dana prijema urednog zahteva za davanje saglasnosti iz tog stava.
+Ako je zahtev za davanje saglasnosti iz stava 1. ovog člana neuredan, nadzorni organ u roku od 15 dana od dana prijema tog zahteva obaveštava podnosioca zahteva na koji način da uredi taj zahtev, u kom slučaju rok iz stava 2. ovog člana počinje da teče od dana kada je podnet uredan zahtev u skladu sa obaveštenjem iz ovog stava.
+Rešenjem o davanju dozvole za pružanje usluga povezanih s digitalnom imovinom nadzorni organ daje i saglasnost na izbor člana uprave i rukovodioca pružaoca usluga povezanih s digitalnom imovinom.
+Povlačenje saglasnosti na izbor člana uprave i rukovodioca pružaoca usluga povezanih s digitalnom imovinom
+Član 62
+Nadzorni organ povlači saglasnost na izbor člana uprave i rukovodioca pružaoca usluga povezanih s digitalnom imovinom ako:
+1) to lice u roku od šest meseci od dana donošenja rešenja o davanju saglasnosti ne stupi na dužnost;
+2) utvrdi da član uprave ili rukovodilac ne ispunjava uslove pod kojima mu je saglasnost data;
+3) utvrdi da je saglasnost data na osnovu neistinitih, netačnih ili obmanjujućih podataka, odnosno na neki drugi nepropisan način;
+4) utvrdi da je član uprave ili rukovodilac u sukobu interesa i da zbog toga ne može da ispunjava svoje obaveze i dužnosti;
+5) utvrdi da je član uprave ili rukovodilac prekršio zabranu trgovanja ili izvršavanja transakcija, odnosno davanja naloga za vršenje trgovanja na osnovu zloupotreba na tržištu;
+6) utvrdi da je član uprave ili rukovodilac učinio težu povredu, odnosno ponavljao povrede odredaba ovog ili drugih zakona, naročito ako je zbog toga ugrožena likvidnost ili održavanje kapitala pružaoca usluga povezanih s digitalnom imovinom ili se radi o kršenju propisa koje se ponavlja dva puta u tri godine;
+7) utvrdi da je članu uprave ili rukovodiocu pravnosnažnim rešenjem oduzeta poslovna sposobnost;
+8) utvrdi da član uprave ili rukovodilac nije osigurao sprovođenje ili nije sproveo mere koje je naložio nadzorni organ ili da nadzornom organu nije omogućio nesmetano vršenje nadzora.
+Nadzorni organ može da povuče saglasnost na izbor člana uprave ili rukovodioca pružaoca usluga povezanih s digitalnom imovinom ako:
+1) član uprave ili rukovodilac nije obezbedio adekvatne organizacione, kadrovske i tehničke uslove u skladu sa ovim zakonom;
+2) u drugim slučajevima kada utvrdi da je član uprave ili rukovodilac učinio povredu ovog zakona ili akata nadzornog organa.
+Član uprave, odnosno rukovodilac prestaje sa vršenjem svih funkcija u pružaocu usluga povezanih s digitalnom imovinom od dana dostavljanja rešenja kojim se povlači saglasnost na izbor člana uprave, odnosno rukovodioca pružaoca usluga povezanih s digitalnom imovinom.
+Uprava pružaoca usluga povezanih s digitalnom imovinom je dužna da, najkasnije u roku od 30 dana od dana dostavljanja rešenja iz stava 3. ovog člana, dostavi nadzornom organu zahtev za davanje saglasnosti na imenovanje novog člana uprave, odnosno rukovodioca.
+Kadrovska i organizaciona osposobljenost i tehnička opremljenost
+Član 63
+Pružalac usluga povezanih s digitalnom imovinom dužan je da u vreme davanja dozvole i tokom poslovanja ispunjava uslove kadrovske i organizacione osposobljenosti i tehničke opremljenosti propisane aktom nadzornog organa, uključujući i posedovanje sistema obrade podataka i održavanje kontinuiteta i pravilnosti u pružanju usluga i obavljanju aktivnosti.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da ustanovi adekvatna pravila i procedure koje obezbeđuju da je poslovanje privrednog društva, njegove uprave i rukovodioca, kao i zaposlenih u skladu sa odredbama ovog zakona i aktima nadzornog organa.
+Privredno društvo koje obavlja delatnost organizatora platforme dužno je da u vreme davanja dozvole i tokom poslovanja:
+1) poseduje sisteme za jasno ustanovljavanje i ispravljanje mogućih negativnih posledica na funkcionisanje platforme za trgovanje digitalnom imovinom i učesnike u trgovanju, a koje proističu iz sukoba interesa između organizatora platforme i njegovih vlasnika, s jedne strane, i stabilnog funkcionisanja platforme, s druge strane, naročito kada takvi sukobi interesa mogu da budu štetni za funkcije koje organizator platforme vrši u skladu sa odredbama ovog zakona i aktima nadzornog organa;
+2) bude adekvatno opremljeno kako bi upravljalo rizicima kojima je izloženo, sprovodilo odgovarajuće mere i sisteme za prepoznavanje svih značajnih rizika po svoje poslovanje i donelo delotvorne mere u cilju umanjenja tih rizika;
+3) poseduje procedure za stabilno upravljanje tehničkim funkcionisanjem svojih sistema, uključujući uspostavljanje delotvornih sistema u slučaju nepredviđenih okolnosti, a u cilju savladavanja rizika od prekida rada sistema;
+4) ima transparentna i obavezujuća pravila i procedure kojima se omogućuje pravično i pravilno trgovanje i uspostavljaju objektivni kriterijumi za efikasno izvršavanje naloga;
+5) poseduje delotvorne procedure kojima se olakšava efikasno i blagovremeno zaključenje transakcija koje se izvršavaju u okviru tih sistema;
+6) raspolaže sa dovoljno finansijskih sredstava kako bi se olakšalo pravilno funkcionisanje platforme za trgovanje digitalnom imovinom, a s obzirom na prirodu i obim transakcija koje se zaključuju na platformi, kao i opseg i stepen rizika kojima je izloženo.
+Nadzorni organ propisuje bliže uslove u vezi sa kadrovskom i organizacionom osposobljenošću, kao i tehničkom i informacionom opremljenošću pružaoca usluga povezanih s digitalnom imovinom, naročito uzimajući u obzir konkretne okolnosti tržišta, značajne rizike, potencijalne sukobe interesa, finansijske resurse i neophodnu stručnu i tehničku informacionu osposobljenost.
+Opšti akti pružaoca usluga povezanih s digitalnom imovinom
+Član 64
+Opšti akti pružaoca usluga povezanih s digitalnom imovinom su statut, odnosno osnivački akt i pravila poslovanja društva.
+Nadzorni organ daje prethodnu saglasnost na opšte akte pružaoca usluga povezanih s digitalnom imovinom iz stava 1. ovog člana, kao i na izmene i/ili dopune tih opštih akata.
+Lice s kvalifikovanim učešćem u pružaocu usluga povezanih s digitalnom imovinom
+Član 65
+Lice s kvalifikovanim učešćem u pružaocu usluga povezanih s digitalnom imovinom u svakom trenutku mora da ispunjava sledeće uslove podobnosti radi obezbeđivanja stabilnog i sigurnog upravljanja tim pružaocem usluga:
+1) da ima dobru poslovnu reputaciju;
+2) da saradnik lica s kvalifikovanim učešćem u pružaocu usluga povezanih s digitalnom imovinom ima dobru poslovnu reputaciju;
+3) da članovi uprave pravnog lica s kvalifikovanim učešćem u pružaocu usluga povezanih s digitalnom imovinom i lica koja su s tim pravnim licem blisko povezana imaju dobru poslovnu reputaciju;
+4) da je finansijsko stanje lica s kvalifikovanim učešćem u pružaocu usluga povezanih s digitalnom imovinom odgovarajuće;
+5) da vršenje nadzora nad pružaocem usluga povezanih s digitalnom imovinom u skladu sa ovim zakonom nije onemogućeno ili znatno otežano zbog bliske povezanosti lica s kvalifikovanim učešćem s drugim licima;
+6) da je grupa društava kojoj pripada pravno lice s kvalifikovanim učešćem transparentna i da se u potpunosti može utvrditi vlasništvo svih lica koja imaju direktno ili indirektno vlasništvo u tom pravnom licu, kao i svako direktno ili indirektno vlasništvo tog pravnog lica u drugim pravnim licima;
+7) da poslovne i druge aktivnosti lica s kvalifikovanim učešćem nisu povezane s pranjem novca ili finansiranjem terorizma, da ne ugrožavaju stabilnost i sigurnost poslovanja pružaoca usluga povezanih s digitalnom imovinom, kao i da ne onemogućavaju niti znatno otežavaju vršenje nadzora nad pružaocem usluga povezanih s digitalnom imovinom;
+8) da je moguće utvrditi izvor sredstava za sticanje kvalifikovanog učešća.
+Nadzorni organ bliže propisuje uslove podobnosti koje lica s kvalifikovanim učešćem u pružaocu usluga povezanih s digitalnom imovinom moraju da ispune.
+Pored uslova iz stava 1. ovog člana, nadzorni organ može propisati i druge uslove podobnosti koje mora da ispunjava lice s kvalifikovanim učešćem u pružaocu usluga povezanih s digitalnom imovinom.
+Prethodna saglasnost za sticanje, odnosno uvećanje kvalifikovanog učešća
+Član 66
+Lice koje namerava da stekne kvalifikovano učešće u pružaocu usluga povezanih s digitalnom imovinom, ili da ga uveća tako da stekne od 20% do 30%, više od 30% do 50% ili više od 50% glasačkih prava ili kapitala u tom pružaocu, odnosno tako da postane njegovo matično društvo - dužno je da pribavi prethodnu saglasnost nadzornog organa za ovo sticanje, odnosno uvećanje.
+Nadzorni organ o zahtevu za davanje saglasnosti iz stava 1. ovog člana odlučuje u roku od 30 dana od dana prijema urednog zahteva.
+Ako je zahtev za davanje saglasnosti iz stava 1. ovog člana neuredan, nadzorni organ u roku od 15 dana od dana prijema tog zahteva obaveštava podnosioca zahteva na koji način da uredi taj zahtev, u kom slučaju rok iz stava 2. ovog člana počinje da teče od dana kada je podnet uredan zahtev u skladu sa obaveštenjem iz ovog stava.
+Rešenjem kojim daje saglasnost iz stava 1. ovog člana, nadzorni organ utvrđuje da je lice iz tog stava dužno da stekne, odnosno uveća kvalifikovano učešće u pružaocu usluga povezanih s digitalnom imovinom najkasnije u roku od godinu dana od dana dostavljanja ovog rešenja.
+Saglasnost iz stava 1. ovog člana prestaje da važi ako lice iz tog stava ne stekne, odnosno ne uveća kvalifikovano učešće u pružaocu usluga povezanih s digitalnom imovinom u roku iz stava 4. ovog člana, a ako u tom roku stekne, odnosno uveća ovo učešće, ali ne u nivou za koji je data ova saglasnost, ta saglasnost dalje važi samo za nivo stečenog, odnosno uvećanog kvalifikovanog učešća u tom pružaocu usluga povezanih s digitalnom imovinom.
+Lice koje podnosi zahtev iz stava 2. ovog člana mora da ispuni uslove podobnosti iz člana 65. ovog zakona.
+U postupku odlučivanja o zahtevu za davanje saglasnosti iz stava 2. ovog člana shodno se primenjuje član 68. ovog zakona.
+Nadzorni organ propisuje dokaze, dokumentaciju i podatke koje je lice iz stava 1. ovog člana dužno da dostavi uz zahtev iz stava 2. ovog člana.
+Zajedničko nastupanje kod sticanja, odnosno uvećanja kvalifikovanog učešća
+Član 67
+Smatra se da, radi sticanja, odnosno uvećanja kvalifikovanog učešća u pružaocu usluga povezanih s digitalnom imovinom sledeća lica nastupaju kao jedan sticalac:
+1) pravno lice i lica koja učestvuju u upravljanju ili rukovođenju tim pravnim licem ili drugim pravnim licem s kojim je to pravno lice blisko povezano;
+2) pravno lice i lica koja neposredno imenuje i razrešava organ upravljanja tog pravnog lica ili drugog pravnog lica s kojim je to pravno lice blisko povezano;
+3) pravno lice i zastupnici i likvidacioni upravnici tog pravnog lica ili drugog pravnog lica s kojim je to pravno lice blisko povezano;
+4) fizička lica koja se smatraju povezanim licima u smislu zakona kojim se uređuju privredna društva;
+5) pravna lica u kojima lica iz tačke 4) ovog stava učestvuju u upravljanju ili rukovođenju ili u njima imaju kontrolno učešće;
+6) pravna lica - članovi iste grupe društava;
+7) lica koja učestvuju u upravljanju ili rukovođenju istim pravnim licem;
+8) lica koja imaju kontrolno učešće u istom pravnom licu;
+9) lice koje drugom licu omogućava da obezbedi sredstva za sticanje, odnosno uvećanje kvalifikovanog učešća u pružaocu usluga povezanih s digitalnom imovinom i to drugo lice;
+10) vlastodavac i punomoćnik;
+11) dva ili više pravnih ili fizičkih lica među kojima ne postoji odnos iz tač. 1) do 10) ovog stava, a povezana su tako da postoji mogućnost da se usled pogoršanja ili poboljšanja finansijskog položaja jednog lica pogorša ili poboljša finansijski položaj drugog lica ili više njih, a nadzorni organ, na osnovu dokumentacije i podataka kojima raspolaže, proceni da postoji mogućnost prenosa gubitka, dobiti ili kreditne sposobnosti.
+Radi sticanja, odnosno uvećanja kvalifikovanog učešća u pružaocu usluga povezanih s digitalnom imovinom lice nastupa kao jedan sticalac s drugim licem i kada između njih ne postoji veza iz stava 1. ovog člana ali svako to lice nastupa kao jedan sticalac sa istim trećim licem, i to na neki od načina utvrđenih u tom stavu.
+Saradnici i poslovna reputacija
+Član 68
+Pravno lice koje namerava da pruža usluge povezane s digitalnom imovinom, dužno je da pri podnošenju zahteva iz člana 56. ovog zakona, kao i na zahtev nadzornog organa, dostavi spisak saradnika lica koja stiču kvalifikovano učešće, člana uprave i rukovodioca pružaoca usluga povezanih s digitalnom imovinom, kao i stvarnog vlasnika pružaoca usluga povezanih s digitalnom imovinom u smislu zakona kojim se uređuje sprečavanje pranja novca i finansiranja terorizma, s dokazima o neosuđivanosti saradnika, radi procene njihove poslovne reputacije.
+Saradnikom u smislu ovog zakona smatra se:
+1) svako fizičko lice koje je član uprave ili drugo odgovorno lice u pravnom licu čiji je stvarni vlasnik lice koje ima, odnosno stiče kvalifikovano učešće u pružaocu usluga povezanih s digitalnom imovinom, ili u kome je to lice član uprave ili na drugom rukovodećem položaju;
+2) svako fizičko lice koje je stvarni vlasnik pravnog lica u kome je lice iz tačke 1) ovog stava član uprave ili na drugom rukovodećem položaju;
+3) svako fizičko lice koje sa licem iz tačke 1) ovog stava ima stvarno vlasništvo nad istim pravnim licem.
+Odredbe stava 2. ovog člana shodno se primenjuju i na saradnika člana uprave i rukovodioca pružaoca usluga povezanih s digitalnom imovinom, kao i stvarnog vlasnika pružaoca usluga povezanih s digitalnom imovinom u smislu zakona kojim se uređuje sprečavanje pranja novca i finansiranja terorizma.
+Dokazom o neosuđivanosti saradnika iz stava 1. ovog člana smatra se dokaz da saradnik nije lice koje je pravnosnažno osuđeno za krivična i/ili druga kažnjiva dela iz člana 60. stav 2. tačka 1) ovog zakona.
+Ako iz opravdanih razloga ne može da pribavi dokaze o neosuđivanosti saradnika iz stava 1. ovog člana, podnosilac zahteva iz tog stava može dostaviti i izjavu datu pod materijalnom i krivičnom odgovornošću da njegovi saradnici nisu osuđivani. Nadzorni organ može u bilo kom trenutku zatražiti od tog podnosioca da joj dostavi dokaze o neosuđivanosti tih lica ili neposredno od nadležnog organa zatražiti te dokaze.
+Brokersko-dilerska društva i organizatori tržišta u skladu sa zakonom kojim se uređuje tržište kapitala
+Član 69
+Brokersko-dilersko društvo i organizator tržišta koji imaju dozvolu Komisije u skladu sa zakonom kojim se uređuje tržište kapitala prilikom podnošenja zahteva za davanje dozvole za pružanje usluga povezanih s digitalnom imovinom podnose zahtev za davanje te dozvole, uz koji dostavljaju dokumentaciju iz člana 56. stav 2. ovog zakona osim dokumentacije iz tog stava koju je brokersko-dilersko društvo, odnosno organizator tržišta već podneo nadzornom organu u skladu sa zakonom kojim se uređuje tržište kapitala a koja se ne menja zbog podnošenja zahteva za davanje dozvole za pružanje usluga povezanih s digitalnom imovinom (npr. rešenje o upisu u registar privrednih subjekata, podaci o članovima uprave, podaci o licima s kvalifikovanim učešćem, dokaz o posedovanju minimalnog kapitala i sl.).
+Dokumentaciju iz člana 56. stav 2. tačka 12) ovog zakona, brokersko-dilersko društvo i organizator tržišta iz stava 1. ovog člana podnosi samo ako lica koja će neposredno rukovoditi poslovima pružanja usluga povezanih s digitalnom imovinom nisu istovremeno i članovi uprave.
+Brokersko-dilersko društvo i organizator tržišta iz stava 1. ovog člana dužni su da obezbede tehničku, kadrovsku i organizacionu odvojenost obavljanja poslova za koje imaju dozvolu u skladu sa zakonom kojim se uređuje tržište kapitala od obavljanja poslova za koje imaju dozvolu u skladu sa ovim zakonom.
+Brokersko-dilersko društvo i organizator tržišta iz stava 1. ovog člana dužni su da poslove za koje imaju dozvolu u skladu sa ovim zakonom obavljaju na način koji ne ugrožava stabilnost i sigurnost dela njihovog poslovanja koji se odnosi na obavljanje poslova za koje imaju dozvolu u skladu sa zakonom kojim se uređuje tržište kapitala, niti otežava vršenje nadzora u skladu sa tim zakonom.
+Nadzorni organ može da propiše dodatne uslove koje moraju da ispune brokersko-dilersko društvo i organizator tržišta koji imaju dozvolu u skladu sa zakonom kojim se uređuje tržište kapitala radi dobijanja dozvole za pružanje usluga povezanih s digitalnom imovinom.
+Promena poslovnog imena i sedišta
+Član 70
+Pružalac usluga povezanih s digitalnom imovinom je dužan da pre podnošenja prijave za upis promene poslovnog imena i sedišta u registar privrednih subjekata obavesti nadzorni organ o promeni koju vrši.
+Statusne promene
+Član 71
+Pružalac usluga povezanih s digitalnom imovinom koji učestvuje u statusnoj promeni dužan je da pre podnošenja prijave za upis te statusne promene u registar privrednih subjekata dobije saglasnost nadzornog organa za tu statusnu promenu.
+Pružalac usluga povezanih s digitalnom imovinom koji po sprovedenoj statusnoj promeni nastavlja da postoji i da pruža usluge povezane s digitalnom imovinom dužan je da uz zahtev za davanje saglasnosti iz stava 1. ovog člana nadzornom organu dostavi:
+1) odluku o statusnoj promeni;
+2) izmene opštih akata;
+3) dokumentaciju iz člana 56. stav 2. ovog zakona koja se menja usled statusne promene;
+4) dokaz o uplaćenoj naknadi u skladu sa tarifom nadzornog organa.
+Nadzorni organ može od pružaoca usluga povezanih s digitalnom imovinom iz stava 2. ovog člana zahtevati da mu dostavi i druge podatke i dokumente.
+Ako se statusnom promenom imovina i obaveze pružaoca usluga povezanih s digitalnom imovinom prenose na drugog pružaoca usluga povezanih s digitalnom imovinom (u daljem tekstu: društvo sticalac), na podnošenje zahteva društva sticaoca za davanje saglasnosti iz stava 1. ovog člana primenjuju se st. 2. i 3. ovog člana.
+Ako se statusnom promenom osniva novo privredno društvo ili se imovina i obaveze prenose na postojeće društvo koje nema dozvolu za pružanje usluga povezanih s digitalnom imovinom u skladu sa ovim zakonom, primenjuju se odredbe ovog zakona koje se odnose na davanje dozvole za pružanje usluga povezanih s digitalnom imovinom.
+Nadzorni organ odlučuje o zahtevu za davanje saglasnosti iz stava 1. ovog člana u roku od 60 dana od dana prijema urednog zahteva.
+Ako je zahtev za davanje saglasnosti iz stava 1. ovog člana neuredan, nadzorni organ u roku od 20 dana od dana prijema tog zahteva obaveštava podnosioca zahteva na koji način da uredi taj zahtev, u kom slučaju rok iz stava 6. ovog člana počinje da teče od dana kada je podnet uredan zahtev u skladu sa obaveštenjem iz ovog stava.
+Registar pružalaca usluga povezanih s digitalnom imovinom
+Član 72
+Nadzorni organi vode registre pružalaca usluga povezanih s digitalnom imovinom.
+U registre iz stava 1. ovog člana upisuju se podaci o:
+1) pružaocima usluga povezanih s digitalnom imovinom koji imaju dozvolu nadzornog organa za pružanje usluga povezanih s digitalnom imovinom;
+2) ograncima pružalaca usluga povezanih s digitalnom imovinom u stranim državama, odnosno pružaocima usluga povezanih s digitalnom imovinom koji na osnovu saglasnosti nadzornog organa ove usluge pružaju neposredno u stranoj državi.
+Registri iz stava 1. ovog člana vode se u elektronskom obliku, a podaci iz tih registara se objavljuju na internet prezentacijama nadzornih organa, kao i na portalu iz člana 9. stav 1. ovog zakona, i redovno se ažuriraju.
+Nadzorni organ propisuje bliže uslove, sadržinu i način vođenja registara iz stava 1. ovog člana, kao i način brisanja podataka iz tih registara.
+Prestanak važenja dozvole za pružanje usluga povezanih s digitalnom imovinom
+Član 73
+Dozvola za pružanje usluga povezanih s digitalnom imovinom prestaje da važi u sledećim slučajevima:
+1) kada nadzorni organ donese rešenje o oduzimanju te dozvole;
+2) kada je pružalac usluga povezanih s digitalnom imovinom brisan iz registra privrednih subjekata usled statusne promene;
+3) kada je otvoren stečajni postupak ili pokrenut postupak prinudne likvidacije nad pružaocem usluga povezanih s digitalnom imovinom.
+2. Obaveze pružaoca usluga povezanih s digitalnom imovinom
+Primena zakona kojim se uređuje sprečavanje pranja novca i finansiranja terorizma
+Član 74
+Na pružaoce usluga povezanih s digitalnom imovinom, primenjuju se odredbe propisa kojima se uređuje sprečavanje pranja novca i finansiranja terorizma, propisa kojima se uređuje ograničenje raspolaganja imovinom u cilju sprečavanja terorizma i širenja oružja za masovno uništenje i odredbe ovog zakona kojima se uređuju posebne obaveze tih pružalaca u vezi sa sprečavanjem pranja novca i finansiranja terorizma.
+Digitalna imovina, odnosno virtuelna imovina se smatra imovinom, prihodom ili drugom odgovarajućom vrednošću u smislu propisa kojima se uređuje sprečavanje pranja novca i finansiranja terorizma i propisa kojima se uređuje ograničenje raspolaganja imovinom u cilju sprečavanja terorizma i širenja oružja za masovno uništenje.
+Radnje i mere koje preduzima pružalac usluga povezanih s digitalnom imovinom
+Član 75
+Pružalac usluga povezanih s digitalnom imovinom dužan je da preduzima radnje i mere za sprečavanje i otkrivanje pranja novca i finansiranja terorizma propisane zakonom kojim se uređuje sprečavanje pranja novca i finansiranja terorizma.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da uspostavi poslovni odnos sa svakim korisnikom digitalne imovine i da utvrđuje i proverava identitet korisnika digitalne imovine u skladu sa zakonom kojim se uređuje sprečavanje pranja novca i finansiranja terorizma, osim u slučajevima utvrđenim tim zakonom.
+Načela sigurnog i dobrog poslovanja pružaoca usluga povezanih s digitalnom imovinom
+Član 76
+Pri pružanju usluga korisnicima digitalne imovine, pružalac usluga povezanih s digitalnom imovinom je dužan da stavlja interese tih korisnika ispred sopstvenih interesa i da posluje pravično, pošteno i profesionalno, u skladu sa najboljim interesima korisnika poštujući načela utvrđena odredbama ovog zakona.
+Sve informacije, uključujući i marketinške, koje pružalac usluga povezanih s digitalnom imovinom upućuje svojim korisnicima ili potencijalnim korisnicima, moraju biti istinite, jasne i ne smeju obmanjivati te korisnike, a marketinški materijal mora biti označen kao takav.
+Kako bi korisnici digitalne imovine mogli da shvate prirodu i rizike u vezi sa uslugama koje pruža pružalac usluga povezanih s digitalnom imovinom, kao i rizike vezane za ulaganje u digitalnu imovinu, pružalac usluga povezanih s digitalnom imovinom je dužan da tim korisnicima ili potencijalnim korisnicima pruži odgovarajuće informacije na način koji je razumljiv prosečnom korisniku digitalne imovine koji je fizičko lice, i to naročito:
+1) osnovne statusne podatke o pružaocu usluga povezanih s digitalnom imovinom i uslugama koje pruža;
+2) informacije o digitalnoj imovini i predloženim investicionim strategijama, uključujući odgovarajuće smernice i upozorenja u vezi sa rizikom ulaganja u tu digitalnu imovinu, odnosno u vezi sa tim strategijama;
+3) informacije o rizicima obavljanja transakcija s digitalnom imovinom, uključujući rizik od delimičnog ili potpunog gubitka novčanih sredstava, odnosno druge imovine, kao i o tome da se na transakcije s digitalnom imovinom ne primenjuju propisi kojima se uređuje osiguranje depozita ili zaštita investitora, kao ni propisi kojima se uređuje zaštita korisnika finansijskih usluga;
+4) informacije o mestima izvršenja naloga;
+5) informacije o troškovima i naknadama.
+Informacije iz stava 3. ovog člana mogu se pružati u standardizovanoj formi.
+Pri pružanju usluga upravljanja portfolijom, pružalac usluga povezanih s digitalnom imovinom je dužan da prikupi neophodne informacije o znanju i iskustvu korisnika digitalne imovine ili potencijalnog korisnika o investicionoj oblasti, finansijskoj situaciji i investicionim ciljevima korisnika koji su značajni za određenu vrstu digitalne imovine ili usluge, kako bi pružalac usluga povezanih s digitalnom imovinom bio u stanju da tom korisniku ili potencijalnom korisniku preporuči za njega odgovarajuću uslugu povezanu s digitalnom imovinom, odnosno digitalnu imovinu.
+Postupci i mehanizmi za zaštitu prava korisnika digitalne imovine
+Član 77
+Pružalac usluga povezanih s digitalnom imovinom je dužan da, kada drži digitalnu imovinu korisnika, ustanovi adekvatne postupke i mehanizme za zaštitu prava korisnika kako bi se sprečilo korišćenje digitalne imovine korisnika za račun pružaoca usluga povezanih s digitalnom imovinom, osim uz izričitu saglasnost korisnika.
+Pružalac usluga povezanih s digitalnom imovinom ne može da:
+1) zalaže ili otuđuje digitalnu imovinu korisnika bez njegovog prethodnog pisanog ovlašćenja;
+2) izvršava naloge korisnika na način koji nije u skladu sa ovim zakonom i aktima nadzornog organa, odnosno aktima organizatora platforme;
+3) kupuje, prodaje ili pozajmljuje za sopstveni račun istu digitalnu imovinu koja je predmet naloga korisnika pre postupanja po nalogu korisnika;
+4) naplaćuje provizije i druge naknade iz digitalne imovine koju čuva i kojom administrira;
+5) podstiče korisnike na učestalo obavljanje transakcija isključivo radi naplate provizije.
+Zaštita novčanih sredstava korisnika digitalne imovine
+Član 78
+Pružalac usluga povezanih s digitalnom imovinom koji drži novčana sredstva, odnosno digitalnu imovinu korisnika dužan je da ispuni sledeće zahteve radi zaštite prava svojih korisnika:
+1) vođenje evidencija i računa na način koji mu omogućava da u svakom momentu i bez odlaganja razdvoji sredstva jednog korisnika od sredstava drugog korisnika, kao i od sopstvenih sredstava, i obezbeđuje tačne podatke o tim sredstvima;
+2) precizno i tačno vođenje evidencija, računa i svoje korespondencije u vezi sa digitalnom imovinom i novčanim sredstvima korisnika na računima kojima upravlja u skladu s članom 80. ovog zakona;
+3) redovno sravnjenje svojih internih računa sa evidencijama i računima korisnika kojima upravlja u skladu s članom 80. ovog zakona;
+4) uspostavljanje odgovarajućih mera kako bi se umanjio rizik od gubitka ili smanjenja imovine korisnika, odnosno prava u vezi sa tom imovinom, a koji mogu nastati kao posledica zloupotrebe te imovine, prevare, lošeg upravljanja, neadekvatnog vođenja evidencije ili nemara.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da zaštiti novčana sredstva koja je primio od korisnika digitalne imovine ili njegovog pružaoca platnih usluga u vezi sa izvršenjem transakcije s digitalnom imovinom, u skladu sa odredbama ovog člana.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da novčana sredstva iz stava 2. ovog člana drži na računu kod banke odvojeno od sopstvenih sredstava, u skladu s članom 80. ovog zakona.
+Digitalna imovina koju pružalac usluga povezanih s digitalnom imovinom čuva i kojom administrira za račun korisnika, uključujući i sredstva koja su u postupku prenosa, nije u vlasništvu i ne ulazi u imovinu pružaoca usluga povezanih s digitalnom imovinom, i ne može se koristiti za plaćanje obaveza tog društva prema poveriocima niti biti predmet prinudne naplate i izvršenja koje se sprovodi nad tim pružaocem usluga povezanih s digitalnom imovinom, i ne ulazi u stečajnu ili likvidacionu masu tog pružaoca usluga.
+Bližu sadržinu i formu evidencije koju vodi pružalac usluga povezanih s digitalnom imovinom koji drži novčana sredstva korisnika u skladu sa ovim zakonom, odnosno digitalnu imovinu korisnika, propisuje nadzorni organ.
+Prenos novčanih sredstava radi izvršenja transakcija s digitalnom imovinom
+Član 79
+Pružalac usluga povezanih s digitalnom imovinom iz člana 3. stav 1. tač. 2), 3) i 7) ovog zakona može primati novčana sredstva korisnika digitalne imovine isključivo radi izvršenja transakcije s digitalnom imovinom.
+Pružalac usluga povezanih s digitalnom imovinom iz člana 3. stav 1. tač. 2), 3) i 7) ovog zakona dužan je da novčana sredstva iz stava 1. ovog člana prenese primaocu tih sredstava najkasnije narednog poslovnog dana od dana prijema tih novčanih sredstava.
+Izuzetno od stava 2. ovog člana, u slučaju prenosa novčanih sredstava u skladu sa propisima kojima se uređuje devizno poslovanje, pružalac usluga povezanih s digitalnom imovinom iz člana 3. stav 1. tač. 2) i 3) ovog zakona dužan je da u roku iz stava 2. ovog člana inicira prenos tih novčanih sredstava primaocu tih sredstava, ako nije moguće da i pored razumnih mera koje je preduzeo u tom roku izvrši njihov prenos.
+Ako novčana sredstva iz stava 1. ovog člana ne prenese primaocu tih sredstava u roku iz stava 2. ovog člana, odnosno ako u tom roku ne postupi u skladu sa stavom 3. ovog člana, pružalac usluga povezanih s digitalnom imovinom iz člana 3. stav 1. tač. 2), 3) i 7) ovog zakona je dužan da ta novčana sredstva vrati pošiljaocu tih sredstava.
+Izuzetno od stava 2. ovog člana, na osnovu izričite saglasnosti korisnika digitalne imovine, pružalac usluga povezanih s digitalnom imovinom iz člana 3. stav 1. tač. 2), 3) i 7) ovog zakona može novčana sredstva iz stava 1. ovog člana preneti primaocu tih sredstava u roku od tri poslovna dana od dana prijema tih novčanih sredstava, pri čemu je dužan da obezbedi odgovarajući zapis te saglasnosti koji čuva u skladu s članom 84. ovog zakona. I u tom slučaju, pružalac usluga povezanih s digitalnom imovinom dužan je da primljena novčana sredstva vrati pošiljaocu tih sredstava ako u roku iz ovog stava ta novčana sredstva ne prenese njihovom primaocu.
+Primljena novčana sredstva iz stava 1. ovog člana ne smatraju se depozitom u smislu zakona kojim se uređuju banke niti elektronskim novcem.
+Novčani računi
+Član 80
+Pružalac usluga povezanih s digitalnom imovinom koji ima dozvolu za pružanje usluga povezanih s digitalnom imovinom iz člana 3. stav 1. tač. 1), 8) ili 9) može da otvori novčani račun korisnika digitalne imovine kod banke koji je odvojen od novčanog računa pružaoca usluga povezanih s digitalnom imovinom, a posebna saglasnost korisnika ili ovlašćenje za otvaranje računa sa novčanim sredstvima nije neophodna.
+Izuzetno od stava 1. ovog člana, pružalac usluga povezanih s digitalnom imovinom koji ima dozvolu za pružanje usluga povezanih s digitalnom imovinom iz člana 3. stav 1. tačka 4) ovog zakona može, isključivo u svrhu primanja uplata vezanih za digitalnu imovinu i prenosa tih sredstava korisniku digitalne imovine, da otvori novčani račun korisnika digitalne imovine kod banke koji je odvojen od novčanog računa pružaoca usluga povezanih s digitalnom imovinom, a posebna saglasnost korisnika ili ovlašćenje za otvaranje računa sa novčanim sredstvima nije neophodna.
+Pružalac usluga povezanih s digitalnom imovinom iz stava 1. ovog člana može koristiti jedan ili više računa za novčana sredstva korisnika digitalne imovine i dužan je da u kontinuitetu vodi tačnu evidenciju o sredstvima svakog korisnika koja se drže na zbirnom računu.
+Sredstva s novčanog računa korisnika digitalne imovine pružalac usluga povezanih s digitalnom imovinom iz stava 1. ovog člana može da koristi samo za plaćanje obaveza u vezi sa uslugama za koje ima dozvolu nadzornog organa.
+Sredstva na novčanom računu korisnika digitalne imovine, uključujući i sredstva koja su u postupku prenosa, nisu u vlasništvu i ne ulaze u imovinu pružaoca usluga povezanih s digitalnom imovinom iz stava 1. ovog člana, ne mogu se koristiti za plaćanje obaveza tog društva prema poveriocima niti biti predmet prinudne naplate i izvršenja koje se sprovodi nad tim pružaocem usluga povezanih s digitalnom imovinom, i ne ulaze u stečajnu ili likvidacionu masu tog pružaoca usluga.
+Izvršenje naloga korisnika
+Član 81
+Pružalac usluga povezanih s digitalnom imovinom je dužan da ustanovi mere i sisteme za brzo, pošteno i efikasno izvršavanje naloga korisnika digitalne imovine u odnosu na naloge ostalih korisnika digitalne imovine ili tog pružaoca usluga povezanih s digitalnom imovinom.
+Mere i sistemi iz stava 1. ovog člana moraju omogućavati izvršenje naloga korisnika u skladu sa vremenom kada je pružalac usluga povezanih s digitalnom imovinom primio naloge.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da vodi knjigu naloga u elektronskom obliku u koju se upisuju nalozi korisnika za kupovinu ili prodaju digitalne imovine, kao i opozivi tih naloga, na način kojim se odmah beleži vreme prijema naloga i koji sprečava naknadnu izmenu naloga koju nije odobrio korisnik ili vremena prijema naloga.
+Pružalac usluga povezanih s digitalnom imovinom može da prima naloge korisnika digitalne imovine u svojim poslovnim prostorijama ili putem telekomunikacionih ili drugih elektronskih sredstava, ako je to predviđeno ugovorom sa tim korisnikom, i u tom slučaju pružalac usluga povezanih s digitalnom imovinom primenjuje odgovarajuće mehanizme zaštite radi obezbeđivanja tačnosti i integriteta naloga u evidenciji, kao što su uređaji za snimanje.
+Pružalac usluga povezanih s digitalnom imovinom je dužan da odbije izvršenje naloga ako ima razloga za osnovanu sumnju da bi izvršenjem takvog naloga bile prekršene odredbe ovog zakona ili zakona kojim se uređuje sprečavanje pranja novca i finansiranja terorizma ili da bi bilo učinjeno delo kažnjivo po zakonu kao krivično delo, privredni prestup ili prekršaj.
+U slučaju iz stava 5. ovog člana pružalac usluga povezanih s digitalnom imovinom bez odlaganja obaveštava nadzorni organ.
+Ugovor sa korisnikom digitalne imovine
+Član 82
+Pružalac usluga povezanih s digitalnom imovinom dužan je da sa korisnikom digitalne imovine zaključi ugovor kojim se utvrđuju prava i obaveze ugovornih strana, kao i ostali uslovi pod kojima pružalac usluga povezanih s digitalnom imovinom pruža usluge, s tim što prava i obaveze ugovornih strana mogu biti uređena i upućivanjem na opšte uslove poslovanja tog pružaoca i pravna i druga dokumenta koja su lako dostupna korisniku.
+Ugovor iz stava 1. ovog člana obavezno sadrži izjavu korisnika da je upoznat sa pravilima poslovanja pružaoca usluga povezanih s digitalnom imovinom.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da omogući svojim korisnicima uvid u izmene svojih opštih akata najmanje sedam dana pre početka primene tih izmena.
+Ugovor iz stava 1. zaključuje se u pisanoj formi, uključujući i zaključenje ugovora na trajnom nosaču podataka korišćenjem sredstava komunikacije na daljinu (internet, elektronska pošta i sl.).
+Postupanje po prigovorima
+Član 83
+Pružalac usluga povezanih s digitalnom imovinom je dužan da uspostavi primerene procedure za adekvatno rešavanje prigovora korisnika digitalne imovine, na osnovu kojih korisnici mogu na jednostavan način i bez dodatnih troškova da podnesu svoje prigovore. Informacije o postupku podnošenja prigovora se objavljuju na internet prezentaciji pružaoca usluga povezanih s digitalnom imovinom.
+Pružalac usluga povezanih s digitalnom imovinom je dužan da na prigovore korisnika odgovori u razumnom roku koji ne može biti duži od 15 dana od dana prijema prigovora.
+Pružalac usluga povezanih s digitalnom imovinom je dužan da čuva dokumentaciju o svim prigovorima i merama koje su na osnovu njih preduzete, u skladu s članom 84. ovog zakona.
+Nadzorni organ može bliže urediti postupanje pružaoca usluga povezanih s digitalnom imovinom po prigovorima korisnika.
+Obaveza vođenja evidencije i izveštavanje pružaoca usluga povezanih s digitalnom imovinom
+Član 84
+Pružalac usluga povezanih s digitalnom imovinom dužan je da vodi u elektronskom obliku i čuva najmanje deset godina podatke koji se odnose na sve transakcije s digitalnom imovinom koje je izvršio, za sopstveni račun ili u ime i za račun korisnika digitalne imovine, a ako su transakcije izvršene u ime i za račun korisnika, ova evidencija sadrži sve podatke u vezi sa identitetom tog korisnika, kao i podatke propisane zakonom kojim se uređuje sprečavanje pranja novca i finansiranja terorizma.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da nadzornom organu omogući uvid u podatke iz stava 1. ovog člana.
+Podaci o privrednim subjektima koji su imaoci virtuelnih valuta
+Član 85
+Pružaoci usluga povezanih s virtuelnim valutama dužni su da Narodnoj banci Srbije dostavljaju sledeće podatke o pravnim licima i preduzetnicima koji su korisnici virtuelnih valuta:
+1) poslovno ime ili skraćeno poslovno ime korisnika virtuelnih valuta;
+2) adresu sedišta korisnika virtuelnih valuta, a za korisnika koji je strano pravno lice i naziv države;
+3) matični broj korisnika virtuelnih valuta, odnosno drugu odgovarajuću identifikacionu oznaku za korisnika virtuelnih valuta koji je strano pravno lice (npr. evidencioni broj koji određuje nadležni državni organ);
+4) poreski identifikacioni broj korisnika virtuelnih valuta;
+5) datum uspostavljanja i prestanka poslovnog odnosa s korisnikom virtuelnih valuta, kao i datum druge promene u vezi s tim poslovnim odnosom;
+6) vrstu usluge povezane s virtuelnim valutama koja je predmet poslovnog odnosa iz tačke 5) ovog stava;
+7) adresu virtuelnih valuta koju korisnik virtuelnih valuta koristi, odnosno koristio je za izvršenje transakcije s virtuelnim valutama, a ako koristi nekoliko adresa - sve adrese virtuelnih valuta;
+8) druge podatke koje propiše Narodna banka Srbije.
+Pružaoci usluga povezanih s virtuelnim valutama odgovaraju za tačnost i potpunost podataka iz stava 1. ovog člana.
+Imaoci virtuelnih valuta - pravna lica i preduzetnici sa sedištem u Republici koji nisu koristili usluge povezane s virtuelnim valutama kod pružaoca usluga povezanih s virtuelnim valutama dužni su da Narodnoj banci Srbije dostave izveštaje s podacima iz stava 1. tač. 1) do 4), 7) i 8) ovog člana i odgovaraju za tačnost i potpunost tih podataka.
+Narodna banka Srbije u elektronskom obliku vodi evidenciju podataka o imaocima virtuelnih valuta iz st. 1. i 3. ovog člana.
+Narodna banka Srbije odgovara za istovetnost podataka iz st. 1. i 3. ovog člana s podacima u evidenciji iz stava 4. ovog člana.
+Podaci iz evidencije iz stava 4. ovog člana nisu javno dostupni i na njih se primenjuju odredbe člana 87. ovog zakona.
+Narodna banka Srbije propisuje bliže uslove i način vođenja evidencije iz stava 4. ovog člana, način i rokove dostavljanja podataka koji se vode u toj evidenciji, kao i način ostvarivanja uvida u te podatke.
+Dužnosti i odgovornost pružaoca usluga povezanih s digitalnom imovinom, članova uprave, rukovodioca i zaposlenih
+Član 86
+Pružaoci usluga povezanih s digitalnom imovinom, članovi uprave, rukovodioci, prokuristi i zaposlena lica ili lica angažovana po bilo kom drugom osnovu u pružaocu usluga povezanih s digitalnom imovinom dužni su da:
+1) prilikom obavljanja delatnosti, odnosno poslova, u okviru svojih dužnosti postupaju savesno i pošteno, u skladu sa pravilima struke;
+2) postupaju u najboljem interesu korisnika digitalne imovine, odnosno učesnika u trgovanju, kao i da štite integritet tržišta digitalne imovine;
+3) uspostavljaju procese i efikasno koriste sredstva potrebna za uredno obavljanje delatnosti;
+4) preduzimaju sve razumne mere kako bi se izbegli sukobi interesa, a ako se ti sukobi ne mogu izbeći, osiguraju da se prema korisnicima digitalne imovine, odnosno učesnicima u trgovanju postupa pošteno;
+5) se pridržavaju odredaba ovog zakona i propisa donetih na osnovu ovog zakona, tako da rade u interesu korisnika digitalne imovine, odnosno učesnika u trgovanju, kao i integriteta tržišta digitalne imovine.
+Poslovna tajna
+Član 87
+Poslovnom tajnom smatraju se podaci do kojih je u toku poslovanja došao pružalac usluga povezanih s digitalnom imovinom, a odnose se na korisnika tih usluga, uključujući i podatke o njegovoj ličnosti, kao i podatke o transakciji s digitalnom imovinom, osim onih koji su učinjeni javno dostupnim.
+Pružalac usluga povezanih s digitalnom imovinom, članovi njegovih organa i lica zaposlena ili angažovana kod njega, kao i druga lica koja zbog prirode svog posla imaju pristup podacima iz stava 1. ovog člana (u daljem tekstu: obveznik čuvanja poslovne tajne) - ne mogu trećim licima saopštiti ili dostaviti ove podatke, niti im mogu omogućiti pristup tim podacima.
+Obaveza čuvanja poslovne tajne iz stava 1. ovog člana za obveznike čuvanja te tajne ne prestaje ni posle prestanka statusa na osnovu kog su ostvarili pristup podacima koji su predmet ove tajne.
+Izuzetno od stava 2. ovog člana, obveznik čuvanja poslovne tajne može trećim licima saopštiti ili dostaviti podatke iz stava 1. ovog člana, odnosno omogućiti pristup tim podacima:
+1) ako je lice na koje se ovi podaci odnose prethodno dalo pismeni pristanak;
+2) ako to zahteva nadzorni organ ili drugo regulatorno telo u Republici za potrebe vršenja nadzora ili radi obavljanja poslova iz ovog ili drugog zakona;
+3) na osnovu odluke ili zahteva nadležnog suda;
+4) za potrebe ministarstva nadležnog za unutrašnje poslove, organa nadležnog za borbu protiv organizovanog kriminala i organa nadležnog za sprečavanje pranja novca, u skladu s propisima;
+5) za potrebe poreske uprave;
+6) u vezi sa imovinskim postupkom, na osnovu zahteva staraoca imovine ili konzularnih predstavništava stranih država, posle podnošenja pismenih dokumenata kojima se dokazuje opravdani interes tih lica;
+7) na zahtev stranog regulatornog tela, u skladu sa zakonom;
+8) u vezi sa postupkom izvršenja ili obezbeđenja na imovini korisnika digitalne imovine, na osnovu zahteva suda, izvršitelja ili drugog nadležnog organa u tom postupku;
+9) ako je to u drugim slučajevima propisano ovim ili drugim zakonom.
+Pružalac usluga povezanih s digitalnom imovinom ima pravo da podatke iz stava 1. ovog člana saopšti, odnosno dostavi sudiji za prethodni postupak, javnom tužiocu i sudovima, odnosno drugim organima koji vrše javnopravna ovlašćenja - isključivo radi zaštite svojih prava, u skladu sa zakonom.
+Lica kojima su podaci iz stava 1. ovog člana učinjeni dostupnim u skladu sa st. 4. i 5. ovog člana te podatke mogu koristiti isključivo u svrhu za koju su pribavljeni i ne mogu ih dalje saopštavati ili dostavljati trećim licima niti tim licima omogućiti pristup tim podacima, osim u slučajevima utvrđenim zakonom.
+Odredbe stava 6. ovog člana primenjuju se i na lica koja su zaposlena ili angažovana, odnosno koja su bila zaposlena ili angažovana kod lica kojima su podaci iz stava 1. ovog člana učinjeni dostupnim u skladu sa st. 4. i 5. ovog člana, kao i druga lica kojima su zbog prirode njihovog posla ti podaci učinjeni dostupnim.
+Zaštita podataka o ličnosti
+Član 88
+Pružaoci usluga povezanih s digitalnom imovinom dužni su da pri prikupljanju i obradi podataka o ličnosti iz člana 87. stav 1. ovog zakona postupaju u skladu s zakonom kojim se uređuje zaštita podataka o ličnosti.
+Poslovne knjige i finansijski izveštaji
+Član 89
+Pružalac usluga povezanih s digitalnom imovinom dužan je da vođenje poslovnih knjiga, priznavanje i vrednovanje imovine i obaveza, prihoda i rashoda, sastavljanje, prikazivanje, dostavljanje i obelodanjivanje informacija iz finansijskih izveštaja, kao i internu reviziju, vrši u skladu sa zakonima kojima se uređuju računovodstvo i revizija, ako ovim zakonom nije drugačije propisano.
+Pružalac usluga povezanih s digitalnom imovinom koji pruža usluge povezane s virtuelnim valutama dužan je da odvojeno evidentira poslovne promene koje se odnose na usluge povezane s virtuelnim valutama u odnosu na usluge povezane s drugom digitalnom imovinom i u odnosu na sve druge delatnosti koje obavlja.
+Revizija finansijskih izveštaja
+Član 90
+Pružalac usluga povezanih s digitalnom imovinom dužan je da obezbedi reviziju svojih finansijskih izveštaja ako je na to obavezan u skladu sa zakonom kojim se uređuje revizija.
+Izuzetno od stava 1. ovog člana, ako je ukupna vrednost transakcija s digitalnom imovinom na godišnjem nivou veća od 220.000.000 dinara, pružalac usluga povezanih s digitalnom imovinom dužan je da obezbedi reviziju svojih finansijskih izveštaja.
+Spoljni revizor koji obavlja reviziju finansijskih izveštaja pružaoca usluga povezanih s digitalnom imovinom iz st. 1. i 2. ovog člana dužan je da nadzorni organ bez odlaganja obavesti o:
+1) svakoj činjenici koja bi mogla da predstavlja povredu zakona ili propisa koju je učinio ili čini pružalac usluga povezanih s digitalnom imovinom;
+2) materijalno značajnoj promeni finansijskog rezultata iskazanog u nerevidiranim godišnjim finansijskim izveštajima pružaoca usluga povezanih s digitalnom imovinom;
+3) okolnostima koje bi mogle dovesti do znatnog materijalnog gubitka za pružaoca usluga povezanih s digitalnom imovinom ili ugroziti kontinuitet njegovog poslovanja;
+4) rezervama datim u mišljenju spoljnog revizora na finansijske izveštaje pružaoca usluga povezanih s digitalnom imovinom.
+Spoljni revizor je dužan da nadzorni organ obavesti o činjenicama i okolnostima iz stava 3. ovog člana i ako do saznanja o njima dođe tokom vršenja revizije finansijskih izveštaja pravnog lica koje je blisko povezano s pružaocem usluga povezanih s digitalnom imovinom.
+Obaveštavanje iz st. 3. i 4. ovog člana ne smatra se povredom tajnosti podataka i spoljni revizor ne može zbog toga snositi odgovornost.
+Dostavljanje finansijskih izveštaja nadzornom organu
+Član 91
+Pružalac usluga povezanih s digitalnom imovinom dužan je da pojedinačne finansijske izveštaje za prethodnu godinu, sa izveštajem spoljnog revizora ako je dužan da obezbedi reviziju svojih finansijskih izveštaja u skladu sa članom 90. ovog zakona - dostavi nadzornom organu najkasnije u roku od 30 dana od dana dostavljanja finansijskih izveštaja u skladu sa zakonom kojim se uređuje računovodstvo.
+Ako je dužan da sastavlja konsolidovane finansijske izveštaje, pružalac usluga povezanih s digitalnom imovinom dostavlja nadzornom organu i konsolidovane finansijske izveštaje za prethodnu godinu, sa izveštajem spoljnog revizora, najkasnije u roku od 30 dana od dana dostavljanja konsolidovanih finansijskih izveštaja u skladu sa zakonom kojim se uređuje računovodstvo.
+Sistem upravljanja i sistem unutrašnjih kontrola
+Član 92
+Pružalac usluga povezanih s digitalnom imovinom dužan je da uspostavi, održava i unapređuje pouzdane, efikasne i sveobuhvatne sisteme upravljanja i unutrašnjih kontrola koji obezbeđuju odgovorno i pouzdano upravljanje tim pružaocem usluga povezanih s digitalnom imovinom.
+Sistem upravljanja i sistem unutrašnjih kontrola iz stava 1. ovog člana naročito obuhvataju:
+1) organizacionu strukturu s precizno i jasno utvrđenim, transparentnim i doslednim podelama i razgraničenjima poslova, kao i dužnostima i odgovornostima koje se odnose na pružanje usluga povezanih s digitalnom imovinom;
+2) efektivne i efikasne procedure za identifikovanje, merenje i praćenje rizika kojima je pružalac usluga povezanih s digitalnom imovinom izložen ili bi mogao da bude izložen, posebno rizika od pranja novca i finansiranja terorizma, kao i za upravljanje ovim rizicima, odnosno izveštavanje o tim rizicima;
+3) odgovarajuće računovodstvene procedure i procedure za ocenu usklađenosti s propisima kojima se uređuju sprečavanje pranja novca i finansiranja terorizma, kao i druge procedure.
+Nadzorni organ može bliže propisati način i uslove uspostavljanja, održavanja i unapređenja sistema iz stava 1. ovog člana.
+Poveravanje operativnih poslova pružaoca usluga povezanih s digitalnom imovinom trećem licu
+Član 93
+Pružalac usluga povezanih s digitalnom imovinom može poveriti obavljanje pojedinih operativnih poslova povezanih s pružanjem usluga povezanih s digitalnom imovinom trećem licu.
+Pružalac usluga povezanih s digitalnom imovinom koji namerava da poveri obavljanje pojedinih operativnih poslova povezanih s pružanjem usluga povezanih s digitalnom imovinom trećem licu - dužan je da o tome prethodno obavesti nadzorni organ, najkasnije 30 dana pre dana nameravanog poveravanja.
+Pružalac usluga povezanih s digitalnom imovinom odgovara za zakonito poslovanje lica kome je poverio obavljanje pojedinih operativnih poslova.
+Poslovi pružaoca usluga povezanih s digitalnom imovinom ne mogu se poveriti trećem licu ako bi to poveravanje narušilo kvalitet unutrašnjih kontrola tog pružaoca ili bi moglo znatno ugroziti zakonitost poslovanja tog pružaoca, njegovo finansijsko stanje ili stabilnost.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da nadzornom organu obezbedi, u okviru svojih mogućnosti, vršenje nadzora nad licem kome je poverio obavljanje pojedinih operativnih poslova, kao i da mu obezbedi uvid u poslovne knjige i drugu dokumentaciju i podatke nastale u vezi sa obavljanjem ovih poslova, a kojima to lice raspolaže.
+Pružanje usluga povezanih s digitalnom imovinom u stranoj državi
+Član 94
+Pružalac usluga povezanih s digitalnom imovinom može pružati usluge povezane s digitalnom imovinom u stranoj državi ili preko ogranka ili neposredno, u skladu s propisima te države i odredbama ovog člana.
+Radi osnivanja ogranka u stranoj državi ili neposrednog pružanja usluga povezanih s digitalnom imovinom u stranoj državi, pružalac usluga povezanih s digitalnom imovinom podnosi nadzornom organu zahtev za davanje saglasnosti.
+Uz zahtev iz stava 2. ovog člana, pružalac usluga povezanih s digitalnom imovinom dostavlja i sledeće podatke i dokumentaciju:
+1) naziv i adresu ogranka, ako osniva ogranak u stranoj državi;
+2) opis organizacione strukture ogranka, ako osniva ogranak u stranoj državi;
+3) poslovni plan ogranka, odnosno plan neposrednog pružanja usluga povezanih s digitalnom imovinom u stranoj državi za prve tri poslovne godine sa opisom usluga povezanih s digitalnom imovinom koje namerava da pruža u stranoj državi, uključujući i broj i vrstu očekivanih korisnika digitalne imovine, kao i očekivani obim i iznos transakcija s digitalnom imovinom, i to za svaku vrstu usluga povezanih s digitalnom imovinom koju namerava da pruža u stranoj državi;
+4) podatke o licima koja će rukovoditi poslovima ogranka, odnosno neposrednim pružanjem usluga povezanih s digitalnom imovinom u stranoj državi, s podacima i dokazima da ta lica imaju dobru poslovnu reputaciju u skladu s članom 60. ovog zakona;
+5) dokaz da su propisi strane države u kojoj osniva ogranak, odnosno neposredno pruža usluge povezane s digitalnom imovinom, usklađeni sa međunarodnim standardima u oblasti sprečavanja pranja novca i finansiranja terorizma, naročito u oblasti koja se odnosi na digitalnu imovinu i obaveze pružalaca usluga povezanih s digitalnom imovinom;
+6) dokaz da ne postoje smetnje da nadzorni organ sprovodi nadzor nad poslovanjem ogranka u stranoj državi u kojoj osniva ogranak, odnosno neposrednim pružanjem usluga povezanih s digitalnom imovinom u određenoj stranoj državi.
+O zahtevu iz stava 2. ovog člana nadzorni organ odlučuje u roku od 60 dana od dana prijema urednog zahteva.
+Ako je zahtev iz stava 2. ovog člana neuredan, nadzorni organ u roku od 10 dana od dana prijema tog zahteva obaveštava pružaoca usluga povezanih s digitalnom imovinom na koji način da uredi taj zahtev, u kom slučaju rok iz stava 4. ovog člana počinje da teče od dana kada je podnet uredan zahtev u skladu sa obaveštenjem iz ovog stava.
+Nadzorni organ propisuje bliže uslove i način davanja i oduzimanja saglasnosti iz stava 2. ovog člana.
+Poslovanje u skladu s propisanim zahtevima
+Član 95
+Pružalac usluga povezanih s digitalnom imovinom dužan je da u svakom trenutku posluje u skladu sa organizacionim, kadrovskim, tehničkim i drugim zahtevima utvrđenim ovim zakonom i drugim propisima.
+Pružanje usluga povezanih sa finansijskim leveridžom
+Član 96
+Pružalac usluga povezanih s digitalnom imovinom koji ima dozvolu za pružanje usluga povezanih s digitalnom imovinom iz člana 3. stav 1. tač. 1), 8) ili 9) ovog zakona može svojim korisnicima da pozajmljuje novčana sredstva ili digitalnu imovinu isključivo radi finansijskog leveridža za trgovanje digitalnom imovinom, u skladu sa ugovorom s tim korisnikom.
+Pozajmljivanje novčanih sredstava i digitalne imovine iz stava 1. ovog člana pružalac usluga povezanih s digitalnom imovinom može da vrši isključivo iz svoje imovine, ne i iz imovine korisnika.
+Nadzorni organ može da propiše uslove i ograničenja u vezi sa pružanjem usluga povezanih s finansijskim leveridžom.
+Finansijski leveridž je svaka metoda pomoću koje korisnik digitalne imovine može da povećava izloženost digitalnoj imovini namenjenoj trgovanju, bilo pozajmljivanjem novčanih sredstava ili digitalne imovine, bilo zauzimanjem pozicija sa finansijskom imovinom ili derivatima u koje je ugrađen finansijski leveridž, ili na drugi način od pružaoca usluga povezanih s digitalnom imovinom.
+Pružalac usluga povezanih s digitalnom imovinom koji ima dozvolu za pružanje usluge povezane s digitalnom imovinom iz člana 3. stav 1. tačka 1) ovog zakona koji namerava da svojim korisnicima pozajmljuje novčana sredstva i digitalnu imovinu iz stava 1. ovog člana, dužan je da prethodno poveća svoj minimalni kapital do iznosa iz člana 54. stav 1. tačka 2) ovog zakona i da dokaz o tome dostavi nadzornom organu, kao i da održava taj iznos kapitala u skladu s članom 54. ovog zakona.
+Prihvatanje/prenos digitalne imovine
+Član 97
+Prihvatanje digitalne imovine u zamenu za prodatu robu i/ili pružene usluge u trgovini na malo može se vršiti isključivo preko pružaoca usluga povezanih s digitalnom imovinom koji ima dozvolu za pružanje usluge povezane s digitalnom imovinom iz člana 3. stav 1. tačka 7) ovog zakona.
+Pružalac usluge povezane s digitalnom imovinom iz stava 1. ovog člana od potrošača prihvata odgovarajuću vrednost digitalne imovine, koja odgovara ceni prodate robe i/ili pruženih usluga tom potrošaču, zamenjuje je za odgovarajući iznos zakonskog sredstva plaćanja i prenosi taj iznos na odgovarajući račun trgovca.
+Prihvatanje i/ili prenos digitalne imovine neposredno sa potrošača na trgovca je zabranjen.
+VI ZALOŽNO I FIDUCIJARNO PRAVO NA DIGITALNOJ IMOVINI
+Ugovor o zalozi
+Član 98
+Ugovorom o zalozi na digitalnoj imovini obavezuje se zalogodavac prema poveriocu (u daljem tekstu: založni poverilac) da mu pruži obezbeđenje za njegovo potraživanje prema zalogodavcu ili trećem licu tako što će se poveriočevo pravo zaloge na digitalnoj imovini zalogodavca uspostaviti u skladu sa ovim zakonom.
+Ugovor o zalozi na digitalnoj imovini sadrži naročito:
+1) datum zaključenja tog ugovora;
+2) podatke o poveriocu, zalogodavcu i dužniku, ako dužnik i zalogodavac nisu isto lice, i to:
+(1) ime i prezime, odnosno poslovno ime ili naziv tih lica,
+(2) adresu prebivališta, odnosno sedišta tih lica,
+(3) matični broj i poreski identifikacioni broj, ako postoji, tih lica;
+3) vrstu i količinu digitalne imovine koja je predmet založnog prava;
+4) podatke o potraživanju koje se obezbeđuje;
+5) način uspostavljanja zaloge.
+Ugovor o zalozi na digitalnoj imovini može biti poseban ugovor ili sastavni deo okvirnog ili drugog ugovora između poverioca i dužnika.
+Ugovor o zalozi, u smislu ovog člana, može se izvršiti i korišćenjem pametnog ugovora.
+Ugovor o zalozi na digitalnoj imovini zaključuje se u papirnom ili elektronskom obliku, odnosno na trajnom nosaču podataka koji omogućava čuvanje i reprodukovanje izvornih podataka u neizmenjenom obliku.
+Nadzorni organ može da propiše dodatne elemente koje mora da sadrži ugovor o zalozi na digitalnoj imovini, kao i posebna pravila kojima se uređuje izvršavanje ugovora o zalozi na digitalnoj imovini korišćenjem pametnog ugovora.
+Sticanje založnog prava
+Član 99
+Založno pravo se stiče upisom u registar založnog prava koji vodi pružalac usluga povezanih s digitalnom imovinom koji ima dozvolu nadzornog organa za vođenje registra založnog prava na digitalnoj imovini, kao i za čuvanje i administriranje digitalne imovine za račun korisnika i sa tim povezane usluge.
+Uslov za upis založnog prava na digitalnoj imovini u registar založnog prava jeste da je digitalna imovina koja je predmet založnog prava prethodno poverena na čuvanje i administriranje pružaocu usluga povezanih sa digitalnom imovinom koji ima dozvolu za vođenje registra založnog prava na digitalnoj imovini.
+Pružalac usluga povezanih s digitalnom imovinom koji vodi registar založnog prava na digitalnoj imovini u koji se upisuje založno pravo je dužan da u isto vreme sa upisom založnog prava onemogući dalje raspolaganje založenom digitalnom imovinom, kao i da obezbedi da založenom digitalnom imovinom nije moguće raspolagati sve do namirenja obezbeđenog potraživanja, odnosno brisanja založnog prava.
+Izuzetno od stava 3. ovog člana, ugovorom o zalozi na digitalnoj imovini može se utvrditi da će raspolaganje založenom digitalnom imovinom biti dozvoljeno. U tom slučaju, založenu digitalnu imovinu čuva pružalac usluga povezanih s digitalnom imovinom koji vodi registar založnog prava u koji je upisano založno pravo na toj digitalnoj imovini, i to do namirenja obezbeđenog potraživanja, odnosno brisanja založnog prava na toj digitalnoj imovini, u skladu sa ugovorom o zalozi na toj digitalnoj imovini.
+Ako je zalogodavac založio digitalnu imovinu na kojoj nema pravo svojine ili ako zaloga nije punovažna iz drugih razloga, upis u registar založnog prava ne proizvodi pravno dejstvo.
+Upis založnog prava u registar založnog prava mogu tražiti poverilac ili zalogodavac.
+Ako upis traži poverilac, potrebna je izričita izjava zalogodavca da pristaje da poverilac upiše založno pravo u registar založnog prava.
+Pravno dejstvo založnog prava
+Član 100
+Poverilac čije je založno pravo upisano u registar založnog prava može se naplatiti iz vrednosti predmeta založnog prava pre ostalih poverilaca, ako mu njegovo potraživanje ne bude isplaćeno u celosti.
+Potraživanje koje se obezbeđuje
+Član 101
+Založnim pravom može se obezbediti novčano potraživanje u domaćoj ili stranoj valuti u skladu sa zakonom, kao i nenovčano potraživanje izraženo u digitalnoj imovini.
+Založnim pravom obezbeđuje se određen iznos glavnog potraživanja, dužna kamata i troškovi ostvarenja naplate potraživanja.
+Založnim pravom mogu se obezbediti i buduća, kao i uslovna potraživanja.
+Pravno dejstvo u stečaju
+Član 102
+U slučaju stečajnog postupka nad imovinom zalogodavca, na namirenje iz vrednosti predmeta založnog prava primenjuju se pravila zakona kojim se uređuje stečaj, osim ako nije drugačije propisano ovim zakonom.
+Založni poverilac
+Član 103
+Založni poverilac je, u smislu zakona kojim se uređuje stečaj, razlučni poverilac koji je stekao založno pravo u skladu sa ovim zakonom.
+Određivanje ovlašćenog lica
+Član 104
+Ugovorom o zalozi na digitalnoj imovini ili posebnim punomoćjem založni poverilac ili više njih mogu ovlastiti treće lice da preduzima pravne radnje radi zaštite i namirenja obezbeđenog potraživanja (u daljem tekstu: ovlašćeno lice).
+Ovlašćeno lice u odnosu na zalogodavca ima prava založnog poverioca.
+Za odricanje od založnog prava ovlašćeno lice mora imati posebno ovlašćenje.
+Pri upisu založnog prava u registar založnog prava upisuju se podaci o ovlašćenom licu umesto podataka o založnom poveriocu.
+Ako ima više založnih poverilaca oni mogu na način iz stava 1. ovog člana odrediti jednog od njih da obavlja poslove ovlašćenog lica.
+Zalogodavac
+Član 105
+Zalogodavac, u smislu ovog zakona, je lice koje ima pravo svojine na digitalnoj imovini ili svojstvo imaoca digitalne imovine kojom može slobodno raspolagati.
+Zalogodavac može biti dužnik ili treće lice.
+Pravo korišćenja založene digitalne imovine
+Član 106
+Zalogodavac ima pravo da upotrebljava založenu digitalnu imovinu u skladu sa njenom uobičajenom namenom, kao i da, ako digitalna imovina koja je predmet založnog prava daje plodove, pribira te plodove.
+Ugovorom o zalozi na digitalnoj imovini može se utvrditi da založni poverilac ima prava iz stava 1. ovog člana.
+Pravo na upotrebu založene digitalne imovine može se ugovorom o zalozi na digitalnoj imovini proširiti ili ograničiti.
+Ponovno zalaganje
+Član 107
+Zalogodavac može da založi digitalnu imovinu na kojoj je već uspostavljeno založno pravo, ako ugovorom o zalozi na digitalnoj imovini nije drugačije utvrđeno.
+Posebne ugovorne odredbe o namirenju
+Član 108
+Ugovorom o zalozi na digitalnoj imovini može se utvrditi da založni poverilac ima pravo da u trenutku dospelosti potraživanja, pod uslovom da založena digitalna imovina ima tržišnu cenu, po toj tržišnoj ceni digitalnu imovinu zadrži za sebe.
+Založni poverilac i zalogodavac se mogu sporazumeti da će poverilac moći da predmet založnog prava po određenoj ceni zadrži za sebe u trenutku dospelosti potraživanja.
+Redosled založnih prava
+Član 109
+Založni poverilac ima pravo da iz cene postignute prodajom predmeta založnog prava naplati svoje potraživanje pre ostalih poverilaca zalogodavca, osim ako nije drugačije određeno ovim zakonom. 
+Ako je isti predmet založnog prava, u skladu sa ovim zakonom, založen većem broju poverilaca, redosled isplate njihovih potraživanja iz vrednosti tog predmeta određuje se prema vremenu (dan, čas i minut) prijema zahteva za upis založnog prava u registar založnih prava.
+Utvrđivanje reda prvenstva za obezbeđenje potraživanja po osnovu javnih prihoda ili drugih potraživanja Republike, autonomne pokrajine i jedinice lokalne samouprave vrši se na način predviđen stavom 2. ovog člana.
+Namirenje
+Član 110
+U trenutku dospelosti, založni poverilac stiče pravo da iz vrednosti predmeta založnog prava namiri svoje glavno potraživanje, kamatu i troškove oko ostvarenja naplate potraživanja.
+Višak vrednosti iznad iznosa potraživanja dobijen nakon namirenja iz predmeta založnog prava založni poverilac je dužan isplatiti zalogodavcu narednog radnog dana, u suprotnom plaća zalogodavcu propisanu zateznu kamatu za period od dana namirenja do dana isplate viška vrednosti.
+Dužnost saradnje
+Član 111
+Zalogodavac je dužan da sarađuje sa založnim poveriocem u postupku namirenja poveriočevog potraživanja iz predmeta založnog prava.
+Zalogodavac je dužan da založnom poveriocu pruži obaveštenja radi sprovođenja namirenja.
+Obaveze zalogodavca iz st. 1. i 2. ovog člana ima i dužnik, kada to nije isto lice.
+Ako povredi neku od obaveza iz ovog člana zalogodavac, odnosno dužnik kada to nije isto lice, dužan je da naknadi štetu koju trpi založni poverilac.
+Dužnosti zalogodavca
+Član 112
+Zalogodavac je dužan da trpi da se založni poverilac namiri iz vrednosti predmeta založnog prava.
+Do okončanja namirenja, zalogodavac je dužan da se uzdržava od radnji kojima se može smanjiti vrednost predmeta založnog prava.
+Zalogodavac je dužan da preduzme i druge radnje koje su neophodne da bi založni poverilac mogao da namiri svoje potraživanje.
+Ako povredi neku od obaveza iz ovog člana, zalogodavac je dužan da naknadi štetu koju trpi založni poverilac.
+Vansudska prodaja predmeta založnog prava
+Član 113
+Založni poverilac može pristupiti vansudskoj prodaji predmeta založnog prava po dospelosti obezbeđenog potraživanja.
+Potvrda iz registra založnog prava na digitalnoj imovini daje ovlašćenje založnom poveriocu da u ime i za račun zalogodavca zaključi ugovor o prodaji digitalne imovine u postupku namirenja.
+Dužnik može punovažno ispuniti dug u bilo koje vreme pre prodaje založene digitalne imovine.
+U roku iz stava 3. ovog člana zalogodavac može, iako nije dužan, ispuniti obavezu dužnika.
+Vansudska prodaja predmeta založnog prava, u smislu ovog zakona, obuhvata i javnu prodaju putem nadmetanja.
+Sticanje prava svojine na vansudskoj javnoj prodaji i drugim vrstama prodaje
+Član 114
+Savesno lice koje kupi predmet založnog prava na vansudskoj javnoj prodaji, stiče pravo svojine na tom predmetu bez tereta.
+Pravo svojine koje je savesni kupac stekao ne može se osporavati zbog eventualnih propusta u postupku prodaje.
+Odredbe st. 1. i 2. ovog člana primenjuju se i na druge vrste vansudskih prodaja u postupku namirenja, ako je lice kupilo predmet založnog prava po tržišnoj ceni ili po ceni po kojoj bi ga prodao razuman i pažljiv čovek, čuvajući interese dužnika i zalogodavca.
+Namirenje iz predmeta založnog prava posle zastarelosti
+Član 115
+Založni poverilac se može namiriti iz vrednosti založene digitalne imovine i posle zastarelosti njegovog potraživanja.
+Prestanak založnog prava
+Član 116
+Ako potraživanje založnog poverioca prestane isplatom duga ili na drugi način, založno pravo prestaje i briše se iz registra založnog prava na digitalnoj imovini na zahtev založnog poverioca, dužnika ili zalogodavca, kada to nije isto lice.
+Založno pravo prestaje i briše se iz registra založnog prava na digitalnoj imovini ako digitalna imovina prestane da postoji.
+Založno pravo prestaje na osnovu javne prodaje i druge prodaje založene digitalne imovine, izvršene radi namirenja potraživanja založnog poverioca.
+Brisanje založnog prava iz registra založnog prava na digitalnoj imovini može se tražiti i kada se založni poverilac odrekne založnog prava u pismenoj formi, kada se svojstvo založnog poverioca stekne u istom licu sa svojstvom dužnika, kao i kada založni poverilac stekne pravo svojine na založenoj digitalnoj imovini.
+Ako dužnik ili zalogodavac, kad to nije isto lice, traži brisanje založnog prava, dužan je da podnese registru založnog prava na digitalnoj imovini pismenu izjavu založnog poverioca da pristaje na brisanje, sudsku odluku ili drugi odgovarajući dokument iz kojeg proističe da je založno pravo prestalo.
+Registar založnog prava na digitalnoj imovini
+Član 117
+Registar založnog prava na digitalnoj imovini je registar koji vodi pružalac usluga povezanih s digitalnom imovinom koji za to ima dozvolu nadzornog organa, a u koji se, u skladu sa ovim zakonom, upisuju založna prava na digitalnoj imovini.
+Nadzorni organ na svojoj internet prezentaciji objavljuje spisak svih pružalaca usluga povezanih s digitalnom imovinom koji vode registar založnog prava na digitalnoj imovini iz stava 1. ovog člana.
+Registar založnog prava na digitalnoj imovini dostupan je svim licima bez obzira na mesto i teritoriju s koje pristupaju tom registru. Sva lica se mogu obratiti bilo kom pružaocu usluga povezanih s digitalnom imovinom koji vodi registar založnog prava na digitalnoj imovini, radi pretraživanja.
+Podaci iz registra založnog prava na digitalnoj imovini su javni i besplatno dostupni na internet prezentaciji pružaoca usluga povezanih s digitalnom imovinom koji vodi registar založnog prava na digitalnoj imovini.
+Registar založnog prava na digitalnoj imovini se mora voditi ažurno.
+Upis podataka u registar založnog prava na digitalnoj imovini nije dokaz o postojanju svojinskih i drugih prava zalogodavca na založenoj digitalnoj imovini, niti da je obezbeđeno potraživanje ili zalaganje punovažno.
+Više pružalaca usluga povezanih s digitalnom imovinom koji vode registar založnog prava na digitalnoj imovini mogu da zaključe sporazum o uspostavljanju zajedničkog registra založnog prava na digitalnoj imovini.
+Član 118
+Registar založnog prava na digitalnoj imovini sadrži:
+1) podatke o zalogodavcu i dužniku, kada to nisu ista lica, kao i podatke o založnom poveriocu ili ovlašćenom licu;
+2) podatke kojima se bliže određuje digitalna imovina koja je predmet založnog prava;
+3) podatke o iznosu obezbeđenog potraživanja, odnosno podatke o najvišem iznosu budućih ili uslovnih potraživanja;
+4) podatke o postojanju spora o založnom pravu ili u vezi sa predmetom zaloge.
+Ako je subjekt založnog prava domaće fizičko lice, podaci iz stava 1. tačka 1) ovog člana odnose se na ime, prezime, jedinstveni matični broj i mesto u kome to lice ima prebivalište, a ako je subjekt založnog prava strano fizičko lice podaci iz stava 1. tačka 1) ovog člana odnose se na ime, prezime, broj pasoša i zemlju izdavanja pasoša.
+Ako je subjekt založnog prava domaće pravno lice podaci iz stava 1. tačka 1) ovog člana odnose se na poslovno ime i matični broj, a ako je subjekt založnog prava strano pravno lice podaci iz stava 1. tačka 1) ovog člana odnose se na poslovno ime, oznaku pod kojom se to pravno lice vodi u stranom registru privrednih subjekata, naziv tog registra i naziv države u kojoj se nalazi njegovo sedište. 
+U registar založnog prava na digitalnoj imovini se upisuju i sve promene podataka iz stava 1. ovog člana.
+Izmene i dopune koje se odnose na bitne elemente upisanog založnog prava imaju karakter novog upisa.
+Pružalac usluga povezanih s digitalnom imovinom koji vodi registar založnog prava na digitalnoj imovini je dužan da vodi evidenciju o vremenu (dan, čas i minut) prijema zahteva za upis založnog prava u registar založnih prava.
+Zabeležba spora
+Član 119
+U registar zaloge upisuju se zabeležba spora po tužbi za brisanje založnog prava ili drugog spora u vezi sa založnim pravom.
+Za brisanje zabeležbe spora prilaže se pravosnažna odluka suda ili poravnanje kojim je predmetni spor okončan.
+Nadzorni organ može propisati i druge slučajeve u kojima dolazi do brisanja zabeležbe spora.
+Čuvanje dokumentacija iz registra založnog prava na digitalnoj imovini
+Član 120
+Pružalac usluga povezanih s digitalnom imovinom dužan je da čuva dokumentaciju na osnovu koje je izvršen upis podataka u registar založnog prava na digitalnoj imovini, odnosno na osnovu koje je založno pravo brisano, i to pet godina od dana prestanka založnog prava.
+Dokumentacija iz stava 1. ovog člana u papirnoj formi prevodi se u elektronsku formu i čuva u skladu sa propisima kojima se uređuje čuvanje elektronskih dokumenata.
+Fiducija na digitalnoj imovini
+Član 121
+Ugovorom o fiduciji digitalne imovine obavezuje se fiducijarni dužnik (u daljem tekstu: fiducijant) prema fiducijarnom poveriocu (u daljem tekstu: fiducijar) da na njega, u svrhu obezbeđenja potraživanja, prenese pravo svojine na digitalnoj imovini, a fiducijar se obavezuje da, u skladu sa tim ugovorom, primljena ili ekvivalentna sredstva obezbeđenja vrati fiducijantu po izvršenju obezbeđenog potraživanja, odnosno istovremeno s tim izvršenjem.
+Fiducijar, ako nije drugačije ugovoreno, ima pravo da koristi digitalnu imovinu koja je predmet ugovora o fiduciji iz stava 1. ovog člana i da njome raspolaže, uključujući i pravo na njeno otuđenje.
+Fiducijant može biti i treće lice koje pruža obezbeđenje za tuđi dug.
+Ugovor o fiduciji digitalne imovine može se, osim u svrhu obezbeđenja potraživanja u skladu sa stavom 1. ovog člana, zaključiti i u drugu svrhu koja u tom slučaju mora biti definisana samim ugovorom o fiduciji digitalne imovine.
+Nadzorni organ bliže uređuje fiduciju na digitalnoj imovini i propisuje bliže uslove i obaveznu sadržinu ugovora o fiduciji digitalne imovine.
+Ako je to propisano pravilima poslovanja pružaoca usluga povezanih s digitalnom imovinom i ako je to utvrđeno u ugovoru o fiduciji digitalne imovine, na fiduciju digitalne imovine se mogu shodno primeniti odredbe ovog zakona koje se odnose na založno pravo na digitalnoj imovini.
+Položaj fiducijanta u stečaju
+Član 122
+Ukoliko je ugovor o fiduciji zaključen u svrhu obezbeđenja potraživanja u skladu sa članom 121. stav 1. ovog zakona fiducijant će, u smislu zakona kojim se uređuje stečajni postupak, imati položaj razlučnog poverioca.
+Ukoliko je ugovor o fiduciji zaključen u bilo koju svrhu osim obezbeđenja potraživanja, u skladu sa članom 121. stav 4. ovog zakona, fiducijant će, u smislu zakona kojim se uređuje stečajni postupak, imati položaj izlučnog poverioca.
+VII NADZOR
+Predmet nadzora
+Član 123
+Nadzor nad poslovanjem pružalaca usluga povezanih s digitalnom imovinom, izdavalaca digitalne imovine, kao i lica koja jesu ili su bila imaoci digitalne imovine, vrši nadzorni organ, u skladu sa svojim nadležnostima utvrđenim ovim i drugim zakonima.
+Nadzorni organ vrši nadzor u svakom delu poslovanja izdavaoca i imaoca digitalne imovine iz stava 1. ovog člana koji je posredno i/ili neposredno u vezi sa digitalnom imovinom, kao i u svakom delu poslovanja pružaoca usluga povezanih s digitalnom imovinom, i može tim izdavaocima, imaocima digitalne imovine, odnosno pružaocima usluga povezanih s digitalnom imovinom, samostalno izricati mere iz svoje nadležnosti u skladu sa ovim i drugim zakonima.
+Predmet nadzora je provera usklađenosti poslovanja pružalaca usluga povezanih s digitalnom imovinom, izdavalaca i lica koja jesu ili su bila imaoci digitalne imovine (u daljem tekstu: subjekt nadzora) sa ovim zakonom i propisima donetim na osnovu ovog zakona.
+Predmet nadzora je i provera usklađenosti poslovanja pružalaca usluga povezanih s digitalnom imovinom i izdavalaca sa zakonom i drugim propisima kojima se uređuje sprečavanje pranja novca i finansiranja terorizma, zakonom kojim se uređuje ograničavanje raspolaganja imovinom u cilju sprečavanja terorizma i širenja oružja za masovno uništenje, propisima kojima se uređuje devizno poslovanje, propisima kojima se uređuje računovodstvo, propisima kojima se uređuje upravljanje informacionim sistemom i drugim odgovarajućim propisima.
+Nadzorni organ može propisom utvrditi obavezu pružalaca usluga povezanih s digitalnom imovinom da plaćaju naknadu za vršenje nadzora iz ovog člana, kao i način obračuna, rokove plaćanja i druga pitanja u vezi sa ovom naknadom.
+Način vršenja nadzora
+Član 124
+Nadzorni organ nadzor vrši:
+1) posredno - prikupljanjem i analizom izveštaja i druge dokumentacije i podataka koje subjekt nadzora dostavlja nadzornom organu u skladu sa ovim zakonom, kao i druge dokumentacije, odnosno drugih podataka o poslovanju subjekta nadzora kojima nadzorni organ raspolaže;
+2) neposredno - uvidom u poslovne knjige i drugu dokumentaciju i podatke subjekta nadzora.
+Nadzorni organ može u toku vršenja nadzora, na način utvrđen u stavu 1. ovog člana, izvršiti nadzor i kod lica kome je subjekt nadzora poverio obavljanje pojedinih operativnih poslova u skladu sa ovim zakonom, kao i kod drugih lica koja su sa subjektom nadzora povezana imovinskim, upravljačkim i poslovnim odnosima.
+Lica kod kojih se vrši nadzor iz ovog člana dužna su da ovlašćenim licima nadzornog organa omoguće nesmetano vršenje nadzora i da sarađuju s njima.
+Dostavljanjem subjektu nadzora rešenja, zapisnika i drugih akata, kao i obaveštenja, zahteva i drugih pismena nadzornog organa koji su povezani s nadzorom - smatra se da su oni dostavljeni i članovima uprave i rukovodiocima subjekta nadzora i ne može se dokazivati suprotno.
+Nadzorni organ bliže propisuje uslove i način vršenja nadzora shodno svojim zakonskim nadležnostima, a može propisati i obavezu subjekata nadzora da obezbede uslove za prijem rešenja, zapisnika i drugih akata, obaveštenja, zahteva i pismena nadzornog organa u obliku elektronskih dokumenata.
+Podaci i dokumentacija koji se dostavljaju nadzornom organu
+Član 125
+Radi vršenja nadzora nad njegovim poslovanjem, subjekt nadzora i lica iz člana 124. stav 2. ovog zakona dužni su da, na zahtev nadzornog organa, dostave sve tražene podatke i dokumentaciju u roku koji je utvrđen u tom zahtevu.
+Ako su podaci i dokumentacija iz stava 1. ovog člana sačinjeni na jeziku koji nije srpski, nadzorni organ može zahtevati od subjekta nadzora, odnosno lica iz tog stava da o njihovom trošku obezbede prevod tih podataka i dokumentacije na srpski jezik.
+Nadzorni organ prikuplja, obrađuje i analizira podatke povezane s pružanjem usluga povezanih s digitalnom imovinom koje mu u statističke svrhe i radi obavljanja nadzora dostavljaju pružaoci tih usluga.
+Nadzorni organ bliže propisuje sadržinu, rokove i način dostavljanja podataka iz stava 3. ovog člana.
+Tajnost podataka u vršenju nadzora
+Član 126
+Podaci koje zaposleni u nadzornom organu i ovlašćena i druga angažovana lica iz člana 128. ovog zakona na bilo koji način saznaju, a odnose se na nadzor nad poslovanjem subjekta nadzora, kao i dokumenti koji sadrže takve podatke, uključujući i mere iz člana 132. stav 1. tač. 1) do 3) ovog zakona - određuju se i štite kao tajni podaci sa oznakom stepena tajnosti &quot;POVERLJIVO&quot; ili &quot;INTERNO&quot;, u skladu sa zakonom kojim se uređuje tajnost podataka.
+Lica iz stava 1. ovog člana dužna su da čuvaju podatke i dokumente iz tog stava kao tajne podatke, odnosno ne mogu ih učiniti dostupnim trećim licima, osim u slučajevima propisanim zakonom.
+Obaveza čuvanja tajnosti podataka za lica iz stava 1. ovog člana ne prestaje ni nakon prestanka radnog odnosa, odnosno angažovanja u nadzornom organu kao ni nakon prestanka drugog svojstva na osnovu kog su ta lica ostvarila pristup podacima iz tog stava.
+Izuzetno od stava 2. ovog člana, nadzorni organ može podatke i dokumente iz stava 1. ovog člana učiniti dostupnim domaćim i stranim nadzornim organima, pod uslovom da ih ti organi koriste isključivo u svrhe za koje su pribavljeni.
+Objavljivanje podataka iz stava 1. ovog člana izraženih u zbirnom obliku, tako da se na osnovu njih ne može utvrditi identitet subjekta nadzora, odnosno fizičkih i pravnih lica - ne smatra se povredom obaveze čuvanja tajnosti podataka.
+Saradnja nadzornog organa s drugim nadležnim organima
+Član 127
+Nadzorni organ i drugi nadležni organi u Republici sarađuju i razmenjuju podatke radi vršenja i unapređenja nadzora, odlučivanja u upravnim postupcima i obavljanja drugih poslova utvrđenih ovim zakonom.
+Narodna banka Srbije i Komisija sporazumom bliže uređuju način saradnje i razmene podataka radi vršenja i unapređenja nadzora, odlučivanja u upravnim postupcima i obavljanja drugih poslova utvrđenih ovim zakonom.
+Nadzorni organ ima pravo da u svakom trenutku od nadležnog organa koji vodi evidenciju o osuđivanosti za kaznena dela zahteva podatke o osuđivanosti lica, njegovih saradnika, kao i stvarnog vlasnika tog lica u smislu zakona kojim se uređuje sprečavanje pranja novca i finansiranja terorizma, na koje se odnose zahtevi i obaveštenja koji se nadzornom organu dostavljaju u skladu sa ovim zakonom, odnosno čija je poslovna reputacija značajna za postupanje i odlučivanje po tim zahtevima, odnosno obaveštenjima.
+Nadzorni organ sarađuje s nadležnim organima stranih država i može s njima u svrhe iz stava 1. ovog člana razmenjivati podatke koji se odnose na nadzor nad subjektima nadzora i neovlašćeno pružanje usluga povezanih s digitalnom imovinom, u skladu sa odredbama ovog zakona, a može zaključiti i sporazum s tim organima.
+Neposredni nadzor
+Član 128
+Subjekt nadzora je dužan da nadzornom organu omogući vršenje neposrednog nadzora nad poslovanjem, odnosno obavljanjem pojedinih poslova u njegovom sedištu, ograncima i drugim organizacionim delovima.
+Nadzor iz stava 1. ovog člana vrše zaposleni u nadzornom organu u skladu s posebnim rešenjem, odnosno nalogom koji donosi taj organ.
+U rešenju, odnosno nalogu iz stava 2. ovog člana, navode se subjekt nadzora kod koga se vrši nadzor i predmet nadzora.
+Subjekt nadzora dužan je da zaposlenima u nadzornom organu iz stava 2. ovog člana (u daljem tekstu: ovlašćena lica) stavi na uvid poslovne knjige, dokumentaciju i podatke koje ta lica budu zahtevala u pismenoj, odnosno u elektronskoj formi, kao i da im omogući pristup svim resursima informacionog sistema, uključujući opremu, baze podataka i računarske programe koje koristi.
+Ovlašćena lica vrše neposredan nadzor radnim danom u toku redovnog radnog vremena subjekta nadzora, a kada je to neophodno zbog obima ili prirode ovog nadzora - subjekt nadzora dužan je da ovlašćenim licima omogući obavljanje tog nadzora i neradnim danima, odnosno izvan radnog vremena.
+Ovlašćena lica u toku vršenja neposrednog nadzora mogu da:
+1) pristupaju svim prostorijama subjekta nadzora;
+2) zahtevaju da im se stavi na raspolaganje zasebna prostorija za obavljanje poslova neposrednog nadzora;
+3) zahtevaju da im se dostave podaci, odnosno obezbede kopije dokumenata koji su povezani s predmetom neposrednog nadzora, kao i obezbedi pristup resursima informacionog sistema;
+4) neposredno komuniciraju s članovima uprave, rukovodiocima i odgovornim zaposlenima subjekta nadzora radi dobijanja neophodnih pojašnjenja.
+Ako podatke obrađuje ili poslovne knjige i drugu dokumentaciju vodi u elektronskom obliku, subjekt nadzora dužan je da ovlašćenim licima pruži neophodnu tehničku podršku tokom uvida u te podatke, odnosno poslovne knjige i dokumentaciju.
+Subjekt nadzora dužan je da imenuje svog predstavnika koji će ovlašćenim licima pružiti svu neophodnu pomoć za nesmetano vršenje neposrednog nadzora.
+Nadzorni organ može angažovati druga lica koja će prisustvovati neposrednom nadzoru radi pružanja odgovarajuće stručne podrške ovlašćenim licima pri vršenju ovog nadzora.
+Odredbe ovog člana shodno se primenjuju i u slučaju kada nadzorni organ vrši neposredni nadzor kod lica kome je subjekt nadzora poverio obavljanje pojedinih operativnih poslova, kao i kod drugih lica koja su sa subjektom nadzora povezana imovinskim, upravljačkim i poslovnim odnosima.
+Zapisnik o nadzoru
+Član 129
+Ovlašćena lica dužna su da o izvršenom nadzoru sačine zapisnik (u daljem tekstu: zapisnik o nadzoru).
+Nadzorni organ subjektu nadzora dostavlja zapisnik o nadzoru, na koji on može staviti primedbe u roku od 15 radnih dana od dana kada mu je taj zapisnik dostavljen.
+Nadzorni organ neće razmatrati primedbe iz stava 2. ovog člana koje se odnose na promenu činjeničnog stanja nastalu nakon perioda u kome je izvršen nadzor.
+Kada se proverom navoda iznetih u primedbama iz stava 2. ovog člana utvrdi činjenično stanje bitno različito od stanja navedenog u zapisniku o nadzoru, sačinjava se dopuna tog zapisnika.
+Dopuna zapisnika o nadzoru dostavlja se subjektu nadzora u roku od 15 radnih dana od dana dostavljanja primedaba na taj zapisnik.
+Ako utvrdi da primedbe subjekta nadzora na zapisnik o nadzoru nisu osnovane, odnosno da ne utiču bitno na utvrđeno činjenično stanje - nadzorni organ o tome sačinjava službenu belešku i dostavlja je subjektu nadzora.
+Rešenje o obustavi postupka
+Član 130
+Nadzorni organ doneće rešenje o obustavi postupka nadzora izvršenog kod subjekta nadzora, ako zapisnikom o nadzoru nisu utvrđene nepravilnosti ili nedostaci u poslovanju subjekta nadzora ili ako subjekt nadzora primedbama dostavljenim u roku propisanom ovim zakonom osnovano ospori sve nalaze iz zapisnika o nadzoru.
+Rešenje iz stava 1. ovog člana dostavlja se subjektu nadzora.
+Provera i zabrana neovlašćenog pružanja usluga povezanih s digitalnom imovinom
+Član 131
+Ako postoji sumnja da se pružanjem usluga povezanih s digitalnom imovinom bavi pravno lice, preduzetnik ili fizičko lice koje nema dozvolu nadzornog organa za pružanje usluga povezanih s digitalnom imovinom u skladu s ovim zakonom - nadzorni organ može izvršiti neposrednu i posrednu proveru da li to lice pruža usluge povezane s digitalnom imovinom suprotno odredbama ovog zakona.
+Na proveru iz stava 1. ovog člana shodno se primenjuju odredbe čl. 123. do 130. ovog zakona.
+Ako lice iz stava 1. ovog člana na zahtev nadzornog organa ne dostavi sve tražene podatke i dokumentaciju u roku koji je utvrđen u tom zahtevu ili ako ne omogući nadzornom organu obavljanje neposrednog nadzora ili ne sarađuje sa ovlašćenim licima - nadzorni organ može tom licu izreći novčanu kaznu u rasponu:
+1) od 100.000 do 500.000 dinara za pravna lica i od 30.000 do 100.000 dinara za odgovorna lica u pravnom licu;
+2) od 30.000 do 100.000 dinara za fizička lica.
+Ako proverom iz stava 1. ovog člana utvrdi da se lice iz tog stava neovlašćeno bavi pružanjem usluga povezanih s digitalnom imovinom, nadzorni organ donosi rešenje o zabrani obavljanja ovih poslova i dostavlja ga nadležnim organima.
+Rešenjem iz stava 4. ovog člana nadzorni organ istovremeno izriče i novčanu kaznu licu iz tog stava, i to u rasponu:
+1) od 100.000 do 5.000.000 dinara, odnosno do 20% ukupnih prihoda ostvarenih u prethodnoj poslovnoj godini ako je taj iznos veći od 5.000.000 dinara za pravna lica i od 30.000 do 1.000.000 dinara za odgovorna lica u pravnom licu;
+2) od 30.000 do 2.000.000 dinara za fizička lica.
+Ako nadzorni organ naknadnom proverom utvrdi da privredno društvo, odnosno preduzetnik kojima je izrečena zabrana iz stava 4. ovog člana nisu prestali s neovlašćenim pružanjem usluga iz tog stava, takvo neovlašćeno pružanje usluga povezanih s digitalnom imovinom predstavlja neotklonjiv razlog za pokretanje postupka prinudne likvidacije, odnosno brisanja preduzetnika iz registra privrednih subjekata po sili zakona, u skladu sa zakonom kojim se uređuje pravni položaj privrednih društava.
+U slučaju iz stava 6. ovog člana, nadzorni organ donosi rešenje o neovlašćenom pružanju usluga povezanih s digitalnom imovinom i dostavlja ga organu nadležnom za vođenje registra privrednih subjekata radi pokretanja postupka prinudne likvidacije, odnosno brisanja privrednog društva i preduzetnika iz registra.
+Rešenjem iz stava 7. ovog člana nadzorni organ izriče meru blokade svih računa privrednog društva i preduzetnika do pokretanja postupka prinudne likvidacije, odnosno brisanja preduzetnika iz registra.
+Na izricanje novčanih kazni iz st. 3. i 5. ovog člana shodno se primenjuju odredbe člana 136. ovog zakona.
+Ukupan prihod iz stava 5. ovog člana ima značenje utvrđeno zakonom kojim se uređuje zaštita konkurencije.
+Preduzimanje mera u postupku nadzora
+Član 132
+Ako se u postupku nadzora utvrde nedostaci ili nepravilnosti u poslovanju subjekta nadzora, odnosno ako se utvrdi da je taj subjekt postupio suprotno ovom zakonu ili propisima donetim na osnovu ovog zakona, nadzorni organ preduzeće prema tom subjektu jednu od sledećih mera:
+1) uputiti preporuku;
+2) uputiti pismenu opomenu;
+3) izreći naloge i mere za otklanjanje utvrđenih nepravilnosti;
+4) doneti rešenje o oduzimanju dozvole za pružanje usluga povezanih s digitalnom imovinom.
+Mere iz stava 1. ovog člana nadzorni organ preduzima na osnovu činjeničnog stanja utvrđenog u zapisniku o nadzoru, u skladu s članom 129. ovog zakona.
+O preduzimanju mere iz stava 1. tačka 3) ovog člana, nadzorni organ donosi rešenje.
+Kad utvrdi da li je subjekt nadzora postupio u skladu s merama iz stava 1. tač. 1) do 3) ovog člana i u kojoj meri, nadzorni organ će ili obustaviti postupak nadzora ili preduzeti novu meru prema tom subjektu.
+Preporuka
+Član 133
+Ako se u postupku nadzora utvrde manje značajne nepravilnosti ili nedostaci u poslovanju subjekta nadzora koji ne predstavljaju značajan rizik u njegovom poslovanju, nadzorni organ uputiće tom subjektu odgovarajuću preporuku.
+Preporuka sadrži rok za otklanjanje nepravilnosti, odnosno nedostataka iz stava 1. ovog člana, kao i rok u kome je subjekt nadzora dužan da nadzornom organu dostavi izveštaj o otklonjenim nepravilnostima, odnosno nedostacima, sa odgovarajućim dokazima.
+Pismena opomena
+Član 134
+Ako se u postupku nadzora utvrde nepravilnosti koje ne utiču bitno i neposredno na poslovanje subjekta nadzora, ali bi mogle predstavljati značajan rizik u poslovanju ako se ne otklone, ili ako subjekt nadzora nije postupio u skladu s preporukom - nadzorni organ upućuje mu pismenu opomenu.
+Pismena opomena sadrži rok za otklanjanje nepravilnosti iz stava 1. ovog člana, kao i rok u kome je subjekt nadzora dužan da nadzornom organu dostavi izveštaj o otklonjenim nepravilnostima, sa odgovarajućim dokazima.
+Nalozi i mere za otklanjanje utvrđenih nepravilnosti
+Član 135
+Ako se u postupku nadzora utvrdi da subjekt nadzora nije postupio u skladu sa ovim zakonom ili propisima donetim na osnovu ovog zakona, odnosno u skladu s pismenom opomenom - nadzorni organ donosi rešenje kojim tom subjektu izriče naloge i mere za otklanjanje utvrđenih nepravilnosti, u roku koji ne može biti duži od 60 dana od dana prijema tog rešenja.
+Rešenjem iz stava 1. ovog člana subjektu nadzora nalaže se da sprovede jednu ili više sledećih aktivnosti:
+1) da svoje poslovanje uskladi sa ovim zakonom i propisima donetim na osnovu ovog zakona;
+2) da privremeno obustavi pružanje pojedinih usluga povezanih s digitalnom imovinom;
+3) da preduzme odgovarajuće mere za zaštitu korisnika digitalne imovine, u skladu sa ovim zakonom;
+4) da razreši članove uprave i/ili rukovodioce subjekta nadzora, ako više ne ispunjavaju uslove propisane ovim zakonom, odnosno ako postupaju suprotno odredbama ovog zakona;
+5) da preduzme, odnosno obustavi druge aktivnosti.
+Rešenje iz stava 1. ovog člana sadrži rok u kome je subjekt nadzora dužan da nadzornom organu dostavi izveštaj o otklonjenim nepravilnostima, sa odgovarajućim dokazima.
+Izricanje novčane kazne
+Član 136
+Ako u postupku nadzora utvrdi da subjekt nadzora nije postupio u skladu sa ovim zakonom ili propisima donetim na osnovu ovog zakona, a naročito ako su istovrsne povrede činjene u određenom periodu korišćenjem iste situacije ili trajnog odnosa s korisnicima digitalne imovine - nadzorni organ rešenjem iz člana 135. ovog zakona može izreći novčanu kaznu tom subjektu, kao i članu uprave i rukovodiocu tog subjekta.
+Novčana kazna iz stava 1. ovog člana koja se izriče subjektu nadzora ne može biti manja od 100.000 dinara ni veća od 5.000.000 dinara, a novčana kazna iz tog stava koja se izriče članu uprave i rukovodiocu subjekta nadzora ne može biti manja od 30.000 dinara ni veća od 1.000.000 dinara.
+Ako je 10% ukupnog prihoda subjekta nadzora ostvarenog u prethodnoj godini veće od 5.000.000 dinara, novčana kazna iz stava 2. ovog člana koja se izriče subjektu nadzora može biti i veća od 5.000.000 dinara ali ne veća od 10% ukupnog prihoda subjekta nadzora ostvarenog u prethodnoj godini.
+Novčane kazne iz ovog člana mogu se izreći i fizičkom licu koje u vreme izricanja novčane kazne više nema svojstvo člana uprave ili rukovodioca subjekta nadzora - za nepostupanja, odnosno povrede iz stava 1. ovog člana koji su učinjeni dok su ta lica obavljala ove funkcije u subjektu nadzora.
+Pri izricanju novčanih kazni iz ovog člana, nadzorni organ postupa uzimajući u obzir kriterijume iz člana 138. ovog zakona.
+Pri izricanju novčane kazne članu uprave i rukovodiocu subjekta nadzora, nadzorni organ pored kriterijuma iz člana 138. ovog zakona, ocenjuje i stepen odgovornosti ovog lica uzimajući u obzir podelu odgovornosti za poslove iz delokruga tog organa utvrđene zakonom i unutrašnjim aktima subjekta nadzora, kao i ovlašćenja i odgovornosti u upravljanju subjektom nadzora.
+Ako se novčana kazna izriče u postupku nadzora, rešenje iz stava 1. ovog člana donosi se bez prethodnog posebnog izjašnjenja subjekta nadzora, odnosno člana uprave i rukovodioca tog subjekta o činjenicama i okolnostima koje su od značaja za donošenje rešenja o izricanju ove kazne, osim ako je u pitanju lice kome je prestala ta funkcija u subjektu nadzora.
+Subjekt nadzora je dužan da zapisnik o nadzoru i rešenje o izricanju novčane kazne dostavi licu koje je funkciju člana uprave i rukovodioca subjekta nadzora obavljalo u periodu na koji se odnosi zapisnik o nadzoru. Po proteku 30 dana od dana dostavljanja subjektu nadzora - smatra se da su zapisnik o nadzoru i rešenje o izricanju novčane kazne dostavljeni ovim licima.
+Rešenje o izricanju novčane kazne je izvršno nakon dostavljanja licu iz stava 1. ovog člana.
+Ako član uprave i rukovodilac subjekta nadzora, uključujući i lica koja su obavljala ove funkcije u subjektu nadzora, ne plati novčanu kaznu u roku utvrđenom rešenjem o izricanju novčane kazne - subjekt nadzora je dužan da ovu kaznu plati u roku od osam dana od isteka roka utvrđenog ovim rešenjem.
+Novčane kazne iz ovog člana uplaćuju se na račun nadzornog organa.
+Subjekt nadzora je dužan da nadzornom organu dostavi dokaz o uplati na račun nadzornog organa novčanih kazni iz ovog člana najkasnije u roku određenom rešenjem o izricanju novčane kazne, odnosno u roku od osam dana od isteka tog roka ako subjekt nadzora plaća kaznu umesto lica iz stava 10. ovog člana u skladu sa tim stavom.
+Ako se obaveza po osnovu novčane kazne iz ovog člana ne plati u roku utvrđenom rešenjem o izricanju novčane kazne, nadzorni organ ima pravo da obračunava zateznu kamatu na iznos tog duga.
+Izvršna rešenja o izricanju novčane kazne iz ovog člana predstavljaju osnov za prinudnu naplatu s računa subjekta nadzora u skladu sa zakonom kojim se uređuje platni promet.
+Ukupan prihod iz stava 3. ovog člana ima značenje utvrđeno zakonom kojim se uređuje zaštita konkurencije.
+Oduzimanje dozvole za pružanje usluga povezanih s digitalnom imovinom
+Član 137
+Nadzorni organ donosi rešenje o oduzimanju dozvole za pružanje usluga povezanih s digitalnom imovinom, u sledećim slučajevima:
+1) ako utvrdi da pružalac usluga povezanih s digitalnom imovinom nije otpočeo s pružanjem tih usluga u roku od šest meseci od dana donošenja rešenja o davanju dozvole za pružanje usluga povezanih s digitalnom imovinom ili da ne pruža te usluge u periodu dužem od šest meseci;
+2) ako pružalac usluga povezanih s digitalnom imovinom pismeno obavesti nadzorni organ da više ne namerava da pruža te usluge ili da namerava da sprovede postupak likvidacije;
+3) ako utvrdi teže povrede propisa kojima se uređuje sprečavanje pranja novca i finansiranja terorizma;
+4) ako mu pružalac usluga povezanih s digitalnom imovinom ne omogući da vrši nadzor nad njegovim poslovanjem.
+Nadzorni organ može doneti rešenje o oduzimanju dozvole za pružanje usluga povezanih s digitalnom imovinom, u sledećim slučajevima:
+1) ako utvrdi da pružalac usluga povezanih s digitalnom imovinom više ne ispunjava uslove iz člana 56. ovog zakona;
+2) ako utvrdi da je rešenje o davanju dozvole za pružanje usluga povezanih s digitalnom imovinom doneto na osnovu neistinitih podataka;
+3) ako utvrdi da su aktivnosti pružaoca usluga povezanih s digitalnom imovinom povezane s pranjem novca ili finansiranjem terorizma;
+4) ako utvrdi da pružalac usluga povezanih s digitalnom imovinom nije u roku izvršio naloge i mere iz člana 135. ovog zakona;
+5) ako utvrdi da pružalac usluga povezanih s digitalnom imovinom ne održava minimalni kapital u skladu sa odredbama ovog zakona;
+6) ako utvrdi da je pružalac usluga povezanih s digitalnom imovinom teže povredio odredbe ovog zakona ili propisa donetih na osnovu ovog zakona.
+Pružalac usluga povezanih s digitalnom imovinom dužan je da obaveštenje iz stava 1. tačka 2) ovog člana dostavi nadzornom organu najkasnije 30 dana pre dana prestanka pružanja usluga povezanih s digitalnom imovinom, odnosno pokretanja postupka likvidacije, kao i da na zahtev nadzornog organa dostavi dokumentaciju utvrđenu u tom zahtevu i dokaze da ima dovoljno sredstava da izmiri sve svoje obaveze u vezi s pružanjem usluga povezanih s digitalnom imovinom. Rok iz ovog stava računa se od dana dostavljanja uredne dokumentacije iz tog stava.
+Obaveštenje o oduzimanju dozvole za pružanje usluga povezanih s digitalnom imovinom objavljuje se na internet prezentaciji nadzornog organa.
+Diskreciono pravo nadzornog organa
+Član 138
+Nadzorni organ odlučuje o meri koju preduzima prema subjektu nadzora na osnovu diskrecione ocene:
+1) težine utvrđenih nepravilnosti;
+2) pokazane spremnosti i sposobnosti članova uprave i rukovodilaca subjekta nadzora da otklone utvrđene nepravilnosti;
+3) drugih bitnih okolnosti pod kojima je učinjena nepravilnost.
+Kod ocene težine utvrđenih nepravilnosti procenjuju se naročito:
+1) stepen izloženosti subjekta nadzora pojedinim vrstama rizika;
+2) uticaj učinjene nepravilnosti na buduće poslovanje, odnosno obavljanje poslova subjekta nadzora;
+3) broj utvrđenih nepravilnosti i njihova međusobna zavisnost;
+4) trajanje i učestalost učinjenih nepravilnosti;
+5) zakonitost poslovanja, odnosno obavljanja poslova subjekta nadzora.
+Kod ocene pokazane spremnosti i sposobnosti članova uprave i rukovodilaca subjekta nadzora da otklone utvrđene nepravilnosti procenjuju se naročito:
+1) sposobnost ovih lica da identifikuju, mere, prate, procenjuju i upravljaju rizicima u subjektu nadzora;
+2) efikasnost u otklanjanju ranije utvrđenih nepravilnosti, a naročito u sprovođenju mera iz člana 135. ovog zakona;
+3) informisanost lica s kvalifikovanim učešćem i uprave subjekta nadzora o teškoćama u poslovanju, odnosno obavljanju poslova tog subjekta;
+4) stepen saradnje sa ovlašćenim licima tokom nadzora.
+Objavljivanje izrečenih mera i kazni
+Član 139
+Nadzorni organ može da javno, na svojoj internet prezentaciji i/ili na drugi odgovarajući način, informiše javnost o izrečenim merama i/ili kaznama u vezi sa kršenjem odredaba ovog zakona, nakon što je subjekt nadzora obavešten o toj meri i/ili kazni.
+Način objavljivanja podataka iz stava 1. ovog člana može bliže da se uredi propisom nadzornog organa.
+VIII KAZNENE ODREDBE
+Krivična dela
+Član 140
+Ko u nameri da sebi ili drugom licu ostvari imovinsku korist ili nanese štetu drugim licima, upotrebi insajdersku informaciju:
+1) neposredno ili posredno pri sticanju, otuđenju i pokušaju sticanja ili otuđenja za sopstveni račun ili za račun drugog imaoca digitalne imovine na koju se ta informacija odnosi, ili
+2) za otkrivanje i činjenje dostupnim insajderske informacije bilo kom drugom licu, ili
+3) za preporučivanje ili navođenje drugog lica da na osnovu insajderske informacije stekne ili otuđi digitalnu imovinu na koju se ta informacija odnosi,
+kazniće se novčanom kaznom ili kaznom zatvora do jedne godine.
+Ako je delom iz stava 1. ovog člana pribavljena imovinska korist ili drugim licima naneta imovinska šteta u iznosu koji prelazi milion i petsto hiljada dinara, učinilac će se kazniti zatvorom do tri godine i novčanom kaznom.
+Ako je delo iz stava 1. učinilo lice koje poseduje insajderske informacije putem članstva u upravnim ili nadzornim organima izdavaoca, učešća u kapitalu izdavaoca, pristupa informacijama do kojih dolazi obavljanjem dužnosti na radnom mestu, vršenjem profesije ili drugih dužnosti, odnosno putem krivičnih dela koje je počinilo, učinilac će se kazniti novčanom kaznom ili kaznom zatvora do tri godine.
+Ako je delom iz stava 3. ovog člana pribavljena imovinska korist ili drugim licima naneta imovinska šteta u iznosu koji prelazi milion i petsto hiljada dinara, učinilac će se kazniti zatvorom od šest meseci do pet godina i novčanom kaznom.
+Za pokušaj dela iz stava 1. ovog člana kazniće se.
+Član 141
+Ko preduzima manipulacije na tržištu na osnovu kojih ostvari imovinsku korist za sebe ili drugo lice ili nanese štetu drugim licima tako što:
+1) zaključi transakciju ili izda naloge za trgovanje kojima se daju ili koji će verovatno pružiti neistinite informacije o ponudi, potražnji ili ceni digitalne imovine ili kojima lice, odnosno lica koja deluju zajednički, održava cenu jedne ili više digitalne imovine na nerealnom nivou, ili
+2) zaključuje transakcije ili izda naloge za trgovanje kojima se upotrebljavaju fiktivni postupci ili svaki drugi oblik obmane ili prevare, ili
+3) širi informacije putem medija, uključujući internet, ili bilo kojim drugim putem prenosi neistinite vesti ili vesti koje mogu izazvati zabludu o digitalnoj imovini, ako je znalo ili je moralo znati da su te informacije neistinite ili da dovode u zabludu,
+kazniće se zatvorom od šest meseci do pet godina i novčanom kaznom.
+Ako je usled dela iz stava 1. ovog člana došlo do značajnog poremećaja na tržištu digitalne imovine, učinilac će se kazniti zatvorom od tri do osam godina.
+Za pokušaj dela iz stava 1. ovog člana kazniće se.
+Mere i kazne finansijskoj instituciji pod nadzorom Narodne banke Srbije
+Član 142
+Narodna banka Srbije izriče mere i kazne finansijskoj instituciji pod nadzorom Narodne banke Srbije u skladu sa odredbama posebnih zakona kojima se uređuje poslovanje ovih institucija ako utvrdi da je ta finansijska institucija prekršila odredbe ovog zakona.
+Novčana kazna pravnom licu, preduzetniku i fizičkom licu
+Član 143
+Narodna banka Srbije rešenjem izriče novčanu kaznu od 50.000 do 5.000.000 dinara pravnom licu koje kao lice povezano s finansijskom institucijom pod nadzorom Narodne banke Srbije, postupi suprotno članu 13. st. 4. i 5. ovog zakona (član 13. st. 4. i 5).
+Za radnje iz stava 1. ovog člana Narodna banka Srbije rešenjem izriče novčanu kaznu od 50.000 do 1.000.000 dinara i odgovornom licu u pravnom licu.
+Za radnje iz stava 1. ovog člana Narodna banka Srbije rešenjem izriče novčanu kaznu od 50.000 do 2.000.000 dinara preduzetniku.
+Za radnje iz stava 1. ovog člana Narodna banka Srbije rešenjem izriče novčanu kaznu od 30.000 do 1.000.000 dinara fizičkom licu.
+Nadzorni organ rešenjem izriče novčanu kaznu od 50.000 do 5.000.000 dinara pravnom licu koje:
+1) oglašava inicijalnu ponudu digitalne imovine za koju nije odobren beli papir suprotno članu 17. ovog zakona (član 17);
+2) oglašava digitalnu imovinu za koju nije odobren beli papir suprotno članu 31. stav 5. ovog zakona (član 31. stav 5);
+3) bez prethodne saglasnosti nadzornog organa stekne kvalifikovano učešće u pružaocu usluga povezanih s digitalnom imovinom ili uveća ovo učešće tako da stekne od 20% do 30%, više od 30% do 50% ili više od 50% glasačkih prava ili kapitala u tom pružaocu, odnosno tako da postane njegovo matično društvo (član 66).
+Za radnje iz stava 5. ovog člana nadzorni organ rešenjem izriče novčanu kaznu od 50.000 do 1.000.000 dinara i odgovornom licu u pravnom licu.
+Za radnje iz stava 5. ovog člana nadzorni organ rešenjem izriče novčanu kaznu od 50.000 do 2.000.000 dinara preduzetniku.
+Za radnje iz stava 5. ovog člana nadzorni organ rešenjem izriče novčanu kaznu od 30.000 do 1.000.000 dinara fizičkom licu.
+Novčana kazna spoljnom revizoru
+Član 144
+Nadzorni organ rešenjem izriče novčanu kaznu od 100.000 do 5.000.000 dinara spoljnom revizoru koji obavlja reviziju finansijskih izveštaja pružaoca usluga povezanih s digitalnom imovinom iz člana 90. st. 1. i 2. ovog zakona, ako nadzorni organ bez odlaganja ne obavesti o činjenicama i podacima iz stava 3. tog člana.
+Za radnju iz stava 1. ovog člana nadzorni organ rešenjem izriče novčanu kaznu od 50.000 do 1.000.000 dinara i odgovornom licu u spoljnom revizoru.
+IX PRELAZNE I ZAVRŠNE ODREDBE
+Usklađivanje poslovanja
+Član 145
+Lica koja pružaju usluge povezane s digitalnom imovinom dužna su da u roku od šest meseci od dana stupanja na snagu ovog zakona usklade svoje poslovanje i opšte akte sa odredbama ovog zakona i podzakonskim aktima donetim na osnovu ovog zakona i da podnesu nadzornom organu odgovarajući zahtev za dozvolu.
+Stupanje na snagu i početak primene
+Član 146
+Ovaj zakon stupa na snagu osmog dana od objavljivanja u &quot;Službenom glasniku Republike Srbije&quot;, a primenjuje se po isteku šest meseci od dana njegovog stupanja na snagu.
+
+Početna
+O nama
+Besplatno
+Pretplata
+Savetovanja
+Korisnički kutak
+Kontakt
+
+Paragraf Lex d.o.o.
+PIB: 104830593
+Matični broj: 20240156
+Tekući račun:
+105-3029346-18 160-0000000380290-23
+
+Radno vreme:
+Ponedeljak - petak
+7:30 - 15:30
+
+Kontaktirajte nas:
+online@paragraf.rs
+
+Politika privatnosti
+
+&times;
+Informišite se bez troškova
+
+Ako
