@@ -1881,7 +1881,13 @@ async function doRegister() {
     _setAuthError(msg);
     return;
   }
-  _setAuthError('Registracija uspešna. Proverite email za potvrdu.', true);
+  // Auto-login — backend kreira korisnika sa email_confirm:true pa lozinka odmah radi
+  var loginRes = await sb.auth.signInWithPassword({ email: email, password: pass });
+  if (loginRes.error) {
+    _setAuthError('Registracija uspešna. Prijavite se sa vašim podacima.', true);
+    return;
+  }
+  closeModal();
 }
 
 async function doLogout() {
