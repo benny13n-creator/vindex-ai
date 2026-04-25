@@ -1096,7 +1096,7 @@ footer { padding: 2rem 1.5rem; }
       <li>Generisanje nacrta tužbi i žalbi</li>
       <li>Analiza ugovora i identifikacija rizika</li>
     </ul>
-    <button class="modal-btn" onclick="closePaywall();setAuthMode('register');openModal();">Pređite na Basic paket &rarr;</button>
+    <button class="modal-btn" onclick="openSubscription()">Pretplatite se &rarr;</button>
     <div class="modal-note" style="margin-top:0.75rem;">Otkaži u svakom trenutku. Bez skrivenih troškova.</div>
   </div>
 </div>
@@ -1573,7 +1573,8 @@ footer { padding: 2rem 1.5rem; }
 </footer>
 
 <script>
-var BASE_URL = window.location.origin;
+var BASE_URL   = window.location.origin;
+var STRIPE_URL = ''; // Set to your Stripe checkout or pricing page URL
 var activeTab = 'q';
 var _cyrillicOn = false;
 var currentUserIsPro = false;
@@ -2007,6 +2008,15 @@ function showPaywall() {
 }
 function closePaywall() {
   document.getElementById('paywall-modal').classList.remove('open');
+}
+function openSubscription() {
+  closePaywall();
+  if (STRIPE_URL) {
+    window.open(STRIPE_URL, '_blank');
+  } else {
+    // STRIPE_URL nije postavljen — kontakt fallback
+    window.location.href = 'mailto:info@vindex.ai?subject=Pretplata%20Vindex%20AI';
+  }
 }
 
 // ─── EmailJS (zadržano) ───────────────────────────────────────────────────────

@@ -219,32 +219,41 @@ BESPLATNI_KREDITI = 15
 
 def _ensure_profile(user_id: str, email: str = "") -> dict:
     """
-    Čita profil korisnika. Ako ne postoji, kreira ga sa 15 kredita (auto-heal).
+    Čita kredite iz user_credits i PRO status iz profiles.
+    Auto-heal: kreira user_credits red sa 15 kredita ako ne postoji.
     Vraća dict: { credits_remaining, is_pro }
     """
     supa = _get_supa()
     try:
-        result = (
+        credits_res = (
+            supa.table("user_credits")
+            .select("credits_remaining")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        credits_rows = credits_res.data or []
+
+        profile_res = (
             supa.table("profiles")
-            .select("credits_remaining, is_pro")
+            .select("is_pro")
             .eq("id", user_id)
             .execute()
         )
-        rows = result.data or []
-        if rows:
-            row = rows[0]
+        is_pro_db = bool((profile_res.data or [{}])[0].get("is_pro", False))
+
+        if credits_rows:
             return {
-                "credits_remaining": row.get("credits_remaining", 0),
-                "is_pro": _is_pro(email, bool(row.get("is_pro", False))),
+                "credits_remaining": credits_rows[0].get("credits_remaining", 0),
+                "is_pro": _is_pro(email, is_pro_db),
             }
-        # Profil ne postoji — kreira se sa 15 kredita
-        logger.warning("Profil ne postoji za korisnika %s — kreiranje sa 15 kredita", user_id)
-        supa.table("profiles").insert(
-            {"id": user_id, "email": email, "credits_remaining": BESPLATNI_KREDITI}
+        # Auto-heal: red ne postoji — kreira se (trigger to radi automatski, ovo je safety net)
+        logger.warning("user_credits ne postoji za korisnika %s — kreiranje sa 15 kredita", user_id)
+        supa.table("user_credits").insert(
+            {"user_id": user_id, "credits_remaining": BESPLATNI_KREDITI}
         ).execute()
-        return {"credits_remaining": BESPLATNI_KREDITI, "is_pro": _is_pro(email)}
+        return {"credits_remaining": BESPLATNI_KREDITI, "is_pro": _is_pro(email, is_pro_db)}
     except Exception:
-        logger.exception("Greška pri čitanju/kreiranju profila za korisnika %s", user_id)
+        logger.exception("Greška pri čitanju profila za korisnika %s", user_id)
         return {"credits_remaining": 0, "is_pro": _is_pro(email)}
 
 
@@ -619,14 +628,23 @@ async def register(req: RegisterReq):
             user_id = result.user.id
             logger.info("Registracija uspešna: uid=%.8s email=%s", user_id, req.email)
 
-            # Kreira profil sa 15 besplatnih kredita
+            # Kreira user_credits red sa 15 kredita (trigger to radi automatski,
+            # ali upsert je safety net u slučaju da trigger kasni)
+            try:
+                supa.table("user_credits").upsert(
+                    {"user_id": user_id, "credits_remaining": BESPLATNI_KREDITI},
+                    on_conflict="user_id",
+                ).execute()
+            except Exception as cred_err:
+                logger.warning("user_credits nije kreiran odmah (trigger će kreirati): %s", cred_err)
+            # Kreira profil (email + is_pro=false) — bez credits_remaining
             try:
                 supa.table("profiles").upsert(
-                    {"id": user_id, "email": req.email, "credits_remaining": BESPLATNI_KREDITI},
+                    {"id": user_id, "email": req.email},
                     on_conflict="id",
                 ).execute()
             except Exception as prof_err:
-                logger.warning("Profil nije kreiran odmah (auto-heal pri prvom login-u): %s", prof_err)
+                logger.warning("Profil nije kreiran odmah: %s", prof_err)
 
             # Prijavi korisnika da dobije token
             login_result = supa.auth.sign_in_with_password({
