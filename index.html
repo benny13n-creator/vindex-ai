@@ -1039,14 +1039,18 @@ footer { padding: 2rem 1.5rem; }
     </div>
 
     <!-- REGISTER -->
-    <div id="auth-reg-form" style="display:none;flex-direction:column;gap:0.9rem;">
+    <div id="auth-register-form" style="display:none;flex-direction:column;gap:0.9rem;">
       <div class="auth-credit-note">&#x2713;&nbsp; 15 besplatnih upita odmah po registraciji</div>
       <input class="modal-input" type="email" id="reg-email" placeholder="Email adresa" autocomplete="email">
       <div class="pw-wrap">
-        <input class="modal-input" type="password" id="reg-password" placeholder="Lozinka (min. 8 karaktera)" autocomplete="new-password">
+        <input class="modal-input" type="password" id="reg-password" placeholder="Lozinka" autocomplete="new-password">
         <button type="button" class="pw-eye" onclick="togglePw('reg-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
-      <button class="modal-btn" id="reg-btn" onclick="doRegister()">Preuzmi besplatne upite</button>
+      <div class="pw-wrap">
+        <input class="modal-input" type="password" id="reg-confirm-password" placeholder="Potvrdi lozinku" autocomplete="new-password">
+        <button type="button" class="pw-eye" onclick="togglePw('reg-confirm-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <button class="modal-btn" id="reg-btn" onclick="doRegister()">Registruj se</button>
       <p class="auth-trust">Nakon potrošenih 15 upita, vi odlučujete o daljem korišćenju. Bez automatske naplate i skrivenih troškova.</p>
     </div>
 
@@ -1753,7 +1757,7 @@ function showToast(msg, type) {
 
 function setAuthMode(mode) {
   authMode = mode;
-  var allForms = ['auth-login-form','auth-reg-form','auth-forgot-form','auth-reset-form'];
+  var allForms = ['auth-login-form','auth-register-form','auth-forgot-form','auth-reset-form'];
   allForms.forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.style.display = 'none';
@@ -1843,10 +1847,12 @@ async function doLogin() {
 async function doRegister() {
   var sb = getSupabase();
   if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
-  var email = document.getElementById('reg-email').value.trim();
-  var pass  = document.getElementById('reg-password').value;
+  var email   = document.getElementById('reg-email').value.trim();
+  var pass    = document.getElementById('reg-password').value;
+  var confirm = document.getElementById('reg-confirm-password').value;
   if (!email || !pass) { _setAuthError('Unesite email i lozinku.'); return; }
   if (pass.length < 8) { _setAuthError('Lozinka mora imati najmanje 8 karaktera.'); return; }
+  if (pass !== confirm) { _setAuthError('Lozinke se ne poklapaju.'); return; }
   var btn = document.getElementById('reg-btn');
   btn.textContent = 'Registracija...'; btn.disabled = true;
   try {
@@ -1857,7 +1863,7 @@ async function doRegister() {
     var chkData = await chk.json();
     if (!chkData.valid) {
       _setAuthError('Privremene email adrese nisu dozvoljene. Koristite pravu email adresu.');
-      btn.textContent = 'Registrujte se besplatno'; btn.disabled = false;
+      btn.textContent = 'Registruj se'; btn.disabled = false;
       return;
     }
   } catch(e) { /* Nastavlja bez provere ako API nije dostupan */ }
@@ -1866,9 +1872,16 @@ async function doRegister() {
     password: pass,
     options: { emailRedirectTo: BASE_URL + '/app' }
   });
-  btn.textContent = 'Registrujte se besplatno'; btn.disabled = false;
-  if (res.error) { _setAuthError(res.error.message || 'Greška pri registraciji.'); return; }
-  _setAuthError('Proverite email za potvrdu. Nakon potvrde dobijate 15 besplatnih upita.', true);
+  btn.textContent = 'Registruj se'; btn.disabled = false;
+  if (res.error) {
+    var msg = res.error.message || 'Greška pri registraciji.';
+    if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already been registered')) {
+      msg = 'Ovaj email je već registrovan. Prijavite se.';
+    }
+    _setAuthError(msg);
+    return;
+  }
+  _setAuthError('Registracija uspešna. Proverite email za potvrdu.', true);
 }
 
 async function doLogout() {
