@@ -1560,12 +1560,17 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             logger.exception("PINECONE GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
         filtrirani = _filtriraj_kontekst(docs)
-        logger.debug(
-            "[RAG_CTX] %d docs ukupno, %d posle filtera [q=%s]",
+        logger.info(
+            "[RAG_CTX] docs=%d → posle_filtera=%d [q=%s]",
             len(docs), len(filtrirani), log_id,
         )
+        if not filtrirani:
+            logger.error(
+                "[RAG_CTX] PRAZAN KONTEKST posle filtera! Pinecone vratio prazan rezultat za tip=%s [q=%s]",
+                tip, log_id,
+            )
         for _i, _d in enumerate(filtrirani[:3]):
-            logger.debug("[RAG_CTX doc%d] prvih 400 char:\n%s", _i, _d[:400])
+            logger.info("[RAG_CTX doc%d] %s", _i, _d[:200].replace("\n", " "))
 
         # Legal Fallback — ZOO čl. 154/155/200 ako primarni retrieval ne vrati ništa.
         # Zabrana: ne vraćamo "nije pronađen" dok opšti ZOO postoji u bazi.
@@ -1607,7 +1612,10 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             "[GEN] tip=%s model=%s kontekst_docs=%d kontekst_chars=%d [q=%s]",
             tip, _model, len(filtrirani), len(kontekst), log_id,
         )
-        logger.info("[GEN] Kontekst preview: %s", kontekst[:300].replace("\n", " "))
+        if len(kontekst) < 100:
+            logger.error("[GEN] KONTEKST JE PRAZAN ili prekratak (%d chars) — GPT nema šta da citira!", len(kontekst))
+        else:
+            logger.info("[GEN] Kontekst preview (500 chars): %s", kontekst[:500].replace("\n", " "))
         try:
             odgovor = _pozovi_openai(system_prompt, user_content, model=_model, max_tokens=_max_tokens)
         except Exception as e:

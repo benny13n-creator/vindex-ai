@@ -184,11 +184,32 @@ _COHERE_CLIENT  = None
 def _get_index():
     global _PINECONE_INDEX
     if _PINECONE_INDEX is None:
-        api_key = os.getenv("PINECONE_API_KEY")
+        api_key = os.getenv("PINECONE_API_KEY", "").strip()
         if not api_key:
-            raise RuntimeError("PINECONE_API_KEY nije postavljen.")
+            raise RuntimeError("PINECONE_API_KEY nije postavljen u environment-u.")
         pc = Pinecone(api_key=api_key)
-        _PINECONE_INDEX = pc.Index(PINECONE_INDEX)
+
+        # PINECONE_HOST je brža konekcija (preskače API round-trip na control plane)
+        host       = os.getenv("PINECONE_HOST", "").strip()
+        index_name = os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX).strip()
+
+        if host:
+            logger.info("[PINECONE] Konekcija putem PINECONE_HOST=%s", host)
+            _PINECONE_INDEX = pc.Index(host=host)
+        else:
+            logger.info(
+                "[PINECONE] Konekcija putem index name=%s (PINECONE_HOST nije postavljen)",
+                index_name,
+            )
+            _PINECONE_INDEX = pc.Index(index_name)
+
+        # Brza sanity provera
+        try:
+            stats = _PINECONE_INDEX.describe_index_stats()
+            logger.info("[PINECONE] Index OK — %d vektora", stats.total_vector_count)
+        except Exception as _e:
+            logger.warning("[PINECONE] describe_index_stats neuspešan (nije fatalno): %s", _e)
+
     return _PINECONE_INDEX
 
 
@@ -262,9 +283,12 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
     vektor = _ugradi_query(query)
     filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
     try:
-        return index.query(vector=vektor, top_k=k, include_metadata=True, filter=filter_dict).matches
-    except Exception:
-        logger.exception("Greška u semantičkoj pretrazi")
+        matches = index.query(vector=vektor, top_k=k, include_metadata=True, filter=filter_dict).matches
+        if not matches:
+            logger.warning("[PINECONE] Prazni rezultati za query='%s' filter=%s", query[:60], filter_zakon)
+        return matches
+    except Exception as exc:
+        logger.error("[PINECONE] Greška u pretrazi query='%s': %s: %s", query[:60], type(exc).__name__, str(exc)[:200])
         return []
 
 
@@ -701,12 +725,6 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
 
     # GPT ekspanzija (background, max 3s)
     with ThreadPoolExecutor(max_workers=1) as gpe:
-        gpt_fut = gpe.submit(
-            lambda: _semanticka_pretraga.__module__ and
-            __import__('app.services.retrieve', fromlist=['_prosiri_query_gpt']) and None
-            or []
-        )
-        # Direktno pozovemo
         gpt_fut = gpe.submit(_prosiri_query_gpt_wrapper, query)
     try:
         prosireni = gpt_fut.result(timeout=3.0)
@@ -763,9 +781,18 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
 
     elapsed = _time.perf_counter() - t0
     logger.info(
-        "[RETRIEVE] %.2fs | matches=%d | top=%d | zakon=%s | member=%s",
-        elapsed, len(matchevi), k, zakon or "—", label_clana or "—",
+        "[RETRIEVE] %.2fs | raw_matches=%d | docs_posle_crag=%d | zakon=%s | clan=%s | query='%s'",
+        elapsed, len(matchevi), len(docs), zakon or "—", label_clana or "—", query[:80],
     )
+    if docs:
+        for _i, _d in enumerate(docs[:3]):
+            logger.info("[RETRIEVE doc%d] %s", _i, _d[:200].replace("\n", " "))
+    else:
+        logger.error(
+            "[RETRIEVE] PRAZAN KONTEKST — Pinecone vratio 0 korisnih rezultata za query='%s'. "
+            "Proverite: PINECONE_API_KEY, PINECONE_HOST, ime indeksa '%s'.",
+            query[:80], os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX),
+        )
 
     return docs
 
@@ -852,23 +879,23 @@ def _crag_petlja(
             return docs
 
         if ocena == "NIJE RELEVANTNO":
-            if iteracija == 0:
-                # Aktiviraj HyDE strategiju
-                logger.info("[CRAG] Aktiviram HyDE fallback...")
-                hyde = _generiši_hyde(query)
-                if hyde:
-                    hyde_vec = _ugradi_query(hyde)
-                    hyde_matchevi = (
-                        _pretraga_vec(hyde_vec, 10, zakon) +
-                        _pretraga_vec(hyde_vec, 6, None)
-                    )
-                    if hyde_matchevi:
-                        reranked = _cohere_rerank(query, hyde_matchevi, k=k)
-                        docs = [_formatiraj_match(m) for m in reranked]
-                        continue  # Ponovi ocenu sa HyDE rezultatima
-            else:
-                # Konačni fallback — identifikuj zakone po temi
-                return [_fallback_poruka(query)]
+            logger.info("[CRAG] Nije relevantno — pokušavam HyDE fallback (iteracija=%d)", iteracija)
+            hyde = _generiši_hyde(query)
+            if hyde:
+                hyde_vec = _ugradi_query(hyde)
+                hyde_matchevi = (
+                    _pretraga_vec(hyde_vec, 10, zakon) +
+                    _pretraga_vec(hyde_vec, 6, None)
+                )
+                if hyde_matchevi:
+                    reranked = _cohere_rerank(query, hyde_matchevi, k=k)
+                    docs = [_formatiraj_match(m) for m in reranked]
+                    logger.info("[CRAG] HyDE dalo %d novih docs", len(docs))
+                    # Ne ponavljamo petlju — prihvatamo HyDE rezultate
+                    return docs
+            # HyDE nije pomoglo — vrati što imamo (relevantnost je nizak ali nešto bolje od ničeg)
+            logger.warning("[CRAG] HyDE nije dao rezultate — vraćam originalne docs (count=%d)", len(docs))
+            return docs
 
     return docs
 

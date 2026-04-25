@@ -853,6 +853,98 @@ async def test_pitanje(q: str, x_admin_key: str = Header(default="")):
     }
 
 
+@app.get("/api/rag-test")
+async def rag_test(q: str = "zakon o privrednim drustvima registracija", x_admin_key: str = Header(default="")):
+    """
+    Kompletan RAG dijagnostički endpoint.
+    GET /api/rag-test?q=vaše+pitanje
+    Header: X-Admin-Key: <ADMIN_DEBUG_KEY>
+
+    Vraća:
+    - env var status (API ključevi postavljeni ili ne)
+    - Pinecone index stats (broj vektora)
+    - retrieve_documents rezultati (svaki doc prikazan)
+    - Šta bi ušlo u GPT prompt
+    """
+    admin_key = os.getenv("ADMIN_DEBUG_KEY", "")
+    if not admin_key or x_admin_key != admin_key:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    def _run():
+        out: dict = {
+            "query": q,
+            "env": {
+                "PINECONE_API_KEY": bool(os.getenv("PINECONE_API_KEY")),
+                "PINECONE_HOST":    os.getenv("PINECONE_HOST", "NIJE POSTAVLJEN"),
+                "PINECONE_INDEX_NAME": os.getenv("PINECONE_INDEX_NAME", "vindex-ai (default)"),
+                "OPENAI_API_KEY":   bool(os.getenv("OPENAI_API_KEY")),
+            },
+        }
+
+        # 1. Pinecone index stats
+        try:
+            from app.services.retrieve import _get_index
+            idx = _get_index()
+            stats = idx.describe_index_stats()
+            out["pinecone_stats"] = {
+                "total_vectors":     stats.total_vector_count,
+                "dimension":         stats.dimension,
+                "namespaces":        str(stats.namespaces)[:300],
+            }
+        except Exception as exc:
+            out["pinecone_stats"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:300]}"
+
+        # 2. retrieve_documents
+        try:
+            from app.services.retrieve import retrieve_documents
+            import time as _t
+            t0 = _t.perf_counter()
+            docs = retrieve_documents(q, k=6)
+            elapsed = _t.perf_counter() - t0
+            out["retrieve"] = {
+                "elapsed_sec": round(elapsed, 2),
+                "docs_count":  len(docs),
+                "docs": [{"index": i, "length": len(d), "preview": d[:400]} for i, d in enumerate(docs)],
+            }
+        except Exception as exc:
+            out["retrieve"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:400]}"
+
+        # 3. Šta bi ušlo u GPT prompt (filtrirani kontekst)
+        try:
+            from main import _filtriraj_kontekst
+            filtrirani = _filtriraj_kontekst(docs if isinstance(docs, list) else [])
+            kontekst = "\n\n---\n\n".join(filtrirani)
+            out["kontekst_za_gpt"] = {
+                "filtrirani_count": len(filtrirani),
+                "ukupno_chars":     len(kontekst),
+                "preview_500":      kontekst[:500],
+            }
+        except Exception as exc:
+            out["kontekst_za_gpt"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:200]}"
+
+        # 4. Dijagnoza
+        diag = []
+        if not out["env"]["PINECONE_API_KEY"]:
+            diag.append("KRITIČNO: PINECONE_API_KEY nije postavljen na Render!")
+        if not out["env"]["OPENAI_API_KEY"]:
+            diag.append("KRITIČNO: OPENAI_API_KEY nije postavljen na Render!")
+        if out["env"]["PINECONE_HOST"] == "NIJE POSTAVLJEN":
+            diag.append("UPOZORENJE: PINECONE_HOST nije postavljen — konekcija ide putem API round-trip (sporije).")
+        ps = out.get("pinecone_stats", {})
+        if isinstance(ps, dict) and ps.get("total_vectors", 0) == 0:
+            diag.append("KRITIČNO: Pinecone index je prazan — pokrenite ingest_kz_zpdg.py!")
+        rt = out.get("retrieve", {})
+        if isinstance(rt, dict) and rt.get("docs_count", 0) == 0:
+            diag.append("KRITIČNO: retrieve_documents vratio 0 docs — Pinecone ne vraća rezultate.")
+        if not diag:
+            diag.append("Sve izgleda ispravno.")
+        out["dijagnoza"] = diag
+
+        return out
+
+    return await asyncio.to_thread(_run)
+
+
 @app.post("/api/check-email")
 async def check_email(req: EmailCheckReq):
     """Proverava da li je email adresa jednokratna (disposable)."""
