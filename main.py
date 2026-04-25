@@ -1060,9 +1060,9 @@ postaje obveznik po ZSPNFT čl. 4 →
 Svaka strelica → mora imati zakonsku referencu. Minimum 2 koraka u lancu.]
 
 --- CITAT ZAKONA [RAG]
-"[Kopiraj CITABILNI TEKST iz konteksta — doslovno, bez ikakve izmene]"
-[Format: "Naziv zakona, član X, stav Y: [tekst]"]
-[SAMO iz dostavljenog konteksta. Ako CITABILNI TEKST nije tu: [—]]
+"[Kopiraj doslovan tekst iz konteksta — preuzmi reč po reč, bez izmena. Prioritet: ako postoji PUNI TEKST ČLANA, koristi ga kao citat; inače koristi CITABILNI TEKST.]"
+[Format: "Naziv zakona, član X: [tekst citata]"]
+[SAMO iz dostavljenog konteksta. Ako ni PUNI TEKST ČLANA ni CITABILNI TEKST ne sadrže primenljiv zakonski tekst za ovo pitanje: [—]]
 
 --- PRAVNI OSNOV
 [Mapiranje sa lex specialis napomenom:
@@ -1159,9 +1159,9 @@ podleže oporezivanju stopom [SAMO iz konteksta] → obveznik podnosi prijavu do
 Svaki korak mora imati zakonsku referencu.]
 
 --- CITAT ZAKONA [RAG]
-"[Kopiraj CITABILNI TEKST iz konteksta — doslovno, bez ikakve izmene]"
-[Format: "Naziv zakona, član X, stav Y: [tekst]"]
-[SAMO iz dostavljenog konteksta. Ako CITABILNI TEKST nije tu: [—]]
+"[Kopiraj doslovan tekst iz konteksta — preuzmi reč po reč, bez izmena. Prioritet: ako postoji PUNI TEKST ČLANA, koristi ga kao citat; inače koristi CITABILNI TEKST.]"
+[Format: "Naziv zakona, član X: [tekst citata]"]
+[SAMO iz dostavljenog konteksta. Ako ni PUNI TEKST ČLANA ni CITABILNI TEKST ne sadrže primenljiv zakonski tekst za ovo pitanje: [—]]
 
 --- PRAVNI OSNOV
 [Mapiranje: [Zakon čl. X] → [poreska posledica koja sledi]]
@@ -1284,8 +1284,8 @@ Na osnovu opisanih okolnosti, okvirna procena prema sudskoj praksi:
 ⚠️ Okvirna procena — konačan iznos utvrđuje sud na osnovu medicinske dokumentacije i veštačenja.
 
 --- CITAT ZAKONA [RAG]
-"[Kopiraj CITABILNI TEKST iz konteksta — doslovno, bez ikakve izmene]"
-[Ako CITABILNI TEKST nije u kontekstu: [—]]
+"[Kopiraj doslovan tekst iz konteksta — preuzmi reč po reč, bez izmena. Prioritet: ako postoji PUNI TEKST ČLANA, koristi ga kao citat; inače koristi CITABILNI TEKST.]"
+[Ako ni PUNI TEKST ČLANA ni CITABILNI TEKST ne sadrže primenljiv zakonski tekst za ovo pitanje: [—]]
 
 --- PRAVNI OSNOV
 [Zakon], član [X] (Sl. glasnik RS, br. [Y] — samo ako dostupan u kontekstu)
@@ -1391,9 +1391,9 @@ Navedi specifične slučajeve primene: domaći subjekt / strani subjekt /
 fizičko lice / kripto platforma — ako je relevantno.]
 
 --- CITAT ZAKONA [RAG]
-"[Kopiraj CITABILNI TEKST iz konteksta — doslovno, bez ikakve izmene]"
-[Format: "Naziv zakona, član X, stav Y: [tekst]"]
-[SAMO ako je CITABILNI TEKST u dostavljenom kontekstu. Ako nije: [—]]
+"[Kopiraj doslovan tekst iz konteksta — preuzmi reč po reč, bez izmena. Prioritet: ako postoji PUNI TEKST ČLANA, koristi ga kao citat; inače koristi CITABILNI TEKST.]"
+[Format: "Naziv zakona, član X: [tekst citata]"]
+[SAMO iz dostavljenog konteksta. Ako ni PUNI TEKST ČLANA ni CITABILNI TEKST ne sadrže primenljiv zakonski tekst za ovo pitanje: [—]]
 
 --- PRAVNI OSNOV
 [Zakon i član koji definiše ili reguliše pojam]

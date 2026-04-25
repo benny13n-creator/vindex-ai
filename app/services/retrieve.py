@@ -859,9 +859,8 @@ def _crag_petlja(
                 extra_matchevi.extend(_semanticka_pretraga(upit, 5, zakon))
                 extra_matchevi.extend(_semanticka_pretraga(upit, 3, None))
 
-            # Deduplikuj i re-rank sve zajedno
+            # Deduplikuj po ID
             vidjeni_ids = set()
-            svi = list(docs)  # Počnemo od postojećih
             novi_matchevi = []
             for m in extra_matchevi:
                 if m.id not in vidjeni_ids:
@@ -870,12 +869,10 @@ def _crag_petlja(
 
             if novi_matchevi:
                 reranked = _cohere_rerank(query, novi_matchevi, k=k)
-                docs = [_formatiraj_match(m) for m in reranked]
-                # Dodaj napomenu o delimičnoj pokrivenosti
-                docs.append(
-                    "[NAPOMENA] Pronađene odredbe pokrivaju deo pitanja. "
-                    "Za potpun odgovor konsultujte i relevantne podzakonske akte."
-                )
+                novi_docs = [_formatiraj_match(m) for m in reranked]
+                # Kombinuj originalne + nove docs (ne zamenjuj — originalni su delimično relevantni)
+                docs = (docs + novi_docs)[:k]
+                logger.info("[CRAG] DELIMIČNO: dodato %d novih docs (ukupno=%d)", len(novi_docs), len(docs))
             return docs
 
         if ocena == "NIJE RELEVANTNO":
