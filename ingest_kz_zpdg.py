@@ -57,6 +57,12 @@ ZAKONI = [
         "fajl":  "zakon_o_porezu_na_dohodak_gradjana.pdf",
         "prioritetni": list(range(72, 80)),
     },
+    {
+        "url":   "https://www.paragraf.rs/propisi/zakon-o-privrednim-drustvima.html",
+        "naziv": "zakon o privrednim drustvima",
+        "fajl":  "zakon_o_privredin_drustvima.pdf",
+        "prioritetni": [10, 11, 12, 13, 14, 31, 32, 33, 139, 140, 141],
+    },
 ]
 
 HEADERS = {
