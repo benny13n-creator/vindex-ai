@@ -1534,22 +1534,22 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             system_prompt    = SYSTEM_PROMPT_COMPLIANCE
             aktivan_sekcije  = SEKCIJE_COMPLIANCE
             _model           = "gpt-4o"
-            _max_tokens      = 1000
+            _max_tokens      = 2000
         elif tip == "PORESKI":
             system_prompt    = SYSTEM_PROMPT_PORESKI
             aktivan_sekcije  = SEKCIJE_PORESKI
             _model           = "gpt-4o"
-            _max_tokens      = 800
+            _max_tokens      = 2000
         elif tip == "PARNICA":
             system_prompt    = SYSTEM_PROMPT_PARNICA
             aktivan_sekcije  = SEKCIJE_PARNICA
             _model           = "gpt-4o"
-            _max_tokens      = 1000
+            _max_tokens      = 2500
         else:  # DEFINICIJA
             system_prompt    = SYSTEM_PROMPT_DEFINICIJA
             aktivan_sekcije  = SEKCIJE_DEFINICIJA
             _model           = "gpt-4o-mini"
-            _max_tokens      = 600
+            _max_tokens      = 800
 
         # KORAK 3: Retrieval — filter_zakoni su hint za retrieve_documents LAW_HINTS
         # COMPLIANCE → boost ZDI + ZSPNFT | PORESKI → boost poreski zakoni
