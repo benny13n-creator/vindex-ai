@@ -224,6 +224,9 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
     Vraća dict: { credits_remaining, is_pro }
     """
     supa = _get_supa()
+
+    # ── Korak 1: credits iz user_credits ──────────────────────────────────────
+    credits_remaining: int = 0
     try:
         credits_res = (
             supa.table("user_credits")
@@ -232,7 +235,29 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
             .execute()
         )
         credits_rows = credits_res.data or []
+        if credits_rows:
+            credits_remaining = credits_rows[0].get("credits_remaining", 0)
+            logger.debug("[CREDITS] uid=%.8s credits=%d", user_id, credits_remaining)
+        else:
+            # Row missing — auto-heal (trigger bi trebalo da ga kreira, ovo je safety net)
+            logger.warning(
+                "[CREDITS] user_credits red ne postoji za uid=%.8s — auto-heal: upisujem 15",
+                user_id,
+            )
+            supa.table("user_credits").insert(
+                {"user_id": user_id, "credits_remaining": BESPLATNI_KREDITI}
+            ).execute()
+            credits_remaining = BESPLATNI_KREDITI
+    except Exception as exc:
+        logger.error(
+            "[CREDITS] GREŠKA pri čitanju user_credits za uid=%.8s — %s: %r\n"
+            "  >>> Proverite da li je supabase_setup.sql pokrenut u Supabase Dashboard! <<<",
+            user_id, type(exc).__name__, str(exc)[:300],
+        )
 
+    # ── Korak 2: is_pro iz profiles ───────────────────────────────────────────
+    is_pro_db = False
+    try:
         profile_res = (
             supa.table("profiles")
             .select("is_pro")
@@ -240,21 +265,13 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
             .execute()
         )
         is_pro_db = bool((profile_res.data or [{}])[0].get("is_pro", False))
+    except Exception as exc:
+        logger.warning(
+            "[PROFILE] GREŠKA pri čitanju profiles za uid=%.8s — %s: %r",
+            user_id, type(exc).__name__, str(exc)[:200],
+        )
 
-        if credits_rows:
-            return {
-                "credits_remaining": credits_rows[0].get("credits_remaining", 0),
-                "is_pro": _is_pro(email, is_pro_db),
-            }
-        # Auto-heal: red ne postoji — kreira se (trigger to radi automatski, ovo je safety net)
-        logger.warning("user_credits ne postoji za korisnika %s — kreiranje sa 15 kredita", user_id)
-        supa.table("user_credits").insert(
-            {"user_id": user_id, "credits_remaining": BESPLATNI_KREDITI}
-        ).execute()
-        return {"credits_remaining": BESPLATNI_KREDITI, "is_pro": _is_pro(email, is_pro_db)}
-    except Exception:
-        logger.exception("Greška pri čitanju profila za korisnika %s", user_id)
-        return {"credits_remaining": 0, "is_pro": _is_pro(email)}
+    return {"credits_remaining": credits_remaining, "is_pro": _is_pro(email, is_pro_db)}
 
 
 def _get_credits(user_id: str) -> int:
@@ -636,7 +653,11 @@ async def register(req: RegisterReq):
                     on_conflict="user_id",
                 ).execute()
             except Exception as cred_err:
-                logger.warning("user_credits nije kreiran odmah (trigger će kreirati): %s", cred_err)
+                logger.error(
+                    "[REGISTER] user_credits upsert NEUSPEŠAN za uid=%.8s — %s: %r\n"
+                    "  >>> Proverite da li je supabase_setup.sql pokrenut u Supabase Dashboard! <<<",
+                    user_id, type(cred_err).__name__, str(cred_err)[:300],
+                )
             # Kreira profil (email + is_pro=false) — bez credits_remaining
             try:
                 supa.table("profiles").upsert(
@@ -706,6 +727,75 @@ async def me(user: dict = Depends(get_current_user)):
     except Exception as exc:
         logger.exception("Greška u /api/me za korisnika %s", user.get("user_id"))
         raise HTTPException(status_code=500, detail=f"Greška profila: {exc!r}")
+
+
+@app.get("/api/credits-debug")
+async def credits_debug(user: dict = Depends(get_current_user)):
+    """
+    Dijagnoza kredit sistema za prijavljenog korisnika.
+    Proverava da li tabela, red i RPC funkcija postoje i rade ispravno.
+    """
+    user_id = user["user_id"]
+    email   = user.get("email", "")
+    supa    = _get_supa()
+    out: dict = {"user_id": user_id, "email": email}
+
+    # 1. Da li tabela user_credits postoji?
+    try:
+        r = supa.table("user_credits").select("id").limit(0).execute()
+        out["table_user_credits"] = "OK — tabela postoji"
+    except Exception as exc:
+        out["table_user_credits"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:300]}"
+
+    # 2. Da li ovaj korisnik ima red u user_credits?
+    try:
+        r = supa.table("user_credits").select("*").eq("user_id", user_id).execute()
+        out["user_credits_row"] = r.data if r.data else "NEMA REDA — trigger nije kreirao red ili SQL nije pokrenut"
+    except Exception as exc:
+        out["user_credits_row"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:300]}"
+
+    # 3. Da li profiles tabela postoji i ima red za ovog korisnika?
+    try:
+        r = supa.table("profiles").select("*").eq("id", user_id).execute()
+        out["profiles_row"] = r.data if r.data else "NEMA REDA"
+    except Exception as exc:
+        out["profiles_row"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:300]}"
+
+    # 4. Rezultat _ensure_profile (šta backend vidi za ovog korisnika)
+    try:
+        profil = await asyncio.to_thread(_ensure_profile, user_id, email)
+        out["_ensure_profile"] = profil
+    except Exception as exc:
+        out["_ensure_profile"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:300]}"
+
+    # 5. Test deduct_credit RPC (dry-run: oduzima 0 — proverava samo da li RPC postoji)
+    try:
+        r = supa.rpc("deduct_credit", {"p_user_id": user_id}).execute()
+        out["deduct_credit_rpc"] = f"OK — vrati: {r.data}"
+        # Odmah vrati oduzeti kredit da test bude nedestruktivan
+        try:
+            supa.table("user_credits").update(
+                {"credits_remaining": profil.get("credits_remaining", 0) if isinstance(profil, dict) else 0}
+            ).eq("user_id", user_id).execute()
+            out["deduct_credit_rpc"] += " (kredit vraćen — test je bio nedestruktivan)"
+        except Exception:
+            pass
+    except Exception as exc:
+        out["deduct_credit_rpc"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:300]}"
+
+    # 6. Dijagnoza
+    diag = []
+    if "GREŠKA" in str(out.get("table_user_credits", "")):
+        diag.append("KRITIČNO: user_credits tabela ne postoji — pokrenite supabase_setup.sql u Supabase Dashboard")
+    elif "NEMA REDA" in str(out.get("user_credits_row", "")):
+        diag.append("UPOZORENJE: user_credits tabela postoji ali korisnik nema red — trigger nije radio ili SQL nije pokrenut")
+    if "GREŠKA" in str(out.get("deduct_credit_rpc", "")):
+        diag.append("KRITIČNO: deduct_credit RPC ne postoji — pokrenite supabase_setup.sql")
+    if not diag:
+        diag.append("Sve izgleda ispravno.")
+    out["dijagnoza"] = diag
+
+    return out
 
 
 async def require_pro(user: dict = Depends(get_current_user)) -> dict:

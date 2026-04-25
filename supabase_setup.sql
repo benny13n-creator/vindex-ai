@@ -1,13 +1,14 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- Vindex AI — Supabase database migration
--- Run in: Supabase Dashboard → SQL Editor → New query → Run
--- Order matters: run this file top to bottom in one shot.
+-- Vindex AI — Supabase database migration v2
+-- Run in: Supabase Dashboard → SQL Editor → New query → Run All
+-- Safe to re-run (idempotent): CREATE IF NOT EXISTS, CREATE OR REPLACE,
+-- DROP TRIGGER IF EXISTS, ON CONFLICT DO NOTHING.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
 -- ─── 1. PROFILES TABLE ───────────────────────────────────────────────────────
--- Stores user metadata and PRO subscription status.
--- credits_remaining is intentionally NOT here — it lives in user_credits.
+-- User metadata + PRO subscription flag.
+-- credits_remaining intentionally NOT here — lives in user_credits.
 
 CREATE TABLE IF NOT EXISTS public.profiles (
   id         UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -21,9 +22,9 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE tablename = 'profiles' AND policyname = 'Korisnici čitaju sopstveni profil'
+    WHERE tablename = 'profiles' AND policyname = 'Korisnici citaju sopstveni profil'
   ) THEN
-    CREATE POLICY "Korisnici čitaju sopstveni profil"
+    CREATE POLICY "Korisnici citaju sopstveni profil"
       ON public.profiles FOR SELECT
       USING (auth.uid() = id);
   END IF;
@@ -32,18 +33,22 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE tablename = 'profiles' AND policyname = 'Korisnici ažuriraju sopstveni profil'
+    WHERE tablename = 'profiles' AND policyname = 'Korisnici azuriraju sopstveni profil'
   ) THEN
-    CREATE POLICY "Korisnici ažuriraju sopstveni profil"
+    CREATE POLICY "Korisnici azuriraju sopstveni profil"
       ON public.profiles FOR UPDATE
       USING (auth.uid() = id);
   END IF;
 END $$;
 
+-- Service role full access (bypasses RLS by default, but be explicit)
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO service_role;
+
 
 -- ─── 2. USER_CREDITS TABLE ───────────────────────────────────────────────────
 -- One row per user. credits_remaining starts at 15 for every new registration.
--- Backend uses service role to decrement — users can only READ their own row.
+-- Backend service role decrements via deduct_credit RPC.
+-- Clients can only SELECT their own row.
 
 CREATE TABLE IF NOT EXISTS public.user_credits (
   id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -59,21 +64,24 @@ ALTER TABLE public.user_credits ENABLE ROW LEVEL SECURITY;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE tablename = 'user_credits' AND policyname = 'Korisnici čitaju sopstvene kredite'
+    WHERE tablename = 'user_credits' AND policyname = 'Korisnici citaju sopstvene kredite'
   ) THEN
-    CREATE POLICY "Korisnici čitaju sopstvene kredite"
+    CREATE POLICY "Korisnici citaju sopstvene kredite"
       ON public.user_credits FOR SELECT
       USING (auth.uid() = user_id);
   END IF;
 END $$;
 
--- Deduction is done server-side via service role / SECURITY DEFINER function —
--- no client UPDATE policy needed. Service role bypasses RLS automatically.
+-- Service role full access (needed for backend upsert + deduct_credit function)
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_credits TO service_role;
+-- Authenticated users can read their own row (RLS enforces this)
+GRANT SELECT ON public.user_credits TO authenticated;
 
 
 -- ─── 3. TRIGGER: Auto-assign 15 credits on new user ─────────────────────────
--- Fires after every INSERT on auth.users (triggered by admin.create_user).
--- ON CONFLICT DO NOTHING keeps it idempotent if the row already exists.
+-- Fires AFTER INSERT on auth.users.
+-- admin.create_user() → triggers this → inserts user_credits row.
+-- ON CONFLICT DO NOTHING makes it safe to call multiple times.
 
 CREATE OR REPLACE FUNCTION public.handle_new_user_credits()
 RETURNS TRIGGER
@@ -89,6 +97,9 @@ BEGIN
 END;
 $$;
 
+-- Grant EXECUTE so the function can be called by the trigger system
+GRANT EXECUTE ON FUNCTION public.handle_new_user_credits() TO service_role;
+
 DROP TRIGGER IF EXISTS on_auth_user_created_credits ON auth.users;
 
 CREATE TRIGGER on_auth_user_created_credits
@@ -98,9 +109,10 @@ CREATE TRIGGER on_auth_user_created_credits
 
 
 -- ─── 4. DEDUCT_CREDIT RPC ────────────────────────────────────────────────────
--- Called by backend: _get_supa().rpc("deduct_credit", {"p_user_id": user_id})
--- Atomically decrements by 1, never goes below 0.
--- Returns the new credits_remaining value.
+-- Backend calls: supa.rpc("deduct_credit", {"p_user_id": user_id})
+-- Atomically decrements by 1. Never goes below 0.
+-- Returns new credits_remaining value.
+-- SECURITY DEFINER = runs as postgres superuser, bypasses RLS.
 
 CREATE OR REPLACE FUNCTION public.deduct_credit(p_user_id UUID)
 RETURNS INTEGER
@@ -111,7 +123,6 @@ AS $$
 DECLARE
   new_credits INTEGER;
 BEGIN
-  -- Only decrement when credits > 0 (prevents race to negative)
   UPDATE public.user_credits
   SET
     credits_remaining = GREATEST(credits_remaining - 1, 0),
@@ -120,7 +131,7 @@ BEGIN
     AND credits_remaining > 0
   RETURNING credits_remaining INTO new_credits;
 
-  -- If no row was updated (already 0 or row missing), return current value
+  -- Row not updated means either credits = 0 or row missing
   IF NOT FOUND THEN
     SELECT credits_remaining INTO new_credits
     FROM public.user_credits
@@ -132,10 +143,12 @@ BEGIN
 END;
 $$;
 
+-- Allow service_role and authenticated to call this RPC via PostgREST
+GRANT EXECUTE ON FUNCTION public.deduct_credit(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.deduct_credit(UUID) TO authenticated;
+
 
 -- ─── 5. AUDIT_LOG TABLE ──────────────────────────────────────────────────────
--- Stores only who queried + when + hash of the query (no content).
--- ZZPL čl. 5(1)(f) — data minimization.
 
 CREATE TABLE IF NOT EXISTS public.audit_log (
   id      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,7 +159,7 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
 );
 
 ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
--- No user-level read policy — only service role can read audit logs.
+GRANT INSERT ON public.audit_log TO service_role;
 
 
 -- ─── 6. FEEDBACK TABLE ───────────────────────────────────────────────────────
@@ -172,16 +185,41 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+GRANT INSERT ON public.feedback TO service_role;
+GRANT INSERT ON public.feedback TO authenticated;
 
--- ─── 7. VERIFICATION QUERIES ─────────────────────────────────────────────────
--- Run these after the migration to confirm everything is in place:
+
+-- ─── 7. BACKFILL: Give 15 credits to existing users who have none ─────────────
+-- Safe to run multiple times — ON CONFLICT DO NOTHING.
+-- Run this AFTER the table and trigger are created.
+
+INSERT INTO public.user_credits (user_id, credits_remaining)
+SELECT id, 15
+FROM auth.users
+WHERE id NOT IN (SELECT user_id FROM public.user_credits)
+ON CONFLICT (user_id) DO NOTHING;
+
+
+-- ─── 8. VERIFICATION QUERIES ─────────────────────────────────────────────────
+-- Run these in a separate query after the migration:
 --
+-- Check tables exist:
 --   SELECT table_name FROM information_schema.tables
---   WHERE table_schema = 'public'
---   ORDER BY table_name;
+--   WHERE table_schema = 'public' ORDER BY table_name;
 --
+-- Check trigger exists on auth.users:
+--   SELECT trigger_name, event_manipulation, action_timing
+--   FROM information_schema.triggers
+--   WHERE event_object_schema = 'auth' AND event_object_table = 'users';
+--
+-- Check RPC functions exist:
 --   SELECT routine_name FROM information_schema.routines
 --   WHERE routine_schema = 'public' AND routine_type = 'FUNCTION';
 --
---   SELECT trigger_name FROM information_schema.triggers
---   WHERE event_object_schema = 'auth' AND event_object_table = 'users';
+-- Check all users have credits (should return 0 rows):
+--   SELECT id FROM auth.users
+--   WHERE id NOT IN (SELECT user_id FROM public.user_credits);
+--
+-- Inspect a specific user's credits (replace the UUID):
+--   SELECT * FROM public.user_credits
+--   WHERE user_id = '<your-user-uuid>';
