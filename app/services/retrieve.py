@@ -294,13 +294,13 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list
 # ─── Sprint 2A: Multi-Query dekompozicija ─────────────────────────────────────
 
 def _dekomponuj_query(query: str) -> list[str]:
-    """GPT-4o razlaže pitanje na 3 pravna pod-pitanja. Vraća listu stringova."""
+    """gpt-4o-mini razlaže pitanje na 3 pravna pod-pitanja. Vraća listu stringova."""
     try:
         resp = _get_client().chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             temperature=0,
             max_tokens=300,
-            timeout=15.0,
+            timeout=6.0,
             messages=[
                 {
                     "role": "system",
@@ -330,13 +330,13 @@ def _dekomponuj_query(query: str) -> list[str]:
 # ─── Sprint 2B: HyDE (Hypothetical Document Embedding) ───────────────────────
 
 def _generiši_hyde(query: str) -> str:
-    """GPT-4o generiše hipotetički zakonski tekst koji bi odgovorio na pitanje."""
+    """gpt-4o-mini generiše hipotetički zakonski tekst koji bi odgovorio na pitanje."""
     try:
         resp = _get_client().chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             temperature=0.2,
             max_tokens=150,
-            timeout=12.0,
+            timeout=5.0,
             messages=[
                 {
                     "role": "system",
@@ -417,10 +417,10 @@ def _oceni_relevantnost(query: str, docs: list[str]) -> str:
     kontekst = "\n---\n".join(docs[:3])[:3000]
     try:
         resp = _get_client().chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             temperature=0,
             max_tokens=20,
-            timeout=10.0,
+            timeout=5.0,
             messages=[
                 {
                     "role": "system",
@@ -456,7 +456,7 @@ def _prosiri_pretragu_crag(query: str) -> list[str]:
             model="gpt-4o-mini",
             temperature=0.3,
             max_tokens=120,
-            timeout=10.0,
+            timeout=5.0,
             messages=[
                 {
                     "role": "system",
@@ -759,7 +759,7 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
     docs = [_formatiraj_match(m) for m in reranked]
 
     # ── Faza 5: CRAG petlja (max 2 iteracije) ─────────────────────────────────
-    docs = _crag_petlja(query, docs, zakon, vektor, k, max_iter=2)
+    docs = _crag_petlja(query, docs, zakon, vektor, k, max_iter=1)
 
     elapsed = _time.perf_counter() - t0
     logger.info(

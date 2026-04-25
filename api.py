@@ -11,7 +11,7 @@ from typing import Optional, List
 
 from fastapi import FastAPI, Request, Depends, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
@@ -305,6 +305,21 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
+@app.on_event("startup")
+async def _warm_connections():
+    """Pre-inicijalizuje Pinecone i OpenAI klijente da se izbegne cold-start kašnjenje."""
+    def _warm():
+        try:
+            from app.services.retrieve import _get_index, _get_embeddings, _get_client
+            _get_index()
+            _get_embeddings()
+            _get_client()
+            logger.info("Startup warming: Pinecone + OpenAI klijenti inicijalizovani.")
+        except Exception as exc:
+            logger.warning("Startup warming neuspešan (nije fatalno): %s", exc)
+    await asyncio.to_thread(_warm)
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Hvatanje svih neočekivanih izuzetaka — vraća JSON umesto HTML stranice greške."""
@@ -566,6 +581,94 @@ def serve_html():
 
 # ─── Auth endpointi ───────────────────────────────────────────────────────────
 
+
+class RegisterReq(BaseModel):
+    email: str = Field(..., min_length=5, max_length=254)
+    password: str = Field(..., min_length=6, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def ocisti_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+@app.post("/api/register")
+async def register(req: RegisterReq):
+    """
+    Registracija novog korisnika koristeći Supabase Admin API (service key).
+    Kreira korisnika sa email_confirm=True — zaobilaži email potvrdu.
+    Vraća user_id i access_token ako je registracija uspešna.
+    """
+    if _is_disposable_email(req.email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Privremene email adrese nisu dozvoljene.",
+        )
+
+    def _do_register():
+        supa = _get_supa()
+        try:
+            # Admin create — ne šalje confirmation email, auto-confirms
+            result = supa.auth.admin.create_user({
+                "email": req.email,
+                "password": req.password,
+                "email_confirm": True,
+            })
+            if not result or not result.user:
+                raise ValueError("Supabase admin.create_user nije vratio korisnika.")
+            user_id = result.user.id
+            logger.info("Registracija uspešna: uid=%.8s email=%s", user_id, req.email)
+
+            # Kreira profil sa 15 besplatnih kredita
+            try:
+                supa.table("profiles").upsert(
+                    {"id": user_id, "email": req.email, "credits_remaining": BESPLATNI_KREDITI},
+                    on_conflict="id",
+                ).execute()
+            except Exception as prof_err:
+                logger.warning("Profil nije kreiran odmah (auto-heal pri prvom login-u): %s", prof_err)
+
+            # Prijavi korisnika da dobije token
+            login_result = supa.auth.sign_in_with_password({
+                "email": req.email,
+                "password": req.password,
+            })
+            session = getattr(login_result, "session", None)
+            access_token = session.access_token if session else None
+            return {
+                "status": "ok",
+                "user_id": user_id,
+                "access_token": access_token,
+                "credits_remaining": BESPLATNI_KREDITI,
+            }
+
+        except Exception as exc:
+            err_str = str(exc)
+            logger.warning("Registracija neuspešna: email=%s greška=%s", req.email, err_str)
+            if "already registered" in err_str.lower() or "already been registered" in err_str.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Email adresa je već registrovana. Prijavite se.",
+                )
+            if "password" in err_str.lower() and "weak" in err_str.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Lozinka je preslaba. Koristite najmanje 8 karaktera.",
+                )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Registracija nije uspela: {err_str[:200]}",
+            )
+
+    try:
+        return await asyncio.to_thread(_do_register)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Neočekivana greška u /api/register")
+        raise HTTPException(status_code=500, detail="Greška servera. Pokušajte ponovo.")
+
+
 @app.get("/api/me")
 async def me(user: dict = Depends(get_current_user)):
     """Vraća podatke o prijavljenom korisniku, kredite i PRO status."""
@@ -698,6 +801,118 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
             500,
             "Došlo je do greške na serveru. Pokušajte ponovo za nekoliko sekundi.",
         )
+
+
+@app.post("/api/pitanje/stream")
+@limiter.limit("10/minute")
+async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends(require_credits)):
+    """
+    SSE streaming verzija /api/pitanje.
+    Retrieval se izvršava normalno, zatim se GPT-4o odgovor stream-uje
+    chunk po chunk — korisnik vidi izlaz odmah, bez čekanja na kompletan odgovor.
+
+    SSE format:
+      data: <tekst chunk>\n\n
+      data: [DONE]\n\n     — signal kraju
+      data: [CREDITS:N]\n\n — preostali krediti
+    """
+    import json as _json
+    from main import (
+        _skini_pii, _hash_za_log, klasifikuj_pitanje,
+        SYSTEM_PROMPT_COMPLIANCE, SYSTEM_PROMPT_PORESKI,
+        SYSTEM_PROMPT_PARNICA, SYSTEM_PROMPT_DEFINICIJA,
+        _filtriraj_kontekst, retrieve_documents,
+    )
+    from openai import OpenAI as _OAI
+
+    qh = _q_hash(req.pitanje)
+    logger.info("PitanjeStream [uid=%.8s] [q=%s]", user["user_id"], qh)
+    asyncio.create_task(_audit(user["user_id"], "pitanje_stream", qh))
+
+    async def _event_generator():
+        try:
+            pitanje_api = _skini_pii(req.pitanje)
+            history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
+
+            # Retrieval (blocking — u thread-u da ne blokira event loop)
+            docs = await asyncio.to_thread(retrieve_documents, pitanje_api, 10)
+            filtrirani = _filtriraj_kontekst(docs)
+            if not filtrirani:
+                yield "data: Nije pronađen relevantan zakonski tekst za vaše pitanje.\n\n"
+                yield "data: [DONE]\n\n"
+                return
+
+            tip = await asyncio.to_thread(klasifikuj_pitanje, pitanje_api)
+            prompt_map = {
+                "COMPLIANCE": (SYSTEM_PROMPT_COMPLIANCE, "gpt-4o", 1000),
+                "PORESKI":    (SYSTEM_PROMPT_PORESKI,    "gpt-4o", 800),
+                "PARNICA":    (SYSTEM_PROMPT_PARNICA,    "gpt-4o", 1000),
+                "DEFINICIJA": (SYSTEM_PROMPT_DEFINICIJA, "gpt-4o-mini", 600),
+            }
+            system_prompt, model, max_tokens = prompt_map.get(tip, prompt_map["DEFINICIJA"])
+
+            kontekst = "\n\n---\n\n".join(filtrirani)
+            history_blok = ""
+            if history:
+                stavke = [
+                    f"[{i}] Korisnik: {_skini_pii((h.get('q') or '')[:200])}\n"
+                    f"    Vindex AI: {(h.get('a') or '')[:400]}..."
+                    for i, h in enumerate(history[-3:], 1)
+                ]
+                history_blok = "ISTORIJA RAZGOVORA (kontekst):\n" + "\n".join(stavke) + "\n\n"
+
+            user_content = (
+                f"{history_blok}"
+                f"PITANJE: {pitanje_api}\n\n"
+                f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
+            )
+
+            # Stream GPT odgovor
+            oai = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+            def _stream_sync():
+                return oai.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user",   "content": user_content},
+                    ],
+                    temperature=0,
+                    max_tokens=max_tokens,
+                    stream=True,
+                    timeout=30.0,
+                )
+
+            stream = await asyncio.to_thread(_stream_sync)
+
+            def _iter_chunks(s):
+                for chunk in s:
+                    delta = chunk.choices[0].delta.content if chunk.choices else None
+                    if delta:
+                        yield delta
+
+            for chunk_text in await asyncio.to_thread(lambda: list(_iter_chunks(stream))):
+                escaped = chunk_text.replace("\n", "\\n")
+                yield f"data: {escaped}\n\n"
+
+            # Oduzmi kredit i pošalji broj
+            preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+            yield "data: [DONE]\n\n"
+            yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
+
+        except Exception:
+            logger.exception("Greška u /api/pitanje/stream [q=%s]", qh)
+            yield "data: Došlo je do greške. Pokušajte ponovo.\n\n"
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        _event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/api/nacrt")

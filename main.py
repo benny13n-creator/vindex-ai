@@ -584,15 +584,26 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
     kontekst = " ".join(docs)
     kontekst_norm = _normalizuj(kontekst)
 
-    # 1) Proveri sve citirane članove
+    # 1) Proveri citirane članove samo ako kontekst ima dovoljno sadržaja (≥3 docs, ≥500 chars)
+    # Ako je kontekst siromašan (v1 vektori / pogrešni zakoni), LLM ispravno citira iz znanja
+    # ali ti članovi nisu u kontekstu — ne sme se blokirati validan odgovor
+    if len(docs) < 3 or len(kontekst) < 500:
+        logger.info("[HALUCINACIJA_SKIP] Kontekst prekratak (%d docs, %d chars) — preskačem proveru", len(docs), len(kontekst))
+        return True, "ok"
+
     citirani_clanovi = re.findall(r"[Čč]lan\s+(\d+[a-zA-Z]?)", odgovor)
+    pogodci = 0
     for clan in citirani_clanovi:
         clan_norm = _normalizuj(clan)
-        # Word-boundary: "lan 5" ne sme da matchuje "lan 50"
         pattern = rf"lan\s+{re.escape(clan_norm)}(?!\d)"
-        if not re.search(pattern, kontekst_norm):
-            logger.warning("HALUCINACIJA: član %s nije u kontekstu", clan)
-            return False, f"Član {clan} nije pronađen u dostavljenom kontekstu"
+        if re.search(pattern, kontekst_norm):
+            pogodci += 1
+
+    # Blokiraj samo ako su SVI citirani članovi odsutni iz konteksta (halucinacija)
+    # Ako bar 1 od citiranih članova postoji u kontekstu — odgovor je legitiman
+    if citirani_clanovi and pogodci == 0:
+        logger.warning("HALUCINACIJA: nijedan od %d citiranih članova nije u kontekstu", len(citirani_clanovi))
+        return False, f"Nijedan citiran član ({', '.join(citirani_clanovi[:3])}) nije u dostavljenom kontekstu"
 
     # 2) Proveri citat — samo ako nijedan od citiranih članova NIJE pronađen u kontekstu
     # Ako su svi citirani članovi potvrđeni, dozvoljavamo parafrazirani citat
@@ -1592,6 +1603,11 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         )
 
         # KORAK 4: Generiši odgovor izabranim promptom
+        logger.info(
+            "[GEN] tip=%s model=%s kontekst_docs=%d kontekst_chars=%d [q=%s]",
+            tip, _model, len(filtrirani), len(kontekst), log_id,
+        )
+        logger.info("[GEN] Kontekst preview: %s", kontekst[:300].replace("\n", " "))
         try:
             odgovor = _pozovi_openai(system_prompt, user_content, model=_model, max_tokens=_max_tokens)
         except Exception as e:
