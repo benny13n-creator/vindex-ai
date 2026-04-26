@@ -983,6 +983,27 @@ async def _audit(user_id: str, akcija: str, q_hash: str) -> None:
         logger.warning("Audit log neuspešan — ne blokira odgovor")
 
 
+@app.post("/api/bot/ask")
+@limiter.limit("120/minute")
+async def bot_ask(req: PitanjeReq, request: Request, x_api_key: str = Header(default="")):
+    """
+    Internal endpoint for the Vindex Telegram bot.
+    Authenticated via X-Api-Key header (BOT_API_KEY env var).
+    Bypasses Supabase auth — the bot manages its own subscription logic.
+    """
+    bot_key = os.getenv("BOT_API_KEY", "").strip()
+    if not bot_key or x_api_key != bot_key:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    qh = _q_hash(req.pitanje)
+    logger.info("Bot pitanje [q=%s]", qh)
+    try:
+        rezultat = await pokreni(ask_agent, req.pitanje, None)
+        return normalizuj_rezultat(rezultat)
+    except Exception:
+        logger.exception("Greška u /api/bot/ask [q=%s]", qh)
+        return greska_odgovor(500, "Greška servera.")
+
+
 @app.post("/api/pitanje")
 @limiter.limit("10/minute")
 async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(require_credits)):
