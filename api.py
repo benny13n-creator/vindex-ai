@@ -1189,6 +1189,46 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(get_curren
         return greska_odgovor(500, "Greška pri generisanju sažetka.")
 
 
+class TtsReq(BaseModel):
+    tekst: str = Field(..., min_length=1, max_length=5000)
+
+    @field_validator("tekst")
+    @classmethod
+    def ocisti(cls, v: str) -> str:
+        return v.strip()
+
+
+@app.post("/api/tts")
+@limiter.limit("20/minute")
+async def tts(req: TtsReq, request: Request, user: dict = Depends(get_current_user)):
+    """Text-to-speech — OpenAI tts-1, glas 'onyx'. Odgovori >1000 znakova se skraćuju."""
+    from openai import OpenAI as _OAI
+    tekst = req.tekst
+    if len(tekst) > 1000:
+        tekst = tekst[:500] + "... Nastavite čitanje u tekstu iznad."
+
+    def _generate() -> bytes:
+        oai = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+        r = oai.audio.speech.create(
+            model="tts-1",
+            voice="onyx",
+            input=tekst,
+            response_format="mp3",
+        )
+        return r.content
+
+    try:
+        audio = await asyncio.to_thread(_generate)
+        return StreamingResponse(
+            iter([audio]),
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=odgovor.mp3"},
+        )
+    except Exception:
+        logger.exception("Greška u /api/tts")
+        raise HTTPException(status_code=500, detail="TTS greška. Pokušajte ponovo.")
+
+
 @app.post("/api/feedback")
 async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
     """

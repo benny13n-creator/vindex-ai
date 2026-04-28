@@ -759,6 +759,15 @@ blockquote.citat-expanded { max-height: none; }
 .settings-save-btn { width:100%; padding:0.65rem; background:rgba(74,168,255,0.12); border:1px solid rgba(74,168,255,0.3); color:#89c8ff; border-radius:8px; font-family:inherit; font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; margin-top:0.5rem; }
 .settings-save-btn:hover { background:rgba(74,168,255,0.2); }
 
+/* ── TTS ──────────────────────────────────────────────────────────────────── */
+.tts-btn { background:none; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:rgba(255,255,255,0.45); font-size:0.78rem; padding:0.28rem 0.6rem; cursor:pointer; transition:all 0.18s; display:inline-flex; align-items:center; gap:0.3rem; vertical-align:middle; }
+.tts-btn:hover { color:#89c8ff; border-color:rgba(74,168,255,0.35); }
+.tts-btn.tts-loading { opacity:0.55; cursor:wait; }
+.tts-btn.tts-playing { color:#4ade80; border-color:rgba(74,222,128,0.4); animation:tts-pulse 1.4s ease-in-out infinite; }
+@keyframes tts-pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+.settings-voice-row { display:flex; align-items:center; justify-content:space-between; padding:0.7rem 0 0.2rem; border-top:1px solid rgba(255,255,255,0.07); margin-top:0.6rem; }
+.settings-voice-lbl { font-size:0.78rem; color:rgba(255,255,255,0.6); }
+
 /* ── ENHANCED BEAMS ──────────────────────────────────────────────────────── */
 .beam-xl { position: absolute; pointer-events: none; border-radius: 50%; filter: blur(130px); }
 .bxl-1 { width: 900px; height: 900px; background: radial-gradient(circle, rgba(74,168,255,0.13) 0%, transparent 60%); top: -350px; right: -250px; animation: bxl-drift 22s ease-in-out infinite; }
@@ -1579,6 +1588,8 @@ var activeTab = 'q';
 var _cyrillicOn = false;
 var currentUserIsPro = false;
 var _lastRawText = '';
+var _ttsEnabled  = (localStorage.getItem('vindex_voice') === '1');
+var _ttsAudio    = null;
 
 function toggleCyrillic() {
   _cyrillicOn = document.getElementById('cyr-toggle').checked;
@@ -3297,6 +3308,8 @@ function openSettings() {
   ['naziv','adresa','pib','kontakt'].forEach(function(k){
     var el=document.getElementById('s-'+k); if(el) el.value=s[k]||'';
   });
+  var vt = document.getElementById('voice-toggle');
+  if (vt) vt.checked = _ttsEnabled;
   document.getElementById('settings-modal').classList.add('open');
 }
 function closeSettings() {
@@ -3480,6 +3493,7 @@ async function execQuery() {
               rb.innerHTML = parsedHtml + _feedbackBar(currentPitanje, text);
             }
             if (_cyrillicOn) cirilicaElement(rb);
+            if (_ttsEnabled) playTts();
           } else { rb.textContent+=text[i]; i++; }
         },speed);
       }
@@ -3498,7 +3512,57 @@ async function execQuery() {
 function _feedbackBar(pitanje, odgovor) {
   var p = encodeURIComponent(pitanje||'').substring(0,500);
   var o = encodeURIComponent(odgovor||'').substring(0,1000);
-  return '<div class="feedback-bar"><button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">⚑ Prijavi netačan odgovor</button></div>';
+  var ttsBtn = '<button class="tts-btn" id="tts-btn" onclick="playTts()" title="Pročitaj odgovor glasom (OpenAI TTS)">🔊 Slušaj</button>';
+  return '<div class="feedback-bar">' + ttsBtn + '<button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">⚑ Prijavi netačan odgovor</button></div>';
+}
+
+function toggleVoice(on) {
+  _ttsEnabled = on;
+  localStorage.setItem('vindex_voice', on ? '1' : '0');
+}
+
+async function playTts() {
+  if (!currentSession) return;
+  var text = _lastRawText;
+  if (!text) return;
+
+  var btn = document.getElementById('tts-btn');
+
+  // Stop current playback if any
+  if (_ttsAudio) {
+    _ttsAudio.pause();
+    _ttsAudio = null;
+    if (btn) { btn.textContent = '🔊 Slušaj'; btn.classList.remove('tts-playing','tts-loading'); }
+    return;
+  }
+
+  if (btn) { btn.textContent = '⏳ Učitavam...'; btn.classList.add('tts-loading'); btn.disabled = true; }
+
+  try {
+    var r = await fetch(BASE_URL + '/api/tts', {
+      method:  'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
+      body:    JSON.stringify({ tekst: text })
+    });
+    if (!r.ok) { showToast('TTS greška. Pokušajte ponovo.', 'err'); return; }
+    var blob = await r.blob();
+    var url  = URL.createObjectURL(blob);
+    _ttsAudio = new Audio(url);
+    _ttsAudio.onended = function() {
+      _ttsAudio = null;
+      URL.revokeObjectURL(url);
+      if (btn) { btn.textContent = '🔊 Slušaj'; btn.classList.remove('tts-playing'); btn.disabled = false; }
+    };
+    _ttsAudio.onerror = function() {
+      _ttsAudio = null;
+      if (btn) { btn.textContent = '🔊 Slušaj'; btn.classList.remove('tts-playing'); btn.disabled = false; }
+    };
+    if (btn) { btn.textContent = '⏹ Zaustavi'; btn.classList.remove('tts-loading'); btn.classList.add('tts-playing'); btn.disabled = false; }
+    _ttsAudio.play();
+  } catch(e) {
+    showToast('TTS greška.', 'err');
+    if (btn) { btn.textContent = '🔊 Slušaj'; btn.classList.remove('tts-loading','tts-playing'); btn.disabled = false; }
+  }
 }
 
 async function sendFeedback(btn, pitanjeEnc, odgovorEnc) {
@@ -3614,6 +3678,14 @@ window.addEventListener('DOMContentLoaded', function() {
     <div class="settings-row">
       <div class="settings-label">Kontakt (email ili telefon)</div>
       <input class="modal-input" type="text" id="s-kontakt" placeholder="advokat@kancelarija.rs" autocomplete="email">
+    </div>
+    <div class="settings-voice-row">
+      <span class="settings-voice-lbl">🔊 Glasovni odgovor (TTS)</span>
+      <label class="cyr-toggle-wrap" title="Automatski pročitaj odgovor glasom">
+        <input type="checkbox" id="voice-toggle" onchange="toggleVoice(this.checked)">
+        <span class="cyr-toggle-slider"></span>
+        <span class="cyr-toggle-lbl">Glas</span>
+      </label>
     </div>
     <button class="settings-save-btn" onclick="saveSettings()">Sačuvaj podešavanja</button>
     <p class="settings-note">Podaci se NE šalju na server. Čuvaju se isključivo u vašem pregledaču (localStorage).</p>
