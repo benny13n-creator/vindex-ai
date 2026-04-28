@@ -759,14 +759,13 @@ blockquote.citat-expanded { max-height: none; }
 .settings-save-btn { width:100%; padding:0.65rem; background:rgba(74,168,255,0.12); border:1px solid rgba(74,168,255,0.3); color:#89c8ff; border-radius:8px; font-family:inherit; font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; margin-top:0.5rem; }
 .settings-save-btn:hover { background:rgba(74,168,255,0.2); }
 
-/* ── TTS ──────────────────────────────────────────────────────────────────── */
-.tts-btn { background:none; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:rgba(255,255,255,0.45); font-size:0.78rem; padding:0.28rem 0.6rem; cursor:pointer; transition:all 0.18s; display:inline-flex; align-items:center; gap:0.3rem; vertical-align:middle; }
-.tts-btn:hover { color:#89c8ff; border-color:rgba(74,168,255,0.35); }
-.tts-btn.tts-loading { opacity:0.55; cursor:wait; }
-.tts-btn.tts-playing { color:#4ade80; border-color:rgba(74,222,128,0.4); animation:tts-pulse 1.4s ease-in-out infinite; }
-@keyframes tts-pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
-.settings-voice-row { display:flex; align-items:center; justify-content:space-between; padding:0.7rem 0 0.2rem; border-top:1px solid rgba(255,255,255,0.07); margin-top:0.6rem; }
-.settings-voice-lbl { font-size:0.78rem; color:rgba(255,255,255,0.6); }
+/* ── TTS navbar toggle ────────────────────────────────────────────────────── */
+@keyframes tts-pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+.voice-nav-btn { background:rgba(74,168,255,0.1); border:1px solid rgba(74,168,255,0.3); border-radius:6px; color:#89c8ff; font-size:0.8rem; font-weight:600; padding:0.3rem 0.75rem; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:0.3rem; letter-spacing:0.01em; }
+.voice-nav-btn:hover { background:rgba(74,168,255,0.18); border-color:rgba(74,168,255,0.5); }
+.voice-nav-btn.voice-off { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.1); color:rgba(255,255,255,0.32); }
+.voice-nav-btn.voice-off:hover { color:rgba(255,255,255,0.55); border-color:rgba(255,255,255,0.2); }
+.voice-nav-btn.voice-playing { color:#4ade80; border-color:rgba(74,222,128,0.45); background:rgba(74,222,128,0.08); animation:tts-pulse 1.4s ease-in-out infinite; }
 
 /* ── ENHANCED BEAMS ──────────────────────────────────────────────────────── */
 .beam-xl { position: absolute; pointer-events: none; border-radius: 50%; filter: blur(130px); }
@@ -1169,6 +1168,7 @@ footer { padding: 2rem 1.5rem; }
     <a href="#about">O nama</a>
   </div>
   <div class="nav-user" id="nav-user">
+    <button class="voice-nav-btn" id="voice-nav-btn" onclick="toggleVoice(!_ttsEnabled)" title="Glasovni odgovor — kliknite za uključivanje/isključivanje">🔊 Glas</button>
     <button class="settings-btn" onclick="openSettings()" title="Podešavanja kancelarije">⚙</button>
     <span class="nav-user-email" id="nav-user-email"></span>
     <span class="nav-credit-pill" id="nav-credit-pill"><span id="nav-credits-num" class="cp-num">15</span>&nbsp;/ 15 upita</span>
@@ -1588,7 +1588,7 @@ var activeTab = 'q';
 var _cyrillicOn = false;
 var currentUserIsPro = false;
 var _lastRawText = '';
-var _ttsEnabled  = (localStorage.getItem('vindex_voice') === '1');
+var _ttsEnabled  = (localStorage.getItem('vindex_voice') !== '0'); // ON by default
 var _ttsAudio    = null;
 
 function toggleCyrillic() {
@@ -3512,13 +3512,28 @@ async function execQuery() {
 function _feedbackBar(pitanje, odgovor) {
   var p = encodeURIComponent(pitanje||'').substring(0,500);
   var o = encodeURIComponent(odgovor||'').substring(0,1000);
-  var ttsBtn = '<button class="tts-btn" id="tts-btn" onclick="playTts()" title="Pročitaj odgovor glasom (OpenAI TTS)">🔊 Slušaj</button>';
-  return '<div class="feedback-bar">' + ttsBtn + '<button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">⚑ Prijavi netačan odgovor</button></div>';
+  return '<div class="feedback-bar"><button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">⚑ Prijavi netačan odgovor</button></div>';
+}
+
+function _updateVoiceBtn() {
+  var btn = document.getElementById('voice-nav-btn');
+  if (!btn) return;
+  if (_ttsEnabled) {
+    btn.innerHTML = '🔊 Glas';
+    btn.classList.remove('voice-off');
+    btn.title = 'Glasovni odgovor je UKLJUČEN — kliknite da isključite';
+  } else {
+    btn.innerHTML = '🔇 Isključen';
+    btn.classList.add('voice-off');
+    btn.title = 'Glasovni odgovor je ISKLJUČEN — kliknite da uključite';
+  }
 }
 
 function toggleVoice(on) {
   _ttsEnabled = on;
   localStorage.setItem('vindex_voice', on ? '1' : '0');
+  _updateVoiceBtn();
+  if (!on && _ttsAudio) { _ttsAudio.pause(); _ttsAudio = null; }
 }
 
 async function playTts() {
@@ -3526,17 +3541,17 @@ async function playTts() {
   var text = _lastRawText;
   if (!text) return;
 
-  var btn = document.getElementById('tts-btn');
+  var navBtn = document.getElementById('voice-nav-btn');
 
-  // Stop current playback if any
+  // Stop current playback if already playing
   if (_ttsAudio) {
     _ttsAudio.pause();
     _ttsAudio = null;
-    if (btn) { btn.textContent = '🔊 Slušaj'; btn.classList.remove('tts-playing','tts-loading'); }
+    if (navBtn) navBtn.classList.remove('voice-playing');
     return;
   }
 
-  if (btn) { btn.textContent = '⏳ Učitavam...'; btn.classList.add('tts-loading'); btn.disabled = true; }
+  if (navBtn) navBtn.classList.add('voice-playing');
 
   try {
     var r = await fetch(BASE_URL + '/api/tts', {
@@ -3544,24 +3559,23 @@ async function playTts() {
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
       body:    JSON.stringify({ tekst: text })
     });
-    if (!r.ok) { showToast('TTS greška. Pokušajte ponovo.', 'err'); return; }
+    if (!r.ok) { if (navBtn) navBtn.classList.remove('voice-playing'); showToast('TTS greška. Pokušajte ponovo.', 'err'); return; }
     var blob = await r.blob();
     var url  = URL.createObjectURL(blob);
     _ttsAudio = new Audio(url);
     _ttsAudio.onended = function() {
       _ttsAudio = null;
       URL.revokeObjectURL(url);
-      if (btn) { btn.textContent = '🔊 Slušaj'; btn.classList.remove('tts-playing'); btn.disabled = false; }
+      if (navBtn) navBtn.classList.remove('voice-playing');
     };
     _ttsAudio.onerror = function() {
       _ttsAudio = null;
-      if (btn) { btn.textContent = '🔊 Slušaj'; btn.classList.remove('tts-playing'); btn.disabled = false; }
+      if (navBtn) navBtn.classList.remove('voice-playing');
     };
-    if (btn) { btn.textContent = '⏹ Zaustavi'; btn.classList.remove('tts-loading'); btn.classList.add('tts-playing'); btn.disabled = false; }
     _ttsAudio.play();
   } catch(e) {
     showToast('TTS greška.', 'err');
-    if (btn) { btn.textContent = '🔊 Slušaj'; btn.classList.remove('tts-loading','tts-playing'); btn.disabled = false; }
+    if (navBtn) navBtn.classList.remove('voice-playing');
   }
 }
 
@@ -3678,14 +3692,6 @@ window.addEventListener('DOMContentLoaded', function() {
     <div class="settings-row">
       <div class="settings-label">Kontakt (email ili telefon)</div>
       <input class="modal-input" type="text" id="s-kontakt" placeholder="advokat@kancelarija.rs" autocomplete="email">
-    </div>
-    <div class="settings-voice-row">
-      <span class="settings-voice-lbl">🔊 Glasovni odgovor (TTS)</span>
-      <label class="cyr-toggle-wrap" title="Automatski pročitaj odgovor glasom">
-        <input type="checkbox" id="voice-toggle" onchange="toggleVoice(this.checked)">
-        <span class="cyr-toggle-slider"></span>
-        <span class="cyr-toggle-lbl">Glas</span>
-      </label>
     </div>
     <button class="settings-save-btn" onclick="saveSettings()">Sačuvaj podešavanja</button>
     <p class="settings-note">Podaci se NE šalju na server. Čuvaju se isključivo u vašem pregledaču (localStorage).</p>
