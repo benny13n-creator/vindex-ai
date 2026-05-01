@@ -619,6 +619,63 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
     return True, "ok"
 
 
+# ─── Semantic relevance check (Anti topic-drift) ─────────────────────────────
+
+_TOPIC_KEYWORDS: list[tuple[list[str], list[str]]] = [
+    # (query keywords, article-content keywords that MUST appear for match)
+    (["kradj", "kradjom", "kradje"],          ["kradj", "prisvaj", "oduzm"]),
+    (["razbojn"],                             ["razbojn", "sil", "pretnjom"]),
+    (["ubistvo", "ubojstv"],                  ["ubojstv", "ubistv", "lisi", "zivot"]),
+    (["silovanje", "polni"],                  ["polni", "silov", "seksualni"]),
+    (["nasilje u porodici"],                  ["porodic", "nasilj", "clan"]),
+    (["droga", "narkotik", "opojn"],          ["droga", "narkotik", "opojn", "supstanc"]),
+    (["prevara krivicn", "utaja krivicn"],     ["prevara", "utaj", "obmanjiv"]),
+    (["zastita potrosac"],                    ["potrosac", "potrosacki"]),
+    (["radno pravo", "otkaz", "zaposleni"],   ["rad", "zaposleni", "otkaz"]),
+]
+
+
+def _proveri_tematsku_relevantnost(pitanje: str, odgovor: str, docs: list[str]) -> tuple[bool, str]:
+    """
+    Detects topic-drift: question is about X but cited article is about Y.
+    Only fires when the mismatch is clear-cut (e.g., theft query → weapons article).
+
+    Returns (ok, reason). Returns False only when confident mismatch detected.
+    """
+    q_norm = _normalizuj(pitanje)
+    kontekst_norm = _normalizuj(" ".join(docs))
+
+    # Find the primary cited article number in the response
+    citirani = re.findall(r"[Čč]lan\s+(\d+[a-zA-Z]?)", odgovor)
+    if not citirani:
+        return True, "ok"
+
+    for q_terms, content_terms in _TOPIC_KEYWORDS:
+        # Does the query match this topic?
+        if not any(t in q_norm for t in q_terms):
+            continue
+
+        # Query IS about this topic — verify the cited articles' content has these terms
+        for clan_num in citirani[:2]:
+            clan_norm = _normalizuj(clan_num)
+            # Extract article text from context (up to 800 chars)
+            pat = rf"lan\s+{re.escape(clan_norm)}\b(.{{0,800}}?)(?:lan\s+\d|\Z)"
+            m = re.search(pat, kontekst_norm, re.DOTALL)
+            if m:
+                article_text = m.group(0)
+                if any(t in article_text for t in content_terms):
+                    return True, "ok"  # at least one cited article is topically correct
+
+        # No cited article matched the topic
+        logger.warning(
+            "[TOPIC_DRIFT] Pitanje o '%s' ali citirani članovi %s nisu o toj temi",
+            q_terms[0], citirani[:2],
+        )
+        return False, f"Odgovor citira tematski nesrodne članove ({', '.join(['Član ' + c for c in citirani[:2]])})"
+
+    return True, "ok"
+
+
 # ─── Poznate kritične pravne greške — pattern → ispravka ─────────────────────
 #
 # Svaki unos: (regex_pattern, korekcija)
@@ -936,6 +993,24 @@ _PARNICA_TRIGGERS = [
     "povreda", "povreden", "pretucen", "polomljen", "telesna",
     "otkaz", "radno pravo spor", "imovinskopravni",
     "prvostepen", "drugostepen", "revizij", "zalba na presudu",
+    # KZ — krivičnopravna pitanja → PARNICA (gpt-4o, 2500 tokens)
+    "krivicno delo", "krivicnih dela", "krivicna dela", "krivicna prijava",
+    "krivicna odgovornost", "krivicna sankcija", "krivicno gonjenje",
+    "krivicnog zakonika", "krivicni zakonik", "krivicnom zakoniku",
+    "kazna zatvora", "kazna za", "zatvorska kazna", "novcan kazna kz",
+    "kradja", "kradjom", "kradje", "teski oblik kradje",
+    "razbojnistvo", "razbojnicka kradja",
+    "prevara krivicn", "utaja krivicn",
+    "iznuda", "ucena krivicn",
+    "ubistvo", "ubojstv", "telesna povreda krivicn",
+    "nasilje u porodici", "seksualno nasilje", "silovanje",
+    "droga krivicn", "opojne droge", "narkotik",
+    "pranje novca krivicn", "organizovani kriminal",
+    "krivicno gonjenje", "krivicna prijava policiji",
+    "zastara krivicnog", "zastarelost krivicnog",
+    "uslovna osuda", "uslovni otpust",
+    "maloletan ucini", "maloletni ucinioc",
+    "recidiviz", "povratnik",
 ]
 
 _DEFINICIJA_TRIGGERS = [
@@ -1548,8 +1623,8 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         else:  # DEFINICIJA
             system_prompt    = SYSTEM_PROMPT_DEFINICIJA
             aktivan_sekcije  = SEKCIJE_DEFINICIJA
-            _model           = "gpt-4o-mini"
-            _max_tokens      = 800
+            _model           = "gpt-4o"
+            _max_tokens      = 1500
 
         # KORAK 3: Retrieval — filter_zakoni su hint za retrieve_documents LAW_HINTS
         # COMPLIANCE → boost ZDI + ZSPNFT | PORESKI → boost poreski zakoni
@@ -1631,6 +1706,12 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
         if not validan:
             logger.warning("Anti-halucinacija [q=%s] razlog=%s", log_id, razlog)
+            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+
+        # Tematska relevantnost — sprečava topic drift (npr. pitanje o krađi, citat o oružju)
+        tematski_ok, tematski_razlog = _proveri_tematsku_relevantnost(pitanje_api, odgovor, filtrirani)
+        if not tematski_ok:
+            logger.warning("TOPIC_DRIFT [q=%s] razlog=%s", log_id, tematski_razlog)
             return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
 
         # Provera poznatih pravnih grešaka
