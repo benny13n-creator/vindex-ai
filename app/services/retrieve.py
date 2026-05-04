@@ -794,9 +794,11 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
     reranked = _cohere_rerank(query, top_kandid, k=k)
 
     # ── Capture confidence metadata from top match (before CRAG may change docs) ──
-    # Use max Pinecone score across reranked set (Cohere may promote a slightly lower-score chunk)
+    # Cohere reranks by semantic relevance. Trust its #1 ranking instead of
+    # falling back to max Pinecone cosine score — which caused the wrong-article
+    # bug for ~50% of queries (sub-query pollution + cosine mismatch).
     if reranked:
-        _top = max(reranked, key=lambda m: m.score)
+        _top = reranked[0]
         _top_meta_raw = _top.metadata or {}
         _top_score   = _top.score
         _top_article = _top_meta_raw.get("article", "—")
