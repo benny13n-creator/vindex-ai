@@ -291,9 +291,16 @@ def _ugradi_query(query: str) -> list[float]:
 
 
 # ─── Confidence thresholds ───────────────────────────────────────────────────
+# Calibrated 2026-05-04 against 30Q benchmark (23,699-vector index)
+# Score distribution: P25=0.64, median=0.67, P75=0.71
+# HIGH=0.65 → 67% coverage (20/30 queries routed to structured answer)
+# MEDIUM=0.52 → catches Q14, Q30 (true LOW — wrong law returned) correctly
+# Known limitation: Q06 (uslovna osuda) routes to ZKP instead of KZ;
+# mitigated by anti-hallucination gate on article number citation.
+# Re-calibrate when index expands beyond current ZOO/KZ/ZKP scope.
 
-CONFIDENCE_HIGH_THRESHOLD   = 0.78
-CONFIDENCE_MEDIUM_THRESHOLD = 0.65
+CONFIDENCE_HIGH_THRESHOLD   = 0.65
+CONFIDENCE_MEDIUM_THRESHOLD = 0.52
 
 
 def get_confidence_level(score: float) -> str:
