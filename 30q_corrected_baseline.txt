@@ -1,0 +1,865 @@
+[01/30] Koja je kazna za osnovnu kraƒëu?
+2026-05-04 16:39:00 INFO vindex.retrieve | [PINECONE] Konekcija putem PINECONE_HOST=https://vindex-ai-t8z679r.svc.aped-4627-b74a.pinecone.io
+2026-05-04 16:39:01 INFO vindex.retrieve | [PINECONE] Index OK ó 23699 vektora
+2026-05-04 16:39:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:04 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:06 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:10 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:18 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:18 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:39:18 INFO vindex.retrieve | [RETRIEVE] 14.66s | raw_matches=19 | docs_posle_crag=10 | zakon=KZ | clan=ó | query='Koja je kazna za osnovnu kra\u0111u?'
+2026-05-04 16:39:18 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 205  CITABILNI TEKST: (2) Ako vrednost ukradenih stvari prelazi iznos od milion i petsto hiljada dinara, u\u010dinilac \u0107e se kazniti zatvorom od dve do dvanaest godina.  PUNI TEKST \u010cLA
+2026-05-04 16:39:18 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: KZ \u010cLAN: \u010clan 210  CITABILNI TEKST: (1) Ko u\u010dini sitnu kra\u0111u, utaju ili prevaru, kazni\u0107e se nov\u010danom kaznom ili zatvorom do öest meseci.  PUNI TEKST \u010cLANA: \u010clan 210 (1) Ko u\u010dini sitnu kra\u0111u, ut
+2026-05-04 16:39:18 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 205  CITABILNI TEKST: (1) Ko je na delu kra\u0111e (\u010dlan 203) zate\u010den, pa u nameri da ukradenu stvar zadrûi, upotrebi silu protiv nekog lica ili pretnju da \u0107e neposredno napasti na ûiv
+2026-05-04 16:39:18 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6876 article=\u010clan 205 law=KZ
+2026-05-04 16:39:18 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6876 article=\u010clan 205 law=KZ query=Koja je kazna za osnovnu kra\u0111u? [q=e93c98a58a60608b]
+2026-05-04 16:39:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:20 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=e93c98a58a60608b]
+  ‚Üí ‚úÖ | conf=HIGH | score=0.688 | art=ƒålan 205 | 20.5s
+[02/30] Koja je razlika izmeƒëu kraƒëe i razbojni≈°tva?
+2026-05-04 16:39:21 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:22 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:29 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:29 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:29 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:29 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:30 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:30 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: DELIMI\u010cNO
+2026-05-04 16:39:31 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:32 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:32 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:33 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:33 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:34 INFO vindex.retrieve | [CRAG] DELIMI\u010cNO: dodato 7 novih docs (ukupno=10)
+2026-05-04 16:39:34 INFO vindex.retrieve | [RETRIEVE] 12.01s | raw_matches=13 | docs_posle_crag=10 | zakon=KZ | clan=ó | query='Koja je razlika izme\u0111u kra\u0111e i razbojniötva?'
+2026-05-04 16:39:34 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 202  CITABILNI TEKST: (3) Proizvodi iz stava 1. ovog \u010dlana oduze\u0107e se. Glava dvadeset prva KRIVI\u010cNA DELA PROTIV IMOVINE Kra\u0111a  PUNI TEKST \u010cLANA: \u010clan 202 (1) Ko na svom proizvodu 
+2026-05-04 16:39:34 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: KZ \u010cLAN: \u010clan 204  CITABILNI TEKST: (2) Kaznom iz stava 1. ovog \u010dlana kazni\u0107e se i u\u010dinilac dela kra\u0111e ako vrednost ukradenih stvari prelazi iznos od \u010detristopedeset hiljada dinara.  PUNI TEKST
+2026-05-04 16:39:34 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 210  CITABILNI TEKST: (2) Kra\u0111a, utaja i prevara smatraju se sitnom, ako vrednost ukradene ili utajene stvari, odnosno öteta prouzrokovana prevarom ne prelazi iznos od pet hiljada
+2026-05-04 16:39:34 INFO vindex.retrieve | [RETRIEVE] confidence=MEDIUM score=0.6222 article=\u010clan 202 law=KZ
+2026-05-04 16:39:34 INFO vindex.agent | [ASK_AGENT] confidence=MEDIUM score=0.6222 article=\u010clan 202 law=KZ query=Koja je razlika izme\u0111u kra\u0111e i razbojniötva? [q=d6f3b57801e23f5c]
+2026-05-04 16:39:34 INFO vindex.agent | MEDIUM confidence response [q=d6f3b57801e23f5c]
+  ‚Üí ‚ö†Ô∏è | conf=MEDIUM | score=0.622 | art=ƒålan 202 | 12.6s
+[03/30] Koja je kazna za te≈°ku kraƒëu?
+2026-05-04 16:39:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:35 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:41 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:41 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:41 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:42 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:39:42 INFO vindex.retrieve | [RETRIEVE] 7.31s | raw_matches=16 | docs_posle_crag=10 | zakon=KZ | clan=ó | query='Koja je kazna za teöku kra\u0111u?'
+2026-05-04 16:39:42 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 203  CITABILNI TEKST: (2) Za pokuöaj dela iz stava 1. ovog \u010dlana kazni\u0107e se. Teöka kra\u0111a  PUNI TEKST \u010cLANA: \u010clan 203 (1) Ko tu\u0111u pokretnu stvar oduzme drugom u nameri da njenim pr
+2026-05-04 16:39:42 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: KZ \u010cLAN: \u010clan 204  CITABILNI TEKST: (2) Kaznom iz stava 1. ovog \u010dlana kazni\u0107e se i u\u010dinilac dela kra\u0111e ako vrednost ukradenih stvari prelazi iznos od \u010detristopedeset hiljada dinara.  PUNI TEKST
+2026-05-04 16:39:42 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 379  CITABILNI TEKST: (2) Ako je delo iz stava 1. ovog \u010dlana u\u010dinjeno na svirep na\u010din ili ako vrednost oduzetih stvari prelazi iznos od \u010detristopedeset hiljada dinara, u\u010dinilac \u0107e
+2026-05-04 16:39:42 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6963 article=\u010clan 203 law=KZ
+2026-05-04 16:39:42 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6963 article=\u010clan 203 law=KZ query=Koja je kazna za teöku kra\u0111u? [q=3b370c5f180dbda5]
+2026-05-04 16:39:44 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:44 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=3b370c5f180dbda5]
+  ‚Üí ‚ùå | conf=HIGH | score=0.696 | art=ƒålan 203 | 10.3s
+[04/30] ≈†ta je pronevera u slu≈æbi i koja je kazna?
+2026-05-04 16:39:45 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:46 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:52 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:52 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:52 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:52 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:53 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:39:53 INFO vindex.retrieve | [RETRIEVE] 7.84s | raw_matches=28 | docs_posle_crag=10 | zakon=ó | clan=ó | query='äta je pronevera u sluûbi i koja je kazna?'
+2026-05-04 16:39:53 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 223a  CITABILNI TEKST: (4) Ako je delom iz st. 1. i 2. ovog \u010dlana pribavljenja imovinska korist ili je naneta öteta koja prelazi iznos od milion i petsto hiljada dinara, u\u010dinilac 
+2026-05-04 16:39:53 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: KZ \u010cLAN: \u010clan 207  CITABILNI TEKST: (6) Za dela iz st. 1. i 5. ovog \u010dlana, ako su utajene stvari u svojini gra\u0111ana, gonjenje se preduzima po predlogu. Prevara  PUNI TEKST \u010cLANA: \u010clan 207 (1) Ko
+2026-05-04 16:39:53 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 300  CITABILNI TEKST: (3) Ure\u0111aj i sredstva kojima je u\u010dinjeno krivi\u010dno delo iz st. 1. i 2. ovog \u010dlana oduze\u0107e se. Ra\u010dunarska prevara  PUNI TEKST \u010cLANA: \u010clan 300 (1) Ko napravi ra
+2026-05-04 16:39:53 INFO vindex.retrieve | [RETRIEVE] confidence=MEDIUM score=0.6189 article=\u010clan 223a law=KZ
+2026-05-04 16:39:53 INFO vindex.agent | [ASK_AGENT] confidence=MEDIUM score=0.6189 article=\u010clan 223a law=KZ query=äta je pronevera u sluûbi i koja je kazna? [q=685fe2c55f088d82]
+2026-05-04 16:39:53 INFO vindex.agent | MEDIUM confidence response [q=685fe2c55f088d82]
+  ‚Üí ‚ö†Ô∏è | conf=MEDIUM | score=0.619 | art=ƒålan 223a | 8.4s
+[05/30] Kazna za prevaru iznad milion dinara?
+2026-05-04 16:39:54 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:55 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:57 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:57 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:39:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:39:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:02 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:40:02 INFO vindex.retrieve | [RETRIEVE] 7.67s | raw_matches=22 | docs_posle_crag=10 | zakon=ó | clan=ó | query='Kazna za prevaru iznad milion dinara?'
+2026-05-04 16:40:02 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 208  CITABILNI TEKST: (4) Ako je delom iz st. 1. i 2. ovog \u010dlana pribavljena imovinska korist ili je naneta öteta u iznosu koji prelazi milion i petsto hiljada dinara, u\u010dinilac \u0107e
+2026-05-04 16:40:02 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: KZ \u010cLAN: \u010clan 205  CITABILNI TEKST: (2) Ako vrednost ukradenih stvari prelazi iznos od milion i petsto hiljada dinara, u\u010dinilac \u0107e se kazniti zatvorom od dve do dvanaest godina.  PUNI TEKST \u010cLA
+2026-05-04 16:40:02 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 223  CITABILNI TEKST: (3) Ako je delom iz stava 1. ovog \u010dlana pribavljena imovinska korist ili je naneta öteta koja prelazi iznos od milion i petsto hiljada dinara, u\u010dinilac \u0107e se
+2026-05-04 16:40:02 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7119 article=\u010clan 208 law=KZ
+2026-05-04 16:40:02 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7119 article=\u010clan 208 law=KZ query=Kazna za prevaru iznad milion dinara? [q=da3f2560c44a78de]
+2026-05-04 16:40:04 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:04 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=da3f2560c44a78de]
+  ‚Üí ‚úÖ | conf=HIGH | score=0.712 | art=ƒålan 208 | 10.7s
+[06/30] Koji su uslovi za uslovnu osudu?
+2026-05-04 16:40:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:06 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:10 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:13 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:40:13 INFO vindex.retrieve | [RETRIEVE] 7.98s | raw_matches=21 | docs_posle_crag=10 | zakon=ó | clan=ó | query='Koji su uslovi za uslovnu osudu?'
+2026-05-04 16:40:13 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 65  CITABILNI TEKST: (3) Mere bezbednosti, izre\u010dene uz uslovnu osudu, izvröavaju se. Uslovi za izricanje uslovne osude  PUNI TEKST \u010cLANA: \u010clan 65 (1) Uslovnom osudom sud u\u010diniocu 
+2026-05-04 16:40:13 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: KZ \u010cLAN: \u010clan 67  CITABILNI TEKST: (1) Sud \u0107e opozvati uslovnu osudu, ako osu\u0111eni u vreme proveravanja u\u010dini jedno ili viöe krivi\u010dnih dela za koja je izre\u010dena kazna zatvora od dve godine ili u 
+2026-05-04 16:40:13 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 66  CITABILNI TEKST: (5) Ako je u\u010diniocu utvr\u0111ena i kazna zatvora i nov\u010dana kazna, uslovna osuda moûe se izre\u0107i samo za kaznu zatvora. Opozivanje uslovne osude zbog novog krivi\u010dno
+2026-05-04 16:40:13 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6636 article=\u010clan 65 law=KZ
+2026-05-04 16:40:13 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6636 article=\u010clan 65 law=KZ query=Koji su uslovi za uslovnu osudu? [q=661e826c52efd71c]
+2026-05-04 16:40:16 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:16 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=661e826c52efd71c]
+  ‚Üí ‚ùå | conf=HIGH | score=0.664 | art=ƒålan 65 | 10.6s
+[07/30] Kazna za vo≈ænju u pijanom stanju?
+2026-05-04 16:40:16 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:19 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:22 INFO openai._base_client | Retrying request to /chat/completions in 0.398461 seconds
+2026-05-04 16:40:27 INFO openai._base_client | Retrying request to /chat/completions in 0.845241 seconds
+2026-05-04 16:40:33 WARNING vindex.retrieve | [HyDE] Generisanje nije uspelo: Request timed out.
+2026-05-04 16:40:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:41 INFO vindex.retrieve | [RETRIEVE] Tie-breaker: cross-law conflict, used max-cosine. Cohere#1=KZ/\u010clan 295, MaxCos=zakonik o krivicnom postupku/\u010clan 512
+2026-05-04 16:40:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:42 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: DELIMI\u010cNO
+2026-05-04 16:40:43 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:43 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:44 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:44 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:45 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:45 INFO vindex.retrieve | [CRAG] DELIMI\u010cNO: dodato 7 novih docs (ukupno=10)
+2026-05-04 16:40:45 INFO vindex.retrieve | [RETRIEVE] 28.74s | raw_matches=18 | docs_posle_crag=10 | zakon=ó | clan=ó | query='Kazna za voûnju u pijanom stanju?'
+2026-05-04 16:40:45 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 295  CITABILNI TEKST: (2) Kaznom iz stava 1. ovog \u010dlana kazni\u0107e se i odgovorno lice koje izda nalog za voûnju ili dopusti voûnju, iako zna da voza\u010d zbog umora, uticaja alkohola il
+2026-05-04 16:40:45 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakonik o krivicnom postupku \u010cLAN: \u010clan 512  CITABILNI TEKST: 2) kaznu zatvora u trajanju do jedne godine, nov\u010danu kaznu do stoosamdeset dnevnih iznosa, odnosno do trista hiljada  dinara, kaznu
+2026-05-04 16:40:45 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 53  CITABILNI TEKST: (3) Kazna iz stava 1. ovog \u010dlana moûe se izre\u0107i kao sporedna kazna uz kaznu zatvora ili uz nov\u010danu kaznu, a moûe se izre\u0107i i kao glavna kazna za krivi\u010dna dela
+2026-05-04 16:40:45 INFO vindex.retrieve | [RETRIEVE] confidence=MEDIUM score=0.6426 article=\u010clan 512 law=zakonik o krivicnom postupku
+2026-05-04 16:40:45 INFO vindex.agent | [ASK_AGENT] confidence=MEDIUM score=0.6426 article=\u010clan 512 law=zakonik o krivicnom postupku query=Kazna za voûnju u pijanom stanju? [q=8b9ea82257df2d9b]
+2026-05-04 16:40:45 INFO vindex.agent | MEDIUM confidence response [q=8b9ea82257df2d9b]
+  ‚Üí ‚ö†Ô∏è | conf=MEDIUM | score=0.643 | art=ƒålan 512 | 29.2s
+[08/30] Kriviƒçno delo nasilja u porodici - definicija i kazna?
+2026-05-04 16:40:46 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:47 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:51 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:54 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:54 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:40:54 INFO vindex.retrieve | [RETRIEVE] 7.89s | raw_matches=23 | docs_posle_crag=10 | zakon=KZ | clan=ó | query='Krivi\u010dno delo nasilja u porodici - definicija i kazna?'
+2026-05-04 16:40:54 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 194  CITABILNI TEKST: (1) Ko primenom nasilja, pretnjom da \u0107e napasti na ûivot ili telo, drskim ili bezobzirnim ponaöanjem ugroûava spokojstvo, telesni integritet ili duöevno stan
+2026-05-04 16:40:54 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: KZ \u010cLAN: \u010clan 194  CITABILNI TEKST: (5) Ko prekröi mere zaötite od nasilja u porodici koje mu je sud odredio na osnovu zakona kojim se ure\u0111uju porodi\u010dni odnosi, kazni\u0107e se zatvorom od tri mesec
+2026-05-04 16:40:54 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 304a  CITABILNI TEKST: 2) ra\u010dunarske öifre ili sli\u010dne podatke putem kojih se moûe pristupiti ra\u010dunarskom sistemu kao celini ili nekom njegovom delu sa namerom da bude upotrebljen 
+2026-05-04 16:40:54 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7082 article=\u010clan 194 law=KZ
+2026-05-04 16:40:54 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7082 article=\u010clan 194 law=KZ query=Krivi\u010dno delo nasilja u porodici - definicija i kazna? [q=aa29921716a22b87]
+2026-05-04 16:40:57 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:40:57 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=aa29921716a22b87]
+  ‚Üí ‚úÖ | conf=HIGH | score=0.708 | art=ƒålan 194 | 11.1s
+[09/30] ≈†ta je nu≈æna odbrana po KZ?
+2026-05-04 16:40:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:40:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:04 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:06 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:06 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:41:06 INFO vindex.retrieve | [RETRIEVE] 7.65s | raw_matches=12 | docs_posle_crag=10 | zakon=ó | clan=ó | query='äta je nuûna odbrana po KZ?'
+2026-05-04 16:41:06 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 19  CITABILNI TEKST: (2) Nuûna je ona odbrana koja je neophodno potrebna da u\u010dinilac od svog dobra ili dobra drugoga odbije istovremen protivpravan napad.  PUNI TEKST \u010cLANA: \u010clan 
+2026-05-04 16:41:06 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: KZ \u010cLAN: \u010clan 19  CITABILNI TEKST: (1) Nije krivi\u010dno delo ono delo koje je u\u010dinjeno u nuûnoj odbrani.  PUNI TEKST \u010cLANA: \u010clan 19 (1) Nije krivi\u010dno delo ono delo koje je u\u010dinjeno u nuûnoj odbran
+2026-05-04 16:41:06 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 18  CITABILNI TEKST: (3) Odredbe st. 1. i 2. ovog \u010dlana mogu se primeniti na krivi\u010dna dela za koja je propisana kazna zatvora do tri godine ili nov\u010dana kazna. Nuûna odbrana  PUNI 
+2026-05-04 16:41:06 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7413 article=\u010clan 19 law=KZ
+2026-05-04 16:41:06 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7413 article=\u010clan 19 law=KZ query=äta je nuûna odbrana po KZ? [q=6f7f7304e52897e8]
+2026-05-04 16:41:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:08 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=6f7f7304e52897e8]
+  ‚Üí ‚úÖ | conf=HIGH | score=0.741 | art=ƒålan 19 | 10.7s
+[10/30] Kazna za neovla≈°ƒáenu trgovinu opojnim drogama?
+2026-05-04 16:41:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:15 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:16 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:16 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:16 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:17 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:41:17 INFO vindex.retrieve | [RETRIEVE] 7.53s | raw_matches=21 | docs_posle_crag=10 | zakon=ó | clan=ó | query='Kazna za neovlaö\u0107enu trgovinu opojnim drogama?'
+2026-05-04 16:41:17 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: KZ \u010cLAN: \u010clan 246a  CITABILNI TEKST: (2) Ko neovlaö\u0107eno drûi u velikoj koli\u010dini supstance ili preparate koji su proglaöeni za opojne droge, kazni\u0107e se zatvorom od tri do deset godina.  PUNI TEK
+2026-05-04 16:41:17 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: KZ \u010cLAN: \u010clan 246a  CITABILNI TEKST: (5) Opojne droge oduze\u0107e se. Omogu\u0107avanje uûivanja opojnih droga  PUNI TEKST \u010cLANA: \u010clan 246a (1) Ko neovlaö\u0107eno drûi u manjoj koli\u010dini za sopstvenu upotreb
+2026-05-04 16:41:17 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: KZ \u010cLAN: \u010clan 246a  CITABILNI TEKST: (1) Ko neovlaö\u0107eno drûi u manjoj koli\u010dini za sopstvenu upotrebu supstance ili preparate koji su proglaöeni za opojne droge, kazni\u0107e se nov\u010danom kaznom ili z
+2026-05-04 16:41:17 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7098 article=\u010clan 246a law=KZ
+2026-05-04 16:41:17 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7098 article=\u010clan 246a law=KZ query=Kazna za neovlaö\u0107enu trgovinu opojnim drogama? [q=8dec95fe8fb330c3]
+2026-05-04 16:41:19 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:19 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=8dec95fe8fb330c3]
+  ‚Üí ‚ùå | conf=HIGH | score=0.710 | art=ƒålan 246a | 10.1s
+[11/30] Kako se utvrƒëuje nematerijalna ≈°teta?
+2026-05-04 16:41:19 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:23 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:23 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:23 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:27 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:27 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:27 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:27 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:28 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:28 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:41:28 INFO vindex.retrieve | [RETRIEVE] 8.43s | raw_matches=18 | docs_posle_crag=10 | zakon=zakon o obligacionim odnosima | clan=ó | query='Kako se utvr\u0111uje nematerijalna öteta?'
+2026-05-04 16:41:28 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 200  CITABILNI TEKST: (2) Prilikom odlu\u010divanja o zahtevu za naknadu nematerijalne ötete, kao i o visini njene naknade, sud \u0107e voditi ra\u010duna o  zna\u010daju p
+2026-05-04 16:41:28 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 200  CITABILNI TEKST: (1) Za pretrpljene fizi\u010dke bolove, za pretrpljene duöevne bolove zbog umanjenja ûivotne aktivnosti, naruûenosti, povrede  ugleda, 
+2026-05-04 16:41:28 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 155  CITABILNI TEKST: \u010clan 155  äteta je umanjenje ne\u010dije imovine (obi\u010dna öteta) i spre\u010davanje njenog pove\u0107anja (izmakla korist), kao i nanoöenje drugom
+2026-05-04 16:41:28 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6839 article=\u010clan 200 law=zakon o obligacionim odnosima
+2026-05-04 16:41:28 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6839 article=\u010clan 200 law=zakon o obligacionim odnosima query=Kako se utvr\u0111uje nematerijalna öteta? [q=0050c7d9d282e7cf]
+2026-05-04 16:41:30 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:30 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=0050c7d9d282e7cf]
+  ‚Üí ‚úÖ | conf=HIGH | score=0.684 | art=ƒålan 200 | 11.3s
+[12/30] ≈†ta je zastarelost potra≈æivanja i koji su rokovi?
+2026-05-04 16:41:31 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:32 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:36 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:36 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:36 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:36 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:36 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:36 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:36 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:39 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:39 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:39 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:39 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:40 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:41:40 INFO vindex.retrieve | [RETRIEVE] 8.95s | raw_matches=23 | docs_posle_crag=10 | zakon=zakon o obligacionim odnosima | clan=ó | query='äta je zastarelost potraûivanja i koji su rokovi?'
+2026-05-04 16:41:40 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 361  CITABILNI TEKST: (1) Zastarelost po\u010dinje te\u0107i prvog dana posle dana kad je poverilac imao pravo da zahteva ispunjenje obaveze, ako zakonom  za poje
+2026-05-04 16:41:40 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 378  CITABILNI TEKST: (2) Zastarevanje te\u010de iako su isporuke ili usluge produûene.  Potraûivanja utvr\u0111ena pred sudom ili drugim nadleûnim organima  PUNI
+2026-05-04 16:41:40 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 380  CITABILNI TEKST: (2) Ako zainteresovano lice dokaûe da do dana odre\u0111enog u prethodnom stavu nije znalo da se osigurani slu\u010daj dogodio,  zastarevanj
+2026-05-04 16:41:40 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7341 article=\u010clan 361 law=zakon o obligacionim odnosima
+2026-05-04 16:41:40 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7341 article=\u010clan 361 law=zakon o obligacionim odnosima query=äta je zastarelost potraûivanja i koji su rokovi? [q=2894aff9056efaf4]
+2026-05-04 16:41:43 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:43 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=2894aff9056efaf4]
+  ‚Üí ‚ùå | conf=HIGH | score=0.734 | art=ƒålan 361 | 12.2s
+[13/30] Koji su uslovi za raskid ugovora?
+2026-05-04 16:41:44 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:45 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:47 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:48 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:48 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:48 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:48 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:48 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:48 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:48 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:51 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:51 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:51 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:51 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:53 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:41:53 INFO vindex.retrieve | [RETRIEVE] 8.26s | raw_matches=18 | docs_posle_crag=10 | zakon=zakon o obligacionim odnosima | clan=ó | query='Koji su uslovi za raskid ugovora?'
+2026-05-04 16:41:53 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 127  CITABILNI TEKST: \u010clan 127  Poverilac moûe raskinuti ugovor bez ostavljanja duûniku naknadnog roka za ispunjenje ako iz duûnikovog drûanja proizlazi
+2026-05-04 16:41:53 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 133  CITABILNI TEKST: (5) Ako izrekne raskid ugovora, sud \u0107e na zahtev druge strane obavezati stranu koja ga je zahtevala da naknadi drugoj strani  prav
+2026-05-04 16:41:53 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 124  CITABILNI TEKST: \u010clan 124 U dvostranim ugovorima, kad jedna strana ne ispuni svoju obavezu, druga strana moûe, ako nije öto drugo odre\u0111eno, zahteva
+2026-05-04 16:41:53 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7335 article=\u010clan 127 law=zakon o obligacionim odnosima
+2026-05-04 16:41:53 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7335 article=\u010clan 127 law=zakon o obligacionim odnosima query=Koji su uslovi za raskid ugovora? [q=42ac3b77bb671f5b]
+2026-05-04 16:41:54 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:41:54 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=42ac3b77bb671f5b]
+  ‚Üí ‚ùå | conf=HIGH | score=0.733 | art=ƒålan 127 | 10.7s
+[14/30] Pravo na regres kod osiguravajuƒáih dru≈°tava?
+2026-05-04 16:41:55 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:56 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:41:57 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:04 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:06 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:06 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: NIJE RELEVANTNO
+2026-05-04 16:42:06 INFO vindex.retrieve | [CRAG] Nije relevantno ó pokuöavam HyDE fallback (iteracija=0)
+2026-05-04 16:42:07 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:07 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:08 INFO vindex.retrieve | [CRAG] HyDE dalo 10 novih docs
+2026-05-04 16:42:08 INFO vindex.retrieve | [RETRIEVE] 12.18s | raw_matches=29 | docs_posle_crag=10 | zakon=ustav republike srbije | clan=ó | query='Pravo na regres kod osiguravaju\u0107ih druötava?'
+2026-05-04 16:42:08 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: ustav republike srbije \u010cLAN: \u010clan 35  CITABILNI TEKST: lica koje je ötetu prouzrokovalo. Pravo na jednaku zaötitu prava i na pravno sredstvo  PUNI TEKST \u010cLANA: \u010clan 35  Ko je bez osnova ili nez
+2026-05-04 16:42:08 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: ustav republike srbije \u010cLAN: \u010clan 35  CITABILNI TEKST: koju mu nezakonitim ili nepravilnim radom prouzrokuje drûavni organ, imalac javnog ovlaö\u0107enja, organ autonomne pokrajine ili organ jedinic
+2026-05-04 16:42:08 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: ustav republike srbije \u010cLAN: \u010clan 35  CITABILNI TEKST: \u010clan 35 Ko je bez osnova ili nezakonito liöen slobode, pritvoren ili osu\u0111en za kaûnjivo delo ima pravo na rehabilitaciju, naknadu ötete od
+2026-05-04 16:42:08 INFO vindex.retrieve | [RETRIEVE] confidence=LOW score=0.5077 article=\u010clan 69 law=ustav republike srbije
+2026-05-04 16:42:08 INFO vindex.agent | [ASK_AGENT] confidence=LOW score=0.5077 article=\u010clan 69 law=ustav republike srbije query=Pravo na regres kod osiguravaju\u0107ih druötava? [q=1cf8f58235ef256a]
+2026-05-04 16:42:08 INFO vindex.agent | LOW confidence refusal [q=1cf8f58235ef256a]
+  ‚Üí ‚úÖ | conf=LOW | score=0.508 | art=ƒålan 69 | 12.7s
+[15/30] ≈†ta je novacija obligacije?
+2026-05-04 16:42:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:15 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:16 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:16 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:16 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:17 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:42:17 INFO vindex.retrieve | [RETRIEVE] 7.97s | raw_matches=17 | docs_posle_crag=10 | zakon=zakon o obligacionim odnosima | clan=ó | query='äta je novacija obligacije?'
+2026-05-04 16:42:17 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 1095  CITABILNI TEKST: (1) Ako je poravnanjem izvröena novacija obaveze, jemac se osloba\u0111a odgovornosti za njeno ispunjenje, a prestaje i zaloga  koju j
+2026-05-04 16:42:17 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 308  CITABILNI TEKST: (1) Obaveza prestaje ako poverilac u sporazumu sa duûnikom primi neöto drugo umesto onoga öto mu se duguje.  PUNI TEKST \u010cLANA: \u010cla
+2026-05-04 16:42:17 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 347  CITABILNI TEKST: \u010clan 347  Opöte otpuötanje dugova gasi sva poverio\u010deva potraûivanja prema duûniku, izuzev onih za koja poverilac nije znao da  pos
+2026-05-04 16:42:17 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6585 article=\u010clan 1095 law=zakon o obligacionim odnosima
+2026-05-04 16:42:17 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6585 article=\u010clan 1095 law=zakon o obligacionim odnosima query=äta je novacija obligacije? [q=e3e23ce03ae2cf3c]
+2026-05-04 16:42:19 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:19 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=e3e23ce03ae2cf3c]
+  ‚Üí ‚ùå | conf=HIGH | score=0.658 | art=ƒålan 1095 | 11.3s
+[16/30] Otkazni rok kod prestanka radnog odnosa?
+2026-05-04 16:42:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:21 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:23 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:23 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:27 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:27 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:27 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:27 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:28 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:28 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:42:28 INFO vindex.retrieve | [RETRIEVE] 7.90s | raw_matches=15 | docs_posle_crag=10 | zakon=zakon o radu | clan=ó | query='Otkazni rok kod prestanka radnog odnosa?'
+2026-05-04 16:42:28 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o radu \u010cLAN: \u010clan 186  CITABILNI TEKST: obaveza iz stava 1. ovog \u010dlana, poslodavac je duûan da izvröi najkasnije u roku od 30 dana od dana prestanka radnog odnosa. 6. Posebna zaötita od o
+2026-05-04 16:42:28 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o radu \u010cLAN: \u010clan 187  CITABILNI TEKST: ili ako zaposleni u roku od 30 dana od dana prestanka radnog odnosa obavesti poslodavca o postojanju okolnosti iz stava 1. ovog \u010dlana i o tome dost
+2026-05-04 16:42:28 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o radu \u010cLAN: \u010clan 178  CITABILNI TEKST: o radu moûe da se utvrdi duûi otkazni rok ali ne duûi od 30 dana. 4. Otkaz od strane poslodavca 1) Razlozi za otkaz  PUNI TEKST \u010cLANA: \u010clan 178  Za
+2026-05-04 16:42:28 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7066 article=\u010clan 186 law=zakon o radu
+2026-05-04 16:42:28 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7066 article=\u010clan 186 law=zakon o radu query=Otkazni rok kod prestanka radnog odnosa? [q=f2e8ef885b140edf]
+2026-05-04 16:42:30 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:30 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=f2e8ef885b140edf]
+  ‚Üí ‚ùå | conf=HIGH | score=0.707 | art=ƒålan 186 | 10.2s
+[17/30] Pravo na otpremninu pri tehnolo≈°kom vi≈°ku?
+2026-05-04 16:42:31 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:31 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:35 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:35 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:35 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:35 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:35 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:35 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:35 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:35 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:39 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:39 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: DELIMI\u010cNO
+2026-05-04 16:42:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:41 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:41 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:42 INFO vindex.retrieve | [CRAG] DELIMI\u010cNO: dodato 8 novih docs (ukupno=10)
+2026-05-04 16:42:42 INFO vindex.retrieve | [RETRIEVE] 11.11s | raw_matches=20 | docs_posle_crag=10 | zakon=ó | clan=ó | query='Pravo na otpremninu pri tehnoloökom viöku?'
+2026-05-04 16:42:42 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o radu \u010cLAN: \u010clan 119  CITABILNI TEKST: 1) zaposlenom otpremninu pri odlasku u penziju, najmanje u visini dve prose\u010dne zarade;  PUNI TEKST \u010cLANA: \u010clan 119  Poslodavac je duûan da isplati,
+2026-05-04 16:42:42 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o radu \u010cLAN: \u010clan 191  CITABILNI TEKST: godiönjeg odmora, bonusi, nagrade i druga primanja po osnovu doprinosa poslovnom uspehu poslodavca. Naknada ötete iz stava 1. ovog \u010dlana ispla\u0107uje 
+2026-05-04 16:42:42 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o radu \u010cLAN: \u010clan 191  CITABILNI TEKST: je zaposlenom prestao radni odnos bez pravnog osnova, a zaposleni ne zahteva da se vrati na rad, sud \u0107e, na zahtev zaposlenog, obavezati poslodavca
+2026-05-04 16:42:42 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6767 article=\u010clan 119 law=zakon o radu
+2026-05-04 16:42:42 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6767 article=\u010clan 119 law=zakon o radu query=Pravo na otpremninu pri tehnoloökom viöku? [q=d3daed6553bb7af2]
+2026-05-04 16:42:45 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:45 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=d3daed6553bb7af2]
+  ‚Üí ‚ùå | conf=HIGH | score=0.677 | art=ƒålan 119 | 14.2s
+[18/30] Mobing - definicija i pravna za≈°tita?
+2026-05-04 16:42:46 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:46 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:51 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:51 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:55 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:56 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:56 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: DELIMI\u010cNO
+2026-05-04 16:42:57 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:42:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:42:59 INFO vindex.retrieve | [CRAG] DELIMI\u010cNO: dodato 6 novih docs (ukupno=10)
+2026-05-04 16:42:59 INFO vindex.retrieve | [RETRIEVE] 13.25s | raw_matches=17 | docs_posle_crag=10 | zakon=ó | clan=ó | query='Mobing - definicija i pravna zaötita?'
+2026-05-04 16:42:59 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o radu \u010cLAN: \u010clan 257  CITABILNI TEKST: i socijalne politike u Republici, u cilju obezbe\u0111ivanja jednakih uslova rada koji predstavljaju minimum prava zaposlenih, odnosno da bi se ublaûile
+2026-05-04 16:42:59 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o radu \u010cLAN: \u010clan 21  CITABILNI TEKST: 18. ovog zakona koje ima za cilj ili predstavlja povredu dostojanstva lica koje traûi zaposlenje, kao i zaposlenog,  a koje izaziva strah ili stvara
+2026-05-04 16:42:59 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o zabrani diskriminacije \u010cLAN: \u010clan 12  CITABILNI TEKST: \u010clan 12  Zabranjeno je uznemiravanje, poniûavaju\u0107e postupanje i polno i rodno uznemiravanje, koje ima za cilj ili predstavlja povr
+2026-05-04 16:42:59 INFO vindex.retrieve | [RETRIEVE] confidence=MEDIUM score=0.6056 article=\u010clan 257 law=zakon o radu
+2026-05-04 16:42:59 INFO vindex.agent | [ASK_AGENT] confidence=MEDIUM score=0.6056 article=\u010clan 257 law=zakon o radu query=Mobing - definicija i pravna zaötita? [q=5b3b2adb9ae75a2f]
+2026-05-04 16:42:59 INFO vindex.agent | MEDIUM confidence response [q=5b3b2adb9ae75a2f]
+  ‚Üí ‚ö†Ô∏è | conf=MEDIUM | score=0.606 | art=ƒålan 257 | 13.7s
+[19/30] Pravo na naknadu zarade za vreme bolovanja?
+2026-05-04 16:43:00 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:00 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:03 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:04 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:09 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:43:09 INFO vindex.retrieve | [RETRIEVE] 9.30s | raw_matches=17 | docs_posle_crag=10 | zakon=zakon o radu | clan=ó | query='Pravo na naknadu zarade za vreme bolovanja?'
+2026-05-04 16:43:09 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o radu \u010cLAN: \u010clan 115  CITABILNI TEKST: \u010clan 115  Zaposleni ima pravo na naknadu zarade za vreme odsustvovanja sa rada zbog privremene spre\u010denosti za rad do  PUNI TEKST \u010cLANA: \u010clan 115  Z
+2026-05-04 16:43:09 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o radu \u010cLAN: \u010clan 117  CITABILNI TEKST: \u010clan 117 Zaposleni ima pravo na naknadu zarade u visini utvr\u0111enoj opötim aktom i ugovorom o radu za vreme prekida rada do koga je doölo naredbom na
+2026-05-04 16:43:09 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o radu \u010cLAN: \u010clan 116  CITABILNI TEKST: \u010clan 116 Zaposleni ima pravo na naknadu zarade najmanje u visini 60% prose\u010dne zarade u prethodnih 12 meseci, s tim da ne moûe biti manja od minimal
+2026-05-04 16:43:09 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6825 article=\u010clan 115 law=zakon o radu
+2026-05-04 16:43:09 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6825 article=\u010clan 115 law=zakon o radu query=Pravo na naknadu zarade za vreme bolovanja? [q=8ed5f9c682e78d55]
+2026-05-04 16:43:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:11 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=8ed5f9c682e78d55]
+  ‚Üí ‚úÖ | conf=HIGH | score=0.682 | art=ƒålan 115 | 11.9s
+[20/30] ≈†ta je probni rad i koliko traje?
+2026-05-04 16:43:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:15 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:18 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:21 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:21 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:43:21 INFO vindex.retrieve | [RETRIEVE] 8.43s | raw_matches=20 | docs_posle_crag=10 | zakon=zakon o radu | clan=ó | query='äta je probni rad i koliko traje?'
+2026-05-04 16:43:21 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o radu \u010cLAN: \u010clan 36  CITABILNI TEKST: \u010clan 36 Ugovorom o radu moûe da se ugovori probni rad za obavljanje jednog ili viöe povezanih, odnosno srodnih poslova utvr\u0111enih ugovorom o radu. Pr
+2026-05-04 16:43:21 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o radu \u010cLAN: \u010clan 167  CITABILNI TEKST: \u010clan 167 Udaljenje iz \u010dlana 165. ovog zakona moûe da traje najduûe tri meseca, a po isteku tog perioda poslodavac je duûan da zaposlenog vrati na r
+2026-05-04 16:43:21 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o radu \u010cLAN: \u010clan 37  CITABILNI TEKST: \u010clan 37***  Ugovor o radu moûe da se zaklju\u010di na odre\u0111eno vreme, za zasnivanje radnog odnosa \u010dije je trajanje unapred  odre\u0111eno objektivnim razlozim
+2026-05-04 16:43:21 INFO vindex.retrieve | [RETRIEVE] confidence=MEDIUM score=0.6098 article=\u010clan 36 law=zakon o radu
+2026-05-04 16:43:21 INFO vindex.agent | [ASK_AGENT] confidence=MEDIUM score=0.6098 article=\u010clan 36 law=zakon o radu query=äta je probni rad i koliko traje? [q=2e70684d4a711e46]
+2026-05-04 16:43:21 INFO vindex.agent | MEDIUM confidence response [q=2e70684d4a711e46]
+  ‚Üí ‚ö†Ô∏è | conf=MEDIUM | score=0.610 | art=ƒålan 36 | 8.9s
+[21/30] Uslovi za razvod braka sporazumom?
+2026-05-04 16:43:22 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:22 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:27 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:28 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:28 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:28 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:29 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:29 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:43:29 INFO vindex.retrieve | [RETRIEVE] 6.79s | raw_matches=14 | docs_posle_crag=10 | zakon=porodicni zakon | clan=ó | query='Uslovi za razvod braka sporazumom?'
+2026-05-04 16:43:29 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: porodicni zakon \u010cLAN: \u010clan 40  CITABILNI TEKST: (1) Supruûnici imaju pravo na razvod braka ako zaklju\u010de pismeni sporazum o razvodu.  PUNI TEKST \u010cLANA: \u010clan 40  (1) Supruûnici imaju pravo na raz
+2026-05-04 16:43:29 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: porodicni zakon \u010cLAN: \u010clan 41  CITABILNI TEKST: \u010clan 41  Svaki supruûnik ima pravo na razvod braka ako su bra\u010dni odnosi ozbiljno i trajno poreme\u0107eni ili ako se objektivno ne moûe  ostvarivati z
+2026-05-04 16:43:29 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: porodicni zakon \u010cLAN: \u010clan 210  CITABILNI TEKST: (2) Postupak za razvod braka pokre\u0107e se i predlogom za sporazumni razvod braka.  Tuûba za utvr\u0111enje postojanja ili nepostojanja braka  PUNI TEKS
+2026-05-04 16:43:29 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6867 article=\u010clan 40 law=porodicni zakon
+2026-05-04 16:43:29 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6867 article=\u010clan 40 law=porodicni zakon query=Uslovi za razvod braka sporazumom? [q=404658ef3deaf13f]
+2026-05-04 16:43:33 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:33 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=404658ef3deaf13f]
+  ‚Üí ‚úÖ | conf=HIGH | score=0.687 | art=ƒålan 40 | 11.7s
+[22/30] Kako se odreƒëuje izdr≈æavanje maloletnog deteta?
+2026-05-04 16:43:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:36 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:38 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:39 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:41 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:41 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:43:41 INFO vindex.retrieve | [RETRIEVE] 6.40s | raw_matches=23 | docs_posle_crag=10 | zakon=porodicni zakon | clan=ó | query='Kako se odre\u0111uje izdrûavanje maloletnog deteta?'
+2026-05-04 16:43:41 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: porodicni zakon \u010cLAN: \u010clan 153  CITABILNI TEKST: (2) Nema pravo na izdrûavanje majka ako bi prihvatanje njenog zahteva za izdrûavanje predstavljalo o\u010diglednu nepravdu za  oca.  IV IZDRéAVANJE D
+2026-05-04 16:43:41 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: porodicni zakon \u010cLAN: \u010clan 152  CITABILNI TEKST: (2) Na izdrûavanje vanbra\u010dnog partnera shodno se primenjuju odredbe ovog zakona o izdrûavanju supruûnika.  III IZDRéAVANJE MAJKE DETETA  Ko ima 
+2026-05-04 16:43:41 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: porodicni zakon \u010cLAN: \u010clan 8  CITABILNI TEKST: (1) Izdrûavanje je pravo i duûnost \u010dlanova porodice odre\u0111enih ovim zakonom.  PUNI TEKST \u010cLANA: \u010clan 8  (1) Izdrûavanje je pravo i duûnost \u010dlanova 
+2026-05-04 16:43:41 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7095 article=\u010clan 153 law=porodicni zakon
+2026-05-04 16:43:41 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7095 article=\u010clan 153 law=porodicni zakon query=Kako se odre\u0111uje izdrûavanje maloletnog deteta? [q=2fac053e397a2326]
+2026-05-04 16:43:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:42 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=2fac053e397a2326]
+  ‚Üí ‚ùå | conf=HIGH | score=0.709 | art=ƒålan 153 | 8.8s
+[23/30] ≈†ta je zajedniƒçka svojina supru≈ænika?
+2026-05-04 16:43:43 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:44 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:45 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:46 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:46 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:47 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:47 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:47 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:47 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:47 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:47 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:51 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:51 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:43:51 INFO vindex.retrieve | [RETRIEVE] 7.34s | raw_matches=16 | docs_posle_crag=10 | zakon=ó | clan=ó | query='äta je zajedni\u010dka svojina supruûnika?'
+2026-05-04 16:43:51 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: porodicni zakon \u010cLAN: \u010clan 170  CITABILNI TEKST: (2) Ako je tokom trajanja zajedni\u010dkog ûivota u braku doölo do znatnog uve\u0107anja vrednosti posebne imovine jednog  supruûnika, drugi supruûnik ima
+2026-05-04 16:43:51 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: porodicni zakon \u010cLAN: \u010clan 170  CITABILNI TEKST: (1) Ako je tokom trajanja zajedni\u010dkog ûivota u braku doölo do neznatnog uve\u0107anja vrednosti posebne imovine jednog  supruûnika, drugi supruûnik i
+2026-05-04 16:43:51 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: porodicni zakon \u010cLAN: \u010clan 174  CITABILNI TEKST: (1) Zajedni\u010dkom imovinom supruûnici upravljaju i raspolaûu zajedni\u010dki i sporazumno.  PUNI TEKST \u010cLANA: \u010clan 174  (1) Zajedni\u010dkom imovinom supruû
+2026-05-04 16:43:51 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7223 article=\u010clan 170 law=porodicni zakon
+2026-05-04 16:43:51 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7223 article=\u010clan 170 law=porodicni zakon query=äta je zajedni\u010dka svojina supruûnika? [q=072180fef6adb2e0]
+2026-05-04 16:43:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:53 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=072180fef6adb2e0]
+  ‚Üí ‚ùå | conf=HIGH | score=0.722 | art=ƒålan 170 | 10.0s
+[24/30] Postupak usvojenja maloletnog deteta?
+2026-05-04 16:43:54 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:54 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:43:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:43:59 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:00 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:02 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:03 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:03 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:44:03 INFO vindex.retrieve | [RETRIEVE] 9.09s | raw_matches=19 | docs_posle_crag=10 | zakon=porodicni zakon | clan=ó | query='Postupak usvojenja maloletnog deteta?'
+2026-05-04 16:44:03 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: porodicni zakon \u010cLAN: \u010clan 311  CITABILNI TEKST: \u010clan 311  Postupak zasnivanja usvojenja mogu pokrenuti organ starateljstva po sluûbenoj duûnosti, budu\u0107i usvojitelji i roditelji odnosno  starat
+2026-05-04 16:44:03 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: porodicni zakon \u010cLAN: \u010clan 313  CITABILNI TEKST: (3) Kada primi zahtev roditelja za zasnivanje usvojenja, organ starateljstva duûan je da mu preporu\u010di da se podvrgne psiho socijalnom savetovanj
+2026-05-04 16:44:03 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: porodicni zakon \u010cLAN: \u010clan 313  CITABILNI TEKST: (1) Roditelj ili staratelj deteta podnosi pismeni zahtev za zasnivanje usvojenja organu starateljstva na \u010dijem podru\u010dju dete ima  prebivaliöte, 
+2026-05-04 16:44:03 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6823 article=\u010clan 311 law=porodicni zakon
+2026-05-04 16:44:03 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6823 article=\u010clan 311 law=porodicni zakon query=Postupak usvojenja maloletnog deteta? [q=dca5684aa9025f2e]
+2026-05-04 16:44:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:05 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=dca5684aa9025f2e]
+  ‚Üí ‚úÖ | conf=HIGH | score=0.682 | art=ƒålan 311 | 11.2s
+[25/30] Nasledni red po Zakonu o nasleƒëivanju?
+2026-05-04 16:44:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:06 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:08 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:12 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:12 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: DELIMI\u010cNO
+2026-05-04 16:44:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:15 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:15 INFO vindex.retrieve | [CRAG] DELIMI\u010cNO: dodato 10 novih docs (ukupno=10)
+2026-05-04 16:44:15 INFO vindex.retrieve | [RETRIEVE] 9.33s | raw_matches=23 | docs_posle_crag=10 | zakon=zakon o nasledjivanju | clan=ó | query='Nasledni red po Zakonu o nasle\u0111ivanju?'
+2026-05-04 16:44:15 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o nasledjivanju \u010cLAN: \u010clan 15  CITABILNI TEKST: \u010clan 15  Ako ostavio\u010devi roditelji nemaju potomstva a ne mogu ili ne\u0107e da naslede, bra\u010dni drug nasle\u0111uje celokupnu zaostavötinu.  3. Tre\u0107i 
+2026-05-04 16:44:15 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o nasledjivanju \u010cLAN: \u010clan 145  CITABILNI TEKST: odredi ko je duûnik isporuke, ispunjenje tereti sve zakonske i zaveötajne naslednike, srazmerno njihovim naslednim delovima. Pravo isporuk
+2026-05-04 16:44:15 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o nasledjivanju \u010cLAN: \u010clan 231  CITABILNI TEKST: naslednog dela sa onim ko nije naslednik samo obavezuje naslednika da, po izvröenoj deobi, preda svoj deo saugovara\u010du, \u010dime saugovara\u010d do 
+2026-05-04 16:44:15 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7051 article=\u010clan 15 law=zakon o nasledjivanju
+2026-05-04 16:44:15 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7051 article=\u010clan 15 law=zakon o nasledjivanju query=Nasledni red po Zakonu o nasle\u0111ivanju? [q=55cd70b90ced5c39]
+2026-05-04 16:44:16 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:16 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=55cd70b90ced5c39]
+  ‚Üí ‚ùå | conf=HIGH | score=0.705 | art=ƒålan 15 | 11.3s
+[26/30] Rok za podno≈°enje ≈æalbe na presudu u parnici?
+2026-05-04 16:44:17 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:18 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:19 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:20 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:21 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:22 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:23 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:23 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:23 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:24 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:24 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:44:24 INFO vindex.retrieve | [RETRIEVE] 6.73s | raw_matches=25 | docs_posle_crag=10 | zakon=zakon o parnicnom postupku | clan=ó | query='Rok za podnoöenje ûalbe na presudu u parnici?'
+2026-05-04 16:44:24 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o parnicnom postupku \u010cLAN: \u010clan 446  CITABILNI TEKST: \u010clan 446 Rok za izjavljivanje ûalbe je osam dana. Rok za donoöenje odluke o ûalbi je 60 dana. 
+2026-05-04 16:44:24 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o parnicnom postupku \u010cLAN: \u010clan 452  CITABILNI TEKST: \u010clan 452 Sud \u0107e u odluci kojom nalaûe strankama ispunjenje duûnosti da odredi rok za njeno ispunjenje. Rok za izjavljivanje ûalbe pro
+2026-05-04 16:44:24 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o parnicnom postupku \u010cLAN: \u010clan 377  CITABILNI TEKST: \u010clan 377  éalba se podnosi sudu koji je izrekao prvostepenu presudu u dovoljnom broju primeraka za sud i protivnu stranku. 
+2026-05-04 16:44:24 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7058 article=\u010clan 446 law=zakon o parnicnom postupku
+2026-05-04 16:44:24 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7058 article=\u010clan 446 law=zakon o parnicnom postupku query=Rok za podnoöenje ûalbe na presudu u parnici? [q=404ae0f41d10232f]
+2026-05-04 16:44:25 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:25 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=404ae0f41d10232f]
+  ‚Üí ‚ùå | conf=HIGH | score=0.706 | art=ƒålan 446 | 8.3s
+[27/30] ≈†ta je revizija u parniƒçnom postupku?
+2026-05-04 16:44:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:26 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:29 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:29 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:29 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:30 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:30 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:30 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:30 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:30 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:30 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:32 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:32 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:32 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:32 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:34 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:34 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:44:34 INFO vindex.retrieve | [RETRIEVE] 7.49s | raw_matches=25 | docs_posle_crag=10 | zakon=zakon o parnicnom postupku | clan=ó | query='äta je revizija u parni\u010dnom postupku?'
+2026-05-04 16:44:34 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o parnicnom postupku \u010cLAN: \u010clan 404  CITABILNI TEKST: \u010clan 404 Revizija je izuzetno dozvoljena zbog pogreöne primene materijalnog prava i protiv drugostepene presude koja ne bi mogla da s
+2026-05-04 16:44:34 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o parnicnom postupku \u010cLAN: \u010clan 420  CITABILNI TEKST: presude. Revizija je uvek dozvoljena protiv reöenja drugostepenog suda kojim se izjavljena ûalba odbacuje, odnosno kojim se potvr\u0111uje
+2026-05-04 16:44:34 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o parnicnom postupku \u010cLAN: \u010clan 414  CITABILNI TEKST: \u010clan 414 Vrhovni kasacioni sud \u0107e presudom da odbije reviziju kao neosnovanu ako utvrdi da ne postoje razlozi zbog kojih je revizija 
+2026-05-04 16:44:34 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.7433 article=\u010clan 404 law=zakon o parnicnom postupku
+2026-05-04 16:44:34 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.7433 article=\u010clan 404 law=zakon o parnicnom postupku query=äta je revizija u parni\u010dnom postupku? [q=9fa0fc961be9ddb3]
+2026-05-04 16:44:36 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:36 WARNING vindex.agent | [HIGH] Anti-hallucination: interpretation failed gate ó downgrading to MEDIUM [q=9fa0fc961be9ddb3]
+2026-05-04 16:44:36 INFO vindex.agent | Uspeöan odgovor [confidence=MEDIUM, q=9fa0fc961be9ddb3]
+  ‚Üí ‚ö†Ô∏è | conf=MEDIUM | score=0.743 | art=ƒålan 404 | 10.4s
+[28/30] ≈†ta je virtuelna valuta po Zakonu o digitalnoj imovini?
+2026-05-04 16:44:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:37 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:40 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:42 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:44 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:45 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:46 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:46 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:46 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:47 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:47 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: RELEVANTNO
+2026-05-04 16:44:47 INFO vindex.retrieve | [RETRIEVE] 9.63s | raw_matches=26 | docs_posle_crag=10 | zakon=zakon o digitalnoj imovini | clan=ó | query='äta je virtuelna valuta po Zakonu o digitalnoj imovini?'
+2026-05-04 16:44:47 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o digitalnoj imovini \u010cLAN: \u010clan 2  CITABILNI TEKST: 2) virtuelna valuta je vrsta digitalne imovine koju nije izdala i za \u010diju vrednost ne garantuje centralna banka, niti drugi organ javne
+2026-05-04 16:44:47 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o digitalnoj imovini \u010cLAN: \u010clan 2  CITABILNI TEKST: 1) digitalna imovina , odnosno virtuelna imovina, ozna\u010dava digitalni zapis vrednosti koji se moûe digitalno kupovati, prodavati, razmen
+2026-05-04 16:44:47 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o digitalnoj imovini \u010cLAN: \u010clan 2  CITABILNI TEKST: 34) transakcija s digitalnom imovinom ozna\u010dava kupovinu, prodaju, prihvatanje ili prenos digitalne imovine ili zamenu digitalne imovine
+2026-05-04 16:44:47 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.8066 article=\u010clan 2 law=zakon o digitalnoj imovini
+2026-05-04 16:44:47 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.8066 article=\u010clan 2 law=zakon o digitalnoj imovini query=äta je virtuelna valuta po Zakonu o digitalnoj imovini? [q=8fd0e9779e81d2f1]
+2026-05-04 16:44:49 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:49 WARNING vindex.agent | [HIGH] Anti-hallucination: interpretation failed gate ó downgrading to MEDIUM [q=8fd0e9779e81d2f1]
+2026-05-04 16:44:49 INFO vindex.agent | Uspeöan odgovor [confidence=MEDIUM, q=8fd0e9779e81d2f1]
+  ‚Üí ‚ö†Ô∏è | conf=MEDIUM | score=0.807 | art=ƒålan 2 | 12.4s
+[29/30] Da li je smart contract pravno obavezujuƒái u Srbiji?
+2026-05-04 16:44:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:50 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:53 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:54 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:56 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:56 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:56 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:56 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:44:58 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:44:58 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: NIJE RELEVANTNO
+2026-05-04 16:44:58 INFO vindex.retrieve | [CRAG] Nije relevantno ó pokuöavam HyDE fallback (iteracija=0)
+2026-05-04 16:45:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:45:01 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:02 INFO vindex.retrieve | [CRAG] HyDE dalo 10 novih docs
+2026-05-04 16:45:02 INFO vindex.retrieve | [RETRIEVE] 12.06s | raw_matches=35 | docs_posle_crag=10 | zakon=zakon o digitalnoj imovini | clan=ó | query='Da li je smart contract pravno obavezuju\u0107i u Srbiji?'
+2026-05-04 16:45:02 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o digitalnoj imovini \u010cLAN: \u010clan 2  CITABILNI TEKST: 39) pametan ugovor je kompjuterski program ili protokol, zasnovan na tehnologiji distribuirane baze podataka ili sli\u010dnim tehnologijama,
+2026-05-04 16:45:02 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o digitalnoj imovini \u010cLAN: \u010clan 37  CITABILNI TEKST: \u010clan 37 Koriö\u0107enje pametnih ugovora u sekundarnom trgovanju digitalnom imovinom je dozvoljeno. Ako pruûalac usluga povezanih s digital
+2026-05-04 16:45:02 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o digitalnoj imovini \u010cLAN: \u010clan 98  CITABILNI TEKST: 5) na\u010din uspostavljanja zaloge. Ugovor o zalozi na digitalnoj imovini moûe biti poseban ugovor ili sastavni deo okvirnog ili drugog ug
+2026-05-04 16:45:02 INFO vindex.retrieve | [RETRIEVE] confidence=HIGH score=0.6590 article=\u010clan 2 law=zakon o digitalnoj imovini
+2026-05-04 16:45:02 INFO vindex.agent | [ASK_AGENT] confidence=HIGH score=0.6590 article=\u010clan 2 law=zakon o digitalnoj imovini query=Da li je smart contract pravno obavezuju\u0107i u Srbiji? [q=f92fe8900c044233]
+2026-05-04 16:45:04 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:45:04 INFO vindex.agent | Uspeöan odgovor [confidence=HIGH, q=f92fe8900c044233]
+  ‚Üí ‚úÖ | conf=HIGH | score=0.659 | art=ƒålan 2 | 14.7s
+[30/30] ≈†ta je beneficium ordinis?
+2026-05-04 16:45:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:05 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:09 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:45:10 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:45:10 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:11 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:13 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:45:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:14 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:15 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:45:15 INFO vindex.retrieve | [CRAG] Iteracija 1 ó ocena: NIJE RELEVANTNO
+2026-05-04 16:45:15 INFO vindex.retrieve | [CRAG] Nije relevantno ó pokuöavam HyDE fallback (iteracija=0)
+2026-05-04 16:45:18 INFO httpx | HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-04 16:45:18 INFO httpx | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-05-04 16:45:19 INFO vindex.retrieve | [CRAG] HyDE dalo 10 novih docs
+2026-05-04 16:45:19 INFO vindex.retrieve | [RETRIEVE] 13.77s | raw_matches=28 | docs_posle_crag=10 | zakon=ó | clan=ó | query='äta je beneficium ordinis?'
+2026-05-04 16:45:19 INFO vindex.retrieve | [RETRIEVE doc0] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 138  CITABILNI TEKST: (1) Kad je ispunjenje obaveze jedne strane u dvostranom ugovoru postalo nemogu\u0107e zbog doga\u0111aja za koji odgovara druga  strana, nje
+2026-05-04 16:45:19 INFO vindex.retrieve | [RETRIEVE doc1] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 408  CITABILNI TEKST: (1) Kad je jedan predmet obaveze postao nemogu\u0107 usled doga\u0111aja za koji je odgovoran duûnik, obaveza se ograni\u010dava na  preostali pr
+2026-05-04 16:45:19 INFO vindex.retrieve | [RETRIEVE doc2] ZAKON: zakon o obligacionim odnosima \u010cLAN: \u010clan 137  CITABILNI TEKST: (1) Kad je ispunjenje obaveze jedne strane u dvostranom ugovoru postalo nemogu\u0107e zbog doga\u0111aja za koji nije odgovorna  ni jedna ni
+2026-05-04 16:45:19 INFO vindex.retrieve | [RETRIEVE] confidence=MEDIUM score=0.6370 article=\u010clan 231 law=zakon o nasledjivanju
+2026-05-04 16:45:19 INFO vindex.agent | [ASK_AGENT] confidence=MEDIUM score=0.6370 article=\u010clan 231 law=zakon o nasledjivanju query=äta je beneficium ordinis? [q=73a5c5cb3277f46a]
+2026-05-04 16:45:19 INFO vindex.agent | MEDIUM confidence response [q=73a5c5cb3277f46a]
+  ‚Üí ‚ö†Ô∏è | conf=MEDIUM | score=0.637 | art=ƒålan 231 | 14.3s
+
+‚úÖ Rezultati upisani u C:\Users\Benny\moj_prvi_agent\src\moj_prvi_agent\legal-agent\docs\VINDEX_HALLUCINATION_FREE_TEST.md
+FINAL: 10 USPEH | 8 MEDIUM | 12 KRITICNE GRESKE | 0 NEPOZNATO
+‚ùå 12 HIGH+WRONG answers ‚Äî fix threshold logic
