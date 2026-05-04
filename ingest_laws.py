@@ -120,6 +120,31 @@ LAWS = [
         "sc":       "USTAV",
         "del_alts": ["USTAV", "ustav republike srbije"],
     },
+    {
+        "file":     "zakon_o_vanparnicnom_postupku.pdf",
+        "name":     "zakon o vanparnicnom postupku",
+        "sc":       "ZVP",
+        "del_alts": ["ZVP", "zakon o vanparničnom postupku"],
+    },
+    {
+        "file":     "zakon_o_zastiti_potrosaca.pdf",
+        "name":     "zakon o zastiti potrosaca",
+        "sc":       "ZZP",
+        "del_alts": ["ZZP", "zakon o zaštiti potrošača"],
+    },
+    {
+        "file":     "zakon_o_zastiti_podataka_o_licnosti.pdf",
+        "name":     "zakon o zastiti podataka o licnosti",
+        "sc":       "ZZPL",
+        "del_alts": ["ZZPL", "zakon o zaštiti podataka o ličnosti",
+                     "zakon o zastiti podataka o licnosti,"],
+    },
+    {
+        "file":     "zakon_o_upravnim_sporovima.pdf",
+        "name":     "zakon o upravnim sporovima",
+        "sc":       "ZUS",
+        "del_alts": ["ZUS", "zakon o upravnim sporovima"],
+    },
 ]
 
 
