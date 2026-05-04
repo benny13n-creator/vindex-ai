@@ -794,11 +794,33 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
     reranked = _cohere_rerank(query, top_kandid, k=k)
 
     # ── Capture confidence metadata from top match (before CRAG may change docs) ──
-    # Cohere reranks by semantic relevance. Trust its #1 ranking instead of
-    # falling back to max Pinecone cosine score — which caused the wrong-article
-    # bug for ~50% of queries (sub-query pollution + cosine mismatch).
+    # Tie-breaker: within-law disagreements → trust Cohere (better semantic ranker);
+    # cross-law disagreements → trust max Pinecone cosine (cross-law Cohere confusion
+    # is dangerous — e.g. ranks ZKP result for a KZ query).
+    # History: original max(cosine) caused wrong-article for ~50% of queries via
+    # sub-query pollution. Pure reranked[0] fix recovered Q11/Q13/Q19/Q29 but
+    # caused Q06 to cite ZKP Član 562 for a KZ uslovne osude question (HIGH conf).
+    # This tie-breaker recovers cross-law regressions while keeping within-law gains.
     if reranked:
-        _top = reranked[0]
+        _cohere_top = reranked[0]
+        _maxcos_top = max(reranked, key=lambda m: m.score)
+        if _cohere_top.id == _maxcos_top.id:
+            _top = _cohere_top
+        else:
+            _cohere_law = (_cohere_top.metadata or {}).get("law", "")
+            _maxcos_law = (_maxcos_top.metadata or {}).get("law", "")
+            if _cohere_law == _maxcos_law:
+                _top = _cohere_top  # same law → trust Cohere's semantic judgment
+            else:
+                # cross-law conflict → trust cosine similarity
+                _cohere_art = (_cohere_top.metadata or {}).get("article", "?")
+                _maxcos_art = (_maxcos_top.metadata or {}).get("article", "?")
+                logger.info(
+                    "[RETRIEVE] Tie-breaker: cross-law conflict, used max-cosine. "
+                    "Cohere#1=%s/%s, MaxCos=%s/%s",
+                    _cohere_law, _cohere_art, _maxcos_law, _maxcos_art,
+                )
+                _top = _maxcos_top
         _top_meta_raw = _top.metadata or {}
         _top_score   = _top.score
         _top_article = _top_meta_raw.get("article", "—")
