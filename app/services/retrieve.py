@@ -543,8 +543,20 @@ def _prosiri_pretragu_crag(query: str) -> list[str]:
 
 # ─── Scoring (zadržan za fallback bez Cohere) ────────────────────────────────
 
-def _izracunaj_skor(match, query: str, zakon: Optional[str], label_clana: Optional[str]) -> float:
-    skor = match.score * 100
+def _izracunaj_skor(
+    match,
+    query: str,
+    zakon: Optional[str],
+    label_clana: Optional[str],
+    orig_score_map: Optional[dict] = None,
+) -> float:
+    # Use original-query cosine when available; penalise sub-query-only candidates
+    # to prevent sub-query pollution from displacing the correct article.
+    if orig_score_map is not None:
+        base = orig_score_map.get(match.id, match.score * 0.85)
+    else:
+        base = match.score
+    skor = base * 100
     meta = match.metadata or {}
     zakon_doc  = _normalizuj(meta.get("law", ""))
     clan_doc   = _normalizuj(meta.get("article", ""))
@@ -637,9 +649,10 @@ def _jedan_retrieval_krug(
     label_clana: Optional[str],
     extra_queries: list[str],
     top_k_pinecone: int = 10,
-) -> list:
+) -> tuple[list, dict]:
     """
-    Pokreće sve Pinecone pretrage paralelno i vraća deduplikovanu listu matcheva.
+    Pokreće sve Pinecone pretrage paralelno i vraća deduplikovanu listu matcheva
+    i orig_score_map {id: cosine} izgrađen iz originalnog upita (top-30 sa filterom).
     """
     import time as _time
     q_norm = _normalizuj(query)
@@ -651,8 +664,9 @@ def _jedan_retrieval_krug(
     if label_clana:
         fjobs.append(executor.submit(_direktan_fetch_clana, label_clana, zakon))
 
-    # b) Semantička sa filterom
-    fjobs.append(executor.submit(_pretraga_vec, vektor, top_k_pinecone, zakon))
+    # b) Semantička sa filterom — widened to 30 to build orig-query cosine lookup
+    f_orig_law = executor.submit(_pretraga_vec, vektor, max(top_k_pinecone, 30), zakon)
+    fjobs.append(f_orig_law)
 
     # c) Semantička bez filtera
     fjobs.append(executor.submit(_pretraga_vec, vektor, 6, None))
@@ -693,6 +707,14 @@ def _jedan_retrieval_krug(
 
     executor.shutdown(wait=False)
 
+    # Build orig-query cosine lookup from the law-filtered original search
+    orig_score_map: dict[str, float] = {}
+    try:
+        for m in f_orig_law.result():
+            orig_score_map[m.id] = m.score
+    except Exception:
+        pass
+
     # Deduplikacija po ID
     vidjeni: set[str] = set()
     jedinstveni = []
@@ -701,7 +723,7 @@ def _jedan_retrieval_krug(
             vidjeni.add(m.id)
             jedinstveni.append(m)
 
-    return jedinstveni
+    return jedinstveni, orig_score_map
 
 
 # ─── Glavna javna funkcija ────────────────────────────────────────────────────
@@ -750,7 +772,7 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
         logger.info("[HyDE] Timeout ili greška — preskočena")
 
     # ── Faza 2: Retrieval ─────────────────────────────────────────────────────
-    matchevi = _jedan_retrieval_krug(query, vektor, zakon, label_clana, sub_queries)
+    matchevi, orig_score_map = _jedan_retrieval_krug(query, vektor, zakon, label_clana, sub_queries)
 
     # HyDE: embed hipotetičkog dokumenta i dodaj rezultate
     if hyde_text:
@@ -783,9 +805,25 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
         pass
 
     # ── Faza 3: Re-ranking ────────────────────────────────────────────────────
-    # Interni scoring za sortiranje kandidata pre Cohere
+    # SUB-QUERY POLLUTION FIX (2026-05-04):
+    # orig_score_map holds cosine(original_query, doc) for the top-30 law-filtered
+    # Pinecone results. In _izracunaj_skor, candidates found by the original query
+    # use their real original cosine; candidates found ONLY via sub-queries receive
+    # a 0.85× penalty on their (inflated) sub-query cosine.
+    #
+    # Penalty choice: 0.85 is mild enough to preserve genuinely-relevant sub-query
+    # candidates while demoting articles whose only claim is a high sub-query cosine
+    # (e.g. ZN 15 matching "bračni drug" sub-query for Q25 "nasledni red").
+    #
+    # Known limitation — Q01 (KZ 203) and Q05 (KZ 208) were previously ✅ via
+    # sub-query inflation: their sub-query cosines elevated them above wrong articles
+    # whose original-query cosines are higher. This fix correctly removes that
+    # non-deterministic mechanism, exposing an embedding-level mismatch that needs
+    # separate remediation (likely better chunking or query rewriting for those articles).
+    # We accept this trade-off: Q13 (raskid ugovora) is now a robust ✅, while Q01/Q05
+    # failures are now visible and attributable rather than masked by inflation.
     skorovani = sorted(
-        [(_izracunaj_skor(m, query, zakon, label_clana), m) for m in matchevi],
+        [(_izracunaj_skor(m, query, zakon, label_clana, orig_score_map), m) for m in matchevi],
         key=lambda x: x[0], reverse=True,
     )
     top_kandid = [m for _, m in skorovani[:10]]

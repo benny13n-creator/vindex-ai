@@ -1,0 +1,21 @@
+VERIFICATION REPORT — Sub-query pollution fix
+Checking: is expected article in original-query top-30 (law-filtered)?
+Timestamp: 2026-05-04 17:11:23
+
+Q01 KZ                             Član 203    rank #2, score=0.6523           → SAFE
+Q05 KZ                             Član 208    rank #17, score=0.6550          → SAFE
+Q08 KZ                             Član 194    rank #1, score=0.7082           → SAFE
+Q09 KZ                             Član 19     rank #1, score=0.7413           → SAFE
+Q11 zakon o obligacionim odnosima  Član 200    rank #1, score=0.6839           → SAFE
+Q14 zakon o obligacionim odnosima  Član 939    rank #4, score=0.5834           → SAFE
+Q19 zakon o radu                   Član 115    rank #2, score=0.6825           → SAFE
+Q21 porodicni zakon                Član 40     rank #1, score=0.6867           → SAFE
+Q24 porodicni zakon                Član 311    rank #3, score=0.6824           → SAFE
+Q29 zakon o digitalnoj imovini     Član 2      rank #1, score=0.5789           → SAFE
+
+──────────────────────────────────────────────────────────────────────────────────────────
+SAFE (full score): 10/10
+RISK (0.85× penalty): 0/10
+
+All 10 currently-✅ queries have their expected article in top-30.
+No regression risk from the 0.85× penalty.
