@@ -48,9 +48,14 @@ SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
 SUPABASE_JWT_SECRET  = os.getenv("SUPABASE_JWT_SECRET", "").strip()
 
 # Founder emailovi — neograničen pristup, krediti se ne oduzimaju
+_founder_emails_raw = os.getenv("FOUNDER_EMAILS", "")
+if not _founder_emails_raw.strip():
+    raise RuntimeError(
+        "FOUNDER_EMAILS env var must be set — add comma-separated founder emails to .env"
+    )
 FOUNDER_EMAILS: set[str] = {
     e.strip().lower()
-    for e in os.getenv("FOUNDER_EMAILS", "benny13.n@gmail.com,kristina.stojanovic@dsa.rs,kristinap93@hotmail.com").split(",")
+    for e in _founder_emails_raw.split(",")
     if e.strip()
 }
 
@@ -362,7 +367,11 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         },
     )
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.getenv("ALLOWED_ORIGINS", "https://vindex-ai.onrender.com").split(",")
+    if o.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,

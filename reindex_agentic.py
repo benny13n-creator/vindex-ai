@@ -34,7 +34,8 @@ log = logging.getLogger("reindex_agentic")
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
 OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY", "")
-INDEX_NAME       = "vindex-ai"
+INDEX_HOST       = os.getenv("PINECONE_HOST", "").strip()
+INDEX_NAME       = os.getenv("PINECONE_INDEX_NAME", "").strip()
 EMBEDDING_MODEL  = "text-embedding-3-large"
 BATCH_SIZE       = 40
 
@@ -212,12 +213,15 @@ def main():
     if not OPENAI_API_KEY:
         log.error("OPENAI_API_KEY nije postavljen")
         sys.exit(1)
+    if not INDEX_HOST:
+        log.error("PINECONE_HOST nije postavljen")
+        sys.exit(1)
 
     from pinecone import Pinecone
     from openai  import OpenAI
 
     pc     = Pinecone(api_key=PINECONE_API_KEY)
-    index  = pc.Index(INDEX_NAME)
+    index  = pc.Index(host=INDEX_HOST)
     client = OpenAI(api_key=OPENAI_API_KEY)
 
     if verify:

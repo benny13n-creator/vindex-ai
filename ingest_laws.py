@@ -33,7 +33,7 @@ log = logging.getLogger("ingest_laws")
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
 OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY", "")
-INDEX_HOST       = "vindex-ai-t8z679r.svc.aped-4627-b74a.pinecone.io"
+INDEX_HOST       = os.getenv("PINECONE_HOST", "").strip()
 EMBEDDING_MODEL  = "text-embedding-3-large"
 BATCH_SIZE       = 40
 DATA_DIR         = Path(__file__).parent / "data" / "laws" / "pdfs"
@@ -244,6 +244,9 @@ def main():
         sys.exit(1)
     if not OPENAI_API_KEY:
         log.error("OPENAI_API_KEY not set")
+        sys.exit(1)
+    if not INDEX_HOST:
+        log.error("PINECONE_HOST not set")
         sys.exit(1)
 
     from pinecone import Pinecone
