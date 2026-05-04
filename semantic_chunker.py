@@ -9,7 +9,10 @@ Parent text (ceo član, ≤3000 karaktera) → čuva se u metapodacima, šalje L
 
 import re
 import hashlib
+import logging
 from pathlib import Path
+
+_chunker_log = logging.getLogger(__name__)
 
 # Mapiranje punih naziva zakona → kratke oznake za parent_id
 ZAKON_SHORTCODES: dict[str, str] = {
@@ -37,9 +40,49 @@ ZAKON_SHORTCODES: dict[str, str] = {
     "ZDI":  "ZDI",
 }
 
-MIN_STAV_DUZINA  = 60    # minimalna dužina stava da bi ušao kao chunk
-MAX_STAV_DUZINA  = 300   # hard limit za mali (search) chunk
+MIN_STAV_DUZINA   = 60    # minimalna dužina stava da bi ušao kao chunk
+MAX_STAV_DUZINA   = 300   # hard limit za mali (search) chunk
 MAX_PARENT_DUZINA = 3000  # hard limit za parent text koji ide LLM-u
+STUB_THRESHOLD    = 200   # parent_text kraći od ovoga = stub chunk (log upozorenje)
+
+# Strukturalna zaglavlja koja se u izvornim PDF-ovima nalaze IZMEĐU članova.
+# Bez strippinga, ova zaglavlja bivaju upijeni u tekst prethodnog člana.
+_SECTION_HEADER_RE = re.compile(
+    r'^(?:'
+    r'(?:Glava|GLAVA)\s+[IVXLCDM\d][^\n]*'               # Glava I / Glava 3
+    r'|(?:Deo|DEO)\s+\w+[^\n]*'                           # Deo prvi / Deo drugi
+    r'|(?:Odeljak|ODELJAK)\s+[^\n]*'                      # Odeljak 1 / Odeljak A
+    r'|(?:Pododeljak|PODODELJAK)\s+[^\n]*'
+    r'|(?:Poglavlje|POGLAVLJE)\s+[^\n]*'
+    r'|[A-ZŠĐČĆŽА-Я][A-ZŠĐČĆŽА-Я \-]{8,}'               # SVE-CAPS red ≥10 znakova
+    r'|\d{1,2}\.\s+[A-ZŠĐČĆŽ][a-zšđčćž\S ]{2,79}(?<![.,;:!?)\d])'  # "6. Posebna zaštita..."
+    r'|[A-ZŠĐČĆŽ][a-zšđčćž\S ]{3,99}(?<![.,;:!?)\d])'   # Title Case ≤100 znakova, bez terminalnog interpunkcije
+    r')$',
+    re.UNICODE | re.MULTILINE,
+)
+
+
+def _skini_zaglavlja(clan_tekst: str) -> tuple[str, str]:
+    """
+    Skida strukturalna zaglavlja sa KRAJA teksta člana.
+
+    Zaglavlja (Glava, Odeljak, sve-caps naslovi) se u PDF-u nalaze u
+    međuprostoru između Član N i Član N+1. Pošto se clan_tekst seče na
+    početku sledećeg člana, ova zaglavlja ulaze u tekst prethodnog člana.
+
+    Vraća (čist_tekst, odstranjeni_deo).
+    """
+    lines = clan_tekst.rstrip('\n').split('\n')
+    stripped: list[str] = []
+    while lines:
+        candidate = lines[-1].strip()
+        if not candidate:                           # prazan red — tiho ukloni
+            lines.pop()
+        elif _SECTION_HEADER_RE.match(candidate):  # strukturalno zaglavlje — strip
+            stripped.insert(0, lines.pop())
+        else:
+            break
+    return '\n'.join(lines).strip(), '\n'.join(stripped).strip()
 
 
 def shortcode(zakon_naziv: str) -> str:
@@ -161,13 +204,30 @@ def podeli_zakon_na_chunkove(tekst: str, zakon_naziv: str) -> list[dict]:
 
         pocetak = m.start()
         kraj    = matches[i + 1].start() if i + 1 < len(matches) else len(tekst)
-        clan_tekst = tekst[pocetak:kraj].strip()
+        clan_tekst_raw = tekst[pocetak:kraj].strip()
+
+        # Ukloni strukturalna zaglavlja upijeni iz međuprostora između članova
+        clan_tekst, stripped_header = _skini_zaglavlja(clan_tekst_raw)
+
+        if stripped_header:
+            _chunker_log.debug(
+                "Zaglavlje uklonjeno iz %s %s: %r",
+                zakon_naziv, label, stripped_header[:80],
+            )
 
         if len(clan_tekst) < MIN_STAV_DUZINA:
             continue
 
+        # Upozorenje za stub — član je legitimno kratak, ali previše kratak za
+        # kvalitetan embedding; potrebna ponovna ingestija iz izvornog PDF-a
+        if len(clan_tekst) < STUB_THRESHOLD:
+            _chunker_log.warning(
+                "Stub: %s %s — %d znakova posle skidanja zaglavlja",
+                zakon_naziv, label, len(clan_tekst),
+            )
+
         parent_id   = f"{sc}_{broj_str}"
-        parent_text = clan_tekst[:MAX_PARENT_DUZINA]
+        parent_text = clan_tekst[:MAX_PARENT_DUZINA]   # uvek iz čistog teksta
 
         stavovi = _podeli_na_stavove(clan_tekst)
 

@@ -1,0 +1,302 @@
+TEST v2 — _skini_zaglavlja() expanded safety check
+Timestamp: 2026-05-04 18:37:29
+
+Fetching random articles from 5 diverse laws...
+  zakon o privrednim drustvima                            → (no result)
+  zakon o zastiti podataka o licnosti                     → (no result)
+  zakon o digitalnoj imovini                              → (no result)
+  zakon o upravnim sporovima                              → (no result)
+  zakon o vanparnicnom postupku                           → (no result)
+
+Total articles to test: 20
+══════════════════════════════════════════════════════════════════════════════════════════
+
+[01/20] KNOWN_STRIP   KZ · Član 203
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 258 chars
+  After strip     : 246 chars
+  Chars removed   : 12
+  Verdict         : CORRECT ✓
+
+  BEFORE (last 100 chars): 'aznom ili zatvorom do tri godine.↵(2) Za pokušaj dela iz stava 1. ovog člana kazniće se.↵Teška krađa'
+  STRIPPED:
+    'Teška krađa'
+  AFTER  (last 100 chars): 'e novčanom kaznom ili zatvorom do tri godine.↵(2) Za pokušaj dela iz stava 1. ovog člana kazniće se.'
+
+
+[02/20] KNOWN_STRIP   KZ · Član 204
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 7
+  Original length : 1377 chars
+  After strip     : 1359 chars
+  Chars removed   : 18
+  Verdict         : CORRECT ✓
+
+  BEFORE (last 100 chars): 'n i petsto hiljada dinara,↵učinilac će se kazniti zatvorom od dve do deset godina.↵Razbojnička krađa'
+  STRIPPED:
+    'Razbojnička krađa'
+  AFTER  (last 100 chars): 'azi iznos od milion i petsto hiljada dinara,↵učinilac će se kazniti zatvorom od dve do deset godina.'
+
+
+[03/20] KNOWN_STRIP   porodicni zakon · Član 88
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 1
+  Original length : 107 chars
+  After strip     : 59 chars  ← STUB
+  Chars removed   : 48
+  Verdict         : CORRECT ✓
+
+  BEFORE (last 100 chars): ' ↵Usvojenje se zasniva odlukom organa starateljstva. ↵Opšta podobnost usvojenika ↵Interes usvojenika'
+  STRIPPED:
+    'Opšta podobnost usvojenika'
+    'Interes usvojenika'
+  AFTER  (last 100 chars): 'Član 88 ↵Usvojenje se zasniva odlukom organa starateljstva.'
+
+
+[04/20] KNOWN_STRIP   porodicni zakon · Član 170
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 471 chars
+  After strip     : 435 chars
+  Chars removed   : 36
+  Verdict         : CORRECT ✓
+
+  BEFORE (last 100 chars): 'o u toj imovini srazmerno svom doprinosu. ↵2. Zajednička imovina ↵Pojam zajedničke imovine ↵Sticanje'
+  STRIPPED:
+    'Pojam zajedničke imovine'
+    'Sticanje'
+  AFTER  (last 100 chars): 'ka, drugi supružnik ima pravo na udeo u toj imovini srazmerno svom doprinosu. ↵2. Zajednička imovina'
+
+
+[05/20] KNOWN_STRIP   porodicni zakon · Član 171
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 229 chars
+  After strip     : 214 chars
+  Chars removed   : 15
+  Verdict         : CORRECT ✓
+
+  BEFORE (last 100 chars): 'vinu. ↵(2) Supružnici mogu bračnim ugovorom drugačije urediti svoje imovinske odnose. ↵Igra na sreću'
+  STRIPPED:
+    'Igra na sreću'
+  AFTER  (last 100 chars): ' zajedničku imovinu. ↵(2) Supružnici mogu bračnim ugovorom drugačije urediti svoje imovinske odnose.'
+
+
+[06/20] KNOWN_STRIP   zakon o nasledjivanju · Član 9
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 473 chars
+  After strip     : 451 chars
+  Chars removed   : 22
+  Verdict         : CORRECT ✓
+
+  BEFORE (last 100 chars): ' bračni ↵drug ako sud, pošto razmotri sve okolnosti, oceni da je to opravdano. ↵Pravo predstavljanja'
+  STRIPPED:
+    'Pravo predstavljanja'
+  AFTER  (last 100 chars): ' do dva puta više nego bračni ↵drug ako sud, pošto razmotri sve okolnosti, oceni da je to opravdano.'
+
+
+[07/20] KNOWN_STRIP   zakon o radu · Član 186
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 427 chars
+  After strip     : 427 chars
+  Chars removed   : 0
+  Verdict         : WRONG ✗  (regex missed header)
+
+  BEFORE (last 100 chars): 'ije u roku od 30 dana od dana ↵prestanka radnog odnosa. ↵6. Posebna zaštita od otkaza ugovora o radu'
+  AFTER  (last 100 chars): (same — nothing stripped)
+
+
+[08/20] KNOWN_STRIP   zakon o obligacionim odnosima · Član 200
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 780 chars
+  After strip     : 698 chars
+  Chars removed   : 82
+  Verdict         : CORRECT ✓
+
+  BEFORE (last 100 chars): 'društvenom svrhom. ↵Lica koja imaju pravo na novčanu naknadu u slučaju smrti ili teškog invaliditeta'
+  STRIPPED:
+    'Lica koja imaju pravo na novčanu naknadu u slučaju smrti ili teškog invaliditeta'
+  AFTER  (last 100 chars): 'i o tome da se njome ne pogoduje težnjama koje nisu spojive sa ↵njenom prirodom i društvenom svrhom.'
+
+
+[09/20] KNOWN_STRIP   zakon o obligacionim odnosima · Član 371
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 1
+  Original length : 129 chars
+  After strip     : 105 chars  ← STUB
+  Chars removed   : 24
+  Verdict         : CORRECT ✓
+
+  BEFORE (last 100 chars): 'evaju za deset godina, ako zakonom nije određen neki drugi rok zastarelosti. ↵Povremena potraživanja'
+  STRIPPED:
+    'Povremena potraživanja'
+  AFTER  (last 100 chars): '371 ↵Potraživanja zastarevaju za deset godina, ako zakonom nije određen neki drugi rok zastarelosti.'
+
+
+[10/20] KNOWN_CLEAN   zakon o radu · Član 189
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 688 chars
+  After strip     : 688 chars
+  Chars removed   : 0
+  Verdict         : CORRECT ✓
+
+  BEFORE (last 100 chars): ' što mu se za to vreme obezbeđuje naknada zarade u visini utvrđenoj opštim aktom i ↵ugovorom o radu.'
+  AFTER  (last 100 chars): (same — nothing stripped)
+
+
+[11/20] KNOWN_CLEAN   zakon o obligacionim odnosima · Član 124
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 381 chars
+  After strip     : 332 chars
+  Chars removed   : 49
+  Verdict         : WRONG ✗  (false positive — stripped legitimate text)
+
+  BEFORE (last 100 chars): 'onu, a u svakom slučaju ima pravo na naknadu štete. ↵Kad je ispunjenje o roku bitni sastojak ugovora'
+  STRIPPED:
+    'Kad je ispunjenje o roku bitni sastojak ugovora'
+  AFTER  (last 100 chars): 'avom, ako raskid ↵ugovora ne nastupa po samom zakonu, a u svakom slučaju ima pravo na naknadu štete.'
+
+
+[12/20] KNOWN_CLEAN   KZ · Član 19
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 3
+  Original length : 435 chars
+  After strip     : 421 chars
+  Chars removed   : 14
+  Verdict         : WRONG ✗  (false positive — stripped legitimate text)
+
+  BEFORE (last 100 chars): ' usled jake razdraženosti ili prepasti izazvane napadom može se i osloboditi od kazne.↵Krajnja nužda'
+  STRIPPED:
+    'Krajnja nužda'
+  AFTER  (last 100 chars): ' nužne odbrane usled jake razdraženosti ili prepasti izazvane napadom može se i osloboditi od kazne.'
+
+
+[13/20] KNOWN_CLEAN   zakonik o krivicnom postupku · Član 76
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 4
+  Original length : 1058 chars
+  After strip     : 1037 chars
+  Chars removed   : 21
+  Verdict         : WRONG ✗  (false positive — stripped legitimate text)
+
+  BEFORE (last 100 chars): 'uje se na internet stranici i oglasnoj tabli nadležne advokatske komore i suda.  ↵Odbrana siromašnog'
+  STRIPPED:
+    'Odbrana siromašnog'
+  AFTER  (last 100 chars): '1. ovog člana objavljuje se na internet stranici i oglasnoj tabli nadležne advokatske komore i suda.'
+
+
+[14/20] KNOWN_CLEAN   zakonik o krivicnom postupku · Član 77
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 3
+  Original length : 796 chars
+  After strip     : 757 chars
+  Chars removed   : 39
+  Verdict         : WRONG ✗  (false positive — stripped legitimate text)
+
+  BEFORE (last 100 chars): 'va 1. ovog člana ima svojstvo branioca po službenoj dužnosti.  ↵Zajednički branilac i više branilaca'
+  STRIPPED:
+    'Zajednički branilac i više branilaca'
+  AFTER  (last 100 chars): 'a komora.  ↵Postavljeni branilac iz stava 1. ovog člana ima svojstvo branioca po službenoj dužnosti.'
+
+
+[15/20] EDGE          KZ · Član 66
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 5
+  Original length : 863 chars
+  After strip     : 812 chars
+  Chars removed   : 51
+  Verdict         : REVIEW — see content above
+
+  BEFORE (last 100 chars): 'lovna osuda može se izreći samo za kaznu zatvora.↵Opozivanje uslovne osude zbog novog krivičnog dela'
+  STRIPPED:
+    'Opozivanje uslovne osude zbog novog krivičnog dela'
+  AFTER  (last 100 chars): 'iniocu utvrđena i kazna zatvora i novčana kazna, uslovna osuda može se izreći samo za kaznu zatvora.'
+
+
+[16/20] EDGE          ustav republike srbije · Član 21
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 3
+  Original length : 656 chars
+  After strip     : 609 chars
+  Chars removed   : 47
+  Verdict         : REVIEW — see content above
+
+  BEFORE (last 100 chars): 'suštinski u nejednakom položaju sa ostalim građanima. ↵Zaštita ljudskih i manjinskih prava i sloboda'
+  STRIPPED:
+    'Zaštita ljudskih i manjinskih prava i sloboda'
+  AFTER  (last 100 chars): 'ne ravnopravnosti lica ili ↵grupe lica koja su suštinski u nejednakom položaju sa ostalim građanima.'
+
+
+[17/20] EDGE          zakon o parnicnom postupku · Član 365
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 1
+  Original length : 184 chars
+  After strip     : 184 chars  ← STUB
+  Chars removed   : 0
+  Verdict         : REVIEW — see content above
+
+  BEFORE (last 100 chars): 'lba. ↵Pisani sastav rešenja sadrži uvod i izreku, a u slučaju iz stava 1. ovog člana i obrazloženje.'
+  AFTER  (last 100 chars): (same — nothing stripped)
+
+
+[18/20] EDGE          zakon o radu · Član 65
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 1
+  Original length : 271 chars
+  After strip     : 271 chars
+  Chars removed   : 0
+  Verdict         : REVIEW — see content above
+
+  BEFORE (last 100 chars): 'nkama. ↵Odluku o rasporedu korišćenja odmora u toku dnevnog rada donosi poslodavac. ↵2. Dnevni odmor'
+  AFTER  (last 100 chars): (same — nothing stripped)
+
+
+[19/20] EDGE          zakon o nasledjivanju · Član 15
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 1
+  Original length : 178 chars
+  After strip     : 151 chars  ← STUB
+  Chars removed   : 27
+  Verdict         : REVIEW — see content above
+
+  BEFORE (last 100 chars): 'ede, bračni drug nasleđuje celokupnu zaostavštinu. ↵3. Treći nasledni red ↵Ostaviočevi dedovi i babe'
+  STRIPPED:
+    'Ostaviočevi dedovi i babe'
+  AFTER  (last 100 chars): ' a ne mogu ili neće da naslede, bračni drug nasleđuje celokupnu zaostavštinu. ↵3. Treći nasledni red'
+
+
+[20/20] EDGE          zakon o obligacionim odnosima · Član 185
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 4
+  Original length : 611 chars
+  After strip     : 582 chars
+  Chars removed   : 29
+  Verdict         : REVIEW — see content above
+
+  BEFORE (last 100 chars): 'ako okolnosti datog slučaja opravdavaju ↵uspostavljanje ranijeg stanja. ↵Kad dospeva obaveza naknade'
+  STRIPPED:
+    'Kad dospeva obaveza naknade'
+  AFTER  (last 100 chars): 'cu kad on to zahteva, izuzev ako okolnosti datog slučaja opravdavaju ↵uspostavljanje ranijeg stanja.'
+
+══════════════════════════════════════════════════════════════════════════════════════════
+SUMMARY
+══════════════════════════════════════════════════════════════════════════════════════════
+
+  Total tested  : 20
+  CORRECT ✓    : 9  (KNOWN_STRIP caught + KNOWN_CLEAN untouched)
+  WRONG   ✗    : 5
+  REVIEW        : 6  (edge cases + random — inspect output above)
+  SKIPPED       : 0  (no data in index)
+
+  KNOWN_STRIP pass rate: 8/9
+  KNOWN_CLEAN pass rate: 1/5
+
+  5 FAILURE(S) — see WRONG verdicts above before committing
+
+Timestamp end: 2026-05-04 18:37:35
