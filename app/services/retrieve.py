@@ -63,6 +63,20 @@ LAW_HINTS = {
     "krivicni":                   "KZ",
     "krivicno":                   "KZ",
     "krivic":                     "KZ",
+    "kradj":                      "KZ",
+    "razbojn":                    "KZ",
+    "ubistvo":                    "KZ",
+    "ubojstv":                    "KZ",
+    "uslovna osuda":              "KZ",
+    "uslovni otpust":             "KZ",
+    "zatvorska kazna":            "KZ",
+    "novcan kazna kz":            "KZ",
+    "opojne droge":               "KZ",
+    "narkotik":                   "KZ",
+    "iznuda":                     "KZ",
+    "ucena":                      "KZ",
+    "silovanje":                  "KZ",
+    "nasilje u porodici":         "KZ",
     # Zakon o parničnom postupku
     "parnica":                    "zakon o parnicnom postupku",
     "parnic":                     "zakon o parnicnom postupku",
@@ -274,6 +288,21 @@ def _izvuci_broj_clana(query: str) -> Optional[str]:
 
 def _ugradi_query(query: str) -> list[float]:
     return _get_embeddings().embed_query(query)
+
+
+# ─── Confidence thresholds ───────────────────────────────────────────────────
+
+CONFIDENCE_HIGH_THRESHOLD   = 0.78
+CONFIDENCE_MEDIUM_THRESHOLD = 0.65
+
+
+def get_confidence_level(score: float) -> str:
+    """Map Pinecone cosine score to HIGH / MEDIUM / LOW."""
+    if score >= CONFIDENCE_HIGH_THRESHOLD:
+        return "HIGH"
+    elif score >= CONFIDENCE_MEDIUM_THRESHOLD:
+        return "MEDIUM"
+    return "LOW"
 
 
 # ─── Pinecone operacije ───────────────────────────────────────────────────────
@@ -670,7 +699,7 @@ def _jedan_retrieval_krug(
 
 # ─── Glavna javna funkcija ────────────────────────────────────────────────────
 
-def retrieve_documents(query: str, k: int = 6) -> list[str]:
+def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
     """
     Agentic RAG pipeline — svi 5 sprintova.
 
@@ -681,6 +710,10 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
       4. Cohere re-ranking (ili interni skor ako Cohere nije dostupan)
       5. Parent text fetch iz metapodataka
       6. CRAG ocena relevantnosti + corrective petlja (max 2 iteracije)
+
+    Returns:
+        (docs, retrieval_meta) where retrieval_meta has:
+          top_score, top_article, top_law, top_text, confidence
     """
     import time as _time
     t0 = _time.perf_counter()
@@ -753,6 +786,21 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
     # Cohere re-rank top-10 → top-k
     reranked = _cohere_rerank(query, top_kandid, k=k)
 
+    # ── Capture confidence metadata from top match (before CRAG may change docs) ──
+    # Use max Pinecone score across reranked set (Cohere may promote a slightly lower-score chunk)
+    if reranked:
+        _top = max(reranked, key=lambda m: m.score)
+        _top_meta_raw = _top.metadata or {}
+        _top_score   = _top.score
+        _top_article = _top_meta_raw.get("article", "—")
+        _top_law     = _top_meta_raw.get("law", "—")
+        _top_text    = _dohvati_parent_text(_top) or (_top_meta_raw.get("text") or "").strip()
+    else:
+        _top_score   = 0.0
+        _top_article = "—"
+        _top_law     = "—"
+        _top_text    = ""
+
     # ZOO fallback ako je rezultat slab
     top_skor = skorovani[0][0] if skorovani else 0
     if len(reranked) < 3 or top_skor < 50:
@@ -794,7 +842,18 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
             query[:80], os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX),
         )
 
-    return docs
+    retrieval_meta = {
+        "top_score":   _top_score,
+        "top_article": _top_article,
+        "top_law":     _top_law,
+        "top_text":    _top_text,
+        "confidence":  get_confidence_level(_top_score),
+    }
+    logger.info(
+        "[RETRIEVE] confidence=%s score=%.4f article=%s law=%s",
+        retrieval_meta["confidence"], _top_score, _top_article, _top_law,
+    )
+    return docs, retrieval_meta
 
 
 def _prosiri_query_gpt_wrapper(query: str) -> list[str]:
