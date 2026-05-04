@@ -1,0 +1,1949 @@
+21:21:25 INFO | === INDEX EXPANSION: 17 laws to process ===
+21:21:25 INFO | 
+--- [1/17] ZKP: zakonik o krivicnom postupku ---
+21:21:25 INFO | [ZKP] Reading zakon_o_krivicnom_postupku.pdf (486923 bytes)
+21:21:25 INFO | [ZKP] Text length: 464961 chars
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 12 — 160 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 18 — 149 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 19 — 196 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 20 — 120 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 28 — 166 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 45 — 177 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 55 — 198 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 60 — 186 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 62 — 173 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 63 — 113 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 67 — 119 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 79 — 150 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 82 — 128 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 91 — 150 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 97 — 147 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 111 — 159 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 112 — 188 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 149 — 174 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 223 — 98 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 267 — 141 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 268 — 126 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 269 — 154 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 351 — 167 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 362 — 105 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 366 — 64 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 385 — 180 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 418 — 176 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 442 — 145 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 453 — 171 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 470 — 153 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 490 — 135 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 493 — 194 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 496 — 189 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 510 — 91 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 542 — 168 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 543 — 172 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 546 — 180 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 549 — 154 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 555 — 128 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 558 — 104 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 560 — 154 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 573 — 198 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 605 — 194 znakova posle skidanja zaglavlja
+21:21:25 WARNING | Stub: zakonik o krivicnom postupku \u010clan 606 — 130 znakova posle skidanja zaglavlja
+21:21:25 INFO | [ZKP] Chunks: 1866 | Articles: 608 | With parent_text: 1866/1866
+21:21:27 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:21:31 INFO | [ZKP] Batch 1/47: +40 vectors (total: 40)
+21:21:32 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:21:34 INFO | [ZKP] Batch 2/47: +40 vectors (total: 80)
+21:21:35 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:21:37 INFO | [ZKP] Batch 3/47: +40 vectors (total: 120)
+21:21:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:21:41 INFO | [ZKP] Batch 4/47: +40 vectors (total: 160)
+21:21:42 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:21:44 INFO | [ZKP] Batch 5/47: +40 vectors (total: 200)
+21:21:46 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:21:49 INFO | [ZKP] Batch 6/47: +40 vectors (total: 240)
+21:21:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:21:52 INFO | [ZKP] Batch 7/47: +40 vectors (total: 280)
+21:21:53 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:21:55 INFO | [ZKP] Batch 8/47: +40 vectors (total: 320)
+21:21:56 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:21:59 INFO | [ZKP] Batch 9/47: +40 vectors (total: 360)
+21:21:59 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:02 INFO | [ZKP] Batch 10/47: +40 vectors (total: 400)
+21:22:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:05 INFO | [ZKP] Batch 11/47: +40 vectors (total: 440)
+21:22:05 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:09 INFO | [ZKP] Batch 12/47: +40 vectors (total: 480)
+21:22:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:12 INFO | [ZKP] Batch 13/47: +40 vectors (total: 520)
+21:22:13 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:16 INFO | [ZKP] Batch 14/47: +40 vectors (total: 560)
+21:22:16 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:19 INFO | [ZKP] Batch 15/47: +40 vectors (total: 600)
+21:22:19 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:22 INFO | [ZKP] Batch 16/47: +40 vectors (total: 640)
+21:22:23 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:26 INFO | [ZKP] Batch 17/47: +40 vectors (total: 680)
+21:22:26 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:29 INFO | [ZKP] Batch 18/47: +40 vectors (total: 720)
+21:22:30 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:32 INFO | [ZKP] Batch 19/47: +40 vectors (total: 760)
+21:22:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:36 INFO | [ZKP] Batch 20/47: +40 vectors (total: 800)
+21:22:37 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:39 INFO | [ZKP] Batch 21/47: +40 vectors (total: 840)
+21:22:40 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:43 INFO | [ZKP] Batch 22/47: +40 vectors (total: 880)
+21:22:44 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:46 INFO | [ZKP] Batch 23/47: +40 vectors (total: 920)
+21:22:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:50 INFO | [ZKP] Batch 24/47: +40 vectors (total: 960)
+21:22:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:53 INFO | [ZKP] Batch 25/47: +40 vectors (total: 1000)
+21:22:54 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:22:57 INFO | [ZKP] Batch 26/47: +40 vectors (total: 1040)
+21:22:57 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:01 INFO | [ZKP] Batch 27/47: +40 vectors (total: 1080)
+21:23:01 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:05 INFO | [ZKP] Batch 28/47: +40 vectors (total: 1120)
+21:23:05 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:08 INFO | [ZKP] Batch 29/47: +40 vectors (total: 1160)
+21:23:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:11 INFO | [ZKP] Batch 30/47: +40 vectors (total: 1200)
+21:23:12 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:15 INFO | [ZKP] Batch 31/47: +40 vectors (total: 1240)
+21:23:15 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:18 INFO | [ZKP] Batch 32/47: +40 vectors (total: 1280)
+21:23:18 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:21 INFO | [ZKP] Batch 33/47: +40 vectors (total: 1320)
+21:23:21 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:24 INFO | [ZKP] Batch 34/47: +40 vectors (total: 1360)
+21:23:25 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:28 INFO | [ZKP] Batch 35/47: +40 vectors (total: 1400)
+21:23:28 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:31 INFO | [ZKP] Batch 36/47: +40 vectors (total: 1440)
+21:23:32 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:35 INFO | [ZKP] Batch 37/47: +40 vectors (total: 1480)
+21:23:36 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:39 INFO | [ZKP] Batch 38/47: +40 vectors (total: 1520)
+21:23:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:43 INFO | [ZKP] Batch 39/47: +40 vectors (total: 1560)
+21:23:43 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:46 INFO | [ZKP] Batch 40/47: +40 vectors (total: 1600)
+21:23:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:50 INFO | [ZKP] Batch 41/47: +40 vectors (total: 1640)
+21:23:51 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:54 INFO | [ZKP] Batch 42/47: +40 vectors (total: 1680)
+21:23:55 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:23:58 INFO | [ZKP] Batch 43/47: +40 vectors (total: 1720)
+21:23:59 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:02 INFO | [ZKP] Batch 44/47: +40 vectors (total: 1760)
+21:24:03 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:06 INFO | [ZKP] Batch 45/47: +40 vectors (total: 1800)
+21:24:06 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:10 INFO | [ZKP] Batch 46/47: +40 vectors (total: 1840)
+21:24:10 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:13 INFO | [ZKP] Batch 47/47: +26 vectors (total: 1866)
+21:24:13 INFO | [ZKP] Done: 1866 uploaded, 0 errors
+21:24:13 INFO | [ZKP] Log appended: | 2026-05-04 19:24 UTC | ZKP | zakonik o krivicnom postupku | 608 articles | 1866 vectors | OK |
+21:24:14 INFO | 
+--- [2/17] ZOO: zakon o obligacionim odnosima ---
+21:24:14 INFO | [ZOO] Reading zakon_o_obligacionim_odnosima.pdf (452493 bytes)
+21:24:14 INFO | [ZOO] Text length: 433631 chars
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 2 — 71 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 12 — 151 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 13 — 144 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 14 — 165 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 16 — 90 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 19 — 123 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 20 — 177 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 23 — 149 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 26 — 93 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 34 — 128 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 38 — 169 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 44 — 183 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 46 — 161 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 47 — 95 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 48 — 175 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 49 — 112 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 52 — 66 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 62 — 122 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 63 — 158 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 64 — 125 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 76 — 176 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 101 — 187 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 109 — 174 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 116 — 159 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 127 — 186 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 128 — 183 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 130 — 121 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 131 — 79 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 136 — 156 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 147 — 183 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 151 — 129 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 152 — 177 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 155 — 194 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 158 — 83 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 166 — 89 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 173 — 182 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 174 — 140 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 175 — 187 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 183 — 166 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 186 — 78 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 187 — 143 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 203 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 205 — 150 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 207 — 145 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 211 — 178 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 212 — 157 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 213 — 137 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 214 — 194 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 216 — 184 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 218 — 138 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 234 — 150 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 236 — 80 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 237 — 120 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 238 — 97 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 240 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 241 — 80 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 243 — 75 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 248 — 175 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 260 — 149 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 267 — 177 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 269 — 156 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 274 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 282 — 185 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 284 — 150 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 288 — 116 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 298 — 172 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 300 — 174 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 303 — 116 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 311 — 186 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 313 — 154 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 322 — 103 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 332 — 136 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 334 — 87 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 342 — 159 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 343 — 162 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 345 — 171 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 347 — 197 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 349 — 182 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 352 — 158 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 354 — 190 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 356 — 196 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 359 — 191 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 362 — 82 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 363 — 98 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 365 — 100 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 366 — 181 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 367 — 144 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 369 — 148 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 371 — 105 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 375 — 131 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 383 — 151 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 391 — 112 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 394 — 164 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 395 — 186 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 402 — 173 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 406 — 120 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 407 — 156 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 413 — 194 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 419 — 171 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 420 — 123 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 421 — 164 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 425 — 124 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 428 — 159 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 430 — 171 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 431 — 196 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 432 — 76 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 439 — 189 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 442 — 138 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 451 — 165 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 455 — 162 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 470 — 184 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 473 — 173 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 474 — 180 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 487 — 100 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 489 — 127 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 491 — 177 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 498 — 148 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 499 — 182 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 504 — 148 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 514 — 187 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 517 — 182 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 529 — 123 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 531 — 184 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 537 — 127 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 541 — 108 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 543 — 92 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 545 — 183 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 548 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 551 — 174 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 553 — 121 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 555 — 167 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 558 — 155 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 564 — 173 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 565 — 156 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 566 — 177 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 568 — 86 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 575 — 115 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 587 — 135 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 588 — 165 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 589 — 188 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 590 — 65 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 594 — 178 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 599 — 122 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 603 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 611 — 131 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 613 — 199 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 621 — 185 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 622 — 91 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 632 — 131 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 635 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 641 — 145 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 643 — 195 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 652 — 162 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 653 — 137 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 656 — 114 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 657 — 183 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 667 — 162 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 673 — 147 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 675 — 191 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 676 — 102 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 678 — 181 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 682 — 100 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 688 — 156 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 692 — 148 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 693 — 118 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 696 — 130 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 697 — 145 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 698 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 700 — 84 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 701 — 128 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 705 — 148 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 706 — 171 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 708 — 143 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 712 — 193 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 715 — 177 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 719 — 160 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 723 — 149 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 726 — 197 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 727 — 186 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 728 — 157 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 729 — 129 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 735 — 98 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 739 — 135 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 740 — 159 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 743 — 169 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 755 — 129 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 757 — 175 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 758 — 104 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 760 — 117 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 761 — 138 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 764 — 95 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 768 — 133 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 772 — 124 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 774 — 122 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 785 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 791 — 79 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 792 — 143 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 793 — 123 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 795 — 117 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 796 — 112 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 798 — 130 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 800 — 169 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 802 — 168 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 807 — 147 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 814 — 193 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 816 — 151 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 819 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 826 — 198 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 829 — 160 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 830 — 143 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 838 — 176 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 840 — 92 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 842 — 195 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 848 — 190 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 853 — 171 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 857 — 181 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 862 — 86 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 865 — 188 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 871 — 133 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 874 — 152 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 883 — 146 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 886 — 65 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 892 — 184 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 903 — 131 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 907 — 197 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 927 — 189 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 930 — 129 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 951 — 142 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 953 — 132 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 968 — 93 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 969 — 140 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 971 — 66 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 975 — 157 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 986 — 187 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 987 — 134 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 991 — 92 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 994 — 178 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 996 — 141 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 997 — 138 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 998 — 88 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 999 — 87 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1000 — 138 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1003 — 146 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1006 — 192 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1010 — 166 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1014 — 148 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1018 — 164 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1021 — 161 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1032 — 128 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1040 — 166 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1041 — 142 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1046 — 98 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1047 — 194 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1048 — 130 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1051 — 119 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1052 — 199 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1053 — 81 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1055 — 155 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1056 — 158 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1058 — 147 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1062 — 176 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1066 — 165 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1071 — 113 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1073 — 181 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1074 — 114 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1076 — 127 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1077 — 190 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1084 — 149 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1085 — 175 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1088 — 176 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1091 — 120 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1094 — 79 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1098 — 183 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1099 — 107 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1100 — 128 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1104 — 112 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1106 — 124 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1108 — 141 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 1109 — 172 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 6 — 105 znakova posle skidanja zaglavlja
+21:24:14 WARNING | Stub: zakon o obligacionim odnosima \u010clan 4 — 108 znakova posle skidanja zaglavlja
+21:24:14 INFO | [ZOO] Chunks: 2238 | Articles: 1092 | With parent_text: 2238/2238
+21:24:14 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:17 INFO | [ZOO] Batch 1/56: +40 vectors (total: 40)
+21:24:18 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:21 INFO | [ZOO] Batch 2/56: +40 vectors (total: 80)
+21:24:22 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:25 INFO | [ZOO] Batch 3/56: +40 vectors (total: 120)
+21:24:26 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:29 INFO | [ZOO] Batch 4/56: +40 vectors (total: 160)
+21:24:29 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:32 INFO | [ZOO] Batch 5/56: +40 vectors (total: 200)
+21:24:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:36 INFO | [ZOO] Batch 6/56: +40 vectors (total: 240)
+21:24:37 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:40 INFO | [ZOO] Batch 7/56: +40 vectors (total: 280)
+21:24:40 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:43 INFO | [ZOO] Batch 8/56: +40 vectors (total: 320)
+21:24:44 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:47 INFO | [ZOO] Batch 9/56: +40 vectors (total: 360)
+21:24:48 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:51 INFO | [ZOO] Batch 10/56: +40 vectors (total: 400)
+21:24:51 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:54 INFO | [ZOO] Batch 11/56: +40 vectors (total: 440)
+21:24:55 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:24:58 INFO | [ZOO] Batch 12/56: +40 vectors (total: 480)
+21:24:59 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:02 INFO | [ZOO] Batch 13/56: +40 vectors (total: 520)
+21:25:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:05 INFO | [ZOO] Batch 14/56: +40 vectors (total: 560)
+21:25:06 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:09 INFO | [ZOO] Batch 15/56: +40 vectors (total: 600)
+21:25:10 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:13 INFO | [ZOO] Batch 16/56: +40 vectors (total: 640)
+21:25:13 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:17 INFO | [ZOO] Batch 17/56: +40 vectors (total: 680)
+21:25:17 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:20 INFO | [ZOO] Batch 18/56: +40 vectors (total: 720)
+21:25:21 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:24 INFO | [ZOO] Batch 19/56: +40 vectors (total: 760)
+21:25:25 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:28 INFO | [ZOO] Batch 20/56: +40 vectors (total: 800)
+21:25:28 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:31 INFO | [ZOO] Batch 21/56: +40 vectors (total: 840)
+21:25:32 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:35 INFO | [ZOO] Batch 22/56: +40 vectors (total: 880)
+21:25:36 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:39 INFO | [ZOO] Batch 23/56: +40 vectors (total: 920)
+21:25:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:42 INFO | [ZOO] Batch 24/56: +40 vectors (total: 960)
+21:25:43 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:46 INFO | [ZOO] Batch 25/56: +40 vectors (total: 1000)
+21:25:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:49 INFO | [ZOO] Batch 26/56: +40 vectors (total: 1040)
+21:25:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:53 INFO | [ZOO] Batch 27/56: +40 vectors (total: 1080)
+21:25:54 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:25:56 INFO | [ZOO] Batch 28/56: +40 vectors (total: 1120)
+21:25:57 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:00 INFO | [ZOO] Batch 29/56: +40 vectors (total: 1160)
+21:26:01 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:04 INFO | [ZOO] Batch 30/56: +40 vectors (total: 1200)
+21:26:04 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:07 INFO | [ZOO] Batch 31/56: +40 vectors (total: 1240)
+21:26:08 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:12 INFO | [ZOO] Batch 32/56: +40 vectors (total: 1280)
+21:26:12 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:16 INFO | [ZOO] Batch 33/56: +40 vectors (total: 1320)
+21:26:16 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:20 INFO | [ZOO] Batch 34/56: +40 vectors (total: 1360)
+21:26:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:24 INFO | [ZOO] Batch 35/56: +40 vectors (total: 1400)
+21:26:25 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:28 INFO | [ZOO] Batch 36/56: +40 vectors (total: 1440)
+21:26:29 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:32 INFO | [ZOO] Batch 37/56: +40 vectors (total: 1480)
+21:26:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:36 INFO | [ZOO] Batch 38/56: +40 vectors (total: 1520)
+21:26:37 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:40 INFO | [ZOO] Batch 39/56: +40 vectors (total: 1560)
+21:26:41 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:44 INFO | [ZOO] Batch 40/56: +40 vectors (total: 1600)
+21:26:45 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:48 INFO | [ZOO] Batch 41/56: +40 vectors (total: 1640)
+21:26:49 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:52 INFO | [ZOO] Batch 42/56: +40 vectors (total: 1680)
+21:26:53 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:26:56 INFO | [ZOO] Batch 43/56: +40 vectors (total: 1720)
+21:26:57 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:00 INFO | [ZOO] Batch 44/56: +40 vectors (total: 1760)
+21:27:01 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:04 INFO | [ZOO] Batch 45/56: +40 vectors (total: 1800)
+21:27:05 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:08 INFO | [ZOO] Batch 46/56: +40 vectors (total: 1840)
+21:27:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:12 INFO | [ZOO] Batch 47/56: +40 vectors (total: 1880)
+21:27:13 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:16 INFO | [ZOO] Batch 48/56: +40 vectors (total: 1920)
+21:27:16 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:20 INFO | [ZOO] Batch 49/56: +40 vectors (total: 1960)
+21:27:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:23 INFO | [ZOO] Batch 50/56: +40 vectors (total: 2000)
+21:27:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:27 INFO | [ZOO] Batch 51/56: +40 vectors (total: 2040)
+21:27:28 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:31 INFO | [ZOO] Batch 52/56: +40 vectors (total: 2080)
+21:27:32 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:35 INFO | [ZOO] Batch 53/56: +40 vectors (total: 2120)
+21:27:36 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:39 INFO | [ZOO] Batch 54/56: +40 vectors (total: 2160)
+21:27:40 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:43 INFO | [ZOO] Batch 55/56: +40 vectors (total: 2200)
+21:27:44 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:47 INFO | [ZOO] Batch 56/56: +38 vectors (total: 2238)
+21:27:47 INFO | [ZOO] Done: 2238 uploaded, 0 errors
+21:27:47 INFO | [ZOO] Log appended: | 2026-05-04 19:27 UTC | ZOO | zakon o obligacionim odnosima | 1092 articles | 2238 vectors | OK |
+21:27:48 INFO | 
+--- [3/17] ZPP: zakon o parnicnom postupku ---
+21:27:48 INFO | [ZPP] Reading zakon_o_parnicnom_postupku.pdf (257103 bytes)
+21:27:48 INFO | [ZPP] Text length: 245630 chars
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 2 — 147 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 9 — 170 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 13 — 186 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 14 — 179 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 22 — 165 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 27 — 98 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 29 — 195 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 38 — 98 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 42 — 187 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 45 — 178 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 59 — 144 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 60 — 192 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 66 — 113 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 76 — 79 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 77 — 184 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 86 — 138 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 102 — 167 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 107 — 192 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 112 — 160 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 114 — 172 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 117 — 149 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 120 — 187 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 125 — 177 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 134 — 99 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 150 — 185 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 151 — 92 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 162 — 198 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 164 — 117 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 208 — 120 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 209 — 135 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 213 — 83 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 228 — 168 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 229 — 154 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 234 — 183 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 235 — 153 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 236 — 171 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 237 — 177 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 239 — 186 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 247 — 156 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 252 — 189 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 259 — 149 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 262 — 109 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 274 — 98 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 275 — 88 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 281 — 175 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 283 — 169 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 296 — 114 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 300 — 151 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 304 — 154 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 307 — 167 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 310 — 186 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 313 — 192 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 320 — 187 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 321 — 138 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 324 — 174 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 325 — 93 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 332 — 108 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 335 — 137 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 338 — 186 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 339 — 168 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 340 — 178 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 361 — 126 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 365 — 184 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 370 — 196 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 376 — 198 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 377 — 122 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 379 — 117 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 388 — 162 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 395 — 119 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 397 — 112 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 400 — 183 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 406 — 96 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 409 — 69 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 412 — 65 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 413 — 182 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 418 — 98 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 423 — 157 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 425 — 178 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 436 — 140 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 437 — 86 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 438 — 168 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 441 — 108 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 442 — 151 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 446 — 95 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 447 — 73 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 448 — 146 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 464 — 119 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 467 — 149 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 469 — 173 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 471 — 136 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 482 — 70 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 483 — 120 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 484 — 83 znakova posle skidanja zaglavlja
+21:27:48 WARNING | Stub: zakon o parnicnom postupku \u010clan 508 — 173 znakova posle skidanja zaglavlja
+21:27:48 INFO | [ZPP] Chunks: 1084 | Articles: 493 | With parent_text: 1084/1084
+21:27:48 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:51 INFO | [ZPP] Batch 1/28: +40 vectors (total: 40)
+21:27:52 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:55 INFO | [ZPP] Batch 2/28: +40 vectors (total: 80)
+21:27:56 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:27:59 INFO | [ZPP] Batch 3/28: +40 vectors (total: 120)
+21:28:00 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:03 INFO | [ZPP] Batch 4/28: +40 vectors (total: 160)
+21:28:04 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:07 INFO | [ZPP] Batch 5/28: +40 vectors (total: 200)
+21:28:08 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:11 INFO | [ZPP] Batch 6/28: +40 vectors (total: 240)
+21:28:12 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:16 INFO | [ZPP] Batch 7/28: +40 vectors (total: 280)
+21:28:16 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:20 INFO | [ZPP] Batch 8/28: +40 vectors (total: 320)
+21:28:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:24 INFO | [ZPP] Batch 9/28: +40 vectors (total: 360)
+21:28:25 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:29 INFO | [ZPP] Batch 10/28: +40 vectors (total: 400)
+21:28:29 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:33 INFO | [ZPP] Batch 11/28: +40 vectors (total: 440)
+21:28:34 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:38 INFO | [ZPP] Batch 12/28: +40 vectors (total: 480)
+21:28:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:42 INFO | [ZPP] Batch 13/28: +40 vectors (total: 520)
+21:28:43 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:47 INFO | [ZPP] Batch 14/28: +40 vectors (total: 560)
+21:28:48 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:52 INFO | [ZPP] Batch 15/28: +40 vectors (total: 600)
+21:28:52 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:28:56 INFO | [ZPP] Batch 16/28: +40 vectors (total: 640)
+21:28:57 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:01 INFO | [ZPP] Batch 17/28: +40 vectors (total: 680)
+21:29:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:05 INFO | [ZPP] Batch 18/28: +40 vectors (total: 720)
+21:29:06 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:10 INFO | [ZPP] Batch 19/28: +40 vectors (total: 760)
+21:29:11 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:15 INFO | [ZPP] Batch 20/28: +40 vectors (total: 800)
+21:29:15 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:19 INFO | [ZPP] Batch 21/28: +40 vectors (total: 840)
+21:29:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:24 INFO | [ZPP] Batch 22/28: +40 vectors (total: 880)
+21:29:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:28 INFO | [ZPP] Batch 23/28: +40 vectors (total: 920)
+21:29:29 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:32 INFO | [ZPP] Batch 24/28: +40 vectors (total: 960)
+21:29:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:37 INFO | [ZPP] Batch 25/28: +40 vectors (total: 1000)
+21:29:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:41 INFO | [ZPP] Batch 26/28: +40 vectors (total: 1040)
+21:29:42 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:46 INFO | [ZPP] Batch 27/28: +40 vectors (total: 1080)
+21:29:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:47 INFO | [ZPP] Batch 28/28: +4 vectors (total: 1084)
+21:29:48 INFO | [ZPP] Done: 1084 uploaded, 0 errors
+21:29:48 INFO | [ZPP] Log appended: | 2026-05-04 19:29 UTC | ZPP | zakon o parnicnom postupku | 493 articles | 1084 vectors | OK |
+21:29:49 INFO | 
+--- [4/17] ZR: zakon o radu ---
+21:29:49 INFO | [ZR] Reading zakon_o_radu.pdf (164533 bytes)
+21:29:49 INFO | [ZR] Text length: 158516 chars
+21:29:49 WARNING | Stub: zakon o radu \u010clan 11 — 183 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 14 — 182 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 17 — 126 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 27 — 192 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 28 — 143 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 29 — 180 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 31 — 188 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 39 — 110 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 41 — 198 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 44 — 164 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 54 — 96 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 58 — 70 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 60 — 146 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 86 — 88 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 87 — 159 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 93 — 97 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 95 — 187 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 99 — 187 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 101 — 190 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 106 — 136 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 113 — 127 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 120 — 170 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 128 — 162 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 129 — 79 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 131 — 118 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 136 — 174 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 137 — 153 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 146 — 110 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 148 — 165 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 159 — 183 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 164 — 156 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 166 — 106 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 181 — 183 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 196 — 194 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 200 — 72 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 206 — 111 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 209 — 171 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 212 — 183 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 213 — 184 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 215 — 104 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 236 — 154 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 238 — 134 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 241 — 85 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 242 — 157 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 243 — 121 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 244 — 151 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 248 — 194 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 261 — 107 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 262 — 142 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 266 — 188 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 267 — 185 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 268 — 189 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 279 — 182 znakova posle skidanja zaglavlja
+21:29:49 WARNING | Stub: zakon o radu \u010clan 286 — 124 znakova posle skidanja zaglavlja
+21:29:49 INFO | [ZR] Chunks: 694 | Articles: 288 | With parent_text: 694/694
+21:29:49 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:53 INFO | [ZR] Batch 1/18: +40 vectors (total: 40)
+21:29:54 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:29:58 INFO | [ZR] Batch 2/18: +40 vectors (total: 80)
+21:29:58 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:02 INFO | [ZR] Batch 3/18: +40 vectors (total: 120)
+21:30:03 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:07 INFO | [ZR] Batch 4/18: +40 vectors (total: 160)
+21:30:08 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:11 INFO | [ZR] Batch 5/18: +40 vectors (total: 200)
+21:30:12 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:16 INFO | [ZR] Batch 6/18: +40 vectors (total: 240)
+21:30:17 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:20 INFO | [ZR] Batch 7/18: +40 vectors (total: 280)
+21:30:21 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:25 INFO | [ZR] Batch 8/18: +40 vectors (total: 320)
+21:30:25 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:29 INFO | [ZR] Batch 9/18: +40 vectors (total: 360)
+21:30:30 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:33 INFO | [ZR] Batch 10/18: +40 vectors (total: 400)
+21:30:34 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:38 INFO | [ZR] Batch 11/18: +40 vectors (total: 440)
+21:30:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:42 INFO | [ZR] Batch 12/18: +40 vectors (total: 480)
+21:30:43 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:46 INFO | [ZR] Batch 13/18: +40 vectors (total: 520)
+21:30:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:51 INFO | [ZR] Batch 14/18: +40 vectors (total: 560)
+21:30:52 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:30:55 INFO | [ZR] Batch 15/18: +40 vectors (total: 600)
+21:30:56 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:00 INFO | [ZR] Batch 16/18: +40 vectors (total: 640)
+21:31:01 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:05 INFO | [ZR] Batch 17/18: +40 vectors (total: 680)
+21:31:06 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:07 INFO | [ZR] Batch 18/18: +14 vectors (total: 694)
+21:31:08 INFO | [ZR] Done: 694 uploaded, 0 errors
+21:31:08 INFO | [ZR] Log appended: | 2026-05-04 19:31 UTC | ZR | zakon o radu | 288 articles | 694 vectors | OK |
+21:31:09 INFO | 
+--- [5/17] PZ: porodicni zakon ---
+21:31:09 INFO | [PZ] Reading porodicni_zakon.pdf (151487 bytes)
+21:31:09 INFO | [PZ] Text length: 144697 chars
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 2 — 109 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 3 — 183 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 8 — 144 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 9 — 115 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 10 — 123 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 13 — 155 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 15 — 85 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 16 — 70 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 18 — 70 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 20 — 135 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 24 — 61 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 25 — 89 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 27 — 102 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 28 — 91 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 29 — 179 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 31 — 155 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 33 — 170 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 34 — 173 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 36 — 74 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 37 — 179 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 41 — 172 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 46 — 110 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 47 — 190 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 49 — 196 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 50 — 157 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 51 — 183 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 52 — 110 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 53 — 177 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 54 — 138 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 55 — 197 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 67 — 146 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 73 — 96 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 74 — 119 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 86 — 123 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 89 — 71 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 92 — 158 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 97 — 87 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 98 — 116 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 104 — 186 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 106 — 111 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 107 — 131 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 108 — 117 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 109 — 88 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 111 — 80 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 114 — 190 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 115 — 103 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 116 — 132 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 124 — 170 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 129 — 119 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 148 — 187 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 158 — 137 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 164 — 127 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 169 — 83 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 173 — 139 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 177 — 164 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 178 — 101 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 181 — 189 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 184 — 132 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 186 — 177 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 192 — 161 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 199 — 126 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 200 — 142 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 201 — 104 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 202 — 172 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 205 — 196 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 207 — 140 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 208 — 128 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 209 — 99 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 211 — 187 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 214 — 168 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 219 — 60 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 222 — 101 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 224 — 188 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 233 — 91 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 234 — 106 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 235 — 131 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 236 — 85 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 240 — 156 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 242 — 70 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 247 — 116 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 248 — 198 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 262 — 125 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 274 — 147 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 277 — 106 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 281 — 67 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 288 — 110 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 290 — 103 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 294 — 168 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 295 — 168 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 298 — 151 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 300 — 160 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 310 — 187 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 311 — 155 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 327 — 191 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 340 — 188 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 342 — 162 znakova posle skidanja zaglavlja
+21:31:09 WARNING | Stub: porodicni zakon \u010clan 361 — 148 znakova posle skidanja zaglavlja
+21:31:09 INFO | [PZ] Chunks: 851 | Articles: 355 | With parent_text: 851/851
+21:31:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:14 INFO | [PZ] Batch 1/22: +40 vectors (total: 40)
+21:31:14 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:18 INFO | [PZ] Batch 2/22: +40 vectors (total: 80)
+21:31:19 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:23 INFO | [PZ] Batch 3/22: +40 vectors (total: 120)
+21:31:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:28 INFO | [PZ] Batch 4/22: +40 vectors (total: 160)
+21:31:29 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:33 INFO | [PZ] Batch 5/22: +40 vectors (total: 200)
+21:31:34 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:38 INFO | [PZ] Batch 6/22: +40 vectors (total: 240)
+21:31:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:42 INFO | [PZ] Batch 7/22: +40 vectors (total: 280)
+21:31:43 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:47 INFO | [PZ] Batch 8/22: +40 vectors (total: 320)
+21:31:48 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:52 INFO | [PZ] Batch 9/22: +40 vectors (total: 360)
+21:31:53 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:31:57 INFO | [PZ] Batch 10/22: +40 vectors (total: 400)
+21:31:58 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:03 INFO | [PZ] Batch 11/22: +40 vectors (total: 440)
+21:32:04 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:08 INFO | [PZ] Batch 12/22: +40 vectors (total: 480)
+21:32:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:14 INFO | [PZ] Batch 13/22: +40 vectors (total: 520)
+21:32:14 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:19 INFO | [PZ] Batch 14/22: +40 vectors (total: 560)
+21:32:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:24 INFO | [PZ] Batch 15/22: +40 vectors (total: 600)
+21:32:25 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:30 INFO | [PZ] Batch 16/22: +40 vectors (total: 640)
+21:32:30 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:35 INFO | [PZ] Batch 17/22: +40 vectors (total: 680)
+21:32:35 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:40 INFO | [PZ] Batch 18/22: +40 vectors (total: 720)
+21:32:40 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:45 INFO | [PZ] Batch 19/22: +40 vectors (total: 760)
+21:32:45 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:50 INFO | [PZ] Batch 20/22: +40 vectors (total: 800)
+21:32:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:55 INFO | [PZ] Batch 21/22: +40 vectors (total: 840)
+21:32:56 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:32:57 INFO | [PZ] Batch 22/22: +11 vectors (total: 851)
+21:32:58 INFO | [PZ] Done: 851 uploaded, 0 errors
+21:32:58 INFO | [PZ] Log appended: | 2026-05-04 19:32 UTC | PZ | porodicni zakon | 355 articles | 851 vectors | OK |
+21:32:59 INFO | 
+--- [6/17] ZN: zakon o nasledjivanju ---
+21:32:59 INFO | [ZN] Reading zakon_o_nasledjivanju.pdf (79898 bytes)
+21:32:59 INFO | [ZN] Text length: 75972 chars
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 2 — 79 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 5 — 69 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 6 — 108 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 7 — 174 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 11 — 87 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 15 — 128 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 20 — 167 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 21 — 197 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 24 — 122 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 30 — 110 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 33 — 132 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 37 — 181 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 41 — 185 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 45 — 185 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 51 — 168 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 53 — 139 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 56 — 110 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 57 — 100 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 59 — 193 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 63 — 179 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 68 — 122 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 72 — 145 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 74 — 75 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 75 — 74 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 77 — 199 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 78 — 172 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 79 — 108 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 81 — 94 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 82 — 88 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 83 — 147 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 86 — 127 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 89 — 179 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 93 — 145 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 95 — 158 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 99 — 157 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 100 — 175 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 102 — 130 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 103 — 110 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 104 — 154 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 105 — 151 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 106 — 105 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 107 — 198 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 111a — 96 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 116 — 153 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 117 — 67 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 119 — 96 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 122 — 144 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 123 — 172 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 126 — 111 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 137 — 118 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 138 — 159 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 142 — 134 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 143 — 65 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 147 — 175 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 151 — 117 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 152 — 117 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 154 — 149 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 155 — 122 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 156 — 165 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 161 — 105 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 162 — 141 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 163 — 86 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 165 — 102 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 166 — 110 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 168 — 95 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 175 — 156 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 178 — 140 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 179 — 118 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 181 — 170 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 182 — 77 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 186 — 151 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 187 — 180 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 191 — 127 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 197 — 137 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 200 — 74 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 206 — 99 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 211 — 181 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 212 — 185 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 215 — 167 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 217 — 91 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 218 — 80 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 221 — 154 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 222 — 89 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 223 — 78 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 226 — 152 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 227 — 168 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 228 — 184 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 230 — 162 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 233 — 186 znakova posle skidanja zaglavlja
+21:32:59 WARNING | Stub: zakon o nasledjivanju \u010clan 236 — 188 znakova posle skidanja zaglavlja
+21:32:59 INFO | [ZN] Chunks: 340 | Articles: 239 | With parent_text: 340/340
+21:32:59 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:03 INFO | [ZN] Batch 1/9: +40 vectors (total: 40)
+21:33:04 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:09 INFO | [ZN] Batch 2/9: +40 vectors (total: 80)
+21:33:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:13 INFO | [ZN] Batch 3/9: +40 vectors (total: 120)
+21:33:14 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:18 INFO | [ZN] Batch 4/9: +40 vectors (total: 160)
+21:33:19 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:23 INFO | [ZN] Batch 5/9: +40 vectors (total: 200)
+21:33:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:28 INFO | [ZN] Batch 6/9: +40 vectors (total: 240)
+21:33:29 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:33 INFO | [ZN] Batch 7/9: +40 vectors (total: 280)
+21:33:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:38 INFO | [ZN] Batch 8/9: +40 vectors (total: 320)
+21:33:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:40 INFO | [ZN] Batch 9/9: +20 vectors (total: 340)
+21:33:41 INFO | [ZN] Done: 340 uploaded, 0 errors
+21:33:41 INFO | [ZN] Log appended: | 2026-05-04 19:33 UTC | ZN | zakon o nasledjivanju | 239 articles | 340 vectors | OK |
+21:33:42 INFO | 
+--- [7/17] ZPD: zakon o privrednim drustvima ---
+21:33:42 INFO | [ZPD] Reading zakon_o_privredin_drustvima.pdf (646581 bytes)
+21:33:42 INFO | [ZPD] Text length: 622449 chars
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 2 — 114 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 3 — 182 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 5 — 158 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 8 — 137 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 17 — 190 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 40 — 190 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 47 — 191 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 84 — 70 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 95 — 87 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 98 — 97 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 106 — 170 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 107 — 121 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 120 — 127 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 127 — 171 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 128 — 122 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 130 — 169 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 135 — 150 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 136 — 175 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 138 — 112 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 145 — 175 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 147v — 105 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 150 — 174 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 156 — 102 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 158 — 185 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 159b — 181 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 160 — 100 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 161 — 156 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 170 — 87 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 206 — 138 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 217 — 199 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 222 — 144 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 227 — 168 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 235 — 181 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 269 — 77 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 286 — 190 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 290 — 160 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 291 — 163 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 293 — 182 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 312 — 153 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 327 — 150 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 346 — 155 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 361 — 82 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 365 — 195 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 373 — 90 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 378 — 138 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 391 — 74 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 395 — 108 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 418 — 120 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 419 — 164 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 421 — 90 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 424 — 98 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 428 — 164 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 430 — 95 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 431 — 126 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 432 — 121 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 435 — 96 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 436 — 100 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 438 — 131 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 439 — 125 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 442 — 102 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 443 — 93 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 444 — 92 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 446 — 96 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 447 — 123 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 454 — 199 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 467 — 184 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 473 — 183 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 477 — 179 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 485 — 83 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 514m — 112 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 518 — 163 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 524 — 116 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 526 — 162 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 528 — 185 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 550 — 167 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 552 — 151 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 577b — 141 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 579 — 86 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 580 — 148 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 580a — 85 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 580z — 147 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 580j — 186 znakova posle skidanja zaglavlja
+21:33:42 WARNING | Stub: zakon o privrednim drustvima \u010clan 599 — 124 znakova posle skidanja zaglavlja
+21:33:42 INFO | [ZPD] Chunks: 2247 | Articles: 677 | With parent_text: 2247/2247
+21:33:42 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:46 INFO | [ZPD] Batch 1/57: +40 vectors (total: 40)
+21:33:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:51 INFO | [ZPD] Batch 2/57: +40 vectors (total: 80)
+21:33:52 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:33:56 INFO | [ZPD] Batch 3/57: +40 vectors (total: 120)
+21:33:57 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:01 INFO | [ZPD] Batch 4/57: +40 vectors (total: 160)
+21:34:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:06 INFO | [ZPD] Batch 5/57: +40 vectors (total: 200)
+21:34:07 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:11 INFO | [ZPD] Batch 6/57: +40 vectors (total: 240)
+21:34:12 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:16 INFO | [ZPD] Batch 7/57: +40 vectors (total: 280)
+21:34:17 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:21 INFO | [ZPD] Batch 8/57: +40 vectors (total: 320)
+21:34:21 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:26 INFO | [ZPD] Batch 9/57: +40 vectors (total: 360)
+21:34:26 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:31 INFO | [ZPD] Batch 10/57: +40 vectors (total: 400)
+21:34:32 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:37 INFO | [ZPD] Batch 11/57: +40 vectors (total: 440)
+21:34:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:43 INFO | [ZPD] Batch 12/57: +40 vectors (total: 480)
+21:34:45 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:50 INFO | [ZPD] Batch 13/57: +40 vectors (total: 520)
+21:34:52 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:34:57 INFO | [ZPD] Batch 14/57: +40 vectors (total: 560)
+21:34:58 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:35:03 INFO | [ZPD] Batch 15/57: +40 vectors (total: 600)
+21:35:04 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:35:10 INFO | [ZPD] Batch 16/57: +40 vectors (total: 640)
+21:35:11 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:35:16 INFO | [ZPD] Batch 17/57: +40 vectors (total: 680)
+21:35:17 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:35:23 INFO | [ZPD] Batch 18/57: +40 vectors (total: 720)
+21:35:23 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:35:29 INFO | [ZPD] Batch 19/57: +40 vectors (total: 760)
+21:35:30 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:35:35 INFO | [ZPD] Batch 20/57: +40 vectors (total: 800)
+21:35:36 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:35:41 INFO | [ZPD] Batch 21/57: +40 vectors (total: 840)
+21:35:42 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:35:48 INFO | [ZPD] Batch 22/57: +40 vectors (total: 880)
+21:35:49 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:35:54 INFO | [ZPD] Batch 23/57: +40 vectors (total: 920)
+21:35:55 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:36:00 INFO | [ZPD] Batch 24/57: +40 vectors (total: 960)
+21:36:01 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:36:06 INFO | [ZPD] Batch 25/57: +40 vectors (total: 1000)
+21:36:07 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:36:12 INFO | [ZPD] Batch 26/57: +40 vectors (total: 1040)
+21:36:13 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:36:18 INFO | [ZPD] Batch 27/57: +40 vectors (total: 1080)
+21:36:19 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:36:24 INFO | [ZPD] Batch 28/57: +40 vectors (total: 1120)
+21:36:25 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:36:32 INFO | [ZPD] Batch 29/57: +40 vectors (total: 1160)
+21:36:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:36:40 INFO | [ZPD] Batch 30/57: +40 vectors (total: 1200)
+21:36:41 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:36:47 INFO | [ZPD] Batch 31/57: +40 vectors (total: 1240)
+21:36:48 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:36:54 INFO | [ZPD] Batch 32/57: +40 vectors (total: 1280)
+21:36:55 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:37:02 INFO | [ZPD] Batch 33/57: +40 vectors (total: 1320)
+21:37:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:37:09 INFO | [ZPD] Batch 34/57: +40 vectors (total: 1360)
+21:37:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:37:16 INFO | [ZPD] Batch 35/57: +40 vectors (total: 1400)
+21:37:17 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:37:23 INFO | [ZPD] Batch 36/57: +40 vectors (total: 1440)
+21:37:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:37:30 INFO | [ZPD] Batch 37/57: +40 vectors (total: 1480)
+21:37:31 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:37:37 INFO | [ZPD] Batch 38/57: +40 vectors (total: 1520)
+21:37:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:37:44 INFO | [ZPD] Batch 39/57: +40 vectors (total: 1560)
+21:37:45 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:37:51 INFO | [ZPD] Batch 40/57: +40 vectors (total: 1600)
+21:37:51 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:37:57 INFO | [ZPD] Batch 41/57: +40 vectors (total: 1640)
+21:37:58 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:38:04 INFO | [ZPD] Batch 42/57: +40 vectors (total: 1680)
+21:38:05 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:38:11 INFO | [ZPD] Batch 43/57: +40 vectors (total: 1720)
+21:38:12 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:38:18 INFO | [ZPD] Batch 44/57: +40 vectors (total: 1760)
+21:38:19 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:38:25 INFO | [ZPD] Batch 45/57: +40 vectors (total: 1800)
+21:38:26 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:38:32 INFO | [ZPD] Batch 46/57: +40 vectors (total: 1840)
+21:38:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:38:39 INFO | [ZPD] Batch 47/57: +40 vectors (total: 1880)
+21:38:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:38:45 INFO | [ZPD] Batch 48/57: +40 vectors (total: 1920)
+21:38:46 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:38:52 INFO | [ZPD] Batch 49/57: +40 vectors (total: 1960)
+21:38:53 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:38:59 INFO | [ZPD] Batch 50/57: +40 vectors (total: 2000)
+21:38:59 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:05 INFO | [ZPD] Batch 51/57: +40 vectors (total: 2040)
+21:39:06 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:12 INFO | [ZPD] Batch 52/57: +40 vectors (total: 2080)
+21:39:13 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:18 INFO | [ZPD] Batch 53/57: +40 vectors (total: 2120)
+21:39:19 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:25 INFO | [ZPD] Batch 54/57: +40 vectors (total: 2160)
+21:39:26 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:32 INFO | [ZPD] Batch 55/57: +40 vectors (total: 2200)
+21:39:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:38 INFO | [ZPD] Batch 56/57: +40 vectors (total: 2240)
+21:39:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:40 INFO | [ZPD] Batch 57/57: +7 vectors (total: 2247)
+21:39:40 INFO | [ZPD] Done: 2247 uploaded, 0 errors
+21:39:40 INFO | [ZPD] Log appended: | 2026-05-04 19:39 UTC | ZPD | zakon o privrednim drustvima | 677 articles | 2247 vectors | OK |
+21:39:41 INFO | 
+--- [8/17] ZOUP: zakon o opstem upravnom postupku ---
+21:39:41 INFO | [ZOUP] Reading zakon_o_opstem_upravnom_postupku.pdf (137661 bytes)
+21:39:41 INFO | [ZOUP] Text length: 131703 chars
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 7 — 180 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 15 — 175 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 17 — 155 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 20 — 94 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 21 — 82 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 25 — 121 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 26 — 143 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 46 — 114 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 51 — 159 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 74 — 187 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 105 — 160 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 111 — 165 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 120 — 196 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 131 — 135 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 132 — 73 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 136 — 158 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 140 — 109 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 150 — 145 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 174 — 177 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 177 — 147 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 186 — 165 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 201 — 84 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 212 — 127 znakova posle skidanja zaglavlja
+21:39:41 WARNING | Stub: zakon o opstem upravnom postupku \u010clan 216 — 172 znakova posle skidanja zaglavlja
+21:39:41 INFO | [ZOUP] Chunks: 700 | Articles: 217 | With parent_text: 700/700
+21:39:41 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:47 INFO | [ZOUP] Batch 1/18: +40 vectors (total: 40)
+21:39:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:53 INFO | [ZOUP] Batch 2/18: +40 vectors (total: 80)
+21:39:54 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:39:59 INFO | [ZOUP] Batch 3/18: +40 vectors (total: 120)
+21:40:00 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:40:05 INFO | [ZOUP] Batch 4/18: +40 vectors (total: 160)
+21:40:06 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:40:11 INFO | [ZOUP] Batch 5/18: +40 vectors (total: 200)
+21:40:12 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:40:18 INFO | [ZOUP] Batch 6/18: +40 vectors (total: 240)
+21:40:18 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:40:24 INFO | [ZOUP] Batch 7/18: +40 vectors (total: 280)
+21:40:25 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:40:30 INFO | [ZOUP] Batch 8/18: +40 vectors (total: 320)
+21:40:31 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:40:37 INFO | [ZOUP] Batch 9/18: +40 vectors (total: 360)
+21:40:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:40:43 INFO | [ZOUP] Batch 10/18: +40 vectors (total: 400)
+21:40:44 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:40:49 INFO | [ZOUP] Batch 11/18: +40 vectors (total: 440)
+21:40:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:40:56 INFO | [ZOUP] Batch 12/18: +40 vectors (total: 480)
+21:40:56 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:01 INFO | [ZOUP] Batch 13/18: +40 vectors (total: 520)
+21:41:03 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:08 INFO | [ZOUP] Batch 14/18: +40 vectors (total: 560)
+21:41:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:14 INFO | [ZOUP] Batch 15/18: +40 vectors (total: 600)
+21:41:14 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:19 INFO | [ZOUP] Batch 16/18: +40 vectors (total: 640)
+21:41:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:25 INFO | [ZOUP] Batch 17/18: +40 vectors (total: 680)
+21:41:26 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:28 INFO | [ZOUP] Batch 18/18: +20 vectors (total: 700)
+21:41:29 INFO | [ZOUP] Done: 700 uploaded, 0 errors
+21:41:29 INFO | [ZOUP] Log appended: | 2026-05-04 19:41 UTC | ZOUP | zakon o opstem upravnom postupku | 217 articles | 700 vectors | OK |
+21:41:30 INFO | 
+--- [9/17] ZIO: zakon o izvrsenju i obezbedjenju ---
+21:41:30 INFO | [ZIO] Reading zakon_o_izvrsenju_i_obezbedjenju.pdf (361244 bytes)
+21:41:30 INFO | [ZIO] Text length: 344494 chars
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 5 — 189 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 11 — 78 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 27 — 91 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 39 — 169 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 40 — 153 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 62a — 161 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 63 — 195 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 116 — 143 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 128 — 183 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 134 — 83 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 137 — 112 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 162 — 180 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 166 — 153 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 172 — 124 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 216 — 156 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 224 — 145 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 231 — 172 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 249 — 155 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 251 — 189 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 255 — 181 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 259 — 144 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 271 — 127 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 273 — 196 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 290 — 166 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 298 — 174 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 307 — 164 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 321 — 188 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 325 — 189 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 326 — 199 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 326a — 188 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 326e — 120 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 330 — 116 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 332 — 140 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 339 — 169 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 353 — 167 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 369 — 195 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 370 — 144 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 371 — 158 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 378 — 190 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 382 — 136 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 385 — 175 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 386 — 156 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 387 — 125 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 389 — 180 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 418 — 160 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 419 — 116 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 421 — 156 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 425 — 90 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 426 — 184 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 428 — 194 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 433 — 93 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 438 — 150 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 453 — 182 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 462 — 175 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 470 — 160 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 498 — 196 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 526 — 178 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 531 — 122 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 533 — 191 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 540 — 175 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 541 — 76 znakova posle skidanja zaglavlja
+21:41:30 WARNING | Stub: zakon o izvrsenju i obezbedjenju \u010clan 550 — 165 znakova posle skidanja zaglavlja
+21:41:30 INFO | [ZIO] Chunks: 1399 | Articles: 538 | With parent_text: 1399/1399
+21:41:30 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:35 INFO | [ZIO] Batch 1/35: +40 vectors (total: 40)
+21:41:36 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:41 INFO | [ZIO] Batch 2/35: +40 vectors (total: 80)
+21:41:41 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:47 INFO | [ZIO] Batch 3/35: +40 vectors (total: 120)
+21:41:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:41:57 INFO | [ZIO] Batch 4/35: +40 vectors (total: 160)
+21:41:58 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:42:07 INFO | [ZIO] Batch 5/35: +40 vectors (total: 200)
+21:42:08 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:42:14 INFO | [ZIO] Batch 6/35: +40 vectors (total: 240)
+21:42:15 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:42:20 INFO | [ZIO] Batch 7/35: +40 vectors (total: 280)
+21:42:21 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:42:26 INFO | [ZIO] Batch 8/35: +40 vectors (total: 320)
+21:42:27 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:42:32 INFO | [ZIO] Batch 9/35: +40 vectors (total: 360)
+21:42:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:42:37 INFO | [ZIO] Batch 10/35: +40 vectors (total: 400)
+21:42:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:42:43 INFO | [ZIO] Batch 11/35: +40 vectors (total: 440)
+21:42:44 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:42:49 INFO | [ZIO] Batch 12/35: +40 vectors (total: 480)
+21:42:49 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:42:56 INFO | [ZIO] Batch 13/35: +40 vectors (total: 520)
+21:42:57 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:01 INFO | [ZIO] Batch 14/35: +40 vectors (total: 560)
+21:43:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:06 INFO | [ZIO] Batch 15/35: +40 vectors (total: 600)
+21:43:07 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:11 INFO | [ZIO] Batch 16/35: +40 vectors (total: 640)
+21:43:12 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:16 INFO | [ZIO] Batch 17/35: +40 vectors (total: 680)
+21:43:16 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:20 INFO | [ZIO] Batch 18/35: +40 vectors (total: 720)
+21:43:21 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:26 INFO | [ZIO] Batch 19/35: +40 vectors (total: 760)
+21:43:27 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:31 INFO | [ZIO] Batch 20/35: +40 vectors (total: 800)
+21:43:31 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:35 INFO | [ZIO] Batch 21/35: +40 vectors (total: 840)
+21:43:36 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:40 INFO | [ZIO] Batch 22/35: +40 vectors (total: 880)
+21:43:41 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:45 INFO | [ZIO] Batch 23/35: +40 vectors (total: 920)
+21:43:46 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:50 INFO | [ZIO] Batch 24/35: +40 vectors (total: 960)
+21:43:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:54 INFO | [ZIO] Batch 25/35: +40 vectors (total: 1000)
+21:43:55 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:43:59 INFO | [ZIO] Batch 26/35: +40 vectors (total: 1040)
+21:44:00 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:04 INFO | [ZIO] Batch 27/35: +40 vectors (total: 1080)
+21:44:05 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:09 INFO | [ZIO] Batch 28/35: +40 vectors (total: 1120)
+21:44:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:13 INFO | [ZIO] Batch 29/35: +40 vectors (total: 1160)
+21:44:14 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:18 INFO | [ZIO] Batch 30/35: +40 vectors (total: 1200)
+21:44:19 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:23 INFO | [ZIO] Batch 31/35: +40 vectors (total: 1240)
+21:44:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:28 INFO | [ZIO] Batch 32/35: +40 vectors (total: 1280)
+21:44:29 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:34 INFO | [ZIO] Batch 33/35: +40 vectors (total: 1320)
+21:44:35 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:44 INFO | [ZIO] Batch 34/35: +40 vectors (total: 1360)
+21:44:45 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:49 INFO | [ZIO] Batch 35/35: +39 vectors (total: 1399)
+21:44:49 INFO | [ZIO] Done: 1399 uploaded, 0 errors
+21:44:49 INFO | [ZIO] Log appended: | 2026-05-04 19:44 UTC | ZIO | zakon o izvrsenju i obezbedjenju | 538 articles | 1399 vectors | OK |
+21:44:50 INFO | 
+--- [10/17] ZDI: zakon o digitalnoj imovini ---
+21:44:50 INFO | [ZDI] Reading zakon_o_digitalnoj_imovini.pdf (186205 bytes)
+21:44:50 INFO | [ZDI] Text length: 180675 chars
+21:44:50 WARNING | Stub: zakon o digitalnoj imovini \u010clan 42 — 173 znakova posle skidanja zaglavlja
+21:44:50 WARNING | Stub: zakon o digitalnoj imovini \u010clan 52 — 150 znakova posle skidanja zaglavlja
+21:44:50 WARNING | Stub: zakon o digitalnoj imovini \u010clan 53 — 162 znakova posle skidanja zaglavlja
+21:44:50 WARNING | Stub: zakon o digitalnoj imovini \u010clan 103 — 145 znakova posle skidanja zaglavlja
+21:44:50 WARNING | Stub: zakon o digitalnoj imovini \u010clan 107 — 167 znakova posle skidanja zaglavlja
+21:44:50 WARNING | Stub: zakon o digitalnoj imovini \u010clan 115 — 127 znakova posle skidanja zaglavlja
+21:44:50 INFO | [ZDI] Chunks: 664 | Articles: 146 | With parent_text: 664/664
+21:44:51 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:54 INFO | [ZDI] Batch 1/17: +40 vectors (total: 40)
+21:44:55 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:44:58 INFO | [ZDI] Batch 2/17: +40 vectors (total: 80)
+21:44:59 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:02 INFO | [ZDI] Batch 3/17: +40 vectors (total: 120)
+21:45:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:07 INFO | [ZDI] Batch 4/17: +40 vectors (total: 160)
+21:45:08 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:11 INFO | [ZDI] Batch 5/17: +40 vectors (total: 200)
+21:45:12 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:15 INFO | [ZDI] Batch 6/17: +40 vectors (total: 240)
+21:45:16 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:19 INFO | [ZDI] Batch 7/17: +40 vectors (total: 280)
+21:45:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:23 INFO | [ZDI] Batch 8/17: +40 vectors (total: 320)
+21:45:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:27 INFO | [ZDI] Batch 9/17: +40 vectors (total: 360)
+21:45:28 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:31 INFO | [ZDI] Batch 10/17: +40 vectors (total: 400)
+21:45:31 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:35 INFO | [ZDI] Batch 11/17: +40 vectors (total: 440)
+21:45:36 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:39 INFO | [ZDI] Batch 12/17: +40 vectors (total: 480)
+21:45:40 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:43 INFO | [ZDI] Batch 13/17: +40 vectors (total: 520)
+21:45:44 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:48 INFO | [ZDI] Batch 14/17: +40 vectors (total: 560)
+21:45:48 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:52 INFO | [ZDI] Batch 15/17: +40 vectors (total: 600)
+21:45:52 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:56 INFO | [ZDI] Batch 16/17: +40 vectors (total: 640)
+21:45:56 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:45:59 INFO | [ZDI] Batch 17/17: +24 vectors (total: 664)
+21:45:59 INFO | [ZDI] Done: 664 uploaded, 0 errors
+21:45:59 INFO | [ZDI] Log appended: | 2026-05-04 19:45 UTC | ZDI | zakon o digitalnoj imovini | 146 articles | 664 vectors | OK |
+21:46:00 INFO | 
+--- [11/17] ZSPNFT: zakon o sprecavanju pranja novca i finansiranja terorizma ---
+21:46:00 INFO | [ZSPNFT] Reading zakon_o_sprecavanju_pranja_novca.pdf (252019 bytes)
+21:46:00 INFO | [ZSPNFT] Text length: 244604 chars
+21:46:00 WARNING | Stub: zakon o sprecavanju pranja novca i finansiranja terorizma \u010clan 9 — 126 znakova posle skidanja zaglavlja
+21:46:00 WARNING | Stub: zakon o sprecavanju pranja novca i finansiranja terorizma \u010clan 96 — 146 znakova posle skidanja zaglavlja
+21:46:00 WARNING | Stub: zakon o sprecavanju pranja novca i finansiranja terorizma \u010clan 97 — 138 znakova posle skidanja zaglavlja
+21:46:00 WARNING | Stub: zakon o sprecavanju pranja novca i finansiranja terorizma \u010clan 114 — 163 znakova posle skidanja zaglavlja
+21:46:00 WARNING | Stub: zakon o sprecavanju pranja novca i finansiranja terorizma \u010clan 126 — 186 znakova posle skidanja zaglavlja
+21:46:00 INFO | [ZSPNFT] Chunks: 884 | Articles: 137 | With parent_text: 884/884
+21:46:00 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:04 INFO | [ZSPNFT] Batch 1/23: +40 vectors (total: 40)
+21:46:05 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:08 INFO | [ZSPNFT] Batch 2/23: +40 vectors (total: 80)
+21:46:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:12 INFO | [ZSPNFT] Batch 3/23: +40 vectors (total: 120)
+21:46:13 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:17 INFO | [ZSPNFT] Batch 4/23: +40 vectors (total: 160)
+21:46:18 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:21 INFO | [ZSPNFT] Batch 5/23: +40 vectors (total: 200)
+21:46:22 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:25 INFO | [ZSPNFT] Batch 6/23: +40 vectors (total: 240)
+21:46:26 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:29 INFO | [ZSPNFT] Batch 7/23: +40 vectors (total: 280)
+21:46:30 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:34 INFO | [ZSPNFT] Batch 8/23: +40 vectors (total: 320)
+21:46:34 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:38 INFO | [ZSPNFT] Batch 9/23: +40 vectors (total: 360)
+21:46:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:41 INFO | [ZSPNFT] Batch 10/23: +40 vectors (total: 400)
+21:46:42 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:45 INFO | [ZSPNFT] Batch 11/23: +40 vectors (total: 440)
+21:46:46 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:50 INFO | [ZSPNFT] Batch 12/23: +40 vectors (total: 480)
+21:46:51 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:54 INFO | [ZSPNFT] Batch 13/23: +40 vectors (total: 520)
+21:46:55 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:46:58 INFO | [ZSPNFT] Batch 14/23: +40 vectors (total: 560)
+21:46:58 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:02 INFO | [ZSPNFT] Batch 15/23: +40 vectors (total: 600)
+21:47:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:06 INFO | [ZSPNFT] Batch 16/23: +40 vectors (total: 640)
+21:47:06 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:09 INFO | [ZSPNFT] Batch 17/23: +40 vectors (total: 680)
+21:47:10 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:13 INFO | [ZSPNFT] Batch 18/23: +40 vectors (total: 720)
+21:47:14 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:17 INFO | [ZSPNFT] Batch 19/23: +40 vectors (total: 760)
+21:47:18 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:21 INFO | [ZSPNFT] Batch 20/23: +40 vectors (total: 800)
+21:47:22 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:25 INFO | [ZSPNFT] Batch 21/23: +40 vectors (total: 840)
+21:47:26 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:30 INFO | [ZSPNFT] Batch 22/23: +40 vectors (total: 880)
+21:47:30 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:31 INFO | [ZSPNFT] Batch 23/23: +4 vectors (total: 884)
+21:47:31 INFO | [ZSPNFT] Done: 884 uploaded, 0 errors
+21:47:31 INFO | [ZSPNFT] Log appended: | 2026-05-04 19:47 UTC | ZSPNFT | zakon o sprecavanju pranja novca i finansiranja terorizma | 137 articles | 884 vectors | OK |
+21:47:32 INFO | 
+--- [12/17] ZPDG: zakon o porezu na dohodak gradjana ---
+21:47:32 INFO | [ZPDG] Reading zakon_o_porezu_na_dohodak_gradjana.pdf (208009 bytes)
+21:47:32 INFO | [ZPDG] Text length: 199903 chars
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 5 — 136 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 6 — 122 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 11 — 121 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 15 — 72 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 16 — 74 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 21 — 146 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 38 — 68 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 43a — 147 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 48 — 169 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 49 — 194 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 53 — 187 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 56a — 175 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 62 — 89 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 65g — 61 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 76 — 139 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 104 — 190 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 175 — 172 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 70 — 126 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 69 — 137 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 26 — 154 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 27 — 94 znakova posle skidanja zaglavlja
+21:47:32 WARNING | Stub: zakon o porezu na dohodak gradjana \u010clan 29 — 136 znakova posle skidanja zaglavlja
+21:47:32 INFO | [ZPDG] Chunks: 535 | Articles: 151 | With parent_text: 535/535
+21:47:33 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:36 INFO | [ZPDG] Batch 1/14: +40 vectors (total: 40)
+21:47:37 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:40 INFO | [ZPDG] Batch 2/14: +40 vectors (total: 80)
+21:47:41 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:44 INFO | [ZPDG] Batch 3/14: +40 vectors (total: 120)
+21:47:44 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:48 INFO | [ZPDG] Batch 4/14: +40 vectors (total: 160)
+21:47:48 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:51 INFO | [ZPDG] Batch 5/14: +40 vectors (total: 200)
+21:47:52 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:55 INFO | [ZPDG] Batch 6/14: +40 vectors (total: 240)
+21:47:56 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:47:59 INFO | [ZPDG] Batch 7/14: +40 vectors (total: 280)
+21:48:00 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:03 INFO | [ZPDG] Batch 8/14: +40 vectors (total: 320)
+21:48:04 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:08 INFO | [ZPDG] Batch 9/14: +40 vectors (total: 360)
+21:48:08 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:12 INFO | [ZPDG] Batch 10/14: +40 vectors (total: 400)
+21:48:13 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:16 INFO | [ZPDG] Batch 11/14: +40 vectors (total: 440)
+21:48:16 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:19 INFO | [ZPDG] Batch 12/14: +40 vectors (total: 480)
+21:48:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:23 INFO | [ZPDG] Batch 13/14: +40 vectors (total: 520)
+21:48:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:25 INFO | [ZPDG] Batch 14/14: +15 vectors (total: 535)
+21:48:26 INFO | [ZPDG] Done: 535 uploaded, 0 errors
+21:48:26 INFO | [ZPDG] Log appended: | 2026-05-04 19:48 UTC | ZPDG | zakon o porezu na dohodak gradjana | 151 articles | 535 vectors | OK |
+21:48:27 INFO | 
+--- [13/17] USTAV: ustav republike srbije ---
+21:48:27 INFO | [USTAV] Reading ustav_republike_srbije.pdf (115539 bytes)
+21:48:27 INFO | [USTAV] Text length: 110807 chars
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 8 — 159 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 10 — 163 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 11 — 161 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 13 — 179 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 14 — 184 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 15 — 92 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 17 — 195 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 23 — 180 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 25 — 184 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 47 — 125 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 49 — 144 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 53 — 183 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 59 — 198 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 61 — 174 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 63 — 145 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 70 — 113 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 72 — 190 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 90 — 173 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 93 — 148 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 94 — 101 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 98 — 120 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 111 — 75 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 115 — 98 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 117 — 179 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 119 — 130 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 124 — 172 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 139 — 193 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 140 — 122 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 141 — 160 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 145 — 96 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 159 — 86 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 166 — 197 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 204 — 76 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 205 — 149 znakova posle skidanja zaglavlja
+21:48:27 WARNING | Stub: ustav republike srbije \u010clan 206 — 75 znakova posle skidanja zaglavlja
+21:48:27 INFO | [USTAV] Chunks: 474 | Articles: 203 | With parent_text: 474/474
+21:48:27 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:30 INFO | [USTAV] Batch 1/12: +40 vectors (total: 40)
+21:48:31 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:34 INFO | [USTAV] Batch 2/12: +40 vectors (total: 80)
+21:48:35 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:38 INFO | [USTAV] Batch 3/12: +40 vectors (total: 120)
+21:48:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:42 INFO | [USTAV] Batch 4/12: +40 vectors (total: 160)
+21:48:43 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:46 INFO | [USTAV] Batch 5/12: +40 vectors (total: 200)
+21:48:46 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:50 INFO | [USTAV] Batch 6/12: +40 vectors (total: 240)
+21:48:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:53 INFO | [USTAV] Batch 7/12: +40 vectors (total: 280)
+21:48:54 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:48:57 INFO | [USTAV] Batch 8/12: +40 vectors (total: 320)
+21:48:58 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:01 INFO | [USTAV] Batch 9/12: +40 vectors (total: 360)
+21:49:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:04 INFO | [USTAV] Batch 10/12: +40 vectors (total: 400)
+21:49:05 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:08 INFO | [USTAV] Batch 11/12: +40 vectors (total: 440)
+21:49:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:12 INFO | [USTAV] Batch 12/12: +34 vectors (total: 474)
+21:49:12 INFO | [USTAV] Done: 474 uploaded, 0 errors
+21:49:12 INFO | [USTAV] Log appended: | 2026-05-04 19:49 UTC | USTAV | ustav republike srbije | 203 articles | 474 vectors | OK |
+21:49:13 INFO | 
+--- [14/17] ZVP: zakon o vanparnicnom postupku ---
+21:49:13 INFO | [ZVP] Reading zakon_o_vanparnicnom_postupku.pdf (122025 bytes)
+21:49:13 INFO | [ZVP] Text length: 116757 chars
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 6 — 176 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 9 — 81 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 15 — 146 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 18 — 177 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 19 — 181 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 30z — 164 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 43 — 111 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 56 — 155 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 58 — 142 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 62 — 181 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 66 — 172 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 71 — 187 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 71b — 94 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 71i — 195 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 83 — 135 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 84 — 184 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 86 — 110 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 89 — 121 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 90 — 167 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 99 — 189 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 101 — 184 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 104 — 126 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 111 — 150 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 135 — 163 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 139 — 136 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 141 — 158 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 148 — 93 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 155 — 176 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 162 — 175 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 163 — 109 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 175 — 194 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 184 — 183 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 186 — 192 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 189 — 137 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 190 — 169 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 192 — 87 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 202 — 198 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 214 — 172 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 215 — 128 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 216 — 170 znakova posle skidanja zaglavlja
+21:49:13 WARNING | Stub: zakon o vanparnicnom postupku \u010clan 224 — 93 znakova posle skidanja zaglavlja
+21:49:13 INFO | [ZVP] Chunks: 549 | Articles: 235 | With parent_text: 549/549
+21:49:13 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:17 INFO | [ZVP] Batch 1/14: +40 vectors (total: 40)
+21:49:18 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:22 INFO | [ZVP] Batch 2/14: +40 vectors (total: 80)
+21:49:23 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:26 INFO | [ZVP] Batch 3/14: +40 vectors (total: 120)
+21:49:27 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:30 INFO | [ZVP] Batch 4/14: +40 vectors (total: 160)
+21:49:31 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:34 INFO | [ZVP] Batch 5/14: +40 vectors (total: 200)
+21:49:34 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:37 INFO | [ZVP] Batch 6/14: +40 vectors (total: 240)
+21:49:38 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:41 INFO | [ZVP] Batch 7/14: +40 vectors (total: 280)
+21:49:42 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:45 INFO | [ZVP] Batch 8/14: +40 vectors (total: 320)
+21:49:46 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:49 INFO | [ZVP] Batch 9/14: +40 vectors (total: 360)
+21:49:49 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:52 INFO | [ZVP] Batch 10/14: +40 vectors (total: 400)
+21:49:53 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:49:56 INFO | [ZVP] Batch 11/14: +40 vectors (total: 440)
+21:49:57 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:00 INFO | [ZVP] Batch 12/14: +40 vectors (total: 480)
+21:50:01 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:04 INFO | [ZVP] Batch 13/14: +40 vectors (total: 520)
+21:50:05 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:07 INFO | [ZVP] Batch 14/14: +29 vectors (total: 549)
+21:50:07 INFO | [ZVP] Done: 549 uploaded, 0 errors
+21:50:07 INFO | [ZVP] Log appended: | 2026-05-04 19:50 UTC | ZVP | zakon o vanparnicnom postupku | 235 articles | 549 vectors | OK |
+21:50:08 INFO | 
+--- [15/17] ZZP: zakon o zastiti potrosaca ---
+21:50:08 INFO | [ZZP] Reading zakon_o_zastiti_potrosaca.pdf (221383 bytes)
+21:50:08 INFO | [ZZP] Text length: 211840 chars
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 32 — 190 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 41 — 90 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 60 — 120 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 62 — 108 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 64 — 116 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 81 — 142 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 153 — 83 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 154 — 83 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 157 — 99 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 169 — 182 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 172 — 140 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 173 — 141 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 180 — 174 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 192 — 132 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 194 — 198 znakova posle skidanja zaglavlja
+21:50:08 WARNING | Stub: zakon o zastiti potrosaca \u010clan 195 — 162 znakova posle skidanja zaglavlja
+21:50:08 INFO | [ZZP] Chunks: 876 | Articles: 195 | With parent_text: 876/876
+21:50:09 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:12 INFO | [ZZP] Batch 1/22: +40 vectors (total: 40)
+21:50:13 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:15 INFO | [ZZP] Batch 2/22: +40 vectors (total: 80)
+21:50:16 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:19 INFO | [ZZP] Batch 3/22: +40 vectors (total: 120)
+21:50:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:23 INFO | [ZZP] Batch 4/22: +40 vectors (total: 160)
+21:50:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:27 INFO | [ZZP] Batch 5/22: +40 vectors (total: 200)
+21:50:28 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:30 INFO | [ZZP] Batch 6/22: +40 vectors (total: 240)
+21:50:31 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:34 INFO | [ZZP] Batch 7/22: +40 vectors (total: 280)
+21:50:35 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:38 INFO | [ZZP] Batch 8/22: +40 vectors (total: 320)
+21:50:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:42 INFO | [ZZP] Batch 9/22: +40 vectors (total: 360)
+21:50:42 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:45 INFO | [ZZP] Batch 10/22: +40 vectors (total: 400)
+21:50:46 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:49 INFO | [ZZP] Batch 11/22: +40 vectors (total: 440)
+21:50:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:54 INFO | [ZZP] Batch 12/22: +40 vectors (total: 480)
+21:50:54 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:50:58 INFO | [ZZP] Batch 13/22: +40 vectors (total: 520)
+21:50:58 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:02 INFO | [ZZP] Batch 14/22: +40 vectors (total: 560)
+21:51:03 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:06 INFO | [ZZP] Batch 15/22: +40 vectors (total: 600)
+21:51:07 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:10 INFO | [ZZP] Batch 16/22: +40 vectors (total: 640)
+21:51:11 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:14 INFO | [ZZP] Batch 17/22: +40 vectors (total: 680)
+21:51:15 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:19 INFO | [ZZP] Batch 18/22: +40 vectors (total: 720)
+21:51:20 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:23 INFO | [ZZP] Batch 19/22: +40 vectors (total: 760)
+21:51:24 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:27 INFO | [ZZP] Batch 20/22: +40 vectors (total: 800)
+21:51:28 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:30 INFO | [ZZP] Batch 21/22: +40 vectors (total: 840)
+21:51:31 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:34 INFO | [ZZP] Batch 22/22: +36 vectors (total: 876)
+21:51:34 INFO | [ZZP] Done: 876 uploaded, 0 errors
+21:51:34 INFO | [ZZP] Log appended: | 2026-05-04 19:51 UTC | ZZP | zakon o zastiti potrosaca | 195 articles | 876 vectors | OK |
+21:51:35 INFO | 
+--- [16/17] ZZPL: zakon o zastiti podataka o licnosti ---
+21:51:35 INFO | [ZZPL] Reading zakon_o_zastiti_podataka_o_licnosti.pdf (174142 bytes)
+21:51:35 INFO | [ZZPL] Text length: 167501 chars
+21:51:35 WARNING | Stub: zakon o zastiti podataka o licnosti \u010clan 49 — 139 znakova posle skidanja zaglavlja
+21:51:35 WARNING | Stub: zakon o zastiti podataka o licnosti \u010clan 80 — 178 znakova posle skidanja zaglavlja
+21:51:35 WARNING | Stub: zakon o zastiti podataka o licnosti \u010clan 100 — 141 znakova posle skidanja zaglavlja
+21:51:35 WARNING | Stub: zakon o zastiti podataka o licnosti \u010clan 101 — 175 znakova posle skidanja zaglavlja
+21:51:35 INFO | [ZZPL] Chunks: 593 | Articles: 102 | With parent_text: 593/593
+21:51:35 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:38 INFO | [ZZPL] Batch 1/15: +40 vectors (total: 40)
+21:51:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:42 INFO | [ZZPL] Batch 2/15: +40 vectors (total: 80)
+21:51:43 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:46 INFO | [ZZPL] Batch 3/15: +40 vectors (total: 120)
+21:51:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:50 INFO | [ZZPL] Batch 4/15: +40 vectors (total: 160)
+21:51:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:53 INFO | [ZZPL] Batch 5/15: +40 vectors (total: 200)
+21:51:54 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:51:57 INFO | [ZZPL] Batch 6/15: +40 vectors (total: 240)
+21:51:58 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:01 INFO | [ZZPL] Batch 7/15: +40 vectors (total: 280)
+21:52:02 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:05 INFO | [ZZPL] Batch 8/15: +40 vectors (total: 320)
+21:52:06 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:10 INFO | [ZZPL] Batch 9/15: +40 vectors (total: 360)
+21:52:10 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:13 INFO | [ZZPL] Batch 10/15: +40 vectors (total: 400)
+21:52:14 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:17 INFO | [ZZPL] Batch 11/15: +40 vectors (total: 440)
+21:52:18 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:22 INFO | [ZZPL] Batch 12/15: +40 vectors (total: 480)
+21:52:22 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:26 INFO | [ZZPL] Batch 13/15: +40 vectors (total: 520)
+21:52:27 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:30 INFO | [ZZPL] Batch 14/15: +40 vectors (total: 560)
+21:52:31 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:33 INFO | [ZZPL] Batch 15/15: +33 vectors (total: 593)
+21:52:34 INFO | [ZZPL] Done: 593 uploaded, 0 errors
+21:52:34 INFO | [ZZPL] Log appended: | 2026-05-04 19:52 UTC | ZZPL | zakon o zastiti podataka o licnosti | 102 articles | 593 vectors | OK |
+21:52:35 INFO | 
+--- [17/17] ZUS: zakon o upravnim sporovima ---
+21:52:35 INFO | [ZUS] Reading zakon_o_upravnim_sporovima.pdf (38090 bytes)
+21:52:35 INFO | [ZUS] Text length: 36445 chars
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 2 — 134 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 7 — 146 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 8 — 133 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 9 — 177 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 10 — 78 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 12 — 156 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 13 — 106 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 15 — 159 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 16 — 177 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 36 — 194 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 41 — 188 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 48 — 96 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 50 — 193 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 54 — 175 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 58 — 123 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 61 — 188 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 63 — 156 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 66 — 79 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 67 — 62 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 68 — 61 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 74 — 165 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 76 — 82 znakova posle skidanja zaglavlja
+21:52:35 WARNING | Stub: zakon o upravnim sporovima \u010clan 79 — 112 znakova posle skidanja zaglavlja
+21:52:35 INFO | [ZUS] Chunks: 161 | Articles: 78 | With parent_text: 161/161
+21:52:35 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:38 INFO | [ZUS] Batch 1/5: +40 vectors (total: 40)
+21:52:39 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:42 INFO | [ZUS] Batch 2/5: +40 vectors (total: 80)
+21:52:43 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:46 INFO | [ZUS] Batch 3/5: +40 vectors (total: 120)
+21:52:47 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:50 INFO | [ZUS] Batch 4/5: +40 vectors (total: 160)
+21:52:50 INFO | HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+21:52:51 INFO | [ZUS] Batch 5/5: +1 vectors (total: 161)
+21:52:51 INFO | [ZUS] Done: 161 uploaded, 0 errors
+21:52:51 INFO | [ZUS] Log appended: | 2026-05-04 19:52 UTC | ZUS | zakon o upravnim sporovima | 78 articles | 161 vectors | OK |
+21:52:51 INFO | 
+=== SUMMARY ===
+21:52:51 INFO | SC       Law                                            Chunks  Upload  Status
+21:52:51 INFO | -------------------------------------------------------------------------------------
+21:52:51 INFO | ZKP      zakonik o krivicnom postupku                     1866    1866  OK
+21:52:51 INFO | ZOO      zakon o obligacionim odnosima                    2238    2238  OK
+21:52:51 INFO | ZPP      zakon o parnicnom postupku                       1084    1084  OK
+21:52:51 INFO | ZR       zakon o radu                                      694     694  OK
+21:52:51 INFO | PZ       porodicni zakon                                   851     851  OK
+21:52:51 INFO | ZN       zakon o nasledjivanju                             340     340  OK
+21:52:51 INFO | ZPD      zakon o privrednim drustvima                     2247    2247  OK
+21:52:51 INFO | ZOUP     zakon o opstem upravnom postupku                  700     700  OK
+21:52:51 INFO | ZIO      zakon o izvrsenju i obezbedjenju                 1399    1399  OK
+21:52:51 INFO | ZDI      zakon o digitalnoj imovini                        664     664  OK
+21:52:51 INFO | ZSPNFT   zakon o sprecavanju pranja novca i finansiran     884     884  OK
+21:52:51 INFO | ZPDG     zakon o porezu na dohodak gradjana                535     535  OK
+21:52:51 INFO | USTAV    ustav republike srbije                            474     474  OK
+21:52:51 INFO | ZVP      zakon o vanparnicnom postupku                     549     549  OK
+21:52:51 INFO | ZZP      zakon o zastiti potrosaca                         876     876  OK
+21:52:51 INFO | ZZPL     zakon o zastiti podataka o licnosti               593     593  OK
+21:52:51 INFO | ZUS      zakon o upravnim sporovima                        161     161  OK
+21:52:51 INFO | -------------------------------------------------------------------------------------
+21:52:51 INFO | TOTAL vectors uploaded this run: 16155
+21:52:54 INFO | Pinecone total vectors after run: 17688
