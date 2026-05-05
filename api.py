@@ -1090,7 +1090,6 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             top_score   = retrieval_meta["top_score"]
             top_article = retrieval_meta["top_article"]
             top_law     = retrieval_meta["top_law"]
-            top_text    = retrieval_meta["top_text"]
             logger.info(
                 "[STREAM] confidence=%s score=%.4f article=%s law=%s [q=%s]",
                 confidence, top_score, top_article, top_law, qh,
@@ -1112,22 +1111,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 )
                 return
 
-            # STEP 3: MEDIUM — stream raw article text, no GPT call
-            if confidence == "MEDIUM":
-                tekst = _format_medium_response(top_article, top_law, top_text, top_score)
-                yield f"data: {tekst.replace(chr(10), chr(92) + 'n')}\n\n"
-                preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
-                yield "data: [DONE]\n\n"
-                yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
-                _al.log_response(
-                    endpoint="/api/pitanje/stream", query_hash=qh, tip=stream_tip,
-                    confidence="MEDIUM", top_score=top_score, top_article=top_article,
-                    top_law=top_law, response_text=tekst,
-                    latency_ms=int((_time.monotonic() - t0) * 1000),
-                )
-                return
-
-            # STEP 4: HIGH — keep existing topic-specific prompt logic
+            # STEP 3: Filter docs + build common LLM inputs (MEDIUM and HIGH both need these)
             filtrirani = _filtriraj_kontekst(docs)
             if not filtrirani:
                 yield "data: Nije pronađen relevantan zakonski tekst za vaše pitanje.\n\n"
@@ -1154,6 +1138,78 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 ]
                 history_blok = "ISTORIJA RAZGOVORA (kontekst):\n" + "\n".join(stavke) + "\n\n"
 
+            _HEDGE = (
+                f"[POUZDANOST: SREDNJA — score {top_score:.3f}] "
+                "Odgovaraj sa posebnom pažnjom. "
+                "Ako neki podatak iz pitanja nije eksplicitno pokriven retrieved kontekstom, "
+                "jasno reci da nije sigurno.\n\n"
+            )
+
+            # STEP 4: MEDIUM — same topic prompt with hedge banner, streamed
+            if confidence == "MEDIUM":
+                user_content = (
+                    f"{_HEDGE}"
+                    f"{history_blok}"
+                    f"PITANJE: {pitanje_api}\n\n"
+                    f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
+                )
+
+                oai = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+                def _stream_sync_medium():
+                    return oai.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user",   "content": user_content},
+                        ],
+                        temperature=0,
+                        max_tokens=max_tokens,
+                        stream=True,
+                        timeout=30.0,
+                    )
+
+                stream_m = await asyncio.to_thread(_stream_sync_medium)
+
+                def _iter_chunks_m(s):
+                    for chunk in s:
+                        delta = chunk.choices[0].delta.content if chunk.choices else None
+                        if delta:
+                            yield delta
+
+                medium_parts: list[str] = []
+                for chunk_text in await asyncio.to_thread(lambda: list(_iter_chunks_m(stream_m))):
+                    medium_parts.append(chunk_text)
+                    escaped = chunk_text.replace("\n", "\\n")
+                    yield f"data: {escaped}\n\n"
+
+                full_medium = "".join(medium_parts)
+
+                # Anti-hallucination check: article number presence (same gate as HIGH)
+                art_num_m = _re.search(r"\d+", top_article or "")
+                if art_num_m and art_num_m.group() not in full_medium:
+                    logger.warning(
+                        "[STREAM MEDIUM] Anti-hallucination FAIL — %s not cited [q=%s]", top_article, qh,
+                    )
+                    notice = (
+                        f"\n\n---\n⚠ Citat nije verifikovan u odgovoru. "
+                        f"Proverite izvor: {top_law}, {top_article}"
+                    )
+                    yield f"data: {notice.replace(chr(10), chr(92) + 'n')}\n\n"
+
+                yield f"data: {DISCLAIMER.replace(chr(10), chr(92) + 'n')}\n\n"
+                preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+                yield "data: [DONE]\n\n"
+                yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
+                _al.log_response(
+                    endpoint="/api/pitanje/stream", query_hash=qh, tip=stream_tip,
+                    confidence="MEDIUM", top_score=top_score, top_article=top_article,
+                    top_law=top_law, response_text=full_medium,
+                    latency_ms=int((_time.monotonic() - t0) * 1000),
+                )
+                return
+
+            # STEP 5: HIGH — existing topic-prompt streaming (unchanged)
             user_content = (
                 f"{history_blok}"
                 f"PITANJE: {pitanje_api}\n\n"
@@ -1191,7 +1247,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 escaped = chunk_text.replace("\n", "\\n")
                 yield f"data: {escaped}\n\n"
 
-            # STEP 5: Anti-hallucination gate — article number presence check
+            # STEP 6: Anti-hallucination gate — article number presence check
             full_response = "".join(full_response_parts)
             art_num_m = _re.search(r"\d+", top_article or "")
             gate_passes = (not art_num_m) or (art_num_m.group() in full_response)
