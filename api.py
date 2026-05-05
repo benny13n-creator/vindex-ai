@@ -48,9 +48,14 @@ SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
 SUPABASE_JWT_SECRET  = os.getenv("SUPABASE_JWT_SECRET", "").strip()
 
 # Founder emailovi — neograničen pristup, krediti se ne oduzimaju
+_founder_emails_raw = os.getenv("FOUNDER_EMAILS", "")
+if not _founder_emails_raw.strip():
+    raise RuntimeError(
+        "FOUNDER_EMAILS env var must be set — add comma-separated founder emails to .env"
+    )
 FOUNDER_EMAILS: set[str] = {
     e.strip().lower()
-    for e in os.getenv("FOUNDER_EMAILS", "benny13.n@gmail.com,kristina.stojanovic@dsa.rs,kristinap93@hotmail.com").split(",")
+    for e in _founder_emails_raw.split(",")
     if e.strip()
 }
 
@@ -362,7 +367,11 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         },
     )
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.getenv("ALLOWED_ORIGINS", "https://vindex-ai.onrender.com").split(",")
+    if o.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -983,6 +992,27 @@ async def _audit(user_id: str, akcija: str, q_hash: str) -> None:
         logger.warning("Audit log neuspešan — ne blokira odgovor")
 
 
+@app.post("/api/bot/ask")
+@limiter.limit("120/minute")
+async def bot_ask(req: PitanjeReq, request: Request, x_api_key: str = Header(default="")):
+    """
+    Internal endpoint for the Vindex Telegram bot.
+    Authenticated via X-Api-Key header (BOT_API_KEY env var).
+    Bypasses Supabase auth — the bot manages its own subscription logic.
+    """
+    bot_key = os.getenv("BOT_API_KEY", "").strip()
+    if not bot_key or x_api_key != bot_key:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    qh = _q_hash(req.pitanje)
+    logger.info("Bot pitanje [q=%s]", qh)
+    try:
+        rezultat = await pokreni(ask_agent, req.pitanje, None)
+        return normalizuj_rezultat(rezultat)
+    except Exception:
+        logger.exception("Greška u /api/bot/ask [q=%s]", qh)
+        return greska_odgovor(500, "Greška servera.")
+
+
 @app.post("/api/pitanje")
 @limiter.limit("10/minute")
 async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(require_credits)):
@@ -1017,11 +1047,13 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
       data: [CREDITS:N]\n\n — preostali krediti
     """
     import json as _json
+    import re as _re
     from main import (
         _skini_pii, _hash_za_log, klasifikuj_pitanje,
         SYSTEM_PROMPT_COMPLIANCE, SYSTEM_PROMPT_PORESKI,
         SYSTEM_PROMPT_PARNICA, SYSTEM_PROMPT_DEFINICIJA,
         _filtriraj_kontekst, retrieve_documents,
+        _format_low_response, _format_medium_response,
     )
     from openai import OpenAI as _OAI
 
@@ -1034,8 +1066,37 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             pitanje_api = _skini_pii(req.pitanje)
             history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
-            # Retrieval (blocking — u thread-u da ne blokira event loop)
-            docs = await asyncio.to_thread(retrieve_documents, pitanje_api, 10)
+            # STEP 1: Retrieve — unpack tuple (v3.0 returns docs + metadata)
+            docs, retrieval_meta = await asyncio.to_thread(retrieve_documents, pitanje_api, 10)
+            confidence  = retrieval_meta["confidence"]
+            top_score   = retrieval_meta["top_score"]
+            top_article = retrieval_meta["top_article"]
+            top_law     = retrieval_meta["top_law"]
+            top_text    = retrieval_meta["top_text"]
+            logger.info(
+                "[STREAM] confidence=%s score=%.4f article=%s law=%s [q=%s]",
+                confidence, top_score, top_article, top_law, qh,
+            )
+
+            # STEP 2: LOW — stream static refusal, no GPT call
+            if confidence == "LOW":
+                tekst = _format_low_response(top_score)
+                yield f"data: {tekst.replace(chr(10), chr(92) + 'n')}\n\n"
+                preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+                yield "data: [DONE]\n\n"
+                yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
+                return
+
+            # STEP 3: MEDIUM — stream raw article text, no GPT call
+            if confidence == "MEDIUM":
+                tekst = _format_medium_response(top_article, top_law, top_text, top_score)
+                yield f"data: {tekst.replace(chr(10), chr(92) + 'n')}\n\n"
+                preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+                yield "data: [DONE]\n\n"
+                yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
+                return
+
+            # STEP 4: HIGH — keep existing topic-specific prompt logic
             filtrirani = _filtriraj_kontekst(docs)
             if not filtrirani:
                 yield "data: Nije pronađen relevantan zakonski tekst za vaše pitanje.\n\n"
@@ -1067,7 +1128,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
             )
 
-            # Stream GPT odgovor
+            # Stream GPT odgovor — existing structure preserved
             oai = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
 
             def _stream_sync():
@@ -1091,9 +1152,27 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                     if delta:
                         yield delta
 
+            full_response_parts: list[str] = []  # buffer for anti-hallucination gate
+
             for chunk_text in await asyncio.to_thread(lambda: list(_iter_chunks(stream))):
+                full_response_parts.append(chunk_text)  # accumulate for gate check
                 escaped = chunk_text.replace("\n", "\\n")
                 yield f"data: {escaped}\n\n"
+
+            # STEP 5: Anti-hallucination gate — article number presence check
+            full_response = "".join(full_response_parts)
+            art_num_m = _re.search(r"\d+", top_article or "")
+            gate_passes = (not art_num_m) or (art_num_m.group() in full_response)
+
+            if not gate_passes:
+                logger.warning(
+                    "[STREAM] Anti-hallucination FAIL — %s not cited [q=%s]", top_article, qh,
+                )
+                notice = (
+                    f"\n\n---\n⚠ Citat nije verifikovan u odgovoru. "
+                    f"Proverite izvor: {top_law}, {top_article}"
+                )
+                yield f"data: {notice.replace(chr(10), chr(92) + 'n')}\n\n"
 
             # Oduzmi kredit i pošalji broj
             preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))

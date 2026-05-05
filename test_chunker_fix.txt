@@ -1,0 +1,133 @@
+TEST — _skini_zaglavlja() regex safety check
+Timestamp: 2026-05-04 18:24:13
+Pinecone host: https://vindex-ai-t8z679r.svc.aped-4627-b74a.pinecone.io
+Articles under test: 10
+
+══════════════════════════════════════════════════════════════════════════════════════════
+
+[01] KZ · Član 203
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 258 chars
+  After strip     : 258 chars
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    ' da njenim prisvajanjem sebi ili drugom pribavi protivpravnu imovinsku korist,\nkazniće se novčanom kaznom ili zatvorom do tri godine.\n(2) Za pokušaj dela iz stava 1. ovog člana kazniće se.\nTeška krađa'
+
+
+[02] KZ · Član 204
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 7
+  Original length : 1377 chars
+  After strip     : 1377 chars
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    'eno od strane organizovane kriminalne grupe ili ako vrednost ukradenih stvari prelazi iznos od milion i petsto hiljada dinara,\nučinilac će se kazniti zatvorom od dve do deset godina.\nRazbojnička krađa'
+
+
+[03] zakon o obligacionim odnosima · Član 200
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 780 chars
+  After strip     : 780 chars
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    'i ta naknada, ali i o tome da se njome ne pogoduje težnjama koje nisu spojive sa \nnjenom prirodom i društvenom svrhom. \nLica koja imaju pravo na novčanu naknadu u slučaju smrti ili teškog invaliditeta'
+
+
+[04] zakon o obligacionim odnosima · Član 371
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 1
+  Original length : 129 chars
+  After strip     : 129 chars  ← STUB
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    'Član 371 \nPotraživanja zastarevaju za deset godina, ako zakonom nije određen neki drugi rok zastarelosti. \nPovremena potraživanja'
+
+
+[05] porodicni zakon · Član 88
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 1
+  Original length : 107 chars
+  After strip     : 107 chars  ← STUB
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    'Član 88 \nUsvojenje se zasniva odlukom organa starateljstva. \nOpšta podobnost usvojenika \nInteres usvojenika'
+
+
+[06] porodicni zakon · Član 170
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 471 chars
+  After strip     : 471 chars
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    'o do znatnog uvećanja vrednosti posebne imovine jednog \nsupružnika, drugi supružnik ima pravo na udeo u toj imovini srazmerno svom doprinosu. \n2. Zajednička imovina \nPojam zajedničke imovine \nSticanje'
+
+
+[07] porodicni zakon · Član 171
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 229 chars
+  After strip     : 229 chars
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    ' supružnici stekli radom u toku trajanja zajednice života u braku predstavlja njihovu zajedničku imovinu. \n(2) Supružnici mogu bračnim ugovorom drugačije urediti svoje imovinske odnose. \nIgra na sreću'
+
+
+[08] zakon o radu · Član 186
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 427 chars
+  After strip     : 427 chars
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    'om i ugovorom o radu. \nIsplatu obaveza iz stava 1. ovog člana, poslodavac je dužan da izvrši najkasnije u roku od 30 dana od dana \nprestanka radnog odnosa. \n6. Posebna zaštita od otkaza ugovora o radu'
+
+
+[09] zakon o radu · Član 189
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 688 chars
+  After strip     : 688 chars
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    'nadležnim organom iz člana 192. ovog zakona, da prestane sa radom i pre \nisteka otkaznog roka, s tim što mu se za to vreme obezbeđuje naknada zarade u visini utvrđenoj opštim aktom i \nugovorom o radu.'
+
+
+[10] zakon o nasledjivanju · Član 9
+──────────────────────────────────────────────────────────────────────────────────────────
+  Chunks in index : 2
+  Original length : 473 chars
+  After strip     : 473 chars
+  Chars removed   : 0
+  Status          : UNCHANGED  —  NO STRIP NEEDED ✓
+
+  LAST 200 chars of existing parent_text (verify no header leaked in):
+    'eli zaostavštine na jednake delove, onda svako ostaviočevo dete može naslediti do dva puta više nego bračni \ndrug ako sud, pošto razmotri sve okolnosti, oceni da je to opravdano. \nPravo predstavljanja'
+
+══════════════════════════════════════════════════════════════════════════════════════════
+SUMMARY
+══════════════════════════════════════════════════════════════════════════════════════════
+
+See individual results above.
+
+Timestamp end: 2026-05-04 18:24:16

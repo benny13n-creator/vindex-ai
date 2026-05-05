@@ -290,6 +290,28 @@ def _ugradi_query(query: str) -> list[float]:
     return _get_embeddings().embed_query(query)
 
 
+# ─── Confidence thresholds ───────────────────────────────────────────────────
+# Calibrated 2026-05-04 against 30Q benchmark (23,699-vector index)
+# Score distribution: P25=0.64, median=0.67, P75=0.71
+# HIGH=0.65 → 67% coverage (20/30 queries routed to structured answer)
+# MEDIUM=0.52 → catches Q14, Q30 (true LOW — wrong law returned) correctly
+# Known limitation: Q06 (uslovna osuda) routes to ZKP instead of KZ;
+# mitigated by anti-hallucination gate on article number citation.
+# Re-calibrate when index expands beyond current ZOO/KZ/ZKP scope.
+
+CONFIDENCE_HIGH_THRESHOLD   = 0.65
+CONFIDENCE_MEDIUM_THRESHOLD = 0.52
+
+
+def get_confidence_level(score: float) -> str:
+    """Map Pinecone cosine score to HIGH / MEDIUM / LOW."""
+    if score >= CONFIDENCE_HIGH_THRESHOLD:
+        return "HIGH"
+    elif score >= CONFIDENCE_MEDIUM_THRESHOLD:
+        return "MEDIUM"
+    return "LOW"
+
+
 # ─── Pinecone operacije ───────────────────────────────────────────────────────
 
 def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = None) -> list:
@@ -521,8 +543,20 @@ def _prosiri_pretragu_crag(query: str) -> list[str]:
 
 # ─── Scoring (zadržan za fallback bez Cohere) ────────────────────────────────
 
-def _izracunaj_skor(match, query: str, zakon: Optional[str], label_clana: Optional[str]) -> float:
-    skor = match.score * 100
+def _izracunaj_skor(
+    match,
+    query: str,
+    zakon: Optional[str],
+    label_clana: Optional[str],
+    orig_score_map: Optional[dict] = None,
+) -> float:
+    # Use original-query cosine when available; penalise sub-query-only candidates
+    # to prevent sub-query pollution from displacing the correct article.
+    if orig_score_map is not None:
+        base = orig_score_map.get(match.id, match.score * 0.85)
+    else:
+        base = match.score
+    skor = base * 100
     meta = match.metadata or {}
     zakon_doc  = _normalizuj(meta.get("law", ""))
     clan_doc   = _normalizuj(meta.get("article", ""))
@@ -615,9 +649,10 @@ def _jedan_retrieval_krug(
     label_clana: Optional[str],
     extra_queries: list[str],
     top_k_pinecone: int = 10,
-) -> list:
+) -> tuple[list, dict]:
     """
-    Pokreće sve Pinecone pretrage paralelno i vraća deduplikovanu listu matcheva.
+    Pokreće sve Pinecone pretrage paralelno i vraća deduplikovanu listu matcheva
+    i orig_score_map {id: cosine} izgrađen iz originalnog upita (top-30 sa filterom).
     """
     import time as _time
     q_norm = _normalizuj(query)
@@ -629,8 +664,9 @@ def _jedan_retrieval_krug(
     if label_clana:
         fjobs.append(executor.submit(_direktan_fetch_clana, label_clana, zakon))
 
-    # b) Semantička sa filterom
-    fjobs.append(executor.submit(_pretraga_vec, vektor, top_k_pinecone, zakon))
+    # b) Semantička sa filterom — widened to 30 to build orig-query cosine lookup
+    f_orig_law = executor.submit(_pretraga_vec, vektor, max(top_k_pinecone, 30), zakon)
+    fjobs.append(f_orig_law)
 
     # c) Semantička bez filtera
     fjobs.append(executor.submit(_pretraga_vec, vektor, 6, None))
@@ -671,6 +707,14 @@ def _jedan_retrieval_krug(
 
     executor.shutdown(wait=False)
 
+    # Build orig-query cosine lookup from the law-filtered original search
+    orig_score_map: dict[str, float] = {}
+    try:
+        for m in f_orig_law.result():
+            orig_score_map[m.id] = m.score
+    except Exception:
+        pass
+
     # Deduplikacija po ID
     vidjeni: set[str] = set()
     jedinstveni = []
@@ -679,12 +723,12 @@ def _jedan_retrieval_krug(
             vidjeni.add(m.id)
             jedinstveni.append(m)
 
-    return jedinstveni
+    return jedinstveni, orig_score_map
 
 
 # ─── Glavna javna funkcija ────────────────────────────────────────────────────
 
-def retrieve_documents(query: str, k: int = 6) -> list[str]:
+def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
     """
     Agentic RAG pipeline — svi 5 sprintova.
 
@@ -695,6 +739,10 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
       4. Cohere re-ranking (ili interni skor ako Cohere nije dostupan)
       5. Parent text fetch iz metapodataka
       6. CRAG ocena relevantnosti + corrective petlja (max 2 iteracije)
+
+    Returns:
+        (docs, retrieval_meta) where retrieval_meta has:
+          top_score, top_article, top_law, top_text, confidence
     """
     import time as _time
     t0 = _time.perf_counter()
@@ -724,7 +772,7 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
         logger.info("[HyDE] Timeout ili greška — preskočena")
 
     # ── Faza 2: Retrieval ─────────────────────────────────────────────────────
-    matchevi = _jedan_retrieval_krug(query, vektor, zakon, label_clana, sub_queries)
+    matchevi, orig_score_map = _jedan_retrieval_krug(query, vektor, zakon, label_clana, sub_queries)
 
     # HyDE: embed hipotetičkog dokumenta i dodaj rezultate
     if hyde_text:
@@ -757,15 +805,70 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
         pass
 
     # ── Faza 3: Re-ranking ────────────────────────────────────────────────────
-    # Interni scoring za sortiranje kandidata pre Cohere
+    # SUB-QUERY POLLUTION FIX (2026-05-04):
+    # orig_score_map holds cosine(original_query, doc) for the top-30 law-filtered
+    # Pinecone results. In _izracunaj_skor, candidates found by the original query
+    # use their real original cosine; candidates found ONLY via sub-queries receive
+    # a 0.85× penalty on their (inflated) sub-query cosine.
+    #
+    # Penalty choice: 0.85 is mild enough to preserve genuinely-relevant sub-query
+    # candidates while demoting articles whose only claim is a high sub-query cosine
+    # (e.g. ZN 15 matching "bračni drug" sub-query for Q25 "nasledni red").
+    #
+    # Known limitation — Q01 (KZ 203) and Q05 (KZ 208) were previously ✅ via
+    # sub-query inflation: their sub-query cosines elevated them above wrong articles
+    # whose original-query cosines are higher. This fix correctly removes that
+    # non-deterministic mechanism, exposing an embedding-level mismatch that needs
+    # separate remediation (likely better chunking or query rewriting for those articles).
+    # We accept this trade-off: Q13 (raskid ugovora) is now a robust ✅, while Q01/Q05
+    # failures are now visible and attributable rather than masked by inflation.
     skorovani = sorted(
-        [(_izracunaj_skor(m, query, zakon, label_clana), m) for m in matchevi],
+        [(_izracunaj_skor(m, query, zakon, label_clana, orig_score_map), m) for m in matchevi],
         key=lambda x: x[0], reverse=True,
     )
     top_kandid = [m for _, m in skorovani[:10]]
 
     # Cohere re-rank top-10 → top-k
     reranked = _cohere_rerank(query, top_kandid, k=k)
+
+    # ── Capture confidence metadata from top match (before CRAG may change docs) ──
+    # Tie-breaker: within-law disagreements → trust Cohere (better semantic ranker);
+    # cross-law disagreements → trust max Pinecone cosine (cross-law Cohere confusion
+    # is dangerous — e.g. ranks ZKP result for a KZ query).
+    # History: original max(cosine) caused wrong-article for ~50% of queries via
+    # sub-query pollution. Pure reranked[0] fix recovered Q11/Q13/Q19/Q29 but
+    # caused Q06 to cite ZKP Član 562 for a KZ uslovne osude question (HIGH conf).
+    # This tie-breaker recovers cross-law regressions while keeping within-law gains.
+    if reranked:
+        _cohere_top = reranked[0]
+        _maxcos_top = max(reranked, key=lambda m: m.score)
+        if _cohere_top.id == _maxcos_top.id:
+            _top = _cohere_top
+        else:
+            _cohere_law = (_cohere_top.metadata or {}).get("law", "")
+            _maxcos_law = (_maxcos_top.metadata or {}).get("law", "")
+            if _cohere_law == _maxcos_law:
+                _top = _cohere_top  # same law → trust Cohere's semantic judgment
+            else:
+                # cross-law conflict → trust cosine similarity
+                _cohere_art = (_cohere_top.metadata or {}).get("article", "?")
+                _maxcos_art = (_maxcos_top.metadata or {}).get("article", "?")
+                logger.info(
+                    "[RETRIEVE] Tie-breaker: cross-law conflict, used max-cosine. "
+                    "Cohere#1=%s/%s, MaxCos=%s/%s",
+                    _cohere_law, _cohere_art, _maxcos_law, _maxcos_art,
+                )
+                _top = _maxcos_top
+        _top_meta_raw = _top.metadata or {}
+        _top_score   = _top.score
+        _top_article = _top_meta_raw.get("article", "—")
+        _top_law     = _top_meta_raw.get("law", "—")
+        _top_text    = _dohvati_parent_text(_top) or (_top_meta_raw.get("text") or "").strip()
+    else:
+        _top_score   = 0.0
+        _top_article = "—"
+        _top_law     = "—"
+        _top_text    = ""
 
     # ZOO fallback ako je rezultat slab
     top_skor = skorovani[0][0] if skorovani else 0
@@ -808,7 +911,18 @@ def retrieve_documents(query: str, k: int = 6) -> list[str]:
             query[:80], os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX),
         )
 
-    return docs
+    retrieval_meta = {
+        "top_score":   _top_score,
+        "top_article": _top_article,
+        "top_law":     _top_law,
+        "top_text":    _top_text,
+        "confidence":  get_confidence_level(_top_score),
+    }
+    logger.info(
+        "[RETRIEVE] confidence=%s score=%.4f article=%s law=%s",
+        retrieval_meta["confidence"], _top_score, _top_article, _top_law,
+    )
+    return docs, retrieval_meta
 
 
 def _prosiri_query_gpt_wrapper(query: str) -> list[str]:

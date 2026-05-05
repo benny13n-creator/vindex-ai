@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from openai import OpenAI
-from app.services.retrieve import retrieve_documents, proveri_zdi_indeksiranost
+from app.services.retrieve import retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level
 
 load_dotenv()
 
@@ -962,6 +962,21 @@ def _ukloni_nedostupan_tekst(odgovor: str) -> str:
 
 # REFAKTOR v2.0 — novi klasifikator, vraća uppercase: "COMPLIANCE","PORESKI","PARNICA","DEFINICIJA"
 
+_KZ_OVERRIDE_TRIGGERS = [
+    "krivicni zakonik", "krivicno delo", "krivicna prijava", "krivicna odgovornost",
+    "kazna za krađu", "kazna za kradju", "kazna za razbojnistvo", "kazna za ubistvo",
+    "kradja", "kradju", "razbojnistvo", "razbojnistva", "razbojnicka kradja",
+    "ubistvo", "ubojstvo", "umorstvo",
+    "silovanje", "nasilje u porodici", "nasilje u braku",
+    "opojne droge", "narkotici", "narkotik", "droge",
+    "iznuda", "ucena", "pronevera", "prevara krivicna", "falsifikovanje",
+    "nuzna odbrana", "krajnja nuzda",
+    "uslovni otpust", "uslovna osuda", "zatvorska kazna", "kazna zatvora",
+    "izricanje kazne", "olaksavajuce okolnosti", "otezavajuce okolnosti",
+    "krivicna sankcija", "vaspitna mera",
+    "krivicno pravo",
+]
+
 _COMPLIANCE_TRIGGERS = [
     "aml", "kyc", "pranje novca", "pranja novca", "exchange", "platforma",
     "licenc", "registracij", "dozvol", "nadzor", "komisija za hartije",
@@ -1036,6 +1051,7 @@ def klasifikuj_pitanje(query: str) -> str:
 
     KZ-override fires first so "krivično delo poreske utaje" routes to PARNICA
     (gpt-4o) instead of being stolen by PORESKI triggers.
+
 
     Vraća uppercase string: "COMPLIANCE", "PORESKI", "PARNICA", "DEFINICIJA".
     """
@@ -1317,7 +1333,6 @@ analiziraj kao "algoritam" i "IKT sistem" u smislu ZDI čl. 2 + odgovornost po Z
 10. PERSPEKTIVA: Kada korisnik pita "da li imam pravo", "mogu li da tražim", "šta mi pripada", \
 "da li mi sleduje naknada" — odgovaraj ISKLJUČIVO iz perspektive OŠTEĆENOG (lice koje traži naknadu), \
 NE iz perspektive obveznika/štetnika. Korisnik je uvek oštećeni, ne štetnik.
-
 KRITIČNE PRETPOSTAVKE — UVEK PROVERI:
 - Zastarelost subjektivni: 3 god. od saznanja za štetu i učinioca (ZOO čl. 376, st. 1)
 - Zastarelost objektivni: 5 god. od nastanka štete (ZOO čl. 376, st. 2)
@@ -1597,12 +1612,75 @@ def _pozovi_openai(
     return (odgovor.choices[0].message.content or "").strip()
 
 
+# ─── Confidence-gated response helpers ──────────────────────────────────────
+
+SYSTEM_PROMPT_HIGH_CONFIDENCE = (
+    "Ti si Vindex AI — pravni referentni sistem za srpsko pravo.\n"
+    "Na osnovu dostavljenog zakonskog teksta, napiši praktično tumačenje u 2-3 rečenice na srpskom jeziku.\n\n"
+    "STROGA PRAVILA:\n"
+    "1. Odgovor mora početi tačno sa: \"Praktično tumačenje:\"\n"
+    "2. Pominješ ISKLJUČIVO zakon i član koji su dostavljeni — nikakve druge propise ili zakone\n"
+    "3. NE garantuješ ishod sudskog postupka\n"
+    "4. Maksimum 3 rečenice, bez uvoda\n"
+    "5. Jezik: srpska ekavica"
+)
+
+_DISCLAIMER = "⚠️ Ovo nije pravni savet. Konsultujte advokata za Vašu situaciju."
+
+
+def _format_low_response(top_score: float) -> str:
+    return (
+        "Nemam pouzdan odgovor na ovo pitanje u trenutnoj bazi zakona.\n\n"
+        "Mogući razlozi: pitanje izlazi iz indeksiranih oblasti, ili "
+        "specifičnost pitanja zahteva ekspertski sud.\n\n"
+        "Preporučujem konsultaciju sa advokatom specijalistom.\n\n"
+        "---\n"
+        f"📊 Pouzdanost: NISKA | Score: {top_score:.3f}\n"
+        f"{_DISCLAIMER}"
+    )
+
+
+def _format_medium_response(article: str, law: str, text: str, score: float) -> str:
+    return (
+        f"Najbliži match koji imam je **{article} [{law}]**, ali pouzdanost nije visoka.\n\n"
+        f"Doslovan tekst najbližeg člana:\n\"{text[:800]}\"\n\n"
+        "Preporučujem proveru sa specijalistom.\n\n"
+        "---\n"
+        f"📊 Pouzdanost: SREDNJA | Zakon: {law} | Član: {article} | Score: {score:.3f}\n"
+        f"{_DISCLAIMER}"
+    )
+
+
+def _format_high_response(article: str, law: str, text: str, score: float, interpretation: str) -> str:
+    return (
+        f"**{article}. [{law}]:**\n"
+        f"\"{text[:1200]}\"\n\n"
+        f"{interpretation}\n\n"
+        "---\n"
+        f"📊 Pouzdanost: VISOKA | Zakon: {law} | Član: {article} | Score: {score:.3f}\n"
+        f"{_DISCLAIMER}"
+    )
+
+
+def _generate_high_interpretation(pitanje: str, article: str, law: str, text: str) -> str:
+    user_content = (
+        f"Pitanje: {pitanje}\n\n"
+        f"Zakonski tekst ({law}, {article}):\n{text[:1500]}"
+    )
+    return _pozovi_openai(
+        SYSTEM_PROMPT_HIGH_CONFIDENCE,
+        user_content,
+        model="gpt-4o",
+        max_tokens=300,
+    )
+
+
 # ─── Javne funkcije agenta ───────────────────────────────────────────────────
 
-# REFAKTOR v2.0 — ask_agent sa 4-tipskom arhitekturom
 def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
     """
-    Pravno istraživanje v2.0 — klasifikuje upit, bira izolovani prompt, filtrira odgovor.
+    Hallucination-free confidence-gated pipeline v3.0.
+    Returns confidence level + article metadata alongside the response.
     history: lista {'q': str, 'a': str} — poslednja 3 pitanja/odgovora iz sesije.
     """
     pitanje = (pitanje or "").strip()
@@ -1618,141 +1696,93 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
     log_id = _hash_za_log(pitanje)
 
     try:
-        # KORAK 1: Klasifikacija — uvek prvo, pre retrieval-a
-        tip = klasifikuj_pitanje(pitanje_api)
-        logger.info("[ASK_AGENT] Tip: %s | Query: %s [q=%s]", tip, pitanje_api[:80], log_id)
-
-        # KORAK 2: Izaberi prompt, sekcije, model i max_tokens — nema fallbacka na drugi tip
-        if tip == "COMPLIANCE":
-            system_prompt    = SYSTEM_PROMPT_COMPLIANCE
-            aktivan_sekcije  = SEKCIJE_COMPLIANCE
-            _model           = "gpt-4o"
-            _max_tokens      = 2000
-        elif tip == "PORESKI":
-            system_prompt    = SYSTEM_PROMPT_PORESKI
-            aktivan_sekcije  = SEKCIJE_PORESKI
-            _model           = "gpt-4o"
-            _max_tokens      = 2000
-        elif tip == "PARNICA":
-            system_prompt    = SYSTEM_PROMPT_PARNICA
-            aktivan_sekcije  = SEKCIJE_PARNICA
-            _model           = "gpt-4o"
-            _max_tokens      = 2500
-        else:  # DEFINICIJA
-            system_prompt    = SYSTEM_PROMPT_DEFINICIJA
-            aktivan_sekcije  = SEKCIJE_DEFINICIJA
-            _model           = "gpt-4o"
-            _max_tokens      = 1500
-
-        # KORAK 3: Retrieval — filter_zakoni su hint za retrieve_documents LAW_HINTS
-        # COMPLIANCE → boost ZDI + ZSPNFT | PORESKI → boost poreski zakoni
-        # PARNICA → boost ZOO + ZPP | DEFINICIJA → pretraži sve
+        # KORAK 1: Retrieve with confidence metadata
         try:
-            docs = retrieve_documents(pitanje_api, k=10)
+            docs, retrieval_meta = retrieve_documents(pitanje_api, k=10)
         except Exception as e:
             logger.exception("PINECONE GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
+
+        confidence   = retrieval_meta["confidence"]
+        top_score    = retrieval_meta["top_score"]
+        top_article  = retrieval_meta["top_article"]
+        top_law      = retrieval_meta["top_law"]
+        top_text     = retrieval_meta["top_text"]
+
+        logger.info(
+            "[ASK_AGENT] confidence=%s score=%.4f article=%s law=%s query=%s [q=%s]",
+            confidence, top_score, top_article, top_law, pitanje_api[:60], log_id,
+        )
+
+        # KORAK 2: LOW — instant refusal, no LLM needed
+        if confidence == "LOW":
+            odgovor = _format_low_response(top_score)
+            rezultat = {
+                "status": "success", "data": odgovor,
+                "confidence": "LOW", "top_score": top_score,
+                "top_article": top_article, "top_law": top_law,
+            }
+            if not history:
+                _cache_set(pitanje, rezultat)
+            logger.info("LOW confidence refusal [q=%s]", log_id)
+            return rezultat
+
+        # KORAK 3: Filter docs
         filtrirani = _filtriraj_kontekst(docs)
-        logger.info(
-            "[RAG_CTX] docs=%d → posle_filtera=%d [q=%s]",
-            len(docs), len(filtrirani), log_id,
-        )
         if not filtrirani:
-            logger.error(
-                "[RAG_CTX] PRAZAN KONTEKST posle filtera! Pinecone vratio prazan rezultat za tip=%s [q=%s]",
-                tip, log_id,
-            )
-        for _i, _d in enumerate(filtrirani[:3]):
-            logger.info("[RAG_CTX doc%d] %s", _i, _d[:200].replace("\n", " "))
+            odgovor = _format_low_response(top_score)
+            return {
+                "status": "success", "data": odgovor,
+                "confidence": "LOW", "top_score": top_score,
+                "top_article": top_article, "top_law": top_law,
+            }
 
-        # Legal Fallback — ZOO čl. 154/155/200 ako primarni retrieval ne vrati ništa.
-        # Zabrana: ne vraćamo "nije pronađen" dok opšti ZOO postoji u bazi.
-        if not filtrirani:
-            logger.info("Pinecone: nema primarnih rezultata — pokušavam ZOO fallback [q=%s]", log_id)
-            try:
-                zoo_docs = retrieve_documents(
-                    "odgovornost za štetu zakon o obligacionim odnosima član 154 155", k=5
-                )
-                filtrirani = _filtriraj_kontekst(zoo_docs)
-                if filtrirani:
-                    logger.info("Legal Fallback: ZOO kontekst uspešno učitan [q=%s]", log_id)
-                else:
-                    logger.info("Legal Fallback: ZOO takođe prazan — vraćam ODGOVOR_NIJE_PRONADJEN [q=%s]", log_id)
-                    return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
-            except Exception:
-                logger.exception("Greška u ZOO fallback [q=%s]", log_id)
-                return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+        # KORAK 4: MEDIUM — hedged response with raw article text
+        if confidence == "MEDIUM":
+            odgovor = _format_medium_response(top_article, top_law, top_text, top_score)
+            rezultat = {
+                "status": "success", "data": odgovor,
+                "confidence": "MEDIUM", "top_score": top_score,
+                "top_article": top_article, "top_law": top_law,
+            }
+            if not history:
+                _cache_set(pitanje, rezultat)
+            logger.info("MEDIUM confidence response [q=%s]", log_id)
+            return rezultat
 
-        # KORAK 4: Sastavi user_content
-        kontekst = "\n\n---\n\n".join(filtrirani)
-        history_blok = ""
-        if history:
-            stavke = []
-            for i, h in enumerate(history[-3:], 1):
-                q = _skini_pii((h.get("q") or "")[:200])
-                a = (h.get("a") or "")[:400]
-                stavke.append(f"[{i}] Korisnik: {q}\n    Vindex AI: {a}...")
-            history_blok = "ISTORIJA RAZGOVORA (kontekst):\n" + "\n".join(stavke) + "\n\n"
-
-        user_content = (
-            f"{history_blok}"
-            f"PITANJE: {pitanje_api}\n\n"
-            f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
-        )
-
-        # KORAK 4: Generiši odgovor izabranim promptom
-        logger.info(
-            "[GEN] tip=%s model=%s kontekst_docs=%d kontekst_chars=%d [q=%s]",
-            tip, _model, len(filtrirani), len(kontekst), log_id,
-        )
-        if len(kontekst) < 100:
-            logger.error("[GEN] KONTEKST JE PRAZAN ili prekratak (%d chars) — GPT nema šta da citira!", len(kontekst))
-        else:
-            logger.info("[GEN] Kontekst preview (500 chars): %s", kontekst[:500].replace("\n", " "))
+        # KORAK 5: HIGH — LLM generates 2-3 sentence practical interpretation
         try:
-            odgovor = _pozovi_openai(system_prompt, user_content, model=_model, max_tokens=_max_tokens)
+            interp = _generate_high_interpretation(pitanje_api, top_article, top_law, top_text)
         except Exception as e:
-            logger.exception("OPENAI GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
-            return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
+            logger.exception("HIGH interpretation failed [q=%s]", log_id)
+            interp = None
 
-        # Provera formata — per-tip sekcije
-        if not _ima_obavezne_sekcije(odgovor, aktivan_sekcije):
-            logger.warning("Odgovor nema propisanu strukturu [tip=%s, q=%s]", tip, log_id)
-            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+        # Anti-hallucination gate: interpretation must reference the article number
+        art_num_m = re.search(r"\d+", top_article or "")
+        interpretation_valid = (
+            interp and
+            interp.strip().lower().startswith("praktično tumačenje") and
+            (not art_num_m or art_num_m.group() in interp)
+        )
 
-        # Anti-halucinacijska provera
-        validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
-        if not validan:
-            logger.warning("Anti-halucinacija [q=%s] razlog=%s", log_id, razlog)
-            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
+        if not interpretation_valid:
+            logger.warning(
+                "[HIGH] Anti-hallucination: interpretation failed gate — downgrading to MEDIUM [q=%s]", log_id
+            )
+            odgovor = _format_medium_response(top_article, top_law, top_text, top_score)
+            confidence = "MEDIUM"
+        else:
+            odgovor = _format_high_response(top_article, top_law, top_text, top_score, interp)
 
-        # Tematska relevantnost — sprečava topic drift (npr. pitanje o krađi, citat o oružju)
-        tematski_ok, tematski_razlog = _proveri_tematsku_relevantnost(pitanje_api, odgovor, filtrirani)
-        if not tematski_ok:
-            logger.warning("TOPIC_DRIFT [q=%s] razlog=%s", log_id, tematski_razlog)
-            return {"status": "success", "data": ODGOVOR_NIJE_PRONADJEN}
-
-        # Provera poznatih pravnih grešaka
-        pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
-        if not pravno_validan:
-            logger.error("Pravna greška blokirala odgovor: %s", pravna_greska)
-            return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
-
-        # KORAK 5: Post-processing
-        odgovor = _srpski_termini(odgovor)
-        odgovor = _ogranici_pouzdanost(odgovor)
-        odgovor = ukloni_zabranjeni_tekst(odgovor, tip)
-        # Novi "---" format (PARNICA) već sadrži --- IZVOR + disclaimer u samom odgovoru
-        _je_novi_format = "--- IZVOR" in odgovor or "--- HIJERARHIJA IZVORA" in odgovor
-        if not _je_novi_format:
-            odgovor = _dodaj_izvor(odgovor, filtrirani)
-            odgovor = _dodaj_disclaimer(odgovor)
-
-        rezultat = {"status": "success", "data": odgovor}
+        rezultat = {
+            "status": "success", "data": odgovor,
+            "confidence": confidence, "top_score": top_score,
+            "top_article": top_article, "top_law": top_law,
+        }
         if not history:
             _cache_set(pitanje, rezultat)
 
-        logger.info("Uspešan odgovor [tip=%s, q=%s]", tip, log_id)
+        logger.info("Uspešan odgovor [confidence=%s, q=%s]", confidence, log_id)
         return rezultat
 
     except Exception as e:
