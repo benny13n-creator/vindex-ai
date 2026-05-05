@@ -387,6 +387,189 @@ def _dekomponuj_query(query: str) -> list[str]:
     return []
 
 
+# ─── FIX-1: Intent classification + intent-aware decomposition ───────────────
+# Ported from multi_query_rag.py so both pipelines share one implementation.
+
+_INTENT_RULES: dict[str, list[str]] = {
+    "rights":       ["pravo", "prava", "sloboda", "garancija", "zastita", "osnovno pravo",
+                     "ljudsko pravo", "okrivljeni", "osumnjicen", "pretpostavka nevinosti"],
+    "procedure":    ["postupak", "procesn", "nadleznost", "organ", "tuzilac", "sud",
+                     "podnesak", "zalba", "tuzba", "pokretanje", "korak", "faza"],
+    "deadlines":    ["rok", "zastarelost", "zastari", "vreme", "dan", "mesec", "godina",
+                     "kazna", "posledica", "sankcija", "novcan"],
+    "jurisdiction": ["nadleznost", "sud", "koji sud", "mesna nadleznost", "stvarna",
+                     "apelacioni", "vrhovni", "prekrsajni", "privredni sud"],
+    "evidence":     ["dokaz", "dokazivanje", "teret dokazivanja", "vestacenje",
+                     "svedok", "iskaz", "isprava", "snimak", "pretraga"],
+}
+
+_INTENT_ANGLES: dict[str, str] = {
+    "rights": (
+        "1. koji zakon i konkretni član štiti ovo pravo\n"
+        "2. procesne garancije i zaštitne mere za nosioca prava\n"
+        "3. ograničenja i uslovi pod kojima se pravo može uskratiti\n"
+        "4. sudska zaštita i pravni lekovi u slučaju povrede\n"
+        "5. međunarodni standardi i ustavna zaštita istog prava"
+    ),
+    "procedure": (
+        "1. koji organ je nadležan i koji zakon uređuje ovu proceduru\n"
+        "2. redosled procesnih koraka i rokovi za svaki korak\n"
+        "3. uslovi za pokretanje i formalni zahtevi podneska\n"
+        "4. prava stranaka tokom postupka i pravni lekovi\n"
+        "5. posebni slučajevi i izuzeci od opšte procedure"
+    ),
+    "deadlines": (
+        "1. koji zakon propisuje rok i tačan broj dana/meseci\n"
+        "2. od kojeg momenta rok počinje da teče\n"
+        "3. posledice propuštanja roka i mogućnost vraćanja u pređašnje stanje\n"
+        "4. zastarelost potraživanja i prekid zastarelosti\n"
+        "5. posebni rokovi za posebne kategorije stranaka"
+    ),
+    "jurisdiction": (
+        "1. koji sud ili organ je stvarno nadležan po zakonu\n"
+        "2. mesna nadležnost i kriterijumi za određivanje\n"
+        "3. sukob nadležnosti i postupak rešavanja\n"
+        "4. žalbeni organ i instancijalni red\n"
+        "5. izuzeci od opšte nadležnosti (posebni sudovi, arbitraža)"
+    ),
+    "evidence": (
+        "1. koji oblici dokaza su zakonski dopušteni\n"
+        "2. teret dokazivanja i na kome leži\n"
+        "3. zabrana korišćenja određenih dokaza (nezakoniti dokazi)\n"
+        "4. veštačenje, svedočenje i posebna pravila\n"
+        "5. elektronski dokazi i digitalni tragovi po srpskom pravu"
+    ),
+    "mixed": (
+        "1. naziv zakona i konkretni član koji direktno uređuje ovu materiju\n"
+        "2. procesna prava i obaveze svih stranaka\n"
+        "3. rokovi, sankcije i pravne posledice\n"
+        "4. izuzeci, odbrana i posebni slučajevi\n"
+        "5. ustavna i međunarodna dimenzija pitanja"
+    ),
+}
+
+
+def classify_query_intent(query: str) -> str:
+    """FIX-1: Classify query into rights|procedure|deadlines|jurisdiction|evidence|mixed."""
+    q_norm = _normalizuj(query)
+    scores: dict[str, int] = {intent: 0 for intent in _INTENT_RULES}
+    for intent, keywords in _INTENT_RULES.items():
+        for kw in keywords:
+            if kw in q_norm:
+                scores[intent] += 1
+
+    sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    top_label, top_score    = sorted_scores[0]
+    _second_label, sec_score = sorted_scores[1]
+
+    if top_score > 0 and (top_score - sec_score) >= 2:
+        logger.info("[INTENT] Rule-based → %s (score=%d)", top_label, top_score)
+        return top_label
+
+    try:
+        resp = _get_client().chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=10,
+            timeout=5.0,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Klasifikuj pravno pitanje u JEDNU kategoriju. "
+                        "Moguće kategorije: rights, procedure, deadlines, jurisdiction, evidence, mixed. "
+                        "Vrati SAMO jednu reč, bez interpunkcije."
+                    ),
+                },
+                {"role": "user", "content": query},
+            ],
+        )
+        label = resp.choices[0].message.content.strip().lower()
+        valid = {"rights", "procedure", "deadlines", "jurisdiction", "evidence", "mixed"}
+        if label in valid:
+            logger.info("[INTENT] LLM → %s", label)
+            return label
+    except Exception as exc:
+        logger.warning("[INTENT] LLM fallback greška: %s", exc)
+
+    result = top_label if top_score > 0 else "mixed"
+    logger.info("[INTENT] Fallback → %s", result)
+    return result
+
+
+def decompose_query(user_query: str) -> list[str]:
+    """
+    FIX-1: Intent-aware decomposition into 2-3 semantically distinct sub-queries.
+    Capped at 3 (vs 5 in multi_query_rag.py) to respect latency budget.
+    """
+    intent = classify_query_intent(user_query)
+    angles = _INTENT_ANGLES[intent]
+
+    try:
+        resp = _get_client().chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=400,
+            timeout=10.0,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Ti si srpski pravni asistent. "
+                        f"Detektovana kategorija pitanja: '{intent}'. "
+                        "Korisničko pitanje razbij na TAČNO 3 pravna pod-pitanja koristeći uglove:\n"
+                        f"{angles}\n"
+                        "Svako pod-pitanje mora biti semantički DRUGAČIJE — zabranjeno je parafraziranje. "
+                        "Svako pod-pitanje mora biti samostalno pretraživljivo (3-8 reči). "
+                        "Vrati SAMO JSON listu od 3 stringa, bez uvoda."
+                    ),
+                },
+                {"role": "user", "content": f"Pitanje: {user_query}"},
+            ],
+        )
+        raw = resp.choices[0].message.content.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        parsed = json.loads(raw)
+        if isinstance(parsed, list) and all(isinstance(s, str) for s in parsed):
+            sub_queries = [q.strip() for q in parsed[:3] if q.strip()]
+            logger.info(
+                "[FIX1_DECOMPOSE] intent=%s → %d sub-queries: %s",
+                intent, len(sub_queries), sub_queries,
+            )
+            return sub_queries
+    except json.JSONDecodeError as exc:
+        logger.warning("[FIX1_DECOMPOSE] JSON parse greška: %s", exc)
+    except Exception as exc:
+        logger.warning("[FIX1_DECOMPOSE] Nije uspelo: %s", exc)
+
+    return [user_query]
+
+
+def _treba_fx1_dekompozicija(query: str) -> bool:
+    """
+    Activation heuristic for FIX-1 intent-aware decomposition.
+    Activates for queries that have any of:
+      - Value-threshold framing (iznad/ispod/preko + number word like milion/hiljada)
+      - Comparative structure (razlika, razliku, razlikuje)
+      - ≥ 6 content tokens after stopword removal (multi-concept queries)
+    Skips for short, single-concept queries to avoid unnecessary LLM cost.
+    """
+    q = _normalizuj(query)
+    # value-threshold: "iznad milion", "preko hiljada", "od X dinara" etc.
+    if re.search(r'\b(iznad|ispod|preko)\b.*\b(milion|hiljada|dinara|evra)\b', q):
+        return True
+    if re.search(r'\b(milion|hiljada)\b.*\b(dinara|evra)\b', q):
+        return True
+    # comparative queries
+    if any(w in q for w in ['razlika', 'razliku', 'razlikuje', 'razlicit', 'razlicita']):
+        return True
+    # multi-concept: 6+ content tokens
+    if len(_tokenizuj(query)) >= 6:
+        return True
+    return False
+
+
 # ─── Sprint 2B: HyDE (Hypothetical Document Embedding) ───────────────────────
 
 def _generiši_hyde(query: str) -> str:
@@ -755,9 +938,15 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
     vektor = _ugradi_query(query)
 
     # ── Faza 1: Query transformation (paralel) ────────────────────────────────
+    # FIX-1: use intent-aware decomposition for complex queries;
+    # fall back to generic _dekomponuj_query for simple ones.
+    _decomp_fn = decompose_query if _treba_fx1_dekompozicija(query) else _dekomponuj_query
+    if _decomp_fn is decompose_query:
+        logger.info("[FIX1] Aktivirana intent-aware dekompozicija za query='%.60s'", query)
+
     with ThreadPoolExecutor(max_workers=2) as qte:
-        f_multi = qte.submit(_dekomponuj_query, query)
-        f_hyde  = qte.submit(_generiši_hyde,    query)
+        f_multi = qte.submit(_decomp_fn, query)
+        f_hyde  = qte.submit(_generiši_hyde, query)
 
     sub_queries: list[str] = []
     hyde_text = ""
