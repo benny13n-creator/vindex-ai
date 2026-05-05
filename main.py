@@ -1705,7 +1705,6 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         top_score    = retrieval_meta["top_score"]
         top_article  = retrieval_meta["top_article"]
         top_law      = retrieval_meta["top_law"]
-        top_text     = retrieval_meta["top_text"]
 
         logger.info(
             "[ASK_AGENT] confidence=%s score=%.4f article=%s law=%s query=%s [q=%s]",
@@ -1735,9 +1734,63 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
                 "top_article": top_article, "top_law": top_law,
             }
 
-        # KORAK 4: MEDIUM — hedged response with raw article text
+        # KORAK 4: Klasifikacija + topic prompt (zajednički za MEDIUM i HIGH)
+        tip = klasifikuj_pitanje(pitanje_api)
+        _prompt_map = {
+            "COMPLIANCE": (SYSTEM_PROMPT_COMPLIANCE, SEKCIJE_COMPLIANCE, "gpt-4o", 2000),
+            "PORESKI":    (SYSTEM_PROMPT_PORESKI,    SEKCIJE_PORESKI,    "gpt-4o", 2000),
+            "PARNICA":    (SYSTEM_PROMPT_PARNICA,    SEKCIJE_PARNICA,    "gpt-4o", 2500),
+            "DEFINICIJA": (SYSTEM_PROMPT_DEFINICIJA, SEKCIJE_DEFINICIJA, "gpt-4o", 1500),
+        }
+        system_prompt, aktivan_sekcije, _model, _max_tokens = _prompt_map.get(tip, _prompt_map["DEFINICIJA"])
+
+        kontekst = "\n\n---\n\n".join(filtrirani)
+        history_blok = ""
+        if history:
+            stavke = []
+            for i, h in enumerate(history[-3:], 1):
+                q_h = _skini_pii((h.get("q") or "")[:200])
+                a_h = (h.get("a") or "")[:400]
+                stavke.append(f"[{i}] Korisnik: {q_h}\n    Vindex AI: {a_h}...")
+            history_blok = "ISTORIJA RAZGOVORA (kontekst):\n" + "\n".join(stavke) + "\n\n"
+
+        _HEDGE = (
+            f"[POUZDANOST: SREDNJA — score {top_score:.3f}] "
+            "Odgovaraj sa posebnom pažnjom. "
+            "Ako neki podatak iz pitanja nije eksplicitno pokriven retrieved kontekstom, "
+            "jasno reci da nije sigurno.\n\n"
+        )
+
+        # KORAK 5: MEDIUM — puni topic prompt sa hedge banerom
         if confidence == "MEDIUM":
-            odgovor = _format_medium_response(top_article, top_law, top_text, top_score)
+            user_content = (
+                f"{_HEDGE}"
+                f"{history_blok}"
+                f"PITANJE: {pitanje_api}\n\n"
+                f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
+            )
+            try:
+                odgovor = _pozovi_openai(system_prompt, user_content, model=_model, max_tokens=_max_tokens)
+            except Exception:
+                logger.exception("MEDIUM LLM greška [q=%s]", log_id)
+                return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
+
+            validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
+            if not validan:
+                logger.warning("[MEDIUM] Halucinacija — logujem, nastavljam [q=%s] razlog=%s", log_id, razlog)
+
+            pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
+            if not pravno_validan:
+                logger.error("Pravna greška MEDIUM: %s", pravna_greska)
+                return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
+
+            odgovor = _srpski_termini(odgovor)
+            odgovor = _ogranici_pouzdanost(odgovor)
+            odgovor = ukloni_zabranjeni_tekst(odgovor, tip)
+            if "--- IZVOR" not in odgovor and "--- HIJERARHIJA IZVORA" not in odgovor:
+                odgovor = _dodaj_izvor(odgovor, filtrirani)
+            odgovor = _dodaj_disclaimer(odgovor)
+
             rezultat = {
                 "status": "success", "data": odgovor,
                 "confidence": "MEDIUM", "top_score": top_score,
@@ -1745,32 +1798,63 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             }
             if not history:
                 _cache_set(pitanje, rezultat)
-            logger.info("MEDIUM confidence response [q=%s]", log_id)
+            logger.info("MEDIUM LLM odgovor [tip=%s, q=%s]", tip, log_id)
             return rezultat
 
-        # KORAK 5: HIGH — LLM generates 2-3 sentence practical interpretation
-        try:
-            interp = _generate_high_interpretation(pitanje_api, top_article, top_law, top_text)
-        except Exception as e:
-            logger.exception("HIGH interpretation failed [q=%s]", log_id)
-            interp = None
-
-        # Anti-hallucination gate: interpretation must reference the article number
-        art_num_m = re.search(r"\d+", top_article or "")
-        interpretation_valid = (
-            interp and
-            interp.strip().lower().startswith("praktično tumačenje") and
-            (not art_num_m or art_num_m.group() in interp)
+        # KORAK 6: HIGH — puni topic prompt, soft section check, anti-halucinacijska zaštita
+        user_content = (
+            f"{history_blok}"
+            f"PITANJE: {pitanje_api}\n\n"
+            f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
         )
+        try:
+            odgovor = _pozovi_openai(system_prompt, user_content, model=_model, max_tokens=_max_tokens)
+        except Exception:
+            logger.exception("HIGH LLM greška [q=%s]", log_id)
+            return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
-        if not interpretation_valid:
-            logger.warning(
-                "[HIGH] Anti-hallucination: interpretation failed gate — downgrading to MEDIUM [q=%s]", log_id
-            )
-            odgovor = _format_medium_response(top_article, top_law, top_text, top_score)
+        # Soft section check — log only, do not discard
+        if not _ima_obavezne_sekcije(odgovor, aktivan_sekcije):
+            logger.warning("[HIGH] Nedostaju obavezne sekcije [tip=%s, q=%s]", tip, log_id)
+
+        # Anti-hallucination + topic drift → downgrade to MEDIUM LLM if either fails
+        _downgrade = False
+        validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
+        if not validan:
+            logger.warning("[HIGH] Anti-halucinacija → MEDIUM [q=%s] razlog=%s", log_id, razlog)
+            _downgrade = True
+
+        if not _downgrade:
+            tematski_ok, tematski_razlog = _proveri_tematsku_relevantnost(pitanje_api, odgovor, filtrirani)
+            if not tematski_ok:
+                logger.warning("[HIGH] Topic drift → MEDIUM [q=%s] razlog=%s", log_id, tematski_razlog)
+                _downgrade = True
+
+        if _downgrade:
             confidence = "MEDIUM"
-        else:
-            odgovor = _format_high_response(top_article, top_law, top_text, top_score, interp)
+            user_content_medium = (
+                f"{_HEDGE}"
+                f"{history_blok}"
+                f"PITANJE: {pitanje_api}\n\n"
+                f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
+            )
+            try:
+                odgovor = _pozovi_openai(system_prompt, user_content_medium, model=_model, max_tokens=_max_tokens)
+            except Exception:
+                logger.exception("MEDIUM downgrade LLM greška [q=%s]", log_id)
+                return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
+
+        pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
+        if not pravno_validan:
+            logger.error("Pravna greška [confidence=%s]: %s", confidence, pravna_greska)
+            return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
+
+        odgovor = _srpski_termini(odgovor)
+        odgovor = _ogranici_pouzdanost(odgovor)
+        odgovor = ukloni_zabranjeni_tekst(odgovor, tip)
+        if "--- IZVOR" not in odgovor and "--- HIJERARHIJA IZVORA" not in odgovor:
+            odgovor = _dodaj_izvor(odgovor, filtrirani)
+        odgovor = _dodaj_disclaimer(odgovor)
 
         rezultat = {
             "status": "success", "data": odgovor,
@@ -1780,7 +1864,7 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
         if not history:
             _cache_set(pitanje, rezultat)
 
-        logger.info("Uspešan odgovor [confidence=%s, q=%s]", confidence, log_id)
+        logger.info("Uspešan odgovor [confidence=%s, tip=%s, q=%s]", confidence, tip, log_id)
         return rezultat
 
     except Exception as e:
