@@ -22,7 +22,9 @@ from slowapi.errors import RateLimitExceeded
 BASE_DIR = Path(__file__).parent
 load_dotenv()
 
-from main import ask_agent, ask_nacrt, ask_analiza, _skini_pii
+import time as _time
+from main import ask_agent, ask_nacrt, ask_analiza, _skini_pii, klasifikuj_pitanje
+from app.services import audit_log as _al
 from templates.podnesci import (
     TIPOVI as PODNESAK_TIPOVI,
     EKSTRAKCIONI_PROMPTOVI,
@@ -1022,7 +1024,21 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
     asyncio.create_task(_audit(user["user_id"], "pitanje", qh))
     try:
         history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
+        tip = await asyncio.to_thread(klasifikuj_pitanje, _skini_pii(req.pitanje))
+        t0 = _time.monotonic()
         rezultat = await pokreni(ask_agent, req.pitanje, history)
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+        _al.log_response(
+            endpoint="/api/pitanje",
+            query_hash=qh,
+            tip=tip,
+            confidence=rezultat.get("confidence"),
+            top_score=rezultat.get("top_score"),
+            top_article=rezultat.get("top_article"),
+            top_law=rezultat.get("top_law"),
+            response_text=rezultat.get("data", ""),
+            latency_ms=latency_ms,
+        )
         preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
@@ -1062,6 +1078,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
     asyncio.create_task(_audit(user["user_id"], "pitanje_stream", qh))
 
     async def _event_generator():
+        t0 = _time.monotonic()
         try:
             pitanje_api = _skini_pii(req.pitanje)
             history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
@@ -1077,6 +1094,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 "[STREAM] confidence=%s score=%.4f article=%s law=%s [q=%s]",
                 confidence, top_score, top_article, top_law, qh,
             )
+            stream_tip = await asyncio.to_thread(klasifikuj_pitanje, pitanje_api)
 
             # STEP 2: LOW — stream static refusal, no GPT call
             if confidence == "LOW":
@@ -1085,6 +1103,12 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
                 yield "data: [DONE]\n\n"
                 yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
+                _al.log_response(
+                    endpoint="/api/pitanje/stream", query_hash=qh, tip=stream_tip,
+                    confidence="LOW", top_score=top_score, top_article=top_article,
+                    top_law=top_law, response_text=tekst,
+                    latency_ms=int((_time.monotonic() - t0) * 1000),
+                )
                 return
 
             # STEP 3: MEDIUM — stream raw article text, no GPT call
@@ -1094,6 +1118,12 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
                 yield "data: [DONE]\n\n"
                 yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
+                _al.log_response(
+                    endpoint="/api/pitanje/stream", query_hash=qh, tip=stream_tip,
+                    confidence="MEDIUM", top_score=top_score, top_article=top_article,
+                    top_law=top_law, response_text=tekst,
+                    latency_ms=int((_time.monotonic() - t0) * 1000),
+                )
                 return
 
             # STEP 4: HIGH — keep existing topic-specific prompt logic
@@ -1103,7 +1133,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 yield "data: [DONE]\n\n"
                 return
 
-            tip = await asyncio.to_thread(klasifikuj_pitanje, pitanje_api)
+            tip = stream_tip
             prompt_map = {
                 "COMPLIANCE": (SYSTEM_PROMPT_COMPLIANCE, "gpt-4o", 1000),
                 "PORESKI":    (SYSTEM_PROMPT_PORESKI,    "gpt-4o", 800),
@@ -1178,6 +1208,12 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
             yield "data: [DONE]\n\n"
             yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
+            _al.log_response(
+                endpoint="/api/pitanje/stream", query_hash=qh, tip=stream_tip,
+                confidence="HIGH", top_score=top_score, top_article=top_article,
+                top_law=top_law, response_text=full_response,
+                latency_ms=int((_time.monotonic() - t0) * 1000),
+            )
 
         except Exception:
             logger.exception("Greška u /api/pitanje/stream [q=%s]", qh)
@@ -1201,7 +1237,17 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_cr
     logger.info("Nacrt [uid=%.8s] vrsta=%s", user["user_id"], req.vrsta)
     asyncio.create_task(_audit(user["user_id"], f"nacrt:{req.vrsta}", ""))
     try:
+        qh_nacrt = _q_hash(_skini_pii(req.opis))
+        t0 = _time.monotonic()
         rezultat = await pokreni(ask_nacrt, req.vrsta, req.opis)
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+        _al.log_response(
+            endpoint="/api/nacrt",
+            query_hash=qh_nacrt,
+            tip=req.vrsta[:20],
+            response_text=rezultat.get("data", ""),
+            latency_ms=latency_ms,
+        )
         preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
@@ -1220,7 +1266,16 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(requir
     logger.info("Analiza [uid=%.8s] [q=%s]", user["user_id"], qh)
     asyncio.create_task(_audit(user["user_id"], "analiza", qh))
     try:
+        qh_analiza = _q_hash(_skini_pii(req.pitanje or req.tekst[:200]))
+        t0 = _time.monotonic()
         rezultat = await pokreni(ask_analiza, req.tekst, req.pitanje)
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+        _al.log_response(
+            endpoint="/api/analiza",
+            query_hash=qh_analiza,
+            response_text=rezultat.get("data", ""),
+            latency_ms=latency_ms,
+        )
         preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:

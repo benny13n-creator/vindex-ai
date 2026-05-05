@@ -223,3 +223,32 @@ ON CONFLICT (user_id) DO NOTHING;
 -- Inspect a specific user's credits (replace the UUID):
 --   SELECT * FROM public.user_credits
 --   WHERE user_id = '<your-user-uuid>';
+
+
+-- ─── 9. RESPONSE_AUDIT TABLE (B1 legal audit log) ────────────────────────────
+-- Write-only. Populated automatically by the API on every LLM response.
+-- Stores no raw query or response text — only hashes, metadata, and latency.
+-- Needed before beta launch (legal liability requirement).
+
+CREATE TABLE IF NOT EXISTS public.response_audit (
+    id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    ts            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    pipeline_id   VARCHAR(32) NOT NULL,
+    endpoint      VARCHAR(60) NOT NULL,
+    tip           VARCHAR(20),
+    query_hash    VARCHAR(16) NOT NULL,
+    confidence    VARCHAR(10),
+    top_score     FLOAT,
+    top_article   TEXT,
+    top_law       TEXT,
+    response_len  INTEGER     NOT NULL DEFAULT 0,
+    response_hash VARCHAR(32) NOT NULL,
+    latency_ms    INTEGER     NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS ra_ts_idx    ON public.response_audit(ts DESC);
+CREATE INDEX IF NOT EXISTS ra_qhash_idx ON public.response_audit(query_hash);
+
+-- Service role (backend) may insert; nobody may update/delete
+ALTER TABLE public.response_audit ENABLE ROW LEVEL SECURITY;
+GRANT INSERT ON public.response_audit TO service_role;
