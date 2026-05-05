@@ -77,6 +77,12 @@ LAW_HINTS = {
     "ucena":                      "KZ",
     "silovanje":                  "KZ",
     "nasilje u porodici":         "KZ",
+    # prevara as krivično delo — guarded with criminal-context co-words to avoid
+    # catching civil-law prevara queries (ZOO Član 65: prevara kao mana volje).
+    # LAW_HINTS is a HARD Pinecone filter so a bare "prevara" key would exclude ZOO.
+    "kazna za prevaru":           "KZ",  # Q5: "Kazna za prevaru iznad milion dinara?"
+    "krivicna prevara":           "KZ",  # "Krivična prevara — definicija i kazna"
+    "prevara krivicn":            "KZ",  # "prevara kao krivično delo"
     # Zakon o parničnom postupku
     "parnica":                    "zakon o parnicnom postupku",
     "parnic":                     "zakon o parnicnom postupku",
