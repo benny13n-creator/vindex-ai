@@ -938,9 +938,15 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
     vektor = _ugradi_query(query)
 
     # ── Faza 1: Query transformation (paralel) ────────────────────────────────
+    # FIX-1: use intent-aware decomposition for complex queries;
+    # fall back to generic _dekomponuj_query for simple ones.
+    _decomp_fn = decompose_query if _treba_fx1_dekompozicija(query) else _dekomponuj_query
+    if _decomp_fn is decompose_query:
+        logger.info("[FIX1] Aktivirana intent-aware dekompozicija za query='%.60s'", query)
+
     with ThreadPoolExecutor(max_workers=2) as qte:
-        f_multi = qte.submit(_dekomponuj_query, query)
-        f_hyde  = qte.submit(_generiši_hyde,    query)
+        f_multi = qte.submit(_decomp_fn, query)
+        f_hyde  = qte.submit(_generiši_hyde, query)
 
     sub_queries: list[str] = []
     hyde_text = ""
