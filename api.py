@@ -1070,6 +1070,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
         SYSTEM_PROMPT_PARNICA, SYSTEM_PROMPT_DEFINICIJA,
         _filtriraj_kontekst, retrieve_documents,
         _format_low_response, _format_medium_response,
+        DISCLAIMER,
     )
     from openai import OpenAI as _OAI
 
@@ -1130,6 +1131,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             filtrirani = _filtriraj_kontekst(docs)
             if not filtrirani:
                 yield "data: Nije pronađen relevantan zakonski tekst za vaše pitanje.\n\n"
+                yield f"data: {DISCLAIMER.replace(chr(10), chr(92) + 'n')}\n\n"
                 yield "data: [DONE]\n\n"
                 return
 
@@ -1205,6 +1207,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 yield f"data: {notice.replace(chr(10), chr(92) + 'n')}\n\n"
 
             # Oduzmi kredit i pošalji broj
+            yield f"data: {DISCLAIMER.replace(chr(10), chr(92) + 'n')}\n\n"
             preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
             yield "data: [DONE]\n\n"
             yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
@@ -1218,6 +1221,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
         except Exception:
             logger.exception("Greška u /api/pitanje/stream [q=%s]", qh)
             yield "data: Došlo je do greške. Pokušajte ponovo.\n\n"
+            yield f"data: {DISCLAIMER.replace(chr(10), chr(92) + 'n')}\n\n"
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(

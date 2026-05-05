@@ -194,13 +194,6 @@ def _cache_set(pitanje: str, rezultat: dict) -> None:
     _CACHE[_cache_kljuc(pitanje)] = (rezultat, datetime.now())
 
 
-DISCLAIMER_TEKST = (
-    "Ovaj odgovor je generisan AI alatom isključivo u informativne svrhe "
-    "i ne predstavlja pravni savet. Vindex AI nije zamena za konsultaciju "
-    "sa ovlašćenim advokatom. Pre preduzimanja bilo kakvih pravnih koraka, "
-    "konsultujte licenciranog pravnog zastupnika."
-)
-
 # ─── Fallback system prompt kad Pinecone ne vrati rezultate ─────────────────
 
 SYSTEM_PROMPT_FALLBACK = """Ti si stručni AI pravni asistent isključivo za advokate i pravnike u Srbiji.
@@ -851,8 +844,8 @@ def _odgovor_pravna_greska(opis: str) -> str:
         f"NAPOMENA SISTEMA: {opis}\n\n"
         f"CITAT IZ ZAKONA: \"Nije primenljivo\"\n\n"
         f"PRAVNA POSLEDICA: Nije moguće utvrditi bez verifikovanog zakonskog osnova.\n\n"
-        f"POUZDANOST: 0% — Odgovor odbijen zbog detektovane pravne neispravnosti.\n\n"
-        f"VAŽNA NAPOMENA: {DISCLAIMER_TEKST}"
+        f"POUZDANOST: 0% — Odgovor odbijen zbog detektovane pravne neispravnosti."
+        + DISCLAIMER
     )
 
 
@@ -905,8 +898,7 @@ def _ogranici_pouzdanost(odgovor: str) -> str:
 
 
 def _dodaj_disclaimer(odgovor: str) -> str:
-    """Dodaje pravni disclaimer na kraj odgovora."""
-    return odgovor + f"\n\nVAŽNA NAPOMENA: {DISCLAIMER_TEKST}"
+    return odgovor + DISCLAIMER
 
 
 def _ukloni_nedostupan_tekst(odgovor: str) -> str:
@@ -1625,7 +1617,13 @@ SYSTEM_PROMPT_HIGH_CONFIDENCE = (
     "5. Jezik: srpska ekavica"
 )
 
-_DISCLAIMER = "⚠️ Ovo nije pravni savet. Konsultujte advokata za Vašu situaciju."
+DISCLAIMER = (
+    "\n\n---\n\n"
+    "⚠️ **Pravna napomena:** Vindex AI pruža informacije zasnovane na zakonskim "
+    "tekstovima Republike Srbije i ne predstavlja pravni savet. Ovaj odgovor ne "
+    "zamenjuje konsultaciju sa licenciranim advokatom. Pre donošenja bilo kakvih "
+    "pravnih odluka, obratite se stručnjaku."
+)
 
 
 def _format_low_response(top_score: float) -> str:
@@ -1635,8 +1633,8 @@ def _format_low_response(top_score: float) -> str:
         "specifičnost pitanja zahteva ekspertski sud.\n\n"
         "Preporučujem konsultaciju sa advokatom specijalistom.\n\n"
         "---\n"
-        f"📊 Pouzdanost: NISKA | Score: {top_score:.3f}\n"
-        f"{_DISCLAIMER}"
+        f"📊 Pouzdanost: NISKA | Score: {top_score:.3f}"
+        + DISCLAIMER
     )
 
 
@@ -1646,8 +1644,8 @@ def _format_medium_response(article: str, law: str, text: str, score: float) -> 
         f"Doslovan tekst najbližeg člana:\n\"{text[:800]}\"\n\n"
         "Preporučujem proveru sa specijalistom.\n\n"
         "---\n"
-        f"📊 Pouzdanost: SREDNJA | Zakon: {law} | Član: {article} | Score: {score:.3f}\n"
-        f"{_DISCLAIMER}"
+        f"📊 Pouzdanost: SREDNJA | Zakon: {law} | Član: {article} | Score: {score:.3f}"
+        + DISCLAIMER
     )
 
 
@@ -1657,8 +1655,8 @@ def _format_high_response(article: str, law: str, text: str, score: float, inter
         f"\"{text[:1200]}\"\n\n"
         f"{interpretation}\n\n"
         "---\n"
-        f"📊 Pouzdanost: VISOKA | Zakon: {law} | Član: {article} | Score: {score:.3f}\n"
-        f"{_DISCLAIMER}"
+        f"📊 Pouzdanost: VISOKA | Zakon: {law} | Član: {article} | Score: {score:.3f}"
+        + DISCLAIMER
     )
 
 
@@ -1701,7 +1699,7 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             docs, retrieval_meta = retrieve_documents(pitanje_api, k=10)
         except Exception as e:
             logger.exception("PINECONE GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
-            return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
+            return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
         confidence   = retrieval_meta["confidence"]
         top_score    = retrieval_meta["top_score"]
@@ -1788,7 +1786,7 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
     except Exception as e:
         logger.error("ASK_AGENT GREŠKA: %s: %s", type(e).__name__, str(e)[:300])
         logger.exception("ASK_AGENT stacktrace")
-        return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
+        return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
 
 def ask_nacrt(vrsta: str, opis: str) -> dict:
@@ -1811,7 +1809,7 @@ def ask_nacrt(vrsta: str, opis: str) -> dict:
         return {"status": "success", "data": odgovor}
     except Exception:
         logger.exception("Greška u ask_nacrt")
-        return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
+        return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
 
 def ask_analiza(tekst: str, pitanje: str = "") -> dict:
@@ -1837,7 +1835,7 @@ def ask_analiza(tekst: str, pitanje: str = "") -> dict:
         return {"status": "success", "data": odgovor}
     except Exception:
         logger.exception("Greška u ask_analiza")
-        return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo."}
+        return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
 
 # ─── CLI za testiranje ───────────────────────────────────────────────────────
