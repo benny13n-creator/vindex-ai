@@ -5,3 +5,28 @@ __pycache__/
 vector_store.zip
 nvector_store/
 .claude/
+
+# IDE / agent local state
+.vscode/
+.idea/
+
+# Python build / cache
+*.pyo
+.pytest_cache/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Secrets / env (template exempted)
+.env.local
+.env.production
+!.env.example
+
+# Logs / runtime artifacts
+*.log
+
+# Diagnostic outputs
+30q_*.txt
+v3_diff.txt
