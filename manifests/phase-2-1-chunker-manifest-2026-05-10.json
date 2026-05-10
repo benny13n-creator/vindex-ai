@@ -1,0 +1,67 @@
+{
+  "phase": "2.1",
+  "run_at": "2026-05-10T20:14:54.877323+00:00",
+  "branch": "feature/p2-1-uploaded-doc-chunker",
+  "fixtures": [
+    {
+      "source_filename": "sample_ugovor_o_radu.txt",
+      "source_format": "txt",
+      "source_sha256": "bbca3e56e3fa8950e158569dcc75060a044dd0ae03bd67acc72b42f165299f54",
+      "is_scanned": false,
+      "total_chunks": 9,
+      "chunk_mode_used": "article_aware",
+      "article_labels_detected": [
+        "Član 1",
+        "Član 2",
+        "Član 3",
+        "Član 4",
+        "Član 5",
+        "Član 6",
+        "Član 7",
+        "Član 8"
+      ],
+      "token_p10": 260,
+      "token_p50": 306,
+      "token_p90": 379
+    },
+    {
+      "source_filename": "sample_no_articles.txt",
+      "source_format": "txt",
+      "source_sha256": "d5522bb05cdf99de5abea1d81f062f3d7121f7d8bf87a418b463e131b4d713e2",
+      "is_scanned": false,
+      "total_chunks": 3,
+      "chunk_mode_used": "recursive",
+      "article_labels_detected": [],
+      "token_p10": 408,
+      "token_p50": 408,
+      "token_p90": 420
+    },
+    {
+      "source_filename": "sample_ugovor.docx",
+      "source_format": "docx",
+      "source_sha256": "8fdcd259ecba15a6c98d195b77254a5205a1e0229dff91b0f628105157886def",
+      "is_scanned": false,
+      "total_chunks": 9,
+      "chunk_mode_used": "article_aware",
+      "article_labels_detected": [
+        "Član 1",
+        "Član 2",
+        "Član 3",
+        "Član 4",
+        "Član 5",
+        "Član 6",
+        "Član 7",
+        "Član 8"
+      ],
+      "token_p10": 260,
+      "token_p50": 306,
+      "token_p90": 379
+    }
+  ],
+  "test_results": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0
+  },
+  "schema_validation": "3/3"
+}
