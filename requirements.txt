@@ -7,3 +7,4 @@ pinecone
 slowapi
 supabase
 python-jose[cryptography]
+python-docx
