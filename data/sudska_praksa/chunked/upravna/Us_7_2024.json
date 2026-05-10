@@ -1,0 +1,151 @@
+{
+  "decision_id": "Us_7_2024",
+  "decision_number": "Us 7/2024",
+  "matter": "Upravna",
+  "court": "Vrhovni sud",
+  "decision_date": "2024-12-20",
+  "registrant": "Us",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/us-72024-3202-upravno-pravo",
+  "chunked_at": "2026-05-10T12:29:46.662047+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 4278,
+  "raw_token_count": 1551,
+  "chunks": [
+    {
+      "chunk_id": "Us_7_2024__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nUs 7/2024\n20.12.2024. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Jelene Ivanović, predsednika veća, Branislava Bosiljkovića i Branka Stanića, članova veća, sa savetnikom Gordanom Vojinović, kao zapisničarem, rešavajući sukob nadležnosti između Upravnog suda i Osnovnog suda u Zaječaru, po tužbi tužioca AA iz ..., protiv tuženog Društva pedagoga tehničke kulture Srbije iz Šapca, ul. Karađorđeva 48, u predmetu poništaja pravilnika, u nejavnoj sednici veća održanoj dana 20.12.2024. godine, doneo je",
+      "token_count": 242,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 7/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-72024-3202-upravno-pravo",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "20",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Us_7_2024__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "Za postupanje u ovoj pravnoj stvari stvarno je NADLEŽAN Osnovni sud u Zaječaru.",
+      "token_count": 36,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 7/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-72024-3202-upravno-pravo",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "20",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Us_7_2024__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Upravni sud je podneo zahtev za rešavanje sukoba nadležnosti sa Osnovnim sudom u Zaječaru koji se rešenjem 19 P 275/24 od 12.02.2024. godine oglasio stvarno nenadležnim za postupanje po tužbi tužioca AA iz ..., protiv tuženog Društva pedagoga tehničke kulture Srbije iz Šapca, podnete radi poništaja Pravilnika i propozicija za takmičenje tehnika i tehnologija za školsku 2022/2023 godinu, i odlučio da se po pravnosnažnosti rešenja spisi predmeta dostave Upravnom sudu kao stvarno nadležnom. Rešavajući nastali sukob nadležnosti u smislu odredbe člana 32. stav 2. Zakona o uređenju sudova (\"Službeni glasnik RS\" br.10/23), Vrhovni sud je našao da je za postupanje u ovom predmetu stvarno nadležan Osnovni sud u Zaječaru na osnovu odredbi člana 24. stav 2. Zakona o uređenju sudova. Odredbom člana 24. stav 2. Zakona o uređenju sudova, propisano je da osnovni sud u prvom stepenu sudi u građanskopravnim sporovima ako za pojedini građanskopravni spor nije nadležan drugi sud i vodi izvršni i vanparnični postupak, osim ako zakonom nije drukčije propisano, a stavom 3. da osnovni sud u prvom stepenu sudi u stambenom sporu; sporu povodom zasnivanja, postojanja i prestanka radnog odnosa; o pravu, obavezi i odgovornosti iz radnog odnosa; o naknadi štete koju zaposleni pretrpi na radu ili u vezi sa radom; sporu povodom zadovoljavanja stambenih potreba na osnovu rada.",
+      "token_count": 539,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 7/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-72024-3202-upravno-pravo",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "20",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Us_7_2024__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "naknadi štete koju zaposleni pretrpi na radu ili u vezi sa radom; sporu povodom zadovoljavanja stambenih potreba na osnovu rada. Odredbom člana 20. stav 1. Zakona o udruženjima (''Službeni glasnik RS'' 51/2009...44/18) propisano je da svaki član udruženja može pokrenuti postupak pred nadležnim osnovnim sudom za utvrđivanje ništavosti opšteg akta udruženja koji je donet suprotno statutu ili drugom opštem aktu udruženja, odnosno za utvrđivanje ništavosti pojedinačnog akta udruženja koji je donet suprotno zakonu, statutu ili drugom opštem aktu udruženja u roku od 15 dana od dana saznanja za akt, a najkasnije u roku od šest meseci od dana donošenja akta. Prema stavu 3. istog člana postupak za utvrđivanje ništavosti akta iz stava 1. ovog člana vodi se prema odredbama zakona kojim se uređuje parnični postupak. Kako se tužbom traži poništaj Pravilnika i propozicija za takmičenje tehnika i tehnologija za školsku 2022/2023 godinu Društva pedagoga tehničke kulture Srbije iz Šapca koje je registrovano kao udruženje, to je po nalaženju Vrhovnog suda, saglasno citiranim propisima, za postupanje u ovom predmetu stvarno nadležan Osnovni sud u Zaječaru čija je mesna nadležnost određena rešenjem Vrhovnog suda R1 333/2023 od 29.06.2023. godine. Sa iznetih razloga, Vrhovni sud je na osnovu odredbe člana 32. stav 2. Zakona o uređenju sudova, rešio kao u dispozitivu ovog rešenja. REŠENO U VRHOVNOM SUDU",
+      "token_count": 582,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 7/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-72024-3202-upravno-pravo",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "20",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Us_7_2024__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "člana 32. stav 2. Zakona o uređenju sudova, rešio kao u dispozitivu ovog rešenja. REŠENO U VRHOVNOM SUDU Zapisničar,                                                                                                                                                                                                                                                                                                                                                                                                                   Predsednik veća – sudija, Gordana Vojinović, s.r.                                                                                                                                                                                                                                                                                                                                                                                                     Jelena Ivanović, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 224,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 7/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-72024-3202-upravno-pravo",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "20",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,388 @@
+{
+  "decision_id": "Rev_1157_2025",
+  "decision_number": "Rev 1157/2025",
+  "matter": "Građanska",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-25",
+  "registrant": "Rev",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+  "chunked_at": "2026-05-10T12:29:46.346496+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 12,
+  "raw_text_length": 11740,
+  "raw_token_count": 4715,
+  "chunks": [
+    {
+      "chunk_id": "Rev_1157_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 12,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev 1157/2025\n25.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Branke Dražić, predsednika veća, Marine Milanović i Vesne Mastilović, članova veća, u parnici tužilje AA iz ..., čiji je punomoćnik Jasna Kolaković Smiljanić, advokat iz ..., protiv tuženog BB iz ..., čiji je punomoćnik Zoran Janićijević, advokat iz ..., radi sticanja u braku, odlučujući o revizijama parničnih stranaka izjavljenih protiv presude Apelacionog suda u Kragujevcu Gž 1123/24 od 14.10.2024. godine, u sednici održanoj 25.03.2026. godine doneo je",
+      "token_count": 239,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 12,
+      "text": "UKIDA SE presuda Apelacionog suda u Kragujevcu Gž 1123/24 od 14.10.2024. godine i predmet VRAĆA drugostepenom sudu na ponovno suđenje.",
+      "token_count": 59,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 12,
+      "text": "Presudom Višeg suda u Novom Pazaru P 41/23 od 20.02.2024. godine, stavom prvim izreke, usvojen je tužbeni zahtev, pa je obavezan tuženi da tužilji po osnovu sticanja u braku sa tuženim na ime tržišne protivvrednosti ½ porušenog stambeno – poslovnog objekta sa pripadajućim zemljištem koji se nalazio na kp. br. ... KO ... u ulici ... broj ..., spratnosti prizemlje i dva sprata isplati 7.853.833,90 dinara sa zakonskom zateznom kamatom od 19.12.2023. godine do konačne isplate i obavezan tuženi da tužilji naknadi troškove postupka od 1.336.000,00 dinara. Presudom Apelacionog suda u Kragujevcu Gž 1123/24 od 14.10.2024. godine, stavom prvim izreke, ukinuta je presuda Višeg suda u Novom Pazaru P 41/23 od 20.02.2024. godine. Stavom drugim izreke, obavezan je tuženi da tužilji po osnovu sticanja u braku na ime tržišne protivvrednosti ½ porušenog stambeno – poslovnog objekta sa pripadajućim zemljištem koji se nalazio na kp. br. ... KO ... u ulici ... broj ..., spratnosti prizemlje i dva sprata isplati 4.718.300,35 dinara sa zakonskom zateznom kamatom počev od 01.04.2024. godine do isplate. Stavom trećim izreke, odbijen je tužbeni zahtev preko dosuđenog iznosa od 4.718.300,35 dinara za još 3.145.533,50 dinara sa zakonskom zateznom kamatom počev od 19.12.2023. godine do isplate, kao i da joj na iznos od 4.718.300,35 dinara isplati zakonsku zateznu kamatu počev od 19.12.2023. godine do 01.04.2024. godine, kao neosnovan.",
+      "token_count": 597,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 12,
+      "text": ".300,35 dinara isplati zakonsku zateznu kamatu počev od 19.12.2023. godine do 01.04.2024. godine, kao neosnovan. Stavom četvrtim izreke, obavezan je tuženi da tužilji na ime naknade troškova parničnog postupka isplati 881.570,00 dinara. Protiv pravnosnažne presude donete u drugom stepenu parnične stranke su blagovremeno izjavile revizije, tužilja zbog pogrešno i nepotpuno utvrđenog činjeničnog stanja i pogrešne primene materijalnog prava, a tuženi zbog bitne povrede odredaba parničnog postupka i pogrešne primene materijalnog prava. Ispitujući pobijanu presudu u smislu odredbe člana 408. ZPP, Vrhovni sud je našao da su revizije parničnih stranaka osnovane. Prema utvrđenom činjeničnom stanju, tužilja i tuženi su bili u bračnoj zajednici od 04.09.1995. godine do 24.08.2016. godine. Ubrzo nakon sklapanja braka otišli su u ..., i živeli od 1996. godine do 2002. godine, gde je rođeno njihovo troje dece, s tim što su od aprila 2000. godine do aprila 2001. godine boravili u ... . Za vreme boravka u ... tuženi je bio zaposlen kao ..., tužilja je brinula o deci i domaćinstvu i novčano doprinosila prodajom svojih ..., te su nakon plaćenih troškova života mogli da uštede najmanje 1.000 DM, a kasnije 1.000 evra mesečno. Nakon povratka iz ... 2002.",
+      "token_count": 510,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 12,
+      "text": "ih troškova života mogli da uštede najmanje 1.000 DM, a kasnije 1.000 evra mesečno. Nakon povratka iz ... 2002. godine stranke su živele u kući oca tuženog u porodičnoj zajednici sa njim, majkom i bratom tuženog, zajednički su se hranili, a troškove ishrane i komunalije snosio je uglavnom tuženi, koji je povremeno i dalje odlazio na rad u ..., dok su njegovi roditelji imali minimalne poljoprivredne penzije, a brat je počeo da radi tek 2007. godine. Domaćinstvo su zajedno održavale tužilja i majka tuženog. U toku 2004. godine po želji oca tuženog postignut je dogovor da se na parceli koja se nalazi u isključivoj svojini oca tuženog izgradi kuća za potrebe parničnih stranaka u kojoj bi oni živeli, sa čim su se saglasila i ostala braća i sestre tuženog koji nisu živeli u porodičnoj zajednici. Sva dokumentacija je glasila na oca tuženog, kao vlasnika parcele, gradnja objekta je započeta 2005. godine, a parnične stranke su se sa decom uselile 2008. godine. Objekat se sastojao od prizemenog dela u kome su bili lokal, garaža i dva sprata, s tim što je u vreme kada su stranke uselile bio dovršen prvi sprat u kome su živele. Izgradnja objekta finansirana je najvećim delom novcem koji su stranke zaradile dok su živele u ..., kao i od novca koji je tuženi zarađivao povremenim i daljim odlaskom na rad u ... . Kuća se sastojala od prizemlja u kome je bio lokal i garaža, prvog sprata koji je bio opremljen i potkrovlja koje nije bilo potpuno opremljeno.",
+      "token_count": 571,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 12,
+      "text": "ojala od prizemlja u kome je bio lokal i garaža, prvog sprata koji je bio opremljen i potkrovlja koje nije bilo potpuno opremljeno. Za izgradnju i opremanje objekta dato je između 80.000,00 i 90.000,00 evra. Nakon smrti oca tužioca ...2011. godine na njegovoj zaostavštini, koju je između ostalog činilo i pravo svojine na kp br. ... KO ..., ukupne površine 0.03.09ha, sa udelom od 1/1 na kojoj su stranke izgradile predmetni objekat, oglašeni su na osnovu zakona supruga ostavioca majka tuženog, tuženi i još petoro dece ostavioca sa 1/7 idealnog dela. Iza smrti majke tuženog koja je preminula ...2013. godine za zakonske naslednike na 1/7 nepokretnosti za naslednike na po 1/3 oglašena njena tri sina, između ostalog i tuženi. Ugovorom o deobi od 02.09.2016. godine između naslednika pokojnog oca tuženog izvršena je deoba nasleđene imovine, pa je tužiocu pripao deo kp. br. ... upisan u LN ... KO ..., površine 1ar i 94m2, sa udelom od 194/309, sa pravom korišćenja i objekat u izgradnji površine 74m2, spratnosti P+1 kp. br. .... koji nije upisan u LN. Tužilja se iz objekta u kome je živela sa tuženim i decom iselila 20.04.2018. godine od kada živi kod svojih roditelja. Tuženi je sa investitorom zaključio ugovor o sufinansiranju i izgradnji objekta i sticanju svojine na nepokretnostima od 14.11.2018. godine, nakon čega je izvođač radova izveo radove na rušenju objekta koji je sagrađen u toku trajanja",
+      "token_count": 580,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_6",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 6,
+      "chunk_total": 12,
+      "text": "ostima od 14.11.2018. godine, nakon čega je izvođač radova izveo radove na rušenju objekta koji je sagrađen u toku trajanja porodične zajednice stranaka, roditelja tuženog i njegovog brata i započeo izgradnju stambeno – poslovne zgrade koja je u međuvremenu u celosti izgrađena, a tuženi prema sporazumu o deobi i uređenju načina korišćenja nepokretnosti 23.12.2019. godine koji je zaključio sa suinvestitorom, u svojinu dobio stanove broj ..., broj ..., broj ... i broj ..., poslovni prostor broj ... i jedno garažno mesto broj ... sa udelom 1/1. Polovina tržišne vrednosti porušenog stambenog objekta koji je građen u toku porodične zajednice stranaka i roditelja tuženog i njegovog brata zajedno sa delom parcele ispod objekta i koji je neophodan za redovnu upotrebu objekta iznosi 7.863.833,85 dinara uz učešće zemljišta ispod objekta i u delu koji je neophodan za redovno korišćenje 45%, tako da polovina tržišne vrednosti samog objekta je 4.718.300,35 dinara.",
+      "token_count": 382,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 6,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_7",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 7,
+      "chunk_total": 12,
+      "text": "u koji je neophodan za redovno korišćenje 45%, tako da polovina tržišne vrednosti samog objekta je 4.718.300,35 dinara. Po nalaženju drugostepenog suda (koji je ukinuo prvostepenu presudu i odlučio o tužbenom zahtevu) kako je porušeni objekat izgrađen u toku trajanja porodične zajednice stranaka, roditelja tuženog i njegovog brata na parceli koja je predstavljala svojinu oca tuženog, te kako je postojao dogovor članova porodične zajednice da se navedeni objekat gradi za potrebe parničnih stranaka i njihove dece u koji su uselili i živeli do prestanka porodične zajednice, čija je izgradnja finansirana prevashodno novčanim sredstvima parničnih stranaka, navedeni porušeni stambeni objekat zajedno sa delom parcele na kojoj je sagrađen i delom koji je neophodan za redovnu upotrebu objekta predstavlja zajedničku imovinu parničnih stranaka. Pošto je tuženi nakon prestanka zajednice života u braku otuđio zajedničku imovinu stranaka, to tužilja ima pravo na potraživanje u novcu, ali prema tržišnoj vrednosti objekta i parcele. Prema kriterijumima iz člana 180. stav 3.",
+      "token_count": 415,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 7,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_8",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 8,
+      "chunk_total": 12,
+      "text": "ima pravo na potraživanje u novcu, ali prema tržišnoj vrednosti objekta i parcele. Prema kriterijumima iz člana 180. stav 3. Porodičnog zakona doprinos parničnih stranaka je podjednak, imajući u vidu da je tužena ostvarivala prihode u toku trajanja života stranaka u ..., te kako tržišna vrednost predmetnog porušenog objekta zajedno sa zemljištem ispod objekta za redovnu upotrebu iznosi 40%, ½ od ukupne vrednosti objekta i zemljišta je 7.863.833,90 dinara, to je tuženi u obavezi da tužilji isplati 60% od ovog iznosa, a to je iznos od 4.718.300,35 dinara sa zakonskom zateznom kamatom počev od 04.11.2014. godine, kada se sudski veštak Ranko Ilić konačno izjasnio o tržišnoj vrednosti objekta i pripadajućeg dela parcele. Međutim, ovakav zaključak drugostepenog suda se ne može za sada prihvatiti, jer je zbog pogrešne primene materijalnog prava činjenično stanje pogrešno i nepotpuno utvrđeno.",
+      "token_count": 366,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 8,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_9",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 9,
+      "chunk_total": 12,
+      "text": "uda se ne može za sada prihvatiti, jer je zbog pogrešne primene materijalnog prava činjenično stanje pogrešno i nepotpuno utvrđeno. Članom 177. Porodičnog zakona, deobom zajedničke imovine u smislu ovog zakona smatra se utvrđenje suvlasničkog, odnosno supoverilačkog udela svakog supružnika u zajedničkoj imovini. Deoba zajedničke imovine može se vršiti za vreme trajanja braka i posle njegovog prestanka (član 178.). Supružnici mogu zaključiti sporazum o deobi zajedničke imovine (sporazumna deoba), prema članu 179. stav 1. istog zakona. Članom 180. Zakona, ako supružnici ne mogu da se sporazumeju o deobi zajedničke imovine, deobu zajedničke imovine vrši sud (sudska deoba). Pretpostavlja se da su udeli supružnika o zajedničkoj imovini jednaki (stav 2.) Veći udeo jednog supružnika u sticanju zajedničke imovine zavisi od njegovih ostvarenih prihoda, vođenja poslova u domaćinstvu, staranja o deci, staranja o imovini te drugih okolnosti od značaja za održavanje ili uvećanje vrednosti zajedničke imovine (stav 3.). Veći udeo u sticanju zajedničke imovine utvrđuje se u istoj srazmeri za sva prava i obaveze u trenutku prestanka zajednice života (stav 4.).",
+      "token_count": 468,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 9,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_10",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 10,
+      "chunk_total": 12,
+      "text": "sticanju zajedničke imovine utvrđuje se u istoj srazmeri za sva prava i obaveze u trenutku prestanka zajednice života (stav 4.). U parnici radi deobe zajedničke imovine najpre treba utvrditi ukupnu imovinsku masu koja postoji u trenutku prestanka bračne zajednice, zatim treba utvrditi šta od te imovine predstavlja posebnu imovinu bračnih drugova koja treba da se izdvoji iz ukupne imovinske mase. Sva ona imovina koja ostane nakon izdvajanja posebne imovine predstavlja zajedničku imovinu. Posebnu imovinu sačinjava sve ono što su bračni drugovi imali u vreme zasnivanja bračne zajednice i ono što su stekli za vreme bračne zajednice i na drugi način, a ne radom (nasleđe i poklon). U konkretnom slučaju, s obzirom da je jedan od supružnika nakon prestanka zajednice života u braku otuđio zajedničku imovinu stranaka- objekat, koji je nakon toga i porušen, drugi supružnik- tužilja ima pravo na potraživanje u novcu prema tržišnoj vrednosti objekta.",
+      "token_count": 369,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 10,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_1157_2025__chunk_11",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 11,
+      "chunk_total": 12,
+      "text": "koji je nakon toga i porušen, drugi supružnik- tužilja ima pravo na potraživanje u novcu prema tržišnoj vrednosti objekta. U sprovednom postupku to nije utvrđena vrednost objekta koji predstavlja imovinu stečenu u braku parničnih stranaka. Katastarska parcela na kojoj je sagrađen objekat predstavlja posebnu imovinu tuženog koju je stekao nasleđem i ugovorom o deobi od 02.09.2016. godine. Zbog toga je potrebno utvrditi vrednost porušenog objekta na lokaciji koja je po nalazu veštaka atraktivna, jer se nalazi u centru ..., ali ne i vrednost katastarske parcele ispod objekta i koji je neophodan za redovnu upotrebu, jer tužilja ne traži pravo svijine na objektu stečenom u braku da bi imala pravo i na zemljište koje se nalazi ispod i koje je neophodno za redovnu upotrebu objekta. Nije utvrđen ni doprinos tužilje u sticanju zajedničke imovine, imajući u vidu navode drugostepenog suda da je u smislu odredbe člana 180. stav 3. Porodičnog zakona da doprinos tužilje u sticanju zajedničke imovine podjednak doprinosu tuženog, ali da tužinji pripada 60% od iznosa utvrđenog u toku postupka. Sa iznetih razloga, ukinuta je drugostepena presuda i predmet vraćen tom sudu na ponovno suđenje na osnovu člana 416. stav 2. ZPP u vezi člana 383. stav 4. ZPP. Ukinuta je i odluka o troškovima parničnog postupka, jer zavisi od odluke o glavnoj stvari. Predsednik veća - sudija Branka Dražić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 582,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 1157/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-11572025-314173",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 11,
+        "chunk_total": 12,
+        "cited_articles_raw": [
+          "177",
+          "178",
+          "179",
+          "180",
+          "383",
+          "408",
+          "416"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

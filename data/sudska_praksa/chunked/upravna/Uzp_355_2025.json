@@ -1,0 +1,146 @@
+{
+  "decision_id": "Uzp_355_2025",
+  "decision_number": "Uzp 355/2025",
+  "matter": "Upravna",
+  "court": "Vrhovni sud",
+  "decision_date": "2025-12-16",
+  "registrant": "Uzp",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3552025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+  "chunked_at": "2026-05-10T12:29:46.866819+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 3596,
+  "raw_token_count": 1511,
+  "chunks": [
+    {
+      "chunk_id": "Uzp_355_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nUzp 355/2025\n16.12.2025. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Jelene Ivanović, predsednika veća, Željka Škorića i Vesne Subić, članova veća, sa savetnikom Mirelom Kostadinović, kao zapisničarem, rešavajući o zahtevu AA, iz .., ..., čiji je punomoćnik Tatjana Radenović, advokat iz ..., ... .../..., za preispitivanje sudske odluke – presude Upravnog suda 2 U 8218/21 od 17.10.2025. godine, u predmetu utvrđivanja prava, u nejavnoj sednici veća održanoj dana 16.12.2025. godine, doneo je",
+      "token_count": 240,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 355/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3552025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_355_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "Zahtev se ODBACUJE.",
+      "token_count": 11,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 355/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3552025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_355_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "AA iz ... je podneo Vrhovnom sudu, preko punomoćnika, zahtev za preispitivanje sudske odluke - presude Upravnog suda 2 U 8218/21 od 17.10.2025. godine, kojom je, stavom prvim dispozitiva, odbijena njegova tužba podneta radi poništaja rešenja Ministarstva za rad, zapošljavanje, boračka i socijalna pitanja, Sektora za rad i zapošljavanje broj 164-03-50/2019-02 od 19.03.2021. godine, a stavom drugim izreke, odbijen zahtev tužioca za naknadu troškova upravnog spora. Rešenjem Ministarstva za rad, zapošljavanje, boračka i socijalna pitanja, Sektora za rad i zapošljavanje broj 164-03-50/2019-02 od 19.03.2021. godine odbijena je, kao neosnovana, žalba tužioca izjavljena na rešenje Fonda solidarnosti broj F- 17-00-172/2019-02 od 21.05.2019. godine i odbijen njegov zahtev za naknadu troškova postupka. Navedenim ožalbenim rešenjem od 21.05.2019. godine, odbijen je kao neosnovan zahtev tužioca za isplatu zarade ostvarene u „Projektovanje mašina i mašinskih postrojenja“ doo Jagodina iz sredstava Fonda solidarnosti. U postupku prethodnog ispitivanja podnetog zahteva, Vrhovni sud je našao da je zahtev nedozvoljen.",
+      "token_count": 471,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 355/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3552025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_355_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "iz sredstava Fonda solidarnosti. U postupku prethodnog ispitivanja podnetog zahteva, Vrhovni sud je našao da je zahtev nedozvoljen. Odredbom člana 49. stav 1. Zakona o upravnim sporovima („Službeni glasnik RS“, broj 111/09), propisano je da protiv pravnosnažne odluke Upravnog suda stranka i nadležni javni tužilac mogu da podnesu Vrhovnom sudu zahtev za preispitivanje sudske odluke. Stavom 2. istog člana je propisano da zahtev može da se podnese kada je to zakonom predviđeno, u slučajevima kada je sud odlučivao u punoj jurisdikciji i u stvarima u kojima je u upravnom postupku bila isključena žalba, a stavom 3. da zahtev može da se podnese zbog povrede zakona, drugog propisa ili opšteg akta ili povrede pravila postupka koja je mogla biti od uticaja na rešenje stvari. Iz pobijane presude i navoda zahteva proizlazi da je pre donošenja te presude vođen upravni postupak u kome je podnosilac ovog zahteva izjavio žalbu protiv rešenja prvostepenog organa o kojoj je odlučeno osporenim rešenjem, a čija zakonitost je ocenjena pobijanom presudom Upravnog suda, zbog čega nisu ispunjeni procesni uslovi propisani citiranim stavom 2. člana 49. Zakona o upravnim sporovima za podnošenje ovog vanrednog pravnog sredstva, jer zahtev za preispitivanje sudske odluke nije predviđen zakonom u ovoj upravnoj stvari, Upravni sud nije odlučivao u punoj jurisdikciji i u upravnom postupku nije bila isključena žalba.",
+      "token_count": 560,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 355/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3552025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_355_2025__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "j upravnoj stvari, Upravni sud nije odlučivao u punoj jurisdikciji i u upravnom postupku nije bila isključena žalba. Odredbom člana 53. stav 1. Zakona o upravnim sporovima je propisano da će nedozvoljen ili neblagovremen zahtev ili zahtev koji je podnelo neovlašćeno lice Vrhovni sud odbaciti rešenjem. Sa iznetih razloga, nalazeći da je podneti zahtev nedozvoljen, Vrhovni sud je na osnovu odredbe člana 53. stav 1. Zakona o upravnim sporovima odlučio kao u dispozitivu rešenja. REŠENO U VRHOVNOM SUDU dana 16.12.2025. godine, Uzp 355/2025 Zapisničar, Predsednik veća – sudija, Mirela Kostadinović, s.r. Jelena Ivanović, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 301,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 355/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3552025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

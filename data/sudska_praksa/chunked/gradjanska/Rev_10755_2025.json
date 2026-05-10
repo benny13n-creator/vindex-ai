@@ -1,0 +1,212 @@
+{
+  "decision_id": "Rev_10755_2025",
+  "decision_number": "Rev 10755/2025",
+  "matter": "Građanska",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-26",
+  "registrant": "Rev",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev-107552025-31912613",
+  "chunked_at": "2026-05-10T12:29:46.310063+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 7,
+  "raw_text_length": 6918,
+  "raw_token_count": 2826,
+  "chunks": [
+    {
+      "chunk_id": "Rev_10755_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 7,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev 10755/2025\n26.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Ivane Rađenović, predsednika veća, Vladislave Milićević i Vesne Mastilović, članova veća, u parnici tužilje AA iz ..., čiji je punomoćnik Vojkan Vojinović, advokat iz ..., protiv tuženog BB iz ..., čiji je punomoćnik Radmila Vučković, advokat iz ..., radi utvrđenja prava svojine po tužbi i radi duga po protivtužbi, odlučujući o reviziji tužilje izjavljenoj protiv presude Apelacionog suda u Nišu Gž 3967/23 od 20.11.2024. godine, u sednici održanoj 26.03.2026. godine, doneo je",
+      "token_count": 256,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 10755/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-26",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-107552025-31912613",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "28",
+          "403",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_10755_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 7,
+      "text": "ODBACUJE SE kao nedozvoljena revizija tužilje izjavljena protiv presude Apelacionog suda u Nišu Gž 3967/23 od 20.11.2024. godine.",
+      "token_count": 55,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 10755/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-26",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-107552025-31912613",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "28",
+          "403",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_10755_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 7,
+      "text": "Presudom Osnovnog suda u Nišu P 682/2021 od 06.04.2023. godine, stavom prvim izreke, usvojen je tužbeni zahtev i utvrđeno je da je tužilja suvlasnik sa udelom od ½ na klima uređaju, bliže navedenom u ovom stavu izreke, što je tuženi dužan da prizna i trpi i preda joj sudržavinu. Stavom drugim izreke, tuženi je obavezan da tužilji isplati 9.750 evra sa kamatom po stopi koju propisuje Evropska centralna banka od 30.07.2010. godine do isplate, na ime ½ kredita dobijenog od „UniCredit Bank“ AD Beograd po ugovoru o kreditu za kupovnu nepokretnosti od 22.07.2010. godine, dok je odbijen tužbeni zahtev za razliku od dosuđenih 9.750 evra do traženih 10.000 evra sa kamatom po stopi koju propisuje Evropska centralna banka od 30.07.2010. godine do isplate. Stavom trećim izreke tuženi je obavezan da tužilji isplati ukupno 813.663,00 dinara sa zakonskom zateznom kamatom na pojedinačne iznose, a na ime ½ duga po ugovorima o kreditu kod „UniCredit Bank“ AD Beograd, sve bliže navedeno u ovom stavu izreke. Stavom četvrtim izreke, tužilja je obavezana da tuženom isplati 106.205,79 dinara sa zakonskom zateznom kamatom od 16.07.2013. godine do isplate, na ime ½ iznosa isplaćenog od strane tuženog u periodu od 16.05.2012. godine do 15.07.2013. godine, po osnovu otplate kredita podignutog kod „UniCredit Bank“ AD Beograd po ugovoru od 30.07.2010. godine. Stavom petim izreke, tužilja je obavezana da tuženom isplati 75.131,23 dinara sa zakonskom zateznom kamatom od 01.01.2014.",
+      "token_count": 600,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 10755/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-26",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-107552025-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "28",
+          "403",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_10755_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 7,
+      "text": "om petim izreke, tužilja je obavezana da tuženom isplati 75.131,23 dinara sa zakonskom zateznom kamatom od 01.01.2014. godine do isplate, na ime ½ iznosa isplaćenog od strane tuženog u periodu od 12.05.2012. godine do 15.07.2013. godine, po osnovu otplate kredita podignutog kod „Privredna banka“ AD Beograd, čiji je pravni sledbenik „Poštanska štedionica“ AD Beograd, dok je odbijen tužbeni zahtev u delu preko dosuđenih 75.131,23 dinara do traženih 76.101,23 dinara sa zakonskom zateznom kamatom od 01.01.2014. godine do isplate. Stavom šestim izreke, tužilja je obavezana da tuženom isplati 28.986,00 dinara sa zakonskom zateznom kamatom od 16.08.2019. godine do isplate, kao ½ iznosa isplaćenog od strane tuženog na ime odloženog dugovanog poreza i redovnog poreskog zaduženja za stan u ..., ul. ... br. .../... . Stavom sedmim izreke, tužilja je obavezana da tužiocu isplati 45.497,07 dinara sa zakonskom zateznom kamatom od 06.04.2023. godine do isplate, kao ½ vrednosti pokretnih stvari bliže navedenih u ovom stavu izreke. Stavom osmim izreke, odbijen je protivtužbeni zahtev tuženog kojim je tražio da se tužilja obaveže da mu na iznos od 45.497,07 dinara isplati zakonsku zateznu kamatu od 07.12.2022. godine do 06.04.2023. godine, dok je odbačena protivtužba u delu kojim je tuženi tražio da se tužilja obaveže da mu na ime ½ vrednosti TV marke „...“ isplati 6.500,00 dinara sa zakonskom zateznom kamatom od 07.12.2022. godine do isplate.",
+      "token_count": 596,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 10755/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-26",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-107552025-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "28",
+          "403",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_10755_2025__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 7,
+      "text": "mu na ime ½ vrednosti TV marke „...“ isplati 6.500,00 dinara sa zakonskom zateznom kamatom od 07.12.2022. godine do isplate. Stavom devetim izreke, odlučeno je da svaka stranka snosi svoje troškove postupka. Presudom Apelacionog suda u Nišu Gž 3967/23 od 20.11.2024. godine, stavom prvim izreke, odbijena je žalba tuženog i potvrđena prvostepena presuda u delu stava trećeg izreke kojim je odlučeno o glavnom potraživanju, u odbijajućem delu stava petog i u stavovima osmom i devetom izreke. Stavom drugim izreke, preinačena je prvostepena presuda u stavu prvom, u usvajajućem delu stava drugog i u delu stava trećeg izreke, koji se odnosi na dosuđenu zakonsku zateznu kamatu, tako što je odbijen tužbeni zahtev kojim je tužilja tražila da se utvrdi da ima pravo susvojine sa udelom od ½ na klima uređaju, bliže navedenom u ovom stavu izreke, što bi tuženi bio dužan da prizna i preda joj u sudržavinu, da se tuženi obaveže da joj isplati 9.750 evra sa kamatom po stopi koju propisuje Evropska centralna banka od 30.07.2010. godine do isplate, na ime ½ kredita dobijenog od „UniCredit Bank“ AD Beograd po ugovoru o kreditu za kupovnu nepokretnosti od 22.07.2010. godine i tuženi je obavezan da tužilji isplati na dosuđene iznose iz stava trećeg izreke prvostepene presude zakonsku zateznu kamatu na način bliže naveden u ovom stavu izreke, dok je odbijen tužbeni zahtev da se tuženi obaveže da joj isplati zakonsku zateznu kamatu na iznos od 700.898,00 dinara za period od 10.09.2014.",
+      "token_count": 596,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 10755/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-26",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-107552025-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "28",
+          "403",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_10755_2025__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 7,
+      "text": "i zahtev da se tuženi obaveže da joj isplati zakonsku zateznu kamatu na iznos od 700.898,00 dinara za period od 10.09.2014. godine do 24.05.2020. godine i na iznos od 112.765,00 dinara za period od 10.10.2012. godine do 24.05.2020. godine. Stavom trećim izreke, odbačena je kao neblagovremena žalba tužilje od 10.06.2023. godine izjavljena protiv stava petog izreke prvostepene presude. Stavom četvrtim izreke, tužilja je obavzana da tuženom naknadi troškove drugostepenog postupka od 131.530,00 dinara. Protiv pravnosnažne presude donete u drugom stepenu tužilja je blagovremeno izjavila reviziju, zbog pogrešne primene materijalnog prava, pobijajući je u delu odluke o kamati na iznos glavnog duga, u smislu odredbe člana 403. stav 2. tačka 2. ZPP. Ispitujući dozvoljenost revizije, u smislu člana 410. stav 2. tačka 5. ZPP, Vrhovni sud je našao da revizija nije dozvoljena. Odredbom člana 403. stav 3. ZPP, propisano je da revizija nije dozvoljena u imovinsko pravnim sporovima ako vrednost predmeta spora pobijanog dela ne prelazi dinarsku protivvrednost 40.000 evra po srednjem kursu Narodne banke Srbije na dan podnošenja tužbe.",
+      "token_count": 467,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 10755/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-26",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-107552025-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "28",
+          "403",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_10755_2025__chunk_6",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 6,
+      "chunk_total": 7,
+      "text": "ora pobijanog dela ne prelazi dinarsku protivvrednost 40.000 evra po srednjem kursu Narodne banke Srbije na dan podnošenja tužbe. Odredbom člana 28. Zakona o parničnom postupku propisano je da ako je za utvrđivanje stvarne nadležnosti, prava na izjavljivanje revizije i u drugim slučajevima propisanim u ovom zakonu merodavna vrednost predmeta spora, kao vrednost predmeta spora uzima se samo vrednost glavnog zahteva (stav 1), da kamate, ugovorna kazna i ostala sporedna traženja, kao i troškovi postupka ne uzimaju se u obzir ako ne čine glavni zahtev (stav 2). U konkretnom slučaju, revizija je izjavljena protiv odluke u delu kojim je odlučeno o kamati na glavni dug (periodu za koji teče kamata), dakle protiv dela presude kojim je odlučeno o sporednom traženju tužilje, koje ne čini njeno glavno potraživanje, to i revizija nije dozvoljena. Na osnovu iznetog, primenom člana 413. u vezi člana 410. stav 2. tačka 5. ZPP, Vrhovni sud je odlučio kao u izreci. Predsednik veća – sudija Ivana Rađenović, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 429,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 10755/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-26",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-107552025-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 6,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "28",
+          "403",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

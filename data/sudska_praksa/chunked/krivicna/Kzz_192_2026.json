@@ -1,0 +1,208 @@
+{
+  "decision_id": "Kzz_192_2026",
+  "decision_number": "Kzz 192/2026",
+  "matter": "Krivična",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-02-24",
+  "registrant": "Kzz",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1922026-24121239",
+  "chunked_at": "2026-05-10T12:29:45.889439+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 6,
+  "raw_text_length": 5041,
+  "raw_token_count": 2092,
+  "chunks": [
+    {
+      "chunk_id": "Kzz_192_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 6,
+      "text": "Republika Srbija\nVRHOVNI SUD\nKzz 192/2026\n24.02.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Miroljuba Tomića, predsednika veća, Tatjane Vuković, Slobodana Velisavljevića, Jasmine Vasović i Svetlane Tomić Jokić, članova veća, sa savetnikom Mašom Denić, kao zapisničarem, u krivičnom predmetu okrivljenog AA, zbog krivičnog dela nedozvoljena proizvodnja, držanje, nošenje i promet oružja i eksplozivnih materija iz člana 348. stav 4. u vezi stava 1. Krivičnog zakonika, odlučujući o zahtevu za zaštitu zakonitosti branioca okrivljenog AA, advokata Tatomira Lekovića, podnetom protiv pravnosnažnih presuda Višeg suda u Novom Pazaru K 12/25 od 26.09.2025. godine i Apelacionog suda u Kragujevcu Kž1 614/25 od 09.12.2025. godine, u sednici veća održanoj dana 24.02.2026. godine, doneo je",
+      "token_count": 356,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 192/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-24",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1922026-24121239",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "71",
+          "74",
+          "348",
+          "438",
+          "439",
+          "441",
+          "485",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_192_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 6,
+      "text": "ODBACUJE SE kao neblagovremen, zahtev za zaštitu zakonitosti branioca okrivljenog AA, advokata Tatomira Lekovića, podnet protiv pravnosnažnih presuda Višeg suda u Novom Pazaru K 12/25 od 26.09.2025. godine i Apelacionog suda u Kragujevcu Kž1 614/25 od 09.12.2025. godine.",
+      "token_count": 116,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 192/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-24",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1922026-24121239",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "71",
+          "74",
+          "348",
+          "438",
+          "439",
+          "441",
+          "485",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_192_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 6,
+      "text": "Presudom Višeg suda u Novom Pazaru K 12/25 od 26.09.2025. godine okrivljeni AA oglašen je krivim zbog krivičnog dela nedozvoljena proizvodnja, držanje, nošenje i promet oružja i eksplozivnih materija iz člana 348. stav 4. u vezi stava 1. KZ i osuđen je na kaznu zatvora u trajanju od sedam godina i jednog meseca, u koju kaznu mu je uračunato vreme provedeno u pritvoru od 19.07.2024. godine do 09.01.2025. godine. Istom presudom okrivljeni je obavezan da na ime sudskog paušala plati sudu iznos od 20.000,00 dinara, u roku do 15 dana od pravnosnažnosti presude, pod pretnjom prinudnog izvršenja, kao i troškove krivičnog postupka, o čijoj visini će sud doneti posebno rešenje. Presudom Apelacionog suda u Kragujevcu Kž1 614/25 od 09.12.2025. godine, delimičnim usvajanjem žalbi okrivljenog AA i njegovog branioca, preinačena je presuda Višeg suda u Novom Pazaru K 12/25 od 26.09.2025. godine, samo u pogledu odluke o kazni, tako što je Apelacioni sud u Kragujevcu, okrivljenog AA, zbog krivičnog dela nedozvoljena proizvodnja, držanje, nošenje",
+      "token_count": 438,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 192/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-24",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1922026-24121239",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "71",
+          "74",
+          "348",
+          "438",
+          "439",
+          "441",
+          "485",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_192_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 6,
+      "text": ", tako što je Apelacioni sud u Kragujevcu, okrivljenog AA, zbog krivičnog dela nedozvoljena proizvodnja, držanje, nošenje i promet oružja i eksplozivnih materija iz člana 348. stav 4. u vezi stava 1. KZ, za koje je izrekom prvostepene presude oglašen krivim, osudio na kaznu zatvora u trajanju od dve godine i šest meseci, u koju kaznu mu je uračunato vreme provedeno u ekstradicionom pritvoru od 25.04.2024. godine do 19.07.2024. godine i vreme provedeno u pritovoru od 19.07.2024. godine do 09.01.2025. godine, dok su žalbe okrivljenog i njegovog branioca u preostalom delu odbijene kao neosnovane i prvostepena presuda u nepreinačenom delu potvrđena. Protiv navedenih pravnosnažnih presuda zahtev za zaštitu zakonitosti podneo je branilac okrivljenog AA, advokat Tatomir Leković, zbog povrede zakona, sa predlogom da Vrhovni sud usvoji podneti zahtev, ukine pobijane presude i predmet vrati prvostepenom sudu na ponovno odlučivanje. Vrhovni sud je u sednici veća razmotrio spise predmeta, sa zahtevom za zaštitu zakonitosti branioca okrivljenog AA, pa je našao: Zahtev za zaštitu zakonitosti je neblagovremen. Odredbom člana 487. stav 1. tačka 1) ZKP, propisano je da će Vrhovni sud u sednici veća rešenjem odbaciti zahtev za zaštitu zakonitosti, ako nije podnet u roku iz člana 485. stav 3. i 4. ZKP.",
+      "token_count": 529,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 192/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-24",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1922026-24121239",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "71",
+          "74",
+          "348",
+          "438",
+          "439",
+          "441",
+          "485",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_192_2026__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 6,
+      "text": "nici veća rešenjem odbaciti zahtev za zaštitu zakonitosti, ako nije podnet u roku iz člana 485. stav 3. i 4. ZKP. Odredbom člana 485. stav 4. ZKP, propisano je da zbog povreda tog zakonika (član 74, član 438. stav 1. tačka 1) i 4) i tačka 7) do 10), stav 2. tačka 1), član 439. tačka 1) do 3) i član 441. stav 3. i 4.) učinjenih u prvostepenom postupku i postupku pred žalbenim sudom, okrivljeni može podneti zahtev za zaštitu zakonitosti u roku od 30 dana od dana kada mu je dostavljena pravnosnažna odluka, pod uslovom da je protiv te odluke koristio redovni pravni lek. Ovaj rok važi i računa se isto i za branioca okrivljenog, s obzirom na odredbu člana 71. tačka 5) ZKP, kojom su prava branioca određena i ograničena sadržinom prava okrivljenog. Imajući u vidu citirane zakonske odredbe, te činjenicu da je okrivljeni AA, presudu Apelacionog suda u Kragujevcu Kž1 614/25 od 09.12.2025. godine, prema povratnici u spisima predmeta primio dana 24.12.2025. godine, poslednji dan roka za podnošenje zahteva za zaštitu zakonitosti bio je 23.01.2026. godine (petak). Branilac okrivljenog AA, advokat Tatomir Leković je zahtev za zaštitu zakonitosti podneo dana 05.02.2026. godine, dakle nakon proteka roka od 30 dana koji je propisan odredbom člana 485. stav 4. ZKP, usled čega je Vrhovni sud ocenio zahtev neblagovremenim.",
+      "token_count": 572,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 192/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-24",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1922026-24121239",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "71",
+          "74",
+          "348",
+          "438",
+          "439",
+          "441",
+          "485",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_192_2026__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 6,
+      "text": "ka od 30 dana koji je propisan odredbom člana 485. stav 4. ZKP, usled čega je Vrhovni sud ocenio zahtev neblagovremenim. Iz iznetih razloga, Vrhovni sud je, na osnovu odredbe člana 487. stav 1. tačka 1) ZKP, odlučio kao u izreci ovog rešenja. Zapisničar-savetnik                                                                                            Predsednik veća-sudija Maša Denić,s.r.                                                                                                      Miroljub Tomić,s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 202,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 192/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-24",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1922026-24121239",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "71",
+          "74",
+          "348",
+          "438",
+          "439",
+          "441",
+          "485",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

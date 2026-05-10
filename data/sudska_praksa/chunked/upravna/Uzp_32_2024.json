@@ -1,0 +1,286 @@
+{
+  "decision_id": "Uzp_32_2024",
+  "decision_number": "Uzp 32/2024",
+  "matter": "Upravna",
+  "court": "Vrhovni sud",
+  "decision_date": "2024-10-15",
+  "registrant": "Uzp",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+  "chunked_at": "2026-05-10T12:29:46.802338+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 9,
+  "raw_text_length": 8737,
+  "raw_token_count": 3475,
+  "chunks": [
+    {
+      "chunk_id": "Uzp_32_2024__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 9,
+      "text": "Republika Srbija\nVRHOVNI SUD\nUzp 32/2024\n15.10.2024. godina\nBeograd\nU IME NARODA\nVrhovni sud, u veću sastavljenom od sudija: Jelene Ivanović, predsednika veća, Željka Škorića i Dragane Mirosavljević, članova veća, sa savetnikom Gordanom Vojnović, kao zapisničarem, odlučujući po zahtevu Srpske pravoslavne crkve – Eparhija Bačka – Srpska pravoslavna crkvena opština Subotica iz Subotice, Zmaj Jovina 22, čiji je punomoćnik Uroš Keča, advokat iz ..., ... ..., za preispitivanje sudske odluke – presude Upravnog suda, Odeljenje u Novom Sadu III-10 U 10161/2023 (2018) od 28.11.2023. godine, sa protivnom strankom Agencijom za restituciju - Jedinica za konfesionalnu restituciju, Beograd, Kolarčeva 7, u predmetu vraćanja imovine, u nejavnoj sednici veća održanoj dana 15.10.2024. godine, doneo je",
+      "token_count": 349,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 32/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-10-15",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 9,
+        "cited_articles_raw": [
+          "1",
+          "9",
+          "54",
+          "55",
+          "74",
+          "154"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_32_2024__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 9,
+      "text": "Zahtev se ODBIJA.\nODBIJA SE zahtev podnosioca zahteva za naknadu troškova postupka.",
+      "token_count": 36,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 32/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-10-15",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 9,
+        "cited_articles_raw": [
+          "1",
+          "9",
+          "54",
+          "55",
+          "74",
+          "154"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_32_2024__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 9,
+      "text": "Pobijanom presudom, stavom prvim dispozitiva, odbijena je tužba Srpske pravoslavne crkve - Eparhija Bačka - Srpska pravoslavna crkvena opština Subotica iz Subotice, podneta protiv zaključka Agencije za restituciju - Jedinica za konfesionalnu restituciju, Beograd, broj 46-00-00317/07 od 28.09.2018. godine, a stavom drugim dispozitiva pobijane presude je odbijen zahtev tužioca za naknadu troškova upravnog spora. Navedenim zaključkom od 28.09.2018. godine, odbačen je zahtev Srpske pravoslavne crkvene opštine Subotica - Eparhija Bačka - Srpska pravoslavna crkva, Subotica, za vraćanje nacionalizovane nepokretnosti, i to: stambene zgrade za kolektivno stanovanje u Subotici, ... ..., upisane u list nepokretnosti broj ... KO ... u Subotici, u svojini vlasnika posebnih delova upisanih u V list 2. deo na objektu broj 1 sa zajedničkim obimom udela, koja se sastoji od prizemlja sa tri poslovna prostora, i to: poslovnog prostora ugostiteljstva broj 1, u površini 110 m2, u javnoj svojini Grada Subotica; poslovnog prostora trgovine broj 2, u površini od 53 m2, u svojini „Andeks“ DOO Subotica; poslovnog prostora trgovine broj 3, u površini od 21 m2, u svojini „Andeks“ DOO Subotica i ... sprata na kom se nalaze dva stana, i to: stan broj ..., u površini od 140 m2 u svojini AA i stan broj ..., u površini od 67 m2, u svojini BB, kao i kat. parcele broj .../... u",
+      "token_count": 554,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 32/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-10-15",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 9,
+        "cited_articles_raw": [
+          "1",
+          "9",
+          "54",
+          "55",
+          "74",
+          "154"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_32_2024__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 9,
+      "text": "..., u površini od 140 m2 u svojini AA i stan broj ..., u površini od 67 m2, u svojini BB, kao i kat. parcele broj .../... u površini od 386 m2 na kojoj se zgrada nalazi, upisane u list nepokretnosti broj ... KO ... u Subotici kao gradsko građevinsko zemljište u svojini Republike Srbije i vlasnika posebnih delova upisanih u V list 2. deo na objektu broj 1 sa zajedničkim obimom udela, jer nisu ispunjene zakonske pretpostavke za vođenje postupka. U zahtevu, podnetom zbog povrede pravila postupka od bitnog uticaja na rešenje upravne stvari i povrede zakona, drugog propisa ili opšteg akta, podnosilac zahteva navodi da Zadužbina Ostojić Jovana i Tereze, rođ. Zozuk, predstavlja crkvenu zadužbinu Srpske pravoslavne crkvene opštine Subotica, kojom od osnivanja do danas upravlja Srpska pravoslavna crkvena opština Subotica, te njena imovina od osnivanja predstavlja crkvenu imovinu. Ističe da je pre pokretanja postupka restitucije utvrđeno, te potkrepljeno dostavljenom dokumentacijom u toku postupka pred Agencijom, da je predmetna imovina bila u ranijem vlasništvu crkve podnosioca zahteva i da se ista oduzima od crkve podnosioca zahteva. Ukazuje da je na osnovu Ustava Srpske pravoslavne crkve nepotrebno da on bude i osnivač predmetne zadužbine, pa zaključuje da nema osnovanog razloga da dokazuje svoje pravno sledbeništvo u odnosu na Zadužbinu Ostojić Jovana i Tereze, rođ. Zozuk.",
+      "token_count": 558,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 32/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-10-15",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 9,
+        "cited_articles_raw": [
+          "1",
+          "9",
+          "54",
+          "55",
+          "74",
+          "154"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_32_2024__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 9,
+      "text": "osnovanog razloga da dokazuje svoje pravno sledbeništvo u odnosu na Zadužbinu Ostojić Jovana i Tereze, rođ. Zozuk. Dalje navodi da Upravni sud nije savesno, a neke ključne dokaze koje je on podneo u cilju dokazivanja svoje aktivne legitimacije, nije uopšte cenio, odnosno da nije razumeo unutrašnju organizaciju Srpske pravoslavne crkve – Eparhija Bačka – Srpska pravoslavna crkvena opština Subotica u pogledu upravljanja imovinom u svojini crkvenih zadužbina na njenoj teritoriji. Smatra da mu je pobijanom presudom apsolutno povređeno pravo na imovinu zagarantovano Ustavom RS, jer mu je onemogućeno u celosti nesmetano uživanje svojine i drugih imovinskih prava stečenih na osnovu zakona, a koje pravo mu je oduzeto u javnom interesu utvrđenom na osnovu tada važećih propisa. Predlaže da Vrhovni sud uvaži zahtev i pobijanu presudu preinači ili ukine, a troškove postupka traži. Protivna stranka, Agencija za restituciju - Jedinica za konfesionalnu restituciju, Beograd u odgovoru na zahtev navodi da je pobijana presuda Upravnog suda pravilna i na zakonu zasnovana, pa predlaže da sud zahtev odbije kao neosnovan. Postupajući po podnetom zahtevu i ispitujući pobijanu presudu u granicama zahteva, u smislu člana 54. Zakona o upravnim sporovima („Službeni glasnik RS“, broj 111/09), Vrhovni sud je našao da je zahtev neosnovan. Prema razlozima obrazloženja pobijane presude, koja je doneta u izvršenju presude Vrhovnog kasacionog suda Uzp 347/22 od 28.04.2023.",
+      "token_count": 577,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 32/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-10-15",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 9,
+        "cited_articles_raw": [
+          "1",
+          "9",
+          "54",
+          "55",
+          "74",
+          "154"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_32_2024__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 9,
+      "text": "obrazloženja pobijane presude, koja je doneta u izvršenju presude Vrhovnog kasacionog suda Uzp 347/22 od 28.04.2023. godine, pravilno je, po oceni Upravnog suda, tuženi organ odbacio zahtev tužioca, jer nisu ispunjene zakonske pretpostavke za vođenje postupka. Ovo stoga što je u postupku koji je prethodio donošenju osporenog zaključka, utvrđeno da imovina koja je predmet zahteva za restituciju nije predstavljala imovinu crkve, odnosno verske zajednice, već Zadužbine Ostojić Jovana i Tereze, rođene Zozuk, a tužilac je nakon osnivanja zadužbine stekao pravo upravljanja, a ne i pravo svojine na zadužbinskoj imovini, pa se predmetna imovina ne može smatrati imovinom crkve, odnosno verske zajednice koja može biti predmet restitucije u smislu Zakona o vraćanju (restituciji) imovine crkvama i verskim zajednicama. U odnosu na navode tužbe kojima se ukazuje da je pobijani zaključak donet protivno odredbama Ustava Srpske pravoslavne crkve, ocenjeno je da nisu od uticaja na drugačije rešenje ove upravne stvari, jer Zakonom o vraćanju (restituciji) imovine crkvama i verskim zajednicama, nije predviđeno da se",
+      "token_count": 442,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 32/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-10-15",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 9,
+        "cited_articles_raw": [
+          "1",
+          "9",
+          "54",
+          "55",
+          "74",
+          "154"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_32_2024__chunk_6",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 6,
+      "chunk_total": 9,
+      "text": "čije rešenje ove upravne stvari, jer Zakonom o vraćanju (restituciji) imovine crkvama i verskim zajednicama, nije predviđeno da se kvalifikacija zadužbine vrši prema propisima crkve ili verske zajednice. Pravnu prirodu zadužbine ne opredeljuje to ko je određen za upravitelja zadužbine, već ko je njen osnivač, odnosno čijom imovinom je zadužbina osnovana. Kako je u konkretnom slučaju zadužbina osnovana od strane fizičkih lica, svojstvo ili status upravitelja zadužbine nije od uticaja na samu prirodu zadužbine, pa stoga nisu ispunjeni uslovi za vraćanje imovine koja je predmet zahteva u ovoj pravnoj stvari. Ocenjujući zakonitost pobijane presude Vrhovni sud nalazi da je ta presuda doneta bez povreda pravila postupka i uz pravilnu primenu materijalnog prava na utvrđeno činjenično stanje sadržano u osporenom zaključku. Pobijanom presudom ocenjena su sva pitanja i okolnosti koje su mogle biti od uticaja na zakonitost osporenog zaključka, a obrazloženje pobijane odluke sadrži jasne i određene razloge kojima se sud rukovodio pri oceni zakonitosti osporenog zaključka i u pogledu činjeničnog stanja i u primeni materijalnog prava, koje u svemu prihvata i ovaj sud.",
+      "token_count": 453,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 32/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-10-15",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 6,
+        "chunk_total": 9,
+        "cited_articles_raw": [
+          "1",
+          "9",
+          "54",
+          "55",
+          "74",
+          "154"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_32_2024__chunk_7",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 7,
+      "chunk_total": 9,
+      "text": "eni zakonitosti osporenog zaključka i u pogledu činjeničnog stanja i u primeni materijalnog prava, koje u svemu prihvata i ovaj sud. I prema oceni Vrhovnog suda, način upravljanja imovinom zadužbine ne može promeniti nespornu činjenicu koja u konkretnom slučaju opredeljuje pravnu prirodu zadužbine, a to je da je zadužbina osnovana od strane fizičkog lica iz njegove imovine i da je u momentu oduzimanja imovina čije se vraćanje traži bila u vlasništvu ove zadužbine, a ne crkve ili verske zajednice u smislu odredaba čl. 1. i 6. Zakona o vraćanju (restituciji) imovine crkvama i verskim zajednicama zbog čega ne može biti predmet restitucije po članu 9. ovog zakona. Upravitelj zadužbine nije vlasnik zadužbinske imovine, te ne može polagati ni pravo na vraćanje imovine koja je oduzeta zadužbini. Stoga je Upravni sud zakonitost osporenog zaključka ocenio pravilnom primenom navedenih odredaba Zakona o vraćanju (restituciji) imovine crkvama i verskim zajednicama. Zbog svega iznetog, nalazeći da navodi zahteva nisu od uticaja na ocenu zakonitosti pobijane presude, Vrhovni sud je na osnovu odredbi člana 55. stav 1. Zakona o upravnim sporovima, odlučio kao u stavu prvom dispozitiva presude. Vrhovni sud je u stavu drugom dispozitiva, na osnovu člana 74. Zakona o upravnim sporovima shodnom primenom člana 154. stav 1. Zakona o parničnom postupku („Službeni glasnik RS“, br. 72/11 ... 87/18, 10/23 - drugi zakon), odbio zahtev podnosioca za naknadu troškova postupka.",
+      "token_count": 594,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 32/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-10-15",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 7,
+        "chunk_total": 9,
+        "cited_articles_raw": [
+          "1",
+          "9",
+          "54",
+          "55",
+          "74",
+          "154"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_32_2024__chunk_8",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 8,
+      "chunk_total": 9,
+      "text": "i glasnik RS“, br. 72/11 ... 87/18, 10/23 - drugi zakon), odbio zahtev podnosioca za naknadu troškova postupka. PRESUĐENO U VRHOVNOM SUDU dana 15.10.2024. godine, Uzp  32/2024 Zapisničar                                                                                                                         Predsednik veća – sudija Gordana Vojnović,s.r.                                                                                                    Jelena Ivanović,s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 180,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 32/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-10-15",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-322024-41271",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 8,
+        "chunk_total": 9,
+        "cited_articles_raw": [
+          "1",
+          "9",
+          "54",
+          "55",
+          "74",
+          "154"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

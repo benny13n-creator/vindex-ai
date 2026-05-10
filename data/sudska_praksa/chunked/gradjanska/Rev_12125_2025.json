@@ -1,0 +1,196 @@
+{
+  "decision_id": "Rev_12125_2025",
+  "decision_number": "Rev 12125/2025",
+  "matter": "Građanska",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-12",
+  "registrant": "Rev",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev-121252025-313711-31912614",
+  "chunked_at": "2026-05-10T12:29:46.353822+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 6,
+  "raw_text_length": 5325,
+  "raw_token_count": 2184,
+  "chunks": [
+    {
+      "chunk_id": "Rev_12125_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 6,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev 12125/2025\n12.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Mirjane Andrijašević, predsednika veća, Ivane Rađenović, Vladislave Milićević, Marine Milanović i Vesne Mastilović, članova veća, u parnici tužilaca AA iz ..., BB iz ..., VV, GG, obe iz ..., DD, ĐĐ, EE, ŽŽ svih iz s. ..., ZZ iz ..., II iz ..., JJ iz ... i KK iz ..., čiji su zajednički punomoćnici Miroslav Đorđević i Orce Lazarevski, advokati iz ..., protiv tužene LL iz ..., radi utvrđenja, odlučujući o revizijima tužilaca izjavljenim protiv presude Apelacionog suda u Beogradu Gž 494/24 od 31.10.2024. godine, u sednici održanoj 12.03.2026. godine, doneo je",
+      "token_count": 285,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 12125/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-12",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-121252025-313711-31912614",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "155",
+          "166",
+          "403",
+          "404",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_12125_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 6,
+      "text": "NE PRIHVATA SE odlučivanje o revizijima tužilaca izjavljenim protiv presude Apelacionog suda u Beogradu Gž 494/24 od 31.10.2024. godine, kao izuzetno dozvoljenim.\nODBACUJU SE, kao nedozvoljene, revizije tužilaca izjavljene protiv presude Apelacionog suda u Beogradu Gž 494/24 od 31.10.2024. godine.",
+      "token_count": 125,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 12125/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-12",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-121252025-313711-31912614",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "155",
+          "166",
+          "403",
+          "404",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_12125_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 6,
+      "text": "Presudom Prvog osnovnog suda u Beogradu P 7334/23 od 03.10.2023. godine, koja je ispravljena rešenjem P 7334/23 od 06.12.2024. godine, stavom prvim izreke, odbijen je tužbeni zahtev tužilaca kojim su tražili da se utvrdi da je apsolutno ništavo i da ne proizvodi pravno dejstvo zaveštanje pok. LJLJ, biv. iz ..., sačinjeno u formi svojeručnog zaveštanja, koje je proglašeno na zapisniku pred Prvim osnovnim sudom u Beogradu u predmetu O 735/11, na ročištu održanom 21.03.2012. godine, što bi tužena bila dužna da prizna i trpi. Stavom drugim izreke, tužioci su obavezani da tuženoj solidarno naknade troškove parničnog postupka od 305.125,00 dinara. Presudom Apelacionog suda u Beogradu Gž 494/24 od 31.10.2024. godine, odbijena je kao neosnovana žalba tužilaca i potvrđena prvostepena presuda. Protiv pravnosnažne presude donete u drugom stepenu tužioci su blagovremeno izjavili revizije (od 25.12.2024. godine i od 15.01.2025. godine), zbog bitne povrede odredaba parničnog postupka i pogrešne primene materijalnog prava, s tim što su predložili da se revizije smatraju izuzetno dozvoljenim (član 404. ZPP). Tužena je podnela odgovor na revizije, predlažući da se revizije odbace kao nedozvoljene. Odlučujući o dozvoljenosti izjavljenih revizija na osnovu člana 404. stav 2. Zakona o parničnom postupku – ZPP („Službeni glasnik RS“, broj 72/11...",
+      "token_count": 567,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 12125/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-12",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-121252025-313711-31912614",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "155",
+          "166",
+          "403",
+          "404",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_12125_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 6,
+      "text": "ih revizija na osnovu člana 404. stav 2. Zakona o parničnom postupku – ZPP („Službeni glasnik RS“, broj 72/11... 18/20 i 10/23 – drugi zakon), Vrhovni sud je našao da nisu ispunjeni uslovi za odlučivanje o reviziji tužene kao izuzetno dozvoljenoj u smislu člana 404. stav 1. ZPP. Imajući u vidu vrstu spora i sadržinu tražene sudske zaštite, način presuđenja i razloge koje su nižestepeni sudovi dali za svoje odluke, u konkretnom slučaju ne postoji potreba za razmatranjem pravnih pitanja od opšteg interesa, odnosno pravnih pitanja u interesu ravnopravnosti građana, a ne postoji potreba novog tumačenja prava. O osnovanosti tužbenog zahteva, odlučeno je uz primenu materijalnog prava koje ne odstupa od pravnog shvatanja izraženog u odlukama Vrhovnog suda u kojima je odlučivano o zahtevima sa činjeničnim stanjem kao u ovoj pravnoj stvari, a tiče se primene odredaba članova 155, 156, 157, 164. u vezi članova 166. i 84. Zakona o nasleđivanju. Prilikom odlučivanja nižestepeni sudovi su cenili okolnost da je zaveštanje autentično, da čini jedinstvenu logičnu celinu i da je ispisano i potpisano ostaviljinim rukopisom, te da nije protivno prinudnim propisnima, moralu i javnom poretku, kao i to da ostavilja nije bila potpuno lišena poslovne sposobnosti i da je bila sposobna za rasuđivanje, te ne stoje ni razlozi za rušljivost, (što je utvrđeno ocenom nalaza i mišljenja sudskog veštaka grafološke struke, te nalaza i mišljenja sudskog veštaka medicinske struke).",
+      "token_count": 592,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 12125/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-12",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-121252025-313711-31912614",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "155",
+          "166",
+          "403",
+          "404",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_12125_2025__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 6,
+      "text": "utvrđeno ocenom nalaza i mišljenja sudskog veštaka grafološke struke, te nalaza i mišljenja sudskog veštaka medicinske struke). Pored toga, tužioci nisu uz revizije dostavili presude iz kojih bi proizlazio zaključak o različitom odlučivanju u istoj pravnoj stvari, pri čemu pravilna primena prava u sporovima sa tužbenim zahtevom kao u konkretnom slučaju zavisi od utvrđenog činjeničnog stanja. Posebnom revizijom ne može se pobijati pravnosnažna presuda zbog pogrešne ocene izvedenih dokaza (čime se zapravo osporava utvrđeno činjenično stanje) Iz navedenog razloga je odlučeno kao u stavu prvom izreke. Ispitujući dozvoljenost revizija u smislu člana 410. stav 2. tačka 5. ZPP Vrhovni sud je našao da revizija nije dozvoljena. Odredbom člana 403. stav 3. ZPP, propisano je da revizija nije dozvoljena u imovinskopravnim sporovima ako vrednost predmeta spora pobijanog dela ne prelazi dinarsku protivvrednost 40.000 evra po srednjem kursu Narodne banke Srbije na dan podnošenja tužbe. Tužba radi utvrđenja podneta je 14.05.2013. godine. Vrednost predmeta spora u tužbi označena je u iznosu od 50.000,00 dinara. Imajući u vidu da se u konkretnom slučaju radi o imovinskopravnom sporu u kome se tužbeni zahtev odnosi na nenovčano potraživanje, u kome vrednost predmeta spora pobijanog dela ne prelazi dinarsku protivvrednost 40.000 evra prema srednjem kursu Narodne banke Srbije na dan podnošenja tužbe, to je Vrhovni sud našao da revizija nije dozvoljena, primenom člana 403. stav 3. ZPP.",
+      "token_count": 594,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 12125/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-12",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-121252025-313711-31912614",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "155",
+          "166",
+          "403",
+          "404",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_12125_2025__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 6,
+      "text": "rbije na dan podnošenja tužbe, to je Vrhovni sud našao da revizija nije dozvoljena, primenom člana 403. stav 3. ZPP. Na osnovu iznetog, primenom člana 413. ZPP, Vrhovni sud je odlučio kao u stavu drugom izreke. Predsednik veća – sudija Mirjana Andrijašević, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 145,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 12125/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-12",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-121252025-313711-31912614",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "155",
+          "166",
+          "403",
+          "404",
+          "410",
+          "413"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

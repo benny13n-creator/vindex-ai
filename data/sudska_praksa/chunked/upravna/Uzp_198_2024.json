@@ -1,0 +1,146 @@
+{
+  "decision_id": "Uzp_198_2024",
+  "decision_number": "Uzp 198/2024",
+  "matter": "Upravna",
+  "court": "Vrhovni kasacioni sud",
+  "decision_date": "2024-07-12",
+  "registrant": "Uzp",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-1982024-41271-zahtev-za-preispitivanje-sudske-odluke",
+  "chunked_at": "2026-05-10T12:29:46.724017+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 4107,
+  "raw_token_count": 1511,
+  "chunks": [
+    {
+      "chunk_id": "Uzp_198_2024__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nUzp 198/2024\n12.07.2024. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Jelene Ivanović, predsednika veća, Željka Škorića i Vesne Subić, članova veća, sa savetnikom Mirelom Kostadinović, kao zapisničarem, rešavajući o zahtevu AA iz ..., koju zastupa punomoćnik Jasmina Selaković Papić, advokat iz ..., za preispitivanje sudske odluke – presude Upravnog suda 6 U 24483/20 od 21.03.2024. godine, u predmetu radnog odnosa, u nejavnoj sednici veća održanoj dana 12.07.2024. godine, doneo je",
+      "token_count": 236,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 198/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-1982024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_198_2024__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "Zahtev se ODBACUJE.",
+      "token_count": 11,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 198/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-1982024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_198_2024__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Podnositeljka zahteva je predložila preispitivanje presude Upravnog suda 6 U 24483/20 od 21.03.2024. godine, kojom je, stavom prvim dispozitiva, odbijena njena tužba podneta protiv zaključka Vojne pošte 1094 Zemun, UP-2 broj 60-3/379-27/05 od 10.11.2020. godine, a stavom drugim dispozitiva, odbijen zahtev tužilje za naknadu troškova upravnog spora. Zaključkom Vojne pošte 1094 Zemun, UP-2 broj 60-3/379-27/05 od 10.11.2020. godine, spojeni su u jedan postupak predmet pokrenut po žalbi AA, ranije civilnog lica na službi u VP ..., UP-2 broj 60-3/379-1/05, vođen pred VP 1094 Beograd, u upravnoj stvari prestanka službe i predmet pokrenut po žalbi imenovane, UP-2 broj 60-3/48-1/06, vođen pred VP 1094 Beograd, u upravnoj stvari priznavanja prava na naknadu plate za deo neiskorišćenog godišnjeg odmora. U postupku prethodnog ispitivanja podnetog zahteva, Vrhovni sud je našao da je zahtev nedozvoljen.",
+      "token_count": 396,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 198/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-1982024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_198_2024__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "enog godišnjeg odmora. U postupku prethodnog ispitivanja podnetog zahteva, Vrhovni sud je našao da je zahtev nedozvoljen. Odredbom člana 49. stav 1. Zakona o upravnim sporovima (''Službeni glasnik RS'', 111/09), je propisano da protiv pravnosnažne odluke Upravnog suda stranka i nadležni javni tužilac mogu da podnesu Vrhovnom kasacionom sudu (sada Vrhovnom sudu) zahtev za preispitivanje sudske odluke. Stavom 2. istog člana zakona je propisano da zahtev može da se podnese kada je to zakonom predviđeno, u slučajevima kada je sud odlučivao u punoj jurisdikciji i u stvarima u kojima je u upravnom postupku bila isključena žalba, a stavom 3. je propisano da zahtev može da se podnese zbog povrede zakona, drugog propisa ili opšteg akta ili povrede pravila postupka koja je mogla biti od uticaja na rešenje stvari. Imajući u vidu navedeno, pobijana presuda Upravnog suda ne predstavlja pravnosnažnu odluku Upravnog suda iz člana 49. st. 1. i 2. Zakona o upravnim sporovima. Ovo stoga što se tužbom osporenim zaključkom, čija je zakonitost cenjena u pobijanoj presudi Upravnog suda, ne odlučuje o glavnoj stvari, već navedeni zaključak predstavlja akt kojim se upravlja postupkom, pa stranka ne može tražiti preispitivanje takve presude pred Vrhovnim sudom podnošenjem zahteva za preispitivanje sudske odluke kao vanrednog pravnog sredstva.",
+      "token_count": 536,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 198/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-1982024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_198_2024__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "iti preispitivanje takve presude pred Vrhovnim sudom podnošenjem zahteva za preispitivanje sudske odluke kao vanrednog pravnog sredstva. Odredbom člana 53. stav 1. Zakona o upravnim sporovima je propisano da će, nedozvoljen ili neblagovremen zahtev ili zahtev koji je podnelo neovlašćeno lice, Vrhovni kasacioni sud (sada Vrhovni sud) odbaciti rešenjem. Imajući u vidu da je, na osnovu navedenih propisa, podneti zahtev nedozvoljen, Vrhovni sud je, na osnovu odredbe člana 53. stav 1. Zakona o upravnim sporovima, odlučio kao u dispozitivu rešenja. REŠENO U VRHOVNOM SUDU Zapisničar,                                                                                                                                                                                                                                                                                                                                                                                                                  Predsednik veća – sudija, Mirela Kostadinović,s.r.                                                                                                                                                                                                                                                                                                                                                                                               Jelena Ivanović,s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 404,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 198/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-1982024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

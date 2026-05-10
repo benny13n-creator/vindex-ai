@@ -1,0 +1,156 @@
+{
+  "decision_id": "Rž1_u_373_2025",
+  "decision_number": "Rž1 u 373/2025",
+  "matter": "Zaštita prava",
+  "court": "Vrhovni sud",
+  "decision_date": "2025-12-11",
+  "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-3732025-1578-pravni-lekovi-za-ubrzanje-postupka",
+  "chunked_at": "2026-05-10T12:29:47.167293+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 3390,
+  "raw_token_count": 1440,
+  "chunks": [
+    {
+      "chunk_id": "Rž1_u_373_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up 373/2025\n11.12.2025. godina\nBeograd\nVrhovni sud, sudija Jelena Ivanović, u predmetu predlagača AA iz ..., čiji je punomoćnik Marko Radojković, advokat iz ..., odlučujući o žalbi predlagača izjavljenoj protiv rešenja Upravnog suda R4 u 759/25 od 04.11.2025. godine, u predmetu zaštite prava na suđenje u razumnom roku, doneo je 11.12.2025. godine, bez ispitnog postupka",
+      "token_count": 208,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 373/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-11",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-3732025-1578-pravni-lekovi-za-ubrzanje-postupka",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17",
+          "21"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_373_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "ODBACUJE SE, kao nedozvoljena, žalba predlagača AA iz ... .",
+      "token_count": 25,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 373/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-11",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-3732025-1578-pravni-lekovi-za-ubrzanje-postupka",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17",
+          "21"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_373_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Predlagač je dana 17.11.2025. godine podneo žalbu Vrhovnom sudu, preko Upravnog suda (primljenu u Vrhovnom sudu 20.11.2025. godine), protiv rešenja Upravnog suda R4 u 759/25 od 04.11.2025. godine, kojim je, stavom prvim dispozitiva, odbijen kao neosnovan njegov prigovor radi ubrzavanja postupka u predmetu Upravnog suda U 45794/22, a stavom drugim dispozitiva je odbijen zahtev podnosioca prigovora za naknadu troškova postupka. Postupajući po žalbi predlagača, bez sprovođenja ispitnog postupka, u smislu odredaba čl. 16. i 17. Zakona o zaštiti prava na suđenje u razumnom roku („Službeni glasnik RS“, br. 40/15 i 92/23), Vrhovni sud je našao da je žalba nedozvoljena. Prema odredbi člana 17. stav 1. Zakona o zaštiti prava na suđenje u razumnom roku, predsednik neposredno višeg suda rešenjem odbacuje ili odbija žalbu bez ispitnog postupka, ili vodi ispitni postupak, a prema stavu 2. navedenog člana žalba se odbacuje ako je nepotpuna, ako ju je podnelo neovlašćeno lice, ako je preuranjena, neblagovremena, ako se lice odreklo prava na žalbu ili ako je povuklo žalbu, ili nema pravni interes za nju, pri čemu je žalba nepotpuna ako nije potpisana ili ako iz njene sadržine ne može da se utvrdi koje rešenje se pobija. Odredbom člana 17. stav 3. navedenog zakona je propisano da protiv rešenja o odbacivanju žalbe nije dozvoljena žalba.",
+      "token_count": 555,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 373/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-11",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-3732025-1578-pravni-lekovi-za-ubrzanje-postupka",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17",
+          "21"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_373_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "Odredbom člana 17. stav 3. navedenog zakona je propisano da protiv rešenja o odbacivanju žalbe nije dozvoljena žalba. O žalbi je odlučivao sudija određen Godišnjim rasporedom poslova u sudu saglasno odredbi člana 16. stav 4. Zakona o zaštiti prava na suđenje u razumnom roku, kojom je propisano da predsednik neposredno višeg suda može godišnjim rasporedom poslova da odredi jednog sudiju ili više sudija da pored njega vode postupak i odlučuju po žalbama. Prema stanju u spisima predmeta Upravnog suda R4 u 759/25 i U 45794/22, ožalbenim rešenjem Upravnog suda R4 u 759/25 od 04.11.2025. godine odbijen je prigovor predlagača radi ubrzavanja postupka u predmetu tog suda U 45794/22, u kome je postupak okončan presudom donetom dana 31.10.2025. godine. S obzirom na to da se prema odredbi člana 5. stav 1. Zakona o zaštiti prava na suđenje u razumnom roku prigovor i žalba mogu podneti samo dok se postupak ne okonča, Vrhovni sud nalazi da je u konkretnom slučaju žalba predlagača nedozvoljena, jer je podneta Vrhovnom sudu 17.11.2025. godine, a upravni spor u predmetu Upravnog suda U 45794/22 okončan je presudom od 31.10.2025. godine, koja je ekspedovana iz Upravnog suda 08.12.2025. godine. Imajući u vidu izloženo, Vrhovni sud je, na osnovu člana 17. stav 2. Zakona o zaštiti prava na suđenje u razumnom roku, odbacio žalbu donoseći odluku kao u dispozitivu. Sudija Jelena Ivanović, s.r. Pouka o pravnom leku:",
+      "token_count": 593,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 373/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-11",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-3732025-1578-pravni-lekovi-za-ubrzanje-postupka",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17",
+          "21"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_373_2025__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "enje u razumnom roku, odbacio žalbu donoseći odluku kao u dispozitivu. Sudija Jelena Ivanović, s.r. Pouka o pravnom leku: Protiv ovog rešenja nije dozvoljena žalba, u smislu člana 21. Zakona o zaštiti prava na suđenje u razumnom roku. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 129,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 373/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-11",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-3732025-1578-pravni-lekovi-za-ubrzanje-postupka",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17",
+          "21"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

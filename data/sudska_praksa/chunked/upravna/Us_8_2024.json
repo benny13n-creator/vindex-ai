@@ -1,0 +1,196 @@
+{
+  "decision_id": "Us_8_2024",
+  "decision_number": "Us 8/2024",
+  "matter": "Upravna",
+  "court": "Vrhovni sud",
+  "decision_date": "2024-12-20",
+  "registrant": "Us",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/us-82024-3202-upravno-pravo",
+  "chunked_at": "2026-05-10T12:29:46.668575+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 6,
+  "raw_text_length": 4809,
+  "raw_token_count": 1750,
+  "chunks": [
+    {
+      "chunk_id": "Us_8_2024__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 6,
+      "text": "Republika Srbija\nVRHOVNI SUD\nUs 8/2024\n20.12.2024. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Jelene Ivanović, predsednika veća, Branislava Bosiljkovića i Branka Stanića, članova veća, sa savetnikom Gordanom Vojinović, kao zapisničarem, rešavajući sukob nadležnosti između Prvog osnovnog suda u Beogradu i Upravnog suda, po tužbi tužioca AA iz ... ul. ..., čiji je punomoćnik Dušan Ignjatović, advokat iz ... br. .., protiv tuženog Ministarstva prosvete, nauke i tehnološkog razvoja, Beograd, ul. Nemanjina br. 22-26, u predmetu studentskog kredita, u nejavnoj sednici veća održanoj dana 20.12.2024. godine, doneo je",
+      "token_count": 274,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 8/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-82024-3202-upravno-pravo",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "4",
+          "5",
+          "10",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Us_8_2024__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 6,
+      "text": "Za postupanje u ovoj pravnoj stvari stvarno je NADLEŽAN Prvi osnovni sud u Beogradu.",
+      "token_count": 36,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 8/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-82024-3202-upravno-pravo",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "4",
+          "5",
+          "10",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Us_8_2024__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 6,
+      "text": "Prvi osnovni sud u Beogradu.je podneo zahtev za rešavanje sukoba nadležnosti sa Upravnim sudom koji se rešenjem U 8961/21 od 06.05.2021. godine oglasio stvarno nenadležnim za postupanje po tužbi tužilje AA iz ... protiv tuženog, podnete radi poništaja rešenja Ministarstva prosvete, nauke i tehnološkog razvoja Sektora za učenički i studentski standard i investicije broj 670-01-72/ 2021-05 od 16.03.2021 godine, i odlučio da se po pravnosnažnosti rešenja spisi predmeta dostave Prvom osnovnom sudu u Beogradu na dalju nadležnost. Rešavajući nastali sukob nadležnosti u smislu odredbe člana 32. stav 2. Zakona o uređenju sudova (\"Službeni glasnik RS\" br. 10/23), Vrhovni sud je našao da je za postupanje u ovom predmetu stvarno nadležan Prvi osnovni sud u Beogradu na osnovu odredbi člana 24. stav 2. Zakona o uređenju sudova. Odredbom člana 24. stav 2. Zakona o uređenju sudova, propisano je da osnovni sud u prvom stepenu sudi u građanskopravnim sporovima ako za pojedini građanskopravni spor nije nadležan drugi sud i vodi izvršni i vanparnični postupak, osim ako zakonom nije drukčije propisano. Odredbama člana 3. Zakona o upravnim sporovima (''Službeni glasnik RS'' broj 111/09), propisano je: da u upravnom sporu sud odlučuje o zakonitosti konačnih",
+      "token_count": 499,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 8/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-82024-3202-upravno-pravo",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "4",
+          "5",
+          "10",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Us_8_2024__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 6,
+      "text": "sporovima (''Službeni glasnik RS'' broj 111/09), propisano je: da u upravnom sporu sud odlučuje o zakonitosti konačnih upravnih akata, osim onih u pogledu kojih je predviđena drugačija sudska zaštita (stav 1); da u upravnom sporu sud odlučuje i o zakonitosti konačnih pojedinačnih akata kojima se rešava o pravu, obavezi ili na zakonu zasnovanom interesu, u pogledu kojih u određenom slučaju zakonom nije predviđena drugačija sudska zaštita (stav 2); da sud u upravnom sporu odlučuje i o zakonitosti drugih konačnih pojedinačnih akata kada je to zakonom predviđeno (stav 3). Odredbom člana 4. istog zakona propisano je da upravni akt, u smislu ovog zakona, jeste pojedinačni pravni akt kojim nadležni organ, neposrednom primenom propisa, rešava o određenom pravu ili obavezi fizičkog ili pravnog lica, odnosno druge stranke u upravnoj stvari.",
+      "token_count": 345,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 8/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-82024-3202-upravno-pravo",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "4",
+          "5",
+          "10",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Us_8_2024__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 6,
+      "text": "primenom propisa, rešava o određenom pravu ili obavezi fizičkog ili pravnog lica, odnosno druge stranke u upravnoj stvari. Kako se tužbom traži poništaj rešenja Ministarstva prosvete, nauke i tehnološkog razvoja Republike Srbije, Sektor za učenički i studentski standard i investicije, kojim se odbijaju zahtevi za oslobađanje od obaveze vraćanja studentskog kredita studentima kojima je odobren studetnski kredit po konkursu za dodelu kredita za odgovarajuću školsku godinu i koji su sa tuženim zaključili ugovor o studentskom kreditu, Vrhovni sud nalazi da osporeno rešenje nema karakter upravnog akta, u smislu člana 3. stav 1. i člana 4. Zakona o upravnim sporovima kao ni akta iz člana 3. stav 2. istog zakona. Ovo stoga što je osporeno rešenje doneto na osnovu člana. 4. i člana 5. Ugovora o studentskom kreditu i člana 10. Zakona o učeničkom i studentskom standardu (\"Službeni glasnik RS\" br.18/10...10/19) te je u pitanju ugovorni odnos imovinskopravne prirode koji ne predstavlja upravnu već građanskopravnu stvar, za čije rešavanje je nadležan osnovni sud. Sa iznetih razloga, Vrhovni sud je na osnovu odredbe člana 32. stav 2. Zakona o uređenju sudova, rešio kao u dispozitivu ovog rešenja. REŠENO U VRHOVNOM SUDU Zapisničar,                                                                                                                                                                                                                                                                                                                                                                                                                   Predsednik veća – sudija,",
+      "token_count": 564,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 8/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-82024-3202-upravno-pravo",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "4",
+          "5",
+          "10",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Us_8_2024__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 6,
+      "text": "Predsednik veća – sudija, Gordana Vojinović, s,r,                                                                                                                                                                                                                                                                                                                                                                                                     Jelena Ivanović, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 115,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Us 8/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-12-20",
+        "matter": "Upravna",
+        "registrant": "Us",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/us-82024-3202-upravno-pravo",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "4",
+          "5",
+          "10",
+          "24",
+          "32"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

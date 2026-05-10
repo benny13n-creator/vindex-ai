@@ -1,0 +1,124 @@
+{
+  "decision_id": "Rž1_u_21_2026",
+  "decision_number": "Rž1 u 21/2026",
+  "matter": "Zaštita prava",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-02-05",
+  "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-212026-1578",
+  "chunked_at": "2026-05-10T12:29:47.056085+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 4,
+  "raw_text_length": 2170,
+  "raw_token_count": 957,
+  "chunks": [
+    {
+      "chunk_id": "Rž1_u_21_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 4,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up 21/2026\n05.02.2026. godina\nBeograd\nVrhovni sud, predsednik suda Jasmina Vasović, u predmetu predlagača AA iz ..., čiji je punomoćnik Zoran Stambolić, advokat iz ..., ul. ... br. ..., odlučujući o žalbi predlagača izjavljenoj protiv rešenja Upravnog suda R4 U 868/25 od 24.12.2025. godine, doneo je 05.02.2026. godine, bez ispitnog postupka",
+      "token_count": 195,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 21/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-05",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-212026-1578",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_21_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 4,
+      "text": "ODBACUJE SE, kao nedozvoljena, žalba predlagača izjavljena protiv rešenja Upravnog suda R4 U 868/25 od 24.12.2025. godine.",
+      "token_count": 56,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 21/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-05",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-212026-1578",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_21_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 4,
+      "text": "Predlagač je, preko punomoćnika, podneo 27.01.2026. godine Vrhovnom sudu žalbu protiv rešenja Upravnog suda R4 U 868/25 od 24.12.2025. godine, kojim je odbijen kao neosnovan njegov prigovor radi ubrzavanja postupka u predmetu tog suda U 3262/23, kao i zahtev za naknadu troškova postupka. Postupajući po žalbi predlagača, bez sprovođenja ispitnog postupka, u smislu odredaba čl. 16. i 17. Zakona o zaštiti prava na suđenje u razumnom roku („Službeni glasnik RS“ br. 40/15 i 92/23), Vrhovni sud je zaključio da je žalba nedozvoljena. Prema stanju u spisima predmeta Upravnog suda R4 U 868/25, postupajući sudija Upravnog suda je rešenjem od 24.12.2025. godine odbio prigovor predlagača radi ubrzavanja postupka u predmetu tog suda U 3262/23, u kome je postupak okončan donošenjem odluke 05.11.2025. godine, koja je ekspedovana iz suda 07.11.2025. godine. S obzirom na to da se, prema odredbi člana 5. stav 1. Zakona o zaštiti prava na suđenje u razumnom roku, prigovor i žalba mogu podneti samo dok se postupak ne okonča, Vrhovni sud nalazi da je žalba predlagača nedozvoljena, jer je podneta Vrhovnom sudu 27.01.2026. godine, a postupak u predmetu Upravnog suda U 3262/23 okončan je odlukom donetom 05.11.2025. godine. Imajući u vidu izloženo, Vrhovni sud je na osnovu člana 17. stav 2. Zakona o zaštiti prava na suđenje u razumnom roku, odbacio žalbu donoseći odluku kao u dispozitivu.",
+      "token_count": 598,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 21/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-05",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-212026-1578",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_21_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 4,
+      "text": "člana 17. stav 2. Zakona o zaštiti prava na suđenje u razumnom roku, odbacio žalbu donoseći odluku kao u dispozitivu. Predsednik Vrhovnog suda Jasmina Vasović, s.r. POUKA O PRAVNOM LEKU: Protiv ovog rešenja nije dozvoljena žalba Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 130,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 21/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-05",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-212026-1578",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

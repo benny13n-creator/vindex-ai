@@ -1,0 +1,151 @@
+{
+  "decision_id": "Uzp_200_2024",
+  "decision_number": "Uzp 200/2024",
+  "matter": "Upravna",
+  "court": "Vrhovni kasacioni sud",
+  "decision_date": "2024-07-12",
+  "registrant": "Uzp",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-2002024-41271-zahtev-za-preispitivanje-sudske-odluke",
+  "chunked_at": "2026-05-10T12:29:46.742475+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 3959,
+  "raw_token_count": 1450,
+  "chunks": [
+    {
+      "chunk_id": "Uzp_200_2024__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nUzp 200/2024\n12.07.2024. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Jelene Ivanović, predsednika veća, Željka Škorića i Vesne Subić, članova veća, sa savetnikom Mirelom Kostadinović, kao zapisničarem, rešavajući o zahtevu AA iz ..., koga zastupa punomoćnik Ivan Maksimović, advokat iz ..., za preispitivanje sudske odluke – rešenja Upravnog suda 17 Uv 230/23 od 29.03.2024. godine, u predmetu građevinskom, u nejavnoj sednici veća održanoj dana 12.07.2024. godine, doneo je",
+      "token_count": 234,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 200/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-2002024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "26",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_200_2024__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "Zahtev se ODBACUJE.",
+      "token_count": 11,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 200/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-2002024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "26",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_200_2024__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Podnosilac zahteva je dana 13.06.2024. godine, preko punomoćnika, podneo Vrhovnom sudu zahtev za preispitivanje rešenja Upravnog suda 17 Uv 230/23 od 29.03.2024. godine, kojim je odbijen njegov prigovor podnet protiv rešenja Upravnog suda, Odeljenja u Nišu II-10 U 1771/23 od 17.08.2023. godine. Navedenim rešenjem odbačena je tužba podnosioca zahteva podneta protiv rešenja Gradske uprave grada Prokuplje, Odeljenje za urbanizam i komunalno-stambene delatnosti i građevinarstvo broj 351-548/2022-05 od 14.11.2022. godine, primenom člana 26. stav 1. tačka 2. Zakona o upravnim sporovima. U postupku prethodnog ispitivanja podnetog zahteva, Vrhovni sud je našao da je zahtev nedozvoljen. Odredbom člana 49. stav 1. Zakona o upravnim sporovima (''Službeni glasnik RS'' 111/09), je propisano da protiv pravnosnažne odluke Upravnog suda stranka i nadležni javni tužilac mogu da podnesu Vrhovnom kasacionom sudu (sada Vrhovnom sudu) zahtev za preispitivanje sudske odluke. Stavom 2. istog člana zakona je propisano da zahtev može da se podnese kada je to zakonom predviđeno, u slučajevima kada je sud odlučivao u punoj jurisdikciji i u stvarima u kojima je u upravnom postupku bila isključena žalba, a stavom 3. je propisano da zahtev može da se podnese zbog povrede zakona, drugog propisa ili opšteg akta ili povrede pravila postupka koja je mogla biti od uticaja na rešenje stvari.",
+      "token_count": 572,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 200/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-2002024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "26",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_200_2024__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "se podnese zbog povrede zakona, drugog propisa ili opšteg akta ili povrede pravila postupka koja je mogla biti od uticaja na rešenje stvari. Kako je pobijanim rešenjem Upravnog suda 17 Uv 230/23 od 29.03.2024. godine, odbijen prigovor podnet protiv rešenja Upravnog suda, Odeljenja u Nišu II-10 U 1771/23 od 17.08.2023. godine kojim je odbačena tužba podnosioca izjavljena na rešenje prvostepenog organa, a protiv koga je podnosilac zahteva imao pravo žalbe, Vrhovni sud nalazi da za podnošenje ovog zahteva nisu ispunjeni procesni uslovi iz člana 49. stav 2. Zakona o upravnim sporovima, jer zahtev za preispitivanje nije predviđen zakonom u ovoj upravnoj stvari, Upravni sud nije odlučivao u punoj jurisdikciji i u upravnom postupku nije bila isključena žalba. Odredbom člana 53. stav 1. Zakona o upravnim sporovima je propisano da će, nedozvoljen ili neblagovremen zahtev ili zahtev koji je podnelo neovlašćeno lice, Vrhovni kasacioni sud (sada Vrhovni sud) odbaciti rešenjem. Sa iznetih razloga, nalazeći da je podneti zahtev nedozvoljen Vrhovni sud je na osnovu odredbe člana 53. stav 1. Zakona o upravnim sporovima, odlučio kao u dispozitivu rešenja. REŠENO U VRHOVNOM SUDU Zapisničar,                                                                                                                                                                                                                                                                                                                                                                                                                  Predsednik veća – sudija,",
+      "token_count": 554,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 200/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-2002024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "26",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_200_2024__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "Predsednik veća – sudija, Mirela Kostadinović,s.r.                                                                                                                                                                                                                                                                                                                                                                                               Jelena Ivanović,s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 113,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Uzp 200/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2024-07-12",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-2002024-41271-zahtev-za-preispitivanje-sudske-odluke",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "26",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "decision_id": "Rž1_u_31_2026",
+  "decision_number": "Rž1 u 31/2026",
+  "matter": "Zaštita prava",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-05",
+  "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-312026-157-pravni-lekovi-za-ubrzanje-postupka",
+  "chunked_at": "2026-05-10T12:29:47.068391+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 4,
+  "raw_text_length": 2661,
+  "raw_token_count": 1156,
+  "chunks": [
+    {
+      "chunk_id": "Rž1_u_31_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 4,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up 31/2026\n05.03.2026. godina\nBeograd\nVrhovni sud, predsednik suda Jasmina Vasović, u predmetu predlagača AA iz ..., ul. ... br. ..., čiji je punomoćnik Nikola Jasika, advokat iz ..., ul. ... br. ..., odlučujući o žalbi predlagača zbog nedonošenja odluke po prigovoru radi ubrzavanja postupka u predmetu Upravnog suda U 49230/22, doneo je 05.03.2026. godine, bez ispitnog postupka",
+      "token_count": 202,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 31/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-05",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-312026-157-pravni-lekovi-za-ubrzanje-postupka",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "14",
+          "16",
+          "17",
+          "30",
+          "153"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_31_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 4,
+      "text": "ODBIJA SE žalba predlagača izjavljena zbog nedonošenja odluke po prigovoru radi ubrzavanja postupka u predmetu Upravnog suda U 49230/22, kao neosnovana.\nODBIJA SE zahtev predlagača za naknadu troškova postupka.",
+      "token_count": 86,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 31/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-05",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-312026-157-pravni-lekovi-za-ubrzanje-postupka",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "14",
+          "16",
+          "17",
+          "30",
+          "153"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_31_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 4,
+      "text": "Predlagač je 12.02.2026. godine podneo Vrhovnom sudu, preko Upravnog suda, žalbu zbog nedonošenja odluke po njegovom prigovoru radi ubrzavanja postupka u predmetu Upravnog suda U 49230/22. Odlučujući o žalbi predlagača na osnovu odredaba čl. 16, 17. i 20. stav 3. Zakona o zaštiti prava na suđenje u razumnom roku („Službeni glasnik RS“, br. 40/15 i 92/23), u vezi člana 30. stav 2. Zakona o vanparničnom postupku - ZVP („Službeni glasnik SRS“, br. 25/82 i „Službeni glasnik RS“, br. 6/15), Vrhovni sud je zaključio da je žalba neosnovana. Na osnovu spisa predmeta Upravnog suda R4 U 909/25 utvrđeno je da je predlagač 04.12.2025. godine, preporučenom poštanskom pošiljkom, dostavio Upravnom sudu prigovor radi ubrzavanja postupka u predmetu tog suda U 49230/22, koji je primljen je u sudu 05.12.2025. godine. Postupajući sudija Upravnog suda je rešenjem R4 U 909/25 od 05.02.2026. godine odbio kao neosnovan prigovor predlagača radi ubrzavanja postupka u predmetu U 49230/22, kao neosnovan. Imajući u vidu da je prigovor radi ubrzavanja postupka primljen u Upravnom sudu 05.12.2025. godine, a da je odluka o prigovoru doneta 05.02.2026. godine, Vrhovni sud nalazi da je o prigovoru odlučeno u roku propisanom članom 14. stav 1. Zakona o zaštiti prava na suđenje u razumnom roku, te da je zbog toga žalba predlagača neosnovana.",
+      "token_count": 575,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 31/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-05",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-312026-157-pravni-lekovi-za-ubrzanje-postupka",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "14",
+          "16",
+          "17",
+          "30",
+          "153"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_u_31_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 4,
+      "text": "om članom 14. stav 1. Zakona o zaštiti prava na suđenje u razumnom roku, te da je zbog toga žalba predlagača neosnovana. S obzirom na izloženo, Vrhovni sud je, na osnovu odredbe člana 17. st. 1. i 4. Zakona o zaštiti prava na suđenje u razumnom roku, odbio žalbu predlagača i odlučio kao u stavu prvom dispozitiva. Vrhovni sud je, u stavu drugom dispozitiva, odbio zahtev predlagača za naknadu troškova postupka na osnovu člana 30. stav 2. ZVP, shodnom primenom odredbe člana 153. stav 1. ZPP, imajući u vidu da predlagač nije uspeo u postupku. Predsednik Vrhovnog suda Jasmina Vasović, s.r. Pouka o pravnom leku: Protiv ovog rešenja nije dozvoljena žalba Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 313,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 u 31/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-05",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-u-312026-157-pravni-lekovi-za-ubrzanje-postupka",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "14",
+          "16",
+          "17",
+          "30",
+          "153"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

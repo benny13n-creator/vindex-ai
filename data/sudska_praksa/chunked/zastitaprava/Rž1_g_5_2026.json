@@ -1,0 +1,144 @@
+{
+  "decision_id": "Rž1_g_5_2026",
+  "decision_number": "Rž1 g 5/2026",
+  "matter": "Zaštita prava",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-02-26",
+  "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-52026-157-1872",
+  "chunked_at": "2026-05-10T12:29:47.048568+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 4,
+  "raw_text_length": 3460,
+  "raw_token_count": 1486,
+  "chunks": [
+    {
+      "chunk_id": "Rž1_g_5_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 4,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up 5/2026\n26.02.2026. godina\nBeograd\nVrhovni sud, sudija Marina Milanović, određena Godišnjim rasporedom poslova na osnovu odredbe člana 7. stav 5. Zakona o zaštiti prava na suđenje u razumnom roku („Službeni glasnik Republike Srbije“ broj 40/15, 92/2023), u postupku zaštite prava na suđenje u razumnom roku predlagača AA iz ..., čiji je punomoćnik Danilo Raičević, advokat iz ..., odlučujući o žalbi predlagača izjavljenoj protiv rešenja Apelacionog suda u Beogradu R4 g 10/2025 od 17.04.2025. godine, bez ispitnog postupka doneo je 26.02.2026. godine",
+      "token_count": 284,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 5/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-26",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-52026-157-1872",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "7",
+          "16",
+          "17",
+          "21",
+          "27",
+          "30",
+          "165"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_5_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 4,
+      "text": "ODBACUJE SE, kao nedozvoljena, žalba predlagača, izjavljena protiv rešenja Apelacionog suda u Beogradu R4 g 10/2025 od 17.04.2025. godine.\nODBIJA SE zahtev predlagača za naknadu troškova drugostepenog postupka.",
+      "token_count": 91,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 5/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-26",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-52026-157-1872",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "7",
+          "16",
+          "17",
+          "21",
+          "27",
+          "30",
+          "165"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_5_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 4,
+      "text": "Rešenjem Apelacionog suda u Beogradu R4 g 10/2025 od 17.04.2025. godine odbijen je prigovor predlagača za ubrzanje postupka i utvrđenje da je predlagaču povređeno pravo na suđenje u razumnom roku u predmetu Apelacionog suda u Beogradu Gž 3721/24. Protiv navedenog rešenja, predlagač je preko punomoćnika izjavio blagovremenu žalbu 02.06.2025. godine, iz svih zakonom propisanih razloga. Odlučujći o žalbi, na osnovu odredaba člana 16. i 17. Zakona o zaštiti prava na suđenje u razumnom roku („Službeni glasnik Republike Srbije“, broj 40/15 i 92/23), u vezi odredbe člana 30. stav 2. Zakona o vanparničnom postupku („Službeni glasnik SRS“ broj 25/82, „Službeni glasnik Republike Srbije“ broj 65/95 ... 55/14), Vrhovni sud je utvrdio da je žalba predlagača nedozvoljena. Prema stanju u spisima predmeta Apelacionog suda u Beogradu R4 g 10/25, postupajući sudija Apelacionog suda je rešenjem od 17.04.2025. godine odbio prigovor predlagača za ubrzanje postupka i utvrđenja da je predlagaču povređeno pravo na suđenje u razumnom roku u predmetu Apelacionog suda u Beogradu Gž 3721/24, u kome je postupak okončan donošenjem odluke 12.03.2025. godine koja je ekspedovana iz Apelacionog suda 27.03.2025. godine (što je utvrđeno na osnovu podataka Centralizovanog sistema za upravljanje predmetima na standardizovani način Apelacionog suda – SAPS).",
+      "token_count": 566,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 5/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-26",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-52026-157-1872",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "7",
+          "16",
+          "17",
+          "21",
+          "27",
+          "30",
+          "165"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_5_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 4,
+      "text": "5. godine (što je utvrđeno na osnovu podataka Centralizovanog sistema za upravljanje predmetima na standardizovani način Apelacionog suda – SAPS). Odredbom člana 5. stav 1. Zakona o zaštiti prava na suđenje u razumnom roku, propisano je da prigovor i žalba mogu da se podnesu dok se postupak ne okonča. U konkretnom slučaju, postupak je okončan 12.03.2025. godine, a odluka ekspedovana iz suda 27.03.2025. godine, pre izjavljivanja predmetne žalbe predlagača 02.06.2025. godine, pa je žalba nedozvoljena na osnovu odredbe člana 5. stav 1. Zakona o zaštiti prava na suđenje u razumnom roku. Imajući u vidu izloženo, Vrhovni sud je, na osnovu člana 17. stav 2. Zakona o zaštiti prava na suđenje u razumnom roku, odbacio žalbu predlagača donoseći odluku kao u stavu prvom izreke rešenja. Odluku kao u stavu drugom izreke, Vrhovni sud je doneo primenom odredbe člana 165. stav 1. Zakona o parničnom postupku („Službeni glasnik Republike Srbije“ broj 72/11 ... 10/23) u vezi odredbe člana 27. i 32. Zakona o vanparničnom postupku, obzirom da predlagač nije uspeo u žalbenom postupku, pa mu ne pripada pravo na naknadu troškova postupka. Sudija Marina Milanović, s.r. Pouka o pravnom leku Protiv ovog rešenja nije dozvoljena žalba u smislu člana 21. Zakona o zaštiti prava na suđenje u razumnom roku. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 562,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 5/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-26",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-52026-157-1872",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "7",
+          "16",
+          "17",
+          "21",
+          "27",
+          "30",
+          "165"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

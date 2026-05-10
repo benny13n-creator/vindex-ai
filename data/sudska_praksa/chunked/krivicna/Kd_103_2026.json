@@ -1,0 +1,124 @@
+{
+  "decision_id": "Kd_103_2026",
+  "decision_number": "Kd 103/2026",
+  "matter": "Krivična",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-17",
+  "registrant": "Kd",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/kd-1032026-24111",
+  "chunked_at": "2026-05-10T12:29:45.629778+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 4,
+  "raw_text_length": 3607,
+  "raw_token_count": 1290,
+  "chunks": [
+    {
+      "chunk_id": "Kd_103_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 4,
+      "text": "Republika Srbija\nVRHOVNI SUD\nKd 103/2026\n17.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Miroljuba Tomića, predsednika veća, Tatjane Vuković i Slobodana Velisavljevića, članova veća, sa savetnikom Marijom Ribarić, zapisničarem, u krivičnom predmetu okrivljenog AA, zbog krivičnog dela neovlašćeno držanje opojnih droga iz člana 246a stav 1. Krivičnog zakonika, odlučujući o predlogu sudije pojedinca Osnovnog suda u Užicu 1K. br. 90/26 od 26.02.2026. godine za prenošenje mesne nadležnosti, na sednici veća održanoj dana 17.03.2026. godine, doneo je",
+      "token_count": 260,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 103/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-17",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-1032026-24111",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_103_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 4,
+      "text": "Za vođenje krivičnog postupka protiv okrivljenog AA, po optužnom predlogu javnog tužioca Osnovnog javnog tužilaštva u Užicu KTO br. 77/26 od 24.02.2026. godine, zbog krivičnog dela neovlašćeno držanje opojnih droga iz člana 246a stav 1. Krivičnog zakonika, ODREĐUJE SE Treći osnovni sud u Beogradu.",
+      "token_count": 135,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 103/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-17",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-1032026-24111",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_103_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 4,
+      "text": "Javni tužilac Osnovnog javnog tužilaštva u Užicu podneo je Osnovnom sudu u Užicu optužni predlog KTO br. 77/26 od 24.02.2026. godine, protiv okrivljenog AA, zbog krivičnog dela neovlašćeno držanje opojnih droga iz člana 246a stav 1. Krivičnog zakonika. Sudija pojedinac Osnovnog suda u Užicu podneo je Vrhovnom sudu obrazložen predlog 1K. br. 90/26 od 26.02.2026. godine da se za vođenje ovog krivičnog postupka kao mesno nadležan odredi Treći osnovni sud u Beogradu. Vrhovni sud je u sednici veća razmotrio spise predmeta sa predlogom sudije pojedinca Osnovnog suda u Užicu, pa je našao da je predlog osnovan. Odredbom člana 33. Zakonika o krivičnom postupku (ZKP) predviđeno je prenošenje mesne nadležnosti iz razloga procesne celishodnosti u situaciji kada sud nije sprečen da postupa ni pravnim ni stvarnim razlozima, ali postoje okolnosti koje ukazuju na to da će se postupak lakše sprovesti pred drugim stvarno nadležnim sudom ili za to postoje drugi važni razlozi. Iz spisa predmeta utvrđuje se da okrivljeni AA ima prebivalište na Novom Beogradu, u ulici ... broj ..., a da u podnetom optužnom predlogu nisu predloženi dokazi čije bi izvođenje bilo vezano za područje Osnovnog suda u Užicu, već je predloženo da sud u toku dokaznog postupka pročita pisane dokaze koji su priloženi u spisima predmeta.",
+      "token_count": 518,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 103/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-17",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-1032026-24111",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_103_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 4,
+      "text": "ovnog suda u Užicu, već je predloženo da sud u toku dokaznog postupka pročita pisane dokaze koji su priloženi u spisima predmeta. Imajući u vidu navedene okolnosti, Vrhovni sud nalazi da je predlog sudije pojedinca Osnovnog suda u Užicu za prenošenje mesne nadležnosti osnovan i da je očigledno da će se ovaj krivični postupak lakše sprovesti pred Trećim osnovnim sudom u Beogradu. Iz iznetih razloga, Vrhovni sud je na osnovu člana 33. ZKP i člana 3. stav 1. tačka 6. Zakona o sedištima i područjima sudova i javnih tužilaštava, doneo odluku kao u izreci ovog rešenja. Zapisničar – savetnik                                                                                                                                                                                                                                                                                                                                                                                      Predsednik veća – sudija Marija Ribarić, s.r.                                                                                                                                                                                                                                                                                                                                                                                                      Miroljub Tomić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 397,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 103/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-17",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-1032026-24111",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

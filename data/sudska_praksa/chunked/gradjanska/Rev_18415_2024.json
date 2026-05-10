@@ -1,0 +1,240 @@
+{
+  "decision_id": "Rev_18415_2024",
+  "decision_number": "Rev 18415/2024",
+  "matter": "Građanska",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-11",
+  "registrant": "Rev",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev-184152024-31912614-31912613",
+  "chunked_at": "2026-05-10T12:29:46.407206+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 7,
+  "raw_text_length": 5828,
+  "raw_token_count": 2425,
+  "chunks": [
+    {
+      "chunk_id": "Rev_18415_2024__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 7,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev 18415/2024\n11.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Gordane Komnenić, predsednika veća, dr Ilije Zindovića, Marije Terzić, Dobrile Strajina i Nadežde Vidić, članova veća, u vanparničnom postupku predlagača AA iz ..., čiji je punomoćnik advokat Dušan Spasić iz ..., protiv protivnika predlagača „Koridori Srbije“ d.o.o. Beograd, čiji je punomoćnik advokat Dragana Nikolić Jovanović iz ..., radi određivanja naknade za eksproprisanu nepokretnost, odlučujući o reviziji protivnika predlagača izjavljenoj protiv rešenja Višeg suda u Kruševcu Gž 3075/23 od 23.04.2024. godine, u sednici održanoj 11.03.2026. godine, doneo je",
+      "token_count": 291,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 18415/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-11",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-184152024-31912614-31912613",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "27",
+          "30",
+          "42",
+          "136",
+          "403",
+          "404",
+          "413",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_18415_2024__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 7,
+      "text": "NE DOZVOLJAVA SE odlučivanje o posebnoj reviziji protivnika predlagača izjavljenoj protiv rešenja Višeg suda u Kruševcu Gž 3075/23 od 23.04.2024. godine.\nODBACUJE SE, kao nedozvoljena, revizija protivnika predlagača izjavljena protiv rešenja Višeg suda u Kruševcu Gž 3075/23 od 23.04.2024. godine.",
+      "token_count": 134,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 18415/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-11",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-184152024-31912614-31912613",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "27",
+          "30",
+          "42",
+          "136",
+          "403",
+          "404",
+          "413",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_18415_2024__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 7,
+      "text": "Rešenjem Osnovnog suda u Trsteniku R1 12/21 od 15.03.2023. godine stavom prvim izreke, određena je novčana naknada za eksproprisanu nepokretnost i to za deo katastarske parcele broj .. k.o. ... u površini od 15,46 ari po listu nepokretnosti broj .. k.o. ... u iznosu od 2.104.106,00 dinara, kao i novčana naknada za biljne zasade postojeće na toj nepokretnosti u ukupnom iznosu od 120.925,00 dinara i obavezan je protivnik predlagača da predlagaču kao bivšem vlasniku eksproprisane nepokretnosti isplati na ime novčane naknade za eksproprisanu nepokretnost, kao i na ime novčane naknade za biljne zasade ukupan iznos od 2.225.031,00 dinara sa zakonskom zateznom kamatom od 15.03.2023. godine kao dana donošenja odluke do konačne isplate. Stavom drugim izreke, obavezan je protivnik predlagača da predlagaču na ime troškova postupka isplati iznos od 103.500,00 dinara. Rešenjem Višeg suda u Kruševcu Gž 3075/23 od 23.04.2024. godine odbijena je kao neosnovana žalba protivnika predlagača i potvrđeno prvostepeno rešenje. Protiv pravnosnažnog rešenja donetog u drugom stepenu, protivnik predlagača je izjavio blagovremenu reviziju iz svih zakonskih razloga, pozivajući se na odredbu člana 404. Zakona o parničnom postupku, te se na osnovu člana 30. stav 2. Zakona o vanparničnom postupku shodno primenjuje.",
+      "token_count": 531,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 18415/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-11",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-184152024-31912614-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "27",
+          "30",
+          "42",
+          "136",
+          "403",
+          "404",
+          "413",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_18415_2024__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 7,
+      "text": "ana 404. Zakona o parničnom postupku, te se na osnovu člana 30. stav 2. Zakona o vanparničnom postupku shodno primenjuje. Ceneći ispunjenost uslova za odlučivanje o reviziji protivnika predlagača kao izuzetno dozvoljenoj, u smislu odredbe člana 404. stav 1. Zakona o parničnom postupku („Službeni glasnik RS“, br. 72/11...10/23 – drugi zakon) u vezi sa članom 30. stav 2. Zakona o vanparničnom postupku, Vrhovni sud nalazi da ne postoje razlozi za odlučivanje o reviziji kao izuzetno dozvoljenoj. Pobijanim drugostepenim rešenjem pravnosnažno je odlučeno o naknadi za zemljište, eksproprisano rešenjem o eksproprijaciji od 25.12.2020. godine, radi izgradnje dela auto-puta E-761, Pojate-Preljina, kao i o naknadi za biljne zasade. Visina naknade za izuzeto zemljište određena je na osnovu nalaza veštaka građevinske struke, dok je visina naknade za biljne zasade utvrđena na osnovu procene date u upravnom postupku, koju je u ovom postupku predlagač prihvatio.",
+      "token_count": 397,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 18415/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-11",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-184152024-31912614-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "27",
+          "30",
+          "42",
+          "136",
+          "403",
+          "404",
+          "413",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_18415_2024__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 7,
+      "text": "je visina naknade za biljne zasade utvrđena na osnovu procene date u upravnom postupku, koju je u ovom postupku predlagač prihvatio. Imajući u vidu sadržinu tražene pravne zaštite, činjenice utvrđene u postupku i način odlučivanja, Vrhovni sud je ocenio da je pobijano rešenje u skladu sa praksom revizijskog suda i pravnim shvatanjem izraženim u odlukama Vrhovnog suda i Vrhovnog kasacionog suda u kojima je odlučivano o zahtevima sa istim ili sličnim činjeničnim stanjem i pravnim osnovom, u situaciji kada je prenamena predmetnog zemljišta iz poljoprivrednog u građevinsko zemljište, izvršena Odlukom Skupštine grada o obuhvatanju zemljišta na osnovu Generalnog urbanističkog plana Kruševca 2025 („Službeni list Grada Kruševca“, br. 9/16), a da osnov za to predstavlja Uredba Vlade RS („Službeni glasnik RS“, br. 98/13). Stupanjem na snagu planskog akta pre donošenja rešenja o eksproprijaciji zemljišta u svojini predlagača, izvršena je promena namena predmetne parcele iz poljoprivrednog u građevinsko zemljište. Od tog dana predlagač ostvaruje sva prava vlasnika na građevinskom zemljištu, što znači da ima pravo na naknadu za eksproprisano zemljište prema tržišnoj ceni građevinskog zemljišta, bez obzira na to što organ nadležan za upis nepokretnosti i prava na njima nije sproveo tu promenu u katastru nepokretnosti.",
+      "token_count": 550,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 18415/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-11",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-184152024-31912614-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "27",
+          "30",
+          "42",
+          "136",
+          "403",
+          "404",
+          "413",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_18415_2024__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 7,
+      "text": "zemljišta, bez obzira na to što organ nadležan za upis nepokretnosti i prava na njima nije sproveo tu promenu u katastru nepokretnosti. Sa navedenim u vezi, o posebnoj reviziji protivnika predlgača nije potrebno odlučiti radi ujednačavanja sudske prakse, a priložene odluke Vrhovnog kasacionog suda ne opravdavaju potrebu za ujednačavanjem sudske prakse jer je u njima izražen stav da naknadne promene zemljišta koje su nastale nakon donošenja rešenja o eksproprijaciji nisu od značaja, a taj stav se u ovom slučaju ne primenjuje, jer je zemljište koje je eksproprisano postalo građevinsko zemljište na osnovu planskog akta donetog pre izvršene eksproprijacije. Nije potrebno ni novo tumačenje člana 42. Zakona o eksproprijaciji, jer prema stavu 2. navedenog člana procenu tržišne cene poljoprivrednog i građevinskog zemljišta vrši organ nadležan za utvrđivanje poreza za prenos apsolutnih prava na nepokretnostima, ali to ne znači da se visina naknade ne može određivati i drugim dokaznim sredstvima, imajući u vidu odredbu člana 136. Zakona o vanparničnom postupku. Revizija protivnika predlagača nije dozvoljena ni na osnovu člana 27. stav 2. Zakona o vanparničnom postupku u vezi člana 403. stav 3. ZPP jer je visina određene naknade niža od 40.000 evra po srednjem kursu NBS na dan isplate. Na osnovu iznetog, primenom člana 413. u vezi člana 420. stav 1. i 6. ZPP i članova 27. stav 2. i 30. stav 2. Zakona o vanparničnom postupku, odlučeno je kao u izreci.",
+      "token_count": 594,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 18415/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-11",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-184152024-31912614-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "27",
+          "30",
+          "42",
+          "136",
+          "403",
+          "404",
+          "413",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_18415_2024__chunk_6",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 6,
+      "chunk_total": 7,
+      "text": ". i 6. ZPP i članova 27. stav 2. i 30. stav 2. Zakona o vanparničnom postupku, odlučeno je kao u izreci. Predsednik veća - sudija Gordana Komnenić s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 99,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 18415/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-11",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-184152024-31912614-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 6,
+        "chunk_total": 7,
+        "cited_articles_raw": [
+          "27",
+          "30",
+          "42",
+          "136",
+          "403",
+          "404",
+          "413",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

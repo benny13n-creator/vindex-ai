@@ -1,0 +1,190 @@
+{
+  "decision_id": "Rev2_3973_2024",
+  "decision_number": "Rev2 3973/2024",
+  "matter": "Građanska",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-20",
+  "registrant": "Rev2",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-39732024-31912614-31912613",
+  "chunked_at": "2026-05-10T12:29:46.259416+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 6,
+  "raw_text_length": 4815,
+  "raw_token_count": 2016,
+  "chunks": [
+    {
+      "chunk_id": "Rev2_3973_2024__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 6,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev2 3973/2024\n20.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija Željka Škorića, predsednika veća, Tatjane Matković Stefanović, Ivane Rađenović, Dobrile Strajina i dr Ilije Zindovića, članova veća, u parnici tužioca AA iz ..., čiji je punomoćnik Komlen Golubović, advokat iz ..., protiv tuženog Autoprevoz-Janjušević AD Priboj, čiji je punomoćnik Miroslav Dmitrović, advokat iz ..., radi naknade štete, odlučujući o reviziji tuženog izjavljenoj protiv presude Apelacionog suda u Kragujevcu Gž1 1079/23 od 19.01.2024. godine, u sednici veća održanoj dana 20.03.2026. godine doneo je",
+      "token_count": 279,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 3973/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-20",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-39732024-31912614-31912613",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_3973_2024__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 6,
+      "text": "NE DOZVOLJAVA SE posebna revizija tuženog izjavljena protiv presude Apelacionog suda u Kragujevcu Gž1 1079/23 od 19.01.2024. godine.\nODBACUJE SE kao nedozvoljena revizija tuženog izjavljena protiv presude Apelacionog suda u Kragujevcu Gž1 1079/23 od 19.01.2024. godine.",
+      "token_count": 115,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 3973/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-20",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-39732024-31912614-31912613",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_3973_2024__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 6,
+      "text": "Presudom Osnovnog suda u Priboju P1 211/21 od 30.01.2023. godine, stavom prvim izreke, usvojen je tužbeni zahtev i obavezan tuženi da tužiocu plati dug u ukupnom izsnosu od 75.476,82 dinara, a na ime doprinosa uplaćenih Republičkom fondu za penizijsko i invalidsko osiguranje zaposlenih – Ispostava Priboj od strane tužioca, za staž osiguranja sa uvećenim trajanjem za periode bliže označene u ovom stavu izreke, sve sa zakonskom zateznom kamatom počev od 25.09.2015. godine do isplate. Stavom drugim izreke, obavezan je tuženi da tužiocu naknadi troškove parničnog postupka u iznosu od 107.338,14 dinara. Presudom Apelacionog suda u Kragujevcu Gž1 1079/23 od 19.01.2024. godine, odbijena je kao neosnovana žalba tužene i potvrđena presuda Osnovnog suda u Priboju P1 211/21 od 30.01.2023. godine. Protiv pravnosnažne presude donete u drugom stepenu, tuženi je blagovremeno izjavio posebnu reviziju u smislu člana 404. Zakona o parničnom postupku. Prema odredbi člana 404. stav 1. Zakona o parničnom postupku („Službeni glasnik RS“, br. 72/11, 49/13-US, 74/13-US, 55/14, 87/18, 18/20,10/23 – drugi zakon) – u",
+      "token_count": 474,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 3973/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-20",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-39732024-31912614-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_3973_2024__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 6,
+      "text": "glasnik RS“, br. 72/11, 49/13-US, 74/13-US, 55/14, 87/18, 18/20,10/23 – drugi zakon) – u daljem tekstu: ZPP, propisano je da je revizija izuzetno dozvoljena zbog pogrešne primene materijalnog prava i protiv drugostepene presude koja ne bi mogla da se pobija revizijom, ako je po oceni Vrhovnog suda potrebno da se razmotre pravna pitanja od opšteg interesa ili pravna pitanja u interesu ravnopravnosti građana, radi ujednačavanja sudske prakse, kao i ako je potrebno novo tumačenje prava (posebna revizija). Stavom 2. istog člana zakona propisano je da o dozvoljenosti i osnovanosti iz stava 1. ovog člana, odlučuje Vrhovni sud u veću od pet sudija. Vrhovni sud je na osnovu ovlašćenja iz člana 404. ZPP zaključio da nisu ispunjeni uslovi za odlučivanje o reviziji tuženog kao izuzetno dozvoljenoj.",
+      "token_count": 331,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 3973/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-20",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-39732024-31912614-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_3973_2024__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 6,
+      "text": "člana 404. ZPP zaključio da nisu ispunjeni uslovi za odlučivanje o reviziji tuženog kao izuzetno dozvoljenoj. Predmet tražene pravne zaštite o kome je odlučeno pobijanom presudom je isplata tužiocu duga na ime uplaćenih doprinosa za obavezno penzijsko i invalidsko osiguranje, a na ime staža sa uvećanim trajanjem u spornom periodu. U konkretnom slučaju nisu ispunjeni uslovi za odlučivanje o reviziji tuženog kao izuzetno dozvoljenoj, jer u konkretnom slučaju ne postoji potreba za ujednačavanjem sudske prakse, niti potreba novog tumačenja prava, imajući u vidu se pitanje isplate, kao što je slučaj u ovom postupku, rešava u svakom konkretnom slučaju. Pored navedenog, prema članu 404. ZPP, svaka pogrešna primena materijalnog prava na konkretno utvrđeno činjenično stanje ne dovodi do primene ovog instituta, već samo ona koja je od opšteg značaja za ostvarivanje i zaštitu ljudskih prava i obezbeđenje standarda pravičnog suđenja. Iz izloženih razloga, Vrhovni sud odlučio je kao u stavu prvom izreke, primenom odredbe člana 404. stav 2. ZPP. Odlučujući o dozvoljenosti izjavljene revizije u smislu odredbe člana 410. stav 2. tačka 5) ZPP, Vrhovni sud je našao da revizija nije dozvoljena.",
+      "token_count": 492,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 3973/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-20",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-39732024-31912614-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_3973_2024__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 6,
+      "text": "ene revizije u smislu odredbe člana 410. stav 2. tačka 5) ZPP, Vrhovni sud je našao da revizija nije dozvoljena. Prema članu 441. ZPP, revizija je uvek dozvoljena u sporovima o zasnivanju, postojanju i prestanku radnog odnosa. Ukoliko se tužbeni zahtev odnosi na potraživanje u novcu u ovoj vrsti spora, dozvoljenost revizije se ima ceniti prema člana 403. stav 3. ZPP, prema kome revizija nije dozvoljena ako vrednost predmeta spora pobijanog dela ne prelazi dinarsku protivvrednost od 40.000 evra po srednjem kursu Narodne banke Srbije na dan podnošenja tužbe. Tužba u ovoj parnici podneta je 19.09.2018. godine, a pobijani deo pravnosnažne presude očigledno ne prelazi dinarsku protivvrednost iznosa od 40.000 evra po srednjem kursu Narodne banke Srbije na dan podnošenja tužbe, pa revizija tuženog nije dozvoljena, u smislu člana 403. stav 3. ZPP. Sa iznetih razloga na osnovu odredbe člana 413. ZPP, odlučeno je kao u stavu drugom izreke. Predsednik veća – sudija Željko Škorić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 446,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 3973/2024",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-20",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-39732024-31912614-31912613",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}
