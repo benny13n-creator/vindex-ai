@@ -9,7 +9,7 @@ import asyncio
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import FastAPI, Request, Depends, HTTPException, status, Header
+from fastapi import FastAPI, Request, Depends, HTTPException, status, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -1549,3 +1549,128 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
         "tip":     req.tip,
         "naziv":   PODNESAK_TIPOVI[req.tip],
     }
+
+
+# ─── Document Upload (Phase 2.2) ─────────────────────────────────────────────
+
+_ALLOWED_MIMES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+_ALLOWED_SUFFIXES = {".pdf", ".docx"}
+_MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+@app.post("/api/dokument/upload")
+@limiter.limit("20/minute")
+async def dokument_upload(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    """Upload a legal document (PDF or DOCX), chunk it, and ingest into a
+    temporary Pinecone namespace. Returns session_id for Phase 2.3 retrieval."""
+    import hashlib
+    import tempfile
+    from pathlib import Path as _Path
+
+    from uploaded_doc.api_models import UploadResponse
+    from uploaded_doc.chunker import chunk_document
+    from uploaded_doc.cleanup import cleanup_expired
+    from uploaded_doc.extractor import extract
+    from uploaded_doc.ingest import ingest_session
+    from uploaded_doc.session import generate_session_id, expires_at_iso, ttl_seconds_remaining
+
+    # Content-Length guard (header-based, fast path)
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File too large")
+
+    # MIME and suffix validation
+    suffix = _Path(file.filename or "").suffix.lower()
+    if file.content_type not in _ALLOWED_MIMES or suffix not in _ALLOWED_SUFFIXES:
+        raise HTTPException(status_code=415, detail="Unsupported format")
+
+    raw = await file.read()
+
+    # Size guard after read (covers missing Content-Length)
+    if len(raw) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File too large")
+
+    # Write to temp file for extractor
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(raw)
+            tmp_path = _Path(tmp.name)
+
+        text, is_scanned = extract(tmp_path)
+
+        if is_scanned:
+            raise HTTPException(status_code=422, detail="Skenirani PDF nije podržan")
+
+        source_meta = {
+            "source_filename": file.filename,
+            "source_format": suffix.lstrip("."),
+            "source_sha256": hashlib.sha256(raw).hexdigest(),
+            "is_scanned": is_scanned,
+            "session_id": "__local__",
+        }
+        manifest = chunk_document(text, source_meta)
+
+        if manifest.total_chunks == 0:
+            raise HTTPException(status_code=422, detail="Empty document")
+
+        session_id = generate_session_id()
+        ttl_hours = 24
+        count = await asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours)
+
+        exp_iso = expires_at_iso(ttl_hours)
+
+        # Fire-and-forget cleanup (non-blocking)
+        async def _background_cleanup():
+            try:
+                result = await asyncio.to_thread(cleanup_expired)
+                logger.info("[UPLOAD] Background cleanup: %s", result)
+            except Exception as _ce:
+                logger.warning("[UPLOAD] Background cleanup failed: %s", _ce)
+
+        asyncio.create_task(_background_cleanup())
+
+        return UploadResponse(
+            session_id=session_id,
+            chunk_count=count,
+            chunk_mode_used=manifest.chunk_mode_used,
+            article_labels_detected=manifest.article_labels_detected,
+            expires_at=exp_iso,
+            ttl_seconds=ttl_seconds_remaining(exp_iso),
+        )
+
+    finally:
+        if tmp_path and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+
+@app.post("/api/dokument/cleanup")
+async def dokument_cleanup(
+    x_admin_token: str = Header(default=""),
+):
+    """Admin endpoint: delete expired tmp_* Pinecone namespaces.
+    Requires X-Admin-Token matching FOUNDER_TOKEN env var."""
+    from uploaded_doc.api_models import CleanupResponse
+    from uploaded_doc.cleanup import cleanup_expired
+
+    founder_token = os.getenv("FOUNDER_TOKEN", "").strip()
+    if not founder_token:
+        raise HTTPException(status_code=503, detail="Cleanup endpoint not configured")
+    if x_admin_token != founder_token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    result = await asyncio.to_thread(cleanup_expired, False)
+    return CleanupResponse(
+        namespaces_deleted=result["namespaces_deleted"],
+        chunks_deleted=result["chunks_deleted"],
+        namespaces_inspected=result["namespaces_inspected"],
+    )
