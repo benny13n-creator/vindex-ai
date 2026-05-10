@@ -1,0 +1,146 @@
+{
+  "decision_id": "Kd_91_2026",
+  "decision_number": "Kd 91/2026",
+  "matter": "Krivična",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-03",
+  "registrant": "Kd",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/kd-912026-24111",
+  "chunked_at": "2026-05-10T12:29:45.688515+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 4078,
+  "raw_token_count": 1495,
+  "chunks": [
+    {
+      "chunk_id": "Kd_91_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nKd 91/2026\n03.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Miroljuba Tomića, predsednika veća, Tatjane Vuković i Jasmine Vasović, članova veća, sa savetnikom Marijom Ribarić, zapisničarem, u krivičnom predmetu okrivljenog AA, zbog krivičnog dela nedavanje izdržavanja iz člana 195. stav 1. Krivičnog zakonika, odlučujući o predlogu sudije pojedinca Osnovnog suda u Pančevu 6K. 114/26 od 23.02.2026. godine za prenošenje mesne nadležnosti, na sednici veća održanoj dana 03.03.2026. godine, doneo je",
+      "token_count": 245,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 91/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-03",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-912026-24111",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "33",
+          "195"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_91_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "ODBIJA SE, kao neosnovan, predlog sudije pojedinca Osnovnog suda u Pančevu 6K. 114/26 od 23.02.2026. godine da se za vođenje krivičnog postupka protiv okrivljenog AA, zbog krivičnog dela nedavanje izdržavanja iz člana 195. stav 1. Krivičnog zakonika, po optužnom predlogu javnog tužioca Osnovnog javnog tužilaštva u Pančevu KTO br. 605/25 od 11.02.2026. godine, odredi Osnovni sud u Kruševcu.",
+      "token_count": 176,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 91/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-03",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-912026-24111",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "33",
+          "195"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_91_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Javni tužilac Osnovnog javnog tužilaštva u Pančevu podneo je optužni predlog Osnovnom sudu u Pančevu optužni predlog KTO br. 605/25 od 11.02.2026. godine, protiv okrivljenog AA, zbog krivičnog dela nedavanje izdržavanja iz člana 195. stav 1. Krivičnog zakonika. Sudija pojedinac Osnovnog suda u Pančevu podneo je Vrhovnom sudu obrazložen predlog 6K. 114/26 od 23.02.2026. godine, da se za vođenje ovog krivičnog postupka kao mesno nadležan odredi Osnovni sud u Kruševcu, sa obrazloženjem da okrivljeni AA ima prebivalište u Kruševcu, da je branilac iz Paraćina, a da je prebivalište oštećene u Banatskom Brestovcu, čija se izjava može pročitati i čije prisustvo nije obavezno, nalazeći da će se predmetni krivični postupak lakše i ekonomičnije sprovesti pred Osnovnim sudom u Kruševcu. Vrhovni sud je u sednici veća razmotrio spise predmeta sa predlogom sudije pojedinca Osnovnog suda u Pančevu, pa je našao da je predlog neosnovan. Naime, iz spisa predmeta proizlazi da je krivično delo koje je okrivljenom stavljeno na teret izvršeno na području mesne nadležnosti Osnovnog suda u Pančevu, koji je prevashodno nadležan za vođenje ovog krivičnog postupka, te iako je mesto",
+      "token_count": 481,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 91/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-03",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-912026-24111",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "33",
+          "195"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_91_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "ne nadležnosti Osnovnog suda u Pančevu, koji je prevashodno nadležan za vođenje ovog krivičnog postupka, te iako je mesto prebivališta okrivljenog AA u Kruševcu, to nije očigledan i dovoljan razlog za zaključak da će postupak lakše sprovesti pred Osnovnim sudom u Kruševcu. Tim pre što je, po nalaženju ovog suda, za sada neizvesno da li će u toku krivičnog postupka biti potrebno izvođenje dokaza vezano za područje mesta izvršenja krivičnog dela, posebno imajući u vidu da zakonska zastupnica maloletne oštećene ima prebivalište na teritoriji Opštine Pančevo, a okolnost da okrivljeni ima prebivalište na teritoriji Osnovnog suda u Kruševcu, sama po sebi, ne ukazuje da bi se ovaj krivični postupak očigledno lakše sproveo pred Osnovnim sudom u Kruševcu, te po nalaženju ovog suda ne postoje razlozi koji bi opravdali prenošenje mesne nadležnosti sa Osnovnog suda u Pančevu na Osnovni sud u Kruševcu. Kako ne postoje razlozi procesne celishodnosti koji opravdavaju prenošenje mesne nadležnosti, Vrhovni sud je na osnovu člana 33. Zakonika o krivičnom postupku doneo odluku kao u izreci ovog rešenja. Zapisničar – savetnik                                                                                                                                                                                                                                                                                                                                                                                       Predsednik veća – sudija Marija Ribarić, s.r.                                                                                                                                                                                                                                                                                                                                                                                                 Miroljub Tomić, s.r. Za tačnost otpravka",
+      "token_count": 591,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 91/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-03",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-912026-24111",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "33",
+          "195"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_91_2026__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "Miroljub Tomić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 42,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 91/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-03",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-912026-24111",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "33",
+          "195"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

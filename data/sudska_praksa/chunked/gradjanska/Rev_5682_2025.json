@@ -1,0 +1,128 @@
+{
+  "decision_id": "Rev_5682_2025",
+  "decision_number": "Rev 5682/2025",
+  "matter": "Građanska",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-13",
+  "registrant": "Rev",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev-56822025-3141641-dopunsko-re%C5%A1enje",
+  "chunked_at": "2026-05-10T12:29:46.480072+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 4,
+  "raw_text_length": 2509,
+  "raw_token_count": 1045,
+  "chunks": [
+    {
+      "chunk_id": "Rev_5682_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 4,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev 5682/2025\n13.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Vesne Subić, predsednika veća, Radoslave Mađarov i Irene Vuković, članova veća, u parnici tužilje AA, mal. BB, čiji je zakonski zastupnik majka AA i VV, svi iz ..., koje zastupa punomoćnik Dalibor Mitić, advokat iz ..., protiv tuženog VV iz ..., koga zastupa punomoćnik Marko Radivojević, advokat iz ..., radi vršenja roditeljskog prava i izdržavanja, odlučujući o predlogu tužilaca za donošenje dopunskog rešenja o troškovima postupka, u sednici održanoj 13.03.2026. godine, doneo je",
+      "token_count": 255,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 5682/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-13",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-56822025-3141641-dopunsko-re%C5%A1enje",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "202",
+          "207",
+          "359",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_5682_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 4,
+      "text": "ODBIJA SE, kao neosnovana, revizija tužilaca izjavljena protiv presude Apelacionog suda u Kragujevcu Gž2 368/24 od 21.11.2024. godine u delu odluke o troškovima prvostepenog i drugostepenog postupka.",
+      "token_count": 82,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 5682/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-13",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-56822025-3141641-dopunsko-re%C5%A1enje",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "202",
+          "207",
+          "359",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_5682_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 4,
+      "text": "Presudom Vrhovnog suda Rev 5682/2025 od 15.05.2025. godine preinačena je presuda Apelacionog suda u Kragujevcu Gž2 368/24 od 21.11.2024. godine u stavu drugom izreke, tako što je odbijena, kao neosnovana, žalba tuženog i potvrđena presuda Osnovnog suda u Paraćinu P2 266/23 od 11.03.2024. godine u stavu drugom izreke i obavezan je tuženi da tužiocima naknadi troškove revizijskog postupka u iznosu od 27.000,00 dinara, sa zakonskom zateznom kamatom od izvršnosti odluke. Podneskom tužilaca od 08.08.2025. godine predloženo je donošenje dopunskog rešenja o troškovima prvostepenog i drugostepenog postupka, s obzirom da Vrhovni sud nije odlučio o zahtevu tužilaca u izjavljenoj reviziji. Naime, prvostepeni sud je odlučio da svaka stranka snosi svoje troškove postupka, a drugostepeni sud je takvu odluku potvrdio. Tužioci su u reviziji pobijali i odluku o troškovima postupka. Članom 207. Porodičnog zakona propisano je da o naknadi troškova postupka u vezi sa porodičnim odnosima sud odlučuje po slobodnoj oceni, vodeći računa o razlozima pravičnosti. Vrhovni sud smatra da je pravilna odluka o troškovima prvostepenog postupka, kao i odluka o troškovima drugostepenog postupka, imajući u vidu uspeh stranaka u prvostepenom postupku, kao i uspeh stranaka u drugostepenom postupku, s obzirom na sve okolnosti postupka i s obzirom na razloge pravičnosti.",
+      "token_count": 551,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 5682/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-13",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-56822025-3141641-dopunsko-re%C5%A1enje",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "202",
+          "207",
+          "359",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_5682_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 4,
+      "text": "enom postupku, kao i uspeh stranaka u drugostepenom postupku, s obzirom na sve okolnosti postupka i s obzirom na razloge pravičnosti. Iz navedenih razloga odlučeno je kao u izreci rešenja, na osnovu člana 359. Zakona o parničnom postupku u vezi člana 420. istog Zakona i člana 202. i člana 207. Porodičnog zakona. Pedsednik veća-sudija Vesna Subić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 179,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 5682/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-13",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-56822025-3141641-dopunsko-re%C5%A1enje",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "202",
+          "207",
+          "359",
+          "420"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

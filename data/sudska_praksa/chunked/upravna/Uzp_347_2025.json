@@ -1,0 +1,184 @@
+{
+  "decision_id": "Uzp_347_2025",
+  "decision_number": "Uzp 347/2025",
+  "matter": "Upravna",
+  "court": "Vrhovni sud",
+  "decision_date": "2025-12-16",
+  "registrant": "Uzp",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3472025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+  "chunked_at": "2026-05-10T12:29:46.843780+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 6,
+  "raw_text_length": 5036,
+  "raw_token_count": 1890,
+  "chunks": [
+    {
+      "chunk_id": "Uzp_347_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 6,
+      "text": "Republika Srbija\nVRHOVNI SUD\nUzp 347/2025\n16.12.2025. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Jelene Ivanović, predsednika veća, Željka Škorića i Vesne Subić, članova veća, sa savetnikom Gordanom Vojnović, kao zapisničarem, rešavajući o zahtevu AA iz ..., ... ..., čiji je punomoćnik Aleksandar Jovanović, advokat iz ..., ... ..., za preispitivanje sudske odluke – rešenja Upravnog suda U ću 4431/24 od 30.10.2025. godine, u predmetu penzijskom – ćutanje uprave, u nejavnoj sednici veća održanoj dana 16.12.2025. godine, doneo je",
+      "token_count": 243,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 347/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3472025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "8",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_347_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 6,
+      "text": "Zahtev se ODBACUJE.",
+      "token_count": 11,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 347/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3472025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "8",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_347_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 6,
+      "text": "AA iz ..., podneo je Vrhovnom sudu, preko punomoćnika, zahtev za preispitivanje sudske odluke – rešenja Upravnog suda U ću 4431/24 od 30.10.2025. godine, kojim pobija odluku o troškovima upravnog spora sadržanu u stavu drugom dispozitiva tog rešenja. Rešenjem Upravnog suda U ću 4431/24 od 30.10.2025. godine, stavom prvim dispozitiva, obustavljen je postupak po tužbi tužioca AA podnetoj zbog ćutanja uprave - neodlučivanja tuženog organa Republičkog fonda za penzijsko i invalidsko osiguranje, Direkcije fonda, Beograd o njegovoj žalbi od 05.10.2023. godine, izjavljenoj zbog nepostupanja prvostepenog organa. Stavom drugim dispozitiva pobijanog rešenja, odbijen je zahtev tužioca za naknadu troškova upravnog spora. U postupku prethodnog ispitivanja podnetog zahteva, Vrhovni sud je našao da je zahtev nedozvoljen. Odredbama člana 3. i člana 8. stav 1. Zakona o upravnim sporovima („Službeni glasnik RS“, broj 111/09), propisano je da Upravni sud u upravnom sporu odlučuje o zakonitosti konačnih upravnih akata i konačnih pojedinačnih akata kojima se rešava o pravu, obavezi ili na zakonu zasnovanom interesu, osim onih u pogledu kojih je u određenom slučaju predviđena drugačija sudska zaštita, kao i o zakonitosti drugih konačnih pojedinačnih akata kada je to zakonom predviđeno.",
+      "token_count": 537,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 347/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3472025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "8",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_347_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 6,
+      "text": "om slučaju predviđena drugačija sudska zaštita, kao i o zakonitosti drugih konačnih pojedinačnih akata kada je to zakonom predviđeno. Prema odredbi člana 49. stav 1. Zakona o upravnim sporovima („Službeni glasnik RS“, broj 111/09), protiv pravnosnažne odluke Upravnog suda stranka i nadležni javni tužilac mogu da podnesu Vrhovnom sudu zahtev za preispitivanje sudske odluke. Stavom 2. istog člana je propisano da zahtev može da se podnese kada je to zakonom predviđeno, u slučajevima kada je sud odlučivao u punoj jurisdikciji i u stvarima u kojima je u upravnom postupku bila isključena žalba, a stavom 3. da zahtev može da se podnese zbog povrede zakona, drugog propisa ili opšteg akta ili povrede pravila postupka koja je mogla biti od uticaja na rešenje stvari. Iz pobijanog rešenja i navoda zahteva proizlazi da je tužilac podneo Upravnom sudu tužbu zbog ćutanja uprave, odnosno zbog neodlučivanja tuženog organa o njegovoj žalbi izjavljenoj dana 05.10.2023. godine zbog nepostupanja prvostepenog organa.",
+      "token_count": 406,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 347/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3472025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "8",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_347_2025__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 6,
+      "text": "neodlučivanja tuženog organa o njegovoj žalbi izjavljenoj dana 05.10.2023. godine zbog nepostupanja prvostepenog organa. Imajući u vidu da podnosilac zahteva spori samo odluku o troškovima upravnog spora, Vrhovni sud nalazi da rešenjem o troškovima upravnog spora sadržanom u stavu drugom dispozitiva rešenja Upravnog suda U ću 4431/24 od 30.10.2025. godine nije odlučivano o predmetu upravnog spora u smislu člana 3. Zakona o upravnim sporovima, pa isto ne predstavlja pravnosnažnu odluku Upravnog suda iz člana 49. st. 1. i 2. navedenog zakona, čije preispitivanje stranka može tražiti pred Vrhovnim sudom podnošenjem zahteva za preispitivanje sudske odluke kao vanrednog pravnog sredstva. Pri tome, zahtev za preispitivanje sudske odluke nije dozvoljen u ovoj upravnoj stvari ni zbog toga što žalba nije isključena, zahtev za preispitivanje sudske odluke zakonom nije predviđen u ovoj upravnoj stvari, kao ni zbog toga što Upravni sud nije odlučivao u sporu pune jurisdikcije. Odredbom člana 53. stav 1. Zakona o upravnim sporovima je propisano da će nedozvoljen ili neblagovremen zahtev ili zahtev koji je podnelo neovlašćeno lice Vrhovni sud odbaciti rešenjem. S obzirom na sve izloženo, na osnovu navedenih propisa podneti zahtev je nedozvoljen, pa je Vrhovni sud, primenom odredbe člana 53. stav 1. Zakona o upravnim sporovima, odlučio kao u dispozitivu rešenja. REŠENO U VRHOVNOM SUDU dana 16.12.2025. godine, Uzp 347/2025",
+      "token_count": 594,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 347/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3472025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "8",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Uzp_347_2025__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 6,
+      "text": "odlučio kao u dispozitivu rešenja. REŠENO U VRHOVNOM SUDU dana 16.12.2025. godine, Uzp 347/2025 Zapisničar,                                                                                                                                                                                                                                                                                                                                                                                                             Predsednik veća – sudija, Gordana Vojnović, s.r.                                                                                                                                                                                                                                                                                                                                                                                              Jelena Ivanović, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 219,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Uzp 347/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Upravna",
+        "registrant": "Uzp",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/uzp-3472025-41261-zahtev-za-preispitivanje-sudske-odluke-412611-re%C5%A1enje-o-odbacivanju-zahteva",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "3",
+          "8",
+          "49",
+          "53"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

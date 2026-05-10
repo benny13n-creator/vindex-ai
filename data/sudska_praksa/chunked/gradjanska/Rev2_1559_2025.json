@@ -1,0 +1,124 @@
+{
+  "decision_id": "Rev2_1559_2025",
+  "decision_number": "Rev2 1559/2025",
+  "matter": "Građanska",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-30",
+  "registrant": "Rev2",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-15592025-31912614",
+  "chunked_at": "2026-05-10T12:29:46.130773+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 4,
+  "raw_text_length": 2360,
+  "raw_token_count": 1006,
+  "chunks": [
+    {
+      "chunk_id": "Rev2_1559_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 4,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev2 1559/2025\n30.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Željka Škorića, predsednika veća, Tatjane Matković Stefanović i Ivane Rađenović, članova veća, u parnici iz radnog odnosa tužilje AA iz ..., čiji je punomoćnik Miroslav Popović, advokat iz ..., protiv tužene Osnovne škole „Sremski front“, Šid, radi zaštite od zlostavljanja na radu, u postupku prethodnog razmatranja spisa radi odlučivanja o reviziji tužilje, izjavljenoj protiv presude Apelacionog suda u Novom Sadu Gž1 1728/24 od 12.02.2025. godine, u sednici veća održanoj 30.03.2026. godine, doneo je",
+      "token_count": 273,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 1559/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-30",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-15592025-31912614",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "382",
+          "411",
+          "419"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_1559_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 4,
+      "text": "VRAĆAJU SE spisi P1 1/20 Višem sudu u Sremskoj Mitrovici preko Apelacionog suda u Novom Sadu, na dopunu postupka.",
+      "token_count": 50,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 1559/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-30",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-15592025-31912614",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "382",
+          "411",
+          "419"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_1559_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 4,
+      "text": "Vrhovnom sudu dostavljeni su spisi Višeg suda u Sremskoj Mitrovici P1 1/20, radi odlučivanja o reviziji tužilje izjavljenoj protiv presude Apelacionog suda u Novom Sadu Gž1 1728/24 od 12.02.2025. godine. Po razmatranju spisa, Vrhovni sud je našao da nisu ispunjeni procesni uslovi za odlučivanje o izjavljenoj reviziji, jer u spisima nema dokaza o uručenju revizije suprotnoj strani – tuženom. Prema odredbi člana 411. stav 1. Zakona o parničnom postupku (\"Službeni glasnik RS\", br. 72/2011, 49/2013-US, 74/2013- US, 55/2014, 87/2018, 18/2020, 10/23- drugi zakon), u daljem tekstu: ZPP, primerak blagovremene, potpune i dozvoljene revizije prvostepeni sud dostaviće protivnoj stranci u roku od osam dana od dana prijema revizije. Stavom 2. propisano je da u roku od 30 dana od dana dostavljanja revizije, protivna stranka može da podnese sudu odgovor na reviziju, dok je stavom 3. propisano da će po prijemu odgovora ili po proteku roka za odgovor, prvostepeni sud dostaviti reviziju i odgovor na reviziju, sa spisima predmeta, Vrhovnom sudu preko drugostepenog suda, u roku od 15 dana. Kako u konkretnom slučaju nema dokaza o uručenju revizije suprotnoj strani, spisi se vraćaju Višem sudu u Sremskoj Mitrovici, da postupi u smislu člana 411. ZPP, dokaze o uručenju revizije združi spisima, a potom spise vrati Vrhovnom sudu.",
+      "token_count": 545,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 1559/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-30",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-15592025-31912614",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "382",
+          "411",
+          "419"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_1559_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 4,
+      "text": "da postupi u smislu člana 411. ZPP, dokaze o uručenju revizije združi spisima, a potom spise vrati Vrhovnom sudu. Iz navedenih razloga, na osnovu člana 382. stav 2. u vezi člana 419. ZPP, Vrhovni sud je odlučio kao u izreci rešenja. Predsednik veća – sudija Željko Škorić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 161,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev2 1559/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-30",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-15592025-31912614",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "382",
+          "411",
+          "419"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,264 @@
+{
+  "decision_id": "Przz_2_2023",
+  "decision_number": "Przz 2/2023",
+  "matter": "Upravna",
+  "court": "Vrhovni sud",
+  "decision_date": "2024-06-28",
+  "registrant": "Przz",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/przz-22023-43-0",
+  "chunked_at": "2026-05-10T12:29:46.577204+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 8,
+  "raw_text_length": 8718,
+  "raw_token_count": 3422,
+  "chunks": [
+    {
+      "chunk_id": "Przz_2_2023__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 8,
+      "text": "Republika Srbija\nVRHOVNI SUD\nPrzz 2/2023\n28.06.2024. godina\nBeograd\nU IME NARODA\nVrhovni sud, u veću sastavljenom od sudija: Jelene Ivanović, predsednika veća, Željka Škorića, Gordane Kojić, Aleksandra Stepanovića i Svetlane Tomić Jokić, članova veća, sa savetnikom Mirelom Kostadinović, kao zapisničarem, odlučujući o zahtevu za zaštitu zakonitosti javnog tužioca Republičkog (sada Vrhovnog) javnog tužilaštva Ptz 936/22 od 29.12.2022. godine, podnetom protiv presude Prekršajnog apelacionog suda u Beogradu Prž 20949/22 od 04.10.2022. godine, u predmetu prekršaja, u javnoj sednici veća održanoj dana 28.06.2024. godine, doneo je",
+      "token_count": 291,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Przz 2/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2024-06-28",
+        "matter": "Upravna",
+        "registrant": "Przz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/przz-22023-43-0",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 8,
+        "cited_articles_raw": [
+          "70",
+          "84",
+          "252",
+          "264",
+          "286",
+          "287",
+          "315"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Przz_2_2023__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 8,
+      "text": "Zahtev se USVAJA, UKIDA SE presuda Prekršajnog apelacionog suda u Beogradu Prž 20949/22 od 04.10.2022. godine i predmet VRAĆA Prekršajnom apelacionom sudu u Beogradu, na ponovno odlučivanje.",
+      "token_count": 83,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Przz 2/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2024-06-28",
+        "matter": "Upravna",
+        "registrant": "Przz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/przz-22023-43-0",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 8,
+        "cited_articles_raw": [
+          "70",
+          "84",
+          "252",
+          "264",
+          "286",
+          "287",
+          "315"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Przz_2_2023__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 8,
+      "text": "Presudom Prekršajnog suda u Smederevu Pr 3628/22 od 09.09.2022. godine, okrivljeno pravno lice Preduzeće za trgovinu „SPEED” DOO Beograd (Novi Beograd) sa sedištem u Novom Beogradu i okrivljeni AA iz ..., odgovorno lice, oglašeni su odgovornim, i to: okrivljeno pravno lice za prekršaj iz člana 70. stav 1. tačka 9) Zakona o transportu opasne robe, a okrivljeni AA za prekršaj iz člana 70. stav 2. u vezu stava 1. tačka 9) Zakona o transportu opasne robe, pa su osuđeni na novčane kazne, i to: okrivljeno pravno lice u iznosu od 100.000,00 dinara, a okrivljeno odgovorno lice u pravnom licu u iznosu od 10.000,00 dinara, koje su dužni da plate u roku od 15 dana od dana pravnosnažnosti presude, a u suprotnom će sud, na osnovu člana 315. Zakona o prekršajima posebnim rešenjem odlučiti o načinu izvršenja neplaćene kazne, te su obavezani da na ime paušalnog iznosa uplate iznos od po 4.000,00 dinara u istom roku kao i kaznu. Prekršajni apelacioni sud u Beogradu je presudom Prž 20949/22 od 04.10.2022. godine odbio, kao neosnovane, žalbe branioca okrivljenog pravnog lica, advokata Ivane Popović Tomanović iz ... i branioca okrivljenog odgovornog lica u pravnom licu, advokata Nataše Trifunović i potvrdio presudu Prekršajnog suda u Smederevu Pr 3628/22 od 09.09.2022. godine. Protiv presude Prekršajnog apelacionog suda u Beogradu Prž 20949/22 od 04.10.2022. godine, zamenik javnog tužioca Republičkog javnog tužilaštva (sada",
+      "token_count": 597,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Przz 2/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2024-06-28",
+        "matter": "Upravna",
+        "registrant": "Przz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/przz-22023-43-0",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 8,
+        "cited_articles_raw": [
+          "70",
+          "84",
+          "252",
+          "264",
+          "286",
+          "287",
+          "315"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Przz_2_2023__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 8,
+      "text": "u Beogradu Prž 20949/22 od 04.10.2022. godine, zamenik javnog tužioca Republičkog javnog tužilaštva (sada javni tužilac Vrhovnog javnog tužilaštva) je podigao zahtev za zaštitu zakonitosti zbog bitne povrede odredaba prekršajnog postupka u smislu člana 264. stav 2. tačke 3) i 4), u vezi člana 84. stav 7. u vezi stava 1. Zakona o prekršajima, navodeći da su razlozi drugostepenog suda o odlučnoj činjenici - nastupanju zastarelosti potpuno nejasni i u znatnoj meri protivrečni. Navodi da je prema izreci prvostepene presude vreme izvršenja prekršaja 22.10.2020 godine, te da su protiv navedene presude branioci okrivljenih podneli žalbe, kao i da je branilac okrivljenog odgovornog lica, advokat Nataša Trifunović, prvostepenom prekršajnom sudu dostavila podnesak od 26.10.2022. godine, u pogledu nastupanja zastarelosti vođenja prekršajnog postupka, koji je u tom sudu primljen dana 28.10.2022. godine. Dalje navodi, da je u pobijanoj presudi od 04.10.2022. godine, drugostepeni sud, navode podneska branioca okrivljenog odgovornog lica od 24.10.2022. godine, koji se tiču zastarelosti vođenja postupka, ocenio kao neosnovane. Imajući u vidu navedeno, ukazuje da je nejasno kako je drugostepeni sud mogao da se izjašnjava o podnesku branioca okrivljenog odgovornog lica od 28.10.2022. godine, budući da isti u vreme donošenja pobijane presude – 04.10.2022. godine, nije bio sačinjen niti dostavljen sudu.",
+      "token_count": 583,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Przz 2/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2024-06-28",
+        "matter": "Upravna",
+        "registrant": "Przz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/przz-22023-43-0",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 8,
+        "cited_articles_raw": [
+          "70",
+          "84",
+          "252",
+          "264",
+          "286",
+          "287",
+          "315"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Przz_2_2023__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 8,
+      "text": "2. godine, budući da isti u vreme donošenja pobijane presude – 04.10.2022. godine, nije bio sačinjen niti dostavljen sudu. Stoga, iz navedenog proizlazi da je drugostepeni sud odlučivao o izjavljenim žalbama nakon 28.10.2022. godine, odnosno u vreme kada je već nastupila apslolutna zastarelost vođenja prekršajnog postupka sa danom 22.10.2022. godine. Predlaže da Vrhovni sud usvoji zahtev za zaštitu zakonitosti, prieinači prvostepenu i drugostepenu presudu i postupak protiv okrivljenih obustavi ili da ukine drugostepenu presudu i predmet vrati drugostepenom sudu na ponovno odlučivanje. Vrhovni sud je obavestio o sednici veća javnog tužioca Vrhovnog javnog tužilaštva, koji, iako uredno obavešten, nije pristupio. Postupajući po podnetom zahtevu i ispitujući pobijanu presudu u smislu odredbe člana 286. Zakona o prekršajima (''Službeni glasnik RS'', br. 65/13, 13/16 i 98/16-odluka US, 91/19, 91/19 - dr.zakon, 112/22 - Odluka US), Vrhovni sud je našao da je zahtev osnovan. Iz stanja u spisima proizlazi da je Prekršajni sud u Smederevu, postupajući po zahtevu Ministarstva građevinarstva, saobraćaja i infrastrukture Republike Srbije, Sektora za inspekcijski nadzor, Grupe za inspekcijske poslove za transport opasne robe, Novi Beograd, od 18.01.2021. godine, doneo rešenje Pr 846/21 od 20.01.2021.",
+      "token_count": 540,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Przz 2/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2024-06-28",
+        "matter": "Upravna",
+        "registrant": "Przz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/przz-22023-43-0",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 8,
+        "cited_articles_raw": [
+          "70",
+          "84",
+          "252",
+          "264",
+          "286",
+          "287",
+          "315"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Przz_2_2023__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 8,
+      "text": "pekcijske poslove za transport opasne robe, Novi Beograd, od 18.01.2021. godine, doneo rešenje Pr 846/21 od 20.01.2021. godine, kojim je, protiv okrivljenih: pravnog lica Preduzeća za trgovinu „SPEED” DOO Beograd i AA iz ..., odgovornog lica u tom pravnom licu, pokrenuo prekšajni postupak zbog prekršaja iz člana 70. stav 1. tačka 9) Zakona o transportu opasne robe, odnosno iz člana 70. stav 2. u vezu stava 1. tačka 9) istog Zakona i po sprovedenom postupku dana 09.09.2022. godine, doneo presudu Pr 3628/2, kojom ih je oglasnio odgovornima za učinjene prekršaje i osudio ih novčane kazne, kao u izreci te presude. Prekršajni apelacioni sud u Beogradu je presudom Prž 20949/22 od 04.10.2022. godine odbio kao neosnovane žalbe branilaca okrivljenih i potvrdio presudu Prekršajnog suda u Smederevu Pr 3628/22 od 09.09.2022. godine. U spisima predmeta prvostepenog suda nalazi se podnesak advokata Nataše Trifunović, branioca okrivljenog AA, od 28.10.2022. godine, dok se u spisma drugostepenog suda nalazi podnesak istog advokata, iste sadržine, od 24.10.2022. godine. Odredbom člana 264. stav 2. tačka 3) Zakona o prekršajima je propisano da bitna povreda odredaba prekršajnog postupka koja je uticala ili je mogla da bude od uticaja na donošenje zakonite i pravilne presude ili rešenja postoji, između ostalog, ako presuda ili rešenje uopšte nema razloga ili nisu navedeni razlozi o",
+      "token_count": 569,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Przz 2/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2024-06-28",
+        "matter": "Upravna",
+        "registrant": "Przz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/przz-22023-43-0",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 8,
+        "cited_articles_raw": [
+          "70",
+          "84",
+          "252",
+          "264",
+          "286",
+          "287",
+          "315"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Przz_2_2023__chunk_6",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 6,
+      "chunk_total": 8,
+      "text": "ite i pravilne presude ili rešenja postoji, između ostalog, ako presuda ili rešenje uopšte nema razloga ili nisu navedeni razlozi o odlučnim činjenicama, ili su ti razlozi potpuno nejasni, ili u znatnoj meri protivrečni, ili ako o odlučnim činjenicama postoji znatna protivrečnost između onog što se u razlozima odluke navodi, o sadržini isprava ili zapisnika o iskazima datim u postupku, i samih tih isprava ili zapisnika, osim u slučaju iz člana 252. stav 4. ovog zakona. Osnovano se zahtevom za zaštitu zakonitosti javnog tužioca Vrhovnog javnog tužioca ukazuje da je učinjena bitna povreda odredaba prekršajnog postupka iz člana 264. stav 2. tačka 3) Zakona o prekršajima. Po oceni Vrhovnog suda nejasno je kako je drugostepeni prekršajni sud u razlozima svoje odluke od 04.10.2022. godine, kojom su žalbe branilaca okrivljenih odbijene, kao neosnovane, cenio podnesak advokata Nataše Trifunović, branioca okrivljenog AA, koji je neposredno predat tom sudu dana 24.10.2022. godine, odnosno nakon donošenja drugostepene presude. Na navedeni način Prekršajni apelacioni sud u Beogradu je učinio bitnu povredu odredaba prekršajnog postupka iz člana 264. stav 2. tačka 3) Zakona o prekršajima na štetu okrivljenih što je uticalo na donošenje zakonite i pravilne odluke, a kako se to osnovano ukazuje zahtevom za zaštitu zakonitosti.",
+      "token_count": 542,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Przz 2/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2024-06-28",
+        "matter": "Upravna",
+        "registrant": "Przz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/przz-22023-43-0",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 6,
+        "chunk_total": 8,
+        "cited_articles_raw": [
+          "70",
+          "84",
+          "252",
+          "264",
+          "286",
+          "287",
+          "315"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Przz_2_2023__chunk_7",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 7,
+      "chunk_total": 8,
+      "text": "ljenih što je uticalo na donošenje zakonite i pravilne odluke, a kako se to osnovano ukazuje zahtevom za zaštitu zakonitosti. Imajući u vidu navedeno, Vrhovni sud je ukinuo drugostepenu presudu i predmet vratio drugostepenom sudu na ponovno odlučivanje, radi donošenja pravilne, jasne i na zakonu zasnovane odluke, pri čemu će oceniti i da li je u konkretnom slučaju nastupila zastarelost vođenja prekršajnog postupka, u smislu člana 84. stav 7. u vezi stava 1. Zakona o prekršajima. Sa iznetih razloga, Vrhovni sud je, na osnovu odredbe člana 286. stav 1. i člana 287. stav 4. odlučio kao u dispozitivu presude. PRESUĐENO U VRHOVNOM SUDU Zapisničar,                                                                                                                                                                                                                                                                                                                                                                                                                 Predsednik veća – sudija, Mirela Kostadinović,s.r.                                                                                                                                                                                                                                                                                                                                                                                              Jelena Ivanović,s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 438,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Przz 2/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2024-06-28",
+        "matter": "Upravna",
+        "registrant": "Przz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/przz-22023-43-0",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 7,
+        "chunk_total": 8,
+        "cited_articles_raw": [
+          "70",
+          "84",
+          "252",
+          "264",
+          "286",
+          "287",
+          "315"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

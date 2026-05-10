@@ -1,0 +1,91 @@
+{
+  "decision_id": "Rev1_12_2025",
+  "decision_number": "Rev1 12/2025",
+  "matter": "Građanska",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-04-09",
+  "registrant": "Rev1",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev1-122025-3594",
+  "chunked_at": "2026-05-10T12:29:46.114988+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 3,
+  "raw_text_length": 1348,
+  "raw_token_count": 570,
+  "chunks": [
+    {
+      "chunk_id": "Rev1_12_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 3,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev1 12/2025\n09.04.2026. godina\nBeograd\nVrhovni sud, sudija Vesna Subić kao predsednik veća, u parnici tužilaca AA iz ..., BB iz ... i VV iz ..., čiji je punomoćnik Mile Rankić, advokat iz ..., protiv tuženog JP „EPS“ Beograd, Ogranak RB „Kolubara“ Lazarevac, čiji je punomoćnik Aleksandar Budalić, advokat iz ..., radi naknade štete, odlučujući o zahtevu tužilaca za ispravljanje presude Vrhovnog suda Rev1 12/2025 od 12.12.2025. godine, doneo je 09.04.2026. godine,",
+      "token_count": 208,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev1 12/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-04-09",
+        "matter": "Građanska",
+        "registrant": "Rev1",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev1-122025-3594",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 3,
+        "cited_articles_raw": [
+          "362"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev1_12_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 3,
+      "text": "ISPRAVLJA SE presuda Vrhovnog suda Rev1 12/2025 od 12.12.2025. godine, tako što se treći stav izreke menja i glasi: „Obavezuje se tuženi da tužiocima na ime troškova revizijskog postupka isplati solidarno 24.000,00 dinara, kao i tužiocu AA 64.450,00 dinara, tužiocu BB 64.950,00 dinara i tužiocu VV 60.150,00 dinara, od roku od osam dana od prijema prepisa presude“.",
+      "token_count": 152,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev1 12/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-04-09",
+        "matter": "Građanska",
+        "registrant": "Rev1",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev1-122025-3594",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 3,
+        "cited_articles_raw": [
+          "362"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev1_12_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 3,
+      "text": "Prilikom izrade presude Vrhovnog suda Rev1 12/2025 donete u sednici veća održanoj 12.12.2025. godine, došlo je do omaške u označavanju dosuđenih iznosa troškova revizijskog postupka, na šta su tužioci podneskom od 16.03.2026. godine opravdano ukazali, pa je odluka u izreci doneta na osnovu člana 362. ZPP.\nPredsednik veća – sudija\nVesna Subić,s.r.\nZa tačnost otpravka\nZamenik upravitelja pisarnice\nMilanka Ranković\nPreuzmite dokument u PDF formatu",
+      "token_count": 189,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev1 12/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-04-09",
+        "matter": "Građanska",
+        "registrant": "Rev1",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev1-122025-3594",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 3,
+        "cited_articles_raw": [
+          "362"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

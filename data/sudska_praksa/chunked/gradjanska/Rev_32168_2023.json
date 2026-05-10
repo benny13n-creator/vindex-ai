@@ -1,0 +1,181 @@
+{
+  "decision_id": "Rev_32168_2023",
+  "decision_number": "Rev 32168/2023",
+  "matter": "Građanska",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-03-25",
+  "registrant": "Rev",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev-321682023-31912613-31912614",
+  "chunked_at": "2026-05-10T12:29:46.432810+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 4832,
+  "raw_token_count": 1994,
+  "chunks": [
+    {
+      "chunk_id": "Rev_32168_2023__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev 32168/2023\n25.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Dobrile Strajina, predsednika veća, Dragane Mirosavljević, Nadežde Vidić, Gordane Komnenić i dr Ilije Zindovića, članova veća, u parnici tužioca ,,AMS Osiguranje“ a.d.o Beograd, čiji je punomoćnik Ivona Antić, advokat iz ..., protiv tuženog AA iz ..., čiji je punomoćnik Živko Rakonjac, advokat iz ..., radi regresa, odlučujući o reviziji tuženog izjavljenoj protiv presude Apelacionog suda u Nišu Gž 1119/23 od 12.07.2023. godine, u sednici održanoj 25.03.2026. godine, doneo je",
+      "token_count": 255,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 32168/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-321682023-31912613-31912614",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "29",
+          "92",
+          "154",
+          "165",
+          "403",
+          "404",
+          "410",
+          "413",
+          "929"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_32168_2023__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "NE DOZVOLJAVA SE odlučivanje o posebnoj reviziji tuženog izjavljenoj protiv presude Apelacionog suda u Nišu Gž 1119/23 od 12.07.2023. godine, kao izuzetno dozvoljenoj.\nODBACUJE SE kao nedozvoljena revizija tuženog izjavljena protiv presude Apelacionog suda u Nišu Gž 1119/23 od 12.07.2023. godine.\nODBIJA SE zahtev tužilje za naknadu troškova odgovora na reviziju.",
+      "token_count": 157,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 32168/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-321682023-31912613-31912614",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "29",
+          "92",
+          "154",
+          "165",
+          "403",
+          "404",
+          "410",
+          "413",
+          "929"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_32168_2023__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Presudom Osnovnog suda u Aleksincu P 3520/21 od 20.10.2022. godine, stavom prvim izreke, usvojen je tužbeni zahtev tužioca i obavezan tuženi da tužiocu na ime duga po osnovu regresa, isplati novčani iznos od 497.000,00 dinara sa zakonskom zateznom kamatom počev od 14.01.2019. godine do isplate. Stavom drugim izreke, obavezan je tuženi da tužiocu nadoknadi troškove parničnog postupka u ukupnom iznosu od 84.480,00 dinara sa zakonskom zateznom kamatom od dana izvršnosti presude do isplate. Presudom Apelacionog suda u Nišu Gž 1119/23 od 12.07.2023. godine, stavom prvim izreke, odbijena je, kao neosnovana, žalba tuženog i potvrđena prvostepena presuda. Stavom drugim izreke, odbijen je zahtev tužioca za naknadu troškova drugostepenog postupka. Protiv pravnosnažne presude donete u drugom stepenu tuženi je blagovremeno izjavio posebnu reviziju, zbog ujednačavanja sudske prakse i razmatranja pravnog pitanja u interesu građana. Tužilac je podneo odgovor na reviziju. Troškove revizijskog postupka je tražio i opredelio. Odlučujući o dozvoljenosti i osnovanosti revizije tuženog na osnovu člana 404. Zakona o parničnom postupku – ZPP („Službeni glasnik RS“, br. 72/11 ... 10/23) i člana 92. Zakona o uređenju sudova (''Službeni glasnik RS'', br. 10/23), Vrhovni sud je utvrdio da nisu ispunjeni uslovi za odlučivanje o reviziji kao izuzetno dozvoljenoj.",
+      "token_count": 563,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 32168/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-321682023-31912613-31912614",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "29",
+          "92",
+          "154",
+          "165",
+          "403",
+          "404",
+          "410",
+          "413",
+          "929"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_32168_2023__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "br. 10/23), Vrhovni sud je utvrdio da nisu ispunjeni uslovi za odlučivanje o reviziji kao izuzetno dozvoljenoj. Pravnosnažnom presudom odlučeno je u regresnom zahtevu, u činjeničnopravnoj situaciji da je tužilac kao osiguravač, pravnom sledbeniku oštećenog lica, isplatio naknadu štete, koja je posledica saobraćajne nezgode izazvane skrivljenom radnjom tuženog, koji je upravljajući automobilom udario u bicikl kojim je upravljao pok. BB, koji je usled zadobijenih povreda preminuo na licu mesta. Tužbeni zahtev je usvojen primenom odredbi članova 929. i 941. Zakona o obligacionim odnosima i člana 29. Zakona o obaveznom osiguranju u saobraćaju. Imajući u vidu vrstu spora, sadržinu tražene sudske zaštite, način presuđenja i razloge koje su nižestepeni sudovi dali, to po oceni Vrhovnog suda nisu ispunjeni uslovi za odlučivanje o reviziji kao izuzetno dozvoljenoj u smislu člana 404. ZPP, s obzirom da ne postoji potreba da se razmotre pravna pitanja od opšteg interesa, pravna pitanja u interesu ravnopravnosti građana, radi ujednačavanja sudske prakse, niti je potrebno novo tumačenje prava. Iz dostavljenih izvoda iz odluka na koje je revizijom ukazano i koje su priložene uz reviziju proizlazi da se ne radi o istim ili sličnim činjenično-pravnim situacijama, pa se ne može ni govoriti o neujednačenoj sudskoj praksi. Ispitujući dozvoljenost revizije, u smislu člana 410. stav 2. tačka 5. ZPP, Vrhovni sud je našao da revizija nije dozvoljena.",
+      "token_count": 592,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 32168/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-321682023-31912613-31912614",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "29",
+          "92",
+          "154",
+          "165",
+          "403",
+          "404",
+          "410",
+          "413",
+          "929"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev_32168_2023__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "voljenost revizije, u smislu člana 410. stav 2. tačka 5. ZPP, Vrhovni sud je našao da revizija nije dozvoljena. Naime, odredbom člana 403. stav 3. ZPP, propisano je da revizija nije dozvoljena u imovinskopravnim sporovima ako vrednost predmeta spora pobijanog dela ne prelazi dinarsku protivvrednost 40.000 evra po srednjem kursu Narodne banke Srbije na dan podnošenja tužbe. Tužba radi naknade štete podneta je 14.08.2019. godine. Vrednost predmeta spora je 497.000,00 dinara. Imajući u vidu da se radi o imovinskopravnom sporu u kome se tužbeni zahtev odnosi na novčano potraživanje, u kome pobijana vrednost predmeta spora ne prelazi dinarsku protivvrednost 40.000 evra prema srednjem kursu Narodne banke Srbije na dan podnošenja tužbe, to je revizija nedozvoljena. Na osnovu iznetog, primenom člana 413. ZPP, Vrhovni sud je odlučio kao u stavu drugom izreke. Troškovi tužilje za sastav odgovora na reviziju, po oceni Vrhovnog suda, nisu bili potrebni za vođenje ovog postupka, te je primenom primenom članova 154. stav 1. u vezi člana 165. stav 1. ZPP, Vrhovni sud odlučio kao u stavu trećem izreke. Predsednik veća - sudija Dobrila Strajina, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 500,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rev 32168/2023",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev-321682023-31912613-31912614",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "29",
+          "92",
+          "154",
+          "165",
+          "403",
+          "404",
+          "410",
+          "413",
+          "929"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

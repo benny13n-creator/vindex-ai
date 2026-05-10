@@ -1,0 +1,156 @@
+{
+  "decision_id": "Kd_45_2026",
+  "decision_number": "Kd 45/2026",
+  "matter": "Krivična",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-02-11",
+  "registrant": "Kd",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/kd-452026-24111-mesna-nadle%C5%BEnost",
+  "chunked_at": "2026-05-10T12:29:45.640954+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 4339,
+  "raw_token_count": 1575,
+  "chunks": [
+    {
+      "chunk_id": "Kd_45_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nKd 45/2026\n11.02.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Milene Rašić, predsednika veća, Gordane Kojić i Aleksandra Stepanovića, članova veća, sa savetnikom Vrhovnog suda Snežanom Lazin, kao zapisničarem, u krivičnom predmetu protiv okrivljenog AA, zbog krivičnog dela neovlašćeno držanje opojnih droga iz člana 246a stav 1. Krivičnog zakonika, odlučujući o predlogu sudije pojedinca Osnovnog suda u Novom Sadu K-1379/25 od 16.10.2025. godine za prenošenje mesne nadležnosti, u sednici veća održanoj dana 11.02.2026. godine, doneo je",
+      "token_count": 259,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 45/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-452026-24111-mesna-nadle%C5%BEnost",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a",
+          "512"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_45_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "Za vođenje krivičnog postupka protiv okrivljenog AA zbog krivičnog dela neovlašćeno držanje opojnih droga iz člana 246a stav 1. Krivičnog zakonika, po optužnom predlogu javnog tužioca Osnovnog javnog tužilaštva u Novom Sadu KTO- 1156/25 od 07.10.2025. godine, ODREĐUJE SE Osnovni sud u Kragujevcu.",
+      "token_count": 135,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 45/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-452026-24111-mesna-nadle%C5%BEnost",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a",
+          "512"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_45_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Javni tužilac Osnovnog javnog tužilaštva u Novom Sadu podneo je Osnovnom sudu u Novom Sadu optužni predlog KTO-1156/25 od 07.10.2025. godine protiv okrivljenog AA, stavljajući mu na teret izvršenje krivičnog dela neovlašćeno držanje opojnih droga iz člana 246a stav 1. KZ. Postupajući sudija pojedinac Osnovnog suda u Novom Sadu dostavio je Vrhovnom sudu predlog K-1379/25 od 16.10.2025. godine da se, na osnovu člana 33. Zakonika o krivičnom postupku, iz razloga celishodnosti i ekonomičnosti, za vođenje predmetnog krivičnog postupka odredi Osnovni sud u Kragujevcu, nalazeći da će se pred tim sudom postupak lakše sprovesti i smanjiti troškovi istog. Vrhovni sud je razmotrio spise predmeta, zajedno sa predlogom sudije pojedinca Osnovnog suda u Novom Sadu za prenošenje mesne nadležnosti, pa je našao: Predlog je osnovan. Odredbom člana 33. ZKP predviđeno je da na predlog sudije za prethodni postupak, sudije pojedinca ili predsednika veća, Vrhovni sud može za vođenje krivičnog postupka odrediti drugi stvarno nadležan sud, ako je očigledno da će se tako lakše sprovesti postupak ili ako postoje drugi važni razlozi. Naime, u konkretnom slučaju, prema stanju u spisima, proizilazi da će se, iz razloga celishodnosti, predmetni krivični postupak lakše sprovesti pred Osnovnim sudom u Kragujevcu. Ovo imajući u vidu da okrivljeni AA ima prebivalište u mestu Lapovo, ulica ... broj ..., a za koju teritoriju je shodno članu 3. stav 1.",
+      "token_count": 569,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 45/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-452026-24111-mesna-nadle%C5%BEnost",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a",
+          "512"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_45_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "u vidu da okrivljeni AA ima prebivalište u mestu Lapovo, ulica ... broj ..., a za koju teritoriju je shodno članu 3. stav 1. tačka 26) Zakona o sedištima i područjima sudova i javnih tužilaštava nadležan Osnovni sud u Kragujevcu, te imajući pri tome u vidu da je i izabrani branilac okrivljenog – advokat Zoran Marinković iz ..., kao i imajući u vidu da u optužnom predlogu javnog tužioca nije predložen ni jedan dokaz čije je izvođenje vezano za područje mesne nadležnosti Osnovnog suda u Novom Sadu, obzirom da je u istom na osnovu člana 512. stav 1. ZKP stavljen zahtev za održavanje ročišta za izricanje krivične sankcije na koje treba pozvati javnog tužioca, okrivljenog i njegovog branioca, a da se u spisima predmeta nalaze prikupljeni pisani dokazi. Imajući u vidu sve napred navedeno, to je, i po nalaženju ovog suda, očigledno da će se predmetni krivični postupak lakše i ekonomičnije sprovesti pred Osnovnim sudom u Kragujevcu. Sa iznetih razloga, a na osnovu člana 33. Zakonika o krivičnom postupku i člana 3. stav 1. tačka 26) Zakona o sedištima i područjima sudova i javnih tužilaštava, Vrhovni sud je odlučio kao u izreci rešenja. Zapisničar-savetnik                                                                                                                                                                                                                                                                                                                                                                                               Predsednik veća-sudija",
+      "token_count": 533,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 45/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-452026-24111-mesna-nadle%C5%BEnost",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a",
+          "512"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_45_2026__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "Predsednik veća-sudija Snežana Lazin, s.r.                                                                                                                                                                                                                                                                                                                                                                                                            Milena Rašić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 110,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 45/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-452026-24111-mesna-nadle%C5%BEnost",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a",
+          "512"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

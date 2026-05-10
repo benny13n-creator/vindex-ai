@@ -1,0 +1,124 @@
+{
+  "decision_id": "Kd_76_2026",
+  "decision_number": "Kd 76/2026",
+  "matter": "Krivična",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-02-26",
+  "registrant": "Kd",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/kd-762026-24111-delegacija-nadle%C5%BEnosti",
+  "chunked_at": "2026-05-10T12:29:45.677847+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 4,
+  "raw_text_length": 3908,
+  "raw_token_count": 1424,
+  "chunks": [
+    {
+      "chunk_id": "Kd_76_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 4,
+      "text": "Republika Srbija\nVRHOVNI SUD\nKd 76/2026\n26.02.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Svetlane Tomić Jokić, predsednika veća, Bojane Paunović i Dijane Janković, članova veća, sa savetnikom Andreom Jakovljević, kao zapisničarem, u krivičnom predmetu okrivljenog AA, zbog krivičnog dela neovlašćeno držanje opojnih droga iz člana 246a stav 1. Krivičnog zakonika, odlučujući o predlogu sudije pojedinca Osnovnog suda u Užicu K 59/26 od 09.02.2026. godine, za prenošenje mesne nadležnosti na drugi stvarno nadležan sud, u sednici veća održanoj dana 26.02.2026. godine, doneo je",
+      "token_count": 268,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 76/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-26",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-762026-24111-delegacija-nadle%C5%BEnosti",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_76_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 4,
+      "text": "Za vođenje krivičnog postupka protiv okrivljenog AA, po optužnom predlogu Osnovnog javnog tužioca u Užicu Kto 55/26 od 06.02.2026. godine, zbog krivičnog dela neovlašćeno držanje opojnih droga iz člana 246a stav 1. Krivičnog zakonika, ODREĐUJE SE Osnovni sud u Somboru.",
+      "token_count": 124,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 76/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-26",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-762026-24111-delegacija-nadle%C5%BEnosti",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_76_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 4,
+      "text": "Osnovni javni tužilac u Užicu podneo je Osnovnom sudu u Užicu optužni predlog Kto 55/26 od 06.02.2026. godine, protiv okrivljenog AA, zbog postojanja opravdane sumnje da je izvršio krivično delo neovlašćeno držanje opojnih droga iz člana 246a stav 1. Krivičnog zakonika. Sudija pojedinac Osnovnog suda u Užicu dostavio je Vrhovnom sudu obrazloženi predlog K 59/26 od 09.02.2026. godine, da se za vođenje krivičnog postupka protiv okrivljenog AA, zbog krivičnog dela neovlašćeno držanje opojnih droga iz člana 246a stav 1. Krivičnog zakonika, kao mesno nadležan, odredi Osnovni sud u Somboru, shodno članu 33. ZKP. Vrhovni sud je u sednici veća razmotrio spise predmeta sa predlogom sudije pojedinca Osnovnog suda u Užicu za prenošenje mesne nadležnosti, pa je našao da je predlog osnovan. Odredbom člana 33. ZKP, propisano je da na predlog sudije za prethodni postupak, sudije pojedinca ili predsednika veća Vrhovni sud može za vođenje krivičnog postupka odrediti drugi stvarno nadležan sud, ako je očigledno da će se tako lakše sprovesti postupak ili ako postoje drugi važni razlozi. Iz navoda predloga sudije pojedinca Osnovnog suda u Užicu za prenošenje mesne nadležnosti na drugi stvarno nadležan sud i iz spisa predmeta proizilazi da okrivljeni AA ima prebivalište u mestu ..., Opština Apatin, dakle na teritoriji mesne nadležnosti Osnovnog suda u Somboru.",
+      "token_count": 552,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 76/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-26",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-762026-24111-delegacija-nadle%C5%BEnosti",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kd_76_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 4,
+      "text": "azi da okrivljeni AA ima prebivalište u mestu ..., Opština Apatin, dakle na teritoriji mesne nadležnosti Osnovnog suda u Somboru. Kako u optužnom aktu nije predloženo izvođenje dokaza vezanih za teritoriju mesne nadležnosti Osnovnog suda u Užicu, već je samo predloženo da se na glavnom pretresu, pored saslušanja okrivljenog, izvedu pisani dokazi koji se nalaze u spisima, to Vrhovni sud nalazi da je predlog sudije pojedinca Osnovnog suda u Užicu za prenošenje mesne nadležnosti osnovan i da je očigledno da će se ovaj krivični postupak, započet pred Osnovnim sudom u Užicu, lakše i ekonomičnije sprovesti pred Osnovnim sudom u Somboru. Iz iznetih razloga, na osnovu člana 33. ZKP i člana 3. stav 1. tačka 56) Zakona o sedištima i područjima sudova i javnih tužilaštava, doneta je odluka kao u izreci ovog rešenja. Zapisničar-savetnik,                                                                                                                                                                                                                                                                                                                                                                                                Predsednik veća-sudija, Andrea Jakovljević,s.r.                                                                                                                                                                                                                                                                                                                                                                                          Svetlana Tomić Jokić,s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 501,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kd 76/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-26",
+        "matter": "Krivična",
+        "registrant": "Kd",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kd-762026-24111-delegacija-nadle%C5%BEnosti",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "3",
+          "33",
+          "246a"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

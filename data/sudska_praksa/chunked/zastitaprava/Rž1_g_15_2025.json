@@ -1,0 +1,208 @@
+{
+  "decision_id": "Rž1_g_15_2025",
+  "decision_number": "Rž1 g 15/2025",
+  "matter": "Zaštita prava",
+  "court": "Vrhovni sud",
+  "decision_date": "2025-12-16",
+  "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-152025-157-15791",
+  "chunked_at": "2026-05-10T12:29:47.040307+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 6,
+  "raw_text_length": 5938,
+  "raw_token_count": 2455,
+  "chunks": [
+    {
+      "chunk_id": "Rž1_g_15_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 6,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up 15/2025\n16.12.2025. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija Vesne Subić, predsednika veća, Tatjane Matković Stefanović i Tatjane Miljuš, članova veća, u postupku po zahtevu predlagača AA iz ..., koga zastupa punomoćnik Tamara Stojiljković, advokat iz ..., radi zaštite prava na suđenje u razumnom roku, odlučujući o žalbi predlagača izjavljenoj protiv rešenja Apelacionog suda u Nišu R4 g 33/14 od 09.11.2015. godine, u sednici održanoj 16.12.2025. godine, doneo je",
+      "token_count": 258,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 15/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-152025-157-15791",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "8a",
+          "30",
+          "153",
+          "154",
+          "165",
+          "386",
+          "401",
+          "402"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_15_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 6,
+      "text": "ODBIJA SE, kao neosnovana žalba predlagača i POTVRĐUJE rešenje Apelacionog suda u Nišu R4 g 33/14 od 09.11.2015. godine u stavu trećem izreke.\nODBIJA SE, kao neosnovan, zahtev predlagača za naknadu troškova postupka.",
+      "token_count": 97,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 15/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-152025-157-15791",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "8a",
+          "30",
+          "153",
+          "154",
+          "165",
+          "386",
+          "401",
+          "402"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_15_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 6,
+      "text": "Rešenjem Apelaconog suda u Nišu R4 g 33/14 od 09.11.2015. godine, stavom prvim izreke, utvrđeno je da je predlagaču AA iz ... povređeno pravo na suđenje u razumnom roku u postupku pred Osnovnim sudom u Leskovcu u predmetu P 3239/13. Stavom drugim izreke određena je predlagaču primerena naknada za povredu prava za suđenje u razumnom roku u iznosu od 30.000,00 dinara iz budžetskih sredstava Republike Srbije opredeljenih za rad sudova, u roku od 3 meseca od dana podnošenja zahteva predlagača za isplatu. Stavom trećim izreke zahtev predlagača za iznos preko 30.000,00 dinara pa do traženih 500.000,00 dinara je odbijen. Stavom četvrtim izreke naloženo je Osnovnom sudu u Leskovcu okončanje postupka u što kraćem roku. Dopunskim rešenjem Apelacionog suda u Nišu R4 g 33/2014 od 03.09.2015. godine delimično je usvojen kao osnovan predlog predlagača za dopunu rešenja Apelacionog suda u Nišu R4 g 33/14 od 09.11.2015. godine i obavezana je Republika Srbija da predlagaču isplati troškove postupka u iznosu od 6.000,00 dinara, dok je zahtev za isplatu troškova postupka preko navedenog iznosa pa do traženog iznosa od 60.000,00 dinara odbijen, kao neosnovan. Protiv rešenja Apelacionog suda u Nišu R4 g 33/14 od 09.11.2015. godine predlagač je blagovremeno izjavio žalbu zbog pogrešno i nepotpuno utvrđenog činjeničnog stanja i pogrešne primene materijalnog prava.",
+      "token_count": 569,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 15/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-152025-157-15791",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "8a",
+          "30",
+          "153",
+          "154",
+          "165",
+          "386",
+          "401",
+          "402"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_15_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 6,
+      "text": "je blagovremeno izjavio žalbu zbog pogrešno i nepotpuno utvrđenog činjeničnog stanja i pogrešne primene materijalnog prava. Vrhovni sud je ispitao odluku u pobijanom delu, u smislu člana 386. stav 1. i stav 3. u vezi člana 402. ZPP („Službeni glasnik RS“ br. 72/11...10/23) u vezi sa članom 30. stav 2. Zakona o vanparničnom postupku i utvrdio da žalba nije osnovana. U postupku pred prvostepenim sudom nisu učinjene bitne povrede odredaba parničnog postupka na koje Vrhovni sud, kao drugostepeni sud, pazi po službenoj dužnosti. Iz spisa je utvrđeno da je predlagač, u svojstvu tužioca podneo tužbu Opštinskom sudu u Leskovcu 28.09.2006. godine, kojom je tražio da sud naloži tuženima da svoj objekat postojeći na kat. parceli br. .. u ulici ... br. .. u KO ..., udaljeni na propisanu razdaljinu od međne linije i njegove parcele kat. br. .. i to na najmanjoj udaljenosti od 1,50 metara, te da poruše izvedene radove. Apelacioni sud u Nišu je ispitao postupanje suda i tužioca i utvrdio da predmet nije činjenično složen, a da se činjenice u vezi zloupotrebe susedskog prava od strane tuženih utvrđuju veštačenjem od strane veštaka odgovarajuće struke, što ne zahteva dugo vođenje spora. Međutim, spor po tužbi u vreme odlučivanja o prigovoru je trajao više od sedam godina, pa je nastupila povreda prava predlagač na suđenje u razumnom roku.",
+      "token_count": 541,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 15/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-152025-157-15791",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "8a",
+          "30",
+          "153",
+          "154",
+          "165",
+          "386",
+          "401",
+          "402"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_15_2025__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 6,
+      "text": "u vreme odlučivanja o prigovoru je trajao više od sedam godina, pa je nastupila povreda prava predlagač na suđenje u razumnom roku. Odlučujući o delu zahteva za određivanje primerene naknade zbog povrede prava na suđenje u razumnom roku Apelacioni sud je cenio činjenicu da je predlagač, kao tužilac, delimično svojim ponašanjem doprineo trajanju postupka u nerazumno dugom roku, na taj način što se pasivno ponašao u postupku, u smislu pribavljanja dokaza koje je prilagao sudu, da je zbog odsustva uredno pozvanog njegovog punomoćnika na ročištu koje je bilo zakazano za 21.02.2022. godine sud doneo rešenje kojim se smatra da je tužba povučena, nakon čega je dozvolio vraćanje u pređašnje stanje, a da je tužilac nakon toga, zajedno sa punomoćnikom tuženih dana 11.03.2009. godine predložio prekid postupka, radi rešenja upravnog postupka koji se vodi pred organima uprave protiv njega i protiv tuženih, kao prethodnog pitanja od kojeg zavisi odluka u ovoj pravnoj stvari, te da je nakon angažovanja novog punomoćnika, koji se nije blagovremeno upoznao sa predmetom, tražio odlaganje ročišta. Zbog toga je Apelacioni sud ocenio da zbog utvrđenja povrede prava na suđenje u razumnom roku pravično zadovoljenje predlagača može da se ostvari isplatom primerene naknade u iznosu od 30.000,00 dianra, te da isplata većeg iznosa do traženog do 500.000,00 dinara ne pripada predlagaču iz navedenih razloga.",
+      "token_count": 554,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 15/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-152025-157-15791",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "8a",
+          "30",
+          "153",
+          "154",
+          "165",
+          "386",
+          "401",
+          "402"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_15_2025__chunk_5",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 5,
+      "chunk_total": 6,
+      "text": "000,00 dianra, te da isplata većeg iznosa do traženog do 500.000,00 dinara ne pripada predlagaču iz navedenih razloga. Po oceni Vrhovnog suda prvostepeni sud je pravilno primenio odredbe članova 8a, 8b i 8v Zakona o uređenju sudova, delimičnim odbijanjem zahteva za primerenu naknadu preko iznosa od 30.000,00 dinara. Prilikom odlučivanja o visini naknade, sud je imao u vidu sve okolnosti ovog slučaja, posebno dužinu trajanja postupka i postupanje suda i predlagača, ali i ekonomske i socijalne prilike u Republici Srbiji i svrhu primerene naknade. Određena naknada, uz nalog prvostepenom sudu da postupak okonča u što kraćem roku, predstavlja adekvatnu meru primerenu okolnostima slučaja, kojom će se postići svrha zaštite u ovom postupku. Zato nisu osnovani navodi žalbe o pogrešno primenjenom materijalnom pravu. Predlagač nije uspeo u žalbenom postupku, zbog čega nema pravo na naknadu troškova tog postupka koje je tražio i opredelio, a u smislu člana 153. i člana 154. Zakona o parničnom postupku, u vezi člana 30. stav 2. Zakona o vanparničnom postupku. Iz navedenih razloga odlučeno je kao u izreci, na osnovu člana 401. tačka 2. Zakona o parničnom postupku u vezi člana 30. Zakona o vanparničnom postupku i na osnovu člana 165. stav 1. ZPP. Predsednik veća-sudija Vesna Subić,s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 556,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 15/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2025-12-16",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-152025-157-15791",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 5,
+        "chunk_total": 6,
+        "cited_articles_raw": [
+          "8a",
+          "30",
+          "153",
+          "154",
+          "165",
+          "386",
+          "401",
+          "402"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

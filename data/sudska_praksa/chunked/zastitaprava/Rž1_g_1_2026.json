@@ -1,0 +1,132 @@
+{
+  "decision_id": "Rž1_g_1_2026",
+  "decision_number": "Rž1 g 1/2026",
+  "matter": "Zaštita prava",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-01-30",
+  "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-12026-1578",
+  "chunked_at": "2026-05-10T12:29:47.044520+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 4,
+  "raw_text_length": 3015,
+  "raw_token_count": 1301,
+  "chunks": [
+    {
+      "chunk_id": "Rž1_g_1_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 4,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up 1/2026\n30.01.2026. godina\nBeograd\nVrhovni sud, predsednik suda Jasmina Vasović, u predmetu predlagača AA iz .., ul. ... br. .., čiji je punomoćnik Ljubiša Miljanić, advokat iz ..., ul. ... br. .., odlučujući o žalbi predlagača izjavljenoj protiv rešenja Apelacionog suda u Novom Sadu R4g 5/25 od 18.12.2025. godine, u predmetu zaštite prava na suđenje u razumnom roku, bez ispitnog postupka, doneo je 30.01.2026. godine",
+      "token_count": 232,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 1/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-01-30",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-12026-1578",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17",
+          "30",
+          "153"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_1_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 4,
+      "text": "ODBACUJE SE kao nedozvoljena žalba predlagača izjavljena protiv rešenja Apelacionog suda u Novom Sadu R4g 5/25 od 18.12.2025. godine.\nODBIJA SE kao neosnovan zahtev predlagača za naknadu troškova postupka.",
+      "token_count": 88,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 1/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-01-30",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-12026-1578",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17",
+          "30",
+          "153"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_1_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 4,
+      "text": "Rešenjem Apelacionog suda u Novom Sadu R4g 5/25 od 18.12.2025. godine, stavom prvim izreke, odbijen je prigovor predlagača kojim je tražila da se utvrdi da joj je povređeno pravo na suđenje u razumnom roku u predmetu Apelacionog suda u Novom Sadu Gž 346/25 i da se naloži postupajućem sudiji preduzimanje procesnih radnji radi delotvornog ubrzanja postupka. Stavom drugim izreke, odbijen je zahtev predlagača za naknadu troškova postupka. Protiv navedenog rešenja predlagač je 13.01.2026. godine podnela žalbu Vrhovnom sudu, sa predlogom da se pobijano rešenje preinači, te da se utvrdi da joj je u predmetu Apelacionog suda u Novom Sadu Gž 346/25 povređeno pravo na suđenje u razumnom roku. Troškove postupka je tražila i opredelila. Postupajući po žalbi predlagača, bez sprovođenja ispitnog postupka, u smislu odredaba čl. 16. i 17. Zakona o zaštiti prava na suđenje u razumnom roku („Službeni glasnik RS“ br. 40/15 i 92/23), Vrhovni sud je zaključio da je žalba nedozvoljena. Uvidom u spise predmeta Apelacionog suda u Novom Sadu R4g 5/25, kao i u Portal pravosuđa Srbije - SAPS, utvrđeno je da je odluka u predmetu Apelacionog suda u Novom Sadu Gž 346/25 doneta 27.11.2025. godine, a da je ekspedovana iz suda 30.12.2025. godine. S obzirom na to da se, prema odredbi člana 5. stav 1. Zakona o zaštiti prava na suđenje u razumnom roku, prigovor i žalba mogu podneti samo dok se",
+      "token_count": 583,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 1/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-01-30",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-12026-1578",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17",
+          "30",
+          "153"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rž1_g_1_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 4,
+      "text": "prema odredbi člana 5. stav 1. Zakona o zaštiti prava na suđenje u razumnom roku, prigovor i žalba mogu podneti samo dok se postupak ne okonča, Vrhovni sud nalazi da je u konkretnom slučaju žalba predlagača nedozvoljena, jer je podneta Vrhovnom sudu 13.01.2026. godine, a postupak u predmetu Apelacionog suda u Novom Sadu Gž 346/2 okončan je odlukom donetom 27.11.2025. godine. Imajući u vidu izloženo, Vrhovni sud je na osnovu člana 17. stav 2. Zakona o zaštiti prava na suđenje u razumnom roku, odbacio žalbu donoseći odluku kao u stavu prvom dispozitiva. Vrhovni sud je odbio i zahtev predlagača za naknadu troškova za sastav prigovora i žalbe primenom odredbe člana 153. stav 1. Zakona o parničnom postupku u vezi člana 30. Zakona o vanparničnom postupku, imajući u vidu da predlagač nije uspela u postupku. Predsednik Vrhovnog suda Jasmina Vasović, s.r. POUKA O PRAVNOM LEKU: Protiv ovog rešenja nije dozvoljena žalba Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 419,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Rž1 g 1/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-01-30",
+        "matter": "Zaštita prava",
+        "registrant": "Rž1k, Rž1kp, Rž1g, Rž1r, Rž1gp, Rž1 u, Rž1up",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/r%C5%BE1-g-12026-1578",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 4,
+        "cited_articles_raw": [
+          "5",
+          "16",
+          "17",
+          "30",
+          "153"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

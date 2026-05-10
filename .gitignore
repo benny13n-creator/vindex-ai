@@ -30,3 +30,6 @@ env/
 # Diagnostic outputs
 30q_*.txt
 v3_diff.txt
+
+# Ingest progress state
+data/sudska_praksa/.ingest_state.json

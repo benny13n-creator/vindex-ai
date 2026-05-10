@@ -1,0 +1,166 @@
+{
+  "decision_id": "Kzz_PR_5_2026",
+  "decision_number": "Kzz PR 5/2026",
+  "matter": "Krivična",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-02-25",
+  "registrant": "Kzz Pr",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-pr-52026-24121233-odbacivanje-zzz-neovla%C5%A1%C4%87eno-lice",
+  "chunked_at": "2026-05-10T12:29:46.076145+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 4495,
+  "raw_token_count": 1663,
+  "chunks": [
+    {
+      "chunk_id": "Kzz_PR_5_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nKzz Pr 5/2026\n25.02.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Milene Rašić, predsednika veća, Gordane Kojić, Aleksandra Stepanovića, Slobodana Velisavljevića i Bojane Paunović, članova veća, sa savetnikom Vrhovnog suda Snežanom Medenicom, kao zapisničarem, u prekršajnom postupku okrivljene AA, zbog prekršaja iz člana 330. stav 1. tačka 23) Zakona o bezbednosti saobraćaja na putevima, odlučujući o zahtevu za zaštitu zakonitosti okrivljene AA, podnetom protiv pravnosnažnih presuda Prekršajnog suda u Užicu Pr 6973/24 od 02.07.2025. godine i Prekršajnog apelacionog suda, Odeljenje u Kragujevcu I-113 Prž 17403/25 od 26.08.2025. godine, u sednici veća održanoj dana 25. februara 2026. godine, doneo je",
+      "token_count": 335,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz PR 5/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-25",
+        "matter": "Krivična",
+        "registrant": "Kzz Pr",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-pr-52026-24121233-odbacivanje-zzz-neovla%C5%A1%C4%87eno-lice",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "2",
+          "26",
+          "285",
+          "286",
+          "315",
+          "330"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_PR_5_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "ODBACUJE SE, kao nedozvoljen, zahtev za zaštitu zakonitosti okrivljene AA, podnet protiv pravnosnažnih presuda Prekršajnog suda u Užicu Pr 6973/24 od 02.07.2025. godine i Prekršajnog apelacionog suda, Odeljenje u Kragujevcu I-113 Prž 17403/25 od 26.08.2025. godine.",
+      "token_count": 118,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz PR 5/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-25",
+        "matter": "Krivična",
+        "registrant": "Kzz Pr",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-pr-52026-24121233-odbacivanje-zzz-neovla%C5%A1%C4%87eno-lice",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "2",
+          "26",
+          "285",
+          "286",
+          "315",
+          "330"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_PR_5_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Presudom Prekršajnog suda u Užicu Pr 6973/24 od 02.07.2025. godine okrivljena AA oglašena je odgovornom za prekršaj iz člana 330. stav 1. tačka 23) Zakona o bezbednosti saobraćaja na putevima, za koji prekršaj je osuđena na novčanu kaznu u iznosu od 80.000,00 dinara, koju je dužna da plati u roku od 15 dana od dana pravnosnažnosti presude, a ukoliko je ne plati u tom roku, sud će izvršiti neplaćenu novčanu kaznu na osnovu člana 315. Zakona o prekršajima. Istom presudom, okrivljena je obavezana da plati paušalne troškove prekršajnog postupka u iznosu od 2.000,00 dinara, u roku od 15 dana od dana pravnosnažnosti presude, pod pretnjom naplate prinudnim putem. Presudom Prekršajnog apelacionog suda, Odeljenje u Kragujevcu I-113 Prž 17403/25 od 26.08.2025. godine odbijena je kao neosnovana žalba okrivljene AA, a presuda Prekršajnog suda u Užicu Pr 6973/24 od 02.07.2025. godine, potvrđena. Protiv navedenih pravnosnažnih presuda, zahtev za zaštitu zakonitosti podnela je okrivljena AA, zbog pogrešne primene materijalnog prava, povrede člana 2 9. i člana 26. Zakona o prekršajima, te povrede načela in dubio pro reo, sa predlogom da Vrhovni sud usvoji zahtev i ukine pobijane presude, te donese odluku kojom će je osloboditi od odgovrnosti ili predmet vratiti na ponovno odlučivanje. Vrhovni sud je u sednici veća, ispitujući dozvoljenost podnetog zahteva za zaštitu zakonitosti, našao da je isti nedozvoljen.",
+      "token_count": 579,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz PR 5/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-25",
+        "matter": "Krivična",
+        "registrant": "Kzz Pr",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-pr-52026-24121233-odbacivanje-zzz-neovla%C5%A1%C4%87eno-lice",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "2",
+          "26",
+          "285",
+          "286",
+          "315",
+          "330"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_PR_5_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "rhovni sud je u sednici veća, ispitujući dozvoljenost podnetog zahteva za zaštitu zakonitosti, našao da je isti nedozvoljen. Odredbom člana 285. stav 1. Zakona o prekršajima propisano je da se protiv pravnosnažne presude može podneti zahtev za zaštitu zakonitosti, a odredbom stava 2. istog člana propisano je da zahtev za zaštitu zakonitosti podiže Republički javni tužilac (sada Vrhovni javni tužilac) u roku od tri meseca od dana dostavljanja presude. Iz citirane zakonske odredbe jasno proizilazi da je u prekršajnom postupku samo Vrhovni javni tužilac ovlašćen za podnošenje zahteva za zaštitu zakonitosti i da takvo ovlašćenje nijednom zakonskom odredbom nije dato drugim procesnim subjektima, pa ni okrivljenom i njegovom braniocu. Kako je, dakle, za podnošenje zahteva za zaštitu zakonitosti protiv pravnosnažnih odluka donetih u prekršajnom postupku ovlašćen isključivo Vrhovni javni tužilac, u skladu sa odredbom člana 285. stav 2. Zakona o prekršajima to je zahtev za zaštitu zakonitosti okrivljene AA nedozvoljen, jer je podnet od strane neovlašćenog lica. Iz iznetih razloga, Vrhovni sud je shodno odredbi člana 286. stav 1. Zakona o prekršajima, odlučio kao u izreci rešenja. Zapisničar-savetnik                                                                                                                                                                                                                                                                                                                                                                                                Predsednik veća-sudija",
+      "token_count": 550,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz PR 5/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-25",
+        "matter": "Krivična",
+        "registrant": "Kzz Pr",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-pr-52026-24121233-odbacivanje-zzz-neovla%C5%A1%C4%87eno-lice",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "2",
+          "26",
+          "285",
+          "286",
+          "315",
+          "330"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_PR_5_2026__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "Predsednik veća-sudija Snežana Medenica, s.r.                                                                                                                                                                                                                                                                                                                                                                                                      Milena Rašić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 110,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz PR 5/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-25",
+        "matter": "Krivična",
+        "registrant": "Kzz Pr",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-pr-52026-24121233-odbacivanje-zzz-neovla%C5%A1%C4%87eno-lice",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "2",
+          "26",
+          "285",
+          "286",
+          "315",
+          "330"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "decision_id": "Kzz_162_2026",
+  "decision_number": "Kzz 162/2026",
+  "matter": "Krivična",
+  "court": "Vrhovni sud",
+  "decision_date": "2026-02-11",
+  "registrant": "Kzz",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1622026-24121233-neovla%C5%A1%C4%87eno-lice",
+  "chunked_at": "2026-05-10T12:29:45.803102+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 5368,
+  "raw_token_count": 2050,
+  "chunks": [
+    {
+      "chunk_id": "Kzz_162_2026__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nKzz 162/2026\n11.02.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Milene Rašić, predsednika veća, Gordane Kojić, Aleksandra Stepanovića, Tatjane Vuković i Bojane Paunović, članova veća, sa savetnikom Vrhovnog suda Snežanom Lazin, kao zapisničarem, u krivičnom predmetu okrivljenog AA, zbog krivičnog dela oštećenje tuđih prava iz člana 220. stav 2. u vezi stava 1. Krivičnog zakonika, odlučujući o zahtevu za zaštitu zakonitosti punomoćnika privatnog tužioca BB – advokata Stanka Fuštar, podnetom protiv pravnosnažnih rešenja Osnovnog suda u Kragujevcu 3K-52/24 od 27.08.2025. godine i Kv-1053/25 od 24.11.2025. godine, u sednici veća održanoj dana 11.02.2026. godine, doneo je",
+      "token_count": 328,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 162/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1622026-24121233-neovla%C5%A1%C4%87eno-lice",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "56",
+          "220",
+          "441",
+          "482",
+          "483",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_162_2026__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "ODBACUJE SE, kao nedozvoljen, zahtev za zaštitu zakonitosti punomoćnika privatnog tužioca BB – advokata Stanka Fuštar, podnet protiv pravnosnažnih rešenja Osnovnog suda u Kragujevcu 3K-52/24 od 27.08.2025. godine i Kv-1053/25 od 24.11.2025. godine.",
+      "token_count": 110,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 162/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1622026-24121233-neovla%C5%A1%C4%87eno-lice",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "56",
+          "220",
+          "441",
+          "482",
+          "483",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_162_2026__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Rešenjem Osnovnog suda u Kragujevcu 3K-52/24 od 27.08.2025. godine okrivljenom AA je na ime troškova krivičnog postupka koje je imao u predmetu Osnovnog suda u Kragujevcu 3K-52/24 dosuđen iznos od 292.500,00 dinara, te je obavezan privatni tužilac BB da u roku od 30 dana od dana pravnosnažnosti rešenja isplati iznos od 292.500,00 dinara na označeni račun okrivljenog AA. Rešenjem Osnovnog suda u Kragujevcu Kv-1053/25 od 24.11.2025. godine delimično je uvažena žalba punomoćnika privatnog tužioca BB – advokata Stanka Fuštar, pa je preinačeno rešenje Osnovnog suda u Kragujevcu 3K-52/24 od 27.08.2025. godine, tako što je okrivljenom AA na ime troškova krivičnog postupka koje je imao u predmetu Osnovnog suda u Kragujevcu 3K-52/24 dosuđen iznos od 261.000,00 dinara, te je obavezan privatni tužilac BB da u roku od 30 dana od dana pravnosnažnosti rešenja isplati iznos od 261.000,00 dinara na označeni račun okrivljenog AA. Protiv navedenih pravnosnažnih rešenja zahtev za zaštitu zakonitosti podneo je punomoćnik privatnog tužioca BB – advokat Stanko Fuštar, zbog povrede zakona iz člana 441. stav 4. ZKP, sa predlogom da Vrhovni sud usvoji kao osnovan podneti zahtev, te da ukine rešenja Osnovnog suda u Kragujevcu 3K-52/24 od",
+      "token_count": 527,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 162/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1622026-24121233-neovla%C5%A1%C4%87eno-lice",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "56",
+          "220",
+          "441",
+          "482",
+          "483",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_162_2026__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "om da Vrhovni sud usvoji kao osnovan podneti zahtev, te da ukine rešenja Osnovnog suda u Kragujevcu 3K-52/24 od 27.08.2025. godine i Kv-1053/25 od 24.11.2025. godine i predmet vrati na ponovnu odluku ili da preinači navedena rešenja tako što će obavezati okrivljenog da privatnom tužiocu naknadi nužne troškove uvećane za sastav žalbe na rešenje Osnovnog suda u Kragujevcu 3K-52/24 od 27.08.2025. godine i za sastav zahteva za zaštitu zakonitosti, te obavezati privatnog tužioca da okrivljenom naknadi samo nužne troškove koji su bili potrebni za vođenje postupka. Vrhovni sud je u sednici veća, ispitujući zahtev za zaštitu zakonitosti punomoćnika privatnog tužioca u smislu odredbi člana 487. Zakonika o krivičnom postupku, našao da je zahtev nedozvoljen, iz sledećih razloga: Odredbom člana 482. stav 1. ZKP propisano je da protiv pravnosnažne odluke javnog tužioca ili suda ili zbog povrede odredaba postupka koji je prethodio njenom donošenju, ovlašćeno lice može podneti zahtev za zaštitu zakonitosti pod uslovima propisanim u tom zakoniku. Odredbom člana 483. stav 1. ZKP propisano je da zahtev za zaštitu zakonitosti mogu podneti Republički javni tužilac (sada Vrhovni javni tužilac) okrivljeni i njegov branilac, a odredbom stava 3. istog člana propisano je da okrivljeni može podneti zahtev za zaštitu zakonitosti isključivo preko branioca.",
+      "token_count": 561,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 162/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1622026-24121233-neovla%C5%A1%C4%87eno-lice",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "56",
+          "220",
+          "441",
+          "482",
+          "483",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Kzz_162_2026__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "bom stava 3. istog člana propisano je da okrivljeni može podneti zahtev za zaštitu zakonitosti isključivo preko branioca. Shodno citiranim zakonskim odredbama, ovlašćena lica za podnošenje zahteva za zaštitu zakonitosti su samo Republički javni tužilac (sada Vrhovni javni tužilac) i okrivljeni i to okrivljeni isključivo preko branioca. Kako ovo ovlašćenje nijednom zakonskom odredbom nije dato drugim procesnim subjektima, već ova lica mogu podneti samo inicijativu Republičkom javnom tužiocu (sada Vrhovnom javnom tužiocu) za podnošenje ovog vanrednog pravnog leka, u skladu sa ustavnim pravom podnošenja predloga državnim organima (član 56. Ustava Republike Srbije), to je shodno tome zahtev za zaštitu zakonitosti punomoćnika privatnog tužioca BB – advokata Stanka Fuštar podnet od strane neovlašćenog lica. Sa svega izloženog Vrhovni sud je, na osnovu odredbe člana 487. stav 1. tačka 2) ZKP u vezi člana 483. stav 1. ZKP, odbacio kao nedozvoljen zahtev za zaštitu zakonitosti punomoćnika privatnog tužioca BB – advokata Stanka Fuštar. Zapisničar-savetnik                                                                                                                                                                                                                                                                                                                                                                                                   Predsednik veća-sudija Snežana Lazin, s.r.                                                                                                                                                                                                                                                                                                                                                                                                                 Milena Rašić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 597,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni sud",
+        "decision_number": "Kzz 162/2026",
+        "decision_id_fallback": null,
+        "decision_date": "2026-02-11",
+        "matter": "Krivična",
+        "registrant": "Kzz",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/kzz-1622026-24121233-neovla%C5%A1%C4%87eno-lice",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "56",
+          "220",
+          "441",
+          "482",
+          "483",
+          "487"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}

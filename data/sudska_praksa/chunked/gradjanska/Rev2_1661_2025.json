@@ -1,0 +1,161 @@
+{
+  "decision_id": "Rev2_1661_2025",
+  "decision_number": "Rev2 1661/2025",
+  "matter": "Građanska",
+  "court": "Vrhovni kasacioni sud",
+  "decision_date": "2026-03-25",
+  "registrant": "Rev2",
+  "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-16612025-3512",
+  "chunked_at": "2026-05-10T12:29:46.135787+00:00",
+  "chunker_version": "1.0",
+  "chunk_count": 5,
+  "raw_text_length": 4879,
+  "raw_token_count": 1966,
+  "chunks": [
+    {
+      "chunk_id": "Rev2_1661_2025__chunk_0",
+      "section": "HEADER",
+      "chunk_index": 0,
+      "chunk_total": 5,
+      "text": "Republika Srbija\nVRHOVNI SUD\nRev2 1661/2025\n25.03.2026. godina\nBeograd\nVrhovni sud, u veću sastavljenom od sudija: Gordane Komnenić, predsednika veća, dr Ilije Zindovića, Marije Terzić, Dragane Mirosavljević i Nadežde Vidić, članova veća, u parnici tužioca AA iz ..., čiji je punomoćnik Svetislav Jovanović, advokat iz ..., protiv tuženog SP „Lasta“ a.d. Beograd, čiji je punomoćnik Petar Nastić, advokat iz ..., radi naknade štete, odlučujući o reviziji tuženog izjavljenoj protiv presude Apelacionog suda u Beogradu Gž1 395/25 od 04.02.2025. godine, u sednici održanoj 25.03.2026. godine, doneo je",
+      "token_count": 259,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Rev2 1661/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-16612025-3512",
+        "section": "HEADER",
+        "chunk_index": 0,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_1661_2025__chunk_1",
+      "section": "IZREKA",
+      "chunk_index": 1,
+      "chunk_total": 5,
+      "text": "NE DOZVOLJAVA SE odlučivanje o posebnoj reviziji tuženog izjavljenoj protiv presude Apelacionog suda u Beogradu Gž1 395/25 od 04.02.2025. godine.\nODBACUJE SE, kao nedozvoljena, revizija tuženog izjavljena protiv presude Apelacionog suda u Beogradu Gž1 395/25 od 04.02.2025. godine.",
+      "token_count": 120,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Rev2 1661/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-16612025-3512",
+        "section": "IZREKA",
+        "chunk_index": 1,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_1661_2025__chunk_2",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 2,
+      "chunk_total": 5,
+      "text": "Presudom Prvog osnovnog suda u Beogradu P1 7132/21 od 21.10.2024. godine, stavom prvim izreke, usvojen je tužbeni zahtev tužioca i obavezan tuženi da tužiocu po osnovu naknade štete na ime razlike u isplati za prekovremeni rad za period od 01.05.2018. godine do 30.09.2021. godine isplati pojedinačne mesečne iznose sa zakonskom zateznom kamatom počev od dospelosti pa do isplate. Stavom drugim izreke, obavezan je tuženi da tužiocu na ime troškova parničnog postupka isplati iznos od 208.456,00 dinara. Presudom Apelacionog suda u Beogradu Gž1 395/25 od 04.02.2025. godine, stavom prvim izreke, potvrđena je presuda Prvog osnovnog suda u Beogradu P1 7132/21 od 21.10.2024. godine i žalba tuženog odbijena kao neosnovana. Stavom drugim izreke, odbijen je kao neosnovan zahtev tuženog za naknadu troškova drugostepenog postupka. Protiv pravnosnažne presude donete u drugom stepenu, tuženi je blagovremeno izjavio reviziju zbog pogrešne primene materijalnog prava, sa pozivom na odredbu člana 404. ZPP. Odredbom člana 404. stav 1. Zakona o parničnom postupku („Službeni glasnik RS“ br. 72/11 ... 10/23), propisano je da je revizija izuzetno dozvoljena zbog pogrešne primene materijalnog prava i protiv drugostepene presude koja ne bi mogla da se",
+      "token_count": 508,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Rev2 1661/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-16612025-3512",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 2,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_1661_2025__chunk_3",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 3,
+      "chunk_total": 5,
+      "text": "propisano je da je revizija izuzetno dozvoljena zbog pogrešne primene materijalnog prava i protiv drugostepene presude koja ne bi mogla da se pobija revizijom, ako je po oceni Vrhovnog suda potrebno da se razmotre pravna pitanja od opšteg interesa ili pravna pitanja u interesu ravnopravnosti građana, radi ujednačavanja sudske prakse, kao i ako je potrebno novo tumačenje prava (posebna revizija). Predmet tražene pravne zaštite u ovoj pravnoj stvri jeste naknada zarade na osnovu prekovremenog rada. U toku postupka utvrđeno je da je tužilac imao prekovremenih radnih sati 717,16 sati, a plaćeno mu je 16,82 sata, a utvrđena je i visina koja bi trebala da mu se isplati po osnovu neisplaćenih prekovremenih radnih sati. Odluka nižestepenih sudova zasnovana je na primeni relevantnih odredbi materijalnog prava na utvrđeno činjenično stanje, a ukazivanje tuženog na pogrešnu primenu materijalnog prava nije od uticaja jer za primenu instituta posebne revizije nije od značaja svaka pogrešna primena materijalnog prava na konkretno utvrđeno činjenično stanje već samo ona koja je od opšteg značaja za ostvarivanje zaštite ljudskh prava i obezbeđenje standarda pravičnog suđenja, što ovde nije slučaj. Iz izloženih razloga, Vrhovni sud je primenom odredbe člana 404. stav 2. Zakona o parničnom postupku, odlučeno je kao u stavu prvom izreke. Vrhovni sud je ispitao dozvoljenost revizije primenom odredbe člana 410. stav 2. tačka 5. Zakona o parničnom postupku i utvrdio da je revizija nedozvoljena.",
+      "token_count": 577,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Rev2 1661/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-16612025-3512",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 3,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    },
+    {
+      "chunk_id": "Rev2_1661_2025__chunk_4",
+      "section": "OBRAZLOŽENJE",
+      "chunk_index": 4,
+      "chunk_total": 5,
+      "text": "izije primenom odredbe člana 410. stav 2. tačka 5. Zakona o parničnom postupku i utvrdio da je revizija nedozvoljena. Odredbom člana 441. Zakona o parničnom postupku, propisano je da je revizija dozvoljena u parnicama u sporovima o zasnivanju, postojanju i prestanku radnog odnosa. U svim drugim slučajevima, u parnicama iz radnog odnosa, o dozvoljenosti revizije odlučuje se na osnovu odredbe člana 403. stav 3. istog zakona, u zavisnosti od vrednosti predmeta spora pobijanog dela. Tužbu radi naknade štete tužilac je podneo 03.11.2021. godine, a vrednost predmeta spora je 133.251,02 dinara. Odredbom člana 403. stav 3. Zakona o parničnom postupku, propisano je da revizija nije dozvoljena u imovinsko-pravnim sporovima ako vrednost predmeta spora pobijanog dela ne prelazi dinarsku protivvrednost od 40.000 evra po srednjem kursu Narodne banke Srbije na dan podnošenja tužbe. Imajući u vidu da je ovo imovinsko-pravni spor u kom vrednost predmeta spora pobijanog dela ne prelazi dinarsku protivvrednost od 40.000 evra po srednjem kursu Narodne banke Srbije na dan podnošenja tužbe, sledi da revizija tuženog nije dozvoljena, na osnovu odredbe člana 403. stav 3. Zakona o parničnom postupku. Iz tih razloga, Vrhovni kasacioni sud je odluku kao u stavu drugom izreke doneo primenom odredbe člana 413. Zakona o parničnom postupku. Predsednik veća – sudija Gordana Komnenić, s.r. Za tačnost otpravka Zamenik upravitelja pisarnice Milanka Ranković Preuzmite dokument u PDF formatu",
+      "token_count": 571,
+      "metadata": {
+        "doc_type": "sudska_praksa",
+        "court": "Vrhovni kasacioni sud",
+        "decision_number": "Rev2 1661/2025",
+        "decision_id_fallback": null,
+        "decision_date": "2026-03-25",
+        "matter": "Građanska",
+        "registrant": "Rev2",
+        "source_url": "https://www.vrh.sud.rs/sr-lat/rev2-16612025-3512",
+        "section": "OBRAZLOŽENJE",
+        "chunk_index": 4,
+        "chunk_total": 5,
+        "cited_articles_raw": [
+          "403",
+          "404",
+          "410",
+          "413",
+          "441"
+        ],
+        "cited_articles_normalized": []
+      }
+    }
+  ]
+}
