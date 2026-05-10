@@ -2,4 +2,6 @@ vector_store/
 __pycache__/
 *.pyc
 .env
-vector_store.zipnvector_store/
+vector_store.zip
+nvector_store/
+.claude/
