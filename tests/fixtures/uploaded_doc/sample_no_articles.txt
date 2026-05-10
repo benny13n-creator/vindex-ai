@@ -1,0 +1,76 @@
+PRAVNI MEMORANDUM
+
+Predmet: Analiza pravnih rizika u postupku poslovnog spajanja
+Datum: 01. maja 2026. godine
+Priprema: Pravni tim, "Lex Consulting d.o.o."
+Poverljivo — samo za internu upotrebu
+
+UVOD
+
+Ovaj memorandum priprema se na zahtev rukovodstva kompanije "Alpha Corp d.o.o."
+u cilju identifikacije i analize ključnih pravnih rizika koji prate planirani
+postupak spajanja sa kompanijom "Beta Solutions d.o.o." Analiza je zasnovana na
+dostavljenoj dokumentaciji, javno dostupnim registarskim podacima i relevantnoj
+regulativi koja se primenjuje na ovakve transakcije.
+
+PREGLED REGULATORNOG OKVIRA
+
+Postupak statusnih promena privrednih društava, uključujući spajanje, uređen je
+odredbama Zakona o privrednim društvima Republike Srbije. Pored toga, transakcija
+podleže oceni Komisije za zaštitu konkurencije ukoliko učesnici transakcije
+prelaze zakonski propisane pragove tržišnog učešća ili prometa. Na osnovu
+dostavljenih finansijskih podataka, procenjujemo da je verovatnoća obavezne
+notifikacije visoka, te preporučujemo da se taj postupak pokrene pre finalnog
+potpisivanja ugovora o spajanju.
+
+PITANJA RADNOG PRAVA
+
+Spajanje nužno povlači pitanje kontinuiteta radnih odnosa svih zaposlenih.
+Zakon o radu propisuje da u slučaju statusne promene novi poslodavac preuzima
+sva prava i obaveze prema zaposlenima pod istim uslovima koji su bili utvrđeni
+pre promene. Zaposleni ne mogu biti otpušteni isključivo zbog spajanja, ali
+imaju pravo na raskid radnog odnosa uz otpremninu ukoliko promena bitno menja
+uslove rada. Posebnu pažnju treba posvetiti kolektivnim ugovorima oba subjekta
+koji mogu sadržavati klauzule o statusnim promenama.
+
+KORPORATIVNA DOKUMENTACIJA
+
+Pregledom osnivačkih akata, registarskih podataka i internih odluka utvrđeno je
+da oba subjekta imaju urednu dokumentaciju. Međutim, uočeno je da je "Beta
+Solutions d.o.o." u prethodnoj godini promenila sedište bez istovremenog
+ažuriranja bankarskih ovlašćenja, što može uzrokovati kašnjenje u određenim
+transakcionim koracima. Preporučujemo da se ovo reguliše pre inicijalnog
+potpisivanja.
+
+DUE DILIGENCE NALAZI
+
+Finansijski due diligence otkrio je tri potencijalne obaveze koje su prethodno
+bile van bilansa "Beta Solutions d.o.o." — operativni lizinzi za dva poslovna
+prostora i garancija data trećem licu. Ove obaveze se prenose na novonastali
+subjekat po sili zakona, te je nužno tačno utvrditi njihov ukupni iznos i rokove
+dospelosti pre formalizacije spajanja. Pravni tim preporučuje dobijanje pismenih
+potvrda od svih trećih lica o stanju njihovih potraživanja.
+
+PORESKI ASPEKTI
+
+Spajanje može imati različite poreske implikacije u zavisnosti od izabrane
+metode i procene imovine. Preporučujemo da se angažuje poreski savetnik koji
+će razmotriti pitanja PDV tretmana prenosa imovine, porez na prenos apsolutnih
+prava ukoliko se prenose nekretnine, kao i tretman prenesenih gubitaka za potrebe
+poreza na dobit. Rokovi za podnošenje izveštaja poreskim organima moraju biti
+ispoštovani kako bi se izbegla kaznena kamata.
+
+ZAKLJUČAK I PREPORUKE
+
+Na osnovu sprovedene analize, pravni tim zaključuje da predviđena transakcija
+nije pravno sporna, ali zahteva pažljivu koordinaciju više regulatornih postupaka.
+Ključni korak je pravovremena notifikacija Komisiji za zaštitu konkurencije, koji
+treba pokrenuti odmah po potpisivanju pisma o namerama. Radnopravni aspekti
+zahtevaju individualnu procenu u svakom slučaju gde se menjaju uslovi rada.
+
+SLEDEĆI KORACI
+
+Pravni tim preporučuje sazivanje radnog sastanka sa finansijskim i HR timovima
+kako bi se koordinisao dalji plan aktivnosti. Dokumentacija neophodna za
+proceduru pred Komisijom mora biti pripremljena u narednih 14 dana. Sva pitanja
+vezana za ovaj memorandum treba uputiti na adresu pravnog tima.
