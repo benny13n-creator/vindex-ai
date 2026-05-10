@@ -1,0 +1,1853 @@
+{
+  "phase": "1.0",
+  "scraped_at": "2026-05-10T11:46:57.683800+00:00",
+  "scraper_version": "1.0",
+  "branch": "phase1-sudska-praksa",
+  "totals": {
+    "requested": 200,
+    "collected": 200,
+    "partial": 3,
+    "failed": 0
+  },
+  "by_matter": {
+    "krivicna": {
+      "label": "Krivična",
+      "collected": 50,
+      "partial": 0,
+      "failed": 0,
+      "wall_s": 526
+    },
+    "gradjanska": {
+      "label": "Građanska",
+      "collected": 50,
+      "partial": 0,
+      "failed": 0,
+      "wall_s": 536
+    },
+    "upravna": {
+      "label": "Upravna",
+      "collected": 50,
+      "partial": 0,
+      "failed": 0,
+      "wall_s": 535
+    },
+    "zastitaprava": {
+      "label": "Zaštita prava",
+      "collected": 50,
+      "partial": 3,
+      "failed": 0,
+      "wall_s": 789
+    }
+  },
+  "decisions": [
+    {
+      "decision_id": "Kzz_754_2025",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 754/2025",
+      "decision_date": "2026-04-15",
+      "path": "raw/krivicna/Kzz_754_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_695_2025",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 695/2025",
+      "decision_date": "2026-03-26",
+      "path": "raw/krivicna/Kzz_695_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_106_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kd 106/2026",
+      "decision_date": "2026-03-17",
+      "path": "raw/krivicna/Kd_106_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_103_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kd 103/2026",
+      "decision_date": "2026-03-17",
+      "path": "raw/krivicna/Kd_103_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_279_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 279/2026",
+      "decision_date": "2026-03-17",
+      "path": "raw/krivicna/Kzz_279_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_252_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 252/2026",
+      "decision_date": "2026-03-17",
+      "path": "raw/krivicna/Kzz_252_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_238_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 238/2026",
+      "decision_date": "2026-03-04",
+      "path": "raw/krivicna/Kzz_238_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_91_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kd 91/2026",
+      "decision_date": "2026-03-03",
+      "path": "raw/krivicna/Kd_91_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_243_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 243/2026",
+      "decision_date": "2026-03-03",
+      "path": "raw/krivicna/Kzz_243_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_76_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kd 76/2026",
+      "decision_date": "2026-02-26",
+      "path": "raw/krivicna/Kd_76_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_218_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 218/2026",
+      "decision_date": "2026-02-26",
+      "path": "raw/krivicna/Kzz_218_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_204_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Kzz 204/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kzz_204_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_PR_5_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz PR 5/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kzz_PR_5_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_60_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Kd 60/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kd_60_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_61_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kd 61/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kd_61_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_69_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Kd 69/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kd_69_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_86_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Kd 86/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kd_86_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Ks_1_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Ks 1/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Ks_1_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_187_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 187/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kzz_187_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_178_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 178/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kzz_178_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_179_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 179/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kzz_179_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_195_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Kzz 195/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kzz_195_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_196_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 196/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kzz_196_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_197_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 197/2026",
+      "decision_date": "2026-02-25",
+      "path": "raw/krivicna/Kzz_197_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_198_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 198/2026",
+      "decision_date": "2026-02-24",
+      "path": "raw/krivicna/Kzz_198_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_192_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 192/2026",
+      "decision_date": "2026-02-24",
+      "path": "raw/krivicna/Kzz_192_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_123_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 123/2026",
+      "decision_date": "2026-02-24",
+      "path": "raw/krivicna/Kzz_123_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_141_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 141/2026",
+      "decision_date": "2026-02-24",
+      "path": "raw/krivicna/Kzz_141_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_177_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 177/2026",
+      "decision_date": "2026-02-19",
+      "path": "raw/krivicna/Kzz_177_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_169_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 169/2026",
+      "decision_date": "2026-02-19",
+      "path": "raw/krivicna/Kzz_169_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_68_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 68/2026",
+      "decision_date": "2026-02-18",
+      "path": "raw/krivicna/Kzz_68_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_180_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 180/2026",
+      "decision_date": "2026-02-18",
+      "path": "raw/krivicna/Kzz_180_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_129_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 129/2026",
+      "decision_date": "2026-02-18",
+      "path": "raw/krivicna/Kzz_129_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_154_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 154/2026",
+      "decision_date": "2026-02-18",
+      "path": "raw/krivicna/Kzz_154_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_163_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 163/2026",
+      "decision_date": "2026-02-18",
+      "path": "raw/krivicna/Kzz_163_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_167_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 167/2026",
+      "decision_date": "2026-02-12",
+      "path": "raw/krivicna/Kzz_167_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_143_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 143/2026",
+      "decision_date": "2026-02-12",
+      "path": "raw/krivicna/Kzz_143_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_9_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 9/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_9_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_34_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 34/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_34_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_86_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 86/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_86_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_110_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 110/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_110_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_136_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 136/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_136_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_161_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 161/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_161_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_162_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 162/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_162_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_45_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kd 45/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kd_45_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_50_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Kd 50/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kd_50_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kd_52_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kd 52/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kd_52_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_43_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Kzz 43/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_43_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_137_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz 137/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_137_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kzz_P_2_2026",
+      "matter": "Krivična",
+      "court": "Vrhovni sud",
+      "decision_number": "Kzz P 2/2026",
+      "decision_date": "2026-02-11",
+      "path": "raw/krivicna/Kzz_P_2_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Prev_102_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Prev 102/2025",
+      "decision_date": "2026-06-19",
+      "path": "raw/gradjanska/Prev_102_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_1934_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 1934/2024",
+      "decision_date": "2026-04-23",
+      "path": "raw/gradjanska/Rev2_1934_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev1_12_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev1 12/2025",
+      "decision_date": "2026-04-09",
+      "path": "raw/gradjanska/Rev1_12_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_9527_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 9527/2025",
+      "decision_date": "2026-04-08",
+      "path": "raw/gradjanska/Rev_9527_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_21374_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 21374/2024",
+      "decision_date": "2026-04-01",
+      "path": "raw/gradjanska/Rev_21374_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_1559_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 1559/2025",
+      "decision_date": "2026-03-30",
+      "path": "raw/gradjanska/Rev2_1559_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_3508_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 3508/2024",
+      "decision_date": "2026-03-27",
+      "path": "raw/gradjanska/Rev_3508_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_2549_2026",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 2549/2026",
+      "decision_date": "2026-03-27",
+      "path": "raw/gradjanska/Rev_2549_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_10755_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 10755/2025",
+      "decision_date": "2026-03-26",
+      "path": "raw/gradjanska/Rev_10755_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_13000_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 13000/2025",
+      "decision_date": "2026-03-26",
+      "path": "raw/gradjanska/Rev_13000_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev1_4_2026",
+      "matter": "Građanska",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Rev1 4/2026",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev1_4_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_7067_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 7067/2025",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev_7067_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_13546_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 13546/2025",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev_13546_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_1661_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Rev2 1661/2025",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev2_1661_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_2609_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 2609/2025",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev2_2609_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_1157_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 1157/2025",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev_1157_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_1547_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 1547/2025",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev_1547_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_32168_2023",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 32168/2023",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev_32168_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_5442_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 5442/2025",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev_5442_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_7153_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 7153/2024",
+      "decision_date": "2026-03-25",
+      "path": "raw/gradjanska/Rev_7153_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_3004_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 3004/2025",
+      "decision_date": "2026-03-20",
+      "path": "raw/gradjanska/Rev2_3004_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_3973_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 3973/2024",
+      "decision_date": "2026-03-20",
+      "path": "raw/gradjanska/Rev2_3973_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_10646_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 10646/2025",
+      "decision_date": "2026-03-19",
+      "path": "raw/gradjanska/Rev_10646_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_3015_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 3015/2024",
+      "decision_date": "2026-03-19",
+      "path": "raw/gradjanska/Rev2_3015_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_10688_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 10688/2025",
+      "decision_date": "2026-03-19",
+      "path": "raw/gradjanska/Rev_10688_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Prev_918_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Prev 918/2024",
+      "decision_date": "2026-03-19",
+      "path": "raw/gradjanska/Prev_918_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_3007_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 3007/2025",
+      "decision_date": "2026-03-19",
+      "path": "raw/gradjanska/Rev2_3007_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_14388_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 14388/2024",
+      "decision_date": "2026-03-19",
+      "path": "raw/gradjanska/Rev_14388_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_4972_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 4972/2024",
+      "decision_date": "2026-03-19",
+      "path": "raw/gradjanska/Rev_4972_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_10850_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 10850/2025",
+      "decision_date": "2026-03-19",
+      "path": "raw/gradjanska/Rev_10850_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_1973_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 1973/2024",
+      "decision_date": "2026-03-19",
+      "path": "raw/gradjanska/Rev2_1973_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_1757_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 1757/2025",
+      "decision_date": "2026-03-18",
+      "path": "raw/gradjanska/Rev_1757_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_12536_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 12536/2025",
+      "decision_date": "2026-03-18",
+      "path": "raw/gradjanska/Rev_12536_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_304_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 304/2025",
+      "decision_date": "2026-03-18",
+      "path": "raw/gradjanska/Rev2_304_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_6467_2023",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 6467/2023",
+      "decision_date": "2026-03-18",
+      "path": "raw/gradjanska/Rev_6467_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_3750_2023",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 3750/2023",
+      "decision_date": "2026-03-18",
+      "path": "raw/gradjanska/Rev2_3750_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_12778_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 12778/2025",
+      "decision_date": "2026-03-18",
+      "path": "raw/gradjanska/Rev_12778_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_25837_2023",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 25837/2023",
+      "decision_date": "2026-03-18",
+      "path": "raw/gradjanska/Rev_25837_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_11432_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 11432/2024",
+      "decision_date": "2026-03-18",
+      "path": "raw/gradjanska/Rev_11432_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_1788_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 1788/2024",
+      "decision_date": "2026-03-16",
+      "path": "raw/gradjanska/Rev2_1788_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_5682_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 5682/2025",
+      "decision_date": "2026-03-13",
+      "path": "raw/gradjanska/Rev_5682_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_12125_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 12125/2025",
+      "decision_date": "2026-03-12",
+      "path": "raw/gradjanska/Rev_12125_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Prev_370_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Prev 370/2025",
+      "decision_date": "2026-03-12",
+      "path": "raw/gradjanska/Prev_370_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_3202_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 3202/2024",
+      "decision_date": "2026-03-12",
+      "path": "raw/gradjanska/Rev2_3202_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_10285_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 10285/2025",
+      "decision_date": "2026-03-12",
+      "path": "raw/gradjanska/Rev_10285_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_7825_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 7825/2025",
+      "decision_date": "2026-03-12",
+      "path": "raw/gradjanska/Rev_7825_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev2_753_2023",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev2 753/2023",
+      "decision_date": "2026-03-11",
+      "path": "raw/gradjanska/Rev2_753_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_10770_2025",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 10770/2025",
+      "decision_date": "2026-03-11",
+      "path": "raw/gradjanska/Rev_10770_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_18415_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 18415/2024",
+      "decision_date": "2026-03-11",
+      "path": "raw/gradjanska/Rev_18415_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rev_11248_2024",
+      "matter": "Građanska",
+      "court": "Vrhovni sud",
+      "decision_number": "Rev 11248/2024",
+      "decision_date": "2026-03-11",
+      "path": "raw/gradjanska/Rev_11248_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Us_10_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Us 10/2025",
+      "decision_date": "2025-12-29",
+      "path": "raw/upravna/Us_10_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_420_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 420/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_420_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_346_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 346/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_346_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_347_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 347/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_347_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_348_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 348/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_348_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_349_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 349/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_349_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_350_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 350/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_350_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_418_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 418/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_418_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_355_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 355/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_355_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_417_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 417/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_417_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_419_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 419/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_419_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_421_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 421/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_421_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_422_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 422/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_422_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_423_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 423/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_423_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_424_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 424/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_424_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_425_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 425/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_425_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_426_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 426/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_426_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_427_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 427/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_427_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_428_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 428/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_428_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_429_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 429/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_429_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_336_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 336/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/upravna/Uzp_336_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Przz_3_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Przz 3/2025",
+      "decision_date": "2025-07-29",
+      "path": "raw/upravna/Przz_3_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Us_4_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Us 4/2025",
+      "decision_date": "2025-05-16",
+      "path": "raw/upravna/Us_4_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_93_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 93/2025",
+      "decision_date": "2025-05-16",
+      "path": "raw/upravna/Uzp_93_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_98_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 98/2023",
+      "decision_date": "2025-05-16",
+      "path": "raw/upravna/Uzp_98_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Us_5_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Us 5/2025",
+      "decision_date": "2025-05-16",
+      "path": "raw/upravna/Us_5_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Us_2_2025",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Us 2/2025",
+      "decision_date": "2025-03-03",
+      "path": "raw/upravna/Us_2_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Us_9_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Us 9/2024",
+      "decision_date": "2025-03-03",
+      "path": "raw/upravna/Us_9_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_151_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 151/2024",
+      "decision_date": "2025-02-14",
+      "path": "raw/upravna/Uzp_151_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_216_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 216/2023",
+      "decision_date": "2025-01-31",
+      "path": "raw/upravna/Uzp_216_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_51_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 51/2024",
+      "decision_date": "2025-01-17",
+      "path": "raw/upravna/Uzp_51_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_27_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 27/2024",
+      "decision_date": "2025-01-17",
+      "path": "raw/upravna/Uzp_27_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_477_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 477/2024",
+      "decision_date": "2025-01-17",
+      "path": "raw/upravna/Uzp_477_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Przz_13_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Przz 13/2023",
+      "decision_date": "2024-12-23",
+      "path": "raw/upravna/Przz_13_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Us_7_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Us 7/2024",
+      "decision_date": "2024-12-20",
+      "path": "raw/upravna/Us_7_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Us_8_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Us 8/2024",
+      "decision_date": "2024-12-20",
+      "path": "raw/upravna/Us_8_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Us_6_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Us 6/2024",
+      "decision_date": "2024-12-20",
+      "path": "raw/upravna/Us_6_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_235_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 235/2023",
+      "decision_date": "2024-11-29",
+      "path": "raw/upravna/Uzp_235_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_175_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 175/2023",
+      "decision_date": "2024-11-19",
+      "path": "raw/upravna/Uzp_175_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_259_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 259/2023",
+      "decision_date": "2024-10-15",
+      "path": "raw/upravna/Uzp_259_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_19_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 19/2024",
+      "decision_date": "2024-10-15",
+      "path": "raw/upravna/Uzp_19_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_32_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 32/2024",
+      "decision_date": "2024-10-15",
+      "path": "raw/upravna/Uzp_32_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_198_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Uzp 198/2024",
+      "decision_date": "2024-07-12",
+      "path": "raw/upravna/Uzp_198_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_200_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Uzp 200/2024",
+      "decision_date": "2024-07-12",
+      "path": "raw/upravna/Uzp_200_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Uzp_181_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Uzp 181/2024",
+      "decision_date": "2024-07-12",
+      "path": "raw/upravna/Uzp_181_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Przz_7_2024",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Przz 7/2024",
+      "decision_date": "2024-06-28",
+      "path": "raw/upravna/Przz_7_2024.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Przz_8_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni kasacioni sud",
+      "decision_number": "Przz 8/2023",
+      "decision_date": "2024-06-28",
+      "path": "raw/upravna/Przz_8_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Przz_11_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Przz 11/2023",
+      "decision_date": "2024-06-28",
+      "path": "raw/upravna/Przz_11_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Przz_20_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Przz 20/2023",
+      "decision_date": "2024-06-28",
+      "path": "raw/upravna/Przz_20_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Przz_2_2023",
+      "matter": "Upravna",
+      "court": "Vrhovni sud",
+      "decision_number": "Przz 2/2023",
+      "decision_date": "2024-06-28",
+      "path": "raw/upravna/Przz_2_2023.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_31_2026",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 31/2026",
+      "decision_date": "2026-03-05",
+      "path": "raw/zastitaprava/Rž1_u_31_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_g_5_2026",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 g 5/2026",
+      "decision_date": "2026-02-26",
+      "path": "raw/zastitaprava/Rž1_g_5_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_15_2026",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 15/2026",
+      "decision_date": "2026-02-13",
+      "path": "raw/zastitaprava/Rž1_u_15_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_21_2026",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 21/2026",
+      "decision_date": "2026-02-05",
+      "path": "raw/zastitaprava/Rž1_u_21_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_g_1_2026",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 g 1/2026",
+      "decision_date": "2026-01-30",
+      "path": "raw/zastitaprava/Rž1_g_1_2026.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "id_b4d6052a4905",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "",
+      "decision_date": "2026-01-29",
+      "path": "raw/zastitaprava/id_b4d6052a4905.json",
+      "warnings": [
+        "decision_number extracted from URL (h1 parse failed)",
+        "MISSING: decision_number"
+      ]
+    },
+    {
+      "decision_id": "id_a7c570ecc568",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "",
+      "decision_date": "2026-01-29",
+      "path": "raw/zastitaprava/id_a7c570ecc568.json",
+      "warnings": [
+        "decision_number extracted from URL (h1 parse failed)",
+        "MISSING: decision_number"
+      ]
+    },
+    {
+      "decision_id": "Rž1_u_372_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 372/2025",
+      "decision_date": "2025-12-29",
+      "path": "raw/zastitaprava/Rž1_u_372_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_415_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 415/2025",
+      "decision_date": "2025-12-29",
+      "path": "raw/zastitaprava/Rž1_u_415_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_417_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 417/2025",
+      "decision_date": "2025-12-29",
+      "path": "raw/zastitaprava/Rž1_u_417_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_409_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 409/2025",
+      "decision_date": "2025-12-26",
+      "path": "raw/zastitaprava/Rž1_u_409_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_357_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 357/2025",
+      "decision_date": "2025-12-25",
+      "path": "raw/zastitaprava/Rž1_u_357_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_363_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 363/2025",
+      "decision_date": "2025-12-25",
+      "path": "raw/zastitaprava/Rž1_u_363_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_405_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 405/2025",
+      "decision_date": "2025-12-25",
+      "path": "raw/zastitaprava/Rž1_u_405_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_410_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 410/2025",
+      "decision_date": "2025-12-25",
+      "path": "raw/zastitaprava/Rž1_u_410_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_406_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 406/2025",
+      "decision_date": "2025-12-25",
+      "path": "raw/zastitaprava/Rž1_u_406_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_366_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 366/2025",
+      "decision_date": "2025-12-17",
+      "path": "raw/zastitaprava/Rž1_u_366_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kž1_u_403_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Kž1 u 403/2025",
+      "decision_date": "2025-12-17",
+      "path": "raw/zastitaprava/Kž1_u_403_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Kž1_u_399_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Kž1 u 399/2025",
+      "decision_date": "2025-12-17",
+      "path": "raw/zastitaprava/Kž1_u_399_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_402_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 402/2025",
+      "decision_date": "2025-12-17",
+      "path": "raw/zastitaprava/Rž1_u_402_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_g_15_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 g 15/2025",
+      "decision_date": "2025-12-16",
+      "path": "raw/zastitaprava/Rž1_g_15_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_365_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 365/2025",
+      "decision_date": "2025-12-15",
+      "path": "raw/zastitaprava/Rž1_u_365_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_393_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 393/2025",
+      "decision_date": "2025-12-15",
+      "path": "raw/zastitaprava/Rž1_u_393_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_382_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 382/2025",
+      "decision_date": "2025-12-15",
+      "path": "raw/zastitaprava/Rž1_u_382_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_404_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 404/2025",
+      "decision_date": "2025-12-15",
+      "path": "raw/zastitaprava/Rž1_u_404_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_337_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 337/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_337_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_370_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 370/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_370_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_345_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 345/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_345_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_352_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 352/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_352_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_353_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 353/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_353_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_360_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 360/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_360_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_362_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 362/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_362_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_376_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 376/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_376_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_392_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 392/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_392_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_377_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 377/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_377_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_374_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 374/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_374_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_369_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 369/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_369_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_397_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 397/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_397_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž_1_u_386_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž 1 u 386/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž_1_u_386_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž_1_u_397_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž 1 u 397/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž_1_u_397_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_394_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 394/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_394_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_395_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 395/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_395_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_398_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 398/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_398_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_294_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 294/2025",
+      "decision_date": "2025-12-12",
+      "path": "raw/zastitaprava/Rž1_u_294_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "id_bd7b55f076d5",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "",
+      "decision_date": "2025-12-11",
+      "path": "raw/zastitaprava/id_bd7b55f076d5.json",
+      "warnings": [
+        "decision_number extracted from URL (h1 parse failed)",
+        "MISSING: decision_number"
+      ]
+    },
+    {
+      "decision_id": "Rž1_u_347_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 347/2025",
+      "decision_date": "2025-12-11",
+      "path": "raw/zastitaprava/Rž1_u_347_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_348_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 348/2025",
+      "decision_date": "2025-12-11",
+      "path": "raw/zastitaprava/Rž1_u_348_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_384_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 384/2025",
+      "decision_date": "2025-12-11",
+      "path": "raw/zastitaprava/Rž1_u_384_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_373_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 373/2025",
+      "decision_date": "2025-12-11",
+      "path": "raw/zastitaprava/Rž1_u_373_2025.json",
+      "warnings": []
+    },
+    {
+      "decision_id": "Rž1_u_355_2025",
+      "matter": "Zaštita prava",
+      "court": "Vrhovni sud",
+      "decision_number": "Rž1 u 355/2025",
+      "decision_date": "2025-12-11",
+      "path": "raw/zastitaprava/Rž1_u_355_2025.json",
+      "warnings": []
+    }
+  ]
+}
