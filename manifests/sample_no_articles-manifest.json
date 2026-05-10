@@ -1,0 +1,56 @@
+{
+  "source_filename": "sample_no_articles.txt",
+  "source_format": "txt",
+  "source_sha256": "d5522bb05cdf99de5abea1d81f062f3d7121f7d8bf87a418b463e131b4d713e2",
+  "is_scanned": false,
+  "total_chunks": 3,
+  "chunk_mode_used": "recursive",
+  "article_labels_detected": [],
+  "token_p10": 408,
+  "token_p50": 408,
+  "token_p90": 420,
+  "chunks": [
+    {
+      "chunk_id": "2258ab23-fe82-47be-b201-0e47bdbf25d5",
+      "session_id": "__local__",
+      "source_filename": "sample_no_articles.txt",
+      "source_format": "txt",
+      "source_sha256": "d5522bb05cdf99de5abea1d81f062f3d7121f7d8bf87a418b463e131b4d713e2",
+      "chunk_index": 0,
+      "chunk_mode": "recursive",
+      "article_label": null,
+      "text": "PRAVNI MEMORANDUM\n\nPredmet: Analiza pravnih rizika u postupku poslovnog spajanja\nDatum: 01. maja 2026. godine\nPriprema: Pravni tim, \"Lex Consulting d.o.o.\"\nPoverljivo — samo za internu upotrebu\n\nUVOD\n\nOvaj memorandum priprema se na zahtev rukovodstva kompanije \"Alpha Corp d.o.o.\"\nu cilju identifikacije i analize ključnih pravnih rizika koji prate planirani\npostupak spajanja sa kompanijom \"Beta Solutions d.o.o.\" Analiza je zasnovana na\ndostavljenoj dokumentaciji, javno dostupnim registarskim podacima i relevantnoj\nregulativi koja se primenjuje na ovakve transakcije.\n\nPREGLED REGULATORNOG OKVIRA\n\nPostupak statusnih promena privrednih društava, uključujući spajanje, uređen je\nodredbama Zakona o privrednim društvima Republike Srbije. Pored toga, transakcija\npodleže oceni Komisije za zaštitu konkurencije ukoliko učesnici transakcije\nprelaze zakonski propisane pragove tržišnog učešća ili prometa. Na osnovu\ndostavljenih finansijskih podataka, procenjujemo da je verovatnoća obavezne\nnotifikacije visoka, te preporučujemo da se taj postupak pokrene pre finalnog\npotpisivanja ugovora o spajanju.\n\nPITANJA RADNOG PRAVA",
+      "token_count": 420,
+      "char_count": 1122,
+      "created_at": "2026-05-10T20:11:19.048542Z"
+    },
+    {
+      "chunk_id": "182bfc03-26ad-43ab-8139-24c0ec8df776",
+      "session_id": "__local__",
+      "source_filename": "sample_no_articles.txt",
+      "source_format": "txt",
+      "source_sha256": "d5522bb05cdf99de5abea1d81f062f3d7121f7d8bf87a418b463e131b4d713e2",
+      "chunk_index": 1,
+      "chunk_mode": "recursive",
+      "article_label": null,
+      "text": "bili utvrđeni\npre promene. Zaposleni ne mogu biti otpušteni isključivo zbog spajanja, ali\nimaju pravo na raskid radnog odnosa uz otpremninu ukoliko promena bitno menja\nuslove rada. Posebnu pažnju treba posvetiti kolektivnim ugovorima oba subjekta\nkoji mogu sadržavati klauzule o statusnim promenama.\n\nKORPORATIVNA DOKUMENTACIJA\n\nPregledom osnivačkih akata, registarskih podataka i internih odluka utvrđeno je\nda oba subjekta imaju urednu dokumentaciju. Međutim, uočeno je da je \"Beta\nSolutions d.o.o.\" u prethodnoj godini promenila sedište bez istovremenog\nažuriranja bankarskih ovlašćenja, što može uzrokovati kašnjenje u određenim\ntransakcionim koracima. Preporučujemo da se ovo reguliše pre inicijalnog\npotpisivanja.\n\nDUE DILIGENCE NALAZI\n\nFinansijski due diligence otkrio je tri potencijalne obaveze koje su prethodno\nbile van bilansa \"Beta Solutions d.o.o.\" — operativni lizinzi za dva poslovna\nprostora i garancija data trećem licu. Ove obaveze se prenose na novonastali\nsubjekat po sili zakona, te je nužno tačno utvrditi njihov ukupni iznos i rokove\ndospelosti pre formalizacije spajanja. Pravni tim preporučuje dobijanje pismenih\npotvrda od svih trećih lica o stanju njihovih potraživanja.\n\nPORESKI ASPEKTI",
+      "token_count": 473,
+      "char_count": 1215,
+      "created_at": "2026-05-10T20:11:19.048542Z"
+    },
+    {
+      "chunk_id": "94754b04-df5e-40e6-9d28-89652f7b887d",
+      "session_id": "__local__",
+      "source_filename": "sample_no_articles.txt",
+      "source_format": "txt",
+      "source_sha256": "d5522bb05cdf99de5abea1d81f062f3d7121f7d8bf87a418b463e131b4d713e2",
+      "chunk_index": 2,
+      "chunk_mode": "recursive",
+      "article_label": null,
+      "text": "metode i procene imovine. Preporučujemo da se angažuje poreski savetnik koji\nće razmotriti pitanja PDV tretmana prenosa imovine, porez na prenos apsolutnih\nprava ukoliko se prenose nekretnine, kao i tretman prenesenih gubitaka za potrebe\nporeza na dobit. Rokovi za podnošenje izveštaja poreskim organima moraju biti\nispoštovani kako bi se izbegla kaznena kamata.\n\nZAKLJUČAK I PREPORUKE\n\nNa osnovu sprovedene analize, pravni tim zaključuje da predviđena transakcija\nnije pravno sporna, ali zahteva pažljivu koordinaciju više regulatornih postupaka.\nKljučni korak je pravovremena notifikacija Komisiji za zaštitu konkurencije, koji\ntreba pokrenuti odmah po potpisivanju pisma o namerama. Radnopravni aspekti\nzahtevaju individualnu procenu u svakom slučaju gde se menjaju uslovi rada.\n\nSLEDEĆI KORACI\n\nPravni tim preporučuje sazivanje radnog sastanka sa finansijskim i HR timovima\nkako bi se koordinisao dalji plan aktivnosti. Dokumentacija neophodna za\nproceduru pred Komisijom mora biti pripremljena u narednih 14 dana. Sva pitanja\nvezana za ovaj memorandum treba uputiti na adresu pravnog tima.\n",
+      "token_count": 408,
+      "char_count": 1095,
+      "created_at": "2026-05-10T20:11:19.048542Z"
+    }
+  ]
+}
