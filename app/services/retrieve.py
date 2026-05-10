@@ -308,6 +308,14 @@ def _ugradi_query(query: str) -> list[float]:
 CONFIDENCE_HIGH_THRESHOLD   = 0.65
 CONFIDENCE_MEDIUM_THRESHOLD = 0.52
 
+# Praksa thresholds — Phase 1.3: pragmatic mirror of zakon values.
+# Proper calibration deferred to Phase 1.5 when praksa-targeted benchmark data exists.
+PRAKSA_CONFIDENCE_HIGH_THRESHOLD   = 0.65
+PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD = 0.52
+
+# Namespace for VKS case-law vectors (Phase 1.2 ingest)
+_PRAKSA_NS = "sudska_praksa"
+
 
 def get_confidence_level(score: float) -> str:
     """Map Pinecone cosine score to HIGH / MEDIUM / LOW."""
@@ -341,6 +349,21 @@ def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = Non
         return index.query(vector=vektor, top_k=k, include_metadata=True, filter=filter_dict).matches
     except Exception:
         logger.exception("Greška u pretraga_vec")
+        return []
+
+
+def _pretraga_praksa(vektor: list[float], k: int = 5) -> list:
+    """Query sudska_praksa namespace for case-law matches. Runs parallel to zakon pipeline."""
+    index = _get_index()
+    try:
+        return index.query(
+            vector=vektor,
+            top_k=k,
+            namespace=_PRAKSA_NS,
+            include_metadata=True,
+        ).matches
+    except Exception as exc:
+        logger.warning("[PRAKSA] Pretraga nije uspela: %s", exc)
         return []
 
 
@@ -828,6 +851,43 @@ def _formatiraj_match(match) -> str:
     return f"ZAKON: {zakon}\nČLAN: {clan}\n\nCITABILNI TEKST: {parent_tekst}\n"
 
 
+def _formatiraj_praksa_match(match) -> str:
+    """
+    Format a sudska_praksa namespace match for LLM context.
+    Mirrors _formatiraj_match signature; uses court/decision_number/matter metadata
+    instead of zakon law/article fields.
+    Each output begins with 'SUDSKA PRAKSA [...]' so the LLM can distinguish it from
+    statutory-law entries and the system prompt can instruct real-decision citation.
+    """
+    meta = match.metadata or {}
+    court = meta.get("court", "Vrhovni sud")
+    dn = meta.get("decision_number") or meta.get("decision_id_fallback") or "?"
+    date = meta.get("decision_date", "")
+    matter = meta.get("matter", "")
+    section = meta.get("section", "")
+    text = (meta.get("text") or "").strip()
+    cited = meta.get("cited_articles_raw") or []
+
+    header = f"SUDSKA PRAKSA [{court}, {dn}"
+    if date:
+        header += f", {date}"
+    header += "]"
+    if matter:
+        header += f"\nOblast: {matter}"
+    if section and section not in ("HEADER", "BODY"):
+        header += f" | Sekcija: {section}"
+
+    body = f"{header}\n\n{text}"
+    if cited:
+        body += f"\n\nCitovani članovi: {', '.join(str(c) for c in cited[:5])}"
+
+    logger.debug(
+        "[PRAKSA_FMT] id=%s dn=%s matter=%s | text_len=%d",
+        getattr(match, "id", "?"), dn, matter, len(text),
+    )
+    return body
+
+
 # ─── Konstante za ekspanziju ─────────────────────────────────────────────────
 
 _ZDI_TRIGERI = frozenset(["digital", "kripto", "bitcoin", "usdt", "ethereum", "token", "nft", "virtuelna", "zdi", "blockchain"])
@@ -969,6 +1029,13 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
 
     # ── Faza 0: Embed jedanput ────────────────────────────────────────────────
     vektor = _ugradi_query(query)
+
+    # ── Faza 0b: Start praksa retrieval in background (runs parallel to zakon pipeline) ──
+    # Conservative design: zakon pipeline is unchanged; praksa results are appended
+    # AFTER the zakon pipeline completes. Gate (confidence band) is driven by zakon
+    # top score only — praksa adds content, not band signal.
+    _praksa_exec = ThreadPoolExecutor(max_workers=1)
+    _f_praksa = _praksa_exec.submit(_pretraga_praksa, vektor, 5)
 
     # ── Faza 1: Query transformation (paralel) ────────────────────────────────
     # FIX-1: use intent-aware decomposition for complex queries;
@@ -1156,6 +1223,23 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
 
     # ── Faza 5: CRAG petlja (max 2 iteracije) ─────────────────────────────────
     docs = _crag_petlja(query, docs, zakon, vektor, k, max_iter=1)
+
+    # ── Faza 6: Praksa kontekst (parallel query resolves here) ───────────────
+    # Results are appended AFTER zakon docs so zakon context always comes first.
+    # Gate (confidence band) is NOT affected — it is already computed from zakon top score.
+    try:
+        _pm_list = _f_praksa.result(timeout=5.0)
+        _added = 0
+        for _pm in _pm_list[:3]:
+            _pf = _formatiraj_praksa_match(_pm)
+            if _pf and len(_pf.strip()) > 50:
+                docs.append(_pf)
+                _added += 1
+        logger.info("[PRAKSA] %d odluka dodato u kontekst (od %d rezultata)", _added, len(_pm_list))
+    except Exception as _pe:
+        logger.warning("[PRAKSA] Retrieval greška: %s — nastavlja se bez prakse", _pe)
+    finally:
+        _praksa_exec.shutdown(wait=False)
 
     elapsed = _time.perf_counter() - t0
     logger.info(
