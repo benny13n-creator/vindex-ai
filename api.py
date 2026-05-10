@@ -1008,7 +1008,20 @@ async def bot_ask(req: PitanjeReq, request: Request, x_api_key: str = Header(def
     qh = _q_hash(req.pitanje)
     logger.info("Bot pitanje [q=%s]", qh)
     try:
+        t0 = _time.monotonic()
         rezultat = await pokreni(ask_agent, req.pitanje, None)
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+        _al.log_response(
+            endpoint="/api/bot/ask",
+            query_hash=qh,
+            tip=None,
+            confidence=rezultat.get("confidence"),
+            top_score=rezultat.get("top_score"),
+            top_article=rezultat.get("top_article"),
+            top_law=rezultat.get("top_law"),
+            response_text=rezultat.get("data", ""),
+            latency_ms=latency_ms,
+        )
         return normalizuj_rezultat(rezultat)
     except Exception:
         logger.exception("Greška u /api/bot/ask [q=%s]", qh)
