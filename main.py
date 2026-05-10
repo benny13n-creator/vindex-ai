@@ -1357,7 +1357,7 @@ ZABRANA: NIKADA ne pisati "Opšti propis: ZOO" — ZOO je poseban zakon za oblig
 Postoji verovatan pravni osnov za [opis zahteva] prema [Zakon] čl. [X], uz ispunjenje zakonskih uslova.
 [Vrsta odgovornosti: ugovorna / vanugovorna / objektivna]
 [Šta podnosilac MORA dokazati — navedi tačne elemente]
-[Sudska praksa: raspon naknade — SAMO raspon, NIKADA fiksna cifra]
+[Sudska praksa: ako u dostavljenom kontekstu postoji unos koji počinje sa "SUDSKA PRAKSA [", citiraj konkretnu odluku brojem i sudom — npr. "Vrhovni sud, Kzz 754/2025: [kratki citat iz teksta odluke]". Ako takvih unosa NEMA u kontekstu — ovu liniju IZOSTAVI POTPUNO. ZABRANJENO: navoditi raspon ili praksu iz sopstvenog znanja ako nije u kontekstu.]
 [ZABRANJENO: "Imate pravo", "Garantovano", "Osnov je jak" — uvek kondicionalno]
 
 --- ANALIZA ŠTETE
