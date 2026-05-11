@@ -13,7 +13,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 os.environ.setdefault("OPENAI_API_KEY", "sk-fake")
 os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
 
-from drafting.templates import TEMPLATES, get_types_list, SABLON_UGOVOR_NEODREDJENO
+from drafting.templates import (
+    TEMPLATES,
+    get_types_list,
+    SABLON_UGOVOR_NEODREDJENO,
+    SABLON_PUNOMOCJE,
+    SABLON_SPORAZUMNI_RASKID,
+    ZR_AMENDMENTS,
+    ZR_FULL_REFERENCE,
+)
 from drafting.compliance import (
     proveri_uskladjenost,
     formatiraj_violations,
@@ -24,6 +32,7 @@ from drafting.compliance import (
     ZR_KONKURENTSKA_MAX_GODINA,
     ZR_GODISNJI_ODMOR_MIN_DANA,
     ZR_ODREDJENO_MAX_MESECI,
+    ZR_RADNO_VREME_MAX_H,
     MIN_ZARADA_BRUTO_RSD,
 )
 from drafting.router import (
@@ -32,6 +41,8 @@ from drafting.router import (
     _pripremi_ugovor_fields,
     _pripremi_sporazum_fields,
     _pripremi_punomocje_fields,
+    normalize_date,
+    apply_defaults,
     generate_draft,
 )
 
@@ -466,3 +477,146 @@ def test_formatiraj_sadrzi_disclaimer():
     v = [{"pravilo": "x", "zakon": "ZR", "status": "ok", "poruka": "ok"}]
     tekst = formatiraj_violations(v)
     assert "isključivo informativna" in tekst
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SEKCIJA 7: Phase 4.1.1 — Bug fixes (16 testova)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Bug 1 — _popuni_sablon: empty string must NOT become [POPUNITI]
+def test_bonus_clan_empty_string_not_popuniti():
+    sablon = "Tekst. {BONUS_CLAN} Kraj."
+    filled = _popuni_sablon(sablon, {"bonus_clan": ""})
+    assert "POPUNITI" not in filled
+    assert "Tekst.  Kraj." == filled
+
+
+def test_napomena_clan_empty_string_not_popuniti():
+    sablon = "Ugovor. {NAPOMENA_CLAN} Potpis."
+    filled = _popuni_sablon(sablon, {"napomena_clan": ""})
+    assert "POPUNITI" not in filled
+
+
+def test_popuni_sablon_absent_key_gets_popuniti():
+    sablon = "Vrednost: {NEPOSTOJECI_KLJUC}"
+    filled = _popuni_sablon(sablon, {})
+    assert "POPUNITI" in filled
+
+
+# Bug 2 — radno vreme compliance check
+def test_radno_vreme_45h_krsi():
+    violations = proveri_uskladjenost({"radno_vreme": "45"}, "ugovor_neodredjeno")
+    r = next((v for v in violations if v["pravilo"] == "radno_vreme"), None)
+    assert r is not None
+    assert r["status"] == "krsi"
+    assert "ZR čl. 51" in r["zakon"]
+
+
+def test_radno_vreme_40h_ok():
+    violations = proveri_uskladjenost({"radno_vreme": "40"}, "ugovor_neodredjeno")
+    r = next((v for v in violations if v["pravilo"] == "radno_vreme"), None)
+    assert r is not None
+    assert r["status"] == "ok"
+
+
+def test_radno_vreme_35h_ok():
+    violations = proveri_uskladjenost({"radno_vreme": "35"}, "ugovor_neodredjeno")
+    r = next((v for v in violations if v["pravilo"] == "radno_vreme"), None)
+    assert r is not None
+    assert r["status"] == "ok"
+
+
+# Bug 3 — JMBG extraction hint in base prompt
+def test_jmbg_hint_in_base_prompt():
+    prompt = TEMPLATES["ugovor_neodredjeno"]["ekstrakcioni_prompt"]
+    assert "JMBG" in prompt
+    assert "13" in prompt
+
+
+# Bug 4 — apply_defaults fills missing fields
+def test_apply_defaults_datum_fills():
+    out = apply_defaults({}, "ugovor_neodredjeno")
+    assert out.get("datum") is not None and out["datum"] != ""
+
+
+def test_apply_defaults_radno_vreme_fills():
+    out = apply_defaults({}, "ugovor_neodredjeno")
+    assert out.get("radno_vreme") == "40"
+
+
+def test_apply_defaults_preserves_explicit():
+    out = apply_defaults({"datum": "01.01.2025", "radno_vreme": "36"}, "ugovor_neodredjeno")
+    assert out["datum"] == "01.01.2025"
+    assert out["radno_vreme"] == "36"
+
+
+# Bug 5 — normalize_date strips trailing period
+def test_normalize_date_trailing_period():
+    assert normalize_date("15.01.2025.") == "15.01.2025"
+
+
+def test_normalize_date_no_trailing_period_unchanged():
+    assert normalize_date("15.01.2025") == "15.01.2025"
+
+
+def test_normalize_date_strips_whitespace():
+    assert normalize_date("  15.01.2025. ") == "15.01.2025"
+
+
+# Bug 6 — ZR amendments include 86/2019 and 157/2020
+def test_zr_amendments_includes_86_2019():
+    assert "86/2019" in ZR_AMENDMENTS
+
+
+def test_zr_amendments_includes_157_2020():
+    assert "157/2020" in ZR_AMENDMENTS
+
+
+# Bug 8 — Punomoćje grammar: "preduzme" instead of noun fragment
+def test_punomocje_grammar_preduzme():
+    assert "preduzme" in SABLON_PUNOMOCJE
+
+
+# Bug 9 — Sporazumni raskid: original_ugovor_clan
+def test_sporazumni_raskid_original_ugovor_present():
+    out = _pripremi_sporazum_fields({
+        "datum_zakljucenja_originalnog_ugovora": "15.03.2024"
+    })
+    assert "15.03.2024" in out["original_ugovor_clan"]
+    assert "Ugovoru o radu" in out["original_ugovor_clan"]
+
+
+def test_sporazumni_raskid_original_ugovor_absent_empty():
+    out = _pripremi_sporazum_fields({})
+    assert out["original_ugovor_clan"] == ""
+
+
+# Bug 10 — poslodavac PIB + MB + zastupnik separator
+def test_poslodavac_pib_mb_with_separator():
+    out = _pripremi_ugovor_fields(
+        {"poslodavac_pib": "123456789", "poslodavac_mb": "98765432"},
+        "ugovor_neodredjeno",
+    )
+    clan = out["poslodavac_pib_clan"]
+    assert "PIB: 123456789" in clan
+    assert "MB: 98765432" in clan
+    assert clan.startswith(", ")
+
+
+def test_poslodavac_no_pib_no_separator():
+    out = _pripremi_ugovor_fields({}, "ugovor_neodredjeno")
+    assert out["poslodavac_pib_clan"] == ""
+
+
+def test_poslodavac_zastupnik_filled():
+    out = _pripremi_ugovor_fields(
+        {"poslodavac_zastupnik": "Marko Marković"},
+        "ugovor_neodredjeno",
+    )
+    assert "Marko Marković" in out["poslodavac_zastupnik_clan"]
+    assert out["poslodavac_zastupnik_clan"].startswith(", koga zastupa")
+
+
+def test_poslodavac_zastupnik_absent_empty():
+    out = _pripremi_ugovor_fields({}, "ugovor_neodredjeno")
+    assert out["poslodavac_zastupnik_clan"] == ""

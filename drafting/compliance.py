@@ -19,6 +19,7 @@ ZR_KONKURENTSKA_MAX_GODINA = 2       # ZR čl. 162
 ZR_GODISNJI_ODMOR_MIN_DANA = 20      # ZR čl. 69
 ZR_PREKOVREMENI_MAX_NEDELJNO_H = 8   # ZR čl. 53 st. 1
 ZR_PREKOVREMENI_MAX_GODISNJE_H = 250 # ZR čl. 53 st. 3
+ZR_RADNO_VREME_MAX_H = 40            # ZR čl. 51 — puno radno vreme
 MIN_ZARADA_BRUTO_RSD = 74_000        # okvirna minimalna bruto zarada 2025
 ZR_ODREDJENO_MAX_MESECI = 24         # ZR čl. 37
 
@@ -203,6 +204,30 @@ def _proveri_minimalnu_zaradu(fields: dict) -> dict | None:
     )
 
 
+def _proveri_radno_vreme(fields: dict) -> dict | None:
+    vrednost = fields.get("radno_vreme", "")
+    if not vrednost:
+        return None
+    sati = _parse_broj(str(vrednost))
+    if sati is None:
+        return _upozorenje(
+            "radno_vreme", "ZR čl. 51",
+            f"Nije moguće proveriti radno vreme ('{vrednost}'). "
+            f"Puno radno vreme ne sme biti duže od {ZR_RADNO_VREME_MAX_H} sati nedeljno.",
+        )
+    if sati > ZR_RADNO_VREME_MAX_H:
+        return _krsi(
+            "radno_vreme", "ZR čl. 51",
+            f"Radno vreme od {int(sati)} sati nedeljno prelazi zakonski maksimum od "
+            f"{ZR_RADNO_VREME_MAX_H} sati (ZR čl. 51).",
+        )
+    return _ok(
+        "radno_vreme", "ZR čl. 51",
+        f"Radno vreme od {int(sati)} sati nedeljno u skladu je sa ZR čl. 51 "
+        f"(max {ZR_RADNO_VREME_MAX_H} sati nedeljno).",
+    )
+
+
 def _proveri_odredjeno_trajanje(fields: dict) -> dict | None:
     vrednost = fields.get("trajanje_odredjeno", "")
     if not vrednost:
@@ -238,6 +263,7 @@ def proveri_uskladjenost(fields: dict, vrsta: str) -> list[dict]:
 
     if vrsta in ("ugovor_neodredjeno", "ugovor_odredjeno"):
         for r in [
+            _proveri_radno_vreme(fields),
             _proveri_probni_rad(fields),
             _proveri_otkazni_rok(fields, "otkazni_rok_zaposleni", "zaposlenog"),
             _proveri_otkazni_rok(fields, "otkazni_rok_poslodavac", "poslodavca"),

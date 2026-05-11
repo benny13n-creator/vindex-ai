@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+from datetime import date
 from string import Formatter
 
 from openai import OpenAI
@@ -44,12 +45,10 @@ def _call_openai(system: str, user: str, max_tokens: int = 2000) -> str:
 
 def _ekstraktuj_json(tekst: str) -> dict:
     """Parsira JSON iz LLM odgovora, toleriše markdown code fences."""
-    # Ukloni ```json ... ``` ili ``` ... ```
     cleaned = re.sub(r"```(?:json)?\s*", "", tekst).replace("```", "").strip()
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-        # Pokuša da pronađe {} blok
         m = re.search(r"\{.*\}", cleaned, re.DOTALL)
         if m:
             try:
@@ -59,26 +58,96 @@ def _ekstraktuj_json(tekst: str) -> dict:
     return {}
 
 
+def normalize_date(date_str: str) -> str:
+    """Uklanja trailing tačke iz datuma (LLM vraća '15.01.2025.' → '15.01.2025')."""
+    return date_str.strip().rstrip(".")
+
+
+_DATE_FIELDS = {
+    "datum", "datum_aneksa", "datum_potpisivanja", "datum_prestanka",
+    "datum_zakljucenja_originalnog_ugovora",
+}
+
+
+def _normalize_date_fields(fields: dict) -> dict:
+    """Normalizuje sve datumske vrednosti u fields (strip trailing period)."""
+    out = dict(fields)
+    for key in _DATE_FIELDS:
+        if key in out and isinstance(out[key], str) and out[key]:
+            out[key] = normalize_date(out[key])
+    return out
+
+
+def _today_str() -> str:
+    return date.today().strftime("%d.%m.%Y")
+
+
+DEFAULTS_REGISTRY: dict[str, dict] = {
+    "ugovor_neodredjeno": {
+        "datum": _today_str,
+        "mesto": lambda: "Beograd",
+        "radno_vreme": lambda: "40",
+        "otkazni_rok_zaposleni": lambda: "30 radnih dana",
+        "otkazni_rok_poslodavac": lambda: "30 radnih dana",
+        "rok_isplate": lambda: "15.",
+    },
+    "ugovor_odredjeno": {
+        "datum": _today_str,
+        "mesto": lambda: "Beograd",
+        "radno_vreme": lambda: "40",
+        "otkazni_rok_zaposleni": lambda: "30 radnih dana",
+        "otkazni_rok_poslodavac": lambda: "30 radnih dana",
+        "rok_isplate": lambda: "15.",
+    },
+    "aneks": {
+        "datum_aneksa": _today_str,
+        "mesto": lambda: "Beograd",
+    },
+    "sporazumni_raskid": {
+        "datum_potpisivanja": _today_str,
+        "mesto": lambda: "Beograd",
+    },
+    "punomocje": {
+        "datum": _today_str,
+        "mesto": lambda: "Beograd",
+    },
+}
+
+
+def apply_defaults(fields: dict, vrsta: str) -> dict:
+    """Popunjava nedostajuća polja podrazumevanim vrednostima bez gaženja eksplicitnih."""
+    out = dict(fields)
+    defaults = DEFAULTS_REGISTRY.get(vrsta, {})
+    for key, factory in defaults.items():
+        existing = out.get(key)
+        if not existing:
+            out[key] = factory()
+    return out
+
+
 def _popuni_sablon(sablon: str, fields: dict) -> str:
     """
     Popunjava {PLACEHOLDER} u šablonu.
-    Nepoznata polja dobijaju vrednost '[POPUNITI]'.
+    Samo ključevi koji nisu prisutni u fields dobijaju '[... — POPUNITI]'.
+    Prazna string vrednost ("")  se tretira kao validna i ne zamenjuje se.
     """
     class _DefaultDict(dict):
         def __missing__(self, key: str) -> str:
             return f"[{key.replace('_', ' ')} — POPUNITI]"
 
-    # Kolektuj sva polja iz šablona
     placeholders = {
         fname
         for _, fname, _, _ in Formatter().parse(sablon)
         if fname is not None
     }
     merged = _DefaultDict()
-    for p in placeholders:
-        merged[p] = fields.get(p.lower(), "")
-        if merged[p] == "" or merged[p] is None:
-            merged[p] = f"[{p.replace('_', ' ')} — POPUNITI]"
+    for p_upper in placeholders:
+        p_lower = p_upper.lower()
+        if p_lower in fields:
+            val = fields[p_lower]
+            merged[p_upper] = val if val is not None else ""
+        else:
+            merged[p_upper] = f"[{p_upper.replace('_', ' ')} — POPUNITI]"
 
     return sablon.format_map(merged)
 
@@ -87,9 +156,18 @@ def _pripremi_ugovor_fields(fields: dict, vrsta: str) -> dict:
     """Kreira vrednosti za kondicionalne sekcije ugovornih šablona."""
     out = {k: (v if v is not None else "") for k, v in fields.items()}
 
-    # PIB
+    # PIB + MB + zastupnik — Bug 10
     pib = out.get("poslodavac_pib", "")
-    out["poslodavac_pib_clan"] = f", PIB: {pib}" if pib else ""
+    mb = out.get("poslodavac_mb", "")
+    zastupnik = out.get("poslodavac_zastupnik", "")
+
+    pib_mb_parts = []
+    if pib:
+        pib_mb_parts.append(f"PIB: {pib}")
+    if mb:
+        pib_mb_parts.append(f"MB: {mb}")
+    out["poslodavac_pib_clan"] = (", " + ", ".join(pib_mb_parts)) if pib_mb_parts else ""
+    out["poslodavac_zastupnik_clan"] = (f", koga zastupa {zastupnik}") if zastupnik else ""
 
     # Probni rad
     probni = out.get("probni_rad", "")
@@ -124,7 +202,11 @@ def _pripremi_ugovor_fields(fields: dict, vrsta: str) -> dict:
     ima_tajnost = out.get("ima_tajnost") in (True, "true", "True", "1", 1)
     if ima_tajnost:
         rok = out.get("tajnost_rok", "")
-        rok_tekst = f" u periodu od {rok} nakon prestanka radnog odnosa" if rok else " i nakon prestanka radnog odnosa"
+        rok_tekst = (
+            f" u periodu od {rok} nakon prestanka radnog odnosa"
+            if rok else
+            " i nakon prestanka radnog odnosa"
+        )
         out["tajnost_clan"] = (
             f"Zaposleni je obavezan da čuva poverljive informacije Poslodavca{rok_tekst}, "
             f"u skladu sa čl. 83 Zakona o radu."
@@ -168,6 +250,15 @@ def _pripremi_ugovor_fields(fields: dict, vrsta: str) -> dict:
 
 def _pripremi_sporazum_fields(fields: dict) -> dict:
     out = {k: (v if v is not None else "") for k, v in fields.items()}
+
+    # Original ugovor referenca — Bug 9
+    datum_orig = out.get("datum_zakljucenja_originalnog_ugovora", "")
+    if datum_orig:
+        out["original_ugovor_clan"] = f", zasnovan po Ugovoru o radu od {datum_orig},"
+    else:
+        out["original_ugovor_clan"] = ""
+
+    # Otpremnina
     ima_otp = out.get("ima_otpremninu") in (True, "true", "True", "1", 1)
     if ima_otp:
         iznos = out.get("otpremnina_iznos", "[IZNOS — POPUNITI]")
@@ -228,14 +319,20 @@ def generate_draft(vrsta: str, opis: str) -> dict:
         raw_json = _call_openai(system_p, user_p, max_tokens=800)
         fields = _ekstraktuj_json(raw_json)
 
-        # ── 2. Priprema kondicionalnih sekcija ───────────────────────────────
+        # ── 2. Defaults za nedostajuća polja ─────────────────────────────────
+        fields = apply_defaults(fields, vrsta)
+
+        # ── 3. Normalizacija datuma ───────────────────────────────────────────
+        fields = _normalize_date_fields(fields)
+
+        # ── 4. Priprema kondicionalnih sekcija ───────────────────────────────
         fields_ready = _pripremi_fields(fields, vrsta)
 
-        # ── 3. Popuni šablon ─────────────────────────────────────────────────
+        # ── 5. Popuni šablon ─────────────────────────────────────────────────
         sablon = tpl["sablon"]
         nacrt_tekst = _popuni_sablon(sablon, fields_ready)
 
-        # ── 4. Compliance check ──────────────────────────────────────────────
+        # ── 6. Compliance check ──────────────────────────────────────────────
         compliance_tip = tpl.get("compliance_tip")
         violations: list[dict] = []
         if compliance_tip == "ugovor_o_radu":
