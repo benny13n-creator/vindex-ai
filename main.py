@@ -1719,6 +1719,27 @@ def ask_agent(
             logger.exception("PINECONE GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
+        # DOC GATE BIAS: when uploaded-doc context present, bias confidence band upward
+        if extra_namespaces:
+            doc_passages = retrieval_meta.get("doc_passages", [])
+            if doc_passages:
+                top_doc_score = max(
+                    (p.get("score", 0.0) for p in doc_passages),
+                    default=0.0,
+                )
+                if top_doc_score >= 0.5:
+                    band_up = {"LOW": "MEDIUM", "MEDIUM": "HIGH", "HIGH": "HIGH"}
+                    old_band = retrieval_meta.get("confidence", "LOW")
+                    new_band = band_up.get(old_band, old_band)
+                    if new_band != old_band:
+                        retrieval_meta["confidence"] = new_band
+                        logger.info(
+                            "[DOC_GATE_BIAS] doc_top=%.3f law_top=%.3f band %s→%s",
+                            top_doc_score,
+                            retrieval_meta.get("top_score", 0.0),
+                            old_band, new_band,
+                        )
+
         confidence   = retrieval_meta["confidence"]
         top_score    = retrieval_meta["top_score"]
         top_article  = retrieval_meta["top_article"]
