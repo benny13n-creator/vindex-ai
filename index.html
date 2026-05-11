@@ -577,6 +577,13 @@ blockquote.citat-expanded { max-height: none; }
 .podnesak-chips { display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.2rem; }
 .podnesak-chip { background:rgba(74,168,255,0.07); border:1px solid rgba(74,168,255,0.2); color:rgba(74,168,255,0.85); font-size:0.72rem; padding:0.3rem 0.7rem; border-radius:14px; cursor:pointer; transition:all 0.15s; }
 .podnesak-chip:hover { background:rgba(74,168,255,0.15); border-color:rgba(74,168,255,0.4); }
+/* ── Podnesak selector — always-visible list ─────────────────────────────── */
+.podnesak-selector { padding:0 0 4px; max-height:400px; overflow-y:auto; }
+.podnesak-category { font-size:0.7rem; text-transform:uppercase; color:#6b7d95; letter-spacing:0.08em; margin-bottom:6px; margin-top:16px; font-family:'JetBrains Mono',monospace; }
+.podnesak-category:first-child { margin-top:0; }
+.podnesak-option { display:block; width:100%; text-align:left; padding:12px 16px; background:#1a2332; border:1px solid #2a3a4f; border-radius:6px; color:#cbd5e0; font-family:'DM Sans',sans-serif; font-size:0.95rem; margin-bottom:6px; cursor:none; transition:all 0.15s; }
+.podnesak-option:hover { background:#243248; border-color:#3a5070; color:#e2e8f0; }
+.podnesak-option.selected { background:#1e3a5f; border:1px solid #4aa8ff; border-left:3px solid #4aa8ff; color:#ffffff; }
 /* Nacrt podneska — monospace prikaz sudskog dokumenta */
 .resp-nacrt-podnesak { font-family:'JetBrains Mono',monospace; font-size:0.78rem; line-height:1.85; color:rgba(255,255,255,0.82); white-space:pre-wrap; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:1.1rem 1.3rem; }
 .resp-nacrt-podnesak .popuniti { background:rgba(240,180,41,0.15); color:#f0b429; border-radius:3px; padding:0 2px; }
@@ -870,6 +877,7 @@ nav { padding: 1rem 1.5rem; }
 .h-stat { padding: 0 1.2rem; }
 .h-stat-num { font-size: 1.6rem; }
 .t-tab { padding: 9px 14px; font-size: 0.85rem; }
+.podnesak-option { font-size:0.9rem; padding:10px 14px; }
 
 .hero-3col { grid-template-columns: 1fr; gap: 1.8rem; }
 .h3-left { display: none; }
@@ -1257,13 +1265,19 @@ footer { padding: 2rem 1.5rem; }
               <div class="t-guide-icon">📄</div>
               <div class="t-guide-text"><span class="t-guide-bold">Generišite nacrt podneska.</span> Izaberite tip, opišite stranke i činjenice slobodnim tekstom — sistem ekstraktuje entitete i popunjava zvanični šablon.</div>
             </div>
-            <label class="t-label">Tip podneska:</label>
-            <select class="t-input" id="podnesak-tip" onchange="updatePodnesakHint()">
-              <option value="tuzba_naknada_stete">Tužba za naknadu štete</option>
-              <option value="zalba_parnicna">Žalba na prvostepenu presudu</option>
-              <option value="predlog_izvrsenje">Predlog za izvršenje</option>
-              <option disabled>── Nacrti ugovora ──</option>
-            </select>
+            <input type="hidden" id="podnesak-tip" value="tuzba_naknada_stete">
+            <div class="podnesak-selector">
+              <div class="podnesak-category" style="margin-top:0">PODNESCI</div>
+              <button type="button" class="podnesak-option selected" data-value="tuzba_naknada_stete" onclick="_selectPodnesakOption('tuzba_naknada_stete')">Tužba za naknadu štete</button>
+              <button type="button" class="podnesak-option" data-value="zalba_parnicna" onclick="_selectPodnesakOption('zalba_parnicna')">Žalba na prvostepenu presudu</button>
+              <button type="button" class="podnesak-option" data-value="predlog_izvrsenje" onclick="_selectPodnesakOption('predlog_izvrsenje')">Predlog za izvršenje</button>
+              <div class="podnesak-category">NACRTI UGOVORA</div>
+              <button type="button" class="podnesak-option" data-value="ugovor_neodredjeno" onclick="_selectPodnesakOption('ugovor_neodredjeno')">Ugovor o radu na neodređeno vreme</button>
+              <button type="button" class="podnesak-option" data-value="ugovor_odredjeno" onclick="_selectPodnesakOption('ugovor_odredjeno')">Ugovor o radu na određeno vreme</button>
+              <button type="button" class="podnesak-option" data-value="aneks" onclick="_selectPodnesakOption('aneks')">Aneks ugovora o radu</button>
+              <button type="button" class="podnesak-option" data-value="sporazumni_raskid" onclick="_selectPodnesakOption('sporazumni_raskid')">Sporazumni raskid ugovora o radu</button>
+              <button type="button" class="podnesak-option" data-value="punomocje" onclick="_selectPodnesakOption('punomocje')">Punomoćje</button>
+            </div>
             <div id="podnesak-hint" class="podnesak-hint"></div>
             <label class="t-label">Opis slučaja (stranke, činjenice, iznosi):</label>
             <div class="mic-input-wrap">
@@ -2186,6 +2200,8 @@ var _PODNESAK_HINTS = {
 
 /* Tipovi koji idu na /api/nacrt (drafting modul) */
 var _NACRT_API_TYPES = new Set();
+/* Pre-populate nacrt types — confirmed/extended by /api/nacrt/types fetch */
+['ugovor_neodredjeno','ugovor_odredjeno','aneks','sporazumni_raskid','punomocje'].forEach(function(v){ _NACRT_API_TYPES.add(v); });
 
 /* Dinamičko učitavanje tipova ugovora iz /api/nacrt/types */
 (function() {
@@ -2194,15 +2210,9 @@ var _NACRT_API_TYPES = new Set();
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(data) {
       if (!data || !Array.isArray(data.tipovi)) return;
-      var sel = document.getElementById('podnesak-tip');
-      if (!sel) return;
       data.tipovi.forEach(function(t) {
         _NACRT_API_TYPES.add(t.vrsta);
         if (t.opis_hint) _PODNESAK_HINTS[t.vrsta] = '📄 ' + t.opis_hint;
-        var opt = document.createElement('option');
-        opt.value = t.vrsta;
-        opt.textContent = t.label;
-        sel.appendChild(opt);
       });
     })
     .catch(function() {});
@@ -2217,13 +2227,19 @@ function updatePodnesakHint() {
   var hint = document.getElementById('podnesak-hint');
   if (tip && hint) hint.textContent = _PODNESAK_HINTS[tip.value] || '';
 }
+function _selectPodnesakOption(value) {
+  var hidden = document.getElementById('podnesak-tip');
+  if (hidden) hidden.value = value;
+  document.querySelectorAll('.podnesak-option').forEach(function(btn) {
+    btn.classList.toggle('selected', btn.dataset.value === value);
+  });
+  updatePodnesakHint();
+}
 function fillPodnesakPrimer(kljuc) {
   var el = document.getElementById('podnesak-opis');
-  var sel = document.getElementById('podnesak-tip');
   var mapa = { tuzba:'tuzba_naknada_stete', zalba:'zalba_parnicna', izvrsenje:'predlog_izvrsenje' };
-  if (sel && mapa[kljuc]) sel.value = mapa[kljuc];
+  if (mapa[kljuc]) _selectPodnesakOption(mapa[kljuc]);
   if (el) { el.value = _PODNESAK_PRIMERI[kljuc] || ''; el.focus(); }
-  updatePodnesakHint();
 }
 
 function copyPodnesak(btn) {
@@ -2701,9 +2717,7 @@ function editPodnesak() {
       if (typeof activeTab !== 'undefined' && activeTab !== 'n') return;
       var hasPlaceholder = PLACEHOLDER_PATTERNS.some(function(p) { return p.test(cmdText); });
       var finalText = cmdText + (hasPlaceholder ? PLACEHOLDER_INSTRUCTION : '');
-      var sel = document.getElementById('podnesak-tip');
-      if (sel && intent.tip) sel.value = intent.tip;
-      if (typeof updatePodnesakHint === 'function') updatePodnesakHint();
+      if (intent.tip && typeof _selectPodnesakOption === 'function') _selectPodnesakOption(intent.tip);
       var opis = document.getElementById('podnesak-opis');
       if (opis) { opis.value = finalText; opis.focus(); }
       _vikiAutoExec('n', 1500);
