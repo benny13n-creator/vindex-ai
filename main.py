@@ -1569,12 +1569,18 @@ _DOC_CONTEXT_ADDENDUM = (
     "SAMO AKO X < min ILI X > max, smatraj klauzulu spornom.\n\n"
     "PRIMER ISPRAVNOG:\n"
     "- Ugovorni otkazni rok: 15 radnih dana\n"
-    "- ZR 189 opseg: 8 do 30 radnih dana\n"
-    "- 15 ∈ [8, 30] → u opsegu\n"
+    "- ZR 189 minimum: 8 dana\n"
+    "- 15 (radnih dana) > 8 (dana) → u opsegu\n"
     "- Zaključak: ugovorni rok je u skladu sa ZR 189.\n\n"
     "PRIMER POGREŠNOG (NIKAD OVAKO):\n"
     "\"15 dana ne ispunjava minimum 8 dana\" — ovo je MATEMATIČKA GREŠKA.\n"
     "15 > 8, dakle 15 ISPUNJAVA minimum 8.\n\n"
+    "NORMALIZACIJA JEDINICA — radni vs kalendarski dani:\n\n"
+    "Kada je ugovorni rok u RADNIM danima a zakonski limit u DANIMA (bez specifikacije):\n"
+    "- 1 radni dan je VEĆI od 1 kalendarskog dana (radni isključuje vikende)\n"
+    "- Konzervativno: tretirati oba kao iste jedinice za poređenje broja\n"
+    "- TAČNO: 15 radnih dana > 8 dana → U OPSEGU\n"
+    "- POGREŠNO: '15 radnih dana < 8 kalendarskih dana' — ovo je nemoguće\n\n"
     "Pre nego što daš final verdict, IZRAČUNAJ poređenje i validiraj\n"
     "da je tvoj zaključak konzistentan sa numeričkim odnosima."
 )
@@ -1602,7 +1608,13 @@ DOC_TYPE_CONSTRAINTS = {
         "PRIMARNI legal framework: Zakon o radu (ZR).\n"
         "NE ANALIZIRAJ pitanje kroz: Zakon o digitalnoj imovini, Zakon o trgovini,\n"
         "Zakon o privrednim društvima, Zakon o platnim uslugama, ili druge\n"
-        "specijalne zakone — osim ako se eksplicitno pominju u tekstu ugovora."
+        "specijalne zakone — osim ako se eksplicitno pominju u tekstu ugovora.\n\n"
+        "ZR ČL. 53 — PREKOVREMENI RAD (tri obavezna limita):\n"
+        "  1. Nedeljni:  maksimalno 8h prekovremeno nedeljno\n"
+        "  2. Mesečni:   maksimalno 32h prekovremeno mesečno\n"
+        "  3. GODIŠNJI CAP: maksimalno 250h prekovremeno godišnje\n"
+        "UVEK proveri sva tri limita. Godišnji cap važi čak i ako mesečni limit\n"
+        "izgleda kompliantan: 32h/mes × 12 = 384h/god > 250h → KRŠI godišnji cap."
     ),
     "ugovor_o_zakupu": (
         "DOC CONTEXT TYPE: UGOVOR O ZAKUPU.\n"
@@ -1875,6 +1887,19 @@ def ask_agent(
             if _doc_type and _doc_type in DOC_TYPE_CONSTRAINTS:
                 system_prompt = system_prompt + "\n\n" + DOC_TYPE_CONSTRAINTS[_doc_type]
                 logger.info("[DOC_TYPE] Detected doc type: %s — constraint injected", _doc_type)
+            # Fix-2.5a (Q2): For employment contracts, remove ZDI chunks from context
+            # so LLM cannot cite ZDI even if retrieval returned it with high score.
+            if _doc_type == "ugovor_o_radu":
+                _n_before = len(filtrirani)
+                filtrirani = [
+                    d for d in filtrirani
+                    if "zakon o digitalnoj imovini" not in d.lower() and "ZDI čl" not in d
+                ]
+                if len(filtrirani) < _n_before:
+                    logger.info(
+                        "[ZDI_FILTER] Uklonjen/i %d ZDI chunk(s) za ugovor_o_radu kontekst",
+                        _n_before - len(filtrirani),
+                    )
 
         kontekst = "\n\n---\n\n".join(filtrirani)
         history_blok = ""

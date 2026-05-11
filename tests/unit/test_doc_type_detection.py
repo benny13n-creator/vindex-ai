@@ -102,3 +102,36 @@ def test_ugovor_o_radu_constraint_forbids_zdi():
     """Employment contract constraint must mention ZDI prohibition."""
     constraint = DOC_TYPE_CONSTRAINTS["ugovor_o_radu"]
     assert "digitalnoj imovini" in constraint.lower() or "ZDI" in constraint
+
+
+# ─── Fix-2.5a: ZR 53 annual cap in constraint (Q3 fix) ──────────────────────
+
+def test_ugovor_o_radu_constraint_has_250h_annual_cap():
+    """Employment contract constraint must state ZR 53 annual 250h cap."""
+    constraint = DOC_TYPE_CONSTRAINTS["ugovor_o_radu"]
+    assert "250" in constraint, "Annual prekovremeni cap (250h/god) must appear in constraint"
+
+
+def test_ugovor_o_radu_constraint_mentions_all_three_zr53_limits():
+    """Constraint must reference all three ZR 53 limits: weekly, monthly, annual."""
+    constraint = DOC_TYPE_CONSTRAINTS["ugovor_o_radu"]
+    assert "8h" in constraint or "8 h" in constraint or "nedeljn" in constraint.lower()
+    assert "32h" in constraint or "32 h" in constraint or "mesečn" in constraint.lower()
+    assert "250h" in constraint or "250 h" in constraint or "godišnj" in constraint.lower()
+
+
+# ─── Fix-2.5b: DOC_CONTEXT_ADDENDUM radnih vs kalendarskih (Q4 fix) ─────────
+
+def test_addendum_contains_unit_normalization_rule():
+    """_DOC_CONTEXT_ADDENDUM must contain instruction about radnih vs kalendarskih dana."""
+    addendum = _main_mod._DOC_CONTEXT_ADDENDUM
+    # Check for the key normalization fact
+    assert "radni" in addendum.lower() or "RADNIM" in addendum
+    assert "kalendarski" in addendum.lower() or "kalendarsk" in addendum.lower()
+
+
+def test_addendum_states_15_radnih_greater_than_8():
+    """Example in addendum must show 15 radnih dana > 8 (correct direction)."""
+    addendum = _main_mod._DOC_CONTEXT_ADDENDUM
+    # The correct example must be present (TAČNO direction)
+    assert "15 (radnih dana) > 8" in addendum or "15 radnih dana > 8" in addendum
