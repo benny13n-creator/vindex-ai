@@ -1589,10 +1589,14 @@ _DOC_CONTEXT_ADDENDUM = (
     "  1. Nedeljni limit: max 8h prekovremeno nedeljno\n"
     "  2. Mesečni limit: max 32h prekovremeno mesečno\n"
     "  3. GODIŠNJI CAP: max 250h prekovremeno godišnje\n\n"
-    "UVEK provjeri sva tri limita. Kratki odlomci ZR 53 često navode samo 8h/ned i 32h/mes\n"
-    "BEZ godišnjeg capa — to ne znači da cap ne postoji.\n"
-    "Obavezna provera: X h/mes × 12 mora biti ≤ 250h/god.\n"
-    "Primer: 32h/mes × 12 = 384h/god > 250h → KRŠI ZR 53 godišnji cap.\n\n"
+    "OBAVEZNI PRORAČUN (ne prihvataj 'nije navedeno' kao zaključak):\n"
+    "Ako ugovor predviđa X h/mes prekovremenog rada:\n"
+    "  IZRAČUNAJ: X × 12 = Y h/god\n"
+    "  AKO Y > 250 → KRŠI ZR 53 GODIŠNJI CAP\n"
+    "  AKO Y ≤ 250 → GODIŠNJI CAP ISPUNJEN\n\n"
+    "DIREKTNA PRIMENA (32h/mes):\n"
+    "  32h/mes × 12 = 384h/god > 250h/god → KRŠI ZR 53 GODIŠNJI CAP.\n"
+    "  ZAKLJUČAK: ugovorni mesečni limit od 32h/mes je NEZAKONIT jer vodi ka 384h/god > 250h.\n\n"
 
     "KLAUZULA O TAJNOSTI/NDA u ugovoru o radu — zabranjeni zakoni:\n\n"
     "Tajnost poslovnih informacija u ugovoru o radu se analzira kroz ZR i ugovorni tekst.\n"
@@ -1915,17 +1919,20 @@ def ask_agent(
             if _doc_type and _doc_type in DOC_TYPE_CONSTRAINTS:
                 system_prompt = system_prompt + "\n\n" + DOC_TYPE_CONSTRAINTS[_doc_type]
                 logger.info("[DOC_TYPE] Detected doc type: %s — constraint injected", _doc_type)
-            # Fix-2.5a (Q2): For employment contracts, remove ZDI chunks from context
-            # so LLM cannot cite ZDI even if retrieval returned it with high score.
+            # Fix-2.5a (Q2): For employment contracts, remove ZDI + ZZPL chunks from
+            # context so LLM cannot cite them even if retrieval returned them with high score.
             if _doc_type == "ugovor_o_radu":
                 _n_before = len(filtrirani)
                 filtrirani = [
                     d for d in filtrirani
-                    if "zakon o digitalnoj imovini" not in d.lower() and "ZDI čl" not in d
+                    if "zakon o digitalnoj imovini" not in d.lower()
+                    and "ZDI čl" not in d
+                    and "zastita podataka o licnosti" not in d.lower()
+                    and "podataka o licnosti" not in d.lower()
                 ]
                 if len(filtrirani) < _n_before:
                     logger.info(
-                        "[ZDI_FILTER] Uklonjen/i %d ZDI chunk(s) za ugovor_o_radu kontekst",
+                        "[ZDI_ZZPL_FILTER] Uklonjen/i %d chunk(s) za ugovor_o_radu kontekst",
                         _n_before - len(filtrirani),
                     )
 
