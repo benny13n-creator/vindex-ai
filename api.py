@@ -1674,3 +1674,37 @@ async def dokument_cleanup(
         chunks_deleted=result["chunks_deleted"],
         namespaces_inspected=result["namespaces_inspected"],
     )
+
+
+class PitanjeDocRequest(BaseModel):
+    session_id: str
+    pitanje: str
+    history: Optional[List[dict]] = None
+
+
+_MAX_DOC_PITANJE_LEN = 2000
+
+
+@app.post("/api/dokument/pitanje")
+async def dokument_pitanje(body: PitanjeDocRequest):
+    """Ask a question about an uploaded document session."""
+    from uploaded_doc.session import validate_session
+
+    if not body.pitanje or not body.pitanje.strip():
+        raise HTTPException(status_code=422, detail="Pitanje ne može biti prazno")
+    if len(body.pitanje) > _MAX_DOC_PITANJE_LEN:
+        raise HTTPException(status_code=422, detail="Pitanje je predugačko")
+    if not body.session_id or not body.session_id.strip():
+        raise HTTPException(status_code=422, detail="session_id je obavezan")
+
+    session_valid = await asyncio.to_thread(validate_session, body.session_id)
+    if not session_valid:
+        raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
+
+    rezultat = await asyncio.to_thread(
+        ask_agent,
+        body.pitanje,
+        body.history,
+        [f"tmp_{body.session_id}"],
+    )
+    return rezultat

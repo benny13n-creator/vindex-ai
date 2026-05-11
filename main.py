@@ -1520,6 +1520,19 @@ APSOLUTNE ZABRANE:
 - Više od 500 reči ukupno"""
 
 
+# ─── Addendum for uploaded-document context (Phase 2.3) ─────────────────────
+
+_DOC_CONTEXT_ADDENDUM = (
+    "KORISNIKOV DOKUMENT je dokument koji je korisnik upload-ovao. Tretiraj "
+    "ga kao primarni direktni kontekst za pitanje. Kada citiraš:\n"
+    "- Korisnikov dokument: 'Prema članu X vašeg dokumenta...'\n"
+    "- Zakon: 'Prema članu Y [zakon], ...'\n"
+    "- Sudska praksa: 'VKS u odluci [broj] zauzeo je stav da...'\n"
+    "Ako pitanje može biti odgovoreno samo na osnovu korisnikovog dokumenta, "
+    "odgovor primarno bazira na njemu. Zakon i praksu koristi kao podršku/validaciju."
+)
+
+
 # ─── ukloni_zabranjeni_tekst — post-processing filter v2.0 ───────────────────
 
 def ukloni_zabranjeni_tekst(odgovor: str, tip: str) -> str:
@@ -1675,17 +1688,22 @@ def _generate_high_interpretation(pitanje: str, article: str, law: str, text: st
 
 # ─── Javne funkcije agenta ───────────────────────────────────────────────────
 
-def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
+def ask_agent(
+    pitanje: str,
+    history: list[dict] | None = None,
+    extra_namespaces: list | None = None,
+) -> dict:
     """
     Hallucination-free confidence-gated pipeline v3.0.
     Returns confidence level + article metadata alongside the response.
     history: lista {'q': str, 'a': str} — poslednja 3 pitanja/odgovora iz sesije.
+    extra_namespaces: optional Pinecone namespace list (e.g. ["tmp_<session_id>"]).
     """
     pitanje = (pitanje or "").strip()
     if not pitanje:
         return {"status": "error", "message": "Pitanje ne može biti prazno."}
 
-    if not history:
+    if not history and not extra_namespaces:
         keš = _cache_get(pitanje)
         if keš:
             return keš
@@ -1696,7 +1714,7 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
     try:
         # KORAK 1: Retrieve with confidence metadata
         try:
-            docs, retrieval_meta = retrieve_documents(pitanje_api, k=10)
+            docs, retrieval_meta = retrieve_documents(pitanje_api, k=10, extra_namespaces=extra_namespaces)
         except Exception as e:
             logger.exception("PINECONE GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
@@ -1743,6 +1761,9 @@ def ask_agent(pitanje: str, history: list[dict] | None = None) -> dict:
             "DEFINICIJA": (SYSTEM_PROMPT_DEFINICIJA, SEKCIJE_DEFINICIJA, "gpt-4o", 1500),
         }
         system_prompt, aktivan_sekcije, _model, _max_tokens = _prompt_map.get(tip, _prompt_map["DEFINICIJA"])
+
+        if any("KORISNIKOV DOKUMENT" in d for d in filtrirani):
+            system_prompt = system_prompt + "\n\n" + _DOC_CONTEXT_ADDENDUM
 
         kontekst = "\n\n---\n\n".join(filtrirani)
         history_blok = ""

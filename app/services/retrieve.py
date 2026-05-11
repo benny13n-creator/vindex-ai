@@ -367,6 +367,21 @@ def _pretraga_praksa(vektor: list[float], k: int = 5) -> list:
         return []
 
 
+def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5) -> list:
+    """Query an arbitrary named Pinecone namespace. Used for tmp_* doc namespaces."""
+    index = _get_index()
+    try:
+        return index.query(
+            vector=vektor,
+            top_k=k,
+            namespace=namespace,
+            include_metadata=True,
+        ).matches
+    except Exception as exc:
+        logger.warning("[NS:%s] Pretraga nije uspela: %s", namespace, exc)
+        return []
+
+
 def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list:
     index = _get_index()
     filter_dict: dict = {"article": {"$eq": label_clana}}
@@ -1004,7 +1019,11 @@ def _jedan_retrieval_krug(
 
 # ─── Glavna javna funkcija ────────────────────────────────────────────────────
 
-def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
+def retrieve_documents(
+    query: str,
+    k: int = 6,
+    extra_namespaces: Optional[list] = None,
+) -> tuple[list[str], dict]:
     """
     Agentic RAG pipeline — svi 5 sprintova.
 
@@ -1016,9 +1035,16 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
       5. Parent text fetch iz metapodataka
       6. CRAG ocena relevantnosti + corrective petlja (max 2 iteracije)
 
+    Args:
+        extra_namespaces: optional list of additional Pinecone namespaces to query
+            in parallel (e.g. ["tmp_<session_id>"] for uploaded-document context).
+            Existing callers pass nothing — behavior is identical.
+
     Returns:
         (docs, retrieval_meta) where retrieval_meta has:
-          top_score, top_article, top_law, top_text, confidence
+          top_score, top_article, top_law, top_text, confidence,
+          doc_passages (list of raw match dicts, populated when extra_namespaces used),
+          praksa_matches (list of raw praksa match dicts, always present)
     """
     import time as _time
     t0 = _time.perf_counter()
@@ -1030,12 +1056,19 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
     # ── Faza 0: Embed jedanput ────────────────────────────────────────────────
     vektor = _ugradi_query(query)
 
-    # ── Faza 0b: Start praksa retrieval in background (runs parallel to zakon pipeline) ──
-    # Conservative design: zakon pipeline is unchanged; praksa results are appended
+    # ── Faza 0b: Start praksa + extra-ns retrieval in background ─────────────────
+    # Conservative design: zakon pipeline is unchanged; additional results are appended
     # AFTER the zakon pipeline completes. Gate (confidence band) is driven by zakon
-    # top score only — praksa adds content, not band signal.
+    # top score only — praksa/doc passages add content, not band signal.
     _praksa_exec = ThreadPoolExecutor(max_workers=1)
     _f_praksa = _praksa_exec.submit(_pretraga_praksa, vektor, 5)
+
+    _extra_exec = None
+    _extra_futures: dict = {}
+    if extra_namespaces:
+        _extra_exec = ThreadPoolExecutor(max_workers=len(extra_namespaces))
+        for _ns in extra_namespaces:
+            _extra_futures[_ns] = _extra_exec.submit(_pretraga_ns, vektor, _ns, 5)
 
     # ── Faza 1: Query transformation (paralel) ────────────────────────────────
     # FIX-1: use intent-aware decomposition for complex queries;
@@ -1224,9 +1257,10 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
     # ── Faza 5: CRAG petlja (max 2 iteracije) ─────────────────────────────────
     docs = _crag_petlja(query, docs, zakon, vektor, k, max_iter=1)
 
-    # ── Faza 6: Praksa kontekst (parallel query resolves here) ───────────────
+    # ── Faza 6: Praksa + extra-ns kontekst (parallel queries resolve here) ──────
     # Results are appended AFTER zakon docs so zakon context always comes first.
     # Gate (confidence band) is NOT affected — it is already computed from zakon top score.
+    _praksa_matches_raw: list = []
     try:
         _pm_list = _f_praksa.result(timeout=5.0)
         _added = 0
@@ -1235,11 +1269,43 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
             if _pf and len(_pf.strip()) > 50:
                 docs.append(_pf)
                 _added += 1
+                _m = _pm.metadata or {}
+                _praksa_matches_raw.append({
+                    "decision": _m.get("decision_number") or _m.get("decision_id_fallback") or "?",
+                    "court": _m.get("court", "Vrhovni sud"),
+                    "text_snippet": (_m.get("text") or "")[:200],
+                    "score": float(getattr(_pm, "score", 0.0)),
+                })
         logger.info("[PRAKSA] %d odluka dodato u kontekst (od %d rezultata)", _added, len(_pm_list))
     except Exception as _pe:
         logger.warning("[PRAKSA] Retrieval greška: %s — nastavlja se bez prakse", _pe)
     finally:
         _praksa_exec.shutdown(wait=False)
+
+    # Extra namespaces (uploaded document tmp_* passages) — appended last
+    _doc_passages_raw: list = []
+    if _extra_futures:
+        from app.services.doc_formatter import format_doc_passage
+        for _ns, _fut in _extra_futures.items():
+            try:
+                _ns_matches = _fut.result(timeout=5.0)
+                for _pm in _ns_matches[:3]:
+                    _pf = format_doc_passage(_pm)
+                    if _pf and len(_pf.strip()) > 50:
+                        docs.append(_pf)
+                        _m = _pm.metadata or {}
+                        _doc_passages_raw.append({
+                            "namespace": _ns,
+                            "chunk_index": int(_m.get("chunk_index", 0)),
+                            "article_label": _m.get("article_label") or None,
+                            "text_snippet": (_m.get("text") or "")[:200],
+                            "score": float(getattr(_pm, "score", 0.0)),
+                        })
+                logger.info("[DOC_NS:%s] %d pasusa dodato u kontekst", _ns, len(_ns_matches[:3]))
+            except Exception as _de:
+                logger.warning("[DOC_NS:%s] Retrieval greška: %s", _ns, _de)
+        if _extra_exec is not None:
+            _extra_exec.shutdown(wait=False)
 
     elapsed = _time.perf_counter() - t0
     logger.info(
@@ -1257,11 +1323,13 @@ def retrieve_documents(query: str, k: int = 6) -> tuple[list[str], dict]:
         )
 
     retrieval_meta = {
-        "top_score":   _top_score,
-        "top_article": _top_article,
-        "top_law":     _top_law,
-        "top_text":    _top_text,
-        "confidence":  get_confidence_level(_top_score),
+        "top_score":      _top_score,
+        "top_article":    _top_article,
+        "top_law":        _top_law,
+        "top_text":       _top_text,
+        "confidence":     get_confidence_level(_top_score),
+        "doc_passages":   _doc_passages_raw,
+        "praksa_matches": _praksa_matches_raw,
     }
     logger.info(
         "[RETRIEVE] confidence=%s score=%.4f article=%s law=%s",
