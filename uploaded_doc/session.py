@@ -44,7 +44,7 @@ def validate_session(session_id: str) -> bool:
 
         namespace = f"tmp_{session_id}"
         result = index.query(
-            vector=[0.0] * 3072,
+            vector=[0.1] * 3072,
             top_k=1,
             namespace=namespace,
             include_metadata=True,
