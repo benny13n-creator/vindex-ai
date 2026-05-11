@@ -1582,7 +1582,35 @@ _DOC_CONTEXT_ADDENDUM = (
     "- TAČNO: 15 radnih dana > 8 dana → U OPSEGU\n"
     "- POGREŠNO: '15 radnih dana < 8 kalendarskih dana' — ovo je nemoguće\n\n"
     "Pre nego što daš final verdict, IZRAČUNAJ poređenje i validiraj\n"
-    "da je tvoj zaključak konzistentan sa numeričkim odnosima."
+    "da je tvoj zaključak konzistentan sa numeričkim odnosima.\n\n"
+
+    "ZR ČL. 53 — GODIŠNJI CAP ZA PREKOVREMENI RAD (zakonska činjenica):\n\n"
+    "ZR čl. 53 propisuje TRI GRANICE za prekovremeni rad:\n"
+    "  1. Nedeljni limit: max 8h prekovremeno nedeljno\n"
+    "  2. Mesečni limit: max 32h prekovremeno mesečno\n"
+    "  3. GODIŠNJI CAP: max 250h prekovremeno godišnje\n\n"
+    "UVEK provjeri sva tri limita. Kratki odlomci ZR 53 često navode samo 8h/ned i 32h/mes\n"
+    "BEZ godišnjeg capa — to ne znači da cap ne postoji.\n"
+    "Obavezna provera: X h/mes × 12 mora biti ≤ 250h/god.\n"
+    "Primer: 32h/mes × 12 = 384h/god > 250h → KRŠI ZR 53 godišnji cap.\n\n"
+
+    "KLAUZULA O TAJNOSTI/NDA u ugovoru o radu — zabranjeni zakoni:\n\n"
+    "Tajnost poslovnih informacija u ugovoru o radu se analzira kroz ZR i ugovorni tekst.\n"
+    "KATEGORIČKE ZABRANE — ni u jednom delu odgovora NE CITIRATI:\n"
+    "  - Zakon o digitalnoj imovini (ZDI) — to je za kripto aktivu i digitalne imovine,\n"
+    "    NIKADA za klauzule o poslovnoj tajni iz ugovora o radu\n"
+    "  - Zakon o zaštiti podataka o ličnosti (ZZPL/GDPR) — to je za obradu ličnih podataka,\n"
+    "    NIKADA za klauzule o poverljivosti/tajnosti između poslodavca i zaposlenog\n"
+    "Ako retrieval vrati ZDI ili ZZPL za pitanje o tajnosti u ugovoru o radu — IGNORIŠI te rezultate.\n\n"
+
+    "ZR ČL. 189 OTKAZNI ROK — DIREKTNA PRAVILA (UVEK PRIMENITI):\n\n"
+    "Zakonski minimum otkaznog roka: 8 dana (bez specifikacije vrste).\n"
+    "PRAVILO POREĐENJA: poredi numeričku vrednost direktno — 15 (radnih) vs 8 (dana).\n"
+    "  → 15 > 8 → ISPUNJAVA zakonski minimum.\n"
+    "  → Konverzija radnih u kalendarske NIJE POTREBNA: radni dani su uvek ≥ kalendarskih.\n"
+    "DIREKTAN ZAKLJUČAK za 15 radnih dana:\n"
+    "  Ugovor: 15 radnih dana | ZR 189 minimum: 8 dana | 15 > 8 → U SKLADU SA ZR 189.\n"
+    "ZABRANJENO: Nikada ne zaključiti da je 15 manje od 8 — to je matematički pogrešno."
 )
 
 
@@ -1592,7 +1620,7 @@ def detect_doc_type(passages: list[str]) -> str | None:
     """Return document type string ('ugovor_o_radu', etc.) or None if unknown."""
     if not passages:
         return None
-    text = " ".join(passages[:2]).upper()
+    text = " ".join(passages).upper()
     if "UGOVOR O RADU" in text or ("ZAPOSLENI" in text and "POSLODAVAC" in text):
         return "ugovor_o_radu"
     if "UGOVOR O ZAKUPU" in text or ("ZAKUPODAVAC" in text and "ZAKUPAC" in text):

@@ -51,6 +51,8 @@ LAW_HINTS = {
     "otkaz":                      "zakon o radu",
     "zarada":                     "zakon o radu",
     "rad":                        "zakon o radu",
+    "klauzula tajnost":           "zakon o radu",   # NDA in employment contracts → ZR, not ZDI/ZZPL
+    "klauzula poverljiv":         "zakon o radu",   # confidentiality clause → ZR
     # Porodični zakon
     "staratelj":                  "porodicni zakon",
     "aliment":                    "porodicni zakon",
