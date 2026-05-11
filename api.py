@@ -24,6 +24,8 @@ load_dotenv()
 
 import time as _time
 from main import ask_agent, ask_nacrt, ask_analiza, _skini_pii, klasifikuj_pitanje
+from drafting.router import generate_draft as _drafting_generate
+from drafting.templates import get_types_list as _drafting_get_types
 from app.services import audit_log as _al
 from templates.podnesci import (
     TIPOVI as PODNESAK_TIPOVI,
@@ -1303,16 +1305,22 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
     )
 
 
+@app.get("/api/nacrt/types")
+async def nacrt_types():
+    """Vraća listu dostupnih tipova nacrta (bez autentifikacije)."""
+    return {"tipovi": _drafting_get_types()}
+
+
 @app.post("/api/nacrt")
 @limiter.limit("10/minute")
 async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_credits)):
-    """Generisanje nacrta pravnog dokumenta."""
+    """Generisanje nacrta pravnog dokumenta (strukturirani šablon)."""
     logger.info("Nacrt [uid=%.8s] vrsta=%s", user["user_id"], req.vrsta)
     asyncio.create_task(_audit(user["user_id"], f"nacrt:{req.vrsta}", ""))
     try:
         qh_nacrt = _q_hash(_skini_pii(req.opis))
         t0 = _time.monotonic()
-        rezultat = await pokreni(ask_nacrt, req.vrsta, req.opis)
+        rezultat = await pokreni(_drafting_generate, req.vrsta, _skini_pii(req.opis))
         latency_ms = int((_time.monotonic() - t0) * 1000)
         _al.log_response(
             endpoint="/api/nacrt",

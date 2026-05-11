@@ -1259,6 +1259,7 @@ footer { padding: 2rem 1.5rem; }
               <option value="tuzba_naknada_stete">Tužba za naknadu štete</option>
               <option value="zalba_parnicna">Žalba na prvostepenu presudu</option>
               <option value="predlog_izvrsenje">Predlog za izvršenje</option>
+              <option disabled>── Nacrti ugovora ──</option>
             </select>
             <div id="podnesak-hint" class="podnesak-hint"></div>
             <label class="t-label">Opis slučaja (stranke, činjenice, iznosi):</label>
@@ -2169,6 +2170,30 @@ var _PODNESAK_HINTS = {
   zalba_parnicna:      '⚠ Navedite: naziv suda, broj predmeta, datum presude, razloge za žalbu (pogrešno utvrđeno činjenično stanje / pogrešna primena prava / bitna povreda ZPP).',
   predlog_izvrsenje:   '⚡ Navedite: vrstu izvršne isprave (presuda/rešenje), broj i datum isprave, izvršenika (ime, adresa), iznos duga i željeno sredstvo izvršenja.',
 };
+
+/* Tipovi koji idu na /api/nacrt (drafting modul) */
+var _NACRT_API_TYPES = new Set();
+
+/* Dinamičko učitavanje tipova ugovora iz /api/nacrt/types */
+(function() {
+  var BASE = (typeof BASE_URL !== 'undefined' ? BASE_URL : '') || '';
+  fetch(BASE + '/api/nacrt/types')
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+      if (!data || !Array.isArray(data.tipovi)) return;
+      var sel = document.getElementById('podnesak-tip');
+      if (!sel) return;
+      data.tipovi.forEach(function(t) {
+        _NACRT_API_TYPES.add(t.vrsta);
+        if (t.opis_hint) _PODNESAK_HINTS[t.vrsta] = '📄 ' + t.opis_hint;
+        var opt = document.createElement('option');
+        opt.value = t.vrsta;
+        opt.textContent = t.label;
+        sel.appendChild(opt);
+      });
+    })
+    .catch(function() {});
+})();
 var _PODNESAK_PRIMERI = {
   tuzba: 'Tužilac Petar Petrović, ul. Vojvode Mišića 5, Beograd potražuje naknadu štete od tuženog Jovana Jovanovića, ul. Kneza Miloša 12, Beograd. Dana 15.03.2024. tuženi je vozilom reg. oznake BG 123-AB prouzrokovao saobraćajnu nezgodu na raskrsnici ul. Vojvode Mišića i Makedonske, usled čega je tužilac zadobio telesne povrede i pretrpeo materijalnu štetu (oštećeno vozilo) u ukupnom iznosu od 350.000 RSD. Postoji policijski zapisnik i nalaz lekara.',
   zalba: 'Žalilac Ana Anić, ul. Svetog Save 3, Novi Sad izjavljuje žalbu na presudu Osnovnog suda u Novom Sadu P. 456/2023 od 10.01.2024, kojom je odbijen njen tužbeni zahtev za naknadu štete. Prvostepeni sud je pogrešno utvrdio da nema uzročno-posledične veze, uprkos medicinskom nalazu koji potvrđuje direktnu vezu između povrede i štetnog dogadjaja. Protivnik žalioca je Osiguravajuće društvo "X" d.o.o.',
@@ -3381,10 +3406,12 @@ async function execQuery() {
 
   var currentPitanje = activeTab === 'q' ? document.getElementById('qi').value : '';
   lastPitanje = currentPitanje;
-  var eps = { q:BASE_URL+'/api/pitanje', n:BASE_URL+'/api/podnesak', a:BASE_URL+'/api/analiza' };
+  var _selectedTip = (document.getElementById('podnesak-tip') || {}).value || '';
+  var _nEndpoint = _NACRT_API_TYPES.has(_selectedTip) ? BASE_URL+'/api/nacrt' : BASE_URL+'/api/podnesak';
+  var eps = { q:BASE_URL+'/api/pitanje', n:_nEndpoint, a:BASE_URL+'/api/analiza' };
   var bodies = {
     q: { pitanje: currentPitanje, history: conversationHistory.slice(-3) },
-    n: { tip: document.getElementById('podnesak-tip').value, opis: document.getElementById('podnesak-opis').value },
+    n: { vrsta: _selectedTip, tip: _selectedTip, opis: document.getElementById('podnesak-opis').value },
     a: { tekst: document.getElementById('aitxt').value, pitanje: document.getElementById('aq').value }
   };
 
