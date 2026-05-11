@@ -1520,7 +1520,7 @@ APSOLUTNE ZABRANE:
 - Više od 500 reči ukupno"""
 
 
-# ─── Addendum for uploaded-document context (Phase 2.3) ─────────────────────
+# ─── Addendum for uploaded-document context (Phase 2.3 + Phase 2.5 hardening) ─
 
 _DOC_CONTEXT_ADDENDUM = (
     "KORISNIKOV DOKUMENT je dokument koji je korisnik upload-ovao. Tretiraj "
@@ -1529,8 +1529,92 @@ _DOC_CONTEXT_ADDENDUM = (
     "- Zakon: 'Prema članu Y [zakon], ...'\n"
     "- Sudska praksa: 'VKS u odluci [broj] zauzeo je stav da...'\n"
     "Ako pitanje može biti odgovoreno samo na osnovu korisnikovog dokumenta, "
-    "odgovor primarno bazira na njemu. Zakon i praksu koristi kao podršku/validaciju."
+    "odgovor primarno bazira na njemu. Zakon i praksu koristi kao podršku/validaciju.\n\n"
+
+    "DOC CITATION FORMAT (kada referenciraš sadržaj korisnikovog dokumenta):\n\n"
+    "UVEK koristi format: \"Korisnikov dokument, Član N: [parafraza ili kratak citat]\"\n\n"
+    "NIKAD ne koristi:\n"
+    "- \"ugovor predviđa...\"\n"
+    "- \"ovaj ugovor kaže...\"\n"
+    "- \"u ugovoru je navedeno...\"\n"
+    "- \"prema dokumentu...\"\n\n"
+    "PRIMER ISPRAVNOG:\n"
+    "\"Korisnikov dokument, Član 3: probni rad traje 3 meseca.\"\n"
+    "\"Korisnikov dokument, Član 13: konkurentska klauzula 3 godine.\"\n\n"
+    "PRIMER POGREŠNOG:\n"
+    "\"Ugovor predviđa probni rad od 3 meseca.\"\n\n"
+
+    "KVANTITATIVNA PROVERA (obavezno kada zakon ima više time-unit limita):\n\n"
+    "Kada zakon definiše više limita u različitim vremenskim jedinicama\n"
+    "(npr. ZR 53: 8h/sed I 250h/god), MORAŠ konvertovati ugovorni broj\n"
+    "u sve relevantne jedinice i proveriti SVE limite:\n\n"
+    "Konverzije:\n"
+    "- Sed → Mes: × 4.33\n"
+    "- Mes → God: × 12\n"
+    "- Sed → God: × 52\n\n"
+    "PRIMER ISPRAVNE PROVERE:\n"
+    "Ugovorno: 32h/mes prekovremeni rad\n"
+    "Konverzija u godinu: 32 × 12 = 384h/god\n"
+    "ZR 53 godišnji cap: 250h\n"
+    "Ishod: 384 > 250 → KRŠI godišnji limit iz ZR 53.\n\n"
+    "Ovaj korak SE EKSPLICITNO NAVODI u PRAVNI ZAKLJUČAK sekciji\n"
+    "sa svim brojevima i konverzijama vidljivim.\n\n"
+
+    "PRAVNI ZAKLJUČAK FORMAT — numerička poređenja:\n\n"
+    "Kada porediš ugovorni broj (X) sa zakonskim opsegom [min, max],\n"
+    "OBAVEZNO eksplicitno navedi sva tri elementa:\n\n"
+    "1. \"Ugovorni broj: X = [vrednost] [jedinica]\"\n"
+    "2. \"Zakonski opseg: [min] do [max] [jedinica]\"\n"
+    "3. \"X je [u opsegu / van opsega]\"\n\n"
+    "SAMO AKO X < min ILI X > max, smatraj klauzulu spornom.\n\n"
+    "PRIMER ISPRAVNOG:\n"
+    "- Ugovorni otkazni rok: 15 radnih dana\n"
+    "- ZR 189 opseg: 8 do 30 radnih dana\n"
+    "- 15 ∈ [8, 30] → u opsegu\n"
+    "- Zaključak: ugovorni rok je u skladu sa ZR 189.\n\n"
+    "PRIMER POGREŠNOG (NIKAD OVAKO):\n"
+    "\"15 dana ne ispunjava minimum 8 dana\" — ovo je MATEMATIČKA GREŠKA.\n"
+    "15 > 8, dakle 15 ISPUNJAVA minimum 8.\n\n"
+    "Pre nego što daš final verdict, IZRAČUNAJ poređenje i validiraj\n"
+    "da je tvoj zaključak konzistentan sa numeričkim odnosima."
 )
+
+
+# ─── Doc-type detection + domain constraints (Phase 2.5 Patch 1) ─────────────
+
+def detect_doc_type(passages: list[str]) -> str | None:
+    """Return document type string ('ugovor_o_radu', etc.) or None if unknown."""
+    if not passages:
+        return None
+    text = " ".join(passages[:2]).upper()
+    if "UGOVOR O RADU" in text or ("ZAPOSLENI" in text and "POSLODAVAC" in text):
+        return "ugovor_o_radu"
+    if "UGOVOR O ZAKUPU" in text or ("ZAKUPODAVAC" in text and "ZAKUPAC" in text):
+        return "ugovor_o_zakupu"
+    if "UGOVOR O KUPOPRODAJI" in text or ("PRODAVAC" in text and "KUPAC" in text):
+        return "ugovor_o_kupoprodaji"
+    return None
+
+
+DOC_TYPE_CONSTRAINTS = {
+    "ugovor_o_radu": (
+        "DOC CONTEXT TYPE: UGOVOR O RADU.\n"
+        "PRIMARNI legal framework: Zakon o radu (ZR).\n"
+        "NE ANALIZIRAJ pitanje kroz: Zakon o digitalnoj imovini, Zakon o trgovini,\n"
+        "Zakon o privrednim društvima, Zakon o platnim uslugama, ili druge\n"
+        "specijalne zakone — osim ako se eksplicitno pominju u tekstu ugovora."
+    ),
+    "ugovor_o_zakupu": (
+        "DOC CONTEXT TYPE: UGOVOR O ZAKUPU.\n"
+        "PRIMARNI legal framework: Zakon o obligacionim odnosima (ZOO) — zakup.\n"
+        "NE ANALIZIRAJ pitanje kroz zakone koji nisu relevantni za zakup."
+    ),
+    "ugovor_o_kupoprodaji": (
+        "DOC CONTEXT TYPE: UGOVOR O KUPOPRODAJI.\n"
+        "PRIMARNI legal framework: Zakon o obligacionim odnosima (ZOO) — kupoprodaja.\n"
+        "NE ANALIZIRAJ pitanje kroz zakone koji nisu relevantni za kupoprodaju."
+    ),
+}
 
 
 # ─── ukloni_zabranjeni_tekst — post-processing filter v2.0 ───────────────────
@@ -1785,6 +1869,12 @@ def ask_agent(
 
         if any("KORISNIKOV DOKUMENT" in d for d in filtrirani):
             system_prompt = system_prompt + "\n\n" + _DOC_CONTEXT_ADDENDUM
+            # Patch 1: domain constraint based on detected document type
+            _doc_snippets = [p.get("text_snippet", "") for p in retrieval_meta.get("doc_passages", [])]
+            _doc_type = detect_doc_type(_doc_snippets)
+            if _doc_type and _doc_type in DOC_TYPE_CONSTRAINTS:
+                system_prompt = system_prompt + "\n\n" + DOC_TYPE_CONSTRAINTS[_doc_type]
+                logger.info("[DOC_TYPE] Detected doc type: %s — constraint injected", _doc_type)
 
         kontekst = "\n\n---\n\n".join(filtrirani)
         history_blok = ""
