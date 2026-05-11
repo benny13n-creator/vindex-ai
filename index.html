@@ -244,10 +244,10 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .t-sdot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; animation: blink-s 2s infinite; }
 @keyframes blink-s { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
 .t-body { padding: 1.5rem; }
-.t-tabs { display: flex; gap: 1px; background: rgba(255,255,255,0.04); border-radius: 8px; padding: 3px; margin-bottom: 1.2rem; border: 1px solid rgba(255,255,255,0.06); }
-.t-tab { flex: 1; padding: 0.45rem; text-align: center; font-size: 0.72rem; font-weight: 500; color: rgba(255,255,255,0.22); border-radius: 6px; cursor: none; transition: all 0.25s; border: 1px solid transparent; }
-.t-tab.active { background: rgba(74,168,255,0.1); color: #89c8ff; border-color: rgba(74,168,255,0.2); }
-.t-tab:hover { color: rgba(255,255,255,0.55); }
+.t-tabs { display: flex; gap: 0; background: transparent; border-radius: 0; padding: 0; margin-bottom: 1.2rem; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.t-tab { flex: 1; padding: 12px 24px; text-align: center; font-size: 1rem; font-weight: 500; color: rgba(255,255,255,0.45); border-radius: 0; cursor: none; transition: color 0.2s, border-bottom-color 0.2s; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.t-tab.active { background: transparent; color: #89c8ff; border-bottom-color: #4aa8ff; }
+.t-tab:hover { color: rgba(255,255,255,0.75); }
 .t-label { font-family: ‘DM Sans’, sans-serif; font-size: 0.73rem; font-weight: 500; color: rgba(255,255,255,0.52); margin-bottom: 0.45rem; display: block; }
 textarea.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.8rem; font-weight: 300; line-height: 1.7; padding: 0.9rem 1.1rem; outline: none; resize: none; height: 86px; caret-color: #4aa8ff; transition: border-color 0.25s; }
 textarea.t-input::placeholder { color: rgba(255,255,255,0.45); }
@@ -869,6 +869,7 @@ nav { padding: 1rem 1.5rem; }
 .h-stats { gap: 0; }
 .h-stat { padding: 0 1.2rem; }
 .h-stat-num { font-size: 1.6rem; }
+.t-tab { padding: 9px 14px; font-size: 0.85rem; }
 
 .hero-3col { grid-template-columns: 1fr; gap: 1.8rem; }
 .h3-left { display: none; }
@@ -920,6 +921,7 @@ footer { padding: 2rem 1.5rem; }
 .h-stat-num { font-size: 1.3rem; }
 .h-stat-lbl { font-size: 0.45rem; }
 .h-cta { flex-direction: column; align-items: center; }
+.t-tab { padding: 7px 10px; font-size: 0.78rem; }
 }
 
 /* ── AUTH MODAL ─────────────────────────────────────────────────────────── */
@@ -1114,7 +1116,7 @@ footer { padding: 2rem 1.5rem; }
       <li><span class="pub-icon">⚡</span> Automatsko pisanje tužbi, žalbi i predloga za izvršenje uz AI asistenciju</li>
       <li><span class="pub-icon">⚖</span> Pravno precizni šabloni usklađeni sa srpskim sudskim procedurama</li>
       <li><span class="pub-icon">📄</span> PDF export gotovog podneska u jednom kliku</li>
-      <li><span class="pub-icon">🔍</span> RAG pretraga kroz 13.600+ zakonskih odredbi pri generisanju</li>
+      <li><span class="pub-icon">🔍</span> RAG pretraga kroz 19.167 pravnih izvora pri generisanju</li>
       <li><span class="pub-icon">🔒</span> Zero-persistence protokol — dokumenti se ne čuvaju na serveru</li>
     </ul>
     <button class="modal-btn pro-upgrade-cta" onclick="closeProUpgradeModal();openProModal();">Saznaj više o PRO verziji &rarr;</button>
@@ -1226,8 +1228,9 @@ footer { padding: 2rem 1.5rem; }
           </div>
           <div class="t-tabs">
             <div class="t-tab active" onclick="setTab(this,'q')">Istraživanje</div>
-            <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Podnesak <span class="pro-badge" id="pro-badge-n">PRO</span></div>
             <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
+            <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Drafting <span class="pro-badge" id="pro-badge-n">PRO</span></div>
+            <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
           </div>
           <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
@@ -1289,6 +1292,16 @@ footer { padding: 2rem 1.5rem; }
             <label class="t-label">Specifično pitanje (opciono):</label>
             <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:46px;margin-top:0.4rem;"></textarea>
           </div>
+          <div id="tab-s" style="display:none">
+            <div class="t-guide">
+              <div class="t-guide-icon">⚖</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Sudska praksa — uskoro.</span> Pretraga kroz 1.479 odluka Vrhovnog kasacionog suda. Filtrirajte po pravnoj oblasti, sudu i godini.</div>
+            </div>
+            <div class="t-guide" style="background:rgba(74,168,255,0.04);border:1px solid rgba(74,168,255,0.1);margin-top:0.7rem;">
+              <div class="t-guide-icon">🚧</div>
+              <div class="t-guide-text">Ova funkcionalnost je u razvoju. Biće dostupna u sledećoj verziji platforme.</div>
+            </div>
+          </div>
           <div class="t-exec-row">
             <button class="t-exec" id="exec-btn" onclick="execQuery()"><span id="btn-lbl">Pretraži pravnu bazu</span></button>
             <label class="cyr-toggle-wrap" title="Prikaži odgovor ćiriličnim pismom">
@@ -1345,12 +1358,12 @@ footer { padding: 2rem 1.5rem; }
   <div class="hero-foot">
     <div class="h-stats">
       <div class="h-stat">
-        <div class="h-stat-num" data-target="13600" data-suf="+">0</div>
-        <div class="h-stat-lbl">Pravnih odredbi</div>
+        <div class="h-stat-num" data-target="19167" data-suf="">0</div>
+        <div class="h-stat-lbl">Pravnih izvora u bazi</div>
       </div>
       <div class="h-stat">
-        <div class="h-stat-num" data-target="65" data-suf="+">0</div>
-        <div class="h-stat-lbl">Zakona u bazi</div>
+        <div class="h-stat-num">18 <span class="acc">+</span> 1.479</div>
+        <div class="h-stat-lbl">Zakona i odluka VKS</div>
       </div>
       <div class="h-stat">
         <div class="h-stat-num">&lt;10<span class="acc">s</span></div>
@@ -2085,7 +2098,7 @@ function fillQ(q) {
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   var qtab = document.querySelector('.t-tab[onclick*="\'q\'"]');
   if (qtab) qtab.classList.add('active');
-  ['q','n','a'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
+  ['q','n','a','s'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
   document.getElementById('tab-q').style.display = 'block';
   activeTab = 'q';
   document.getElementById('btn-lbl').textContent = 'Pretraži pravnu bazu';
@@ -2129,10 +2142,10 @@ function setTab(el,t){
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  ['q','n','a'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
+  ['q','n','a','s'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={q:'Pretraži pravnu bazu',n:'Generiši podnesak',a:'Analiziraj dokument'};
+  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu'};
   if (t==='n') updatePodnesakHint();
   document.getElementById('btn-lbl').textContent=lbl[t];
   document.getElementById('resp').classList.remove('show');
@@ -3408,6 +3421,14 @@ async function execQuery() {
   lastPitanje = currentPitanje;
   var _selectedTip = (document.getElementById('podnesak-tip') || {}).value || '';
   var _nEndpoint = _NACRT_API_TYPES.has(_selectedTip) ? BASE_URL+'/api/nacrt' : BASE_URL+'/api/podnesak';
+  if (activeTab === 's') {
+    _execInProgress = false;
+    execBtn.disabled = false;
+    btnLbl.textContent = orig;
+    resp.classList.add('show');
+    rb.textContent = 'Sudska praksa — pretraga odluka VKS uskoro dostupna.';
+    return;
+  }
   var eps = { q:BASE_URL+'/api/pitanje', n:_nEndpoint, a:BASE_URL+'/api/analiza' };
   var bodies = {
     q: { pitanje: currentPitanje, history: conversationHistory.slice(-3) },
