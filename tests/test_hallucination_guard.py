@@ -71,6 +71,17 @@ class TestEkstrakcijaClanaBehavior:
     def test_format4_fullname_then_clan_zr(self):
         assert ekstrakcija_clana("zakon o radu čl. 27") == ("Član 27", "zakon o radu")
 
+    # ── ASCII "clan" form (no diacritic) — production queries ────────────
+
+    def test_ascii_clan_zoo(self):
+        assert ekstrakcija_clana("Clan 175 ZOO") == ("Član 175", "zakon o obligacionim odnosima")
+
+    def test_ascii_clan_zr(self):
+        assert ekstrakcija_clana("Clan 27 ZR") == ("Član 27", "zakon o radu")
+
+    def test_ascii_clan_missing(self):
+        assert ekstrakcija_clana("Clan 11 ZOO") == ("Član 11", "zakon o obligacionim odnosima")
+
     # ── Edge cases ────────────────────────────────────────────────────────
 
     def test_no_article_reference_returns_none(self):
@@ -152,6 +163,38 @@ class TestHardRefusal:
 
             result = ask_agent("Šta kaže Član 154 ZOO?")
 
+        assert result["data"] != _real_main.HALLUCINATION_REFUSAL_TEXT
+        mock_llm.assert_called()
+
+    def test_existing_article_injects_chunks_and_upgrades_confidence(self):
+        """When article exists, its chunks are prepended to docs and confidence → HIGH."""
+        docs, meta = _make_retrieve_meta("MEDIUM")  # start at MEDIUM
+        fake_match = MagicMock()
+        fake_match.metadata = {
+            "law": "zakon o obligacionim odnosima", "article": "Član 154",
+            "text": "Ko drugome prouzrokuje štetu dužan je naknaditi je.",
+            "parent_text": "Ko drugome prouzrokuje štetu dužan je naknaditi je.",
+        }
+        fake_match.id = "zoo-clan-154"
+        fake_match.score = 0.85
+
+        captured_docs = []
+
+        def fake_llm(system_prompt, user_content, **kw):
+            captured_docs.extend(user_content.split("\n\n---\n\n"))
+            return "Prema ZOO čl. 154, ko prouzrokuje štetu dužan je naknaditi je."
+
+        with patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
+             patch.object(_real_main, "ekstrakcija_clana",
+                          return_value=("Član 154", "zakon o obligacionim odnosima")), \
+             patch.object(_real_main, "_direktan_fetch_clana", return_value=[fake_match]), \
+             patch.object(_real_main, "_pozovi_openai", side_effect=fake_llm) as mock_llm, \
+             patch.object(_real_main, "_proveri_halucinaciju", return_value=(True, "")), \
+             patch.object(_real_main, "_verifikuj_pravne_greske", return_value=(True, "")):
+
+            result = ask_agent("Clan 154 ZOO?")
+
+        assert result["confidence"] == "HIGH"
         assert result["data"] != _real_main.HALLUCINATION_REFUSAL_TEXT
         mock_llm.assert_called()
 

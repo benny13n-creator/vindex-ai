@@ -288,7 +288,10 @@ def _prepoznaj_zakon(query: str) -> Optional[str]:
 
 def _izvuci_broj_clana(query: str) -> Optional[str]:
     q = query.lower()
-    for obrazac in [r"(?:član|čl\.|cl\.)\s*(\d+[a-zA-Z]?)", r"(?:чл\.?)\s*(\d+[a-zA-Z]?)"]:
+    for obrazac in [
+        r"(?:clan|član|čl\.|cl\.)\s*(\d+[a-zA-Z]?)",  # Latin (with/without diacritic)
+        r"(?:чл\.?)\s*(\d+[a-zA-Z]?)",                 # Cyrillic
+    ]:
         m = re.search(obrazac, q)
         if m:
             return m.group(1)
@@ -316,6 +319,9 @@ _ZAKON_KODOVI: dict[str, str] = {
     "ustav":  "ustav republike srbije",
     "zspnft": "zakon o sprecavanju pranja novca i finansiranja terorizma",
 }
+
+# Reverse map: Pinecone 'law' field value → uppercase short code for 'zakon' filter
+_ZAKON_KRATKI_KOD: dict[str, str] = {v: k.upper() for k, v in _ZAKON_KODOVI.items()}
 
 
 def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
@@ -432,14 +438,34 @@ def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5) -> list:
 
 
 def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list:
-    index = _get_index()
-    filter_dict: dict = {"article": {"$eq": label_clana}}
+    """
+    Strict deterministic lookup by clan (int) + zakon (short code).
+    Uses zero vector — filter handles exact selection, no semantic fallback.
+    Returns all chunks for the exact article (top_k=10) or empty list.
+    """
+    m_clan = re.search(r"(\d+)", label_clana or "")
+    if not m_clan:
+        logger.warning("[FETCH] Nije moguće parsirati broj člana iz '%s'", label_clana)
+        return []
+    clan_int = int(m_clan.group(1))
+
     if zakon:
-        filter_dict = {"$and": [{"article": {"$eq": label_clana}}, {"law": {"$eq": zakon}}]}
+        kratki_kod = _ZAKON_KRATKI_KOD.get(zakon) or (zakon.upper() if len(zakon) <= 8 else None)
+        if not kratki_kod:
+            logger.warning("[FETCH] Nepoznat zakon '%s' — ne mogu odrediti kratki kod", zakon)
+            return []
+        filter_dict: dict = {"$and": [{"clan": {"$eq": clan_int}}, {"zakon": {"$eq": kratki_kod}}]}
+    else:
+        filter_dict = {"clan": {"$eq": clan_int}}
+
     try:
-        query_text = f"{label_clana} {zakon}" if zakon else label_clana
-        vektor = _ugradi_query(query_text)
-        return index.query(vector=vektor, top_k=5, include_metadata=True, filter=filter_dict).matches
+        index = _get_index()
+        return index.query(
+            vector=[0.0] * 3072,
+            top_k=10,
+            include_metadata=True,
+            filter=filter_dict,
+        ).matches
     except Exception:
         logger.exception("Greška u direktnom fetchu člana %s", label_clana)
         return []

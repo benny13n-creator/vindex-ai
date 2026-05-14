@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 A6 bug-fix tests — retrieve.py
-  A6.1: _direktan_fetch_clana must embed a real query text, not a zero-vector
+  A6.1: _direktan_fetch_clana strict deterministic lookup (clan int + zakon short code)
   A6.2: ZOO fallback must be gated by LAW_HINTS (zakon == ZOO), not unconditional
 """
 
@@ -31,102 +31,82 @@ def _make_match(law: str, article: str, score: float = 0.82, text: str = "test")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SEKCIJA 1: A6.1 — _direktan_fetch_clana
+# SEKCIJA 1: A6.1 — _direktan_fetch_clana strict deterministic lookup
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestDirektanFetchClana:
-    """_direktan_fetch_clana must use a real embedding, not a zero-vector."""
+    """
+    _direktan_fetch_clana must use strict filter: clan (int) + zakon (short code).
+    No semantic embedding — zero vector, deterministic selection by metadata filter.
+    """
 
-    def test_embeds_with_article_and_law(self):
-        """When zakon is given, query text must include both article and law."""
-        fake_vec = [0.1] * 3072
-        fake_match = _make_match("zakon o obligacionim odnosima", "Član 175")
-
-        with (
-            patch("app.services.retrieve._ugradi_query", return_value=fake_vec) as mock_embed,
-            patch("app.services.retrieve._get_index") as mock_idx,
-        ):
-            mock_idx.return_value.query.return_value.matches = [fake_match]
-            result = _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
-
-        # Embedding must be called with article+law, NOT a zero vector
-        mock_embed.assert_called_once()
-        query_text = mock_embed.call_args[0][0]
-        assert "175" in query_text or "Član" in query_text
-        assert "obligacion" in query_text.lower() or "zakon o obligacionim" in query_text.lower()
-
-    def test_embeds_article_only_when_no_zakon(self):
-        """Without zakon, query text is just the article label."""
-        fake_vec = [0.2] * 3072
-        with (
-            patch("app.services.retrieve._ugradi_query", return_value=fake_vec) as mock_embed,
-            patch("app.services.retrieve._get_index") as mock_idx,
-        ):
-            mock_idx.return_value.query.return_value.matches = []
-            _direktan_fetch_clana("Član 5")
-
-        mock_embed.assert_called_once()
-        query_text = mock_embed.call_args[0][0]
-        assert "5" in query_text or "Član" in query_text
-
-    def test_vector_not_zero(self):
-        """The vector passed to Pinecone must not be all-zeros."""
-        fake_vec = [0.05] * 3072
-        with (
-            patch("app.services.retrieve._ugradi_query", return_value=fake_vec),
-            patch("app.services.retrieve._get_index") as mock_idx,
-        ):
+    def test_uses_zero_vector(self):
+        """Strict filter-based lookup uses zero vector (not semantic)."""
+        with patch("app.services.retrieve._get_index") as mock_idx:
             mock_idx.return_value.query.return_value.matches = []
             _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
 
-        call_kwargs = mock_idx.return_value.query.call_args
-        used_vector = call_kwargs[1].get("vector") or call_kwargs[0][0]
-        assert any(v != 0.0 for v in used_vector), "Vector passed to Pinecone must not be zero"
-
-    def test_uses_metadata_filter_article(self):
-        """Metadata filter must include article equality."""
-        with (
-            patch("app.services.retrieve._ugradi_query", return_value=[0.1] * 3072),
-            patch("app.services.retrieve._get_index") as mock_idx,
-        ):
-            mock_idx.return_value.query.return_value.matches = []
-            _direktan_fetch_clana("Član 200")
-
         call_kwargs = mock_idx.return_value.query.call_args[1]
-        filt = call_kwargs.get("filter") or {}
-        assert filt.get("article", {}).get("$eq") == "Član 200"
+        used_vector = call_kwargs.get("vector") or mock_idx.return_value.query.call_args[0][0]
+        assert all(v == 0.0 for v in used_vector), "Strict lookup must use zero vector"
 
-    def test_uses_metadata_filter_article_and_law(self):
-        """With zakon, filter must be $and of article + law."""
-        with (
-            patch("app.services.retrieve._ugradi_query", return_value=[0.1] * 3072),
-            patch("app.services.retrieve._get_index") as mock_idx,
-        ):
+    def test_filter_uses_clan_int_and_zakon_short_code_zoo(self):
+        """Filter must use clan (integer 175) and zakon short code ZOO, not full law name."""
+        with patch("app.services.retrieve._get_index") as mock_idx:
             mock_idx.return_value.query.return_value.matches = []
-            _direktan_fetch_clana("Član 5", "zakon o radu")
+            _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
 
         call_kwargs = mock_idx.return_value.query.call_args[1]
         filt = call_kwargs.get("filter") or {}
         assert "$and" in filt
         conds = {list(c.keys())[0]: list(c.values())[0] for c in filt["$and"]}
-        assert conds["article"]["$eq"] == "Član 5"
-        assert conds["law"]["$eq"] == "zakon o radu"
+        assert conds["clan"]["$eq"] == 175, "clan must be integer 175, not string"
+        assert conds["zakon"]["$eq"] == "ZOO"
+
+    def test_filter_uses_clan_int_and_zakon_short_code_zr(self):
+        """Full ZR law name resolves to short code ZR in filter."""
+        with patch("app.services.retrieve._get_index") as mock_idx:
+            mock_idx.return_value.query.return_value.matches = []
+            _direktan_fetch_clana("Član 27", "zakon o radu")
+
+        call_kwargs = mock_idx.return_value.query.call_args[1]
+        filt = call_kwargs.get("filter") or {}
+        assert "$and" in filt
+        conds = {list(c.keys())[0]: list(c.values())[0] for c in filt["$and"]}
+        assert conds["zakon"]["$eq"] == "ZR"
+        assert conds["clan"]["$eq"] == 27
+
+    def test_filter_clan_only_when_no_zakon(self):
+        """Without zakon, filter uses only clan field (no zakon constraint)."""
+        with patch("app.services.retrieve._get_index") as mock_idx:
+            mock_idx.return_value.query.return_value.matches = []
+            _direktan_fetch_clana("Član 5")
+
+        call_kwargs = mock_idx.return_value.query.call_args[1]
+        filt = call_kwargs.get("filter") or {}
+        assert "clan" in filt
+        assert filt["clan"]["$eq"] == 5
+        assert "$and" not in filt
+
+    def test_top_k_10(self):
+        """Must request up to 10 chunks to capture all article staves."""
+        with patch("app.services.retrieve._get_index") as mock_idx:
+            mock_idx.return_value.query.return_value.matches = []
+            _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
+
+        call_kwargs = mock_idx.return_value.query.call_args[1]
+        assert call_kwargs.get("top_k") == 10
 
     def test_returns_empty_on_pinecone_error(self):
         """Exception in Pinecone query → empty list, no propagation."""
-        with (
-            patch("app.services.retrieve._ugradi_query", return_value=[0.1] * 3072),
-            patch("app.services.retrieve._get_index") as mock_idx,
-        ):
+        with patch("app.services.retrieve._get_index") as mock_idx:
             mock_idx.return_value.query.side_effect = RuntimeError("Pinecone down")
             result = _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
-
         assert result == []
 
-    def test_returns_empty_on_embed_error(self):
-        """Exception in embedding → empty list, no propagation."""
-        with patch("app.services.retrieve._ugradi_query", side_effect=RuntimeError("OpenAI down")):
-            result = _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
+    def test_unknown_zakon_returns_empty(self):
+        """Zakon that cannot be resolved to a short code → empty list, no Pinecone call."""
+        result = _direktan_fetch_clana("Član 1", "nepostojeci zakon o necemu")
         assert result == []
 
 

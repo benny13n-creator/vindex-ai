@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from app.services.retrieve import (
     retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level,
-    ekstrakcija_clana, _direktan_fetch_clana,
+    ekstrakcija_clana, _direktan_fetch_clana, _formatiraj_match,
 )
 
 load_dotenv()
@@ -1891,7 +1891,8 @@ def ask_agent(
             confidence, top_score, top_article, top_law, pitanje_api[:60], log_id,
         )
 
-        # KORAK 1.5: Hard refusal when explicitly cited article is absent from corpus
+        # KORAK 1.5: Hard refusal when explicitly cited article is absent from corpus;
+        # inject exact chunks when article IS found so LLM gets correct text.
         _ref_label, _ref_zakon = ekstrakcija_clana(pitanje_api)
         if _ref_label is not None:
             _ref_matches = _direktan_fetch_clana(_ref_label, _ref_zakon)
@@ -1905,6 +1906,17 @@ def ask_agent(
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": _ref_label, "top_law": _ref_zakon or top_law,
                 }
+            # Article found: prepend its chunks to docs, guarantee HIGH confidence
+            _ref_docs = [_formatiraj_match(m) for m in _ref_matches]
+            docs = _ref_docs + [d for d in docs if d not in set(_ref_docs)]
+            if confidence != "HIGH":
+                logger.info(
+                    "[HALUCINATION_GUARD] Clan %s nadjeno — inject %d chunks, %s→HIGH [q=%s]",
+                    _ref_label, len(_ref_matches), confidence, log_id,
+                )
+                confidence = "HIGH"
+                top_article = _ref_label
+                top_law = _ref_zakon or top_law
 
         # KORAK 2: LOW — instant refusal, no LLM needed
         if confidence == "LOW":
