@@ -34,25 +34,32 @@ def _make_match(law: str, article: str, score: float = 0.82, text: str = "test")
 # SEKCIJA 1: A6.1 — _direktan_fetch_clana strict deterministic lookup
 # ═══════════════════════════════════════════════════════════════════════════
 
+_FAKE_VEC = [0.1] * 3072
+
+
 class TestDirektanFetchClana:
     """
     _direktan_fetch_clana must use strict filter: clan (int) + zakon (short code).
-    No semantic embedding — zero vector, deterministic selection by metadata filter.
+    PATH B: real embedding + metadata filter (chunk IDs are UUIDs, index.list N/A).
     """
 
-    def test_uses_zero_vector(self):
-        """Strict filter-based lookup uses zero vector (not semantic)."""
-        with patch("app.services.retrieve._get_index") as mock_idx:
+    def test_uses_real_embedding(self):
+        """Strict filter-based lookup uses a real embedding (not zero vector)."""
+        with patch("app.services.retrieve._ugradi_query", return_value=_FAKE_VEC) as mock_emb, \
+             patch("app.services.retrieve._get_index") as mock_idx:
             mock_idx.return_value.query.return_value.matches = []
             _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
 
+        mock_emb.assert_called_once()
         call_kwargs = mock_idx.return_value.query.call_args[1]
         used_vector = call_kwargs.get("vector") or mock_idx.return_value.query.call_args[0][0]
-        assert all(v == 0.0 for v in used_vector), "Strict lookup must use zero vector"
+        assert not all(v == 0.0 for v in used_vector), "Strict lookup must use real embedding, not zero vector"
+        assert used_vector == _FAKE_VEC
 
     def test_filter_uses_clan_int_and_zakon_short_code_zoo(self):
         """Filter must use clan (integer 175) and zakon short code ZOO, not full law name."""
-        with patch("app.services.retrieve._get_index") as mock_idx:
+        with patch("app.services.retrieve._ugradi_query", return_value=_FAKE_VEC), \
+             patch("app.services.retrieve._get_index") as mock_idx:
             mock_idx.return_value.query.return_value.matches = []
             _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
 
@@ -65,7 +72,8 @@ class TestDirektanFetchClana:
 
     def test_filter_uses_clan_int_and_zakon_short_code_zr(self):
         """Full ZR law name resolves to short code ZR in filter."""
-        with patch("app.services.retrieve._get_index") as mock_idx:
+        with patch("app.services.retrieve._ugradi_query", return_value=_FAKE_VEC), \
+             patch("app.services.retrieve._get_index") as mock_idx:
             mock_idx.return_value.query.return_value.matches = []
             _direktan_fetch_clana("Član 27", "zakon o radu")
 
@@ -78,7 +86,8 @@ class TestDirektanFetchClana:
 
     def test_filter_clan_only_when_no_zakon(self):
         """Without zakon, filter uses only clan field (no zakon constraint)."""
-        with patch("app.services.retrieve._get_index") as mock_idx:
+        with patch("app.services.retrieve._ugradi_query", return_value=_FAKE_VEC), \
+             patch("app.services.retrieve._get_index") as mock_idx:
             mock_idx.return_value.query.return_value.matches = []
             _direktan_fetch_clana("Član 5")
 
@@ -90,7 +99,8 @@ class TestDirektanFetchClana:
 
     def test_top_k_10(self):
         """Must request up to 10 chunks to capture all article staves."""
-        with patch("app.services.retrieve._get_index") as mock_idx:
+        with patch("app.services.retrieve._ugradi_query", return_value=_FAKE_VEC), \
+             patch("app.services.retrieve._get_index") as mock_idx:
             mock_idx.return_value.query.return_value.matches = []
             _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
 
@@ -99,7 +109,8 @@ class TestDirektanFetchClana:
 
     def test_returns_empty_on_pinecone_error(self):
         """Exception in Pinecone query → empty list, no propagation."""
-        with patch("app.services.retrieve._get_index") as mock_idx:
+        with patch("app.services.retrieve._ugradi_query", return_value=_FAKE_VEC), \
+             patch("app.services.retrieve._get_index") as mock_idx:
             mock_idx.return_value.query.side_effect = RuntimeError("Pinecone down")
             result = _direktan_fetch_clana("Član 175", "zakon o obligacionim odnosima")
         assert result == []

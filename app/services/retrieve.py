@@ -440,7 +440,8 @@ def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5) -> list:
 def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list:
     """
     Strict deterministic lookup by clan (int) + zakon (short code).
-    Uses zero vector — filter handles exact selection, no semantic fallback.
+    PATH B: real embedding + metadata filter — chunk IDs are UUIDs so index.list/fetch
+    is not applicable. Filter handles exact selection; vector only ranks among matches.
     Returns all chunks for the exact article (top_k=10) or empty list.
     """
     m_clan = re.search(r"(\d+)", label_clana or "")
@@ -459,9 +460,10 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list
         filter_dict = {"clan": {"$eq": clan_int}}
 
     try:
+        vektor = _ugradi_query(f"{label_clana} {zakon or ''}")
         index = _get_index()
         return index.query(
-            vector=[0.0] * 3072,
+            vector=vektor,
             top_k=10,
             include_metadata=True,
             filter=filter_dict,
