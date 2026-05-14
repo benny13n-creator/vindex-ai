@@ -1776,6 +1776,10 @@ HALLUCINATION_REFUSAL_TEXT = (
     "Generisanje izmišljenih sadržaja članova zakona se kažnjava odbacivanjem celog odgovora."
 )
 
+# Fix 2: harden DEFINICIJA system prompt against article-content fabrication
+SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + "\n\n" + HALLUCINATION_REFUSAL_TEXT
+
+
 def _format_low_response(top_score: float) -> str:
     return (
         "Nemam pouzdan odgovor na ovo pitanje u trenutnoj bazi zakona.\n\n"
