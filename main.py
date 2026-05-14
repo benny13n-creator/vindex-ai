@@ -12,7 +12,10 @@ import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from openai import OpenAI
-from app.services.retrieve import retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level
+from app.services.retrieve import (
+    retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level,
+    ekstrakcija_clana, _direktan_fetch_clana,
+)
 
 load_dotenv()
 
@@ -1766,6 +1769,12 @@ DISCLAIMER = (
     "pravnih odluka, obratite se stručnjaku."
 )
 
+HALLUCINATION_REFUSAL_TEXT = (
+    "ZABRANJENO: Ne smeš generisati tvrdnje o sadržaju konkretnih članova zakona koji "
+    "NISU prisutni u dostavljenom kontekstu. Ako pitanje implicira određeni član a taj "
+    "član nije u kontekstu, navedi to eksplicitno umesto da generišeš sadržaj. "
+    "Generisanje izmišljenih sadržaja članova zakona se kažnjava odbacivanjem celog odgovora."
+)
 
 def _format_low_response(top_score: float) -> str:
     return (
@@ -1877,6 +1886,21 @@ def ask_agent(
             "[ASK_AGENT] confidence=%s score=%.4f article=%s law=%s query=%s [q=%s]",
             confidence, top_score, top_article, top_law, pitanje_api[:60], log_id,
         )
+
+        # KORAK 1.5: Hard refusal when explicitly cited article is absent from corpus
+        _ref_label, _ref_zakon = ekstrakcija_clana(pitanje_api)
+        if _ref_label is not None:
+            _ref_matches = _direktan_fetch_clana(_ref_label, _ref_zakon)
+            if not _ref_matches:
+                logger.warning(
+                    "[HALUCINATION_GUARD] Clan %s (%s) nije u korpusu — hard refusal [q=%s]",
+                    _ref_label, _ref_zakon, log_id,
+                )
+                return {
+                    "status": "success", "data": HALLUCINATION_REFUSAL_TEXT,
+                    "confidence": "LOW", "top_score": top_score,
+                    "top_article": _ref_label, "top_law": _ref_zakon or top_law,
+                }
 
         # KORAK 2: LOW — instant refusal, no LLM needed
         if confidence == "LOW":

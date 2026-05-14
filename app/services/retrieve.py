@@ -295,6 +295,52 @@ def _izvuci_broj_clana(query: str) -> Optional[str]:
     return None
 
 
+# Short-code → Pinecone law value (mirrors corpus_coverage.py LAWS registry)
+_ZAKON_KODOVI: dict[str, str] = {
+    "zoo":    "zakon o obligacionim odnosima",
+    "zr":     "zakon o radu",
+    "kz":     "KZ",
+    "zkp":    "zakonik o krivicnom postupku",
+    "zpp":    "zakon o parnicnom postupku",
+    "zpd":    "zakon o privrednim drustvima",
+    "zn":     "zakon o nasledjivanju",
+    "zzpl":   "zakon o zastiti podataka o licnosti",
+    "zzp":    "zakon o zastiti potrosaca",
+    "zpdg":   "zakon o porezu na dohodak gradjana",
+    "zio":    "zakon o izvrsenju i obezbedjenju",
+    "zoup":   "zakon o opstem upravnom postupku",
+    "zus":    "zakon o upravnim sporovima",
+    "zvp":    "zakon o vanparnicnom postupku",
+    "zdi":    "zakon o digitalnoj imovini",
+    "pz":     "porodicni zakon",
+    "ustav":  "ustav republike srbije",
+    "zspnft": "zakon o sprecavanju pranja novca i finansiranja terorizma",
+}
+
+
+def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
+    """
+    Detects explicit article references in 4 formats:
+      1. čl./član N ZOO       2. ZOO čl. N
+      3. čl./član N zakon o X  4. zakon o X čl. N
+    Returns (label_clana, zakon) e.g. ("Član 175", "zakon o obligacionim odnosima"),
+    or (None, None) if no article reference found.
+    """
+    broj = _izvuci_broj_clana(query)
+    if not broj:
+        return None, None
+
+    label_clana = f"Član {broj}"
+    normalized = _normalizuj(query)
+
+    for code, zakon_val in _ZAKON_KODOVI.items():
+        if re.search(rf"\b{re.escape(code)}\b", normalized):
+            return label_clana, zakon_val
+
+    zakon_val = _prepoznaj_zakon(query)
+    return label_clana, zakon_val
+
+
 def _ugradi_query(query: str) -> list[float]:
     return _get_embeddings().embed_query(query)
 
