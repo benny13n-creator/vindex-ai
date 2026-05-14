@@ -391,8 +391,9 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list
     if zakon:
         filter_dict = {"$and": [{"article": {"$eq": label_clana}}, {"law": {"$eq": zakon}}]}
     try:
-        dummy = [0.0] * 3072
-        return index.query(vector=dummy, top_k=5, include_metadata=True, filter=filter_dict).matches
+        query_text = f"{label_clana} {zakon}" if zakon else label_clana
+        vektor = _ugradi_query(query_text)
+        return index.query(vector=vektor, top_k=5, include_metadata=True, filter=filter_dict).matches
     except Exception:
         logger.exception("Greška u direktnom fetchu člana %s", label_clana)
         return []
