@@ -391,8 +391,9 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list
     if zakon:
         filter_dict = {"$and": [{"article": {"$eq": label_clana}}, {"law": {"$eq": zakon}}]}
     try:
-        dummy = [0.0] * 3072
-        return index.query(vector=dummy, top_k=5, include_metadata=True, filter=filter_dict).matches
+        query_text = f"{label_clana} {zakon}" if zakon else label_clana
+        vektor = _ugradi_query(query_text)
+        return index.query(vector=vektor, top_k=5, include_metadata=True, filter=filter_dict).matches
     except Exception:
         logger.exception("Greška u direktnom fetchu člana %s", label_clana)
         return []
@@ -1234,24 +1235,38 @@ def retrieve_documents(
         _top_law     = "—"
         _top_text    = ""
 
-    # ZOO fallback ako je rezultat slab
+    # ZOO fallback — only when LAW_HINTS matched ZOO
+    _zoo_law = "zakon o obligacionim odnosima"
     top_skor = skorovani[0][0] if skorovani else 0
     if len(reranked) < 3 or top_skor < 50:
-        with ThreadPoolExecutor(max_workers=4) as fb:
-            fbs = [
-                fb.submit(_direktan_fetch_clana, clan, "zakon o obligacionim odnosima")
-                for clan in _ZOO_FALLBACK_CLANOVI
-            ]
+        if zakon == _zoo_law:
+            logger.info("[FALLBACK] ZOO fallback aktiviran (zakon=ZOO, top_skor=%.1f)", top_skor)
+            with ThreadPoolExecutor(max_workers=4) as fb:
+                fbs = [
+                    fb.submit(_direktan_fetch_clana, clan, _zoo_law)
+                    for clan in _ZOO_FALLBACK_CLANOVI
+                ]
+                vidjeni = {m.id for m in reranked}
+                for f in as_completed(fbs):
+                    try:
+                        for m in f.result():
+                            if m.id not in vidjeni:
+                                vidjeni.add(m.id)
+                                reranked.append(m)
+                    except Exception:
+                        pass
+            reranked = reranked[:k]
+        elif zakon is not None:
+            logger.info("[FALLBACK] Scoped retry za zakon='%s' (top_skor=%.1f)", zakon, top_skor)
             vidjeni = {m.id for m in reranked}
-            for f in as_completed(fbs):
-                try:
-                    for m in f.result():
-                        if m.id not in vidjeni:
-                            vidjeni.add(m.id)
-                            reranked.append(m)
-                except Exception:
-                    pass
-        reranked = reranked[:k]
+            extra = _semanticka_pretraga(query, 8, zakon)
+            for m in extra:
+                if m.id not in vidjeni:
+                    vidjeni.add(m.id)
+                    reranked.append(m)
+            reranked = reranked[:k]
+        else:
+            logger.info("[FALLBACK] Nema LAW_HINTS match → bez fallback-a (top_skor=%.1f)", top_skor)
 
     # ── Faza 4: Parent Document fetch ─────────────────────────────────────────
     # _formatiraj_match automatski čita parent_text iz metapodataka

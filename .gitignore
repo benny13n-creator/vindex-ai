@@ -33,3 +33,27 @@ v3_diff.txt
 
 # Ingest progress state
 data/sudska_praksa/.ingest_state.json
+
+# ── Diagnostic scripts and output dumps (repo root only) ─────────────────────
+/audit_chunks.py
+/audit_chunks_out.txt
+/check_208.py
+/diag.py
+/diag_adjacent.py
+/diag_adjacent_out.txt
+/diag_subquery.py
+/diagnose_err.txt
+/diagnose_retrieval.py
+/diagnose_stable_wrong.py
+/diagnose_stable_wrong_output.txt
+/example_multi_rag.py
+/fetch_articles.py
+/fetch_articles2.py
+/merge-message.txt
+/phase_2_5_iter*.txt
+/rezultati*.txt
+/run_test_30q_err.txt
+/score_capture.py
+/score_capture_err.txt
+/test_q5.py
+/test_smoke.py
