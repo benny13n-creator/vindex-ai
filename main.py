@@ -12,7 +12,10 @@ import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from openai import OpenAI
-from app.services.retrieve import retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level
+from app.services.retrieve import (
+    retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level,
+    ekstrakcija_clana, _direktan_fetch_clana, _formatiraj_match,
+)
 
 load_dotenv()
 
@@ -1766,6 +1769,16 @@ DISCLAIMER = (
     "pravnih odluka, obratite se stručnjaku."
 )
 
+HALLUCINATION_REFUSAL_TEXT = (
+    "ZABRANJENO: Ne smeš generisati tvrdnje o sadržaju konkretnih članova zakona koji "
+    "NISU prisutni u dostavljenom kontekstu. Ako pitanje implicira određeni član a taj "
+    "član nije u kontekstu, navedi to eksplicitno umesto da generišeš sadržaj. "
+    "Generisanje izmišljenih sadržaja članova zakona se kažnjava odbacivanjem celog odgovora."
+)
+
+# Fix 2: harden DEFINICIJA system prompt against article-content fabrication
+SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + "\n\n" + HALLUCINATION_REFUSAL_TEXT
+
 
 def _format_low_response(top_score: float) -> str:
     return (
@@ -1878,6 +1891,38 @@ def ask_agent(
             confidence, top_score, top_article, top_law, pitanje_api[:60], log_id,
         )
 
+        # KORAK 1.5: Hard refusal when explicitly cited article is absent from corpus;
+        # inject exact chunks when article IS found so LLM gets correct text.
+        # _korak_15_authoritative=True blocks downstream second-guessing (Fixes 1-3).
+        _korak_15_authoritative = False
+        _ref_docs: list[str] = []
+        _ref_label, _ref_zakon = ekstrakcija_clana(pitanje_api)
+        if _ref_label is not None:
+            _ref_matches = _direktan_fetch_clana(_ref_label, _ref_zakon)
+            if not _ref_matches:
+                logger.warning(
+                    "[HALUCINATION_GUARD] Clan %s (%s) nije u korpusu — hard refusal [q=%s]",
+                    _ref_label, _ref_zakon, log_id,
+                )
+                return {
+                    "status": "success", "data": HALLUCINATION_REFUSAL_TEXT,
+                    "confidence": "LOW", "top_score": top_score,
+                    "top_article": _ref_label, "top_law": _ref_zakon or top_law,
+                }
+            # Fix 1: article found — update metadata unconditionally (old guard
+            # `if confidence != "HIGH"` caused footer to show semantic top hit instead
+            # of the directly-fetched article when retrieval already returned HIGH).
+            _ref_docs = [_formatiraj_match(m) for m in _ref_matches]
+            docs = _ref_docs + [d for d in docs if d not in set(_ref_docs)]
+            logger.info(
+                "[HALUCINATION_GUARD] Clan %s nadjeno — inject %d chunks, %s→HIGH [q=%s]",
+                _ref_label, len(_ref_matches), confidence, log_id,
+            )
+            confidence = "HIGH"
+            top_article = _ref_label
+            top_law = _ref_zakon or top_law
+            _korak_15_authoritative = True
+
         # KORAK 2: LOW — instant refusal, no LLM needed
         if confidence == "LOW":
             odgovor = _format_low_response(top_score)
@@ -1893,6 +1938,13 @@ def ask_agent(
 
         # KORAK 3: Filter docs
         filtrirani = _filtriraj_kontekst(docs)
+        if _korak_15_authoritative and _ref_docs:
+            # Fix 2: pin injected chunks at position [0] so LLM sees ground-truth
+            # article first regardless of how _filtriraj_kontekst orders results.
+            _ref_set = set(_ref_docs)
+            filtrirani = [d for d in _ref_docs if len(d.strip()) > 50] + [
+                d for d in filtrirani if d not in _ref_set
+            ]
         if not filtrirani:
             odgovor = _format_low_response(top_score)
             return {
@@ -2009,18 +2061,32 @@ def ask_agent(
         if not _ima_obavezne_sekcije(odgovor, aktivan_sekcije):
             logger.warning("[HIGH] Nedostaju obavezne sekcije [tip=%s, q=%s]", tip, log_id)
 
-        # Anti-hallucination + topic drift → downgrade to MEDIUM LLM if either fails
+        # Anti-hallucination + topic drift → downgrade to MEDIUM LLM if either fails.
+        # Fix 3: when KORAK 1.5 found ground truth, skip downgrade — we have the real
+        # article in context so hallucination/drift checks are unreliable noise here.
         _downgrade = False
         validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
         if not validan:
-            logger.warning("[HIGH] Anti-halucinacija → MEDIUM [q=%s] razlog=%s", log_id, razlog)
-            _downgrade = True
+            if _korak_15_authoritative:
+                logger.info(
+                    "[HIGH] Anti-halucinacija — ignorisano, KORAK 1.5 autoritativan [q=%s] razlog=%s",
+                    log_id, razlog,
+                )
+            else:
+                logger.warning("[HIGH] Anti-halucinacija → MEDIUM [q=%s] razlog=%s", log_id, razlog)
+                _downgrade = True
 
         if not _downgrade:
             tematski_ok, tematski_razlog = _proveri_tematsku_relevantnost(pitanje_api, odgovor, filtrirani)
             if not tematski_ok:
-                logger.warning("[HIGH] Topic drift → MEDIUM [q=%s] razlog=%s", log_id, tematski_razlog)
-                _downgrade = True
+                if _korak_15_authoritative:
+                    logger.info(
+                        "[HIGH] Topic drift — ignorisano, KORAK 1.5 autoritativan [q=%s] razlog=%s",
+                        log_id, tematski_razlog,
+                    )
+                else:
+                    logger.warning("[HIGH] Topic drift → MEDIUM [q=%s] razlog=%s", log_id, tematski_razlog)
+                    _downgrade = True
 
         if _downgrade:
             confidence = "MEDIUM"
