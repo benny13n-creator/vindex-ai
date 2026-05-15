@@ -1780,6 +1780,17 @@ HALLUCINATION_REFUSAL_TEXT = (
 SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + "\n\n" + HALLUCINATION_REFUSAL_TEXT
 
 
+def _format_refusal(article: str, law: str | None) -> str:
+    law_str = (law or "tom zakonu").capitalize()
+    return (
+        f"{article} ({law_str}) nije pronađen u indeksu Vindex baze. "
+        "Mogući razlozi: broj člana ne postoji u tom propisu, "
+        "ili konkretan član trenutno nije ingestovan. "
+        "Preporučujemo konsultaciju primarnog izvora "
+        "(Službeni glasnik RS) ili Paragraf.rs."
+    )
+
+
 def _format_low_response(top_score: float) -> str:
     return (
         "Nemam pouzdan odgovor na ovo pitanje u trenutnoj bazi zakona.\n\n"
@@ -1905,7 +1916,8 @@ def ask_agent(
                     _ref_label, _ref_zakon, log_id,
                 )
                 return {
-                    "status": "success", "data": HALLUCINATION_REFUSAL_TEXT,
+                    "status": "success",
+                    "data": _format_refusal(_ref_label, _ref_zakon or top_law),
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": _ref_label, "top_law": _ref_zakon or top_law,
                 }

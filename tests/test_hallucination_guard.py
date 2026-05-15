@@ -111,7 +111,7 @@ def _make_retrieve_meta(confidence: str = "HIGH") -> tuple:
 class TestHardRefusal:
 
     def test_missing_article_returns_refusal_text(self):
-        """Član 175 ZOO absent from corpus → HALLUCINATION_REFUSAL_TEXT returned."""
+        """Član 175 ZOO absent from corpus → professional refusal message returned."""
         docs, meta = _make_retrieve_meta("HIGH")
 
         with patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
@@ -123,8 +123,11 @@ class TestHardRefusal:
             result = ask_agent("Šta kaže Član 175 ZOO?")
 
         assert result["status"] == "success"
-        assert result["data"] == _real_main.HALLUCINATION_REFUSAL_TEXT
         assert result["confidence"] == "LOW"
+        assert "Član 175" in result["data"]
+        assert "nije pronađen" in result["data"]
+        assert "ZABRANJENO" not in result["data"]
+        assert "Ne smeš" not in result["data"]
         mock_llm.assert_not_called()
 
     def test_missing_article_high_number_zr(self):
@@ -140,7 +143,10 @@ class TestHardRefusal:
 
             result = ask_agent("Šta kaže Član 9999 ZR?")
 
-        assert result["data"] == _real_main.HALLUCINATION_REFUSAL_TEXT
+        assert result["confidence"] == "LOW"
+        assert "Član 9999" in result["data"]
+        assert "nije pronađen" in result["data"]
+        assert "ZABRANJENO" not in result["data"]
         mock_llm.assert_not_called()
 
     def test_existing_article_not_refused(self):
