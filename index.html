@@ -1309,12 +1309,39 @@ footer { padding: 2rem 1.5rem; }
           <div id="tab-s" style="display:none">
             <div class="t-guide">
               <div class="t-guide-icon">⚖</div>
-              <div class="t-guide-text"><span class="t-guide-bold">Sudska praksa — uskoro.</span> Pretraga kroz 1.479 odluka Vrhovnog kasacionog suda. Filtrirajte po pravnoj oblasti, sudu i godini.</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Sudska praksa</span> — pretraga kroz odluke Vrhovnog kasacionog suda i Vrhovnog suda RS. Filtrirajte po pravnoj oblasti, sudu i godini.</div>
             </div>
-            <div class="t-guide" style="background:rgba(74,168,255,0.04);border:1px solid rgba(74,168,255,0.1);margin-top:0.7rem;">
-              <div class="t-guide-icon">🚧</div>
-              <div class="t-guide-text">Ova funkcionalnost je u razvoju. Biće dostupna u sledećoj verziji platforme.</div>
+            <div style="margin-top:0.7rem;">
+              <input type="text" id="praksa-query" placeholder="Pretraga (npr. otkaz ugovora o radu) — ostavite prazno za sve odluke" style="width:100%;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#ffffff;font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:300;padding:0.8rem 1.1rem;outline:none;margin-bottom:0.55rem;display:block;">
+              <div style="display:flex;gap:0.45rem;flex-wrap:wrap;margin-bottom:0.55rem;">
+                <select id="praksa-matter" style="flex:1;min-width:130px;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;appearance:none;-webkit-appearance:none;">
+                  <option value="">Sva pravna oblast</option>
+                  <option value="Građanska">Građanska</option>
+                  <option value="Zaštita prava">Zaštita prava</option>
+                  <option value="Upravna">Upravna</option>
+                  <option value="Krivična">Krivična</option>
+                </select>
+                <select id="praksa-court" style="flex:1;min-width:155px;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;appearance:none;-webkit-appearance:none;">
+                  <option value="">Svi sudovi</option>
+                  <option value="Vrhovni sud">Vrhovni sud</option>
+                  <option value="Vrhovni kasacioni sud">Vrhovni kasacioni sud</option>
+                </select>
+                <input type="number" id="praksa-year-from" placeholder="Od god." min="2000" max="2030" style="width:84px;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
+                <input type="number" id="praksa-year-to" placeholder="Do god." min="2000" max="2030" style="width:84px;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
+              </div>
+              <div style="display:flex;gap:0.45rem;">
+                <button id="praksa-search-btn" onclick="praksa_search()" style="flex:1;padding:0.78rem;background:linear-gradient(135deg,#4aa8ff 0%,#1264c4 100%);border:none;border-radius:10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;letter-spacing:0.04em;cursor:pointer;">Pretraži sudsku praksu</button>
+                <button onclick="praksa_reset_filters()" style="padding:0.78rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.45);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">Resetuj</button>
+              </div>
             </div>
+            <div id="praksa-loading" style="display:none;text-align:center;padding:1.8rem 0;color:rgba(255,255,255,0.28);font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;">Pretražujem...</div>
+            <div id="praksa-error" style="display:none;padding:0.85rem 1rem;background:rgba(255,60,60,0.07);border:1px solid rgba(255,60,60,0.15);border-radius:10px;color:rgba(255,130,130,0.9);font-family:'DM Sans',sans-serif;font-size:0.78rem;margin-top:0.8rem;"></div>
+            <div id="praksa-empty" style="display:none;text-align:center;padding:1.8rem 0;color:rgba(255,255,255,0.27);font-family:'DM Sans',sans-serif;font-size:0.8rem;">Nema rezultata za zadate filtere.</div>
+            <div id="praksa-results-header" style="display:none;margin-top:0.85rem;margin-bottom:0.45rem;">
+              <span id="praksa-results-count" style="font-family:'JetBrains Mono',monospace;font-size:0.54rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.27);"></span>
+            </div>
+            <div id="praksa-list"></div>
+            <button id="praksa-load-more" onclick="praksa_load_more()" style="display:none;width:100%;margin-top:0.8rem;padding:0.7rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.15);border-radius:10px;color:#4aa8ff;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:500;cursor:pointer;">Učitaj još odluka</button>
           </div>
           <div class="t-exec-row">
             <button class="t-exec" id="exec-btn" onclick="execQuery()"><span id="btn-lbl">Pretraži pravnu bazu</span></button>
@@ -2161,6 +2188,7 @@ function setTab(el,t){
   activeTab=t;
   var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu'};
   if (t==='n') updatePodnesakHint();
+  if (t==='s') praksa_load_initial();
   document.getElementById('btn-lbl').textContent=lbl[t];
   document.getElementById('resp').classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
@@ -3439,8 +3467,6 @@ async function execQuery() {
     _execInProgress = false;
     execBtn.disabled = false;
     btnLbl.textContent = orig;
-    resp.classList.add('show');
-    rb.textContent = 'Sudska praksa — pretraga odluka VKS uskoro dostupna.';
     return;
   }
   var eps = { q:BASE_URL+'/api/pitanje', n:_nEndpoint, a:BASE_URL+'/api/analiza' };
@@ -3652,6 +3678,183 @@ window.addEventListener('DOMContentLoaded', function() {
     setAuthMode('reset');
   }
 });
+
+/* ── SUDSKA PRAKSA ──────────────────────────────────────────────────────── */
+var praksa_initialized = false;
+var praksa_total = 0;
+var praksa_offset = 0;
+var praksa_limit = 10;
+var praksa_last_req = {};
+
+function praksa_show_state(state) {
+  document.getElementById('praksa-loading').style.display        = state === 'loading' ? 'block' : 'none';
+  document.getElementById('praksa-error').style.display          = state === 'error'   ? 'block' : 'none';
+  document.getElementById('praksa-empty').style.display          = state === 'empty'   ? 'block' : 'none';
+  document.getElementById('praksa-results-header').style.display = state === 'results' ? 'block' : 'none';
+  document.getElementById('praksa-load-more').style.display      = 'none';
+}
+
+function praksa_render_card(d, idx) {
+  var mBg  = { 'Građanska':'rgba(74,168,255,0.12)', 'Zaštita prava':'rgba(74,222,128,0.10)', 'Upravna':'rgba(240,180,41,0.10)', 'Krivična':'rgba(255,100,100,0.10)' };
+  var mClr = { 'Građanska':'#4aa8ff', 'Zaštita prava':'#4ade80', 'Upravna':'#f0b429', 'Krivična':'rgba(255,140,140,0.9)' };
+  var bg   = mBg[d.matter]  || 'rgba(255,255,255,0.06)';
+  var clr  = mClr[d.matter] || 'rgba(255,255,255,0.45)';
+  var esc = function(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var preview  = d.izreka_preview ? esc(d.izreka_preview) : '';
+  var dateStr  = d.decision_date ? (d.decision_date+'').substring(0,10) : '';
+  var expandId = 'praksa-expand-' + idx;
+  var hasDetail = !!(d.izreka_full || d.obrazlozenje_full);
+  var safeDn   = esc(d.decision_number);
+  var jsDn     = (d.decision_number||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var jsCourt  = (d.court||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var h = '<div style="background:rgba(74,168,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:0.85rem 1rem;">';
+  h += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;margin-bottom:0.45rem;">';
+  h += '<span style="font-family:JetBrains Mono,monospace;font-size:0.74rem;font-weight:500;color:rgba(255,255,255,0.85);">' + safeDn + '</span>';
+  h += '<span style="flex-shrink:0;padding:0.14rem 0.55rem;border-radius:999px;font-family:JetBrains Mono,monospace;font-size:0.55rem;letter-spacing:0.1em;background:' + bg + ';color:' + clr + ';">' + esc(d.matter) + '</span>';
+  h += '</div>';
+  h += '<div style="display:flex;gap:0.8rem;margin-bottom:0.5rem;flex-wrap:wrap;">';
+  if (d.court) h += '<span style="font-family:JetBrains Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.30);">' + esc(d.court) + '</span>';
+  if (dateStr) h += '<span style="font-family:JetBrains Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.25);">' + dateStr + '</span>';
+  h += '</div>';
+  if (preview) {
+    h += '<div style="font-family:DM Sans,sans-serif;font-size:0.77rem;color:rgba(255,255,255,0.5);line-height:1.55;margin-bottom:0.5rem;">' + preview + (d.izreka_full && d.izreka_full.length > 200 ? '…' : '') + '</div>';
+  }
+  h += '<div style="display:flex;gap:0.45rem;flex-wrap:wrap;">';
+  if (hasDetail) {
+    h += '<button id="praksa-expand-btn-' + idx + '" onclick="praksa_expand_decision(' + idx + ')" style="padding:0.25rem 0.7rem;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:6px;color:#4aa8ff;font-family:DM Sans,sans-serif;font-size:0.71rem;cursor:pointer;">▾ Prikaži odluku</button>';
+  }
+  h += '<button onclick="praksa_copy_citation(\'' + jsDn + '\',\'' + dateStr + '\',\'' + jsCourt + '\')" style="padding:0.25rem 0.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:rgba(255,255,255,0.38);font-family:DM Sans,sans-serif;font-size:0.71rem;cursor:pointer;">Kopiraj citiranje</button>';
+  h += '</div>';
+  if (hasDetail) {
+    h += '<div id="' + expandId + '" style="display:none;margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid rgba(255,255,255,0.06);">';
+    if (d.izreka_full) {
+      h += '<div style="font-family:JetBrains Mono,monospace;font-size:0.51rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(74,168,255,0.5);margin-bottom:0.3rem;">Izreka</div>';
+      h += '<div style="font-family:DM Sans,sans-serif;font-size:0.77rem;color:rgba(255,255,255,0.68);line-height:1.58;margin-bottom:0.75rem;white-space:pre-wrap;">' + esc(d.izreka_full) + '</div>';
+    }
+    if (d.obrazlozenje_full) {
+      h += '<div style="font-family:JetBrains Mono,monospace;font-size:0.51rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(74,168,255,0.5);margin-bottom:0.3rem;">Obrazloženje</div>';
+      h += '<div style="font-family:DM Sans,sans-serif;font-size:0.77rem;color:rgba(255,255,255,0.58);line-height:1.58;white-space:pre-wrap;">' + esc(d.obrazlozenje_full) + '</div>';
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function praksa_render_results(decisions, append) {
+  var list = document.getElementById('praksa-list');
+  if (!append) list.innerHTML = '';
+  var base = append ? list.children.length : 0;
+  decisions.forEach(function(d, i) {
+    var w = document.createElement('div');
+    w.style.marginBottom = '0.55rem';
+    w.innerHTML = praksa_render_card(d, base + i);
+    list.appendChild(w);
+  });
+}
+
+function praksa_expand_decision(idx) {
+  var el  = document.getElementById('praksa-expand-' + idx);
+  var btn = document.getElementById('praksa-expand-btn-' + idx);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (btn) btn.innerHTML = open ? '▾ Prikaži odluku' : '▴ Sakrij odluku';
+}
+
+function praksa_copy_citation(dn, date, court) {
+  var text = dn + (court ? ', ' + court : '') + (date ? ', ' + date : '');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() { showToast('Citiranje kopirano'); }).catch(function(){});
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); showToast('Citiranje kopirano'); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+}
+
+function praksa_reset_filters() {
+  document.getElementById('praksa-query').value = '';
+  document.getElementById('praksa-matter').value = '';
+  document.getElementById('praksa-court').value = '';
+  document.getElementById('praksa-year-from').value = '';
+  document.getElementById('praksa-year-to').value = '';
+}
+
+async function praksa_search() {
+  var q      = (document.getElementById('praksa-query').value || '').trim();
+  var matter = document.getElementById('praksa-matter').value;
+  var court  = document.getElementById('praksa-court').value;
+  var yfrom  = document.getElementById('praksa-year-from').value;
+  var yto    = document.getElementById('praksa-year-to').value;
+  praksa_offset   = 0;
+  praksa_last_req = { query: q || null, matter: matter || null, court: court || null,
+    year_from: yfrom ? parseInt(yfrom) : null, year_to: yto ? parseInt(yto) : null };
+  praksa_show_state('loading');
+  document.getElementById('praksa-list').innerHTML = '';
+  var body = { limit: praksa_limit, offset: 0 };
+  if (praksa_last_req.query)     body.query     = praksa_last_req.query;
+  if (praksa_last_req.matter)    body.matter    = praksa_last_req.matter;
+  if (praksa_last_req.court)     body.court     = praksa_last_req.court;
+  if (praksa_last_req.year_from) body.year_from = praksa_last_req.year_from;
+  if (praksa_last_req.year_to)   body.year_to   = praksa_last_req.year_to;
+  try {
+    var r = await fetch(BASE_URL + '/api/praksa/search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    if (!r.ok) {
+      var ed = {}; try { ed = await r.json(); } catch(e) {}
+      document.getElementById('praksa-error').textContent = ed.error || ('Greška servera: ' + r.status);
+      praksa_show_state('error'); return;
+    }
+    var data = await r.json();
+    praksa_total  = data.total || 0;
+    praksa_offset = (data.decisions || []).length;
+    if (praksa_total === 0 || !data.decisions || data.decisions.length === 0) {
+      praksa_show_state('empty'); return;
+    }
+    praksa_show_state('results');
+    document.getElementById('praksa-results-count').textContent = praksa_total + ' odluka pronađeno';
+    praksa_render_results(data.decisions, false);
+    document.getElementById('praksa-load-more').style.display = praksa_offset < praksa_total ? 'block' : 'none';
+  } catch(e) {
+    document.getElementById('praksa-error').textContent = 'Greška pri povezivanju sa serverom.';
+    praksa_show_state('error');
+  }
+}
+
+async function praksa_load_more() {
+  var body = { limit: praksa_limit, offset: praksa_offset };
+  if (praksa_last_req.query)     body.query     = praksa_last_req.query;
+  if (praksa_last_req.matter)    body.matter    = praksa_last_req.matter;
+  if (praksa_last_req.court)     body.court     = praksa_last_req.court;
+  if (praksa_last_req.year_from) body.year_from = praksa_last_req.year_from;
+  if (praksa_last_req.year_to)   body.year_to   = praksa_last_req.year_to;
+  var btn = document.getElementById('praksa-load-more');
+  btn.textContent = 'Učitavam…'; btn.disabled = true;
+  try {
+    var r = await fetch(BASE_URL + '/api/praksa/search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      var data = await r.json();
+      if (data.decisions && data.decisions.length > 0) {
+        praksa_render_results(data.decisions, true);
+        praksa_offset += data.decisions.length;
+      }
+    }
+  } catch(e) {}
+  btn.textContent = 'Učitaj još odluka'; btn.disabled = false;
+  btn.style.display = praksa_offset < praksa_total ? 'block' : 'none';
+}
+
+function praksa_load_initial() {
+  if (praksa_initialized) return;
+  praksa_initialized = true;
+  praksa_search();
+}
 
 </script>
 
