@@ -86,7 +86,7 @@ QUESTIONS = [
     ("Rok za podnošenje žalbe na presudu u parnici?",
      "zakon o parnicnom postupku", "367", "KAT6"),
     ("Šta je revizija u parničnom postupku?",
-     "zakon o parnicnom postupku", "394", "KAT6"),
+     "zakon o parnicnom postupku", None, "KAT6"),
     ("Šta je virtuelna valuta po Zakonu o digitalnoj imovini?",
      "zakon o digitalnoj imovini", "2", "KAT6"),
     ("Da li je smart contract pravno obavezujući u Srbiji?",

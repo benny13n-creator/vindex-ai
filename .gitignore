@@ -72,3 +72,16 @@ diag_*.py
 diag_*.txt
 corpus_coverage*
 *_diff.txt
+
+# Sprint artifacts (P1.4 / P2.6 / crypto vertical / chunker fix)
+ingest_*.py
+verify_*.py
+retest_*.py
+build_*.py
+smoke_*.py
+run_30q_prod.py
+run_*_prod.py
+smoke_results_*.json
+*_stdout.txt
+*.html.bak
+diag_*.json
