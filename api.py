@@ -1774,11 +1774,14 @@ def _praksa_search_sync(
         _dim = 3072
         vector = [1.0 / _math.sqrt(_dim)] * _dim
 
+    # top_k tuned: semantic=300 sufficient for ranking, browse=1500 covers full namespace (~1479 chunks)
+    top_k = 300 if has_query else 1500
+
     # Pinecone query — sudska_praksa namespace
     index = _get_index()
     res = index.query(
         vector=vector,
-        top_k=300,
+        top_k=top_k,
         filter=filter_dict,
         namespace=_PRAKSA_NS_SEARCH,
         include_metadata=True,
