@@ -1121,9 +1121,7 @@ footer { padding: 2rem 1.5rem; }
     <div class="paywall-price-wrap"></div>
     <ul class="paywall-features">
       <li>Neograničen broj pravnih upita</li>
-      <li>Pretraga svih Svi važeći zakoni Republike Srbije</li>
-      <li>Generisanje nacrta tužbi i žalbi</li>
-      <li>Analiza ugovora i identifikacija rizika</li>
+      <li>Pretraga svih važećih zakona Republike Srbije</li>
     </ul>
     <button class="modal-btn" onclick="openSubscription()">Pretplatite se &rarr;</button>
     <div class="modal-note" style="margin-top:0.75rem;">Otkaži u svakom trenutku. Bez skrivenih troškova.</div>
@@ -1155,8 +1153,8 @@ footer { padding: 2rem 1.5rem; }
   <div class="modal" style="max-width:460px;">
     <button class="modal-close" onclick="closeProModal()">&#x2715;</button>
     <div class="modal-badge" style="background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.22);color:#c9a84c;">Vindex AI PRO &mdash; Rana faza</div>
-    <div class="modal-title" style="margin-top:0.8rem;">Zatvoreno testiranje<br>za kancelarije.</div>
-    <p class="pro-sub" style="margin-top:0.7rem;">PRO verzija sa AI analizom dokumenata i generisanjem nacrta tužbi trenutno je u fazi zatvorenog testiranja za odabrane advokatske kancelarije. Prijavite se na listu čekanja kako biste osigurali <strong style="color:rgba(255,255,255,0.85);">promotivnu cenu</strong> i bili prvi obavešteni kada funkcija postane dostupna.</p>
+    <div class="modal-title" style="margin-top:0.8rem;">Vindex AI PRO<br>za kancelarije.</div>
+    <p class="pro-sub" style="margin-top:0.7rem;">PRO verzija uključuje AI analizu ugovora, generisanje nacrta tužbi i istoriju pretraga. Prijavite se kako biste osigurali <strong style="color:rgba(255,255,255,0.85);">promotivnu cenu</strong> i odmah pristupili svim funkcijama.</p>
     <div id="pro-form">
       <input class="pro-input" type="email" id="pro-email" placeholder="Vaša email adresa" autocomplete="email">
       <button class="modal-btn" style="background:linear-gradient(135deg,#c9a84c,#8a5e20);box-shadow:0 6px 30px rgba(201,168,76,0.3);" onclick="submitWaitlist()">Prijavi se na listu čekanja</button>
@@ -1255,7 +1253,7 @@ footer { padding: 2rem 1.5rem; }
           <div class="t-tabs">
             <div class="t-tab active" onclick="setTab(this,'q')">Istraživanje</div>
             <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
-            <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Drafting <span class="pro-badge" id="pro-badge-n">PRO</span></div>
+            <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
             <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
           </div>
           <div id="chat-hist" class="chat-hist"></div>
@@ -1436,7 +1434,7 @@ footer { padding: 2rem 1.5rem; }
         <div class="h-stat-lbl">Pravnih izvora u bazi</div>
       </div>
       <div class="h-stat">
-        <div class="h-stat-num">18 <span class="acc">+</span> 1.479</div>
+        <div class="h-stat-num">18 <span class="acc">+</span> 216</div>
         <div class="h-stat-lbl">Zakona i odluka VKS</div>
       </div>
       <div class="h-stat">
@@ -1555,7 +1553,7 @@ footer { padding: 2rem 1.5rem; }
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Pravno istraživanje</div><p class="p-desc">Svi važeći zakoni RS, tačan član i citat za sekunde.</p><div class="p-detail">Pretraga po svim oblastima prava</div><div class="p-detail">Tačan zakon i broj člana</div><div class="p-detail">Doslovan citat iz važećeg teksta</div></div>
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Analiza ugovora</div><p class="p-desc">Agent identifikuje sporne klauzule i pravne rizike.</p><div class="p-detail">Identifikacija rizičnih klauzula</div><div class="p-detail">Provera usklađenosti sa zakonom</div><div class="p-detail">Preporuke za izmenu odredbi</div></div>
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Generisanje nacrta</div><p class="p-desc">Agent generiše strukturiran nacrt tužbe, žalbe ili ugovora.</p><div class="p-detail">Tužba za naknadu štete</div><div class="p-detail">Otkaz ugovora o radu</div><div class="p-detail">Žalba na prvostepenu presudu</div></div>
-    <div class="plat-card"><div class="p-badge soon">Uskoro</div><div class="p-title">Sudska praksa</div><p class="p-desc">Pretraga presuda Vrhovnog i Apelacionih sudova.</p><div class="p-detail">Baza presuda srpskih sudova</div><div class="p-detail">Pretraga po pravnom pitanju</div><div class="p-detail">Citiranje presuda u podnesku</div></div>
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Sudska praksa</div><p class="p-desc">Pretraga presuda Vrhovnog i Apelacionih sudova.</p><div class="p-detail">Baza presuda srpskih sudova</div><div class="p-detail">Pretraga po pravnom pitanju</div><div class="p-detail">Citiranje presuda u podnesku</div></div>
   </div>
 </section>
 
@@ -1575,7 +1573,7 @@ footer { padding: 2rem 1.5rem; }
       <p class="price-desc">Za individualne advokate koji žele brže, preciznije odgovore bez gubljenja vremena na pretragu.</p>
       <ul class="price-list">
         <li>Neograničena pravna istraživanja</li>
-        <li>Pretraga Svi važeći zakoni Republike Srbije</li>
+        <li>Pretraga svih važećih zakona Republike Srbije</li>
         <li>Ocena pouzdanosti odgovora</li>
         <li>Citati sa Sl. glasnikom</li>
         <li>15 besplatnih pitanja</li>
@@ -1593,9 +1591,9 @@ footer { padding: 2rem 1.5rem; }
       <p class="price-desc">Kompletan AI pravni asistent za advokatske kancelarije. Sve funkcije Basic paketa plus AI generisanje dokumenata.</p>
       <ul class="price-list">
         <li>Sve iz Basic paketa</li>
-        <li>Nacrt podnesaka i tužbi<span class="uskoro-tag">USKORO</span></li>
-        <li>Analiza ugovora i dokumenata<span class="uskoro-tag">USKORO</span></li>
-        <li>Istorija svih pretraga<span class="uskoro-tag">USKORO</span></li>
+        <li>Nacrt podnesaka i tužbi</li>
+        <li>Analiza ugovora i dokumenata</li>
+        <li>Istorija svih pretraga</li>
         <li>Prioritetna podrška 24/7</li>
         <li>Rana cena — garantovana pri prijavi</li>
       </ul>
@@ -2111,7 +2109,7 @@ function openSubscription() {
     window.open(STRIPE_URL, '_blank');
   } else {
     // STRIPE_URL nije postavljen — kontakt fallback
-    window.location.href = 'mailto:benny13.n@gmail.com?subject=Pretplata%20Vindex%20AI';
+    window.location.href = 'mailto:info@vindexai.rs?subject=Pretplata%20Vindex%20AI';
   }
 }
 
@@ -3679,7 +3677,18 @@ var demSec=document.getElementById('demo');if(demSec)dObs.observe(demSec);
 
 /* PRICING TOGGLE */
 var annual=false;
-function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.toggle('on',annual);}
+function _setPrices(){
+  var p1=document.getElementById('p1'),pp1=document.getElementById('pp1');
+  var p2=document.getElementById('p2'),pp2=document.getElementById('pp2');
+  if(annual){
+    if(p1)p1.textContent='€23';if(pp1)pp1.textContent='/mesec, godišnje';
+    if(p2)p2.textContent='€63';if(pp2)pp2.textContent='/mesec, godišnje';
+  }else{
+    if(p1)p1.textContent='€29';if(pp1)pp1.textContent='/mesec';
+    if(p2)p2.textContent='€79';if(pp2)pp2.textContent='/mesec';
+  }
+}
+function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.toggle('on',annual);_setPrices();}
 
 /* PRO WAITLIST MODAL */
 function openProModal() {
@@ -3723,6 +3732,7 @@ document.getElementById('pro-modal').addEventListener('click', function(e) { if(
 window.addEventListener('DOMContentLoaded', function() {
   initChatSession();
   initAuth();
+  _setPrices();
   // Supabase šalje recovery token kao URL hash fragment: #access_token=...&type=recovery
   var hash = window.location.hash;
   if (hash.indexOf('type=recovery') !== -1) {
@@ -3914,6 +3924,7 @@ var _docUploadName = null;
 var _docUploadSize = 0;
 
 function doc_upload_trigger() {
+  if (!currentSession) { openModal(); return; }
   document.getElementById('doc-upload-input').click();
 }
 
@@ -3965,7 +3976,7 @@ async function doc_upload_file(file) {
   try {
     var fd = new FormData();
     fd.append('file', file);
-    var r = await fetch(BASE_URL + '/api/dokument/upload', { method: 'POST', body: fd });
+    var r = await fetch(BASE_URL + '/api/dokument/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentSession.access_token }, body: fd });
     if (r.status === 422) {
       _doc_show_error('Ovaj fajl je skeniran. OCR podrška dolazi uskoro. Probajte sa text-based PDF/DOCX.');
       var _eb = document.getElementById('exec-btn');
@@ -4015,7 +4026,7 @@ async function doc_ask_question() {
   try {
     var r = await fetch(BASE_URL + '/api/dokument/pitanje', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
       body:    JSON.stringify({ session_id: _docSessionId, pitanje: pitanje })
     });
     if (r.status === 404) {
