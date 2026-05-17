@@ -1354,8 +1354,8 @@ footer { padding: 2rem 1.5rem; }
                   <option value="Vrhovni sud">Vrhovni sud</option>
                   <option value="Vrhovni kasacioni sud">Vrhovni kasacioni sud</option>
                 </select>
-                <input type="number" id="praksa-year-from" placeholder="Od god." min="2000" max="2030" style="width:84px;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
-                <input type="number" id="praksa-year-to" placeholder="Do god." min="2000" max="2030" style="width:84px;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
+                <input type="number" id="praksa-year-from" placeholder="Od god." min="2000" max="2030" style="width:96px;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
+                <input type="number" id="praksa-year-to" placeholder="Do god." min="2000" max="2030" style="width:96px;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
               </div>
               <div style="display:flex;gap:0.45rem;">
                 <button id="praksa-search-btn" onclick="praksa_search()" style="flex:1;padding:0.78rem;background:linear-gradient(135deg,#4aa8ff 0%,#1264c4 100%);border:none;border-radius:10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;letter-spacing:0.04em;cursor:pointer;">Pretraži sudsku praksu</button>
@@ -1728,13 +1728,18 @@ async function initAuth() {
     currentSession = session;
     currentUser    = session ? session.user : null;
     if (currentUser) { await loadCredits(); loadChatHistory(); }
-    else { userCredits = 0; _chatHistoryRows = []; var h=document.getElementById('chat-hist'); if(h){h.innerHTML='';h.style.display='none';} }
+    else { userCredits = 0; _creditsLoaded = false; _creditsLoadedAt = 0; _chatHistoryRows = []; var h=document.getElementById('chat-hist'); if(h){h.innerHTML='';h.style.display='none';} }
     updateAuthUI();
   });
 }
 
+var _creditsLoaded = false;
+var _creditsLoadedAt = 0;
+
 async function loadCredits() {
   if (!currentSession) return;
+  var now = Date.now();
+  if (_creditsLoaded && (now - _creditsLoadedAt) < 5000) { updateCreditDisplay(); return; }
   console.log('[Vindex] loadCredits: dohvatam /api/me...');
   try {
     var r = await fetch(BASE_URL + '/api/me', {
@@ -1747,6 +1752,8 @@ async function loadCredits() {
       userCredits       = (d.credits_remaining !== undefined && d.credits_remaining !== null) ? d.credits_remaining : 0;
       TOTAL_CREDITS     = d.credits_total || 15;
       currentUserIsPro  = !!d.is_pro;
+      _creditsLoaded    = true;
+      _creditsLoadedAt  = Date.now();
       _updateProTabUI();
       updateCreditDisplay();
     } else {
@@ -3956,6 +3963,12 @@ async function doc_upload_file(file) {
     var r = await fetch(BASE_URL + '/api/dokument/upload', { method: 'POST', body: fd });
     if (r.status === 422) {
       _doc_show_error('Ovaj fajl je skeniran. OCR podrška dolazi uskoro. Probajte sa text-based PDF/DOCX.');
+      var _eb = document.getElementById('exec-btn');
+      var _rb = document.getElementById('rb');
+      var _rp = document.getElementById('resp');
+      if (_eb) _eb.disabled = true;
+      if (_rb) { _rb.textContent = ''; _rb.innerHTML = ''; }
+      if (_rp) _rp.classList.remove('show');
       return;
     }
     if (r.status === 413) {
@@ -3985,6 +3998,7 @@ async function doc_ask_question() {
   var execBtn = document.getElementById('exec-btn');
   var btnLbl  = document.getElementById('btn-lbl');
   var orig    = btnLbl ? btnLbl.textContent : '';
+  if (!_docSessionId) return;
   if (!pitanje) {
     resp.classList.add('show'); rb.style.whiteSpace = 'pre-wrap';
     rb.textContent = 'Unesite pitanje o dokumentu.';
