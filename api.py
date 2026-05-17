@@ -1716,3 +1716,171 @@ async def dokument_pitanje(body: PitanjeDocRequest):
         [f"tmp_{body.session_id}"],
     )
     return rezultat
+
+
+# ─── /api/praksa/search ───────────────────────────────────────────────────────
+
+_VALID_MATTERS     = frozenset({"Građanska", "Zaštita prava", "Upravna", "Krivična"})
+_VALID_COURTS      = frozenset({"Vrhovni sud", "Vrhovni kasacioni sud"})
+_PRAKSA_NS_SEARCH  = "sudska_praksa"
+
+
+class PraksaSearchReq(BaseModel):
+    query:     Optional[str] = None
+    matter:    Optional[str] = None
+    court:     Optional[str] = None
+    year_from: Optional[int] = None
+    year_to:   Optional[int] = None
+    limit:     int = Field(default=10, ge=1, le=50)
+    offset:    int = Field(default=0, ge=0)
+
+    @field_validator("query")
+    @classmethod
+    def ocisti_query(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            return v if v else None
+        return v
+
+
+def _praksa_search_sync(
+    query:     Optional[str],
+    matter:    Optional[str],
+    court:     Optional[str],
+    year_from: Optional[int],
+    year_to:   Optional[int],
+    limit:     int,
+    offset:    int,
+) -> dict:
+    import re as _re
+    from app.services.retrieve import _get_index, _ugradi_query
+
+    # Build Pinecone metadata filter
+    filters: dict = {}
+    if matter:
+        filters["matter"] = {"$eq": matter}
+    if court:
+        filters["court"] = {"$eq": court}
+    filter_dict: Optional[dict] = filters if filters else None
+
+    # Embedding: real vector for semantic search, zero-vector for browse
+    has_query = bool(query and query.strip())
+    vector = _ugradi_query(query) if has_query else [0.0] * 3072
+
+    # Pinecone query — sudska_praksa namespace
+    index = _get_index()
+    res = index.query(
+        vector=vector,
+        top_k=300,
+        filter=filter_dict,
+        namespace=_PRAKSA_NS_SEARCH,
+        include_metadata=True,
+    )
+
+    # Group chunks by decision_number
+    groups: dict[str, dict] = {}
+    for m in res.matches:
+        meta = m.metadata or {}
+        dn = (meta.get("decision_number") or "").strip() or m.id
+        if dn not in groups:
+            groups[dn] = {
+                "decision_number": dn,
+                "decision_date":   meta.get("decision_date", ""),
+                "court":           meta.get("court", ""),
+                "matter":          meta.get("matter", ""),
+                "chunks":          [],
+                "max_score":       m.score,
+            }
+        groups[dn]["chunks"].append({
+            "section":     meta.get("section", ""),
+            "text":        meta.get("text", "") or meta.get("parent_text", ""),
+            "chunk_index": meta.get("chunk_index") or 0,
+            "score":       m.score,
+        })
+        if m.score > groups[dn]["max_score"]:
+            groups[dn]["max_score"] = m.score
+
+    # Assemble per-decision objects from sorted chunks
+    decisions_raw: list[dict] = []
+    for g in groups.values():
+        chunks = sorted(g["chunks"], key=lambda c: c["chunk_index"])
+        izreka_full   = " ".join(c["text"] for c in chunks if c["section"] == "IZREKA").strip()
+        obrazloz_full = " ".join(c["text"] for c in chunks if c["section"] == "OBRAZLOŽENJE").strip()
+        decisions_raw.append({
+            "decision_number":   g["decision_number"],
+            "decision_date":     g["decision_date"],
+            "court":             g["court"],
+            "matter":            g["matter"],
+            "izreka_preview":    izreka_full[:200],
+            "izreka_full":       izreka_full,
+            "obrazlozenje_full": obrazloz_full,
+            "score":             round(g["max_score"], 6),
+        })
+
+    # Year filter (in-memory, after grouping)
+    if year_from is not None or year_to is not None:
+        filtered: list[dict] = []
+        for d in decisions_raw:
+            yr_m = _re.match(r"(\d{4})", d["decision_date"] or "")
+            if not yr_m:
+                continue
+            yr = int(yr_m.group(1))
+            if year_from is not None and yr < year_from:
+                continue
+            if year_to is not None and yr > year_to:
+                continue
+            filtered.append(d)
+        decisions_raw = filtered
+
+    # Sort: by relevance score when semantic query present, else by date desc
+    if has_query:
+        decisions_raw.sort(key=lambda d: d["score"], reverse=True)
+    else:
+        decisions_raw.sort(key=lambda d: d["decision_date"] or "", reverse=True)
+
+    total = len(decisions_raw)
+    return {
+        "total":     total,
+        "page":      offset // limit + 1,
+        "limit":     limit,
+        "decisions": decisions_raw[offset: offset + limit],
+    }
+
+
+@app.post("/api/praksa/search")
+@limiter.limit("30/minute")
+async def praksa_search(req: PraksaSearchReq, request: Request):
+    """Faceted case-law search over sudska_praksa Pinecone namespace."""
+    if req.matter and req.matter not in _VALID_MATTERS:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Nevalidan matter filter",
+                     "detail": f"Dozvoljena vrednost: {sorted(_VALID_MATTERS)}"},
+        )
+    if req.court and req.court not in _VALID_COURTS:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Nevalidan court filter",
+                     "detail": f"Dozvoljena vrednost: {sorted(_VALID_COURTS)}"},
+        )
+    if (req.year_from is not None and req.year_to is not None
+            and req.year_from > req.year_to):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Nevalidan opseg godina",
+                     "detail": "year_from mora biti ≤ year_to"},
+        )
+    try:
+        result = await asyncio.to_thread(
+            _praksa_search_sync,
+            req.query, req.matter, req.court,
+            req.year_from, req.year_to,
+            req.limit, req.offset,
+        )
+        return result
+    except Exception as exc:
+        logger.exception("Greška u /api/praksa/search")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Greška Pinecone servisa", "detail": str(exc)[:200]},
+        )
