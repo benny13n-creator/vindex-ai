@@ -1313,7 +1313,7 @@ async def nacrt_types():
 
 @app.post("/api/nacrt")
 @limiter.limit("10/minute")
-async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_credits)):
+async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_pro)):
     """Generisanje nacrta pravnog dokumenta (strukturirani šablon)."""
     logger.info("Nacrt [uid=%.8s] vrsta=%s", user["user_id"], req.vrsta)
     asyncio.create_task(_audit(user["user_id"], f"nacrt:{req.vrsta}", ""))
@@ -1371,7 +1371,7 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(requir
 
 @app.post("/api/sazmi")
 @limiter.limit("10/minute")
-async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(get_current_user)):
+async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(require_credits)):
     """Generiše verziju odgovora na 'ljudskom' jeziku za klijenta (Viber/Mejl)."""
     from openai import OpenAI as _OAI
     try:
@@ -1398,6 +1398,7 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(get_curren
             ],
         )
         tekst = resp.choices[0].message.content.strip()
+        await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return {"status": "ok", "sazetak": tekst}
     except Exception:
         logger.exception("Greška u /api/sazmi")
@@ -1574,6 +1575,7 @@ _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 async def dokument_upload(
     request: Request,
     file: UploadFile = File(...),
+    user: dict = Depends(require_credits),
 ):
     """Upload a legal document (PDF or DOCX), chunk it, and ingest into a
     temporary Pinecone namespace. Returns session_id for Phase 2.3 retrieval."""
@@ -1644,6 +1646,7 @@ async def dokument_upload(
 
         asyncio.create_task(_background_cleanup())
 
+        await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return UploadResponse(
             session_id=session_id,
             chunk_count=count,
@@ -1694,7 +1697,7 @@ _MAX_DOC_PITANJE_LEN = 2000
 
 
 @app.post("/api/dokument/pitanje")
-async def dokument_pitanje(body: PitanjeDocRequest):
+async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require_credits)):
     """Ask a question about an uploaded document session."""
     from uploaded_doc.session import validate_session
 
@@ -1715,6 +1718,7 @@ async def dokument_pitanje(body: PitanjeDocRequest):
         body.history,
         [f"tmp_{body.session_id}"],
     )
+    await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
     return rezultat
 
 
