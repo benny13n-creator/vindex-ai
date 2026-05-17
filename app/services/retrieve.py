@@ -182,9 +182,14 @@ LAW_HINTS = {
     # ZPDG
     "zarada od kripto":           "ZPDG",
     "prihod od kripto":           "ZPDG",
+    "prihodi od kripto":          "ZPDG",
     "kapitalni dobitak":          "ZPDG",
     "kapitaln":                   "ZPDG",
     "porez na kripto":            "ZPDG",
+    # EU/FATF terminology → srpski ekvivalent u ZDI
+    "vasp":                       "zakon o digitalnoj imovini",
+    "casp":                       "zakon o digitalnoj imovini",
+    "mica":                       "zakon o digitalnoj imovini",
 }
 
 STOPWORDS = {
