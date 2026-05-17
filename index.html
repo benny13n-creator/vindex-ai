@@ -1018,6 +1018,19 @@ footer { padding: 2rem 1.5rem; }
 .cyr-toggle-wrap input:checked + .cyr-toggle-slider::after { transform:translateX(15px); background:#c9a84c; }
 .cyr-toggle-lbl { font-size:0.72rem; font-weight:700; letter-spacing:0.07em; color:rgba(255,255,255,0.75); transition:color 0.2s; text-transform:uppercase; }
 .cyr-toggle-wrap input:checked ~ .cyr-toggle-lbl { color:#e8c97a; }
+/* Document upload P2.6a */
+.upload-dropzone{width:100%;border:2px dashed rgba(74,168,255,0.25);border-radius:12px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:rgba(74,168,255,0.03);margin-top:.7rem;box-sizing:border-box;}
+.upload-dropzone:hover,.upload-dropzone.drag-over{border-color:rgba(74,168,255,0.55);background:rgba(74,168,255,0.07);}
+.upload-zone-icon{font-size:2rem;margin-bottom:.5rem;}
+.upload-zone-text{color:#89c8ff;font-size:.95rem;font-weight:500;}
+.upload-zone-sub{color:rgba(255,255,255,0.4);font-size:.78rem;margin-top:.3rem;}
+.doc-file-card{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;background:rgba(74,168,255,0.04);border:1px solid rgba(74,168,255,0.16);border-radius:10px;padding:.75rem 1rem;margin-top:.7rem;}
+.doc-file-info{display:flex;align-items:center;gap:.65rem;min-width:0;}
+.doc-file-icon{font-size:1.4rem;flex-shrink:0;}
+.doc-remove-btn{background:transparent;border:1px solid rgba(255,80,80,0.3);color:rgba(255,120,120,0.85);border-radius:7px;padding:.33rem .7rem;font-size:.78rem;cursor:pointer;white-space:nowrap;transition:border-color .15s,background .15s;flex-shrink:0;}
+.doc-remove-btn:hover{border-color:rgba(255,80,80,0.6);background:rgba(255,80,80,0.09);}
+@keyframes doc-spin{to{transform:rotate(360deg);}}
+.upload-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(74,168,255,0.3);border-top-color:#4aa8ff;border-radius:50%;animation:doc-spin .8s linear infinite;vertical-align:middle;margin-right:.4rem;}
 </style>
 
 </head>
@@ -1295,16 +1308,31 @@ footer { padding: 2rem 1.5rem; }
           <div id="tab-a" style="display:none">
             <div class="t-guide">
               <div class="t-guide-icon">🔍</div>
-              <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Nalepite tekst ugovora, presude ili akta — AI identifikuje pravne rizike i problematične odredbe.</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Otpremite ugovor, presudu ili pravni akt — AI identifikuje pravne rizike i problematične odredbe.</div>
             </div>
-            <label class="t-label">Tekst dokumenta:</label>
-            <div class="mic-input-wrap">
-              <textarea class="t-input" id="aitxt" placeholder="Nalepite tekst ugovora, presude ili pravnog akta..." style="height:80px;"></textarea>
-              <button class="mic-btn" id="mic-aitxt" type="button" onclick="micToggle('aitxt')" title="Glasovni unos — sr-RS"><i class="fa-solid fa-microphone"></i></button>
+            <input type="file" id="doc-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="doc_upload_file(this.files[0])">
+            <div id="doc-upload-zone" class="upload-dropzone" onclick="doc_upload_trigger()">
+              <div class="upload-zone-icon">📄</div>
+              <div class="upload-zone-text">Prevucite ugovor ovde ili kliknite za odabir</div>
+              <div class="upload-zone-sub">Podržani formati: PDF, DOCX (do 25MB)</div>
             </div>
-            <div class="mic-status" id="mic-status-aitxt"><span class="mic-status-dot"></span><span>Snimam... govorite na srpskom</span></div>
-            <label class="t-label">Specifično pitanje (opciono):</label>
-            <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:46px;margin-top:0.4rem;"></textarea>
+            <div id="doc-upload-loading" style="display:none;text-align:center;padding:1.2rem 0;color:rgba(255,255,255,0.55);font-size:.9rem;"><span class="upload-spinner"></span>Otpremanje i obrada dokumenta...</div>
+            <div id="doc-upload-error" style="display:none;padding:.85rem 1rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:10px;color:#ff9090;font-size:.87rem;margin-top:.7rem;"></div>
+            <div id="doc-session-active" style="display:none">
+              <div class="doc-file-card">
+                <div class="doc-file-info">
+                  <span class="doc-file-icon">📄</span>
+                  <div>
+                    <div id="doc-file-name" style="font-weight:600;font-size:.9rem;color:#fff;word-break:break-all;"></div>
+                    <div id="doc-file-meta" style="font-size:.77rem;color:rgba(255,255,255,0.45);margin-top:2px;"></div>
+                  </div>
+                </div>
+                <button class="doc-remove-btn" onclick="doc_clear_session()">✕ Ukloni</button>
+              </div>
+              <label class="t-label" style="margin-top:.9rem;">Postavite pitanje o ovom dokumentu:</label>
+              <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:60px;margin-top:.4rem;"></textarea>
+              <textarea id="aitxt" style="display:none"></textarea>
+            </div>
           </div>
           <div id="tab-s" style="display:none">
             <div class="t-guide">
@@ -3469,6 +3497,18 @@ async function execQuery() {
     btnLbl.textContent = orig;
     return;
   }
+  if (activeTab === 'a') {
+    _execInProgress = false;
+    execBtn.disabled = false;
+    btnLbl.textContent = orig;
+    if (_docSessionId) {
+      doc_ask_question();
+    } else {
+      resp.classList.add('show'); rb.style.whiteSpace = 'pre-wrap';
+      rb.textContent = 'Prvo otpremite dokument klikom na upload zonu.';
+    }
+    return;
+  }
   var eps = { q:BASE_URL+'/api/pitanje', n:_nEndpoint, a:BASE_URL+'/api/analiza' };
   var bodies = {
     q: { pitanje: currentPitanje, history: conversationHistory.slice(-3) },
@@ -3855,6 +3895,174 @@ function praksa_load_initial() {
   praksa_initialized = true;
   praksa_search();
 }
+
+/* ── Document Upload P2.6a ───────────────────────────────────── */
+var _docSessionId  = null;
+var _docUploadName = null;
+var _docUploadSize = 0;
+
+function doc_upload_trigger() {
+  document.getElementById('doc-upload-input').click();
+}
+
+function _doc_fmt_size(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+function _doc_show_error(msg) {
+  var z  = document.getElementById('doc-upload-zone');
+  var ld = document.getElementById('doc-upload-loading');
+  var er = document.getElementById('doc-upload-error');
+  if (z)  z.style.display  = 'block';
+  if (ld) ld.style.display = 'none';
+  if (er) { er.style.display = 'block'; er.textContent = msg; }
+}
+
+function _doc_show_loading() {
+  var z  = document.getElementById('doc-upload-zone');
+  var ld = document.getElementById('doc-upload-loading');
+  var er = document.getElementById('doc-upload-error');
+  if (z)  z.style.display  = 'none';
+  if (ld) ld.style.display = 'block';
+  if (er) er.style.display = 'none';
+}
+
+function _doc_show_session(filename, sizeBytes, chunkCount) {
+  document.getElementById('doc-upload-zone').style.display    = 'none';
+  document.getElementById('doc-upload-loading').style.display = 'none';
+  document.getElementById('doc-upload-error').style.display   = 'none';
+  document.getElementById('doc-session-active').style.display = 'block';
+  document.getElementById('doc-file-name').textContent = filename;
+  document.getElementById('doc-file-meta').textContent = _doc_fmt_size(sizeBytes) + ' • ' + chunkCount + ' odeljka';
+}
+
+async function doc_upload_file(file) {
+  if (!file) return;
+  var ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+  if (['.pdf','.docx','.doc'].indexOf(ext) === -1) {
+    _doc_show_error('Nepodržan format. Koristite PDF ili DOCX.');
+    return;
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    _doc_show_error('Fajl je preko 25MB. Probajte manji.');
+    return;
+  }
+  _doc_show_loading();
+  try {
+    var fd = new FormData();
+    fd.append('file', file);
+    var r = await fetch(BASE_URL + '/api/dokument/upload', { method: 'POST', body: fd });
+    if (r.status === 422) {
+      _doc_show_error('Ovaj fajl je skeniran. OCR podrška dolazi uskoro. Probajte sa text-based PDF/DOCX.');
+      return;
+    }
+    if (r.status === 413) {
+      _doc_show_error('Fajl je preko 25MB. Probajte manji.');
+      return;
+    }
+    if (!r.ok) {
+      _doc_show_error('Greška servera (' + r.status + '). Pokušajte ponovo.');
+      return;
+    }
+    var d = await r.json();
+    _docSessionId  = d.session_id;
+    _docUploadName = file.name;
+    _docUploadSize = file.size;
+    _doc_show_session(file.name, file.size, d.chunk_count || 0);
+    document.getElementById('doc-upload-input').value = '';
+  } catch(e) {
+    _doc_show_error('Nema veze sa serverom. Proverite konekciju.');
+  }
+}
+
+async function doc_ask_question() {
+  var aq = document.getElementById('aq');
+  var pitanje = aq ? aq.value.trim() : '';
+  var resp    = document.getElementById('resp');
+  var rb      = document.getElementById('rb');
+  var execBtn = document.getElementById('exec-btn');
+  var btnLbl  = document.getElementById('btn-lbl');
+  var orig    = btnLbl ? btnLbl.textContent : '';
+  if (!pitanje) {
+    resp.classList.add('show'); rb.style.whiteSpace = 'pre-wrap';
+    rb.textContent = 'Unesite pitanje o dokumentu.';
+    return;
+  }
+  if (execBtn) execBtn.disabled = true;
+  if (btnLbl)  btnLbl.textContent = 'Analiziram dokument...';
+  resp.classList.remove('show');
+  try {
+    var r = await fetch(BASE_URL + '/api/dokument/pitanje', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ session_id: _docSessionId, pitanje: pitanje })
+    });
+    if (r.status === 404) {
+      doc_clear_session();
+      _doc_show_error('Sesija je istekla. Ponovo otpremite dokument.');
+      return;
+    }
+    if (!r.ok) {
+      resp.classList.add('show'); rb.style.whiteSpace = 'pre-wrap';
+      rb.textContent = 'Greška servera (' + r.status + '). Pokušajte ponovo.';
+      return;
+    }
+    var d = await r.json();
+    if (d.credits_remaining !== undefined) {
+      if (typeof userCredits !== 'undefined') userCredits = d.credits_remaining;
+      if (typeof updateCreditDisplay === 'function') updateCreditDisplay();
+    }
+    var text = d.odgovor || d.greska || 'Greška u odgovoru servera.';
+    resp.classList.add('show'); rb.textContent = ''; rb.style.whiteSpace = 'pre-wrap'; rb.classList.add('resp-cursor');
+    var idx = 0, speed = text.length > 600 ? 4 : text.length > 300 ? 7 : 12;
+    var iv = setInterval(function() {
+      if (idx >= text.length) {
+        clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace = '';
+        var parsed = (typeof formatResponse === 'function') ? formatResponse(text) : null;
+        if (parsed && parsed.trim()) { rb.innerHTML = parsed; } else { rb.style.whiteSpace = 'pre-wrap'; rb.textContent = text; }
+        if (typeof _cyrillicOn !== 'undefined' && _cyrillicOn && typeof cirilicaElement === 'function') cirilicaElement(rb);
+      } else { rb.textContent += text[idx]; idx++; }
+    }, speed);
+  } catch(e) {
+    resp.classList.add('show'); rb.style.whiteSpace = 'pre-wrap';
+    rb.textContent = 'Nema veze sa serverom. Proverite konekciju.';
+  } finally {
+    if (execBtn) execBtn.disabled = false;
+    if (btnLbl)  btnLbl.textContent = orig;
+  }
+}
+
+function doc_clear_session() {
+  _docSessionId  = null;
+  _docUploadName = null;
+  _docUploadSize = 0;
+  var sa = document.getElementById('doc-session-active');
+  var z  = document.getElementById('doc-upload-zone');
+  var ld = document.getElementById('doc-upload-loading');
+  var er = document.getElementById('doc-upload-error');
+  if (sa) sa.style.display = 'none';
+  if (z)  z.style.display  = 'block';
+  if (ld) ld.style.display = 'none';
+  if (er) er.style.display = 'none';
+  var aq  = document.getElementById('aq');
+  var inp = document.getElementById('doc-upload-input');
+  if (aq)  aq.value  = '';
+  if (inp) inp.value = '';
+}
+
+(function() {
+  var zone = document.getElementById('doc-upload-zone');
+  if (!zone) return;
+  zone.addEventListener('dragover',  function(e) { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', function()  { zone.classList.remove('drag-over'); });
+  zone.addEventListener('drop',      function(e) {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length) doc_upload_file(files[0]);
+  });
+})();
 
 </script>
 
