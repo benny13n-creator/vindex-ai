@@ -57,3 +57,11 @@ data/sudska_praksa/.ingest_state.json
 /score_capture_err.txt
 /test_q5.py
 /test_smoke.py
+cat >> .gitignore << 'EOF'
+
+# Diagnostic artifacts
+diag_*.json
+corpus_coverage*.json
+corpus_coverage*.md
+query.json
+EOF

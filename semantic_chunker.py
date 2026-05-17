@@ -215,9 +215,41 @@ def podeli_zakon_na_chunkove(tekst: str, zakon_naziv: str) -> list[dict]:
                 zakon_naziv, label, stripped_header[:80],
             )
 
-        if len(clan_tekst) < MIN_STAV_DUZINA:
+        # Validno-odsutni članci (Brisano / Prestao da važi / USJ) — preskoči potpuno
+        _DELETED_MARKERS = (
+            "brisan", "brisani", "brisano",
+            "prestao da važi", "prestali da važe", "prestalo da važi",
+            "prestao da vazi", "prestali da vaze", "prestalo da vazi",
+        )
+        _clan_lower = clan_tekst.lower()
+        if any(m in _clan_lower for m in _DELETED_MARKERS):
             continue
-
+        # Kratak realan članak — single chunk, preskoči multi-stav podelu
+        if len(clan_tekst) < MIN_STAV_DUZINA:
+            _chunker_log.info(
+                "Short article ingested as single chunk: %s %s — %d znakova",
+                zakon_naziv, label, len(clan_tekst),
+            )
+            parent_id   = f"{sc}_{broj_str}"
+            parent_text = clan_tekst[:MAX_PARENT_DUZINA]
+            embed_text  = f"ZAKON: {zakon_naziv}\n{label}\n\n{clan_tekst}"
+            chunkovi.append({
+                "id":   _chunk_id(zakon_naziv, broj_str, 1),
+                "text": embed_text,
+                "metadata": {
+                    "zakon":         sc,
+                    "clan":          clan_int,
+                    "stav":          1,
+                    "parent_id":     parent_id,
+                    "parent_text":   parent_text,
+                    "tekst_preview": clan_tekst[:100],
+                    # Backward-compat
+                    "law":     zakon_naziv,
+                    "article": label,
+                    "text":    clan_tekst,
+                },
+            })
+            continue
         # Upozorenje za stub — član je legitimno kratak, ali previše kratak za
         # kvalitetan embedding; potrebna ponovna ingestija iz izvornog PDF-a
         if len(clan_tekst) < STUB_THRESHOLD:
