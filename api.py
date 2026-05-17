@@ -1763,9 +1763,16 @@ def _praksa_search_sync(
         filters["court"] = {"$eq": court}
     filter_dict: Optional[dict] = filters if filters else None
 
-    # Embedding: real vector for semantic search, zero-vector for browse
+    # Embedding: real vector for semantic search, uniform unit vector for browse.
+    # Zero-vector is invalid for cosine metric (undefined similarity); a uniform
+    # unit vector is the least-biased valid direction for browse/filter-only mode.
     has_query = bool(query and query.strip())
-    vector = _ugradi_query(query) if has_query else [0.0] * 3072
+    if has_query:
+        vector = _ugradi_query(query)
+    else:
+        import math as _math
+        _dim = 3072
+        vector = [1.0 / _math.sqrt(_dim)] * _dim
 
     # Pinecone query — sudska_praksa namespace
     index = _get_index()
