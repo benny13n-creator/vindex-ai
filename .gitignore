@@ -65,3 +65,10 @@ corpus_coverage*.json
 corpus_coverage*.md
 query.json
 EOF
+
+# Ad-hoc ingest i diagnostic skripte (one-off)
+ingest_*_cl*.py
+diag_*.py
+diag_*.txt
+corpus_coverage*
+*_diff.txt
