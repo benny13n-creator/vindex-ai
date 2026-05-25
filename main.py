@@ -1041,12 +1041,15 @@ _KZ_OVERRIDE_TRIGGERS = [
 
 def klasifikuj_pitanje(query: str) -> str:
     """
-    REFAKTOR v2.0 — Klasifikuje upit u jedan od 4 tipa.
+    REFAKTOR v2.1 — Klasifikuje upit u jedan od 4 tipa.
     Prioritet: KZ-override > COMPLIANCE > PORESKI > PARNICA > DEFINICIJA.
 
     KZ-override fires first so "krivično delo poreske utaje" routes to PARNICA
     (gpt-4o) instead of being stolen by PORESKI triggers.
 
+    Compound condition (v2.1): PORESKI trigger se ignoriše ako upit istovremeno
+    sadrži PARNICA trigger — radno-pravni kontekst ima prednost nad opštim poreskim
+    rečima (npr. "doprinosi pri otkazu" → PARNICA, ne PORESKI).
 
     Vraća uppercase string: "COMPLIANCE", "PORESKI", "PARNICA", "DEFINICIJA".
     """
@@ -1066,6 +1069,10 @@ def klasifikuj_pitanje(query: str) -> str:
 
     for term in _PORESKI_TRIGGERS:
         if _normalizuj(term) in q:
+            # Compound condition: radno-pravni kontekst ima prednost —
+            # ako upit sadrži i parnični trigger, pusti PARNICA petlju da obradi
+            if any(_normalizuj(pt) in q for pt in _PARNICA_TRIGGERS):
+                break
             logging.info("Klasifikacija: '%s' → PORESKI (trigger: %s)", query[:50], term)
             return "PORESKI"
 
