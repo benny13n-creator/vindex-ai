@@ -1,16 +1,28 @@
 # -*- coding: utf-8 -*-
 """
-Vindex AI — 30-Question Full Test Suite
+Vindex AI — 35-Question Full Test Suite
 Runs actual retrieval against live Pinecone index, captures intermediate data,
 self-evaluates each answer, writes results to docs/VINDEX_HALLUCINATION_FREE_TEST.md.
+
+Usage:
+  python run_test_30q.py           # normal run (cache enabled)
+  python run_test_30q.py --no-cache  # bypass in-memory cache (reliable benchmark)
 """
-import sys, re, os, time
+import sys, re, os, time, argparse
 sys.stdout.reconfigure(encoding="utf-8")
 
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ─── CLI args ─────────────────────────────────────────────────────────────────
+_parser = argparse.ArgumentParser(add_help=False)
+_parser.add_argument("--no-cache", action="store_true", help="Bypass ask_agent in-memory cache")
+_args, _ = _parser.parse_known_args()
+if _args.no_cache:
+    os.environ["VINDEX_CACHE_BYPASS"] = "1"
+    print("[RUNNER] --no-cache: VINDEX_CACHE_BYPASS=1 — sve query ide kroz live retrieval")
 
 # ─── Must run from legal-agent dir ───────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent))
@@ -93,6 +105,18 @@ QUESTIONS = [
      "zakon o digitalnoj imovini", "2", "KAT6"),
     ("Šta je beneficium ordinis?",
      "zakon o obligacionim odnosima", "1002", "KAT6"),
+    # KAT 8 — Zabrana konkurencije (ZR/161-162) — Q31-Q35
+    # Added: diagnostic run 2026-05-27 (LAW_HINTS gap for "naknada" → ZOO false routing)
+    ("Da li poslodavac može zaposlenom da zabrani konkurentski rad nakon prestanka radnog odnosa ako ugovorom nije predviđena posebna naknada?",
+     "zakon o radu", "162", "KAT8"),
+    ("Koliko dugo može da traje zabrana konkurencije po prestanku radnog odnosa?",
+     "zakon o radu", "162", "KAT8"),
+    ("Šta je klauzula o zabrani konkurencije u ugovoru o radu?",
+     "zakon o radu", "161", "KAT8"),
+    ("Da li je naknada obavezna kod ugovora o zabrani konkurencije posle prestanka radnog odnosa?",
+     "zakon o radu", "162", "KAT8"),
+    ("Može li poslodavac da ugovori zabranu konkurencije za period duži od dve godine?",
+     "zakon o radu", "162", "KAT8"),
 ]
 
 CAT_NAMES = {
@@ -102,6 +126,7 @@ CAT_NAMES = {
     "KAT4": "Radno pravo",
     "KAT5": "Porodično pravo i nasleđivanje",
     "KAT6": "Postupci + Web3",
+    "KAT8": "Zabrana konkurencije (ZR/161-162)",
 }
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -190,7 +215,8 @@ def _self_eval(result: dict, top3: list[dict], exp_law: str, exp_art: str | None
 def run_tests():
     lines = []
     lines.append("# VINDEX_HALLUCINATION_FREE_TEST — Confidence-gated pipeline\n")
-    lines.append(f"Datum: 2026-05-01 | Index: vindex-ai (23,699 vektora) | Thresholds: HIGH≥0.78 MEDIUM≥0.65\n\n")
+    cache_mode = "BYPASS (--no-cache)" if os.getenv("VINDEX_CACHE_BYPASS") == "1" else "enabled"
+    lines.append(f"Datum: {time.strftime('%Y-%m-%d')} | Index: vindex-ai | Thresholds: HIGH≥0.65 MEDIUM≥0.52 | Cache: {cache_mode}\n\n")
     lines.append("---\n\n")
 
     results_by_cat: dict[str, list] = {}

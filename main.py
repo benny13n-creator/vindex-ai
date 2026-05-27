@@ -180,6 +180,9 @@ def _normalizuj_za_cache(tekst: str) -> str:
 
 
 def _cache_get(pitanje: str) -> dict | None:
+    # VINDEX_CACHE_BYPASS=1 forces cache miss — used by benchmark runner (--no-cache flag)
+    if os.getenv("VINDEX_CACHE_BYPASS") == "1":
+        return None
     kljuc = _cache_kljuc(pitanje)
     if kljuc in _CACHE:
         rezultat, ts = _CACHE[kljuc]
@@ -1021,6 +1024,10 @@ _PARNICA_TRIGGERS = [
     "uslovna osuda", "uslovni otpust",
     "maloletan ucini", "maloletni ucinioc",
     "recidiviz", "povratnik",
+    # Zabrana konkurencije → ZR/161-162 spor je radno-pravni, ne definitivan
+    "konkurentsk",          # "konkurentski rad", "zabrana konkurentskog" → ZR spor
+    "zabrana konkurencije", # explicit competition clause dispute term
+    "konkurencij",          # "zabranu/zabrane/zabrani konkurencije" — sve padeške forme
 ]
 
 _DEFINICIJA_TRIGGERS = [
@@ -1038,10 +1045,76 @@ _KZ_OVERRIDE_TRIGGERS = [
     "krivicna sankcija", "kazna zatvora",
 ]
 
+# ─── Word-boundary matching config (v2.2) ────────────────────────────────────
+# Mehanički fix za substring mine: trigger koji je cela reč se više ne poklapa
+# kao deo nepovezane reči (npr. "sto" ne sme da hvata "stopa").
+#
+# PUNA GRANICA \bterm\b — skraćenice i anglizmi koji NE inflektiraju.
+# KRITIČNO: "sto" MORA biti \bsto\b; \bsto (samo leading) i dalje hvata "stopa"
+# jer "stopa" počinje na granici reči.
+_WB_FULL: frozenset[str] = frozenset([
+    "sto", "aml", "kyc", "pdv", "btc", "eth", "usdt", "ico",
+    "bitcoin", "ethereum", "compliance", "exchange", "zspnft",
+])
+
+# LEADING GRANICA \bpattern — srpske reči koje se dekliniraju.
+# Vrednost je regex pattern direktno za re.search().
+# Koren može biti kraći od trigera (npr. "telesna" → r"\btelesn") da bi
+# padežni oblici prolazili a lažni prefiksi (netelesna) bili blokirani.
+# SPORNO trigeri (dozvol, sprecavanj, obveznik, doprinosi, prihod od,
+# prihodi od, placanje u, odgovornost, povreda, zastarelost, izvrsenje,
+# revizij, kazna za) NISU ovde — njihov problem je semantički, rešava se
+# zasebno (Korak 3).
+_WB_LEADING: dict[str, str] = {
+    # --- COMPLIANCE ---
+    "nadzor":       r"\bnadzor",
+    "platforma":    r"\bplatform",
+    "token":        r"\btoken",
+    # --- PORESKI ---
+    "akciza":       r"\bakciz",
+    "fiskalni":     r"\bfiskaln",
+    # --- PARNICA ---
+    "tuzba":        r"\btuzb",
+    "parnica":      r"\bparnic",
+    "presuda":      r"\bpresud",
+    "steta":        r"\bstet",
+    "stete":        r"\bstet",
+    "stetu":        r"\bstet",
+    "otkaz":        r"\botkaz",
+    "telesna":      r"\btelesn",
+    "medijacija":   r"\bmedijacij",
+    "iznuda":       r"\biznud",
+    "kradja":       r"\bkradj",
+    "kradjom":      r"\bkradj",
+    "kradje":       r"\bkradj",
+    "ubistvo":      r"\bubistv",
+    "silovanje":    r"\bsilovan",
+    "razbojnistvo": r"\brazbojnistv",
+    "recidiviz":    r"\brecidiviz",
+    # --- DEFINICIJA ---
+    "sto je ":      r"\bsto je ",   # "isto je " ne sme da pali
+}
+
+
+def _match_trigger(term: str, q: str) -> bool:
+    """Matchuje trigger u normalizovanom upitu koristeći odgovarajući oblik granice.
+
+    - _WB_FULL    → re.search(r'\\bterm\\b', q) — skraćenice, bez infleksije
+    - _WB_LEADING → re.search(pattern, q)       — srpske reči, padežni oblici prolaze
+    - ostalo      → term in q                   — koreni, fraze, SPORNO (neizmenjeno)
+    """
+    t = _normalizuj(term)
+    if t in _WB_FULL:
+        return bool(re.search(r"\b" + re.escape(t) + r"\b", q))
+    pat = _WB_LEADING.get(t)
+    if pat is not None:
+        return bool(re.search(pat, q))
+    return t in q
+
 
 def klasifikuj_pitanje(query: str) -> str:
     """
-    REFAKTOR v2.1 — Klasifikuje upit u jedan od 4 tipa.
+    REFAKTOR v2.2 — Klasifikuje upit u jedan od 4 tipa.
     Prioritet: KZ-override > COMPLIANCE > PORESKI > PARNICA > DEFINICIJA.
 
     KZ-override fires first so "krivično delo poreske utaje" routes to PARNICA
@@ -1051,6 +1124,11 @@ def klasifikuj_pitanje(query: str) -> str:
     sadrži PARNICA trigger — radno-pravni kontekst ima prednost nad opštim poreskim
     rečima (npr. "doprinosi pri otkazu" → PARNICA, ne PORESKI).
 
+    Word-boundary matching (v2.2): koristi _match_trigger() umesto čistog substring
+    poređenja. Skraćenice dobijaju \bterm\b; srpske celo-rečne forme dobijaju \bterm
+    (leading boundary, slobodan kraj — padežni oblici prolaze). Koreni i fraze
+    ostaju substring. SPORNO trigeri netaknuti (Korak 3).
+
     Vraća uppercase string: "COMPLIANCE", "PORESKI", "PARNICA", "DEFINICIJA".
     """
     q = _normalizuj(query)
@@ -1058,31 +1136,31 @@ def klasifikuj_pitanje(query: str) -> str:
 
     # KZ override — mora biti pre PORESKI/COMPLIANCE da bi "krivično delo X" uvek → PARNICA
     for term in _KZ_OVERRIDE_TRIGGERS:
-        if _normalizuj(term) in q:
+        if _match_trigger(term, q):
             logging.info("Klasifikacija: '%s' → PARNICA [KZ override: %s]", query[:50], term)
             return "PARNICA"
 
     for term in _COMPLIANCE_TRIGGERS:
-        if _normalizuj(term) in q:
+        if _match_trigger(term, q):
             logging.info("Klasifikacija: '%s' → COMPLIANCE (trigger: %s)", query[:50], term)
             return "COMPLIANCE"
 
     for term in _PORESKI_TRIGGERS:
-        if _normalizuj(term) in q:
-            # Compound condition: radno-pravni kontekst ima prednost —
+        if _match_trigger(term, q):
+            # Compound condition (v2.1): radno-pravni kontekst ima prednost —
             # ako upit sadrži i parnični trigger, pusti PARNICA petlju da obradi
-            if any(_normalizuj(pt) in q for pt in _PARNICA_TRIGGERS):
+            if any(_match_trigger(pt, q) for pt in _PARNICA_TRIGGERS):
                 break
             logging.info("Klasifikacija: '%s' → PORESKI (trigger: %s)", query[:50], term)
             return "PORESKI"
 
     for term in _PARNICA_TRIGGERS:
-        if _normalizuj(term) in q:
+        if _match_trigger(term, q):
             logging.info("Klasifikacija: '%s' → PARNICA (trigger: %s)", query[:50], term)
             return "PARNICA"
 
     for term in _DEFINICIJA_TRIGGERS:
-        if _normalizuj(term) in q:
+        if _match_trigger(term, q):
             logging.info("Klasifikacija: '%s' → DEFINICIJA (trigger: %s)", query[:50], term)
             return "DEFINICIJA"
 

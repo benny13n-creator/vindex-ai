@@ -54,6 +54,11 @@ LAW_HINTS = {
     "klauzula o tajnost":         "zakon o radu",   # "klauzula o tajnosti" NDA → ZR, not ZDI/ZZPL
     "klauzula tajnost":           "zakon o radu",   # "klauzula tajnosti" variant
     "klauzula poverljiv":         "zakon o radu",   # confidentiality clause → ZR
+    "prestanka radnog odnosa":    "zakon o radu",   # genitiv varijanta nominativa — Q31 zabrana konkurencije
+    "zabrana konkurencije":       "zakon o radu",   # čl. 161-162 — explicit competition clause term
+    "klauzula o zabrani":         "zakon o radu",   # "klauzula o zabrani konkurencije" explicit form
+    "konkurentsk":                "zakon o radu",   # "konkurentski rad" / zabrana — čl. 161-162
+    "konkurencij":                "zakon o radu",   # "zabranu konkurencije" accusative + all case forms
     # Porodični zakon
     "staratelj":                  "porodicni zakon",
     "aliment":                    "porodicni zakon",
