@@ -559,17 +559,34 @@ def _ima_obavezne_sekcije(odgovor: str, sekcije: list[str] | None = None) -> boo
     return all(s in odgovor for s in proveri)
 
 
+# Framework citations baked into PARNICA/FALLBACK prompt templates.
+# These are cited as structural legal framework in EVERY relevant response by instruction —
+# they may not be in RAG context for every query type.
+# Guard v2.0 must NOT fire on these to avoid false-positive blocks.
+_FRAMEWORK_CLANOVI_EXEMPT: frozenset[str] = frozenset([
+    "154", "155",   # ZOO osnov odgovornosti za štetu (PARNICA ANALIZA ŠTETE template)
+    "189", "200",   # ZOO materijalna + nematerijalna šteta (PARNICA ANALIZA ŠTETE template)
+    "192",          # ZOO doprinos oštećenog — PARNICA RIZICI section
+    "374",          # ZOO periodična potraživanja (1 god.) — PARNICA PRIMARY RULES
+    "376", "377",   # ZOO zastarelost — hardcoded in PARNICA PROCESNI KORACI
+])
+
+
 def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
     """
-    Stroga anti-halucinacijska provera.
+    Anti-hallucination guard v2.0 — strict per-article.
     Vraća (validan, razlog).
 
-    Logika:
-    - Ako odgovor kaže 'nije pronađeno' → uvek validan
-    - Svaki citirani član zakona mora biti pronađen u kontekstu
-    - Ako je citat u navodnicima, prvih 40 znakova mora biti u kontekstu
+    Logika v2.0:
+    - "nije pronađen u bazi" markeri → uvek validan (early return)
+    - Kontekst < 3 docs ili < 500 chars → skip (tanki kontekst ne kažnjava)
+    - Iz odgovora se izvlače SVI citirani brojevi članova
+    - Izvačeni koji su u _FRAMEWORK_CLANOVI_EXEMPT (ZOO strukturni template) → preskačemo
+    - SVAKI preostali citiran clan MORA biti prisutan u kontekstu
+    - Ako bar JEDAN nije → False + lista fabricated
+    v1 razlika: v1 puštao ako bar 1 bio u kontekstu → fabricated ostali prolazili
     """
-    # Odgovor "nije pronađeno" je uvek validan
+    # Early return — odgovor koji eksplicitno signalizira nedostatak podataka je uvek validan
     markeri_nije_pronadjeno = [
         "nije pronađen u bazi",
         "nema direktno primenljive",
@@ -583,37 +600,50 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
     kontekst = " ".join(docs)
     kontekst_norm = _normalizuj(kontekst)
 
-    # 1) Proveri citirane članove samo ako kontekst ima dovoljno sadržaja (≥3 docs, ≥500 chars)
-    # Ako je kontekst siromašan (v1 vektori / pogrešni zakoni), LLM ispravno citira iz znanja
-    # ali ti članovi nisu u kontekstu — ne sme se blokirati validan odgovor
+    # Skip ako kontekst prekratak — v1 vektori/pogrešni zakoni ne smeju blokirati
     if len(docs) < 3 or len(kontekst) < 500:
-        logger.info("[HALUCINACIJA_SKIP] Kontekst prekratak (%d docs, %d chars) — preskačem proveru", len(docs), len(kontekst))
+        logger.info("[HALUCINACIJA_SKIP] Kontekst prekratak (%d docs, %d chars) — preskačem", len(docs), len(kontekst))
         return True, "ok"
 
-    citirani_clanovi = re.findall(r"[Čč]lan\s+(\d+[a-zA-Z]?)", odgovor)
-    pogodci = 0
-    for clan in citirani_clanovi:
-        clan_norm = _normalizuj(clan)
-        pattern = rf"lan\s+{re.escape(clan_norm)}(?!\d)"
-        if re.search(pattern, kontekst_norm):
-            pogodci += 1
+    # 1) Strict per-article check
+    citirani_raw = re.findall(r"[Čč]lan\s+(\d+[a-zA-Z]?)", odgovor)
 
-    # Blokiraj samo ako su SVI citirani članovi odsutni iz konteksta (halucinacija)
-    # Ako bar 1 od citiranih članova postoji u kontekstu — odgovor je legitiman
-    if citirani_clanovi and pogodci == 0:
-        logger.warning("HALUCINACIJA: nijedan od %d citiranih članova nije u kontekstu", len(citirani_clanovi))
-        return False, f"Nijedan citiran član ({', '.join(citirani_clanovi[:3])}) nije u dostavljenom kontekstu"
+    # Deduplicate while preserving order
+    vidjeni: set[str] = set()
+    citirani_unique: list[str] = []
+    for c in citirani_raw:
+        if c not in vidjeni:
+            vidjeni.add(c)
+            citirani_unique.append(c)
 
-    # 2) Proveri citat — samo ako nijedan od citiranih članova NIJE pronađen u kontekstu
-    # Ako su svi citirani članovi potvrđeni, dozvoljavamo parafrazirani citat
-    if not citirani_clanovi:
+    # Remove framework template citations (always present in prompts, not from RAG)
+    za_provjeru = [c for c in citirani_unique if c not in _FRAMEWORK_CLANOVI_EXEMPT]
+
+    if za_provjeru:
+        fabrikovani: list[str] = []
+        for clan in za_provjeru:
+            clan_norm = _normalizuj(clan)
+            pattern = rf"lan\s+{re.escape(clan_norm)}(?!\d)"
+            if not re.search(pattern, kontekst_norm):
+                fabrikovani.append(clan)
+
+        if fabrikovani:
+            logger.warning(
+                "HALUCINACIJA v2.0: %d/%d citiranih članova nije u kontekstu: %s",
+                len(fabrikovani), len(za_provjeru), fabrikovani[:5],
+            )
+            clanovi_str = ", ".join(f"Član {c}" for c in fabrikovani[:5])
+            return False, f"{clanovi_str} — citiran ali nije u dostavljenom kontekstu"
+
+    # 2) Citat check — samo kad nema nijednog citiranog broja člana
+    if not citirani_unique:
         match_citat = re.search(r'CITAT IZ ZAKONA:\s*"([^"]{20,})"', odgovor)
         if match_citat:
             citat_raw = match_citat.group(1)
             citat_norm = _normalizuj(citat_raw)[:50].strip()
             if citat_norm and citat_norm not in kontekst_norm:
                 logger.warning("HALUCINACIJA: citat nije pronađen u kontekstu: %s...", citat_norm[:30])
-                return False, f"Citat nije pronađen u dostavljenom kontekstu"
+                return False, "Citat nije pronađen u dostavljenom kontekstu"
 
     return True, "ok"
 
@@ -1861,8 +1891,36 @@ HALLUCINATION_REFUSAL_TEXT = (
     "Generisanje izmišljenih sadržaja članova zakona se kažnjava odbacivanjem celog odgovora."
 )
 
-# Fix 2: harden DEFINICIJA system prompt against article-content fabrication
+# Harden all topic prompts against article-content fabrication (guard v2.0).
+# PARNICA excluded: already has LEGAL FALLBACK for ZOO 154/155 structural citations
+# which conflicts with a blanket ban; PARNICA is guarded by _FRAMEWORK_CLANOVI_EXEMPT at runtime.
+SYSTEM_PROMPT_COMPLIANCE = SYSTEM_PROMPT_COMPLIANCE + "\n\n" + HALLUCINATION_REFUSAL_TEXT
+SYSTEM_PROMPT_PORESKI    = SYSTEM_PROMPT_PORESKI    + "\n\n" + HALLUCINATION_REFUSAL_TEXT
 SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + "\n\n" + HALLUCINATION_REFUSAL_TEXT
+
+
+def _format_halucination_block(razlog: str) -> str:
+    """Korisnička poruka kada guard v2.0 detektuje fabricated article citation."""
+    return (
+        "[!] STATUSNA POTVRDA: Opšta pravna logika — nema direktnog člana u bazi za ovo pitanje.\n\n"
+        "--- HIJERARHIJA IZVORA\n"
+        "Sistem nije mogao da verifikuje navedene pravne reference u dostupnoj bazi zakona RS.\n\n"
+        "--- PRAVNI ZAKLJUČAK\n"
+        "Odgovor je blokiran jer su detektovane pravne reference koje nisu potkrepljene "
+        "direktnim citatom iz indeksiranih zakona. Vindex AI primenjuje politiku nultog "
+        "tolerancija na neproverene navode članova zakona.\n\n"
+        "--- PREPORUKE\n"
+        "— Navedite tačan broj člana i naziv zakona (npr. \"ZR čl. 161\") za direktan pregled\n"
+        "— Reformulišite pitanje sa više pravnog konteksta\n"
+        "— Konsultujte primarni izvor: Paragraf.rs ili Sl. glasnik RS\n\n"
+        "--- CITAT ZAKONA [RAG]\n"
+        "[—]\n\n"
+        "--- IZVOR\n"
+        f"Anti-halucinacijska zaštita: {razlog[:100]}\n\n"
+        "⚠️ Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. "
+        "Konsultujte originalni tekst propisa u Službenom glasniku RS. "
+        "Nije pravni savet — podložno promenama u sudskoj praksi."
+    )
 
 
 def _format_refusal(article: str, law: str | None) -> str:
@@ -2118,7 +2176,13 @@ def ask_agent(
 
             validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
             if not validan:
-                logger.warning("[MEDIUM] Halucinacija — logujem, nastavljam [q=%s] razlog=%s", log_id, razlog)
+                logger.warning("[MEDIUM→BLOCK] Halucinacija v2.0 — hard block [q=%s] razlog=%s", log_id, razlog)
+                return {
+                    "status": "success",
+                    "data": _format_halucination_block(razlog),
+                    "confidence": "LOW", "top_score": top_score,
+                    "top_article": top_article, "top_law": top_law,
+                }
 
             pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
             if not pravno_validan:
@@ -2198,6 +2262,17 @@ def ask_agent(
             except Exception:
                 logger.exception("MEDIUM downgrade LLM greška [q=%s]", log_id)
                 return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
+
+            # Re-check hallucination on downgraded response — hard block if still fabricating
+            validan_dg, razlog_dg = _proveri_halucinaciju(odgovor, filtrirani)
+            if not validan_dg:
+                logger.warning("[DOWNGRADE→BLOCK] Halucinacija v2.0 posle downgrade [q=%s] razlog=%s", log_id, razlog_dg)
+                return {
+                    "status": "success",
+                    "data": _format_halucination_block(razlog_dg),
+                    "confidence": "LOW", "top_score": top_score,
+                    "top_article": top_article, "top_law": top_law,
+                }
 
         pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
         if not pravno_validan:
