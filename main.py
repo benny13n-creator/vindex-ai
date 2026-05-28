@@ -1316,6 +1316,23 @@ Za kompletnu ocenu usklađenosti potrebne su:
 ⚠️ Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. Konsultujte originalni tekst propisa u Službenom glasniku RS. Nije pravni savet — podložno promenama u sudskoj praksi.
 
 ══════════════════════════════════════════
+JSON POLJA — MAPIRANJE SEKCIJA
+══════════════════════════════════════════
+Odgovor generiši kao JSON objekat. Mapiranje sekcija → JSON polja:
+"statusna_potvrda_status" → "ok"|"warn"|"err"  (ok=[✓], warn=[~], err=[!])
+"statusna_potvrda_tekst" → tekst statusne potvrde
+"hijerarhija_izvora" → sadržaj --- HIJERARHIJA IZVORA
+"pravni_zakljucak" → sadržaj --- PRAVNI ZAKLJUČAK
+"analiza_uskladjenosti" → sadržaj --- ANALIZA USKLAĐENOSTI
+"citat_zakona" → sadržaj --- CITAT ZAKONA [RAG] [VERBATIM IZ KONTEKSTA ILI "[—]" — NIKAD FABRICIRAJ]
+"pravni_osnov" → sadržaj --- PRAVNI OSNOV [ISKLJUČIVO VERIFIKOVANO IZ KONTEKSTA]
+"rizici_i_rokovi" → sadržaj --- RIZICI I ROKOVI
+"compliance_koraci" → sadržaj --- COMPLIANCE KORACI
+"kljucno_pitanje" → sadržaj --- KLJUČNO PITANJE
+"potrebne_informacije" → sadržaj --- POTREBNE INFORMACIJE
+"izvor" → sadržaj --- IZVOR (zakoni bez ⚠️ napomene)
+
+══════════════════════════════════════════
 APSOLUTNE ZABRANE:
 ══════════════════════════════════════════
 - "..." u zakonskom citatu (ikad, bez izuzetka)
@@ -1412,6 +1429,23 @@ Za kompletnu poresku analizu potrebne su:
 [Puni naziv zakona 2] ([Sl. glasnik RS, br. X/GGGG])
 
 ⚠️ Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. Konsultujte originalni tekst propisa u Službenom glasniku RS. Nije pravni savet — podložno promenama u sudskoj praksi.
+
+══════════════════════════════════════════
+JSON POLJA — MAPIRANJE SEKCIJA
+══════════════════════════════════════════
+Odgovor generiši kao JSON objekat. Mapiranje sekcija → JSON polja:
+"statusna_potvrda_status" → "ok"|"warn"|"err"  (ok=[✓], warn=[~], err=[!])
+"statusna_potvrda_tekst" → tekst statusne potvrde
+"hijerarhija_izvora" → sadržaj --- HIJERARHIJA IZVORA
+"pravni_zakljucak" → sadržaj --- PRAVNI ZAKLJUČAK
+"analiza_poreske_obaveze" → sadržaj --- ANALIZA PORESKE OBAVEZE
+"citat_zakona" → sadržaj --- CITAT ZAKONA [RAG] [VERBATIM IZ KONTEKSTA ILI "[—]" — NIKAD FABRICIRAJ]
+"pravni_osnov" → sadržaj --- PRAVNI OSNOV [ISKLJUČIVO VERIFIKOVANO IZ KONTEKSTA]
+"poreski_rizici" → sadržaj --- PORESKI RIZICI
+"poreske_obaveze_koraci" → sadržaj --- PORESKE OBAVEZE — KORACI
+"kljucno_pitanje" → sadržaj --- KLJUČNO PITANJE
+"potrebne_informacije" → sadržaj --- POTREBNE INFORMACIJE
+"izvor" → sadržaj --- IZVOR (zakoni bez ⚠️ napomene)
 
 ══════════════════════════════════════════
 APSOLUTNE ZABRANE:
@@ -1557,6 +1591,25 @@ Za kompletnu ocenu slučaja potrebne su:
 ⚠️ Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. Konsultujte originalni tekst propisa u Službenom glasniku RS. Nije pravni savet — podložno promenama u sudskoj praksi.
 
 ══════════════════════════════════════════
+JSON POLJA — MAPIRANJE SEKCIJA
+══════════════════════════════════════════
+Odgovor generiši kao JSON objekat. Mapiranje sekcija → JSON polja:
+"statusna_potvrda_status" → "ok"|"warn"|"err"  (ok=[✓], warn=[~], err=[!])
+"statusna_potvrda_tekst" → tekst statusne potvrde
+"hijerarhija_izvora" → sadržaj --- HIJERARHIJA IZVORA
+"pravni_zakljucak" → sadržaj --- PRAVNI ZAKLJUČAK
+"analiza_stete" → sadržaj --- ANALIZA ŠTETE
+"procena_vrednosti" → sadržaj --- PROCENA VREDNOSTI ZAHTEVA
+"citat_zakona" → sadržaj --- CITAT ZAKONA [RAG] [VERBATIM IZ KONTEKSTA ILI "[—]" — NIKAD FABRICIRAJ]
+"pravni_osnov" → sadržaj --- PRAVNI OSNOV [ISKLJUČIVO VERIFIKOVANO IZ KONTEKSTA]
+"rizici_i_izuzeci" → sadržaj --- RIZICI I IZUZECI
+"kada_ne_vazi" → sadržaj --- KADA OVO NE VAŽI
+"procesni_koraci" → sadržaj --- PROCESNI KORACI
+"kljucno_pitanje" → sadržaj --- KLJUČNO PITANJE
+"potrebne_informacije" → sadržaj --- POTREBNE INFORMACIJE
+"izvor" → sadržaj --- IZVOR (zakoni bez ⚠️ napomene)
+
+══════════════════════════════════════════
 APSOLUTNE ZABRANE:
 ══════════════════════════════════════════
 - "..." u zakonskom tekstu (ikad)
@@ -1626,6 +1679,20 @@ NEMA apstraktnih primera. Maksimum 3 rečenice.]
 [Puni naziv zakona 2] ([Sl. glasnik RS, br. X/GGGG])
 
 ⚠️ Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. Konsultujte originalni tekst propisa u Službenom glasniku RS. Nije pravni savet — podložno promenama u sudskoj praksi.
+
+══════════════════════════════════════════
+JSON POLJA — MAPIRANJE SEKCIJA
+══════════════════════════════════════════
+Odgovor generiši kao JSON objekat. Mapiranje sekcija → JSON polja:
+"statusna_potvrda_status" → "ok"|"warn"|"err"  (ok=[✓], warn=[~], err=[!])
+"statusna_potvrda_tekst" → tekst statusne potvrde
+"hijerarhija_izvora" → sadržaj --- HIJERARHIJA IZVORA
+"pravni_zakljucak" → sadržaj --- PRAVNI ZAKLJUČAK
+"pravna_definicija" → sadržaj --- PRAVNA DEFINICIJA
+"citat_zakona" → sadržaj --- CITAT ZAKONA [RAG] [VERBATIM IZ KONTEKSTA ILI "[—]" — NIKAD FABRICIRAJ]
+"pravni_osnov" → sadržaj --- PRAVNI OSNOV [ISKLJUČIVO VERIFIKOVANO IZ KONTEKSTA]
+"prakticni_primer" → sadržaj --- PRAKTIČNI PRIMER
+"izvor" → sadržaj --- IZVOR (zakoni bez ⚠️ napomene)
 
 ══════════════════════════════════════════
 APSOLUTNE ZABRANE:
@@ -1848,18 +1915,22 @@ def _pozovi_openai(
     user_content: str,
     model: str = "gpt-4o",
     max_tokens: int = 1000,
+    response_format: dict | None = None,
 ) -> str:
     """OpenAI poziv sa timeoutom i ograničenjem tokena. Baca izuzetak pri grešci."""
-    odgovor = _get_client().chat.completions.create(
-        model=model,
-        messages=[
+    kwargs: dict = {
+        "model": model,
+        "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ],
-        temperature=0,
-        max_tokens=max_tokens,
-        timeout=25.0,
-    )
+        "temperature": 0,
+        "max_tokens": max_tokens,
+        "timeout": 25.0,
+    }
+    if response_format is not None:
+        kwargs["response_format"] = response_format
+    odgovor = _get_client().chat.completions.create(**kwargs)
     return (odgovor.choices[0].message.content or "").strip()
 
 
@@ -1940,6 +2011,256 @@ def _format_halucination_block(razlog: str) -> str:
         "Konsultujte originalni tekst propisa u Službenom glasniku RS. "
         "Nije pravni savet — podložno promenama u sudskoj praksi."
     )
+
+
+# ─── Commit 3/3: Structured JSON output schemas ──────────────────────────────
+
+_JSON_SCHEMA_PARNICA = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "vindex_parnica",
+        "strict": False,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "statusna_potvrda_status": {"type": "string"},
+                "statusna_potvrda_tekst":  {"type": "string"},
+                "hijerarhija_izvora":      {"type": "string"},
+                "pravni_zakljucak":        {"type": "string"},
+                "analiza_stete":           {"type": "string"},
+                "procena_vrednosti":       {"type": "string"},
+                "citat_zakona":            {"type": "string"},
+                "pravni_osnov":            {"type": "string"},
+                "rizici_i_izuzeci":        {"type": "string"},
+                "kada_ne_vazi":            {"type": "string"},
+                "procesni_koraci":         {"type": "string"},
+                "kljucno_pitanje":         {"type": "string"},
+                "potrebne_informacije":    {"type": "string"},
+                "izvor":                   {"type": "string"},
+            },
+            "required": [
+                "statusna_potvrda_status", "statusna_potvrda_tekst",
+                "hijerarhija_izvora", "pravni_zakljucak",
+                "analiza_stete", "citat_zakona", "pravni_osnov",
+                "rizici_i_izuzeci", "kada_ne_vazi", "procesni_koraci",
+                "kljucno_pitanje", "potrebne_informacije", "izvor",
+            ],
+        },
+    },
+}
+
+_JSON_SCHEMA_COMPLIANCE = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "vindex_compliance",
+        "strict": False,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "statusna_potvrda_status": {"type": "string"},
+                "statusna_potvrda_tekst":  {"type": "string"},
+                "hijerarhija_izvora":      {"type": "string"},
+                "pravni_zakljucak":        {"type": "string"},
+                "analiza_uskladjenosti":   {"type": "string"},
+                "citat_zakona":            {"type": "string"},
+                "pravni_osnov":            {"type": "string"},
+                "rizici_i_rokovi":         {"type": "string"},
+                "compliance_koraci":       {"type": "string"},
+                "kljucno_pitanje":         {"type": "string"},
+                "potrebne_informacije":    {"type": "string"},
+                "izvor":                   {"type": "string"},
+            },
+            "required": [
+                "statusna_potvrda_status", "statusna_potvrda_tekst",
+                "hijerarhija_izvora", "pravni_zakljucak",
+                "analiza_uskladjenosti", "citat_zakona", "pravni_osnov",
+                "rizici_i_rokovi", "compliance_koraci",
+                "kljucno_pitanje", "potrebne_informacije", "izvor",
+            ],
+        },
+    },
+}
+
+_JSON_SCHEMA_PORESKI = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "vindex_poreski",
+        "strict": False,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "statusna_potvrda_status": {"type": "string"},
+                "statusna_potvrda_tekst":  {"type": "string"},
+                "hijerarhija_izvora":      {"type": "string"},
+                "pravni_zakljucak":        {"type": "string"},
+                "analiza_poreske_obaveze": {"type": "string"},
+                "citat_zakona":            {"type": "string"},
+                "pravni_osnov":            {"type": "string"},
+                "poreski_rizici":          {"type": "string"},
+                "poreske_obaveze_koraci":  {"type": "string"},
+                "kljucno_pitanje":         {"type": "string"},
+                "potrebne_informacije":    {"type": "string"},
+                "izvor":                   {"type": "string"},
+            },
+            "required": [
+                "statusna_potvrda_status", "statusna_potvrda_tekst",
+                "hijerarhija_izvora", "pravni_zakljucak",
+                "analiza_poreske_obaveze", "citat_zakona", "pravni_osnov",
+                "poreski_rizici", "poreske_obaveze_koraci",
+                "kljucno_pitanje", "potrebne_informacije", "izvor",
+            ],
+        },
+    },
+}
+
+_JSON_SCHEMA_DEFINICIJA = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "vindex_definicija",
+        "strict": False,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "statusna_potvrda_status": {"type": "string"},
+                "statusna_potvrda_tekst":  {"type": "string"},
+                "hijerarhija_izvora":      {"type": "string"},
+                "pravni_zakljucak":        {"type": "string"},
+                "pravna_definicija":       {"type": "string"},
+                "citat_zakona":            {"type": "string"},
+                "pravni_osnov":            {"type": "string"},
+                "prakticni_primer":        {"type": "string"},
+                "izvor":                   {"type": "string"},
+            },
+            "required": [
+                "statusna_potvrda_status", "statusna_potvrda_tekst",
+                "hijerarhija_izvora", "pravni_zakljucak",
+                "pravna_definicija", "citat_zakona", "pravni_osnov",
+                "prakticni_primer", "izvor",
+            ],
+        },
+    },
+}
+
+_JSON_SCHEMA_MAP: dict[str, dict] = {
+    "PARNICA":    _JSON_SCHEMA_PARNICA,
+    "COMPLIANCE": _JSON_SCHEMA_COMPLIANCE,
+    "PORESKI":    _JSON_SCHEMA_PORESKI,
+    "DEFINICIJA": _JSON_SCHEMA_DEFINICIJA,
+}
+
+_STATUS_SYMBOL_MAP: dict[str, str] = {"ok": "[✓]", "warn": "[~]", "err": "[!]"}
+
+_SISTEM_NAPOMENA = (
+    "⚠️ Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. "
+    "Konsultujte originalni tekst propisa u Službenom glasniku RS. "
+    "Nije pravni savet — podložno promenama u sudskoj praksi."
+)
+
+
+def _json_ka_tekst(data: dict, tip: str) -> str:
+    """Serializes parsed JSON response dict back to the --- marker text format
+    expected by the frontend formatResponse function. Zero UI change."""
+    status_sym = _STATUS_SYMBOL_MAP.get(data.get("statusna_potvrda_status", "err"), "[!]")
+    status_txt = data.get("statusna_potvrda_tekst", "")
+
+    parts: list[str] = [
+        f"{status_sym} STATUSNA POTVRDA: {status_txt}",
+        "",
+        "--- HIJERARHIJA IZVORA",
+        data.get("hijerarhija_izvora", ""),
+        "",
+        "--- PRAVNI ZAKLJUČAK",
+        data.get("pravni_zakljucak", ""),
+    ]
+
+    if tip == "PARNICA":
+        if data.get("analiza_stete"):
+            parts += ["", "--- ANALIZA ŠTETE", data["analiza_stete"]]
+        if data.get("procena_vrednosti"):
+            parts += ["", "--- PROCENA VREDNOSTI ZAHTEVA", data["procena_vrednosti"]]
+    elif tip == "COMPLIANCE":
+        if data.get("analiza_uskladjenosti"):
+            parts += ["", "--- ANALIZA USKLAĐENOSTI", data["analiza_uskladjenosti"]]
+    elif tip == "PORESKI":
+        if data.get("analiza_poreske_obaveze"):
+            parts += ["", "--- ANALIZA PORESKE OBAVEZE", data["analiza_poreske_obaveze"]]
+    elif tip == "DEFINICIJA":
+        if data.get("pravna_definicija"):
+            parts += ["", "--- PRAVNA DEFINICIJA", data["pravna_definicija"]]
+
+    citat = data.get("citat_zakona") or "[—]"
+    parts += ["", "--- CITAT ZAKONA [RAG]", citat]
+    parts += ["", "--- PRAVNI OSNOV", data.get("pravni_osnov", "")]
+
+    if tip == "PARNICA":
+        if data.get("rizici_i_izuzeci"):
+            parts += ["", "--- RIZICI I IZUZECI", data["rizici_i_izuzeci"]]
+        if data.get("kada_ne_vazi"):
+            parts += ["", "--- KADA OVO NE VAŽI", data["kada_ne_vazi"]]
+        if data.get("procesni_koraci"):
+            parts += ["", "--- PROCESNI KORACI", data["procesni_koraci"]]
+    elif tip == "COMPLIANCE":
+        if data.get("rizici_i_rokovi"):
+            parts += ["", "--- RIZICI I ROKOVI", data["rizici_i_rokovi"]]
+        if data.get("compliance_koraci"):
+            parts += ["", "--- COMPLIANCE KORACI", data["compliance_koraci"]]
+    elif tip == "PORESKI":
+        if data.get("poreski_rizici"):
+            parts += ["", "--- PORESKI RIZICI", data["poreski_rizici"]]
+        if data.get("poreske_obaveze_koraci"):
+            parts += ["", "--- PORESKE OBAVEZE — KORACI", data["poreske_obaveze_koraci"]]
+
+    if data.get("kljucno_pitanje"):
+        parts += ["", "--- KLJUČNO PITANJE", data["kljucno_pitanje"]]
+    if data.get("potrebne_informacije"):
+        parts += ["", "--- POTREBNE INFORMACIJE", data["potrebne_informacije"]]
+
+    parts += [
+        "",
+        "--- IZVOR",
+        data.get("izvor", ""),
+        "",
+        _SISTEM_NAPOMENA,
+    ]
+
+    return "\n".join(parts)
+
+
+def _parsiraj_strukturni_odgovor(
+    raw_json: str,
+    tip: str,
+    docs: list[str],
+) -> tuple[bool, str]:
+    """
+    Parse JSON response from LLM (Commit 3/3 structured output).
+    Runs hallucination guard on citat_zakona + pravni_osnov + pravni_zakljucak.
+    Returns (success, text):
+      success=True  → text is serialized ---marker format
+      success=False → text is hallucination block message
+    """
+    import json as _json
+    try:
+        data = _json.loads(raw_json)
+    except Exception as exc:
+        logger.warning("[COMMIT3] JSON parse greška [tip=%s]: %s", tip, exc)
+        return False, _format_halucination_block(f"JSON parse greška: {exc}")
+
+    # Build guard text from structured citation fields
+    guard_parts = [
+        data.get("citat_zakona", ""),
+        data.get("pravni_osnov", ""),
+        data.get("pravni_zakljucak", ""),
+    ]
+    guard_text = "\n".join(p for p in guard_parts if p)
+
+    validan, razlog = _proveri_halucinaciju(guard_text, docs)
+    if not validan:
+        logger.warning(
+            "[COMMIT3] Strukturni guard blok [tip=%s] razlog=%s", tip, razlog
+        )
+        return False, _format_halucination_block(razlog)
+
+    return True, _json_ka_tekst(data, tip)
 
 
 # ─── NACRT RAG context hints (Commit 2/3) ────────────────────────────────────
@@ -2298,17 +2619,20 @@ def ask_agent(
                 f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
             )
             try:
-                odgovor = _pozovi_openai(system_prompt, user_content, model=_model, max_tokens=_max_tokens)
+                _raw_med = _pozovi_openai(
+                    system_prompt, user_content, model=_model, max_tokens=_max_tokens,
+                    response_format=_JSON_SCHEMA_MAP.get(tip),
+                )
             except Exception:
                 logger.exception("MEDIUM LLM greška [q=%s]", log_id)
                 return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
-            validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
-            if not validan:
-                logger.warning("[MEDIUM→BLOCK] Halucinacija v2.0 — hard block [q=%s] razlog=%s", log_id, razlog)
+            _json_ok_med, odgovor = _parsiraj_strukturni_odgovor(_raw_med, tip, filtrirani)
+            if not _json_ok_med:
+                logger.warning("[MEDIUM→BLOCK] Commit3 guard [q=%s]", log_id)
                 return {
                     "status": "success",
-                    "data": _format_halucination_block(razlog),
+                    "data": odgovor,
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": top_article, "top_law": top_law,
                 }
@@ -2342,28 +2666,33 @@ def ask_agent(
             f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
         )
         try:
-            odgovor = _pozovi_openai(system_prompt, user_content, model=_model, max_tokens=_max_tokens)
+            _raw_high = _pozovi_openai(
+                system_prompt, user_content, model=_model, max_tokens=_max_tokens,
+                response_format=_JSON_SCHEMA_MAP.get(tip),
+            )
         except Exception:
             logger.exception("HIGH LLM greška [q=%s]", log_id)
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
+        _json_ok_high, odgovor = _parsiraj_strukturni_odgovor(_raw_high, tip, filtrirani)
+
         # Soft section check — log only, do not discard
-        if not _ima_obavezne_sekcije(odgovor, aktivan_sekcije):
+        if _json_ok_high and not _ima_obavezne_sekcije(odgovor, aktivan_sekcije):
             logger.warning("[HIGH] Nedostaju obavezne sekcije [tip=%s, q=%s]", tip, log_id)
 
         # Anti-hallucination + topic drift → downgrade to MEDIUM LLM if either fails.
         # Fix 3: when KORAK 1.5 found ground truth, skip downgrade — we have the real
         # article in context so hallucination/drift checks are unreliable noise here.
+        # Commit 3/3: structural guard replaces _proveri_halucinaciju for citation check.
         _downgrade = False
-        validan, razlog = _proveri_halucinaciju(odgovor, filtrirani)
-        if not validan:
+        if not _json_ok_high:
             if _korak_15_authoritative:
                 logger.info(
-                    "[HIGH] Anti-halucinacija — ignorisano, KORAK 1.5 autoritativan [q=%s] razlog=%s",
-                    log_id, razlog,
+                    "[HIGH] Commit3 guard — ignorisano, KORAK 1.5 autoritativan [q=%s]",
+                    log_id,
                 )
             else:
-                logger.warning("[HIGH] Anti-halucinacija → MEDIUM [q=%s] razlog=%s", log_id, razlog)
+                logger.warning("[HIGH] Commit3 guard → MEDIUM [q=%s]", log_id)
                 _downgrade = True
 
         if not _downgrade:
@@ -2387,18 +2716,21 @@ def ask_agent(
                 f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
             )
             try:
-                odgovor = _pozovi_openai(system_prompt, user_content_medium, model=_model, max_tokens=_max_tokens)
+                _raw_dg = _pozovi_openai(
+                    system_prompt, user_content_medium, model=_model, max_tokens=_max_tokens,
+                    response_format=_JSON_SCHEMA_MAP.get(tip),
+                )
             except Exception:
                 logger.exception("MEDIUM downgrade LLM greška [q=%s]", log_id)
                 return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
-            # Re-check hallucination on downgraded response — hard block if still fabricating
-            validan_dg, razlog_dg = _proveri_halucinaciju(odgovor, filtrirani)
-            if not validan_dg:
-                logger.warning("[DOWNGRADE→BLOCK] Halucinacija v2.0 posle downgrade [q=%s] razlog=%s", log_id, razlog_dg)
+            # Re-check via structural guard — hard block if still fabricating
+            _json_ok_dg, odgovor = _parsiraj_strukturni_odgovor(_raw_dg, tip, filtrirani)
+            if not _json_ok_dg:
+                logger.warning("[DOWNGRADE→BLOCK] Commit3 guard posle downgrade [q=%s]", log_id)
                 return {
                     "status": "success",
-                    "data": _format_halucination_block(razlog_dg),
+                    "data": odgovor,
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": top_article, "top_law": top_law,
                 }
