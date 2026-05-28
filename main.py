@@ -1898,6 +1898,25 @@ SYSTEM_PROMPT_COMPLIANCE = SYSTEM_PROMPT_COMPLIANCE + "\n\n" + HALLUCINATION_REF
 SYSTEM_PROMPT_PORESKI    = SYSTEM_PROMPT_PORESKI    + "\n\n" + HALLUCINATION_REFUSAL_TEXT
 SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + "\n\n" + HALLUCINATION_REFUSAL_TEXT
 
+# Harden NACRT + ANALIZA prompts (Commit 2/3).
+_NACRT_ANTIFAB_HEADER = (
+    "\n\n🔒 STROGO PRAVILO ZA NACRT:\n"
+    "- U sekciji PRAVNI OSNOV citiraj ISKLJUČIVO članove navedene u bloku 'DOSTUPNI ZAKONI'.\n"
+    "- NE citiraj članove iz opšteg znanja koji nisu u dostavljenom bloku.\n"
+    "- Ako relevantan član nije u dostavljenom bloku, napiši '[proveriti relevantan član]'.\n"
+)
+
+_ANALIZA_ANTIFAB_HEADER = (
+    "\n\n🔒 STROGO PRAVILO ZA ANALIZU:\n"
+    "- Komentariši ISKLJUČIVO članove koji su EKSPLICITNO navedeni u dostavljenom dokumentu.\n"
+    "- NE uvodi nove članove zakona iz svog znanja koji nisu u dokumentu.\n"
+    "- Ako dokument ne pominje relevantan član, napiši "
+    "'Dokument ne sadrži referencu na primenjivi član' — NE izmišljaj.\n"
+)
+
+SYSTEM_PROMPT_NACRT   = SYSTEM_PROMPT_NACRT   + _NACRT_ANTIFAB_HEADER   + "\n\n" + HALLUCINATION_REFUSAL_TEXT
+SYSTEM_PROMPT_ANALIZA = SYSTEM_PROMPT_ANALIZA + _ANALIZA_ANTIFAB_HEADER + "\n\n" + HALLUCINATION_REFUSAL_TEXT
+
 
 def _format_halucination_block(razlog: str) -> str:
     """Korisnička poruka kada guard v2.0 detektuje fabricated article citation."""
@@ -1921,6 +1940,116 @@ def _format_halucination_block(razlog: str) -> str:
         "Konsultujte originalni tekst propisa u Službenom glasniku RS. "
         "Nije pravni savet — podložno promenama u sudskoj praksi."
     )
+
+
+# ─── NACRT RAG context hints (Commit 2/3) ────────────────────────────────────
+# Maps document type (vrsta) → list of (law_full_name, clan_label) to pre-fetch.
+# Used by ask_nacrt to inject verified article text before LLM call.
+_NACRT_DOC_TYPE_HINTS: dict[str, list[tuple[str, str]]] = {
+    "ugovor_neodredjeno": [
+        ("zakon o radu", "Član 30"),    # Sadržaj ugovora o radu
+        ("zakon o radu", "Član 36"),    # Probni rad — max 6 meseci
+        ("zakon o radu", "Član 161"),   # Zabrana konkurencije za vreme rada
+        ("zakon o radu", "Član 162"),   # Zabrana konkurencije posle prestanka
+        ("zakon o radu", "Član 189"),   # Otkazni rok
+    ],
+    "ugovor_odredjeno": [
+        ("zakon o radu", "Član 37"),    # Ugovor na određeno vreme — max 24 meseca
+        ("zakon o radu", "Član 30"),    # Sadržaj ugovora
+        ("zakon o radu", "Član 36"),    # Probni rad
+    ],
+    "aneks": [
+        ("zakon o radu", "Član 171"),   # Ponuda za izmenu uslova rada
+        ("zakon o radu", "Član 172"),   # Izmena uslova rada — aneks forma
+    ],
+    "sporazumni_raskid": [
+        ("zakon o radu", "Član 177"),   # Sporazumni prestanak radnog odnosa
+    ],
+    "punomocje": [
+        ("zakon o obligacionim odnosima", "Član 85"),   # Opunomoćenje — sadržaj
+        ("zakon o obligacionim odnosima", "Član 86"),   # Obim punomoćja
+    ],
+}
+
+
+def _dohvati_nacrt_kontekst(vrsta: str) -> list[str]:
+    """
+    Fetch relevant law articles from Pinecone for a given NACRT document type.
+    Uses _direktan_fetch_clana + _formatiraj_match — reuse existing infra.
+    Returns list of formatted article strings. Empty list if vrsta unknown or fetch fails.
+    Max 2 chunks per article to avoid context bloat.
+    """
+    hints = _NACRT_DOC_TYPE_HINTS.get(vrsta, [])
+    if not hints:
+        logger.info("[NACRT_RAG] Nema hints za vrsta=%s — skip RAG inject", vrsta)
+        return []
+
+    rezultati: list[str] = []
+    for zakon, clan_label in hints:
+        try:
+            matches = _direktan_fetch_clana(clan_label, zakon)
+            for m in matches[:2]:
+                tekst = _formatiraj_match(m)
+                if tekst and len(tekst.strip()) > 30:
+                    rezultati.append(tekst)
+        except Exception:
+            logger.warning("[NACRT_RAG] Neuspešan fetch %s %s — preskačem", zakon, clan_label)
+            continue
+
+    logger.info("[NACRT_RAG] vrsta=%s → %d docs fetched", vrsta, len(rezultati))
+    return rezultati
+
+
+# ─── ANALIZA doc-only citation guard (Commit 2/3) ─────────────────────────────
+
+def _ekstrahuj_clanove_iz_dokumenta(tekst: str) -> frozenset[str]:
+    """
+    Extract all article number strings from uploaded document text.
+    Matches: "Član N", "Članu N", "Člana N", "čl. N", "čl N" (Serbian forms).
+    Returns frozenset of article number strings (e.g. frozenset({"162", "161a"})).
+    """
+    found: set[str] = set()
+    # Primary: "Član"/"Članu"/"Člana"/"Čl." case-insensitive oblique forms
+    for m in re.finditer(r"[Čč]lan(?:u|a|om|ovi|ovima|ove)?\s+(\d+[a-zA-Z]?)", tekst):
+        found.add(m.group(1))
+    # Secondary: "čl. N" / "čl N" abbreviated form
+    for m in re.finditer(r"[Čč]l\.?\s+(\d+[a-zA-Z]?)", tekst):
+        found.add(m.group(1))
+    return frozenset(found)
+
+
+def _proveri_analiza_citate(analiza_output: str, allowed_articles: frozenset[str]) -> tuple[bool, str]:
+    """
+    ANALIZA doc-only citation guard.
+    Every article cited in analiza_output must be in allowed_articles (from uploaded document).
+    Returns (validan, razlog).
+
+    If allowed_articles is empty: any article citation → invalid.
+    Design: guards against LLM adding new legal framework not present in the document.
+    """
+    citirani_raw = re.findall(r"[Čč]lan\s+(\d+[a-zA-Z]?)", analiza_output)
+
+    # Deduplicate preserving order
+    vidjeni: set[str] = set()
+    citirani_unique: list[str] = []
+    for c in citirani_raw:
+        if c not in vidjeni:
+            vidjeni.add(c)
+            citirani_unique.append(c)
+
+    if not citirani_unique:
+        return True, "ok"  # No article citations in output → nothing to check
+
+    novi = [c for c in citirani_unique if c not in allowed_articles]
+    if novi:
+        logger.warning(
+            "[ANALIZA_GUARD] %d/%d citiranih članova van dokumenta: %s",
+            len(novi), len(citirani_unique), novi[:5],
+        )
+        clanovi_str = ", ".join(f"Član {c}" for c in novi[:5])
+        return False, f"{clanovi_str} — nije u dostavljenom dokumentu"
+
+    return True, "ok"
 
 
 def _format_refusal(article: str, law: str | None) -> str:
@@ -2304,14 +2433,48 @@ def ask_agent(
 
 
 def ask_nacrt(vrsta: str, opis: str) -> dict:
-    """Generisanje nacrta pravnog dokumenta."""
+    """
+    Generisanje nacrta pravnog dokumenta.
+    Guard v2.0 (Commit 2/3): RAG inject before LLM + _proveri_halucinaciju after.
+    """
     try:
+        # T1: Fetch RAG context for this document type (NACRT guard, Commit 2/3)
+        kontekst_docs = _dohvati_nacrt_kontekst(vrsta)
+
         # PII stripping pre slanja na OpenAI (Basic API tier — bez DPA)
         user_content = (
             f"Vrsta dokumenta: {vrsta}\n\n"
             f"Činjenice i okolnosti: {_skini_pii(opis)}"
         )
+
+        # T1: Inject verified article texts as context block (only if fetched)
+        if kontekst_docs:
+            retrieved_text = "\n\n---\n\n".join(kontekst_docs)
+            user_content = (
+                f"DOSTUPNI ZAKONI (citiraj ISKLJUČIVO ove u sekciji PRAVNI OSNOV):\n\n"
+                f"{retrieved_text}\n\n"
+                f"---\n\n"
+                + user_content
+            )
+
         odgovor = _pozovi_openai(SYSTEM_PROMPT_NACRT, user_content)
+
+        # T1: Guard — hard block if fabricated articles detected in output
+        if kontekst_docs:
+            validan, razlog = _proveri_halucinaciju(odgovor, kontekst_docs)
+            if not validan:
+                logger.warning("[NACRT→BLOCK] Halucinacija v2.0 [vrsta=%s] razlog=%s", vrsta, razlog)
+                return {
+                    "status": "success",
+                    "data": (
+                        "[!] UPOZORENJE: Sistem je detektovao pravne reference koje nisu "
+                        "verifikovane u dostupnoj bazi zakona RS.\n\n"
+                        f"Neproverene reference: {razlog[:150]}\n\n"
+                        "Neke pravne reference u nacrtu nisu mogle biti verifikovane i "
+                        "uklonjene su. Proverite ručno sve pravne osnove pre upotrebe.\n\n"
+                        "Preporučujemo regenerisanje nacrta ili konsultaciju sa advokatom."
+                    ),
+                }
 
         # Provera poznatih pravnih grešaka
         pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
@@ -2327,16 +2490,41 @@ def ask_nacrt(vrsta: str, opis: str) -> dict:
 
 
 def ask_analiza(tekst: str, pitanje: str = "") -> dict:
-    """Analiza pravnog dokumenta."""
+    """
+    Analiza pravnog dokumenta.
+    Guard v2.0 (Commit 2/3): doc-only citation ban via _proveri_analiza_citate.
+    """
     try:
         # PII stripping pre slanja — dokument može sadržati JMBG, adrese, imena stranaka
         tekst_api = _skini_pii(tekst)
         pitanje_api = _skini_pii(pitanje)
+
+        # T3: Extract all article citations from uploaded document (before LLM call)
+        allowed_articles = _ekstrahuj_clanove_iz_dokumenta(tekst_api)
+        logger.info("[ANALIZA] Allowed articles from document: %s", sorted(allowed_articles)[:15])
+
         user_content = ""
         if pitanje_api.strip():
             user_content += f"SPECIFIČNO PITANJE: {pitanje_api.strip()}\n\n"
         user_content += f"DOKUMENT ZA ANALIZU:\n{tekst_api}"
         odgovor = _pozovi_openai(SYSTEM_PROMPT_ANALIZA, user_content)
+
+        # T3: Guard — only allow articles that were in the uploaded document
+        validan, razlog = _proveri_analiza_citate(odgovor, allowed_articles)
+        if not validan:
+            logger.warning("[ANALIZA→BLOCK] Halucinacija — novi članovi van dokumenta: %s", razlog)
+            return {
+                "status": "success",
+                "data": (
+                    "[!] ANALIZA BLOKIRANA: Sistem je detektovao pravne reference "
+                    "koje nisu sadržane u dostavljenom dokumentu.\n\n"
+                    f"Neproverene reference: {razlog[:200]}\n\n"
+                    "Analiza je sadržala reference koje nisu u dostavljenom dokumentu. "
+                    "Sistem ne dodaje nove pravne reference pri analizi.\n\n"
+                    "Preporučujemo: eksplicitno navedite relevantne zakonske odredbe u "
+                    "dokumentu, ili se obratite advokatu za pravnu analizu."
+                ),
+            }
 
         # Provera poznatih pravnih grešaka
         pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)

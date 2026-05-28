@@ -1,11 +1,11 @@
 # VINDEX_HALLUCINATION_FREE_TEST — Confidence-gated pipeline
-Datum: 2026-05-27 | Index: vindex-ai | Thresholds: HIGH≥0.65 MEDIUM≥0.52 | Cache: BYPASS (--no-cache)
+Datum: 2026-05-28 | Index: vindex-ai | Thresholds: HIGH≥0.65 MEDIUM≥0.52 | Cache: BYPASS (--no-cache)
 
 ---
 
 ## Q1. Koja je kazna za osnovnu krađu?
 
-**Pouzdanost:** HIGH | **Score:** 0.6547 | **Vreme:** 25.4s
+**Pouzdanost:** HIGH | **Score:** 0.6547 | **Vreme:** 33.8s
 
 **Meta:** Zakon: `KZ` | Član: `Član 210`
 
@@ -25,11 +25,9 @@ kazniće se
 Lex specialis: Krivični zakonik (KZ) ima prednost nad ZOO za ovu oblast.  
   
 --- PRAVNI ZAKLJUČAK  
-Postoji verovatan pravni osnov za kaznu za osnovnu krađu prema Krivičnom zakoniku čl. 203, uz ispunjenje zakonskih uslova.  
+Postoji verovatan pravni osnov za kaznu za osnovnu krađu prema Krivičnom zakoniku, član 203, stav 1, uz ispunjenje zakonskih uslova.  
 Vrsta odgovornosti: krivična  
-Šta podnosilac MORA dokazati — namera da se pribavi protivpravna imovinska korist i protivpravno oduzimanje tuđe pokretne stvari.  
-  
---- ANALIZA ŠTET
+Šta podnosilac MORA dokazati — navesti tačne elemente: protivpravno oduzimanje tuđe pokretne stvari u nameri da se pribavi protivpravna i
 ```
 
 **Self-evaluation:** ✅
@@ -40,7 +38,7 @@ Vrsta odgovornosti: krivična
 
 ## Q2. Koja je razlika između krađe i razbojništva?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.5203 | **Vreme:** 51.0s
+**Pouzdanost:** MEDIUM | **Score:** 0.5203 | **Vreme:** 26.3s
 
 **Meta:** Zakon: `KZ` | Član: `Član 204`
 
@@ -71,7 +69,7 @@ Vrsta odgovornosti: krivična
 
 ## Q3. Koja je kazna za tešku krađu?
 
-**Pouzdanost:** HIGH | **Score:** 0.6618 | **Vreme:** 26.8s
+**Pouzdanost:** HIGH | **Score:** 0.6618 | **Vreme:** 22.8s
 
 **Meta:** Zakon: `KZ` | Član: `Član 379`
 
@@ -90,9 +88,9 @@ Lex specialis: Krivični zakonik (KZ) ima prednost nad ZOO za ovu oblast.
   
 --- PRAVNI ZAKLJUČAK  
 Postoji verovatan pravni osnov za kaznu zatvora za tešku krađu prema Krivičnom zakoniku, član 204, uz ispunjenje zakonskih uslova.  
-Vrsta odgovornosti: krivična  
+Vrsta odgovornosti: Krivična odgovornost  
 Šta podnosilac MORA dokazati — navesti tačne elemente:   
-• Da je krađa izvršena na jedan od načina predviđenih članom 204, stav 1 (npr. obij
+- Da je krađa izvršena na jedan od načina predviđenih članom 204, stav 
 ```
 
 **Self-evaluation:** ✅
@@ -103,7 +101,7 @@ Vrsta odgovornosti: krivična
 
 ## Q4. Šta je pronevera u službi i koja je kazna?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.5896 | **Vreme:** 15.9s
+**Pouzdanost:** MEDIUM | **Score:** 0.5896 | **Vreme:** 14.8s
 
 **Meta:** Zakon: `KZ` | Član: `Član 365`
 
@@ -124,7 +122,7 @@ Lex specialis: Krivični zakonik (KZ) ima prednost za ovu oblast.
 Pronevera u službi je krivično delo koje se sastoji u neovlašćenom prisvajanju novca, hartija od vrednosti ili drugih stvari poverenih u službi, a kazna je zatvor od šest meseci do pet godina.  
   
 --- PRAVNA DEFINICIJA  
-Pronevera u službi je definisana kao čin kojim se lice neovlašćeno posluži novcem, hartijam
+Pronevera u službi je definisana u Krivičnom zakoniku Republike Srbije, član 364. Ovo krivi
 ```
 
 **Self-evaluation:** ⚠️
@@ -135,7 +133,7 @@ Pronevera u službi je definisana kao čin kojim se lice neovlašćeno posluži 
 
 ## Q5. Kazna za prevaru iznad milion dinara?
 
-**Pouzdanost:** HIGH | **Score:** 0.6556 | **Vreme:** 20.1s
+**Pouzdanost:** HIGH | **Score:** 0.6556 | **Vreme:** 22.3s
 
 **Meta:** Zakon: `KZ` | Član: `Član 208`
 
@@ -157,7 +155,7 @@ Lex specialis: Krivični zakonik (KZ) ima prednost nad ZOO za ovu oblast.
 --- PRAVNI ZAKLJUČAK  
 Postoji verovatan pravni osnov za kaznu zatvora od dve do deset godina i novčanu kaznu za prevaru gde je pribavljena imovinska korist ili naneta šteta u iznosu koji prelazi milion i petsto hiljada dinara prema Krivičnom zakoniku, član 208, stav 4.   
 Vrsta odgovornosti: krivična odgovornost  
-Šta podno
+Podnosila
 ```
 
 **Self-evaluation:** ✅
@@ -168,7 +166,7 @@ Vrsta odgovornosti: krivična odgovornost
 
 ## Q6. Koji su uslovi za uslovnu osudu?
 
-**Pouzdanost:** HIGH | **Score:** 0.6654 | **Vreme:** 17.6s
+**Pouzdanost:** HIGH | **Score:** 0.6654 | **Vreme:** 17.0s
 
 **Meta:** Zakon: `KZ` | Član: `Član 67`
 
@@ -200,7 +198,7 @@ Uslovna osuda je institut kojim sud učiniocu krivičnog dela u
 
 ## Q7. Kazna za vožnju u pijanom stanju?
 
-**Pouzdanost:** HIGH | **Score:** 0.6836 | **Vreme:** 24.0s
+**Pouzdanost:** HIGH | **Score:** 0.6836 | **Vreme:** 23.3s
 
 **Meta:** Zakon: `KZ` | Član: `Član 56`
 
@@ -231,7 +229,7 @@ Vrsta odgovornosti: krivična
 
 ## Q8. Krivično delo nasilja u porodici - definicija i kazna?
 
-**Pouzdanost:** HIGH | **Score:** 0.7082 | **Vreme:** 21.5s
+**Pouzdanost:** HIGH | **Score:** 0.7082 | **Vreme:** 21.4s
 
 **Meta:** Zakon: `KZ` | Član: `Član 194`
 
@@ -251,10 +249,8 @@ Poseban propis: Krivični zakonik — matični zakon za krivična dela.
   
 --- PRAVNI ZAKLJUČAK  
 Postoji verovatan pravni osnov za krivično gonjenje zbog nasilja u porodici prema Krivičnom zakoniku čl. 194, uz ispunjenje zakonskih uslova.  
-Vrsta odgovornosti: Krivična odgovornost  
-Šta podnosilac MORA dokazati — navesti tačne elemente:  
-- Primena nasilja, pretnja ili drsko ponašanje  
-- Ugrožavanje spokoj
+Vrsta odgovornosti: krivična  
+Šta podnosilac MORA dokazati — primena nasilja, pretnja ili drsko ponašanje koje ugrožava spokojstvo, telesni integritet ili duševno s
 ```
 
 **Self-evaluation:** ✅
@@ -265,7 +261,7 @@ Vrsta odgovornosti: Krivična odgovornost
 
 ## Q9. Šta je nužna odbrana po KZ?
 
-**Pouzdanost:** HIGH | **Score:** 0.7413 | **Vreme:** 16.9s
+**Pouzdanost:** HIGH | **Score:** 0.7413 | **Vreme:** 18.1s
 
 **Meta:** Zakon: `KZ` | Član: `Član 19`
 
@@ -280,13 +276,13 @@ Vrsta odgovornosti: Krivična odgovornost
 [✓] STATUSNA POTVRDA: Doslovno citiran — član direktno pronađen u bazi zakona RS.  
   
 --- HIJERARHIJA IZVORA  
-Lex specialis: Krivični zakonik (KZ) ima prednost za ovu oblast.  
+• Lex specialis: Krivični zakonik (KZ) ima prednost za ovu oblast.  
   
 --- PRAVNI ZAKLJUČAK  
 Nužna odbrana je odbrana koja je neophodno potrebna da učinilac od svog dobra ili dobra drugoga odbije istovremen protivpravan napad.  
   
 --- PRAVNA DEFINICIJA  
-Nužna odbrana prema Krivičnom zakoniku Republike Srbije nije krivično delo i definiše se kao odbrana koja je neophodno potrebna da se odbije istovreme
+Nužna odbrana je definisana u Krivičnom zakoniku Republike Srbije, član 19. Prema ovom članu, nužna odbrana nije krivično delo i odnosi se na situac
 ```
 
 **Self-evaluation:** ✅
@@ -297,7 +293,7 @@ Nužna odbrana prema Krivičnom zakoniku Republike Srbije nije krivično delo i 
 
 ## Q10. Kazna za neovlašćenu trgovinu opojnim drogama?
 
-**Pouzdanost:** HIGH | **Score:** 0.7098 | **Vreme:** 25.1s
+**Pouzdanost:** HIGH | **Score:** 0.7098 | **Vreme:** 17.6s
 
 **Meta:** Zakon: `KZ` | Član: `Član 246a`
 
@@ -317,9 +313,9 @@ ili preparate koji su prog
 Lex specialis: Krivični zakonik (KZ) ima prednost nad ZOO za ovu oblast.  
   
 --- PRAVNI ZAKLJUČAK  
-Postoji verovatan pravni osnov za kaznu zatvora za neovlašćenu trgovinu opojnim drogama prema Krivičnom zakoniku čl. 246, uz ispunjenje zakonskih uslova.  
+Postoji verovatan pravni osnov za kaznu zatvora od tri do dvanaest godina za neovlašćenu trgovinu opojnim drogama prema Krivičnom zakoniku čl. 246, st. 1, uz ispunjenje zakonskih uslova.  
 Vrsta odgovornosti: Krivična odgovornost  
-Šta podnosilac MORA dokazati — navesti tačne elemente: neovlašćena proizvodnja, prerada, prodaja, ponuda
+Šta podnosilac MORA dokazati — navesti tačne elemente: neovlašćena proi
 ```
 
 **Self-evaluation:** ✅
@@ -330,7 +326,7 @@ Vrsta odgovornosti: Krivična odgovornost
 
 ## Q11. Kako se utvrđuje nematerijalna šteta?
 
-**Pouzdanost:** HIGH | **Score:** 0.7010 | **Vreme:** 27.0s
+**Pouzdanost:** HIGH | **Score:** 0.7010 | **Vreme:** 30.2s
 
 **Meta:** Zakon: `zakon o obligacionim odnosima` | Član: `Član 200`
 
@@ -350,7 +346,7 @@ Poseban propis: Zakon o obligacionim odnosima — matični zakon za naknadu šte
 --- PRAVNI ZAKLJUČAK  
 Postoji verovatan pravni osnov za zahtev za naknadu nematerijalne štete prema Zakonu o obligacionim odnosima čl. 200, uz ispunjenje zakonskih uslova.  
 Vrsta odgovornosti: vanugovorna  
-Šta podnosilac MORA dokazati — pretrpljene fizičke bolove, duševne bolove zbog umanjenja životne aktivnosti, n
+Šta podnosilac MORA dokazati — postojanje fizičkih ili duševnih bolova, straha, ili povrede prava ličnosti, ka
 ```
 
 **Self-evaluation:** ✅
@@ -361,7 +357,7 @@ Vrsta odgovornosti: vanugovorna
 
 ## Q12. Šta je zastarelost potraživanja i koji su rokovi?
 
-**Pouzdanost:** HIGH | **Score:** 0.6682 | **Vreme:** 26.0s
+**Pouzdanost:** HIGH | **Score:** 0.6682 | **Vreme:** 21.1s
 
 **Meta:** Zakon: `zakon o obligacionim odnosima` | Član: `Član 371`
 
@@ -381,8 +377,8 @@ Poseban propis: Zakon o obligacionim odnosima — matični zakon za obligacione 
 --- PRAVNI ZAKLJUČAK  
 Postoji verovatan pravni osnov za utvrđivanje zastarelosti potraživanja prema Zakonu o obligacionim odnosima, čl. 371, uz ispunjenje zakonskih uslova.  
 Vrsta odgovornosti: obligaciona  
-Šta podnosilac MORA dokazati — postojanje potraživanja i protek zakonskog roka za zastarelost.  
-Sudska pr
+Šta podnosilac MORA dokazati — postojanje potraživanja i protek vremena određenog za zastarelost.  
+Sudska
 ```
 
 **Self-evaluation:** ✅
@@ -393,7 +389,7 @@ Sudska pr
 
 ## Q13. Koji su uslovi za raskid ugovora?
 
-**Pouzdanost:** HIGH | **Score:** 0.6844 | **Vreme:** 19.1s
+**Pouzdanost:** HIGH | **Score:** 0.6844 | **Vreme:** 25.2s
 
 **Meta:** Zakon: `zakon o obligacionim odnosima` | Član: `Član 124`
 
@@ -425,7 +421,7 @@ Raskid ugovora u dvostranim ugovorima može se zahtevati kada jedna strana ne is
 
 ## Q14. Pravo na regres kod osiguravajućih društava?
 
-**Pouzdanost:** LOW | **Score:** 0.5077 | **Vreme:** 9.2s
+**Pouzdanost:** LOW | **Score:** 0.5077 | **Vreme:** 9.7s
 
 **Meta:** Zakon: `ustav republike srbije` | Član: `Član 69`
 
@@ -459,7 +455,7 @@ Preporučujem konsultaciju sa advokatom specijalistom.
 
 ## Q15. Šta je novacija obligacije?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.5908 | **Vreme:** 19.9s
+**Pouzdanost:** MEDIUM | **Score:** 0.5908 | **Vreme:** 25.3s
 
 **Meta:** Zakon: `zakon o obligacionim odnosima` | Član: `Član 348`
 
@@ -491,7 +487,7 @@ Novacija, ili prenov, je definisana u Zakonu o obligacionim odnosima. Prema čla
 
 ## Q16. Otkazni rok kod prestanka radnog odnosa?
 
-**Pouzdanost:** HIGH | **Score:** 0.6974 | **Vreme:** 20.1s
+**Pouzdanost:** HIGH | **Score:** 0.6974 | **Vreme:** 20.8s
 
 **Meta:** Zakon: `zakon o radu` | Član: `Član 189`
 
@@ -524,7 +520,7 @@ Sudska praksa: Nema relevantne suds
 
 ## Q17. Pravo na otpremninu pri tehnološkom višku?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.6419 | **Vreme:** 16.7s
+**Pouzdanost:** MEDIUM | **Score:** 0.6419 | **Vreme:** 20.2s
 
 **Meta:** Zakon: `zakon o radu` | Član: `Član 179`
 
@@ -556,7 +552,7 @@ Pravo na otpremninu pri tehnološkom višku je regulisano Zakonom o radu. Pre ot
 
 ## Q18. Mobing - definicija i pravna zaštita?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.5890 | **Vreme:** 16.4s
+**Pouzdanost:** MEDIUM | **Score:** 0.5890 | **Vreme:** 17.5s
 
 **Meta:** Zakon: `zakon o radu` | Član: `Član 21`
 
@@ -579,7 +575,7 @@ Lex specialis: Zakon o radu ima prednost za ovu oblast.
 Pojam "mobing" nije direktno definisan u dostavljenim izvorima — videti PRAVNI OSNOV.  
   
 --- PRAVNA DEFINICIJA  
-Mobing, kao oblik zlostavljanja na radu, nije eksplicitno definisan u dostavljenim izvorima. Međutim, Zakon o radu u članu 21 zabranjuje uznemiravanje i seksualno uznemiravanje, što može obuhvatiti pon
+Mobing, kao oblik zlostavljanja na radu, nije eksplicitno definisan u dostavljenim zakonima. Međutim, Zakon o radu u članu 21 zabranjuje uznemiravanje i seksualno uznemiravanje, što može obuhvatiti pon
 ```
 
 **Self-evaluation:** ⚠️
@@ -590,7 +586,7 @@ Mobing, kao oblik zlostavljanja na radu, nije eksplicitno definisan u dostavljen
 
 ## Q19. Pravo na naknadu zarade za vreme bolovanja?
 
-**Pouzdanost:** HIGH | **Score:** 0.6832 | **Vreme:** 20.6s
+**Pouzdanost:** HIGH | **Score:** 0.6832 | **Vreme:** 24.4s
 
 **Meta:** Zakon: `zakon o radu` | Član: `Član 115`
 
@@ -622,7 +618,7 @@ Vrsta odgovornosti: radno-pravna
 
 ## Q20. Šta je probni rad i koliko traje?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.6098 | **Vreme:** 18.3s
+**Pouzdanost:** MEDIUM | **Score:** 0.6098 | **Vreme:** 20.9s
 
 **Meta:** Zakon: `zakon o radu` | Član: `Član 36`
 
@@ -654,7 +650,7 @@ Probni rad je definisan Zakonom o radu, član 36. Ugovorom o radu može se ugovo
 
 ## Q21. Uslovi za razvod braka sporazumom?
 
-**Pouzdanost:** HIGH | **Score:** 0.6867 | **Vreme:** 18.6s
+**Pouzdanost:** HIGH | **Score:** 0.6867 | **Vreme:** 14.9s
 
 **Meta:** Zakon: `porodicni zakon` | Član: `Član 40`
 
@@ -686,7 +682,7 @@ Prema Porodičnom zakonu, supružnici mogu razvesti brak sporazumom ako zaključ
 
 ## Q22. Kako se određuje izdržavanje maloletnog deteta?
 
-**Pouzdanost:** HIGH | **Score:** 0.6620 | **Vreme:** 16.3s
+**Pouzdanost:** HIGH | **Score:** 0.6620 | **Vreme:** 14.0s
 
 **Meta:** Zakon: `porodicni zakon` | Član: `Član 160`
 
@@ -718,7 +714,7 @@ Izdržavanje maloletnog deteta se određuje prema potrebama deteta (poverioca iz
 
 ## Q23. Šta je zajednička svojina supružnika?
 
-**Pouzdanost:** HIGH | **Score:** 0.6692 | **Vreme:** 14.3s
+**Pouzdanost:** HIGH | **Score:** 0.6692 | **Vreme:** 13.5s
 
 **Meta:** Zakon: `porodicni zakon` | Član: `Član 171`
 
@@ -739,7 +735,7 @@ Lex specialis: Porodični zakon ima prednost za ovu oblast.
 Zajednička svojina supružnika je imovina koju su supružnici stekli radom tokom trajanja zajednice života u braku.  
   
 --- PRAVNA DEFINICIJA  
-Zajednička svojina supružnika obuhvata imovinu stečenu radom tokom trajanja braka, a supružnici njome upravljaju i raspolažu zajednički i sporazumno. Supružnici mogu bračnim ug
+Zajednička svojina supružnika obuhvata imovinu koju su supružnici stekli radom tokom trajanja braka. Prema Porodičnom zakonu, supružnici upravljaju i raspolažu zajedničkom imov
 ```
 
 **Self-evaluation:** ✅
@@ -750,7 +746,7 @@ Zajednička svojina supružnika obuhvata imovinu stečenu radom tokom trajanja b
 
 ## Q24. Postupak usvojenja maloletnog deteta?
 
-**Pouzdanost:** HIGH | **Score:** 0.6889 | **Vreme:** 17.8s
+**Pouzdanost:** HIGH | **Score:** 0.6889 | **Vreme:** 15.8s
 
 **Meta:** Zakon: `porodicni zakon` | Član: `Član 311`
 
@@ -771,7 +767,7 @@ Lex specialis: Porodični zakon ima prednost za ovu oblast.
 Postupak usvojenja maloletnog deteta pokreće se podnošenjem pismenog zahteva organu starateljstva, uz prateće dokaze o podobnosti deteta i budućih usvojitelja.  
   
 --- PRAVNA DEFINICIJA  
-Postupak usvojenja maloletnog deteta započinje podnošenjem pismenog zahteva organu starateljstva od strane roditelja, staratelja i
+Postupak usvojenja maloletnog deteta može pokrenuti organ starateljstva po službenoj dužnosti, budući usvojitelji ili roditelji/st
 ```
 
 **Self-evaluation:** ✅
@@ -782,7 +778,7 @@ Postupak usvojenja maloletnog deteta započinje podnošenjem pismenog zahteva or
 
 ## Q25. Nasledni red po Zakonu o nasleđivanju?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.6483 | **Vreme:** 43.0s
+**Pouzdanost:** MEDIUM | **Score:** 0.6483 | **Vreme:** 17.4s
 
 **Meta:** Zakon: `zakon o nasledjivanju` | Član: `Član 8`
 
@@ -814,7 +810,7 @@ Nasledni redovi su definisani u Zakonu o nasleđivanju i određuju redosled nasl
 
 ## Q26. Rok za podnošenje žalbe na presudu u parnici?
 
-**Pouzdanost:** HIGH | **Score:** 0.7058 | **Vreme:** 22.3s
+**Pouzdanost:** HIGH | **Score:** 0.7058 | **Vreme:** 20.8s
 
 **Meta:** Zakon: `zakon o parnicnom postupku` | Član: `Član 446`
 
@@ -829,12 +825,12 @@ Nasledni redovi su definisani u Zakonu o nasleđivanju i određuju redosled nasl
 [✓] STATUSNA POTVRDA: Doslovno citiran — član direktno pronađen u bazi zakona RS.  
   
 --- HIJERARHIJA IZVORA  
-Poseban propis: Zakon o parničnom postupku — matični zakon za procesne rokove u parnici.  
+Poseban propis: Zakon o parničnom postupku — matični zakon za parnične postupke.  
   
 --- PRAVNI ZAKLJUČAK  
 Postoji verovatan pravni osnov za podnošenje žalbe na presudu donetu u prvom stepenu u roku od 15 dana od dana dostavljanja prepisa presude, prema Zakonu o parničnom postupku, član 367, uz ispunjenje zakonskih uslova.  
 Vrsta odgovornosti: procesna  
-Šta podnosilac MORA dokazati — da je
+Podnosilac MORA dokazati: blagovremenost pod
 ```
 
 **Self-evaluation:** ✅
@@ -845,7 +841,7 @@ Vrsta odgovornosti: procesna
 
 ## Q27. Šta je revizija u parničnom postupku?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.6405 | **Vreme:** 36.2s
+**Pouzdanost:** MEDIUM | **Score:** 0.6405 | **Vreme:** 23.7s
 
 **Meta:** Zakon: `zakon o parnicnom postupku` | Član: `Član 420`
 
@@ -863,9 +859,9 @@ Vrsta odgovornosti: procesna
 Poseban propis: Zakon o parničnom postupku — matični zakon za parnične postupke.  
   
 --- PRAVNI ZAKLJUČAK  
-Postoji verovatan pravni osnov za izjavljivanje revizije protiv rešenja drugostepenog suda prema Zakonu o parničnom postupku, član 420, uz ispunjenje zakonskih uslova.  
+Postoji verovatan pravni osnov za izjavljivanje revizije protiv rešenja drugostepenog suda kojim je postupak pravnosnažno okončan prema Zakonu o parničnom postupku, član 420, uz ispunjenje zakonskih uslova.  
 Vrsta odgovornosti: procesna  
-Šta podnosilac MORA dokazati — da je rešenje drugostepenog suda kojim je postupak pravnosnažno
+Šta podnosilac MORA dokazati — da je rešenje drugostepe
 ```
 
 **Self-evaluation:** ⚠️
@@ -876,7 +872,7 @@ Vrsta odgovornosti: procesna
 
 ## Q28. Šta je virtuelna valuta po Zakonu o digitalnoj imovini?
 
-**Pouzdanost:** HIGH | **Score:** 0.8066 | **Vreme:** 16.9s
+**Pouzdanost:** HIGH | **Score:** 0.8066 | **Vreme:** 21.7s
 
 **Meta:** Zakon: `zakon o digitalnoj imovini` | Član: `Član 2`
 
@@ -894,9 +890,7 @@ Vrsta odgovornosti: procesna
 Lex specialis: Zakon o digitalnoj imovini ima prednost za ovu oblast.  
   
 --- PRAVNI ZAKLJUČAK  
-Virtuelna valuta je vrsta digitalne imovine koju nije izdala i za čiju vrednost ne garantuje centralna banka ili drugi organ javne vlasti, koja nije nužno vezana za zakonsko sredstvo plaćanja i nema pravni status novca ili valute, ali je fizička ili pravna lica prihvataju kao sredstvo razmene.  
-  
---- PR
+Virtuelna valuta je vrsta digitalne imovine koju nije izdala i za čiju vrednost ne garantuje centralna banka ili drugi organ javne vlasti, koja nije nužno vezana za zakonsko sredstvo plaćanja i nema pravni status novca ili valute, ali je fizička ili pravna lica prihvataju kao sredstvo razmene i može s
 ```
 
 **Self-evaluation:** ✅
@@ -907,7 +901,7 @@ Virtuelna valuta je vrsta digitalne imovine koju nije izdala i za čiju vrednost
 
 ## Q29. Da li je smart contract pravno obavezujući u Srbiji?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.5789 | **Vreme:** 46.2s
+**Pouzdanost:** MEDIUM | **Score:** 0.5789 | **Vreme:** 16.7s
 
 **Meta:** Zakon: `zakon o digitalnoj imovini` | Član: `Član 2`
 
@@ -940,9 +934,9 @@ Pametan ugovor, prema Zakonu o digitalnoj imovini, je kompjuterski program ili p
 
 ## Q30. Šta je beneficium ordinis?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.5363 | **Vreme:** 17.7s
+**Pouzdanost:** MEDIUM | **Score:** 0.5694 | **Vreme:** 15.3s
 
-**Meta:** Zakon: `zakon o obligacionim odnosima` | Član: `Član 134`
+**Meta:** Zakon: `zakon o obligacionim odnosima` | Član: `Član 10`
 
 **Top retrieval matches:**
   1. `zakon o obligacionim odnosima` · **Član 959** (score: 0.4087) — (3) Ipak, ugovarač može opozvati odredbu o koristi i posle izjave korisnika da je prima, ako je kori
@@ -961,18 +955,18 @@ Opšti principi: primenjena opšta građanskopravna načela.
 Pojam "beneficium ordinis" nije direktno definisan u dostavljenim izvorima — videti PRAVNI OSNOV.  
   
 --- PRAVNA DEFINICIJA  
-"Beneficium ordinis" je pravni princip koji se odnosi na pravo jemca da zahteva da poverilac prvo pokuša da naplati dug od glavnog dužnika pre nego što se obrati jemcu. Ovaj princip nije e
+"Beneficium ordinis" je pravni princip koji omogućava dužniku da zahteva da poverilac prvo pokuša da naplati dug od glavnog dužnika pre nego što se obrati jemcu. Ovaj princip nije eksplici
 ```
 
 **Self-evaluation:** ⚠️
 
-**Reasoning:** MEDIUM: hedged odgovor | meta-član: Član 134 | očekivano: Član 1002
+**Reasoning:** MEDIUM: hedged odgovor | meta-član: Član 10 | očekivano: Član 1002
 
 ---
 
 ## Q31. Da li poslodavac može zaposlenom da zabrani konkurentski rad nakon prestanka radnog odnosa ako ugovorom nije predviđena posebna naknada?
 
-**Pouzdanost:** HIGH | **Score:** 0.6944 | **Vreme:** 51.7s
+**Pouzdanost:** HIGH | **Score:** 0.6944 | **Vreme:** 19.6s
 
 **Meta:** Zakon: `zakon o radu` | Član: `Član 162`
 
@@ -992,7 +986,7 @@ Poseban propis: Zakon o radu — matični zakon za radne odnose.
 --- PRAVNI ZAKLJUČAK  
 Postoji verovatan pravni osnov da poslodavac ne može zaposlenom da zabrani konkurentski rad nakon prestanka radnog odnosa bez isplate posebne naknade, prema Zakonu o radu čl. 162.   
 Vrsta odgovornosti: ugovorna  
-Šta podnosilac MORA dokazati — postojanje ugovora o zabrani konkurencije i neisplaćivanje ugovorene 
+Zaposleni mora dokazati postojanje ugovora o zabrani konkurencije i neisplaćivanje ugovorene naknade
 ```
 
 **Self-evaluation:** ✅
@@ -1003,7 +997,7 @@ Vrsta odgovornosti: ugovorna
 
 ## Q32. Koliko dugo može da traje zabrana konkurencije po prestanku radnog odnosa?
 
-**Pouzdanost:** HIGH | **Score:** 0.7130 | **Vreme:** 28.7s
+**Pouzdanost:** HIGH | **Score:** 0.7130 | **Vreme:** 19.8s
 
 **Meta:** Zakon: `zakon o radu` | Član: `Član 162`
 
@@ -1021,11 +1015,9 @@ Vrsta odgovornosti: ugovorna
 Poseban propis: Zakon o radu — matični zakon za radne odnose.  
   
 --- PRAVNI ZAKLJUČAK  
-Postoji verovatan pravni osnov za ugovaranje zabrane konkurencije po prestanku radnog odnosa prema Zakonu o radu čl. 162, uz ispunjenje zakonskih uslova.  
+Postoji verovatan pravni osnov za ugovaranje zabrane konkurencije po prestanku radnog odnosa u trajanju do dve godine prema Zakonu o radu, član 162, uz ispunjenje zakonskih uslova.  
 Vrsta odgovornosti: ugovorna  
-Šta podnosilac MORA dokazati — postojanje ugovora o zabrani konkurencije i isplatu novčane naknade zaposlenom.  
-  
---- ANALIZA ŠTE
+Šta podnosilac MORA dokazati — postojanje ugovora o zabrani konkurencije i isplatu novčane naknade o
 ```
 
 **Self-evaluation:** ✅
@@ -1036,7 +1028,7 @@ Vrsta odgovornosti: ugovorna
 
 ## Q33. Šta je klauzula o zabrani konkurencije u ugovoru o radu?
 
-**Pouzdanost:** HIGH | **Score:** 0.7224 | **Vreme:** 57.3s
+**Pouzdanost:** HIGH | **Score:** 0.7224 | **Vreme:** 18.9s
 
 **Meta:** Zakon: `zakon o radu` | Član: `Član 161`
 
@@ -1067,9 +1059,9 @@ Vrsta odgovornosti: ugovorna
 
 ## Q34. Da li je naknada obavezna kod ugovora o zabrani konkurencije posle prestanka radnog odnosa?
 
-**Pouzdanost:** MEDIUM | **Score:** 0.6192 | **Vreme:** 44.3s
+**Pouzdanost:** HIGH | **Score:** 0.6609 | **Vreme:** 22.5s
 
-**Meta:** Zakon: `zakon o radu` | Član: `Član 162`
+**Meta:** Zakon: `zakon o radu` | Član: `Član 274`
 
 **Top retrieval matches:**
   1. `zakon o radu` · **Član 161** (score: 0.6675) — ugovorom o radu utvrđuje se i teritorijalno važenje zabrane konkurencije, u zavisnosti od vrste posl
@@ -1090,15 +1082,15 @@ Vrsta odgovornosti: ugovorna
 Šta podnosilac MORA dokazati — postojanje ugovora o zabr
 ```
 
-**Self-evaluation:** ⚠️
+**Self-evaluation:** ✅
 
-**Reasoning:** MEDIUM: hedged odgovor | meta-član: Član 162 | očekivano: Član 162
+**Reasoning:** HIGH: tačan član 162 citiran
 
 ---
 
 ## Q35. Može li poslodavac da ugovori zabranu konkurencije za period duži od dve godine?
 
-**Pouzdanost:** HIGH | **Score:** 0.6943 | **Vreme:** 17.8s
+**Pouzdanost:** HIGH | **Score:** 0.6943 | **Vreme:** 21.6s
 
 **Meta:** Zakon: `zakon o radu` | Član: `Član 162`
 
@@ -1116,7 +1108,9 @@ Vrsta odgovornosti: ugovorna
 Poseban propis: Zakon o radu — matični zakon za radne odnose.  
   
 --- PRAVNI ZAKLJUČAK  
-Postoji verovatan pravni osnov da poslodavac ne može ugovoriti zabranu konkurencije za period duži od dve godine prema Zakonu o radu, član 162. Ugovorna odgovornost. Poslodavac i zaposleni mogu ugovoriti zabranu konkurencije, ali ona ne sme trajati duže od dve godine po prestanku radnog odnosa. Zabrana konkur
+Postoji verovatan pravni osnov da poslodavac ne može ugovoriti zabranu konkurencije za period duži od dve godine prema Zakonu o radu čl. 162, uz ispunjenje zakonskih uslova.   
+Vrsta odgovornosti: ugovorna  
+Šta podnosilac MORA dokazati — da je zabrana konkurencije ugovorena u skladu sa zakonom i da poslodavac is
 ```
 
 **Self-evaluation:** ✅
@@ -1133,8 +1127,8 @@ Postoji verovatan pravni osnov da poslodavac ne može ugovoriti zabranu konkuren
 
 | Ocena | Broj | % | Značenje |
 |---|---|---|---|
-| ✅ USPEH       | 23    | 66% | HIGH+tačan ILI LOW odmah odbio |
-| ⚠️ PRIHVATLJIVO | 11    | 31% | MEDIUM hedged odgovor |
+| ✅ USPEH       | 24    | 69% | HIGH+tačan ILI LOW odmah odbio |
+| ⚠️ PRIHVATLJIVO | 10    | 29% | MEDIUM hedged odgovor |
 | ❌ KRITIČNA GREŠKA | 1 | 3% | HIGH+pogrešan član (halucinacija) |
 | ❓ NEPOZNATO   | 0   | 0% | |
 
@@ -1150,7 +1144,7 @@ Postoji verovatan pravni osnov da poslodavac ne može ugovoriti zabranu konkuren
 | Radno pravo | 2 | 3 | 0 | 0 |
 | Porodično pravo i nasleđivanje | 4 | 1 | 0 | 0 |
 | Postupci + Web3 | 2 | 3 | 0 | 0 |
-| Zabrana konkurencije (ZR/161-162) | 4 | 1 | 0 | 0 |
+| Zabrana konkurencije (ZR/161-162) | 5 | 0 | 0 | 0 |
 
 ## Top 5 problematičnih pitanja
 
@@ -1209,7 +1203,7 @@ Postoji verovatan pravni osnov da poslodavac ne može ugovoriti zabranu konkuren
   Meta: Član 2 | Očekivano: Član 2
 
 - **Q30** (KAT6) — Šta je beneficium ordinis?
-  Meta: Član 134 | Očekivano: Član 1002
+  Meta: Član 10 | Očekivano: Član 1002
 
 
 ---
