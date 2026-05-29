@@ -2510,6 +2510,7 @@ def ask_agent(
                 )
                 return {
                     "status": "success",
+                    "blocked": True,
                     "data": _format_refusal(_ref_label, _ref_zakon or top_law),
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": _ref_label, "top_law": _ref_zakon or top_law,
@@ -2632,6 +2633,7 @@ def ask_agent(
                 logger.warning("[MEDIUM→BLOCK] Commit3 guard [q=%s]", log_id)
                 return {
                     "status": "success",
+                    "blocked": True,
                     "data": odgovor,
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": top_article, "top_law": top_law,
@@ -2640,7 +2642,7 @@ def ask_agent(
             pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
             if not pravno_validan:
                 logger.error("Pravna greška MEDIUM: %s", pravna_greska)
-                return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
+                return {"status": "success", "blocked": True, "data": _odgovor_pravna_greska(pravna_greska)}
 
             odgovor = _srpski_termini(odgovor)
             odgovor = _ogranici_pouzdanost(odgovor)
@@ -2730,6 +2732,7 @@ def ask_agent(
                 logger.warning("[DOWNGRADE→BLOCK] Commit3 guard posle downgrade [q=%s]", log_id)
                 return {
                     "status": "success",
+                    "blocked": True,
                     "data": odgovor,
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": top_article, "top_law": top_law,
@@ -2738,7 +2741,7 @@ def ask_agent(
         pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
         if not pravno_validan:
             logger.error("Pravna greška [confidence=%s]: %s", confidence, pravna_greska)
-            return {"status": "success", "data": _odgovor_pravna_greska(pravna_greska)}
+            return {"status": "success", "blocked": True, "data": _odgovor_pravna_greska(pravna_greska)}
 
         odgovor = _srpski_termini(odgovor)
         odgovor = _ogranici_pouzdanost(odgovor)
