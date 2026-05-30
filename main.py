@@ -1628,6 +1628,13 @@ APSOLUTNE ZABRANE:
 - Rokovi zastarelosti bez citata koji ih potvrđuje
 - Poreske obaveze koje nisu deo spora
 - "ukoliko" → koristiti "ako"; "izvanparnični" → "vanparnični"; "odvjetnik" → "advokat"
+
+🔒 PRAVILO O REFERENCAMA:
+- Polje "pravni_osnov" mora biti KRATAK string, max 200 znakova.
+- Format: "Naziv zakona, član X (Sl. glasnik RS, br. Y/ZZ i dr.)"
+- NIKADA ne generiši listu amandman-brojeva (29/78, 39/85, 45/89, 57/89, 31/93, ...).
+- Skraćenica "i dr." je dovoljna posle prva 2-3 amandmana.
+- Sistemska greška: ako počneš da generišeš dugačku listu Sl. glasnik brojeva, STANI.
 """
 
 SYSTEM_PROMPT_DEFINICIJA = """Ti si Vindex AI — profesionalni pravni referentni sistem za srpsko pravo.
@@ -2042,18 +2049,18 @@ _JSON_SCHEMA_PARNICA = {
             "properties": {
                 "statusna_potvrda_status": {"type": "string"},
                 "statusna_potvrda_tekst":  {"type": "string"},
-                "hijerarhija_izvora":      {"type": "string"},
-                "pravni_zakljucak":        {"type": "string"},
-                "analiza_stete":           {"type": "string"},
-                "procena_vrednosti":       {"type": "string"},
-                "citat_zakona":            {"type": "string"},
-                "pravni_osnov":            {"type": "string"},
-                "rizici_i_izuzeci":        {"type": "string"},
-                "kada_ne_vazi":            {"type": "string"},
-                "procesni_koraci":         {"type": "string"},
-                "kljucno_pitanje":         {"type": "string"},
-                "potrebne_informacije":    {"type": "string"},
-                "izvor":                   {"type": "string"},
+                "hijerarhija_izvora":      {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "pravni_zakljucak":        {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "analiza_stete":           {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "procena_vrednosti":       {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 500 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "citat_zakona":            {"type": "string", "description": "FLAT STRING. Verbatim citat iz konteksta, maks. 500 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "pravni_osnov":            {"type": "string", "description": "KRATKA REFERENCA — FLAT STRING. Format: 'Zakon, član X (Sl. glasnik RS, br. Y/ZZ i dr.)'. BEZ generisanja dugačke liste amandman-brojeva. Maksimalno 200 chars."},
+                "rizici_i_izuzeci":        {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "kada_ne_vazi":            {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "procesni_koraci":         {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "kljucno_pitanje":         {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "potrebne_informacije":    {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "izvor":                   {"type": "string", "description": "FLAT STRING. Format: 'Naziv zakona (Sl. glasnik RS, br. Y/ZZ i dr.)'. Maks. 300 chars. BEZ dugačke liste amandman-brojeva."},
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
@@ -2076,16 +2083,16 @@ _JSON_SCHEMA_COMPLIANCE = {
             "properties": {
                 "statusna_potvrda_status": {"type": "string"},
                 "statusna_potvrda_tekst":  {"type": "string"},
-                "hijerarhija_izvora":      {"type": "string"},
-                "pravni_zakljucak":        {"type": "string"},
-                "analiza_uskladjenosti":   {"type": "string"},
-                "citat_zakona":            {"type": "string"},
-                "pravni_osnov":            {"type": "string"},
-                "rizici_i_rokovi":         {"type": "string"},
-                "compliance_koraci":       {"type": "string"},
-                "kljucno_pitanje":         {"type": "string"},
-                "potrebne_informacije":    {"type": "string"},
-                "izvor":                   {"type": "string"},
+                "hijerarhija_izvora":      {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "pravni_zakljucak":        {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "analiza_uskladjenosti":   {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "citat_zakona":            {"type": "string", "description": "FLAT STRING. Verbatim citat iz konteksta, maks. 500 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "pravni_osnov":            {"type": "string", "description": "KRATKA REFERENCA — FLAT STRING. Format: 'Zakon, član X (Sl. glasnik RS, br. Y/ZZ i dr.)'. BEZ generisanja dugačke liste amandman-brojeva. Maksimalno 200 chars."},
+                "rizici_i_rokovi":         {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "compliance_koraci":       {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "kljucno_pitanje":         {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "potrebne_informacije":    {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "izvor":                   {"type": "string", "description": "FLAT STRING. Format: 'Naziv zakona (Sl. glasnik RS, br. Y/ZZ i dr.)'. Maks. 300 chars. BEZ dugačke liste amandman-brojeva."},
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
@@ -2108,16 +2115,16 @@ _JSON_SCHEMA_PORESKI = {
             "properties": {
                 "statusna_potvrda_status": {"type": "string"},
                 "statusna_potvrda_tekst":  {"type": "string"},
-                "hijerarhija_izvora":      {"type": "string"},
-                "pravni_zakljucak":        {"type": "string"},
-                "analiza_poreske_obaveze": {"type": "string"},
-                "citat_zakona":            {"type": "string"},
-                "pravni_osnov":            {"type": "string"},
-                "poreski_rizici":          {"type": "string"},
-                "poreske_obaveze_koraci":  {"type": "string"},
-                "kljucno_pitanje":         {"type": "string"},
-                "potrebne_informacije":    {"type": "string"},
-                "izvor":                   {"type": "string"},
+                "hijerarhija_izvora":      {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "pravni_zakljucak":        {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "analiza_poreske_obaveze": {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "citat_zakona":            {"type": "string", "description": "FLAT STRING. Verbatim citat iz konteksta, maks. 500 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "pravni_osnov":            {"type": "string", "description": "KRATKA REFERENCA — FLAT STRING. Format: 'Zakon, član X (Sl. glasnik RS, br. Y/ZZ i dr.)'. BEZ generisanja dugačke liste amandman-brojeva. Maksimalno 200 chars."},
+                "poreski_rizici":          {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "poreske_obaveze_koraci":  {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 1000 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "kljucno_pitanje":         {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "potrebne_informacije":    {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
+                "izvor":                   {"type": "string", "description": "FLAT STRING. Format: 'Naziv zakona (Sl. glasnik RS, br. Y/ZZ i dr.)'. Maks. 300 chars. BEZ dugačke liste amandman-brojeva."},
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
