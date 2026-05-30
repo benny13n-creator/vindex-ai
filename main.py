@@ -1058,6 +1058,15 @@ _PARNICA_TRIGGERS = [
     "konkurentsk",          # "konkurentski rad", "zabrana konkurentskog" → ZR spor
     "zabrana konkurencije", # explicit competition clause dispute term
     "konkurencij",          # "zabranu/zabrane/zabrani konkurencije" — sve padeške forme
+    # Civil/commercial law instruments — prevent DEFINICIJA path overflow (Commit 5)
+    "zalog",
+    "zaloga",
+    "stečaj",
+    "stecaj",
+    "hipoteka",
+    "jemstv",       # root: jemstvo, jemstva, jemstven — all surety forms
+    "garancij",     # root: garancija, garancije, garancijama — all guarantee forms
+    "bankars",      # root: bankarska, bankarske, bankarsku — all banking adj. forms
 ]
 
 _DEFINICIJA_TRIGGERS = [
@@ -1931,6 +1940,14 @@ def _pozovi_openai(
     if response_format is not None:
         kwargs["response_format"] = response_format
     odgovor = _get_client().chat.completions.create(**kwargs)
+    finish_reason = odgovor.choices[0].finish_reason if odgovor.choices else None
+    if finish_reason == "length":
+        logger.warning(
+            "[TOKEN_OVERFLOW] max_tokens=%d used=%d input=%d",
+            max_tokens,
+            odgovor.usage.completion_tokens if odgovor.usage else -1,
+            odgovor.usage.prompt_tokens if odgovor.usage else -1,
+        )
     return (odgovor.choices[0].message.content or "").strip()
 
 
@@ -2123,12 +2140,12 @@ _JSON_SCHEMA_DEFINICIJA = {
             "properties": {
                 "statusna_potvrda_status": {"type": "string"},
                 "statusna_potvrda_tekst":  {"type": "string"},
-                "hijerarhija_izvora":      {"type": "string"},
-                "pravni_zakljucak":        {"type": "string"},
-                "pravna_definicija":       {"type": "string"},
-                "citat_zakona":            {"type": "string"},
-                "pravni_osnov":            {"type": "string"},
-                "prakticni_primer":        {"type": "string"},
+                "hijerarhija_izvora":      {"type": "string", "description": "KRITIČNO: ovo polje je FLAT STRING, ne JSON, ne array, ne nested struktura."},
+                "pravni_zakljucak":        {"type": "string", "description": "KRITIČNO: ovo polje je FLAT STRING, ne JSON, ne array, ne nested struktura."},
+                "pravna_definicija":       {"type": "string", "description": "KRITIČNO: ovo polje je FLAT STRING, ne JSON, ne array, ne nested struktura."},
+                "citat_zakona":            {"type": "string", "description": "KRITIČNO: ovo polje je FLAT STRING, ne JSON, ne array, ne nested struktura."},
+                "pravni_osnov":            {"type": "string", "description": "KRITIČNO: ovo polje je FLAT STRING, ne JSON, ne array, ne nested struktura."},
+                "prakticni_primer":        {"type": "string", "description": "KRITIČNO: ovo polje je FLAT STRING, ne JSON, ne array, ne nested struktura."},
                 "izvor":                   {"type": "string"},
             },
             "required": [
@@ -2565,7 +2582,7 @@ def ask_agent(
             "COMPLIANCE": (SYSTEM_PROMPT_COMPLIANCE, SEKCIJE_COMPLIANCE, "gpt-4o", 2000),
             "PORESKI":    (SYSTEM_PROMPT_PORESKI,    SEKCIJE_PORESKI,    "gpt-4o", 2000),
             "PARNICA":    (SYSTEM_PROMPT_PARNICA,    SEKCIJE_PARNICA,    "gpt-4o", 2500),
-            "DEFINICIJA": (SYSTEM_PROMPT_DEFINICIJA, SEKCIJE_DEFINICIJA, "gpt-4o", 1500),
+            "DEFINICIJA": (SYSTEM_PROMPT_DEFINICIJA, SEKCIJE_DEFINICIJA, "gpt-4o", 2500),
         }
         system_prompt, aktivan_sekcije, _model, _max_tokens = _prompt_map.get(tip, _prompt_map["DEFINICIJA"])
 
