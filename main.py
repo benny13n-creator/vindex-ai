@@ -15,6 +15,7 @@ from openai import OpenAI
 from app.services.retrieve import (
     retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level,
     ekstrakcija_clana, _direktan_fetch_clana, _formatiraj_match,
+    retrieve_sudska_praksa, process_praksa_chunks,
 )
 
 load_dotenv()
@@ -646,6 +647,26 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
                 return False, "Citat nije pronađen u dostavljenom kontekstu"
 
     return True, "ok"
+
+
+# ─── T6: Praksa citation extractor ──────────────────────────────────────────
+
+def _extract_praksa_citations(data: dict) -> list[tuple[str, str]]:
+    """
+    Extract (sud, broj_odluke) pairs from LLM JSON output's sudska_praksa array.
+    Used by hallucination guard to verify citations against provided praksa_context.
+    """
+    praksa_array = data.get("sudska_praksa", [])
+    if not isinstance(praksa_array, list):
+        return []
+    result = []
+    for item in praksa_array:
+        if isinstance(item, dict):
+            sud = (item.get("sud") or "").strip()
+            dn  = (item.get("broj_odluke") or "").strip()
+            if dn and len(dn) >= 3:          # ignore trivially empty/short strings
+                result.append((sud, dn))
+    return result
 
 
 # ─── Semantic relevance check (Anti topic-drift) ─────────────────────────────
@@ -2012,6 +2033,23 @@ _ANALIZA_ANTIFAB_HEADER = (
 SYSTEM_PROMPT_NACRT   = SYSTEM_PROMPT_NACRT   + _NACRT_ANTIFAB_HEADER   + "\n\n" + HALLUCINATION_REFUSAL_TEXT
 SYSTEM_PROMPT_ANALIZA = SYSTEM_PROMPT_ANALIZA + _ANALIZA_ANTIFAB_HEADER + "\n\n" + HALLUCINATION_REFUSAL_TEXT
 
+# T5: Sudska praksa anti-fabrication rule — appended to all 4 topic prompts
+_PRAKSA_PROMPT_ADDENDUM = (
+    "\n\n🔒 SUDSKA PRAKSA — STROGO PRAVILO:\n"
+    "- Ako je u kontekstu prisutan blok \"SUDSKA PRAKSA\", popuni polje \"sudska_praksa\" "
+    "sa MAX 3 odluke iz tog bloka.\n"
+    "- Citiraj SAMO sud, broj odluke i datum koji su EKSPLICITNO navedeni u dostavljenom kontekstu.\n"
+    "- NIKADA ne izmišljaj odluke koje nisu u kontekstu. "
+    "Bolje prazno array [] nego fabrikovana referenca.\n"
+    "- \"sazetak_relevantnosti\" mora biti zasnovan na sadržaju odluke iz konteksta, ne na opštem znanju.\n"
+    "- Ako nema bloka \"SUDSKA PRAKSA\" u kontekstu → sudska_praksa = []"
+)
+
+SYSTEM_PROMPT_PARNICA    = SYSTEM_PROMPT_PARNICA    + _PRAKSA_PROMPT_ADDENDUM
+SYSTEM_PROMPT_COMPLIANCE = SYSTEM_PROMPT_COMPLIANCE + _PRAKSA_PROMPT_ADDENDUM
+SYSTEM_PROMPT_PORESKI    = SYSTEM_PROMPT_PORESKI    + _PRAKSA_PROMPT_ADDENDUM
+SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + _PRAKSA_PROMPT_ADDENDUM
+
 
 def _format_halucination_block(razlog: str) -> str:
     """Korisnička poruka kada guard v2.0 detektuje fabricated article citation."""
@@ -2039,6 +2077,27 @@ def _format_halucination_block(razlog: str) -> str:
 
 # ─── Commit 3/3: Structured JSON output schemas ──────────────────────────────
 
+# T4: Shared sudska_praksa field definition (reused across all 4 schemas)
+_SUDSKA_PRAKSA_SCHEMA_FIELD = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "sud":                  {"type": "string", "description": "FLAT STRING max 100 chars. Naziv suda TAČNO kao u dostavljenom kontekstu."},
+            "broj_odluke":          {"type": "string", "description": "FLAT STRING max 50 chars. Broj odluke TAČNO kao u dostavljenom kontekstu."},
+            "datum":                {"type": "string", "description": "FLAT STRING max 30 chars. Datum odluke iz konteksta."},
+            "sazetak_relevantnosti": {"type": "string", "description": "FLAT STRING max 400 chars. Zašto je ova odluka relevantna za pitanje. Citiraj samo ono što JESTE u dostavljenom kontekstu."},
+        },
+        "required": ["sud", "broj_odluke", "sazetak_relevantnosti"],
+    },
+    "maxItems": 3,
+    "description": (
+        "Array do 3 sudske odluke iz bloka SUDSKA PRAKSA u kontekstu. "
+        "Prazno array [] ako nema bloka SUDSKA PRAKSA ili nema relevantnih odluka. "
+        "NIKADA ne izmišljaj odluke koje nisu u dostavljenom kontekstu."
+    ),
+}
+
 _JSON_SCHEMA_PARNICA = {
     "type": "json_schema",
     "json_schema": {
@@ -2061,6 +2120,7 @@ _JSON_SCHEMA_PARNICA = {
                 "kljucno_pitanje":         {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
                 "potrebne_informacije":    {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
                 "izvor":                   {"type": "string", "description": "FLAT STRING. Format: 'Naziv zakona (Sl. glasnik RS, br. Y/ZZ i dr.)'. Maks. 300 chars. BEZ dugačke liste amandman-brojeva."},
+                "sudska_praksa":           _SUDSKA_PRAKSA_SCHEMA_FIELD,
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
@@ -2093,6 +2153,7 @@ _JSON_SCHEMA_COMPLIANCE = {
                 "kljucno_pitanje":         {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
                 "potrebne_informacije":    {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
                 "izvor":                   {"type": "string", "description": "FLAT STRING. Format: 'Naziv zakona (Sl. glasnik RS, br. Y/ZZ i dr.)'. Maks. 300 chars. BEZ dugačke liste amandman-brojeva."},
+                "sudska_praksa":           _SUDSKA_PRAKSA_SCHEMA_FIELD,
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
@@ -2125,6 +2186,7 @@ _JSON_SCHEMA_PORESKI = {
                 "kljucno_pitanje":         {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
                 "potrebne_informacije":    {"type": "string", "description": "FLAT STRING. Plain tekst, maks. 300 chars. Ne nested JSON, ne arrays, ne lista Sl. glasnik brojeva."},
                 "izvor":                   {"type": "string", "description": "FLAT STRING. Format: 'Naziv zakona (Sl. glasnik RS, br. Y/ZZ i dr.)'. Maks. 300 chars. BEZ dugačke liste amandman-brojeva."},
+                "sudska_praksa":           _SUDSKA_PRAKSA_SCHEMA_FIELD,
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
@@ -2154,6 +2216,7 @@ _JSON_SCHEMA_DEFINICIJA = {
                 "pravni_osnov":            {"type": "string", "description": "KRITIČNO: ovo polje je FLAT STRING, ne JSON, ne array, ne nested struktura."},
                 "prakticni_primer":        {"type": "string", "description": "KRITIČNO: ovo polje je FLAT STRING, ne JSON, ne array, ne nested struktura."},
                 "izvor":                   {"type": "string"},
+                "sudska_praksa":           _SUDSKA_PRAKSA_SCHEMA_FIELD,
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
@@ -2239,6 +2302,24 @@ def _json_ka_tekst(data: dict, tip: str) -> str:
     if data.get("potrebne_informacije"):
         parts += ["", "--- POTREBNE INFORMACIJE", data["potrebne_informacije"]]
 
+    # T7: Render SUDSKA PRAKSA section (only when non-empty array)
+    praksa_array = data.get("sudska_praksa")
+    if isinstance(praksa_array, list) and praksa_array:
+        parts += ["", "--- SUDSKA PRAKSA"]
+        for idx, item in enumerate(praksa_array[:3], 1):
+            if not isinstance(item, dict):
+                continue
+            sud       = (item.get("sud") or "").strip()
+            broj      = (item.get("broj_odluke") or "").strip()
+            datum     = (item.get("datum") or "").strip()
+            sazetak   = (item.get("sazetak_relevantnosti") or "").strip()
+            header_parts = [p for p in [sud, broj, datum] if p]
+            header = f"{idx}. " + ", ".join(header_parts) if header_parts else f"{idx}. —"
+            parts.append(header)
+            if sazetak:
+                parts.append(f"   {sazetak}")
+            parts.append("")
+
     parts += [
         "",
         "--- IZVOR",
@@ -2254,10 +2335,13 @@ def _parsiraj_strukturni_odgovor(
     raw_json: str,
     tip: str,
     docs: list[str],
+    praksa_context: str = "",
 ) -> tuple[bool, str]:
     """
     Parse JSON response from LLM (Commit 3/3 structured output).
-    Runs hallucination guard on citat_zakona + pravni_osnov + pravni_zakljucak.
+    Runs hallucination guard on:
+      - citat_zakona + pravni_osnov + pravni_zakljucak  (law citations)
+      - sudska_praksa array  (T6: decision citations — only when praksa_context provided)
     Returns (success, text):
       success=True  → text is serialized ---marker format
       success=False → text is hallucination block message
@@ -2283,6 +2367,30 @@ def _parsiraj_strukturni_odgovor(
             "[COMMIT3] Strukturni guard blok [tip=%s] razlog=%s", tip, razlog
         )
         return False, _format_halucination_block(razlog)
+
+    # T6: Praksa hallucination guard — only active when we provided a praksa context
+    if praksa_context:
+        cited_pairs = _extract_praksa_citations(data)
+        if cited_pairs:
+            ctx_norm = _normalizuj(praksa_context)
+            fabricated: list[str] = []
+            for sud, dn in cited_pairs:
+                dn_norm = _normalizuj(dn)
+                # Check: decision number must appear in the praksa_context we provided
+                if dn_norm and dn_norm not in ctx_norm:
+                    fabricated.append(f"{sud} / {dn}" if sud else dn)
+            if fabricated:
+                logger.warning(
+                    "[COMMIT3_PRAKSA] Fabricated praksa citations [tip=%s]: %s",
+                    tip, fabricated[:3],
+                )
+                return False, _format_halucination_block(
+                    f"Sudska praksa nije u kontekstu: {', '.join(fabricated[:3])}"
+                )
+            logger.info(
+                "[COMMIT3_PRAKSA] %d praksa citations verified OK [tip=%s]",
+                len(cited_pairs), tip,
+            )
 
     return True, _json_ka_tekst(data, tip)
 
@@ -2395,6 +2503,27 @@ def _proveri_analiza_citate(analiza_output: str, allowed_articles: frozenset[str
         return False, f"{clanovi_str} — nije u dostavljenom dokumentu"
 
     return True, "ok"
+
+
+def _format_praksa_context(decisions: list[dict]) -> str:
+    """
+    T3: Format processed praksa decisions as a structured block for LLM injection.
+    Returns empty string when decisions list is empty (gate suppressed results).
+    """
+    if not decisions:
+        return ""
+    lines = ["SUDSKA PRAKSA (relevantne odluke iz baze):"]
+    for i, d in enumerate(decisions, 1):
+        sud  = d.get("court", "")
+        dn   = d.get("decision_number", "?")
+        date = d.get("date", "")
+        text = (d.get("text") or "").strip()[:300]
+        header_parts = [p for p in [sud, dn, date] if p]
+        lines.append(f"{i}. " + ", ".join(header_parts))
+        if text:
+            lines.append(f"   Sažetak: {text}")
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 def _format_refusal(article: str, law: str | None) -> str:
@@ -2519,6 +2648,15 @@ def ask_agent(
             confidence, top_score, top_article, top_law, pitanje_api[:60], log_id,
         )
 
+        # KORAK 1.6: Sudska praksa retrieval (T3) — separate pipeline, never affects zakon band
+        try:
+            _praksa_raw = retrieve_sudska_praksa(pitanje_api, top_k=10)
+            _processed_praksa = process_praksa_chunks(_praksa_raw, k=3)
+        except Exception as _pe:
+            logger.warning("[PRAKSA] Retrieval/processing greška: %s — nastavlja se bez prakse", _pe)
+            _processed_praksa = []
+        praksa_blok = _format_praksa_context(_processed_praksa)
+
         # KORAK 1.5: Hard refusal when explicitly cited article is absent from corpus;
         # inject exact chunks when article IS found so LLM gets correct text.
         # _korak_15_authoritative=True blocks downstream second-guessing (Fixes 1-3).
@@ -2637,11 +2775,13 @@ def ask_agent(
 
         # KORAK 5: MEDIUM — puni topic prompt sa hedge banerom
         if confidence == "MEDIUM":
+            _praksa_insert = f"\n\n{praksa_blok}\n" if praksa_blok else ""
             user_content = (
                 f"{_HEDGE}"
                 f"{history_blok}"
                 f"PITANJE: {pitanje_api}\n\n"
                 f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
+                f"{_praksa_insert}"
             )
             try:
                 _raw_med = _pozovi_openai(
@@ -2652,7 +2792,7 @@ def ask_agent(
                 logger.exception("MEDIUM LLM greška [q=%s]", log_id)
                 return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
-            _json_ok_med, odgovor = _parsiraj_strukturni_odgovor(_raw_med, tip, filtrirani)
+            _json_ok_med, odgovor = _parsiraj_strukturni_odgovor(_raw_med, tip, filtrirani, praksa_context=praksa_blok)
             if not _json_ok_med:
                 logger.warning("[MEDIUM→BLOCK] Commit3 guard [q=%s]", log_id)
                 return {
@@ -2686,10 +2826,12 @@ def ask_agent(
             return rezultat
 
         # KORAK 6: HIGH — puni topic prompt, soft section check, anti-halucinacijska zaštita
+        _praksa_insert = f"\n\n{praksa_blok}\n" if praksa_blok else ""
         user_content = (
             f"{history_blok}"
             f"PITANJE: {pitanje_api}\n\n"
             f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
+            f"{_praksa_insert}"
         )
         try:
             _raw_high = _pozovi_openai(
@@ -2700,7 +2842,7 @@ def ask_agent(
             logger.exception("HIGH LLM greška [q=%s]", log_id)
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
-        _json_ok_high, odgovor = _parsiraj_strukturni_odgovor(_raw_high, tip, filtrirani)
+        _json_ok_high, odgovor = _parsiraj_strukturni_odgovor(_raw_high, tip, filtrirani, praksa_context=praksa_blok)
 
         # Soft section check — log only, do not discard
         if _json_ok_high and not _ima_obavezne_sekcije(odgovor, aktivan_sekcije):
@@ -2735,11 +2877,13 @@ def ask_agent(
 
         if _downgrade:
             confidence = "MEDIUM"
+            _praksa_insert_dg = f"\n\n{praksa_blok}\n" if praksa_blok else ""
             user_content_medium = (
                 f"{_HEDGE}"
                 f"{history_blok}"
                 f"PITANJE: {pitanje_api}\n\n"
                 f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
+                f"{_praksa_insert_dg}"
             )
             try:
                 _raw_dg = _pozovi_openai(
@@ -2751,7 +2895,7 @@ def ask_agent(
                 return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
             # Re-check via structural guard — hard block if still fabricating
-            _json_ok_dg, odgovor = _parsiraj_strukturni_odgovor(_raw_dg, tip, filtrirani)
+            _json_ok_dg, odgovor = _parsiraj_strukturni_odgovor(_raw_dg, tip, filtrirani, praksa_context=praksa_blok)
             if not _json_ok_dg:
                 logger.warning("[DOWNGRADE→BLOCK] Commit3 guard posle downgrade [q=%s]", log_id)
                 return {

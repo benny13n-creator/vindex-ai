@@ -1565,6 +1565,83 @@ def _fallback_poruka(query: str) -> str:
     )
 
 
+# ─── T1/T2: Sudska praksa public API ─────────────────────────────────────────
+
+def retrieve_sudska_praksa(query: str, top_k: int = 10) -> list:
+    """
+    T1 — Public function: embed query + search sudska_praksa namespace.
+    Returns raw Pinecone match objects (with .score and .metadata).
+    DOES NOT touch default namespace (zakon) or its retrieval pipeline.
+    """
+    vektor = _ugradi_query(query)
+    return _pretraga_praksa(vektor, k=top_k)
+
+
+def process_praksa_chunks(chunks: list, k: int = 3) -> list[dict]:
+    """
+    T2 — Adaptive gate + per-decision dedup.
+
+    1. Sort by score descending
+    2. Adaptive gate: if ALL top-3 scores < PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD → return []
+    3. Per-decision dedup: group by decision_number, keep highest-scored chunk per decision
+    4. Return top k unique decisions
+
+    Returns list of dicts: {decision_number, court, date, matter, text, score}
+    """
+    if not chunks:
+        logger.info("[PRAKSA] gate_applied=false, returned=0 decisions (empty input)")
+        return []
+
+    # Sort by score descending
+    sorted_chunks = sorted(
+        chunks,
+        key=lambda m: float(getattr(m, "score", 0.0)),
+        reverse=True,
+    )
+
+    # Adaptive gate — check top-3
+    top3_scores = [float(getattr(m, "score", 0.0)) for m in sorted_chunks[:3]]
+    if all(s < PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD for s in top3_scores):
+        logger.info(
+            "[PRAKSA] gate_applied=true, all_top3_scores=%s < %.2f → skipping",
+            [f"{s:.3f}" for s in top3_scores],
+            PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD,
+        )
+        return []
+
+    # Per-decision dedup: keep highest score per decision_number
+    seen: dict[str, dict] = {}
+    dropped = 0
+    for m in sorted_chunks:
+        meta = m.metadata or {}
+        dn = (
+            meta.get("decision_number")
+            or meta.get("decision_id_fallback")
+            or f"_unk_{id(m)}"
+        )
+        score = float(getattr(m, "score", 0.0))
+        if dn not in seen or score > seen[dn]["score"]:
+            seen[dn] = {
+                "decision_number": dn,
+                "court": meta.get("court", "Vrhovni sud"),
+                "date": meta.get("decision_date", ""),
+                "matter": meta.get("matter", ""),
+                "text": (meta.get("text") or "").strip(),
+                "score": score,
+            }
+        else:
+            dropped += 1
+
+    result = sorted(seen.values(), key=lambda d: d["score"], reverse=True)[:k]
+
+    logger.info(
+        "[PRAKSA] gate_applied=false, returned=%d decisions, dedup_dropped=%d duplicate chunks",
+        len(result),
+        dropped,
+    )
+    return result
+
+
 # ─── Dijagnostička funkcija ───────────────────────────────────────────────────
 
 def proveri_zdi_indeksiranost() -> dict:

@@ -52,7 +52,10 @@ def test_gate_bias_low_to_medium():
     docs, meta = _make_meta("LOW", [0.7])
 
     with patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
+         patch.object(_real_main, "retrieve_sudska_praksa", return_value=[]), \
+         patch.object(_real_main, "process_praksa_chunks", return_value=[]), \
          patch.object(_real_main, "_pozovi_openai", side_effect=_fake_llm_response) as mock_llm, \
+         patch.object(_real_main, "_parsiraj_strukturni_odgovor", return_value=(True, "Fake MEDIUM odgovor")), \
          patch.object(_real_main, "_proveri_halucinaciju", return_value=(True, "")), \
          patch.object(_real_main, "_verifikuj_pravne_greske", return_value=(True, "")):
         result = ask_agent("Koliko traje probni rad?", extra_namespaces=["tmp_xyz"])
@@ -69,7 +72,10 @@ def test_gate_bias_medium_to_high():
     docs, meta = _make_meta("MEDIUM", [0.8])
 
     with patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
+         patch.object(_real_main, "retrieve_sudska_praksa", return_value=[]), \
+         patch.object(_real_main, "process_praksa_chunks", return_value=[]), \
          patch.object(_real_main, "_pozovi_openai", side_effect=_fake_llm_response) as mock_llm, \
+         patch.object(_real_main, "_parsiraj_strukturni_odgovor", return_value=(True, "Fake HIGH odgovor")), \
          patch.object(_real_main, "_proveri_halucinaciju", return_value=(True, "")), \
          patch.object(_real_main, "_verifikuj_pravne_greske", return_value=(True, "")):
         result = ask_agent("Koliko traje probni rad?", extra_namespaces=["tmp_xyz"])
