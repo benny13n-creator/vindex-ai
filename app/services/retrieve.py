@@ -373,10 +373,10 @@ def _ugradi_query(query: str) -> list[float]:
 CONFIDENCE_HIGH_THRESHOLD   = 0.65
 CONFIDENCE_MEDIUM_THRESHOLD = 0.52
 
-# Praksa thresholds — Phase 1.3: pragmatic mirror of zakon values.
-# Proper calibration deferred to Phase 1.5 when praksa-targeted benchmark data exists.
+# Praksa thresholds — Phase 1.3, calibrated 2026-05-31.
+# 0.56 gate: filters marginal matches (menica top=0.553) while passing zabrana konkurencije (0.580+).
 PRAKSA_CONFIDENCE_HIGH_THRESHOLD   = 0.65
-PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD = 0.52
+PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD = 0.56
 
 # Namespace for VKS case-law vectors (Phase 1.2 ingest)
 _PRAKSA_NS = "sudska_praksa"

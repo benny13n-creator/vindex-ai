@@ -3,7 +3,7 @@
 Commit 7a — Sudska praksa integration tests (8 cases).
 
 T1 — retrieve_sudska_praksa() returns chunks with correct metadata fields
-T2 — process_praksa_chunks gate: all top-3 scores < 0.52 → returns []
+T2 — process_praksa_chunks gate: all top-3 scores < 0.56 → returns []
 T3 — process_praksa_chunks dedup: 3 chunks same decision_number → 1 returned
 T4 — JSON schemas (all 4 types) have sudska_praksa array field
 T5 — _extract_praksa_citations parses (sud, broj_odluke) from output dict
@@ -108,7 +108,7 @@ def test_t1_retrieve_sudska_praksa_returns_metadata():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# T2 — process_praksa_chunks gate: all top-3 < 0.52 → []
+# T2 — process_praksa_chunks gate: all top-3 < 0.56 → []
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_t2_gate_blocks_when_all_below_threshold():
@@ -126,7 +126,7 @@ def test_t2_gate_blocks_when_all_below_threshold():
 def test_t2_gate_passes_when_at_least_one_above_threshold():
     """Gate does NOT fire when at least one top-3 score ≥ threshold."""
     chunks = [
-        _make_match("DN1", "Sud A", 0.55),   # ≥ 0.52
+        _make_match("DN1", "Sud A", 0.57),   # ≥ 0.56
         _make_match("DN2", "Sud B", 0.49),
         _make_match("DN3", "Sud C", 0.48),
     ]
