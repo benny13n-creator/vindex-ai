@@ -10,12 +10,12 @@ def extract_pdf(path: Path) -> tuple[str, bool]:
     pages: list[str] = []
     total_chars = 0
     for page in reader.pages:
-        text = page.extract_text() or ""
+        text = (page.extract_text() or "").strip()
         pages.append(text)
         total_chars += len(text)
 
     avg_chars = total_chars / max(len(reader.pages), 1)
-    is_scanned = avg_chars < 50
+    is_scanned = avg_chars < 50 or total_chars < 100
 
     return "\n\n".join(pages), is_scanned
 

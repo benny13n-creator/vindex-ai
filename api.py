@@ -1480,7 +1480,7 @@ async def dokument_upload(
         text, is_scanned = extract(tmp_path)
 
         if is_scanned:
-            raise HTTPException(status_code=422, detail="Skenirani PDF nije podržan")
+            raise HTTPException(status_code=422, detail="Skenirani ili nečitljiv PDF. Dokument ne sadrži čitljiv tekst — pošaljite digitalni PDF.")
 
         source_meta = {
             "source_filename": file.filename,
