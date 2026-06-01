@@ -1477,7 +1477,7 @@ async def dokument_upload(
             tmp.write(raw)
             tmp_path = _Path(tmp.name)
 
-        text, is_scanned = extract(tmp_path)
+        text, is_scanned = await asyncio.to_thread(extract, tmp_path)
 
         if is_scanned:
             raise HTTPException(status_code=422, detail="Skenirani ili nečitljiv PDF. Dokument ne sadrži čitljiv tekst — pošaljite digitalni PDF.")
@@ -1489,7 +1489,7 @@ async def dokument_upload(
             "is_scanned": is_scanned,
             "session_id": "__local__",
         }
-        manifest = chunk_document(text, source_meta)
+        manifest = await asyncio.to_thread(chunk_document, text, source_meta)
 
         if manifest.total_chunks == 0:
             raise HTTPException(status_code=422, detail="Empty document")

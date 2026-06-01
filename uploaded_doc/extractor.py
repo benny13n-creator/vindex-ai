@@ -32,7 +32,7 @@ def extract_pdf(path: Path) -> tuple[str, bool]:
         for page in doc:
             pixmap = page.get_pixmap(dpi=300)
             img = Image.open(io.BytesIO(pixmap.tobytes("png")))
-            page_text = pytesseract.image_to_string(img, lang="srp+eng")
+            page_text = pytesseract.image_to_string(img, lang="srp+eng", timeout=30)
             ocr_pages.append(page_text.strip())
 
         ocr_text = "\n\n".join(ocr_pages)
