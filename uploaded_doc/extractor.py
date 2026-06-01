@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def extract_pdf(path: Path) -> tuple[str, bool]:
@@ -39,6 +42,8 @@ def extract_pdf(path: Path) -> tuple[str, bool]:
             ocr_pages.append(page_text.strip())
 
         ocr_text = "\n\n".join(ocr_pages)
+        logger.warning("[OCR_DEBUG] stranice=%d, ukupno_chars=%d, preview=%r",
+            len(doc), len(ocr_text), ocr_text[:200])
         if len(ocr_text.strip()) > 20:
             return ocr_text, False
     except Exception:
