@@ -849,6 +849,14 @@ async def debug_env(x_admin_key: str = Header(default="")):
     }
 
 
+@app.get("/api/debug/ocr")
+async def debug_ocr():
+    """Prikazuje dostupne Tesseract jezičke pakete na serveru."""
+    import subprocess
+    result = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True)
+    return {"langs": result.stdout + result.stderr}
+
+
 @app.get("/api/test-pitanje")
 async def test_pitanje(q: str, x_admin_key: str = Header(default="")):
     """Dijagnostika pipeline-a — zaštićena admin ključem."""

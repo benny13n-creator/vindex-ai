@@ -39,7 +39,7 @@ def extract_pdf(path: Path) -> tuple[str, bool]:
             ocr_pages.append(page_text.strip())
 
         ocr_text = "\n\n".join(ocr_pages)
-        if len(ocr_text.strip()) > 100:
+        if len(ocr_text.strip()) > 20:
             return ocr_text, False
     except Exception:
         pass
