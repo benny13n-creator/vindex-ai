@@ -2617,7 +2617,7 @@ def ask_agent(
     if not history and not extra_namespaces:
         keš = _cache_get(pitanje)
         if keš:
-            return keš
+            return {**keš, "from_cache": True}
 
     pitanje_api = _skini_pii(pitanje)
     log_id = _hash_za_log(pitanje)

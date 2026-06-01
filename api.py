@@ -1058,6 +1058,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
         should_deduct = (
             rezultat.get("status") == "success"
             and not rezultat.get("blocked", False)
+            and not rezultat.get("from_cache", False)
         )
         if should_deduct:
             preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
@@ -1141,6 +1142,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             _should_deduct = (
                 rezultat.get("status") == "success"
                 and not rezultat.get("blocked", False)
+                and not rezultat.get("from_cache", False)
             )
             if _should_deduct:
                 preostalo = await asyncio.to_thread(
