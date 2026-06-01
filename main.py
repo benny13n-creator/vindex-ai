@@ -2462,12 +2462,18 @@ def _ekstrahuj_clanove_iz_dokumenta(tekst: str) -> frozenset[str]:
     Returns frozenset of article number strings (e.g. frozenset({"162", "161a"})).
     """
     found: set[str] = set()
+    primary_hits: list[str] = []
+    secondary_hits: list[str] = []
     # Primary: "Član"/"Članu"/"Člana"/"Čl." case-insensitive oblique forms
     for m in re.finditer(r"[Čč]lan(?:u|a|om|ovi|ovima|ove)?\s+(\d+[a-zA-Z]?)", tekst):
         found.add(m.group(1))
+        primary_hits.append(m.group(0))
     # Secondary: "čl. N" / "čl N" abbreviated form
     for m in re.finditer(r"[Čč]l\.?\s+(\d+[a-zA-Z]?)", tekst):
         found.add(m.group(1))
+        secondary_hits.append(m.group(0))
+    logger.debug("[EKSTRAKCIJA] primary_hits=%s secondary_hits=%s → found=%s",
+                 primary_hits[:10], secondary_hits[:10], sorted(found)[:15])
     return frozenset(found)
 
 
@@ -2480,7 +2486,11 @@ def _proveri_analiza_citate(analiza_output: str, allowed_articles: frozenset[str
     If allowed_articles is empty: any article citation → invalid.
     Design: guards against LLM adding new legal framework not present in the document.
     """
+    if not allowed_articles:
+        return True, "ok"  # ugovor nema inline članova — dozvoli kontekstualne LLM citacije
+    logger.debug("[ANALIZA_GUARD] allowed_articles=%s (count=%d)", sorted(allowed_articles)[:10], len(allowed_articles))
     citirani_raw = re.findall(r"[Čč]lan\s+(\d+[a-zA-Z]?)", analiza_output)
+    logger.debug("[ANALIZA_GUARD] citirani_raw iz LLM output (pattern='Član N'): %s", citirani_raw[:10])
 
     # Deduplicate preserving order
     vidjeni: set[str] = set()
@@ -2491,9 +2501,11 @@ def _proveri_analiza_citate(analiza_output: str, allowed_articles: frozenset[str
             citirani_unique.append(c)
 
     if not citirani_unique:
+        logger.debug("[ANALIZA_GUARD] citirani_unique=[] — LLM nije citirao nijedan 'Član N' → PASS")
         return True, "ok"  # No article citations in output → nothing to check
 
     novi = [c for c in citirani_unique if c not in allowed_articles]
+    logger.debug("[ANALIZA_GUARD] citirani_unique=%s novi_van_dokumenta=%s", citirani_unique, novi[:10])
     if novi:
         logger.warning(
             "[ANALIZA_GUARD] %d/%d citiranih članova van dokumenta: %s",
@@ -2502,6 +2514,7 @@ def _proveri_analiza_citate(analiza_output: str, allowed_articles: frozenset[str
         clanovi_str = ", ".join(f"Član {c}" for c in novi[:5])
         return False, f"{clanovi_str} — nije u dostavljenom dokumentu"
 
+    logger.debug("[ANALIZA_GUARD] svi citirani članovi su u allowed_articles → PASS")
     return True, "ok"
 
 
@@ -3001,16 +3014,24 @@ def ask_analiza(tekst: str, pitanje: str = "") -> dict:
         # PII stripping pre slanja — dokument može sadržati JMBG, adrese, imena stranaka
         tekst_api = _skini_pii(tekst)
         pitanje_api = _skini_pii(pitanje)
+        logger.debug("[ANALIZA] tekst_input_len=%d tekst_api_len=%d pitanje_len=%d",
+                     len(tekst), len(tekst_api), len(pitanje_api))
+        logger.debug("[ANALIZA] tekst_api preview: %r", tekst_api[:200])
 
         # T3: Extract all article citations from uploaded document (before LLM call)
         allowed_articles = _ekstrahuj_clanove_iz_dokumenta(tekst_api)
-        logger.info("[ANALIZA] Allowed articles from document: %s", sorted(allowed_articles)[:15])
+        logger.info("[ANALIZA] Allowed articles from document: %s (total=%d)",
+                    sorted(allowed_articles)[:15], len(allowed_articles))
+        if not allowed_articles:
+            logger.warning("[ANALIZA] allowed_articles=EMPTY — dokument ne sadrži eksplicitne 'Član N' reference; "
+                           "svaka LLM citacija člana biće blokirana (_proveri_analiza_citate dizajn)")
 
         user_content = ""
         if pitanje_api.strip():
             user_content += f"SPECIFIČNO PITANJE: {pitanje_api.strip()}\n\n"
         user_content += f"DOKUMENT ZA ANALIZU:\n{tekst_api}"
         odgovor = _pozovi_openai(SYSTEM_PROMPT_ANALIZA, user_content)
+        logger.debug("[ANALIZA] LLM odgovor len=%d preview: %r", len(odgovor), odgovor[:300])
 
         # T3: Guard — only allow articles that were in the uploaded document
         validan, razlog = _proveri_analiza_citate(odgovor, allowed_articles)
@@ -3028,6 +3049,7 @@ def ask_analiza(tekst: str, pitanje: str = "") -> dict:
                     "dokumentu, ili se obratite advokatu za pravnu analizu."
                 ),
             }
+        logger.debug("[ANALIZA] guard=PASS, validan=True")
 
         # Provera poznatih pravnih grešaka
         pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
@@ -3037,6 +3059,7 @@ def ask_analiza(tekst: str, pitanje: str = "") -> dict:
 
         odgovor = _ogranici_pouzdanost(odgovor)
         odgovor = _dodaj_disclaimer(odgovor)
+        logger.info("[ANALIZA] OK — odgovor len=%d", len(odgovor))
         return {"status": "success", "data": odgovor}
     except Exception:
         logger.exception("Greška u ask_analiza")

@@ -184,11 +184,15 @@ def test_t5_analiza_new_article_blocked():
     assert rezultat.get("status") == "success"
 
 
-# ─── ANALIZA T6: doc without article citations → any citation → BLOCK ────────────
+# ─── ANALIZA T6: doc without article citations → LLM citations ALLOWED ──────────
+# Behavior changed: empty allowed_articles now means "document has no inline article
+# refs" (standard contract) → guard passes through to avoid over-blocking real use.
 
 def test_t6_analiza_no_doc_articles_blocks_any_citation():
     """
-    ask_analiza: document has NO article citations. LLM adds Član 30 → HARD BLOCK.
+    ask_analiza: document has NO article citations. LLM adds Član 30.
+    New behavior: guard passes through — standard contracts without inline 'Član N'
+    refs are not blocked (Suzana fix).
     """
     doc = (
         "UGOVOR O RADU\n"
@@ -204,20 +208,23 @@ def test_t6_analiza_no_doc_articles_blocks_any_citation():
 
         rezultat = ask_analiza(doc, "")
 
-    assert "[!] ANALIZA BLOKIRANA" in (rezultat.get("data") or ""), \
-        "T6 FAIL: doc has no article refs → any LLM citation must be blocked"
+    assert "[!] ANALIZA BLOKIRANA" not in (rezultat.get("data") or ""), \
+        "T6 FAIL: empty allowed_articles must no longer block — standard contracts pass through"
+    assert rezultat.get("status") == "success", "T6 FAIL: status mora biti success"
 
 
-# ─── ANALIZA T7: _proveri_analiza_citate with empty allowed_pairs ───────────────
+# ─── ANALIZA T7: _proveri_analiza_citate with empty allowed_articles → PASS ─────
 
 def test_t7_proveri_analiza_citate_empty_allowed_blocks():
     """
-    _proveri_analiza_citate(output, frozenset()) → blocks any citation.
+    _proveri_analiza_citate(output, frozenset()) → passes through.
+    New behavior: empty allowed_articles means document has no inline article refs,
+    not that all citations are forbidden.
     """
     output_with_citation = (
         "ANALIZA: U skladu sa Član 30 Zakona o radu, ugovor mora biti u pisanoj formi."
     )
     validan, razlog = _proveri_analiza_citate(output_with_citation, frozenset())
-    assert validan is False, \
-        "T7 FAIL: empty allowed_articles + any citation → must return False"
-    assert "30" in razlog, f"T7 FAIL: razlog should mention article 30, got: {razlog}"
+    assert validan is True, \
+        "T7 FAIL: empty allowed_articles + any citation → must return True (pass through)"
+    assert razlog == "ok", f"T7 FAIL: razlog should be 'ok', got: {razlog}"
