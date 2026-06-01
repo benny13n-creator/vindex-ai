@@ -3494,7 +3494,7 @@ async function doc_upload_file(file) {
     fd.append('file', file);
     var r = await fetch(BASE_URL + '/api/dokument/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentSession.access_token }, body: fd });
     if (r.status === 422) {
-      _doc_show_error('Ovaj fajl je skeniran. OCR podrška dolazi uskoro. Probajte sa text-based PDF/DOCX.');
+      _doc_show_error('Skenirani dokument — obrada može potrajati do 60 sekundi.');
       var _eb = document.getElementById('exec-btn');
       var _rb = document.getElementById('rb');
       var _rp = document.getElementById('resp');

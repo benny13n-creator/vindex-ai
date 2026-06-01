@@ -2,11 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    tesseract-ocr-srp \
-    poppler-utils \
+RUN apt-get update \
+    && apt-get install -y tesseract-ocr poppler-utils \
+    && (apt-get install -y tesseract-ocr-srp || true) \
     && rm -rf /var/lib/apt/lists/*
+RUN tesseract --list-langs 2>&1 || true
 
 # Instaliraj zavisnosti
 COPY requirements.txt .
