@@ -22,10 +22,28 @@ def extract_pdf(path: Path) -> tuple[str, bool]:
 
 def extract_docx(path: Path) -> tuple[str, bool]:
     import docx as _docx
+    from docx.oxml.ns import qn as _qn
+    from docx.table import Table as _Table
 
     doc = _docx.Document(str(path))
-    paragraphs = [p.text for p in doc.paragraphs]
-    return "\n".join(paragraphs), False
+    parts: list[str] = []
+
+    for block in doc.element.body:
+        tag = block.tag
+        if tag == _qn("w:p"):
+            text = "".join(
+                node.text for node in block.iter(_qn("w:t")) if node.text
+            )
+            if text.strip():
+                parts.append(text)
+        elif tag == _qn("w:tbl"):
+            table = _Table(block, doc)
+            for row in table.rows:
+                row_text = "\t".join(cell.text for cell in row.cells)
+                if row_text.strip():
+                    parts.append(row_text)
+
+    return "\n".join(parts), False
 
 
 def extract_txt(path: Path) -> tuple[str, bool]:
