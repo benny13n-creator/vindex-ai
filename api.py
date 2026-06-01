@@ -851,10 +851,26 @@ async def debug_env(x_admin_key: str = Header(default="")):
 
 @app.get("/api/debug/ocr")
 async def debug_ocr():
-    """Prikazuje dostupne Tesseract jezičke pakete na serveru."""
-    import subprocess
-    result = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True)
-    return {"langs": result.stdout + result.stderr}
+    import subprocess, os
+    langs = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True)
+    fitz_ok = False
+    try:
+        import fitz
+        fitz_ok = True
+    except Exception:
+        pass
+    pytes_ok = False
+    try:
+        import pytesseract
+        pytes_ok = True
+    except Exception:
+        pass
+    return {
+        "langs": langs.stdout + langs.stderr,
+        "fitz_available": fitz_ok,
+        "pytesseract_available": pytes_ok,
+        "tesseract_cmd": getattr(__import__('pytesseract'), 'pytesseract', None) and __import__('pytesseract').pytesseract.tesseract_cmd
+    }
 
 
 @app.get("/api/test-pitanje")
