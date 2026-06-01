@@ -11,3 +11,6 @@ python-docx
 pypdf
 python-multipart
 reportlab
+pymupdf
+pytesseract
+pillow

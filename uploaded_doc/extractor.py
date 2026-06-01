@@ -17,7 +17,31 @@ def extract_pdf(path: Path) -> tuple[str, bool]:
     avg_chars = total_chars / max(len(reader.pages), 1)
     is_scanned = avg_chars < 50 or total_chars < 100
 
-    return "\n\n".join(pages), is_scanned
+    if not is_scanned:
+        return "\n\n".join(pages), False
+
+    # OCR fallback for scanned/unreadable PDFs
+    try:
+        import io
+        import fitz  # pymupdf
+        import pytesseract
+        from PIL import Image
+
+        doc = fitz.open(str(path))
+        ocr_pages: list[str] = []
+        for page in doc:
+            pixmap = page.get_pixmap(dpi=300)
+            img = Image.open(io.BytesIO(pixmap.tobytes("png")))
+            page_text = pytesseract.image_to_string(img, lang="srp+eng")
+            ocr_pages.append(page_text.strip())
+
+        ocr_text = "\n\n".join(ocr_pages)
+        if len(ocr_text.strip()) > 100:
+            return ocr_text, False
+    except Exception:
+        pass
+
+    return "", True
 
 
 def extract_docx(path: Path) -> tuple[str, bool]:
