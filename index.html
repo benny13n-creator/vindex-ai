@@ -2736,13 +2736,14 @@ function formatResponse(rawText) {
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +citatEnc+ '\'),this)">📎 Kopiraj citat</button>'+
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +osnovEnc+ '\'),this)">📋 Izvor: '+ osnovLabel +'</button>'+
     '<button class="resp-action-btn" style="background:rgba(74,168,255,0.07);border-color:rgba(74,168,255,0.25);color:#89c8ff;" onclick="exportPDF(decodeURIComponent(\'' +fullEnc+ '\'),this)">📄 Sačuvaj PDF</button>'+
-    '<button class="resp-action-btn follow-up-btn" id="followUpBtn" onclick="startFollowUp(this)">🔁 Follow-up</button>'+
+    '<button class="resp-action-btn follow-up-btn" id="followUpBtn_'+Date.now()+'" onclick="startFollowUp(this)">🔁 Follow-up</button>'+
     '</div>';
   return html;
 }
 
 function copyToClipboard(text, btn) {
   var clean = text.replace(/^"+|"+$/g,'').trim();
+  if (!clean) { btn.textContent = '⚠ Nema citata'; setTimeout(function(){ btn.textContent = '📎 Kopiraj citat'; }, 2000); return; }
   navigator.clipboard.writeText(clean).then(function(){
     var orig = btn.textContent; btn.textContent = '✓ Kopirano!'; btn.disabled = true;
     setTimeout(function(){ btn.textContent = orig; btn.disabled = false; }, 2000);
@@ -3125,6 +3126,7 @@ async function execQuery() {
         var iv=setInterval(function(){
           if(i>=text.length){
             clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
+            _followUpUsed = false;
             var parsedHtml = formatResponse(text);
             console.log('[Vindex] RAW odgovor (500):', text.substring(0,500));
             console.log('[Vindex] PARSED html (500):', parsedHtml ? parsedHtml.substring(0,500) : 'PRAZAN!');
