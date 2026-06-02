@@ -127,9 +127,9 @@ def test_punomocje_sablon_contains_predmet():
 
 
 def test_get_types_list_returns_five():
-    # Updated to 9 types after P4.2/P4.3 (zalba + tuzba templates)
+    # Updated to 12 types after P4.2/P4.3/P4.6 (zalba + tuzba + letter templates)
     tipovi = get_types_list()
-    assert len(tipovi) == 9
+    assert len(tipovi) == 12
 
 
 def test_get_types_list_structure():

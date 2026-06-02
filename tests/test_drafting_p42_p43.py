@@ -95,9 +95,9 @@ def test_tuzba_radni_spor_sablon_sadrzi_zr():
 # ─── T5: get_types_list vraća svih 9 tipova ──────────────────────────────────
 
 def test_get_types_list_vraca_9_tipova():
-    """get_types_list() mora vratiti sve 9 template tipova."""
+    """get_types_list() mora sadržati barem 9 tipova (P4.6 dodao još 3)."""
     types = get_types_list()
-    assert len(types) == 9, f"Expected 9 types, got {len(types)}"
+    assert len(types) >= 9, f"Expected at least 9 types, got {len(types)}"
 
 
 def test_get_types_list_sadrzi_sve_expected_tipove():

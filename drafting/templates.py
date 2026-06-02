@@ -466,6 +466,113 @@ SABLON_TUZBA_RADNI_SPOR = (
     .replace("__ZR_FULL__", ZR_FULL_REFERENCE)
 )
 
+_SABLON_OPOMENA_DUZNIK_RAW = """\
+OPOMENA PRE TUŽBE
+
+{POVERILAC_IME}
+{DATUM_OPOMENE}
+
+{DUZNIK_IME}
+
+Predmet: Opomena za plaćanje duga — poslednji poziv pre pokretanja sudskog postupka
+
+Poštovani/a,
+
+Obaveštavamo Vas da po osnovu {OSNOV_DUGA} imate dospelu i neizmirenu novčanu\
+ obavezu prema {POVERILAC_IME} u ukupnom iznosu od {IZNOS_DUGA} RSD.
+
+Uprkos ranijim pozivima, navedeni iznos nije plaćen u ugovorenom roku.
+
+POSLEDNJI ROK ZA PLAĆANJE: {ROK_PLACANJA}
+
+Ukoliko plaćanje ne bude izvršeno do navedenog roka, bićemo prinuđeni da pokrenemo\
+ sudski postupak za naplatu potraživanja, uključujući i zakonsku zateznu kamatu,\
+ troškove postupka i advokatske troškove.
+
+Nadamo se da će ovaj dopis biti dovoljan podstrek za dobrovoljno izmirenje obaveze.
+
+S poštovanjem,
+
+                                                {POVERILAC_IME}
+                                            ____________________
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan\
+ od strane ovlašćenog pravnika pre slanja.\
+"""
+
+_SABLON_ZAHTEV_POSLODAVCU_RAW = """\
+ZAHTEV ZAPOSLENOG
+
+{ZAPOSLENI_IME}
+{DATUM}
+
+{POSLODAVAC_IME}
+
+Predmet: {PREDMET_ZAHTEVA}
+
+Poštovani/a,
+
+Na osnovu __ZR_SHORT__ i važećih propisa Republike Srbije, a naročito {PRAVNI_OSNOV},\
+ obraćam Vam se sledećim zahtevom:
+
+{PREDMET_ZAHTEVA}
+
+Molim Vas da mi u roku od {ROK_ODGOVORA} od prijema ovog zahteva dostavite pismeni\
+ odgovor i preduzmete odgovarajuće mere u skladu sa zakonskim obavezama poslodavca.
+
+Ukoliko na ovaj zahtev ne dobijemo odgovor u navedenom roku, biću prinuđen/a da\
+ pokrenem odgovarajući postupak pred nadležnim organima.
+
+S poštovanjem,
+
+                                                {ZAPOSLENI_IME}
+                                            ____________________
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan\
+ od strane ovlašćenog pravnika pre slanja.\
+"""
+
+_SABLON_OBAVEST_OTKAZ_RAW = """\
+OBAVEŠTENJE O OTKAZU UGOVORA
+
+{STRANA_KOJA_OTKAZUJE}
+{DATUM_OTKAZA}
+
+{DRUGA_STRANA}
+
+Predmet: Obaveštenje o otkazu ugovora o radu / poslovnog ugovora
+
+Poštovani/a,
+
+Ovim putem Vas obaveštavamo da je {STRANA_KOJA_OTKAZUJE} donela odluku\
+ o otkazu ugovornog odnosa, i to iz sledećeg razloga:
+
+{RAZLOG}
+
+Otkazni rok iznosi {OTKAZNI_ROK}.
+
+U skladu sa navedenim, ugovorni odnos prestaje po isteku otkaznog roka,\
+ počev od {DATUM_OTKAZA}.
+
+Molimo Vas da u otkaznom roku izmirite sve preuzete obaveze i preduzmete\
+ potrebne radnje u skladu sa ugovorom i važećim propisima.
+
+S poštovanjem,
+
+                                                {STRANA_KOJA_OTKAZUJE}
+                                            ____________________
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan\
+ od strane ovlašćenog pravnika pre slanja.\
+"""
+
+SABLON_OPOMENA_DUZNIK   = _SABLON_OPOMENA_DUZNIK_RAW
+SABLON_ZAHTEV_POSLODAVCU = (
+    _SABLON_ZAHTEV_POSLODAVCU_RAW
+    .replace("__ZR_SHORT__", ZR_SHORT_REFERENCE)
+)
+SABLON_OBAVEST_OTKAZ = _SABLON_OBAVEST_OTKAZ_RAW
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Ekstrakcioni promptovi po tipu
 # ─────────────────────────────────────────────────────────────────────────────
@@ -643,6 +750,38 @@ EKSTRAKCIONI_PROMPTOVI: dict[str, str] = {
   "mesto": "Mesto podnošenja tužbe"
 }
 """,
+
+"opomena_duznik": _EKSTRAKCIONI_BAZA + """
+{
+  "poverilac_ime": "Puno ime/naziv poverioca",
+  "duznik_ime": "Puno ime/naziv dužnika",
+  "iznos_duga": "Iznos duga u RSD (samo broj)",
+  "osnov_duga": "Osnov duga — npr. faktura br. X, ugovor od Y, neisplaćena zarada",
+  "rok_placanja": "Krajnji rok za plaćanje, format DD.MM.YYYY bez trailing tačke",
+  "datum_opomene": "Datum opomene, format DD.MM.YYYY bez trailing tačke"
+}
+""",
+
+"zahtev_poslodavcu": _EKSTRAKCIONI_BAZA + """
+{
+  "zaposleni_ime": "Puno ime zaposlenog",
+  "poslodavac_ime": "Pun naziv poslodavca",
+  "predmet_zahteva": "Sadržaj zahteva — šta zaposleni traži od poslodavca",
+  "pravni_osnov": "Zakonska osnova zahteva (npr. ZR čl. 40, ZR čl. 120, ZR čl. 145)",
+  "rok_odgovora": "Rok za odgovor poslodavca (npr. '8 dana', '15 dana')",
+  "datum": "Datum zahteva, format DD.MM.YYYY bez trailing tačke"
+}
+""",
+
+"obaveštenje_o_otkazu": _EKSTRAKCIONI_BAZA + """
+{
+  "strana_koja_otkazuje": "Ime/naziv strane koja otkazuje ugovor",
+  "druga_strana": "Ime/naziv druge ugovorne strane",
+  "datum_otkaza": "Datum izjavljivanja otkaza, format DD.MM.YYYY bez trailing tačke",
+  "otkazni_rok": "Dužina otkaznog roka (npr. '30 dana', '15 radnih dana')",
+  "razlog": "Razlog otkaza — slobodan tekst"
+}
+""",
 }
 
 
@@ -747,6 +886,39 @@ TEMPLATES: dict[str, dict] = {
         ),
         "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["tuzba_radni_spor"],
         "sablon":     SABLON_TUZBA_RADNI_SPOR,
+        "compliance_tip": None,
+    },
+    "opomena_duznik": {
+        "label":      "Opomena pre tužbe",
+        "opis_hint":  (
+            "Npr. Poverilac: 'ServisPlus' d.o.o., Beograd. Dužnik: Nikola Nikolić. "
+            "Dug: 180.000 RSD po osnovu fakture br. 45/2025. "
+            "Rok za plaćanje: 15.07.2025."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["opomena_duznik"],
+        "sablon":     SABLON_OPOMENA_DUZNIK,
+        "compliance_tip": None,
+    },
+    "zahtev_poslodavcu": {
+        "label":      "Zahtev zaposlenog poslodavcu",
+        "opis_hint":  (
+            "Npr. Zaposleni: Milica Milić. Poslodavac: 'TechCorp' d.o.o. "
+            "Zahtev: isplata neisplaćene zarade za mart 2025, pravni osnov ZR čl. 120. "
+            "Rok za odgovor: 8 dana."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["zahtev_poslodavcu"],
+        "sablon":     SABLON_ZAHTEV_POSLODAVCU,
+        "compliance_tip": None,
+    },
+    "obaveštenje_o_otkazu": {
+        "label":      "Obaveštenje o otkazu ugovora",
+        "opis_hint":  (
+            "Npr. Strana koja otkazuje: 'Uvoz-Izvoz' d.o.o. Druga strana: 'Distribucija' d.o.o. "
+            "Datum otkaza: 01.06.2025. Otkazni rok: 30 dana. "
+            "Razlog: obostrani sporazum o prestanku poslovne saradnje."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["obaveštenje_o_otkazu"],
+        "sablon":     SABLON_OBAVEST_OTKAZ,
         "compliance_tip": None,
     },
 }
