@@ -1635,6 +1635,25 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require
     return rezultat
 
 
+# ─── /api/dokument/rokovi ────────────────────────────────────────────────────
+
+
+class RokoviRequest(BaseModel):
+    session_id: str = ""
+    tekst: str = Field("", max_length=50000)
+
+
+@app.post("/api/dokument/rokovi")
+@limiter.limit("20/minute")
+async def dokument_rokovi(body: RokoviRequest, request: Request, user: dict = Depends(require_credits)):
+    """P3.2 — Ekstrakcija rokova i datuma iz pravnog dokumenta. Ne troši kredit."""
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove
+    if not body.tekst or not body.tekst.strip():
+        return {"rokovi": [], "ukupno": 0}
+    rokovi = await asyncio.to_thread(ekstrahuj_rokove, body.tekst)
+    return {"rokovi": rokovi, "ukupno": len(rokovi)}
+
+
 # ─── /api/praksa/search ───────────────────────────────────────────────────────
 
 _VALID_MATTERS     = frozenset({"Građanska", "Zaštita prava", "Upravna", "Krivična"})
