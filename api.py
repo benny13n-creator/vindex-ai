@@ -1496,7 +1496,11 @@ async def dokument_upload(
 
         session_id = generate_session_id()
         ttl_hours = 24
-        count = await asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours)
+        try:
+            count = await asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours)
+        except Exception as e:
+            logger.error("[UPLOAD] ingest_session greška: %s", str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Greška pri obradi dokumenta: {str(e)}")
 
         exp_iso = expires_at_iso(ttl_hours)
 
