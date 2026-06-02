@@ -1070,7 +1070,7 @@ footer { padding: 2rem 1.5rem; }
       <li><span class="pub-icon">⚡</span> Automatsko pisanje tužbi, žalbi i predloga za izvršenje uz AI asistenciju</li>
       <li><span class="pub-icon">⚖</span> Pravno precizni šabloni usklađeni sa srpskim sudskim procedurama</li>
       <li><span class="pub-icon">📄</span> PDF export gotovog podneska u jednom kliku</li>
-      <li><span class="pub-icon">🔍</span> RAG pretraga kroz 19.167 pravnih izvora pri generisanju</li>
+      <li><span class="pub-icon">🔍</span> RAG pretraga kroz 30.365 pravnih izvora pri generisanju</li>
       <li><span class="pub-icon">🔒</span> Zero-persistence protokol — dokumenti se ne čuvaju na serveru</li>
     </ul>
     <button class="modal-btn pro-upgrade-cta" onclick="closeProUpgradeModal();openProModal();">Saznaj više o PRO verziji &rarr;</button>
@@ -1082,7 +1082,7 @@ footer { padding: 2rem 1.5rem; }
 <div class="modal-overlay" id="pro-modal">
   <div class="modal" style="max-width:460px;">
     <button class="modal-close" onclick="closeProModal()">&#x2715;</button>
-    <div class="modal-badge" style="background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.22);color:#c9a84c;">Vindex AI PRO &mdash; Rana faza</div>
+    <div class="modal-badge" style="background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.22);color:#c9a84c;">Vindex AI PRO</div>
     <div class="modal-title" style="margin-top:0.8rem;">Vindex AI PRO<br>za kancelarije.</div>
     <p class="pro-sub" style="margin-top:0.7rem;">PRO verzija uključuje AI analizu ugovora, generisanje nacrta tužbi i istoriju pretraga. Prijavite se kako biste osigurali <strong style="color:rgba(255,255,255,0.85);">promotivnu cenu</strong> i odmah pristupili svim funkcijama.</p>
     <div id="pro-form">
@@ -1093,7 +1093,7 @@ footer { padding: 2rem 1.5rem; }
     <div class="pro-success" id="pro-success">
       <div style="font-size:2rem;margin-bottom:0.5rem;">&#10003;</div>
       <div style="font-weight:600;color:#fff;margin-bottom:0.4rem;">Prijavljeni ste!</div>
-      <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);">Bićete prvi obavešteni čim PRO verzija bude dostupna. Promotivna cena je garantovana.</div>
+      <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);">PRO je dostupan. Aktivirajte nalog i počnite odmah.</div>
     </div>
   </div>
 </div>
@@ -1347,12 +1347,12 @@ footer { padding: 2rem 1.5rem; }
   <div class="hero-foot">
     <div class="h-stats">
       <div class="h-stat">
-        <div class="h-stat-num" data-target="19167" data-suf="">0</div>
+        <div class="h-stat-num" data-target="30365" data-suf="">0</div>
         <div class="h-stat-lbl">Pravnih izvora u bazi</div>
       </div>
       <div class="h-stat">
-        <div class="h-stat-num">18 <span class="acc">+</span> 216</div>
-        <div class="h-stat-lbl">Zakona i odluka VKS</div>
+        <div class="h-stat-num">18 <span class="acc">·</span> 12.604</div>
+        <div class="h-stat-lbl">zakona i sudskih odluka</div>
       </div>
       <div class="h-stat">
         <div class="h-stat-num">&lt;10<span class="acc">s</span></div>
@@ -1419,8 +1419,8 @@ footer { padding: 2rem 1.5rem; }
       <div class="sh r d1">Pravi odgovor.<br><em>Za 8 sekundi.</em></div>
       <p class="ss r d2" style="margin-bottom:2rem;">Ovo nije simulacija. Ovako izgleda Vindex AI u praksi.</p>
       <div class="testimonials">
-        <div class="tc r d1"><div class="t-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="t-q">Za 10 sekundi dobio sam tačan član i citat koji sam inace tražio 20 minuta. Ovo je alat koji sam čekao godinama.</div><div class="t-a"><div class="t-av">MJ</div><div><div class="t-name">Marko J.</div><div class="t-role">Advokat - Beograd - Beta tester</div></div></div></div>
-        <div class="tc r d2"><div class="t-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="t-q">Konačno AI koji zaista razume srpsko pravo. Ne izmišlja zakone, citira tačno i uvek kaže koliko je siguran.</div><div class="t-a"><div class="t-av">SN</div><div><div class="t-name">Sandra N.</div><div class="t-role">Pravnik - Novi Sad - Beta tester</div></div></div></div>
+        <div class="tc r d1"><div class="t-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="t-q">Za 10 sekundi dobio sam tačan član i citat koji sam inace tražio 20 minuta. Ovo je alat koji sam čekao godinama.</div><div class="t-a"><div class="t-av">MJ</div><div><div class="t-name">Marko J.</div><div class="t-role">Advokat - Beograd</div></div></div></div>
+        <div class="tc r d2"><div class="t-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="t-q">Konačno AI koji zaista razume srpsko pravo. Ne izmišlja zakone, citira tačno i uvek kaže koliko je siguran.</div><div class="t-a"><div class="t-av">SN</div><div><div class="t-name">Sandra N.</div><div class="t-role">Pravnik - Novi Sad - Advokat</div></div></div></div>
       </div>
     </div>
     <div class="r d1">
@@ -1512,9 +1512,9 @@ footer { padding: 2rem 1.5rem; }
         <li>Analiza ugovora i dokumenata</li>
         <li>Istorija svih pretraga</li>
         <li>Prioritetna podrška 24/7</li>
-        <li>Rana cena — garantovana pri prijavi</li>
+        <li>Sudska praksa i analiza dokumenata</li>
       </ul>
-      <button class="price-btn gold" onclick="openProModal()">Osiguraj promotivnu cenu &rarr;</button>
+      <button class="price-btn gold" onclick="openProModal()">Aktiviraj PRO &rarr;</button>
     </div>
 
     <!-- FIRM -->
@@ -1538,17 +1538,17 @@ footer { padding: 2rem 1.5rem; }
 
 <section class="section alt" id="about">
   <div class="sbadge r">Naša priča</div>
-  <div class="sh r d1">Zašto smo napravili <span class="gold">Vindex AI.</span></div>
+  <div class="sh r d1">Zašto sam napravio <span class="gold">Vindex AI.</span></div>
   <div class="about-grid">
     <div>
       <div class="about-q r">Svaki advokat u Srbiji zna taj trenutak - klijent čeka, predmet je pod rokovima, a vi provodite dragoceno vreme prelistavajući stranice zakona.<br><br><strong>Vindex AI je nastao iz jednog prostog uverenja:</strong> advokat treba da razmišlja o strategiji, a ne da ručno pretražuje propise.</div>
-      <p class="about-p r d1">Izgradili smo sistem treniran isključivo na srpskim zakonima - citira tačan član, daje preciznu pravnu kvalifikaciju, bez halucinacija.</p>
-      <p class="about-p r d1">Naš cilj nije da zameni advokata. <strong style="color:#fff;">Naš cilj je da ga oslobodi.</strong></p>
+      <p class="about-p r d1">Izgradio sam sistem treniran isključivo na srpskim zakonima - citira tačan član, daje preciznu pravnu kvalifikaciju, bez halucinacija.</p>
+      <p class="about-p r d1">Moj cilj nije da zameni advokata. <strong style="color:#fff;">Moj cilj je da ga oslobodi.</strong></p>
       <div class="info-tbl r d2">
-        <div class="info-row"><div class="info-k">Status</div><div class="info-v">Beta testiranje - pristup dostupan</div></div>
+        <div class="info-row"><div class="info-k">Status</div><div class="info-v">Produkcija — pristup dostupan</div></div>
         <div class="info-row"><div class="info-k">Email</div><div class="info-v">info@vindex.rs</div></div>
         <div class="info-row"><div class="info-k">Dostupnost</div><div class="info-v">Pon - Pet, 09:00 - 17:00</div></div>
-        <div class="info-row"><div class="info-k">Beta program</div><div class="info-v acc">15 besplatnih pitanja</div></div>
+        <div class="info-row"><div class="info-k">Besplatni pristup</div><div class="info-v acc">15 besplatnih pitanja</div></div>
       </div>
     </div>
     <div class="vals-list r d1">
