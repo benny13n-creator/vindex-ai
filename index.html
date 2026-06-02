@@ -966,6 +966,27 @@ footer { padding: 2rem 1.5rem; }
 #tab-s select option:hover,#tab-s select option:focus,#tab-s select option:checked{background-color:rgba(59,130,246,0.2);color:rgba(255,255,255,1);}
 #tab-s select{background-color:#010308;color:rgba(255,255,255,0.95);border:1px solid rgba(255,255,255,0.1);}
 #tab-s select:focus{outline:none;border-color:rgba(59,130,246,0.5);}
+/* ── Rokovi panel P3.5 ──────────────────────────────────────────── */
+.rokovi-btn{margin-top:.85rem;width:100%;padding:.65rem 1rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.22);border-radius:9px;color:#89c8ff;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;text-align:left;transition:background .2s,border-color .2s;}
+.rokovi-btn:hover{background:rgba(74,168,255,0.13);border-color:rgba(74,168,255,0.38);}
+.rokovi-panel{margin-top:.75rem;display:none;}
+.rokovi-panel.show{display:block;}
+.rokovi-panel-title{font-size:.77rem;font-weight:600;color:rgba(255,255,255,0.45);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.55rem;}
+.rok-card{display:flex;gap:.65rem;align-items:flex-start;padding:.6rem .85rem;border-radius:8px;border-left:3px solid #4aa8ff;background:rgba(255,255,255,0.03);margin-bottom:.42rem;}
+.rok-card.zastarelost{border-left-color:#4aa8ff;}
+.rok-card.otkaz{border-left-color:#f97316;}
+.rok-card.zalba{border-left-color:#ef4444;}
+.rok-card.podnesak{border-left-color:#a78bfa;}
+.rok-card.isplata{border-left-color:#4ade80;}
+.rok-card.ostalo{border-left-color:rgba(255,255,255,0.2);}
+.rok-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px;}
+.rok-body{min-width:0;}
+.rok-vrednost{font-weight:700;font-size:.88rem;color:#fff;}
+.rok-badge{display:inline-block;font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:4px;margin-left:.4rem;background:rgba(74,168,255,0.12);color:#89c8ff;vertical-align:middle;}
+.rok-badge.relativni{background:rgba(249,115,22,0.12);color:#fb923c;}
+.rok-kontekst{font-size:.75rem;color:rgba(255,255,255,0.38);font-style:italic;margin-top:3px;word-break:break-word;}
+.rokovi-empty{font-size:.8rem;color:rgba(255,255,255,0.32);text-align:center;padding:.9rem 0;}
+.rokovi-loading{font-size:.8rem;color:rgba(255,255,255,0.4);text-align:center;padding:.6rem 0;}
 </style>
 
 </head>
@@ -1253,6 +1274,11 @@ footer { padding: 2rem 1.5rem; }
               <label class="t-label" style="margin-top:.9rem;">Postavite pitanje o ovom dokumentu:</label>
               <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:60px;margin-top:.4rem;"></textarea>
               <textarea id="aitxt" style="display:none"></textarea>
+              <button class="rokovi-btn" onclick="doc_prikaži_rokove(this)">📅 Prikaži rokove</button>
+              <div id="rokovi-panel" class="rokovi-panel">
+                <div class="rokovi-panel-title">Identifikovani rokovi</div>
+                <div id="rokovi-lista"></div>
+              </div>
             </div>
           </div>
           <div id="tab-s" style="display:none">
@@ -3606,6 +3632,61 @@ function doc_clear_session() {
   var inp = document.getElementById('doc-upload-input');
   if (aq)  aq.value  = '';
   if (inp) inp.value = '';
+  var rp = document.getElementById('rokovi-panel');
+  if (rp) { rp.classList.remove('show'); document.getElementById('rokovi-lista').innerHTML = ''; }
+}
+
+/* ── Rokovi panel P3.5/P3.6 ──────────────────────────────────────── */
+var _ROK_ICONS = { zastarelost:'⏰', otkaz:'📋', zalba:'⚖️', podnesak:'📝', isplata:'💰', ostalo:'📌' };
+
+async function doc_prikaži_rokove(btn) {
+  if (!currentSession) { openModal(); return; }
+  var panel = document.getElementById('rokovi-panel');
+  var lista = document.getElementById('rokovi-lista');
+  if (!panel || !lista) return;
+
+  var isOpen = panel.classList.contains('show');
+  if (isOpen) {
+    panel.classList.remove('show');
+    btn.textContent = '📅 Prikaži rokove';
+    return;
+  }
+
+  panel.classList.add('show');
+  btn.textContent = '📅 Sakrij rokove';
+  lista.innerHTML = '<div class="rokovi-loading"><span class="upload-spinner"></span> Tražim rokove...</div>';
+
+  var tekst = (document.getElementById('aitxt') || {}).value || '';
+  var body  = { session_id: _docSessionId || '', tekst: tekst };
+
+  try {
+    var r = await fetch(BASE_URL + '/api/dokument/rokovi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) { lista.innerHTML = '<div class="rokovi-empty">Greška pri učitavanju rokova.</div>'; return; }
+    var d = await r.json();
+    var rokovi = d.rokovi || [];
+    if (!rokovi.length) {
+      lista.innerHTML = '<div class="rokovi-empty">Nisu pronađeni rokovi u dokumentu.</div>';
+      return;
+    }
+    lista.innerHTML = rokovi.map(function(rok) {
+      var kat  = rok.kategorija || 'ostalo';
+      var icon = _ROK_ICONS[kat] || '📌';
+      var ctx  = rok.kontekst ? rok.kontekst.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+      return '<div class="rok-card ' + kat + '">' +
+        '<div class="rok-icon">' + icon + '</div>' +
+        '<div class="rok-body">' +
+          '<span class="rok-vrednost">' + rok.vrednost + '</span>' +
+          '<span class="rok-badge ' + rok.tip + '">' + rok.tip + '</span>' +
+          (ctx ? '<div class="rok-kontekst">' + ctx + '</div>' : '') +
+        '</div></div>';
+    }).join('');
+  } catch(e) {
+    lista.innerHTML = '<div class="rokovi-empty">Nema veze sa serverom.</div>';
+  }
 }
 
 (function() {
