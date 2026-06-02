@@ -224,6 +224,33 @@ async def get_current_user(
 
 # ─── Kredit sistem ────────────────────────────────────────────────────────────
 BESPLATNI_KREDITI = 15
+BASIC_MESECNI_KREDITI = 200
+PRO_MESECNI_KREDITI   = 600
+
+# In-memory mesečna upotreba: {user_id: {"month": "YYYY-MM", "count": N}}
+# Resetuje se pri restartovanju servera (prihvatljivo za single-instance deployment)
+_mesecna_upotreba: dict[str, dict] = {}
+
+
+def _get_current_month() -> str:
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m")
+
+
+def _get_monthly_usage(user_id: str) -> int:
+    entry = _mesecna_upotreba.get(user_id, {})
+    if entry.get("month") != _get_current_month():
+        return 0
+    return entry.get("count", 0)
+
+
+def _increment_monthly_usage(user_id: str) -> None:
+    month = _get_current_month()
+    entry = _mesecna_upotreba.get(user_id, {})
+    if entry.get("month") != month:
+        _mesecna_upotreba[user_id] = {"month": month, "count": 1}
+    else:
+        _mesecna_upotreba[user_id] = {"month": month, "count": entry.get("count", 0) + 1}
 
 
 def _ensure_profile(user_id: str, email: str = "") -> dict:
@@ -294,6 +321,7 @@ def _deduct_credit(user_id: str, email: str = "") -> int:
         return 9999
     try:
         result = _get_supa().rpc("deduct_credit", {"p_user_id": user_id}).execute()
+        _increment_monthly_usage(user_id)
         return result.data if result.data is not None else -1
     except Exception:
         logger.exception("Greška pri oduzimanju kredita za korisnika %s", user_id)
@@ -307,6 +335,23 @@ async def require_credits(user: dict = Depends(get_current_user)) -> dict:
     if _is_founder(email):
         user["credits_remaining"] = 9999
         return user
+
+    # Mese\u010dni limit (PRO: 600, Basic/Free: 200 \u2014 Free korisnici su stopiran ranije, na 15)
+    is_pro_user = _is_pro(email)
+    monthly_limit = PRO_MESECNI_KREDITI if is_pro_user else BASIC_MESECNI_KREDITI
+    monthly_used  = _get_monthly_usage(user["user_id"])
+    if monthly_used >= monthly_limit:
+        if is_pro_user:
+            msg = (f"Iskoristili ste {PRO_MESECNI_KREDITI} mese\u010dnih pitanja. "
+                   "Kontaktirajte nas za Firm plan.")
+        else:
+            msg = (f"Iskoristili ste {BASIC_MESECNI_KREDITI} mese\u010dnih pitanja. "
+                   "Pre\u0111ite na PRO za 600 pitanja mese\u010dno.")
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={"code": "MONTHLY_LIMIT", "message": msg, "credits_remaining": 0},
+        )
+
     credits = await asyncio.to_thread(_get_credits, user["user_id"])
     if credits <= 0:
         raise HTTPException(
