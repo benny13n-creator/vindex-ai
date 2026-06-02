@@ -3207,11 +3207,11 @@ function _setPrices(){
   var p1=document.getElementById('p1'),pp1=document.getElementById('pp1');
   var p2=document.getElementById('p2'),pp2=document.getElementById('pp2');
   if(annual){
-    if(p1)p1.textContent='€23';if(pp1)pp1.textContent='/mesec, godišnje';
-    if(p2)p2.textContent='€63';if(pp2)pp2.textContent='/mesec, godišnje';
+    if(p1)p1.textContent='€15';if(pp1)pp1.textContent='/mesec, godišnje';
+    if(p2)p2.textContent='€31';if(pp2)pp2.textContent='/mesec, godišnje';
   }else{
-    if(p1)p1.textContent='€29';if(pp1)pp1.textContent='/mesec';
-    if(p2)p2.textContent='€79';if(pp2)pp2.textContent='/mesec';
+    if(p1)p1.textContent='€19';if(pp1)pp1.textContent='/mesec';
+    if(p2)p2.textContent='€39';if(pp2)pp2.textContent='/mesec';
   }
 }
 function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.toggle('on',annual);_setPrices();}

@@ -315,7 +315,7 @@ async def require_credits(user: dict = Depends(get_current_user)) -> dict:
                 "code": "NO_CREDITS",
                 "message": (
                     "Iskoristili ste besplatne upite. "
-                    "Pre\u0111ite na Basic paket (49\u20ac) za neograni\u010den pristup."
+                    "Pre\u0111ite na Basic paket (19\u20ac) za neograni\u010den pristup."
                 ),
                 "credits_remaining": 0,
             },
