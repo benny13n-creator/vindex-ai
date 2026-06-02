@@ -158,6 +158,24 @@ def ekstrahuj_rokove(tekst: str) -> list[dict]:
         vrednost = f"{m.group(1)} dana"
         _add("relativni", vrednost, m.start(), m.end())
 
-    # Sort by position in text (preserving document order)
-    results.sort(key=lambda r: tekst.find(r["vrednost"]))
-    return results
+    # ─── Deduplikacija: isti vrednost + prvih 50 chars konteksta ────────────────
+    seen_keys: set[str] = set()
+    deduped: list[dict] = []
+    for r in results:
+        key = r["vrednost"] + "|" + r["kontekst"][:50]
+        if key not in seen_keys:
+            seen_keys.add(key)
+            deduped.append(r)
+
+    # ─── Sortiranje: apsolutni hronološki → relativni leksikografski ─────────
+    def _sort_key(r: dict) -> tuple:
+        if r["tip"] == "apsolutni":
+            # vrednost is "DD.MM.YYYY" — convert to sortable YYYY-MM-DD
+            parts = r["vrednost"].split(".")
+            if len(parts) == 3:
+                return (0, f"{parts[2]}-{parts[1]}-{parts[0]}")
+            return (0, r["vrednost"])
+        return (1, r["vrednost"])
+
+    deduped.sort(key=_sort_key)
+    return deduped
