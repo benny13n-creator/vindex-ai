@@ -295,12 +295,13 @@ def _pripremi_fields(fields: dict, vrsta: str) -> dict:
     return {k: (v if v is not None else "") for k, v in fields.items()}
 
 
-def generate_draft(vrsta: str, opis: str) -> dict:
+def generate_draft(vrsta: str, opis: str, user_id: str = "") -> dict:
     """
     Generiše strukturiran nacrt dokumenta.
 
-    vrsta  — ključ iz TEMPLATES registra
-    opis   — slobodan opis od korisnika
+    vrsta   — ključ iz TEMPLATES registra
+    opis    — slobodan opis od korisnika
+    user_id — opciono; ako postoji playbook_{user_id} u Pinecone, injektuje style kontekst
 
     Vraća {"status": "success", "data": tekst} ili {"status": "error", "message": ...}.
     """
@@ -313,9 +314,24 @@ def generate_draft(vrsta: str, opis: str) -> dict:
         }
 
     try:
+        # ── 0. Playbook kontekst (P4.4) ──────────────────────────────────────
+        playbook_blok = ""
+        if user_id:
+            try:
+                from .playbook import search_playbook
+                pb_results = search_playbook(user_id, opis, top_k=3)
+                if pb_results:
+                    playbook_blok = (
+                        "\nPLAYBOOK KANCELARIJE:\n"
+                        + "\n---\n".join(pb_results)
+                        + "\nKoristi ovaj stil i formulacije.\n"
+                    )
+            except Exception:
+                logger.warning("[PLAYBOOK] pretraga neuspešna — nastavljam bez playbook-a")
+
         # ── 1. Ekstrakcija polja ─────────────────────────────────────────────
         system_p = tpl["ekstrakcioni_prompt"]
-        user_p = f"OPIS:\n{opis}"
+        user_p = f"OPIS:\n{opis}{playbook_blok}"
         raw_json = _call_openai(system_p, user_p, max_tokens=800)
         fields = _ekstraktuj_json(raw_json)
 

@@ -1220,6 +1220,83 @@ async def nacrt_types():
     return {"tipovi": _drafting_get_types()}
 
 
+# ─── /api/playbook ────────────────────────────────────────────────────────────
+
+_MAX_PLAYBOOK_BYTES = 2 * 1024 * 1024  # 2 MB
+
+
+@app.post("/api/playbook/upload")
+@limiter.limit("10/minute")
+async def playbook_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_pro),
+):
+    """P4.4 — Upload firm playbook (TXT or DOCX). Ne troši kredit."""
+    from pathlib import Path as _Path
+    import tempfile
+    from uploaded_doc.extractor import extract_docx, extract_txt
+
+    suffix = _Path(file.filename or "").suffix.lower()
+    if suffix not in {".txt", ".docx"}:
+        raise HTTPException(status_code=415, detail="Podržani formati: TXT, DOCX")
+
+    raw = await file.read()
+    if len(raw) > _MAX_PLAYBOOK_BYTES:
+        raise HTTPException(status_code=413, detail="Fajl je preko 2MB")
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(raw)
+            tmp_path = _Path(tmp.name)
+
+        if suffix == ".docx":
+            tekst, _ = await asyncio.to_thread(extract_docx, tmp_path)
+        else:
+            tekst, _ = await asyncio.to_thread(extract_txt, tmp_path)
+
+        if not tekst or not tekst.strip():
+            raise HTTPException(status_code=422, detail="Fajl je prazan ili nečitljiv")
+
+        from drafting.playbook import ingest_playbook
+        count = await asyncio.to_thread(ingest_playbook, user["user_id"], file.filename or "", tekst)
+        return {"filename": file.filename, "chunks_ingested": count}
+    finally:
+        if tmp_path and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+
+@app.delete("/api/playbook")
+@limiter.limit("10/minute")
+async def playbook_delete(request: Request, user: dict = Depends(require_pro)):
+    """P4.4 — Briše ceo playbook korisnika iz Pinecone."""
+    from drafting.playbook import delete_playbook
+    deleted = await asyncio.to_thread(delete_playbook, user["user_id"])
+    return {"deleted_chunks": deleted}
+
+
+@app.get("/api/playbook/status")
+@limiter.limit("30/minute")
+async def playbook_status(request: Request, user: dict = Depends(require_pro)):
+    """P4.4 — Vraća status playbook-a: da li postoji i koliko chunks ima."""
+    def _check():
+        try:
+            from uploaded_doc.ingest import _get_pinecone_index
+            index = _get_pinecone_index()
+            ns = f"playbook_{user['user_id']}"
+            stats = index.describe_index_stats()
+            ns_data = stats.namespaces.get(ns) if hasattr(stats, "namespaces") else None
+            count = (ns_data.vector_count if hasattr(ns_data, "vector_count") else 0) if ns_data else 0
+            return {"has_playbook": count > 0, "chunk_count": count}
+        except Exception:
+            return {"has_playbook": False, "chunk_count": 0}
+    return await asyncio.to_thread(_check)
+
+
 @app.post("/api/nacrt")
 @limiter.limit("10/minute")
 async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_pro)):
@@ -1229,7 +1306,7 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_pr
     try:
         qh_nacrt = _q_hash(_skini_pii(req.opis))
         t0 = _time.monotonic()
-        rezultat = await pokreni(_drafting_generate, req.vrsta, _skini_pii(req.opis))
+        rezultat = await pokreni(_drafting_generate, req.vrsta, _skini_pii(req.opis), user["user_id"])
         latency_ms = int((_time.monotonic() - t0) * 1000)
         _al.log_response(
             endpoint="/api/nacrt",
