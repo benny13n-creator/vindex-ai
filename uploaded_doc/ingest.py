@@ -76,7 +76,9 @@ def ingest_session(
             "metadata": metadata,
         })
 
-    index.upsert(vectors=records, namespace=namespace)
+    BATCH_SIZE = 50
+    for i in range(0, len(records), BATCH_SIZE):
+        index.upsert(vectors=records[i:i+BATCH_SIZE], namespace=namespace)
     logger.info(
         "[INGEST] session=%s ns=%s chunks=%d",
         session_id, namespace, len(records),
