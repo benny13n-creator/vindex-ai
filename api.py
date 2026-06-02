@@ -1638,6 +1638,32 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require
 # ─── /api/dokument/rokovi ────────────────────────────────────────────────────
 
 
+def _fetch_session_tekst(session_id: str) -> str:
+    """Reconstruct document text from Pinecone tmp_<session_id> chunk metadata."""
+    try:
+        from uploaded_doc.ingest import _get_pinecone_index
+        index = _get_pinecone_index()
+        namespace = f"tmp_{session_id}"
+        result = index.query(
+            vector=[0.0] * 3072,
+            top_k=1000,
+            namespace=namespace,
+            include_metadata=True,
+        )
+        matches = result.matches if hasattr(result, "matches") else result.get("matches", [])
+        if not matches:
+            return ""
+        matches_sorted = sorted(
+            matches,
+            key=lambda m: int((m.metadata or {}).get("chunk_index", 0))
+        )
+        texts = [(m.metadata or {}).get("text", "") for m in matches_sorted]
+        return "\n\n".join(t for t in texts if t.strip())
+    except Exception:
+        logger.exception("[ROKOVI] Greška pri čitanju chunks iz Pinecone za session=%s", session_id)
+        return ""
+
+
 class RokoviRequest(BaseModel):
     session_id: str = ""
     tekst: str = Field("", max_length=50000)
@@ -1646,11 +1672,22 @@ class RokoviRequest(BaseModel):
 @app.post("/api/dokument/rokovi")
 @limiter.limit("20/minute")
 async def dokument_rokovi(body: RokoviRequest, request: Request, user: dict = Depends(require_credits)):
-    """P3.2 — Ekstrakcija rokova i datuma iz pravnog dokumenta. Ne troši kredit."""
+    """P3.2 — Ekstrakcija rokova iz Pinecone chunks. Ne troši kredit."""
     from uploaded_doc.deadline_parser import ekstrahuj_rokove
-    if not body.tekst or not body.tekst.strip():
+
+    tekst = (body.tekst or "").strip()
+
+    if not tekst and body.session_id:
+        from uploaded_doc.session import validate_session
+        session_ok = await asyncio.to_thread(validate_session, body.session_id)
+        if not session_ok:
+            raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
+        tekst = await asyncio.to_thread(_fetch_session_tekst, body.session_id)
+
+    if not tekst:
         return {"rokovi": [], "ukupno": 0}
-    rokovi = await asyncio.to_thread(ekstrahuj_rokove, body.tekst)
+
+    rokovi = await asyncio.to_thread(ekstrahuj_rokove, tekst)
     return {"rokovi": rokovi, "ukupno": len(rokovi)}
 
 
