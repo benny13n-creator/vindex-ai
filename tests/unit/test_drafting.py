@@ -52,13 +52,9 @@ from drafting.router import (
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_templates_has_all_five_types():
-    assert set(TEMPLATES.keys()) == {
-        "ugovor_neodredjeno",
-        "ugovor_odredjeno",
-        "aneks",
-        "sporazumni_raskid",
-        "punomocje",
-    }
+    # Original 5 types must still be present (P4.2/P4.3 added 4 more)
+    original = {"ugovor_neodredjeno", "ugovor_odredjeno", "aneks", "sporazumni_raskid", "punomocje"}
+    assert original.issubset(set(TEMPLATES.keys()))
 
 
 def test_each_template_has_required_keys():
@@ -131,8 +127,9 @@ def test_punomocje_sablon_contains_predmet():
 
 
 def test_get_types_list_returns_five():
+    # Updated to 9 types after P4.2/P4.3 (zalba + tuzba templates)
     tipovi = get_types_list()
-    assert len(tipovi) == 5
+    assert len(tipovi) == 9
 
 
 def test_get_types_list_structure():

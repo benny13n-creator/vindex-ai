@@ -297,6 +297,175 @@ SABLON_PUNOMOCJE = (
     .replace("__ZR_SHORT__", ZR_SHORT_REFERENCE)
 )
 
+_SABLON_ZALBA_NA_PRESUDU_RAW = """\
+ŽALBA NA PRESUDU
+
+{PODNOSILAC_IME}{ADVOKAT_CLAN}
+
+Sudu:
+{SUD_NAZIV}
+
+Putem prvostepenog suda
+
+Predmet: {BROJ_PREDMETA}
+
+Žalba na presudu od {DATUM_PRESUDE}
+
+Uvaženi sude,
+
+U zakonskom roku, u skladu sa Zakonom o parničnom postupku (ZPP, Sl. glasnik RS, br. 72/2011,\
+ 49/2013, 74/2013, 55/2014, 87/2018, 18/2020), a naročito čl. 373, izjavljujem ŽALBU\
+ na prvostepenu presudu {BROJ_PREDMETA} od {DATUM_PRESUDE}.
+
+I. RAZLOZI ŽALBE
+
+{RAZLOZI_ZALBE}
+
+II. PREDLOG
+
+Na osnovu navedenih razloga predlažem drugostepenom sudu da:
+
+{PREDLOG}
+
+{DATUM}, {MESTO}
+
+                                                   Podnosilac žalbe:
+                                                ____________________
+                                                {PODNOSILAC_IME}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan\
+ od strane ovlašćenog pravnika pre podnošenja.\
+"""
+
+_SABLON_ZALBA_NA_RESENJE_RAW = """\
+ŽALBA NA REŠENJE
+
+Podnosilac: {PODNOSILAC_IME}
+
+Organu:
+{ORGAN_NAZIV}
+
+Predmet: Žalba na rešenje br. {BROJ_RESENJA} od {DATUM_RESENJA}
+
+Poštovani,
+
+U zakonskom roku od 15 dana, u skladu sa Zakonom o opštem upravnom postupku\
+ (ZUP, Sl. glasnik RS, br. 18/2016, 95/2018, 2/2023 - autentično tumačenje),\
+ čl. 158, izjavljujem ŽALBU na rešenje br. {BROJ_RESENJA} od {DATUM_RESENJA}.
+
+I. RAZLOZI ŽALBE
+
+{RAZLOZI_ZALBE}
+
+II. PREDLOG
+
+Na osnovu iznetih razloga, predlažem drugostepenom organu da:
+
+{PREDLOG}
+
+{DATUM}, {MESTO}
+
+                                                   Podnosilac žalbe:
+                                                ____________________
+                                                {PODNOSILAC_IME}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan\
+ od strane ovlašćenog pravnika pre podnošenja.\
+"""
+
+_SABLON_TUZBA_NAKNADA_STETE_RAW = """\
+TUŽBA ZA NAKNADU ŠTETE
+
+TUŽILAC: {TUZILAC_IME}
+TUŽENI: {TUZENI_IME}
+
+{SUD_NAZIV}
+
+TUŽBA
+
+I. PREDMET SPORA
+
+{OPIS_STETE}
+
+II. PRAVNI OSNOV
+
+Na osnovu Zakona o obligacionim odnosima (ZOO, Sl. glasnik SFRJ br. 29/78 i dr.),\
+ čl. 154 (osnov odgovornosti), čl. 155 (pojam štete) i čl. {PRAVNI_OSNOV_CLAN}\
+ (naknada nematerijalne/materijalne štete), tužilac ima pravo na naknadu štete od tuženog.
+
+III. TUŽBENI ZAHTEV
+
+Tužilac tražim da sud:
+
+1. Obaveže tuženog {TUZENI_IME} da tužiocu {TUZILAC_IME} plati naknadu štete\
+ u iznosu od {IZNOS_STETE} RSD, sa zakonskom zateznom kamatom od dana donošenja\
+ presude do isplate;
+2. Obaveže tuženog da snosi troškove postupka.
+
+IV. DOKAZI
+
+{DOKAZI}
+
+{DATUM}, {MESTO}
+
+                                                   Tužilac:
+                                                ____________________
+                                                {TUZILAC_IME}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan\
+ od strane ovlašćenog pravnika pre podnošenja.\
+"""
+
+_SABLON_TUZBA_RADNI_SPOR_RAW = """\
+TUŽBA — RADNI SPOR
+
+TUŽILAC (zaposleni): {TUZILAC_IME}
+TUŽENI (poslodavac): {POSLODAVAC_IME}
+
+{SUD_NAZIV}
+
+TUŽBA ZA ZAŠTITU PRAVA IZ RADNOG ODNOSA
+
+I. ČINJENIČNO STANJE
+
+{OPIS_POVREDE}
+
+Povreda prava nastupila je dana {DATUM_POVREDE}.
+
+II. PRAVNI OSNOV
+
+Na osnovu __ZR_FULL__, a naročito čl. 195 (sudska zaštita prava zaposlenog),\
+ tužilac je ovlašćen da pokrene radni spor pred nadležnim sudom radi zaštite\
+ povređenih prava iz radnog odnosa.
+
+III. TUŽBENI ZAHTEV
+
+{ZAHTEV}
+
+IV. PREDLOG
+
+Na osnovu navedenog, predlažem sudu da:
+1. Usvoji tužbeni zahtev u celosti;
+2. Obaveže tuženog da snosi troškove postupka.
+
+{DATUM}, {MESTO}
+
+                                                   Tužilac:
+                                                ____________________
+                                                {TUZILAC_IME}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan\
+ od strane ovlašćenog pravnika pre podnošenja.\
+"""
+
+SABLON_ZALBA_NA_PRESUDU = _SABLON_ZALBA_NA_PRESUDU_RAW
+SABLON_ZALBA_NA_RESENJE  = _SABLON_ZALBA_NA_RESENJE_RAW
+SABLON_TUZBA_NAKNADA_STETE = _SABLON_TUZBA_NAKNADA_STETE_RAW
+SABLON_TUZBA_RADNI_SPOR = (
+    _SABLON_TUZBA_RADNI_SPOR_RAW
+    .replace("__ZR_FULL__", ZR_FULL_REFERENCE)
+)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Ekstrakcioni promptovi po tipu
 # ─────────────────────────────────────────────────────────────────────────────
@@ -420,6 +589,60 @@ EKSTRAKCIONI_PROMPTOVI: dict[str, str] = {
   "mesto": "Mesto izdavanja"
 }
 """,
+
+"zalba_na_presudu": _EKSTRAKCIONI_BAZA + """
+{
+  "podnosilac_ime": "Puno ime podnosioca žalbe",
+  "advokat_ime": "Puno ime advokata ako je naveden, inače prazno",
+  "sud_naziv": "Naziv drugostepenog suda kome se žalba podnosi",
+  "broj_predmeta": "Broj predmeta prvostepene presude (npr. P. 123/2024)",
+  "datum_presude": "Datum prvostepene presude, format DD.MM.YYYY bez trailing tačke",
+  "razlozi_zalbe": "Razlozi žalbe — slobodan tekst koji opisuje zašto se presuda pobija",
+  "predlog": "Predlog drugostepenom sudu (npr. ukine presudu, preinači, vrati na ponovni postupak)",
+  "datum": "Datum izjavljivanja žalbe, format DD.MM.YYYY bez trailing tačke",
+  "mesto": "Mesto izjavljivanja žalbe"
+}
+""",
+
+"zalba_na_resenje": _EKSTRAKCIONI_BAZA + """
+{
+  "podnosilac_ime": "Puno ime podnosioca žalbe",
+  "organ_naziv": "Naziv organa koji je doneo rešenje",
+  "broj_resenja": "Broj rešenja koje se pobija",
+  "datum_resenja": "Datum rešenja, format DD.MM.YYYY bez trailing tačke",
+  "razlozi_zalbe": "Razlozi žalbe — slobodan tekst koji opisuje razloge pobijanja rešenja",
+  "predlog": "Predlog drugostepenom organu (npr. poništi rešenje, izmeni, vrati na ponovni postupak)",
+  "datum": "Datum izjavljivanja žalbe, format DD.MM.YYYY bez trailing tačke",
+  "mesto": "Mesto izjavljivanja žalbe"
+}
+""",
+
+"tuzba_naknada_stete": _EKSTRAKCIONI_BAZA + """
+{
+  "tuzilac_ime": "Puno ime/naziv tužioca",
+  "tuzeni_ime": "Puno ime/naziv tuženog",
+  "sud_naziv": "Naziv suda kome se tužba podnosi",
+  "opis_stete": "Opis štetnog događaja i nastale štete",
+  "iznos_stete": "Iznos potraživane naknade u RSD (samo broj)",
+  "pravni_osnov_clan": "Broj člana ZOO koji se primenjuje za naknadu (npr. 200 za nematerijalnu, 189 za materijalnu)",
+  "dokazi": "Lista dokaza koje tužilac predlaže (slobodan tekst ili nabrajanje)",
+  "datum": "Datum podnošenja tužbe, format DD.MM.YYYY bez trailing tačke",
+  "mesto": "Mesto podnošenja tužbe"
+}
+""",
+
+"tuzba_radni_spor": _EKSTRAKCIONI_BAZA + """
+{
+  "tuzilac_ime": "Puno ime zaposlenog (tužioca)",
+  "poslodavac_ime": "Pun naziv poslodavca (tuženog)",
+  "sud_naziv": "Naziv suda kome se tužba podnosi",
+  "opis_povrede": "Opis povrede prava iz radnog odnosa (npr. nezakonit otkaz, neisplata zarade)",
+  "zahtev": "Tužbeni zahtev zaposlenog (npr. vraćanje na rad, isplata zarade, naknada štete)",
+  "datum_povrede": "Datum nastanka povrede prava, format DD.MM.YYYY bez trailing tačke",
+  "datum": "Datum podnošenja tužbe, format DD.MM.YYYY bez trailing tačke",
+  "mesto": "Mesto podnošenja tužbe"
+}
+""",
 }
 
 
@@ -478,6 +701,52 @@ TEMPLATES: dict[str, dict] = {
         ),
         "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["punomocje"],
         "sablon":     SABLON_PUNOMOCJE,
+        "compliance_tip": None,
+    },
+    "zalba_na_presudu": {
+        "label":      "Žalba na presudu",
+        "opis_hint":  (
+            "Npr. Podnosilac: Marko Marković, Beograd. Sud: Apelacioni sud u Beogradu. "
+            "Predmet: P. 456/2024. Datum presude: 15.04.2025. "
+            "Razlozi: pogrešno utvrđeno činjenično stanje, netačna primena materijalnog prava. "
+            "Predlog: preinači presudu i usvoji tužbeni zahtev u celosti."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["zalba_na_presudu"],
+        "sablon":     SABLON_ZALBA_NA_PRESUDU,
+        "compliance_tip": None,
+    },
+    "zalba_na_resenje": {
+        "label":      "Žalba na rešenje",
+        "opis_hint":  (
+            "Npr. Podnosilac: Ana Nikolić. Organ: Poreska uprava, Filijala Beograd. "
+            "Rešenje br. 462-00-123/2025 od 10.03.2025. "
+            "Razlozi: rešenje je zasnovano na pogrešnoj primeni Zakona o porezu na prihode. "
+            "Predlog: poništiti rešenje i predmet vratiti na ponovni postupak."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["zalba_na_resenje"],
+        "sablon":     SABLON_ZALBA_NA_RESENJE,
+        "compliance_tip": None,
+    },
+    "tuzba_naknada_stete": {
+        "label":      "Tužba za naknadu štete",
+        "opis_hint":  (
+            "Npr. Tužilac: Jovana Jovanović, Beograd. Tuženi: 'FastDriving' d.o.o. "
+            "Saobraćajna nezgoda 20.01.2025, telesne povrede, naknada 500.000 RSD. "
+            "Sud: Osnovi sud u Beogradu. Dokazi: policijski zapisnik, medicinska dokumentacija."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["tuzba_naknada_stete"],
+        "sablon":     SABLON_TUZBA_NAKNADA_STETE,
+        "compliance_tip": None,
+    },
+    "tuzba_radni_spor": {
+        "label":      "Tužba — radni spor",
+        "opis_hint":  (
+            "Npr. Zaposleni: Petar Petrović. Poslodavac: 'Industrija AB' d.o.o., Novi Sad. "
+            "Nezakonit otkaz od 05.03.2025, zahtev za vraćanje na rad i isplatu izgubljene zarade. "
+            "Sud: Osnovni sud u Novom Sadu."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["tuzba_radni_spor"],
+        "sablon":     SABLON_TUZBA_RADNI_SPOR,
         "compliance_tip": None,
     },
 }
