@@ -33,7 +33,7 @@ def extract_pdf(path: Path) -> tuple[str, bool]:
         doc = fitz.open(str(path))
         ocr_pages: list[str] = []
         for page in doc:
-            pixmap = page.get_pixmap(dpi=300)
+            pixmap = page.get_pixmap(dpi=150)
             img = Image.open(io.BytesIO(pixmap.tobytes("png")))
             try:
                 page_text = pytesseract.image_to_string(img, lang="srp+eng", timeout=30)
