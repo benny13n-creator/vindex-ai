@@ -497,8 +497,9 @@ class HistoryItem(BaseModel):
 
 
 class PitanjeReq(BaseModel):
-    pitanje: str = Field(..., min_length=3, max_length=2000)
-    history: List[HistoryItem] = Field(default_factory=list, max_length=3)
+    pitanje:    str = Field(..., min_length=3, max_length=2000)
+    history:    List[HistoryItem] = Field(default_factory=list, max_length=3)
+    predmet_id: Optional[str] = Field(None, max_length=64)
 
     @field_validator("pitanje")
     @classmethod
@@ -1116,11 +1117,37 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
     qh = _q_hash(req.pitanje)
     logger.info("Pitanje [uid=%.8s] [q=%s]", user["user_id"], qh)
     asyncio.create_task(_audit(user["user_id"], "pitanje", qh))
+    predmet_id = (req.predmet_id or "").strip() or None
     try:
         history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
+
+        # F5.4: inject predmet context when predmet_id is provided
+        pitanje_za_agenta = req.pitanje
+        if predmet_id:
+            try:
+                supa = _get_supa()
+                beleske_res  = supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).order("created_at", desc=True).limit(5).execute()
+                istorija_res = supa.table("predmet_istorija").select("pitanje, odgovor").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).order("created_at", desc=True).limit(10).execute()
+                beleske_tekst  = "\n".join(b["sadrzaj"] for b in (beleske_res.data or []) if b.get("sadrzaj"))
+                istorija_tekst = "\n".join(
+                    f"P: {r['pitanje']}\nO: {r['odgovor'][:300]}"
+                    for r in (istorija_res.data or []) if r.get("pitanje")
+                )
+                if beleske_tekst or istorija_tekst:
+                    delovi = []
+                    if beleske_tekst:
+                        delovi.append(f"Beleške:\n{beleske_tekst}")
+                    if istorija_tekst:
+                        delovi.append(f"Istorija razgovora:\n{istorija_tekst}")
+                    extra_context = "KONTEKST PREDMETA:\n" + "\n\n".join(delovi)
+                    pitanje_za_agenta = f"{extra_context}\n\nPITANJE: {req.pitanje}"
+                    logger.info("[F5] predmet_id=%s context injected (%d beleški, %d istorija)", predmet_id, len(beleske_res.data or []), len(istorija_res.data or []))
+            except Exception:
+                logger.warning("[F5] predmet context load failed for predmet_id=%s — proceeding without", predmet_id)
+
         tip = await asyncio.to_thread(klasifikuj_pitanje, _skini_pii(req.pitanje))
         t0 = _time.monotonic()
-        rezultat = await pokreni(ask_agent, req.pitanje, history)
+        rezultat = await pokreni(ask_agent, pitanje_za_agenta, history)
         latency_ms = int((_time.monotonic() - t0) * 1000)
         _al.log_response(
             endpoint="/api/pitanje",
@@ -1142,6 +1169,20 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
             preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         else:
             preostalo = await asyncio.to_thread(_get_credits, user["user_id"])
+
+        # F5.4: persist Q&A turn to predmet_istorija
+        if predmet_id and rezultat.get("status") == "success" and not rezultat.get("blocked"):
+            try:
+                _get_supa().table("predmet_istorija").insert({
+                    "predmet_id": predmet_id,
+                    "user_id":    user["user_id"],
+                    "pitanje":    req.pitanje[:500],
+                    "odgovor":    (rezultat.get("data") or "")[:3000],
+                    "confidence": rezultat.get("confidence", ""),
+                }).execute()
+            except Exception:
+                logger.warning("[F5] predmet_istorija save failed for predmet_id=%s", predmet_id)
+
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
         logger.exception("Greška u /api/pitanje [q=%s]", qh)
