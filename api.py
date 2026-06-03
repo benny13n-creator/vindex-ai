@@ -328,6 +328,48 @@ def _deduct_credit(user_id: str, email: str = "") -> int:
         return -1
 
 
+# ─── Supabase credit helpers (clean single-purpose API) ──────────────────────
+
+def _sb_get_credits(user_id: str) -> int:
+    """Read credits_remaining from Supabase. Returns 0 if row missing."""
+    try:
+        res = (
+            _get_supa()
+            .table("user_credits")
+            .select("credits_remaining")
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+        )
+        return res.data["credits_remaining"] if res.data else 0
+    except Exception as e:
+        logger.error("[CREDITS] _sb_get_credits error for uid=%.8s: %s", user_id, e)
+        return 0
+
+
+def _sb_deduct_credit(user_id: str) -> int:
+    """Atomically deduct 1 credit via RPC. Returns new balance. Founder guard not here — use _deduct_credit for endpoint calls."""
+    try:
+        result = _get_supa().rpc("deduct_credit", {"p_user_id": user_id}).execute()
+        _increment_monthly_usage(user_id)
+        return result.data if result.data is not None else 0
+    except Exception as e:
+        logger.error("[CREDITS] _sb_deduct_credit error for uid=%.8s: %s", user_id, e)
+        return 0
+
+
+def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
+    """Create user_credits row if it doesn't exist (ignore_duplicates=True → never resets existing balance)."""
+    try:
+        _get_supa().table("user_credits").upsert(
+            {"user_id": user_id, "credits_remaining": initial},
+            on_conflict="user_id",
+            ignore_duplicates=True,
+        ).execute()
+    except Exception as e:
+        logger.error("[CREDITS] _sb_ensure_credits_row error for uid=%.8s: %s", user_id, e)
+
+
 async def require_credits(user: dict = Depends(get_current_user)) -> dict:
     """Dependency koji proverava da korisnik ima kredite. Founder uvek prolazi."""
     email = user.get("email", "")
@@ -705,18 +747,9 @@ async def register(req: RegisterReq, request: Request):
             logger.info("Registracija uspešna: uid=%.8s email=%s", user_id, req.email)
 
             # Kreira user_credits red sa 15 kredita (trigger to radi automatski,
-            # ali upsert je safety net u slučaju da trigger kasni)
-            try:
-                supa.table("user_credits").upsert(
-                    {"user_id": user_id, "credits_remaining": BESPLATNI_KREDITI},
-                    on_conflict="user_id",
-                ).execute()
-            except Exception as cred_err:
-                logger.error(
-                    "[REGISTER] user_credits upsert NEUSPEŠAN za uid=%.8s — %s: %r\n"
-                    "  >>> Proverite da li je supabase_setup.sql pokrenut u Supabase Dashboard! <<<",
-                    user_id, type(cred_err).__name__, str(cred_err)[:300],
-                )
+            # ali _sb_ensure_credits_row je safety net).
+            # ignore_duplicates=True — nikad ne resetuje existeći balans.
+            _sb_ensure_credits_row(user_id, BESPLATNI_KREDITI)
             # Kreira profil (email + is_pro=false) — bez credits_remaining
             try:
                 supa.table("profiles").upsert(
