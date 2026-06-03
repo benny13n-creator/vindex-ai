@@ -2090,3 +2090,96 @@ async def sacuvaj_istoriju(predmet_id: str, request: Request, authorization: str
         "confidence": body.get("confidence", ""),
     }).execute()
     return {"ok": True}
+
+
+# ── F5.3: PRAVNA PROCENA ──────────────────────────────────────────────────────
+
+_PROCENA_SYSTEM_PROMPT = """Ti si stručni pravni analitičar za srpsko pravo.
+Na osnovu opisanih činjenica pruži strukturiranu pravnu procenu.
+
+OBAVEZNI FORMAT — tačno ovih 6 sekcija:
+
+1. PRAVNI OSNOV
+Koji zakon(i) i član(ovi) se primenjuju. Navedi tačne reference.
+
+2. ARGUMENTI ZA TUŽIOCA
+Najjači pravni argumenti u korist tužioca (max 3 boda).
+
+3. ARGUMENTI ZA TUŽENOG
+Najjači pravni argumenti u korist tuženog (max 3 boda).
+
+4. SPORNE TAČKE
+Ključne činjenične ili pravne tačke oko kojih se stranke mogu sporiti.
+
+5. NEDOSTAJUĆI DOKAZI
+Koji dokazi su neophodni za uspeh u postupku — konkretan spisak.
+
+6. PROCENA RIZIKA
+Ocena: NIZAK / SREDNJI / VISOK (izaberi jedno) + kratko obrazloženje u 1-2 rečenice.
+
+PRAVILA:
+- Nikada ne garantuj ishod postupka.
+- Koristi srpsku ekavicu i pravni registar.
+- Budi koncizan — svaka sekcija max 5 redova.
+- Na kraju dodaj: "Ova procena je generisana uz pomoć AI i mora biti proverena od strane ovlašćenog advokata."
+"""
+
+
+@app.post("/api/procena")
+@limiter.limit("5/minute")
+async def pravna_procena(request: Request, authorization: str = Header(None)):
+    """F5.3 — Structured legal case assessment via GPT-4o."""
+    from openai import OpenAI as _OAI
+    user = _require_auth(authorization)
+    body = await request.json()
+    cinjenice = (body.get("cinjenice") or "").strip()
+    if not cinjenice:
+        raise HTTPException(status_code=400, detail="cinjenice su obavezne")
+
+    predmet_id = (body.get("predmet_id") or "").strip() or None
+
+    # Fetch existing notes for additional context if predmet_id supplied
+    kontekst_beleske = ""
+    if predmet_id:
+        try:
+            beleske_res = _get_supa().table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).eq("user_id", user.id).order("created_at", desc=True).limit(5).execute()
+            if beleske_res.data:
+                sadrzaji = [b["sadrzaj"] for b in beleske_res.data if b.get("sadrzaj")]
+                if sadrzaji:
+                    kontekst_beleske = "\n\nBELEŠKE IZ PREDMETA (dodatni kontekst):\n" + "\n---\n".join(sadrzaji)
+        except Exception:
+            logger.warning("[PROCENA] Nije uspelo učitavanje beleški za predmet_id=%s", predmet_id)
+
+    user_content = f"ČINJENICE SLUČAJA:\n{cinjenice}{kontekst_beleske}"
+
+    try:
+        client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0,
+            max_tokens=1200,
+            timeout=30.0,
+            messages=[
+                {"role": "system", "content": _PROCENA_SYSTEM_PROMPT},
+                {"role": "user",   "content": user_content},
+            ],
+        )
+        procena_tekst = (resp.choices[0].message.content or "").strip()
+    except Exception:
+        logger.exception("[PROCENA] GPT-4o greška")
+        raise HTTPException(status_code=500, detail="Greška pri generisanju procene. Pokušajte ponovo.")
+
+    # Persist to predmet_istorija if linked to a case
+    if predmet_id and procena_tekst:
+        try:
+            _get_supa().table("predmet_istorija").insert({
+                "predmet_id": predmet_id,
+                "user_id":    user.id,
+                "pitanje":    cinjenice[:500],
+                "odgovor":    procena_tekst,
+                "confidence": "MEDIUM",
+            }).execute()
+        except Exception:
+            logger.warning("[PROCENA] Nije uspelo čuvanje u istoriju za predmet_id=%s", predmet_id)
+
+    return {"procena": procena_tekst, "predmet_id": predmet_id}
