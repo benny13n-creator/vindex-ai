@@ -2004,3 +2004,10 @@ async def dodaj_beleSku(predmet_id: str, request: Request, authorization: str = 
         raise HTTPException(status_code=400, detail="sadrzaj je obavezan")
     row = supabase.table("predmet_beleske").insert({"predmet_id": predmet_id, "user_id": user.id, "sadrzaj": sadrzaj}).execute()
     return {"beleska": row.data[0]}
+
+@app.post("/api/predmeti/{predmet_id}/istorija")
+async def sacuvaj_istoriju(predmet_id: str, request: Request, authorization: str = Header(None)):
+    user = _require_auth(authorization)
+    body = await request.json()
+    supabase.table("predmet_istorija").insert({"predmet_id": predmet_id, "user_id": user.id, "pitanje": body.get("pitanje", ""), "odgovor": body.get("odgovor", ""), "confidence": body.get("confidence", "")}).execute()
+    return {"ok": True}
