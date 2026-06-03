@@ -1993,3 +1993,14 @@ async def lista_predmeta(authorization: str = Header(None)):
     user = _require_auth(authorization)
     rows = supabase.table("predmeti").select("*").eq("user_id", user.id).order("created_at", desc=True).execute()
     return {"predmeti": rows.data}
+
+
+@app.post("/api/predmeti/{predmet_id}/beleske")
+async def dodaj_beleSku(predmet_id: str, request: Request, authorization: str = Header(None)):
+    user = _require_auth(authorization)
+    body = await request.json()
+    sadrzaj = body.get("sadrzaj", "").strip()
+    if not sadrzaj:
+        raise HTTPException(status_code=400, detail="sadrzaj je obavezan")
+    row = supabase.table("predmet_beleske").insert({"predmet_id": predmet_id, "user_id": user.id, "sadrzaj": sadrzaj}).execute()
+    return {"beleska": row.data[0]}
