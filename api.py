@@ -1977,3 +1977,13 @@ async def praksa_search(req: PraksaSearchReq, request: Request):
             status_code=500,
             content={"error": "Greška Pinecone servisa", "detail": str(exc)[:200]},
         )
+    
+@app.post("/api/predmeti")
+async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
+    user = _require_auth(authorization)
+    body = await request.json()
+    naziv = body.get("naziv", "").strip()
+    if not naziv:
+         raise HTTPException(status_code=400, detail="naziv je obavezan")
+    row = supabase.table("predmeti").insert({"user_id": user.id, "naziv": naziv, "opis": body.get("opis", ""), "tip": body.get("tip", "opsti"), "status": "aktivan"}).execute()
+    return {"predmet": row.data[0]}
