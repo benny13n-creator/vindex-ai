@@ -2485,20 +2485,47 @@ def _ekstrahuj_clanove_iz_dokumenta(tekst: str) -> frozenset[str]:
     return frozenset(found)
 
 
+_ZAKON_PREFIX_RE = re.compile(
+    r"(?:zakon[ao]?\s+o\s+\w+(?:\s+\w+){0,4}"          # "Zakon o radu", "Zakona o obligacionim odnosima"
+    r"|ZOO|ZR\b|ZPP\b|KZ\b|ZKP\b|ZIO\b|ZDI\b"           # standard abbreviations
+    r"|ZOUP|ZVP|ZZPL|ZSPNFT|ZPDG|ZUS|ZN\b|ZPD\b|PZ\b"  # more abbreviations
+    r"|zakonik[ao]?\s+o\s+\w+(?:\s+\w+){0,3}"            # "Zakonik o krivičnom postupku"
+    r"|ustav\s+republike\s+srbije)"                        # Ustav
+    r"[^.]{0,120}",                                        # up to 120 chars before "Član N"
+    re.IGNORECASE,
+)
+
+
+def _je_zakon_citacija(broj: str, tekst: str) -> bool:
+    """Return True if 'Član {broj}' in tekst is preceded within 120 chars by a law name/abbrev."""
+    clan_pattern = re.compile(r"[Čč]lan\s+" + re.escape(broj) + r"\b")
+    for m_clan in clan_pattern.finditer(tekst):
+        preceding = tekst[max(0, m_clan.start() - 120): m_clan.start()]
+        if _ZAKON_PREFIX_RE.search(preceding):
+            return True
+    return False
+
+
 def _proveri_analiza_citate(analiza_output: str, allowed_articles: frozenset[str]) -> tuple[bool, str]:
     """
     ANALIZA doc-only citation guard.
-    Every article cited in analiza_output must be in allowed_articles (from uploaded document).
-    Returns (validan, razlog).
+    Every article cited in analiza_output must either:
+    (a) be in allowed_articles (extracted from the document), OR
+    (b) appear as a statutory citation — preceded within 120 chars by a recognised
+        law name or abbreviation (Zakon o radu, ZOO, ZR, KZ, ...).
 
-    If allowed_articles is empty: any article citation → invalid.
-    Design: guards against LLM adding new legal framework not present in the document.
+    Rationale: contract clauses numbered "Član 1" – "Član 15" are NOT the same as
+    law articles "Zakon o radu, Član 40". The guard must not confuse the two.
+    Only block standalone article references that have no law-name context and
+    whose numbers are not present in the document's own clause numbering.
+
+    Returns (validan, razlog).
     """
     if not allowed_articles:
-        return True, "ok"  # ugovor nema inline članova — dozvoli kontekstualne LLM citacije
+        return True, "ok"  # document has no inline article refs — allow all contextual citations
     logger.debug("[ANALIZA_GUARD] allowed_articles=%s (count=%d)", sorted(allowed_articles)[:10], len(allowed_articles))
     citirani_raw = re.findall(r"[Čč]lan\s+(\d+[a-zA-Z]?)", analiza_output)
-    logger.debug("[ANALIZA_GUARD] citirani_raw iz LLM output (pattern='Član N'): %s", citirani_raw[:10])
+    logger.debug("[ANALIZA_GUARD] citirani_raw iz LLM output: %s", citirani_raw[:10])
 
     # Deduplicate preserving order
     vidjeni: set[str] = set()
@@ -2509,20 +2536,24 @@ def _proveri_analiza_citate(analiza_output: str, allowed_articles: frozenset[str
             citirani_unique.append(c)
 
     if not citirani_unique:
-        logger.debug("[ANALIZA_GUARD] citirani_unique=[] — LLM nije citirao nijedan 'Član N' → PASS")
-        return True, "ok"  # No article citations in output → nothing to check
+        logger.debug("[ANALIZA_GUARD] nema Član N citata u outputu → PASS")
+        return True, "ok"
 
-    novi = [c for c in citirani_unique if c not in allowed_articles]
-    logger.debug("[ANALIZA_GUARD] citirani_unique=%s novi_van_dokumenta=%s", citirani_unique, novi[:10])
+    # Only flag citations that are NOT in allowed_articles AND NOT statutory references
+    novi = [
+        c for c in citirani_unique
+        if c not in allowed_articles and not _je_zakon_citacija(c, analiza_output)
+    ]
+    logger.debug("[ANALIZA_GUARD] citirani=%s, van_dok_i_nije_zakon=%s", citirani_unique, novi[:10])
     if novi:
         logger.warning(
-            "[ANALIZA_GUARD] %d/%d citiranih članova van dokumenta: %s",
+            "[ANALIZA_GUARD] %d/%d citata blokirano (van dokumenta, nije zakonska ref): %s",
             len(novi), len(citirani_unique), novi[:5],
         )
         clanovi_str = ", ".join(f"Član {c}" for c in novi[:5])
         return False, f"{clanovi_str} — nije u dostavljenom dokumentu"
 
-    logger.debug("[ANALIZA_GUARD] svi citirani članovi su u allowed_articles → PASS")
+    logger.debug("[ANALIZA_GUARD] svi citati su prihvaćeni (u dok. ili zakonska ref.) → PASS")
     return True, "ok"
 
 
