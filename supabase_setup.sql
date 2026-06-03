@@ -252,3 +252,233 @@ CREATE INDEX IF NOT EXISTS ra_qhash_idx ON public.response_audit(query_hash);
 -- Service role (backend) may insert; nobody may update/delete
 ALTER TABLE public.response_audit ENABLE ROW LEVEL SECURITY;
 GRANT INSERT ON public.response_audit TO service_role;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- F5: CASE MANAGEMENT — predmeti, predmet_dokumenti, predmet_beleske, predmet_istorija
+-- Safe to re-run (idempotent).
+-- ═══════════════════════════════════════════════════════════════════════════
+
+
+-- ─── F5.0: updated_at helper function ────────────────────────────────────────
+-- Reused by updated_at triggers on predmeti and predmet_beleske.
+
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.update_updated_at_column() TO service_role;
+
+
+-- ─── F5.1: PREDMETI (cases) ──────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.predmeti (
+    id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    naziv      TEXT        NOT NULL,
+    opis       TEXT,
+    tip        TEXT        NOT NULL DEFAULT 'opsti',
+    status     TEXT        NOT NULL DEFAULT 'aktivan',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.predmeti ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmeti' AND policyname = 'predmeti_select'
+  ) THEN
+    CREATE POLICY "predmeti_select" ON public.predmeti FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmeti' AND policyname = 'predmeti_insert'
+  ) THEN
+    CREATE POLICY "predmeti_insert" ON public.predmeti FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmeti' AND policyname = 'predmeti_update'
+  ) THEN
+    CREATE POLICY "predmeti_update" ON public.predmeti FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmeti' AND policyname = 'predmeti_delete'
+  ) THEN
+    CREATE POLICY "predmeti_delete" ON public.predmeti FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmeti TO service_role;
+
+DROP TRIGGER IF EXISTS update_predmeti_updated_at ON public.predmeti;
+CREATE TRIGGER update_predmeti_updated_at
+    BEFORE UPDATE ON public.predmeti
+    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+-- ─── F5.2: PREDMET_DOKUMENTI (documents per case) ────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.predmet_dokumenti (
+    id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    predmet_id           UUID        NOT NULL REFERENCES public.predmeti(id) ON DELETE CASCADE,
+    user_id              UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    naziv_fajla          TEXT        NOT NULL,
+    storage_path         TEXT        NOT NULL,
+    pinecone_namespace   TEXT        NOT NULL,
+    status               TEXT        NOT NULL DEFAULT 'na_cekanju',
+    velicina_kb          INTEGER,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.predmet_dokumenti ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_dokumenti' AND policyname = 'predmet_dokumenti_select'
+  ) THEN
+    CREATE POLICY "predmet_dokumenti_select" ON public.predmet_dokumenti FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_dokumenti' AND policyname = 'predmet_dokumenti_insert'
+  ) THEN
+    CREATE POLICY "predmet_dokumenti_insert" ON public.predmet_dokumenti FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_dokumenti' AND policyname = 'predmet_dokumenti_update'
+  ) THEN
+    CREATE POLICY "predmet_dokumenti_update" ON public.predmet_dokumenti FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_dokumenti' AND policyname = 'predmet_dokumenti_delete'
+  ) THEN
+    CREATE POLICY "predmet_dokumenti_delete" ON public.predmet_dokumenti FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmet_dokumenti TO service_role;
+
+
+-- ─── F5.3: PREDMET_BELESKE (notes per case) ──────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.predmet_beleske (
+    id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    predmet_id UUID        NOT NULL REFERENCES public.predmeti(id) ON DELETE CASCADE,
+    user_id    UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    sadrzaj    TEXT        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.predmet_beleske ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_beleske' AND policyname = 'predmet_beleske_select'
+  ) THEN
+    CREATE POLICY "predmet_beleske_select" ON public.predmet_beleske FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_beleske' AND policyname = 'predmet_beleske_insert'
+  ) THEN
+    CREATE POLICY "predmet_beleske_insert" ON public.predmet_beleske FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_beleske' AND policyname = 'predmet_beleske_update'
+  ) THEN
+    CREATE POLICY "predmet_beleske_update" ON public.predmet_beleske FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_beleske' AND policyname = 'predmet_beleske_delete'
+  ) THEN
+    CREATE POLICY "predmet_beleske_delete" ON public.predmet_beleske FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmet_beleske TO service_role;
+
+DROP TRIGGER IF EXISTS update_predmet_beleske_updated_at ON public.predmet_beleske;
+CREATE TRIGGER update_predmet_beleske_updated_at
+    BEFORE UPDATE ON public.predmet_beleske
+    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+-- ─── F5.4: PREDMET_ISTORIJA (Q&A history per case) ───────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.predmet_istorija (
+    id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    predmet_id UUID        NOT NULL REFERENCES public.predmeti(id) ON DELETE CASCADE,
+    user_id    UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    pitanje    TEXT        NOT NULL,
+    odgovor    TEXT        NOT NULL,
+    confidence TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.predmet_istorija ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_istorija' AND policyname = 'predmet_istorija_select'
+  ) THEN
+    CREATE POLICY "predmet_istorija_select" ON public.predmet_istorija FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_istorija' AND policyname = 'predmet_istorija_insert'
+  ) THEN
+    CREATE POLICY "predmet_istorija_insert" ON public.predmet_istorija FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_istorija' AND policyname = 'predmet_istorija_update'
+  ) THEN
+    CREATE POLICY "predmet_istorija_update" ON public.predmet_istorija FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_istorija' AND policyname = 'predmet_istorija_delete'
+  ) THEN
+    CREATE POLICY "predmet_istorija_delete" ON public.predmet_istorija FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmet_istorija TO service_role;

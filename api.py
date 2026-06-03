@@ -1978,36 +1978,115 @@ async def praksa_search(req: PraksaSearchReq, request: Request):
             content={"error": "Greška Pinecone servisa", "detail": str(exc)[:200]},
         )
     
+# ── F5: CASE MANAGEMENT ───────────────────────────────────────────────────────
+
+
+def _require_auth(authorization: Optional[str]) -> object:
+    """Extract user from Bearer token. Raises 401 if missing or invalid."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    token = authorization[len("Bearer "):]
+    try:
+        user_resp = _get_supa().auth.get_user(token)
+        user = getattr(user_resp, "user", None)
+        if not user:
+            raise ValueError("no user")
+        return user
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
 @app.post("/api/predmeti")
+@limiter.limit("30/minute")
 async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
     user = _require_auth(authorization)
     body = await request.json()
-    naziv = body.get("naziv", "").strip()
+    naziv = (body.get("naziv") or "").strip()
     if not naziv:
-         raise HTTPException(status_code=400, detail="naziv je obavezan")
-    row = supabase.table("predmeti").insert({"user_id": user.id, "naziv": naziv, "opis": body.get("opis", ""), "tip": body.get("tip", "opsti"), "status": "aktivan"}).execute()
+        raise HTTPException(status_code=400, detail="naziv je obavezan")
+    row = _get_supa().table("predmeti").insert({
+        "user_id": user.id,
+        "naziv":   naziv,
+        "opis":    body.get("opis", ""),
+        "tip":     body.get("tip", "opsti"),
+        "status":  "aktivan",
+    }).execute()
     return {"predmet": row.data[0]}
 
+
 @app.get("/api/predmeti")
-async def lista_predmeta(authorization: str = Header(None)):
+@limiter.limit("60/minute")
+async def lista_predmeta(request: Request, authorization: str = Header(None)):
     user = _require_auth(authorization)
-    rows = supabase.table("predmeti").select("*").eq("user_id", user.id).order("created_at", desc=True).execute()
+    rows = _get_supa().table("predmeti").select("*").eq("user_id", user.id).order("created_at", desc=True).execute()
     return {"predmeti": rows.data}
 
 
-@app.post("/api/predmeti/{predmet_id}/beleske")
-async def dodaj_beleSku(predmet_id: str, request: Request, authorization: str = Header(None)):
+@app.get("/api/predmeti/{predmet_id}")
+@limiter.limit("60/minute")
+async def get_predmet(predmet_id: str, request: Request, authorization: str = Header(None)):
+    user = _require_auth(authorization)
+    supa = _get_supa()
+    row = supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", user.id).single().execute()
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+    beleske   = supa.table("predmet_beleske").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).execute()
+    istorija  = supa.table("predmet_istorija").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(20).execute()
+    dokumenti = supa.table("predmet_dokumenti").select("*").eq("predmet_id", predmet_id).execute()
+    return {
+        "predmet":   row.data,
+        "beleske":   beleske.data,
+        "istorija":  istorija.data,
+        "dokumenti": dokumenti.data,
+    }
+
+
+@app.patch("/api/predmeti/{predmet_id}")
+@limiter.limit("30/minute")
+async def update_predmet(predmet_id: str, request: Request, authorization: str = Header(None)):
     user = _require_auth(authorization)
     body = await request.json()
-    sadrzaj = body.get("sadrzaj", "").strip()
+    allowed = {k: v for k, v in body.items() if k in {"naziv", "opis", "tip", "status"}}
+    if not allowed:
+        raise HTTPException(status_code=400, detail="Nema validnih polja za update")
+    _get_supa().table("predmeti").update(allowed).eq("id", predmet_id).eq("user_id", user.id).execute()
+    return {"ok": True}
+
+
+@app.post("/api/predmeti/{predmet_id}/beleske")
+@limiter.limit("30/minute")
+async def dodaj_belesku(predmet_id: str, request: Request, authorization: str = Header(None)):
+    user = _require_auth(authorization)
+    body = await request.json()
+    sadrzaj = (body.get("sadrzaj") or "").strip()
     if not sadrzaj:
         raise HTTPException(status_code=400, detail="sadrzaj je obavezan")
-    row = supabase.table("predmet_beleske").insert({"predmet_id": predmet_id, "user_id": user.id, "sadrzaj": sadrzaj}).execute()
+    row = _get_supa().table("predmet_beleske").insert({
+        "predmet_id": predmet_id,
+        "user_id":    user.id,
+        "sadrzaj":    sadrzaj,
+    }).execute()
     return {"beleska": row.data[0]}
 
+
+@app.delete("/api/predmeti/{predmet_id}/beleske/{beleska_id}")
+@limiter.limit("30/minute")
+async def obrisi_belesku(predmet_id: str, beleska_id: str, request: Request, authorization: str = Header(None)):
+    user = _require_auth(authorization)
+    _get_supa().table("predmet_beleske").delete().eq("id", beleska_id).eq("user_id", user.id).execute()
+    return {"ok": True}
+
+
 @app.post("/api/predmeti/{predmet_id}/istorija")
+@limiter.limit("30/minute")
 async def sacuvaj_istoriju(predmet_id: str, request: Request, authorization: str = Header(None)):
     user = _require_auth(authorization)
     body = await request.json()
-    supabase.table("predmet_istorija").insert({"predmet_id": predmet_id, "user_id": user.id, "pitanje": body.get("pitanje", ""), "odgovor": body.get("odgovor", ""), "confidence": body.get("confidence", "")}).execute()
+    _get_supa().table("predmet_istorija").insert({
+        "predmet_id": predmet_id,
+        "user_id":    user.id,
+        "pitanje":    body.get("pitanje", ""),
+        "odgovor":    body.get("odgovor", ""),
+        "confidence": body.get("confidence", ""),
+    }).execute()
     return {"ok": True}
