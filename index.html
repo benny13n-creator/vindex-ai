@@ -1280,6 +1280,32 @@ footer { padding: 2rem 1.5rem; }
               <div class="pred-detail-header">
                 <span id="pred-detail-naziv" style="font-weight:700;font-size:0.92rem;color:#fff;"></span>
                 <span id="pred-detail-badge" class="pred-badge"></span>
+                <div id="pred-status-panel" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin:0.7rem 0;padding:0.7rem;background:rgba(255,255,255,0.04);border-radius:8px;">
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Tužilac</span>
+    <span id="pred-s-tuzilac" style="font-size:0.8rem;color:#fff;">—</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Tuženi</span>
+    <span id="pred-s-tuzeni" style="font-size:0.8rem;color:#fff;">—</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Oblast</span>
+    <span id="pred-s-oblast" style="font-size:0.8rem;color:#fff;">—</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Rizik</span>
+    <span id="pred-s-rizik" style="font-size:0.8rem;color:rgba(255,255,255,0.5);">—</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Nedostaju dokazi</span>
+    <span id="pred-s-dokazi" style="font-size:0.8rem;color:#fff;">—</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Rokovi</span>
+    <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">—</span>
+  </div>
+</div>
               </div>
               <div class="pred-section-lbl">Beleške</div>
               <div id="pred-beleske-list"></div>
@@ -1289,7 +1315,7 @@ footer { padding: 2rem 1.5rem; }
               </div>
               <div class="pred-section-lbl">Pravna procena</div>
               <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;"></textarea>
-              <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">⚖ Generiši pravnu procenu</button>
+              <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">⚖ Analiziraj predmet</button>
               <div id="pred-procena-result" style="margin-top:0.7rem;"></div>
               <div class="pred-section-lbl">Istorija razgovora</div>
               <div id="pred-istorija-list"></div>
