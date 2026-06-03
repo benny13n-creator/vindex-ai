@@ -518,7 +518,7 @@ class NacrtReq(BaseModel):
 
 
 class AnalizaReq(BaseModel):
-    tekst: str = Field(..., min_length=10, max_length=10000)
+    tekst: str = Field(..., min_length=10, max_length=50000)  # raised: real contracts 8k-25k chars
     pitanje: str = Field("", max_length=1000)
 
     @field_validator("tekst", "pitanje")
@@ -1417,7 +1417,13 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(requir
             response_text=rezultat.get("data", ""),
             latency_ms=latency_ms,
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        # Don't deduct when analysis was blocked by the hallucination guard
+        is_blocked = (rezultat.get("data") or "").startswith("[!] ANALIZA BLOKIRANA")
+        should_deduct = rezultat.get("status") == "success" and not is_blocked
+        if should_deduct:
+            preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        else:
+            preostalo = await asyncio.to_thread(_get_credits, user["user_id"])
         return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
         logger.exception("Neočekivana greška u /api/analiza")
