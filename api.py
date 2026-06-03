@@ -1987,3 +1987,9 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
          raise HTTPException(status_code=400, detail="naziv je obavezan")
     row = supabase.table("predmeti").insert({"user_id": user.id, "naziv": naziv, "opis": body.get("opis", ""), "tip": body.get("tip", "opsti"), "status": "aktivan"}).execute()
     return {"predmet": row.data[0]}
+
+@app.get("/api/predmeti")
+async def lista_predmeta(authorization: str = Header(None)):
+    user = _require_auth(authorization)
+    rows = supabase.table("predmeti").select("*").eq("user_id", user.id).order("created_at", desc=True).execute()
+    return {"predmeti": rows.data}
