@@ -987,6 +987,30 @@ footer { padding: 2rem 1.5rem; }
 .rok-kontekst{font-size:.75rem;color:rgba(255,255,255,0.38);font-style:italic;margin-top:3px;word-break:break-word;}
 .rokovi-empty{font-size:.8rem;color:rgba(255,255,255,0.32);text-align:center;padding:.9rem 0;}
 .rokovi-loading{font-size:.8rem;color:rgba(255,255,255,0.4);text-align:center;padding:.6rem 0;}
+/* ── F5 Predmeti ─────────────────────────────────────────────────────────── */
+.predmet-indicator{display:none;font-size:0.7rem;font-family:'JetBrains Mono',monospace;color:#4aa8ff;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.2);border-radius:6px;padding:0.25rem 0.7rem;margin-bottom:0.5rem;letter-spacing:0.03em;}
+.predmet-indicator.show{display:block;}
+.pred-list{display:flex;flex-direction:column;gap:0.4rem;margin-top:0.5rem;max-height:260px;overflow-y:auto;}
+.pred-item{display:flex;align-items:center;gap:0.55rem;padding:0.55rem 0.8rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;cursor:pointer;transition:background .15s;}
+.pred-item:hover,.pred-item.active{background:rgba(74,168,255,0.09);border-color:rgba(74,168,255,0.28);}
+.pred-naziv{flex:1;font-size:0.82rem;color:#e8eaf0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pred-badge{font-size:0.6rem;letter-spacing:0.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);}
+.pred-badge.radni{background:rgba(74,168,255,0.12);color:#89c8ff;}
+.pred-badge.privredni{background:rgba(201,168,76,0.12);color:#c9a84c;}
+.pred-detail{margin-top:0.9rem;border-top:1px solid rgba(255,255,255,0.07);padding-top:0.9rem;display:none;}
+.pred-detail.show{display:block;}
+.pred-section-lbl{font-size:0.63rem;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin:0.75rem 0 0.4rem;}
+.beleska-item{font-size:0.78rem;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:0.5rem 0.75rem;margin-bottom:0.35rem;line-height:1.55;}
+.ist-item{font-size:0.77rem;border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:0.55rem 0.75rem;margin-bottom:0.35rem;}
+.ist-q{color:rgba(255,255,255,0.45);margin-bottom:0.2rem;font-size:0.72rem;}
+.ist-a{color:rgba(255,255,255,0.78);line-height:1.5;}
+.procena-section{border:1px solid rgba(255,255,255,0.07);border-radius:8px;overflow:hidden;margin-bottom:0.4rem;}
+.procena-section-hdr{padding:0.5rem 0.85rem;background:rgba(255,255,255,0.04);cursor:pointer;font-size:0.78rem;font-weight:600;color:#e0e4f0;display:flex;justify-content:space-between;}
+.procena-section-body{padding:0.65rem 0.85rem;font-size:0.78rem;color:rgba(255,255,255,0.72);line-height:1.6;white-space:pre-wrap;display:none;}
+.procena-section-body.open{display:block;}
+.risk-nizak{color:#4ade80;font-weight:700;}.risk-srednji{color:#facc15;font-weight:700;}.risk-visok{color:#f87171;font-weight:700;}
+.pred-new-btn{width:100%;padding:0.58rem;margin-top:0.45rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.2);border-radius:8px;color:#89c8ff;font-size:0.8rem;font-weight:600;cursor:pointer;transition:background .2s;}
+.pred-new-btn:hover{background:rgba(74,168,255,0.14);}
 </style>
 
 </head>
@@ -1099,6 +1123,32 @@ footer { padding: 2rem 1.5rem; }
   </div>
 </div>
 
+<!-- F5: NOVI PREDMET MODAL -->
+<div class="modal-overlay" id="pred-new-modal" onclick="if(event.target===this)pred_closeNewModal()">
+  <div class="modal" style="max-width:420px;">
+    <button class="modal-close" onclick="pred_closeNewModal()">&#x2715;</button>
+    <div class="modal-title" style="font-size:1.25rem;margin-bottom:1rem;">Novi predmet</div>
+    <div style="margin-bottom:0.7rem;">
+      <label style="font-size:0.75rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:0.3rem;">Naziv predmeta *</label>
+      <input id="pred-new-naziv" class="pro-input" type="text" placeholder="Npr. Radni spor Petrović vs AD Beograd" maxlength="200">
+    </div>
+    <div style="margin-bottom:0.7rem;">
+      <label style="font-size:0.75rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:0.3rem;">Opis (opciono)</label>
+      <textarea id="pred-new-opis" class="pro-input" placeholder="Kratki opis predmeta..." style="height:60px;resize:none;"></textarea>
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="font-size:0.75rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:0.3rem;">Tip predmeta</label>
+      <select id="pred-new-tip" class="pro-input" style="cursor:pointer;">
+        <option value="opsti">Opšti</option>
+        <option value="radni">Radni spor</option>
+        <option value="privredni">Privredni spor</option>
+      </select>
+    </div>
+    <button class="modal-btn" onclick="pred_kreiraj()">Kreiraj predmet</button>
+    <div id="pred-new-err" style="display:none;color:#ff9090;font-size:0.78rem;text-align:center;margin-top:0.5rem;"></div>
+  </div>
+</div>
+
 <!-- PRO WAITLIST MODAL -->
 <div class="modal-overlay" id="pro-modal">
   <div class="modal" style="max-width:460px;">
@@ -1194,9 +1244,11 @@ footer { padding: 2rem 1.5rem; }
             <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
             <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
             <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
+            <div class="t-tab" onclick="setTab(this,'p')">📁 Predmeti</div>
           </div>
           <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
+            <div id="predmet-indicator" class="predmet-indicator"></div>
             <div class="t-guide">
               <div class="t-guide-icon">⚖</div>
               <div class="t-guide-text"><span class="t-guide-bold">Postavite pravno pitanje</span> na srpskom jeziku. Sistem pretražuje Svi važeći zakoni Republike Srbije i vraća tačan zakon, član i citat za manje od 10 sekundi.</div>
@@ -1214,6 +1266,34 @@ footer { padding: 2rem 1.5rem; }
               <button class="mic-btn" id="mic-qi" type="button" onclick="micToggle('qi')" title="Glasovni unos — kliknite da diktirate (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
             </div>
             <div class="mic-status" id="mic-status-qi"><span class="mic-status-dot"></span><span>Snimam... govorite na srpskom</span></div>
+          </div>
+
+          <!-- ── F5: PREDMETI TAB ──────────────────────────────────────────── -->
+          <div id="tab-p" style="display:none">
+            <div class="t-guide">
+              <div class="t-guide-icon">📁</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Moji predmeti</span> — upravljajte predmetima, dodajte beleške i pratite istoriju razgovora po predmetu.</div>
+            </div>
+            <button class="pred-new-btn" onclick="pred_openNewModal()">+ Novi predmet</button>
+            <div id="pred-list" class="pred-list"></div>
+            <div id="pred-detail" class="pred-detail">
+              <div class="pred-detail-header">
+                <span id="pred-detail-naziv" style="font-weight:700;font-size:0.92rem;color:#fff;"></span>
+                <span id="pred-detail-badge" class="pred-badge"></span>
+              </div>
+              <div class="pred-section-lbl">Beleške</div>
+              <div id="pred-beleske-list"></div>
+              <div style="display:flex;gap:0.4rem;margin-top:0.4rem;">
+                <textarea id="pred-beleska-input" class="t-input" placeholder="Nova beleška..." style="flex:1;height:52px;"></textarea>
+                <button onclick="pred_dodajBelesku()" style="padding:0 0.85rem;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;">Dodaj</button>
+              </div>
+              <div class="pred-section-lbl">Pravna procena</div>
+              <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;"></textarea>
+              <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">⚖ Generiši pravnu procenu</button>
+              <div id="pred-procena-result" style="margin-top:0.7rem;"></div>
+              <div class="pred-section-lbl">Istorija razgovora</div>
+              <div id="pred-istorija-list"></div>
+            </div>
           </div>
           <div id="tab-n" style="display:none">
             <div class="t-guide">
@@ -1681,7 +1761,7 @@ async function initAuth() {
   sb.auth.onAuthStateChange(async function(event, session) {
     currentSession = session;
     currentUser    = session ? session.user : null;
-    if (currentUser) { await loadCredits(); loadChatHistory(); }
+    if (currentUser) { await loadCredits(); loadChatHistory(); pred_load(); }
     else { userCredits = 0; _creditsLoaded = false; _creditsLoadedAt = 0; _chatHistoryRows = []; var h=document.getElementById('chat-hist'); if(h){h.innerHTML='';h.style.display='none';} }
     updateAuthUI();
   });
@@ -2172,12 +2252,13 @@ function setTab(el,t){
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  ['q','n','a','s'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
+  ['q','n','a','s','p'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu'};
+  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti'};
   if (t==='n') updatePodnesakHint();
   if (t==='s') praksa_load_initial();
+  if (t==='p') pred_load();
   document.getElementById('btn-lbl').textContent=lbl[t];
   document.getElementById('resp').classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
@@ -3071,8 +3152,10 @@ async function execQuery() {
     return;
   }
   var eps = { q:BASE_URL+'/api/pitanje', n:_nEndpoint, a:BASE_URL+'/api/analiza' };
+  var _qBody = { pitanje: currentPitanje, history: conversationHistory.slice(-3) };
+  if (activePredmetId) _qBody.predmet_id = activePredmetId;
   var bodies = {
-    q: { pitanje: currentPitanje, history: conversationHistory.slice(-3) },
+    q: _qBody,
     n: { vrsta: _selectedTip, tip: _selectedTip, opis: document.getElementById('podnesak-opis').value },
     a: { tekst: document.getElementById('aitxt').value, pitanje: document.getElementById('aq').value }
   };
@@ -3849,6 +3932,189 @@ async function doc_prikaži_rokove(btn) {
     });
   }, 2000);
 })();
+
+/* ── F5: PREDMETI STATE + FUNCTIONS ─────────────────────────────────────── */
+var activePredmetId   = null;
+var activePredmetNaziv = '';
+var _predmeti         = [];
+
+function _predAuthHdr() {
+  return currentSession ? { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token } : {};
+}
+
+async function pred_load() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/predmeti', { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
+    if (!r.ok) return;
+    var d = await r.json();
+    _predmeti = d.predmeti || [];
+    pred_renderList();
+  } catch(e) {}
+}
+
+function pred_renderList() {
+  var el = document.getElementById('pred-list');
+  if (!el) return;
+  if (!_predmeti.length) {
+    el.innerHTML = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.3);text-align:center;padding:1.2rem 0;">Nemate predmeta. Kreirajte prvi.</div>';
+    return;
+  }
+  el.innerHTML = _predmeti.map(function(p){
+    var tipCls = p.tip === 'radni' ? 'radni' : p.tip === 'privredni' ? 'privredni' : '';
+    var active = p.id === activePredmetId ? ' active' : '';
+    return '<div class="pred-item'+active+'" onclick="pred_select(\''+p.id+'\',\''+escHtml(p.naziv).replace(/'/g,"\\'")+'\')">'
+      +'<span class="pred-naziv">'+escHtml(p.naziv)+'</span>'
+      +'<span class="pred-badge '+tipCls+'">'+escHtml(p.tip)+'</span>'
+      +'</div>';
+  }).join('');
+}
+
+function pred_select(id, naziv) {
+  activePredmetId    = id;
+  activePredmetNaziv = naziv;
+  pred_renderList();
+  pred_loadDetail(id);
+  pred_updateIndicator();
+  var detail = document.getElementById('pred-detail');
+  if (detail) detail.classList.add('show');
+  document.getElementById('pred-detail-naziv').textContent = naziv;
+}
+
+function pred_updateIndicator() {
+  var el = document.getElementById('predmet-indicator');
+  if (!el) return;
+  if (activePredmetId && activePredmetNaziv) {
+    el.textContent = '📁 Radite unutar predmeta: ' + activePredmetNaziv;
+    el.classList.add('show');
+  } else {
+    el.classList.remove('show');
+  }
+}
+
+async function pred_loadDetail(id) {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/predmeti/'+id, { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
+    if (!r.ok) return;
+    var d = await r.json();
+    var badge = document.getElementById('pred-detail-badge');
+    if (badge && d.predmet) {
+      badge.textContent = d.predmet.tip || '';
+      badge.className = 'pred-badge ' + (d.predmet.tip || '');
+    }
+    // Beleške
+    var belEl = document.getElementById('pred-beleske-list');
+    if (belEl) {
+      if (!d.beleske || !d.beleske.length) {
+        belEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);">Nema beleški.</div>';
+      } else {
+        belEl.innerHTML = d.beleske.map(function(b){ return '<div class="beleska-item">'+escHtml(b.sadrzaj)+'</div>'; }).join('');
+      }
+    }
+    // Istorija
+    var istEl = document.getElementById('pred-istorija-list');
+    if (istEl) {
+      if (!d.istorija || !d.istorija.length) {
+        istEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);">Nema istorije.</div>';
+      } else {
+        istEl.innerHTML = d.istorija.slice(0,10).map(function(h){
+          return '<div class="ist-item"><div class="ist-q">P: '+escHtml((h.pitanje||'').substring(0,120))+'</div>'
+            +'<div class="ist-a">'+escHtml((h.odgovor||'').substring(0,300))+'</div></div>';
+        }).join('');
+      }
+    }
+  } catch(e) {}
+}
+
+async function pred_dodajBelesku() {
+  if (!activePredmetId || !currentSession) return;
+  var inp = document.getElementById('pred-beleska-input');
+  var sadrzaj = (inp ? inp.value : '').trim();
+  if (!sadrzaj) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/predmeti/'+activePredmetId+'/beleske', {
+      method:'POST', headers:_predAuthHdr(),
+      body: JSON.stringify({ sadrzaj: sadrzaj })
+    });
+    if (r.ok) { if (inp) inp.value = ''; pred_loadDetail(activePredmetId); }
+  } catch(e) {}
+}
+
+async function pred_submitProcena() {
+  if (!currentSession) return;
+  var cinjenice = (document.getElementById('pred-cinjenice').value || '').trim();
+  if (!cinjenice) return;
+  var resEl = document.getElementById('pred-procena-result');
+  if (resEl) resEl.innerHTML = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.4);">Generiše se procena...</div>';
+  try {
+    var body = { cinjenice: cinjenice };
+    if (activePredmetId) body.predmet_id = activePredmetId;
+    var r = await fetch(BASE_URL+'/api/procena', {
+      method:'POST', headers:_predAuthHdr(), body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    var tekst = d.procena || '';
+    if (!tekst) { if (resEl) resEl.innerHTML = '<div style="color:#ff9090;font-size:0.78rem;">Greška pri generisanju procene.</div>'; return; }
+    if (resEl) resEl.innerHTML = pred_renderProcena(tekst);
+    if (activePredmetId) pred_loadDetail(activePredmetId);
+  } catch(e) {
+    if (resEl) resEl.innerHTML = '<div style="color:#ff9090;font-size:0.78rem;">Greška veze sa serverom.</div>';
+  }
+}
+
+function pred_renderProcena(tekst) {
+  var sekcije = [
+    '1. PRAVNI OSNOV', '2. ARGUMENTI ZA TUŽIOCA', '3. ARGUMENTI ZA TUŽENOG',
+    '4. SPORNE TAČKE', '5. NEDOSTAJUĆI DOKAZI', '6. PROCENA RIZIKA'
+  ];
+  var html = '';
+  var positions = sekcije.map(function(s){ return {s:s, pos:tekst.indexOf(s)}; }).filter(function(x){return x.pos!==-1;});
+  positions.sort(function(a,b){return a.pos-b.pos;});
+  positions.forEach(function(x,i){
+    var start = x.pos + x.s.length;
+    var end   = i+1 < positions.length ? positions[i+1].pos : tekst.length;
+    var body  = tekst.slice(start, end).replace(/^\s*\n?/, '').trimEnd();
+    var riskCls = '';
+    if (x.s.includes('RIZIKA')) {
+      if (/NIZAK/i.test(body)) riskCls = ' risk-nizak';
+      else if (/VISOK/i.test(body)) riskCls = ' risk-visok';
+      else riskCls = ' risk-srednji';
+    }
+    html += '<div class="procena-section">'
+      +'<div class="procena-section-hdr'+riskCls+'" onclick="this.nextElementSibling.classList.toggle(\'open\')">'+escHtml(x.s)+' <span>▾</span></div>'
+      +'<div class="procena-section-body">'+escHtml(body)+'</div></div>';
+  });
+  return html || '<pre style="font-size:0.78rem;white-space:pre-wrap;color:rgba(255,255,255,0.72);">'+escHtml(tekst)+'</pre>';
+}
+
+function pred_openNewModal() {
+  if (!currentSession) { openModal(); return; }
+  var m = document.getElementById('pred-new-modal');
+  if (m) { m.classList.add('open'); document.getElementById('pred-new-naziv').value=''; document.getElementById('pred-new-opis').value=''; document.getElementById('pred-new-err').style.display='none'; }
+}
+function pred_closeNewModal() {
+  var m = document.getElementById('pred-new-modal'); if (m) m.classList.remove('open');
+}
+async function pred_kreiraj() {
+  var naziv = (document.getElementById('pred-new-naziv').value || '').trim();
+  var errEl = document.getElementById('pred-new-err');
+  if (!naziv) { if (errEl) { errEl.textContent='Naziv je obavezan.'; errEl.style.display='block'; } return; }
+  try {
+    var r = await fetch(BASE_URL+'/api/predmeti', {
+      method:'POST', headers:_predAuthHdr(),
+      body: JSON.stringify({ naziv: naziv, opis: document.getElementById('pred-new-opis').value, tip: document.getElementById('pred-new-tip').value })
+    });
+    var d = await r.json();
+    if (!r.ok) { if (errEl) { errEl.textContent=d.detail||'Greška.'; errEl.style.display='block'; } return; }
+    pred_closeNewModal();
+    await pred_load();
+    if (d.predmet) pred_select(d.predmet.id, d.predmet.naziv);
+    setTab(document.querySelector('.t-tab:last-child'), 'p');
+  } catch(e) {
+    if (errEl) { errEl.textContent='Greška veze.'; errEl.style.display='block'; }
+  }
+}
 
 </script>
 
