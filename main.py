@@ -2473,11 +2473,11 @@ def _ekstrahuj_clanove_iz_dokumenta(tekst: str) -> frozenset[str]:
     primary_hits: list[str] = []
     secondary_hits: list[str] = []
     # Primary: "Član"/"Članu"/"Člana"/"Čl." case-insensitive oblique forms
-    for m in re.finditer(r"[Čč]lan(?:u|a|om|ovi|ovima|ove)?\s+(\d+[a-zA-Z]?)", tekst):
+    for m in re.finditer(r"[C\u010c\u010d]lan(?:u|a|om|ovi|ovima|ove)?\s+(\d+[a-zA-Z]?)", tekst):
         found.add(m.group(1))
         primary_hits.append(m.group(0))
     # Secondary: "čl. N" / "čl N" abbreviated form
-    for m in re.finditer(r"[Čč]l\.?\s+(\d+[a-zA-Z]?)", tekst):
+    for m in re.finditer(r"[CČč]l\.?\s+(\d+[a-zA-Z]?)", tekst):
         found.add(m.group(1))
         secondary_hits.append(m.group(0))
     logger.debug("[EKSTRAKCIJA] primary_hits=%s secondary_hits=%s → found=%s",
