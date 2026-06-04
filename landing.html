@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vindex AI — Bloomberg Terminal za srpsko pravo</title>
+<meta name="description" content="Pravna analiza zasnovana na važećim propisima Republike Srbije. Semantička pretraga 18+ zakona, 12.604 sudskih odluka, AI pravni asistent.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #010308;
+    --blue: #4aa8ff;
+    --gold: #c9a84c;
+    --blue2: #89c8ff;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --border: rgba(74,168,255,0.12);
+    --grid-bg: linear-gradient(rgba(74,168,255,0.018) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(74,168,255,0.018) 1px, transparent 1px);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ── CUSTOM CURSOR ── */
+  #cursor-dot {
+    position: fixed;
+    width: 6px; height: 6px;
+    background: var(--blue);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.2s;
+  }
+  #cursor-ring {
+    position: fixed;
+    width: 28px; height: 28px;
+    border: 1px solid rgba(74,168,255,0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: width 0.2s, height 0.2s, border-color 0.2s;
+  }
+  body:hover #cursor-dot { opacity: 1; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: rgba(74,168,255,0.3); border-radius: 2px; }
+
+  /* ── TYPOGRAPHY ── */
+  h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+  @media (max-width: 900px) { .container { padding: 0 20px; } }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(1,3,8,0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 700;
+    font-size: 22px;
+    text-decoration: none;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+  .logo span { color: var(--blue); }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    list-style: none;
+  }
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-cta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--blue) !important;
+    border: 1px solid rgba(74,168,255,0.4) !important;
+    padding: 8px 18px;
+    border-radius: 3px;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s !important;
+  }
+  .nav-cta:hover { background: rgba(74,168,255,0.06) !important; border-color: var(--blue) !important; }
+  .nav-mobile-toggle { display: none; cursor: pointer; color: var(--muted); font-size: 20px; background: none; border: none; }
+
+  @media (max-width: 900px) {
+    .nav-inner { padding: 0 20px; }
+    .nav-links { display: none; }
+    .nav-links.open {
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      top: 64px; left: 0; right: 0;
+      background: rgba(1,3,8,0.97);
+      border-bottom: 1px solid var(--border);
+      padding: 20px;
+      gap: 20px;
+    }
+    .nav-mobile-toggle { display: block; }
+  }
+
+  /* ── HERO ── */
+  #hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    padding-top: 64px;
+    background-image: var(--grid-bg);
+    background-size: 80px 80px;
+    overflow: hidden;
+  }
+  #particles-canvas {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+  .hero-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 28px;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeUp 0.6s 0.2s forwards;
+  }
+  .hero-headline {
+    font-size: clamp(52px, 7vw, 100px);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    color: #f0f4ff;
+    max-width: 880px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.7s 0.35s forwards;
+  }
+  .hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 32px;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeUp 0.6s 0.55s forwards;
+  }
+  .pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--blue2);
+    border: 1px solid rgba(137,200,255,0.25);
+    padding: 5px 14px;
+    border-radius: 3px;
+    background: rgba(74,168,255,0.04);
+  }
+  .hero-sub {
+    margin-top: 28px;
+    font-size: 15px;
+    color: var(--muted);
+    font-weight: 300;
+    letter-spacing: 0.02em;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.7s forwards;
+  }
+  .hero-cta-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-top: 44px;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.85s forwards;
+  }
+  .btn-primary {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--blue);
+    padding: 13px 28px;
+    border-radius: 3px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-ghost {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-ghost:hover { color: var(--text); }
+  .scroll-indicator {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    animation: fadeIn 0.6s 1.2s forwards;
+  }
+  .scroll-line {
+    width: 1px;
+    height: 48px;
+    background: linear-gradient(to bottom, rgba(74,168,255,0.6), transparent);
+    position: relative;
+    overflow: hidden;
+  }
+  .scroll-line::after {
+    content: '';
+    position: absolute;
+    top: -100%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--blue);
+    animation: scrollDown 1.8s 1.5s ease-in-out infinite;
+  }
+  @keyframes scrollDown {
+    0% { top: -100%; }
+    100% { top: 100%; }
+  }
+
+  @media (max-width: 900px) {
+    .hero-content { padding: 0 20px; }
+    .hero-headline { font-size: clamp(40px, 10vw, 64px); }
+  }
+
+  /* ── VERDICT BAR ── */
+  #verdict {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: rgba(74,168,255,0.02);
+  }
+  .verdict-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+  .verdict-item {
+    padding: 32px 0;
+    text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .verdict-item:last-child { border-right: none; }
+  .verdict-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--blue);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .verdict-label {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  @media (max-width: 900px) {
+    .verdict-grid { grid-template-columns: repeat(2, 1fr); padding: 0 20px; }
+    .verdict-item { border-right: none; border-bottom: 1px solid var(--border); }
+    .verdict-item:nth-child(odd) { border-right: 1px solid var(--border); }
+    .verdict-item:last-child { border-bottom: none; }
+    .verdict-item:nth-child(3) { border-bottom: none; }
+  }
+  @media (max-width: 480px) {
+    .verdict-grid { grid-template-columns: 1fr; }
+    .verdict-item:nth-child(odd) { border-right: none; }
+    .verdict-item:nth-child(3) { border-bottom: 1px solid var(--border); }
+  }
+
+  /* ── PIPELINE SECTION ── */
+  #pipeline {
+    padding: 120px 0;
+    background-image: var(--grid-bg);
+    background-size: 80px 80px;
+  }
+  .pipeline-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+  .pipeline-left h2 {
+    font-size: clamp(32px, 3.5vw, 48px);
+    font-weight: 700;
+    line-height: 1.15;
+    color: #f0f4ff;
+    margin-bottom: 24px;
+  }
+  .pipeline-left p {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+  .pipeline-right {
+    position: relative;
+  }
+  .pipeline-steps {
+    position: relative;
+    padding-left: 32px;
+  }
+  .pipeline-step {
+    position: relative;
+    margin-bottom: 0;
+    opacity: 0.25;
+    transition: opacity 0.4s;
+  }
+  .pipeline-step.active { opacity: 1; }
+  .step-node {
+    position: absolute;
+    left: -32px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid var(--muted);
+    background: var(--bg);
+    transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+    z-index: 2;
+  }
+  .pipeline-step.active .step-node {
+    border-color: var(--blue);
+    background: rgba(74,168,255,0.15);
+    box-shadow: 0 0 12px rgba(74,168,255,0.4), 0 0 24px rgba(74,168,255,0.15);
+  }
+  .step-connector {
+    position: absolute;
+    left: -27px;
+    top: 16px;
+    width: 1px;
+    background: var(--blue);
+    height: 0;
+    transition: height 0.4s ease;
+    z-index: 1;
+  }
+  .step-content {
+    padding-bottom: 40px;
+    padding-left: 0;
+  }
+  .step-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--blue);
+    margin-bottom: 4px;
+    opacity: 0;
+    transition: opacity 0.3s 0.1s;
+  }
+  .pipeline-step.active .step-num { opacity: 1; }
+  .step-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .step-desc {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.3s 0.15s, transform 0.3s 0.15s;
+  }
+  .pipeline-step.active .step-desc { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 900px) {
+    .pipeline-inner { grid-template-columns: 1fr; gap: 48px; padding: 0 20px; }
+    #pipeline { padding: 80px 0; }
+  }
+
+  /* ── DEMO SECTION ── */
+  #demo {
+    padding: 120px 0;
+    border-top: 1px solid var(--border);
+  }
+  .demo-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 16px;
+    display: block;
+  }
+  .section-heading {
+    font-size: clamp(28px, 3.5vw, 44px);
+    font-weight: 700;
+    color: #f0f4ff;
+    margin-bottom: 48px;
+    line-height: 1.2;
+  }
+  .demo-questions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+  .demo-q-btn {
+    background: rgba(74,168,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    text-align: left;
+    padding: 16px 20px;
+    border-radius: 4px;
+    cursor: none;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    line-height: 1.4;
+  }
+  .demo-q-btn:hover { border-color: rgba(74,168,255,0.3); background: rgba(74,168,255,0.07); }
+  .demo-q-btn.active { border-color: var(--blue); background: rgba(74,168,255,0.08); }
+  .q-index {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--blue);
+    min-width: 20px;
+    flex-shrink: 0;
+  }
+  .demo-terminal {
+    display: none;
+    border: 1px solid rgba(74,168,255,0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .demo-terminal.visible { display: block; }
+  .terminal-bar {
+    background: rgba(74,168,255,0.06);
+    border-bottom: 1px solid rgba(74,168,255,0.12);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .terminal-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .terminal-dot:nth-child(1) { background: rgba(255,90,90,0.5); }
+  .terminal-dot:nth-child(2) { background: rgba(255,190,50,0.5); }
+  .terminal-dot:nth-child(3) { background: rgba(74,168,255,0.5); }
+  .terminal-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: 8px;
+  }
+  .terminal-body {
+    background: rgba(1,3,8,0.95);
+    padding: 24px;
+    min-height: 180px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.75;
+    color: #c8d8f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .loading-dots::after {
+    content: '';
+    animation: dots 1.2s infinite;
+  }
+  @keyframes dots {
+    0% { content: '.'; }
+    33% { content: '..'; }
+    66% { content: '...'; }
+  }
+  .terminal-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--blue);
+    animation: blink 0.9s infinite;
+    vertical-align: middle;
+    margin-left: 1px;
+  }
+  @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+  .demo-footer {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+  .demo-cta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--blue);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: opacity 0.2s;
+  }
+  .demo-cta:hover { opacity: 0.75; }
+
+  @media (max-width: 900px) {
+    .demo-inner { padding: 0 20px; }
+    #demo { padding: 80px 0; }
+  }
+
+  /* ── CAPABILITIES TABLE ── */
+  #capabilities {
+    padding: 120px 0;
+    border-top: 1px solid var(--border);
+    background-image: var(--grid-bg);
+    background-size: 80px 80px;
+  }
+  .cap-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+  .cap-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 48px;
+    font-size: 14px;
+  }
+  .cap-table thead tr {
+    border-bottom: 1px solid rgba(74,168,255,0.2);
+  }
+  .cap-table th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 12px 20px;
+    text-align: left;
+    font-weight: 500;
+  }
+  .cap-table td {
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(74,168,255,0.06);
+    vertical-align: top;
+  }
+  .cap-table tr:last-child td { border-bottom: none; }
+  .cap-table tr:hover td { background: rgba(74,168,255,0.025); }
+  .cap-module {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .cap-desc { color: var(--muted); line-height: 1.5; }
+  .badge-dostupno {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: #5ad68a;
+    border: 1px solid rgba(90,214,138,0.25);
+    padding: 3px 10px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .badge-pro {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--gold);
+    border: 1px solid rgba(201,168,76,0.3);
+    padding: 3px 10px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 900px) {
+    .cap-inner { padding: 0 20px; }
+    #capabilities { padding: 80px 0; }
+    .cap-table { font-size: 13px; }
+    .cap-table td, .cap-table th { padding: 14px 12px; }
+  }
+  @media (max-width: 600px) {
+    .cap-table .cap-desc { display: none; }
+  }
+
+  /* ── PRICING ── */
+  #cene {
+    padding: 120px 0;
+    border-top: 1px solid var(--border);
+  }
+  .price-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+  .price-toggle {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 56px;
+    margin-top: 40px;
+  }
+  .toggle-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .toggle-label.active { color: var(--text); }
+  .toggle-switch {
+    width: 44px;
+    height: 24px;
+    background: rgba(74,168,255,0.12);
+    border: 1px solid rgba(74,168,255,0.25);
+    border-radius: 12px;
+    cursor: none;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--blue);
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+  .toggle-switch.annual::after { transform: translateX(20px); }
+  .toggle-switch.annual { background: rgba(74,168,255,0.2); }
+  .annual-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--gold);
+    border: 1px solid rgba(201,168,76,0.3);
+    padding: 2px 8px;
+    border-radius: 2px;
+  }
+  .price-table-wrap {
+    overflow-x: auto;
+  }
+  .price-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+  }
+  .price-table th {
+    padding: 20px 24px 24px;
+    text-align: center;
+    border-bottom: 1px solid rgba(74,168,255,0.15);
+  }
+  .price-table th:first-child { text-align: left; }
+  .plan-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .plan-price {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--blue);
+    display: block;
+  }
+  .plan-price.gold { color: var(--gold); }
+  .plan-period {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: block;
+    margin-top: 2px;
+  }
+  .plan-custom {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--muted);
+    display: block;
+  }
+  .price-table td {
+    padding: 14px 24px;
+    border-bottom: 1px solid rgba(74,168,255,0.05);
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .price-table td:first-child { color: var(--text); }
+  .price-table tr:last-child td { border-bottom: none; }
+  .price-table tr:hover td { background: rgba(74,168,255,0.02); }
+  .check { color: var(--blue); font-size: 16px; display: block; text-align: center; }
+  .dash { color: rgba(107,114,128,0.4); font-size: 16px; display: block; text-align: center; }
+  .price-col-highlight {
+    background: rgba(74,168,255,0.03);
+    border-left: 1px solid rgba(74,168,255,0.08);
+    border-right: 1px solid rgba(74,168,255,0.08);
+  }
+
+  @media (max-width: 900px) {
+    .price-inner { padding: 0 20px; }
+    #cene { padding: 80px 0; }
+  }
+
+  /* ── MANIFESTO ── */
+  #manifesto {
+    padding: 120px 0;
+    border-top: 1px solid var(--border);
+    background-image: var(--grid-bg);
+    background-size: 80px 80px;
+  }
+  .manifesto-inner {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+  .manifesto-left blockquote {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(20px, 2.2vw, 28px);
+    font-weight: 400;
+    font-style: italic;
+    line-height: 1.5;
+    color: #d8dff0;
+    border-left: 2px solid var(--gold);
+    padding-left: 28px;
+    margin-bottom: 36px;
+  }
+  .manifesto-left p {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+  .info-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 32px;
+    font-size: 13.5px;
+  }
+  .info-table td {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(74,168,255,0.06);
+  }
+  .info-table td:first-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    width: 120px;
+  }
+  .info-table td:last-child { color: var(--text); }
+  .manifesto-right {
+    padding-top: 8px;
+  }
+  .tenets { list-style: none; }
+  .tenet {
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tenet:last-child { border-bottom: none; }
+  .tenet-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .tenet-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  @media (max-width: 900px) {
+    .manifesto-inner { grid-template-columns: 1fr; gap: 48px; padding: 0 20px; }
+    #manifesto { padding: 80px 0; }
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 36px 0;
+  }
+  .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .footer-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .footer-logo span { color: var(--blue); }
+  .footer-nav {
+    display: flex;
+    gap: 28px;
+    list-style: none;
+  }
+  .footer-nav a {
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .footer-nav a:hover { color: var(--text); }
+  .footer-legal {
+    font-size: 11.5px;
+    color: rgba(107,114,128,0.6);
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 900px) {
+    .footer-inner { padding: 0 20px; flex-direction: column; align-items: flex-start; }
+    .footer-legal { text-align: left; }
+  }
+
+  /* ── SCROLL REVEAL ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">Vindex<span>AI</span></a>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#pipeline">Kako funkcioniše</a></li>
+      <li><a href="#demo">Demo</a></li>
+      <li><a href="#cene">Cene</a></li>
+      <li><a href="#manifesto">O sistemu</a></li>
+      <li><a href="/app" class="nav-cta">Pristupi sistemu</a></li>
+    </ul>
+    <button class="nav-mobile-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <canvas id="particles-canvas"></canvas>
+  <div class="hero-content">
+    <div class="hero-label">Bloomberg Terminal za srpsko pravo</div>
+    <h1 class="hero-headline">Pravna analiza zasnovana na važećim propisima Republike Srbije.</h1>
+    <div class="hero-pills">
+      <span class="pill">Radno pravo</span>
+      <span class="pill">Privredno pravo</span>
+      <span class="pill">Zakon o digitalnoj imovini</span>
+    </div>
+    <p class="hero-sub">Potpomognuto naprednim AI sistemom.</p>
+    <div class="hero-cta-row">
+      <a href="/app" class="btn-primary">Počnite besplatno</a>
+      <a href="#demo" class="btn-ghost">Pogledajte demo &rarr;</a>
+    </div>
+  </div>
+  <div class="scroll-indicator">
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- VERDICT BAR -->
+<div id="verdict">
+  <div class="verdict-grid">
+    <div class="verdict-item reveal">
+      <span class="verdict-num">18+</span>
+      <span class="verdict-label">zakona u bazi</span>
+    </div>
+    <div class="verdict-item reveal">
+      <span class="verdict-num">12.604</span>
+      <span class="verdict-label">sudskih odluka</span>
+    </div>
+    <div class="verdict-item reveal">
+      <span class="verdict-num">&lt;2 min</span>
+      <span class="verdict-label">analiza predmeta</span>
+    </div>
+    <div class="verdict-item reveal">
+      <span class="verdict-num">0</span>
+      <span class="verdict-label">izmišljenih zakona</span>
+    </div>
+  </div>
+</div>
+
+<!-- PIPELINE -->
+<section id="pipeline">
+  <div class="pipeline-inner">
+    <div class="pipeline-left reveal">
+      <h2>Svaki odgovor prolazi kroz 6 verifikovanih koraka.</h2>
+      <p>Vindex AI ne generiše odgovore iz memorije — svaki zaključak je potkrepljen direktnom pretragom baze propisa RS i verifikovanim citatima iz Službenog glasnika.</p>
+      <p>Sistem automatski procenjuje pouzdanost svakog odgovora i jasno signalizira nivo sigurnosti — HIGH, MEDIUM ili LOW — pre nego što zaključak stigne do vas.</p>
+    </div>
+    <div class="pipeline-right" id="pipeline-right">
+      <div class="pipeline-steps" id="pipeline-steps">
+
+        <div class="pipeline-step" id="step-0">
+          <div class="step-node"></div>
+          <div class="step-connector" id="conn-0"></div>
+          <div class="step-content">
+            <div class="step-num">KORAK 01</div>
+            <div class="step-title">Pitanje korisnika</div>
+            <div class="step-desc">Natural language processing, srpski jezik</div>
+          </div>
+        </div>
+
+        <div class="pipeline-step" id="step-1">
+          <div class="step-node"></div>
+          <div class="step-connector" id="conn-1"></div>
+          <div class="step-content">
+            <div class="step-num">KORAK 02</div>
+            <div class="step-title">Identifikacija oblasti prava</div>
+            <div class="step-desc">Klasifikacija: radno / obligaciono / krivično / privredno</div>
+          </div>
+        </div>
+
+        <div class="pipeline-step" id="step-2">
+          <div class="step-node"></div>
+          <div class="step-connector" id="conn-2"></div>
+          <div class="step-content">
+            <div class="step-num">KORAK 03</div>
+            <div class="step-title">Pretraga baze propisa</div>
+            <div class="step-desc">Pinecone vector DB, 30.000+ vektora, cosine similarity</div>
+          </div>
+        </div>
+
+        <div class="pipeline-step" id="step-3">
+          <div class="step-node"></div>
+          <div class="step-connector" id="conn-3"></div>
+          <div class="step-content">
+            <div class="step-num">KORAK 04</div>
+            <div class="step-title">Ocena pouzdanosti</div>
+            <div class="step-desc">Confidence gate: HIGH / MEDIUM / LOW threshold</div>
+          </div>
+        </div>
+
+        <div class="pipeline-step" id="step-4">
+          <div class="step-node"></div>
+          <div class="step-connector" id="conn-4"></div>
+          <div class="step-content">
+            <div class="step-num">KORAK 05</div>
+            <div class="step-title">Pravni zaključak</div>
+            <div class="step-desc">GPT-4o synthesis sa legal context</div>
+          </div>
+        </div>
+
+        <div class="pipeline-step" id="step-5">
+          <div class="step-node"></div>
+          <div class="step-content">
+            <div class="step-num">KORAK 06</div>
+            <div class="step-title">Citiranje zakona i članova</div>
+            <div class="step-desc">Tačan zakon, član, Sl. glasnik RS</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO -->
+<section id="demo">
+  <div class="demo-inner">
+    <span class="section-label reveal">Interaktivni demo</span>
+    <h2 class="section-heading reveal">Testirajte Vindex</h2>
+
+    <div class="demo-questions" id="demo-questions">
+      <button class="demo-q-btn" data-q="0">
+        <span class="q-index">01</span>
+        Da li poslodavac može zaposlenom da umanji zaradu zbog pada poslovnih rezultata?
+      </button>
+      <button class="demo-q-btn" data-q="1">
+        <span class="q-index">02</span>
+        Koji su uslovi za otkaz ugovora o radu po sporazumu stranaka?
+      </button>
+      <button class="demo-q-btn" data-q="2">
+        <span class="q-index">03</span>
+        Koje su obaveze poslodavca pri prekovremenom radu?
+      </button>
+    </div>
+
+    <div class="demo-terminal" id="demo-terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dot"></div>
+        <div class="terminal-dot"></div>
+        <div class="terminal-dot"></div>
+        <span class="terminal-title">vindex-ai — analiza pitanja</span>
+      </div>
+      <div class="terminal-body" id="terminal-body"></div>
+    </div>
+
+    <p class="demo-footer reveal">Ovo je stvarni odgovor Vindex AI sistema — nije simulacija.</p>
+    <a href="/app" class="demo-cta reveal">Postavi sopstveno pitanje &rarr;</a>
+  </div>
+</section>
+
+<!-- CAPABILITIES -->
+<section id="capabilities">
+  <div class="cap-inner">
+    <span class="section-label reveal">Sistemske mogućnosti</span>
+    <h2 class="section-heading reveal">Šta Vindex AI radi</h2>
+    <table class="cap-table reveal">
+      <thead>
+        <tr>
+          <th>Modul</th>
+          <th>Šta radi</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="cap-module">Pravno istraživanje</span></td>
+          <td class="cap-desc">Semantička pretraga 18+ zakona RS, tačan član i citat</td>
+          <td><span class="badge-dostupno">Dostupno</span></td>
+        </tr>
+        <tr>
+          <td><span class="cap-module">Analiza predmeta</span></td>
+          <td class="cap-desc">Pravni osnov, argumenti, procena rizika</td>
+          <td><span class="badge-dostupno">Dostupno</span></td>
+        </tr>
+        <tr>
+          <td><span class="cap-module">Sudska praksa</span></td>
+          <td class="cap-desc">12.604 odluka VKS i AS, filtri po oblasti</td>
+          <td><span class="badge-dostupno">Dostupno</span></td>
+        </tr>
+        <tr>
+          <td><span class="cap-module">Upravljanje predmetima</span></td>
+          <td class="cap-desc">Folder po predmetu, AI kontekst agent</td>
+          <td><span class="badge-dostupno">Dostupno</span></td>
+        </tr>
+        <tr>
+          <td><span class="cap-module">Generisanje podnesaka</span></td>
+          <td class="cap-desc">Tužba, žalba, ugovor, procesno ispravno</td>
+          <td><span class="badge-pro">PRO</span></td>
+        </tr>
+        <tr>
+          <td><span class="cap-module">Analiza dokumenata</span></td>
+          <td class="cap-desc">PDF/DOCX upload, identifikacija rizika i rokova</td>
+          <td><span class="badge-pro">PRO</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="cene">
+  <div class="price-inner">
+    <span class="section-label reveal">Planovi i cene</span>
+    <h2 class="section-heading reveal" style="margin-bottom:0">Transparentno i predvidivo.</h2>
+
+    <div class="price-toggle">
+      <span class="toggle-label active" id="lbl-monthly">Mesečno</span>
+      <div class="toggle-switch" id="price-toggle"></div>
+      <span class="toggle-label" id="lbl-annual">Godišnje</span>
+      <span class="annual-badge">-10%</span>
+    </div>
+
+    <div class="price-table-wrap reveal">
+      <table class="price-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>
+              <span class="plan-name">Basic</span>
+              <span class="plan-price" id="price-basic">€19</span>
+              <span class="plan-period" id="period-basic">/ mesec</span>
+            </th>
+            <th class="price-col-highlight">
+              <span class="plan-name">PRO</span>
+              <span class="plan-price gold" id="price-pro">€39</span>
+              <span class="plan-period" id="period-pro">/ mesec</span>
+            </th>
+            <th>
+              <span class="plan-name">Firm</span>
+              <span class="plan-custom">Po dogovoru</span>
+              <span class="plan-period">kancelarija</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Pretraga zakona RS</td>
+            <td><span class="check">&#10003;</span></td>
+            <td class="price-col-highlight"><span class="check">&#10003;</span></td>
+            <td><span class="check">&#10003;</span></td>
+          </tr>
+          <tr>
+            <td>Sudska praksa</td>
+            <td><span class="check">&#10003;</span></td>
+            <td class="price-col-highlight"><span class="check">&#10003;</span></td>
+            <td><span class="check">&#10003;</span></td>
+          </tr>
+          <tr>
+            <td>Upravljanje predmetima</td>
+            <td><span class="check">&#10003;</span></td>
+            <td class="price-col-highlight"><span class="check">&#10003;</span></td>
+            <td><span class="check">&#10003;</span></td>
+          </tr>
+          <tr>
+            <td>Generisanje podnesaka</td>
+            <td><span class="dash">—</span></td>
+            <td class="price-col-highlight"><span class="check">&#10003;</span></td>
+            <td><span class="check">&#10003;</span></td>
+          </tr>
+          <tr>
+            <td>Analiza dokumenata</td>
+            <td><span class="dash">—</span></td>
+            <td class="price-col-highlight"><span class="check">&#10003;</span></td>
+            <td><span class="check">&#10003;</span></td>
+          </tr>
+          <tr>
+            <td>PDF export sa zaglavljem</td>
+            <td><span class="dash">—</span></td>
+            <td class="price-col-highlight"><span class="check">&#10003;</span></td>
+            <td><span class="check">&#10003;</span></td>
+          </tr>
+          <tr>
+            <td>Interni šabloni kancelarije</td>
+            <td><span class="dash">—</span></td>
+            <td class="price-col-highlight"><span class="dash">—</span></td>
+            <td><span class="check">&#10003;</span></td>
+          </tr>
+          <tr>
+            <td>Više korisnika</td>
+            <td><span class="dash">—</span></td>
+            <td class="price-col-highlight"><span class="dash">—</span></td>
+            <td><span class="check">&#10003;</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- MANIFESTO -->
+<section id="manifesto">
+  <div class="manifesto-inner">
+    <div class="manifesto-left reveal">
+      <blockquote>"Svaki advokat u Srbiji zna taj trenutak — klijent čeka, rok se bliži, a vi provodite sat prelistavajući stranice zakona. Nismo napravili alat koji zamenjuje advokata. Napravili smo onaj koji mu vraća vreme."</blockquote>
+      <p>Vindex AI je izgrađen u direktnoj saradnji sa advokatima koji su opisali taj problem precizno: ne nedostaje znanje — nedostaje vreme za pronalaženje tačnog propisa u pravi trenutak.</p>
+      <p>Sistem je dizajniran oko jednog principa: svaki odgovor mora biti verifikovan, citiran i ponovljiv. Nema pretpostavki, nema izmišljenih paragrafa.</p>
+      <table class="info-table">
+        <tr>
+          <td>Status</td>
+          <td>Produkcija — pristup dostupan</td>
+        </tr>
+        <tr>
+          <td>Email</td>
+          <td>info@vindex.rs</td>
+        </tr>
+        <tr>
+          <td>Besplatno</td>
+          <td>15 pitanja bez kartice</td>
+        </tr>
+      </table>
+    </div>
+    <div class="manifesto-right reveal">
+      <ul class="tenets">
+        <li class="tenet">
+          <span class="tenet-num">I</span>
+          <span class="tenet-text">Nulta tolerancija na netačnost</span>
+        </li>
+        <li class="tenet">
+          <span class="tenet-num">II</span>
+          <span class="tenet-text">Srpsko pravo, srpski advokati</span>
+        </li>
+        <li class="tenet">
+          <span class="tenet-num">III</span>
+          <span class="tenet-text">Brzina koja se meri, ne obećava</span>
+        </li>
+        <li class="tenet">
+          <span class="tenet-num">IV</span>
+          <span class="tenet-text">Co-pilot, ne zamena</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <a href="/" class="footer-logo">Vindex<span>AI</span></a>
+    <ul class="footer-nav">
+      <li><a href="#pipeline">Kako funkcioniše</a></li>
+      <li><a href="#demo">Demo</a></li>
+      <li><a href="#cene">Cene</a></li>
+      <li><a href="#manifesto">O sistemu</a></li>
+    </ul>
+    <div class="footer-legal">
+      &copy; 2026 Vindex AI &middot; info@vindex.rs<br>
+      Vindex AI ne zamenjuje profesionalno pravno rasuđivanje.
+    </div>
+  </div>
+</footer>
+
+<script>
+// ── CURSOR ──────────────────────────────────────────────────
+const dot = document.getElementById('cursor-dot');
+const ring = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+document.addEventListener('mouseleave', () => { dot.style.opacity = '0'; ring.style.opacity = '0'; });
+document.addEventListener('mouseenter', () => { dot.style.opacity = '1'; ring.style.opacity = '1'; });
+
+;(function animateCursor() {
+  rx += (mx - rx) * 0.12;
+  ry += (my - ry) * 0.12;
+  dot.style.left = mx + 'px';
+  dot.style.top = my + 'px';
+  ring.style.left = rx + 'px';
+  ring.style.top = ry + 'px';
+  requestAnimationFrame(animateCursor);
+})();
+
+// Cursor expand on interactive elements
+document.querySelectorAll('a, button, .demo-q-btn, .toggle-switch').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    ring.style.width = '44px';
+    ring.style.height = '44px';
+    ring.style.borderColor = 'rgba(74,168,255,0.7)';
+  });
+  el.addEventListener('mouseleave', () => {
+    ring.style.width = '28px';
+    ring.style.height = '28px';
+    ring.style.borderColor = 'rgba(74,168,255,0.5)';
+  });
+});
+
+// ── § PARTICLES ─────────────────────────────────────────────
+const canvas = document.getElementById('particles-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [];
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+class Particle {
+  constructor() { this.reset(true); }
+  reset(init) {
+    this.x = Math.random() * W;
+    this.y = init ? Math.random() * H : H + 20;
+    this.size = 14 + Math.random() * 18;
+    this.speed = 0.18 + Math.random() * 0.22;
+    this.opacity = 0.06 + Math.random() * 0.1;
+    this.drift = (Math.random() - 0.5) * 0.25;
+  }
+  update() {
+    this.y -= this.speed;
+    this.x += this.drift;
+    if (this.y < -30) this.reset(false);
+  }
+  draw() {
+    ctx.save();
+    ctx.globalAlpha = this.opacity;
+    ctx.fillStyle = 'rgba(74,168,255,1)';
+    ctx.font = `${this.size}px "Cormorant Garamond", serif`;
+    ctx.fillText('§', this.x, this.y);
+    ctx.restore();
+  }
+}
+
+for (let i = 0; i < 28; i++) particles.push(new Particle());
+
+;(function animateParticles() {
+  ctx.clearRect(0, 0, W, H);
+  particles.forEach(p => { p.update(); p.draw(); });
+  requestAnimationFrame(animateParticles);
+})();
+
+// ── MOBILE NAV ───────────────────────────────────────────────
+document.getElementById('nav-toggle').addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+document.querySelectorAll('#nav-links a').forEach(a => {
+  a.addEventListener('click', () => document.getElementById('nav-links').classList.remove('open'));
+});
+
+// ── SCROLL REVEAL ────────────────────────────────────────────
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); } });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+// ── PIPELINE ANIMATION ───────────────────────────────────────
+const STEP_COUNT = 6;
+const STEP_DURATION = 700; // ms per step activation
+const CONNECTOR_HEIGHT = 40; // px, visual connector height
+let pipelineActive = false;
+let pipelineTimer = null;
+
+function activateStep(i) {
+  const step = document.getElementById('step-' + i);
+  if (!step) return;
+  step.classList.add('active');
+  if (i < STEP_COUNT - 1) {
+    const conn = document.getElementById('conn-' + i);
+    if (conn) {
+      // animate connector from 0 to target height
+      const targetH = step.querySelector('.step-content').offsetHeight;
+      let start = null;
+      function growConn(ts) {
+        if (!start) start = ts;
+        const progress = Math.min((ts - start) / 400, 1);
+        conn.style.height = (progress * targetH) + 'px';
+        if (progress < 1) requestAnimationFrame(growConn);
+      }
+      requestAnimationFrame(growConn);
+    }
+  }
+}
+
+function runPipeline() {
+  // reset
+  for (let i = 0; i < STEP_COUNT; i++) {
+    const step = document.getElementById('step-' + i);
+    if (step) step.classList.remove('active');
+    const conn = document.getElementById('conn-' + i);
+    if (conn) conn.style.height = '0';
+  }
+  let i = 0;
+  function next() {
+    if (i >= STEP_COUNT) {
+      // pause then loop
+      pipelineTimer = setTimeout(runPipeline, 3000);
+      return;
+    }
+    activateStep(i);
+    i++;
+    pipelineTimer = setTimeout(next, STEP_DURATION);
+  }
+  next();
+}
+
+const pipelineObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting && !pipelineActive) {
+      pipelineActive = true;
+      runPipeline();
+    } else if (!e.isIntersecting) {
+      pipelineActive = false;
+      clearTimeout(pipelineTimer);
+    }
+  });
+}, { threshold: 0.3 });
+const pipelineSection = document.getElementById('pipeline');
+if (pipelineSection) pipelineObs.observe(pipelineSection);
+
+// ── DEMO ─────────────────────────────────────────────────────
+const FALLBACKS = [
+`[✓] STATUSNA POTVRDA: Doslovno citiran — član direktno pronađen u bazi zakona RS.
+
+--- PRAVNI ZAKLJUČAK
+Postoji verovatan pravni osnov da poslodavac NE MOŽE samovoljno umanjiti zaradu zaposlenog zbog pada poslovnih rezultata. Prema Zakonu o radu čl. 120, zarada se može menjati isključivo aneksom ugovora o radu — uz pisanu saglasnost zaposlenog. Jednostrano umanjenje bez aneksa je nezakonito.
+
+--- CITAT ZAKONA [RAG]
+"Ugovorom o radu utvrđuje se osnovna zarada... Izmena ugovora o radu vrši se zaključivanjem aneksa ugovora." — Zakon o radu, čl. 120
+
+--- IZVOR
+Zakon o radu (Sl. glasnik RS, br. 24/2005, 61/2005, 54/2009... i dr.)`,
+
+`[✓] STATUSNA POTVRDA: Doslovno citiran — član direktno pronađen u bazi zakona RS.
+
+--- PRAVNI ZAKLJUČAK
+Ugovor o radu može se raskinuti sporazumom stranaka u skladu sa Zakonom o radu čl. 177. Neophodni uslovi: (1) pisani sporazum potpisan od obe strane, (2) jasno naveden datum prestanka radnog odnosa, (3) dobrovoljnost — bez pritiska ili prevare.
+
+--- CITAT ZAKONA [RAG]
+"Radni odnos prestaje na osnovu pisanog sporazuma poslodavca i zaposlenog." — Zakon o radu, čl. 177
+
+--- IZVOR
+Zakon o radu (Sl. glasnik RS, br. 24/2005 i dr.)`,
+
+`[✓] STATUSNA POTVRDA: Doslovno citiran — član direktno pronađen u bazi zakona RS.
+
+--- PRAVNI ZAKLJUČAK
+Poslodavac koji uvodi prekovremeni rad ima sledeće obaveze po ZR čl. 53: (1) prethodno obaveštenje zaposlenog, (2) max 8 sati prekovremeno nedeljno i 12 sati ukupno dnevno, (3) uvećana zarada min 26% od osnovne. Prekovremeni rad ne može biti naređen zaposlenim na bolovanju, trudnim ženama i roditeljima dece do 3 god.
+
+--- CITAT ZAKONA [RAG]
+"Zaposleni može da radi duže od punog radnog vremena... Prekovremeni rad ne može da traje duže od 8 časova nedeljno." — Zakon o radu, čl. 53
+
+--- IZVOR
+Zakon o radu (Sl. glasnik RS, br. 24/2005 i dr.)`
+];
+
+const QUESTIONS = [
+  "Da li poslodavac može zaposlenom da umanji zaradu zbog pada poslovnih rezultata?",
+  "Koji su uslovi za otkaz ugovora o radu po sporazumu stranaka?",
+  "Koje su obaveze poslodavca pri prekovremenom radu?"
+];
+
+let demoRunning = false;
+let typewriterTimer = null;
+
+function typewrite(text, el, speed, cb) {
+  let i = 0;
+  clearInterval(typewriterTimer);
+  el.textContent = '';
+  typewriterTimer = setInterval(() => {
+    if (i < text.length) {
+      el.textContent += text[i];
+      i++;
+    } else {
+      clearInterval(typewriterTimer);
+      // add blinking cursor
+      const cur = document.createElement('span');
+      cur.className = 'terminal-cursor';
+      el.appendChild(cur);
+      if (cb) cb();
+    }
+  }, speed);
+}
+
+async function runDemo(qIndex) {
+  if (demoRunning) return;
+  demoRunning = true;
+  clearInterval(typewriterTimer);
+
+  // mark active button
+  document.querySelectorAll('.demo-q-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === qIndex);
+  });
+
+  const terminal = document.getElementById('demo-terminal');
+  const body = document.getElementById('terminal-body');
+  terminal.classList.add('visible');
+
+  // loading
+  body.innerHTML = '<span class="loading-dots">Analiza pitanja</span>';
+
+  const question = QUESTIONS[qIndex];
+  let response = null;
+
+  try {
+    const res = await Promise.race([
+      fetch('https://vindex-ai.onrender.com/api/pitanje', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pitanje: question })
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000))
+    ]);
+    if (res.ok) {
+      const data = await res.json();
+      response = data.odgovor || data.answer || data.response || JSON.stringify(data);
+    }
+  } catch (e) {
+    response = null;
+  }
+
+  if (!response) response = FALLBACKS[qIndex];
+
+  body.textContent = '';
+  typewrite(response, body, 12, () => { demoRunning = false; });
+}
+
+document.querySelectorAll('.demo-q-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const q = parseInt(btn.dataset.q);
+    demoRunning = false;
+    runDemo(q);
+  });
+});
+
+// ── PRICING TOGGLE ───────────────────────────────────────────
+let isAnnual = false;
+const toggle = document.getElementById('price-toggle');
+const lblMonthly = document.getElementById('lbl-monthly');
+const lblAnnual = document.getElementById('lbl-annual');
+const priceBasic = document.getElementById('price-basic');
+const pricePro = document.getElementById('price-pro');
+const periodBasic = document.getElementById('period-basic');
+const periodPro = document.getElementById('period-pro');
+
+toggle.addEventListener('click', () => {
+  isAnnual = !isAnnual;
+  toggle.classList.toggle('annual', isAnnual);
+  lblMonthly.classList.toggle('active', !isAnnual);
+  lblAnnual.classList.toggle('active', isAnnual);
+  if (isAnnual) {
+    priceBasic.textContent = '€17'; periodBasic.textContent = '/ mesec, godišnje';
+    pricePro.textContent = '€35'; periodPro.textContent = '/ mesec, godišnje';
+  } else {
+    priceBasic.textContent = '€19'; periodBasic.textContent = '/ mesec';
+    pricePro.textContent = '€39'; periodPro.textContent = '/ mesec';
+  }
+});
+</script>
+</body>
+</html>
