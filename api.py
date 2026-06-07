@@ -592,7 +592,7 @@ def greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
 @app.get("/")
 @app.head("/")
 def root():
-    path = BASE_DIR / "index.html"
+    path = BASE_DIR / "landing.html"
     if path.exists():
         return FileResponse(path)
     return {"status": "ok", "servis": "Vindex AI"}
@@ -2230,3 +2230,154 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
             logger.warning("[PROCENA] Nije uspelo čuvanje u istoriju za predmet_id=%s", predmet_id)
 
     return {"procena": procena_tekst, "predmet_id": predmet_id}
+
+
+# ── Phase 1.1: Auto-trigger — upload document to predmet + auto-analyze ───────
+
+@app.post("/api/predmeti/{predmet_id}/upload")
+@limiter.limit("10/minute")
+async def predmet_upload_auto_analyze(
+    predmet_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    authorization: str = Header(None),
+):
+    """Phase 1.1 — Upload doc to a predmet and auto-trigger AI analysis.
+    Returns {session_id, filename, procena} — procena runs automatically."""
+    import hashlib
+    import tempfile
+    from pathlib import Path as _Path
+    from openai import OpenAI as _OAI
+
+    from uploaded_doc.chunker import chunk_document
+    from uploaded_doc.cleanup import cleanup_expired
+    from uploaded_doc.extractor import extract
+    from uploaded_doc.ingest import ingest_session
+    from uploaded_doc.session import generate_session_id, expires_at_iso
+
+    user = _require_auth(authorization)
+
+    # Validate ownership
+    pred_row = _get_supa().table("predmeti").select("id,naziv,tip").eq("id", predmet_id).eq("user_id", user.id).single().execute()
+    if not pred_row.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+    predmet_naziv = pred_row.data.get("naziv", "")
+    predmet_tip   = pred_row.data.get("tip", "opsti")
+
+    # File guards
+    suffix = _Path(file.filename or "").suffix.lower()
+    if file.content_type not in _ALLOWED_MIMES or suffix not in _ALLOWED_SUFFIXES:
+        raise HTTPException(status_code=415, detail="Podržani formati: PDF, DOCX")
+    raw = await file.read()
+    if len(raw) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Fajl je preko 10MB")
+
+    # Extract text
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(raw)
+            tmp_path = _Path(tmp.name)
+        text, is_scanned = await asyncio.to_thread(extract, tmp_path)
+        if is_scanned:
+            raise HTTPException(status_code=422, detail="Skenirani PDF — pošaljite digitalni PDF.")
+    finally:
+        if tmp_path and tmp_path.exists():
+            try: tmp_path.unlink()
+            except Exception: pass
+
+    if not text or not text.strip():
+        raise HTTPException(status_code=422, detail="Dokument je prazan ili nečitljiv.")
+
+    # Chunk + ingest to Pinecone
+    source_meta = {
+        "source_filename": file.filename,
+        "source_format": suffix.lstrip("."),
+        "source_sha256": hashlib.sha256(raw).hexdigest(),
+        "is_scanned": False,
+        "session_id": "__local__",
+    }
+    manifest = await asyncio.to_thread(chunk_document, text, source_meta)
+    if manifest.total_chunks == 0:
+        raise HTTPException(status_code=422, detail="Dokument je prazan.")
+
+    session_id = generate_session_id()
+    ttl_hours  = 24 * 7  # 7 dana za predmet dokumente
+    count = await asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours)
+
+    # Record in predmet_dokumenti
+    try:
+        _get_supa().table("predmet_dokumenti").insert({
+            "predmet_id":          predmet_id,
+            "user_id":             user.id,
+            "naziv_fajla":         file.filename or "dokument",
+            "storage_path":        f"session/{session_id}",
+            "pinecone_namespace":  f"tmp_{session_id}",
+            "status":              "indeksirano",
+            "velicina_kb":         max(1, len(raw) // 1024),
+        }).execute()
+    except Exception:
+        logger.warning("[P1.1] predmet_dokumenti insert failed for predmet=%s", predmet_id)
+
+    # ── AUTO ANALYSIS ──────────────────────────────────────────────────────────
+    # Build cinjenice: document text (first 3000 chars) + predmet context
+    cinjenice_text = (
+        f"Predmet: {predmet_naziv} (oblast: {predmet_tip})\n\n"
+        f"Sadržaj uploadovanog dokumenta:\n"
+        + text[:3000]
+        + ("\n[...dokument nastavlja...]" if len(text) > 3000 else "")
+    )
+
+    # Fetch existing notes for additional context
+    try:
+        beleske_res = _get_supa().table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).eq("user_id", user.id).order("created_at", desc=True).limit(3).execute()
+        if beleske_res.data:
+            b_tekst = "\n---\n".join(b["sadrzaj"] for b in beleske_res.data if b.get("sadrzaj"))
+            if b_tekst:
+                cinjenice_text += f"\n\nBELEŠKE IZ PREDMETA:\n{b_tekst}"
+    except Exception:
+        pass
+
+    procena_tekst = ""
+    try:
+        client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0,
+            max_tokens=1200,
+            timeout=45.0,
+            messages=[
+                {"role": "system", "content": _PROCENA_SYSTEM_PROMPT},
+                {"role": "user",   "content": cinjenice_text},
+            ],
+        )
+        procena_tekst = (resp.choices[0].message.content or "").strip()
+        logger.info("[P1.1] Auto-procena uspešna za predmet=%s, chars=%d", predmet_id, len(procena_tekst))
+    except Exception:
+        logger.exception("[P1.1] Auto-procena greška za predmet=%s", predmet_id)
+        # Don't fail — return successful upload even if analysis fails
+        procena_tekst = ""
+
+    # Persist analysis to predmet_istorija
+    if procena_tekst:
+        try:
+            _get_supa().table("predmet_istorija").insert({
+                "predmet_id": predmet_id,
+                "user_id":    user.id,
+                "pitanje":    f"[Auto-analiza] {file.filename or 'dokument'}",
+                "odgovor":    procena_tekst,
+                "confidence": "MEDIUM",
+            }).execute()
+        except Exception:
+            logger.warning("[P1.1] predmet_istorija insert failed for predmet=%s", predmet_id)
+
+    asyncio.create_task(asyncio.to_thread(cleanup_expired))
+
+    return {
+        "session_id":  session_id,
+        "filename":    file.filename,
+        "chunk_count": count,
+        "predmet_id":  predmet_id,
+        "procena":     procena_tekst,
+        "auto_analyzed": bool(procena_tekst),
+    }
