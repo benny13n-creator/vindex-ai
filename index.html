@@ -4272,6 +4272,16 @@ function pred_renderProcena(tekst) {
     {k:'5. NEDOSTAJUĆI DOKAZI',          icon:'📋',  lbl:'Potrebni dokazi',         special:'dokazi'},
     {k:'6. PROCENA RIZIKA',              icon:'🎯',  lbl:'Procena rizika',          special:'rizik'},
   ];
+  // Try to find sections without number prefix as fallback (GPT sometimes omits numbers)
+  var _fallbackSek = [
+    {k:'KLJUČNA ČINJENICA',          icon:'🔑',  lbl:'Ključna činjenica',  special:'kljucna'},
+    {k:'KOMPLETIRANOST PREDMETA',    icon:'📊',  lbl:'Kompletiranost',     special:'kompletiranost'},
+    {k:'PROCENA RIZIKA',             icon:'🎯',  lbl:'Procena rizika',     special:'rizik'},
+    {k:'RELEVANTNA PRAKSA',          icon:'📚',  lbl:'Relevantna praksa',  special:'praksa'},
+    {k:'POUZDANOST PROCENE',         icon:'🔬',  lbl:'Pouzdanost procene', special:'pouzdanost'},
+    {k:'STRATEGIJA ZA TUŽIOCA',      icon:'🗺️',  lbl:'Strategija tužioca',special:'strategija'},
+    {k:'STRATEGIJA ZA TUŽENOG',      icon:'🛡️',  lbl:'Strategija tuženog',special:'strategija'},
+  ];
   var positions = [];
   sekcije.forEach(function(s) {
     var pos = tekst.indexOf(s.k);
@@ -4282,6 +4292,20 @@ function pred_renderProcena(tekst) {
   positions.forEach(function(p) {
     if (!deduped.length || p.pos - deduped[deduped.length-1].pos > 5) deduped.push(p);
   });
+  // If critical sections are missing, try number-agnostic fallbacks
+  var _foundLbls = {};
+  deduped.forEach(function(d){ _foundLbls[d.s.lbl] = true; });
+  _fallbackSek.forEach(function(s) {
+    if (_foundLbls[s.lbl]) return;
+    var pos = tekst.indexOf(s.k);
+    if (pos !== -1) deduped.push({s:s, pos:pos});
+  });
+  deduped.sort(function(a,b){return a.pos-b.pos;});
+  var _deduped2 = [];
+  deduped.forEach(function(p) {
+    if (!_deduped2.length || p.pos - _deduped2[_deduped2.length-1].pos > 5) _deduped2.push(p);
+  });
+  deduped = _deduped2;
   if (!deduped.length) return '<pre style="font-size:0.78rem;white-space:pre-wrap;color:rgba(255,255,255,0.72);">'+escHtml(tekst)+'</pre>';
 
   var html = '';

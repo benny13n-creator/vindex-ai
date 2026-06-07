@@ -2331,36 +2331,62 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
         except Exception:
             logger.warning("[PROCENA] Nije uspelo učitavanje beleški za predmet_id=%s", predmet_id)
 
-    # Fetch relevant case law from sudska_praksa namespace (non-blocking, best-effort)
+    # Inject ZR law hints if labor dispute keywords detected
+    _proc_law_ctx = ""
+    _PROC_LABOR_KW = ["otkaz", "radni spor", "radno pravo", "radni odnos",
+                      "zaposleni", "poslodavac", "radu", "zr"]
+    _PROC_ZR_HINTS = (
+        "ZR Član 175: Poslodavac može otkazati ugovor o radu zaposlenom ako postoji opravdan razlog "
+        "koji se odnosi na radnu sposobnost i ponašanje zaposlenog (otkaz iz subjektivnih razloga) ili "
+        "usled ekonomskih, organizacionih ili tehnoloških promena (otkaz iz objektivnih razloga).\n\n"
+        "ZR Član 176: Poslodavac može otkazati ugovor o radu bez otkaznog roka zaposlenom koji svojom "
+        "krivicom učini povredu radne obaveze ili ne poštuje radnu disciplinu.\n\n"
+        "ZR Član 184: Rešenje o otkazu mora biti u pisanoj formi sa obrazloženjem i poukom o pravnom leku. "
+        "Zaposleni mora biti obavešten i dobiti 8 dana za izjašnjenje.\n\n"
+        "ZR Član 191: Ako sud utvrdi nezakonit otkaz, zaposleni ima pravo na vraćanje na rad i naknadu "
+        "izgubljene zarade, ili novčanu naknadu umesto vraćanja na rad."
+    )
+    if any(t in cinjenice.lower() for t in _PROC_LABOR_KW):
+        _proc_law_ctx = (
+            "DOSTUPNI ZAKONI (citiraj ISKLJUČIVO ove članove — ne citiraj iz opšteg znanja):\n\n"
+            + _PROC_ZR_HINTS + "\n\n---\n\n"
+        )
+        logger.info("[PROCENA] ZR law hints injected")
+
+    # Fetch relevant case law via retrieve_documents (battle-tested, returns praksa_matches)
     _praksa_context = ""
     try:
-        from app.services.retrieve import _pretraga_praksa, _ugradi_query, _formatiraj_praksa_match
-        _vektor = await asyncio.wait_for(
-            asyncio.to_thread(_ugradi_query, cinjenice[:600]),
-            timeout=4.0,
+        from app.services.retrieve import retrieve_documents as _retr_proc, _formatiraj_praksa_match
+        _rd, _rm = await asyncio.wait_for(
+            asyncio.to_thread(_retr_proc, cinjenice[:400], 3),
+            timeout=7.0,
         )
-        _pm = await asyncio.wait_for(
-            asyncio.to_thread(_pretraga_praksa, _vektor, 3),
-            timeout=3.0,
-        )
+        _pm = _rm.get("praksa_matches", [])[:3]
         if _pm:
             _praksa_context = (
-                "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 10):\n\n"
-                + "\n\n---\n\n".join(_formatiraj_praksa_match(m) for m in _pm[:3])
+                "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 11 — RELEVANTNA PRAKSA):\n\n"
+                + "\n\n---\n\n".join(_formatiraj_praksa_match(m) for m in _pm)
             )
-            logger.info("[PROCENA] Praksa fetch: %d match(es)", len(_pm))
+            logger.info("[PROCENA] Praksa: %d match(es) injected", len(_pm))
+        else:
+            logger.info("[PROCENA] Praksa: 0 matches returned from sudska_praksa namespace")
+    except asyncio.TimeoutError:
+        logger.warning("[PROCENA] Praksa retrieve timeout (>7s) — nastavljamo bez prakse")
     except Exception:
-        logger.warning("[PROCENA] Praksa fetch nije uspeo — nastavljamo bez prakse")
+        logger.warning("[PROCENA] Praksa retrieve failed — nastavljamo bez prakse", exc_info=True)
 
-    user_content = f"ČINJENICE SLUČAJA:\n{cinjenice}{kontekst_beleske}{_praksa_context}"
+    user_content = (
+        _proc_law_ctx
+        + f"ČINJENICE SLUČAJA:\n{cinjenice}{kontekst_beleske}{_praksa_context}"
+    )
 
     try:
         client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
         resp = client.chat.completions.create(
             model="gpt-4o",
             temperature=0,
-            max_tokens=2500,
-            timeout=50.0,
+            max_tokens=3500,
+            timeout=60.0,
             messages=[
                 {"role": "system", "content": _PROCENA_SYSTEM_PROMPT},
                 {"role": "user",   "content": user_content},
@@ -2491,7 +2517,7 @@ async def predmet_upload_auto_analyze(
         text_limit     = 3000
         text_label     = "Sadržaj uploadovanog dokumenta"
         truncate_label = "\n[...dokument nastavlja...]"
-        max_tok        = 2200
+        max_tok        = 2800
 
     # ── Phase 2.1 RAG + Law Hints ─────────────────────────────────────────────
     _rag_query = f"{predmet_naziv} {predmet_tip} " + " ".join(text[:400].split())
@@ -2559,7 +2585,7 @@ async def predmet_upload_auto_analyze(
             if _pm_upload:
                 from app.services.retrieve import _formatiraj_praksa_match
                 _praksa_upload_ctx = (
-                    "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 10):\n\n"
+                    "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 11 — RELEVANTNA PRAKSA):\n\n"
                     + "\n\n---\n\n".join(_formatiraj_praksa_match(m) for m in _pm_upload)
                 )
         except Exception:
