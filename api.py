@@ -2225,7 +2225,7 @@ _PRESUDA_SYSTEM_PROMPT = _PRESUDA_SYSTEM_PROMPT + _CITATION_GUARD
 _PROCENA_SYSTEM_PROMPT = """Ti si stručni pravni analitičar za srpsko pravo.
 Na osnovu opisanih činjenica pruži strukturiranu pravnu procenu.
 
-OBAVEZNI FORMAT — tačno ovih 6 sekcija:
+OBAVEZNI FORMAT — tačno ovih 10 sekcija:
 
 1. PRAVNI OSNOV
 Navedi SVE primenjive zakonske odredbe na opisanu situaciju — bez obzira na to koju stranu štite.
@@ -2241,19 +2241,44 @@ Fokus na činjenice i procesne prednosti — ne ponavljaj članove iz sekcije 1.
 Najjači FAKTIČKI kontraargumenti u korist tuženog/poslodavca (max 3 boda).
 Fokus na činjenične nedostatke i procesne rizike — ne navoditi zakonske članove ovde.
 
-4. SPORNE TAČKE
-Ključne činjenične ili pravne tačke oko kojih se stranke mogu sporiti.
+4. STRATEGIJA ZA TUŽIOCA
+Konkretnih 3-5 procesnih koraka koje tužilac treba odmah da preduzme, u redosledu prioriteta.
+Format: svaki korak počinje sa "- ", konkretno i akciono (npr. "- Prikupiti...").
 
-5. NEDOSTAJUĆI DOKAZI
-Koji dokazi su neophodni za uspeh u postupku — konkretan spisak.
+5. STRATEGIJA ZA TUŽENOG
+Konkretnih 3-5 procesnih koraka koje tuženi treba da preduzme u svoju odbranu.
+Format: svaki korak počinje sa "- ", konkretno i akciono.
 
-6. PROCENA RIZIKA
-Ocena: NIZAK / SREDNJI / VISOK (izaberi jedno) + kratko obrazloženje u 1-2 rečenice.
+6. SPORNE TAČKE
+Ključne činjenične ili pravne tačke oko kojih se stranke mogu sporiti (max 3 boda).
+
+7. POTREBNI DOKAZI
+Grupiši dokaze u tačno 3 nivoa — svaki nivo na posebnoj liniji:
+🔴 Kritični: (dokazi bez kojih predmet pada — nabrojati)
+🟡 Važni: (dokazi koji jačaju poziciju — nabrojati)
+🟢 Korisni: (podržavajući dokazi — nabrojati)
+
+8. KOMPLETIRANOST PREDMETA
+Na prvoj liniji obavezno: KOMPLETIRANOST: XX% (broj od 0 do 100, proceni na osnovu dostavljenih činjenica)
+Zatim: Nedostaje: (kratka lista onoga što fali za uspešan postupak)
+
+9. PROCENA RIZIKA
+Faktori koji POVEĆAVAJU rizik:
+- (navedi konkretno, max 3)
+Faktori koji SMANJUJU rizik:
+- (navedi konkretno, max 3)
+Ukupna procena: NIZAK / SREDNJI / VISOK — obrazloženje u 1 rečenici.
+
+10. RELEVANTNA PRAKSA
+Samo ako su odlomci sudske prakse dostavljeni u upitu pod "RELEVANTNA SUDSKA PRAKSA".
+Za svaku relevantnu presudu navedi u formatu:
+• [Sud, broj odluke, godina] — Kratki pravni stav (1 rečenica) — Zašto je relevantna za ovaj predmet.
+Navedi max 3 presude.
 
 PRAVILA:
 - Nikada ne garantuj ishod postupka.
 - Koristi srpsku ekavicu i pravni registar.
-- Budi koncizan — svaka sekcija max 5 redova.
+- Budi koncizan — svaka sekcija max 6 redova.
 - Na kraju dodaj: "Ova procena je generisana uz pomoć AI i mora biti proverena od strane ovlašćenog advokata."
 """
 
@@ -2285,15 +2310,36 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
         except Exception:
             logger.warning("[PROCENA] Nije uspelo učitavanje beleški za predmet_id=%s", predmet_id)
 
-    user_content = f"ČINJENICE SLUČAJA:\n{cinjenice}{kontekst_beleske}"
+    # Fetch relevant case law from sudska_praksa namespace (non-blocking, best-effort)
+    _praksa_context = ""
+    try:
+        from app.services.retrieve import _pretraga_praksa, _ugradi_query, _formatiraj_praksa_match
+        _vektor = await asyncio.wait_for(
+            asyncio.to_thread(_ugradi_query, cinjenice[:600]),
+            timeout=4.0,
+        )
+        _pm = await asyncio.wait_for(
+            asyncio.to_thread(_pretraga_praksa, _vektor, 3),
+            timeout=3.0,
+        )
+        if _pm:
+            _praksa_context = (
+                "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 10):\n\n"
+                + "\n\n---\n\n".join(_formatiraj_praksa_match(m) for m in _pm[:3])
+            )
+            logger.info("[PROCENA] Praksa fetch: %d match(es)", len(_pm))
+    except Exception:
+        logger.warning("[PROCENA] Praksa fetch nije uspeo — nastavljamo bez prakse")
+
+    user_content = f"ČINJENICE SLUČAJA:\n{cinjenice}{kontekst_beleske}{_praksa_context}"
 
     try:
         client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
         resp = client.chat.completions.create(
             model="gpt-4o",
             temperature=0,
-            max_tokens=1200,
-            timeout=30.0,
+            max_tokens=2000,
+            timeout=45.0,
             messages=[
                 {"role": "system", "content": _PROCENA_SYSTEM_PROMPT},
                 {"role": "user",   "content": user_content},
@@ -2418,13 +2464,13 @@ async def predmet_upload_auto_analyze(
         text_limit     = 8000
         text_label     = "TEKST PRESUDE"
         truncate_label = "\n[...presuda se nastavlja, prikazan je izvod...]"
-        max_tok        = 1000
+        max_tok        = 1200
     else:
         system_prompt  = _PROCENA_SYSTEM_PROMPT
         text_limit     = 3000
         text_label     = "Sadržaj uploadovanog dokumenta"
         truncate_label = "\n[...dokument nastavlja...]"
-        max_tok        = 1000
+        max_tok        = 1800
 
     # ── Phase 2.1 RAG + Law Hints ─────────────────────────────────────────────
     _rag_query = f"{predmet_naziv} {predmet_tip} " + " ".join(text[:400].split())
@@ -2456,6 +2502,7 @@ async def predmet_upload_auto_analyze(
         logger.info("[P2.1] ZR law hints injected (hardcoded, no Pinecone)")
 
     # Step 2: RAG retrieval for case law context (4s timeout, k=3)
+    _rag_meta: dict = {}
     try:
         from app.services.retrieve import retrieve_documents as _retrieve
         _rag_docs, _rag_meta = await asyncio.wait_for(
@@ -2483,12 +2530,27 @@ async def predmet_upload_auto_analyze(
             + "\n\n---\n\n"
         )
 
+    # Inject top 3 praksa matches from RAG for section 10 (RELEVANTNA PRAKSA)
+    _praksa_upload_ctx = ""
+    if doc_type != "presuda":
+        try:
+            _pm_upload = _rag_meta.get("praksa_matches", [])[:3]
+            if _pm_upload:
+                from app.services.retrieve import _formatiraj_praksa_match
+                _praksa_upload_ctx = (
+                    "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 10):\n\n"
+                    + "\n\n---\n\n".join(_formatiraj_praksa_match(m) for m in _pm_upload)
+                )
+        except Exception:
+            pass
+
     cinjenice_text = (
         law_context
         + f"Predmet: {predmet_naziv} (oblast: {predmet_tip})\n\n"
         + f"{text_label}:\n"
         + text[:text_limit]
         + (truncate_label if len(text) > text_limit else "")
+        + _praksa_upload_ctx
     )
 
     # Fetch existing notes for additional context (skip for presuda — full text is more useful)
