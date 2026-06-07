@@ -2272,8 +2272,13 @@ Grupiši dokaze u tačno 3 nivoa — svaki nivo na posebnoj liniji:
 🟢 Korisni: (podržavajući dokazi — nabrojati)
 
 9. KOMPLETIRANOST PREDMETA
-Na prvoj liniji obavezno: KOMPLETIRANOST: XX% (broj od 0 do 100, proceni na osnovu dostavljenih informacija)
-Nedostaje: (konkretna lista dokumenata/informacija koji nedostaju)
+OBAVEZNO: prva linija mora biti tačno u ovom formatu (bez izmena):
+KOMPLETIRANOST: XX%
+Zatim na sledećoj liniji:
+Nedostaje: [konkretan spisak dokumenata koji fale]
+Primer ispravnog outputa:
+KOMPLETIRANOST: 35%
+Nedostaje: rešenje o otkazu, pisano upozorenje zaposlenom, ugovor o radu
 
 10. PROCENA RIZIKA
 Faktori koji POVEĆAVAJU rizik:
@@ -2281,6 +2286,7 @@ Faktori koji POVEĆAVAJU rizik:
 Faktori koji SMANJUJU rizik:
 - (navedi konkretno, max 3)
 Ukupna procena: NIZAK / SREDNJI / VISOK — obrazloženje u 1 rečenici.
+OBAVEZNO: reč NIZAK, SREDNJI ili VISOK mora biti prisutna u ovoj sekciji.
 
 11. RELEVANTNA PRAKSA
 Samo ako su odlomci sudske prakse dostavljeni pod "RELEVANTNA SUDSKA PRAKSA".
@@ -2292,8 +2298,10 @@ Za svaku presudu obavezno ovim redom:
 Navedi max 3 presude.
 
 12. POUZDANOST PROCENE
-Na prvoj liniji obavezno: POUZDANOST: XX% (zavisi od kompletiranosti dostavljenih informacija)
-Nedostaju: (lista dokumenata čiji upload može promeniti zaključak)
+OBAVEZNO: prva linija mora biti tačno u ovom formatu:
+POUZDANOST: XX%
+Zatim:
+Nedostaju: [lista dokumenata]
 Upload ovih dokumenata može značajno promeniti zaključak.
 
 PRAVILA:
@@ -2353,27 +2361,33 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
         )
         logger.info("[PROCENA] ZR law hints injected")
 
-    # Fetch relevant case law via retrieve_documents (battle-tested, returns praksa_matches)
+    # Fetch case law directly from sudska_praksa namespace (returns real Pinecone objects)
     _praksa_context = ""
     try:
-        from app.services.retrieve import retrieve_documents as _retr_proc, _formatiraj_praksa_match
-        _rd, _rm = await asyncio.wait_for(
-            asyncio.to_thread(_retr_proc, cinjenice[:400], 3),
-            timeout=7.0,
+        from app.services.retrieve import _pretraga_praksa, _ugradi_query, _formatiraj_praksa_match
+        _p_vec = await asyncio.wait_for(
+            asyncio.to_thread(_ugradi_query, cinjenice[:500]),
+            timeout=8.0,
         )
-        _pm = _rm.get("praksa_matches", [])[:3]
-        if _pm:
-            _praksa_context = (
-                "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 11 — RELEVANTNA PRAKSA):\n\n"
-                + "\n\n---\n\n".join(_formatiraj_praksa_match(m) for m in _pm)
-            )
-            logger.info("[PROCENA] Praksa: %d match(es) injected", len(_pm))
+        _p_matches = await asyncio.wait_for(
+            asyncio.to_thread(_pretraga_praksa, _p_vec, 3),
+            timeout=5.0,
+        )
+        if _p_matches:
+            _p_parts = [_formatiraj_praksa_match(m) for m in _p_matches]
+            _p_parts = [p for p in _p_parts if p and len(p.strip()) > 30]
+            if _p_parts:
+                _praksa_context = (
+                    "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 11 — RELEVANTNA PRAKSA):\n\n"
+                    + "\n\n---\n\n".join(_p_parts)
+                )
+                logger.info("[PROCENA] Praksa: %d matches injected iz sudska_praksa", len(_p_parts))
         else:
-            logger.info("[PROCENA] Praksa: 0 matches returned from sudska_praksa namespace")
-    except asyncio.TimeoutError:
-        logger.warning("[PROCENA] Praksa retrieve timeout (>7s) — nastavljamo bez prakse")
-    except Exception:
-        logger.warning("[PROCENA] Praksa retrieve failed — nastavljamo bez prakse", exc_info=True)
+            logger.info("[PROCENA] Praksa: 0 matches iz sudska_praksa namespace (vektori: 12604)")
+    except asyncio.TimeoutError as _pe:
+        logger.warning("[PROCENA] Praksa timeout: %s", _pe)
+    except Exception as _pe:
+        logger.warning("[PROCENA] Praksa greška: %s", _pe, exc_info=True)
 
     user_content = (
         _proc_law_ctx
@@ -2577,19 +2591,32 @@ async def predmet_upload_auto_analyze(
             + "\n\n---\n\n"
         )
 
-    # Inject top 3 praksa matches from RAG for section 10 (RELEVANTNA PRAKSA)
+    # Inject top 3 praksa matches for section 11 (RELEVANTNA PRAKSA) — direct namespace query
     _praksa_upload_ctx = ""
     if doc_type != "presuda":
         try:
-            _pm_upload = _rag_meta.get("praksa_matches", [])[:3]
-            if _pm_upload:
-                from app.services.retrieve import _formatiraj_praksa_match
-                _praksa_upload_ctx = (
-                    "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 11 — RELEVANTNA PRAKSA):\n\n"
-                    + "\n\n---\n\n".join(_formatiraj_praksa_match(m) for m in _pm_upload)
-                )
-        except Exception:
-            pass
+            from app.services.retrieve import _pretraga_praksa, _ugradi_query, _formatiraj_praksa_match
+            _up_vec = await asyncio.wait_for(
+                asyncio.to_thread(_ugradi_query, _rag_query[:400]),
+                timeout=6.0,
+            )
+            _up_pm = await asyncio.wait_for(
+                asyncio.to_thread(_pretraga_praksa, _up_vec, 3),
+                timeout=4.0,
+            )
+            if _up_pm:
+                _up_parts = [_formatiraj_praksa_match(m) for m in _up_pm]
+                _up_parts = [p for p in _up_parts if p and len(p.strip()) > 30]
+                if _up_parts:
+                    _praksa_upload_ctx = (
+                        "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 11 — RELEVANTNA PRAKSA):\n\n"
+                        + "\n\n---\n\n".join(_up_parts)
+                    )
+                    logger.info("[P2.1] Praksa: %d matches injected", len(_up_parts))
+        except asyncio.TimeoutError:
+            logger.warning("[P2.1] Praksa fetch timeout")
+        except Exception as _upe:
+            logger.warning("[P2.1] Praksa fetch greška: %s", _upe)
 
     cinjenice_text = (
         law_context
