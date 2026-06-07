@@ -46,3 +46,7 @@
 | 2026-05-04 19:51 UTC | ZZP | zakon o zastiti potrosaca | 195 articles | 876 vectors | OK |
 | 2026-05-04 19:52 UTC | ZZPL | zakon o zastiti podataka o licnosti | 102 articles | 593 vectors | OK |
 | 2026-05-04 19:52 UTC | ZUS | zakon o upravnim sporovima | 78 articles | 161 vectors | OK |
+| 2026-06-07 15:23 UTC | ZN | zakon o nasledjivanju | 240 articles | 0 vectors | DRY_RUN |
+| 2026-06-07 15:23 UTC | PZ | porodicni zakon | 362 articles | 0 vectors | DRY_RUN |
+| 2026-06-07 15:24 UTC | ZN | zakon o nasledjivanju | 240 articles | 341 vectors | OK |
+| 2026-06-07 15:26 UTC | PZ | porodicni zakon | 362 articles | 858 vectors | OK |
