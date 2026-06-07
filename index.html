@@ -1019,6 +1019,9 @@ footer { padding: 2rem 1.5rem; }
 .pred-tl-item::before{content:'';position:absolute;left:-1.1rem;top:4px;width:7px;height:7px;border-radius:50%;background:rgba(74,168,255,0.5);border:1px solid #4aa8ff;}
 .pred-tl-date{color:rgba(255,255,255,0.3);font-family:'JetBrains Mono',monospace;font-size:0.65rem;margin-bottom:2px;}
 .pred-tl-q{color:rgba(255,255,255,0.65);}
+.pred-tl-clickable{cursor:pointer;padding:0.3rem 0.4rem;border-radius:6px;transition:background .15s;}
+.pred-tl-clickable:hover{background:rgba(74,168,255,0.08);}
+.pred-tl-hint{font-size:0.62rem;color:rgba(74,168,255,0.5);margin-top:2px;}
 .procena-section-hdr .sec-icon{margin-right:0.4rem;}
 </style>
 
@@ -3420,6 +3423,18 @@ window.addEventListener('DOMContentLoaded', function() {
     var item = e.target.closest('[data-predmet-id]');
     if (item) pred_select(item.getAttribute('data-predmet-id'));
   });
+  document.getElementById('pred-istorija-list').addEventListener('click', function(e) {
+    var item = e.target.closest('[data-istor-idx]');
+    if (!item) return;
+    var idx = parseInt(item.getAttribute('data-istor-idx'), 10);
+    var h = _predIstorijaData[idx];
+    if (!h || !h.odgovor || !h.odgovor.trim()) return;
+    var resEl = document.getElementById('pred-procena-result');
+    if (!resEl) return;
+    var rndr = (h.odgovor.indexOf('1. REZIME PRESUDE') !== -1) ? pred_renderPresuda : pred_renderProcena;
+    resEl.innerHTML = rndr(h.odgovor);
+    resEl.scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
   // Supabase šalje recovery token kao URL hash fragment: #access_token=...&type=recovery
   var hash = window.location.hash;
   if (hash.indexOf('type=recovery') !== -1) {
@@ -3989,6 +4004,7 @@ async function doc_prikaži_rokove(btn) {
 var activePredmetId   = null;
 var activePredmetNaziv = '';
 var _predmeti         = [];
+var _predIstorijaData = [];
 
 function _predAuthHdr() {
   return currentSession ? { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token } : {};
@@ -4084,15 +4100,19 @@ async function pred_loadDetail(id) {
     var istEl = document.getElementById('pred-istorija-list');
     if (istEl) {
       if (!d.istorija || !d.istorija.length) {
+        _predIstorijaData = [];
         istEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);">Nema istorije razgovora.</div>';
       } else {
+        _predIstorijaData = d.istorija.slice(0,15);
         var tlHtml = '<div class="pred-timeline">';
-        d.istorija.slice(0,15).forEach(function(h) {
+        _predIstorijaData.forEach(function(h, idx) {
           var dt = h.created_at ? new Date(h.created_at).toLocaleDateString('sr-Latn-RS',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
           var akcija = (h.pitanje||'').substring(0,60);
-          tlHtml += '<div class="pred-tl-item">'
+          var hasOdgovor = h.odgovor && h.odgovor.trim();
+          tlHtml += '<div class="pred-tl-item'+(hasOdgovor?' pred-tl-clickable':'')+'" data-istor-idx="'+idx+'">'
             +(dt ? '<div class="pred-tl-date">'+dt+'</div>' : '')
             +'<div class="pred-tl-q">'+escHtml(akcija)+(h.pitanje && h.pitanje.length > 60 ? '…' : '')+'</div>'
+            +(hasOdgovor ? '<div class="pred-tl-hint">Klikni za prikaz analize ▾</div>' : '')
             +'</div>';
         });
         tlHtml += '</div>';
