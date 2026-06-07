@@ -2228,13 +2228,18 @@ Na osnovu opisanih činjenica pruži strukturiranu pravnu procenu.
 OBAVEZNI FORMAT — tačno ovih 6 sekcija:
 
 1. PRAVNI OSNOV
-Koji zakon(i) i član(ovi) se primenjuju. Citiraj ISKLJUČIVO iz bloka DOSTUPNI ZAKONI.
+Navedi SVE primenjive zakonske odredbe na opisanu situaciju — bez obzira na to koju stranu štite.
+Citiraj ISKLJUČIVO iz bloka DOSTUPNI ZAKONI koji se nalazi na početku korisničkog upita.
+Primer za otkaz ugovora o radu: čl. 175, 176, 184, 191 ZR — svi zajedno u jednoj sekciji.
+NE raspoređuj članove po sekcijama "za tužioca" ili "za tuženog" — svi idu ovde.
 
 2. ARGUMENTI ZA TUŽIOCA
-Najjači pravni argumenti u korist tužioca (max 3 boda).
+Najjači FAKTIČKI i pravni argumenti u korist tužioca/oštećenog (max 3 boda).
+Fokus na činjenice i procesne prednosti — ne ponavljaj članove iz sekcije 1.
 
 3. ARGUMENTI ZA TUŽENOG
-Najjači pravni argumenti u korist tuženog (max 3 boda).
+Najjači FAKTIČKI kontraargumenti u korist tuženog/poslodavca (max 3 boda).
+Fokus na činjenične nedostatke i procesne rizike — ne navoditi zakonske članove ovde.
 
 4. SPORNE TAČKE
 Ključne činjenične ili pravne tačke oko kojih se stranke mogu sporiti.
