@@ -4170,7 +4170,8 @@ async function pred_upload_doc(file) {
     }
     var d = await r.json();
     if (d.procena) {
-      if (resEl) resEl.innerHTML = pred_renderProcena(d.procena);
+      var _rndr = (d.doc_type === 'presuda') ? pred_renderPresuda : pred_renderProcena;
+      if (resEl) resEl.innerHTML = _rndr(d.procena);
       pred_loadDetail(activePredmetId);
     } else {
       if (resEl) resEl.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:0.78rem;">Dokument je učitan. Analiza nije generisana — pokušajte ručni unos.</div>';
@@ -4252,6 +4253,57 @@ function pred_renderProcena(tekst) {
       +'<div class="procena-section-hdr'+extraCls+'" onclick="this.nextElementSibling.classList.toggle(\'open\')">'
       +'<span class="sec-icon">'+x.s.icon+'</span>'+escHtml(x.s.lbl)+' <span>▾</span></div>'
       +'<div class="procena-section-body">'+escHtml(body)+'</div></div>';
+  });
+  return html;
+}
+
+function pred_renderPresuda(tekst) {
+  var sekcije = [
+    {k:'1. REZIME PRESUDE',              icon:'📄', lbl:'Rezime presude',        isZalba:false},
+    {k:'2. KLJUČNI ARGUMENTI SUDA',      icon:'⚖️',  lbl:'Argumenti suda',        isZalba:false},
+    {k:'3. PRIMENJENI PROPISI',          icon:'📋', lbl:'Primenjeni propisi',     isZalba:false},
+    {k:'4. POTENCIJALNI ŽALBENI OSNOVI', icon:'🔍', lbl:'Žalbeni osnovi',         isZalba:false},
+    {k:'5. PROCENA IZGLEDA ŽALBE',       icon:'🎯', lbl:'Procena izgleda žalbe', isZalba:true},
+  ];
+  var positions = [];
+  sekcije.forEach(function(s) {
+    var pos = tekst.indexOf(s.k);
+    if (pos !== -1) positions.push({s:s, pos:pos});
+  });
+  positions.sort(function(a,b){return a.pos-b.pos;});
+  var deduped = [];
+  positions.forEach(function(p) {
+    if (!deduped.length || p.pos - deduped[deduped.length-1].pos > 5) deduped.push(p);
+  });
+  if (!deduped.length) return '<pre style="font-size:0.78rem;white-space:pre-wrap;color:rgba(255,255,255,0.72);">'+escHtml(tekst)+'</pre>';
+  var html = '<div style="font-size:0.67rem;font-weight:700;letter-spacing:.07em;color:rgba(255,255,255,0.28);text-transform:uppercase;margin-bottom:0.5rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(255,255,255,0.06);">📄 Analiza presude</div>';
+  deduped.forEach(function(x,i) {
+    var start = x.pos + x.s.k.length;
+    var end   = i+1 < deduped.length ? deduped[i+1].pos : tekst.length;
+    var body  = tekst.slice(start, end).replace(/^\s*\n?/, '').trimEnd();
+    var extraCls = '';
+    var badgeHtml = '';
+    if (x.s.isZalba) {
+      var ocena = '';
+      if (/\bVISOK\b/.test(body))   { ocena = 'VISOK';   extraCls = ' risk-visok'; }
+      else if (/\bSREDNJI\b/.test(body)) { ocena = 'SREDNJI'; extraCls = ' risk-srednji'; }
+      else if (/\bNIZAK\b/.test(body))   { ocena = 'NIZAK';   extraCls = ' risk-nizak'; }
+      _pred_setRizik(ocena || 'SREDNJI');
+      if (ocena) {
+        var bg, cl, bc;
+        if (ocena === 'VISOK')        { bg='rgba(74,222,128,0.12)';  cl='#4ade80'; bc='rgba(74,222,128,0.35)'; }
+        else if (ocena === 'SREDNJI') { bg='rgba(250,204,21,0.12)';  cl='#facc15'; bc='rgba(250,204,21,0.35)'; }
+        else                          { bg='rgba(248,113,113,0.12)'; cl='#f87171'; bc='rgba(248,113,113,0.35)'; }
+        badgeHtml = '<div style="display:inline-flex;align-items:baseline;gap:0.45rem;background:'+bg+';border:1px solid '+bc+';border-radius:8px;padding:0.3rem 0.9rem;margin-bottom:0.55rem;">'
+          +'<span style="font-size:1.05rem;font-weight:800;color:'+cl+';">'+ocena+'</span>'
+          +'<span style="font-size:0.67rem;color:'+cl+';opacity:0.75;font-weight:500;">izgled žalbe</span>'
+          +'</div>';
+      }
+    }
+    html += '<div class="procena-section">'
+      +'<div class="procena-section-hdr'+extraCls+'" onclick="this.nextElementSibling.classList.toggle(\'open\')">'
+      +'<span class="sec-icon">'+x.s.icon+'</span>'+escHtml(x.s.lbl)+' <span>▾</span></div>'
+      +'<div class="procena-section-body'+(x.s.isZalba?' open':'')+'">'+badgeHtml+escHtml(body)+'</div></div>';
   });
   return html;
 }

@@ -2139,6 +2139,72 @@ async def sacuvaj_istoriju(predmet_id: str, request: Request, authorization: str
     return {"ok": True}
 
 
+# ── Phase 2.1: Document type detection ───────────────────────────────────────
+
+_PRESUDA_MARKERS = [
+    "u ime naroda", "izreka", "obrazloženje", "obrazlozenje",
+    "prvostepenom presudom", "prvostepene presude",
+    "apelacioni sud", "vrhovni kasacioni", "viši sud", "osnovni sud",
+    "tužbeni zahtev", "tuzbeni zahtev",
+    "žalba je", "žalba tužioca", "žalba tuženog",
+    "obavezuje se tuženi", "odbija se tužbeni", "odbija se žalba",
+    "revizija tužioca", "revizija tuženog",
+    "gž ", "rev ", "pž ", "kž ",
+]
+
+_UGOVOR_MARKERS = [
+    "ugovor o ", "zaključen između", "zakljucen izmedju",
+    "strane ugovornice", "ugovorne strane",
+    "ugovarač", "ugovarac",
+    "kupoprodajni ugovor", "ugovor o zakupu",
+    "ugovor o radu", "ugovor o delu",
+    "potpisnici ovog ugovora",
+]
+
+
+def _detect_doc_type(text: str) -> str:
+    """Keyword heuristic on first 3000 chars. Returns 'presuda' | 'ugovor' | 'opsti'."""
+    sample = text[:3000].lower()
+    p = sum(1 for m in _PRESUDA_MARKERS if m in sample)
+    u = sum(1 for m in _UGOVOR_MARKERS if m in sample)
+    if p >= 2 or (p >= 1 and u == 0):
+        return "presuda"
+    if u >= 2 or (u >= 1 and p == 0):
+        return "ugovor"
+    return "opsti"
+
+
+_PRESUDA_SYSTEM_PROMPT = """Ti si stručni pravni analitičar specijalizovan za srpsko pravo i analizu sudskih presuda.
+
+Analiziraš presudu i generišeš strukturisani izveštaj koji advokat može direktno koristiti pri pisanju žalbe.
+
+OBAVEZNI FORMAT — tačno ovih 5 sekcija:
+
+1. REZIME PRESUDE
+Sažetak šta je sud odlučio, koje zahteve usvojio a koje odbio, i na osnovu čega. Tačno 5-7 rečenica.
+
+2. KLJUČNI ARGUMENTI SUDA
+Najvažniji razlozi koje je sud naveo za svoju odluku. Numerisana lista, max 4 stavke.
+
+3. PRIMENJENI PROPISI
+Tačna lista zakona i članova koje je sud citirao ili primenio. Format: "Čl. X naziv_zakona". Max 10 stavki.
+
+4. POTENCIJALNI ŽALBENI OSNOVI
+Konkretni pravni osnovi za žalbu (pogrešna primena materijalnog prava, bitna povreda odredaba ZPP, pogrešno utvrđeno činjenično stanje). Za svaki osnov kratko objašnjenje. Numerisana lista, max 4 stavke.
+
+5. PROCENA IZGLEDA ŽALBE
+Na prvom redu napiši TAČNO JEDNO od: NIZAK / SREDNJI / VISOK
+Zatim obrazloženje u 2-3 rečenice zašto si dao tu ocenu.
+
+PRAVILA:
+- Nikada ne garantuj ishod žalbe.
+- Budi objektivan — navedi i jake strane presude.
+- Koristi srpsku ekavicu i pravni registar.
+- Svaka sekcija max 6 redova.
+- Na kraju dodaj: "Ova analiza je generisana uz pomoć AI i mora biti proverena od strane ovlašćenog advokata."
+"""
+
+
 # ── F5.3: PRAVNA PROCENA ──────────────────────────────────────────────────────
 
 _PROCENA_SYSTEM_PROMPT = """Ti si stručni pravni analitičar za srpsko pravo.
@@ -2289,6 +2355,10 @@ async def predmet_upload_auto_analyze(
     if not text or not text.strip():
         raise HTTPException(status_code=422, detail="Dokument je prazan ili nečitljiv.")
 
+    # Phase 2.1 — detect document type for routing to specialized prompt
+    doc_type = _detect_doc_type(text)
+    logger.info("[P2.1] doc_type=%r for predmet=%s, filename=%s", doc_type, predmet_id, file.filename)
+
     # Chunk + ingest to Pinecone
     source_meta = {
         "source_filename": file.filename,
@@ -2320,23 +2390,37 @@ async def predmet_upload_auto_analyze(
         logger.warning("[P1.1] predmet_dokumenti insert failed for predmet=%s", predmet_id)
 
     # ── AUTO ANALYSIS ──────────────────────────────────────────────────────────
-    # Build cinjenice: document text (first 3000 chars) + predmet context
+    # Phase 2.1: choose prompt and text limit based on detected doc type
+    if doc_type == "presuda":
+        system_prompt  = _PRESUDA_SYSTEM_PROMPT
+        text_limit     = 8000
+        text_label     = "TEKST PRESUDE"
+        truncate_label = "\n[...presuda se nastavlja, prikazan je izvod...]"
+        max_tok        = 1600
+    else:
+        system_prompt  = _PROCENA_SYSTEM_PROMPT
+        text_limit     = 3000
+        text_label     = "Sadržaj uploadovanog dokumenta"
+        truncate_label = "\n[...dokument nastavlja...]"
+        max_tok        = 1200
+
     cinjenice_text = (
         f"Predmet: {predmet_naziv} (oblast: {predmet_tip})\n\n"
-        f"Sadržaj uploadovanog dokumenta:\n"
-        + text[:3000]
-        + ("\n[...dokument nastavlja...]" if len(text) > 3000 else "")
+        f"{text_label}:\n"
+        + text[:text_limit]
+        + (truncate_label if len(text) > text_limit else "")
     )
 
-    # Fetch existing notes for additional context
-    try:
-        beleske_res = _get_supa().table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).eq("user_id", user.id).order("created_at", desc=True).limit(3).execute()
-        if beleske_res.data:
-            b_tekst = "\n---\n".join(b["sadrzaj"] for b in beleske_res.data if b.get("sadrzaj"))
-            if b_tekst:
-                cinjenice_text += f"\n\nBELEŠKE IZ PREDMETA:\n{b_tekst}"
-    except Exception:
-        pass
+    # Fetch existing notes for additional context (skip for presuda — full text is more useful)
+    if doc_type != "presuda":
+        try:
+            beleske_res = _get_supa().table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).eq("user_id", user.id).order("created_at", desc=True).limit(3).execute()
+            if beleske_res.data:
+                b_tekst = "\n---\n".join(b["sadrzaj"] for b in beleske_res.data if b.get("sadrzaj"))
+                if b_tekst:
+                    cinjenice_text += f"\n\nBELEŠKE IZ PREDMETA:\n{b_tekst}"
+        except Exception:
+            pass
 
     procena_tekst = ""
     try:
@@ -2344,10 +2428,10 @@ async def predmet_upload_auto_analyze(
         resp = client.chat.completions.create(
             model="gpt-4o",
             temperature=0,
-            max_tokens=1200,
-            timeout=45.0,
+            max_tokens=max_tok,
+            timeout=60.0,
             messages=[
-                {"role": "system", "content": _PROCENA_SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user",   "content": cinjenice_text},
             ],
         )
@@ -2374,10 +2458,11 @@ async def predmet_upload_auto_analyze(
     asyncio.create_task(asyncio.to_thread(cleanup_expired))
 
     return {
-        "session_id":  session_id,
-        "filename":    file.filename,
-        "chunk_count": count,
-        "predmet_id":  predmet_id,
-        "procena":     procena_tekst,
+        "session_id":    session_id,
+        "filename":      file.filename,
+        "chunk_count":   count,
+        "predmet_id":    predmet_id,
+        "doc_type":      doc_type,
+        "procena":       procena_tekst,
         "auto_analyzed": bool(procena_tekst),
     }
