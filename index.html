@@ -4013,7 +4013,7 @@ function pred_renderList() {
     var active = p.id === activePredmetId ? ' active' : '';
     var statusCls = p.status === 'aktivan' ? 'pred-status-aktivan' : 'pred-status-zatvoren';
     var statusLbl = (p.status || 'aktivan').toUpperCase();
-    return '<div class="pred-item'+active+'" onclick="pred_select(\''+p.id+'\',\''+escHtml(p.naziv).replace(/'/g,"\\'")+'\','+JSON.stringify(p)+')">'
+    return '<div class="pred-item'+active+'" onclick="pred_select(\''+p.id+'\')">'
       +'<span class="pred-naziv">📁 '+escHtml(p.naziv)+'</span>'
       +'<span class="pred-badge '+tipCls+'" style="margin-right:0.3rem;">'+escHtml(p.tip)+'</span>'
       +'<span class="'+statusCls+'" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span>'
@@ -4021,7 +4021,9 @@ function pred_renderList() {
   }).join('');
 }
 
-function pred_select(id, naziv, predmetObj) {
+function pred_select(id) {
+  var predmetObj = _predmeti.find(function(p){ return p.id === id; }) || null;
+  var naziv = predmetObj ? predmetObj.naziv : '';
   activePredmetId    = id;
   activePredmetNaziv = naziv;
   pred_renderList();
