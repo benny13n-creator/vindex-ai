@@ -2650,7 +2650,7 @@ function editPodnesak() {
 })();
 
 /* RESPONSE FORMATTER */
-function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escHtml(s){ if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 var lastPitanje = '';
 
@@ -3416,6 +3416,10 @@ window.addEventListener('DOMContentLoaded', function() {
   initChatSession();
   initAuth();
   _setPrices();
+  document.getElementById('pred-list').addEventListener('click', function(e) {
+    var item = e.target.closest('[data-predmet-id]');
+    if (item) pred_select(item.getAttribute('data-predmet-id'));
+  });
   // Supabase šalje recovery token kao URL hash fragment: #access_token=...&type=recovery
   var hash = window.location.hash;
   if (hash.indexOf('type=recovery') !== -1) {
@@ -4013,7 +4017,7 @@ function pred_renderList() {
     var active = p.id === activePredmetId ? ' active' : '';
     var statusCls = p.status === 'aktivan' ? 'pred-status-aktivan' : 'pred-status-zatvoren';
     var statusLbl = (p.status || 'aktivan').toUpperCase();
-    return '<div class="pred-item'+active+'" onclick="pred_select(\''+p.id+'\')">'
+    return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'">'
       +'<span class="pred-naziv">📁 '+escHtml(p.naziv)+'</span>'
       +'<span class="pred-badge '+tipCls+'" style="margin-right:0.3rem;">'+escHtml(p.tip)+'</span>'
       +'<span class="'+statusCls+'" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span>'
@@ -4030,12 +4034,19 @@ function pred_select(id) {
   pred_loadDetail(id);
   pred_updateIndicator();
   var detail = document.getElementById('pred-detail');
-  if (detail) detail.classList.add('show');
-  document.getElementById('pred-detail-naziv').textContent = naziv;
+  if (detail) {
+    detail.classList.add('show');
+    setTimeout(function(){ detail.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
+  }
+  var nazivEl = document.getElementById('pred-detail-naziv');
+  if (nazivEl) nazivEl.textContent = naziv;
   if (predmetObj) {
     var oblEl = document.getElementById('pred-s-oblast');
     if (oblEl) oblEl.textContent = predmetObj.tip || '—';
   }
+  // Allow terminal to grow beyond grid row height
+  var terminal = document.querySelector('.terminal');
+  if (terminal) terminal.style.overflow = 'visible';
 }
 
 function pred_updateIndicator() {
