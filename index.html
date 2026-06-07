@@ -1198,6 +1198,7 @@ footer { padding: 2rem 1.5rem; }
   </div>
   <div class="nav-user" id="nav-user">
 <button class="settings-btn" onclick="openSettings()" title="Podešavanja kancelarije">⚙</button>
+    <a href="/" style="font-size:0.65rem;color:rgba(255,255,255,0.25);text-decoration:none;letter-spacing:0.06em;margin-right:0.4rem;">← Početna</a>
     <span class="nav-user-email" id="nav-user-email"></span>
     <span class="nav-credit-pill" id="nav-credit-pill"><span id="nav-credits-num" class="cp-num">15</span>&nbsp;/ 15 upita</span>
     <button class="nav-logout" onclick="doLogout()">Odjava</button>
@@ -1322,10 +1323,22 @@ footer { padding: 2rem 1.5rem; }
                 <textarea id="pred-beleska-input" class="t-input" placeholder="Nova beleška..." style="flex:1;height:52px;"></textarea>
                 <button onclick="pred_dodajBelesku()" style="padding:0 0.85rem;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;">Dodaj</button>
               </div>
+              <div class="pred-section-lbl">Dokumenti</div>
+              <input type="file" id="pred-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="pred_upload_doc(this.files[0])">
+              <div id="pred-upload-zone" class="upload-dropzone" style="padding:0.85rem 1rem;margin-top:0;" onclick="pred_upload_trigger()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');pred_upload_doc(event.dataTransfer.files[0])">
+                <div style="font-size:1.15rem;margin-bottom:0.2rem;">📎</div>
+                <div style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Prevucite dokument ili kliknite za upload</div>
+                <div style="font-size:0.71rem;color:rgba(255,255,255,0.35);margin-top:0.12rem;">PDF, DOCX — do 10MB</div>
+              </div>
+              <div id="pred-upload-loading" style="display:none;text-align:center;padding:0.75rem 0;color:rgba(255,255,255,0.55);font-size:.85rem;"><span class="upload-spinner"></span>Analiziram predmet...</div>
+              <div id="pred-upload-error" style="display:none;padding:.65rem .85rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:8px;color:#ff9090;font-size:.8rem;margin-top:.45rem;"></div>
               <div class="pred-section-lbl">Pravna procena</div>
-              <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;"></textarea>
-              <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">⚖ Analiziraj predmet</button>
-              <div id="pred-procena-result" style="margin-top:0.7rem;"></div>
+              <div id="pred-procena-result" style="margin-top:0.3rem;"></div>
+              <details style="margin-top:0.5rem;">
+                <summary style="font-size:0.72rem;color:rgba(255,255,255,0.3);cursor:pointer;list-style:none;padding:0.3rem 0;">▸ Ručni unos činjenica</summary>
+                <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;margin-top:0.4rem;"></textarea>
+                <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">⚖ Analiziraj predmet</button>
+              </details>
               <div class="pred-section-lbl">Istorija razgovora</div>
               <div id="pred-istorija-list"></div>
             </div>
@@ -4088,6 +4101,73 @@ async function pred_dodajBelesku() {
     });
     if (r.ok) { if (inp) inp.value = ''; pred_loadDetail(activePredmetId); }
   } catch(e) {}
+}
+
+function pred_upload_trigger() {
+  var inp = document.getElementById('pred-upload-input');
+  if (inp) inp.click();
+}
+
+async function pred_upload_doc(file) {
+  if (!file || !activePredmetId || !currentSession) return;
+  var ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+  var zone    = document.getElementById('pred-upload-zone');
+  var loading = document.getElementById('pred-upload-loading');
+  var errEl   = document.getElementById('pred-upload-error');
+  var resEl   = document.getElementById('pred-procena-result');
+  var inp     = document.getElementById('pred-upload-input');
+  if (errEl) errEl.style.display = 'none';
+  if (['.pdf','.docx','.doc'].indexOf(ext) === -1) {
+    if (errEl) { errEl.textContent = 'Podržani formati: PDF, DOCX'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    if (errEl) { errEl.textContent = 'Fajl je preko 10MB.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (zone) zone.style.display = 'none';
+  if (loading) loading.style.display = 'block';
+  if (resEl) resEl.innerHTML = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.4);padding:0.4rem 0;"><span class="upload-spinner"></span>Analiziram predmet...</div>';
+  try {
+    var fd = new FormData();
+    fd.append('file', file);
+    var r = await fetch(BASE_URL + '/api/predmeti/' + activePredmetId + '/upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: fd
+    });
+    if (loading) loading.style.display = 'none';
+    if (zone) zone.style.display = '';
+    if (inp) inp.value = '';
+    if (r.status === 415 || r.status === 422) {
+      var msg = r.status === 422 ? 'Skenirani PDF — uploadujte digitalni PDF.' : 'Podržani formati: PDF, DOCX';
+      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+      if (resEl) resEl.innerHTML = '';
+      return;
+    }
+    if (r.status === 413) {
+      if (errEl) { errEl.textContent = 'Fajl je preko 10MB.'; errEl.style.display = 'block'; }
+      if (resEl) resEl.innerHTML = '';
+      return;
+    }
+    if (!r.ok) {
+      if (errEl) { errEl.textContent = 'Greška servera (' + r.status + '). Pokušajte ponovo.'; errEl.style.display = 'block'; }
+      if (resEl) resEl.innerHTML = '';
+      return;
+    }
+    var d = await r.json();
+    if (d.procena) {
+      if (resEl) resEl.innerHTML = pred_renderProcena(d.procena);
+      pred_loadDetail(activePredmetId);
+    } else {
+      if (resEl) resEl.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:0.78rem;">Dokument je učitan. Analiza nije generisana — pokušajte ručni unos.</div>';
+    }
+  } catch(e) {
+    if (loading) loading.style.display = 'none';
+    if (zone) zone.style.display = '';
+    if (errEl) { errEl.textContent = 'Nema veze sa serverom. Proverite konekciju.'; errEl.style.display = 'block'; }
+    if (resEl) resEl.innerHTML = '';
+  }
 }
 
 async function pred_submitProcena() {
