@@ -1022,6 +1022,7 @@ footer { padding: 2rem 1.5rem; }
 .pred-tl-clickable{cursor:pointer;padding:0.3rem 0.4rem;border-radius:6px;transition:background .15s;}
 .pred-tl-clickable:hover{background:rgba(74,168,255,0.08);}
 .pred-tl-hint{font-size:0.62rem;color:rgba(74,168,255,0.5);margin-top:2px;}
+.pred-tl-result{margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.07);}
 .procena-section-hdr .sec-icon{margin-right:0.4rem;}
 </style>
 
@@ -3426,14 +3427,23 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('pred-istorija-list').addEventListener('click', function(e) {
     var item = e.target.closest('[data-istor-idx]');
     if (!item) return;
+    var hintDiv = item.querySelector('.pred-tl-hint');
+    var resDiv  = item.querySelector('.pred-tl-result');
+    if (resDiv) {
+      var isOpen = resDiv.style.display !== 'none';
+      resDiv.style.display = isOpen ? 'none' : 'block';
+      if (hintDiv) hintDiv.textContent = isOpen ? 'Klikni za prikaz analize ▾' : 'Sakrij analizu ▴';
+      return;
+    }
     var idx = parseInt(item.getAttribute('data-istor-idx'), 10);
     var h = _predIstorijaData[idx];
     if (!h || !h.odgovor || !h.odgovor.trim()) return;
-    var resEl = document.getElementById('pred-procena-result');
-    if (!resEl) return;
     var rndr = (h.odgovor.indexOf('1. REZIME PRESUDE') !== -1) ? pred_renderPresuda : pred_renderProcena;
-    resEl.innerHTML = rndr(h.odgovor);
-    resEl.scrollIntoView({behavior:'smooth', block:'nearest'});
+    resDiv = document.createElement('div');
+    resDiv.className = 'pred-tl-result';
+    resDiv.innerHTML = rndr(h.odgovor);
+    item.appendChild(resDiv);
+    if (hintDiv) hintDiv.textContent = 'Sakrij analizu ▴';
   });
   // Supabase šalje recovery token kao URL hash fragment: #access_token=...&type=recovery
   var hash = window.location.hash;
