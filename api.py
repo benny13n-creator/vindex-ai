@@ -2421,29 +2421,63 @@ async def predmet_upload_auto_analyze(
         truncate_label = "\n[...dokument nastavlja...]"
         max_tok        = 1000
 
-    # ── Phase 2.1 RAG: retrieve relevant law articles before analysis ──────────
-    # Hard 5-second timeout — if retrieval is slow, fallback to no-RAG gracefully
+    # ── Phase 2.1 RAG + Direct Fetch ─────────────────────────────────────────
     _rag_query = f"{predmet_naziv} {predmet_tip} " + " ".join(text[:400].split())
     _rag_query = _rag_query[:500]
-    law_context = ""
+    _law_chunks: list[str] = []
+
+    # Step 1: Direct fetch ZR čl. 175/176/184/191 for labor dispute context
+    # These are the primary statutory basis for employer-side dismissal + form requirements.
+    # Guaranteed injection so GPT-4o cannot substitute wrong articles from training memory.
+    _otkaz_kw = ["otkaz", "radni spor", "radno pravo", "radni odnos",
+                  "zaposleni", "poslodavac", "radu", "zr"]
+    if any(t in _rag_query.lower() for t in _otkaz_kw):
+        try:
+            from app.services.retrieve import _direktan_fetch_clana, _dohvati_parent_text
+            _zr_fetched = 0
+            for _br in [175, 176, 184, 191]:
+                _m = await asyncio.wait_for(
+                    asyncio.to_thread(_direktan_fetch_clana, f"Član {_br}", "zakon o radu"),
+                    timeout=3.0,
+                )
+                if _m:
+                    _txt = _dohvati_parent_text(_m[0])
+                    if _txt:
+                        _law_chunks.append(_txt)
+                        _zr_fetched += 1
+            logger.info("[P2.1] ZR direktan fetch: %d/4 čl. 175/176/184/191", _zr_fetched)
+        except asyncio.TimeoutError:
+            logger.warning("[P2.1] ZR direktan fetch timeout")
+        except Exception:
+            logger.warning("[P2.1] ZR direktan fetch greška")
+
+    # Step 2: General RAG retrieval (semantic search, 5-second hard timeout)
     try:
         from app.services.retrieve import retrieve_documents as _retrieve
-        _rag_future = asyncio.get_event_loop().run_in_executor(None, _retrieve, _rag_query, 4)
         _rag_docs, _rag_meta = await asyncio.wait_for(
-            asyncio.wrap_future(_rag_future), timeout=5.0
+            asyncio.to_thread(_retrieve, _rag_query, 4),
+            timeout=5.0,
         )
         if _rag_docs:
-            law_context = (
-                "DOSTUPNI ZAKONI (citiraj ISKLJUČIVO ove članove — ne citiraj iz opšteg znanja):\n\n"
-                + "\n\n---\n\n".join(_rag_docs[:4])
-                + "\n\n---\n\n"
-            )
+            _seen = set(_law_chunks)
+            for _d in _rag_docs[:4]:
+                if _d not in _seen:
+                    _law_chunks.append(_d)
+                    _seen.add(_d)
             logger.info("[P2.1] RAG: %d chunks, top_law=%s, query='%.60s'",
                         len(_rag_docs), _rag_meta.get("top_law", "?"), _rag_query)
     except asyncio.TimeoutError:
-        logger.warning("[P2.1] RAG timeout (>5s) — nastavljamo bez bloka zakona")
+        logger.warning("[P2.1] RAG timeout (>5s) — nastavljamo bez RAG")
     except Exception:
-        logger.warning("[P2.1] RAG greška — nastavljamo bez bloka zakona")
+        logger.warning("[P2.1] RAG greška — nastavljamo bez RAG")
+
+    law_context = ""
+    if _law_chunks:
+        law_context = (
+            "DOSTUPNI ZAKONI (citiraj ISKLJUČIVO ove članove — ne citiraj iz opšteg znanja):\n\n"
+            + "\n\n---\n\n".join(_law_chunks[:8])
+            + "\n\n---\n\n"
+        )
 
     cinjenice_text = (
         law_context
