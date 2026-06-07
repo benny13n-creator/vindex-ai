@@ -3425,6 +3425,7 @@ window.addEventListener('DOMContentLoaded', function() {
     if (item) pred_select(item.getAttribute('data-predmet-id'));
   });
   document.getElementById('pred-istorija-list').addEventListener('click', function(e) {
+    if (e.target.closest('.pred-tl-result')) return;
     var item = e.target.closest('[data-istor-idx]');
     if (!item) return;
     var hintDiv = item.querySelector('.pred-tl-hint');
