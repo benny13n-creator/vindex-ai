@@ -233,7 +233,7 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .srp-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
 
 /* TERMINAL */
-.terminal { background: rgba(1,5,14,0.92); border: 1px solid rgba(74,168,255,0.18); border-radius: 16px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); backdrop-filter: blur(20px); position: relative; }
+.terminal { background: rgba(1,5,14,0.92); border: 1px solid rgba(74,168,255,0.18); border-radius: 16px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); backdrop-filter: blur(20px); position: relative; -webkit-overflow-scrolling: touch; }
 .terminal::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.5), rgba(201,168,76,0.3), transparent); }
 .t-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
 .t-dots { display: flex; gap: 6px; }
@@ -244,8 +244,9 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .t-sdot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; animation: blink-s 2s infinite; }
 @keyframes blink-s { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
 .t-body { padding: 1.5rem; }
-.t-tabs { display: flex; gap: 0; background: transparent; border-radius: 0; padding: 0; margin-bottom: 1.2rem; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
-.t-tab { flex: 1; padding: 12px 24px; text-align: center; font-size: 1rem; font-weight: 500; color: rgba(255,255,255,0.45); border-radius: 0; cursor: none; transition: color 0.2s, border-bottom-color 0.2s; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.t-tabs { display: flex; gap: 0; background: transparent; border-radius: 0; padding: 0; margin-bottom: 1.2rem; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.t-tabs::-webkit-scrollbar { display: none; }
+.t-tab { flex: 1; min-width: max-content; min-height: 44px; padding: 12px 24px; text-align: center; font-size: 1rem; font-weight: 500; color: rgba(255,255,255,0.45); border-radius: 0; cursor: none; transition: color 0.2s, border-bottom-color 0.2s; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
 .t-tab.active { background: transparent; color: #89c8ff; border-bottom-color: #4aa8ff; }
 .t-tab:hover { color: rgba(255,255,255,0.75); }
 .t-label { font-family: ‘DM Sans’, sans-serif; font-size: 0.73rem; font-weight: 500; color: rgba(255,255,255,0.52); margin-bottom: 0.45rem; display: block; }
@@ -605,8 +606,8 @@ blockquote.citat-expanded { max-height: none; }
 .mic-input-wrap textarea.t-input { flex: 1; min-width: 0; width: auto !important; }
 .mic-btn {
   flex-shrink: 0;
-  width: 2.5rem !important; height: 2.5rem !important;
-  min-width: 2.5rem !important; min-height: 2.5rem !important;
+  width: 2.75rem !important; height: 2.75rem !important;
+  min-width: 44px !important; min-height: 44px !important;
   border-radius: 50% !important;
   border: 1px solid rgba(74,168,255,0.45) !important;
   background: rgba(74,168,255,0.12) !important;
@@ -850,16 +851,19 @@ footer { padding: 2rem 1.5rem; }
 .f-note { text-align: left; max-width: 100%; }
 
 /* MODAL */
-.modal { padding: 2rem 1.5rem; }
+.modal { padding: 2rem 1.5rem; max-height: calc(100vh - 3rem); overflow-y: auto; }
 .modal-title { font-size: 1.6rem; }
+.t-tab { cursor: pointer; }
 }
 
 @media (max-width: 480px) {
 .h-stat { padding: 0 0.8rem; }
 .h-stat-num { font-size: 1.3rem; }
-.h-stat-lbl { font-size: 0.45rem; }
+.h-stat-lbl { font-size: 0.58rem; }
 .h-cta { flex-direction: column; align-items: center; }
-.t-tab { padding: 7px 10px; font-size: 0.78rem; }
+.t-tab { padding: 10px 12px; font-size: 0.78rem; min-height: 44px; }
+.srp-lbl { font-size: 0.62rem; }
+.srp-ql { font-size: 0.62rem; }
 }
 
 /* ── AUTH MODAL ─────────────────────────────────────────────────────────── */
@@ -950,7 +954,7 @@ footer { padding: 2rem 1.5rem; }
 .cyr-toggle-wrap input:checked ~ .cyr-toggle-lbl { color:#e8c97a; }
 /* Document upload P2.6a */
 .upload-dropzone{width:100%;border:2px dashed rgba(74,168,255,0.25);border-radius:12px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:rgba(74,168,255,0.03);margin-top:.7rem;box-sizing:border-box;}
-.upload-dropzone:hover,.upload-dropzone.drag-over{border-color:rgba(74,168,255,0.55);background:rgba(74,168,255,0.07);}
+.upload-dropzone:hover,.upload-dropzone.drag-over,.upload-dropzone:active{border-color:rgba(74,168,255,0.55);background:rgba(74,168,255,0.07);}
 .upload-zone-icon{font-size:2rem;margin-bottom:.5rem;}
 .upload-zone-text{color:#89c8ff;font-size:.95rem;font-weight:500;}
 .upload-zone-sub{color:rgba(255,255,255,0.4);font-size:.78rem;margin-top:.3rem;}
@@ -990,8 +994,8 @@ footer { padding: 2rem 1.5rem; }
 /* ── F5 Predmeti ─────────────────────────────────────────────────────────── */
 .predmet-indicator{display:none;font-size:0.7rem;font-family:'JetBrains Mono',monospace;color:#4aa8ff;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.2);border-radius:6px;padding:0.25rem 0.7rem;margin-bottom:0.5rem;letter-spacing:0.03em;}
 .predmet-indicator.show{display:block;}
-.pred-list{display:flex;flex-direction:column;gap:0.4rem;margin-top:0.5rem;max-height:260px;overflow-y:auto;}
-.pred-item{display:flex;align-items:center;gap:0.55rem;padding:0.55rem 0.8rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;cursor:pointer;transition:background .15s;}
+.pred-list{display:flex;flex-direction:column;gap:0.4rem;margin-top:0.5rem;max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.pred-item{display:flex;align-items:center;gap:0.55rem;padding:0.75rem 0.8rem;min-height:44px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;cursor:pointer;transition:background .15s;}
 .pred-item:hover,.pred-item.active{background:rgba(74,168,255,0.09);border-color:rgba(74,168,255,0.28);}
 .pred-naziv{flex:1;font-size:0.82rem;color:#e8eaf0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pred-badge{font-size:0.6rem;letter-spacing:0.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);}
@@ -1020,7 +1024,7 @@ footer { padding: 2rem 1.5rem; }
 .pred-tl-date{color:rgba(255,255,255,0.3);font-family:'JetBrains Mono',monospace;font-size:0.65rem;margin-bottom:2px;}
 .pred-tl-q{color:rgba(255,255,255,0.65);}
 .pred-tl-clickable{cursor:pointer;padding:0.3rem 0.4rem;border-radius:6px;transition:background .15s;}
-.pred-tl-clickable:hover{background:rgba(74,168,255,0.08);}
+.pred-tl-clickable:hover,.pred-tl-clickable:active{background:rgba(74,168,255,0.08);}
 .pred-tl-hint{font-size:0.62rem;color:rgba(74,168,255,0.5);margin-top:2px;}
 .pred-tl-result{margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.07);}
 .procena-section-hdr .sec-icon{margin-right:0.4rem;}
@@ -1276,7 +1280,7 @@ footer { padding: 2rem 1.5rem; }
             </div>
             <label class="t-label">Vaše pravno pitanje:</label>
             <div class="mic-input-wrap">
-              <textarea class="t-input" id="qi" placeholder="Npr. Koji su uslovi za naknadu nematerijalne štete?"></textarea>
+              <textarea class="t-input" id="qi" placeholder="Npr. Koji su uslovi za naknadu nematerijalne štete?" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
               <button class="mic-btn" id="mic-qi" type="button" onclick="micToggle('qi')" title="Glasovni unos — kliknite da diktirate (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
             </div>
             <div class="mic-status" id="mic-status-qi"><span class="mic-status-dot"></span><span>Snimam... govorite na srpskom</span></div>
@@ -1340,7 +1344,7 @@ footer { padding: 2rem 1.5rem; }
               <div id="pred-procena-result" style="margin-top:0.3rem;"></div>
               <details style="margin-top:0.5rem;">
                 <summary style="font-size:0.72rem;color:rgba(255,255,255,0.3);cursor:pointer;list-style:none;padding:0.3rem 0;">▸ Ručni unos činjenica</summary>
-                <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;margin-top:0.4rem;"></textarea>
+                <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;margin-top:0.4rem;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
                 <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">⚖ Analiziraj predmet</button>
               </details>
               <div class="pred-section-lbl">Istorija razgovora</div>
@@ -1368,7 +1372,7 @@ footer { padding: 2rem 1.5rem; }
             <div id="podnesak-hint" class="podnesak-hint"></div>
             <label class="t-label">Opis slučaja (stranke, činjenice, iznosi):</label>
             <div class="mic-input-wrap">
-              <textarea class="t-input" id="podnesak-opis" placeholder="Npr. Tužilac Petar Petrović, ul. Vojvode Mišića 5, Beograd traži naknadu štete od tuženog Jovana Jovanovića zbog saobraćajne nezgode dana 15.03.2024. Pretrpljene su telesne povrede i materijalna šteta u iznosu od 350.000 RSD. Štetnik je isključivo odgovoran..." style="height:100px;"></textarea>
+              <textarea class="t-input" id="podnesak-opis" placeholder="Npr. Tužilac Petar Petrović, ul. Vojvode Mišića 5, Beograd traži naknadu štete od tuženog Jovana Jovanovića zbog saobraćajne nezgode dana 15.03.2024. Pretrpljene su telesne povrede i materijalna šteta u iznosu od 350.000 RSD. Štetnik je isključivo odgovoran..." style="height:100px;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
               <button class="mic-btn" id="mic-podnesak-opis" type="button" onclick="micToggle('podnesak-opis')" title="Glasovni unos — diktirajte opis slučaja (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
             </div>
             <div class="mic-status" id="mic-status-podnesak-opis"><span class="mic-status-dot"></span><span>Snimam... diktirajte činjenice slučaja</span></div>
@@ -1404,7 +1408,7 @@ footer { padding: 2rem 1.5rem; }
                 <button class="doc-remove-btn" onclick="doc_clear_session()">✕ Ukloni</button>
               </div>
               <label class="t-label" style="margin-top:.9rem;">Postavite pitanje o ovom dokumentu:</label>
-              <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:60px;margin-top:.4rem;"></textarea>
+              <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:60px;margin-top:.4rem;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
               <textarea id="aitxt" style="display:none"></textarea>
               <button class="rokovi-btn" onclick="doc_prikaži_rokove(this)">📅 Prikaži rokove</button>
               <div id="rokovi-panel" class="rokovi-panel">
@@ -1419,7 +1423,7 @@ footer { padding: 2rem 1.5rem; }
               <div class="t-guide-text"><span class="t-guide-bold">Sudska praksa</span> — pretraga kroz odluke Vrhovnog kasacionog suda i Vrhovnog suda RS. Filtrirajte po pravnoj oblasti, sudu i godini.</div>
             </div>
             <div style="margin-top:0.7rem;">
-              <input type="text" id="praksa-query" placeholder="Pretraga (npr. otkaz ugovora o radu) — ostavite prazno za sve odluke" style="width:100%;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#ffffff;font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:300;padding:0.8rem 1.1rem;outline:none;margin-bottom:0.55rem;display:block;">
+              <input type="text" id="praksa-query" inputmode="search" placeholder="Pretraga (npr. otkaz ugovora o radu) — ostavite prazno za sve odluke" style="width:100%;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#ffffff;font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:300;padding:0.8rem 1.1rem;outline:none;margin-bottom:0.55rem;display:block;">
               <div style="display:flex;gap:0.45rem;flex-wrap:wrap;margin-bottom:0.55rem;">
                 <select id="praksa-matter" style="flex:1;min-width:130px;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;appearance:none;-webkit-appearance:none;">
                   <option value="">Sva pravna oblast</option>
@@ -1433,8 +1437,8 @@ footer { padding: 2rem 1.5rem; }
                   <option value="Vrhovni sud">Vrhovni sud</option>
                   <option value="Vrhovni kasacioni sud">Vrhovni kasacioni sud</option>
                 </select>
-                <input type="number" id="praksa-year-from" placeholder="Od god." min="2000" max="2030" style="width:96px;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
-                <input type="number" id="praksa-year-to" placeholder="Do god." min="2000" max="2030" style="width:96px;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
+                <input type="number" id="praksa-year-from" inputmode="numeric" placeholder="Od god." min="2000" max="2030" style="width:96px;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
+                <input type="number" id="praksa-year-to" inputmode="numeric" placeholder="Do god." min="2000" max="2030" style="width:96px;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
               </div>
               <div style="display:flex;gap:0.45rem;">
                 <button id="praksa-search-btn" onclick="praksa_search()" style="flex:1;padding:0.78rem;background:linear-gradient(135deg,#4aa8ff 0%,#1264c4 100%);border:none;border-radius:10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;letter-spacing:0.04em;cursor:pointer;">Pretraži sudsku praksu</button>
