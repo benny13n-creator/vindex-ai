@@ -2205,6 +2205,21 @@ PRAVILA:
 """
 
 
+# ── Shared citation guard — appended to both procena + presuda prompts ────────
+_CITATION_GUARD = (
+    "\n\n🔒 PRAVILO ZA PRAVNI OSNOV — OBAVEZNO:\n"
+    "- Brojeve članova (npr. 'Čl. 184. ZR') citiraj ISKLJUČIVO iz bloka 'DOSTUPNI ZAKONI' "
+    "koji se nalazi na početku upita korisnika.\n"
+    "- Ako relevantan član NIJE u bloku, napiši naziv pravnog instituta "
+    "(npr. 'obaveza obrazloženja otkaza od strane poslodavca') BEZ broja člana.\n"
+    "- NIKADA ne izmišljaj broj člana iz opšteg znanja.\n"
+    "- Za presudu u sekciji 'PRIMENJENI PROPISI': navodi SAMO članove koje sud "
+    "eksplicitno citira u tekstu presude ili koji se nalaze u bloku 'DOSTUPNI ZAKONI'.\n"
+)
+
+_PRESUDA_SYSTEM_PROMPT = _PRESUDA_SYSTEM_PROMPT + _CITATION_GUARD
+
+
 # ── F5.3: PRAVNA PROCENA ──────────────────────────────────────────────────────
 
 _PROCENA_SYSTEM_PROMPT = """Ti si stručni pravni analitičar za srpsko pravo.
@@ -2213,7 +2228,7 @@ Na osnovu opisanih činjenica pruži strukturiranu pravnu procenu.
 OBAVEZNI FORMAT — tačno ovih 6 sekcija:
 
 1. PRAVNI OSNOV
-Koji zakon(i) i član(ovi) se primenjuju. Navedi tačne reference.
+Koji zakon(i) i član(ovi) se primenjuju. Citiraj ISKLJUČIVO iz bloka DOSTUPNI ZAKONI.
 
 2. ARGUMENTI ZA TUŽIOCA
 Najjači pravni argumenti u korist tužioca (max 3 boda).
@@ -2236,6 +2251,8 @@ PRAVILA:
 - Budi koncizan — svaka sekcija max 5 redova.
 - Na kraju dodaj: "Ova procena je generisana uz pomoć AI i mora biti proverena od strane ovlašćenog advokata."
 """
+
+_PROCENA_SYSTEM_PROMPT = _PROCENA_SYSTEM_PROMPT + _CITATION_GUARD
 
 
 @app.post("/api/procena")
@@ -2404,9 +2421,29 @@ async def predmet_upload_auto_analyze(
         truncate_label = "\n[...dokument nastavlja...]"
         max_tok        = 1200
 
+    # ── Phase 2.1 RAG: retrieve relevant law articles before analysis ──────────
+    # Build query from predmet name + type + first 400 chars of doc text
+    _rag_query = f"{predmet_naziv} {predmet_tip} " + " ".join(text[:400].split())
+    _rag_query = _rag_query[:500]
+    law_context = ""
+    try:
+        from app.services.retrieve import retrieve_documents as _retrieve
+        _rag_docs, _rag_meta = await asyncio.to_thread(_retrieve, _rag_query, 6)
+        if _rag_docs:
+            law_context = (
+                "DOSTUPNI ZAKONI (citiraj ISKLJUČIVO ove članove — ne citiraj iz opšteg znanja):\n\n"
+                + "\n\n---\n\n".join(_rag_docs[:6])
+                + "\n\n---\n\n"
+            )
+            logger.info("[P2.1] RAG: %d chunks, top_law=%s, query='%.60s'",
+                        len(_rag_docs), _rag_meta.get("top_law", "?"), _rag_query)
+    except Exception:
+        logger.warning("[P2.1] RAG retrieval greška — nastavljamo bez bloka zakona")
+
     cinjenice_text = (
-        f"Predmet: {predmet_naziv} (oblast: {predmet_tip})\n\n"
-        f"{text_label}:\n"
+        law_context
+        + f"Predmet: {predmet_naziv} (oblast: {predmet_tip})\n\n"
+        + f"{text_label}:\n"
         + text[:text_limit]
         + (truncate_label if len(text) > text_limit else "")
     )
