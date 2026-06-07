@@ -2413,32 +2413,37 @@ async def predmet_upload_auto_analyze(
         text_limit     = 8000
         text_label     = "TEKST PRESUDE"
         truncate_label = "\n[...presuda se nastavlja, prikazan je izvod...]"
-        max_tok        = 1600
+        max_tok        = 1000
     else:
         system_prompt  = _PROCENA_SYSTEM_PROMPT
         text_limit     = 3000
         text_label     = "Sadržaj uploadovanog dokumenta"
         truncate_label = "\n[...dokument nastavlja...]"
-        max_tok        = 1200
+        max_tok        = 1000
 
     # ── Phase 2.1 RAG: retrieve relevant law articles before analysis ──────────
-    # Build query from predmet name + type + first 400 chars of doc text
+    # Hard 5-second timeout — if retrieval is slow, fallback to no-RAG gracefully
     _rag_query = f"{predmet_naziv} {predmet_tip} " + " ".join(text[:400].split())
     _rag_query = _rag_query[:500]
     law_context = ""
     try:
         from app.services.retrieve import retrieve_documents as _retrieve
-        _rag_docs, _rag_meta = await asyncio.to_thread(_retrieve, _rag_query, 6)
+        _rag_future = asyncio.get_event_loop().run_in_executor(None, _retrieve, _rag_query, 4)
+        _rag_docs, _rag_meta = await asyncio.wait_for(
+            asyncio.wrap_future(_rag_future), timeout=5.0
+        )
         if _rag_docs:
             law_context = (
                 "DOSTUPNI ZAKONI (citiraj ISKLJUČIVO ove članove — ne citiraj iz opšteg znanja):\n\n"
-                + "\n\n---\n\n".join(_rag_docs[:6])
+                + "\n\n---\n\n".join(_rag_docs[:4])
                 + "\n\n---\n\n"
             )
             logger.info("[P2.1] RAG: %d chunks, top_law=%s, query='%.60s'",
                         len(_rag_docs), _rag_meta.get("top_law", "?"), _rag_query)
+    except asyncio.TimeoutError:
+        logger.warning("[P2.1] RAG timeout (>5s) — nastavljamo bez bloka zakona")
     except Exception:
-        logger.warning("[P2.1] RAG retrieval greška — nastavljamo bez bloka zakona")
+        logger.warning("[P2.1] RAG greška — nastavljamo bez bloka zakona")
 
     cinjenice_text = (
         law_context
