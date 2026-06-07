@@ -2225,7 +2225,7 @@ _PRESUDA_SYSTEM_PROMPT = _PRESUDA_SYSTEM_PROMPT + _CITATION_GUARD
 _PROCENA_SYSTEM_PROMPT = """Ti si stručni pravni analitičar za srpsko pravo.
 Na osnovu opisanih činjenica pruži strukturiranu pravnu procenu.
 
-OBAVEZNI FORMAT — tačno ovih 10 sekcija:
+OBAVEZNI FORMAT — tačno ovih 12 sekcija:
 
 1. PRAVNI OSNOV
 Navedi SVE primenjive zakonske odredbe na opisanu situaciju — bez obzira na to koju stranu štite.
@@ -2242,44 +2242,65 @@ Najjači FAKTIČKI kontraargumenti u korist tuženog/poslodavca (max 3 boda).
 Fokus na činjenične nedostatke i procesne rizike — ne navoditi zakonske članove ovde.
 
 4. STRATEGIJA ZA TUŽIOCA
-Konkretnih 3-5 procesnih koraka koje tužilac treba odmah da preduzme, u redosledu prioriteta.
-Format: svaki korak počinje sa "- ", konkretno i akciono (npr. "- Prikupiti...").
+Obavezno tačno ovim redom, svaka stavka na posebnoj liniji:
+Najjači napad: [1 rečenica — centralna procesna strategija tužioca]
+Zašto: [obrazloženje u 1 rečenici]
+Dokaz koji odlučuje spor: [konkretan dokaz ili činjenica]
+Verovatnoća uspeha: VISOKA / SREDNJA / NISKA
 
 5. STRATEGIJA ZA TUŽENOG
-Konkretnih 3-5 procesnih koraka koje tuženi treba da preduzme u svoju odbranu.
-Format: svaki korak počinje sa "- ", konkretno i akciono.
+Obavezno tačno ovim redom, svaka stavka na posebnoj liniji:
+Najjača odbrana: [1 rečenica — centralna procesna strategija tuženog]
+Zašto: [obrazloženje u 1 rečenici]
+Dokaz koji odlučuje spor: [konkretan dokaz ili činjenica]
+Verovatnoća uspeha: VISOKA / SREDNJA / NISKA
 
-6. SPORNE TAČKE
+6. KLJUČNA ČINJENICA
+Šta odlučuje spor — navedi 2-3 ključne činjenice u formatu:
+Ključna činjenica 1: [konkretna tvrdnja]
+Ako DA → [konkretna posledica za tužioca]
+Ako NE → [konkretna posledica za tuženog]
+(ponovi za svaku ključnu činjenicu)
+
+7. SPORNE TAČKE
 Ključne činjenične ili pravne tačke oko kojih se stranke mogu sporiti (max 3 boda).
 
-7. POTREBNI DOKAZI
+8. POTREBNI DOKAZI
 Grupiši dokaze u tačno 3 nivoa — svaki nivo na posebnoj liniji:
 🔴 Kritični: (dokazi bez kojih predmet pada — nabrojati)
 🟡 Važni: (dokazi koji jačaju poziciju — nabrojati)
 🟢 Korisni: (podržavajući dokazi — nabrojati)
 
-8. KOMPLETIRANOST PREDMETA
-Na prvoj liniji obavezno: KOMPLETIRANOST: XX% (broj od 0 do 100, proceni na osnovu dostavljenih činjenica)
-Zatim: Nedostaje: (kratka lista onoga što fali za uspešan postupak)
+9. KOMPLETIRANOST PREDMETA
+Na prvoj liniji obavezno: KOMPLETIRANOST: XX% (broj od 0 do 100, proceni na osnovu dostavljenih informacija)
+Nedostaje: (konkretna lista dokumenata/informacija koji nedostaju)
 
-9. PROCENA RIZIKA
+10. PROCENA RIZIKA
 Faktori koji POVEĆAVAJU rizik:
 - (navedi konkretno, max 3)
 Faktori koji SMANJUJU rizik:
 - (navedi konkretno, max 3)
 Ukupna procena: NIZAK / SREDNJI / VISOK — obrazloženje u 1 rečenici.
 
-10. RELEVANTNA PRAKSA
-Samo ako su odlomci sudske prakse dostavljeni u upitu pod "RELEVANTNA SUDSKA PRAKSA".
-Za svaku relevantnu presudu navedi u formatu:
-• [Sud, broj odluke, godina] — Kratki pravni stav (1 rečenica) — Zašto je relevantna za ovaj predmet.
+11. RELEVANTNA PRAKSA
+Samo ako su odlomci sudske prakse dostavljeni pod "RELEVANTNA SUDSKA PRAKSA".
+Za svaku presudu obavezno ovim redom:
+• [Sud, broj odluke, godina]
+  Pravni stav: "[citat ključnog stava u navodnicima — 1-2 rečenice]"
+  Sličnost sa predmetom: XX%
+  Zašto je relevantna: [1 rečenica]
 Navedi max 3 presude.
+
+12. POUZDANOST PROCENE
+Na prvoj liniji obavezno: POUZDANOST: XX% (zavisi od kompletiranosti dostavljenih informacija)
+Nedostaju: (lista dokumenata čiji upload može promeniti zaključak)
+Upload ovih dokumenata može značajno promeniti zaključak.
 
 PRAVILA:
 - Nikada ne garantuj ishod postupka.
 - Koristi srpsku ekavicu i pravni registar.
-- Budi koncizan — svaka sekcija max 6 redova.
-- Na kraju dodaj: "Ova procena je generisana uz pomoć AI i mora biti proverena od strane ovlašćenog advokata."
+- Budi koncizan ali konkretan — bez generičkih fraza.
+- Na kraju sekcije 12 dodaj: "Ova procena je generisana uz pomoć AI i mora biti proverena od strane ovlašćenog advokata."
 """
 
 _PROCENA_SYSTEM_PROMPT = _PROCENA_SYSTEM_PROMPT + _CITATION_GUARD
@@ -2338,8 +2359,8 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
         resp = client.chat.completions.create(
             model="gpt-4o",
             temperature=0,
-            max_tokens=2000,
-            timeout=45.0,
+            max_tokens=2500,
+            timeout=50.0,
             messages=[
                 {"role": "system", "content": _PROCENA_SYSTEM_PROMPT},
                 {"role": "user",   "content": user_content},
@@ -2470,7 +2491,7 @@ async def predmet_upload_auto_analyze(
         text_limit     = 3000
         text_label     = "Sadržaj uploadovanog dokumenta"
         truncate_label = "\n[...dokument nastavlja...]"
-        max_tok        = 1800
+        max_tok        = 2200
 
     # ── Phase 2.1 RAG + Law Hints ─────────────────────────────────────────────
     _rag_query = f"{predmet_naziv} {predmet_tip} " + " ".join(text[:400].split())
