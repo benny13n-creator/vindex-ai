@@ -426,6 +426,11 @@ app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
+from fastapi.staticfiles import StaticFiles as _StaticFiles
+if os.path.exists(BASE_DIR / "static"):
+    app.mount("/static", _StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
 
 @app.on_event("startup")
 async def _warm_connections():
@@ -2052,6 +2057,235 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
     except Exception:
         logger.exception("[F5] due_diligence greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
+
+
+# ── F6.1: DOCX export ─────────────────────────────────────────────────────────
+from docx_export import tekst_u_docx as _tekst_u_docx
+
+class DocxExportRequest(BaseModel):  # F6
+    naslov: str = Field(default="Vindex analiza", max_length=200)
+    tekst:  str = Field(..., max_length=50000)
+    tip:    str = Field(default="analiza", max_length=20)
+
+
+@app.post("/export/docx")  # F6.1
+async def post_export_docx(req: DocxExportRequest, user: dict = Depends(get_current_user)):
+    """F6.1 — Export teksta kao formatiran .docx fajl."""
+    from fastapi.responses import Response as _Resp
+    if len(req.tekst.strip()) < 20:
+        raise HTTPException(status_code=422, detail="Tekst je prekratak za export.")
+    docx_bytes = await asyncio.to_thread(_tekst_u_docx, req.naslov, req.tekst, req.tip)
+    import re as _re
+    safe = _re.sub(r"[^\w\-]", "_", req.naslov)[:50]
+    filename = f"vindex_{safe}.docx"
+    return _Resp(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ── F6.3: API key sistem ───────────────────────────────────────────────────────
+import secrets as _secrets
+
+
+def _generiši_api_kljuc() -> str:
+    return "vndx_" + _secrets.token_urlsafe(32)
+
+
+class ApiKljucRequest(BaseModel):  # F6
+    naziv: str = Field(default="Default", max_length=50)
+
+
+@app.post("/api-kljucevi/novi")  # F6.3
+async def post_novi_api_kljuc(req: ApiKljucRequest, user: dict = Depends(require_pro)):
+    """F6.3 — Generiši novi API ključ (PRO only, max 3)."""
+    supa = _get_supa()
+    existing = await asyncio.to_thread(
+        lambda: supa.table("api_kljucevi")
+                    .select("id")
+                    .eq("user_id", user["user_id"])
+                    .eq("aktivan", True)
+                    .execute()
+    )
+    if existing.data and len(existing.data) >= 3:
+        raise HTTPException(status_code=400, detail="Maksimalan broj API ključeva (3) je dostignut.")
+    kljuc = _generiši_api_kljuc()
+    await asyncio.to_thread(
+        lambda: supa.table("api_kljucevi").insert({
+            "user_id": user["user_id"],
+            "kljuc":   kljuc,
+            "naziv":   req.naziv,
+        }).execute()
+    )
+    return {"kljuc": kljuc, "naziv": req.naziv, "napomena": "Sačuvajte ključ — neće biti ponovo prikazan."}
+
+
+@app.get("/api-kljucevi/lista")  # F6.3
+async def get_api_kljucevi(user: dict = Depends(require_pro)):
+    """F6.3 — Lista API ključeva korisnika (bez samih ključeva)."""
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("api_kljucevi")
+                    .select("id, naziv, aktivan, kreirano, poslednje_koriscenje, broj_poziva")
+                    .eq("user_id", user["user_id"])
+                    .order("kreirano", desc=True)
+                    .execute()
+    )
+    return {"kljucevi": res.data or []}
+
+
+@app.delete("/api-kljucevi/{kljuc_id}")  # F6.3
+async def delete_api_kljuc(kljuc_id: str, user: dict = Depends(get_current_user)):
+    """F6.3 — Opozovi API ključ (označava kao neaktivan)."""
+    supa = _get_supa()
+    await asyncio.to_thread(
+        lambda: supa.table("api_kljucevi")
+                    .update({"aktivan": False})
+                    .eq("id", kljuc_id)
+                    .eq("user_id", user["user_id"])
+                    .execute()
+    )
+    return {"status": "opozvan"}
+
+
+@app.post("/v1/query")  # F6.3 — eksterni API
+async def post_v1_query(request: Request):
+    """F6.3 — Eksterni API endpoint — autentifikacija via X-Vindex-Key header."""
+    api_key = (
+        request.headers.get("X-Vindex-Key")
+        or request.headers.get("Authorization", "").replace("Bearer ", "")
+    )
+    if not api_key or not api_key.startswith("vndx_"):
+        raise HTTPException(status_code=401, detail="API ključ je obavezan. Header: X-Vindex-Key: vndx_...")
+    supa = _get_supa()
+    try:
+        res = await asyncio.to_thread(
+            lambda: supa.table("api_kljucevi")
+                        .select("user_id, aktivan, naziv, broj_poziva")
+                        .eq("kljuc", api_key)
+                        .eq("aktivan", True)
+                        .execute()
+        )
+    except Exception:
+        raise HTTPException(status_code=503, detail="Servis privremeno nedostupan.")
+    if not res.data:
+        raise HTTPException(status_code=401, detail="Nevažeći ili neaktivni API ključ.")
+    key_row = res.data[0]
+    # Ažuriraj statistiku
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("api_kljucevi")
+                        .update({"broj_poziva": key_row.get("broj_poziva", 0) + 1})
+                        .eq("kljuc", api_key)
+                        .execute()
+        )
+    except Exception:
+        pass
+    body = await request.json()
+    upit = (body.get("upit") or "").strip()
+    if len(upit) < 3:
+        raise HTTPException(status_code=422, detail="Polje 'upit' je obavezno (min 3 karaktera).")
+    return {
+        "upit":    upit,
+        "napomena": "v1 API beta — odgovor dostupan u sledećoj verziji.",
+    }
+
+
+# ── F6.4: Web Push notifikacije ────────────────────────────────────────────────
+_VAPID_PRIVATE = os.getenv("VAPID_PRIVATE_KEY", "")
+_VAPID_PUBLIC  = os.getenv("VAPID_PUBLIC_KEY", "")
+_VAPID_EMAIL   = os.getenv("VAPID_CLAIMS_EMAIL", "info@vindex.rs")
+
+
+def _vapid_pem_from_der_b64(der_b64: str) -> str:
+    """Konvertuje DER base64 private key u PEM string za pywebpush."""
+    import base64
+    from cryptography.hazmat.primitives.serialization import (
+        Encoding, PrivateFormat, NoEncryption, load_der_private_key
+    )
+    der = base64.urlsafe_b64decode(der_b64 + "==")
+    return load_der_private_key(der, None).private_bytes(
+        Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()
+    ).decode("utf-8")
+
+
+class PushSubscribeRequest(BaseModel):  # F6
+    endpoint: str
+    p256dh:   str
+    auth:     str
+
+
+@app.get("/push/vapid-public")  # F6.4 — bez auth (browser treba ovo)
+async def get_vapid_public():
+    """F6.4 — Vraća VAPID public key za browser pushManager.subscribe."""
+    if not _VAPID_PUBLIC:
+        raise HTTPException(status_code=503, detail="Push notifikacije nisu konfigurisane.")
+    return {"public_key": _VAPID_PUBLIC}
+
+
+@app.post("/push/subscribe")  # F6.4
+async def post_push_subscribe(req: PushSubscribeRequest, user: dict = Depends(get_current_user)):
+    """F6.4 — Registruje push subscription za korisnika."""
+    supa = _get_supa()
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("push_subscriptions").upsert({
+                "user_id":  user["user_id"],
+                "endpoint": req.endpoint,
+                "p256dh":   req.p256dh,
+                "auth":     req.auth,
+            }, on_conflict="endpoint").execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"status": "pretplaćen"}
+
+
+@app.post("/push/test")  # F6.4
+async def post_push_test(user: dict = Depends(get_current_user)):
+    """F6.4 — Test push notifikacija za prijavljenog korisnika."""
+    import json
+    if not _VAPID_PRIVATE:
+        return {"status": "VAPID ključevi nisu podešeni na serveru"}
+    supa = _get_supa()
+    subs = await asyncio.to_thread(
+        lambda: supa.table("push_subscriptions")
+                    .select("endpoint, p256dh, auth")
+                    .eq("user_id", user["user_id"])
+                    .execute()
+    )
+    if not subs.data:
+        return {"status": "nema aktivnih push pretplata"}
+    from pywebpush import webpush, WebPushException
+    pem = _vapid_pem_from_der_b64(_VAPID_PRIVATE)
+    uspešno = 0
+    for sub in subs.data:
+        try:
+            await asyncio.to_thread(
+                webpush,
+                subscription_info={
+                    "endpoint": sub["endpoint"],
+                    "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
+                },
+                data=json.dumps({
+                    "title": "Vindex AI — Test",
+                    "body":  "Push notifikacije rade ispravno ✓",
+                    "url":   "/app",
+                }),
+                vapid_private_key=pem,
+                vapid_claims={"sub": f"mailto:{_VAPID_EMAIL}"},
+            )
+            uspešno += 1
+        except WebPushException as e:
+            if e.response and e.response.status_code == 410:
+                await asyncio.to_thread(
+                    lambda: supa.table("push_subscriptions")
+                                .delete()
+                                .eq("endpoint", sub["endpoint"])
+                                .execute()
+                )
+    return {"status": f"{uspešno}/{len(subs.data)} notifikacija poslato"}
 
 
 # ─── /api/praksa/search ───────────────────────────────────────────────────────

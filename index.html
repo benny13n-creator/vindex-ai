@@ -4,6 +4,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#1A5F7A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
 <title>Vindex AI - Pravni asistent za Srbiju</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
@@ -1108,6 +1113,23 @@ footer { padding: 2rem 1.5rem; }
 .strat-loading{color:rgba(255,255,255,0.35);padding:22px 0;text-align:center;font-size:0.83rem;}
 .strat-pro-gate{text-align:center;padding:22px 10px;color:rgba(255,255,255,0.45);line-height:1.9;font-size:0.85rem;}
 .strat-pro-gate strong{color:#89c8ff;}
+/* ── F6 DOCX + API ključevi + Push ──────────────────────────────────────── */
+.btn-word{display:inline-flex;align-items:center;gap:4px;padding:0.38rem 0.75rem;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:rgba(255,255,255,0.55);font-size:0.76rem;cursor:pointer;font-family:inherit;transition:all .2s;}
+.btn-word:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.28);color:#fff;}
+.api-kljucevi-wrap{margin-top:1.4rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.07);}
+.api-kljucevi-lbl{font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:0.7rem;}
+.api-kljuc-red{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem;flex-wrap:wrap;}
+.api-kljuc-naziv{flex:1;font-weight:500;color:#e6edf3;min-width:80px;}
+.api-kljuc-stat{color:rgba(255,255,255,0.38);font-size:0.76rem;}
+.api-kljuc-datum{color:rgba(255,255,255,0.3);font-size:0.74rem;}
+.btn-danger-small{background:transparent;border:1px solid rgba(245,101,101,0.35);color:#f56565;padding:3px 8px;border-radius:5px;cursor:pointer;font-size:0.73rem;font-family:inherit;transition:all .2s;}
+.btn-danger-small:hover{background:rgba(245,101,101,0.1);}
+.api-kljuc-value{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);padding:6px 10px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:0.8rem;word-break:break-all;color:#89c8ff;display:block;margin:6px 0;}
+.api-kljuc-box{background:rgba(74,168,255,0.04);border:1px solid rgba(74,168,255,0.2);border-radius:8px;padding:12px 14px;margin-top:10px;}
+.api-kljuc-box strong{color:#e6edf3;font-size:0.83rem;}
+.push-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.45);font-size:0.78rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;min-height:36px;}
+.push-btn:hover{background:rgba(255,255,255,0.07);color:#fff;}
+.push-btn:disabled{opacity:.4;cursor:default;}
 /* ── F5 Predmeti ─────────────────────────────────────────────────────────── */
 .predmet-indicator{display:none;font-size:0.7rem;font-family:'JetBrains Mono',monospace;color:#4aa8ff;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.2);border-radius:6px;padding:0.25rem 0.7rem;margin-bottom:0.5rem;letter-spacing:0.03em;}
 .predmet-indicator.show{display:block;}
@@ -1533,6 +1555,26 @@ footer { padding: 2rem 1.5rem; }
               <div class="pred-section-lbl">Istorija razgovora</div>
               <div id="pred-istorija-list"></div>
             </div>
+
+            <!-- F6: API ključevi sekcija (PRO only) -->
+            <div id="api-kljucevi-sekcija" class="api-kljucevi-wrap" style="display:none;">
+              <div class="api-kljucevi-lbl">🔑 API ključevi</div>
+              <div style="font-size:0.8rem;color:rgba(255,255,255,0.38);margin-bottom:10px;line-height:1.55;">
+                Integrišite Vindex sa vašim sistemima. Header: <code style="font-size:0.78rem;background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:3px;">X-Vindex-Key: vndx_...</code>
+              </div>
+              <div id="api-kljucevi-lista"></div>
+              <div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap;">
+                <input type="text" id="api-kljuc-naziv" placeholder="Naziv ključa (npr. Moja integracija)"
+                  style="flex:1;min-width:160px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:#e6edf3;font-size:0.82rem;padding:7px 10px;font-family:inherit;outline:none;">
+                <button onclick="kreirajApiKljuc()" style="padding:7px 14px;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.3);border-radius:7px;color:#89c8ff;font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">+ Novi ključ</button>
+              </div>
+              <div id="api-novi-kljuc-display" class="api-kljuc-box" style="display:none;"></div>
+              <!-- Push notifikacije dugme -->
+              <div style="margin-top:12px;">
+                <button id="push-btn" class="push-btn" onclick="subscribePush()">🔔 Uključi podsetnik za rokove</button>
+              </div>
+            </div>
+
           </div>
           <div id="tab-n" style="display:none">
             <div class="t-guide">
@@ -1695,7 +1737,10 @@ footer { padding: 2rem 1.5rem; }
             <div class="strat-rezultat-wrap" id="strat-rezultat-wrap">
               <div class="strat-rezultat-header">
                 <span class="strat-rezultat-naslov" id="strat-rezultat-naslov"></span>
-                <button class="strat-copy-btn" onclick="stratKopiraj()">📋 Kopiraj</button>
+                <div style="display:flex;gap:6px;">
+                  <button class="btn-word" onclick="exportujKaoWord(document.getElementById('strat-rezultat-naslov').textContent,document.getElementById('strat-rezultat-body').innerText,'strategija')">📝 Word</button>
+                  <button class="strat-copy-btn" onclick="stratKopiraj()">📋 Kopiraj</button>
+                </div>
               </div>
               <div class="strat-rezultat-body" id="strat-rezultat-body"></div>
             </div>
@@ -1728,6 +1773,7 @@ footer { padding: 2rem 1.5rem; }
             <div class="podnesak-preview-actions">
               <button class="podnesak-preview-btn podnesak-preview-pdf" id="podnesak-pdf-btn" onclick="exportPDF(_lastRawText, this)">📄 Preuzmi PDF</button>
               <button class="podnesak-preview-btn podnesak-preview-copy" id="podnesak-copy-btn" onclick="copyPodnesak(this)">📋 Kopiraj tekst</button>
+              <button class="podnesak-preview-btn btn-word" onclick="exportujKaoWord('Nacrt dokumenta',_lastRawText,'nacrt')">📝 Word</button>
               <button class="podnesak-preview-btn podnesak-preview-edit" onclick="editPodnesak()">✏ Uredi / Follow-up</button>
             </div>
           </div>
@@ -2094,6 +2140,7 @@ async function loadCredits() {
       _updateProTabUI();
       _updateStratTabUI();
       updateCreditDisplay();
+      if (currentUserIsPro) ucitajApiKljuceve();
     } else {
       console.warn('[Vindex] /api/me greška, status:', r.status);
     }
@@ -2761,6 +2808,169 @@ function stratKopiraj() {
       setTimeout(function() { btn.textContent = '📋 Kopiraj'; }, 2000);
     }
   });
+}
+
+// ── F6 DOCX EXPORT ────────────────────────────────────────────────────────────
+
+async function exportujKaoWord(naslov, tekst, tip) {
+  tip = tip || 'analiza';
+  if (!tekst || tekst.trim().length < 20) {
+    showToast('Nema sadržaja za export.', 'warn');
+    return;
+  }
+  if (!currentSession) { openModal(); return; }
+  try {
+    var res = await fetch(BASE_URL + '/export/docx', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.access_token
+      },
+      body: JSON.stringify({ naslov: naslov || 'Vindex analiza', tekst: tekst, tip: tip })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'vindex_' + (naslov || 'analiza').replace(/\s+/g, '_').substring(0, 40) + '.docx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    showToast('Greška pri exportu: ' + e.message, 'err');
+  }
+}
+
+// ── F6 API KLJUČEVI ───────────────────────────────────────────────────────────
+
+async function ucitajApiKljuceve() {
+  var sekcija = document.getElementById('api-kljucevi-sekcija');
+  var lista   = document.getElementById('api-kljucevi-lista');
+  if (!sekcija || !lista || !currentSession) return;
+  try {
+    var res = await fetch(BASE_URL + '/api-kljucevi/lista', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (res.status === 403) { sekcija.style.display = 'none'; return; }
+    sekcija.style.display = 'block';
+    var data = await res.json();
+    if (!data.kljucevi || !data.kljucevi.length) {
+      lista.innerHTML = '<div style="font-size:0.8rem;color:rgba(255,255,255,0.28);padding:4px 0;">Nema aktivnih API ključeva.</div>';
+      return;
+    }
+    lista.innerHTML = data.kljucevi.map(function(k) {
+      var dat = k.poslednje_koriscenje
+        ? new Date(k.poslednje_koriscenje).toLocaleDateString('sr-RS')
+        : 'Nije korišćen';
+      return '<div class="api-kljuc-red">' +
+        '<span class="api-kljuc-naziv">' + k.naziv + '</span>' +
+        '<span class="api-kljuc-stat">' + (k.broj_poziva || 0) + ' poziva</span>' +
+        '<span class="api-kljuc-datum">' + dat + '</span>' +
+        '<button class="btn-danger-small" onclick="opoziviApiKljuc(\'' + k.id + '\')">Opozovi</button>' +
+        '</div>';
+    }).join('');
+  } catch(e) { console.warn('API ključevi greška:', e); }
+}
+
+async function kreirajApiKljuc() {
+  if (!currentSession) { openModal(); return; }
+  var naziv = (document.getElementById('api-kljuc-naziv').value || '').trim() || 'Default';
+  try {
+    var res = await fetch(BASE_URL + '/api-kljucevi/novi', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.access_token
+      },
+      body: JSON.stringify({ naziv: naziv })
+    });
+    var data = await res.json();
+    if (!res.ok) { showToast(data.detail || 'Greška', 'err'); return; }
+    var display = document.getElementById('api-novi-kljuc-display');
+    display.innerHTML =
+      '<strong>Novi API ključ — sačuvajte, neće biti ponovo prikazan:</strong>' +
+      '<span class="api-kljuc-value">' + data.kljuc + '</span>' +
+      '<button class="btn-word" onclick="navigator.clipboard.writeText(\'' + data.kljuc + '\');showToast(\'Ključ kopiran\')">📋 Kopiraj</button>';
+    display.style.display = 'block';
+    document.getElementById('api-kljuc-naziv').value = '';
+    await ucitajApiKljuceve();
+  } catch(e) { showToast('Greška: ' + e.message, 'err'); }
+}
+
+async function opoziviApiKljuc(id) {
+  if (!confirm('Opozovite ovaj API ključ? Integracije koje ga koriste prestaće da rade.')) return;
+  if (!currentSession) return;
+  await fetch(BASE_URL + '/api-kljucevi/' + id, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  });
+  await ucitajApiKljuceve();
+}
+
+// ── F6 WEB PUSH ───────────────────────────────────────────────────────────────
+
+// VAPID public key se učitava sa servera
+var _vapidPublicKey = null;
+
+async function _getVapidKey() {
+  if (_vapidPublicKey) return _vapidPublicKey;
+  try {
+    var r = await fetch(BASE_URL + '/push/vapid-public');
+    if (!r.ok) return null;
+    var d = await r.json();
+    _vapidPublicKey = d.public_key || null;
+    return _vapidPublicKey;
+  } catch(e) { return null; }
+}
+
+function _urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var rawData = window.atob(base64);
+  return Uint8Array.from(Array.from(rawData).map(function(c) { return c.charCodeAt(0); }));
+}
+
+async function subscribePush() {
+  var btn = document.getElementById('push-btn');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (btn) { btn.textContent = '❌ Browser ne podržava push'; btn.disabled = true; }
+    return;
+  }
+  if (!currentSession) { openModal(); return; }
+  var vapidKey = await _getVapidKey();
+  if (!vapidKey) {
+    if (btn) { btn.textContent = '⚠ Push nije konfigurisan'; btn.disabled = true; }
+    return;
+  }
+  try {
+    var reg = await navigator.serviceWorker.ready;
+    var sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: _urlBase64ToUint8Array(vapidKey)
+    });
+    var subJson = sub.toJSON();
+    var res = await fetch(BASE_URL + '/push/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.access_token
+      },
+      body: JSON.stringify({
+        endpoint: subJson.endpoint,
+        p256dh:   subJson.keys.p256dh,
+        auth:     subJson.keys.auth
+      })
+    });
+    if (res.ok) {
+      if (btn) { btn.textContent = '✓ Notifikacije uključene'; btn.disabled = true; }
+      showToast('Push notifikacije uključene');
+    }
+  } catch(e) {
+    console.error('Push subscribe greška:', e);
+    if (btn) btn.textContent = '⚠ Greška — provjerite dozvole';
+  }
 }
 function closeProUpgradeModal() {
   var m = document.getElementById('pro-upgrade-modal');
@@ -3456,6 +3666,7 @@ function formatResponse(rawText) {
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +citatEnc+ '\'),this)">📎 Kopiraj citat</button>'+
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +osnovEnc+ '\'),this)">📋 Izvor: '+ osnovLabel +'</button>'+
     '<button class="resp-action-btn" style="background:rgba(74,168,255,0.07);border-color:rgba(74,168,255,0.25);color:#89c8ff;" onclick="exportPDF(decodeURIComponent(\'' +fullEnc+ '\'),this)">📄 Sačuvaj PDF</button>'+
+    '<button class="resp-action-btn btn-word" onclick="exportujKaoWord(\'Pravno istraživanje\',_lastRawText,\'istrazivanje\')">📝 Word</button>'+
     '<button class="resp-action-btn follow-up-btn" id="followUpBtn_'+Date.now()+'" onclick="startFollowUp(this)">🔁 Follow-up</button>'+
     '</div>';
   html = _injectIzmeneBadges(html);
@@ -5982,5 +6193,15 @@ async function pred_kreiraj() {
   </div>
 </div>
 
+<script>
+// F6 — PWA Service Worker registracija
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/static/sw.js')
+      .then(function(reg) { console.log('[Vindex] SW registered:', reg.scope); })
+      .catch(function(err) { console.warn('[Vindex] SW registration failed:', err); });
+  });
+}
+</script>
 </body>
 </html>
