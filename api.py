@@ -2025,6 +2025,110 @@ async def praksa_search(req: PraksaSearchReq, request: Request):
             content={"error": "Greška Pinecone servisa", "detail": str(exc)[:200]},
         )
     
+# ─── Phase 3.2: Ratio decidendi — ekstrakcija + keš ─────────────────────────
+
+_RATIO_SYSTEM_PROMPT = (
+    "Ti si asistent za analizu sudskih presuda Vrhovnog suda Republike Srbije. "
+    "Iz dostavljenog teksta izvuci ISKLJUČIVO ratio decidendi — ključni pravni stav "
+    "koji je temelj odluke. "
+    "PRAVILA: Maksimalno 3 rečenice srpskim jezikom (ekavica). "
+    "Samo pravni stav suda — ne činjenice slučaja, ne opis stranaka, ne izreka. "
+    "Format: piši u trećem licu ('Sud je zauzeo stav...', 'Sud smatra...'). "
+    "Ako tekst ne sadrži jasno pravno obrazloženje, odgovori samo: "
+    "'Obrazloženje nije dostupno u dostavljenom tekstu.'"
+)
+
+
+def _get_ratio_from_cache(decision_number: str) -> Optional[str]:
+    try:
+        r = (_get_supa()
+             .table("ratio_decidendi")
+             .select("ratio")
+             .eq("decision_number", decision_number)
+             .limit(1)
+             .execute())
+        if r.data:
+            return r.data[0]["ratio"]
+    except Exception as e:
+        logger.debug("[RATIO] Cache miss/error for %r: %s", decision_number, e)
+    return None
+
+
+def _save_ratio_to_cache(decision_number: str, ratio: str) -> None:
+    try:
+        _get_supa().table("ratio_decidendi").upsert(
+            {"decision_number": decision_number, "ratio": ratio},
+            on_conflict="decision_number",
+        ).execute()
+    except Exception as e:
+        logger.warning("[RATIO] Cache save failed for %r: %s", decision_number, e)
+
+
+def _extract_ratio_sync(decision_number: str, tekst: str) -> str:
+    """Check cache → GPT-4o mini → cache. Thread-safe, never throws."""
+    if not decision_number:
+        return ""
+    cached = _get_ratio_from_cache(decision_number)
+    if cached:
+        logger.debug("[RATIO] HIT %r", decision_number)
+        return cached
+    if not tekst or len(tekst.strip()) < 60:
+        return ""
+    try:
+        from openai import OpenAI as _OAI
+        client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.1,
+            max_tokens=220,
+            messages=[
+                {"role": "system", "content": _RATIO_SYSTEM_PROMPT},
+                {"role": "user",   "content": tekst[:3000]},
+            ],
+        )
+        ratio = (resp.choices[0].message.content or "").strip()
+    except Exception as e:
+        logger.warning("[RATIO] GPT failed for %r: %s", decision_number, e)
+        return ""
+    if not ratio or "nije dostupno" in ratio.lower():
+        return ""
+    _save_ratio_to_cache(decision_number, ratio)
+    logger.info("[RATIO] MISS→extracted %r (%d chars)", decision_number, len(ratio))
+    return ratio
+
+
+class RatioReq(BaseModel):
+    decisions: list[dict]  # [{decision_number, text}, ...]
+
+
+@app.post("/api/praksa/ratio")
+@limiter.limit("20/minute")
+async def praksa_ratio(req: RatioReq, request: Request):
+    """Phase 3.2: Batch extract/serve ratio decidendi with Supabase caching."""
+    if not req.decisions:
+        return {"ratios": {}}
+    if len(req.decisions) > 20:
+        return JSONResponse(status_code=400, content={"error": "Maksimalno 20 odluka"})
+
+    async def _one(d: dict):
+        dn   = (d.get("decision_number") or "").strip()
+        text = (d.get("text") or "").strip()[:3000]
+        if not dn:
+            return None, None
+        ratio = await asyncio.to_thread(_extract_ratio_sync, dn, text)
+        return dn, ratio
+
+    results = await asyncio.gather(*[_one(d) for d in req.decisions], return_exceptions=True)
+    ratios = {}
+    for r in results:
+        if isinstance(r, Exception) or r is None:
+            continue
+        dn, ratio = r
+        if dn and ratio:
+            ratios[dn] = ratio
+    return {"ratios": ratios}
+
+
 # ─── Phase 3.1: Grupisanje presuda Za/Protiv ─────────────────────────────────
 
 @app.get("/api/sudska-praksa/grupisano")

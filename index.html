@@ -499,6 +499,14 @@ blockquote.citat-expanded { max-height: none; }
 .resp-lanac .resp-section-lbl { color: #a78bfa; }
 .resp-lanac .resp-section-lbl::before { background: #a78bfa; box-shadow: 0 0 6px rgba(167,139,250,0.5); }
 .resp-lanac .resp-section-body { color: rgba(200,185,255,0.9); font-size: 0.84rem; line-height: 1.75; border-left: 2px solid rgba(167,139,250,0.3); padding-left: 0.9rem; }
+/* ── Phase 3.2: Ratio decidendi ─────────────────────────────────────────────── */
+.ratio-box { display:none; margin-top:0.5rem; padding:0.5rem 0.75rem; background:rgba(167,139,250,0.06); border-left:2px solid rgba(167,139,250,0.4); border-radius:0 6px 6px 0; }
+.ratio-lbl { font-family:'JetBrains Mono',monospace; font-size:0.48rem; letter-spacing:0.18em; text-transform:uppercase; color:rgba(167,139,250,0.55); margin-bottom:0.22rem; }
+.ratio-text { font-family:'DM Sans',sans-serif; font-size:0.74rem; color:rgba(200,185,255,0.82); line-height:1.6; font-style:italic; }
+.ratio-text::before { content:'\201C'; color:rgba(167,139,250,0.5); font-size:1rem; line-height:0; vertical-align:-0.22em; margin-right:0.1em; }
+.ratio-loading { font-family:'JetBrains Mono',monospace; font-size:0.52rem; color:rgba(255,255,255,0.18); letter-spacing:0.12em; }
+/* Filter highlight */
+.ratio-match { background:rgba(167,139,250,0.15); border-radius:3px; }
 /* ── Phase 3.1: Grupisanje Za/Protiv ───────────────────────────────────────── */
 .pg-stat-bar { display:flex; gap:0; border-radius:8px; overflow:hidden; height:10px; margin:0.6rem 0 0.3rem; }
 .pg-stat-tuzilac { background:linear-gradient(90deg,#22c55e,#16a34a); transition:width 0.5s ease; }
@@ -1504,6 +1512,7 @@ footer { padding: 2rem 1.5rem; }
                 <button id="praksa-grupisano-btn" onclick="praksa_load_grupisano()" style="padding:0.78rem 1rem;background:linear-gradient(135deg,rgba(74,222,128,0.18) 0%,rgba(16,185,129,0.22) 100%);border:1px solid rgba(74,222,128,0.35);border-radius:10px;color:#4ade80;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;" title="Grupisanje presuda: Ko dobija?">Za/Protiv</button>
                 <button onclick="praksa_reset_filters()" style="padding:0.78rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.45);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">Resetuj</button>
               </div>
+              <input type="text" id="praksa-ratio-filter" oninput="praksa_ratio_filter_update()" placeholder="Filtriraj po pravnom stavu..." style="display:none;width:100%;box-sizing:border-box;margin-top:0.45rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.78);font-family:'JetBrains Mono',monospace;font-size:0.72rem;padding:0.65rem 1rem;outline:none;">
             </div>
             <div id="praksa-loading" style="display:none;text-align:center;padding:1.8rem 0;color:rgba(255,255,255,0.28);font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;">Pretražujem...</div>
             <div id="praksa-error" style="display:none;padding:0.85rem 1rem;background:rgba(255,60,60,0.07);border:1px solid rgba(255,60,60,0.15);border-radius:10px;color:rgba(255,130,130,0.9);font-family:'DM Sans',sans-serif;font-size:0.78rem;margin-top:0.8rem;"></div>
@@ -3659,6 +3668,11 @@ function praksa_render_card(d, idx) {
   if (preview) {
     h += '<div style="font-family:DM Sans,sans-serif;font-size:0.77rem;color:rgba(255,255,255,0.5);line-height:1.55;margin-bottom:0.5rem;">' + preview + (d.izreka_full && d.izreka_full.length > 200 ? '…' : '') + '</div>';
   }
+  // Phase 3.2: ratio decidendi placeholder (filled async by praksa_fetch_ratios)
+  h += '<div class="ratio-box" id="ratio-' + idx + '" data-dn="' + esc(d.decision_number) + '">';
+  h += '<div class="ratio-lbl">Pravni stav suda</div>';
+  h += '<div class="ratio-text ratio-loading" id="ratio-text-' + idx + '">Učitavanje pravnog stava…</div>';
+  h += '</div>';
   h += '<div style="display:flex;gap:0.45rem;flex-wrap:wrap;">';
   if (hasDetail) {
     h += '<button id="praksa-expand-btn-' + idx + '" onclick="praksa_expand_decision(' + idx + ')" style="padding:0.25rem 0.7rem;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:6px;color:#4aa8ff;font-family:DM Sans,sans-serif;font-size:0.71rem;cursor:pointer;">▾ Prikaži odluku</button>';
@@ -3691,6 +3705,10 @@ function praksa_render_results(decisions, append) {
     w.innerHTML = praksa_render_card(d, base + i);
     list.appendChild(w);
   });
+  // Phase 3.2: async ratio fetch for newly rendered decisions
+  praksa_fetch_ratios(decisions, base);
+  // Show ratio filter input once we have results
+  document.getElementById('praksa-ratio-filter').style.display = 'block';
 }
 
 function praksa_expand_decision(idx) {
@@ -3796,6 +3814,60 @@ function praksa_load_initial() {
   praksa_search();
 }
 
+/* ── Phase 3.2: Ratio decidendi — fetch + fill + filter ──────────────────── */
+async function praksa_fetch_ratios(decisions, startIdx) {
+  if (!decisions || !decisions.length) return;
+  var payload = decisions.map(function(d, i) {
+    var text = (d.obrazlozenje_full || d.izreka_full || d.obraz_text || '').substring(0, 3000);
+    return { decision_number: d.decision_number, text: text, _idx: startIdx + i };
+  }).filter(function(p) { return p.decision_number; });
+  if (!payload.length) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/praksa/ratio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decisions: payload.map(function(p) {
+        return { decision_number: p.decision_number, text: p.text };
+      }) }),
+    });
+    if (!r.ok) return;
+    var data = await r.json();
+    var ratios = data.ratios || {};
+    var dnToIdx = {};
+    payload.forEach(function(p) { dnToIdx[p.decision_number] = p._idx; });
+    Object.keys(ratios).forEach(function(dn) {
+      var idx = dnToIdx[dn];
+      if (idx === undefined) return;
+      var box  = document.getElementById('ratio-' + idx);
+      var text = document.getElementById('ratio-text-' + idx);
+      var ratio = ratios[dn];
+      if (box && text && ratio) {
+        text.className = 'ratio-text';
+        text.textContent = ratio;
+        box.style.display = 'block';
+      }
+    });
+  } catch(e) { /* silent — ratio is optional */ }
+}
+
+function praksa_ratio_filter_update() {
+  var q = (document.getElementById('praksa-ratio-filter').value || '').trim().toLowerCase();
+  [document.getElementById('praksa-list'), document.getElementById('praksa-grupisano-container')].forEach(function(container) {
+    if (!container) return;
+    container.querySelectorAll('[data-dn]').forEach(function(box) {
+      // grupisano: ratio-box → .pg-decision-card
+      // regular list: ratio-box → inner card div → outer wrapper w
+      var card = box.closest('.pg-decision-card') || (box.parentElement && box.parentElement.parentElement);
+      if (!card) return;
+      if (!q) { card.style.display = ''; return; }
+      var ratioEl = box.querySelector('.ratio-text');
+      var ratioText = ratioEl ? (ratioEl.textContent || '').toLowerCase() : '';
+      var dnText = (box.getAttribute('data-dn') || '').toLowerCase();
+      card.style.display = (ratioText.indexOf(q) !== -1 || dnText.indexOf(q) !== -1) ? '' : 'none';
+    });
+  });
+}
+
 /* ── Phase 3.1: Grupisanje Za/Protiv ─────────────────────────────────────── */
 async function praksa_load_grupisano() {
   var q = (document.getElementById('praksa-query').value || '').trim();
@@ -3866,6 +3938,8 @@ function praksa_render_grupisano(data) {
     { key:'nepoznato',lbl:'Ishod neodređen',             icon:'?',  hdrCls:'pg-group-nepoznato',lblCls:'pg-group-lbl-nepoznato'},
   ];
   var grupe = data.grupe || {};
+  var allDecisions = [];
+  var ratioIdx = 0;
   groups.forEach(function(g) {
     var decisions = grupe[g.key] || [];
     if (!decisions.length) return;
@@ -3878,11 +3952,18 @@ function praksa_render_grupisano(data) {
     h += '<div id="' + gid + '" style="padding:0.4rem 0;">';
     decisions.forEach(function(d) {
       var dateStr = d.decision_date ? (d.decision_date+'').substring(0,10) : '';
+      var rid = 'g' + ratioIdx;
       h += '<div class="pg-decision-card">';
       h += '<div class="pg-decision-dn">' + esc(d.decision_number) + '</div>';
       h += '<div class="pg-decision-meta">' + esc(d.court) + (dateStr ? ' · ' + dateStr : '') + (d.matter ? ' · ' + esc(d.matter) : '') + '</div>';
       if (d.izreka_preview) h += '<div class="pg-decision-preview">' + esc(d.izreka_preview) + (d.izreka_preview.length >= 200 ? '…' : '') + '</div>';
+      h += '<div class="ratio-box" id="ratio-' + rid + '" data-dn="' + esc(d.decision_number) + '">';
+      h += '<div class="ratio-lbl">Pravni stav suda</div>';
+      h += '<div class="ratio-text ratio-loading" id="ratio-text-' + rid + '">Učitavanje pravnog stava…</div>';
       h += '</div>';
+      h += '</div>';
+      allDecisions.push({ _rid: rid, decision_number: d.decision_number, obraz_text: d.obraz_text || '', izreka_preview: d.izreka_preview || '' });
+      ratioIdx++;
     });
     h += '</div></div>';
   });
@@ -3890,6 +3971,38 @@ function praksa_render_grupisano(data) {
   var container = document.getElementById('praksa-grupisano-container');
   container.innerHTML = h;
   container.style.display = 'block';
+
+  if (allDecisions.length) {
+    (async function() {
+      var payload = allDecisions.map(function(d) {
+        return { decision_number: d.decision_number, text: (d.obraz_text || d.izreka_preview || '').substring(0, 3000) };
+      });
+      try {
+        var r = await fetch(BASE_URL + '/api/praksa/ratio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decisions: payload }),
+        });
+        if (!r.ok) return;
+        var resp = await r.json();
+        var ratios = resp.ratios || {};
+        var dnToRid = {};
+        allDecisions.forEach(function(d) { dnToRid[d.decision_number] = d._rid; });
+        Object.keys(ratios).forEach(function(dn) {
+          var rid = dnToRid[dn];
+          if (!rid) return;
+          var box = document.getElementById('ratio-' + rid);
+          var txt = document.getElementById('ratio-text-' + rid);
+          var ratio = ratios[dn];
+          if (box && txt && ratio) {
+            txt.className = 'ratio-text';
+            txt.textContent = ratio;
+            box.style.display = 'block';
+          }
+        });
+      } catch(e) {}
+    })();
+  }
 }
 
 /* ── Document Upload P2.6a ───────────────────────────────────── */
