@@ -1049,6 +1049,8 @@ footer { padding: 2rem 1.5rem; }
 .hron-badge.informativan{background:rgba(107,114,128,0.15);color:#9ca3af;border:1px solid rgba(107,114,128,0.28);}
 .hron-export-btn{font-size:0.72rem;color:rgba(255,255,255,0.35);background:none;border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:0.22rem 0.55rem;cursor:pointer;margin-top:0.5rem;transition:all .15s;}
 .hron-export-btn:hover{color:#89c8ff;border-color:rgba(74,168,255,0.3);}
+.izmena-tag{display:inline-block;font-size:0.6rem;font-weight:600;padding:1px 6px;border-radius:3px;margin-left:0.3rem;vertical-align:middle;white-space:nowrap;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.12);cursor:default;}
+.izmena-recent{background:rgba(245,158,11,0.12);color:#fbbf24;border-color:rgba(245,158,11,0.3);}
 .procena-section-hdr .sec-icon{margin-right:0.4rem;}
 </style>
 
@@ -2683,6 +2685,51 @@ function editPodnesak() {
   window._micIsActive = function() { return !!_rec; };
 })();
 
+/* ── Phase 2.3: Zakon izmene metadata ──────────────────────────────────────── */
+var _ZAKON_IZMENE_DATA = {
+  "ZR":     { naziv:"Zakon o radu",                                         pocetna:"24/2005",  poslednja:"109/2025", god:2025 },
+  "ZOO":    { naziv:"Zakon o obligacionim odnosima",                        pocetna:"29/1978",  poslednja:"44/2018",  god:2018 },
+  "KZ":     { naziv:"Krivični zakonik",                                     pocetna:"85/2005",  poslednja:"9/2023",   god:2023 },
+  "ZPP":    { naziv:"Zakon o parničnom postupku",                           pocetna:"72/2011",  poslednja:"18/2020",  god:2020 },
+  "ZKP":    { naziv:"Zakonik o krivičnom postupku",                         pocetna:"72/2011",  poslednja:"35/2019",  god:2019 },
+  "ZPD":    { naziv:"Zakon o privrednim društvima",                         pocetna:"36/2011",  poslednja:"109/2021", god:2021 },
+  "ZDI":    { naziv:"Zakon o digitalnoj imovini",                           pocetna:"153/2020", poslednja:"153/2020", god:2020 },
+  "ZZPL":   { naziv:"Zakon o zaštiti podataka o ličnosti",                  pocetna:"87/2018",  poslednja:"87/2018",  god:2018 },
+  "ZN":     { naziv:"Zakon o nasleđivanju",                                 pocetna:"46/1995",  poslednja:"6/2015",   god:2015 },
+  "PZ":     { naziv:"Porodični zakon",                                      pocetna:"18/2005",  poslednja:"6/2015",   god:2015 },
+  "ZIO":    { naziv:"Zakon o izvršenju i obezbeđenju",                      pocetna:"106/2015", poslednja:"9/2020",   god:2020 },
+  "ZOUP":   { naziv:"Zakon o opštem upravnom postupku",                     pocetna:"18/2016",  poslednja:"95/2018",  god:2018 },
+  "ZSPNFT": { naziv:"Zakon o sprečavanju pranja novca i finansiranja terorizma", pocetna:"113/2017", poslednja:"35/2023", god:2023 },
+  "ZPDG":   { naziv:"Zakon o porezu na dohodak građana",                    pocetna:"24/2001",  poslednja:"118/2021", god:2021 }
+};
+
+function _izmenaTag(code) {
+  var info = _ZAKON_IZMENE_DATA[code];
+  if (!info) return '';
+  var isRecent = (new Date().getFullYear() - info.god) <= 1;
+  var cls = 'izmena-tag' + (isRecent ? ' izmena-recent' : '');
+  var title = info.naziv + ' | Poslednja izmena Sl.gl. RS ' + info.poslednja;
+  var lbl = (isRecent ? '⚠️ ' : '') + 'Sl.gl. ' + info.poslednja;
+  return '<span class="' + cls + '" title="' + title + '">' + lbl + '</span>';
+}
+
+function _injectIzmeneBadges(html) {
+  // Inject amendment badge after first occurrence of each law code abbreviation.
+  // Codes are uppercase acronyms — word-boundary safe, don't appear in CSS classes or URLs.
+  Object.keys(_ZAKON_IZMENE_DATA).forEach(function(code) {
+    var tag = _izmenaTag(code);
+    if (!tag) return;
+    // Skip if badge already present (e.g., double call guard)
+    if (html.indexOf('izmena-tag') !== -1 && html.indexOf(code + '<span class="izmena-tag') !== -1) return;
+    // Match first standalone occurrence (word boundary), inject badge immediately after
+    var re = new RegExp('\b' + code + '\b');
+    if (re.test(html)) {
+      html = html.replace(re, code + tag);
+    }
+  });
+  return html;
+}
+
 /* RESPONSE FORMATTER */
 function escHtml(s){ if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -2935,6 +2982,7 @@ function formatResponse(rawText) {
     '<button class="resp-action-btn" style="background:rgba(74,168,255,0.07);border-color:rgba(74,168,255,0.25);color:#89c8ff;" onclick="exportPDF(decodeURIComponent(\'' +fullEnc+ '\'),this)">📄 Sačuvaj PDF</button>'+
     '<button class="resp-action-btn follow-up-btn" id="followUpBtn_'+Date.now()+'" onclick="startFollowUp(this)">🔁 Follow-up</button>'+
     '</div>';
+  html = _injectIzmeneBadges(html);
   return html;
 }
 
