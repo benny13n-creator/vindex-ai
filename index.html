@@ -7217,5 +7217,31 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+<script>
+(function() {
+  const all = document.querySelectorAll('*');
+  const over = [];
+  all.forEach(el => {
+    if (el.scrollWidth > document.documentElement.clientWidth) {
+      over.push({
+        tag: el.tagName,
+        id: el.id,
+        class: el.className.toString().substring(0, 50),
+        scrollWidth: el.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+        diff: el.scrollWidth - document.documentElement.clientWidth
+      });
+    }
+  });
+  console.log('OVERFLOW ELEMENTS:', JSON.stringify(over, null, 2));
+  // Prikazi na ekranu za mobilni debug
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;font-size:11px;z-index:99999;padding:4px;overflow-y:auto;max-height:200px;';
+  div.innerHTML = '<b>OVERFLOW:</b><br>' + over.map(e =>
+    e.tag + '#' + e.id + '.' + e.class.split(' ')[0] + ' +' + e.diff + 'px'
+  ).join('<br>');
+  document.body.appendChild(div);
+})();
+</script>
 </body>
 </html>
