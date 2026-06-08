@@ -942,6 +942,7 @@ footer { padding: 2rem 1.5rem; }
 
 @media (max-width: 768px) {
   .beam-xl, .orb { display: none; }
+  .tab-icon { display: none; }
   .t-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -1654,9 +1655,9 @@ footer { padding: 2rem 1.5rem; }
             <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
             <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
             <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
-            <div class="t-tab" onclick="setTab(this,'p')">📁 Predmeti</div>
-            <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')">⚔️ Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
-            <div class="t-tab" onclick="setTab(this,'k')">👥 Klijenti</div>
+            <div class="t-tab" onclick="setTab(this,'p')"><span class="tab-icon">📁 </span>Predmeti</div>
+            <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="tab-icon">⚔️ </span>Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
+            <div class="t-tab" onclick="setTab(this,'k')"><span class="tab-icon">👥 </span>Klijenti</div>
             <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">₿ Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
           </div>
           <div id="chat-hist" class="chat-hist"></div>
