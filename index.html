@@ -4896,6 +4896,11 @@ function pred_renderProcena(tekst) {
     {k:'16. SLEDEĆI NAJBOLJI KORAK',         icon:'🚀',  lbl:'Sledeći korak',                   special:'sledeci'},
     {k:'17. PITANJA ZA KLIJENTA',            icon:'💬',  lbl:'Pitanja za klijenta',             special:'pitanja'},
     {k:'18. POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
+    // v2 extended sections (Phase 3.4)
+    {k:'19. ŽALBENI OSNOVI',                 icon:'⚖️',  lbl:'Žalbeni osnovi',                  special:''},
+    {k:'20. SLEDEĆI KORACI',                 icon:'🚀',  lbl:'Sledeći koraci',                  special:'sledeci_koraci'},
+    {k:'21. PROCENA USPEHA',                 icon:'🎯',  lbl:'Procena uspeha',                  special:'uspeh'},
+    {k:'22. RELEVANTNA SUDSKA PRAKSA',       icon:'📚',  lbl:'Relevantna sudska praksa',         special:'praksa'},
     // legacy v6 16-section fallback
     {k:'9. NEDOSTAJUĆE ČINJENICE',           icon:'❓',  lbl:'Nedostajuće činjenice',            special:'nedostajuce'},
     {k:'10. POTREBNI DOKAZI',                icon:'📋',  lbl:'Potrebni dokazi',                 special:'dokazi'},
@@ -4942,6 +4947,10 @@ function pred_renderProcena(tekst) {
     {k:'SLEDEĆI NAJBOLJI KORAK',         icon:'🚀',  lbl:'Sledeći korak',                  special:'sledeci'},
     {k:'PITANJA ZA KLIJENTA',            icon:'💬',  lbl:'Pitanja za klijenta',            special:'pitanja'},
     {k:'POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',             special:'pouzdanost'},
+    {k:'ŽALBENI OSNOVI',                 icon:'⚖️',  lbl:'Žalbeni osnovi',                 special:''},
+    {k:'SLEDEĆI KORACI',                 icon:'🚀',  lbl:'Sledeći koraci',                 special:'sledeci_koraci'},
+    {k:'PROCENA USPEHA',                 icon:'🎯',  lbl:'Procena uspeha',                 special:'uspeh'},
+    {k:'RELEVANTNA SUDSKA PRAKSA',       icon:'📚',  lbl:'Relevantna sudska praksa',        special:'praksa'},
     {k:'STRATEGIJA ZA TUŽIOCA',          icon:'🗺️',  lbl:'Strategija tužioca',             special:'strategija'},
     {k:'STRATEGIJA ZA TUŽENOG',          icon:'🛡️',  lbl:'Strategija tuženog',             special:'strategija'},
     {k:'PREDVIĐENI ARGUMENTI TUŽENOG',   icon:'🧩',  lbl:'Predviđeni argumenti tuženog',   special:'predvidjeni'},
@@ -5238,11 +5247,45 @@ function pred_renderProcena(tekst) {
       }).join('');
       if (!bodyHtml.trim()) bodyHtml = escHtml(body);
 
+    } else if (x.s.special === 'sledeci_koraci') {
+      // Render numbered process steps
+      var lines = body.split('\n');
+      var sHtml = lines.map(function(ln) {
+        var m = ln.match(/^(\d+)\.\s+(.+)/);
+        if (m) return '<div style="display:flex;gap:0.6rem;padding:0.22rem 0;align-items:baseline;border-bottom:1px solid rgba(255,255,255,0.04);">'
+          +'<span style="font-size:0.7rem;font-weight:700;color:#4aa8ff;min-width:1.3rem;flex-shrink:0;">'+escHtml(m[1])+'.</span>'
+          +'<span style="font-size:0.78rem;color:rgba(255,255,255,0.82);">'+escHtml(m[2])+'</span>'
+          +'</div>';
+        return ln.trim() ? '<div style="font-size:0.74rem;color:rgba(255,255,255,0.4);">'+escHtml(ln)+'</div>' : '';
+      }).join('');
+      bodyHtml = sHtml || escHtml(body);
+
+    } else if (x.s.special === 'uspeh') {
+      // Render PROCENA USPEHA: XX% with progress bar
+      var uMatch = body.match(/PROCENA USPEHA:\s*(\d+)%/i);
+      var upct = uMatch ? parseInt(uMatch[1], 10) : 0;
+      var uBarCls = upct >= 65 ? '' : (upct >= 40 ? ' mid' : ' low');
+      var uClean = body.replace(/PROCENA USPEHA:\s*\d+%\s*/i, '');
+      var uLines = uClean.split('\n').map(function(ln) {
+        if (/^Faktori koji povećavaju šanse:/i.test(ln)) {
+          return '<div style="font-size:0.74rem;color:#4ade80;margin-top:0.35rem;font-weight:600;">'+escHtml(ln)+'</div>';
+        }
+        if (/^Faktori koji smanjuju šanse:/i.test(ln)) {
+          return '<div style="font-size:0.74rem;color:#f87171;margin-top:0.35rem;font-weight:600;">'+escHtml(ln)+'</div>';
+        }
+        var bM = ln.match(/^-\s*(.+)/);
+        if (bM) return '<div style="font-size:0.74rem;color:rgba(255,255,255,0.68);padding-left:0.5rem;padding:0.1rem 0 0.1rem 0.5rem;">'+escHtml(ln)+'</div>';
+        return ln.trim() ? '<div style="font-size:0.74rem;color:rgba(255,255,255,0.58);">'+escHtml(ln)+'</div>' : '';
+      }).join('');
+      bodyHtml = '<div class="procena-progress-wrap"><div class="procena-progress-bar'+uBarCls+'" style="width:'+Math.min(100,upct)+'%"></div></div>'
+        + '<div style="font-size:0.72rem;color:rgba(255,255,255,0.45);margin-bottom:0.4rem;">'+upct+'% verovatnoća uspeha tužioca</div>'
+        + uLines;
+
     } else {
       bodyHtml = escHtml(body);
     }
 
-    var openCls = (x.s.special === 'kompletiranost' || x.s.special === 'rizik' || x.s.special === 'pouzdanost' || x.s.special === 'sledeci' || x.s.special === 'zastavice') ? ' open' : '';
+    var openCls = (x.s.special === 'kompletiranost' || x.s.special === 'rizik' || x.s.special === 'pouzdanost' || x.s.special === 'sledeci' || x.s.special === 'zastavice' || x.s.special === 'uspeh') ? ' open' : '';
     html += '<div class="procena-section">'
       +'<div class="procena-section-hdr'+extraCls+'" onclick="this.nextElementSibling.classList.toggle(\'open\')">'
       +'<span class="sec-icon">'+x.s.icon+'</span>'+escHtml(x.s.lbl)+' <span>▾</span></div>'

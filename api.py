@@ -2662,6 +2662,108 @@ PRAVILA:
 
 _PROCENA_SYSTEM_PROMPT = _PROCENA_SYSTEM_PROMPT + _CITATION_GUARD
 
+# ── Phase 3.4: V2 addendum — sekcije 19-21 (appended to existing 18-section prompt) ──
+_PROCENA_V2_ADDENDUM = """
+
+DODATNE OBAVEZNE SEKCIJE (dodaj na kraju, iza sekcije 18):
+
+19. ŽALBENI OSNOVI
+Samo ako postoje uslovi za žalbu, prigovor ili pravno sredstvo u ovom predmetu.
+Navedi konkretne zakonske osnove za žalbu (max 3), u obliku:
+- Osnov 1: [naziv pravnog osnova] — [zakonska odredba ako je primenljiva]
+  Jačina: JAKA / SREDNJA / SLABA — [obrazloženje u 1 rečenici]
+- Osnov 2: ...
+Ako žalbeni postupak još nije aktuelan, napiši: "Žalbeni postupak još nije aktivan — predmet je u pripremnoj fazi."
+
+20. SLEDEĆI KORACI
+Konkretnih 3-5 koraka koje stranka mora preduzeti — sortiranih po hitnosti:
+1. [korak 1 — konkretan, sa rokom ako postoji]
+2. [korak 2]
+3. [korak 3]
+4. [opcionalni korak 4]
+5. [opcionalni korak 5]
+Svaki korak mora biti specifičan za ovaj predmet, ne generički.
+
+21. PROCENA USPEHA
+OBAVEZNO: prva linija mora biti tačno u ovom formatu (bez izmena):
+PROCENA USPEHA: XX%
+gde XX je procenjena verovatnoća uspeha tužioca u rasponu 5-90.
+OBAVEZNO vrednost mora biti između 5 i 90 — nikad 0 ili 100.
+Zatim:
+Obrazloženje: [2-3 rečenice koje objašnjavaju procenu]
+Faktori koji povećavaju šanse:
+- [faktor 1]
+- [faktor 2]
+Faktori koji smanjuju šanse:
+- [faktor 1]
+- [faktor 2]
+"""
+
+
+def _fetch_relevantne_presude_sync(tekst: str, top_k: int = 5) -> list:
+    """Phase 3.4 — Fetch top relevant court decisions from Pinecone for Section 22.
+    Queries sudska_praksa and upravna_praksa, deduplicates by decision_number."""
+    from app.services.retrieve import _get_index, _ugradi_query, _pretraga_ns
+    try:
+        vec = _ugradi_query(tekst[:500])
+    except Exception as _e:
+        logger.warning("[P3.4] Embedding greška: %s", _e)
+        return []
+    index = _get_index()
+    seen_dn: set = set()
+    results: list = []
+    for ns in ("sudska_praksa", "upravna_praksa"):
+        try:
+            matches = _pretraga_ns(vec, ns, k=top_k)
+            for m in matches:
+                md = m.metadata or {}
+                dn = md.get("decision_number") or md.get("decision_id_fallback") or ""
+                if not dn or dn in seen_dn:
+                    continue
+                seen_dn.add(dn)
+                results.append({
+                    "broj":   dn,
+                    "datum":  md.get("decision_date", ""),
+                    "sud":    md.get("court", ""),
+                    "oblast": md.get("matter", ""),
+                    "pravni_stav_preview": (md.get("text") or "")[:250],
+                    "score":  round(float(m.score), 3),
+                })
+        except Exception as _ne:
+            logger.debug("[P3.4] ns=%s fetch greška: %s", ns, _ne)
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return results[:top_k]
+
+
+def _format_sekcija22(presude: list) -> str:
+    """Phase 3.4 — Format Pinecone results as Section 22 text."""
+    if not presude:
+        return ""
+    parts = []
+    for p in presude:
+        broj   = p.get("broj") or "?"
+        sud    = p.get("sud") or ""
+        datum  = p.get("datum") or ""
+        oblast = p.get("oblast") or ""
+        score  = p.get("score", 0)
+        tekst  = (p.get("pravni_stav_preview") or "").strip()
+        sim_pct = min(99, int(float(score) * 100))
+        header = f"• [{broj}]"
+        if sud:
+            header += f" ({sud})"
+        if datum:
+            header += f" — {datum}"
+        lines = [header]
+        if oblast:
+            lines.append(f"  Oblast: {oblast}")
+        lines.append(f"  Sličnost sa predmetom: {sim_pct}%")
+        if tekst:
+            preview = tekst[:220] + ("..." if len(tekst) > 220 else "")
+            lines.append(f'  Pravni stav: "{preview}"')
+        parts.append("\n".join(lines))
+    return "\n\n22. RELEVANTNA SUDSKA PRAKSA\n" + "\n\n".join(parts) + "\n"
+
+
 # ── Phase 2.2: Hronologija dokaza — extracts all dated events from a document ──
 _HRONOLOGIJA_SYSTEM_PROMPT = """Ti si pravni asistent koji analizira pravne dokumente i izvlači sve datume i događaje.
 
@@ -2795,7 +2897,7 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
             max_tokens=4500,
             timeout=90.0,
             messages=[
-                {"role": "system", "content": _PROCENA_SYSTEM_PROMPT},
+                {"role": "system", "content": _PROCENA_SYSTEM_PROMPT + _PROCENA_V2_ADDENDUM},
                 {"role": "user",   "content": user_content},
             ],
         )
@@ -2803,6 +2905,19 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
     except Exception:
         logger.exception("[PROCENA] GPT-4o greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju procene. Pokušajte ponovo.")
+
+    # Phase 3.4 — Append Section 22: Pinecone-retrieved relevant court decisions
+    if procena_tekst:
+        try:
+            _rel22 = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_relevantne_presude_sync, cinjenice[:500]),
+                timeout=7.0,
+            )
+            if _rel22:
+                procena_tekst += _format_sekcija22(_rel22)
+                logger.info("[P3.4] /procena Sekcija 22: %d presuda", len(_rel22))
+        except (asyncio.TimeoutError, Exception) as _s22e:
+            logger.warning("[P3.4] /procena Sekcija 22 greška: %s", _s22e)
 
     # Persist to predmet_istorija if linked to a case
     if predmet_id and procena_tekst:
@@ -2920,11 +3035,11 @@ async def predmet_upload_auto_analyze(
         truncate_label = "\n[...presuda se nastavlja, prikazan je izvod...]"
         max_tok        = 1200
     else:
-        system_prompt  = _PROCENA_SYSTEM_PROMPT
+        system_prompt  = _PROCENA_SYSTEM_PROMPT + _PROCENA_V2_ADDENDUM
         text_limit     = 3000
         text_label     = "Sadržaj uploadovanog dokumenta"
         truncate_label = "\n[...dokument nastavlja...]"
-        max_tok        = 2800
+        max_tok        = 4000
 
     # ── Phase 2.1 RAG + Law Hints ─────────────────────────────────────────────
     _rag_query = f"{predmet_naziv} {predmet_tip} " + " ".join(text[:400].split())
@@ -3067,6 +3182,21 @@ async def predmet_upload_auto_analyze(
         logger.info("[P1.1] Auto-procena uspešna za predmet=%s, chars=%d", predmet_id, len(procena_tekst))
     else:
         logger.warning("[P1.1] Auto-procena greška za predmet=%s: %s", predmet_id, _pr)
+
+    # Phase 3.4 — Append Section 22: Pinecone-retrieved relevant court decisions
+    if procena_tekst and doc_type != "presuda":
+        try:
+            _rel_presude = await asyncio.wait_for(
+                asyncio.to_thread(_fetch_relevantne_presude_sync, cinjenice_text[:500]),
+                timeout=7.0,
+            )
+            if _rel_presude:
+                procena_tekst += _format_sekcija22(_rel_presude)
+                logger.info("[P3.4] upload Sekcija 22: %d presuda dodato za predmet=%s", len(_rel_presude), predmet_id)
+        except asyncio.TimeoutError:
+            logger.warning("[P3.4] upload Sekcija 22 timeout — preskačem")
+        except Exception as _s22e:
+            logger.warning("[P3.4] upload Sekcija 22 greška: %s", _s22e)
 
     if procena_tekst:
         try:
