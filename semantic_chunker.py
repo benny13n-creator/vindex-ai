@@ -43,7 +43,7 @@ ZAKON_SHORTCODES: dict[str, str] = {
 MIN_STAV_DUZINA   = 60    # minimalna dužina stava da bi ušao kao chunk
 MAX_STAV_DUZINA   = 300   # hard limit za mali (search) chunk
 MAX_PARENT_DUZINA = 3000  # hard limit za parent text koji ide LLM-u
-STUB_THRESHOLD    = 200   # parent_text kraći od ovoga = stub chunk (log upozorenje)
+STUB_THRESHOLD    = 60    # parent_text kraći od ovoga = stub chunk (log upozorenje)
 
 # Strukturalna zaglavlja koja se u izvornim PDF-ovima nalaze IZMEĐU članova.
 # Bez strippinga, ova zaglavlja bivaju upijeni u tekst prethodnog člana.
