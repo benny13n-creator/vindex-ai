@@ -1869,6 +1869,30 @@ def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
     decisions.sort(key=lambda d: d["score"], reverse=True)
     decisions = decisions[:top_k]
 
+    # For decisions with thin text (<150 chars), fetch all chunks via metadata filter.
+    # The top-300 semantic query may miss OBRAZLOŽENJE chunks if they aren't
+    # semantically similar to the query keyword — this ensures ratio extraction works.
+    for d in decisions:
+        if len(d.get("obraz_text", "")) < 150:
+            try:
+                full_res = index.query(
+                    vector=vektor,
+                    top_k=20,
+                    namespace=_PRAKSA_NS,
+                    include_metadata=True,
+                    filter={"decision_number": {"$eq": d["decision_number"]}},
+                )
+                full_text = " ".join(
+                    (m.metadata.get("text") or "")
+                    for m in full_res.matches
+                    if m.metadata and m.metadata.get("section") not in ("HEADER", "")
+                ).strip()
+                if len(full_text) > len(d.get("obraz_text", "")):
+                    d["obraz_text"] = full_text[:3000]
+                    logger.info("[GRUPISANO] full-text fetch %r → %d chars", d["decision_number"], len(d["obraz_text"]))
+            except Exception as _fe:
+                logger.debug("[GRUPISANO] full-text fetch failed for %r: %s", d["decision_number"], _fe)
+
     grupe: dict = {"tuzilac": [], "tuzeni": [], "mesovito": [], "nepoznato": []}
     for d in decisions:
         grupe[{"tuzilac_pobedio": "tuzilac", "tuzeni_pobedio": "tuzeni",

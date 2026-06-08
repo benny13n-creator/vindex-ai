@@ -2064,6 +2064,9 @@ def _save_ratio_to_cache(decision_number: str, ratio: str) -> None:
         logger.warning("[RATIO] Cache save failed for %r: %s", decision_number, e)
 
 
+_IZREKA_ONLY = "__IZREKA_ONLY__"
+
+
 def _extract_ratio_sync(decision_number: str, tekst: str) -> str:
     """Check cache → GPT-4o mini → cache. Thread-safe, never throws."""
     if not decision_number:
@@ -2072,8 +2075,12 @@ def _extract_ratio_sync(decision_number: str, tekst: str) -> str:
     if cached:
         logger.debug("[RATIO] HIT %r", decision_number)
         return cached
-    if not tekst or len(tekst.strip()) < 60:
-        return ""
+    tekst_stripped = (tekst or "").strip()
+    logger.info("[RATIO] MISS %r — text_len=%d preview=%r",
+                decision_number, len(tekst_stripped), tekst_stripped[:80])
+    if len(tekst_stripped) < 60:
+        logger.info("[RATIO] IZREKA_ONLY %r — tekst: %r", decision_number, tekst_stripped)
+        return _IZREKA_ONLY
     try:
         from openai import OpenAI as _OAI
         client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -2083,10 +2090,11 @@ def _extract_ratio_sync(decision_number: str, tekst: str) -> str:
             max_tokens=220,
             messages=[
                 {"role": "system", "content": _RATIO_SYSTEM_PROMPT},
-                {"role": "user",   "content": tekst[:3000]},
+                {"role": "user",   "content": tekst_stripped[:3000]},
             ],
         )
         ratio = (resp.choices[0].message.content or "").strip()
+        logger.info("[RATIO] GPT response %r → %r", decision_number, ratio[:120])
     except Exception as e:
         logger.warning("[RATIO] GPT failed for %r: %s", decision_number, e)
         return ""

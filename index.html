@@ -3827,7 +3827,10 @@ async function praksa_fetch_ratios(decisions, startIdx) {
     var box = document.getElementById('ratio-' + idx);
     var txt = document.getElementById('ratio-text-' + idx);
     if (!box || !txt) return;
-    if (ratio) {
+    if (ratio === '__IZREKA_ONLY__') {
+      txt.className = 'ratio-text ratio-loading';
+      txt.textContent = 'Presuda sadrži samo izreku bez obrazloženja.';
+    } else if (ratio) {
       txt.className = 'ratio-text';
       txt.textContent = ratio;
     } else {
@@ -3988,7 +3991,10 @@ function praksa_render_grupisano(data) {
         var box = document.getElementById('ratio-' + rid);
         var txt = document.getElementById('ratio-text-' + rid);
         if (!box || !txt) return;
-        if (ratio) {
+        if (ratio === '__IZREKA_ONLY__') {
+          txt.className = 'ratio-text ratio-loading';
+          txt.textContent = 'Presuda sadrži samo izreku bez obrazloženja.';
+        } else if (ratio) {
           txt.className = 'ratio-text';
           txt.textContent = ratio;
         } else {
