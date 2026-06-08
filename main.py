@@ -2063,10 +2063,16 @@ SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + _PRAKSA_PROMPT_ADDENDUM
 _MISLJENJA_PROMPT_ADDENDUM = (
     "\n\n📋 MIŠLJENJA MINISTARSTAVA — STROGO PRAVILO:\n"
     "- Ako je u kontekstu prisutan blok \"MIŠLJENJA MINISTARSTAVA\", "
-    "citiraj relevantno mišljenje u sekciji 'hijerarhija_izvora' ili 'pravni_zakljucak' "
-    "formom: 'Mišljenje [ministarstvo], br. [broj], od [datum]: [kratak sadržaj]'.\n"
-    "- NIKADA ne izmišljaj mišljenja koja nisu u dostavljenom kontekstu.\n"
-    "- Ako nema bloka \"MIŠLJENJA MINISTARSTAVA\" u kontekstu → ne navoditi mišljenja."
+    "OBAVEZNO dodaj posebnu sekciju između --- CITAT ZAKONA [RAG] i --- PRAVNI OSNOV, "
+    "koristeći TAČNO ovaj format (bez izmena markera):\n"
+    "\n"
+    "--- MIŠLJENJA MINISTARSTAVA\n"
+    "Mišljenje [ministarstvo], br. [broj], od [datum]: [kratak sadržaj od 1-2 rečenice]\n"
+    "[Navedi max 2 mišljenja koja su direktno relevantna za postavljeno pitanje]\n"
+    "\n"
+    "- NIKADA ne izmišljaj mišljenja — navodi SAMO ona koja su doslovno u bloku konteksta.\n"
+    "- Ako nema bloka \"MIŠLJENJA MINISTARSTAVA\" u kontekstu → sekciju POTPUNO IZOSTAVI.\n"
+    "- Ako je blok prisutan ali nijedno nije relevantno za pitanje → sekciju IZOSTAVI."
 )
 
 SYSTEM_PROMPT_PARNICA    = SYSTEM_PROMPT_PARNICA    + _MISLJENJA_PROMPT_ADDENDUM
