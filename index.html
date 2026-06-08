@@ -4893,7 +4893,6 @@ function pred_renderProcena(tekst) {
     {k:'13. KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                  special:'kompletiranost'},
     {k:'14. PROCENA RIZIKA',                 icon:'🎯',  lbl:'Procena rizika',                  special:'rizik'},
     {k:'15. RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',               special:'praksa'},
-    {k:'16. SLEDEĆI NAJBOLJI KORAK',         icon:'🚀',  lbl:'Sledeći korak',                   special:'sledeci'},
     {k:'17. PITANJA ZA KLIJENTA',            icon:'💬',  lbl:'Pitanja za klijenta',             special:'pitanja'},
     {k:'18. POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
     // v2 extended sections (Phase 3.4)
@@ -4907,7 +4906,6 @@ function pred_renderProcena(tekst) {
     {k:'11. KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                  special:'kompletiranost'},
     {k:'12. PROCENA RIZIKA',                 icon:'🎯',  lbl:'Procena rizika',                  special:'rizik'},
     {k:'13. RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',               special:'praksa'},
-    {k:'14. SLEDEĆI NAJBOLJI KORAK',         icon:'🚀',  lbl:'Sledeći korak',                   special:'sledeci'},
     {k:'15. PITANJA ZA KLIJENTA',            icon:'💬',  lbl:'Pitanja za klijenta',             special:'pitanja'},
     {k:'16. POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
     // legacy v5 14-section fallback
@@ -4915,7 +4913,6 @@ function pred_renderProcena(tekst) {
     {k:'10. KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                  special:'kompletiranost'},
     {k:'11. PROCENA RIZIKA',                 icon:'🎯',  lbl:'Procena rizika',                  special:'rizik'},
     {k:'12. RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',               special:'praksa'},
-    {k:'13. SLEDEĆI NAJBOLJI KORAK',         icon:'🚀',  lbl:'Sledeći korak',                   special:'sledeci'},
     {k:'14. POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
     // legacy v4 13-section fallback
     {k:'7. KLJUČNA ČINJENICA',               icon:'🔑',  lbl:'Ključna činjenica',               special:'kljucna'},
@@ -4944,7 +4941,6 @@ function pred_renderProcena(tekst) {
     {k:'KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                 special:'kompletiranost'},
     {k:'PROCENA RIZIKA',                 icon:'🎯',  lbl:'Procena rizika',                 special:'rizik'},
     {k:'RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',              special:'praksa'},
-    {k:'SLEDEĆI NAJBOLJI KORAK',         icon:'🚀',  lbl:'Sledeći korak',                  special:'sledeci'},
     {k:'PITANJA ZA KLIJENTA',            icon:'💬',  lbl:'Pitanja za klijenta',            special:'pitanja'},
     {k:'POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',             special:'pouzdanost'},
     {k:'ŽALBENI OSNOVI',                 icon:'⚖️',  lbl:'Žalbeni osnovi',                 special:''},
@@ -5285,7 +5281,7 @@ function pred_renderProcena(tekst) {
       bodyHtml = escHtml(body);
     }
 
-    var openCls = (x.s.special === 'kompletiranost' || x.s.special === 'rizik' || x.s.special === 'pouzdanost' || x.s.special === 'sledeci' || x.s.special === 'zastavice' || x.s.special === 'uspeh') ? ' open' : '';
+    var openCls = (x.s.special === 'kompletiranost' || x.s.special === 'rizik' || x.s.special === 'pouzdanost' || x.s.special === 'zastavice' || x.s.special === 'uspeh') ? ' open' : '';
     html += '<div class="procena-section">'
       +'<div class="procena-section-hdr'+extraCls+'" onclick="this.nextElementSibling.classList.toggle(\'open\')">'
       +'<span class="sec-icon">'+x.s.icon+'</span>'+escHtml(x.s.lbl)+' <span>▾</span></div>'

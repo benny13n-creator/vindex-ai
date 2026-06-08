@@ -2505,7 +2505,7 @@ _PRESUDA_SYSTEM_PROMPT = _PRESUDA_SYSTEM_PROMPT + _CITATION_GUARD
 _PROCENA_SYSTEM_PROMPT = """Ti si stručni pravni analitičar za srpsko pravo.
 Na osnovu opisanih činjenica pruži strukturiranu pravnu procenu.
 
-OBAVEZNI FORMAT — tačno ovih 18 sekcija:
+OBAVEZNI FORMAT — tačno ovih 17 sekcija:
 
 1. PRAVNI OSNOV
 Navedi SVE primenjive zakonske odredbe na opisanu situaciju — bez obzira na to koju stranu štite.
@@ -2609,14 +2609,6 @@ Za svaku presudu obavezno ovim redom:
   Ako sud usvoji isti pravni stav → [konkretna posledica za tužioca ili tuženog u ovom predmetu]
   Podržava: Tužioca / Tuženog / Neutralno
 Navedi max 3 presude.
-
-16. SLEDEĆI NAJBOLJI KORAK
-Dokumenti koji bi najviše povećali pouzdanost procene:
-- [dokument 1] → povećanje: +XX%
-- [dokument 2] → povećanje: +XX%
-- [dokument 3] → povećanje: +XX%
-Trenutna pouzdanost: XX% → Očekivana nakon dokumenata: YY%
-OBAVEZNO: YY% nikad ne sme biti veće od 95%.
 
 17. PITANJA ZA KLIJENTA
 Konkretna pitanja koja advokat treba da postavi klijentu — navedi minimum 4:
