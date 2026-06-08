@@ -238,9 +238,9 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .srp-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
 
 /* TERMINAL */
-.terminal { background: rgba(1,5,14,0.92); border: 1px solid rgba(74,168,255,0.18); border-radius: 16px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); backdrop-filter: blur(20px); position: relative; -webkit-overflow-scrolling: touch; }
+.terminal { background: rgba(1,5,14,0.92); border: 1px solid rgba(74,168,255,0.18); border-radius: 16px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); backdrop-filter: blur(20px); position: relative; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; box-sizing: border-box; }
 .terminal::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.5), rgba(201,168,76,0.3), transparent); }
-.t-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
+.t-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); overflow: hidden; min-width: 0; }
 .t-dots { display: flex; gap: 6px; }
 .t-dot { width: 10px; height: 10px; border-radius: 50%; }
 .td1{background:#ff5f57;} .td2{background:#ffbd2e;} .td3{background:#28c840;}
@@ -792,7 +792,7 @@ blockquote.citat-expanded { max-height: none; }
 
 /* ── TERMINAL — SPINNING BORDER ─────────────────────────────────────────── */
 @property --tangle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
-.terminal-wrap { position: relative; border-radius: 17px; }
+.terminal-wrap { position: relative; border-radius: 17px; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden; }
 .terminal-wrap::before { content: ''; position: absolute; inset: -1px; border-radius: 17px; padding: 1px; background: conic-gradient(from var(--tangle), transparent 0%, transparent 60%, rgba(74,168,255,0.7) 72%, rgba(201,168,76,0.5) 80%, transparent 92%); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude; animation: tspin 5s linear infinite; opacity: 0.55; pointer-events: none; }
 @keyframes tspin { to { --tangle: 360deg; } }
 
@@ -6396,9 +6396,9 @@ function pred_select(id) {
     var oblEl = document.getElementById('pred-s-oblast');
     if (oblEl) oblEl.textContent = predmetObj.tip || '—';
   }
-  // Allow terminal to grow beyond grid row height
+  // Allow terminal to grow beyond grid row height — desktop only, mobile keeps overflow:hidden
   var terminal = document.querySelector('.terminal');
-  if (terminal) terminal.style.overflow = 'visible';
+  if (terminal && window.innerWidth > 900) terminal.style.overflow = 'visible';
 }
 
 function pred_updateIndicator() {
