@@ -2687,20 +2687,62 @@ function editPodnesak() {
 
 /* ── Phase 2.3: Zakon izmene metadata ──────────────────────────────────────── */
 var _ZAKON_IZMENE_DATA = {
-  "ZR":     { naziv:"Zakon o radu",                                         pocetna:"24/2005",  poslednja:"109/2025", god:2025 },
-  "ZOO":    { naziv:"Zakon o obligacionim odnosima",                        pocetna:"29/1978",  poslednja:"44/2018",  god:2018 },
-  "KZ":     { naziv:"Krivični zakonik",                                     pocetna:"85/2005",  poslednja:"9/2023",   god:2023 },
-  "ZPP":    { naziv:"Zakon o parničnom postupku",                           pocetna:"72/2011",  poslednja:"18/2020",  god:2020 },
-  "ZKP":    { naziv:"Zakonik o krivičnom postupku",                         pocetna:"72/2011",  poslednja:"35/2019",  god:2019 },
-  "ZPD":    { naziv:"Zakon o privrednim društvima",                         pocetna:"36/2011",  poslednja:"109/2021", god:2021 },
-  "ZDI":    { naziv:"Zakon o digitalnoj imovini",                           pocetna:"153/2020", poslednja:"153/2020", god:2020 },
-  "ZZPL":   { naziv:"Zakon o zaštiti podataka o ličnosti",                  pocetna:"87/2018",  poslednja:"87/2018",  god:2018 },
-  "ZN":     { naziv:"Zakon o nasleđivanju",                                 pocetna:"46/1995",  poslednja:"6/2015",   god:2015 },
-  "PZ":     { naziv:"Porodični zakon",                                      pocetna:"18/2005",  poslednja:"6/2015",   god:2015 },
-  "ZIO":    { naziv:"Zakon o izvršenju i obezbeđenju",                      pocetna:"106/2015", poslednja:"9/2020",   god:2020 },
-  "ZOUP":   { naziv:"Zakon o opštem upravnom postupku",                     pocetna:"18/2016",  poslednja:"95/2018",  god:2018 },
-  "ZSPNFT": { naziv:"Zakon o sprečavanju pranja novca i finansiranja terorizma", pocetna:"113/2017", poslednja:"35/2023", god:2023 },
-  "ZPDG":   { naziv:"Zakon o porezu na dohodak građana",                    pocetna:"24/2001",  poslednja:"118/2021", god:2021 }
+  "ZR": {
+    naziv:"Zakon o radu", pocetna:"24/2005", poslednja:"109/2025", god:2025,
+    triggers:["Zakon o radu","Zakona o radu","Zakonu o radu","Zakonom o radu","zakonu o radu","zakona o radu","zakon o radu","ZR"]
+  },
+  "ZOO": {
+    naziv:"Zakon o obligacionim odnosima", pocetna:"29/1978", poslednja:"44/2018", god:2018,
+    triggers:["Zakon o obligacionim","Zakona o obligacionim","Zakonu o obligacionim","Zakonom o obligacionim","obligacionim odnosima","ZOO"]
+  },
+  "KZ": {
+    naziv:"Krivični zakonik", pocetna:"85/2005", poslednja:"9/2023", god:2023,
+    triggers:["Krivični zakonik","Krivičnog zakonika","Krivičnom zakoniku","Krivičnim zakonikom","krivični zakonik","krivičnog zakonika","KZ"]
+  },
+  "ZPP": {
+    naziv:"Zakon o parničnom postupku", pocetna:"72/2011", poslednja:"18/2020", god:2020,
+    triggers:["Zakon o parničnom","Zakona o parničnom","Zakonu o parničnom","parničnom postupku","ZPP"]
+  },
+  "ZKP": {
+    naziv:"Zakonik o krivičnom postupku", pocetna:"72/2011", poslednja:"35/2019", god:2019,
+    triggers:["Zakonik o krivičnom","Zakonika o krivičnom","krivičnom postupku","ZKP"]
+  },
+  "ZPD": {
+    naziv:"Zakon o privrednim društvima", pocetna:"36/2011", poslednja:"109/2021", god:2021,
+    triggers:["Zakon o privrednim","Zakona o privrednim","privrednim društvima","ZPD"]
+  },
+  "ZDI": {
+    naziv:"Zakon o digitalnoj imovini", pocetna:"153/2020", poslednja:"153/2020", god:2020,
+    triggers:["Zakon o digitalnoj imovini","Zakona o digitalnoj imovini","digitalnoj imovini","ZDI"]
+  },
+  "ZZPL": {
+    naziv:"Zakon o zaštiti podataka o ličnosti", pocetna:"87/2018", poslednja:"87/2018", god:2018,
+    triggers:["zaštiti podataka o ličnosti","podataka o ličnosti","ZZPL"]
+  },
+  "ZN": {
+    naziv:"Zakon o nasleđivanju", pocetna:"46/1995", poslednja:"6/2015", god:2015,
+    triggers:["Zakon o nasleđivanju","Zakona o nasleđivanju","nasleđivanju","ZN"]
+  },
+  "PZ": {
+    naziv:"Porodični zakon", pocetna:"18/2005", poslednja:"6/2015", god:2015,
+    triggers:["Porodični zakon","Porodičnog zakona","Porodičnom zakonu","PZ"]
+  },
+  "ZIO": {
+    naziv:"Zakon o izvršenju i obezbeđenju", pocetna:"106/2015", poslednja:"9/2020", god:2020,
+    triggers:["Zakon o izvršenju","Zakona o izvršenju","izvršenju i obezbeđenju","ZIO"]
+  },
+  "ZOUP": {
+    naziv:"Zakon o opštem upravnom postupku", pocetna:"18/2016", poslednja:"95/2018", god:2018,
+    triggers:["opštem upravnom postupku","upravnom postupku","ZOUP"]
+  },
+  "ZSPNFT": {
+    naziv:"Zakon o sprečavanju pranja novca i finansiranja terorizma", pocetna:"113/2017", poslednja:"35/2023", god:2023,
+    triggers:["pranja novca i finansiranja","sprečavanju pranja","pranja novca","ZSPNFT"]
+  },
+  "ZPDG": {
+    naziv:"Zakon o porezu na dohodak građana", pocetna:"24/2001", poslednja:"118/2021", god:2021,
+    triggers:["porezu na dohodak","dohodak građana","ZPDG"]
+  }
 };
 
 function _izmenaTag(code) {
@@ -2714,18 +2756,27 @@ function _izmenaTag(code) {
 }
 
 function _injectIzmeneBadges(html) {
-  // Inject amendment badge after first occurrence of each law code abbreviation.
-  // Codes are uppercase acronyms — word-boundary safe, don't appear in CSS classes or URLs.
+  // For each law, iterate its triggers list (covers nominative + genitive + dative
+  // + instrumental case forms + abbreviation — Serbian is highly inflected).
+  // Uses indexOf (no regex) — safe for Serbian diacritics, no \b escaping issues.
+  var tagged = {};
+
+  // Flatten all triggers with their code, sort longest-needle-first
+  var all = [];
   Object.keys(_ZAKON_IZMENE_DATA).forEach(function(code) {
-    var tag = _izmenaTag(code);
-    if (!tag) return;
-    // Skip if badge already present (e.g., double call guard)
-    if (html.indexOf('izmena-tag') !== -1 && html.indexOf(code + '<span class="izmena-tag') !== -1) return;
-    // Match first standalone occurrence (word boundary), inject badge immediately after
-    var re = new RegExp('\b' + code + '\b');
-    if (re.test(html)) {
-      html = html.replace(re, code + tag);
-    }
+    var info = _ZAKON_IZMENE_DATA[code];
+    var trigs = info.triggers || [info.naziv, code];
+    trigs.forEach(function(needle) { all.push({ needle: needle, code: code }); });
+  });
+  all.sort(function(a, b) { return b.needle.length - a.needle.length; });
+
+  all.forEach(function(t) {
+    if (tagged[t.code]) return;
+    var idx = html.indexOf(t.needle);
+    if (idx === -1) return;
+    var tag = _izmenaTag(t.code);
+    html = html.slice(0, idx + t.needle.length) + tag + html.slice(idx + t.needle.length);
+    tagged[t.code] = true;
   });
   return html;
 }
