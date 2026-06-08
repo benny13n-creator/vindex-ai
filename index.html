@@ -1081,6 +1081,33 @@ footer { padding: 2rem 1.5rem; }
 .btn-ics:hover{background:rgba(74,168,255,0.12);border-color:rgba(74,168,255,0.5);}
 .btn-ics-all{margin-top:.5rem;width:100%;padding:.52rem 1rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:rgba(255,255,255,0.45);font-size:.78rem;cursor:pointer;transition:background .2s;}
 .btn-ics-all:hover{background:rgba(255,255,255,0.05);color:#fff;}
+/* ── F5 AI Strategija ─────────────────────────────────────────────────────── */
+.strat-modul-izbor{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;}
+.strat-btn{padding:7px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5);cursor:pointer;font-size:0.83rem;font-family:'DM Sans',sans-serif;transition:all .2s;min-height:36px;}
+.strat-btn.active{border-color:rgba(74,168,255,0.5);color:#89c8ff;background:rgba(74,168,255,0.1);}
+.strat-btn:hover:not(.active){border-color:rgba(255,255,255,0.22);color:rgba(255,255,255,0.75);}
+.strat-opis-box{font-size:0.82rem;color:rgba(255,255,255,0.48);background:rgba(255,255,255,0.02);border-left:3px solid rgba(74,168,255,0.4);padding:9px 13px;border-radius:0 7px 7px 0;margin-bottom:13px;line-height:1.55;}
+.strat-label{font-size:0.83rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:6px;}
+.strat-input-wrap{margin-bottom:11px;}
+.strat-textarea{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.03);color:#e6edf3;border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:11px 13px;font-size:0.86rem;resize:vertical;line-height:1.55;font-family:'DM Sans',sans-serif;min-height:140px;}
+.strat-textarea:focus{outline:none;border-color:rgba(74,168,255,0.45);}
+.strat-char-count{font-size:0.73rem;color:rgba(255,255,255,0.28);text-align:right;margin-top:3px;}
+.strat-submit-btn{width:100%;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(74,168,255,0.85) 0%,rgba(18,100,196,0.9) 100%);border:none;border-radius:9px;color:#fff;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;transition:opacity .2s;margin-bottom:15px;}
+.strat-submit-btn:hover{opacity:.88;}
+.strat-submit-btn:disabled{opacity:.4;cursor:not-allowed;}
+.strat-rezultat-wrap{display:none;}
+.strat-rezultat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
+.strat-rezultat-naslov{font-weight:600;font-size:0.92rem;color:#e6edf3;}
+.strat-copy-btn{background:transparent;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.45);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.76rem;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.strat-copy-btn:hover{border-color:rgba(255,255,255,0.28);color:rgba(255,255,255,0.75);}
+.strat-rezultat-body{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:9px;padding:15px 16px;font-size:0.85rem;line-height:1.75;max-height:580px;overflow-y:auto;color:#d8dde8;}
+.strat-sekcija{font-weight:700;color:#89c8ff;margin:14px 0 5px;font-size:0.87rem;display:block;}
+.strat-kritican{color:#fc8181;margin:3px 0;}
+.strat-upozorenje{color:#f6ad55;margin:3px 0;}
+.strat-error{color:#fc8181;padding:10px 0;font-size:0.85rem;}
+.strat-loading{color:rgba(255,255,255,0.35);padding:22px 0;text-align:center;font-size:0.83rem;}
+.strat-pro-gate{text-align:center;padding:22px 10px;color:rgba(255,255,255,0.45);line-height:1.9;font-size:0.85rem;}
+.strat-pro-gate strong{color:#89c8ff;}
 /* ── F5 Predmeti ─────────────────────────────────────────────────────────── */
 .predmet-indicator{display:none;font-size:0.7rem;font-family:'JetBrains Mono',monospace;color:#4aa8ff;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.2);border-radius:6px;padding:0.25rem 0.7rem;margin-bottom:0.5rem;letter-spacing:0.03em;}
 .predmet-indicator.show{display:block;}
@@ -1414,6 +1441,7 @@ footer { padding: 2rem 1.5rem; }
             <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
             <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
             <div class="t-tab" onclick="setTab(this,'p')">📁 Predmeti</div>
+            <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')">⚔️ Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
           </div>
           <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
@@ -1649,7 +1677,31 @@ footer { padding: 2rem 1.5rem; }
             <div id="praksa-grupisano-loading" style="display:none;text-align:center;padding:1.8rem 0;color:rgba(255,255,255,0.28);font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;">Analiziram ishode...</div>
             <div id="praksa-grupisano-container" style="display:none;margin-top:0.85rem;"></div>
           </div>
-          <div class="t-exec-row">
+          <!-- TAB: STRATEGIJA (F5) -->
+          <div id="tab-t" style="display:none">
+            <div class="strat-modul-izbor">
+              <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">🔴 Red Team</button>
+              <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">⚖️ Litigation Simulator</button>
+              <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">👨‍⚖️ AI Sudija</button>
+              <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">🔍 Due Diligence</button>
+            </div>
+            <div id="strat-opis" class="strat-opis-box"></div>
+            <div class="strat-input-wrap">
+              <label id="strat-input-label" class="strat-label">Opis predmeta</label>
+              <textarea id="strat-tekst" class="strat-textarea" placeholder="Unesite detaljan opis predmeta ili tekst dokumenta..." rows="8"></textarea>
+              <div class="strat-char-count"><span id="strat-chars">0</span> karaktera</div>
+            </div>
+            <button class="strat-submit-btn" id="strat-submit-btn" onclick="stratPokreni()">Pokreni analizu</button>
+            <div class="strat-rezultat-wrap" id="strat-rezultat-wrap">
+              <div class="strat-rezultat-header">
+                <span class="strat-rezultat-naslov" id="strat-rezultat-naslov"></span>
+                <button class="strat-copy-btn" onclick="stratKopiraj()">📋 Kopiraj</button>
+              </div>
+              <div class="strat-rezultat-body" id="strat-rezultat-body"></div>
+            </div>
+          </div>
+
+          <div class="t-exec-row" id="t-exec-row">
             <button class="t-exec" id="exec-btn" onclick="execQuery()"><span id="btn-lbl">Pretraži pravnu bazu</span></button>
             <label class="cyr-toggle-wrap" title="Prikaži odgovor ćiriličnim pismom">
               <input type="checkbox" id="cyr-toggle" onchange="toggleCyrillic()">
@@ -2040,6 +2092,7 @@ async function loadCredits() {
       _creditsLoaded    = true;
       _creditsLoadedAt  = Date.now();
       _updateProTabUI();
+      _updateStratTabUI();
       updateCreditDisplay();
     } else {
       console.warn('[Vindex] /api/me greška, status:', r.status);
@@ -2496,22 +2549,28 @@ document.querySelectorAll('.r').forEach(function(el){revObs.observe(el);});
 
 /* TABS */
 function setTab(el,t){
-  // PRO gate — tab "n" zahteva PRO status
-  if (t === 'n' && !currentUserIsPro) {
+  // PRO gate — tabovi "n" i "t" zahtevaju PRO status
+  if ((t === 'n' || t === 't') && !currentUserIsPro) {
     openProUpgradeModal();
     return;
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  ['q','n','a','s','p'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
+  ['q','n','a','s','p','t'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti'};
+  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija'};
+  // Sakrij exec row i resp za Strategija tab (ima sopstveni submit)
+  var execRow = document.getElementById('t-exec-row');
+  var credRow = document.getElementById('t-credits-row');
+  var respEl  = document.getElementById('resp');
+  if (execRow) execRow.style.display = (t === 't') ? 'none' : '';
+  if (credRow) credRow.style.display = (t === 't') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='n') updatePodnesakHint();
   if (t==='s') praksa_load_initial();
   if (t==='p') pred_load();
-  document.getElementById('btn-lbl').textContent=lbl[t];
-  document.getElementById('resp').classList.remove('show');
+  document.getElementById('btn-lbl').textContent = lbl[t] || '';
+  if (respEl) respEl.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
   if (window.micStopAll) micStopAll();
 }
@@ -2534,6 +2593,174 @@ function _updateProTabUI() {
 function openProUpgradeModal() {
   var m = document.getElementById('pro-upgrade-modal');
   if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
+}
+
+function _updateStratTabUI() {
+  var tabBtn = document.getElementById('tab-btn-t');
+  var badge  = document.getElementById('pro-badge-t');
+  if (!tabBtn) return;
+  if (currentUserIsPro) {
+    tabBtn.classList.remove('locked');
+    if (badge) { badge.textContent = 'PRO'; badge.style.background = ''; }
+    tabBtn.title = 'PRO funkcija — pristup omogućen';
+  } else {
+    tabBtn.classList.add('locked');
+    if (badge) badge.textContent = '🔒 PRO';
+    tabBtn.title = 'Ova funkcija je dostupna isključivo PRO korisnicima';
+  }
+}
+
+// ── F5 AI STRATEGIJA ──────────────────────────────────────────────────────────
+
+var STRAT_MODULI = {
+  red_team: {
+    naziv:    'Red Team analiza',
+    endpoint: '/strategija/red-team',
+    opis:     'Analizira slabosti tvog predmeta iz perspektive protivne strane. Identifikuje rupe, procesne zamke i argumente koje će protivnik koristiti.',
+    label:    'Opis predmeta (tvoja strana, činjenice, dokazi)',
+    min:      50
+  },
+  litigation: {
+    naziv:    'Litigation Simulator',
+    endpoint: '/strategija/litigation',
+    opis:     'Procenjuje verovatnoću uspeha na sudu u % na osnovu srpske sudske prakse. Preporučuje strategiju: tužba / odbrana / nagodba.',
+    label:    'Opis predmeta (strane, činjenice, pravni osnov)',
+    min:      50
+  },
+  sudija: {
+    naziv:    'AI Sudija',
+    endpoint: '/strategija/sudija',
+    opis:     'Neutralna analiza predmeta iz perspektive iskusnog sudije. Procenjuje osnovanost navoda obe strane bez favorizovanja.',
+    label:    'Opis predmeta (navodi obe strane, procesni stadijum)',
+    min:      50
+  },
+  due_diligence: {
+    naziv:    'Due Diligence',
+    endpoint: '/strategija/due-diligence',
+    opis:     'Sistematski pregled ugovora ili dokumenta — kritični rizici, formalni nedostaci, nedostajuće klauzule, preporuka.',
+    label:    'Tekst dokumenta / ugovora za analizu',
+    min:      100
+  }
+};
+
+var _stratAktivniModul = 'red_team';
+
+// Inicijalizacija opisa i labele pri prvom prikazu taba
+(function() {
+  var m = STRAT_MODULI['red_team'];
+  document.addEventListener('DOMContentLoaded', function() {
+    var opisEl = document.getElementById('strat-opis');
+    var labelEl = document.getElementById('strat-input-label');
+    if (opisEl) opisEl.textContent = m.opis;
+    if (labelEl) labelEl.textContent = m.label;
+    var tekstEl = document.getElementById('strat-tekst');
+    if (tekstEl) tekstEl.addEventListener('input', function() {
+      var c = document.getElementById('strat-chars');
+      if (c) c.textContent = this.value.length;
+    });
+  });
+})();
+
+function stratIzaberiModul(modul, btn) {
+  _stratAktivniModul = modul;
+  document.querySelectorAll('.strat-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  var m = STRAT_MODULI[modul];
+  var opisEl = document.getElementById('strat-opis');
+  var labelEl = document.getElementById('strat-input-label');
+  if (opisEl) opisEl.textContent = m.opis;
+  if (labelEl) labelEl.textContent = m.label;
+  // Sakrij prethodni rezultat i resetuj polje
+  var wrapEl = document.getElementById('strat-rezultat-wrap');
+  var tekstEl = document.getElementById('strat-tekst');
+  var charsEl = document.getElementById('strat-chars');
+  if (wrapEl) wrapEl.style.display = 'none';
+  if (tekstEl) tekstEl.value = '';
+  if (charsEl) charsEl.textContent = '0';
+}
+
+async function stratPokreni() {
+  var tekstEl   = document.getElementById('strat-tekst');
+  var submitBtn = document.getElementById('strat-submit-btn');
+  var wrapEl    = document.getElementById('strat-rezultat-wrap');
+  var naslovEl  = document.getElementById('strat-rezultat-naslov');
+  var bodyEl    = document.getElementById('strat-rezultat-body');
+
+  var tekst = tekstEl ? tekstEl.value.trim() : '';
+  var modul = STRAT_MODULI[_stratAktivniModul];
+
+  if (!currentUser) { openModal(); return; }
+
+  if (!currentUserIsPro) {
+    if (wrapEl) wrapEl.style.display = 'block';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 <strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim AI strategijskim alatima.</small></div>';
+    if (naslovEl) naslovEl.textContent = modul.naziv;
+    return;
+  }
+
+  if (tekst.length < modul.min) {
+    if (wrapEl) wrapEl.style.display = 'block';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Unesite najmanje ' + modul.min + ' karaktera.</div>';
+    if (naslovEl) naslovEl.textContent = modul.naziv;
+    return;
+  }
+
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Analiziram...'; }
+  if (wrapEl) wrapEl.style.display = 'block';
+  if (naslovEl) naslovEl.textContent = modul.naziv;
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ ' + modul.naziv + ' u toku...</div>';
+
+  try {
+    var res = await fetch(BASE_URL + modul.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '')
+      },
+      body: JSON.stringify({ tekst: tekst })
+    });
+
+    if (res.status === 403) {
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 <strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim AI strategijskim alatima.</small></div>';
+      return;
+    }
+    if (!res.ok) throw new Error('Server greška: ' + res.status);
+
+    var data = await res.json();
+    if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.rezultat || '');
+
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + e.message + '</div>';
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
+  }
+}
+
+function stratFormatirajRezultat(tekst) {
+  if (!tekst) return '';
+  var escaped = tekst
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return escaped
+    .replace(/^(\d+\.\s+[A-ZŠĐŽČĆА-Я\s]{3,})$/gm, '<span class="strat-sekcija">$1</span>')
+    .replace(/^(🔴[^\n]+)$/gm, '<span class="strat-kritican">$1</span>')
+    .replace(/^(🟡[^\n]+)$/gm, '<span class="strat-upozorenje">$1</span>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+function stratKopiraj() {
+  var bodyEl = document.getElementById('strat-rezultat-body');
+  if (!bodyEl) return;
+  var tekst = bodyEl.innerText || bodyEl.textContent;
+  navigator.clipboard.writeText(tekst).then(function() {
+    var btn = document.querySelector('.strat-copy-btn');
+    if (btn) {
+      btn.textContent = '✓ Kopirano';
+      setTimeout(function() { btn.textContent = '📋 Kopiraj'; }, 2000);
+    }
+  });
 }
 function closeProUpgradeModal() {
   var m = document.getElementById('pro-upgrade-modal');

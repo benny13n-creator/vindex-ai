@@ -1953,6 +1953,107 @@ async def post_ics_export(req: IcsExportRequest):
     )
 
 
+# ── F5: AI Strategija ─────────────────────────────────────────────────────────
+from strategija import (
+    red_team_analiza_sync,
+    litigation_simulator_sync,
+    ai_judge_mode_sync,
+    due_diligence_analiza_sync,
+)
+
+
+class StrategijaRequest(BaseModel):  # F5
+    tekst: str = Field(..., max_length=20000)
+
+
+@app.post("/strategija/red-team")  # F5.1
+@limiter.limit("5/minute")
+async def post_red_team(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F5.1 — Red Team analiza predmeta iz perspektive protivne strane (PRO)."""
+    if len(req.tekst.strip()) < 50:
+        raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "red_team", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            red_team_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F5] red_team greška")
+        raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
+
+
+@app.post("/strategija/litigation")  # F5.2
+@limiter.limit("5/minute")
+async def post_litigation(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F5.2 — Litigation Simulator — procena ishoda sa % verovatnoće (PRO)."""
+    if len(req.tekst.strip()) < 50:
+        raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "litigation", ""))
+    _praksa_context = ""
+    try:
+        from app.services.retrieve import _pretraga_praksa, _ugradi_query, _formatiraj_praksa_match
+        _vec = await asyncio.wait_for(
+            asyncio.to_thread(_ugradi_query, req.tekst[:500]), timeout=8.0
+        )
+        _matches = await asyncio.wait_for(
+            asyncio.to_thread(_pretraga_praksa, _vec, 3), timeout=5.0
+        )
+        if _matches:
+            _parts = [_formatiraj_praksa_match(m) for m in _matches]
+            _parts = [p for p in _parts if p and len(p.strip()) > 30]
+            if _parts:
+                _praksa_context = "\n\n---\n\n".join(_parts[:3])
+    except (asyncio.TimeoutError, Exception) as _pe:
+        logger.warning("[F5] litigation praksa greška: %s", _pe)
+    try:
+        rezultat = await asyncio.to_thread(
+            litigation_simulator_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "litigation", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F5] litigation greška")
+        raise HTTPException(status_code=500, detail="Greška pri generisanju simulacije. Pokušajte ponovo.")
+
+
+@app.post("/strategija/sudija")  # F5.3
+@limiter.limit("5/minute")
+async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F5.3 — AI Sudija — neutralna sudska perspektiva (PRO)."""
+    if len(req.tekst.strip()) < 50:
+        raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "ai_sudija", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            ai_judge_mode_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "sudija", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F5] sudija greška")
+        raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
+
+
+@app.post("/strategija/due-diligence")  # F5.4
+@limiter.limit("5/minute")
+async def post_due_diligence(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F5.4 — Due Diligence analiza dokumenta (PRO)."""
+    if len(req.tekst.strip()) < 100:
+        raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "due_diligence", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            due_diligence_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F5] due_diligence greška")
+        raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
+
+
 # ─── /api/praksa/search ───────────────────────────────────────────────────────
 
 _VALID_MATTERS     = frozenset({"Građanska", "Zaštita prava", "Upravna", "Krivična"})
