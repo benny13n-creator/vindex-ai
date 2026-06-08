@@ -2357,6 +2357,68 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
         raise HTTPException(status_code=500, detail="Greška pri simulaciji debate. Pokušajte ponovo.")
 
 
+# ── F11: Web3/MiCA Compliance ─────────────────────────────────────────────────
+from web3_compliance import (
+    web3_pretraga_sync as _web3_pretraga,
+    compliance_check_sync as _compliance_check,
+    whitepaper_check_sync as _whitepaper_check,
+)
+
+
+@app.post("/web3/pretraga")  # F11.1
+@limiter.limit("10/minute")
+async def post_web3_pretraga(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.1 — Web3/MiCA RAG pretraga nad ZDI + MiCA namespacom (PRO)."""
+    if len(req.tekst.strip()) < 10:
+        raise HTTPException(status_code=422, detail="Upit mora imati najmanje 10 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "web3_pretraga", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _web3_pretraga, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "web3_pretraga", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F11] web3_pretraga greška")
+        raise HTTPException(status_code=500, detail="Greška pri pretrazi ZDI/MiCA baze. Pokušajte ponovo.")
+
+
+@app.post("/web3/compliance")  # F11.2
+@limiter.limit("5/minute")
+async def post_compliance_check(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.2 — Web3 Compliance Checker (ZDI + MiCA) (PRO)."""
+    if len(req.tekst.strip()) < 30:
+        raise HTTPException(status_code=422, detail="Opis aktivnosti mora imati najmanje 30 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "compliance_check", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _compliance_check, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "compliance_check", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F11] compliance_check greška")
+        raise HTTPException(status_code=500, detail="Greška pri compliance analizi. Pokušajte ponovo.")
+
+
+@app.post("/web3/whitepaper")  # F11.3
+@limiter.limit("5/minute")
+async def post_whitepaper_check(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.3 — Whitepaper analiza po ZDI + MiCA zahtevima (PRO)."""
+    if len(req.tekst.strip()) < 100:
+        raise HTTPException(status_code=422, detail="Whitepaper mora imati najmanje 100 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "whitepaper_check", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _whitepaper_check, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "whitepaper_check", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F11] whitepaper_check greška")
+        raise HTTPException(status_code=500, detail="Greška pri analizi whitepapera. Pokušajte ponovo.")
+
+
 # ── F7.2: Interni stavovi ─────────────────────────────────────────────────────
 from interni_stavovi import (
     ingest_stav as _ingest_stav,

@@ -1309,6 +1309,24 @@ footer { padding: 2rem 1.5rem; }
 .crm-modal-actions{display:flex;gap:8px;margin-top:16px;}
 .crm-save-btn{flex:1;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
 .crm-cancel-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.6);font-size:0.85rem;padding:10px 16px;cursor:pointer;}
+/* ── F11: Web3/MiCA ─────────────────────────────────────── */
+.web3-header{margin-bottom:16px;}
+.web3-naslov{font-size:1.1rem;color:#89c8ff;margin:0 0 4px 0;font-weight:700;}
+.web3-podnaslov{font-size:0.8rem;color:rgba(255,255,255,0.4);margin:0;}
+.web3-opis-box{border-left-color:#C9A84C!important;}
+.web3-reference{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:0.78rem;color:rgba(255,255,255,0.4);}
+.web3-ref-badge{background:rgba(201,168,76,0.15);color:#C9A84C;border:1px solid rgba(201,168,76,0.3);padding:2px 8px;border-radius:10px;font-size:0.72rem;}
+.web3-submit-btn{width:100%;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.88rem;font-weight:600;padding:11px;cursor:pointer;margin-bottom:12px;}
+.web3-submit-btn:hover{opacity:0.9;}
+.web3-submit-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.web3-rezultat-wrap{display:none;border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;}
+.web3-rezultat-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.08);}
+.web3-rezultat-naslov{font-size:0.85rem;font-weight:700;color:#e6edf3;}
+.web3-copy-btn{font-size:0.75rem;color:#89c8ff;background:none;border:none;cursor:pointer;}
+.web3-rezultat-body{padding:14px;font-size:0.84rem;color:#e6edf3;line-height:1.7;max-height:60vh;overflow-y:auto;}
+.web3-ok{color:#68d391;display:block;}
+.web3-error-item{color:#f56565;display:block;}
+.web3-warning-item{color:#ecc94b;display:block;}
 /* ── F9: Debate format ───────────────────────────────────── */
 .debate-sekcija{border-radius:8px;margin-bottom:12px;border-left:4px solid;}
 .debate-tuzilac{border-color:#f56565;background:rgba(245,101,101,0.05);}
@@ -1556,6 +1574,7 @@ footer { padding: 2rem 1.5rem; }
             <div class="t-tab" onclick="setTab(this,'p')">📁 Predmeti</div>
             <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')">⚔️ Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
             <div class="t-tab" onclick="setTab(this,'k')">👥 Klijenti</div>
+            <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">₿ Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
           </div>
           <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
@@ -1946,6 +1965,40 @@ footer { padding: 2rem 1.5rem; }
                 <button class="crm-save-btn" onclick="crmSacuvaj()">Sačuvaj</button>
                 <button class="crm-cancel-btn" onclick="crmZatvoriFormu()">Otkaži</button>
               </div>
+            </div>
+          </div>
+
+          <!-- F11: Web3/Compliance tab -->
+          <div id="tab-w" style="display:none">
+            <div class="web3-header">
+              <div class="web3-naslov">₿ Web3 &amp; Crypto Compliance</div>
+              <div class="web3-podnaslov">Pravna analiza zasnovana na ZDI (Srbija) i MiCA (EU 2023/1114)</div>
+            </div>
+            <div class="strat-modul-izbor web3-moduli">
+              <button class="strat-btn active" data-modul="web3_pretraga" onclick="web3IzaberiModul('web3_pretraga',this)">🔍 ZDI/MiCA Pretraga</button>
+              <button class="strat-btn" data-modul="compliance_check" onclick="web3IzaberiModul('compliance_check',this)">✅ Compliance Check</button>
+              <button class="strat-btn" data-modul="whitepaper_check" onclick="web3IzaberiModul('whitepaper_check',this)">📄 Whitepaper Analiza</button>
+            </div>
+            <div id="web3-opis" class="strat-opis-box web3-opis-box"></div>
+            <div class="strat-input-wrap">
+              <label id="web3-input-label" class="strat-label"></label>
+              <textarea id="web3-tekst" class="strat-textarea" rows="7" placeholder=""></textarea>
+              <div class="strat-char-count"><span id="web3-chars">0</span> karaktera</div>
+            </div>
+            <div class="web3-reference">
+              <span>📚 Baza znanja:</span>
+              <span class="web3-ref-badge">ZDI čl. 1-146</span>
+              <span class="web3-ref-badge">MiCA EU 2023/1114</span>
+              <span class="web3-ref-badge">AML/KYC</span>
+              <span class="web3-ref-badge">Porez 15%</span>
+            </div>
+            <button class="web3-submit-btn" id="web3-submit-btn" onclick="web3Pokreni()">Analiziraj</button>
+            <div id="web3-rezultat-wrap" class="web3-rezultat-wrap">
+              <div class="web3-rezultat-header">
+                <span id="web3-rezultat-naslov" class="web3-rezultat-naslov"></span>
+                <button class="web3-copy-btn" onclick="web3Kopiraj()">📋 Kopiraj</button>
+              </div>
+              <div id="web3-rezultat-body" class="web3-rezultat-body"></div>
             </div>
           </div>
 
@@ -2806,27 +2859,28 @@ document.querySelectorAll('.r').forEach(function(el){revObs.observe(el);});
 /* TABS */
 function setTab(el,t){
   // PRO gate — tabovi "n" i "t" zahtevaju PRO status
-  if ((t === 'n' || t === 't') && !currentUserIsPro) {
+  if ((t === 'n' || t === 't' || t === 'w') && !currentUserIsPro) {
     openProUpgradeModal();
     return;
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  ['q','n','a','s','p','t','k'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
+  ['q','n','a','s','p','t','k','w'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija',k:'👥 Klijenti'};
-  // Sakrij exec row za Strategija i Klijenti tab (imaju sopstveni UI)
+  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija',k:'👥 Klijenti',w:'₿ Web3 Compliance'};
+  // Sakrij exec row za Strategija, Klijenti i Web3 tab (imaju sopstveni UI)
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  if (execRow) execRow.style.display = (t === 't' || t === 'k') ? 'none' : '';
-  if (credRow) credRow.style.display = (t === 't' || t === 'k') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
+  if (execRow) execRow.style.display = (t === 't' || t === 'k' || t === 'w') ? 'none' : '';
+  if (credRow) credRow.style.display = (t === 't' || t === 'k' || t === 'w') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='n') { updatePodnesakHint(); ucitajPlaybookStatus(); }
   if (t==='q' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
   if (t==='s') praksa_load_initial();
   if (t==='p') pred_load();
   if (t==='k') ucitajKlijente();
+  if (t==='w') web3InitTab();
   document.getElementById('btn-lbl').textContent = lbl[t] || '';
   if (respEl) respEl.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
@@ -3557,6 +3611,139 @@ async function crmObrisi(klijentId) {
     headers:{'Authorization':'Bearer '+currentSession.access_token}
   });
   ucitajKlijente();
+}
+
+/* ── F11: WEB3 / COMPLIANCE ──────────────────────────────── */
+var WEB3_MODULI = {
+  web3_pretraga: {
+    naziv:       'ZDI/MiCA Pretraga',
+    endpoint:    '/web3/pretraga',
+    opis:        'Pretražuje bazu ZDI (Srbija, 146 članova) i MiCA (EU 2023/1114). Postavite pitanje o kripto-regulativi — npr. "Da li mi treba dozvola NBS za razmenu kriptovaluta?" ili "Šta mora sadržati whitepaper po ZDI?"',
+    label:       'Vaše pitanje o ZDI ili MiCA regulativi',
+    placeholder: 'Npr: Da li fizičko lice mora da prijavi prihode od prodaje Bitcoina? Koja je poreska stopa?',
+    min:         10
+  },
+  compliance_check: {
+    naziv:       'Compliance Check',
+    endpoint:    '/web3/compliance',
+    opis:        'Proverava da li opisana aktivnost ili poslovni model zahteva dozvolu NBS/KHoV (Srbija) ili CASP autorizaciju (EU MiCA). Dobijate konkretan odgovor: DA/NE/DELIMIČNO za svaki propis.',
+    label:       'Opis aktivnosti ili poslovnog modela',
+    placeholder: 'Npr: Planiram da pokrenem platformu koja korisnicima omogućava razmenu Bitcoina za evro. Imamo srpsko DOO, ciljamo i EU klijente.',
+    min:         30
+  },
+  whitepaper_check: {
+    naziv:       'Whitepaper Analiza',
+    endpoint:    '/web3/whitepaper',
+    opis:        'Analizira whitepaper ili opis ICO/token projekta — da li ispunjava zahteve ZDI čl. 12-19 (Srbija) i MiCA čl. 6 (EU). Dobijate listu šta postoji, šta nedostaje i konkretne preporuke.',
+    label:       'Tekst whitepaper-a ili opis token projekta',
+    placeholder: 'Unesite tekst whitepaper-a, opis projekta, ili ključne elemente koje planirate da uključite...',
+    min:         100
+  }
+};
+var _web3AktivniModul = 'web3_pretraga';
+
+function web3InitTab() {
+  var m = WEB3_MODULI[_web3AktivniModul];
+  var opisEl  = document.getElementById('web3-opis');
+  var labelEl = document.getElementById('web3-input-label');
+  var txtEl   = document.getElementById('web3-tekst');
+  if (opisEl)  opisEl.textContent  = m.opis;
+  if (labelEl) labelEl.textContent = m.label;
+  if (txtEl)   txtEl.placeholder   = m.placeholder;
+  document.querySelectorAll('.web3-moduli .strat-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.modul === _web3AktivniModul);
+  });
+}
+
+function web3IzaberiModul(modul, btn) {
+  _web3AktivniModul = modul;
+  document.querySelectorAll('.web3-moduli .strat-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var m = WEB3_MODULI[modul];
+  var opisEl  = document.getElementById('web3-opis');
+  var labelEl = document.getElementById('web3-input-label');
+  var txtEl   = document.getElementById('web3-tekst');
+  var charsEl = document.getElementById('web3-chars');
+  var wrapEl  = document.getElementById('web3-rezultat-wrap');
+  if (opisEl)  opisEl.textContent  = m.opis;
+  if (labelEl) labelEl.textContent = m.label;
+  if (txtEl)   { txtEl.placeholder = m.placeholder; txtEl.value = ''; }
+  if (charsEl) charsEl.textContent = '0';
+  if (wrapEl)  wrapEl.style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var txtEl = document.getElementById('web3-tekst');
+  if (txtEl) txtEl.addEventListener('input', function() {
+    var c = document.getElementById('web3-chars');
+    if (c) c.textContent = this.value.length;
+  });
+});
+
+async function web3Pokreni() {
+  var txtEl  = document.getElementById('web3-tekst');
+  var btn    = document.getElementById('web3-submit-btn');
+  var wrapEl = document.getElementById('web3-rezultat-wrap');
+  var naslov = document.getElementById('web3-rezultat-naslov');
+  var bodyEl = document.getElementById('web3-rezultat-body');
+  var tekst  = txtEl ? txtEl.value.trim() : '';
+  var modul  = WEB3_MODULI[_web3AktivniModul];
+
+  if (!currentUser) { openModal(); return; }
+  if (!currentUserIsPro) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 Web3 Compliance je dostupan samo PRO korisnicima.</div>';
+    if (wrapEl) wrapEl.style.display = 'block';
+    return;
+  }
+  if (tekst.length < modul.min) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Unesite najmanje ' + modul.min + ' karaktera.</div>';
+    if (wrapEl) wrapEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Analiziram...';
+  if (naslov) naslov.textContent = modul.naziv;
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ ' + modul.naziv + ' — analiza u toku (ZDI + MiCA)...</div>';
+  if (wrapEl) wrapEl.style.display = 'block';
+
+  try {
+    var res = await fetch(modul.endpoint, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Authorization':'Bearer '+(currentSession ? currentSession.access_token : '')},
+      body: JSON.stringify({tekst: tekst})
+    });
+    if (res.status === 403) {
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 ' + modul.naziv + ' je dostupna samo PRO korisnicima.</div>';
+      return;
+    }
+    if (!res.ok) throw new Error('Server greška: ' + res.status);
+    var data = await res.json();
+    if (bodyEl) bodyEl.innerHTML = web3FormatirajRezultat(data.rezultat || '');
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Analiziraj';
+  }
+}
+
+function web3FormatirajRezultat(tekst) {
+  if (!tekst) return '<div class="strat-error">Nema rezultata.</div>';
+  var esc = tekst.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return esc
+    .replace(/^(\d+\.\s+[A-ZŠĐČĆŽА-Я][A-ZŠĐČĆŽА-Я\s\/\(\)]{2,})$/gm, '<div class="strat-sekcija">$1</div>')
+    .replace(/(✓[^\n]+)/g, '<span class="web3-ok">$1</span>')
+    .replace(/(✗[^\n]+)/g, '<span class="web3-error-item">$1</span>')
+    .replace(/(⚠️[^\n]+)/g, '<span class="web3-warning-item">$1</span>')
+    .replace(/\n/g, '<br>');
+}
+
+function web3Kopiraj() {
+  var bodyEl = document.getElementById('web3-rezultat-body');
+  if (!bodyEl) return;
+  navigator.clipboard.writeText(bodyEl.innerText).then(function() {
+    var btn = document.querySelector('.web3-copy-btn');
+    if (btn) { btn.textContent = '✓ Kopirano'; setTimeout(function() { btn.textContent = '📋 Kopiraj'; }, 2000); }
+  });
 }
 
 /* PODNESAK HELPERS */
