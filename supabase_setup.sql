@@ -382,6 +382,53 @@ END $$;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmet_dokumenti TO service_role;
 
 
+-- ─── F5.2b: PREDMET_HRONOLOGIJA (Phase 2.2 — document chronology events) ─────
+
+CREATE TABLE IF NOT EXISTS public.predmet_hronologija (
+    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    predmet_id       UUID        NOT NULL REFERENCES public.predmeti(id) ON DELETE CASCADE,
+    user_id          UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    dokument_naziv   TEXT,
+    datum            TEXT,
+    datum_iso        DATE,
+    dogadjaj         TEXT        NOT NULL,
+    akter            TEXT,
+    vaznost          TEXT        NOT NULL DEFAULT 'informativan'
+                                 CHECK (vaznost IN ('kritičan','važan','informativan')),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS predmet_hronologija_predmet_idx ON public.predmet_hronologija (predmet_id, datum_iso NULLS LAST);
+
+ALTER TABLE public.predmet_hronologija ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_hronologija' AND policyname = 'predmet_hronologija_select'
+  ) THEN
+    CREATE POLICY "predmet_hronologija_select" ON public.predmet_hronologija FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_hronologija' AND policyname = 'predmet_hronologija_insert'
+  ) THEN
+    CREATE POLICY "predmet_hronologija_insert" ON public.predmet_hronologija FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'predmet_hronologija' AND policyname = 'predmet_hronologija_delete'
+  ) THEN
+    CREATE POLICY "predmet_hronologija_delete" ON public.predmet_hronologija FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmet_hronologija TO service_role;
+
+
 -- ─── F5.3: PREDMET_BELESKE (notes per case) ──────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.predmet_beleske (

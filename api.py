@@ -2382,6 +2382,33 @@ PRAVILA:
 
 _PROCENA_SYSTEM_PROMPT = _PROCENA_SYSTEM_PROMPT + _CITATION_GUARD
 
+# ── Phase 2.2: Hronologija dokaza — extracts all dated events from a document ──
+_HRONOLOGIJA_SYSTEM_PROMPT = """Ti si pravni asistent koji analizira pravne dokumente i izvlači sve datume i događaje.
+
+ZADATAK: Iz teksta dokumenta izvuci SVE datume i događaje koji su pravno relevantni.
+
+Vrati ISKLJUČIVO JSON array bez ikakvog teksta pre ili posle. Format svakog unosa:
+{
+  "datum": "DD.MM.YYYY",
+  "datum_iso": "YYYY-MM-DD",
+  "dogadjaj": "Kratak opis šta se desilo (max 150 znakova)",
+  "akter": "Ko je preduzeo radnju (osoba, firma, sud...)",
+  "vaznost": "kritičan"
+}
+
+PRAVILA:
+- vaznost mora biti tačno jedna od: "kritičan", "važan", "informativan"
+  * "kritičan" = ključni pravni datumi (otkaz, tužba, presuda, rok, ugovor potpisan/raskinut)
+  * "važan" = važni ali ne odlučujući (upozorenje, obaveštenje, zahtev, odgovor)
+  * "informativan" = kontekst i pozadina (zaposlenje, transfer, pismo, napomena)
+- datum: DD.MM.YYYY format. Ako je mesec/godina bez dana — koristi "01" za dan.
+- datum_iso: ISO 8601 format YYYY-MM-DD. Ako datum nije poznat, stavi null.
+- akter: ime ili opis aktera (npr. "Poslodavac", "Zaposleni Marko Marković", "Osnovni sud Beograd")
+- dogadjaj: konkretan opis, ne prazna fraza. Max 150 znakova.
+- Ako relativni datum ("prošle godine", "pre 6 meseci") — proceni apsolutni datum na osnovu konteksta dokumenta i napiši u napomeni.
+- Ako nema ni jednog datuma, vrati prazan array: []
+- Vrati SAMO JSON array, apsolutno ništa pre ili posle."""
+
 
 @app.post("/api/procena")
 @limiter.limit("5/minute")
@@ -2757,14 +2784,105 @@ async def predmet_upload_auto_analyze(
         except Exception:
             logger.warning("[P1.1] predmet_istorija insert failed for predmet=%s", predmet_id)
 
+    # ── Phase 2.2: Extract document chronology via second GPT-4o call ────────────
+    hron_count = 0
+    if text and text.strip():
+        try:
+            import json as _json
+            client_h = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+            hron_resp = client_h.chat.completions.create(
+                model="gpt-4o",
+                temperature=0,
+                max_tokens=1500,
+                timeout=30.0,
+                messages=[
+                    {"role": "system", "content": _HRONOLOGIJA_SYSTEM_PROMPT},
+                    {"role": "user",   "content": f"Dokument: {file.filename or 'dokument'}\n\n{text[:6000]}"},
+                ],
+            )
+            hron_raw = (hron_resp.choices[0].message.content or "").strip()
+            # Strip markdown code fences if present
+            if hron_raw.startswith("```"):
+                hron_raw = "\n".join(
+                    line for line in hron_raw.splitlines()
+                    if not line.strip().startswith("```")
+                )
+            hron_data = _json.loads(hron_raw)
+            if isinstance(hron_data, list) and hron_data:
+                _VALID_VAZNOST = {"kritičan", "važan", "informativan"}
+                rows = []
+                for ev in hron_data[:50]:
+                    if not isinstance(ev, dict) or not ev.get("dogadjaj"):
+                        continue
+                    datum_iso = ev.get("datum_iso") or None
+                    if datum_iso and (len(str(datum_iso)) < 4 or str(datum_iso).lower() in ("null","none","")):
+                        datum_iso = None
+                    vaznost = ev.get("vaznost", "informativan")
+                    if vaznost not in _VALID_VAZNOST:
+                        vaznost = "informativan"
+                    rows.append({
+                        "predmet_id":     predmet_id,
+                        "user_id":        user.id,
+                        "dokument_naziv": file.filename or "dokument",
+                        "datum":          str(ev.get("datum") or "")[:30],
+                        "datum_iso":      datum_iso,
+                        "dogadjaj":       str(ev.get("dogadjaj", ""))[:500],
+                        "akter":          str(ev.get("akter") or "")[:200],
+                        "vaznost":        vaznost,
+                    })
+                if rows:
+                    _get_supa().table("predmet_hronologija").insert(rows).execute()
+                    hron_count = len(rows)
+                    logger.info("[P2.2] Hronologija: %d događaja sačuvano za predmet=%s", hron_count, predmet_id)
+        except Exception as _he:
+            logger.warning("[P2.2] Hronologija greška: %s", _he)
+
     asyncio.create_task(asyncio.to_thread(cleanup_expired))
 
     return {
-        "session_id":    session_id,
-        "filename":      file.filename,
-        "chunk_count":   count,
-        "predmet_id":    predmet_id,
-        "doc_type":      doc_type,
-        "procena":       procena_tekst,
-        "auto_analyzed": bool(procena_tekst),
+        "session_id":       session_id,
+        "filename":         file.filename,
+        "chunk_count":      count,
+        "predmet_id":       predmet_id,
+        "doc_type":         doc_type,
+        "procena":          procena_tekst,
+        "auto_analyzed":    bool(procena_tekst),
+        "hronologija_count": hron_count,
     }
+
+
+# ── Phase 2.2: GET hronologija for a predmet ─────────────────────────────────
+
+@app.get("/api/predmeti/{predmet_id}/hronologija")
+@limiter.limit("30/minute")
+async def predmet_hronologija_get(
+    predmet_id: str,
+    request: Request,
+    authorization: str = Header(None),
+):
+    """Phase 2.2 — Return sorted chronology events for a predmet."""
+    user = _require_auth(authorization)
+    pred_row = _get_supa().table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user.id).single().execute()
+    if not pred_row.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+
+    try:
+        res = (
+            _get_supa()
+            .table("predmet_hronologija")
+            .select("id,datum,datum_iso,dogadjaj,akter,vaznost,dokument_naziv,created_at")
+            .eq("predmet_id", predmet_id)
+            .eq("user_id", user.id)
+            .order("datum_iso", desc=False)
+            .order("created_at", desc=False)
+            .limit(100)
+            .execute()
+        )
+        items = res.data or []
+        # Items with null datum_iso go to end — separate and append
+        with_date    = [i for i in items if i.get("datum_iso")]
+        without_date = [i for i in items if not i.get("datum_iso")]
+        return {"hronologija": with_date + without_date}
+    except Exception:
+        logger.exception("[P2.2] hronologija_get greška za predmet=%s", predmet_id)
+        raise HTTPException(status_code=500, detail="Greška pri učitavanju hronologije")

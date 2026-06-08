@@ -1033,6 +1033,22 @@ footer { padding: 2rem 1.5rem; }
 .pred-tl-clickable:hover,.pred-tl-clickable:active{background:rgba(74,168,255,0.08);}
 .pred-tl-hint{font-size:0.62rem;color:rgba(74,168,255,0.5);margin-top:2px;}
 .pred-tl-result{margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.07);}
+.hron-timeline{position:relative;padding-left:1.4rem;margin-top:0.3rem;}
+.hron-timeline::before{content:'';position:absolute;left:4px;top:0;bottom:0;width:2px;background:rgba(255,255,255,0.07);border-radius:1px;}
+.hron-item{position:relative;margin-bottom:0.9rem;}
+.hron-item::before{content:'';position:absolute;left:-1.2rem;top:0.22rem;width:10px;height:10px;border-radius:50%;border:2px solid;}
+.hron-item.kritican::before{background:#ff4444;border-color:#ff4444;box-shadow:0 0 6px rgba(255,68,68,0.5);}
+.hron-item.vazan::before{background:#f59e0b;border-color:#f59e0b;box-shadow:0 0 5px rgba(245,158,11,0.4);}
+.hron-item.informativan::before{background:#6b7280;border-color:#6b7280;}
+.hron-item-date{font-size:0.67rem;color:rgba(255,255,255,0.4);font-family:'JetBrains Mono',monospace;}
+.hron-item-event{font-size:0.8rem;color:#e2e8f0;margin-top:0.1rem;line-height:1.4;}
+.hron-item-akter{font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:0.1rem;}
+.hron-badge{display:inline-block;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:0.35rem;vertical-align:middle;letter-spacing:.02em;}
+.hron-badge.kritican{background:rgba(255,68,68,0.15);color:#ff9090;border:1px solid rgba(255,68,68,0.3);}
+.hron-badge.vazan{background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.28);}
+.hron-badge.informativan{background:rgba(107,114,128,0.15);color:#9ca3af;border:1px solid rgba(107,114,128,0.28);}
+.hron-export-btn{font-size:0.72rem;color:rgba(255,255,255,0.35);background:none;border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:0.22rem 0.55rem;cursor:pointer;margin-top:0.5rem;transition:all .15s;}
+.hron-export-btn:hover{color:#89c8ff;border-color:rgba(74,168,255,0.3);}
 .procena-section-hdr .sec-icon{margin-right:0.4rem;}
 </style>
 
@@ -1346,6 +1362,10 @@ footer { padding: 2rem 1.5rem; }
               </div>
               <div id="pred-upload-loading" style="display:none;text-align:center;padding:0.75rem 0;color:rgba(255,255,255,0.55);font-size:.85rem;"><span class="upload-spinner"></span>Analiziram predmet...</div>
               <div id="pred-upload-error" style="display:none;padding:.65rem .85rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:8px;color:#ff9090;font-size:.8rem;margin-top:.45rem;"></div>
+              <div class="pred-section-lbl">Hronologija dokaza</div>
+              <div id="pred-hronologija-wrap">
+                <div id="pred-hronologija-list" style="margin-top:0.3rem;"></div>
+              </div>
               <div class="pred-section-lbl">Pravna procena</div>
               <div id="pred-procena-result" style="margin-top:0.3rem;"></div>
               <details style="margin-top:0.5rem;">
@@ -4140,7 +4160,79 @@ async function pred_loadDetail(id) {
         istEl.innerHTML = tlHtml;
       }
     }
+    pred_loadHronologija(id);
   } catch(e) {}
+}
+
+async function pred_loadHronologija(predmetId) {
+  var el = document.getElementById('pred-hronologija-list');
+  if (!el || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/predmeti/' + predmetId + '/hronologija', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) { el.innerHTML = ''; return; }
+    var d = await r.json();
+    var items = d.hronologija || [];
+    if (!items.length) {
+      el.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.28);">Uploadujte dokument da biste generisali hronologiju.</div>';
+      return;
+    }
+    var html = '<div class="hron-timeline">';
+    items.forEach(function(ev) {
+      var v = ev.vaznost || 'informativan';
+      var cls = v === 'kritičan' ? 'kritican' : v === 'važan' ? 'vazan' : 'informativan';
+      var bdg = v === 'kritičan' ? 'KRITIČAN' : v === 'važan' ? 'VAŽAN' : 'INFO';
+      html += '<div class="hron-item ' + cls + '">';
+      if (ev.datum) {
+        html += '<div class="hron-item-date">' + escHtml(ev.datum)
+              + '<span class="hron-badge ' + cls + '">' + bdg + '</span>';
+        if (ev.dokument_naziv) {
+          html += ' <span style="font-size:0.6rem;color:rgba(255,255,255,0.22);">— ' + escHtml(ev.dokument_naziv) + '</span>';
+        }
+        html += '</div>';
+      }
+      html += '<div class="hron-item-event">' + escHtml(ev.dogadjaj) + '</div>';
+      if (ev.akter) html += '<div class="hron-item-akter">→ ' + escHtml(ev.akter) + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<button class="hron-export-btn" onclick="pred_exportHronologija()">↓ Izvezi PDF</button>';
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '';
+  }
+}
+
+function pred_exportHronologija() {
+  var naziv = activePredmetNaziv || 'Predmet';
+  var w = window.open('', '_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
+  w.document.write('<title>Hronologija — ' + naziv + '<\/title>');
+  w.document.write('<style>body{font-family:Arial,sans-serif;padding:2rem;max-width:700px;margin:0 auto;color:#111;}h2{margin-bottom:1.4rem;font-size:1.3rem;}.line{border-left:3px solid #ddd;padding-left:1rem;margin-bottom:1.1rem;}.date{font-size:0.72rem;color:#666;font-family:monospace;margin-bottom:.2rem;}.ev{font-size:0.9rem;margin:.15rem 0;}.akt{font-size:0.75rem;color:#888;}.badge{display:inline-block;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:4px;}.k{background:#ffe0e0;color:#c00;border:1px solid #f8a0a0;}.v{background:#fff3cd;color:#a06000;border:1px solid #ffd066;}.i{background:#f0f0f0;color:#666;border:1px solid #ddd;}@media print{button{display:none!important;}}<\/style><\/head><body>');
+  w.document.write('<h2>Hronologija dokaza &mdash; ' + naziv + '<\/h2>');
+  var items = document.querySelectorAll('#pred-hronologija-list .hron-item');
+  items.forEach(function(item) {
+    var isK = item.classList.contains('kritican');
+    var isV = item.classList.contains('vazan');
+    var bdgCls = isK ? 'k' : isV ? 'v' : 'i';
+    var bdgLbl = isK ? 'KRITIČAN' : isV ? 'VAŽAN' : 'INFO';
+    var dateEl = item.querySelector('.hron-item-date');
+    var evEl   = item.querySelector('.hron-item-event');
+    var aktEl  = item.querySelector('.hron-item-akter');
+    var dateText = dateEl ? (dateEl.firstChild ? dateEl.firstChild.textContent : '').trim() : '';
+    var evText   = evEl ? evEl.textContent : '';
+    var aktText  = aktEl ? aktEl.textContent : '';
+    w.document.write('<div class="line">');
+    if (dateText) w.document.write('<div class="date">' + dateText + '<span class="badge ' + bdgCls + '">' + bdgLbl + '<\/span><\/div>');
+    w.document.write('<div class="ev">' + evText + '<\/div>');
+    if (aktText) w.document.write('<div class="akt">' + aktText + '<\/div>');
+    w.document.write('<\/div>');
+  });
+  w.document.write('<br><button onclick="window.print()" style="padding:.5rem 1.2rem;background:#333;color:#fff;border:none;border-radius:5px;cursor:pointer;">Printaj \/ Sačuvaj PDF<\/button>');
+  w.document.write('<\/body><\/html>');
+  w.document.close();
+  setTimeout(function(){ w.print(); }, 400);
 }
 
 async function pred_dodajBelesku() {
