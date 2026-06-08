@@ -2225,7 +2225,7 @@ _PRESUDA_SYSTEM_PROMPT = _PRESUDA_SYSTEM_PROMPT + _CITATION_GUARD
 _PROCENA_SYSTEM_PROMPT = """Ti si stručni pravni analitičar za srpsko pravo.
 Na osnovu opisanih činjenica pruži strukturiranu pravnu procenu.
 
-OBAVEZNI FORMAT — tačno ovih 16 sekcija:
+OBAVEZNI FORMAT — tačno ovih 18 sekcija:
 
 1. PRAVNI OSNOV
 Navedi SVE primenjive zakonske odredbe na opisanu situaciju — bez obzira na to koju stranu štite.
@@ -2237,18 +2237,22 @@ NE raspoređuj članove po sekcijama "za tužioca" ili "za tuženog" — svi idu
 Najjači FAKTIČKI i pravni argumenti u korist tužioca/oštećenog (max 3 boda).
 Fokus na činjenice i procesne prednosti — ne ponavljaj članove iz sekcije 1.
 
-3. ARGUMENTI ZA TUŽENOG
+3. SLABOSTI U POZICIJI TUŽIOCA
+Slabe tačke u poziciji tužioca koje tuženi može iskoristiti (max 3 boda).
+Fokus na procesne rupe, nedostajuće dokaze i teško dokazive tvrdnje.
+
+4. POTENCIJALNI ARGUMENTI TUŽENOG
 Najjači FAKTIČKI kontraargumenti u korist tuženog/poslodavca (max 3 boda).
 Fokus na činjenične nedostatke i procesne rizike — ne navoditi zakonske članove ovde.
 
-4. STRATEGIJA ZA TUŽIOCA
+5. STRATEGIJA ZA TUŽIOCA
 Obavezno tačno ovim redom, svaka stavka na posebnoj liniji:
 Najjači napad: [1 rečenica — centralna procesna strategija tužioca]
 Zašto: [obrazloženje u 1 rečenici]
 Dokaz koji odlučuje spor: [konkretan dokaz ili činjenica]
 Snaga argumenta: VISOKA / SREDNJA / NISKA
 
-5. STRATEGIJA ZA TUŽENOG
+6. STRATEGIJA ZA TUŽENOG
 Obavezno tačno ovim redom, svaka stavka na posebnoj liniji:
 Najjača odbrana: [1 rečenica — centralna procesna strategija tuženog]
 Zašto: [obrazloženje u 1 rečenici]
@@ -2256,7 +2260,7 @@ Dokaz koji odlučuje spor: [konkretan dokaz ili činjenica]
 Snaga argumenta: VISOKA / SREDNJA / NISKA
 Napomena za radne sporove: tuženi bi mogao pokušati da istakne postojanje opravdanih razloga, ali sud će ceniti i zakonitost sprovedene procedure.
 
-6. PREDVIĐENI ARGUMENTI TUŽENOG
+7. PREDVIĐENI ARGUMENTI TUŽENOG
 Najopasnije tvrdnje tuženog koje tužilac mora da predvidi — obavezno u ovom formatu (max 3 argumenta):
 - Argument 1: [konkretna tvrdnja tuženog]
   Procena opasnosti: VISOKA / SREDNJA / NISKA — [obrazloženje zašto]
@@ -2265,37 +2269,43 @@ Najopasnije tvrdnje tuženog koje tužilac mora da predvidi — obavezno u ovom 
 - Argument 3: [konkretna tvrdnja]
   Procena opasnosti: VISOKA / SREDNJA / NISKA — [obrazloženje]
 
-7. FAKTORI KOJI UTIČU NA ISHOD
+8. FAKTORI KOJI UTIČU NA ISHOD
 Navedi minimum 4 faktora koji utiču na ishod spora, sortirano od najvećeg ka najmanjem uticaju.
 Obavezno tačno u ovom formatu (svaki faktor na posebnoj liniji):
-Faktor: [naziv faktora] | Uticaj: VEOMA VISOK / VISOK / SREDNJI / NIZAK | Status: Potvrđeno / Nepotvrđeno / Nepoznato
+Faktor: [naziv faktora] | Uticaj: VEOMA VISOK / VISOK / SREDNJI / NIZAK | Status: Potvrđeno / Nepotvrđeno / Nepoznato | Izvor: Izjava korisnika / Dostavljen dokument / Dokument nije dostavljen / Pretpostavka
 (ponovi za svaki faktor, min 4)
 
-8. SPORNE TAČKE
+9. SPORNE TAČKE
 Ključne činjenične ili pravne tačke oko kojih se stranke mogu sporiti (max 3 boda).
 
-9. NEDOSTAJUĆE ČINJENICE
+10. NEDOSTAJUĆE ČINJENICE
 Pitanja čiji odgovor nije poznat a direktno utiče na analizu — navedi minimum 3:
 - [pitanje 1 — konkretna nepoznata činjenica]
 - [pitanje 2 — konkretna nepoznata činjenica]
 - [pitanje 3 — konkretna nepoznata činjenica]
 
-10. POTREBNI DOKAZI
+11. CRVENE ZASTAVICE
+🚨 Automatski identifikovani kritični problemi — samo stvarni, konkretni rizici (min 2, max 5):
+- 🚨 [kritični problem 1 — konkretan, vezan za ovaj predmet]
+- 🚨 [kritični problem 2 — konkretan, vezan za ovaj predmet]
+Ne piši generičke zastavice — svaka mora biti specifična za opisane činjenice.
+
+12. POTREBNI DOKAZI
 Grupiši dokaze u tačno 3 nivoa — svaki nivo na posebnoj liniji:
 🔴 Kritični: (dokazi bez kojih predmet pada — nabrojati)
 🟡 Važni: (dokazi koji jačaju poziciju — nabrojati)
 🟢 Korisni: (podržavajući dokazi — nabrojati)
 
-11. KOMPLETIRANOST PREDMETA
+13. KOMPLETIRANOST PREDMETA
 OBAVEZNO: prva linija mora biti tačno u ovom formatu (bez izmena):
 KOMPLETIRANOST: XX%
-Zatim na sledećoj liniji:
+Zatim OBAVEZNO na sledećoj liniji:
 Nedostaje: [konkretan spisak dokumenata koji fale]
 Primer ispravnog outputa:
 KOMPLETIRANOST: 35%
 Nedostaje: rešenje o otkazu, pisano upozorenje zaposlenom, ugovor o radu
 
-12. PROCENA RIZIKA
+14. PROCENA RIZIKA
 OBAVEZNO: popuni SVE podsekcije — ne ostavljaj prazne linije.
 Faktori koji POVEĆAVAJU rizik:
 - [faktor 1]
@@ -2307,7 +2317,7 @@ Rizik za tužioca: NIZAK / SREDNJI / VISOK — [obrazloženje u 1 rečenici]
 Rizik za tuženog: NIZAK / SREDNJI / VISOK — [obrazloženje u 1 rečenici]
 OBAVEZNO: reči NIZAK, SREDNJI ili VISOK moraju biti prisutne u obe linije.
 
-13. RELEVANTNA PRAKSA
+15. RELEVANTNA PRAKSA
 Samo ako su odlomci sudske prakse dostavljeni pod "RELEVANTNA SUDSKA PRAKSA".
 Za svaku presudu obavezno ovim redom:
 • [Sud, broj odluke, godina]
@@ -2320,7 +2330,7 @@ Za svaku presudu obavezno ovim redom:
   Podržava: Tužioca / Tuženog / Neutralno
 Navedi max 3 presude.
 
-14. SLEDEĆI NAJBOLJI KORAK
+16. SLEDEĆI NAJBOLJI KORAK
 Dokumenti koji bi najviše povećali pouzdanost procene:
 - [dokument 1] → povećanje: +XX%
 - [dokument 2] → povećanje: +XX%
@@ -2328,14 +2338,14 @@ Dokumenti koji bi najviše povećali pouzdanost procene:
 Trenutna pouzdanost: XX% → Očekivana nakon dokumenata: YY%
 OBAVEZNO: YY% nikad ne sme biti veće od 95%.
 
-15. PITANJA ZA KLIJENTA
+17. PITANJA ZA KLIJENTA
 Konkretna pitanja koja advokat treba da postavi klijentu — navedi minimum 4:
-- [pitanje 1]
-- [pitanje 2]
-- [pitanje 3]
-- [pitanje 4]
+→ [pitanje 1 — konkretno, vezano za ovaj predmet]
+→ [pitanje 2]
+→ [pitanje 3]
+→ [pitanje 4]
 
-16. POUZDANOST PROCENE
+18. POUZDANOST PROCENE
 OBAVEZNO: prva linija mora biti tačno u ovom formatu:
 POUZDANOST: XX%
 OBAVEZNO: vrednost XX nikad ne sme biti veća od 95.
@@ -2367,7 +2377,7 @@ PRAVILA:
   ✓ "Zahteva dodatnu proveru..."
   ✓ "može značajno ojačati poziciju tuženog, ali će sud ceniti i zakonitost sprovedene procedure"
   ✓ "Tužilac ostaje bez jednog od ključnih argumenata, ali spor i dalje zavisi od drugih činjenica i dokaza"
-- Na kraju sekcije 16 dodaj: "Ova procena je generisana uz pomoć AI i mora biti proverena od strane ovlašćenog advokata."
+- Na kraju sekcije 18 dodaj: "Ova procena je generisana uz pomoć AI i mora biti proverena od strane ovlašćenog advokata."
 """
 
 _PROCENA_SYSTEM_PROMPT = _PROCENA_SYSTEM_PROMPT + _CITATION_GUARD
@@ -2432,17 +2442,34 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
             asyncio.to_thread(_pretraga_praksa, _p_vec, 3),
             timeout=5.0,
         )
+        # Fallback: if primary query returns nothing, retry with a broad legal query
+        if not _p_matches:
+            logger.info("[PROCENA] Praksa: 0 primarnih — pokušavam fallback upit")
+            _fallback_query = "presuda sud zakon radni spor otkaz"
+            try:
+                _fb_vec = await asyncio.wait_for(
+                    asyncio.to_thread(_ugradi_query, _fallback_query),
+                    timeout=8.0,
+                )
+                _p_matches = await asyncio.wait_for(
+                    asyncio.to_thread(_pretraga_praksa, _fb_vec, 3),
+                    timeout=5.0,
+                )
+                if _p_matches:
+                    logger.info("[PROCENA] Praksa fallback: %d matches", len(_p_matches))
+            except Exception as _fb_err:
+                logger.warning("[PROCENA] Praksa fallback greška: %s", _fb_err)
         if _p_matches:
             _p_parts = [_formatiraj_praksa_match(m) for m in _p_matches]
             _p_parts = [p for p in _p_parts if p and len(p.strip()) > 30]
             if _p_parts:
                 _praksa_context = (
-                    "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 11 — RELEVANTNA PRAKSA):\n\n"
+                    "\n\nRELEVANTNA SUDSKA PRAKSA (koristi ove odlomke za sekciju 15 — RELEVANTNA PRAKSA):\n\n"
                     + "\n\n---\n\n".join(_p_parts)
                 )
                 logger.info("[PROCENA] Praksa: %d matches injected iz sudska_praksa", len(_p_parts))
         else:
-            logger.info("[PROCENA] Praksa: 0 matches iz sudska_praksa namespace (vektori: 12604)")
+            logger.info("[PROCENA] Praksa: 0 matches iz sudska_praksa namespace (i fallback)")
     except asyncio.TimeoutError as _pe:
         logger.warning("[PROCENA] Praksa timeout: %s", _pe)
     except Exception as _pe:
@@ -2458,8 +2485,8 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
         resp = client.chat.completions.create(
             model="gpt-4o",
             temperature=0,
-            max_tokens=3500,
-            timeout=60.0,
+            max_tokens=4500,
+            timeout=90.0,
             messages=[
                 {"role": "system", "content": _PROCENA_SYSTEM_PROMPT},
                 {"role": "user",   "content": user_content},

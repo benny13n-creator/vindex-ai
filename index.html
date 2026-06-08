@@ -4250,13 +4250,24 @@ async function pred_submitProcena() {
 function pred_renderProcena(tekst) {
   var sekcije = [
     {k:'1. PRAVNI OSNOV',                    icon:'⚖️',  lbl:'Pravni osnov',                   special:''},
-    {k:'2. ARGUMENTI ZA TUŽIOCA',            icon:'✅',  lbl:'Jaki argumenti',                  special:''},
-    {k:'3. ARGUMENTI ZA TUŽENOG',            icon:'⚠️',  lbl:'Slabi argumenti',                 special:''},
-    {k:'4. STRATEGIJA ZA TUŽIOCA',           icon:'🗺️',  lbl:'Strategija tužioca',              special:'strategija'},
-    {k:'5. STRATEGIJA ZA TUŽENOG',           icon:'🛡️',  lbl:'Strategija tuženog',              special:'strategija'},
-    {k:'6. PREDVIĐENI ARGUMENTI TUŽENOG',    icon:'🧩',  lbl:'Predviđeni argumenti tuženog',    special:'predvidjeni'},
-    {k:'7. FAKTORI KOJI UTIČU NA ISHOD',     icon:'⚡',  lbl:'Faktori koji utiču na ishod',     special:'faktori'},
-    {k:'8. SPORNE TAČKE',                    icon:'🔍',  lbl:'Sporne tačke',                    special:''},
+    {k:'2. ARGUMENTI ZA TUŽIOCA',            icon:'✅',  lbl:'Argumenti tužioca',               special:''},
+    {k:'3. SLABOSTI U POZICIJI TUŽIOCA',     icon:'⚠️',  lbl:'Slabosti tužioca',                special:'slabosti'},
+    {k:'4. POTENCIJALNI ARGUMENTI TUŽENOG',  icon:'🛡️',  lbl:'Argumenti tuženog',               special:''},
+    {k:'5. STRATEGIJA ZA TUŽIOCA',           icon:'🗺️',  lbl:'Strategija tužioca',              special:'strategija'},
+    {k:'6. STRATEGIJA ZA TUŽENOG',           icon:'🛡️',  lbl:'Strategija tuženog',              special:'strategija'},
+    {k:'7. PREDVIĐENI ARGUMENTI TUŽENOG',    icon:'🧩',  lbl:'Predviđeni argumenti tuženog',    special:'predvidjeni'},
+    {k:'8. FAKTORI KOJI UTIČU NA ISHOD',     icon:'⚡',  lbl:'Faktori koji utiču na ishod',     special:'faktori'},
+    {k:'9. SPORNE TAČKE',                    icon:'🔍',  lbl:'Sporne tačke',                    special:''},
+    {k:'10. NEDOSTAJUĆE ČINJENICE',          icon:'❓',  lbl:'Nedostajuće činjenice',            special:'nedostajuce'},
+    {k:'11. CRVENE ZASTAVICE',               icon:'🚨',  lbl:'Crvene zastavice',                special:'zastavice'},
+    {k:'12. POTREBNI DOKAZI',                icon:'📋',  lbl:'Potrebni dokazi',                 special:'dokazi'},
+    {k:'13. KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                  special:'kompletiranost'},
+    {k:'14. PROCENA RIZIKA',                 icon:'🎯',  lbl:'Procena rizika',                  special:'rizik'},
+    {k:'15. RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',               special:'praksa'},
+    {k:'16. SLEDEĆI NAJBOLJI KORAK',         icon:'🚀',  lbl:'Sledeći korak',                   special:'sledeci'},
+    {k:'17. PITANJA ZA KLIJENTA',            icon:'💬',  lbl:'Pitanja za klijenta',             special:'pitanja'},
+    {k:'18. POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
+    // legacy v6 16-section fallback
     {k:'9. NEDOSTAJUĆE ČINJENICE',           icon:'❓',  lbl:'Nedostajuće činjenice',            special:'nedostajuce'},
     {k:'10. POTREBNI DOKAZI',                icon:'📋',  lbl:'Potrebni dokazi',                 special:'dokazi'},
     {k:'11. KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                  special:'kompletiranost'},
@@ -4291,6 +4302,9 @@ function pred_renderProcena(tekst) {
   // Try to find sections without number prefix as fallback (GPT sometimes omits numbers)
   var _fallbackSek = [
     {k:'FAKTORI KOJI UTIČU NA ISHOD',    icon:'⚡',  lbl:'Faktori koji utiču na ishod',   special:'faktori'},
+    {k:'SLABOSTI U POZICIJI TUŽIOCA',    icon:'⚠️',  lbl:'Slabosti tužioca',              special:'slabosti'},
+    {k:'POTENCIJALNI ARGUMENTI TUŽENOG', icon:'🛡️',  lbl:'Argumenti tuženog',             special:''},
+    {k:'CRVENE ZASTAVICE',               icon:'🚨',  lbl:'Crvene zastavice',              special:'zastavice'},
     {k:'NEDOSTAJUĆE ČINJENICE',          icon:'❓',  lbl:'Nedostajuće činjenice',          special:'nedostajuce'},
     {k:'KLJUČNA ČINJENICA',              icon:'🔑',  lbl:'Ključna činjenica',              special:'kljucna'},
     {k:'KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                 special:'kompletiranost'},
@@ -4408,21 +4422,38 @@ function pred_renderProcena(tekst) {
       bodyHtml = argHtml || escHtml(body);
 
     } else if (x.s.special === 'faktori') {
-      // Render factor | impact | status table as styled rows
+      // Render factor | impact | status | source table
       var lines = body.split('\n');
       var rows = lines.map(function(ln) {
-        var m = ln.match(/^Faktor:\s*(.+?)\s*\|\s*Uticaj:\s*(VEOMA VISOK|VISOK|SREDNJI|NIZAK)(?:\s*\|\s*Status:\s*(Potvrđeno|Nepotvrđeno|Nepoznato))?/i);
+        var m = ln.match(/^Faktor:\s*(.+?)\s*\|\s*Uticaj:\s*(VEOMA VISOK|VISOK|SREDNJI|NIZAK)(?:\s*\|\s*Status:\s*([^|]+?))?(?:\s*\|\s*Izvor:\s*([^\n]+?))?\s*$/i);
         if (!m) return ln.trim() ? '<div style="color:rgba(255,255,255,0.45);font-size:0.72rem;margin-top:0.15rem;">'+escHtml(ln)+'</div>' : '';
         var fc = /VEOMA VISOK/i.test(m[2]) ? '#f87171' : (/VISOK/i.test(m[2]) ? '#fbbf24' : (/SREDNJI/i.test(m[2]) ? '#60a5fa' : 'rgba(255,255,255,0.4)'));
-        var sc = m[3] ? (/Potvrđeno/i.test(m[3]) ? '#4ade80' : (/Nepotvrđeno/i.test(m[3]) ? '#f87171' : '#facc15')) : '';
-        var statusHtml = m[3] ? '<span style="font-size:0.68rem;color:'+sc+';white-space:nowrap;margin-left:0.4rem;padding:0.1rem 0.4rem;background:'+sc+'1a;border-radius:3px;">'+escHtml(m[3])+'</span>' : '';
-        return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.22rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">'
-          +'<span style="flex:1;font-size:0.78rem;color:rgba(255,255,255,0.78);">'+escHtml(m[1])+'</span>'
+        var s3 = m[3] ? m[3].trim() : '';
+        var sc = s3 ? (/^Potv/i.test(s3) ? '#4ade80' : (/^Nepotv/i.test(s3) ? '#f87171' : '#facc15')) : '';
+        var statusHtml = s3 ? '<span style="font-size:0.67rem;color:'+sc+';margin-left:0.25rem;padding:0.07rem 0.32rem;background:'+sc+'1a;border-radius:3px;white-space:nowrap;">'+escHtml(s3)+'</span>' : '';
+        var s4 = m[4] ? m[4].trim() : '';
+        var ic = s4 ? (/Dostavljen dokument/i.test(s4) ? '#4ade80' : (/Dokument nije/i.test(s4) ? '#f87171' : (/Izjava/i.test(s4) ? '#89c8ff' : '#a78bfa'))) : '';
+        var izvorHtml = s4 ? '<span style="font-size:0.66rem;color:'+ic+';margin-left:0.25rem;padding:0.07rem 0.32rem;background:'+ic+'18;border-radius:3px;white-space:nowrap;">'+escHtml(s4)+'</span>' : '';
+        return '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">'
+          +'<span style="flex:1;min-width:8rem;font-size:0.78rem;color:rgba(255,255,255,0.78);">'+escHtml(m[1])+'</span>'
           +'<span style="font-size:0.7rem;font-weight:700;color:'+fc+';white-space:nowrap;">'+escHtml(m[2])+'</span>'
-          +statusHtml
+          +statusHtml+izvorHtml
           +'</div>';
       }).join('');
       bodyHtml = rows || escHtml(body);
+
+    } else if (x.s.special === 'slabosti') {
+      // Render plaintiff weaknesses as orange bullet list
+      var lines = body.split('\n');
+      bodyHtml = lines.map(function(ln) {
+        var m = ln.match(/^[-\u2022\d\.]+\s*(.+)/);
+        if (m) return '<div style="display:flex;gap:0.5rem;padding:0.18rem 0;font-size:0.78rem;">'
+          +'<span style="color:#fb923c;flex-shrink:0;">&#9888;</span>'
+          +'<span style="color:rgba(255,200,150,0.85);">'+escHtml(m[1])+'</span>'
+          +'</div>';
+        return ln.trim() ? '<div style="font-size:0.74rem;color:rgba(255,255,255,0.4);">'+escHtml(ln)+'</div>' : '';
+      }).join('');
+      if (!bodyHtml.trim()) bodyHtml = escHtml(body);
 
     } else if (x.s.special === 'kljucna') {
       // Render DA/NE blocks as structured cards (legacy v3/v4)
@@ -4539,6 +4570,19 @@ function pred_renderProcena(tekst) {
       }).join('');
       bodyHtml = cards || escHtml(body);
 
+    } else if (x.s.special === 'zastavice') {
+      // Render red flag critical issues
+      var lines = body.split('\n');
+      bodyHtml = lines.map(function(ln) {
+        var m = ln.match(/^[-\u2022]\s*(?:\uD83D\uDEA8\s*)?(.+)/);
+        if (m) return '<div style="display:flex;gap:0.5rem;padding:0.2rem 0;font-size:0.78rem;border-bottom:1px solid rgba(248,113,113,0.1);">'
+          +'<span style="flex-shrink:0;">&#128680;</span>'
+          +'<span style="color:#fca5a5;font-weight:500;">'+escHtml(m[1])+'</span>'
+          +'</div>';
+        return ln.trim() ? '<div style="font-size:0.74rem;color:rgba(255,255,255,0.35);">'+escHtml(ln)+'</div>' : '';
+      }).join('');
+      if (!bodyHtml.trim()) bodyHtml = escHtml(body);
+
     } else if (x.s.special === 'nedostajuce') {
       // Render unknown-fact questions as amber bullet list
       var lines = body.split('\n');
@@ -4553,12 +4597,12 @@ function pred_renderProcena(tekst) {
       if (!bodyHtml.trim()) bodyHtml = escHtml(body);
 
     } else if (x.s.special === 'pitanja') {
-      // Render client questions as blue bullet list
+      // Render client questions — supports → or - prefix
       var lines = body.split('\n');
       bodyHtml = lines.map(function(ln) {
-        var m = ln.match(/^-\s*(.+)/);
+        var m = ln.match(/^(?:\u2192|->|-|\u2022)\s*(.+)/);
         if (m) return '<div style="display:flex;gap:0.5rem;padding:0.18rem 0;font-size:0.78rem;">'
-          +'<span style="color:#60a5fa;flex-shrink:0;">→</span>'
+          +'<span style="color:#60a5fa;flex-shrink:0;font-weight:700;">&rarr;</span>'
           +'<span style="color:rgba(255,255,255,0.78);">'+escHtml(m[1])+'</span>'
           +'</div>';
         return ln.trim() ? '<div style="font-size:0.74rem;color:rgba(255,255,255,0.4);">'+escHtml(ln)+'</div>' : '';
@@ -4569,7 +4613,7 @@ function pred_renderProcena(tekst) {
       bodyHtml = escHtml(body);
     }
 
-    var openCls = (x.s.special === 'kompletiranost' || x.s.special === 'rizik' || x.s.special === 'pouzdanost' || x.s.special === 'sledeci') ? ' open' : '';
+    var openCls = (x.s.special === 'kompletiranost' || x.s.special === 'rizik' || x.s.special === 'pouzdanost' || x.s.special === 'sledeci' || x.s.special === 'zastavice') ? ' open' : '';
     html += '<div class="procena-section">'
       +'<div class="procena-section-hdr'+extraCls+'" onclick="this.nextElementSibling.classList.toggle(\'open\')">'
       +'<span class="sec-icon">'+x.s.icon+'</span>'+escHtml(x.s.lbl)+' <span>▾</span></div>'
