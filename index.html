@@ -121,7 +121,7 @@
   --amber: #f0b429;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: hidden; }
 ::-webkit-scrollbar { width: 3px; background: #010308; }
 ::-webkit-scrollbar-thumb { background: rgba(74,168,255,0.25); border-radius: 2px; }
 body { background: #010308; color: rgba(255,255,255,0.95); font-family: 'DM Sans', sans-serif; overflow-x: hidden; cursor: none; }
@@ -907,16 +907,37 @@ footer { padding: 2rem 1.5rem; }
 .modal { padding: 2rem 1.5rem; max-height: calc(100vh - 3rem); overflow-y: auto; }
 .modal-title { font-size: 1.6rem; }
 .t-tab { cursor: pointer; }
+
+/* NAV-USER — na mobilnom prikaži samo dugmad, sakrij email/kredit/link */
+.nav-user { gap: 0.45rem; }
+.nav-user-email { display: none; }
+.nav-credit-pill { display: none; }
+#nav-user > a { display: none; }
+
+/* STATS — dozvoli prelom na mobilnom */
+.h-stats { flex-wrap: wrap; gap: 0.4rem 0; }
+.h-stat { padding: 0 0.9rem; border-right: none; border-bottom: none; flex: 0 0 auto; }
+
+/* TERMINAL BODY — smanji unutrašnji padding u hero kontekstu */
+.h3-center .t-body { padding: 1rem 1.1rem; }
+
+/* RESULT AREAS — ograniči visinu na mobilnom */
+.strat-rezultat-body { max-height: 50vh; overflow-x: hidden; }
+.web3-rezultat-body  { max-height: 50vh; overflow-x: hidden; }
 }
 
 @media (max-width: 480px) {
-.h-stat { padding: 0 0.8rem; }
+.h-stat { padding: 0 0.7rem; }
 .h-stat-num { font-size: 1.3rem; }
 .h-stat-lbl { font-size: 0.58rem; }
 .h-cta { flex-direction: column; align-items: center; }
 .t-tab { padding: 10px 12px; font-size: 0.78rem; min-height: 44px; }
 .srp-lbl { font-size: 0.62rem; }
 .srp-ql { font-size: 0.62rem; }
+/* Extra tighten za veoma male ekrane */
+.nav-user { gap: 0.3rem; }
+.h3-center .t-body { padding: 0.85rem 0.9rem; }
+.strat-textarea { min-height: 110px; }
 }
 
 /* ── AUTH MODAL ─────────────────────────────────────────────────────────── */
