@@ -172,32 +172,34 @@ def _kalkulisi_rok(vrednost: str, tip: str, datum_dokumenta: Optional[str]) -> d
             rok_dt = datetime.strptime(vrednost, "%d.%m.%Y")
             delta  = (rok_dt - today).days
             return {
-                "konkretan_datum": vrednost,
-                "istekao":         delta < 0,
-                "dana_do_roka":    delta,
+                "konkretan_datum":     vrednost,
+                "konkretan_datum_iso": rok_dt.strftime("%Y-%m-%d"),
+                "istekao":             delta < 0,
+                "dana_do_roka":        delta,
             }
         except ValueError:
-            return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+            return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
 
     elif tip == "relativni":
         if not datum_dokumenta:
-            return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+            return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
         try:
             doc_dt = datetime.strptime(datum_dokumenta, "%d.%m.%Y")
             n_dana  = _parse_trajanje_dana(vrednost)
             if n_dana is None:
-                return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+                return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
             rok_dt = doc_dt + timedelta(days=n_dana)
             delta  = (rok_dt - today).days
             return {
-                "konkretan_datum": rok_dt.strftime("%d.%m.%Y"),
-                "istekao":         delta < 0,
-                "dana_do_roka":    delta,
+                "konkretan_datum":     rok_dt.strftime("%d.%m.%Y"),
+                "konkretan_datum_iso": rok_dt.strftime("%Y-%m-%d"),
+                "istekao":             delta < 0,
+                "dana_do_roka":        delta,
             }
         except ValueError:
-            return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+            return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
 
-    return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+    return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
 
 
 # ─── Glavna funkcija ──────────────────────────────────────────────────────────

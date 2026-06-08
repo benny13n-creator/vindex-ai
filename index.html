@@ -1052,6 +1052,35 @@ footer { padding: 2rem 1.5rem; }
 .rok-upozorenje{background:rgba(246,173,85,0.1);color:#f6ad55;}
 .rok-ok{background:rgba(72,187,120,0.1);color:#48bb78;}
 .rok-nepoznat{font-size:.76rem;color:rgba(255,255,255,0.26);margin-top:4px;font-style:italic;}
+/* Phase 3.6 — Zastarelost kalkulator */
+.zast-wrap{margin-top:1rem;padding:.85rem 1rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:10px;}
+.zast-toggle{width:100%;padding:.6rem 1rem;background:rgba(74,168,255,0.06);border:1px solid rgba(74,168,255,0.18);border-radius:9px;color:#89c8ff;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;text-align:left;transition:background .2s;}
+.zast-toggle:hover{background:rgba(74,168,255,0.12);}
+.zast-body{display:none;margin-top:.8rem;}
+.zast-body.show{display:block;}
+.zast-form-row{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.65rem;}
+.zast-form-row label{font-size:.78rem;color:rgba(255,255,255,0.42);}
+.zast-sel,.zast-inp{background:rgba(255,255,255,0.04);border:1px solid rgba(74,168,255,0.18);border-radius:6px;padding:.38rem .75rem;color:#e6edf3;font-size:.8rem;font-family:'DM Sans',sans-serif;width:100%;box-sizing:border-box;}
+.zast-sel:focus,.zast-inp:focus{outline:none;border-color:rgba(74,168,255,0.5);}
+.zast-sel option{background:#161b22;color:#e6edf3;}
+.zast-osnov-hint{font-size:.73rem;color:#4aa8ff;font-style:italic;padding-left:2px;min-height:1em;}
+.zast-btn{margin-top:.4rem;padding:.55rem 1rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.3);border-radius:7px;color:#89c8ff;font-size:.8rem;font-weight:600;cursor:pointer;transition:background .2s;}
+.zast-btn:hover{background:rgba(74,168,255,0.18);}
+.zast-card{border-radius:8px;padding:.75rem 1rem;margin-top:.65rem;border-left:3px solid;}
+.zast-card.zc-ok{background:rgba(72,187,120,0.07);border-color:#48bb78;}
+.zast-card.zc-warn{background:rgba(246,173,85,0.08);border-color:#f6ad55;}
+.zast-card.zc-hitno{background:rgba(248,81,73,0.09);border-color:#fc8181;}
+.zast-card.zc-isteklo{background:rgba(248,81,73,0.14);border-color:#9b2c2c;}
+.zast-row{font-size:.82rem;color:rgba(255,255,255,0.75);margin:.18rem 0;}
+.zast-row b{color:#fff;}
+.zast-status{font-size:.88rem;font-weight:700;margin-top:.5rem;}
+.zast-napomena{font-size:.76rem;color:rgba(255,255,255,0.42);margin-top:.45rem;font-style:italic;}
+.zast-osnov-badge{display:inline-block;font-size:.68rem;background:rgba(255,255,255,0.08);padding:1px 7px;border-radius:10px;margin-left:.4rem;vertical-align:middle;}
+/* btn-ics — Dodaj u kalendar */
+.btn-ics{display:inline-block;margin-top:.55rem;padding:.3rem .75rem;background:transparent;border:1px solid rgba(74,168,255,0.3);border-radius:6px;color:#89c8ff;font-size:.76rem;cursor:pointer;transition:all .2s;}
+.btn-ics:hover{background:rgba(74,168,255,0.12);border-color:rgba(74,168,255,0.5);}
+.btn-ics-all{margin-top:.5rem;width:100%;padding:.52rem 1rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:rgba(255,255,255,0.45);font-size:.78rem;cursor:pointer;transition:background .2s;}
+.btn-ics-all:hover{background:rgba(255,255,255,0.05);color:#fff;}
 /* ── F5 Predmeti ─────────────────────────────────────────────────────────── */
 .predmet-indicator{display:none;font-size:0.7rem;font-family:'JetBrains Mono',monospace;color:#4aa8ff;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.2);border-radius:6px;padding:0.25rem 0.7rem;margin-bottom:0.5rem;letter-spacing:0.03em;}
 .predmet-indicator.show{display:block;}
@@ -1545,6 +1574,26 @@ footer { padding: 2rem 1.5rem; }
               <div id="rokovi-panel" class="rokovi-panel">
                 <div class="rokovi-panel-title">Identifikovani rokovi</div>
                 <div id="rokovi-lista"></div>
+                <button class="btn-ics-all" onclick="sviRokoviUKalendar()" id="btn-ics-all" style="display:none;">📅 Izvezi sve rokove (.ics)</button>
+              </div>
+              <!-- ZASTARELOST KALKULATOR Phase 3.6 -->
+              <div class="zast-wrap">
+                <button class="zast-toggle" onclick="zastToggle(this)">⏳ Kalkulator zastarelosti</button>
+                <div class="zast-body" id="zast-body">
+                  <div class="zast-form-row">
+                    <label for="zast-tip">Tip potraživanja</label>
+                    <select id="zast-tip" class="zast-sel" onchange="zastTipChange(this)">
+                      <option value="">— izaberite tip —</option>
+                    </select>
+                    <div class="zast-osnov-hint" id="zast-osnov-hint"></div>
+                  </div>
+                  <div class="zast-form-row">
+                    <label for="zast-datum">Datum početka (DD.MM.YYYY)</label>
+                    <input type="text" id="zast-datum" class="zast-inp" placeholder="01.01.2024" maxlength="10">
+                  </div>
+                  <button class="zast-btn" onclick="kalkulisiZastarelost()">Izračunaj</button>
+                  <div id="zast-rezultat"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -4446,10 +4495,13 @@ function _rok_render_alert(rok) {
 }
 
 function _rok_build_card(rok) {
-  var kat  = rok.kategorija || 'ostalo';
-  var icon = _ROK_ICONS[kat] || '📌';
-  var ctx  = rok.kontekst ? rok.kontekst.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
-  var html = '<div class="rok-card ' + kat + (rok.istekao ? ' rok-card-istekao' : '') + '">' +
+  var kat     = rok.kategorija || 'ostalo';
+  var icon    = _ROK_ICONS[kat] || '📌';
+  var ctx     = rok.kontekst ? rok.kontekst.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+  var isoAttr = rok.konkretan_datum_iso ? ' data-rok-iso="' + rok.konkretan_datum_iso + '"' +
+    ' data-rok-naslov="' + (kat + ': ' + rok.vrednost).replace(/"/g,'&quot;') + '"' +
+    ' data-rok-opis="' + (ctx ? ctx.substring(0,120) : '').replace(/"/g,'&quot;') + '"' : '';
+  var html = '<div class="rok-card ' + kat + (rok.istekao ? ' rok-card-istekao' : '') + '"' + isoAttr + '>' +
     '<div class="rok-icon">' + icon + '</div>' +
     '<div class="rok-body">' +
       '<span class="rok-vrednost">' + rok.vrednost + '</span>' +
@@ -4459,6 +4511,12 @@ function _rok_build_card(rok) {
     html += '<div class="rok-konkretan">📅 ' + rok.konkretan_datum + '</div>';
   }
   html += _rok_render_alert(rok);
+  if (rok.konkretan_datum_iso && !rok.istekao) {
+    var naslov  = (kat + ': ' + rok.vrednost).replace(/'/g,"\\'");
+    var opisIcs = ctx ? ctx.substring(0,120).replace(/'/g,"\\'") : '';
+    html += '<button class="btn-ics" onclick="dodajUKalendar(\'' + naslov + '\',\'' +
+      rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">📅 Dodaj u kalendar</button>';
+  }
   html += '</div></div>';
   return html;
 }
@@ -4500,11 +4558,16 @@ async function _doc_fetch_rokove() {
     }
 
     var rokovi = d.rokovi || [];
+    var btnAll = document.getElementById('btn-ics-all');
     if (!rokovi.length) {
       lista.innerHTML = '<div class="rokovi-empty">Nisu pronađeni rokovi u dokumentu.</div>';
+      if (btnAll) btnAll.style.display = 'none';
       return;
     }
     lista.innerHTML = rokovi.map(_rok_build_card).join('');
+    // Prikaži "Izvezi sve" samo ako postoji bar jedan rok sa poznatim datumom
+    var hasIso = rokovi.some(function(r){ return r.konkretan_datum_iso; });
+    if (btnAll) btnAll.style.display = hasIso ? 'block' : 'none';
   } catch(e) {
     lista.innerHTML = '<div class="rokovi-empty">Nema veze sa serverom.</div>';
   }
@@ -4534,6 +4597,131 @@ function doc_rokovi_recalc() {
   var panel = document.getElementById('rokovi-panel');
   if (!panel || !panel.classList.contains('show')) return;
   _rokovi_debounce = setTimeout(_doc_fetch_rokove, 650);
+}
+
+/* ── Phase 3.6: ICS export ───────────────────────────────────────── */
+async function dodajUKalendar(naslov, datumIso, opis) {
+  try {
+    var res = await fetch(BASE_URL + '/rokovi/ics-export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rokovi: [{ naslov: naslov, datum_iso: datumIso, opis: opis || '' }] })
+    });
+    if (!res.ok) throw new Error('Server greška ' + res.status);
+    var blob = await res.blob();
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = 'rok_' + datumIso + '.ics';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('Greška pri generisanju ICS fajla: ' + e.message);
+  }
+}
+
+async function sviRokoviUKalendar() {
+  var eventi = [];
+  document.querySelectorAll('[data-rok-iso]').forEach(function(el) {
+    eventi.push({ naslov: el.dataset.rokNaslov || 'Rok', datum_iso: el.dataset.rokIso, opis: el.dataset.rokOpis || '' });
+  });
+  if (!eventi.length) { alert('Nema rokova sa poznatim datumima za export.'); return; }
+  try {
+    var res = await fetch(BASE_URL + '/rokovi/ics-export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rokovi: eventi })
+    });
+    if (!res.ok) throw new Error('Server greška ' + res.status);
+    var blob = await res.blob();
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = 'svi_rokovi_vindex.ics';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('Greška: ' + e.message);
+  }
+}
+
+/* ── Phase 3.6: Zastarelost kalkulator ──────────────────────────── */
+(function() {
+  fetch(BASE_URL + '/zastarelost/tipovi')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var sel = document.getElementById('zast-tip');
+      if (!sel) return;
+      (data.tipovi || []).forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t.kljuc; opt.textContent = t.naziv + ' (' + t.osnov + ')'; opt.title = t.opis;
+        sel.appendChild(opt);
+      });
+    })
+    .catch(function(){});
+})();
+
+function zastToggle(btn) {
+  var body = document.getElementById('zast-body');
+  if (!body) return;
+  var open = body.classList.toggle('show');
+  btn.textContent = open ? '⏳ Sakrij kalkulator' : '⏳ Kalkulator zastarelosti';
+}
+
+function zastTipChange(sel) {
+  var hint = document.getElementById('zast-osnov-hint');
+  if (!hint) return;
+  hint.textContent = sel.selectedOptions[0] ? (sel.selectedOptions[0].title || '') : '';
+}
+
+async function kalkulisiZastarelost() {
+  var tip    = (document.getElementById('zast-tip')   || {}).value  || '';
+  var datum  = (document.getElementById('zast-datum') || {}).value  || '';
+  var rezDiv = document.getElementById('zast-rezultat');
+  if (!rezDiv) return;
+
+  if (!tip || !datum) {
+    rezDiv.innerHTML = '<div class="rok-alert rok-hitno" style="display:block;margin-top:.5rem;">Izaberite tip i unesite datum početka.</div>';
+    return;
+  }
+  rezDiv.innerHTML = '<div style="font-size:.8rem;color:rgba(255,255,255,0.4);margin-top:.5rem;">Računam...</div>';
+
+  try {
+    var res = await fetch(BASE_URL + '/zastarelost/kalkulisi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tip: tip, datum_pocetka: datum })
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function(){ return {detail:'Greška'}; });
+      rezDiv.innerHTML = '<div class="rok-alert rok-hitno" style="display:block;margin-top:.5rem;">⚠ ' + (err.detail || 'Server greška') + '</div>';
+      return;
+    }
+    var d = await res.json();
+
+    var cls = 'zc-ok';
+    var statusTxt = '✅ Ističe za ' + d.dana_preostalo + ' dana';
+    if (d.isteklo)               { cls = 'zc-isteklo'; statusTxt = '⚠️ Zastarelo pre ' + Math.abs(d.dana_preostalo) + ' dana'; }
+    else if (d.dana_preostalo <= 7)  { cls = 'zc-hitno';  statusTxt = '🔴 HITNO — ističe za ' + d.dana_preostalo + ' dana'; }
+    else if (d.dana_preostalo <= 30) { cls = 'zc-warn';   statusTxt = '🟡 Ističe za ' + d.dana_preostalo + ' dana'; }
+
+    var napHtml = d.napomena ? '<div class="zast-napomena">ℹ️ ' + d.napomena + '</div>' : '';
+    var icsBtnHtml = (!d.isteklo && d.datum_zastarelosti_iso) ?
+      '<button class="btn-ics" onclick="dodajUKalendar(\'Zastarelost: ' +
+        d.tip_potrazivanja.replace(/'/g,"\\'") + '\',\'' + d.datum_zastarelosti_iso + '\',\'' +
+        d.zakonski_osnov.replace(/'/g,"\\'") + '\')">📅 Dodaj u kalendar</button>' : '';
+
+    rezDiv.innerHTML = '<div class="zast-card ' + cls + '">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">' +
+        '<strong style="font-size:.88rem;">' + d.tip_potrazivanja + '</strong>' +
+        '<span class="zast-osnov-badge">' + d.zakonski_osnov + '</span>' +
+      '</div>' +
+      '<div class="zast-row">Rok: <b>' + d.rok_opis + '</b></div>' +
+      '<div class="zast-row">Početak: <b>' + d.datum_pocetka + '</b></div>' +
+      '<div class="zast-row">Zastarelost: <b>' + d.datum_zastarelosti + '</b></div>' +
+      '<div class="zast-status">' + statusTxt + '</div>' +
+      napHtml + icsBtnHtml + '</div>';
+  } catch(e) {
+    rezDiv.innerHTML = '<div class="rok-alert rok-hitno" style="display:block;margin-top:.5rem;">Greška: ' + e.message + '</div>';
+  }
 }
 
 (function() {
