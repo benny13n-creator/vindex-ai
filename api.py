@@ -1964,6 +1964,7 @@ from strategija import (
     litigation_simulator_sync,
     ai_judge_mode_sync,
     due_diligence_analiza_sync,
+    pravni_revizor_sync,
 )
 
 
@@ -2286,6 +2287,67 @@ async def post_push_test(user: dict = Depends(get_current_user)):
                                 .execute()
                 )
     return {"status": f"{uspešno}/{len(subs.data)} notifikacija poslato"}
+
+
+# ── F7.1: AI Pravni Revizor (5. modul Strategije) ────────────────────────────
+
+@app.post("/strategija/revizor")  # F7.1
+@limiter.limit("5/minute")
+async def post_revizor(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F7.1 — AI Pravni Revizor — pregled dokumenta sa predlozima izmena (PRO)."""
+    if len(req.tekst.strip()) < 100:
+        raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "pravni_revizor", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            pravni_revizor_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "revizor", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F7] pravni_revizor greška")
+        raise HTTPException(status_code=500, detail="Greška pri generisanju revizije. Pokušajte ponovo.")
+
+
+# ── F7.2: Interni stavovi ─────────────────────────────────────────────────────
+from interni_stavovi import (
+    ingest_stav as _ingest_stav,
+    search_stavovi as _search_stavovi,
+    obrisi_stavove as _obrisi_stavove,
+)
+
+
+class InterniStavRequest(BaseModel):  # F7
+    naslov: str = Field(..., min_length=3, max_length=200)
+    tekst:  str = Field(..., min_length=30, max_length=20000)
+
+
+class InterniPretraga(BaseModel):  # F7
+    upit: str = Field(..., min_length=3, max_length=500)
+
+
+@app.post("/interni-stavovi/dodaj")  # F7.2
+@limiter.limit("20/minute")
+async def post_dodaj_stav(req: InterniStavRequest, request: Request, user: dict = Depends(require_pro)):
+    """F7.2 — Dodaj interni pravni stav firme (PRO)."""
+    count = await asyncio.to_thread(_ingest_stav, user["user_id"], req.naslov, req.tekst)
+    return {"vektori": count, "naslov": req.naslov}
+
+
+@app.post("/interni-stavovi/pretraga")  # F7.2
+@limiter.limit("30/minute")
+async def post_pretraga_stavova(req: InterniPretraga, request: Request, user: dict = Depends(require_pro)):
+    """F7.2 — Pretraži interne stavove firme (PRO)."""
+    rezultati = await asyncio.to_thread(_search_stavovi, user["user_id"], req.upit)
+    return {"rezultati": rezultati, "ukupno": len(rezultati)}
+
+
+@app.delete("/interni-stavovi/obrisi-sve")  # F7.2
+@limiter.limit("5/minute")
+async def delete_svi_stavovi(request: Request, user: dict = Depends(require_pro)):
+    """F7.2 — Obriši sve interne stavove korisnika (PRO)."""
+    count = await asyncio.to_thread(_obrisi_stavove, user["user_id"])
+    return {"obrisano_vektora": count}
 
 
 # ─── /api/praksa/search ───────────────────────────────────────────────────────

@@ -1228,6 +1228,44 @@ footer { padding: 2rem 1.5rem; }
 .manual-compare-inputs input{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:0.42rem 0.7rem;color:rgba(255,255,255,0.78);font-family:'JetBrains Mono',monospace;font-size:0.72rem;width:150px;outline:none;}
 .manual-compare-inputs span{color:rgba(255,255,255,0.25);font-size:0.75rem;}
 .manual-compare-inputs button{padding:0.4rem 0.8rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#4aa8ff;font-family:'DM Sans',sans-serif;font-size:0.73rem;cursor:pointer;}
+/* ── F7 Playbook UI ──────────────────────────────────────────────────────── */
+.playbook-panel{margin-top:20px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;overflow:hidden;}
+.playbook-summary{padding:11px 15px;cursor:pointer;font-size:0.88rem;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px;color:#e6edf3;}
+.playbook-summary::-webkit-details-marker{display:none;}
+.playbook-count{font-size:0.72rem;background:rgba(74,168,255,0.2);color:#89c8ff;padding:2px 7px;border-radius:10px;font-weight:600;}
+.playbook-body{padding:12px 15px;border-top:1px solid rgba(255,255,255,0.08);}
+.playbook-opis{font-size:0.8rem;color:rgba(255,255,255,0.4);margin-bottom:11px;line-height:1.5;}
+.playbook-upload-zona{border:2px dashed rgba(255,255,255,0.12);border-radius:8px;padding:18px;text-align:center;cursor:pointer;font-size:0.83rem;color:rgba(255,255,255,0.4);transition:border-color .2s;margin-bottom:11px;}
+.playbook-upload-zona:hover{border-color:rgba(74,168,255,0.45);color:#89c8ff;}
+.playbook-progress{font-size:0.8rem;color:#89c8ff;margin-bottom:8px;}
+.playbook-lista{margin-bottom:9px;}
+.playbook-fajl-red{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.8rem;}
+.playbook-fajl-naziv{color:#e6edf3;}
+.playbook-fajl-meta{color:rgba(255,255,255,0.35);font-size:0.74rem;}
+.playbook-prazno{font-size:0.78rem;color:rgba(255,255,255,0.3);margin:4px 0;}
+.playbook-akcije{display:flex;gap:8px;margin-top:8px;}
+.playbook-akcija-btn{padding:4px 11px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.5);font-size:0.76rem;cursor:pointer;font-family:inherit;transition:all .2s;}
+.playbook-akcija-btn:hover{background:rgba(255,255,255,0.08);color:#fff;}
+/* ── F7 Interni stavovi ──────────────────────────────────────────────────── */
+.interni-panel{margin-top:16px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;overflow:hidden;}
+.interni-summary{padding:10px 14px;cursor:pointer;font-size:0.88rem;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px;color:#e6edf3;}
+.interni-summary::-webkit-details-marker{display:none;}
+.interni-body{padding:12px 14px;border-top:1px solid rgba(255,255,255,0.08);}
+.interni-opis{font-size:0.8rem;color:rgba(255,255,255,0.4);margin-bottom:10px;line-height:1.5;}
+.interni-forma{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.interni-input{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 11px;color:#e6edf3;font-size:0.83rem;font-family:inherit;outline:none;}
+.interni-input:focus{border-color:rgba(74,168,255,0.4);}
+.interni-submit-btn{padding:7px 16px;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.28);border-radius:7px;color:#89c8ff;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;align-self:flex-start;}
+.interni-submit-btn:hover{background:rgba(74,168,255,0.18);}
+.interni-search-row{display:flex;gap:8px;margin-bottom:10px;}
+.interni-search-row .interni-input{flex:1;}
+.interni-search-btn{padding:7px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:rgba(255,255,255,0.55);font-size:0.82rem;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .2s;}
+.interni-search-btn:hover{background:rgba(255,255,255,0.08);color:#fff;}
+.interni-rezultat-red{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:10px 12px;margin-bottom:8px;font-size:0.82rem;}
+.interni-rezultat-naslov{color:#89c8ff;font-weight:600;display:block;margin-bottom:4px;}
+.interni-rezultat-tekst{color:rgba(255,255,255,0.65);line-height:1.5;}
+.interni-score{float:right;font-size:0.74rem;background:rgba(74,168,255,0.1);color:#89c8ff;padding:2px 6px;border-radius:8px;}
+.interni-del-btn{margin-top:9px;}
 </style>
 
 </head>
@@ -1485,6 +1523,32 @@ footer { padding: 2rem 1.5rem; }
               <button class="mic-btn" id="mic-qi" type="button" onclick="micToggle('qi')" title="Glasovni unos — kliknite da diktirate (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
             </div>
             <div class="mic-status" id="mic-status-qi"><span class="mic-status-dot"></span><span>Snimam... govorite na srpskom</span></div>
+
+            <!-- F7: Interni stavovi firme -->
+            <details id="interni-stavovi-panel" class="interni-panel" style="display:none;">
+              <summary class="interni-summary">
+                🏛️ Interni stavovi firme
+                <span class="pro-badge">PRO</span>
+              </summary>
+              <div class="interni-body">
+                <p class="interni-opis">Čuvajte interne pravne stavove i argumente firme. Dodajte ih ovde i pretražujte pored zakona i sudske prakse.</p>
+                <div class="interni-forma">
+                  <input type="text" id="interni-naslov" class="interni-input"
+                         placeholder="Naslov stava (npr. 'Tumačenje čl. 179 ZR — otpremnina')"/>
+                  <textarea id="interni-tekst" class="interni-input" rows="4"
+                            placeholder="Tekst internog pravnog stava ili argumenta..." style="resize:vertical;line-height:1.5;"></textarea>
+                  <button class="interni-submit-btn" onclick="dodajInterniStav()">+ Dodaj stav</button>
+                </div>
+                <hr style="border:none;border-top:1px solid rgba(255,255,255,0.07);margin:10px 0;"/>
+                <div class="interni-search-row">
+                  <input type="text" id="interni-upit" class="interni-input"
+                         placeholder="Pretražite interne stavove..."/>
+                  <button class="interni-search-btn" onclick="pretraziInterneStavove()">Pretraži</button>
+                </div>
+                <div id="interni-rezultati"></div>
+                <button class="btn-danger-small interni-del-btn" onclick="obrisiSveInterneStavove()">🗑️ Obriši sve stavove</button>
+              </div>
+            </details>
           </div>
 
           <!-- ── F5: PREDMETI TAB ──────────────────────────────────────────── -->
@@ -1607,6 +1671,36 @@ footer { padding: 2rem 1.5rem; }
               <span class="podnesak-chip" onclick="fillPodnesakPrimer('zalba')">Žalba — odbijen zahtev</span>
               <span class="podnesak-chip" onclick="fillPodnesakPrimer('izvrsenje')">Izvršenje — neplaćen dug</span>
             </div>
+
+            <!-- F7: Playbook upravljanje -->
+            <details id="playbook-detalji" class="playbook-panel" style="display:none;">
+              <summary class="playbook-summary">
+                📚 Firmini dokumenti (Playbook)
+                <span class="pro-badge">PRO</span>
+                <span id="playbook-count-badge" class="playbook-count" style="display:none;"></span>
+              </summary>
+              <div class="playbook-body">
+                <p class="playbook-opis">Uploadujte interne dokumente firme (presedani, argumenti, šabloni). Vindex će ih automatski koristiti pri generisanju nacrta.</p>
+                <div class="playbook-upload-zona" id="playbook-drop-zona"
+                     ondragover="event.preventDefault()"
+                     ondrop="playbookDrop(event)">
+                  <input type="file" id="playbook-file-input" multiple
+                         accept=".pdf,.docx,.txt"
+                         style="display:none"
+                         onchange="playbookUploadFajlove(this.files)"/>
+                  <div onclick="document.getElementById('playbook-file-input').click()">
+                    📎 Prevucite fajlove ovde ili <u>kliknite za izbor</u><br>
+                    <small>PDF, DOCX, TXT — max 2MB po fajlu</small>
+                  </div>
+                </div>
+                <div id="playbook-progress" style="display:none;" class="playbook-progress"></div>
+                <div id="playbook-lista" class="playbook-lista"></div>
+                <div class="playbook-akcije">
+                  <button class="playbook-akcija-btn" onclick="ucitajPlaybookStatus()">🔄 Osveži</button>
+                  <button class="btn-danger-small" onclick="obrisiSvPlaybook()">🗑️ Obriši sve</button>
+                </div>
+              </div>
+            </details>
           </div>
           <div id="tab-a" style="display:none">
             <div class="t-guide">
@@ -1726,6 +1820,7 @@ footer { padding: 2rem 1.5rem; }
               <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">⚖️ Litigation Simulator</button>
               <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">👨‍⚖️ AI Sudija</button>
               <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">🔍 Due Diligence</button>
+              <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">✏️ Pravni Revizor</button>
             </div>
             <div id="strat-opis" class="strat-opis-box"></div>
             <div class="strat-input-wrap">
@@ -2140,7 +2235,13 @@ async function loadCredits() {
       _updateProTabUI();
       _updateStratTabUI();
       updateCreditDisplay();
-      if (currentUserIsPro) ucitajApiKljuceve();
+      if (currentUserIsPro) {
+        ucitajApiKljuceve();
+        // F7: prikaži PRO panele
+        var ip = document.getElementById('interni-stavovi-panel');
+        if (ip && activeTab === 'q') ip.style.display = '';
+        if (activeTab === 'n') ucitajPlaybookStatus();
+      }
     } else {
       console.warn('[Vindex] /api/me greška, status:', r.status);
     }
@@ -2613,7 +2714,8 @@ function setTab(el,t){
   var respEl  = document.getElementById('resp');
   if (execRow) execRow.style.display = (t === 't') ? 'none' : '';
   if (credRow) credRow.style.display = (t === 't') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
-  if (t==='n') updatePodnesakHint();
+  if (t==='n') { updatePodnesakHint(); ucitajPlaybookStatus(); }
+  if (t==='q' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
   if (t==='s') praksa_load_initial();
   if (t==='p') pred_load();
   document.getElementById('btn-lbl').textContent = lbl[t] || '';
@@ -2686,6 +2788,13 @@ var STRAT_MODULI = {
     endpoint: '/strategija/due-diligence',
     opis:     'Sistematski pregled ugovora ili dokumenta — kritični rizici, formalni nedostaci, nedostajuće klauzule, preporuka.',
     label:    'Tekst dokumenta / ugovora za analizu',
+    min:      100
+  },
+  revizor: {
+    naziv:    'AI Pravni Revizor',
+    endpoint: '/strategija/revizor',
+    opis:     'Pregledava dokument ili nacrt i predlaže konkretne izmene. Identifikuje kritične greške, formalne nedostatke i daje gotove formulacije za ispravke.',
+    label:    'Tekst dokumenta ili nacrta za reviziju',
     min:      100
   }
 };
@@ -2975,6 +3084,171 @@ async function subscribePush() {
 function closeProUpgradeModal() {
   var m = document.getElementById('pro-upgrade-modal');
   if (m) { m.classList.remove('open'); document.body.style.overflow = ''; }
+}
+
+// ── F7 PLAYBOOK UI ────────────────────────────────────────────────────────────
+
+async function ucitajPlaybookStatus() {
+  var panel = document.getElementById('playbook-detalji');
+  if (!panel || !currentSession) return;
+  if (!currentUserIsPro) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  try {
+    var res = await fetch(BASE_URL + '/api/playbook/status', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (res.status === 403) { panel.style.display = 'none'; return; }
+    var data = await res.json();
+    var count = data.chunk_count || 0;
+    var badge = document.getElementById('playbook-count-badge');
+    if (badge) {
+      badge.textContent = count > 0 ? count + ' vektora' : '';
+      badge.style.display = count > 0 ? 'inline' : 'none';
+    }
+    var lista = document.getElementById('playbook-lista');
+    if (lista) {
+      if (count === 0) {
+        lista.innerHTML = '<p class="playbook-prazno">Nema uploadovanih dokumenata.</p>';
+      } else {
+        lista.innerHTML = '<p class="playbook-prazno">' + count + ' vektora indeksirano i aktivno.</p>';
+      }
+    }
+  } catch(e) { console.warn('Playbook status greška:', e); }
+}
+
+async function playbookUploadFajlove(files) {
+  if (!currentSession) { openModal(); return; }
+  var progress = document.getElementById('playbook-progress');
+  if (progress) progress.style.display = 'block';
+  var uspešno = 0;
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    if (progress) progress.textContent = 'Uplodujem: ' + file.name + '...';
+    var formData = new FormData();
+    formData.append('file', file);
+    try {
+      var res = await fetch(BASE_URL + '/api/playbook/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+        body: formData
+      });
+      if (res.ok) {
+        uspešno++;
+      } else {
+        var err = await res.json().catch(function(){return {};});
+        if (progress) { progress.textContent = 'Greška: ' + (err.detail || 'Upload nije uspeo'); }
+        await new Promise(function(r){setTimeout(r,2000);});
+      }
+    } catch(e) {
+      if (progress) { progress.textContent = 'Greška: ' + e.message; }
+      await new Promise(function(r){setTimeout(r,2000);});
+    }
+  }
+  if (progress) progress.textContent = '✓ ' + uspešno + '/' + files.length + ' fajlova uploadovano';
+  await ucitajPlaybookStatus();
+  setTimeout(function(){ if(progress) progress.style.display='none'; }, 3000);
+  var input = document.getElementById('playbook-file-input');
+  if (input) input.value = '';
+}
+
+function playbookDrop(event) {
+  event.preventDefault();
+  var files = event.dataTransfer.files;
+  if (files && files.length) playbookUploadFajlove(files);
+}
+
+async function obrisiSvPlaybook() {
+  if (!confirm('Obrisati sve firminine dokumente iz Playbook-a? Ova akcija je nepovratna.')) return;
+  if (!currentSession) return;
+  try {
+    var res = await fetch(BASE_URL + '/api/playbook', {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (res.ok) { await ucitajPlaybookStatus(); showToast('Playbook obrisan'); }
+    else showToast('Greška pri brisanju.', 'err');
+  } catch(e) { showToast('Greška: ' + e.message, 'err'); }
+}
+
+// ── F7 INTERNI STAVOVI ────────────────────────────────────────────────────────
+
+async function dodajInterniStav() {
+  var naslov = (document.getElementById('interni-naslov').value || '').trim();
+  var tekst  = (document.getElementById('interni-tekst').value  || '').trim();
+  if (!naslov || naslov.length < 3) { showToast('Naslov je obavezan (min 3 karaktera).', 'warn'); return; }
+  if (!tekst  || tekst.length  < 30) { showToast('Tekst stava mora imati min 30 karaktera.', 'warn'); return; }
+  if (!currentSession) { openModal(); return; }
+  try {
+    var res = await fetch(BASE_URL + '/interni-stavovi/dodaj', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.access_token
+      },
+      body: JSON.stringify({ naslov: naslov, tekst: tekst })
+    });
+    if (res.status === 403) { showToast('PRO funkcija.', 'warn'); return; }
+    var data = await res.json();
+    if (res.ok) {
+      showToast('✓ Stav dodat (' + data.vektori + ' vektora)');
+      document.getElementById('interni-naslov').value = '';
+      document.getElementById('interni-tekst').value  = '';
+    } else {
+      showToast(data.detail || 'Greška.', 'err');
+    }
+  } catch(e) { showToast('Greška: ' + e.message, 'err'); }
+}
+
+async function pretraziInterneStavove() {
+  var upit = (document.getElementById('interni-upit').value || '').trim();
+  if (!upit) return;
+  if (!currentSession) { openModal(); return; }
+  var div = document.getElementById('interni-rezultati');
+  div.innerHTML = '<div class="strat-loading">Pretražujem...</div>';
+  try {
+    var res = await fetch(BASE_URL + '/interni-stavovi/pretraga', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.access_token
+      },
+      body: JSON.stringify({ upit: upit })
+    });
+    var data = await res.json();
+    if (!res.ok) { div.innerHTML = '<div class="strat-error">Greška: ' + (data.detail||'') + '</div>'; return; }
+    if (!data.rezultati || !data.rezultati.length) {
+      div.innerHTML = '<p class="playbook-prazno">Nema rezultata za ovaj upit.</p>';
+      return;
+    }
+    div.innerHTML = data.rezultati.map(function(r) {
+      var tekst = (r.tekst || '').substring(0, 220);
+      if ((r.tekst||'').length > 220) tekst += '...';
+      return '<div class="interni-rezultat-red">' +
+        '<span class="interni-score">' + Math.round(r.score * 100) + '%</span>' +
+        '<span class="interni-rezultat-naslov">' + _htmlEsc(r.naslov || '') + '</span>' +
+        '<span class="interni-rezultat-tekst">' + _htmlEsc(tekst) + '</span>' +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    div.innerHTML = '<div class="strat-error">Greška: ' + e.message + '</div>';
+  }
+}
+
+async function obrisiSveInterneStavove() {
+  if (!confirm('Obrisati sve interne stavove? Ova akcija je nepovratna.')) return;
+  if (!currentSession) return;
+  try {
+    var res = await fetch(BASE_URL + '/interni-stavovi/obrisi-sve', {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (res.ok) showToast('✓ Svi interni stavovi obrisani.');
+    else showToast('Greška pri brisanju.', 'err');
+  } catch(e) { showToast('Greška: ' + e.message, 'err'); }
+}
+
+function _htmlEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 /* PODNESAK HELPERS */

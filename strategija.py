@@ -141,3 +141,41 @@ def due_diligence_analiza_sync(tekst_dokumenta: str, api_key: str) -> str:
         ],
     )
     return (resp.choices[0].message.content or "").strip()
+
+
+# ── F7: AI Pravni Revizor ─────────────────────────────────────────────────────
+
+_REVIZOR_SYSTEM = """Ti si iskusan pravni revizor koji pregledava dokumente i nacrte
+po srpskom pravu. Tvoj zadatak je da identifikuješ greške, nejasnoće i predložiš
+konkretne izmene.
+
+Odgovori ISKLJUČIVO na osnovu važećeg srpskog prava.
+
+Struktura odgovora (obavezna):
+1. TIP I SVRHA DOKUMENTA
+2. KRITIČNE GREŠKE (🔴 moraju biti ispravljene pre upotrebe)
+   Za svaku: Problem → Zakonski osnov → Predlog izmene
+3. PREPORUČENE IZMENE (🟡 poboljšavaju kvalitet)
+   Za svaku: Šta → Zašto → Kako
+4. FORMALNI NEDOSTACI (forma, potpisi, datum, overa)
+5. POZITIVNE STRANE (šta je dobro urađeno)
+6. OCENA DOKUMENTA: SPREMAN ZA UPOTREBU / POTREBNE IZMENE / NEUPOTREBLJIV
+
+Budi konkretan — navedi tačne delove teksta koji se menjaju i predloži novi tekst.
+Ne teorišite — daj gotove formulacije za izmene."""
+
+
+def pravni_revizor_sync(tekst_dokumenta: str, api_key: str) -> str:
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.15,
+        max_tokens=2500,
+        timeout=90.0,
+        messages=[
+            {"role": "system", "content": _REVIZOR_SYSTEM},
+            {"role": "user",   "content": f"Dokument za reviziju:\n\n{tekst_dokumenta}"},
+        ],
+    )
+    return (resp.choices[0].message.content or "").strip()
