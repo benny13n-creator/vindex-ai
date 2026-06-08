@@ -1748,6 +1748,154 @@ def process_misljenja_chunks(chunks: list, k: int = 3) -> list[dict]:
     return result
 
 
+# ─── T3: Klasifikator ishoda + grupisan retrieval (Phase 3.1) ────────────────
+
+_TUZILAC_KW = (
+    # direktan usvoj
+    "usvojen tužbeni zahtev", "usvaja se tužbeni zahtev", "usvaja se tužba",
+    "tužbeni zahtev tužioca se usvaja", "zahtev tužioca je osnovan",
+    "usvaja se zahtev tužioca",
+    # poništaj akta tužene (otkaz, rešenje) — tužilac pobedio
+    "poništeno je rešenje", "poništava se rešenje", "poništava se odluka",
+    "poništen je otkaz", "poništava se otkaz", "poništava se rešenje",
+    "poništava se akt", "ništavo je rešenje",
+    # žalba, revizija
+    "odbija se žalba tuženog", "odbija žalbu tuženog", "odbacuje se žalba tuženog",
+    "usvaja se žalba tužioca", "odbija se revizija tuženog",
+    "usvaja se revizija tužioca",
+    # obavezivanje tuženog
+    "obavezuje se tuženi", "nalaže se tuženom", "tuženi je dužan da plati",
+    "dosudio tužiocu", "naknada je dosuđena tužiocu", "naknadu tužiocu",
+    "presuda se potvrđuje", "potvrđuje se presuda",
+)
+
+_TUZENI_KW = (
+    # direktno odbijanje zahteva (sve forme iz korpusa)
+    "odbija se tužbeni zahtev", "tužbeni zahtev se odbija", "odbijen je tužbeni zahtev",
+    "zahtev se odbija", "odbija se zahtev", "odbijen je zahtev",
+    "odbija se tužba", "tužba se odbija", "tužba se odbacuje", "odbacuje se tužba",
+    # neosnovanost
+    "tužbeni zahtev je neosnovan", "neosnovan tužbeni zahtev", "kao neosnovan tužbeni",
+    "zahtev je neosnovan", "zahtev nije osnovan",
+    # žalba, revizija
+    "usvaja se žalba tuženog", "usvaja žalbu tuženog",
+    "usvaja se revizija tuženog", "odbija se revizija tužioca",
+    # oslobođenje
+    "oslobođen je optužbe", "oslobođen optužbe",
+    # preinačenje na štetu tužioca
+    "odbija zahtev tužioca", "odbija se zahtev tužioca",
+    "preinačuje se presuda", "ukida se presuda",
+)
+
+_MESOVITO_KW = (
+    "delimično", "djelimično", "usvaja se u delu", "odbija se u delu",
+    "usvojen u delu", "odbijen u delu", "u preostalom delu se odbija",
+    "u delu usvaja", "u delu odbija", "parcijalno",
+)
+
+
+def klasifikuj_ishod(tekst: str) -> str:
+    """
+    Phase 3.1: Classify court decision outcome from IZREKA/decision text.
+    Returns: 'tuzilac_pobedio' | 'tuzeni_pobedio' | 'mesovito' | 'nepoznato'
+    """
+    import re as _re
+    # Normalize: lowercase + collapse all whitespace to single space
+    t = _re.sub(r"\s+", " ", tekst.lower()).strip()
+    if any(kw in t for kw in _MESOVITO_KW):
+        return "mesovito"
+    if any(kw in t for kw in _TUZILAC_KW):
+        return "tuzilac_pobedio"
+    if any(kw in t for kw in _TUZENI_KW):
+        return "tuzeni_pobedio"
+    return "nepoznato"
+
+
+def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
+    """
+    Phase 3.1: Retrieve top decisions from sudska_praksa, classify outcomes, group.
+    Returns {query, total, statistika:{tuzilac,tuzeni,mesovito,nepoznato,pct_*}, grupe:{...}}
+    """
+    vektor = _ugradi_query(query)
+    index = _get_index()
+    res = index.query(
+        vector=vektor,
+        top_k=300,
+        namespace=_PRAKSA_NS,
+        include_metadata=True,
+    )
+
+    groups: dict = {}
+    for m in res.matches:
+        meta = m.metadata or {}
+        dn = (meta.get("decision_number") or "").strip() or m.id
+        if dn not in groups:
+            groups[dn] = {
+                "decision_number": dn,
+                "decision_date":   meta.get("decision_date", ""),
+                "court":           meta.get("court", ""),
+                "matter":          meta.get("matter", ""),
+                "chunks":          [],
+                "max_score":       float(getattr(m, "score", 0.0)),
+            }
+        sc = float(getattr(m, "score", 0.0))
+        groups[dn]["chunks"].append({
+            "section":     meta.get("section", ""),
+            "text":        (meta.get("text") or meta.get("parent_text") or ""),
+            "chunk_index": meta.get("chunk_index") or 0,
+            "score":       sc,
+        })
+        if sc > groups[dn]["max_score"]:
+            groups[dn]["max_score"] = sc
+
+    decisions = []
+    for g in groups.values():
+        chunks = sorted(g["chunks"], key=lambda c: c["chunk_index"])
+        izreka = " ".join(c["text"] for c in chunks if c.get("section") == "IZREKA").strip()
+        obraz  = " ".join(c["text"] for c in chunks if c.get("section") == "OBRAZLOŽENJE").strip()
+        classify_text = izreka or obraz or " ".join(c["text"] for c in chunks[:3])
+        ishod = klasifikuj_ishod(classify_text)
+        decisions.append({
+            "decision_number": g["decision_number"],
+            "court":           g["court"],
+            "decision_date":   g["decision_date"],
+            "matter":          g["matter"],
+            "izreka_preview":  izreka[:200] or obraz[:200],
+            "score":           round(g["max_score"], 6),
+            "ishod":           ishod,
+        })
+
+    decisions.sort(key=lambda d: d["score"], reverse=True)
+    decisions = decisions[:top_k]
+
+    grupe: dict = {"tuzilac": [], "tuzeni": [], "mesovito": [], "nepoznato": []}
+    for d in decisions:
+        grupe[{"tuzilac_pobedio": "tuzilac", "tuzeni_pobedio": "tuzeni",
+               "mesovito": "mesovito"}.get(d["ishod"], "nepoznato")].append(d)
+
+    total = len(decisions)
+    nt = len(grupe["tuzilac"])
+    nd = len(grupe["tuzeni"])
+    nm = len(grupe["mesovito"])
+    nn = len(grupe["nepoznato"])
+
+    logger.info("[GRUPISANO] query=%r total=%d tuzilac=%d tuzeni=%d mesovito=%d nepoznato=%d",
+                query[:60], total, nt, nd, nm, nn)
+    return {
+        "query": query,
+        "total": total,
+        "statistika": {
+            "tuzilac":     nt,
+            "tuzeni":      nd,
+            "mesovito":    nm,
+            "nepoznato":   nn,
+            "pct_tuzilac": round(100 * nt / total, 1) if total else 0,
+            "pct_tuzeni":  round(100 * nd / total, 1) if total else 0,
+        },
+        "grupe": grupe,
+    }
+
+
 # ─── Dijagnostička funkcija ───────────────────────────────────────────────────
 
 def proveri_zdi_indeksiranost() -> dict:

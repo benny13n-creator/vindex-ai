@@ -2025,6 +2025,29 @@ async def praksa_search(req: PraksaSearchReq, request: Request):
             content={"error": "Greška Pinecone servisa", "detail": str(exc)[:200]},
         )
     
+# ─── Phase 3.1: Grupisanje presuda Za/Protiv ─────────────────────────────────
+
+@app.get("/api/sudska-praksa/grupisano")
+@limiter.limit("20/minute")
+async def sudska_praksa_grupisano(query: str, request: Request):
+    """Phase 3.1: Retrieve top-10 decisions grouped by outcome (tuzilac/tuzeni/mesovito)."""
+    q = (query or "").strip()
+    if not q:
+        return JSONResponse(status_code=400, content={"error": "query je obavezan"})
+    if len(q) > 400:
+        return JSONResponse(status_code=400, content={"error": "query predugačak (max 400 znakova)"})
+    try:
+        from app.services.retrieve import retrieve_grupisano
+        result = await asyncio.to_thread(retrieve_grupisano, q, 10)
+        return result
+    except Exception as exc:
+        logger.exception("Greška u /api/sudska-praksa/grupisano")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Greška Pinecone servisa", "detail": str(exc)[:200]},
+        )
+
+
 # ── F5: CASE MANAGEMENT ───────────────────────────────────────────────────────
 
 
