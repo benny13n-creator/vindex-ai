@@ -2137,6 +2137,151 @@ async def praksa_ratio(req: RatioReq, request: Request):
     return {"ratios": ratios}
 
 
+# ─── Phase 3.3: Upoređivanje presuda A vs B ──────────────────────────────────
+
+_UPOREDI_SYSTEM_PROMPT = (
+    "Ti si pravni asistent specijalizovan za srpsko pravo. "
+    "Analiziraš dve sudske odluke i praviš uporednu analizu. "
+    "Budi koncizan i precizan. Piši na srpskom jeziku, ekavica."
+)
+
+_UPOREDI_USER_TEMPLATE = (
+    "ODLUKA A: {broj_a} ({datum_a}, {sud_a})\n{tekst_a}\n\n---\n\n"
+    "ODLUKA B: {broj_b} ({datum_b}, {sud_b})\n{tekst_b}\n\n---\n\n"
+    "Napravi uporednu analizu u sledećim sekcijama:\n\n"
+    "## 1. PRAVNA PITANJA\n"
+    "Koja pravna pitanja rešava svaka odluka? Jesu li ista ili srodna?\n\n"
+    "## 2. SLIČNOSTI U ARGUMENTACIJI\n"
+    "Gde se sudovi slažu u pravnom rezonovanju?\n\n"
+    "## 3. RAZLIKE U ZAKLJUČKU\n"
+    "U čemu se odluke razlikuju — ishod, tumačenje zakona, primenjeni standardi?\n\n"
+    "## 4. AUTORITET I AKTUELNOST\n"
+    "Koja odluka ima veći pravni autoritet (viši sud, noviji datum, precedentni značaj)?\n\n"
+    "## 5. PREPORUKA ZA KONKRETNI PREDMET\n"
+    "Koja je odluka relevantnija kao argument u postupku i zašto? Daj konkretnu preporuku."
+)
+
+
+def _fetch_decision_chunks(dn: str) -> tuple:
+    """Fetch all chunks for a decision from sudska_praksa (and upravna_praksa if it exists).
+    Returns (meta_dict, full_text) or raises ValueError if not found."""
+    import math as _math
+    from app.services.retrieve import _get_index
+    index = _get_index()
+    _dim = 3072
+    dummy_vec = [1.0 / _math.sqrt(_dim)] * _dim
+
+    all_chunks: list = []
+    meta: dict = {}
+    for ns in ("sudska_praksa", "upravna_praksa"):
+        try:
+            res = index.query(
+                vector=dummy_vec,
+                top_k=20,
+                namespace=ns,
+                include_metadata=True,
+                filter={"decision_number": {"$eq": dn}},
+            )
+            for m in res.matches:
+                md = m.metadata or {}
+                if not meta and md.get("decision_number"):
+                    meta = {
+                        "broj":   md.get("decision_number", dn),
+                        "datum":  md.get("decision_date", ""),
+                        "sud":    md.get("court", ""),
+                        "oblast": md.get("matter", ""),
+                    }
+                txt = (md.get("text") or md.get("parent_text") or "").strip()
+                if txt:
+                    all_chunks.append({
+                        "section":     md.get("section", ""),
+                        "text":        txt,
+                        "chunk_index": int(md.get("chunk_index") or 0),
+                    })
+        except Exception as _fe:
+            logger.debug("[UPOREDI] ns=%s fetch failed for %r: %s", ns, dn, _fe)
+
+    if not all_chunks:
+        raise ValueError(f"Odluka \"{dn}\" nije pronađena u bazi sudskih odluka.")
+
+    _sec_order = {"HEADER": 0, "IZREKA": 1, "OBRAZLOŽENJE": 2}
+    all_chunks.sort(key=lambda c: (_sec_order.get(c["section"], 9), c["chunk_index"]))
+    full_text = "\n\n".join(c["text"] for c in all_chunks)[:4500]
+    if not meta:
+        meta = {"broj": dn, "datum": "", "sud": "", "oblast": ""}
+    return meta, full_text
+
+
+def _uporedi_sync(dn_a: str, dn_b: str) -> dict:
+    try:
+        meta_a, tekst_a = _fetch_decision_chunks(dn_a)
+    except ValueError as e:
+        return {"error": str(e)}
+    try:
+        meta_b, tekst_b = _fetch_decision_chunks(dn_b)
+    except ValueError as e:
+        return {"error": str(e)}
+
+    user_msg = _UPOREDI_USER_TEMPLATE.format(
+        broj_a=meta_a["broj"],
+        datum_a=meta_a["datum"] or "nepoznat datum",
+        sud_a=meta_a["sud"] or "nepoznat sud",
+        tekst_a=tekst_a,
+        broj_b=meta_b["broj"],
+        datum_b=meta_b["datum"] or "nepoznat datum",
+        sud_b=meta_b["sud"] or "nepoznat sud",
+        tekst_b=tekst_b,
+    )
+    try:
+        from openai import OpenAI as _OAI
+        client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.2,
+            max_tokens=1400,
+            messages=[
+                {"role": "system", "content": _UPOREDI_SYSTEM_PROMPT},
+                {"role": "user",   "content": user_msg},
+            ],
+        )
+        analiza = (resp.choices[0].message.content or "").strip()
+    except Exception as e:
+        logger.warning("[UPOREDI] GPT failed: %s", e)
+        return {"error": "Greška pri generisanju analize. Pokušajte ponovo."}
+
+    logger.info("[UPOREDI] %r vs %r → %d chars", dn_a, dn_b, len(analiza))
+    return {"odluka_a": meta_a, "odluka_b": meta_b, "analiza": analiza}
+
+
+class UporediReq(BaseModel):
+    odluka_a: str
+    odluka_b: str
+
+
+@app.post("/api/praksa/uporedi")
+@limiter.limit("10/minute")
+async def praksa_uporedi(
+    req: UporediReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Phase 3.3: Compare two court decisions via GPT-4o analysis."""
+    dn_a = (req.odluka_a or "").strip()
+    dn_b = (req.odluka_b or "").strip()
+    if not dn_a or not dn_b:
+        return JSONResponse(status_code=400, content={"error": "Oba broja odluke su obavezna."})
+    if len(dn_a) > 100 or len(dn_b) > 100:
+        return JSONResponse(status_code=400, content={"error": "Broj odluke predugačak."})
+    if dn_a.lower() == dn_b.lower():
+        return JSONResponse(status_code=400, content={"error": "Odaberite dve različite odluke."})
+    try:
+        result = await asyncio.to_thread(_uporedi_sync, dn_a, dn_b)
+        return result
+    except Exception:
+        logger.exception("Greška u /api/praksa/uporedi")
+        return JSONResponse(status_code=500, content={"error": "Interna greška servera."})
+
+
 # ─── Phase 3.1: Grupisanje presuda Za/Protiv ─────────────────────────────────
 
 @app.get("/api/sudska-praksa/grupisano")

@@ -1091,6 +1091,43 @@ footer { padding: 2rem 1.5rem; }
 .izmena-tag{display:inline-block;font-size:0.6rem;font-weight:600;padding:1px 6px;border-radius:3px;margin-left:0.3rem;vertical-align:middle;white-space:nowrap;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.12);cursor:default;}
 .izmena-recent{background:rgba(245,158,11,0.12);color:#fbbf24;border-color:rgba(245,158,11,0.3);}
 .procena-section-hdr .sec-icon{margin-right:0.4rem;}
+/* ── Phase 3.3: Upoređivanje presuda ──────────────────────────────────────── */
+.vx-compare-checkbox{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.72rem;color:#8892a4;margin-top:8px;user-select:none;}
+.vx-compare-checkbox input[type="checkbox"]{accent-color:#4aa8ff;width:13px;height:13px;cursor:pointer;}
+.vx-compare-checkbox:has(input:checked){color:#4aa8ff;}
+.vx-compare-bar{position:fixed;bottom:0;left:0;right:0;background:#131c2b;border-top:1px solid rgba(74,168,255,0.22);padding:10px 24px;display:flex;justify-content:space-between;align-items:center;z-index:200;gap:1rem;box-shadow:0 -4px 24px rgba(0,0,0,0.45);}
+.vx-compare-bar.hidden{display:none;}
+.compare-bar-info{font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:rgba(255,255,255,0.55);display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;}
+.compare-bar-actions{display:flex;gap:0.5rem;flex-shrink:0;}
+.compare-bar-actions button{padding:0.42rem 0.9rem;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:0.76rem;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.55);}
+#btn-start-compare:not(:disabled){background:linear-gradient(135deg,#4aa8ff 0%,#1264c4 100%);border-color:transparent;color:#fff;font-weight:600;}
+#btn-start-compare:disabled{opacity:0.35;cursor:not-allowed;}
+.vx-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;z-index:300;padding:1rem;}
+.vx-modal-overlay.hidden{display:none;}
+.vx-compare-modal{max-width:760px;width:100%;max-height:82vh;overflow-y:auto;background:#0d1117;border:1px solid rgba(74,168,255,0.2);border-radius:14px;padding:1.6rem 2rem;}
+.vx-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;}
+.vx-modal-header h2{font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:600;color:rgba(255,255,255,0.88);margin:0;}
+.vx-modal-close{background:none;border:none;color:rgba(255,255,255,0.35);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.4rem;border-radius:4px;}
+.vx-modal-close:hover{color:#fff;}
+.vx-modal-meta{display:flex;align-items:center;gap:10px;margin-bottom:1.3rem;flex-wrap:wrap;}
+.compare-tag{background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.3);border-radius:7px;padding:5px 12px;font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#4aa8ff;white-space:nowrap;}
+.compare-vs{color:rgba(255,255,255,0.3);font-size:0.78rem;font-weight:700;}
+.vx-compare-loading{text-align:center;padding:2.5rem 0;color:rgba(255,255,255,0.4);font-size:0.83rem;}
+.compare-spinner{display:inline-block;width:22px;height:22px;border:2px solid rgba(74,168,255,0.25);border-top-color:#4aa8ff;border-radius:50%;animation:doc-spin .8s linear infinite;margin-bottom:0.7rem;}
+.compare-result-body{color:rgba(255,255,255,0.78);font-family:'DM Sans',sans-serif;font-size:0.84rem;line-height:1.7;}
+.compare-result-body h2{font-size:0.82rem;font-weight:700;color:#4aa8ff;margin:1.3rem 0 0.4rem;border-bottom:1px solid rgba(74,168,255,0.15);padding-bottom:5px;font-family:'JetBrains Mono',monospace;letter-spacing:0.04em;}
+.compare-result-body p{margin:0 0 0.65rem;color:rgba(255,255,255,0.72);}
+.compare-result-body strong{color:rgba(255,255,255,0.9);}
+.compare-error{padding:1rem;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;color:rgba(255,130,130,0.9);font-size:0.82rem;}
+.vx-modal-footer{margin-top:1.4rem;display:flex;justify-content:flex-end;}
+.vx-modal-footer button{padding:0.48rem 1.1rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-family:'DM Sans',sans-serif;font-size:0.8rem;cursor:pointer;}
+.vx-manual-compare{margin-top:0.5rem;font-size:0.75rem;color:rgba(255,255,255,0.4);}
+.vx-manual-compare summary{cursor:pointer;padding:0.3rem 0;list-style:none;display:flex;align-items:center;gap:0.4rem;}
+.vx-manual-compare summary::-webkit-details-marker{display:none;}
+.manual-compare-inputs{display:flex;gap:7px;align-items:center;margin-top:0.45rem;flex-wrap:wrap;}
+.manual-compare-inputs input{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:0.42rem 0.7rem;color:rgba(255,255,255,0.78);font-family:'JetBrains Mono',monospace;font-size:0.72rem;width:150px;outline:none;}
+.manual-compare-inputs span{color:rgba(255,255,255,0.25);font-size:0.75rem;}
+.manual-compare-inputs button{padding:0.4rem 0.8rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#4aa8ff;font-family:'DM Sans',sans-serif;font-size:0.73rem;cursor:pointer;}
 </style>
 
 </head>
@@ -1513,6 +1550,16 @@ footer { padding: 2rem 1.5rem; }
                 <button onclick="praksa_reset_filters()" style="padding:0.78rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.45);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">Resetuj</button>
               </div>
               <input type="text" id="praksa-ratio-filter" oninput="praksa_ratio_filter_update()" placeholder="Filtriraj po pravnom stavu..." style="display:none;width:100%;box-sizing:border-box;margin-top:0.45rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.78);font-family:'JetBrains Mono',monospace;font-size:0.72rem;padding:0.65rem 1rem;outline:none;">
+              <!-- Phase 3.3: Fallback ručni unos -->
+              <details class="vx-manual-compare">
+                <summary>&#128269; Uporedi po broju odluke</summary>
+                <div class="manual-compare-inputs">
+                  <input type="text" id="manual-a" placeholder="npr. Uzp 51/2024">
+                  <span>vs</span>
+                  <input type="text" id="manual-b" placeholder="npr. Rev 123/2023">
+                  <button onclick="startManualCompare()">Uporedi</button>
+                </div>
+              </details>
             </div>
             <div id="praksa-loading" style="display:none;text-align:center;padding:1.8rem 0;color:rgba(255,255,255,0.28);font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;">Pretražujem...</div>
             <div id="praksa-error" style="display:none;padding:0.85rem 1rem;background:rgba(255,60,60,0.07);border:1px solid rgba(255,60,60,0.15);border-radius:10px;color:rgba(255,130,130,0.9);font-family:'DM Sans',sans-serif;font-size:0.78rem;margin-top:0.8rem;"></div>
@@ -3677,6 +3724,9 @@ function praksa_render_card(d, idx) {
     h += '<button id="praksa-expand-btn-' + idx + '" onclick="praksa_expand_decision(' + idx + ')" style="padding:0.25rem 0.7rem;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:6px;color:#4aa8ff;font-family:DM Sans,sans-serif;font-size:0.71rem;cursor:pointer;">▾ Prikaži odluku</button>';
   }
   h += '<button onclick="praksa_copy_citation(\'' + jsDn + '\',\'' + dateStr + '\',\'' + jsCourt + '\')" style="padding:0.25rem 0.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:rgba(255,255,255,0.38);font-family:DM Sans,sans-serif;font-size:0.71rem;cursor:pointer;">Kopiraj citiranje</button>';
+  h += '<label class="vx-compare-checkbox" data-odluka-id="' + safeDn + '" data-odluka-naziv="' + safeDn + '">';
+  h += '<input type="checkbox" class="compare-check" value="' + safeDn + '">';
+  h += '<span>Uporedi</span></label>';
   h += '</div>';
   if (hasDetail) {
     h += '<div id="' + expandId + '" style="display:none;margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid rgba(255,255,255,0.06);">';
@@ -3811,6 +3861,128 @@ function praksa_load_initial() {
   if (praksa_initialized) return;
   praksa_initialized = true;
   praksa_search();
+}
+
+/* ── Phase 3.3: Upoređivanje presuda A vs B ──────────────────────────────── */
+var compareSelection = []; // max 2 items [{id, naziv}]
+
+document.addEventListener('change', function(e) {
+  if (!e.target.classList.contains('compare-check')) return;
+  var id    = e.target.value;
+  var label = e.target.closest('.vx-compare-checkbox');
+  var naziv = label ? (label.dataset.odlukaNaziv || id) : id;
+  if (e.target.checked) {
+    if (compareSelection.length >= 2) {
+      e.target.checked = false;
+      showToast('Možete odabrati maksimalno 2 presude za poređenje.', 'err');
+      return;
+    }
+    compareSelection.push({ id: id, naziv: naziv });
+  } else {
+    compareSelection = compareSelection.filter(function(x) { return x.id !== id; });
+  }
+  updateCompareBar();
+});
+
+function updateCompareBar() {
+  var bar   = document.getElementById('compare-bar');
+  var cnt   = document.getElementById('compare-count');
+  var names = document.getElementById('compare-names');
+  var btn   = document.getElementById('btn-start-compare');
+  if (!bar) return;
+  if (compareSelection.length === 0) {
+    bar.classList.add('hidden');
+    return;
+  }
+  bar.classList.remove('hidden');
+  cnt.textContent = compareSelection.length;
+  names.textContent = compareSelection.map(function(x) { return x.naziv; }).join(' vs ');
+  btn.disabled = compareSelection.length < 2;
+}
+
+function clearCompare() {
+  compareSelection = [];
+  document.querySelectorAll('.compare-check:checked').forEach(function(cb) { cb.checked = false; });
+  updateCompareBar();
+}
+
+function openCompareModal() {
+  document.getElementById('compare-modal').classList.remove('hidden');
+}
+
+function closeCompareModal() {
+  document.getElementById('compare-modal').classList.add('hidden');
+  document.getElementById('compare-result').innerHTML = '';
+  document.getElementById('compare-loading').classList.add('hidden');
+  document.getElementById('modal-tag-a').textContent = '—';
+  document.getElementById('modal-tag-b').textContent = '—';
+}
+
+function _showCompareLoading(a, b) {
+  document.getElementById('modal-tag-a').textContent = a || '—';
+  document.getElementById('modal-tag-b').textContent = b || '—';
+  document.getElementById('compare-loading').classList.remove('hidden');
+  document.getElementById('compare-result').innerHTML = '';
+}
+
+function _hideCompareLoading() {
+  document.getElementById('compare-loading').classList.add('hidden');
+}
+
+function _compareMarkdownToHtml(md) {
+  if (!md) return '';
+  var html = md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^### (.+)$/gm, '<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+  return '<p>' + html + '</p>';
+}
+
+function _renderCompareResult(data) {
+  document.getElementById('modal-tag-a').textContent = (data.odluka_a && data.odluka_a.broj) || '—';
+  document.getElementById('modal-tag-b').textContent = (data.odluka_b && data.odluka_b.broj) || '—';
+  document.getElementById('compare-result').innerHTML = _compareMarkdownToHtml(data.analiza || '');
+  _hideCompareLoading();
+}
+
+function _showCompareError(msg) {
+  _hideCompareLoading();
+  document.getElementById('compare-result').innerHTML = '<div class="compare-error">' + (msg || 'Greška.') + '</div>';
+}
+
+async function _doCompare(dnA, dnB) {
+  if (!currentSession) { openModal(); return; }
+  openCompareModal();
+  _showCompareLoading(dnA, dnB);
+  try {
+    var r = await fetch(BASE_URL + '/api/praksa/uporedi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ odluka_a: dnA, odluka_b: dnB }),
+    });
+    var data = await r.json();
+    if (data.error) { _showCompareError(data.error); return; }
+    _renderCompareResult(data);
+  } catch(e) {
+    _showCompareError('Greška pri komunikaciji sa serverom.');
+  }
+}
+
+function startCompare() {
+  if (compareSelection.length !== 2) return;
+  _doCompare(compareSelection[0].id, compareSelection[1].id);
+}
+
+function startManualCompare() {
+  var a = (document.getElementById('manual-a').value || '').trim();
+  var b = (document.getElementById('manual-b').value || '').trim();
+  if (!a || !b) { showToast('Unesite oba broja odluke.', 'err'); return; }
+  if (a.toLowerCase() === b.toLowerCase()) { showToast('Odaberite dve različite odluke.', 'err'); return; }
+  _doCompare(a, b);
 }
 
 /* ── Phase 3.2: Ratio decidendi — fetch + fill + filter ──────────────────── */
@@ -5199,5 +5371,41 @@ async function pred_kreiraj() {
     <p class="settings-note">Podaci se NE šalju na server. Čuvaju se isključivo u vašem pregledaču (localStorage).</p>
   </div>
 </div>
+
+<!-- ── Phase 3.3: Compare bar ──────────────────────────────────────────────── -->
+<div id="compare-bar" class="vx-compare-bar hidden">
+  <div class="compare-bar-info">
+    <span><span id="compare-count">0</span>/2 odabrane</span>
+    <span id="compare-names" style="color:rgba(255,255,255,0.7);"></span>
+  </div>
+  <div class="compare-bar-actions">
+    <button id="btn-clear-compare" onclick="clearCompare()">Poništi</button>
+    <button id="btn-start-compare" onclick="startCompare()" disabled>Uporedi odabrane</button>
+  </div>
+</div>
+
+<!-- ── Phase 3.3: Compare modal ────────────────────────────────────────────── -->
+<div id="compare-modal" class="vx-modal-overlay hidden">
+  <div class="vx-compare-modal">
+    <div class="vx-modal-header">
+      <h2>Uporedna analiza presuda</h2>
+      <button class="vx-modal-close" onclick="closeCompareModal()">&#x2715;</button>
+    </div>
+    <div class="vx-modal-meta">
+      <div class="compare-tag" id="modal-tag-a">—</div>
+      <div class="compare-vs">vs</div>
+      <div class="compare-tag" id="modal-tag-b">—</div>
+    </div>
+    <div id="compare-loading" class="vx-compare-loading hidden">
+      <div><div class="compare-spinner"></div></div>
+      <p>Analiziram presude…</p>
+    </div>
+    <div id="compare-result" class="compare-result-body"></div>
+    <div class="vx-modal-footer">
+      <button onclick="closeCompareModal()">Zatvori</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
