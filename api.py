@@ -2751,27 +2751,43 @@ async def predmet_upload_auto_analyze(
         except Exception:
             pass
 
-    procena_tekst = ""
-    try:
-        client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
-        resp = client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0,
-            max_tokens=max_tok,
-            timeout=60.0,
+    # ── Run procena + hronologija GPT-4o calls IN PARALLEL ───────────────────────
+    import json as _json, re as _re_hron
+    _oai_client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+    _hron_user  = f"Dokument: {file.filename or 'dokument'}\n\n{text[:6000]}"
+
+    def _call_procena():
+        return _oai_client.chat.completions.create(
+            model="gpt-4o", temperature=0, max_tokens=max_tok, timeout=60.0,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user",   "content": cinjenice_text},
             ],
         )
-        procena_tekst = (resp.choices[0].message.content or "").strip()
-        logger.info("[P1.1] Auto-procena uspešna za predmet=%s, chars=%d", predmet_id, len(procena_tekst))
-    except Exception:
-        logger.exception("[P1.1] Auto-procena greška za predmet=%s", predmet_id)
-        # Don't fail — return successful upload even if analysis fails
-        procena_tekst = ""
 
-    # Persist analysis to predmet_istorija
+    def _call_hronologija():
+        return _oai_client.chat.completions.create(
+            model="gpt-4o", temperature=0, max_tokens=1500, timeout=35.0,
+            messages=[
+                {"role": "system", "content": _HRONOLOGIJA_SYSTEM_PROMPT},
+                {"role": "user",   "content": _hron_user},
+            ],
+        )
+
+    _pr, _hr = await asyncio.gather(
+        asyncio.to_thread(_call_procena),
+        asyncio.to_thread(_call_hronologija),
+        return_exceptions=True,
+    )
+
+    # ── Process procena ───────────────────────────────────────────────────────
+    procena_tekst = ""
+    if not isinstance(_pr, Exception):
+        procena_tekst = (_pr.choices[0].message.content or "").strip()
+        logger.info("[P1.1] Auto-procena uspešna za predmet=%s, chars=%d", predmet_id, len(procena_tekst))
+    else:
+        logger.warning("[P1.1] Auto-procena greška za predmet=%s: %s", predmet_id, _pr)
+
     if procena_tekst:
         try:
             _get_supa().table("predmet_istorija").insert({
@@ -2784,29 +2800,21 @@ async def predmet_upload_auto_analyze(
         except Exception:
             logger.warning("[P1.1] predmet_istorija insert failed for predmet=%s", predmet_id)
 
-    # ── Phase 2.2: Extract document chronology via second GPT-4o call ────────────
+    # ── Process hronologija ───────────────────────────────────────────────────
     hron_count = 0
-    if text and text.strip():
+    if not isinstance(_hr, Exception):
         try:
-            import json as _json
-            client_h = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
-            hron_resp = client_h.chat.completions.create(
-                model="gpt-4o",
-                temperature=0,
-                max_tokens=1500,
-                timeout=30.0,
-                messages=[
-                    {"role": "system", "content": _HRONOLOGIJA_SYSTEM_PROMPT},
-                    {"role": "user",   "content": f"Dokument: {file.filename or 'dokument'}\n\n{text[:6000]}"},
-                ],
-            )
-            hron_raw = (hron_resp.choices[0].message.content or "").strip()
-            # Strip markdown code fences if present
-            if hron_raw.startswith("```"):
+            hron_raw = (_hr.choices[0].message.content or "").strip()
+            # Strip markdown fences
+            if "```" in hron_raw:
                 hron_raw = "\n".join(
                     line for line in hron_raw.splitlines()
                     if not line.strip().startswith("```")
                 )
+            # Extract JSON array even if GPT-4o added surrounding text
+            _m = _re_hron.search(r'\[[\s\S]*\]', hron_raw)
+            if _m:
+                hron_raw = _m.group(0)
             hron_data = _json.loads(hron_raw)
             if isinstance(hron_data, list) and hron_data:
                 _VALID_VAZNOST = {"kritičan", "važan", "informativan"}
@@ -2815,7 +2823,7 @@ async def predmet_upload_auto_analyze(
                     if not isinstance(ev, dict) or not ev.get("dogadjaj"):
                         continue
                     datum_iso = ev.get("datum_iso") or None
-                    if datum_iso and (len(str(datum_iso)) < 4 or str(datum_iso).lower() in ("null","none","")):
+                    if datum_iso and (len(str(datum_iso)) < 4 or str(datum_iso).lower() in ("null", "none", "")):
                         datum_iso = None
                     vaznost = ev.get("vaznost", "informativan")
                     if vaznost not in _VALID_VAZNOST:
@@ -2835,7 +2843,9 @@ async def predmet_upload_auto_analyze(
                     hron_count = len(rows)
                     logger.info("[P2.2] Hronologija: %d događaja sačuvano za predmet=%s", hron_count, predmet_id)
         except Exception as _he:
-            logger.warning("[P2.2] Hronologija greška: %s", _he)
+            logger.warning("[P2.2] Hronologija greška: %s | raw[:150]=%r", _he, hron_raw[:150] if 'hron_raw' in dir() else "")
+    else:
+        logger.warning("[P2.2] Hronologija GPT greška za predmet=%s: %s", predmet_id, _hr)
 
     asyncio.create_task(asyncio.to_thread(cleanup_expired))
 

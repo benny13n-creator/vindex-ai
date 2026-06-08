@@ -4305,10 +4305,12 @@ async function pred_upload_doc(file) {
     if (d.procena) {
       var _rndr = (d.doc_type === 'presuda') ? pred_renderPresuda : pred_renderProcena;
       if (resEl) resEl.innerHTML = _rndr(d.procena);
-      pred_loadDetail(activePredmetId);
     } else {
       if (resEl) resEl.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:0.78rem;">Dokument je učitan. Analiza nije generisana — pokušajte ručni unos.</div>';
     }
+    pred_loadDetail(activePredmetId);
+    pred_loadHronologija(activePredmetId);
+    setTimeout(function(){ pred_loadHronologija(activePredmetId); }, 3500);
   } catch(e) {
     if (loading) loading.style.display = 'none';
     if (zone) zone.style.display = '';
