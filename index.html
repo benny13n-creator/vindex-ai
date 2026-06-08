@@ -1309,6 +1309,16 @@ footer { padding: 2rem 1.5rem; }
 .crm-modal-actions{display:flex;gap:8px;margin-top:16px;}
 .crm-save-btn{flex:1;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
 .crm-cancel-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.6);font-size:0.85rem;padding:10px 16px;cursor:pointer;}
+/* ── F9: Debate format ───────────────────────────────────── */
+.debate-sekcija{border-radius:8px;margin-bottom:12px;border-left:4px solid;}
+.debate-tuzilac{border-color:#f56565;background:rgba(245,101,101,0.05);}
+.debate-branilac{border-color:#68d391;background:rgba(104,211,145,0.05);}
+.debate-presuda{border-color:#C9A84C;background:rgba(201,168,76,0.08);}
+.debate-header{padding:8px 14px;font-weight:700;font-size:0.88rem;border-bottom:1px solid rgba(255,255,255,0.08);}
+.debate-tuzilac .debate-header{color:#f56565;}
+.debate-branilac .debate-header{color:#68d391;}
+.debate-presuda .debate-header{color:#C9A84C;}
+.debate-sadrzaj{padding:12px 14px;font-size:0.85rem;line-height:1.7;max-height:400px;overflow-y:auto;}
 </style>
 
 </head>
@@ -1872,6 +1882,8 @@ footer { padding: 2rem 1.5rem; }
               <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">👨‍⚖️ AI Sudija</button>
               <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">🔍 Due Diligence</button>
               <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">✏️ Pravni Revizor</button>
+              <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">👁️ Witness Analyzer</button>
+              <button class="strat-btn" data-modul="sudija_v2" onclick="stratIzaberiModul('sudija_v2',this)">⚖️ Judge v2 — Debata</button>
             </div>
             <div id="strat-opis" class="strat-opis-box"></div>
             <div class="strat-input-wrap">
@@ -2893,6 +2905,22 @@ var STRAT_MODULI = {
     opis:     'Pregledava dokument ili nacrt i predlaže konkretne izmene. Identifikuje kritične greške, formalne nedostatke i daje gotove formulacije za ispravke.',
     label:    'Tekst dokumenta ili nacrta za reviziju',
     min:      100
+  },
+  witness: {
+    naziv:    'AI Witness Analyzer',
+    endpoint: '/strategija/witness',
+    opis:     'Analizira iskaz ili svedočenje — identifikuje unutrašnje kontradikcije, sumnjive delove i generiše pitanja za unakrsno ispitivanje.',
+    label:    'Tekst iskaza, svedočenja ili izjave stranke',
+    min:      50,
+    tip:      'standard'
+  },
+  sudija_v2: {
+    naziv:    'AI Judge v2 — Debata',
+    endpoint: '/strategija/sudija-v2',
+    opis:     'Trostepena simulacija: AI tužilac iznosi argumente → AI branilac odgovara → AI sudija donosi odluku. Najrealističniji prikaz sudskog ishoda.',
+    label:    'Opis predmeta (strane, činjenice, pravni osnov, stadijum postupka)',
+    min:      100,
+    tip:      'debate'
   }
 };
 
@@ -2980,7 +3008,23 @@ async function stratPokreni() {
     if (!res.ok) throw new Error('Server greška: ' + res.status);
 
     var data = await res.json();
-    if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.rezultat || '');
+    if (data.modul === 'sudija_v2') {
+      if (bodyEl) bodyEl.innerHTML =
+        '<div class="debate-sekcija debate-tuzilac">'
+        + '<div class="debate-header">⚔️ TUŽILAC — Argumenti</div>'
+        + '<div class="debate-sadrzaj">' + stratFormatirajRezultat(data.tuzilac || '') + '</div>'
+        + '</div>'
+        + '<div class="debate-sekcija debate-branilac">'
+        + '<div class="debate-header">🛡️ BRANILAC — Odgovor</div>'
+        + '<div class="debate-sadrzaj">' + stratFormatirajRezultat(data.branilac || '') + '</div>'
+        + '</div>'
+        + '<div class="debate-sekcija debate-presuda">'
+        + '<div class="debate-header">👨‍⚖️ SUDIJA — Odluka</div>'
+        + '<div class="debate-sadrzaj">' + stratFormatirajRezultat(data.presuda || '') + '</div>'
+        + '</div>';
+    } else {
+      if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.rezultat || '');
+    }
 
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + e.message + '</div>';

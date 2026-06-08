@@ -1965,6 +1965,8 @@ from strategija import (
     ai_judge_mode_sync,
     due_diligence_analiza_sync,
     pravni_revizor_sync,
+    witness_analyzer_sync,   # F9
+    ai_judge_v2_sync,        # F9
 )
 
 
@@ -2307,6 +2309,52 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
     except Exception:
         logger.exception("[F7] pravni_revizor greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju revizije. Pokušajte ponovo.")
+
+
+# ── F9.1: AI Witness Analyzer ────────────────────────────────────────────────
+
+@app.post("/strategija/witness")  # F9.1
+@limiter.limit("5/minute")
+async def post_witness(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F9.1 — AI Witness Analyzer — analiza iskaza/svedočenja (PRO)."""
+    if len(req.tekst.strip()) < 50:
+        raise HTTPException(status_code=422, detail="Iskaz mora imati najmanje 50 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "witness_analyzer", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            witness_analyzer_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "witness", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F9] witness_analyzer greška")
+        raise HTTPException(status_code=500, detail="Greška pri analizi iskaza. Pokušajte ponovo.")
+
+
+# ── F9.2: AI Judge v2 — dvostrana debata ─────────────────────────────────────
+
+@app.post("/strategija/sudija-v2")  # F9.2
+@limiter.limit("3/minute")
+async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F9.2 — AI Judge v2 — tužilac vs branilac → sudija (PRO, 3-round chain)."""
+    if len(req.tekst.strip()) < 100:
+        raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 100 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "sudija_v2", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            ai_judge_v2_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {
+            "tuzilac":  rezultat["tuzilac"],
+            "branilac": rezultat["branilac"],
+            "presuda":  rezultat["presuda"],
+            "modul":    "sudija_v2",
+            "credits_remaining": max(preostalo, 0),
+        }
+    except Exception:
+        logger.exception("[F9] sudija_v2 greška")
+        raise HTTPException(status_code=500, detail="Greška pri simulaciji debate. Pokušajte ponovo.")
 
 
 # ── F7.2: Interni stavovi ─────────────────────────────────────────────────────

@@ -179,3 +179,137 @@ def pravni_revizor_sync(tekst_dokumenta: str, api_key: str) -> str:
         ],
     )
     return (resp.choices[0].message.content or "").strip()
+
+
+# ── F9: AI Witness Analyzer ───────────────────────────────────────────────────
+
+_WITNESS_SYSTEM = """Ti si iskusan sudski veštak i forenzički analitičar iskaza
+sa 20 godina iskustva u srpskim sudovima.
+
+Analiziraj dostavljeni iskaz ili svedočenje i identifikuj:
+- unutrašnje kontradikcije
+- neslaganja sa poznatim činjenicama
+- znake nepouzdanosti ili obmane
+- procesnu upotrebljivost iskaza
+
+Odgovori ISKLJUČIVO na osnovu logičke analize iskaza i srpskog procesnog prava.
+
+Struktura odgovora (obavezna):
+1. SAŽETAK ISKAZA (šta svedok/stranka tvrdi — 3-5 rečenica)
+2. UNUTRAŠNJE KONTRADIKCIJE (delovi iskaza koji se međusobno isključuju)
+   Format: "Tvrdnja A (...)  ↔  Tvrdnja B (...) — KONTRADIKCIJA"
+3. SUMNJIVI DELOVI (nejasnoće, vague formulacije, izbegavanja)
+4. PROCESNA UPOTREBLJIVOST
+   - Da li iskaz može biti dokaz? (ZPP čl. 3, ZKP čl. 83)
+   - Forma: pismeni/usmeni, overeni/neovereni
+   - Preporuka: koristiti / osporiti / tražiti dopunu
+5. PITANJA ZA UNAKRSNO ISPITIVANJE (5-7 konkretnih pitanja koja bi destabilizovala iskaz)
+6. OCENA POUZDANOSTI: VISOKA / SREDNJA / NISKA / NEPOUZDANO
+
+Budi konkretan — citiraj tačne delove iskaza (u navodnicima) kad identifikuješ problem."""
+
+
+def witness_analyzer_sync(tekst_iskaza: str, api_key: str) -> str:
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.2,
+        max_tokens=2500,
+        timeout=90.0,
+        messages=[
+            {"role": "system", "content": _WITNESS_SYSTEM},
+            {"role": "user",   "content": f"Iskaz/svedočenje za analizu:\n\n{tekst_iskaza}"},
+        ],
+    )
+    return (resp.choices[0].message.content or "").strip()
+
+
+# ── F9: AI Judge v2 — dvostrana debata ───────────────────────────────────────
+
+_JUDGE_V2_TUZILAC = """Ti si iskusan tužilac/advokat tužioca u srpskom sudskom postupku.
+Na osnovu opisanog predmeta, iznesi NAJJAČE moguće argumente u korist tužioca.
+
+Budi agresivan, konkretan i fokusiran isključivo na pobedu.
+Koristi zakone, sudsku praksu i logičke argumente.
+
+Struktura (obavezna):
+1. PRAVNI OSNOV TUŽBE (koji zakon, koji član, zašto je tužba osnovana)
+2. KLJUČNI ARGUMENTI (3-5, rangirani po snazi)
+3. DOKAZI KOJI IDU U KORIST TUŽIOCA
+4. SLABOSTI ODBRANE (šta tuženi ne može uspešno da ospori)
+5. ZAHTEV SUDU (šta tražimo, u kom iznosu/obliku)
+
+Završi sa: PROCENA USPEHA TUŽBE: X%"""
+
+_JUDGE_V2_BRANILAC = """Ti si iskusan advokat odbrane/tuženog u srpskom sudskom postupku.
+Prethodno su izneti argumenti tužioca. Tvoj zadatak je da ih potpuno demoliraš.
+
+Budi oštar, konkretan i fokusiran isključivo na odbranu.
+
+Struktura (obavezna):
+1. PROCESNI PRIGOVORI (nadležnost, rokovi, forma tužbe — ima li procesnih grešaka?)
+2. ODBIJANJE SVAKOG ARGUMENTA TUŽIOCA (redom, jedan po jedan)
+3. KONTRAARGUMENTI I DOKAZI ODBRANE
+4. ZAHTEV SUDU (odbiti tužbu, odbaciti, ili alternativni zahtev)
+
+Završi sa: PROCENA ODBRANE: X%"""
+
+_JUDGE_V2_PRESUDA = """Ti si predsednik veća Višeg suda u Srbiji sa 30 godina staža.
+Saslušao si argumente obe strane. Donesi odluku.
+
+Budi potpuno neutralan. Odlučuj isključivo na osnovu prava i iznesenih argumenata.
+
+Struktura (obavezna):
+1. UTVRĐENO ČINJENIČNO STANJE (šta sud prihvata kao dokazano)
+2. PRAVNA KVALIFIKACIJA (koji zakoni i članovi se primenjuju)
+3. OCENA ARGUMENATA TUŽIOCA (šta prihvata, šta odbija i zašto)
+4. OCENA ARGUMENATA TUŽENOG (šta prihvata, šta odbija i zašto)
+5. IZREKA PRESUDE:
+   - Tužba se USVAJA / DELIMIČNO USVAJA / ODBIJA
+   - Obrazloženje u 2-3 rečenice
+6. TROŠKOVI POSTUPKA (ko snosi i zašto)
+
+Završi sa jednom rečenicom koja jasno kaže ko je pobedio i zašto."""
+
+
+def ai_judge_v2_sync(opis_predmeta: str, api_key: str) -> dict:
+    """3-round debate: tužilac → branilac → sudija donosi odluku."""
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=api_key)
+
+    r1 = client.chat.completions.create(
+        model="gpt-4o", temperature=0.3, max_tokens=1500, timeout=90.0,
+        messages=[
+            {"role": "system", "content": _JUDGE_V2_TUZILAC},
+            {"role": "user",   "content": f"Predmet:\n\n{opis_predmeta}"},
+        ],
+    )
+    tuzilac = (r1.choices[0].message.content or "").strip()
+
+    r2 = client.chat.completions.create(
+        model="gpt-4o", temperature=0.3, max_tokens=1500, timeout=90.0,
+        messages=[
+            {"role": "system", "content": _JUDGE_V2_BRANILAC},
+            {"role": "user",   "content": (
+                f"Predmet:\n\n{opis_predmeta}\n\n"
+                f"Argumenti tužioca:\n\n{tuzilac}"
+            )},
+        ],
+    )
+    branilac = (r2.choices[0].message.content or "").strip()
+
+    r3 = client.chat.completions.create(
+        model="gpt-4o", temperature=0.1, max_tokens=2000, timeout=120.0,
+        messages=[
+            {"role": "system", "content": _JUDGE_V2_PRESUDA},
+            {"role": "user",   "content": (
+                f"Predmet:\n\n{opis_predmeta}\n\n"
+                f"Argumenti tužioca:\n\n{tuzilac}\n\n"
+                f"Argumenti tuženog/branioca:\n\n{branilac}"
+            )},
+        ],
+    )
+    presuda = (r3.choices[0].message.content or "").strip()
+
+    return {"tuzilac": tuzilac, "branilac": branilac, "presuda": presuda}
