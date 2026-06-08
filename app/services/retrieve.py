@@ -1861,7 +1861,7 @@ def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
             "decision_date":   g["decision_date"],
             "matter":          g["matter"],
             "izreka_preview":  izreka[:200] or obraz[:200],
-            "obraz_text":      obraz[:3000],
+            "obraz_text":      (obraz or " ".join(c["text"] for c in chunks if c.get("section") not in ("HEADER", "")))[:3000],
             "score":           round(g["max_score"], 6),
             "ishod":           ishod,
         })

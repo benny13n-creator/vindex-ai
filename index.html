@@ -3668,8 +3668,7 @@ function praksa_render_card(d, idx) {
   if (preview) {
     h += '<div style="font-family:DM Sans,sans-serif;font-size:0.77rem;color:rgba(255,255,255,0.5);line-height:1.55;margin-bottom:0.5rem;">' + preview + (d.izreka_full && d.izreka_full.length > 200 ? '…' : '') + '</div>';
   }
-  // Phase 3.2: ratio decidendi placeholder (filled async by praksa_fetch_ratios)
-  h += '<div class="ratio-box" id="ratio-' + idx + '" data-dn="' + esc(d.decision_number) + '">';
+  h += '<div class="ratio-box" id="ratio-' + idx + '" data-dn="' + esc(d.decision_number) + '" style="display:block">';
   h += '<div class="ratio-lbl">Pravni stav suda</div>';
   h += '<div class="ratio-text ratio-loading" id="ratio-text-' + idx + '">Učitavanje pravnog stava…</div>';
   h += '</div>';
@@ -3818,10 +3817,24 @@ function praksa_load_initial() {
 async function praksa_fetch_ratios(decisions, startIdx) {
   if (!decisions || !decisions.length) return;
   var payload = decisions.map(function(d, i) {
-    var text = (d.obrazlozenje_full || d.izreka_full || d.obraz_text || '').substring(0, 3000);
+    var text = (d.obrazlozenje_full || d.izreka_full || d.obraz_text || d.izreka_preview || '').substring(0, 3000);
     return { decision_number: d.decision_number, text: text, _idx: startIdx + i };
   }).filter(function(p) { return p.decision_number; });
   if (!payload.length) return;
+  var dnToIdx = {};
+  payload.forEach(function(p) { dnToIdx[p.decision_number] = p._idx; });
+  var _setRatio = function(idx, ratio) {
+    var box = document.getElementById('ratio-' + idx);
+    var txt = document.getElementById('ratio-text-' + idx);
+    if (!box || !txt) return;
+    if (ratio) {
+      txt.className = 'ratio-text';
+      txt.textContent = ratio;
+    } else {
+      txt.className = 'ratio-text ratio-loading';
+      txt.textContent = 'Pravni stav nije utvrđen iz dostavljenog teksta.';
+    }
+  };
   try {
     var r = await fetch(BASE_URL + '/api/praksa/ratio', {
       method: 'POST',
@@ -3830,24 +3843,18 @@ async function praksa_fetch_ratios(decisions, startIdx) {
         return { decision_number: p.decision_number, text: p.text };
       }) }),
     });
-    if (!r.ok) return;
+    if (!r.ok) {
+      console.error('[ratio] HTTP ' + r.status);
+      payload.forEach(function(p) { _setRatio(p._idx, null); });
+      return;
+    }
     var data = await r.json();
     var ratios = data.ratios || {};
-    var dnToIdx = {};
-    payload.forEach(function(p) { dnToIdx[p.decision_number] = p._idx; });
-    Object.keys(ratios).forEach(function(dn) {
-      var idx = dnToIdx[dn];
-      if (idx === undefined) return;
-      var box  = document.getElementById('ratio-' + idx);
-      var text = document.getElementById('ratio-text-' + idx);
-      var ratio = ratios[dn];
-      if (box && text && ratio) {
-        text.className = 'ratio-text';
-        text.textContent = ratio;
-        box.style.display = 'block';
-      }
-    });
-  } catch(e) { /* silent — ratio is optional */ }
+    payload.forEach(function(p) { _setRatio(p._idx, ratios[p.decision_number] || null); });
+  } catch(e) {
+    console.error('[ratio] fetch error:', e);
+    payload.forEach(function(p) { _setRatio(p._idx, null); });
+  }
 }
 
 function praksa_ratio_filter_update() {
@@ -3957,7 +3964,7 @@ function praksa_render_grupisano(data) {
       h += '<div class="pg-decision-dn">' + esc(d.decision_number) + '</div>';
       h += '<div class="pg-decision-meta">' + esc(d.court) + (dateStr ? ' · ' + dateStr : '') + (d.matter ? ' · ' + esc(d.matter) : '') + '</div>';
       if (d.izreka_preview) h += '<div class="pg-decision-preview">' + esc(d.izreka_preview) + (d.izreka_preview.length >= 200 ? '…' : '') + '</div>';
-      h += '<div class="ratio-box" id="ratio-' + rid + '" data-dn="' + esc(d.decision_number) + '">';
+      h += '<div class="ratio-box" id="ratio-' + rid + '" data-dn="' + esc(d.decision_number) + '" style="display:block">';
       h += '<div class="ratio-lbl">Pravni stav suda</div>';
       h += '<div class="ratio-text ratio-loading" id="ratio-text-' + rid + '">Učitavanje pravnog stava…</div>';
       h += '</div>';
@@ -3977,30 +3984,36 @@ function praksa_render_grupisano(data) {
       var payload = allDecisions.map(function(d) {
         return { decision_number: d.decision_number, text: (d.obraz_text || d.izreka_preview || '').substring(0, 3000) };
       });
+      var _setG = function(rid, ratio) {
+        var box = document.getElementById('ratio-' + rid);
+        var txt = document.getElementById('ratio-text-' + rid);
+        if (!box || !txt) return;
+        if (ratio) {
+          txt.className = 'ratio-text';
+          txt.textContent = ratio;
+        } else {
+          txt.className = 'ratio-text ratio-loading';
+          txt.textContent = 'Pravni stav nije utvrđen iz dostavljenog teksta.';
+        }
+      };
       try {
         var r = await fetch(BASE_URL + '/api/praksa/ratio', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ decisions: payload }),
         });
-        if (!r.ok) return;
+        if (!r.ok) {
+          console.error('[ratio/g] HTTP ' + r.status);
+          allDecisions.forEach(function(d) { _setG(d._rid, null); });
+          return;
+        }
         var resp = await r.json();
         var ratios = resp.ratios || {};
-        var dnToRid = {};
-        allDecisions.forEach(function(d) { dnToRid[d.decision_number] = d._rid; });
-        Object.keys(ratios).forEach(function(dn) {
-          var rid = dnToRid[dn];
-          if (!rid) return;
-          var box = document.getElementById('ratio-' + rid);
-          var txt = document.getElementById('ratio-text-' + rid);
-          var ratio = ratios[dn];
-          if (box && txt && ratio) {
-            txt.className = 'ratio-text';
-            txt.textContent = ratio;
-            box.style.display = 'block';
-          }
-        });
-      } catch(e) {}
+        allDecisions.forEach(function(d) { _setG(d._rid, ratios[d.decision_number] || null); });
+      } catch(e) {
+        console.error('[ratio/g] fetch error:', e);
+        allDecisions.forEach(function(d) { _setG(d._rid, null); });
+      }
     })();
   }
 }
