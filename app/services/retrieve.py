@@ -381,6 +381,24 @@ PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD = 0.56
 # Namespace for VKS case-law vectors (Phase 1.2 ingest)
 _PRAKSA_NS = "sudska_praksa"
 
+# Namespace for ministry opinions (Phase 2.4 ingest)
+_MISLJENJA_NS = "misljenja"
+
+# Confidence threshold for misljenja — slightly lower than praksa since
+# opinions are shorter texts and embeddings are denser
+MISLJENJA_CONFIDENCE_THRESHOLD = 0.52
+
+# Query triggers that indicate a misljenja search is relevant
+_MISLJENJA_TRIGERI = frozenset([
+    "misljenje", "mišljenje", "mišljenja", "misljenja",
+    "tumacenje", "tumačenje", "tumačenja", "tumacenja",
+    "stav ministarstva", "ministarstvo rada", "ministarstvo finansija",
+    "ministarstvo privrede", "stav ministarst",
+    "objasnjenje", "objašnjenje", "pojasnjenje", "pojašnjenje",
+    "zvanicni stav", "zvanični stav", "praksa ministarst",
+    "instrukcija ministarst", "uputstvo ministarst",
+])
+
 
 def get_confidence_level(score: float) -> str:
     """Map Pinecone cosine score to HIGH / MEDIUM / LOW."""
@@ -414,6 +432,21 @@ def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = Non
         return index.query(vector=vektor, top_k=k, include_metadata=True, filter=filter_dict).matches
     except Exception:
         logger.exception("Greška u pretraga_vec")
+        return []
+
+
+def _pretraga_misljenja(vektor: list[float], k: int = 5) -> list:
+    """Query misljenja namespace for ministry opinion matches."""
+    index = _get_index()
+    try:
+        return index.query(
+            vector=vektor,
+            top_k=k,
+            namespace=_MISLJENJA_NS,
+            include_metadata=True,
+        ).matches
+    except Exception as exc:
+        logger.warning("[MISLJENJA] Pretraga nije uspela: %s", exc)
         return []
 
 
@@ -1639,6 +1672,79 @@ def process_praksa_chunks(chunks: list, k: int = 3) -> list[dict]:
         len(result),
         dropped,
     )
+    return result
+
+
+# ─── T1/T2: Mišljenja ministarstava public API (Phase 2.4) ───────────────────
+
+def retrieve_misljenja(query: str, top_k: int = 10) -> list:
+    """
+    Embed query + search misljenja namespace.
+    Returns raw Pinecone match objects.
+    Only called when query contains misljenja triggers.
+    """
+    vektor = _ugradi_query(query)
+    return _pretraga_misljenja(vektor, k=top_k)
+
+
+def query_triggers_misljenja(query: str) -> bool:
+    """Returns True if query contains triggers that indicate misljenja search."""
+    q = _normalizuj(query)
+    return any(t in q for t in _MISLJENJA_TRIGERI)
+
+
+def process_misljenja_chunks(chunks: list, k: int = 3) -> list[dict]:
+    """
+    Adaptive gate + per-opinion dedup for ministry opinions.
+
+    1. Sort by score descending
+    2. Gate: if ALL top-3 scores < MISLJENJA_CONFIDENCE_THRESHOLD → return []
+    3. Per-opinion dedup: keep highest-scored chunk per broj (opinion number)
+    4. Return top k unique opinions
+
+    Returns list of dicts: {broj, ministarstvo, datum, oblast, naziv, text, score}
+    """
+    if not chunks:
+        logger.info("[MISLJENJA] gate_applied=false, returned=0 (empty input)")
+        return []
+
+    sorted_chunks = sorted(
+        chunks,
+        key=lambda m: float(getattr(m, "score", 0.0)),
+        reverse=True,
+    )
+
+    top3_scores = [float(getattr(m, "score", 0.0)) for m in sorted_chunks[:3]]
+    if all(s < MISLJENJA_CONFIDENCE_THRESHOLD for s in top3_scores):
+        logger.info(
+            "[MISLJENJA] gate_applied=true, all_top3=%s < %.2f → skipping",
+            [f"{s:.3f}" for s in top3_scores],
+            MISLJENJA_CONFIDENCE_THRESHOLD,
+        )
+        return []
+
+    seen: dict[str, dict] = {}
+    for m in sorted_chunks:
+        meta = m.metadata or {}
+        key = (
+            meta.get("broj")
+            or meta.get("naziv")
+            or f"_unk_{id(m)}"
+        )
+        score = float(getattr(m, "score", 0.0))
+        if key not in seen or score > seen[key]["score"]:
+            seen[key] = {
+                "broj":          meta.get("broj", ""),
+                "ministarstvo":  meta.get("ministarstvo", "Ministarstvo rada"),
+                "datum":         meta.get("datum", ""),
+                "oblast":        meta.get("oblast", ""),
+                "naziv":         meta.get("naziv", ""),
+                "text":          (meta.get("text") or "").strip(),
+                "score":         score,
+            }
+
+    result = sorted(seen.values(), key=lambda d: d["score"], reverse=True)[:k]
+    logger.info("[MISLJENJA] gate_applied=false, returned=%d opinions", len(result))
     return result
 
 

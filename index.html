@@ -499,6 +499,11 @@ blockquote.citat-expanded { max-height: none; }
 .resp-lanac .resp-section-lbl { color: #a78bfa; }
 .resp-lanac .resp-section-lbl::before { background: #a78bfa; box-shadow: 0 0 6px rgba(167,139,250,0.5); }
 .resp-lanac .resp-section-body { color: rgba(200,185,255,0.9); font-size: 0.84rem; line-height: 1.75; border-left: 2px solid rgba(167,139,250,0.3); padding-left: 0.9rem; }
+/* ── Mišljenja ministarstava — amber/orange (Phase 2.4) ────────────────────── */
+.resp-misljenje { background: rgba(251,146,60,0.06); border: 1px solid rgba(251,146,60,0.22); border-radius: 8px; }
+.resp-misljenje .resp-section-lbl { color: #fb923c; }
+.resp-misljenje .resp-section-lbl::before { background: #fb923c; box-shadow: 0 0 6px rgba(251,146,60,0.45); }
+.resp-misljenje .resp-section-body { color: rgba(255,220,185,0.88); font-size: 0.84rem; line-height: 1.78; border-left: 2px solid rgba(251,146,60,0.3); padding-left: 0.9rem; }
 /* ── Statusna potvrda (PARNICA format) ─────────────────────────────────────── */
 .resp-status-ok { background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.35); border-radius: 7px; padding: 0.55rem 1rem; margin-bottom: 0.2rem; }
 .resp-status-ok .resp-section-lbl { color: #34d399; font-size: 0.72rem; letter-spacing: 0.06em; }
@@ -2825,6 +2830,7 @@ function formatResponse(rawText) {
     { key:'--- PRAKTIČAN PRIMER',               cls:'resp-edgecase',    lbl:'💡 Praktičan primer',              icon:'' },
     { key:'--- KLJUČNO PITANJE',                cls:'resp-kljucno-parnica', lbl:'🎯 Ključno pitanje',          icon:'' },
     { key:'--- POTREBNE INFORMACIJE',           cls:'resp-potrebne',    lbl:'📌 Potrebne informacije',          icon:'' },
+    { key:'--- MIŠLJENJA MINISTARSTAVA',          cls:'resp-misljenje',   lbl:'📋 Mišljenja ministarstava',       icon:'' },
     { key:'--- IZVOR',                          cls:'resp-izvor',       lbl:'Izvor',                           icon:'' },
     // ── v2.0 sekcije (emoji + mixed case) ──────────────────────────────────
     { key:'⚡ TL;DR',                      cls:'resp-tldr',        lbl:'⚡ TL;DR — Kratak zaključak', icon:'tldr' },

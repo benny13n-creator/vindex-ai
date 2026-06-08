@@ -16,6 +16,7 @@ from app.services.retrieve import (
     retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level,
     ekstrakcija_clana, _direktan_fetch_clana, _formatiraj_match,
     retrieve_sudska_praksa, process_praksa_chunks,
+    retrieve_misljenja, process_misljenja_chunks, query_triggers_misljenja,
 )
 
 load_dotenv()
@@ -2058,6 +2059,21 @@ SYSTEM_PROMPT_COMPLIANCE = SYSTEM_PROMPT_COMPLIANCE + _PRAKSA_PROMPT_ADDENDUM
 SYSTEM_PROMPT_PORESKI    = SYSTEM_PROMPT_PORESKI    + _PRAKSA_PROMPT_ADDENDUM
 SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + _PRAKSA_PROMPT_ADDENDUM
 
+# Phase 2.4: Mišljenja ministarstava — anti-fabrication rule
+_MISLJENJA_PROMPT_ADDENDUM = (
+    "\n\n📋 MIŠLJENJA MINISTARSTAVA — STROGO PRAVILO:\n"
+    "- Ako je u kontekstu prisutan blok \"MIŠLJENJA MINISTARSTAVA\", "
+    "citiraj relevantno mišljenje u sekciji 'hijerarhija_izvora' ili 'pravni_zakljucak' "
+    "formom: 'Mišljenje [ministarstvo], br. [broj], od [datum]: [kratak sadržaj]'.\n"
+    "- NIKADA ne izmišljaj mišljenja koja nisu u dostavljenom kontekstu.\n"
+    "- Ako nema bloka \"MIŠLJENJA MINISTARSTAVA\" u kontekstu → ne navoditi mišljenja."
+)
+
+SYSTEM_PROMPT_PARNICA    = SYSTEM_PROMPT_PARNICA    + _MISLJENJA_PROMPT_ADDENDUM
+SYSTEM_PROMPT_COMPLIANCE = SYSTEM_PROMPT_COMPLIANCE + _MISLJENJA_PROMPT_ADDENDUM
+SYSTEM_PROMPT_PORESKI    = SYSTEM_PROMPT_PORESKI    + _MISLJENJA_PROMPT_ADDENDUM
+SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + _MISLJENJA_PROMPT_ADDENDUM
+
 
 def _format_halucination_block(razlog: str) -> str:
     """Korisnička poruka kada guard v2.0 detektuje fabricated article citation."""
@@ -2578,6 +2594,30 @@ def _format_praksa_context(decisions: list[dict]) -> str:
     return "\n".join(lines).strip()
 
 
+def _format_misljenja_context(opinions: list[dict]) -> str:
+    """
+    Phase 2.4: Format processed ministry opinions as a structured block for LLM injection.
+    Returns empty string when opinions list is empty (gate suppressed results).
+    """
+    if not opinions:
+        return ""
+    lines = ["MIŠLJENJA MINISTARSTAVA (relevantna zvanična mišljenja iz baze):"]
+    for i, op in enumerate(opinions, 1):
+        ministarstvo = op.get("ministarstvo", "")
+        broj  = op.get("broj", "")
+        datum = op.get("datum", "")
+        naziv = op.get("naziv", "")
+        text  = (op.get("text") or "").strip()[:400]
+        header_parts = [p for p in [ministarstvo, broj, datum] if p]
+        lines.append(f"{i}. " + ", ".join(header_parts))
+        if naziv:
+            lines.append(f"   Tema: {naziv}")
+        if text:
+            lines.append(f"   Sadržaj: {text}")
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
 def _format_refusal(article: str, law: str | None) -> str:
     law_str = (law or "tom zakonu").capitalize()
     return (
@@ -2709,6 +2749,20 @@ def ask_agent(
             _processed_praksa = []
         praksa_blok = _format_praksa_context(_processed_praksa)
 
+        # KORAK 1.7: Mišljenja ministarstava retrieval (Phase 2.4)
+        # Triggered always (relevant opinions surface for any labor/tax query)
+        # or explicitly when query contains misljenja keywords.
+        misljenja_blok = ""
+        try:
+            _misljenja_raw = retrieve_misljenja(pitanje_api, top_k=10)
+            _processed_misljenja = process_misljenja_chunks(_misljenja_raw, k=2)
+            misljenja_blok = _format_misljenja_context(_processed_misljenja)
+            if misljenja_blok:
+                logger.info("[MISLJENJA] %d mišljenja dodato u kontekst", len(_processed_misljenja))
+        except Exception as _me:
+            logger.warning("[MISLJENJA] Retrieval greška: %s — nastavlja se bez mišljenja", _me)
+            misljenja_blok = ""
+
         # KORAK 1.5: Hard refusal when explicitly cited article is absent from corpus;
         # inject exact chunks when article IS found so LLM gets correct text.
         # _korak_15_authoritative=True blocks downstream second-guessing (Fixes 1-3).
@@ -2828,12 +2882,14 @@ def ask_agent(
         # KORAK 5: MEDIUM — puni topic prompt sa hedge banerom
         if confidence == "MEDIUM":
             _praksa_insert = f"\n\n{praksa_blok}\n" if praksa_blok else ""
+            _misljenja_insert = f"\n\n{misljenja_blok}\n" if misljenja_blok else ""
             user_content = (
                 f"{_HEDGE}"
                 f"{history_blok}"
                 f"PITANJE: {pitanje_api}\n\n"
                 f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
                 f"{_praksa_insert}"
+                f"{_misljenja_insert}"
             )
             try:
                 _raw_med = _pozovi_openai(
@@ -2879,11 +2935,13 @@ def ask_agent(
 
         # KORAK 6: HIGH — puni topic prompt, soft section check, anti-halucinacijska zaštita
         _praksa_insert = f"\n\n{praksa_blok}\n" if praksa_blok else ""
+        _misljenja_insert = f"\n\n{misljenja_blok}\n" if misljenja_blok else ""
         user_content = (
             f"{history_blok}"
             f"PITANJE: {pitanje_api}\n\n"
             f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
             f"{_praksa_insert}"
+            f"{_misljenja_insert}"
         )
         try:
             _raw_high = _pozovi_openai(
@@ -2930,12 +2988,14 @@ def ask_agent(
         if _downgrade:
             confidence = "MEDIUM"
             _praksa_insert_dg = f"\n\n{praksa_blok}\n" if praksa_blok else ""
+            _misljenja_insert_dg = f"\n\n{misljenja_blok}\n" if misljenja_blok else ""
             user_content_medium = (
                 f"{_HEDGE}"
                 f"{history_blok}"
                 f"PITANJE: {pitanje_api}\n\n"
                 f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
                 f"{_praksa_insert_dg}"
+                f"{_misljenja_insert_dg}"
             )
             try:
                 _raw_dg = _pozovi_openai(
