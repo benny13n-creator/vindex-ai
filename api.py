@@ -2350,6 +2350,297 @@ async def delete_svi_stavovi(request: Request, user: dict = Depends(require_pro)
     return {"obrisano_vektora": count}
 
 
+# ── F8.1: Komentari na predmetima ─────────────────────────────────────────────
+from datetime import datetime as _dt, timezone as _tz
+
+
+class KomentarRequest(BaseModel):  # F8
+    tekst: str = Field(..., min_length=1, max_length=2000)
+
+
+class KomentarUpdateRequest(BaseModel):  # F8
+    tekst: str = Field(..., min_length=1, max_length=2000)
+
+
+@app.post("/predmeti/{predmet_id}/komentari")  # F8.1
+@limiter.limit("30/minute")
+async def post_komentar(
+    predmet_id: str,
+    req: KomentarRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.1 — Dodaj komentar na predmet."""
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("predmet_komentari").insert({
+            "predmet_id": predmet_id,
+            "user_id":    user["user_id"],
+            "tekst":      req.tekst.strip(),
+        }).execute()
+    )
+    return {"status": "dodat", "komentar": res.data[0] if res.data else {}}
+
+
+@app.get("/predmeti/{predmet_id}/komentari")  # F8.1
+@limiter.limit("60/minute")
+async def get_komentari(
+    predmet_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.1 — Lista komentara za predmet."""
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("predmet_komentari")
+                    .select("*")
+                    .eq("predmet_id", predmet_id)
+                    .order("kreirano", desc=False)
+                    .execute()
+    )
+    return {"komentari": res.data or []}
+
+
+@app.put("/komentari/{komentar_id}")  # F8.1
+@limiter.limit("20/minute")
+async def put_komentar(
+    komentar_id: str,
+    req: KomentarUpdateRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.1 — Izmeni komentar (samo vlasnik)."""
+    supa = _get_supa()
+    now = _dt.now(_tz.utc).isoformat()
+    await asyncio.to_thread(
+        lambda: supa.table("predmet_komentari")
+                    .update({"tekst": req.tekst.strip(), "izmenjeno": now})
+                    .eq("id", komentar_id)
+                    .eq("user_id", user["user_id"])
+                    .execute()
+    )
+    return {"status": "izmenjeno"}
+
+
+@app.delete("/komentari/{komentar_id}")  # F8.1
+@limiter.limit("20/minute")
+async def delete_komentar(
+    komentar_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.1 — Obriši komentar (samo vlasnik)."""
+    supa = _get_supa()
+    await asyncio.to_thread(
+        lambda: supa.table("predmet_komentari")
+                    .delete()
+                    .eq("id", komentar_id)
+                    .eq("user_id", user["user_id"])
+                    .execute()
+    )
+    return {"status": "obrisan"}
+
+
+# ── F8.2: CRM — Klijenti ──────────────────────────────────────────────────────
+
+class KlijentRequest(BaseModel):  # F8
+    ime:      str = Field(..., min_length=2, max_length=200)
+    prezime:  str = Field(default="", max_length=200)
+    firma:    str = Field(default="", max_length=300)
+    email:    str = Field(default="", max_length=200)
+    telefon:  str = Field(default="", max_length=50)
+    jmbg_mb:  str = Field(default="", max_length=50)
+    adresa:   str = Field(default="", max_length=500)
+    napomena: str = Field(default="", max_length=2000)
+    tip:      str = Field(default="fizicko")
+
+    @field_validator("tip")
+    @classmethod
+    def proveri_tip(cls, v: str) -> str:
+        if v not in ("fizicko", "pravno"):
+            raise ValueError("tip mora biti 'fizicko' ili 'pravno'")
+        return v
+
+
+class LinkKlijentRequest(BaseModel):  # F8
+    klijent_id: str
+    uloga:      str = Field(default="stranka")
+
+    @field_validator("uloga")
+    @classmethod
+    def proveri_ulogu(cls, v: str) -> str:
+        if v not in ("stranka", "protivna_stranka", "svedok", "ostalo"):
+            raise ValueError("Nepoznata uloga")
+        return v
+
+
+@app.post("/klijenti")  # F8.2
+@limiter.limit("20/minute")
+async def post_klijent(
+    req: KlijentRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.2 — Dodaj novog klijenta."""
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("klijenti").insert({
+            "user_id":  user["user_id"],
+            "ime":      req.ime.strip(),
+            "prezime":  req.prezime.strip(),
+            "firma":    req.firma.strip(),
+            "email":    req.email.strip(),
+            "telefon":  req.telefon.strip(),
+            "jmbg_mb":  req.jmbg_mb.strip(),
+            "adresa":   req.adresa.strip(),
+            "napomena": req.napomena.strip(),
+            "tip":      req.tip,
+        }).execute()
+    )
+    return {"status": "dodat", "klijent": res.data[0] if res.data else {}}
+
+
+@app.get("/klijenti")  # F8.2
+@limiter.limit("60/minute")
+async def get_klijenti(
+    request: Request,
+    pretraga: str = "",
+    user: dict = Depends(get_current_user),
+):
+    """F8.2 — Lista klijenata (opciona pretraga po imenu)."""
+    supa = _get_supa()
+    def _fetch():
+        q = (supa.table("klijenti")
+                 .select("*")
+                 .eq("user_id", user["user_id"])
+                 .eq("aktivan", True)
+                 .order("ime"))
+        if pretraga.strip():
+            q = q.ilike("ime", f"%{pretraga.strip()}%")
+        return q.execute()
+    res = await asyncio.to_thread(_fetch)
+    return {"klijenti": res.data or []}
+
+
+@app.get("/klijenti/{klijent_id}")  # F8.2
+@limiter.limit("60/minute")
+async def get_klijent(
+    klijent_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.2 — Detalji jednog klijenta sa vezanim predmetima."""
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("klijenti")
+                    .select("*")
+                    .eq("id", klijent_id)
+                    .eq("user_id", user["user_id"])
+                    .single()
+                    .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
+    try:
+        pred_res = await asyncio.to_thread(
+            lambda: supa.table("predmet_klijenti")
+                        .select("predmet_id, uloga, predmeti(naziv, status)")
+                        .eq("klijent_id", klijent_id)
+                        .execute()
+        )
+        predmeti = pred_res.data or []
+    except Exception:
+        predmeti = []
+    return {"klijent": res.data, "predmeti": predmeti}
+
+
+@app.put("/klijenti/{klijent_id}")  # F8.2
+@limiter.limit("20/minute")
+async def put_klijent(
+    klijent_id: str,
+    req: KlijentRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.2 — Ažuriraj klijenta."""
+    supa = _get_supa()
+    now = _dt.now(_tz.utc).isoformat()
+    await asyncio.to_thread(
+        lambda: supa.table("klijenti").update({
+            "ime":      req.ime.strip(),
+            "prezime":  req.prezime.strip(),
+            "firma":    req.firma.strip(),
+            "email":    req.email.strip(),
+            "telefon":  req.telefon.strip(),
+            "jmbg_mb":  req.jmbg_mb.strip(),
+            "adresa":   req.adresa.strip(),
+            "napomena": req.napomena.strip(),
+            "tip":      req.tip,
+            "azurirano": now,
+        }).eq("id", klijent_id).eq("user_id", user["user_id"]).execute()
+    )
+    return {"status": "azuriran"}
+
+
+@app.delete("/klijenti/{klijent_id}")  # F8.2
+@limiter.limit("20/minute")
+async def delete_klijent(
+    klijent_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.2 — Soft delete klijenta (aktivan=false)."""
+    supa = _get_supa()
+    await asyncio.to_thread(
+        lambda: supa.table("klijenti")
+                    .update({"aktivan": False})
+                    .eq("id", klijent_id)
+                    .eq("user_id", user["user_id"])
+                    .execute()
+    )
+    return {"status": "obrisan"}
+
+
+@app.post("/predmeti/{predmet_id}/klijenti")  # F8.2
+@limiter.limit("20/minute")
+async def post_link_klijent(
+    predmet_id: str,
+    req: LinkKlijentRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.2 — Linkuj klijenta sa predmetom."""
+    supa = _get_supa()
+    await asyncio.to_thread(
+        lambda: supa.table("predmet_klijenti").upsert({
+            "predmet_id": predmet_id,
+            "klijent_id": req.klijent_id,
+            "uloga":      req.uloga,
+        }, on_conflict="predmet_id,klijent_id").execute()
+    )
+    return {"status": "linkovan"}
+
+
+@app.delete("/predmeti/{predmet_id}/klijenti/{klijent_id}")  # F8.2
+@limiter.limit("20/minute")
+async def delete_link_klijent(
+    predmet_id: str,
+    klijent_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """F8.2 — Ukloni link klijent-predmet."""
+    supa = _get_supa()
+    await asyncio.to_thread(
+        lambda: supa.table("predmet_klijenti")
+                    .delete()
+                    .eq("predmet_id", predmet_id)
+                    .eq("klijent_id", klijent_id)
+                    .execute()
+    )
+    return {"status": "unlinkan"}
+
+
 # ─── /api/praksa/search ───────────────────────────────────────────────────────
 
 _VALID_MATTERS     = frozenset({"Građanska", "Zaštita prava", "Upravna", "Krivična"})

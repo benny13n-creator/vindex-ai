@@ -529,3 +529,90 @@ DO $$ BEGIN
 END $$;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmet_istorija TO service_role;
+
+-- ── F8: Komentari na predmetima ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.predmet_komentari (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  predmet_id UUID NOT NULL REFERENCES public.predmeti(id) ON DELETE CASCADE,
+  user_id    TEXT NOT NULL,
+  tekst      TEXT NOT NULL CHECK (char_length(tekst) >= 1 AND char_length(tekst) <= 2000),
+  kreirano   TIMESTAMPTZ DEFAULT NOW(),
+  izmenjeno  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_komentari_predmet ON public.predmet_komentari(predmet_id);
+CREATE INDEX IF NOT EXISTS idx_komentari_user    ON public.predmet_komentari(user_id);
+ALTER TABLE public.predmet_komentari ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='predmet_komentari' AND policyname='komentari_select') THEN
+    CREATE POLICY "komentari_select" ON public.predmet_komentari FOR SELECT USING (auth.uid()::text = user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='predmet_komentari' AND policyname='komentari_insert') THEN
+    CREATE POLICY "komentari_insert" ON public.predmet_komentari FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='predmet_komentari' AND policyname='komentari_update') THEN
+    CREATE POLICY "komentari_update" ON public.predmet_komentari FOR UPDATE USING (auth.uid()::text = user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='predmet_komentari' AND policyname='komentari_delete') THEN
+    CREATE POLICY "komentari_delete" ON public.predmet_komentari FOR DELETE USING (auth.uid()::text = user_id);
+  END IF;
+END $$;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmet_komentari TO service_role;
+
+-- ── F8: CRM — Klijenti ───────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.klijenti (
+  id        UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id   TEXT NOT NULL,
+  ime       TEXT NOT NULL CHECK (char_length(ime) >= 2),
+  prezime   TEXT,
+  firma     TEXT,
+  email     TEXT,
+  telefon   TEXT,
+  jmbg_mb   TEXT,
+  adresa    TEXT,
+  napomena  TEXT,
+  tip       TEXT DEFAULT 'fizicko' CHECK (tip IN ('fizicko', 'pravno')),
+  aktivan   BOOLEAN DEFAULT true,
+  kreirano  TIMESTAMPTZ DEFAULT NOW(),
+  azurirano TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_klijenti_user ON public.klijenti(user_id);
+CREATE INDEX IF NOT EXISTS idx_klijenti_ime  ON public.klijenti(user_id, ime);
+ALTER TABLE public.klijenti ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='klijenti' AND policyname='klijenti_select') THEN
+    CREATE POLICY "klijenti_select" ON public.klijenti FOR SELECT USING (auth.uid()::text = user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='klijenti' AND policyname='klijenti_insert') THEN
+    CREATE POLICY "klijenti_insert" ON public.klijenti FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='klijenti' AND policyname='klijenti_update') THEN
+    CREATE POLICY "klijenti_update" ON public.klijenti FOR UPDATE USING (auth.uid()::text = user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='klijenti' AND policyname='klijenti_delete') THEN
+    CREATE POLICY "klijenti_delete" ON public.klijenti FOR DELETE USING (auth.uid()::text = user_id);
+  END IF;
+END $$;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.klijenti TO service_role;
+
+-- ── F8: Predmet ↔ Klijent veza ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.predmet_klijenti (
+  predmet_id UUID NOT NULL REFERENCES public.predmeti(id) ON DELETE CASCADE,
+  klijent_id UUID NOT NULL REFERENCES public.klijenti(id) ON DELETE CASCADE,
+  uloga      TEXT DEFAULT 'stranka' CHECK (uloga IN ('stranka','protivna_stranka','svedok','ostalo')),
+  PRIMARY KEY (predmet_id, klijent_id)
+);
+CREATE INDEX IF NOT EXISTS idx_pk_predmet ON public.predmet_klijenti(predmet_id);
+CREATE INDEX IF NOT EXISTS idx_pk_klijent ON public.predmet_klijenti(klijent_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmet_klijenti TO service_role;
