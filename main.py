@@ -2600,6 +2600,33 @@ def _format_praksa_context(decisions: list[dict]) -> str:
     return "\n".join(lines).strip()
 
 
+def _injektuj_misljenja_blok(odgovor: str, opinions: list[dict]) -> str:
+    """Phase 2.4: Inject '--- MIŠLJENJA MINISTARSTAVA' section directly into LLM response."""
+    if not opinions:
+        return odgovor
+    if "--- MIŠLJENJA MINISTARSTAVA" in odgovor:
+        return odgovor  # LLM already included it — no duplication
+    lines = []
+    for op in opinions:
+        ministarstvo = op.get("ministarstvo", "")
+        broj  = op.get("broj", "")
+        datum = op.get("datum", "")
+        naziv = (op.get("naziv") or "").strip()
+        text  = (op.get("text") or "").strip()[:350]
+        header_parts = [p for p in [ministarstvo, broj, datum] if p]
+        entry = "Mišljenje " + ", ".join(header_parts) + ":"
+        if naziv:
+            entry += "\n" + naziv
+        if text:
+            entry += "\n" + text
+        lines.append(entry)
+    blok = "\n--- MIŠLJENJA MINISTARSTAVA\n" + "\n\n".join(lines) + "\n"
+    for marker in ("--- IZVOR", "SLUZBENI IZVOR:", "SLUŽBENI IZVOR:"):
+        if marker in odgovor:
+            return odgovor.replace(marker, blok + "\n" + marker, 1)
+    return odgovor + blok
+
+
 def _format_misljenja_context(opinions: list[dict]) -> str:
     """
     Phase 2.4: Format processed ministry opinions as a structured block for LLM injection.
@@ -2759,6 +2786,7 @@ def ask_agent(
         # Triggered always (relevant opinions surface for any labor/tax query)
         # or explicitly when query contains misljenja keywords.
         misljenja_blok = ""
+        _processed_misljenja: list[dict] = []
         try:
             _misljenja_raw = retrieve_misljenja(pitanje_api, top_k=10)
             _processed_misljenja = process_misljenja_chunks(_misljenja_raw, k=2)
@@ -2768,6 +2796,7 @@ def ask_agent(
         except Exception as _me:
             logger.warning("[MISLJENJA] Retrieval greška: %s — nastavlja se bez mišljenja", _me)
             misljenja_blok = ""
+            _processed_misljenja = []
 
         # KORAK 1.5: Hard refusal when explicitly cited article is absent from corpus;
         # inject exact chunks when article IS found so LLM gets correct text.
@@ -2925,6 +2954,7 @@ def ask_agent(
             odgovor = _srpski_termini(odgovor)
             odgovor = _ogranici_pouzdanost(odgovor)
             odgovor = ukloni_zabranjeni_tekst(odgovor, tip)
+            odgovor = _injektuj_misljenja_blok(odgovor, _processed_misljenja)
             if "--- IZVOR" not in odgovor and "--- HIJERARHIJA IZVORA" not in odgovor:
                 odgovor = _dodaj_izvor(odgovor, filtrirani)
             odgovor = _dodaj_disclaimer(odgovor)
@@ -3032,6 +3062,7 @@ def ask_agent(
         odgovor = _srpski_termini(odgovor)
         odgovor = _ogranici_pouzdanost(odgovor)
         odgovor = ukloni_zabranjeni_tekst(odgovor, tip)
+        odgovor = _injektuj_misljenja_blok(odgovor, _processed_misljenja)
         if "--- IZVOR" not in odgovor and "--- HIJERARHIJA IZVORA" not in odgovor:
             odgovor = _dodaj_izvor(odgovor, filtrirani)
         odgovor = _dodaj_disclaimer(odgovor)
