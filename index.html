@@ -538,6 +538,15 @@ blockquote.citat-expanded { max-height: none; }
 .resp-misljenje .resp-section-lbl { color: #fb923c; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.18em; }
 .resp-misljenje .resp-section-lbl::before { background: #fb923c; box-shadow: 0 0 8px rgba(251,146,60,0.6); width: 5px; height: 5px; }
 .resp-misljenje .resp-section-body { color: rgba(255,215,175,0.9); font-size: 0.84rem; line-height: 1.78; margin-top: 0.3rem; }
+/* ── Mišljenja — individual opinion cards (Phase 2.4) ──────────────────────── */
+.misljenje-card { background:rgba(251,146,60,0.05); border:1px solid rgba(251,146,60,0.18); border-radius:7px; padding:0.6rem 0.8rem; margin-bottom:0.45rem; }
+.misljenje-card:last-child { margin-bottom:0; }
+.misljenje-header { display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.28rem; }
+.misljenje-min { font-size:0.63rem; font-weight:700; color:#fb923c; background:rgba(251,146,60,0.12); border:1px solid rgba(251,146,60,0.28); border-radius:4px; padding:0.08rem 0.42rem; letter-spacing:0.04em; text-transform:uppercase; flex-shrink:0; }
+.misljenje-broj { font-family:'JetBrains Mono',monospace; font-size:0.64rem; color:rgba(255,215,175,0.65); }
+.misljenje-datum { font-family:'JetBrains Mono',monospace; font-size:0.61rem; color:rgba(255,255,255,0.3); margin-left:auto; }
+.misljenje-naziv { font-size:0.79rem; font-weight:600; color:rgba(255,215,175,0.9); margin-bottom:0.25rem; line-height:1.4; }
+.misljenje-tekst { font-size:0.76rem; color:rgba(255,200,160,0.68); line-height:1.65; }
 /* ── Statusna potvrda (PARNICA format) ─────────────────────────────────────── */
 .resp-status-ok { background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.35); border-radius: 7px; padding: 0.55rem 1rem; margin-bottom: 0.2rem; }
 .resp-status-ok .resp-section-lbl { color: #34d399; font-size: 0.72rem; letter-spacing: 0.06em; }
@@ -3094,6 +3103,36 @@ function formatResponse(rawText) {
           '<div class="resp-disclaimer-box">' + escHtml(discDeo) + '</div>';
       } else {
         bodyHtml = _linkGlasnik(val).replace(/\n/g,'<br>');
+      }
+    } else if (s.cls === 'resp-misljenje') {
+      // Parse individual ministry opinions — each starts with "Mišljenje ..."
+      var _mBlocks = val.split(/(?=Mišljenje\s+)/i).filter(function(b){ return b.trim(); });
+      if (!_mBlocks.length) {
+        bodyHtml = escHtml(val).replace(/\n/g,'<br>');
+      } else {
+        bodyHtml = _mBlocks.map(function(block) {
+          var _mLines = block.split('\n');
+          var _hdr = (_mLines[0] || '').trim(); // "Mišljenje MinRad, 011-00-152/2024, 15.03.2024:"
+          var _hdrBody = _hdr.replace(/^Mišljenje\s*/i,'').replace(/:$/,'');
+          var _parts = _hdrBody.split(/,\s*/);
+          var _min  = _parts[0] || '';
+          var _broj = _parts[1] || '';
+          var _dat  = _parts.slice(2).join(', ');
+          var _rest = _mLines.slice(1).filter(function(l){ return l.trim(); });
+          var _naziv = _rest.length ? _rest[0].trim() : '';
+          var _tekst = _rest.slice(1).join('\n').trim();
+          var _preview = _tekst.length > 280 ? _tekst.slice(0,280)+'...' : _tekst;
+          var _c = '<div class="misljenje-card">'
+            + '<div class="misljenje-header">'
+            + (_min  ? '<span class="misljenje-min">'+escHtml(_min)+'</span>' : '')
+            + (_broj ? '<span class="misljenje-broj">'+escHtml(_broj)+'</span>' : '')
+            + (_dat  ? '<span class="misljenje-datum">'+escHtml(_dat)+'</span>' : '')
+            + '</div>'
+            + (_naziv   ? '<div class="misljenje-naziv">'+escHtml(_naziv)+'</div>' : '')
+            + (_preview ? '<div class="misljenje-tekst">'+escHtml(_preview)+'</div>' : '')
+            + '</div>';
+          return _c;
+        }).join('');
       }
     } else {
       bodyHtml = escHtml(val).replace(/\n/g,'<br>');
