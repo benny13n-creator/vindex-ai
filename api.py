@@ -1824,13 +1824,14 @@ def _fetch_session_tekst(session_id: str) -> str:
 class RokoviRequest(BaseModel):
     session_id: str = ""
     tekst: str = Field("", max_length=50000)
+    datum_dokumenta: str = Field("", max_length=12)  # Phase 4.1: "DD.MM.YYYY" ili ""
 
 
 @app.post("/api/dokument/rokovi")
 @limiter.limit("20/minute")
 async def dokument_rokovi(body: RokoviRequest, request: Request, user: dict = Depends(require_credits)):
-    """P3.2 — Ekstrakcija rokova iz Pinecone chunks. Ne troši kredit."""
-    from uploaded_doc.deadline_parser import ekstrahuj_rokove
+    """Phase 4.1 — Ekstrakcija rokova + kalkulacija datuma. Ne troši kredit."""
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove, _extract_datum_dokumenta
 
     tekst = (body.tekst or "").strip()
 
@@ -1842,10 +1843,25 @@ async def dokument_rokovi(body: RokoviRequest, request: Request, user: dict = De
         tekst = await asyncio.to_thread(_fetch_session_tekst, body.session_id)
 
     if not tekst:
-        return {"rokovi": [], "ukupno": 0}
+        return {"rokovi": [], "ukupno": 0, "datum_dokumenta": None, "datum_dokumenta_izvor": None}
 
-    rokovi = await asyncio.to_thread(ekstrahuj_rokove, tekst)
-    return {"rokovi": rokovi, "ukupno": len(rokovi)}
+    # Phase 4.1: Datum dokumenta — korisnik ili auto-detect
+    datum_doc: Optional[str] = (body.datum_dokumenta or "").strip() or None
+    datum_izvor: Optional[str] = None
+    if datum_doc:
+        datum_izvor = "korisnik"
+    else:
+        datum_doc = await asyncio.to_thread(_extract_datum_dokumenta, tekst)
+        if datum_doc:
+            datum_izvor = "auto"
+
+    rokovi = await asyncio.to_thread(ekstrahuj_rokove, tekst, datum_doc)
+    return {
+        "rokovi":                rokovi,
+        "ukupno":                len(rokovi),
+        "datum_dokumenta":       datum_doc,
+        "datum_dokumenta_izvor": datum_izvor,
+    }
 
 
 # ─── /api/praksa/search ───────────────────────────────────────────────────────

@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
 """
-P3.1/P3.2 — Deadline/rok ekstrakcija iz pravnih dokumenata.
+P3.1/P3.2 / Phase 4.1 — Deadline/rok ekstrakcija iz pravnih dokumenata.
 
 Funkcija `ekstrahuj_rokove` parsira srpske datume i relativne rokove
 iz pravnog teksta i vraća strukturirane dict-ove sa kontekstom i kategorijom.
+
+Phase 4.1 dodaci:
+  - `_extract_datum_dokumenta` — auto-detekcija datuma dokumenta
+  - `_parse_trajanje_dana`     — konverzija relativnog roka u broj dana
+  - `_kalkulisi_rok`           — kalkulacija konkretnog datuma + countdown
 """
 from __future__ import annotations
 
 import re
-from typing import Literal
+from datetime import datetime, timedelta
+from typing import Optional
 
 # ─── Meseci na srpskom ────────────────────────────────────────────────────────
 _MESECI_GEN = {
@@ -63,16 +69,152 @@ def _snippet(tekst: str, pos: int, end: int) -> str:
     return tekst[start:stop].strip()
 
 
-def ekstrahuj_rokove(tekst: str) -> list[dict]:
+# ─── Phase 4.1: Auto-detekcija datuma dokumenta ──────────────────────────────
+
+def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
+    """
+    Detektuje datum dokumenta iz prvih 500 karaktera teksta.
+    Vraća "DD.MM.YYYY" string ili None.
+
+    Traži tipične pravne fraze: "Dana ...", "Beograd, ...", "doneta ...",
+    "zaključen dana ..." i sl. Fallback: prvi DD.MM.YYYY u prvih 500 chars.
+    """
+    probe = tekst[:500]
+
+    # Fraze koje prethode datumu dokumenta (redosled je bitan — specifičnije pre generičnih)
+    phrase_patterns = [
+        # "Dana DD.MM.YYYY" / "dana DD.MM.YYYY"
+        r"\bdana\s+(\d{1,2}\.\d{1,2}\.\d{4})\b",
+        # "datum presude/zaključenja/ugovora/dokumenta: DD.MM.YYYY"
+        r"\bdatum\s+(?:presude|zaklju[čc][ie]?nja|ugovora|dokumenta)\s*[:\s]+(\d{1,2}\.\d{1,2}\.\d{4})\b",
+        # "zaključen/zaključena dana DD.MM.YYYY"
+        r"\bzaklju[čc]en[ao]?\s+(?:dana\s+)?(\d{1,2}\.\d{1,2}\.\d{4})\b",
+        # "doneta/doneto/donet dana DD.MM.YYYY"
+        r"\bdonet[ao]?\s+(?:dana\s+)?(\d{1,2}\.\d{1,2}\.\d{4})\b",
+        # "Grad/Mesto, DD.MM.YYYY" — npr. "Beograd, 01.03.2025"
+        r"\b[A-ZŠĐŽČĆ][a-zšđžčćA-ZŠĐŽČĆ]{2,20},\s*(\d{1,2}\.\d{1,2}\.\d{4})\b",
+    ]
+
+    for pat in phrase_patterns:
+        m = re.search(pat, probe, re.IGNORECASE)
+        if m:
+            raw = m.group(1)
+            parts = raw.split(".")
+            if len(parts) == 3 and _valid_date_parts(parts):
+                return f"{parts[0].zfill(2)}.{parts[1].zfill(2)}.{parts[2]}"
+
+    # Fallback: prvi DD.MM.YYYY u prvih 500 chars
+    m = re.search(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b", probe)
+    if m:
+        d, mo, y = m.group(1), m.group(2), m.group(3)
+        if _valid_date_parts([d, mo, y]):
+            return f"{d.zfill(2)}.{mo.zfill(2)}.{y}"
+
+    return None
+
+
+def _valid_date_parts(parts: list) -> bool:
+    """Osnovna validacija datumskih delova (nije puna validacija)."""
+    try:
+        d, mo, y = int(parts[0]), int(parts[1]), int(parts[2])
+        return 1 <= d <= 31 and 1 <= mo <= 12 and 1900 <= y <= 2100
+    except (ValueError, IndexError):
+        return False
+
+
+# ─── Phase 4.1: Konverzija relativnog roka u dane ────────────────────────────
+
+def _parse_trajanje_dana(vrednost: str) -> Optional[int]:
+    """
+    Konvertuje relativni rok string u ekvivalentan broj dana.
+
+    Primeri:
+      "8 dana"           → 8
+      "15 radnih dana"   → 15
+      "3 meseca"         → 90
+      "1 godina"         → 365
+      "2 nedelje"        → 14
+      "narednog radnog dana" → 1
+    """
+    v = vrednost.lower().strip()
+
+    if "narednog radnog dana" in v:
+        return 1
+
+    m = re.search(r"(\d+)", v)
+    if not m:
+        return None
+    n = int(m.group(1))
+
+    if re.search(r"godin", v):
+        return n * 365
+    if re.search(r"mesec", v):
+        return n * 30
+    if re.search(r"nedelj", v):
+        return n * 7
+    # "dana", "dan", "radnih dana" — sve tretiramo kao kalendarske dane
+    return n
+
+
+# ─── Phase 4.1: Kalkulacija konkretnog datuma i countdowna ───────────────────
+
+def _kalkulisi_rok(vrednost: str, tip: str, datum_dokumenta: Optional[str]) -> dict:
+    """
+    Vraća dict sa:
+      konkretan_datum: "DD.MM.YYYY" | None
+      istekao:         bool
+      dana_do_roka:    int | None  (negativno = isteklo pre N dana)
+    """
+    today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    if tip == "apsolutni":
+        try:
+            rok_dt = datetime.strptime(vrednost, "%d.%m.%Y")
+            delta  = (rok_dt - today).days
+            return {
+                "konkretan_datum": vrednost,
+                "istekao":         delta < 0,
+                "dana_do_roka":    delta,
+            }
+        except ValueError:
+            return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+
+    elif tip == "relativni":
+        if not datum_dokumenta:
+            return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+        try:
+            doc_dt = datetime.strptime(datum_dokumenta, "%d.%m.%Y")
+            n_dana  = _parse_trajanje_dana(vrednost)
+            if n_dana is None:
+                return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+            rok_dt = doc_dt + timedelta(days=n_dana)
+            delta  = (rok_dt - today).days
+            return {
+                "konkretan_datum": rok_dt.strftime("%d.%m.%Y"),
+                "istekao":         delta < 0,
+                "dana_do_roka":    delta,
+            }
+        except ValueError:
+            return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+
+    return {"konkretan_datum": None, "istekao": False, "dana_do_roka": None}
+
+
+# ─── Glavna funkcija ──────────────────────────────────────────────────────────
+
+def ekstrahuj_rokove(tekst: str, datum_dokumenta: Optional[str] = None) -> list[dict]:
     """
     Parsira srpske datume i relativne rokove iz pravnog teksta.
 
     Returns list of dicts:
       {
-        "tip":       "apsolutni" | "relativni",
-        "vrednost":  "15.11.2025" | "8 dana",
-        "kontekst":  "...tekst oko roka...",
-        "kategorija":"zastarelost" | "otkaz" | "zalba" | "podnesak" | "isplata" | "ostalo"
+        "tip":            "apsolutni" | "relativni",
+        "vrednost":       "15.11.2025" | "8 dana",
+        "kontekst":       "...tekst oko roka...",
+        "kategorija":     "zastarelost" | "otkaz" | "zalba" | "podnesak" | "isplata" | "ostalo",
+        "konkretan_datum": "DD.MM.YYYY" | None,
+        "istekao":        True | False,
+        "dana_do_roka":   int | None
       }
     """
     if not tekst or not tekst.strip():
@@ -158,7 +300,7 @@ def ekstrahuj_rokove(tekst: str) -> list[dict]:
         vrednost = f"{m.group(1)} dana"
         _add("relativni", vrednost, m.start(), m.end())
 
-    # ─── Deduplikacija: isti vrednost + prvih 50 chars konteksta ────────────────
+    # ─── Deduplikacija: isti vrednost + prvih 50 chars konteksta ─────────────
     seen_keys: set[str] = set()
     deduped: list[dict] = []
     for r in results:
@@ -170,7 +312,6 @@ def ekstrahuj_rokove(tekst: str) -> list[dict]:
     # ─── Sortiranje: apsolutni hronološki → relativni leksikografski ─────────
     def _sort_key(r: dict) -> tuple:
         if r["tip"] == "apsolutni":
-            # vrednost is "DD.MM.YYYY" — convert to sortable YYYY-MM-DD
             parts = r["vrednost"].split(".")
             if len(parts) == 3:
                 return (0, f"{parts[2]}-{parts[1]}-{parts[0]}")
@@ -178,4 +319,12 @@ def ekstrahuj_rokove(tekst: str) -> list[dict]:
         return (1, r["vrednost"])
 
     deduped.sort(key=_sort_key)
+
+    # ─── Phase 4.1: Dodaj kalkulisana polja na svaki rok ─────────────────────
+    for r in deduped:
+        kalk = _kalkulisi_rok(r["vrednost"], r["tip"], datum_dokumenta)
+        r["konkretan_datum"] = kalk["konkretan_datum"]
+        r["istekao"]         = kalk["istekao"]
+        r["dana_do_roka"]    = kalk["dana_do_roka"]
+
     return deduped
