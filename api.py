@@ -2362,6 +2362,9 @@ from web3_compliance import (
     web3_pretraga_sync as _web3_pretraga,
     compliance_check_sync as _compliance_check,
     whitepaper_check_sync as _whitepaper_check,
+    mica_readiness_score_sync as _mica_readiness_score,
+    zdi_license_checker_sync as _zdi_license_checker,
+    aml_kyc_auditor_sync as _aml_kyc_auditor,
 )
 
 
@@ -2417,6 +2420,75 @@ async def post_whitepaper_check(req: StrategijaRequest, request: Request, user: 
     except Exception:
         logger.exception("[F11] whitepaper_check greška")
         raise HTTPException(status_code=500, detail="Greška pri analizi whitepapera. Pokušajte ponovo.")
+
+
+@app.post("/web3/mica-score")  # F11.4
+@limiter.limit("5/minute")
+async def post_mica_score(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.4 — MiCA Readiness Score — scoring projekta po MiCA/ZDI (PRO)."""
+    if len(req.tekst.strip()) < 50:
+        raise HTTPException(status_code=422, detail="Opis projekta mora imati najmanje 50 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "mica_score", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _mica_readiness_score, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {
+            "score_data": rezultat["score_data"],
+            "objasnjenje": rezultat["objasnjenje"],
+            "modul": "mica_score",
+            "credits_remaining": max(preostalo, 0),
+        }
+    except Exception:
+        logger.exception("[F11] mica_score greška")
+        raise HTTPException(status_code=500, detail="Greška pri MiCA scoring analizi. Pokušajte ponovo.")
+
+
+@app.post("/web3/license-check")  # F11.5
+@limiter.limit("10/minute")
+async def post_license_check(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.5 — ZDI License Checker — provera potrebnih dozvola (PRO)."""
+    if len(req.tekst.strip()) < 20:
+        raise HTTPException(status_code=422, detail="Opis aktivnosti mora imati najmanje 20 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "license_check", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _zdi_license_checker, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {
+            "license_data": rezultat["license_data"],
+            "objasnjenje": rezultat["objasnjenje"],
+            "modul": "license_check",
+            "credits_remaining": max(preostalo, 0),
+        }
+    except Exception:
+        logger.exception("[F11] license_check greška")
+        raise HTTPException(status_code=500, detail="Greška pri proveri licence. Pokušajte ponovo.")
+
+
+@app.post("/web3/aml-audit")  # F11.6
+@limiter.limit("5/minute")
+async def post_aml_audit(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.6 — AML/KYC Auditor — audit usklađenosti politike (PRO)."""
+    if len(req.tekst.strip()) < 50:
+        raise HTTPException(status_code=422, detail="Tekst politike mora imati najmanje 50 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "aml_audit", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _aml_kyc_auditor, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {
+            "audit_data": rezultat["audit_data"],
+            "objasnjenje": rezultat["objasnjenje"],
+            "modul": "aml_audit",
+            "credits_remaining": max(preostalo, 0),
+        }
+    except Exception:
+        logger.exception("[F11] aml_audit greška")
+        raise HTTPException(status_code=500, detail="Greška pri AML/KYC auditu. Pokušajte ponovo.")
 
 
 # ── F7.2: Interni stavovi ─────────────────────────────────────────────────────

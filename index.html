@@ -1337,6 +1337,48 @@ footer { padding: 2rem 1.5rem; }
 .debate-branilac .debate-header{color:#68d391;}
 .debate-presuda .debate-header{color:#C9A84C;}
 .debate-sadrzaj{padding:12px 14px;font-size:0.85rem;line-height:1.7;max-height:400px;overflow-y:auto;}
+/* ── Web3 Score UI ───────────────────────────────────────── */
+.w3-score-wrap{display:flex;gap:18px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;}
+.w3-score-krug{width:90px;height:90px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;border:4px solid #68d391;flex-shrink:0;background:rgba(104,211,145,0.08);}
+.w3-score-krug.warning{border-color:#ecc94b;background:rgba(236,201,75,0.08);color:#ecc94b;}
+.w3-score-krug.danger{border-color:#f56565;background:rgba(245,101,101,0.08);color:#f56565;}
+.w3-score-krug.ok{border-color:#68d391;background:rgba(104,211,145,0.08);color:#68d391;}
+.w3-score-broj{line-height:1;}
+.w3-score-label{font-size:0.6rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.05em;}
+.w3-score-info{flex:1;}
+.w3-score-nivo{font-size:0.78rem;margin-bottom:6px;font-weight:600;}
+.w3-score-nivo.ok{color:#68d391;}
+.w3-score-nivo.warning{color:#ecc94b;}
+.w3-score-nivo.danger{color:#f56565;}
+.w3-score-opis{font-size:0.82rem;color:rgba(255,255,255,0.65);}
+.w3-kat-lista{margin-top:12px;}
+.w3-kat-item{margin-bottom:8px;}
+.w3-kat-row{display:flex;justify-content:space-between;margin-bottom:3px;font-size:0.8rem;}
+.w3-kat-naziv{color:rgba(255,255,255,0.75);}
+.w3-kat-skor{font-weight:600;}
+.w3-kat-skor.ok{color:#68d391;}
+.w3-kat-skor.warning{color:#ecc94b;}
+.w3-kat-skor.danger{color:#f56565;}
+.w3-progress{height:6px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;}
+.w3-progress-bar{height:100%;border-radius:3px;transition:width .4s;}
+.w3-progress-bar.ok{background:#68d391;}
+.w3-progress-bar.warning{background:#ecc94b;}
+.w3-progress-bar.danger{background:#f56565;}
+.w3-kat-komentar{font-size:0.75rem;color:rgba(255,255,255,0.45);margin-top:2px;}
+.w3-lista-sekcija{margin-top:12px;}
+.w3-lista-naslov{font-size:0.78rem;font-weight:600;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.w3-lista-item{font-size:0.82rem;color:#e6edf3;padding:4px 8px;border-left:2px solid rgba(255,255,255,0.2);margin-bottom:4px;}
+.w3-lista-item.danger{border-color:#f56565;color:#f56565;}
+.w3-lista-item.ok{border-color:#68d391;color:rgba(255,255,255,0.75);}
+.w3-license-wrap{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+.w3-license-badge{padding:8px 14px;border-radius:8px;font-size:0.82rem;font-weight:600;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);}
+.w3-license-badge.organ{border-color:#89c8ff;color:#89c8ff;}
+.w3-license-badge.dozvola-da{border-color:#f56565;color:#f56565;}
+.w3-license-badge.dozvola-ne{border-color:#68d391;color:#68d391;}
+.w3-license-badge.rizik-visok{border-color:#f56565;color:#f56565;}
+.w3-license-badge.rizik-srednji{border-color:#ecc94b;color:#ecc94b;}
+.w3-license-badge.rizik-nizak{border-color:#68d391;color:#68d391;}
+.w3-license-tip{font-size:0.82rem;color:rgba(255,255,255,0.65);margin-bottom:10px;}
 </style>
 
 </head>
@@ -1978,6 +2020,9 @@ footer { padding: 2rem 1.5rem; }
               <button class="strat-btn active" data-modul="web3_pretraga" onclick="web3IzaberiModul('web3_pretraga',this)">🔍 ZDI/MiCA Pretraga</button>
               <button class="strat-btn" data-modul="compliance_check" onclick="web3IzaberiModul('compliance_check',this)">✅ Compliance Check</button>
               <button class="strat-btn" data-modul="whitepaper_check" onclick="web3IzaberiModul('whitepaper_check',this)">📄 Whitepaper Analiza</button>
+              <button class="strat-btn" data-modul="mica_score" onclick="web3IzaberiModul('mica_score',this)">📊 MiCA Score</button>
+              <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">🔑 License Check</button>
+              <button class="strat-btn" data-modul="aml_audit" onclick="web3IzaberiModul('aml_audit',this)">🛡️ AML/KYC Audit</button>
             </div>
             <div id="web3-opis" class="strat-opis-box web3-opis-box"></div>
             <div class="strat-input-wrap">
@@ -3638,6 +3683,30 @@ var WEB3_MODULI = {
     label:       'Tekst whitepaper-a ili opis token projekta',
     placeholder: 'Unesite tekst whitepaper-a, opis projekta, ili ključne elemente koje planirate da uključite...',
     min:         100
+  },
+  mica_score: {
+    naziv:       'MiCA Readiness Score',
+    endpoint:    '/web3/mica-score',
+    opis:        'Izračunava MiCA Readiness Score (0-100) za vaš kripto projekt. Ocenjuje 5 kategorija: whitepaper usklađenost, CASP zahtevi, AML/KYC, rezerve/backing i zabrana zloupotrebe tržišta. Dobijate skor i konkretne preporuke za poboljšanje.',
+    label:       'Opis kripto projekta ili token inicijative',
+    placeholder: 'Npr: Planiramo pokretanje stablecoin-a vezanog za euro. Imamo EU entitet, whitepaper je u pripremi, nismo još prijavili NBS. Ciljamo na maloprodajne klijente u Srbiji i EU...',
+    min:         50
+  },
+  license_check: {
+    naziv:       'ZDI License Check',
+    endpoint:    '/web3/license-check',
+    opis:        'Proverava da li vaša aktivnost zahteva dozvolu po Zakonu o digitalnoj imovini (ZDI). Klasifikuje imovinu (virtualna valuta/digitalni token), utvrđuje nadležni organ (NBS ili KHoV), procenjuje rizik i navodi potrebne mere.',
+    label:       'Opis aktivnosti vezane za digitalnu imovinu',
+    placeholder: 'Npr: Pravno lice iz Srbije želi da pruža usluge čuvanja Bitcoin-a za klijente, kao i razmenu kriptovaluta za fiat valute...',
+    min:         20
+  },
+  aml_audit: {
+    naziv:       'AML/KYC Auditor',
+    endpoint:    '/web3/aml-audit',
+    opis:        'Proverava usklađenost AML/KYC politike sa ZDI (čl. 81-97), ZSPNFT i FATF standardima. Ocenjuje 8 kategorija i daje skor usklađenosti (0-100) sa konkretnim preporukama.',
+    label:       'Tekst AML/KYC politike ili opis internih procedura',
+    placeholder: 'Unesite tekst vaše AML/KYC politike, opis internih procedura za sprečavanje pranja novca, ili ključne elemente koje imate implementirane...',
+    min:         50
   }
 };
 var _web3AktivniModul = 'web3_pretraga';
@@ -3718,7 +3787,12 @@ async function web3Pokreni() {
     }
     if (!res.ok) throw new Error('Server greška: ' + res.status);
     var data = await res.json();
-    if (bodyEl) bodyEl.innerHTML = web3FormatirajRezultat(data.rezultat || '');
+    if (bodyEl) {
+      if (data.modul === 'mica_score') bodyEl.innerHTML = web3RenderScore(data.score_data, data.objasnjenje, 'mica');
+      else if (data.modul === 'license_check') bodyEl.innerHTML = web3RenderLicense(data.license_data, data.objasnjenje);
+      else if (data.modul === 'aml_audit') bodyEl.innerHTML = web3RenderAudit(data.audit_data, data.objasnjenje);
+      else bodyEl.innerHTML = web3FormatirajRezultat(data.rezultat || '');
+    }
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   } finally {
@@ -3744,6 +3818,155 @@ function web3Kopiraj() {
     var btn = document.querySelector('.web3-copy-btn');
     if (btn) { btn.textContent = '✓ Kopirano'; setTimeout(function() { btn.textContent = '📋 Kopiraj'; }, 2000); }
   });
+}
+
+function web3ScoreBojaKlasa(score, max) {
+  var pct = max > 0 ? (score / max) * 100 : score;
+  if (pct >= 70) return 'ok';
+  if (pct >= 40) return 'warning';
+  return 'danger';
+}
+
+function web3StatusIkona(status) {
+  if (status === 'ok') return '✅';
+  if (status === 'warning') return '⚠️';
+  return '❌';
+}
+
+var _w3KatNazivi = {
+  whitepaper_uskladenost: 'Whitepaper usklađenost',
+  casp_zahtevi: 'CASP zahtevi',
+  aml_kyc: 'AML/KYC',
+  rezerve_i_backing: 'Rezerve i backing',
+  market_abuse: 'Zabrana zloupotrebe tržišta',
+  kyc_procedure: 'KYC procedure',
+  pep_screening: 'PEP screening',
+  transakcijski_monitoring: 'Transakcijski monitoring',
+  travel_rule: 'Travel rule',
+  izvestavanje_sumljivih: 'Izveštavanje sumnjivih',
+  cuvanje_dokumentacije: 'Čuvanje dokumentacije',
+  obuka_zaposlenih: 'Obuka zaposlenih',
+  interna_kontrola: 'Interna kontrola'
+};
+
+function _web3RenderKategorije(kategorije) {
+  var html = '<div class="w3-kat-lista">';
+  Object.keys(kategorije || {}).forEach(function(k) {
+    var kat = kategorije[k];
+    var skor = kat.skor || 0;
+    var max = kat.max || 20;
+    var status = kat.status || 'ok';
+    var klasa = web3ScoreBojaKlasa(skor, max);
+    var pct = Math.round((skor / max) * 100);
+    html += '<div class="w3-kat-item">';
+    html += '<div class="w3-kat-row"><span class="w3-kat-naziv">' + web3StatusIkona(status) + ' ' + (_w3KatNazivi[k] || k) + '</span>';
+    html += '<span class="w3-kat-skor ' + klasa + '">' + skor + '/' + max + '</span></div>';
+    html += '<div class="w3-progress"><div class="w3-progress-bar ' + klasa + '" style="width:' + pct + '%"></div></div>';
+    if (kat.komentar) html += '<div class="w3-kat-komentar">' + _htmlEsc(kat.komentar) + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function _web3RenderListe(data) {
+  var html = '';
+  var nedostaci = data.kriticni_nedostaci || [];
+  if (nedostaci.length) {
+    html += '<div class="w3-lista-sekcija"><div class="w3-lista-naslov">Kritični nedostaci</div>';
+    nedostaci.forEach(function(n) { html += '<div class="w3-lista-item danger">' + _htmlEsc(n) + '</div>'; });
+    html += '</div>';
+  }
+  var preporuke = data.preporuke || [];
+  if (preporuke.length) {
+    html += '<div class="w3-lista-sekcija"><div class="w3-lista-naslov">Preporuke</div>';
+    preporuke.forEach(function(p) { html += '<div class="w3-lista-item ok">' + _htmlEsc(p) + '</div>'; });
+    html += '</div>';
+  }
+  return html;
+}
+
+function web3RenderScore(scoreData, objasnjenje, tip) {
+  if (!scoreData || typeof scoreData !== 'object') {
+    return '<div class="strat-error">Greška pri parsiranju scoring rezultata.</div>';
+  }
+  var ukupni = scoreData.ukupni_skor || 0;
+  var nivo = scoreData.skor_nivo || '';
+  var kruKlasa = web3ScoreBojaKlasa(ukupni, 100);
+  var html = '<div class="w3-score-wrap">';
+  html += '<div class="w3-score-krug ' + kruKlasa + '"><span class="w3-score-broj">' + ukupni + '</span><span class="w3-score-label">/100</span></div>';
+  html += '<div class="w3-score-info"><div class="w3-score-nivo ' + kruKlasa + '">' + _htmlEsc(nivo) + '</div>';
+  html += '<div class="w3-score-opis">' + _htmlEsc(objasnjenje || '') + '</div>';
+  html += '</div></div>';
+  html += _web3RenderKategorije(scoreData.kategorije);
+  html += _web3RenderListe(scoreData);
+  return html;
+}
+
+function web3RenderLicense(licenseData, objasnjenje) {
+  if (!licenseData || typeof licenseData !== 'object') {
+    return '<div class="strat-error">Greška pri parsiranju license rezultata.</div>';
+  }
+  var organ = licenseData.nadlezni_organ || '';
+  var dozvola = licenseData.dozvola_potrebna;
+  var rizik = (licenseData.rizik_nivo || '').toUpperCase();
+  var klasifikacija = licenseData.klasifikacija_imovine || '';
+
+  var html = '<div class="w3-license-wrap">';
+  if (organ && organ !== 'nije_primenjivo') {
+    html += '<span class="w3-license-badge organ">🏛️ ' + _htmlEsc(organ) + '</span>';
+  }
+  html += '<span class="w3-license-badge ' + (dozvola ? 'dozvola-da' : 'dozvola-ne') + '">';
+  html += (dozvola ? '⚠️ Dozvola POTREBNA' : '✅ Dozvola NIJE potrebna') + '</span>';
+  if (rizik) {
+    var rizikKlasa = rizik === 'VISOK' ? 'rizik-visok' : rizik === 'SREDNJI' ? 'rizik-srednji' : 'rizik-nizak';
+    html += '<span class="w3-license-badge ' + rizikKlasa + '">Rizik: ' + _htmlEsc(rizik) + '</span>';
+  }
+  html += '</div>';
+  if (klasifikacija) {
+    html += '<div class="w3-license-tip">Klasifikacija imovine: <strong>' + _htmlEsc(klasifikacija) + '</strong></div>';
+  }
+  if (licenseData.tip_dozvole) {
+    html += '<div class="w3-license-tip">Tip dozvole: ' + _htmlEsc(licenseData.tip_dozvole) + '</div>';
+  }
+  if (objasnjenje) {
+    html += '<div class="w3-score-opis" style="margin-bottom:10px">' + _htmlEsc(objasnjenje) + '</div>';
+  }
+  var pravniOsnov = licenseData.pravni_osnov || [];
+  if (pravniOsnov.length) {
+    html += '<div class="w3-lista-sekcija"><div class="w3-lista-naslov">Pravni osnov</div>';
+    pravniOsnov.forEach(function(p) { html += '<div class="w3-lista-item">' + _htmlEsc(p) + '</div>'; });
+    html += '</div>';
+  }
+  var obaveze = licenseData.obavezne_mere || [];
+  if (obaveze.length) {
+    html += '<div class="w3-lista-sekcija"><div class="w3-lista-naslov">Obavezne mere</div>';
+    obaveze.forEach(function(m) { html += '<div class="w3-lista-item ok">' + _htmlEsc(m) + '</div>'; });
+    html += '</div>';
+  }
+  if (licenseData['kazne_pri_kršenju']) {
+    html += '<div class="w3-lista-sekcija"><div class="w3-lista-naslov">Kazne pri kršenju</div>';
+    html += '<div class="w3-lista-item danger">' + _htmlEsc(licenseData['kazne_pri_kršenju']) + '</div>';
+    html += '</div>';
+  }
+  return html;
+}
+
+function web3RenderAudit(auditData, objasnjenje) {
+  if (!auditData || typeof auditData !== 'object') {
+    return '<div class="strat-error">Greška pri parsiranju audit rezultata.</div>';
+  }
+  var ukupno = auditData.ukupna_uskladenost || 0;
+  var nivo = auditData.uskladenost_nivo || '';
+  var kruKlasa = web3ScoreBojaKlasa(ukupno, 100);
+  var html = '<div class="w3-score-wrap">';
+  html += '<div class="w3-score-krug ' + kruKlasa + '"><span class="w3-score-broj">' + ukupno + '</span><span class="w3-score-label">/100</span></div>';
+  html += '<div class="w3-score-info"><div class="w3-score-nivo ' + kruKlasa + '">AML/KYC: ' + _htmlEsc(nivo) + '</div>';
+  html += '<div class="w3-score-opis">' + _htmlEsc(objasnjenje || '') + '</div>';
+  html += '</div></div>';
+  html += _web3RenderKategorije(auditData.kategorije);
+  html += _web3RenderListe(auditData);
+  return html;
 }
 
 /* PODNESAK HELPERS */

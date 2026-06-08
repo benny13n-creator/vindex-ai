@@ -173,3 +173,173 @@ def whitepaper_check_sync(tekst_whitepaper: str, api_key: str) -> str:
         ],
     )
     return (resp.choices[0].message.content or "").strip()
+
+
+# ── Helper: JSON ekstrakcija iz GPT odgovora ──────────────────────────────────
+
+def _parsiraj_json_iz_odgovora(odgovor: str) -> dict:
+    import json, re
+    match = re.search(r"```json\s*([\s\S]*?)```", odgovor)
+    if match:
+        try:
+            return json.loads(match.group(1).strip())
+        except Exception:
+            pass
+    match = re.search(r"\{[\s\S]*\}", odgovor)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except Exception:
+            pass
+    return {}
+
+
+# ── MiCA Readiness Score ──────────────────────────────────────────────────────
+
+_MICA_READINESS_SYSTEM = """Ti si ekspert za MiCA usklađenost (EU Regulation 2023/1114) i ZDI (Srbija).
+Analiziraj opis kripto projekta i izračunaj MiCA Readiness Score.
+
+Odgovori ISKLJUČIVO u JSON formatu (bez dodatnog teksta pre ili posle JSON-a):
+```json
+{
+  "ukupni_skor": 0,
+  "kategorije": {
+    "whitepaper_uskladenost": {"skor": 0, "max": 20, "status": "ok|warning|danger", "komentar": ""},
+    "casp_zahtevi": {"skor": 0, "max": 20, "status": "ok|warning|danger", "komentar": ""},
+    "aml_kyc": {"skor": 0, "max": 20, "status": "ok|warning|danger", "komentar": ""},
+    "rezerve_i_backing": {"skor": 0, "max": 20, "status": "ok|warning|danger", "komentar": ""},
+    "market_abuse": {"skor": 0, "max": 20, "status": "ok|warning|danger", "komentar": ""}
+  },
+  "skor_nivo": "NIZAK|SREDNJI|VISOK",
+  "kriticni_nedostaci": [],
+  "preporuke": []
+}
+```
+
+Pravila bodovanja (0-100):
+- whitepaper_uskladenost: 0-20 (da li projekt ima MiCA-kompatibilan whitepaper)
+- casp_zahtevi: 0-20 (autorizacija, kapital, organizacija)
+- aml_kyc: 0-20 (KYC procedure, travel rule, monitoring)
+- rezerve_i_backing: 0-20 (za ART/EMT — da li postoji backing; za ostale tokene — 20 automatski)
+- market_abuse: 0-20 (zabrana insider trading, wash trading, pump&dump)
+
+skor_nivo: NIZAK (0-39), SREDNJI (40-69), VISOK (70-100)"""
+
+
+def mica_readiness_score_sync(tekst_projekta: str, api_key: str) -> dict:
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.1,
+        max_tokens=1500,
+        timeout=90.0,
+        messages=[
+            {"role": "system", "content": _MICA_READINESS_SYSTEM},
+            {"role": "user",   "content": f"Kripto projekt za MiCA analizu:\n\n{tekst_projekta}"},
+        ],
+    )
+    raw = (resp.choices[0].message.content or "").strip()
+    score_data = _parsiraj_json_iz_odgovora(raw)
+    objasnjenje = f"Ukupni skor: {score_data.get('ukupni_skor', '?')}/100 — {score_data.get('skor_nivo', '')}"
+    return {"score_data": score_data, "objasnjenje": objasnjenje, "raw": raw}
+
+
+# ── ZDI License Checker ───────────────────────────────────────────────────────
+
+_ZDI_LICENSE_SYSTEM = """Ti si pravni ekspert za Zakon o digitalnoj imovini (ZDI, Sl. glasnik RS 153/2020).
+Analiziraj opis aktivnosti i utvrdi koja licenca/dozvola je potrebna po ZDI.
+
+Odgovori ISKLJUČIVO u JSON formatu:
+```json
+{
+  "klasifikacija_imovine": "virtualna_valuta|digitalni_token|nije_digitalna_imovina|neodredjeno",
+  "nadlezni_organ": "NBS|KHoV|oba|nije_primenjivo",
+  "dozvola_potrebna": true,
+  "tip_dozvole": "",
+  "rizik_nivo": "NIZAK|SREDNJI|VISOK",
+  "pravni_osnov": [],
+  "obavezne_mere": [],
+  "kazne_pri_kršenju": ""
+}
+```
+
+Klasifikacija:
+- virtualna_valuta: kriptovalute bez centralnog izdavaoca (BTC, ETH i slično) → nadležna NBS
+- digitalni_token: tokeni koji predstavljaju prava (HoV tokeni, utility tokeni) → nadležna KHoV
+- nije_digitalna_imovina: ne potpada pod ZDI
+
+rizik_nivo: NIZAK (informacione aktivnosti), SREDNJI (razmena/čuvanje), VISOK (javna ponuda/CASP bez dozvole)"""
+
+
+def zdi_license_checker_sync(opis_aktivnosti: str, api_key: str) -> dict:
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.1,
+        max_tokens=1000,
+        timeout=90.0,
+        messages=[
+            {"role": "system", "content": _ZDI_LICENSE_SYSTEM},
+            {"role": "user",   "content": f"Aktivnost za proveru licence:\n\n{opis_aktivnosti}"},
+        ],
+    )
+    raw = (resp.choices[0].message.content or "").strip()
+    license_data = _parsiraj_json_iz_odgovora(raw)
+    dozvola = "POTREBNA" if license_data.get("dozvola_potrebna") else "NIJE POTREBNA"
+    organ = license_data.get("nadlezni_organ", "")
+    objasnjenje = f"Dozvola: {dozvola} | Nadležni organ: {organ} | Rizik: {license_data.get('rizik_nivo', '?')}"
+    return {"license_data": license_data, "objasnjenje": objasnjenje, "raw": raw}
+
+
+# ── AML/KYC Auditor ───────────────────────────────────────────────────────────
+
+_AML_AUDITOR_SYSTEM = """Ti si ekspert za AML/KYC usklađenost u oblasti digitalne imovine po srpskom pravu
+(ZDI čl. 81-97, ZSPNFT) i međunarodnim standardima (FATF).
+
+Analiziraj dostavljeni tekst AML/KYC politike i izračunaj skor usklađenosti.
+
+Odgovori ISKLJUČIVO u JSON formatu:
+```json
+{
+  "ukupna_uskladenost": 0,
+  "kategorije": {
+    "kyc_procedure": {"skor": 0, "max": 15, "status": "ok|warning|danger", "komentar": ""},
+    "pep_screening": {"skor": 0, "max": 10, "status": "ok|warning|danger", "komentar": ""},
+    "transakcijski_monitoring": {"skor": 0, "max": 15, "status": "ok|warning|danger", "komentar": ""},
+    "travel_rule": {"skor": 0, "max": 15, "status": "ok|warning|danger", "komentar": ""},
+    "izvestavanje_sumljivih": {"skor": 0, "max": 15, "status": "ok|warning|danger", "komentar": ""},
+    "cuvanje_dokumentacije": {"skor": 0, "max": 10, "status": "ok|warning|danger", "komentar": ""},
+    "obuka_zaposlenih": {"skor": 0, "max": 10, "status": "ok|warning|danger", "komentar": ""},
+    "interna_kontrola": {"skor": 0, "max": 10, "status": "ok|warning|danger", "komentar": ""}
+  },
+  "uskladenost_nivo": "NIZAK|SREDNJI|VISOK",
+  "kriticni_nedostaci": [],
+  "preporuke": []
+}
+```
+
+ukupna_uskladenost: zbir skorova svih kategorija (0-100)
+uskladenost_nivo: NIZAK (0-39), SREDNJI (40-69), VISOK (70-100)"""
+
+
+def aml_kyc_auditor_sync(tekst_politike: str, api_key: str) -> dict:
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.1,
+        max_tokens=1500,
+        timeout=90.0,
+        messages=[
+            {"role": "system", "content": _AML_AUDITOR_SYSTEM},
+            {"role": "user",   "content": f"AML/KYC politika za audit:\n\n{tekst_politike}"},
+        ],
+    )
+    raw = (resp.choices[0].message.content or "").strip()
+    audit_data = _parsiraj_json_iz_odgovora(raw)
+    skor = audit_data.get("ukupna_uskladenost", "?")
+    nivo = audit_data.get("uskladenost_nivo", "")
+    objasnjenje = f"AML/KYC usklađenost: {skor}/100 — {nivo}"
+    return {"audit_data": audit_data, "objasnjenje": objasnjenje, "raw": raw}
