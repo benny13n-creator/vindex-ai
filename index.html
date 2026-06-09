@@ -1421,6 +1421,40 @@ footer { padding: 2rem 1.5rem; }
 .w3-license-badge.rizik-srednji{border-color:#ecc94b;color:#ecc94b;}
 .w3-license-badge.rizik-nizak{border-color:#68d391;color:#68d391;}
 .w3-license-tip{font-size:0.82rem;color:rgba(255,255,255,0.65);margin-bottom:10px;}
+/* ── ANALIZA RICH RENDER ─────────────────────────────────────────────────── */
+.analiza-rezime{border:1px solid var(--accent,#4aa8ff);border-radius:10px;margin-bottom:16px;overflow:hidden;}
+.analiza-rezime-header{background:rgba(74,168,255,0.12);padding:10px 16px;font-weight:700;font-size:0.92rem;color:var(--accent,#4aa8ff);border-bottom:1px solid rgba(255,255,255,0.07);}
+.analiza-rezime-body{padding:14px 16px;}
+.analiza-procena-wrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;}
+.analiza-procena-krug{min-width:110px;border-radius:10px;padding:12px;text-align:center;border:2px solid;flex-shrink:0;}
+.analiza-procena-krug.score-ok{border-color:#68d391;color:#68d391;}
+.analiza-procena-krug.score-warning{border-color:#ecc94b;color:#ecc94b;}
+.analiza-procena-krug.score-danger{border-color:#f56565;color:#f56565;}
+.analiza-procena-label{display:block;font-size:1rem;font-weight:700;}
+.analiza-procena-raspon{display:block;font-size:0.8rem;margin-top:4px;}
+.analiza-procena-pouzdanost{display:block;font-size:0.72rem;opacity:0.7;margin-top:2px;}
+.analiza-rezime-polja{flex:1;display:flex;flex-direction:column;gap:8px;}
+.analiza-rezime-polje{display:flex;gap:8px;align-items:flex-start;font-size:0.83rem;}
+.analiza-rezime-ikona{font-size:1rem;flex-shrink:0;margin-top:1px;}
+.analiza-rezime-polje strong{display:block;font-size:0.75rem;color:rgba(255,255,255,0.45);}
+.analiza-rezime-polje p{margin:2px 0 0 0;color:rgba(255,255,255,0.82);}
+.analiza-sledeci-korak{background:rgba(201,168,76,0.1);border-left:3px solid #C9A84C;padding:6px 8px;border-radius:0 6px 6px 0;}
+.analiza-sekcija{border:1px solid rgba(255,255,255,0.07);border-radius:8px;margin-bottom:10px;overflow:hidden;}
+.analiza-sekcija-naslov{background:rgba(255,255,255,0.03);padding:8px 14px;font-weight:600;font-size:0.85rem;border-bottom:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.88);}
+.analiza-sekcija-body{padding:10px 14px;font-size:0.84rem;line-height:1.65;color:rgba(255,255,255,0.65);}
+.analiza-zastavice-wrap{border-color:rgba(245,101,101,0.4);}
+.analiza-zastavice-wrap .analiza-sekcija-naslov{color:#f56565;}
+.analiza-zastavica{font-size:0.85rem;padding:6px 14px;border-bottom:1px solid rgba(245,101,101,0.15);color:#f56565;font-weight:500;}
+.analiza-zastavica:last-child{border-bottom:none;}
+.analiza-dokaz-wrap{border-color:rgba(201,168,76,0.4);}
+.analiza-dokaz-wrap .analiza-sekcija-naslov{color:#C9A84C;}
+.analiza-dokaz-body{padding:10px 14px;font-size:0.84rem;line-height:1.65;color:rgba(255,255,255,0.65);}
+.analiza-plain{font-size:0.85rem;line-height:1.65;color:rgba(255,255,255,0.65);padding:4px 0;}
+.analiza-workflow{margin-top:16px;padding:14px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.07);}
+.analiza-workflow-naslov{font-size:0.8rem;color:rgba(255,255,255,0.4);margin-bottom:10px;font-weight:600;}
+.analiza-workflow-dugmad{display:flex;flex-wrap:wrap;gap:8px;}
+.analiza-wf-btn{background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.72);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif;transition:all .2s;white-space:nowrap;}
+.analiza-wf-btn:hover{border-color:var(--accent,#4aa8ff);color:#89c8ff;background:rgba(74,168,255,0.08);}
 </style>
 
 </head>
@@ -2105,6 +2139,17 @@ footer { padding: 2rem 1.5rem; }
             <div class="resp-inner">
               <div class="resp-lbl">Odgovor - Vindex AI</div>
               <div class="resp-body" id="rb"></div>
+            </div>
+          </div>
+          <!-- ANALIZA WORKFLOW DUGMAD — prikazuju se posle rezultata analize -->
+          <div id="analiza-workflow" style="display:none;" class="analiza-workflow">
+            <div class="analiza-workflow-naslov">Sledeći korak:</div>
+            <div class="analiza-workflow-dugmad">
+              <button class="analiza-wf-btn" onclick="analizaSacuvajUPredmet()">📁 Sačuvaj u predmet</button>
+              <button class="analiza-wf-btn" onclick="analizaGenerisiNacrt()">📝 Generiši nacrt tužbe</button>
+              <button class="analiza-wf-btn" onclick="analizaDodajUStrategiju()">⚔️ Pošalji u Strategiju</button>
+              <button class="analiza-wf-btn" onclick="analizaKopiraj(this)">📋 Kopiraj analizu</button>
+              <button class="analiza-wf-btn" onclick="exportujKaoWord('Analiza predmeta', document.getElementById('rb').innerText, 'analiza')">📄 Izvezi Word</button>
             </div>
           </div>
           <div class="podnesak-preview" id="podnesak-preview" style="display:none;">
@@ -4978,6 +5023,7 @@ async function execQuery() {
   console.log('[Vindex] execQuery: šaljem upit na', activeTab);
   resp.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
+  var _wfDiv = document.getElementById('analiza-workflow'); if (_wfDiv) _wfDiv.style.display='none';
   rb.style.whiteSpace = '';
 
   var currentPitanje = activeTab === 'q' ? document.getElementById('qi').value : '';
@@ -5091,20 +5137,28 @@ async function execQuery() {
       } else {
         resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
         var i=0, speed=text.length>600?4:text.length>300?7:12;
+        var _tabAtSend = activeTab;
         var iv=setInterval(function(){
           if(i>=text.length){
             clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
             _followUpUsed = false;
-            var parsedHtml = formatResponse(text);
-            console.log('[Vindex] RAW odgovor (500):', text.substring(0,500));
-            console.log('[Vindex] PARSED html (500):', parsedHtml ? parsedHtml.substring(0,500) : 'PRAZAN!');
-            if (!parsedHtml || parsedHtml.trim() === '') {
-              rb.style.whiteSpace = 'pre-wrap';
-              rb.textContent = text;
+            if (_tabAtSend === 'a') {
+              var richHtml = analizaRenderRezultat(text);
+              rb.innerHTML = richHtml + _feedbackBar('', text);
+              analizaPrikaziWorkflow(text);
+              if (_cyrillicOn) cirilicaElement(rb);
             } else {
-              rb.innerHTML = parsedHtml + _feedbackBar(currentPitanje, text);
+              var parsedHtml = formatResponse(text);
+              console.log('[Vindex] RAW odgovor (500):', text.substring(0,500));
+              console.log('[Vindex] PARSED html (500):', parsedHtml ? parsedHtml.substring(0,500) : 'PRAZAN!');
+              if (!parsedHtml || parsedHtml.trim() === '') {
+                rb.style.whiteSpace = 'pre-wrap';
+                rb.textContent = text;
+              } else {
+                rb.innerHTML = parsedHtml + _feedbackBar(currentPitanje, text);
+              }
+              if (_cyrillicOn) cirilicaElement(rb);
             }
-            if (_cyrillicOn) cirilicaElement(rb);
           } else { rb.textContent+=text[i]; i++; }
         },speed);
       }
@@ -5124,6 +5178,141 @@ function _feedbackBar(pitanje, odgovor) {
   var p = encodeURIComponent(pitanje||'').substring(0,500);
   var o = encodeURIComponent(odgovor||'').substring(0,1000);
   return '<div class="feedback-bar"><button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">⚑ Prijavi netačan odgovor</button></div>';
+}
+
+// ── ANALIZA RICH RENDER ───────────────────────────────────────────────────────
+
+var _poslednja_analiza_tekst = '';
+
+function analizaRenderRezultat(tekst) {
+  if (!tekst) return '<div class="analiza-plain">Nema rezultata.</div>';
+
+  var sekcije = {};
+  var sectionRegex = /## ([^\n]+)\n([\s\S]*?)(?=\n## |$)/g;
+  var m;
+  while ((m = sectionRegex.exec(tekst)) !== null) {
+    sekcije[m[1].trim()] = m[2].trim();
+  }
+
+  if (Object.keys(sekcije).length === 0) {
+    return '<div class="analiza-plain">' + tekst.replace(/\n/g, '<br>') + '</div>';
+  }
+
+  var html = '';
+
+  // ── IZVRŠNI REZIME ──
+  var rez = sekcije['IZVRŠNI REZIME'];
+  if (rez) {
+    var procenaM   = rez.match(/Procena uspeha:\s*([^\n]+)/i);
+    var rasponM    = rez.match(/Raspon:\s*([^\n]+)/i);
+    var pouzdM     = rez.match(/Pouzdanost procene:\s*([^\n]+)/i);
+    var argumentM  = rez.match(/Najjači argument:\s*([^\n]+)/i);
+    var rizikM     = rez.match(/Najveći rizik:\s*([^\n]+)/i);
+    var dokazM     = rez.match(/Ključni dokaz:\s*([^\n]+)/i);
+    var korakM     = rez.match(/Sledeći korak:\s*([^\n]+)/i);
+
+    var procena    = procenaM   ? procenaM[1].trim()  : '';
+    var raspon     = rasponM    ? rasponM[1].trim()   : '';
+    var pouzdanost = pouzdM     ? pouzdM[1].trim()    : '';
+    var argument   = argumentM  ? argumentM[1].trim() : '';
+    var rizik      = rizikM     ? rizikM[1].trim()    : '';
+    var dokaz      = dokazM     ? dokazM[1].trim()    : '';
+    var korak      = korakM     ? korakM[1].trim()    : '';
+
+    var bojaCls = procena.indexOf('VISOKA') !== -1 ? 'score-ok' :
+                  procena.indexOf('SREDNJA') !== -1 ? 'score-warning' : 'score-danger';
+
+    html += '<div class="analiza-rezime">';
+    html += '<div class="analiza-rezime-header">🎯 Izvršni rezime</div>';
+    html += '<div class="analiza-rezime-body"><div class="analiza-procena-wrap">';
+    html += '<div class="analiza-procena-krug ' + bojaCls + '">';
+    html += '<span class="analiza-procena-label">' + escHtml(procena) + '</span>';
+    if (raspon) html += '<span class="analiza-procena-raspon">' + escHtml(raspon) + '</span>';
+    if (pouzdanost) html += '<span class="analiza-procena-pouzdanost">pouzdanost: ' + escHtml(pouzdanost) + '</span>';
+    html += '</div>';
+    html += '<div class="analiza-rezime-polja">';
+    if (argument) html += '<div class="analiza-rezime-polje"><span class="analiza-rezime-ikona">💪</span><div><strong>Najjači argument</strong><p>' + escHtml(argument) + '</p></div></div>';
+    if (rizik)    html += '<div class="analiza-rezime-polje"><span class="analiza-rezime-ikona">⚠️</span><div><strong>Najveći rizik</strong><p>' + escHtml(rizik) + '</p></div></div>';
+    if (dokaz)    html += '<div class="analiza-rezime-polje"><span class="analiza-rezime-ikona">🔑</span><div><strong>Ključni dokaz</strong><p>' + escHtml(dokaz) + '</p></div></div>';
+    if (korak)    html += '<div class="analiza-rezime-polje analiza-sledeci-korak"><span class="analiza-rezime-ikona">➡️</span><div><strong>Sledeći korak</strong><p>' + escHtml(korak) + '</p></div></div>';
+    html += '</div></div></div></div>';
+  }
+
+  // ── CRVENE ZASTAVICE ──
+  var zast = sekcije['CRVENE ZASTAVICE'];
+  if (zast) {
+    var lines = zast.split('\n').filter(function(l){ return l.trim().indexOf('🚨') !== -1; });
+    if (lines.length) {
+      html += '<div class="analiza-sekcija analiza-zastavice-wrap"><div class="analiza-sekcija-naslov">🚨 Crvene zastavice</div>';
+      lines.forEach(function(l){ html += '<div class="analiza-zastavica">' + escHtml(l.trim()) + '</div>'; });
+      html += '</div>';
+    }
+  }
+
+  // ── DOKAZ KOJI MENJA SVE ──
+  var dkm = sekcije['DOKAZ KOJI MENJA SVE'];
+  if (dkm) {
+    html += '<div class="analiza-sekcija analiza-dokaz-wrap"><div class="analiza-sekcija-naslov">🔄 Dokaz koji menja sve</div>';
+    html += '<div class="analiza-dokaz-body">' + escHtml(dkm).replace(/\n/g, '<br>') + '</div></div>';
+  }
+
+  // ── OSTALE SEKCIJE ──
+  var ostale = ['PRAVNI OSNOV', 'ANALIZA PREDMETA', 'SLABOSTI I RIZICI', 'STRATEGIJA I PREPORUKE', 'HRONOLOGIJA'];
+  ostale.forEach(function(naziv) {
+    if (sekcije[naziv]) {
+      html += '<div class="analiza-sekcija"><div class="analiza-sekcija-naslov">' + naziv + '</div>';
+      html += '<div class="analiza-sekcija-body">' + escHtml(sekcije[naziv]).replace(/\n/g, '<br>') + '</div></div>';
+    }
+  });
+
+  return html;
+}
+
+function analizaPrikaziWorkflow(tekst) {
+  _poslednja_analiza_tekst = tekst || '';
+  var wf = document.getElementById('analiza-workflow');
+  if (wf) wf.style.display = 'block';
+}
+
+function _analizaSwitchTab(t) {
+  var btn = document.querySelector('.t-tab[onclick*="\'' + t + '\'"]');
+  if (btn) setTab(btn, t);
+}
+
+function analizaSacuvajUPredmet() {
+  _analizaSwitchTab('p');
+  setTimeout(function() {
+    var btn = document.getElementById('pred-novi-btn') ||
+              document.querySelector('[onclick*="predmetNovi"], [onclick*="noviPredmet"]');
+    if (btn) btn.click();
+  }, 300);
+}
+
+function analizaGenerisiNacrt() {
+  _analizaSwitchTab('n');
+  var nacrtInput = document.querySelector('#tab-n textarea');
+  if (nacrtInput && _poslednja_analiza_tekst) {
+    nacrtInput.value = _poslednja_analiza_tekst.substring(0, 500);
+  }
+}
+
+function analizaDodajUStrategiju() {
+  _analizaSwitchTab('t');
+  var stratTekst = document.getElementById('strat-tekst');
+  if (stratTekst && _poslednja_analiza_tekst) {
+    stratTekst.value = _poslednja_analiza_tekst.substring(0, 1000);
+    var chars = document.getElementById('strat-chars');
+    if (chars) chars.textContent = stratTekst.value.length;
+  }
+}
+
+function analizaKopiraj(btn) {
+  if (!_poslednja_analiza_tekst) return;
+  navigator.clipboard.writeText(_poslednja_analiza_tekst).then(function() {
+    if (btn) { btn.textContent = '✓ Kopirano'; setTimeout(function(){ btn.textContent = '📋 Kopiraj analizu'; }, 2000); }
+  }).catch(function() {
+    if (btn) btn.textContent = '✗ Greška';
+  });
 }
 
 
