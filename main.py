@@ -3244,6 +3244,176 @@ def ask_analiza(tekst: str, pitanje: str = "") -> dict:
         return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
 
+# ─── Forenzički Legal Audit — V2 pipeline ────────────────────────────────────
+
+SYSTEM_PROMPT_ANALIZA_V2 = """Ti si iskusan pravni forenzičar za advokate u Srbiji.
+Analiziraš pravni dokument koji ti je dostavljen u segmentima sa eksplicitnim ID-jevima (npr. [clause_3], [izreka]).
+Vraćaš ISKLJUČIVO validan JSON bez markdown fences-ova, bez preambule, bez zaključnih komentara.
+
+ŠEMA ODGOVORA (vrati TAČNO ovu strukturu):
+{
+  "document_type": "<ugovor|presuda|resenje|ostalo>",
+  "findings": [
+    {
+      "id": "f1",
+      "category": "<pravni_rizik|procesni_rizik|rok|dokazni_problem|neuskladjenost|finansijski>",
+      "severity": "<nizak|srednji|visok|kritican>",
+      "clause_ref": "<ID segmenta iz konteksta ILI null>",
+      "clause_excerpt": "<DOSLOVAN citat iz klauzule, max 200 znakova, ILI null>",
+      "law_ref": "<npr. 'član 178 Zakona o radu' ILI null>",
+      "finding": "<konkretan opis problema>",
+      "suggested_fix": "<predlog izmene ILI null>",
+      "confidence": <0-100>
+    }
+  ],
+  "missing_clauses": [
+    {
+      "clause_name": "<naziv klauzule>",
+      "why_it_matters": "<zašto izostavljanje pravi rizik>",
+      "suggested_text": "<predlog formulacije ILI null>"
+    }
+  ],
+  "financial_exposure": {
+    "max_total_exposure_rsd": <broj ILI null>,
+    "items": [
+      {"type": "<ugovorna_kazna|kamata|odsteta|penal>", "clause_ref": "<ID|null>", "amount_or_formula": "<tekst>", "notes": "<tekst>"}
+    ]
+  },
+  "litigation_readiness": {
+    "applicable": <true|false>,
+    "evidence_gaps": [{"issue": "<tekst>", "clause_ref": "<ID|null>"}],
+    "procedural_defects": [{"issue": "<tekst>", "clause_ref": "<ID|null>"}],
+    "deadline_risks": [{"issue": "<tekst>", "deadline_type": "<zastarelost|otkazni_rok|zalbeni_rok|drugi>", "clause_ref": "<ID|null>"}]
+  },
+  "attack_surface": [
+    {"vulnerability": "<kako protivnička strana može napasti ovu odredbu>", "clause_ref": "<ID|null>", "severity": "<nizak|srednji|visok>"}
+  ],
+  "low_confidence_findings": [],
+  "legacy_text": "<plain-text rezime po starom formatu: PRAVNI OSNOV, ANALIZA, IDENTIFIKOVANI RIZICI, PREPORUKE, POUZDANOST>"
+}
+
+APSOLUTNA PRAVILA (kršenje = netačan izveštaj):
+
+1. CLAUSE_REF: svaki finding MORA imati clause_ref koji odgovara TAČNOM ID-u iz poslatih segmenata (npr. "clause_3"), ILI null ako se radi o čisto pravnoj napomeni bez direktne klauzule. NE izmišljaj ID-jeve koji nisu u segmentima.
+
+2. CLAUSE_EXCERPT: mora biti DOSLOVAN citata iz dokumenta (kopiraj bukvalno). Nikad ne parafrazi. Ako ne možeš da citiraš doslovno — postavi null.
+
+3. LAW_REF: ako nisi siguran u tačan broj člana — postavi null. Ne izmišljaj članove zakona. Citirati smeš SAMO zakone koji su eksplicitno navedeni u dokumentu ILI koji su direktno primenjivi na sadržaj dokumenta (ZR, ZOO, ZPP, ZDI, PZ, USTAV).
+
+4. CONFIDENCE: 0-100. Ako je < 70 — finding ide u low_confidence_findings array umesto u findings, i tu postavi reason_excluded.
+
+5. SEVERITY: koristiš isključivo — nizak, srednji, visok, kritican. Backend mapira na score (nizak=20, srednji=50, visok=80, kritican=100).
+
+6. LEGACY_TEXT: uvek popuni — plain-text sa sekcijama PRAVNI OSNOV / ANALIZA / IDENTIFIKOVANI RIZICI / PREPORUKE / POUZDANOST. Ovo osigurava kompatibilnost sa postojećim sistemom.
+
+7. NIJE MOGUĆE POTVRDITI: ako nisi siguran u nalaz → postavi confidence < 70 i premesti u low_confidence_findings sa reason_excluded = "insufficient_evidence".
+
+JEZIK: srpski ekavica, dijakritika obavezna. Pravna terminologija tačna."""
+
+
+def ask_analiza_v2(
+    segmented_doc,     # SegmentedDocument
+    pitanje: str = "",
+    timeout: float = 55.0,
+) -> dict:
+    """
+    Forenzički Legal Audit — V2 pipeline.
+
+    Koristi segmentirani dokument (sa eksplicitnim ID-jevima klauzula),
+    vraća validovani JSON Executive Report.
+
+    Returns:
+        dict sa executive_summary, findings, missing_clauses, itd.
+    """
+    from analiza.validator import run_validation_pipeline
+    import json as _json
+
+    try:
+        tekst_api = _skini_pii(segmented_doc.full_text)
+        pitanje_api = _skini_pii(pitanje) if pitanje else ""
+
+        # Izvuci member articles za citation guard (isti mehanizam kao ask_analiza)
+        allowed_articles = _ekstrahuj_clanove_iz_dokumenta(tekst_api)
+        logger.info("[ANALIZA_V2] allowed_articles=%d char_count=%d segments=%d",
+                    len(allowed_articles), segmented_doc.char_count, segmented_doc.segment_count)
+
+        # Napravi mock segmented_doc sa pii-stripped tekstom za LLM
+        from analiza.segmenter import SegmentedDocument as SD, Segment
+        stripped_doc = SD(
+            doc_type=segmented_doc.doc_type,
+            segments=[
+                Segment(
+                    id=s.id,
+                    type=s.type,
+                    naslov=s.naslov,
+                    tekst=_skini_pii(s.tekst),
+                    start_offset=s.start_offset,
+                    end_offset=s.end_offset,
+                )
+                for s in segmented_doc.segments
+            ],
+            full_text=tekst_api,
+            char_count=len(tekst_api),
+        )
+
+        # Gradi user content sa segmentiranim dokumentom
+        user_content = ""
+        if pitanje_api.strip():
+            user_content += f"SPECIFIČNO PITANJE: {pitanje_api.strip()}\n\n"
+
+        # Za dugačke dokumente: skraćeni prikaz segmenata (max 2000 ch per segment)
+        max_chars = 1800 if stripped_doc.char_count > 12000 else 2500
+        user_content += stripped_doc.to_llm_context(max_chars_per_segment=max_chars)
+
+        # Dodaj full_text ako je dokument kraći (za excerpt matching)
+        if stripped_doc.char_count <= 8000:
+            user_content += f"\n\nPUNI TEKST (za reference):\n{tekst_api[:8000]}"
+
+        logger.debug("[ANALIZA_V2] user_content len=%d", len(user_content))
+
+        # Pozovi GPT-4o sa JSON mode i povećanim max_tokens
+        raw = _pozovi_openai(
+            SYSTEM_PROMPT_ANALIZA_V2,
+            user_content,
+            model="gpt-4o",
+            max_tokens=4096,
+            response_format={"type": "json_object"},
+        )
+        logger.debug("[ANALIZA_V2] raw len=%d preview: %r", len(raw), raw[:200])
+
+        # Retry lambda za validator
+        def _retry():
+            return _pozovi_openai(
+                SYSTEM_PROMPT_ANALIZA_V2,
+                "Vrati ISKLJUČIVO validan JSON prema šemi. Bez preambule.\n\n" + user_content,
+                model="gpt-4o",
+                max_tokens=4096,
+                response_format={"type": "json_object"},
+            )
+
+        # Pokreni validation pipeline
+        result = run_validation_pipeline(raw, stripped_doc, retry_fn=_retry)
+
+        # Preslikaj document_type iz segmentera ako LLM nije vratio
+        if not result.get("document_type"):
+            result["document_type"] = segmented_doc.doc_type
+
+        logger.info("[ANALIZA_V2] OK — findings=%d missing=%d score=%s",
+                    len(result.get("findings", [])),
+                    len(result.get("missing_clauses", [])),
+                    (result.get("executive_summary") or {}).get("overall_risk_score", "?"))
+
+        return {"status": "success", "data": result}
+
+    except Exception:
+        logger.exception("Greška u ask_analiza_v2")
+        return {
+            "status": "error",
+            "message": "Sistem je trenutno zauzet. Pokušajte ponovo.",
+            "data": None,
+        }
+
+
 # ─── CLI za testiranje ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":

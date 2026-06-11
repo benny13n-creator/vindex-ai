@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).parent
 load_dotenv()
 
 import time as _time
-from main import ask_agent, ask_nacrt, ask_analiza, _skini_pii, klasifikuj_pitanje
+from main import ask_agent, ask_nacrt, ask_analiza, ask_analiza_v2, _skini_pii, klasifikuj_pitanje
 from drafting.router import generate_draft as _drafting_generate
 from drafting.templates import get_types_list as _drafting_get_types
 from app.services import audit_log as _al
@@ -1845,6 +1845,81 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require
     )
     await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
     return rezultat
+
+
+# ─── /api/dokument/analiza — Forenzički Legal Audit (10-slojni) ─────────────
+
+class DokumentAnalizaReq(BaseModel):
+    session_id: str = Field("", max_length=128)
+    tekst: str = Field("", max_length=80000)
+    pitanje: str = Field("", max_length=1000)
+
+    @field_validator("session_id", "tekst", "pitanje")
+    @classmethod
+    def _trim(cls, v: str) -> str:
+        return (v or "").strip()
+
+
+@app.post("/api/dokument/analiza")
+@limiter.limit("5/minute")
+async def dokument_analiza(
+    body: DokumentAnalizaReq,
+    request: Request,
+    user: dict = Depends(require_credits),
+):
+    """
+    Forenzički Legal Audit — 10-slojni sistem.
+
+    Prima session_id (uploadovani dokument) ILI direktni tekst.
+    Segmentuje dokument, pokreće strukturiranu analizu, vraća JSON Executive Report.
+    """
+    from analiza.segmenter import segment_document
+    from uploaded_doc.session import validate_session
+
+    log_id = _q_hash(body.session_id or body.tekst[:200])
+    logger.info("DokumentAnaliza [uid=%.8s] [q=%s]", user["user_id"], log_id)
+
+    # Nabavi tekst dokumenta
+    tekst = body.tekst
+    if not tekst and body.session_id:
+        session_ok = await asyncio.to_thread(validate_session, body.session_id)
+        if not session_ok:
+            raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
+        tekst = await asyncio.to_thread(_fetch_session_tekst, body.session_id)
+
+    if not tekst or len(tekst.strip()) < 50:
+        raise HTTPException(status_code=422, detail="Dokument je prazan ili previše kratak za analizu")
+
+    # Segmentacija (Sloj 1)
+    try:
+        segmented = await asyncio.to_thread(segment_document, tekst)
+        logger.info("[ANALIZA] segment_document: type=%s segments=%d chars=%d",
+                    segmented.doc_type, segmented.segment_count, segmented.char_count)
+    except Exception as e:
+        logger.error("[ANALIZA] segmentacija neuspešna: %s", e)
+        raise HTTPException(status_code=500, detail="Greška pri segmentaciji dokumenta")
+
+    # Faza 5 — Token management: multi-pass za dugačke dokumente
+    if segmented.char_count > 12000:
+        logger.info("[ANALIZA] Dugačak dokument (%d ch) — primena multi-pass pristupa", segmented.char_count)
+        rezultat = await asyncio.to_thread(ask_analiza_v2, segmented, body.pitanje)
+    else:
+        rezultat = await asyncio.to_thread(ask_analiza_v2, segmented, body.pitanje)
+
+    if rezultat.get("status") != "success":
+        raise HTTPException(status_code=502, detail="AI analiza trenutno nedostupna. Pokušajte ponovo.")
+
+    # Dedukuj kredit samo za uspešnu analizu
+    preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+
+    return {
+        "status": "success",
+        "doc_type": segmented.doc_type,
+        "segment_count": segmented.segment_count,
+        "char_count": segmented.char_count,
+        "report": rezultat["data"],
+        "credits_remaining": max(preostalo, 0),
+    }
 
 
 # ─── /api/dokument/rokovi ────────────────────────────────────────────────────

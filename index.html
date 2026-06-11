@@ -1520,6 +1520,52 @@ footer { padding: 2rem 1.5rem; }
 .analiza-dokaz-wrap .analiza-sekcija-naslov{color:#C9A84C;}
 .analiza-dokaz-body{padding:10px 14px;font-size:0.84rem;line-height:1.65;color:rgba(255,255,255,0.65);}
 .analiza-plain{font-size:0.85rem;line-height:1.65;color:rgba(255,255,255,0.65);padding:4px 0;}
+/* ── Forenzički audit (Executive Report) ── */
+.forensic-audit-btn{width:100%;padding:.82rem 1.2rem;background:linear-gradient(135deg,rgba(168,74,255,0.22) 0%,rgba(100,40,200,0.3) 100%);border:1px solid rgba(168,74,255,0.45);border-radius:10px;color:#d4a0ff;font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:opacity .2s;}
+.forensic-audit-btn:hover{opacity:.8;}
+.forensic-audit-btn:disabled{opacity:.5;cursor:not-allowed;}
+.fa-header{background:rgba(20,20,40,.7);border:1px solid rgba(168,74,255,.3);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+.fa-score-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.fa-score-circle{width:64px;height:64px;border-radius:50%;border:3px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.3rem;font-weight:800;}
+.fa-score-circle.fa-score-low{border-color:#68d391;color:#68d391;}
+.fa-score-circle.fa-score-med{border-color:#ecc94b;color:#ecc94b;}
+.fa-score-circle.fa-score-high{border-color:#f56565;color:#f56565;}
+.fa-score-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-top:3px;}
+.fa-score-label.fa-score-low{color:#68d391;}
+.fa-score-label.fa-score-med{color:#ecc94b;}
+.fa-score-label.fa-score-high{color:#f56565;}
+.fa-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.fa-chip{padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600;border:1px solid;}
+.fa-chip-kritican{background:rgba(245,101,101,.12);border-color:rgba(245,101,101,.5);color:#f56565;}
+.fa-chip-high{background:rgba(236,156,75,.12);border-color:rgba(236,156,75,.4);color:#ec9c4b;}
+.fa-chip-missing{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);}
+.fa-chip-fin{background:rgba(74,222,128,.1);border-color:rgba(74,222,128,.35);color:#4ade80;}
+.fa-section{margin-bottom:10px;border:1px solid rgba(255,255,255,.07);border-radius:8px;overflow:hidden;}
+.fa-section-hdr{padding:8px 14px;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(255,255,255,.07);}
+.fa-section-hdr.fa-hdr-risk{background:rgba(245,101,101,.07);color:#f56565;}
+.fa-section-hdr.fa-hdr-missing{background:rgba(255,200,80,.07);color:#ecc94b;}
+.fa-section-hdr.fa-hdr-fin{background:rgba(74,222,128,.06);color:#4ade80;}
+.fa-section-hdr.fa-hdr-litig{background:rgba(74,168,255,.07);color:#4aa8ff;}
+.fa-section-hdr.fa-hdr-attack{background:rgba(168,74,255,.07);color:#d4a0ff;}
+.fa-finding{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);}
+.fa-finding:last-child{border-bottom:none;}
+.fa-finding-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px;}
+.fa-severity-badge{padding:2px 8px;border-radius:4px;font-size:.68rem;font-weight:700;flex-shrink:0;text-transform:uppercase;letter-spacing:.05em;}
+.fa-sev-nizak{background:rgba(104,211,145,.12);color:#68d391;}
+.fa-sev-srednji{background:rgba(236,201,75,.12);color:#ecc94b;}
+.fa-sev-visok{background:rgba(236,130,75,.14);color:#ec864b;}
+.fa-sev-kritican{background:rgba(245,101,101,.15);color:#f56565;}
+.fa-finding-text{font-size:.83rem;color:rgba(255,255,255,.82);flex:1;}
+.fa-excerpt{background:rgba(255,255,255,.04);border-left:2px solid rgba(168,74,255,.45);padding:5px 10px;font-size:.78rem;color:rgba(255,255,255,.55);font-style:italic;margin:5px 0;border-radius:0 4px 4px 0;}
+.fa-law-ref{font-size:.72rem;color:rgba(74,168,255,.8);margin-top:3px;}
+.fa-law-unverified{color:rgba(236,201,75,.8);}
+.fa-fix-box{background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);border-radius:6px;padding:7px 10px;margin-top:6px;font-size:.78rem;color:rgba(74,222,128,.85);}
+.fa-missing-item{padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.05);}
+.fa-missing-item:last-child{border-bottom:none;}
+.fa-missing-name{font-size:.83rem;font-weight:600;color:#ecc94b;margin-bottom:3px;}
+.fa-missing-why{font-size:.78rem;color:rgba(255,255,255,.6);}
+.fa-legacy-toggle{font-size:.73rem;color:rgba(255,255,255,.3);cursor:pointer;margin-top:8px;text-align:right;}
+.fa-legacy-body{font-size:.78rem;color:rgba(255,255,255,.5);white-space:pre-wrap;margin-top:6px;display:none;}
 .analiza-workflow{margin-top:16px;padding:14px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.07);}
 .analiza-workflow-naslov{font-size:0.8rem;color:rgba(255,255,255,0.4);margin-bottom:10px;font-weight:600;}
 .analiza-workflow-dugmad{display:flex;flex-wrap:wrap;gap:8px;}
@@ -2008,6 +2054,11 @@ footer { padding: 2rem 1.5rem; }
                 <div id="rokovi-lista"></div>
                 <button class="btn-ics-all" onclick="sviRokoviUKalendar()" id="btn-ics-all" style="display:none;">📅 Izvezi sve rokove (.ics)</button>
               </div>
+              <!-- FORENZIČKI AUDIT dugme -->
+              <button class="forensic-audit-btn" id="forensic-audit-btn" onclick="doc_forensic_audit()" style="margin-top:.85rem;">
+                <span id="forensic-btn-lbl">🔬 Forenzička analiza dokumenta</span>
+              </button>
+              <div id="forensic-audit-result" style="display:none;margin-top:.9rem;"></div>
               <!-- ZASTARELOST KALKULATOR Phase 3.6 -->
               <div class="zast-wrap">
                 <button class="zast-toggle" onclick="zastToggle(this)">⏳ Kalkulator zastarelosti</button>
@@ -6502,6 +6553,221 @@ function doc_clear_session() {
   if (rdi) rdi.value = '';
   if (rdh) rdh.textContent = '';
   if (btn) btn.textContent = '📅 Prikaži rokove';
+}
+
+/* ── Forenzički audit (Executive Report) ───────────────────────── */
+
+function _fa_esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function _fa_severity_class(sev){
+  var s=(sev||'').toLowerCase();
+  if(s==='kritican'||s==='kritičan') return 'fa-sev-kritican';
+  if(s==='visok') return 'fa-sev-visok';
+  if(s==='srednji') return 'fa-sev-srednji';
+  return 'fa-sev-nizak';
+}
+
+function _fa_score_class(score){
+  if(score>=70) return 'fa-score-high';
+  if(score>=40) return 'fa-score-med';
+  return 'fa-score-low';
+}
+
+function renderForenzickiAudit(report, docType, segmentCount) {
+  if(!report) return '<div class="analiza-plain">Nema izveštaja.</div>';
+
+  // Fallback: ako je parse greška, prikaži legacy_text
+  if(report._parse_error || !report.executive_summary) {
+    var leg = _fa_esc(report.legacy_text || 'Analiza nije mogla biti strukturirana.');
+    return '<div class="analiza-plain" style="white-space:pre-wrap">' + leg + '</div>';
+  }
+
+  var es = report.executive_summary;
+  var score = es.overall_risk_score || 0;
+  var scoreClass = _fa_score_class(score);
+  var riskLabel = _fa_esc((es.risk_label||'').toUpperCase());
+
+  var h = '';
+  // ── Header ──────────────────────────────────────────────────────
+  h += '<div class="fa-header">';
+  h += '<div class="fa-score-row">';
+  h += '<div class="fa-score-circle '+scoreClass+'">'+score+'</div>';
+  h += '<div>';
+  h += '<div class="fa-score-label '+scoreClass+'">'+riskLabel+' RIZIK</div>';
+  var dtLabel = docType==='presuda'?'Presuda':docType==='ugovor'?'Ugovor':docType==='resenje'?'Rešenje':'Dokument';
+  h += '<div style="font-size:.74rem;color:rgba(255,255,255,.4);margin-top:4px;">'+dtLabel+' &bull; '+segmentCount+' segmenata</div>';
+  h += '</div></div>';
+
+  // Chips
+  h += '<div class="fa-chips">';
+  if(es.critical_count>0) h += '<span class="fa-chip fa-chip-kritican">&#9888; '+es.critical_count+' kritičnih</span>';
+  if(es.high_count>0)     h += '<span class="fa-chip fa-chip-high">'+es.high_count+' visokih</span>';
+  if(es.missing_clauses_count>0) h += '<span class="fa-chip fa-chip-missing">'+es.missing_clauses_count+' nedostajućih klauzula</span>';
+  if(es.financial_exposure_rsd) h += '<span class="fa-chip fa-chip-fin">'+Number(es.financial_exposure_rsd).toLocaleString('sr-RS')+' RSD izloženost</span>';
+  h += '</div></div>';
+
+  // ── Findings ────────────────────────────────────────────────────
+  var findings = report.findings || [];
+  if(findings.length > 0) {
+    // Grupiši po kategoriji, sortiraj po severity_score opadajuće
+    findings.sort(function(a,b){return (b.severity_score||0)-(a.severity_score||0);});
+    h += '<div class="fa-section">';
+    h += '<div class="fa-section-hdr fa-hdr-risk">&#9889; Identifikovani rizici ('+findings.length+')</div>';
+    findings.forEach(function(f){
+      var sevCls = _fa_severity_class(f.severity);
+      h += '<div class="fa-finding">';
+      h += '<div class="fa-finding-top">';
+      h += '<span class="fa-severity-badge '+sevCls+'">'+_fa_esc(f.severity||'')+'</span>';
+      h += '<div>';
+      h += '<div class="fa-finding-text">'+_fa_esc(f.finding||'')+'</div>';
+      var catLabel = (f.category||'').replace(/_/g,' ');
+      h += '<div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:2px;">'+_fa_esc(catLabel);
+      if(f.clause_ref) h += ' &bull; ref: '+_fa_esc(f.clause_ref);
+      h += '</div>';
+      h += '</div></div>';
+      if(f.clause_excerpt) h += '<div class="fa-excerpt">&ldquo;'+_fa_esc(f.clause_excerpt)+'&rdquo;</div>';
+      if(f.law_ref){
+        var lawCls = f.unverified_law_ref ? 'fa-law-ref fa-law-unverified' : 'fa-law-ref';
+        h += '<div class="'+lawCls+'">&#128209; '+_fa_esc(f.law_ref)+(f.unverified_law_ref?' &#9888;':'')+'</div>';
+      }
+      if(f.suggested_fix) h += '<div class="fa-fix-box">&#10003; '+_fa_esc(f.suggested_fix)+'</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+
+  // ── Missing Clauses ─────────────────────────────────────────────
+  var missing = report.missing_clauses || [];
+  if(missing.length > 0) {
+    h += '<div class="fa-section">';
+    h += '<div class="fa-section-hdr fa-hdr-missing">&#9888; Nedostajuće klauzule ('+missing.length+')</div>';
+    missing.forEach(function(mc){
+      h += '<div class="fa-missing-item">';
+      h += '<div class="fa-missing-name">'+_fa_esc(mc.clause_name||'')+'</div>';
+      h += '<div class="fa-missing-why">'+_fa_esc(mc.why_it_matters||'')+'</div>';
+      if(mc.suggested_text){
+        h += '<details style="margin-top:5px;"><summary style="font-size:.72rem;color:rgba(255,255,255,.35);cursor:pointer;">Predlog teksta</summary>';
+        h += '<div style="font-size:.76rem;color:rgba(255,255,255,.5);margin-top:4px;white-space:pre-wrap;">'+_fa_esc(mc.suggested_text)+'</div></details>';
+      }
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+
+  // ── Financial Exposure ──────────────────────────────────────────
+  var fe = report.financial_exposure || {};
+  if(fe.max_total_exposure_rsd) {
+    h += '<div class="fa-section">';
+    h += '<div class="fa-section-hdr fa-hdr-fin">&#128181; Finansijska izloženost</div>';
+    h += '<div class="fa-finding"><div class="fa-finding-text" style="font-size:.9rem;font-weight:700;color:#4ade80;">';
+    h += 'Maksimalna izloženost: '+Number(fe.max_total_exposure_rsd).toLocaleString('sr-RS')+' RSD</div></div>';
+    (fe.items||[]).forEach(function(item){
+      h += '<div class="fa-finding"><div class="fa-finding-text">'+_fa_esc(item.type||'')+': '+_fa_esc(item.amount_or_formula||'');
+      if(item.notes) h += ' — '+_fa_esc(item.notes);
+      h += '</div></div>';
+    });
+    h += '</div>';
+  }
+
+  // ── Litigation Readiness ────────────────────────────────────────
+  var litig = report.litigation_readiness || {};
+  if(litig.applicable) {
+    var litItems = [
+      ...(litig.evidence_gaps||[]).map(function(i){return {label:'Dokazni problem',text:i.issue,ref:i.clause_ref};}),
+      ...(litig.procedural_defects||[]).map(function(i){return {label:'Procesni nedostatak',text:i.issue,ref:i.clause_ref};}),
+      ...(litig.deadline_risks||[]).map(function(i){return {label:'Rok',text:i.issue+(i.deadline_type?' ('+i.deadline_type+')':''),ref:i.clause_ref};}),
+    ];
+    if(litItems.length>0){
+      h += '<div class="fa-section">';
+      h += '<div class="fa-section-hdr fa-hdr-litig">&#9878; Sudska gotovost ('+litItems.length+' problema)</div>';
+      litItems.forEach(function(item){
+        h += '<div class="fa-finding"><div class="fa-finding-top">';
+        h += '<span class="fa-severity-badge fa-sev-srednji">'+_fa_esc(item.label)+'</span>';
+        h += '<div class="fa-finding-text">'+_fa_esc(item.text||'');
+        if(item.ref) h += ' <span style="color:rgba(255,255,255,.3);font-size:.7rem;">['+_fa_esc(item.ref)+']</span>';
+        h += '</div></div></div>';
+      });
+      h += '</div>';
+    }
+  }
+
+  // ── Attack Surface ──────────────────────────────────────────────
+  var attacks = report.attack_surface || [];
+  if(attacks.length>0){
+    h += '<div class="fa-section">';
+    h += '<div class="fa-section-hdr fa-hdr-attack">&#128081; Napadne površine ('+attacks.length+')</div>';
+    attacks.forEach(function(a){
+      var sevCls = _fa_severity_class(a.severity);
+      h += '<div class="fa-finding">';
+      h += '<div class="fa-finding-top"><span class="fa-severity-badge '+sevCls+'">'+_fa_esc(a.severity||'')+'</span>';
+      h += '<div class="fa-finding-text">'+_fa_esc(a.vulnerability||'');
+      if(a.clause_ref) h += ' <span style="color:rgba(255,255,255,.3);font-size:.7rem;">['+_fa_esc(a.clause_ref)+']</span>';
+      h += '</div></div></div>';
+    });
+    h += '</div>';
+  }
+
+  // ── Legacy text (collapsible) ───────────────────────────────────
+  if(report.legacy_text){
+    h += '<div class="fa-legacy-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">▼ Plain-text rezime (kompatibilnost)</div>';
+    h += '<div class="fa-legacy-body">'+_fa_esc(report.legacy_text)+'</div>';
+  }
+
+  // ── Low confidence (ako postoje) ─────────────────────────────────
+  var lc = report.low_confidence_findings || [];
+  if(lc.length>0){
+    h += '<div style="margin-top:6px;font-size:.7rem;color:rgba(255,255,255,.25);">'+lc.length+' nalaz(a) isključeno zbog niske pouzdanosti</div>';
+  }
+
+  return h;
+}
+
+async function doc_forensic_audit() {
+  if(!_docSessionId) return;
+  var btn = document.getElementById('forensic-audit-btn');
+  var lbl = document.getElementById('forensic-btn-lbl');
+  var result = document.getElementById('forensic-audit-result');
+  if(!btn) return;
+
+  btn.disabled = true;
+  lbl.textContent = 'Forenzička analiza u toku... (30-60s)';
+  result.style.display = 'none';
+  result.innerHTML = '';
+
+  try {
+    var r = await fetch(BASE_URL + '/api/dokument/analiza', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body:    JSON.stringify({ session_id: _docSessionId, pitanje: '' })
+    });
+
+    if(r.status === 401){ closeModal(); openModal(); return; }
+    if(r.status === 402){ userCredits=0; updateCreditDisplay(); showPaywall(); return; }
+    if(r.status === 404){
+      doc_clear_session();
+      _doc_show_error('Sesija je istekla. Ponovo otpremite dokument.');
+      return;
+    }
+
+    var d = await r.json();
+    if(d.credits_remaining !== undefined){ userCredits=d.credits_remaining; updateCreditDisplay(); }
+
+    var html;
+    if(d.status === 'success' && d.report) {
+      html = renderForenzickiAudit(d.report, d.doc_type, d.segment_count);
+    } else {
+      html = '<div class="analiza-plain">Greška: ' + _fa_esc(d.message || d.detail || 'Nepoznata greška') + '</div>';
+    }
+
+    result.innerHTML = html;
+    result.style.display = 'block';
+  } catch(e) {
+    result.innerHTML = '<div class="analiza-plain">Greška pri komunikaciji sa serverom.</div>';
+    result.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    lbl.textContent = '🔬 Forenzička analiza dokumenta';
+  }
 }
 
 /* ── Rokovi panel Phase 4.1 ───────────────────────────────────────── */
