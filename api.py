@@ -4294,6 +4294,20 @@ KRITIČNA PRAVILA:
 4. Proxy pattern i upgradeable ugovori uvek dobijaju posebno upozorenje
 5. Off-chain zavisnosti (oracle, multisig, admin ključevi) moraju biti istaknute kao van dometa analize
 
+OBAVEZNA PROVERA RIZIKA — pre generisanja pravni_rizici niza, eksplicitno proveri svaku od sledećih kategorija. Ako je kategorija primenjiva na dostavljeni kod, MORA biti uključena kao zaseban rizik:
+
+(a) Jednostrana izmena parametara — da li bilo koja adresa (owner/admin) može menjati ključne parametre ugovora bez vremenskog ograničenja, glasanja ili multisig potvrde?
+
+(b) Odsustvo emergency/pause mehanizma — da li postoji način da se ugovor zaustavi ili stavi u sigurno stanje u slučaju greške ili napada? Ako ne postoji nijedna pause/emergencyStop/circuit-breaker funkcija — ovo je rizik.
+
+(c) Odsustvo procedure za povraćaj sredstava u vanrednim okolnostima — ako su sredstva zaključana po fiksnom vremenskom periodu (lock period) bez izuzetka, i ne postoji emergency withdraw ili admin override za povraćaj korisnicima — ovo je rizik, posebno ako je period dugačak (>30 dana).
+
+(d) Centralizovana kontrola nad sredstvima — da li jedna adresa kontroliše tok ili uslove raspolaganja tuđom imovinom bez nezavisnog nadzora?
+
+(e) Nejasno definisana odgovornost — da li ugovor sadrži bilo kakvu odredbu o odgovornosti za grešku, gubitak sredstava, ili nepravilno funkcionisanje?
+
+Minimum: ako su (a) i (d) prisutni zajedno sa (b) ili (c), MORA biti vraćeno najmanje 2-3 stavke u pravni_rizici, ne samo jedna. Ne kombinuj više kategorija u jedan rizik — svaka identifikovana kategorija je zaseban red u nizu.
+
 Vraćaš ISKLJUČIVO validan JSON. Bez markdown formatiranja. Bez objašnjenja van JSON strukture.
 
 JSON SCHEMA koji vraćaš:
@@ -4351,6 +4365,16 @@ JSON SCHEMA koji vraćaš:
   "proxy_upozorenje": "string ili null",
   "confidence_tier": "HIGH ili MEDIUM ili LOW",
   "limitacije_analize": ["string"]
+}
+
+INSTRUKCIJE ZA SPECIFIČNA POLJA:
+
+Za indikator anonimnost_ucesnika: imaj u vidu da je odsustvo on-chain identifikacije korisnika STRUKTURNA KARAKTERISTIKA SVIH blockchain ugovora, ne specifičnost konkretnog ugovora. U obrazlozenje polje uvek dodaj napomenu: "Ovo je opšta karakteristika blockchain tehnologije i ne ukazuje na specifičan rizik ovog ugovora, ali je relevantno za AML/KYC analizu na nivou platforme/posrednika."
+
+offchain_zavisnosti niz NIKADA ne sme biti prazan niz [] bez objašnjenja. Ako analiza koda ne identifikuje eksplicitne off-chain zavisnosti (oracle, multisig, eksterni pozivi), vrati niz sa JEDNIM elementom:
+{
+  "zavisnost": "Nema identifikovanih eksplicitnih off-chain zavisnosti u dostavljenom kodu",
+  "napomena": "Ovo se odnosi samo na ono što je vidljivo u izvornom kodu. Stvarna primena (frontend, deployment proces, upravljanje privatnim ključevima) može uvesti dodatne zavisnosti koje nisu predmet ove analize."
 }
 
 PRAVILA ZA confidence_tier:
