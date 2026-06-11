@@ -1421,6 +1421,59 @@ footer { padding: 2rem 1.5rem; }
 .w3-license-badge.rizik-srednji{border-color:#ecc94b;color:#ecc94b;}
 .w3-license-badge.rizik-nizak{border-color:#68d391;color:#68d391;}
 .w3-license-tip{font-size:0.82rem;color:rgba(255,255,255,0.65);margin-bottom:10px;}
+/* ── Smart Contract Analyzer (F12) ──────────────────────────── */
+.sc-header-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.sc-contract-title{font-size:0.92rem;font-weight:700;color:#e6edf3;}
+.sc-version{font-size:0.75rem;color:rgba(255,255,255,0.4);font-weight:400;margin-left:6px;}
+.sc-confidence-badge{padding:4px 12px;border-radius:12px;font-size:0.74rem;font-weight:600;}
+.sc-conf-high{background:rgba(104,211,145,0.15);color:#68d391;border:1px solid rgba(104,211,145,0.3);}
+.sc-conf-medium{background:rgba(236,201,75,0.15);color:#ecc94b;border:1px solid rgba(236,201,75,0.3);}
+.sc-conf-low{background:rgba(237,137,54,0.15);color:#ed8936;border:1px solid rgba(237,137,54,0.3);}
+.sc-proxy-warning{background:rgba(236,201,75,0.08);border:1px solid rgba(236,201,75,0.3);border-radius:8px;padding:10px 14px;font-size:0.83rem;color:#ecc94b;margin-bottom:12px;line-height:1.5;}
+.sc-poslovna-card{background:rgba(74,168,255,0.05);border:1px solid rgba(74,168,255,0.2);border-radius:10px;overflow:hidden;margin-bottom:12px;}
+.sc-section-header-static{padding:10px 14px;font-size:0.82rem;font-weight:700;color:#89c8ff;background:rgba(74,168,255,0.08);display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(74,168,255,0.12);}
+.sc-tip-badge{background:rgba(74,168,255,0.15);color:#89c8ff;border:1px solid rgba(74,168,255,0.25);border-radius:10px;padding:2px 10px;font-size:0.72rem;font-weight:600;}
+.sc-poslovna-body{padding:12px 14px;font-size:0.84rem;color:rgba(255,255,255,0.8);line-height:1.65;}
+.sc-section{border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.sc-section-head{padding:10px 14px;font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:space-between;}
+.sc-collapsible{cursor:pointer;user-select:none;}
+.sc-collapsible:hover{background:rgba(255,255,255,0.05);}
+.sc-caret{font-size:0.72rem;color:rgba(255,255,255,0.35);}
+.sc-section-body{padding:12px 14px;}
+.sc-rizik-row{padding:8px 12px;border-radius:6px;margin-bottom:6px;border-left:4px solid rgba(255,255,255,0.15);}
+.sc-rizik-kritican{background:rgba(245,101,101,0.1);border-color:#f56565;}
+.sc-rizik-visok{background:rgba(237,137,54,0.1);border-color:#ed8936;}
+.sc-rizik-srednji{background:rgba(236,201,75,0.07);border-color:#ecc94b;}
+.sc-rizik-nizak{background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.18);}
+.sc-rizik-head{font-size:0.83rem;color:#e6edf3;line-height:1.4;}
+.sc-rizik-oz{font-weight:700;}
+.sc-rizik-obr{font-size:0.77rem;color:rgba(255,255,255,0.52);margin-top:4px;line-height:1.5;}
+.sc-radnje-table{width:100%;border-collapse:collapse;font-size:0.79rem;}
+.sc-radnje-table th{text-align:left;color:rgba(255,255,255,0.42);font-size:0.71rem;text-transform:uppercase;letter-spacing:.05em;padding:0 8px 6px;border-bottom:1px solid rgba(255,255,255,0.1);}
+.sc-radnje-table td{padding:6px 8px;color:rgba(255,255,255,0.78);border-bottom:1px solid rgba(255,255,255,0.05);vertical-align:top;}
+.sc-indikatori-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+@media(max-width:480px){.sc-indikatori-grid{grid-template-columns:1fr;}}
+.sc-indikator-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px;}
+.sc-ind-naziv{font-size:0.75rem;color:rgba(255,255,255,0.48);margin-bottom:4px;}
+.sc-ind-value{font-size:0.83rem;font-weight:700;margin-bottom:4px;}
+.sc-ind-da{color:#f56565;}
+.sc-ind-moguce{color:#ecc94b;}
+.sc-ind-ne{color:#68d391;}
+.sc-ind-nd{color:rgba(255,255,255,0.4);}
+.sc-ind-obr{font-size:0.74rem;color:rgba(255,255,255,0.44);line-height:1.45;}
+.sc-regulativa-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px;margin-bottom:7px;}
+.sc-reg-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;font-size:0.82rem;}
+.sc-rel-badge{padding:2px 8px;border-radius:8px;font-size:0.71rem;font-weight:600;}
+.sc-rel-visok{background:rgba(245,101,101,0.14);color:#f56565;border:1px solid rgba(245,101,101,0.3);}
+.sc-rel-srednji{background:rgba(236,201,75,0.14);color:#ecc94b;border:1px solid rgba(236,201,75,0.3);}
+.sc-rel-moguc{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.1);}
+.sc-reg-clanovi{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px;}
+.sc-clan-tag{background:rgba(201,168,76,0.12);color:#C9A84C;border:1px solid rgba(201,168,76,0.25);border-radius:8px;padding:2px 8px;font-size:0.71rem;}
+.sc-reg-obr{font-size:0.77rem;color:rgba(255,255,255,0.52);line-height:1.5;}
+.sc-offchain-item{font-size:0.81rem;color:rgba(255,255,255,0.68);padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+.sc-offchain-naziv{font-weight:600;}
+.sc-offchain-napomena{color:rgba(255,255,255,0.42);}
+.sc-disclaimer{margin-top:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:8px;padding:11px 13px;font-size:0.73rem;color:rgba(255,255,255,0.42);line-height:1.6;}
 /* ── ANALIZA RICH RENDER ─────────────────────────────────────────────────── */
 .analiza-rezime{border:1px solid var(--accent,#4aa8ff);border-radius:10px;margin-bottom:16px;overflow:hidden;}
 .analiza-rezime-header{background:rgba(74,168,255,0.12);padding:10px 16px;font-weight:700;font-size:0.92rem;color:var(--accent,#4aa8ff);border-bottom:1px solid rgba(255,255,255,0.07);}
@@ -2099,6 +2152,7 @@ footer { padding: 2rem 1.5rem; }
               <button class="strat-btn" data-modul="mica_score" onclick="web3IzaberiModul('mica_score',this)">📊 MiCA Score</button>
               <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">🔑 License Check</button>
               <button class="strat-btn" data-modul="aml_audit" onclick="web3IzaberiModul('aml_audit',this)">🛡️ AML/KYC Audit</button>
+              <button class="strat-btn" data-modul="smart_contract" onclick="web3IzaberiModul('smart_contract',this)">📜 Pametni Ugovor</button>
             </div>
             <div id="web3-opis" class="strat-opis-box web3-opis-box"></div>
             <div class="strat-input-wrap">
@@ -3794,6 +3848,16 @@ var WEB3_MODULI = {
     label:       'Tekst AML/KYC politike ili opis internih procedura',
     placeholder: 'Unesite tekst vaše AML/KYC politike, opis internih procedura za sprečavanje pranja novca, ili ključne elemente koje imate implementirane...',
     min:         50
+  },
+  smart_contract: {
+    naziv:       'Pametni Ugovor — Pravna Analiza',
+    endpoint:    '/web3/analiziraj-ugovor',
+    opis:        'Pravna analiza Solidity pametnih ugovora — isključivo iz pravne perspektive. Prevodimo mašinsku logiku u pravni jezik: poslovne funkcije, pravne indikatore, regulatornu relevantnost i rizike. Nije bezbednosni audit koda. Košta 5 kredita po analizi.',
+    label:       'Solidity izvorni kod ugovora',
+    placeholder: 'Nalepite Solidity kod ovde...',
+    min:         20,
+    maxChars:    50000,
+    btnText:     'Analiziraj ugovor'
   }
 };
 var _web3AktivniModul = 'web3_pretraga';
@@ -3816,16 +3880,18 @@ function web3IzaberiModul(modul, btn) {
   document.querySelectorAll('.web3-moduli .strat-btn').forEach(function(b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
   var m = WEB3_MODULI[modul];
-  var opisEl  = document.getElementById('web3-opis');
-  var labelEl = document.getElementById('web3-input-label');
-  var txtEl   = document.getElementById('web3-tekst');
-  var charsEl = document.getElementById('web3-chars');
-  var wrapEl  = document.getElementById('web3-rezultat-wrap');
-  if (opisEl)  opisEl.textContent  = m.opis;
-  if (labelEl) labelEl.textContent = m.label;
-  if (txtEl)   { txtEl.placeholder = m.placeholder; txtEl.value = ''; }
-  if (charsEl) charsEl.textContent = '0';
-  if (wrapEl)  wrapEl.style.display = 'none';
+  var opisEl    = document.getElementById('web3-opis');
+  var labelEl   = document.getElementById('web3-input-label');
+  var txtEl     = document.getElementById('web3-tekst');
+  var charsEl   = document.getElementById('web3-chars');
+  var wrapEl    = document.getElementById('web3-rezultat-wrap');
+  var submitBtn = document.getElementById('web3-submit-btn');
+  if (opisEl)    opisEl.textContent    = m.opis;
+  if (labelEl)   labelEl.textContent   = m.label;
+  if (txtEl)     { txtEl.placeholder   = m.placeholder; txtEl.value = ''; }
+  if (charsEl)   charsEl.textContent   = '0';
+  if (wrapEl)    wrapEl.style.display  = 'none';
+  if (submitBtn) submitBtn.textContent = m.btnText || 'Analiziraj';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -3857,25 +3923,40 @@ async function web3Pokreni() {
     return;
   }
 
-  btn.disabled = true; btn.textContent = 'Analiziram...';
+  var isSmartContract = (_web3AktivniModul === 'smart_contract');
+  btn.disabled = true;
+  btn.textContent = isSmartContract ? 'Vindex analizira ugovor...' : 'Analiziram...';
   if (naslov) naslov.textContent = modul.naziv;
-  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ ' + modul.naziv + ' — analiza u toku (ZDI + MiCA)...</div>';
+  var loadingMsg = isSmartContract
+    ? '⏳ Vindex analizira ugovor...'
+    : '⏳ ' + modul.naziv + ' — analiza u toku (ZDI + MiCA)...';
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">' + loadingMsg + '</div>';
   if (wrapEl) wrapEl.style.display = 'block';
 
   try {
+    var reqBody = isSmartContract
+      ? JSON.stringify({solidity_source: tekst})
+      : JSON.stringify({tekst: tekst});
     var res = await fetch(modul.endpoint, {
       method: 'POST',
       headers: {'Content-Type':'application/json', 'Authorization':'Bearer '+(currentSession ? currentSession.access_token : '')},
-      body: JSON.stringify({tekst: tekst})
+      body: reqBody
     });
     if (res.status === 403) {
       if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 ' + modul.naziv + ' je dostupna samo PRO korisnicima.</div>';
       return;
     }
+    if (res.status === 402) {
+      var errData = {}; try { errData = await res.json(); } catch(e2) {}
+      var errMsg = (errData.detail && errData.detail.message) ? errData.detail.message : 'Nemate dovoljno kredita za ovu analizu.';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">💳 ' + _htmlEsc(errMsg) + '</div>';
+      return;
+    }
     if (!res.ok) throw new Error('Server greška: ' + res.status);
     var data = await res.json();
     if (bodyEl) {
-      if (data.modul === 'mica_score') bodyEl.innerHTML = web3RenderScore(data.score_data, data.objasnjenje, 'mica');
+      if (data.modul === 'smart_contract') bodyEl.innerHTML = web3RenderSmartContract(data);
+      else if (data.modul === 'mica_score') bodyEl.innerHTML = web3RenderScore(data.score_data, data.objasnjenje, 'mica');
       else if (data.modul === 'license_check') bodyEl.innerHTML = web3RenderLicense(data.license_data, data.objasnjenje);
       else if (data.modul === 'aml_audit') bodyEl.innerHTML = web3RenderAudit(data.audit_data, data.objasnjenje);
       else bodyEl.innerHTML = web3FormatirajRezultat(data.rezultat || '');
@@ -3883,7 +3964,8 @@ async function web3Pokreni() {
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   } finally {
-    btn.disabled = false; btn.textContent = 'Analiziraj';
+    btn.disabled = false;
+    btn.textContent = (WEB3_MODULI[_web3AktivniModul] && WEB3_MODULI[_web3AktivniModul].btnText) || 'Analiziraj';
   }
 }
 
@@ -4054,6 +4136,152 @@ function web3RenderAudit(auditData, objasnjenje) {
   html += _web3RenderKategorije(auditData.kategorije);
   html += _web3RenderListe(auditData);
   return html;
+}
+
+/* ── F12: Smart Contract Legal Analyzer render ───────────────── */
+function web3RenderSmartContract(data) {
+  var a = data.analysis_result;
+  if (!a || typeof a !== 'object') {
+    return '<div class="strat-error">Greška pri parsiranju analize ugovora.</div>';
+  }
+  var html = '';
+
+  // [2] Header: naziv ugovora + confidence badge
+  var ct = ((a.confidence_tier || data.confidence_tier || 'LOW') + '').toUpperCase();
+  var ctLabel = ct === 'HIGH' ? 'Visoko poverenje' : ct === 'MEDIUM' ? 'Srednje poverenje' : 'Nisko poverenje — rezultati su indikativni';
+  var ctClass = ct === 'HIGH' ? 'sc-conf-high' : ct === 'MEDIUM' ? 'sc-conf-medium' : 'sc-conf-low';
+  html += '<div class="sc-header-row">';
+  html += '<div class="sc-contract-title">📜 ' + _htmlEsc(data.contract_name || 'Pametni ugovor');
+  if (data.solidity_version && data.solidity_version !== 'nepoznata') {
+    html += '<span class="sc-version">Solidity ' + _htmlEsc(data.solidity_version) + '</span>';
+  }
+  html += '</div>';
+  html += '<span class="sc-confidence-badge ' + ctClass + '">' + ctLabel + '</span>';
+  html += '</div>';
+
+  // Proxy warning banner
+  if (a.proxy_upozorenje) {
+    html += '<div class="sc-proxy-warning">⚠️ Detektovan proxy pattern — ovaj ugovor može imati skrivenu implementacionu logiku koja nije vidljiva u dostavljenom kodu.</div>';
+  }
+
+  // [1] Poslovna funkcija
+  var pf = a.poslovna_funkcija || {};
+  html += '<div class="sc-poslovna-card">';
+  html += '<div class="sc-section-header-static">Poslovna funkcija';
+  if (pf.tip_ugovora) html += ' <span class="sc-tip-badge">' + _htmlEsc(pf.tip_ugovora) + '</span>';
+  html += '</div>';
+  html += '<div class="sc-poslovna-body">' + _htmlEsc(pf.opis || '') + '</div>';
+  html += '</div>';
+
+  // [6] Pravni rizici (visoko istaknuti — odmah posle poslovna_funkcija)
+  var rizici = a.pravni_rizici || [];
+  if (rizici.length) {
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head">⚠️ Pravni rizici (' + rizici.length + ')</div>';
+    html += '<div class="sc-section-body">';
+    rizici.forEach(function(r) {
+      var oz = ((r.ozbiljnost || '') + '').toUpperCase();
+      var cls = (oz === 'KRITIČAN' || oz === 'KRITICAN') ? 'sc-rizik-kritican' : oz === 'VISOK' ? 'sc-rizik-visok' : oz === 'SREDNJI' ? 'sc-rizik-srednji' : 'sc-rizik-nizak';
+      var ikona = (oz === 'KRITIČAN' || oz === 'KRITICAN') ? '🚨' : oz === 'VISOK' ? '⚠️' : oz === 'SREDNJI' ? '🔶' : 'ℹ️';
+      html += '<div class="sc-rizik-row ' + cls + '">';
+      html += '<div class="sc-rizik-head">' + ikona + ' <span class="sc-rizik-oz">' + _htmlEsc(r.ozbiljnost || '') + '</span> — ' + _htmlEsc(r.rizik || '') + '</div>';
+      if (r.obrazlozenje) html += '<div class="sc-rizik-obr">' + _htmlEsc(r.obrazlozenje) + '</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // [3] Ključne radnje (default open)
+  var radnje = a.kljucne_radnje || [];
+  if (radnje.length) {
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">📋 Ključne radnje <span class="sc-caret">▾</span></div>';
+    html += '<div class="sc-section-body">';
+    html += '<table class="sc-radnje-table"><thead><tr><th>Radnja</th><th>Opis</th><th>Pravni karakter</th></tr></thead><tbody>';
+    radnje.forEach(function(r) {
+      html += '<tr><td>' + _htmlEsc(r.radnja || '') + '</td><td>' + _htmlEsc(r.opis || '') + '</td><td>' + _htmlEsc(r.pravni_karakter || '') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '</div></div>';
+  }
+
+  // [4] Pravni indikatori (2x2 grid)
+  var pi = a.pravni_indikatori || {};
+  var indNazivi = {
+    pruzanje_finansijske_usluge: 'Pružanje finansijske usluge',
+    upravljanje_tudom_imovinom:  'Upravljanje tuđom imovinom',
+    investiciona_shema:          'Investiciona shema',
+    anonimnost_ucesnika:         'Anonimnost učesnika'
+  };
+  var indKeys = Object.keys(indNazivi);
+  if (indKeys.some(function(k){ return !!pi[k]; })) {
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">⚖️ Pravni indikatori <span class="sc-caret">▾</span></div>';
+    html += '<div class="sc-section-body sc-indikatori-grid">';
+    indKeys.forEach(function(k) {
+      var ind = pi[k] || {};
+      var val = ((ind.indikator || 'NEDOVOLJNO PODATAKA') + '').toUpperCase();
+      var valClass = val === 'DA' ? 'sc-ind-da' : (val === 'MOGUĆE' || val === 'MOGUCE') ? 'sc-ind-moguce' : val === 'NE' ? 'sc-ind-ne' : 'sc-ind-nd';
+      var valIkona = val === 'DA' ? '🔴' : (val === 'MOGUĆE' || val === 'MOGUCE') ? '🟡' : val === 'NE' ? '🟢' : '⚪';
+      html += '<div class="sc-indikator-card">';
+      html += '<div class="sc-ind-naziv">' + _htmlEsc(indNazivi[k]) + '</div>';
+      html += '<div class="sc-ind-value ' + valClass + '">' + valIkona + ' ' + _htmlEsc(ind.indikator || 'NEDOVOLJNO PODATAKA') + '</div>';
+      if (ind.obrazlozenje) html += '<div class="sc-ind-obr">' + _htmlEsc(ind.obrazlozenje) + '</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // [5] Regulatorna relevantnost
+  var regs = a.regulatorna_relevantnost || [];
+  if (regs.length) {
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">📚 Regulatorna relevantnost <span class="sc-caret">▾</span></div>';
+    html += '<div class="sc-section-body">';
+    regs.forEach(function(reg) {
+      var nr = ((reg.nivo_relevantnosti || '') + '').toUpperCase();
+      var nrClass = nr === 'VISOK' ? 'sc-rel-visok' : nr === 'SREDNJI' ? 'sc-rel-srednji' : 'sc-rel-moguc';
+      html += '<div class="sc-regulativa-card">';
+      html += '<div class="sc-reg-head"><strong>' + _htmlEsc(reg.propis || '') + '</strong><span class="sc-rel-badge ' + nrClass + '">' + _htmlEsc(reg.nivo_relevantnosti || '') + '</span></div>';
+      var cl = reg.relevantni_clanovi || [];
+      if (cl.length) {
+        html += '<div class="sc-reg-clanovi">';
+        cl.forEach(function(c) { html += '<span class="sc-clan-tag">' + _htmlEsc(c) + '</span>'; });
+        html += '</div>';
+      }
+      if (reg.obrazlozenje) html += '<div class="sc-reg-obr">' + _htmlEsc(reg.obrazlozenje) + '</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // [7] Off-chain zavisnosti (default collapsed)
+  var offchain = a.offchain_zavisnosti || [];
+  if (offchain.length) {
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">🔗 Off-chain zavisnosti (' + offchain.length + ') <span class="sc-caret">▸</span></div>';
+    html += '<div class="sc-section-body" style="display:none">';
+    offchain.forEach(function(oc) {
+      html += '<div class="sc-offchain-item"><span class="sc-offchain-naziv">' + _htmlEsc(oc.zavisnost || '') + '</span>';
+      if (oc.napomena) html += '<span class="sc-offchain-napomena"> — ' + _htmlEsc(oc.napomena) + '</span>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // [8] Disclaimer (uvek vidljiv)
+  html += '<div class="sc-disclaimer">Ova analiza predstavlja automatski generisane pravne indikatore i ne predstavlja pravno mišljenje niti pravni savet. Rezultati su zasnovani isključivo na dostavljenom izvornom kodu i ne uzimaju u obzir poslovni kontekst, stvarne transakcije, identitet strana, niti sudsku ili regulatornu praksu. Pre donošenja bilo kakve pravne ili poslovne odluke, konsultujte ovlašćenog pravnika.</div>';
+
+  return html;
+}
+
+function scToggle(headerEl) {
+  var body = headerEl.nextElementSibling;
+  var caret = headerEl.querySelector('.sc-caret');
+  if (!body) return;
+  var isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  if (caret) caret.textContent = isHidden ? '▾' : '▸';
 }
 
 /* PODNESAK HELPERS */

@@ -4276,3 +4276,267 @@ async def predmet_hronologija_get(
     except Exception:
         logger.exception("[P2.2] hronologija_get greška za predmet=%s", predmet_id)
         raise HTTPException(status_code=500, detail="Greška pri učitavanju hronologije")
+
+
+# ── F12: Smart Contract Legal Analyzer ───────────────────────────────────────
+
+_SC_SYSTEM_PROMPT = """\
+Ti si pravni analitičar specijalizovan za digitalnu imovinu i blockchain tehnologije. \
+Analiziraš Solidity pametne ugovore isključivo iz pravne perspektive — ne radiš bezbednosni audit koda.
+
+Tvoja publika su srpski advokati koji ne poznaju Solidity. Sav output mora biti na srpskom jeziku \
+(ekavica), jasan, bez tehničkog žargona gde god je moguće.
+
+KRITIČNA PRAVILA:
+1. Nikada ne iznosiš pravne zaključke — samo indikatore i faktore rizika
+2. Svaki regulatorni navod mora citirati konkretan član zakona (npr. "ZDI čl. 3 st. 1 tač. 3")
+3. Ako nešto ne možeš pouzdano utvrditi iz dostavljenog koda, eksplicitno to naznači
+4. Proxy pattern i upgradeable ugovori uvek dobijaju posebno upozorenje
+5. Off-chain zavisnosti (oracle, multisig, admin ključevi) moraju biti istaknute kao van dometa analize
+
+Vraćaš ISKLJUČIVO validan JSON. Bez markdown formatiranja. Bez objašnjenja van JSON strukture.
+
+JSON SCHEMA koji vraćaš:
+{
+  "poslovna_funkcija": {
+    "opis": "string (2-4 rečenice, plain language, šta ugovor radi)",
+    "tip_ugovora": "string (npr. Staking protokol, DEX, Escrow, Token ugovor, DAO glasanje, itd.)"
+  },
+  "kljucne_radnje": [
+    {
+      "radnja": "string",
+      "opis": "string (jedna rečenica)",
+      "pravni_karakter": "string (npr. prenos imovine, prijem sredstava, zaključavanje sredstava)"
+    }
+  ],
+  "pravni_indikatori": {
+    "pruzanje_finansijske_usluge": {
+      "indikator": "DA ili MOGUĆE ili NE ili NEDOVOLJNO PODATAKA",
+      "obrazlozenje": "string"
+    },
+    "upravljanje_tudom_imovinom": {
+      "indikator": "DA ili MOGUĆE ili NE ili NEDOVOLJNO PODATAKA",
+      "obrazlozenje": "string"
+    },
+    "investiciona_shema": {
+      "indikator": "DA ili MOGUĆE ili NE ili NEDOVOLJNO PODATAKA",
+      "obrazlozenje": "string"
+    },
+    "anonimnost_ucesnika": {
+      "indikator": "DA ili MOGUĆE ili NE ili NEDOVOLJNO PODATAKA",
+      "obrazlozenje": "string"
+    }
+  },
+  "regulatorna_relevantnost": [
+    {
+      "propis": "string (puni naziv)",
+      "relevantni_clanovi": ["string"],
+      "nivo_relevantnosti": "VISOK ili SREDNJI ili MOGUĆ",
+      "obrazlozenje": "string"
+    }
+  ],
+  "pravni_rizici": [
+    {
+      "rizik": "string (jasna rečenica, non-technical)",
+      "ozbiljnost": "KRITIČAN ili VISOK ili SREDNJI ili NIZAK",
+      "obrazlozenje": "string"
+    }
+  ],
+  "offchain_zavisnosti": [
+    {
+      "zavisnost": "string",
+      "napomena": "string (zašto je ovo van dometa pravne analize koda)"
+    }
+  ],
+  "proxy_upozorenje": "string ili null",
+  "confidence_tier": "HIGH ili MEDIUM ili LOW",
+  "limitacije_analize": ["string"]
+}
+
+PRAVILA ZA confidence_tier:
+- HIGH: kompletan source code, jasna logika, nema proxy pattern-a
+- MEDIUM: source code prisutan ali ima proxy/upgradeable komponenti, ili je logika fragmentirana
+- LOW: minimalan source, samo interfejsi, ili izrazito kompleksan proxy lanac"""
+
+
+def _sc_extract_version(source: str) -> str:
+    import re as _re
+    m = _re.search(r'pragma\s+solidity\s+([^;]+);', source)
+    return m.group(1).strip() if m else "nepoznata"
+
+
+def _sc_extract_name(source: str) -> str:
+    import re as _re
+    m = _re.search(r'\bcontract\s+(\w+)', source)
+    return m.group(1) if m else "Nepoznat"
+
+
+def _sc_detect_proxy(source: str) -> bool:
+    import re as _re
+    return any([
+        'delegatecall' in source,
+        'upgradeable' in source.lower(),
+        bool(_re.search(r'\bProxy\w*\b', source)),
+        bool(_re.search(r'function\s+implementation\s*\(\s*\)', source)),
+    ])
+
+
+def _deduct_n_credits(user_id: str, email: str, n: int) -> int:
+    """Atomically deduct n credits. Founder guard applied."""
+    if _is_founder(email):
+        return 9999
+    try:
+        result = _get_supa().rpc("deduct_n_credits", {"p_user_id": user_id, "p_n": n}).execute()
+        _increment_monthly_usage(user_id)
+        return result.data if result.data is not None else 0
+    except Exception:
+        logger.exception("[F12] Greška pri oduzimanju %d kredita za uid=%s", n, user_id)
+        return 0
+
+
+class SmartContractReq(BaseModel):
+    solidity_source: str = Field(..., min_length=1, max_length=50000)
+
+    @field_validator("solidity_source")
+    @classmethod
+    def ocisti(cls, v: str) -> str:
+        return v.strip()
+
+
+@app.post("/web3/analiziraj-ugovor")  # F12
+@limiter.limit("3/minute")
+async def post_analiziraj_ugovor(
+    req: SmartContractReq,
+    request: Request,
+    user: dict = Depends(require_pro),
+):
+    """F12 — Smart Contract Legal Analyzer: Solidity izvorni kod → strukturirana pravna analiza (PRO, 5 kredita)."""
+    import re as _re
+    import json as _json
+
+    source = req.solidity_source
+
+    if len(source.split()) < 50:
+        raise HTTPException(
+            status_code=400,
+            detail="Dostavljeni kod je previše kratak za pouzdanu pravnu analizu.",
+        )
+
+    # Credit check — 5 kredita
+    email = user.get("email", "")
+    if not _is_founder(email):
+        credits = await asyncio.to_thread(_get_credits, user["user_id"])
+        if credits < 5:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code": "NO_CREDITS",
+                    "message": "Nemate dovoljno kredita za ovu analizu. Potrebno je 5 kredita.",
+                    "credits_remaining": credits,
+                },
+            )
+
+    # Pre-processing (regex, no GPT)
+    solidity_version  = await asyncio.to_thread(_sc_extract_version, source)
+    contract_name     = await asyncio.to_thread(_sc_extract_name, source)
+    is_proxy_detected = await asyncio.to_thread(_sc_detect_proxy, source)
+
+    asyncio.create_task(_audit(user["user_id"], "smart_contract_analiza", ""))
+
+    user_msg = (
+        f"Analiziraj sledeći Solidity pametni ugovor:\n\n"
+        f"Naziv ugovora (auto-extracted): {contract_name}\n"
+        f"Verzija Solidity: {solidity_version}\n"
+        f"Proxy pattern detektovan: {'Da' if is_proxy_detected else 'Ne'}\n\n"
+        f"--- POČETAK KODA ---\n{source}\n--- KRAJ KODA ---"
+    )
+
+    def _call_gpt(messages):
+        from openai import OpenAI as _OAI
+        client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.2,
+            max_tokens=3000,
+            messages=messages,
+        )
+        content    = (resp.choices[0].message.content or "").strip()
+        tokens_out = resp.usage.total_tokens if resp.usage else 0
+        return content, tokens_out
+
+    def _parse_json(text: str) -> Optional[dict]:
+        text = text.strip()
+        # Strip markdown code fences if present
+        text = _re.sub(r'^```[a-zA-Z]*\n?', '', text)
+        text = _re.sub(r'\n?```$', '', text.strip()).strip()
+        try:
+            return _json.loads(text)
+        except Exception:
+            return None
+
+    try:
+        messages = [
+            {"role": "system", "content": _SC_SYSTEM_PROMPT},
+            {"role": "user",   "content": user_msg},
+        ]
+        raw_content, tokens_used = await asyncio.to_thread(_call_gpt, messages)
+    except Exception:
+        logger.exception("[F12] GPT poziv neuspešan")
+        raise HTTPException(status_code=500, detail="Greška na serveru. Pokušajte ponovo.")
+
+    analysis_result = _parse_json(raw_content)
+
+    if analysis_result is None:
+        # Retry once with explicit instruction
+        try:
+            retry_messages = messages + [
+                {"role": "assistant", "content": raw_content},
+                {"role": "user",      "content": "Greška: odgovor nije validan JSON. Vrati SAMO čist JSON bez markdown-a, komentara ili teksta izvan JSON strukture."},
+            ]
+            raw_content2, tokens_used2 = await asyncio.to_thread(_call_gpt, retry_messages)
+            tokens_used += tokens_used2
+            analysis_result = _parse_json(raw_content2)
+        except Exception:
+            logger.exception("[F12] Retry GPT neuspešan")
+
+    if analysis_result is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Analiza nije mogla biti generisana. Proverite da li je dostavljen validan Solidity kod.",
+        )
+
+    # Adjust confidence_tier: proxy always downgrades HIGH → MEDIUM
+    confidence_tier = str(analysis_result.get("confidence_tier", "LOW")).upper()
+    if is_proxy_detected and confidence_tier == "HIGH":
+        confidence_tier = "MEDIUM"
+        analysis_result["confidence_tier"] = "MEDIUM"
+
+    # Save to Supabase
+    def _save():
+        _get_supa().table("smart_contract_analyses").insert({
+            "user_id":           user["user_id"],
+            "contract_source":   source,
+            "contract_name":     contract_name,
+            "solidity_version":  solidity_version,
+            "analysis_result":   analysis_result,
+            "is_proxy_detected": is_proxy_detected,
+            "confidence_tier":   confidence_tier,
+            "tokens_used":       tokens_used,
+        }).execute()
+
+    try:
+        await asyncio.to_thread(_save)
+    except Exception:
+        logger.exception("[F12] Greška pri čuvanju analize u Supabase — nastavljam")
+
+    # Deduct 5 credits
+    preostalo = await asyncio.to_thread(_deduct_n_credits, user["user_id"], email, 5)
+
+    return {
+        "modul":             "smart_contract",
+        "contract_name":     contract_name,
+        "solidity_version":  solidity_version,
+        "is_proxy_detected": is_proxy_detected,
+        "analysis_result":   analysis_result,
+        "credits_remaining": max(preostalo, 0),
+    }
