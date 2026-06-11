@@ -413,6 +413,7 @@ async def require_credits(user: dict = Depends(get_current_user)) -> dict:
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 logger.info("=== STARTUP ENV CHECK ===")
+logger.info("=== CODE VERSION: 7ddfba8-mint-fix ===")
 logger.info("SUPABASE_URL    : %r", SUPABASE_URL)
 logger.info("SERVICE_KEY set : %s", bool(SUPABASE_SERVICE_KEY))
 logger.info("JWT_SECRET set  : %s", bool(SUPABASE_JWT_SECRET))
