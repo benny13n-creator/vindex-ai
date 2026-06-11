@@ -1351,6 +1351,25 @@ footer { padding: 2rem 1.5rem; }
 .crm-modal-actions{display:flex;gap:8px;margin-top:16px;}
 .crm-save-btn{flex:1;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
 .crm-cancel-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.6);font-size:0.85rem;padding:10px 16px;cursor:pointer;}
+.crm-back-btn{background:none;border:none;color:#89c8ff;font-size:0.82rem;cursor:pointer;padding:4px 0;}
+.crm-profil-tabovi{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:8px;}
+.crm-ptab{background:none;border:none;color:rgba(255,255,255,0.45);font-size:0.8rem;padding:5px 10px;cursor:pointer;border-radius:6px;transition:all 0.15s;}
+.crm-ptab.active{background:rgba(74,168,255,0.12);color:#89c8ff;font-weight:600;}
+.crm-profil-pane{animation:fadeIn 0.15s;}
+.crm-podaci-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem;}
+.crm-podaci-lbl{color:rgba(255,255,255,0.4);}
+.crm-podaci-val{color:#e6edf3;font-weight:500;text-align:right;max-width:60%;}
+.crm-confidential-banner{display:flex;align-items:center;justify-content:space-between;background:rgba(255,165,0,0.08);border:1px solid rgba(255,165,0,0.2);border-radius:8px;padding:10px 14px;margin:14px 0 8px;font-size:0.8rem;color:rgba(255,200,80,0.9);}
+.crm-reveal-btn{background:rgba(255,165,0,0.12);border:1px solid rgba(255,165,0,0.3);border-radius:6px;color:#ffd080;font-size:0.76rem;font-weight:600;padding:5px 10px;cursor:pointer;}
+.crm-reveal-btn:hover{background:rgba(255,165,0,0.22);}
+.crm-predmet-item{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:0.82rem;}
+.crm-timeline-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+.crm-tl-ikona{font-size:1.1rem;width:24px;text-align:center;flex-shrink:0;}
+.crm-tl-body{flex:1;}
+.crm-tl-datum{font-size:0.72rem;color:rgba(255,255,255,0.35);}
+.crm-tl-opis{font-size:0.82rem;color:#c9d1d9;margin-top:2px;}
+.crm-conflict-ok{background:rgba(50,200,100,0.1);border:1px solid rgba(50,200,100,0.25);border-radius:8px;padding:10px 14px;color:rgba(80,220,120,0.9);font-size:0.82rem;}
+.crm-conflict-warn{background:rgba(255,80,80,0.1);border:1px solid rgba(255,80,80,0.25);border-radius:8px;padding:10px 14px;color:rgba(255,120,120,0.95);font-size:0.82rem;}
 /* ── F11: Web3/MiCA ─────────────────────────────────────── */
 .web3-header{margin-bottom:16px;}
 .web3-naslov{font-size:1.1rem;color:#89c8ff;margin:0 0 4px 0;font-weight:700;}
@@ -2162,27 +2181,79 @@ footer { padding: 2rem 1.5rem; }
             </div>
           </div>
 
-          <!-- F8: CRM Klijenti tab -->
+          <!-- CRM Klijenti tab -->
           <div id="tab-k" style="display:none">
-            <div class="crm-header">
-              <span class="crm-header-title">👥 Klijenti</span>
-              <button class="crm-add-btn" onclick="crmOtvoriFormu()">+ Novi klijent</button>
+            <!-- Lista view -->
+            <div id="crm-lista-view">
+              <div class="crm-header">
+                <span class="crm-header-title">👥 Klijenti</span>
+                <div style="display:flex;gap:8px;">
+                  <button class="crm-add-btn" onclick="crmCheckKonfliktOtvori()" style="background:rgba(255,180,50,0.1);border-color:rgba(255,180,50,0.3);color:#ffd080;">⚠ Provjeri konflikt</button>
+                  <button class="crm-add-btn" onclick="crmOtvoriFormu()">+ Novi klijent</button>
+                </div>
+              </div>
+              <div class="crm-search-row">
+                <input id="crm-search-input" class="crm-search" type="text" placeholder="Pretraži po imenu..." onkeydown="if(event.key==='Enter')crm_pretrazi()">
+                <button class="crm-search-btn" onclick="crm_pretrazi()">Traži</button>
+              </div>
+              <div id="crm-lista"></div>
             </div>
-            <div class="crm-search-row">
-              <input id="crm-search-input" class="crm-search" type="text" placeholder="Pretraži po imenu..." onkeydown="if(event.key==='Enter')crm_pretrazi()">
-              <button class="crm-search-btn" onclick="crm_pretrazi()">Traži</button>
+
+            <!-- Profil view (sakriven dok ne izaberete klijenta) -->
+            <div id="crm-profil-view" style="display:none">
+              <div class="crm-header">
+                <button class="crm-back-btn" onclick="crmZatvoriProfil()">← Nazad</button>
+                <span class="crm-header-title" id="crm-profil-ime"></span>
+                <div style="display:flex;gap:6px;">
+                  <button class="crm-add-btn" style="font-size:0.78rem;padding:6px 10px;" onclick="crmOtvoriFormu(crmAktivniId)">✏ Uredi</button>
+                </div>
+              </div>
+              <!-- Profil tabovi -->
+              <div class="crm-profil-tabovi">
+                <button class="crm-ptab active" id="crm-pt-podaci"   onclick="crmProfilTab('podaci')">Podaci</button>
+                <button class="crm-ptab" id="crm-pt-aktivni"          onclick="crmProfilTab('aktivni')">Aktivni predmeti</button>
+                <button class="crm-ptab" id="crm-pt-zavrseni"         onclick="crmProfilTab('zavrseni')">Završeni</button>
+                <button class="crm-ptab" id="crm-pt-timeline"         onclick="crmProfilTab('timeline')">Timeline</button>
+                <button class="crm-ptab" id="crm-pt-dokumenti"        onclick="crmProfilTab('dokumenti')">Dokumenti</button>
+              </div>
+              <!-- Podaci tab -->
+              <div id="crm-pane-podaci" class="crm-profil-pane">
+                <div id="crm-podaci-javni"></div>
+                <div id="crm-confidential-section">
+                  <div class="crm-confidential-banner">
+                    <span>🔒 Poverljivi podaci (JMBG, pasoš, PIB)</span>
+                    <button class="crm-reveal-btn" id="crm-reveal-btn" onclick="crmOtkrijPoverljivo()">Prikaži poverljive podatke</button>
+                  </div>
+                  <div id="crm-podaci-poverljivi" style="display:none"></div>
+                </div>
+              </div>
+              <!-- Aktivni predmeti tab -->
+              <div id="crm-pane-aktivni" class="crm-profil-pane" style="display:none">
+                <div id="crm-aktivni-lista"></div>
+              </div>
+              <!-- Završeni predmeti tab -->
+              <div id="crm-pane-zavrseni" class="crm-profil-pane" style="display:none">
+                <div id="crm-zavrseni-lista"></div>
+              </div>
+              <!-- Timeline tab -->
+              <div id="crm-pane-timeline" class="crm-profil-pane" style="display:none">
+                <div id="crm-timeline-lista"></div>
+              </div>
+              <!-- Dokumenti tab -->
+              <div id="crm-pane-dokumenti" class="crm-profil-pane" style="display:none">
+                <div id="crm-dokumenti-lista"></div>
+              </div>
             </div>
-            <div id="crm-lista"></div>
           </div>
 
-          <!-- F8: CRM modal forma -->
+          <!-- CRM modal forma -->
           <div id="crm-overlay" class="crm-overlay" onclick="if(event.target===this)crmZatvoriFormu()">
             <div class="crm-modal">
               <div class="crm-modal-title" id="crm-modal-title">Novi klijent</div>
               <input type="hidden" id="crm-edit-id" value="">
               <div class="crm-tip-row">
-                <button class="crm-tip-btn active" id="crm-tip-fiz" onclick="crmSetTip('fizicko')">Fizičko lice</button>
-                <button class="crm-tip-btn" id="crm-tip-prav" onclick="crmSetTip('pravno')">Pravno lice</button>
+                <button class="crm-tip-btn active" id="crm-tip-fiz" onclick="crmSetTip('fizicko_lice')">Fizičko lice</button>
+                <button class="crm-tip-btn" id="crm-tip-prav" onclick="crmSetTip('pravno_lice')">Pravno lice</button>
               </div>
               <div class="crm-field-lbl">Ime *</div>
               <input id="crm-f-ime" class="crm-field" type="text" placeholder="Ime (ili naziv firme)">
@@ -2194,15 +2265,44 @@ footer { padding: 2rem 1.5rem; }
               <input id="crm-f-email" class="crm-field" type="email" placeholder="email@primer.rs">
               <div class="crm-field-lbl">Telefon</div>
               <input id="crm-f-telefon" class="crm-field" type="text" placeholder="+381 ...">
-              <div class="crm-field-lbl">JMBG / MB</div>
-              <input id="crm-f-jmbg" class="crm-field" type="text" placeholder="JMBG ili matični broj">
+              <div class="crm-field-lbl">JMBG (poverljivo — enkriptuje se)</div>
+              <input id="crm-f-jmbg" class="crm-field" type="text" placeholder="JMBG" autocomplete="off">
+              <div class="crm-field-lbl">Broj pasoša (poverljivo)</div>
+              <input id="crm-f-pasos" class="crm-field" type="text" placeholder="Broj pasoša" autocomplete="off">
+              <div class="crm-field-lbl">PIB (poverljivo)</div>
+              <input id="crm-f-pib" class="crm-field" type="text" placeholder="PIB firme" autocomplete="off">
               <div class="crm-field-lbl">Adresa</div>
               <input id="crm-f-adresa" class="crm-field" type="text" placeholder="Ulica i broj, grad">
+              <div class="crm-field-lbl">Pravni osnov obrade *</div>
+              <select id="crm-f-osnov" class="crm-field" style="background:#0d1117;color:#e6edf3;border:1px solid rgba(255,255,255,0.15);">
+                <option value="legitimni_interes">Legitimni interes</option>
+                <option value="ugovor">Izvršenje ugovora</option>
+                <option value="zakonska_obaveza">Zakonska obaveza</option>
+                <option value="saglasnost">Saglasnost klijenta</option>
+              </select>
               <div class="crm-field-lbl">Napomena</div>
               <textarea id="crm-f-napomena" class="crm-field" rows="2" placeholder="Interna napomena..."></textarea>
               <div class="crm-modal-actions">
                 <button class="crm-save-btn" onclick="crmSacuvaj()">Sačuvaj</button>
                 <button class="crm-cancel-btn" onclick="crmZatvoriFormu()">Otkaži</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conflict check modal -->
+          <div id="crm-conflict-overlay" class="crm-overlay" onclick="if(event.target===this)crmZatvoriKonflikt()">
+            <div class="crm-modal">
+              <div class="crm-modal-title">⚠ Provjera sukoba interesa</div>
+              <div class="crm-field-lbl">Ime *</div>
+              <input id="cf-ime" class="crm-field" type="text" placeholder="Ime">
+              <div class="crm-field-lbl">Prezime</div>
+              <input id="cf-prezime" class="crm-field" type="text" placeholder="Prezime">
+              <div class="crm-field-lbl">Firma</div>
+              <input id="cf-firma" class="crm-field" type="text" placeholder="Naziv firme">
+              <div id="cf-rezultat" style="margin-top:12px;min-height:40px;font-size:0.85rem;"></div>
+              <div class="crm-modal-actions">
+                <button class="crm-save-btn" onclick="crmPokreniKonflikt()">Provjeri</button>
+                <button class="crm-cancel-btn" onclick="crmZatvoriKonflikt()">Zatvori</button>
               </div>
             </div>
           </div>
@@ -3757,7 +3857,9 @@ async function obrisiKomentar(komId) {
 }
 
 /* ── F8: CRM KLIJENTI ──────────────────────────────────────── */
-var _crmTip = 'fizicko';
+var _crmTip = 'fizicko_lice';
+var crmAktivniId = null;
+var _crmProfilData = null;
 
 async function ucitajKlijente(pretraga) {
   var lista = document.getElementById('crm-lista');
@@ -3774,13 +3876,10 @@ async function ucitajKlijente(pretraga) {
     }
     lista.innerHTML = klijenti.map(function(k){
       var sub = [k.firma, k.email, k.telefon].filter(Boolean).join(' · ');
-      return '<div class="crm-kartica">'
+      return '<div class="crm-kartica" onclick="crmOtvoriProfil(\''+_htmlEsc(k.id)+'\')">'
         +'<div class="crm-kartica-ime">'+_htmlEsc((k.ime||'')+' '+(k.prezime||''))+'</div>'
         +(sub ? '<div class="crm-kartica-sub">'+_htmlEsc(sub)+'</div>' : '')
-        +'<div class="crm-kartica-akcije">'
-        +'<button class="crm-btn-edit" onclick="event.stopPropagation();crmUredi(\''+_htmlEsc(k.id)+'\')">Uredi</button>'
-        +'<button class="crm-btn-del" onclick="event.stopPropagation();crmObrisi(\''+_htmlEsc(k.id)+'\')">Obriši</button>'
-        +'</div>'
+        +'<div class="crm-kartica-sub" style="margin-top:4px;">'+_htmlEsc(k.status||'aktivan')+'</div>'
         +'</div>';
     }).join('');
   } catch(e) {
@@ -3793,12 +3892,129 @@ function crm_pretrazi() {
   ucitajKlijente(v ? v.value.trim() : '');
 }
 
+async function crmOtvoriProfil(klijentId) {
+  crmAktivniId = klijentId;
+  document.getElementById('crm-lista-view').style.display = 'none';
+  document.getElementById('crm-profil-view').style.display = 'block';
+  document.getElementById('crm-podaci-javni').innerHTML = '<div class="crm-prazno">Učitavam...</div>';
+  document.getElementById('crm-podaci-poverljivi').style.display = 'none';
+  document.getElementById('crm-reveal-btn').textContent = 'Prikaži poverljive podatke';
+  try {
+    var r = await fetch('/klijenti/'+klijentId, {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    var d = await r.json();
+    _crmProfilData = d;
+    var k = d.klijent || {};
+    document.getElementById('crm-profil-ime').textContent = (k.ime||'') + ' ' + (k.prezime||'') + (k.firma ? ' · '+k.firma : '');
+    crmRenderPodaci(k);
+    crmRenderPredmeti(d.aktivni_predmeti || [], d.zavrseni_predmeti || []);
+  } catch(e) {
+    document.getElementById('crm-podaci-javni').innerHTML = '<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška.</div>';
+  }
+  crmProfilTab('podaci');
+}
+
+function crmZatvoriProfil() {
+  crmAktivniId = null;
+  document.getElementById('crm-profil-view').style.display = 'none';
+  document.getElementById('crm-lista-view').style.display = 'block';
+}
+
+function crmProfilTab(tab) {
+  ['podaci','aktivni','zavrseni','timeline','dokumenti'].forEach(function(t){
+    var btn = document.getElementById('crm-pt-'+t);
+    var pane = document.getElementById('crm-pane-'+t);
+    if(btn) btn.classList.toggle('active', t===tab);
+    if(pane) pane.style.display = t===tab ? 'block' : 'none';
+  });
+  if (tab === 'timeline' && crmAktivniId) crmUcitajTimeline(crmAktivniId);
+  if (tab === 'dokumenti' && crmAktivniId) crmUcitajDokumente(crmAktivniId);
+}
+
+function crmRenderPodaci(k) {
+  var polja = [
+    ['Tip', k.tip], ['Status', k.status], ['Email', k.email],
+    ['Telefon', k.telefon], ['Adresa', k.adresa], ['Matični broj', k.maticni_broj],
+    ['Napomena', k.napomena], ['Pravni osnov', k.pravni_osnov_obrade],
+    ['Datum nastanka', (k.datum_nastanka||'').slice(0,10)],
+    ['Posl. aktivnost', (k.datum_poslednje_aktivnosti||'').slice(0,10)],
+  ];
+  document.getElementById('crm-podaci-javni').innerHTML = polja.filter(function(p){return p[1];}).map(function(p){
+    return '<div class="crm-podaci-row"><span class="crm-podaci-lbl">'+_htmlEsc(p[0])+'</span><span class="crm-podaci-val">'+_htmlEsc(p[1])+'</span></div>';
+  }).join('');
+}
+
+function crmRenderPredmeti(aktivni, zavrseni) {
+  var aEl = document.getElementById('crm-aktivni-lista');
+  var zEl = document.getElementById('crm-zavrseni-lista');
+  function renderPred(arr, el) {
+    if (!arr.length) { el.innerHTML='<div class="crm-prazno">Nema predmeta.</div>'; return; }
+    el.innerHTML = arr.map(function(p){
+      var pr = p.predmeti || {};
+      return '<div class="crm-predmet-item"><b>'+_htmlEsc(pr.naziv||'—')+'</b> <span style="color:rgba(255,255,255,0.4);font-size:0.75rem;">'+_htmlEsc(p.uloga_klijenta||'')+'</span></div>';
+    }).join('');
+  }
+  renderPred(aktivni, aEl);
+  renderPred(zavrseni, zEl);
+}
+
+async function crmOtkrijPoverljivo() {
+  if (!crmAktivniId) return;
+  var btn = document.getElementById('crm-reveal-btn');
+  var pane = document.getElementById('crm-podaci-poverljivi');
+  if (pane.style.display === 'block') { pane.style.display='none'; btn.textContent='Prikaži poverljive podatke'; return; }
+  btn.textContent = 'Učitavam...'; btn.disabled = true;
+  try {
+    var r = await fetch('/klijenti/'+crmAktivniId+'?reveal_confidential=true', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (r.status === 403) { alert('Nemate pravo uvida u poverljive podatke.'); btn.textContent='Prikaži poverljive podatke'; btn.disabled=false; return; }
+    var d = await r.json();
+    var k = d.klijent || {};
+    var items = [['JMBG', k.jmbg], ['Broj pasoša', k.broj_pasosa], ['PIB', k.pib]].filter(function(i){return i[1];});
+    if (!items.length) { pane.innerHTML='<div style="font-size:0.8rem;color:rgba(255,255,255,0.35);padding:8px 0;">Nema upisanih poverljivih podataka.</div>'; }
+    else { pane.innerHTML = items.map(function(i){ return '<div class="crm-podaci-row"><span class="crm-podaci-lbl">'+_htmlEsc(i[0])+'</span><span class="crm-podaci-val" style="font-family:monospace;color:#ffd080;">'+_htmlEsc(i[1])+'</span></div>'; }).join(''); }
+    pane.style.display = 'block';
+    btn.textContent = 'Sakrij poverljive podatke';
+  } catch(e) { alert('Greška.'); btn.textContent='Prikaži poverljive podatke'; }
+  btn.disabled = false;
+}
+
+async function crmUcitajTimeline(klijentId) {
+  var el = document.getElementById('crm-timeline-lista');
+  el.innerHTML = '<div class="crm-prazno">Učitavam...</div>';
+  try {
+    var r = await fetch('/klijenti/'+klijentId+'/timeline', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    var d = await r.json();
+    var events = d.timeline || [];
+    if (!events.length) { el.innerHTML='<div class="crm-prazno">Nema aktivnosti.</div>'; return; }
+    el.innerHTML = events.map(function(ev){
+      return '<div class="crm-timeline-item"><div class="crm-tl-ikona">'+(ev.ikona||'📌')+'</div><div class="crm-tl-body"><div class="crm-tl-datum">'+_htmlEsc((ev.datum||'').slice(0,16).replace('T',' '))+'</div><div class="crm-tl-opis">'+_htmlEsc(ev.opis||ev.tip||'')+'</div></div></div>';
+    }).join('');
+  } catch(e) { el.innerHTML='<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška.</div>'; }
+}
+
+async function crmUcitajDokumente(klijentId) {
+  var el = document.getElementById('crm-dokumenti-lista');
+  el.innerHTML = '<div class="crm-prazno">Učitavam...</div>';
+  try {
+    var r = await fetch('/klijenti/'+klijentId+'/dokumenti', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    var d = await r.json();
+    var docs = d.dokumenti || [];
+    if (!docs.length) { el.innerHTML='<div class="crm-prazno">Nema dokumenata. <span style="color:rgba(255,255,255,0.3);font-size:0.75rem;">(Upload: advokat+)</span></div>'; return; }
+    el.innerHTML = docs.map(function(doc){
+      var size = doc.velicina ? (doc.velicina/1024).toFixed(0)+' KB' : '';
+      return '<div class="crm-predmet-item" style="display:flex;justify-content:space-between;align-items:center;">'
+        +'<span>'+_htmlEsc(doc.tip_dokumenta||'dokument')+' <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">'+_htmlEsc(size)+'</span></span>'
+        +'<a href="/klijenti/'+_htmlEsc(klijentId)+'/dokumenti/'+_htmlEsc(doc.id)+'/download" class="crm-btn-edit" style="text-decoration:none;" target="_blank">⬇ Preuzmi</a>'
+        +'</div>';
+    }).join('');
+  } catch(e) { el.innerHTML='<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška.</div>'; }
+}
+
 function crmOtvoriFormu(editId) {
   document.getElementById('crm-edit-id').value = editId || '';
   document.getElementById('crm-modal-title').textContent = editId ? 'Uredi klijenta' : 'Novi klijent';
   if (!editId) {
-    ['crm-f-ime','crm-f-prezime','crm-f-firma','crm-f-email','crm-f-telefon','crm-f-jmbg','crm-f-adresa','crm-f-napomena'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-    crmSetTip('fizicko');
+    ['crm-f-ime','crm-f-prezime','crm-f-firma','crm-f-email','crm-f-telefon','crm-f-jmbg','crm-f-pasos','crm-f-pib','crm-f-adresa','crm-f-napomena'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    crmSetTip('fizicko_lice');
   }
   document.getElementById('crm-overlay').classList.add('open');
 }
@@ -3809,34 +4025,39 @@ function crmZatvoriFormu() {
 
 function crmSetTip(tip) {
   _crmTip = tip;
-  document.getElementById('crm-tip-fiz').classList.toggle('active', tip === 'fizicko');
-  document.getElementById('crm-tip-prav').classList.toggle('active', tip === 'pravno');
+  document.getElementById('crm-tip-fiz').classList.toggle('active', tip === 'fizicko_lice');
+  document.getElementById('crm-tip-prav').classList.toggle('active', tip === 'pravno_lice');
 }
 
 async function crmSacuvaj() {
   var editId = document.getElementById('crm-edit-id').value;
   var payload = {
-    ime:      (document.getElementById('crm-f-ime').value || '').trim(),
-    prezime:  (document.getElementById('crm-f-prezime').value || '').trim(),
-    firma:    (document.getElementById('crm-f-firma').value || '').trim(),
-    email:    (document.getElementById('crm-f-email').value || '').trim(),
-    telefon:  (document.getElementById('crm-f-telefon').value || '').trim(),
-    jmbg_mb:  (document.getElementById('crm-f-jmbg').value || '').trim(),
-    adresa:   (document.getElementById('crm-f-adresa').value || '').trim(),
-    napomena: (document.getElementById('crm-f-napomena').value || '').trim(),
-    tip:      _crmTip,
+    tip:                  _crmTip,
+    ime:                  (document.getElementById('crm-f-ime').value || '').trim(),
+    prezime:              (document.getElementById('crm-f-prezime').value || '').trim(),
+    firma:                (document.getElementById('crm-f-firma').value || '').trim(),
+    email:                (document.getElementById('crm-f-email').value || '').trim(),
+    telefon:              (document.getElementById('crm-f-telefon').value || '').trim(),
+    jmbg:                 (document.getElementById('crm-f-jmbg').value || '').trim(),
+    broj_pasosa:          (document.getElementById('crm-f-pasos').value || '').trim(),
+    pib:                  (document.getElementById('crm-f-pib').value || '').trim(),
+    adresa:               (document.getElementById('crm-f-adresa').value || '').trim(),
+    napomena:             (document.getElementById('crm-f-napomena').value || '').trim(),
+    pravni_osnov_obrade:  document.getElementById('crm-f-osnov').value || 'legitimni_interes',
   };
   if (!payload.ime) { alert('Ime je obavezno polje.'); return; }
   var url = editId ? '/klijenti/'+editId : '/klijenti';
   var method = editId ? 'PUT' : 'POST';
   try {
-    await fetch(url, {
+    var r = await fetch(url, {
       method: method,
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
       body: JSON.stringify(payload)
     });
+    if (!r.ok) { var err=await r.json(); alert('Greška: '+(err.detail||r.status)); return; }
     crmZatvoriFormu();
-    ucitajKlijente();
+    if (editId && crmAktivniId === editId) crmOtvoriProfil(editId);
+    else ucitajKlijente();
   } catch(e) { alert('Greška pri čuvanju.'); }
 }
 
@@ -3850,21 +4071,55 @@ async function crmUredi(klijentId) {
     document.getElementById('crm-f-firma').value    = k.firma    || '';
     document.getElementById('crm-f-email').value    = k.email    || '';
     document.getElementById('crm-f-telefon').value  = k.telefon  || '';
-    document.getElementById('crm-f-jmbg').value     = k.jmbg_mb  || '';
     document.getElementById('crm-f-adresa').value   = k.adresa   || '';
     document.getElementById('crm-f-napomena').value = k.napomena || '';
-    crmSetTip(k.tip || 'fizicko');
+    if (document.getElementById('crm-f-osnov')) document.getElementById('crm-f-osnov').value = k.pravni_osnov_obrade || 'legitimni_interes';
+    crmSetTip(k.tip || 'fizicko_lice');
     crmOtvoriFormu(klijentId);
   } catch(e) { alert('Greška pri učitavanju klijenta.'); }
 }
 
 async function crmObrisi(klijentId) {
-  if (!confirm('Obrisati klijenta?')) return;
-  await fetch('/klijenti/'+klijentId, {
+  if (!confirm('Soft-delete klijenta? (Samo partner može. Podaci ostaju u sistemu.)')) return;
+  var r = await fetch('/klijenti/'+klijentId, {
     method:'DELETE',
     headers:{'Authorization':'Bearer '+currentSession.access_token}
   });
+  if (r.status === 403) { alert('Samo partner može brisati klijente.'); return; }
+  crmZatvoriProfil();
   ucitajKlijente();
+}
+
+function crmCheckKonfliktOtvori() {
+  ['cf-ime','cf-prezime','cf-firma'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('cf-rezultat').innerHTML = '';
+  document.getElementById('crm-conflict-overlay').classList.add('open');
+}
+function crmZatvoriKonflikt() { document.getElementById('crm-conflict-overlay').classList.remove('open'); }
+
+async function crmPokreniKonflikt() {
+  var ime = (document.getElementById('cf-ime').value||'').trim();
+  if (!ime) { alert('Ime je obavezno.'); return; }
+  var rezultat = document.getElementById('cf-rezultat');
+  rezultat.innerHTML = 'Provjeram...';
+  try {
+    var r = await fetch('/klijenti/check-conflict', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify({
+        ime: ime,
+        prezime: (document.getElementById('cf-prezime').value||'').trim(),
+        firma:   (document.getElementById('cf-firma').value||'').trim(),
+      })
+    });
+    var d = await r.json();
+    if (!d.conflict_detected) {
+      rezultat.innerHTML = '<div class="crm-conflict-ok">✅ Nije pronađen sukob interesa.</div>';
+    } else {
+      var detalji = (d.details||[]).map(function(c){ return '<div style="margin-top:6px;font-size:0.78rem;">⚠ '+_htmlEsc(c.detalji)+'</div>'; }).join('');
+      rezultat.innerHTML = '<div class="crm-conflict-warn"><b>⚠ Pronađen potencijalni sukob!</b>'+detalji+'</div>';
+    }
+  } catch(e) { rezultat.innerHTML='<span style="color:rgba(255,80,80,0.7);">Greška pri provjeri.</span>'; }
 }
 
 /* ── F11: WEB3 / COMPLIANCE ──────────────────────────────── */
