@@ -4383,6 +4383,34 @@ def _sc_detect_proxy(source: str) -> bool:
     ])
 
 
+def _sc_detect_lock_without_exit(source: str) -> bool:
+    import re as _re
+    has_owner_control  = bool(_re.search(r'(onlyOwner|msg\.sender\s*==\s*owner|require\s*\(\s*msg\.sender\s*==\s*owner)', source, _re.IGNORECASE))
+    has_lock_period    = bool(_re.search(r'(lockPeriod|lockUntil|lockTime|unlockTime|lock_period)', source, _re.IGNORECASE))
+    has_emergency_exit = bool(_re.search(r'(emergencyWithdraw|pause\(|emergencyStop|circuitBreaker|emergency_withdraw|whenNotPaused)', source, _re.IGNORECASE))
+    return has_owner_control and has_lock_period and not has_emergency_exit
+
+
+_DEFAULT_OFFCHAIN_PLACEHOLDER = {
+    "zavisnost": "Nema identifikovanih eksplicitnih off-chain zavisnosti u dostavljenom kodu",
+    "napomena": "Stvarna primena (frontend, deployment proces, upravljanje privatnim ključevima) može uvesti dodatne zavisnosti koje nisu predmet ove analize.",
+}
+
+_AML_KYC_NAPOMENA = (
+    " Ovo je strukturna karakteristika blockchain tehnologije i ne ukazuje na specifičan rizik ovog ugovora,"
+    " ali je relevantno za AML/KYC analizu na nivou platforme/posrednika."
+)
+
+_LOCK_WITHOUT_EXIT_RISK = {
+    "rizik": "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim okolnostima.",
+    "ozbiljnost": "VISOK",
+    "obrazlozenje": (
+        "Korisnička sredstva su zaključana do isteka definisanog perioda bez mogućnosti ranijeg povlačenja,"
+        " čak ni u slučaju greške, kompromitacije administratorskog ključa ili nestanka administratora."
+    ),
+}
+
+
 def _deduct_n_credits(user_id: str, email: str, n: int) -> int:
     """Atomically deduct n credits. Founder guard applied."""
     if _is_founder(email):
@@ -4439,17 +4467,28 @@ async def post_analiziraj_ugovor(
             )
 
     # Pre-processing (regex, no GPT)
-    solidity_version  = await asyncio.to_thread(_sc_extract_version, source)
-    contract_name     = await asyncio.to_thread(_sc_extract_name, source)
-    is_proxy_detected = await asyncio.to_thread(_sc_detect_proxy, source)
+    solidity_version     = await asyncio.to_thread(_sc_extract_version, source)
+    contract_name        = await asyncio.to_thread(_sc_extract_name, source)
+    is_proxy_detected    = await asyncio.to_thread(_sc_detect_proxy, source)
+    is_lock_without_exit = await asyncio.to_thread(_sc_detect_lock_without_exit, source)
 
     asyncio.create_task(_audit(user["user_id"], "smart_contract_analiza", ""))
 
+    _static_note = (
+        "NAPOMENA IZ STATIČKE ANALIZE: Kod sadrži funkcije sa owner-only kontrolom i mehanizam "
+        "zaključavanja sredstava na vremenski period, ali ne sadrži prepoznatljiv emergency/pause/withdraw "
+        "mehanizam za vanredne situacije. Ako ovo potvrdiš pregledom koda, OBAVEZNO uključi odgovarajući "
+        "rizik u pravni_rizici sa ozbiljnost \"VISOK\", koji opisuje da korisnička sredstva mogu ostati "
+        "nedostupna do isteka perioda zaključavanja bez mogućnosti ranijeg povlačenja u vanrednim okolnostima "
+        "(greška, kompromitovan ključ, nestanak administratora).\n\n"
+        if is_lock_without_exit else ""
+    )
     user_msg = (
         f"Analiziraj sledeći Solidity pametni ugovor:\n\n"
         f"Naziv ugovora (auto-extracted): {contract_name}\n"
         f"Verzija Solidity: {solidity_version}\n"
         f"Proxy pattern detektovan: {'Da' if is_proxy_detected else 'Ne'}\n\n"
+        f"{_static_note}"
         f"--- POČETAK KODA ---\n{source}\n--- KRAJ KODA ---"
     )
 
@@ -4512,6 +4551,30 @@ async def post_analiziraj_ugovor(
     if is_proxy_detected and confidence_tier == "HIGH":
         confidence_tier = "MEDIUM"
         analysis_result["confidence_tier"] = "MEDIUM"
+
+    # Post-processing: deterministic guarantees (Steps 1, 2, 5)
+    # Step 1: offchain_zavisnosti — never leave empty
+    if not analysis_result.get("offchain_zavisnosti"):
+        analysis_result["offchain_zavisnosti"] = [_DEFAULT_OFFCHAIN_PLACEHOLDER]
+
+    # Step 2: anonimnost_ucesnika — always append AML/KYC structural note
+    _anon = analysis_result.get("pravni_indikatori", {}).get("anonimnost_ucesnika", {})
+    if isinstance(_anon, dict) and _anon.get("indikator") in ("DA", "MOGUĆE"):
+        _obr = _anon.get("obrazlozenje", "")
+        if _AML_KYC_NAPOMENA.strip() not in _obr:
+            _anon["obrazlozenje"] = _obr.rstrip(".") + "." + _AML_KYC_NAPOMENA
+
+    # Step 5: lock-without-exit fallback — inject risk if GPT missed it
+    if is_lock_without_exit:
+        _existing = analysis_result.get("pravni_rizici", [])
+        _already = any(
+            "povraćaj" in r.get("rizik", "").lower()
+            or "povracaj" in r.get("rizik", "").lower()
+            or "prevremen" in r.get("rizik", "").lower()
+            for r in _existing
+        )
+        if not _already:
+            analysis_result["pravni_rizici"] = _existing + [_LOCK_WITHOUT_EXIT_RISK]
 
     # Save to Supabase
     def _save():
