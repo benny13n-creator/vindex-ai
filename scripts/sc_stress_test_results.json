@@ -1,0 +1,456 @@
+[
+  {
+    "contract": "dao_voting",
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 9.2,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 2,
+        "elapsed_s": 9.3,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 3,
+        "elapsed_s": 10.9,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3"
+        ],
+        "mica_clanovi": []
+      }
+    ]
+  },
+  {
+    "contract": "escrow",
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 13.4,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 5"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 2,
+        "elapsed_s": 11.2,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [],
+        "mica_clanovi": []
+      },
+      {
+        "run": 3,
+        "elapsed_s": 12.7,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [],
+        "mica_clanovi": []
+      }
+    ]
+  },
+  {
+    "contract": "multisig_wallet",
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 13.2,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [],
+        "mica_clanovi": []
+      },
+      {
+        "run": 2,
+        "elapsed_s": 7.7,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [],
+        "mica_clanovi": []
+      },
+      {
+        "run": 3,
+        "elapsed_s": 10.8,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4 st. 1"
+        ],
+        "mica_clanovi": []
+      }
+    ]
+  },
+  {
+    "contract": "nft_mint",
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 12.5,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4 st. 1"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 2,
+        "elapsed_s": 9.6,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4 st. 1"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 3,
+        "elapsed_s": 11.4,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4 st. 2"
+        ],
+        "mica_clanovi": []
+      }
+    ]
+  },
+  {
+    "contract": "simple_erc20",
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 11.7,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4 st. 1"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 2,
+        "elapsed_s": 12.1,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 3,
+        "elapsed_s": 12.2,
+        "error": null,
+        "broj_pravnih_rizika": 0,
+        "naslovi_rizika": [],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4 st. 1"
+        ],
+        "mica_clanovi": []
+      }
+    ]
+  },
+  {
+    "contract": "simple_proxy",
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 10.4,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Administrator može promeniti implementaciju u bilo kom trenutku."
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "MEDIUM",
+        "is_proxy_detected": true,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 2,
+        "elapsed_s": 8.4,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Administrator može promeniti implementaciju u bilo kom trenutku b"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "MEDIUM",
+        "is_proxy_detected": true,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 3,
+        "elapsed_s": 14.2,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Administrator može promeniti implementaciju bez vremenskog ograni"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "MEDIUM",
+        "is_proxy_detected": true,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3"
+        ],
+        "mica_clanovi": []
+      }
+    ]
+  },
+  {
+    "contract": "simple_staking",
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 11.8,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4 st. 1"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 2,
+        "elapsed_s": 12.6,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4 st. 2"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 3,
+        "elapsed_s": 9.9,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4"
+        ],
+        "mica_clanovi": []
+      }
+    ]
+  },
+  {
+    "contract": "vesting",
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 10.8,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 5 st. 1"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 2,
+        "elapsed_s": 11.9,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 5"
+        ],
+        "mica_clanovi": []
+      },
+      {
+        "run": 3,
+        "elapsed_s": 9.2,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "anon_indikator": "DA",
+        "confidence_tier": "HIGH",
+        "is_proxy_detected": false,
+        "zdi_clanovi": [
+          "čl. 3 st. 1 tač. 3",
+          "čl. 4 st. 1"
+        ],
+        "mica_clanovi": []
+      }
+    ]
+  }
+]
