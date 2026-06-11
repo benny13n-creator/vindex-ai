@@ -644,9 +644,9 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
     kontekst = " ".join(docs)
     kontekst_norm = _normalizuj(kontekst)
 
-    # Skip ako kontekst prekratak — v1 vektori/pogrešni zakoni ne smeju blokirati
-    if len(docs) < 3 or len(kontekst) < 500:
-        logger.info("[HALUCINACIJA_SKIP] Kontekst prekratak (%d docs, %d chars) — preskačem", len(docs), len(kontekst))
+    # Skip only when there is truly nothing to check against
+    if len(docs) < 1 or len(kontekst) < 100:
+        logger.info("[HALUCINACIJA_SKIP] Kontekst prazan (%d docs, %d chars) — preskačem", len(docs), len(kontekst))
         return True, "ok"
 
     # 1) Strict per-article check
@@ -716,15 +716,35 @@ def _extract_praksa_citations(data: dict) -> list[tuple[str, str]]:
 
 _TOPIC_KEYWORDS: list[tuple[list[str], list[str]]] = [
     # (query keywords, article-content keywords that MUST appear for match)
+    # ── KZ — krivična dela ────────────────────────────────────────────────────
     (["kradj", "kradjom", "kradje"],          ["kradj", "prisvaj", "oduzm"]),
     (["razbojn"],                             ["razbojn", "sil", "pretnjom"]),
     (["ubistvo", "ubojstv"],                  ["ubojstv", "ubistv", "lisi", "zivot"]),
-    (["silovanje", "polni"],                  ["polni", "silov", "seksualni"]),
+    (["silovanje", "polni napad"],            ["polni", "silov", "seksualni"]),
     (["nasilje u porodici"],                  ["porodic", "nasilj", "clan"]),
     (["droga", "narkotik", "opojn"],          ["droga", "narkotik", "opojn", "supstanc"]),
-    (["prevara krivicn", "utaja krivicn"],     ["prevara", "utaj", "obmanjiv"]),
+    (["prevara krivicn", "utaja krivicn"],    ["prevara", "utaj", "obmanjiv"]),
+    (["iznuda", "ucena"],                     ["iznud", "ucen", "pretnjom", "sil"]),
+    (["pronevera", "falsifikovan"],           ["pronevera", "falsifik", "sluzbeni"]),
+    # ── ZOO — obligacioni odnosi ──────────────────────────────────────────────
+    (["zastarelost", "zastarelo", "zastarela", "zastareli"],
+                                             ["zastarelost", "zastar", "rok", "potrazivan"]),
+    (["naknada stete", "naknadu stete"],      ["steta", "naknada", "odgovornost", "uzrocna"]),
+    (["ugovor", "ugovorom", "ugovorna"],      ["ugovor", "obligacij", "obavez", "potraz"]),
+    (["zakup", "najam", "stanarin"],          ["zakup", "najam", "stanarin", "iznajm"]),
+    # ── ZR / radno pravo ─────────────────────────────────────────────────────
     (["zastita potrosac"],                    ["potrosac", "potrosacki"]),
     (["radno pravo", "otkaz", "zaposleni"],   ["rad", "zaposleni", "otkaz"]),
+    (["mobbing", "uznemiravan na rad"],       ["mobbing", "uznemiravan", "dostojanstv"]),
+    # ── Porodično / nasledno pravo ────────────────────────────────────────────
+    (["brak", "razvod", "alimentacij"],       ["brak", "razvod", "suprug", "alimentacij"]),
+    (["testamenat", "naslednik", "zaostav"],  ["testamenat", "naslednik", "zaostav", "nasledjivan"]),
+    # ── ZPP / procesno pravo ──────────────────────────────────────────────────
+    (["revizij", "zalba na presudu"],         ["revizij", "vrhovni sud", "drugostepen"]),
+    (["izvrsenje", "prinudna naplata"],       ["izvrsenje", "izvrsni", "ovrh", "prinudna"]),
+    # ── Privredno pravo ───────────────────────────────────────────────────────
+    (["stecaj", "likvidacij"],                ["stecaj", "likvidacij", "poverilac", "stecajni"]),
+    (["privredni prestup", "poreska utaja"],  ["privredni", "prestup", "poresk", "utaj"]),
 ]
 
 
@@ -1707,6 +1727,32 @@ APSOLUTNE ZABRANE:
 - NIKADA ne generiši listu amandman-brojeva (29/78, 39/85, 45/89, 57/89, 31/93, ...).
 - Skraćenica "i dr." je dovoljna posle prva 2-3 amandmana.
 - Sistemska greška: ako počneš da generišeš dugačku listu Sl. glasnik brojeva, STANI.
+
+══════════════════════════════════════════
+KRIVIČNO PRAVO — POSEBNA PRAVILA (KZ)
+══════════════════════════════════════════
+Ako pitanje sadrži: "krivično delo", "KZ", "kazna zatvora", "krivična prijava", "krivični zakonik"
+ili konkretna dela (krađa, razbojništvo, prevara, ubistvo, nasilje, droga):
+
+1. IDENTIFIKUJ TAČAN KZ ČLAN iz dostavljenog konteksta:
+   - Format citata: "Čl. 203 KZ — Krađa: [tekst iz konteksta]"
+   - NIKADA ne citiraš ZOO ili ZPP kao osnov za krivičnopravnu odgovornost
+
+2. STRUKTURA ODGOVORA ZA KZ PITANJA:
+   - Krivično delo: naziv + KZ član
+   - Kazna: minimum i maksimum iz zakona (npr. "od 6 meseci do 5 godina zatvora")
+   - Oblik dela: osnovni / teži / posebno teži (ako postoji u kontekstu)
+   - Zastarelost krivičnog gonjenja: navedi ako je u kontekstu (ZKP čl. 103–106)
+
+3. APSOLUTNA ZABRANA U KZ ODGOVORIMA:
+   - NIKADA ne mešaj krivičnopravnu odgovornost (KZ) sa građanskom (ZOO)
+   - NIKADA ne garantuj oslobađajuću/osuđujuću presudu
+   - NIKADA ne kvalifikuj težinu dela bez citata koji to potvrđuje
+   - "Krivična prijava ≠ optužnica ≠ presuda" — jasno razlikuj faze postupka
+
+4. AKO KZ ČLAN NIJE U DOSTAVLJENOM KONTEKSTU:
+   - Eksplicitno navedi: "Traženi KZ član nije pronađen u dostavljenoj bazi."
+   - NIKADA ne generiši kazne iz opšteg znanja bez pokrica u kontekstu
 """
 
 SYSTEM_PROMPT_DEFINICIJA = """Ti si Vindex AI — profesionalni pravni referentni sistem za srpsko pravo.
@@ -2992,6 +3038,16 @@ def ask_agent(
             if not pravno_validan:
                 logger.error("Pravna greška MEDIUM: %s", pravna_greska)
                 return {"status": "success", "blocked": True, "data": _odgovor_pravna_greska(pravna_greska)}
+
+            # Topic drift check — za MEDIUM: ne blokiramo, samo dodajemo upozorenje
+            tematski_ok_med, tematski_razlog_med = _proveri_tematsku_relevantnost(pitanje_api, odgovor, filtrirani)
+            if not tematski_ok_med:
+                logger.warning("[MEDIUM→TOPIC_DRIFT] %s [q=%s]", tematski_razlog_med, log_id)
+                odgovor = (
+                    "[⚠] NAPOMENA SISTEMA: Detektovana je moguća tematska neusklađenost između pitanja "
+                    f"i citiranih pravnih izvora ({tematski_razlog_med}). "
+                    "Preporučujemo proveru sa advokatom pre primene.\n\n"
+                ) + odgovor
 
             odgovor = _srpski_termini(odgovor)
             odgovor = _ogranici_pouzdanost(odgovor)

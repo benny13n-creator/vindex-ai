@@ -29,6 +29,7 @@ class Akcija:
     EXPORT            = "EXPORT"
     CONFLICT_FLAGGED  = "CONFLICT_CHECK_FLAGGED"
     KOMUNIKACIJA_ADD  = "KOMUNIKACIJA_ADD"
+    RESTORE           = "RESTORE"
 
 
 async def log_event(

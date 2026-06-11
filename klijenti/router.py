@@ -508,6 +508,49 @@ async def delete_klijent(
     return {"status": "obrisan"}
 
 
+@router.post("/klijenti/{klijent_id}/restore")
+async def restore_klijent(
+    klijent_id: str,
+    request: Request,
+):
+    """
+    Faza 1+5 — Vraća soft-deleted klijenta u aktivni status (samo PARTNER rola).
+    Samo klijenti sa status='soft_deleted' mogu biti restaurirani.
+    """
+    user = await _auth_from_request(request)
+    if not can_perform(user["role"], "soft_delete_client"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Samo partner može restaurirati obrisane klijente.",
+        )
+    if not await _verify_owns_klijent(_get_supa(), klijent_id, user["user_id"]):
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
+
+    supa = _get_supa()
+    ip = get_client_ip(request)
+
+    res = await asyncio.to_thread(
+        lambda: supa.table("klijenti")
+                    .update({"status": "aktivan", "deleted_at": None, "aktivan": True})
+                    .eq("id", klijent_id)
+                    .eq("user_id", user["user_id"])
+                    .eq("status", "soft_deleted")
+                    .execute()
+    )
+    if not res.data:
+        raise HTTPException(
+            status_code=404,
+            detail="Klijent nije pronađen ili nije u statusu 'soft_deleted'.",
+        )
+
+    asyncio.create_task(log_event(
+        supa=supa, user_id=user["user_id"], user_email=user.get("email", ""),
+        user_role=user.get("role_str", "partner"), akcija=Akcija.RESTORE,
+        entitet_id=klijent_id, ip_adresa=ip,
+    ))
+    return {"status": "restauriran"}
+
+
 # ─── FAZA 3: Conflict of Interest check ──────────────────────────────────────
 
 @router.post("/klijenti/check-conflict")

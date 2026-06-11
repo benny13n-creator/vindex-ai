@@ -13,6 +13,14 @@ HARD RULES (ne sme se menjati):
 Generisanje ključa (jednom, na serveru):
   python -c "import secrets,base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
   → Dodaj u Render/Supabase env: FIELD_ENCRYPTION_KEY=<output>
+
+FORMAT ENKRIPTOVANIH VREDNOSTI:
+  Novi format (od v2):  enc_v1:k1:<base64url(nonce[12B] || ciphertext+tag)>
+  Legacy format (v1):   enc_v1:<base64url(nonce[12B] || ciphertext+tag)>
+
+  Oba formata se dekriptuju identično — legacy se tretira kao k1.
+  Novi format uvodi KEY_ID u vrednost, što omogućava buduću rotaciju ključa
+  bez ponovnog enkriptovanja svih zapisa odjednom (KEY_ROTATION_ANALYSIS.md).
 """
 from __future__ import annotations
 
@@ -23,9 +31,10 @@ import uuid
 
 logger = logging.getLogger("vindex.security.crypto")
 
-_KEY_ENV   = "FIELD_ENCRYPTION_KEY"
+_KEY_ENV    = "FIELD_ENCRYPTION_KEY"
+_KEY_ID_ENV = "FIELD_ENCRYPTION_KEY_ID"   # INT — aktivan key ID (default 1)
 _ENC_PREFIX = "enc_v1:"
-_NONCE_LEN = 12  # 96-bit nonce za AES-GCM (standard)
+_NONCE_LEN  = 12   # 96-bit nonce za AES-GCM (standard)
 _MIN_KEY_BYTES = 32
 
 
@@ -75,21 +84,25 @@ def validate_field_encryption_key() -> None:
         ))
         sys.exit(1)
 
-    # Smoke test — provjeri da AES-GCM radi sa ovim ključem
+    # Smoke test — provjeri da AES-GCM radi sa ovim ključem koristeći novi format
     try:
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         key = key_bytes[:_MIN_KEY_BYTES]
         nonce = os.urandom(_NONCE_LEN)
         aesgcm = AESGCM(key)
         ct = aesgcm.encrypt(nonce, b"vindex_smoke_test", None)
-        pt = aesgcm.decrypt(nonce, ct, None)
-        if pt != b"vindex_smoke_test":
+        encoded = base64.urlsafe_b64encode(nonce + ct).decode("ascii")
+        # Verifikuj novi format round-trip
+        test_enc = f"enc_v1:k1:{encoded}"
+        decrypted = decrypt_field(test_enc)
+        if decrypted != "vindex_smoke_test":
             raise ValueError("Smoke test round-trip nije uspeo")
     except Exception as e:
         print(_ABORT_MSG.format(detail=f"  Razlog: AES-GCM smoke test nije uspeo.\n  Greška: {e}"))
         sys.exit(1)
 
-    logger.info("[CRYPTO] FIELD_ENCRYPTION_KEY validacija prosla (key_len=%d bajta).", len(key_bytes))
+    logger.info("[CRYPTO] FIELD_ENCRYPTION_KEY validacija prosla (key_len=%d bajta, kid=k%s).",
+                len(key_bytes), os.environ.get(_KEY_ID_ENV, "1"))
 
 
 # ─── AES-256-GCM Field Encryption ────────────────────────────────────────────
@@ -115,30 +128,43 @@ def _get_field_key() -> bytes:
     return key_bytes[:_MIN_KEY_BYTES]
 
 
+def _get_active_key_id() -> int:
+    """Vraća aktivan KEY_ID (int) iz env vara. Default je 1."""
+    try:
+        return int(os.environ.get(_KEY_ID_ENV, "1"))
+    except (ValueError, TypeError):
+        return 1
+
+
 def encrypt_field(plaintext: str) -> str:
     """
     Enkriptuje string polje sa AES-256-GCM.
 
-    Format: "enc_v1:<base64url(nonce[12B] || ciphertext+tag)>"
+    Format: "enc_v1:k{kid}:<base64url(nonce[12B] || ciphertext+tag)>"
     Prazni string → vraća ""
     """
     if not plaintext:
         return ""
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     key = _get_field_key()
+    kid = _get_active_key_id()
     nonce = os.urandom(_NONCE_LEN)
     aesgcm = AESGCM(key)
     ct_with_tag = aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
     encoded = base64.urlsafe_b64encode(nonce + ct_with_tag).decode("ascii")
-    return f"{_ENC_PREFIX}{encoded}"
+    return f"{_ENC_PREFIX}k{kid}:{encoded}"
 
 
 def decrypt_field(ciphertext: str) -> str:
     """
     Dekriptuje polje enkriptovano sa encrypt_field().
 
-    - Ako nije enkriptovano (stari unos, ne počinje sa prefix), vraća as-is.
-    - Na grešci dekriptovanja: loguje i vraća sentinel string (ne crashuje).
+    Podržava oba formata:
+      - Novi:   enc_v1:k1:<base64data>  (od v2, KEY_ID eksplicitan)
+      - Legacy: enc_v1:<base64data>     (v1, tretira se kao k1)
+
+    Ako nije enkriptovano (ne počinje sa prefix), vraća as-is.
+    Na grešci dekriptovanja: loguje i vraća sentinel string (ne crashuje).
     """
     if not ciphertext:
         return ""
@@ -146,8 +172,19 @@ def decrypt_field(ciphertext: str) -> str:
         return ciphertext
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     try:
+        rest = ciphertext[len(_ENC_PREFIX):]
+
+        # Razlikuj novi format (k{id}:data) od legacy (samo data)
+        if rest.startswith("k") and ":" in rest:
+            kid_str, data = rest.split(":", 1)
+            # kid_str = "k1", "k2", itd. — za sada koristimo isti ključ (Faza 10a)
+            # Faza 10b: _get_key_by_id(int(kid_str[1:])) za multi-key support
+        else:
+            # Legacy format bez KEY_ID — tretiramo kao k1
+            data = rest
+
         key = _get_field_key()
-        raw = base64.urlsafe_b64decode(ciphertext[len(_ENC_PREFIX):] + "==")
+        raw = base64.urlsafe_b64decode(data + "==")
         if len(raw) <= _NONCE_LEN:
             raise ValueError("ciphertext prekratak")
         nonce, ct_with_tag = raw[:_NONCE_LEN], raw[_NONCE_LEN:]
@@ -159,7 +196,7 @@ def decrypt_field(ciphertext: str) -> str:
 
 
 def is_encrypted(value: str) -> bool:
-    """Vraća True ako vrednost izgleda kao encrypt_field() output."""
+    """Vraća True ako vrednost izgleda kao encrypt_field() output (oba formata)."""
     return bool(value) and value.startswith(_ENC_PREFIX)
 
 
