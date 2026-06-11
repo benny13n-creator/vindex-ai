@@ -99,7 +99,7 @@ def _run_postprocessing(result: dict, is_lock: bool) -> dict:
         result["offchain_zavisnosti"] = [_api._DEFAULT_OFFCHAIN_PLACEHOLDER]
     # Step 2
     anon = result.get("pravni_indikatori", {}).get("anonimnost_ucesnika", {})
-    if isinstance(anon, dict) and anon.get("indikator") in ("DA", "MOGUĆE"):
+    if isinstance(anon, dict):
         obr = anon.get("obrazlozenje", "")
         if _api._AML_KYC_NAPOMENA.strip() not in obr:
             anon["obrazlozenje"] = obr.rstrip(".") + "." + _api._AML_KYC_NAPOMENA
@@ -143,6 +143,18 @@ def test_t4_offchain_injected_when_field_missing():
 
 def test_t5_aml_note_appended():
     result = _run_postprocessing(_make_result(anon_indikator="DA", anon_obr="Korisnici su anonimni."), False)
+    obr = result["pravni_indikatori"]["anonimnost_ucesnika"]["obrazlozenje"]
+    assert _api._AML_KYC_NAPOMENA.strip() in obr
+
+
+def test_t5b_aml_note_appended_for_ne():
+    result = _run_postprocessing(_make_result(anon_indikator="NE", anon_obr="Nema posebnih mehanizama anonimnosti."), False)
+    obr = result["pravni_indikatori"]["anonimnost_ucesnika"]["obrazlozenje"]
+    assert _api._AML_KYC_NAPOMENA.strip() in obr
+
+
+def test_t5c_aml_note_appended_for_nedovoljno():
+    result = _run_postprocessing(_make_result(anon_indikator="NEDOVOLJNO PODATAKA", anon_obr="Nedovoljno podataka za procenu."), False)
     obr = result["pravni_indikatori"]["anonimnost_ucesnika"]["obrazlozenje"]
     assert _api._AML_KYC_NAPOMENA.strip() in obr
 

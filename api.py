@@ -4323,7 +4323,7 @@ JSON SCHEMA koji vraćaš:
       "obrazlozenje": "string"
     },
     "anonimnost_ucesnika": {
-      "indikator": "DA" | "MOGUĆE" | "NE" | "NEDOVOLJNO PODATAKA",
+      "indikator": "DA ili MOGUĆE ili NE ili NEDOVOLJNO PODATAKA",
       // obrazlozenje MORA završiti rečenicom: "Ovo je strukturna karakteristika blockchain tehnologije i ne ukazuje na specifičan rizik ovog ugovora, ali je relevantno za AML/KYC analizu na nivou platforme/posrednika."
       "obrazlozenje": "string"
     }
@@ -4557,9 +4557,9 @@ async def post_analiziraj_ugovor(
     if not analysis_result.get("offchain_zavisnosti"):
         analysis_result["offchain_zavisnosti"] = [_DEFAULT_OFFCHAIN_PLACEHOLDER]
 
-    # Step 2: anonimnost_ucesnika — always append AML/KYC structural note
+    # Step 2: anonimnost_ucesnika — always append AML/KYC structural note (all indikator values)
     _anon = analysis_result.get("pravni_indikatori", {}).get("anonimnost_ucesnika", {})
-    if isinstance(_anon, dict) and _anon.get("indikator") in ("DA", "MOGUĆE"):
+    if isinstance(_anon, dict):
         _obr = _anon.get("obrazlozenje", "")
         if _AML_KYC_NAPOMENA.strip() not in _obr:
             _anon["obrazlozenje"] = _obr.rstrip(".") + "." + _AML_KYC_NAPOMENA
