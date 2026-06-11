@@ -16,3 +16,5 @@ pytesseract
 pillow
 python-dateutil
 pywebpush
+argon2-cffi
+cryptography

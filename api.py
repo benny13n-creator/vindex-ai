@@ -34,6 +34,7 @@ from templates.podnesci import (
     popuni_sablon,
 )
 from knowledge.vks_standards import preporuci_iznose as vks_preporuci
+from klijenti.router import router as klijenti_router
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -426,6 +427,9 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["60/hour"])
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Klijenti CRM router (P1–P8, sve faze)
+app.include_router(klijenti_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -2748,204 +2752,8 @@ async def delete_komentar(
     return {"status": "obrisan"}
 
 
-# ── F8.2: CRM — Klijenti ──────────────────────────────────────────────────────
-
-class KlijentRequest(BaseModel):  # F8
-    ime:      str = Field(..., min_length=2, max_length=200)
-    prezime:  str = Field(default="", max_length=200)
-    firma:    str = Field(default="", max_length=300)
-    email:    str = Field(default="", max_length=200)
-    telefon:  str = Field(default="", max_length=50)
-    jmbg_mb:  str = Field(default="", max_length=50)
-    adresa:   str = Field(default="", max_length=500)
-    napomena: str = Field(default="", max_length=2000)
-    tip:      str = Field(default="fizicko")
-
-    @field_validator("tip")
-    @classmethod
-    def proveri_tip(cls, v: str) -> str:
-        if v not in ("fizicko", "pravno"):
-            raise ValueError("tip mora biti 'fizicko' ili 'pravno'")
-        return v
-
-
-class LinkKlijentRequest(BaseModel):  # F8
-    klijent_id: str
-    uloga:      str = Field(default="stranka")
-
-    @field_validator("uloga")
-    @classmethod
-    def proveri_ulogu(cls, v: str) -> str:
-        if v not in ("stranka", "protivna_stranka", "svedok", "ostalo"):
-            raise ValueError("Nepoznata uloga")
-        return v
-
-
-@app.post("/klijenti")  # F8.2
-@limiter.limit("20/minute")
-async def post_klijent(
-    req: KlijentRequest,
-    request: Request,
-    user: dict = Depends(get_current_user),
-):
-    """F8.2 — Dodaj novog klijenta."""
-    supa = _get_supa()
-    res = await asyncio.to_thread(
-        lambda: supa.table("klijenti").insert({
-            "user_id":  user["user_id"],
-            "ime":      req.ime.strip(),
-            "prezime":  req.prezime.strip(),
-            "firma":    req.firma.strip(),
-            "email":    req.email.strip(),
-            "telefon":  req.telefon.strip(),
-            "jmbg_mb":  req.jmbg_mb.strip(),
-            "adresa":   req.adresa.strip(),
-            "napomena": req.napomena.strip(),
-            "tip":      req.tip,
-        }).execute()
-    )
-    return {"status": "dodat", "klijent": res.data[0] if res.data else {}}
-
-
-@app.get("/klijenti")  # F8.2
-@limiter.limit("60/minute")
-async def get_klijenti(
-    request: Request,
-    pretraga: str = "",
-    user: dict = Depends(get_current_user),
-):
-    """F8.2 — Lista klijenata (opciona pretraga po imenu)."""
-    supa = _get_supa()
-    def _fetch():
-        q = (supa.table("klijenti")
-                 .select("*")
-                 .eq("user_id", user["user_id"])
-                 .eq("aktivan", True)
-                 .order("ime"))
-        if pretraga.strip():
-            q = q.ilike("ime", f"%{pretraga.strip()}%")
-        return q.execute()
-    res = await asyncio.to_thread(_fetch)
-    return {"klijenti": res.data or []}
-
-
-@app.get("/klijenti/{klijent_id}")  # F8.2
-@limiter.limit("60/minute")
-async def get_klijent(
-    klijent_id: str,
-    request: Request,
-    user: dict = Depends(get_current_user),
-):
-    """F8.2 — Detalji jednog klijenta sa vezanim predmetima."""
-    supa = _get_supa()
-    res = await asyncio.to_thread(
-        lambda: supa.table("klijenti")
-                    .select("*")
-                    .eq("id", klijent_id)
-                    .eq("user_id", user["user_id"])
-                    .single()
-                    .execute()
-    )
-    if not res.data:
-        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
-    try:
-        pred_res = await asyncio.to_thread(
-            lambda: supa.table("predmet_klijenti")
-                        .select("predmet_id, uloga, predmeti(naziv, status)")
-                        .eq("klijent_id", klijent_id)
-                        .execute()
-        )
-        predmeti = pred_res.data or []
-    except Exception:
-        predmeti = []
-    return {"klijent": res.data, "predmeti": predmeti}
-
-
-@app.put("/klijenti/{klijent_id}")  # F8.2
-@limiter.limit("20/minute")
-async def put_klijent(
-    klijent_id: str,
-    req: KlijentRequest,
-    request: Request,
-    user: dict = Depends(get_current_user),
-):
-    """F8.2 — Ažuriraj klijenta."""
-    supa = _get_supa()
-    now = _dt.now(_tz.utc).isoformat()
-    await asyncio.to_thread(
-        lambda: supa.table("klijenti").update({
-            "ime":      req.ime.strip(),
-            "prezime":  req.prezime.strip(),
-            "firma":    req.firma.strip(),
-            "email":    req.email.strip(),
-            "telefon":  req.telefon.strip(),
-            "jmbg_mb":  req.jmbg_mb.strip(),
-            "adresa":   req.adresa.strip(),
-            "napomena": req.napomena.strip(),
-            "tip":      req.tip,
-            "azurirano": now,
-        }).eq("id", klijent_id).eq("user_id", user["user_id"]).execute()
-    )
-    return {"status": "azuriran"}
-
-
-@app.delete("/klijenti/{klijent_id}")  # F8.2
-@limiter.limit("20/minute")
-async def delete_klijent(
-    klijent_id: str,
-    request: Request,
-    user: dict = Depends(get_current_user),
-):
-    """F8.2 — Soft delete klijenta (aktivan=false)."""
-    supa = _get_supa()
-    await asyncio.to_thread(
-        lambda: supa.table("klijenti")
-                    .update({"aktivan": False})
-                    .eq("id", klijent_id)
-                    .eq("user_id", user["user_id"])
-                    .execute()
-    )
-    return {"status": "obrisan"}
-
-
-@app.post("/predmeti/{predmet_id}/klijenti")  # F8.2
-@limiter.limit("20/minute")
-async def post_link_klijent(
-    predmet_id: str,
-    req: LinkKlijentRequest,
-    request: Request,
-    user: dict = Depends(get_current_user),
-):
-    """F8.2 — Linkuj klijenta sa predmetom."""
-    supa = _get_supa()
-    await asyncio.to_thread(
-        lambda: supa.table("predmet_klijenti").upsert({
-            "predmet_id": predmet_id,
-            "klijent_id": req.klijent_id,
-            "uloga":      req.uloga,
-        }, on_conflict="predmet_id,klijent_id").execute()
-    )
-    return {"status": "linkovan"}
-
-
-@app.delete("/predmeti/{predmet_id}/klijenti/{klijent_id}")  # F8.2
-@limiter.limit("20/minute")
-async def delete_link_klijent(
-    predmet_id: str,
-    klijent_id: str,
-    request: Request,
-    user: dict = Depends(get_current_user),
-):
-    """F8.2 — Ukloni link klijent-predmet."""
-    supa = _get_supa()
-    await asyncio.to_thread(
-        lambda: supa.table("predmet_klijenti")
-                    .delete()
-                    .eq("predmet_id", predmet_id)
-                    .eq("klijent_id", klijent_id)
-                    .execute()
-    )
-    return {"status": "unlinkan"}
+# ── F8.2: CRM — Klijenti → premesteno u klijenti/router.py ──────────────────
+# Svi klijenti endpointi su u klijenti_router, montiran gore sa app.include_router(klijenti_router).
 
 
 # ─── /api/praksa/search ───────────────────────────────────────────────────────
