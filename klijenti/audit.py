@@ -24,6 +24,7 @@ class Akcija:
     EDIT              = "EDIT"
     SOFT_DELETE       = "DELETE_SOFT"
     ARCHIVE           = "ARCHIVE"
+    UPLOAD            = "UPLOAD"
     DOWNLOAD          = "DOWNLOAD"
     EXPORT            = "EXPORT"
     CONFLICT_FLAGGED  = "CONFLICT_CHECK_FLAGGED"

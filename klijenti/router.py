@@ -87,6 +87,26 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+async def _verify_owns_klijent(supa, klijent_id: str, user_id: str) -> bool:
+    """
+    Potvrđuje da klijent postoji I pripada ovom korisniku.
+    Ovo sprečava horizontal access (user A čita podatke user B).
+    Uvek pozivati pre pristupa resursima vezanim za klijenta.
+    """
+    try:
+        res = await asyncio.to_thread(
+            lambda: supa.table("klijenti")
+                        .select("id")
+                        .eq("id", klijent_id)
+                        .eq("user_id", user_id)
+                        .single()
+                        .execute()
+        )
+        return bool(res.data)
+    except Exception:
+        return False
+
+
 def _normalize_name(s: str) -> str:
     """Normalizuje ime za fuzzy matching: lowercase, bez dijakritike, bez interpunkcije."""
     s = unicodedata.normalize("NFD", s.lower())
@@ -265,6 +285,40 @@ async def list_klijenti(
     return {"klijenti": klijenti}
 
 
+@router.get("/klijenti/retention-check")
+async def retention_check(
+    request: Request,
+    threshold_years: int = 10,
+):
+    """
+    Faza 8 — GDPR retention check.
+    MORA biti registrovana PRE /klijenti/{klijent_id} da ne bude zasencena.
+    Vraća klijente kojima je datum_poslednje_aktivnosti stariji od threshold_years.
+    Ne arhivira automatski — samo predlaže advokatima.
+    """
+    from datetime import timedelta
+    user = await _auth_from_request(request)
+    supa = _get_supa()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=365 * threshold_years)).isoformat()
+
+    res = await asyncio.to_thread(
+        lambda: supa.table("klijenti")
+                    .select("id, ime, prezime, firma, datum_poslednje_aktivnosti, status")
+                    .eq("user_id", user["user_id"])
+                    .eq("status", "aktivan")
+                    .lt("datum_poslednje_aktivnosti", cutoff)
+                    .order("datum_poslednje_aktivnosti")
+                    .execute()
+    )
+    candidates = res.data or []
+    return {
+        "kandidati_za_arhiviranje": [filter_klijent(c, user["role"]) for c in candidates],
+        "ukupno": len(candidates),
+        "threshold_godina": threshold_years,
+        "napomena": "Pregled za arhiviranje — advokat odlučuje za svaki slučaj",
+    }
+
+
 @router.get("/klijenti/{klijent_id}")
 async def get_klijent(
     klijent_id: str,
@@ -308,17 +362,7 @@ async def get_klijent(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Nemate pravo uvida u poverljive podatke.",
             )
-        # Dekriptuj CONFIDENTIAL polja
-        for enc_field, plain_key in [
-            ("jmbg_encrypted",        "jmbg"),
-            ("broj_pasosa_encrypted", "broj_pasosa"),
-            ("pib_encrypted",         "pib"),
-        ]:
-            raw = klijent.get(enc_field) or ""
-            if raw:
-                klijent[plain_key] = await asyncio.to_thread(decrypt_field, raw)
-
-        # Audit za VIEW_CONFIDENTIAL — MORA biti pre return
+        # Audit MORA biti pre dekriptovanja i pre return-a
         await log_event(
             supa=supa, user_id=user["user_id"], user_email=user.get("email", ""),
             user_role=user.get("role_str", "advokat"), akcija=Akcija.VIEW_CONFIDENTIAL,
@@ -326,6 +370,16 @@ async def get_klijent(
             detalji={"polja": ["jmbg", "broj_pasosa", "pib"]},
             ip_adresa=ip,
         )
+        # Dekriptuj CONFIDENTIAL polja, pa ukloni encrypted verzije iz response
+        # (ne sme da se vrate i enc_v1:... i plaintext u istom response)
+        for enc_field, plain_key in [
+            ("jmbg_encrypted",        "jmbg"),
+            ("broj_pasosa_encrypted", "broj_pasosa"),
+            ("pib_encrypted",         "pib"),
+        ]:
+            raw = klijent.pop(enc_field, "") or ""
+            if raw:
+                klijent[plain_key] = await asyncio.to_thread(decrypt_field, raw)
 
     # Dohvati predmete za ovog klijenta
     try:
@@ -563,6 +617,9 @@ async def get_klijent_audit(
             detail="Samo partner može videti audit log.",
         )
     supa = _get_supa()
+    # Horizontal access guard — klijent mora pripadati ovom korisniku
+    if not await _verify_owns_klijent(supa, klijent_id, user["user_id"]):
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
 
     res = await asyncio.to_thread(
         lambda: supa.table("klijenti_audit")
@@ -605,9 +662,11 @@ async def upload_klijent_dokument(
     user = await _auth_from_request(request)
     if not can_perform(user["role"], "download_document"):
         raise HTTPException(status_code=403, detail="Nedovoljno prava za upload dokumenata.")
-
-    from fastapi import UploadFile
     supa = _get_supa()
+    # Horizontal access guard
+    if not await _verify_owns_klijent(supa, klijent_id, user["user_id"]):
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
+
     ip = get_client_ip(request)
 
     # Čitaj fajl iz multipart (direktan poziv jer smo u custom endpoint)
@@ -674,9 +733,9 @@ async def upload_klijent_dokument(
 
     asyncio.create_task(log_event(
         supa=supa, user_id=user["user_id"], user_email=user.get("email", ""),
-        user_role=user.get("role_str", "advokat"), akcija=Akcija.DOWNLOAD,
+        user_role=user.get("role_str", "advokat"), akcija=Akcija.UPLOAD,
         entitet_tip="dokument", entitet_id=doc.get("id"),
-        detalji={"tip": tip_dokumenta, "storage_key": storage_key[:20] + "..."},
+        detalji={"tip": tip_dokumenta, "velicina": len(raw), "storage_key": storage_key[:20] + "..."},
         ip_adresa=ip,
     ))
 
@@ -693,6 +752,8 @@ async def list_klijent_dokumenti(klijent_id: str, request: Request):
     """Faza 4 — Lista dokumenata klijenta (bez plaintext naziva)."""
     user = await _auth_from_request(request)
     supa = _get_supa()
+    if not await _verify_owns_klijent(supa, klijent_id, user["user_id"]):
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
 
     res = await asyncio.to_thread(
         lambda: supa.table("klijent_dokumenti")
@@ -723,6 +784,10 @@ async def download_klijent_dokument(
 
     supa = _get_supa()
     ip = get_client_ip(request)
+
+    # Horizontal access guard — potvrdi da klijent pripada ovom korisniku
+    if not await _verify_owns_klijent(supa, klijent_id, user["user_id"]):
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
 
     # Dohvati metadata
     meta_res = await asyncio.to_thread(
@@ -848,6 +913,8 @@ async def add_komunikacija(
     """Faza 7 — Ručni unos komunikacije (bez auto-log sadržaja)."""
     user = await _auth_from_request(request)
     supa = _get_supa()
+    if not await _verify_owns_klijent(supa, klijent_id, user["user_id"]):
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
     ip = get_client_ip(request)
 
     res = await asyncio.to_thread(
@@ -875,6 +942,8 @@ async def get_timeline(klijent_id: str, request: Request):
     """
     user = await _auth_from_request(request)
     supa = _get_supa()
+    if not await _verify_owns_klijent(supa, klijent_id, user["user_id"]):
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
     events: list[dict] = []
 
     # Komunikacija eventi
@@ -975,43 +1044,6 @@ async def arhiviraj_klijent(klijent_id: str, request: Request):
         entitet_id=klijent_id, ip_adresa=ip,
     ))
     return {"status": "arhiviran"}
-
-
-@router.get("/klijenti/retention-check")
-async def retention_check(
-    request: Request,
-    threshold_years: int = 10,
-):
-    """
-    Faza 8 — GDPR retention check.
-    Vraća klijente kojima je datum_poslednje_aktivnosti stariji od threshold_years.
-    Ne arhivira automatski — samo predlaže advokatima.
-    """
-    user = await _auth_from_request(request)
-    supa = _get_supa()
-    from datetime import timedelta
-
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=365 * threshold_years)).isoformat()
-
-    res = await asyncio.to_thread(
-        lambda: supa.table("klijenti")
-                    .select("id, ime, prezime, firma, datum_poslednje_aktivnosti, status")
-                    .eq("user_id", user["user_id"])
-                    .eq("status", "aktivan")
-                    .lt("datum_poslednje_aktivnosti", cutoff)
-                    .order("datum_poslednje_aktivnosti")
-                    .execute()
-    )
-    candidates = res.data or []
-
-    return {
-        "kandidati_za_arhiviranje": [
-            filter_klijent(c, user["role"]) for c in candidates
-        ],
-        "ukupno": len(candidates),
-        "threshold_godina": threshold_years,
-        "napomena": "Pregled za arhiviranje — advokat odlučuje za svaki slučaj",
-    }
 
 
 # ─── Role management endpoint ────────────────────────────────────────────────

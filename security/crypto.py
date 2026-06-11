@@ -23,9 +23,73 @@ import uuid
 
 logger = logging.getLogger("vindex.security.crypto")
 
-_KEY_ENV = "FIELD_ENCRYPTION_KEY"
+_KEY_ENV   = "FIELD_ENCRYPTION_KEY"
 _ENC_PREFIX = "enc_v1:"
 _NONCE_LEN = 12  # 96-bit nonce za AES-GCM (standard)
+_MIN_KEY_BYTES = 32
+
+
+# ─── Startup validation ───────────────────────────────────────────────────────
+
+def validate_field_encryption_key() -> None:
+    """
+    Fail-fast validacija FIELD_ENCRYPTION_KEY.
+    Pozvati pri startu aplikacije — pre nego što server počne da prima zahteve.
+    Ako ključ nije validan, ispisuje jasnu grešku i poziva sys.exit(1).
+
+    Proverava:
+      1. Ključ postoji (env var nije prazan)
+      2. Ključ je validan base64url
+      3. Ključ dekodira na min 32 bajta (256 bita)
+      4. Smoke test enkripcije/dekripcije (AES-GCM radi sa ovim ključem)
+    """
+    import sys
+    _ABORT_MSG = (
+        "\n"
+        "╔══════════════════════════════════════════════════════════╗\n"
+        "║  STARTUP ABORTED — FIELD_ENCRYPTION_KEY missing/invalid  ║\n"
+        "╚══════════════════════════════════════════════════════════╝\n"
+        "{detail}\n\n"
+        "Generisanje ispravnog kljuca:\n"
+        '  python -c "import secrets,base64; '
+        'print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"\n'
+        "Dodajte rezultat u Render env vars i lokalni .env fajl.\n"
+    )
+
+    raw = (os.environ.get(_KEY_ENV) or "").strip()
+
+    if not raw:
+        print(_ABORT_MSG.format(detail=f"  Razlog: {_KEY_ENV} env var nije postavljen."))
+        sys.exit(1)
+
+    try:
+        key_bytes = base64.urlsafe_b64decode(raw + "==")
+    except Exception as e:
+        print(_ABORT_MSG.format(detail=f"  Razlog: {_KEY_ENV} nije validan base64url string.\n  Greška: {e}"))
+        sys.exit(1)
+
+    if len(key_bytes) < _MIN_KEY_BYTES:
+        print(_ABORT_MSG.format(
+            detail=f"  Razlog: {_KEY_ENV} je {len(key_bytes)} bajta posle dekodiranja.\n"
+                   f"  Potrebno: min {_MIN_KEY_BYTES} bajta (256-bit AES kljuc)."
+        ))
+        sys.exit(1)
+
+    # Smoke test — provjeri da AES-GCM radi sa ovim ključem
+    try:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        key = key_bytes[:_MIN_KEY_BYTES]
+        nonce = os.urandom(_NONCE_LEN)
+        aesgcm = AESGCM(key)
+        ct = aesgcm.encrypt(nonce, b"vindex_smoke_test", None)
+        pt = aesgcm.decrypt(nonce, ct, None)
+        if pt != b"vindex_smoke_test":
+            raise ValueError("Smoke test round-trip nije uspeo")
+    except Exception as e:
+        print(_ABORT_MSG.format(detail=f"  Razlog: AES-GCM smoke test nije uspeo.\n  Greška: {e}"))
+        sys.exit(1)
+
+    logger.info("[CRYPTO] FIELD_ENCRYPTION_KEY validacija prosla (key_len=%d bajta).", len(key_bytes))
 
 
 # ─── AES-256-GCM Field Encryption ────────────────────────────────────────────
@@ -43,12 +107,12 @@ def _get_field_key() -> bytes:
         key_bytes = base64.urlsafe_b64decode(raw + "==")
     except Exception as e:
         raise RuntimeError(f"[CRYPTO] {_KEY_ENV} nije validan base64url: {e}")
-    if len(key_bytes) < 32:
+    if len(key_bytes) < _MIN_KEY_BYTES:
         raise RuntimeError(
-            f"[CRYPTO] {_KEY_ENV} mora biti min 32 bajta posle dekodiranja "
+            f"[CRYPTO] {_KEY_ENV} mora biti min {_MIN_KEY_BYTES} bajta posle dekodiranja "
             f"(dobijeno {len(key_bytes)})"
         )
-    return key_bytes[:32]
+    return key_bytes[:_MIN_KEY_BYTES]
 
 
 def encrypt_field(plaintext: str) -> str:

@@ -97,7 +97,31 @@ def migrate(dry_run: bool = True, verify_only: bool = False):
         print("\n  Nema redova za migraciju. Sve je azurirano ili prazno.")
         return
 
+    # ─── Safety prompt pre --run ──────────────────────────────────────────────
+    if not dry_run:
+        print()
+        print("  " + "!" * 58)
+        print("  WARNING: This operation will modify client data.")
+        print(f"  {len(sa_plaintext)} rows will be encrypted and written to the database.")
+        print("  This cannot be automatically undone.")
+        print("  Make sure you have a database backup before proceeding.")
+        print("  " + "!" * 58)
+        print()
+        try:
+            user_input = input("  Type YES_TO_PROCEED to continue (anything else aborts): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n  Aborted by user.")
+            sys.exit(0)
+        if user_input != "YES_TO_PROCEED":
+            print(f"  Got: '{user_input}' — expected 'YES_TO_PROCEED'. ABORTED.")
+            sys.exit(0)
+        print()
+        print("  Proceeding with migration...")
+        print()
+
     # ─── Migracija ───────────────────────────────────────────────────────────
+    import time as _time
+    start_ts = _time.time()
     print(f"\n  Obrada {len(sa_plaintext)} redova...")
     uspesno = 0
     failovalo = 0
@@ -132,8 +156,10 @@ def migrate(dry_run: bool = True, verify_only: bool = False):
             print(f"  FAIL  id={rid[:8]}... GRESKA: {e}")
             failovalo += 1
 
+    elapsed = _time.time() - start_ts
     print(f"\n{'='*60}")
     print(f"  Rezultat: {uspesno} uspesno, {failovalo} failovalo, {len(sa_plaintext)} ukupno")
+    print(f"  Vreme: {elapsed:.2f}s  ({elapsed/max(len(sa_plaintext),1)*1000:.1f}ms po redu)")
     if dry_run:
         print("  Ovo je bio DRY RUN — nista nije upisano u bazu.")
         print("  Pokrenite bez --dry-run za pravi upis.")

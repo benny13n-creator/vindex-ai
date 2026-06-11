@@ -22,6 +22,10 @@ from slowapi.errors import RateLimitExceeded
 BASE_DIR = Path(__file__).parent
 load_dotenv()
 
+# ─── Fail-fast: validacija encryption key PRE nego server podigne ikoji endpoint
+from security.crypto import validate_field_encryption_key as _validate_enc_key
+_validate_enc_key()
+
 import time as _time
 from main import ask_agent, ask_nacrt, ask_analiza, ask_analiza_v2, _skini_pii, klasifikuj_pitanje
 from drafting.router import generate_draft as _drafting_generate
