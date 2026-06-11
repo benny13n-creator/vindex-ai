@@ -6,8 +6,9 @@ T1  — _sc_detect_lock_without_exit: True for SimpleStaking-style code
 T2  — _sc_detect_lock_without_exit: False for plain ERC-20-style code (no false positive)
 T3  — offchain_zavisnosti placeholder injected when GPT returns empty list
 T4  — offchain_zavisnosti placeholder injected when GPT omits the field
-T5  — anonimnost_ucesnika AML/KYC note appended when indikator == "DA"
-T6  — anonimnost_ucesnika AML/KYC note NOT duplicated if already present
+T5  — anonimnost_ucesnika AML/KYC note appended when GPT didn't mention AML/KYC
+T6  — anonimnost_ucesnika AML/KYC note NOT duplicated if already present (exact string)
+T10 — anonimnost_ucesnika AML/KYC note NOT added when GPT's own text already mentions "AML" and "KYC"
 T7  — lock-without-exit risk appended when GPT misses it (is_lock_without_exit=True)
 T8  — lock-without-exit risk NOT appended when GPT already included it
 T9  — lock-without-exit risk NOT appended when is_lock_without_exit=False
@@ -17,6 +18,7 @@ TM3 — _sc_detect_unrestricted_mint: False for capped token (MAX_SUPPLY present
 TM4 — unrestricted-mint risk appended when GPT misses it (is_unrestricted_mint=True)
 TM5 — unrestricted-mint risk NOT duplicated when GPT already included it
 TM6 — unrestricted-mint risk NOT added when is_unrestricted_mint=False
+TM8 — unrestricted-mint risk NOT added when GPT already included semantically equivalent ("ponude tokena" + "neograničen")
 """
 
 import sys, os
@@ -136,38 +138,48 @@ def _make_result(offchain=None, anon_indikator="DA", anon_obr="Korisnici su anon
     return r
 
 
+def _is_lock_exit_risk(text: str) -> bool:
+    t = text.lower()
+    return (
+        any(kw in t for kw in ["povraćaj", "povracaj", "prevremen", "izlaz", "zaključan", "zakljucan"])
+        and any(kw in t for kw in ["sredstav", "imovin"])
+    )
+
+
+def _is_mint_risk(text: str) -> bool:
+    t = text.lower()
+    if any(kw in t for kw in ["mint", "emisij", "emitova"]):
+        return True
+    if "ponude tokena" in t and any(kw in t for kw in ["neograničen", "diskrecion"]):
+        return True
+    return False
+
+
 def _run_postprocessing(result: dict, is_lock: bool, is_mint: bool = False) -> dict:
     """Replicate all post-processing steps from the endpoint."""
     # Step 1
     if not result.get("offchain_zavisnosti"):
         result["offchain_zavisnosti"] = [_api._DEFAULT_OFFCHAIN_PLACEHOLDER]
-    # Step 2
+    # Step 2 — semantic check
     anon = result.get("pravni_indikatori", {}).get("anonimnost_ucesnika", {})
     if isinstance(anon, dict):
         obr = anon.get("obrazlozenje", "")
-        if _api._AML_KYC_NAPOMENA.strip() not in obr:
+        obr_lower = obr.lower()
+        already_covers_aml = (
+            ("aml" in obr_lower and "kyc" in obr_lower)
+            or ("platform" in obr_lower and ("posrednik" in obr_lower or "operater" in obr_lower))
+        )
+        if not already_covers_aml:
             anon["obrazlozenje"] = obr.rstrip(".") + "." + _api._AML_KYC_NAPOMENA
-    # Step 5
+    # Step 5 — semantic check
     if is_lock:
         existing = result.get("pravni_rizici", [])
-        already = any(
-            "povraćaj" in r.get("rizik", "").lower()
-            or "povracaj" in r.get("rizik", "").lower()
-            or "prevremen" in r.get("rizik", "").lower()
-            for r in existing
-        )
-        if not already:
+        if not any(_is_lock_exit_risk(r.get("rizik", "")) for r in existing):
             result["pravni_rizici"] = existing + [_api._LOCK_WITHOUT_EXIT_RISK]
-    # Step 6
+    # Step 6 — semantic check
     if is_mint:
         existing = result.get("pravni_rizici", [])
-        already = any(
-            "mint" in r.get("rizik", "").lower()
-            or "emisij" in r.get("rizik", "").lower()
-            or "emitova" in r.get("rizik", "").lower()
-            for r in existing
-        )
-        if not already:
+        if not any(_is_mint_risk(r.get("rizik", "")) for r in existing):
             result["pravni_rizici"] = existing + [_api._UNRESTRICTED_MINT_RISK]
     return result
 
@@ -295,3 +307,24 @@ def test_tm6_mint_risk_not_added_when_is_mint_false():
         "mint" in r.get("rizik", "").lower() or "emitova" in r.get("rizik", "").lower()
         for r in result["pravni_rizici"]
     )
+
+
+# ── T10: AML/KYC semantic dedup ───────────────────────────────────────────────
+
+def test_t10_aml_note_not_added_when_gpt_covers_aml_kyc():
+    # GPT already generated its own AML/KYC mention — must not append our note
+    gpt_text = "Ugovor ne sadrži mehanizme identifikacije korisnika. Ovo je relevantno za AML i KYC analize na nivou platforme."
+    result = _run_postprocessing(_make_result(anon_indikator="DA", anon_obr=gpt_text), False)
+    obr = result["pravni_indikatori"]["anonimnost_ucesnika"]["obrazlozenje"]
+    # AML/KYC napomena should NOT be appended — count of our specific phrase stays 0
+    assert _api._AML_KYC_NAPOMENA.strip() not in obr
+
+
+# ── TM8: mint semantic dedup ──────────────────────────────────────────────────
+
+def test_tm8_mint_risk_not_added_when_gpt_covers_ponude_tokena():
+    # GPT's phrasing: "ponude tokena" + "neograničen" — semantically identical to our risk
+    gpt_risk = {"rizik": "Vlasnik ima diskreciono pravo neograničenog povećanja ponude tokena.", "ozbiljnost": "VISOK", "obrazlozenje": "..."}
+    result = _run_postprocessing(_make_result(rizici=[gpt_risk]), False, is_mint=True)
+    count = len(result["pravni_rizici"])
+    assert count == 1

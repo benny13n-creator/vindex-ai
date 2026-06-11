@@ -413,7 +413,7 @@ async def require_credits(user: dict = Depends(get_current_user)) -> dict:
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 logger.info("=== STARTUP ENV CHECK ===")
-logger.info("=== CODE VERSION: 7ddfba8-mint-fix ===")
+logger.info("=== CODE VERSION: semantic-dedup-aml-mint ===")
 logger.info("SUPABASE_URL    : %r", SUPABASE_URL)
 logger.info("SERVICE_KEY set : %s", bool(SUPABASE_SERVICE_KEY))
 logger.info("JWT_SECRET set  : %s", bool(SUPABASE_JWT_SECRET))
@@ -4592,36 +4592,42 @@ async def post_analiziraj_ugovor(
     if not analysis_result.get("offchain_zavisnosti"):
         analysis_result["offchain_zavisnosti"] = [_DEFAULT_OFFCHAIN_PLACEHOLDER]
 
-    # Step 2: anonimnost_ucesnika — always append AML/KYC structural note (all indikator values)
+    # Step 2: anonimnost_ucesnika — append AML/KYC structural note if GPT hasn't covered it
     _anon = analysis_result.get("pravni_indikatori", {}).get("anonimnost_ucesnika", {})
     if isinstance(_anon, dict):
         _obr = _anon.get("obrazlozenje", "")
-        if _AML_KYC_NAPOMENA.strip() not in _obr:
+        _obr_lower = _obr.lower()
+        _already_covers_aml = (
+            ("aml" in _obr_lower and "kyc" in _obr_lower)
+            or ("platform" in _obr_lower and ("posrednik" in _obr_lower or "operater" in _obr_lower))
+        )
+        if not _already_covers_aml:
             _anon["obrazlozenje"] = _obr.rstrip(".") + "." + _AML_KYC_NAPOMENA
 
     # Step 5: lock-without-exit fallback — inject risk if GPT missed it
     if is_lock_without_exit:
         _existing = analysis_result.get("pravni_rizici", [])
-        _already = any(
-            "povraćaj" in r.get("rizik", "").lower()
-            or "povracaj" in r.get("rizik", "").lower()
-            or "prevremen" in r.get("rizik", "").lower()
-            for r in _existing
-        )
-        if not _already:
+        def _is_lock_exit_risk(text: str) -> bool:
+            t = text.lower()
+            return (
+                any(kw in t for kw in ["povraćaj", "povracaj", "prevremen", "izlaz", "zaključan", "zakljucan"])
+                and any(kw in t for kw in ["sredstav", "imovin"])
+            )
+        if not any(_is_lock_exit_risk(r.get("rizik", "")) for r in _existing):
             analysis_result["pravni_rizici"] = _existing + [_LOCK_WITHOUT_EXIT_RISK]
 
     # Step 6: unrestricted-mint fallback — inject risk if GPT missed it
     logger.warning("[SC_MINT_DEBUG] Step 6 reached, is_unrestricted_mint=%s, existing_risks_count=%d", is_unrestricted_mint, len(analysis_result.get("pravni_rizici", [])))
     if is_unrestricted_mint:
         _existing = analysis_result.get("pravni_rizici", [])
-        _already = any(
-            "mint" in r.get("rizik", "").lower()
-            or "emisij" in r.get("rizik", "").lower()
-            or "emitova" in r.get("rizik", "").lower()
-            for r in _existing
-        )
-        if not _already:
+        def _is_mint_risk(text: str) -> bool:
+            t = text.lower()
+            if any(kw in t for kw in ["mint", "emisij", "emitova"]):
+                return True
+            if "ponude tokena" in t and any(kw in t for kw in ["neograničen", "diskrecion"]):
+                return True
+            return False
+        if not any(_is_mint_risk(r.get("rizik", "")) for r in _existing):
             analysis_result["pravni_rizici"] = _existing + [_UNRESTRICTED_MINT_RISK]
 
     # Save to Supabase
