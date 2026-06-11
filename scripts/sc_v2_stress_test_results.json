@@ -1,0 +1,351 @@
+[
+  {
+    "contract": "simple_staking",
+    "min_garantovanih_rizika": 1,
+    "is_lock_heuristic": true,
+    "is_mint_heuristic": false,
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 13.7,
+        "error": null,
+        "broj_pravnih_rizika": 3,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim",
+          "Vlasnik može promeniti ključne ekonomske parametre bez saglasnost",
+          "Vlasnik može povući sva sredstva iz ugovora."
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "confidence_tier": "HIGH",
+        "reg_summary": [
+          {
+            "propis_kratko": "Zakon o digitalnoj imovini RS",
+            "nivo_relevantnosti": "VISOK",
+            "broj_clanova": 1
+          }
+        ],
+        "klasif_tokena": [],
+        "aml_nivo_rizika": "VISOK",
+        "aml_obrazlozenje_80": "Ugovor omogućava pseudonimne transakcije bez ikakvih KYC/AML procedura.",
+        "cent_nivo": "VISOKA",
+        "cent_obrazlozenje_80": "Vlasnik ima ovlašćenja da menja ključne parametre i povuče sva sredstva.",
+        "adm_nivo": "VISOKA",
+        "adm_br_funkcija": 3,
+        "adm_br_uloga": 1,
+        "br_sazetak_stavki": 5,
+        "is_lock_without_exit": true,
+        "is_unrestricted_mint": false,
+        "is_proxy_detected": false
+      },
+      {
+        "run": 2,
+        "elapsed_s": 16.6,
+        "error": null,
+        "broj_pravnih_rizika": 2,
+        "naslovi_rizika": [
+          "Centralizovana kontrola nad ključnim ekonomskim parametrima i sre",
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "confidence_tier": "HIGH",
+        "reg_summary": [
+          {
+            "propis_kratko": "Zakon o digitalnoj imovini RS",
+            "nivo_relevantnosti": "VISOK",
+            "broj_clanova": 1
+          }
+        ],
+        "klasif_tokena": [],
+        "aml_nivo_rizika": "VISOK",
+        "aml_obrazlozenje_80": "Ugovor omogućava pseudonimno ulaganje i povlačenje sredstava bez KYC procesa.",
+        "cent_nivo": "VISOKA",
+        "cent_obrazlozenje_80": "Vlasnik ima kontrolu nad ključnim ekonomskim parametrima i sredstvima u ugovoru.",
+        "adm_nivo": "VISOKA",
+        "adm_br_funkcija": 3,
+        "adm_br_uloga": 1,
+        "br_sazetak_stavki": 5,
+        "is_lock_without_exit": true,
+        "is_unrestricted_mint": false,
+        "is_proxy_detected": false
+      },
+      {
+        "run": 3,
+        "elapsed_s": 15.4,
+        "error": null,
+        "broj_pravnih_rizika": 3,
+        "naslovi_rizika": [
+          "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim",
+          "Vlasnik može promeniti ključne ekonomske parametre bez saglasnost",
+          "Vlasnik može povući sva sredstva iz ugovora."
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "confidence_tier": "HIGH",
+        "reg_summary": [
+          {
+            "propis_kratko": "Zakon o digitalnoj imovini RS",
+            "nivo_relevantnosti": "VISOK",
+            "broj_clanova": 1
+          }
+        ],
+        "klasif_tokena": [],
+        "aml_nivo_rizika": "VISOK",
+        "aml_obrazlozenje_80": "Ugovor omogućava pseudonimne transakcije bez KYC procesa.",
+        "cent_nivo": "VISOKA",
+        "cent_obrazlozenje_80": "Vlasnik ima ovlašćenja da menja ključne ekonomske parametre i povlači sredstva.",
+        "adm_nivo": "VISOKA",
+        "adm_br_funkcija": 3,
+        "adm_br_uloga": 1,
+        "br_sazetak_stavki": 5,
+        "is_lock_without_exit": true,
+        "is_unrestricted_mint": false,
+        "is_proxy_detected": false
+      }
+    ]
+  },
+  {
+    "contract": "simple_token",
+    "min_garantovanih_rizika": 1,
+    "is_lock_heuristic": false,
+    "is_mint_heuristic": true,
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 12.4,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Vlasnik ima diskreciono pravo neograničenog povećanja ponude toke"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "confidence_tier": "HIGH",
+        "reg_summary": [
+          {
+            "propis_kratko": "Zakon o digitalnoj imovini RS",
+            "nivo_relevantnosti": "VISOK",
+            "broj_clanova": 1
+          }
+        ],
+        "klasif_tokena": [
+          {
+            "kategorija": "Utility token",
+            "status": "MOGUĆE"
+          }
+        ],
+        "aml_nivo_rizika": "VISOK",
+        "aml_obrazlozenje_80": "Tokeni se prenose anonimno, što može otežati praćenje i identifikaciju korisnika",
+        "cent_nivo": "VISOKA",
+        "cent_obrazlozenje_80": "Vlasnik ima ekskluzivna prava na mintovanje novih tokena.",
+        "adm_nivo": "VISOKA",
+        "adm_br_funkcija": 1,
+        "adm_br_uloga": 1,
+        "br_sazetak_stavki": 5,
+        "is_lock_without_exit": false,
+        "is_unrestricted_mint": true,
+        "is_proxy_detected": false
+      },
+      {
+        "run": 2,
+        "elapsed_s": 13.9,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Vlasnik ima diskreciono pravo neograničenog povećanja ponude toke"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "confidence_tier": "HIGH",
+        "reg_summary": [
+          {
+            "propis_kratko": "Zakon o digitalnoj imovini RS",
+            "nivo_relevantnosti": "VISOK",
+            "broj_clanova": 1
+          }
+        ],
+        "klasif_tokena": [
+          {
+            "kategorija": "Utility token",
+            "status": "MOGUĆE"
+          },
+          {
+            "kategorija": "Payment token",
+            "status": "MOGUĆE"
+          }
+        ],
+        "aml_nivo_rizika": "VISOK",
+        "aml_obrazlozenje_80": "Tokeni se prenose između anonimnih adresa bez ikakvih KYC/AML procedura.",
+        "cent_nivo": "VISOKA",
+        "cent_obrazlozenje_80": "Vlasnik ima ekskluzivnu kontrolu nad ključnim funkcijama kao što je mintovanje.",
+        "adm_nivo": "VISOKA",
+        "adm_br_funkcija": 1,
+        "adm_br_uloga": 1,
+        "br_sazetak_stavki": 5,
+        "is_lock_without_exit": false,
+        "is_unrestricted_mint": true,
+        "is_proxy_detected": false
+      },
+      {
+        "run": 3,
+        "elapsed_s": 11.9,
+        "error": null,
+        "broj_pravnih_rizika": 1,
+        "naslovi_rizika": [
+          "Vlasnik ima diskreciono pravo neograničenog povećanja ponude toke"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "confidence_tier": "HIGH",
+        "reg_summary": [
+          {
+            "propis_kratko": "Zakon o digitalnoj imovini RS",
+            "nivo_relevantnosti": "VISOK",
+            "broj_clanova": 1
+          }
+        ],
+        "klasif_tokena": [
+          {
+            "kategorija": "Utility token",
+            "status": "MOGUĆE"
+          }
+        ],
+        "aml_nivo_rizika": "VISOK",
+        "aml_obrazlozenje_80": "Tokeni se prenose bez ikakvih AML/KYC procedura, što može olakšati pranje novca.",
+        "cent_nivo": "VISOKA",
+        "cent_obrazlozenje_80": "Vlasnik ima ekskluzivno pravo na mintovanje novih tokena.",
+        "adm_nivo": "VISOKA",
+        "adm_br_funkcija": 1,
+        "adm_br_uloga": 1,
+        "br_sazetak_stavki": 5,
+        "is_lock_without_exit": false,
+        "is_unrestricted_mint": true,
+        "is_proxy_detected": false
+      }
+    ]
+  },
+  {
+    "contract": "pause_token",
+    "min_garantovanih_rizika": 1,
+    "is_lock_heuristic": false,
+    "is_mint_heuristic": true,
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 15.0,
+        "error": null,
+        "broj_pravnih_rizika": 2,
+        "naslovi_rizika": [
+          "Vlasnik ima diskreciono pravo neograničenog povećanja ponude toke",
+          "Vlasnik može pauzirati sve transakcije, ograničavajući likvidnost"
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "confidence_tier": "HIGH",
+        "reg_summary": [
+          {
+            "propis_kratko": "Zakon o digitalnoj imovini RS",
+            "nivo_relevantnosti": "VISOK",
+            "broj_clanova": 1
+          }
+        ],
+        "klasif_tokena": [
+          {
+            "kategorija": "Utility token",
+            "status": "MOGUĆE"
+          }
+        ],
+        "aml_nivo_rizika": "VISOK",
+        "aml_obrazlozenje_80": "Tokeni se mogu slobodno prenositi između pseudonimnih adresa bez KYC procedura.",
+        "cent_nivo": "VISOKA",
+        "cent_obrazlozenje_80": "Vlasnik ima ekskluzivna prava na mintovanje, pauziranje i upravljanje vlasništvo",
+        "adm_nivo": "VISOKA",
+        "adm_br_funkcija": 4,
+        "adm_br_uloga": 1,
+        "br_sazetak_stavki": 5,
+        "is_lock_without_exit": false,
+        "is_unrestricted_mint": true,
+        "is_proxy_detected": false
+      },
+      {
+        "run": 2,
+        "elapsed_s": 14.2,
+        "error": null,
+        "broj_pravnih_rizika": 2,
+        "naslovi_rizika": [
+          "Vlasnik ima diskreciono pravo neograničenog povećanja ponude toke",
+          "Vlasnik može pauzirati sve transfer aktivnosti."
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "confidence_tier": "HIGH",
+        "reg_summary": [
+          {
+            "propis_kratko": "Zakon o digitalnoj imovini RS",
+            "nivo_relevantnosti": "VISOK",
+            "broj_clanova": 1
+          }
+        ],
+        "klasif_tokena": [
+          {
+            "kategorija": "Utility token",
+            "status": "MOGUĆE"
+          }
+        ],
+        "aml_nivo_rizika": "VISOK",
+        "aml_obrazlozenje_80": "Pseudonimnost učesnika i centralizovana kontrola mogu povećati rizik od pranja n",
+        "cent_nivo": "VISOKA",
+        "cent_obrazlozenje_80": "Vlasnik ima ekskluzivna prava na ključne funkcije kao što su mintovanje i pauzir",
+        "adm_nivo": "VISOKA",
+        "adm_br_funkcija": 4,
+        "adm_br_uloga": 1,
+        "br_sazetak_stavki": 5,
+        "is_lock_without_exit": false,
+        "is_unrestricted_mint": true,
+        "is_proxy_detected": false
+      },
+      {
+        "run": 3,
+        "elapsed_s": 15.9,
+        "error": null,
+        "broj_pravnih_rizika": 2,
+        "naslovi_rizika": [
+          "Vlasnik ima diskreciono pravo neograničenog povećanja ponude toke",
+          "Vlasnik može pauzirati sve transfer aktivnosti."
+        ],
+        "offchain_ima_placeholder": true,
+        "anon_ima_aml_napomenu": true,
+        "confidence_tier": "HIGH",
+        "reg_summary": [
+          {
+            "propis_kratko": "Zakon o digitalnoj imovini RS",
+            "nivo_relevantnosti": "VISOK",
+            "broj_clanova": 2
+          }
+        ],
+        "klasif_tokena": [
+          {
+            "kategorija": "Utility token",
+            "status": "MOGUĆE"
+          },
+          {
+            "kategorija": "Payment token",
+            "status": "MOGUĆE"
+          }
+        ],
+        "aml_nivo_rizika": "VISOK",
+        "aml_obrazlozenje_80": "Ugovor omogućava pseudonimne transakcije bez ikakvih AML/KYC mehanizama.",
+        "cent_nivo": "VISOKA",
+        "cent_obrazlozenje_80": "Vlasnik ima ekskluzivnu kontrolu nad ključnim funkcijama kao što su mintovanje i",
+        "adm_nivo": "VISOKA",
+        "adm_br_funkcija": 4,
+        "adm_br_uloga": 1,
+        "br_sazetak_stavki": 5,
+        "is_lock_without_exit": false,
+        "is_unrestricted_mint": true,
+        "is_proxy_detected": false
+      }
+    ]
+  }
+]
