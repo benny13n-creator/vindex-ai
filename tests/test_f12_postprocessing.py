@@ -2,15 +2,21 @@
 """
 F12 deterministic post-processing — unit tests (no live API).
 
-T1 — _sc_detect_lock_without_exit: True for SimpleStaking-style code
-T2 — _sc_detect_lock_without_exit: False for plain ERC-20-style code (no false positive)
-T3 — offchain_zavisnosti placeholder injected when GPT returns empty list
-T4 — offchain_zavisnosti placeholder injected when GPT omits the field
-T5 — anonimnost_ucesnika AML/KYC note appended when indikator == "DA"
-T6 — anonimnost_ucesnika AML/KYC note NOT duplicated if already present
-T7 — lock-without-exit risk appended when GPT misses it (is_lock_without_exit=True)
-T8 — lock-without-exit risk NOT appended when GPT already included it
-T9 — lock-without-exit risk NOT appended when is_lock_without_exit=False
+T1  — _sc_detect_lock_without_exit: True for SimpleStaking-style code
+T2  — _sc_detect_lock_without_exit: False for plain ERC-20-style code (no false positive)
+T3  — offchain_zavisnosti placeholder injected when GPT returns empty list
+T4  — offchain_zavisnosti placeholder injected when GPT omits the field
+T5  — anonimnost_ucesnika AML/KYC note appended when indikator == "DA"
+T6  — anonimnost_ucesnika AML/KYC note NOT duplicated if already present
+T7  — lock-without-exit risk appended when GPT misses it (is_lock_without_exit=True)
+T8  — lock-without-exit risk NOT appended when GPT already included it
+T9  — lock-without-exit risk NOT appended when is_lock_without_exit=False
+TM1 — _sc_detect_unrestricted_mint: True for onlyOwner mint without supply cap
+TM2 — _sc_detect_unrestricted_mint: False for contract with no mint function
+TM3 — _sc_detect_unrestricted_mint: False for capped token (MAX_SUPPLY present)
+TM4 — unrestricted-mint risk appended when GPT misses it (is_unrestricted_mint=True)
+TM5 — unrestricted-mint risk NOT duplicated when GPT already included it
+TM6 — unrestricted-mint risk NOT added when is_unrestricted_mint=False
 """
 
 import sys, os
@@ -76,6 +82,44 @@ contract SimpleToken {
 }
 """
 
+# onlyOwner modifier before {, no supply cap → TM1 True
+UNRESTRICTED_OWNER_MINT = """
+pragma solidity ^0.8.0;
+contract UnrestrictedToken {
+    address public owner;
+    mapping(address => uint256) public balanceOf;
+    uint256 public totalSupply;
+
+    modifier onlyOwner() { require(msg.sender == owner, "Not owner"); _; }
+    constructor() { owner = msg.sender; }
+
+    function mint(address to, uint256 amount) external onlyOwner {
+        totalSupply += amount;
+        balanceOf[to] += amount;
+    }
+}
+"""
+
+# has MAX_SUPPLY cap → TM3 False
+CAPPED_TOKEN = """
+pragma solidity ^0.8.0;
+contract CappedToken {
+    address public owner;
+    uint256 public totalSupply;
+    uint256 public constant MAX_SUPPLY = 1000000;
+    mapping(address => uint256) public balanceOf;
+
+    constructor() { owner = msg.sender; }
+
+    function mint(address to, uint256 amount) external {
+        require(msg.sender == owner, "Not owner");
+        require(totalSupply + amount <= MAX_SUPPLY, "Exceeds max supply");
+        totalSupply += amount;
+        balanceOf[to] += amount;
+    }
+}
+"""
+
 
 def _make_result(offchain=None, anon_indikator="DA", anon_obr="Korisnici su anonimni.", rizici=None):
     r = {
@@ -92,8 +136,8 @@ def _make_result(offchain=None, anon_indikator="DA", anon_obr="Korisnici su anon
     return r
 
 
-def _run_postprocessing(result: dict, is_lock: bool) -> dict:
-    """Replicate the three post-processing steps from the endpoint."""
+def _run_postprocessing(result: dict, is_lock: bool, is_mint: bool = False) -> dict:
+    """Replicate all post-processing steps from the endpoint."""
     # Step 1
     if not result.get("offchain_zavisnosti"):
         result["offchain_zavisnosti"] = [_api._DEFAULT_OFFCHAIN_PLACEHOLDER]
@@ -114,6 +158,17 @@ def _run_postprocessing(result: dict, is_lock: bool) -> dict:
         )
         if not already:
             result["pravni_rizici"] = existing + [_api._LOCK_WITHOUT_EXIT_RISK]
+    # Step 6
+    if is_mint:
+        existing = result.get("pravni_rizici", [])
+        already = any(
+            "mint" in r.get("rizik", "").lower()
+            or "emisij" in r.get("rizik", "").lower()
+            or "emitova" in r.get("rizik", "").lower()
+            for r in existing
+        )
+        if not already:
+            result["pravni_rizici"] = existing + [_api._UNRESTRICTED_MINT_RISK]
     return result
 
 
@@ -184,3 +239,40 @@ def test_t8_lock_risk_not_duplicated_when_gpt_included():
 def test_t9_lock_risk_not_added_for_non_lock_contract():
     result = _run_postprocessing(_make_result(rizici=[]), False)
     assert not any("prevremen" in r.get("rizik", "").lower() for r in result["pravni_rizici"])
+
+
+# ── TM1/TM2/TM3: unrestricted-mint heuristic ─────────────────────────────────
+
+def test_tm1_detect_unrestricted_mint_true_for_onlyowner_mint():
+    assert _api._sc_detect_unrestricted_mint(UNRESTRICTED_OWNER_MINT) is True
+
+
+def test_tm2_detect_unrestricted_mint_false_for_no_mint():
+    assert _api._sc_detect_unrestricted_mint(SIMPLE_STAKING) is False
+
+
+def test_tm3_detect_unrestricted_mint_false_for_capped_token():
+    assert _api._sc_detect_unrestricted_mint(CAPPED_TOKEN) is False
+
+
+# ── TM4/TM5/TM6: unrestricted-mint post-processing ───────────────────────────
+
+def test_tm4_mint_risk_appended_when_missing():
+    result = _run_postprocessing(_make_result(rizici=[{"rizik": "Centralizovana kontrola.", "ozbiljnost": "VISOK", "obrazlozenje": "..."}]), False, is_mint=True)
+    rizici = [r["rizik"] for r in result["pravni_rizici"]]
+    assert any("mint" in r.lower() or "emitova" in r.lower() for r in rizici)
+
+
+def test_tm5_mint_risk_not_duplicated_when_gpt_included():
+    existing = [{"rizik": "Vlasnik može emitovati neograničen broj tokena.", "ozbiljnost": "VISOK", "obrazlozenje": "..."}]
+    result = _run_postprocessing(_make_result(rizici=existing), False, is_mint=True)
+    count = sum(1 for r in result["pravni_rizici"] if "emitova" in r.get("rizik", "").lower() or "mint" in r.get("rizik", "").lower())
+    assert count == 1
+
+
+def test_tm6_mint_risk_not_added_when_is_mint_false():
+    result = _run_postprocessing(_make_result(rizici=[]), False, is_mint=False)
+    assert not any(
+        "mint" in r.get("rizik", "").lower() or "emitova" in r.get("rizik", "").lower()
+        for r in result["pravni_rizici"]
+    )

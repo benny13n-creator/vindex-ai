@@ -4391,6 +4391,19 @@ def _sc_detect_lock_without_exit(source: str) -> bool:
     return has_owner_control and has_lock_period and not has_emergency_exit
 
 
+def _sc_detect_unrestricted_mint(source: str) -> bool:
+    import re as _re
+    has_mint = bool(_re.search(r'function\s+mint\s*\(', source, _re.IGNORECASE))
+    # Match onlyOwner as modifier (before {) OR require(msg.sender == owner) inside body
+    has_owner_only_mint = bool(_re.search(
+        r'function\s+mint\s*\([^)]*\)'
+        r'(?:[^{]*\bonlyOwner\b[^{]*\{|[^{]*\{[^}]*?require\s*\(\s*msg\.sender\s*==\s*owner)',
+        source, _re.IGNORECASE | _re.DOTALL,
+    ))
+    has_supply_cap = bool(_re.search(r'(maxSupply|MAX_SUPPLY|totalSupplyCap|supply_cap)', source, _re.IGNORECASE))
+    return has_mint and has_owner_only_mint and not has_supply_cap
+
+
 _DEFAULT_OFFCHAIN_PLACEHOLDER = {
     "zavisnost": "Nema identifikovanih eksplicitnih off-chain zavisnosti u dostavljenom kodu",
     "napomena": "Stvarna primena (frontend, deployment proces, upravljanje privatnim ključevima) može uvesti dodatne zavisnosti koje nisu predmet ove analize.",
@@ -4407,6 +4420,16 @@ _LOCK_WITHOUT_EXIT_RISK = {
     "obrazlozenje": (
         "Korisnička sredstva su zaključana do isteka definisanog perioda bez mogućnosti ranijeg povlačenja,"
         " čak ni u slučaju greške, kompromitacije administratorskog ključa ili nestanka administratora."
+    ),
+}
+
+_UNRESTRICTED_MINT_RISK = {
+    "rizik": "Vlasnik ugovora može neograničeno emitovati nove tokene bez gornjeg limita ponude.",
+    "ozbiljnost": "VISOK",
+    "obrazlozenje": (
+        "Funkcija mint() je dostupna isključivo vlasniku ugovora i ne postoji vidljivo ograničenje"
+        " maksimalne ukupne ponude (max supply/cap). Ovo predstavlja diskreciono pravo emisije koje"
+        " može uticati na vrednost postojećih tokena i ekonomska očekivanja korisnika."
     ),
 }
 
@@ -4470,7 +4493,8 @@ async def post_analiziraj_ugovor(
     solidity_version     = await asyncio.to_thread(_sc_extract_version, source)
     contract_name        = await asyncio.to_thread(_sc_extract_name, source)
     is_proxy_detected    = await asyncio.to_thread(_sc_detect_proxy, source)
-    is_lock_without_exit = await asyncio.to_thread(_sc_detect_lock_without_exit, source)
+    is_lock_without_exit  = await asyncio.to_thread(_sc_detect_lock_without_exit, source)
+    is_unrestricted_mint  = await asyncio.to_thread(_sc_detect_unrestricted_mint, source)
 
     asyncio.create_task(_audit(user["user_id"], "smart_contract_analiza", ""))
 
@@ -4483,6 +4507,15 @@ async def post_analiziraj_ugovor(
         "(greška, kompromitovan ključ, nestanak administratora).\n\n"
         if is_lock_without_exit else ""
     )
+    if is_unrestricted_mint:
+        _static_note += (
+            "NAPOMENA IZ STATIČKE ANALIZE: Kod sadrži funkciju mint() ograničenu na vlasnika"
+            " (onlyOwner ili ekvivalentno), bez vidljivog gornjeg limita ukupne ponude (max supply / cap)."
+            " Ako ovo potvrdiš pregledom koda, OBAVEZNO uključi odgovarajući rizik u pravni_rizici sa"
+            " ozbiljnost \"VISOK\", koji opisuje da vlasnik ima diskreciono pravo neograničenog povećanja"
+            " ponude tokena, što može uticati na vrednost postojećih tokena i predstavljati rizik za"
+            " korisnike/investitore.\n\n"
+        )
     user_msg = (
         f"Analiziraj sledeći Solidity pametni ugovor:\n\n"
         f"Naziv ugovora (auto-extracted): {contract_name}\n"
@@ -4575,6 +4608,18 @@ async def post_analiziraj_ugovor(
         )
         if not _already:
             analysis_result["pravni_rizici"] = _existing + [_LOCK_WITHOUT_EXIT_RISK]
+
+    # Step 6: unrestricted-mint fallback — inject risk if GPT missed it
+    if is_unrestricted_mint:
+        _existing = analysis_result.get("pravni_rizici", [])
+        _already = any(
+            "mint" in r.get("rizik", "").lower()
+            or "emisij" in r.get("rizik", "").lower()
+            or "emitova" in r.get("rizik", "").lower()
+            for r in _existing
+        )
+        if not _already:
+            analysis_result["pravni_rizici"] = _existing + [_UNRESTRICTED_MINT_RISK]
 
     # Save to Supabase
     def _save():
