@@ -2,10 +2,12 @@
 """
 F12 system-prompt hardening — static checks (no live API needed).
 
-T1 — offchain_zavisnosti has embedded placeholder comment (IZMENA A)
-T2 — anonimnost_ucesnika has embedded constraint comment (IZMENA B)
-T3 — pravni_rizici has lock-period example comment (IZMENA C)
-T4 — removed abstract blocks are gone (IZMENA D)
+T1 — offchain_zavisnosti has embedded placeholder comment
+T2 — aml_kyc block present; anonimnost_ucesnika present for post-processing
+T3 — pravni_rizici has lock-period rule comment
+T4 — removed abstract blocks are gone
+T5 — new sections present: pravni_sazetak, administrativna_ovlascenja, centralizacija,
+     klasifikacija_tokena, faktori_za/faktori_protiv, regulatorna_relevantnost with razlog_aktivacije
 """
 
 import sys, os
@@ -31,10 +33,13 @@ def test_t1_offchain_embedded_default():
     assert "frontend, deployment proces" in PROMPT
 
 
-def test_t2_anonymity_embedded_constraint():
-    assert "obrazlozenje MORA završiti rečenicom" in PROMPT
-    assert "strukturna karakteristika blockchain tehnologije" in PROMPT
-    assert "AML/KYC analizu na nivou platforme/posrednika" in PROMPT
+def test_t2_aml_kyc_block_and_anonimnost_present():
+    # new dedicated aml_kyc block
+    assert '"aml_kyc"' in PROMPT
+    assert "nivo_rizika" in PROMPT
+    assert "AML obaveze se tipično procenjuju na nivou platforme" in PROMPT
+    # anonimnost_ucesnika still present (required by post-processing Step 2)
+    assert "anonimnost_ucesnika" in PROMPT
 
 
 def test_t3_lock_period_risk_example():
@@ -47,3 +52,17 @@ def test_t4_removed_abstract_blocks():
     assert "OBAVEZNA PROVERA RIZIKA" not in PROMPT
     assert "INSTRUKCIJE ZA SPECIFIČNA POLJA" not in PROMPT
     assert "Jednostrana izmena parametara" not in PROMPT
+    # old "MORA završiti rečenicom" instruction removed (post-processing handles it)
+    assert "obrazlozenje MORA završiti rečenicom" not in PROMPT
+
+
+def test_t5_new_sections_present():
+    assert '"pravni_sazetak"' in PROMPT
+    assert '"administrativna_ovlascenja"' in PROMPT
+    assert '"centralizacija"' in PROMPT
+    assert '"klasifikacija_tokena"' in PROMPT
+    assert "faktori_za" in PROMPT
+    assert "faktori_protiv" in PROMPT
+    assert "razlog_aktivacije" in PROMPT
+    assert "moguci_pravni_dogadjaji" in PROMPT
+    assert "PRIORITET RIZIKA" in PROMPT
