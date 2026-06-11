@@ -1474,6 +1474,23 @@ footer { padding: 2rem 1.5rem; }
 .sc-offchain-naziv{font-weight:600;}
 .sc-offchain-napomena{color:rgba(255,255,255,0.42);}
 .sc-disclaimer{margin-top:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:8px;padding:11px 13px;font-size:0.73rem;color:rgba(255,255,255,0.42);line-height:1.6;}
+/* ── SC v2: new section styles ───────────────────────────────────────────── */
+.sc-sazetak-wrap .sc-section-head{background:rgba(201,168,76,0.08);border-bottom:1px solid rgba(201,168,76,0.2);}
+.sc-sazetak-item{font-size:0.83rem;color:rgba(255,255,255,0.82);padding:4px 0;line-height:1.5;}
+.sc-adm-funkcija{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:9px 12px;margin-bottom:7px;}
+.sc-adm-naziv{font-size:0.82rem;color:#e6edf3;font-weight:600;margin-bottom:4px;}
+.sc-adm-akter{font-size:0.77rem;color:rgba(255,255,255,0.5);font-weight:400;}
+.sc-adm-poslovna{font-size:0.77rem;color:rgba(255,255,255,0.62);margin-top:4px;line-height:1.4;}
+.sc-adm-pravna{font-size:0.75rem;color:rgba(201,168,76,0.85);margin-top:3px;line-height:1.4;}
+.sc-centralizacija-visoka{background:rgba(245,101,101,0.14);color:#f56565;border:1px solid rgba(245,101,101,0.3);}
+.sc-centralizacija-srednja{background:rgba(236,201,75,0.1);color:#ecc94b;border:1px solid rgba(236,201,75,0.3);}
+.sc-centralizacija-niska{background:rgba(72,187,120,0.1);color:#68d391;border:1px solid rgba(72,187,120,0.3);}
+.sc-faktori{font-size:0.74rem;margin-top:5px;line-height:1.4;}
+.sc-faktori-za{color:rgba(245,101,101,0.9);}
+.sc-faktori-protiv{color:rgba(72,187,120,0.85);}
+.sc-clan-obj{margin-bottom:6px;}
+.sc-clan-fn{font-size:0.72rem;color:rgba(201,168,76,0.8);background:rgba(201,168,76,0.08);padding:1px 5px;border-radius:4px;margin-left:4px;}
+.sc-clan-razlog{font-size:0.72rem;color:rgba(255,255,255,0.44);margin-top:2px;padding-left:2px;line-height:1.4;}
 /* ── ANALIZA RICH RENDER ─────────────────────────────────────────────────── */
 .analiza-rezime{border:1px solid var(--accent,#4aa8ff);border-radius:10px;margin-bottom:16px;overflow:hidden;}
 .analiza-rezime-header{background:rgba(74,168,255,0.12);padding:10px 16px;font-weight:700;font-size:0.92rem;color:var(--accent,#4aa8ff);border-bottom:1px solid rgba(255,255,255,0.07);}
@@ -4138,7 +4155,7 @@ function web3RenderAudit(auditData, objasnjenje) {
   return html;
 }
 
-/* ── F12: Smart Contract Legal Analyzer render ───────────────── */
+/* ── F12: Smart Contract Legal Analyzer render (v2) ─────────── */
 function web3RenderSmartContract(data) {
   var a = data.analysis_result;
   if (!a || typeof a !== 'object') {
@@ -4146,7 +4163,7 @@ function web3RenderSmartContract(data) {
   }
   var html = '';
 
-  // [2] Header: naziv ugovora + confidence badge
+  // Header: naziv ugovora + confidence badge
   var ct = ((a.confidence_tier || data.confidence_tier || 'LOW') + '').toUpperCase();
   var ctLabel = ct === 'HIGH' ? 'Visoko poverenje' : ct === 'MEDIUM' ? 'Srednje poverenje' : 'Nisko poverenje — rezultati su indikativni';
   var ctClass = ct === 'HIGH' ? 'sc-conf-high' : ct === 'MEDIUM' ? 'sc-conf-medium' : 'sc-conf-low';
@@ -4159,22 +4176,33 @@ function web3RenderSmartContract(data) {
   html += '<span class="sc-confidence-badge ' + ctClass + '">' + ctLabel + '</span>';
   html += '</div>';
 
-  // Proxy warning banner
   if (a.proxy_upozorenje) {
     html += '<div class="sc-proxy-warning">⚠️ Detektovan proxy pattern — ovaj ugovor može imati skrivenu implementacionu logiku koja nije vidljiva u dostavljenom kodu.</div>';
   }
 
-  // [1] Poslovna funkcija
-  var pf = a.poslovna_funkcija || {};
-  html += '<div class="sc-poslovna-card">';
-  html += '<div class="sc-section-header-static">Poslovna funkcija';
-  if (pf.tip_ugovora) html += ' <span class="sc-tip-badge">' + _htmlEsc(pf.tip_ugovora) + '</span>';
-  html += '</div>';
-  html += '<div class="sc-poslovna-body">' + _htmlEsc(pf.opis || '') + '</div>';
-  html += '</div>';
+  // [1] Pravni sažetak (Executive Summary)
+  var sazetak = Array.isArray(a.pravni_sazetak) ? a.pravni_sazetak : [];
+  if (sazetak.length) {
+    html += '<div class="sc-section sc-sazetak-wrap">';
+    html += '<div class="sc-section-head">⚡ Pravni sažetak — 30 sekundi</div>';
+    html += '<div class="sc-section-body">';
+    sazetak.forEach(function(s) { html += '<div class="sc-sazetak-item">• ' + _htmlEsc(s) + '</div>'; });
+    html += '</div></div>';
+  }
 
-  // [6] Pravni rizici (visoko istaknuti — odmah posle poslovna_funkcija)
-  var rizici = a.pravni_rizici || [];
+  // [2] Poslovna funkcija
+  var pf = a.poslovna_funkcija || {};
+  if (pf.opis || pf.tip_ugovora) {
+    html += '<div class="sc-poslovna-card">';
+    html += '<div class="sc-section-header-static">Poslovna funkcija';
+    if (pf.tip_ugovora) html += ' <span class="sc-tip-badge">' + _htmlEsc(pf.tip_ugovora) + '</span>';
+    html += '</div>';
+    if (pf.opis) html += '<div class="sc-poslovna-body">' + _htmlEsc(pf.opis) + '</div>';
+    html += '</div>';
+  }
+
+  // [3] Pravni rizici — visoko istaknuti, odmah posle sažetka
+  var rizici = Array.isArray(a.pravni_rizici) ? a.pravni_rizici : [];
   if (rizici.length) {
     html += '<div class="sc-section">';
     html += '<div class="sc-section-head">⚠️ Pravni rizici (' + rizici.length + ')</div>';
@@ -4191,21 +4219,75 @@ function web3RenderSmartContract(data) {
     html += '</div></div>';
   }
 
-  // [3] Ključne radnje (default open)
-  var radnje = a.kljucne_radnje || [];
+  // [4] Administrativna ovlašćenja
+  var adm = a.administrativna_ovlascenja || {};
+  var admFunkcije = Array.isArray(adm.privilegovane_funkcije) ? adm.privilegovane_funkcije : [];
+  var admNivo = adm.nivo || '';
+  if (admNivo || admFunkcije.length) {
+    var admNivoClass = admNivo === 'VISOKA' ? 'sc-centralizacija-visoka' : admNivo === 'SREDNJA' ? 'sc-centralizacija-srednja' : admNivo === 'NEMA' ? 'sc-centralizacija-niska' : 'sc-centralizacija-niska';
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">🔑 Administrativna ovlašćenja <span class="sc-rel-badge ' + admNivoClass + '" style="margin-left:8px">' + _htmlEsc(admNivo) + '</span><span class="sc-caret">▾</span></div>';
+    html += '<div class="sc-section-body">';
+    var admUloge = Array.isArray(adm.privilegovane_uloge) ? adm.privilegovane_uloge : [];
+    if (admUloge.length) {
+      html += '<div class="sc-reg-clanovi" style="margin-bottom:10px">';
+      admUloge.forEach(function(u) { html += '<span class="sc-clan-tag">' + _htmlEsc(u) + '</span>'; });
+      html += '</div>';
+    }
+    if (admFunkcije.length) {
+      admFunkcije.forEach(function(f) {
+        html += '<div class="sc-adm-funkcija">';
+        html += '<div class="sc-adm-naziv"><code>' + _htmlEsc(f.naziv || '') + '</code>';
+        if (f.ovlasceni_akter) html += ' <span class="sc-adm-akter">(' + _htmlEsc(f.ovlasceni_akter) + ')</span>';
+        html += '</div>';
+        if (f.poslovna_posledica) html += '<div class="sc-adm-poslovna"><strong>Poslovna posledica:</strong> ' + _htmlEsc(f.poslovna_posledica) + '</div>';
+        if (f.pravna_posledica) html += '<div class="sc-adm-pravna"><strong>Pravna posledica:</strong> ' + _htmlEsc(f.pravna_posledica) + '</div>';
+        html += '</div>';
+      });
+    } else if (admNivo === 'NEMA') {
+      html += '<div class="sc-ind-obr">Nisu identifikovana posebna administrativna ovlašćenja.</div>';
+    }
+    html += '</div></div>';
+  }
+
+  // [5] Centralizacija
+  var cent = a.centralizacija || {};
+  if (cent.nivo) {
+    var centClass = cent.nivo === 'VISOKA' ? 'sc-centralizacija-visoka' : cent.nivo === 'SREDNJA' ? 'sc-centralizacija-srednja' : 'sc-centralizacija-niska';
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">🏛️ Analiza centralizacije <span class="sc-rel-badge ' + centClass + '" style="margin-left:8px">' + _htmlEsc(cent.nivo) + '</span><span class="sc-caret">▾</span></div>';
+    html += '<div class="sc-section-body">';
+    if (cent.obrazlozenje) html += '<div class="sc-ind-obr" style="margin-bottom:8px">' + _htmlEsc(cent.obrazlozenje) + '</div>';
+    var centFaktori = Array.isArray(cent.faktori) ? cent.faktori : [];
+    if (centFaktori.length) {
+      centFaktori.forEach(function(f) { html += '<div class="sc-sazetak-item">• ' + _htmlEsc(f) + '</div>'; });
+    }
+    html += '</div></div>';
+  }
+
+  // [6] Ključne radnje
+  var radnje = Array.isArray(a.kljucne_radnje) ? a.kljucne_radnje : [];
   if (radnje.length) {
     html += '<div class="sc-section">';
     html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">📋 Ključne radnje <span class="sc-caret">▾</span></div>';
     html += '<div class="sc-section-body">';
-    html += '<table class="sc-radnje-table"><thead><tr><th>Radnja</th><th>Opis</th><th>Pravni karakter</th></tr></thead><tbody>';
     radnje.forEach(function(r) {
-      html += '<tr><td>' + _htmlEsc(r.radnja || '') + '</td><td>' + _htmlEsc(r.opis || '') + '</td><td>' + _htmlEsc(r.pravni_karakter || '') + '</td></tr>';
+      html += '<div class="sc-adm-funkcija">';
+      html += '<div class="sc-adm-naziv"><strong>' + _htmlEsc(r.radnja || '') + '</strong>';
+      if (r.pravni_karakter) html += ' <span class="sc-adm-akter">— ' + _htmlEsc(r.pravni_karakter) + '</span>';
+      html += '</div>';
+      var opis = r.poslovna_funkcija || r.opis || '';
+      if (opis) html += '<div class="sc-ind-obr">' + _htmlEsc(opis) + '</div>';
+      var dogadjaji = Array.isArray(r.moguci_pravni_dogadjaji) ? r.moguci_pravni_dogadjaji : [];
+      if (dogadjaji.length) {
+        html += '<div class="sc-adm-pravna"><em>Mogući pravni događaji:</em> ' + dogadjaji.map(function(d){ return _htmlEsc(d); }).join(' • ') + '</div>';
+      }
+      html += '</div>';
     });
-    html += '</tbody></table>';
     html += '</div></div>';
   }
 
-  // [4] Pravni indikatori (2x2 grid)
+  // [7] Pravni indikatori (sa faktorima ZA/PROTIV)
   var pi = a.pravni_indikatori || {};
   var indNazivi = {
     pruzanje_finansijske_usluge: 'Pružanje finansijske usluge',
@@ -4214,12 +4296,12 @@ function web3RenderSmartContract(data) {
     anonimnost_ucesnika:         'Anonimnost učesnika'
   };
   var indKeys = Object.keys(indNazivi);
-  if (indKeys.some(function(k){ return !!pi[k]; })) {
+  if (indKeys.some(function(k){ return !!(pi && pi[k]); })) {
     html += '<div class="sc-section">';
     html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">⚖️ Pravni indikatori <span class="sc-caret">▾</span></div>';
     html += '<div class="sc-section-body sc-indikatori-grid">';
     indKeys.forEach(function(k) {
-      var ind = pi[k] || {};
+      var ind = (pi && pi[k]) || {};
       var val = ((ind.indikator || 'NEDOVOLJNO PODATAKA') + '').toUpperCase();
       var valClass = val === 'DA' ? 'sc-ind-da' : (val === 'MOGUĆE' || val === 'MOGUCE') ? 'sc-ind-moguce' : val === 'NE' ? 'sc-ind-ne' : 'sc-ind-nd';
       var valIkona = val === 'DA' ? '🔴' : (val === 'MOGUĆE' || val === 'MOGUCE') ? '🟡' : val === 'NE' ? '🟢' : '⚪';
@@ -4227,13 +4309,53 @@ function web3RenderSmartContract(data) {
       html += '<div class="sc-ind-naziv">' + _htmlEsc(indNazivi[k]) + '</div>';
       html += '<div class="sc-ind-value ' + valClass + '">' + valIkona + ' ' + _htmlEsc(ind.indikator || 'NEDOVOLJNO PODATAKA') + '</div>';
       if (ind.obrazlozenje) html += '<div class="sc-ind-obr">' + _htmlEsc(ind.obrazlozenje) + '</div>';
+      var fZa = Array.isArray(ind.faktori_za) ? ind.faktori_za : [];
+      var fPro = Array.isArray(ind.faktori_protiv) ? ind.faktori_protiv : [];
+      if (fZa.length) html += '<div class="sc-faktori sc-faktori-za"><strong>Za:</strong> ' + fZa.map(function(f){ return _htmlEsc(f); }).join('; ') + '</div>';
+      if (fPro.length) html += '<div class="sc-faktori sc-faktori-protiv"><strong>Protiv:</strong> ' + fPro.map(function(f){ return _htmlEsc(f); }).join('; ') + '</div>';
       html += '</div>';
     });
     html += '</div></div>';
   }
 
-  // [5] Regulatorna relevantnost
-  var regs = a.regulatorna_relevantnost || [];
+  // [8] AML/KYC blok
+  var amlKyc = a.aml_kyc || {};
+  if (amlKyc.nivo_rizika || amlKyc.obrazlozenje) {
+    var amlClass = amlKyc.nivo_rizika === 'VISOK' ? 'sc-centralizacija-visoka' : amlKyc.nivo_rizika === 'SREDNJI' ? 'sc-centralizacija-srednja' : 'sc-centralizacija-niska';
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">🛡️ AML/KYC <span class="sc-rel-badge ' + amlClass + '" style="margin-left:8px">' + _htmlEsc(amlKyc.nivo_rizika || '') + '</span><span class="sc-caret">▾</span></div>';
+    html += '<div class="sc-section-body">';
+    if (amlKyc.obrazlozenje) html += '<div class="sc-ind-obr" style="margin-bottom:8px">' + _htmlEsc(amlKyc.obrazlozenje) + '</div>';
+    var amlKar = Array.isArray(amlKyc.karakteristike) ? amlKyc.karakteristike : [];
+    if (amlKar.length) {
+      amlKar.forEach(function(k) { html += '<div class="sc-sazetak-item">• ' + _htmlEsc(k) + '</div>'; });
+    }
+    if (amlKyc.napomena) html += '<div class="sc-disclaimer" style="margin-top:8px;font-size:0.78rem">' + _htmlEsc(amlKyc.napomena) + '</div>';
+    html += '</div></div>';
+  }
+
+  // [9] Klasifikacija tokena
+  var tokeni = Array.isArray(a.klasifikacija_tokena) ? a.klasifikacija_tokena : [];
+  if (tokeni.length) {
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">🪙 Klasifikacija tokena <span class="sc-caret">▾</span></div>';
+    html += '<div class="sc-section-body">';
+    tokeni.forEach(function(t) {
+      var tVal = ((t.status || 'NEDOVOLJNO PODATAKA') + '').toUpperCase();
+      var tClass = tVal === 'DA' ? 'sc-ind-da' : tVal === 'MOGUĆE' ? 'sc-ind-moguce' : tVal === 'NE' ? 'sc-ind-ne' : 'sc-ind-nd';
+      html += '<div class="sc-adm-funkcija">';
+      html += '<div class="sc-adm-naziv"><strong>' + _htmlEsc(t.kategorija || '') + '</strong> <span class="sc-ind-value ' + tClass + '" style="font-size:0.78rem;padding:1px 6px">' + _htmlEsc(t.status || '') + '</span></div>';
+      var tZa = Array.isArray(t.faktori_za) ? t.faktori_za : [];
+      var tPro = Array.isArray(t.faktori_protiv) ? t.faktori_protiv : [];
+      if (tZa.length) html += '<div class="sc-faktori sc-faktori-za"><strong>Za:</strong> ' + tZa.map(function(f){ return _htmlEsc(f); }).join('; ') + '</div>';
+      if (tPro.length) html += '<div class="sc-faktori sc-faktori-protiv"><strong>Protiv:</strong> ' + tPro.map(function(f){ return _htmlEsc(f); }).join('; ') + '</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // [10] Regulatorna relevantnost — objektni clanovi (v2)
+  var regs = Array.isArray(a.regulatorna_relevantnost) ? a.regulatorna_relevantnost : [];
   if (regs.length) {
     html += '<div class="sc-section">';
     html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">📚 Regulatorna relevantnost <span class="sc-caret">▾</span></div>';
@@ -4243,10 +4365,22 @@ function web3RenderSmartContract(data) {
       var nrClass = nr === 'VISOK' ? 'sc-rel-visok' : nr === 'SREDNJI' ? 'sc-rel-srednji' : 'sc-rel-moguc';
       html += '<div class="sc-regulativa-card">';
       html += '<div class="sc-reg-head"><strong>' + _htmlEsc(reg.propis || '') + '</strong><span class="sc-rel-badge ' + nrClass + '">' + _htmlEsc(reg.nivo_relevantnosti || '') + '</span></div>';
-      var cl = reg.relevantni_clanovi || [];
+      var cl = Array.isArray(reg.relevantni_clanovi) ? reg.relevantni_clanovi : [];
       if (cl.length) {
         html += '<div class="sc-reg-clanovi">';
-        cl.forEach(function(c) { html += '<span class="sc-clan-tag">' + _htmlEsc(c) + '</span>'; });
+        cl.forEach(function(c) {
+          if (c && typeof c === 'object') {
+            // v2 schema: {clan, razlog_aktivacije, relevantna_funkcija}
+            html += '<div class="sc-clan-obj">';
+            html += '<span class="sc-clan-tag">' + _htmlEsc(c.clan || '') + '</span>';
+            if (c.relevantna_funkcija) html += ' <code class="sc-clan-fn">' + _htmlEsc(c.relevantna_funkcija) + '</code>';
+            if (c.razlog_aktivacije) html += '<div class="sc-clan-razlog">' + _htmlEsc(c.razlog_aktivacije) + '</div>';
+            html += '</div>';
+          } else {
+            // v1 fallback: plain string
+            html += '<span class="sc-clan-tag">' + _htmlEsc(c || '') + '</span>';
+          }
+        });
         html += '</div>';
       }
       if (reg.obrazlozenje) html += '<div class="sc-reg-obr">' + _htmlEsc(reg.obrazlozenje) + '</div>';
@@ -4255,8 +4389,8 @@ function web3RenderSmartContract(data) {
     html += '</div></div>';
   }
 
-  // [7] Off-chain zavisnosti (default collapsed)
-  var offchain = a.offchain_zavisnosti || [];
+  // [11] Off-chain zavisnosti (default collapsed)
+  var offchain = Array.isArray(a.offchain_zavisnosti) ? a.offchain_zavisnosti : [];
   if (offchain.length) {
     html += '<div class="sc-section">';
     html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">🔗 Off-chain zavisnosti (' + offchain.length + ') <span class="sc-caret">▸</span></div>';
@@ -4269,7 +4403,14 @@ function web3RenderSmartContract(data) {
     html += '</div></div>';
   }
 
-  // [8] Disclaimer (uvek vidljiv)
+  if (Array.isArray(a.limitacije_analize) && a.limitacije_analize.length) {
+    html += '<div class="sc-section">';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">ℹ️ Limitacije analize <span class="sc-caret">▸</span></div>';
+    html += '<div class="sc-section-body" style="display:none">';
+    a.limitacije_analize.forEach(function(l) { html += '<div class="sc-sazetak-item">• ' + _htmlEsc(l) + '</div>'; });
+    html += '</div></div>';
+  }
+
   html += '<div class="sc-disclaimer">Ova analiza predstavlja automatski generisane pravne indikatore i ne predstavlja pravno mišljenje niti pravni savet. Rezultati su zasnovani isključivo na dostavljenom izvornom kodu i ne uzimaju u obzir poslovni kontekst, stvarne transakcije, identitet strana, niti sudsku ili regulatornu praksu. Pre donošenja bilo kakve pravne ili poslovne odluke, konsultujte ovlašćenog pravnika.</div>';
 
   return html;

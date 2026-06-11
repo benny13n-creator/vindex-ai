@@ -4557,7 +4557,7 @@ async def post_analiziraj_ugovor(
 
     source = req.solidity_source
 
-    if len(source.split()) < 50:
+    if len(source.split()) < 20:
         raise HTTPException(
             status_code=400,
             detail="Dostavljeni kod je previše kratak za pouzdanu pravnu analizu.",
@@ -4648,6 +4648,9 @@ async def post_analiziraj_ugovor(
         raise HTTPException(status_code=500, detail="Greška na serveru. Pokušajte ponovo.")
 
     analysis_result = _parse_json(raw_content)
+    logger.warning("[F12_DEBUG] contract=%s parsed_ok=%s raw_len=%d", contract_name, analysis_result is not None, len(raw_content))
+    if analysis_result is None:
+        logger.warning("[F12_DEBUG] raw_ai_response=%s", raw_content[:500])
 
     if analysis_result is None:
         # Retry once with explicit instruction
@@ -4680,7 +4683,7 @@ async def post_analiziraj_ugovor(
         analysis_result["offchain_zavisnosti"] = [_DEFAULT_OFFCHAIN_PLACEHOLDER]
 
     # Step 2: anonimnost_ucesnika — append AML/KYC structural note if GPT hasn't covered it
-    _anon = analysis_result.get("pravni_indikatori", {}).get("anonimnost_ucesnika", {})
+    _anon = (analysis_result.get("pravni_indikatori") or {}).get("anonimnost_ucesnika", {})
     if isinstance(_anon, dict):
         _obr = _anon.get("obrazlozenje", "")
         _obr_lower = _obr.lower()
