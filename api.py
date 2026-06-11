@@ -4495,6 +4495,7 @@ async def post_analiziraj_ugovor(
     is_proxy_detected    = await asyncio.to_thread(_sc_detect_proxy, source)
     is_lock_without_exit  = await asyncio.to_thread(_sc_detect_lock_without_exit, source)
     is_unrestricted_mint  = await asyncio.to_thread(_sc_detect_unrestricted_mint, source)
+    logger.warning("[SC_MINT_DEBUG] is_unrestricted_mint=%s for contract=%s", is_unrestricted_mint, contract_name)
 
     asyncio.create_task(_audit(user["user_id"], "smart_contract_analiza", ""))
 
@@ -4610,6 +4611,7 @@ async def post_analiziraj_ugovor(
             analysis_result["pravni_rizici"] = _existing + [_LOCK_WITHOUT_EXIT_RISK]
 
     # Step 6: unrestricted-mint fallback — inject risk if GPT missed it
+    logger.warning("[SC_MINT_DEBUG] Step 6 reached, is_unrestricted_mint=%s, existing_risks_count=%d", is_unrestricted_mint, len(analysis_result.get("pravni_rizici", [])))
     if is_unrestricted_mint:
         _existing = analysis_result.get("pravni_rizici", [])
         _already = any(

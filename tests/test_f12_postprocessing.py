@@ -255,6 +255,25 @@ def test_tm3_detect_unrestricted_mint_false_for_capped_token():
     assert _api._sc_detect_unrestricted_mint(CAPPED_TOKEN) is False
 
 
+def test_tm7_detect_unrestricted_mint_true_for_inline_require():
+    # Exact pattern used in live SimpleToken: require(msg.sender == owner) inside body, no modifier
+    source = """
+pragma solidity ^0.8.0;
+contract SimpleToken {
+    address public owner;
+    uint256 public totalSupply;
+    mapping(address => uint256) public balanceOf;
+    constructor() { owner = msg.sender; }
+    function mint(address to, uint256 amount) external {
+        require(msg.sender == owner, "Not owner");
+        balanceOf[to] += amount;
+        totalSupply += amount;
+    }
+}
+"""
+    assert _api._sc_detect_unrestricted_mint(source) is True
+
+
 # ── TM4/TM5/TM6: unrestricted-mint post-processing ───────────────────────────
 
 def test_tm4_mint_risk_appended_when_missing():
