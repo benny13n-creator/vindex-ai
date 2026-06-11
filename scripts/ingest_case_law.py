@@ -41,7 +41,7 @@ TARGET_NAMESPACE = "sudska_praksa"
 EMBEDDING_MODEL = "text-embedding-3-large"
 EMBED_BATCH_SIZE = 100
 UPSERT_BATCH_SIZE = 100
-DEFAULT_NS_EXPECTED = 17688
+DEFAULT_NS_EXPECTED = 17707  # updated 2026-05-31: +19 vectors added by ingest_short_15/ingest_glossary_vasp_casp after Phase 1.2
 CHUNKED_DIR = Path(__file__).parent.parent / "data" / "sudska_praksa" / "chunked"
 STATE_FILE = Path(__file__).parent.parent / "data" / "sudska_praksa" / ".ingest_state.json"
 
@@ -96,14 +96,37 @@ def _clean_metadata(meta: dict) -> dict:
     return cleaned
 
 
+_PARENT_TEXT_MAX_CHARS = 900
+
+
+def _build_parent_text(dec_chunks: list, idx: int) -> str:
+    """prev_chunk.text + curr + next_chunk.text — sliding window for parent-child retrieval."""
+    parts = []
+    if idx > 0:
+        parts.append(dec_chunks[idx - 1]["text"])
+    parts.append(dec_chunks[idx]["text"])
+    if idx < len(dec_chunks) - 1:
+        parts.append(dec_chunks[idx + 1]["text"])
+    return " [...] ".join(parts)[:_PARENT_TEXT_MAX_CHARS]
+
+
 def load_chunks(chunked_dir: Path = CHUNKED_DIR) -> list[dict]:
-    """Load all chunk records from the 4 matter subdirectories, sorted."""
+    """Load all chunk records from the 4 matter subdirectories, sorted.
+
+    Each chunk includes parent_text (prev+curr+next chunk text, max 900 chars)
+    for parent-child retrieval in retrieve.py.
+    """
     all_chunks: list[dict] = []
     for slug in ["krivicna", "gradjanska", "upravna", "zastitaprava"]:
         for df in sorted((chunked_dir / slug).glob("*.json")):
             decision = json.loads(df.read_text(encoding="utf-8"))
-            for chunk in decision["chunks"]:
-                raw_meta = {**chunk["metadata"], "text": chunk["text"]}
+            dec_chunks = decision["chunks"]
+            for i, chunk in enumerate(dec_chunks):
+                raw_meta = {
+                    **chunk["metadata"],
+                    "text": chunk["text"],
+                    "parent_text": _build_parent_text(dec_chunks, i),
+                }
                 all_chunks.append({
                     "chunk_id": chunk["chunk_id"],
                     "matter_slug": slug,
@@ -532,6 +555,49 @@ def rollback(index) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+def stage_reingest(index, client) -> None:
+    """
+    Re-upsert all on-disk chunks with updated metadata (including parent_text).
+
+    Does NOT delete existing vectors — Pinecone upsert is idempotent by vector ID.
+    Vectors whose IDs exist in Pinecone get their metadata updated; new IDs are inserted.
+    Vectors in Pinecone that have no corresponding JSON on disk are left untouched.
+
+    Use when metadata schema changes (e.g. adding parent_text) without changing embeddings.
+    """
+    log.info("=== REINGEST MODE: updating metadata for all on-disk chunks ===")
+    log.info("NOTE: embeddings are recomputed; vectors are upserted (update or insert).")
+
+    all_chunks = load_chunks()
+    total = len(all_chunks)
+    log.info("Loaded %d chunks from disk", total)
+
+    t_start = time.monotonic()
+    total_upserted = 0
+
+    for batch_start in range(0, total, UPSERT_BATCH_SIZE):
+        batch = all_chunks[batch_start: batch_start + UPSERT_BATCH_SIZE]
+        texts = [c["text"] for c in batch]
+
+        embeddings = embed_batch(texts, client)
+        vectors = [
+            {"id": _ascii_vector_id(c["chunk_id"]), "values": emb, "metadata": c["metadata"]}
+            for c, emb in zip(batch, embeddings)
+        ]
+        _safe_upsert(index, vectors, TARGET_NAMESPACE)
+        total_upserted += len(batch)
+        batch_num = batch_start // UPSERT_BATCH_SIZE + 1
+        elapsed = time.monotonic() - t_start
+        log.info(
+            "Batch %d | +%d | total %d/%d | %.0fs elapsed",
+            batch_num, len(batch), total_upserted, total, elapsed,
+        )
+        time.sleep(1)  # light throttle — avoid Pinecone rate limit
+
+    elapsed = time.monotonic() - t_start
+    log.info("=== REINGEST COMPLETE === %d vectors upserted in %.1fs", total_upserted, elapsed)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Phase 1.2: ingest case law into Pinecone")
     parser.add_argument(
@@ -542,6 +608,11 @@ def main():
         help="seed = Stage 1 only; full = Stage 2 only; all = both (default)",
     )
     parser.add_argument("--rollback", action="store_true", help="Delete all sudska_praksa vectors")
+    parser.add_argument(
+        "--reingest", action="store_true",
+        help="Re-upsert all on-disk chunks with updated metadata (e.g. parent_text). "
+             "Does NOT delete existing vectors. Bypasses count checks.",
+    )
     args = parser.parse_args()
 
     # Env checks
@@ -561,6 +632,10 @@ def main():
 
     if args.rollback:
         rollback(index)
+        return
+
+    if args.reingest:
+        stage_reingest(index, client)
         return
 
     if args.stage in ("seed", "all"):
