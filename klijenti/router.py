@@ -491,13 +491,15 @@ async def delete_klijent(
     ip = get_client_ip(request)
     now = _now_iso()
 
-    await asyncio.to_thread(
+    res = await asyncio.to_thread(
         lambda: supa.table("klijenti")
                     .update({"status": "soft_deleted", "deleted_at": now, "aktivan": False})
                     .eq("id", klijent_id)
                     .eq("user_id", user["user_id"])
                     .execute()
     )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
     asyncio.create_task(log_event(
         supa=supa, user_id=user["user_id"], user_email=user.get("email", ""),
         user_role=user.get("role_str", "advokat"), akcija=Akcija.SOFT_DELETE,
@@ -660,7 +662,7 @@ async def upload_klijent_dokument(
     Naziv fajla se enkriptuje pre čuvanja u metadata tabeli.
     """
     user = await _auth_from_request(request)
-    if not can_perform(user["role"], "download_document"):
+    if not can_perform(user["role"], "upload_document"):
         raise HTTPException(status_code=403, detail="Nedovoljno prava za upload dokumenata.")
     supa = _get_supa()
     # Horizontal access guard
