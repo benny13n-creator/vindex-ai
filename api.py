@@ -564,6 +564,24 @@ class PodnesakReq(BaseModel):
         return v.strip()
 
 
+class NacrtChecklistReq(BaseModel):
+    tip: str = Field(..., max_length=60)
+    cinjenice: str = Field(..., min_length=10, max_length=8000)
+
+    @field_validator("tip")
+    @classmethod
+    def validiraj_tip(cls, v: str) -> str:
+        from nacrti.checklist_config import SVI_TIPOVI
+        if v not in SVI_TIPOVI:
+            raise ValueError(f"Nepoznat tip podneska: {v!r}. Dozvoljeni: {SVI_TIPOVI}")
+        return v
+
+    @field_validator("cinjenice")
+    @classmethod
+    def ocisti_cinjenice(cls, v: str) -> str:
+        return v.strip()
+
+
 class SazmiReq(BaseModel):
     odgovor: str = Field(..., max_length=6000)
 
@@ -1633,6 +1651,34 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
         "tip":     req.tip,
         "naziv":   PODNESAK_TIPOVI[req.tip],
     }
+
+
+# ─── AI Paralegal Pipeline — Nacrti ──────────────────────────────────────────
+
+@app.post("/api/nacrti/checklist")
+@limiter.limit("20/minute")
+async def nacrti_checklist(req: NacrtChecklistReq, request: Request, user: dict = Depends(require_pro)):
+    """
+    Faza 1 — Checklist analiza.
+
+    Prima tip podneska i slobodan tekst činjenica.
+    Vraća koji obavezni elementi nedostaju, sa objašnjenjem zašto su važni.
+    blokira_nastavak=True ako nedostaje element kriticnosti "visoka".
+    """
+    from nacrti.checklist_engine import analiziraj_checklist
+
+    log_id = _q_hash(req.cinjenice)
+    logger.info("NacrtChecklist [uid=%.8s] tip=%s [q=%s]", user["user_id"], req.tip, log_id)
+
+    try:
+        rezultat = await asyncio.to_thread(analiziraj_checklist, req.tip, req.cinjenice)
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        logger.error("NacrtChecklist GPT error [q=%s]: %s", log_id, e)
+        raise HTTPException(status_code=502, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
+
+    return rezultat
 
 
 # ─── Document Upload (Phase 2.2) ─────────────────────────────────────────────
