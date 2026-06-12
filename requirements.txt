@@ -19,3 +19,5 @@ pywebpush
 argon2-cffi
 cryptography
 sentry-sdk[fastapi]
+prometheus-client
+starlette-exporter

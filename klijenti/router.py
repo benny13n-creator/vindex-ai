@@ -1106,6 +1106,88 @@ async def get_my_role(request: Request):
     }
 
 
+# ─── Intake Wizard ────────────────────────────────────────────────────────────
+
+
+class IntakeWizardReq(BaseModel):
+    tip_predmeta: str = Field(..., description="radni/civilni/krivicni/opsti/porodični/privredni")
+    opis_situacije: str = Field(..., min_length=20, max_length=2000)
+    tip_klijenta: str = Field(default="fizicko_lice", description="fizicko_lice/pravno_lice")
+    hitnost: str = Field(default="normalno", description="hitno/normalno/planiranje")
+
+
+@router.post("/klijenti/intake-wizard")
+async def intake_wizard(req: IntakeWizardReq, request: Request):
+    """
+    AI onboarding assistant — za dati tip predmeta i opis situacije vraća:
+    - Preporučena dokumenta za prikupljanje
+    - Ključni rokovi koje treba proveriti
+    - Relevantni zakoni (zakon + član)
+    - Moguće pravne zahteve / tužbene osnove
+    - Potrebne informacije za dalje
+    """
+    user = await _auth_from_request(request)
+    import openai as _oai
+
+    client = _oai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
+
+    system_prompt = (
+        "Ti si AI pravni asistent specijalizovan za srpsko pravo. "
+        "Daje se tip predmeta i opis situacije novog klijenta. "
+        "Odgovori ISKLJUČIVO u JSON formatu bez ikakvog teksta van JSON-a. "
+        "Struktura odgovora:\n"
+        "{\n"
+        '  "dokumenta": [{"naziv": str, "razlog": str}],\n'
+        '  "rokovi": [{"naziv": str, "trajanje": str, "zakon": str}],\n'
+        '  "zakoni": [{"zakon": str, "clan": str, "kratak_opis": str}],\n'
+        '  "zahtevi": [{"naziv": str, "opis": str}],\n'
+        '  "pitanja_za_klijenta": [str]\n'
+        "}\n"
+        "Koristi isključivo važeće srpske propise. Maksimalno 5 stavki po kategoriji."
+    )
+
+    user_msg = (
+        f"Tip predmeta: {req.tip_predmeta}\n"
+        f"Tip klijenta: {req.tip_klijenta}\n"
+        f"Hitnost: {req.hitnost}\n\n"
+        f"Opis situacije:\n{req.opis_situacije}"
+    )
+
+    try:
+        resp = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_msg},
+            ],
+            temperature=0.2,
+            max_tokens=1200,
+            response_format={"type": "json_object"},
+        )
+        import json as _json
+        preporuke = _json.loads(resp.choices[0].message.content or "{}")
+    except Exception as e:
+        logger.error("[INTAKE-WIZARD] OpenAI greška: %s", e)
+        raise HTTPException(status_code=500, detail="Greška pri generisanju preporuka.")
+
+    asyncio.create_task(log_event(
+        supa=_get_supa(),
+        user_id=user["user_id"],
+        user_email=user.get("email", ""),
+        user_role=user.get("role_str", "advokat"),
+        akcija=Akcija.VIEW,
+        entitet_tip="intake_wizard",
+        entitet_id=None,
+        detalji={"tip_predmeta": req.tip_predmeta, "hitnost": req.hitnost},
+        ip_adresa=get_client_ip(request),
+    ))
+
+    return {
+        "tip_predmeta": req.tip_predmeta,
+        "preporuke": preporuke,
+    }
+
+
 # ─── Internal helpers ─────────────────────────────────────────────────────────
 
 async def _auth_from_request(request: Request) -> dict:

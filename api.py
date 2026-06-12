@@ -47,6 +47,15 @@ def _setup_sentry() -> None:
 
 _setup_sentry()
 
+# ─── Prometheus metrics ───────────────────────────────────────────────────────
+def _setup_prometheus(application) -> None:
+    try:
+        from starlette_exporter import PrometheusMiddleware, handle_metrics
+        application.add_middleware(PrometheusMiddleware, app_name="vindex_ai", prefix="vindex")
+        application.add_route("/metrics", handle_metrics)
+    except ImportError:
+        pass  # Not installed in dev — no-op
+
 # ─── Fail-fast: validacija encryption key PRE nego server podigne ikoji endpoint
 from security.crypto import validate_field_encryption_key as _validate_enc_key
 _validate_enc_key()
@@ -421,6 +430,7 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["60/hour"])
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+_setup_prometheus(app)
 
 # Klijenti CRM router (P1–P8, sve faze)
 app.include_router(klijenti_router)
@@ -436,6 +446,7 @@ from routers.drafting    import router as drafting_router
 from routers.dokument    import router as dokument_router
 from routers.komentari   import router as komentari_router
 from routers.praksa      import router as praksa_router
+from routers.copilot     import router as copilot_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -447,6 +458,7 @@ app.include_router(drafting_router)
 app.include_router(dokument_router)
 app.include_router(komentari_router)
 app.include_router(praksa_router)
+app.include_router(copilot_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -1246,22 +1258,153 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
     )
 
 
+# ── Global Search ─────────────────────────────────────────────────────────────
+
+
+@app.get("/api/search")
+@limiter.limit("30/minute")
+async def global_search(
+    request: Request,
+    q: str = "",
+    limit: int = 10,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Pretražuje klijente, predmete, beleške i komentare jednim upitom.
+    Vraća rangirane rezultate po tipu entiteta.
+    """
+    q = (q or "").strip()
+    if not q or len(q) < 2:
+        raise HTTPException(status_code=400, detail="Upit mora imati najmanje 2 karaktera.")
+    limit = min(max(limit, 1), 50)
+    uid = user["user_id"]
+    supa = _get_supa()
+    results = []
+
+    # ── Klijenti ──────────────────────────────────────────────────────────────
+    try:
+        rows = (
+            supa.table("klijenti")
+            .select("id, ime, prezime, firma, email, tip, status")
+            .eq("user_id", uid)
+            .is_("deleted_at", "null")
+            .or_(
+                f"ime.ilike.%{q}%,"
+                f"prezime.ilike.%{q}%,"
+                f"firma.ilike.%{q}%,"
+                f"email.ilike.%{q}%"
+            )
+            .limit(limit)
+            .execute()
+        )
+        for r in (rows.data or []):
+            naziv = (
+                f"{r.get('ime','')} {r.get('prezime','')}".strip()
+                or r.get("firma", "")
+            )
+            results.append({
+                "tip": "klijent",
+                "id": r["id"],
+                "naziv": naziv,
+                "meta": r.get("status", ""),
+                "url": f"/klijenti/{r['id']}",
+            })
+    except Exception as e:
+        logger.warning("[SEARCH] klijenti greška: %s", e)
+
+    # ── Predmeti ──────────────────────────────────────────────────────────────
+    try:
+        rows = (
+            supa.table("predmeti")
+            .select("id, naziv, opis, tip, status")
+            .eq("user_id", uid)
+            .or_(f"naziv.ilike.%{q}%,opis.ilike.%{q}%")
+            .limit(limit)
+            .execute()
+        )
+        for r in (rows.data or []):
+            results.append({
+                "tip": "predmet",
+                "id": r["id"],
+                "naziv": r.get("naziv", ""),
+                "meta": r.get("status", ""),
+                "url": f"/predmeti/{r['id']}",
+            })
+    except Exception as e:
+        logger.warning("[SEARCH] predmeti greška: %s", e)
+
+    # ── Beleške ───────────────────────────────────────────────────────────────
+    try:
+        rows = (
+            supa.table("predmet_beleske")
+            .select("id, sadrzaj, predmet_id, created_at")
+            .eq("user_id", uid)
+            .ilike("sadrzaj", f"%{q}%")
+            .limit(limit)
+            .execute()
+        )
+        for r in (rows.data or []):
+            snippet = (r.get("sadrzaj") or "")[:120]
+            results.append({
+                "tip": "beleska",
+                "id": r["id"],
+                "naziv": snippet,
+                "meta": r.get("predmet_id", ""),
+                "url": f"/predmeti/{r.get('predmet_id', '')}",
+            })
+    except Exception as e:
+        logger.warning("[SEARCH] beleske greška: %s", e)
+
+    # ── Komentari ─────────────────────────────────────────────────────────────
+    try:
+        rows = (
+            supa.table("predmet_komentari")
+            .select("id, tekst, predmet_id, created_at")
+            .eq("user_id", uid)
+            .ilike("tekst", f"%{q}%")
+            .limit(limit)
+            .execute()
+        )
+        for r in (rows.data or []):
+            snippet = (r.get("tekst") or "")[:120]
+            results.append({
+                "tip": "komentar",
+                "id": r["id"],
+                "naziv": snippet,
+                "meta": r.get("predmet_id", ""),
+                "url": f"/predmeti/{r.get('predmet_id', '')}",
+            })
+    except Exception as e:
+        logger.warning("[SEARCH] komentari greška: %s", e)
+
+    return {
+        "q": q,
+        "ukupno": len(results),
+        "rezultati": results[:limit],
+    }
+
+
 # ── F5: CASE MANAGEMENT ───────────────────────────────────────────────────────
 
 
 def _require_auth(authorization: Optional[str]) -> object:
-    """Extract user from Bearer token. Raises 401 if missing or invalid."""
+    """Extract user from Bearer token. Full 3-step verification: SDK → HS256 → ES256."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized")
     token = authorization[len("Bearer "):]
-    try:
-        user_resp = _get_supa().auth.get_user(token)
-        user = getattr(user_resp, "user", None)
-        if not user:
-            raise ValueError("no user")
-        return user
-    except Exception:
+    payload = _verify_token(token)
+    if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+    class _AuthUser:
+        id: str = payload.get("sub", "")
+        email: str = (
+            payload.get("email")
+            or payload.get("user_metadata", {}).get("email")
+            or ""
+        )
+
+    return _AuthUser()
 
 
 @app.post("/api/predmeti")
@@ -1298,14 +1441,48 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
     row = supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", user.id).single().execute()
     if not row.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
-    beleske   = supa.table("predmet_beleske").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).execute()
-    istorija  = supa.table("predmet_istorija").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(20).execute()
-    dokumenti = supa.table("predmet_dokumenti").select("*").eq("predmet_id", predmet_id).execute()
+
+    beleske, istorija, dokumenti, hronologija, komentari, predmet_klijenti = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_beleske").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(20).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("*").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("*").eq("predmet_id", predmet_id).order("datum_iso", desc=False).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_komentari").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(50).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_klijenti").select("klijent_id, uloga_klijenta, napomena, kreirano").eq("predmet_id", predmet_id).execute()),
+    )
+
+    # Fetch basic client info for linked klijenti
+    klijenti_linked = []
+    if predmet_klijenti.data:
+        klijent_ids = [r["klijent_id"] for r in predmet_klijenti.data]
+        try:
+            kl_rows = await asyncio.to_thread(
+                lambda: supa.table("klijenti")
+                    .select("id, ime, prezime, firma, tip, status")
+                    .in_("id", klijent_ids)
+                    .is_("deleted_at", "null")
+                    .execute()
+            )
+            kl_map = {r["id"]: r for r in (kl_rows.data or [])}
+            for pk in predmet_klijenti.data:
+                kl = kl_map.get(pk["klijent_id"])
+                if kl:
+                    klijenti_linked.append({
+                        **kl,
+                        "uloga": pk.get("uloga_klijenta", "stranka"),
+                        "napomena": pk.get("napomena", ""),
+                    })
+        except Exception as e:
+            logger.warning("[PREDMETI] klijenti linked greška: %s", e)
+
     return {
-        "predmet":   row.data,
-        "beleske":   beleske.data,
-        "istorija":  istorija.data,
-        "dokumenti": dokumenti.data,
+        "predmet":         row.data,
+        "beleske":         beleske.data,
+        "istorija":        istorija.data,
+        "dokumenti":       dokumenti.data,
+        "hronologija":     hronologija.data,
+        "komentari":       komentari.data,
+        "klijenti_linked": klijenti_linked,
     }
 
 
@@ -2239,5 +2416,81 @@ async def predmet_hronologija_get(
     except Exception:
         logger.exception("[P2.2] hronologija_get greška za predmet=%s", predmet_id)
         raise HTTPException(status_code=500, detail="Greška pri učitavanju hronologije")
+
+
+# ── AI Preporuka za predmet ───────────────────────────────────────────────────
+
+@app.get("/api/predmeti/{predmet_id}/ai-preporuka")
+@limiter.limit("10/minute")
+async def predmet_ai_preporuka(
+    predmet_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Analizira stanje predmeta i vraća AI preporuku:
+    - Sledeći korak
+    - Dokumenta koja nedostaju
+    - Ključni rokovi
+    - Presude koje podržavaju poziciju
+    """
+    supa = _get_supa()
+    pred = supa.table("predmeti").select("naziv, opis, tip, status").eq("id", predmet_id).eq("user_id", user["user_id"]).single().execute()
+    if not pred.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+
+    p = pred.data
+    docs_r    = supa.table("predmet_dokumenti").select("naziv_fajla").eq("predmet_id", predmet_id).execute()
+    beleske_r = supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).limit(5).order("created_at", desc=True).execute()
+    hron_r    = supa.table("predmet_hronologija").select("datum, dogadjaj, vaznost").eq("predmet_id", predmet_id).order("datum_iso", desc=False).limit(10).execute()
+
+    docs_list    = [d.get("naziv_fajla", "") for d in (docs_r.data or [])]
+    beleske_list = [b.get("sadrzaj", "")[:200] for b in (beleske_r.data or [])]
+    hron_list    = [f"{h.get('datum','')} — {h.get('dogadjaj','')}" for h in (hron_r.data or [])]
+
+    from openai import AsyncOpenAI as _AOI
+    oai = _AOI(api_key=os.getenv("OPENAI_API_KEY", ""))
+
+    system_p = (
+        "Ti si pravni asistent za srpsko pravo. Na osnovu podataka o predmetu "
+        "napravi kratku preporuku u JSON formatu bez ikakvog teksta van JSON-a:\n"
+        "{\n"
+        '  "sledeci_korak": str,\n'
+        '  "dokumenta_koja_nedostaju": [str],\n'
+        '  "kljucni_rokovi": [{"naziv": str, "rok": str, "zakon": str}],\n'
+        '  "preporucene_presude": [str],\n'
+        '  "rizici": [str]\n'
+        "}\n"
+        "Budi konkretan i kratak. Max 3 stavke po listi."
+    )
+
+    context = (
+        f"Naziv predmeta: {p.get('naziv','')}\n"
+        f"Opis: {p.get('opis','')}\n"
+        f"Tip: {p.get('tip','')}\n"
+        f"Status: {p.get('status','')}\n"
+        f"Dokumenta u sistemu: {', '.join(docs_list) or 'nema'}\n"
+        f"Poslednje beleške: {'; '.join(beleske_list) or 'nema'}\n"
+        f"Hronologija: {'; '.join(hron_list) or 'nema'}"
+    )
+
+    try:
+        resp = await oai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_p},
+                {"role": "user",   "content": context},
+            ],
+            temperature=0.15,
+            max_tokens=800,
+            response_format={"type": "json_object"},
+        )
+        import json as _json
+        preporuka = _json.loads(resp.choices[0].message.content or "{}")
+    except Exception as e:
+        logger.error("[AI-PREPORUKA] greška: %s", e)
+        raise HTTPException(status_code=500, detail="Greška pri generisanju preporuke.")
+
+    return {"predmet_id": predmet_id, "preporuka": preporuka}
 
 
