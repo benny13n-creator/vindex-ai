@@ -18,13 +18,7 @@ os.environ["VINDEX_CACHE_BYPASS"] = "1"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-_stashed = sys.modules.pop("api", None)
-import api as _api
-del sys.modules["api"]
-if _stashed is not None:
-    sys.modules["api"] = _stashed
-
-PROMPT = _api._SC_SYSTEM_PROMPT
+from routers.web3 import _SC_SYSTEM_PROMPT as PROMPT
 
 
 def test_t1_offchain_embedded_default():

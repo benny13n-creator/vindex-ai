@@ -38,6 +38,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import api  # noqa: E402 — must come after mocks
 from fastapi.testclient import TestClient
 
+# Override require_credits so these unit tests don't need a real JWT.
+_FAKE_USER = {"user_id": "test-user-id", "email": "test@test.com", "role": "pro"}
+api.app.dependency_overrides[api.require_credits] = lambda: _FAKE_USER
+
 client = TestClient(api.app, raise_server_exceptions=True)
 
 _VALID_SESSION = "validSession123"

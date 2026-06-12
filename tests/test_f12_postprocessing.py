@@ -29,11 +29,7 @@ os.environ["VINDEX_CACHE_BYPASS"] = "1"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-_stashed = sys.modules.pop("api", None)
-import api as _api
-del sys.modules["api"]
-if _stashed is not None:
-    sys.modules["api"] = _stashed
+import routers.web3 as _api
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
