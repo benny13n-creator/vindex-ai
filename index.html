@@ -1517,6 +1517,46 @@ footer { padding: 2rem 1.5rem; }
 .crm-section-lbl{font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.07em;margin-top:20px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid rgba(255,255,255,0.06);}
 .crm-section-lbl:first-child{margin-top:0;}
 @media(max-width:540px){.crm-panel{width:100vw;}}
+/* ── Intake Wizard ───────────────────────────────────────────────────────── */
+.intake-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2100;}
+.intake-overlay.open{display:block;}
+.intake-panel{position:fixed;top:0;right:0;height:100vh;width:580px;max-width:100vw;background:#0d1117;border-left:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);z-index:2101;}
+.intake-overlay.open .intake-panel{transform:translateX(0);}
+.intake-panel-header{flex-shrink:0;padding:16px 22px 12px;border-bottom:1px solid rgba(255,255,255,0.07);}
+.intake-panel-title{font-size:0.95rem;font-weight:700;color:#e6edf3;margin-bottom:10px;}
+.intake-steps-bar{display:flex;gap:4px;align-items:center;}
+.intake-step-dot{width:28px;height:4px;border-radius:2px;background:rgba(255,255,255,0.1);transition:background 0.2s;}
+.intake-step-dot.done{background:#4aa8ff;}
+.intake-step-dot.active{background:#89c8ff;}
+.intake-step-label{font-size:0.68rem;color:rgba(255,255,255,0.4);margin-left:6px;}
+.intake-panel-close{position:absolute;top:14px;right:16px;background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color 0.15s;}
+.intake-panel-close:hover{color:#e6edf3;background:rgba(255,255,255,0.06);}
+.intake-panel-body{flex:1;overflow-y:auto;padding:20px 22px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent;}
+.intake-panel-footer{flex-shrink:0;display:flex;gap:10px;padding:14px 22px;border-top:1px solid rgba(255,255,255,0.07);background:#0d1117;}
+.intake-panel-footer .intake-next-btn{flex:1;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
+.intake-panel-footer .intake-next-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.intake-panel-footer .intake-back-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-size:0.85rem;padding:10px 16px;cursor:pointer;}
+.intake-step-heading{font-size:0.77rem;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.intake-klijent-result{padding:9px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;margin-bottom:6px;transition:border-color 0.15s,background 0.15s;}
+.intake-klijent-result:hover{background:rgba(74,168,255,0.08);border-color:rgba(74,168,255,0.25);}
+.intake-klijent-result.selected{background:rgba(74,168,255,0.12);border-color:rgba(74,168,255,0.4);}
+.intake-klijent-name{font-size:0.84rem;font-weight:600;color:#e6edf3;}
+.intake-klijent-sub{font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:2px;}
+.intake-upload-zone{border:2px dashed rgba(255,255,255,0.12);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;transition:border-color 0.15s,background 0.15s;}
+.intake-upload-zone:hover,.intake-upload-zone.dragover{border-color:rgba(74,168,255,0.4);background:rgba(74,168,255,0.05);}
+.intake-file-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-top:8px;}
+.intake-file-name{font-size:0.8rem;color:#e6edf3;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.intake-file-rm{background:none;border:none;color:rgba(255,80,80,0.6);cursor:pointer;font-size:0.85rem;padding:2px 6px;}
+.intake-spinner{text-align:center;padding:40px 0;color:rgba(255,255,255,0.5);font-size:0.85rem;}
+.intake-ai-card{background:rgba(74,168,255,0.06);border:1px solid rgba(74,168,255,0.18);border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+.intake-ai-card-label{font-size:0.68rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;}
+.intake-ai-card-val{font-size:0.82rem;color:#e6edf3;}
+.intake-field-lbl{font-size:0.75rem;color:rgba(255,255,255,0.45);margin-bottom:3px;margin-top:12px;}
+.intake-field{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e6edf3;font-size:0.84rem;padding:8px 10px;box-sizing:border-box;}
+.intake-field:focus{outline:none;border-color:rgba(74,168,255,0.4);}
+.intake-docs-list{margin-top:10px;font-size:0.78rem;color:rgba(255,255,255,0.5);}
+.intake-docs-list li{margin-bottom:4px;}
+@media(max-width:600px){.intake-panel{width:100vw;}}
 .crm-back-btn{background:none;border:none;color:#89c8ff;font-size:0.82rem;cursor:pointer;padding:4px 0;}
 .crm-profil-tabovi{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:8px;}
 .crm-ptab{background:none;border:none;color:rgba(255,255,255,0.45);font-size:0.8rem;padding:5px 10px;cursor:pointer;border-radius:6px;transition:all 0.15s;}
@@ -2069,7 +2109,7 @@ footer { padding: 2rem 1.5rem; }
               <div class="t-guide-icon">📁</div>
               <div class="t-guide-text"><span class="t-guide-bold">Moji predmeti</span> — upravljajte predmetima, dodajte beleške i pratite istoriju razgovora po predmetu.</div>
             </div>
-            <button class="pred-new-btn" onclick="pred_openNewModal()">+ Novi predmet</button>
+            <button class="pred-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>
             <div id="pred-dashboard-alert" style="display:none;font-size:0.65rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:6px;color:#ffbb70;letter-spacing:.03em;"></div>
             <div id="pred-sort-bar" style="display:flex;gap:0.35rem;margin:0.55rem 0 0.35rem;flex-wrap:wrap;">
               <button class="pred-sort-btn active" data-sort="svi"         onclick="pred_setSort('svi')"         style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);cursor:pointer;letter-spacing:.04em;">Svi</button>
@@ -2547,6 +2587,104 @@ footer { padding: 2rem 1.5rem; }
               <div class="crm-modal-actions">
                 <button class="crm-save-btn" onclick="crmPokreniKonflikt()">Proveri</button>
                 <button class="crm-cancel-btn" onclick="crmZatvoriKonflikt()">Zatvori</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Intake Wizard slide-over panel -->
+          <div id="intake-overlay" class="intake-overlay" onclick="if(event.target===this)intakeConfirmClose()">
+            <div class="intake-panel" onclick="event.stopPropagation()">
+              <button class="intake-panel-close" onclick="intakeConfirmClose()" title="Zatvori">✕</button>
+              <div class="intake-panel-header">
+                <div class="intake-panel-title" id="intake-panel-title">Novi predmet — Intake Wizard</div>
+                <div class="intake-steps-bar">
+                  <div class="intake-step-dot active" id="isb-0"></div>
+                  <div class="intake-step-dot" id="isb-1"></div>
+                  <div class="intake-step-dot" id="isb-2"></div>
+                  <div class="intake-step-dot" id="isb-3"></div>
+                  <div class="intake-step-dot" id="isb-4"></div>
+                  <span class="intake-step-label" id="intake-step-label">Korak 1 / 5 — Klijent</span>
+                </div>
+              </div>
+              <div class="intake-panel-body">
+                <!-- Step 1 — Klijent -->
+                <div id="intake-s1" class="intake-step-content">
+                  <div class="intake-step-heading">Izaberite klijenta</div>
+                  <input id="intake-klijent-search" class="intake-field" type="text" placeholder="Pretraži po imenu ili firmi..." oninput="intakeKlijentSearch(this.value)" autocomplete="off">
+                  <div id="intake-klijent-results" style="margin-top:8px;"></div>
+                  <div id="intake-klijent-selected" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(74,168,255,0.09);border:1px solid rgba(74,168,255,0.3);border-radius:8px;">
+                    <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-bottom:3px;">Izabrani klijent</div>
+                    <div id="intake-klijent-selected-name" style="font-size:0.88rem;font-weight:600;color:#e6edf3;"></div>
+                  </div>
+                  <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);">
+                    <button class="intake-back-btn" style="font-size:0.78rem;padding:7px 14px;" onclick="intakeNoviKlijentOpen()">+ Dodaj novog klijenta</button>
+                  </div>
+                </div>
+                <!-- Step 2 — Opis -->
+                <div id="intake-s2" class="intake-step-content" style="display:none">
+                  <div class="intake-step-heading">Opis problema</div>
+                  <div class="intake-field-lbl">Šta je pravni problem? *</div>
+                  <textarea id="intake-opis" class="intake-field" rows="7" placeholder="Npr: Klijent je dobio otkaz bez otkaznog roka i traženog obrazloženja. Radni odnos trajao je 8 godina. Traži naknadu štete i poništaj rešenja o otkazu." oninput="intakeOpisChange()" style="resize:vertical"></textarea>
+                  <div id="intake-opis-counter" style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:4px;text-align:right;">0 / 4000</div>
+                  <div id="intake-opis-warn" style="display:none;font-size:0.72rem;color:rgba(255,120,80,0.85);margin-top:5px;">Minimum 20 karaktera</div>
+                </div>
+                <!-- Step 3 — Dokumenti -->
+                <div id="intake-s3" class="intake-step-content" style="display:none">
+                  <div class="intake-step-heading">Dokumentacija (opciono)</div>
+                  <div class="intake-upload-zone" id="intake-upload-zone" onclick="document.getElementById('intake-file-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="intakeDropFile(event)">
+                    <div style="font-size:1.4rem;margin-bottom:6px;">📄</div>
+                    <div style="font-size:0.82rem;color:rgba(255,255,255,0.6);">Prevucite PDF/DOCX ili kliknite za upload</div>
+                    <div style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:4px;">Maks. 10MB — rezultati se koriste za bolji AI predlog</div>
+                  </div>
+                  <input type="file" id="intake-file-input" accept=".pdf,.docx" style="display:none" onchange="intakeUploadFile(this.files[0])">
+                  <div id="intake-files-list"></div>
+                  <div id="intake-upload-status" style="font-size:0.75rem;margin-top:8px;color:rgba(255,255,255,0.5);"></div>
+                </div>
+                <!-- Step 4 — AI ekstrakcija -->
+                <div id="intake-s4" class="intake-step-content" style="display:none">
+                  <div class="intake-step-heading">AI analiza</div>
+                  <div id="intake-ai-loading" class="intake-spinner">
+                    <div style="font-size:1.5rem;margin-bottom:8px;">🤖</div>
+                    <div>Vindex AI analizira opis problema...</div>
+                  </div>
+                  <div id="intake-ai-result" style="display:none"></div>
+                </div>
+                <!-- Step 5 — Potvrda -->
+                <div id="intake-s5" class="intake-step-content" style="display:none">
+                  <div class="intake-step-heading">Predlog predmeta — proverite i izmenite</div>
+                  <div class="intake-field-lbl">Naziv predmeta *</div>
+                  <input id="intake-f-naziv" class="intake-field" type="text" maxlength="200">
+                  <div class="intake-field-lbl">Tip predmeta</div>
+                  <select id="intake-f-tip" class="intake-field" style="background:#0d1117;color:#e6edf3;border:1px solid rgba(255,255,255,0.15);">
+                    <option value="opsti">Opšti</option>
+                    <option value="radni">Radni spor</option>
+                    <option value="privredni">Privredni spor</option>
+                    <option value="gradjansko">Građansko</option>
+                    <option value="krivicno">Krivično</option>
+                    <option value="ostalo">Ostalo</option>
+                  </select>
+                  <div class="intake-field-lbl">Opis problema</div>
+                  <textarea id="intake-f-opis" class="intake-field" rows="4" style="resize:vertical"></textarea>
+                  <div class="intake-field-lbl">Protivna strana</div>
+                  <input id="intake-f-protivna" class="intake-field" type="text" placeholder="Npr. AD Beograd d.o.o.">
+                  <div class="intake-field-lbl">Vrsta spora</div>
+                  <input id="intake-f-vrsta" class="intake-field" type="text">
+                  <div class="intake-field-lbl">Vrednost spora</div>
+                  <input id="intake-f-vrednost" class="intake-field" type="text" placeholder="Npr. 500000 RSD">
+                  <div class="intake-field-lbl">Rok (datum) <span style="font-size:0.68rem;color:rgba(255,255,255,0.3);">— ostaviite prazno ako nema</span></div>
+                  <input id="intake-f-rok" class="intake-field" type="date">
+                  <div class="intake-field-lbl">Opis roka</div>
+                  <input id="intake-f-rok-opis" class="intake-field" type="text" placeholder="Npr. Rok za tužbu, zastarelost">
+                  <div id="intake-potrebni-docs" style="display:none;margin-top:16px;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;">
+                    <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em;">Preporučena dokumentacija</div>
+                    <ul id="intake-potrebni-docs-list" class="intake-docs-list" style="margin:0;padding-left:16px;"></ul>
+                  </div>
+                  <div id="intake-kreiraj-err" style="display:none;color:#ff9090;font-size:0.78rem;margin-top:8px;"></div>
+                </div>
+              </div>
+              <div class="intake-panel-footer">
+                <button class="intake-back-btn" id="intake-btn-back" onclick="intakeBack()" style="display:none">← Nazad</button>
+                <button class="intake-next-btn" id="intake-btn-next" onclick="intakeNext()">Dalje →</button>
               </div>
             </div>
           </div>
@@ -9027,6 +9165,324 @@ function _pred_setRizik(val) {
 function _pred_setDokazi(n) {
   var el = document.getElementById('pred-s-dokazi');
   if (el) el.textContent = n > 0 ? n : '—';
+}
+
+// ─── Intake Wizard ───────────────────────────────────────────────────────────
+var _iStep = 1;
+var _iKlijentId   = null;
+var _iKlijentName = '';
+var _iSessionId   = null;   // uploaded doc session_id
+var _iFiles       = [];     // [{name, sessionId}]
+var _iAnaliza     = null;   // ekstrakcija result
+var _iDirty       = false;
+var _iSearchTimer = null;
+
+var _INTAKE_STEP_LABELS = ['Klijent','Opis problema','Dokumenti','AI analiza','Predlog'];
+
+function intakeOtvori() {
+  if (!currentSession) { openModal(); return; }
+  _iStep = 1; _iKlijentId = null; _iKlijentName = ''; _iSessionId = null;
+  _iFiles = []; _iAnaliza = null; _iDirty = false;
+  document.getElementById('intake-overlay').classList.add('open');
+  _intakeRenderStep();
+  document.getElementById('intake-klijent-search').value = '';
+  document.getElementById('intake-klijent-results').innerHTML = '';
+  document.getElementById('intake-klijent-selected').style.display = 'none';
+  document.getElementById('intake-opis').value = '';
+  document.getElementById('intake-opis-counter').textContent = '0 / 4000';
+  document.getElementById('intake-opis-warn').style.display = 'none';
+  document.getElementById('intake-files-list').innerHTML = '';
+  document.getElementById('intake-upload-status').textContent = '';
+  document.getElementById('intake-ai-result').style.display = 'none';
+  document.getElementById('intake-ai-loading').style.display = 'block';
+}
+
+function intakeZatvori() {
+  _iDirty = false;
+  document.getElementById('intake-overlay').classList.remove('open');
+}
+
+function intakeConfirmClose() {
+  if (_iDirty && !confirm('Imate nesačuvane izmene. Zatvoriti wizard?')) return;
+  intakeZatvori();
+}
+
+function intakeNoviKlijentOpen() {
+  crmOtvoriFormu();
+}
+
+function _intakeRenderStep() {
+  ['intake-s1','intake-s2','intake-s3','intake-s4','intake-s5'].forEach(function(id, i){
+    document.getElementById(id).style.display = (i + 1 === _iStep) ? '' : 'none';
+  });
+  for (var i = 0; i < 5; i++) {
+    var dot = document.getElementById('isb-' + i);
+    dot.className = 'intake-step-dot' + (i + 1 < _iStep ? ' done' : i + 1 === _iStep ? ' active' : '');
+  }
+  var lbl = document.getElementById('intake-step-label');
+  if (lbl) lbl.textContent = 'Korak ' + _iStep + ' / 5 — ' + _INTAKE_STEP_LABELS[_iStep - 1];
+
+  var backBtn = document.getElementById('intake-btn-back');
+  var nextBtn = document.getElementById('intake-btn-next');
+  backBtn.style.display = _iStep > 1 ? '' : 'none';
+  nextBtn.textContent = _iStep === 5 ? 'Kreiraj predmet' : 'Dalje →';
+  nextBtn.disabled = false;
+
+  if (_iStep === 4 && !_iAnaliza) {
+    nextBtn.disabled = true;
+    _intakeRunEkstrakcija();
+  }
+}
+
+async function intakeNext() {
+  if (_iStep === 1) {
+    if (!_iKlijentId) { alert('Izaberite klijenta pre nastavka.'); return; }
+    _iDirty = true;
+  }
+  if (_iStep === 2) {
+    var opis = (document.getElementById('intake-opis').value || '').trim();
+    if (opis.length < 20) {
+      document.getElementById('intake-opis-warn').style.display = 'block';
+      return;
+    }
+  }
+  if (_iStep === 4) {
+    if (!_iAnaliza) { return; }
+  }
+  if (_iStep === 5) {
+    await _intakeKreiraj();
+    return;
+  }
+  _iStep++;
+  _intakeRenderStep();
+}
+
+function intakeBack() {
+  if (_iStep > 1) { _iStep--; _intakeRenderStep(); }
+}
+
+function intakeOpisChange() {
+  var v = (document.getElementById('intake-opis').value || '');
+  document.getElementById('intake-opis-counter').textContent = v.length + ' / 4000';
+  if (v.trim().length >= 20) document.getElementById('intake-opis-warn').style.display = 'none';
+}
+
+async function intakeKlijentSearch(q) {
+  clearTimeout(_iSearchTimer);
+  var res = document.getElementById('intake-klijent-results');
+  if (!q || q.length < 2) { res.innerHTML = ''; return; }
+  _iSearchTimer = setTimeout(async function() {
+    try {
+      var r = await fetch(BASE_URL + '/klijenti?pretraga=' + encodeURIComponent(q), {
+        headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+      });
+      var d = await r.json();
+      var html = '';
+      (d.klijenti || []).slice(0, 8).forEach(function(k) {
+        var name = [k.ime, k.prezime, k.firma].filter(Boolean).join(' ');
+        var sub  = k.email || k.telefon || k.tip || '';
+        html += '<div class="intake-klijent-result' + (k.id === _iKlijentId ? ' selected' : '') + '"'
+             +  ' onclick="intakeKlijentSelect(\'' + k.id + '\',\'' + (name.replace(/'/g,"&#39;")) + '\')">'
+             +  '<div class="intake-klijent-name">' + name + '</div>'
+             +  (sub ? '<div class="intake-klijent-sub">' + sub + '</div>' : '')
+             +  '</div>';
+      });
+      if (!html && q.length > 1) html = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.35);padding:8px 4px;">Nije pronađen klijent za "' + q + '"</div>';
+      res.innerHTML = html;
+    } catch(e) {}
+  }, 300);
+}
+
+function intakeKlijentSelect(id, name) {
+  _iKlijentId   = id;
+  _iKlijentName = name;
+  document.querySelectorAll('.intake-klijent-result').forEach(function(el){ el.classList.remove('selected'); });
+  var sel = document.getElementById('intake-klijent-selected');
+  sel.style.display = '';
+  document.getElementById('intake-klijent-selected-name').textContent = name;
+}
+
+async function intakeUploadFile(file) {
+  if (!file) return;
+  var status = document.getElementById('intake-upload-status');
+  status.textContent = 'Učitavam ' + file.name + '...';
+  try {
+    var fd = new FormData();
+    fd.append('file', file);
+    var r = await fetch(BASE_URL + '/api/dokument/upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: fd
+    });
+    document.getElementById('intake-file-input').value = '';
+    if (!r.ok) {
+      var err = await r.json().catch(function(){ return {}; });
+      status.textContent = 'Greška: ' + (err.detail || r.status);
+      status.style.color = '#ff9090';
+      return;
+    }
+    var d = await r.json();
+    _iFiles.push({ name: file.name, sessionId: d.session_id, chunks: d.chunk_count });
+    status.textContent = '';
+    status.style.color = '';
+    _intakeRenderFileList();
+  } catch(e) {
+    status.textContent = 'Greška pri uploadu.';
+    status.style.color = '#ff9090';
+  }
+}
+
+function intakeDropFile(e) {
+  e.preventDefault();
+  document.getElementById('intake-upload-zone').classList.remove('dragover');
+  var file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) intakeUploadFile(file);
+}
+
+function _intakeRenderFileList() {
+  var html = '';
+  _iFiles.forEach(function(f, i) {
+    html += '<div class="intake-file-item">'
+         +  '<span class="intake-file-name">📄 ' + f.name + ' <span style="color:rgba(255,255,255,0.3);font-size:0.7rem;">(' + f.chunks + ' segmenata)</span></span>'
+         +  '<button class="intake-file-rm" onclick="intakeRemoveFile(' + i + ')">✕</button>'
+         +  '</div>';
+  });
+  document.getElementById('intake-files-list').innerHTML = html;
+}
+
+function intakeRemoveFile(i) {
+  _iFiles.splice(i, 1);
+  _intakeRenderFileList();
+}
+
+async function _intakeRunEkstrakcija() {
+  var opis = (document.getElementById('intake-opis').value || '').trim();
+  var nextBtn = document.getElementById('intake-btn-next');
+  nextBtn.disabled = true;
+  document.getElementById('intake-ai-loading').style.display = 'block';
+  document.getElementById('intake-ai-result').style.display = 'none';
+
+  var body = { opis_problema: opis, analiza_results: null };
+
+  if (_iFiles.length > 0) {
+    try {
+      var ar = await fetch(BASE_URL + '/api/dokument/analiza', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+        body: JSON.stringify({ session_id: _iFiles[0].sessionId, tekst: '', pitanje: '' })
+      });
+      if (ar.ok) {
+        var ad = await ar.json();
+        body.analiza_results = (ad.report && ad.report.findings) || [];
+      }
+    } catch(e) {}
+  }
+
+  try {
+    var r = await fetch(BASE_URL + '/api/intake/ekstrakcija', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) { throw new Error('HTTP ' + r.status); }
+    _iAnaliza = await r.json();
+    _intakeShowAiResult(_iAnaliza);
+    nextBtn.disabled = false;
+  } catch(e) {
+    document.getElementById('intake-ai-loading').innerHTML = '<div style="color:#ff9090;font-size:0.82rem;">Greška pri AI analizi. Kliknite "Dalje" da preskočite.</div>';
+    _iAnaliza = { predlog_naziva_predmeta: '', vrsta_spora: '', protivna_strana: null, vrednost_spora: null, prvi_rok: null, rok_opis: null, potrebni_dokumenti: [] };
+    nextBtn.disabled = false;
+  }
+}
+
+function _intakeShowAiResult(a) {
+  var html = '';
+  var fields = [
+    ['Predlog naziva', a.predlog_naziva_predmeta],
+    ['Vrsta spora',    a.vrsta_spora],
+    ['Protivna strana', a.protivna_strana],
+    ['Vrednost spora',  a.vrednost_spora],
+    ['Prvi rok',        a.prvi_rok],
+  ];
+  fields.forEach(function(f) {
+    if (f[1]) {
+      html += '<div class="intake-ai-card"><div class="intake-ai-card-label">' + f[0] + '</div>'
+           +  '<div class="intake-ai-card-val">' + f[1] + '</div></div>';
+    }
+  });
+  if (a.potrebni_dokumenti && a.potrebni_dokumenti.length) {
+    html += '<div class="intake-ai-card"><div class="intake-ai-card-label">Preporučena dokumentacija</div>';
+    a.potrebni_dokumenti.forEach(function(d){ html += '<div class="intake-ai-card-val" style="margin-top:3px;">• ' + d + '</div>'; });
+    html += '</div>';
+  }
+  document.getElementById('intake-ai-loading').style.display = 'none';
+  var el = document.getElementById('intake-ai-result');
+  el.innerHTML = html || '<div style="color:rgba(255,255,255,0.4);font-size:0.82rem;">AI nije mogao da ekstrahuje podatke — ručno popunite polja u sledećem koraku.</div>';
+  el.style.display = '';
+
+  // Pre-fill step 5 fields
+  document.getElementById('intake-f-naziv').value    = a.predlog_naziva_predmeta || '';
+  document.getElementById('intake-f-opis').value     = (document.getElementById('intake-opis').value || '').trim();
+  document.getElementById('intake-f-protivna').value = a.protivna_strana || '';
+  document.getElementById('intake-f-vrsta').value    = a.vrsta_spora || '';
+  document.getElementById('intake-f-vrednost').value = a.vrednost_spora || '';
+  document.getElementById('intake-f-rok').value      = a.prvi_rok || '';
+  document.getElementById('intake-f-rok-opis').value = a.rok_opis || '';
+
+  var docsEl = document.getElementById('intake-potrebni-docs');
+  var docsListEl = document.getElementById('intake-potrebni-docs-list');
+  if (a.potrebni_dokumenti && a.potrebni_dokumenti.length) {
+    docsListEl.innerHTML = a.potrebni_dokumenti.map(function(d){ return '<li>' + d + '</li>'; }).join('');
+    docsEl.style.display = '';
+  } else {
+    docsEl.style.display = 'none';
+  }
+}
+
+async function _intakeKreiraj() {
+  var naziv = (document.getElementById('intake-f-naziv').value || '').trim();
+  var errEl = document.getElementById('intake-kreiraj-err');
+  errEl.style.display = 'none';
+  if (!naziv) { errEl.textContent = 'Naziv predmeta je obavezan.'; errEl.style.display = 'block'; return; }
+  if (!_iKlijentId) { errEl.textContent = 'Klijent nije izabran.'; errEl.style.display = 'block'; return; }
+
+  var nextBtn = document.getElementById('intake-btn-next');
+  nextBtn.disabled = true;
+  nextBtn.textContent = 'Kreiranje...';
+
+  var rokVal = (document.getElementById('intake-f-rok').value || '').trim();
+  var body = {
+    klijent_id:      _iKlijentId,
+    naziv:           naziv,
+    opis:            (document.getElementById('intake-f-opis').value || '').trim(),
+    tip:             document.getElementById('intake-f-tip').value || 'opsti',
+    vrsta_spora:     (document.getElementById('intake-f-vrsta').value || '').trim(),
+    vrednost_spora:  (document.getElementById('intake-f-vrednost').value || '').trim(),
+    protivna_strana: (document.getElementById('intake-f-protivna').value || '').trim(),
+    prvi_rok:        rokVal || null,
+    rok_opis:        (document.getElementById('intake-f-rok-opis').value || '').trim() || null,
+  };
+
+  try {
+    var r = await fetch(BASE_URL + '/api/intake/kreiraj', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    if (!r.ok) { errEl.textContent = d.detail || 'Greška pri kreiranju.'; errEl.style.display = 'block'; nextBtn.disabled = false; nextBtn.textContent = 'Kreiraj predmet'; return; }
+
+    intakeZatvori();
+    var tabEl = document.querySelector('[onclick*="setTab"][onclick*="\'p\'"]');
+    if (tabEl) setTab(tabEl, 'p');
+    await pred_load();
+    if (d.predmet_id) pred_select(d.predmet_id);
+  } catch(e) {
+    errEl.textContent = 'Greška veze.';
+    errEl.style.display = 'block';
+    nextBtn.disabled = false;
+    nextBtn.textContent = 'Kreiraj predmet';
+  }
 }
 
 function pred_openNewModal() {
