@@ -217,16 +217,37 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .hi-trust-item { font-size: 0.8rem; color: rgba(168,202,238,0.6); display: flex; align-items: flex-start; gap: 0.52rem; line-height: 1.55; font-weight: 300; }
 .hi-trust-item::before { content: '→'; color: #4aa8ff; font-size: 0.64rem; flex-shrink: 0; margin-top: 0.12rem; }
 
-/* Value pillars — hero desna kolona */
-.vp-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.68rem; }
-.vp-card { background: rgba(74,168,255,0.024); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(74,168,255,0.1); border-radius: 13px; padding: 1.15rem 0.9rem 1.1rem; transition: border-color 0.28s, box-shadow 0.28s, transform 0.28s cubic-bezier(0.16,1,0.3,1); }
-.vp-card:hover { border-color: rgba(74,168,255,0.2); box-shadow: 0 6px 28px rgba(74,168,255,0.07), 0 2px 8px rgba(0,0,0,0.3); transform: translateY(-3px); }
-.vp-icon { font-size: 1.25rem; display: block; margin-bottom: 0.55rem; opacity: 0.88; }
-.vp-title { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: #cde0f8; letter-spacing: 0.03em; margin-bottom: 0.38rem; }
-.vp-desc { font-size: 0.69rem; color: rgba(155,195,234,0.52); line-height: 1.62; font-weight: 300; }
+/* Value pillars — hero-foot full-width kartice */
+.vp-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; width: 100%; margin-bottom: 2.4rem; }
+.vp-card {
+  background: rgba(74,168,255,0.022);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(74,168,255,0.1);
+  border-radius: 16px;
+  padding: 1.7rem 1.5rem 1.6rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+.vp-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(74,168,255,0.18), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.vp-card:hover { border-color: rgba(74,168,255,0.22); box-shadow: 0 12px 40px rgba(74,168,255,0.07), 0 4px 16px rgba(0,0,0,0.35); transform: translateY(-4px); }
+.vp-card:hover::before { opacity: 1; }
+.vp-icon { font-size: 1.55rem; display: block; margin-bottom: 0.85rem; opacity: 0.85; }
+.vp-title { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 700; color: #cde0f8; letter-spacing: 0.01em; margin-bottom: 0.55rem; line-height: 1; }
+.vp-desc { font-size: 0.82rem; color: rgba(155,195,234,0.55); line-height: 1.72; font-weight: 300; }
+@media (max-width: 700px) { .vp-row { grid-template-columns: 1fr; gap: 0.75rem; } }
 
-/* Hero tagline (zamenjuje statistike u footer-u) */
-.hero-tagline { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.05rem, 2vw, 1.42rem); font-weight: 400; font-style: italic; color: rgba(205,224,248,0.62); line-height: 1.55; text-align: center; max-width: 600px; margin: 0 auto 2rem; opacity: 0; animation: ht-in 0.9s ease 0.5s forwards; }
+/* Hero tagline — ispod kartica */
+.hero-tagline { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.1rem, 2.2vw, 1.55rem); font-weight: 400; font-style: italic; color: rgba(205,224,248,0.6); line-height: 1.55; text-align: center; max-width: 640px; margin: 0 auto 2rem; opacity: 0; animation: ht-in 0.9s ease 0.6s forwards; }
 @keyframes ht-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 
 /* About heading — AI blue span */
@@ -2488,21 +2509,18 @@ footer { padding: 2rem 1.5rem; }
       <div class="hero-intro-panel">
         <span class="hi-label">Pravni alat za Srbiju</span>
         <p>AI asistent <strong>izgrađen isključivo na srpskom pravu.</strong> Ne generiše iz memorije — svaki odgovor pretražuje aktivnu bazu zakona RS i sudsku praksu VKS u realnom vremenu.</p>
-        <div class="vp-grid">
-          <div class="vp-card">
-            <span class="vp-icon">⚖️</span>
-            <div class="vp-title">Pravo</div>
-            <div class="vp-desc">30.000+ pravnih izvora indeksirano i povezano kroz jedinstven sistem pretrage zakona i sudske prakse.</div>
+        <div class="hi-stats">
+          <div class="hi-stat">
+            <div class="hi-stat-n">18+</div>
+            <div class="hi-stat-l">zakona RS<br>u bazi</div>
           </div>
-          <div class="vp-card">
-            <span class="vp-icon">🧠</span>
-            <div class="vp-title">Inteligencija</div>
-            <div class="vp-desc">AI analizira zakone, sudsku praksu, dokumente, argumentaciju i pravnu strategiju u jednom toku rada.</div>
+          <div class="hi-stat">
+            <div class="hi-stat-n">12.604</div>
+            <div class="hi-stat-l">sudskih<br>odluka</div>
           </div>
-          <div class="vp-card">
-            <span class="vp-icon">🏢</span>
-            <div class="vp-title">Operativa</div>
-            <div class="vp-desc">Klijenti, predmeti, dokumenti, rokovi i interna znanja objedinjeni na jednom mestu.</div>
+          <div class="hi-stat">
+            <div class="hi-stat-n">7</div>
+            <div class="hi-stat-l">AI modula<br>za advokate</div>
           </div>
         </div>
         <ul class="hi-trust">
@@ -2516,8 +2534,25 @@ footer { padding: 2rem 1.5rem; }
 
   </div><!-- /hero-3col -->
 
-  <!-- TAGLINE + CTA -->
+  <!-- VALUE PILLARS + TAGLINE + CTA -->
   <div class="hero-foot">
+    <div class="vp-row">
+      <div class="vp-card">
+        <span class="vp-icon">⚖️</span>
+        <div class="vp-title">Pravo</div>
+        <div class="vp-desc">30.000+ pravnih izvora indeksirano i povezano kroz jedinstven sistem pretrage zakona i sudske prakse.</div>
+      </div>
+      <div class="vp-card">
+        <span class="vp-icon">🧠</span>
+        <div class="vp-title">Inteligencija</div>
+        <div class="vp-desc">AI analizira zakone, sudsku praksu, dokumente, argumentaciju i pravnu strategiju u jednom toku rada.</div>
+      </div>
+      <div class="vp-card">
+        <span class="vp-icon">🏢</span>
+        <div class="vp-title">Operativa</div>
+        <div class="vp-desc">Klijenti, predmeti, dokumenti, rokovi i interna znanja objedinjeni na jednom mestu.</div>
+      </div>
+    </div>
     <p class="hero-tagline">Od pravnog pitanja do podneska, strategije i predmeta — u jednom sistemu.</p>
     <div class="h-cta" style="margin-bottom:0;">
       <a href="#" class="btn-primary magnetic" onclick="openModal();return false;">Počni besplatno</a>
