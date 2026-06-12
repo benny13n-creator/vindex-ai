@@ -112,7 +112,7 @@ class TimerStopReq(BaseModel):
 
 class FakturaReq(BaseModel):
     predmet_id:     str            = Field(..., min_length=1)
-    entry_ids:      List[str]      = Field(..., min_items=1)
+    entry_ids:      List[str]      = Field(..., min_length=1)
     klijent_naziv:  str            = Field(..., min_length=1, max_length=300)
     klijent_adresa: Optional[str] = Field(default=None)
     klijent_pib:    Optional[str] = Field(default=None)
