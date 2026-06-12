@@ -3048,3 +3048,317 @@ async def predmet_confirm_links(
     return {"predmet_id": predmet_id, "linked_klijenti": linked, "rok_dodat": rok_dodat, "success": True}
 
 
+# ── Portfolio Intelligence ─────────────────────────────────────────────────────
+
+@app.get("/api/portfolio")
+@limiter.limit("30/minute")
+async def portfolio_intelligence(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Partner morning view — KPI pregled cele kancelarije.
+    Vraća: kpi (aktivni, visok_rizik, rokovi_7_dana, neaktivni_30_dana),
+    hitni_predmeti, rokovi_ove_nedelje, neaktivni, po_tipu.
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    from datetime import date as _dtpf, timedelta as _tdpf
+    today_pf  = _dtpf.today()
+    today_iso = today_pf.isoformat()
+    next7_iso = (today_pf + _tdpf(days=7)).isoformat()
+    next14    = (today_pf + _tdpf(days=14)).isoformat()
+    past30    = (today_pf - _tdpf(days=30)).isoformat()
+
+    preds_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id,naziv,tip,status,created_at")
+            .eq("user_id", uid)
+            .is_("deleted_at", "null")
+            .execute()
+    )
+    predmeti = preds_r.data or []
+    if not predmeti:
+        return {
+            "kpi": {"aktivni":0,"zatvoreni":0,"visok_rizik":0,"rokovi_7_dana":0,"neaktivni_30_dana":0,"bez_klijenta":0},
+            "rokovi_ove_nedelje": [], "hitni_predmeti": [], "neaktivni": [], "po_tipu": {},
+        }
+
+    aktv_ids = [p["id"] for p in predmeti if p.get("status") != "zatvoren"]
+    if not aktv_ids:
+        aktv_ids = [p["id"] for p in predmeti]
+
+    hron_r, risk_r, aktivnost_r, pk_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+            .select("predmet_id,dogadjaj,datum_iso,vaznost")
+            .in_("predmet_id", aktv_ids)
+            .gte("datum_iso", today_iso)
+            .lte("datum_iso", next14)
+            .order("datum_iso")
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija")
+            .select("predmet_id,odgovor,created_at")
+            .in_("predmet_id", aktv_ids)
+            .like("pitanje", "[Rizik]%")
+            .order("created_at", desc=True)
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija")
+            .select("predmet_id,created_at")
+            .in_("predmet_id", aktv_ids)
+            .not_.like("pitanje", "[Rizik]%")
+            .order("created_at", desc=True)
+            .limit(max(len(aktv_ids) * 3, 60))
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_klijenti")
+            .select("predmet_id")
+            .in_("predmet_id", aktv_ids)
+            .execute()),
+        return_exceptions=True,
+    )
+
+    import json as _jpf
+    risk_map_pf: dict = {}
+    for r in (risk_r.data if not isinstance(risk_r, Exception) else []):
+        pid = r["predmet_id"]
+        if pid not in risk_map_pf:
+            try:
+                risk_map_pf[pid] = _jpf.loads(r.get("odgovor","{}"))
+            except Exception:
+                pass
+
+    akt_map: dict = {}
+    for a in (aktivnost_r.data if not isinstance(aktivnost_r, Exception) else []):
+        pid = a["predmet_id"]
+        if pid not in akt_map:
+            akt_map[pid] = (a.get("created_at","") or "")
+
+    has_klijent = set(
+        r["predmet_id"] for r in (pk_r.data if not isinstance(pk_r, Exception) else [])
+    )
+
+    hron_all = hron_r.data if not isinstance(hron_r, Exception) else []
+    hron_map_pf: dict = {}
+    for h in hron_all:
+        hron_map_pf.setdefault(h["predmet_id"], []).append(h)
+
+    aktivni   = [p for p in predmeti if p.get("status") != "zatvoren"]
+    visok_ids = [pid for pid, rz in risk_map_pf.items() if rz.get("nivo") == "visok"]
+    rokovi_7  = [h for h in hron_all if (h.get("datum_iso","") or "") <= next7_iso]
+
+    neaktivni_list = []
+    for p in aktivni:
+        last = akt_map.get(p["id"],"")
+        if not last or last[:10] < past30:
+            neaktivni_list.append({
+                "id": p["id"], "naziv": p["naziv"],
+                "poslednja_aktivnost": last[:10] if last else None,
+            })
+
+    _RSCORE = {"visok":4,"srednji":2,"nizak":1}
+    hitni = []
+    for p in aktivni:
+        pid  = p["id"]
+        nivo = risk_map_pf.get(pid,{}).get("nivo","")
+        urg  = sum(1 for h in hron_map_pf.get(pid,[]) if h.get("vaznost")=="kritičan")
+        if nivo=="visok" or urg>0:
+            hitni.append({
+                "id": pid, "naziv": p["naziv"], "tip": p.get("tip",""),
+                "rizik_nivo": nivo, "urgentni_rokovi": urg,
+                "sledeci_rok": hron_map_pf.get(pid,[])[0] if hron_map_pf.get(pid) else None,
+            })
+    hitni.sort(key=lambda x: (_RSCORE.get(x["rizik_nivo"],0)*-1, x["urgentni_rokovi"]*-1))
+
+    po_tipu: dict = {}
+    for p in predmeti:
+        t = (p.get("tip") or "ostalo")
+        po_tipu[t] = po_tipu.get(t,0) + 1
+
+    return {
+        "kpi": {
+            "aktivni":            len(aktivni),
+            "zatvoreni":          len(predmeti) - len(aktivni),
+            "visok_rizik":        len(visok_ids),
+            "rokovi_7_dana":      len(rokovi_7),
+            "neaktivni_30_dana":  len(neaktivni_list),
+            "bez_klijenta":       len(aktv_ids) - len([i for i in aktv_ids if i in has_klijent]),
+        },
+        "rokovi_ove_nedelje": rokovi_7[:10],
+        "hitni_predmeti":     hitni[:5],
+        "neaktivni":          neaktivni_list[:5],
+        "po_tipu":            po_tipu,
+    }
+
+
+# ── Notification Engine ────────────────────────────────────────────────────────
+
+@app.get("/api/notifications")
+@limiter.limit("30/minute")
+async def get_notifications(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Computed notifications — bez novog DB table-a.
+    Tipovi: rok_blizu (7 dana), rizik_promena, predmet_bez_klijenta.
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    from datetime import date as _dtn, timedelta as _tdn, datetime as _dtn2
+    today_n  = _dtn.today().isoformat()
+    next7_n  = (_dtn.today() + _tdn(days=7)).isoformat()
+
+    preds_r, hron_n, risk_n, pk_n = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmeti")
+            .select("id,naziv,status")
+            .eq("user_id", uid)
+            .is_("deleted_at","null")
+            .neq("status","zatvoren")
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+            .select("predmet_id,dogadjaj,datum_iso,vaznost")
+            .eq("user_id", uid)
+            .gte("datum_iso", today_n)
+            .lte("datum_iso", next7_n)
+            .in_("vaznost", ["kritičan","bitan"])
+            .order("datum_iso")
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija")
+            .select("predmet_id,odgovor,created_at")
+            .eq("user_id", uid)
+            .like("pitanje","[Rizik]%")
+            .order("created_at", desc=True)
+            .limit(120)
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_klijenti")
+            .select("predmet_id")
+            .eq("user_id", uid)
+            .execute()),
+        return_exceptions=True,
+    )
+
+    pred_map  = {p["id"]: p["naziv"] for p in (preds_r.data or [])}
+    has_kl    = set(r["predmet_id"] for r in (pk_n.data if not isinstance(pk_n, Exception) else []))
+    notifs    = []
+
+    # Type 1: upcoming rokovi
+    for h in (hron_n.data if not isinstance(hron_n, Exception) else []):
+        pid   = h.get("predmet_id","")
+        naziv = pred_map.get(pid,"")
+        if not naziv:
+            continue
+        days = None
+        try:
+            days = (_dtn2.strptime(h["datum_iso"],"%Y-%m-%d").date() - _dtn.today()).days
+        except Exception:
+            pass
+        prio = "visoka" if (days is not None and days<=3) or h.get("vaznost")=="kritičan" else "srednja"
+        notifs.append({
+            "id":             f"rok_{pid}_{h['datum_iso']}",
+            "tip":            "rok_blizu",
+            "prioritet":      prio,
+            "poruka":         f"{h.get('dogadjaj','Rok')}" + (f" — za {days} dana" if days is not None else ""),
+            "predmet_id":     pid,
+            "predmet_naziv":  naziv,
+            "datum":          h.get("datum_iso",""),
+        })
+
+    # Type 2: risk changes
+    import json as _jnn
+    risk_by_pred: dict = {}
+    for r in (risk_n.data if not isinstance(risk_n, Exception) else []):
+        pid = r.get("predmet_id","")
+        if pid in pred_map:
+            risk_by_pred.setdefault(pid,[]).append(r)
+    for pid, recs in risk_by_pred.items():
+        if len(recs) < 2:
+            continue
+        try:
+            lat = _jnn.loads(recs[0].get("odgovor","{}"))
+            prv = _jnn.loads(recs[1].get("odgovor","{}"))
+            if lat.get("nivo") and prv.get("nivo") and lat["nivo"] != prv["nivo"]:
+                arr = "↑" if lat["nivo"]=="visok" else ("↓" if lat["nivo"]=="nizak" else "→")
+                notifs.append({
+                    "id":            f"rizik_{pid}",
+                    "tip":           "rizik_promena",
+                    "prioritet":     "visoka" if lat["nivo"]=="visok" else "srednja",
+                    "poruka":        f"Rizik {arr} {prv['nivo']} → {lat['nivo']}",
+                    "predmet_id":    pid,
+                    "predmet_naziv": pred_map[pid],
+                    "datum":         (recs[0].get("created_at","") or "")[:10],
+                })
+        except Exception:
+            pass
+
+    # Type 3: predmeti bez klijenta
+    for pid, naziv in pred_map.items():
+        if pid not in has_kl:
+            notifs.append({
+                "id":            f"bez_kl_{pid}",
+                "tip":           "bez_klijenta",
+                "prioritet":     "niska",
+                "poruka":        "Predmet bez vezanog klijenta",
+                "predmet_id":    pid,
+                "predmet_naziv": naziv,
+                "datum":         "",
+            })
+
+    notifs.sort(key=lambda n: ({"visoka":0,"srednja":1,"niska":2}.get(n["prioritet"],3), n.get("datum","")))
+    return {"notifications": notifs[:25], "ukupno": len(notifs)}
+
+
+# ── Usage Analytics ────────────────────────────────────────────────────────────
+
+@app.get("/api/usage/stats")
+@limiter.limit("10/minute")
+async def usage_stats(request: Request, user: dict = Depends(get_current_user)):
+    """Produkt inteligencija — top funkcije, dnevna aktivnost, copilot usage."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    from datetime import date as _dus, timedelta as _tus
+    past30_us = (_dus.today() - _tus(days=30)).isoformat()
+
+    audit_r, predmeti_r, pitanja_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("audit_log")
+            .select("akcija,ts")
+            .eq("user_id", uid)
+            .gte("ts", past30_us+"T00:00:00")
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmeti")
+            .select("tip,status")
+            .eq("user_id", uid)
+            .is_("deleted_at","null")
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija")
+            .select("pitanje,created_at")
+            .eq("user_id", uid)
+            .not_.like("pitanje","[Rizik]%")
+            .gte("created_at", past30_us+"T00:00:00")
+            .order("created_at", desc=True)
+            .limit(200)
+            .execute()),
+        return_exceptions=True,
+    )
+
+    action_counts: dict = {}
+    daily_act: dict = {}
+    for a in (audit_r.data if not isinstance(audit_r, Exception) else []):
+        ak  = a.get("akcija","ostalo")
+        action_counts[ak] = action_counts.get(ak,0) + 1
+        day = (a.get("ts") or "")[:10]
+        if day:
+            daily_act[day] = daily_act.get(day,0) + 1
+
+    po_statusu: dict = {}
+    for p in (predmeti_r.data if not isinstance(predmeti_r, Exception) else []):
+        s = p.get("status","aktivan")
+        po_statusu[s] = po_statusu.get(s,0) + 1
+
+    pitanja_all = pitanja_r.data if not isinstance(pitanja_r, Exception) else []
+    top_actions = sorted(action_counts.items(), key=lambda x: x[1], reverse=True)[:8]
+
+    return {
+        "top_funkcije":         [{"akcija":a,"count":c} for a,c in top_actions],
+        "daily_activity":       dict(sorted(daily_act.items())[-14:]),
+        "predmeti_po_statusu":  po_statusu,
+        "copilot_aktivnost_30d": len(pitanja_all),
+        "total_akcija_30d":     len(audit_r.data if not isinstance(audit_r, Exception) else []),
+    }
+
+

@@ -45,7 +45,10 @@ SUDSKA_PRAKSA — korisnik traži sudske odluke, presude, praksu VKS
 NACRT — korisnik traži da se napiše, generiše ili napravi dokument (tužba, ugovor, žalba...)
 ANALIZA_PREDMETA — korisnik traži analizu, procenu predmeta, strategiju
 PLAN — korisnik traži plan, korake, šta dalje, akcioni plan, naredne korake, šta treba uraditi
-ROKOVI — korisnik pita o rokovima, zastarelosti, kalendarskim terminima
+DODAJ_ROK — korisnik želi da doda, upiše ili zabeleži rok, ročište, termin, rok za dostavu
+KREIRAJ_BELEŠKU — korisnik želi da napiše, zabeleži ili sačuva beleška, napomenu, podsetniku
+POVEZI_KLIJENTA — korisnik želi da poveže, doda ili veže klijenta, stranku, protivnu stranu
+ROKOVI — korisnik pita o rokovima, zastarelosti, kalendarskim terminima (pitanje, ne akcija)
 PRETRAGA — korisnik traži određenu osobu, predmet ili dokument u sistemu
 OSTALO — ništa od navedenog
 
@@ -53,7 +56,9 @@ Vrati SAMO jednu reč, ništa više."""
 
 _INTENT_CHOICES = {
     "PRAVNO_PITANJE", "SUDSKA_PRAKSA", "NACRT",
-    "ANALIZA_PREDMETA", "PLAN", "ROKOVI", "PRETRAGA", "OSTALO",
+    "ANALIZA_PREDMETA", "PLAN",
+    "DODAJ_ROK", "KREIRAJ_BELEŠKU", "POVEZI_KLIJENTA",
+    "ROKOVI", "PRETRAGA", "OSTALO",
 }
 
 
@@ -340,6 +345,174 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     }
 
 
+async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict:
+    """Extrahuje rok iz prirodnog jezika i upisuje u predmet_hronologija."""
+    import json as _json
+    from openai import AsyncOpenAI
+    from datetime import date
+
+    oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    _EX_SYS = (
+        "Iz srpskog teksta izvuci podatke o roku. Vrati ISKLJUČIVO JSON:\n"
+        '{"dogadjaj": str (naziv/opis roka), "datum_iso": str|null (YYYY-MM-DD), '
+        '"vaznost": "kritičan|bitan|normalan"}\n'
+        f"Danas je {date.today().isoformat()}. Relativne datume pretvori u apsolutne."
+    )
+    try:
+        resp = await oai.chat.completions.create(
+            model="gpt-4o-mini", temperature=0, max_tokens=150,
+            response_format={"type": "json_object"},
+            messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
+        )
+        ext = _json.loads(resp.choices[0].message.content or "{}")
+    except Exception as e:
+        logger.error("[COPILOT-ROK] ekstrakcija greška: %s", e)
+        return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Nisam uspeo da prepoznam rok. Pokušajte: 'Dodaj rok — ročište 20. jula 2026.'"}
+
+    if not (ext.get("dogadjaj") or "").strip():
+        return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Naziv roka nije prepoznat. Pokušajte eksplicitno: 'Dodaj rok za pripremu do 15. jula.'"}
+
+    supa = _get_supa()
+    try:
+        await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert({
+            "predmet_id": predmet_id,
+            "user_id":    user_id,
+            "dogadjaj":   ext["dogadjaj"][:200],
+            "datum":      ext.get("datum_iso",""),
+            "datum_iso":  ext.get("datum_iso",""),
+            "vaznost":    ext.get("vaznost","bitan"),
+            "akter":      "Copilot (AI)",
+        }).execute())
+    except Exception as e:
+        logger.error("[COPILOT-ROK] insert greška: %s", e)
+        return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Greška pri čuvanju roka. Pokušajte ponovo."}
+
+    return {
+        "tip":     "DODAJ_ROK",
+        "uspeh":   True,
+        "dogadjaj": ext["dogadjaj"],
+        "datum":   ext.get("datum_iso",""),
+        "vaznost": ext.get("vaznost","bitan"),
+        "odgovor": f"Rok dodat: {ext['dogadjaj']}" + (f" ({ext['datum_iso']})" if ext.get("datum_iso") else ""),
+    }
+
+
+async def _handle_akcija_beleska(poruka: str, predmet_id: str, user_id: str) -> dict:
+    """Izvlači sadržaj beleške iz prirodnog jezika i upisuje u predmet_beleske."""
+    import json as _json
+    from openai import AsyncOpenAI
+
+    oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    _EX_SYS = (
+        "Korisnik šalje komandu za kreiranje beleške u srpskim pravnom sistemu. "
+        "Izvuci SAMO sadržaj beleške — bez prefixa 'zabeleži', 'napiši', 'sačuvaj' itd.\n"
+        'Vrati ISKLJUČIVO JSON: {"sadrzaj": str}'
+    )
+    try:
+        resp = await oai.chat.completions.create(
+            model="gpt-4o-mini", temperature=0, max_tokens=400,
+            response_format={"type": "json_object"},
+            messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
+        )
+        ext     = _json.loads(resp.choices[0].message.content or "{}")
+        sadrzaj = (ext.get("sadrzaj") or "").strip()
+    except Exception:
+        sadrzaj = poruka.strip()
+
+    if len(sadrzaj) < 3:
+        return {"tip":"KREIRAJ_BELEŠKU","uspeh":False,"odgovor":"Sadržaj beleške je prazan. Navedite šta želite da zabeležite."}
+
+    supa = _get_supa()
+    try:
+        await asyncio.to_thread(lambda: supa.table("predmet_beleske").insert({
+            "predmet_id": predmet_id,
+            "user_id":    user_id,
+            "sadrzaj":    sadrzaj[:2000],
+        }).execute())
+    except Exception as e:
+        logger.error("[COPILOT-BELESKA] insert greška: %s", e)
+        return {"tip":"KREIRAJ_BELEŠKU","uspeh":False,"odgovor":"Greška pri čuvanju beleške."}
+
+    preview = sadrzaj[:80] + ("…" if len(sadrzaj)>80 else "")
+    return {
+        "tip":     "KREIRAJ_BELEŠKU",
+        "uspeh":   True,
+        "sadrzaj": sadrzaj[:120],
+        "odgovor": f"Beleška sačuvana: {preview}",
+    }
+
+
+async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: str) -> dict:
+    """Traži klijenta po imenu i linkuje ga na predmet."""
+    import json as _json
+    from openai import AsyncOpenAI
+
+    oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    _EX_SYS = (
+        "Iz srpskog teksta izvuci ime klijenta koji treba da se poveže sa predmetom.\n"
+        'Vrati ISKLJUČIVO JSON: {"ime_klijenta": str, "uloga": "stranka|protivna_stranka|svedok|ostalo"}'
+    )
+    try:
+        resp = await oai.chat.completions.create(
+            model="gpt-4o-mini", temperature=0, max_tokens=100,
+            response_format={"type": "json_object"},
+            messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
+        )
+        ext = _json.loads(resp.choices[0].message.content or "{}")
+    except Exception as e:
+        return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Nisam uspeo da prepoznam ime klijenta."}
+
+    ime = (ext.get("ime_klijenta") or "").strip()
+    if not ime:
+        return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Navedite ime klijenta kojeg treba da povežem sa predmetom."}
+
+    supa = _get_supa()
+    try:
+        found_r = await asyncio.to_thread(
+            lambda: supa.table("klijenti")
+                .select("id,ime,prezime,firma")
+                .eq("user_id", user_id)
+                .is_("deleted_at","null")
+                .or_(f"ime.ilike.%{ime}%,prezime.ilike.%{ime}%,firma.ilike.%{ime}%")
+                .limit(3)
+                .execute()
+        )
+    except Exception:
+        return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Greška pri pretražvanju klijenta."}
+
+    if not (found_r.data):
+        return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":f"Klijent \"{ime}\" nije pronađen u CRM-u. Proverite ime ili kreirajte novog klijenta."}
+
+    kl    = found_r.data[0]
+    naziv = ((kl.get("ime","")+" "+kl.get("prezime","")).strip()) or kl.get("firma","")
+    uloga = ext.get("uloga","stranka")
+
+    existing = await asyncio.to_thread(
+        lambda: supa.table("predmet_klijenti").select("id").eq("predmet_id",predmet_id).eq("klijent_id",kl["id"]).execute()
+    )
+    if existing.data:
+        return {"tip":"POVEZI_KLIJENTA","uspeh":True,"odgovor":f"{naziv} je već vezan za ovaj predmet."}
+
+    try:
+        await asyncio.to_thread(lambda: supa.table("predmet_klijenti").insert({
+            "predmet_id":     predmet_id,
+            "klijent_id":     kl["id"],
+            "uloga_klijenta": uloga,
+            "user_id":        user_id,
+        }).execute())
+    except Exception as e:
+        return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Greška pri povezivanju klijenta."}
+
+    return {
+        "tip":        "POVEZI_KLIJENTA",
+        "uspeh":      True,
+        "klijent":    naziv,
+        "klijent_id": kl["id"],
+        "uloga":      uloga,
+        "odgovor":    f"Klijent {naziv} vezan za predmet (uloga: {uloga}).",
+    }
+
+
 async def _handle_ostalo(poruka: str, predmet_ctx: str) -> dict:
     """Generalni odgovor bez RAG — kratki savet."""
     from openai import AsyncOpenAI
@@ -391,6 +564,9 @@ async def copilot_chat(
         "NACRT":            lambda: _handle_nacrt(req.poruka, predmet_ctx, user),
         "ANALIZA_PREDMETA": lambda: _handle_analiza_predmeta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
         "PLAN":             lambda: _handle_plan_predmeta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
+        "DODAJ_ROK":        lambda: _handle_akcija_rok(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
+        "KREIRAJ_BELEŠKU":  lambda: _handle_akcija_beleska(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
+        "POVEZI_KLIJENTA":  lambda: _handle_akcija_povezi_klijenta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
         "ROKOVI":           lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
         "PRETRAGA":         lambda: _handle_pretraga(req.poruka, uid),
         "OSTALO":           lambda: _handle_ostalo(req.poruka, predmet_ctx),
