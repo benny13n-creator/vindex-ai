@@ -2073,6 +2073,12 @@ def _pozovi_openai(
             odgovor.usage.completion_tokens if odgovor.usage else -1,
             odgovor.usage.prompt_tokens if odgovor.usage else -1,
         )
+    if odgovor.usage:
+        try:
+            from shared.cost import record_cost as _rc
+            _rc(model, odgovor.usage.prompt_tokens, odgovor.usage.completion_tokens)
+        except Exception:
+            pass
     return (odgovor.choices[0].message.content or "").strip()
 
 

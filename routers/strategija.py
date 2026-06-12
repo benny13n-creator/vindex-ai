@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _audit, _deduct_credit, _deduct_n_credits, _get_credits, _is_founder, require_pro
+from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.rate import limiter
 from strategija import (
     red_team_analiza_sync,
@@ -220,6 +221,7 @@ async def post_kompletna_analiza(
     asyncio.create_task(_audit(uid, "kompletna_analiza", ""))
 
     try:
+        begin_cost_tracking()
         rezultat = await asyncio.to_thread(
             orkestrator_kompletna_analiza_sync,
             req.opis_predmeta,
@@ -227,6 +229,7 @@ async def post_kompletna_analiza(
             req.dokumenti,
             req.iskazi_svedoka,
         )
+        asyncio.create_task(log_cost_to_db(uid, "kompletna_analiza"))
         preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 6)
         return {
             **rezultat,

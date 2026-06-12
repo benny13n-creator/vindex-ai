@@ -22,6 +22,31 @@ from slowapi.errors import RateLimitExceeded
 BASE_DIR = Path(__file__).parent
 load_dotenv()
 
+# ─── Sentry error tracking ────────────────────────────────────────────────────
+def _setup_sentry() -> None:
+    dsn = os.getenv("SENTRY_DSN", "").strip()
+    if not dsn:
+        return
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+        sentry_sdk.init(
+            dsn=dsn,
+            integrations=[
+                StarletteIntegration(transaction_style="endpoint"),
+                FastApiIntegration(),
+            ],
+            traces_sample_rate=0.05,
+            environment=os.getenv("ENVIRONMENT", "production"),
+            send_default_pii=False,
+            attach_stacktrace=True,
+        )
+    except Exception as _se:
+        print(f"[WARN] Sentry init failed: {_se}")
+
+_setup_sentry()
+
 # ─── Fail-fast: validacija encryption key PRE nego server podigne ikoji endpoint
 from security.crypto import validate_field_encryption_key as _validate_enc_key
 _validate_enc_key()
@@ -378,6 +403,7 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 # require_credits is the canonical shared version \u2014 same object as shared.deps.require_credits
 # so a single dependency_overrides entry covers all routes (api.py + all router modules).
 from shared.deps import require_credits
+from shared.cost import begin_cost_tracking, log_cost_to_db
 
 
 # ─── App ──────────────────────────────────────────────────────────────────────
@@ -1076,9 +1102,11 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
                 logger.warning("[F5] predmet context load failed for predmet_id=%s — proceeding without", predmet_id)
 
         tip = await asyncio.to_thread(klasifikuj_pitanje, _skini_pii(req.pitanje))
+        begin_cost_tracking()
         t0 = _time.monotonic()
         rezultat = await pokreni(ask_agent, pitanje_za_agenta, history)
         latency_ms = int((_time.monotonic() - t0) * 1000)
+        asyncio.create_task(log_cost_to_db(user["user_id"], "pitanje"))
         _al.log_response(
             endpoint="/api/pitanje",
             query_hash=qh,

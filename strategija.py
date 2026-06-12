@@ -481,6 +481,12 @@ def orkestrator_kompletna_analiza_sync(
                 {"role": "user",   "content": user},
             ],
         )
+        if resp.usage:
+            try:
+                from shared.cost import record_cost as _rc
+                _rc("gpt-4o", resp.usage.prompt_tokens, resp.usage.completion_tokens)
+            except Exception:
+                pass
         raw = (resp.choices[0].message.content or "{}").strip()
         try:
             return _json.loads(raw)
@@ -498,6 +504,12 @@ def orkestrator_kompletna_analiza_sync(
                 {"role": "user",   "content": user},
             ],
         )
+        if resp.usage:
+            try:
+                from shared.cost import record_cost as _rc
+                _rc("gpt-4o", resp.usage.prompt_tokens, resp.usage.completion_tokens)
+            except Exception:
+                pass
         return (resp.choices[0].message.content or "").strip()
 
     kontekst = ""

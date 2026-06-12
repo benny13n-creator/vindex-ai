@@ -176,3 +176,45 @@ CREATE POLICY "ratio_service_all" ON public.ratio_decidendi
 -- BEZBEDNO: IF NOT EXISTS/IF EXISTS — idempotentno, ne greši ako kolona ne postoji.
 
 ALTER TABLE public.klijenti DROP COLUMN IF EXISTS jmbg_mb;
+
+
+-- ─── API cost tracking ────────────────────────────────────────────────────────
+-- Beleži tokenе i USD troškove po svakom skupom GPT pozivu.
+-- Omogućava mesečni trošak po korisniku, po endpointu, i globalni.
+
+CREATE TABLE IF NOT EXISTS public.api_costs (
+  id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  endpoint          TEXT        NOT NULL,
+  model             TEXT        NOT NULL DEFAULT 'gpt-4o',
+  prompt_tokens     INTEGER     NOT NULL DEFAULT 0,
+  completion_tokens INTEGER     NOT NULL DEFAULT 0,
+  total_tokens      INTEGER     NOT NULL DEFAULT 0,
+  cost_usd          NUMERIC(10,6) NOT NULL DEFAULT 0,
+  calls             INTEGER     NOT NULL DEFAULT 1,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS api_costs_user_created_idx
+  ON public.api_costs(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS api_costs_endpoint_idx
+  ON public.api_costs(endpoint, created_at DESC);
+
+ALTER TABLE public.api_costs ENABLE ROW LEVEL SECURITY;
+
+-- Korisnici ne vide ovu tabelu direktno — samo service_role (backend)
+CREATE POLICY "api_costs_service_all" ON public.api_costs
+  FOR ALL USING (
+    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
+  );
+
+GRANT SELECT, INSERT ON public.api_costs TO service_role;
+
+-- Brz pregled ukupnih troškova po mesecu (admin query):
+-- SELECT date_trunc('month', created_at) AS mesec,
+--        SUM(cost_usd) AS ukupno_usd,
+--        SUM(total_tokens) AS ukupno_tokena,
+--        COUNT(*) AS poziva
+-- FROM api_costs
+-- GROUP BY 1 ORDER BY 1 DESC;
