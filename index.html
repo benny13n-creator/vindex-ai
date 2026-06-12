@@ -7,6 +7,7 @@
 <link rel="manifest" href="/static/manifest.json">
 <meta name="theme-color" content="#1A5F7A">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <title>Vindex AI - Pravni asistent za Srbiju</title>
@@ -2405,7 +2406,7 @@ footer { padding: 2rem 1.5rem; }
               <div class="crm-header">
                 <span class="crm-header-title">👥 Klijenti</span>
                 <div style="display:flex;gap:8px;">
-                  <button class="crm-add-btn" onclick="crmCheckKonfliktOtvori()" style="background:rgba(255,180,50,0.1);border-color:rgba(255,180,50,0.3);color:#ffd080;">⚠ Provjeri konflikt</button>
+                  <button class="crm-add-btn" onclick="crmCheckKonfliktOtvori()" style="background:rgba(255,180,50,0.1);border-color:rgba(255,180,50,0.3);color:#ffd080;">⚠ Proveri konflikt</button>
                   <button class="crm-add-btn" onclick="crmOtvoriFormu()">+ Novi klijent</button>
                 </div>
               </div>
@@ -2518,7 +2519,7 @@ footer { padding: 2rem 1.5rem; }
               <input id="cf-firma" class="crm-field" type="text" placeholder="Naziv firme">
               <div id="cf-rezultat" style="margin-top:12px;min-height:40px;font-size:0.85rem;"></div>
               <div class="crm-modal-actions">
-                <button class="crm-save-btn" onclick="crmPokreniKonflikt()">Provjeri</button>
+                <button class="crm-save-btn" onclick="crmPokreniKonflikt()">Proveri</button>
                 <button class="crm-cancel-btn" onclick="crmZatvoriKonflikt()">Zatvori</button>
               </div>
             </div>

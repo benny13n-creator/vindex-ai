@@ -529,8 +529,6 @@ async def security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = (
         "microphone=(self \"https://vindex-ai.onrender.com\")"
     )
-    # Feature-Policy za starije Chrome verzije
-    response.headers["Feature-Policy"] = "microphone 'self'"
     # Sprečava clickjacking
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-Content-Type-Options"] = "nosniff"
