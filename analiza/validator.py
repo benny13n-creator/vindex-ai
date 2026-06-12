@@ -157,6 +157,8 @@ def validate_clause_excerpts(parsed: dict, segmented_doc: SegmentedDocument) -> 
             continue
 
         excerpt_norm = _normalize_ws(excerpt)
+        # Strip trailing ellipsis (GPT often appends "..." to indicate truncation)
+        excerpt_norm = re.sub(r'\.{2,}$|…$', '', excerpt_norm).rstrip()
         # Uzmi samo prvih 100 znakova za matching (da se ne kaznjavaju legitimni dugi citati)
         excerpt_short = excerpt_norm[:100]
 

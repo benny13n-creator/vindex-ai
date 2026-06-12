@@ -34,6 +34,9 @@ v3_diff.txt
 # Ingest progress state
 data/sudska_praksa/.ingest_state.json
 
+# Generated chunked data — timestamps change on re-run, no functional value in git
+data/sudska_praksa/chunked/
+
 # ── Diagnostic scripts and output dumps (repo root only) ─────────────────────
 /audit_chunks.py
 /audit_chunks_out.txt
