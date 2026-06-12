@@ -313,3 +313,302 @@ def ai_judge_v2_sync(opis_predmeta: str, api_key: str) -> dict:
     presuda = (r3.choices[0].message.content or "").strip()
 
     return {"tuzilac": tuzilac, "branilac": branilac, "presuda": presuda}
+
+
+# ── F10: Strateški Orkestrator — kompletna analiza (6 logičkih koraka) ────────
+
+_ORK_REVIZOR_SYSTEM = """Ti si iskusan pravni revizor koji pregledava dokumente i nacrte po srpskom pravu.
+Analiziraj dostavljeni tekst i odgovori ISKLJUČIVO kao validan JSON objekat.
+
+OBAVEZNA PRAVILA ANTI-HALUCINACIJE:
+1. SVE što nije eksplicitno navedeno u inputu mora biti označeno sa [Opšti pravni princip].
+2. NIKADA ne izmišljaj tačne brojeve sudskih odluka niti tačne brojeve zakonskih članova koji nisu u tekstu.
+3. U slučaju nesigurnosti, daj MANJE POVOLJNU procenu za klijenta (konzervativno).
+
+Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
+{
+  "tip_dokumenta": "opis tipa i svrhe dokumenta",
+  "kriticne_greske": [{"problem": "opis greške", "zakonski_osnov": "zakon ili [Opšti pravni princip]", "predlog_izmene": "konkretan tekst izmene"}],
+  "preporucene_izmene": [{"sta": "opis", "zasto": "razlog", "kako": "implementacija"}],
+  "formalni_nedostaci": ["opis nedostatka"],
+  "ocena": "POTREBNE IZMENE",
+  "confidence": "SREDNJA",
+  "summary": "1-2 rečenice sažetka nalaza za naredne korake analize"
+}
+Dozvoljene vrednosti — ocena: SPREMAN ZA UPOTREBU | POTREBNE IZMENE | NEUPOTREBLJIV; confidence: VISOKA | SREDNJA | NISKA"""
+
+_ORK_DUE_DILIGENCE_SYSTEM = """Ti si pravni savetnik specijalizovan za due diligence analizu dokumenata po srpskom pravu.
+Analiziraj dostavljeni tekst i odgovori ISKLJUČIVO kao validan JSON objekat.
+
+OBAVEZNA PRAVILA ANTI-HALUCINACIJE:
+1. SVE što nije eksplicitno u inputu → [Opšti pravni princip].
+2. NIKADA ne izmišljaj tačne brojeve zakonskih članova koji nisu navedeni.
+3. Konzervativna procena: u slučaju nesigurnosti, daj manje povoljnu procenu.
+
+Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
+{
+  "tip_dokumenta": "opis",
+  "kriticni_rizici": [{"opis": "problem", "zakon": "zakon ili [Opšti pravni princip]", "kako_popraviti": "opis"}],
+  "srednji_rizici": [{"opis": "problem", "zakon": "zakon ili [Opšti pravni princip]"}],
+  "formalni_nedostaci": ["opis"],
+  "nedostajuce_klauzule": ["naziv klauzule"],
+  "zakonska_uskladenost": "kratak opis usklađenosti",
+  "preporuka": "PREGOVARATI",
+  "ukupna_ocena": "RIZICAN",
+  "confidence": "SREDNJA",
+  "summary": "1-2 rečenice za naredne korake"
+}
+Dozvoljene vrednosti — preporuka: POTPISATI | PREGOVARATI | ODBITI | DOPUNITI; ukupna_ocena: BEZBEDAN | RIZICAN | NEPRIHVATLJIV; confidence: VISOKA | SREDNJA | NISKA"""
+
+_ORK_WITNESS_SYSTEM = """Ti si sudski veštak i forenzički analitičar iskaza sa 20 godina iskustva u srpskim sudovima.
+Analiziraj dostavljeni iskaz/svedočenje i odgovori ISKLJUČIVO kao validan JSON objekat.
+
+OBAVEZNA PRAVILA ANTI-HALUCINACIJE:
+1. SVE što nije eksplicitno u iskazu → [Opšti pravni princip].
+2. Citiraj tačne delove iskaza (u navodnicima) kad identifikuješ problem.
+3. Ako iskaz nije dostavljen ili je predmet opis a ne iskaz, vrati analizu sa ocena_pouzdanosti NEPOUZDANO i confidence NISKA.
+
+Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
+{
+  "sazetak_iskaza": "šta svedok/stranka tvrdi",
+  "unutrasnje_kontradikcije": ["'Tvrdnja A' ↔ 'Tvrdnja B' — objašnjenje kontradikcije"],
+  "sumnjivi_delovi": ["citat iz iskaza + objašnjenje zašto je sumnjiv"],
+  "procesna_upotrebljivost": "opis da li iskaz može biti dokaz i preporuka za upotrebu",
+  "pitanja_za_unakrsno": ["konkretno pitanje za unakrsno ispitivanje"],
+  "ocena_pouzdanosti": "SREDNJA",
+  "confidence": "SREDNJA",
+  "summary": "1-2 rečenice za naredne korake"
+}
+Dozvoljene vrednosti — ocena_pouzdanosti: VISOKA | SREDNJA | NISKA | NEPOUZDANO; confidence: VISOKA | SREDNJA | NISKA"""
+
+_ORK_RED_TEAM_SYSTEM = """Ti si iskusan advokat koji zastupa SUPROTNU stranu u predmetu.
+Identificiraj SVE slabosti i ranjivosti iz perspektive protivničke strane.
+Imaš pristup analizama prethodnih koraka — koristi ih da pronađeš slabosti koje oni možda nisu pokrili ili koje oni direktno otvaraju.
+
+OBAVEZNA PRAVILA ANTI-HALUCINACIJE:
+1. SVE što nije eksplicitno u inputu ili prethodnom kontekstu → [Opšti pravni princip].
+2. Budi oštar i brutalno iskren — ovo je interna analiza za klijenta.
+3. Konzervativna procena: ne umanjuj rizike.
+
+Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
+{
+  "kljucne_slabosti": [{"opis": "opis slabosti", "zakonski_osnov": "zakon ili [Opšti pravni princip]"}],
+  "argumenti_protivne_strane": ["argument koji će protivna strana koristiti"],
+  "procesne_zamke": ["opis procesne zamke — rokovi, forma, nadležnost"],
+  "dokazi_koji_nedostaju": ["dokaz koji nedostaje ili koji protivnik može iskoristiti"],
+  "preporuka_za_ojacavanje": "konkretne preporuke za ojačavanje predmeta",
+  "ukupna_ranjivost": "SREDNJA",
+  "confidence": "VISOKA",
+  "summary": "1-2 rečenice za naredne korake"
+}
+Dozvoljene vrednosti — ukupna_ranjivost: NISKA | SREDNJA | VISOKA; confidence: VISOKA | SREDNJA | NISKA"""
+
+_ORK_PRESUDA_SYSTEM = """Ti si predsednik veća Višeg suda u Srbiji sa 30 godina staža.
+Saslušao si argumente tužioca i tuženog. Donesi odluku i odgovori ISKLJUČIVO kao validan JSON objekat.
+
+OBAVEZNA PRAVILA:
+1. Budi potpuno neutralan — odlučuj isključivo na osnovu prava i iznesenih argumenata.
+2. SVE što nije iz iznesenih argumenata ili predmeta → [Opšti pravni princip].
+3. Konzervativna procena: ne daj lažni optimizam ni jednoj strani.
+
+Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
+{
+  "utvrdjeno_cinjenicno_stanje": "šta sud prihvata kao dokazano",
+  "pravna_kvalifikacija": "koji zakoni i članovi se primenjuju",
+  "ocena_tuzilac": "šta sud prihvata i šta odbija od argumenata tužioca i zašto",
+  "ocena_tuzeni": "šta sud prihvata i šta odbija od argumenata tuženog i zašto",
+  "izreka": "TUZBA ODBIJENA",
+  "obrazlozenje": "2-3 rečenice obrazloženja izreke",
+  "troskovi": "ko snosi troškove i zašto",
+  "procena_uspeha_tuzilac": 50,
+  "confidence": "SREDNJA",
+  "summary": "1-2 rečenice za Synthesis Engine"
+}
+Dozvoljene vrednosti — izreka: TUZBA USVOJENA | TUZBA DELIMICNO USVOJENA | TUZBA ODBIJENA; confidence: VISOKA | SREDNJA | NISKA; procena_uspeha_tuzilac: ceo broj 0-100"""
+
+_ORK_SYNTHESIS_SYSTEM = """Ti si vrhunski pravni strateg koji integriše analize svih prethodnih koraka u jedinstvenu stratešku preporuku.
+
+Dobio si rezultate 5 analiza: Pravni Revizor, Due Diligence, Witness Analyzer, Red Team i AI Sudija v2.
+
+OBAVEZNE DUŽNOSTI:
+1. Integriši sve nalaze u koherentnu stratešku preporuku.
+2. Identifikuj KONFLIKTE između koraka. Primeri: Revizor kaže SPREMAN ZA UPOTREBU ali Red Team identifikuje VISOKA ranjivost zbog iste klauzule; Due Diligence kaže NEPRIHVATLJIV ali Sudija pretpostavlja valjanost dokumenta; Witness Analyzer kaže NEPOUZDANO ali predmet se oslanja na taj iskaz.
+3. Prioritizuj akcije: hitno_crveno (mora odmah), vazno_zuto (u narednih 30 dana), preporuceno_zeleno (poboljšanje).
+4. Ako su 2 ili više koraka imali confidence = NISKA, OBAVEZNO postavi sistemsko_upozorenje sa konkretnim objašnjenjem.
+5. Konzervativna procena uvek — ne davaj lažni optimizam.
+6. SVE što nije iz dostavljenih inputa → [Opšti pravni princip].
+
+Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
+{
+  "executive_summary": "3-5 rečenica — konkretan sažetak za advokata, bez retorike",
+  "strateski_stav": "OJACATI_ODBRANU",
+  "prioritetni_akcioni_plan": {
+    "hitno_crveno": ["akcija koja mora biti preduzeta odmah"],
+    "vazno_zuto": ["akcija u narednih 30 dana"],
+    "preporuceno_zeleno": ["poboljšanje koje nije hitno"]
+  },
+  "detektovani_konflikti": ["format: 'Korak X: nalaz A ↔ Korak Y: nalaz B — implikacija za strategiju'"],
+  "sistemsko_upozorenje": null,
+  "opsta_confidence": "SREDNJA"
+}
+Dozvoljene vrednosti — strateski_stav: NASTAVITI_TUZBU | PREGOVARATI_NAGODBU | OJACATI_ODBRANU | DOPUNITI_DOKUMENTACIJU | ODUSTATI; opsta_confidence: VISOKA | SREDNJA | NISKA; sistemsko_upozorenje: null ili string sa objašnjenjem"""
+
+
+def orkestrator_kompletna_analiza_sync(
+    opis_predmeta: str,
+    api_key: str,
+    dokumenti: list | None = None,
+    iskazi_svedoka: list | None = None,
+) -> dict:
+    """
+    F10 — Strateški Orkestrator: 6 logičkih koraka, 8 GPT-4o poziva ukupno.
+    Svaki korak prima akumulirani kontekst svih prethodnih. Vraća kompletan strukturovani dict.
+    """
+    import json as _json
+    from openai import OpenAI as _OAI
+
+    client = _OAI(api_key=api_key)
+
+    def _gpt_json(system: str, user: str, temperature: float = 0.2, max_tokens: int = 2000) -> dict:
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=120.0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user",   "content": user},
+            ],
+        )
+        raw = (resp.choices[0].message.content or "{}").strip()
+        try:
+            return _json.loads(raw)
+        except _json.JSONDecodeError:
+            return {"error": "JSON decode failed", "raw": raw[:300], "confidence": "NISKA", "summary": "Korak nije vratio validan JSON."}
+
+    def _gpt_text(system: str, user: str, temperature: float = 0.3, max_tokens: int = 1500) -> str:
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=90.0,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user",   "content": user},
+            ],
+        )
+        return (resp.choices[0].message.content or "").strip()
+
+    kontekst = ""
+
+    # ── Korak 1: Pravni Revizor ───────────────────────────────────────────────
+    tekst_za_revizor = "\n\n---\n\n".join(dokumenti) if dokumenti else opis_predmeta
+    korak1 = _gpt_json(
+        _ORK_REVIZOR_SYSTEM,
+        f"Tekst za reviziju:\n\n{tekst_za_revizor}",
+        temperature=0.15,
+        max_tokens=2000,
+    )
+    kontekst += f"\n\n=== KORAK 1 — PRAVNI REVIZOR ===\n{_json.dumps(korak1, ensure_ascii=False)}"
+
+    # ── Korak 2: Due Diligence ────────────────────────────────────────────────
+    tekst_za_due = "\n\n---\n\n".join(dokumenti) if dokumenti else opis_predmeta
+    korak2 = _gpt_json(
+        _ORK_DUE_DILIGENCE_SYSTEM,
+        f"Opis predmeta / Dokument za due diligence:\n\n{tekst_za_due}\n\nKontekst prethodnih analiza:{kontekst}",
+        temperature=0.1,
+        max_tokens=2000,
+    )
+    kontekst += f"\n\n=== KORAK 2 — DUE DILIGENCE ===\n{_json.dumps(korak2, ensure_ascii=False)}"
+
+    # ── Korak 3: Witness Analyzer ─────────────────────────────────────────────
+    if iskazi_svedoka:
+        tekst_iskaza = "\n\n---\n\n".join(iskazi_svedoka)
+        witness_user = (
+            f"Iskazi svedoka:\n\n{tekst_iskaza}\n\n"
+            f"Osnovni opis predmeta:\n\n{opis_predmeta}\n\n"
+            f"Kontekst prethodnih analiza:{kontekst}"
+        )
+    else:
+        witness_user = (
+            f"Napomena: Iskazi svedoka nisu dostavljeni. "
+            f"Analiziraj da li opis predmeta sadrži implicitne iskaze ili svedočanstva.\n\n"
+            f"Opis predmeta:\n\n{opis_predmeta}\n\n"
+            f"Kontekst prethodnih analiza:{kontekst}"
+        )
+    korak3 = _gpt_json(
+        _ORK_WITNESS_SYSTEM,
+        witness_user,
+        temperature=0.2,
+        max_tokens=2000,
+    )
+    kontekst += f"\n\n=== KORAK 3 — WITNESS ANALYZER ===\n{_json.dumps(korak3, ensure_ascii=False)}"
+
+    # ── Korak 4: Red Team ─────────────────────────────────────────────────────
+    korak4 = _gpt_json(
+        _ORK_RED_TEAM_SYSTEM,
+        f"Opis predmeta:\n\n{opis_predmeta}\n\nAnalize prethodnih koraka:{kontekst}",
+        temperature=0.3,
+        max_tokens=2000,
+    )
+    kontekst += f"\n\n=== KORAK 4 — RED TEAM ===\n{_json.dumps(korak4, ensure_ascii=False)}"
+
+    # ── Korak 5: AI Judge v2 (3 interna poziva: tužilac → branilac → presuda JSON)
+    tuzilac_txt = _gpt_text(
+        _JUDGE_V2_TUZILAC,
+        f"Predmet:\n\n{opis_predmeta}\n\nKontekst svih prethodnih analiza:{kontekst}",
+        temperature=0.3,
+        max_tokens=1500,
+    )
+    branilac_txt = _gpt_text(
+        _JUDGE_V2_BRANILAC,
+        (
+            f"Predmet:\n\n{opis_predmeta}\n\n"
+            f"Argumenti tužioca:\n\n{tuzilac_txt}\n\n"
+            f"Kontekst svih prethodnih analiza:{kontekst}"
+        ),
+        temperature=0.3,
+        max_tokens=1500,
+    )
+    presuda_json = _gpt_json(
+        _ORK_PRESUDA_SYSTEM,
+        (
+            f"Predmet:\n\n{opis_predmeta}\n\n"
+            f"Argumenti tužioca:\n\n{tuzilac_txt}\n\n"
+            f"Argumenti tuženog/branioca:\n\n{branilac_txt}\n\n"
+            f"Kontekst svih prethodnih analiza:{kontekst}"
+        ),
+        temperature=0.1,
+        max_tokens=2000,
+    )
+    korak5 = {
+        "tuzilac": tuzilac_txt,
+        "branilac": branilac_txt,
+        "presuda": presuda_json,
+        "confidence": presuda_json.get("confidence", "SREDNJA"),
+        "summary": presuda_json.get("summary", ""),
+    }
+    kontekst += (
+        f"\n\n=== KORAK 5 — AI SUDIJA V2 ===\n"
+        f"Presuda (strukturovano):\n{_json.dumps(presuda_json, ensure_ascii=False)}"
+    )
+
+    # ── Korak 6: Synthesis Engine ─────────────────────────────────────────────
+    sinteza = _gpt_json(
+        _ORK_SYNTHESIS_SYSTEM,
+        f"Opis predmeta:\n\n{opis_predmeta}\n\nSvi nalazi prethodnih koraka:{kontekst}",
+        temperature=0.15,
+        max_tokens=2500,
+    )
+
+    return {
+        "koraci": {
+            "korak_1_pravni_revizor":   korak1,
+            "korak_2_due_diligence":    korak2,
+            "korak_3_witness_analyzer": korak3,
+            "korak_4_red_team":         korak4,
+            "korak_5_sudska_procena":   korak5,
+        },
+        "sinteza": sinteza,
+    }

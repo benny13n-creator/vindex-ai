@@ -122,12 +122,12 @@ def test_gate_zakon_thresholds_unchanged():
 
 
 def test_gate_praksa_thresholds_match_zakon():
-    """Phase 1.3 pragmatic mirror: praksa thresholds start equal to zakon thresholds."""
+    """Phase 1.3: praksa HIGH must equal zakon HIGH; MEDIUM may be >= after calibration."""
     assert PRAKSA_CONFIDENCE_HIGH_THRESHOLD == CONFIDENCE_HIGH_THRESHOLD, (
         "Praksa HIGH threshold should match zakon HIGH threshold for Phase 1.3"
     )
-    assert PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD == CONFIDENCE_MEDIUM_THRESHOLD, (
-        "Praksa MEDIUM threshold should match zakon MEDIUM threshold for Phase 1.3"
+    assert PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD >= CONFIDENCE_MEDIUM_THRESHOLD, (
+        "Praksa MEDIUM threshold must not be lower than zakon MEDIUM threshold"
     )
 
 

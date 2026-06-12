@@ -144,3 +144,35 @@ BEGIN
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- ─── Phase 3.2: RATIO DECIDENDI kesh tabela ──────────────────────────────────
+-- Čuva izvučene pravne stavove (ratio decidendi) po presudi.
+-- Idempotentno: CREATE TABLE IF NOT EXISTS.
+
+CREATE TABLE IF NOT EXISTS public.ratio_decidendi (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  decision_number  TEXT        NOT NULL,
+  ratio            TEXT        NOT NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ratio_decidendi_dn_key UNIQUE (decision_number)
+);
+
+ALTER TABLE public.ratio_decidendi ENABLE ROW LEVEL SECURITY;
+
+-- Service role može sve (backend pozivi)
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ratio_decidendi TO service_role;
+
+-- RLS: service_role bypass — niko drugi nema pristup (interni keš)
+CREATE POLICY "ratio_service_all" ON public.ratio_decidendi
+  FOR ALL USING (
+    current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
+  );
+
+
+-- ─── Security: uklanjanje legacy plaintext JMBG kolone ───────────────────────
+-- JMBG mora biti AES-256-GCM enkriptovano u klijenti.jmbg_encrypted.
+-- Ovaj ALTER uklanja staru plaintext kolonu jmbg_mb ako postoji.
+-- BEZBEDNO: IF NOT EXISTS/IF EXISTS — idempotentno, ne greši ako kolona ne postoji.
+
+ALTER TABLE public.klijenti DROP COLUMN IF EXISTS jmbg_mb;

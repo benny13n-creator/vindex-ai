@@ -375,45 +375,9 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
         logger.error("[CREDITS] _sb_ensure_credits_row error for uid=%.8s: %s", user_id, e)
 
 
-async def require_credits(user: dict = Depends(get_current_user)) -> dict:
-    """Dependency koji proverava da korisnik ima kredite. Founder uvek prolazi."""
-    email = user.get("email", "")
-    logger.info("require_credits: email=%s is_founder=%s", email, _is_founder(email))
-    if _is_founder(email):
-        user["credits_remaining"] = 9999
-        return user
-
-    # Mese\u010dni limit (PRO: 600, Basic/Free: 200 \u2014 Free korisnici su stopiran ranije, na 15)
-    is_pro_user = _is_pro(email)
-    monthly_limit = PRO_MESECNI_KREDITI if is_pro_user else BASIC_MESECNI_KREDITI
-    monthly_used  = _get_monthly_usage(user["user_id"])
-    if monthly_used >= monthly_limit:
-        if is_pro_user:
-            msg = (f"Iskoristili ste {PRO_MESECNI_KREDITI} mese\u010dnih pitanja. "
-                   "Kontaktirajte nas za Firm plan.")
-        else:
-            msg = (f"Iskoristili ste {BASIC_MESECNI_KREDITI} mese\u010dnih pitanja. "
-                   "Pre\u0111ite na PRO za 600 pitanja mese\u010dno.")
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail={"code": "MONTHLY_LIMIT", "message": msg, "credits_remaining": 0},
-        )
-
-    credits = await asyncio.to_thread(_get_credits, user["user_id"])
-    if credits <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail={
-                "code": "NO_CREDITS",
-                "message": (
-                    "Iskoristili ste besplatne upite. "
-                    "Pre\u0111ite na Basic paket (19\u20ac) za neograni\u010den pristup."
-                ),
-                "credits_remaining": 0,
-            },
-        )
-    user["credits_remaining"] = credits
-    return user
+# require_credits is the canonical shared version \u2014 same object as shared.deps.require_credits
+# so a single dependency_overrides entry covers all routes (api.py + all router modules).
+from shared.deps import require_credits
 
 
 # ─── App ──────────────────────────────────────────────────────────────────────

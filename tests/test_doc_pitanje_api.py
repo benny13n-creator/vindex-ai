@@ -122,19 +122,20 @@ def test_pitanje_oversized():
 
 def test_pitanje_passes_extra_namespace_to_ask_agent():
     """Endpoint must call ask_agent with extra_namespaces=[f'tmp_{session_id}']."""
-    sys.modules["main"].ask_agent.return_value = _HAPPY_RESPONSE
-    sys.modules["main"].ask_agent.reset_mock()
-
-    with patch("uploaded_doc.session.validate_session", return_value=True):
+    from unittest.mock import MagicMock as _MM
+    mock_ask = _MM(return_value=_HAPPY_RESPONSE)
+    # Patch main.ask_agent directly — the handler does `from main import ask_agent`
+    # inside the function body, so patching main.ask_agent is the correct target.
+    with patch("main.ask_agent", mock_ask), \
+         patch("uploaded_doc.session.validate_session", return_value=True):
         resp = client.post("/api/dokument/pitanje", json={
             "session_id": _VALID_SESSION,
             "pitanje": _VALID_PITANJE,
         })
 
     assert resp.status_code == 200
-    sys.modules["main"].ask_agent.assert_called_once()
-    call_args = sys.modules["main"].ask_agent.call_args
-    # Third positional arg or 'extra_namespaces' kwarg should be ["tmp_validSession123"]
+    mock_ask.assert_called_once()
+    call_args = mock_ask.call_args
     extra_ns = (
         call_args.kwargs.get("extra_namespaces")
         or (call_args.args[2] if len(call_args.args) > 2 else None)

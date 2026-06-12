@@ -2649,10 +2649,20 @@ def _proveri_analiza_citate(analiza_output: str, allowed_articles: frozenset[str
         logger.debug("[ANALIZA_GUARD] nema Član N citata u outputu → PASS")
         return True, "ok"
 
+    # If document contains high-numbered articles (>50) it's a statutory document.
+    # Statutory docs must only cite articles explicitly present — disable the zakon bypass
+    # to prevent "Zakon o radu Član 162 i Član 175" from passing Član 175 via proximity match.
+    max_allowed_num = 0
+    for _a in allowed_articles:
+        _m_num = re.match(r"\d+", _a)
+        if _m_num:
+            max_allowed_num = max(max_allowed_num, int(_m_num.group()))
+    is_statutory_doc = max_allowed_num > 50
+
     # Only flag citations that are NOT in allowed_articles AND NOT statutory references
     novi = [
         c for c in citirani_unique
-        if c not in allowed_articles and not _je_zakon_citacija(c, analiza_output)
+        if c not in allowed_articles and (is_statutory_doc or not _je_zakon_citacija(c, analiza_output))
     ]
     logger.debug("[ANALIZA_GUARD] citirani=%s, van_dok_i_nije_zakon=%s", citirani_unique, novi[:10])
     if novi:

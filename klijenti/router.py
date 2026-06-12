@@ -35,31 +35,11 @@ from klijenti.permissions import (
 )
 from klijenti.audit import Akcija, log_event, get_client_ip
 from security.crypto import encrypt_field, decrypt_field, is_encrypted, generate_storage_key
+from shared.deps import _get_supa, _is_founder, _verify_token
 
 logger = logging.getLogger("vindex.klijenti")
 
 router = APIRouter(tags=["klijenti"])
-
-
-# ─── Helpers ─────────────────────────────────────────────────────────────────
-
-def _get_supa():
-    from api import _get_supa as _api_supa
-    return _api_supa()
-
-
-def _get_current_user():
-    from api import get_current_user
-    return get_current_user
-
-
-def _is_founder(email: str) -> bool:
-    founder_emails = {
-        e.strip().lower()
-        for e in os.getenv("FOUNDER_EMAILS", "").split(",")
-        if e.strip()
-    }
-    return (email or "").lower() in founder_emails
 
 
 def _get_role(user_id: str, email: str) -> Role:
@@ -1131,7 +1111,6 @@ async def get_my_role(request: Request):
 async def _auth_from_request(request: Request) -> dict:
     """Autentifikuje korisnika iz request-a i dodaje rolu."""
     from fastapi.security import HTTPBearer as _Bearer
-    from api import _verify_token
     bearer = _Bearer(auto_error=False)
     creds = await bearer(request)
     if not creds:

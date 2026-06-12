@@ -13,11 +13,12 @@ F5, F7.1, F9: AI Strategija moduli (PRO only).
 """
 import asyncio
 import os
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from shared.deps import _audit, _deduct_credit, require_pro
+from shared.deps import _audit, _deduct_credit, _deduct_n_credits, _get_credits, _is_founder, require_pro
 from shared.rate import limiter
 from strategija import (
     red_team_analiza_sync,
@@ -27,6 +28,7 @@ from strategija import (
     pravni_revizor_sync,
     witness_analyzer_sync,
     ai_judge_v2_sync,
+    orkestrator_kompletna_analiza_sync,
 )
 
 router = APIRouter()
@@ -184,3 +186,57 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
     except Exception:
         logger.exception("[F9] sudija_v2 greška")
         raise HTTPException(status_code=500, detail="Greška pri simulaciji debate. Pokušajte ponovo.")
+
+
+class OrkestratorRequest(BaseModel):
+    opis_predmeta: str = Field(..., min_length=100, max_length=30000)
+    dokumenti: Optional[List[str]] = Field(None, description="Opcioni tekstovi dokumenata za Pravni Revizor i Due Diligence")
+    iskazi_svedoka: Optional[List[str]] = Field(None, description="Opcioni iskazi svedoka za Witness Analyzer")
+
+
+@router.post("/strategija/kompletna-analiza")  # F10
+@limiter.limit("1/hour")
+async def post_kompletna_analiza(
+    req: OrkestratorRequest,
+    request: Request,
+    user: dict = Depends(require_pro),
+):
+    """F10 — Strateški Orkestrator — 6 sekvencijalnih analiza u jednom pozivu (PRO, 6 kredita, 8 GPT-4o poziva)."""
+    uid = user["user_id"]
+    email = user.get("email", "")
+
+    if not _is_founder(email):
+        credits_pre = await asyncio.to_thread(_get_credits, uid)
+        if credits_pre < 6:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code": "NO_CREDITS",
+                    "message": f"Kompletna analiza zahteva 6 kredita. Trenutno imate {credits_pre}. Dopunite kredit paket.",
+                    "credits_remaining": credits_pre,
+                },
+            )
+
+    asyncio.create_task(_audit(uid, "kompletna_analiza", ""))
+
+    try:
+        rezultat = await asyncio.to_thread(
+            orkestrator_kompletna_analiza_sync,
+            req.opis_predmeta,
+            os.getenv("OPENAI_API_KEY", ""),
+            req.dokumenti,
+            req.iskazi_svedoka,
+        )
+        preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 6)
+        return {
+            **rezultat,
+            "modul": "kompletna_analiza",
+            "credits_deducted": 6,
+            "credits_remaining": max(preostalo, 0),
+        }
+    except Exception:
+        logger.exception("[F10] kompletna_analiza greška")
+        raise HTTPException(
+            status_code=500,
+            detail="Greška pri generisanju kompletne analize. Pokušajte ponovo.",
+        )
