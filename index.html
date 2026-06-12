@@ -207,6 +207,15 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .hero-intro-list { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
 .hero-intro-list li { font-size: 1.02rem; color: rgba(255,255,255,0.52); display: flex; align-items: flex-start; gap: 0.55rem; line-height: 1.6; }
 .hero-intro-list li::before { content: '→'; color: #4aa8ff; font-size: 0.7rem; flex-shrink: 0; margin-top: 0.1rem; }
+/* Hero desna kolona — statistike i trust signali */
+.hi-stats { display: grid; grid-template-columns: repeat(3,1fr); border: 1px solid rgba(74,168,255,0.1); border-radius: 10px; overflow: hidden; }
+.hi-stat { text-align: center; padding: 0.8rem 0.4rem; border-right: 1px solid rgba(74,168,255,0.08); }
+.hi-stat:last-child { border-right: none; }
+.hi-stat-n { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 700; color: #89c8ff; line-height: 1; }
+.hi-stat-l { font-family: 'JetBrains Mono', monospace; font-size: 0.47rem; letter-spacing: 0.11em; text-transform: uppercase; color: rgba(255,255,255,0.28); margin-top: 0.28rem; line-height: 1.4; }
+.hi-trust { list-style: none; display: flex; flex-direction: column; gap: 0.48rem; }
+.hi-trust-item { font-size: 0.8rem; color: rgba(168,202,238,0.6); display: flex; align-items: flex-start; gap: 0.52rem; line-height: 1.55; font-weight: 300; }
+.hi-trust-item::before { content: '→'; color: #4aa8ff; font-size: 0.64rem; flex-shrink: 0; margin-top: 0.12rem; }
 .hero-foot { width: 100%; max-width: 900px; position: relative; z-index: 2; text-align: center; }
 #sphereCanvas { width: 100%; height: 100%; }
 
@@ -338,6 +347,22 @@ select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px sol
 .t-av { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #c9a84c, #a06a1a); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #fff; flex-shrink: 0; }
 .t-name { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.95); }
 .t-role { font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: rgba(255,255,255,0.22); }
+
+/* ── FUNCTION CARDS — 7 modula, jedna po jedna ───────────────────────────── */
+.fn-cards { display: flex; flex-direction: column; gap: 0.62rem; }
+.fn-card { background: rgba(74,168,255,0.028); border: 1px solid rgba(74,168,255,0.11); border-radius: 11px; padding: 0.95rem 1.2rem; position: relative; overflow: hidden; transition: all 0.3s; display: flex; align-items: flex-start; gap: 0.8rem; }
+.fn-card:hover { background: rgba(74,168,255,0.062); border-color: rgba(74,168,255,0.24); transform: translateX(4px); }
+.fn-card::before { content: ‘’; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, #4aa8ff, transparent); transform: scaleY(0); transition: transform 0.32s; }
+.fn-card:hover::before { transform: scaleY(1); }
+.fn-num { font-family: ‘JetBrains Mono’, monospace; font-size: 0.49rem; letter-spacing: 0.14em; color: rgba(74,168,255,0.58); flex-shrink: 0; padding-top: 3px; min-width: 20px; }
+.fn-body { flex: 1; min-width: 0; }
+/* Plavo-obojen beli tekst — smanjuje kontrast crna/bela, manje zamara oči */
+.fn-title { font-family: ‘Cormorant Garamond’, serif; font-size: 0.93rem; font-weight: 700; color: #cde0f8; margin-bottom: 0.13rem; line-height: 1.3; }
+.fn-desc { font-size: 0.74rem; color: rgba(155,195,234,0.64); line-height: 1.68; font-weight: 300; }
+.fn-badge { font-family: ‘JetBrains Mono’, monospace; font-size: 0.43rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.12rem 0.46rem; border-radius: 3px; border: 1px solid; flex-shrink: 0; align-self: flex-start; margin-top: 2px; white-space: nowrap; }
+.fn-badge.live { color: #4ade80; border-color: rgba(74,222,128,0.28); background: rgba(74,222,128,0.04); }
+.fn-badge.pro { color: #e8c97a; border-color: rgba(232,201,122,0.28); background: rgba(232,201,122,0.04); }
+
 .demo-win { background: rgba(1,5,14,0.95); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; overflow: hidden; box-shadow: 0 50px 120px rgba(0,0,0,0.65); position: relative; }
 .demo-win::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.5), rgba(201,168,76,0.2), transparent); }
 .demo-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -358,7 +383,7 @@ select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px sol
 .conf-dot { width: 5px; height: 5px; border-radius: 50%; background: #4ade80; }
 
 /* PLATFORM */
-.plat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+.plat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; }
 .plat-card { background: #030810; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 2.2rem; position: relative; overflow: hidden; transition: all 0.4s; }
 .plat-card::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #4aa8ff, transparent); transform: scaleX(0); transform-origin: left; transition: transform 0.5s; }
 .plat-card:hover::before { transform: scaleX(1); }
@@ -2396,13 +2421,27 @@ footer { padding: 2rem 1.5rem; }
     <!-- DESNO: uvodni tekst -->
     <div class="h3-right">
       <div class="hero-intro-panel">
-        <span class="hi-label">O platformi</span>
-        <p>Vindex AI je pravni istraživački asistent <strong>treniran isključivo na srpskim zakonima.</strong> Postavite pitanje prirodnim jezikom — sistem pretražuje Svi važeći zakoni Republike Srbije i vraća tačan zakon, broj člana i doslovan citat.</p>
-        <ul class="hero-intro-list">
-          <li>Precizno citira zakon i član — bez izmišljanja</li>
-          <li>Generiše nacrte tužbi, žalbi i ugovora</li>
-          <li>Analizira ugovore i otkriva pravne rizike</li>
-          <li>Svaki odgovor nosi ocenu pouzdanosti</li>
+        <span class="hi-label">Pravni alat za Srbiju</span>
+        <p>AI asistent <strong>izgrađen isključivo na srpskom pravu.</strong> Ne generiše iz memorije — svaki odgovor pretražuje aktivnu bazu zakona RS i sudsku praksu VKS u realnom vremenu.</p>
+        <div class="hi-stats">
+          <div class="hi-stat">
+            <div class="hi-stat-n">18+</div>
+            <div class="hi-stat-l">zakona RS<br>u bazi</div>
+          </div>
+          <div class="hi-stat">
+            <div class="hi-stat-n">12.604</div>
+            <div class="hi-stat-l">sudskih<br>odluka</div>
+          </div>
+          <div class="hi-stat">
+            <div class="hi-stat-n">7</div>
+            <div class="hi-stat-l">AI modula<br>za advokate</div>
+          </div>
+        </div>
+        <ul class="hi-trust">
+          <li class="hi-trust-item">Citira tačan zakon i broj člana — nikad ne izmišlja</li>
+          <li class="hi-trust-item">Ocena pouzdanosti: HIGH / MEDIUM / LOW uz svaki odgovor</li>
+          <li class="hi-trust-item">Analiza predmeta, nacrti, sudska praksa — u jednom sistemu</li>
+          <li class="hi-trust-item">Enkriptovano — poverljivi podaci zaštićeni AES-256</li>
         </ul>
       </div>
     </div><!-- /h3-right -->
@@ -2461,14 +2500,14 @@ footer { padding: 2rem 1.5rem; }
 </section>
 
 <section class="section alt" id="features">
-  <div class="sbadge r">Prednosti platforme</div>
-  <div class="sh r d1">Izgrađeno za <em>preciznost.</em></div>
-  <p class="ss r d2">Ne generički AI - sistem treniran isključivo na srpskim zakonima. Tačan odgovor, ne pretpostavka.</p>
+  <div class="sbadge r">Zašto Vindex AI</div>
+  <div class="sh r d1">Tri razloga zašto <em>advokati biraju Vindex.</em></div>
+  <p class="ss r d2">Nije generički AI koji halucinira zakone — sistem izgrađen isključivo na srpskim propisima, sa sudskom praksom VKS i ocenom pouzdanosti uz svaki odgovor.</p>
   <div class="feat-card-wrap r">
     <div class="feat-grid">
-      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">01</div><div class="feat-icon">&#127919;</div><div class="feat-title">Tačan zakon i član</div><div class="feat-desc">Tačan zakon, broj člana i doslovan citat u sekundi.</div></div><div class="feat-back"><div class="feat-btitle">Kako radi?</div><ul class="feat-blist"><li>RAG sistem pretražuje Svi važeći zakoni RS</li><li>GPT-4o generiše precizno tumačenje</li><li>Navodi tačan zakon i broj člana</li><li>Ocena pouzdanosti svakog odgovora</li></ul></div></div></div>
-      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">02</div><div class="feat-icon">&#9889;</div><div class="feat-title">Praktično tumačenje</div><div class="feat-desc">Jasno objašnjenje kako se odredba primenjuje na konkretan predmet.</div></div><div class="feat-back"><div class="feat-btitle">Šta dobijate?</div><ul class="feat-blist"><li>Analiza primenljivosti na slučaj</li><li>Proceduralni koraci i rokovi</li><li>Praktični saveti za predmet</li><li>Veza ka relevantnim odredbama</li></ul></div></div></div>
-      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">03</div><div class="feat-icon">&#128274;</div><div class="feat-title">Ocena pouzdanosti</div><div class="feat-desc">Svaki odgovor nosi ocenu pouzdanosti. Bolje nepotpun tačan nego lažna sigurnost.</div></div><div class="feat-back"><div class="feat-btitle">Transparentnost</div><ul class="feat-blist"><li>Procentualna ocena tačnosti</li><li>Navođenje izvora i osnova</li><li>Upozorenje pri niskoj pouzdanosti</li><li>Nikada ne izmišlja zakone</li></ul></div></div></div>
+      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">01</div><div class="feat-icon">&#9878;</div><div class="feat-title">Srpski zakoni, ne globalni AI</div><div class="feat-desc">18+ važećih zakona RS, tačan Sl. glasnik, direktan citat — bez ekstrapolacije iz stranih sistema.</div></div><div class="feat-back"><div class="feat-btitle">Šta to znači?</div><ul class="feat-blist"><li>Zakon o radu, ZPP, ZKP, ZOO i dr. — ceo aktuelni tekst</li><li>Svaki odgovor ima naveden zakon i broj člana</li><li>Sistem ne koristi generički GPT — nego srpsku pravnu bazu</li><li>Doslovan citat iz Sl. glasnika RS</li></ul></div></div></div>
+      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">02</div><div class="feat-icon">&#9878;</div><div class="feat-title">Sudska praksa VKS — 12.604 odluka</div><div class="feat-desc">Presude Vrhovnog kasacionog i Apelacionih sudova od 2018. Sistem izvlači ratio decidendi i citira presudu u podnesku.</div></div><div class="feat-back"><div class="feat-btitle">Kako se koristi?</div><ul class="feat-blist"><li>Pretraga po pravnom pitanju ili broju predmeta</li><li>Sistem izvlači ključni pravni stav (ratio decidendi)</li><li>Filtri: oblast prava, sud, period</li><li>Direktno citiranje u generisanom podnesku</li></ul></div></div></div>
+      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">03</div><div class="feat-icon">&#9878;</div><div class="feat-title">Ocena pouzdanosti uz svaki odgovor</div><div class="feat-desc">HIGH / MEDIUM / LOW — sistem uvek signalizira koliko je siguran u odgovor. Bolje nepotpun tačan nego kompletan netačan.</div></div><div class="feat-back"><div class="feat-btitle">Zašto je to važno?</div><ul class="feat-blist"><li>HIGH: direktan zakonski osnov pronađen u bazi</li><li>MEDIUM: osnov postoji ali zahteva proveru</li><li>LOW: nema direktnog osnova — sistem to jasno kaže</li><li>Nikad ne izmišlja zakone ni paragrafe</li></ul></div></div></div>
     </div>
     <div class="feat-hint">&#x2190; hover na karticu za detalje &rarr;</div>
   </div>
@@ -2481,12 +2520,66 @@ footer { padding: 2rem 1.5rem; }
 <section class="section" id="demo">
   <div class="demo-grid">
     <div>
-      <div class="sbadge r">Vidi uživo</div>
-      <div class="sh r d1">Pravi odgovor.<br><em>Za 8 sekundi.</em></div>
-      <p class="ss r d2" style="margin-bottom:2rem;">Ovo nije simulacija. Ovako izgleda Vindex AI u praksi.</p>
-      <div class="testimonials">
-        <div class="tc r d1"><div class="t-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="t-q">Za 10 sekundi dobio sam tačan član i citat koji sam inace tražio 20 minuta. Ovo je alat koji sam čekao godinama.</div><div class="t-a"><div class="t-av">MJ</div><div><div class="t-name">Marko J.</div><div class="t-role">Advokat - Beograd</div></div></div></div>
-        <div class="tc r d2"><div class="t-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="t-q">Konačno AI koji zaista razume srpsko pravo. Ne izmišlja zakone, citira tačno i uvek kaže koliko je siguran.</div><div class="t-a"><div class="t-av">SN</div><div><div class="t-name">Sandra N.</div><div class="t-role">Pravnik - Novi Sad - Advokat</div></div></div></div>
+      <div class="sbadge r">Sedam modula</div>
+      <div class="sh r d1">Šta Vindex AI <em>zapravo radi.</em></div>
+      <p class="ss r d2" style="margin-bottom:1.6rem;">Svaki modul je projektovan za konkretan zadatak advokata — od brzog pitanja do kompletne strategije predmeta. Desno: primer stvarnog odgovora sistema.</p>
+      <div class="fn-cards">
+        <div class="fn-card r d1">
+          <span class="fn-num">01</span>
+          <div class="fn-body">
+            <div class="fn-title">Pravno istraživanje</div>
+            <div class="fn-desc">Pitanje prirodnim jezikom — sistem pretražuje sve važeće zakone RS i vraća tačan zakon, broj člana i doslovan citat iz Sl. glasnika za manje od 10 sekundi.</div>
+          </div>
+          <span class="fn-badge live">Dostupno</span>
+        </div>
+        <div class="fn-card r d2">
+          <span class="fn-num">02</span>
+          <div class="fn-body">
+            <div class="fn-title">Analiza predmeta</div>
+            <div class="fn-desc">10-slojna forenzička analiza: pravni osnov, tužbeni zahtev, kontra-argumenti, procena rizika, strategija i ocena izgleda pred sudom.</div>
+          </div>
+          <span class="fn-badge live">Dostupno</span>
+        </div>
+        <div class="fn-card r d3">
+          <span class="fn-num">03</span>
+          <div class="fn-body">
+            <div class="fn-title">Generisanje nacrta</div>
+            <div class="fn-desc">Procesno ispravan nacrt tužbe, žalbe, odgovora na tužbu ili ugovora prema ZPP-u — sa istaknutim mestima za popunu i PDF/Word exportom.</div>
+          </div>
+          <span class="fn-badge live">Dostupno</span>
+        </div>
+        <div class="fn-card r" style="transition-delay:0.35s">
+          <span class="fn-num">04</span>
+          <div class="fn-body">
+            <div class="fn-title">Sudska praksa</div>
+            <div class="fn-desc">12.604 odluka VKS i Apelacionih sudova. Semantička pretraga po pravnom pitanju, ekstrakcija ratio decidendi, direktno citiranje u podnesku.</div>
+          </div>
+          <span class="fn-badge live">Dostupno</span>
+        </div>
+        <div class="fn-card r" style="transition-delay:0.45s">
+          <span class="fn-num">05</span>
+          <div class="fn-body">
+            <div class="fn-title">Upravljanje predmetima</div>
+            <div class="fn-desc">Folder po predmetu sa AI asistentom koji pamti kontekst. Dokumenti, beleške, komentari i pravna analiza na jednom mestu — enkriptovano.</div>
+          </div>
+          <span class="fn-badge live">Dostupno</span>
+        </div>
+        <div class="fn-card r" style="transition-delay:0.55s">
+          <span class="fn-num">06</span>
+          <div class="fn-body">
+            <div class="fn-title">AI Strategija</div>
+            <div class="fn-desc">Red Team analiza, Litigation Simulator (procena % uspeha), AI Sudija, Due Diligence, Pravni Revizor, Witness Analyzer — 6 specijalizovanih modela.</div>
+          </div>
+          <span class="fn-badge pro">PRO</span>
+        </div>
+        <div class="fn-card r" style="transition-delay:0.65s">
+          <span class="fn-num">07</span>
+          <div class="fn-body">
+            <div class="fn-title">Digitalna imovina</div>
+            <div class="fn-desc">ZDI usklađenost, MiCA procena, AML/KYC audit, CASP dozvole — specijalizovan modul za kriptovalute i digitalnu imovinu po srpskom pravu.</div>
+          </div>
+          <span class="fn-badge pro">PRO</span>
+        </div>
       </div>
     </div>
     <div class="r d1">
@@ -2537,13 +2630,16 @@ footer { padding: 2rem 1.5rem; }
 
 <section class="section alt" id="platform">
   <div class="sbadge r">Platforma</div>
-  <div class="sh r d1">Sve što advokat <em>treba.</em></div>
-  <p class="ss r d2">Vindex AI kombinuje preciznost pravne baze sa brzinom vestačke inteligencije.</p>
+  <div class="sh r d1">Sedam modula. <em>Jedan sistem.</em></div>
+  <p class="ss r d2">Svaki modul je izgrađen za konkretnu potrebu advokata — od brzog pravnog pitanja do kompleksne strategije predmeta.</p>
   <div class="plat-grid r">
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Pravno istraživanje</div><p class="p-desc">Svi važeći zakoni RS, tačan član i citat za sekunde.</p><div class="p-detail">Pretraga po svim oblastima prava</div><div class="p-detail">Tačan zakon i broj člana</div><div class="p-detail">Doslovan citat iz važećeg teksta</div></div>
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Analiza ugovora</div><p class="p-desc">Agent identifikuje sporne klauzule i pravne rizike.</p><div class="p-detail">Identifikacija rizičnih klauzula</div><div class="p-detail">Provera usklađenosti sa zakonom</div><div class="p-detail">Preporuke za izmenu odredbi</div></div>
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Generisanje nacrta</div><p class="p-desc">Agent generiše strukturiran nacrt tužbe, žalbe ili ugovora.</p><div class="p-detail">Tužba za naknadu štete</div><div class="p-detail">Otkaz ugovora o radu</div><div class="p-detail">Žalba na prvostepenu presudu</div></div>
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">Sudska praksa</div><p class="p-desc">Pretraga presuda Vrhovnog i Apelacionih sudova.</p><div class="p-detail">Baza presuda srpskih sudova</div><div class="p-detail">Pretraga po pravnom pitanju</div><div class="p-detail">Citiranje presuda u podnesku</div></div>
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">01 — Pravno istraživanje</div><p class="p-desc">Pitanje prirodnim jezikom, odgovor za &lt;10 sekundi. Tačan zakon, broj člana, doslovan citat iz Sl. glasnika RS.</p><div class="p-detail">Sve oblasti prava — radno, obligaciono, krivično, privredno</div><div class="p-detail">Semantička pretraga — razume kontekst, ne samo ključne reči</div><div class="p-detail">Nikad ne izmišlja zakone ni paragrafe</div></div>
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">02 — Analiza predmeta</div><p class="p-desc">10-slojna forenzička analiza: pravni osnov, argumenti, kontra-argumenti, procena rizika i strategija.</p><div class="p-detail">Tužbeni zahtev i pravna kvalifikacija</div><div class="p-detail">Procena izgleda na sudu u %</div><div class="p-detail">Preporučena strategija: tužba / odbrana / nagodba</div></div>
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">03 — Generisanje nacrta</div><p class="p-desc">Procesno ispravan nacrt prema ZPP-u sa istaknutim mestima za popunu. Export u PDF i Word.</p><div class="p-detail">Tužba, žalba, odgovor na tužbu, ugovor</div><div class="p-detail">Prilagođen srpskom procesnom pravu</div><div class="p-detail">PDF sa zaglavljem i Word export</div></div>
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">04 — Sudska praksa</div><p class="p-desc">12.604 odluka VKS i Apelacionih sudova. Ekstrakcija ratio decidendi i direktno citiranje u podnesku.</p><div class="p-detail">Filtriranje po oblasti, sudu i periodu</div><div class="p-detail">Ekstrakcija ključnog pravnog stava</div><div class="p-detail">Direktno citiranje presude u nacrtu</div></div>
+    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">05 — Upravljanje predmetima</div><p class="p-desc">CRM za advokatsku kancelariju. Folder po predmetu, AI kontekst, dokumenti i beleške — enkriptovano.</p><div class="p-detail">Klijenti, predmeti, dokumenti na jednom mestu</div><div class="p-detail">AI asistent koji pamti kontekst predmeta</div><div class="p-detail">AES-256 enkripcija poverljivih podataka</div></div>
+    <div class="plat-card"><div class="p-badge pro" style="color:#e8c97a;border-color:rgba(232,201,122,0.25);background:rgba(232,201,122,0.05);">PRO</div><div class="p-title">06 — AI Strategija</div><p class="p-desc">6 specijalizovanih AI modela za dubinsku pripremu: Red Team, Litigation Simulator, AI Sudija, Due Diligence, Pravni Revizor, Witness Analyzer.</p><div class="p-detail">Red Team — analiza slabih tačaka predmeta</div><div class="p-detail">Litigation Simulator — procena % uspeha</div><div class="p-detail">Due Diligence i Pravni Revizor dokumenta</div></div>
+    <div class="plat-card"><div class="p-badge pro" style="color:#e8c97a;border-color:rgba(232,201,122,0.25);background:rgba(232,201,122,0.05);">PRO</div><div class="p-title">07 — Digitalna imovina</div><p class="p-desc">Specijalizovan modul za kriptovalute i digitalnu imovinu po srpskom Zakonu o digitalnoj imovini i EU MiCA regulativi.</p><div class="p-detail">ZDI usklađenost i CASP dozvole (NBS / KHoV)</div><div class="p-detail">MiCA procena za EU projekte</div><div class="p-detail">AML/KYC audit po FATF standardima</div></div>
   </div>
 </section>
 
