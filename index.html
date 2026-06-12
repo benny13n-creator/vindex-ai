@@ -363,6 +363,55 @@ select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px sol
 .fn-badge.live { color: #4ade80; border-color: rgba(74,222,128,0.28); background: rgba(74,222,128,0.04); }
 .fn-badge.pro { color: #e8c97a; border-color: rgba(232,201,122,0.28); background: rgba(232,201,122,0.04); }
 
+/* ── MODULE SHOWCASE — interaktivni 7-panel showcase ─────────────────────── */
+.mod-showcase { display: grid; grid-template-columns: 1fr 1.55fr; border: 1px solid rgba(74,168,255,0.13); border-radius: 18px; overflow: hidden; margin-top: 3.5rem; background: rgba(1,3,10,0.5); }
+.mod-tabs { display: flex; flex-direction: column; border-right: 1px solid rgba(74,168,255,0.1); }
+.mod-tab { display: flex; align-items: flex-start; gap: 0.82rem; padding: 1.05rem 1.25rem; cursor: pointer; border-bottom: 1px solid rgba(74,168,255,0.06); transition: background 0.2s; position: relative; user-select: none; }
+.mod-tab:last-child { border-bottom: none; }
+.mod-tab::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #4aa8ff; transform: scaleY(0); transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); }
+.mod-tab.mod-active::after { transform: scaleY(1); }
+.mod-tab.mod-active { background: rgba(74,168,255,0.042); }
+.mod-tab:hover:not(.mod-active) { background: rgba(74,168,255,0.018); }
+.mod-tab-n { font-family: 'JetBrains Mono', monospace; font-size: 0.49rem; letter-spacing: 0.14em; color: rgba(74,168,255,0.42); flex-shrink: 0; padding-top: 3px; min-width: 18px; transition: color 0.2s; }
+.mod-tab.mod-active .mod-tab-n { color: #4aa8ff; }
+.mod-tab-info { flex: 1; min-width: 0; }
+.mod-tab-name { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: rgba(255,255,255,0.3); margin-bottom: 0.1rem; transition: color 0.2s; line-height: 1.2; }
+.mod-tab.mod-active .mod-tab-name { color: #cde0f8; }
+.mod-tab-how { font-size: 0.67rem; color: rgba(155,195,234,0.27); line-height: 1.45; font-weight: 300; transition: color 0.2s; }
+.mod-tab.mod-active .mod-tab-how { color: rgba(155,195,234,0.52); }
+.mod-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.4rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.09rem 0.38rem; border-radius: 2px; border: 1px solid; flex-shrink: 0; align-self: flex-start; margin-top: 2px; white-space: nowrap; transition: all 0.2s; }
+.mod-badge.live { color: rgba(74,222,128,0.5); border-color: rgba(74,222,128,0.18); }
+.mod-badge.pro  { color: rgba(232,201,122,0.5); border-color: rgba(232,201,122,0.18); }
+.mod-tab.mod-active .mod-badge.live { color: #4ade80; border-color: rgba(74,222,128,0.35); }
+.mod-tab.mod-active .mod-badge.pro  { color: #e8c97a; border-color: rgba(232,201,122,0.35); }
+
+/* Preview panel */
+.mod-preview-wrap { display: flex; flex-direction: column; min-height: 510px; }
+.mod-pbar { display: flex; align-items: center; gap: 7px; padding: 0.72rem 1.2rem; border-bottom: 1px solid rgba(74,168,255,0.1); background: rgba(74,168,255,0.022); }
+.mod-pdots { display: flex; gap: 5px; }
+.mpd { display: block; width: 9px; height: 9px; border-radius: 50%; }
+.mpd1 { background: rgba(255,90,90,0.4); } .mpd2 { background: rgba(255,190,50,0.4); } .mpd3 { background: rgba(74,168,255,0.5); }
+.mod-pbar-label { font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; color: rgba(255,255,255,0.2); margin-left: 8px; flex: 1; }
+.mod-plive { display: flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; font-size: 0.5rem; color: #4ade80; }
+.mod-pbody { flex: 1; padding: 1.4rem 1.6rem 1.4rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; line-height: 1.85; color: #aac8e8; white-space: pre-wrap; position: relative; overflow: hidden; min-height: 450px; }
+.mod-pfoot { height: 1px; background: rgba(74,168,255,0.08); position: relative; overflow: hidden; }
+.mod-pfoot::after { content: ''; position: absolute; left: -100%; top: 0; height: 100%; background: linear-gradient(90deg, transparent, #4aa8ff, transparent); animation: mod-sweep 4.5s linear infinite; }
+@keyframes mod-sweep { 0%{left:-30%;} 100%{left:110%;} }
+@keyframes mod-line-in { from{opacity:0;transform:translateX(-6px);} to{opacity:1;transform:translateX(0);} }
+.mline { display: block; animation: mod-line-in 0.18s ease both; }
+.mline.hi { color: #cde0f8; font-weight: 500; }
+.mline.ok { color: #4ade80; }
+.mline.warn { color: #e8c97a; }
+.mline.muted { color: rgba(100,150,200,0.45); }
+.mline.sep { color: rgba(74,168,255,0.25); }
+
+@media (max-width: 900px) {
+  .mod-showcase { grid-template-columns: 1fr; }
+  .mod-preview-wrap { display: none; }
+  .mod-tabs { border-right: none; }
+  .mod-tab-how { display: none; }
+}
+
 .demo-win { background: rgba(1,5,14,0.95); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; overflow: hidden; box-shadow: 0 50px 120px rgba(0,0,0,0.65); position: relative; }
 .demo-win::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.5), rgba(201,168,76,0.2), transparent); }
 .demo-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -2477,24 +2526,29 @@ footer { padding: 2rem 1.5rem; }
 </div>
 
 <section class="section" id="how" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-  <div class="sbadge r">Jednostavno</div>
-  <div class="sh r d1">Tri koraka do <em>pravog odgovora.</em></div>
-  <p class="ss r d2" style="margin-bottom:0;">Bez učenja, bez komplikovanih pretraga. Odmah od prvog dana.</p>
-  <div class="how-grid">
-    <div class="how-step r d1">
-      <div class="how-circle"><span class="how-num">01</span></div>
-      <div class="how-htitle">Postavi pitanje</div>
-      <div class="how-hdesc">Unesite pravno pitanje prirodnim jezikom — kao da pitate iskusnog kolegu advokata.</div>
+  <div class="sbadge r">7 AI modula</div>
+  <div class="sh r d1">Izaberite modul. <em>Vidite output.</em></div>
+  <p class="ss r d2">Ne obećanja — konkretni izlazi sistema. Kliknite na svaki modul da vidite tačno šta dobijate.</p>
+
+  <div class="mod-showcase r d2" id="modShowcase">
+    <div class="mod-tabs" id="modTabs">
+      <div class="mod-tab mod-active" data-idx="0"><span class="mod-tab-n">01</span><div class="mod-tab-info"><div class="mod-tab-name">Pravno istraživanje</div><div class="mod-tab-how">Upišite pitanje → zakon, član, citat, pouzdanost</div></div><span class="mod-badge live">Dostupno</span></div>
+      <div class="mod-tab" data-idx="1"><span class="mod-tab-n">02</span><div class="mod-tab-info"><div class="mod-tab-name">Analiza predmeta</div><div class="mod-tab-how">Opišite predmet → 10-slojna analiza sa strategijom</div></div><span class="mod-badge live">Dostupno</span></div>
+      <div class="mod-tab" data-idx="2"><span class="mod-tab-n">03</span><div class="mod-tab-info"><div class="mod-tab-name">Generisanje nacrta</div><div class="mod-tab-how">Izaberite tip → nacrt spreman za Word / PDF</div></div><span class="mod-badge live">Dostupno</span></div>
+      <div class="mod-tab" data-idx="3"><span class="mod-tab-n">04</span><div class="mod-tab-info"><div class="mod-tab-name">Sudska praksa</div><div class="mod-tab-how">Unesite pitanje → rangirane presude VKS sa ratio</div></div><span class="mod-badge live">Dostupno</span></div>
+      <div class="mod-tab" data-idx="4"><span class="mod-tab-n">05</span><div class="mod-tab-info"><div class="mod-tab-name">Upravljanje predmetima</div><div class="mod-tab-how">Folder po predmetu → AI pamti kontekst sesija</div></div><span class="mod-badge live">Dostupno</span></div>
+      <div class="mod-tab" data-idx="5"><span class="mod-tab-n">06</span><div class="mod-tab-info"><div class="mod-tab-name">AI Strategija</div><div class="mod-tab-how">Opišite predmet → Red Team, Simulator, Sudija, Revizor</div></div><span class="mod-badge pro">PRO</span></div>
+      <div class="mod-tab" data-idx="6"><span class="mod-tab-n">07</span><div class="mod-tab-info"><div class="mod-tab-name">Digitalna imovina</div><div class="mod-tab-how">Opišite projekat → ZDI / MiCA analiza, AML audit</div></div><span class="mod-badge pro">PRO</span></div>
     </div>
-    <div class="how-step r d2">
-      <div class="how-circle"><span class="how-num">02</span></div>
-      <div class="how-htitle">AI pretražuje bazu</div>
-      <div class="how-hdesc">Svi važeći zakoni Republike Srbije se semantički pretražuje i rangira po relevantnosti u realnom vremenu.</div>
-    </div>
-    <div class="how-step r d3">
-      <div class="how-circle"><span class="how-num">03</span></div>
-      <div class="how-htitle">Dobijate preciznost</div>
-      <div class="how-hdesc">Tačan zakon, doslovan citat i ocena pouzdanosti — verifikovano, bez halucinacija.</div>
+
+    <div class="mod-preview-wrap">
+      <div class="mod-pbar">
+        <div class="mod-pdots"><span class="mpd mpd1"></span><span class="mpd mpd2"></span><span class="mpd mpd3"></span></div>
+        <span class="mod-pbar-label" id="modLabel">vindex-ai — Pravno istraživanje</span>
+        <span class="mod-plive"><span class="live-dot"></span>Live output</span>
+      </div>
+      <div class="mod-pbody" id="modBody"></div>
+      <div class="mod-pfoot"></div>
     </div>
   </div>
 </section>
@@ -2520,67 +2574,9 @@ footer { padding: 2rem 1.5rem; }
 <section class="section" id="demo">
   <div class="demo-grid">
     <div>
-      <div class="sbadge r">Sedam modula</div>
-      <div class="sh r d1">Šta Vindex AI <em>zapravo radi.</em></div>
-      <p class="ss r d2" style="margin-bottom:1.6rem;">Svaki modul je projektovan za konkretan zadatak advokata — od brzog pitanja do kompletne strategije predmeta. Desno: primer stvarnog odgovora sistema.</p>
-      <div class="fn-cards">
-        <div class="fn-card r d1">
-          <span class="fn-num">01</span>
-          <div class="fn-body">
-            <div class="fn-title">Pravno istraživanje</div>
-            <div class="fn-desc">Pitanje prirodnim jezikom — sistem pretražuje sve važeće zakone RS i vraća tačan zakon, broj člana i doslovan citat iz Sl. glasnika za manje od 10 sekundi.</div>
-          </div>
-          <span class="fn-badge live">Dostupno</span>
-        </div>
-        <div class="fn-card r d2">
-          <span class="fn-num">02</span>
-          <div class="fn-body">
-            <div class="fn-title">Analiza predmeta</div>
-            <div class="fn-desc">10-slojna forenzička analiza: pravni osnov, tužbeni zahtev, kontra-argumenti, procena rizika, strategija i ocena izgleda pred sudom.</div>
-          </div>
-          <span class="fn-badge live">Dostupno</span>
-        </div>
-        <div class="fn-card r d3">
-          <span class="fn-num">03</span>
-          <div class="fn-body">
-            <div class="fn-title">Generisanje nacrta</div>
-            <div class="fn-desc">Procesno ispravan nacrt tužbe, žalbe, odgovora na tužbu ili ugovora prema ZPP-u — sa istaknutim mestima za popunu i PDF/Word exportom.</div>
-          </div>
-          <span class="fn-badge live">Dostupno</span>
-        </div>
-        <div class="fn-card r" style="transition-delay:0.35s">
-          <span class="fn-num">04</span>
-          <div class="fn-body">
-            <div class="fn-title">Sudska praksa</div>
-            <div class="fn-desc">12.604 odluka VKS i Apelacionih sudova. Semantička pretraga po pravnom pitanju, ekstrakcija ratio decidendi, direktno citiranje u podnesku.</div>
-          </div>
-          <span class="fn-badge live">Dostupno</span>
-        </div>
-        <div class="fn-card r" style="transition-delay:0.45s">
-          <span class="fn-num">05</span>
-          <div class="fn-body">
-            <div class="fn-title">Upravljanje predmetima</div>
-            <div class="fn-desc">Folder po predmetu sa AI asistentom koji pamti kontekst. Dokumenti, beleške, komentari i pravna analiza na jednom mestu — enkriptovano.</div>
-          </div>
-          <span class="fn-badge live">Dostupno</span>
-        </div>
-        <div class="fn-card r" style="transition-delay:0.55s">
-          <span class="fn-num">06</span>
-          <div class="fn-body">
-            <div class="fn-title">AI Strategija</div>
-            <div class="fn-desc">Red Team analiza, Litigation Simulator (procena % uspeha), AI Sudija, Due Diligence, Pravni Revizor, Witness Analyzer — 6 specijalizovanih modela.</div>
-          </div>
-          <span class="fn-badge pro">PRO</span>
-        </div>
-        <div class="fn-card r" style="transition-delay:0.65s">
-          <span class="fn-num">07</span>
-          <div class="fn-body">
-            <div class="fn-title">Digitalna imovina</div>
-            <div class="fn-desc">ZDI usklađenost, MiCA procena, AML/KYC audit, CASP dozvole — specijalizovan modul za kriptovalute i digitalnu imovinu po srpskom pravu.</div>
-          </div>
-          <span class="fn-badge pro">PRO</span>
-        </div>
-      </div>
+      <div class="sbadge r">Stvarni odgovor</div>
+      <div class="sh r d1">Ovo nije simulacija. <em>Ovo je output.</em></div>
+      <p class="ss r d2" style="margin-bottom:2rem;">Svaki odgovor Vindex AI sistema ima isti format: pravni osnov, zakon i član, doslovan citat, pravna posledica i ocena pouzdanosti. Isprobajte na pitanjima ispod ili upišite sopstveno.</p>
     </div>
     <div class="r d1">
       <div class="sample-resp-panel">
@@ -2706,25 +2702,25 @@ footer { padding: 2rem 1.5rem; }
 </section>
 
 <section class="section alt" id="about">
-  <div class="sbadge r">Naša priča</div>
-  <div class="sh r d1">Zašto sam napravio <span class="gold">Vindex AI.</span></div>
+  <div class="sbadge r">O sistemu</div>
+  <div class="sh r d1">Zašto Vindex AI <span class="gold">postoji.</span></div>
   <div class="about-grid">
     <div>
-      <div class="about-q r">Svaki advokat u Srbiji zna taj trenutak - klijent čeka, predmet je pod rokovima, a vi provodite dragoceno vreme prelistavajući stranice zakona.<br><br><strong>Vindex AI je nastao iz jednog prostog uverenja:</strong> advokat treba da razmišlja o strategiji, a ne da ručno pretražuje propise.</div>
-      <p class="about-p r d1">Izgradio sam sistem treniran isključivo na srpskim zakonima - citira tačan član, daje preciznu pravnu kvalifikaciju, bez halucinacija.</p>
-      <p class="about-p r d1">Moj cilj nije da zameni advokata. <strong style="color:#fff;">Moj cilj je da ga oslobodi.</strong></p>
+      <div class="about-q r">Pre Vindex AI, advokat u Srbiji je istu pretragu radio ručno: Legalis za tekst zakona, Paragraf za sudsku praksu, ručna provera Sl. glasnika. Sati posla pre prvog razgovora sa klijentom — za informaciju koja bi trebalo da bude dostupna za 10 sekundi.<br><br><strong>Vindex AI ne ubrzava taj stari proces. Zamenjuje ga.</strong></div>
+      <p class="about-p r d1">Sistem je izgrađen na jednom principu: svaki odgovor mora biti <strong style="color:#fff;">verifikovan, citiran i ponovljiv.</strong> HIGH / MEDIUM / LOW uz svaki odgovor nije marketinška fraza — to je tehnički signal koliko direktnih zakonskih osnova je pronađeno u bazi.</p>
+      <p class="about-p r d1">Razvijen u direktnoj saradnji sa advokatima koji su opisali problem precizno: ne nedostaje znanje — nedostaje vreme za pronalaženje tačnog propisa u pravi trenutak.</p>
       <div class="info-tbl r d2">
         <div class="info-row"><div class="info-k">Status</div><div class="info-v">Produkcija — pristup dostupan</div></div>
+        <div class="info-row"><div class="info-k">Baza</div><div class="info-v">18+ zakona RS + 12.604 odluka VKS</div></div>
         <div class="info-row"><div class="info-k">Email</div><div class="info-v">info@vindex.rs</div></div>
-        <div class="info-row"><div class="info-k">Dostupnost</div><div class="info-v">Pon - Pet, 09:00 - 17:00</div></div>
-        <div class="info-row"><div class="info-k">Besplatni pristup</div><div class="info-v acc">15 besplatnih pitanja</div></div>
+        <div class="info-row"><div class="info-k">Besplatno</div><div class="info-v acc">15 pitanja — bez kartice</div></div>
       </div>
     </div>
     <div class="vals-list r d1">
-      <div class="val-row"><div class="val-n">I</div><div><div class="val-title">Preciznost iznad svega</div><div class="val-text">Bolje nepotpun tačan odgovor nego kompletan ali netačan. Uvek.</div></div></div>
-      <div class="val-row"><div class="val-n">II</div><div><div class="val-title">Brzina koja se meri</div><div class="val-text">Odgovor za manje od 10 sekundi. Svi važeći zakoni RS. Bez čekanja.</div></div></div>
-      <div class="val-row"><div class="val-n">III</div><div><div class="val-title">Radikalna transparentnost</div><div class="val-text">Uvek navodimo izvor, zakon i član. Nikad ne nagađamo.</div></div></div>
-      <div class="val-row"><div class="val-n">IV</div><div><div class="val-title">Srpsko pravo, srpski jezik</div><div class="val-text">Razumemo pravnu terminologiju srpskog pravnog sistema.</div></div></div>
+      <div class="val-row"><div class="val-n">I</div><div><div class="val-title">Nikad ne izmišlja zakon</div><div class="val-text">Sistem citira isključivo zakone koji postoje u bazi. Ako osnov nije pronađen — odgovor je: ne mogu da potvrdim. Nikad izmišljeni paragraf.</div></div></div>
+      <div class="val-row"><div class="val-n">II</div><div><div class="val-title">Svaki odgovor ima broj člana i Sl. glasnik</div><div class="val-text">Svaki pravni zaključak navodi tačan zakon, broj člana i Sl. glasnik. Proverljivo u 30 sekundi — to je standard, ne opcija.</div></div></div>
+      <div class="val-row"><div class="val-n">III</div><div><div class="val-title">Ako nije siguran — kaže to otvoreno</div><div class="val-text">LOW pouzdanost znači: sistem nije pronašao direktan zakonski osnov. To je informacija — ne greška. Bolje nepotpun tačan nego kompletan netačan.</div></div></div>
+      <div class="val-row"><div class="val-n">IV</div><div><div class="val-title">Srpski zakoni — ne prevodi stranih sistema</div><div class="val-text">Baza sadrži isključivo važeće propise RS. Sistem ne koristi generički GPT treniran na stranom pravu i preveden na srpski.</div></div></div>
     </div>
   </div>
 </section>
@@ -8336,6 +8332,251 @@ async function pred_kreiraj() {
     if (errEl) { errEl.textContent='Greška veze.'; errEl.style.display='block'; }
   }
 }
+
+// ─── Mod-showcase: 7-modular animated terminal preview ───────────────────────
+(function() {
+  var MOD_LABELS = [
+    'vindex-ai — Pravno istraživanje',
+    'vindex-ai — Analiza predmeta',
+    'vindex-ai — Generisanje nacrta',
+    'vindex-ai — Sudska praksa VKS',
+    'vindex-ai — Upravljanje predmetima',
+    'vindex-ai — AI Strategija',
+    'vindex-ai — Digitalna imovina'
+  ];
+
+  // Each array entry = array of [text, cssClass]
+  // Classes: 'hi' (heading/white), 'ok' (green), 'warn' (amber), '' (default blue-grey)
+  var MOD_CONTENT = [
+    // 0 — Pravno istraživanje
+    [
+      ['$ pitanje: "Otkazni rok za zaposlenog sa 12 godina staža?"', 'hi'],
+      ['', ''],
+      ['  PRAVNI OSNOV', 'warn'],
+      ['  Zakon o radu, čl. 189 st. 1 tač. 1)', ''],
+      ['  "Sl. glasnik RS", br. 24/2005, 61/2005, 54/2009...', ''],
+      ['', ''],
+      ['  ZAKONSKI TEKST (doslovan citat)', 'warn'],
+      ['  "Zaposleni koji je proveo na radu kod poslodavca', ''],
+      ['   od 10 do 20 godina — otkazni rok je 20 radnih dana."', 'hi'],
+      ['', ''],
+      ['  PRIMENA NA VAŠ SLUČAJ', 'warn'],
+      ['  Staž: 12 god → kategorija 10–20 god', ''],
+      ['  Otkazni rok: 20 radnih dana (~4 nedelje)', 'ok'],
+      ['  Počinje teći: od dostave rešenja o otkazu', ''],
+      ['', ''],
+      ['  POUZDANOST  ████████░░  HIGH', 'ok'],
+      ['  Osnov: direktan, čl. 189 ZR, neizmenjeno', '']
+    ],
+    // 1 — Analiza predmeta
+    [
+      ['$ predmet: "Saobraćajna nezgoda, krivica sporna, 3 žrtve"', 'hi'],
+      ['', ''],
+      ['  1. PRAVNA KVALIFIKACIJA', 'warn'],
+      ['  KZ čl. 297 st. 3 — teška tela povreda + smrt', ''],
+      ['  Kazna: 2–12 god zatvora', 'hi'],
+      ['', ''],
+      ['  2. KRIVICA — ključna pitanja', 'warn'],
+      ['  ▸ Brzina u trenutku udara (veštak!)', ''],
+      ['  ▸ Stanje vozila (tehnički pregled)', ''],
+      ['  ▸ Alkohol/droge — toksikolog', ''],
+      ['', ''],
+      ['  3. SUDSKA PRAKSA (5 relevantnih presuda)', 'warn'],
+      ['  Rev2_1788_2024 — slučna krivica, st. 2 primenjen', 'ok'],
+      ['  Rev2_3015_2024 — veštak oslobodio tuženog', 'ok'],
+      ['', ''],
+      ['  4. PREPORUČENA STRATEGIJA', 'warn'],
+      ['  Zahtevaj veštačenje odmah — rok: 8 dana', 'hi'],
+      ['', ''],
+      ['  POUZDANOST  ████████░░  HIGH', 'ok']
+    ],
+    // 2 — Generisanje nacrta
+    [
+      ['$ nacrt: tip=tuzba, osnov="neplacena zakupnina"', 'hi'],
+      ['', ''],
+      ['  Generišem nacrt...  ████████████  100%', 'ok'],
+      ['', ''],
+      ['  OSNOVNOM SUDU U BEOGRADU', 'hi'],
+      ['', ''],
+      ['  TUŽBA', 'hi'],
+      ['  Tužilac: [IME KLIJENTA], JMBG [JMBG]', ''],
+      ['  Tuženi:  [IME TUŽENOG], ul. [ADRESA]', ''],
+      ['', ''],
+      ['  Tužbeni zahtev:', 'warn'],
+      ['  Obavezuje se tuženi da isplati iznos od', ''],
+      ['  [IZNOS] din., sa zakonskom zateznom kamatom', ''],
+      ['  počev od [DATUM] do isplate, i troškove postupka.', ''],
+      ['', ''],
+      ['  Činjenično stanje:', 'warn'],
+      ['  Na osnovu Ugovora o zakupu od [DATUM], čl. [X],', ''],
+      ['  tuženi nije platio zakupninu za [PERIOD]...', ''],
+      ['', ''],
+      ['  Pravni osnov: ZOO čl. 567-590', 'ok'],
+      ['  ▸ Spreman za Word/PDF export', 'hi']
+    ],
+    // 3 — Sudska praksa
+    [
+      ['$ praksa: "naknada štete, nematerijalna, saobraćaj"', 'hi'],
+      ['', ''],
+      ['  Pretraživanje 12.604 odluka VKS...', ''],
+      ['  Pronađeno: 47 relevantnih presuda', 'ok'],
+      ['', ''],
+      ['  TOP 3 PO RELEVANTNOSTI', 'warn'],
+      ['', ''],
+      ['  [1] Rev2_1788_2024 — relevantnost: 94%', 'hi'],
+      ['  Sud: Vrhovni kasacioni sud, građanska mat.', ''],
+      ['  Ratio: "Visina naknade ne može biti ispod', ''],
+      ['   minimalnog standarda dostojanstva ličnosti."', 'ok'],
+      ['', ''],
+      ['  [2] Rev_10285_2025 — relevantnost: 89%', 'hi'],
+      ['  Ratio: "Bolovi i strah se odmah naknadjuju', ''],
+      ['   — ne čeka se konačan ishod lečenja."', 'ok'],
+      ['', ''],
+      ['  [3] Prev_102_2025 — relevantnost: 81%', 'hi'],
+      ['  ▸ 3 filtera: oblast / sud / period', ''],
+      ['  ▸ Kopiraj citiranje jednim klikom', 'hi']
+    ],
+    // 4 — Upravljanje predmetima
+    [
+      ['$ folder: "Petrović v. Beograd, radni spor"', 'hi'],
+      ['', ''],
+      ['  Predmet: Petrović Nikola vs. Grad Beograd', 'hi'],
+      ['  Tip: Radni spor | Status: Aktivan', ''],
+      ['', ''],
+      ['  AI MEMORIJA SESIJA  ████████░░  8 sesija', 'warn'],
+      ['  ▸ Pamti sve prethodne analize za ovaj predmet', ''],
+      ['  ▸ Kontekst aktivan u svakom sledećem pitanju', ''],
+      ['', ''],
+      ['  DOKUMENTI (3)', 'warn'],
+      ['  ✓ Rešenje o otkazu — [DATUM]', 'ok'],
+      ['  ✓ Ugovor o radu — [DATUM]', 'ok'],
+      ['  ✓ Zapisnik sa saslušanja', 'ok'],
+      ['', ''],
+      ['  ROKOVI', 'warn'],
+      ['  ! Žalba APB: 15 dana → ističe [DATUM+14]', 'hi'],
+      ['  ✓ Odgovor na tužbu — podneto', 'ok'],
+      ['', ''],
+      ['  ▸ AI nastavlja od mesta gde ste stali', 'hi']
+    ],
+    // 5 — AI Strategija
+    [
+      ['$ strategija: "krivični, prodaja PAS, okr. poreklom iz EU"', 'hi'],
+      ['', ''],
+      ['  MODE: Red Team  ★ PRO', 'hi'],
+      ['', ''],
+      ['  SLABE TAČKE OPTUŽBE', 'warn'],
+      ['  ▸ Dokaz o prodaji: audio snimak bez sudskog naloga', ''],
+      ['    → ZKP čl. 232 — nezakonito pribavljen', 'ok'],
+      ['  ▸ Svedok X je osuđivan za isti prekršaj', ''],
+      ['    → kredibilitet osporen čl. 97 ZKP', 'ok'],
+      ['', ''],
+      ['  MODE: Simulator suđenja', 'warn'],
+      ['  Tužilac će verovatno insistirati na:', ''],
+      ['  "nameri prodaje" kao aggravating factor', ''],
+      ['  Kontra-argument: 1. posedovanje nije prodaja,', ''],
+      ['  2. EU dokument o terapijskoj upotrebi', 'hi'],
+      ['', ''],
+      ['  MODE: Sudija-perspektiva', 'warn'],
+      ['  Šansa za oslobađanje: 62% pri odbrani dokaza', ''],
+      ['  POUZDANOST  ███████░░░  MEDIUM', 'warn']
+    ],
+    // 6 — Digitalna imovina
+    [
+      ['$ crypto: "ICO token, srpski rezidenti, 2.5M EUR"', 'hi'],
+      ['', ''],
+      ['  ZDI ANALIZA  ████████░░  kompletirana', 'warn'],
+      ['', ''],
+      ['  KLASIFIKACIJA TOKENA', 'warn'],
+      ['  ▸ Tip: Utility + Security hybrid', ''],
+      ['  ▸ ZDI čl. 2 tač. 8 — digitalna imovina', 'hi'],
+      ['  ▸ Requires NBRS registracija pre ponude', 'hi'],
+      ['', ''],
+      ['  MiCA OBAVEZE (EU)', 'warn'],
+      ['  ▸ White paper: obavezan, čl. 19 MiCA', ''],
+      ['  ▸ Minimalni kapital: €50,000', ''],
+      ['  ▸ Rok publikacije white paper-a: T-20 dana', ''],
+      ['', ''],
+      ['  AML AUDIT', 'warn'],
+      ['  ! KYC obavezan za transakcije > €1,000', 'hi'],
+      ['  ! Travel Rule: primenjuje se od €1,000', 'hi'],
+      ['  ✓ Freeze mehanizam: ZDI čl. 74 — implementiran', 'ok'],
+      ['', ''],
+      ['  POUZDANOST  ████████░░  HIGH', 'ok']
+    ]
+  ];
+
+  var currentIdx = 0;
+  var autoTimer = null;
+  var typeTimer = null;
+
+  function renderLines(idx) {
+    var body = document.getElementById('modBody');
+    var label = document.getElementById('modLabel');
+    if (!body || !label) return;
+    if (typeTimer) clearTimeout(typeTimer);
+    body.innerHTML = '';
+    label.textContent = MOD_LABELS[idx];
+    var lines = MOD_CONTENT[idx];
+    var delay = 0;
+    for (var i = 0; i < lines.length; i++) {
+      (function(line, d) {
+        typeTimer = setTimeout(function() {
+          var span = document.createElement('span');
+          span.className = 'mline' + (line[1] ? ' ' + line[1] : '');
+          span.style.animationDelay = '0ms';
+          span.textContent = line[0];
+          body.appendChild(span);
+          // auto-scroll preview
+          body.scrollTop = body.scrollHeight;
+        }, d);
+      })(lines[i], delay);
+      delay += (lines[i][0] === '') ? 60 : 55 + Math.random() * 25;
+    }
+  }
+
+  function activateTab(idx) {
+    var tabs = document.querySelectorAll('#modTabs .mod-tab');
+    tabs.forEach(function(t) { t.classList.remove('mod-active'); });
+    if (tabs[idx]) tabs[idx].classList.add('mod-active');
+    currentIdx = idx;
+    renderLines(idx);
+  }
+
+  function startAuto() {
+    stopAuto();
+    autoTimer = setInterval(function() {
+      activateTab((currentIdx + 1) % MOD_CONTENT.length);
+    }, 4800);
+  }
+
+  function stopAuto() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  }
+
+  function initShowcase() {
+    var showcase = document.getElementById('modShowcase');
+    if (!showcase) return;
+    var tabs = document.querySelectorAll('#modTabs .mod-tab');
+    tabs.forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        stopAuto();
+        activateTab(parseInt(tab.getAttribute('data-idx'), 10));
+        startAuto();
+      });
+    });
+    showcase.addEventListener('mouseenter', stopAuto);
+    showcase.addEventListener('mouseleave', startAuto);
+    // Initial render
+    renderLines(0);
+    startAuto();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initShowcase);
+  } else {
+    initShowcase();
+  }
+})();
 
 </script>
 
