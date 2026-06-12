@@ -10,7 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
-<title>Vindex AI - Pravni asistent za Srbiju</title>
+<title>Vindex AI - Pravni operativni sistem za Srbiju</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -143,12 +143,10 @@
 html { scroll-behavior: smooth; overflow-x: hidden; max-width: 100%; }
 ::-webkit-scrollbar { width: 3px; background: #010308; }
 ::-webkit-scrollbar-thumb { background: rgba(74,168,255,0.25); border-radius: 2px; }
-body { background: #010308; color: rgba(255,255,255,0.95); font-family: var(--font-ui); font-size: var(--text-base); line-height: 1.6; overflow-x: hidden; max-width: 100%; cursor: none; }
+body { background: #010308; color: rgba(255,255,255,0.95); font-family: var(--font-ui); font-size: var(--text-base); line-height: 1.6; overflow-x: hidden; max-width: 100%; }
 
-#cursor { position: fixed; width: 10px; height: 10px; background: #4aa8ff; border-radius: 50%; pointer-events: none; z-index: 8999; transform: translate(-50%,-50%); box-shadow: 0 0 15px #4aa8ff; mix-blend-mode: screen; transition: width 0.2s, height 0.2s; }
-#cursor-ring { position: fixed; width: 34px; height: 34px; border: 1px solid rgba(74,168,255,0.45); border-radius: 50%; pointer-events: none; z-index: 8998; transform: translate(-50%,-50%); transition: all 0.12s ease; }
-body.hovering #cursor { width: 18px; height: 18px; background: #c9a84c; box-shadow: 0 0 20px #c9a84c; }
-body.hovering #cursor-ring { width: 56px; height: 56px; border-color: rgba(201,168,76,0.3); }
+#cursor { display: none; }
+#cursor-ring { display: none; }
 #cv { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 
 /* NAV */
@@ -157,13 +155,13 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .logo { font-family: ‘Cormorant Garamond’, serif; font-size: 1.5rem; font-weight: 600; color: #fff; text-decoration: none; }
 .logo em { color: #4aa8ff; font-style: normal; }
 .nav-links { display: flex; gap: 2.5rem; }
-.nav-links a { font-size: 0.78rem; font-weight: 400; color: rgba(255,255,255,0.55); text-decoration: none; letter-spacing: 0.04em; transition: color 0.2s; cursor: none; }
+.nav-links a { font-size: 0.78rem; font-weight: 400; color: rgba(255,255,255,0.55); text-decoration: none; letter-spacing: 0.04em; transition: color 0.2s; cursor: pointer; }
 .nav-links a:hover { color: #fff; }
-.nav-cta { padding: 0.6rem 1.5rem; border: 1px solid rgba(74,168,255,0.35); border-radius: 6px; color: #89c8ff; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; transition: all 0.3s; cursor: none; white-space: nowrap; }
+.nav-cta { padding: 0.6rem 1.5rem; border: 1px solid rgba(74,168,255,0.35); border-radius: 6px; color: #89c8ff; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; transition: all 0.3s; cursor: pointer; white-space: nowrap; }
 .nav-cta:hover { border-color: #4aa8ff; box-shadow: 0 0 28px rgba(74,168,255,0.25); color: #fff; }
 
 /* HAMBURGER */
-.hamburger { display: none; flex-direction: column; gap: 5px; cursor: none; padding: 4px; background: none; border: none; }
+.hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px; background: none; border: none; }
 .hamburger span { display: block; width: 22px; height: 2px; background: rgba(255,255,255,0.7); border-radius: 2px; transition: all 0.3s; }
 .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .hamburger.open span:nth-child(2) { opacity: 0; }
@@ -194,9 +192,9 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 @keyframes grad-shift { 0%{background-position:0% center;} 100%{background-position:300% center;} }
 .h-desc { font-size: 1.05rem; line-height: 1.92; color: rgba(255,255,255,0.55); font-weight: 300; max-width: 560px; margin: 0 auto 2.5rem; }
 .h-cta { display: flex; align-items: center; justify-content: center; gap: 1.8rem; margin-bottom: 3rem; flex-wrap: wrap; }
-.btn-primary { position: relative; padding: 1rem 2.4rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 8px; color: #fff; font-family: var(--font-ui); font-size: 0.86rem; font-weight: 600; letter-spacing: 0.04em; cursor: none; overflow: hidden; transition: all 0.35s; text-decoration: none; box-shadow: 0 8px 40px rgba(74,168,255,0.35); display: inline-block; }
+.btn-primary { position: relative; padding: 1rem 2.4rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 8px; color: #fff; font-family: var(--font-ui); font-size: 0.86rem; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; overflow: hidden; transition: all 0.35s; text-decoration: none; box-shadow: 0 8px 40px rgba(74,168,255,0.35); display: inline-block; }
 .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 20px 60px rgba(74,168,255,0.5); }
-.btn-ghost { font-size: 0.84rem; color: rgba(255,255,255,0.22); font-weight: 300; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s; cursor: none; }
+.btn-ghost { font-size: 0.84rem; color: rgba(255,255,255,0.22); font-weight: 300; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s; cursor: pointer; }
 .btn-ghost:hover { color: rgba(255,255,255,0.55); }
 
 /* STATS */
@@ -316,15 +314,15 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .t-body { padding: 1.5rem; }
 .t-tabs { display: flex; gap: 0; background: transparent; border-radius: 0; padding: 0; margin-bottom: 1.2rem; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; max-width: 100%; white-space: nowrap; }
 .t-tabs::-webkit-scrollbar { display: none; }
-.t-tab { flex: 1; min-width: max-content; max-width: 100%; min-height: 44px; padding: 12px 24px; text-align: center; font-size: 1rem; font-weight: 500; color: rgba(255,255,255,0.45); border-radius: 0; cursor: none; transition: color 0.2s, border-bottom-color 0.2s; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
+.t-tab { flex: 1; min-width: max-content; max-width: 100%; min-height: 44px; padding: 12px 24px; text-align: center; font-size: 1rem; font-weight: 500; color: rgba(255,255,255,0.45); border-radius: 0; cursor: pointer; transition: color 0.2s, border-bottom-color 0.2s; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
 .t-tab.active { background: transparent; color: #89c8ff; border-bottom-color: #4aa8ff; }
 .t-tab:hover { color: rgba(255,255,255,0.75); }
 .t-label { font-family: var(--font-ui); font-size: var(--text-sm); font-weight: var(--fw-medium); letter-spacing: 0.02em; color: rgba(255,255,255,0.52); margin-bottom: 0.45rem; display: block; }
 textarea.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.8rem; font-weight: 300; line-height: 1.7; padding: 0.9rem 1.1rem; outline: none; resize: none; height: 86px; caret-color: #4aa8ff; transition: border-color 0.25s; }
 textarea.t-input::placeholder { color: rgba(255,255,255,0.45); }
 textarea.t-input:focus { border-color: rgba(74,168,255,0.38); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
-select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.76rem; padding: 0.75rem 1.1rem; outline: none; cursor: none; appearance: none; margin-bottom: 0.8rem; }
-.t-exec { width: 100%; margin-top: 0.9rem; padding: 0.9rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.84rem; font-weight: 600; letter-spacing: 0.04em; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.76rem; padding: 0.75rem 1.1rem; outline: none; cursor: pointer; appearance: none; margin-bottom: 0.8rem; }
+.t-exec { width: 100%; margin-top: 0.9rem; padding: 0.9rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.84rem; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
 .t-exec:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(74,168,255,0.5); }
 .t-resp { display: none; margin-top: 1rem; }
 .t-resp.show { display: block; animation: fade-in 0.4s ease; }
@@ -360,7 +358,7 @@ select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px sol
 /* FEAT CARDS */
 .feat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; }
 .feat-hint { font-family: ‘JetBrains Mono’, monospace; font-size: 0.54rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(74,168,255,0.4); text-align: center; margin-top: 1rem; }
-.feat-card { perspective: 1100px; height: 290px; cursor: none; }
+.feat-card { perspective: 1100px; height: 290px; cursor: pointer; }
 .feat-card-wrap { position: relative; }
 .feat-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(0.16,1,0.3,1); }
 .feat-card:hover .feat-inner { transform: rotateY(180deg); }
@@ -539,7 +537,7 @@ select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px sol
 .pro-input::placeholder { color: rgba(255,255,255,0.28); }
 .pro-success { display: none; text-align: center; padding: 1rem 0; color: #4ade80; font-size: 0.84rem; }
 .pro-success.show { display: block; }
-.tog-row { display: flex; align-items: center; gap: 0.9rem; font-size: 0.8rem; color: rgba(255,255,255,0.55); cursor: none; width: fit-content; margin-bottom: 1.5rem; }
+.tog-row { display: flex; align-items: center; gap: 0.9rem; font-size: 0.8rem; color: rgba(255,255,255,0.55); cursor: pointer; width: fit-content; margin-bottom: 1.5rem; }
 .tog { width: 42px; height: 23px; border: 1px solid rgba(74,168,255,0.22); border-radius: 12px; position: relative; transition: border-color 0.25s; flex-shrink: 0; }
 .tog::after { content: ‘’; position: absolute; width: 17px; height: 17px; background: rgba(255,255,255,0.22); border-radius: 50%; top: 2px; left: 2px; transition: transform 0.25s, background 0.25s; }
 .tog.on { border-color: #4aa8ff; }
@@ -572,7 +570,7 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .f-logo { font-family: ‘Cormorant Garamond’, serif; font-size: 1.2rem; font-weight: 600; color: rgba(255,255,255,0.5); text-decoration: none; }
 .f-logo em { color: #4aa8ff; font-style: normal; }
 .f-links { display: flex; gap: 2rem; }
-.f-links a { font-size: 0.75rem; color: rgba(255,255,255,0.3); text-decoration: none; transition: color 0.2s; cursor: none; }
+.f-links a { font-size: 0.75rem; color: rgba(255,255,255,0.3); text-decoration: none; transition: color 0.2s; cursor: pointer; }
 .f-links a:hover { color: rgba(255,255,255,0.6); }
 .footer-bottom { display: flex; align-items: center; justify-content: space-between; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.04); }
 .f-copy { font-size: 0.7rem; color: rgba(255,255,255,0.38); }
@@ -583,7 +581,7 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .modal-overlay.open { display: flex; animation: fade-in 0.3s ease; }
 .modal { background: #030810; border: 1px solid rgba(74,168,255,0.2); border-radius: 20px; padding: 3rem; max-width: 460px; width: 90%; position: relative; box-shadow: 0 60px 120px rgba(0,0,0,0.7); }
 .modal::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #4aa8ff, #c9a84c, transparent); border-radius: 20px 20px 0 0; }
-.modal-close { position: absolute; top: 1.2rem; right: 1.2rem; background: none; border: none; color: rgba(255,255,255,0.3); font-size: 1.2rem; cursor: none; transition: color 0.2s; }
+.modal-close { position: absolute; top: 1.2rem; right: 1.2rem; background: none; border: none; color: rgba(255,255,255,0.3); font-size: 1.2rem; cursor: pointer; transition: color 0.2s; }
 .modal-close:hover { color: #fff; }
 .modal-badge { font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: #89c8ff; opacity: 0.7; margin-bottom: 0.8rem; }
 .modal-title { font-family: ‘Cormorant Garamond’, serif; font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; line-height: 1.1; }
@@ -592,7 +590,7 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .modal-input { background: rgba(74,168,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.88rem; padding: 0.9rem 1.2rem; outline: none; transition: border-color 0.25s; }
 .modal-input::placeholder { color: rgba(255,255,255,0.45); }
 .modal-input:focus { border-color: rgba(74,168,255,0.4); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
-.modal-btn { padding: 1rem; background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.88rem; font-weight: 600; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
+.modal-btn { padding: 1rem; background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
 .modal-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(74,168,255,0.5); }
 .modal-note { font-size: 0.72rem; color: rgba(255,255,255,0.25); text-align: center; }
 .modal-success { display: none; text-align: center; padding: 1rem 0; }
@@ -943,7 +941,7 @@ blockquote.citat-expanded { max-height: none; }
 .t-guide-text { font-size: 0.75rem; color: rgba(255,255,255,0.55); line-height: 1.62; font-weight: 300; }
 .t-guide-bold { font-weight: 600; color: rgba(255,255,255,0.85); }
 .t-chips { display: flex; flex-wrap: wrap; gap: 0.42rem; margin-bottom: 0.75rem; }
-.t-chip { font-family: var(--font-ui); font-size: 0.7rem; font-weight: 400; color: rgba(74,168,255,0.85); background: rgba(74,168,255,0.06); border: 1px solid rgba(74,168,255,0.2); border-radius: 999px; padding: 0.24rem 0.75rem; cursor: none; transition: all 0.2s; white-space: nowrap; }
+.t-chip { font-family: var(--font-ui); font-size: 0.7rem; font-weight: 400; color: rgba(74,168,255,0.85); background: rgba(74,168,255,0.06); border: 1px solid rgba(74,168,255,0.2); border-radius: 999px; padding: 0.24rem 0.75rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .t-chip:hover { background: rgba(74,168,255,0.14); border-color: rgba(74,168,255,0.45); color: #89c8ff; transform: translateY(-1px); }
 .t-chips-lbl { font-family: var(--font-ui); font-size: 0.65rem; color: rgba(255,255,255,0.28); margin-bottom: 0.42rem; }
 
@@ -1093,7 +1091,7 @@ footer { padding: 2rem 1.5rem; }
 
 /* ── AUTH MODAL ─────────────────────────────────────────────────────────── */
 .auth-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.04); border-radius: 8px; padding: 3px; margin-bottom: 1.4rem; border: 1px solid rgba(255,255,255,0.06); }
-.auth-tab { flex: 1; padding: 0.5rem; text-align: center; font-size: 0.78rem; font-weight: 500; color: rgba(255,255,255,0.4); background: none; border: 1px solid transparent; border-radius: 6px; cursor: none; transition: all 0.25s; }
+.auth-tab { flex: 1; padding: 0.5rem; text-align: center; font-size: 0.78rem; font-weight: 500; color: rgba(255,255,255,0.4); background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer; transition: all 0.25s; }
 .auth-tab.active { background: rgba(74,168,255,0.1); color: #89c8ff; border-color: rgba(74,168,255,0.2); }
 .auth-tab:hover { color: rgba(255,255,255,0.7); }
 .auth-error { min-height: 1.4rem; font-size: 0.78rem; color: #ff6b6b; text-align: center; margin-top: 0.5rem; line-height: 1.5; }
@@ -1133,7 +1131,7 @@ footer { padding: 2rem 1.5rem; }
 .nav-credit-pill.warn .cp-num { color: #f0b429; }
 .nav-credit-pill.empty { border-color: rgba(255,100,100,0.3); }
 .nav-credit-pill.empty .cp-num { color: #ff6b6b; }
-.nav-logout { font-size: 0.7rem; color: rgba(255,255,255,0.28); background: none; border: 1px solid rgba(255,255,255,0.09); border-radius: 6px; padding: 0.28rem 0.7rem; cursor: none; transition: all 0.2s; }
+.nav-logout { font-size: 0.7rem; color: rgba(255,255,255,0.28); background: none; border: 1px solid rgba(255,255,255,0.09); border-radius: 6px; padding: 0.28rem 0.7rem; cursor: pointer; transition: all 0.2s; }
 .nav-logout:hover { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
 .t-credits-row { display: flex; align-items: center; justify-content: space-between; margin-top: 0.55rem; padding: 0.35rem 0.5rem; background: rgba(74,168,255,0.03); border-radius: 7px; border: 1px solid rgba(74,168,255,0.08); }
 .t-credits-lbl { font-family: 'JetBrains Mono',monospace; font-size: 0.54rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.28); }
@@ -1476,6 +1474,34 @@ footer { padding: 2rem 1.5rem; }
 .kom-input:focus{outline:none;border-color:rgba(74,168,255,0.4);}
 .kom-submit{background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.3);border-radius:8px;color:#89c8ff;font-size:0.8rem;font-weight:600;padding:8px 14px;cursor:pointer;white-space:nowrap;}
 .kom-submit:hover{background:rgba(74,168,255,0.22);}
+/* ── KONTROLNI CENTAR (tab-h) ──────────────────────────────── */
+.kc-greeting{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:400;color:rgba(255,255,255,0.85);margin-bottom:0.3rem;}
+.kc-date{font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.12em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-bottom:1.2rem;}
+.kc-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1.4rem;}
+.kc-kpi{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:0.9rem 1rem;text-align:center;transition:border-color 0.2s;cursor:default;}
+.kc-kpi:hover{border-color:rgba(74,168,255,0.22);}
+.kc-kpi-n{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:700;color:#89c8ff;line-height:1;}
+.kc-kpi-n.warn{color:#fb923c;}
+.kc-kpi-l{font-family:'JetBrains Mono',monospace;font-size:0.47rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-top:0.3rem;line-height:1.4;}
+.kc-section{margin-bottom:1.4rem;}
+.kc-section-hd{font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.3);padding-bottom:0.5rem;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:0.6rem;display:flex;align-items:center;justify-content:space-between;}
+.kc-row{display:flex;align-items:center;gap:0.8rem;padding:0.65rem 0.75rem;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);margin-bottom:0.4rem;cursor:pointer;transition:border-color 0.15s,background 0.15s;}
+.kc-row:hover{background:rgba(74,168,255,0.05);border-color:rgba(74,168,255,0.2);}
+.kc-row-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.kc-row-dot.hitan{background:#ef4444;box-shadow:0 0 6px #ef4444;}
+.kc-row-dot.bitan{background:#fb923c;}
+.kc-row-dot.info{background:rgba(255,255,255,0.2);}
+.kc-row-main{flex:1;min-width:0;}
+.kc-row-naziv{font-size:0.82rem;color:rgba(255,255,255,0.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+.kc-row-sub{font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:0.1rem;}
+.kc-row-datum{font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:rgba(255,255,255,0.3);flex-shrink:0;}
+.kc-row-arrow{color:rgba(74,168,255,0.4);font-size:0.7rem;flex-shrink:0;}
+.kc-empty{text-align:center;padding:1.2rem;font-size:0.78rem;color:rgba(255,255,255,0.2);font-family:'JetBrains Mono',monospace;letter-spacing:0.08em;}
+.kc-summary{background:rgba(74,168,255,0.04);border:1px solid rgba(74,168,255,0.12);border-radius:8px;padding:0.8rem 1rem;font-size:0.82rem;color:rgba(255,255,255,0.55);margin-bottom:1.2rem;line-height:1.6;}
+.kc-loading{text-align:center;padding:2.5rem;font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.2);letter-spacing:0.15em;text-transform:uppercase;}
+.kc-qa-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.65);font-size:0.78rem;padding:0.5rem 1rem;border-radius:6px;cursor:pointer;transition:all 0.2s;}
+.kc-qa-btn:hover{background:rgba(74,168,255,0.1);border-color:rgba(74,168,255,0.3);color:#89c8ff;}
+@media(max-width:640px){.kc-kpi-row{grid-template-columns:repeat(2,1fr);}}
 /* ── F8: CRM Klijenti tab ─────────────────────────────────── */
 .crm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .crm-header-title{font-size:0.95rem;font-weight:700;color:#e6edf3;}
@@ -1997,11 +2023,10 @@ footer { padding: 2rem 1.5rem; }
   <!-- NASLOV — centriran -->
   <div class="hero-center">
     <div class="h-badge">
-      <div class="pulse-dot"></div>AI Pravni Asistent - Republika Srbija
-      <span class="h-live"><span class="live-dot"></span>Beta aktivan</span>
+      <div class="pulse-dot"></div>Pravni Operativni Sistem - Republika Srbija
     </div>
-    <div class="h1"><span class="word-reveal wr-1">Pravo</span> <span class="word-reveal wr-2">na</span></div>
-    <div class="h1-italic"><span class="word-reveal wr-3">dohvat ruke.</span></div>
+    <div class="h1"><span class="word-reveal wr-1">Kancelarija</span> <span class="word-reveal wr-2">pod</span></div>
+    <div class="h1-italic"><span class="word-reveal wr-3">kontrolom.</span></div>
   </div>
 
   <!-- 3-KOLONA: sfera | terminal | uvodni tekst -->
@@ -2018,7 +2043,7 @@ footer { padding: 2rem 1.5rem; }
       <div class="terminal">
         <div class="t-bar">
           <div class="t-dots"><div class="t-dot td1"></div><div class="t-dot td2"></div><div class="t-dot td3"></div></div>
-          <div class="t-title">vindex-ai - pravna baza v2.1</div>
+          <div class="t-title">vindex-ai</div>
           <div style="display:flex;align-items:center;gap:0.5rem;">
             <button class="t-newchat" onclick="newChat()" title="Počni novi razgovor — briše ekran i resetuje kontekst">⊕ Novi čet</button>
             <div class="t-status"><div class="t-sdot"></div>aktivan</div>
@@ -2027,13 +2052,14 @@ footer { padding: 2rem 1.5rem; }
         <div class="t-body">
           <div style="display:flex;align-items:flex-end;position:relative;">
           <div class="t-tabs" style="flex:1;">
+            <div class="t-tab" onclick="setTab(this,'h')">Centar</div>
+            <div class="t-tab" onclick="setTab(this,'p')"><span class="tab-icon">📁 </span>Predmeti</div>
+            <div class="t-tab" onclick="setTab(this,'k')"><span class="tab-icon">👥 </span>Klijenti</div>
             <div class="t-tab active" onclick="setTab(this,'q')">Istraživanje</div>
             <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
             <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
             <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
-            <div class="t-tab" onclick="setTab(this,'p')"><span class="tab-icon">📁 </span>Predmeti</div>
             <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="tab-icon">⚔️ </span>Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
-            <div class="t-tab" onclick="setTab(this,'k')"><span class="tab-icon">👥 </span>Klijenti</div>
             <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">₿ Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
           </div>
           <div id="notif-bell" onclick="notif_toggleDropdown()" style="flex-shrink:0;display:none;align-items:center;cursor:pointer;padding:0 0.6rem 0.45rem;border-bottom:2px solid transparent;margin-bottom:-1px;position:relative;" title="Obaveštenja">
@@ -2089,6 +2115,13 @@ footer { padding: 2rem 1.5rem; }
                 <button class="btn-danger-small interni-del-btn" onclick="obrisiSveInterneStavove()">🗑️ Obriši sve stavove</button>
               </div>
             </details>
+          </div>
+
+          <!-- ── KONTROLNI CENTAR TAB ─────────────────────────────────────── -->
+          <div id="tab-h" style="display:none">
+            <div id="kc-body">
+              <div class="kc-loading">Učitavam...</div>
+            </div>
           </div>
 
           <!-- ── F5: PREDMETI TAB ──────────────────────────────────────────── -->
@@ -2425,7 +2458,7 @@ footer { padding: 2rem 1.5rem; }
             <div class="strat-modul-izbor">
               <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">🔴 Red Team</button>
               <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">⚖️ Litigation Simulator</button>
-              <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">👨‍⚖️ AI Sudija</button>
+              <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">👨‍⚖️ Procena ishoda</button>
               <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">🔍 Due Diligence</button>
               <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">✏️ Pravni Revizor</button>
               <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">👁️ Witness Analyzer</button>
@@ -2778,8 +2811,8 @@ footer { padding: 2rem 1.5rem; }
     <!-- DESNO: uvodni tekst -->
     <div class="h3-right">
       <div class="hero-intro-panel">
-        <span class="hi-label">Pravni alat za Srbiju</span>
-        <p>AI asistent <strong>izgrađen isključivo na srpskom pravu.</strong> Ne generiše iz memorije — svaki odgovor pretražuje aktivnu bazu zakona RS i sudsku praksu VKS u realnom vremenu.</p>
+        <span class="hi-label">Pravni operativni sistem za Srbiju</span>
+        <p>Operativni sistem za advokatske kancelarije u Srbiji. <strong>Predmeti, klijenti, rokovi i dokumenti — organizovani.</strong> AI koji radi posao umesto vas, unutar svakog predmeta.</p>
         <div class="hi-stats">
           <div class="hi-stat">
             <div class="hi-stat-n">18+</div>
@@ -2790,14 +2823,14 @@ footer { padding: 2rem 1.5rem; }
             <div class="hi-stat-l">sudskih<br>odluka</div>
           </div>
           <div class="hi-stat">
-            <div class="hi-stat-n">7</div>
-            <div class="hi-stat-l">AI modula<br>za advokate</div>
+            <div class="hi-stat-n">5</div>
+            <div class="hi-stat-l">min do<br>prvog predmeta</div>
           </div>
         </div>
         <ul class="hi-trust">
-          <li class="hi-trust-item">Citira tačan zakon i broj člana — nikad ne izmišlja</li>
-          <li class="hi-trust-item">Ocena pouzdanosti: HIGH / MEDIUM / LOW uz svaki odgovor</li>
-          <li class="hi-trust-item">Analiza predmeta, nacrti, sudska praksa — u jednom sistemu</li>
+          <li class="hi-trust-item">Predmeti organizovani — svaki dokument na svom mestu</li>
+          <li class="hi-trust-item">Rokovi i ročišta — obaveštenje 7, 2 i 1 dan pre isteka</li>
+          <li class="hi-trust-item">AI istraživanje, nacrti i analiza — unutar svakog predmeta</li>
           <li class="hi-trust-item">Enkriptovano — poverljivi podaci zaštićeni AES-256</li>
         </ul>
       </div>
@@ -2809,22 +2842,22 @@ footer { padding: 2rem 1.5rem; }
   <div class="hero-foot">
     <div class="vp-row">
       <div class="vp-card">
-        <span class="vp-icon">⚖️</span>
-        <div class="vp-title">Pravo</div>
-        <div class="vp-desc">30.000+ pravnih izvora indeksirano i povezano kroz jedinstven sistem pretrage zakona i sudske prakse.</div>
+        <span class="vp-icon">📁</span>
+        <div class="vp-title">Predmeti pod kontrolom</div>
+        <div class="vp-desc">Svaki predmet ima svoju istoriju, dokumente, rokove i klijente. Nikad više izgubljen fajl ili propušten rok.</div>
       </div>
       <div class="vp-card">
-        <span class="vp-icon">🧠</span>
-        <div class="vp-title">Inteligencija</div>
-        <div class="vp-desc">AI analizira zakone, sudsku praksu, dokumente, argumentaciju i pravnu strategiju u jednom toku rada.</div>
+        <span class="vp-icon">📅</span>
+        <div class="vp-title">Rokovi koji ne propuštaju</div>
+        <div class="vp-desc">Sistem prati rokove i ročišta umesto vas. Obaveštenje 7, 2 i 1 dan pre — pre nego što postane kasno.</div>
       </div>
       <div class="vp-card">
-        <span class="vp-icon">🏢</span>
-        <div class="vp-title">Operativa</div>
-        <div class="vp-desc">Klijenti, predmeti, dokumenti, rokovi i interna znanja objedinjeni na jednom mestu.</div>
+        <span class="vp-icon">💡</span>
+        <div class="vp-title">AI kao pomoćnik</div>
+        <div class="vp-desc">Istraživanje, nacrti i analiza dokumenata dostupni unutar svakog predmeta — kad vam zatreba, ne kao odvojen alat.</div>
       </div>
     </div>
-    <p class="hero-tagline">Od pravnog pitanja do podneska, strategije i predmeta — u jednom sistemu.</p>
+    <p class="hero-tagline">Od otvaranja predmeta do naplate — sve na jednom mestu.</p>
     <div class="h-cta" style="margin-bottom:0;">
       <a href="#" class="btn-primary magnetic" onclick="openModal();return false;">Počni besplatno</a>
       <a href="#features" class="btn-ghost">Pogledaj funkcije &rarr;</a>
@@ -2838,9 +2871,9 @@ footer { padding: 2rem 1.5rem; }
 </div>
 
 <section class="section" id="how" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-  <div class="sbadge r">7 AI modula</div>
-  <div class="sh r d1">Izaberite modul. <em>Vidite output.</em></div>
-  <p class="ss r d2">Ne obećanja — konkretni izlazi sistema. Kliknite na svaki modul da vidite tačno šta dobijate.</p>
+  <div class="sbadge r">Pravni operativni sistem</div>
+  <div class="sh r d1">Sve što vaša kancelarija <em>treba.</em></div>
+  <p class="ss r d2">Upravljanje predmetima, praćenje rokova, AI istraživanje, nacrti podnesaka, sudska praksa — u jednom sistemu. Kliknite na svaku funkciju da vidite tačno šta dobijate.</p>
 
   <div class="mod-showcase r d2" id="modShowcase">
     <div class="mod-tabs" id="modTabs">
@@ -2849,7 +2882,7 @@ footer { padding: 2rem 1.5rem; }
       <div class="mod-tab" data-idx="2"><span class="mod-tab-n">03</span><div class="mod-tab-info"><div class="mod-tab-name">Generisanje nacrta</div><div class="mod-tab-how">Izaberite tip → nacrt spreman za Word / PDF</div></div><span class="mod-badge live">Dostupno</span></div>
       <div class="mod-tab" data-idx="3"><span class="mod-tab-n">04</span><div class="mod-tab-info"><div class="mod-tab-name">Sudska praksa</div><div class="mod-tab-how">Unesite pitanje → rangirane presude VKS sa ratio</div></div><span class="mod-badge live">Dostupno</span></div>
       <div class="mod-tab" data-idx="4"><span class="mod-tab-n">05</span><div class="mod-tab-info"><div class="mod-tab-name">Upravljanje predmetima</div><div class="mod-tab-how">Folder po predmetu → AI pamti kontekst sesija</div></div><span class="mod-badge live">Dostupno</span></div>
-      <div class="mod-tab" data-idx="5"><span class="mod-tab-n">06</span><div class="mod-tab-info"><div class="mod-tab-name">AI Strategija</div><div class="mod-tab-how">Opišite predmet → Red Team, Simulator, Sudija, Revizor</div></div><span class="mod-badge pro">PRO</span></div>
+      <div class="mod-tab" data-idx="5"><span class="mod-tab-n">06</span><div class="mod-tab-info"><div class="mod-tab-name">Pravna strategija</div><div class="mod-tab-how">Opišite predmet → Red Team, Simulator, Procena ishoda, Revizija</div></div><span class="mod-badge pro">PRO</span></div>
       <div class="mod-tab" data-idx="6"><span class="mod-tab-n">07</span><div class="mod-tab-info"><div class="mod-tab-name">Digitalna imovina</div><div class="mod-tab-how">Opišite projekat → ZDI / MiCA analiza, AML audit</div></div><span class="mod-badge pro">PRO</span></div>
     </div>
 
@@ -2866,9 +2899,9 @@ footer { padding: 2rem 1.5rem; }
 </section>
 
 <section class="section alt" id="features">
-  <div class="sbadge r">Zašto Vindex AI</div>
-  <div class="sh r d1">Tri razloga zašto <em>advokati biraju Vindex.</em></div>
-  <p class="ss r d2">Nije generički AI koji halucinira zakone — sistem izgrađen isključivo na srpskim propisima, sa sudskom praksom VKS i ocenom pouzdanosti uz svaki odgovor.</p>
+  <div class="sbadge r">Zašto advokati biraju Vindex</div>
+  <div class="sh r d1">Precizno pravo. <em>Organizovana kancelarija.</em></div>
+  <p class="ss r d2">Nije generički AI koji halucinira zakone — sistem izgrađen isključivo na srpskim propisima, sa sudskom praksom VKS i upravljanjem predmetima koje smanjuje operativni kaos kancelarije.</p>
   <div class="feat-card-wrap r">
     <div class="feat-grid">
       <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">01</div><div class="feat-icon">&#9878;</div><div class="feat-title">Srpski zakoni, ne globalni AI</div><div class="feat-desc">18+ važećih zakona RS, tačan Sl. glasnik, direktan citat — bez ekstrapolacije iz stranih sistema.</div></div><div class="feat-back"><div class="feat-btitle">Šta to znači?</div><ul class="feat-blist"><li>Zakon o radu, ZPP, ZKP, ZOO i dr. — ceo aktuelni tekst</li><li>Svaki odgovor ima naveden zakon i broj člana</li><li>Sistem ne koristi generički GPT — nego srpsku pravnu bazu</li><li>Doslovan citat iz Sl. glasnika RS</li></ul></div></div></div>
@@ -2937,16 +2970,16 @@ footer { padding: 2rem 1.5rem; }
 </section>
 
 <section class="section alt" id="platform">
-  <div class="sbadge r">Platforma</div>
-  <div class="sh r d1">Sedam modula. <em>Jedan sistem.</em></div>
-  <p class="ss r d2">Svaki modul je izgrađen za konkretnu potrebu advokata — od brzog pravnog pitanja do kompleksne strategije predmeta.</p>
+  <div class="sbadge r">Arhitektura sistema</div>
+  <div class="sh r d1">Svaki predmet. Svaki klijent. <em>Svaki rok.</em></div>
+  <p class="ss r d2">Svaka funkcija je izgrađena za konkretnu potrebu advokata — od praćenja rokova i organizacije predmeta, do brzog istraživanja i pripreme podnesaka.</p>
   <div class="plat-grid r">
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">01 — Pravno istraživanje</div><p class="p-desc">Pitanje prirodnim jezikom, odgovor za &lt;10 sekundi. Tačan zakon, broj člana, doslovan citat iz Sl. glasnika RS.</p><div class="p-detail">Sve oblasti prava — radno, obligaciono, krivično, privredno</div><div class="p-detail">Semantička pretraga — razume kontekst, ne samo ključne reči</div><div class="p-detail">Nikad ne izmišlja zakone ni paragrafe</div></div>
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">02 — Analiza predmeta</div><p class="p-desc">10-slojna forenzička analiza: pravni osnov, argumenti, kontra-argumenti, procena rizika i strategija.</p><div class="p-detail">Tužbeni zahtev i pravna kvalifikacija</div><div class="p-detail">Procena izgleda na sudu u %</div><div class="p-detail">Preporučena strategija: tužba / odbrana / nagodba</div></div>
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">03 — Generisanje nacrta</div><p class="p-desc">Procesno ispravan nacrt prema ZPP-u sa istaknutim mestima za popunu. Export u PDF i Word.</p><div class="p-detail">Tužba, žalba, odgovor na tužbu, ugovor</div><div class="p-detail">Prilagođen srpskom procesnom pravu</div><div class="p-detail">PDF sa zaglavljem i Word export</div></div>
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">04 — Sudska praksa</div><p class="p-desc">12.604 odluka VKS i Apelacionih sudova. Ekstrakcija ratio decidendi i direktno citiranje u podnesku.</p><div class="p-detail">Filtriranje po oblasti, sudu i periodu</div><div class="p-detail">Ekstrakcija ključnog pravnog stava</div><div class="p-detail">Direktno citiranje presude u nacrtu</div></div>
     <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">05 — Upravljanje predmetima</div><p class="p-desc">CRM za advokatsku kancelariju. Folder po predmetu, AI kontekst, dokumenti i beleške — enkriptovano.</p><div class="p-detail">Klijenti, predmeti, dokumenti na jednom mestu</div><div class="p-detail">AI asistent koji pamti kontekst predmeta</div><div class="p-detail">AES-256 enkripcija poverljivih podataka</div></div>
-    <div class="plat-card"><div class="p-badge pro" style="color:#e8c97a;border-color:rgba(232,201,122,0.25);background:rgba(232,201,122,0.05);">PRO</div><div class="p-title">06 — AI Strategija</div><p class="p-desc">6 specijalizovanih AI modela za dubinsku pripremu: Red Team, Litigation Simulator, AI Sudija, Due Diligence, Pravni Revizor, Witness Analyzer.</p><div class="p-detail">Red Team — analiza slabih tačaka predmeta</div><div class="p-detail">Litigation Simulator — procena % uspeha</div><div class="p-detail">Due Diligence i Pravni Revizor dokumenta</div></div>
+    <div class="plat-card"><div class="p-badge pro" style="color:#e8c97a;border-color:rgba(232,201,122,0.25);background:rgba(232,201,122,0.05);">PRO</div><div class="p-title">06 — Pravna strategija</div><p class="p-desc">6 specijalizovanih alata za dubinsku pripremu: Red Team, Litigation Simulator, Procena ishoda, Due Diligence, Revizija dokumenta, Analiza iskaza.</p><div class="p-detail">Red Team — analiza slabih tačaka predmeta</div><div class="p-detail">Litigation Simulator — procena % uspeha</div><div class="p-detail">Due Diligence i Revizija dokumenta</div></div>
     <div class="plat-card"><div class="p-badge pro" style="color:#e8c97a;border-color:rgba(232,201,122,0.25);background:rgba(232,201,122,0.05);">PRO</div><div class="p-title">07 — Digitalna imovina</div><p class="p-desc">Specijalizovan modul za kriptovalute i digitalnu imovinu po srpskom Zakonu o digitalnoj imovini i EU MiCA regulativi.</p><div class="p-detail">ZDI usklađenost i CASP dozvole (NBS / KHoV)</div><div class="p-detail">MiCA procena za EU projekte</div><div class="p-detail">AML/KYC audit po FATF standardima</div></div>
   </div>
 </section>
@@ -2982,7 +3015,7 @@ footer { padding: 2rem 1.5rem; }
       <div class="price-num" id="p2"></div>
       <div class="price-per" id="pp2"></div>
       <div class="pdiv"></div>
-      <p class="price-desc">Kompletan AI pravni asistent za advokatske kancelarije. Sve funkcije Basic paketa plus AI generisanje dokumenata.</p>
+      <p class="price-desc">Kompletno upravljanje advokatskom kancelarijom. Predmeti, klijenti, rokovi, dokumenti i AI — sve na jednom mestu.</p>
       <ul class="price-list">
         <li>Sve iz Basic paketa</li>
         <li>Nacrt podnesaka i tužbi</li>
@@ -3049,7 +3082,7 @@ footer { padding: 2rem 1.5rem; }
   </div>
   <div class="footer-bottom">
     <div class="f-copy">&copy; 2026 Vindex AI. Sva prava zadržana.</div>
-    <div class="f-note">Vindex AI ne zamenjuje profesionalno pravno rasuđivanje advokata. Namenjen je kao alat za ubrzanje istraživanja, analize i pripreme.</div>
+    <div class="f-note">Vindex AI ne zamenjuje profesionalno pravno rasuđivanje advokata. Za konačne pravne odluke uvek koristite profesionalnu procenu.</div>
   </div>
 </footer>
 
@@ -3124,8 +3157,20 @@ async function initAuth() {
   sb.auth.onAuthStateChange(async function(event, session) {
     currentSession = session;
     currentUser    = session ? session.user : null;
-    if (currentUser) { await loadCredits(); loadChatHistory(); pred_load(); }
-    else { userCredits = 0; _creditsLoaded = false; _creditsLoadedAt = 0; _chatHistoryRows = []; var h=document.getElementById('chat-hist'); if(h){h.innerHTML='';h.style.display='none';} }
+    if (currentUser) {
+      await loadCredits();
+      loadChatHistory();
+      pred_load();
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        var hTab = document.querySelector('[onclick*="\'h\'"]');
+        if (hTab) setTab(hTab, 'h');
+      }
+    } else {
+      userCredits = 0; _creditsLoaded = false; _creditsLoadedAt = 0; _chatHistoryRows = [];
+      var ch=document.getElementById('chat-hist'); if(ch){ch.innerHTML='';ch.style.display='none';}
+      var qTab = document.querySelector('[onclick*="\'q\'"]');
+      if (qTab) setTab(qTab, 'q');
+    }
     updateAuthUI();
   });
 }
@@ -3610,6 +3655,88 @@ var cObs = new IntersectionObserver(function(entries){
 var heroSec = document.getElementById('hero');
 if(heroSec) cObs.observe(heroSec);
 
+/* ── KONTROLNI CENTAR ────────────────────────────────────────── */
+function _dashGreeting(){var h=new Date().getHours();if(h<12)return'Dobro jutro';if(h<18)return'Dobar dan';return'Dobro veče';}
+function _dashFormatDate(){var d=new Date();var dn=['nedeljа','ponedeljak','utorak','sreda','četvrtak','petak','subota'];var mn=['januar','februar','mart','april','maj','jun','jul','avgust','septembar','oktobar','novembar','decembar'];return dn[d.getDay()]+', '+d.getDate()+'. '+mn[d.getMonth()]+' '+d.getFullYear()+'.';}
+
+async function dash_load(){
+  if(!currentSession){document.getElementById('kc-body').innerHTML='<div class="kc-empty">Prijavite se da biste videli kontrolni centar.</div>';return;}
+  var body=document.getElementById('kc-body');
+  if(!body)return;
+  body.innerHTML='<div class="kc-loading">Učitavam...</div>';
+  try{
+    var r=await fetch(BASE_URL+'/portfolio/dashboard',{headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var d=await r.json();
+    body.innerHTML=_dashRender(d);
+  }catch(e){
+    body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
+  }
+}
+
+function _dashRender(d){
+  var today=new Date().toISOString().slice(0,10);
+  var p2=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
+  var html='';
+  var uName=currentUser?(currentUser.email||'').split('@')[0]:'';
+  html+='<div class="kc-greeting">'+_dashGreeting()+(uName?', '+escHtml(uName):'')+' .</div>'.replace(' .','.');
+  html+='<div class="kc-date">'+_dashFormatDate()+'</div>';
+  if(d.summary)html+='<div class="kc-summary">'+escHtml(d.summary)+'</div>';
+  var hitniCount=(d.hitni_rokovi||[]).length;
+  var rokoviDanas=(d.rokovi_7_dana||[]).filter(function(r){return r.datum_iso===today;}).length;
+  var neaktivniCount=(d.neaktivni_30_dana||[]).length;
+  html+='<div class="kc-kpi-row">';
+  html+='<div class="kc-kpi"><div class="kc-kpi-n">'+(d.ukupno_aktivnih||0)+'</div><div class="kc-kpi-l">Aktivnih<br>predmeta</div></div>';
+  html+='<div class="kc-kpi"><div class="kc-kpi-n'+(hitniCount>0?' warn':'')+'">'+hitniCount+'</div><div class="kc-kpi-l">Hitnih<br>rokova</div></div>';
+  html+='<div class="kc-kpi"><div class="kc-kpi-n">'+rokoviDanas+'</div><div class="kc-kpi-l">Rokova<br>danas</div></div>';
+  html+='<div class="kc-kpi"><div class="kc-kpi-n'+(neaktivniCount>0?' warn':'')+'">'+neaktivniCount+'</div><div class="kc-kpi-l">Bez aktivnosti<br>30+ dana</div></div>';
+  html+='</div>';
+  var rokovi7=d.rokovi_7_dana||[];
+  html+='<div class="kc-section">';
+  html+='<div class="kc-section-hd"><span>📅 Rokovi u narednih 7 dana</span><span>'+rokovi7.length+'</span></div>';
+  if(!rokovi7.length){html+='<div class="kc-empty">Nema nadolazećih rokova</div>';}
+  else{rokovi7.slice(0,8).forEach(function(r){
+    var isToday=r.datum_iso===today;var isUrgent=r.datum_iso<=p2;
+    var dot=isToday||isUrgent?'hitan':(r.vaznost==='bitan'?'bitan':'info');
+    var datumLbl=isToday?'DANAS':r.datum_iso;
+    html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
+    html+='<div class="kc-row-dot '+dot+'"></div>';
+    html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div><div class="kc-row-sub">'+escHtml(r.dogadjaj||'')+'</div></div>';
+    html+='<div class="kc-row-datum">'+escHtml(datumLbl)+'</div><div class="kc-row-arrow">→</div></div>';
+  });}
+  html+='</div>';
+  var neakt=d.neaktivni_30_dana||[];
+  if(neakt.length){
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>⚠ Predmeti bez aktivnosti</span><span>'+neakt.length+'</span></div>';
+    neakt.slice(0,5).forEach(function(p){
+      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.predmet_id)+'\')">';
+      html+='<div class="kc-row-dot bitan"></div>';
+      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(p.naziv||'Predmet')+'</div><div class="kc-row-sub">Bez aktivnosti od '+escHtml(p.poslednja_izmena||'—')+'</div></div>';
+      html+='<div class="kc-row-arrow">→</div></div>';
+    });
+    html+='</div>';
+  }
+  html+='<div class="kc-section"><div class="kc-section-hd"><span>Brze akcije</span></div>';
+  html+='<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
+  html+='<button class="kc-qa-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
+  html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'p\')">📁 Predmeti</button>';
+  html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'k\')">👥 Klijenti</button>';
+  html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'q\')">🔍 Istraživanje</button>';
+  html+='</div></div>';
+  return html;
+}
+
+function _dashGoToPredmet(predmetId){
+  if(!predmetId)return;
+  _dashGoToTab('p');
+  setTimeout(function(){pred_select(predmetId);},150);
+}
+
+function _dashGoToTab(tabId){
+  var el=document.querySelector('[onclick*="\''+tabId+'\'"]');
+  if(el)setTab(el,tabId);
+}
+
 /* REVEAL */
 var revObs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('v');revObs.unobserve(e.target);}});},{threshold:0.1});
 document.querySelectorAll('.r').forEach(function(el){revObs.observe(el);});
@@ -3623,16 +3750,16 @@ function setTab(el,t){
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  ['q','n','a','s','p','t','k','w'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
+  ['h','q','n','a','s','p','t','k','w'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija',k:'👥 Klijenti',w:'₿ Web3 Compliance'};
-  // Sakrij exec row za Strategija, Klijenti i Web3 tab (imaju sopstveni UI)
+  var lbl={h:'Kontrolni centar',q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija',k:'👥 Klijenti',w:'₿ Web3 Compliance'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  if (execRow) execRow.style.display = (t === 't' || t === 'k' || t === 'w') ? 'none' : '';
-  if (credRow) credRow.style.display = (t === 't' || t === 'k' || t === 'w') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
+  if (execRow) execRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w') ? 'none' : '';
+  if (credRow) credRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
+  if (t==='h') dash_load();
   if (t==='n') { updatePodnesakHint(); ucitajPlaybookStatus(); }
   if (t==='q' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
   if (t==='s') praksa_load_initial();
@@ -3698,7 +3825,7 @@ var STRAT_MODULI = {
     min:      50
   },
   sudija: {
-    naziv:    'AI Sudija',
+    naziv:    'Procena ishoda predmeta',
     endpoint: '/strategija/sudija',
     opis:     'Neutralna analiza predmeta iz perspektive iskusnog sudije. Procenjuje osnovanost navoda obe strane bez favorizovanja.',
     label:    'Opis predmeta (navodi obe strane, procesni stadijum)',
@@ -3712,14 +3839,14 @@ var STRAT_MODULI = {
     min:      100
   },
   revizor: {
-    naziv:    'AI Pravni Revizor',
+    naziv:    'Revizija dokumenta',
     endpoint: '/strategija/revizor',
     opis:     'Pregledava dokument ili nacrt i predlaže konkretne izmene. Identifikuje kritične greške, formalne nedostatke i daje gotove formulacije za ispravke.',
     label:    'Tekst dokumenta ili nacrta za reviziju',
     min:      100
   },
   witness: {
-    naziv:    'AI Witness Analyzer',
+    naziv:    'Analiza iskaza',
     endpoint: '/strategija/witness',
     opis:     'Analizira iskaz ili svedočenje — identifikuje unutrašnje kontradikcije, sumnjive delove i generiše pitanja za unakrsno ispitivanje.',
     label:    'Tekst iskaza, svedočenja ili izjave stranke',
@@ -3727,7 +3854,7 @@ var STRAT_MODULI = {
     tip:      'standard'
   },
   sudija_v2: {
-    naziv:    'AI Judge v2 — Debata',
+    naziv:    'Simulacija sudskog postupka',
     endpoint: '/strategija/sudija-v2',
     opis:     'Trostepena simulacija: AI tužilac iznosi argumente → AI branilac odgovara → AI sudija donosi odluku. Najrealističniji prikaz sudskog ishoda.',
     label:    'Opis predmeta (strane, činjenice, pravni osnov, stadijum postupka)',
@@ -9507,7 +9634,7 @@ async function pred_kreiraj() {
     pred_closeNewModal();
     await pred_load();
     if (d.predmet) pred_select(d.predmet.id, d.predmet.naziv);
-    setTab(document.querySelector('.t-tab:last-child'), 'p');
+    setTab(document.querySelector('[onclick*="\'p\'"]'), 'p');
   } catch(e) {
     if (errEl) { errEl.textContent='Greška veze.'; errEl.style.display='block'; }
   }
@@ -9521,7 +9648,7 @@ async function pred_kreiraj() {
     'vindex-ai — Generisanje nacrta',
     'vindex-ai — Sudska praksa VKS',
     'vindex-ai — Upravljanje predmetima',
-    'vindex-ai — AI Strategija',
+    'vindex-ai — Pravna strategija',
     'vindex-ai — Digitalna imovina'
   ];
 
