@@ -99,23 +99,25 @@ def test_ingest_playbook_empty_text_returns_zero():
 # ─── T4: API endpoints registrovani ──────────────────────────────────────────
 
 def test_playbook_upload_endpoint_registered():
-    """POST /api/playbook/upload must be registered in api.py."""
-    routes = []
-    with open(os.path.join(os.path.dirname(__file__), "..", "api.py"), encoding="utf-8") as f:
+    """POST /api/playbook/upload must be registered (in drafting router)."""
+    router_path = os.path.join(os.path.dirname(__file__), "..", "routers", "drafting.py")
+    with open(router_path, encoding="utf-8") as f:
         routes = [l.strip() for l in f if "/api/playbook/upload" in l]
     assert any("post" in r.lower() or "POST" in r for r in routes), \
-        "POST /api/playbook/upload not found in api.py"
+        "POST /api/playbook/upload not found in routers/drafting.py"
 
 
 def test_playbook_delete_endpoint_registered():
-    """DELETE /api/playbook must be registered in api.py."""
-    with open(os.path.join(os.path.dirname(__file__), "..", "api.py"), encoding="utf-8") as f:
+    """DELETE /api/playbook must be registered (in drafting router)."""
+    router_path = os.path.join(os.path.dirname(__file__), "..", "routers", "drafting.py")
+    with open(router_path, encoding="utf-8") as f:
         content = f.read()
     assert "/api/playbook" in content and "delete" in content.lower()
 
 
 def test_playbook_status_endpoint_registered():
-    """GET /api/playbook/status must be registered in api.py."""
-    with open(os.path.join(os.path.dirname(__file__), "..", "api.py"), encoding="utf-8") as f:
+    """GET /api/playbook/status must be registered (in drafting router)."""
+    router_path = os.path.join(os.path.dirname(__file__), "..", "routers", "drafting.py")
+    with open(router_path, encoding="utf-8") as f:
         content = f.read()
     assert "/api/playbook/status" in content

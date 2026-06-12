@@ -39,8 +39,11 @@ import api  # noqa: E402 — must come after mocks
 from fastapi.testclient import TestClient
 
 # Override require_credits so these unit tests don't need a real JWT.
+# dokument_pitanje is in routers/dokument.py which uses shared.deps.require_credits.
+from shared.deps import require_credits as _shared_require_credits
 _FAKE_USER = {"user_id": "test-user-id", "email": "test@test.com", "role": "pro"}
-api.app.dependency_overrides[api.require_credits] = lambda: _FAKE_USER
+api.app.dependency_overrides[_shared_require_credits] = lambda: _FAKE_USER
+api.app.dependency_overrides[api.require_credits]     = lambda: _FAKE_USER
 
 client = TestClient(api.app, raise_server_exceptions=True)
 

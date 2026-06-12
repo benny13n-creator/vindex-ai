@@ -34,6 +34,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import api  # noqa: E402 — must come after mocks
 from fastapi.testclient import TestClient
 
+# Override require_credits so tests don't need a real JWT.
+# Routers import require_credits from shared.deps, so we override that object.
+from shared.deps import require_credits as _shared_require_credits
+_FAKE_USER = {"user_id": "test-user-id", "email": "test@test.com", "role": "pro"}
+api.app.dependency_overrides[_shared_require_credits] = lambda: _FAKE_USER
+api.app.dependency_overrides[api.require_credits]     = lambda: _FAKE_USER
+
 client = TestClient(api.app, raise_server_exceptions=True)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "uploaded_doc"

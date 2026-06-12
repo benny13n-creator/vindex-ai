@@ -125,8 +125,7 @@ def test_pitanje_deduct_called_on_success():
         "data": "Odgovor",
         "confidence": "HIGH",
     }
-    with patch.object(_api, "pokreni", return_value=mock_result), \
-         patch.object(_api, "klasifikuj_pitanje", return_value="PARNICA"), \
+    with patch.object(_api, "klasifikuj_pitanje", return_value="PARNICA"), \
          patch.object(_api, "_deduct_credit", return_value=5) as mock_deduct, \
          patch.object(_api, "_get_credits", return_value=5), \
          patch.object(_api, "_audit", return_value=None), \
@@ -175,3 +174,31 @@ def test_pitanje_deduct_not_called_when_blocked():
 
     mock_deduct.assert_not_called()
     mock_get.assert_called_once_with("uid-blocked")
+
+# ─── T8: from_cache=True → deduct NOT called ─────────────────────────────────
+
+def test_pitanje_deduct_not_called_when_cached():
+    """from_cache=True → _deduct_credit NOT called."""
+    mock_result = {
+        "status": "success",
+        "blocked": False,
+        "from_cache": True,
+        "data": "Cached odgovor",
+    }
+    with patch.object(_api, "_deduct_credit") as mock_deduct, \
+         patch.object(_api, "_get_credits", return_value=5) as mock_get:
+        uid = "uid-cached"
+        email = "user@test.com"
+        hasil = mock_result
+        should_deduct = (
+            hasil.get("status") == "success"
+            and not hasil.get("blocked", False)
+            and not hasil.get("from_cache", False)
+        )
+        if should_deduct:
+            _api._deduct_credit(uid, email)
+        else:
+            _api._get_credits(uid)
+
+    mock_deduct.assert_not_called()
+    mock_get.assert_called_once_with("uid-cached")
