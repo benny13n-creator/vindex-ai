@@ -1453,7 +1453,6 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
         lambda: supa.table("predmeti")
             .select("id,naziv,tip,status,created_at")
             .eq("user_id", uid)
-            .is_("deleted_at", "null")
             .order("created_at", desc=True)
             .execute()
     )
@@ -3078,7 +3077,6 @@ async def portfolio_intelligence(request: Request, user: dict = Depends(get_curr
         lambda: supa.table("predmeti")
             .select("id,naziv,tip,status,created_at")
             .eq("user_id", uid)
-            .is_("deleted_at", "null")
             .execute()
     )
     predmeti = preds_r.data or []
@@ -3213,7 +3211,6 @@ async def get_notifications(request: Request, user: dict = Depends(get_current_u
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,naziv,status")
             .eq("user_id", uid)
-            .is_("deleted_at","null")
             .neq("status","zatvoren")
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija")
@@ -3233,7 +3230,6 @@ async def get_notifications(request: Request, user: dict = Depends(get_current_u
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_klijenti")
             .select("predmet_id")
-            .eq("user_id", uid)
             .execute()),
         return_exceptions=True,
     )
@@ -3329,7 +3325,6 @@ async def usage_stats(request: Request, user: dict = Depends(get_current_user)):
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("tip,status")
             .eq("user_id", uid)
-            .is_("deleted_at","null")
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija")
             .select("pitanje,created_at")
