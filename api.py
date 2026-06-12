@@ -1433,6 +1433,121 @@ async def lista_predmeta(request: Request, authorization: str = Header(None)):
     return {"predmeti": rows.data}
 
 
+@app.get("/api/predmeti/dashboard")
+@limiter.limit("30/minute")
+async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Prioritizacioni dashboard — svi predmeti sa rizik + rok indikatorima.
+    Vraća: po_prioritetu, po_riziku, po_rokovima, statistike.
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    preds_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id,naziv,tip,status,created_at")
+            .eq("user_id", uid)
+            .is_("deleted_at", "null")
+            .order("created_at", desc=True)
+            .execute()
+    )
+    predmeti = preds_r.data or []
+    if not predmeti:
+        return {"predmeti": [], "po_prioritetu": [], "po_riziku": [], "po_rokovima": [], "statistike": {"ukupno": 0}}
+
+    pred_ids = [p["id"] for p in predmeti]
+
+    from datetime import date as _date, datetime as _dt
+    today_iso = _date.today().isoformat()
+
+    hron_r, risk_r = await asyncio.gather(
+        asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija")
+                .select("predmet_id,datum_iso,dogadjaj,vaznost")
+                .in_("predmet_id", pred_ids)
+                .gte("datum_iso", today_iso)
+                .order("datum_iso")
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_istorija")
+                .select("predmet_id,odgovor,created_at")
+                .in_("predmet_id", pred_ids)
+                .like("pitanje", "[Rizik]%")
+                .order("created_at", desc=True)
+                .execute()
+        ),
+    )
+
+    import json as _jd
+    hron_map: dict = {}
+    for h in (hron_r.data or []):
+        hron_map.setdefault(h["predmet_id"], []).append(h)
+
+    risk_map: dict = {}
+    for r in (risk_r.data or []):
+        pid = r["predmet_id"]
+        if pid not in risk_map:
+            try:
+                risk_map[pid] = _jd.loads(r.get("odgovor", "{}"))
+            except Exception:
+                pass
+
+    _RISK_SCORE = {"visok": 4, "srednji": 2, "nizak": 1}
+    enriched = []
+    for p in predmeti:
+        pid       = p["id"]
+        hron      = hron_map.get(pid, [])
+        urgentni  = [h for h in hron if h.get("vaznost") == "kritičan"]
+        sledeci   = hron[0] if hron else None
+        rizik     = risk_map.get(pid, {})
+        nivo      = rizik.get("nivo", "")
+
+        days_to_next = 999
+        if sledeci and sledeci.get("datum_iso"):
+            try:
+                days_to_next = (_dt.strptime(sledeci["datum_iso"], "%Y-%m-%d").date() - _date.today()).days
+            except Exception:
+                pass
+
+        score = (
+            len(urgentni) * 3
+            + _RISK_SCORE.get(nivo, 0) * 2
+            + max(0, 30 - days_to_next)
+        )
+        enriched.append({
+            **p,
+            "urgentni_rokovi_count": len(urgentni),
+            "sledeci_rok":           sledeci,
+            "rizik_nivo":            nivo,
+            "priority_score":        score,
+        })
+
+    po_prioritetu = sorted(enriched, key=lambda x: x["priority_score"], reverse=True)
+    po_riziku     = sorted(
+        [e for e in enriched if e["rizik_nivo"] in ("visok","srednji","nizak")],
+        key=lambda x: _RISK_SCORE.get(x["rizik_nivo"], 0),
+        reverse=True,
+    )
+    po_rokovima   = sorted(
+        [e for e in enriched if e["sledeci_rok"]],
+        key=lambda x: x["sledeci_rok"].get("datum_iso","9999"),
+    )
+
+    return {
+        "predmeti":        enriched,
+        "po_prioritetu":   po_prioritetu[:15],
+        "po_riziku":       po_riziku[:15],
+        "po_rokovima":     po_rokovima[:15],
+        "statistike": {
+            "ukupno":              len(predmeti),
+            "visok_rizik":         sum(1 for e in enriched if e["rizik_nivo"] == "visok"),
+            "hitni_rokovi":        sum(e["urgentni_rokovi_count"] for e in enriched),
+            "bez_rizik_procene":   sum(1 for e in enriched if not e["rizik_nivo"]),
+        },
+    }
+
+
 @app.get("/api/predmeti/{predmet_id}")
 @limiter.limit("60/minute")
 async def get_predmet(predmet_id: str, request: Request, authorization: str = Header(None)):
@@ -2279,9 +2394,32 @@ async def predmet_upload_auto_analyze(
             ],
         )
 
-    _pr, _hr = await asyncio.gather(
+    _META_SYSTEM = (
+        "Ti si AI sistem za ekstrakciju pravnih metapodataka iz srpskih pravnih dokumenata. "
+        "Odgovori ISKLJUČIVO u JSON formatu bez teksta van JSON-a. "
+        'Struktura: {"tip_dokumenta": str, "stranke": [str], "datum_dokumenta": str, '
+        '"iznosi": [{"opis": str, "iznos": str}], "predlog_predmeta": str}\n'
+        "tip_dokumenta: tuzba|ugovor|zalba|presuda|resenje|izjava|punomoćje|ostalo\n"
+        "stranke: lista punih imena (max 5)\n"
+        "datum_dokumenta: ISO format YYYY-MM-DD ili prazan string\n"
+        "iznosi: novčani iznosi sa opisom (max 5)\n"
+        "predlog_predmeta: kratki naziv za predmet (max 80 znakova)"
+    )
+
+    def _call_metapodaci():
+        return _oai_client.chat.completions.create(
+            model="gpt-4o-mini", temperature=0, max_tokens=600, timeout=25.0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _META_SYSTEM},
+                {"role": "user",   "content": f"Dokument: {file.filename or 'dokument'}\n\n{text[:4000]}"},
+            ],
+        )
+
+    _pr, _hr, _meta = await asyncio.gather(
         asyncio.to_thread(_call_procena),
         asyncio.to_thread(_call_hronologija),
+        asyncio.to_thread(_call_metapodaci),
         return_exceptions=True,
     )
 
@@ -2367,17 +2505,80 @@ async def predmet_upload_auto_analyze(
     else:
         logger.warning("[P2.2] Hronologija GPT greška za predmet=%s: %s", predmet_id, _hr)
 
+    # ── Process metapodaci ────────────────────────────────────────────────────
+    import json as _json_meta
+    metapodaci = {}
+    if not isinstance(_meta, Exception):
+        try:
+            metapodaci = _json_meta.loads(_meta.choices[0].message.content or "{}")
+            if metapodaci:
+                _get_supa().table("predmet_istorija").insert({
+                    "predmet_id": predmet_id,
+                    "user_id":    user.id,
+                    "pitanje":    f"[Metapodaci] {file.filename or 'dokument'}",
+                    "odgovor":    _json_meta.dumps(metapodaci, ensure_ascii=False),
+                    "confidence": "HIGH",
+                }).execute()
+        except Exception as _me:
+            logger.warning("[P3-META] metapodaci parse/insert greška: %s", _me)
+    else:
+        logger.warning("[P3-META] metapodaci GPT greška za predmet=%s: %s", predmet_id, _meta)
+
+    # ── Auto-linking suggestions ─────────────────────────────────────────────
+    predlozi_povezivanja = []
+    if metapodaci.get("stranke"):
+        for _stranka_ime in (metapodaci["stranke"] or [])[:4]:
+            if not _stranka_ime or len(_stranka_ime.strip()) < 3:
+                continue
+            try:
+                _parts = _stranka_ime.strip().split()
+                _filter = (
+                    f"firma.ilike.%{_stranka_ime}%,ime.ilike.%{_parts[0]}%"
+                    if len(_parts) >= 2
+                    else f"firma.ilike.%{_stranka_ime}%,ime.ilike.%{_stranka_ime}%"
+                )
+                _kl_res = await asyncio.to_thread(
+                    lambda f=_filter: _get_supa().table("klijenti")
+                        .select("id,ime,prezime,firma,tip")
+                        .eq("user_id", user.id)
+                        .is_("deleted_at", "null")
+                        .or_(f)
+                        .limit(2)
+                        .execute()
+                )
+                for _kl in (_kl_res.data or []):
+                    _naziv = f"{_kl.get('ime','')} {_kl.get('prezime','')}".strip() or _kl.get("firma", "")
+                    _conf = 95 if _stranka_ime.lower() in _naziv.lower() or _naziv.lower() in _stranka_ime.lower() else 74
+                    predlozi_povezivanja.append({
+                        "tip":        "klijent",
+                        "id":         _kl["id"],
+                        "naziv":      _naziv,
+                        "razlog":     f"Stranka '{_stranka_ime}' pronađena u dokumentu",
+                        "pouzdanost": _conf,
+                    })
+            except Exception as _ale:
+                logger.warning("[AUTO-LINK] klijent search greška: %s", _ale)
+    # Deduplicate by id, keep highest confidence
+    _seen_al: dict = {}
+    for _p in predlozi_povezivanja:
+        _pid = _p["id"]
+        if _pid not in _seen_al or _p["pouzdanost"] > _seen_al[_pid]["pouzdanost"]:
+            _seen_al[_pid] = _p
+    predlozi_povezivanja = sorted(_seen_al.values(), key=lambda x: -x["pouzdanost"])
+
     asyncio.create_task(asyncio.to_thread(cleanup_expired))
 
     return {
-        "session_id":       session_id,
-        "filename":         file.filename,
-        "chunk_count":      count,
-        "predmet_id":       predmet_id,
-        "doc_type":         doc_type,
-        "procena":          procena_tekst,
-        "auto_analyzed":    bool(procena_tekst),
-        "hronologija_count": hron_count,
+        "session_id":          session_id,
+        "filename":            file.filename,
+        "chunk_count":         count,
+        "predmet_id":          predmet_id,
+        "doc_type":            doc_type,
+        "procena":             procena_tekst,
+        "auto_analyzed":       bool(procena_tekst),
+        "hronologija_count":   hron_count,
+        "metadata":            metapodaci,
+        "predlozi_povezivanja": predlozi_povezivanja,
     }
 
 
@@ -2492,5 +2693,358 @@ async def predmet_ai_preporuka(
         raise HTTPException(status_code=500, detail="Greška pri generisanju preporuke.")
 
     return {"predmet_id": predmet_id, "preporuka": preporuka}
+
+
+# ── P1 — Case Workspace ───────────────────────────────────────────────────────
+
+@app.get("/api/predmeti/{predmet_id}/workspace")
+@limiter.limit("20/minute")
+async def predmet_workspace(
+    predmet_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Jedinstveni Case Workspace — sve što je potrebno za predmet u jednom pozivu.
+    Vraća: predmet, stranke, protivna strana, dokumenti, rokovi (urgentni),
+    komentari, beleske, komunikacija, historija, sudska praksa preview, statistike.
+    """
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    # Step 1: Verify ownership
+    pred = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", uid).single().execute()
+    )
+    if not pred.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+
+    # Step 2: Parallel fetch of all related data
+    (beleske_r, istorija_r, dokumenti_r, hronologija_r, komentari_r, pk_r) = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_beleske").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(50).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor,confidence,created_at").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(10).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,velicina_kb,uploaded_at").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("*").eq("predmet_id", predmet_id).order("datum_iso", desc=False).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_komentari").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(50).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_klijenti").select("klijent_id,uloga_klijenta,napomena").eq("predmet_id", predmet_id).execute()),
+    )
+
+    # Step 3: Resolve linked klijenti
+    stranke, protivna_strana, svedoci, ostali_ucesnici = [], [], [], []
+    komunikacija = []
+    if pk_r.data:
+        klijent_ids = [r["klijent_id"] for r in pk_r.data]
+        kl_rows = await asyncio.to_thread(
+            lambda: supa.table("klijenti")
+                .select("id,ime,prezime,firma,tip,status,email,telefon")
+                .in_("id", klijent_ids)
+                .is_("deleted_at", "null")
+                .execute()
+        )
+        kl_map = {r["id"]: r for r in (kl_rows.data or [])}
+        for pk in pk_r.data:
+            kl = kl_map.get(pk["klijent_id"])
+            if not kl:
+                continue
+            entry = {**kl, "uloga": pk.get("uloga_klijenta", "stranka"), "napomena": pk.get("napomena", "")}
+            uloga = pk.get("uloga_klijenta", "stranka")
+            if uloga == "stranka":
+                stranke.append(entry)
+            elif uloga == "protivna_stranka":
+                protivna_strana.append(entry)
+            elif uloga == "svedok":
+                svedoci.append(entry)
+            else:
+                ostali_ucesnici.append(entry)
+
+        # Step 4: Komunikacija linked through all klijent_ids
+        try:
+            kom_r = await asyncio.to_thread(
+                lambda: supa.table("klijent_komunikacija")
+                    .select("id,tip,datum_vreme,kratak_opis,klijent_id")
+                    .in_("klijent_id", klijent_ids)
+                    .order("datum_vreme", desc=True)
+                    .limit(30)
+                    .execute()
+            )
+            komunikacija = kom_r.data or []
+        except Exception as e:
+            logger.warning("[WORKSPACE] komunikacija greška: %s", e)
+
+    # Step 5: Urgentni rokovi (kritičan + datum u budućnosti)
+    from datetime import date
+    today_iso = date.today().isoformat()
+    urgentni_rokovi = [
+        h for h in (hronologija_r.data or [])
+        if h.get("vaznost") == "kritičan" and (h.get("datum_iso") or "") >= today_iso
+    ]
+
+    # Step 6: Parallel — praksa preview + cockpit AI
+    import os as _os_ws, json as _json_ws
+    from openai import AsyncOpenAI as _OAI_ws
+
+    _COCKPIT_SYSTEM = (
+        "Ti si pravni asistent. Na osnovu podataka predmeta vrati ISKLJUČIVO JSON bez teksta van JSON-a:\n"
+        '{"ai_sazetak": str (maks 100 reči, konkretan opis stanja predmeta),\n'
+        ' "sledeca_akcija": {"opis": str, "rok": str, "prioritet": "hitan|normalan|odlozen"},\n'
+        ' "procena_rizika": {"nivo": "visok|srednji|nizak", "faktori_plus": [str], "faktori_minus": [str]}}\n'
+        "Ne koristi opšte fraze. Budi konkretan."
+    )
+
+    async def _fetch_cockpit_ai():
+        try:
+            oai = _OAI_ws(api_key=_os_ws.getenv("OPENAI_API_KEY", ""))
+            p = pred.data
+            _stranke_str = ", ".join(
+                (s.get("ime","") + " " + s.get("prezime","")).strip() or s.get("firma","")
+                for s in stranke[:3]
+            )
+            _protivna_str = ", ".join(
+                (s.get("ime","") + " " + s.get("prezime","")).strip() or s.get("firma","")
+                for s in protivna_strana[:3]
+            )
+            ctx = (
+                f"Predmet: {p.get('naziv','')} | Tip: {p.get('tip','')} | Status: {p.get('status','')}\n"
+                f"Opis: {(p.get('opis') or '')[:400]}\n"
+                f"Stranke: {_stranke_str or 'nema'}\n"
+                f"Protivna strana: {_protivna_str or 'nema'}\n"
+                f"Dokumenti: {', '.join(d.get('naziv_fajla','') for d in (dokumenti_r.data or [])[:5]) or 'nema'}\n"
+                f"Poslednje beleske: {' | '.join((b.get('sadrzaj') or '')[:80] for b in (beleske_r.data or [])[:3]) or 'nema'}\n"
+                f"Rokovi: {' | '.join((h.get('dogadjaj','') or '')[:80] + ' (' + (h.get('datum_iso','') or '') + ')' for h in (hronologija_r.data or [])[:5]) or 'nema'}"
+            )
+            resp = await oai.chat.completions.create(
+                model="gpt-4o-mini", temperature=0.1, max_tokens=700,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _COCKPIT_SYSTEM},
+                    {"role": "user",   "content": ctx},
+                ],
+            )
+            return _json_ws.loads(resp.choices[0].message.content or "{}")
+        except Exception as _ce:
+            logger.warning("[WORKSPACE-COCKPIT] AI greška: %s", _ce)
+            return {}
+
+    async def _fetch_praksa_preview():
+        _results = []
+        try:
+            from app.services.retrieve import _pretraga_praksa, _ugradi_query
+            p = pred.data
+            _q = f"{p.get('naziv','')} {p.get('opis','')} {p.get('tip','')}".strip()[:400]
+            if _q:
+                _vec = await asyncio.wait_for(asyncio.to_thread(_ugradi_query, _q), timeout=5.0)
+                _matches = await asyncio.wait_for(asyncio.to_thread(_pretraga_praksa, _vec, 3), timeout=4.0)
+                for m in (_matches or [])[:3]:
+                    meta = m.get("metadata", {})
+                    _results.append({
+                        "decision_number": meta.get("decision_number", ""),
+                        "court":           meta.get("court", ""),
+                        "decision_date":   meta.get("decision_date", ""),
+                        "izreka_preview":  meta.get("izreka_preview", "")[:200],
+                        "score":           round(m.get("score", 0), 4),
+                    })
+        except Exception as _pe:
+            logger.warning("[WORKSPACE] praksa preview greška: %s", _pe)
+        return _results
+
+    cockpit_raw, praksa_preview = await asyncio.gather(
+        _fetch_cockpit_ai(),
+        _fetch_praksa_preview(),
+        return_exceptions=True,
+    )
+    if isinstance(cockpit_raw, Exception):
+        cockpit_raw = {}
+    if isinstance(praksa_preview, Exception):
+        praksa_preview = []
+
+    # Step 6b: Risk history — compare today vs previous snapshot
+    import json as _json_risk
+    _rizik_info = cockpit_raw.get("procena_rizika", {}) if isinstance(cockpit_raw, dict) else {}
+    _rizik_nivo = _rizik_info.get("nivo", "")
+    if _rizik_nivo:
+        _today_tag = f"[Rizik] {today_iso}"
+        try:
+            _prev_risk_r = await asyncio.to_thread(
+                lambda: supa.table("predmet_istorija")
+                    .select("odgovor,created_at,pitanje")
+                    .eq("predmet_id", predmet_id)
+                    .eq("user_id", uid)
+                    .like("pitanje", "[Rizik]%")
+                    .order("created_at", desc=True)
+                    .limit(3)
+                    .execute()
+            )
+            _prev_records = _prev_risk_r.data or []
+            _today_saved  = any(r.get("pitanje","") == _today_tag for r in _prev_records)
+            _prev_other   = next((r for r in _prev_records if r.get("pitanje","") != _today_tag), None)
+            if _prev_other:
+                try:
+                    _prev_data = _json_risk.loads(_prev_other.get("odgovor","{}"))
+                    _prev_nivo = _prev_data.get("nivo","")
+                    if _prev_nivo and _prev_nivo != _rizik_nivo:
+                        cockpit_raw.setdefault("procena_rizika", {})["promena"] = {
+                            "prethodni":     _prev_nivo,
+                            "trenutni":      _rizik_nivo,
+                            "datum_promene": _prev_other.get("created_at",""),
+                        }
+                except Exception:
+                    pass
+            if not _today_saved:
+                asyncio.create_task(asyncio.to_thread(
+                    lambda: supa.table("predmet_istorija").insert({
+                        "predmet_id": predmet_id,
+                        "user_id":    uid,
+                        "pitanje":    _today_tag,
+                        "odgovor":    _json_risk.dumps({
+                            "nivo":          _rizik_nivo,
+                            "faktori_plus":  _rizik_info.get("faktori_plus", []),
+                            "faktori_minus": _rizik_info.get("faktori_minus", []),
+                        }, ensure_ascii=False),
+                        "confidence": "MEDIUM",
+                    }).execute()
+                ))
+        except Exception as _re:
+            logger.warning("[WORKSPACE-RISK-HISTORY] greška: %s", _re)
+
+    # Step 7: Rokovi po hitnosti
+    _VAZNOST_ORDER = {"kritičan": 0, "bitan": 1, "normalan": 2, "ostalo": 3}
+    rokovi_po_hitnosti = sorted(
+        hronologija_r.data or [],
+        key=lambda h: (
+            _VAZNOST_ORDER.get(h.get("vaznost", "ostalo"), 3),
+            h.get("datum_iso") or "9999-12-31",
+        ),
+    )
+
+    # Step 8: Poslednja aktivnost (merge across beleske/komentari/komunikacija/istorija)
+    _sve_aktivnosti = []
+    for b in (beleske_r.data or [])[:1]:
+        _sve_aktivnosti.append({"tip": "beleska", "datum": b.get("created_at",""), "opis": (b.get("sadrzaj") or "")[:120]})
+    for k in (komentari_r.data or [])[:1]:
+        _sve_aktivnosti.append({"tip": "komentar", "datum": k.get("created_at",""), "opis": (k.get("tekst") or "")[:120]})
+    for km in komunikacija[:1]:
+        _sve_aktivnosti.append({"tip": "komunikacija", "datum": km.get("datum_vreme",""), "opis": (km.get("kratak_opis") or "")[:120]})
+    for it in (istorija_r.data or [])[:1]:
+        _sve_aktivnosti.append({"tip": "analiza", "datum": it.get("created_at",""), "opis": (it.get("pitanje") or "")[:120]})
+    _sve_aktivnosti = [a for a in _sve_aktivnosti if a.get("datum")]
+    _sve_aktivnosti.sort(key=lambda a: a["datum"], reverse=True)
+    poslednja_aktivnost = _sve_aktivnosti[0] if _sve_aktivnosti else None
+
+    # Step 9: Statistike
+    from datetime import datetime
+    created_at = pred.data.get("created_at", "")
+    try:
+        dana_od_otvaranja = (datetime.now() - datetime.fromisoformat(created_at.replace("Z", "+00:00").replace("+00:00", ""))).days
+    except Exception:
+        dana_od_otvaranja = 0
+
+    return {
+        "predmet":            pred.data,
+        "stranke":            stranke,
+        "protivna_strana":    protivna_strana,
+        "svedoci":            svedoci,
+        "ostali_ucesnici":    ostali_ucesnici,
+        "dokumenti":          dokumenti_r.data or [],
+        "rokovi": {
+            "urgentni":       urgentni_rokovi,
+            "po_hitnosti":    rokovi_po_hitnosti,
+            "hronologija":    hronologija_r.data or [],
+        },
+        "komentari":          komentari_r.data or [],
+        "beleske":            beleske_r.data or [],
+        "komunikacija":       komunikacija,
+        "istorija":           istorija_r.data or [],
+        "sudska_praksa_preview": praksa_preview,
+        "cockpit": {
+            "ai_sazetak":          cockpit_raw.get("ai_sazetak", ""),
+            "sledeca_akcija":      cockpit_raw.get("sledeca_akcija", {}),
+            "procena_rizika":      cockpit_raw.get("procena_rizika", {}),
+            "poslednja_aktivnost": poslednja_aktivnost,
+            "rizik_promena":       cockpit_raw.get("procena_rizika", {}).get("promena"),
+        },
+        "statistike": {
+            "dokumenti_count":    len(dokumenti_r.data or []),
+            "beleske_count":      len(beleske_r.data or []),
+            "komentari_count":    len(komentari_r.data or []),
+            "dana_od_otvaranja":  dana_od_otvaranja,
+            "urgentni_rokovi":    len(urgentni_rokovi),
+        },
+    }
+
+
+# ── P3/P4 — One-click document link confirmation ─────────────────────────────
+
+class ConfirmLinksReq(BaseModel):
+    klijent_ids: list = Field(default=[])
+    uloga:       str  = Field(default="stranka", max_length=40)
+    dodaj_rok:   Optional[dict] = Field(default=None)
+
+
+@app.post("/api/predmeti/{predmet_id}/confirm-links")
+@limiter.limit("20/minute")
+async def predmet_confirm_links(
+    predmet_id: str,
+    req: ConfirmLinksReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Jednim klikom potvrdi AI predloge — poveži klijente i/ili dodaj rok.
+    Poziva se iz frontend confirm-card-a posle upload-a dokumenta.
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    pred = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).single().execute()
+    )
+    if not pred.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+
+    linked  = []
+    rok_dodat = False
+
+    for kl_id in (req.klijent_ids or [])[:5]:
+        try:
+            existing = await asyncio.to_thread(
+                lambda _kid=kl_id: supa.table("predmet_klijenti")
+                    .select("id")
+                    .eq("predmet_id", predmet_id)
+                    .eq("klijent_id", _kid)
+                    .execute()
+            )
+            if not (existing.data):
+                await asyncio.to_thread(
+                    lambda _kid=kl_id: supa.table("predmet_klijenti").insert({
+                        "predmet_id":     predmet_id,
+                        "klijent_id":     _kid,
+                        "uloga_klijenta": req.uloga,
+                        "user_id":        uid,
+                    }).execute()
+                )
+            linked.append(kl_id)
+        except Exception as e:
+            logger.warning("[CONFIRM-LINKS] klijent link greška: %s", e)
+
+    if req.dodaj_rok:
+        try:
+            rok = req.dodaj_rok
+            await asyncio.to_thread(
+                lambda: supa.table("predmet_hronologija").insert({
+                    "predmet_id": predmet_id,
+                    "user_id":    uid,
+                    "dogadjaj":   (rok.get("naziv") or "Rok")[:200],
+                    "datum":      rok.get("datum_iso",""),
+                    "datum_iso":  rok.get("datum_iso",""),
+                    "vaznost":    rok.get("vaznost","bitan"),
+                    "akter":      "Auto-detect (AI)",
+                }).execute()
+            )
+            rok_dodat = True
+        except Exception as e:
+            logger.warning("[CONFIRM-LINKS] rok insert greška: %s", e)
+
+    asyncio.create_task(_audit(uid, "confirm_links", predmet_id))
+    return {"predmet_id": predmet_id, "linked_klijenti": linked, "rok_dodat": rok_dodat, "success": True}
 
 

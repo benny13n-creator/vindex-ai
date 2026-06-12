@@ -44,6 +44,7 @@ PRAVNO_PITANJE — korisnik pita šta zakon kaže, koji član, kakvo je pravo
 SUDSKA_PRAKSA — korisnik traži sudske odluke, presude, praksu VKS
 NACRT — korisnik traži da se napiše, generiše ili napravi dokument (tužba, ugovor, žalba...)
 ANALIZA_PREDMETA — korisnik traži analizu, procenu predmeta, strategiju
+PLAN — korisnik traži plan, korake, šta dalje, akcioni plan, naredne korake, šta treba uraditi
 ROKOVI — korisnik pita o rokovima, zastarelosti, kalendarskim terminima
 PRETRAGA — korisnik traži određenu osobu, predmet ili dokument u sistemu
 OSTALO — ništa od navedenog
@@ -52,7 +53,7 @@ Vrati SAMO jednu reč, ništa više."""
 
 _INTENT_CHOICES = {
     "PRAVNO_PITANJE", "SUDSKA_PRAKSA", "NACRT",
-    "ANALIZA_PREDMETA", "ROKOVI", "PRETRAGA", "OSTALO",
+    "ANALIZA_PREDMETA", "PLAN", "ROKOVI", "PRETRAGA", "OSTALO",
 }
 
 
@@ -167,6 +168,178 @@ async def _handle_pretraga(poruka: str, user_id: str) -> dict:
     return {"tip": "PRETRAGA", "rezultati": results}
 
 
+async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -> dict:
+    """
+    Orkestrator za analizu predmeta — automatski učitava workspace podatke i
+    sintetiše procenu snage pozicije bez da korisnik zna koji endpoint se zove.
+    """
+    supa = _get_supa()
+
+    # Parallel fetch of all case data
+    pred_r, beleske_r, dok_r, hron_r, istorija_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(5).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").limit(8).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(2).execute()),
+        return_exceptions=True,
+    )
+
+    pred = pred_r.data if not isinstance(pred_r, Exception) and pred_r.data else {}
+    beleske = beleske_r.data if not isinstance(beleske_r, Exception) else []
+    dok = dok_r.data if not isinstance(dok_r, Exception) else []
+    hron = hron_r.data if not isinstance(hron_r, Exception) else []
+    istorija = istorija_r.data if not isinstance(istorija_r, Exception) else []
+
+    if not pred:
+        return {
+            "tip": "ANALIZA_PREDMETA",
+            "odgovor": "Predmet nije pronađen ili nemate pristup. Proverite da li ste otvorili predmet pre analize.",
+        }
+
+    _SYNTH_SYSTEM = (
+        "Ti si iskusni srpski pravni strateg. Sintetiši sve dostupne podatke i vrati ISKLJUČIVO JSON bez teksta van JSON-a:\n"
+        '{"procena": str (1 konkretna rečenica — ocena snage pozicije),\n'
+        ' "prednosti": [str] (max 4, konkretni faktori),\n'
+        ' "slabosti": [str] (max 4, konkretni rizici),\n'
+        ' "nedostaju": [str] (max 4, dokumenti/dokazi kojih nema),\n'
+        ' "sledeci_korak": {"opis": str, "rok": str, "prioritet": "hitan|normalan"},\n'
+        ' "verovatnoca_uspeha": int (0-100)}\n'
+        "Ne halucinuj zakone ni činjenice koje nisu u podacima."
+    )
+
+    ctx = "\n".join([
+        f"Predmet: {pred.get('naziv','')} | Tip: {pred.get('tip','')} | Status: {pred.get('status','')}",
+        f"Opis: {(pred.get('opis') or '')[:500]}",
+        f"Dokumenti u dosijeu: {', '.join(d.get('naziv_fajla','') for d in dok[:6]) or 'nema'}",
+        f"Beleške: {' | '.join((b.get('sadrzaj','') or '')[:80] for b in beleske[:3]) or 'nema'}",
+        f"Hronologija: {' | '.join((h.get('dogadjaj','') or '')[:80]+((' ('+h.get('datum_iso','')+')') if h.get('datum_iso') else '') for h in hron[:5]) or 'nema'}",
+        f"Pitanje: {poruka}",
+    ] + ([f"Prethodna analiza: {istorija[0].get('odgovor','')[:300]}"] if istorija else []))
+
+    from openai import AsyncOpenAI
+    import json as _json
+    oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    try:
+        resp = await oai.chat.completions.create(
+            model="gpt-4o-mini", temperature=0.1, max_tokens=1200,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _SYNTH_SYSTEM},
+                {"role": "user",   "content": ctx},
+            ],
+        )
+        result = _json.loads(resp.choices[0].message.content or "{}")
+    except Exception as e:
+        logger.error("[COPILOT-ANALIZA] OpenAI greška: %s", e)
+        return {"tip": "ANALIZA_PREDMETA", "odgovor": "Greška pri generisanju analize."}
+
+    return {
+        "tip":               "ANALIZA_PREDMETA",
+        "predmet":           pred.get("naziv", ""),
+        "procena":           result.get("procena", ""),
+        "prednosti":         result.get("prednosti", []),
+        "slabosti":          result.get("slabosti", []),
+        "nedostaju":         result.get("nedostaju", []),
+        "sledeci_korak":     result.get("sledeci_korak", {}),
+        "verovatnoca_uspeha": result.get("verovatnoca_uspeha", 0),
+    }
+
+
+async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> dict:
+    """
+    Agentic PLAN — interno poziva rokove, praksu i strategiju,
+    a zatim sintetiše strukturiran akcioni plan sa fazama i koracima.
+    """
+    supa = _get_supa()
+
+    pred_r, beleske_r, dok_r, hron_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(4).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").execute()),
+        return_exceptions=True,
+    )
+
+    pred = pred_r.data if not isinstance(pred_r, Exception) and pred_r.data else {}
+    if not pred:
+        return {"tip": "PLAN", "odgovor": "Predmet nije pronađen. Otvorite predmet pre kreiranja plana."}
+
+    dok = dok_r.data if not isinstance(dok_r, Exception) else []
+    hron = hron_r.data if not isinstance(hron_r, Exception) else []
+    beleske = beleske_r.data if not isinstance(beleske_r, Exception) else []
+
+    from datetime import date
+    today_iso = date.today().isoformat()
+    urgentni = [h for h in hron if h.get("vaznost") == "kritičan" and (h.get("datum_iso") or "") >= today_iso]
+    nadolazeci = sorted([h for h in hron if (h.get("datum_iso") or "") >= today_iso], key=lambda x: x.get("datum_iso", ""))[:6]
+
+    # Alat 1: Sudska praksa (Pinecone)
+    praksa_kontekst = ""
+    try:
+        from app.services.retrieve import retrieve_sudska_praksa as _rp
+        _q = f"{pred.get('naziv','')} {pred.get('tip','')} {(pred.get('opis') or '')[:200]}"
+        _matches = await asyncio.wait_for(asyncio.to_thread(_rp, _q, 5), timeout=6.0)
+        if _matches:
+            praksa_kontekst = "\n".join(
+                f"- {m.get('metadata',{}).get('decision_number','?')}: {(m.get('metadata',{}).get('izreka_preview') or '')[:100]}"
+                for m in _matches[:3]
+            )
+    except Exception as _pe:
+        logger.warning("[COPILOT-PLAN] praksa greška: %s", _pe)
+
+    _PLAN_SYSTEM = (
+        "Ti si srpski pravni strateg. Na osnovu stanja predmeta kreiraj konkretan akcioni plan. "
+        "Vrati ISKLJUČIVO JSON bez teksta van JSON-a:\n"
+        '{"cilj": str,\n'
+        ' "faze": [{"naziv": str, "trajanje": str, "koraci": [\n'
+        '   {"korak": str, "prioritet": "hitan|normalan|odlozen", "rok": str, "alat": "dokument|sud|klijent|praksa|interno"}]}],\n'
+        ' "kriticni_rokovi": [{"naziv": str, "datum": str, "posledica_propustanja": str}],\n'
+        ' "nedostaje": [{"stavka": str, "hitnost": "visoka|srednja|niska"}],\n'
+        ' "upozorenja": [str]}\n'
+        "Maks 3 faze, maks 4 koraka po fazi. Ne koristi generičke fraze — budi konkretan za ovaj predmet."
+    )
+
+    ctx = "\n".join([
+        f"Predmet: {pred.get('naziv','')} | Tip: {pred.get('tip','')} | Status: {pred.get('status','')}",
+        f"Opis: {(pred.get('opis') or '')[:400]}",
+        f"Dokumenti: {', '.join(d.get('naziv_fajla','') for d in dok[:6]) or 'nema'}",
+        f"Beleške: {' | '.join((b.get('sadrzaj','') or '')[:60] for b in beleske[:3]) or 'nema'}",
+        f"Hitni rokovi: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in urgentni[:3]) or 'nema'}",
+        f"Nadolazeći: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in nadolazeci[:5]) or 'nema'}",
+        f"Relevantna praksa VKS: {praksa_kontekst or 'nije pronađena'}",
+        f"Zahtev advokata: {poruka}",
+    ])
+
+    from openai import AsyncOpenAI
+    import json as _json
+    oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    try:
+        resp = await oai.chat.completions.create(
+            model="gpt-4o-mini", temperature=0.1, max_tokens=2000,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _PLAN_SYSTEM},
+                {"role": "user",   "content": ctx},
+            ],
+        )
+        result = _json.loads(resp.choices[0].message.content or "{}")
+    except Exception as e:
+        logger.error("[COPILOT-PLAN] OpenAI greška: %s", e)
+        return {"tip": "PLAN", "odgovor": "Greška pri generisanju plana."}
+
+    return {
+        "tip":              "PLAN",
+        "predmet":          pred.get("naziv", ""),
+        "alati_koristeni":  ["rokovi", "sudska_praksa_vks", "strategija"],
+        "cilj":             result.get("cilj", ""),
+        "faze":             result.get("faze", []),
+        "kriticni_rokovi":  result.get("kriticni_rokovi", []),
+        "nedostaje":        result.get("nedostaje", []),
+        "upozorenja":       result.get("upozorenja", []),
+    }
+
+
 async def _handle_ostalo(poruka: str, predmet_ctx: str) -> dict:
     """Generalni odgovor bez RAG — kratki savet."""
     from openai import AsyncOpenAI
@@ -213,13 +386,14 @@ async def copilot_chat(
     logger.info("[COPILOT] uid=%.8s intent=%s predmet=%s", uid, intent, req.predmet_id or "-")
 
     handlers = {
-        "PRAVNO_PITANJE": lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
-        "SUDSKA_PRAKSA":  lambda: _handle_sudska_praksa(req.poruka),
-        "NACRT":          lambda: _handle_nacrt(req.poruka, predmet_ctx, user),
-        "ANALIZA_PREDMETA": lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
-        "ROKOVI":         lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
-        "PRETRAGA":       lambda: _handle_pretraga(req.poruka, uid),
-        "OSTALO":         lambda: _handle_ostalo(req.poruka, predmet_ctx),
+        "PRAVNO_PITANJE":   lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
+        "SUDSKA_PRAKSA":    lambda: _handle_sudska_praksa(req.poruka),
+        "NACRT":            lambda: _handle_nacrt(req.poruka, predmet_ctx, user),
+        "ANALIZA_PREDMETA": lambda: _handle_analiza_predmeta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
+        "PLAN":             lambda: _handle_plan_predmeta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
+        "ROKOVI":           lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
+        "PRETRAGA":         lambda: _handle_pretraga(req.poruka, uid),
+        "OSTALO":           lambda: _handle_ostalo(req.poruka, predmet_ctx),
     }
 
     handler = handlers.get(intent, handlers["OSTALO"])

@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <title>Vindex AI - Pravni asistent za Srbiju</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -119,12 +119,30 @@
   --bord: rgba(255,255,255,0.06);
   --green: #4ade80;
   --amber: #f0b429;
+  /* ── Tipografski sistem ─────────────────────────────────── */
+  --font-ui:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-brand: 'Cormorant Garamond', Georgia, serif;
+  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  /* Skala */
+  --text-xs:   0.625rem;   /* 10px — micro labels, badges */
+  --text-sm:   0.75rem;    /* 12px — caption, meta */
+  --text-base: 0.875rem;   /* 14px — body, buttons */
+  --text-md:   1rem;       /* 16px — comfortable reading */
+  --text-lg:   1.125rem;   /* 18px — card headings */
+  --text-xl:   1.375rem;   /* 22px — section subheadings */
+  /* Težina */
+  --fw-light:   300;
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semi:    600;
+  --fw-bold:    700;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; overflow-x: hidden; max-width: 100%; }
 ::-webkit-scrollbar { width: 3px; background: #010308; }
 ::-webkit-scrollbar-thumb { background: rgba(74,168,255,0.25); border-radius: 2px; }
-body { background: #010308; color: rgba(255,255,255,0.95); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; max-width: 100%; cursor: none; }
+body { background: #010308; color: rgba(255,255,255,0.95); font-family: var(--font-ui); font-size: var(--text-base); line-height: 1.6; overflow-x: hidden; max-width: 100%; cursor: none; }
 
 #cursor { position: fixed; width: 10px; height: 10px; background: #4aa8ff; border-radius: 50%; pointer-events: none; z-index: 8999; transform: translate(-50%,-50%); box-shadow: 0 0 15px #4aa8ff; mix-blend-mode: screen; transition: width 0.2s, height 0.2s; }
 #cursor-ring { position: fixed; width: 34px; height: 34px; border: 1px solid rgba(74,168,255,0.45); border-radius: 50%; pointer-events: none; z-index: 8998; transform: translate(-50%,-50%); transition: all 0.12s ease; }
@@ -155,7 +173,7 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .mobile-menu.open { display: flex; }
 .mobile-menu a { font-family: ‘Cormorant Garamond’, serif; font-size: 2.2rem; font-weight: 600; color: rgba(255,255,255,0.7); text-decoration: none; transition: color 0.2s; }
 .mobile-menu a:hover { color: #fff; }
-.mobile-menu .m-cta { font-family: ‘DM Sans’, sans-serif; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.9rem 2.5rem; border: 1px solid rgba(74,168,255,0.4); border-radius: 8px; color: #89c8ff; margin-top: 1rem; }
+.mobile-menu .m-cta { font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.9rem 2.5rem; border: 1px solid rgba(74,168,255,0.4); border-radius: 8px; color: #89c8ff; margin-top: 1rem; }
 
 /* HERO */
 #hero { position: relative; z-index: 2; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8rem 1.5rem 5rem; overflow: hidden; gap: 0; }
@@ -175,7 +193,7 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 @keyframes grad-shift { 0%{background-position:0% center;} 100%{background-position:300% center;} }
 .h-desc { font-size: 1.05rem; line-height: 1.92; color: rgba(255,255,255,0.55); font-weight: 300; max-width: 560px; margin: 0 auto 2.5rem; }
 .h-cta { display: flex; align-items: center; justify-content: center; gap: 1.8rem; margin-bottom: 3rem; flex-wrap: wrap; }
-.btn-primary { position: relative; padding: 1rem 2.4rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 8px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.04em; cursor: none; overflow: hidden; transition: all 0.35s; text-decoration: none; box-shadow: 0 8px 40px rgba(74,168,255,0.35); display: inline-block; }
+.btn-primary { position: relative; padding: 1rem 2.4rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 8px; color: #fff; font-family: var(--font-ui); font-size: 0.86rem; font-weight: 600; letter-spacing: 0.04em; cursor: none; overflow: hidden; transition: all 0.35s; text-decoration: none; box-shadow: 0 8px 40px rgba(74,168,255,0.35); display: inline-block; }
 .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 20px 60px rgba(74,168,255,0.5); }
 .btn-ghost { font-size: 0.84rem; color: rgba(255,255,255,0.22); font-weight: 300; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s; cursor: none; }
 .btn-ghost:hover { color: rgba(255,255,255,0.55); }
@@ -300,19 +318,19 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .t-tab { flex: 1; min-width: max-content; max-width: 100%; min-height: 44px; padding: 12px 24px; text-align: center; font-size: 1rem; font-weight: 500; color: rgba(255,255,255,0.45); border-radius: 0; cursor: none; transition: color 0.2s, border-bottom-color 0.2s; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
 .t-tab.active { background: transparent; color: #89c8ff; border-bottom-color: #4aa8ff; }
 .t-tab:hover { color: rgba(255,255,255,0.75); }
-.t-label { font-family: ‘DM Sans’, sans-serif; font-size: 0.73rem; font-weight: 500; color: rgba(255,255,255,0.52); margin-bottom: 0.45rem; display: block; }
+.t-label { font-family: var(--font-ui); font-size: var(--text-sm); font-weight: var(--fw-medium); letter-spacing: 0.02em; color: rgba(255,255,255,0.52); margin-bottom: 0.45rem; display: block; }
 textarea.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.8rem; font-weight: 300; line-height: 1.7; padding: 0.9rem 1.1rem; outline: none; resize: none; height: 86px; caret-color: #4aa8ff; transition: border-color 0.25s; }
 textarea.t-input::placeholder { color: rgba(255,255,255,0.45); }
 textarea.t-input:focus { border-color: rgba(74,168,255,0.38); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
 select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.76rem; padding: 0.75rem 1.1rem; outline: none; cursor: none; appearance: none; margin-bottom: 0.8rem; }
-.t-exec { width: 100%; margin-top: 0.9rem; padding: 0.9rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.84rem; font-weight: 600; letter-spacing: 0.04em; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.t-exec { width: 100%; margin-top: 0.9rem; padding: 0.9rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.84rem; font-weight: 600; letter-spacing: 0.04em; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
 .t-exec:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(74,168,255,0.5); }
 .t-resp { display: none; margin-top: 1rem; }
 .t-resp.show { display: block; animation: fade-in 0.4s ease; }
 @keyframes fade-in { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
 .resp-inner { background: rgba(74,168,255,0.04); border: 1px solid rgba(74,168,255,0.16); border-left: 2px solid #4aa8ff; border-radius: 10px; padding: 1.1rem 1.3rem; }
 .resp-lbl { font-family: ‘JetBrains Mono’, monospace; font-size: 0.52rem; letter-spacing: 0.22em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.55rem; }
-.resp-body { font-size: 0.82rem; color: rgba(255,255,255,0.78); line-height: 1.9; font-weight: 300; white-space: pre-wrap; }
+.resp-body { font-family: var(--font-serif); font-size: 0.9rem; color: rgba(255,255,255,0.82); line-height: 1.95; font-weight: 400; white-space: pre-wrap; letter-spacing: 0.01em; }
 .resp-cursor::after { content: ‘\25AE’; color: #4aa8ff; animation: blink-c 0.8s step-end infinite; }
 @keyframes blink-c { 0%,100%{opacity:1;} 50%{opacity:0;} }
 .ld { width: 5px; height: 5px; background: #4aa8ff; border-radius: 50%; display: inline-block; animation: bounce-d 1.2s infinite; }
@@ -503,7 +521,7 @@ select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px sol
 .price-list li { display: flex; align-items: center; gap: 0.6rem; font-size: 0.79rem; color: rgba(255,255,255,0.58); font-weight: 300; flex-wrap: wrap; }
 .price-list li::before { content: ‘\2713’; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
 .price-card.feat .price-list li::before { color: #c9a84c; }
-.price-btn { width: 100%; padding: 0.88rem; background: transparent; border: 1px solid rgba(74,168,255,0.22); border-radius: 10px; color: #89c8ff; font-family: ‘DM Sans’, sans-serif; font-size: 0.81rem; font-weight: 600; cursor: pointer; transition: all 0.25s; }
+.price-btn { width: 100%; padding: 0.88rem; background: transparent; border: 1px solid rgba(74,168,255,0.22); border-radius: 10px; color: #89c8ff; font-family: var(--font-ui); font-size: 0.81rem; font-weight: 600; cursor: pointer; transition: all 0.25s; }
 .price-btn:hover { background: rgba(74,168,255,0.1); border-color: #4aa8ff; }
 .price-btn.main { background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; color: #fff; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
 .price-btn.main:hover { filter: brightness(1.1); transform: translateY(-2px); }
@@ -515,7 +533,7 @@ select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px sol
 #pro-modal .modal { max-width: 460px; text-align: left; }
 #pro-modal .modal-title { font-size: 1.55rem; }
 .pro-sub { font-size: 0.82rem; color: rgba(255,255,255,0.55); line-height: 1.78; margin-bottom: 1.4rem; }
-.pro-input { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.84rem; padding: 0.82rem 1rem; outline: none; transition: border-color 0.2s; margin-bottom: 0.8rem; }
+.pro-input { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.84rem; padding: 0.82rem 1rem; outline: none; transition: border-color 0.2s; margin-bottom: 0.8rem; }
 .pro-input:focus { border-color: rgba(201,168,76,0.45); }
 .pro-input::placeholder { color: rgba(255,255,255,0.28); }
 .pro-success { display: none; text-align: center; padding: 1rem 0; color: #4ade80; font-size: 0.84rem; }
@@ -570,10 +588,10 @@ footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px s
 .modal-title { font-family: ‘Cormorant Garamond’, serif; font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; line-height: 1.1; }
 .modal-sub { font-size: 0.88rem; color: rgba(255,255,255,0.5); font-weight: 300; line-height: 1.7; margin-bottom: 2rem; }
 .modal-form { display: flex; flex-direction: column; gap: 0.9rem; }
-.modal-input { background: rgba(74,168,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.88rem; padding: 0.9rem 1.2rem; outline: none; transition: border-color 0.25s; }
+.modal-input { background: rgba(74,168,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.88rem; padding: 0.9rem 1.2rem; outline: none; transition: border-color 0.25s; }
 .modal-input::placeholder { color: rgba(255,255,255,0.45); }
 .modal-input:focus { border-color: rgba(74,168,255,0.4); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
-.modal-btn { padding: 1rem; background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; border-radius: 10px; color: #fff; font-family: ‘DM Sans’, sans-serif; font-size: 0.88rem; font-weight: 600; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
+.modal-btn { padding: 1rem; background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.88rem; font-weight: 600; cursor: none; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
 .modal-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(74,168,255,0.5); }
 .modal-note { font-size: 0.72rem; color: rgba(255,255,255,0.25); text-align: center; }
 .modal-success { display: none; text-align: center; padding: 1rem 0; }
@@ -618,7 +636,7 @@ blockquote.citat-expanded { max-height: none; }
 /* ── Phase 3.2: Ratio decidendi ─────────────────────────────────────────────── */
 .ratio-box { display:none; margin-top:0.5rem; padding:0.5rem 0.75rem; background:rgba(167,139,250,0.06); border-left:2px solid rgba(167,139,250,0.4); border-radius:0 6px 6px 0; }
 .ratio-lbl { font-family:'JetBrains Mono',monospace; font-size:0.48rem; letter-spacing:0.18em; text-transform:uppercase; color:rgba(167,139,250,0.55); margin-bottom:0.22rem; }
-.ratio-text { font-family:'DM Sans',sans-serif; font-size:0.74rem; color:rgba(200,185,255,0.82); line-height:1.6; font-style:italic; }
+.ratio-text { font-family:var(--font-serif); font-size:0.82rem; color:rgba(200,185,255,0.85); line-height:1.72; font-style:italic; }
 .ratio-text::before { content:'\201C'; color:rgba(167,139,250,0.5); font-size:1rem; line-height:0; vertical-align:-0.22em; margin-right:0.1em; }
 .ratio-loading { font-family:'JetBrains Mono',monospace; font-size:0.52rem; color:rgba(255,255,255,0.18); letter-spacing:0.12em; }
 /* Filter highlight */
@@ -648,7 +666,7 @@ blockquote.citat-expanded { max-height: none; }
 .pg-decision-card { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:0.65rem 0.9rem; margin-bottom:0.3rem; }
 .pg-decision-dn { font-family:'JetBrains Mono',monospace; font-size:0.7rem; font-weight:500; color:rgba(255,255,255,0.82); margin-bottom:0.22rem; }
 .pg-decision-meta { font-family:'JetBrains Mono',monospace; font-size:0.55rem; color:rgba(255,255,255,0.28); margin-bottom:0.3rem; }
-.pg-decision-preview { font-family:'DM Sans',sans-serif; font-size:0.74rem; color:rgba(255,255,255,0.48); line-height:1.52; }
+.pg-decision-preview { font-family:var(--font-serif); font-size:0.8rem; color:rgba(255,255,255,0.52); line-height:1.65; }
 /* ── Mišljenja ministarstava — amber/orange (Phase 2.4) ────────────────────── */
 .resp-misljenje { background: rgba(251,146,60,0.08); border: 1px solid rgba(251,146,60,0.35); border-left: 3px solid #fb923c; border-radius: 8px; padding: 0.65rem 1rem 0.7rem 1rem; margin-bottom: 0.3rem; }
 .resp-misljenje .resp-section-lbl { color: #fb923c; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.18em; }
@@ -746,7 +764,7 @@ blockquote.citat-expanded { max-height: none; }
 .podnesak-selector { padding:0 0 4px; max-height:400px; overflow-y:auto; }
 .podnesak-category { font-size:0.7rem; text-transform:uppercase; color:#6b7d95; letter-spacing:0.08em; margin-bottom:6px; margin-top:16px; font-family:'JetBrains Mono',monospace; }
 .podnesak-category:first-child { margin-top:0; }
-.podnesak-option { display:block; width:100%; text-align:left; padding:12px 16px; background:#1a2332; border:1px solid #2a3a4f; border-radius:6px; color:#cbd5e0; font-family:'DM Sans',sans-serif; font-size:0.95rem; margin-bottom:6px; cursor:none; transition:all 0.15s; }
+.podnesak-option { display:block; width:100%; text-align:left; padding:12px 16px; background:#1a2332; border:1px solid #2a3a4f; border-radius:6px; color:#cbd5e0; font-family:var(--font-ui); font-size:0.95rem; margin-bottom:6px; cursor:none; transition:all 0.15s; }
 .podnesak-option:hover { background:#243248; border-color:#3a5070; color:#e2e8f0; }
 .podnesak-option.selected { background:#1e3a5f; border:1px solid #4aa8ff; border-left:3px solid #4aa8ff; color:#ffffff; }
 /* Nacrt podneska — monospace prikaz sudskog dokumenta */
@@ -758,7 +776,7 @@ blockquote.citat-expanded { max-height: none; }
 .podnesak-preview-banner-icon { font-size:1rem; }
 .podnesak-preview-body { border-radius:0; border-top:none; }
 .podnesak-preview-actions { display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.75rem; }
-.podnesak-preview-btn { flex:1; min-width:120px; padding:0.7rem 1rem; border:none; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.78rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+.podnesak-preview-btn { flex:1; min-width:120px; padding:0.7rem 1rem; border:none; border-radius:8px; font-family:var(--font-ui); font-size:0.78rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
 .podnesak-preview-pdf { background:linear-gradient(135deg,#4aa8ff 0%,#1264c4 100%); color:#fff; box-shadow:0 4px 20px rgba(74,168,255,0.35); }
 .podnesak-preview-pdf:hover { transform:translateY(-1px); box-shadow:0 8px 30px rgba(74,168,255,0.5); }
 .podnesak-preview-copy { background:rgba(74,168,255,0.1); border:1px solid rgba(74,168,255,0.25); color:rgba(74,168,255,0.9); }
@@ -924,9 +942,9 @@ blockquote.citat-expanded { max-height: none; }
 .t-guide-text { font-size: 0.75rem; color: rgba(255,255,255,0.55); line-height: 1.62; font-weight: 300; }
 .t-guide-bold { font-weight: 600; color: rgba(255,255,255,0.85); }
 .t-chips { display: flex; flex-wrap: wrap; gap: 0.42rem; margin-bottom: 0.75rem; }
-.t-chip { font-family: 'DM Sans', sans-serif; font-size: 0.7rem; font-weight: 400; color: rgba(74,168,255,0.85); background: rgba(74,168,255,0.06); border: 1px solid rgba(74,168,255,0.2); border-radius: 999px; padding: 0.24rem 0.75rem; cursor: none; transition: all 0.2s; white-space: nowrap; }
+.t-chip { font-family: var(--font-ui); font-size: 0.7rem; font-weight: 400; color: rgba(74,168,255,0.85); background: rgba(74,168,255,0.06); border: 1px solid rgba(74,168,255,0.2); border-radius: 999px; padding: 0.24rem 0.75rem; cursor: none; transition: all 0.2s; white-space: nowrap; }
 .t-chip:hover { background: rgba(74,168,255,0.14); border-color: rgba(74,168,255,0.45); color: #89c8ff; transform: translateY(-1px); }
-.t-chips-lbl { font-family: 'DM Sans', sans-serif; font-size: 0.65rem; color: rgba(255,255,255,0.28); margin-bottom: 0.42rem; }
+.t-chips-lbl { font-family: var(--font-ui); font-size: 0.65rem; color: rgba(255,255,255,0.28); margin-bottom: 0.42rem; }
 
 /* ── REVEAL ──────────────────────────────────────────────────────────────── */
 .r { opacity: 0; transform: translateY(28px); transition: opacity 0.72s cubic-bezier(0.16,1,0.3,1), transform 0.72s cubic-bezier(0.16,1,0.3,1); }
@@ -1133,7 +1151,7 @@ footer { padding: 2rem 1.5rem; }
 .paywall-features li::before { content: '¹3'; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
 
 /* ── New Chat dugme ─────────────────────────────────────────────────────── */
-.t-newchat { background:none; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:rgba(255,255,255,0.32); font-family:'DM Sans',sans-serif; font-size:0.6rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; padding:0.22rem 0.55rem; cursor:none; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
+.t-newchat { background:none; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:rgba(255,255,255,0.32); font-family:var(--font-ui); font-size:0.6rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; padding:0.22rem 0.55rem; cursor:none; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
 .t-newchat:hover { border-color:rgba(74,168,255,0.45); color:#89c8ff; background:rgba(74,168,255,0.06); }
 /* ── Chat history panel ──────────────────────────────────────────────────── */
 .chat-hist { display:none; max-height:200px; overflow-y:auto; margin-bottom:1rem; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:0.55rem 0.7rem; background:rgba(0,0,0,0.18); scrollbar-width:thin; scrollbar-color:rgba(74,168,255,0.2) transparent; }
@@ -1177,7 +1195,7 @@ footer { padding: 2rem 1.5rem; }
 #tab-s select{background-color:#010308;color:rgba(255,255,255,0.95);border:1px solid rgba(255,255,255,0.1);}
 #tab-s select:focus{outline:none;border-color:rgba(59,130,246,0.5);}
 /* ── Rokovi panel P3.5 / Phase 4.1 ──────────────────────────────── */
-.rokovi-btn{margin-top:.85rem;width:100%;padding:.65rem 1rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.22);border-radius:9px;color:#89c8ff;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;text-align:left;transition:background .2s,border-color .2s;}
+.rokovi-btn{margin-top:.85rem;width:100%;padding:.65rem 1rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.22);border-radius:9px;color:#89c8ff;font-family:var(--font-ui);font-size:.8rem;font-weight:600;cursor:pointer;text-align:left;transition:background .2s,border-color .2s;}
 .rokovi-btn:hover{background:rgba(74,168,255,0.13);border-color:rgba(74,168,255,0.38);}
 .rokovi-panel{margin-top:.75rem;display:none;}
 .rokovi-panel.show{display:block;}
@@ -1212,13 +1230,13 @@ footer { padding: 2rem 1.5rem; }
 .rok-nepoznat{font-size:.76rem;color:rgba(255,255,255,0.26);margin-top:4px;font-style:italic;}
 /* Phase 3.6 — Zastarelost kalkulator */
 .zast-wrap{margin-top:1rem;padding:.85rem 1rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:10px;}
-.zast-toggle{width:100%;padding:.6rem 1rem;background:rgba(74,168,255,0.06);border:1px solid rgba(74,168,255,0.18);border-radius:9px;color:#89c8ff;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;text-align:left;transition:background .2s;}
+.zast-toggle{width:100%;padding:.6rem 1rem;background:rgba(74,168,255,0.06);border:1px solid rgba(74,168,255,0.18);border-radius:9px;color:#89c8ff;font-family:var(--font-ui);font-size:.8rem;font-weight:600;cursor:pointer;text-align:left;transition:background .2s;}
 .zast-toggle:hover{background:rgba(74,168,255,0.12);}
 .zast-body{display:none;margin-top:.8rem;}
 .zast-body.show{display:block;}
 .zast-form-row{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.65rem;}
 .zast-form-row label{font-size:.78rem;color:rgba(255,255,255,0.42);}
-.zast-sel,.zast-inp{background:rgba(255,255,255,0.04);border:1px solid rgba(74,168,255,0.18);border-radius:6px;padding:.38rem .75rem;color:#e6edf3;font-size:.8rem;font-family:'DM Sans',sans-serif;width:100%;box-sizing:border-box;}
+.zast-sel,.zast-inp{background:rgba(255,255,255,0.04);border:1px solid rgba(74,168,255,0.18);border-radius:6px;padding:.38rem .75rem;color:#e6edf3;font-size:.8rem;font-family:var(--font-ui);width:100%;box-sizing:border-box;}
 .zast-sel:focus,.zast-inp:focus{outline:none;border-color:rgba(74,168,255,0.5);}
 .zast-sel option{background:#161b22;color:#e6edf3;}
 .zast-osnov-hint{font-size:.73rem;color:#4aa8ff;font-style:italic;padding-left:2px;min-height:1em;}
@@ -1241,22 +1259,22 @@ footer { padding: 2rem 1.5rem; }
 .btn-ics-all:hover{background:rgba(255,255,255,0.05);color:#fff;}
 /* ── F5 AI Strategija ─────────────────────────────────────────────────────── */
 .strat-modul-izbor{display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:4px;margin-bottom:12px;}
-.strat-btn{padding:7px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5);cursor:pointer;font-size:0.83rem;font-family:'DM Sans',sans-serif;transition:all .2s;min-height:36px;}
+.strat-btn{padding:7px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5);cursor:pointer;font-size:0.83rem;font-family:var(--font-ui);transition:all .2s;min-height:36px;}
 .strat-btn.active{border-color:rgba(74,168,255,0.5);color:#89c8ff;background:rgba(74,168,255,0.1);}
 .strat-btn:hover:not(.active){border-color:rgba(255,255,255,0.22);color:rgba(255,255,255,0.75);}
 .strat-opis-box{font-size:0.82rem;color:rgba(255,255,255,0.48);background:rgba(255,255,255,0.02);border-left:3px solid rgba(74,168,255,0.4);padding:9px 13px;border-radius:0 7px 7px 0;margin-bottom:13px;line-height:1.55;}
 .strat-label{font-size:0.83rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:6px;}
 .strat-input-wrap{margin-bottom:11px;}
-.strat-textarea{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.03);color:#e6edf3;border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:11px 13px;font-size:0.86rem;resize:vertical;line-height:1.55;font-family:'DM Sans',sans-serif;min-height:140px;}
+.strat-textarea{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.03);color:#e6edf3;border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:11px 13px;font-size:0.86rem;resize:vertical;line-height:1.55;font-family:var(--font-ui);min-height:140px;}
 .strat-textarea:focus{outline:none;border-color:rgba(74,168,255,0.45);}
 .strat-char-count{font-size:0.73rem;color:rgba(255,255,255,0.28);text-align:right;margin-top:3px;}
-.strat-submit-btn{width:100%;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(74,168,255,0.85) 0%,rgba(18,100,196,0.9) 100%);border:none;border-radius:9px;color:#fff;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;transition:opacity .2s;margin-bottom:15px;}
+.strat-submit-btn{width:100%;padding:.75rem 1.5rem;background:linear-gradient(135deg,rgba(74,168,255,0.85) 0%,rgba(18,100,196,0.9) 100%);border:none;border-radius:9px;color:#fff;font-family:var(--font-ui);font-size:0.88rem;font-weight:600;cursor:pointer;transition:opacity .2s;margin-bottom:15px;}
 .strat-submit-btn:hover{opacity:.88;}
 .strat-submit-btn:disabled{opacity:.4;cursor:not-allowed;}
 .strat-rezultat-wrap{display:none;}
 .strat-rezultat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
 .strat-rezultat-naslov{font-weight:600;font-size:0.92rem;color:#e6edf3;}
-.strat-copy-btn{background:transparent;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.45);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.76rem;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.strat-copy-btn{background:transparent;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.45);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.76rem;font-family:var(--font-ui);transition:all .2s;}
 .strat-copy-btn:hover{border-color:rgba(255,255,255,0.28);color:rgba(255,255,255,0.75);}
 .strat-rezultat-body{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:9px;padding:15px 16px;font-size:0.85rem;line-height:1.75;max-height:580px;overflow-y:auto;color:#d8dde8;}
 .strat-sekcija{font-weight:700;color:#89c8ff;margin:14px 0 5px;font-size:0.87rem;display:block;}
@@ -1280,7 +1298,7 @@ footer { padding: 2rem 1.5rem; }
 .api-kljuc-value{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);padding:6px 10px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:0.8rem;word-break:break-all;color:#89c8ff;display:block;margin:6px 0;}
 .api-kljuc-box{background:rgba(74,168,255,0.04);border:1px solid rgba(74,168,255,0.2);border-radius:8px;padding:12px 14px;margin-top:10px;}
 .api-kljuc-box strong{color:#e6edf3;font-size:0.83rem;}
-.push-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.45);font-size:0.78rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;min-height:36px;}
+.push-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.45);font-size:0.78rem;cursor:pointer;font-family:var(--font-ui);transition:all .2s;min-height:36px;}
 .push-btn:hover{background:rgba(255,255,255,0.07);color:#fff;}
 .push-btn:disabled{opacity:.4;cursor:default;}
 /* ── F5 Predmeti ─────────────────────────────────────────────────────────── */
@@ -1300,6 +1318,31 @@ footer { padding: 2rem 1.5rem; }
 .ist-item{font-size:0.77rem;border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:0.55rem 0.75rem;margin-bottom:0.35rem;}
 .ist-q{color:rgba(255,255,255,0.45);margin-bottom:0.2rem;font-size:0.72rem;}
 .ist-a{color:rgba(255,255,255,0.78);line-height:1.5;}
+/* ── Cockpit panel ─────────────────────────────────────────── */
+.pred-cockpit{margin:.55rem 0 .2rem;border:1px solid rgba(74,168,255,.14);border-radius:11px;background:rgba(74,168,255,.035);overflow:hidden;}
+.pck-sazetak-row{display:flex;gap:.6rem;align-items:flex-start;padding:.7rem .9rem;border-bottom:1px solid rgba(74,168,255,.08);}
+.pck-ai-icon{font-size:.95rem;flex-shrink:0;margin-top:.05rem;opacity:.8;}
+.pck-sazetak-text{font-size:.81rem;color:rgba(255,255,255,.82);line-height:1.5;flex:1;}
+.pck-cards{display:grid;grid-template-columns:repeat(3,1fr);}
+.pck-card{padding:.6rem .75rem;border-right:1px solid rgba(255,255,255,.05);}
+.pck-card:last-child{border-right:none;}
+.pck-card-lbl{font-size:.6rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.28rem;}
+.pck-card-val{font-size:.79rem;color:#fff;line-height:1.4;}
+.pck-card-sub{font-size:.71rem;color:rgba(255,255,255,.42);margin-top:.18rem;line-height:1.4;}
+.pck-rizik-badge{display:inline-block;padding:.12rem .45rem;border-radius:4px;font-size:.74rem;font-weight:600;letter-spacing:.03em;}
+.pck-rizik-badge.visok{background:rgba(255,80,80,.14);color:#ff9090;border:1px solid rgba(255,80,80,.22);}
+.pck-rizik-badge.srednji{background:rgba(255,165,50,.12);color:#ffbb70;border:1px solid rgba(255,165,50,.22);}
+.pck-rizik-badge.nizak{background:rgba(70,200,120,.1);color:#7de0a0;border:1px solid rgba(70,200,120,.2);}
+.pck-prio-badge{font-size:.65rem;font-weight:600;padding:.1rem .38rem;border-radius:3px;margin-top:.28rem;display:inline-block;}
+.pck-prio-badge.hitan{background:rgba(255,100,100,.14);color:#ff8888;}
+.pck-prio-badge.normalan{background:rgba(74,168,255,.1);color:#89c8ff;}
+.pck-prio-badge.odlozen{background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);}
+.pck-rok-item{font-size:.75rem;color:#f0c060;margin-bottom:.16rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pck-loading{padding:.8rem 1rem;text-align:center;font-size:.77rem;color:rgba(255,255,255,.28);font-style:italic;}
+.pck-faktor{font-size:.68rem;margin-bottom:.1rem;}
+.pck-faktor.plus{color:rgba(100,220,140,.82);}
+.pck-faktor.minus{color:rgba(255,130,130,.72);}
+@media(max-width:600px){.pck-cards{grid-template-columns:1fr;}.pck-card{border-right:none;border-bottom:1px solid rgba(255,255,255,.05);}.pck-card:last-child{border-bottom:none;}}
 .procena-section{border:1px solid rgba(255,255,255,0.07);border-radius:8px;overflow:hidden;margin-bottom:0.4rem;}
 .procena-section-hdr{padding:0.5rem 0.85rem;background:rgba(255,255,255,0.04);cursor:pointer;font-size:0.78rem;font-weight:600;color:#e0e4f0;display:flex;justify-content:space-between;}
 .procena-section-body{padding:0.65rem 0.85rem;font-size:0.78rem;color:rgba(255,255,255,0.72);line-height:1.6;white-space:pre-wrap;display:none;}
@@ -1352,14 +1395,14 @@ footer { padding: 2rem 1.5rem; }
 .vx-compare-bar.hidden{display:none;}
 .compare-bar-info{font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:rgba(255,255,255,0.55);display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;}
 .compare-bar-actions{display:flex;gap:0.5rem;flex-shrink:0;}
-.compare-bar-actions button{padding:0.42rem 0.9rem;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:0.76rem;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.55);}
+.compare-bar-actions button{padding:0.42rem 0.9rem;border-radius:7px;font-family:var(--font-ui);font-size:0.76rem;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.55);}
 #btn-start-compare:not(:disabled){background:linear-gradient(135deg,#4aa8ff 0%,#1264c4 100%);border-color:transparent;color:#fff;font-weight:600;}
 #btn-start-compare:disabled{opacity:0.35;cursor:not-allowed;}
 .vx-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;z-index:300;padding:1rem;}
 .vx-modal-overlay.hidden{display:none;}
 .vx-compare-modal{max-width:760px;width:100%;max-height:82vh;overflow-y:auto;background:#0d1117;border:1px solid rgba(74,168,255,0.2);border-radius:14px;padding:1.6rem 2rem;}
 .vx-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;}
-.vx-modal-header h2{font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:600;color:rgba(255,255,255,0.88);margin:0;}
+.vx-modal-header h2{font-family:var(--font-ui);font-size:1rem;font-weight:600;color:rgba(255,255,255,0.88);margin:0;}
 .vx-modal-close{background:none;border:none;color:rgba(255,255,255,0.35);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.4rem;border-radius:4px;}
 .vx-modal-close:hover{color:#fff;}
 .vx-modal-meta{display:flex;align-items:center;gap:10px;margin-bottom:1.3rem;flex-wrap:wrap;}
@@ -1367,20 +1410,20 @@ footer { padding: 2rem 1.5rem; }
 .compare-vs{color:rgba(255,255,255,0.3);font-size:0.78rem;font-weight:700;}
 .vx-compare-loading{text-align:center;padding:2.5rem 0;color:rgba(255,255,255,0.4);font-size:0.83rem;}
 .compare-spinner{display:inline-block;width:22px;height:22px;border:2px solid rgba(74,168,255,0.25);border-top-color:#4aa8ff;border-radius:50%;animation:doc-spin .8s linear infinite;margin-bottom:0.7rem;}
-.compare-result-body{color:rgba(255,255,255,0.78);font-family:'DM Sans',sans-serif;font-size:0.84rem;line-height:1.7;}
+.compare-result-body{color:rgba(255,255,255,0.82);font-family:var(--font-serif);font-size:0.88rem;line-height:1.8;letter-spacing:0.01em;}
 .compare-result-body h2{font-size:0.82rem;font-weight:700;color:#4aa8ff;margin:1.3rem 0 0.4rem;border-bottom:1px solid rgba(74,168,255,0.15);padding-bottom:5px;font-family:'JetBrains Mono',monospace;letter-spacing:0.04em;}
 .compare-result-body p{margin:0 0 0.65rem;color:rgba(255,255,255,0.72);}
 .compare-result-body strong{color:rgba(255,255,255,0.9);}
 .compare-error{padding:1rem;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;color:rgba(255,130,130,0.9);font-size:0.82rem;}
 .vx-modal-footer{margin-top:1.4rem;display:flex;justify-content:flex-end;}
-.vx-modal-footer button{padding:0.48rem 1.1rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-family:'DM Sans',sans-serif;font-size:0.8rem;cursor:pointer;}
+.vx-modal-footer button{padding:0.48rem 1.1rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-family:var(--font-ui);font-size:0.8rem;cursor:pointer;}
 .vx-manual-compare{margin-top:0.5rem;font-size:0.75rem;color:rgba(255,255,255,0.4);}
 .vx-manual-compare summary{cursor:pointer;padding:0.3rem 0;list-style:none;display:flex;align-items:center;gap:0.4rem;}
 .vx-manual-compare summary::-webkit-details-marker{display:none;}
 .manual-compare-inputs{display:flex;gap:7px;align-items:center;margin-top:0.45rem;flex-wrap:wrap;}
 .manual-compare-inputs input{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:0.42rem 0.7rem;color:rgba(255,255,255,0.78);font-family:'JetBrains Mono',monospace;font-size:0.72rem;width:150px;outline:none;}
 .manual-compare-inputs span{color:rgba(255,255,255,0.25);font-size:0.75rem;}
-.manual-compare-inputs button{padding:0.4rem 0.8rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#4aa8ff;font-family:'DM Sans',sans-serif;font-size:0.73rem;cursor:pointer;}
+.manual-compare-inputs button{padding:0.4rem 0.8rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#4aa8ff;font-family:var(--font-ui);font-size:0.73rem;cursor:pointer;}
 /* ── F7 Playbook UI ──────────────────────────────────────────────────────── */
 .playbook-panel{margin-top:20px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;overflow:hidden;}
 .playbook-summary{padding:11px 15px;cursor:pointer;font-size:0.88rem;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px;color:#e6edf3;}
@@ -1651,7 +1694,7 @@ footer { padding: 2rem 1.5rem; }
 .analiza-dokaz-body{padding:10px 14px;font-size:0.84rem;line-height:1.65;color:rgba(255,255,255,0.65);}
 .analiza-plain{font-size:0.85rem;line-height:1.65;color:rgba(255,255,255,0.65);padding:4px 0;}
 /* ── Forenzički audit (Executive Report) ── */
-.forensic-audit-btn{width:100%;padding:.82rem 1.2rem;background:linear-gradient(135deg,rgba(168,74,255,0.22) 0%,rgba(100,40,200,0.3) 100%);border:1px solid rgba(168,74,255,0.45);border-radius:10px;color:#d4a0ff;font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:opacity .2s;}
+.forensic-audit-btn{width:100%;padding:.82rem 1.2rem;background:linear-gradient(135deg,rgba(168,74,255,0.22) 0%,rgba(100,40,200,0.3) 100%);border:1px solid rgba(168,74,255,0.45);border-radius:10px;color:#d4a0ff;font-family:var(--font-ui);font-size:.85rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:opacity .2s;}
 .forensic-audit-btn:hover{opacity:.8;}
 .forensic-audit-btn:disabled{opacity:.5;cursor:not-allowed;}
 .fa-header{background:rgba(20,20,40,.7);border:1px solid rgba(168,74,255,.3);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
@@ -1699,7 +1742,7 @@ footer { padding: 2rem 1.5rem; }
 .analiza-workflow{margin-top:16px;padding:14px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.07);}
 .analiza-workflow-naslov{font-size:0.8rem;color:rgba(255,255,255,0.4);margin-bottom:10px;font-weight:600;}
 .analiza-workflow-dugmad{display:flex;flex-wrap:wrap;gap:8px;}
-.analiza-wf-btn{background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.72);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif;transition:all .2s;white-space:nowrap;}
+.analiza-wf-btn{background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.72);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-family:var(--font-ui);transition:all .2s;white-space:nowrap;}
 .analiza-wf-btn:hover{border-color:var(--accent,#4aa8ff);color:#89c8ff;background:rgba(74,168,255,0.08);}
 </style>
 
@@ -1995,6 +2038,13 @@ footer { padding: 2rem 1.5rem; }
               <div class="t-guide-text"><span class="t-guide-bold">Moji predmeti</span> — upravljajte predmetima, dodajte beleške i pratite istoriju razgovora po predmetu.</div>
             </div>
             <button class="pred-new-btn" onclick="pred_openNewModal()">+ Novi predmet</button>
+            <div id="pred-dashboard-alert" style="display:none;font-size:0.65rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:6px;color:#ffbb70;letter-spacing:.03em;"></div>
+            <div id="pred-sort-bar" style="display:flex;gap:0.35rem;margin:0.55rem 0 0.35rem;flex-wrap:wrap;">
+              <button class="pred-sort-btn active" data-sort="svi"         onclick="pred_setSort('svi')"         style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);cursor:pointer;letter-spacing:.04em;">Svi</button>
+              <button class="pred-sort-btn"        data-sort="prioritet"   onclick="pred_setSort('prioritet')"   style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">⚡ Prioritet</button>
+              <button class="pred-sort-btn"        data-sort="rizik"       onclick="pred_setSort('rizik')"       style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">⚠ Rizik</button>
+              <button class="pred-sort-btn"        data-sort="rokovi"      onclick="pred_setSort('rokovi')"      style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">📅 Rokovi</button>
+            </div>
             <div id="pred-list" class="pred-list"></div>
             <div id="pred-detail" class="pred-detail">
               <div class="pred-detail-header">
@@ -2026,6 +2076,34 @@ footer { padding: 2rem 1.5rem; }
     <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">—</span>
   </div>
 </div>
+              </div>
+              <!-- Cockpit panel — AI procena na vrhu -->
+              <div id="pred-cockpit" class="pred-cockpit">
+                <div id="pck-loading" class="pck-loading">⚡ Učitavam AI procenu predmeta...</div>
+                <div id="pck-body" style="display:none;">
+                  <div class="pck-sazetak-row">
+                    <span class="pck-ai-icon">⚡</span>
+                    <span id="pck-sazetak-text" class="pck-sazetak-text"></span>
+                  </div>
+                  <div class="pck-cards">
+                    <div class="pck-card">
+                      <div class="pck-card-lbl">Sledeća akcija</div>
+                      <div id="pck-akcija-opis" class="pck-card-val">—</div>
+                      <div id="pck-akcija-rok" class="pck-card-sub"></div>
+                      <div id="pck-akcija-prio" class="pck-prio-badge" style="display:none;"></div>
+                    </div>
+                    <div class="pck-card">
+                      <div class="pck-card-lbl">Procena rizika</div>
+                      <div id="pck-rizik-badge" class="pck-rizik-badge">—</div>
+                      <div id="pck-rizik-promena" style="display:none;margin-top:.2rem;"></div>
+                      <div id="pck-rizik-faktori" style="margin-top:.35rem;"></div>
+                    </div>
+                    <div class="pck-card">
+                      <div class="pck-card-lbl">Hitni rokovi</div>
+                      <div id="pck-rokovi-list"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="pred-section-lbl">Beleške</div>
               <div id="pred-beleske-list"></div>
@@ -2234,9 +2312,9 @@ footer { padding: 2rem 1.5rem; }
                 <input type="number" id="praksa-year-to" inputmode="numeric" placeholder="Do god." min="2000" max="2030" style="width:96px;box-sizing:border-box;background:rgba(74,168,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
               </div>
               <div style="display:flex;gap:0.45rem;">
-                <button id="praksa-search-btn" onclick="praksa_search()" style="flex:1;padding:0.78rem;background:linear-gradient(135deg,#4aa8ff 0%,#1264c4 100%);border:none;border-radius:10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;letter-spacing:0.04em;cursor:pointer;">Pretraži sudsku praksu</button>
-                <button id="praksa-grupisano-btn" onclick="praksa_load_grupisano()" style="padding:0.78rem 1rem;background:linear-gradient(135deg,rgba(74,222,128,0.18) 0%,rgba(16,185,129,0.22) 100%);border:1px solid rgba(74,222,128,0.35);border-radius:10px;color:#4ade80;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;" title="Grupisanje presuda: Ko dobija?">Za/Protiv</button>
-                <button onclick="praksa_reset_filters()" style="padding:0.78rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.45);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">Resetuj</button>
+                <button id="praksa-search-btn" onclick="praksa_search()" style="flex:1;padding:0.78rem;background:linear-gradient(135deg,#4aa8ff 0%,#1264c4 100%);border:none;border-radius:10px;color:#fff;font-family:var(--font-ui);font-size:0.82rem;font-weight:600;letter-spacing:0.04em;cursor:pointer;">Pretraži sudsku praksu</button>
+                <button id="praksa-grupisano-btn" onclick="praksa_load_grupisano()" style="padding:0.78rem 1rem;background:linear-gradient(135deg,rgba(74,222,128,0.18) 0%,rgba(16,185,129,0.22) 100%);border:1px solid rgba(74,222,128,0.35);border-radius:10px;color:#4ade80;font-family:var(--font-ui);font-size:0.82rem;font-weight:600;cursor:pointer;" title="Grupisanje presuda: Ko dobija?">Za/Protiv</button>
+                <button onclick="praksa_reset_filters()" style="padding:0.78rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.45);font-family:var(--font-ui);font-size:0.82rem;cursor:pointer;">Resetuj</button>
               </div>
               <input type="text" id="praksa-ratio-filter" oninput="praksa_ratio_filter_update()" placeholder="Filtriraj po pravnom stavu..." style="display:none;width:100%;box-sizing:border-box;margin-top:0.45rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:rgba(255,255,255,0.78);font-family:'JetBrains Mono',monospace;font-size:0.72rem;padding:0.65rem 1rem;outline:none;">
               <!-- Phase 3.3: Fallback ručni unos -->
@@ -2251,13 +2329,13 @@ footer { padding: 2rem 1.5rem; }
               </details>
             </div>
             <div id="praksa-loading" style="display:none;text-align:center;padding:1.8rem 0;color:rgba(255,255,255,0.28);font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;">Pretražujem...</div>
-            <div id="praksa-error" style="display:none;padding:0.85rem 1rem;background:rgba(255,60,60,0.07);border:1px solid rgba(255,60,60,0.15);border-radius:10px;color:rgba(255,130,130,0.9);font-family:'DM Sans',sans-serif;font-size:0.78rem;margin-top:0.8rem;"></div>
-            <div id="praksa-empty" style="display:none;text-align:center;padding:1.8rem 0;color:rgba(255,255,255,0.27);font-family:'DM Sans',sans-serif;font-size:0.8rem;">Nema rezultata za zadate filtere.</div>
+            <div id="praksa-error" style="display:none;padding:0.85rem 1rem;background:rgba(255,60,60,0.07);border:1px solid rgba(255,60,60,0.15);border-radius:10px;color:rgba(255,130,130,0.9);font-family:var(--font-ui);font-size:0.78rem;margin-top:0.8rem;"></div>
+            <div id="praksa-empty" style="display:none;text-align:center;padding:1.8rem 0;color:rgba(255,255,255,0.27);font-family:var(--font-ui);font-size:0.8rem;">Nema rezultata za zadate filtere.</div>
             <div id="praksa-results-header" style="display:none;margin-top:0.85rem;margin-bottom:0.45rem;">
               <span id="praksa-results-count" style="font-family:'JetBrains Mono',monospace;font-size:0.54rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.27);"></span>
             </div>
             <div id="praksa-list"></div>
-            <button id="praksa-load-more" onclick="praksa_load_more()" style="display:none;width:100%;margin-top:0.8rem;padding:0.7rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.15);border-radius:10px;color:#4aa8ff;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:500;cursor:pointer;">Učitaj još odluka</button>
+            <button id="praksa-load-more" onclick="praksa_load_more()" style="display:none;width:100%;margin-top:0.8rem;padding:0.7rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.15);border-radius:10px;color:#4aa8ff;font-family:var(--font-ui);font-size:0.8rem;font-weight:500;cursor:pointer;">Učitaj još odluka</button>
             <!-- Phase 3.1: Grupisano Za/Protiv -->
             <div id="praksa-grupisano-loading" style="display:none;text-align:center;padding:1.8rem 0;color:rgba(255,255,255,0.28);font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;">Analiziram ishode...</div>
             <div id="praksa-grupisano-container" style="display:none;margin-top:0.85rem;"></div>
@@ -6288,7 +6366,7 @@ function praksa_render_card(d, idx) {
   if (dateStr) h += '<span style="font-family:JetBrains Mono,monospace;font-size:0.58rem;color:rgba(255,255,255,0.25);">' + dateStr + '</span>';
   h += '</div>';
   if (preview) {
-    h += '<div style="font-family:DM Sans,sans-serif;font-size:0.77rem;color:rgba(255,255,255,0.5);line-height:1.55;margin-bottom:0.5rem;">' + preview + (d.izreka_full && d.izreka_full.length > 200 ? '…' : '') + '</div>';
+    h += '<div style="font-family:var(--font-serif);font-size:0.82rem;color:rgba(255,255,255,0.54);line-height:1.68;margin-bottom:0.5rem;letter-spacing:0.01em;">' + preview + (d.izreka_full && d.izreka_full.length > 200 ? '…' : '') + '</div>';
   }
   h += '<div class="ratio-box" id="ratio-' + idx + '" data-dn="' + esc(d.decision_number) + '" style="display:block">';
   h += '<div class="ratio-lbl">Pravni stav suda</div>';
@@ -6296,9 +6374,9 @@ function praksa_render_card(d, idx) {
   h += '</div>';
   h += '<div style="display:flex;gap:0.45rem;flex-wrap:wrap;">';
   if (hasDetail) {
-    h += '<button id="praksa-expand-btn-' + idx + '" onclick="praksa_expand_decision(' + idx + ')" style="padding:0.25rem 0.7rem;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:6px;color:#4aa8ff;font-family:DM Sans,sans-serif;font-size:0.71rem;cursor:pointer;">▾ Prikaži odluku</button>';
+    h += '<button id="praksa-expand-btn-' + idx + '" onclick="praksa_expand_decision(' + idx + ')" style="padding:0.25rem 0.7rem;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:6px;color:#4aa8ff;font-family:var(--font-ui);font-size:0.71rem;cursor:pointer;">▾ Prikaži odluku</button>';
   }
-  h += '<button onclick="praksa_copy_citation(\'' + jsDn + '\',\'' + dateStr + '\',\'' + jsCourt + '\')" style="padding:0.25rem 0.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:rgba(255,255,255,0.38);font-family:DM Sans,sans-serif;font-size:0.71rem;cursor:pointer;">Kopiraj citiranje</button>';
+  h += '<button onclick="praksa_copy_citation(\'' + jsDn + '\',\'' + dateStr + '\',\'' + jsCourt + '\')" style="padding:0.25rem 0.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:rgba(255,255,255,0.38);font-family:var(--font-ui);font-size:0.71rem;cursor:pointer;">Kopiraj citiranje</button>';
   h += '<label class="vx-compare-checkbox" data-odluka-id="' + safeDn + '" data-odluka-naziv="' + safeDn + '">';
   h += '<input type="checkbox" class="compare-check" value="' + safeDn + '">';
   h += '<span>Uporedi</span></label>';
@@ -6307,11 +6385,11 @@ function praksa_render_card(d, idx) {
     h += '<div id="' + expandId + '" style="display:none;margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid rgba(255,255,255,0.06);">';
     if (d.izreka_full) {
       h += '<div style="font-family:JetBrains Mono,monospace;font-size:0.51rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(74,168,255,0.5);margin-bottom:0.3rem;">Izreka</div>';
-      h += '<div style="font-family:DM Sans,sans-serif;font-size:0.77rem;color:rgba(255,255,255,0.68);line-height:1.58;margin-bottom:0.75rem;white-space:pre-wrap;">' + esc(d.izreka_full) + '</div>';
+      h += '<div style="font-family:var(--font-serif);font-size:0.84rem;color:rgba(255,255,255,0.72);line-height:1.75;margin-bottom:0.75rem;white-space:pre-wrap;letter-spacing:0.01em;">' + esc(d.izreka_full) + '</div>';
     }
     if (d.obrazlozenje_full) {
       h += '<div style="font-family:JetBrains Mono,monospace;font-size:0.51rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(74,168,255,0.5);margin-bottom:0.3rem;">Obrazloženje</div>';
-      h += '<div style="font-family:DM Sans,sans-serif;font-size:0.77rem;color:rgba(255,255,255,0.58);line-height:1.58;white-space:pre-wrap;">' + esc(d.obrazlozenje_full) + '</div>';
+      h += '<div style="font-family:var(--font-serif);font-size:0.82rem;color:rgba(255,255,255,0.62);line-height:1.72;white-space:pre-wrap;letter-spacing:0.01em;">' + esc(d.obrazlozenje_full) + '</div>';
     }
     h += '</div>';
   }
@@ -7574,6 +7652,9 @@ var activePredmetId   = null;
 var activePredmetNaziv = '';
 var _predmeti         = [];
 var _predIstorijaData = [];
+var _dashboardData    = {};   // predmet_id → {rizik_nivo, urgentni_rokovi_count, sledeci_rok}
+var _predSort         = 'svi';
+var _dashboardLists   = {};   // po_prioritetu, po_riziku, po_rokovima
 
 function _predAuthHdr() {
   return currentSession ? { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token } : {};
@@ -7582,12 +7663,48 @@ function _predAuthHdr() {
 async function pred_load() {
   if (!currentSession) return;
   try {
-    var r = await fetch(BASE_URL+'/api/predmeti', { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
+    var [r, rd] = await Promise.all([
+      fetch(BASE_URL+'/api/predmeti',           { headers: { 'Authorization':'Bearer '+currentSession.access_token } }),
+      fetch(BASE_URL+'/api/predmeti/dashboard', { headers: { 'Authorization':'Bearer '+currentSession.access_token } }),
+    ]);
     if (!r.ok) return;
     var d = await r.json();
     _predmeti = d.predmeti || [];
+    if (rd.ok) {
+      var dd = await rd.json();
+      _dashboardLists = {
+        po_prioritetu: dd.po_prioritetu || [],
+        po_riziku:     dd.po_riziku     || [],
+        po_rokovima:   dd.po_rokovima   || [],
+      };
+      _dashboardData = {};
+      (dd.predmeti || []).forEach(function(e){ _dashboardData[e.id] = e; });
+      // Show dashboard stats if there are alerts
+      var stats = dd.statistike || {};
+      if ((stats.visok_rizik || 0) > 0 || (stats.hitni_rokovi || 0) > 0) {
+        var alertBar = document.getElementById('pred-dashboard-alert');
+        if (alertBar) {
+          var parts = [];
+          if (stats.visok_rizik)  parts.push(stats.visok_rizik+' visok rizik');
+          if (stats.hitni_rokovi) parts.push(stats.hitni_rokovi+' hitnih rokova');
+          alertBar.textContent = '⚠ ' + parts.join(' · ');
+          alertBar.style.display = 'block';
+        }
+      }
+    }
     pred_renderList();
   } catch(e) {}
+}
+
+function pred_setSort(mode) {
+  _predSort = mode;
+  document.querySelectorAll('.pred-sort-btn').forEach(function(b){
+    var isActive = b.dataset.sort === mode;
+    b.style.background   = isActive ? 'rgba(74,168,255,.15)' : 'transparent';
+    b.style.borderColor  = isActive ? 'rgba(74,168,255,.35)' : 'rgba(255,255,255,.1)';
+    b.style.color        = isActive ? '#89c8ff' : 'rgba(255,255,255,.45)';
+  });
+  pred_renderList();
 }
 
 function pred_renderList() {
@@ -7597,15 +7714,43 @@ function pred_renderList() {
     el.innerHTML = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.3);text-align:center;padding:1.2rem 0;">Nemate predmeta. Kreirajte prvi.</div>';
     return;
   }
-  el.innerHTML = _predmeti.map(function(p){
-    var tipCls = p.tip === 'radni' ? 'radni' : p.tip === 'privredni' ? 'privredni' : '';
-    var active = p.id === activePredmetId ? ' active' : '';
+
+  // Determine sorted list
+  var list;
+  if (_predSort === 'prioritet' && _dashboardLists.po_prioritetu && _dashboardLists.po_prioritetu.length) {
+    list = _dashboardLists.po_prioritetu;
+  } else if (_predSort === 'rizik' && _dashboardLists.po_riziku && _dashboardLists.po_riziku.length) {
+    list = _dashboardLists.po_riziku;
+  } else if (_predSort === 'rokovi' && _dashboardLists.po_rokovima && _dashboardLists.po_rokovima.length) {
+    list = _dashboardLists.po_rokovima;
+  } else {
+    list = _predmeti;
+  }
+
+  var _RIZIK_COLOR = {visok:'#ff9090', srednji:'#ffbb70', nizak:'#7de0a0'};
+
+  el.innerHTML = list.map(function(p){
+    var tipCls  = p.tip === 'radni' ? 'radni' : p.tip === 'privredni' ? 'privredni' : '';
+    var active  = p.id === activePredmetId ? ' active' : '';
     var statusCls = p.status === 'aktivan' ? 'pred-status-aktivan' : 'pred-status-zatvoren';
     var statusLbl = (p.status || 'aktivan').toUpperCase();
+    var di = _dashboardData[p.id] || {};
+    var rizikHtml = '';
+    if (di.rizik_nivo) {
+      var rColor = _RIZIK_COLOR[di.rizik_nivo] || 'rgba(255,255,255,.4)';
+      rizikHtml = '<span style="font-size:0.58rem;font-weight:700;color:'+rColor+';margin-left:0.3rem;letter-spacing:.04em;">'+di.rizik_nivo.toUpperCase()+'</span>';
+    }
+    var rokHtml = '';
+    if (di.urgentni_rokovi_count && di.urgentni_rokovi_count > 0) {
+      rokHtml = '<span style="font-size:0.58rem;color:#ffbb70;margin-left:0.25rem;" title="Hitnih rokova: '+di.urgentni_rokovi_count+'">⏰'+di.urgentni_rokovi_count+'</span>';
+    }
     return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'">'
       +'<span class="pred-naziv">📁 '+escHtml(p.naziv)+'</span>'
-      +'<span class="pred-badge '+tipCls+'" style="margin-right:0.3rem;">'+escHtml(p.tip)+'</span>'
+      +'<span style="display:flex;align-items:center;gap:0;flex-shrink:0;">'
+      +'<span class="pred-badge '+tipCls+'" style="margin-right:0.25rem;">'+escHtml(p.tip)+'</span>'
       +'<span class="'+statusCls+'" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span>'
+      +rizikHtml+rokHtml
+      +'</span>'
       +'</div>';
   }).join('');
 }
@@ -7645,17 +7790,184 @@ function pred_updateIndicator() {
   }
 }
 
+function pred_renderCockpit(cockpit, urgentni) {
+  var loadEl = document.getElementById('pck-loading');
+  var bodyEl = document.getElementById('pck-body');
+  if (!cockpit || !cockpit.ai_sazetak) {
+    if (loadEl) loadEl.style.display = 'none';
+    return;
+  }
+  if (loadEl) loadEl.style.display = 'none';
+  if (bodyEl) bodyEl.style.display = 'block';
+
+  var sazEl = document.getElementById('pck-sazetak-text');
+  if (sazEl) sazEl.textContent = cockpit.ai_sazetak || '';
+
+  var sa = cockpit.sledeca_akcija || {};
+  var opEl = document.getElementById('pck-akcija-opis');
+  if (opEl) opEl.textContent = sa.opis || '—';
+  var rokEl = document.getElementById('pck-akcija-rok');
+  if (rokEl) rokEl.textContent = sa.rok ? 'Rok: ' + sa.rok : '';
+  var prioEl = document.getElementById('pck-akcija-prio');
+  if (prioEl && sa.prioritet) {
+    prioEl.textContent = sa.prioritet === 'hitan' ? '⚠ HITNO' : sa.prioritet;
+    prioEl.className = 'pck-prio-badge ' + sa.prioritet;
+    prioEl.style.display = 'inline-block';
+  }
+
+  var rz = cockpit.procena_rizika || {};
+  var rzEl = document.getElementById('pck-rizik-badge');
+  if (rzEl) {
+    var nivo = rz.nivo || '';
+    rzEl.textContent = nivo ? nivo.charAt(0).toUpperCase() + nivo.slice(1) + ' rizik' : '—';
+    rzEl.className = 'pck-rizik-badge ' + nivo;
+  }
+  // Risk change indicator
+  var prEl = document.getElementById('pck-rizik-promena');
+  if (prEl) {
+    var prm = cockpit.rizik_promena;
+    if (prm && prm.prethodni && prm.trenutni) {
+      var arrow = prm.trenutni === 'visok' ? '↑' : (prm.trenutni === 'nizak' ? '↓' : '→');
+      var prmColor = prm.trenutni === 'visok' ? '#ff9090' : (prm.trenutni === 'nizak' ? '#7de0a0' : '#ffbb70');
+      prEl.innerHTML = '<span style="font-size:0.62rem;color:'+prmColor+';font-weight:700;">'+arrow+' '+escHtml(prm.prethodni)+' → '+escHtml(prm.trenutni)+'</span>';
+      prEl.style.display = 'block';
+    } else {
+      prEl.style.display = 'none';
+    }
+  }
+  var fkEl = document.getElementById('pck-rizik-faktori');
+  if (fkEl) {
+    var html = '';
+    (rz.faktori_plus || []).slice(0,2).forEach(function(f){
+      html += '<div class="pck-faktor plus">+ '+escHtml(f)+'</div>';
+    });
+    (rz.faktori_minus || []).slice(0,2).forEach(function(f){
+      html += '<div class="pck-faktor minus">− '+escHtml(f)+'</div>';
+    });
+    fkEl.innerHTML = html;
+  }
+
+  var rkEl = document.getElementById('pck-rokovi-list');
+  if (rkEl) {
+    var ur = (urgentni || []).slice(0,3);
+    if (!ur.length) {
+      rkEl.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.28);">Nema hitnih rokova.</div>';
+    } else {
+      rkEl.innerHTML = ur.map(function(h){
+        return '<div class="pck-rok-item">📅 '+escHtml(h.dogadjaj||'')+(h.datum_iso?' ('+h.datum_iso+')':'')+'</div>';
+      }).join('');
+    }
+  }
+}
+
+function pred_renderConfirmCard(predlozi, metadata) {
+  var klijentItems = (predlozi || []).slice(0,3).map(function(p, i){
+    var pct   = p.pouzdanost || 0;
+    var pColor = pct >= 90 ? '#7de0a0' : '#ffbb70';
+    var naziv = p.naziv || ((p.ime||'')+' '+(p.prezime||'')).trim() || p.firma || p.id || '?';
+    return {html:
+      '<div style="display:flex;align-items:center;gap:0.55rem;margin-bottom:0.38rem;">'
+      +'<input type="checkbox" id="conf-kl-'+i+'" checked style="accent-color:#4aa8ff;width:14px;height:14px;">'
+      +'<label for="conf-kl-'+i+'" style="font-size:0.78rem;color:#fff;flex:1;cursor:pointer;">'+escHtml(naziv)+'</label>'
+      +'<span style="font-size:0.6rem;color:'+pColor+';font-family:var(--font-mono);">'+pct+'%</span>'
+      +'</div>',
+      id: p.id || p.klijent_id || '', idx: i
+    };
+  });
+  var rokItems = [];
+  var datumi = (metadata && metadata.datumi_kljucni) ? metadata.datumi_kljucni : [];
+  if (datumi.length > 0) {
+    var d0   = datumi[0];
+    var rNaziv = d0.opis || d0.naziv || 'Rok iz dokumenta';
+    var rDatum = d0.datum_iso || d0.datum || '';
+    rokItems.push({html:
+      '<div style="display:flex;align-items:center;gap:0.55rem;margin-bottom:0.38rem;">'
+      +'<input type="checkbox" id="conf-rok-0" checked style="accent-color:#4aa8ff;width:14px;height:14px;">'
+      +'<label for="conf-rok-0" style="font-size:0.78rem;color:#fff;flex:1;cursor:pointer;">Dodaj rok: '+escHtml(rNaziv)+(rDatum?' ('+rDatum+')':'')+'</label>'
+      +'</div>',
+      naziv: rNaziv, datum_iso: rDatum, vaznost: 'bitan'
+    });
+  }
+  if (!klijentItems.length && !rokItems.length) return '';
+  var kIds = JSON.stringify(klijentItems.map(function(k){ return {id: k.id, idx: k.idx}; }));
+  var rData = rokItems.length ? JSON.stringify(rokItems[0]) : 'null';
+  var html = '<div id="pred-confirm-card" style="margin-top:0.75rem;border:1px solid rgba(74,168,255,.22);border-radius:10px;background:rgba(74,168,255,.05);padding:0.8rem 1rem;">'
+    +'<div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#4aa8ff;margin-bottom:0.6rem;font-weight:700;">⚡ AI Prepoznao</div>';
+  klijentItems.forEach(function(k){ html += k.html; });
+  rokItems.forEach(function(r){ html += r.html; });
+  html += '<button onclick="pred_confirmLinks('+kIds+','+rData+')" style="margin-top:0.55rem;width:100%;padding:0.55rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.28);border-radius:7px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;letter-spacing:.02em;">✓ Potvrdi i poveži</button>'
+    +'</div>';
+  return html;
+}
+
+async function pred_confirmLinks(klijentItems, rokData) {
+  if (!currentSession || !activePredmetId) return;
+  var selectedIds = (klijentItems||[])
+    .filter(function(k){ var el = document.getElementById('conf-kl-'+k.idx); return el && el.checked; })
+    .map(function(k){ return k.id; })
+    .filter(Boolean);
+  var dodajRok = null;
+  if (rokData) {
+    var rokEl = document.getElementById('conf-rok-0');
+    if (rokEl && rokEl.checked) dodajRok = {naziv: rokData.naziv, datum_iso: rokData.datum_iso, vaznost: rokData.vaznost};
+  }
+  try {
+    var r = await fetch(BASE_URL+'/api/predmeti/'+activePredmetId+'/confirm-links', {
+      method: 'POST',
+      headers: _predAuthHdr(),
+      body: JSON.stringify({klijent_ids: selectedIds, dodaj_rok: dodajRok}),
+    });
+    var d = await r.json();
+    if (d && d.success) {
+      var card = document.getElementById('pred-confirm-card');
+      if (card) card.innerHTML = '<div style="font-size:0.75rem;color:#7de0a0;padding:0.3rem 0;font-weight:600;">✓ Sačuvano.</div>';
+      pred_loadDetail(activePredmetId);
+    }
+  } catch(e) {}
+}
+
 async function pred_loadDetail(id) {
   if (!currentSession) return;
+  // Reset cockpit to loading state
+  var loadEl = document.getElementById('pck-loading');
+  var bodyEl = document.getElementById('pck-body');
+  if (loadEl) { loadEl.textContent = '⚡ Učitavam AI procenu predmeta...'; loadEl.style.display = 'block'; }
+  if (bodyEl) bodyEl.style.display = 'none';
+
   try {
-    var r = await fetch(BASE_URL+'/api/predmeti/'+id, { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
-    if (!r.ok) return;
+    var r = await fetch(BASE_URL+'/api/predmeti/'+id+'/workspace', { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
+    if (!r.ok) { if (loadEl) loadEl.style.display='none'; return; }
     var d = await r.json();
+
+    // Badge
     var badge = document.getElementById('pred-detail-badge');
     if (badge && d.predmet) {
       badge.textContent = d.predmet.tip || '';
       badge.className = 'pred-badge ' + (d.predmet.tip || '');
     }
+
+    // Status panel — fill with real data from workspace
+    var tuzEl = document.getElementById('pred-s-tuzilac');
+    if (tuzEl) {
+      var st0 = d.stranke && d.stranke[0];
+      tuzEl.textContent = st0 ? (((st0.ime||'')+' '+(st0.prezime||'')).trim() || st0.firma || '—') : '—';
+    }
+    var tuzeniEl = document.getElementById('pred-s-tuzeni');
+    if (tuzeniEl) {
+      var ps0 = d.protivna_strana && d.protivna_strana[0];
+      tuzeniEl.textContent = ps0 ? (((ps0.ime||'')+' '+(ps0.prezime||'')).trim() || ps0.firma || '—') : '—';
+    }
+    var oblEl = document.getElementById('pred-s-oblast');
+    if (oblEl && d.predmet) oblEl.textContent = d.predmet.tip || '—';
+    var rizikEl = document.getElementById('pred-s-rizik');
+    if (rizikEl && d.cockpit && d.cockpit.procena_rizika) {
+      var rn = d.cockpit.procena_rizika.nivo || '';
+      rizikEl.textContent = rn ? rn.charAt(0).toUpperCase()+rn.slice(1) : '—';
+      rizikEl.style.color = rn==='visok'?'#ff9090':rn==='srednji'?'#ffbb70':rn==='nizak'?'#7de0a0':'rgba(255,255,255,.5)';
+    }
+    var dozEl = document.getElementById('pred-s-dokazi');
+    if (dozEl) dozEl.textContent = d.statistike ? d.statistike.dokumenti_count+' dok.' : '—';
+
     // Beleške
     var belEl = document.getElementById('pred-beleske-list');
     if (belEl) {
@@ -7665,6 +7977,7 @@ async function pred_loadDetail(id) {
         belEl.innerHTML = d.beleske.map(function(b){ return '<div class="beleska-item">'+escHtml(b.sadrzaj)+'</div>'; }).join('');
       }
     }
+
     // Istorija — timeline format
     var istEl = document.getElementById('pred-istorija-list');
     if (istEl) {
@@ -7688,9 +8001,15 @@ async function pred_loadDetail(id) {
         istEl.innerHTML = tlHtml;
       }
     }
+
+    // Cockpit
+    pred_renderCockpit(d.cockpit || {}, (d.rokovi && d.rokovi.urgentni) || []);
+
     pred_loadHronologija(id);
     ucitajKomentare(id);
-  } catch(e) {}
+  } catch(e) {
+    if (loadEl) loadEl.style.display = 'none';
+  }
 }
 
 async function pred_loadHronologija(predmetId) {
@@ -7831,12 +8150,21 @@ async function pred_upload_doc(file) {
       return;
     }
     var d = await r.json();
+    var mainHtml = '';
     if (d.procena) {
       var _rndr = (d.doc_type === 'presuda') ? pred_renderPresuda : pred_renderProcena;
-      if (resEl) resEl.innerHTML = _rndr(d.procena);
+      mainHtml = _rndr(d.procena);
     } else {
-      if (resEl) resEl.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:0.78rem;">Dokument je učitan. Analiza nije generisana — pokušajte ručni unos.</div>';
+      mainHtml = '<div style="color:rgba(255,255,255,0.4);font-size:0.78rem;">Dokument je učitan. Analiza nije generisana — pokušajte ručni unos.</div>';
     }
+    // Wall 4: confirm card for auto-link suggestions
+    var confirmHtml = '';
+    var hasPredlozi = d.predlozi_povezivanja && d.predlozi_povezivanja.length > 0;
+    var hasDatumi   = d.metadata && d.metadata.datumi_kljucni && d.metadata.datumi_kljucni.length > 0;
+    if (hasPredlozi || hasDatumi) {
+      confirmHtml = pred_renderConfirmCard(d.predlozi_povezivanja || [], d.metadata || {});
+    }
+    if (resEl) resEl.innerHTML = mainHtml + confirmHtml;
     pred_loadDetail(activePredmetId);
     pred_loadHronologija(activePredmetId);
     setTimeout(function(){ pred_loadHronologija(activePredmetId); }, 3500);
