@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <title>Vindex AI - Pravni asistent za Srbiju</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -124,7 +124,7 @@
 html { scroll-behavior: smooth; overflow-x: hidden; max-width: 100%; }
 ::-webkit-scrollbar { width: 3px; background: #010308; }
 ::-webkit-scrollbar-thumb { background: rgba(74,168,255,0.25); border-radius: 2px; }
-body { background: #010308; color: rgba(255,255,255,0.95); font-family: 'DM Sans', sans-serif; overflow-x: hidden; max-width: 100%; cursor: none; }
+body { background: #010308; color: rgba(255,255,255,0.95); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; max-width: 100%; cursor: none; }
 
 #cursor { position: fixed; width: 10px; height: 10px; background: #4aa8ff; border-radius: 50%; pointer-events: none; z-index: 8999; transform: translate(-50%,-50%); box-shadow: 0 0 15px #4aa8ff; mix-blend-mode: screen; transition: width 0.2s, height 0.2s; }
 #cursor-ring { position: fixed; width: 34px; height: 34px; border: 1px solid rgba(74,168,255,0.45); border-radius: 50%; pointer-events: none; z-index: 8998; transform: translate(-50%,-50%); transition: all 0.12s ease; }
@@ -216,6 +216,22 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .hi-trust { list-style: none; display: flex; flex-direction: column; gap: 0.48rem; }
 .hi-trust-item { font-size: 0.8rem; color: rgba(168,202,238,0.6); display: flex; align-items: flex-start; gap: 0.52rem; line-height: 1.55; font-weight: 300; }
 .hi-trust-item::before { content: '→'; color: #4aa8ff; font-size: 0.64rem; flex-shrink: 0; margin-top: 0.12rem; }
+
+/* Value pillars — hero desna kolona */
+.vp-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.68rem; }
+.vp-card { background: rgba(74,168,255,0.024); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(74,168,255,0.1); border-radius: 13px; padding: 1.15rem 0.9rem 1.1rem; transition: border-color 0.28s, box-shadow 0.28s, transform 0.28s cubic-bezier(0.16,1,0.3,1); }
+.vp-card:hover { border-color: rgba(74,168,255,0.2); box-shadow: 0 6px 28px rgba(74,168,255,0.07), 0 2px 8px rgba(0,0,0,0.3); transform: translateY(-3px); }
+.vp-icon { font-size: 1.25rem; display: block; margin-bottom: 0.55rem; opacity: 0.88; }
+.vp-title { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: #cde0f8; letter-spacing: 0.03em; margin-bottom: 0.38rem; }
+.vp-desc { font-size: 0.69rem; color: rgba(155,195,234,0.52); line-height: 1.62; font-weight: 300; }
+
+/* Hero tagline (zamenjuje statistike u footer-u) */
+.hero-tagline { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.05rem, 2vw, 1.42rem); font-weight: 400; font-style: italic; color: rgba(205,224,248,0.62); line-height: 1.55; text-align: center; max-width: 600px; margin: 0 auto 2rem; opacity: 0; animation: ht-in 0.9s ease 0.5s forwards; }
+@keyframes ht-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+/* About heading — AI blue span */
+.sh .hi-ai { color: #4aa8ff; font-style: normal; }
+
 .hero-foot { width: 100%; max-width: 900px; position: relative; z-index: 2; text-align: center; }
 #sphereCanvas { width: 100%; height: 100%; }
 
@@ -2472,18 +2488,21 @@ footer { padding: 2rem 1.5rem; }
       <div class="hero-intro-panel">
         <span class="hi-label">Pravni alat za Srbiju</span>
         <p>AI asistent <strong>izgrađen isključivo na srpskom pravu.</strong> Ne generiše iz memorije — svaki odgovor pretražuje aktivnu bazu zakona RS i sudsku praksu VKS u realnom vremenu.</p>
-        <div class="hi-stats">
-          <div class="hi-stat">
-            <div class="hi-stat-n">18+</div>
-            <div class="hi-stat-l">zakona RS<br>u bazi</div>
+        <div class="vp-grid">
+          <div class="vp-card">
+            <span class="vp-icon">⚖️</span>
+            <div class="vp-title">Pravo</div>
+            <div class="vp-desc">30.000+ pravnih izvora indeksirano i povezano kroz jedinstven sistem pretrage zakona i sudske prakse.</div>
           </div>
-          <div class="hi-stat">
-            <div class="hi-stat-n">12.604</div>
-            <div class="hi-stat-l">sudskih<br>odluka</div>
+          <div class="vp-card">
+            <span class="vp-icon">🧠</span>
+            <div class="vp-title">Inteligencija</div>
+            <div class="vp-desc">AI analizira zakone, sudsku praksu, dokumente, argumentaciju i pravnu strategiju u jednom toku rada.</div>
           </div>
-          <div class="hi-stat">
-            <div class="hi-stat-n">7</div>
-            <div class="hi-stat-l">AI modula<br>za advokate</div>
+          <div class="vp-card">
+            <span class="vp-icon">🏢</span>
+            <div class="vp-title">Operativa</div>
+            <div class="vp-desc">Klijenti, predmeti, dokumenti, rokovi i interna znanja objedinjeni na jednom mestu.</div>
           </div>
         </div>
         <ul class="hi-trust">
@@ -2497,22 +2516,9 @@ footer { padding: 2rem 1.5rem; }
 
   </div><!-- /hero-3col -->
 
-  <!-- STATISTIKE + CTA -->
+  <!-- TAGLINE + CTA -->
   <div class="hero-foot">
-    <div class="h-stats">
-      <div class="h-stat">
-        <div class="h-stat-num" data-target="30365" data-suf="">0</div>
-        <div class="h-stat-lbl">Pravnih izvora u bazi</div>
-      </div>
-      <div class="h-stat">
-        <div class="h-stat-num">18 <span class="acc">·</span> 12.604</div>
-        <div class="h-stat-lbl">zakona i sudskih odluka</div>
-      </div>
-      <div class="h-stat">
-        <div class="h-stat-num">&lt;10<span class="acc">s</span></div>
-        <div class="h-stat-lbl">Prosečna brzina</div>
-      </div>
-    </div>
+    <p class="hero-tagline">Od pravnog pitanja do podneska, strategije i predmeta — u jednom sistemu.</p>
     <div class="h-cta" style="margin-bottom:0;">
       <a href="#" class="btn-primary magnetic" onclick="openModal();return false;">Počni besplatno</a>
       <a href="#features" class="btn-ghost">Pogledaj funkcije &rarr;</a>
@@ -2703,7 +2709,7 @@ footer { padding: 2rem 1.5rem; }
 
 <section class="section alt" id="about">
   <div class="sbadge r">O sistemu</div>
-  <div class="sh r d1">Zašto Vindex AI <span class="gold">postoji.</span></div>
+  <div class="sh r d1">Zašto Vindex <span class="hi-ai">AI</span> postoji.</div>
   <div class="about-grid">
     <div>
       <div class="about-q r">Pre Vindex AI, advokat u Srbiji je istu pretragu radio ručno: Legalis za tekst zakona, Paragraf za sudsku praksu, ručna provera Sl. glasnika. Sati posla pre prvog razgovora sa klijentom — za informaciju koja bi trebalo da bude dostupna za 10 sekundi.<br><br><strong>Vindex AI ne ubrzava taj stari proces. Zamenjuje ga.</strong></div>
