@@ -1,5 +1,5 @@
-// sw.js — Vindex AI Service Worker (F6)
-const CACHE_NAME = "vindex-v1";
+// sw.js — Vindex AI Service Worker (F7)
+const CACHE_NAME = "vindex-v2";
 const STATIC_ASSETS = ["/app", "/static/manifest.json"];
 
 self.addEventListener("install", event => {
