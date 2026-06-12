@@ -469,3 +469,110 @@ async def sudska_praksa_grupisano(query: str, request: Request):
             status_code=500,
             content={"error": "Greška Pinecone servisa", "detail": str(exc)[:200]},
         )
+
+
+# ── P4 — Argument Mapping ─────────────────────────────────────────────────────
+
+_ARGUMENT_MAP_SYSTEM = """Ti si pravni analitičar specijalizovan za srpsku sudsku praksu.
+Dato je pravno pitanje/argument i lista sudskih odluka.
+Za SVAKU odluku odredi da li podržava, suprotstavlja ili je neutralna u odnosu na dati argument.
+
+Odgovori ISKLJUČIVO u JSON formatu:
+{
+  "za_mene": [{"decision_number": str, "court": str, "decision_date": str, "razlog": str, "izreka_preview": str}],
+  "protiv_mene": [{"decision_number": str, "court": str, "decision_date": str, "razlog": str, "izreka_preview": str}],
+  "neutralno": [{"decision_number": str, "court": str, "decision_date": str, "razlog": str, "izreka_preview": str}]
+}
+
+Razlog: 1-2 rečenice zašto je odluka za/protiv/neutralna.
+Budi precizan — ne halucinuj. Ako nisi siguran, stavi u neutralno."""
+
+
+class ArgumentMapReq(BaseModel):
+    argument: str = Field(..., min_length=10, max_length=2000, description="Pravni argument/pozicija stranke")
+    q:        Optional[str] = Field(default=None, max_length=400, description="Opcioni query za pretragu prakse (default = argument)")
+
+
+@router.post("/api/praksa/argument-map")
+@limiter.limit("10/minute")
+async def argument_map(
+    req: ArgumentMapReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Argument Mapping — klasifikuje sudsku praksu u ZA/PROTIV/NEUTRALNO za dati argument.
+    Vraća strukturiran prikaz koji direktno podržava ili opovrgava pravnu poziciju.
+    """
+    search_q = (req.q or req.argument)[:400]
+
+    # Fetch top-15 results from Pinecone
+    try:
+        from app.services.retrieve import retrieve_sudska_praksa as _rp
+        matches = await asyncio.to_thread(_rp, search_q, 15)
+    except Exception as exc:
+        logger.error("[ARGUMENT-MAP] Pinecone greška: %s", exc)
+        return JSONResponse(status_code=500, content={"error": "Greška pri pretrazi prakse."})
+
+    if not matches:
+        return {"argument": req.argument, "za_mene": [], "protiv_mene": [], "neutralno": [], "ukupno": 0}
+
+    # Build score_map: decision_number → pinecone similarity score
+    score_map: dict = {}
+    decisions_text = ""
+    for i, m in enumerate(matches, 1):
+        meta = m.get("metadata", {})
+        dn = meta.get("decision_number", "")
+        if dn:
+            score_map[dn] = round(m.get("score", 0), 4)
+        decisions_text += (
+            f"\n[{i}] Broj: {dn or '?'} | Sud: {meta.get('court','?')} | "
+            f"Datum: {meta.get('decision_date','?')}\n"
+            f"Izreka: {meta.get('izreka_preview', meta.get('tekst',''))[:300]}\n"
+        )
+
+    import os as _os, json as _json
+    from openai import AsyncOpenAI
+    oai = AsyncOpenAI(api_key=_os.getenv("OPENAI_API_KEY", ""))
+
+    try:
+        resp = await oai.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=2000,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _ARGUMENT_MAP_SYSTEM},
+                {"role": "user",   "content": f"MOJ ARGUMENT:\n{req.argument}\n\nSUDSKE ODLUKE:{decisions_text}"},
+            ],
+        )
+        result = _json.loads(resp.choices[0].message.content or "{}")
+    except Exception as exc:
+        logger.error("[ARGUMENT-MAP] OpenAI greška: %s", exc)
+        return JSONResponse(status_code=500, content={"error": "Greška pri klasifikaciji argumenata."})
+
+    za      = result.get("za_mene", [])
+    protiv  = result.get("protiv_mene", [])
+    neutral = result.get("neutralno", [])
+
+    def _confidence(group: list) -> int:
+        if not group:
+            return 0
+        scores = [score_map.get(item.get("decision_number", ""), 0.5) for item in group]
+        return min(99, round(sum(scores) / len(scores) * 100))
+
+    total = len(za) + len(protiv) + len(neutral)
+    return {
+        "argument":    req.argument,
+        "za_mene":     za,
+        "protiv_mene": protiv,
+        "neutralno":   neutral,
+        "ukupno":      total,
+        "rezime": {
+            "za_count":          len(za),
+            "za_pouzdanost":     _confidence(za),
+            "protiv_count":      len(protiv),
+            "protiv_pouzdanost": _confidence(protiv),
+            "neutral_count":     len(neutral),
+        },
+    }

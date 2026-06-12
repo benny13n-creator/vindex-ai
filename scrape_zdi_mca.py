@@ -9,6 +9,9 @@ NAPOMENA: paragraf.rs može imati rate limiting.
 Ako dobiješ 403/429, dodaj time.sleep(2) između zahteva.
 """
 
+import sys, io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
 import os
 import re
 import time

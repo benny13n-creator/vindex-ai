@@ -1188,6 +1188,181 @@ async def intake_wizard(req: IntakeWizardReq, request: Request):
     }
 
 
+# ── P2 — Relationship Engine ──────────────────────────────────────────────────
+
+@router.get("/klijenti/{klijent_id}/relationship")
+async def klijent_relationship(klijent_id: str, request: Request):
+    """
+    CRM V2 — Kompletna relacijska slika klijenta:
+    klijent + svi predmeti (sa ulogom) + svi dokumenti + komunikacija + statistike.
+    """
+    user = await _auth_from_request(request)
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    # Ownership check
+    kl_row = await asyncio.to_thread(
+        lambda: supa.table("klijenti")
+            .select("*")
+            .eq("id", klijent_id)
+            .eq("user_id", uid)
+            .is_("deleted_at", "null")
+            .single()
+            .execute()
+    )
+    if not kl_row.data:
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen")
+
+    klijent = filter_klijent(kl_row.data, _get_role(uid, user.get("email", "")))
+
+    # Parallel fetch of all relationship data
+    pk_r, dok_r, kom_r = await asyncio.gather(
+        asyncio.to_thread(
+            lambda: supa.table("predmet_klijenti")
+                .select("predmet_id, uloga_klijenta, napomena")
+                .eq("klijent_id", klijent_id)
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("klijenti_dokumenti")
+                .select("id, naziv_fajla, uploaded_at, velicina_kb, status")
+                .eq("klijent_id", klijent_id)
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("klijent_komunikacija")
+                .select("id, tip, datum_vreme, kratak_opis, kanal, created_at")
+                .eq("klijent_id", klijent_id)
+                .order("datum_vreme", desc=True)
+                .limit(50)
+                .execute()
+        ),
+    )
+
+    # Resolve predmeti names
+    predmeti_linked = []
+    pred_ids = []
+    if pk_r.data:
+        pred_ids = [r["predmet_id"] for r in pk_r.data]
+        preds_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+                .select("id, naziv, tip, status, created_at")
+                .in_("id", pred_ids)
+                .execute()
+        )
+        pred_map = {p["id"]: p for p in (preds_r.data or [])}
+        for pk in pk_r.data:
+            pred = pred_map.get(pk["predmet_id"])
+            if pred:
+                predmeti_linked.append({
+                    **pred,
+                    "uloga": pk.get("uloga_klijenta", "stranka"),
+                    "napomena": pk.get("napomena", ""),
+                })
+
+    # Network View — fetch all other klijenti in the same predmeti
+    other_pk_rows = []
+    other_kl_map: dict = {}
+    if pred_ids:
+        try:
+            other_pk_r = await asyncio.to_thread(
+                lambda: supa.table("predmet_klijenti")
+                    .select("predmet_id, klijent_id, uloga_klijenta")
+                    .in_("predmet_id", pred_ids)
+                    .neq("klijent_id", klijent_id)
+                    .execute()
+            )
+            other_pk_rows = other_pk_r.data or []
+            other_ids = list(set(r["klijent_id"] for r in other_pk_rows))
+            if other_ids:
+                other_kl_r = await asyncio.to_thread(
+                    lambda: supa.table("klijenti")
+                        .select("id, ime, prezime, firma, tip")
+                        .in_("id", other_ids)
+                        .execute()
+                )
+                other_kl_map = {r["id"]: r for r in (other_kl_r.data or [])}
+        except Exception as _ne:
+            logger.warning("[RELATIONSHIP-NET] network fetch greška: %s", _ne)
+
+    def _naziv_kl(kl: dict) -> str:
+        if kl.get("tip") == "pravno_lice":
+            return kl.get("firma") or f"{kl.get('ime','')} {kl.get('prezime','')}".strip()
+        return f"{kl.get('ime','')} {kl.get('prezime','')}".strip() or kl.get("firma", "")
+
+    # Build graph nodes + edges
+    nodes: list = []
+    edges: list = []
+    seen: set = set()
+
+    main_node_id = f"k_{klijent_id}"
+    nodes.append({
+        "id":      main_node_id,
+        "tip":     "klijent",
+        "naziv":   _naziv_kl(kl_row.data),
+        "podtip":  "stranka",
+        "firma":   kl_row.data.get("firma", ""),
+    })
+    seen.add(main_node_id)
+
+    for p in predmeti_linked:
+        p_nid = f"p_{p['id']}"
+        if p_nid not in seen:
+            nodes.append({
+                "id":           p_nid,
+                "tip":          "predmet",
+                "naziv":        p.get("naziv", ""),
+                "status":       p.get("status", ""),
+                "tip_predmeta": p.get("tip", ""),
+            })
+            seen.add(p_nid)
+        edges.append({"from": main_node_id, "to": p_nid, "veza": p.get("uloga", "stranka")})
+
+    for opk in other_pk_rows:
+        other_kl = other_kl_map.get(opk["klijent_id"])
+        if not other_kl:
+            continue
+        other_nid = f"k_{opk['klijent_id']}"
+        p_nid = f"p_{opk['predmet_id']}"
+        if other_nid not in seen:
+            nodes.append({
+                "id":     other_nid,
+                "tip":    "klijent",
+                "naziv":  _naziv_kl(other_kl),
+                "podtip": opk.get("uloga_klijenta", "ostalo"),
+                "firma":  other_kl.get("firma", ""),
+            })
+            seen.add(other_nid)
+        edges.append({"from": p_nid, "to": other_nid, "veza": opk.get("uloga_klijenta", "ostalo")})
+
+    # Statistike
+    aktivan_count = sum(1 for p in predmeti_linked if p.get("status") in ("aktivan", "u_toku"))
+    from datetime import datetime
+    try:
+        created_iso = kl_row.data.get("created_at", "")
+        dana_saradnje = (datetime.now() - datetime.fromisoformat(created_iso.replace("Z", "").rstrip("+00:00"))).days
+    except Exception:
+        dana_saradnje = 0
+
+    return {
+        "klijent":      klijent,
+        "predmeti":     predmeti_linked,
+        "dokumenti":    dok_r.data or [],
+        "komunikacija": kom_r.data or [],
+        "graph": {
+            "nodes": nodes,
+            "edges": edges,
+        },
+        "statistike": {
+            "predmeti_ukupno":    len(predmeti_linked),
+            "predmeti_aktivni":   aktivan_count,
+            "dokumenti_count":    len(dok_r.data or []),
+            "komunikacija_count": len(kom_r.data or []),
+            "dana_saradnje":      dana_saradnje,
+        },
+    }
+
+
 # ─── Internal helpers ─────────────────────────────────────────────────────────
 
 async def _auth_from_request(request: Request) -> dict:

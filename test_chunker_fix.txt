@@ -1,5 +1,5 @@
 TEST — _skini_zaglavlja() regex safety check
-Timestamp: 2026-05-04 18:24:13
+Timestamp: 2026-06-08 19:16:10
 Pinecone host: https://vindex-ai-t8z679r.svc.aped-4627-b74a.pinecone.io
 Articles under test: 10
 
@@ -7,98 +7,98 @@ Articles under test: 10
 
 [01] KZ · Član 203
 ──────────────────────────────────────────────────────────────────────────────────────────
-  Chunks in index : 2
-  Original length : 258 chars
-  After strip     : 258 chars
+  Chunks in index : 1
+  Original length : 246 chars
+  After strip     : 246 chars
   Chars removed   : 0
   Status          : UNCHANGED  —  NO STRIP NEEDED ✓
 
   LAST 200 chars of existing parent_text (verify no header leaked in):
-    ' da njenim prisvajanjem sebi ili drugom pribavi protivpravnu imovinsku korist,\nkazniće se novčanom kaznom ili zatvorom do tri godine.\n(2) Za pokušaj dela iz stava 1. ovog člana kazniće se.\nTeška krađa'
+    'gom u nameri da njenim prisvajanjem sebi ili drugom pribavi protivpravnu imovinsku korist,\nkazniće se novčanom kaznom ili zatvorom do tri godine.\n(2) Za pokušaj dela iz stava 1. ovog člana kazniće se.'
 
 
 [02] KZ · Član 204
 ──────────────────────────────────────────────────────────────────────────────────────────
   Chunks in index : 7
-  Original length : 1377 chars
-  After strip     : 1377 chars
+  Original length : 1359 chars
+  After strip     : 1359 chars
   Chars removed   : 0
   Status          : UNCHANGED  —  NO STRIP NEEDED ✓
 
   LAST 200 chars of existing parent_text (verify no header leaked in):
-    'eno od strane organizovane kriminalne grupe ili ako vrednost ukradenih stvari prelazi iznos od milion i petsto hiljada dinara,\nučinilac će se kazniti zatvorom od dve do deset godina.\nRazbojnička krađa'
+    '. ovog člana izvršeno od strane organizovane kriminalne grupe ili ako vrednost ukradenih stvari prelazi iznos od milion i petsto hiljada dinara,\nučinilac će se kazniti zatvorom od dve do deset godina.'
 
 
 [03] zakon o obligacionim odnosima · Član 200
 ──────────────────────────────────────────────────────────────────────────────────────────
   Chunks in index : 2
-  Original length : 780 chars
-  After strip     : 780 chars
+  Original length : 698 chars
+  After strip     : 698 chars
   Chars removed   : 0
   Status          : UNCHANGED  —  NO STRIP NEEDED ✓
 
   LAST 200 chars of existing parent_text (verify no header leaked in):
-    'i ta naknada, ali i o tome da se njome ne pogoduje težnjama koje nisu spojive sa \nnjenom prirodom i društvenom svrhom. \nLica koja imaju pravo na novčanu naknadu u slučaju smrti ili teškog invaliditeta'
+    ' njene naknade, sud će voditi računa o \nznačaju povređenog dobra i cilju kome služi ta naknada, ali i o tome da se njome ne pogoduje težnjama koje nisu spojive sa \nnjenom prirodom i društvenom svrhom.'
 
 
 [04] zakon o obligacionim odnosima · Član 371
 ──────────────────────────────────────────────────────────────────────────────────────────
   Chunks in index : 1
-  Original length : 129 chars
-  After strip     : 129 chars  ← STUB
+  Original length : 105 chars
+  After strip     : 105 chars
   Chars removed   : 0
   Status          : UNCHANGED  —  NO STRIP NEEDED ✓
 
   LAST 200 chars of existing parent_text (verify no header leaked in):
-    'Član 371 \nPotraživanja zastarevaju za deset godina, ako zakonom nije određen neki drugi rok zastarelosti. \nPovremena potraživanja'
+    'Član 371 \nPotraživanja zastarevaju za deset godina, ako zakonom nije određen neki drugi rok zastarelosti.'
 
 
 [05] porodicni zakon · Član 88
 ──────────────────────────────────────────────────────────────────────────────────────────
   Chunks in index : 1
-  Original length : 107 chars
-  After strip     : 107 chars  ← STUB
+  Original length : 59 chars
+  After strip     : 59 chars  ← STUB
   Chars removed   : 0
   Status          : UNCHANGED  —  NO STRIP NEEDED ✓
 
   LAST 200 chars of existing parent_text (verify no header leaked in):
-    'Član 88 \nUsvojenje se zasniva odlukom organa starateljstva. \nOpšta podobnost usvojenika \nInteres usvojenika'
+    'Član 88 \nUsvojenje se zasniva odlukom organa starateljstva.'
 
 
 [06] porodicni zakon · Član 170
 ──────────────────────────────────────────────────────────────────────────────────────────
   Chunks in index : 2
-  Original length : 471 chars
-  After strip     : 471 chars
+  Original length : 412 chars
+  After strip     : 412 chars
   Chars removed   : 0
   Status          : UNCHANGED  —  NO STRIP NEEDED ✓
 
   LAST 200 chars of existing parent_text (verify no header leaked in):
-    'o do znatnog uvećanja vrednosti posebne imovine jednog \nsupružnika, drugi supružnik ima pravo na udeo u toj imovini srazmerno svom doprinosu. \n2. Zajednička imovina \nPojam zajedničke imovine \nSticanje'
+    ' \n(2) Ako je tokom trajanja zajedničkog života u braku došlo do znatnog uvećanja vrednosti posebne imovine jednog \nsupružnika, drugi supružnik ima pravo na udeo u toj imovini srazmerno svom doprinosu.'
 
 
 [07] porodicni zakon · Član 171
 ──────────────────────────────────────────────────────────────────────────────────────────
   Chunks in index : 2
-  Original length : 229 chars
-  After strip     : 229 chars
+  Original length : 214 chars
+  After strip     : 214 chars
   Chars removed   : 0
   Status          : UNCHANGED  —  NO STRIP NEEDED ✓
 
   LAST 200 chars of existing parent_text (verify no header leaked in):
-    ' supružnici stekli radom u toku trajanja zajednice života u braku predstavlja njihovu zajedničku imovinu. \n(2) Supružnici mogu bračnim ugovorom drugačije urediti svoje imovinske odnose. \nIgra na sreću'
+    'Imovina koju su supružnici stekli radom u toku trajanja zajednice života u braku predstavlja njihovu zajedničku imovinu. \n(2) Supružnici mogu bračnim ugovorom drugačije urediti svoje imovinske odnose.'
 
 
 [08] zakon o radu · Član 186
 ──────────────────────────────────────────────────────────────────────────────────────────
   Chunks in index : 2
-  Original length : 427 chars
-  After strip     : 427 chars
+  Original length : 382 chars
+  After strip     : 382 chars
   Chars removed   : 0
   Status          : UNCHANGED  —  NO STRIP NEEDED ✓
 
   LAST 200 chars of existing parent_text (verify no header leaked in):
-    'om i ugovorom o radu. \nIsplatu obaveza iz stava 1. ovog člana, poslodavac je dužan da izvrši najkasnije u roku od 30 dana od dana \nprestanka radnog odnosa. \n6. Posebna zaštita od otkaza ugovora o radu'
+    'estanka radnog odnosa u skladu sa \nopštim aktom i ugovorom o radu. \nIsplatu obaveza iz stava 1. ovog člana, poslodavac je dužan da izvrši najkasnije u roku od 30 dana od dana \nprestanka radnog odnosa.'
 
 
 [09] zakon o radu · Član 189
@@ -116,13 +116,13 @@ Articles under test: 10
 [10] zakon o nasledjivanju · Član 9
 ──────────────────────────────────────────────────────────────────────────────────────────
   Chunks in index : 2
-  Original length : 473 chars
-  After strip     : 473 chars
+  Original length : 451 chars
+  After strip     : 451 chars
   Chars removed   : 0
   Status          : UNCHANGED  —  NO STRIP NEEDED ✓
 
   LAST 200 chars of existing parent_text (verify no header leaked in):
-    'eli zaostavštine na jednake delove, onda svako ostaviočevo dete može naslediti do dva puta više nego bračni \ndrug ako sud, pošto razmotri sve okolnosti, oceni da je to opravdano. \nPravo predstavljanja'
+    'bi mu \npripala pri podeli zaostavštine na jednake delove, onda svako ostaviočevo dete može naslediti do dva puta više nego bračni \ndrug ako sud, pošto razmotri sve okolnosti, oceni da je to opravdano.'
 
 ══════════════════════════════════════════════════════════════════════════════════════════
 SUMMARY
@@ -130,4 +130,4 @@ SUMMARY
 
 See individual results above.
 
-Timestamp end: 2026-05-04 18:24:16
+Timestamp end: 2026-06-08 19:16:13

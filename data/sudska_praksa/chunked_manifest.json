@@ -1,47 +1,44 @@
 {
-  "phase": "1.1",
-  "chunked_at": "2026-05-10T12:30:30.744589+00:00",
+  "phase": "1.1b",
+  "chunked_at": "2026-05-31T04:29:23.166543+00:00",
   "chunker_version": "1.0",
-  "branch": "phase1-sudska-praksa",
-  "source_dataset": "data/sudska_praksa/raw/ (Phase 1.0, manifest commit 113332e)",
+  "branch": "main",
+  "source_dataset": "data/sudska_praksa/raw/ (Phase 1.0b expansion, 867 decisions)",
   "target_namespace_for_phase_1_2": "sudska_praksa",
   "totals": {
-    "decisions_processed": 200,
+    "decisions_processed": 867,
     "decisions_with_errors": 0,
-    "total_chunks": 1479,
-    "avg_chunks_per_decision": 7.39
+    "total_chunks": 6397,
+    "avg_chunks_per_decision": 7.38
   },
   "by_matter": {
     "krivicna": {
-      "decisions": 50,
-      "chunks": 362,
-      "avg": 7.24
+      "decisions": 247,
+      "chunks": 1883,
+      "avg": 7.62,
+      "min": 4,
+      "max": 25
     },
     "gradjanska": {
-      "decisions": 50,
-      "chunks": 409,
-      "avg": 8.18
+      "decisions": 250,
+      "chunks": 2037,
+      "avg": 8.15,
+      "min": 3,
+      "max": 24
     },
     "upravna": {
-      "decisions": 50,
-      "chunks": 388,
-      "avg": 7.76
+      "decisions": 125,
+      "chunks": 1109,
+      "avg": 8.87,
+      "min": 4,
+      "max": 28
     },
     "zastitaprava": {
-      "decisions": 50,
-      "chunks": 320,
-      "avg": 6.4
+      "decisions": 245,
+      "chunks": 1368,
+      "avg": 5.58,
+      "min": 3,
+      "max": 18
     }
-  },
-  "section_coverage": {
-    "had_izreka": 200,
-    "had_obrazlozenje": 200,
-    "had_both": 200,
-    "fallback_body_only": 0
-  },
-  "token_distribution": {
-    "p10": 112,
-    "p50": 446,
-    "p90": 586
   }
 }

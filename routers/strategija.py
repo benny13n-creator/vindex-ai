@@ -243,3 +243,89 @@ async def post_kompletna_analiza(
             status_code=500,
             detail="Greška pri generisanju kompletne analize. Pokušajte ponovo.",
         )
+
+
+# ── P5 — Strategija V2 (Structured JSON Output) ───────────────────────────────
+
+_V2_SYSTEM = """Ti si iskusni srpski advokat i pravni strateg.
+Data je situacija predmeta. Vrati ISKLJUČIVO JSON bez ikakvog teksta van JSON-a.
+
+Struktura odgovora:
+{
+  "procena_uspeha": {
+    "procenat": int (0-100),
+    "objasnjenje": str (1-2 rečenice),
+    "faktori_plus": [str],
+    "faktori_minus": [str]
+  },
+  "kljucni_rizici": [{"rizik": str, "tezina": "visoka|srednja|niska", "preporuka": str}],
+  "nedostajuci_dokazi": [{"dokaz": str, "vaznost": "kritican|bitan|korisno", "nacin_pribavljanja": str}],
+  "potencijalni_napadi": [{"napad": str, "tip": "pravni|cinjenicni|proceduralni", "odbrana": str}],
+  "sledeci_koraci": [{"korak": str, "rok": str, "prioritet": "hitan|normalan|opciono"}],
+  "relevantna_praksa": [{"opis": str, "zakljucak": str, "korist_za_nas": str}]
+}
+
+faktori_plus: konkretne okolnosti koje povećavaju šanse (maks 4)
+faktori_minus: konkretne slabosti ili rizici koji umanjuju šanse (maks 4)
+Maksimalno 5 stavki po ostalim kategorijama.
+Budi konkretan i oslanjaj se na važeće srpsko pravo.
+Ne halucinuj zakone — ako nisi siguran, navedi to otvoreno."""
+
+
+class StrategijaV2Request(BaseModel):
+    opis_predmeta: str = Field(..., min_length=50, max_length=8000)
+    tip_predmeta: Optional[str] = Field(default=None, max_length=100)
+    stranke: Optional[str] = Field(default=None, max_length=500)
+
+
+@router.post("/strategija/v2/analiza")
+@limiter.limit("5/minute")
+async def strategija_v2_analiza(
+    req: StrategijaV2Request,
+    request: Request,
+    user: dict = Depends(require_pro),
+):
+    """
+    Strategija V2 — strukturiran JSON output sa procenom uspeha, rizicima,
+    nedostajućim dokazima, potencijalnim napadima, sledećim koracima i praksom.
+    """
+    import os as _os, json as _json
+    from openai import AsyncOpenAI
+
+    uid   = user["user_id"]
+    email = user.get("email", "")
+    asyncio.create_task(_audit(uid, "strategija_v2", ""))
+
+    user_msg = f"Opis predmeta:\n{req.opis_predmeta}"
+    if req.tip_predmeta:
+        user_msg = f"Tip predmeta: {req.tip_predmeta}\n{user_msg}"
+    if req.stranke:
+        user_msg += f"\n\nStranke: {req.stranke}"
+
+    oai = AsyncOpenAI(api_key=_os.getenv("OPENAI_API_KEY", ""))
+    try:
+        begin_cost_tracking()
+        resp = await oai.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.1,
+            max_tokens=3000,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _V2_SYSTEM},
+                {"role": "user",   "content": user_msg},
+            ],
+        )
+        analiza = _json.loads(resp.choices[0].message.content or "{}")
+        asyncio.create_task(log_cost_to_db(uid, "strategija_v2"))
+        preostalo = await asyncio.to_thread(_deduct_credit, uid, email)
+        return {
+            **analiza,
+            "modul": "strategija_v2",
+            "credits_remaining": preostalo,
+        }
+    except _json.JSONDecodeError as je:
+        logger.error("[V2] JSON parse greška: %s", je)
+        raise HTTPException(status_code=500, detail="Greška pri parsiranju AI odgovora.")
+    except Exception:
+        logger.exception("[V2] strategija_v2 greška")
+        raise HTTPException(status_code=500, detail="Greška pri generisanju strategije.")

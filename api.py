@@ -446,7 +446,10 @@ from routers.drafting    import router as drafting_router
 from routers.dokument    import router as dokument_router
 from routers.komentari   import router as komentari_router
 from routers.praksa      import router as praksa_router
-from routers.copilot     import router as copilot_router
+from routers.copilot       import router as copilot_router
+from routers.analytics     import router as analytics_router
+from routers.portfolio     import router as portfolio_router
+from routers.notifications import router as notifications_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -459,6 +462,9 @@ app.include_router(dokument_router)
 app.include_router(komentari_router)
 app.include_router(praksa_router)
 app.include_router(copilot_router)
+app.include_router(analytics_router)
+app.include_router(portfolio_router)
+app.include_router(notifications_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles

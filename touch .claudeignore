@@ -1,0 +1,9 @@
+cat > .claudeignore << 'EOF'
+tests/
+*.log
+*.md
+node_modules/
+__pycache__/
+*.pyc
+*.txt
+EOF

@@ -50,6 +50,7 @@ KREIRAJ_BELEŠKU — korisnik želi da napiše, zabeleži ili sačuva beleška, 
 POVEZI_KLIJENTA — korisnik želi da poveže, doda ili veže klijenta, stranku, protivnu stranu
 ROKOVI — korisnik pita o rokovima, zastarelosti, kalendarskim terminima (pitanje, ne akcija)
 PRETRAGA — korisnik traži određenu osobu, predmet ili dokument u sistemu
+PREDLOZI — korisnik pita šta treba da uradi sledeće, koji su prioriteti, šta mu nedostaje, pregled zadataka
 OSTALO — ništa od navedenog
 
 Vrati SAMO jednu reč, ništa više."""
@@ -58,7 +59,7 @@ _INTENT_CHOICES = {
     "PRAVNO_PITANJE", "SUDSKA_PRAKSA", "NACRT",
     "ANALIZA_PREDMETA", "PLAN",
     "DODAJ_ROK", "KREIRAJ_BELEŠKU", "POVEZI_KLIJENTA",
-    "ROKOVI", "PRETRAGA", "OSTALO",
+    "ROKOVI", "PRETRAGA", "PREDLOZI", "OSTALO",
 }
 
 
@@ -513,6 +514,159 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
     }
 
 
+async def _handle_predlozi(predmet_id: str | None, user_id: str) -> dict:
+    """
+    Proaktivni agent — analizira stanje predmeta (ili celog portfolia)
+    i vraca strukturirane predloge sledecih akcija.
+    """
+    from datetime import date, timedelta
+    supa = _get_supa()
+    today     = date.today()
+    today_iso = today.isoformat()
+    in_7_iso  = (today + timedelta(days=7)).isoformat()
+    ago_30    = (today - timedelta(days=30)).isoformat()
+
+    predlozi: list[dict] = []
+
+    if predmet_id:
+        # ── Predlozi za konkretan predmet ─────────────────────────────────────
+        pred_r, hron_r, dok_r, bel_r = await asyncio.gather(
+            asyncio.to_thread(lambda: supa.table("predmeti")
+                .select("naziv, opis, tip, status")
+                .eq("id", predmet_id).eq("user_id", user_id)
+                .single().execute()),
+            asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+                .select("dogadjaj, datum_iso, vaznost")
+                .eq("predmet_id", predmet_id)
+                .gte("datum_iso", today_iso)
+                .lte("datum_iso", in_7_iso)
+                .order("datum_iso").limit(10).execute()),
+            asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
+                .select("naziv_fajla, status")
+                .eq("predmet_id", predmet_id).execute()),
+            asyncio.to_thread(lambda: supa.table("predmet_beleske")
+                .select("created_at")
+                .eq("predmet_id", predmet_id)
+                .gte("created_at", ago_30).execute()),
+            return_exceptions=True,
+        )
+
+        pred   = pred_r.data if not isinstance(pred_r, Exception) and pred_r.data else {}
+        rokovi = hron_r.data if not isinstance(hron_r, Exception) else []
+        dok    = dok_r.data if not isinstance(dok_r, Exception) else []
+        bel    = bel_r.data if not isinstance(bel_r, Exception) else []
+
+        for r in rokovi:
+            hitan = (r.get("datum_iso") or "") <= (today + timedelta(days=2)).isoformat()
+            predlozi.append({
+                "tip":       "rok",
+                "prioritet": "hitan" if hitan else "normalan",
+                "akcija":    f"{'⚠ HITAN — ' if hitan else ''}Rok: {r.get('dogadjaj', '')} ({r.get('datum_iso', '')})",
+                "predmet_id": predmet_id,
+            })
+
+        cekaju = [d for d in dok if d.get("status") in ("na_cekanju", "greska")]
+        if cekaju:
+            predlozi.append({
+                "tip":       "dokument",
+                "prioritet": "normalan",
+                "akcija":    f"{len(cekaju)} dokument{'a' if len(cekaju) != 1 else ''} čeka obradu: {', '.join(d.get('naziv_fajla','') for d in cekaju[:3])}",
+                "predmet_id": predmet_id,
+            })
+
+        if not bel:
+            predlozi.append({
+                "tip":       "neaktivnost",
+                "prioritet": "info",
+                "akcija":    "Nema beleški u poslednje 30 dana — dodajte napomenu o statusu.",
+                "predmet_id": predmet_id,
+            })
+
+        naziv = pred.get("naziv", "predmet")
+        if not predlozi:
+            predlozi.append({
+                "tip":       "status",
+                "prioritet": "info",
+                "akcija":    f"Predmet '{naziv}' je ažuran — nema hitnih akcija.",
+                "predmet_id": predmet_id,
+            })
+
+        return {
+            "tip":       "PREDLOZI",
+            "kontekst":  "predmet",
+            "predmet":   naziv,
+            "predlozi":  predlozi,
+            "odgovor":   f"Pronašao sam {len(predlozi)} predlog{'a' if len(predlozi) != 1 else ''} za predmet '{naziv}'.",
+        }
+
+    else:
+        # ── Firma-level predlozi (bez predmet_id) ─────────────────────────────
+        rokovi_r, pred_r, hron_r, bel_r = await asyncio.gather(
+            asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+                .select("predmet_id, dogadjaj, datum_iso, vaznost")
+                .eq("user_id", user_id)
+                .gte("datum_iso", today_iso)
+                .lte("datum_iso", in_7_iso)
+                .order("datum_iso").limit(20).execute()),
+            asyncio.to_thread(lambda: supa.table("predmeti")
+                .select("id, naziv, status")
+                .eq("user_id", user_id).execute()),
+            asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+                .select("predmet_id")
+                .eq("user_id", user_id)
+                .gte("created_at", ago_30).execute()),
+            asyncio.to_thread(lambda: supa.table("predmet_beleske")
+                .select("predmet_id")
+                .eq("user_id", user_id)
+                .gte("created_at", ago_30).execute()),
+            return_exceptions=True,
+        )
+
+        predmeti_map = {}
+        if not isinstance(pred_r, Exception) and pred_r.data:
+            predmeti_map = {p["id"]: p for p in pred_r.data}
+
+        if not isinstance(rokovi_r, Exception):
+            for r in (rokovi_r.data or []):
+                pid = r.get("predmet_id", "")
+                naziv = predmeti_map.get(pid, {}).get("naziv", "Predmet")
+                hitan = (r.get("datum_iso") or "") <= (today + timedelta(days=2)).isoformat()
+                predlozi.append({
+                    "tip":       "rok",
+                    "prioritet": "hitan" if hitan else "normalan",
+                    "akcija":    f"{'⚠ ' if hitan else ''}{naziv}: {r.get('dogadjaj','')} ({r.get('datum_iso','')})",
+                    "predmet_id": pid,
+                })
+
+        active = set()
+        if not isinstance(hron_r, Exception):
+            active |= {r["predmet_id"] for r in (hron_r.data or [])}
+        if not isinstance(bel_r, Exception):
+            active |= {r["predmet_id"] for r in (bel_r.data or [])}
+
+        for pid, p in predmeti_map.items():
+            if p.get("status") in ("zatvoren", "arhiviran"):
+                continue
+            if pid not in active:
+                predlozi.append({
+                    "tip":       "neaktivnost",
+                    "prioritet": "info",
+                    "akcija":    f"Predmet '{p.get('naziv','')}' nema aktivnosti 30+ dana.",
+                    "predmet_id": pid,
+                })
+
+        hitni   = [p for p in predlozi if p["prioritet"] == "hitan"]
+        predlozi = sorted(predlozi, key=lambda x: 0 if x["prioritet"] == "hitan" else 1 if x["prioritet"] == "normalan" else 2)
+
+        return {
+            "tip":      "PREDLOZI",
+            "kontekst": "portfolio",
+            "predlozi": predlozi[:15],
+            "hitnih":   len(hitni),
+            "odgovor":  f"Portfolio: {len(predlozi)} prioritet{'a' if len(predlozi) != 1 else ''}. {len(hitni)} hitno.",
+        }
+
+
 async def _handle_ostalo(poruka: str, predmet_ctx: str) -> dict:
     """Generalni odgovor bez RAG — kratki savet."""
     from openai import AsyncOpenAI
@@ -569,6 +723,7 @@ async def copilot_chat(
         "POVEZI_KLIJENTA":  lambda: _handle_akcija_povezi_klijenta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
         "ROKOVI":           lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
         "PRETRAGA":         lambda: _handle_pretraga(req.poruka, uid),
+        "PREDLOZI":         lambda: _handle_predlozi(req.predmet_id, uid),
         "OSTALO":           lambda: _handle_ostalo(req.poruka, predmet_ctx),
     }
 

@@ -32,7 +32,7 @@ BASE_URL = "https://www.vrh.sud.rs"
 SEARCH_URL = f"{BASE_URL}/sr-lat/solr-search-page/results"
 UA = "Vindex AI Legal Research (vindex-ai.onrender.com; contact: vindex.rs)"
 CRAWL_DELAY = 10.5  # seconds — respects robots.txt Crawl-delay: 10
-SCRAPER_VERSION = "1.0"
+SCRAPER_VERSION = "1.1"  # 1.1: cross-run dedup + expanded TARGET_PER_MATTER
 
 MATTERS = [
     {"slug": "krivicna",   "label": "Krivična",   "matter_id": "33"},
@@ -41,8 +41,8 @@ MATTERS = [
     {"slug": "zastitaprava", "label": "Zaštita prava", "matter_id": "8"},
 ]
 
-TARGET_PER_MATTER = 50
-MAX_PAGES = 10
+TARGET_PER_MATTER = 250  # 250 × 4 matters = 1000 total (Phase 1.0b expansion)
+MAX_PAGES = 10           # 250 / 50 per page = 5 pages needed; 10 is sufficient headroom
 RESULTS_PER_PAGE = 50
 
 
@@ -197,6 +197,10 @@ def fetch_decision(
                 retries += 1
                 _rate_limit(last_request_time)
                 continue
+            if 400 <= r.status_code < 500:
+                # 4xx other than 403: soft fail (page removed/renamed) — do not retry
+                log.warning("HTTP %d at %s — skipping (4xx soft fail)", r.status_code, url)
+                return None
             if r.status_code >= 500:
                 if retries == 0:
                     log.warning("HTTP %d at %s — retry after 10s", r.status_code, url)
@@ -207,7 +211,6 @@ def fetch_decision(
                 else:
                     log.warning("HTTP %d after retry at %s — skipping", r.status_code, url)
                     return None
-            r.raise_for_status()
             html = r.text
             break
         except httpx.HTTPStatusError:
@@ -393,16 +396,36 @@ def run_scrape(
             slug = matter["slug"]
             label = matter["label"]
             mid = matter["matter_id"]
-            log.info("=== Matter: %s (id=%s) ===", label, mid)
 
-            collected_ids = set()
+            # Cross-run dedup: load source_urls of decisions already on disk
+            existing_urls = _load_existing_ids(base_dir, slug)
+            need_new = max(0, TARGET_PER_MATTER - len(existing_urls))
+            log.info(
+                "=== Matter: %s (id=%s) | existing=%d, target=%d, need_new=%d ===",
+                label, mid, len(existing_urls), TARGET_PER_MATTER, need_new,
+            )
+
+            if need_new == 0:
+                log.info("  Already at target (%d) — skipping %s", TARGET_PER_MATTER, label)
+                stats["by_matter"][slug] = {
+                    "label": label,
+                    "collected": 0,
+                    "skipped": len(existing_urls),
+                    "partial": 0,
+                    "failed": 0,
+                    "wall_s": 0,
+                }
+                continue
+
+            collected_ids = set()  # within-run dedup
             collected = 0
+            skipped = 0
             partial = 0
             failed = 0
             t_start = time.monotonic()
 
             page = 0
-            while collected < TARGET_PER_MATTER and page < MAX_PAGES:
+            while collected < need_new and page < MAX_PAGES:
                 log.info("  Fetching search page %d for %s ...", page, label)
                 search_soup = fetch_search_page(client, mid, page, last_request_time)
                 if not search_soup:
@@ -418,21 +441,22 @@ def run_scrape(
                 log.info("  Got %d results on page %d", len(result_stubs), page)
 
                 for stub in result_stubs:
-                    if collected >= TARGET_PER_MATTER:
+                    if collected >= need_new:
                         break
 
                     url = stub["url"]
-                    # Dedup by URL
-                    if url in collected_ids:
-                        log.debug("  Skip duplicate: %s", url)
+                    # Dedup: within-run and cross-run
+                    if url in collected_ids or url in existing_urls:
+                        skipped += 1
+                        log.debug("  Skip already-scraped: %s", url)
                         continue
 
                     stats["totals"]["requested"] += 1
                     log.info(
-                        "  [%s %d/%d] %s — %s",
+                        "  [%s %d/%d new] %s — %s",
                         slug,
                         collected + 1,
-                        TARGET_PER_MATTER,
+                        need_new,
                         stub.get("decision_title", ""),
                         url,
                     )
@@ -466,8 +490,6 @@ def run_scrape(
                     is_partial = bool(record.get("parse_warnings"))
                     if is_partial:
                         partial += 1
-                    else:
-                        pass
 
                     collected += 1
                     stats["totals"]["collected"] += 1
@@ -484,11 +506,11 @@ def run_scrape(
                         "warnings": record["parse_warnings"],
                     })
 
-                    # Progress checkpoint every 25
+                    # Progress checkpoint every 25 new decisions
                     if collected % 25 == 0:
                         log.info(
-                            "  CHECKPOINT: %s — %d collected, %d partial, %d failed",
-                            label, collected, partial, failed,
+                            "  CHECKPOINT: %s — %d new, %d skipped, %d partial, %d failed",
+                            label, collected, skipped, partial, failed,
                         )
 
                 page += 1
@@ -497,17 +519,41 @@ def run_scrape(
             stats["by_matter"][slug] = {
                 "label": label,
                 "collected": collected,
+                "skipped": skipped,
                 "partial": partial,
                 "failed": failed,
                 "wall_s": round(wall),
             }
             stats["totals"]["failed"] += failed
             log.info(
-                "Matter %s done: %d collected, %d partial, %d failed in %ds",
-                label, collected, partial, failed, round(wall),
+                "Matter %s done: %d new, %d skipped, %d partial, %d failed in %ds",
+                label, collected, skipped, partial, failed, round(wall),
             )
 
     return stats
+
+
+def _load_existing_ids(base_dir: Path, slug: str) -> set[str]:
+    """
+    Build set of already-scraped source_urls for a given matter slug.
+    Reads source_url from each existing raw/{slug}/*.json file.
+    Used for cross-run deduplication so re-running the scraper skips
+    decisions already on disk rather than re-fetching them.
+    """
+    existing: set[str] = set()
+    raw_dir = base_dir / "raw" / slug
+    if not raw_dir.exists():
+        return existing
+    for fpath in raw_dir.glob("*.json"):
+        try:
+            rec = json.loads(fpath.read_text(encoding="utf-8"))
+            url = rec.get("source_url", "")
+            if url:
+                existing.add(url)
+        except Exception:
+            pass
+    log.info("  [dedup] %s: %d existing decisions on disk", slug, len(existing))
+    return existing
 
 
 def _write_partial_manifest(base_dir: Path, stats: dict):
@@ -528,19 +574,50 @@ def _write_partial_manifest(base_dir: Path, stats: dict):
 
 
 def write_manifest(base_dir: Path, stats: dict):
+    """Merge new decisions from this run into manifest.json (append, not overwrite)."""
+    manifest_path = base_dir / "manifest.json"
+
+    # Load existing manifest if present
+    existing_decisions: list = []
+    existing_totals: dict = {"requested": 0, "collected": 0, "partial": 0, "failed": 0}
+    if manifest_path.exists():
+        try:
+            existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+            existing_decisions = existing.get("decisions", [])
+            existing_totals = existing.get("totals", existing_totals)
+            log.info("Loaded existing manifest: %d decisions", len(existing_decisions))
+        except Exception as exc:
+            log.warning("Could not load existing manifest (%s) — starting fresh", exc)
+
+    # Merge: skip new decisions whose decision_id already exists
+    existing_ids = {d["decision_id"] for d in existing_decisions}
+    new_decisions = [d for d in stats["decisions"] if d["decision_id"] not in existing_ids]
+    all_decisions = existing_decisions + new_decisions
+
+    # Cumulative totals
+    merged_totals = {
+        "requested": existing_totals.get("requested", 0) + stats["totals"]["requested"],
+        "collected": existing_totals.get("collected", 0) + stats["totals"]["collected"],
+        "partial":   existing_totals.get("partial",   0) + stats["totals"]["partial"],
+        "failed":    existing_totals.get("failed",    0) + stats["totals"]["failed"],
+    }
+
     manifest = {
         "phase": "1.0",
         "scraped_at": _now_iso(),
         "scraper_version": SCRAPER_VERSION,
         "branch": "phase1-sudska-praksa",
-        "totals": stats["totals"],
+        "totals": merged_totals,
         "by_matter": stats.get("by_matter", {}),
-        "decisions": stats.get("decisions", []),
+        "decisions": all_decisions,
     }
-    (base_dir / "manifest.json").write_text(
+    manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    log.info("Manifest written: %d decisions", len(stats["decisions"]))
+    log.info(
+        "Manifest written: %d total decisions (%d new this run)",
+        len(all_decisions), len(new_decisions),
+    )
 
 
 if __name__ == "__main__":
