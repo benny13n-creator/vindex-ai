@@ -1506,6 +1506,17 @@ footer { padding: 2rem 1.5rem; }
 .crm-modal-actions{display:flex;gap:8px;margin-top:16px;}
 .crm-save-btn{flex:1;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
 .crm-cancel-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.6);font-size:0.85rem;padding:10px 16px;cursor:pointer;}
+.crm-panel{position:fixed;top:0;right:0;height:100vh;width:520px;max-width:100vw;background:#161b22;border-left:1px solid rgba(255,255,255,0.12);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);z-index:2001;}
+.crm-overlay.open .crm-panel{transform:translateX(0);}
+.crm-panel-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;}
+.crm-panel-body{flex:1;overflow-y:auto;padding:20px 24px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;}
+.crm-panel-footer{display:flex;gap:10px;padding:16px 24px;border-top:1px solid rgba(255,255,255,0.08);flex-shrink:0;background:#161b22;}
+.crm-panel-footer .crm-save-btn{flex:1;}
+.crm-panel-close{background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;transition:color 0.15s;}
+.crm-panel-close:hover{color:#e6edf3;background:rgba(255,255,255,0.06);}
+.crm-section-lbl{font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.07em;margin-top:20px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.crm-section-lbl:first-child{margin-top:0;}
+@media(max-width:540px){.crm-panel{width:100vw;}}
 .crm-back-btn{background:none;border:none;color:#89c8ff;font-size:0.82rem;cursor:pointer;padding:4px 0;}
 .crm-profil-tabovi{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:8px;}
 .crm-ptab{background:none;border:none;color:rgba(255,255,255,0.45);font-size:0.8rem;padding:5px 10px;cursor:pointer;border-radius:6px;transition:all 0.15s;}
@@ -2464,45 +2475,60 @@ footer { padding: 2rem 1.5rem; }
             </div>
           </div>
 
-          <!-- CRM modal forma -->
-          <div id="crm-overlay" class="crm-overlay" onclick="if(event.target===this)crmZatvoriFormu()">
-            <div class="crm-modal">
-              <div class="crm-modal-title" id="crm-modal-title">Novi klijent</div>
-              <input type="hidden" id="crm-edit-id" value="">
-              <div class="crm-tip-row">
-                <button class="crm-tip-btn active" id="crm-tip-fiz" onclick="crmSetTip('fizicko_lice')">Fizičko lice</button>
-                <button class="crm-tip-btn" id="crm-tip-prav" onclick="crmSetTip('pravno_lice')">Pravno lice</button>
+          <!-- CRM slide-over panel forma -->
+          <div id="crm-overlay" class="crm-overlay" onclick="if(event.target===this)crmConfirmClose()">
+            <div class="crm-panel" onclick="event.stopPropagation()">
+              <div class="crm-panel-header">
+                <span class="crm-modal-title" id="crm-modal-title" style="margin-bottom:0">Novi klijent</span>
+                <button class="crm-panel-close" onclick="crmConfirmClose()" title="Zatvori">✕</button>
               </div>
-              <div class="crm-field-lbl">Ime *</div>
-              <input id="crm-f-ime" class="crm-field" type="text" placeholder="Ime (ili naziv firme)">
-              <div class="crm-field-lbl">Prezime</div>
-              <input id="crm-f-prezime" class="crm-field" type="text" placeholder="Prezime">
-              <div class="crm-field-lbl">Firma</div>
-              <input id="crm-f-firma" class="crm-field" type="text" placeholder="Naziv firme">
-              <div class="crm-field-lbl">Email</div>
-              <input id="crm-f-email" class="crm-field" type="email" placeholder="email@primer.rs">
-              <div class="crm-field-lbl">Telefon</div>
-              <input id="crm-f-telefon" class="crm-field" type="text" placeholder="+381 ...">
-              <div class="crm-field-lbl">JMBG (poverljivo — enkriptuje se)</div>
-              <input id="crm-f-jmbg" class="crm-field" type="text" placeholder="JMBG" autocomplete="off">
-              <div class="crm-field-lbl">Broj pasoša (poverljivo)</div>
-              <input id="crm-f-pasos" class="crm-field" type="text" placeholder="Broj pasoša" autocomplete="off">
-              <div class="crm-field-lbl">PIB (poverljivo)</div>
-              <input id="crm-f-pib" class="crm-field" type="text" placeholder="PIB firme" autocomplete="off">
-              <div class="crm-field-lbl">Adresa</div>
-              <input id="crm-f-adresa" class="crm-field" type="text" placeholder="Ulica i broj, grad">
-              <div class="crm-field-lbl">Pravni osnov obrade *</div>
-              <select id="crm-f-osnov" class="crm-field" style="background:#0d1117;color:#e6edf3;border:1px solid rgba(255,255,255,0.15);">
-                <option value="legitimni_interes">Legitimni interes</option>
-                <option value="ugovor">Izvršenje ugovora</option>
-                <option value="zakonska_obaveza">Zakonska obaveza</option>
-                <option value="saglasnost">Saglasnost klijenta</option>
-              </select>
-              <div class="crm-field-lbl">Napomena</div>
-              <textarea id="crm-f-napomena" class="crm-field" rows="2" placeholder="Interna napomena..."></textarea>
-              <div class="crm-modal-actions">
-                <button class="crm-save-btn" onclick="crmSacuvaj()">Sačuvaj</button>
-                <button class="crm-cancel-btn" onclick="crmZatvoriFormu()">Otkaži</button>
+              <div class="crm-panel-body">
+                <input type="hidden" id="crm-edit-id" value="">
+
+                <div class="crm-section-lbl">Tip klijenta</div>
+                <div class="crm-tip-row" style="margin-top:0">
+                  <button class="crm-tip-btn active" id="crm-tip-fiz" onclick="crmSetTip('fizicko_lice')">Fizičko lice</button>
+                  <button class="crm-tip-btn" id="crm-tip-prav" onclick="crmSetTip('pravno_lice')">Pravno lice</button>
+                </div>
+
+                <div class="crm-section-lbl">Osnovni podaci</div>
+                <div class="crm-field-lbl">Ime *</div>
+                <input id="crm-f-ime" class="crm-field" type="text" placeholder="Ime (ili naziv firme)" oninput="crmMarkDirty()">
+                <div class="crm-field-lbl">Prezime</div>
+                <input id="crm-f-prezime" class="crm-field" type="text" placeholder="Prezime" oninput="crmMarkDirty()">
+                <div class="crm-field-lbl">Firma</div>
+                <input id="crm-f-firma" class="crm-field" type="text" placeholder="Naziv firme" oninput="crmMarkDirty()">
+                <div class="crm-field-lbl">Email</div>
+                <input id="crm-f-email" class="crm-field" type="email" placeholder="email@primer.rs" oninput="crmMarkDirty()">
+                <div class="crm-field-lbl">Telefon</div>
+                <input id="crm-f-telefon" class="crm-field" type="text" placeholder="+381 ..." oninput="crmMarkDirty()">
+
+                <div class="crm-section-lbl">Identifikacioni podaci <span style="font-size:0.72rem;font-weight:400;color:rgba(255,165,0,0.75);margin-left:6px">🔒 enkriptuje se</span></div>
+                <div class="crm-field-lbl">JMBG</div>
+                <input id="crm-f-jmbg" class="crm-field" type="text" placeholder="13 cifara" autocomplete="off" oninput="crmMarkDirty();crmValidateJmbg(this)">
+                <div id="crm-jmbg-warn" style="display:none;font-size:0.72rem;color:rgba(255,165,0,0.8);margin-top:3px">JMBG mora imati tačno 13 cifara</div>
+                <div class="crm-field-lbl">Broj pasoša</div>
+                <input id="crm-f-pasos" class="crm-field" type="text" placeholder="Broj pasoša" autocomplete="off" oninput="crmMarkDirty()">
+                <div class="crm-field-lbl">PIB</div>
+                <input id="crm-f-pib" class="crm-field" type="text" placeholder="PIB firme" autocomplete="off" oninput="crmMarkDirty()">
+
+                <div class="crm-section-lbl">Adresa</div>
+                <input id="crm-f-adresa" class="crm-field" type="text" placeholder="Ulica i broj, grad" oninput="crmMarkDirty()">
+
+                <div class="crm-section-lbl">Pravni osnov obrade *</div>
+                <select id="crm-f-osnov" class="crm-field" style="background:#0d1117;color:#e6edf3;border:1px solid rgba(255,255,255,0.15);" onchange="crmMarkDirty()">
+                  <option value="legitimni_interes">Legitimni interes</option>
+                  <option value="ugovor">Izvršenje ugovora</option>
+                  <option value="zakonska_obaveza">Zakonska obaveza</option>
+                  <option value="saglasnost">Saglasnost klijenta</option>
+                </select>
+
+                <div class="crm-section-lbl">Napomena</div>
+                <textarea id="crm-f-napomena" class="crm-field" rows="3" placeholder="Interna napomena..." oninput="crmMarkDirty()" style="resize:vertical"></textarea>
+              </div>
+              <div class="crm-panel-footer">
+                <button class="crm-cancel-btn" onclick="crmConfirmClose()">Otkaži</button>
+                <button class="crm-save-btn" onclick="crmSacuvaj()">Sačuvaj klijenta</button>
               </div>
             </div>
           </div>
@@ -4249,17 +4275,32 @@ async function crmUcitajDokumente(klijentId) {
   } catch(e) { el.innerHTML='<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška.</div>'; }
 }
 
+var _crmDirty = false;
+function crmMarkDirty() { _crmDirty = true; }
+function crmConfirmClose() {
+  if (_crmDirty && !confirm('Imate nesačuvane izmene. Zatvoriti bez čuvanja?')) return;
+  crmZatvoriFormu();
+}
+function crmValidateJmbg(el) {
+  var v = el.value.replace(/\D/g,'');
+  var w = document.getElementById('crm-jmbg-warn');
+  if (w) w.style.display = (v.length > 0 && v.length !== 13) ? 'block' : 'none';
+}
+
 function crmOtvoriFormu(editId) {
   document.getElementById('crm-edit-id').value = editId || '';
   document.getElementById('crm-modal-title').textContent = editId ? 'Uredi klijenta' : 'Novi klijent';
   if (!editId) {
     ['crm-f-ime','crm-f-prezime','crm-f-firma','crm-f-email','crm-f-telefon','crm-f-jmbg','crm-f-pasos','crm-f-pib','crm-f-adresa','crm-f-napomena'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    var w = document.getElementById('crm-jmbg-warn'); if (w) w.style.display='none';
     crmSetTip('fizicko_lice');
   }
+  _crmDirty = false;
   document.getElementById('crm-overlay').classList.add('open');
 }
 
 function crmZatvoriFormu() {
+  _crmDirty = false;
   document.getElementById('crm-overlay').classList.remove('open');
 }
 
