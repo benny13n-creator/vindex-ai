@@ -88,3 +88,8 @@ smoke_results_*.json
 *_stdout.txt
 *.html.bak
 diag_*.json
+
+# Sudska praksa raw scraping dumps — large HTML/JSON, tracked via Pinecone, not source code.
+# Prevents repo exceeding Render 512MB limit (.git currently 475MB).
+data/sudska_praksa/raw/
+data/sudska_praksa/raw_bilteni/
