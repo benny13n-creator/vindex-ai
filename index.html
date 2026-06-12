@@ -1461,6 +1461,32 @@ footer { padding: 2rem 1.5rem; }
 .interni-rezultat-tekst{color:rgba(255,255,255,0.65);line-height:1.5;}
 .interni-score{float:right;font-size:0.74rem;background:rgba(74,168,255,0.1);color:#89c8ff;padding:2px 6px;border-radius:8px;}
 .interni-del-btn{margin-top:9px;}
+/* ── Billing module ─────────────────────────────────────────────────────── */
+.billing-timer-bar{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.6rem 0.75rem;margin-bottom:0.4rem;}
+.billing-timer-btn-start{width:100%;margin-top:0.35rem;padding:0.4rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:rgba(255,255,255,0.55);font-size:0.72rem;cursor:pointer;transition:all .2s;font-family:inherit;}
+.billing-timer-btn-start:hover{background:rgba(74,168,255,0.08);border-color:rgba(74,168,255,0.2);color:#89c8ff;}
+.billing-timer-btn-stop{width:100%;margin-top:0.35rem;padding:0.4rem;background:rgba(255,80,80,0.08);border:1px solid rgba(255,80,80,0.2);border-radius:7px;color:#ff9090;font-size:0.72rem;cursor:pointer;transition:all .2s;font-family:inherit;}
+.billing-timer-btn-stop:hover{background:rgba(255,80,80,0.15);}
+.billing-entry-row{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border-radius:7px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);margin-bottom:0.3rem;}
+.billing-entry-main{flex:1;min-width:0;}
+.billing-entry-opis{font-size:0.78rem;color:rgba(255,255,255,0.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.billing-entry-meta{font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:0.1rem;}
+.billing-entry-iznos{font-size:0.8rem;color:#89c8ff;font-weight:600;white-space:nowrap;font-family:'JetBrains Mono',monospace;flex-shrink:0;}
+.billing-del-btn{background:none;border:none;color:rgba(255,80,80,0.45);cursor:pointer;font-size:0.73rem;padding:0.15rem 0.3rem;border-radius:4px;flex-shrink:0;}
+.billing-del-btn:hover{color:#ff6060;background:rgba(255,80,80,0.08);}
+.billing-badge-ok{display:inline-block;font-size:0.58rem;padding:0.1rem 0.35rem;border-radius:3px;background:rgba(74,222,128,0.1);color:#4ade80;font-weight:600;letter-spacing:.04em;}
+.billing-badge-open{display:inline-block;font-size:0.58rem;padding:0.1rem 0.35rem;border-radius:3px;background:rgba(255,187,112,0.1);color:#ffbb70;font-weight:600;letter-spacing:.04em;}
+.billing-sum-lbl{font-size:0.67rem;color:rgba(255,255,255,0.35);font-family:'JetBrains Mono',monospace;}
+.billing-sum-val{font-size:0.7rem;color:#89c8ff;font-weight:600;font-family:'JetBrains Mono',monospace;}
+.billing-sum-sep{color:rgba(255,255,255,0.18);margin:0 0.2rem;}
+.billing-faktura-btn{width:100%;padding:0.52rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:8px;color:#89c8ff;font-size:0.76rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;}
+.billing-faktura-btn:hover{background:rgba(74,168,255,0.18);border-color:rgba(74,168,255,0.4);}
+.billing-faktura-form{background:rgba(255,255,255,0.02);border:1px solid rgba(74,168,255,0.12);border-radius:8px;padding:0.7rem;}
+.billing-faktura-ok{font-size:0.77rem;color:#4ade80;padding:0.4rem 0.6rem;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.18);border-radius:7px;}
+.billing-kc-kpi{background:rgba(74,168,255,0.04);border:1px solid rgba(74,168,255,0.12);border-radius:10px;padding:0.8rem 1rem;text-align:center;}
+.billing-kc-n{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;color:#89c8ff;line-height:1;}
+.billing-kc-n.warn{color:#fb923c;}
+.billing-kc-l{font-family:'JetBrains Mono',monospace;font-size:0.46rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-top:0.25rem;line-height:1.4;}
 /* ── F8: Komentari ─────────────────────────────────────────── */
 .kom-lista{margin-top:10px;}
 .kom-red{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
@@ -2244,6 +2270,45 @@ footer { padding: 2rem 1.5rem; }
                 <button onclick="pred_copilotSubmit()" style="padding:0.5rem 0.75rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.28);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;">Pošalji</button>
               </div>
               <div style="font-size:0.6rem;color:rgba(255,255,255,.22);margin-top:0.25rem;">Ctrl+Enter za slanje · Primeri: "Napravi plan", "Dodaj rok — ročište", "Zabeleži da je klijent potvrdio", "Poveži Marka Petrovića"</div>
+
+              <!-- ── Naplata (billing) section ── -->
+              <div class="pred-section-lbl" style="margin-top:14px;">💰 Naplata</div>
+              <div id="pred-billing-wrap">
+                <!-- Timer bar -->
+                <div class="billing-timer-bar">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">
+                    <span id="billing-timer-label" style="font-size:0.72rem;color:rgba(255,255,255,0.5);">⏱ Tajmer nije aktivan</span>
+                    <span id="billing-timer-clock" style="display:none;font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:#89c8ff;font-weight:600;">00:00:00</span>
+                  </div>
+                  <button id="billing-timer-btn" class="billing-timer-btn-start" onclick="billing_timerToggle()">▶ Start tajmer</button>
+                </div>
+                <!-- Summary (unos vs obračunato) -->
+                <div id="billing-summary-bar" style="display:none;font-size:0.71rem;padding:0.25rem 0 0.35rem;"></div>
+                <!-- Add entry -->
+                <div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;">
+                    <select id="billing-tip" class="t-input" style="font-size:0.71rem;padding:0.38rem 0.5rem;" onchange="billing_tipChange()">
+                      <option value="tarifa">Po tarifi (AKS)</option>
+                      <option value="satnica">Satnica</option>
+                      <option value="pausal">Paušal</option>
+                      <option value="ostalo">Ostalo</option>
+                    </select>
+                    <select id="billing-tarifa-sel" class="t-input" style="font-size:0.67rem;padding:0.38rem 0.5rem;" onchange="billing_tarifaChange()">
+                      <option value="">-- Tarifna stavka --</option>
+                    </select>
+                  </div>
+                  <div style="display:flex;gap:0.3rem;margin-top:0.3rem;align-items:center;">
+                    <input id="billing-opis" class="t-input" type="text" placeholder="Opis radnje..." style="flex:1;font-size:0.72rem;height:34px;">
+                    <input id="billing-iznos" class="t-input" type="number" placeholder="RSD" min="0" step="50" style="width:80px;font-size:0.72rem;height:34px;">
+                    <button onclick="billing_addEntry()" style="padding:0 0.7rem;height:34px;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#89c8ff;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;">+ Dodaj</button>
+                  </div>
+                </div>
+                <!-- Entries list -->
+                <div id="billing-entries-list" style="margin-top:0.5rem;"></div>
+                <!-- Faktura action bar -->
+                <div id="billing-faktura-bar" style="display:none;margin-top:0.5rem;"></div>
+              </div>
+
               <div class="pred-section-lbl" style="margin-top:14px;">Istorija razgovora</div>
               <div id="pred-istorija-list"></div>
               <!-- F8: Komentari na predmetu -->
@@ -3665,16 +3730,22 @@ async function dash_load(){
   if(!body)return;
   body.innerHTML='<div class="kc-loading">Učitavam...</div>';
   try{
-    var r=await fetch(BASE_URL+'/portfolio/dashboard',{headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    var hdr={'Authorization':'Bearer '+currentSession.access_token};
+    var [r,br]=await Promise.all([
+      fetch(BASE_URL+'/portfolio/dashboard',{headers:hdr}),
+      fetch(BASE_URL+'/billing/pregled',{headers:hdr}).catch(function(){return null;})
+    ]);
     if(!r.ok)throw new Error('HTTP '+r.status);
     var d=await r.json();
-    body.innerHTML=_dashRender(d);
+    var bd=br&&br.ok?await br.json():null;
+    body.innerHTML=_dashRender(d,bd);
   }catch(e){
     body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
 }
 
-function _dashRender(d){
+function _fmtRSD(v){var n=Math.round(v||0);if(n>=1000000)return(n/1000000).toFixed(1)+'M';if(n>=1000)return(n/1000).toFixed(0)+'k';return String(n);}
+function _dashRender(d,bd){
   var today=new Date().toISOString().slice(0,10);
   var p2=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
   var html='';
@@ -3715,6 +3786,15 @@ function _dashRender(d){
       html+='<div class="kc-row-arrow">→</div></div>';
     });
     html+='</div>';
+  }
+  if(bd){
+    html+='<div class="kc-section">';
+    html+='<div class="kc-section-hd"><span>💰 Naplata — '+(bd.mesec||'')+'</span></div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">';
+    html+='<div class="billing-kc-kpi"><div class="billing-kc-n">'+_fmtRSD(bd.ukupno_unoseno||0)+'</div><div class="billing-kc-l">Uneseno<br>RSD</div></div>';
+    html+='<div class="billing-kc-kpi"><div class="billing-kc-n'+(((bd.neobracunato||0)>0)?' warn':'')+'">'+_fmtRSD(bd.neobracunato||0)+'</div><div class="billing-kc-l">Nenaplaćeno<br>RSD</div></div>';
+    html+='<div class="billing-kc-kpi"><div class="billing-kc-n">'+_fmtRSD(bd.naplaceno||0)+'</div><div class="billing-kc-l">Naplaćeno<br>RSD</div></div>';
+    html+='</div></div>';
   }
   html+='<div class="kc-section"><div class="kc-section-hd"><span>Brze akcije</span></div>';
   html+='<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
@@ -8627,6 +8707,7 @@ async function pred_loadDetail(id) {
 
     pred_loadHronologija(id);
     ucitajKomentare(id);
+    billing_load(id);
   } catch(e) {
     if (loadEl) loadEl.style.display = 'none';
   }
@@ -9884,6 +9965,301 @@ async function pred_kreiraj() {
     initShowcase();
   }
 })();
+
+// ── Billing module ──────────────────────────────────────────────────────────
+var _billingPredmetId      = null;
+var _billingTimerSessionId = null;
+var _billingTimerStart     = null;
+var _billingTimerInterval  = null;
+var _billingTarifa         = [];
+var _billingEntries        = [];
+
+async function billing_load(predmetId) {
+  _billingPredmetId = predmetId;
+  await Promise.all([billing_loadTarifa(), billing_loadTimerState(), billing_loadEntries()]);
+}
+
+async function billing_loadTarifa() {
+  if (_billingTarifa.length || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL+'/billing/tarifa', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) return;
+    var d = await r.json();
+    _billingTarifa = d.tarifa || [];
+    var sel = document.getElementById('billing-tarifa-sel');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- Tarifna stavka --</option>';
+    _billingTarifa.forEach(function(t) {
+      var opt = document.createElement('option');
+      opt.value = t.sifra;
+      var nm = t.naziv.length > 42 ? t.naziv.substring(0,42)+'…' : t.naziv;
+      opt.textContent = t.sifra+' — '+nm+' ('+Math.round(t.iznos_rsd).toLocaleString('sr-RS')+' RSD)';
+      opt.dataset.iznos = t.iznos_rsd;
+      opt.dataset.naziv = t.naziv;
+      sel.appendChild(opt);
+    });
+  } catch(e) {}
+}
+
+async function billing_loadTimerState() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL+'/billing/timer/aktivan', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) return;
+    var d = await r.json();
+    if (d.aktivan && d.timer) {
+      _billingTimerSessionId = d.timer.id;
+      _billingTimerStart     = new Date(d.timer.start_at);
+      _billing_startClockTick();
+      billing_renderTimerBar(true, d.timer.predmet_id === _billingPredmetId);
+    } else {
+      _billingTimerSessionId = null;
+      _billingTimerStart     = null;
+      billing_renderTimerBar(false, false);
+    }
+  } catch(e) {}
+}
+
+async function billing_loadEntries() {
+  if (!currentSession || !_billingPredmetId) return;
+  var listEl = document.getElementById('billing-entries-list');
+  var barEl  = document.getElementById('billing-faktura-bar');
+  var summEl = document.getElementById('billing-summary-bar');
+  if (!listEl) return;
+  try {
+    var r = await fetch(BASE_URL+'/billing/entries?predmet_id='+encodeURIComponent(_billingPredmetId), {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { listEl.innerHTML = ''; return; }
+    var d = await r.json();
+    _billingEntries = d.entries || [];
+    if (summEl) {
+      if (_billingEntries.length) {
+        summEl.style.display = '';
+        summEl.innerHTML = '<span class="billing-sum-lbl">Nenaplaćeno:</span> <span class="billing-sum-val">'+Math.round(d.neobracunato_rsd||0).toLocaleString('sr-RS')+' RSD</span><span class="billing-sum-sep">·</span><span class="billing-sum-lbl">Ukupno:</span> <span class="billing-sum-val">'+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</span>';
+      } else { summEl.style.display = 'none'; }
+    }
+    if (!_billingEntries.length) {
+      listEl.innerHTML = '<div style="font-size:0.71rem;color:rgba(255,255,255,0.22);padding:0.25rem 0;">Nema unesenih radnji za ovaj predmet.</div>';
+      if (barEl) barEl.style.display = 'none';
+      return;
+    }
+    var html = '';
+    _billingEntries.forEach(function(e) {
+      var iznos = Math.round(e.iznos_rsd||0).toLocaleString('sr-RS');
+      var badge = e.obracunato ? '<span class="billing-badge-ok">fakturisano</span>' : '<span class="billing-badge-open">nenaplaćeno</span>';
+      html += '<div class="billing-entry-row">';
+      html += '<div class="billing-entry-main"><div class="billing-entry-opis">'+escHtml(e.opis||'')+'</div>';
+      html += '<div class="billing-entry-meta">'+escHtml(e.datum||'')+(e.tarifa_sifra?' · '+escHtml(e.tarifa_sifra):'')+'&nbsp;'+badge+'</div></div>';
+      html += '<div class="billing-entry-iznos">'+iznos+' <span style="font-size:0.62rem;color:rgba(255,255,255,0.28);">RSD</span></div>';
+      if (!e.obracunato) {
+        html += '<button onclick="billing_deleteEntry(\''+e.id+'\')" class="billing-del-btn" title="Obriši">✕</button>';
+      }
+      html += '</div>';
+    });
+    listEl.innerHTML = html;
+    var neobr = _billingEntries.filter(function(e){ return !e.obracunato; });
+    if (barEl) {
+      if (neobr.length) {
+        var neobrSum = Math.round(neobr.reduce(function(s,e){return s+(e.iznos_rsd||0);},0));
+        barEl.style.display = '';
+        barEl.innerHTML = '<button class="billing-faktura-btn" onclick="billing_generateFakturaPanel()">Generiši fakturu ('+neobr.length+' stavki · '+neobrSum.toLocaleString('sr-RS')+' RSD)</button>';
+      } else { barEl.style.display = 'none'; }
+    }
+  } catch(e) { if (listEl) listEl.innerHTML = ''; }
+}
+
+function billing_renderTimerBar(aktivan, isCurrent) {
+  var lbl = document.getElementById('billing-timer-label');
+  var btn = document.getElementById('billing-timer-btn');
+  var clk = document.getElementById('billing-timer-clock');
+  if (!lbl || !btn) return;
+  if (aktivan && isCurrent) {
+    lbl.textContent = '⏱ Tajmer aktivan';
+    btn.textContent = '⏹ Zaustavi tajmer';
+    btn.className = 'billing-timer-btn-stop';
+    if (clk) clk.style.display = '';
+  } else if (aktivan && !isCurrent) {
+    lbl.textContent = '⏱ Tajmer aktivan na drugom predmetu';
+    btn.textContent = '⏹ Zaustavi i prebaci';
+    btn.className = 'billing-timer-btn-stop';
+    if (clk) clk.style.display = 'none';
+  } else {
+    lbl.textContent = '⏱ Tajmer nije aktivan';
+    btn.textContent = '▶ Start tajmer';
+    btn.className = 'billing-timer-btn-start';
+    if (clk) { clk.style.display = 'none'; clk.textContent = '00:00:00'; }
+  }
+}
+
+function _billing_startClockTick() {
+  if (_billingTimerInterval) clearInterval(_billingTimerInterval);
+  _billingTimerInterval = setInterval(function() {
+    var clk = document.getElementById('billing-timer-clock');
+    if (!clk || !_billingTimerStart) return;
+    var elapsed = Math.floor((Date.now() - _billingTimerStart.getTime()) / 1000);
+    var h = Math.floor(elapsed/3600), m = Math.floor((elapsed%3600)/60), s = elapsed%60;
+    clk.textContent = (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  }, 1000);
+}
+
+async function billing_timerToggle() {
+  if (!currentSession) return;
+  var btn = document.getElementById('billing-timer-btn');
+  if (btn) btn.disabled = true;
+  try {
+    if (_billingTimerSessionId) { await billing_timerStop_(); }
+    else { await billing_timerStart_(); }
+  } finally { if (btn) btn.disabled = false; }
+}
+
+async function billing_timerStart_() {
+  if (!_billingPredmetId) return;
+  try {
+    var r = await fetch(BASE_URL+'/billing/timer/start', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify({predmet_id: _billingPredmetId})
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Greška pri pokretanju tajmera.','err'); return; }
+    _billingTimerSessionId = d.timer.id;
+    _billingTimerStart     = new Date(d.timer.start_at);
+    var clk = document.getElementById('billing-timer-clock');
+    if (clk) clk.style.display = '';
+    _billing_startClockTick();
+    billing_renderTimerBar(true, true);
+    showToast('Tajmer pokrenut.','ok');
+  } catch(e) { showToast('Greška veze.','err'); }
+}
+
+async function billing_timerStop_() {
+  try {
+    var r = await fetch(BASE_URL+'/billing/timer/stop', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify({kreiraj_entry: true})
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    if (_billingTimerInterval) { clearInterval(_billingTimerInterval); _billingTimerInterval = null; }
+    _billingTimerSessionId = null;
+    _billingTimerStart     = null;
+    billing_renderTimerBar(false, false);
+    var hStr = (d.trajanje_h||0) < 1 ? Math.round((d.trajanje_h||0)*60)+' min' : (d.trajanje_h||0).toFixed(2)+' h';
+    showToast('Tajmer zaustavljen — '+hStr+'. Radnja dodata.','ok');
+    await billing_loadEntries();
+  } catch(e) { showToast('Greška veze.','err'); }
+}
+
+function billing_tipChange() {
+  var tip = document.getElementById('billing-tip').value;
+  var selWrap = document.getElementById('billing-tarifa-sel');
+  if (selWrap) selWrap.style.display = tip==='tarifa' ? '' : 'none';
+}
+
+function billing_tarifaChange() {
+  var sel  = document.getElementById('billing-tarifa-sel');
+  var izEl = document.getElementById('billing-iznos');
+  var opEl = document.getElementById('billing-opis');
+  if (!sel) return;
+  var opt = sel.options[sel.selectedIndex];
+  if (opt && opt.dataset.iznos) {
+    if (izEl && !izEl.value) izEl.value = opt.dataset.iznos;
+    if (opEl && !opEl.value) opEl.value = opt.dataset.naziv || '';
+  }
+}
+
+async function billing_addEntry() {
+  if (!currentSession || !_billingPredmetId) return;
+  var opis  = (document.getElementById('billing-opis').value||'').trim();
+  var iznos = parseFloat(document.getElementById('billing-iznos').value)||0;
+  var tip   = document.getElementById('billing-tip').value||'ostalo';
+  var sifra = (document.getElementById('billing-tarifa-sel').value||'') || null;
+  if (!opis) { showToast('Unesite opis radnje.','err'); return; }
+  if (!iznos && !sifra) { showToast('Unesite iznos ili izaberite tarifnu stavku.','err'); return; }
+  var addBtn = event && event.target ? event.target : null;
+  if (addBtn) addBtn.disabled = true;
+  try {
+    var body = {predmet_id: _billingPredmetId, opis: opis, tip: tip};
+    if (sifra)  body.tarifa_sifra = sifra;
+    if (iznos)  body.iznos_rsd    = iznos;
+    var r = await fetch(BASE_URL+'/billing/entries', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    document.getElementById('billing-opis').value  = '';
+    document.getElementById('billing-iznos').value = '';
+    document.getElementById('billing-tarifa-sel').value = '';
+    showToast('Radnja dodata.','ok');
+    await billing_loadEntries();
+  } catch(e) { showToast('Greška veze.','err'); }
+  finally { if (addBtn) addBtn.disabled = false; }
+}
+
+async function billing_deleteEntry(entryId) {
+  if (!confirm('Obrisati radnju?') || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL+'/billing/entries/'+entryId, {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.','err'); return; }
+    showToast('Radnja obrisana.','ok');
+    await billing_loadEntries();
+  } catch(e) { showToast('Greška veze.','err'); }
+}
+
+function billing_generateFakturaPanel() {
+  var barEl = document.getElementById('billing-faktura-bar');
+  if (!barEl) return;
+  var neobr   = _billingEntries.filter(function(e){ return !e.obracunato; });
+  var ukupno  = Math.round(neobr.reduce(function(s,e){return s+(e.iznos_rsd||0);},0));
+  barEl.innerHTML =
+    '<div class="billing-faktura-form">'+
+    '<div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-bottom:0.45rem;">'+neobr.length+' stavki · '+ukupno.toLocaleString('sr-RS')+' RSD (bez PDV)</div>'+
+    '<input id="bf-klijent" class="t-input" placeholder="Naziv klijenta *" style="font-size:0.72rem;margin-bottom:0.3rem;" autocomplete="off">'+
+    '<input id="bf-adresa" class="t-input" placeholder="Adresa klijenta (opciono)" style="font-size:0.72rem;margin-bottom:0.3rem;" autocomplete="off">'+
+    '<div style="display:flex;gap:0.4rem;align-items:center;margin-bottom:0.35rem;">'+
+    '<input id="bf-pib" class="t-input" placeholder="PIB" style="font-size:0.72rem;width:130px;" autocomplete="off">'+
+    '<span style="font-size:0.7rem;color:rgba(255,255,255,0.4);">PDV %</span>'+
+    '<input id="bf-pdv" class="t-input" type="number" min="0" max="100" value="0" style="font-size:0.72rem;width:65px;">'+
+    '</div>'+
+    '<div style="display:flex;gap:0.35rem;">'+
+    '<button onclick="billing_doGenerateFaktura()" class="billing-faktura-btn" style="flex:1;">Kreiraj fakturu</button>'+
+    '<button onclick="billing_loadEntries()" style="padding:0.5rem 0.75rem;background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:rgba(255,255,255,0.38);font-size:0.72rem;cursor:pointer;font-family:inherit;">Otkaži</button>'+
+    '</div>'+
+    '</div>';
+}
+
+async function billing_doGenerateFaktura() {
+  var klijent = (document.getElementById('bf-klijent').value||'').trim();
+  if (!klijent) { showToast('Unesite naziv klijenta.','err'); return; }
+  var adresa = (document.getElementById('bf-adresa').value||'').trim();
+  var pib    = (document.getElementById('bf-pib').value||'').trim();
+  var pdv    = parseFloat(document.getElementById('bf-pdv').value)||0;
+  var neobr  = _billingEntries.filter(function(e){ return !e.obracunato; });
+  if (!neobr.length) { showToast('Nema nenaplaćenih stavki.','err'); return; }
+  var btn = document.querySelector('[onclick="billing_doGenerateFaktura()"]');
+  if (btn) { btn.disabled=true; btn.textContent='Kreiram...'; }
+  try {
+    var r = await fetch(BASE_URL+'/billing/faktura', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify({
+        predmet_id: _billingPredmetId,
+        entry_ids:  neobr.map(function(e){return e.id;}),
+        klijent_naziv: klijent,
+        klijent_adresa: adresa||null,
+        klijent_pib:    pib||null,
+        pdv_stopa: pdv
+      })
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    var fakt = d.faktura;
+    var pdfUrl = BASE_URL+'/billing/faktura/'+fakt.id+'/pdf';
+    var barEl = document.getElementById('billing-faktura-bar');
+    if (barEl) barEl.innerHTML = '<div class="billing-faktura-ok">✓ Faktura br. <b>'+escHtml(fakt.broj_fakture)+'</b> kreirana &mdash; <a href="'+pdfUrl+'" target="_blank" style="color:#89c8ff;">Preuzmi PDF</a></div>';
+    showToast('Faktura br. '+fakt.broj_fakture+' kreirana.','ok');
+    await billing_loadEntries();
+  } catch(e) { showToast('Greška veze.','err'); }
+  finally { if (btn) { btn.disabled=false; btn.textContent='Kreiraj fakturu'; } }
+}
 
 </script>
 
