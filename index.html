@@ -1561,7 +1561,7 @@ footer { padding: 2rem 1.5rem; }
 .crm-panel{position:fixed;top:0;right:0;height:100vh;width:520px;max-width:100vw;background:#161b22;border-left:1px solid rgba(255,255,255,0.12);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);z-index:2001;}
 .crm-overlay.open .crm-panel{transform:translateX(0);}
 .crm-panel-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;}
-.crm-panel-body{flex:1;overflow-y:auto;padding:20px 24px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;}
+.crm-panel-body{flex:1;min-height:0;overflow-y:auto;padding:20px 24px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;}
 .crm-panel-footer{display:flex;gap:10px;padding:16px 24px;border-top:1px solid rgba(255,255,255,0.08);flex-shrink:0;background:#161b22;}
 .crm-panel-footer .crm-save-btn{flex:1;}
 .crm-panel-close{background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;transition:color 0.15s;}
@@ -1581,9 +1581,10 @@ footer { padding: 2rem 1.5rem; }
 .intake-step-dot.done{background:#4aa8ff;}
 .intake-step-dot.active{background:#89c8ff;}
 .intake-step-label{font-size:0.68rem;color:rgba(255,255,255,0.4);margin-left:6px;}
-.intake-panel-close{position:absolute;top:14px;right:16px;background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color 0.15s;}
+.intake-panel-close{background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color 0.15s;flex-shrink:0;line-height:1;}
 .intake-panel-close:hover{color:#e6edf3;background:rgba(255,255,255,0.06);}
-.intake-panel-body{flex:1;overflow-y:auto;padding:20px 22px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent;}
+.intake-panel-header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.intake-panel-body{flex:1;min-height:0;overflow-y:auto;padding:20px 22px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent;}
 .intake-panel-footer{flex-shrink:0;display:flex;gap:10px;padding:14px 22px;border-top:1px solid rgba(255,255,255,0.07);background:#0d1117;}
 .intake-panel-footer .intake-next-btn{flex:1;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
 .intake-panel-footer .intake-next-btn:disabled{opacity:0.4;cursor:not-allowed;}
@@ -2692,9 +2693,11 @@ footer { padding: 2rem 1.5rem; }
           <!-- Intake Wizard slide-over panel -->
           <div id="intake-overlay" class="intake-overlay" onclick="if(event.target===this)intakeConfirmClose()">
             <div class="intake-panel" onclick="event.stopPropagation()">
-              <button class="intake-panel-close" onclick="intakeConfirmClose()" title="Zatvori">✕</button>
               <div class="intake-panel-header">
-                <div class="intake-panel-title" id="intake-panel-title">Novi predmet — Intake Wizard</div>
+                <div class="intake-panel-header-row">
+                  <div class="intake-panel-title" id="intake-panel-title" style="margin-bottom:0">Novi predmet — Intake Wizard</div>
+                  <button class="intake-panel-close" onclick="intakeConfirmClose()" title="Zatvori">✕</button>
+                </div>
                 <div class="intake-steps-bar">
                   <div class="intake-step-dot active" id="isb-0"></div>
                   <div class="intake-step-dot" id="isb-1"></div>
