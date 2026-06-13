@@ -6744,6 +6744,16 @@ window.addEventListener('DOMContentLoaded', function() {
     openModal();
     setAuthMode('reset');
   }
+
+  // .terminal ima backdrop-filter:blur(20px) koja kreira containing block za position:fixed,
+  // što znači da se overlay-i pozicioniraju relativno prema .terminal (ne viewport-u) i
+  // bivaju klipovani od .terminal{overflow:hidden}. Fix: premesti ih na document.body.
+  ['intake-overlay', 'crm-overlay', 'crm-conflict-overlay'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && el.parentElement !== document.body) {
+      document.body.appendChild(el);
+    }
+  });
 });
 
 /* ── SUDSKA PRAKSA ──────────────────────────────────────────────────────── */
