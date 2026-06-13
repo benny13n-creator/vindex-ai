@@ -3158,6 +3158,7 @@ footer { padding: 2rem 1.5rem; }
 var BASE_URL   = window.location.origin;
 var STRIPE_URL = ''; // Set to your Stripe checkout or pricing page URL
 var activeTab = 'q';
+var _initialNavDone = false;
 var _cyrillicOn = false;
 var currentUserIsPro = false;
 var _lastRawText = '';
@@ -3229,7 +3230,8 @@ async function initAuth() {
       await loadCredits();
       loadChatHistory();
       pred_load();
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && !_initialNavDone) {
+        _initialNavDone = true;
         var hTab = document.querySelector('[onclick*="\'h\'"]');
         if (hTab) setTab(hTab, 'h');
       }
