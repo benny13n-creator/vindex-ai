@@ -314,6 +314,19 @@ nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border
 .t-body { padding: 1.5rem; }
 .t-tabs { display: flex; gap: 0; background: transparent; border-radius: 0; padding: 0; margin-bottom: 1.2rem; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; max-width: 100%; white-space: nowrap; }
 .t-tabs::-webkit-scrollbar { display: none; }
+.t-tabs-wrap { position:relative; min-width:0; }
+.t-scroll-fade { position:absolute; top:0; bottom:2px; width:52px; z-index:2; pointer-events:none; transition:opacity 0.2s; }
+.t-scroll-fade-l { left:0; background:linear-gradient(to right, #01050e 20%, transparent); }
+.t-scroll-fade-r { right:0; background:linear-gradient(to left, #01050e 20%, transparent); }
+.t-tabs-wrap.at-start .t-scroll-fade-l { opacity:0; }
+.t-tabs-wrap.at-end .t-scroll-fade-r { opacity:0; }
+.t-scroll-btn { position:absolute; bottom:8px; z-index:3; width:22px; height:22px; background:rgba(3,8,16,0.9); border:1px solid rgba(74,168,255,0.25); border-radius:50%; color:rgba(255,255,255,0.55); font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition:opacity 0.2s, color 0.15s; }
+.t-scroll-btn:hover { color:#4aa8ff; border-color:rgba(74,168,255,0.5); }
+.t-scroll-btn-l { left:2px; }
+.t-scroll-btn-r { right:2px; }
+.t-tabs-wrap.at-start .t-scroll-btn-l { opacity:0; pointer-events:none; }
+.t-tabs-wrap.at-end .t-scroll-btn-r { opacity:0; pointer-events:none; }
+@media (max-width:768px) { .t-scroll-btn { display:none; } .t-scroll-fade { display:none; } }
 .t-tab { flex: 1; min-width: max-content; max-width: 100%; min-height: 44px; padding: 12px 24px; text-align: center; font-size: 1rem; font-weight: 500; color: rgba(255,255,255,0.45); border-radius: 0; cursor: pointer; transition: color 0.2s, border-bottom-color 0.2s; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
 .t-tab.active { background: transparent; color: #89c8ff; border-bottom-color: #4aa8ff; }
 .t-tab:hover { color: rgba(255,255,255,0.75); }
@@ -2112,17 +2125,23 @@ footer { padding: 2rem 1.5rem; }
         </div>
         <div class="t-body">
           <div style="display:flex;align-items:flex-end;position:relative;">
-          <div class="t-tabs" style="flex:1;">
-            <div class="t-tab" onclick="setTab(this,'h')">Centar</div>
-            <div class="t-tab" onclick="setTab(this,'p')"><span class="tab-icon">📁 </span>Predmeti</div>
-            <div class="t-tab" onclick="setTab(this,'k')"><span class="tab-icon">👥 </span>Klijenti</div>
-            <div class="t-tab active" onclick="setTab(this,'q')">Istraživanje</div>
-            <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
-            <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
-            <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
-            <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="tab-icon">⚔️ </span>Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
-            <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">₿ Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
-            <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">📅 Kalendar</div>
+          <div class="t-tabs-wrap" style="flex:1;">
+            <div class="t-scroll-fade t-scroll-fade-l"></div>
+            <div class="t-scroll-fade t-scroll-fade-r"></div>
+            <button class="t-scroll-btn t-scroll-btn-l" onclick="tabsScroll(-1)">&#8249;</button>
+            <button class="t-scroll-btn t-scroll-btn-r" onclick="tabsScroll(1)">&#8250;</button>
+            <div class="t-tabs" id="t-tabs-el">
+              <div class="t-tab" onclick="setTab(this,'h')">Centar</div>
+              <div class="t-tab" onclick="setTab(this,'p')"><span class="tab-icon">📁 </span>Predmeti</div>
+              <div class="t-tab" onclick="setTab(this,'k')"><span class="tab-icon">👥 </span>Klijenti</div>
+              <div class="t-tab active" onclick="setTab(this,'q')">Istraživanje</div>
+              <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
+              <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
+              <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
+              <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="tab-icon">⚔️ </span>Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
+              <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">₿ Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
+              <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">📅 Kalendar</div>
+            </div>
           </div>
           <div id="notif-bell" onclick="notif_toggleDropdown()" style="flex-shrink:0;display:none;align-items:center;cursor:pointer;padding:0 0.6rem 0.45rem;border-bottom:2px solid transparent;margin-bottom:-1px;position:relative;" title="Obaveštenja">
             <span style="font-size:1rem;line-height:1;">🔔</span>
@@ -3901,6 +3920,8 @@ function setTab(el,t){
   if (t==='k') ucitajKlijente();
   if (t==='w') web3InitTab();
   if (t==='kal') kalendarLoad();
+  if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'smooth' });
+  setTimeout(tabsUpdateArrows, 350);
   document.getElementById('btn-lbl').textContent = lbl[t] || '';
   if (respEl) respEl.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
@@ -10610,6 +10631,29 @@ function rocisteObrisi(id) {
 }
 </script>
 
+<script>
+// Tab scroll arrows
+function tabsScroll(dir) {
+  var el = document.getElementById('t-tabs-el');
+  if (el) el.scrollBy({ left: dir * 180, behavior: 'smooth' });
+}
+function tabsUpdateArrows() {
+  var el = document.getElementById('t-tabs-el');
+  if (!el) return;
+  var wrap = el.parentElement;
+  if (!wrap || !wrap.classList.contains('t-tabs-wrap')) return;
+  wrap.classList.toggle('at-start', el.scrollLeft <= 2);
+  wrap.classList.toggle('at-end', el.scrollLeft >= el.scrollWidth - el.clientWidth - 2);
+}
+window.addEventListener('load', function() {
+  var el = document.getElementById('t-tabs-el');
+  if (el) {
+    el.addEventListener('scroll', tabsUpdateArrows, { passive: true });
+    tabsUpdateArrows();
+    if (window.ResizeObserver) new ResizeObserver(tabsUpdateArrows).observe(el);
+  }
+});
+</script>
 <script>
 // F6 — PWA Service Worker registracija
 if ('serviceWorker' in navigator) {
