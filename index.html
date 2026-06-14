@@ -1564,6 +1564,60 @@ footer { padding: 2rem 1.5rem; }
 .kc-preporuke{margin-bottom:1.2rem;display:flex;flex-direction:column;gap:0.3rem;}
 .kc-prep-item{font-size:0.76rem;color:rgba(255,255,255,0.65);padding:0.45rem 0.75rem;background:rgba(251,146,60,0.05);border:1px solid rgba(251,146,60,0.15);border-radius:7px;line-height:1.5;}
 .kc-loading{text-align:center;padding:2.5rem;font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.2);letter-spacing:0.15em;text-transform:uppercase;}
+/* ── PRODUCT INTELLIGENCE (tab-pi) ─────────────────────────── */
+#tab-pi{padding:1rem 0 2rem;}
+.pi-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.4rem;}
+.pi-title{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:600;color:rgba(255,255,255,0.9);}
+.pi-subtitle{font-family:'JetBrains Mono',monospace;font-size:0.56rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-top:0.2rem;}
+.pi-reload-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);font-size:0.7rem;padding:0.4rem 0.9rem;border-radius:6px;cursor:pointer;transition:all 0.2s;font-family:'JetBrains Mono',monospace;}
+.pi-reload-btn:hover{background:rgba(74,168,255,0.1);border-color:rgba(74,168,255,0.3);color:#89c8ff;}
+.pi-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;margin-bottom:1.5rem;}
+@media(max-width:640px){.pi-kpi-grid{grid-template-columns:repeat(2,1fr);}}
+.pi-kpi{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:1rem;text-align:center;position:relative;}
+.pi-kpi-val{font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:700;color:#4aa8ff;line-height:1;}
+.pi-kpi-lbl{font-family:'JetBrains Mono',monospace;font-size:0.46rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-top:0.3rem;}
+.pi-kpi-trend{font-family:'JetBrains Mono',monospace;font-size:0.58rem;position:absolute;top:0.55rem;right:0.65rem;font-weight:600;}
+.pi-kpi-trend.up{color:#4ade80;}.pi-kpi-trend.down{color:#f87171;}.pi-kpi-trend.flat{color:rgba(255,255,255,0.25);}
+.pi-section{margin-bottom:1.8rem;}
+.pi-section-hd{font-family:'JetBrains Mono',monospace;font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.28);padding-bottom:0.5rem;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:0.9rem;display:flex;align-items:center;justify-content:space-between;}
+.pi-period-sel{background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);font-size:0.6rem;font-family:'JetBrains Mono',monospace;padding:0.2rem 0.5rem;border-radius:4px;cursor:pointer;}
+.pi-period-sel option{background:#010308;}
+/* Feature bar chart */
+.pi-feat-row{display:flex;align-items:center;gap:0.6rem;margin-bottom:0.45rem;}
+.pi-feat-name{font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:rgba(255,255,255,0.6);min-width:130px;flex-shrink:0;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;}
+.pi-feat-bar-wrap{flex:1;height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;}
+.pi-feat-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,#4aa8ff,#89c8ff);transition:width 0.6s ease;}
+.pi-feat-cnt{font-family:'JetBrains Mono',monospace;font-size:0.57rem;color:rgba(255,255,255,0.35);min-width:38px;text-align:right;}
+.pi-feat-cred{font-family:'JetBrains Mono',monospace;font-size:0.52rem;color:#c9a84c;min-width:50px;text-align:right;}
+/* Retention heatmap */
+.pi-ret-grid{display:grid;gap:3px;}
+.pi-ret-head{display:grid;grid-template-columns:90px repeat(5,1fr);gap:3px;margin-bottom:3px;}
+.pi-ret-head-cell{font-family:'JetBrains Mono',monospace;font-size:0.5rem;letter-spacing:0.08em;color:rgba(255,255,255,0.3);text-align:center;padding:0.3rem 0;}
+.pi-ret-row{display:grid;grid-template-columns:90px repeat(5,1fr);gap:3px;}
+.pi-ret-week{font-family:'JetBrains Mono',monospace;font-size:0.5rem;color:rgba(255,255,255,0.35);display:flex;align-items:center;padding-left:2px;}
+.pi-ret-cell{border-radius:4px;height:28px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:0.55rem;font-weight:600;transition:opacity 0.2s;}
+/* Funnel */
+.pi-funnel{display:flex;flex-direction:column;gap:0.35rem;}
+.pi-funnel-step{display:flex;align-items:center;gap:0.7rem;}
+.pi-funnel-label{font-size:0.68rem;color:rgba(255,255,255,0.6);min-width:130px;}
+.pi-funnel-bar-wrap{flex:1;height:22px;background:rgba(255,255,255,0.04);border-radius:5px;overflow:hidden;position:relative;}
+.pi-funnel-bar{height:100%;border-radius:5px;background:linear-gradient(90deg,rgba(74,168,255,0.6),rgba(137,200,255,0.4));transition:width 0.7s ease;}
+.pi-funnel-pct{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-family:'JetBrains Mono',monospace;font-size:0.55rem;color:rgba(255,255,255,0.6);}
+.pi-funnel-n{font-family:'JetBrains Mono',monospace;font-size:0.55rem;color:rgba(255,255,255,0.3);min-width:36px;text-align:right;}
+/* SVG chart */
+.pi-chart-wrap{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:0.8rem;overflow:hidden;}
+.pi-chart-wrap svg{display:block;width:100%;overflow:visible;}
+/* Session stat */
+.pi-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;}
+@media(max-width:480px){.pi-stats-row{grid-template-columns:1fr 1fr;}}
+.pi-stat{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:0.75rem 0.9rem;text-align:center;}
+.pi-stat-val{font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:700;color:#c9a84c;line-height:1;}
+.pi-stat-lbl{font-family:'JetBrains Mono',monospace;font-size:0.47rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-top:0.25rem;}
+.pi-empty{text-align:center;padding:2rem;font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.18);letter-spacing:0.1em;text-transform:uppercase;}
+.pi-funnel-tabs{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.9rem;}
+.pi-ftab{font-family:'JetBrains Mono',monospace;font-size:0.58rem;padding:0.3rem 0.7rem;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.4);cursor:pointer;transition:all 0.2s;}
+.pi-ftab.active,.pi-ftab:hover{background:rgba(74,168,255,0.1);border-color:rgba(74,168,255,0.3);color:#89c8ff;}
+.pi-least-badge{font-family:'JetBrains Mono',monospace;font-size:0.48rem;padding:0.15rem 0.4rem;border-radius:3px;background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.2);color:rgba(251,146,60,0.7);margin-left:0.3rem;}
 .kc-qa-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.65);font-size:0.78rem;padding:0.5rem 1rem;border-radius:6px;cursor:pointer;transition:all 0.2s;}
 .kc-qa-btn:hover{background:rgba(74,168,255,0.1);border-color:rgba(74,168,255,0.3);color:#89c8ff;}
 @media(max-width:640px){.kc-kpi-row{grid-template-columns:repeat(2,1fr);}}
@@ -2164,6 +2218,7 @@ footer { padding: 2rem 1.5rem; }
               <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="tab-icon">⚔️ </span>Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
               <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">₿ Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
               <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">📅 Kalendar</div>
+              <div class="t-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none">📊 Intelligence</div>
             </div>
           </div>
           <div id="notif-bell" onclick="notif_toggleDropdown()" style="flex-shrink:0;display:none;align-items:center;cursor:pointer;padding:0 0.6rem 0.45rem;border-bottom:2px solid transparent;margin-bottom:-1px;position:relative;" title="Obaveštenja">
@@ -2948,6 +3003,20 @@ footer { padding: 2rem 1.5rem; }
             <div id="kal-body" class="kal-body"></div>
           </div>
 
+          <!-- ── Product Intelligence Admin Panel (tab-pi) ─────────────── -->
+          <div id="tab-pi" style="display:none">
+            <div class="pi-header">
+              <div>
+                <div class="pi-title">📊 Product Intelligence</div>
+                <div class="pi-subtitle">Usage analytics · Retention · Funnels · Feature intelligence</div>
+              </div>
+              <button class="pi-reload-btn" onclick="piLoad()">⟳ Osveži</button>
+            </div>
+            <div id="pi-body">
+              <div class="pi-empty">Učitavam...</div>
+            </div>
+          </div>
+
           <div class="t-exec-row" id="t-exec-row">
             <button class="t-exec" id="exec-btn" onclick="execQuery()"><span id="btn-lbl">Pretraži pravnu bazu</span></button>
             <label class="cyr-toggle-wrap" title="Prikaži odgovor ćiriličnim pismom">
@@ -3280,7 +3349,8 @@ var STRIPE_URL = ''; // Set to your Stripe checkout or pricing page URL
 var activeTab = 'q';
 var _initialNavDone = false;
 var _cyrillicOn = false;
-var currentUserIsPro = false;
+var currentUserIsPro     = false;
+var currentUserIsFounder = false;
 var _lastRawText = '';
 
 function toggleCyrillic() {
@@ -3352,6 +3422,7 @@ async function initAuth() {
       pred_load();
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && !_initialNavDone) {
         _initialNavDone = true;
+        piTrack('auth', 'login', {event: event});
         var hTab = document.querySelector('[onclick*="\'h\'"]');
         if (hTab) setTab(hTab, 'h');
       }
@@ -3383,11 +3454,13 @@ async function loadCredits() {
       console.log('[Vindex] /api/me odgovor:', d);
       userCredits       = (d.credits_remaining !== undefined && d.credits_remaining !== null) ? d.credits_remaining : 0;
       TOTAL_CREDITS     = d.credits_total || 15;
-      currentUserIsPro  = !!d.is_pro;
+      currentUserIsPro     = !!d.is_pro;
+      currentUserIsFounder = !!d.is_founder;
       _creditsLoaded    = true;
       _creditsLoadedAt  = Date.now();
       _updateProTabUI();
       _updateStratTabUI();
+      _updateAdminTabUI();
       updateCreditDisplay();
       if (currentUserIsPro) {
         ucitajApiKljuceve();
@@ -3851,6 +3924,7 @@ function _dashFormatDate(){var d=new Date();var dn=['nedeljа','ponedeljak','uto
 
 async function dash_load(){
   if(!currentSession){document.getElementById('kc-body').innerHTML='<div class="kc-empty">Prijavite se da biste videli kontrolni centar.</div>';return;}
+  piTrack('dashboard','view');
   var body=document.getElementById('kc-body');
   if(!body)return;
   body.innerHTML='<div class="kc-loading">Učitavam...</div>';
@@ -4033,16 +4107,17 @@ function setTab(el,t){
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  ['h','q','n','a','s','p','t','k','w','kal'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
+  ['h','q','n','a','s','p','t','k','w','kal','pi'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Kontrolni centar',q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija',k:'👥 Klijenti',w:'₿ Web3 Compliance',kal:'📅 Kalendar'};
+  var lbl={h:'Kontrolni centar',q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija',k:'👥 Klijenti',w:'₿ Web3 Compliance',kal:'📅 Kalendar',pi:'📊 Product Intelligence'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  if (execRow) execRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w' || t === 'kal') ? 'none' : '';
-  if (credRow) credRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w' || t === 'kal') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
+  if (execRow) execRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w' || t === 'kal' || t === 'pi') ? 'none' : '';
+  if (credRow) credRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w' || t === 'kal' || t === 'pi') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
+  if (t==='pi') piLoad();
   if (t==='n') { updatePodnesakHint(); ucitajPlaybookStatus(); }
   if (t==='q' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
   if (t==='s') praksa_load_initial();
@@ -4051,6 +4126,7 @@ function setTab(el,t){
   if (t==='w') web3InitTab();
   if (t==='kal') kalendarLoad();
   if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'smooth' });
+  piTrack('nav', 'tab_switch', {tab: t});
   setTimeout(tabsUpdateArrows, 350);
   document.getElementById('btn-lbl').textContent = lbl[t] || '';
   if (respEl) respEl.classList.remove('show');
@@ -4216,6 +4292,7 @@ async function stratPokreni() {
   if (naslovEl) naslovEl.textContent = modul.naziv;
   if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ ' + modul.naziv + ' u toku...</div>';
 
+  piTrack('strategija','query',{modul:_stratAktivniModul});
   try {
     var res = await fetch(BASE_URL + modul.endpoint, {
       method: 'POST',
@@ -6678,6 +6755,8 @@ async function execQuery() {
   if (window.micStopAll) micStopAll();
   btnLbl.textContent = activeTab === 'n' ? 'Generišem nacrt...' : 'Vindex AI pretražuje bazu...';
   console.log('[Vindex] execQuery: šaljem upit na', activeTab);
+  var _trackFeature = {q:'pravno_istrazivanje',n:'drafting',a:'dokument',s:'sudska_praksa'}[activeTab]||activeTab;
+  piTrack(_trackFeature,'query',{tab:activeTab});
   resp.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
   var _wfDiv = document.getElementById('analiza-workflow'); if (_wfDiv) _wfDiv.style.display='none';
@@ -8977,6 +9056,7 @@ async function pred_copilotSubmit() {
   copilot_appendMsg('bot', '<span style="color:rgba(255,255,255,.3);font-style:italic;">Obrađujem…</span>');
   var msgContainer = document.getElementById('pred-copilot-messages');
   var loadingMsg   = msgContainer ? msgContainer.lastElementChild : null;
+  piTrack('copilot','query',{predmet_id:activePredmetId});
   try {
     var r = await fetch(BASE_URL+'/copilot/chat', {
       method: 'POST',
@@ -8994,6 +9074,7 @@ async function pred_copilotSubmit() {
 
 async function pred_loadDetail(id) {
   if (!currentSession) return;
+  piTrack('predmeti','open',{predmet_id:id});
   // Reset cockpit to loading state
   var loadEl = document.getElementById('pck-loading');
   var bodyEl = document.getElementById('pck-body');
@@ -10950,6 +11031,7 @@ async function hccGeneriši() {
   resEl.style.display   = 'none';
   resEl.innerHTML       = '';
 
+  piTrack('hearing_cc','generate',{predmet_id:predmetId});
   try {
     var r = await fetch(BASE_URL + '/api/rociste/command-center', {
       method: 'POST',
@@ -11079,6 +11161,326 @@ window.addEventListener('load', function() {
   }
 });
 </script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// PRODUCT INTELLIGENCE — Admin Panel
+// ═══════════════════════════════════════════════════════════════
+
+function _updateAdminTabUI() {
+  var btn = document.getElementById('tab-btn-pi');
+  if (btn) btn.style.display = currentUserIsFounder ? '' : 'none';
+}
+
+// ── Tracking helper ──────────────────────────────────────────
+function piTrack(feature, action, metadata) {
+  if (!currentSession) return;
+  try {
+    fetch(BASE_URL + '/analytics/track', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify({feature: feature, action: action, metadata: metadata || null})
+    }).catch(function(){});
+  } catch(e) {}
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+function _piTrend(str) {
+  if (!str) return '';
+  var up = str.startsWith('+') && str !== '+0%';
+  var dn = str.startsWith('-');
+  var cls = up ? 'up' : (dn ? 'down' : 'flat');
+  return '<span class="pi-kpi-trend '+cls+'">'+escHtml(str)+'</span>';
+}
+
+function _piColor(pct) {
+  if (pct === null || pct === undefined) return 'rgba(255,255,255,0.06)';
+  if (pct >= 70) return 'rgba(74,222,128,0.55)';
+  if (pct >= 40) return 'rgba(74,168,255,0.45)';
+  if (pct >= 20) return 'rgba(251,146,60,0.45)';
+  return 'rgba(248,113,113,0.35)';
+}
+
+function _piFormatMin(min) {
+  if (min < 1)   return '<1m';
+  if (min < 60)  return Math.round(min) + 'm';
+  return (min/60).toFixed(1) + 'h';
+}
+
+// ── SVG Line chart ────────────────────────────────────────────
+function _piLineChart(timeline, field, color, height) {
+  height = height || 60;
+  var w = 600, h = height;
+  if (!timeline || !timeline.length) return '<svg viewBox="0 0 '+w+' '+h+'"></svg>';
+  var vals = timeline.map(function(d){return d[field]||0;});
+  var maxV = Math.max.apply(null, vals) || 1;
+  var pts  = vals.map(function(v,i){
+    var x = (i/(vals.length-1||1))*w;
+    var y = h - (v/maxV)*(h-4) - 2;
+    return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  var fill = vals.map(function(v,i){
+    var x = (i/(vals.length-1||1))*w;
+    var y = h - (v/maxV)*(h-4) - 2;
+    return x.toFixed(1)+','+y.toFixed(1);
+  });
+  fill.push(w+','+h); fill.unshift('0,'+h);
+  var fillPts = fill.join(' ');
+  return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">'
+    + '<defs><linearGradient id="piFill" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0%" stop-color="'+color+'" stop-opacity="0.25"/>'
+    + '<stop offset="100%" stop-color="'+color+'" stop-opacity="0.02"/>'
+    + '</linearGradient></defs>'
+    + '<polygon points="'+fillPts+'" fill="url(#piFill)"/>'
+    + '<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2"/>'
+    + '</svg>';
+}
+
+// ── Render overview section ───────────────────────────────────
+function _piRenderOverview(ov, tl) {
+  var h = '';
+  h += '<div class="pi-kpi-grid">';
+  h += '<div class="pi-kpi">'+_piTrend('')+'<div class="pi-kpi-val">'+(ov.dau||0)+'</div><div class="pi-kpi-lbl">DAU · hoje</div></div>';
+  h += '<div class="pi-kpi">'+_piTrend('')+'<div class="pi-kpi-val">'+(ov.wau||0)+'</div><div class="pi-kpi-lbl">WAU · 7 dana</div></div>';
+  h += '<div class="pi-kpi">'+_piTrend(ov.mau_trend)+'<div class="pi-kpi-val">'+(ov.mau||0)+'</div><div class="pi-kpi-lbl">MAU · 30 dana</div></div>';
+  h += '<div class="pi-kpi"><div class="pi-kpi-val">'+(ov.total_korisnika_90d||0)+'</div><div class="pi-kpi-lbl">Korisnika · 90d</div></div>';
+  h += '</div>';
+  // Stats row
+  h += '<div class="pi-stats-row" style="margin-bottom:1.5rem;">';
+  h += '<div class="pi-stat"><div class="pi-stat-val">'+_piFormatMin(ov.avg_session_minutes||0)+'</div><div class="pi-stat-lbl">Prosečna sesija</div></div>';
+  h += '<div class="pi-stat"><div class="pi-stat-val">'+(ov.total_sessions_90d||0)+'</div><div class="pi-stat-lbl">Sesija · 90d</div></div>';
+  h += '<div class="pi-stat"><div class="pi-stat-val">'+(ov.total_events_30d||0)+'</div><div class="pi-stat-lbl">Događaja · 30d</div></div>';
+  h += '</div>';
+  // DAU timeline chart
+  if (tl && tl.timeline && tl.timeline.length) {
+    h += '<div class="pi-section">';
+    h += '<div class="pi-section-hd"><span>Dnevno aktivni korisnici (DAU)</span><span style="color:rgba(255,255,255,0.2);font-size:0.5rem;">poslednji '+tl.period_dana+' dana · peak='+tl.peak_dau+' ('+escHtml(tl.peak_datum||'-')+')</span></div>';
+    h += '<div class="pi-chart-wrap">'+_piLineChart(tl.timeline,'dau','#4aa8ff',80)+'</div>';
+    h += '<div style="display:flex;justify-content:space-between;margin-top:0.3rem;">';
+    h += '<span style="font-family:JetBrains Mono,monospace;font-size:0.46rem;color:rgba(255,255,255,0.22);">'+(tl.timeline[0]||{}).datum+'</span>';
+    h += '<span style="font-family:JetBrains Mono,monospace;font-size:0.46rem;color:rgba(255,255,255,0.22);">'+(tl.timeline[tl.timeline.length-1]||{}).datum+'</span>';
+    h += '</div></div>';
+    // Events chart
+    h += '<div class="pi-section">';
+    h += '<div class="pi-section-hd">Događaji po danu (Events)</div>';
+    h += '<div class="pi-chart-wrap">'+_piLineChart(tl.timeline,'events','#c9a84c',60)+'</div>';
+    h += '</div>';
+  }
+  return h;
+}
+
+// ── Render features section ───────────────────────────────────
+function _piRenderFeatures(fd) {
+  var h = '';
+  var top = fd.top_features || [];
+  var least = fd.least_used || [];
+  var maxEv = top.length ? top[0].events : 1;
+
+  h += '<div class="pi-section">';
+  h += '<div class="pi-section-hd"><span>Najkorišćenije funkcije</span>';
+  h += '<span style="color:rgba(255,255,255,0.2);font-size:0.5rem;">Ukupno kredita: <b style="color:#c9a84c">'+(fd.total_credits_spent||0)+'</b></span></div>';
+  top.forEach(function(f){
+    var barPct = maxEv ? Math.round(f.events/maxEv*100) : 0;
+    h += '<div class="pi-feat-row">';
+    h += '<div class="pi-feat-name" title="'+escHtml(f.feature)+'">'+escHtml(f.feature)+'</div>';
+    h += '<div class="pi-feat-bar-wrap"><div class="pi-feat-bar" style="width:'+barPct+'%"></div></div>';
+    h += '<div class="pi-feat-cnt">'+f.events+'</div>';
+    if (f.credits_spent>0) h += '<div class="pi-feat-cred">'+f.credits_spent+'cr</div>';
+    else h += '<div class="pi-feat-cred" style="color:rgba(255,255,255,0.15)">-</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+
+  // Least used
+  if (least.length) {
+    h += '<div class="pi-section">';
+    h += '<div class="pi-section-hd">Najmanje korišćene funkcije <span class="pi-least-badge">Šansa za poboljšanje</span></div>';
+    least.forEach(function(f){
+      h += '<div class="pi-feat-row">';
+      h += '<div class="pi-feat-name">'+escHtml(f.feature)+'</div>';
+      h += '<div class="pi-feat-bar-wrap"><div class="pi-feat-bar" style="width:'+(f.events/maxEv*100)+'%;background:linear-gradient(90deg,rgba(251,146,60,0.4),rgba(251,146,60,0.2))"></div></div>';
+      h += '<div class="pi-feat-cnt">'+f.events+'</div>';
+      h += '<div class="pi-feat-cred" style="color:rgba(255,255,255,0.2)">'+f.unique_users+'u</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+  return h;
+}
+
+// ── Render retention heatmap ──────────────────────────────────
+function _piRenderRetention(ret) {
+  var h = '';
+  var cohorts = ret.cohorts || [];
+  var d7  = ret.d7_rate;
+  var d30 = ret.d30_rate;
+
+  // D7/D30 rate pills
+  h += '<div style="display:flex;gap:1rem;margin-bottom:1.2rem;">';
+  h += '<div class="pi-stat" style="flex:1"><div class="pi-stat-val" style="color:'+(d7>=40?'#4ade80':'#fb923c')+'">'+(d7!==null?d7+'%':'N/A')+'</div><div class="pi-stat-lbl">D7 Retention</div></div>';
+  h += '<div class="pi-stat" style="flex:1"><div class="pi-stat-val" style="color:'+(d30>=20?'#4ade80':'#fb923c')+'">'+(d30!==null?d30+'%':'N/A')+'</div><div class="pi-stat-lbl">D30 Retention</div></div>';
+  h += '</div>';
+
+  if (!cohorts.length) {
+    h += '<div class="pi-empty">Nema dovoljno podataka za kohortnu analizu.</div>';
+    return h;
+  }
+
+  // Header
+  h += '<div class="pi-ret-head">';
+  h += '<div class="pi-ret-head-cell" style="text-align:left">Nedelja</div>';
+  h += '<div class="pi-ret-head-cell">W0 (100%)</div>';
+  h += '<div class="pi-ret-head-cell">W1</div>';
+  h += '<div class="pi-ret-head-cell">W2</div>';
+  h += '<div class="pi-ret-head-cell">W3</div>';
+  h += '<div class="pi-ret-head-cell">W4</div>';
+  h += '</div>';
+
+  cohorts.slice(-8).forEach(function(c){
+    h += '<div class="pi-ret-row">';
+    h += '<div class="pi-ret-week">'+c.week.slice(5)+'</div>';
+    // W0 = 100%
+    h += '<div class="pi-ret-cell" style="background:rgba(74,168,255,0.5);color:rgba(255,255,255,0.9)">'+c.users+'u</div>';
+    ['W1','W2','W3','W4'].forEach(function(w){
+      var v = c[w];
+      var txt = v===null||v===undefined ? '–' : v+'%';
+      var bg  = v===null||v===undefined ? 'rgba(255,255,255,0.03)' : _piColor(v);
+      h += '<div class="pi-ret-cell" style="background:'+bg+';color:rgba(255,255,255,'+(v===null?'0.15':'0.85')+')">'+txt+'</div>';
+    });
+    h += '</div>';
+  });
+  return h;
+}
+
+// ── Render funnels ────────────────────────────────────────────
+var _piFunnelIdx = 0;
+function _piRenderFunnels(fd) {
+  var funnels = fd.funnels || [];
+  var h = '';
+  if (!funnels.length) return '<div class="pi-empty">Nema funnel podataka.</div>';
+
+  h += '<div class="pi-funnel-tabs">';
+  funnels.forEach(function(f,i){
+    h += '<button class="pi-ftab'+(i===_piFunnelIdx?' active':'')+'" onclick="_piSelectFunnel('+i+')">'+escHtml(f.naziv)+'</button>';
+  });
+  h += '</div>';
+  h += '<div id="pi-funnel-body">';
+  h += _piRenderOneFunnel(funnels[_piFunnelIdx] || funnels[0]);
+  h += '</div>';
+  return h;
+}
+
+function _piSelectFunnel(idx) {
+  _piFunnelIdx = idx;
+  var tabs = document.querySelectorAll('.pi-ftab');
+  tabs.forEach(function(t,i){t.classList.toggle('active',i===idx);});
+  var body = document.getElementById('pi-funnel-body');
+  if (!body || !window._piFunnelData) return;
+  body.innerHTML = _piRenderOneFunnel(window._piFunnelData[idx]);
+}
+
+function _piRenderOneFunnel(f) {
+  if (!f) return '';
+  var h = '';
+  var maxN = (f.koraci && f.koraci[0]) ? f.koraci[0].korisnici : 1;
+  h += '<div style="margin-bottom:0.6rem;font-family:JetBrains Mono,monospace;font-size:0.56rem;color:rgba(255,255,255,0.3);">';
+  h += 'Ukupna konverzija: <b style="color:#4aa8ff">'+(f.ukupna_konverzija||0)+'%</b> · Korisnika: <b style="color:rgba(255,255,255,0.6)">'+(f.ukupno_korisnika||0)+'</b>';
+  h += '</div>';
+  h += '<div class="pi-funnel">';
+  (f.koraci||[]).forEach(function(k){
+    var barPct = maxN ? Math.round(k.korisnici/maxN*100) : 0;
+    h += '<div class="pi-funnel-step">';
+    h += '<div class="pi-funnel-label">'+escHtml(k.label)+'</div>';
+    h += '<div class="pi-funnel-bar-wrap"><div class="pi-funnel-bar" style="width:'+barPct+'%"></div>';
+    h += '<span class="pi-funnel-pct">'+k.konverzija+'%</span></div>';
+    h += '<div class="pi-funnel-n">'+k.korisnici+'</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+
+// ── Main load function ────────────────────────────────────────
+async function piLoad() {
+  if (!currentSession) return;
+  var body = document.getElementById('pi-body');
+  if (!body) return;
+  body.innerHTML = '<div class="pi-empty">Učitavam podatke...</div>';
+  piTrack('dashboard_pi','view');
+
+  var hdr = {'Authorization':'Bearer '+currentSession.access_token};
+  try {
+    var [ovR, featR, retR, funR, tlR] = await Promise.all([
+      fetch(BASE_URL+'/admin/pi/overview',  {headers:hdr}),
+      fetch(BASE_URL+'/admin/pi/features',  {headers:hdr}),
+      fetch(BASE_URL+'/admin/pi/retention', {headers:hdr}),
+      fetch(BASE_URL+'/admin/pi/funnels',   {headers:hdr}),
+      fetch(BASE_URL+'/admin/pi/timeline',  {headers:hdr}),
+    ]);
+
+    if (ovR.status===403) {
+      body.innerHTML='<div class="pi-empty">Pristup odbijen — admin only.</div>';
+      return;
+    }
+
+    var ov   = ovR.ok   ? await ovR.json()   : {};
+    var feat = featR.ok ? await featR.json()  : {};
+    var ret  = retR.ok  ? await retR.json()   : {};
+    var fun  = funR.ok  ? await funR.json()   : {};
+    var tl   = tlR.ok   ? await tlR.json()    : {};
+
+    window._piFunnelData = fun.funnels || [];
+
+    var h = '';
+
+    // Overview KPIs + charts
+    h += _piRenderOverview(ov, tl);
+
+    // Features
+    h += '<div class="pi-section">';
+    h += '<div class="pi-section-hd"><span>Analiza funkcija</span>';
+    h += '<select class="pi-period-sel" onchange="piReloadFeatures(this.value)">';
+    ['7','14','30','60','90'].forEach(function(d){h+='<option value="'+d+'"'+(d==='30'?' selected':'')+'>'+d+'d</option>';});
+    h += '</select></div>';
+    h += _piRenderFeatures(feat);
+    h += '</div>';
+
+    // Retention
+    h += '<div class="pi-section">';
+    h += '<div class="pi-section-hd">Kohortna retencija korisnika</div>';
+    h += _piRenderRetention(ret);
+    h += '</div>';
+
+    // Funnels
+    h += '<div class="pi-section">';
+    h += '<div class="pi-section-hd">Funnel analiza konverzije</div>';
+    h += _piRenderFunnels(fun);
+    h += '</div>';
+
+    body.innerHTML = h;
+  } catch(e) {
+    body.innerHTML = '<div class="pi-empty">Greška: '+escHtml(String(e))+'</div>';
+  }
+}
+
+async function piReloadFeatures(dana) {
+  if (!currentSession) return;
+  var hdr = {'Authorization':'Bearer '+currentSession.access_token};
+  try {
+    var r = await fetch(BASE_URL+'/admin/pi/features?dana='+dana, {headers:hdr});
+    if (!r.ok) return;
+    var feat = await r.json();
+    // Find features section and update just the inner part
+    var body = document.getElementById('pi-body');
+    if (!body) return;
+    // Re-render only features portion — find the existing section by recreating
+    var featEl = body.querySelector('.pi-section');
+    if (!featEl) return;
+    // Simple approach: full reload
+    piLoad();
+  } catch(e) {}
+}
+</script>
+
 <script>
 // F6 — PWA Service Worker registracija
 if ('serviceWorker' in navigator) {
