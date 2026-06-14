@@ -1992,6 +1992,343 @@ footer { padding: 2rem 1.5rem; }
 .analiza-workflow-dugmad{display:flex;flex-wrap:wrap;gap:8px;}
 .analiza-wf-btn{background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.72);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-family:var(--font-ui);transition:all .2s;white-space:nowrap;}
 .analiza-wf-btn:hover{border-color:var(--accent,#4aa8ff);color:#89c8ff;background:rgba(74,168,255,0.08);}
+
+/* ─── EDITORIAL MINIMALIST OVERRIDE ─────────────────────────────────────── */
+
+/* ── Nav ── */
+#nav {
+  background: rgba(1,3,8,0.82) !important;
+  backdrop-filter: blur(24px) !important;
+  border-bottom: 1px solid rgba(74,168,255,0.08) !important;
+  padding: 0 40px !important;
+  height: 60px !important;
+  box-shadow: none !important;
+}
+.nav-links a {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,255,255,0.52) !important;
+  transition: color 0.2s !important;
+}
+.nav-links a:hover { color: #4aa8ff !important; }
+.nav-cta {
+  border-radius: 2px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  padding: 10px 22px !important;
+  border: 1px solid rgba(74,168,255,0.45) !important;
+  background: transparent !important;
+  color: #4aa8ff !important;
+  transition: background 0.2s, color 0.2s !important;
+}
+.nav-cta:hover {
+  background: rgba(74,168,255,0.1) !important;
+  color: #89c8ff !important;
+}
+
+/* ── Hero ── */
+#hero {
+  padding-top: 80px !important;
+}
+.h-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase !important;
+  color: rgba(74,168,255,0.72) !important;
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin-bottom: 28px !important;
+}
+.h-badge::before {
+  content: '' !important;
+  display: block !important;
+  width: 24px !important;
+  height: 1px !important;
+  background: rgba(74,168,255,0.55) !important;
+}
+.hero-center .h1,
+.h1 {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: clamp(3rem, 6vw, 5.6rem) !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.022em !important;
+  line-height: 1.05 !important;
+  color: rgba(255,255,255,0.95) !important;
+  text-shadow: none !important;
+}
+.hero-center .h1-italic,
+.h1-italic {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: clamp(3rem, 6vw, 5.6rem) !important;
+  font-weight: 400 !important;
+  font-style: italic !important;
+  letter-spacing: -0.022em !important;
+  line-height: 1.05 !important;
+  color: #4aa8ff !important;
+  text-shadow: none !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: #4aa8ff !important;
+}
+.h-sub {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.9rem !important;
+  color: rgba(255,255,255,0.46) !important;
+  line-height: 1.7 !important;
+  max-width: 380px !important;
+  margin-top: 20px !important;
+}
+.h-btns .btn, .h-btns button {
+  border-radius: 2px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+}
+
+/* ── Section global ── */
+.section, section {
+  border-top: 1px solid rgba(74,168,255,0.07) !important;
+}
+.section.alt, .section-alt {
+  background: #030810 !important;
+}
+
+/* ── Section headings ── */
+.sbadge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase !important;
+  color: rgba(74,168,255,0.65) !important;
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin-bottom: 16px !important;
+}
+.sbadge::before {
+  content: '' !important;
+  display: block !important;
+  width: 20px !important;
+  height: 1px !important;
+  background: rgba(74,168,255,0.5) !important;
+}
+.sh {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: clamp(2rem, 3.5vw, 3.2rem) !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.1 !important;
+  color: rgba(255,255,255,0.93) !important;
+  text-shadow: none !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.93) !important;
+}
+.ss {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.9rem !important;
+  color: rgba(255,255,255,0.44) !important;
+  line-height: 1.72 !important;
+  max-width: 520px !important;
+}
+
+/* ── Feature cards ── */
+.feat-card, .fc {
+  border-radius: 0 !important;
+  border: 1px solid rgba(74,168,255,0.1) !important;
+  background: rgba(3,8,16,0.6) !important;
+  box-shadow: none !important;
+  transition: border-color 0.24s !important;
+}
+.feat-card:hover, .fc:hover {
+  border-color: rgba(74,168,255,0.28) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.fc-title, .feat-title {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 1.25rem !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  color: rgba(255,255,255,0.9) !important;
+}
+.fc-desc, .feat-desc {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.84rem !important;
+  color: rgba(255,255,255,0.42) !important;
+  line-height: 1.7 !important;
+}
+
+/* ── Platform cards ── */
+.plat-card {
+  border-radius: 0 !important;
+  border: 1px solid rgba(74,168,255,0.1) !important;
+  background: rgba(3,8,16,0.55) !important;
+  box-shadow: none !important;
+}
+.plat-card:hover {
+  border-color: rgba(74,168,255,0.25) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Pricing cards ── */
+.price-card {
+  border-radius: 0 !important;
+  border: 1px solid rgba(74,168,255,0.12) !important;
+  box-shadow: none !important;
+}
+.price-card.featured, .price-card.popular {
+  border-color: rgba(74,168,255,0.35) !important;
+  box-shadow: none !important;
+}
+.price-card .btn, .price-card button[class*="btn"] {
+  border-radius: 2px !important;
+}
+
+/* ── Generic buttons ── */
+.btn-primary, .btn-secondary, .cta-btn {
+  border-radius: 2px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+}
+
+/* ── Footer ── */
+footer, #footer {
+  border-top: 3px solid rgba(74,168,255,0.15) !important;
+  background: #010308 !important;
+}
+footer .footer-brand, #footer .footer-brand {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,255,255,0.3) !important;
+}
+footer a, #footer a {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,255,255,0.32) !important;
+  transition: color 0.2s !important;
+}
+footer a:hover, #footer a:hover {
+  color: rgba(74,168,255,0.72) !important;
+}
+
+/* ── About / manifesto blocks ── */
+#about .sh, #about .sbadge { }
+.about-text, .about-desc {
+  font-family: 'DM Sans', sans-serif !important;
+  color: rgba(255,255,255,0.46) !important;
+  line-height: 1.78 !important;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 3px !important; }
+::-webkit-scrollbar-track { background: #010308 !important; }
+::-webkit-scrollbar-thumb { background: rgba(74,168,255,0.18) !important; border-radius: 0 !important; }
+::-webkit-scrollbar-thumb:hover { background: rgba(74,168,255,0.4) !important; }
+
+/* ── Selection ── */
+::selection { background: rgba(74,168,255,0.22) !important; color: #fff !important; }
+
+/* ── Orbs — make invisible (editorial removes gratuitous glow blobs) ── */
+.orb, .orb-1, .orb-2 {
+  opacity: 0 !important;
+}
+
+/* ── Value pillars (hero-foot) ── */
+.vp-card {
+  background: transparent !important;
+  border: none !important;
+  border-left: 1px solid rgba(74,168,255,0.15) !important;
+  border-radius: 0 !important;
+  padding: 0 0 0 1.2rem !important;
+  box-shadow: none !important;
+}
+.vp-icon {
+  display: none !important;
+}
+.vp-title {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 1.05rem !important;
+  font-weight: 500 !important;
+  color: rgba(255,255,255,0.88) !important;
+  letter-spacing: -0.01em !important;
+  margin-bottom: 6px !important;
+}
+.vp-desc {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.8rem !important;
+  color: rgba(255,255,255,0.38) !important;
+  line-height: 1.68 !important;
+}
+.hero-tagline {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: rgba(74,168,255,0.55) !important;
+  margin: 2.5rem 0 1.5rem !important;
+}
+
+/* ── Marquee section ── */
+.marquee-section {
+  border-top: 1px solid rgba(74,168,255,0.07) !important;
+  border-bottom: 1px solid rgba(74,168,255,0.07) !important;
+  background: #030810 !important;
+}
+
+/* ── Compare grid ── */
+.cmp-col {
+  border-radius: 0 !important;
+}
+.cmp-lbl {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 9px !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,255,255,0.35) !important;
+}
+
+/* ── Feat num (01, 02, 03) ── */
+.feat-num {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 9px !important;
+  letter-spacing: 0.2em !important;
+  color: rgba(74,168,255,0.5) !important;
+}
+
+/* ── Pulse dot inside h-badge — hide, replaced by CSS ::before line ── */
+.h-badge .pulse-dot {
+  display: none !important;
+}
+
+/* ── Hero center layout ── */
+.hero-center {
+  text-align: left !important;
+  padding-left: 2.5rem !important;
+}
+/* ─────────────────────────────────────────────────────────────────────────── */
 </style>
 
 </head>
@@ -2195,8 +2532,8 @@ footer { padding: 2rem 1.5rem; }
     <div class="h-badge">
       <div class="pulse-dot"></div>Pravni Operativni Sistem - Republika Srbija
     </div>
-    <div class="h1"><span class="word-reveal wr-1">Kancelarija</span> <span class="word-reveal wr-2">pod</span></div>
-    <div class="h1-italic"><span class="word-reveal wr-3">kontrolom.</span></div>
+    <div class="h1"><span class="word-reveal wr-1">Pravo na</span> <span class="word-reveal wr-2">dohvat</span></div>
+    <div class="h1-italic"><span class="word-reveal wr-3">ruke.</span></div>
   </div>
 
   <!-- 3-KOLONA: sfera | terminal | uvodni tekst -->
