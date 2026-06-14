@@ -893,6 +893,27 @@ blockquote.citat-expanded { max-height: none; }
 .settings-note { font-size:0.7rem; color:rgba(255,255,255,0.3); margin-top:0.5rem; font-style:italic; }
 .settings-save-btn { width:100%; padding:0.65rem; background:rgba(74,168,255,0.12); border:1px solid rgba(74,168,255,0.3); color:#89c8ff; border-radius:8px; font-family:inherit; font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; margin-top:0.5rem; }
 .settings-save-btn:hover { background:rgba(74,168,255,0.2); }
+.settings-modal { max-height:90vh; overflow-y:auto; }
+.tarife-stavke-lista { max-height:280px; overflow-y:auto; border:1px solid rgba(255,255,255,0.06); border-radius:8px; }
+.tarife-stavka-row { display:flex; align-items:center; gap:8px; padding:5px 10px; border-bottom:1px solid rgba(255,255,255,0.04); }
+.tarife-stavka-row:last-child { border-bottom:none; }
+.tarife-stavka-kod { font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:#4aa8ff; min-width:28px; }
+.tarife-stavka-naziv { flex:1; font-size:0.72rem; color:rgba(255,255,255,0.6); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tarife-stavka-iznos { width:78px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#fff; font-size:0.75rem; padding:3px 6px; text-align:right; font-family:inherit; }
+.tarife-stavka-iznos:focus { outline:none; border-color:rgba(74,168,255,0.4); }
+.tarife-reset-btn { background:none; border:none; color:rgba(255,100,100,0.55); cursor:pointer; font-size:0.8rem; padding:2px 4px; line-height:1; }
+.tarife-reset-btn:hover { color:#ff6060; }
+.tarife-status { font-size:0.7rem; color:#4ade80; margin-top:0.3rem; min-height:1.1em; }
+.crm-tarifa-section { margin-top:1.2rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.06); }
+.crm-tarifa-row { display:flex; align-items:center; gap:8px; margin-top:0.5rem; }
+.crm-tarifa-input { width:130px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:#fff; font-size:0.82rem; padding:6px 10px; font-family:inherit; }
+.crm-tarifa-input:focus { outline:none; border-color:rgba(74,168,255,0.4); }
+.crm-tarifa-unit { font-size:0.72rem; color:rgba(255,255,255,0.35); }
+.crm-tarifa-save-btn { padding:6px 14px; background:rgba(74,168,255,0.1); border:1px solid rgba(74,168,255,0.25); color:#89c8ff; border-radius:6px; font-family:inherit; font-size:0.78rem; cursor:pointer; }
+.crm-tarifa-save-btn:hover { background:rgba(74,168,255,0.2); }
+.crm-tarifa-rm-btn { padding:6px 14px; background:rgba(255,80,80,0.08); border:1px solid rgba(255,80,80,0.2); color:#ff9090; border-radius:6px; font-family:inherit; font-size:0.78rem; cursor:pointer; display:none; }
+.crm-tarifa-rm-btn:hover { background:rgba(255,80,80,0.15); }
+.crm-tarifa-status { font-size:0.7rem; color:#4ade80; margin-top:0.3rem; min-height:1.1em; }
 
 
 /* ── ENHANCED BEAMS ──────────────────────────────────────────────────────── */
@@ -2641,6 +2662,16 @@ footer { padding: 2rem 1.5rem; }
               <!-- Podaci tab -->
               <div id="crm-pane-podaci" class="crm-profil-pane">
                 <div id="crm-podaci-javni"></div>
+                <div class="crm-tarifa-section" id="crm-tarifa-section" style="display:none;">
+                  <div class="crm-section-lbl">Tarifa za ovog klijenta</div>
+                  <div class="crm-tarifa-row">
+                    <input type="number" id="crm-tarifa-input" class="crm-tarifa-input" placeholder="Globalna satnica" min="100" step="100">
+                    <span class="crm-tarifa-unit">RSD/sat</span>
+                    <button onclick="crmSacuvajTarifu()" class="crm-tarifa-save-btn">Sačuvaj</button>
+                    <button onclick="crmUkloniTarifu()" id="crm-tarifa-rm-btn" class="crm-tarifa-rm-btn">Ukloni</button>
+                  </div>
+                  <div class="crm-tarifa-status" id="crm-tarifa-status"></div>
+                </div>
                 <div id="crm-confidential-section">
                   <div class="crm-confidential-banner">
                     <span>🔒 Poverljivi podaci (JMBG, pasoš, PIB)</span>
@@ -4594,6 +4625,7 @@ async function crmOtvoriProfil(klijentId) {
     document.getElementById('crm-profil-ime').textContent = (k.ime||'') + ' ' + (k.prezime||'') + (k.firma ? ' · '+k.firma : '');
     crmRenderPodaci(k);
     crmRenderPredmeti(d.aktivni_predmeti || [], d.zavrseni_predmeti || []);
+    crmUcitajTarifu(klijentId);
   } catch(e) {
     document.getElementById('crm-podaci-javni').innerHTML = '<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška.</div>';
   }
@@ -6321,7 +6353,8 @@ function openSettings() {
   ['naziv','adresa','pib','kontakt'].forEach(function(k){
     var el=document.getElementById('s-'+k); if(el) el.value=s[k]||'';
   });
-document.getElementById('settings-modal').classList.add('open');
+  document.getElementById('settings-modal').classList.add('open');
+  if (currentSession) tarife_loadSettings();
 }
 function closeSettings() {
   document.getElementById('settings-modal').classList.remove('open');
@@ -6334,6 +6367,154 @@ function saveSettings() {
   localStorage.setItem('vindex_firma',JSON.stringify(firma));
   closeSettings();
   showToast('Pode\u0161avanja sa\u010duvana.','ok');
+}
+
+// \u2500\u2500 Tarife settings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function _tarifeHdr() {
+  return {'Authorization': 'Bearer ' + currentSession.access_token, 'Content-Type': 'application/json'};
+}
+function _tarifeStatus(id, msg, ok) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok ? '#4ade80' : '#ff8080';
+  setTimeout(function(){ el.textContent = ''; }, 3000);
+}
+
+async function tarife_loadSettings() {
+  if (!currentSession) return;
+  try {
+    var r1 = await fetch(BASE_URL + '/api/tarife/moja-satnica', {headers: _tarifeHdr()});
+    if (r1.ok) {
+      var d1 = await r1.json();
+      var inp = document.getElementById('s-satnica');
+      if (inp) inp.value = d1.source === 'custom' ? d1.tarifa_po_satu : '';
+    }
+  } catch(e) {}
+  try {
+    var r2 = await fetch(BASE_URL + '/api/tarife/stavke', {headers: _tarifeHdr()});
+    if (r2.ok) {
+      var d2 = await r2.json();
+      tarife_renderStavke(d2.stavke || []);
+    }
+  } catch(e) {
+    var el = document.getElementById('s-stavke-lista');
+    if (el) el.innerHTML = '<div style="padding:1rem;font-size:0.72rem;color:rgba(255,80,80,0.5);">Gre\u0161ka pri u\u010ditavanju.</div>';
+  }
+}
+
+function tarife_renderStavke(stavke) {
+  var el = document.getElementById('s-stavke-lista');
+  if (!el || !stavke.length) return;
+  el.innerHTML = stavke.map(function(s) {
+    var resetBtn = s.is_custom
+      ? '<button class="tarife-reset-btn" title="Vrati na AKS default" onclick="tarife_resetStavka(\''+s.sifra+'\')">&#x21BA;</button>'
+      : '<span style="width:24px;display:inline-block;"></span>';
+    return '<div class="tarife-stavka-row">'
+      + '<span class="tarife-stavka-kod">'+escHtml(s.sifra)+'</span>'
+      + '<span class="tarife-stavka-naziv" title="'+escHtml(s.naziv)+'">'+escHtml(s.naziv)+'</span>'
+      + '<input type="number" class="tarife-stavka-iznos" step="50" min="0"'
+      + ' value="'+s.iznos_rsd+'" placeholder="'+s.aks_iznos+'"'
+      + ' data-sifra="'+s.sifra+'" data-aks="'+s.aks_iznos+'"'
+      + ' onchange="tarife_saveStavka(\''+s.sifra+'\', this.value)">'
+      + resetBtn
+      + '</div>';
+  }).join('');
+}
+
+async function tarife_saveSatnica() {
+  if (!currentSession) return;
+  var inp = document.getElementById('s-satnica');
+  var val = inp ? parseFloat(inp.value) : NaN;
+  if (!val || val <= 0) { _tarifeStatus('s-satnica-status', 'Unesite satnicu > 0', false); return; }
+  try {
+    var r = await fetch(BASE_URL + '/api/tarife/moja-satnica', {
+      method: 'PUT', headers: _tarifeHdr(),
+      body: JSON.stringify({tarifa_po_satu: val})
+    });
+    if (r.ok) _tarifeStatus('s-satnica-status', 'Satnica sa\u010duvana \u2714', true);
+    else { var e=await r.json(); _tarifeStatus('s-satnica-status', e.detail||'Gre\u0161ka', false); }
+  } catch(e) { _tarifeStatus('s-satnica-status', 'Gre\u0161ka mre\u017ee', false); }
+}
+
+async function tarife_saveStavka(sifra, iznos) {
+  if (!currentSession) return;
+  var val = parseFloat(iznos);
+  if (isNaN(val) || val < 0) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/tarife/stavke/' + sifra, {
+      method: 'PUT', headers: _tarifeHdr(),
+      body: JSON.stringify({iznos: val})
+    });
+    _tarifeStatus('s-stavke-status', r.ok ? sifra + ' sa\u010duvano \u2714' : 'Gre\u0161ka', r.ok);
+    if (r.ok) tarife_loadSettings();
+  } catch(e) { _tarifeStatus('s-stavke-status', 'Gre\u0161ka mre\u017ee', false); }
+}
+
+async function tarife_resetStavka(sifra) {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/tarife/stavke/' + sifra, {
+      method: 'PUT', headers: _tarifeHdr(),
+      body: JSON.stringify({iznos: null, naziv: null})
+    });
+    _tarifeStatus('s-stavke-status', r.ok ? sifra + ' vra\u0107eno na AKS default \u2714' : 'Gre\u0161ka', r.ok);
+    if (r.ok) tarife_loadSettings();
+  } catch(e) { _tarifeStatus('s-stavke-status', 'Gre\u0161ka mre\u017ee', false); }
+}
+
+// \u2500\u2500 CRM klijent tarifa \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+async function crmUcitajTarifu(klijentId) {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/tarife/klijent/' + klijentId, {headers: _tarifeHdr()});
+    if (!r.ok) return;
+    var d = await r.json();
+    var inp = document.getElementById('crm-tarifa-input');
+    var rmBtn = document.getElementById('crm-tarifa-rm-btn');
+    var sec = document.getElementById('crm-tarifa-section');
+    if (sec) sec.style.display = 'block';
+    if (inp) inp.value = d.source === 'custom' ? d.tarifa_po_satu : '';
+    if (rmBtn) rmBtn.style.display = d.source === 'custom' ? 'inline-block' : 'none';
+  } catch(e) {}
+}
+
+async function crmSacuvajTarifu() {
+  if (!currentSession || !crmAktivniId) return;
+  var inp = document.getElementById('crm-tarifa-input');
+  var val = inp ? parseFloat(inp.value) : NaN;
+  if (!val || val <= 0) { _tarifeStatus('crm-tarifa-status', 'Unesite satnicu > 0', false); return; }
+  try {
+    var r = await fetch(BASE_URL + '/api/tarife/klijent/' + crmAktivniId, {
+      method: 'PUT', headers: _tarifeHdr(),
+      body: JSON.stringify({tarifa_po_satu: val})
+    });
+    if (r.ok) {
+      _tarifeStatus('crm-tarifa-status', 'Tarifa sa\u010duvana \u2714', true);
+      var rmBtn = document.getElementById('crm-tarifa-rm-btn');
+      if (rmBtn) rmBtn.style.display = 'inline-block';
+    } else {
+      var e = await r.json();
+      _tarifeStatus('crm-tarifa-status', e.detail||'Gre\u0161ka', false);
+    }
+  } catch(e) { _tarifeStatus('crm-tarifa-status', 'Gre\u0161ka mre\u017ee', false); }
+}
+
+async function crmUkloniTarifu() {
+  if (!currentSession || !crmAktivniId) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/tarife/klijent/' + crmAktivniId, {
+      method: 'PUT', headers: _tarifeHdr(),
+      body: JSON.stringify({tarifa_po_satu: null})
+    });
+    if (r.ok) {
+      var inp = document.getElementById('crm-tarifa-input');
+      var rmBtn = document.getElementById('crm-tarifa-rm-btn');
+      if (inp) inp.value = '';
+      if (rmBtn) rmBtn.style.display = 'none';
+      _tarifeStatus('crm-tarifa-status', 'Override uklonjen \u2714', true);
+    }
+  } catch(e) { _tarifeStatus('crm-tarifa-status', 'Gre\u0161ka mre\u017ee', false); }
 }
 
 function focusInput() {
@@ -10375,6 +10556,24 @@ async function billing_doGenerateFaktura() {
     </div>
     <button class="settings-save-btn" onclick="saveSettings()">Sačuvaj podešavanja</button>
     <p class="settings-note">Podaci se NE šalju na server. Čuvaju se isključivo u vašem pregledaču (localStorage).</p>
+
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,0.07);margin:1.5rem 0 1.2rem;">
+    <h4 style="font-size:0.85rem;font-weight:600;color:rgba(255,255,255,0.8);margin:0 0 1rem;">Tarife i naknade</h4>
+    <div class="settings-row">
+      <div class="settings-label">Moja satnica (RSD/sat)</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="modal-input" type="number" id="s-satnica" placeholder="7500 (AKS default)" min="100" step="100" style="flex:1;">
+        <button class="settings-save-btn" style="width:auto;margin:0;padding:0.5rem 1rem;flex-shrink:0;" onclick="tarife_saveSatnica()">Sačuvaj</button>
+      </div>
+      <div class="tarife-status" id="s-satnica-status"></div>
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">AKS tarifne stavke — custom cene</div>
+      <div class="tarife-stavke-lista" id="s-stavke-lista">
+        <div style="padding:1rem;text-align:center;font-size:0.75rem;color:rgba(255,255,255,0.3);">Učitavam...</div>
+      </div>
+      <div class="tarife-status" id="s-stavke-status"></div>
+    </div>
   </div>
 </div>
 

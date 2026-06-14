@@ -452,6 +452,7 @@ from routers.portfolio     import router as portfolio_router
 from routers.notifications import router as notifications_router
 from routers.intake        import router as intake_router
 from routers.billing       import router as billing_router
+from routers.tarife        import router as tarife_router
 from routers.rocista       import router as rocista_router
 from routers.kalendar      import router as kalendar_router
 
@@ -471,6 +472,7 @@ app.include_router(portfolio_router)
 app.include_router(notifications_router)
 app.include_router(intake_router)
 app.include_router(billing_router)
+app.include_router(tarife_router)
 app.include_router(rocista_router)
 app.include_router(kalendar_router)
 

@@ -78,6 +78,18 @@ async def _db(fn):
     return await asyncio.to_thread(fn)
 
 
+async def _resolve_tarifa_for_predmet(supa, uid: str, predmet_id: str) -> float:
+    """Resolves satnica: per-klijent → globalna → 7500 (AKS default)."""
+    from routers.tarife import resolve_tarifa
+    kl_r = await _db(lambda: supa.table("predmet_klijenti")
+                     .select("klijent_id")
+                     .eq("predmet_id", predmet_id)
+                     .limit(1)
+                     .execute())
+    klijent_id = kl_r.data[0]["klijent_id"] if kl_r.data else None
+    return await resolve_tarifa(supa, uid, klijent_id)
+
+
 # ── Pydantic modeli ────────────────────────────────────────────────────────────
 
 class EntryReq(BaseModel):
@@ -141,17 +153,29 @@ async def billing_entry_create(
     bodovi       = body.bodovi
 
     if body.tarifa_sifra:
-        t = AKS_TARIFA.get(body.tarifa_sifra.upper())
+        kod = body.tarifa_sifra.upper()
+        t   = AKS_TARIFA.get(kod)
         if not t:
             raise HTTPException(status_code=400, detail="Nepoznata tarifa sifra.")
         tarifa_naziv = t["naziv"]
         if iznos is None:
-            iznos = t.get("fiksno_rsd") or ((body.bodovi or t.get("bodovi", 0)) * BOD_RSD)
+            custom_r = await _db(lambda: supa.table("tarifne_stavke_custom")
+                                 .select("iznos,naziv")
+                                 .eq("user_id", uid)
+                                 .eq("kod", kod)
+                                 .maybe_single()
+                                 .execute())
+            if custom_r.data:
+                iznos        = float(custom_r.data["iznos"])
+                tarifa_naziv = custom_r.data.get("naziv") or t["naziv"]
+            else:
+                iznos = t.get("fiksno_rsd") or ((body.bodovi or t.get("bodovi", 0)) * BOD_RSD)
         if bodovi is None:
             bodovi = t.get("bodovi")
 
     if iznos is None and body.sati:
-        iznos = max(7500, math.ceil(body.sati * 7500))
+        satnica = await _resolve_tarifa_for_predmet(supa, uid, body.predmet_id)
+        iznos = max(satnica, math.ceil(body.sati * satnica))
 
     if iznos is None:
         raise HTTPException(status_code=422, detail="iznos_rsd je obavezan kad tarifa_sifra nije navedena.")
@@ -305,9 +329,10 @@ async def timer_stop(
 
     entry = None
     if body.kreiraj_entry:
-        sati  = round(trajanje / 3600, 2)
-        iznos = max(7500, math.ceil(sati * 7500))
-        opis  = (body.opis or t.get("opis") or "Rad po predmetu (tajmer)").strip()[:400]
+        sati    = round(trajanje / 3600, 2)
+        satnica = await _resolve_tarifa_for_predmet(supa, uid, t["predmet_id"])
+        iznos   = max(satnica, math.ceil(sati * satnica))
+        opis    = (body.opis or t.get("opis") or "Rad po predmetu (tajmer)").strip()[:400]
         er = await _db(lambda: supa.table("billing_entries").insert({
             "user_id":    uid,
             "predmet_id": t["predmet_id"],
@@ -345,10 +370,20 @@ async def tarifa_list(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    items = []
-    for sifra, t in AKS_TARIFA.items():
-        iznos = t.get("fiksno_rsd") or (t["bodovi"] * BOD_RSD if t.get("bodovi") else 0)
-        items.append({"sifra": sifra, "naziv": t["naziv"], "bodovi": t.get("bodovi"), "iznos_rsd": iznos})
+    from routers.tarife import resolve_tarifne_stavke
+    supa     = _get_supa()
+    resolved = await resolve_tarifne_stavke(supa, user["user_id"])
+    items = [
+        {
+            "sifra":     kod,
+            "naziv":     v["naziv"],
+            "bodovi":    v["bodovi"],
+            "iznos_rsd": v["iznos_rsd"],
+            "is_custom": v["is_custom"],
+            "aks_iznos": v["aks_iznos"],
+        }
+        for kod, v in resolved.items()
+    ]
     return {"tarifa": items, "bod_rsd": BOD_RSD}
 
 
