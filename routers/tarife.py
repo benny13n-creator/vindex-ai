@@ -31,6 +31,11 @@ async def _db(fn):
     return await asyncio.to_thread(fn)
 
 
+def _first(r) -> Optional[dict]:
+    """Uzima prvi red iz APIResponse (limit(1) uvek vraca listu)."""
+    return r.data[0] if r.data else None
+
+
 # ─── resolve helpers (used by billing.py) ─────────────────────────────────────
 
 async def resolve_tarifa(supa, uid: str, klijent_id: Optional[str] = None) -> float:
@@ -40,18 +45,20 @@ async def resolve_tarifa(supa, uid: str, klijent_id: Optional[str] = None) -> fl
                       .select("tarifa_po_satu")
                       .eq("user_id", uid)
                       .eq("klijent_id", klijent_id)
-                      .maybe_single()
+                      .limit(1)
                       .execute())
-        if r.data and r.data.get("tarifa_po_satu"):
-            return float(r.data["tarifa_po_satu"])
+        row = _first(r)
+        if row and row.get("tarifa_po_satu"):
+            return float(row["tarifa_po_satu"])
     r = await _db(lambda: supa.table("tarife")
                   .select("tarifa_po_satu")
                   .eq("user_id", uid)
                   .is_("klijent_id", "null")
-                  .maybe_single()
+                  .limit(1)
                   .execute())
-    if r.data and r.data.get("tarifa_po_satu"):
-        return float(r.data["tarifa_po_satu"])
+    row = _first(r)
+    if row and row.get("tarifa_po_satu"):
+        return float(row["tarifa_po_satu"])
     return 7500.0
 
 
@@ -105,14 +112,15 @@ async def get_moja_satnica(
 ):
     uid  = user["user_id"]
     supa = _get_supa()
-    r = await _db(lambda: supa.table("tarife")
-                  .select("tarifa_po_satu,updated_at")
-                  .eq("user_id", uid)
-                  .is_("klijent_id", "null")
-                  .maybe_single()
-                  .execute())
-    if r.data:
-        return {"tarifa_po_satu": float(r.data["tarifa_po_satu"]), "source": "custom", "updated_at": r.data.get("updated_at")}
+    r   = await _db(lambda: supa.table("tarife")
+                    .select("tarifa_po_satu,updated_at")
+                    .eq("user_id", uid)
+                    .is_("klijent_id", "null")
+                    .limit(1)
+                    .execute())
+    row = _first(r)
+    if row:
+        return {"tarifa_po_satu": float(row["tarifa_po_satu"]), "source": "custom", "updated_at": row.get("updated_at")}
     return {"tarifa_po_satu": 7500.0, "source": "default"}
 
 
@@ -126,17 +134,18 @@ async def put_moja_satnica(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    existing = await _db(lambda: supa.table("tarife")
-                         .select("id")
-                         .eq("user_id", uid)
-                         .is_("klijent_id", "null")
-                         .maybe_single()
-                         .execute())
+    ex_r = await _db(lambda: supa.table("tarife")
+                     .select("id")
+                     .eq("user_id", uid)
+                     .is_("klijent_id", "null")
+                     .limit(1)
+                     .execute())
+    existing = _first(ex_r)
 
-    if existing.data:
+    if existing:
         r = await _db(lambda: supa.table("tarife")
                       .update({"tarifa_po_satu": body.tarifa_po_satu})
-                      .eq("id", existing.data["id"])
+                      .eq("id", existing["id"])
                       .execute())
     else:
         r = await _db(lambda: supa.table("tarife")
@@ -159,14 +168,15 @@ async def get_klijent_tarifa(
 ):
     uid  = user["user_id"]
     supa = _get_supa()
-    r = await _db(lambda: supa.table("tarife")
-                  .select("tarifa_po_satu,updated_at")
-                  .eq("user_id", uid)
-                  .eq("klijent_id", klijent_id)
-                  .maybe_single()
-                  .execute())
-    if r.data:
-        return {"klijent_id": klijent_id, "tarifa_po_satu": float(r.data["tarifa_po_satu"]), "source": "custom", "updated_at": r.data.get("updated_at")}
+    r   = await _db(lambda: supa.table("tarife")
+                    .select("tarifa_po_satu,updated_at")
+                    .eq("user_id", uid)
+                    .eq("klijent_id", klijent_id)
+                    .limit(1)
+                    .execute())
+    row = _first(r)
+    if row:
+        return {"klijent_id": klijent_id, "tarifa_po_satu": float(row["tarifa_po_satu"]), "source": "custom", "updated_at": row.get("updated_at")}
     global_satnica = await resolve_tarifa(supa, uid)
     return {"klijent_id": klijent_id, "tarifa_po_satu": global_satnica, "source": "default"}
 
@@ -182,22 +192,23 @@ async def put_klijent_tarifa(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    existing = await _db(lambda: supa.table("tarife")
-                         .select("id")
-                         .eq("user_id", uid)
-                         .eq("klijent_id", klijent_id)
-                         .maybe_single()
-                         .execute())
+    ex_r = await _db(lambda: supa.table("tarife")
+                     .select("id")
+                     .eq("user_id", uid)
+                     .eq("klijent_id", klijent_id)
+                     .limit(1)
+                     .execute())
+    existing = _first(ex_r)
 
     if body.tarifa_po_satu is None:
-        if existing.data:
-            await _db(lambda: supa.table("tarife").delete().eq("id", existing.data["id"]).execute())
+        if existing:
+            await _db(lambda: supa.table("tarife").delete().eq("id", existing["id"]).execute())
         return {"ok": True, "removed": True}
 
-    if existing.data:
+    if existing:
         r = await _db(lambda: supa.table("tarife")
                       .update({"tarifa_po_satu": body.tarifa_po_satu})
-                      .eq("id", existing.data["id"])
+                      .eq("id", existing["id"])
                       .execute())
     else:
         r = await _db(lambda: supa.table("tarife")
@@ -250,7 +261,6 @@ async def put_stavka(
         raise HTTPException(status_code=404, detail=f"Tarifa '{kod}' ne postoji.")
 
     if body.iznos is None and body.naziv is None:
-        # DELETE — vrati na AKS default
         await _db(lambda: supa.table("tarifne_stavke_custom")
                   .delete()
                   .eq("user_id", uid)
@@ -258,12 +268,13 @@ async def put_stavka(
                   .execute())
         return {"ok": True, "removed": True, "kod": kod}
 
-    existing = await _db(lambda: supa.table("tarifne_stavke_custom")
-                         .select("id")
-                         .eq("user_id", uid)
-                         .eq("kod", kod)
-                         .maybe_single()
-                         .execute())
+    ex_r = await _db(lambda: supa.table("tarifne_stavke_custom")
+                     .select("id")
+                     .eq("user_id", uid)
+                     .eq("kod", kod)
+                     .limit(1)
+                     .execute())
+    existing = _first(ex_r)
 
     update_data: dict = {}
     if body.iznos is not None:
@@ -271,10 +282,10 @@ async def put_stavka(
     if body.naziv is not None:
         update_data["naziv"] = body.naziv.strip() or None
 
-    if existing.data:
+    if existing:
         r = await _db(lambda: supa.table("tarifne_stavke_custom")
                       .update(update_data)
-                      .eq("id", existing.data["id"])
+                      .eq("id", existing["id"])
                       .execute())
     else:
         if body.iznos is None:

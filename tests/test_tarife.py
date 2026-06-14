@@ -67,7 +67,7 @@ async def test_resolve_tarifa_aks_default():
 @pytest.mark.anyio
 async def test_resolve_tarifa_global():
     from routers.tarife import resolve_tarifa
-    supa, res = _chain({"tarifa_po_satu": 6000})
+    supa, res = _chain([{"tarifa_po_satu": 6000}])
     satnica = await resolve_tarifa(supa, UID, None)
     assert satnica == 6000.0
 
@@ -76,8 +76,8 @@ async def test_resolve_tarifa_global():
 async def test_resolve_tarifa_per_klijent():
     from routers.tarife import resolve_tarifa
     supa = MagicMock()
-    result_klijent = MagicMock(); result_klijent.data = {"tarifa_po_satu": 9000}
-    result_global  = MagicMock(); result_global.data  = {"tarifa_po_satu": 6000}
+    result_klijent = MagicMock(); result_klijent.data = [{"tarifa_po_satu": 9000}]
+    result_global  = MagicMock(); result_global.data  = [{"tarifa_po_satu": 6000}]
 
     call_count = [0]
     chain_m = MagicMock()
@@ -86,6 +86,7 @@ async def test_resolve_tarifa_per_klijent():
     chain_m.select.return_value = chain_m
     chain_m.eq.return_value = chain_m
     chain_m.is_.return_value = chain_m
+    chain_m.limit.return_value = chain_m
     chain_m.maybe_single.return_value = chain_m
 
     def execute_side():
@@ -105,8 +106,8 @@ async def test_resolve_tarifa_per_klijent():
 async def test_resolve_tarifa_falls_back_to_global():
     from routers.tarife import resolve_tarifa
     supa = MagicMock()
-    result_none   = MagicMock(); result_none.data   = None
-    result_global = MagicMock(); result_global.data = {"tarifa_po_satu": 8000}
+    result_none   = MagicMock(); result_none.data   = []
+    result_global = MagicMock(); result_global.data = [{"tarifa_po_satu": 8000}]
 
     call_count = [0]
     chain_m = MagicMock()
@@ -174,7 +175,7 @@ async def test_get_satnica_default():
 @pytest.mark.anyio
 async def test_get_satnica_custom():
     from routers.tarife import get_moja_satnica
-    supa, res = _chain({"tarifa_po_satu": 6000, "updated_at": "2026-01-01"})
+    supa, res = _chain([{"tarifa_po_satu": 6000, "updated_at": "2026-01-01"}])
     with patch("routers.tarife._get_supa", return_value=supa):
         r = await get_moja_satnica(_req(), user=_user())
     assert r["tarifa_po_satu"] == 6000.0
@@ -190,7 +191,7 @@ async def test_put_satnica_insert():
     from routers.tarife import put_moja_satnica, SatnicaReq
     supa = MagicMock()
     chain = MagicMock()
-    for attr in ['table','select','eq','is_','maybe_single','insert','update','delete']:
+    for attr in ['table','select','eq','is_','limit','maybe_single','insert','update','delete']:
         setattr(chain, attr, MagicMock(return_value=chain))
     none_result = MagicMock(); none_result.data = None
     ok_result   = MagicMock(); ok_result.data   = [{"tarifa_po_satu": 5500}]
@@ -215,9 +216,9 @@ async def test_put_satnica_update():
     from routers.tarife import put_moja_satnica, SatnicaReq
     supa = MagicMock()
     chain = MagicMock()
-    for attr in ['table','select','eq','is_','maybe_single','insert','update','delete']:
+    for attr in ['table','select','eq','is_','limit','maybe_single','insert','update','delete']:
         setattr(chain, attr, MagicMock(return_value=chain))
-    exist_result = MagicMock(); exist_result.data = {"id": "row-1"}
+    exist_result = MagicMock(); exist_result.data = [{"id": "row-1"}]
     ok_result    = MagicMock(); ok_result.data    = [{"tarifa_po_satu": 7000}]
 
     call_count = [0]
@@ -241,7 +242,7 @@ async def test_put_satnica_update():
 @pytest.mark.anyio
 async def test_get_klijent_tarifa_custom():
     from routers.tarife import get_klijent_tarifa
-    supa, res = _chain({"tarifa_po_satu": 9000, "updated_at": "2026-01-01"})
+    supa, res = _chain([{"tarifa_po_satu": 9000, "updated_at": "2026-01-01"}])
     with patch("routers.tarife._get_supa", return_value=supa):
         r = await get_klijent_tarifa(KL_ID, _req(), user=_user())
     assert r["tarifa_po_satu"] == 9000.0
@@ -256,8 +257,8 @@ async def test_get_klijent_tarifa_falls_to_global():
     chain = MagicMock()
     for attr in ['table','select','eq','is_','maybe_single','insert','update','delete','limit']:
         setattr(chain, attr, MagicMock(return_value=chain))
-    none_result = MagicMock(); none_result.data = None
-    global_res  = MagicMock(); global_res.data  = {"tarifa_po_satu": 6500}
+    none_result = MagicMock(); none_result.data = []
+    global_res  = MagicMock(); global_res.data  = [{"tarifa_po_satu": 6500}]
 
     call_count = [0]
     def execute_side():
@@ -282,7 +283,7 @@ async def test_put_klijent_tarifa_set():
     from routers.tarife import put_klijent_tarifa, KlijentTarifaReq
     supa = MagicMock()
     chain = MagicMock()
-    for attr in ['table','select','eq','maybe_single','insert','update','delete']:
+    for attr in ['table','select','eq','limit','maybe_single','insert','update','delete']:
         setattr(chain, attr, MagicMock(return_value=chain))
     none_result = MagicMock(); none_result.data = None
     ok_result   = MagicMock(); ok_result.data   = [{"tarifa_po_satu": 9000}]
@@ -307,9 +308,9 @@ async def test_put_klijent_tarifa_remove():
     from routers.tarife import put_klijent_tarifa, KlijentTarifaReq
     supa = MagicMock()
     chain = MagicMock()
-    for attr in ['table','select','eq','maybe_single','insert','update','delete']:
+    for attr in ['table','select','eq','limit','maybe_single','insert','update','delete']:
         setattr(chain, attr, MagicMock(return_value=chain))
-    exist_result = MagicMock(); exist_result.data = {"id": "row-1"}
+    exist_result = MagicMock(); exist_result.data = [{"id": "row-1"}]
     del_result   = MagicMock(); del_result.data   = [{"id": "row-1"}]
 
     call_count = [0]
@@ -363,7 +364,7 @@ async def test_put_stavka_set():
     from routers.tarife import put_stavka, StavkaReq
     supa = MagicMock()
     chain = MagicMock()
-    for attr in ['table','select','eq','maybe_single','insert','update','delete']:
+    for attr in ['table','select','eq','limit','maybe_single','insert','update','delete']:
         setattr(chain, attr, MagicMock(return_value=chain))
     none_result = MagicMock(); none_result.data = None
     ok_result   = MagicMock(); ok_result.data   = [{"iznos": 800}]
@@ -388,7 +389,7 @@ async def test_put_stavka_reset():
     from routers.tarife import put_stavka, StavkaReq
     supa = MagicMock()
     chain = MagicMock()
-    for attr in ['table','select','eq','maybe_single','insert','update','delete']:
+    for attr in ['table','select','eq','limit','maybe_single','insert','update','delete']:
         setattr(chain, attr, MagicMock(return_value=chain))
     del_result = MagicMock(); del_result.data = []
     chain.execute.return_value = del_result
@@ -425,7 +426,7 @@ async def test_resolve_tarifa_for_predmet_with_klijent():
         setattr(chain, attr, MagicMock(return_value=chain))
 
     kl_result     = MagicMock(); kl_result.data     = [{"klijent_id": KL_ID}]
-    tarifa_result = MagicMock(); tarifa_result.data  = {"tarifa_po_satu": 9000}
+    tarifa_result = MagicMock(); tarifa_result.data  = [{"tarifa_po_satu": 9000}]
     fallback      = MagicMock(); fallback.data       = None
 
     call_count = [0]
@@ -451,7 +452,7 @@ async def test_resolve_tarifa_for_predmet_no_klijent():
         setattr(chain, attr, MagicMock(return_value=chain))
 
     no_kl   = MagicMock(); no_kl.data   = []
-    global_r = MagicMock(); global_r.data = {"tarifa_po_satu": 6000}
+    global_r = MagicMock(); global_r.data = [{"tarifa_po_satu": 6000}]
 
     call_count = [0]
     def execute_side():
