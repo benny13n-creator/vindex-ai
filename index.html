@@ -1752,6 +1752,37 @@ footer { padding: 2rem 1.5rem; }
 .sc-offchain-naziv{font-weight:600;}
 .sc-offchain-napomena{color:rgba(255,255,255,0.42);}
 .sc-disclaimer{margin-top:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:8px;padding:11px 13px;font-size:0.73rem;color:rgba(255,255,255,0.42);line-height:1.6;}
+/* ── Faza 1: Kalendar ──────────────────────────────────────── */
+.kal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 0 10px;}
+.kal-naslov{font-size:1.05rem;font-weight:600;color:#e2e8f0;}
+.kal-header-actions{display:flex;gap:8px;}
+.kal-dodaj-btn{background:#3b82f6;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:0.82rem;cursor:pointer;font-weight:600;}
+.kal-dodaj-btn:hover{background:#2563eb;}
+.kal-ics-btn{background:rgba(255,255,255,0.07);color:#94a3b8;border:1px solid rgba(255,255,255,0.12);border-radius:7px;padding:6px 12px;font-size:0.78rem;cursor:pointer;}
+.kal-ics-btn:hover{background:rgba(255,255,255,0.13);}
+.kal-loading{color:rgba(255,255,255,0.45);font-size:0.88rem;padding:24px 0;text-align:center;}
+.kal-prazno{color:rgba(255,255,255,0.35);font-size:0.88rem;padding:32px 0;text-align:center;}
+.kal-greska{color:#fc8181;font-size:0.85rem;padding:16px 0;}
+.kal-body{display:flex;flex-direction:column;gap:16px;margin-top:4px;}
+.kal-dan-blok{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);}
+.kal-dan-header{background:rgba(255,255,255,0.05);padding:7px 14px;font-size:0.78rem;font-weight:600;color:#94a3b8;letter-spacing:0.03em;text-transform:uppercase;}
+.kal-ev-row{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.15s;}
+.kal-ev-row:last-child{border-bottom:none;}
+.kal-ev-rociste{border-left:3px solid #3b82f6;}
+.kal-ev-zast{border-left:3px solid #f87171;}
+.kal-ev-dok{border-left:3px solid #94a3b8;}
+.kal-ev-naslov{font-size:0.9rem;color:#e2e8f0;font-weight:500;}
+.kal-ev-vreme{margin-left:8px;background:rgba(59,130,246,0.18);color:#93c5fd;border-radius:4px;padding:1px 6px;font-size:0.75rem;}
+.kal-ev-pred{font-size:0.78rem;color:rgba(255,255,255,0.42);margin-top:2px;}
+.kal-ev-detalji{margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.kal-ev-det{font-size:0.75rem;color:rgba(255,255,255,0.5);}
+.kal-ev-status{font-size:0.7rem;padding:1px 7px;border-radius:4px;font-weight:600;}
+.kal-st-zakazano{background:rgba(59,130,246,0.18);color:#93c5fd;}
+.kal-st-odrzano{background:rgba(34,197,94,0.15);color:#86efac;}
+.kal-st-odlozeno{background:rgba(251,191,36,0.15);color:#fcd34d;}
+.kal-st-otkazano{background:rgba(239,68,68,0.15);color:#fca5a5;}
+.kal-ev-del{background:none;border:none;color:rgba(255,255,255,0.25);cursor:pointer;font-size:0.75rem;padding:0 2px;margin-left:4px;}
+.kal-ev-del:hover{color:#f87171;}
 /* ── SC v2: new section styles ───────────────────────────────────────────── */
 .sc-sazetak-wrap .sc-section-head{background:rgba(201,168,76,0.08);border-bottom:1px solid rgba(201,168,76,0.2);}
 .sc-sazetak-item{font-size:0.83rem;color:rgba(255,255,255,0.82);padding:4px 0;line-height:1.5;}
@@ -2088,6 +2119,7 @@ footer { padding: 2rem 1.5rem; }
             <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
             <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="tab-icon">⚔️ </span>Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
             <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">₿ Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
+            <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">📅 Kalendar</div>
           </div>
           <div id="notif-bell" onclick="notif_toggleDropdown()" style="flex-shrink:0;display:none;align-items:center;cursor:pointer;padding:0 0.6rem 0.45rem;border-bottom:2px solid transparent;margin-bottom:-1px;position:relative;" title="Obaveštenja">
             <span style="font-size:1rem;line-height:1;">🔔</span>
@@ -2826,6 +2858,20 @@ footer { padding: 2rem 1.5rem; }
               </div>
               <div id="web3-rezultat-body" class="web3-rezultat-body"></div>
             </div>
+          </div>
+
+          <!-- Faza 1: Centralizovani Kalendar -->
+          <div id="tab-kal" style="display:none">
+            <div class="kal-header">
+              <div class="kal-naslov">📅 Kalendar rokova i ročišta</div>
+              <div class="kal-header-actions">
+                <button class="kal-ics-btn" onclick="kalendarIcsExport()">⬇ .ics</button>
+                <button class="kal-dodaj-btn" onclick="rocisteOtvoriFormu()">+ Ročište</button>
+              </div>
+            </div>
+            <div id="kal-loading" class="kal-loading" style="display:none">⏳ Učitavam...</div>
+            <div id="kal-prazno" class="kal-prazno" style="display:none">Nema nadolazećih rokova ni ročišta u narednih 30 dana.</div>
+            <div id="kal-body" class="kal-body"></div>
           </div>
 
           <div class="t-exec-row" id="t-exec-row">
@@ -3835,15 +3881,15 @@ function setTab(el,t){
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  ['h','q','n','a','s','p','t','k','w'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
+  ['h','q','n','a','s','p','t','k','w','kal'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Kontrolni centar',q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija',k:'👥 Klijenti',w:'₿ Web3 Compliance'};
+  var lbl={h:'Kontrolni centar',q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija',k:'👥 Klijenti',w:'₿ Web3 Compliance',kal:'📅 Kalendar'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  if (execRow) execRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w') ? 'none' : '';
-  if (credRow) credRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
+  if (execRow) execRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w' || t === 'kal') ? 'none' : '';
+  if (credRow) credRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w' || t === 'kal') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
   if (t==='n') { updatePodnesakHint(); ucitajPlaybookStatus(); }
   if (t==='q' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
@@ -3851,6 +3897,7 @@ function setTab(el,t){
   if (t==='p') pred_load();
   if (t==='k') ucitajKlijente();
   if (t==='w') web3InitTab();
+  if (t==='kal') kalendarLoad();
   document.getElementById('btn-lbl').textContent = lbl[t] || '';
   if (respEl) respEl.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
@@ -10341,6 +10388,224 @@ async function billing_doGenerateFaktura() {
     </div>
   </div>
 </div>
+
+<!-- Faza 1: Ročište overlay — montiran na body, van .terminal (izbjegava backdrop-filter bug) -->
+<div id="rociste-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:3100;" onclick="rocisteZatvoriFormu()">
+  <div class="crm-panel" onclick="event.stopPropagation()">
+    <div class="crm-panel-header">
+      <span class="crm-modal-title" id="rociste-modal-title">Novo ročište</span>
+      <button class="crm-panel-close" onclick="rocisteZatvoriFormu()">✕</button>
+    </div>
+    <div class="crm-panel-body">
+      <input type="hidden" id="rociste-edit-id" value="">
+      <div class="crm-field-lbl">Predmet *</div>
+      <select id="rociste-predmet-id" class="crm-field"></select>
+      <div class="crm-field-lbl">Sud *</div>
+      <input id="rociste-sud" class="crm-field" type="text" placeholder="Npr. Viši sud u Beogradu">
+      <div class="crm-field-lbl">Datum *</div>
+      <input id="rociste-datum" class="crm-field" type="date">
+      <div class="crm-field-lbl">Vreme (opciono)</div>
+      <input id="rociste-vreme" class="crm-field" type="time">
+      <div class="crm-field-lbl">Sudnica (opciono)</div>
+      <input id="rociste-sudnica" class="crm-field" type="text" placeholder="Npr. Sudnica 4">
+      <div class="crm-field-lbl">Broj predmeta suda (opciono)</div>
+      <input id="rociste-broj" class="crm-field" type="text" placeholder="Npr. P-123/2025">
+      <div class="crm-field-lbl">Napomena (opciono)</div>
+      <textarea id="rociste-napomena" class="crm-field" rows="3"></textarea>
+      <div id="rociste-greska" style="color:#f56565;font-size:0.82rem;margin-top:8px;display:none"></div>
+    </div>
+    <div class="crm-panel-footer">
+      <button class="crm-save-btn" onclick="rocisteSnimi()">Sačuvaj</button>
+      <button class="crm-cancel-btn" onclick="rocisteZatvoriFormu()">Otkaži</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Faza 1: Kalendar + Ročišta JS ──────────────────────────────────────── */
+
+function kalendarLoad() {
+  var bodyEl   = document.getElementById('kal-body');
+  var loadEl   = document.getElementById('kal-loading');
+  var praznoEl = document.getElementById('kal-prazno');
+  if (!bodyEl) return;
+  bodyEl.innerHTML = '';
+  if (praznoEl) praznoEl.style.display = 'none';
+  if (loadEl) loadEl.style.display = '';
+
+  // Učitaj predmete za formu (koristimo globalni _predmeti ako postoji)
+  if (typeof _predmeti !== 'undefined' && _predmeti.length) {
+    _kalendarPredmeti = _predmeti;
+  } else {
+    fetch(BASE_URL + '/api/predmeti', { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { _kalendarPredmeti = d.predmeti || []; })
+      .catch(function() {});
+  }
+
+  fetch(BASE_URL + '/api/kalendar/pregled', {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (loadEl) loadEl.style.display = 'none';
+    var eventi = data.dogadjaji || [];
+    if (!eventi.length) {
+      if (praznoEl) praznoEl.style.display = '';
+      return;
+    }
+    bodyEl.innerHTML = _kalendarRender(eventi);
+  })
+  .catch(function() {
+    if (loadEl) loadEl.style.display = 'none';
+    if (bodyEl) bodyEl.innerHTML = '<div class="kal-greska">Greška pri učitavanju kalendara.</div>';
+  });
+}
+
+var _kalendarPredmeti = [];
+
+function _kalendarRender(eventi) {
+  var grouped = {};
+  eventi.forEach(function(e) {
+    var d = e.datum || '';
+    if (!grouped[d]) grouped[d] = [];
+    grouped[d].push(e);
+  });
+  var html = '';
+  Object.keys(grouped).sort().forEach(function(datum) {
+    var grupe = grouped[datum];
+    html += '<div class="kal-dan-blok">';
+    html += '<div class="kal-dan-header">' + _kalFmtDatum(datum) + '</div>';
+    grupe.forEach(function(e) {
+      var tipCls = e.tip === 'rociste' ? 'kal-ev-rociste'
+                 : e.tip === 'rok_zastarelost' ? 'kal-ev-zast'
+                 : 'kal-ev-dok';
+      var vremeStr = e.vreme ? '<span class="kal-ev-vreme">' + _kalEsc(e.vreme) + '</span>' : '';
+      var detStr = '';
+      if (e.tip === 'rociste' && e.detalji) {
+        var det = e.detalji;
+        detStr += det.sud ? '<span class="kal-ev-det">' + _kalEsc(det.sud) + '</span>' : '';
+        detStr += det.sudnica ? ' · <span class="kal-ev-det">' + _kalEsc(det.sudnica) + '</span>' : '';
+        var stCls = 'kal-st-' + (det.status || 'zakazano');
+        detStr += ' <span class="kal-ev-status ' + stCls + '">' + _kalEsc(det.status || 'zakazano') + '</span>';
+        if (det.id) detStr += ' <button class="kal-ev-del" onclick="rocisteObrisi(\'' + _kalEsc(det.id) + '\')" title="Obriši">✕</button>';
+      }
+      html += '<div class="kal-ev-row ' + tipCls + '">';
+      html += '<div class="kal-ev-naslov">' + _kalEsc(e.naslov) + vremeStr + '</div>';
+      if (e.predmet_naziv) html += '<div class="kal-ev-pred">' + _kalEsc(e.predmet_naziv) + '</div>';
+      if (detStr) html += '<div class="kal-ev-detalji">' + detStr + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  return html;
+}
+
+function _kalFmtDatum(iso) {
+  if (!iso) return iso;
+  try {
+    var d = new Date(iso + 'T00:00:00');
+    var dani = ['ned','pon','uto','sre','čet','pet','sub'];
+    var mes  = ['jan','feb','mar','apr','maj','jun','jul','avg','sep','okt','nov','dec'];
+    return dani[d.getDay()] + ', ' + d.getDate() + '. ' + mes[d.getMonth()] + ' ' + d.getFullYear() + '.';
+  } catch(e2) { return iso; }
+}
+
+function _kalEsc(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function kalendarIcsExport() {
+  if (!currentSession) return;
+  fetch(BASE_URL + '/api/kalendar/ics', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  })
+  .then(function(r) {
+    if (!r.ok) { showToast('Nema događaja za izvoz.', 'warn'); return null; }
+    return r.blob();
+  })
+  .then(function(blob) {
+    if (!blob) return;
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'vindex-kalendar.ics';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  })
+  .catch(function() { showToast('Greška pri izvozu.', 'err'); });
+}
+
+function rocisteOtvoriFormu() {
+  var ov = document.getElementById('rociste-overlay');
+  if (!ov) return;
+  document.getElementById('rociste-edit-id').value = '';
+  document.getElementById('rociste-sud').value = '';
+  document.getElementById('rociste-datum').value = '';
+  document.getElementById('rociste-vreme').value = '';
+  document.getElementById('rociste-sudnica').value = '';
+  document.getElementById('rociste-broj').value = '';
+  document.getElementById('rociste-napomena').value = '';
+  document.getElementById('rociste-greska').style.display = 'none';
+  document.getElementById('rociste-modal-title').textContent = 'Novo ročište';
+  var sel = document.getElementById('rociste-predmet-id');
+  sel.innerHTML = '<option value="">— Izaberi predmet —</option>';
+  (_kalendarPredmeti || []).forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p.id; opt.textContent = p.naziv || p.id;
+    sel.appendChild(opt);
+  });
+  ov.style.display = '';
+}
+
+function rocisteZatvoriFormu() {
+  var ov = document.getElementById('rociste-overlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function rocisteSnimi() {
+  var predmetId = document.getElementById('rociste-predmet-id').value;
+  var sud       = document.getElementById('rociste-sud').value.trim();
+  var datum     = document.getElementById('rociste-datum').value;
+  var vreme     = document.getElementById('rociste-vreme').value || null;
+  var sudnica   = document.getElementById('rociste-sudnica').value.trim() || null;
+  var broj      = document.getElementById('rociste-broj').value.trim() || null;
+  var napomena  = document.getElementById('rociste-napomena').value.trim() || null;
+  var grEl      = document.getElementById('rociste-greska');
+  if (!predmetId) { grEl.textContent = 'Izaberite predmet.'; grEl.style.display = ''; return; }
+  if (!sud)       { grEl.textContent = 'Unesite naziv suda.'; grEl.style.display = ''; return; }
+  if (!datum)     { grEl.textContent = 'Unesite datum ročišta.'; grEl.style.display = ''; return; }
+  grEl.style.display = 'none';
+  fetch(BASE_URL + '/api/rocista', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+    body: JSON.stringify({ predmet_id: predmetId, sud: sud, datum: datum, vreme: vreme, sudnica: sudnica, broj_predmeta_suda: broj, napomena: napomena }),
+  })
+  .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+  .then(function(res) {
+    if (!res.ok) { grEl.textContent = (res.d && res.d.detail) || 'Greška pri snimanju.'; grEl.style.display = ''; return; }
+    rocisteZatvoriFormu();
+    showToast('Ročište sačuvano.', 'ok');
+    kalendarLoad();
+  })
+  .catch(function() { grEl.textContent = 'Mrežna greška.'; grEl.style.display = ''; });
+}
+
+function rocisteObrisi(id) {
+  if (!id || !currentSession) return;
+  if (!confirm('Obrisati ovo ročište?')) return;
+  fetch(BASE_URL + '/api/rocista/' + encodeURIComponent(id), {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+  })
+  .then(function(r) {
+    if (r.ok) { showToast('Ročište obrisano.', 'ok'); kalendarLoad(); }
+    else showToast('Greška pri brisanju.', 'err');
+  })
+  .catch(function() { showToast('Mrežna greška.', 'err'); });
+}
+</script>
 
 <script>
 // F6 — PWA Service Worker registracija

@@ -452,6 +452,8 @@ from routers.portfolio     import router as portfolio_router
 from routers.notifications import router as notifications_router
 from routers.intake        import router as intake_router
 from routers.billing       import router as billing_router
+from routers.rocista       import router as rocista_router
+from routers.kalendar      import router as kalendar_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -469,6 +471,8 @@ app.include_router(portfolio_router)
 app.include_router(notifications_router)
 app.include_router(intake_router)
 app.include_router(billing_router)
+app.include_router(rocista_router)
+app.include_router(kalendar_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
