@@ -459,6 +459,7 @@ from routers.hearing_cc           import router as hearing_cc_router
 from routers.dashboard            import router as dashboard_router
 from routers.inbox                import router as inbox_router
 from routers.product_intelligence import router as pi_router
+from routers.case_pipeline        import router as case_pipeline_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -483,6 +484,7 @@ app.include_router(hearing_cc_router)
 app.include_router(dashboard_router)
 app.include_router(inbox_router)
 app.include_router(pi_router)
+app.include_router(case_pipeline_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -2746,13 +2748,14 @@ async def predmet_workspace(
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
     # Step 2: Parallel fetch of all related data
-    (beleske_r, istorija_r, dokumenti_r, hronologija_r, komentari_r, pk_r) = await asyncio.gather(
+    (beleske_r, istorija_r, dokumenti_r, hronologija_r, komentari_r, pk_r, rocista_ws_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(50).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor,confidence,created_at").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(10).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor,confidence,created_at").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(30).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,velicina_kb,created_at").eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("*").eq("predmet_id", predmet_id).order("datum_iso", desc=False).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_komentari").select("*").eq("predmet_id", predmet_id).order("kreirano", desc=True).limit(50).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_klijenti").select("klijent_id,uloga_klijenta,napomena").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select("id").eq("predmet_id", predmet_id).eq("user_id", uid).execute()),
     )
 
     # Step 3: Resolve linked klijenti
@@ -2964,6 +2967,22 @@ async def predmet_workspace(
     except Exception:
         dana_od_otvaranja = 0
 
+    # Case Ready Score — computed from loaded data
+    _ws_rocista = (rocista_ws_r.data or []) if not isinstance(rocista_ws_r, Exception) else []
+    _ws_klijenti = (pk_r.data or []) if not isinstance(pk_r, Exception) else []
+    _ws_ist_full = (istorija_r.data or []) if not isinstance(istorija_r, Exception) else []
+    try:
+        from services.case_pipeline import calculate_case_ready_score as _calc_crs
+        _crs, _checklist = _calc_crs(
+            dokumenti=dokumenti_r.data or [],
+            klijenti=_ws_klijenti,
+            rokovi=hronologija_r.data or [],
+            istorija=_ws_ist_full,
+            rocista=_ws_rocista,
+        )
+    except Exception:
+        _crs, _checklist = 0, []
+
     return {
         "predmet":            pred.data,
         "stranke":            stranke,
@@ -2988,6 +3007,8 @@ async def predmet_workspace(
             "poslednja_aktivnost": poslednja_aktivnost,
             "rizik_promena":       cockpit_raw.get("procena_rizika", {}).get("promena"),
         },
+        "case_ready_score":   _crs,
+        "checklist":          _checklist,
         "statistike": {
             "dokumenti_count":    len(dokumenti_r.data or []),
             "beleske_count":      len(beleske_r.data or []),

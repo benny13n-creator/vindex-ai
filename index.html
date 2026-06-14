@@ -1703,6 +1703,25 @@ footer { padding: 2rem 1.5rem; }
 .intake-docs-list{margin-top:10px;font-size:0.78rem;color:rgba(255,255,255,0.5);}
 .intake-docs-list li{margin-bottom:4px;}
 @media(max-width:600px){.intake-panel{width:100vw;}}
+/* ── PIPELINE COMPLETE SCREEN ──────────────────────────────────────────────── */
+.pipeline-screen{display:none;flex-direction:column;align-items:center;padding:28px 22px;text-align:center;}
+.pipeline-screen.active{display:flex;}
+.pipeline-score-ring{position:relative;width:96px;height:96px;margin:0 auto 18px;}
+.pipeline-score-ring svg{transform:rotate(-90deg);}
+.pipeline-score-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:#e6edf3;line-height:1;}
+.pipeline-score-lbl{font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;text-transform:uppercase;letter-spacing:.05em;}
+.pipeline-title{font-size:1rem;font-weight:700;color:#e6edf3;margin-bottom:4px;}
+.pipeline-subtitle{font-size:0.78rem;color:rgba(255,255,255,0.45);margin-bottom:18px;}
+.pipeline-checklist{width:100%;text-align:left;margin-bottom:18px;}
+.pipeline-check-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem;color:rgba(255,255,255,0.65);}
+.pipeline-check-item:last-child{border-bottom:none;}
+.pipeline-check-item.ok{color:#e6edf3;}
+.pipeline-check-icon{font-size:0.9rem;min-width:18px;}
+.pipeline-preporuka{background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.2);border-radius:10px;padding:12px 14px;font-size:0.8rem;color:rgba(255,255,255,0.75);text-align:left;margin-bottom:18px;line-height:1.5;}
+.pipeline-preporuka-lbl{font-size:0.65rem;color:#89c8ff;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
+.pipeline-loading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:40px 0;color:rgba(255,255,255,0.5);}
+.pipeline-spinner{width:36px;height:36px;border:3px solid rgba(74,168,255,0.2);border-top-color:#4aa8ff;border-radius:50%;animation:spin 0.9s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 .crm-back-btn{background:none;border:none;color:#89c8ff;font-size:0.82rem;cursor:pointer;padding:4px 0;}
 .crm-profil-tabovi{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:8px;}
 .crm-ptab{background:none;border:none;color:rgba(255,255,255,0.45);font-size:0.8rem;padding:5px 10px;cursor:pointer;border-radius:6px;transition:all 0.15s;}
@@ -2369,6 +2388,25 @@ footer { padding: 2rem 1.5rem; }
                   </div>
                 </div>
               </div>
+              <!-- Case Ready Score -->
+              <div id="pred-crs-wrap" style="display:none;margin:.55rem 0 .2rem;border:1px solid rgba(74,168,255,.14);border-radius:11px;background:rgba(74,168,255,.035);padding:.75rem .9rem;">
+                <div style="display:flex;align-items:center;gap:.75rem;">
+                  <div style="position:relative;width:52px;height:52px;flex-shrink:0;">
+                    <svg width="52" height="52" viewBox="0 0 52 52">
+                      <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="4"/>
+                      <circle id="pred-crs-arc" cx="26" cy="26" r="22" fill="none" stroke="#4aa8ff" stroke-width="4"
+                        stroke-dasharray="138.2" stroke-dashoffset="138.2"
+                        stroke-linecap="round" transform="rotate(-90 26 26)" style="transition:stroke-dashoffset .6s ease,stroke .4s;"/>
+                    </svg>
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#e2eeff;" id="pred-crs-num">0</div>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:.7rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;">Spremnost predmeta</div>
+                    <div id="pred-crs-status" style="font-size:.82rem;font-weight:600;color:#89c8ff;margin-top:.1rem;">—</div>
+                  </div>
+                </div>
+                <div id="pred-crs-checklist" style="margin-top:.6rem;display:flex;flex-wrap:wrap;gap:.35rem .6rem;"></div>
+              </div>
               <div class="pred-section-lbl">Beleške</div>
               <div id="pred-beleske-list"></div>
               <div style="display:flex;gap:0.4rem;margin-top:0.4rem;">
@@ -2943,8 +2981,39 @@ footer { padding: 2rem 1.5rem; }
                   </div>
                   <div id="intake-kreiraj-err" style="display:none;color:#ff9090;font-size:0.78rem;margin-top:8px;"></div>
                 </div>
+                <!-- Pipeline loading screen -->
+                <div id="intake-pipeline-loading" class="pipeline-loading" style="display:none">
+                  <div class="pipeline-spinner"></div>
+                  <div style="font-size:0.85rem;">Vindex AI priprema predmet...</div>
+                  <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);">Analiza, strategija, procena rizika</div>
+                </div>
+                <!-- Pipeline complete screen -->
+                <div id="intake-pipeline-result" class="pipeline-screen">
+                  <div class="pipeline-score-ring">
+                    <svg width="96" height="96" viewBox="0 0 96 96">
+                      <circle cx="48" cy="48" r="40" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="8"/>
+                      <circle id="pipeline-score-arc" cx="48" cy="48" r="40" fill="none"
+                              stroke="#4aa8ff" stroke-width="8" stroke-linecap="round"
+                              stroke-dasharray="251.2" stroke-dashoffset="251.2"/>
+                    </svg>
+                    <div class="pipeline-score-val">
+                      <span id="pipeline-score-num">0</span>
+                      <span class="pipeline-score-lbl">Score</span>
+                    </div>
+                  </div>
+                  <div class="pipeline-title">Predmet uspešno kreiran</div>
+                  <div class="pipeline-subtitle" id="pipeline-score-status">Priprema u toku...</div>
+                  <div class="pipeline-checklist" id="pipeline-checklist"></div>
+                  <div class="pipeline-preporuka" id="pipeline-preporuka-wrap" style="display:none">
+                    <div class="pipeline-preporuka-lbl">Copilot preporuka</div>
+                    <div id="pipeline-preporuka-txt"></div>
+                  </div>
+                  <button onclick="intakePipelineDone()" style="width:100%;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:600;padding:11px;cursor:pointer;">
+                    Otvori predmet →
+                  </button>
+                </div>
               </div>
-              <div class="intake-panel-footer">
+              <div class="intake-panel-footer" id="intake-panel-footer">
                 <button class="intake-back-btn" id="intake-btn-back" onclick="intakeBack()" style="display:none">← Nazad</button>
                 <button class="intake-next-btn" id="intake-btn-next" onclick="intakeNext()">Dalje →</button>
               </div>
@@ -8725,6 +8794,43 @@ function pred_renderCockpit(cockpit, urgentni) {
   }
 }
 
+function pred_renderCaseReadyScore(score, checklist) {
+  var wrap = document.getElementById('pred-crs-wrap');
+  if (!wrap) return;
+  var s = (typeof score === 'number' && score >= 0) ? score : 0;
+  wrap.style.display = s > 0 ? 'block' : 'none';
+  if (s === 0) return;
+
+  var numEl = document.getElementById('pred-crs-num');
+  if (numEl) numEl.textContent = s;
+
+  var arc = document.getElementById('pred-crs-arc');
+  if (arc) {
+    var circ = 138.2;
+    var offset = circ - (circ * s / 100);
+    arc.style.strokeDashoffset = offset;
+    arc.style.stroke = s >= 70 ? '#7de0a0' : (s >= 40 ? '#ffbb70' : '#ff9090');
+  }
+
+  var stEl = document.getElementById('pred-crs-status');
+  if (stEl) {
+    stEl.textContent = s >= 70 ? 'Predmet spreman za rad' : (s >= 40 ? 'Predmet delimično spreman' : 'Predmet zahteva dopunu');
+    stEl.style.color = s >= 70 ? '#7de0a0' : (s >= 40 ? '#ffbb70' : '#ff9090');
+  }
+
+  var clEl = document.getElementById('pred-crs-checklist');
+  if (clEl) {
+    var items = Array.isArray(checklist) ? checklist : [];
+    clEl.innerHTML = items.map(function(it) {
+      var done = it.done || it.ok;
+      var color = done ? 'rgba(125,224,160,.75)' : 'rgba(255,255,255,.28)';
+      var icon  = done ? '✓' : '○';
+      return '<span style="font-size:.7rem;color:'+color+';display:inline-flex;align-items:center;gap:.22rem;">'
+           + '<span>'+icon+'</span><span>'+escHtml(it.label||it.naziv||'')+'</span></span>';
+    }).join('');
+  }
+}
+
 function pred_renderConfirmCard(predlozi, metadata) {
   var klijentItems = (predlozi || []).slice(0,3).map(function(p, i){
     var pct   = p.pouzdanost || 0;
@@ -9151,6 +9257,9 @@ async function pred_loadDetail(id) {
 
     // Cockpit
     pred_renderCockpit(d.cockpit || {}, (d.rokovi && d.rokovi.urgentni) || []);
+
+    // Case Ready Score
+    pred_renderCaseReadyScore(d.case_ready_score, d.checklist);
 
     pred_loadHronologija(id);
     ucitajKomentare(id);
@@ -9855,6 +9964,15 @@ function intakeOtvori() {
 function intakeZatvori() {
   _iDirty = false;
   document.getElementById('intake-overlay').classList.remove('open');
+  // Reset pipeline screen for next open
+  var prs = document.getElementById('intake-pipeline-result');
+  if (prs) prs.classList.remove('active');
+  var pll = document.getElementById('intake-pipeline-loading');
+  if (pll) pll.style.display = 'none';
+  var footer = document.getElementById('intake-panel-footer');
+  if (footer) footer.style.display = '';
+  var preporukaWrap = document.getElementById('pipeline-preporuka-wrap');
+  if (preporukaWrap) preporukaWrap.style.display = 'none';
 }
 
 function intakeConfirmClose() {
@@ -10127,17 +10245,86 @@ async function _intakeKreiraj() {
     var d = await r.json();
     if (!r.ok) { errEl.textContent = d.detail || 'Greška pri kreiranju.'; errEl.style.display = 'block'; nextBtn.disabled = false; nextBtn.textContent = 'Kreiraj predmet'; return; }
 
-    intakeZatvori();
-    var tabEl = document.querySelector('[onclick*="setTab"][onclick*="\'p\'"]');
-    if (tabEl) setTab(tabEl, 'p');
-    await pred_load();
-    if (d.predmet_id) pred_select(d.predmet_id);
+    var newPredmetId = d.predmet_id;
+    _intakePipelinePredmetId = newPredmetId;
+
+    // Show pipeline loading state
+    document.getElementById('intake-s5').style.display = 'none';
+    document.getElementById('intake-panel-footer').style.display = 'none';
+    document.getElementById('intake-pipeline-loading').style.display = 'flex';
+
+    // Run pipeline
+    var pr = null;
+    try {
+      var pRes = await fetch(BASE_URL + '/api/predmeti/' + newPredmetId + '/pipeline', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+      });
+      if (pRes.ok) pr = await pRes.json();
+    } catch(_e) { /* pipeline failed — still show completion */ }
+
+    // Show result screen
+    document.getElementById('intake-pipeline-loading').style.display = 'none';
+    _intakeShowPipelineResult(pr);
+
+    // Background: load predmeti list
+    pred_load();
   } catch(e) {
     errEl.textContent = 'Greška veze.';
     errEl.style.display = 'block';
     nextBtn.disabled = false;
     nextBtn.textContent = 'Kreiraj predmet';
   }
+}
+
+var _intakePipelinePredmetId = null;
+
+function _intakeShowPipelineResult(pr) {
+  var screen = document.getElementById('intake-pipeline-result');
+  var scoreNum = document.getElementById('pipeline-score-num');
+  var scoreArc = document.getElementById('pipeline-score-arc');
+  var scoreStatus = document.getElementById('pipeline-score-status');
+  var checklistEl = document.getElementById('pipeline-checklist');
+  var preporukaWrap = document.getElementById('pipeline-preporuka-wrap');
+  var preporukaTxt = document.getElementById('pipeline-preporuka-txt');
+
+  var score = pr ? (pr.case_ready_score || 0) : 0;
+  var checklist = pr ? (pr.checklist || []) : [];
+  var preporuka = pr ? (pr.copilot_preporuka || '') : '';
+
+  // Animate score ring
+  scoreNum.textContent = score + '%';
+  var circumference = 251.2;
+  scoreArc.style.strokeDashoffset = String(circumference - (circumference * score / 100));
+  scoreArc.style.stroke = score >= 70 ? '#4aa8ff' : score >= 40 ? '#f0ad4e' : '#e05252';
+
+  var statusMap = {70:'Predmet spreman za rad', 40:'Predmet delimično spreman', 0:'Predmet u pripremi'};
+  var statusKey = score >= 70 ? 70 : score >= 40 ? 40 : 0;
+  scoreStatus.textContent = 'Case Ready Score: ' + score + '% — ' + statusMap[statusKey];
+
+  // Checklist
+  checklistEl.innerHTML = checklist.map(function(item) {
+    return '<div class="pipeline-check-item ' + (item.ok ? 'ok' : '') + '">'
+      + '<span class="pipeline-check-icon">' + (item.ok ? '✓' : '□') + '</span>'
+      + '<span>' + (item.stavka || '') + '</span>'
+      + '</div>';
+  }).join('');
+
+  // Copilot preporuka
+  if (preporuka) {
+    preporukaTxt.textContent = preporuka;
+    preporukaWrap.style.display = 'block';
+  }
+
+  screen.classList.add('active');
+}
+
+function intakePipelineDone() {
+  intakeZatvori();
+  var tabEl = document.querySelector('[onclick*="setTab"][onclick*="\'p\'"]');
+  if (tabEl) setTab(tabEl, 'p');
+  if (_intakePipelinePredmetId) pred_select(_intakePipelinePredmetId);
+  _intakePipelinePredmetId = null;
 }
 
 function pred_openNewModal() {
