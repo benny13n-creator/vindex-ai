@@ -235,11 +235,12 @@ async def _step_ekstrakcija_rokova(supa, predmet_id: str, user_id: str,
         oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
         _system = (
             "Ekstrahuj datume i rokove iz pravnog teksta. "
-            "Vrati ISKLJUČIVO JSON niz (može biti prazan): "
-            '[{"datum":"YYYY-MM-DD","opis":"kratak opis roka","vaznost":"kritičan|bitan|normalan"}] '
+            'Vrati ISKLJUČIVO JSON objekat oblika {"rokovi": [...]} gde je vrednost niz: '
+            '[{"datum":"YYYY-MM-DD","opis":"kratak opis roka","vaznost":"kritičan|bitan|normalan"}]. '
+            "Niz može biti prazan. "
             "SAMO ako je datum eksplicitno naveden. NE izmišljaj datume. "
             "Datumi moraju biti u budućnosti ili bliskoj prošlosti (max 1 godina unazad). "
-            "Ako nema datuma vrati []."
+            'Ako nema datuma vrati {"rokovi": []}.'
         )
         r = await asyncio.wait_for(
             oai.chat.completions.create(
@@ -256,9 +257,18 @@ async def _step_ekstrakcija_rokova(supa, predmet_id: str, user_id: str,
 
         try:
             parsed = json.loads(raw)
-            items = parsed if isinstance(parsed, list) else (
-                parsed.get("rokovi") or parsed.get("items") or []
-            )
+            # GPT always returns an object with json_object format; normalize all shapes
+            if isinstance(parsed, list):
+                items = parsed
+            else:
+                items = (
+                    parsed.get("rokovi")
+                    or parsed.get("items")
+                    or parsed.get("datumi")
+                    or parsed.get("results")
+                    # single-item fallback: {"datum":..., "opis":..., "vaznost":...}
+                    or ([parsed] if parsed.get("datum") else [])
+                )
         except Exception:
             items = []
 
@@ -402,7 +412,7 @@ async def _step_hcc(supa, predmet_id: str, user_id: str,
         today_iso   = _today()
         in_90d_iso  = (date.today() + timedelta(days=90)).isoformat()
         rocista_r   = await asyncio.to_thread(lambda: supa.table("rocista")
-            .select("id,datum,sud,tip_postupka,status")
+            .select("id,datum,sud,napomena,status")
             .eq("predmet_id", predmet_id)
             .eq("user_id", user_id)
             .gte("datum", today_iso)
@@ -429,7 +439,7 @@ async def _step_hcc(supa, predmet_id: str, user_id: str,
         rociste    = rocista[0]
         datum_roc  = rociste.get("datum", today_iso)
         sud        = rociste.get("sud", "sud")
-        tip        = rociste.get("tip_postupka", "gradjanski")
+        napomena   = rociste.get("napomena") or ""
         naziv      = (predmet.get("naziv") or "").strip()
         opis       = (predmet.get("opis")  or "")[:800]
 
@@ -446,7 +456,8 @@ async def _step_hcc(supa, predmet_id: str, user_id: str,
                     {"role": "system", "content": _system},
                     {"role": "user",   "content": (
                         f"Predmet: {naziv}\nOpis: {opis}\n"
-                        f"Ročište: {datum_roc} | Sud: {sud} | Tip: {tip}"
+                        f"Ročište: {datum_roc} | Sud: {sud}"
+                        + (f" | Napomena: {napomena}" if napomena else "")
                     )},
                 ],
             ),
