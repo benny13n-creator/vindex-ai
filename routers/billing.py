@@ -538,6 +538,164 @@ async def billing_pregled(
     }
 
 
+# ── PRIORITET 4: Naplata proširene funkcije ───────────────────────────────────
+
+@router.get("/dugovanja")
+@limiter.limit("30/minute")
+async def billing_dugovanja(
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Sve nenaplaćene stavke grupisane po predmetu — evidencija dugovanja."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    entries_r, predmeti_r = await asyncio.gather(
+        _db(lambda: supa.table("billing_entries")
+            .select("id,predmet_id,opis,iznos_rsd,datum,tip,tarifa_naziv")
+            .eq("user_id", uid)
+            .eq("obracunato", False)
+            .order("datum")
+            .execute()),
+        _db(lambda: supa.table("predmeti")
+            .select("id,naziv")
+            .eq("user_id", uid)
+            .execute()),
+        return_exceptions=True,
+    )
+
+    entries  = entries_r.data if not isinstance(entries_r, Exception) else []
+    predmeti = predmeti_r.data if not isinstance(predmeti_r, Exception) else []
+    pred_map = {p["id"]: p.get("naziv", "—") for p in predmeti}
+
+    by_predmet: dict[str, dict] = {}
+    for e in (entries or []):
+        pid = e.get("predmet_id", "")
+        if pid not in by_predmet:
+            by_predmet[pid] = {
+                "predmet_id":    pid,
+                "predmet_naziv": pred_map.get(pid, "—"),
+                "stavke":        [],
+                "ukupno_rsd":    0.0,
+            }
+        by_predmet[pid]["stavke"].append(e)
+        by_predmet[pid]["ukupno_rsd"] += float(e.get("iznos_rsd") or 0)
+
+    dugovanja = sorted(by_predmet.values(), key=lambda x: x["ukupno_rsd"], reverse=True)
+    ukupno_rsd = sum(g["ukupno_rsd"] for g in dugovanja)
+
+    return {
+        "dugovanja":   dugovanja,
+        "ukupno_rsd":  ukupno_rsd,
+        "predmeta":    len(dugovanja),
+        "stavki":      len(entries or []),
+    }
+
+
+@router.get("/naplata-status")
+@limiter.limit("30/minute")
+async def billing_naplata_status(
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Celokupni finansijski status — ukupno, fakturisano, naplaćeno, neizmireno."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    entries_r, fakture_r = await asyncio.gather(
+        _db(lambda: supa.table("billing_entries")
+            .select("iznos_rsd,obracunato")
+            .eq("user_id", uid)
+            .execute()),
+        _db(lambda: supa.table("fakture")
+            .select("iznos_sa_pdv,iznos_bez_pdv,status,datum_fakture,broj_fakture")
+            .eq("user_id", uid)
+            .order("datum_fakture", desc=True)
+            .execute()),
+        return_exceptions=True,
+    )
+
+    entries = entries_r.data if not isinstance(entries_r, Exception) else []
+    fakture = fakture_r.data if not isinstance(fakture_r, Exception) else []
+
+    ukupno_stavke  = sum(float(e.get("iznos_rsd") or 0) for e in (entries or []))
+    neobracunato   = sum(float(e.get("iznos_rsd") or 0) for e in (entries or []) if not e.get("obracunato"))
+    fakturisano    = sum(float(f.get("iznos_sa_pdv") or 0) for f in (fakture or []))
+    naplaceno      = sum(float(f.get("iznos_sa_pdv") or 0) for f in (fakture or []) if f.get("status") == "placena")
+    neizmireno     = sum(float(f.get("iznos_sa_pdv") or 0) for f in (fakture or []) if f.get("status") == "izdata")
+    nacrt_iznos    = sum(float(f.get("iznos_sa_pdv") or 0) for f in (fakture or []) if f.get("status") == "nacrt")
+
+    return {
+        "ukupno_stavke":  ukupno_stavke,
+        "neobracunato":   neobracunato,
+        "fakturisano":    fakturisano,
+        "naplaceno":      naplaceno,
+        "neizmireno":     neizmireno,
+        "nacrt_iznos":    nacrt_iznos,
+        "fakture_ukupno": len(fakture or []),
+        "fakture_placene": sum(1 for f in (fakture or []) if f.get("status") == "placena"),
+        "fakture_izdate":  sum(1 for f in (fakture or []) if f.get("status") == "izdata"),
+    }
+
+
+@router.get("/po-klijentu/{klijent_id}")
+@limiter.limit("30/minute")
+async def billing_po_klijentu(
+    klijent_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Billing stavke i fakture za sve predmete jednog klijenta."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    pk_r = await _db(lambda: supa.table("predmet_klijenti")
+                     .select("predmet_id")
+                     .eq("klijent_id", klijent_id)
+                     .execute())
+    pred_ids = [r["predmet_id"] for r in (pk_r.data or [])]
+    if not pred_ids:
+        return {"klijent_id": klijent_id, "predmeti": [], "stavke": [], "fakture": [],
+                "ukupno_rsd": 0.0, "naplaceno": 0.0, "neizmireno": 0.0}
+
+    entries_r, fakture_r, predmeti_r = await asyncio.gather(
+        _db(lambda: supa.table("billing_entries")
+            .select("*")
+            .eq("user_id", uid)
+            .in_("predmet_id", pred_ids)
+            .order("datum", desc=True)
+            .execute()),
+        _db(lambda: supa.table("fakture")
+            .select("*")
+            .eq("user_id", uid)
+            .in_("predmet_id", pred_ids)
+            .order("datum_fakture", desc=True)
+            .execute()),
+        _db(lambda: supa.table("predmeti")
+            .select("id,naziv,status")
+            .in_("id", pred_ids)
+            .execute()),
+        return_exceptions=True,
+    )
+
+    entries  = entries_r.data if not isinstance(entries_r, Exception) else []
+    fakture  = fakture_r.data if not isinstance(fakture_r, Exception) else []
+    predmeti = predmeti_r.data if not isinstance(predmeti_r, Exception) else []
+
+    ukupno_rsd = sum(float(e.get("iznos_rsd") or 0) for e in (entries or []))
+    naplaceno  = sum(float(f.get("iznos_sa_pdv") or 0) for f in (fakture or []) if f.get("status") == "placena")
+
+    return {
+        "klijent_id":  klijent_id,
+        "predmeti":    predmeti or [],
+        "stavke":      entries or [],
+        "fakture":     fakture or [],
+        "ukupno_rsd":  ukupno_rsd,
+        "naplaceno":   naplaceno,
+        "neizmireno":  sum(float(f.get("iznos_sa_pdv") or 0) for f in (fakture or []) if f.get("status") == "izdata"),
+    }
+
+
 # ── PDF generator ─────────────────────────────────────────────────────────────
 
 def _generate_pdf(faktura: dict, entries: list) -> bytes:

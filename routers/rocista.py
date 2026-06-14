@@ -16,6 +16,8 @@ import re
 from datetime import datetime, timezone
 from typing import Optional
 
+from datetime import date as _date
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
@@ -197,6 +199,117 @@ async def izmeni_rociste(
     row = r.data[0]
     row["vreme"] = _norm_vreme(row.get("vreme"))
     return {"rociste": row, "ok": True}
+
+
+# ── PRIORITET 5: Hearing Follow-Up ───────────────────────────────────────────
+
+class FollowUpReq(BaseModel):
+    predmet_id: str           = Field(..., min_length=1, max_length=64)
+    napomena:   str           = Field(..., min_length=1, max_length=4000)
+    rociste_id: Optional[str] = Field(default=None)
+
+
+@router.post("/api/rociste/followup")
+@limiter.limit("20/minute")
+async def hearing_followup(
+    body: FollowUpReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Post-ročište follow-up:
+    - Kreira belešku sa napomenom
+    - Kreira hronologiju entry
+    - Ažurira istoriju predmeta
+    - Generiše preporuke sledećih koraka (rule-based)
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+    today_iso = _date.today().isoformat()
+
+    # Proveri vlasništvo
+    pred_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id,naziv,status")
+            .eq("id", body.predmet_id)
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+    )
+    if not pred_r.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+
+    predmet = pred_r.data[0]
+    naziv   = predmet.get("naziv", "Predmet")
+
+    # Taguj napomenu ročišta ako je dat rociste_id
+    tag     = f"[Ročište follow-up{' #'+body.rociste_id[:8] if body.rociste_id else ''}]"
+    tekst_b = f"{tag} {body.napomena}"
+
+    # Paralelno upiši: beleška + hronologiju + istoriju
+    await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_beleske").insert({
+            "predmet_id": body.predmet_id,
+            "user_id":    uid,
+            "sadrzaj":    tekst_b[:2000],
+        }).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert({
+            "predmet_id": body.predmet_id,
+            "user_id":    uid,
+            "dogadjaj":   f"Follow-up ročište: {body.napomena[:120]}",
+            "datum":      today_iso,
+            "datum_iso":  today_iso,
+            "vaznost":    "bitan",
+            "akter":      "Advokat",
+        }).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija").insert({
+            "predmet_id": body.predmet_id,
+            "user_id":    uid,
+            "pitanje":    f"[Follow-up ročište] {today_iso}",
+            "odgovor":    body.napomena[:2000],
+            "confidence": "HIGH",
+        }).execute()),
+        return_exceptions=True,
+    )
+
+    # Rule-based preporuke sledećih koraka
+    napomena_lower = body.napomena.lower()
+    preporuke: list[str] = []
+
+    if any(w in napomena_lower for w in ("odloženo", "odlozeno", "odlaganje", "odložiti")):
+        preporuke.append("Ročište je odloženo — proverite i ažurirajte datum sledećeg ročišta.")
+        preporuke.append("Obavestite klijenta o novom terminu.")
+    if any(w in napomena_lower for w in ("dokaz", "dokaze", "dokumenta", "dokumenti", "veštačenje", "vestacenje")):
+        preporuke.append("Identifikujte nedostajuće dokaze i zatražite ih od klijenta ili suda.")
+    if any(w in napomena_lower for w in ("svedok", "svedoci", "saslušanje", "ispit")):
+        preporuke.append("Pripremite svedoke za naredni pretres — uskladite iskaze sa dokumentacijom.")
+    if any(w in napomena_lower for w in ("nagodba", "sporazum", "poravnanje")):
+        preporuke.append("Razgovarajte sa klijentom o mogućnosti nagodbe — procenite uslove.")
+    if any(w in napomena_lower for w in ("žalba", "zalba", "pobijanje", "revizija")):
+        preporuke.append("Proverite rokove za žalbu i pripremite osnove za pobijanje presude.")
+    if any(w in napomena_lower for w in ("presuda", "odluka", "rešenje", "resenje")):
+        preporuke.append("Analizirajte presudu/odluku i utvrdite dalji tok postupka.")
+    if any(w in napomena_lower for w in ("rok", "termin", "zakazano")):
+        preporuke.append("Dodajte novi rok u sistem i obavestite klijenta o terminima.")
+
+    if not preporuke:
+        preporuke.append("Ažurirajte status predmeta i zabeleškite ishod ročišta.")
+        preporuke.append("Planirajte sledeće korake sa klijentom.")
+
+    logger.info("[FOLLOWUP] uid=%.8s predmet=%s", uid, body.predmet_id)
+
+    return {
+        "ok":         True,
+        "predmet_id": body.predmet_id,
+        "naziv":      naziv,
+        "datum":      today_iso,
+        "preporuke":  preporuke,
+        "akcije": {
+            "beleska_kreirana":     True,
+            "hronologija_azurana":  True,
+            "istorija_azurana":     True,
+        },
+    }
 
 
 @router.delete("/api/rocista/{rociste_id}")

@@ -456,6 +456,8 @@ from routers.tarife        import router as tarife_router
 from routers.rocista       import router as rocista_router
 from routers.kalendar      import router as kalendar_router
 from routers.hearing_cc    import router as hearing_cc_router
+from routers.dashboard     import router as dashboard_router
+from routers.inbox         import router as inbox_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -477,6 +479,8 @@ app.include_router(tarife_router)
 app.include_router(rocista_router)
 app.include_router(kalendar_router)
 app.include_router(hearing_cc_router)
+app.include_router(dashboard_router)
+app.include_router(inbox_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles

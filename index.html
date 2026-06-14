@@ -1561,6 +1561,8 @@ footer { padding: 2rem 1.5rem; }
 .kc-row-arrow{color:rgba(74,168,255,0.4);font-size:0.7rem;flex-shrink:0;}
 .kc-empty{text-align:center;padding:1.2rem;font-size:0.78rem;color:rgba(255,255,255,0.2);font-family:'JetBrains Mono',monospace;letter-spacing:0.08em;}
 .kc-summary{background:rgba(74,168,255,0.04);border:1px solid rgba(74,168,255,0.12);border-radius:8px;padding:0.8rem 1rem;font-size:0.82rem;color:rgba(255,255,255,0.55);margin-bottom:1.2rem;line-height:1.6;}
+.kc-preporuke{margin-bottom:1.2rem;display:flex;flex-direction:column;gap:0.3rem;}
+.kc-prep-item{font-size:0.76rem;color:rgba(255,255,255,0.65);padding:0.45rem 0.75rem;background:rgba(251,146,60,0.05);border:1px solid rgba(251,146,60,0.15);border-radius:7px;line-height:1.5;}
 .kc-loading{text-align:center;padding:2.5rem;font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.2);letter-spacing:0.15em;text-transform:uppercase;}
 .kc-qa-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.65);font-size:0.78rem;padding:0.5rem 1rem;border-radius:6px;cursor:pointer;transition:all 0.2s;}
 .kc-qa-btn:hover{background:rgba(74,168,255,0.1);border-color:rgba(74,168,255,0.3);color:#89c8ff;}
@@ -3855,7 +3857,7 @@ async function dash_load(){
   try{
     var hdr={'Authorization':'Bearer '+currentSession.access_token};
     var [r,br]=await Promise.all([
-      fetch(BASE_URL+'/portfolio/dashboard',{headers:hdr}),
+      fetch(BASE_URL+'/api/dashboard/command-center',{headers:hdr}),
       fetch(BASE_URL+'/billing/pregled',{headers:hdr}).catch(function(){return null;})
     ]);
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -3875,16 +3877,44 @@ function _dashRender(d,bd){
   var uName=currentUser?(currentUser.email||'').split('@')[0]:'';
   html+='<div class="kc-greeting">'+_dashGreeting()+(uName?', '+escHtml(uName):'')+' .</div>'.replace(' .','.');
   html+='<div class="kc-date">'+_dashFormatDate()+'</div>';
-  if(d.summary)html+='<div class="kc-summary">'+escHtml(d.summary)+'</div>';
+
+  // AI preporuke / summary
+  var preporuke=d.ai_preporuke||[];
+  if(preporuke.length){
+    html+='<div class="kc-preporuke">';
+    preporuke.forEach(function(p){html+='<div class="kc-prep-item">'+escHtml(p)+'</div>';});
+    html+='</div>';
+  } else if(d.summary){
+    html+='<div class="kc-summary">'+escHtml(d.summary)+'</div>';
+  }
+
+  // KPI row
   var hitniCount=(d.hitni_rokovi||[]).length;
-  var rokoviDanas=(d.rokovi_7_dana||[]).filter(function(r){return r.datum_iso===today;}).length;
+  var rocistaCount=(d.danasnja_rocista||[]).length;
+  var visokRizikCount=(d.predmeti_visok_rizik||[]).length;
   var neaktivniCount=(d.neaktivni_30_dana||[]).length;
   html+='<div class="kc-kpi-row">';
   html+='<div class="kc-kpi"><div class="kc-kpi-n">'+(d.ukupno_aktivnih||0)+'</div><div class="kc-kpi-l">Aktivnih<br>predmeta</div></div>';
   html+='<div class="kc-kpi"><div class="kc-kpi-n'+(hitniCount>0?' warn':'')+'">'+hitniCount+'</div><div class="kc-kpi-l">Hitnih<br>rokova</div></div>';
-  html+='<div class="kc-kpi"><div class="kc-kpi-n">'+rokoviDanas+'</div><div class="kc-kpi-l">Rokova<br>danas</div></div>';
-  html+='<div class="kc-kpi"><div class="kc-kpi-n'+(neaktivniCount>0?' warn':'')+'">'+neaktivniCount+'</div><div class="kc-kpi-l">Bez aktivnosti<br>30+ dana</div></div>';
+  html+='<div class="kc-kpi"><div class="kc-kpi-n'+(rocistaCount>0?' warn':'')+'">'+rocistaCount+'</div><div class="kc-kpi-l">Ročišta<br>danas</div></div>';
+  html+='<div class="kc-kpi"><div class="kc-kpi-n'+(visokRizikCount>0?' warn':'')+'">'+visokRizikCount+'</div><div class="kc-kpi-l">Visok<br>rizik</div></div>';
   html+='</div>';
+
+  // Danasnja rocista
+  var rocista=d.danasnja_rocista||[];
+  if(rocista.length){
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>⚖️ Ročišta danas</span><span>'+rocista.length+'</span></div>';
+    rocista.forEach(function(r){
+      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
+      html+='<div class="kc-row-dot hitan"></div>';
+      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div>';
+      html+='<div class="kc-row-sub">'+escHtml(r.sud||'Sud nije navedeno')+(r.vreme?' — '+escHtml(r.vreme):'')+'</div></div>';
+      html+='<div class="kc-row-arrow">→</div></div>';
+    });
+    html+='</div>';
+  }
+
+  // Rokovi 7 dana
   var rokovi7=d.rokovi_7_dana||[];
   html+='<div class="kc-section">';
   html+='<div class="kc-section-hd"><span>📅 Rokovi u narednih 7 dana</span><span>'+rokovi7.length+'</span></div>';
@@ -3899,9 +3929,40 @@ function _dashRender(d,bd){
     html+='<div class="kc-row-datum">'+escHtml(datumLbl)+'</div><div class="kc-row-arrow">→</div></div>';
   });}
   html+='</div>';
+
+  // Predmeti visokog rizika
+  var visokRizik=d.predmeti_visok_rizik||[];
+  if(visokRizik.length){
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>🔴 Visok rizik</span><span>'+visokRizik.length+'</span></div>';
+    visokRizik.slice(0,5).forEach(function(p){
+      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.predmet_id)+'\')">';
+      html+='<div class="kc-row-dot hitan"></div>';
+      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(p.predmet_naziv||'Predmet')+'</div>';
+      var faktori=(p.faktori||[]).slice(0,2).join(' · ');
+      if(faktori)html+='<div class="kc-row-sub">'+escHtml(faktori)+'</div>';
+      html+='</div><div class="kc-row-arrow">→</div></div>';
+    });
+    html+='</div>';
+  }
+
+  // Pad procene rizika
+  var padProcene=d.pad_procene||[];
+  if(padProcene.length){
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>📈 Rizik porastao</span><span>'+padProcene.length+'</span></div>';
+    padProcene.slice(0,3).forEach(function(p){
+      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.predmet_id)+'\')">';
+      html+='<div class="kc-row-dot bitan"></div>';
+      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(p.predmet_naziv||'Predmet')+'</div>';
+      html+='<div class="kc-row-sub">'+escHtml(p.prethodni_rizik||'?')+' → '+escHtml(p.trenutni_rizik||'?')+'</div></div>';
+      html+='<div class="kc-row-arrow">→</div></div>';
+    });
+    html+='</div>';
+  }
+
+  // Predmeti bez aktivnosti
   var neakt=d.neaktivni_30_dana||[];
   if(neakt.length){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>⚠ Predmeti bez aktivnosti</span><span>'+neakt.length+'</span></div>';
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>⚠ Bez aktivnosti 30+ dana</span><span>'+neakt.length+'</span></div>';
     neakt.slice(0,5).forEach(function(p){
       html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.predmet_id)+'\')">';
       html+='<div class="kc-row-dot bitan"></div>';
@@ -3910,6 +3971,22 @@ function _dashRender(d,bd){
     });
     html+='</div>';
   }
+
+  // Novi dokumenti
+  var noviDok=d.novi_dokumenti||[];
+  if(noviDok.length){
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>📎 Novi dokumenti (24h)</span><span>'+noviDok.length+'</span></div>';
+    noviDok.slice(0,4).forEach(function(dok){
+      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(dok.predmet_id)+'\')">';
+      html+='<div class="kc-row-dot info"></div>';
+      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(dok.naziv_fajla||'Dokument')+'</div>';
+      html+='<div class="kc-row-sub">'+escHtml(dok.predmet_naziv||'—')+'</div></div>';
+      html+='<div class="kc-row-arrow">→</div></div>';
+    });
+    html+='</div>';
+  }
+
+  // Billing
   if(bd){
     html+='<div class="kc-section">';
     html+='<div class="kc-section-hd"><span>💰 Naplata — '+(bd.mesec||'')+'</span></div>';
@@ -3919,12 +3996,15 @@ function _dashRender(d,bd){
     html+='<div class="billing-kc-kpi"><div class="billing-kc-n">'+_fmtRSD(bd.naplaceno||0)+'</div><div class="billing-kc-l">Naplaćeno<br>RSD</div></div>';
     html+='</div></div>';
   }
+
+  // Brze akcije
   html+='<div class="kc-section"><div class="kc-section-hd"><span>Brze akcije</span></div>';
   html+='<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
   html+='<button class="kc-qa-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
   html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'p\')">📁 Predmeti</button>';
   html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'k\')">👥 Klijenti</button>';
   html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'q\')">🔍 Istraživanje</button>';
+  html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'kal\')">📅 Kalendar</button>';
   html+='</div></div>';
   return html;
 }
