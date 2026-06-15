@@ -105,515 +105,8 @@
   global.cirilicaElement=cirilicaElement;
 })(window);
 </script>
-
 <style>
-:root {
-  --void: #010308;
-  --deep: #030810;
-  --blue: #4aa8ff;
-  --blue2: #89c8ff;
-  --gold: #c9a84c;
-  --gold2: #e8c97a;
-  --w: rgba(255,255,255,0.95);
-  --w2: rgba(255,255,255,0.55);
-  --w3: rgba(255,255,255,0.22);
-  --bord: rgba(255,255,255,0.06);
-  --green: #4ade80;
-  --amber: #f0b429;
-  /* ── Tipografski sistem ─────────────────────────────────── */
-  --font-ui:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-brand: 'Cormorant Garamond', Georgia, serif;
-  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
-  --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-  /* Skala */
-  --text-xs:   0.625rem;   /* 10px — micro labels, badges */
-  --text-sm:   0.75rem;    /* 12px — caption, meta */
-  --text-base: 0.875rem;   /* 14px — body, buttons */
-  --text-md:   1rem;       /* 16px — comfortable reading */
-  --text-lg:   1.125rem;   /* 18px — card headings */
-  --text-xl:   1.375rem;   /* 22px — section subheadings */
-  /* Težina */
-  --fw-light:   300;
-  --fw-regular: 400;
-  --fw-medium:  500;
-  --fw-semi:    600;
-  --fw-bold:    700;
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; overflow-x: hidden; max-width: 100%; }
-::-webkit-scrollbar { width: 3px; background: #010308; }
-::-webkit-scrollbar-thumb { background: rgba(74,168,255,0.25); border-radius: 2px; }
-body { background: #010308; color: rgba(255,255,255,0.95); font-family: var(--font-ui); font-size: var(--text-base); line-height: 1.6; overflow-x: hidden; max-width: 100%; }
-
-#cursor { display: none; }
-#cursor-ring { display: none; }
-#cv { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-
-/* NAV */
-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 500; display: flex; align-items: center; justify-content: space-between; padding: 1.3rem 4rem; background: transparent; border-bottom: 1px solid transparent; transition: all 0.6s; }
-nav.scrolled { background: rgba(1,3,8,0.94); backdrop-filter: blur(30px); border-bottom-color: rgba(74,168,255,0.1); }
-.logo { font-family: ‘Cormorant Garamond’, serif; font-size: 1.5rem; font-weight: 600; color: #fff; text-decoration: none; }
-.logo em { color: #4aa8ff; font-style: normal; }
-.nav-links { display: flex; gap: 2.5rem; }
-.nav-links a { font-size: 0.78rem; font-weight: 400; color: rgba(255,255,255,0.55); text-decoration: none; letter-spacing: 0.04em; transition: color 0.2s; cursor: pointer; }
-.nav-links a:hover { color: #fff; }
-.nav-cta { padding: 0.6rem 1.5rem; border: 1px solid rgba(74,168,255,0.35); border-radius: 2px; color: #89c8ff; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; transition: all 0.3s; cursor: pointer; white-space: nowrap; }
-.nav-cta:hover { border-color: #4aa8ff; box-shadow: 0 0 28px rgba(74,168,255,0.25); color: #fff; }
-
-/* HAMBURGER */
-.hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px; background: none; border: none; }
-.hamburger span { display: block; width: 22px; height: 2px; background: rgba(255,255,255,0.7); border-radius: 2px; transition: all 0.3s; }
-.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.hamburger.open span:nth-child(2) { opacity: 0; }
-.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-/* MOBILE MENU */
-.mobile-menu { display: none; position: fixed; inset: 0; z-index: 490; background: rgba(1,3,8,0.97); backdrop-filter: blur(30px); flex-direction: column; align-items: center; justify-content: center; gap: 2.5rem; }
-.mobile-menu.open { display: flex; }
-.mobile-menu a { font-family: ‘Cormorant Garamond’, serif; font-size: 2.2rem; font-weight: 600; color: rgba(255,255,255,0.7); text-decoration: none; transition: color 0.2s; }
-.mobile-menu a:hover { color: #fff; }
-.mobile-menu .m-cta { font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.9rem 2.5rem; border: 1px solid rgba(74,168,255,0.4); border-radius: 8px; color: #89c8ff; margin-top: 1rem; }
-
-/* HERO */
-#hero { position: relative; z-index: 2; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8rem 1.5rem 5rem; overflow: hidden; gap: 0; }
-.orb { position: absolute; border-radius: 50%; filter: blur(100px); pointer-events: none; }
-.orb-1 { width: 700px; height: 700px; background: radial-gradient(circle, rgba(74,168,255,0.09) 0%, transparent 70%); top: -150px; right: -200px; animation: float1 14s ease-in-out infinite; }
-.orb-2 { width: 450px; height: 450px; background: radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%); bottom: 0; left: -100px; animation: float2 11s ease-in-out infinite; }
-@keyframes float1 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(-40px,50px);} }
-@keyframes float2 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(30px,-30px);} }
-.grid-bg { position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(74,168,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(74,168,255,0.022) 1px, transparent 1px); background-size: 80px 80px; mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, black 0%, transparent 100%); }
-
-.hero-center { text-align: center; position: relative; z-index: 2; width: 100%; max-width: 900px; margin-bottom: 4rem; }
-.h-badge { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.3rem 1rem; border: 1px solid rgba(74,168,255,0.25); border-radius: 999px; background: rgba(74,168,255,0.06); font-family: ‘JetBrains Mono’, monospace; font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: #89c8ff; margin-bottom: 2rem; }
-.pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: #4aa8ff; box-shadow: 0 0 12px #4aa8ff; animation: pulse-a 2.2s infinite; flex-shrink: 0; }
-@keyframes pulse-a { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.3;transform:scale(0.5);} }
-.h1 { font-family: ‘Cormorant Garamond’, serif; font-size: clamp(4rem,8vw,9rem); font-weight: 700; line-height: 0.92; letter-spacing: -0.03em; color: #fff; }
-.h1-italic { font-family: ‘Cormorant Garamond’, serif; font-size: clamp(4rem,8vw,9rem); font-weight: 300; font-style: italic; line-height: 1.0; letter-spacing: -0.02em; color: #4aa8ff; margin-bottom: 1.5rem; }
-@keyframes grad-shift { 0%{background-position:0% center;} 100%{background-position:300% center;} }
-.h-desc { font-size: 1.05rem; line-height: 1.92; color: rgba(255,255,255,0.55); font-weight: 300; max-width: 560px; margin: 0 auto 2.5rem; }
-.h-cta { display: flex; align-items: center; justify-content: center; gap: 1.8rem; margin-bottom: 3rem; flex-wrap: wrap; }
-.btn-primary { position: relative; padding: 1rem 2.4rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 2px; color: #fff; font-family: var(--font-ui); font-size: 0.86rem; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; overflow: hidden; transition: all 0.35s; text-decoration: none; box-shadow: none; display: inline-block; }
-.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 20px 60px rgba(74,168,255,0.5); }
-.btn-ghost { font-size: 0.84rem; color: rgba(255,255,255,0.22); font-weight: 300; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s; cursor: pointer; }
-.btn-ghost:hover { color: rgba(255,255,255,0.55); }
-
-/* STATS */
-.h-stats { display: flex; gap: 0; justify-content: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 2rem; }
-.h-stat { text-align: center; padding: 0 2.5rem; border-right: 1px solid rgba(255,255,255,0.06); }
-.h-stat:last-child { border-right: none; }
-.h-stat-num { font-family: ‘Cormorant Garamond’, serif; font-size: 2.2rem; font-weight: 700; color: #fff; letter-spacing: -0.03em; line-height: 1; }
-.h-stat-num .acc { color: #89c8ff; font-weight: 300; font-size: 1.5rem; }
-.h-stat-lbl { font-family: ‘JetBrains Mono’, monospace; font-size: 0.53rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.40); margin-top: 0.3rem; }
-
-/* HERO 3-COLUMN LAYOUT */
-.hero-center { margin-bottom: 2.5rem; }
-.hero-3col { display: grid; grid-template-columns: 1fr 1.7fr 1fr; gap: 2rem; width: 100%; max-width: none; position: relative; z-index: 2; align-items: stretch; margin-bottom: 3rem; }
-.h3-left { display: flex; align-items: stretch; }
-.h3-center { display: flex; flex-direction: column; position: relative; left: 0; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden; }
-.h3-right { display: flex; align-items: stretch; }
-.h3-center .terminal-wrap { width: 100%; flex: 1; }
-.h3-center textarea.t-input { height: 130px !important; }
-.h3-center .t-body { padding: 1.6rem 1.8rem; }
-.h3-center .t-exec { padding: 1.0rem; font-size: 0.87rem; }
-#sphereWrap { width: 100%; height: 100%; min-height: 720px; display: flex; align-items: center; justify-content: center; }
-#sphereCanvas { width: 100%; height: 100%; }
-.hero-intro-panel { display: flex; flex-direction: column; justify-content: center; gap: 1.4rem; padding: 1.8rem 0; height: 100%; }
-.hero-intro-panel .hi-label { font-family: 'JetBrains Mono', monospace; font-size: 0.54rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.7; }
-.hero-intro-panel p { font-size: 1.14rem; color: rgba(255,255,255,0.62); line-height: 1.88; font-weight: 300; }
-.hero-intro-panel p strong { color: rgba(255,255,255,0.92); font-weight: 600; }
-.hero-intro-list { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
-.hero-intro-list li { font-size: 1.02rem; color: rgba(255,255,255,0.52); display: flex; align-items: flex-start; gap: 0.55rem; line-height: 1.6; }
-.hero-intro-list li::before { content: '→'; color: #4aa8ff; font-size: 0.7rem; flex-shrink: 0; margin-top: 0.1rem; }
-/* Hero desna kolona — statistike i trust signali */
-.hi-stats { display: grid; grid-template-columns: repeat(3,1fr); border: 1px solid rgba(74,168,255,0.1); border-radius: 10px; overflow: hidden; }
-.hi-stat { text-align: center; padding: 0.8rem 0.4rem; border-right: 1px solid rgba(74,168,255,0.08); }
-.hi-stat:last-child { border-right: none; }
-.hi-stat-n { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 700; color: #89c8ff; line-height: 1; }
-.hi-stat-l { font-family: 'JetBrains Mono', monospace; font-size: 0.47rem; letter-spacing: 0.11em; text-transform: uppercase; color: rgba(255,255,255,0.28); margin-top: 0.28rem; line-height: 1.4; }
-.hi-trust { list-style: none; display: flex; flex-direction: column; gap: 0.48rem; }
-.hi-trust-item { font-size: 0.8rem; color: rgba(168,202,238,0.6); display: flex; align-items: flex-start; gap: 0.52rem; line-height: 1.55; font-weight: 300; }
-.hi-trust-item::before { content: '→'; color: #4aa8ff; font-size: 0.64rem; flex-shrink: 0; margin-top: 0.12rem; }
-
-/* Value pillars — hero-foot full-width kartice */
-.vp-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; width: 100%; margin-bottom: 2.4rem; }
-.vp-card {
-  background: rgba(74,168,255,0.022);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(74,168,255,0.1);
-  border-radius: 16px;
-  padding: 1.7rem 1.5rem 1.6rem;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s cubic-bezier(0.16,1,0.3,1);
-}
-.vp-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(74,168,255,0.18), transparent);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.vp-card:hover { border-color: rgba(74,168,255,0.22); box-shadow: 0 12px 40px rgba(74,168,255,0.07), 0 4px 16px rgba(0,0,0,0.35); transform: translateY(-4px); }
-.vp-card:hover::before { opacity: 1; }
-.vp-icon { font-size: 1.55rem; display: block; margin-bottom: 0.85rem; opacity: 0.85; }
-.vp-title { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 700; color: #cde0f8; letter-spacing: 0.01em; margin-bottom: 0.55rem; line-height: 1; }
-.vp-desc { font-size: 0.82rem; color: rgba(155,195,234,0.55); line-height: 1.72; font-weight: 300; }
-@media (max-width: 700px) { .vp-row { grid-template-columns: 1fr; gap: 0.75rem; } }
-
-/* Hero tagline — ispod kartica */
-.hero-tagline { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.1rem, 2.2vw, 1.55rem); font-weight: 400; font-style: italic; color: rgba(205,224,248,0.6); line-height: 1.55; text-align: center; max-width: 640px; margin: 0 auto 2rem; opacity: 0; animation: ht-in 0.9s ease 0.6s forwards; }
-@keyframes ht-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-
-/* About heading — AI blue span */
-.sh .hi-ai { color: #4aa8ff; font-style: normal; }
-
-.hero-foot { width: 100%; max-width: 900px; position: relative; z-index: 2; text-align: center; }
-#sphereCanvas { width: 100%; height: 100%; }
-
-/* SAMPLE RESPONSE PANEL */
-.sample-resp-panel { background: rgba(1,5,14,0.88); border: 1px solid rgba(74,168,255,0.18); border-radius: 18px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.55); position: relative; }
-.sample-resp-panel::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.55), rgba(201,168,76,0.25), transparent); }
-.srp-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
-.srp-dots { display: flex; gap: 6px; }
-.srp-dot { width: 9px; height: 9px; border-radius: 50%; }
-.sd1{background:#ff5f57;opacity:0.7;} .sd2{background:#ffbd2e;opacity:0.7;} .sd3{background:#28c840;opacity:0.7;}
-.srp-title { font-family: 'JetBrains Mono', monospace; font-size: 0.56rem; letter-spacing: 0.14em; color: rgba(255,255,255,0.22); text-transform: uppercase; }
-.srp-time { font-family: 'JetBrains Mono', monospace; font-size: 0.56rem; color: #4ade80; display: flex; align-items: center; gap: 0.4rem; }
-.srp-body { padding: 1.4rem 1.5rem; display: flex; flex-direction: column; gap: 0.85rem; }
-.srp-q { background: rgba(74,168,255,0.05); border: 1px solid rgba(74,168,255,0.13); border-radius: 9px; padding: 0.8rem 1rem; }
-.srp-ql { font-family: 'JetBrains Mono', monospace; font-size: 0.49rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.3rem; }
-.srp-qt { font-size: 0.78rem; color: rgba(255,255,255,0.55); font-weight: 300; line-height: 1.6; }
-.srp-section { padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.srp-section:last-child { border-bottom: none; padding-bottom: 0; }
-.srp-lbl { font-family: 'JetBrains Mono', monospace; font-size: 0.47rem; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem; }
-.srp-lbl::before { content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
-.srp-lbl.blue { color: #89c8ff; } .srp-lbl.blue::before { background: #89c8ff; box-shadow: 0 0 6px #89c8ff; }
-.srp-lbl.gold { color: #e8c97a; } .srp-lbl.gold::before { background: #e8c97a; box-shadow: 0 0 5px rgba(232,201,122,0.6); }
-.srp-lbl.green { color: #4ade80; } .srp-lbl.green::before { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
-.srp-lbl.amber { color: #f0b429; } .srp-lbl.amber::before { background: #f0b429; box-shadow: 0 0 5px rgba(240,180,41,0.6); }
-.srp-text { font-size: 0.78rem; line-height: 1.82; font-weight: 300; color: rgba(255,255,255,0.68); }
-.srp-text.gold { color: rgba(232,201,122,0.85); font-style: italic; border-left: 2px solid rgba(232,201,122,0.2); padding-left: 0.75rem; }
-.srp-text.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #f0b429; }
-.srp-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.18rem 0.65rem; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; letter-spacing: 0.1em; background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); color: #4ade80; margin-top: 0.5rem; }
-.srp-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
-
-/* TERMINAL */
-.terminal { background: rgba(1,5,14,0.92); border: 1px solid rgba(74,168,255,0.18); border-radius: 16px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,0.7); backdrop-filter: blur(20px); position: relative; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; box-sizing: border-box; }
-.terminal::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.5), rgba(201,168,76,0.3), transparent); }
-.t-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); overflow: hidden; min-width: 0; }
-.t-dots { display: flex; gap: 6px; }
-.t-dot { width: 10px; height: 10px; border-radius: 50%; }
-.td1{background:#ff5f57;} .td2{background:#ffbd2e;} .td3{background:#28c840;}
-.t-title { font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.14em; color: rgba(255,255,255,0.22); text-transform: uppercase; }
-.t-status { display: flex; align-items: center; gap: 0.4rem; font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: #4ade80; }
-.t-sdot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; animation: blink-s 2s infinite; }
-@keyframes blink-s { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
-.t-body { padding: 1.5rem; }
-.t-tabs { display: flex; gap: 0; background: transparent; border-radius: 0; padding: 0; margin-bottom: 1.2rem; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; max-width: 100%; white-space: nowrap; }
-.t-tabs::-webkit-scrollbar { display: none; }
-.t-tabs-wrap { position:relative; min-width:0; }
-.t-scroll-fade { position:absolute; top:0; bottom:2px; width:52px; z-index:2; pointer-events:none; transition:opacity 0.2s; }
-.t-scroll-fade-l { left:0; background:linear-gradient(to right, #01050e 20%, transparent); }
-.t-scroll-fade-r { right:0; background:linear-gradient(to left, #01050e 20%, transparent); }
-.t-tabs-wrap.at-start .t-scroll-fade-l { opacity:0; }
-.t-tabs-wrap.at-end .t-scroll-fade-r { opacity:0; }
-.t-scroll-btn { position:absolute; bottom:8px; z-index:3; width:22px; height:22px; background:rgba(3,8,16,0.9); border:1px solid rgba(74,168,255,0.25); border-radius:50%; color:rgba(255,255,255,0.55); font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition:opacity 0.2s, color 0.15s; }
-.t-scroll-btn:hover { color:#4aa8ff; border-color:rgba(74,168,255,0.5); }
-.t-scroll-btn-l { left:2px; }
-.t-scroll-btn-r { right:2px; }
-.t-tabs-wrap.at-start .t-scroll-btn-l { opacity:0; pointer-events:none; }
-.t-tabs-wrap.at-end .t-scroll-btn-r { opacity:0; pointer-events:none; }
-@media (max-width:768px) { .t-scroll-btn { display:none; } .t-scroll-fade { display:none; } }
-.t-tab { flex: 1; min-width: max-content; max-width: 100%; min-height: 44px; padding: 12px 24px; text-align: center; font-size: 1rem; font-weight: 500; color: rgba(255,255,255,0.45); border-radius: 0; cursor: pointer; transition: color 0.2s, border-bottom-color 0.2s; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
-.t-tab.active { background: transparent; color: #89c8ff; border-bottom-color: #4aa8ff; }
-.t-tab:hover { color: rgba(255,255,255,0.75); }
-.t-label { font-family: var(--font-ui); font-size: var(--text-sm); font-weight: var(--fw-medium); letter-spacing: 0.02em; color: rgba(255,255,255,0.52); margin-bottom: 0.45rem; display: block; }
-textarea.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.8rem; font-weight: 300; line-height: 1.7; padding: 0.9rem 1.1rem; outline: none; resize: none; height: 86px; caret-color: #4aa8ff; transition: border-color 0.25s; }
-textarea.t-input::placeholder { color: rgba(255,255,255,0.45); }
-textarea.t-input:focus { border-color: rgba(74,168,255,0.38); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
-select.t-input { width: 100%; background: rgba(74,168,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; color: #ffffff; font-family: ‘JetBrains Mono’, monospace; font-size: 0.76rem; padding: 0.75rem 1.1rem; outline: none; cursor: pointer; appearance: none; margin-bottom: 0.8rem; }
-/* ── Global dark theme za sve native <select> option elemente ──────────── */
-select option { background-color: var(--void); color: var(--w); }
-select option:checked, select option:hover { background-color: var(--blue); color: var(--void); }
-.t-exec { width: 100%; margin-top: 0.9rem; padding: 0.9rem; background: linear-gradient(135deg, #4aa8ff 0%, #1264c4 100%); border: none; border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.84rem; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-.t-exec:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(74,168,255,0.5); }
-.t-resp { display: none; margin-top: 1rem; }
-.t-resp.show { display: block; animation: fade-in 0.4s ease; }
-@keyframes fade-in { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
-.resp-inner { background: rgba(74,168,255,0.04); border: 1px solid rgba(74,168,255,0.16); border-left: 2px solid #4aa8ff; border-radius: 10px; padding: 1.1rem 1.3rem; }
-.resp-lbl { font-family: ‘JetBrains Mono’, monospace; font-size: 0.52rem; letter-spacing: 0.22em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.55rem; }
-.resp-body { font-family: var(--font-serif); font-size: 0.9rem; color: rgba(255,255,255,0.82); line-height: 1.95; font-weight: 400; white-space: pre-wrap; letter-spacing: 0.01em; }
-.resp-cursor::after { content: ‘\25AE’; color: #4aa8ff; animation: blink-c 0.8s step-end infinite; }
-@keyframes blink-c { 0%,100%{opacity:1;} 50%{opacity:0;} }
-.ld { width: 5px; height: 5px; background: #4aa8ff; border-radius: 50%; display: inline-block; animation: bounce-d 1.2s infinite; }
-.ld:nth-child(2){animation-delay:0.14s;} .ld:nth-child(3){animation-delay:0.28s;}
-@keyframes bounce-d { 0%,100%{transform:translateY(0);opacity:0.3;} 50%{transform:translateY(-6px);opacity:1;} }
-
-/* MARQUEE */
-.marquee-section { position: relative; z-index: 3; overflow: hidden; max-width: 100%; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); background: #030810; }
-.marquee-row { display: flex; overflow: hidden; padding: 1rem 0; }
-.marquee-row:first-child { border-bottom: 1px solid rgba(255,255,255,0.06); }
-.marquee-track { display: flex; white-space: nowrap; animation: marquee-scroll 35s linear infinite; will-change: transform; }
-.marquee-track.rev { animation-direction: reverse; animation-duration: 45s; }
-.marquee-item { display: inline-flex; align-items: center; gap: 1.2rem; padding: 0.3rem 2rem; font-family: ‘Cormorant Garamond’, serif; font-size: 1.4rem; font-weight: 600; font-style: italic; color: rgba(255,255,255,0.12); white-space: nowrap; }
-.marquee-sep { color: #4aa8ff; opacity: 0.4; font-style: normal; }
-@keyframes marquee-scroll { 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
-
-/* SECTIONS */
-.section { position: relative; z-index: 3; padding: 7rem 5rem; border-bottom: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
-.section.alt { background: #030810; }
-.sbadge { display: inline-flex; align-items: center; gap: 10px; padding: 0; border: none; border-radius: 0; background: none; font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(74,168,255,0.65); margin-bottom: 1.2rem; }
-.sh { font-family: ‘Cormorant Garamond’, serif; font-size: clamp(2.4rem,4vw,4.2rem); font-weight: 500; line-height: 1.05; letter-spacing: -0.025em; color: rgba(255,255,255,0.93); margin-bottom: 1rem; }
-.sh em { font-style: italic; color: #89c8ff; font-weight: 300; }
-.sh .gold { font-style: italic; color: #e8c97a; font-weight: 300; }
-.ss { font-size: 0.95rem; color: rgba(255,255,255,0.68); font-weight: 300; line-height: 1.9; max-width: 530px; margin-bottom: 3.5rem; }
-
-/* FEAT CARDS */
-.feat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; }
-.feat-hint { font-family: ‘JetBrains Mono’, monospace; font-size: 0.54rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(74,168,255,0.4); text-align: center; margin-top: 1rem; }
-.feat-card { perspective: 1100px; height: 290px; cursor: pointer; }
-.feat-card-wrap { position: relative; }
-.feat-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(0.16,1,0.3,1); }
-.feat-card:hover .feat-inner { transform: rotateY(180deg); }
-.feat-front, .feat-back { position: absolute; inset: 0; border-radius: 0; padding: 2.3rem; backface-visibility: hidden; border: 1px solid rgba(255,255,255,0.06); }
-.feat-front { background: #030810; display: flex; flex-direction: column; }
-.feat-front::after { content: ‘’; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #4aa8ff, transparent); transform: scaleX(0); transform-origin: left; transition: transform 0.5s; border-radius: 0; }
-.feat-card:hover .feat-front::after { transform: scaleX(1); }
-.feat-back { background: linear-gradient(135deg, rgba(74,168,255,0.09) 0%, rgba(18,100,196,0.14) 100%); transform: rotateY(180deg); border-color: rgba(74,168,255,0.28); display: flex; flex-direction: column; justify-content: center; }
-.feat-num { font-family: ‘JetBrains Mono’, monospace; font-size: 0.53rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.22); margin-bottom: auto; }
-.feat-icon { font-size: 1.5rem; margin-bottom: 1rem; }
-.feat-title { font-family: ‘Cormorant Garamond’, serif; font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
-.feat-desc { font-size: 0.8rem; color: rgba(255,255,255,0.68); line-height: 1.78; font-weight: 300; }
-.feat-btitle { font-family: ‘Cormorant Garamond’, serif; font-size: 1.05rem; font-weight: 700; color: #89c8ff; margin-bottom: 1rem; }
-.feat-blist { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
-.feat-blist li { font-size: 0.79rem; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 0.6rem; }
-.feat-blist li::before { content: ‘\2192’; color: #4aa8ff; font-size: 0.68rem; }
-
-/* COMPARE */
-.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.06); border-radius: 0; overflow: hidden; margin-top: 2rem; }
-.cmp-col { padding: 2.5rem; background: #030810; transition: background 0.3s; }
-.cmp-col:hover { background: rgba(74,168,255,0.025); }
-.cmp-lbl { font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.55; margin-bottom: 0.5rem; }
-.cmp-head { font-family: ‘Cormorant Garamond’, serif; font-size: 1.3rem; font-weight: 700; color: #fff; margin-bottom: 1.3rem; }
-.cmp-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.81rem; color: rgba(255,255,255,0.70); font-weight: 300; }
-.cmp-row:last-child { border-bottom: none; }
-.ck { font-size: 0.7rem; flex-shrink: 0; }
-.ck.ok { color: #4aa8ff; }
-.ck.no { color: rgba(255,255,255,0.2); }
-
-/* DEMO */
-.demo-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 5rem; align-items: center; }
-.testimonials { display: flex; flex-direction: column; gap: 1rem; }
-.tc { background: #030810; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 1.5rem 1.7rem; position: relative; overflow: hidden; transition: all 0.38s; }
-.tc::before { content: ‘’; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, #c9a84c, transparent); transform: scaleY(0); transition: transform 0.45s; }
-.tc:hover::before { transform: scaleY(1); }
-.tc:hover { border-color: rgba(201,168,76,0.2); transform: translateX(5px); }
-.t-stars { color: #f0b429; font-size: 0.68rem; margin-bottom: 0.55rem; }
-.t-q { font-style: italic; font-size: 0.84rem; color: rgba(255,255,255,0.55); line-height: 1.8; font-weight: 300; margin-bottom: 0.9rem; }
-.t-a { display: flex; align-items: center; gap: 0.75rem; }
-.t-av { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #c9a84c, #a06a1a); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #fff; flex-shrink: 0; }
-.t-name { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.95); }
-.t-role { font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: rgba(255,255,255,0.22); }
-
-/* ── FUNCTION CARDS — 7 modula, jedna po jedna ───────────────────────────── */
-.fn-cards { display: flex; flex-direction: column; gap: 0.62rem; }
-.fn-card { background: rgba(74,168,255,0.028); border: 1px solid rgba(74,168,255,0.11); border-radius: 11px; padding: 0.95rem 1.2rem; position: relative; overflow: hidden; transition: all 0.3s; display: flex; align-items: flex-start; gap: 0.8rem; }
-.fn-card:hover { background: rgba(74,168,255,0.062); border-color: rgba(74,168,255,0.24); transform: translateX(4px); }
-.fn-card::before { content: ‘’; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, #4aa8ff, transparent); transform: scaleY(0); transition: transform 0.32s; }
-.fn-card:hover::before { transform: scaleY(1); }
-.fn-num { font-family: ‘JetBrains Mono’, monospace; font-size: 0.49rem; letter-spacing: 0.14em; color: rgba(74,168,255,0.58); flex-shrink: 0; padding-top: 3px; min-width: 20px; }
-.fn-body { flex: 1; min-width: 0; }
-/* Plavo-obojen beli tekst — smanjuje kontrast crna/bela, manje zamara oči */
-.fn-title { font-family: ‘Cormorant Garamond’, serif; font-size: 0.93rem; font-weight: 700; color: #cde0f8; margin-bottom: 0.13rem; line-height: 1.3; }
-.fn-desc { font-size: 0.74rem; color: rgba(155,195,234,0.64); line-height: 1.68; font-weight: 300; }
-.fn-badge { font-family: ‘JetBrains Mono’, monospace; font-size: 0.43rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.12rem 0.46rem; border-radius: 3px; border: 1px solid; flex-shrink: 0; align-self: flex-start; margin-top: 2px; white-space: nowrap; }
-.fn-badge.live { color: #4ade80; border-color: rgba(74,222,128,0.28); background: rgba(74,222,128,0.04); }
-.fn-badge.pro { color: #e8c97a; border-color: rgba(232,201,122,0.28); background: rgba(232,201,122,0.04); }
-
-/* ── MODULE SHOWCASE — interaktivni 7-panel showcase ─────────────────────── */
-.mod-showcase { display: grid; grid-template-columns: 1fr 1.55fr; border: 1px solid rgba(74,168,255,0.13); border-radius: 18px; overflow: hidden; margin-top: 3.5rem; background: rgba(1,3,10,0.5); }
-.mod-tabs { display: flex; flex-direction: column; border-right: 1px solid rgba(74,168,255,0.1); }
-.mod-tab { display: flex; align-items: flex-start; gap: 0.82rem; padding: 1.05rem 1.25rem; cursor: pointer; border-bottom: 1px solid rgba(74,168,255,0.06); transition: background 0.2s; position: relative; user-select: none; }
-.mod-tab:last-child { border-bottom: none; }
-.mod-tab::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #4aa8ff; transform: scaleY(0); transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); }
-.mod-tab.mod-active::after { transform: scaleY(1); }
-.mod-tab.mod-active { background: rgba(74,168,255,0.042); }
-.mod-tab:hover:not(.mod-active) { background: rgba(74,168,255,0.018); }
-.mod-tab-n { font-family: 'JetBrains Mono', monospace; font-size: 0.49rem; letter-spacing: 0.14em; color: rgba(74,168,255,0.42); flex-shrink: 0; padding-top: 3px; min-width: 18px; transition: color 0.2s; }
-.mod-tab.mod-active .mod-tab-n { color: #4aa8ff; }
-.mod-tab-info { flex: 1; min-width: 0; }
-.mod-tab-name { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: rgba(255,255,255,0.3); margin-bottom: 0.1rem; transition: color 0.2s; line-height: 1.2; }
-.mod-tab.mod-active .mod-tab-name { color: #cde0f8; }
-.mod-tab-how { font-size: 0.67rem; color: rgba(155,195,234,0.27); line-height: 1.45; font-weight: 300; transition: color 0.2s; }
-.mod-tab.mod-active .mod-tab-how { color: rgba(155,195,234,0.52); }
-.mod-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.4rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.09rem 0.38rem; border-radius: 2px; border: 1px solid; flex-shrink: 0; align-self: flex-start; margin-top: 2px; white-space: nowrap; transition: all 0.2s; }
-.mod-badge.live { color: rgba(74,222,128,0.5); border-color: rgba(74,222,128,0.18); }
-.mod-badge.pro  { color: rgba(232,201,122,0.5); border-color: rgba(232,201,122,0.18); }
-.mod-tab.mod-active .mod-badge.live { color: #4ade80; border-color: rgba(74,222,128,0.35); }
-.mod-tab.mod-active .mod-badge.pro  { color: #e8c97a; border-color: rgba(232,201,122,0.35); }
-
-/* Preview panel */
-.mod-preview-wrap { display: flex; flex-direction: column; min-height: 510px; }
-.mod-pbar { display: flex; align-items: center; gap: 7px; padding: 0.72rem 1.2rem; border-bottom: 1px solid rgba(74,168,255,0.1); background: rgba(74,168,255,0.022); }
-.mod-pdots { display: flex; gap: 5px; }
-.mpd { display: block; width: 9px; height: 9px; border-radius: 50%; }
-.mpd1 { background: rgba(255,90,90,0.4); } .mpd2 { background: rgba(255,190,50,0.4); } .mpd3 { background: rgba(74,168,255,0.5); }
-.mod-pbar-label { font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; color: rgba(255,255,255,0.2); margin-left: 8px; flex: 1; }
-.mod-plive { display: flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; font-size: 0.5rem; color: #4ade80; }
-.mod-pbody { flex: 1; padding: 1.4rem 1.6rem 1.4rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; line-height: 1.85; color: #aac8e8; white-space: pre-wrap; position: relative; overflow: hidden; min-height: 450px; }
-.mod-pfoot { height: 1px; background: rgba(74,168,255,0.08); position: relative; overflow: hidden; }
-.mod-pfoot::after { content: ''; position: absolute; left: -100%; top: 0; height: 100%; background: linear-gradient(90deg, transparent, #4aa8ff, transparent); animation: mod-sweep 4.5s linear infinite; }
-@keyframes mod-sweep { 0%{left:-30%;} 100%{left:110%;} }
-@keyframes mod-line-in { from{opacity:0;transform:translateX(-6px);} to{opacity:1;transform:translateX(0);} }
-.mline { display: block; animation: mod-line-in 0.18s ease both; }
-.mline.hi { color: #cde0f8; font-weight: 500; }
-.mline.ok { color: #4ade80; }
-.mline.warn { color: #e8c97a; }
-.mline.muted { color: rgba(100,150,200,0.45); }
-.mline.sep { color: rgba(74,168,255,0.25); }
-
-@media (max-width: 900px) {
-  .mod-showcase { grid-template-columns: 1fr; }
-  .mod-preview-wrap { display: none; }
-  .mod-tabs { border-right: none; }
-  .mod-tab-how { display: none; }
-}
-
-.demo-win { background: rgba(1,5,14,0.95); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; overflow: hidden; box-shadow: 0 50px 120px rgba(0,0,0,0.65); position: relative; }
-.demo-win::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,168,255,0.5), rgba(201,168,76,0.2), transparent); }
-.demo-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.4rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
-.demo-dots { display: flex; gap: 6px; }
-.dd { width: 9px; height: 9px; border-radius: 50%; }
-.dd:nth-child(1){background:#ff5f57;opacity:0.7;} .dd:nth-child(2){background:#ffbd2e;opacity:0.7;} .dd:nth-child(3){background:#28c840;opacity:0.7;}
-.demo-t { font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: rgba(255,255,255,0.22); text-transform: uppercase; }
-.demo-time { font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: #4ade80; }
-.demo-body { padding: 1.5rem; }
-.demo-q { background: rgba(74,168,255,0.06); border: 1px solid rgba(74,168,255,0.14); border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.2rem; }
-.demo-ql { font-family: ‘JetBrains Mono’, monospace; font-size: 0.51rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.35rem; }
-.demo-qt { font-size: 0.8rem; color: rgba(255,255,255,0.55); font-weight: 300; line-height: 1.65; }
-.demo-a { border-left: 2px solid #4aa8ff; padding-left: 1rem; }
-.demo-al { font-family: ‘JetBrains Mono’, monospace; font-size: 0.51rem; letter-spacing: 0.2em; text-transform: uppercase; color: #4aa8ff; opacity: 0.6; margin-bottom: 0.5rem; }
-.demo-at { font-size: 0.8rem; color: #fff; line-height: 1.88; font-weight: 300; }
-.demo-conf { display: none; margin-top: 0.9rem; padding: 0.22rem 0.7rem; background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 999px; font-family: ‘JetBrains Mono’, monospace; font-size: 0.56rem; color: #4ade80; align-items: center; gap: 0.4rem; width: fit-content; }
-.demo-conf.show { display: inline-flex; }
-.conf-dot { width: 5px; height: 5px; border-radius: 50%; background: #4ade80; }
-
-/* PLATFORM */
-.plat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; }
-.plat-card { background: #030810; border: 1px solid rgba(255,255,255,0.06); border-radius: 0; padding: 2.2rem; position: relative; overflow: hidden; transition: all 0.4s; }
-.plat-card::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #4aa8ff, transparent); transform: scaleX(0); transform-origin: left; transition: transform 0.5s; }
-.plat-card:hover::before { transform: scaleX(1); }
-.plat-card:hover { border-color: rgba(74,168,255,0.28); transform: none; box-shadow: none; }
-.p-badge { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.58rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.2rem 0.65rem; border-radius: 999px; border: 1px solid; margin-bottom: 0.9rem; }
-.p-badge.live { color: #4ade80; border-color: rgba(74,222,128,0.22); background: rgba(74,222,128,0.06); }
-.p-badge.soon { color: #f0b429; border-color: rgba(240,180,41,0.22); background: rgba(240,180,41,0.06); }
-.p-title { font-family: ‘Cormorant Garamond’, serif; font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 0.55rem; }
-.p-desc { font-size: 0.81rem; color: rgba(255,255,255,0.55); line-height: 1.82; font-weight: 300; margin-bottom: 0.9rem; }
-.p-detail { font-size: 0.75rem; color: rgba(255,255,255,0.22); display: flex; align-items: center; gap: 0.5rem; padding: 0.22rem 0; }
-.p-detail::before { content: ‘\2192’; color: #4aa8ff; opacity: 0.6; }
-
-/* PRICING */
-.price-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; margin-top: 2rem; align-items: start; }
-.price-card { background: #030810; border: 1px solid rgba(255,255,255,0.06); border-radius: 0; padding: 2.4rem; position: relative; overflow: hidden; transition: all 0.38s; }
-.price-card:hover { transform: none; box-shadow: none; }
-.price-card.feat { border-color: rgba(201,168,76,0.4); background: linear-gradient(160deg, rgba(201,168,76,0.06) 0%, rgba(1,3,8,0.98) 60%); margin-top: -24px; box-shadow: 0 0 80px rgba(201,168,76,0.12), 0 0 0 1px rgba(201,168,76,0.12); }
-.price-card.feat:hover { transform: none; box-shadow: 0 0 0 1px rgba(201,168,76,0.2); }
-.price-card.feat::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #c9a84c, #e8c97a, #c9a84c, transparent); }
-.price-badge { position: absolute; top: 0; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #c9a84c, #a07830); color: #fff; font-size: 0.52rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 0.25rem 1rem; border-radius: 0 0 9px 9px; white-space: nowrap; }
-.price-tier { font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.22em; text-transform: uppercase; color: #4aa8ff; opacity: 0.55; margin-bottom: 0.85rem; }
-.price-card.feat .price-tier { color: #c9a84c; opacity: 0.8; }
-.mt { margin-top: 1.6rem; }
-.price-num { font-family: ‘Cormorant Garamond’, serif; font-size: 3.2rem; font-weight: 700; line-height: 1; letter-spacing: -0.03em; color: #fff; }
-.price-card.feat .price-num { color: #e8c97a; }
-.price-per { font-size: 0.72rem; color: rgba(255,255,255,0.22); font-weight: 300; margin-bottom: 1.2rem; }
-.pdiv { height: 1px; background: rgba(255,255,255,0.06); margin: 1.2rem 0; }
-.price-card.feat .pdiv { background: rgba(201,168,76,0.15); }
-.price-desc { font-size: 0.79rem; color: rgba(255,255,255,0.55); line-height: 1.78; font-weight: 300; margin-bottom: 1.4rem; }
-.price-list { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 2rem; }
-.price-list li { display: flex; align-items: center; gap: 0.6rem; font-size: 0.79rem; color: rgba(255,255,255,0.58); font-weight: 300; flex-wrap: wrap; }
-.price-list li::before { content: ‘\2713’; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
-.price-card.feat .price-list li::before { color: #c9a84c; }
-.price-btn { width: 100%; padding: 0.88rem; background: transparent; border: 1px solid rgba(74,168,255,0.22); border-radius: 10px; color: #89c8ff; font-family: var(--font-ui); font-size: 0.81rem; font-weight: 600; cursor: pointer; transition: all 0.25s; }
-.price-btn:hover { background: rgba(74,168,255,0.1); border-color: #4aa8ff; }
-.price-btn.main { background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; color: #fff; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
-.price-btn.main:hover { filter: brightness(1.1); transform: translateY(-2px); }
-.price-btn.gold { background: linear-gradient(135deg, #c9a84c, #8a5e20); border: none; color: #fff; box-shadow: 0 6px 30px rgba(201,168,76,0.35); font-size: 0.78rem; letter-spacing: 0.03em; }
-.price-btn.gold:hover { filter: brightness(1.12); transform: translateY(-2px); box-shadow: 0 12px 45px rgba(201,168,76,0.45); }
-/* "USKORO" tag */
-.uskoro-tag { display: inline-flex; align-items: center; font-family: ‘JetBrains Mono’, monospace; font-size: 0.46rem; letter-spacing: 0.14em; text-transform: uppercase; color: #c9a84c; background: rgba(201,168,76,0.09); border: 1px solid rgba(201,168,76,0.22); border-radius: 4px; padding: 0.1rem 0.38rem; margin-left: 0.4rem; vertical-align: middle; white-space: nowrap; }
-/* PRO waitlist modal */
-#pro-modal .modal { max-width: 460px; text-align: left; }
-#pro-modal .modal-title { font-size: 1.55rem; }
-.pro-sub { font-size: 0.82rem; color: rgba(255,255,255,0.55); line-height: 1.78; margin-bottom: 1.4rem; }
-.pro-input { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.84rem; padding: 0.82rem 1rem; outline: none; transition: border-color 0.2s; margin-bottom: 0.8rem; }
-.pro-input:focus { border-color: rgba(201,168,76,0.45); }
-.pro-input::placeholder { color: rgba(255,255,255,0.28); }
-.pro-success { display: none; text-align: center; padding: 1rem 0; color: #4ade80; font-size: 0.84rem; }
-.pro-success.show { display: block; }
-.tog-row { display: flex; align-items: center; gap: 0.9rem; font-size: 0.8rem; color: rgba(255,255,255,0.55); cursor: pointer; width: fit-content; margin-bottom: 1.5rem; }
-.tog { width: 42px; height: 23px; border: 1px solid rgba(74,168,255,0.22); border-radius: 12px; position: relative; transition: border-color 0.25s; flex-shrink: 0; }
-.tog::after { content: ‘’; position: absolute; width: 17px; height: 17px; background: rgba(255,255,255,0.22); border-radius: 50%; top: 2px; left: 2px; transition: transform 0.25s, background 0.25s; }
-.tog.on { border-color: #4aa8ff; }
-.tog.on::after { transform: translateX(19px); background: #4aa8ff; }
-
-/* ABOUT */
-.about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: start; margin-top: 3.5rem; }
-.about-q { font-family: ‘Cormorant Garamond’, serif; font-style: italic; font-size: clamp(1.1rem,1.7vw,1.5rem); font-weight: 300; color: rgba(255,255,255,0.55); line-height: 1.72; padding: 2rem 0 2rem 2rem; border-left: 2px solid rgba(201,168,76,0.3); margin: 2rem 0; }
-.about-q strong { font-style: normal; color: #fff; font-weight: 600; }
-.about-p { font-size: 0.92rem; color: rgba(255,255,255,0.55); line-height: 1.92; font-weight: 300; margin-bottom: 1.2rem; max-width: 460px; }
-.info-tbl { border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; margin-top: 2rem; }
-.info-row { display: flex; border-bottom: 1px solid rgba(255,255,255,0.06); }
-.info-row:last-child { border-bottom: none; }
-.info-k { font-family: ‘JetBrains Mono’, monospace; font-size: 0.54rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.22); padding: 0.88rem 1.2rem; border-right: 1px solid rgba(255,255,255,0.06); width: 120px; flex-shrink: 0; display: flex; align-items: center; }
-.info-v { font-size: 0.83rem; color: rgba(255,255,255,0.55); font-weight: 300; padding: 0.88rem 1.2rem; display: flex; align-items: center; }
-.info-v.acc { color: #89c8ff; }
-.vals-list { border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
-.val-row { display: flex; align-items: flex-start; gap: 1.4rem; padding: 1.6rem 1.8rem; border-bottom: 1px solid rgba(255,255,255,0.06); transition: background 0.3s; position: relative; overflow: hidden; }
-.val-row:last-child { border-bottom: none; }
-.val-row:hover { background: rgba(74,168,255,0.03); }
-.val-row::before { content: ‘’; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, #c9a84c, transparent); transform: scaleY(0); transition: transform 0.4s; }
-.val-row:hover::before { transform: scaleY(1); }
-.val-n { font-family: ‘Cormorant Garamond’, serif; font-size: 1.6rem; font-weight: 700; color: rgba(201,168,76,0.12); line-height: 1; flex-shrink: 0; width: 2.5rem; }
-.val-title { font-family: ‘Cormorant Garamond’, serif; font-size: 1.02rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem; }
-.val-text { font-size: 0.79rem; color: rgba(255,255,255,0.55); line-height: 1.72; font-weight: 300; }
-
-/* FOOTER */
-footer { position: relative; z-index: 3; padding: 2.5rem 5rem; border-top: 1px solid rgba(255,255,255,0.06); background: #030810; }
-.footer-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-.f-logo { font-family: ‘Cormorant Garamond’, serif; font-size: 1.2rem; font-weight: 600; color: rgba(255,255,255,0.5); text-decoration: none; }
-.f-logo em { color: #4aa8ff; font-style: normal; }
-.f-links { display: flex; gap: 2rem; }
-.f-links a { font-size: 0.75rem; color: rgba(255,255,255,0.3); text-decoration: none; transition: color 0.2s; cursor: pointer; }
-.f-links a:hover { color: rgba(255,255,255,0.6); }
-.footer-bottom { display: flex; align-items: center; justify-content: space-between; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.04); }
-.f-copy { font-size: 0.7rem; color: rgba(255,255,255,0.38); }
-.f-note { font-size: 0.7rem; color: rgba(255,255,255,0.38); text-align: right; line-height: 1.75; max-width: 400px; }
-
-/* EMAIL MODAL */
-.modal-overlay { display: none; position: fixed; inset: 0; z-index: 2000; background: rgba(1,3,8,0.88); backdrop-filter: blur(20px); align-items: center; justify-content: center; }
-.modal-overlay.open { display: flex; animation: fade-in 0.3s ease; }
-.modal { background: #030810; border: 1px solid rgba(74,168,255,0.2); border-radius: 20px; padding: 3rem; max-width: 460px; width: 90%; position: relative; box-shadow: 0 60px 120px rgba(0,0,0,0.7); }
-.modal::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #4aa8ff, #c9a84c, transparent); border-radius: 20px 20px 0 0; }
-.modal-close { position: absolute; top: 1.2rem; right: 1.2rem; background: none; border: none; color: rgba(255,255,255,0.3); font-size: 1.2rem; cursor: pointer; transition: color 0.2s; }
-.modal-close:hover { color: #fff; }
-.modal-badge { font-family: ‘JetBrains Mono’, monospace; font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: #89c8ff; opacity: 0.7; margin-bottom: 0.8rem; }
-.modal-title { font-family: ‘Cormorant Garamond’, serif; font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; line-height: 1.1; }
-.modal-sub { font-size: 0.88rem; color: rgba(255,255,255,0.5); font-weight: 300; line-height: 1.7; margin-bottom: 2rem; }
-.modal-form { display: flex; flex-direction: column; gap: 0.9rem; }
-.modal-input { background: rgba(74,168,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.88rem; padding: 0.9rem 1.2rem; outline: none; transition: border-color 0.25s; }
-.modal-input::placeholder { color: rgba(255,255,255,0.45); }
-.modal-input:focus { border-color: rgba(74,168,255,0.4); box-shadow: 0 0 0 4px rgba(74,168,255,0.06); }
-.modal-btn { padding: 1rem; background: linear-gradient(135deg, #4aa8ff, #1264c4); border: none; border-radius: 10px; color: #fff; font-family: var(--font-ui); font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 6px 30px rgba(74,168,255,0.35); }
-.modal-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(74,168,255,0.5); }
-.modal-note { font-size: 0.72rem; color: rgba(255,255,255,0.25); text-align: center; }
-.modal-success { display: none; text-align: center; padding: 1rem 0; }
-.modal-success-icon { font-size: 2.5rem; margin-bottom: 1rem; }
-.modal-success-title { font-family: ‘Cormorant Garamond’, serif; font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
-.modal-success-text { font-size: 0.88rem; color: rgba(255,255,255,0.5); }
-
+/* === OLD COMPONENT CSS (panels, modals, CRM, billing, AI tools) === */
 /* FORMATTED RESPONSE SECTIONS */
 .resp-section { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); animation: fade-in 0.35s ease both; }
 .resp-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
@@ -3277,6 +2770,1726 @@ footer { padding: 2rem 1.5rem; }
   .vx2-orbit-ring-2 { width: 150px !important; height: 150px !important; }
 }
 /* ══════════════════════════════════════════════════════════════════ */
+
+/* === VINDEX AI 3.0 — NEW DESIGN SYSTEM === */
+
+/* ═══════════════════════════════════════════════════════════════════
+   VINDEX AI 3.0 — DESIGN SYSTEM
+   Philosophy: Apple precision · Linear clarity · Bloomberg authority
+   Target: Elite Serbian law firms
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* 1. DESIGN TOKENS ─────────────────────────────────────────────── */
+:root {
+  /* Palette */
+  --void:    #010308;
+  --deep:    #060d1a;
+  --surface: #0a1220;
+  --blue:    #4aa8ff;
+  --blue-lo: rgba(74,168,255,0.08);
+  --blue-md: rgba(74,168,255,0.16);
+  --blue-hi: rgba(74,168,255,0.30);
+  --gold:    #c9a84c;
+  --emerald: #10b981;
+  --danger:  #ef4444;
+  --warn:    #f0b429;
+
+  /* Text */
+  --tx-1: rgba(255,255,255,0.88);
+  --tx-2: rgba(255,255,255,0.52);
+  --tx-3: rgba(255,255,255,0.28);
+  --tx-4: rgba(255,255,255,0.14);
+  --tx-blue: #4aa8ff;
+
+  /* Borders */
+  --bd-1: rgba(255,255,255,0.06);
+  --bd-2: rgba(255,255,255,0.10);
+  --bd-3: rgba(255,255,255,0.16);
+  --bd-blue: rgba(74,168,255,0.20);
+
+  /* Surfaces */
+  --s0: rgba(255,255,255,0.015);
+  --s1: rgba(255,255,255,0.03);
+  --s2: rgba(255,255,255,0.055);
+  --s3: rgba(255,255,255,0.08);
+
+  /* Typography */
+  --font-brand: 'Cormorant Garamond', Georgia, serif;
+  --font-ui:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:  'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+  /* Radii */
+  --r-xs: 3px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* Transitions */
+  --t-fast: 0.10s ease;
+  --t-base: 0.20s ease;
+  --t-slow: 0.35s ease;
+
+  /* Layout */
+  --bar-w:  52px;
+  --top-h:  48px;
+}
+
+/* 2. BASE RESET ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100%;
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  color: var(--tx-1);
+  background: var(--void);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Cursor (preserved from existing JS) ──────────────────────── */
+#cursor, #cursor-ring { pointer-events: none; position: fixed; z-index: 9999; border-radius: 50%; }
+#cursor { width: 6px; height: 6px; background: var(--blue); transform: translate(-50%,-50%); transition: opacity 0.2s; opacity: 0.9; }
+#cursor-ring { width: 28px; height: 28px; border: 1px solid rgba(74,168,255,0.4); transform: translate(-50%,-50%); transition: transform 0.12s ease, opacity 0.2s; opacity: 0.5; }
+#cv { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+/* 3. APP SHELL ──────────────────────────────────────────────────── */
+.vx-shell {
+  display: none;
+  width: 100vw;
+  height: 100vh;
+  flex-direction: row;
+  background: var(--void);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* 4. LEFT SIDEBAR ───────────────────────────────────────────────── */
+.vx-sidebar {
+  width: var(--bar-w) !important;
+  min-width: var(--bar-w) !important;
+  max-width: var(--bar-w) !important;
+  height: 100% !important;
+  background: var(--deep) !important;
+  border-right: 1px solid var(--bd-1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  z-index: 40 !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  position: relative !important;
+}
+
+.vx-logo-wrap {
+  width: 100%;
+  height: var(--top-h);
+  border-bottom: 1px solid var(--bd-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.vx-logo-mark {
+  font-family: var(--font-brand);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--blue);
+  letter-spacing: -0.01em;
+  line-height: 1;
+  user-select: none;
+}
+
+.vx-nav {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  gap: 3px;
+  overflow: visible;
+}
+
+.vx-nav-sep {
+  width: 28px;
+  height: 1px;
+  background: var(--bd-1);
+  margin: 6px 0;
+  flex-shrink: 0;
+}
+
+/* ── Tab buttons ── */
+.t-tab {
+  width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: var(--r-md) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  color: var(--tx-3) !important;
+  font-size: 0.95rem !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  transition: background var(--t-fast), color var(--t-fast) !important;
+  position: relative !important;
+  flex-shrink: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  text-decoration: none !important;
+  outline: none !important;
+  list-style: none !important;
+  box-sizing: border-box !important;
+}
+.t-tab::before {
+  content: attr(data-icon);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.t-tab::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--surface);
+  color: var(--tx-1);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--bd-3);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+.t-tab:hover::after { opacity: 1; }
+.t-tab:hover {
+  background: var(--blue-lo) !important;
+  color: var(--blue) !important;
+}
+.t-tab.active {
+  background: var(--blue-md) !important;
+  color: var(--blue) !important;
+}
+.t-tab.active::before { text-shadow: 0 0 12px rgba(74,168,255,0.6); }
+
+/* Hidden tabs — in DOM for JS compatibility, invisible */
+.vx-hidden-tab {
+  display: none !important;
+}
+
+.vx-sidebar-foot {
+  width: 100%;
+  padding: 8px 0;
+  border-top: 1px solid var(--bd-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vx-new-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-md);
+  background: var(--blue-lo);
+  border: 1px solid var(--bd-blue);
+  color: var(--blue);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--t-fast), border-color var(--t-fast);
+  line-height: 1;
+}
+.vx-new-btn:hover {
+  background: var(--blue-md);
+  border-color: rgba(74,168,255,0.4);
+}
+
+/* 5. MAIN BODY ──────────────────────────────────────────────────── */
+.vx-body {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+}
+
+/* 6. TOPBAR ─────────────────────────────────────────────────────── */
+.vx-topbar {
+  height: var(--top-h) !important;
+  min-height: var(--top-h) !important;
+  border-bottom: 1px solid var(--bd-1) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 16px !important;
+  gap: 10px !important;
+  background: rgba(6,13,26,0.9) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  flex-shrink: 0 !important;
+  z-index: 20 !important;
+  position: relative !important;
+}
+
+.vx-global-search {
+  flex: 1;
+  max-width: 380px;
+  height: 28px;
+  background: var(--s0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 7px;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.vx-global-search:hover {
+  border-color: var(--bd-blue);
+  background: var(--blue-lo);
+}
+.vx-search-icon {
+  color: var(--tx-3);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.vx-search-ph {
+  font-size: 0.65rem;
+  color: var(--tx-3);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vx-search-kbd {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  color: var(--tx-4);
+  background: var(--s1);
+  padding: 2px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--bd-1);
+  flex-shrink: 0;
+}
+
+.vx-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.vx-btn-new {
+  height: 28px;
+  padding: 0 12px;
+  background: var(--blue-lo);
+  border: 1px solid var(--bd-blue);
+  border-radius: var(--r-sm);
+  color: var(--blue);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.vx-btn-new:hover {
+  background: var(--blue-md);
+  border-color: rgba(74,168,255,0.4);
+}
+
+/* topbar nav-user (shown by JS when logged in) */
+.nav-user {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.nav-user-email {
+  font-size: 0.6rem;
+  color: var(--tx-3);
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.nav-credit-pill {
+  font-size: 0.58rem;
+  color: var(--tx-3);
+  font-family: var(--font-mono);
+  background: var(--s1);
+  padding: 2px 7px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--bd-1);
+}
+.cp-num { color: var(--blue); }
+
+/* settings-btn in topbar */
+.vx-topbar-settings {
+  display: none;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-sm);
+  color: var(--tx-3);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color var(--t-fast), color var(--t-fast);
+  flex-shrink: 0;
+}
+.vx-topbar-settings:hover { border-color: var(--bd-2); color: var(--tx-2); }
+
+/* 7. PANELS CONTAINER ───────────────────────────────────────────── */
+.vx-panels-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar */
+.vx-panels-wrap::-webkit-scrollbar { width: 3px; }
+.vx-panels-wrap::-webkit-scrollbar-track { background: transparent; }
+.vx-panels-wrap::-webkit-scrollbar-thumb { background: var(--bd-2); border-radius: 2px; }
+
+/* Tab panels */
+#tab-h, #tab-q, #tab-a, #tab-n, #tab-s, #tab-p, #tab-t,
+#tab-k, #tab-w, #tab-kal, #tab-pi, #tab-alati, #tab-dok, #tab-settings {
+  display: none;
+  padding: 20px 24px;
+  min-height: 100%;
+  animation: vx-in 0.16s ease both;
+}
+
+@keyframes vx-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* chat-hist: hidden in new design */
+.chat-hist { display: none !important; }
+
+/* Notification dropdown */
+#notif-dropdown {
+  position: absolute;
+  top: var(--top-h);
+  right: 16px;
+  z-index: 200;
+  width: min(340px, 92vw);
+  max-height: 380px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--bd-3);
+  border-radius: var(--r-lg);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  padding: 8px 0;
+}
+
+/* 8. EXEC ROW + RESPONSE ────────────────────────────────────────── */
+.t-exec-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px 14px;
+  flex-wrap: wrap;
+}
+.t-exec {
+  height: 36px;
+  padding: 0 20px;
+  background: var(--blue);
+  border: none;
+  border-radius: var(--r-sm);
+  color: #010308;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: opacity var(--t-fast), box-shadow var(--t-fast);
+}
+.t-exec:hover { opacity: 0.88; box-shadow: 0 0 20px rgba(74,168,255,0.35); }
+
+.cyr-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+.cyr-toggle-wrap input[type="checkbox"] { display: none; }
+.cyr-toggle-slider {
+  width: 28px; height: 15px;
+  background: var(--s2);
+  border: 1px solid var(--bd-2);
+  border-radius: 8px;
+  position: relative;
+  transition: background var(--t-base), border-color var(--t-base);
+  flex-shrink: 0;
+}
+.cyr-toggle-slider::after {
+  content: '';
+  position: absolute;
+  left: 2px; top: 2px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--tx-3);
+  transition: transform var(--t-base), background var(--t-base);
+}
+.cyr-toggle-wrap input:checked + .cyr-toggle-slider { background: var(--blue-md); border-color: var(--bd-blue); }
+.cyr-toggle-wrap input:checked + .cyr-toggle-slider::after {
+  transform: translateX(13px);
+  background: var(--blue);
+}
+.cyr-toggle-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  color: var(--tx-3);
+  text-transform: uppercase;
+}
+
+.t-credits-row {
+  padding: 5px 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.68rem;
+  color: var(--tx-3);
+  font-family: var(--font-mono);
+}
+.t-credits-val { color: var(--blue); }
+
+.t-resp {
+  padding: 0 24px 24px;
+  display: none;
+}
+.t-resp.show { display: block; }
+.resp-inner {
+  background: var(--s0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-lg);
+  padding: 18px 22px;
+  transition: border-color var(--t-base);
+}
+.t-resp.show .resp-inner { border-color: var(--bd-blue); }
+.resp-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+.resp-body {
+  font-size: 0.8rem;
+  line-height: 1.76;
+  color: var(--tx-2);
+}
+
+/* 9. AI TOOL PANELS ─────────────────────────────────────────────── */
+/* Back button for AI sub-tools */
+.t-tool-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-sm);
+  color: var(--tx-3);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: border-color var(--t-fast), color var(--t-fast);
+}
+.t-tool-back:hover { border-color: var(--bd-blue); color: var(--blue); }
+.t-tool-back-arrow { font-size: 0.85rem; }
+
+/* Guide box */
+.t-guide {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--blue-lo);
+  border: 1px solid var(--bd-blue);
+  border-radius: var(--r-lg);
+  margin-bottom: 18px;
+  align-items: flex-start;
+}
+.t-guide-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  color: rgba(74,168,255,0.55);
+  margin-top: 2px;
+}
+.t-guide-text { font-size: 0.76rem; color: var(--tx-2); line-height: 1.62; }
+.t-guide-bold { color: var(--tx-1); font-weight: 500; }
+
+/* Chips */
+.t-chips-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tx-4);
+  margin-bottom: 8px;
+  display: block;
+}
+.t-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.t-chip {
+  padding: 5px 12px;
+  background: var(--s1);
+  border: 1px solid var(--bd-1);
+  border-radius: 99px;
+  font-size: 0.66rem;
+  color: var(--tx-2);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast), color var(--t-fast);
+}
+.t-chip:hover { border-color: var(--bd-blue); background: var(--blue-lo); color: var(--blue); }
+
+/* Label */
+.t-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--tx-3);
+  margin-bottom: 7px;
+}
+
+/* Textarea */
+.t-input {
+  width: 100%;
+  background: var(--s0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-md);
+  color: var(--tx-1);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  padding: 12px 14px;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color var(--t-fast);
+  outline: none;
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.t-input:focus { border-color: var(--bd-blue); }
+
+/* mic input wrap */
+.mic-input-wrap {
+  position: relative;
+  margin-bottom: 14px;
+}
+.mic-input-wrap textarea {
+  width: 100%;
+  background: var(--s0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-md);
+  color: var(--tx-1);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  padding: 12px 44px 12px 14px;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color var(--t-fast);
+  outline: none;
+  line-height: 1.6;
+}
+.mic-input-wrap textarea:focus { border-color: var(--bd-blue); }
+
+.mic-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--s2);
+  border: 1px solid var(--bd-2);
+  color: var(--tx-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.mic-btn:hover { background: var(--blue-lo); color: var(--blue); border-color: var(--bd-blue); }
+.mic-btn.active { background: var(--blue-md); color: var(--blue); border-color: var(--bd-blue); animation: mic-pulse 1.2s ease infinite; }
+@keyframes mic-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,168,255,0.4); } 50% { box-shadow: 0 0 0 6px rgba(74,168,255,0); } }
+
+.mic-status {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.62rem;
+  color: var(--blue);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.mic-status.active { display: flex; }
+.mic-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); animation: mic-pulse 0.8s ease infinite; flex-shrink: 0; }
+
+/* 10. FORMS & INPUTS ────────────────────────────────────────────── */
+.pro-input, .modal-input {
+  width: 100%;
+  background: var(--s0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-sm);
+  color: var(--tx-1);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  padding: 9px 12px;
+  transition: border-color var(--t-fast);
+  outline: none;
+  line-height: 1.4;
+}
+input.pro-input, input.modal-input, select.pro-input { height: 36px; resize: none; }
+textarea.pro-input { min-height: 60px; resize: vertical; }
+.pro-input:focus, .modal-input:focus { border-color: var(--bd-blue); }
+.pro-input::placeholder, .modal-input::placeholder { color: var(--tx-4); }
+
+select.pro-input option { background: var(--surface); }
+
+/* Analiza workflow */
+.analiza-workflow { padding: 0 24px 14px; }
+.analiza-workflow-naslov {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tx-3);
+  margin-bottom: 8px;
+}
+.analiza-workflow-dugmad { display: flex; flex-wrap: wrap; gap: 6px; }
+.analiza-wf-btn {
+  padding: 6px 12px;
+  background: var(--s1);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-sm);
+  color: var(--tx-2);
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.analiza-wf-btn:hover { background: var(--blue-lo); border-color: var(--bd-blue); color: var(--blue); }
+
+/* Podnesak preview */
+.podnesak-preview {
+  margin: 0 24px 24px;
+  background: var(--s0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.podnesak-preview-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(240,180,41,0.08);
+  border-bottom: 1px solid rgba(240,180,41,0.15);
+  font-size: 0.68rem;
+  color: rgba(240,180,41,0.75);
+}
+.podnesak-preview-banner-icon { font-size: 0.85rem; }
+.podnesak-preview-body { padding: 14px; font-size: 0.78rem; line-height: 1.7; color: var(--tx-2); }
+.podnesak-preview-actions { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--bd-1); flex-wrap: wrap; }
+.podnesak-preview-btn {
+  padding: 6px 12px;
+  background: var(--s1);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-sm);
+  color: var(--tx-2);
+  font-size: 0.66rem;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.podnesak-preview-btn:hover { background: var(--s2); border-color: var(--bd-2); }
+.podnesak-preview-pdf { color: var(--blue); border-color: var(--bd-blue); background: var(--blue-lo); }
+.podnesak-preview-pdf:hover { background: var(--blue-md); }
+
+.chat-privacy-note {
+  padding: 8px 24px 14px;
+  font-size: 0.62rem;
+  color: var(--tx-4);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+.chat-privacy-note span { color: var(--tx-3); }
+
+/* 11. MODALS ────────────────────────────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(1,3,8,0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: rgba(8,14,28,0.98);
+  border: 1px solid var(--bd-3);
+  border-radius: var(--r-xl);
+  padding: 36px;
+  width: min(440px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(74,168,255,0.06) inset;
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px; right: 16px;
+  width: 28px; height: 28px;
+  background: var(--s2);
+  border: 1px solid var(--bd-2);
+  border-radius: 50%;
+  color: var(--tx-3);
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.modal-close:hover { background: var(--s3); color: var(--tx-1); }
+
+.modal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--blue-lo);
+  border: 1px solid var(--bd-blue);
+  border-radius: 99px;
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 14px;
+}
+.modal-title {
+  font-family: var(--font-brand);
+  font-size: 1.7rem;
+  font-weight: 600;
+  color: var(--tx-1);
+  line-height: 1.25;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.modal-sub {
+  font-size: 0.76rem;
+  color: var(--tx-3);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+.modal-btn {
+  width: 100%;
+  height: 40px;
+  background: var(--blue);
+  border: none;
+  border-radius: var(--r-sm);
+  color: #010308;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: opacity var(--t-fast), box-shadow var(--t-fast);
+  margin-top: 4px;
+}
+.modal-btn:hover { opacity: 0.88; box-shadow: 0 0 24px rgba(74,168,255,0.4); }
+.modal-note {
+  font-size: 0.62rem;
+  color: var(--tx-4);
+  text-align: center;
+  margin-top: 12px;
+  font-family: var(--font-mono);
+}
+
+/* Auth tabs */
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 18px;
+  background: var(--s1);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-sm);
+  padding: 3px;
+}
+.auth-tab {
+  flex: 1;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--r-sm) - 2px);
+  color: var(--tx-3);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.auth-tab.active { background: var(--blue); color: #010308; font-weight: 700; }
+
+.auth-error {
+  font-size: 0.72rem;
+  color: #f56565;
+  text-align: center;
+  margin-top: 8px;
+  min-height: 1em;
+}
+.auth-forgot {
+  text-align: right;
+  font-size: 0.66rem;
+}
+.auth-forgot a { color: var(--blue); cursor: pointer; text-decoration: none; opacity: 0.7; }
+.auth-forgot a:hover { opacity: 1; }
+.auth-back-link { color: var(--tx-3); cursor: pointer; font-size: 0.7rem; text-decoration: none; }
+.auth-back-link:hover { color: var(--blue); }
+.auth-form-hint { font-size: 0.74rem; color: var(--tx-3); line-height: 1.6; }
+.auth-credit-note {
+  font-size: 0.7rem;
+  color: var(--emerald);
+  font-family: var(--font-mono);
+}
+.auth-trust {
+  font-size: 0.66rem;
+  color: var(--tx-4);
+  text-align: center;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
+.pw-wrap { position: relative; }
+.pw-eye {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--tx-3);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--t-fast);
+}
+.pw-eye:hover { color: var(--tx-1); }
+.pw-eye svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+
+/* paywall modal */
+.paywall-icon {
+  font-size: 2.2rem;
+  text-align: center;
+  margin-bottom: 10px;
+  line-height: 1;
+}
+.paywall-features {
+  list-style: none;
+  margin: 14px 0;
+}
+.paywall-features li {
+  font-size: 0.72rem;
+  color: var(--tx-2);
+  padding: 5px 0;
+  padding-left: 16px;
+  position: relative;
+}
+.paywall-features li::before { content: '→'; position: absolute; left: 0; color: var(--blue); }
+
+/* PRO upgrade modal */
+.pro-upgrade-lock-icon { font-size: 1.8rem; text-align: center; margin-bottom: 8px; }
+.pro-upgrade-benefits { list-style: none; margin: 10px 0 18px; }
+.pro-upgrade-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: var(--tx-2);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--bd-1);
+}
+.pub-icon { font-size: 0.9rem; flex-shrink: 0; }
+
+/* PRO waitlist modal */
+.pro-sub { font-size: 0.78rem; color: var(--tx-3); line-height: 1.6; }
+.pro-success {
+  text-align: center;
+  padding: 16px;
+  display: none;
+}
+
+/* pred new modal */
+#pred-new-modal .modal { max-width: 420px; }
+
+/* Quick Actions overlay */
+.vx2-qa-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  background: rgba(1,3,8,0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  align-items: center;
+  justify-content: center;
+}
+.vx2-qa-overlay.open { display: flex; }
+.vx2-qa-panel {
+  background: rgba(8,14,28,0.98);
+  border: 1px solid var(--bd-3);
+  border-radius: var(--r-xl);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 280px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7);
+}
+.vx2-qa-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 14px;
+  background: var(--s0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+  font-family: var(--font-ui);
+}
+.vx2-qa-item:hover { background: var(--s2); border-color: var(--bd-blue); }
+.vx2-qa-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--tx-2);
+}
+.vx2-qa-lbl {
+  font-size: 0.66rem;
+  color: var(--tx-3);
+  text-align: center;
+  line-height: 1.3;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+}
+
+/* 12. HOME SCREEN (vx2-*) ──────────────────────────────────────── */
+.vx2-core-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0 12px;
+  margin-bottom: 20px;
+}
+.vx2-core-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+  max-width: 680px;
+}
+.vx2-greeting {
+  font-family: var(--font-brand);
+  font-size: 1.45rem;
+  font-weight: 400;
+  color: var(--tx-1);
+  letter-spacing: -0.01em;
+  font-style: italic;
+}
+.vx2-date {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  color: var(--tx-4);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Orbit system */
+.vx2-orbit-system {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  flex-shrink: 0;
+}
+.vx2-orbit-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid;
+}
+.vx2-orbit-ring-1 {
+  width: 220px;
+  height: 220px;
+  border-color: rgba(74,168,255,0.12);
+  animation: vx2-spin-1 18s linear infinite;
+}
+.vx2-orbit-ring-2 {
+  width: 168px;
+  height: 168px;
+  border-color: rgba(74,168,255,0.08);
+  animation: vx2-spin-2 12s linear infinite reverse;
+}
+@keyframes vx2-spin-1 { to { transform: rotate(360deg); } }
+@keyframes vx2-spin-2 { to { transform: rotate(-360deg); } }
+
+/* Satellite nodes */
+.vx2-sat {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: opacity var(--t-fast);
+  z-index: 2;
+}
+.vx2-sat:hover { opacity: 0.7; }
+.vx2-sat-n { top: 12px;    left: 50%; transform: translateX(-50%); }
+.vx2-sat-e { right: 12px;  top: 50%;  transform: translateY(-50%); }
+.vx2-sat-s { bottom: 12px; left: 50%; transform: translateX(-50%); }
+.vx2-sat-w { left: 12px;   top: 50%;  transform: translateY(-50%); }
+
+.vx2-sat-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(74,168,255,0.4);
+  box-shadow: 0 0 8px rgba(74,168,255,0.3);
+}
+.vx2-sat-dot.warn   { background: rgba(240,180,41,0.6); box-shadow: 0 0 8px rgba(240,180,41,0.3); }
+.vx2-sat-dot.danger { background: rgba(239,68,68,0.6);  box-shadow: 0 0 8px rgba(239,68,68,0.3); }
+.vx2-sat-num {
+  font-family: var(--font-brand);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.65);
+  line-height: 1;
+}
+.vx2-sat-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.38rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--tx-4);
+}
+
+/* Core sphere */
+.vx2-sphere {
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 35% 35%, rgba(74,168,255,0.18), rgba(74,168,255,0.04) 50%, transparent 75%);
+  border: 1px solid rgba(74,168,255,0.18);
+  box-shadow: 0 0 40px rgba(74,168,255,0.1), inset 0 0 20px rgba(74,168,255,0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: box-shadow var(--t-base), border-color var(--t-base);
+  z-index: 3;
+  position: relative;
+}
+.vx2-sphere:hover {
+  box-shadow: 0 0 60px rgba(74,168,255,0.2), inset 0 0 30px rgba(74,168,255,0.08);
+  border-color: rgba(74,168,255,0.35);
+}
+.vx2-sphere-title {
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(74,168,255,0.55);
+  line-height: 1;
+}
+.vx2-sphere-name {
+  font-family: var(--font-brand);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+/* Status bar */
+.vx2-core-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tx-4);
+  margin-bottom: 20px;
+}
+.vx2-core-status.warn   { color: rgba(240,180,41,0.5); }
+.vx2-core-status.danger { color: rgba(239,68,68,0.5); }
+.vx2-status-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(74,168,255,0.45);
+  flex-shrink: 0;
+  animation: vx2-pulse 2.5s ease-in-out infinite;
+}
+.vx2-core-status.warn   .vx2-status-dot { background: rgba(240,180,41,0.6); }
+.vx2-core-status.danger .vx2-status-dot { background: rgba(239,68,68,0.6); }
+@keyframes vx2-pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.3;transform:scale(0.5);} }
+
+/* 4 panels */
+.vx2-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.2fr;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 14px;
+}
+@media (max-width: 900px) { .vx2-panels { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 540px) { .vx2-panels { grid-template-columns: 1fr; } }
+
+.vx2-panel {
+  background: var(--s0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color var(--t-base), background var(--t-base);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 130px;
+}
+.vx2-panel:hover { border-color: var(--bd-blue); background: var(--blue-lo); }
+.vx2-panel.has-warn { border-color: rgba(240,180,41,0.15); }
+.vx2-panel.has-warn:hover { border-color: rgba(240,180,41,0.35); background: rgba(240,180,41,0.03); }
+
+.vx2-panel-hd { display: flex; align-items: center; justify-content: space-between; }
+.vx2-panel-name {
+  font-family: var(--font-mono);
+  font-size: 0.46rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tx-4);
+}
+.vx2-panel-warn { font-size: 0.7rem; color: rgba(240,180,41,0.7); }
+
+.vx2-panel-stats { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
+.vx2-panel-stat-n {
+  font-family: var(--font-brand);
+  font-size: 1.7rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.68);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.vx2-panel-stat-n.warn   { color: rgba(240,180,41,0.85); }
+.vx2-panel-stat-n.danger { color: rgba(239,68,68,0.85); }
+.vx2-panel-stat-l {
+  font-family: var(--font-mono);
+  font-size: 0.44rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tx-4);
+}
+.vx2-panel-preview { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.vx2-panel-item {
+  font-size: 0.68rem;
+  color: var(--tx-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.vx2-panel-item::before { content:'—'; color: var(--tx-4); font-size: 0.6rem; flex-shrink: 0; }
+.vx2-panel-item.warn::before   { content: '⚠'; color: rgba(240,180,41,0.5); }
+.vx2-panel-item.danger::before { content: '!'; color: rgba(239,68,68,0.5); font-weight: 700; }
+.vx2-panel-cta {
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(74,168,255,0.4);
+  margin-top: auto;
+  transition: color var(--t-fast);
+}
+.vx2-panel:hover .vx2-panel-cta { color: var(--blue); }
+
+.vx2-panel-ai-actions { display: flex; flex-direction: column; gap: 5px; }
+.vx2-panel-ai-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  width: 100%;
+  text-align: left;
+  background: var(--s1);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-sm);
+  color: var(--tx-3);
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.vx2-panel-ai-btn:hover { background: var(--blue-lo); border-color: var(--bd-blue); color: var(--blue); }
+
+/* Recent activity */
+.vx2-activity { width: 100%; border-top: 1px solid var(--bd-1); padding-top: 12px; }
+.vx2-activity-hd {
+  font-family: var(--font-mono);
+  font-size: 0.44rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tx-4);
+  margin-bottom: 8px;
+}
+.vx2-activity-rows { display: flex; flex-direction: column; gap: 3px; }
+.vx2-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  transition: background var(--t-fast);
+  cursor: pointer;
+}
+.vx2-activity-row:hover { background: var(--s1); }
+.vx2-activity-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(74,168,255,0.3); flex-shrink: 0; }
+.vx2-activity-text { font-size: 0.68rem; color: var(--tx-3); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vx2-activity-time { font-family: var(--font-mono); font-size: 0.46rem; color: var(--tx-4); letter-spacing: 0.06em; flex-shrink: 0; }
+
+/* 13. COMMON PANEL SECTIONS ─────────────────────────────────────── */
+/* Panel heading */
+.vx-section-hd {
+  font-family: var(--font-brand);
+  font-size: 1.35rem;
+  font-weight: 400;
+  color: var(--tx-1);
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+.vx-section-sub {
+  font-size: 0.72rem;
+  color: var(--tx-3);
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+.vx-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--bd-1);
+  margin: 16px 0;
+}
+
+/* Toast notifications */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--bd-3);
+  border-radius: var(--r-md);
+  padding: 10px 16px;
+  font-size: 0.72rem;
+  color: var(--tx-1);
+  font-family: var(--font-mono);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  pointer-events: all;
+  animation: toast-in 0.22s ease;
+  max-width: 320px;
+}
+.toast.err  { border-color: rgba(239,68,68,0.35); color: #f87171; }
+.toast.warn { border-color: rgba(240,180,41,0.35); color: rgba(240,180,41,0.9); }
+@keyframes toast-in { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform: translateX(0); } }
+
+/* PRO badge */
+.pro-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: var(--r-xs);
+  font-size: 0.48rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+/* 14. LANDING PAGE ──────────────────────────────────────────────── */
+.vx-landing {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  background: var(--void);
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.vx-land-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  border-bottom: 1px solid var(--bd-1);
+  background: rgba(1,3,8,0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  flex-shrink: 0;
+}
+
+.vx-land-logo {
+  font-family: var(--font-brand);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--tx-1);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+.vx-land-logo em {
+  font-style: italic;
+  color: var(--blue);
+}
+
+.vx-land-nav-cta {
+  height: 32px;
+  padding: 0 16px;
+  background: var(--blue);
+  border: none;
+  border-radius: var(--r-sm);
+  color: #010308;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: opacity var(--t-fast), box-shadow var(--t-fast);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+.vx-land-nav-cta:hover { opacity: 0.85; box-shadow: 0 0 24px rgba(74,168,255,0.4); }
+
+/* hero */
+.vx-land-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 24px;
+  position: relative;
+  overflow: hidden;
+}
+.vx-land-hero::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(74,168,255,0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+.vx-land-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  background: var(--blue-lo);
+  border: 1px solid var(--bd-blue);
+  border-radius: 99px;
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 22px;
+  position: relative;
+  z-index: 1;
+}
+.vx-land-badge-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--blue);
+  animation: vx2-pulse 2s ease-in-out infinite;
+}
+.vx-land-h1 {
+  font-family: var(--font-brand);
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  font-weight: 700;
+  color: var(--tx-1);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+}
+.vx-land-h1 em { font-style: italic; color: var(--blue); }
+.vx-land-tagline {
+  font-family: var(--font-brand);
+  font-size: clamp(1.2rem, 2.5vw, 1.7rem);
+  font-weight: 300;
+  color: var(--tx-3);
+  font-style: italic;
+  letter-spacing: -0.01em;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+.vx-land-sub {
+  font-size: clamp(0.78rem, 1.4vw, 0.9rem);
+  color: var(--tx-3);
+  line-height: 1.7;
+  max-width: 520px;
+  margin-bottom: 36px;
+  position: relative;
+  z-index: 1;
+}
+.vx-land-ctas {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+.vx-land-btn-primary {
+  height: 44px;
+  padding: 0 28px;
+  background: var(--blue);
+  border: none;
+  border-radius: var(--r-sm);
+  color: #010308;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: opacity var(--t-fast), box-shadow var(--t-fast);
+}
+.vx-land-btn-primary:hover { opacity: 0.88; box-shadow: 0 0 30px rgba(74,168,255,0.45); }
+.vx-land-btn-secondary {
+  height: 44px;
+  padding: 0 24px;
+  background: transparent;
+  border: 1px solid var(--bd-2);
+  border-radius: var(--r-sm);
+  color: var(--tx-2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color var(--t-fast), color var(--t-fast);
+}
+.vx-land-btn-secondary:hover { border-color: var(--bd-blue); color: var(--blue); }
+
+/* feature grid */
+.vx-land-features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  max-width: 900px;
+  width: 100%;
+  margin: 48px auto 0;
+  padding: 0 24px;
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 720px) { .vx-land-features { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 420px) { .vx-land-features { grid-template-columns: 1fr; } }
+
+.vx-land-feat {
+  background: var(--s0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  transition: border-color var(--t-base);
+}
+.vx-land-feat:hover { border-color: var(--bd-blue); }
+.vx-land-feat-icon {
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  color: var(--blue);
+  opacity: 0.65;
+  line-height: 1;
+}
+.vx-land-feat-title {
+  font-family: var(--font-brand);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tx-1);
+  margin-bottom: 5px;
+  letter-spacing: -0.01em;
+}
+.vx-land-feat-text {
+  font-size: 0.68rem;
+  color: var(--tx-3);
+  line-height: 1.6;
+}
+
+/* footer strip */
+.vx-land-foot {
+  padding: 20px 32px;
+  border-top: 1px solid var(--bd-1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.vx-land-foot-copy {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  color: var(--tx-4);
+  letter-spacing: 0.06em;
+}
+.vx-land-foot-disc {
+  font-size: 0.6rem;
+  color: var(--tx-4);
+  max-width: 400px;
+  text-align: right;
+  line-height: 1.5;
+}
+
+/* 15. OVERRIDES for old HTML elements ───────────────────────────── */
+/* Remove old nav/hero/footer from DOM influence */
+.terminal, .terminal-wrap { overflow: visible !important; backdrop-filter: none !important; }
+
+/* Old scroll buttons — hidden in new design */
+.t-scroll-btn, .t-scroll-fade { display: none !important; }
+
+/* tabs container scroll for mobile */
+#t-tabs-el { overflow: visible !important; }
+
+/* Suppress old landing page elements if somehow in DOM */
+#hero, section.hero { display: none !important; }
+#nav { display: none !important; }
+.mobile-menu { display: none !important; }
+.h3-left, .h3-right { display: none !important; }
+.vx-landing footer { display: block !important; }
+
+/* Fix: oldCSS might try to style .modal differently, re-assert */
+.modal-overlay.open { display: flex !important; }
+
+/* Fix: settings-btn in old CSS */
+.settings-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tx-3);
+  font-size: 0.9rem;
+  transition: color var(--t-fast);
+}
+.settings-btn:hover { color: var(--tx-1); }
+
+/* Responsive: sidebar becomes bottom bar on mobile */
+@media (max-width: 640px) {
+  .vx-shell { flex-direction: column; }
+  .vx-sidebar {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: auto !important;
+    flex-direction: row !important;
+    border-right: none !important;
+    border-top: 1px solid var(--bd-1) !important;
+    padding: 0 8px;
+    order: 99;
+  }
+  .vx-logo-wrap { display: none !important; }
+  .vx-nav {
+    flex-direction: row !important;
+    gap: 2px !important;
+    overflow-x: auto !important;
+    padding: 6px 0 !important;
+  }
+  .vx-nav-sep { display: none !important; }
+  .vx-sidebar-foot { display: none !important; }
+  .t-tab::after { display: none !important; }
+  .vx-body { order: 1; }
+  .vx2-orbit-system { width: 200px !important; height: 200px !important; }
+  .vx2-orbit-ring-1 { width: 180px !important; height: 180px !important; }
+  .vx2-orbit-ring-2 { width: 135px !important; height: 135px !important; }
+}
+
 </style>
 
 </head>
@@ -3411,165 +4624,110 @@ footer { padding: 2rem 1.5rem; }
   </div>
 </div>
 
-<!-- F5: NOVI PREDMET MODAL -->
+<!-- PRO WAITLIST MODAL -->
+<div class="modal-overlay" id="pro-modal" onclick="if(event.target===this)closeProModal()">
+  <div class="modal" style="max-width:440px;text-align:center;">
+    <button class="modal-close" onclick="closeProModal()">&#x2715;</button>
+    <div class="modal-badge" style="background:rgba(201,168,76,0.1);border-color:rgba(201,168,76,0.3);color:#c9a84c;margin:0 auto 1rem;display:inline-block;">VindexAI PRO</div>
+    <div class="modal-title" style="font-size:1.55rem;">Rana prijava<br>za PRO plan</div>
+    <p class="modal-sub">Budite prvi kada VindexAI PRO bude dostupan. Promotivna cena garantovana pri ranoj prijavi.</p>
+    <div id="pro-form" style="display:flex;flex-direction:column;gap:0.8rem;">
+      <input class="modal-input" type="email" id="pro-email" placeholder="Vaša email adresa" autocomplete="email">
+      <button class="modal-btn" onclick="submitWaitlist()">Prijavi me na listu čekanja</button>
+    </div>
+    <div class="pro-success" id="pro-success">
+      <div style="font-size:1.8rem;margin-bottom:0.5rem;">&#x2713;</div>
+      <div style="font-size:0.85rem;color:rgba(255,255,255,0.55);">Prijavljeni ste! Javićemo vam se pri lansiranju.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PRED NEW MODAL -->
 <div class="modal-overlay" id="pred-new-modal" onclick="if(event.target===this)pred_closeNewModal()">
   <div class="modal" style="max-width:420px;">
     <button class="modal-close" onclick="pred_closeNewModal()">&#x2715;</button>
-    <div class="modal-title" style="font-size:1.25rem;margin-bottom:1rem;">Novi predmet</div>
-    <div style="margin-bottom:0.7rem;">
-      <label style="font-size:0.75rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:0.3rem;">Naziv predmeta *</label>
-      <input id="pred-new-naziv" class="pro-input" type="text" placeholder="Npr. Radni spor Petrović vs AD Beograd" maxlength="200">
-    </div>
-    <div style="margin-bottom:0.7rem;">
-      <label style="font-size:0.75rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:0.3rem;">Opis (opciono)</label>
-      <textarea id="pred-new-opis" class="pro-input" placeholder="Kratki opis predmeta..." style="height:60px;resize:none;"></textarea>
-    </div>
-    <div style="margin-bottom:1rem;">
-      <label style="font-size:0.75rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:0.3rem;">Tip predmeta</label>
-      <select id="pred-new-tip" class="pro-input" style="cursor:pointer;">
-        <option value="opsti">Opšti</option>
-        <option value="radni">Radni spor</option>
-        <option value="privredni">Privredni spor</option>
-      </select>
-    </div>
-    <button class="modal-btn" onclick="pred_kreiraj()">Kreiraj predmet</button>
-    <div id="pred-new-err" style="display:none;color:#ff9090;font-size:0.78rem;text-align:center;margin-top:0.5rem;"></div>
-  </div>
-</div>
-
-<!-- PRO WAITLIST MODAL -->
-<div class="modal-overlay" id="pro-modal">
-  <div class="modal" style="max-width:460px;">
-    <button class="modal-close" onclick="closeProModal()">&#x2715;</button>
-    <div class="modal-badge" style="background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.22);color:#c9a84c;">Vindex AI PRO</div>
-    <div class="modal-title" style="margin-top:0.8rem;">Vindex AI PRO<br>za kancelarije.</div>
-    <p class="pro-sub" style="margin-top:0.7rem;">PRO verzija uključuje AI analizu ugovora, generisanje nacrta tužbi i istoriju pretraga. Prijavite se kako biste osigurali <strong style="color:rgba(255,255,255,0.85);">promotivnu cenu</strong> i odmah pristupili svim funkcijama.</p>
-    <div id="pro-form">
-      <input class="pro-input" type="email" id="pro-email" placeholder="Vaša email adresa" autocomplete="email">
-      <button class="modal-btn" style="background:linear-gradient(135deg,#c9a84c,#8a5e20);box-shadow:0 6px 30px rgba(201,168,76,0.3);" onclick="submitWaitlist()">Prijavi se na listu čekanja</button>
-      <p style="font-size:0.7rem;color:rgba(255,255,255,0.28);text-align:center;margin-top:0.7rem;">Ne delimo podatke. Možete se odjaviti u svakom trenutku.</p>
-    </div>
-    <div class="pro-success" id="pro-success">
-      <div style="font-size:2rem;margin-bottom:0.5rem;">&#10003;</div>
-      <div style="font-weight:600;color:#fff;margin-bottom:0.4rem;">Prijavljeni ste!</div>
-      <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);">PRO je dostupan. Aktivirajte nalog i počnite odmah.</div>
+    <div class="modal-title" style="font-size:1.3rem;margin-bottom:0.5rem;">Novi predmet</div>
+    <p class="modal-sub" style="margin-bottom:1.2rem;">Unesite osnovne informacije. Detalje možete dodati naknadno.</p>
+    <div style="display:flex;flex-direction:column;gap:0.8rem;">
+      <div>
+        <label class="t-label" style="display:block;margin-bottom:6px;">Naziv predmeta</label>
+        <input class="modal-input" type="text" id="pred-new-naziv" placeholder="Npr. Tužba za naknadu štete" autocomplete="off">
+      </div>
+      <div>
+        <label class="t-label" style="display:block;margin-bottom:6px;">Tip postupka</label>
+        <select class="modal-input pro-input" id="pred-new-tip">
+          <option value="">— Izaberite tip —</option>
+          <option value="parnicni">Parnični postupak</option>
+          <option value="krivicni">Krivični postupak</option>
+          <option value="upravni">Upravni postupak</option>
+          <option value="izvrsni">Izvršni postupak</option>
+          <option value="vanparnicni">Vanparnični postupak</option>
+          <option value="arbitrazni">Arbitražni postupak</option>
+          <option value="savetovanje">Savetovanje / Konsultacija</option>
+          <option value="ostalo">Ostalo</option>
+        </select>
+      </div>
+      <div>
+        <label class="t-label" style="display:block;margin-bottom:6px;">Opis (opciono)</label>
+        <textarea class="modal-input" id="pred-new-opis" placeholder="Kratki opis predmeta..." style="min-height:70px;resize:vertical;"></textarea>
+      </div>
+      <div id="pred-new-err" style="display:none;color:#f87171;font-size:0.75rem;"></div>
+      <button class="modal-btn" onclick="pred_kreiraj()">Kreiraj predmet</button>
     </div>
   </div>
 </div>
 
-<!-- MOBILE MENU -->
+<!-- ═══ VINDEX AI 3.0 — APP SHELL ═══════════════════════════════ -->
+<div id="vx-shell" class="vx-shell">
 
-<div class="mobile-menu" id="mobile-menu">
-  <a href="#features" onclick="closeMobileMenu()">Funkcije</a>
-  <a href="#platform" onclick="closeMobileMenu()">Platforma</a>
-  <a href="#pricing" onclick="closeMobileMenu()">Paketi</a>
-  <a href="#about" onclick="closeMobileMenu()">O nama</a>
-  <a href="#" class="m-cta" onclick="openModal();closeMobileMenu();">Počni besplatno</a>
-</div>
+    <aside class="vx-sidebar" id="vx-sidebar">
+      <div class="vx-logo-wrap">
+        <span class="vx-logo-mark">V</span>
+      </div>
+      <nav class="vx-nav" id="t-tabs-el">
+        <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')" data-icon="⌂" data-label="Početna"></div>
+        <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')" data-icon="⚖" data-label="Predmeti"></div>
+        <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')" data-icon="◈" data-label="Klijenti"></div>
+        <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')" data-icon="◷" data-label="Rokovi"></div>
+        <div class="t-tab" id="tab-btn-alati" onclick="setTab(this,'alati')" data-icon="◆" data-label="AI Hub"></div>
+        <div class="vx-nav-sep"></div>
+        <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')" data-icon="☐" data-label="Dokumenti"></div>
+        <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')" data-icon="⊙" data-label="Podešavanja"></div>
+        <div class="t-tab vx-hidden-tab" id="tab-btn-q" onclick="setTab(this,'q')"></div>
+        <div class="t-tab vx-hidden-tab" id="tab-btn-a" onclick="setTab(this,'a')"></div>
+        <div class="t-tab vx-hidden-tab" id="tab-btn-s" onclick="setTab(this,'s')"></div>
+        <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')"><span class="pro-badge" id="pro-badge-n" style="display:none">PRO</span></div>
+        <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="pro-badge" id="pro-badge-t" style="display:none">PRO</span></div>
+        <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')"><span class="pro-badge" id="pro-badge-w" style="display:none">PRO</span></div>
+        <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none"></div>
+      </nav>
+      <div class="vx-sidebar-foot">
+        <button class="vx-new-btn" onclick="intakeOtvori()" title="Novi predmet">⊕</button>
+      </div>
+    </aside>
+  <div class="vx-body">
 
-<nav id="nav">
-  <a href="#" class="logo">Vindex<em>AI</em></a>
-  <div class="nav-links">
-    <a href="#features">Funkcije</a>
-    <a href="#platform">Platforma</a>
-    <a href="#pricing">Paketi</a>
-    <a href="#about">O nama</a>
-  </div>
-  <div class="nav-user" id="nav-user">
-<button class="settings-btn" onclick="openSettings()" title="Podešavanja kancelarije">⚙</button>
-    <a href="/" style="font-size:0.65rem;color:rgba(255,255,255,0.25);text-decoration:none;letter-spacing:0.06em;margin-right:0.4rem;">← Početna</a>
-    <span class="nav-user-email" id="nav-user-email"></span>
-    <span class="nav-credit-pill" id="nav-credit-pill"><span id="nav-credits-num" class="cp-num">15</span>&nbsp;/ 15 upita</span>
-    <button class="nav-logout" onclick="doLogout()">Odjava</button>
-  </div>
-  <a href="#" class="nav-cta magnetic" id="nav-cta-btn" onclick="openModal();return false;">Počni besplatno</a>
-  <button class="hamburger" id="hamburger" onclick="toggleMenu()">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
-
-<section id="hero">
-  <canvas id="para-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
-  <div class="beam-xl bxl-1"></div>
-  <div class="beam-xl bxl-2"></div>
-  <div class="beam-xl bxl-3"></div>
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="grid-bg"></div>
-
-  <!-- NASLOV — centriran -->
-  <div class="hero-center">
-    <div class="h-badge">
-      <div class="pulse-dot"></div>Pravni Operativni Sistem - Republika Srbija
-    </div>
-    <div class="h1"><span class="word-reveal wr-1">Pravo na</span></div>
-    <div class="h1-italic"><span class="word-reveal wr-2">dohvat ruke.</span></div>
-  </div>
-
-  <!-- 3-KOLONA: sfera | terminal | uvodni tekst -->
-  <div class="hero-3col">
-
-    <!-- LEVO: sfera -->
-    <div class="h3-left">
-      <div id="sphereWrap"><canvas id="sphereCanvas"></canvas></div>
-    </div>
-
-    <!-- CENTAR: terminal -->
-    <div class="h3-center">
-      <div class="terminal-wrap">
-      <div class="terminal">
-        <!-- ── SIDEBAR ──────────────────────────────────────────── -->
-        <div class="vx-sidebar">
-          <div class="vx-sidebar-logo">
-            <span class="vx-logo-text">Vindex AI</span>
-            <div class="t-status vx-status"><div class="t-sdot"></div><span>aktivan</span></div>
-          </div>
-          <nav class="t-tabs-wrap vx-nav-wrap">
-            <div class="t-scroll-fade t-scroll-fade-l"></div>
-            <div class="t-scroll-fade t-scroll-fade-r"></div>
-            <button class="t-scroll-btn t-scroll-btn-l" onclick="tabsScroll(-1)"></button>
-            <button class="t-scroll-btn t-scroll-btn-r" onclick="tabsScroll(1)"></button>
-            <div class="t-tabs" id="t-tabs-el">
-              <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')" data-icon="⌂" data-label="Početna"></div>
-              <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')" data-icon="⚖" data-label="Predmeti"></div>
-              <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')" data-icon="◈" data-label="Klijenti"></div>
-              <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')" data-icon="◷" data-label="Rokovi"></div>
-              <div class="t-tab" id="tab-btn-alati" onclick="setTab(this,'alati')" data-icon="◆" data-label="AI Hub"></div>
-              <div class="vx-sidebar-sep"></div>
-              <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')" data-icon="☐" data-label="Dokumenti"></div>
-              <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')" data-icon="⊙" data-label="Podešavanja"></div>
-              <!-- AI sub-tools: in DOM za JS kompatibilnost, skriveni u sidebaru -->
-              <div class="t-tab vx-hidden-tab" id="tab-btn-q" onclick="setTab(this,'q')"></div>
-              <div class="t-tab vx-hidden-tab" id="tab-btn-a" onclick="setTab(this,'a')"></div>
-              <div class="t-tab vx-hidden-tab" id="tab-btn-s" onclick="setTab(this,'s')"></div>
-              <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')"><span class="pro-badge" id="pro-badge-n" style="display:none">PRO</span></div>
-              <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="pro-badge" id="pro-badge-t" style="display:none">PRO</span></div>
-              <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')"><span class="pro-badge" id="pro-badge-w" style="display:none">PRO</span></div>
-              <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none"></div>
-            </div>
-          </nav>
-          <div class="vx-sidebar-footer">
-            <button class="t-newchat vx-newchat-btn" onclick="newChat()">⊕ Novo pitanje</button>
-          </div>
+      <div class="vx-topbar">
+        <div class="vx-global-search" title="Globalna pretraga — dolazi uskoro">
+          <span class="vx-search-icon">⌕</span>
+          <span class="vx-search-ph">Pretraži predmete, klijente, zakone...</span>
+          <span class="vx-search-kbd">⌘K</span>
         </div>
-        <!-- ── MAIN CONTENT ─────────────────────────────────────── -->
-        <div class="t-body vx-main">
-          <div class="vx-topbar">
-            <div class="vx-global-search" title="Globalna pretraga — dolazi uskoro">
-              <span class="vx-search-icon">⌕</span>
-              <span class="vx-search-ph">Pretraži predmete, klijente, zakone...</span>
-              <span class="vx-search-kbd">⌘K</span>
-            </div>
-            <div class="vx-topbar-actions">
-              <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
-                <span style="font-size:0.95rem;line-height:1;color:rgba(255,255,255,0.35);">🔔</span>
-                <span id="notif-badge" style="display:none;position:absolute;top:0;right:-4px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.55rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
-              </div>
-              <button class="vx-btn-new" onclick="intakeOtvori()">+ Novi predmet</button>
-            </div>
+        <div class="vx-topbar-actions">
+          <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
+            <span style="font-size:0.9rem;line-height:1;color:rgba(255,255,255,0.32);">🔔</span>
+            <span id="notif-badge" style="display:none;position:absolute;top:0;right:-4px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.52rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
           </div>
-          <!-- Notification dropdown -->
-          <div id="notif-dropdown" style="display:none;position:absolute;top:100%;right:0;z-index:200;width:min(340px,92vw);max-height:380px;overflow-y:auto;background:#141923;border:1px solid rgba(255,255,255,.12);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);padding:0.6rem 0;"></div>
+          <div class="nav-user" id="nav-user" style="display:none;">
+            <span class="nav-user-email" id="nav-user-email"></span>
+            <span class="nav-credit-pill" id="nav-credit-pill"><span id="nav-credits-num" class="cp-num">15</span></span>
+          </div>
+          <button class="vx-btn-new" onclick="intakeOtvori()">+ Novi predmet</button>
+          <button class="settings-btn vx-topbar-settings" onclick="openSettings()" title="Podešavanja" style="display:none;">⚙</button>
+        </div>
+      </div>
+      <div id="notif-dropdown" style="display:none;"></div>
+    <div class="vx-panels-wrap">
           <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
             <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
@@ -4621,289 +5779,92 @@ footer { padding: 2rem 1.5rem; }
             </div>
           </div>
           <div class="chat-privacy-note">Sesije se čuvaju radi lakšeg rada. <span>Savetujemo korišćenje inicijala umesto punih imena stranaka.</span></div>
-        </div>
-      </div>
-      </div><!-- /terminal-wrap -->
-    </div><!-- /h3-center -->
 
-    <!-- DESNO: uvodni tekst -->
-    <div class="h3-right">
-      <div class="hero-intro-panel">
-        <span class="hi-label">Pravni operativni sistem za Srbiju</span>
-        <p>Operativni sistem za advokatske kancelarije u Srbiji. <strong>Predmeti, klijenti, rokovi i dokumenti — organizovani.</strong> AI koji radi posao umesto vas, unutar svakog predmeta.</p>
-        <div class="hi-stats">
-          <div class="hi-stat">
-            <div class="hi-stat-n">18+</div>
-            <div class="hi-stat-l">zakona RS<br>u bazi</div>
-          </div>
-          <div class="hi-stat">
-            <div class="hi-stat-n">12.604</div>
-            <div class="hi-stat-l">sudskih<br>odluka</div>
-          </div>
-          <div class="hi-stat">
-            <div class="hi-stat-n">5</div>
-            <div class="hi-stat-l">min do<br>prvog predmeta</div>
-          </div>
-        </div>
-        <ul class="hi-trust">
-          <li class="hi-trust-item">Predmeti organizovani — svaki dokument na svom mestu</li>
-          <li class="hi-trust-item">Rokovi i ročišta — obaveštenje 7, 2 i 1 dan pre isteka</li>
-          <li class="hi-trust-item">AI istraživanje, nacrti i analiza — unutar svakog predmeta</li>
-          <li class="hi-trust-item">Enkriptovano — poverljivi podaci zaštićeni AES-256</li>
-        </ul>
-      </div>
-    </div><!-- /h3-right -->
+    </div><!-- /vx-panels-wrap -->
+  </div><!-- /vx-body -->
+</div><!-- /vx-shell -->
 
-  </div><!-- /hero-3col -->
+<div id="vx-landing" class="vx-landing">
+  <nav class="vx-land-nav">
+    <a href="#" class="vx-land-logo">Vindex<em>AI</em></a>
+    <a href="#" id="nav-cta-btn" class="vx-land-nav-cta" onclick="openModal();return false;">Prijavite se &rarr;</a>
+  </nav>
 
-  <!-- VALUE PILLARS + TAGLINE + CTA -->
-  <div class="hero-foot">
-    <div class="vp-row">
-      <div class="vp-card">
-        <span class="vp-icon">📁</span>
-        <div class="vp-title">Predmeti pod kontrolom</div>
-        <div class="vp-desc">Svaki predmet ima svoju istoriju, dokumente, rokove i klijente. Nikad više izgubljen fajl ili propušten rok.</div>
+  <main class="vx-land-hero">
+    <div class="vx-land-badge-pill">
+      <div class="vx-land-badge-dot"></div>
+      Pravni Operativni Sistem &mdash; Republika Srbija
+    </div>
+
+    <h1 class="vx-land-h1">Vindex<em>AI</em></h1>
+    <p class="vx-land-tagline">Pravo na dohvat ruke.</p>
+
+    <p class="vx-land-sub">
+      Operativni sistem za advokatske kancelarije. Predmeti, klijenti, rokovi i dokumenti organizovani.
+      AI koji radi umesto vas &mdash; unutar svakog predmeta.
+    </p>
+
+    <div class="vx-land-ctas">
+      <button class="vx-land-btn-primary" onclick="openModal()">Po&#269;ni besplatno &rarr;</button>
+      <button class="vx-land-btn-secondary" onclick="openModal()">Prijavi se</button>
+    </div>
+
+    <div class="vx-land-features">
+      <div class="vx-land-feat">
+        <div class="vx-land-feat-icon">&#x2696;</div>
+        <div class="vx-land-feat-title">Predmeti</div>
+        <div class="vx-land-feat-text">Svaki predmet &mdash; svoja istorija, dokumenti, rokovi, klijenti. Ništa se ne gubi.</div>
       </div>
-      <div class="vp-card">
-        <span class="vp-icon">📅</span>
-        <div class="vp-title">Rokovi koji ne propuštaju</div>
-        <div class="vp-desc">Sistem prati rokove i ročišta umesto vas. Obaveštenje 7, 2 i 1 dan pre — pre nego što postane kasno.</div>
+      <div class="vx-land-feat">
+        <div class="vx-land-feat-icon">&#x25D7;</div>
+        <div class="vx-land-feat-title">Rokovi</div>
+        <div class="vx-land-feat-text">Automatska obaveštenja 7, 2 i 1 dan pre isteka. Sistem prati rokove umesto vas.</div>
       </div>
-      <div class="vp-card">
-        <span class="vp-icon">💡</span>
-        <div class="vp-title">AI kao pomoćnik</div>
-        <div class="vp-desc">Istraživanje, nacrti i analiza dokumenata dostupni unutar svakog predmeta — kad vam zatreba, ne kao odvojen alat.</div>
+      <div class="vx-land-feat">
+        <div class="vx-land-feat-icon">&#x25C6;</div>
+        <div class="vx-land-feat-title">AI Istraživanje</div>
+        <div class="vx-land-feat-text">847 zakona Srbije pretraženo za manje od 10 sekundi. Citat, član, zakon &mdash; tačno.</div>
+      </div>
+      <div class="vx-land-feat">
+        <div class="vx-land-feat-icon">&#x25C8;</div>
+        <div class="vx-land-feat-title">Klijenti</div>
+        <div class="vx-land-feat-text">CRM za pravne kancelarije. Poverljivi podaci zaštićeni AES-256.</div>
       </div>
     </div>
-    <p class="hero-tagline">Od otvaranja predmeta do naplate — sve na jednom mestu.</p>
-    <div class="h-cta" style="margin-bottom:0;">
-      <a href="#" class="btn-primary magnetic" onclick="openModal();return false;">Počni besplatno</a>
-      <a href="#features" class="btn-ghost">Pogledaj funkcije &rarr;</a>
-    </div>
-  </div>
-</section>
+  </main>
 
-<div class="marquee-section">
-  <div class="marquee-row"><div class="marquee-track" id="mq1"></div></div>
-  <div class="marquee-row"><div class="marquee-track rev" id="mq2"></div></div>
+  <footer class="vx-land-foot">
+    <div class="vx-land-foot-copy">&copy; 2026 Vindex AI. Sva prava zadržana.</div>
+    <div class="vx-land-foot-disc">Vindex AI ne zamenjuje profesionalno pravno rasuđivanje advokata.</div>
+  </footer>
 </div>
 
-<section class="section" id="how" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-  <div class="sbadge r">Pravni operativni sistem</div>
-  <div class="sh r d1">Sve što vaša kancelarija <em>treba.</em></div>
-  <p class="ss r d2">Upravljanje predmetima, praćenje rokova, AI istraživanje, nacrti podnesaka, sudska praksa — u jednom sistemu. Kliknite na svaku funkciju da vidite tačno šta dobijate.</p>
-
-  <div class="mod-showcase r d2" id="modShowcase">
-    <div class="mod-tabs" id="modTabs">
-      <div class="mod-tab mod-active" data-idx="0"><span class="mod-tab-n">01</span><div class="mod-tab-info"><div class="mod-tab-name">Pravno istraživanje</div><div class="mod-tab-how">Upišite pitanje → zakon, član, citat, pouzdanost</div></div><span class="mod-badge live">Dostupno</span></div>
-      <div class="mod-tab" data-idx="1"><span class="mod-tab-n">02</span><div class="mod-tab-info"><div class="mod-tab-name">Analiza predmeta</div><div class="mod-tab-how">Opišite predmet → 10-slojna analiza sa strategijom</div></div><span class="mod-badge live">Dostupno</span></div>
-      <div class="mod-tab" data-idx="2"><span class="mod-tab-n">03</span><div class="mod-tab-info"><div class="mod-tab-name">Generisanje nacrta</div><div class="mod-tab-how">Izaberite tip → nacrt spreman za Word / PDF</div></div><span class="mod-badge live">Dostupno</span></div>
-      <div class="mod-tab" data-idx="3"><span class="mod-tab-n">04</span><div class="mod-tab-info"><div class="mod-tab-name">Sudska praksa</div><div class="mod-tab-how">Unesite pitanje → rangirane presude VKS sa ratio</div></div><span class="mod-badge live">Dostupno</span></div>
-      <div class="mod-tab" data-idx="4"><span class="mod-tab-n">05</span><div class="mod-tab-info"><div class="mod-tab-name">Upravljanje predmetima</div><div class="mod-tab-how">Folder po predmetu → AI pamti kontekst sesija</div></div><span class="mod-badge live">Dostupno</span></div>
-      <div class="mod-tab" data-idx="5"><span class="mod-tab-n">06</span><div class="mod-tab-info"><div class="mod-tab-name">Pravna strategija</div><div class="mod-tab-how">Opišite predmet → Red Team, Simulator, Procena ishoda, Revizija</div></div><span class="mod-badge pro">PRO</span></div>
-      <div class="mod-tab" data-idx="6"><span class="mod-tab-n">07</span><div class="mod-tab-info"><div class="mod-tab-name">Digitalna imovina</div><div class="mod-tab-how">Opišite projekat → ZDI / MiCA analiza, AML audit</div></div><span class="mod-badge pro">PRO</span></div>
-    </div>
-
-    <div class="mod-preview-wrap">
-      <div class="mod-pbar">
-        <div class="mod-pdots"><span class="mpd mpd1"></span><span class="mpd mpd2"></span><span class="mpd mpd3"></span></div>
-        <span class="mod-pbar-label" id="modLabel">vindex-ai — Pravno istraživanje</span>
-        <span class="mod-plive"><span class="live-dot"></span>Live output</span>
-      </div>
-      <div class="mod-pbody" id="modBody"></div>
-      <div class="mod-pfoot"></div>
-    </div>
-  </div>
-</section>
-
-<section class="section alt" id="features">
-  <div class="sbadge r">Zašto advokati biraju Vindex</div>
-  <div class="sh r d1">Precizno pravo. <em>Organizovana kancelarija.</em></div>
-  <p class="ss r d2">Nije generički AI koji halucinira zakone — sistem izgrađen isključivo na srpskim propisima, sa sudskom praksom VKS i upravljanjem predmetima koje smanjuje operativni kaos kancelarije.</p>
-  <div class="feat-card-wrap r">
-    <div class="feat-grid">
-      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">01</div><div class="feat-icon">&#9878;</div><div class="feat-title">Srpski zakoni, ne globalni AI</div><div class="feat-desc">18+ važećih zakona RS, tačan Sl. glasnik, direktan citat — bez ekstrapolacije iz stranih sistema.</div></div><div class="feat-back"><div class="feat-btitle">Šta to znači?</div><ul class="feat-blist"><li>Zakon o radu, ZPP, ZKP, ZOO i dr. — ceo aktuelni tekst</li><li>Svaki odgovor ima naveden zakon i broj člana</li><li>Sistem ne koristi generički GPT — nego srpsku pravnu bazu</li><li>Doslovan citat iz Sl. glasnika RS</li></ul></div></div></div>
-      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">02</div><div class="feat-icon">&#9878;</div><div class="feat-title">Sudska praksa VKS — 12.604 odluka</div><div class="feat-desc">Presude Vrhovnog kasacionog i Apelacionih sudova od 2018. Sistem izvlači ratio decidendi i citira presudu u podnesku.</div></div><div class="feat-back"><div class="feat-btitle">Kako se koristi?</div><ul class="feat-blist"><li>Pretraga po pravnom pitanju ili broju predmeta</li><li>Sistem izvlači ključni pravni stav (ratio decidendi)</li><li>Filtri: oblast prava, sud, period</li><li>Direktno citiranje u generisanom podnesku</li></ul></div></div></div>
-      <div class="feat-card"><div class="feat-inner"><div class="feat-front"><div class="feat-num">03</div><div class="feat-icon">&#9878;</div><div class="feat-title">Ocena pouzdanosti uz svaki odgovor</div><div class="feat-desc">HIGH / MEDIUM / LOW — sistem uvek signalizira koliko je siguran u odgovor. Bolje nepotpun tačan nego kompletan netačan.</div></div><div class="feat-back"><div class="feat-btitle">Zašto je to važno?</div><ul class="feat-blist"><li>HIGH: direktan zakonski osnov pronađen u bazi</li><li>MEDIUM: osnov postoji ali zahteva proveru</li><li>LOW: nema direktnog osnova — sistem to jasno kaže</li><li>Nikad ne izmišlja zakone ni paragrafe</li></ul></div></div></div>
-    </div>
-    <div class="feat-hint">&#x2190; hover na karticu za detalje &rarr;</div>
-  </div>
-  <div class="compare-grid r d2">
-    <div class="cmp-col"><div class="cmp-lbl">Standardni pristup</div><div class="cmp-head">Ručna pretraga zakona</div><div class="cmp-row"><span class="ck no">&#x2717;</span>20-45 minuta pretraživanja</div><div class="cmp-row"><span class="ck no">&#x2717;</span>Greška u citiranju člana</div><div class="cmp-row"><span class="ck no">&#x2717;</span>Generički AI halucinira zakone</div><div class="cmp-row"><span class="ck no">&#x2717;</span>Bez ocene pouzdanosti</div></div>
-    <div class="cmp-col"><div class="cmp-lbl">Vindex AI pristup</div><div class="cmp-head">AI pravno istraživanje</div><div class="cmp-row"><span class="ck ok">&#x2713;</span>Odgovor za manje od 10 sekundi</div><div class="cmp-row"><span class="ck ok">&#x2713;</span>Citira tačan zakon i broj člana</div><div class="cmp-row"><span class="ck ok">&#x2713;</span>Treniran isključivo na srpskim zakonima</div><div class="cmp-row"><span class="ck ok">&#x2713;</span>Ocena pouzdanosti svakog odgovora</div></div>
-  </div>
-</section>
-
-<section class="section" id="demo">
-  <div class="demo-grid">
-    <div>
-      <div class="sbadge r">Stvarni odgovor</div>
-      <div class="sh r d1">Ovo nije simulacija. <em>Ovo je output.</em></div>
-      <p class="ss r d2" style="margin-bottom:2rem;">Svaki odgovor Vindex AI sistema ima isti format: pravni osnov, zakon i član, doslovan citat, pravna posledica i ocena pouzdanosti. Isprobajte na pitanjima ispod ili upišite sopstveno.</p>
-    </div>
-    <div class="r d1">
-      <div class="sample-resp-panel">
-        <div class="srp-bar">
-          <div class="srp-dots"><div class="srp-dot sd1"></div><div class="srp-dot sd2"></div><div class="srp-dot sd3"></div></div>
-          <div class="srp-title">Vindex AI — primer odgovora</div>
-          <div class="srp-time"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;display:inline-block;"></span>8.2s</div>
-        </div>
-        <div class="srp-body">
-          <div id="srp-typing" style="padding:0.9rem 1.1rem 0;display:flex;gap:5px;align-items:center;">
-            <span class="srp-dot-anim" style="width:7px;height:7px;border-radius:50%;background:#4aa8ff;opacity:0.7;animation:srp-bounce 1.1s ease-in-out infinite;"></span>
-            <span class="srp-dot-anim" style="width:7px;height:7px;border-radius:50%;background:#4aa8ff;opacity:0.7;animation:srp-bounce 1.1s ease-in-out 0.22s infinite;"></span>
-            <span class="srp-dot-anim" style="width:7px;height:7px;border-radius:50%;background:#4aa8ff;opacity:0.7;animation:srp-bounce 1.1s ease-in-out 0.44s infinite;"></span>
-          </div>
-          <div id="srp-content" style="display:none;">
-          <div class="srp-q">
-            <div class="srp-ql">Pitanje advokata</div>
-            <div class="srp-qt">Koji su uslovi za otkaz ugovora o radu zbog povrede radne obaveze?</div>
-          </div>
-          <div class="srp-section">
-            <div class="srp-lbl blue">Pravni osnov</div>
-            <div class="srp-text" style="color:#89c8ff;font-weight:500;">Zakon o radu — Član 179, stav 1, tačka 1</div>
-          </div>
-          <div class="srp-section">
-            <div class="srp-lbl blue">Odgovor</div>
-            <div class="srp-text">Poslodavac može otkazati ugovor zaposlenom koji ne poštuje radnu disciplinu, krši obaveze ili naruši red i mir na radu, uz prethodno pisano upozorenje.</div>
-          </div>
-          <div class="srp-section">
-            <div class="srp-lbl gold">Citat iz zakona</div>
-            <div class="srp-text gold">"Poslodavac može zaposlenom da otkaže ugovor o radu ako zaposleni ne poštuje radnu disciplinu propisanu aktom poslodavca, odnosno ugovorom o radu..."</div>
-          </div>
-          <div class="srp-section">
-            <div class="srp-lbl green">Pravna posledica</div>
-            <div class="srp-text">Rešenje o otkazu mora biti u pisanoj formi i uručeno zaposlenom, uz pouku o pravnom leku i rok za žalbu od 8 dana.</div>
-          </div>
-          <div class="srp-section">
-            <div class="srp-lbl amber">Ocena pouzdanosti</div>
-            <div class="srp-text mono">Pouzdanost: 94% — Zakon o radu, čl. 179, čl. 185</div>
-          </div>
-          <div class="srp-badge">Verifikovano · bez halucinacija</div>
-          </div><!-- /srp-content -->
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="section alt" id="platform">
-  <div class="sbadge r">Arhitektura sistema</div>
-  <div class="sh r d1">Svaki predmet. Svaki klijent. <em>Svaki rok.</em></div>
-  <p class="ss r d2">Svaka funkcija je izgrađena za konkretnu potrebu advokata — od praćenja rokova i organizacije predmeta, do brzog istraživanja i pripreme podnesaka.</p>
-  <div class="plat-grid r">
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">01 — Pravno istraživanje</div><p class="p-desc">Pitanje prirodnim jezikom, odgovor za &lt;10 sekundi. Tačan zakon, broj člana, doslovan citat iz Sl. glasnika RS.</p><div class="p-detail">Sve oblasti prava — radno, obligaciono, krivično, privredno</div><div class="p-detail">Semantička pretraga — razume kontekst, ne samo ključne reči</div><div class="p-detail">Nikad ne izmišlja zakone ni paragrafe</div></div>
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">02 — Analiza predmeta</div><p class="p-desc">10-slojna forenzička analiza: pravni osnov, argumenti, kontra-argumenti, procena rizika i strategija.</p><div class="p-detail">Tužbeni zahtev i pravna kvalifikacija</div><div class="p-detail">Procena izgleda na sudu u %</div><div class="p-detail">Preporučena strategija: tužba / odbrana / nagodba</div></div>
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">03 — Generisanje nacrta</div><p class="p-desc">Procesno ispravan nacrt prema ZPP-u sa istaknutim mestima za popunu. Export u PDF i Word.</p><div class="p-detail">Tužba, žalba, odgovor na tužbu, ugovor</div><div class="p-detail">Prilagođen srpskom procesnom pravu</div><div class="p-detail">PDF sa zaglavljem i Word export</div></div>
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">04 — Sudska praksa</div><p class="p-desc">12.604 odluka VKS i Apelacionih sudova. Ekstrakcija ratio decidendi i direktno citiranje u podnesku.</p><div class="p-detail">Filtriranje po oblasti, sudu i periodu</div><div class="p-detail">Ekstrakcija ključnog pravnog stava</div><div class="p-detail">Direktno citiranje presude u nacrtu</div></div>
-    <div class="plat-card"><div class="p-badge live">Dostupno</div><div class="p-title">05 — Upravljanje predmetima</div><p class="p-desc">CRM za advokatsku kancelariju. Folder po predmetu, AI kontekst, dokumenti i beleške — enkriptovano.</p><div class="p-detail">Klijenti, predmeti, dokumenti na jednom mestu</div><div class="p-detail">AI asistent koji pamti kontekst predmeta</div><div class="p-detail">AES-256 enkripcija poverljivih podataka</div></div>
-    <div class="plat-card"><div class="p-badge pro" style="color:#e8c97a;border-color:rgba(232,201,122,0.25);background:rgba(232,201,122,0.05);">PRO</div><div class="p-title">06 — Pravna strategija</div><p class="p-desc">6 specijalizovanih alata za dubinsku pripremu: Red Team, Litigation Simulator, Procena ishoda, Due Diligence, Revizija dokumenta, Analiza iskaza.</p><div class="p-detail">Red Team — analiza slabih tačaka predmeta</div><div class="p-detail">Litigation Simulator — procena % uspeha</div><div class="p-detail">Due Diligence i Revizija dokumenta</div></div>
-    <div class="plat-card"><div class="p-badge pro" style="color:#e8c97a;border-color:rgba(232,201,122,0.25);background:rgba(232,201,122,0.05);">PRO</div><div class="p-title">07 — Digitalna imovina</div><p class="p-desc">Specijalizovan modul za kriptovalute i digitalnu imovinu po srpskom Zakonu o digitalnoj imovini i EU MiCA regulativi.</p><div class="p-detail">ZDI usklađenost i CASP dozvole (NBS / KHoV)</div><div class="p-detail">MiCA procena za EU projekte</div><div class="p-detail">AML/KYC audit po FATF standardima</div></div>
-  </div>
-</section>
-
-<section class="section" id="pricing">
-  <div class="sbadge r">Cenovnik</div>
-  <div class="sh r d1">Jednostavno i <span class="gold">transparentno.</span></div>
-  <p class="ss r d2">Počni besplatno. Nadogradi kada si spreman.</p>
-  <div class="tog-row r d2" onclick="toggleAnnual()"><div class="tog" id="tog"></div><span>Godišnja naplata - ustedi 20%</span></div>
-  <div class="price-grid r">
-
-    <!-- BASIC -->
-    <div class="price-card">
-      <div class="price-tier">Basic</div>
-      <div class="price-num" id="p1"></div>
-      <div class="price-per" id="pp1"></div>
-      <div class="pdiv"></div>
-      <p class="price-desc">Za individualne advokate koji žele brže, preciznije odgovore bez gubljenja vremena na pretragu.</p>
-      <ul class="price-list">
-        <li>Neograničena pravna istraživanja</li>
-        <li>Pretraga svih važećih zakona Republike Srbije</li>
-        <li>Ocena pouzdanosti odgovora</li>
-        <li>Citati sa Sl. glasnikom</li>
-        <li>15 besplatnih pitanja</li>
-      </ul>
-      <button class="price-btn main" onclick="openModal()">Počni besplatno &rarr;</button>
-    </div>
-
-    <!-- PRO -->
-    <div class="price-card feat">
-      <div class="price-badge">PREPORUKA ZA KANCELARIJE</div>
-      <div class="price-tier mt">Pro</div>
-      <div class="price-num" id="p2"></div>
-      <div class="price-per" id="pp2"></div>
-      <div class="pdiv"></div>
-      <p class="price-desc">Kompletno upravljanje advokatskom kancelarijom. Predmeti, klijenti, rokovi, dokumenti i AI — sve na jednom mestu.</p>
-      <ul class="price-list">
-        <li>Sve iz Basic paketa</li>
-        <li>Nacrt podnesaka i tužbi</li>
-        <li>Analiza ugovora i dokumenata</li>
-        <li>Istorija svih pretraga</li>
-        <li>Prioritetna podrška 24/7</li>
-        <li>Sudska praksa i analiza dokumenata</li>
-      </ul>
-      <button class="price-btn gold" onclick="openProModal()">Aktiviraj PRO &rarr;</button>
-    </div>
-
-    <!-- FIRM -->
-    <div class="price-card">
-      <div class="price-tier">Firm</div>
-      <div class="price-num">Custom</div>
-      <div class="price-per">prilagođeno</div>
-      <div class="pdiv"></div>
-      <p class="price-desc">Za kancelarije sa više korisnika, specifičnim integracijama i SLA podrškom.</p>
-      <ul class="price-list">
-        <li>Više korisničkih naloga</li>
-        <li>Prilagođen onboarding</li>
-        <li>Integracija sa internim sistemima</li>
-        <li>SLA i dedikovana podrška</li>
-      </ul>
-      <button class="price-btn" onclick="openModal()">Kontaktiraj nas</button>
-    </div>
-
-  </div>
-</section>
-
-<section class="section alt" id="about">
-  <div class="sbadge r">O sistemu</div>
-  <div class="sh r d1">Zašto Vindex <span class="hi-ai">AI</span> postoji.</div>
-  <div class="about-grid">
-    <div>
-      <div class="about-q r">Pre Vindex AI, advokat u Srbiji je istu pretragu radio ručno: Legalis za tekst zakona, Paragraf za sudsku praksu, ručna provera Sl. glasnika. Sati posla pre prvog razgovora sa klijentom — za informaciju koja bi trebalo da bude dostupna za 10 sekundi.<br><br><strong>Vindex AI ne ubrzava taj stari proces. Zamenjuje ga.</strong></div>
-      <p class="about-p r d1">Sistem je izgrađen na jednom principu: svaki odgovor mora biti <strong style="color:#fff;">verifikovan, citiran i ponovljiv.</strong> HIGH / MEDIUM / LOW uz svaki odgovor nije marketinška fraza — to je tehnički signal koliko direktnih zakonskih osnova je pronađeno u bazi.</p>
-      <p class="about-p r d1">Razvijen u direktnoj saradnji sa advokatima koji su opisali problem precizno: ne nedostaje znanje — nedostaje vreme za pronalaženje tačnog propisa u pravi trenutak.</p>
-      <div class="info-tbl r d2">
-        <div class="info-row"><div class="info-k">Status</div><div class="info-v">Produkcija — pristup dostupan</div></div>
-        <div class="info-row"><div class="info-k">Baza</div><div class="info-v">18+ zakona RS + 12.604 odluka VKS</div></div>
-        <div class="info-row"><div class="info-k">Email</div><div class="info-v">info@vindex.rs</div></div>
-        <div class="info-row"><div class="info-k">Besplatno</div><div class="info-v acc">15 pitanja — bez kartice</div></div>
-      </div>
-    </div>
-    <div class="vals-list r d1">
-      <div class="val-row"><div class="val-n">I</div><div><div class="val-title">Nikad ne izmišlja zakon</div><div class="val-text">Sistem citira isključivo zakone koji postoje u bazi. Ako osnov nije pronađen — odgovor je: ne mogu da potvrdim. Nikad izmišljeni paragraf.</div></div></div>
-      <div class="val-row"><div class="val-n">II</div><div><div class="val-title">Svaki odgovor ima broj člana i Sl. glasnik</div><div class="val-text">Svaki pravni zaključak navodi tačan zakon, broj člana i Sl. glasnik. Proverljivo u 30 sekundi — to je standard, ne opcija.</div></div></div>
-      <div class="val-row"><div class="val-n">III</div><div><div class="val-title">Ako nije siguran — kaže to otvoreno</div><div class="val-text">LOW pouzdanost znači: sistem nije pronašao direktan zakonski osnov. To je informacija — ne greška. Bolje nepotpun tačan nego kompletan netačan.</div></div></div>
-      <div class="val-row"><div class="val-n">IV</div><div><div class="val-title">Srpski zakoni — ne prevodi stranih sistema</div><div class="val-text">Baza sadrži isključivo važeće propise RS. Sistem ne koristi generički GPT treniran na stranom pravu i preveden na srpski.</div></div></div>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="footer-top">
-    <a href="#" class="f-logo">Vindex<em>AI</em></a>
-    <div class="f-links">
-      <a href="#features">Funkcije</a>
-      <a href="#pricing">Cenovnik</a>
-      <a href="#about">O nama</a>
-      <a href="mailto:info@vindex.rs">Kontakt</a>
-    </div>
-  </div>
-  <div class="footer-bottom">
-    <div class="f-copy">&copy; 2026 Vindex AI. Sva prava zadržana.</div>
-    <div class="f-note">Vindex AI ne zamenjuje profesionalno pravno rasuđivanje advokata. Za konačne pravne odluke uvek koristite profesionalnu procenu.</div>
-  </div>
-</footer>
-
+<script>
+/* ── Vindex Shell: show app when logged in, landing when not ── */
+(function(){
+  function vxSync(){
+    var nu  = document.getElementById('nav-user');
+    var sh  = document.getElementById('vx-shell');
+    var ld  = document.getElementById('vx-landing');
+    var ts  = document.getElementById('vx-topbar-settings-btn');
+    var loggedIn = nu && nu.style.display === 'flex';
+    if(sh) sh.style.display = loggedIn ? 'flex' : 'none';
+    if(ld) ld.style.display = loggedIn ? 'none' : 'flex';
+  }
+  function vxInit(){
+    var nu = document.getElementById('nav-user');
+    if(nu){
+      new MutationObserver(vxSync).observe(nu, {attributes:true, attributeFilter:['style']});
+    }
+    vxSync();
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', vxInit);
+  } else {
+    vxInit();
+  }
+})();
+</script>
 <script>
 var BASE_URL   = window.location.origin;
 var STRIPE_URL = ''; // Set to your Stripe checkout or pricing page URL
@@ -8911,12 +9872,14 @@ async function submitWaitlist() {
 }
 
 /* NAV SCROLL */
-window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',scrollY>60);});
+window.addEventListener('scroll',function(){var _n=document.getElementById('nav');if(_n)_n.classList.toggle('scrolled',scrollY>60);});
 
 /* MODAL CLOSE ON BACKDROP */
-document.getElementById('auth-modal').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
-document.getElementById('paywall-modal').addEventListener('click', function(e) { if(e.target===this) closePaywall(); });
-document.getElementById('pro-modal').addEventListener('click', function(e) { if(e.target===this) closeProModal(); });
+(function(){
+  var _am=document.getElementById('auth-modal'); if(_am) _am.addEventListener('click',function(e){if(e.target===this)closeModal();});
+  var _pm=document.getElementById('paywall-modal'); if(_pm) _pm.addEventListener('click',function(e){if(e.target===this)closePaywall();});
+  var _pr=document.getElementById('pro-modal'); if(_pr) _pr.addEventListener('click',function(e){if(e.target===this)closeProModal();});
+})();
 
 /* INIT */
 window.addEventListener('DOMContentLoaded', function() {
@@ -13388,5 +14351,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
 </body>
 </html>
