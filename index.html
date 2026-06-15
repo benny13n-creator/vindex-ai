@@ -2291,6 +2291,267 @@ footer { padding: 2rem 1.5rem; }
 }
 /* ══════════════════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════════════════
+   FAZA 3 · 4 · 5 — AI HUB · TIPOGRAFIJA · SPACING
+   Cilj: Vindex AI mora biti prepoznatljiv, autentičan, premium.
+   Referenca: Bloomberg Terminal · Goldman Sachs · Legal Editorial
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Spacing tokens: 8pt grid ─────────────────────────────────── */
+:root {
+  --sp-h: 4px; --sp-1: 8px; --sp-2: 16px; --sp-3: 24px;
+  --sp-4: 32px; --sp-5: 40px; --sp-6: 48px; --sp-8: 64px;
+}
+
+/* ── T-BAR: Brendirani naslov, bez generičnih dotova ─────────── */
+.t-dot { display: none !important; }
+.t-dots { width: 0; overflow: hidden; }
+.t-title {
+  font-family: var(--font-brand) !important;
+  font-size: 0.92rem !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  text-transform: none !important;
+  color: rgba(255,255,255,0.5) !important;
+}
+.t-bar {
+  border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+  background: rgba(255,255,255,0.015) !important;
+}
+
+/* ── Navigacija: Bloomberg-style mono uppercase ─────────────────── */
+.t-tab {
+  font-family: var(--font-mono) !important;
+  font-size: 0.5rem !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  padding: 12px 16px !important;
+  color: rgba(255,255,255,0.28) !important;
+  transition: color 0.15s, border-bottom-color 0.15s !important;
+}
+.t-tab.active {
+  color: rgba(255,255,255,0.85) !important;
+  border-bottom-color: #4aa8ff !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.18em !important;
+}
+.t-tab:hover {
+  color: rgba(255,255,255,0.58) !important;
+}
+
+/* ── AI HUB — Komandni centar, editorial grid ─────────────────── */
+.hub-hd {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: var(--sp-3); gap: var(--sp-3); padding-bottom: var(--sp-3);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.hub-eyebrow {
+  font-family: var(--font-mono); font-size: 0.46rem; letter-spacing: 0.24em;
+  text-transform: uppercase; color: rgba(74,168,255,0.5);
+  margin-bottom: var(--sp-1);
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.hub-eyebrow::before {
+  content: ''; display: block; width: 16px; height: 1px;
+  background: rgba(74,168,255,0.5); flex-shrink: 0;
+}
+.hub-title {
+  font-family: var(--font-brand); font-size: 2.15rem; font-weight: 500;
+  color: rgba(255,255,255,0.9); letter-spacing: -0.025em; line-height: 1.08;
+  margin: 0;
+}
+.hub-hd-right {
+  flex-shrink: 0; display: flex; align-items: flex-end;
+  padding-bottom: 4px;
+}
+.hub-stat-pair { display: flex; gap: var(--sp-4); }
+.hub-stat { text-align: right; }
+.hub-stat-n {
+  font-family: var(--font-brand); font-size: 1.75rem; font-weight: 600;
+  color: rgba(255,255,255,0.65); line-height: 1; display: block;
+  letter-spacing: -0.02em;
+}
+.hub-stat-l {
+  font-family: var(--font-mono); font-size: 0.43rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.22);
+  display: block; margin-top: 3px;
+}
+
+/* Tool grid — hairline-divided editorial layout */
+.hub-tool-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  border-left: 1px solid rgba(255,255,255,0.07);
+}
+@media (max-width: 520px) {
+  .hub-tool-grid { grid-template-columns: 1fr; }
+  .hub-tool { border-right: none !important; }
+  .hub-tool:last-child { border-bottom: none !important; }
+}
+.hub-tool {
+  background: var(--void);
+  padding: var(--sp-3);
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: var(--sp-1);
+  position: relative; overflow: hidden;
+  border-right: 1px solid rgba(255,255,255,0.07);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  transition: background 0.18s;
+}
+/* Right column: no extra right border */
+.hub-tool:nth-child(2n) { border-right: none; }
+/* Last row: no bottom border */
+.hub-tool:nth-last-child(-n+2) { border-bottom: none; }
+
+/* Vindex Mark: the signature vertical left accent */
+.hub-tool::after {
+  content: ''; position: absolute; left: 0; top: var(--sp-3); bottom: var(--sp-3);
+  width: 2px; background: transparent; transition: background 0.18s;
+  border-radius: 0 1px 1px 0;
+}
+.hub-tool:hover { background: rgba(74,168,255,0.03); }
+.hub-tool:hover::after { background: rgba(74,168,255,0.6); }
+.hub-tool.hub-tool-pro { background: rgba(201,168,76,0.015); }
+.hub-tool.hub-tool-pro::after { background: rgba(201,168,76,0.18); }
+.hub-tool.hub-tool-pro:hover { background: rgba(201,168,76,0.04); }
+.hub-tool.hub-tool-pro:hover::after { background: rgba(201,168,76,0.65); }
+
+.hub-tool-num {
+  font-family: var(--font-mono); font-size: 0.46rem; font-weight: 700;
+  letter-spacing: 0.22em; color: rgba(255,255,255,0.12);
+  text-transform: uppercase; margin-bottom: -2px;
+}
+.hub-tool-cat {
+  font-family: var(--font-mono); font-size: 0.47rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: rgba(255,255,255,0.28);
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+.hub-pro-badge {
+  font-family: var(--font-mono); font-size: 0.42rem; letter-spacing: 0.1em;
+  background: rgba(201,168,76,0.08); color: rgba(201,168,76,0.7);
+  padding: 1px 4px; border: 1px solid rgba(201,168,76,0.22);
+  text-transform: uppercase;
+}
+.hub-tool-name {
+  font-family: var(--font-brand); font-size: 1.3rem; font-weight: 500;
+  color: rgba(255,255,255,0.87); letter-spacing: -0.01em; line-height: 1.15;
+  margin-top: 6px; flex: 1;
+}
+.hub-tool-desc {
+  font-family: var(--font-ui); font-size: 0.69rem; color: rgba(255,255,255,0.35);
+  line-height: 1.7; margin-top: 2px;
+}
+.hub-tool-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: var(--sp-2); padding-top: var(--sp-2);
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.hub-tool-tag {
+  font-family: var(--font-mono); font-size: 0.45rem; letter-spacing: 0.13em;
+  text-transform: uppercase; color: rgba(255,255,255,0.18);
+}
+.hub-tool-cta {
+  font-family: var(--font-mono); font-size: 0.5rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: rgba(74,168,255,0.45);
+  transition: color 0.15s;
+}
+.hub-tool:hover .hub-tool-cta { color: #4aa8ff; }
+.hub-tool-pro .hub-tool-cta { color: rgba(201,168,76,0.5); }
+.hub-tool-pro:hover .hub-tool-cta { color: #c9a84c; }
+
+/* ── Podešavanja: Cormorant naslovi ───────────────────────────── */
+.settings-header {
+  font-family: var(--font-brand) !important; font-size: 1.9rem !important;
+  font-weight: 500 !important; letter-spacing: -0.025em !important;
+  color: rgba(255,255,255,0.88) !important; line-height: 1.1 !important;
+  margin-bottom: var(--sp-4) !important; padding: 0 !important;
+  border: none !important;
+}
+.settings-section-hd {
+  font-family: var(--font-mono) !important; font-size: 0.47rem !important;
+  letter-spacing: 0.2em !important; text-transform: uppercase !important;
+  color: rgba(255,255,255,0.28) !important; font-weight: 400 !important;
+  padding-bottom: 10px !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+  margin-bottom: var(--sp-2) !important;
+}
+.settings-row-label {
+  font-size: 0.82rem !important; font-weight: 500 !important;
+  color: rgba(255,255,255,0.78) !important;
+}
+.settings-row-sub {
+  font-family: var(--font-mono) !important; font-size: 0.6rem !important;
+  letter-spacing: 0.06em !important; color: rgba(255,255,255,0.28) !important;
+  margin-top: 2px !important;
+}
+.settings-btn {
+  font-family: var(--font-mono) !important; font-size: 0.48rem !important;
+  letter-spacing: 0.14em !important; text-transform: uppercase !important;
+}
+
+/* ── Dokumenti hub panel ──────────────────────────────────────── */
+.dok-notice strong {
+  font-family: var(--font-brand) !important; font-size: 1.1rem !important;
+  font-weight: 500 !important; letter-spacing: -0.01em !important;
+  color: rgba(255,255,255,0.85) !important;
+}
+.dok-nav-label {
+  font-family: var(--font-ui); font-size: 0.82rem; font-weight: 600;
+  color: rgba(255,255,255,0.82);
+}
+.dok-nav-sub {
+  font-family: var(--font-mono) !important; font-size: 0.52rem !important;
+  letter-spacing: 0.08em !important; color: rgba(255,255,255,0.28) !important;
+}
+
+/* ── Vindex Mark: sekcije unutar tab panela ──────────────────── */
+/* Sve sekcije u AI tool panelima dobijaju Cormorant naslove */
+.t-guide-bold {
+  font-family: var(--font-brand) !important; font-size: 1.1rem !important;
+  font-weight: 500 !important; letter-spacing: -0.01em !important;
+  color: rgba(255,255,255,0.85) !important;
+}
+/* Dashboard sekcija heading — serif upgrade */
+.kc-section-hd > span:first-child {
+  font-family: var(--font-brand) !important;
+  font-size: 0.95rem !important; font-weight: 500 !important;
+  letter-spacing: -0.01em !important; text-transform: none !important;
+  color: rgba(255,255,255,0.7) !important;
+}
+/* KPI kartica — veće, bolder brojevi */
+.kc-kpi-n {
+  font-size: 2.6rem !important; color: rgba(255,255,255,0.85) !important;
+  letter-spacing: -0.03em !important;
+}
+.kc-kpi-n.warn { color: #ef4444 !important; }
+/* Dashboard AI sekcija heading serif */
+.kc-ai-section-hd {
+  font-family: var(--font-brand) !important; font-size: 1rem !important;
+  font-weight: 500 !important; letter-spacing: -0.01em !important;
+  text-transform: none !important; color: rgba(255,255,255,0.55) !important;
+}
+/* AI tool card titles */
+.kc-ai-card-title {
+  font-family: var(--font-brand) !important; font-size: 1.05rem !important;
+  font-weight: 500 !important; letter-spacing: -0.01em !important;
+}
+/* Greeting: bigger */
+.kc-greeting {
+  font-size: 1.85rem !important; font-weight: 400 !important;
+  letter-spacing: -0.02em !important; color: rgba(255,255,255,0.88) !important;
+}
+/* t-tool-back: serif flavored */
+.t-tool-back {
+  font-family: var(--font-mono) !important; font-size: 0.5rem !important;
+  letter-spacing: 0.18em !important; text-transform: uppercase !important;
+}
+
+/* ── Hairtline rule utility ───────────────────────────────────── */
+.vx-rule {
+  height: 1px; background: rgba(255,255,255,0.06); margin: var(--sp-3) 0;
+}
+/* ══════════════════════════════════════════════════════════════════ */
+
 /* ── VINDEX EDITORIAL — novi pravila ── */
 .sbadge::before { content:''; display:block; width:20px; height:1px; background:rgba(74,168,255,0.5); flex-shrink:0; }
 .orb,.orb-1,.orb-2 { opacity:0; }
@@ -2524,8 +2785,8 @@ footer { padding: 2rem 1.5rem; }
       <div class="terminal-wrap">
       <div class="terminal">
         <div class="t-bar">
-          <div class="t-dots"><div class="t-dot td1"></div><div class="t-dot td2"></div><div class="t-dot td3"></div></div>
-          <div class="t-title">vindex-ai</div>
+          <div class="t-dots"></div>
+          <div class="t-title">Vindex AI</div>
           <div style="display:flex;align-items:center;gap:0.5rem;">
             <button class="t-newchat" onclick="newChat()" title="Počni novi razgovor — briše ekran i resetuje kontekst">⊕ Novi čet</button>
             <div class="t-status"><div class="t-sdot"></div>aktivan</div>
@@ -3411,37 +3672,86 @@ footer { padding: 2rem 1.5rem; }
 
           <!-- ── AI ALATI HUB ─────────────────────────────────────────────── -->
           <div id="tab-alati" style="display:block">
-            <div class="ai-hub-intro">Pravni AI — odaberite alat</div>
-            <div class="ai-hub-grid">
-              <div class="ai-hub-card" onclick="openAITool('q')">
-                <div class="ai-hub-card-icon">⚖️</div>
-                <div class="ai-hub-card-name">Istraživanje</div>
-                <div class="ai-hub-card-desc">Pretraži sve važeće zakone RS. Dobij tačan zakon, član i citat za manje od 10 sekundi.</div>
+            <!-- Hub header -->
+            <div class="hub-hd">
+              <div class="hub-hd-left">
+                <div class="hub-eyebrow">Vindex AI — Pravna Inteligencija</div>
+                <h2 class="hub-title">AI Komandni centar.</h2>
               </div>
-              <div class="ai-hub-card" onclick="openAITool('a')">
-                <div class="ai-hub-card-icon">🔍</div>
-                <div class="ai-hub-card-name">Analiza dokumenta</div>
-                <div class="ai-hub-card-desc">Otpremi ugovor, presudu ili podnesak. AI analizira sadržaj i identifikuje pravne rizike.</div>
+              <div class="hub-hd-right">
+                <div class="hub-stat-pair">
+                  <div class="hub-stat">
+                    <span class="hub-stat-n">847</span>
+                    <span class="hub-stat-l">Zakona RS</span>
+                  </div>
+                  <div class="hub-stat">
+                    <span class="hub-stat-n">12.604</span>
+                    <span class="hub-stat-l">Presuda</span>
+                  </div>
+                </div>
               </div>
-              <div class="ai-hub-card" onclick="openAITool('s')">
-                <div class="ai-hub-card-icon">📚</div>
-                <div class="ai-hub-card-name">Sudska praksa</div>
-                <div class="ai-hub-card-desc">Pretraga 12.604 odluka VS i VKS od 2018. Filtri po oblasti, sudu i periodu.</div>
+            </div>
+            <!-- Tool grid -->
+            <div class="hub-tool-grid">
+              <div class="hub-tool" onclick="openAITool('q')">
+                <div class="hub-tool-num">01</div>
+                <div class="hub-tool-cat">Osnov · Istraživanje</div>
+                <div class="hub-tool-name">Istraživanje zakona</div>
+                <div class="hub-tool-desc">Svi važeći propisi Republike Srbije. Postavi pravno pitanje — dobij tačan zakon, član i citat za manje od 10 sekundi.</div>
+                <div class="hub-tool-foot">
+                  <span class="hub-tool-tag">847 zakona RS</span>
+                  <span class="hub-tool-cta">Pokreni →</span>
+                </div>
               </div>
-              <div class="ai-hub-card pro-card" onclick="openAITool('n')">
-                <div class="ai-hub-card-icon">📄</div>
-                <div class="ai-hub-card-name">Nacrti <span class="pro-badge">PRO</span></div>
-                <div class="ai-hub-card-desc">Generator tužbi, žalbi i ugovora. Pravno precizni šabloni za srpske sudske procedure.</div>
+              <div class="hub-tool" onclick="openAITool('a')">
+                <div class="hub-tool-num">02</div>
+                <div class="hub-tool-cat">Analiza · Rizici</div>
+                <div class="hub-tool-name">Analiza dokumenta</div>
+                <div class="hub-tool-desc">Otpremi ugovor, presudu ili podnesak. AI identifikuje ključne klauzule, pravne rizike i preporučene korake.</div>
+                <div class="hub-tool-foot">
+                  <span class="hub-tool-tag">PDF · DOCX · TXT</span>
+                  <span class="hub-tool-cta">Pokreni →</span>
+                </div>
               </div>
-              <div class="ai-hub-card pro-card" onclick="openAITool('t')">
-                <div class="ai-hub-card-icon">⚔️</div>
-                <div class="ai-hub-card-name">Strategija <span class="pro-badge">PRO</span></div>
-                <div class="ai-hub-card-desc">Red Team simulator, procena ishoda i litigation strategija za kompleksne predmete.</div>
+              <div class="hub-tool" onclick="openAITool('s')">
+                <div class="hub-tool-num">03</div>
+                <div class="hub-tool-cat">Sudska praksa · Presude</div>
+                <div class="hub-tool-name">Sudska praksa</div>
+                <div class="hub-tool-desc">Pretraži 12.604 odluke Vrhovnog i Višeg kasacionog suda od 2018. Filtri po oblasti, sudu, periodu i ishodu.</div>
+                <div class="hub-tool-foot">
+                  <span class="hub-tool-tag">12.604 presuda</span>
+                  <span class="hub-tool-cta">Pokreni →</span>
+                </div>
               </div>
-              <div class="ai-hub-card pro-card" onclick="openAITool('w')">
-                <div class="ai-hub-card-icon">₿</div>
-                <div class="ai-hub-card-name">Web3 <span class="pro-badge">PRO</span></div>
-                <div class="ai-hub-card-desc">ZDI / MiCA Compliance alati. Pravna analiza digitalnih sredstava po srpskom i EU pravu.</div>
+              <div class="hub-tool hub-tool-pro" onclick="openAITool('n')">
+                <div class="hub-tool-num">04</div>
+                <div class="hub-tool-cat">Generisanje · Podnesci <span class="hub-pro-badge">PRO</span></div>
+                <div class="hub-tool-name">Nacrti i podnesci</div>
+                <div class="hub-tool-desc">Generator tužbi, žalbi, ugovora i podnesaka. Pravno precizni šabloni prilagođeni srpskim sudskim procedurama.</div>
+                <div class="hub-tool-foot">
+                  <span class="hub-tool-tag">24 šablona</span>
+                  <span class="hub-tool-cta">Pokreni →</span>
+                </div>
+              </div>
+              <div class="hub-tool hub-tool-pro" onclick="openAITool('t')">
+                <div class="hub-tool-num">05</div>
+                <div class="hub-tool-cat">Taktika · Strategija <span class="hub-pro-badge">PRO</span></div>
+                <div class="hub-tool-name">Procesna strategija</div>
+                <div class="hub-tool-desc">Red Team simulator, procena verovatnoće ishoda i litigation strategija za kompleksne predmete zasnovana na srodnim presudama.</div>
+                <div class="hub-tool-foot">
+                  <span class="hub-tool-tag">Advanced AI</span>
+                  <span class="hub-tool-cta">Pokreni →</span>
+                </div>
+              </div>
+              <div class="hub-tool hub-tool-pro" onclick="openAITool('w')">
+                <div class="hub-tool-num">06</div>
+                <div class="hub-tool-cat">Compliance · Digitalna imovina <span class="hub-pro-badge">PRO</span></div>
+                <div class="hub-tool-name">Web3 & Digitalna imovina</div>
+                <div class="hub-tool-desc">ZDI / MiCA Compliance alati. Pravna analiza digitalnih sredstava i smart ugovora po srpskom i EU pravu.</div>
+                <div class="hub-tool-foot">
+                  <span class="hub-tool-tag">MiCA · ZDI · EU</span>
+                  <span class="hub-tool-cta">Pokreni →</span>
+                </div>
               </div>
             </div>
           </div>
