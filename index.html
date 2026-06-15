@@ -17,6 +17,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer"/>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script>
 /* ── Srpska ćirilica — Vukova azbuka (inline, bez eksternog fajla) ────────── */
 (function(global){
@@ -4490,6 +4491,488 @@ select.pro-input option { background: var(--surface); }
   .vx2-orbit-ring-2 { width: 135px !important; height: 135px !important; }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   FAZA 1 — Sidebar redesign (220px labeled + lucide ikone)
+   NE menja: color palette, glass, grid, visual tokens
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Icon color CSS variables */
+:root {
+  --icon-nav:        rgba(255,255,255,0.32);
+  --icon-nav-hover:  rgba(255,255,255,0.62);
+  --icon-nav-active: #4aa8ff;
+  --icon-ui:         rgba(255,255,255,0.42);
+}
+
+/* Sidebar — 220px labeled layout */
+.vx-sidebar {
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  overflow-y: auto !important;
+  scrollbar-width: none !important;
+}
+.vx-sidebar::-webkit-scrollbar { display: none !important; }
+
+/* Logo */
+.vx-logo-wrap {
+  padding: 18px 18px 14px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+.vx-logo-mark {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 1.22rem !important;
+  font-weight: 600 !important;
+  color: rgba(255,255,255,0.88) !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1 !important;
+}
+.vx-logo-mark em {
+  font-style: normal !important;
+  color: var(--blue) !important;
+}
+/* Hide legacy V mark */
+.vx-sidebar-logo::before { display: none !important; content: none !important; }
+.vx-logo-text { display: none !important; }
+
+/* Nav container */
+.vx-nav, .t-tabs-wrap.vx-nav-wrap {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 8px 0 !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  width: 100% !important;
+}
+
+/* Tab items */
+.t-tab {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 9px 16px !important;
+  height: auto !important;
+  min-height: 36px !important;
+  width: 100% !important;
+  min-width: auto !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  border-left: 2px solid transparent !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  font-family: var(--font-ui) !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  color: var(--icon-nav) !important;
+  cursor: pointer !important;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  background: transparent !important;
+  flex-shrink: 0 !important;
+}
+.t-tab:hover {
+  color: var(--icon-nav-hover) !important;
+  background: rgba(255,255,255,0.03) !important;
+  border-left-color: rgba(255,255,255,0.08) !important;
+}
+.t-tab.active {
+  color: rgba(255,255,255,0.88) !important;
+  background: rgba(74,168,255,0.06) !important;
+  border-left-color: var(--blue) !important;
+}
+/* Remove legacy pseudo-element icon/tooltip */
+.t-tab::before { display: none !important; content: none !important; }
+.t-tab::after  { display: none !important; content: none !important; }
+
+/* Lucide icon slot */
+.vx-tab-ico {
+  width: 18px !important;
+  height: 18px !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: inherit !important;
+}
+.vx-tab-ico svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke-width: 1.75 !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  display: block !important;
+}
+
+/* Label */
+.vx-tab-lbl {
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  color: inherit !important;
+  font-family: var(--font-ui) !important;
+}
+
+/* Separator */
+.vx-nav-sep, .vx-sidebar-sep {
+  width: calc(100% - 32px) !important;
+  height: 1px !important;
+  background: rgba(255,255,255,0.05) !important;
+  margin: 4px 16px !important;
+  flex-shrink: 0 !important;
+  border: none !important;
+}
+
+/* Footer */
+.vx-sidebar-foot, .vx-sidebar-footer {
+  padding: 10px 12px !important;
+  border-top: 1px solid rgba(255,255,255,0.05) !important;
+  flex-shrink: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+.vx-new-btn {
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  background: rgba(74,168,255,0.07) !important;
+  border: 1px solid rgba(74,168,255,0.16) !important;
+  border-radius: 8px !important;
+  color: var(--blue) !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background 0.15s !important;
+  font-family: var(--font-ui) !important;
+  text-align: left !important;
+  box-sizing: border-box !important;
+}
+.vx-new-btn:hover { background: rgba(74,168,255,0.13) !important; }
+.vx-new-btn-ico { display: flex !important; align-items: center !important; flex-shrink: 0 !important; }
+.vx-new-btn-ico svg { width: 14px !important; height: 14px !important; stroke-width: 2 !important; stroke: currentColor !important; fill: none !important; }
+.vx-new-btn-lbl { white-space: nowrap !important; }
+
+/* Hidden tabs — zero size */
+.vx-hidden-tab {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ── Lucide icon helpers (UI-wide) ─── */
+i[data-lucide] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+i[data-lucide] svg {
+  stroke: currentColor;
+  fill: none;
+  display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FAZA 1 — Komandni centar (statički, modularna arhitektura)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Tab-h wrapper */
+#tab-h { padding: 20px 20px 24px !important; box-sizing: border-box; overflow-y: auto; }
+
+/* Header */
+.kc-hdr {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1.35rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.kc-greeting {
+  font-family: var(--font-ui);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.82);
+}
+.kc-date-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 0.04em;
+}
+
+/* Static sphere */
+.kc-sphere-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.1rem;
+}
+.kc-sphere {
+  width: 300px;
+  height: 128px;
+  border: 1px solid rgba(74,168,255,0.12);
+  border-radius: 64px;
+  background: rgba(74,168,255,0.025);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.kc-sphere-stats {
+  display: flex;
+  align-items: center;
+}
+.kc-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 20px;
+}
+.kc-stat-num {
+  font-family: var(--font-mono);
+  font-size: 1.45rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.78);
+  line-height: 1;
+}
+.kc-stat-num.kc-n-warn   { color: rgba(240,180,41,0.88); }
+.kc-stat-num.kc-n-danger { color: rgba(239,68,68,0.88); }
+.kc-stat-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  color: rgba(255,255,255,0.28);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+.kc-stat-div {
+  width: 1px;
+  height: 34px;
+  background: rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+/* Quick actions bar */
+.kc-qa-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+.kc-qa-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.48);
+  font-family: var(--font-ui);
+  font-size: 0.77rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.14s;
+  white-space: nowrap;
+}
+.kc-qa-btn:hover {
+  background: rgba(74,168,255,0.06);
+  border-color: rgba(74,168,255,0.16);
+  color: rgba(255,255,255,0.78);
+}
+.kc-qa-btn i[data-lucide] svg { width: 13px !important; height: 13px !important; stroke-width: 2 !important; }
+
+/* 4 panels grid */
+.kc-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+/* Individual panel */
+.kc-panel {
+  background: rgba(255,255,255,0.018);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 164px;
+}
+.kc-panel-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.kc-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.kc-panel-title i[data-lucide] svg { width: 12px !important; height: 12px !important; stroke-width: 2 !important; }
+.kc-panel-badge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: rgba(74,168,255,0.72);
+  background: rgba(74,168,255,0.07);
+  border: 1px solid rgba(74,168,255,0.14);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.kc-panel-badge.kc-badge-warn {
+  color: rgba(240,180,41,0.82);
+  background: rgba(240,180,41,0.07);
+  border-color: rgba(240,180,41,0.18);
+}
+.kc-panel-empty {
+  font-family: var(--font-ui);
+  font-size: 0.76rem;
+  color: rgba(255,255,255,0.18);
+  padding: 14px 0;
+  text-align: center;
+  flex: 1;
+}
+.kc-panel-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.035);
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.kc-panel-row:last-of-type { border-bottom: none; }
+.kc-panel-row:hover { opacity: 0.72; }
+.kc-row-ico { flex-shrink: 0; margin-top: 2px; }
+.kc-row-ico i[data-lucide] svg { width: 13px !important; height: 13px !important; stroke-width: 1.75 !important; }
+.kc-ico-ok     { color: rgba(52,211,153,0.6); }
+.kc-ico-warn   { color: rgba(240,180,41,0.65); }
+.kc-ico-danger { color: rgba(239,68,68,0.65); }
+.kc-ico-muted  { color: rgba(255,255,255,0.18); }
+.kc-ico-ai     { color: rgba(74,168,255,0.6); }
+.kc-panel-row-info { flex: 1; min-width: 0; }
+.kc-panel-row-naziv {
+  font-family: var(--font-ui);
+  font-size: 0.79rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kc-panel-row-meta {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.28);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kc-panel-preporuka .kc-panel-row-naziv {
+  white-space: normal;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+.kc-panel-cta {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: rgba(74,168,255,0.4);
+  margin-top: auto;
+  cursor: pointer;
+  transition: color 0.12s;
+  padding-top: 6px;
+  text-align: right;
+  letter-spacing: 0.03em;
+}
+.kc-panel-cta:hover { color: var(--blue); }
+
+/* Lucide icon in topbar */
+.vx-topbar-ico {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.vx-topbar-ico svg { width: 16px !important; height: 16px !important; stroke-width: 1.75 !important; stroke: currentColor !important; fill: none !important; }
+
+/* ── Responsive ─── */
+@media (max-width: 1024px) {
+  .vx-sidebar { width: 190px !important; min-width: 190px !important; }
+  .kc-sphere  { width: 260px; }
+  .kc-stat    { padding: 0 14px; }
+}
+@media (max-width: 768px) {
+  .vx-sidebar {
+    width: 100% !important; min-width: 100% !important; max-width: 100% !important;
+    flex-direction: row !important;
+    height: auto !important;
+    overflow-x: auto !important; overflow-y: hidden !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  }
+  .vx-logo-wrap { display: none !important; }
+  .vx-nav, .t-tabs-wrap.vx-nav-wrap {
+    flex-direction: row !important;
+    padding: 4px 6px !important;
+    gap: 2px !important;
+    overflow-x: auto !important;
+  }
+  .t-tab {
+    flex-direction: column !important;
+    gap: 2px !important;
+    padding: 6px 10px !important;
+    min-width: 60px !important;
+    width: auto !important;
+    align-items: center !important;
+    border-left: none !important;
+    border-bottom: 2px solid transparent !important;
+    flex-shrink: 0 !important;
+  }
+  .t-tab.active { border-left: none !important; border-bottom-color: var(--blue) !important; background: transparent !important; }
+  .vx-tab-lbl { font-size: 0.6rem !important; }
+  .vx-nav-sep { display: none !important; }
+  .vx-sidebar-foot, .vx-sidebar-footer { display: none !important; }
+  .kc-panels-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 540px) {
+  .kc-sphere { width: 100%; height: 96px; border-radius: 12px; }
+  .kc-stat { padding: 0 8px; }
+  .kc-stat-num { font-size: 1.1rem; }
+  .kc-qa-btn { flex: 1 1 calc(50% - 6px); justify-content: center; }
+  .kc-panels-grid { grid-template-columns: 1fr; }
+  #tab-h { padding: 14px 12px 20px !important; }
+}
+@media (max-width: 375px) {
+  .kc-stat { padding: 0 6px; }
+  .kc-stat-num { font-size: 0.95rem; }
+}
+
 </style>
 
 </head>
@@ -4606,19 +5089,19 @@ select.pro-input option { background: var(--surface); }
 <div class="vx2-qa-overlay" id="vx2-qa-overlay" onclick="if(event.target===this)vxCoreCloseQA()">
   <div class="vx2-qa-panel">
     <button class="vx2-qa-item" onclick="vxCoreCloseQA();intakeOtvori()">
-      <span class="vx2-qa-icon">⊕</span>
+      <span class="vx2-qa-icon"><i data-lucide="briefcase" style="width:20px;height:20px;"></i></span>
       <span class="vx2-qa-lbl">Novi predmet</span>
     </button>
     <button class="vx2-qa-item" onclick="vxCoreCloseQA();setTab(document.getElementById('tab-btn-k'),'k');setTimeout(crmOtvoriFormu,250)">
-      <span class="vx2-qa-icon">◈</span>
+      <span class="vx2-qa-icon"><i data-lucide="users" style="width:20px;height:20px;"></i></span>
       <span class="vx2-qa-lbl">Novi klijent</span>
     </button>
     <button class="vx2-qa-item" onclick="vxCoreCloseQA();setTab(document.getElementById('tab-btn-dok'),'dok')">
-      <span class="vx2-qa-icon">☐</span>
-      <span class="vx2-qa-lbl">Dodaj dokument</span>
+      <span class="vx2-qa-icon"><i data-lucide="book-open" style="width:20px;height:20px;"></i></span>
+      <span class="vx2-qa-lbl">Baza znanja</span>
     </button>
     <button class="vx2-qa-item" onclick="vxCoreCloseQA();openAITool('q')">
-      <span class="vx2-qa-icon">◆</span>
+      <span class="vx2-qa-icon"><i data-lucide="sparkles" style="width:20px;height:20px;"></i></span>
       <span class="vx2-qa-lbl">Pokreni AI analizu</span>
     </button>
   </div>
@@ -4682,17 +5165,41 @@ select.pro-input option { background: var(--surface); }
 
     <aside class="vx-sidebar" id="vx-sidebar">
       <div class="vx-logo-wrap">
-        <span class="vx-logo-mark">V</span>
+        <span class="vx-logo-mark">Vindex <em>AI</em></span>
       </div>
       <nav class="vx-nav" id="t-tabs-el">
-        <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')" data-icon="⌂" data-label="Početna"></div>
-        <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')" data-icon="⚖" data-label="Predmeti"></div>
-        <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')" data-icon="◈" data-label="Klijenti"></div>
-        <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')" data-icon="◷" data-label="Rokovi"></div>
-        <div class="t-tab" id="tab-btn-alati" onclick="setTab(this,'alati')" data-icon="◆" data-label="AI Hub"></div>
+        <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')">
+          <i data-lucide="layout-dashboard" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Komandni centar</span>
+        </div>
         <div class="vx-nav-sep"></div>
-        <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')" data-icon="☐" data-label="Dokumenti"></div>
-        <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')" data-icon="⊙" data-label="Podešavanja"></div>
+        <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')">
+          <i data-lucide="briefcase" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Predmeti</span>
+        </div>
+        <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')">
+          <i data-lucide="users" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Klijenti</span>
+        </div>
+        <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">
+          <i data-lucide="calendar-clock" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Rokovi</span>
+        </div>
+        <div class="vx-nav-sep"></div>
+        <div class="t-tab" id="tab-btn-alati" onclick="setTab(this,'alati')">
+          <i data-lucide="sparkles" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">AI Centar</span>
+        </div>
+        <div class="vx-nav-sep"></div>
+        <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
+          <i data-lucide="book-open" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Baza znanja</span>
+        </div>
+        <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')">
+          <i data-lucide="settings" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Podešavanja</span>
+        </div>
+        <!-- Hidden tabs — unchanged, all functionality preserved -->
         <div class="t-tab vx-hidden-tab" id="tab-btn-q" onclick="setTab(this,'q')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-a" onclick="setTab(this,'a')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-s" onclick="setTab(this,'s')"></div>
@@ -4702,7 +5209,10 @@ select.pro-input option { background: var(--surface); }
         <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none"></div>
       </nav>
       <div class="vx-sidebar-foot">
-        <button class="vx-new-btn" onclick="intakeOtvori()" title="Novi predmet">⊕</button>
+        <button class="vx-new-btn" onclick="intakeOtvori()" title="Novi predmet">
+          <i data-lucide="plus-circle" class="vx-new-btn-ico"></i>
+          <span class="vx-new-btn-lbl">Novi predmet</span>
+        </button>
       </div>
     </aside>
   <div class="vx-body">
@@ -4715,7 +5225,7 @@ select.pro-input option { background: var(--surface); }
         </div>
         <div class="vx-topbar-actions">
           <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
-            <span style="font-size:0.9rem;line-height:1;color:rgba(255,255,255,0.32);">🔔</span>
+            <i data-lucide="bell" class="vx-topbar-ico" style="color:rgba(255,255,255,0.32);"></i>
             <span id="notif-badge" style="display:none;position:absolute;top:0;right:-4px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.52rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
           </div>
           <div class="nav-user" id="nav-user" style="display:none;">
@@ -4723,17 +5233,17 @@ select.pro-input option { background: var(--surface); }
             <span class="nav-credit-pill" id="nav-credit-pill"><span id="nav-credits-num" class="cp-num">15</span></span>
           </div>
           <button class="vx-btn-new" onclick="intakeOtvori()">+ Novi predmet</button>
-          <button class="settings-btn vx-topbar-settings" onclick="openSettings()" title="Podešavanja" style="display:none;">⚙</button>
+          <button class="settings-btn vx-topbar-settings" onclick="openSettings()" title="Podešavanja" style="display:none;"><i data-lucide="settings" class="vx-topbar-ico"></i></button>
         </div>
       </div>
       <div id="notif-dropdown" style="display:none;"></div>
     <div class="vx-panels-wrap">
           <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
             <div id="predmet-indicator" class="predmet-indicator"></div>
             <div class="t-guide">
-              <div class="t-guide-icon">⚖</div>
+              <div class="t-guide-icon"><i data-lucide="search" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
               <div class="t-guide-text"><span class="t-guide-bold">Postavite pravno pitanje</span> na srpskom jeziku. Sistem pretražuje Svi važeći zakoni Republike Srbije i vraća tačan zakon, član i citat za manje od 10 sekundi.</div>
             </div>
             <div class="t-chips-lbl">Primeri pitanja — kliknite za popunjavanje:</div>
@@ -4799,7 +5309,7 @@ select.pro-input option { background: var(--surface); }
               </div>
             </div>
             <div class="t-guide">
-              <div class="t-guide-icon">📁</div>
+              <div class="t-guide-icon"><i data-lucide="briefcase" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
               <div class="t-guide-text"><span class="t-guide-bold">Moji predmeti</span> — upravljajte predmetima, dodajte beleške i pratite istoriju razgovora po predmetu.</div>
             </div>
             <button class="pred-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>
@@ -5013,9 +5523,9 @@ select.pro-input option { background: var(--surface); }
 
           </div>
           <div id="tab-n" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
             <div class="t-guide">
-              <div class="t-guide-icon">📄</div>
+              <div class="t-guide-icon"><i data-lucide="file-text" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
               <div class="t-guide-text"><span class="t-guide-bold">Generišite nacrt podneska.</span> Izaberite tip, opišite stranke i činjenice slobodnim tekstom — sistem ekstraktuje entitete i popunjava zvanični šablon.</div>
             </div>
             <input type="hidden" id="podnesak-tip" value="tuzba_naknada_stete">
@@ -5076,9 +5586,9 @@ select.pro-input option { background: var(--surface); }
             </details>
           </div>
           <div id="tab-a" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
             <div class="t-guide">
-              <div class="t-guide-icon">🔍</div>
+              <div class="t-guide-icon"><i data-lucide="file-search" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
               <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Otpremite ugovor, presudu ili pravni akt — AI identifikuje pravne rizike i problematične odredbe.</div>
             </div>
             <input type="file" id="doc-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="doc_upload_file(this.files[0])">
@@ -5141,9 +5651,9 @@ select.pro-input option { background: var(--surface); }
             </div>
           </div>
           <div id="tab-s" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
             <div class="t-guide">
-              <div class="t-guide-icon">⚖</div>
+              <div class="t-guide-icon"><i data-lucide="landmark" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
               <div class="t-guide-text"><span class="t-guide-bold">Sudska praksa</span> — pretraga kroz odluke Vrhovnog kasacionog suda i Vrhovnog suda RS. Filtrirajte po pravnoj oblasti, sudu i godini.</div>
             </div>
             <div style="margin-top:0.7rem;">
@@ -5195,15 +5705,15 @@ select.pro-input option { background: var(--surface); }
           </div>
           <!-- TAB: STRATEGIJA (F5) -->
           <div id="tab-t" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
             <div class="strat-modul-izbor">
-              <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">🔴 Red Team</button>
-              <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">⚖️ Litigation Simulator</button>
-              <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">👨‍⚖️ Procena ishoda</button>
-              <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">🔍 Due Diligence</button>
-              <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">✏️ Pravni Revizor</button>
-              <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">👁️ Witness Analyzer</button>
-              <button class="strat-btn" data-modul="sudija_v2" onclick="stratIzaberiModul('sudija_v2',this)">⚖️ Judge v2 — Debata</button>
+              <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">Red Team</button>
+              <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">Litigation Simulator</button>
+              <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">Procena ishoda</button>
+              <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">Due Diligence</button>
+              <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">Pravni Revizor</button>
+              <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">Witness Analyzer</button>
+              <button class="strat-btn" data-modul="sudija_v2" onclick="stratIzaberiModul('sudija_v2',this)">Judge v2 — Debata</button>
             </div>
             <div id="strat-opis" class="strat-opis-box"></div>
             <div class="strat-input-wrap">
@@ -5508,7 +6018,7 @@ select.pro-input option { background: var(--surface); }
 
           <!-- F11: Web3/Compliance tab -->
           <div id="tab-w" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
             <div class="web3-header">
               <div class="web3-naslov">₿ Web3 &amp; Crypto Compliance</div>
               <div class="web3-podnaslov">Pravna analiza zasnovana na ZDI (Srbija) i MiCA (EU 2023/1114)</div>
@@ -5579,7 +6089,7 @@ select.pro-input option { background: var(--surface); }
             <div class="hub-hd">
               <div class="hub-hd-left">
                 <div class="hub-eyebrow">Vindex AI — Pravna Inteligencija</div>
-                <h2 class="hub-title">AI Komandni centar.</h2>
+                <h2 class="hub-title">AI Centar.</h2>
               </div>
               <div class="hub-hd-right">
                 <div class="hub-stat-pair">
@@ -5668,14 +6178,14 @@ select.pro-input option { background: var(--surface); }
               </div>
               <div class="dok-nav-grid">
                 <div class="dok-nav-card" onclick="setTab(document.getElementById('tab-btn-p'),'p')">
-                  <div class="dok-nav-icon">📁</div>
+                  <div class="dok-nav-icon"><i data-lucide="briefcase" style="width:20px;height:20px;color:rgba(74,168,255,0.6);"></i></div>
                   <div>
                     <div class="dok-nav-label">Predmeti</div>
                     <div class="dok-nav-sub">Dokumenti unutar predmeta</div>
                   </div>
                 </div>
                 <div class="dok-nav-card" onclick="openAITool('a')">
-                  <div class="dok-nav-icon">🔍</div>
+                  <div class="dok-nav-icon"><i data-lucide="search" style="width:20px;height:20px;color:rgba(74,168,255,0.6);"></i></div>
                   <div>
                     <div class="dok-nav-label">Analiza dokumenta</div>
                     <div class="dok-nav-sub">AI analiza novog dokumenta</div>
@@ -5859,9 +6369,10 @@ select.pro-input option { background: var(--surface); }
     vxSync();
   }
   if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded', vxInit);
+    document.addEventListener('DOMContentLoaded', function(){ vxInit(); if(window.lucide)lucide.createIcons(); });
   } else {
     vxInit();
+    if(window.lucide) lucide.createIcons();
   }
 })();
 </script>
@@ -6470,6 +6981,7 @@ async function dash_load(){
     var d=await r.json();
     var bd=br&&br.ok?await br.json():null;
     body.innerHTML=_dashRender(d,bd);
+    if(window.lucide)lucide.createIcons();
   }catch(e){
     body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
@@ -6639,31 +7151,152 @@ function _dashRender(d,bd){
   return html;
 }
 
-/* ── VINDEX AI 2.0 — Home Screen ──────────────────────────────── */
+/* ── FAZA 1 — Komandni centar panel components ─────────────────── */
+function _kcIco(name, cls) {
+  return '<i data-lucide="'+name+'"'+(cls?' class="'+cls+'"':'')+' style="display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"></i>';
+}
+
+function _kcPanelAktivni(d) {
+  var top = d.top_aktivni_predmeti || [];
+  var visokRizikIds = (d.predmeti_visok_rizik||[]).reduce(function(m,r){m[r.predmet_id]=1;return m;},{});
+  var hitniIds      = (d.hitni_rokovi||[]).reduce(function(m,r){m[r.predmet_id]=1;return m;},{});
+  var h = '<div class="kc-panel" id="kc-panel-aktivni">';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('briefcase')+'Aktivni predmeti</span>';
+  if (d.ukupno_aktivnih) h += '<span class="kc-panel-badge">'+d.ukupno_aktivnih+'</span>';
+  h += '</div>';
+  if (!top.length) {
+    h += '<div class="kc-panel-empty">Nema aktivnih predmeta</div>';
+  } else {
+    top.forEach(function(p) {
+      var isRisk  = visokRizikIds[p.id];
+      var isHitni = hitniIds[p.id];
+      var icoName = isRisk ? 'alert-triangle' : (isHitni ? 'alert-circle' : 'check-circle');
+      var icoCls  = isRisk ? 'kc-ico-danger' : (isHitni ? 'kc-ico-warn' : 'kc-ico-ok');
+      h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(p.id)+'\')">';
+      h += '<span class="kc-row-ico '+icoCls+'">'+_kcIco(icoName)+'</span>';
+      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(p.naziv||'—')+'</div>';
+      h += '<div class="kc-panel-row-meta">'+escHtml(p.status||'aktivan')+(p.tip?' · '+escHtml(p.tip):'')+'</div></div></div>';
+    });
+  }
+  h += '<div class="kc-panel-cta" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Svi predmeti →</div>';
+  h += '</div>';
+  return h;
+}
+
+function _kcPanelRokovi(d) {
+  var rocista  = (d.danasnja_rocista||[]).slice(0,3);
+  var hitniRok = d.hitni_rokovi || [];
+  var rokovi7  = d.rokovi_7_dana || [];
+  var h = '<div class="kc-panel" id="kc-panel-rokovi">';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('clock')+'Danasšnji rokovi</span>';
+  if (hitniRok.length) h += '<span class="kc-panel-badge kc-badge-warn">'+hitniRok.length+' hitno</span>';
+  h += '</div>';
+  if (!rocista.length && !hitniRok.length && !rokovi7.length) {
+    h += '<div class="kc-panel-empty">Nema rokova danas</div>';
+  } else {
+    rocista.forEach(function(r){
+      h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
+      h += '<span class="kc-row-ico kc-ico-warn">'+_kcIco('gavel')+'</span>';
+      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div>';
+      h += '<div class="kc-panel-row-meta">Ročište'+(r.vreme?' '+escHtml(r.vreme):'')+(r.sud?' · '+escHtml(r.sud):'')+'</div></div></div>';
+    });
+    hitniRok.slice(0,3).forEach(function(r){
+      h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
+      h += '<span class="kc-row-ico kc-ico-danger">'+_kcIco('alert-triangle')+'</span>';
+      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(r.dogadjaj||'Rok')+'</div>';
+      h += '<div class="kc-panel-row-meta">'+escHtml(r.predmet_naziv||'—')+' · '+escHtml(r.datum_iso||'—')+'</div></div></div>';
+    });
+    if (!rocista.length && !hitniRok.length) {
+      rokovi7.slice(0,3).forEach(function(r){
+        h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
+        h += '<span class="kc-row-ico kc-ico-muted">'+_kcIco('calendar-clock')+'</span>';
+        h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(r.dogadjaj||'Rok')+'</div>';
+        h += '<div class="kc-panel-row-meta">'+escHtml(r.predmet_naziv||'—')+' · '+escHtml(r.datum_iso||'—')+'</div></div></div>';
+      });
+    }
+  }
+  h += '<div class="kc-panel-cta" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')">Svi rokovi →</div>';
+  h += '</div>';
+  return h;
+}
+
+function _kcPanelPreporuke(d) {
+  var preporuke = d.ai_preporuke || [];
+  var h = '<div class="kc-panel" id="kc-panel-preporuke">';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('lightbulb')+'AI preporuke</span></div>';
+  if (!preporuke.length) {
+    h += '<div class="kc-panel-empty">Sve je pod kontrolom</div>';
+  } else {
+    preporuke.slice(0,3).forEach(function(p) {
+      h += '<div class="kc-panel-row kc-panel-preporuka">';
+      h += '<span class="kc-row-ico kc-ico-ai">'+_kcIco('sparkles')+'</span>';
+      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(p)+'</div></div></div>';
+    });
+  }
+  h += '<div class="kc-panel-cta" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">AI Centar →</div>';
+  h += '</div>';
+  return h;
+}
+
+function _kcPanelAktivnosti(d) {
+  // TODO: activity_log tabela u Supabase nije implementirana
+  var h = '<div class="kc-panel" id="kc-panel-aktivnosti">';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('activity')+'Poslednje aktivnosti</span></div>';
+  h += '<div class="kc-panel-empty">N/A — nije implementirano</div>';
+  h += '</div>';
+  return h;
+}
+
+/* ── FAZA 1 — Komandni centar (staticki prikaz) ─────────────────── */
 _dashRender = function(d, bd) {
-  var today = new Date().toISOString().slice(0, 10);
-  var p2    = new Date(Date.now() + 2*86400000).toISOString().slice(0, 10);
-  var uName = currentUser ? (currentUser.email||'').split('@')[0] : '';
-
-  var hitniRokovi    = d.hitni_rokovi    || [];
-  var rocistaToday   = d.danasnja_rocista|| [];
-  var rokovi7        = d.rokovi_7_dana   || [];
-  var predmHitni     = d.predmeti_visok_rizik || [];
-  var aktivni        = d.ukupno_aktivnih || 0;
-  var neobracunato   = bd ? Math.round(bd.neobracunato || 0) : 0;
-
-  var statusCls  = hitniRokovi.length > 0 ? 'danger'
-                 : rocistaToday.length > 0 ? 'warn' : '';
-  var statusTxt  = hitniRokovi.length > 0
-    ? 'Pažnja — ' + hitniRokovi.length + ' hitnih rokova zahteva akciju'
-    : rocistaToday.length > 0
-    ? 'Ročište danas — ' + rocistaToday.length + ' predmeta na sudu'
-    : 'Sve u redu — kancelarija aktivna';
+  var uName    = currentUser ? (currentUser.email||'').split('@')[0] : '';
+  var aktivni  = d.ukupno_aktivnih || 0;
+  var hitniRok = (d.hitni_rokovi||[]).length;
+  var noviDok  = (d.statistike && d.statistike.novi_dokumenti != null)
+                   ? d.statistike.novi_dokumenti : (d.novi_dokumenti||[]).length;
+  var visokRiz = (d.statistike && d.statistike.predmeti_visok_rizik != null)
+                   ? d.statistike.predmeti_visok_rizik : (d.predmeti_visok_rizik||[]).length;
 
   var html = '';
 
-  /* ── VINDEX CORE ─────────────────────────────────────────────── */
-  html += '<div class="vx2-core-wrap">';
+  /* Header */
+  html += '<div class="kc-hdr">';
+  html += '<div class="kc-greeting">'+_dashGreeting()+(uName?', '+escHtml(uName):'')+'. </div>';
+  html += '<div class="kc-date-lbl">'+_dashFormatDate()+'</div>';
+  html += '</div>';
+
+  /* Staticna sfera — 4 broja iz Supabase (cases.status, deadlines, documents, risk_level) */
+  html += '<div class="kc-sphere-wrap"><div class="kc-sphere"><div class="kc-sphere-stats">';
+  html += '<div class="kc-stat"><span class="kc-stat-num">'+aktivni+'</span><span class="kc-stat-lbl">Aktivni predmeti</span></div>';
+  html += '<div class="kc-stat-div"></div>';
+  html += '<div class="kc-stat"><span class="kc-stat-num'+(hitniRok>0?' kc-n-warn':'')+'">'+hitniRok+'</span><span class="kc-stat-lbl">Hitni rokovi</span></div>';
+  html += '<div class="kc-stat-div"></div>';
+  html += '<div class="kc-stat"><span class="kc-stat-num">'+noviDok+'</span><span class="kc-stat-lbl">Dokum. za pregled</span></div>';
+  html += '<div class="kc-stat-div"></div>';
+  html += '<div class="kc-stat"><span class="kc-stat-num'+(visokRiz>0?' kc-n-danger':'')+'">'+visokRiz+'</span><span class="kc-stat-lbl">Visok rizik</span></div>';
+  html += '</div></div></div>';
+
+  /* Quick Actions Bar — ispod sfere */
+  html += '<div class="kc-qa-bar">';
+  html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase')+'<span>Novi predmet</span></button>';
+  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus')+'<span>Novi klijent</span></button>';
+  html += '<button class="kc-qa-btn" onclick="openAITool(\'a\')">'+_kcIco('file-text')+'<span>Otpremi dokument</span></button>';
+  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles')+'<span>Pokreni AI analizu</span></button>';
+  html += '</div>';
+
+  /* 4 modularna panela */
+  html += '<div class="kc-panels-grid">';
+  html += _kcPanelAktivni(d);
+  html += _kcPanelRokovi(d);
+  html += _kcPanelPreporuke(d);
+  html += _kcPanelAktivnosti(d);
+  html += '</div>';
+
+  return html;
+};
+
+/* Quick Actions za VINDEX CORE sfera (overlay preserved) */
+function _vx2_stub_start() { var html = ''; html += '<div class="vx2-core-wrap">';
   html += '<div class="vx2-core-header">';
   html += '<div class="vx2-greeting">'+_dashGreeting()+(uName?', '+escHtml(uName):'')+'. </div>';
   html += '<div class="vx2-date">'+_dashFormatDate()+'</div>';
@@ -6832,7 +7465,7 @@ function setTab(el,t){
   ['h','q','n','a','s','p','t','k','w','kal','pi','alati','dok','settings'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Početna',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 Compliance',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'AI Alati',dok:'Dokumenti',settings:'Podešavanja'};
+  var lbl={h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 Compliance',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'AI Centar',dok:'Baza znanja',settings:'Podešavanja'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
@@ -6850,6 +7483,7 @@ function setTab(el,t){
   if (t==='kal') kalendarLoad();
   if (t==='settings') settingsLoad();
   if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'smooth' });
+  if (window.lucide) lucide.createIcons();
   piTrack('nav', 'tab_switch', {tab: t});
   setTimeout(tabsUpdateArrows, 350);
   document.getElementById('btn-lbl').textContent = lbl[t] || '';

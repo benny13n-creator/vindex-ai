@@ -101,6 +101,12 @@ async def command_center(
     aktivni    = [p for p in predmeti if p.get("status") not in ("zatvoren", "arhiviran", "odbijen")]
     aktivni_count = len(aktivni)
 
+    # Top 5 aktivnih predmeta za KC panel (sortiran po updated_at)
+    top_aktivni_predmeti = [
+        {"id": p["id"], "naziv": p.get("naziv", "—"), "status": p.get("status", "—"), "tip": p.get("tip", "")}
+        for p in sorted(aktivni, key=lambda p: p.get("updated_at") or "", reverse=True)[:5]
+    ]
+
     # 1. Danasnja ročišta
     danasnja_rocista = [
         {
@@ -224,6 +230,7 @@ async def command_center(
         "pad_procene":          pad_procene,
         "novi_dokumenti":       novi_dokumenti,
         "ai_preporuke":         preporuke,
+        "top_aktivni_predmeti": top_aktivni_predmeti,
         "statistike": {
             "ukupno_aktivnih":      aktivni_count,
             "danasnja_rocista":     len(danasnja_rocista),
