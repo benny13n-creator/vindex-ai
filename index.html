@@ -2552,6 +2552,187 @@ footer { padding: 2rem 1.5rem; }
 }
 /* ══════════════════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════════════════
+   BLOOMBERG SIDEBAR — Vindex AI premium vizuelni identitet
+   Referenca: Linear · Vercel · Bloomberg Terminal · Clio
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Emerald: zamena za gold */
+:root { --emerald: #10b981; --emerald2: #34d399; }
+
+/* Terminal postaje flex red: sidebar | main */
+.terminal {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  min-height: 78vh !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+}
+.terminal::before {
+  background: linear-gradient(90deg, transparent, rgba(74,168,255,0.3), rgba(16,185,129,0.15), transparent) !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────── */
+.vx-sidebar {
+  width: 216px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: rgba(255,255,255,0.012);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.vx-sidebar-logo {
+  padding: 18px 18px 14px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  flex-shrink: 0; display: flex; flex-direction: column; gap: 5px;
+}
+.vx-logo-text {
+  font-family: var(--font-brand); font-size: 1.12rem; font-weight: 500;
+  color: rgba(255,255,255,0.88); letter-spacing: -0.02em; line-height: 1; display: block;
+}
+.vx-status {
+  font-size: 0.46rem !important; letter-spacing: 0.14em !important;
+  color: rgba(74,222,128,0.6) !important; gap: 5px !important;
+}
+
+/* Nav scroll container */
+.vx-nav-wrap {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none; position: static !important;
+}
+.vx-nav-wrap::-webkit-scrollbar { display: none; }
+
+/* Section label */
+.vx-nav-group {
+  font-family: var(--font-mono); font-size: 0.4rem; letter-spacing: 0.26em;
+  text-transform: uppercase; color: rgba(255,255,255,0.18);
+  padding: 14px 18px 4px; user-select: none;
+}
+
+/* Vertical nav items */
+.t-tabs {
+  flex-direction: column !important; border-bottom: none !important;
+  overflow: visible !important; margin-bottom: 0 !important;
+  padding: 6px 0 10px !important; white-space: normal !important;
+  max-width: 216px !important; gap: 0 !important;
+}
+.t-tab {
+  display: flex !important; align-items: center !important;
+  justify-content: flex-start !important; text-align: left !important;
+  padding: 7px 18px !important; width: 100% !important;
+  font-family: var(--font-ui) !important; font-size: 0.77rem !important;
+  font-weight: 400 !important; letter-spacing: 0 !important;
+  text-transform: none !important; color: rgba(255,255,255,0.38) !important;
+  border-bottom: none !important; border-left: 2px solid transparent !important;
+  border-radius: 0 !important; min-height: 34px !important;
+  white-space: nowrap !important; overflow: hidden !important;
+  text-overflow: ellipsis !important; flex-shrink: 0 !important;
+  box-sizing: border-box !important; cursor: pointer !important;
+  transition: color 0.12s, border-left-color 0.12s, background 0.12s !important;
+}
+.t-tab:hover {
+  color: rgba(255,255,255,0.65) !important;
+  background: rgba(255,255,255,0.03) !important;
+  border-left-color: rgba(255,255,255,0.1) !important;
+}
+.t-tab.active {
+  color: rgba(255,255,255,0.88) !important;
+  background: rgba(74,168,255,0.07) !important;
+  border-left-color: #4aa8ff !important;
+  border-bottom-color: transparent !important;
+  font-weight: 500 !important;
+}
+/* PRO badge in sidebar */
+.t-tab .pro-badge {
+  font-size: 0.4rem !important; padding: 1px 4px !important;
+  background: rgba(16,185,129,0.08) !important;
+  color: rgba(16,185,129,0.6) !important;
+  border: 1px solid rgba(16,185,129,0.2) !important;
+  border-radius: 2px !important; letter-spacing: 0.08em !important;
+  margin-left: auto !important; flex-shrink: 0 !important;
+  font-family: var(--font-mono) !important;
+}
+.t-tab-pro.locked { opacity: 0.35 !important; cursor: not-allowed !important; }
+
+/* Sidebar footer */
+.vx-sidebar-footer {
+  padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;
+}
+.vx-newchat-btn {
+  width: 100% !important; display: flex !important; align-items: center !important;
+  justify-content: center !important; gap: 6px !important;
+  padding: 8px 10px !important;
+  background: rgba(74,168,255,0.07) !important;
+  border: 1px solid rgba(74,168,255,0.16) !important;
+  border-radius: 4px !important; color: rgba(74,168,255,0.68) !important;
+  font-family: var(--font-ui) !important; font-size: 0.73rem !important;
+  font-weight: 500 !important; text-transform: none !important;
+  letter-spacing: 0 !important; cursor: pointer !important;
+  box-sizing: border-box !important; transition: all 0.15s !important;
+}
+.vx-newchat-btn:hover {
+  background: rgba(74,168,255,0.12) !important;
+  border-color: rgba(74,168,255,0.3) !important;
+  color: #89c8ff !important;
+}
+
+/* Hide horizontal scroll controls */
+.t-scroll-fade, .t-scroll-btn { display: none !important; }
+
+/* ── MAIN CONTENT ────────────────────────────────────────────── */
+.t-body.vx-main {
+  flex: 1 !important; min-width: 0 !important;
+  display: flex !important; flex-direction: column !important;
+  overflow: hidden !important; padding: 0 !important;
+  position: relative !important;
+}
+.vx-topbar {
+  height: 44px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  background: rgba(1,5,14,0.4);
+}
+#notif-bell { padding: 0 !important; border: none !important; margin: 0 !important; }
+
+/* Panels: flex items that fill remaining space */
+#tab-h, #tab-p, #tab-k, #tab-kal, #tab-alati,
+#tab-dok, #tab-settings, #tab-q, #tab-a, #tab-n,
+#tab-s, #tab-t, #tab-w, #tab-pi {
+  flex: 1 !important; min-height: 0 !important;
+  overflow-y: auto !important; padding: 24px !important;
+}
+#chat-hist { flex: 1 !important; min-height: 0 !important; overflow: hidden !important; }
+
+/* ── Emerald zamjena za gold (svuda) ─────────────────────────── */
+.hub-tool-pro { background: rgba(16,185,129,0.015) !important; }
+.hub-tool-pro::after { background: rgba(16,185,129,0.18) !important; }
+.hub-tool-pro:hover { background: rgba(16,185,129,0.04) !important; }
+.hub-tool-pro:hover::after { background: var(--emerald) !important; }
+.hub-pro-badge {
+  background: rgba(16,185,129,0.08) !important; color: rgba(16,185,129,0.7) !important;
+  border-color: rgba(16,185,129,0.22) !important;
+}
+.hub-tool-pro .hub-tool-cta { color: rgba(16,185,129,0.5) !important; }
+.hub-tool-pro:hover .hub-tool-cta { color: var(--emerald) !important; }
+.kc-ai-card.pro { border-color: rgba(16,185,129,0.14) !important; }
+.kc-ai-card.pro:hover { background: rgba(16,185,129,0.04) !important; border-color: rgba(16,185,129,0.3) !important; }
+.kc-ai-card.pro .kc-ai-card-cta { color: rgba(16,185,129,0.7) !important; }
+.kc-ai-card.pro .kc-ai-card-cta:hover { color: var(--emerald) !important; }
+
+/* ── Mobile: horizontalni tabovi ────────────────────────────── */
+@media (max-width: 640px) {
+  .terminal { flex-direction: column !important; min-height: auto !important; }
+  .vx-sidebar { width: 100% !important; border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; }
+  .t-tabs { flex-direction: row !important; overflow-x: auto !important; padding: 0 !important; max-width: 100% !important; }
+  .t-tab { width: auto !important; min-width: max-content !important; padding: 10px 14px !important; border-left: none !important; border-bottom: 2px solid transparent !important; min-height: 40px !important; }
+  .t-tab.active { border-left: none !important; border-bottom-color: #4aa8ff !important; background: transparent !important; }
+  .vx-nav-group { display: none !important; }
+  .vx-sidebar-footer { display: none !important; }
+  .vx-sidebar-logo { flex-direction: row; align-items: center; justify-content: space-between; padding: 12px 16px; }
+}
+/* ══════════════════════════════════════════════════════════════════ */
+
 /* ── VINDEX EDITORIAL — novi pravila ── */
 .sbadge::before { content:''; display:block; width:20px; height:1px; background:rgba(74,168,255,0.5); flex-shrink:0; }
 .orb,.orb-1,.orb-2 { opacity:0; }
@@ -2784,44 +2965,48 @@ footer { padding: 2rem 1.5rem; }
     <div class="h3-center">
       <div class="terminal-wrap">
       <div class="terminal">
-        <div class="t-bar">
-          <div class="t-dots"></div>
-          <div class="t-title">Vindex AI</div>
-          <div style="display:flex;align-items:center;gap:0.5rem;">
-            <button class="t-newchat" onclick="newChat()" title="Počni novi razgovor — briše ekran i resetuje kontekst">⊕ Novi čet</button>
-            <div class="t-status"><div class="t-sdot"></div>aktivan</div>
+        <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+        <div class="vx-sidebar">
+          <div class="vx-sidebar-logo">
+            <span class="vx-logo-text">Vindex AI</span>
+            <div class="t-status vx-status"><div class="t-sdot"></div><span>aktivan</span></div>
           </div>
-        </div>
-        <div class="t-body">
-          <div style="display:flex;align-items:flex-end;position:relative;">
-          <div class="t-tabs-wrap" style="flex:1;">
+          <nav class="t-tabs-wrap vx-nav-wrap">
             <div class="t-scroll-fade t-scroll-fade-l"></div>
             <div class="t-scroll-fade t-scroll-fade-r"></div>
-            <button class="t-scroll-btn t-scroll-btn-l" onclick="tabsScroll(-1)">&#8249;</button>
-            <button class="t-scroll-btn t-scroll-btn-r" onclick="tabsScroll(1)">&#8250;</button>
+            <button class="t-scroll-btn t-scroll-btn-l" onclick="tabsScroll(-1)"></button>
+            <button class="t-scroll-btn t-scroll-btn-r" onclick="tabsScroll(1)"></button>
             <div class="t-tabs" id="t-tabs-el">
-              <!-- ── PRIMARNA NAVIGACIJA ── -->
+              <div class="vx-nav-group">Radni prostor</div>
               <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')">Početna</div>
               <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')">Predmeti</div>
               <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')">Klijenti</div>
               <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">Rokovi</div>
-              <div class="t-tab active" id="tab-btn-alati" onclick="setTab(this,'alati')">AI Alati</div>
+              <div class="vx-nav-group">AI Alati</div>
+              <div class="t-tab active" id="tab-btn-alati" onclick="setTab(this,'alati')">Pregled alata</div>
+              <div class="t-tab" id="tab-btn-q" onclick="setTab(this,'q')">Istraživanje</div>
+              <div class="t-tab" id="tab-btn-a" onclick="setTab(this,'a')">Analiza dok.</div>
+              <div class="t-tab" id="tab-btn-s" onclick="setTab(this,'s')">Sudska praksa</div>
+              <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
+              <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')">Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
+              <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
+              <div class="t-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none">Intelligence</div>
+              <div class="vx-nav-group">Sistem</div>
               <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">Dokumenti</div>
               <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')">Podešavanja</div>
-              <!-- ── AI TOOLS — skriveni iz primarne nav, dostupni iz huba ── -->
-              <div class="t-tab" id="tab-btn-q" onclick="setTab(this,'q')" style="display:none">Istraživanje</div>
-              <div class="t-tab" id="tab-btn-a" onclick="setTab(this,'a')" style="display:none">Analiza</div>
-              <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')" style="display:none">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
-              <div class="t-tab" id="tab-btn-s" onclick="setTab(this,'s')" style="display:none">Sudska praksa</div>
-              <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')" style="display:none">Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
-              <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')" style="display:none">Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
-              <div class="t-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none">Intelligence</div>
             </div>
+          </nav>
+          <div class="vx-sidebar-footer">
+            <button class="t-newchat vx-newchat-btn" onclick="newChat()">⊕ Novo pitanje</button>
           </div>
-          <div id="notif-bell" onclick="notif_toggleDropdown()" style="flex-shrink:0;display:none;align-items:center;cursor:pointer;padding:0 0.6rem 0.45rem;border-bottom:2px solid transparent;margin-bottom:-1px;position:relative;" title="Obaveštenja">
-            <span style="font-size:1rem;line-height:1;">🔔</span>
-            <span id="notif-badge" style="display:none;position:absolute;top:4px;right:2px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.55rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
-          </div>
+        </div>
+        <!-- ── MAIN CONTENT ─────────────────────────────────────── -->
+        <div class="t-body vx-main">
+          <div class="vx-topbar">
+            <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
+              <span style="font-size:1rem;line-height:1;color:rgba(255,255,255,0.4);">🔔</span>
+              <span id="notif-badge" style="display:none;position:absolute;top:0;right:-4px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.55rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
+            </div>
           </div>
           <!-- Notification dropdown -->
           <div id="notif-dropdown" style="display:none;position:absolute;top:100%;right:0;z-index:200;width:min(340px,92vw);max-height:380px;overflow-y:auto;background:#141923;border:1px solid rgba(255,255,255,.12);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);padding:0.6rem 0;"></div>
