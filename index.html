@@ -6031,17 +6031,23 @@ function updateAuthUI() {
   var navCta   = document.getElementById('nav-cta-btn');
   var navEmail = document.getElementById('nav-user-email');
   var tRow     = document.getElementById('t-credits-row');
+  var shell    = document.getElementById('vx-shell');
+  var landing  = document.getElementById('vx-landing');
 
   if (currentUser) {
     if (navUser)  navUser.style.display  = 'flex';
     if (navCta)   navCta.style.display   = 'none';
     if (navEmail) navEmail.textContent   = currentUser.email || '';
     if (tRow)     tRow.style.display     = 'flex';
+    if (shell)    shell.style.display    = 'flex';
+    if (landing)  landing.style.display  = 'none';
     updateCreditDisplay();
   } else {
     if (navUser)  navUser.style.display  = 'none';
     if (navCta)   navCta.style.display   = '';
     if (tRow)     tRow.style.display     = 'none';
+    if (shell)    shell.style.display    = 'none';
+    if (landing)  landing.style.display  = 'flex';
   }
 }
 
