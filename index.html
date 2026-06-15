@@ -2746,6 +2746,537 @@ footer { padding: 2rem 1.5rem; }
 /* ───────────────────────────────────────────────────────────────────────── */
 
 /* (stari override uklonjen) */
+
+/* ══════════════════════════════════════════════════════════════════
+   VINDEX AI 2.0 — FAZA 1: DESIGN SYSTEM
+   Token sistem za celu aplikaciju
+   ══════════════════════════════════════════════════════════════════ */
+:root {
+  --emerald: #10b981;
+  --emerald2: #34d399;
+  --color-danger: #ef4444;
+  --color-warning: #f0b429;
+  --color-success: #4ade80;
+  --surface-0: rgba(255,255,255,0.02);
+  --surface-1: rgba(255,255,255,0.04);
+  --surface-2: rgba(255,255,255,0.07);
+  --border-1: rgba(255,255,255,0.06);
+  --border-2: rgba(255,255,255,0.10);
+  --border-blue: rgba(74,168,255,0.20);
+  --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-xl: 24px;
+  --t-fast: 0.12s ease; --t-base: 0.22s ease; --t-slow: 0.38s ease;
+  --sidebar-icon-w: 48px;
+  --topbar-h: 52px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   VINDEX AI 2.0 — FAZA 2: NAVIGACIONI SISTEM
+   Icon sidebar 48px — Linear stil
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Terminal: row layout */
+.terminal {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  min-height: 78vh !important;
+}
+
+/* Icon Sidebar: 48px fixed */
+.vx-sidebar {
+  width: var(--sidebar-icon-w) !important;
+  min-width: var(--sidebar-icon-w) !important;
+  max-width: var(--sidebar-icon-w) !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  background: rgba(255,255,255,0.012) !important;
+  border-right: 1px solid var(--border-1) !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  position: relative !important;
+}
+
+/* Logo: V mark only */
+.vx-sidebar-logo {
+  width: 100% !important;
+  padding: 14px 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-bottom: 1px solid var(--border-1) !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  flex-shrink: 0 !important;
+  min-height: 52px !important;
+}
+.vx-logo-text { display: none !important; }
+.vx-sidebar-logo::before {
+  content: 'V';
+  font-family: var(--font-brand);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--blue);
+  line-height: 1;
+}
+.vx-status { display: none !important; }
+.t-sdot { display: none !important; }
+
+/* Nav wrap */
+.t-tabs-wrap.vx-nav-wrap {
+  width: 100% !important;
+  overflow: visible !important;
+  position: static !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.vx-nav-group { display: none !important; }
+.t-scroll-btn, .t-scroll-fade { display: none !important; }
+
+/* Tabs container */
+.t-tabs {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 8px 0 !important;
+  width: 100% !important;
+  overflow: visible !important;
+}
+
+/* Individual icon tab */
+.t-tab {
+  width: 36px !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  border-radius: var(--r-sm) !important;
+  border: none !important;
+  border-left: none !important;
+  border-bottom: none !important;
+  background: transparent !important;
+  color: rgba(255,255,255,0.3) !important;
+  cursor: pointer !important;
+  transition: background var(--t-fast), color var(--t-fast) !important;
+  position: relative !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  overflow: visible !important;
+}
+.t-tab::before {
+  content: attr(data-icon);
+  font-size: 1rem !important;
+  line-height: 1;
+  display: block;
+  color: rgba(255,255,255,0.35);
+  transition: color var(--t-fast);
+}
+.t-tab::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(5,10,20,0.97);
+  border: 1px solid var(--border-2);
+  color: rgba(255,255,255,0.88);
+  font-family: var(--font-ui) !important;
+  font-size: 0.72rem !important;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  z-index: 1000;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.t-tab:hover::after { opacity: 1; }
+.t-tab:hover {
+  background: rgba(255,255,255,0.06) !important;
+}
+.t-tab:hover::before { color: rgba(255,255,255,0.75); }
+.t-tab.active {
+  background: rgba(74,168,255,0.12) !important;
+}
+.t-tab.active::before { color: var(--blue) !important; }
+.vx-hidden-tab { display: none !important; }
+.t-tab .pro-badge { display: none !important; }
+
+/* Sidebar separator */
+.vx-sidebar-sep {
+  width: 28px;
+  height: 1px;
+  background: var(--border-1);
+  margin: 6px 0;
+  flex-shrink: 0;
+}
+
+/* Sidebar footer */
+.vx-sidebar-footer {
+  width: 100% !important;
+  padding: 8px 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-top: 1px solid var(--border-1) !important;
+  flex-shrink: 0 !important;
+}
+.vx-newchat-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: var(--r-sm) !important;
+  background: transparent !important;
+  border: 1px solid var(--border-2) !important;
+  color: rgba(255,255,255,0.3) !important;
+  font-size: 0 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: border-color var(--t-fast), color var(--t-fast) !important;
+  position: relative !important;
+}
+.vx-newchat-btn::before { content: '⊕'; font-size: 1rem; line-height: 1; }
+.vx-newchat-btn:hover { border-color: var(--blue) !important; }
+.vx-newchat-btn::after {
+  content: 'Novo pitanje';
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(5,10,20,0.97);
+  border: 1px solid var(--border-2);
+  color: rgba(255,255,255,0.88);
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  z-index: 1000;
+}
+.vx-newchat-btn:hover::after { opacity: 1; }
+
+/* Main content area */
+.t-body.vx-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+/* Top bar redesign */
+.vx-topbar {
+  height: var(--topbar-h) !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 16px !important;
+  border-bottom: 1px solid var(--border-1) !important;
+  gap: 10px !important;
+}
+.vx-global-search {
+  flex: 1;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-0);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: border-color var(--t-base);
+}
+.vx-global-search:hover { border-color: var(--border-blue); }
+.vx-search-icon { color: rgba(255,255,255,0.2); font-size: 0.8rem; flex-shrink: 0; }
+.vx-search-ph { font-size: 0.7rem; color: rgba(255,255,255,0.2); flex: 1; user-select: none; }
+.vx-search-kbd {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  color: rgba(255,255,255,0.16);
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+  flex-shrink: 0;
+}
+.vx-topbar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.vx-btn-new {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  background: var(--blue);
+  border: none; border-radius: var(--r-sm);
+  color: #000;
+  font-family: var(--font-ui); font-size: 0.72rem; font-weight: 700;
+  cursor: pointer; transition: background var(--t-fast); white-space: nowrap;
+}
+.vx-btn-new:hover { background: var(--blue2); }
+
+/* ══════════════════════════════════════════════════════════════════
+   VINDEX AI 2.0 — FAZA 3: HOME SCREEN
+   VINDEX CORE orbital + 4 panela + recent activity
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Core wrap */
+.vx2-core-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 24px 0 16px; position: relative;
+}
+.vx2-core-header {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; margin-bottom: 20px;
+}
+.vx2-greeting {
+  font-family: var(--font-brand);
+  font-size: 1.45rem; font-weight: 500;
+  color: rgba(255,255,255,0.85); letter-spacing: -0.01em;
+}
+.vx2-date {
+  font-family: var(--font-mono);
+  font-size: 0.52rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: rgba(255,255,255,0.22);
+}
+
+/* Orbital system */
+.vx2-orbit-system {
+  position: relative; width: 260px; height: 260px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+}
+.vx2-orbit-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(74,168,255,0.08);
+  pointer-events: none;
+}
+.vx2-orbit-ring-1 { width: 240px; height: 240px; animation: vx2-rotate 25s linear infinite; }
+.vx2-orbit-ring-2 { width: 180px; height: 180px; animation: vx2-rotate 35s linear infinite reverse; }
+@keyframes vx2-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Center sphere */
+.vx2-sphere {
+  width: 88px; height: 88px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, rgba(74,168,255,0.22), rgba(74,168,255,0.05) 65%, transparent 85%);
+  border: 1px solid rgba(74,168,255,0.28);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; position: relative; z-index: 2;
+  transition: border-color var(--t-base), box-shadow var(--t-base);
+  box-shadow: 0 0 36px rgba(74,168,255,0.07), inset 0 0 16px rgba(74,168,255,0.04);
+  gap: 0;
+}
+.vx2-sphere:hover {
+  border-color: rgba(74,168,255,0.55);
+  box-shadow: 0 0 55px rgba(74,168,255,0.16), inset 0 0 16px rgba(74,168,255,0.08);
+}
+.vx2-sphere-title {
+  font-family: var(--font-mono); font-size: 0.42rem;
+  letter-spacing: 0.2em; text-transform: uppercase; color: rgba(74,168,255,0.65); line-height: 1;
+}
+.vx2-sphere-name {
+  font-family: var(--font-brand); font-size: 1.15rem;
+  font-weight: 600; color: rgba(255,255,255,0.82); letter-spacing: -0.02em; line-height: 1.1;
+}
+
+/* Satellites */
+.vx2-sat {
+  position: absolute; display: flex; flex-direction: column; align-items: center;
+  cursor: pointer; gap: 3px; transition: opacity var(--t-fast);
+}
+.vx2-sat:hover { opacity: 0.75; }
+.vx2-sat-n { top: 8px;    left: 50%; transform: translateX(-50%); }
+.vx2-sat-e { right: 8px;  top: 50%;  transform: translateY(-50%); }
+.vx2-sat-s { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.vx2-sat-w { left: 8px;   top: 50%;  transform: translateY(-50%); }
+.vx2-sat-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(74,168,255,0.45); box-shadow: 0 0 8px rgba(74,168,255,0.35);
+}
+.vx2-sat-dot.warn { background: rgba(240,180,41,0.65); box-shadow: 0 0 8px rgba(240,180,41,0.35); }
+.vx2-sat-dot.danger { background: rgba(239,68,68,0.65); box-shadow: 0 0 8px rgba(239,68,68,0.35); }
+.vx2-sat-num {
+  font-family: var(--font-brand); font-size: 1rem; font-weight: 600;
+  color: rgba(255,255,255,0.7); line-height: 1;
+}
+.vx2-sat-lbl {
+  font-family: var(--font-mono); font-size: 0.42rem;
+  letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.25);
+}
+
+/* Status bar */
+.vx2-core-status {
+  font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.28); text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 24px;
+}
+.vx2-core-status.warn  { color: rgba(240,180,41,0.55); }
+.vx2-core-status.danger { color: rgba(239,68,68,0.55); }
+.vx2-status-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(74,168,255,0.5); flex-shrink: 0;
+  animation: vx2-pulse 2.8s ease-in-out infinite;
+}
+.vx2-core-status.warn .vx2-status-dot  { background: rgba(240,180,41,0.65); }
+.vx2-core-status.danger .vx2-status-dot { background: rgba(239,68,68,0.65); }
+@keyframes vx2-pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.3; transform:scale(0.55); }
+}
+
+/* 4 Navigation panels */
+.vx2-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.25fr;
+  gap: 10px; width: 100%; margin-bottom: 14px;
+}
+@media (max-width: 700px) { .vx2-panels { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 420px) { .vx2-panels { grid-template-columns: 1fr; } }
+
+.vx2-panel {
+  background: var(--surface-0); border: 1px solid var(--border-1);
+  border-radius: var(--r-md); padding: 14px;
+  cursor: pointer; transition: border-color var(--t-base), background var(--t-base);
+  display: flex; flex-direction: column; gap: 8px; min-height: 130px;
+}
+.vx2-panel:hover { border-color: var(--border-blue); background: rgba(74,168,255,0.02); }
+.vx2-panel.has-warn { border-color: rgba(240,180,41,0.18); }
+.vx2-panel.has-warn:hover { border-color: rgba(240,180,41,0.38); background: rgba(240,180,41,0.02); }
+
+.vx2-panel-hd { display: flex; align-items: center; justify-content: space-between; }
+.vx2-panel-name {
+  font-family: var(--font-mono); font-size: 0.48rem;
+  letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.3);
+}
+.vx2-panel-warn { font-size: 0.7rem; color: rgba(240,180,41,0.75); }
+
+.vx2-panel-stats { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
+.vx2-panel-stat-n {
+  font-family: var(--font-brand); font-size: 1.7rem; font-weight: 600;
+  color: rgba(255,255,255,0.72); letter-spacing: -0.02em; line-height: 1;
+}
+.vx2-panel-stat-n.warn   { color: rgba(240,180,41,0.88); }
+.vx2-panel-stat-n.danger { color: rgba(239,68,68,0.88); }
+.vx2-panel-stat-l {
+  font-family: var(--font-mono); font-size: 0.46rem;
+  letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.22);
+}
+
+.vx2-panel-preview { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.vx2-panel-item {
+  font-size: 0.7rem; color: rgba(255,255,255,0.4);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; gap: 6px;
+}
+.vx2-panel-item::before { content:'•'; color:rgba(74,168,255,0.35); font-size:0.55rem; flex-shrink:0; }
+.vx2-panel-item.warn::before   { color: rgba(240,180,41,0.45); }
+.vx2-panel-item.danger::before { color: rgba(239,68,68,0.45); }
+
+.vx2-panel-cta {
+  font-family: var(--font-mono); font-size: 0.5rem;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(74,168,255,0.45); margin-top: auto;
+  transition: color var(--t-fast);
+}
+.vx2-panel:hover .vx2-panel-cta { color: var(--blue); }
+
+/* AI Hub panel quick actions */
+.vx2-panel-ai-actions { display: flex; flex-direction: column; gap: 4px; }
+.vx2-panel-ai-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 9px; width: 100%; text-align: left;
+  background: rgba(74,168,255,0.05); border: 1px solid rgba(74,168,255,0.1);
+  border-radius: var(--r-sm); color: rgba(255,255,255,0.6); font-size: 0.7rem;
+  cursor: pointer; transition: background var(--t-fast), border-color var(--t-fast);
+}
+.vx2-panel-ai-btn:hover {
+  background: rgba(74,168,255,0.1); border-color: rgba(74,168,255,0.22);
+  color: rgba(255,255,255,0.85);
+}
+
+/* Recent Activity */
+.vx2-activity { width: 100%; border-top: 1px solid var(--border-1); padding-top: 12px; }
+.vx2-activity-hd {
+  font-family: var(--font-mono); font-size: 0.44rem; letter-spacing: 0.22em;
+  text-transform: uppercase; color: rgba(255,255,255,0.2); margin-bottom: 8px;
+}
+.vx2-activity-rows { display: flex; flex-direction: column; gap: 4px; }
+.vx2-activity-row {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 5px 7px; border-radius: var(--r-sm); transition: background var(--t-fast);
+}
+.vx2-activity-row:hover { background: var(--surface-1); }
+.vx2-activity-dot { width:5px; height:5px; border-radius:50%; background:rgba(74,168,255,0.35); flex-shrink:0; }
+.vx2-activity-text {
+  font-size: 0.7rem; color: rgba(255,255,255,0.4); flex:1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vx2-activity-time {
+  font-family: var(--font-mono); font-size: 0.48rem;
+  color: rgba(255,255,255,0.18); letter-spacing: 0.06em; flex-shrink:0;
+}
+
+/* Quick Actions overlay */
+.vx2-qa-overlay {
+  display: none; position: fixed; inset: 0; z-index: 850;
+  background: rgba(1,3,8,0.78); backdrop-filter: blur(5px);
+  align-items: center; justify-content: center;
+}
+.vx2-qa-overlay.open { display: flex; }
+.vx2-qa-panel {
+  background: rgba(6,10,18,0.98); border: 1px solid var(--border-2);
+  border-radius: var(--r-lg); padding: 8px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  width: 268px; box-shadow: 0 24px 80px rgba(0,0,0,0.65);
+}
+.vx2-qa-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 18px 14px; background: var(--surface-0);
+  border: 1px solid var(--border-1); border-radius: var(--r-md);
+  cursor: pointer; transition: background var(--t-fast), border-color var(--t-fast);
+  font-family: var(--font-ui);
+}
+.vx2-qa-item:hover { background: var(--surface-2); border-color: var(--border-2); }
+.vx2-qa-icon { font-size: 1.35rem; line-height: 1; color: rgba(255,255,255,0.55); }
+.vx2-qa-lbl { font-size: 0.68rem; color: rgba(255,255,255,0.52); text-align:center; line-height:1.3; }
+
+/* Mobile icon sidebar */
+@media (max-width: 640px) {
+  .vx-sidebar {
+    width: 100% !important; min-width: 100% !important; max-width: 100% !important;
+    flex-direction: row !important; border-right: none !important;
+    border-bottom: 1px solid var(--border-1) !important;
+    height: auto !important; overflow: hidden !important;
+  }
+  .vx-sidebar-logo {
+    min-height: auto !important; padding: 10px 14px !important;
+    border-bottom: none !important; border-right: 1px solid var(--border-1) !important;
+    flex-shrink: 0 !important;
+  }
+  .t-tabs-wrap.vx-nav-wrap { flex-direction: row !important; overflow-x: auto !important; }
+  .t-tabs { flex-direction: row !important; padding: 6px 8px !important; gap: 2px !important; }
+  .t-tab::after { display: none !important; }
+  .vx-newchat-btn::after { display: none !important; }
+  .vx-sidebar-footer { display: none !important; }
+  .vx-sidebar-sep { display: none !important; }
+  .vx2-orbit-system { width: 220px !important; height: 220px !important; }
+  .vx2-orbit-ring-1 { width: 200px !important; height: 200px !important; }
+  .vx2-orbit-ring-2 { width: 150px !important; height: 150px !important; }
+}
+/* ══════════════════════════════════════════════════════════════════ */
 </style>
 
 </head>
@@ -2855,6 +3386,28 @@ footer { padding: 2rem 1.5rem; }
     </ul>
     <button class="modal-btn pro-upgrade-cta" onclick="closeProUpgradeModal();openProModal();">Saznaj više o PRO verziji &rarr;</button>
     <p style="font-size:0.68rem;color:rgba(255,255,255,0.22);margin-top:0.8rem;">Promotivna cena garantovana pri ranoj prijavi.</p>
+  </div>
+</div>
+
+<!-- VINDEX CORE — Quick Actions Overlay -->
+<div class="vx2-qa-overlay" id="vx2-qa-overlay" onclick="if(event.target===this)vxCoreCloseQA()">
+  <div class="vx2-qa-panel">
+    <button class="vx2-qa-item" onclick="vxCoreCloseQA();intakeOtvori()">
+      <span class="vx2-qa-icon">⊕</span>
+      <span class="vx2-qa-lbl">Novi predmet</span>
+    </button>
+    <button class="vx2-qa-item" onclick="vxCoreCloseQA();setTab(document.getElementById('tab-btn-k'),'k');setTimeout(crmOtvoriFormu,250)">
+      <span class="vx2-qa-icon">◈</span>
+      <span class="vx2-qa-lbl">Novi klijent</span>
+    </button>
+    <button class="vx2-qa-item" onclick="vxCoreCloseQA();setTab(document.getElementById('tab-btn-dok'),'dok')">
+      <span class="vx2-qa-icon">☐</span>
+      <span class="vx2-qa-lbl">Dodaj dokument</span>
+    </button>
+    <button class="vx2-qa-item" onclick="vxCoreCloseQA();openAITool('q')">
+      <span class="vx2-qa-icon">◆</span>
+      <span class="vx2-qa-lbl">Pokreni AI analizu</span>
+    </button>
   </div>
 </div>
 
@@ -2977,23 +3530,22 @@ footer { padding: 2rem 1.5rem; }
             <button class="t-scroll-btn t-scroll-btn-l" onclick="tabsScroll(-1)"></button>
             <button class="t-scroll-btn t-scroll-btn-r" onclick="tabsScroll(1)"></button>
             <div class="t-tabs" id="t-tabs-el">
-              <div class="vx-nav-group">Radni prostor</div>
-              <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')">Početna</div>
-              <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')">Predmeti</div>
-              <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')">Klijenti</div>
-              <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">Rokovi</div>
-              <div class="vx-nav-group">AI Alati</div>
-              <div class="t-tab active" id="tab-btn-alati" onclick="setTab(this,'alati')">Pregled alata</div>
-              <div class="t-tab" id="tab-btn-q" onclick="setTab(this,'q')">Istraživanje</div>
-              <div class="t-tab" id="tab-btn-a" onclick="setTab(this,'a')">Analiza dok.</div>
-              <div class="t-tab" id="tab-btn-s" onclick="setTab(this,'s')">Sudska praksa</div>
-              <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
-              <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')">Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
-              <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
-              <div class="t-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none">Intelligence</div>
-              <div class="vx-nav-group">Sistem</div>
-              <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">Dokumenti</div>
-              <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')">Podešavanja</div>
+              <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')" data-icon="⌂" data-label="Početna"></div>
+              <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')" data-icon="⚖" data-label="Predmeti"></div>
+              <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')" data-icon="◈" data-label="Klijenti"></div>
+              <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')" data-icon="◷" data-label="Rokovi"></div>
+              <div class="t-tab" id="tab-btn-alati" onclick="setTab(this,'alati')" data-icon="◆" data-label="AI Hub"></div>
+              <div class="vx-sidebar-sep"></div>
+              <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')" data-icon="☐" data-label="Dokumenti"></div>
+              <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')" data-icon="⊙" data-label="Podešavanja"></div>
+              <!-- AI sub-tools: in DOM za JS kompatibilnost, skriveni u sidebaru -->
+              <div class="t-tab vx-hidden-tab" id="tab-btn-q" onclick="setTab(this,'q')"></div>
+              <div class="t-tab vx-hidden-tab" id="tab-btn-a" onclick="setTab(this,'a')"></div>
+              <div class="t-tab vx-hidden-tab" id="tab-btn-s" onclick="setTab(this,'s')"></div>
+              <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')"><span class="pro-badge" id="pro-badge-n" style="display:none">PRO</span></div>
+              <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="pro-badge" id="pro-badge-t" style="display:none">PRO</span></div>
+              <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')"><span class="pro-badge" id="pro-badge-w" style="display:none">PRO</span></div>
+              <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none"></div>
             </div>
           </nav>
           <div class="vx-sidebar-footer">
@@ -3003,9 +3555,17 @@ footer { padding: 2rem 1.5rem; }
         <!-- ── MAIN CONTENT ─────────────────────────────────────── -->
         <div class="t-body vx-main">
           <div class="vx-topbar">
-            <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
-              <span style="font-size:1rem;line-height:1;color:rgba(255,255,255,0.4);">🔔</span>
-              <span id="notif-badge" style="display:none;position:absolute;top:0;right:-4px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.55rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
+            <div class="vx-global-search" title="Globalna pretraga — dolazi uskoro">
+              <span class="vx-search-icon">⌕</span>
+              <span class="vx-search-ph">Pretraži predmete, klijente, zakone...</span>
+              <span class="vx-search-kbd">⌘K</span>
+            </div>
+            <div class="vx-topbar-actions">
+              <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
+                <span style="font-size:0.95rem;line-height:1;color:rgba(255,255,255,0.35);">🔔</span>
+                <span id="notif-badge" style="display:none;position:absolute;top:0;right:-4px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.55rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
+              </div>
+              <button class="vx-btn-new" onclick="intakeOtvori()">+ Novi predmet</button>
             </div>
           </div>
           <!-- Notification dropdown -->
@@ -5107,6 +5667,166 @@ function _dashRender(d,bd){
 
   return html;
 }
+
+/* ── VINDEX AI 2.0 — Home Screen ──────────────────────────────── */
+_dashRender = function(d, bd) {
+  var today = new Date().toISOString().slice(0, 10);
+  var p2    = new Date(Date.now() + 2*86400000).toISOString().slice(0, 10);
+  var uName = currentUser ? (currentUser.email||'').split('@')[0] : '';
+
+  var hitniRokovi    = d.hitni_rokovi    || [];
+  var rocistaToday   = d.danasnja_rocista|| [];
+  var rokovi7        = d.rokovi_7_dana   || [];
+  var predmHitni     = d.predmeti_visok_rizik || [];
+  var aktivni        = d.ukupno_aktivnih || 0;
+  var neobracunato   = bd ? Math.round(bd.neobracunato || 0) : 0;
+
+  var statusCls  = hitniRokovi.length > 0 ? 'danger'
+                 : rocistaToday.length > 0 ? 'warn' : '';
+  var statusTxt  = hitniRokovi.length > 0
+    ? 'Pažnja — ' + hitniRokovi.length + ' hitnih rokova zahteva akciju'
+    : rocistaToday.length > 0
+    ? 'Ročište danas — ' + rocistaToday.length + ' predmeta na sudu'
+    : 'Sve u redu — kancelarija aktivna';
+
+  var html = '';
+
+  /* ── VINDEX CORE ─────────────────────────────────────────────── */
+  html += '<div class="vx2-core-wrap">';
+  html += '<div class="vx2-core-header">';
+  html += '<div class="vx2-greeting">'+_dashGreeting()+(uName?', '+escHtml(uName):'')+'. </div>';
+  html += '<div class="vx2-date">'+_dashFormatDate()+'</div>';
+  html += '</div>';
+
+  html += '<div class="vx2-orbit-system">';
+  html += '<div class="vx2-orbit-ring vx2-orbit-ring-1"></div>';
+  html += '<div class="vx2-orbit-ring vx2-orbit-ring-2"></div>';
+
+  var rokDot = hitniRokovi.length > 0 ? 'danger' : (rokovi7.length > 0 ? 'warn' : '');
+  html += '<div class="vx2-sat vx2-sat-n" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')" title="Rokovi">';
+  html += '<div class="vx2-sat-dot '+rokDot+'"></div>';
+  html += '<div class="vx2-sat-num">'+rokovi7.length+'</div>';
+  html += '<div class="vx2-sat-lbl">rokova</div></div>';
+
+  html += '<div class="vx2-sat vx2-sat-e" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')" title="Predmeti">';
+  html += '<div class="vx2-sat-dot"></div>';
+  html += '<div class="vx2-sat-num">'+aktivni+'</div>';
+  html += '<div class="vx2-sat-lbl">predmeta</div></div>';
+
+  var rsdLbl = neobracunato > 0 ? _fmtRSD(neobracunato) : '0';
+  html += '<div class="vx2-sat vx2-sat-s" title="Nenaplaćeno RSD">';
+  html += '<div class="vx2-sat-dot'+(neobracunato>0?' warn':'')+'"></div>';
+  html += '<div class="vx2-sat-num" style="font-size:0.82rem">'+rsdLbl+'</div>';
+  html += '<div class="vx2-sat-lbl">RSD</div></div>';
+
+  html += '<div class="vx2-sat vx2-sat-w" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\')" title="Klijenti">';
+  html += '<div class="vx2-sat-dot"></div>';
+  html += '<div class="vx2-sat-num" style="font-size:1rem;color:rgba(255,255,255,0.35)">—</div>';
+  html += '<div class="vx2-sat-lbl">klijenti</div></div>';
+
+  html += '<div class="vx2-sphere" onclick="vxCoreQuickActions()" title="Quick Actions — kliknite">';
+  html += '<div class="vx2-sphere-title">VINDEX</div>';
+  html += '<div class="vx2-sphere-name">CORE</div>';
+  html += '</div>';
+  html += '</div>'; /* orbit-system */
+
+  html += '<div class="vx2-core-status'+(statusCls?' '+statusCls:'')+'"><div class="vx2-status-dot"></div>'+escHtml(statusTxt)+'</div>';
+  html += '</div>'; /* core-wrap */
+
+  /* ── 4 NAVIGACIONA PANELA ────────────────────────────────────── */
+  html += '<div class="vx2-panels">';
+
+  /* Panel: PREDMETI */
+  var predWarn = predmHitni.length > 0;
+  html += '<div class="vx2-panel'+(predWarn?' has-warn':'')+ '" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">';
+  html += '<div class="vx2-panel-hd"><span class="vx2-panel-name">Predmeti</span>'+(predWarn?'<span class="vx2-panel-warn">⚠</span>':'')+'</div>';
+  html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n">'+aktivni+'</span><span class="vx2-panel-stat-l">aktivna</span>';
+  if (predmHitni.length) html += '<span class="vx2-panel-stat-n warn" style="margin-left:6px">'+predmHitni.length+'</span><span class="vx2-panel-stat-l">hitnih</span>';
+  html += '</div>';
+  html += '<div class="vx2-panel-preview">';
+  var pprev = predmHitni.slice(0,2);
+  if (pprev.length) {
+    pprev.forEach(function(p){ html += '<div class="vx2-panel-item'+(predWarn?' warn':'')+'">'+escHtml(p.predmet_naziv||'Predmet')+'</div>'; });
+  } else {
+    html += '<div class="vx2-panel-item">Nema hitnih predmeta</div>';
+  }
+  html += '</div><div class="vx2-panel-cta">Otvori →</div></div>';
+
+  /* Panel: KLIJENTI */
+  html += '<div class="vx2-panel" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\')">';
+  html += '<div class="vx2-panel-hd"><span class="vx2-panel-name">Klijenti</span></div>';
+  html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n" style="font-size:1.2rem;color:rgba(255,255,255,0.3)">—</span></div>';
+  html += '<div class="vx2-panel-preview"><div class="vx2-panel-item">Baza klijenata kancelarije</div></div>';
+  html += '<div class="vx2-panel-cta">Otvori →</div></div>';
+
+  /* Panel: ROKOVI */
+  var rokWarn = hitniRokovi.length > 0;
+  html += '<div class="vx2-panel'+(rokWarn?' has-warn':'')+ '" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')">';
+  html += '<div class="vx2-panel-hd"><span class="vx2-panel-name">Rokovi</span>'+(rokWarn?'<span class="vx2-panel-warn">⚠</span>':'')+'</div>';
+  html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n'+(rokWarn?' warn':'')+'">'+rokovi7.length+'</span><span class="vx2-panel-stat-l">ove ned.</span>';
+  if (hitniRokovi.length) html += '<span class="vx2-panel-stat-n danger" style="margin-left:6px">'+hitniRokovi.length+'</span><span class="vx2-panel-stat-l">hitnih</span>';
+  html += '</div>';
+  html += '<div class="vx2-panel-preview">';
+  rokovi7.slice(0,2).forEach(function(r){
+    var isToday = r.datum_iso===today;
+    html += '<div class="vx2-panel-item'+(isToday?' danger':'')+'">'+
+      (isToday?'DANAS — ':'')+escHtml(r.predmet_naziv||'Predmet')+'</div>';
+  });
+  if (!rokovi7.length) html += '<div class="vx2-panel-item">Nema nadolazećih rokova</div>';
+  html += '</div><div class="vx2-panel-cta">Otvori →</div></div>';
+
+  /* Panel: AI HUB */
+  html += '<div class="vx2-panel" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">';
+  html += '<div class="vx2-panel-hd"><span class="vx2-panel-name">AI Hub</span></div>';
+  html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n" style="font-size:1.1rem;color:rgba(74,168,255,0.65)">847</span><span class="vx2-panel-stat-l">zakona RS</span></div>';
+  html += '<div class="vx2-panel-ai-actions">';
+  html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'q\')">⚖ Istraži zakon</button>';
+  html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'a\')">☐ Analiziraj dokument</button>';
+  html += '</div>';
+  html += '<div class="vx2-panel-cta">Otvori hub →</div></div>';
+
+  html += '</div>'; /* vx2-panels */
+
+  /* ── RECENT ACTIVITY ─────────────────────────────────────────── */
+  var acts = [];
+  hitniRokovi.slice(0,1).forEach(function(r){
+    acts.push({txt:'Hitni rok — '+(r.predmet_naziv||'Predmet'), tm: r.datum_iso||'hitno'});
+  });
+  rocistaToday.slice(0,1).forEach(function(r){
+    acts.push({txt:'Ročište danas — '+(r.predmet_naziv||'Predmet'), tm: r.vreme||'danas'});
+  });
+  (d.novi_dokumenti||[]).slice(0,2).forEach(function(dok){
+    acts.push({txt:'Dokument — '+(dok.naziv_fajla||'Fajl'), tm:'nedavno'});
+  });
+  predmHitni.slice(0,1).forEach(function(p){
+    if (acts.length < 4) acts.push({txt:'Prioritetni predmet — '+(p.predmet_naziv||'Predmet'), tm:'aktivno'});
+  });
+
+  if (acts.length) {
+    html += '<div class="vx2-activity">';
+    html += '<div class="vx2-activity-hd">Nedavna aktivnost</div>';
+    html += '<div class="vx2-activity-rows">';
+    acts.slice(0,4).forEach(function(a){
+      html += '<div class="vx2-activity-row"><div class="vx2-activity-dot"></div>';
+      html += '<div class="vx2-activity-text">'+escHtml(a.txt)+'</div>';
+      html += '<div class="vx2-activity-time">'+escHtml(a.tm)+'</div></div>';
+    });
+    html += '</div></div>';
+  }
+
+  return html;
+};
+
+/* Quick Actions za VINDEX CORE sfera */
+function vxCoreQuickActions() {
+  var ov = document.getElementById('vx2-qa-overlay');
+  if (ov) { ov.classList.add('open'); document.body.style.overflow='hidden'; }
+}
+function vxCoreCloseQA() {
+  var ov = document.getElementById('vx2-qa-overlay');
+  if (ov) { ov.classList.remove('open'); document.body.style.overflow=''; }
+}
+/* ── kraj VINDEX AI 2.0 Home Screen ────────────────────────────── */
 
 function _dashGoToPredmet(predmetId){
   if(!predmetId)return;
