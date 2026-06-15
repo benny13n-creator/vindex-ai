@@ -6174,7 +6174,11 @@ async function doLogin() {
   var res = await sb.auth.signInWithPassword({ email: email, password: pass });
   btn.textContent = 'Prijavite se'; btn.disabled = false;
   if (res.error) { _setAuthError('Pogrešan email ili lozinka. Pokušajte ponovo.'); return; }
+  currentSession = res.data.session;
+  currentUser    = res.data.user;
   closeModal();
+  updateAuthUI();
+  loadCredits();
 }
 
 async function doRegister() {
