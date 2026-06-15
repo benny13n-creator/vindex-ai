@@ -2093,6 +2093,204 @@ footer { padding: 2rem 1.5rem; }
 .settings-btn:hover { border-color: #4aa8ff; background: rgba(74,168,255,0.08); }
 /* ══════════════════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════════════════
+   FAZA 2 — DASHBOARD REDESIGN
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Top bar */
+.kc-topbar {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; margin-bottom: 1.4rem; flex-wrap: wrap;
+}
+.kc-topbar-left { flex: 1; min-width: 0; }
+.kc-topbar-right { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
+.kc-greeting {
+  font-family: 'Cormorant Garamond', serif; font-size: 1.65rem; font-weight: 500;
+  color: rgba(255,255,255,0.9); line-height: 1.2; letter-spacing: -0.01em;
+  margin-bottom: 0.2rem;
+}
+.kc-date {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.28); text-transform: uppercase;
+}
+
+/* Search placeholder */
+.kc-search {
+  display: flex; align-items: center; gap: 0.55rem;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; padding: 0.5rem 0.9rem; cursor: not-allowed;
+  transition: border-color 0.2s; min-width: 180px;
+  position: relative;
+}
+.kc-search:hover { border-color: rgba(74,168,255,0.2); }
+.kc-search-icon { font-size: 0.85rem; color: rgba(255,255,255,0.25); }
+.kc-search-ph { font-size: 0.72rem; color: rgba(255,255,255,0.22); white-space: nowrap; }
+.kc-search-kbd {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.55rem;
+  color: rgba(255,255,255,0.18); letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.06); padding: 0.15rem 0.4rem; border-radius: 4px;
+  margin-left: auto;
+}
+
+/* New predmet button */
+.kc-new-btn {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.5rem 1.1rem; background: #4aa8ff; border: none; border-radius: 6px;
+  color: #000; font-family: var(--font-ui); font-size: 0.76rem; font-weight: 700;
+  letter-spacing: 0.02em; cursor: pointer; transition: background 0.2s; white-space: nowrap;
+}
+.kc-new-btn:hover { background: #89c8ff; }
+
+/* KPI row — improved */
+.kc-kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.6rem; margin-bottom: 1.4rem; }
+@media (max-width: 600px) { .kc-kpi-row { grid-template-columns: repeat(2,1fr); } }
+.kc-kpi {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; padding: 1rem 1rem 0.9rem; text-align: left;
+  transition: border-color 0.2s; cursor: default; position: relative;
+  overflow: hidden;
+}
+.kc-kpi::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: rgba(74,168,255,0.3); border-radius: 10px 0 0 10px;
+}
+.kc-kpi.warn::before { background: #ef4444; }
+.kc-kpi.ok::before { background: #4ade80; }
+.kc-kpi:hover { border-color: rgba(74,168,255,0.2); }
+.kc-kpi-n {
+  font-family: 'Cormorant Garamond', serif; font-size: 2.4rem; font-weight: 700;
+  color: rgba(255,255,255,0.88); line-height: 1; margin-bottom: 0.3rem;
+}
+.kc-kpi-n.warn { color: #ef4444; }
+.kc-kpi-l {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.48rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: rgba(255,255,255,0.3); line-height: 1.5;
+}
+
+/* 2-column layout */
+.kc-two-col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.4rem;
+}
+@media (max-width: 640px) { .kc-two-col { grid-template-columns: 1fr; } }
+.kc-col { display: flex; flex-direction: column; gap: 1rem; }
+
+/* Section headings — redesigned */
+.kc-section { margin-bottom: 0; }
+.kc-section-hd {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: rgba(255,255,255,0.3);
+  padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between;
+}
+.kc-section-hd-count {
+  font-family: 'Cormorant Garamond', serif; font-size: 1rem; font-weight: 600;
+  color: rgba(255,255,255,0.5);
+}
+
+/* Row items */
+.kc-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.6rem 0.75rem; border-radius: 8px;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+  margin-bottom: 0.35rem; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.kc-row:hover { background: rgba(74,168,255,0.04); border-color: rgba(74,168,255,0.18); }
+.kc-row-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.kc-row-dot.hitan { background: #ef4444; box-shadow: 0 0 5px #ef4444; }
+.kc-row-dot.bitan { background: #fb923c; }
+.kc-row-dot.info  { background: rgba(255,255,255,0.18); }
+.kc-row-main { flex: 1; min-width: 0; }
+.kc-row-naziv {
+  font-size: 0.8rem; color: rgba(255,255,255,0.82); font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kc-row-sub { font-size: 0.68rem; color: rgba(255,255,255,0.32); margin-top: 0.1rem; }
+.kc-row-datum {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.56rem;
+  color: rgba(255,255,255,0.28); flex-shrink: 0;
+}
+.kc-row-arrow { color: rgba(74,168,255,0.35); font-size: 0.65rem; flex-shrink: 0; }
+.kc-empty {
+  text-align: center; padding: 1.5rem;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.62rem;
+  color: rgba(255,255,255,0.18); letter-spacing: 0.1em;
+}
+
+/* AI preporuke */
+.kc-preporuke { margin-bottom: 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.kc-prep-item {
+  font-size: 0.75rem; color: rgba(255,255,255,0.62);
+  padding: 0.5rem 0.85rem; background: rgba(251,146,60,0.04);
+  border: 1px solid rgba(251,146,60,0.14); border-radius: 7px; line-height: 1.55;
+  border-left: 2px solid rgba(251,146,60,0.4);
+}
+.kc-summary {
+  background: rgba(74,168,255,0.04); border: 1px solid rgba(74,168,255,0.1);
+  border-left: 2px solid rgba(74,168,255,0.4); border-radius: 7px;
+  padding: 0.8rem 1rem; font-size: 0.78rem; color: rgba(255,255,255,0.52);
+  margin-bottom: 1.2rem; line-height: 1.65;
+}
+
+/* AI features section */
+.kc-ai-section { margin-top: 0.5rem; }
+.kc-ai-section-hd {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: rgba(255,255,255,0.3);
+  padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 0.75rem;
+}
+.kc-ai-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem;
+}
+@media (max-width: 560px) { .kc-ai-grid { grid-template-columns: 1fr; } }
+.kc-ai-card {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; padding: 1rem 1.1rem;
+  display: flex; flex-direction: column; gap: 0.3rem;
+  cursor: pointer; transition: border-color 0.2s, background 0.2s;
+}
+.kc-ai-card:hover { background: rgba(74,168,255,0.04); border-color: rgba(74,168,255,0.2); }
+.kc-ai-card.pro { border-color: rgba(201,168,76,0.14); }
+.kc-ai-card.pro:hover { background: rgba(201,168,76,0.04); border-color: rgba(201,168,76,0.3); }
+.kc-ai-card-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.2rem; }
+.kc-ai-card-icon { font-size: 1rem; line-height: 1; }
+.kc-ai-card-title { font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.85); }
+.kc-ai-card-desc { font-size: 0.69rem; color: rgba(255,255,255,0.35); line-height: 1.55; flex: 1; }
+.kc-ai-card-cta {
+  align-self: flex-start; margin-top: 0.5rem;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: rgba(74,168,255,0.65);
+  background: none; border: none; cursor: pointer; padding: 0;
+  transition: color 0.2s;
+}
+.kc-ai-card-cta:hover { color: #4aa8ff; }
+.kc-ai-card.pro .kc-ai-card-cta { color: rgba(201,168,76,0.7); }
+.kc-ai-card.pro .kc-ai-card-cta:hover { color: #c9a84c; }
+
+/* Billing mini cards */
+.kc-billing-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.5rem; margin-top: 0.6rem; }
+.billing-kc-kpi {
+  background: rgba(74,168,255,0.04); border: 1px solid rgba(74,168,255,0.1);
+  border-radius: 8px; padding: 0.7rem 0.8rem; text-align: left;
+}
+.billing-kc-n {
+  font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 700;
+  color: #89c8ff; line-height: 1;
+}
+.billing-kc-n.warn { color: #fb923c; }
+.billing-kc-l {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.44rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: rgba(255,255,255,0.28); margin-top: 0.25rem; line-height: 1.4;
+}
+
+/* Loading state */
+.kc-loading {
+  text-align: center; padding: 3rem 1rem;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+  color: rgba(255,255,255,0.18); letter-spacing: 0.16em; text-transform: uppercase;
+}
+/* ══════════════════════════════════════════════════════════════════ */
+
 /* ── VINDEX EDITORIAL — novi pravila ── */
 .sbadge::before { content:''; display:block; width:20px; height:1px; background:rgba(74,168,255,0.5); flex-shrink:0; }
 .orb,.orb-1,.orb-2 { opacity:0; }
@@ -4257,95 +4455,73 @@ function _dashRender(d,bd){
   var p2=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
   var html='';
   var uName=currentUser?(currentUser.email||'').split('@')[0]:'';
-  html+='<div class="kc-greeting">'+_dashGreeting()+(uName?', '+escHtml(uName):'')+' .</div>'.replace(' .','.');
-  html+='<div class="kc-date">'+_dashFormatDate()+'</div>';
 
-  // AI preporuke / summary
+  var hitniCount=(d.hitni_rokovi||[]).length;
+  var rocistaCount=(d.danasnja_rocista||[]).length;
+  var visokRizikCount=(d.predmeti_visok_rizik||[]).length;
+  var neobracunato=bd?_fmtRSD(bd.neobracunato||0):'—';
+
+  // ── TOP BAR ────────────────────────────────────────────────────
+  html+='<div class="kc-topbar">';
+  html+='<div class="kc-topbar-left">';
+  html+='<div class="kc-greeting">'+_dashGreeting()+(uName?', '+escHtml(uName):'')+'. </div>';
+  html+='<div class="kc-date">'+_dashFormatDate()+'</div>';
+  html+='</div>';
+  html+='<div class="kc-topbar-right">';
+  html+='<div class="kc-search" title="Globalna pretraga — dolazi uskoro"><span class="kc-search-icon">⌕</span><span class="kc-search-ph">Pretraži predmete, klijente...</span><span class="kc-search-kbd">⌘K</span></div>';
+  html+='<button class="kc-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
+  html+='</div></div>';
+
+  // ── 4 KPI KARTICE ──────────────────────────────────────────────
+  html+='<div class="kc-kpi-row">';
+  html+='<div class="kc-kpi"><div class="kc-kpi-n">'+(d.ukupno_aktivnih||0)+'</div><div class="kc-kpi-l">Aktivnih<br>predmeta</div></div>';
+  html+='<div class="kc-kpi'+(hitniCount>0?' warn':'')+'"><div class="kc-kpi-n'+(hitniCount>0?' warn':'')+'">'+hitniCount+'</div><div class="kc-kpi-l">Hitnih<br>rokova</div></div>';
+  html+='<div class="kc-kpi'+(rocistaCount>0?' warn':'')+'"><div class="kc-kpi-n'+(rocistaCount>0?' warn':'')+'">'+rocistaCount+'</div><div class="kc-kpi-l">Ročišta<br>danas</div></div>';
+  html+='<div class="kc-kpi"><div class="kc-kpi-n">'+neobracunato+'</div><div class="kc-kpi-l">Nenaplaćeno<br>RSD</div></div>';
+  html+='</div>';
+
+  // ── AI PREPORUKE / SUMMARY ─────────────────────────────────────
   var preporuke=d.ai_preporuke||[];
   if(preporuke.length){
     html+='<div class="kc-preporuke">';
     preporuke.forEach(function(p){html+='<div class="kc-prep-item">'+escHtml(p)+'</div>';});
     html+='</div>';
-  } else if(d.summary){
+  }else if(d.summary){
     html+='<div class="kc-summary">'+escHtml(d.summary)+'</div>';
   }
 
-  // KPI row
-  var hitniCount=(d.hitni_rokovi||[]).length;
-  var rocistaCount=(d.danasnja_rocista||[]).length;
-  var visokRizikCount=(d.predmeti_visok_rizik||[]).length;
-  var neaktivniCount=(d.neaktivni_30_dana||[]).length;
-  html+='<div class="kc-kpi-row">';
-  html+='<div class="kc-kpi"><div class="kc-kpi-n">'+(d.ukupno_aktivnih||0)+'</div><div class="kc-kpi-l">Aktivnih<br>predmeta</div></div>';
-  html+='<div class="kc-kpi"><div class="kc-kpi-n'+(hitniCount>0?' warn':'')+'">'+hitniCount+'</div><div class="kc-kpi-l">Hitnih<br>rokova</div></div>';
-  html+='<div class="kc-kpi"><div class="kc-kpi-n'+(rocistaCount>0?' warn':'')+'">'+rocistaCount+'</div><div class="kc-kpi-l">Ročišta<br>danas</div></div>';
-  html+='<div class="kc-kpi"><div class="kc-kpi-n'+(visokRizikCount>0?' warn':'')+'">'+visokRizikCount+'</div><div class="kc-kpi-l">Visok<br>rizik</div></div>';
-  html+='</div>';
+  // ── 2-COLUMN MAIN ──────────────────────────────────────────────
+  html+='<div class="kc-two-col">';
 
-  // Danasnja rocista
-  var rocista=d.danasnja_rocista||[];
-  if(rocista.length){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>⚖️ Ročišta danas</span><span>'+rocista.length+'</span></div>';
-    rocista.forEach(function(r){
-      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
-      html+='<div class="kc-row-dot hitan"></div>';
-      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div>';
-      html+='<div class="kc-row-sub">'+escHtml(r.sud||'Sud nije navedeno')+(r.vreme?' — '+escHtml(r.vreme):'')+'</div></div>';
-      html+='<div class="kc-row-arrow">→</div></div>';
-    });
-    html+='</div>';
-  }
+  // LEVA KOLONA: prioritetni predmeti + neaktivni + billing
+  html+='<div class="kc-col">';
 
-  // Rokovi 7 dana
-  var rokovi7=d.rokovi_7_dana||[];
-  html+='<div class="kc-section">';
-  html+='<div class="kc-section-hd"><span>📅 Rokovi u narednih 7 dana</span><span>'+rokovi7.length+'</span></div>';
-  if(!rokovi7.length){html+='<div class="kc-empty">Nema nadolazećih rokova</div>';}
-  else{rokovi7.slice(0,8).forEach(function(r){
-    var isToday=r.datum_iso===today;var isUrgent=r.datum_iso<=p2;
-    var dot=isToday||isUrgent?'hitan':(r.vaznost==='bitan'?'bitan':'info');
-    var datumLbl=isToday?'DANAS':r.datum_iso;
-    html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
-    html+='<div class="kc-row-dot '+dot+'"></div>';
-    html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div><div class="kc-row-sub">'+escHtml(r.dogadjaj||'')+'</div></div>';
-    html+='<div class="kc-row-datum">'+escHtml(datumLbl)+'</div><div class="kc-row-arrow">→</div></div>';
-  });}
-  html+='</div>';
+  var prioritetni=[];
+  (d.predmeti_visok_rizik||[]).slice(0,4).forEach(function(p){
+    prioritetni.push({id:p.predmet_id,naziv:p.predmet_naziv||'Predmet',sub:(p.faktori||[]).slice(0,2).join(' · '),dot:'hitan'});
+  });
+  (d.pad_procene||[]).slice(0,3).forEach(function(p){
+    prioritetni.push({id:p.predmet_id,naziv:p.predmet_naziv||'Predmet',sub:(p.prethodni_rizik||'?')+' → '+(p.trenutni_rizik||'?'),dot:'bitan'});
+  });
 
-  // Predmeti visokog rizika
-  var visokRizik=d.predmeti_visok_rizik||[];
-  if(visokRizik.length){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>🔴 Visok rizik</span><span>'+visokRizik.length+'</span></div>';
-    visokRizik.slice(0,5).forEach(function(p){
-      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.predmet_id)+'\')">';
-      html+='<div class="kc-row-dot hitan"></div>';
-      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(p.predmet_naziv||'Predmet')+'</div>';
-      var faktori=(p.faktori||[]).slice(0,2).join(' · ');
-      if(faktori)html+='<div class="kc-row-sub">'+escHtml(faktori)+'</div>';
+  html+='<div class="kc-section"><div class="kc-section-hd"><span>Prioritetni predmeti</span><span class="kc-section-hd-count">'+prioritetni.length+'</span></div>';
+  if(!prioritetni.length){
+    html+='<div class="kc-empty">Nema predmeta koji zahtevaju hitnu pažnju</div>';
+  }else{
+    prioritetni.forEach(function(p){
+      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.id)+'\')">';
+      html+='<div class="kc-row-dot '+p.dot+'"></div>';
+      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(p.naziv)+'</div>';
+      if(p.sub)html+='<div class="kc-row-sub">'+escHtml(p.sub)+'</div>';
       html+='</div><div class="kc-row-arrow">→</div></div>';
     });
-    html+='</div>';
   }
+  html+='</div>';
 
-  // Pad procene rizika
-  var padProcene=d.pad_procene||[];
-  if(padProcene.length){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>📈 Rizik porastao</span><span>'+padProcene.length+'</span></div>';
-    padProcene.slice(0,3).forEach(function(p){
-      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.predmet_id)+'\')">';
-      html+='<div class="kc-row-dot bitan"></div>';
-      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(p.predmet_naziv||'Predmet')+'</div>';
-      html+='<div class="kc-row-sub">'+escHtml(p.prethodni_rizik||'?')+' → '+escHtml(p.trenutni_rizik||'?')+'</div></div>';
-      html+='<div class="kc-row-arrow">→</div></div>';
-    });
-    html+='</div>';
-  }
-
-  // Predmeti bez aktivnosti
-  var neakt=d.neaktivni_30_dana||[];
+  var neakt=(d.neaktivni_30_dana||[]).slice(0,4);
   if(neakt.length){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>⚠ Bez aktivnosti 30+ dana</span><span>'+neakt.length+'</span></div>';
-    neakt.slice(0,5).forEach(function(p){
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>Bez aktivnosti 30+ dana</span><span class="kc-section-hd-count">'+neakt.length+'</span></div>';
+    neakt.forEach(function(p){
       html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.predmet_id)+'\')">';
       html+='<div class="kc-row-dot bitan"></div>';
       html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(p.naziv||'Predmet')+'</div><div class="kc-row-sub">Bez aktivnosti od '+escHtml(p.poslednja_izmena||'—')+'</div></div>';
@@ -4354,40 +4530,86 @@ function _dashRender(d,bd){
     html+='</div>';
   }
 
-  // Novi dokumenti
-  var noviDok=d.novi_dokumenti||[];
-  if(noviDok.length){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>📎 Novi dokumenti (24h)</span><span>'+noviDok.length+'</span></div>';
-    noviDok.slice(0,4).forEach(function(dok){
-      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(dok.predmet_id)+'\')">';
-      html+='<div class="kc-row-dot info"></div>';
-      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(dok.naziv_fajla||'Dokument')+'</div>';
-      html+='<div class="kc-row-sub">'+escHtml(dok.predmet_naziv||'—')+'</div></div>';
-      html+='<div class="kc-row-arrow">→</div></div>';
-    });
-    html+='</div>';
-  }
-
-  // Billing
   if(bd){
-    html+='<div class="kc-section">';
-    html+='<div class="kc-section-hd"><span>💰 Naplata — '+(bd.mesec||'')+'</span></div>';
-    html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">';
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>Naplata — '+escHtml(bd.mesec||'')+'</span></div>';
+    html+='<div class="kc-billing-row">';
     html+='<div class="billing-kc-kpi"><div class="billing-kc-n">'+_fmtRSD(bd.ukupno_unoseno||0)+'</div><div class="billing-kc-l">Uneseno<br>RSD</div></div>';
     html+='<div class="billing-kc-kpi"><div class="billing-kc-n'+(((bd.neobracunato||0)>0)?' warn':'')+'">'+_fmtRSD(bd.neobracunato||0)+'</div><div class="billing-kc-l">Nenaplaćeno<br>RSD</div></div>';
     html+='<div class="billing-kc-kpi"><div class="billing-kc-n">'+_fmtRSD(bd.naplaceno||0)+'</div><div class="billing-kc-l">Naplaćeno<br>RSD</div></div>';
     html+='</div></div>';
   }
+  html+='</div>';
 
-  // Brze akcije
-  html+='<div class="kc-section"><div class="kc-section-hd"><span>Brze akcije</span></div>';
-  html+='<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">';
-  html+='<button class="kc-qa-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
-  html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'p\')">📁 Predmeti</button>';
-  html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'k\')">👥 Klijenti</button>';
-  html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'q\')">🔍 Istraživanje</button>';
-  html+='<button class="kc-qa-btn" onclick="_dashGoToTab(\'kal\')">📅 Kalendar</button>';
+  // DESNA KOLONA: rokovi 7 dana + ročišta + novi dokumenti
+  html+='<div class="kc-col">';
+
+  var rokovi7=d.rokovi_7_dana||[];
+  html+='<div class="kc-section"><div class="kc-section-hd"><span>Rokovi — 7 dana</span><span class="kc-section-hd-count">'+rokovi7.length+'</span></div>';
+  if(!rokovi7.length){
+    html+='<div class="kc-empty">Nema nadolazećih rokova</div>';
+  }else{
+    rokovi7.slice(0,8).forEach(function(r){
+      var isToday=r.datum_iso===today;
+      var isUrgent=r.datum_iso<=p2;
+      var dot=(isToday||isUrgent)?'hitan':(r.vaznost==='bitan'?'bitan':'info');
+      var datumLbl=isToday?'DANAS':r.datum_iso;
+      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
+      html+='<div class="kc-row-dot '+dot+'"></div>';
+      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div><div class="kc-row-sub">'+escHtml(r.dogadjaj||'')+'</div></div>';
+      html+='<div class="kc-row-datum">'+escHtml(datumLbl)+'</div><div class="kc-row-arrow">→</div></div>';
+    });
+  }
+  html+='</div>';
+
+  var rocista=d.danasnja_rocista||[];
+  if(rocista.length){
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>Ročišta danas</span><span class="kc-section-hd-count">'+rocista.length+'</span></div>';
+    rocista.forEach(function(r){
+      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
+      html+='<div class="kc-row-dot hitan"></div>';
+      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div><div class="kc-row-sub">'+escHtml(r.sud||'Sud nije navedeno')+(r.vreme?' — '+escHtml(r.vreme):'')+'</div></div>';
+      html+='<div class="kc-row-arrow">→</div></div>';
+    });
+    html+='</div>';
+  }
+
+  var noviDok=(d.novi_dokumenti||[]).slice(0,4);
+  if(noviDok.length){
+    html+='<div class="kc-section"><div class="kc-section-hd"><span>Novi dokumenti (24h)</span><span class="kc-section-hd-count">'+noviDok.length+'</span></div>';
+    noviDok.forEach(function(dok){
+      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(dok.predmet_id)+'\')">';
+      html+='<div class="kc-row-dot info"></div>';
+      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(dok.naziv_fajla||'Dokument')+'</div><div class="kc-row-sub">'+escHtml(dok.predmet_naziv||'—')+'</div></div>';
+      html+='<div class="kc-row-arrow">→</div></div>';
+    });
+    html+='</div>';
+  }
+
+  html+='</div>'; // end desna kolona
+  html+='</div>'; // end kc-two-col
+
+  // ── AI ALATI ──────────────────────────────────────────────────
+  html+='<div class="kc-ai-section">';
+  html+='<div class="kc-ai-section-hd">AI Alati</div>';
+  html+='<div class="kc-ai-grid">';
+  html+='<div class="kc-ai-card" onclick="openAITool(\'q\')">';
+  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">⚖</span><span class="kc-ai-card-title">Istraživanje zakona</span></div>';
+  html+='<div class="kc-ai-card-desc">Postavi pravno pitanje. Dobij zakon, član i citat iz srpske pravne baze.</div>';
+  html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
+  html+='<div class="kc-ai-card" onclick="openAITool(\'a\')">';
+  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">📄</span><span class="kc-ai-card-title">Analiza dokumenta</span></div>';
+  html+='<div class="kc-ai-card-desc">Učitaj dokument. AI izvlači ključne klauzule, rizike i preporučene korake.</div>';
+  html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
+  html+='<div class="kc-ai-card" onclick="openAITool(\'s\')">';
+  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">🏛</span><span class="kc-ai-card-title">Sudska praksa</span></div>';
+  html+='<div class="kc-ai-card-desc">Pretraži relevantne presude srpskih sudova za tvoj predmet.</div>';
+  html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
+  html+='<div class="kc-ai-card pro" onclick="openAITool(\'n\')">';
+  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">✍</span><span class="kc-ai-card-title">Nacrti i podnesci</span></div>';
+  html+='<div class="kc-ai-card-desc">AI generiše tužbu, žalbu, ugovor ili drugi pravni dokument za predmet.</div>';
+  html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
   html+='</div></div>';
+
   return html;
 }
 
