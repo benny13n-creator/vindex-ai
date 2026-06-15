@@ -1993,6 +1993,106 @@ footer { padding: 2rem 1.5rem; }
 .analiza-wf-btn{background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.72);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-family:var(--font-ui);transition:all .2s;white-space:nowrap;}
 .analiza-wf-btn:hover{border-color:var(--accent,#4aa8ff);color:#89c8ff;background:rgba(74,168,255,0.08);}
 
+/* ══════════════════════════════════════════════════════════════════
+   FAZA 1 — IA RESTRUCTURE
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Tab strip — font size enterprise standard */
+.t-tab { font-size: 0.82rem !important; font-weight: 500 !important; padding: 10px 20px !important; }
+
+/* Breadcrumb — back link unutar AI tool panela */
+.t-tool-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(74,168,255,0.55); cursor: pointer; padding: 0 0 1rem 0;
+  margin-bottom: 0.5rem; border: none; background: none;
+  border-bottom: 1px solid rgba(255,255,255,0.05); width: 100%;
+  transition: color 0.2s;
+}
+.t-tool-back:hover { color: #4aa8ff; }
+.t-tool-back-arrow { font-size: 0.85rem; line-height: 1; }
+
+/* AI Hub — grid kartica */
+.ai-hub-intro {
+  font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255,255,255,0.25); margin-bottom: 1.2rem; padding-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.ai-hub-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.65rem;
+}
+@media (max-width: 520px) { .ai-hub-grid { grid-template-columns: 1fr; } }
+.ai-hub-card {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 1.1rem 1.2rem; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.ai-hub-card:hover {
+  background: rgba(74,168,255,0.05); border-color: rgba(74,168,255,0.22);
+}
+.ai-hub-card.pro-card { border-color: rgba(201,168,76,0.14); }
+.ai-hub-card.pro-card:hover {
+  background: rgba(201,168,76,0.04); border-color: rgba(201,168,76,0.32);
+}
+.ai-hub-card-icon { font-size: 1.1rem; margin-bottom: 0.55rem; line-height: 1; }
+.ai-hub-card-name {
+  font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.88);
+  margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.45rem;
+}
+.ai-hub-card-desc { font-size: 0.7rem; color: rgba(255,255,255,0.35); line-height: 1.55; }
+
+/* Dokumenti panel */
+.dok-panel-wrap { padding: 0.5rem 0; }
+.dok-notice {
+  background: rgba(74,168,255,0.04); border: 1px solid rgba(74,168,255,0.1);
+  border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.2rem;
+  font-size: 0.78rem; color: rgba(255,255,255,0.45); line-height: 1.65;
+}
+.dok-notice strong { color: rgba(255,255,255,0.75); display: block; margin-bottom: 0.3rem; font-size: 0.82rem; }
+.dok-nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.dok-nav-card {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; padding: 1rem 1.1rem; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  display: flex; align-items: center; gap: 0.85rem;
+}
+.dok-nav-card:hover { background: rgba(74,168,255,0.05); border-color: rgba(74,168,255,0.2); }
+.dok-nav-icon { font-size: 1.4rem; flex-shrink: 0; }
+.dok-nav-label { font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.82); margin-bottom: 0.15rem; }
+.dok-nav-sub { font-size: 0.68rem; color: rgba(255,255,255,0.3); line-height: 1.5; }
+
+/* Podešavanja panel */
+.settings-header {
+  font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 500;
+  color: rgba(255,255,255,0.88); margin-bottom: 1.5rem; letter-spacing: -0.01em;
+}
+.settings-section { margin-bottom: 1.6rem; }
+.settings-section-hd {
+  font-family: var(--font-mono); font-size: 0.52rem; letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(255,255,255,0.28); margin-bottom: 0.75rem; padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row-left { flex: 1; min-width: 0; }
+.settings-row-label { font-size: 0.82rem; color: rgba(255,255,255,0.78); font-weight: 500; }
+.settings-row-sub { font-size: 0.7rem; color: rgba(255,255,255,0.3); margin-top: 0.15rem; }
+.settings-row-val {
+  font-family: var(--font-mono); font-size: 0.68rem; color: rgba(74,168,255,0.7);
+  letter-spacing: 0.04em; flex-shrink: 0; margin-left: 1rem;
+}
+.settings-btn {
+  font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.45rem 1rem; border: 1px solid rgba(74,168,255,0.3); border-radius: 4px;
+  background: transparent; color: #89c8ff; cursor: pointer; transition: all 0.2s;
+  flex-shrink: 0; margin-left: 1rem;
+}
+.settings-btn:hover { border-color: #4aa8ff; background: rgba(74,168,255,0.08); }
+/* ══════════════════════════════════════════════════════════════════ */
+
 /* ── VINDEX EDITORIAL — novi pravila ── */
 .sbadge::before { content:''; display:block; width:20px; height:1px; background:rgba(74,168,255,0.5); flex-shrink:0; }
 .orb,.orb-1,.orb-2 { opacity:0; }
@@ -2241,17 +2341,22 @@ footer { padding: 2rem 1.5rem; }
             <button class="t-scroll-btn t-scroll-btn-l" onclick="tabsScroll(-1)">&#8249;</button>
             <button class="t-scroll-btn t-scroll-btn-r" onclick="tabsScroll(1)">&#8250;</button>
             <div class="t-tabs" id="t-tabs-el">
-              <div class="t-tab" onclick="setTab(this,'h')">Centar</div>
-              <div class="t-tab" onclick="setTab(this,'p')"><span class="tab-icon">📁 </span>Predmeti</div>
-              <div class="t-tab" onclick="setTab(this,'k')"><span class="tab-icon">👥 </span>Klijenti</div>
-              <div class="t-tab active" onclick="setTab(this,'q')">Istraživanje</div>
-              <div class="t-tab" onclick="setTab(this,'a')">Analiza</div>
-              <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
-              <div class="t-tab" onclick="setTab(this,'s')">Sudska praksa</div>
-              <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="tab-icon">⚔️ </span>Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
-              <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">₿ Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
-              <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">📅 Kalendar</div>
-              <div class="t-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none">📊 Intelligence</div>
+              <!-- ── PRIMARNA NAVIGACIJA ── -->
+              <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')">Početna</div>
+              <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')">Predmeti</div>
+              <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')">Klijenti</div>
+              <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">Rokovi</div>
+              <div class="t-tab active" id="tab-btn-alati" onclick="setTab(this,'alati')">AI Alati</div>
+              <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">Dokumenti</div>
+              <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')">Podešavanja</div>
+              <!-- ── AI TOOLS — skriveni iz primarne nav, dostupni iz huba ── -->
+              <div class="t-tab" id="tab-btn-q" onclick="setTab(this,'q')" style="display:none">Istraživanje</div>
+              <div class="t-tab" id="tab-btn-a" onclick="setTab(this,'a')" style="display:none">Analiza</div>
+              <div class="t-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')" style="display:none">Nacrti <span class="pro-badge" id="pro-badge-n">PRO</span></div>
+              <div class="t-tab" id="tab-btn-s" onclick="setTab(this,'s')" style="display:none">Sudska praksa</div>
+              <div class="t-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')" style="display:none">Strategija <span class="pro-badge" id="pro-badge-t">PRO</span></div>
+              <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')" style="display:none">Web3 <span class="pro-badge" id="pro-badge-w">PRO</span></div>
+              <div class="t-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none">Intelligence</div>
             </div>
           </div>
           <div id="notif-bell" onclick="notif_toggleDropdown()" style="flex-shrink:0;display:none;align-items:center;cursor:pointer;padding:0 0.6rem 0.45rem;border-bottom:2px solid transparent;margin-bottom:-1px;position:relative;" title="Obaveštenja">
@@ -2263,6 +2368,7 @@ footer { padding: 2rem 1.5rem; }
           <div id="notif-dropdown" style="display:none;position:absolute;top:100%;right:0;z-index:200;width:min(340px,92vw);max-height:380px;overflow-y:auto;background:#141923;border:1px solid rgba(255,255,255,.12);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);padding:0.6rem 0;"></div>
           <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
             <div id="predmet-indicator" class="predmet-indicator"></div>
             <div class="t-guide">
               <div class="t-guide-icon">⚖</div>
@@ -2545,6 +2651,7 @@ footer { padding: 2rem 1.5rem; }
 
           </div>
           <div id="tab-n" style="display:none">
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
             <div class="t-guide">
               <div class="t-guide-icon">📄</div>
               <div class="t-guide-text"><span class="t-guide-bold">Generišite nacrt podneska.</span> Izaberite tip, opišite stranke i činjenice slobodnim tekstom — sistem ekstraktuje entitete i popunjava zvanični šablon.</div>
@@ -2607,6 +2714,7 @@ footer { padding: 2rem 1.5rem; }
             </details>
           </div>
           <div id="tab-a" style="display:none">
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
             <div class="t-guide">
               <div class="t-guide-icon">🔍</div>
               <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Otpremite ugovor, presudu ili pravni akt — AI identifikuje pravne rizike i problematične odredbe.</div>
@@ -2671,6 +2779,7 @@ footer { padding: 2rem 1.5rem; }
             </div>
           </div>
           <div id="tab-s" style="display:none">
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
             <div class="t-guide">
               <div class="t-guide-icon">⚖</div>
               <div class="t-guide-text"><span class="t-guide-bold">Sudska praksa</span> — pretraga kroz odluke Vrhovnog kasacionog suda i Vrhovnog suda RS. Filtrirajte po pravnoj oblasti, sudu i godini.</div>
@@ -2724,6 +2833,7 @@ footer { padding: 2rem 1.5rem; }
           </div>
           <!-- TAB: STRATEGIJA (F5) -->
           <div id="tab-t" style="display:none">
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
             <div class="strat-modul-izbor">
               <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">🔴 Red Team</button>
               <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">⚖️ Litigation Simulator</button>
@@ -3036,6 +3146,7 @@ footer { padding: 2rem 1.5rem; }
 
           <!-- F11: Web3/Compliance tab -->
           <div id="tab-w" style="display:none">
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Alati</button>
             <div class="web3-header">
               <div class="web3-naslov">₿ Web3 &amp; Crypto Compliance</div>
               <div class="web3-podnaslov">Pravna analiza zasnovana na ZDI (Srbija) i MiCA (EU 2023/1114)</div>
@@ -3097,6 +3208,120 @@ footer { padding: 2rem 1.5rem; }
             </div>
             <div id="pi-body">
               <div class="pi-empty">Učitavam...</div>
+            </div>
+          </div>
+
+          <!-- ── AI ALATI HUB ─────────────────────────────────────────────── -->
+          <div id="tab-alati" style="display:block">
+            <div class="ai-hub-intro">Pravni AI — odaberite alat</div>
+            <div class="ai-hub-grid">
+              <div class="ai-hub-card" onclick="openAITool('q')">
+                <div class="ai-hub-card-icon">⚖️</div>
+                <div class="ai-hub-card-name">Istraživanje</div>
+                <div class="ai-hub-card-desc">Pretraži sve važeće zakone RS. Dobij tačan zakon, član i citat za manje od 10 sekundi.</div>
+              </div>
+              <div class="ai-hub-card" onclick="openAITool('a')">
+                <div class="ai-hub-card-icon">🔍</div>
+                <div class="ai-hub-card-name">Analiza dokumenta</div>
+                <div class="ai-hub-card-desc">Otpremi ugovor, presudu ili podnesak. AI analizira sadržaj i identifikuje pravne rizike.</div>
+              </div>
+              <div class="ai-hub-card" onclick="openAITool('s')">
+                <div class="ai-hub-card-icon">📚</div>
+                <div class="ai-hub-card-name">Sudska praksa</div>
+                <div class="ai-hub-card-desc">Pretraga 12.604 odluka VS i VKS od 2018. Filtri po oblasti, sudu i periodu.</div>
+              </div>
+              <div class="ai-hub-card pro-card" onclick="openAITool('n')">
+                <div class="ai-hub-card-icon">📄</div>
+                <div class="ai-hub-card-name">Nacrti <span class="pro-badge">PRO</span></div>
+                <div class="ai-hub-card-desc">Generator tužbi, žalbi i ugovora. Pravno precizni šabloni za srpske sudske procedure.</div>
+              </div>
+              <div class="ai-hub-card pro-card" onclick="openAITool('t')">
+                <div class="ai-hub-card-icon">⚔️</div>
+                <div class="ai-hub-card-name">Strategija <span class="pro-badge">PRO</span></div>
+                <div class="ai-hub-card-desc">Red Team simulator, procena ishoda i litigation strategija za kompleksne predmete.</div>
+              </div>
+              <div class="ai-hub-card pro-card" onclick="openAITool('w')">
+                <div class="ai-hub-card-icon">₿</div>
+                <div class="ai-hub-card-name">Web3 <span class="pro-badge">PRO</span></div>
+                <div class="ai-hub-card-desc">ZDI / MiCA Compliance alati. Pravna analiza digitalnih sredstava po srpskom i EU pravu.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── DOKUMENTI HUB ────────────────────────────────────────────── -->
+          <div id="tab-dok" style="display:none">
+            <div class="dok-panel-wrap">
+              <div class="dok-notice">
+                <strong>Dokumenti po predmetima</strong>
+                Svi otpremljeni dokumenti su organizovani unutar predmeta kojima pripadaju. Otvorite predmet da pristupite dokumentima, ili koristite AI Analizu za brzu analizu novog dokumenta.
+              </div>
+              <div class="dok-nav-grid">
+                <div class="dok-nav-card" onclick="setTab(document.getElementById('tab-btn-p'),'p')">
+                  <div class="dok-nav-icon">📁</div>
+                  <div>
+                    <div class="dok-nav-label">Predmeti</div>
+                    <div class="dok-nav-sub">Dokumenti unutar predmeta</div>
+                  </div>
+                </div>
+                <div class="dok-nav-card" onclick="openAITool('a')">
+                  <div class="dok-nav-icon">🔍</div>
+                  <div>
+                    <div class="dok-nav-label">Analiza dokumenta</div>
+                    <div class="dok-nav-sub">AI analiza novog dokumenta</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── PODEŠAVANJA ──────────────────────────────────────────────── -->
+          <div id="tab-settings" style="display:none">
+            <div class="settings-header">Podešavanja</div>
+
+            <div class="settings-section">
+              <div class="settings-section-hd">Nalog</div>
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div class="settings-row-label">Email adresa</div>
+                  <div class="settings-row-sub" id="settings-email-val">—</div>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div class="settings-row-label">Plan pretplate</div>
+                  <div class="settings-row-sub" id="settings-plan-val">—</div>
+                </div>
+                <button class="settings-btn" onclick="openSubscription()">Upravljaj</button>
+              </div>
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div class="settings-row-label">Promena lozinke</div>
+                  <div class="settings-row-sub">Pošaljite link za resetovanje</div>
+                </div>
+                <button class="settings-btn" onclick="doForgotPasswordFromSettings()">Resetuj</button>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-hd">Firma</div>
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div class="settings-row-label">Naziv firme</div>
+                  <div class="settings-row-sub" id="settings-firma-val">—</div>
+                </div>
+                <button class="settings-btn" onclick="openSettingsModal ? openSettingsModal() : null">Uredi</button>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-hd">Sistem</div>
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div class="settings-row-label">Odjava</div>
+                  <div class="settings-row-sub">Odjavi se sa naloga</div>
+                </div>
+                <button class="settings-btn" onclick="doLogout ? doLogout() : null" style="border-color:rgba(239,68,68,0.3);color:#f87171;">Odjavi se</button>
+              </div>
             </div>
           </div>
 
@@ -3512,8 +3737,8 @@ async function initAuth() {
     } else {
       userCredits = 0; _creditsLoaded = false; _creditsLoadedAt = 0; _chatHistoryRows = [];
       var ch=document.getElementById('chat-hist'); if(ch){ch.innerHTML='';ch.style.display='none';}
-      var qTab = document.querySelector('[onclick*="\'q\'"]');
-      if (qTab) setTab(qTab, 'q');
+      var alatiTab = document.getElementById('tab-btn-alati');
+      if (alatiTab) setTab(alatiTab, 'alati');
     }
     updateAuthUI();
   });
@@ -4190,15 +4415,22 @@ function setTab(el,t){
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  ['h','q','n','a','s','p','t','k','w','kal','pi'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
+  // Ako je AI tool tab aktivan — označi i "AI Alati" nav dugme kao aktivno
+  var _aiTools = {q:1,a:1,n:1,s:1,t:1,w:1};
+  if (_aiTools[t]) {
+    var _ab = document.getElementById('tab-btn-alati');
+    if (_ab) _ab.classList.add('active');
+  }
+  ['h','q','n','a','s','p','t','k','w','kal','pi','alati','dok','settings'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Kontrolni centar',q:'Pretraži pravnu bazu',n:'Generiši nacrt',a:'Analiziraj dokument',s:'Pretraži sudsku praksu',p:'Predmeti',t:'⚔️ Strategija',k:'👥 Klijenti',w:'₿ Web3 Compliance',kal:'📅 Kalendar',pi:'📊 Product Intelligence'};
+  var lbl={h:'Početna',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 Compliance',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'AI Alati',dok:'Dokumenti',settings:'Podešavanja'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  if (execRow) execRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w' || t === 'kal' || t === 'pi') ? 'none' : '';
-  if (credRow) credRow.style.display = (t === 'h' || t === 't' || t === 'k' || t === 'w' || t === 'kal' || t === 'pi') ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
+  var _noExec = {h:1,t:1,k:1,w:1,kal:1,pi:1,alati:1,dok:1,settings:1,p:1};
+  if (execRow) execRow.style.display = _noExec[t] ? 'none' : '';
+  if (credRow) credRow.style.display = _noExec[t] ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
   if (t==='pi') piLoad();
   if (t==='n') { updatePodnesakHint(); ucitajPlaybookStatus(); }
@@ -4208,6 +4440,7 @@ function setTab(el,t){
   if (t==='k') ucitajKlijente();
   if (t==='w') web3InitTab();
   if (t==='kal') kalendarLoad();
+  if (t==='settings') settingsLoad();
   if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'smooth' });
   piTrack('nav', 'tab_switch', {tab: t});
   setTimeout(tabsUpdateArrows, 350);
@@ -4215,6 +4448,32 @@ function setTab(el,t){
   if (respEl) respEl.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
   if (window.micStopAll) micStopAll();
+}
+
+// Otvori AI alat iz huba — čuva AI Alati kao aktivan parent
+function openAITool(t) {
+  var btn = document.getElementById('tab-btn-' + t);
+  if (btn) setTab(btn, t);
+}
+
+// Popuni Podešavanja panel podacima korisnika
+function settingsLoad() {
+  var u = sb && sb.auth ? sb.auth.getUser() : null;
+  var emailEl = document.getElementById('settings-email-val');
+  var planEl  = document.getElementById('settings-plan-val');
+  var firmaEl = document.getElementById('settings-firma-val');
+  if (emailEl && currentUserEmail) emailEl.textContent = currentUserEmail;
+  if (planEl) planEl.textContent = currentUserIsPro ? 'VindexAI PRO' : 'Basic';
+  var firma = localStorage.getItem('vindex_firma');
+  if (firmaEl && firma) { try { var f=JSON.parse(firma); firmaEl.textContent = f.naziv||'—'; } catch(e){} }
+}
+
+// Reset lozinke iz Podešavanja
+function doForgotPasswordFromSettings() {
+  var email = currentUserEmail;
+  if (!email) { alert('Email adresa nije dostupna.'); return; }
+  sb.auth.resetPasswordForEmail(email, {redirectTo: window.location.origin + window.location.pathname})
+    .then(function(r){ if(!r.error) alert('Link za resetovanje lozinke je poslat na ' + email); else alert('Greška: ' + r.error.message); });
 }
 
 function _updateProTabUI() {
