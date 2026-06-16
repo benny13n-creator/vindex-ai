@@ -2071,7 +2071,7 @@ footer { padding: 2rem 1.5rem; }
 
 /* ── SIDEBAR ─────────────────────────────────────────────────── */
 .vx-sidebar {
-  width: 170px; flex-shrink: 0;
+  width: 200px; flex-shrink: 0;
   display: flex; flex-direction: column;
   background: rgba(255,255,255,0.012);
   border-right: 1px solid rgba(255,255,255,0.06);
@@ -4517,11 +4517,11 @@ select.pro-input option { background: var(--surface); }
   --icon-ui:         rgba(255,255,255,0.42);
 }
 
-/* Sidebar — 170px compact layout */
+/* Sidebar — 200px labeled layout */
 .vx-sidebar {
-  width: 170px !important;
-  min-width: 170px !important;
-  max-width: 170px !important;
+  width: 200px !important;
+  min-width: 200px !important;
+  max-width: 200px !important;
   flex-direction: column !important;
   overflow: hidden !important;
   overflow-y: auto !important;
@@ -4625,7 +4625,7 @@ select.pro-input option { background: var(--surface); }
 
 /* Label */
 .vx-tab-lbl {
-  font-size: 0.82rem !important;
+  font-size: 0.76rem !important;
   font-weight: 500 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -4644,6 +4644,51 @@ select.pro-input option { background: var(--surface); }
   border: none !important;
 }
 
+/* AI Centar section label */
+.vx-nav-group-lbl {
+  font-family: var(--font-mono) !important;
+  font-size: 0.46rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,255,255,0.22) !important;
+  padding: 8px 14px 3px !important;
+}
+/* AI Centar sub-items */
+.vx-nav-sub {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 5px 14px 5px 20px !important;
+  cursor: pointer !important;
+  color: rgba(255,255,255,0.38) !important;
+  font-family: var(--font-ui) !important;
+  font-size: 0.72rem !important;
+  font-weight: 400 !important;
+  transition: color 0.15s, background 0.15s !important;
+  border-left: 2px solid transparent !important;
+}
+.vx-nav-sub:hover {
+  color: rgba(255,255,255,0.68) !important;
+  background: rgba(255,255,255,0.028) !important;
+}
+.vx-nav-sub-dot {
+  width: 3px !important;
+  height: 3px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.28) !important;
+  flex-shrink: 0 !important;
+}
+/* Sidebar "Tvorac i pravda" footer text */
+.vx-foot-lbl {
+  font-family: var(--font-mono) !important;
+  font-size: 0.48rem !important;
+  color: rgba(255,255,255,0.18) !important;
+  letter-spacing: 0.06em !important;
+  text-align: center !important;
+  width: 100% !important;
+  display: block !important;
+}
 /* Footer */
 .vx-sidebar-foot, .vx-sidebar-footer {
   padding: 10px 12px !important;
@@ -5065,7 +5110,7 @@ i[data-lucide] svg {
 
 /* ── Responsive ─── */
 @media (max-width: 1024px) {
-  .vx-sidebar { width: 152px !important; min-width: 152px !important; max-width: 152px !important; }
+  .vx-sidebar { width: 180px !important; min-width: 180px !important; max-width: 180px !important; }
   .kc-sphere { width: 250px; height: 250px; }
   .kc-sphere-inner { width: 178px; height: 178px; }
   .kc-sphere-num { font-size: 2rem; }
@@ -5587,9 +5632,19 @@ i[data-lucide] svg {
           <span class="vx-tab-lbl">Rokovi</span>
         </div>
         <div class="vx-nav-sep"></div>
-        <div class="t-tab" id="tab-btn-alati" onclick="setTab(this,'alati')">
-          <i data-lucide="sparkles" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">AI Centar</span>
+        <!-- AI Centar — section label + always-visible sub-items -->
+        <div class="vx-nav-group-lbl">AI Centar</div>
+        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
+          <span class="vx-nav-sub-dot"></span>Analiza slučajeva
+        </div>
+        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
+          <span class="vx-nav-sub-dot"></span>Sudska praksa
+        </div>
+        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
+          <span class="vx-nav-sub-dot"></span>Naknada štete
+        </div>
+        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
+          <span class="vx-nav-sub-dot"></span>Need &amp; Compliance
         </div>
         <div class="vx-nav-sep"></div>
         <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
@@ -5600,7 +5655,8 @@ i[data-lucide] svg {
           <i data-lucide="settings" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Podešavanja</span>
         </div>
-        <!-- Hidden tabs — unchanged, all functionality preserved -->
+        <!-- Hidden tabs — all functionality preserved -->
+        <div class="t-tab vx-hidden-tab" id="tab-btn-alati" onclick="setTab(this,'alati')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-q" onclick="setTab(this,'q')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-a" onclick="setTab(this,'a')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-s" onclick="setTab(this,'s')"></div>
@@ -5610,10 +5666,7 @@ i[data-lucide] svg {
         <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none"></div>
       </nav>
       <div class="vx-sidebar-foot">
-        <button class="vx-new-btn" onclick="intakeOtvori()" title="Novi predmet">
-          <i data-lucide="plus-circle" class="vx-new-btn-ico"></i>
-          <span class="vx-new-btn-lbl">Novi predmet</span>
-        </button>
+        <span class="vx-foot-lbl">Tvorac i pravda</span>
       </div>
     </aside>
   <div class="vx-body">
