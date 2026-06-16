@@ -4583,7 +4583,7 @@ select.pro-input option { background: var(--surface); }
   border-bottom: none !important;
   border-radius: 0 !important;
   font-family: var(--font-ui) !important;
-  font-size: 0.95rem !important;
+  font-size: 0.88rem !important;
   font-weight: 500 !important;
   color: rgba(255,255,255,0.85) !important;
   cursor: pointer !important;
@@ -4632,11 +4632,10 @@ select.pro-input option { background: var(--surface); }
 
 /* Label */
 .vx-tab-lbl {
-  font-size: 0.95rem !important;
+  font-size: 0.88rem !important;
   font-weight: 500 !important;
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  overflow: visible !important;
   color: inherit !important;
   font-family: var(--font-ui) !important;
 }
@@ -5760,9 +5759,10 @@ i[data-lucide] svg {
           <i data-lucide="calendar-clock" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Rokovi</span>
         </div>
-        <div class="t-tab" id="tab-btn-kalendar" onclick="setTab(document.getElementById('tab-btn-kal'),'kal')">
-          <i data-lucide="calendar-days" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Kalendar</span>
+        <div class="t-tab" id="tab-btn-notif" onclick="showToast('Dolazi uskoro','info')">
+          <!-- TODO: otvori notifikacije panel kada bude implementiran -->
+          <i data-lucide="bell" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Notifikacije</span>
         </div>
         <div class="vx-nav-sep"></div>
         <!-- AI Centar — section label + always-visible sub-items -->
