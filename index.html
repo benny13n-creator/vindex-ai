@@ -5016,123 +5016,139 @@ i[data-lucide] svg {
 
 /* Individual panel */
 .kc-panel {
-  background: rgba(255,255,255,0.018);
+  background: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.06);
-  border-left: 2px solid transparent;
-  border-radius: var(--r-lg);
-  padding: 12px 14px;
+  border-radius: 12px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  transition: border-left-color 0.18s;
+  gap: 0;
+  transition: border-color 0.18s;
 }
-.kc-panel:hover { border-left-color: rgba(0,212,255,0.45); }
+.kc-panel:hover { border-color: rgba(0,212,255,0.15); }
 .kc-panel-hd {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .kc-panel-title {
   display: flex;
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.5);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
-.kc-panel-title i[data-lucide] svg { width: 12px !important; height: 12px !important; stroke-width: 2 !important; }
-.kc-panel-badge {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: rgba(74,168,255,0.72);
-  background: rgba(74,168,255,0.07);
-  border: 1px solid rgba(74,168,255,0.14);
-  border-radius: 4px;
-  padding: 1px 6px;
-}
-.kc-panel-badge.kc-badge-warn {
-  color: rgba(240,180,41,0.82);
-  background: rgba(240,180,41,0.07);
-  border-color: rgba(240,180,41,0.18);
-}
+.kc-panel-title i[data-lucide] svg { width: 13px !important; height: 13px !important; stroke-width: 2 !important; }
 .kc-panel-hd-cta {
   font-family: var(--font-mono);
-  font-size: 0.52rem;
+  font-size: 0.65rem;
   color: rgba(0,212,255,0.5);
   cursor: pointer;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: auto;
 }
 .kc-panel-hd-cta:hover { color: rgba(0,212,255,0.85); }
+/* Empty state — centered */
 .kc-panel-empty {
-  font-family: var(--font-ui);
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.18);
-  padding: 6px 0 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 0 12px;
   text-align: center;
 }
+.kc-panel-empty-ico { color: rgba(255,255,255,0.15); }
+.kc-panel-empty-ico i[data-lucide] svg { width: 28px !important; height: 28px !important; stroke-width: 1.5 !important; }
+.kc-panel-empty-title {
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.5);
+}
+.kc-panel-empty-sub {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.28);
+}
+/* Panel rows */
 .kc-panel-row {
   display: flex;
   align-items: flex-start;
-  gap: 7px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.035);
+  gap: 9px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
   cursor: pointer;
   transition: opacity 0.12s;
 }
 .kc-panel-row:last-of-type { border-bottom: none; }
-.kc-panel-row:hover { opacity: 0.72; }
-.kc-row-ico { flex-shrink: 0; margin-top: 2px; }
-.kc-row-ico i[data-lucide] svg { width: 13px !important; height: 13px !important; stroke-width: 1.75 !important; }
-.kc-ico-ok     { color: rgba(52,211,153,0.6); }
-.kc-ico-warn   { color: rgba(240,180,41,0.65); }
-.kc-ico-danger { color: rgba(239,68,68,0.65); }
-.kc-ico-muted  { color: rgba(255,255,255,0.18); }
-.kc-ico-ai     { color: rgba(74,168,255,0.6); }
+.kc-panel-row:hover { opacity: 0.78; }
+.kc-row-ico { flex-shrink: 0; margin-top: 1px; }
+.kc-row-ico i[data-lucide] svg { width: 15px !important; height: 15px !important; stroke-width: 1.75 !important; }
+.kc-ico-ok     { color: rgba(0,212,255,0.65); }
+.kc-ico-teal   { color: rgba(0,212,255,0.65); }
+.kc-ico-warn   { color: rgba(240,180,41,0.75); }
+.kc-ico-orange { color: rgba(251,146,60,0.8); }
+.kc-ico-danger { color: rgba(239,68,68,0.7); }
+.kc-ico-muted  { color: rgba(255,255,255,0.25); }
+.kc-ico-ai     { color: rgba(0,212,255,0.6); }
 .kc-panel-row-info { flex: 1; min-width: 0; }
+.kc-panel-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
 .kc-panel-row-naziv {
   font-family: var(--font-ui);
-  font-size: 0.79rem;
-  font-weight: 500;
-  color: rgba(255,255,255,0.92);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.kc-panel-row-ts {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.28);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .kc-panel-row-meta {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  color: rgba(255,255,255,0.28);
-  margin-top: 1px;
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.45);
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.kc-panel-preporuka .kc-panel-row-naziv {
-  white-space: normal;
-  font-size: 0.76rem;
-  line-height: 1.4;
-}
-.kc-panel-cta {
+/* Expand link at panel bottom */
+.kc-panel-expand {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
-  color: rgba(74,168,255,0.4);
-  margin-top: auto;
+  font-size: 0.65rem;
+  color: rgba(0,212,255,0.5);
   cursor: pointer;
+  padding-top: 8px;
+  margin-top: 4px;
   transition: color 0.12s;
-  padding-top: 6px;
-  text-align: right;
-  letter-spacing: 0.03em;
 }
-.kc-panel-cta:hover { color: var(--blue); }
+.kc-panel-expand:hover { color: rgba(0,212,255,0.85); }
+/* Legacy — keep for compat */
+.kc-panel-badge { display: none; }
+.kc-panel-cta { display: none; }
 
 /* Lucide icon in topbar */
 .vx-topbar-ico {
@@ -7872,27 +7888,58 @@ function _kcIco(name, cls) {
   return '<i data-lucide="'+name+'"'+(cls?' class="'+cls+'"':'')+' style="display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"></i>';
 }
 
+function _kcRelTime(iso) {
+  if (!iso) return '';
+  var diff = Date.now() - new Date(iso).getTime();
+  var h = Math.floor(diff / 3600000);
+  if (h < 1) return 'Maloprije';
+  if (h < 24) return 'Pre ' + h + 'h';
+  var days = Math.floor(h / 24);
+  return 'Pre ' + days + (days === 1 ? ' dan' : ' dana');
+}
+
+function _kcDaysUntil(iso) {
+  if (!iso) return null;
+  var diff = new Date(iso).getTime() - Date.now();
+  return Math.ceil(diff / 86400000);
+}
+
 function _kcPanelAktivni(d) {
   var top = d.top_aktivni_predmeti || [];
   var visokRizikIds = (d.predmeti_visok_rizik||[]).reduce(function(m,r){m[r.predmet_id]=1;return m;},{});
   var hitniIds      = (d.hitni_rokovi||[]).reduce(function(m,r){m[r.predmet_id]=1;return m;},{});
+  var rokByPredmet  = (d.rokovi_7_dana||[]).reduce(function(m,r){if(!m[r.predmet_id])m[r.predmet_id]=r.datum_iso;return m;},{});
+  var ukupno = d.ukupno_aktivnih || 0;
   var h = '<div class="kc-panel" id="kc-panel-aktivni">';
   h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('briefcase')+'Aktivni predmeti</span>';
-  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Vidi sve →</span>';
-  h += '</div>';
+  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Vidi sve →</span></div>';
   if (!top.length) {
-    h += '<div class="kc-panel-empty">Nema aktivnih predmeta</div>';
+    h += '<div class="kc-panel-empty">';
+    h += '<span class="kc-panel-empty-ico">'+_kcIco('briefcase')+'</span>';
+    h += '<span class="kc-panel-empty-title">Nema aktivnih predmeta</span>';
+    h += '</div>';
   } else {
     top.forEach(function(p) {
       var isRisk  = visokRizikIds[p.id];
       var isHitni = hitniIds[p.id];
       var icoName = isRisk ? 'alert-triangle' : (isHitni ? 'alert-circle' : 'check-circle');
       var icoCls  = isRisk ? 'kc-ico-danger' : (isHitni ? 'kc-ico-warn' : 'kc-ico-ok');
+      var rokIso  = rokByPredmet[p.id];
+      var rokDays = rokIso ? _kcDaysUntil(rokIso) : null;
+      var rokTxt  = rokDays !== null ? (rokDays <= 0 ? 'Danas' : 'Rok: ' + rokDays + (rokDays === 1 ? ' dan' : ' dana')) : '';
       h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(p.id)+'\')">';
       h += '<span class="kc-row-ico '+icoCls+'">'+_kcIco(icoName)+'</span>';
-      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(p.naziv||'—')+'</div>';
-      h += '<div class="kc-panel-row-meta">'+escHtml(p.status||'aktivan')+(p.tip?' · '+escHtml(p.tip):'')+'</div></div></div>';
+      h += '<div class="kc-panel-row-info">';
+      h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv">'+escHtml(p.naziv||'—')+'</span>';
+      if (rokTxt) h += '<span class="kc-panel-row-ts">'+escHtml(rokTxt)+'</span>';
+      h += '</div>';
+      h += '<div class="kc-panel-row-meta">'+escHtml(p.status||'aktivan')+(p.tip?' · '+escHtml(p.tip):'')+'</div>';
+      h += '</div></div>';
     });
+    if (ukupno > top.length) {
+      var jos = ukupno - top.length;
+      h += '<div class="kc-panel-expand" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Još '+jos+' '+(jos===1?'predmet':'predmeta')+' ▾</div>';
+    }
   }
   h += '</div>';
   return h;
@@ -7900,33 +7947,47 @@ function _kcPanelAktivni(d) {
 
 function _kcPanelRokovi(d) {
   var rocista  = (d.danasnja_rocista||[]).slice(0,3);
-  var hitniRok = d.hitni_rokovi || [];
-  var rokovi7  = d.rokovi_7_dana || [];
+  var hitniRok = (d.hitni_rokovi||[]).slice(0,3);
+  var rokovi7  = (d.rokovi_7_dana||[]).slice(0,3);
+  var hasData  = rocista.length || hitniRok.length || rokovi7.length;
   var h = '<div class="kc-panel" id="kc-panel-rokovi">';
-  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('clock')+'Rokovi i ročišta</span>';
-  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')">Vidi sve →</span>';
-  h += '</div>';
-  if (!rocista.length && !hitniRok.length && !rokovi7.length) {
-    h += '<div class="kc-panel-empty">Nema rokova danas</div>';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('calendar-clock')+'Današnji rokovi</span>';
+  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')">Vidi sve →</span></div>';
+  if (!hasData) {
+    h += '<div class="kc-panel-empty">';
+    h += '<span class="kc-panel-empty-ico">'+_kcIco('calendar-x')+'</span>';
+    h += '<span class="kc-panel-empty-title">Nema rokova danas.</span>';
+    h += '<span class="kc-panel-empty-sub">Odlično, sve je pod kontrolom.</span>';
+    h += '</div>';
   } else {
-    rocista.forEach(function(r){
+    rocista.forEach(function(r) {
       h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
       h += '<span class="kc-row-ico kc-ico-warn">'+_kcIco('gavel')+'</span>';
-      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div>';
-      h += '<div class="kc-panel-row-meta">Ročište'+(r.vreme?' '+escHtml(r.vreme):'')+(r.sud?' · '+escHtml(r.sud):'')+'</div></div></div>';
+      h += '<div class="kc-panel-row-info">';
+      h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</span>';
+      if (r.vreme) h += '<span class="kc-panel-row-ts">'+escHtml(r.vreme)+'</span>';
+      h += '</div>';
+      h += '<div class="kc-panel-row-meta">Ročište'+(r.sud?' · '+escHtml(r.sud):'')+'</div>';
+      h += '</div></div>';
     });
-    hitniRok.slice(0,3).forEach(function(r){
+    hitniRok.forEach(function(r) {
       h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
       h += '<span class="kc-row-ico kc-ico-danger">'+_kcIco('alert-triangle')+'</span>';
-      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(r.dogadjaj||'Rok')+'</div>';
-      h += '<div class="kc-panel-row-meta">'+escHtml(r.predmet_naziv||'—')+' · '+escHtml(r.datum_iso||'—')+'</div></div></div>';
+      h += '<div class="kc-panel-row-info">';
+      h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv">'+escHtml(r.dogadjaj||'Rok')+'</span>';
+      h += '<span class="kc-panel-row-ts">'+escHtml(r.datum_iso||'—')+'</span></div>';
+      h += '<div class="kc-panel-row-meta">'+escHtml(r.predmet_naziv||'—')+'</div>';
+      h += '</div></div>';
     });
     if (!rocista.length && !hitniRok.length) {
-      rokovi7.slice(0,3).forEach(function(r){
+      rokovi7.forEach(function(r) {
         h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
-        h += '<span class="kc-row-ico kc-ico-muted">'+_kcIco('calendar-clock')+'</span>';
-        h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(r.dogadjaj||'Rok')+'</div>';
-        h += '<div class="kc-panel-row-meta">'+escHtml(r.predmet_naziv||'—')+' · '+escHtml(r.datum_iso||'—')+'</div></div></div>';
+        h += '<span class="kc-row-ico kc-ico-teal">'+_kcIco('calendar-clock')+'</span>';
+        h += '<div class="kc-panel-row-info">';
+        h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv">'+escHtml(r.dogadjaj||'Rok')+'</span>';
+        h += '<span class="kc-panel-row-ts">'+escHtml(r.datum_iso||'—')+'</span></div>';
+        h += '<div class="kc-panel-row-meta">'+escHtml(r.predmet_naziv||'—')+'</div>';
+        h += '</div></div>';
       });
     }
   }
@@ -7940,12 +8001,29 @@ function _kcPanelPreporuke(d) {
   h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('lightbulb')+'AI preporuke</span>';
   h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">Vidi sve →</span></div>';
   if (!preporuke.length) {
-    h += '<div class="kc-panel-empty">Sve je pod kontrolom</div>';
+    h += '<div class="kc-panel-empty">';
+    h += '<span class="kc-panel-empty-ico">'+_kcIco('check-circle')+'</span>';
+    h += '<span class="kc-panel-empty-title">Sve je pod kontrolom</span>';
+    h += '<span class="kc-panel-empty-sub">Nema hitnih preporuka.</span>';
+    h += '</div>';
   } else {
     preporuke.slice(0,3).forEach(function(p) {
+      var txt = p.toLowerCase();
+      var icoName, icoCls;
+      if (txt.indexOf('rizik') >= 0 || txt.indexOf('pogor') >= 0) {
+        icoName = 'alert-triangle'; icoCls = 'kc-ico-orange';
+      } else if (txt.indexOf('ročiš') >= 0 || txt.indexOf('rok') >= 0) {
+        icoName = 'calendar-clock'; icoCls = 'kc-ico-teal';
+      } else if (txt.indexOf('dokument') >= 0) {
+        icoName = 'file-text'; icoCls = 'kc-ico-teal';
+      } else {
+        icoName = 'scale'; icoCls = 'kc-ico-teal';
+      }
       h += '<div class="kc-panel-row kc-panel-preporuka">';
-      h += '<span class="kc-row-ico kc-ico-ai">'+_kcIco('sparkles')+'</span>';
-      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(p)+'</div></div></div>';
+      h += '<span class="kc-row-ico '+icoCls+'">'+_kcIco(icoName)+'</span>';
+      h += '<div class="kc-panel-row-info">';
+      h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv" style="white-space:normal;line-height:1.35">'+escHtml(p)+'</span></div>';
+      h += '</div></div>';
     });
   }
   h += '</div>';
@@ -7955,26 +8033,33 @@ function _kcPanelPreporuke(d) {
 function _kcPanelAktivnosti(d) {
   var acts = [];
   (d.danasnja_rocista||[]).slice(0,2).forEach(function(r){
-    acts.push({ico:'gavel',cls:'kc-ico-warn',txt:'Ročište — '+(r.predmet_naziv||'Predmet'),sub:r.vreme||'danas',id:r.predmet_id});
+    acts.push({ico:'gavel',cls:'kc-ico-warn',txt:'Ročište — '+(r.predmet_naziv||'Predmet'),sub:'Sud'+( r.sud?' · '+r.sud:''),ts:r.vreme||'',id:r.predmet_id});
   });
   (d.novi_dokumenti||[]).slice(0,2).forEach(function(dok){
-    if(acts.length<3)acts.push({ico:'file-text',cls:'kc-ico-ai',txt:dok.naziv_fajla||'Dokument',sub:dok.predmet_naziv||'—',id:dok.predmet_id});
+    if(acts.length<4)acts.push({ico:'file-text',cls:'kc-ico-teal',txt:dok.naziv_fajla||'Dokument',sub:dok.predmet_naziv||'—',ts:_kcRelTime(dok.created_at),id:dok.predmet_id});
   });
   (d.pad_procene||[]).slice(0,1).forEach(function(p){
-    if(acts.length<3)acts.push({ico:'alert-triangle',cls:'kc-ico-danger',txt:p.predmet_naziv||'Predmet',sub:'Rizik: '+(p.prethodni_rizik||'?')+' → '+(p.trenutni_rizik||'?'),id:p.predmet_id});
+    if(acts.length<4)acts.push({ico:'alert-triangle',cls:'kc-ico-orange',txt:p.predmet_naziv||'Predmet',sub:'Rizik: '+(p.prethodni_rizik||'?')+' → '+(p.trenutni_rizik||'?'),ts:'',id:p.predmet_id});
   });
   var h = '<div class="kc-panel" id="kc-panel-aktivnosti">';
-  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('activity')+'Nedavna aktivnost</span>';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('activity')+'Poslednje aktivnosti</span>';
   h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Vidi sve →</span></div>';
-  if(!acts.length){
-    h += '<div class="kc-panel-empty">Nema nedavnih aktivnosti</div>';
-  }else{
+  if (!acts.length) {
+    h += '<div class="kc-panel-empty">';
+    h += '<span class="kc-panel-empty-ico">'+_kcIco('activity')+'</span>';
+    h += '<span class="kc-panel-empty-title">Nema nedavnih aktivnosti</span>';
+    h += '</div>';
+  } else {
     acts.forEach(function(a){
-      var clickAttr = a.id ? ' onclick="_dashGoToPredmet(\''+escHtml(a.id)+'\')" style="cursor:pointer"' : '';
+      var clickAttr = a.id ? ' onclick="_dashGoToPredmet(\''+escHtml(a.id)+'\')"' : '';
       h += '<div class="kc-panel-row"'+clickAttr+'>';
       h += '<span class="kc-row-ico '+a.cls+'">'+_kcIco(a.ico)+'</span>';
-      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(a.txt)+'</div>';
-      h += '<div class="kc-panel-row-meta">'+escHtml(a.sub)+'</div></div></div>';
+      h += '<div class="kc-panel-row-info">';
+      h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv">'+escHtml(a.txt)+'</span>';
+      if (a.ts) h += '<span class="kc-panel-row-ts">'+escHtml(a.ts)+'</span>';
+      h += '</div>';
+      h += '<div class="kc-panel-row-meta">'+escHtml(a.sub)+'</div>';
+      h += '</div></div>';
     });
   }
   h += '</div>';
