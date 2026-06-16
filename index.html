@@ -4973,6 +4973,122 @@ i[data-lucide] svg {
   .kc-stat-num { font-size: 0.95rem; }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   FAZA 2 — Predmet kao centralni hub (7 tabova)
+   NE menja: palette, glass, grid, spacing tokens
+   ═══════════════════════════════════════════════════════════════ */
+.pred-hub-hdr {
+  padding: 0.55rem 0 0.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 0;
+}
+.pred-hub-hdr-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.pred-hub-naziv {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #fff;
+}
+.pred-hub-hdr-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.28rem;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.4);
+  line-height: 1.4;
+}
+.pred-hub-meta-sep { color: rgba(255,255,255,0.18); }
+.pred-subtab-nav {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin: 0 0 0.75rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.pred-subtab-nav::-webkit-scrollbar { display: none; }
+.pred-subtab-btn {
+  flex-shrink: 0;
+  padding: 0.48rem 0.68rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.4);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: color .15s, border-color .15s;
+  font-family: var(--font-ui, 'Plus Jakarta Sans', sans-serif);
+  white-space: nowrap;
+}
+.pred-subtab-btn:hover { color: rgba(255,255,255,0.7); }
+.pred-subtab-btn.active { color: #89c8ff; border-bottom-color: #4aa8ff; }
+.pred-subtab-pane { display: block; }
+.pred-ai-tool-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.pred-ai-tool-btn {
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 0.75rem;
+  background: rgba(74,168,255,0.06);
+  border: 1px solid rgba(74,168,255,0.15);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.78rem;
+  font-family: var(--font-ui, 'Plus Jakarta Sans', sans-serif);
+  cursor: pointer;
+  text-align: left;
+  gap: 0.45rem;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.pred-ai-tool-btn:hover {
+  background: rgba(74,168,255,0.12);
+  border-color: rgba(74,168,255,0.3);
+  color: #89c8ff;
+}
+.pred-dok-item {
+  display: flex;
+  align-items: center;
+  padding: 0.38rem 0.5rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+  margin-top: 0.28rem;
+  gap: 0.4rem;
+}
+.pred-dok-item-name {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.8);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pred-dok-item-status {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
+@media (max-width: 768px) {
+  .pred-subtab-btn { padding: 0.42rem 0.52rem; font-size: 0.65rem; }
+  .pred-ai-tool-btn { font-size: 0.75rem; padding: 0.48rem 0.65rem; }
+}
+@media (max-width: 375px) {
+  .pred-subtab-btn { padding: 0.38rem 0.44rem; font-size: 0.62rem; }
+}
+
 </style>
 
 </head>
@@ -5322,10 +5438,37 @@ i[data-lucide] svg {
             </div>
             <div id="pred-list" class="pred-list"></div>
             <div id="pred-detail" class="pred-detail">
-              <div class="pred-detail-header">
-                <span id="pred-detail-naziv" style="font-weight:700;font-size:0.92rem;color:#fff;"></span>
-                <span id="pred-detail-badge" class="pred-badge"></span>
-                <div id="pred-status-panel" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin:0.7rem 0;padding:0.7rem;background:rgba(255,255,255,0.04);border-radius:8px;">
+
+              <!-- ── Case Hub Header (always visible) ────────────────── -->
+              <div class="pred-hub-hdr">
+                <div class="pred-hub-hdr-top">
+                  <span id="pred-detail-naziv" class="pred-hub-naziv"></span>
+                  <span id="pred-detail-badge" class="pred-badge"></span>
+                </div>
+                <div class="pred-hub-hdr-meta">
+                  <i data-lucide="user" style="width:11px;height:11px;flex-shrink:0;"></i>
+                  <span id="pred-hub-klijent">—</span>
+                  <span class="pred-hub-meta-sep">·</span>
+                  <span id="pred-hub-updated">—</span>
+                  <span class="pred-hub-meta-sep">·</span>
+                  <span>Verovatnoća: <span id="pred-hub-verovat">N/A</span></span><!-- TODO: kolona verovatnoća_uspeha ne postoji u predmeti tabeli -->
+                </div>
+              </div>
+
+              <!-- ── Subtab Navigation ────────────────────────────────── -->
+              <div class="pred-subtab-nav">
+                <button class="pred-subtab-btn active" onclick="pred_subtabSwitch('pregled',this)">Pregled</button>
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('dokumenti',this)">Dokumenti</button>
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('ai-analiza',this)">AI Analiza</button>
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('strategija',this)">Strategija</button>
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('rokovi',this)">Rokovi</button>
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('naplata',this)">Naplata</button>
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('komunikacija',this)">Komunikacija</button>
+              </div>
+
+              <!-- ── TAB 1: Pregled ───────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-pregled">
+                <div id="pred-status-panel" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin:0.55rem 0 0.6rem;padding:0.7rem;background:rgba(255,255,255,0.04);border-radius:8px;">
   <div style="display:flex;flex-direction:column;gap:2px;">
     <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Tužilac</span>
     <span id="pred-s-tuzilac" style="font-size:0.8rem;color:#fff;">—</span>
@@ -5351,7 +5494,6 @@ i[data-lucide] svg {
     <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">—</span>
   </div>
 </div>
-              </div>
               <!-- Cockpit panel — AI procena na vrhu -->
               <div id="pred-cockpit" class="pred-cockpit">
                 <div id="pck-loading" class="pck-loading">⚡ Učitavam AI procenu predmeta...</div>
@@ -5405,102 +5547,154 @@ i[data-lucide] svg {
                 <textarea id="pred-beleska-input" class="t-input" placeholder="Nova beleška..." style="flex:1;height:52px;"></textarea>
                 <button onclick="pred_dodajBelesku()" style="padding:0 0.85rem;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;">Dodaj</button>
               </div>
-              <div class="pred-section-lbl">Dokumenti</div>
-              <input type="file" id="pred-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="pred_upload_doc(this.files[0])">
-              <div id="pred-upload-zone" class="upload-dropzone" style="padding:0.85rem 1rem;margin-top:0;" onclick="pred_upload_trigger()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');pred_upload_doc(event.dataTransfer.files[0])">
-                <div style="font-size:1.15rem;margin-bottom:0.2rem;">📎</div>
-                <div style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Prevucite dokument ili kliknite za upload</div>
-                <div style="font-size:0.71rem;color:rgba(255,255,255,0.35);margin-top:0.12rem;">PDF, DOCX — do 10MB</div>
-              </div>
-              <div id="pred-upload-loading" style="display:none;text-align:center;padding:0.75rem 0;color:rgba(255,255,255,0.55);font-size:.85rem;"><span class="upload-spinner"></span>Analiziram predmet...</div>
-              <div id="pred-upload-error" style="display:none;padding:.65rem .85rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:8px;color:#ff9090;font-size:.8rem;margin-top:.45rem;"></div>
-              <div class="pred-section-lbl">Hronologija dokaza</div>
-              <div id="pred-hronologija-wrap">
-                <div id="pred-hronologija-list" style="margin-top:0.3rem;"></div>
-              </div>
-              <div class="pred-section-lbl">Pravna procena</div>
-              <div id="pred-procena-result" style="margin-top:0.3rem;"></div>
-              <details style="margin-top:0.5rem;">
-                <summary style="font-size:0.72rem;color:rgba(255,255,255,0.3);cursor:pointer;list-style:none;padding:0.3rem 0;">▸ Ručni unos činjenica</summary>
-                <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;margin-top:0.4rem;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
-                <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">⚖ Analiziraj predmet</button>
-              </details>
-              <!-- Copilot Agent Chat -->
-              <div class="pred-section-lbl" style="margin-top:14px;">⚡ Copilot</div>
-              <div id="pred-copilot-messages" style="max-height:220px;overflow-y:auto;margin-bottom:0.5rem;display:flex;flex-direction:column;gap:0.35rem;"></div>
-              <div style="display:flex;gap:0.4rem;align-items:flex-end;">
-                <textarea id="pred-copilot-input" class="t-input" placeholder="Napiši pitanje ili komandu… npr. Dodaj rok — ročište 20. jula" style="height:44px;flex:1;resize:none;font-size:0.78rem;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){pred_copilotSubmit();}"></textarea>
-                <button onclick="pred_copilotSubmit()" style="padding:0.5rem 0.75rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.28);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;">Pošalji</button>
-              </div>
-              <div style="font-size:0.6rem;color:rgba(255,255,255,.22);margin-top:0.25rem;">Ctrl+Enter za slanje · Primeri: "Napravi plan", "Dodaj rok — ročište", "Zabeleži da je klijent potvrdio", "Poveži Marka Petrovića"</div>
+              </div><!-- /pred-pane-pregled -->
 
-              <!-- ── Naplata (billing) section ── -->
-              <div class="pred-section-lbl" style="margin-top:14px;">💰 Naplata</div>
-              <div id="pred-billing-wrap">
-                <!-- Timer bar -->
-                <div class="billing-timer-bar">
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">
-                    <span id="billing-timer-label" style="font-size:0.72rem;color:rgba(255,255,255,0.5);">⏱ Tajmer nije aktivan</span>
-                    <span id="billing-timer-clock" style="display:none;font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:#89c8ff;font-weight:600;">00:00:00</span>
-                  </div>
-                  <button id="billing-timer-btn" class="billing-timer-btn-start" onclick="billing_timerToggle()">▶ Start tajmer</button>
+              <!-- ── TAB 2: Dokumenti ─────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-dokumenti" style="display:none;">
+                <div class="pred-section-lbl">Otpremi dokument</div>
+                <input type="file" id="pred-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="pred_upload_doc(this.files[0])">
+                <div id="pred-upload-zone" class="upload-dropzone" style="padding:0.85rem 1rem;margin-top:0;" onclick="pred_upload_trigger()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');pred_upload_doc(event.dataTransfer.files[0])">
+                  <div style="font-size:1.15rem;margin-bottom:0.2rem;"><i data-lucide="paperclip" style="width:20px;height:20px;color:rgba(255,255,255,0.45);"></i></div>
+                  <div style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Prevucite dokument ili kliknite za upload</div>
+                  <div style="font-size:0.71rem;color:rgba(255,255,255,0.35);margin-top:0.12rem;">PDF, DOCX — do 10MB</div>
                 </div>
-                <!-- Summary (unos vs obračunato) -->
-                <div id="billing-summary-bar" style="display:none;font-size:0.71rem;padding:0.25rem 0 0.35rem;"></div>
-                <!-- Add entry -->
-                <div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;">
-                    <select id="billing-tip" class="t-input" style="font-size:0.71rem;padding:0.38rem 0.5rem;" onchange="billing_tipChange()">
-                      <option value="tarifa">Po tarifi (AKS)</option>
-                      <option value="satnica">Satnica</option>
-                      <option value="pausal">Paušal</option>
-                      <option value="ostalo">Ostalo</option>
+                <div id="pred-upload-loading" style="display:none;text-align:center;padding:0.75rem 0;color:rgba(255,255,255,0.55);font-size:.85rem;"><span class="upload-spinner"></span>Analiziram predmet...</div>
+                <div id="pred-upload-error" style="display:none;padding:.65rem .85rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:8px;color:#ff9090;font-size:.8rem;margin-top:.45rem;"></div>
+                <div class="pred-section-lbl" style="margin-top:0.75rem;">Dokumenti predmeta</div>
+                <div id="pred-dok-lista" style="margin-top:0.3rem;"></div>
+              </div><!-- /pred-pane-dokumenti -->
+
+              <!-- ── TAB 3: AI Analiza ─────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-ai-analiza" style="display:none;">
+                <div class="pred-section-lbl">Pravna procena</div>
+                <div id="pred-procena-result" style="margin-top:0.3rem;"></div>
+                <details style="margin-top:0.5rem;">
+                  <summary style="font-size:0.72rem;color:rgba(255,255,255,0.3);cursor:pointer;list-style:none;padding:0.3rem 0;">▸ Ručni unos činjenica</summary>
+                  <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;margin-top:0.4rem;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                  <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">Analiziraj predmet</button>
+                </details>
+                <div class="pred-section-lbl" style="margin-top:1rem;">AI alati u kontekstu predmeta</div>
+                <div class="pred-ai-tool-links">
+                  <button class="pred-ai-tool-btn" onclick="openAITool('a')">
+                    <i data-lucide="file-search" style="width:16px;height:16px;flex-shrink:0;"></i>Analiza dokumenta
+                  </button>
+                  <button class="pred-ai-tool-btn" onclick="openAITool('s')">
+                    <i data-lucide="landmark" style="width:16px;height:16px;flex-shrink:0;"></i>Sudska praksa
+                  </button>
+                  <button class="pred-ai-tool-btn" onclick="openAITool('q')">
+                    <i data-lucide="search" style="width:16px;height:16px;flex-shrink:0;"></i>Istraživanje zakona
+                  </button>
+                  <button class="pred-ai-tool-btn" onclick="openAITool('n')">
+                    <i data-lucide="file-pen-line" style="width:16px;height:16px;flex-shrink:0;"></i>Nacrti i podnesci
+                  </button>
+                </div>
+              </div><!-- /pred-pane-ai-analiza -->
+
+              <!-- ── TAB 4: Strategija ─────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-strategija" style="display:none;">
+                <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin:0.4rem 0 0.75rem;line-height:1.55;">Procesna strategija u kontekstu predmeta. Predmet je aktivan — AI alati rade sa ovim predmetom kao kontekstom.</div>
+                <div class="pred-ai-tool-links">
+                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('red_team')">
+                    <i data-lucide="target" style="width:16px;height:16px;flex-shrink:0;"></i>Red Team analiza
+                  </button>
+                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('litigation')">
+                    <i data-lucide="scale" style="width:16px;height:16px;flex-shrink:0;"></i>Litigation Simulator
+                  </button>
+                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('sudija')">
+                    <i data-lucide="gavel" style="width:16px;height:16px;flex-shrink:0;"></i>Procena ishoda predmeta
+                  </button>
+                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('sudija_v2')">
+                    <i data-lucide="users" style="width:16px;height:16px;flex-shrink:0;"></i>Simulacija sudskog postupka
+                  </button>
+                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('due_diligence')">
+                    <i data-lucide="clipboard-check" style="width:16px;height:16px;flex-shrink:0;"></i>Due Diligence
+                  </button>
+                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('revizor')">
+                    <i data-lucide="file-pen" style="width:16px;height:16px;flex-shrink:0;"></i>Revizija dokumenta
+                  </button>
+                </div>
+                <div style="font-size:0.62rem;color:rgba(255,255,255,0.22);margin-top:0.6rem;">Zahteva PRO licencu.</div>
+              </div><!-- /pred-pane-strategija -->
+
+              <!-- ── TAB 5: Rokovi ─────────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-rokovi" style="display:none;">
+                <div class="pred-section-lbl">Hronologija i rokovi</div>
+                <div id="pred-hronologija-wrap">
+                  <div id="pred-hronologija-list" style="margin-top:0.3rem;"></div>
+                </div>
+              </div><!-- /pred-pane-rokovi -->
+
+              <!-- ── TAB 6: Naplata ────────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-naplata" style="display:none;">
+                <div id="pred-billing-wrap">
+                  <div class="billing-timer-bar">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">
+                      <span id="billing-timer-label" style="font-size:0.72rem;color:rgba(255,255,255,0.5);">Tajmer nije aktivan</span>
+                      <span id="billing-timer-clock" style="display:none;font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:#89c8ff;font-weight:600;">00:00:00</span>
+                    </div>
+                    <button id="billing-timer-btn" class="billing-timer-btn-start" onclick="billing_timerToggle()">▶ Start tajmer</button>
+                  </div>
+                  <div id="billing-summary-bar" style="display:none;font-size:0.71rem;padding:0.25rem 0 0.35rem;"></div>
+                  <div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;">
+                      <select id="billing-tip" class="t-input" style="font-size:0.71rem;padding:0.38rem 0.5rem;" onchange="billing_tipChange()">
+                        <option value="tarifa">Po tarifi (AKS)</option>
+                        <option value="satnica">Satnica</option>
+                        <option value="pausal">Paušal</option>
+                        <option value="ostalo">Ostalo</option>
+                      </select>
+                      <select id="billing-tarifa-sel" class="t-input" style="font-size:0.67rem;padding:0.38rem 0.5rem;" onchange="billing_tarifaChange()">
+                        <option value="">-- Tarifna stavka --</option>
+                      </select>
+                    </div>
+                    <div style="display:flex;gap:0.3rem;margin-top:0.3rem;align-items:center;">
+                      <input id="billing-opis" class="t-input" type="text" placeholder="Opis radnje..." style="flex:1;font-size:0.72rem;height:34px;">
+                      <input id="billing-iznos" class="t-input" type="number" placeholder="RSD" min="0" step="50" style="width:80px;font-size:0.72rem;height:34px;">
+                      <button onclick="billing_addEntry()" style="padding:0 0.7rem;height:34px;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#89c8ff;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;">+ Dodaj</button>
+                    </div>
+                  </div>
+                  <div id="billing-entries-list" style="margin-top:0.5rem;"></div>
+                  <div id="billing-faktura-bar" style="display:none;margin-top:0.5rem;"></div>
+                </div>
+              </div><!-- /pred-pane-naplata -->
+
+              <!-- ── TAB 7: Komunikacija ───────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-komunikacija" style="display:none;">
+                <div class="pred-section-lbl">Copilot</div>
+                <div id="pred-copilot-messages" style="max-height:220px;overflow-y:auto;margin-bottom:0.5rem;display:flex;flex-direction:column;gap:0.35rem;"></div>
+                <div style="display:flex;gap:0.4rem;align-items:flex-end;">
+                  <textarea id="pred-copilot-input" class="t-input" placeholder="Napiši pitanje ili komandu… npr. Dodaj rok — ročište 20. jula" style="height:44px;flex:1;resize:none;font-size:0.78rem;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){pred_copilotSubmit();}"></textarea>
+                  <button onclick="pred_copilotSubmit()" style="padding:0.5rem 0.75rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.28);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;">Pošalji</button>
+                </div>
+                <div style="font-size:0.6rem;color:rgba(255,255,255,.22);margin-top:0.25rem;">Ctrl+Enter za slanje</div>
+                <div class="pred-section-lbl" style="margin-top:14px;">Istorija razgovora</div>
+                <div id="pred-istorija-list"></div>
+                <div class="pred-section-lbl" style="margin-top:14px;">Komentari tima</div>
+                <div id="pred-kom-lista" class="kom-lista"></div>
+                <div class="kom-form">
+                  <textarea id="pred-kom-input" class="kom-input" placeholder="Dodaj komentar..." rows="1"></textarea>
+                  <button class="kom-submit" onclick="dodajKomentar()">Pošalji</button>
+                </div>
+                <div class="pred-section-lbl" style="margin-top:14px;">Ročište — Command Center <span class="pro-badge" style="font-size:0.55rem;vertical-align:middle;">PRO</span></div>
+                <div id="hcc-panel">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.35rem;">
+                    <input id="hcc-datum" class="t-input" type="date" style="font-size:0.72rem;height:34px;" placeholder="Datum ročišta">
+                    <select id="hcc-tip" class="t-input" style="font-size:0.72rem;height:34px;">
+                      <option value="gradjanski">Parničan (ZPP)</option>
+                      <option value="krivicni">Krivičan (ZKP)</option>
+                      <option value="upravni">Upravni (ZUP)</option>
+                      <option value="privredni">Privredni</option>
+                      <option value="radni">Radni (ZOR)</option>
                     </select>
-                    <select id="billing-tarifa-sel" class="t-input" style="font-size:0.67rem;padding:0.38rem 0.5rem;" onchange="billing_tarifaChange()">
-                      <option value="">-- Tarifna stavka --</option>
-                    </select>
                   </div>
-                  <div style="display:flex;gap:0.3rem;margin-top:0.3rem;align-items:center;">
-                    <input id="billing-opis" class="t-input" type="text" placeholder="Opis radnje..." style="flex:1;font-size:0.72rem;height:34px;">
-                    <input id="billing-iznos" class="t-input" type="number" placeholder="RSD" min="0" step="50" style="width:80px;font-size:0.72rem;height:34px;">
-                    <button onclick="billing_addEntry()" style="padding:0 0.7rem;height:34px;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#89c8ff;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;">+ Dodaj</button>
-                  </div>
+                  <button id="hcc-btn" onclick="hccGeneriši()" style="width:100%;padding:0.6rem;background:linear-gradient(135deg,rgba(139,92,246,0.25),rgba(59,130,246,0.2));border:1px solid rgba(139,92,246,0.4);border-radius:8px;color:#c4b5fd;font-size:0.78rem;font-weight:700;cursor:pointer;letter-spacing:.04em;">Generiši borbeni brifing (3 kredita)</button>
+                  <div id="hcc-loading" style="display:none;text-align:center;padding:1rem 0;color:rgba(255,255,255,0.45);font-size:0.8rem;"><span class="upload-spinner"></span> Analiziram predmet i generišem brifing...</div>
+                  <div id="hcc-error" style="display:none;margin-top:0.4rem;padding:0.5rem 0.75rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:7px;color:#ff9090;font-size:0.75rem;"></div>
+                  <div id="hcc-result" style="display:none;margin-top:0.5rem;"></div>
                 </div>
-                <!-- Entries list -->
-                <div id="billing-entries-list" style="margin-top:0.5rem;"></div>
-                <!-- Faktura action bar -->
-                <div id="billing-faktura-bar" style="display:none;margin-top:0.5rem;"></div>
-              </div>
+              </div><!-- /pred-pane-komunikacija -->
 
-              <div class="pred-section-lbl" style="margin-top:14px;">Istorija razgovora</div>
-              <div id="pred-istorija-list"></div>
-              <!-- F8: Komentari na predmetu -->
-              <div class="pred-section-lbl" style="margin-top:14px;">Komentari tima</div>
-              <div id="pred-kom-lista" class="kom-lista"></div>
-              <div class="kom-form">
-                <textarea id="pred-kom-input" class="kom-input" placeholder="Dodaj komentar..." rows="1"></textarea>
-                <button class="kom-submit" onclick="dodajKomentar()">Pošalji</button>
-              </div>
-
-              <!-- ── Hearing Command Center (PRO) ── -->
-              <div class="pred-section-lbl" style="margin-top:14px;">⚔️ Ročište — Command Center <span class="pro-badge" style="font-size:0.55rem;vertical-align:middle;">PRO</span></div>
-              <div id="hcc-panel">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.35rem;">
-                  <input id="hcc-datum" class="t-input" type="date" style="font-size:0.72rem;height:34px;" placeholder="Datum ročišta">
-                  <select id="hcc-tip" class="t-input" style="font-size:0.72rem;height:34px;">
-                    <option value="gradjanski">Parničan (ZPP)</option>
-                    <option value="krivicni">Krivičan (ZKP)</option>
-                    <option value="upravni">Upravni (ZUP)</option>
-                    <option value="privredni">Privredni</option>
-                    <option value="radni">Radni (ZOR)</option>
-                  </select>
-                </div>
-                <button id="hcc-btn" onclick="hccGeneriši()" style="width:100%;padding:0.6rem;background:linear-gradient(135deg,rgba(139,92,246,0.25),rgba(59,130,246,0.2));border:1px solid rgba(139,92,246,0.4);border-radius:8px;color:#c4b5fd;font-size:0.78rem;font-weight:700;cursor:pointer;letter-spacing:.04em;">⚔️ Generiši borbeni brifing (3 kredita)</button>
-                <div id="hcc-loading" style="display:none;text-align:center;padding:1rem 0;color:rgba(255,255,255,0.45);font-size:0.8rem;"><span class="upload-spinner"></span> Analiziram predmet i generišem brifing...</div>
-                <div id="hcc-error" style="display:none;margin-top:0.4rem;padding:0.5rem 0.75rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:7px;color:#ff9090;font-size:0.75rem;"></div>
-                <div id="hcc-result" style="display:none;margin-top:0.5rem;"></div>
-              </div>
-            </div>
+            </div><!-- /pred-detail -->
 
             <!-- F6: API ključevi sekcija (PRO only) -->
             <div id="api-kljucevi-sekcija" class="api-kljucevi-wrap" style="display:none;">
@@ -10572,6 +10766,13 @@ window.addEventListener('DOMContentLoaded', function() {
       document.body.appendChild(el);
     }
   });
+
+  // Hash-based subtab navigation (Faza 2)
+  window.addEventListener('popstate', function() {
+    if (!activePredmetId) return;
+    var h = window.location.hash.replace('#', '') || 'pregled';
+    pred_subtabSwitch(h);
+  });
 });
 
 /* ── SUDSKA PRAKSA ──────────────────────────────────────────────────────── */
@@ -12006,6 +12207,35 @@ function pred_renderList() {
   }).join('');
 }
 
+function pred_subtabSwitch(pane, btn) {
+  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija'];
+  if (VALID.indexOf(pane) === -1) pane = 'pregled';
+  document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
+  document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
+  var el = document.getElementById('pred-pane-' + pane);
+  if (el) el.style.display = 'block';
+  if (btn) {
+    btn.classList.add('active');
+  } else {
+    document.querySelectorAll('.pred-subtab-btn').forEach(function(b) {
+      if ((b.getAttribute('onclick') || '').indexOf("'"+pane+"'") > -1) b.classList.add('active');
+    });
+  }
+  if (history.replaceState && activePredmetId) history.replaceState(null, '', '#' + pane);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function pred_openStrat(modul) {
+  setTab(document.getElementById('tab-btn-alati'), 'alati');
+  setTimeout(function() {
+    openAITool('t');
+    setTimeout(function() {
+      var btn = document.querySelector('.strat-btn[data-modul="'+modul+'"]');
+      if (btn) stratIzaberiModul(modul, btn);
+    }, 80);
+  }, 80);
+}
+
 function pred_select(id) {
   var predmetObj = _predmeti.find(function(p){ return p.id === id; }) || null;
   var naziv = predmetObj ? predmetObj.naziv : '';
@@ -12025,6 +12255,9 @@ function pred_select(id) {
     var oblEl = document.getElementById('pred-s-oblast');
     if (oblEl) oblEl.textContent = predmetObj.tip || '—';
   }
+  // Restore subtab from URL hash or default to Pregled
+  var hash = window.location.hash.replace('#', '') || 'pregled';
+  pred_subtabSwitch(hash);
   // Allow terminal to grow beyond grid row height — desktop only, mobile keeps overflow:hidden
   var terminal = document.querySelector('.terminal');
   if (terminal && window.innerWidth > 900) terminal.style.overflow = 'visible';
@@ -12514,6 +12747,34 @@ async function pred_loadDetail(id) {
     if (badge && d.predmet) {
       badge.textContent = d.predmet.tip || '';
       badge.className = 'pred-badge ' + (d.predmet.tip || '');
+    }
+
+    // Hub header meta: klijent, updated_at
+    var hubKlijentEl = document.getElementById('pred-hub-klijent');
+    if (hubKlijentEl) {
+      var _st0 = d.stranke && d.stranke[0];
+      hubKlijentEl.textContent = _st0 ? ((((_st0.ime||'')+' '+(_st0.prezime||'')).trim()) || _st0.firma || '—') : '—';
+    }
+    var hubUpdEl = document.getElementById('pred-hub-updated');
+    if (hubUpdEl && d.predmet && d.predmet.updated_at) {
+      hubUpdEl.textContent = new Date(d.predmet.updated_at).toLocaleDateString('sr-Latn-RS',{day:'2-digit',month:'2-digit',year:'numeric'});
+    }
+
+    // Dokumenti lista u Dokumenti tabu
+    var dokListEl = document.getElementById('pred-dok-lista');
+    if (dokListEl) {
+      if (!d.dokumenti || !d.dokumenti.length) {
+        dokListEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-top:0.3rem;">Nema dokumenata.</div>';
+      } else {
+        dokListEl.innerHTML = d.dokumenti.map(function(dok) {
+          return '<div class="pred-dok-item">'
+            +'<i data-lucide="file-text" style="width:14px;height:14px;flex-shrink:0;color:rgba(74,168,255,0.6);"></i>'
+            +'<span class="pred-dok-item-name">'+escHtml(dok.naziv_fajla||'')+'</span>'
+            +'<span class="pred-dok-item-status">'+escHtml(dok.status||'')+'</span>'
+            +'</div>';
+        }).join('');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
     }
 
     // Status panel — fill with real data from workspace
