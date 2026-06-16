@@ -4822,19 +4822,46 @@ i[data-lucide] svg {
   display: flex;
   justify-content: center;
   margin: 48px 0 48px;
+  position: relative;
+  perspective: 800px;
 }
 .kc-sphere {
   width: 390px;
   height: 390px;
-  border: 1.5px solid rgba(0,212,255,0.7);
+  border: 2px solid rgba(0,212,255,0.85);
   border-radius: 50%;
-  background: rgba(0,212,255,0.018);
-  box-shadow: 0 0 80px rgba(0,212,255,0.35), 0 0 160px rgba(0,212,255,0.15), inset 0 0 60px rgba(0,212,255,0.08);
+  background: radial-gradient(circle at 50% 50%, rgba(0,212,255,0.04) 0%, rgba(0,5,20,0.95) 70%);
+  box-shadow:
+    0 0 30px rgba(0,212,255,0.65),
+    0 0 80px rgba(0,212,255,0.42),
+    0 0 160px rgba(0,212,255,0.22),
+    0 0 300px rgba(0,212,255,0.08),
+    inset 0 0 30px rgba(0,212,255,0.12),
+    inset 0 0 80px rgba(0,30,60,0.4);
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  animation: kc-sphere-pulse 3s ease-in-out infinite;
+}
+@keyframes kc-sphere-pulse {
+  0%,100% {
+    box-shadow:
+      0 0 30px rgba(0,212,255,0.65),
+      0 0 80px rgba(0,212,255,0.42),
+      0 0 160px rgba(0,212,255,0.22),
+      0 0 300px rgba(0,212,255,0.08),
+      inset 0 0 30px rgba(0,212,255,0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 45px rgba(0,212,255,0.85),
+      0 0 110px rgba(0,212,255,0.55),
+      0 0 210px rgba(0,212,255,0.28),
+      0 0 380px rgba(0,212,255,0.12),
+      inset 0 0 45px rgba(0,212,255,0.18);
+  }
 }
 .kc-sphere-inner {
   display: grid;
@@ -4843,6 +4870,7 @@ i[data-lucide] svg {
   width: 200px;
   height: 200px;
   position: relative;
+  z-index: 2;
 }
 .kc-sphere-divv {
   position: absolute;
@@ -7684,88 +7712,106 @@ function kcConstellationInit() {
   var canvas = document.getElementById('kc-inline-canvas');
   if (!canvas) return;
   var ctx = canvas.getContext('2d');
-  var LAWS = [
-    'Ustav čl.36','ZKP čl.220','čl.205','čl.53','čl.147','čl.182',
-    'Privredna društva','Porodični zakon','čl.111','Zakon o svojini',
-    'ZPP čl.36','Zakon o PDV','ZOO čl.354','čl.18','čl.40',
-    'čl.55','ZOO čl.262','ZOR čl.76','Zakon o radu','Krivični zakonik'
-  ];
-  var W, H, cx, cy, R;
-  function resize() {
-    W = canvas.width  = canvas.offsetWidth  || 600;
-    H = canvas.height = canvas.offsetHeight || 300;
-    cx = W / 2; cy = H / 2;
-    R  = Math.min(W * 0.42, H * 0.44);
-  }
-  var nodes = LAWS.map(function(label, i) {
-    var phi   = Math.acos(1 - 2*(i+0.5)/LAWS.length);
-    var theta = Math.PI*(1+Math.sqrt(5))*i;
-    var ct    = i%5===0 ? 'gold' : (i%7===0 ? 'white' : 'blue');
-    return {
-      ox: Math.sin(phi)*Math.cos(theta),
-      oy: Math.sin(phi)*Math.sin(theta),
-      oz: Math.cos(phi),
-      rf: 0.38 + Math.random()*0.62,
-      sz: 2.5 + Math.random()*3,
-      label: label, ct: ct,
-      phase: Math.random()*Math.PI*2,
-      da: 3 + Math.random()*5,
-      ds: 0.2 + Math.random()*0.35
-    };
-  });
+  var S = 390;
+  canvas.width  = S;
+  canvas.height = S;
+  var cx = S / 2, cy = S / 2, R = S * 0.46;
   var t0 = Date.now();
+
+  function p3(lat, lon, angle) {
+    var phi = (90 - lat) * Math.PI / 180;
+    var th  = lon * Math.PI / 180;
+    var x = Math.sin(phi) * Math.cos(th);
+    var y = Math.cos(phi);
+    var z = Math.sin(phi) * Math.sin(th);
+    var rx = x * Math.cos(angle) - z * Math.sin(angle);
+    var rz = x * Math.sin(angle) + z * Math.cos(angle);
+    return { px: cx + rx * R, py: cy - y * R, vis: rz };
+  }
+
+  function drawLine(pts, baseAlpha, width) {
+    for (var i = 0; i < pts.length - 1; i++) {
+      var a = pts[i], b = pts[i+1];
+      var al = Math.max(0, (a.vis + b.vis) / 2);
+      if (al < 0) continue;
+      ctx.beginPath();
+      ctx.moveTo(a.px, a.py);
+      ctx.lineTo(b.px, b.py);
+      ctx.strokeStyle = 'rgba(0,212,255,' + (baseAlpha * Math.min(1, al + 0.12)) + ')';
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
+  }
+
+  function drawOrbitalRing(angle, tilt, size, alpha, animAngle) {
+    var steps = 120;
+    ctx.beginPath();
+    for (var i = 0; i <= steps; i++) {
+      var a = (i / steps) * Math.PI * 2 + animAngle;
+      var ex = Math.cos(a) * size;
+      var ey = Math.sin(a) * size * Math.sin(tilt);
+      var px = cx + ex;
+      var py = cy + ey;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = 'rgba(0,212,255,' + alpha + ')';
+    ctx.lineWidth = 1.2;
+    ctx.shadowColor = 'rgba(0,212,255,0.4)';
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
   function draw() {
     if (!canvas.isConnected) { _kcAnimId = null; return; }
-    ctx.clearRect(0, 0, W, H);
-    var e  = (Date.now()-t0)/1000;
-    var ra = e*(Math.PI*2/35);
-    var cr = Math.cos(ra), sr = Math.sin(ra);
-    var proj = nodes.map(function(n) {
-      var rx = n.ox*cr - n.oz*sr;
-      var rz = n.ox*sr + n.oz*cr;
-      var ry = n.oy;
-      var depth = (rz+1)/2;
-      var drift = n.da*Math.sin(e*n.ds+n.phase);
-      return {
-        x: cx + rx*R*n.rf,
-        y: cy + ry*R*n.rf*0.6 + drift*0.4,
-        z: rz, depth: depth,
-        al: Math.max(0.05, 0.1+depth*0.72),
-        sz: Math.max(0.8, n.sz*(0.35+depth*0.75)),
-        label: n.label, ct: n.ct
-      };
-    }).sort(function(a,b){ return a.z-b.z; });
-    for (var i=0; i<proj.length; i++) {
-      for (var j=i+1; j<proj.length; j++) {
-        var a=proj[i], b=proj[j];
-        var d=Math.hypot(a.x-b.x, a.y-b.y);
-        if (d<120) {
-          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
-          ctx.strokeStyle='rgba(0,212,255,'+(((1-d/120)*0.045)*((a.depth+b.depth)/2))+')';
-          ctx.lineWidth=0.5; ctx.stroke();
+    ctx.clearRect(0, 0, S, S);
+    var e = (Date.now() - t0) / 1000;
+    var angle = e * (Math.PI * 2 / 40);
+
+    /* Meridijani */
+    for (var lon = 0; lon < 180; lon += 30) {
+      var pts = [];
+      for (var lat = -90; lat <= 90; lat += 4) pts.push(p3(lat, lon, angle));
+      drawLine(pts, 0.3, 0.7);
+    }
+
+    /* Paralele */
+    var lats = [-60, -30, 0, 30, 60];
+    for (var li = 0; li < lats.length; li++) {
+      var pts2 = [];
+      for (var lo = 0; lo <= 360; lo += 4) pts2.push(p3(lats[li], lo, angle));
+      var isEq = lats[li] === 0;
+      drawLine(pts2, isEq ? 0.55 : 0.28, isEq ? 1.1 : 0.7);
+    }
+
+    /* Tačke na presečištima */
+    for (var la = -60; la <= 60; la += 30) {
+      for (var lo2 = 0; lo2 < 360; lo2 += 30) {
+        var pt = p3(la, lo2, angle);
+        if (pt.vis > 0.05) {
+          ctx.beginPath();
+          ctx.arc(pt.px, pt.py, 1.8, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0,212,255,' + Math.min(0.85, pt.vis * 0.7 + 0.2) + ')';
+          ctx.fill();
         }
       }
     }
-    proj.forEach(function(p) {
-      var c = p.ct==='gold'?[255,215,0]:p.ct==='white'?[255,255,255]:[0,212,255];
-      ctx.beginPath();
-      ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);
-      ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+p.al+')';
-      ctx.fill();
-      if (p.depth>0.3) {
-        var fs=Math.round(8+p.depth*3);
-        ctx.font='300 '+fs+'px Inter,sans-serif';
-        ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+(p.al*0.7)+')';
-        ctx.textAlign='left'; ctx.textBaseline='middle';
-        ctx.fillText(p.label,p.x+p.sz+4,p.y);
-      }
-    });
+
+    /* Orbitalni prsten 1 — spolja */
+    drawOrbitalRing(angle, Math.PI * 0.22, R * 1.22, 0.5, e * 0.4);
+    /* Orbitalni prsten 2 — ugaonut */
+    drawOrbitalRing(angle, Math.PI * 0.15, R * 1.13, 0.28, -e * 0.28 + 1.1);
+
     _kcAnimId = requestAnimationFrame(draw);
   }
+
   if (window._kcResizeH) window.removeEventListener('resize', window._kcResizeH);
-  window._kcResizeH = function(){ resize(); };
+  window._kcResizeH = function() {
+    var el = document.getElementById('kc-inline-canvas');
+    if (el) { el.width = S; el.height = S; }
+  };
   window.addEventListener('resize', window._kcResizeH);
-  resize();
   draw();
 }
 
@@ -8194,6 +8240,7 @@ _dashRender = function(d, bd) {
   /* ── 3. SFERA sa statistikama unutra ──────────────────────── */
   html += '<div class="kc-sphere-wrap">';
   html += '<div class="kc-sphere">';
+  html += '<canvas id="kc-inline-canvas" style="position:absolute;inset:0;width:100%;height:100%;border-radius:50%;z-index:1;pointer-events:none;"></canvas>';
   html += '<div class="kc-sphere-inner">';
   html += '<div class="kc-sphere-divv"></div>';
   html += '<div class="kc-sphere-divh"></div>';
