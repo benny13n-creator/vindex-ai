@@ -4708,24 +4708,48 @@ i[data-lucide] svg {
 /* Header */
 .kc-hdr {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 1.35rem;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  margin-bottom: 1.1rem;
+  gap: 0.8rem;
 }
-.kc-greeting {
-  font-family: var(--font-ui);
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.82);
-}
-.kc-date-lbl {
+.kc-hdr-inner { flex: 1; }
+.kc-hdr-eyebrow {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: rgba(255,255,255,0.25);
-  letter-spacing: 0.04em;
+  font-size: 0.52rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(74,168,255,0.45);
+  margin-bottom: 0.28rem;
 }
+.kc-hdr-title {
+  font-family: var(--font-mono);
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.88);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  margin: 0 0 0.35rem;
+}
+.kc-hdr-sub {
+  font-family: var(--font-ui);
+  font-size: 0.74rem;
+  color: rgba(255,255,255,0.35);
+  line-height: 1.4;
+}
+.kc-hdr-date {
+  font-family: var(--font-mono);
+  font-size: 0.57rem;
+  color: rgba(255,255,255,0.18);
+  letter-spacing: 0.04em;
+  text-align: right;
+  flex-shrink: 0;
+  padding-top: 0.2rem;
+  line-height: 1.55;
+}
+.kc-greeting { display: none; }
+.kc-date-lbl { display: none; }
 
 /* Static sphere */
 .kc-sphere-wrap {
@@ -4830,40 +4854,114 @@ i[data-lucide] svg {
 
 /* Quick actions bar */
 .kc-qa-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 1.2rem;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+  margin-bottom: 1.1rem;
 }
 .kc-qa-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  background: rgba(255,255,255,0.025);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 8px;
-  color: rgba(255,255,255,0.48);
+  gap: 7px;
+  padding: 9px 14px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 9px;
+  color: rgba(255,255,255,0.72);
   font-family: var(--font-ui);
-  font-size: 0.77rem;
+  font-size: 0.79rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.14s;
   white-space: nowrap;
 }
 .kc-qa-btn:hover {
-  background: rgba(74,168,255,0.06);
-  border-color: rgba(74,168,255,0.22);
-  color: rgba(255,255,255,0.88);
-  box-shadow: 0 0 8px rgba(0,212,255,0.25);
+  background: rgba(74,168,255,0.07);
+  border-color: rgba(74,168,255,0.28);
+  color: rgba(255,255,255,0.92);
+  box-shadow: 0 0 8px rgba(0,212,255,0.18);
 }
 .kc-qa-btn i[data-lucide] svg { width: 13px !important; height: 13px !important; stroke-width: 2 !important; }
 
-/* 4 panels grid */
-.kc-panels-grid {
+/* Status hub — central focal point */
+.kc-status-hub {
+  background: rgba(74,168,255,0.03);
+  border: 1px solid rgba(74,168,255,0.1);
+  border-radius: 12px;
+  padding: 13px 16px;
+  margin-bottom: 1.1rem;
+}
+.kc-sh-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.kc-sh-label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.22);
+}
+.kc-sh-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.38);
+}
+.kc-sh-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: rgba(74,222,128,0.7);
+  flex-shrink: 0;
+}
+.kc-sh-dot.warn   { background: rgba(251,146,60,0.85); }
+.kc-sh-dot.danger { background: rgba(239,68,68,0.9); }
+.kc-sh-metrics {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-top: 10px;
+}
+.kc-sh-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+  text-align: center;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.kc-sh-metric:last-child { border-right: none; }
+.kc-sh-num {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.78);
+  line-height: 1;
+}
+.kc-sh-num.warn   { color: rgba(251,146,60,0.9); }
+.kc-sh-num.danger { color: rgba(239,68,68,0.9); }
+.kc-sh-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.46rem;
+  color: rgba(0,212,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  line-height: 1.3;
+  text-align: center;
+}
+
+/* Panels grid — single column, content-driven */
+.kc-panels-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* Individual panel */
@@ -4872,11 +4970,10 @@ i[data-lucide] svg {
   border: 1px solid rgba(255,255,255,0.06);
   border-left: 2px solid transparent;
   border-radius: var(--r-lg);
-  padding: 14px 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 164px;
+  gap: 5px;
   transition: border-left-color 0.18s;
 }
 .kc-panel:hover { border-left-color: rgba(0,212,255,0.45); }
@@ -4916,11 +5013,10 @@ i[data-lucide] svg {
 }
 .kc-panel-empty {
   font-family: var(--font-ui);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   color: rgba(255,255,255,0.18);
-  padding: 14px 0;
+  padding: 6px 0 4px;
   text-align: center;
-  flex: 1;
 }
 .kc-panel-row {
   display: flex;
@@ -5024,14 +5120,15 @@ i[data-lucide] svg {
   .vx-tab-lbl { font-size: 0.6rem !important; }
   .vx-nav-sep { display: none !important; }
   .vx-sidebar-foot, .vx-sidebar-footer { display: none !important; }
-  .kc-panels-grid { grid-template-columns: 1fr 1fr; }
+  .kc-panels-grid { flex-direction: column; }
 }
 @media (max-width: 540px) {
   .kc-sphere { width: 200px; height: 200px; border-radius: 50%; }
   .kc-stat { padding: 6px 6px; }
   .kc-stat-num { font-size: 1.1rem; }
-  .kc-qa-btn { flex: 1 1 calc(50% - 6px); justify-content: center; }
-  .kc-panels-grid { grid-template-columns: 1fr; }
+  .kc-qa-btn { font-size: 0.73rem; padding: 8px 10px; }
+  .kc-sh-num { font-size: 1.2rem; }
+  .kc-panels-grid { flex-direction: column; }
   #tab-h { padding: 14px 12px 20px !important; }
 }
 @media (max-width: 375px) {
@@ -7723,7 +7820,7 @@ function _kcPanelRokovi(d) {
   var hitniRok = d.hitni_rokovi || [];
   var rokovi7  = d.rokovi_7_dana || [];
   var h = '<div class="kc-panel" id="kc-panel-rokovi">';
-  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('clock')+'Danasšnji rokovi</span>';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('clock')+'Rokovi i ročišta</span>';
   if (hitniRok.length) h += '<span class="kc-panel-badge kc-badge-warn">'+hitniRok.length+' hitno</span>';
   h += '</div>';
   if (!rocista.length && !hitniRok.length && !rokovi7.length) {
@@ -7784,7 +7881,6 @@ function _kcPanelAktivnosti(d) {
 
 /* ── FAZA 1 — Komandni centar (staticki prikaz) ─────────────────── */
 _dashRender = function(d, bd) {
-  var uName    = currentUser ? (currentUser.email||'').split('@')[0] : '';
   var aktivni  = d.ukupno_aktivnih || 0;
   var hitniRok = (d.hitni_rokovi||[]).length;
   var noviDok  = (d.statistike && d.statistike.novi_dokumenti != null)
@@ -7794,42 +7890,54 @@ _dashRender = function(d, bd) {
 
   var html = '';
 
-  /* Header */
+  /* ── 1. HEADER ──────────────────────────────────────────────── */
+  var subParts = [aktivni + (aktivni === 1 ? ' aktivan predmet' : ' aktivnih predmeta')];
+  if (hitniRok > 0) subParts.push(hitniRok + (hitniRok === 1 ? ' hitan rok' : ' hitnih rokova'));
+  else subParts.push('bez hitnih rokova');
   html += '<div class="kc-hdr">';
-  html += '<div class="kc-greeting">'+_dashGreeting()+(uName?', '+escHtml(uName):'')+'. </div>';
-  html += '<div class="kc-date-lbl">'+_dashFormatDate()+'</div>';
+  html += '<div class="kc-hdr-inner">';
+  html += '<div class="kc-hdr-eyebrow">Vindex AI</div>';
+  html += '<div class="kc-hdr-title">KOMANDNI CENTAR</div>';
+  html += '<div class="kc-hdr-sub">'+escHtml(subParts.join(' · '))+'</div>';
+  html += '</div>';
+  html += '<div class="kc-hdr-date">'+_dashFormatDate()+'</div>';
   html += '</div>';
 
-  /* Quick Actions Bar */
+  /* ── 2. QUICK ACTIONS ──────────────────────────────────────── */
   html += '<div class="kc-qa-bar">';
   html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase')+'<span>Novi predmet</span></button>';
   html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus')+'<span>Novi klijent</span></button>';
   html += '<button class="kc-qa-btn" onclick="openAITool(\'a\')">'+_kcIco('file-text')+'<span>Otpremi dokument</span></button>';
-  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles')+'<span>Pokreni AI analizu</span></button>';
+  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles')+'<span>AI analiza</span></button>';
   html += '</div>';
 
-  /* 4 modularna panela */
+  /* ── 3. STATUS HUB — fokalna tačka ────────────────────────── */
+  var sysOk = (hitniRok === 0 && visokRiz === 0);
+  var sysCritical = (hitniRok > 0 && visokRiz > 0);
+  var dotCls = sysCritical ? ' danger' : (sysOk ? '' : ' warn');
+  var statusTxt = sysCritical ? 'UPOZORENJE — hitna akcija' : (sysOk ? 'SVE POD KONTROLOM' : 'UPOZORENJE');
+  html += '<div class="kc-status-hub">';
+  html += '<div class="kc-sh-hdr">';
+  html += '<span class="kc-sh-label">STATUS SISTEMA</span>';
+  html += '<span class="kc-sh-status"><span class="kc-sh-dot'+dotCls+'"></span>'+escHtml(statusTxt)+'</span>';
+  html += '</div>';
+  html += '<div class="kc-sh-metrics">';
+  html += '<div class="kc-sh-metric" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')" style="cursor:pointer">';
+  html += '<span class="kc-sh-num">'+aktivni+'</span><span class="kc-sh-lbl">Aktivnih<br>predmeta</span></div>';
+  html += '<div class="kc-sh-metric" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')" style="cursor:pointer">';
+  html += '<span class="kc-sh-num'+(hitniRok>0?' warn':'')+'">'+hitniRok+'</span><span class="kc-sh-lbl">Hitnih<br>rokova</span></div>';
+  html += '<div class="kc-sh-metric">';
+  html += '<span class="kc-sh-num">'+noviDok+'</span><span class="kc-sh-lbl">Novih<br>dok.</span></div>';
+  html += '<div class="kc-sh-metric">';
+  html += '<span class="kc-sh-num'+(visokRiz>0?' danger':'')+'">'+visokRiz+'</span><span class="kc-sh-lbl">Visok<br>rizik</span></div>';
+  html += '</div>';
+  html += '</div>';
+
+  /* ── 4. PANELI — 3 panela, content-driven ──────────────────── */
   html += '<div class="kc-panels-grid">';
   html += _kcPanelAktivni(d);
   html += _kcPanelRokovi(d);
   html += _kcPanelPreporuke(d);
-  html += _kcPanelAktivnosti(d);
-  html += '</div>';
-
-  /* Mini statistike — footer ispod panela */
-  html += '<div class="kc-mini-stats kc-mini-stats-footer">';
-  html += '<span class="kc-ms-item"><span class="kc-ms-num">'+aktivni+'</span><span class="kc-ms-lbl">Aktivnih</span></span>';
-  html += '<span class="kc-ms-sep">·</span>';
-  html += '<span class="kc-ms-item"><span class="kc-ms-num'+(hitniRok>0?' kc-n-warn':'')+'">'+hitniRok+'</span><span class="kc-ms-lbl">Hitnih rokova</span></span>';
-  html += '<span class="kc-ms-sep">·</span>';
-  html += '<span class="kc-ms-item"><span class="kc-ms-num">'+noviDok+'</span><span class="kc-ms-lbl">Dok. za pregled</span></span>';
-  html += '<span class="kc-ms-sep">·</span>';
-  html += '<span class="kc-ms-item"><span class="kc-ms-num'+(visokRiz>0?' kc-n-danger':'')+'">'+visokRiz+'</span><span class="kc-ms-lbl">Visok rizik</span></span>';
-  html += '</div>';
-
-  /* Konstelacija — inline, ispod svih kartica */
-  html += '<div class="kc-const-section">';
-  html += '<canvas id="kc-inline-canvas" class="kc-const-canvas"></canvas>';
   html += '</div>';
 
   return html;
