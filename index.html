@@ -2865,6 +2865,7 @@ body {
 #cursor { width: 6px; height: 6px; background: var(--blue); transform: translate(-50%,-50%); transition: opacity 0.2s; opacity: 0.9; }
 #cursor-ring { width: 28px; height: 28px; border: 1px solid rgba(74,168,255,0.4); transform: translate(-50%,-50%); transition: transform 0.12s ease, opacity 0.2s; opacity: 0.5; }
 #cv { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+#kc-bg-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; display: none; }
 
 /* 3. APP SHELL ──────────────────────────────────────────────────── */
 .vx-shell {
@@ -4795,12 +4796,12 @@ i[data-lucide] svg {
 .kc-ms-num {
   font-size: 1.25rem;
   font-weight: 600;
-  color: rgba(255,255,255,0.78);
+  color: #ffffff;
   line-height: 1;
 }
 .kc-ms-lbl {
   font-size: 0.52rem;
-  color: rgba(255,255,255,0.28);
+  color: rgba(0,212,255,0.7);
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
@@ -4835,8 +4836,9 @@ i[data-lucide] svg {
 }
 .kc-qa-btn:hover {
   background: rgba(74,168,255,0.06);
-  border-color: rgba(74,168,255,0.16);
-  color: rgba(255,255,255,0.78);
+  border-color: rgba(74,168,255,0.22);
+  color: rgba(255,255,255,0.88);
+  box-shadow: 0 0 8px rgba(0,212,255,0.25);
 }
 .kc-qa-btn i[data-lucide] svg { width: 13px !important; height: 13px !important; stroke-width: 2 !important; }
 
@@ -4851,13 +4853,16 @@ i[data-lucide] svg {
 .kc-panel {
   background: rgba(255,255,255,0.018);
   border: 1px solid rgba(255,255,255,0.06);
+  border-left: 2px solid transparent;
   border-radius: var(--r-lg);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-height: 164px;
+  transition: border-left-color 0.18s;
 }
+.kc-panel:hover { border-left-color: rgba(0,212,255,0.45); }
 .kc-panel-hd {
   display: flex;
   align-items: center;
@@ -4923,7 +4928,7 @@ i[data-lucide] svg {
   font-family: var(--font-ui);
   font-size: 0.79rem;
   font-weight: 500;
-  color: rgba(255,255,255,0.7);
+  color: rgba(255,255,255,0.92);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5275,6 +5280,7 @@ i[data-lucide] svg {
 <div id="cursor"></div>
 <div id="cursor-ring"></div>
 <canvas id="cv"></canvas>
+<canvas id="kc-bg-canvas"></canvas>
 
 <!-- AUTH MODAL -->
 <div class="modal-overlay" id="auth-modal">
@@ -7395,8 +7401,9 @@ function _dashFormatDate(){var d=new Date();var dn=['nedeljа','ponedeljak','uto
 var _kcAnimId = null;
 function kcConstellationInit() {
   if (_kcAnimId) { cancelAnimationFrame(_kcAnimId); _kcAnimId = null; }
-  var canvas = document.getElementById('kc-constellation-canvas');
+  var canvas = document.getElementById('kc-bg-canvas');
   if (!canvas) return;
+  canvas.style.display = 'block';
   var ctx = canvas.getContext('2d');
   var LAWS = [
     'Ustav čl.36','ZKP čl.220','čl.205','čl.53','čl.147','čl.182',
@@ -7406,47 +7413,49 @@ function kcConstellationInit() {
   ];
   var W, H, cx, cy, R;
   function resize() {
-    W = canvas.width  = canvas.offsetWidth  || 480;
-    H = canvas.height = canvas.offsetHeight || 200;
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
     cx = W / 2; cy = H / 2;
-    R = Math.min(W * 0.40, H * 0.46);
+    R  = Math.min(W, H) * 0.36;
   }
   var nodes = LAWS.map(function(label, i) {
     var phi   = Math.acos(1 - 2*(i+0.5)/LAWS.length);
-    var theta = Math.PI * (1 + Math.sqrt(5)) * i;
-    var ct    = i % 5 === 0 ? 'gold' : (i % 7 === 0 ? 'white' : 'blue');
+    var theta = Math.PI*(1+Math.sqrt(5))*i;
+    var ct    = i%5===0 ? 'gold' : (i%7===0 ? 'white' : 'blue');
     return {
       ox: Math.sin(phi)*Math.cos(theta),
       oy: Math.sin(phi)*Math.sin(theta),
       oz: Math.cos(phi),
       rf: 0.38 + Math.random()*0.62,
-      sz: 2 + Math.random()*3.5,
-      label: label,
-      ct: ct,
+      sz: 2.5 + Math.random()*3,
+      label: label, ct: ct,
       phase: Math.random()*Math.PI*2,
-      da: 2 + Math.random()*4,
-      ds: 0.25 + Math.random()*0.4
+      da: 3 + Math.random()*5,
+      ds: 0.2 + Math.random()*0.35
     };
   });
   var t0 = Date.now();
   function draw() {
-    if (!canvas.isConnected) { _kcAnimId = null; return; }
+    var tabH = document.getElementById('tab-h');
+    if (!tabH || tabH.style.display === 'none') {
+      _kcAnimId = null; canvas.style.display = 'none'; return;
+    }
     ctx.clearRect(0, 0, W, H);
-    var e  = (Date.now() - t0) / 1000;
-    var ra = e * (Math.PI*2 / 35);
+    var e  = (Date.now()-t0)/1000;
+    var ra = e*(Math.PI*2/35);
     var cr = Math.cos(ra), sr = Math.sin(ra);
     var proj = nodes.map(function(n) {
       var rx = n.ox*cr - n.oz*sr;
       var rz = n.ox*sr + n.oz*cr;
       var ry = n.oy;
       var depth = (rz+1)/2;
-      var drift = n.da * Math.sin(e*n.ds + n.phase);
+      var drift = n.da*Math.sin(e*n.ds+n.phase);
       return {
         x: cx + rx*R*n.rf,
-        y: cy + ry*R*n.rf*0.62 + drift*0.35,
+        y: cy + ry*R*n.rf*0.6 + drift*0.4,
         z: rz, depth: depth,
-        al: Math.max(0.04, 0.12 + depth*0.78),
-        sz: Math.max(0.8, n.sz*(0.38 + depth*0.72)),
+        al: Math.max(0.05, 0.08+depth*0.68),
+        sz: Math.max(0.8, n.sz*(0.35+depth*0.75)),
         label: n.label, ct: n.ct
       };
     }).sort(function(a,b){ return a.z-b.z; });
@@ -7454,25 +7463,25 @@ function kcConstellationInit() {
       for (var j=i+1; j<proj.length; j++) {
         var a=proj[i], b=proj[j];
         var d=Math.hypot(a.x-b.x, a.y-b.y);
-        if (d<95) {
+        if (d<120) {
           ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
-          ctx.strokeStyle='rgba(74,168,255,'+(((1-d/95)*0.055)*((a.depth+b.depth)/2))+')';
+          ctx.strokeStyle='rgba(0,212,255,'+(((1-d/120)*0.04)*((a.depth+b.depth)/2))+')';
           ctx.lineWidth=0.5; ctx.stroke();
         }
       }
     }
     proj.forEach(function(p) {
-      var c = p.ct==='gold' ? [201,168,76] : p.ct==='white' ? [210,230,255] : [74,168,255];
+      var c = p.ct==='gold'?[255,215,0]:p.ct==='white'?[255,255,255]:[0,212,255];
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.sz, 0, Math.PI*2);
+      ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);
       ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+p.al+')';
       ctx.fill();
-      if (p.depth > 0.28) {
-        var fs = Math.round(7 + p.depth*3);
-        ctx.font='300 '+fs+'px JetBrains Mono,monospace';
-        ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+(p.al*0.8)+')';
+      if (p.depth>0.3) {
+        var fs=Math.round(8+p.depth*3);
+        ctx.font='300 '+fs+'px Inter,sans-serif';
+        ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+(p.al*0.7)+')';
         ctx.textAlign='left'; ctx.textBaseline='middle';
-        ctx.fillText(p.label, p.x+p.sz+4, p.y);
+        ctx.fillText(p.label,p.x+p.sz+4,p.y);
       }
     });
     _kcAnimId = requestAnimationFrame(draw);
@@ -7785,10 +7794,7 @@ _dashRender = function(d, bd) {
   html += '<div class="kc-date-lbl">'+_dashFormatDate()+'</div>';
   html += '</div>';
 
-  /* Konstelacija zakona — animirani canvas */
-  html += '<div class="kc-constellation-wrap">';
-  html += '<canvas id="kc-constellation-canvas" class="kc-constellation-canvas"></canvas>';
-  html += '</div>';
+  /* Mini statistike ispod konstelacije */
   html += '<div class="kc-mini-stats">';
   html += '<span class="kc-ms-item"><span class="kc-ms-num">'+aktivni+'</span><span class="kc-ms-lbl">Aktivnih</span></span>';
   html += '<span class="kc-ms-sep">·</span>';
