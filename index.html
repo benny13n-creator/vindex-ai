@@ -2071,7 +2071,7 @@ footer { padding: 2rem 1.5rem; }
 
 /* ── SIDEBAR ─────────────────────────────────────────────────── */
 .vx-sidebar {
-  width: 216px; flex-shrink: 0;
+  width: 170px; flex-shrink: 0;
   display: flex; flex-direction: column;
   background: rgba(255,255,255,0.012);
   border-right: 1px solid rgba(255,255,255,0.06);
@@ -4517,11 +4517,11 @@ select.pro-input option { background: var(--surface); }
   --icon-ui:         rgba(255,255,255,0.42);
 }
 
-/* Sidebar — 220px labeled layout */
+/* Sidebar — 170px compact layout */
 .vx-sidebar {
-  width: 220px !important;
-  min-width: 220px !important;
-  max-width: 220px !important;
+  width: 170px !important;
+  min-width: 170px !important;
+  max-width: 170px !important;
   flex-direction: column !important;
   overflow: hidden !important;
   overflow-y: auto !important;
@@ -4531,7 +4531,7 @@ select.pro-input option { background: var(--surface); }
 
 /* Logo */
 .vx-logo-wrap {
-  padding: 18px 18px 14px !important;
+  padding: 14px 12px 10px !important;
   border-bottom: 1px solid rgba(255,255,255,0.05) !important;
   flex-shrink: 0 !important;
   display: flex !important;
@@ -4569,9 +4569,9 @@ select.pro-input option { background: var(--surface); }
   display: flex !important;
   align-items: center !important;
   gap: 10px !important;
-  padding: 9px 16px !important;
+  padding: 8px 12px !important;
   height: auto !important;
-  min-height: 36px !important;
+  min-height: 34px !important;
   width: 100% !important;
   min-width: auto !important;
   max-width: 100% !important;
@@ -4580,7 +4580,7 @@ select.pro-input option { background: var(--surface); }
   border-bottom: none !important;
   border-radius: 0 !important;
   font-family: var(--font-ui) !important;
-  font-size: 0.82rem !important;
+  font-size: 0.75rem !important;
   font-weight: 500 !important;
   color: var(--icon-nav) !important;
   cursor: pointer !important;
@@ -4751,106 +4751,107 @@ i[data-lucide] svg {
 .kc-greeting { display: none; }
 .kc-date-lbl { display: none; }
 
-/* Static sphere */
-.kc-sphere-wrap {
+/* Command Sphere — orbit system */
+.kc-orbit-wrap {
+  display: grid;
+  grid-template-columns: 1fr 128px 1fr;
+  grid-template-rows: 1fr 1fr;
+  min-height: 148px;
+  margin: 0.8rem 0 1.4rem;
+  gap: 4px 0;
+}
+.kc-orbit-stat {
   display: flex;
-  justify-content: center;
-  margin-bottom: 1.1rem;
+  flex-direction: column;
+  gap: 4px;
+}
+.kc-orbit-nw {
+  grid-column: 1; grid-row: 1;
+  display: flex; flex-direction: column;
+  align-items: flex-end; justify-content: flex-end;
+  padding-right: 0.9rem; padding-bottom: 0.3rem;
+  text-align: right;
+}
+.kc-orbit-ne {
+  grid-column: 3; grid-row: 1;
+  display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: flex-end;
+  padding-left: 0.9rem; padding-bottom: 0.3rem;
+}
+.kc-orbit-sw {
+  grid-column: 1; grid-row: 2;
+  display: flex; flex-direction: column;
+  align-items: flex-end; justify-content: flex-start;
+  padding-right: 0.9rem; padding-top: 0.3rem;
+  text-align: right;
+}
+.kc-orbit-se {
+  grid-column: 3; grid-row: 2;
+  display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: flex-start;
+  padding-left: 0.9rem; padding-top: 0.3rem;
+}
+.kc-orbit-num {
+  font-family: var(--font-mono);
+  font-size: 4rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.8);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.kc-orbit-num.warn   { color: rgba(251,146,60,0.92); }
+.kc-orbit-num.danger { color: rgba(239,68,68,0.92); }
+.kc-orbit-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  color: rgba(0,212,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.35;
 }
 .kc-sphere {
-  width: 240px;
-  height: 240px;
-  border: 2px solid rgba(74,168,255,0.55);
+  grid-column: 2;
+  grid-row: 1 / 3;
+  justify-self: center;
+  align-self: center;
+  width: 128px;
+  height: 128px;
+  border: 1.5px solid rgba(74,168,255,0.5);
   border-radius: 50%;
-  background: rgba(74,168,255,0.04);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 28px rgba(74,168,255,0.12), inset 0 0 20px rgba(74,168,255,0.04);
-  flex-shrink: 0;
-}
-.kc-sphere-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 0;
-}
-.kc-stat {
+  background: rgba(74,168,255,0.03);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 8px 10px;
+  justify-content: center;
+  box-shadow: 0 0 28px rgba(74,168,255,0.1), inset 0 0 18px rgba(74,168,255,0.03);
 }
-.kc-stat-num {
+.kc-sphere-label {
   font-family: var(--font-mono);
-  font-size: 1.45rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.78);
-  line-height: 1;
-}
-.kc-stat-num.kc-n-warn   { color: rgba(240,180,41,0.88); }
-.kc-stat-num.kc-n-danger { color: rgba(239,68,68,0.88); }
-.kc-stat-lbl {
-  font-family: var(--font-mono);
-  font-size: 0.54rem;
+  font-size: 0.5rem;
+  letter-spacing: 0.2em;
   color: rgba(255,255,255,0.28);
-  text-align: center;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  white-space: normal;
-  max-width: 76px;
-  line-height: 1.3;
 }
-.kc-stat-div {
-  display: none;
-}
-.kc-constellation-wrap {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 0.4rem;
-}
-.kc-constellation-canvas {
-  display: block;
-  width: 100%;
-  max-width: 540px;
-  height: 200px;
-}
-.kc-mini-stats {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.1rem;
+.kc-sphere-name {
   font-family: var(--font-mono);
-  flex-wrap: wrap;
-}
-.kc-ms-item {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  padding: 0 14px;
-}
-.kc-ms-num {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #ffffff;
-  line-height: 1;
-}
-.kc-ms-lbl {
-  font-size: 0.52rem;
-  color: rgba(0,212,255,0.7);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  color: rgba(74,168,255,0.65);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  margin: 4px 0 8px;
 }
-.kc-ms-sep {
-  color: rgba(255,255,255,0.10);
-  font-size: 1rem;
-  align-self: center;
+.kc-sphere-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: rgba(74,222,128,0.75);
 }
-.kc-mini-stats-footer {
-  margin-top: 1.4rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255,255,255,0.05);
-}
+.kc-sphere-dot.warn   { background: rgba(251,146,60,0.85); }
+.kc-sphere-dot.danger { background: rgba(239,68,68,0.9); }
+/* Legacy classes — no longer rendered */
+.kc-sphere-wrap { display: none; }
+.kc-sphere-stats, .kc-stat, .kc-stat-num, .kc-stat-lbl, .kc-stat-div { display: none; }
+.kc-constellation-wrap, .kc-constellation-canvas { display: none; }
+.kc-mini-stats, .kc-ms-item, .kc-ms-num, .kc-ms-lbl, .kc-ms-sep, .kc-mini-stats-footer { display: none; }
 
 /* Quick actions bar */
 .kc-qa-bar {
@@ -5085,9 +5086,10 @@ i[data-lucide] svg {
 
 /* ── Responsive ─── */
 @media (max-width: 1024px) {
-  .vx-sidebar { width: 190px !important; min-width: 190px !important; }
-  .kc-sphere  { width: 220px; height: 220px; }
-  .kc-stat    { padding: 6px 8px; }
+  .vx-sidebar { width: 152px !important; min-width: 152px !important; max-width: 152px !important; }
+  .kc-orbit-num { font-size: 3.2rem; }
+  .kc-sphere { width: 110px; height: 110px; }
+  .kc-orbit-wrap { grid-template-columns: 1fr 110px 1fr; min-height: 132px; }
 }
 @media (max-width: 768px) {
   .vx-sidebar {
@@ -5123,17 +5125,16 @@ i[data-lucide] svg {
   .kc-panels-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 540px) {
-  .kc-sphere { width: 200px; height: 200px; border-radius: 50%; }
-  .kc-stat { padding: 6px 6px; }
-  .kc-stat-num { font-size: 1.1rem; }
+  .kc-orbit-num { font-size: 2.8rem; }
+  .kc-sphere { width: 96px; height: 96px; }
+  .kc-orbit-wrap { grid-template-columns: 1fr 96px 1fr; min-height: 118px; }
   .kc-qa-btn { font-size: 0.73rem; padding: 8px 10px; }
-  .kc-sh-num { font-size: 1.2rem; }
   .kc-panels-grid { grid-template-columns: 1fr; }
   #tab-h { padding: 14px 12px 20px !important; }
 }
 @media (max-width: 375px) {
-  .kc-stat { padding: 0 6px; }
-  .kc-stat-num { font-size: 0.95rem; }
+  .kc-orbit-num { font-size: 2.4rem; }
+  .kc-orbit-lbl { font-size: 0.44rem; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -7899,7 +7900,7 @@ function _kcPanelAktivnosti(d) {
   return h;
 }
 
-/* ── FAZA 1 — Komandni centar (staticki prikaz) ─────────────────── */
+/* ── FAZA 1.7 — Komandni centar: Legal Operating System ─────────── */
 _dashRender = function(d, bd) {
   var aktivni  = d.ukupno_aktivnih || 0;
   var hitniRok = (d.hitni_rokovi||[]).length;
@@ -7907,6 +7908,10 @@ _dashRender = function(d, bd) {
                    ? d.statistike.novi_dokumenti : (d.novi_dokumenti||[]).length;
   var visokRiz = (d.statistike && d.statistike.predmeti_visok_rizik != null)
                    ? d.statistike.predmeti_visok_rizik : (d.predmeti_visok_rizik||[]).length;
+
+  var sysOk       = (hitniRok === 0 && visokRiz === 0);
+  var sysCritical = (hitniRok > 0 && visokRiz > 0);
+  var dotCls      = sysCritical ? ' danger' : (sysOk ? '' : ' warn');
 
   var html = '';
 
@@ -7923,34 +7928,42 @@ _dashRender = function(d, bd) {
   html += '<div class="kc-hdr-date">'+_dashFormatDate()+'</div>';
   html += '</div>';
 
-  /* ── 2. QUICK ACTIONS ──────────────────────────────────────── */
+  /* ── 2. ORBIT SPHERE — fokalna tačka ──────────────────────── */
+  html += '<div class="kc-orbit-wrap">';
+  /* NW — Aktivni predmeti */
+  html += '<div class="kc-orbit-nw" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')" style="cursor:pointer">';
+  html += '<div class="kc-orbit-num">'+aktivni+'</div>';
+  html += '<div class="kc-orbit-lbl">Aktivnih<br>predmeta</div>';
+  html += '</div>';
+  /* Center sphere */
+  html += '<div class="kc-sphere">';
+  html += '<div class="kc-sphere-label">SISTEM</div>';
+  html += '<div class="kc-sphere-name">VINDEX</div>';
+  html += '<div class="kc-sphere-dot'+dotCls+'"></div>';
+  html += '</div>';
+  /* NE — Hitni rokovi */
+  html += '<div class="kc-orbit-ne" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')" style="cursor:pointer">';
+  html += '<div class="kc-orbit-num'+(hitniRok>0?' warn':'')+'">'+hitniRok+'</div>';
+  html += '<div class="kc-orbit-lbl">Hitnih<br>rokova</div>';
+  html += '</div>';
+  /* SW — Novi dokumenti */
+  html += '<div class="kc-orbit-sw">';
+  html += '<div class="kc-orbit-num">'+noviDok+'</div>';
+  html += '<div class="kc-orbit-lbl">Novih<br>dok. (24h)</div>';
+  html += '</div>';
+  /* SE — Visok rizik */
+  html += '<div class="kc-orbit-se">';
+  html += '<div class="kc-orbit-num'+(visokRiz>0?' danger':'')+'">'+visokRiz+'</div>';
+  html += '<div class="kc-orbit-lbl">Visok<br>rizik</div>';
+  html += '</div>';
+  html += '</div>';
+
+  /* ── 3. QUICK ACTIONS ──────────────────────────────────────── */
   html += '<div class="kc-qa-bar">';
   html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase')+'<span>Novi predmet</span></button>';
   html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus')+'<span>Novi klijent</span></button>';
   html += '<button class="kc-qa-btn" onclick="openAITool(\'a\')">'+_kcIco('file-text')+'<span>Otpremi dokument</span></button>';
   html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles')+'<span>AI analiza</span></button>';
-  html += '</div>';
-
-  /* ── 3. STATUS HUB — fokalna tačka ────────────────────────── */
-  var sysOk = (hitniRok === 0 && visokRiz === 0);
-  var sysCritical = (hitniRok > 0 && visokRiz > 0);
-  var dotCls = sysCritical ? ' danger' : (sysOk ? '' : ' warn');
-  var statusTxt = sysCritical ? 'UPOZORENJE — hitna akcija' : (sysOk ? 'SVE POD KONTROLOM' : 'UPOZORENJE');
-  html += '<div class="kc-status-hub">';
-  html += '<div class="kc-sh-hdr">';
-  html += '<span class="kc-sh-label">STATUS SISTEMA</span>';
-  html += '<span class="kc-sh-status"><span class="kc-sh-dot'+dotCls+'"></span>'+escHtml(statusTxt)+'</span>';
-  html += '</div>';
-  html += '<div class="kc-sh-metrics">';
-  html += '<div class="kc-sh-metric" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')" style="cursor:pointer">';
-  html += '<span class="kc-sh-num">'+aktivni+'</span><span class="kc-sh-lbl">Aktivnih<br>predmeta</span></div>';
-  html += '<div class="kc-sh-metric" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')" style="cursor:pointer">';
-  html += '<span class="kc-sh-num'+(hitniRok>0?' warn':'')+'">'+hitniRok+'</span><span class="kc-sh-lbl">Hitnih<br>rokova</span></div>';
-  html += '<div class="kc-sh-metric">';
-  html += '<span class="kc-sh-num">'+noviDok+'</span><span class="kc-sh-lbl">Novih<br>dok.</span></div>';
-  html += '<div class="kc-sh-metric">';
-  html += '<span class="kc-sh-num'+(visokRiz>0?' danger':'')+'">'+visokRiz+'</span><span class="kc-sh-lbl">Visok<br>rizik</span></div>';
-  html += '</div>';
   html += '</div>';
 
   /* ── 4. PANELI — 2×2 grid ──────────────────────────────────── */
