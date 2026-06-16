@@ -6747,7 +6747,7 @@ i[data-lucide] svg {
                     <div class="aic3-module-name">Red Team analiza</div>
                     <div class="aic3-module-desc">Simulacija napada na slabe tacke vaseg pravnog stanovista.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
                 </div>
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="scale" style="width:17px;height:17px;"></i></div>
@@ -6755,7 +6755,7 @@ i[data-lucide] svg {
                     <div class="aic3-module-name">Litigation Simulator</div>
                     <div class="aic3-module-desc">Simulacija sudskog postupka i verovatnoce ishoda.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
                 </div>
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="gavel" style="width:17px;height:17px;"></i></div>
@@ -6763,7 +6763,7 @@ i[data-lucide] svg {
                     <div class="aic3-module-name">AI Judge</div>
                     <div class="aic3-module-desc">AI sudija procenjuje predmet na osnovu srpske sudske prakse.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
                 </div>
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="clipboard-check" style="width:17px;height:17px;"></i></div>
@@ -6771,7 +6771,7 @@ i[data-lucide] svg {
                     <div class="aic3-module-name">Due Diligence</div>
                     <div class="aic3-module-desc">Pravna provera i analiza rizika u kontekstu predmeta.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
                 </div>
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="file-pen" style="width:17px;height:17px;"></i></div>
@@ -6779,7 +6779,7 @@ i[data-lucide] svg {
                     <div class="aic3-module-name">Pravni Revizor</div>
                     <div class="aic3-module-desc">Revizija pravnih dokumenata predmeta po zakonskim standardima.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
                 </div>
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="users" style="width:17px;height:17px;"></i></div>
@@ -6787,7 +6787,7 @@ i[data-lucide] svg {
                     <div class="aic3-module-name">Witness Analyzer</div>
                     <div class="aic3-module-desc">Analiza iskaza svedoka i procena verodostojnosti.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
                 </div>
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="file-search" style="width:17px;height:17px;"></i></div>
@@ -6795,7 +6795,7 @@ i[data-lucide] svg {
                     <div class="aic3-module-name">Analiza dokumenta</div>
                     <div class="aic3-module-desc">AI pregled ugovora ili podneska uz identifikaciju pravnih rizika.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('ai-analiza')">Otvori predmet</button>
                 </div>
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="file-pen-line" style="width:17px;height:17px;"></i></div>
@@ -6803,7 +6803,7 @@ i[data-lucide] svg {
                     <div class="aic3-module-name">Nacrti i podnesci</div>
                     <div class="aic3-module-desc">Generator tuzbi, zalbi i ugovora po srpskim procesnim standardima.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('ai-analiza')">Otvori predmet</button>
                 </div>
               </div>
             </div>
@@ -12923,7 +12923,14 @@ async function aic3_submit() {
     if (r.status === 403) { openProUpgradeModal(); return; }
     var d = await r.json();
     if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
-    var text = d.odgovor || d.greska || 'Greska u odgovoru servera.';
+    if (!r.ok) {
+      var errText = d.greska || d.error
+        || (typeof d.detail === 'string' ? d.detail : null)
+        || ('Greška servera (' + r.status + ')');
+      if (resultEl) { resultEl.textContent = errText; resultEl.classList.add('show'); }
+      return;
+    }
+    var text = d.odgovor !== undefined ? d.odgovor : (d.greska || d.error || 'Greška: prazan odgovor servera.');
     var parsed = (typeof formatResponse === 'function') ? formatResponse(text) : null;
     if (resultEl) {
       if (parsed && parsed.trim()) { resultEl.innerHTML = parsed; resultEl.style.whiteSpace = ''; }
@@ -12939,6 +12946,13 @@ async function aic3_submit() {
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
   }
+}
+
+var _aicPendingSubtab = null;
+
+function aicOtvoriPredmet(subtab) {
+  _aicPendingSubtab = subtab || null;
+  setTab(document.getElementById('tab-btn-p'), 'p');
 }
 
 function pred_select(id) {
@@ -12960,10 +12974,10 @@ function pred_select(id) {
     var oblEl = document.getElementById('pred-s-oblast');
     if (oblEl) oblEl.textContent = predmetObj.tip || '—';
   }
-  // Push a history entry so browser back stays within SPA instead of leaving the page
   if (history.pushState) history.pushState(null, '', '#pregled');
-  pred_subtabSwitch('pregled');
-  // Allow terminal to grow beyond grid row height — desktop only, mobile keeps overflow:hidden
+  var targetSubtab = _aicPendingSubtab || 'pregled';
+  _aicPendingSubtab = null;
+  pred_subtabSwitch(targetSubtab);
   var terminal = document.querySelector('.terminal');
   if (terminal && window.innerWidth > 900) terminal.style.overflow = 'visible';
 }
