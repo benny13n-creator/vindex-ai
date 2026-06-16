@@ -5089,6 +5089,141 @@ i[data-lucide] svg {
   .pred-subtab-btn { padding: 0.38rem 0.44rem; font-size: 0.62rem; }
 }
 
+/* ── AI Centar Faza 3 ──────────────────────────────────────────────────────── */
+.aic3-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1.2rem;
+}
+.aic3-eyebrow {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  color: rgba(255,255,255,0.28);
+  text-transform: uppercase;
+  margin-bottom: 0.55rem;
+}
+.aic3-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 112px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+  font-weight: 300;
+  padding: 0.95rem 1.1rem;
+  outline: none;
+  resize: vertical;
+  line-height: 1.6;
+  display: block;
+}
+.aic3-textarea:focus { border-color: rgba(74,168,255,0.4); }
+.aic3-textarea::placeholder { color: rgba(255,255,255,0.25); }
+.aic3-submit-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+.aic3-submit-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem;
+  background: rgba(74,168,255,0.13);
+  border: 1px solid rgba(74,168,255,0.28);
+  border-radius: 9px;
+  color: #89c8ff;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.aic3-submit-btn:hover { background: rgba(74,168,255,0.22); }
+.aic3-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.aic3-result {
+  display: none;
+  margin-top: 1rem;
+  padding: 1rem 1.2rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  color: rgba(255,255,255,0.82);
+  font-size: 0.83rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.aic3-result.show { display: block; }
+.aic3-global-lbl {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  color: rgba(255,255,255,0.28);
+  text-transform: uppercase;
+  margin-bottom: 0.55rem;
+}
+.aic3-global-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+.aic3-global-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
+  padding: 0.8rem 0.9rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s, border-color .15s;
+}
+.aic3-global-btn:hover { background: rgba(74,168,255,0.07); border-color: rgba(74,168,255,0.2); }
+.aic3-global-btn-name { font-size: 0.76rem; font-weight: 600; color: rgba(255,255,255,0.82); }
+.aic3-global-btn-sub { font-size: 0.63rem; color: rgba(255,255,255,0.32); line-height: 1.4; }
+.aic3-case-section {
+  margin-top: 2rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.aic3-case-title { font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.65); margin: 0 0 0.22rem; }
+.aic3-case-sub { font-size: 0.7rem; color: rgba(255,255,255,0.3); line-height: 1.55; margin-bottom: 0.9rem; }
+.aic3-module-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.aic3-module-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+}
+.aic3-module-icon { flex-shrink: 0; color: rgba(74,168,255,0.45); display: flex; align-items: center; }
+.aic3-module-body { flex: 1; min-width: 0; }
+.aic3-module-name { font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.78); margin-bottom: 0.12rem; }
+.aic3-module-desc { font-size: 0.65rem; color: rgba(255,255,255,0.3); line-height: 1.4; }
+.aic3-open-btn {
+  flex-shrink: 0;
+  padding: 0.38rem 0.75rem;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 7px;
+  color: rgba(255,255,255,0.4);
+  font-family: var(--font-ui);
+  font-size: 0.66rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .15s, color .15s;
+}
+.aic3-open-btn:hover { border-color: rgba(74,168,255,0.32); color: #89c8ff; }
+@media (max-width: 1024px) {
+  .aic3-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 375px) {
+  .aic3-global-grid { grid-template-columns: 1fr 1fr; }
+  .aic3-module-card { flex-wrap: wrap; }
+  .aic3-open-btn { width: 100%; text-align: center; margin-top: 0.3rem; }
+}
+
 </style>
 
 </head>
@@ -6287,77 +6422,131 @@ i[data-lucide] svg {
               </div>
               <div class="hub-hd-right">
                 <div class="hub-stat-pair">
-                  <div class="hub-stat">
-                    <span class="hub-stat-n">847</span>
-                    <span class="hub-stat-l">Zakona RS</span>
-                  </div>
-                  <div class="hub-stat">
-                    <span class="hub-stat-n">12.604</span>
-                    <span class="hub-stat-l">Presuda</span>
-                  </div>
+                  <div class="hub-stat"><span class="hub-stat-n">847</span><span class="hub-stat-l">Zakona RS</span></div>
+                  <div class="hub-stat"><span class="hub-stat-n">12.604</span><span class="hub-stat-l">Presuda</span></div>
                 </div>
               </div>
             </div>
-            <!-- Tool grid -->
-            <div class="hub-tool-grid">
-              <div class="hub-tool" onclick="openAITool('q')">
-                <div class="hub-tool-num">01</div>
-                <div class="hub-tool-cat">Osnov · Istraživanje</div>
-                <div class="hub-tool-name">Istraživanje zakona</div>
-                <div class="hub-tool-desc">Svi važeći propisi Republike Srbije. Postavi pravno pitanje — dobij tačan zakon, član i citat za manje od 10 sekundi.</div>
-                <div class="hub-tool-foot">
-                  <span class="hub-tool-tag">847 zakona RS</span>
-                  <span class="hub-tool-cta">Pokreni →</span>
+
+            <!-- SEKCIJA A: Globalno istrazivanje -->
+            <div class="aic3-layout">
+              <div class="aic3-input-section">
+                <div class="aic3-eyebrow">Globalno istrazivanje</div>
+                <textarea id="aic3-q" class="aic3-textarea"
+                  placeholder="Unesite pravno pitanje, naziv zakona, ili temu za istrazivanje..."
+                  rows="5"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aic3_submit();}"></textarea>
+                <div class="aic3-submit-row">
+                  <button id="aic3-btn" class="aic3-submit-btn" onclick="aic3_submit()">
+                    <i data-lucide="sparkles" style="width:14px;height:14px;"></i>
+                    Istrazi
+                  </button>
+                </div>
+                <div id="aic3-result" class="aic3-result"></div>
+              </div>
+              <div class="aic3-actions-section">
+                <div class="aic3-global-lbl">Brze akcije</div>
+                <div class="aic3-global-grid">
+                  <button class="aic3-global-btn" onclick="openAITool('q')">
+                    <i data-lucide="search" style="width:17px;height:17px;color:rgba(74,168,255,0.55);"></i>
+                    <span class="aic3-global-btn-name">Istrazivanje zakona</span>
+                    <span class="aic3-global-btn-sub">847 vazecih propisa RS</span>
+                  </button>
+                  <button class="aic3-global-btn" onclick="openAITool('s')">
+                    <i data-lucide="landmark" style="width:17px;height:17px;color:rgba(74,168,255,0.55);"></i>
+                    <span class="aic3-global-btn-name">Sudska praksa</span>
+                    <span class="aic3-global-btn-sub">12.604 odluka VKS/VS</span>
+                  </button>
+                  <button class="aic3-global-btn" onclick="openAITool('w')">
+                    <i data-lucide="coins" style="width:17px;height:17px;color:rgba(74,168,255,0.55);"></i>
+                    <span class="aic3-global-btn-name">Web3 / MiCA</span>
+                    <span class="aic3-global-btn-sub">ZDI · MiCA · Crypto pravo</span>
+                  </button>
+                  <button class="aic3-global-btn" onclick="setTab(document.getElementById('tab-btn-dok'),'dok')">
+                    <i data-lucide="book-open" style="width:17px;height:17px;color:rgba(74,168,255,0.55);"></i>
+                    <span class="aic3-global-btn-name">Baza znanja</span>
+                    <span class="aic3-global-btn-sub">Dokumenti i resursi</span>
+                  </button>
                 </div>
               </div>
-              <div class="hub-tool" onclick="openAITool('a')">
-                <div class="hub-tool-num">02</div>
-                <div class="hub-tool-cat">Analiza · Rizici</div>
-                <div class="hub-tool-name">Analiza dokumenta</div>
-                <div class="hub-tool-desc">Otpremi ugovor, presudu ili podnesak. AI identifikuje ključne klauzule, pravne rizike i preporučene korake.</div>
-                <div class="hub-tool-foot">
-                  <span class="hub-tool-tag">PDF · DOCX · TXT</span>
-                  <span class="hub-tool-cta">Pokreni →</span>
+            </div>
+
+            <!-- SEKCIJA B: Alati u kontekstu predmeta -->
+            <div class="aic3-case-section">
+              <div class="aic3-case-title">Napredno — otvori unutar predmeta</div>
+              <div class="aic3-case-sub">Sledeci alati rade u kontekstu konkretnog predmeta. Izaberite predmet, zatim predjite na odgovarajuci tab.</div>
+              <div class="aic3-module-list">
+                <div class="aic3-module-card">
+                  <div class="aic3-module-icon"><i data-lucide="target" style="width:17px;height:17px;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name">Red Team analiza</div>
+                    <div class="aic3-module-desc">Simulacija napada na slabe tacke vaseg pravnog stanovista.</div>
+                  </div>
+                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
                 </div>
-              </div>
-              <div class="hub-tool" onclick="openAITool('s')">
-                <div class="hub-tool-num">03</div>
-                <div class="hub-tool-cat">Sudska praksa · Presude</div>
-                <div class="hub-tool-name">Sudska praksa</div>
-                <div class="hub-tool-desc">Pretraži 12.604 odluke Vrhovnog i Višeg kasacionog suda od 2018. Filtri po oblasti, sudu, periodu i ishodu.</div>
-                <div class="hub-tool-foot">
-                  <span class="hub-tool-tag">12.604 presuda</span>
-                  <span class="hub-tool-cta">Pokreni →</span>
+                <div class="aic3-module-card">
+                  <div class="aic3-module-icon"><i data-lucide="scale" style="width:17px;height:17px;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name">Litigation Simulator</div>
+                    <div class="aic3-module-desc">Simulacija sudskog postupka i verovatnoce ishoda.</div>
+                  </div>
+                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
                 </div>
-              </div>
-              <div class="hub-tool hub-tool-pro" onclick="openAITool('n')">
-                <div class="hub-tool-num">04</div>
-                <div class="hub-tool-cat">Generisanje · Podnesci <span class="hub-pro-badge">PRO</span></div>
-                <div class="hub-tool-name">Nacrti i podnesci</div>
-                <div class="hub-tool-desc">Generator tužbi, žalbi, ugovora i podnesaka. Pravno precizni šabloni prilagođeni srpskim sudskim procedurama.</div>
-                <div class="hub-tool-foot">
-                  <span class="hub-tool-tag">24 šablona</span>
-                  <span class="hub-tool-cta">Pokreni →</span>
+                <div class="aic3-module-card">
+                  <div class="aic3-module-icon"><i data-lucide="gavel" style="width:17px;height:17px;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name">AI Judge</div>
+                    <div class="aic3-module-desc">AI sudija procenjuje predmet na osnovu srpske sudske prakse.</div>
+                  </div>
+                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
                 </div>
-              </div>
-              <div class="hub-tool hub-tool-pro" onclick="openAITool('t')">
-                <div class="hub-tool-num">05</div>
-                <div class="hub-tool-cat">Taktika · Strategija <span class="hub-pro-badge">PRO</span></div>
-                <div class="hub-tool-name">Procesna strategija</div>
-                <div class="hub-tool-desc">Red Team simulator, procena verovatnoće ishoda i litigation strategija za kompleksne predmete zasnovana na srodnim presudama.</div>
-                <div class="hub-tool-foot">
-                  <span class="hub-tool-tag">Advanced AI</span>
-                  <span class="hub-tool-cta">Pokreni →</span>
+                <div class="aic3-module-card">
+                  <div class="aic3-module-icon"><i data-lucide="layers" style="width:17px;height:17px;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name">Strategic Orchestrator</div>
+                    <div class="aic3-module-desc">Viseslojni AI orkestar za kompleksne procesne strategije.</div>
+                  </div>
+                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
                 </div>
-              </div>
-              <div class="hub-tool hub-tool-pro" onclick="openAITool('w')">
-                <div class="hub-tool-num">06</div>
-                <div class="hub-tool-cat">Compliance · Digitalna imovina <span class="hub-pro-badge">PRO</span></div>
-                <div class="hub-tool-name">Web3 & Digitalna imovina</div>
-                <div class="hub-tool-desc">ZDI / MiCA Compliance alati. Pravna analiza digitalnih sredstava i smart ugovora po srpskom i EU pravu.</div>
-                <div class="hub-tool-foot">
-                  <span class="hub-tool-tag">MiCA · ZDI · EU</span>
-                  <span class="hub-tool-cta">Pokreni →</span>
+                <div class="aic3-module-card">
+                  <div class="aic3-module-icon"><i data-lucide="clipboard-check" style="width:17px;height:17px;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name">Due Diligence</div>
+                    <div class="aic3-module-desc">Pravna provera i analiza rizika u kontekstu predmeta.</div>
+                  </div>
+                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                </div>
+                <div class="aic3-module-card">
+                  <div class="aic3-module-icon"><i data-lucide="file-pen" style="width:17px;height:17px;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name">Pravni Revizor</div>
+                    <div class="aic3-module-desc">Revizija pravnih dokumenata predmeta po zakonskim standardima.</div>
+                  </div>
+                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                </div>
+                <div class="aic3-module-card">
+                  <div class="aic3-module-icon"><i data-lucide="users" style="width:17px;height:17px;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name">Witness Analyzer</div>
+                    <div class="aic3-module-desc">Analiza iskaza svedoka i procena verodostojnosti.</div>
+                  </div>
+                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                </div>
+                <div class="aic3-module-card">
+                  <div class="aic3-module-icon"><i data-lucide="file-search" style="width:17px;height:17px;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name">Analiza dokumenta</div>
+                    <div class="aic3-module-desc">AI pregled ugovora ili podneska uz identifikaciju pravnih rizika.</div>
+                  </div>
+                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
+                </div>
+                <div class="aic3-module-card">
+                  <div class="aic3-module-icon"><i data-lucide="file-pen-line" style="width:17px;height:17px;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name">Nacrti i podnesci</div>
+                    <div class="aic3-module-desc">Generator tuzbi, zalbi i ugovora po srpskim procesnim standardima.</div>
+                  </div>
+                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
                 </div>
               </div>
             </div>
@@ -12232,6 +12421,46 @@ function pred_openStrat(modul) {
     var btn = document.querySelector('.strat-btn[data-modul="'+modul+'"]');
     if (btn) stratIzaberiModul(modul, btn);
   }, 150);
+}
+
+/* ── AI Centar Faza 3 — centralni input ─────────────────────────────────── */
+async function aic3_submit() {
+  if (!currentUser) { openModal(); return; }
+  if (userCredits <= 0) { showPaywall(); return; }
+  var qEl = document.getElementById('aic3-q');
+  var q = qEl ? qEl.value.trim() : '';
+  if (!q) return;
+  var btn = document.getElementById('aic3-btn');
+  var resultEl = document.getElementById('aic3-result');
+  if (btn) { btn.disabled = true; btn.textContent = 'Istrazujem...'; }
+  if (resultEl) { resultEl.className = 'aic3-result'; resultEl.textContent = ''; }
+  try {
+    var r = await fetch(BASE_URL + '/api/pitanje', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ pitanje: q, history: [] })
+    });
+    if (r.status === 401) { openModal(); return; }
+    if (r.status === 402) { userCredits = 0; updateCreditDisplay(); showPaywall(); return; }
+    if (r.status === 403) { openProUpgradeModal(); return; }
+    var d = await r.json();
+    if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
+    var text = d.odgovor || d.greska || 'Greska u odgovoru servera.';
+    var parsed = (typeof formatResponse === 'function') ? formatResponse(text) : null;
+    if (resultEl) {
+      if (parsed && parsed.trim()) { resultEl.innerHTML = parsed; resultEl.style.whiteSpace = ''; }
+      else { resultEl.textContent = text; resultEl.style.whiteSpace = 'pre-wrap'; }
+      resultEl.classList.add('show');
+    }
+  } catch (err) {
+    if (resultEl) { resultEl.textContent = 'Greska: ' + (err.message || 'nepoznata'); resultEl.classList.add('show'); }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="sparkles" style="width:14px;height:14px;"></i> Istrazi';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  }
 }
 
 function pred_select(id) {
