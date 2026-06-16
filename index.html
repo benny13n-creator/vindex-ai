@@ -4810,6 +4810,11 @@ i[data-lucide] svg {
   font-size: 1rem;
   align-self: center;
 }
+.kc-mini-stats-footer {
+  margin-top: 1.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
 
 /* Quick actions bar */
 .kc-qa-bar {
@@ -7416,7 +7421,7 @@ function kcConstellationInit() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
     cx = W / 2; cy = H / 2;
-    R  = Math.min(W, H) * 0.36;
+    R  = Math.min(W, H) * 0.72;
   }
   var nodes = LAWS.map(function(label, i) {
     var phi   = Math.acos(1 - 2*(i+0.5)/LAWS.length);
@@ -7794,18 +7799,7 @@ _dashRender = function(d, bd) {
   html += '<div class="kc-date-lbl">'+_dashFormatDate()+'</div>';
   html += '</div>';
 
-  /* Mini statistike ispod konstelacije */
-  html += '<div class="kc-mini-stats">';
-  html += '<span class="kc-ms-item"><span class="kc-ms-num">'+aktivni+'</span><span class="kc-ms-lbl">Aktivnih</span></span>';
-  html += '<span class="kc-ms-sep">·</span>';
-  html += '<span class="kc-ms-item"><span class="kc-ms-num'+(hitniRok>0?' kc-n-warn':'')+'">'+hitniRok+'</span><span class="kc-ms-lbl">Hitnih rokova</span></span>';
-  html += '<span class="kc-ms-sep">·</span>';
-  html += '<span class="kc-ms-item"><span class="kc-ms-num">'+noviDok+'</span><span class="kc-ms-lbl">Dok. za pregled</span></span>';
-  html += '<span class="kc-ms-sep">·</span>';
-  html += '<span class="kc-ms-item"><span class="kc-ms-num'+(visokRiz>0?' kc-n-danger':'')+'">'+visokRiz+'</span><span class="kc-ms-lbl">Visok rizik</span></span>';
-  html += '</div>';
-
-  /* Quick Actions Bar — ispod sfere */
+  /* Quick Actions Bar */
   html += '<div class="kc-qa-bar">';
   html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase')+'<span>Novi predmet</span></button>';
   html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus')+'<span>Novi klijent</span></button>';
@@ -7819,6 +7813,17 @@ _dashRender = function(d, bd) {
   html += _kcPanelRokovi(d);
   html += _kcPanelPreporuke(d);
   html += _kcPanelAktivnosti(d);
+  html += '</div>';
+
+  /* Mini statistike — footer ispod panela */
+  html += '<div class="kc-mini-stats kc-mini-stats-footer">';
+  html += '<span class="kc-ms-item"><span class="kc-ms-num">'+aktivni+'</span><span class="kc-ms-lbl">Aktivnih</span></span>';
+  html += '<span class="kc-ms-sep">·</span>';
+  html += '<span class="kc-ms-item"><span class="kc-ms-num'+(hitniRok>0?' kc-n-warn':'')+'">'+hitniRok+'</span><span class="kc-ms-lbl">Hitnih rokova</span></span>';
+  html += '<span class="kc-ms-sep">·</span>';
+  html += '<span class="kc-ms-item"><span class="kc-ms-num">'+noviDok+'</span><span class="kc-ms-lbl">Dok. za pregled</span></span>';
+  html += '<span class="kc-ms-sep">·</span>';
+  html += '<span class="kc-ms-item"><span class="kc-ms-num'+(visokRiz>0?' kc-n-danger':'')+'">'+visokRiz+'</span><span class="kc-ms-lbl">Visok rizik</span></span>';
   html += '</div>';
 
   return html;
