@@ -4523,6 +4523,8 @@ select.pro-input option { background: var(--surface); }
   width: 200px !important;
   min-width: 200px !important;
   max-width: 200px !important;
+  height: 100vh !important;
+  background: #0c0e14 !important;
   flex-direction: column !important;
   overflow: hidden !important;
   overflow-y: auto !important;
@@ -4540,15 +4542,15 @@ select.pro-input option { background: var(--surface); }
 }
 .vx-logo-mark {
   font-family: 'Cormorant Garamond', Georgia, serif !important;
-  font-size: 1.22rem !important;
+  font-size: 1.4rem !important;
   font-weight: 600 !important;
-  color: rgba(255,255,255,0.88) !important;
+  color: #ffffff !important;
   letter-spacing: 0.02em !important;
   line-height: 1 !important;
 }
 .vx-logo-mark em {
   font-style: normal !important;
-  color: rgba(0,212,255,0.88) !important;
+  color: rgba(0,212,255,0.85) !important;
 }
 /* Hide legacy V mark */
 .vx-sidebar-logo::before { display: none !important; content: none !important; }
@@ -4560,7 +4562,7 @@ select.pro-input option { background: var(--surface); }
   display: flex !important;
   flex-direction: column !important;
   padding: 8px 0 !important;
-  gap: 0 !important;
+  gap: 4px !important;
   overflow: hidden !important;
   width: 100% !important;
 }
@@ -4570,20 +4572,20 @@ select.pro-input option { background: var(--surface); }
   display: flex !important;
   align-items: center !important;
   gap: 10px !important;
-  padding: 8px 12px !important;
+  padding: 12px 20px !important;
   height: auto !important;
-  min-height: 34px !important;
+  min-height: 40px !important;
   width: 100% !important;
   min-width: auto !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
-  border-left: 2px solid transparent !important;
+  border-left: 3px solid transparent !important;
   border-bottom: none !important;
   border-radius: 0 !important;
   font-family: var(--font-ui) !important;
-  font-size: 0.75rem !important;
+  font-size: 0.95rem !important;
   font-weight: 500 !important;
-  color: var(--icon-nav) !important;
+  color: rgba(255,255,255,0.75) !important;
   cursor: pointer !important;
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease !important;
   text-transform: none !important;
@@ -4597,11 +4599,11 @@ select.pro-input option { background: var(--surface); }
   border-left-color: rgba(255,255,255,0.08) !important;
 }
 .t-tab.active {
-  color: rgba(255,255,255,0.92) !important;
+  color: #ffffff !important;
   background: rgba(0,212,255,0.07) !important;
-  border-left-color: rgba(0,212,255,0.55) !important;
+  border-left-color: rgba(0,212,255,0.6) !important;
 }
-.t-tab.active .vx-tab-ico svg { stroke: rgba(0,212,255,0.75) !important; }
+.t-tab.active .vx-tab-ico svg { stroke: rgba(0,212,255,0.8) !important; }
 /* Remove legacy pseudo-element icon/tooltip */
 .t-tab::before { display: none !important; content: none !important; }
 .t-tab::after  { display: none !important; content: none !important; }
@@ -4627,7 +4629,7 @@ select.pro-input option { background: var(--surface); }
 
 /* Label */
 .vx-tab-lbl {
-  font-size: 0.76rem !important;
+  font-size: 0.95rem !important;
   font-weight: 500 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -4640,7 +4642,7 @@ select.pro-input option { background: var(--surface); }
 .vx-nav-sep, .vx-sidebar-sep {
   width: calc(100% - 32px) !important;
   height: 1px !important;
-  background: rgba(255,255,255,0.05) !important;
+  background: rgba(255,255,255,0.06) !important;
   margin: 4px 16px !important;
   flex-shrink: 0 !important;
   border: none !important;
@@ -4661,44 +4663,51 @@ select.pro-input option { background: var(--surface); }
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
-  padding: 5px 14px 5px 20px !important;
+  padding: 5px 20px 5px 32px !important;
   cursor: pointer !important;
-  color: rgba(255,255,255,0.38) !important;
+  color: rgba(255,255,255,0.6) !important;
   font-family: var(--font-ui) !important;
-  font-size: 0.72rem !important;
+  font-size: 0.82rem !important;
   font-weight: 400 !important;
   transition: color 0.15s, background 0.15s !important;
-  border-left: 2px solid transparent !important;
+  border-left: 3px solid transparent !important;
 }
 .vx-nav-sub:hover {
   color: rgba(0,212,255,0.75) !important;
   background: rgba(0,212,255,0.04) !important;
 }
 .vx-nav-sub-dot {
-  width: 3px !important;
-  height: 3px !important;
+  width: 4px !important;
+  height: 4px !important;
   border-radius: 50% !important;
-  background: rgba(0,212,255,0.42) !important;
+  background: rgba(0,212,255,0.4) !important;
   flex-shrink: 0 !important;
-}
-/* Sidebar "Tvorac i pravda" footer text */
-.vx-foot-lbl {
-  font-family: var(--font-mono) !important;
-  font-size: 0.48rem !important;
-  color: rgba(255,255,255,0.18) !important;
-  letter-spacing: 0.06em !important;
-  text-align: center !important;
-  width: 100% !important;
-  display: block !important;
 }
 /* Footer */
 .vx-sidebar-foot, .vx-sidebar-footer {
-  padding: 10px 12px !important;
-  border-top: 1px solid rgba(255,255,255,0.05) !important;
+  padding: 12px 16px !important;
+  border-top: 1px solid rgba(255,255,255,0.06) !important;
   flex-shrink: 0 !important;
   width: 100% !important;
   box-sizing: border-box !important;
+  margin-top: auto !important;
 }
+/* "Pomoć & podrška" help item */
+.vx-sidebar-help {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  color: rgba(255,255,255,0.4) !important;
+  font-family: var(--font-ui) !important;
+  font-size: 0.82rem !important;
+  font-weight: 400 !important;
+  cursor: pointer !important;
+  transition: color 0.15s !important;
+}
+.vx-sidebar-help:hover { color: rgba(255,255,255,0.65) !important; }
+.vx-sidebar-help svg { width: 14px !important; height: 14px !important; stroke-width: 1.75 !important; flex-shrink: 0 !important; }
+/* Legacy footer label — hidden */
+.vx-foot-lbl { display: none !important; }
 .vx-new-btn {
   display: flex !important;
   align-items: center !important;
@@ -5660,16 +5669,22 @@ i[data-lucide] svg {
         <!-- AI Centar — section label + always-visible sub-items -->
         <div class="vx-nav-group-lbl">AI Centar</div>
         <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
-          <span class="vx-nav-sub-dot"></span>Analiza slučajeva
+          <span class="vx-nav-sub-dot"></span>Istraživanje zakona
         </div>
         <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
           <span class="vx-nav-sub-dot"></span>Sudska praksa
         </div>
         <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
-          <span class="vx-nav-sub-dot"></span>Naknada štete
+          <span class="vx-nav-sub-dot"></span>Analiza dokumenta
         </div>
         <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
-          <span class="vx-nav-sub-dot"></span>Need &amp; Compliance
+          <span class="vx-nav-sub-dot"></span>Nacrti
+        </div>
+        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
+          <span class="vx-nav-sub-dot"></span>Procesna strategija
+        </div>
+        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')">
+          <span class="vx-nav-sub-dot"></span>Web3 &amp; Compliance
         </div>
         <div class="vx-nav-sep"></div>
         <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
@@ -5691,7 +5706,10 @@ i[data-lucide] svg {
         <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none"></div>
       </nav>
       <div class="vx-sidebar-foot">
-        <span class="vx-foot-lbl">Tvorac i pravda</span>
+        <div class="vx-sidebar-help">
+          <i data-lucide="help-circle"></i>
+          <span>Pomoć &amp; podrška</span>
+        </div>
       </div>
     </aside>
   <div class="vx-body">
