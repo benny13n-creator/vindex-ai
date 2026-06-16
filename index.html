@@ -7558,8 +7558,10 @@ function openSubscription() {
   if (STRIPE_URL) {
     window.open(STRIPE_URL, '_blank');
   } else {
-    // STRIPE_URL nije postavljen — kontakt fallback
-    window.location.href = 'mailto:info@vindex.rs?subject=Pretplata%20Vindex%20AI';
+    showToast('Za PRO pretplatu kontaktirajte: info@vindex.rs', 'info');
+    setTimeout(function() {
+      window.location.href = 'mailto:info@vindex.rs?subject=Pretplata%20Vindex%20AI';
+    }, 800);
   }
 }
 
@@ -8442,18 +8444,19 @@ function saveDisplayName() {
   var name = el.value.trim();
   if (name) localStorage.setItem('vindex_display_name', name);
   else localStorage.removeItem('vindex_display_name');
+  showToast('Prikazno ime sačuvano ✓', 'info');
   if (activeTab === 'h') dash_load();
 }
 
 // Popuni Podešavanja panel podacima korisnika
 function settingsLoad() {
-  var u = sb && sb.auth ? sb.auth.getUser() : null;
   var emailEl = document.getElementById('settings-email-val');
   var planEl  = document.getElementById('settings-plan-val');
   var firmaEl = document.getElementById('settings-firma-val');
   var dnEl    = document.getElementById('settings-display-name-input');
   if (dnEl) dnEl.value = localStorage.getItem('vindex_display_name') || '';
-  if (emailEl && currentUserEmail) emailEl.textContent = currentUserEmail;
+  var _email = currentUser ? (currentUser.email || '') : '';
+  if (emailEl) emailEl.textContent = _email || '—';
   if (planEl) planEl.textContent = currentUserIsPro ? 'VindexAI PRO' : 'Basic';
   var firma = localStorage.getItem('vindex_firma');
   if (firmaEl && firma) { try { var f=JSON.parse(firma); firmaEl.textContent = f.naziv||'—'; } catch(e){} }
@@ -8474,10 +8477,16 @@ function openSettingsModal() {
 
 // Reset lozinke iz Podešavanja
 function doForgotPasswordFromSettings() {
-  var email = currentUserEmail;
-  if (!email) { alert('Email adresa nije dostupna.'); return; }
-  sb.auth.resetPasswordForEmail(email, {redirectTo: window.location.origin + window.location.pathname})
-    .then(function(r){ if(!r.error) alert('Link za resetovanje lozinke je poslat na ' + email); else alert('Greška: ' + r.error.message); });
+  var email = currentUser ? (currentUser.email || '') : '';
+  if (!email) { showToast('Email adresa nije dostupna. Prijavite se ponovo.', 'err'); return; }
+  var sb2 = getSupabase ? getSupabase() : sb;
+  if (!sb2) { showToast('Greška: Supabase nije dostupan.', 'err'); return; }
+  showToast('Šaljemo reset link na ' + email + '...', 'info');
+  sb2.auth.resetPasswordForEmail(email, {redirectTo: window.location.origin + window.location.pathname})
+    .then(function(r){
+      if (!r.error) showToast('Link poslat na ' + email + ' — proverite inbox ✓', 'info');
+      else showToast('Greška: ' + (r.error.message || 'Pokušajte ponovo.'), 'err');
+    });
 }
 
 function _updateProTabUI() {
