@@ -5470,6 +5470,42 @@ i[data-lucide] svg {
   .aic3-open-btn { width: 100%; text-align: center; margin-top: 0.3rem; }
 }
 
+/* ── Breadcrumb / Back navigation bar ───────────────────── */
+#vx-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  height: 30px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+#vx-back-btn {
+  display: none;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.75rem;
+  padding: 2px 8px 2px 2px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+#vx-back-btn.visible { display: flex; }
+#vx-back-btn:hover { color: rgba(0,212,255,0.8); background: rgba(0,212,255,0.06); }
+#vx-back-btn i[data-lucide] { width: 13px !important; height: 13px !important; }
+#vx-back-sep { color: rgba(255,255,255,0.15); font-size: 0.7rem; display: none; margin: 0 2px; }
+#vx-back-sep.visible { display: inline; }
+#vx-breadcrumb-path {
+  font-size: 0.72rem;
+  color: rgba(0,212,255,0.65);
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.02em;
+}
+
 </style>
 
 </head>
@@ -5752,6 +5788,13 @@ i[data-lucide] svg {
         </div>
       </div>
       <div id="notif-dropdown" style="display:none;"></div>
+      <div id="vx-breadcrumb-bar">
+        <button id="vx-back-btn" onclick="vxGoBack()">
+          <i data-lucide="chevron-left"></i>Nazad
+        </button>
+        <span id="vx-back-sep">/</span>
+        <span id="vx-breadcrumb-path">Komandni centar</span>
+      </div>
     <div class="vx-panels-wrap">
           <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
@@ -6843,6 +6886,17 @@ i[data-lucide] svg {
               <div class="settings-section-hd">Nalog</div>
               <div class="settings-row">
                 <div class="settings-row-left">
+                  <div class="settings-row-label">Prikazno ime</div>
+                  <div class="settings-row-sub">Vaše ime u pozdravnoj poruci</div>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <input type="text" id="settings-display-name-input" placeholder="npr. Benny" maxlength="40"
+                    style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:rgba(255,255,255,0.85);font-size:0.82rem;width:120px;outline:none;">
+                  <button class="settings-btn" onclick="saveDisplayName()">Sačuvaj</button>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-row-left">
                   <div class="settings-row-label">Email adresa</div>
                   <div class="settings-row-sub" id="settings-email-val">—</div>
                 </div>
@@ -7022,6 +7076,9 @@ var STRIPE_URL = ''; // Set to your Stripe checkout or pricing page URL
 var activeTab = 'q';
 var _initialNavDone = false;
 var _cyrillicOn = false;
+var vxNavHistory = [];
+var _vxGoingBack = false;
+var _vxTabLabels = {h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Compliance',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'AI Centar',dok:'Baza znanja',settings:'Podešavanja'};
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
 var _lastRawText = '';
@@ -8076,7 +8133,8 @@ _dashRender = function(d, bd) {
                    ? d.statistike.predmeti_visok_rizik : (d.predmeti_visok_rizik||[]).length;
 
   var html = '';
-  var userName = (typeof uName !== 'undefined' && uName) ? escHtml(uName) : '';
+  var _dn = localStorage.getItem('vindex_display_name') || (currentUser ? (currentUser.email||'').split('@')[0] : '');
+  var userName = _dn ? escHtml(_dn) : '';
 
   /* ── 1. HEADER — greeting ──────────────────────────────────── */
   html += '<div class="kc-hdr">';
@@ -8300,6 +8358,11 @@ function setTab(el,t){
     openProUpgradeModal();
     return;
   }
+  // Navigation history — push current tab before switching
+  if (!_vxGoingBack && typeof activeTab !== 'undefined' && activeTab && activeTab !== t) {
+    vxNavHistory.push(activeTab);
+    if (vxNavHistory.length > 20) vxNavHistory.shift();
+  }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
   // Ako je AI tool tab aktivan — označi i "AI Alati" nav dugme kao aktivno
@@ -8336,6 +8399,7 @@ function setTab(el,t){
   if (respEl) respEl.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
   if (window.micStopAll) micStopAll();
+  vxUpdateBreadcrumb(t);
 }
 
 // Otvori AI alat iz huba — čuva AI Alati kao aktivan parent
@@ -8344,12 +8408,51 @@ function openAITool(t) {
   if (btn) setTab(btn, t);
 }
 
+function vxGoBack() {
+  if (vxNavHistory.length === 0) return;
+  var prev = vxNavHistory.pop();
+  var btn = document.getElementById('tab-btn-' + prev);
+  if (btn) {
+    _vxGoingBack = true;
+    setTab(btn, prev);
+    _vxGoingBack = false;
+  }
+}
+
+function vxUpdateBreadcrumb(t) {
+  var backBtn = document.getElementById('vx-back-btn');
+  var backSep = document.getElementById('vx-back-sep');
+  var pathEl  = document.getElementById('vx-breadcrumb-path');
+  if (!pathEl) return;
+  var _aiSubtabs = {q:1,a:1,n:1,s:1,t:1,w:1};
+  var label = _vxTabLabels[t] || t;
+  pathEl.textContent = _aiSubtabs[t] ? 'AI Centar / ' + label : label;
+  if (vxNavHistory.length > 0) {
+    if (backBtn) backBtn.classList.add('visible');
+    if (backSep) backSep.classList.add('visible');
+  } else {
+    if (backBtn) backBtn.classList.remove('visible');
+    if (backSep) backSep.classList.remove('visible');
+  }
+}
+
+function saveDisplayName() {
+  var el = document.getElementById('settings-display-name-input');
+  if (!el) return;
+  var name = el.value.trim();
+  if (name) localStorage.setItem('vindex_display_name', name);
+  else localStorage.removeItem('vindex_display_name');
+  if (activeTab === 'h') dash_load();
+}
+
 // Popuni Podešavanja panel podacima korisnika
 function settingsLoad() {
   var u = sb && sb.auth ? sb.auth.getUser() : null;
   var emailEl = document.getElementById('settings-email-val');
   var planEl  = document.getElementById('settings-plan-val');
   var firmaEl = document.getElementById('settings-firma-val');
+  var dnEl    = document.getElementById('settings-display-name-input');
+  if (dnEl) dnEl.value = localStorage.getItem('vindex_display_name') || '';
   if (emailEl && currentUserEmail) emailEl.textContent = currentUserEmail;
   if (planEl) planEl.textContent = currentUserIsPro ? 'VindexAI PRO' : 'Basic';
   var firma = localStorage.getItem('vindex_firma');
