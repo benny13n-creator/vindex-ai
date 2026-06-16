@@ -5652,8 +5652,6 @@ i[data-lucide] svg {
                   <span id="pred-hub-klijent">—</span>
                   <span class="pred-hub-meta-sep">·</span>
                   <span id="pred-hub-updated">—</span>
-                  <span class="pred-hub-meta-sep">·</span>
-                  <span>Verovatnoća: <span id="pred-hub-verovat">N/A</span></span><!-- TODO: kolona verovatnoća_uspeha ne postoji u predmeti tabeli -->
                 </div>
               </div>
 
@@ -5813,6 +5811,9 @@ i[data-lucide] svg {
                   </button>
                   <button class="pred-ai-tool-btn" onclick="pred_openStrat('revizor')">
                     <i data-lucide="file-pen" style="width:16px;height:16px;flex-shrink:0;"></i>Revizija dokumenta
+                  </button>
+                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('witness')">
+                    <i data-lucide="users" style="width:16px;height:16px;flex-shrink:0;"></i>Witness Analyzer
                   </button>
                 </div>
                 <div style="font-size:0.62rem;color:rgba(255,255,255,0.22);margin-top:0.6rem;">Zahteva PRO licencu.</div>
@@ -6564,14 +6565,6 @@ i[data-lucide] svg {
                   <div class="aic3-module-body">
                     <div class="aic3-module-name">AI Judge</div>
                     <div class="aic3-module-desc">AI sudija procenjuje predmet na osnovu srpske sudske prakse.</div>
-                  </div>
-                  <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
-                </div>
-                <div class="aic3-module-card">
-                  <div class="aic3-module-icon"><i data-lucide="layers" style="width:17px;height:17px;"></i></div>
-                  <div class="aic3-module-body">
-                    <div class="aic3-module-name">Strategic Orchestrator</div>
-                    <div class="aic3-module-desc">Viseslojni AI orkestar za kompleksne procesne strategije.</div>
                   </div>
                   <button class="aic3-open-btn" onclick="setTab(document.getElementById('tab-btn-p'),'p')">Otvori predmet</button>
                 </div>
@@ -8055,6 +8048,19 @@ function settingsLoad() {
   if (planEl) planEl.textContent = currentUserIsPro ? 'VindexAI PRO' : 'Basic';
   var firma = localStorage.getItem('vindex_firma');
   if (firmaEl && firma) { try { var f=JSON.parse(firma); firmaEl.textContent = f.naziv||'—'; } catch(e){} }
+}
+
+function openSettingsModal() {
+  var current = '';
+  try { var f = JSON.parse(localStorage.getItem('vindex_firma') || '{}'); current = f.naziv || ''; } catch(e) {}
+  var novi = prompt('Naziv firme:', current);
+  if (novi === null) return;
+  var obj = {};
+  try { obj = JSON.parse(localStorage.getItem('vindex_firma') || '{}'); } catch(e) {}
+  obj.naziv = novi.trim();
+  localStorage.setItem('vindex_firma', JSON.stringify(obj));
+  var firmaEl = document.getElementById('settings-firma-val');
+  if (firmaEl) firmaEl.textContent = obj.naziv || '—';
 }
 
 // Reset lozinke iz Podešavanja
