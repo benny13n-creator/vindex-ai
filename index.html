@@ -4585,7 +4585,7 @@ select.pro-input option { background: var(--surface); }
   font-family: var(--font-ui) !important;
   font-size: 0.95rem !important;
   font-weight: 500 !important;
-  color: rgba(255,255,255,0.75) !important;
+  color: rgba(255,255,255,0.85) !important;
   cursor: pointer !important;
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease !important;
   text-transform: none !important;
@@ -4797,13 +4797,22 @@ i[data-lucide] svg {
 }
 .kc-hdr-date {
   font-family: var(--font-mono);
-  font-size: 0.57rem;
-  color: rgba(255,255,255,0.18);
+  font-size: 1rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
   letter-spacing: 0.04em;
   text-align: right;
   flex-shrink: 0;
   padding-top: 0.2rem;
   line-height: 1.55;
+}
+.kc-hdr-clock {
+  font-size: 0.85rem;
+  color: rgba(0,212,255,0.8);
+  font-family: var(--font-mono, monospace);
+  text-align: right;
+  margin-top: 5px;
+  letter-spacing: 0.05em;
 }
 .kc-greeting { display: none; }
 .kc-date-lbl { display: none; }
@@ -4817,10 +4826,10 @@ i[data-lucide] svg {
 .kc-sphere {
   width: 390px;
   height: 390px;
-  border: 1.5px solid rgba(0,212,255,0.48);
+  border: 1.5px solid rgba(0,212,255,0.7);
   border-radius: 50%;
   background: rgba(0,212,255,0.018);
-  box-shadow: 0 0 55px rgba(0,212,255,0.2), inset 0 0 40px rgba(0,212,255,0.04);
+  box-shadow: 0 0 80px rgba(0,212,255,0.35), 0 0 160px rgba(0,212,255,0.15), inset 0 0 60px rgba(0,212,255,0.08);
   position: relative;
   display: flex;
   align-items: center;
@@ -4914,7 +4923,7 @@ i[data-lucide] svg {
   padding: 14px 16px;
   min-height: 80px;
   background: rgba(0,212,255,0.03);
-  border: 1px solid rgba(0,212,255,0.12);
+  border: 1px solid rgba(0,212,255,0.22);
   border-radius: 9px;
   color: rgba(255,255,255,0.82);
   font-family: var(--font-ui);
@@ -5018,7 +5027,7 @@ i[data-lucide] svg {
 /* Individual panel */
 .kc-panel {
   background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(0,212,255,0.2);
   border-radius: 12px;
   padding: 20px;
   display: flex;
@@ -5043,7 +5052,7 @@ i[data-lucide] svg {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 700;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.85);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
@@ -5719,6 +5728,10 @@ i[data-lucide] svg {
         <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">
           <i data-lucide="calendar-clock" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Rokovi</span>
+        </div>
+        <div class="t-tab" id="tab-btn-kalendar" onclick="setTab(document.getElementById('tab-btn-kal'),'kal')">
+          <i data-lucide="calendar-days" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Kalendar</span>
         </div>
         <div class="vx-nav-sep"></div>
         <!-- AI Centar — section label + always-visible sub-items -->
@@ -7774,9 +7787,23 @@ async function dash_load(){
     body.innerHTML=_dashRender(d,bd);
     if(window.lucide)lucide.createIcons();
     kcConstellationInit();
+    _kcStartClock();
   }catch(e){
     body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
+}
+
+var _kcClockInterval = null;
+function _kcStartClock() {
+  if (_kcClockInterval) clearInterval(_kcClockInterval);
+  function _tick() {
+    var el = document.getElementById('kc-live-clock');
+    if (!el) { clearInterval(_kcClockInterval); _kcClockInterval = null; return; }
+    var d = new Date();
+    el.textContent = ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+  }
+  _tick();
+  _kcClockInterval = setInterval(_tick, 1000);
 }
 
 function _fmtRSD(v){var n=Math.round(v||0);if(n>=1000000)return(n/1000000).toFixed(1)+'M';if(n>=1000)return(n/1000).toFixed(0)+'k';return String(n);}
@@ -8146,7 +8173,10 @@ _dashRender = function(d, bd) {
   html += '<div class="kc-hdr-title">Dobrodošli nazad'+(userName ? ', '+userName : '')+'.</div>';
   html += '<div class="kc-hdr-sub">Ovde je pregled stanja vaše kancelarije.</div>';
   html += '</div>';
+  html += '<div style="text-align:right;flex-shrink:0;">';
   html += '<div class="kc-hdr-date">'+_dashFormatDate()+'</div>';
+  html += '<div class="kc-hdr-clock" id="kc-live-clock"></div>';
+  html += '</div>';
   html += '</div>';
 
   /* ── 2. QUICK ACTIONS — 4 kartice ─────────────────────────── */
