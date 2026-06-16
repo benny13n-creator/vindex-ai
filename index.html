@@ -10770,8 +10770,9 @@ window.addEventListener('DOMContentLoaded', function() {
   // Hash-based subtab navigation (Faza 2)
   window.addEventListener('popstate', function() {
     if (!activePredmetId) return;
-    var h = window.location.hash.replace('#', '') || 'pregled';
-    pred_subtabSwitch(h);
+    var h = window.location.hash.replace('#', '');
+    var VPANES = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija'];
+    if (VPANES.indexOf(h) > -1) pred_subtabSwitch(h);
   });
 });
 
@@ -12196,7 +12197,7 @@ function pred_renderList() {
     if (di.urgentni_rokovi_count && di.urgentni_rokovi_count > 0) {
       rokHtml = '<span style="font-size:0.58rem;color:#ffbb70;margin-left:0.25rem;" title="Hitnih rokova: '+di.urgentni_rokovi_count+'">⏰'+di.urgentni_rokovi_count+'</span>';
     }
-    return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'">'
+    return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'" onclick="pred_select(\''+p.id+'\')">'
       +'<span class="pred-naziv">📁 '+escHtml(p.naziv)+'</span>'
       +'<span style="display:flex;align-items:center;gap:0;flex-shrink:0;">'
       +'<span class="pred-badge '+tipCls+'" style="margin-right:0.25rem;">'+escHtml(p.tip)+'</span>'
@@ -12226,14 +12227,11 @@ function pred_subtabSwitch(pane, btn) {
 }
 
 function pred_openStrat(modul) {
-  setTab(document.getElementById('tab-btn-alati'), 'alati');
+  openAITool('t');
   setTimeout(function() {
-    openAITool('t');
-    setTimeout(function() {
-      var btn = document.querySelector('.strat-btn[data-modul="'+modul+'"]');
-      if (btn) stratIzaberiModul(modul, btn);
-    }, 80);
-  }, 80);
+    var btn = document.querySelector('.strat-btn[data-modul="'+modul+'"]');
+    if (btn) stratIzaberiModul(modul, btn);
+  }, 150);
 }
 
 function pred_select(id) {
@@ -12255,9 +12253,9 @@ function pred_select(id) {
     var oblEl = document.getElementById('pred-s-oblast');
     if (oblEl) oblEl.textContent = predmetObj.tip || '—';
   }
-  // Restore subtab from URL hash or default to Pregled
-  var hash = window.location.hash.replace('#', '') || 'pregled';
-  pred_subtabSwitch(hash);
+  // Push a history entry so browser back stays within SPA instead of leaving the page
+  if (history.pushState) history.pushState(null, '', '#pregled');
+  pred_subtabSwitch('pregled');
   // Allow terminal to grow beyond grid row height — desktop only, mobile keeps overflow:hidden
   var terminal = document.querySelector('.terminal');
   if (terminal && window.innerWidth > 900) terminal.style.overflow = 'visible';
