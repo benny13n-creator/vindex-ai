@@ -4723,14 +4723,14 @@ i[data-lucide] svg {
   margin-bottom: 0.28rem;
 }
 .kc-hdr-title {
-  font-family: var(--font-mono);
-  font-size: 1.08rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.88);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1.1;
-  margin: 0 0 0.35rem;
+  font-family: var(--font-ui);
+  font-size: 1.65rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.92);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  line-height: 1.2;
+  margin: 0 0 0.3rem;
 }
 .kc-hdr-sub {
   font-family: var(--font-ui);
@@ -4751,104 +4751,82 @@ i[data-lucide] svg {
 .kc-greeting { display: none; }
 .kc-date-lbl { display: none; }
 
-/* Command Sphere — orbit system */
-.kc-orbit-wrap {
-  display: grid;
-  grid-template-columns: 1fr 128px 1fr;
-  grid-template-rows: 1fr 1fr;
-  min-height: 148px;
-  margin: 0.8rem 0 1.4rem;
-  gap: 4px 0;
-}
-.kc-orbit-stat {
+/* Command Sphere — stats inside */
+.kc-sphere-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.kc-orbit-nw {
-  grid-column: 1; grid-row: 1;
-  display: flex; flex-direction: column;
-  align-items: flex-end; justify-content: flex-end;
-  padding-right: 0.9rem; padding-bottom: 0.3rem;
-  text-align: right;
-}
-.kc-orbit-ne {
-  grid-column: 3; grid-row: 1;
-  display: flex; flex-direction: column;
-  align-items: flex-start; justify-content: flex-end;
-  padding-left: 0.9rem; padding-bottom: 0.3rem;
-}
-.kc-orbit-sw {
-  grid-column: 1; grid-row: 2;
-  display: flex; flex-direction: column;
-  align-items: flex-end; justify-content: flex-start;
-  padding-right: 0.9rem; padding-top: 0.3rem;
-  text-align: right;
-}
-.kc-orbit-se {
-  grid-column: 3; grid-row: 2;
-  display: flex; flex-direction: column;
-  align-items: flex-start; justify-content: flex-start;
-  padding-left: 0.9rem; padding-top: 0.3rem;
-}
-.kc-orbit-num {
-  font-family: var(--font-mono);
-  font-size: 4rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.8);
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-.kc-orbit-num.warn   { color: rgba(251,146,60,0.92); }
-.kc-orbit-num.danger { color: rgba(239,68,68,0.92); }
-.kc-orbit-lbl {
-  font-family: var(--font-mono);
-  font-size: 0.48rem;
-  color: rgba(0,212,255,0.5);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  line-height: 1.35;
+  justify-content: center;
+  margin: 0.5rem 0 1.4rem;
 }
 .kc-sphere {
-  grid-column: 2;
-  grid-row: 1 / 3;
-  justify-self: center;
-  align-self: center;
-  width: 128px;
-  height: 128px;
-  border: 1.5px solid rgba(74,168,255,0.5);
+  width: 278px;
+  height: 278px;
+  border: 1.5px solid rgba(74,168,255,0.42);
   border-radius: 50%;
-  background: rgba(74,168,255,0.03);
+  background: rgba(74,168,255,0.022);
+  box-shadow: 0 0 48px rgba(74,168,255,0.1), inset 0 0 38px rgba(74,168,255,0.03);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.kc-sphere-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  width: 200px;
+  height: 200px;
+  position: relative;
+}
+.kc-sphere-divv {
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  width: 1px;
+  background: rgba(74,168,255,0.16);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.kc-sphere-divh {
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  height: 1px;
+  background: rgba(74,168,255,0.16);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.kc-sphere-quad {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 28px rgba(74,168,255,0.1), inset 0 0 18px rgba(74,168,255,0.03);
+  gap: 5px;
+  padding: 6px;
 }
-.kc-sphere-label {
+.kc-sphere-quad.clickable { cursor: pointer; }
+.kc-sphere-quad.clickable:hover .kc-sphere-num { color: rgba(255,255,255,1); }
+.kc-sphere-num {
   font-family: var(--font-mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.2em;
-  color: rgba(255,255,255,0.28);
-  text-transform: uppercase;
+  font-size: 2.3rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.84);
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
-.kc-sphere-name {
+.kc-sphere-num.warn   { color: rgba(251,146,60,0.92); }
+.kc-sphere-num.danger { color: rgba(239,68,68,0.92); }
+.kc-sphere-lbl {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
-  color: rgba(74,168,255,0.65);
+  font-size: 0.43rem;
+  color: rgba(0,212,255,0.5);
   text-transform: uppercase;
-  margin: 4px 0 8px;
+  letter-spacing: 0.07em;
+  text-align: center;
+  line-height: 1.35;
 }
-.kc-sphere-dot {
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: rgba(74,222,128,0.75);
-}
-.kc-sphere-dot.warn   { background: rgba(251,146,60,0.85); }
-.kc-sphere-dot.danger { background: rgba(239,68,68,0.9); }
-/* Legacy classes — no longer rendered */
-.kc-sphere-wrap { display: none; }
+/* Orbit classes — no longer rendered */
+.kc-orbit-wrap, .kc-orbit-nw, .kc-orbit-ne, .kc-orbit-sw, .kc-orbit-se { display: none; }
+.kc-orbit-num, .kc-orbit-lbl, .kc-orbit-stat { display: none; }
+/* Legacy classes */
 .kc-sphere-stats, .kc-stat, .kc-stat-num, .kc-stat-lbl, .kc-stat-div { display: none; }
 .kc-constellation-wrap, .kc-constellation-canvas { display: none; }
 .kc-mini-stats, .kc-ms-item, .kc-ms-num, .kc-ms-lbl, .kc-ms-sep, .kc-mini-stats-footer { display: none; }
@@ -4856,33 +4834,34 @@ i[data-lucide] svg {
 /* Quick actions bar */
 .kc-qa-bar {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 7px;
-  margin-bottom: 1.1rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 1.3rem;
 }
 .kc-qa-btn {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 10px 14px;
-  background: rgba(74,168,255,0.055);
-  border: 1px solid rgba(74,168,255,0.16);
+  gap: 10px;
+  padding: 11px 14px;
+  background: rgba(74,168,255,0.04);
+  border: 1px solid rgba(74,168,255,0.13);
   border-radius: 9px;
   color: rgba(255,255,255,0.82);
   font-family: var(--font-ui);
-  font-size: 0.8rem;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
-  white-space: nowrap;
+  text-align: left;
+  white-space: normal;
 }
 .kc-qa-btn:hover {
-  background: rgba(74,168,255,0.1);
-  border-color: rgba(74,168,255,0.34);
+  background: rgba(74,168,255,0.09);
+  border-color: rgba(74,168,255,0.3);
   color: rgba(255,255,255,0.96);
-  box-shadow: 0 0 10px rgba(0,212,255,0.14);
 }
-.kc-qa-btn i[data-lucide] svg { width: 13px !important; height: 13px !important; stroke-width: 2 !important; }
+.kc-qa-btn i[data-lucide] svg { width: 14px !important; height: 14px !important; stroke-width: 1.8 !important; flex-shrink: 0; }
+.kc-qa-btn-body { display: flex; flex-direction: column; gap: 2px; }
+.kc-qa-btn-title { font-size: 0.76rem; font-weight: 600; color: rgba(255,255,255,0.85); line-height: 1.2; }
+.kc-qa-btn-desc  { font-size: 0.61rem; color: rgba(255,255,255,0.3); font-weight: 400; line-height: 1.3; }
 
 /* Status hub — central focal point */
 .kc-status-hub {
@@ -4958,10 +4937,10 @@ i[data-lucide] svg {
   text-align: center;
 }
 
-/* Panels grid — 2×2 layout, content-driven */
+/* Panels grid — 4-column layout */
 .kc-panels-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
 
@@ -5087,9 +5066,11 @@ i[data-lucide] svg {
 /* ── Responsive ─── */
 @media (max-width: 1024px) {
   .vx-sidebar { width: 152px !important; min-width: 152px !important; max-width: 152px !important; }
-  .kc-orbit-num { font-size: 3.2rem; }
-  .kc-sphere { width: 110px; height: 110px; }
-  .kc-orbit-wrap { grid-template-columns: 1fr 110px 1fr; min-height: 132px; }
+  .kc-sphere { width: 250px; height: 250px; }
+  .kc-sphere-inner { width: 178px; height: 178px; }
+  .kc-sphere-num { font-size: 2rem; }
+  .kc-qa-bar { grid-template-columns: repeat(4, 1fr); }
+  .kc-panels-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 768px) {
   .vx-sidebar {
@@ -5122,19 +5103,23 @@ i[data-lucide] svg {
   .vx-tab-lbl { font-size: 0.6rem !important; }
   .vx-nav-sep { display: none !important; }
   .vx-sidebar-foot, .vx-sidebar-footer { display: none !important; }
-  .kc-panels-grid { grid-template-columns: 1fr 1fr; }
+  .kc-panels-grid { grid-template-columns: repeat(2, 1fr); }
+  .kc-qa-bar { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 540px) {
-  .kc-orbit-num { font-size: 2.8rem; }
-  .kc-sphere { width: 96px; height: 96px; }
-  .kc-orbit-wrap { grid-template-columns: 1fr 96px 1fr; min-height: 118px; }
-  .kc-qa-btn { font-size: 0.73rem; padding: 8px 10px; }
+  .kc-sphere { width: 240px; height: 240px; }
+  .kc-sphere-inner { width: 168px; height: 168px; }
+  .kc-sphere-num { font-size: 1.85rem; }
+  .kc-sphere-lbl { font-size: 0.4rem; }
+  .kc-qa-bar { grid-template-columns: repeat(2, 1fr); }
+  .kc-qa-btn { padding: 9px 10px; }
   .kc-panels-grid { grid-template-columns: 1fr; }
   #tab-h { padding: 14px 12px 20px !important; }
 }
 @media (max-width: 375px) {
-  .kc-orbit-num { font-size: 2.4rem; }
-  .kc-orbit-lbl { font-size: 0.44rem; }
+  .kc-sphere { width: 210px; height: 210px; }
+  .kc-sphere-num { font-size: 1.6rem; }
+  .kc-sphere-lbl { font-size: 0.38rem; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -7900,7 +7885,7 @@ function _kcPanelAktivnosti(d) {
   return h;
 }
 
-/* ── FAZA 1.7 — Komandni centar: Legal Operating System ─────────── */
+/* ── FAZA 1.8 — Komandni centar: Sphere-inside + greeting + 4-col */
 _dashRender = function(d, bd) {
   var aktivni  = d.ukupno_aktivnih || 0;
   var hitniRok = (d.hitni_rokovi||[]).length;
@@ -7909,64 +7894,58 @@ _dashRender = function(d, bd) {
   var visokRiz = (d.statistike && d.statistike.predmeti_visok_rizik != null)
                    ? d.statistike.predmeti_visok_rizik : (d.predmeti_visok_rizik||[]).length;
 
-  var sysOk       = (hitniRok === 0 && visokRiz === 0);
-  var sysCritical = (hitniRok > 0 && visokRiz > 0);
-  var dotCls      = sysCritical ? ' danger' : (sysOk ? '' : ' warn');
-
   var html = '';
+  var userName = (typeof uName !== 'undefined' && uName) ? escHtml(uName) : '';
 
-  /* ── 1. HEADER ──────────────────────────────────────────────── */
-  var subParts = [aktivni + (aktivni === 1 ? ' aktivan predmet' : ' aktivnih predmeta')];
-  if (hitniRok > 0) subParts.push(hitniRok + (hitniRok === 1 ? ' hitan rok' : ' hitnih rokova'));
-  else subParts.push('bez hitnih rokova');
+  /* ── 1. HEADER — greeting ──────────────────────────────────── */
   html += '<div class="kc-hdr">';
   html += '<div class="kc-hdr-inner">';
-  html += '<div class="kc-hdr-eyebrow">Vindex AI</div>';
-  html += '<div class="kc-hdr-title">KOMANDNI CENTAR</div>';
-  html += '<div class="kc-hdr-sub">'+escHtml(subParts.join(' · '))+'</div>';
+  html += '<div class="kc-hdr-eyebrow">Komandni centar</div>';
+  html += '<div class="kc-hdr-title">Dobrodošli nazad'+(userName ? ', '+userName : '')+'.</div>';
+  html += '<div class="kc-hdr-sub">Za pregled stanja vaše kancelarije</div>';
   html += '</div>';
   html += '<div class="kc-hdr-date">'+_dashFormatDate()+'</div>';
   html += '</div>';
 
-  /* ── 2. ORBIT SPHERE — fokalna tačka ──────────────────────── */
-  html += '<div class="kc-orbit-wrap">';
-  /* NW — Aktivni predmeti */
-  html += '<div class="kc-orbit-nw" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')" style="cursor:pointer">';
-  html += '<div class="kc-orbit-num">'+aktivni+'</div>';
-  html += '<div class="kc-orbit-lbl">Aktivnih<br>predmeta</div>';
-  html += '</div>';
-  /* Center sphere */
-  html += '<div class="kc-sphere">';
-  html += '<div class="kc-sphere-label">SISTEM</div>';
-  html += '<div class="kc-sphere-name">VINDEX</div>';
-  html += '<div class="kc-sphere-dot'+dotCls+'"></div>';
-  html += '</div>';
-  /* NE — Hitni rokovi */
-  html += '<div class="kc-orbit-ne" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')" style="cursor:pointer">';
-  html += '<div class="kc-orbit-num'+(hitniRok>0?' warn':'')+'">'+hitniRok+'</div>';
-  html += '<div class="kc-orbit-lbl">Hitnih<br>rokova</div>';
-  html += '</div>';
-  /* SW — Novi dokumenti */
-  html += '<div class="kc-orbit-sw">';
-  html += '<div class="kc-orbit-num">'+noviDok+'</div>';
-  html += '<div class="kc-orbit-lbl">Novih<br>dok. (24h)</div>';
-  html += '</div>';
-  /* SE — Visok rizik */
-  html += '<div class="kc-orbit-se">';
-  html += '<div class="kc-orbit-num'+(visokRiz>0?' danger':'')+'">'+visokRiz+'</div>';
-  html += '<div class="kc-orbit-lbl">Visok<br>rizik</div>';
-  html += '</div>';
-  html += '</div>';
-
-  /* ── 3. QUICK ACTIONS ──────────────────────────────────────── */
+  /* ── 2. QUICK ACTIONS — 4 kartice ─────────────────────────── */
   html += '<div class="kc-qa-bar">';
-  html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase')+'<span>Novi predmet</span></button>';
-  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus')+'<span>Novi klijent</span></button>';
-  html += '<button class="kc-qa-btn" onclick="openAITool(\'a\')">'+_kcIco('file-text')+'<span>Otpremi dokument</span></button>';
-  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles')+'<span>AI analiza</span></button>';
+  html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase');
+  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi predmet</div><div class="kc-qa-btn-desc">Kreiraj novi predmet</div></div></button>';
+  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus');
+  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi klijent</div><div class="kc-qa-btn-desc">Dodaj novog klijenta</div></div></button>';
+  html += '<button class="kc-qa-btn" onclick="openAITool(\'a\')">'+_kcIco('file-text');
+  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Otpremi dokument</div><div class="kc-qa-btn-desc">Otpremi dokument</div></div></button>';
+  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles');
+  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Pokreni AI analizu</div><div class="kc-qa-btn-desc">Analiziraj predmet</div></div></button>';
   html += '</div>';
 
-  /* ── 4. PANELI — 2×2 grid ──────────────────────────────────── */
+  /* ── 3. SFERA sa statistikama unutra ──────────────────────── */
+  html += '<div class="kc-sphere-wrap">';
+  html += '<div class="kc-sphere">';
+  html += '<div class="kc-sphere-inner">';
+  html += '<div class="kc-sphere-divv"></div>';
+  html += '<div class="kc-sphere-divh"></div>';
+  /* TL — Aktivnih predmeta */
+  html += '<div class="kc-sphere-quad clickable" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">';
+  html += '<div class="kc-sphere-num">'+aktivni+'</div>';
+  html += '<div class="kc-sphere-lbl">Aktivnih<br>predmeta</div></div>';
+  /* TR — Hitnih rokova */
+  html += '<div class="kc-sphere-quad clickable" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')">';
+  html += '<div class="kc-sphere-num'+(hitniRok>0?' warn':'')+'">'+hitniRok+'</div>';
+  html += '<div class="kc-sphere-lbl">Hitnih<br>rokova</div></div>';
+  /* BL — Novi dokumenti */
+  html += '<div class="kc-sphere-quad">';
+  html += '<div class="kc-sphere-num">'+noviDok+'</div>';
+  html += '<div class="kc-sphere-lbl">Novih<br>dok. (24h)</div></div>';
+  /* BR — Visok rizik */
+  html += '<div class="kc-sphere-quad">';
+  html += '<div class="kc-sphere-num'+(visokRiz>0?' danger':'')+'">'+visokRiz+'</div>';
+  html += '<div class="kc-sphere-lbl">Visok<br>rizik</div></div>';
+  html += '</div>'; /* kc-sphere-inner */
+  html += '</div>'; /* kc-sphere */
+  html += '</div>'; /* kc-sphere-wrap */
+
+  /* ── 4. PANELI — 4 kolone ──────────────────────────────────── */
   html += '<div class="kc-panels-grid">';
   html += _kcPanelAktivni(d);
   html += _kcPanelRokovi(d);
