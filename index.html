@@ -8003,7 +8003,19 @@ _dashRender = function(d, bd) {
   html += '<div class="kc-hdr-date">'+_dashFormatDate()+'</div>';
   html += '</div>';
 
-  /* ── 2. SFERA sa statistikama unutra ──────────────────────── */
+  /* ── 2. QUICK ACTIONS — 4 kartice ─────────────────────────── */
+  html += '<div class="kc-qa-bar">';
+  html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase');
+  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi predmet</div><div class="kc-qa-btn-desc">Kreiraj novi predmet</div></div></button>';
+  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus');
+  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi klijent</div><div class="kc-qa-btn-desc">Dodaj novog klijenta</div></div></button>';
+  html += '<button class="kc-qa-btn" onclick="openAITool(\'a\')">'+_kcIco('file-text');
+  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Otpremi dokument</div><div class="kc-qa-btn-desc">Dodaj dokument</div></div></button>';
+  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles');
+  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Pokreni AI analizu</div><div class="kc-qa-btn-desc">Analiziraj sa AI</div></div></button>';
+  html += '</div>';
+
+  /* ── 3. SFERA sa statistikama unutra ──────────────────────── */
   html += '<div class="kc-sphere-wrap">';
   html += '<div class="kc-sphere">';
   html += '<div class="kc-sphere-inner">';
@@ -8032,18 +8044,6 @@ _dashRender = function(d, bd) {
   html += '</div>'; /* kc-sphere-inner */
   html += '</div>'; /* kc-sphere */
   html += '</div>'; /* kc-sphere-wrap */
-
-  /* ── 3. QUICK ACTIONS — 4 kartice ─────────────────────────── */
-  html += '<div class="kc-qa-bar">';
-  html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase');
-  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi predmet</div><div class="kc-qa-btn-desc">Kreiraj novi predmet</div></div></button>';
-  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus');
-  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi klijent</div><div class="kc-qa-btn-desc">Dodaj novog klijenta</div></div></button>';
-  html += '<button class="kc-qa-btn" onclick="openAITool(\'a\')">'+_kcIco('file-text');
-  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Otpremi dokument</div><div class="kc-qa-btn-desc">Dodaj dokument</div></div></button>';
-  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles');
-  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Pokreni AI analizu</div><div class="kc-qa-btn-desc">Analiziraj sa AI</div></div></button>';
-  html += '</div>';
 
   /* ── 4. PANELI — 4 kolone ──────────────────────────────────── */
   html += '<div class="kc-panels-grid">';
