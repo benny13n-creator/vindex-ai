@@ -7326,7 +7326,7 @@ function fillQ(q) {
 /* MARQUEE */
 var mq1=['Zakon o obligacionim odnosima','Zakon o radu','Krivični zakonik','Zakon o parničnom postupku','Porodični zakon','Zakon o nasleđivanju','Zakon o privrednim drustvima','Ustav Republike Srbije'];
 var mq2=['Tačnost - Preciznost - Brzina','AI za srpsko pravo','Svi važeći zakoni Republike Srbije','Ocena pouzdanosti','Vindex AI - Beta','Advokat 2.0','Srpski pravni sistem'];
-function buildTrack(id,items){var t=document.getElementById(id),all=items.concat(items).concat(items).concat(items);t.innerHTML=all.map(function(x){return '<span class="marquee-item">'+x+'<span class="marquee-sep"> &middot; </span></span>';}).join('');}
+function buildTrack(id,items){var t=document.getElementById(id);if(!t)return;var all=items.concat(items).concat(items).concat(items);t.innerHTML=all.map(function(x){return '<span class="marquee-item">'+x+'<span class="marquee-sep"> &middot; </span></span>';}).join('');}
 buildTrack('mq1',mq1);buildTrack('mq2',mq2);
 
 /* COUNTER ANIMATION */
@@ -7996,12 +7996,13 @@ var _stratAktivniModul = 'red_team';
 
 // Inicijalizacija opisa i labele pri prvom prikazu taba
 (function() {
+  if (!STRAT_MODULI) return;
   var m = STRAT_MODULI['red_team'];
   document.addEventListener('DOMContentLoaded', function() {
     var opisEl = document.getElementById('strat-opis');
     var labelEl = document.getElementById('strat-input-label');
-    if (opisEl) opisEl.textContent = m.opis;
-    if (labelEl) labelEl.textContent = m.label;
+    if (opisEl && m) opisEl.textContent = m.opis;
+    if (labelEl && m) labelEl.textContent = m.label;
     var tekstEl = document.getElementById('strat-tekst');
     if (tekstEl) tekstEl.addEventListener('input', function() {
       var c = document.getElementById('strat-chars');
@@ -8014,7 +8015,8 @@ function stratIzaberiModul(modul, btn) {
   _stratAktivniModul = modul;
   document.querySelectorAll('.strat-btn').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
-  var m = STRAT_MODULI[modul];
+  var m = STRAT_MODULI && STRAT_MODULI[modul];
+  if (!m) return;
   var opisEl = document.getElementById('strat-opis');
   var labelEl = document.getElementById('strat-input-label');
   if (opisEl) opisEl.textContent = m.opis;
