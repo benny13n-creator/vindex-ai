@@ -4863,23 +4863,23 @@ i[data-lucide] svg {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 14px;
-  background: rgba(255,255,255,0.035);
-  border: 1px solid rgba(255,255,255,0.1);
+  padding: 10px 14px;
+  background: rgba(74,168,255,0.055);
+  border: 1px solid rgba(74,168,255,0.16);
   border-radius: 9px;
-  color: rgba(255,255,255,0.72);
+  color: rgba(255,255,255,0.82);
   font-family: var(--font-ui);
-  font-size: 0.79rem;
-  font-weight: 500;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.14s;
+  transition: all 0.15s;
   white-space: nowrap;
 }
 .kc-qa-btn:hover {
-  background: rgba(74,168,255,0.07);
-  border-color: rgba(74,168,255,0.28);
-  color: rgba(255,255,255,0.92);
-  box-shadow: 0 0 8px rgba(0,212,255,0.18);
+  background: rgba(74,168,255,0.1);
+  border-color: rgba(74,168,255,0.34);
+  color: rgba(255,255,255,0.96);
+  box-shadow: 0 0 10px rgba(0,212,255,0.14);
 }
 .kc-qa-btn i[data-lucide] svg { width: 13px !important; height: 13px !important; stroke-width: 2 !important; }
 
@@ -4957,10 +4957,10 @@ i[data-lucide] svg {
   text-align: center;
 }
 
-/* Panels grid — single column, content-driven */
+/* Panels grid — 2×2 layout, content-driven */
 .kc-panels-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
 }
 
@@ -5120,7 +5120,7 @@ i[data-lucide] svg {
   .vx-tab-lbl { font-size: 0.6rem !important; }
   .vx-nav-sep { display: none !important; }
   .vx-sidebar-foot, .vx-sidebar-footer { display: none !important; }
-  .kc-panels-grid { flex-direction: column; }
+  .kc-panels-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 540px) {
   .kc-sphere { width: 200px; height: 200px; border-radius: 50%; }
@@ -5128,7 +5128,7 @@ i[data-lucide] svg {
   .kc-stat-num { font-size: 1.1rem; }
   .kc-qa-btn { font-size: 0.73rem; padding: 8px 10px; }
   .kc-sh-num { font-size: 1.2rem; }
-  .kc-panels-grid { flex-direction: column; }
+  .kc-panels-grid { grid-template-columns: 1fr; }
   #tab-h { padding: 14px 12px 20px !important; }
 }
 @media (max-width: 375px) {
@@ -7446,7 +7446,7 @@ window.addEventListener('resize',function(){W=cv.width=window.innerWidth;H=cv.he
 window.addEventListener('mousemove',function(e){mx=e.clientX;my=e.clientY;});
 var pts=[];
 for(var i=0;i<60;i++){pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,t:Math.random()*Math.PI*2,r:Math.random()*.8+.25});}
-function drawBg(){ctx.clearRect(0,0,W,H);ctx.strokeStyle='rgba(74,168,255,0.018)';ctx.lineWidth=1;for(var x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}for(var y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}var g=ctx.createRadialGradient(mx,my,0,mx,my,480);g.addColorStop(0,'rgba(74,168,255,0.055)');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;p.t+=.007;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;var a=(.4+.4*Math.sin(p.t))*.28;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(74,168,255,'+a+')';ctx.fill();for(var j=i+1;j<pts.length;j++){var q=pts[j],d=Math.hypot(p.x-q.x,p.y-q.y);if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(74,168,255,'+(0.065*(1-d/120))+')';ctx.lineWidth=.5;ctx.stroke();}}}requestAnimationFrame(drawBg);}
+function drawBg(){ctx.clearRect(0,0,W,H);ctx.strokeStyle='rgba(74,168,255,0.022)';ctx.lineWidth=1;for(var x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}for(var y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}var g=ctx.createRadialGradient(mx,my,0,mx,my,340);g.addColorStop(0,'rgba(74,168,255,0.072)');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;p.t+=.007;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;var a=(.4+.4*Math.sin(p.t))*.28;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(74,168,255,'+a+')';ctx.fill();for(var j=i+1;j<pts.length;j++){var q=pts[j],d=Math.hypot(p.x-q.x,p.y-q.y);if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(74,168,255,'+(0.065*(1-d/120))+')';ctx.lineWidth=.5;ctx.stroke();}}}requestAnimationFrame(drawBg);}
 drawBg();
 
 /* SPHERE */
@@ -7871,10 +7871,30 @@ function _kcPanelPreporuke(d) {
 }
 
 function _kcPanelAktivnosti(d) {
-  // TODO: activity_log tabela u Supabase nije implementirana
+  var acts = [];
+  (d.danasnja_rocista||[]).slice(0,2).forEach(function(r){
+    acts.push({ico:'gavel',cls:'kc-ico-warn',txt:'Ročište — '+(r.predmet_naziv||'Predmet'),sub:r.vreme||'danas',id:r.predmet_id});
+  });
+  (d.novi_dokumenti||[]).slice(0,2).forEach(function(dok){
+    if(acts.length<3)acts.push({ico:'file-text',cls:'kc-ico-ai',txt:dok.naziv_fajla||'Dokument',sub:dok.predmet_naziv||'—',id:dok.predmet_id});
+  });
+  (d.pad_procene||[]).slice(0,1).forEach(function(p){
+    if(acts.length<3)acts.push({ico:'alert-triangle',cls:'kc-ico-danger',txt:p.predmet_naziv||'Predmet',sub:'Rizik: '+(p.prethodni_rizik||'?')+' → '+(p.trenutni_rizik||'?'),id:p.predmet_id});
+  });
   var h = '<div class="kc-panel" id="kc-panel-aktivnosti">';
-  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('activity')+'Poslednje aktivnosti</span></div>';
-  h += '<div class="kc-panel-empty">N/A — nije implementirano</div>';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('activity')+'Nedavna aktivnost</span></div>';
+  if(!acts.length){
+    h += '<div class="kc-panel-empty">Nema nedavnih aktivnosti</div>';
+  }else{
+    acts.forEach(function(a){
+      var clickAttr = a.id ? ' onclick="_dashGoToPredmet(\''+escHtml(a.id)+'\')" style="cursor:pointer"' : '';
+      h += '<div class="kc-panel-row"'+clickAttr+'>';
+      h += '<span class="kc-row-ico '+a.cls+'">'+_kcIco(a.ico)+'</span>';
+      h += '<div class="kc-panel-row-info"><div class="kc-panel-row-naziv">'+escHtml(a.txt)+'</div>';
+      h += '<div class="kc-panel-row-meta">'+escHtml(a.sub)+'</div></div></div>';
+    });
+  }
+  h += '<div class="kc-panel-cta" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Svi predmeti →</div>';
   h += '</div>';
   return h;
 }
@@ -7933,11 +7953,12 @@ _dashRender = function(d, bd) {
   html += '</div>';
   html += '</div>';
 
-  /* ── 4. PANELI — 3 panela, content-driven ──────────────────── */
+  /* ── 4. PANELI — 2×2 grid ──────────────────────────────────── */
   html += '<div class="kc-panels-grid">';
   html += _kcPanelAktivni(d);
   html += _kcPanelRokovi(d);
   html += _kcPanelPreporuke(d);
+  html += _kcPanelAktivnosti(d);
   html += '</div>';
 
   return html;
