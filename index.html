@@ -4659,13 +4659,15 @@ select.pro-input option { background: var(--surface); }
   text-transform: uppercase !important;
   color: rgba(255,255,255,0.22) !important;
   padding: 8px 14px 3px !important;
+  margin-top: 24px !important;
 }
 /* AI Centar sub-items */
 .vx-nav-sub {
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
-  padding: 5px 20px 5px 32px !important;
+  padding: 8px 20px 8px 32px !important;
+  margin-bottom: 4px !important;
   cursor: pointer !important;
   color: rgba(255,255,255,0.6) !important;
   font-family: var(--font-ui) !important;
@@ -5785,7 +5787,7 @@ i[data-lucide] svg {
         <div class="vx-nav-sub" onclick="openAITool('w')">
           <span class="vx-nav-sub-dot"></span>Web3 &amp; Compliance
         </div>
-        <div class="vx-nav-sep"></div>
+        <div class="vx-nav-sep" style="margin-top:24px !important;"></div>
         <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
           <i data-lucide="book-open" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Baza znanja</span>
