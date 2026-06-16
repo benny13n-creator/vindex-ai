@@ -2510,14 +2510,15 @@ footer { padding: 2rem 1.5rem; }
 .vx-topbar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .vx-btn-new {
   display: flex; align-items: center; gap: 6px;
-  padding: 7px 14px;
-  background: var(--blue);
-  border: none; border-radius: var(--r-sm);
-  color: #000;
+  padding: 6px 13px;
+  background: rgba(0,212,255,0.1);
+  border: 1px solid rgba(0,212,255,0.32); border-radius: var(--r-sm);
+  color: rgba(0,212,255,0.92);
   font-family: var(--font-ui); font-size: 0.72rem; font-weight: 700;
   cursor: pointer; transition: background var(--t-fast); white-space: nowrap;
 }
-.vx-btn-new:hover { background: var(--blue2); }
+.vx-btn-new:hover { background: rgba(0,212,255,0.18); border-color: rgba(0,212,255,0.5); }
+#notif-bell { display: flex !important; }
 
 /* ══════════════════════════════════════════════════════════════════
    VINDEX AI 2.0 — FAZA 3: HOME SCREEN
@@ -4547,7 +4548,7 @@ select.pro-input option { background: var(--surface); }
 }
 .vx-logo-mark em {
   font-style: normal !important;
-  color: var(--blue) !important;
+  color: rgba(0,212,255,0.88) !important;
 }
 /* Hide legacy V mark */
 .vx-sidebar-logo::before { display: none !important; content: none !important; }
@@ -4596,10 +4597,11 @@ select.pro-input option { background: var(--surface); }
   border-left-color: rgba(255,255,255,0.08) !important;
 }
 .t-tab.active {
-  color: rgba(255,255,255,0.88) !important;
-  background: rgba(74,168,255,0.06) !important;
-  border-left-color: var(--blue) !important;
+  color: rgba(255,255,255,0.92) !important;
+  background: rgba(0,212,255,0.07) !important;
+  border-left-color: rgba(0,212,255,0.55) !important;
 }
+.t-tab.active .vx-tab-ico svg { stroke: rgba(0,212,255,0.75) !important; }
 /* Remove legacy pseudo-element icon/tooltip */
 .t-tab::before { display: none !important; content: none !important; }
 .t-tab::after  { display: none !important; content: none !important; }
@@ -4669,14 +4671,14 @@ select.pro-input option { background: var(--surface); }
   border-left: 2px solid transparent !important;
 }
 .vx-nav-sub:hover {
-  color: rgba(255,255,255,0.68) !important;
-  background: rgba(255,255,255,0.028) !important;
+  color: rgba(0,212,255,0.75) !important;
+  background: rgba(0,212,255,0.04) !important;
 }
 .vx-nav-sub-dot {
   width: 3px !important;
   height: 3px !important;
   border-radius: 50% !important;
-  background: rgba(255,255,255,0.28) !important;
+  background: rgba(0,212,255,0.42) !important;
   flex-shrink: 0 !important;
 }
 /* Sidebar "Tvorac i pravda" footer text */
@@ -4764,7 +4766,7 @@ i[data-lucide] svg {
   font-size: 0.52rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(74,168,255,0.45);
+  color: rgba(0,212,255,0.5);
   margin-bottom: 0.28rem;
 }
 .kc-hdr-title {
@@ -4805,10 +4807,10 @@ i[data-lucide] svg {
 .kc-sphere {
   width: 278px;
   height: 278px;
-  border: 1.5px solid rgba(74,168,255,0.42);
+  border: 1.5px solid rgba(0,212,255,0.48);
   border-radius: 50%;
-  background: rgba(74,168,255,0.022);
-  box-shadow: 0 0 48px rgba(74,168,255,0.1), inset 0 0 38px rgba(74,168,255,0.03);
+  background: rgba(0,212,255,0.018);
+  box-shadow: 0 0 55px rgba(0,212,255,0.2), inset 0 0 40px rgba(0,212,255,0.04);
   position: relative;
   display: flex;
   align-items: center;
@@ -4827,7 +4829,7 @@ i[data-lucide] svg {
   position: absolute;
   left: 50%; top: 0; bottom: 0;
   width: 1px;
-  background: rgba(74,168,255,0.16);
+  background: rgba(0,212,255,0.16);
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -4835,7 +4837,7 @@ i[data-lucide] svg {
   position: absolute;
   top: 50%; left: 0; right: 0;
   height: 1px;
-  background: rgba(74,168,255,0.16);
+  background: rgba(0,212,255,0.16);
   transform: translateY(-50%);
   pointer-events: none;
 }
@@ -4868,6 +4870,18 @@ i[data-lucide] svg {
   text-align: center;
   line-height: 1.35;
 }
+/* Ikona u svakoj sferi ćeliji */
+.kc-sphere-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(0,212,255,0.62);
+  margin-bottom: 1px;
+}
+.kc-sphere-ico svg { width: 12px !important; height: 12px !important; stroke-width: 1.6 !important; stroke: currentColor !important; fill: none !important; display: block !important; }
+.kc-sphere-ico.warn svg  { stroke: rgba(251,146,60,0.82) !important; }
+.kc-sphere-ico.danger svg { stroke: rgba(239,68,68,0.82) !important; }
+
 /* Orbit classes — no longer rendered */
 .kc-orbit-wrap, .kc-orbit-nw, .kc-orbit-ne, .kc-orbit-sw, .kc-orbit-se { display: none; }
 .kc-orbit-num, .kc-orbit-lbl, .kc-orbit-stat { display: none; }
@@ -4888,8 +4902,8 @@ i[data-lucide] svg {
   align-items: center;
   gap: 10px;
   padding: 11px 14px;
-  background: rgba(74,168,255,0.04);
-  border: 1px solid rgba(74,168,255,0.13);
+  background: rgba(0,212,255,0.03);
+  border: 1px solid rgba(0,212,255,0.12);
   border-radius: 9px;
   color: rgba(255,255,255,0.82);
   font-family: var(--font-ui);
@@ -4899,11 +4913,11 @@ i[data-lucide] svg {
   white-space: normal;
 }
 .kc-qa-btn:hover {
-  background: rgba(74,168,255,0.09);
-  border-color: rgba(74,168,255,0.3);
+  background: rgba(0,212,255,0.07);
+  border-color: rgba(0,212,255,0.3);
   color: rgba(255,255,255,0.96);
 }
-.kc-qa-btn i[data-lucide] svg { width: 14px !important; height: 14px !important; stroke-width: 1.8 !important; flex-shrink: 0; }
+.kc-qa-btn i[data-lucide] svg { width: 14px !important; height: 14px !important; stroke-width: 1.8 !important; stroke: rgba(0,212,255,0.65) !important; flex-shrink: 0; }
 .kc-qa-btn-body { display: flex; flex-direction: column; gap: 2px; }
 .kc-qa-btn-title { font-size: 0.76rem; font-weight: 600; color: rgba(255,255,255,0.85); line-height: 1.2; }
 .kc-qa-btn-desc  { font-size: 0.61rem; color: rgba(255,255,255,0.3); font-weight: 400; line-height: 1.3; }
@@ -5036,6 +5050,17 @@ i[data-lucide] svg {
   background: rgba(240,180,41,0.07);
   border-color: rgba(240,180,41,0.18);
 }
+.kc-panel-hd-cta {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  color: rgba(0,212,255,0.5);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.kc-panel-hd-cta:hover { color: rgba(0,212,255,0.85); }
 .kc-panel-empty {
   font-family: var(--font-ui);
   font-size: 0.72rem;
@@ -7485,7 +7510,7 @@ window.addEventListener('resize',function(){W=cv.width=window.innerWidth;H=cv.he
 window.addEventListener('mousemove',function(e){mx=e.clientX;my=e.clientY;});
 var pts=[];
 for(var i=0;i<60;i++){pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,t:Math.random()*Math.PI*2,r:Math.random()*.8+.25});}
-function drawBg(){ctx.clearRect(0,0,W,H);ctx.strokeStyle='rgba(74,168,255,0.022)';ctx.lineWidth=1;for(var x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}for(var y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}var g=ctx.createRadialGradient(mx,my,0,mx,my,340);g.addColorStop(0,'rgba(74,168,255,0.072)');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;p.t+=.007;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;var a=(.4+.4*Math.sin(p.t))*.28;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(74,168,255,'+a+')';ctx.fill();for(var j=i+1;j<pts.length;j++){var q=pts[j],d=Math.hypot(p.x-q.x,p.y-q.y);if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(74,168,255,'+(0.065*(1-d/120))+')';ctx.lineWidth=.5;ctx.stroke();}}}requestAnimationFrame(drawBg);}
+function drawBg(){ctx.clearRect(0,0,W,H);ctx.strokeStyle='rgba(0,212,255,0.032)';ctx.lineWidth=1;for(var x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}for(var y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}var g=ctx.createRadialGradient(mx,my,0,mx,my,420);g.addColorStop(0,'rgba(0,212,255,0.085)');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;p.t+=.007;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;var a=(.4+.4*Math.sin(p.t))*.28;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(0,212,255,'+a+')';ctx.fill();for(var j=i+1;j<pts.length;j++){var q=pts[j],d=Math.hypot(p.x-q.x,p.y-q.y);if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(0,212,255,'+(0.065*(1-d/120))+')';ctx.lineWidth=.5;ctx.stroke();}}}requestAnimationFrame(drawBg);}
 drawBg();
 
 /* SPHERE */
@@ -7833,7 +7858,7 @@ function _kcPanelAktivni(d) {
   var hitniIds      = (d.hitni_rokovi||[]).reduce(function(m,r){m[r.predmet_id]=1;return m;},{});
   var h = '<div class="kc-panel" id="kc-panel-aktivni">';
   h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('briefcase')+'Aktivni predmeti</span>';
-  if (d.ukupno_aktivnih) h += '<span class="kc-panel-badge">'+d.ukupno_aktivnih+'</span>';
+  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Vidi sve →</span>';
   h += '</div>';
   if (!top.length) {
     h += '<div class="kc-panel-empty">Nema aktivnih predmeta</div>';
@@ -7860,7 +7885,7 @@ function _kcPanelRokovi(d) {
   var rokovi7  = d.rokovi_7_dana || [];
   var h = '<div class="kc-panel" id="kc-panel-rokovi">';
   h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('clock')+'Rokovi i ročišta</span>';
-  if (hitniRok.length) h += '<span class="kc-panel-badge kc-badge-warn">'+hitniRok.length+' hitno</span>';
+  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')">Vidi sve →</span>';
   h += '</div>';
   if (!rocista.length && !hitniRok.length && !rokovi7.length) {
     h += '<div class="kc-panel-empty">Nema rokova danas</div>';
@@ -7894,7 +7919,8 @@ function _kcPanelRokovi(d) {
 function _kcPanelPreporuke(d) {
   var preporuke = d.ai_preporuke || [];
   var h = '<div class="kc-panel" id="kc-panel-preporuke">';
-  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('lightbulb')+'AI preporuke</span></div>';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('lightbulb')+'AI preporuke</span>';
+  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">Vidi sve →</span></div>';
   if (!preporuke.length) {
     h += '<div class="kc-panel-empty">Sve je pod kontrolom</div>';
   } else {
@@ -7921,7 +7947,8 @@ function _kcPanelAktivnosti(d) {
     if(acts.length<3)acts.push({ico:'alert-triangle',cls:'kc-ico-danger',txt:p.predmet_naziv||'Predmet',sub:'Rizik: '+(p.prethodni_rizik||'?')+' → '+(p.trenutni_rizik||'?'),id:p.predmet_id});
   });
   var h = '<div class="kc-panel" id="kc-panel-aktivnosti">';
-  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('activity')+'Nedavna aktivnost</span></div>';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('activity')+'Nedavna aktivnost</span>';
+  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Vidi sve →</span></div>';
   if(!acts.length){
     h += '<div class="kc-panel-empty">Nema nedavnih aktivnosti</div>';
   }else{
@@ -7980,18 +8007,22 @@ _dashRender = function(d, bd) {
   html += '<div class="kc-sphere-divh"></div>';
   /* TL — Aktivnih predmeta */
   html += '<div class="kc-sphere-quad clickable" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">';
+  html += '<div class="kc-sphere-ico">'+_kcIco('briefcase')+'</div>';
   html += '<div class="kc-sphere-num">'+aktivni+'</div>';
   html += '<div class="kc-sphere-lbl">Aktivnih<br>predmeta</div></div>';
   /* TR — Hitnih rokova */
   html += '<div class="kc-sphere-quad clickable" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')">';
+  html += '<div class="kc-sphere-ico'+(hitniRok>0?' warn':'')+'">'+_kcIco('clock')+'</div>';
   html += '<div class="kc-sphere-num'+(hitniRok>0?' warn':'')+'">'+hitniRok+'</div>';
   html += '<div class="kc-sphere-lbl">Hitnih<br>rokova</div></div>';
   /* BL — Novi dokumenti */
   html += '<div class="kc-sphere-quad">';
+  html += '<div class="kc-sphere-ico">'+_kcIco('file-text')+'</div>';
   html += '<div class="kc-sphere-num">'+noviDok+'</div>';
   html += '<div class="kc-sphere-lbl">Novih<br>dok. (24h)</div></div>';
   /* BR — Visok rizik */
   html += '<div class="kc-sphere-quad">';
+  html += '<div class="kc-sphere-ico'+(visokRiz>0?' danger':'')+'">'+_kcIco('shield-alert')+'</div>';
   html += '<div class="kc-sphere-num'+(visokRiz>0?' danger':'')+'">'+visokRiz+'</div>';
   html += '<div class="kc-sphere-lbl">Visok<br>rizik</div></div>';
   html += '</div>'; /* kc-sphere-inner */
