@@ -7459,27 +7459,42 @@ async function doRegister() {
       return;
     }
   } catch(e) { /* Nastavlja bez provere ako API nije dostupan */ }
-  var res = await sb.auth.signUp({
-    email: email,
-    password: pass,
-    options: { emailRedirectTo: BASE_URL + '/app' }
-  });
-  btn.textContent = 'Registruj se'; btn.disabled = false;
-  if (res.error) {
-    var msg = res.error.message || 'Greška pri registraciji.';
-    if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already been registered')) {
-      msg = 'Ovaj email je već registrovan. Prijavite se.';
+
+  // Poziva backend koji kreira user_credits (15 kredita) i profile — ne zaobilazi setup
+  try {
+    var regRes = await fetch(BASE_URL + '/api/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email: email, password: pass })
+    });
+    var regData = await regRes.json();
+    if (!regRes.ok) {
+      var msg = regData.detail || 'Greška pri registraciji.';
+      if (msg.toLowerCase().includes('već registrovana') || msg.toLowerCase().includes('already')) {
+        msg = 'Ovaj email je već registrovan. Prijavite se.';
+      }
+      _setAuthError(msg);
+      btn.textContent = 'Registruj se'; btn.disabled = false;
+      return;
     }
-    _setAuthError(msg);
+  } catch(e) {
+    _setAuthError('Greška mreže. Pokušajte ponovo.');
+    btn.textContent = 'Registruj se'; btn.disabled = false;
     return;
   }
-  // Auto-login — backend kreira korisnika sa email_confirm:true pa lozinka odmah radi
+
+  // Login za Supabase sesiju (backend kreirao korisnika sa email_confirm=true)
   var loginRes = await sb.auth.signInWithPassword({ email: email, password: pass });
+  btn.textContent = 'Registruj se'; btn.disabled = false;
   if (loginRes.error) {
     _setAuthError('Registracija uspešna. Prijavite se sa vašim podacima.', true);
     return;
   }
+  currentSession = loginRes.data.session;
+  currentUser    = loginRes.data.user;
   closeModal();
+  updateAuthUI();
+  loadCredits();
 }
 
 async function doLogout() {
@@ -8769,7 +8784,7 @@ async function stratPokreni() {
     }
 
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + e.message + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   } finally {
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
   }
@@ -9098,7 +9113,7 @@ async function pretraziInterneStavove() {
       body: JSON.stringify({ upit: upit })
     });
     var data = await res.json();
-    if (!res.ok) { div.innerHTML = '<div class="strat-error">Greška: ' + (data.detail||'') + '</div>'; return; }
+    if (!res.ok) { div.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(data.detail||'') + '</div>'; return; }
     if (!data.rezultati || !data.rezultati.length) {
       div.innerHTML = '<p class="playbook-prazno">Nema rezultata za ovaj upit.</p>';
       return;
@@ -9113,7 +9128,7 @@ async function pretraziInterneStavove() {
         '</div>';
     }).join('');
   } catch(e) {
-    div.innerHTML = '<div class="strat-error">Greška: ' + e.message + '</div>';
+    div.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   }
 }
 
@@ -12772,7 +12787,7 @@ async function kalkulisiZastarelost() {
     });
     if (!res.ok) {
       var err = await res.json().catch(function(){ return {detail:'Greška'}; });
-      rezDiv.innerHTML = '<div class="rok-alert rok-hitno" style="display:block;margin-top:.5rem;">⚠ ' + (err.detail || 'Server greška') + '</div>';
+      rezDiv.innerHTML = '<div class="rok-alert rok-hitno" style="display:block;margin-top:.5rem;">⚠ ' + _htmlEsc(err.detail || 'Server greška') + '</div>';
       return;
     }
     var d = await res.json();
@@ -12800,7 +12815,7 @@ async function kalkulisiZastarelost() {
       '<div class="zast-status">' + statusTxt + '</div>' +
       napHtml + icsBtnHtml + '</div>';
   } catch(e) {
-    rezDiv.innerHTML = '<div class="rok-alert rok-hitno" style="display:block;margin-top:.5rem;">Greška: ' + e.message + '</div>';
+    rezDiv.innerHTML = '<div class="rok-alert rok-hitno" style="display:block;margin-top:.5rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
   }
 }
 

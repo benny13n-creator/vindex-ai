@@ -411,7 +411,7 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 
 # require_credits is the canonical shared version \u2014 same object as shared.deps.require_credits
 # so a single dependency_overrides entry covers all routes (api.py + all router modules).
-from shared.deps import require_credits
+from shared.deps import require_credits, _refund_one_credit
 from shared.cost import begin_cost_tracking, log_cost_to_db
 
 
@@ -1159,13 +1159,22 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
             response_text=rezultat.get("data", ""),
             latency_ms=latency_ms,
         )
+        # require_credits already pre-deducted 1 credit atomically
+        is_pre_deducted = user.get("credit_pre_deducted", False)
         should_deduct = (
-            rezultat.get("status") == "success"
+            not is_pre_deducted
+            and rezultat.get("status") == "success"
             and not rezultat.get("blocked", False)
             and not rezultat.get("from_cache", False)
         )
         if should_deduct:
             preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        elif is_pre_deducted and (rezultat.get("from_cache") or rezultat.get("blocked")):
+            # Cache hit or blocked — refund the pre-deducted credit
+            await asyncio.to_thread(_refund_one_credit, user["user_id"])
+            preostalo = user.get("credits_remaining", 0) + 1
+        elif is_pre_deducted:
+            preostalo = user.get("credits_remaining", 0)
         else:
             preostalo = await asyncio.to_thread(_get_credits, user["user_id"])
 
@@ -1256,9 +1265,11 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 chunk = data_text[i:i + _CHUNK]
                 yield f"data: {chunk.replace(chr(10), chr(92) + 'n')}\n\n"
 
-            # Conditional deduction — same logic as /api/pitanje
+            # Conditional deduction — require_credits already pre-deducted
+            _pre = user.get("credit_pre_deducted", False)
             _should_deduct = (
-                rezultat.get("status") == "success"
+                not _pre
+                and rezultat.get("status") == "success"
                 and not rezultat.get("blocked", False)
                 and not rezultat.get("from_cache", False)
             )
@@ -1266,6 +1277,11 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 preostalo = await asyncio.to_thread(
                     _deduct_credit, user["user_id"], user.get("email", "")
                 )
+            elif _pre and (rezultat.get("from_cache") or rezultat.get("blocked")):
+                await asyncio.to_thread(_refund_one_credit, user["user_id"])
+                preostalo = user.get("credits_remaining", 0) + 1
+            elif _pre:
+                preostalo = user.get("credits_remaining", 0)
             else:
                 preostalo = await asyncio.to_thread(_get_credits, user["user_id"])
 
@@ -1310,6 +1326,12 @@ async def global_search(
     supa = _get_supa()
     results = []
 
+    # Sanitize q for PostgREST .or_() interpolation — comma/dot break filter syntax
+    import re as _re
+    q_safe = _re.sub(r'[,.()\[\]{}\\\'"%]', ' ', q).strip()
+    if not q_safe:
+        q_safe = "zzz_no_match"  # prevent empty pattern returning all rows
+
     # ── Klijenti ──────────────────────────────────────────────────────────────
     try:
         rows = (
@@ -1318,10 +1340,10 @@ async def global_search(
             .eq("user_id", uid)
             .is_("deleted_at", "null")
             .or_(
-                f"ime.ilike.%{q}%,"
-                f"prezime.ilike.%{q}%,"
-                f"firma.ilike.%{q}%,"
-                f"email.ilike.%{q}%"
+                f"ime.ilike.%{q_safe}%,"
+                f"prezime.ilike.%{q_safe}%,"
+                f"firma.ilike.%{q_safe}%,"
+                f"email.ilike.%{q_safe}%"
             )
             .limit(limit)
             .execute()
@@ -1347,7 +1369,7 @@ async def global_search(
             supa.table("predmeti")
             .select("id, naziv, opis, tip, status")
             .eq("user_id", uid)
-            .or_(f"naziv.ilike.%{q}%,opis.ilike.%{q}%")
+            .or_(f"naziv.ilike.%{q_safe}%,opis.ilike.%{q_safe}%")
             .limit(limit)
             .execute()
         )
@@ -1368,7 +1390,7 @@ async def global_search(
             supa.table("predmet_beleske")
             .select("id, sadrzaj, predmet_id, created_at")
             .eq("user_id", uid)
-            .ilike("sadrzaj", f"%{q}%")
+            .ilike("sadrzaj", f"%{q_safe}%")
             .limit(limit)
             .execute()
         )
@@ -1390,7 +1412,7 @@ async def global_search(
             supa.table("predmet_komentari")
             .select("id, tekst, predmet_id, created_at")
             .eq("user_id", uid)
-            .ilike("tekst", f"%{q}%")
+            .ilike("tekst", f"%{q_safe}%")
             .limit(limit)
             .execute()
         )

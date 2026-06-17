@@ -287,9 +287,24 @@ async def timer_start(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    existing = await _db(lambda: supa.table("timer_sessions").select("id,predmet_id").eq("user_id", uid).eq("aktivan", True).limit(1).execute())
+    existing = await _db(lambda: supa.table("timer_sessions").select("id,predmet_id,start_at").eq("user_id", uid).eq("aktivan", True).limit(1).execute())
     if existing.data:
-        raise HTTPException(status_code=409, detail="Tajmer je već aktivan. Zaustavite ga pre pokretanja novog.")
+        stale = existing.data[0]
+        try:
+            start_dt = datetime.fromisoformat(stale["start_at"].replace("Z", "+00:00"))
+            age_h = (datetime.now(timezone.utc) - start_dt).total_seconds() / 3600
+        except Exception:
+            age_h = 0
+        if age_h > 12:
+            # Auto-expire stale timer (server crash, disconnect, etc.)
+            await _db(lambda: supa.table("timer_sessions").update({
+                "aktivan":    False,
+                "stop_at":    datetime.now(timezone.utc).isoformat(),
+                "trajanje_s": int(age_h * 3600),
+            }).eq("id", stale["id"]).execute())
+            logger.warning("[BILLING] auto-expired stale timer id=%s uid=%.8s age_h=%.1f", stale["id"], uid, age_h)
+        else:
+            raise HTTPException(status_code=409, detail="Tajmer je već aktivan. Zaustavite ga pre pokretanja novog.")
 
     r = await _db(lambda: supa.table("timer_sessions").insert({
         "user_id":    uid,
@@ -362,6 +377,37 @@ async def timer_aktivan(
     if not r.data:
         return {"aktivan": False, "timer": None}
     return {"aktivan": True, "timer": r.data[0]}
+
+
+@router.post("/timer/reset")
+@limiter.limit("10/minute")
+async def timer_reset(
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Prisilno gasi zaglavljeni aktivni tajmer (bez kreiranja billing entry)."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    r = await _db(lambda: supa.table("timer_sessions").select("id,start_at").eq("user_id", uid).eq("aktivan", True).limit(1).execute())
+    if not r.data:
+        return {"success": True, "message": "Nema aktivnog tajmera."}
+
+    t = r.data[0]
+    try:
+        start_dt  = datetime.fromisoformat(t["start_at"].replace("Z", "+00:00"))
+        trajanje  = int((datetime.now(timezone.utc) - start_dt).total_seconds())
+    except Exception:
+        trajanje  = 0
+
+    await _db(lambda: supa.table("timer_sessions").update({
+        "aktivan":    False,
+        "stop_at":    datetime.now(timezone.utc).isoformat(),
+        "trajanje_s": trajanje,
+    }).eq("id", t["id"]).eq("user_id", uid).execute())
+
+    logger.info("[BILLING] timer manual reset uid=%.8s timer_id=%s", uid, t["id"])
+    return {"success": True, "message": "Tajmer je resetovan.", "trajanje_s": trajanje}
 
 
 @router.get("/tarifa")
@@ -449,13 +495,26 @@ async def faktura_create(
     faktura    = faktura_r.data[0]
     faktura_id = faktura["id"]
 
-    await _db(lambda: supa.table("billing_entries").update({
+    # Atomic update: filter by obracunato=False to detect concurrent race
+    update_r = await _db(lambda: supa.table("billing_entries").update({
         "faktura_id":  faktura_id,
         "obracunato":  True,
-    }).in_("id", body.entry_ids).eq("user_id", uid).execute())
+    }).in_("id", body.entry_ids).eq("user_id", uid).eq("obracunato", False).execute())
+
+    updated_count = len(update_r.data or [])
+    if updated_count < len(entries):
+        # Concurrent request already billed some entries — rollback faktura
+        try:
+            await _db(lambda: supa.table("fakture").delete().eq("id", faktura_id).eq("user_id", uid).execute())
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=409,
+            detail=f"Konflikt: {len(entries) - updated_count} radnja/e su u međuvremenu naplaćene. Osvežite stranicu i pokušajte ponovo."
+        )
 
     logger.info("[BILLING] faktura=%s uid=%.8s iznos=%.2f", faktura_id, uid, iznos_sa_pdv)
-    return {"success": True, "faktura": faktura, "stavke": len(entries)}
+    return {"success": True, "faktura": faktura, "stavke": updated_count}
 
 
 @router.get("/faktura/{faktura_id}/pdf")

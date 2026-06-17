@@ -163,7 +163,8 @@ async def dokument_upload(
 
         asyncio.create_task(_background_cleanup())
 
-        await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        if not user.get("credit_pre_deducted"):
+            await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return UploadResponse(
             session_id=session_id,
             chunk_count=count,
@@ -228,7 +229,8 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require
         body.history,
         [f"tmp_{body.session_id}"],
     )
-    await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+    if not user.get("credit_pre_deducted"):
+        await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
     return rezultat
 
 
@@ -278,7 +280,10 @@ async def dokument_analiza(
     if rezultat.get("status") != "success":
         raise HTTPException(status_code=502, detail="AI analiza trenutno nedostupna. Pokušajte ponovo.")
 
-    preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+    if not user.get("credit_pre_deducted"):
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+    else:
+        preostalo = user.get("credits_remaining", 0)
 
     return {
         "status":           "success",

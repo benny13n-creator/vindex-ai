@@ -730,8 +730,9 @@ async def copilot_chat(
     handler = handlers.get(intent, handlers["OSTALO"])
     result  = await handler()
 
-    # Oduzmi kredit
-    await asyncio.to_thread(_deduct_credit, uid, email)
+    # Oduzmi kredit (require_credits već pre-deductovao atomično)
+    if not user.get("credit_pre_deducted"):
+        await asyncio.to_thread(_deduct_credit, uid, email)
 
     return {
         "intent":     intent,

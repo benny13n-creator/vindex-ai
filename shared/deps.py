@@ -107,6 +107,43 @@ def _is_disposable_email(email: str) -> bool:
 security = HTTPBearer(auto_error=False)
 
 
+_JWKS_CACHE: dict = {"keys": None, "fetched_at": 0.0}
+_JWKS_TTL_S = 3600  # 1h cache
+
+_JWKS_HARDCODED = {
+    "alg": "ES256", "crv": "P-256", "kty": "EC", "use": "sig",
+    "kid": "34474d56-eee6-41ed-a78d-4490889d6111",
+    "x": "StfqNCxcMFEJ--teLZgJtrF-wyQOyFZPwAakAvRf_Pg",
+    "y": "oZmdFqo0HMJD5iLXvjmQ8Golb61P-X71m5bO9zDf8gc",
+}
+
+
+def _get_jwks_key(alg: str) -> Optional[dict]:
+    """Fetch JWKS from Supabase with 1h cache. Falls back to hardcoded key."""
+    import time as _time
+    now = _time.monotonic()
+    if _JWKS_CACHE["keys"] is None or (now - _JWKS_CACHE["fetched_at"]) > _JWKS_TTL_S:
+        try:
+            import urllib.request as _ur, json as _jj
+            url = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+            with _ur.urlopen(url, timeout=3) as r:
+                data = _jj.loads(r.read())
+            _JWKS_CACHE["keys"] = data.get("keys", [])
+            _JWKS_CACHE["fetched_at"] = now
+            logger.info("[JWKS] Refreshed %d keys from Supabase", len(_JWKS_CACHE["keys"]))
+        except Exception as e:
+            logger.warning("[JWKS] Fetch failed, using hardcoded key: %s", e)
+            if _JWKS_CACHE["keys"] is None:
+                _JWKS_CACHE["keys"] = [_JWKS_HARDCODED]
+
+    keys = _JWKS_CACHE.get("keys") or [_JWKS_HARDCODED]
+    # Prefer key matching alg, fallback to first key
+    for k in keys:
+        if k.get("alg", "") == alg or k.get("kty", "") in ("EC", "RSA"):
+            return k
+    return keys[0] if keys else _JWKS_HARDCODED
+
+
 def _jwt_alg(token: str) -> str:
     """Čita 'alg' iz JWT headera bez verifikacije."""
     try:
@@ -157,27 +194,23 @@ def _verify_token(token: str) -> Optional[dict]:
         except JWTError as e:
             logger.warning("HS256 decode greška: %s", e)
 
-    # Korak 2b: ES256 sa hardkodovanim javnim ključem (JWKS offline)
+    # Korak 2b: ES256/RS256 — dinamičan JWKS fetch sa 1h cache, fallback na hardkod
     if alg in ("RS256", "ES256"):
         from jose import jwk as jose_jwk
-        _SUPABASE_JWK = {
-            "alg": "ES256", "crv": "P-256", "kty": "EC", "use": "sig",
-            "kid": "34474d56-eee6-41ed-a78d-4490889d6111",
-            "x": "StfqNCxcMFEJ--teLZgJtrF-wyQOyFZPwAakAvRf_Pg",
-            "y": "oZmdFqo0HMJD5iLXvjmQ8Golb61P-X71m5bO9zDf8gc",
-        }
-        try:
-            pub = jose_jwk.construct(_SUPABASE_JWK)
-            payload = jose_jwt.decode(
-                token, pub,
-                algorithms=[alg],
-                options={"verify_aud": False},
-            )
-            if payload.get("sub"):
-                return payload
-            logger.warning("ES256 hardkod: decode OK ali nema sub")
-        except JWTError as e:
-            logger.warning("ES256 hardkod greška: %s", e)
+        jwk_to_try = _get_jwks_key(alg)
+        if jwk_to_try:
+            try:
+                pub = jose_jwk.construct(jwk_to_try)
+                payload = jose_jwt.decode(
+                    token, pub,
+                    algorithms=[alg],
+                    options={"verify_aud": False},
+                )
+                if payload.get("sub"):
+                    return payload
+                logger.warning("JWKS decode OK ali nema sub")
+            except JWTError as e:
+                logger.warning("JWKS decode greška: %s", e)
 
     logger.warning("_verify_token: svi koraci neuspešni — vraćam None")
     return None
@@ -357,12 +390,30 @@ def _deduct_n_credits(user_id: str, email: str, n: int) -> int:
         return 0
 
 
+def _refund_one_credit(user_id: str) -> None:
+    """Refund 1 credit (e.g. cache hit pre-deducted). Best-effort — never raises."""
+    try:
+        _get_supa().rpc("refund_one_credit", {"p_user_id": user_id}).execute()
+    except Exception:
+        # Fallback: raw increment if RPC not found
+        try:
+            supa = _get_supa()
+            cur = supa.table("user_credits").select("credits_remaining").eq("user_id", user_id).single().execute()
+            if cur.data:
+                supa.table("user_credits").update({
+                    "credits_remaining": cur.data["credits_remaining"] + 1
+                }).eq("user_id", user_id).execute()
+        except Exception as e2:
+            logger.warning("[CREDITS] _refund_one_credit fallback failed uid=%.8s: %s", user_id, e2)
+
+
 async def require_credits(user: dict = Depends(get_current_user)) -> dict:
-    """Dependency koji proverava da korisnik ima kredite. Founder uvek prolazi."""
+    """Dependency koji atomično proverava I oduzima 1 kredit. Founder uvek prolazi."""
     email = user.get("email", "")
     logger.info("require_credits: email=%s is_founder=%s", email, _is_founder(email))
     if _is_founder(email):
         user["credits_remaining"] = 9999
+        user["credit_pre_deducted"] = False
         return user
 
     # Mesečni limit (PRO: 600, Basic/Free: 200 — Free korisnici su stopiran ranije, na 15)
@@ -381,8 +432,10 @@ async def require_credits(user: dict = Depends(get_current_user)) -> dict:
             detail={"code": "MONTHLY_LIMIT", "message": msg, "credits_remaining": 0},
         )
 
-    credits = await asyncio.to_thread(_get_credits, user["user_id"])
-    if credits <= 0:
+    # Atomično pre-deductuj 1 kredit — eliminiše race condition na concurrent zahteve.
+    # deduct_credit RPC je atomic na DB nivou: second concurrent request dobija -1.
+    preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], email)
+    if preostalo < 0:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail={
@@ -394,7 +447,8 @@ async def require_credits(user: dict = Depends(get_current_user)) -> dict:
                 "credits_remaining": 0,
             },
         )
-    user["credits_remaining"] = credits
+    user["credits_remaining"] = preostalo
+    user["credit_pre_deducted"] = True
     return user
 
 

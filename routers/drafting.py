@@ -232,7 +232,10 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_pr
             response_text=rezultat.get("data", ""),
             latency_ms=latency_ms,
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        if not user.get("credit_pre_deducted"):
+            preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        else:
+            preostalo = user.get("credits_remaining", 0)
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
         logger.exception("Greška u /api/nacrt")
@@ -261,9 +264,11 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(requir
             latency_ms=latency_ms,
         )
         is_blocked = (rezultat.get("data") or "").startswith("[!] ANALIZA BLOKIRANA")
-        should_deduct = rezultat.get("status") == "success" and not is_blocked
+        should_deduct = (not user.get("credit_pre_deducted") and rezultat.get("status") == "success" and not is_blocked)
         if should_deduct:
             preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        elif user.get("credit_pre_deducted"):
+            preostalo = user.get("credits_remaining", 0)
         else:
             preostalo = await asyncio.to_thread(_get_credits, user["user_id"])
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
@@ -303,7 +308,8 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(require_cr
             ],
         )
         tekst = resp.choices[0].message.content.strip()
-        await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        if not user.get("credit_pre_deducted"):
+            await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return {"status": "ok", "sazetak": tekst}
     except Exception:
         logger.exception("Greška u /api/sazmi")

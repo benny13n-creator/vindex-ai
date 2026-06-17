@@ -267,7 +267,9 @@ async def hearing_command_center(
     except json.JSONDecodeError:
         raise HTTPException(status_code=503, detail="Neispravan odgovor AI servisa.")
 
-    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 3)
+    # require_credits već pre-deductovao 1 atomično — oduzmi samo 2 više
+    n_extra = 2 if _cred.get("credit_pre_deducted") else 3
+    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, n_extra)
     asyncio.create_task(log_cost_to_db(uid, "hearing_command_center"))
     asyncio.create_task(_audit(uid, "hearing_command_center", body.predmet_id[:16]))
 
