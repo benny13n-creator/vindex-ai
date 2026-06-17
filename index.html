@@ -7169,6 +7169,48 @@ i[data-lucide] svg {
               </div>
             </div>
 
+            <!-- ── SEF e-faktura ─────────────────────────────────── -->
+            <div class="settings-section" id="sef-settings-section">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>SEF e-Faktura</span>
+                <span id="sef-status-badge" style="font-size:0.6rem;font-weight:700;letter-spacing:.06em;padding:0.1rem 0.4rem;border-radius:4px;display:none;"></span>
+              </div>
+              <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem;">
+                <div class="settings-row-sub" style="margin-bottom:0.25rem;">Konfigurišite SEF API ključ i podatke o advokatskoj kancelariji za slanje e-faktura.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem;width:100%;">
+                  <div>
+                    <div style="font-size:0.62rem;color:rgba(255,255,255,0.35);margin-bottom:0.15rem;">PIB kancelarije (9 cifara)</div>
+                    <input type="text" id="sef-pib" maxlength="9" placeholder="123456789"
+                      style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;">
+                  </div>
+                  <div>
+                    <div style="font-size:0.62rem;color:rgba(255,255,255,0.35);margin-bottom:0.15rem;">Naziv kancelarije</div>
+                    <input type="text" id="sef-naziv" maxlength="200" placeholder="Advokat Petrović"
+                      style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;">
+                  </div>
+                  <div>
+                    <div style="font-size:0.62rem;color:rgba(255,255,255,0.35);margin-bottom:0.15rem;">Adresa</div>
+                    <input type="text" id="sef-adresa" maxlength="300" placeholder="Knez Mihailova 10"
+                      style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;">
+                  </div>
+                  <div>
+                    <div style="font-size:0.62rem;color:rgba(255,255,255,0.35);margin-bottom:0.15rem;">Mesto</div>
+                    <input type="text" id="sef-mesto" maxlength="100" placeholder="Beograd"
+                      style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;">
+                  </div>
+                </div>
+                <div style="width:100%;">
+                  <div style="font-size:0.62rem;color:rgba(255,255,255,0.35);margin-bottom:0.15rem;">SEF API ključ <span style="color:rgba(255,100,100,0.7);">(čuva se enkriptovano)</span></div>
+                  <input type="password" id="sef-apikey" maxlength="500" placeholder="Novi API ključ (ostavite prazno da ne menjate)"
+                    style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;">
+                </div>
+                <div style="display:flex;gap:0.4rem;margin-top:0.1rem;">
+                  <button class="settings-btn" onclick="sef_saveSettings()" id="sef-save-btn">Sačuvaj SEF</button>
+                  <div id="sef-save-msg" style="font-size:0.7rem;color:#4ade80;display:none;align-items:center;">✓ Sačuvano</div>
+                </div>
+              </div>
+            </div>
+
             <div class="settings-section">
               <div class="settings-section-hd">Sistem</div>
               <div class="settings-row">
@@ -8752,6 +8794,7 @@ function settingsLoad() {
   if (planEl) planEl.textContent = currentUserIsPro ? 'VindexAI PRO' : 'Basic';
   var firma = localStorage.getItem('vindex_firma');
   if (firmaEl && firma) { try { var f=JSON.parse(firma); firmaEl.textContent = f.naziv||'—'; } catch(e){} }
+  sef_loadSettings();
 }
 
 function openSettingsModal() {
@@ -15899,7 +15942,10 @@ async function billing_doGenerateFaktura() {
     var fakt = d.faktura;
     var pdfUrl = BASE_URL+'/billing/faktura/'+fakt.id+'/pdf';
     var barEl = document.getElementById('billing-faktura-bar');
-    if (barEl) barEl.innerHTML = '<div class="billing-faktura-ok">✓ Faktura br. <b>'+escHtml(fakt.broj_fakture)+'</b> kreirana &mdash; <a href="'+pdfUrl+'" target="_blank" style="color:#89c8ff;">Preuzmi PDF</a> &nbsp;<button onclick="billing_sendEmail(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:5px;color:#89c8ff;font-size:0.68rem;cursor:pointer;font-family:inherit;">✉ Pošalji email</button></div>';
+    if (barEl) barEl.innerHTML = '<div class="billing-faktura-ok">✓ Faktura br. <b>'+escHtml(fakt.broj_fakture)+'</b> kreirana &mdash; <a href="'+pdfUrl+'" target="_blank" style="color:#89c8ff;">Preuzmi PDF</a>'
+      +' &nbsp;<button onclick="billing_sendEmail(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:5px;color:#89c8ff;font-size:0.68rem;cursor:pointer;font-family:inherit;">✉ Email</button>'
+      +' <button onclick="sef_posalji(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(0,212,127,0.08);border:1px solid rgba(0,212,127,0.2);border-radius:5px;color:#00d47f;font-size:0.68rem;cursor:pointer;font-family:inherit;">⚡ SEF</button>'
+      +'</div>';
     showToast('Faktura br. '+fakt.broj_fakture+' kreirana.','ok');
     await billing_loadEntries();
   } catch(e) { showToast('Greška veze.','err'); }
@@ -16211,6 +16257,98 @@ function searchMoveFocus(dir) {
 function searchActivateFocus() {
   var el = document.querySelector('#search-results .srch-item.srch-focus');
   if (el) el.click();
+}
+
+// ── SEF e-Faktura ────────────────────────────────────────────────────────────
+
+async function sef_loadSettings() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/sef/podesavanja', {headers:{Authorization:'Bearer '+currentSession.access_token}});
+    if (!r.ok) return;
+    var d = await r.json();
+    var badge = document.getElementById('sef-status-badge');
+    if (d.konfigurisano && d.podaci) {
+      var p = d.podaci;
+      var el = function(id, v) { var e = document.getElementById(id); if (e && v) e.value = v; };
+      el('sef-pib',    p.seller_pib);
+      el('sef-naziv',  p.seller_naziv);
+      el('sef-adresa', p.seller_adresa);
+      el('sef-mesto',  p.seller_mesto);
+      if (badge) {
+        badge.style.display = 'inline-block';
+        badge.style.background = 'rgba(0,212,127,0.1)';
+        badge.style.color = '#00d47f';
+        badge.style.border = '1px solid rgba(0,212,127,0.2)';
+        badge.textContent = '✓ KONFIGURISANO · ' + (p.api_key_preview || '');
+      }
+    } else {
+      if (badge) {
+        badge.style.display = 'inline-block';
+        badge.style.background = 'rgba(255,187,112,0.08)';
+        badge.style.color = '#ffbb70';
+        badge.style.border = '1px solid rgba(255,187,112,0.2)';
+        badge.textContent = '⚠ NIJE KONFIGURISANO';
+      }
+    }
+  } catch(e) {}
+}
+
+async function sef_saveSettings() {
+  if (!currentSession) return;
+  var pib    = (document.getElementById('sef-pib')    || {}).value || '';
+  var naziv  = (document.getElementById('sef-naziv')  || {}).value || '';
+  var adresa = (document.getElementById('sef-adresa') || {}).value || '';
+  var mesto  = (document.getElementById('sef-mesto')  || {}).value || 'Beograd';
+  var apikey = (document.getElementById('sef-apikey') || {}).value || '';
+
+  if (pib.length !== 9 || !/^\d{9}$/.test(pib)) { showToast('PIB mora biti tačno 9 cifara.','err'); return; }
+  if (naziv.trim().length < 2) { showToast('Unesite naziv kancelarije.','err'); return; }
+
+  var body = {seller_pib: pib, seller_naziv: naziv, seller_adresa: adresa, seller_mesto: mesto};
+  if (apikey.trim()) body.api_key = apikey.trim();
+  else {
+    // Must send api_key — fetch existing first
+    try {
+      var cr = await fetch(BASE_URL+'/api/sef/podesavanja', {headers:{Authorization:'Bearer '+currentSession.access_token}});
+      var cd = await cr.json();
+      if (!cd.konfigurisano || !apikey.trim()) {
+        showToast('Unesite SEF API ključ.', 'err'); return;
+      }
+    } catch(e) { showToast('Greška.','err'); return; }
+  }
+
+  var btn = document.getElementById('sef-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Čuvam...'; }
+  try {
+    var r = await fetch(BASE_URL+'/api/sef/podesavanja', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    showToast('SEF podešavanja sačuvana.','ok');
+    var msg = document.getElementById('sef-save-msg');
+    if (msg) { msg.style.display='flex'; setTimeout(function(){ msg.style.display='none'; }, 3000); }
+    await sef_loadSettings();
+    var apiEl = document.getElementById('sef-apikey');
+    if (apiEl) apiEl.value = '';
+  } catch(e) { showToast('Greška veze.','err'); }
+  finally { if (btn) { btn.disabled=false; btn.textContent='Sačuvaj SEF'; } }
+}
+
+async function sef_posalji(fakturaId) {
+  if (!currentSession || !fakturaId) return;
+  if (!confirm('Poslati fakturu na SEF sistem e-faktura?')) return;
+  showToast('Šaljem na SEF...','ok');
+  try {
+    var r = await fetch(BASE_URL+'/api/sef/posalji/'+fakturaId, {
+      method:'POST', headers:{Authorization:'Bearer '+currentSession.access_token}
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast((d.detail||'SEF greška.'),'err'); return; }
+    showToast('✓ SEF ID: '+d.sef_id+' — '+d.sef_status,'ok');
+  } catch(e) { showToast('Greška veze.','err'); }
 }
 
 // ── Billing Izveštaji ────────────────────────────────────────────────────────
