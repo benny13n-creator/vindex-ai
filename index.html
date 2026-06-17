@@ -5545,6 +5545,61 @@ i[data-lucide] svg {
   .pred-subtab-btn { padding: 0.38rem 0.44rem; font-size: 0.62rem; }
 }
 
+/* ── Mobile bottom nav bar (PWA) ────────────────────────────────────────────── */
+#vx-mobile-nav {
+  display: none;
+}
+@media (max-width: 768px) {
+  #vx-mobile-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 56px;
+    background: rgba(13,27,42,0.97);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    z-index: 9999;
+    align-items: stretch;
+    justify-content: space-around;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  /* Push main content up so it's not hidden behind the nav bar */
+  .vx-panels-wrap { padding-bottom: 60px !important; }
+  #tab-p, #tab-h, #tab-k, #tab-q, #tab-kal, #tab-alati,
+  #tab-n, #tab-a, #tab-s, #tab-t, #tab-w, #tab-pi,
+  #tab-dok, #tab-settings { padding-bottom: 72px !important; }
+  /* Touch target enforcement */
+  button, a, input[type="button"], input[type="submit"],
+  .t-tab, .pred-subtab-btn, .vx-nav-sub {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .pred-subtab-btn { min-height: 36px; min-width: unset; }
+  .vx-mobile-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255,255,255,0.45);
+    font-size: 0.56rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    transition: color .15s;
+    min-height: 56px;
+    padding: 0;
+  }
+  .vx-mobile-nav-btn.active { color: #00d4ff; }
+  .vx-mobile-nav-btn svg { width: 22px; height: 22px; stroke-width: 1.6; }
+  .vx-mobile-nav-btn.active svg { stroke: #00d4ff; }
+}
+
 /* ── AI Centar Faza 3 ──────────────────────────────────────────────────────── */
 .aic3-layout {
   display: grid;
@@ -9137,6 +9192,7 @@ function setTab(el,t){
   document.getElementById('podnesak-preview').style.display='none';
   if (window.micStopAll) micStopAll();
   vxUpdateBreadcrumb(t);
+  if (window.mobileNavUpdateActive) mobileNavUpdateActive(t);
 }
 
 // Otvori AI alat iz huba — čuva AI Alati kao aktivan parent
@@ -14221,6 +14277,26 @@ function timer_discard() {
   if (bar)      bar.style.display      = 'none';
 }
 
+// ── Mobile bottom nav helper ──────────────────────────────────────────────────
+var _mobNavMap = {h:'h', p:'p', k:'k', kal:'kal', q:'q'};
+
+function mobileNavGo(t) {
+  var btn = document.getElementById('tab-btn-' + t);
+  if (btn) {
+    setTab(btn, t);
+  }
+  mobileNavUpdateActive(t);
+}
+
+function mobileNavUpdateActive(t) {
+  // Map AI sub-tabs back to 'q' for the bottom nav highlight
+  var highlight = (t === 'n' || t === 'a' || t === 's' || t === 'w') ? 'q' : t;
+  Object.keys(_mobNavMap).forEach(function(key) {
+    var el = document.getElementById('mob-btn-' + key);
+    if (el) el.classList.toggle('active', _mobNavMap[key] === highlight);
+  });
+}
+
 function pred_renderConfirmCard(predlozi, metadata) {
   var klijentItems = (predlozi || []).slice(0,3).map(function(p, i){
     var pct   = p.pouzdanost || 0;
@@ -18409,6 +18485,30 @@ async function piReloadFeatures(dana) {
   } catch(e) {}
 }
 </script>
+
+<!-- ── Mobile bottom nav bar ──────────────────────────────────────────── -->
+<div id="vx-mobile-nav" role="navigation" aria-label="Mobilna navigacija">
+  <button class="vx-mobile-nav-btn" id="mob-btn-h" onclick="mobileNavGo('h')" title="Početna">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>Početna</span>
+  </button>
+  <button class="vx-mobile-nav-btn" id="mob-btn-p" onclick="mobileNavGo('p')" title="Predmeti">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    <span>Predmeti</span>
+  </button>
+  <button class="vx-mobile-nav-btn" id="mob-btn-k" onclick="mobileNavGo('k')" title="Klijenti">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <span>Klijenti</span>
+  </button>
+  <button class="vx-mobile-nav-btn" id="mob-btn-kal" onclick="mobileNavGo('kal')" title="Rokovi">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>Rokovi</span>
+  </button>
+  <button class="vx-mobile-nav-btn" id="mob-btn-q" onclick="mobileNavGo('q')" title="AI Centar">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span>AI Centar</span>
+  </button>
+</div>
 
 <script>
 // F6 — PWA Service Worker registracija
