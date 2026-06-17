@@ -36,7 +36,7 @@ def _make_docx(tmp_dir: Path) -> Path:
 def test_extract_docx_includes_table_cells(tmp_path):
     """All table cell values must appear in extracted text."""
     path = _make_docx(tmp_path)
-    text, is_scanned = extract_docx(path)
+    text, is_scanned, _ = extract_docx(path)
 
     assert "80000 RSD" in text, f"Table cell '80000 RSD' missing. Got: {text[:400]}"
     assert "Radno vreme" in text, f"Table cell 'Radno vreme' missing."
@@ -49,7 +49,7 @@ def test_extract_docx_includes_table_cells(tmp_path):
 def test_extract_docx_includes_paragraphs(tmp_path):
     """Paragraph text must still be present alongside table content."""
     path = _make_docx(tmp_path)
-    text, _ = extract_docx(path)
+    text, _, __ = extract_docx(path)
 
     assert "Uvodni paragraf ugovora." in text
     assert "Završni paragraf." in text
@@ -58,7 +58,7 @@ def test_extract_docx_includes_paragraphs(tmp_path):
 def test_extract_docx_preserves_order(tmp_path):
     """Paragraph must appear before table rows in the output."""
     path = _make_docx(tmp_path)
-    text, _ = extract_docx(path)
+    text, _, __ = extract_docx(path)
 
     para_pos = text.find("Uvodni paragraf")
     table_pos = text.find("80000 RSD")
@@ -76,7 +76,7 @@ def test_extract_docx_no_table_no_regression(tmp_path):
     path = tmp_path / "no_table.docx"
     doc.save(str(path))
 
-    text, is_scanned = extract_docx(path)
+    text, is_scanned, _ = extract_docx(path)
     assert "Samo tekst bez tabela." in text
     assert "Drugi paragraf." in text
     assert is_scanned is False

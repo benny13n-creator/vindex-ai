@@ -6294,6 +6294,9 @@ i[data-lucide] svg {
                 </div>
                 <button class="doc-remove-btn" onclick="doc_clear_session()">✕ Ukloni</button>
               </div>
+              <div id="doc-ocr-warning" style="display:none;margin-top:.7rem;padding:.55rem .75rem;background:rgba(255,180,0,0.12);border:1px solid rgba(255,180,0,0.35);border-radius:8px;font-size:.8rem;color:#ffd166;">
+                ⚠️ Skenirani dokument — tekst je prepoznat putem OCR-a. Kvalitet analize može biti niži nego kod digitalnog PDF-a.
+              </div>
               <label class="t-label" style="margin-top:.9rem;">Postavite pitanje o ovom dokumentu:</label>
               <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:60px;margin-top:.4rem;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
               <textarea id="aitxt" style="display:none"></textarea>
@@ -12242,7 +12245,8 @@ async function doc_upload_file(file) {
     fd.append('file', file);
     var r = await fetch(BASE_URL + '/api/dokument/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentSession.access_token }, body: fd });
     if (r.status === 422) {
-      _doc_show_error('Dokument izgleda kao skeniran. Molimo uploadujte digitalni PDF (kreiran iz Word-a ili direktno iz sistema).');
+      var _e422 = await r.json().catch(function(){ return {}; });
+      _doc_show_error(_e422.detail || 'Dokument nije čitljiv. Pokušajte sa digitalnim PDF-om (300 DPI skeniranje ili dokument iz Word-a).');
       var _eb = document.getElementById('exec-btn');
       var _rb = document.getElementById('rb');
       var _rp = document.getElementById('resp');
@@ -12264,6 +12268,8 @@ async function doc_upload_file(file) {
     _docUploadName = file.name;
     _docUploadSize = file.size;
     _doc_show_session(file.name, file.size, d.chunk_count || 0);
+    var _ocrW = document.getElementById('doc-ocr-warning');
+    if (_ocrW) _ocrW.style.display = d.ocr_used ? 'block' : 'none';
     document.getElementById('doc-upload-input').value = '';
   } catch(e) {
     _doc_show_error('Nema veze sa serverom. Proverite konekciju.');
@@ -12340,6 +12346,8 @@ function doc_clear_session() {
   if (z)  z.style.display  = 'block';
   if (ld) ld.style.display = 'none';
   if (er) er.style.display = 'none';
+  var _ocrW = document.getElementById('doc-ocr-warning');
+  if (_ocrW) _ocrW.style.display = 'none';
   var aq  = document.getElementById('aq');
   var inp = document.getElementById('doc-upload-input');
   if (aq)  aq.value  = '';

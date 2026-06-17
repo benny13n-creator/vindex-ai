@@ -36,7 +36,7 @@ def _meta(path: Path, text: str, is_scanned: bool = False) -> dict:
 # ─── Test 1: extract_txt smoke ────────────────────────────────────────────────
 
 def test_extract_txt_smoke():
-    text, is_scanned = extract_txt(UGOVOR_TXT)
+    text, is_scanned, _ = extract_txt(UGOVOR_TXT)
     assert len(text) > 500, "Expected >500 chars from ugovor fixture"
     assert is_scanned is False
     assert "Član" in text, "Expected 'Član' in ugovor text"
@@ -46,7 +46,7 @@ def test_extract_txt_smoke():
 # ─── Test 2: extract_docx smoke ───────────────────────────────────────────────
 
 def test_extract_docx_smoke():
-    text, is_scanned = extract_docx(UGOVOR_DOCX)
+    text, is_scanned, _ = extract_docx(UGOVOR_DOCX)
     assert len(text) > 500, "Expected >500 chars from docx fixture"
     assert is_scanned is False
     assert "UGOVOR O RADU" in text
@@ -56,7 +56,7 @@ def test_extract_docx_smoke():
 # ─── Test 3: article_aware mode ──────────────────────────────────────────────
 
 def test_chunker_article_aware_mode():
-    text, is_scanned = extract_txt(UGOVOR_TXT)
+    text, is_scanned, _ = extract_txt(UGOVOR_TXT)
     meta = _meta(UGOVOR_TXT, text, is_scanned)
     manifest = chunk_document(text, meta)
 
@@ -78,7 +78,7 @@ def test_chunker_article_aware_mode():
 # ─── Test 4: recursive mode ──────────────────────────────────────────────────
 
 def test_chunker_recursive_mode():
-    text, is_scanned = extract_txt(NO_ARTICLES_TXT)
+    text, is_scanned, _ = extract_txt(NO_ARTICLES_TXT)
     meta = _meta(NO_ARTICLES_TXT, text, is_scanned)
     manifest = chunk_document(text, meta)
 
@@ -108,7 +108,7 @@ def test_chunker_recursive_mode():
 # ─── Test 5: schema validates ─────────────────────────────────────────────────
 
 def test_schema_validates():
-    text, is_scanned = extract_txt(UGOVOR_TXT)
+    text, is_scanned, _ = extract_txt(UGOVOR_TXT)
     meta = _meta(UGOVOR_TXT, text, is_scanned)
     manifest = chunk_document(text, meta)
 
@@ -128,7 +128,7 @@ def test_schema_validates():
 
 def test_token_count_accuracy():
     enc = tiktoken.get_encoding("cl100k_base")
-    text, is_scanned = extract_txt(UGOVOR_TXT)
+    text, is_scanned, _ = extract_txt(UGOVOR_TXT)
     meta = _meta(UGOVOR_TXT, text, is_scanned)
     manifest = chunk_document(text, meta)
 

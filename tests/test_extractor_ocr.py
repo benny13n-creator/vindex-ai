@@ -25,7 +25,7 @@ def _sparse_pypdf_reader():
 
 
 def _build_fitz_mock(ocr_pages: list[str]):
-    """Return (mock_fitz_module, mock_tesseract_module, mock_pil_image_module).
+    """Return (mock_fitz_module, mock_tesseract_module, mock_pil_image_module, mock_pil).
 
     mock_fitz.open() returns a document whose pages produce pixmaps.
     mock_tesseract.image_to_string() cycles through ocr_pages values.
@@ -56,10 +56,10 @@ def _build_fitz_mock(ocr_pages: list[str]):
     return mock_fitz, mock_tesseract, mock_image_module, mock_pil
 
 
-# ─── T1: OCR success — returns text + is_scanned=False ───────────────────────
+# ─── T1: OCR success — returns text + is_scanned=False + ocr_used=True ────────
 
 def test_ocr_success_returns_text_not_scanned(tmp_path):
-    """Scanned PDF → OCR returns >100 chars → extract_pdf returns (text, False)."""
+    """Scanned PDF → OCR returns >100 chars → extract_pdf returns (text, False, True)."""
     dummy = tmp_path / "scan.pdf"
     dummy.write_bytes(b"%PDF-1.4")
 
@@ -79,17 +79,18 @@ def test_ocr_success_returns_text_not_scanned(tmp_path):
              "PIL": mock_pil,
              "PIL.Image": mock_image_module,
          }):
-        text, is_scanned = extract_pdf(dummy)
+        text, is_scanned, ocr_used = extract_pdf(dummy)
 
     assert is_scanned is False, "Successful OCR must set is_scanned=False"
+    assert ocr_used is True, "Successful OCR must set ocr_used=True"
     assert "Član 1" in text
     assert "Ugovorne strane" in text
 
 
-# ─── T2: OCR returns <100 chars → still unreadable → (empty, True) ───────────
+# ─── T2: OCR returns <100 chars → still unreadable → ('', True, False) ────────
 
 def test_ocr_short_output_still_unreadable(tmp_path):
-    """OCR returns <100 chars → not enough text → extract_pdf returns ('', True)."""
+    """OCR returns <100 chars → not enough text → extract_pdf returns ('', True, False)."""
     dummy = tmp_path / "scan.pdf"
     dummy.write_bytes(b"%PDF-1.4")
 
@@ -104,16 +105,17 @@ def test_ocr_short_output_still_unreadable(tmp_path):
              "PIL": mock_pil,
              "PIL.Image": mock_image_module,
          }):
-        text, is_scanned = extract_pdf(dummy)
+        text, is_scanned, ocr_used = extract_pdf(dummy)
 
     assert is_scanned is True, "Short OCR output must still be flagged as unreadable"
+    assert ocr_used is False, "Failed OCR must set ocr_used=False"
     assert text == ""
 
 
-# ─── T3: OCR library raises → silently falls through → ('', True) ────────────
+# ─── T3: OCR library raises → silently falls through → ('', True, False) ──────
 
 def test_ocr_exception_falls_through(tmp_path):
-    """If fitz raises during OCR, extract_pdf silently returns ('', True)."""
+    """If fitz raises during OCR, extract_pdf silently returns ('', True, False)."""
     dummy = tmp_path / "scan.pdf"
     dummy.write_bytes(b"%PDF-1.4")
 
@@ -131,9 +133,10 @@ def test_ocr_exception_falls_through(tmp_path):
              "PIL": mock_pil,
              "PIL.Image": mock_image_module,
          }):
-        text, is_scanned = extract_pdf(dummy)
+        text, is_scanned, ocr_used = extract_pdf(dummy)
 
     assert is_scanned is True
+    assert ocr_used is False
     assert text == ""
 
 
@@ -156,8 +159,9 @@ def test_normal_pdf_skips_ocr(tmp_path):
 
     with patch("pypdf.PdfReader", return_value=reader), \
          patch.dict(sys.modules, {"fitz": mock_fitz}):
-        text, is_scanned = extract_pdf(dummy)
+        text, is_scanned, ocr_used = extract_pdf(dummy)
 
     assert is_scanned is False
+    assert ocr_used is False
     assert "Zakon o radu" in text
     mock_fitz.open.assert_not_called()

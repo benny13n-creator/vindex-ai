@@ -5,6 +5,7 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y tesseract-ocr poppler-utils \
     && (apt-get install -y tesseract-ocr-srp || true) \
+    && (apt-get install -y tesseract-ocr-srp-latn || true) \
     && rm -rf /var/lib/apt/lists/*
 RUN tesseract --list-langs 2>&1 || true
 

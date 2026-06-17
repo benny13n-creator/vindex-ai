@@ -124,12 +124,16 @@ async def dokument_upload(
             tmp.write(raw)
             tmp_path = _Path(tmp.name)
 
-        text, is_scanned = await asyncio.to_thread(extract, tmp_path)
+        text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
 
         if is_scanned:
             raise HTTPException(
                 status_code=422,
-                detail="Skenirani ili nečitljiv PDF. Dokument ne sadrži čitljiv tekst — pošaljite digitalni PDF.",
+                detail=(
+                    "Skenirani ili nečitljivi PDF — OCR nije uspeo da prepozna tekst. "
+                    "Pokušajte sa višom rezolucijom skeniranja (300 DPI ili više), "
+                    "ili pošaljite digitalni PDF nastao direktno iz Word-a ili procesora teksta."
+                ),
             )
 
         source_meta = {
@@ -172,6 +176,11 @@ async def dokument_upload(
             article_labels_detected=manifest.article_labels_detected,
             expires_at=exp_iso,
             ttl_seconds=ttl_seconds_remaining(exp_iso),
+            ocr_used=ocr_used,
+            ocr_warning=(
+                "Dokument je skeniran — tekst je prepoznat putem OCR-a. "
+                "Kvalitet analize može biti niži nego kod digitalnog PDF-a."
+            ) if ocr_used else "",
         )
 
     finally:

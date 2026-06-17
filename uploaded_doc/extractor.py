@@ -6,7 +6,12 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def extract_pdf(path: Path) -> tuple[str, bool]:
+def extract_pdf(path: Path) -> tuple[str, bool, bool]:
+    """Return (text, is_scanned, ocr_used).
+
+    is_scanned=True  → PDF had no readable text and OCR also failed.
+    ocr_used=True    → text came from OCR (scanned PDF successfully processed).
+    """
     import pypdf
 
     reader = pypdf.PdfReader(str(path))
@@ -21,33 +26,36 @@ def extract_pdf(path: Path) -> tuple[str, bool]:
     is_scanned = avg_chars < 50 or total_chars < 100
 
     if not is_scanned:
-        return "\n\n".join(pages), False
+        return "\n\n".join(pages), False, False
 
     # OCR fallback for scanned/unreadable PDFs
     try:
         import io
         import fitz  # pymupdf
         import pytesseract
-        from PIL import Image
+        from PIL import Image, ImageEnhance, ImageFilter
 
         doc = fitz.open(str(path))
         ocr_pages: list[str] = []
         for page in doc:
-            pixmap = page.get_pixmap(dpi=150)
+            pixmap = page.get_pixmap(dpi=300)
             img = Image.open(io.BytesIO(pixmap.tobytes("png")))
+            img = img.convert("L")
+            img = ImageEnhance.Contrast(img).enhance(2.0)
+            img = img.filter(ImageFilter.MedianFilter(size=3))
             try:
-                page_text = pytesseract.image_to_string(img, lang="srp+eng", timeout=30)
+                page_text = pytesseract.image_to_string(img, lang="srp_latn+eng", timeout=30)
             except Exception:
                 page_text = pytesseract.image_to_string(img, lang="eng", timeout=30)
             ocr_pages.append(page_text.strip())
 
         ocr_text = "\n\n".join(ocr_pages)
-        if len(ocr_text.strip()) > 20:
-            return ocr_text, False
+        if len(ocr_text.strip()) > 100:
+            return ocr_text, False, True
     except Exception:
         pass
 
-    return "", True
+    return "", True, False
 
 
 def extract_docx(path: Path) -> tuple[str, bool]:
@@ -73,15 +81,15 @@ def extract_docx(path: Path) -> tuple[str, bool]:
                 if row_text.strip():
                     parts.append(row_text)
 
-    return "\n".join(parts), False
+    return "\n".join(parts), False, False
 
 
-def extract_txt(path: Path) -> tuple[str, bool]:
+def extract_txt(path: Path) -> tuple[str, bool, bool]:
     text = path.read_text(encoding="utf-8")
-    return text, False
+    return text, False, False
 
 
-def extract(path: Path) -> tuple[str, bool]:
+def extract(path: Path) -> tuple[str, bool, bool]:
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return extract_pdf(path)

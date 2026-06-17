@@ -11,6 +11,8 @@ class UploadResponse(BaseModel):
     article_labels_detected: list[str]
     expires_at: str       # ISO UTC string
     ttl_seconds: int
+    ocr_used: bool = False
+    ocr_warning: str = ""
 
 
 class CleanupResponse(BaseModel):
