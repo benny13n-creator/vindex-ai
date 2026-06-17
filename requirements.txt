@@ -21,3 +21,4 @@ cryptography
 sentry-sdk[fastapi]
 prometheus-client
 starlette-exporter
+twilio

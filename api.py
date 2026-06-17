@@ -473,6 +473,7 @@ from routers.integracije          import router as integracije_router
 from routers.recurring            import router as recurring_router
 from routers.search               import router as search_router
 from routers.billing_reports      import router as billing_reports_router
+from routers.sms                  import router as sms_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -511,6 +512,7 @@ app.include_router(integracije_router)
 app.include_router(recurring_router)
 app.include_router(search_router)
 app.include_router(billing_reports_router)
+app.include_router(sms_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -2301,9 +2303,12 @@ async def predmet_upload_auto_analyze(
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(raw)
             tmp_path = _Path(tmp.name)
-        text, is_scanned = await asyncio.to_thread(extract, tmp_path)
+        text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
         if is_scanned:
-            raise HTTPException(status_code=422, detail="Skenirani PDF — pošaljite digitalni PDF.")
+            raise HTTPException(
+                status_code=422,
+                detail="Skenirani PDF — tekst nije čitljiv ni optičkim prepoznavanjem (OCR). Probajte digitalni PDF ili DOCX."
+            )
     finally:
         if tmp_path and tmp_path.exists():
             try: tmp_path.unlink()
@@ -2311,6 +2316,9 @@ async def predmet_upload_auto_analyze(
 
     if not text or not text.strip():
         raise HTTPException(status_code=422, detail="Dokument je prazan ili nečitljiv.")
+
+    if ocr_used:
+        logger.info("[OCR] Dokument %r procitat OCR-om (predmet=%s)", file.filename, predmet_id)
 
     # Phase 2.1 — detect document type for routing to specialized prompt
     doc_type = _detect_doc_type(text)
@@ -2321,7 +2329,7 @@ async def predmet_upload_auto_analyze(
         "source_filename": file.filename,
         "source_format": suffix.lstrip("."),
         "source_sha256": hashlib.sha256(raw).hexdigest(),
-        "is_scanned": False,
+        "is_scanned": ocr_used,
         "session_id": "__local__",
     }
     manifest = await asyncio.to_thread(chunk_document, text, source_meta)

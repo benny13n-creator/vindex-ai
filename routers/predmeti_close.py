@@ -235,3 +235,70 @@ async def get_predmet_ishod(
         "zakljucak":        zakljucak,
         "predmet_naziv":    pred.get("naziv", ""),
     }
+
+
+# ─── Bulk operacije ────────────────────────────────────────────────────────────
+
+_BULK_AKCIJE = {
+    "arhiviranje": "arhiviran",
+    "aktiviranje": "aktivan",
+    "zatvaranje":  "zatvoren",
+}
+
+
+class BulkAkcijaReq(BaseModel):
+    predmet_ids: list[str] = Field(..., min_length=1, max_length=50)
+    akcija: str = Field(..., pattern="^(arhiviranje|aktiviranje|zatvaranje)$")
+
+
+@router.patch("/api/predmeti/bulk")
+@limiter.limit("10/minute")
+async def bulk_promena_statusa(
+    body: BulkAkcijaReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Bulk promena statusa predmeta.
+    akcija: 'arhiviranje' | 'aktiviranje' | 'zatvaranje'
+    Maks 50 predmeta odjednom. Svaki predmet mora biti korisnikov.
+    """
+    uid    = user["user_id"]
+    supa   = _get_supa()
+    novi_status = _BULK_AKCIJE[body.akcija]
+
+    # Fetch predmeti da verifikujemo vlasništvo
+    ids = list(set(body.predmet_ids))[:50]
+    existing_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id,status")
+            .eq("user_id", uid)
+            .in_("id", ids)
+            .execute()
+    )
+    existing = {p["id"]: p for p in (existing_r.data or [])}
+
+    if not existing:
+        raise HTTPException(status_code=404, detail="Nijedan od navedenih predmeta nije pronađen.")
+
+    # Samo oni koji postoje i nisu već u tom statusu
+    za_update = [pid for pid in ids if pid in existing and existing[pid].get("status") != novi_status]
+
+    if not za_update:
+        return {"ok": True, "azurirano": 0, "poruka": "Svi predmeti su već u traženom statusu."}
+
+    await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .update({"status": novi_status})
+            .eq("user_id", uid)
+            .in_("id", za_update)
+            .execute()
+    )
+
+    logger.info("[BULK] uid=%.8s akcija=%s azurirano=%d", uid, body.akcija, len(za_update))
+    return {
+        "ok":        True,
+        "azurirano": len(za_update),
+        "poruka":    f"{len(za_update)} predmet(a) — status promenjen na '{novi_status}'.",
+        "novi_status": novi_status,
+    }

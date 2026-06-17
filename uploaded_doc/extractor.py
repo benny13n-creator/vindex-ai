@@ -58,7 +58,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool]:
     return "", True, False
 
 
-def extract_docx(path: Path) -> tuple[str, bool]:
+def extract_docx(path: Path) -> tuple[str, bool, bool]:
     import docx as _docx
     from docx.oxml.ns import qn as _qn
     from docx.table import Table as _Table

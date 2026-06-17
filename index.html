@@ -6212,6 +6212,14 @@ i[data-lucide] svg {
                 <div id="portfolio-rokovi-list"></div>
               </div>
               <div id="portfolio-summary" style="font-size:0.67rem;color:rgba(255,255,255,0.35);padding:0.1rem 0;"></div>
+
+              <!-- Opposing counsel tracker -->
+              <div id="opposing-counsel-wrap" style="margin-top:0.35rem;">
+                <button onclick="opposing_toggle()" style="background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;gap:0.3rem;font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:.08em;text-transform:uppercase;">
+                  <span id="opposing-chevron">▶</span> Suprotne strane <span id="opposing-count-badge" style="display:none;background:rgba(255,255,255,.06);border-radius:3px;padding:0 4px;font-size:0.58rem;color:rgba(255,255,255,.5);"></span>
+                </button>
+                <div id="opposing-counsel-panel" style="display:none;margin-top:0.5rem;"></div>
+              </div>
             </div>
             <div class="t-guide">
               <div class="t-guide-icon"><i data-lucide="briefcase" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
@@ -6224,6 +6232,12 @@ i[data-lucide] svg {
               <button class="pred-sort-btn"        data-sort="prioritet"   onclick="pred_setSort('prioritet')"   style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">⚡ Prioritet</button>
               <button class="pred-sort-btn"        data-sort="rizik"       onclick="pred_setSort('rizik')"       style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">⚠ Rizik</button>
               <button class="pred-sort-btn"        data-sort="rokovi"      onclick="pred_setSort('rokovi')"      style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">📅 Rokovi</button>
+            </div>
+            <div id="pred-bulk-bar" style="display:none;align-items:center;gap:0.4rem;margin:0.3rem 0;padding:0.35rem 0.55rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.2);border-radius:7px;">
+              <span id="pred-bulk-count" style="font-size:0.65rem;color:#89c8ff;flex:1;font-weight:600;"></span>
+              <button onclick="pred_bulkAkcija('arhiviranje')" style="padding:0.22rem 0.6rem;border:1px solid rgba(255,255,255,.15);border-radius:5px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);font-size:0.68rem;cursor:pointer;">🗄 Arhivuj</button>
+              <button onclick="pred_bulkAkcija('aktiviranje')" style="padding:0.22rem 0.6rem;border:1px solid rgba(74,222,128,.25);border-radius:5px;background:rgba(74,222,128,.06);color:#4ade80;font-size:0.68rem;cursor:pointer;">✓ Aktiviraj</button>
+              <button onclick="pred_bulkOtkaziOznacavanje()" style="border:none;background:none;color:rgba(255,255,255,.3);font-size:0.75rem;cursor:pointer;">✕</button>
             </div>
             <div id="pred-list" class="pred-list"></div>
             <div id="pred-detail" class="pred-detail">
@@ -6453,6 +6467,14 @@ i[data-lucide] svg {
                   </div>
                 </div>
                 <div id="portal-tokens-list" style="margin-top:.3rem;"></div>
+                <!-- Klijentski uploadi -->
+                <div style="margin-top:.7rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,0.05);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
+                    <span style="font-size:.67rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.08em;">📥 Dokumenti od klijenta</span>
+                    <button onclick="portal_loadUploads()" style="font-size:.67rem;color:rgba(74,168,255,0.6);background:none;border:none;cursor:pointer;padding:0;">↻ Osveži</button>
+                  </div>
+                  <div id="portal-uploads-list" style="font-size:.72rem;color:rgba(255,255,255,0.3);">—</div>
+                </div>
               </div>
               </div><!-- /pred-pane-pregled -->
 
@@ -6662,7 +6684,8 @@ i[data-lucide] svg {
                         <button onclick="billing_openReport('godisnji')" class="billing-report-btn">📅 Godišnji</button>
                         <button onclick="billing_openReport('zastarele')" class="billing-report-btn">⏱ Starele stavke</button>
                         <button onclick="billing_openReport('po-tipu')" class="billing-report-btn">⚖️ Po tipu predmeta</button>
-                        <button onclick="billing_csvDownload()" class="billing-report-btn">⬇ Preuzmi CSV</button>
+                        <button onclick="billing_openReport('po-klijentu')" class="billing-report-btn">👤 Po klijentu</button>
+                        <button onclick="billing_csvDownload()" class="billing-report-btn" style="grid-column:1/-1;">⬇ Preuzmi CSV</button>
                       </div>
                       <div id="billing-report-result" style="display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.6rem;margin-top:0.3rem;font-size:0.72rem;"></div>
                     </div>
@@ -7319,6 +7342,8 @@ i[data-lucide] svg {
               <div class="kal-naslov">📅 Kalendar rokova i ročišta</div>
               <div class="kal-header-actions">
                 <button class="kal-ics-btn" onclick="kalendarIcsExport()">⬇ .ics</button>
+                <button class="kal-ics-btn" style="background:rgba(66,133,244,0.1);color:#8ab4f8;border-color:rgba(66,133,244,0.3);" onclick="kalendarGoogleExport()">📅 Google</button>
+                <button class="kal-ics-btn" style="background:rgba(0,120,212,0.1);color:#60a5fa;border-color:rgba(0,120,212,0.3);" onclick="kalendarOutlookExport()">📅 Outlook</button>
                 <button class="kal-dodaj-btn" onclick="rocisteOtvoriFormu()">+ Ročište</button>
               </div>
             </div>
@@ -7591,6 +7616,30 @@ i[data-lucide] svg {
               </div>
             </div>
 
+            <!-- ── SMS / WhatsApp notifikacije ─────────────────────── -->
+            <div class="settings-section" id="sms-settings-section">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>SMS / WhatsApp notifikacije</span>
+                <span id="sms-status-badge" style="font-size:0.6rem;font-weight:700;letter-spacing:.06em;padding:0.1rem 0.5rem;border-radius:4px;display:none;"></span>
+              </div>
+              <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem;">
+                <div class="settings-row-sub">Unesite broj telefona da biste primali SMS podsetnike 48h i 24h pre kritičnih rokova.</div>
+                <div style="display:flex;gap:0.4rem;width:100%;align-items:center;">
+                  <input type="tel" id="sms-telefon-input" placeholder="+381601234567 ili 0601234567" maxlength="20"
+                    style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:rgba(255,255,255,0.85);font-size:0.82rem;outline:none;font-family:inherit;">
+                  <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;color:rgba(255,255,255,0.5);cursor:pointer;white-space:nowrap;">
+                    <input type="checkbox" id="sms-whatsapp-chk" style="cursor:pointer;"> WhatsApp
+                  </label>
+                </div>
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
+                  <button class="settings-btn" onclick="sms_sacuvaj()">Sačuvaj broj</button>
+                  <button class="settings-btn" onclick="sms_testSms()" id="sms-test-btn" style="display:none;">Pošalji test</button>
+                  <button class="settings-btn" onclick="sms_deaktiviraj()" id="sms-deaktivir-btn" style="display:none;border-color:rgba(239,68,68,0.3);color:#f87171;">Deaktiviraj</button>
+                  <span id="sms-msg" style="font-size:0.7rem;color:#4ade80;display:none;"></span>
+                </div>
+              </div>
+            </div>
+
             <div class="settings-section">
               <div class="settings-section-hd">Sistem</div>
               <div class="settings-row">
@@ -7677,6 +7726,32 @@ i[data-lucide] svg {
       <div id="portal-hron-section" style="display:none;">
         <div style="font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:.6rem;">Tok predmeta</div>
         <div id="portal-hron-list"></div>
+      </div>
+      <!-- Upload dokumenta -->
+      <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(0,212,255,0.5);margin-bottom:.8rem;">Pošaljite dokument advokatu</div>
+        <div id="portal-upload-ok" style="display:none;background:rgba(0,212,127,0.08);border:1px solid rgba(0,212,127,0.2);border-radius:8px;padding:.75rem 1rem;color:#00d47f;font-size:.83rem;margin-bottom:.8rem;"></div>
+        <div id="portal-upload-err" style="display:none;background:rgba(255,80,80,0.08);border:1px solid rgba(255,80,80,0.2);border-radius:8px;padding:.75rem 1rem;color:#ff9090;font-size:.83rem;margin-bottom:.8rem;"></div>
+        <input type="file" id="portal-file-input" accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,.txt"
+          style="display:none;" onchange="portal_fileSelected(this)">
+        <div id="portal-file-drop" onclick="document.getElementById('portal-file-input').click()"
+          style="border:1.5px dashed rgba(255,255,255,0.12);border-radius:8px;padding:1.2rem;text-align:center;cursor:pointer;transition:border-color .2s;"
+          onmouseover="this.style.borderColor='rgba(0,212,255,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.12)'">
+          <div style="font-size:1.4rem;margin-bottom:.3rem;">📎</div>
+          <div style="font-size:.8rem;color:rgba(255,255,255,0.5);">Kliknite ili prevucite fajl ovde</div>
+          <div style="font-size:.67rem;color:rgba(255,255,255,0.25);margin-top:.25rem;">PDF, DOCX, JPG, PNG · maks 10 MB</div>
+        </div>
+        <div id="portal-file-preview" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:rgba(255,255,255,0.03);border-radius:6px;font-size:.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:.5rem;">
+          <span id="portal-file-name"></span>
+          <button onclick="portal_fileOtkazi()" style="margin-left:auto;background:none;border:none;color:rgba(255,100,80,0.7);cursor:pointer;font-size:.8rem;">✕</button>
+        </div>
+        <textarea id="portal-napomena" placeholder="Napomena advokatu (opciono)..."
+          style="width:100%;box-sizing:border-box;margin-top:.6rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e6edf3;font-size:.82rem;padding:.6rem .8rem;resize:vertical;min-height:60px;max-height:160px;"
+          maxlength="500"></textarea>
+        <button id="portal-upload-btn" onclick="portal_uploadFajl()" disabled
+          style="margin-top:.6rem;width:100%;padding:.65rem;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.25);border-radius:8px;color:#00d4ff;font-size:.82rem;font-weight:600;cursor:not-allowed;transition:all .2s;">
+          ⬆ Pošalji dokument
+        </button>
       </div>
     </div>
   </div>
@@ -9265,6 +9340,83 @@ function settingsLoad() {
   var firma = localStorage.getItem('vindex_firma');
   if (firmaEl && firma) { try { var f=JSON.parse(firma); firmaEl.textContent = f.naziv||'—'; } catch(e){} }
   sef_loadSettings();
+  sms_loadProfil();
+}
+
+// ── SMS / WhatsApp notifikacije ───────────────────────────────────────────────
+function _smsMsg(txt, color) {
+  var el = document.getElementById('sms-msg');
+  if (!el) return;
+  el.textContent = txt;
+  el.style.color = color || '#4ade80';
+  el.style.display = 'inline';
+  setTimeout(function(){ el.style.display='none'; }, 4000);
+}
+
+async function sms_loadProfil() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch('/sms/telefon', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) return;
+    var d = await r.json();
+    var inp = document.getElementById('sms-telefon-input');
+    var chk = document.getElementById('sms-whatsapp-chk');
+    var badge = document.getElementById('sms-status-badge');
+    var testBtn = document.getElementById('sms-test-btn');
+    var deakBtn = document.getElementById('sms-deaktivir-btn');
+    if (inp && d.telefon) inp.value = d.telefon;
+    if (chk) chk.checked = !!d.whatsapp;
+    if (badge) {
+      if (d.aktivan && d.telefon) {
+        badge.textContent = 'AKTIVNO';
+        badge.style.background = 'rgba(74,222,128,0.15)';
+        badge.style.color = '#4ade80';
+        badge.style.display = 'inline';
+      } else { badge.style.display = 'none'; }
+    }
+    if (testBtn) testBtn.style.display = (d.aktivan && d.telefon) ? 'inline-block' : 'none';
+    if (deakBtn) deakBtn.style.display = (d.aktivan && d.telefon) ? 'inline-block' : 'none';
+  } catch(e) {}
+}
+
+async function sms_sacuvaj() {
+  var inp = document.getElementById('sms-telefon-input');
+  var chk = document.getElementById('sms-whatsapp-chk');
+  if (!inp || !inp.value.trim()) { _smsMsg('Unesite broj telefona', '#f87171'); return; }
+  if (!currentSession) { _smsMsg('Niste prijavljeni', '#f87171'); return; }
+  try {
+    var r = await fetch('/sms/telefon', {
+      method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
+      body: JSON.stringify({broj: inp.value.trim(), whatsapp: chk ? !!chk.checked : false})
+    });
+    var d = await r.json();
+    if (!r.ok) { _smsMsg(d.detail || 'Greška', '#f87171'); return; }
+    _smsMsg('Broj sačuvan ✓');
+    sms_loadProfil();
+  } catch(e) { _smsMsg('Greška mreže', '#f87171'); }
+}
+
+async function sms_testSms() {
+  if (!currentSession) return;
+  var btn = document.getElementById('sms-test-btn');
+  if (btn) btn.disabled = true;
+  try {
+    var r = await fetch('/sms/test', {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    var d = await r.json();
+    if (!r.ok) { _smsMsg(d.detail || 'Greška pri slanju', '#f87171'); }
+    else { _smsMsg('Test SMS poslat na ' + (d.poslat_na||'')); }
+  } catch(e) { _smsMsg('Greška mreže', '#f87171'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function sms_deaktiviraj() {
+  if (!currentSession) return;
+  if (!confirm('Deaktivirati SMS notifikacije?')) return;
+  try {
+    await fetch('/sms/telefon', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    _smsMsg('SMS notifikacije deaktivirane');
+    sms_loadProfil();
+  } catch(e) { _smsMsg('Greška mreže', '#f87171'); }
 }
 
 function openSettingsModal() {
@@ -13346,8 +13498,11 @@ function _rok_build_card(rok) {
   if (rok.konkretan_datum_iso && !rok.istekao) {
     var naslov  = (kat + ': ' + rok.vrednost).replace(/'/g,"\\'");
     var opisIcs = ctx ? ctx.substring(0,120).replace(/'/g,"\\'") : '';
-    html += '<button class="btn-ics" onclick="dodajUKalendar(\'' + naslov + '\',\'' +
-      rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">📅 Dodaj u kalendar</button>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.4rem;">'
+      + '<button class="btn-ics" onclick="dodajUKalendar(\'' + naslov + '\',\'' + rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">⬇ .ics</button>'
+      + '<button class="btn-ics" style="background:rgba(66,133,244,0.08);border-color:rgba(66,133,244,0.35);color:#8ab4f8;" onclick="otvoriGoogleKalendar(\'' + naslov + '\',\'' + rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">📅 Google</button>'
+      + '<button class="btn-ics" style="background:rgba(0,120,212,0.08);border-color:rgba(0,120,212,0.35);color:#60a5fa;" onclick="otvoriOutlookKalendar(\'' + naslov + '\',\'' + rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">📅 Outlook</button>'
+      + '</div>';
   }
   html += '</div></div>';
   return html;
@@ -13429,6 +13584,41 @@ function doc_rokovi_recalc() {
   var panel = document.getElementById('rokovi-panel');
   if (!panel || !panel.classList.contains('show')) return;
   _rokovi_debounce = setTimeout(_doc_fetch_rokove, 650);
+}
+
+/* ── P2.1: Google Calendar / Outlook URL helpers ─────────────────── */
+function _kalDatumGcal(iso) {
+  /* YYYYMMDD → Google Calendar all-day format */
+  return iso.replace(/-/g, '');
+}
+
+function _kalDatumOutlook(iso) {
+  /* YYYY-MM-DD → Outlook ISO with time */
+  return iso + 'T08:00:00';
+}
+
+function otvoriGoogleKalendar(naslov, datumIso, opis) {
+  var d = _kalDatumGcal(datumIso);
+  /* next day for end date (all-day) */
+  var nextDay = new Date(datumIso);
+  nextDay.setDate(nextDay.getDate() + 1);
+  var d2 = nextDay.toISOString().slice(0,10).replace(/-/g,'');
+  var url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent(naslov)
+    + '&dates=' + d + '/' + d2
+    + '&details=' + encodeURIComponent((opis || '') + '\n\nVindex AI — Pravni asistent')
+    + '&location=Srbija';
+  window.open(url, '_blank', 'noopener');
+}
+
+function otvoriOutlookKalendar(naslov, datumIso, opis) {
+  var start = _kalDatumOutlook(datumIso);
+  var url = 'https://outlook.live.com/calendar/0/deeplink/compose?subject='
+    + encodeURIComponent(naslov)
+    + '&startdt=' + encodeURIComponent(start)
+    + '&body=' + encodeURIComponent((opis || '') + '\n\nVindex AI')
+    + '&allday=true&path=/calendar/action/compose&rru=addevent';
+  window.open(url, '_blank', 'noopener');
 }
 
 /* ── Phase 3.6: ICS export ───────────────────────────────────────── */
@@ -13536,10 +13726,15 @@ async function kalkulisiZastarelost() {
     else if (d.dana_preostalo <= 30) { cls = 'zc-warn';   statusTxt = '🟡 Ističe za ' + d.dana_preostalo + ' dana'; }
 
     var napHtml = d.napomena ? '<div class="zast-napomena">ℹ️ ' + d.napomena + '</div>' : '';
-    var icsBtnHtml = (!d.isteklo && d.datum_zastarelosti_iso) ?
-      '<button class="btn-ics" onclick="dodajUKalendar(\'Zastarelost: ' +
-        d.tip_potrazivanja.replace(/'/g,"\\'") + '\',\'' + d.datum_zastarelosti_iso + '\',\'' +
-        d.zakonski_osnov.replace(/'/g,"\\'") + '\')">📅 Dodaj u kalendar</button>' : '';
+    var _zastNaslov = 'Zastarelost: ' + d.tip_potrazivanja.replace(/'/g,"\\'");
+    var _zastOsnov  = d.zakonski_osnov.replace(/'/g,"\\'");
+    var icsBtnHtml = (!d.isteklo && d.datum_zastarelosti_iso)
+      ? '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.5rem;">'
+        + '<button class="btn-ics" onclick="dodajUKalendar(\'' + _zastNaslov + '\',\'' + d.datum_zastarelosti_iso + '\',\'' + _zastOsnov + '\')">⬇ .ics</button>'
+        + '<button class="btn-ics" style="background:rgba(66,133,244,0.08);border-color:rgba(66,133,244,0.35);color:#8ab4f8;" onclick="otvoriGoogleKalendar(\'' + _zastNaslov + '\',\'' + d.datum_zastarelosti_iso + '\',\'' + _zastOsnov + '\')">📅 Google</button>'
+        + '<button class="btn-ics" style="background:rgba(0,120,212,0.08);border-color:rgba(0,120,212,0.35);color:#60a5fa;" onclick="otvoriOutlookKalendar(\'' + _zastNaslov + '\',\'' + d.datum_zastarelosti_iso + '\',\'' + _zastOsnov + '\')">📅 Outlook</button>'
+        + '</div>'
+      : '';
 
     rezDiv.innerHTML = '<div class="zast-card ' + cls + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">' +
@@ -13819,8 +14014,10 @@ function pred_renderList() {
     if (di.urgentni_rokovi_count && di.urgentni_rokovi_count > 0) {
       rokHtml = '<span style="font-size:0.58rem;color:#ffbb70;margin-left:0.25rem;" title="Hitnih rokova: '+di.urgentni_rokovi_count+'">⏰'+di.urgentni_rokovi_count+'</span>';
     }
-    return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'" onclick="pred_select(\''+p.id+'\')">'
-      +'<span class="pred-naziv">📁 '+escHtml(p.naziv)+'</span>'
+    var chked = _selectedPredmeti.has(p.id) ? ' checked' : '';
+    return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'">'
+      +'<input type="checkbox" class="pred-chk"'+chked+' style="margin:0;cursor:pointer;flex-shrink:0;" onclick="event.stopPropagation();pred_toggleOznaci(\''+p.id+'\')">'
+      +'<span class="pred-naziv" style="flex:1;cursor:pointer;" onclick="pred_select(\''+p.id+'\')">📁 '+escHtml(p.naziv)+'</span>'
       +'<span style="display:flex;align-items:center;gap:0;flex-shrink:0;">'
       +'<span class="pred-badge '+tipCls+'" style="margin-right:0.25rem;">'+escHtml(p.tip)+'</span>'
       +'<span class="'+statusCls+'" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span>'
@@ -13828,6 +14025,49 @@ function pred_renderList() {
       +'</span>'
       +'</div>';
   }).join('');
+}
+
+// ── Bulk operacije na predmetima ─────────────────────────────────────────────
+var _selectedPredmeti = new Set();
+
+function pred_toggleOznaci(id) {
+  if (_selectedPredmeti.has(id)) _selectedPredmeti.delete(id);
+  else _selectedPredmeti.add(id);
+  pred_updateBulkBar();
+}
+
+function pred_updateBulkBar() {
+  var bar   = document.getElementById('pred-bulk-bar');
+  var count = document.getElementById('pred-bulk-count');
+  var n = _selectedPredmeti.size;
+  if (bar) bar.style.display = n > 0 ? 'flex' : 'none';
+  if (count) count.textContent = n + ' predmet' + (n === 1 ? ' označen' : n < 5 ? 'a označena' : 'a označeno');
+}
+
+function pred_bulkOtkaziOznacavanje() {
+  _selectedPredmeti.clear();
+  pred_updateBulkBar();
+  pred_renderList();
+}
+
+async function pred_bulkAkcija(akcija) {
+  if (!currentSession || !_selectedPredmeti.size) return;
+  var ids = Array.from(_selectedPredmeti);
+  var labeli = {arhiviranje:'arhiviranje', aktiviranje:'aktiviranje'};
+  if (!confirm('Promeniti status na \'' + (labeli[akcija]||akcija) + '\' za ' + ids.length + ' predmet(a)?')) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/predmeti/bulk', {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify({predmet_ids: ids, akcija: akcija})
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    showToast(d.poruka,'ok');
+    _selectedPredmeti.clear();
+    pred_updateBulkBar();
+    pred_fetchList();
+  } catch(e) { showToast('Greška veze.','err'); }
 }
 
 function pred_subtabSwitch(pane, btn) {
@@ -14470,6 +14710,75 @@ function portfolio_render(d) {
   }
 
   strip.style.display = 'block';
+}
+
+// ── Opposing Counsel Tracker ─────────────────────────────────────────────────
+
+var _opposingLoaded = false;
+
+function opposing_toggle() {
+  var panel = document.getElementById('opposing-counsel-panel');
+  var chev  = document.getElementById('opposing-chevron');
+  if (!panel) return;
+  var open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  if (chev) chev.textContent = open ? '▶' : '▼';
+  if (!open && !_opposingLoaded) opposing_load();
+}
+
+async function opposing_load() {
+  if (!currentSession) return;
+  var panel = document.getElementById('opposing-counsel-panel');
+  if (!panel) return;
+  panel.innerHTML = '<div style="font-size:0.68rem;color:rgba(255,255,255,0.3);padding:0.3rem 0;">Učitavam...</div>';
+  try {
+    var r = await fetch(BASE_URL+'/analytics/opposing-counsel', {
+      headers: {'Authorization': 'Bearer '+currentSession.access_token}
+    });
+    if (!r.ok) { panel.innerHTML='<div style="color:rgba(255,100,100,0.5);font-size:0.68rem;">Greška pri učitavanju.</div>'; return; }
+    var d = await r.json();
+    _opposingLoaded = true;
+    opposing_render(d, panel);
+    var badge = document.getElementById('opposing-count-badge');
+    if (badge && d.ukupno_protivnika > 0) {
+      badge.textContent = d.ukupno_protivnika;
+      badge.style.display = 'inline';
+    }
+  } catch(e) { panel.innerHTML='<div style="color:rgba(255,100,100,0.5);font-size:0.68rem;">Greška veze.</div>'; }
+}
+
+function opposing_render(d, panel) {
+  var lista = d.suprotne_strane || [];
+  if (!lista.length) {
+    panel.innerHTML = '<div style="font-size:0.68rem;color:rgba(255,255,255,0.3);padding:0.2rem 0;">Nema podataka — dodajte uloge \'advokat protivne\' ili \'protivna strana\' klijentima u predmetima.</div>';
+    return;
+  }
+  var _ishod_color = function(s){ return s > 0 ? '#4ade80' : s < 0 ? '#f87171' : 'rgba(255,255,255,.4)'; };
+  var _ishod_lbl   = function(s){ return s > 0 ? '▲' : s < 0 ? '▼' : '—'; };
+  var html = '<div style="display:flex;flex-direction:column;gap:0.3rem;">';
+  lista.forEach(function(e){
+    var ime   = escHtml(e.ime || e.firma || 'Nepoznat');
+    var score = e.score || 0;
+    var ishodi= e.ishodi || {};
+    var aktv  = e.aktivni || 0;
+    var zatv  = e.zatvoreni || 0;
+    var tip   = e.dominantni_tip ? escHtml(e.dominantni_tip) : '';
+    var winLoss = (ishodi.pobeda||0) + 'P / ' + (ishodi.poraz||0) + 'G'
+      + (ishodi.nagodba ? ' / '+(ishodi.nagodba)+'N' : '');
+    html += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0.5rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:6px;">'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:0.73rem;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+ime+'</div>'
+        +(tip ? '<div style="font-size:0.58rem;color:rgba(255,255,255,.3);">'+tip+'</div>' : '')
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0;">'
+        +'<div style="font-size:0.62rem;color:rgba(255,255,255,.45);">'+e.ukupno_predmeta+' pred · '+aktv+' akt</div>'
+        +(zatv ? '<div style="font-size:0.6rem;color:'+_ishod_color(score)+';">'+_ishod_lbl(score)+' '+winLoss+'</div>' : '')
+      +'</div>'
+    +'</div>';
+  });
+  html += '</div>';
+  html += '<div style="font-size:0.58rem;color:rgba(255,255,255,.2);margin-top:0.4rem;text-align:right;">P=pobeda G=gubitak N=nagodba</div>';
+  panel.innerHTML = html;
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -17066,6 +17375,8 @@ async function billing_doGenerateFaktura() {
     if (barEl) barEl.innerHTML = '<div class="billing-faktura-ok">✓ Faktura br. <b>'+escHtml(fakt.broj_fakture)+'</b> kreirana &mdash; <a href="'+pdfUrl+'" target="_blank" style="color:#89c8ff;">Preuzmi PDF</a>'
       +' &nbsp;<button onclick="billing_sendEmail(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:5px;color:#89c8ff;font-size:0.68rem;cursor:pointer;font-family:inherit;">✉ Email</button>'
       +' <button onclick="sef_posalji(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(0,212,127,0.08);border:1px solid rgba(0,212,127,0.2);border-radius:5px;color:#00d47f;font-size:0.68rem;cursor:pointer;font-family:inherit;">⚡ SEF</button>'
+      +' <button onclick="sef_preuzmiXml(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;font-family:inherit;">⬇ XML</button>'
+      +' <button onclick="sef_prikaziLog(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;font-family:inherit;">📋 SEF log</button>'
       +'</div>';
     showToast('Faktura br. '+fakt.broj_fakture+' kreirana.','ok');
     await billing_loadEntries();
@@ -17387,6 +17698,7 @@ var _portalCurrentUrl = '';
 function portal_showSection() {
   var sec = document.getElementById('pred-portal-section');
   if (sec) sec.style.display = 'block';
+  portal_loadUploads();
 }
 
 function portal_toggleForm() {
@@ -17468,6 +17780,63 @@ async function portal_revokeToken(tokenId) {
     if (!r.ok) { showToast('Greška pri opozivanju.','err'); return; }
     showToast('Link opozvan.','ok');
     await portal_loadTokens();
+  } catch(e) { showToast('Greška.','err'); }
+}
+
+async function portal_loadUploads() {
+  if (!currentSession || !activePredmetId) return;
+  var listEl = document.getElementById('portal-uploads-list');
+  if (!listEl) return;
+  listEl.textContent = 'Učitavam...';
+  try {
+    var r = await fetch(BASE_URL+'/api/client-portal/uploads/'+activePredmetId, {
+      headers:{Authorization:'Bearer '+currentSession.access_token}
+    });
+    var d = await r.json();
+    if (!r.ok) { listEl.textContent = d.detail || 'Greška.'; return; }
+    var upl = d.uploadi || [];
+    if (!upl.length) { listEl.innerHTML = '<div style="color:rgba(255,255,255,.25);">Nema dostavljenih dokumenata.</div>'; return; }
+    listEl.innerHTML = upl.map(function(u){
+      var pregBoja = u.pregledano ? 'rgba(255,255,255,.25)' : '#ffc864';
+      var pregTxt  = u.pregledano ? 'pregledano' : '● novo';
+      var datum    = (u.uploaded_at||'').slice(0,16).replace('T',' ');
+      var velKB    = u.fajl_velicina ? Math.round(u.fajl_velicina/1024)+' KB' : '';
+      return '<div style="padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:flex-start;gap:.5rem;">'
+        +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:.72rem;color:rgba(255,255,255,.7);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📄 '+escHtml(u.fajl_naziv||'dokument')+'</div>'
+        +'<div style="font-size:.63rem;color:rgba(255,255,255,.3);margin-top:.1rem;">'+datum+(velKB?' · '+velKB:'')+'</div>'
+        +(u.napomena?'<div style="font-size:.65rem;color:rgba(255,255,255,.4);margin-top:.1rem;font-style:italic;">'+escHtml(u.napomena)+'</div>':'')
+        +'</div>'
+        +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;flex-shrink:0;">'
+        +'<span style="font-size:.6rem;color:'+pregBoja+';">'+pregTxt+'</span>'
+        +(u.download_url ? '<a href="'+u.download_url+'" target="_blank" rel="noopener" style="font-size:.62rem;color:#89c8ff;text-decoration:none;">⬇ Preuzmi</a>' : '')
+        +(!u.pregledano ? '<button onclick="portal_oznacPregledano(\''+escHtml(u.id)+'\')" style="font-size:.6rem;color:rgba(0,212,127,.6);background:none;border:1px solid rgba(0,212,127,.15);border-radius:3px;padding:.1rem .3rem;cursor:pointer;">✓ Pregledano</button>' : '')
+        +'<button onclick="portal_obrisiUpload(\''+escHtml(u.id)+'\')" style="font-size:.6rem;color:rgba(255,80,80,.5);background:none;border:none;cursor:pointer;padding:0;">🗑</button>'
+        +'</div>'
+        +'</div>';
+    }).join('');
+  } catch(e) { listEl.textContent = 'Greška veze.'; }
+}
+
+async function portal_oznacPregledano(uploadId) {
+  if (!currentSession) return;
+  try {
+    await fetch(BASE_URL+'/api/client-portal/uploads/'+uploadId+'/pregledano', {
+      method:'PATCH', headers:{Authorization:'Bearer '+currentSession.access_token}
+    });
+    await portal_loadUploads();
+  } catch(e) {}
+}
+
+async function portal_obrisiUpload(uploadId) {
+  if (!currentSession || !confirm('Obrisati ovaj dokument? Ova akcija je nepovratna.')) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/client-portal/uploads/'+uploadId, {
+      method:'DELETE', headers:{Authorization:'Bearer '+currentSession.access_token}
+    });
+    if (!r.ok) { showToast('Greška pri brisanju.','err'); return; }
+    showToast('Dokument obrisan.','ok');
+    await portal_loadUploads();
   } catch(e) { showToast('Greška.','err'); }
 }
 
@@ -17569,6 +17938,75 @@ function portal_renderView(d) {
   }
 }
 
+// ── Portal upload (klijent šalje fajl advokatu) ───────────────────────────────
+
+var _portalToken = null;
+var _portalFile  = null;
+
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  _portalToken = params.get('token') || null;
+})();
+
+function portal_fileSelected(input) {
+  var f = input.files && input.files[0];
+  if (!f) return;
+  _portalFile = f;
+  var nameEl = document.getElementById('portal-file-name');
+  var prevEl = document.getElementById('portal-file-preview');
+  var btn    = document.getElementById('portal-upload-btn');
+  if (nameEl) nameEl.textContent = f.name + ' (' + (f.size/1024).toFixed(0) + ' KB)';
+  if (prevEl) prevEl.style.display = 'flex';
+  if (btn)    { btn.disabled = false; btn.style.cursor = 'pointer'; btn.style.background = 'rgba(0,212,255,0.18)'; }
+}
+
+function portal_fileOtkazi() {
+  _portalFile = null;
+  var input  = document.getElementById('portal-file-input');
+  var prevEl = document.getElementById('portal-file-preview');
+  var btn    = document.getElementById('portal-upload-btn');
+  if (input)  input.value = '';
+  if (prevEl) prevEl.style.display = 'none';
+  if (btn)    { btn.disabled = true; btn.style.cursor = 'not-allowed'; btn.style.background = 'rgba(0,212,255,0.12)'; }
+}
+
+async function portal_uploadFajl() {
+  if (!_portalToken || !_portalFile) return;
+  var btn    = document.getElementById('portal-upload-btn');
+  var okEl   = document.getElementById('portal-upload-ok');
+  var errEl  = document.getElementById('portal-upload-err');
+  var napEl  = document.getElementById('portal-napomena');
+
+  if (okEl)  okEl.style.display  = 'none';
+  if (errEl) errEl.style.display = 'none';
+  if (btn)   { btn.disabled = true; btn.textContent = 'Šaljem...'; }
+
+  var napomena = napEl ? napEl.value.trim() : '';
+  var fd = new FormData();
+  fd.append('fajl', _portalFile);
+  if (napomena) fd.append('napomena', napomena);
+
+  try {
+    var r = await fetch(BASE_URL + '/api/client-portal/dokument', {
+      method: 'POST',
+      headers: {'X-Portal-Token': _portalToken},
+      body: fd,
+    });
+    var d = await r.json();
+    if (!r.ok) {
+      if (errEl) { errEl.style.display = 'block'; errEl.textContent = d.detail || 'Greška pri slanju.'; }
+    } else {
+      if (okEl) { okEl.style.display = 'block'; okEl.textContent = '✓ ' + (d.poruka || 'Dokument dostavljen advokatu.'); }
+      portal_fileOtkazi();
+      if (napEl) napEl.value = '';
+    }
+  } catch(e) {
+    if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Greška veze. Pokušajte ponovo.'; }
+  } finally {
+    if (btn) { btn.textContent = '⬆ Pošalji dokument'; }
+  }
+}
+
 // ── SEF e-Faktura ────────────────────────────────────────────────────────────
 
 async function sef_loadSettings() {
@@ -17615,18 +18053,9 @@ async function sef_saveSettings() {
   if (pib.length !== 9 || !/^\d{9}$/.test(pib)) { showToast('PIB mora biti tačno 9 cifara.','err'); return; }
   if (naziv.trim().length < 2) { showToast('Unesite naziv kancelarije.','err'); return; }
 
+  // api_key je opcionalan ako je SEF već konfigurisan — backend čuva stari ključ
   var body = {seller_pib: pib, seller_naziv: naziv, seller_adresa: adresa, seller_mesto: mesto};
   if (apikey.trim()) body.api_key = apikey.trim();
-  else {
-    // Must send api_key — fetch existing first
-    try {
-      var cr = await fetch(BASE_URL+'/api/sef/podesavanja', {headers:{Authorization:'Bearer '+currentSession.access_token}});
-      var cd = await cr.json();
-      if (!cd.konfigurisano || !apikey.trim()) {
-        showToast('Unesite SEF API ključ.', 'err'); return;
-      }
-    } catch(e) { showToast('Greška.','err'); return; }
-  }
 
   var btn = document.getElementById('sef-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Čuvam...'; }
@@ -17661,6 +18090,50 @@ async function sef_posalji(fakturaId) {
   } catch(e) { showToast('Greška veze.','err'); }
 }
 
+async function sef_preuzmiXml(fakturaId) {
+  if (!currentSession || !fakturaId) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/sef/pregled-xml/'+fakturaId, {
+      headers:{Authorization:'Bearer '+currentSession.access_token}
+    });
+    if (!r.ok) {
+      var d = await r.json().catch(function(){return {};});
+      showToast(d.detail||'Greška pri generisanju XML-a.','err'); return;
+    }
+    var blob = await r.blob();
+    var cd = r.headers.get('Content-Disposition') || '';
+    var fname = 'sef_faktura.xml';
+    var m = cd.match(/filename="([^"]+)"/);
+    if (m) fname = m[1];
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('UBL XML preuzet: '+fname,'ok');
+  } catch(e) { showToast('Greška veze.','err'); }
+}
+
+async function sef_prikaziLog(fakturaId) {
+  if (!currentSession || !fakturaId) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/sef/log/'+fakturaId, {
+      headers:{Authorization:'Bearer '+currentSession.access_token}
+    });
+    var d = await r.json();
+    var log = d.log || [];
+    if (!log.length) { showToast('Nema SEF log zapisa za ovu fakturu.','ok'); return; }
+    var txt = log.map(function(l){
+      return (l.poslato_at||'').slice(0,19).replace('T',' ')
+        + ' — ' + (l.sef_status||'?')
+        + (l.sef_id ? ' (ID: '+l.sef_id+')' : '')
+        + (l.greska ? '\n   Greška: '+l.greska : '');
+    }).join('\n');
+    alert('SEF log (poslednih ' + log.length + '):\n\n' + txt);
+  } catch(e) { showToast('Greška veze.','err'); }
+}
+
 // ── Billing Izveštaji ────────────────────────────────────────────────────────
 
 function billing_toggleReports(btn) {
@@ -17685,6 +18158,7 @@ async function billing_openReport(tip) {
   if (tip === 'godisnji')   url = BASE_URL + '/billing/report/godisnji?godina=' + yr;
   if (tip === 'zastarele')  url = BASE_URL + '/billing/report/zastarele';
   if (tip === 'po-tipu')    url = BASE_URL + '/billing/report/po-tipu?od=' + od + '&do=' + today.toISOString().slice(0,10);
+  if (tip === 'po-klijentu') url = BASE_URL + '/billing/report/po-klijentu?od=' + od + '&do=' + today.toISOString().slice(0,10);
 
   try {
     var r = await fetch(url, {headers:{Authorization:'Bearer '+currentSession.access_token}});
@@ -17725,6 +18199,32 @@ function billing_renderReport(tip, d) {
         return '<div style="margin-bottom:0.3rem;">'
           +'<div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:0.1rem;"><span style="color:rgba(255,255,255,0.65);text-transform:capitalize;">'+escHtml(t.tip||'ostalo')+'</span><span style="color:#89c8ff;font-weight:600;">'+Math.round(t.iznos_rsd).toLocaleString('sr-RS')+' RSD</span></div>'
           +'<div style="background:rgba(0,212,255,0.06);border-radius:3px;height:4px;"><div style="background:#00d4ff;border-radius:3px;height:4px;width:'+Math.min(100,(t.ucesce_pct||0))+'%;"></div></div>'
+          +'</div>';
+      }).join('');
+  }
+  if (tip === 'po-klijentu') {
+    var rows = d.po_klijentu || [];
+    if (!rows.length) return '<div style="color:rgba(255,255,255,0.35);padding:0.4rem 0;">Nema faktura za ovaj period.</div>';
+    return '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Prihodi po klijentu</div>'
+      +'<div style="font-size:0.8rem;font-weight:700;color:#00d4ff;margin-bottom:0.4rem;">Ukupno: '+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</div>'
+      +rows.slice(0,8).map(function(k){
+        var placPct = k.ukupno_rsd > 0 ? Math.round(k.naplaceno_rsd/k.ukupno_rsd*100) : 0;
+        var barColor = placPct >= 75 ? '#00d47f' : placPct >= 40 ? '#ffc864' : '#ff7766';
+        return '<div style="margin-bottom:0.45rem;padding:0.3rem 0.4rem;background:rgba(255,255,255,0.02);border-radius:6px;border:1px solid rgba(255,255,255,0.05);">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.15rem;">'
+          +'<span style="font-size:0.7rem;color:rgba(255,255,255,0.75);font-weight:600;">'+escHtml(k.naziv||'—')+'</span>'
+          +'<span style="font-size:0.67rem;color:#89c8ff;">'+k.broj_faktura+' fakt. &nbsp;|&nbsp; <b style="color:#00d4ff;">'+Math.round(k.ukupno_rsd).toLocaleString('sr-RS')+' RSD</b></span>'
+          +'</div>'
+          +'<div style="display:flex;align-items:center;gap:0.4rem;">'
+          +'<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:3px;height:5px;">'
+          +'<div style="background:'+barColor+';border-radius:3px;height:5px;width:'+placPct+'%;transition:width 0.4s;"></div>'
+          +'</div>'
+          +'<span style="font-size:0.62rem;color:'+barColor+';white-space:nowrap;">'+placPct+'% napl.</span>'
+          +'</div>'
+          +'<div style="display:flex;gap:0.8rem;margin-top:0.1rem;font-size:0.63rem;">'
+          +'<span style="color:rgba(0,212,127,0.7);">✓ '+Math.round(k.naplaceno_rsd).toLocaleString('sr-RS')+' RSD</span>'
+          +'<span style="color:rgba(255,100,80,0.7);">✗ '+Math.round(k.neplaceno_rsd).toLocaleString('sr-RS')+' RSD</span>'
+          +'</div>'
           +'</div>';
       }).join('');
   }
@@ -17974,6 +18474,44 @@ function kalendarIcsExport() {
     document.body.removeChild(a); URL.revokeObjectURL(url);
   })
   .catch(function() { showToast('Greška pri izvozu.', 'err'); });
+}
+
+async function kalendarGoogleExport() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/kalendar/pregled', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) { showToast('Nema događaja.', 'warn'); return; }
+    var d = await r.json();
+    var eventi = (d.dogadjaji || d.eventi || []);
+    if (!eventi.length) { showToast('Nema nadolazećih događaja za Google Kalendar.', 'warn'); return; }
+    var first = eventi[0];
+    var datum = (first.datum || '').slice(0,10);
+    var naslov = first.naslov || 'Vindex AI Rokovi';
+    otvoriGoogleKalendar(naslov, datum, 'Vindex AI — pogledajte sve rokove u aplikaciji.');
+  } catch(e) {
+    showToast('Greška pri otvori Google Kalendar.', 'err');
+  }
+}
+
+async function kalendarOutlookExport() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/kalendar/pregled', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) { showToast('Nema događaja.', 'warn'); return; }
+    var d = await r.json();
+    var eventi = (d.dogadjaji || d.eventi || []);
+    if (!eventi.length) { showToast('Nema nadolazećih događaja za Outlook.', 'warn'); return; }
+    var first = eventi[0];
+    var datum = (first.datum || '').slice(0,10);
+    var naslov = first.naslov || 'Vindex AI Rokovi';
+    otvoriOutlookKalendar(naslov, datum, 'Vindex AI — pogledajte sve rokove u aplikaciji.');
+  } catch(e) {
+    showToast('Greška pri otvori Outlook Kalendar.', 'err');
+  }
 }
 
 function rocisteOtvoriFormu() {

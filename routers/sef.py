@@ -67,7 +67,7 @@ SEF_INVOICE_ENDPOINT = f"{SEF_API_BASE}/SalesInvoice"
 # ─── Pydantic modeli ──────────────────────────────────────────────────────────
 
 class SefPodesavanjaReq(BaseModel):
-    api_key:       str = Field(..., min_length=10, max_length=500)
+    api_key:       Optional[str] = Field(default=None, min_length=10, max_length=500)
     seller_pib:    str = Field(..., min_length=9, max_length=9)
     seller_naziv:  str = Field(..., min_length=2, max_length=200)
     seller_adresa: str = Field(default="", max_length=300)
@@ -189,9 +189,27 @@ async def post_sef_podesavanja(
     uid  = user["user_id"]
     supa = _get_supa()
 
+    # Ako api_key nije poslat, proveravamo da li već postoji — ako ne, greška
+    final_api_key = body.api_key
+    if not final_api_key:
+        try:
+            existing = await _db(lambda: supa.table("sef_podesavanja")
+                                 .select("api_key")
+                                 .eq("user_id", uid)
+                                 .maybe_single()
+                                 .execute())
+            if existing.data and existing.data.get("api_key"):
+                final_api_key = existing.data["api_key"]
+            else:
+                raise HTTPException(status_code=422, detail="SEF API ključ je obavezan pri prvom čuvanju podešavanja.")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"DB greška pri proveri API ključa: {e}")
+
     row = {
         "user_id":       uid,
-        "api_key":       body.api_key,
+        "api_key":       final_api_key,
         "seller_pib":    body.seller_pib,
         "seller_naziv":  body.seller_naziv,
         "seller_adresa": body.seller_adresa,

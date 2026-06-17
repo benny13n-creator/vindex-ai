@@ -8,6 +8,7 @@ GET /billing/report/godisnji?godina=YYYY     — godišnji pregled s mesečnim b
 GET /billing/report/csv?od=&do=              — CSV export stavki za period
 GET /billing/report/zastarele               — aging: 0-30/31-60/61-90/90+ dana
 GET /billing/report/po-tipu                 — prihodi grupisani po tipu predmeta
+GET /billing/report/po-klijentu?od=&do=     — prihodi grupisani po klijentu s trendom
 """
 from __future__ import annotations
 
@@ -365,4 +366,120 @@ async def billing_po_tipu(
         "do":           do_date,
         "ukupno_rsd":   round(ukupno_iznos, 2),
         "po_tipu":      result,
+    }
+
+
+# ─── GET /billing/report/po-klijentu ─────────────────────────────────────────
+
+@router.get("/po-klijentu")
+@limiter.limit("20/minute")
+async def billing_po_klijentu(
+    request: Request,
+    od:      Optional[str] = None,
+    do:      Optional[str] = None,
+    user:    dict          = Depends(get_current_user),
+):
+    """
+    Prihodi grupisani po klijentu za zadati period.
+
+    Vraća po svakom klijentu:
+      - ukupno_rsd: zbir svih fakturisanih iznosa (iznos_rsd)
+      - naplaceno_rsd: iznos plaćenih faktura
+      - neplaceno_rsd: iznos neplaćenih faktura
+      - broj_faktura: ukupan broj faktura
+      - trend: mesečni breakdown za period (za sparkline grafikon)
+    Sortira od najvećeg ukupnog iznosa.
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    today   = date.today()
+    od_date = od or date(today.year, 1, 1).isoformat()
+    do_date = do or today.isoformat()
+
+    try:
+        date.fromisoformat(od_date)
+        date.fromisoformat(do_date)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Nevalidan format datuma (YYYY-MM-DD).")
+
+    fakture_r, klijenti_r = await asyncio.gather(
+        _db(lambda: supa.table("fakture")
+            .select("id, klijent_id, iznos_rsd, iznos_sa_pdv, status, datum_fakture")
+            .eq("user_id", uid)
+            .gte("datum_fakture", od_date)
+            .lte("datum_fakture", do_date)
+            .order("datum_fakture")
+            .execute()),
+        _db(lambda: supa.table("klijenti")
+            .select("id, ime, prezime, naziv_firme")
+            .eq("user_id", uid)
+            .execute()),
+        return_exceptions=True,
+    )
+
+    fakture  = (fakture_r.data  or []) if not isinstance(fakture_r,  Exception) else []
+    klijenti = (klijenti_r.data or []) if not isinstance(klijenti_r, Exception) else []
+    kl_map   = {
+        k["id"]: " ".join(filter(None, [k.get("ime"), k.get("prezime"), k.get("naziv_firme")])).strip() or "—"
+        for k in klijenti
+    }
+
+    # Agregacija po klijentu
+    agg: dict[str, dict] = {}
+    for f in fakture:
+        kid  = f.get("klijent_id") or "_bez_klijenta"
+        iznos = float(f.get("iznos_rsd") or 0)
+        iznos_pdv = float(f.get("iznos_sa_pdv") or iznos)
+        placena   = f.get("status") == "placena"
+        ym        = (f.get("datum_fakture") or "")[:7]
+
+        if kid not in agg:
+            agg[kid] = {
+                "klijent_id":    kid,
+                "naziv":         kl_map.get(kid, "—"),
+                "ukupno_rsd":    0.0,
+                "naplaceno_rsd": 0.0,
+                "neplaceno_rsd": 0.0,
+                "broj_faktura":  0,
+                "trend":         {},
+            }
+        e = agg[kid]
+        e["ukupno_rsd"]    += iznos
+        e["broj_faktura"]  += 1
+        if placena:
+            e["naplaceno_rsd"] += iznos_pdv
+        else:
+            e["neplaceno_rsd"] += iznos
+        if ym:
+            e["trend"][ym] = e["trend"].get(ym, 0.0) + iznos
+
+    ukupno_rsd = sum(e["ukupno_rsd"] for e in agg.values())
+
+    result = sorted([
+        {
+            "klijent_id":    e["klijent_id"],
+            "naziv":         e["naziv"],
+            "ukupno_rsd":    round(e["ukupno_rsd"], 2),
+            "naplaceno_rsd": round(e["naplaceno_rsd"], 2),
+            "neplaceno_rsd": round(e["neplaceno_rsd"], 2),
+            "broj_faktura":  e["broj_faktura"],
+            "ucesce_pct":    round(e["ukupno_rsd"] / ukupno_rsd * 100, 1) if ukupno_rsd else 0.0,
+            "trend":         [
+                {"mesec": ym, "iznos_rsd": round(iznos, 2)}
+                for ym, iznos in sorted(e["trend"].items())
+            ],
+        }
+        for e in agg.values()
+        if e["klijent_id"] != "_bez_klijenta"
+    ], key=lambda x: x["ukupno_rsd"], reverse=True)
+
+    return {
+        "od":          od_date,
+        "do":          do_date,
+        "ukupno_rsd":  round(ukupno_rsd, 2),
+        "po_klijentu": result,
+        "bez_klijenta": round(
+            agg.get("_bez_klijenta", {}).get("ukupno_rsd", 0.0), 2
+        ),
     }
