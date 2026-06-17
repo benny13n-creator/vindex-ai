@@ -6196,6 +6196,7 @@ i[data-lucide] svg {
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('rokovi',this)">Rokovi</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('naplata',this)">Naplata</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('komunikacija',this)">Komunikacija</button>
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('saradnja',this)">Saradnja</button>
               </div>
 
               <!-- ── TAB 1: Pregled ───────────────────────────────────── -->
@@ -6628,6 +6629,37 @@ i[data-lucide] svg {
                   <div id="hcc-result" style="display:none;margin-top:0.5rem;"></div>
                 </div>
               </div><!-- /pred-pane-komunikacija -->
+
+              <!-- ── TAB 8: Saradnja ────────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-saradnja" style="display:none;">
+                <!-- Moja uloga badge -->
+                <div id="saradnja-moja-uloga" style="display:none;margin-bottom:0.6rem;padding:.3rem .65rem;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.18);border-radius:7px;font-size:.72rem;color:#89c8ff;font-weight:600;"></div>
+
+                <!-- Forma za dodavanje (samo vlasnik) -->
+                <div id="saradnja-forma-wrap">
+                  <div class="pred-section-lbl">Dodaj saradnika</div>
+                  <div style="display:flex;flex-direction:column;gap:0.45rem;margin-top:0.3rem;">
+                    <input id="saradnja-email" type="email" class="t-input" placeholder="Email adresa kolege..."
+                      style="font-size:.8rem;" />
+                    <select id="saradnja-uloga" class="t-input" style="font-size:.8rem;">
+                      <option value="citanje">Čitanje — samo pregled</option>
+                      <option value="saradnja" selected>Saradnja — dodavanje unosa</option>
+                      <option value="vodenje">Vođenje — puna kontrola</option>
+                    </select>
+                    <button onclick="saradnja_dodaj()"
+                      style="padding:.55rem;border:none;border-radius:8px;background:linear-gradient(135deg,#0099cc,#00d4ff);color:#000;font-weight:700;font-size:.8rem;cursor:pointer;">
+                      + Dodaj saradnika
+                    </button>
+                    <div id="saradnja-forma-err" style="display:none;font-size:.75rem;color:#ff9090;"></div>
+                  </div>
+                </div>
+
+                <!-- Lista saradnika -->
+                <div class="pred-section-lbl" style="margin-top:.8rem;">Saradnici na predmetu</div>
+                <div id="saradnja-lista" style="margin-top:.3rem;">
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.3);">Učitavam...</div>
+                </div>
+              </div><!-- /pred-pane-saradnja -->
 
             </div><!-- /pred-detail -->
 
@@ -13666,7 +13698,7 @@ function pred_renderList() {
 }
 
 function pred_subtabSwitch(pane, btn) {
-  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija'];
+  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja'];
   if (VALID.indexOf(pane) === -1) pane = 'pregled';
   document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
   document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -13681,6 +13713,8 @@ function pred_subtabSwitch(pane, btn) {
   }
   if (history.replaceState && activePredmetId) history.replaceState(null, '', '#' + pane);
   if (typeof lucide !== 'undefined') lucide.createIcons();
+  // Lazy-load saradnja tab
+  if (pane === 'saradnja' && activePredmetId) saradnja_load(activePredmetId);
 }
 
 function pred_openStrat(modul) {
@@ -13923,6 +13957,122 @@ async function pred_runPipeline() {
   } catch(e) {
     showToast('Greška pri analizi predmeta.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = '↻ Analiziraj'; }
+  }
+}
+
+// ── Saradnja ──────────────────────────────────────────────────────────────────
+
+var _saradnjaOwner = false; // je li trenutni korisnik vlasnik
+
+async function saradnja_load(predmetId) {
+  if (!currentSession) return;
+  var hdr = {'Authorization': 'Bearer ' + currentSession.access_token};
+
+  // Dohvati moju ulogu
+  try {
+    var ur = await fetch(BASE_URL + '/api/saradnja/uloga/' + encodeURIComponent(predmetId), {headers: hdr});
+    if (ur.ok) {
+      var ud = await ur.json();
+      _saradnjaOwner = (ud.uloga === 'vlasnik');
+      var badgeEl = document.getElementById('saradnja-moja-uloga');
+      var formaEl = document.getElementById('saradnja-forma-wrap');
+      if (badgeEl) {
+        if (ud.uloga && ud.uloga !== 'vlasnik') {
+          var _ulogaLbl = {citanje:'👁 Čitanje', saradnja:'✏ Saradnja', vodenje:'⚙ Vođenje'};
+          badgeEl.textContent = 'Vaša uloga: ' + (_ulogaLbl[ud.uloga] || ud.uloga);
+          badgeEl.style.display = '';
+        } else {
+          badgeEl.style.display = 'none';
+        }
+      }
+      if (formaEl) formaEl.style.display = _saradnjaOwner ? '' : 'none';
+    }
+  } catch(e) {}
+
+  // Dohvati listu saradnika (samo vlasnik vidi)
+  var listaEl = document.getElementById('saradnja-lista');
+  if (!listaEl) return;
+
+  if (!_saradnjaOwner) {
+    listaEl.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.3);">Samo vlasnik predmeta može videti listu saradnika.</div>';
+    return;
+  }
+
+  try {
+    var r = await fetch(BASE_URL + '/api/saradnja/saradnici/' + encodeURIComponent(predmetId), {headers: hdr});
+    var d = await r.json();
+    if (!r.ok) { listaEl.innerHTML = '<div style="font-size:.75rem;color:#ff9090;">'+(d.detail||'Greška')+'</div>'; return; }
+    saradnja_renderLista(d.saradnici || [], predmetId);
+  } catch(e) {
+    listaEl.innerHTML = '<div style="font-size:.75rem;color:#ff9090;">Greška pri učitavanju.</div>';
+  }
+}
+
+function saradnja_renderLista(saradnici, predmetId) {
+  var el = document.getElementById('saradnja-lista');
+  if (!el) return;
+  if (!saradnici.length) {
+    el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.3);">Nema saradnika na ovom predmetu.</div>';
+    return;
+  }
+  var _ulogaBoja = {citanje:'rgba(137,200,255,.7)', saradnja:'rgba(255,187,112,.8)', vodenje:'rgba(125,224,160,.8)'};
+  var _ulogaLbl  = {citanje:'Čitanje', saradnja:'Saradnja', vodenje:'Vođenje'};
+  el.innerHTML = saradnici.map(function(s) {
+    return '<div style="display:flex;align-items:center;gap:.55rem;padding:.5rem .6rem;background:rgba(255,255,255,.03);border-radius:8px;margin-top:.28rem;">'
+      +'<i data-lucide="user" style="width:14px;height:14px;flex-shrink:0;color:rgba(137,200,255,.5);"></i>'
+      +'<span style="flex:1;font-size:.78rem;color:rgba(255,255,255,.8);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(s.email||s.saradnik_user_id||'—')+'</span>'
+      +'<span style="font-size:.65rem;font-weight:700;color:'+(_ulogaBoja[s.uloga]||'rgba(255,255,255,.4)')+';">'+escHtml(_ulogaLbl[s.uloga]||s.uloga)+'</span>'
+      +'<button onclick="saradnja_ukloni(\''+escHtml(s.saradnik_user_id)+'\',\''+escHtml(predmetId)+'\',this)" '
+        +'style="flex-shrink:0;padding:.18rem .45rem;border:1px solid rgba(255,80,80,.25);border-radius:5px;background:rgba(255,80,80,.06);color:#ff9090;font-size:.65rem;cursor:pointer;" '
+        +'title="Ukloni saradnika">✕</button>'
+      +'</div>';
+  }).join('');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function saradnja_dodaj() {
+  if (!activePredmetId || !currentSession) return;
+  var email  = (document.getElementById('saradnja-email')  || {}).value || '';
+  var uloga  = (document.getElementById('saradnja-uloga')  || {}).value || 'saradnja';
+  var errEl  = document.getElementById('saradnja-forma-err');
+  email = email.trim();
+  if (!email || !email.includes('@')) { if (errEl) { errEl.textContent = 'Unesite ispravnu email adresu.'; errEl.style.display = ''; } return; }
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    var r = await fetch(BASE_URL + '/api/saradnja/dodaj/' + encodeURIComponent(activePredmetId), {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify({saradnik_email: email, uloga: uloga})
+    });
+    var d = await r.json();
+    if (!r.ok) {
+      if (errEl) { errEl.textContent = d.detail || 'Greška pri dodavanju.'; errEl.style.display = ''; }
+      return;
+    }
+    showToast('Saradnik dodat: ' + escHtml(email), 'success');
+    var emailEl = document.getElementById('saradnja-email');
+    if (emailEl) emailEl.value = '';
+    saradnja_load(activePredmetId);
+  } catch(e) {
+    if (errEl) { errEl.textContent = 'Greška pri dodavanju saradnika.'; errEl.style.display = ''; }
+  }
+}
+
+async function saradnja_ukloni(saradnikUid, predmetId, btn) {
+  if (!currentSession) return;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    var r = await fetch(
+      BASE_URL + '/api/saradnja/ukloni/' + encodeURIComponent(predmetId) + '/' + encodeURIComponent(saradnikUid),
+      {method: 'DELETE', headers: {'Authorization': 'Bearer ' + currentSession.access_token}}
+    );
+    if (!r.ok) { var d = await r.json(); showToast(d.detail || 'Greška.', 'error'); if (btn) { btn.disabled=false; btn.textContent='✕'; } return; }
+    showToast('Saradnik uklonjen.', 'success');
+    saradnja_load(predmetId);
+  } catch(e) {
+    showToast('Greška pri uklanjanju.', 'error');
+    if (btn) { btn.disabled=false; btn.textContent='✕'; }
   }
 }
 
