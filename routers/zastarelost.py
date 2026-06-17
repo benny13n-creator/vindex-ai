@@ -10,7 +10,7 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response as _Resp
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter()
 
@@ -22,6 +22,25 @@ class ZastarelostRequest(BaseModel):
 
 class IcsExportRequest(BaseModel):
     rokovi: List[dict]  # [{"naslov": str, "datum_iso": str, "opis": str}]
+
+
+class RelativniDatumRequest(BaseModel):
+    izraz: str = Field(..., min_length=3, max_length=100)
+
+
+@router.post("/zastarelost/relativni-datum")
+async def post_relativni_datum(req: RelativniDatumRequest):
+    """Phase 3.6 — Konvertuje relativni srpski izraz u apsolutni datum."""
+    from zastarelost import parsiraj_relativni_datum
+    try:
+        d = await asyncio.to_thread(parsiraj_relativni_datum, req.izraz)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {
+        "izraz":        req.izraz,
+        "datum":        d.isoformat(),
+        "datum_prikaz": d.strftime("%d.%m.%Y"),
+    }
 
 
 @router.get("/zastarelost/tipovi")

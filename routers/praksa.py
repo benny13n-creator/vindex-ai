@@ -576,3 +576,133 @@ async def argument_map(
             "neutral_count":     len(neutral),
         },
     }
+
+
+# ── P8 — Semantic Precedent Matching ─────────────────────────────────────────
+
+_SLICNI_SYSTEM = (
+    "Ti si pravni asistent specijalizovan za srpsku sudsku praksu. "
+    "Dato je opisani predmet (činjenice + pravno pitanje) i lista sudskih odluka. "
+    "Za svaku odluku proceni semantičku sličnost sa opisanim predmetom. "
+    "Odgovori ISKLJUČIVO u JSON formatu:\n"
+    '{"slicni": [{"decision_number": str, "slicnost_pct": int (0-100), '
+    '"slicnost_opis": str}]}\n'
+    "slicnost_pct: 0=nema veze, 50=delimično, 90+=visoko relevantna.\n"
+    "slicnost_opis: 1-2 rečenice srpskim jezikom zašto je slična.\n"
+    "Poredaj od najviše ka najnižoj sličnosti. Ne halucinuj — koristi samo date odluke."
+)
+
+
+class SlicniPredmetiReq(BaseModel):
+    cinjenice:     str           = Field(..., min_length=20, max_length=3000, description="Kratki opis činjenica predmeta")
+    pravno_pitanje: Optional[str] = Field(default=None, max_length=500, description="Konkretno pravno pitanje (opciono)")
+    top_k:         int           = Field(default=5, ge=1, le=15, description="Broj sličnih predmeta koje treba vratiti")
+
+
+def _slicni_predmeti_sync(cinjenice: str, pravno_pitanje: Optional[str], top_k: int) -> dict:
+    import json as _json
+    from app.services.retrieve import retrieve_sudska_praksa, process_praksa_chunks
+
+    combined = cinjenice.strip()
+    if pravno_pitanje:
+        combined += " " + pravno_pitanje.strip()
+    combined = combined[:600]
+
+    raw_matches = retrieve_sudska_praksa(combined, top_k=20)
+    kandidati = process_praksa_chunks(raw_matches, k=min(top_k * 3, 15))
+
+    if not kandidati:
+        return {
+            "query_used": combined,
+            "ukupno_pronadjeno": 0,
+            "slicni": [],
+        }
+
+    decisions_text = ""
+    for i, d in enumerate(kandidati, 1):
+        izreka = (d.get("text") or "")[:300].replace("\n", " ")
+        decisions_text += (
+            f"\n[{i}] Broj: {d.get('decision_number','?')} | "
+            f"Sud: {d.get('court','?')} | Datum: {d.get('date','?')}\n"
+            f"Tekst: {izreka}\n"
+        )
+
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=1200,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _SLICNI_SYSTEM},
+                {
+                    "role": "user",
+                    "content": (
+                        f"MOJ PREDMET:\nČinjenice: {cinjenice}\n"
+                        + (f"Pravno pitanje: {pravno_pitanje}\n" if pravno_pitanje else "")
+                        + f"\nSUDSKE ODLUKE:{decisions_text}"
+                    ),
+                },
+            ],
+        )
+        gpt_result = _json.loads(resp.choices[0].message.content or "{}")
+    except Exception as exc:
+        logger.warning("[SLICNI] GPT greška: %s — vraćam samo vektorski rezultat", exc)
+        gpt_result = {"slicni": []}
+
+    gpt_map: dict[str, dict] = {}
+    for item in gpt_result.get("slicni", []):
+        dn = (item.get("decision_number") or "").strip()
+        if dn:
+            gpt_map[dn] = item
+
+    merged: list = []
+    for d in kandidati:
+        dn = d.get("decision_number", "")
+        gpt = gpt_map.get(dn, {})
+        merged.append({
+            "decision_number": dn,
+            "court":           d.get("court", ""),
+            "decision_date":   d.get("date", ""),
+            "matter":          d.get("matter", ""),
+            "izreka_preview":  (d.get("text") or "")[:200],
+            "score":           round(d.get("score", 0.0), 4),
+            "slicnost_pct":    gpt.get("slicnost_pct", 0),
+            "slicnost_opis":   gpt.get("slicnost_opis", ""),
+        })
+
+    merged.sort(key=lambda x: (x["slicnost_pct"], x["score"]), reverse=True)
+    return {
+        "query_used":        combined[:200],
+        "ukupno_pronadjeno": len(merged),
+        "slicni":            merged[:top_k],
+    }
+
+
+@router.post("/api/praksa/slicni-predmeti")
+@limiter.limit("15/minute")
+async def slicni_predmeti(
+    req: SlicniPredmetiReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Semantic Precedent Matching — pronalazi sudske odluke semantički slične opisanom predmetu.
+    GPT-4o-mini rangira svaki rezultat po sličnosti i daje kratko objašnjenje.
+    """
+    try:
+        result = await asyncio.to_thread(
+            _slicni_predmeti_sync,
+            req.cinjenice,
+            req.pravno_pitanje,
+            req.top_k,
+        )
+        return result
+    except Exception:
+        logger.exception("Greška u /api/praksa/slicni-predmeti")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Interna greška servera."},
+        )

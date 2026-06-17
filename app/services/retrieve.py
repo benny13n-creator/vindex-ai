@@ -765,21 +765,84 @@ def _generiši_hyde(query: str) -> str:
         return ""
 
 
-# ─── Sprint 3: Cohere Re-Ranking ─────────────────────────────────────────────
+# ─── Sprint 3A: GPT-4o-mini Re-Ranking (fallback kad Cohere nije dostupan) ───
+
+def _gpt_rerank(query: str, matches: list, k: int = 3) -> list:
+    """
+    GPT-4o-mini reranker — koristi se kad Cohere nije konfigurisan ili ne uspe.
+    Šalje do 10 kandidata kao numerirane isečke i traži JSON listu rangiranih indeksa.
+    Fallback: matches[:k] ako GPT poziv ne uspe.
+    """
+    if not matches:
+        return []
+    kandidati = matches[:10]
+    snippets = []
+    for i, m in enumerate(kandidati):
+        meta = m.metadata or {}
+        zakon = meta.get("law", "")
+        clan  = meta.get("article", "")
+        tekst = (meta.get("parent_text") or meta.get("text") or "")[:300].replace("\n", " ")
+        snippets.append(f"{i + 1}. [{zakon} {clan}] {tekst}")
+    doc_str = "\n\n".join(snippets)
+    try:
+        resp = _get_client().chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=80,
+            timeout=6.0,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Ti si srpski pravni reranker. Rangiraj date odlomke zakona "
+                        "po relevantnosti za dato pravno pitanje. "
+                        f"Vrati SAMO JSON listu celih brojeva (indeksi 1–{len(kandidati)}) "
+                        f"od najrelevantnijeg do najmanje relevantnog, prvih {k}. "
+                        "Primer: [3,1,5]"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Pitanje: {query}\n\nOdlomci:\n{doc_str}",
+                },
+            ],
+        )
+        raw = resp.choices[0].message.content.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            reranked: list = []
+            seen: set = set()
+            for idx in parsed:
+                i = int(idx) - 1
+                if 0 <= i < len(kandidati) and i not in seen:
+                    reranked.append(kandidati[i])
+                    seen.add(i)
+                    if len(reranked) >= k:
+                        break
+            if reranked:
+                logger.debug("[GPT_RERANK] top-%d od %d kandidata", len(reranked), len(kandidati))
+                return reranked
+    except Exception as exc:
+        logger.warning("[GPT_RERANK] Greška: %s — fallback na interni skor", exc)
+    return kandidati[:k]
+
+
+# ─── Sprint 3B: Cohere Re-Ranking (primary; GPT fallback kad nije dostupan) ──
 
 def _cohere_rerank(query: str, matches: list, k: int = 3) -> list:
     """
     Rerangira Pinecone rezultate Cohere modelom.
-    Fallback: interni skor ako Cohere nije dostupan.
+    Fallback: GPT-4o-mini reranker ako Cohere nije dostupan ili vrati grešku.
     """
     co = _get_cohere()
     if not co or not matches:
-        return matches[:k]
+        return _gpt_rerank(query, matches, k)
 
     docs = []
     for m in matches:
         meta = m.metadata or {}
-        # Koristi parent_text ako postoji, inače text
         tekst = meta.get("parent_text") or meta.get("text", "")
         docs.append(tekst[:1000])
 
@@ -794,8 +857,8 @@ def _cohere_rerank(query: str, matches: list, k: int = 3) -> list:
         logger.debug("[COHERE] Reranked top-%d", k)
         return reranked
     except Exception as e:
-        logger.warning("[COHERE] Reranking nije uspeo: %s — fallback na interni skor", e)
-        return matches[:k]
+        logger.warning("[COHERE] Reranking nije uspeo: %s — fallback na GPT reranker", e)
+        return _gpt_rerank(query, matches, k)
 
 
 # ─── Sprint 4: Parent Document Retrieval ─────────────────────────────────────

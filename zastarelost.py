@@ -5,6 +5,7 @@ ZOO, ZR, ZPP, ZIO, ZOM, ZZP, ZUP, ZUS, ZKP rokovi.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional
@@ -166,6 +167,44 @@ def kalkulisi_zastarelost(tip: str, datum_pocetka: date) -> ZastarelostRezultat:
         isteklo=isteklo,
         napomena=r.get("napomena", ""),
     )
+
+
+_RE_RELATIVNI = re.compile(
+    r"^(za|pre)\s+(\d+)\s+"
+    r"(dan|dana|nedelju|nedelja|nedelje|mesec|meseca|meseci|godinu|godini|godina|godine)"
+    r"\s*$",
+    re.IGNORECASE,
+)
+
+
+def parsiraj_relativni_datum(izraz: str) -> date:
+    """
+    Parsira relativni srpski vremenski izraz u apsolutni datum.
+    Primeri: 'za 30 dana', 'pre 2 meseca', 'za 1 godinu', 'za 3 nedelje'
+    """
+    m = _RE_RELATIVNI.match(izraz.strip())
+    if not m:
+        raise ValueError(
+            f"Nepoznat relativni izraz: {izraz!r}. "
+            "Koristite: 'za N dana/nedelja/meseci/godina' ili "
+            "'pre N dana/nedelja/meseci/godina'"
+        )
+
+    smer, broj_str, jedinica = m.groups()
+    n = int(broj_str)
+    jedinica = jedinica.lower()
+
+    if jedinica in ("dan", "dana"):
+        delta = timedelta(days=n)
+    elif jedinica in ("nedelju", "nedelja", "nedelje"):
+        delta = timedelta(weeks=n)
+    elif jedinica in ("mesec", "meseca", "meseci"):
+        delta = relativedelta(months=n)
+    else:  # godinu, godini, godina, godine
+        delta = relativedelta(years=n)
+
+    danas = date.today()
+    return danas + delta if smer.lower() == "za" else danas - delta
 
 
 def lista_tipova_zastarelosti() -> list[dict]:

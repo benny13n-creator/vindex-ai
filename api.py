@@ -463,6 +463,10 @@ from routers.case_pipeline        import router as case_pipeline_router
 from routers.predmeti_close       import router as predmeti_close_router
 from routers.rokovi_lanac         import router as rokovi_lanac_router
 from routers.ugovor_zastupanja    import router as ugovor_zastupanja_router
+from routers.sef                  import router as sef_router
+from routers.cross_doc            import router as cross_doc_router
+from routers.client_portal        import router as client_portal_router
+from routers.saradnja             import router as saradnja_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -491,6 +495,10 @@ app.include_router(case_pipeline_router)
 app.include_router(predmeti_close_router)
 app.include_router(rokovi_lanac_router)
 app.include_router(ugovor_zastupanja_router)
+app.include_router(sef_router)
+app.include_router(cross_doc_router)
+app.include_router(client_portal_router)
+app.include_router(saradnja_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles

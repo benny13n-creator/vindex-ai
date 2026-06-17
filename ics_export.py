@@ -6,7 +6,7 @@ Generiše validan RFC 5545 .ics fajl sa VALARM podsetnicima.
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 
 def _esc(s: str) -> str:
@@ -48,7 +48,7 @@ def _vevent(naslov: str, datum: date, opis: str, dtstamp: str) -> list[str]:
 
 def generiši_ics_event(naslov: str, datum: date, opis: str = "") -> str:
     """Generiše .ics string za jedan event sa VALARM -7d i -1d."""
-    dtstamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -66,7 +66,7 @@ def generiši_ics_multi(eventi: list[dict]) -> str:
     Generiše jedan .ics fajl sa više VEVENT blokova.
     eventi = [{"naslov": str, "datum": date, "opis": str}, ...]
     """
-    dtstamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
