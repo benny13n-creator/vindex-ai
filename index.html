@@ -6662,6 +6662,7 @@ i[data-lucide] svg {
                     <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em;">Preporučena dokumentacija</div>
                     <ul id="intake-potrebni-docs-list" class="intake-docs-list" style="margin:0;padding-left:16px;"></ul>
                   </div>
+                  <div id="intake-conflict-warning" style="display:none;margin-top:10px;padding:.6rem .85rem;border-radius:8px;font-size:0.78rem;line-height:1.5;"></div>
                   <div id="intake-kreiraj-err" style="display:none;color:#ff9090;font-size:0.78rem;margin-top:8px;"></div>
                 </div>
                 <!-- Pipeline loading screen -->
@@ -14744,6 +14745,50 @@ async function _intakeKreiraj() {
 
   var nextBtn = document.getElementById('intake-btn-next');
   nextBtn.disabled = true;
+  nextBtn.textContent = 'Proveravam sukob interesa...';
+
+  // --- Conflict of interest check before creating ---
+  var _protivna = (document.getElementById('intake-f-protivna').value || '').trim();
+  var _conflictWarningEl = document.getElementById('intake-conflict-warning');
+  if (_conflictWarningEl) _conflictWarningEl.style.display = 'none';
+
+  try {
+    var _cfRes = await fetch(BASE_URL + '/api/intake/conflict-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({
+        novi_klijent_ime:   _iKlijentName || 'Klijent',
+        novi_klijent_firma: '',
+        protivna_strana:    _protivna,
+      })
+    });
+    if (_cfRes.ok) {
+      var _cfData = await _cfRes.json();
+      if (_cfData.conflict_detected) {
+        var _cfSeverity = _cfData.has_blocker ? 'BLOKIRAJUCI' : 'UPOZORENJE';
+        var _cfMsgs = (_cfData.conflicts || []).slice(0, 3).map(function(c){ return '• ' + _htmlEsc(c.opis); }).join('<br>');
+        var _cfColor = _cfData.has_blocker ? 'rgba(255,80,80,0.15)' : 'rgba(255,180,0,0.12)';
+        var _cfBorder = _cfData.has_blocker ? 'rgba(255,80,80,0.4)' : 'rgba(255,180,0,0.35)';
+        var _cfTextColor = _cfData.has_blocker ? '#ff6b6b' : '#ffd166';
+        var _cfIcon = _cfData.has_blocker ? '🚫' : '⚠️';
+        if (_conflictWarningEl) {
+          _conflictWarningEl.innerHTML = '<b>' + _cfIcon + ' Sukob interesa — ' + _cfSeverity + '</b><br>' + _cfMsgs + '<br><small style="opacity:0.8;">' + _htmlEsc(_cfData.preporuka) + '</small>';
+          _conflictWarningEl.style.background = _cfColor;
+          _conflictWarningEl.style.border = '1px solid ' + _cfBorder;
+          _conflictWarningEl.style.color = _cfTextColor;
+          _conflictWarningEl.style.display = 'block';
+        }
+        if (_cfData.has_blocker) {
+          nextBtn.disabled = false;
+          nextBtn.textContent = 'Kreiraj predmet';
+          return;
+        }
+        // Warning only — give user 2s to see it, then proceed
+        await new Promise(function(r){ setTimeout(r, 2000); });
+      }
+    }
+  } catch(_cfe) { /* Conflict check failure is non-blocking */ }
+
   nextBtn.textContent = 'Kreiranje...';
 
   var rokVal = (document.getElementById('intake-f-rok').value || '').trim();

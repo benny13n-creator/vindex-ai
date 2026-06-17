@@ -2,8 +2,9 @@
 """
 Vindex AI — routers/intake.py
 
-POST /api/intake/ekstrakcija  — GPT-4o-mini entity extraction
-POST /api/intake/kreiraj      — Create predmet + link klijent + add rok
+POST /api/intake/ekstrakcija      — GPT-4o-mini entity extraction
+POST /api/intake/kreiraj          — Create predmet + link klijent + add rok
+POST /api/intake/conflict-check   — Sukob interesa check (novi klijent + protivna strana)
 """
 from __future__ import annotations
 
@@ -11,6 +12,8 @@ import asyncio
 import json
 import logging
 import os
+import re
+import unicodedata
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -192,4 +195,222 @@ async def intake_kreiraj(
         "predmet_id": predmet_id,
         "predmet":    predmet,
         "rok_dodat":  rok_dodat,
+    }
+
+
+# ─── Conflict of Interest check ───────────────────────────────────────────────
+
+_OPPOSING_ROLES = frozenset({
+    "protivna_strana", "protivna_stranka", "tuzeni", "advokat_protivne",
+})
+_CLIENT_ROLES = frozenset({"stranka", "tuzilac"})
+
+
+def _norm(s: str) -> str:
+    """Lowercase, remove diacritics, collapse whitespace."""
+    s = unicodedata.normalize("NFD", s.lower())
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = re.sub(r"[^\w\s]", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _name_match(query: str, candidate: str) -> bool:
+    """Substring match in either direction (catches partial names)."""
+    if not query or not candidate:
+        return False
+    return query in candidate or candidate in query
+
+
+class ConflictCheckIntakeReq(BaseModel):
+    novi_klijent_ime:   str = Field(..., min_length=2, max_length=200)
+    novi_klijent_firma: str = Field(default="", max_length=300)
+    protivna_strana:    str = Field(default="", max_length=200)
+    pib:                str = Field(default="", max_length=15)
+
+
+@router.post("/api/intake/conflict-check")
+@limiter.limit("30/minute")
+async def intake_conflict_check(
+    body: ConflictCheckIntakeReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Provera sukoba interesa pre otvaranja predmeta.
+
+    Proverava tri scenarija:
+    1. `protivna_strana` je već vaš klijent → BLOKIRAJUCI
+    2. `novi_klijent_ime` je već na suprotnoj strani nekog vašeg predmeta → BLOKIRAJUCI
+    3. `novi_klijent_ime` već postoji kao klijent (duplikat) → UPOZORENJE
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    q_novi    = _norm(f"{body.novi_klijent_ime} {body.novi_klijent_firma}".strip())
+    q_novi_i  = _norm(body.novi_klijent_ime)
+    q_firma   = _norm(body.novi_klijent_firma) if body.novi_klijent_firma else ""
+    q_protiv  = _norm(body.protivna_strana) if body.protivna_strana else ""
+
+    conflicts: list[dict] = []
+
+    try:
+        # Fetch all active clients for this user
+        clients_res, predmeti_res = await asyncio.gather(
+            asyncio.to_thread(
+                lambda: supa.table("klijenti")
+                            .select("id, ime, prezime, firma, pib_encrypted")
+                            .eq("user_id", uid)
+                            .neq("status", "soft_deleted")
+                            .execute()
+            ),
+            asyncio.to_thread(
+                lambda: supa.table("predmeti")
+                            .select("id, naziv, tuzilac, tuzeni")
+                            .eq("user_id", uid)
+                            .execute()
+            ),
+            return_exceptions=True,
+        )
+
+        all_clients: list[dict] = [] if isinstance(clients_res, Exception) else (clients_res.data or [])
+        all_predmeti: list[dict] = [] if isinstance(predmeti_res, Exception) else (predmeti_res.data or [])
+
+        # For clients that match, fetch their predmet_klijenti roles in parallel
+        matched_client_ids: list[str] = []
+        client_names: dict[str, str] = {}
+        for c in all_clients:
+            c_name  = _norm(f"{c.get('ime', '')} {c.get('prezime', '')}".strip())
+            c_firma = _norm(c.get("firma") or "")
+            # Match against either query
+            if (
+                (q_protiv and (_name_match(q_protiv, c_name) or (q_firma and _name_match(q_protiv, c_firma)))) or
+                (q_novi_i and (_name_match(q_novi_i, c_name) or (q_firma and _name_match(q_firma, c_firma))))
+            ):
+                matched_client_ids.append(c["id"])
+                display = f"{c.get('ime', '')} {c.get('prezime', '')}".strip() or c.get("firma", "")
+                client_names[c["id"]] = display
+
+        # Fetch roles for matched clients
+        roles_by_client: dict[str, list[dict]] = {}
+        if matched_client_ids:
+            role_results = await asyncio.gather(*[
+                asyncio.to_thread(
+                    lambda cid=cid: supa.table("predmet_klijenti")
+                                        .select("predmet_id, uloga_klijenta")
+                                        .eq("klijent_id", cid)
+                                        .execute()
+                )
+                for cid in matched_client_ids
+            ], return_exceptions=True)
+
+            for cid, res in zip(matched_client_ids, role_results):
+                if not isinstance(res, Exception):
+                    roles_by_client[cid] = res.data or []
+
+        # Predmet index for names
+        predmet_names: dict[str, str] = {p["id"]: p.get("naziv", "") for p in all_predmeti}
+
+        # Evaluate each matched client
+        for cid in matched_client_ids:
+            c_data = next((c for c in all_clients if c["id"] == cid), {})
+            c_name_norm = _norm(f"{c_data.get('ime', '')} {c_data.get('prezime', '')}".strip())
+            c_firma_norm = _norm(c_data.get("firma") or "")
+            display_name = client_names.get(cid, "")
+            roles = roles_by_client.get(cid, [])
+
+            for pk in roles:
+                uloga = pk.get("uloga_klijenta", "")
+                pred_id = pk.get("predmet_id", "")
+                pred_naziv = predmet_names.get(pred_id, pred_id[:8] + "...")
+
+                # Scenario 1: protivna_strana matches a client you already represent
+                if q_protiv and (_name_match(q_protiv, c_name_norm) or (c_firma_norm and _name_match(q_protiv, c_firma_norm))):
+                    if uloga in _CLIENT_ROLES:
+                        conflicts.append({
+                            "tip":          "opposing_already_client",
+                            "severity":     "BLOKIRAJUCI",
+                            "opis":         f"'{body.protivna_strana}' je vaš postojeći klijent ('{display_name}', uloga: {uloga}) u predmetu '{pred_naziv}'.",
+                            "predmet_id":   pred_id,
+                            "predmet_naziv": pred_naziv,
+                            "klijent_id":   cid,
+                        })
+
+                # Scenario 2: novi klijent is already listed as opposing party
+                if q_novi_i and (_name_match(q_novi_i, c_name_norm) or (q_firma and c_firma_norm and _name_match(q_firma, c_firma_norm))):
+                    if uloga in _OPPOSING_ROLES:
+                        conflicts.append({
+                            "tip":          "client_is_opposing",
+                            "severity":     "BLOKIRAJUCI",
+                            "opis":         f"'{body.novi_klijent_ime}' se već pojavljuje kao suprotna strana ('{display_name}', uloga: {uloga}) u predmetu '{pred_naziv}'.",
+                            "predmet_id":   pred_id,
+                            "predmet_naziv": pred_naziv,
+                            "klijent_id":   cid,
+                        })
+                    elif uloga in _CLIENT_ROLES:
+                        conflicts.append({
+                            "tip":          "duplicate_client",
+                            "severity":     "UPOZORENJE",
+                            "opis":         f"Već postoji klijent sličnog imena: '{display_name}' (uloga: {uloga}) u predmetu '{pred_naziv}'.",
+                            "predmet_id":   pred_id,
+                            "predmet_naziv": pred_naziv,
+                            "klijent_id":   cid,
+                        })
+
+        # Scenario 3: check predmeti.tuzilac / tuzeni text fields against protivna_strana
+        if q_protiv:
+            for pred in all_predmeti:
+                tuzilac = _norm(pred.get("tuzilac") or "")
+                tuzeni  = _norm(pred.get("tuzeni") or "")
+                if _name_match(q_protiv, tuzilac) or _name_match(q_protiv, tuzeni):
+                    # Avoid duplicate if already caught via klijenti
+                    already_flagged = any(
+                        c["tip"] == "opposing_already_client" and c["predmet_id"] == pred["id"]
+                        for c in conflicts
+                    )
+                    if not already_flagged:
+                        which = "tužilac" if _name_match(q_protiv, tuzilac) else "tuženi"
+                        conflicts.append({
+                            "tip":          "opposing_in_predmet_text",
+                            "severity":     "UPOZORENJE",
+                            "opis":         f"'{body.protivna_strana}' se pojavljuje kao {which} u predmetu '{pred.get('naziv', '')}'. Proverite da li postoji sukob.",
+                            "predmet_id":   pred["id"],
+                            "predmet_naziv": pred.get("naziv", ""),
+                            "klijent_id":   None,
+                        })
+
+    except Exception as e:
+        logger.error("[CONFLICT-CHECK] uid=%.8s greška: %s", uid, e)
+
+    # Deduplicate by (tip, predmet_id, klijent_id)
+    seen: set[tuple] = set()
+    unique_conflicts: list[dict] = []
+    for c in conflicts:
+        key = (c["tip"], c.get("predmet_id", ""), c.get("klijent_id", ""))
+        if key not in seen:
+            seen.add(key)
+            unique_conflicts.append(c)
+
+    conflict_detected = len(unique_conflicts) > 0
+    has_blocker = any(c["severity"] == "BLOKIRAJUCI" for c in unique_conflicts)
+
+    if has_blocker:
+        preporuka = (
+            "Postoji BLOKIRAJUCI sukob interesa. Ne možete zastupati ovog klijenta "
+            "u predmetu gde je suprotna strana vaš postojeći klijent (čl. 42 Zakona o advokaturi)."
+        )
+    elif conflict_detected:
+        preporuka = (
+            "Detektovano je potencijalno upozorenje. Proverite da li postoji sukob interesa "
+            "pre otvaranja predmeta."
+        )
+    else:
+        preporuka = "Nije detektovan sukob interesa. Možete otvoriti predmet."
+
+    logger.info("[CONFLICT-CHECK] uid=%.8s konflikti=%d bloker=%s", uid, len(unique_conflicts), has_blocker)
+
+    return {
+        "conflict_detected": conflict_detected,
+        "has_blocker":       has_blocker,
+        "conflicts":         unique_conflicts[:20],
+        "preporuka":         preporuka,
     }
