@@ -6264,14 +6264,24 @@ i[data-lucide] svg {
                         stroke-dasharray="138.2" stroke-dashoffset="138.2"
                         stroke-linecap="round" transform="rotate(-90 26 26)" style="transition:stroke-dashoffset .6s ease,stroke .4s;"/>
                     </svg>
-                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#e2eeff;" id="pred-crs-num">0</div>
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#e2eeff;" id="pred-crs-num">—</div>
                   </div>
                   <div style="flex:1;min-width:0;">
                     <div style="font-size:.7rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;">Spremnost predmeta</div>
                     <div id="pred-crs-status" style="font-size:.82rem;font-weight:600;color:#89c8ff;margin-top:.1rem;">—</div>
                   </div>
+                  <button id="pred-crs-run-btn" onclick="pred_runPipeline()"
+                    style="flex-shrink:0;padding:.32rem .6rem;border:1px solid rgba(74,168,255,.3);border-radius:7px;
+                           background:rgba(74,168,255,.08);color:#89c8ff;font-size:.72rem;font-weight:600;
+                           cursor:pointer;white-space:nowrap;" title="Pokreni AI analizu predmeta">
+                    ↻ Analiziraj
+                  </button>
                 </div>
                 <div id="pred-crs-checklist" style="margin-top:.6rem;display:flex;flex-wrap:wrap;gap:.35rem .6rem;"></div>
+                <div id="pred-crs-copilot" style="display:none;margin-top:.6rem;padding:.45rem .6rem;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.12);border-radius:7px;font-size:.74rem;color:rgba(255,255,255,.65);line-height:1.5;">
+                  <span style="font-size:.65rem;font-weight:700;color:#00d4ff;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.2rem;">Copilot preporuka</span>
+                  <span id="pred-crs-copilot-txt"></span>
+                </div>
               </div>
               <div class="pred-section-lbl">Beleške</div>
               <div id="pred-beleske-list"></div>
@@ -13843,28 +13853,32 @@ function pred_renderCockpit(cockpit, urgentni) {
   }
 }
 
-function pred_renderCaseReadyScore(score, checklist) {
+function pred_renderCaseReadyScore(score, checklist, copilotPreporuka) {
   var wrap = document.getElementById('pred-crs-wrap');
   if (!wrap) return;
   var s = (typeof score === 'number' && score >= 0) ? score : 0;
-  wrap.style.display = s > 0 ? 'block' : 'none';
-  if (s === 0) return;
+  wrap.style.display = 'block'; // always show; button allows triggering pipeline
 
   var numEl = document.getElementById('pred-crs-num');
-  if (numEl) numEl.textContent = s;
+  if (numEl) numEl.textContent = s > 0 ? s : '—';
 
   var arc = document.getElementById('pred-crs-arc');
   if (arc) {
     var circ = 138.2;
-    var offset = circ - (circ * s / 100);
+    var offset = s > 0 ? circ - (circ * s / 100) : circ;
     arc.style.strokeDashoffset = offset;
-    arc.style.stroke = s >= 70 ? '#7de0a0' : (s >= 40 ? '#ffbb70' : '#ff9090');
+    arc.style.stroke = s >= 70 ? '#7de0a0' : (s >= 40 ? '#ffbb70' : s > 0 ? '#ff9090' : 'rgba(255,255,255,.15)');
   }
 
   var stEl = document.getElementById('pred-crs-status');
   if (stEl) {
-    stEl.textContent = s >= 70 ? 'Predmet spreman za rad' : (s >= 40 ? 'Predmet delimično spreman' : 'Predmet zahteva dopunu');
-    stEl.style.color = s >= 70 ? '#7de0a0' : (s >= 40 ? '#ffbb70' : '#ff9090');
+    if (s === 0) {
+      stEl.textContent = 'Analiza nije pokrenuta';
+      stEl.style.color = 'rgba(255,255,255,0.3)';
+    } else {
+      stEl.textContent = s >= 70 ? 'Predmet spreman za rad' : (s >= 40 ? 'Predmet delimično spreman' : 'Predmet zahteva dopunu');
+      stEl.style.color = s >= 70 ? '#7de0a0' : (s >= 40 ? '#ffbb70' : '#ff9090');
+    }
   }
 
   var clEl = document.getElementById('pred-crs-checklist');
@@ -13875,8 +13889,40 @@ function pred_renderCaseReadyScore(score, checklist) {
       var color = done ? 'rgba(125,224,160,.75)' : 'rgba(255,255,255,.28)';
       var icon  = done ? '✓' : '○';
       return '<span style="font-size:.7rem;color:'+color+';display:inline-flex;align-items:center;gap:.22rem;">'
-           + '<span>'+icon+'</span><span>'+escHtml(it.label||it.naziv||'')+'</span></span>';
+           + '<span>'+icon+'</span><span>'+escHtml(it.stavka||it.label||it.naziv||'')+'</span></span>';
     }).join('');
+  }
+
+  // Copilot preporuka (populated after pipeline run)
+  var cpWrap = document.getElementById('pred-crs-copilot');
+  var cpTxt  = document.getElementById('pred-crs-copilot-txt');
+  if (copilotPreporuka && cpWrap && cpTxt) {
+    cpTxt.textContent = copilotPreporuka;
+    cpWrap.style.display = '';
+  }
+}
+
+async function pred_runPipeline() {
+  if (!activePredmetId || !currentSession) return;
+  var btn = document.getElementById('pred-crs-run-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Analiziram...'; }
+
+  try {
+    var r = await fetch(BASE_URL + '/api/predmeti/' + encodeURIComponent(activePredmetId) + '/pipeline', {
+      method:  'POST',
+      headers: {'Authorization': 'Bearer ' + currentSession.access_token},
+    });
+    var d = await r.json();
+    if (!r.ok) {
+      showToast(d.detail || 'Greška pri analizi.', 'error');
+      return;
+    }
+    pred_renderCaseReadyScore(d.case_ready_score, d.checklist, d.copilot_preporuka);
+    showToast('Analiza završena! Score: ' + d.case_ready_score, 'success');
+    if (btn) { btn.textContent = '✓ Ažurirano'; btn.style.color = '#7de0a0'; btn.style.borderColor = 'rgba(125,224,160,.3)'; }
+  } catch(e) {
+    showToast('Greška pri analizi predmeta.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Analiziraj'; }
   }
 }
 
@@ -14624,7 +14670,7 @@ async function pred_loadDetail(id) {
     pred_renderCockpit(d.cockpit || {}, (d.rokovi && d.rokovi.urgentni) || []);
 
     // Case Ready Score
-    pred_renderCaseReadyScore(d.case_ready_score, d.checklist);
+    pred_renderCaseReadyScore(d.case_ready_score, d.checklist, d.copilot_preporuka);
 
     pred_loadHronologija(id);
     ucitajKomentare(id);
