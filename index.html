@@ -5987,10 +5987,11 @@ i[data-lucide] svg {
                 <div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#ff9090;margin-bottom:0.45rem;font-weight:700;">⚠ Hitni predmeti</div>
                 <div id="portfolio-hitni-list"></div>
               </div>
-              <div id="portfolio-rokovi" style="display:none;border:1px solid rgba(255,187,112,.18);border-radius:8px;background:rgba(255,187,112,.04);padding:0.6rem 0.75rem;">
-                <div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#ffbb70;margin-bottom:0.45rem;font-weight:700;">📅 Rokovi ove nedelje</div>
+              <div id="portfolio-rokovi" style="display:none;border:1px solid rgba(255,187,112,.18);border-radius:8px;background:rgba(255,187,112,.04);padding:0.6rem 0.75rem;margin-bottom:0.4rem;">
+                <div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#ffbb70;margin-bottom:0.45rem;font-weight:700;">📅 Rokovi narednih 7 dana</div>
                 <div id="portfolio-rokovi-list"></div>
               </div>
+              <div id="portfolio-summary" style="font-size:0.67rem;color:rgba(255,255,255,0.35);padding:0.1rem 0;"></div>
             </div>
             <div class="t-guide">
               <div class="t-guide-icon"><i data-lucide="briefcase" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
@@ -13631,7 +13632,7 @@ async function pred_confirmLinks(klijentItems, rokData) {
 async function portfolio_load() {
   if (!currentSession) return;
   try {
-    var r = await fetch(BASE_URL+'/api/portfolio', { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
+    var r = await fetch(BASE_URL+'/portfolio/dashboard', { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
     if (!r.ok) return;
     var d = await r.json();
     portfolio_render(d);
@@ -13641,15 +13642,21 @@ async function portfolio_load() {
 function portfolio_render(d) {
   var strip = document.getElementById('portfolio-strip');
   if (!strip) return;
-  var kpi  = d.kpi || {};
+
+  var aktivan    = d.ukupno_aktivnih    || 0;
+  var rokovi7n   = (d.rokovi_7_dana     || []).length;
+  var hitniN     = (d.hitni_rokovi      || []).length;
+  var neaktivniN = (d.neaktivni_30_dana || []).length;
+  var zatvoren   = (d.po_statusu && d.po_statusu.zatvoren) || 0;
+
   var _kpiDefs = [
-    {label:'Aktivni',    val: kpi.aktivni||0,          color:'#89c8ff'},
-    {label:'Visok rizik',val: kpi.visok_rizik||0,       color: kpi.visok_rizik>0?'#ff9090':'rgba(255,255,255,.4)'},
-    {label:'Rokovi 7d',  val: kpi.rokovi_7_dana||0,     color: kpi.rokovi_7_dana>0?'#ffbb70':'rgba(255,255,255,.4)'},
-    {label:'Neaktivni',  val: kpi.neaktivni_30_dana||0, color: kpi.neaktivni_30_dana>0?'#c0a0ff':'rgba(255,255,255,.4)'},
-    {label:'Bez klijenta',val:kpi.bez_klijenta||0,      color: kpi.bez_klijenta>0?'#ffbb70':'rgba(255,255,255,.4)'},
-    {label:'Zatvoreni',  val: kpi.zatvoreni||0,         color:'rgba(255,255,255,.3)'},
+    {label:'Aktivni',   val: aktivan,    color:'#89c8ff'},
+    {label:'Hitni rokovi', val: hitniN,  color: hitniN>0?'#ff9090':'rgba(255,255,255,.4)'},
+    {label:'Rokovi 7d', val: rokovi7n,   color: rokovi7n>0?'#ffbb70':'rgba(255,255,255,.4)'},
+    {label:'Neaktivni', val: neaktivniN, color: neaktivniN>0?'#c0a0ff':'rgba(255,255,255,.4)'},
+    {label:'Zatvoreni', val: zatvoren,   color:'rgba(255,255,255,.3)'},
   ];
+
   var kpiEl = document.getElementById('portfolio-kpi');
   if (kpiEl) {
     kpiEl.innerHTML = _kpiDefs.map(function(k){
@@ -13659,34 +13666,42 @@ function portfolio_render(d) {
         +'</div>';
     }).join('');
   }
-  // Hitni predmeti
-  var hitni = d.hitni_predmeti || [];
-  var hitniEl = document.getElementById('portfolio-hitni');
+
+  // Hitni rokovi (kritičan vaznost, u 7 dana)
+  var hitni    = d.hitni_rokovi || [];
+  var hitniEl  = document.getElementById('portfolio-hitni');
   var hitniListEl = document.getElementById('portfolio-hitni-list');
   if (hitni.length > 0 && hitniEl && hitniListEl) {
     hitniEl.style.display = 'block';
-    hitniListEl.innerHTML = hitni.map(function(p){
-      var rColor = {visok:'#ff9090',srednji:'#ffbb70',nizak:'#7de0a0'}[p.rizik_nivo]||'rgba(255,255,255,.5)';
-      return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.22rem 0;cursor:pointer;" onclick="pred_select(\''+p.id+'\')">'
-        +'<span style="font-size:0.75rem;color:#fff;flex:1;">'+escHtml(p.naziv)+'</span>'
-        +(p.rizik_nivo?'<span style="font-size:0.58rem;color:'+rColor+';font-weight:700;">'+p.rizik_nivo+'</span>':'')
-        +(p.urgentni_rokovi>0?'<span style="font-size:0.58rem;color:#ffbb70;">⏰'+p.urgentni_rokovi+'</span>':'')
+    hitniListEl.innerHTML = hitni.map(function(h){
+      return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.22rem 0;cursor:pointer;" onclick="pred_select(\''+h.predmet_id+'\')">'
+        +'<span style="font-size:0.75rem;color:#fff;flex:1;">'+escHtml(h.predmet_naziv||h.dogadjaj)+'</span>'
+        +'<span style="font-size:0.6rem;color:#ff9090;font-weight:700;flex-shrink:0;">'+h.datum_iso+'</span>'
         +'</div>';
     }).join('');
   }
-  // Rokovi ove nedelje
-  var rokovi = d.rokovi_ove_nedelje || [];
-  var rokEl  = document.getElementById('portfolio-rokovi');
+
+  // Rokovi sledećih 7 dana
+  var rokovi    = d.rokovi_7_dana || [];
+  var rokEl     = document.getElementById('portfolio-rokovi');
   var rokListEl = document.getElementById('portfolio-rokovi-list');
   if (rokovi.length > 0 && rokEl && rokListEl) {
     rokEl.style.display = 'block';
     rokListEl.innerHTML = rokovi.map(function(h){
       return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.2rem 0;font-size:0.73rem;color:rgba(255,255,255,.8);">'
-        +'<span style="color:#ffbb70;flex-shrink:0;">'+h.datum_iso+'</span>'
-        +'<span style="flex:1;">'+escHtml(h.dogadjaj||'Rok')+'</span>'
+        +'<span style="color:#ffbb70;flex-shrink:0;font-family:monospace;">'+h.datum_iso+'</span>'
+        +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(h.dogadjaj||'Rok')+'</span>'
+        +(h.predmet_naziv?'<span style="font-size:0.62rem;color:rgba(255,255,255,.35);flex-shrink:0;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(h.predmet_naziv)+'</span>':'')
         +'</div>';
     }).join('');
   }
+
+  // Summary
+  if (d.summary) {
+    var sumEl = document.getElementById('portfolio-summary');
+    if (sumEl) sumEl.textContent = d.summary;
+  }
+
   strip.style.display = 'block';
 }
 
