@@ -471,6 +471,7 @@ from routers.oblasti              import router as oblasti_router
 from routers.batch_ingest         import router as batch_ingest_router
 from routers.integracije          import router as integracije_router
 from routers.recurring            import router as recurring_router
+from routers.search               import router as search_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -507,6 +508,7 @@ app.include_router(oblasti_router)
 app.include_router(batch_ingest_router)
 app.include_router(integracije_router)
 app.include_router(recurring_router)
+app.include_router(search_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
