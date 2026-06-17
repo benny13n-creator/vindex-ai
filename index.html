@@ -662,8 +662,8 @@ footer { padding: 2rem 1.5rem; }
 .nav-credit-pill.warn .cp-num { color: #f0b429; }
 .nav-credit-pill.empty { border-color: rgba(255,100,100,0.3); }
 .nav-credit-pill.empty .cp-num { color: #ff6b6b; }
-.nav-logout { font-size: 0.7rem; color: rgba(255,255,255,0.28); background: none; border: 1px solid rgba(255,255,255,0.09); border-radius: 6px; padding: 0.28rem 0.7rem; cursor: pointer; transition: all 0.2s; }
-.nav-logout:hover { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
+.nav-logout { font-size: 0.7rem; color: rgba(255,255,255,0.55); background: none; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 0.28rem 0.7rem; cursor: pointer; transition: all 0.2s; }
+.nav-logout:hover { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.25); }
 .t-credits-row { display: flex; align-items: center; justify-content: space-between; margin-top: 0.55rem; padding: 0.35rem 0.5rem; background: rgba(74,168,255,0.03); border-radius: 7px; border: 1px solid rgba(74,168,255,0.08); }
 .t-credits-lbl { font-family: 'JetBrains Mono',monospace; font-size: 0.54rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.28); }
 .t-credits-val { font-family: 'JetBrains Mono',monospace; font-size: 0.54rem; color: #4aa8ff; font-weight: 500; }
@@ -681,7 +681,7 @@ footer { padding: 2rem 1.5rem; }
 .paywall-features li::before { content: '¹3'; color: #4aa8ff; font-size: 0.68rem; flex-shrink: 0; }
 
 /* ── New Chat dugme ─────────────────────────────────────────────────────── */
-.t-newchat { background:none; border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:rgba(255,255,255,0.32); font-family:var(--font-ui); font-size:0.6rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; padding:0.22rem 0.55rem; cursor:none; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
+.t-newchat { background:none; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:rgba(255,255,255,0.60); font-family:var(--font-ui); font-size:0.6rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; padding:0.22rem 0.55rem; cursor:pointer; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
 .t-newchat:hover { border-color:rgba(74,168,255,0.45); color:#89c8ff; background:rgba(74,168,255,0.06); }
 /* ── Chat history panel ──────────────────────────────────────────────────── */
 .chat-hist { display:none; max-height:200px; overflow-y:auto; margin-bottom:1rem; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:0.55rem 0.7rem; background:rgba(0,0,0,0.18); scrollbar-width:thin; scrollbar-color:rgba(74,168,255,0.2) transparent; }
@@ -2356,7 +2356,7 @@ footer { padding: 2rem 1.5rem; }
   border-left: none !important;
   border-bottom: none !important;
   background: transparent !important;
-  color: rgba(255,255,255,0.3) !important;
+  color: rgba(255,255,255,0.58) !important;
   cursor: pointer !important;
   transition: background var(--t-fast), color var(--t-fast) !important;
   position: relative !important;
@@ -2369,7 +2369,7 @@ footer { padding: 2rem 1.5rem; }
   font-size: 1rem !important;
   line-height: 1;
   display: block;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.60);
   transition: color var(--t-fast);
 }
 .t-tab::after {
@@ -2963,7 +2963,7 @@ body {
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  color: var(--tx-3) !important;
+  color: rgba(255,255,255,0.55) !important;
   font-size: 0.95rem !important;
   font-weight: 400 !important;
   line-height: 1 !important;
@@ -3098,14 +3098,14 @@ body {
   background: var(--blue-lo);
 }
 .vx-search-icon {
-  color: var(--tx-3);
+  color: rgba(255,255,255,0.50);
   font-size: 0.8rem;
   flex-shrink: 0;
   line-height: 1;
 }
 .vx-search-ph {
   font-size: 0.65rem;
-  color: var(--tx-3);
+  color: rgba(255,255,255,0.50);
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -3158,7 +3158,7 @@ body {
 }
 .nav-user-email {
   font-size: 0.6rem;
-  color: var(--tx-3);
+  color: rgba(255,255,255,0.52);
   max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3167,12 +3167,12 @@ body {
 }
 .nav-credit-pill {
   font-size: 0.58rem;
-  color: var(--tx-3);
+  color: rgba(255,255,255,0.52);
   font-family: var(--font-mono);
   background: var(--s1);
   padding: 2px 7px;
   border-radius: var(--r-xl);
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--bd-2);
 }
 .cp-num { color: var(--blue); }
 
@@ -3184,15 +3184,15 @@ body {
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--bd-2);
   border-radius: var(--r-sm);
-  color: var(--tx-3);
+  color: rgba(255,255,255,0.55);
   font-size: 0.85rem;
   cursor: pointer;
   transition: border-color var(--t-fast), color var(--t-fast);
   flex-shrink: 0;
 }
-.vx-topbar-settings:hover { border-color: var(--bd-2); color: var(--tx-2); }
+.vx-topbar-settings:hover { border-color: var(--bd-3); color: var(--tx-1); }
 
 /* 7. PANELS CONTAINER ───────────────────────────────────────────── */
 .vx-panels-wrap {
