@@ -11617,6 +11617,14 @@ window.addEventListener('DOMContentLoaded', function() {
   if (hash.indexOf('type=recovery') !== -1) {
     openModal();
     setAuthMode('reset');
+  } else if (hash === '#register') {
+    openModal();
+    setAuthMode('register');
+    history.replaceState(null, '', '/app');
+  } else if (hash === '#login') {
+    openModal();
+    setAuthMode('login');
+    history.replaceState(null, '', '/app');
   }
 
   // .terminal ima backdrop-filter:blur(20px) koja kreira containing block za position:fixed,
