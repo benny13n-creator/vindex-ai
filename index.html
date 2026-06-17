@@ -5882,8 +5882,7 @@ i[data-lucide] svg {
           <i data-lucide="calendar-clock" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Rokovi</span>
         </div>
-        <div class="t-tab" id="tab-btn-notif" onclick="showToast('Dolazi uskoro','info')">
-          <!-- TODO: otvori notifikacije panel kada bude implementiran -->
+        <div class="t-tab" id="tab-btn-notif" onclick="notif_toggleDropdown()">
           <i data-lucide="bell" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Notifikacije</span>
         </div>
@@ -8202,6 +8201,7 @@ async function dash_load(){
     if(window.lucide)lucide.createIcons();
     kcConstellationInit();
     _kcStartClock();
+    notif_load();
   }catch(e){
     body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
@@ -13887,28 +13887,41 @@ function notif_render() {
   }
 
   if (!dropdown) return;
-  var _TIP_LABEL = {rok_blizu:'📅 Rok', rizik_promena:'⚠ Rizik', bez_klijenta:'👤 Klijent'};
-  var _PRIO_COLOR= {visoka:'#ff9090', srednja:'#ffbb70', niska:'rgba(255,255,255,.4)'};
+  var _TIP_LABEL = {
+    rok_blizu:'📅 Rok', hitan_rok:'⚠ Hitan rok', rok:'📅 Rok',
+    rizik_promena:'⚠ Rizik', bez_klijenta:'👤 Klijent', neaktivnost:'💤 Neaktivnost'
+  };
+  var _PRIO_COLOR = {
+    visoka:'#ff9090', hitan:'#ff9090',
+    srednja:'#ffbb70', normalan:'#ffbb70',
+    niska:'rgba(255,255,255,.4)', info:'rgba(255,255,255,.4)'
+  };
+
+  var unreadCount = _notifData.filter(function(n){ return !_notifRead.has(n.id); }).length;
+  var hdr = '<div style="padding:0.45rem 1rem 0.3rem;display:flex;justify-content:space-between;align-items:center;">'
+    +'<span style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);">Obaveštenja'+(unreadCount?' ('+unreadCount+')':'')+'</span>'
+    +'<div style="display:flex;gap:0.5rem;">'
+    +'<button onclick="notif_load()" title="Osveži" style="background:none;border:none;font-size:0.62rem;color:rgba(255,255,255,.35);cursor:pointer;padding:0;">↻</button>'
+    +(unreadCount?'<button onclick="notif_markAllRead()" style="background:none;border:none;font-size:0.62rem;color:#4aa8ff;cursor:pointer;padding:0;">Označi sve</button>':'')
+    +'</div></div>';
 
   if (!_notifData.length) {
-    dropdown.innerHTML = '<div style="padding:0.8rem 1rem;font-size:0.75rem;color:rgba(255,255,255,.35);text-align:center;">Nema novih obaveštenja.</div>';
+    dropdown.innerHTML = hdr+'<div style="padding:0.8rem 1rem;font-size:0.75rem;color:rgba(255,255,255,.35);text-align:center;">Nema obaveštenja.</div>';
     return;
   }
-  dropdown.innerHTML = '<div style="padding:0.45rem 1rem 0.3rem;display:flex;justify-content:space-between;align-items:center;">'
-    +'<span style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);">Obaveštenja</span>'
-    +'<button onclick="notif_markAllRead()" style="background:none;border:none;font-size:0.62rem;color:#4aa8ff;cursor:pointer;padding:0;">Označi sve</button>'
-    +'</div>'
+  dropdown.innerHTML = hdr
     + _notifData.map(function(n){
       var isRead = _notifRead.has(n.id);
       var pColor = _PRIO_COLOR[n.prioritet]||'rgba(255,255,255,.4)';
-      var tipLbl = _TIP_LABEL[n.tip]||'ℹ Info';
-      return '<div onclick="notif_click(this,\''+n.id+'\',\''+n.predmet_id+'\')" style="padding:0.5rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.05);opacity:'+(isRead?'0.45':'1')+';" onmouseover="this.style.background=\'rgba(74,168,255,.06)\'" onmouseout="this.style.background=\'none\'">'
+      var tipLbl = n.naslov || _TIP_LABEL[n.tip] || 'ℹ Info';
+      var bodyTxt = n.naslov ? n.poruka : n.poruka;
+      return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')" style="padding:0.5rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.05);opacity:'+(isRead?'0.45':'1')+';" onmouseover="this.style.background=\'rgba(74,168,255,.06)\'" onmouseout="this.style.background=\'none\'">'
         +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.18rem;">'
-        +'<span style="font-size:0.62rem;color:'+pColor+';font-weight:700;">'+tipLbl+'</span>'
-        +'<span style="font-size:0.6rem;color:rgba(255,255,255,.28);margin-left:auto;">'+n.datum+'</span>'
+        +'<span style="font-size:0.62rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
+        +'<span style="font-size:0.6rem;color:rgba(255,255,255,.28);margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
         +'</div>'
-        +'<div style="font-size:0.75rem;color:#fff;margin-bottom:0.1rem;">'+escHtml(n.poruka)+'</div>'
-        +'<div style="font-size:0.65rem;color:rgba(255,255,255,.4);">'+escHtml(n.predmet_naziv||'')+'</div>'
+        +'<div style="font-size:0.72rem;color:rgba(255,255,255,.82);margin-bottom:0.1rem;">'+escHtml(bodyTxt)+'</div>'
+        +(n.predmet_naziv?'<div style="font-size:0.6rem;color:rgba(255,255,255,.38);">'+escHtml(n.predmet_naziv)+'</div>':'')
         +'</div>';
     }).join('');
 }
@@ -13946,12 +13959,17 @@ function notif_markAllRead() {
 
 // Close dropdown on outside click
 document.addEventListener('click', function(e) {
-  var bell = document.getElementById('notif-bell');
-  var dd   = document.getElementById('notif-dropdown');
-  if (bell && dd && !bell.contains(e.target) && !dd.contains(e.target)) {
-    dd.style.display = 'none';
+  var bell     = document.getElementById('notif-bell');
+  var bellTab  = document.getElementById('tab-btn-notif');
+  var dd       = document.getElementById('notif-dropdown');
+  if (dd && dd.style.display !== 'none') {
+    var inBell = (bell && bell.contains(e.target)) || (bellTab && bellTab.contains(e.target));
+    if (!inBell && !dd.contains(e.target)) dd.style.display = 'none';
   }
 });
+
+// Auto-refresh every 15 minutes
+setInterval(function() { if (currentSession) notif_load(); }, 15 * 60 * 1000);
 
 // ── Copilot Agent Chat ────────────────────────────────────────────────────────
 
