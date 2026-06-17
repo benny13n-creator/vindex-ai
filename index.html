@@ -5194,6 +5194,51 @@ i[data-lucide] svg {
 .kc-panel-badge { display: none; }
 .kc-panel-cta { display: none; }
 
+/* ── Phase 13 — Komandni centar Inbox ── */
+.kc-inbox-section {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(239,68,68,0.18);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-top: 10px;
+}
+.kc-inbox-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.kc-inbox-tag {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+.kc-inbox-tag-red    { background: rgba(239,68,68,0.15);  color: #f87171; }
+.kc-inbox-tag-orange { background: rgba(251,146,60,0.15); color: #fb923c; }
+.kc-inbox-rows { display: flex; flex-direction: column; }
+.kc-inbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.kc-inbox-row:last-child { border-bottom: none; }
+.kc-inbox-row:hover { opacity: 0.78; }
+.kc-inbox-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.kc-inbox-dot-red    { background: #ef4444; }
+.kc-inbox-dot-orange { background: #fb923c; }
+.kc-inbox-ico  { font-size: 0.82rem; flex-shrink: 0; width: 18px; text-align: center; }
+.kc-inbox-info { flex: 1; min-width: 0; }
+.kc-inbox-naslov { font-size: 0.72rem; color: rgba(255,255,255,0.82); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kc-inbox-sub    { font-size: 0.6rem; color: rgba(255,255,255,0.32); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.kc-inbox-datum  { font-family: var(--font-mono); font-size: 0.58rem; color: rgba(255,255,255,0.22); flex-shrink: 0; }
+
 /* Lucide icon in topbar */
 .vx-topbar-ico {
   width: 16px;
@@ -8144,14 +8189,16 @@ async function dash_load(){
   body.innerHTML='<div class="kc-loading">Učitavam...</div>';
   try{
     var hdr={'Authorization':'Bearer '+currentSession.access_token};
-    var [r,br]=await Promise.all([
+    var [r,br,inR]=await Promise.all([
       fetch(BASE_URL+'/api/dashboard/command-center',{headers:hdr}),
-      fetch(BASE_URL+'/billing/pregled',{headers:hdr}).catch(function(){return null;})
+      fetch(BASE_URL+'/billing/pregled',{headers:hdr}).catch(function(){return null;}),
+      fetch(BASE_URL+'/api/inbox',{headers:hdr}).catch(function(){return null;})
     ]);
     if(!r.ok)throw new Error('HTTP '+r.status);
     var d=await r.json();
     var bd=br&&br.ok?await br.json():null;
-    body.innerHTML=_dashRender(d,bd);
+    var inboxData=inR&&inR.ok?await inR.json():null;
+    body.innerHTML=_dashRender(d,bd,inboxData);
     if(window.lucide)lucide.createIcons();
     kcConstellationInit();
     _kcStartClock();
@@ -8174,7 +8221,7 @@ function _kcStartClock() {
 }
 
 function _fmtRSD(v){var n=Math.round(v||0);if(n>=1000000)return(n/1000000).toFixed(1)+'M';if(n>=1000)return(n/1000).toFixed(0)+'k';return String(n);}
-function _dashRender(d,bd){
+function _dashRender(d,bd,inboxData){
   var today=new Date().toISOString().slice(0,10);
   var p2=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
   var html='';
@@ -8521,7 +8568,7 @@ function _kcPanelAktivnosti(d) {
 }
 
 /* ── FAZA 1.8 — Komandni centar: Sphere-inside + greeting + 4-col */
-_dashRender = function(d, bd) {
+_dashRender = function(d, bd, inboxData) {
   var aktivni  = d.ukupno_aktivnih || 0;
   var hitniRok = (d.hitni_rokovi||[]).length;
   var noviDok  = (d.statistike && d.statistike.novi_dokumenti != null)
@@ -8596,6 +8643,40 @@ _dashRender = function(d, bd) {
   html += _kcPanelPreporuke(d);
   html += _kcPanelAktivnosti(d);
   html += '</div>';
+
+  /* ── 5. INBOX — Prioritetne stavke (kriticno + visok) ─────────── */
+  if (inboxData) {
+    var _hitne = (inboxData.stavke || []).filter(function(i) {
+      return i.prioritet === 'kriticno' || i.prioritet === 'visok';
+    }).slice(0, 6);
+    if (_hitne.length) {
+      var _tipIco = {rociste:'⚖',rok:'⏰',dokument:'📄',naplata:'💰',neaktivan:'💤'};
+      var _kriticnoN = inboxData.kriticno || 0;
+      var _visokN    = inboxData.visok    || 0;
+      html += '<div class="kc-inbox-section">';
+      html += '<div class="kc-inbox-hd">';
+      html += '<span class="kc-panel-title">'+_kcIco('inbox')+'Inbox — Prioritetne stavke</span>';
+      html += '<div style="display:flex;gap:6px;align-items:center;">';
+      if (_kriticnoN) html += '<span class="kc-inbox-tag kc-inbox-tag-red">'+_kriticnoN+' kritično</span>';
+      if (_visokN)    html += '<span class="kc-inbox-tag kc-inbox-tag-orange">'+_visokN+' visok</span>';
+      html += '</div></div>';
+      html += '<div class="kc-inbox-rows">';
+      _hitne.forEach(function(item) {
+        var ico    = _tipIco[item.tip] || '•';
+        var dotCls = item.prioritet === 'kriticno' ? 'kc-inbox-dot-red' : 'kc-inbox-dot-orange';
+        html += '<div class="kc-inbox-row" onclick="_dashGoToPredmet(\''+escHtml(item.predmet_id)+'\')">';
+        html += '<div class="kc-inbox-dot '+dotCls+'"></div>';
+        html += '<div class="kc-inbox-ico">'+ico+'</div>';
+        html += '<div class="kc-inbox-info">';
+        html += '<div class="kc-inbox-naslov">'+escHtml(item.naslov)+'</div>';
+        html += '<div class="kc-inbox-sub">'+escHtml(item.predmet_naziv||'—')+'</div>';
+        html += '</div>';
+        html += '<div class="kc-inbox-datum">'+escHtml((item.datum||'').slice(5))+'</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    }
+  }
 
   return html;
 };
