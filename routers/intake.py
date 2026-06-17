@@ -414,3 +414,215 @@ async def intake_conflict_check(
         "conflicts":         unique_conflicts[:20],
         "preporuka":         preporuka,
     }
+
+
+# ─── Phase 6.2 — Template predmeti ───────────────────────────────────────────
+
+_TEMPLATES: list[dict] = [
+    {
+        "id":    "tpl-gradjansko-steta",
+        "naziv": "Tužba za naknadu štete",
+        "tip":   "gradjansko",
+        "opis_template": "Predmet za naknadu materijalne i nematerijalne štete. Stranka traži naknadu za pretrpljenu štetu.",
+        "vrsta_spora": "naknada štete",
+        "potrebni_dokumenti": ["Zapisnik o uviđaju", "Medicinska dokumentacija", "Veštačenje štete", "Polica osiguranja"],
+        "hronologija_predlozi": [
+            {"dogadjaj": "Prijem predmeta i analiza dokumentacije", "vaznost": "kritičan"},
+            {"dogadjaj": "Podnošenje tužbe sudu",                   "vaznost": "kritičan"},
+            {"dogadjaj": "Odgovor na tužbu protivne strane",        "vaznost": "važan"},
+        ],
+        "tarifa_preporuka": "T01",
+    },
+    {
+        "id":    "tpl-radno-otkaz",
+        "naziv": "Radni spor — osporavanje otkaza",
+        "tip":   "radno",
+        "opis_template": "Predmet za poništaj rešenja o otkazu ugovora o radu. Rok za tužbu je 60 dana od dostavljanja rešenja.",
+        "vrsta_spora": "radni spor",
+        "potrebni_dokumenti": ["Rešenje o otkazu", "Ugovor o radu", "Evidencija radnog vremena", "Plate i obračuni"],
+        "hronologija_predlozi": [
+            {"dogadjaj": "Prijem rešenja o otkazu",               "vaznost": "kritičan"},
+            {"dogadjaj": "Podnošenje tužbe (rok: 60 dana)",       "vaznost": "kritičan"},
+            {"dogadjaj": "Predlog za vraćanje na rad",             "vaznost": "važan"},
+        ],
+        "tarifa_preporuka": "T01",
+    },
+    {
+        "id":    "tpl-porodicno-razvod",
+        "naziv": "Razvod braka i deoба imovine",
+        "tip":   "porodicno",
+        "opis_template": "Predmet za sporazumni ili tužbeni razvod braka, sa pitanjem starateljstva i podele zajedničke imovine.",
+        "vrsta_spora": "porodično pravo",
+        "potrebni_dokumenti": ["Izvod iz matične knjige venčanih", "Izvod iz matične knjige rođenih (deca)", "Imovinska izjava", "Dokazi o zajedničkoj imovini"],
+        "hronologija_predlozi": [
+            {"dogadjaj": "Podnošenje tužbe/predloga za razvod",    "vaznost": "kritičan"},
+            {"dogadjaj": "Ročište o starateljstvu",                 "vaznost": "kritičan"},
+            {"dogadjaj": "Presuda o razvodu",                       "vaznost": "važan"},
+        ],
+        "tarifa_preporuka": "T27",
+    },
+    {
+        "id":    "tpl-krivicno-odbrana",
+        "naziv": "Krivična odbrana",
+        "tip":   "krivicno",
+        "opis_template": "Predmet krivične odbrane okrivljenog. Obuhvata prisustvo saslušanju, žalbu na rešenje o pritvoru i odbranu na glavnom pretresu.",
+        "vrsta_spora": "krivično",
+        "potrebni_dokumenti": ["Krivična prijava", "Rešenje o pritvoru (ako postoji)", "Optužnica", "Dokazi odbrane"],
+        "hronologija_predlozi": [
+            {"dogadjaj": "Prisustvo prvom saslušanju",               "vaznost": "kritičan"},
+            {"dogadjaj": "Uvid u spis predmeta",                     "vaznost": "kritičan"},
+            {"dogadjaj": "Priprema odbrane za glavni pretres",        "vaznost": "važan"},
+        ],
+        "tarifa_preporuka": "T12",
+    },
+    {
+        "id":    "tpl-privredno-ugovor",
+        "naziv": "Privredno — spor iz ugovora",
+        "tip":   "privredno",
+        "opis_template": "Predmet privrednog spora po osnovu neispunjenja ili raskida ugovora između privrednih subjekata.",
+        "vrsta_spora": "ugovorni spor",
+        "potrebni_dokumenti": ["Ugovor", "Fakture i otpremnice", "Prepiska stranaka", "Izvod iz APR-a"],
+        "hronologija_predlozi": [
+            {"dogadjaj": "Slanje opomene pred utuženje",              "vaznost": "važan"},
+            {"dogadjaj": "Podnošenje tužbe privrednom sudu",          "vaznost": "kritičan"},
+            {"dogadjaj": "Predlog za privremenu meru obezbeđenja",    "vaznost": "važan"},
+        ],
+        "tarifa_preporuka": "T02",
+    },
+    {
+        "id":    "tpl-upravno-zalba",
+        "naziv": "Upravna žalba / tužba",
+        "tip":   "upravno",
+        "opis_template": "Predmet po osnovu žalbe na upravni akt ili tužbe Upravnom sudu. Rok za žalbu je 15 dana, za upravni spor 30 dana.",
+        "vrsta_spora": "ostalo",
+        "potrebni_dokumenti": ["Prvostepeno rešenje", "Žalba (ako postoji)", "Dokazna dokumentacija", "Potvrda o dostavljanju"],
+        "hronologija_predlozi": [
+            {"dogadjaj": "Prijem prvostepenog rešenja",               "vaznost": "kritičan"},
+            {"dogadjaj": "Podnošenje žalbe (rok: 15 dana)",           "vaznost": "kritičan"},
+            {"dogadjaj": "Tužba Upravnom sudu (rok: 30 dana)",        "vaznost": "važan"},
+        ],
+        "tarifa_preporuka": "T29",
+    },
+    {
+        "id":    "tpl-izvrsenje",
+        "naziv": "Izvršni postupak",
+        "tip":   "izvrsenje",
+        "opis_template": "Predmet za prinudno izvršenje pravosnažne sudske odluke ili izvršne isprave.",
+        "vrsta_spora": "naknada štete",
+        "potrebni_dokumenti": ["Izvršna isprava (presuda/rešenje)", "Potvrda pravosnažnosti", "Dokaz o dugu", "Podaci o dužniku"],
+        "hronologija_predlozi": [
+            {"dogadjaj": "Predlog za izvršenje",                      "vaznost": "kritičan"},
+            {"dogadjaj": "Rešenje o izvršenju",                       "vaznost": "važan"},
+            {"dogadjaj": "Sprovođenje izvršenja",                     "vaznost": "informativan"},
+        ],
+        "tarifa_preporuka": "T14",
+    },
+]
+
+
+class FromTemplateReq(BaseModel):
+    template_id: str  = Field(..., min_length=3, max_length=100)
+    naziv:       str  = Field(..., min_length=1, max_length=200)
+    klijent_id:  Optional[str] = Field(default=None)
+    opis_extra:  Optional[str] = Field(default=None, max_length=2000)
+
+
+@router.get("/api/intake/templates")
+async def get_intake_templates(user: dict = Depends(get_current_user)):
+    """Phase 6.2 — Lista predefinisanih template predmeta."""
+    return {
+        "templates": [
+            {
+                "id":                  t["id"],
+                "naziv":               t["naziv"],
+                "tip":                 t["tip"],
+                "vrsta_spora":         t["vrsta_spora"],
+                "potrebni_dokumenti":  t["potrebni_dokumenti"],
+                "tarifa_preporuka":    t["tarifa_preporuka"],
+            }
+            for t in _TEMPLATES
+        ],
+        "total": len(_TEMPLATES),
+    }
+
+
+@router.post("/api/intake/from-template", status_code=201)
+@limiter.limit("20/minute")
+async def post_from_template(
+    request: Request,
+    body: FromTemplateReq,
+    user: dict = Depends(get_current_user),
+):
+    """Phase 6.2 — Kreira predmet iz template-a sa predefinisanom hronologijom."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    tpl = next((t for t in _TEMPLATES if t["id"] == body.template_id), None)
+    if not tpl:
+        raise HTTPException(status_code=404, detail=f"Template '{body.template_id}' nije pronađen.")
+
+    opis_final = tpl["opis_template"]
+    if body.opis_extra:
+        opis_final = f"{opis_final}\n\n{body.opis_extra}"
+
+    # Kreiraj predmet
+    pred_res = await asyncio.to_thread(
+        lambda: supa.table("predmeti").insert({
+            "user_id": uid,
+            "naziv":   body.naziv,
+            "opis":    opis_final,
+            "tip":     tpl["tip"],
+            "status":  "aktivan",
+        }).execute()
+    )
+    if not pred_res.data:
+        raise HTTPException(status_code=500, detail="Greška pri kreiranju predmeta.")
+
+    predmet = pred_res.data[0]
+    predmet_id = predmet["id"]
+
+    # Poveži klijenta ako je naveden
+    if body.klijent_id:
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("predmet_klijenti").insert({
+                    "predmet_id": predmet_id,
+                    "klijent_id": body.klijent_id,
+                    "user_id":    uid,
+                    "uloga":      "stranka",
+                }).execute()
+            )
+        except Exception:
+            pass  # non-blocking
+
+    # Dodaj predefinisanu hronologiju
+    hron_rows = [
+        {
+            "predmet_id": predmet_id,
+            "user_id":    uid,
+            "dogadjaj":   h["dogadjaj"],
+            "vaznost":    h["vaznost"],
+        }
+        for h in tpl.get("hronologija_predlozi", [])
+    ]
+    if hron_rows:
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("predmet_hronologija").insert(hron_rows).execute()
+            )
+        except Exception:
+            pass  # non-blocking
+
+    logger.info("[INTAKE-TEMPLATE] uid=%.8s template=%s predmet=%s",
+                uid, body.template_id, predmet_id)
+
+    return {
+        "predmet_id":          predmet_id,
+        "naziv":               body.naziv,
+        "tip":                 tpl["tip"],
+        "template_id":         body.template_id,
+        "potrebni_dokumenti":  tpl["potrebni_dokumenti"],
+        "hronologija_kreirana": len(hron_rows),
+        "tarifa_preporuka":    tpl["tarifa_preporuka"],
+        "status":              "kreiran",
+    }

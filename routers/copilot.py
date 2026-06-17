@@ -51,6 +51,8 @@ POVEZI_KLIJENTA — korisnik želi da poveže, doda ili veže klijenta, stranku,
 ROKOVI — korisnik pita o rokovima, zastarelosti, kalendarskim terminima (pitanje, ne akcija)
 PRETRAGA — korisnik traži određenu osobu, predmet ili dokument u sistemu
 PREDLOZI — korisnik pita šta treba da uradi sledeće, koji su prioriteti, šta mu nedostaje, pregled zadataka
+NAPLATI_RADNJU — korisnik želi da naplati, obračuna, upiše radnju, sate, honorar, tarifa stavku
+PRIKAŽI_TARIFU — korisnik pita koliko košta neka pravna radnja, tarifa, bodovi, cena, honorar AKS
 OSTALO — ništa od navedenog
 
 Vrati SAMO jednu reč, ništa više."""
@@ -59,8 +61,42 @@ _INTENT_CHOICES = {
     "PRAVNO_PITANJE", "SUDSKA_PRAKSA", "NACRT",
     "ANALIZA_PREDMETA", "PLAN",
     "DODAJ_ROK", "KREIRAJ_BELEŠKU", "POVEZI_KLIJENTA",
-    "ROKOVI", "PRETRAGA", "PREDLOZI", "OSTALO",
+    "ROKOVI", "PRETRAGA", "PREDLOZI",
+    "NAPLATI_RADNJU", "PRIKAŽI_TARIFU",
+    "OSTALO",
 }
+
+async def _oai_parse_json(system_prompt: str, user_content: str) -> str:
+    """Patchable wrapper za GPT-4o-mini JSON parse pozive."""
+    from openai import AsyncOpenAI
+    oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    r = await oai.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": user_content[:500]},
+        ],
+        temperature=0,
+        max_tokens=150,
+        response_format={"type": "json_object"},
+    )
+    return r.choices[0].message.content or "{}"
+
+
+_NAPLATA_PARSE_SYSTEM = """Iz korisničke poruke izvuci podatke za fakturisanje i vrati SAMO validan JSON.
+Polja:
+{
+  "sati": <broj ili null — broj sati rada ako je naveden>,
+  "tarifa_sifra": <"T01"–"T30" ili null — AKS šifra ako se prepoznaje>,
+  "opis": <string — kratak opis radnje>,
+  "iznos_rsd": <integer ili null — ako je korisnik naveo eksplicitan iznos u RSD/din>
+}
+Primeri mapiranja:
+"naplati 2h konsultacija" → {"sati":2,"tarifa_sifra":"T17","opis":"Konsultacije","iznos_rsd":null}
+"upiši tužbu" → {"sati":null,"tarifa_sifra":"T01","opis":"Tužba za novčano potraživanje","iznos_rsd":null}
+"naplati 15000 din za ročište" → {"sati":null,"tarifa_sifra":"T10","opis":"Zastupanje na ročištu","iznos_rsd":15000}
+"1.5 sat savetovanje" → {"sati":1.5,"tarifa_sifra":"T17","opis":"Usmena konsultacija","iznos_rsd":null}
+Ako opis nije jasan stavi "Pravna radnja". Vrati SAMO JSON, bez objašnjenja."""
 
 
 class CopilotReq(BaseModel):
@@ -691,6 +727,138 @@ async def _handle_ostalo(poruka: str, predmet_ctx: str) -> dict:
         return {"tip": "OSTALO", "odgovor": "Molim precizite pitanje."}
 
 
+async def _handle_naplati_radnju(poruka: str, predmet_id: str | None, uid: str) -> dict:
+    """Billing Faza 2 — parsira poruku i kreira billing_entry u Supabase."""
+    import json as _json
+
+    try:
+        raw    = await _oai_parse_json(_NAPLATA_PARSE_SYSTEM, poruka)
+        parsed = _json.loads(raw)
+    except Exception as e:
+        logger.warning("[COPILOT-NAPLATA] parse greška: %s", e)
+        parsed = {}
+
+    sati        = parsed.get("sati")
+    tarifa_sifra= parsed.get("tarifa_sifra")
+    opis        = parsed.get("opis") or "Pravna radnja"
+    iznos_rsd   = parsed.get("iznos_rsd")
+
+    # Izračunaj iznos
+    from routers.billing import AKS_TARIFA
+    _BOD_RSD = 50
+
+    if iznos_rsd:
+        iznos_final = int(iznos_rsd)
+        tip = "manual"
+    elif tarifa_sifra and tarifa_sifra in AKS_TARIFA:
+        stavka = AKS_TARIFA[tarifa_sifra]
+        if stavka.get("fiksno_rsd"):
+            iznos_final = stavka["fiksno_rsd"]
+            if sati:
+                iznos_final = int(stavka["fiksno_rsd"] * sati)
+        else:
+            iznos_final = int((stavka.get("bodovi") or 6) * _BOD_RSD)
+        tip = "tarifa"
+        opis = stavka["naziv"] if not parsed.get("opis") else opis
+    elif sati:
+        iznos_final = int(sati * 7500)
+        tip = "satnica"
+        tarifa_sifra = "T30"
+    else:
+        return {
+            "tip":     "NAPLATI_RADNJU",
+            "odgovor": "Nisam razumeo šta treba naplatiti. Recite npr: 'naplati 2h konsultacija' ili 'upiši tužbu'.",
+            "status":  "nije_kreirana",
+        }
+
+    supa = _get_supa()
+    entry = {
+        "user_id":      uid,
+        "opis":         opis[:500],
+        "tip":          tip,
+        "iznos_rsd":    iznos_final,
+        "obracunato":   False,
+    }
+    if predmet_id:
+        entry["predmet_id"] = predmet_id
+    if tarifa_sifra:
+        entry["tarifa_sifra"] = tarifa_sifra
+    if sati:
+        entry["sati"] = float(sati)
+
+    try:
+        res = await asyncio.to_thread(
+            lambda: supa.table("billing_entries").insert(entry).execute()
+        )
+        kreirana_id = (res.data[0].get("id") if res.data else None)
+    except Exception as e:
+        logger.error("[COPILOT-NAPLATA] DB greška: %s", e)
+        raise HTTPException(status_code=500, detail="Greška pri čuvanju radnje.")
+
+    sati_prikaz = f" ({sati}h)" if sati else ""
+    return {
+        "tip":        "NAPLATI_RADNJU",
+        "odgovor":    f"✅ Upisana radnja: **{opis}**{sati_prikaz} — **{iznos_final:,} RSD**.",
+        "status":     "kreirana",
+        "entry_id":   kreirana_id,
+        "iznos_rsd":  iznos_final,
+        "opis":       opis,
+        "tarifa_sifra": tarifa_sifra,
+    }
+
+
+async def _handle_prikazi_tarifu(poruka: str) -> dict:
+    """Billing Faza 2 — prikazuje relevantne AKS tarifa stavke za datu radnju."""
+    from routers.billing import AKS_TARIFA
+    _BOD_RSD = 50
+
+    # Keyword match na AKS_TARIFA
+    poruka_lower = poruka.lower()
+    matches = []
+    for sifra, stavka in AKS_TARIFA.items():
+        naziv_lower = stavka["naziv"].lower()
+        # Check key words overlap
+        words = [w for w in poruka_lower.split() if len(w) > 3]
+        if any(w in naziv_lower for w in words):
+            if stavka.get("fiksno_rsd"):
+                rsd = stavka["fiksno_rsd"]
+                prikaz = f"{rsd:,} RSD/sat"
+            else:
+                bodovi = stavka.get("bodovi") or 0
+                rsd = bodovi * _BOD_RSD
+                prikaz = f"{bodovi} bodova = {rsd:,} RSD"
+            matches.append({
+                "sifra":  sifra,
+                "naziv":  stavka["naziv"],
+                "iznos":  prikaz,
+                "rsd":    rsd,
+            })
+
+    if not matches:
+        # Vrati sve ako nema match-a
+        matches = [
+            {
+                "sifra": s,
+                "naziv": v["naziv"],
+                "iznos": (f"{v['fiksno_rsd']:,} RSD/sat"
+                          if v.get("fiksno_rsd")
+                          else f"{v.get('bodovi', 0) * _BOD_RSD:,} RSD"),
+                "rsd": v.get("fiksno_rsd") or (v.get("bodovi", 0) * _BOD_RSD),
+            }
+            for s, v in AKS_TARIFA.items()
+        ]
+        odgovor = f"AKS tarifa — {len(matches)} stavki (1 bod = {_BOD_RSD} RSD):"
+    else:
+        odgovor = f"Pronašao sam {len(matches)} relevantnih AKS stavki:"
+
+    return {
+        "tip":      "PRIKAŽI_TARIFU",
+        "odgovor":  odgovor,
+        "stavke":   matches[:10],
+        "napomena": "Tarifa po AKS (Sl. gl. RS 56/2025) — 1 bod = 50 RSD.",
+    }
+
+
 @router.post("/copilot/chat")
 @limiter.limit("30/minute")
 async def copilot_chat(
@@ -724,6 +892,8 @@ async def copilot_chat(
         "ROKOVI":           lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
         "PRETRAGA":         lambda: _handle_pretraga(req.poruka, uid),
         "PREDLOZI":         lambda: _handle_predlozi(req.predmet_id, uid),
+        "NAPLATI_RADNJU":   lambda: _handle_naplati_radnju(req.poruka, req.predmet_id, uid),
+        "PRIKAŽI_TARIFU":   lambda: _handle_prikazi_tarifu(req.poruka),
         "OSTALO":           lambda: _handle_ostalo(req.poruka, predmet_ctx),
     }
 

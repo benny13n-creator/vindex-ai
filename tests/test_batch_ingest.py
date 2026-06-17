@@ -81,7 +81,7 @@ _DEFAULT_JOB = {
 @pytest.fixture(autouse=True)
 def _clear_overrides():
     yield
-    api.app.dependency_overrides.clear()
+    api.app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.fixture
