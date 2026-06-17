@@ -4,8 +4,10 @@ Vindex AI — routers/export.py
 
 F6.1: DOCX export
 F6.3: API ključevi + v1/query eksterni API
+Phase 5.3: PDF export predmeta
 """
 import asyncio
+import re as _re
 import secrets as _secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -140,3 +142,79 @@ async def post_v1_query(request: Request):
         "upit":    upit,
         "napomena": "v1 API beta — odgovor dostupan u sledećoj verziji.",
     }
+
+
+# ─── Phase 5.3 — PDF export predmeta ─────────────────────────────────────────
+
+def _generiši_pdf(predmet, dokumenti, beleske, hronologija) -> bytes:
+    from predmet_pdf import generiši_predmet_pdf
+    return generiši_predmet_pdf(predmet, dokumenti, beleske, hronologija)
+
+
+@router.get("/api/predmeti/{predmet_id}/pdf-export")  # Phase 5.3
+async def get_predmet_pdf_export(predmet_id: str, user: dict = Depends(get_current_user)):
+    """Phase 5.3 — Generisanje PDF izveštaja za predmet (sve sekcije)."""
+    supa = _get_supa()
+    uid  = user["user_id"]
+
+    predmet_res = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+                     .select("*")
+                     .eq("id", predmet_id)
+                     .eq("user_id", uid)
+                     .single()
+                     .execute()
+    )
+    if not predmet_res.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+
+    predmet = predmet_res.data
+
+    docs_res, beleske_res, hron_res = await asyncio.gather(
+        asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti")
+                         .select("naziv_fajla, status, velicina_kb, created_at")
+                         .eq("predmet_id", predmet_id)
+                         .eq("user_id", uid)
+                         .order("created_at")
+                         .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_beleske")
+                         .select("sadrzaj, created_at")
+                         .eq("predmet_id", predmet_id)
+                         .eq("user_id", uid)
+                         .order("created_at")
+                         .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija")
+                         .select("dogadjaj, akter, datum, datum_iso, vaznost")
+                         .eq("predmet_id", predmet_id)
+                         .eq("user_id", uid)
+                         .order("datum_iso", desc=False)
+                         .execute()
+        ),
+    )
+
+    try:
+        pdf_bytes = await asyncio.to_thread(
+            _generiši_pdf,
+            predmet,
+            docs_res.data or [],
+            beleske_res.data or [],
+            hron_res.data or [],
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Greška pri generisanju PDF-a: {exc}")
+
+    _SRLATMAP  = str.maketrans("žšćčđŽŠĆČĐ", "zsccdZSCCD")
+    raw_naziv  = (predmet.get("naziv") or "predmet").translate(_SRLATMAP)
+    safe_naziv = _re.sub(r"[^a-zA-Z0-9\-_]", "_", raw_naziv)[:50]
+    filename   = f"vindex_predmet_{safe_naziv}.pdf"
+
+    return _Resp(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
