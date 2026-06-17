@@ -6187,6 +6187,15 @@ i[data-lucide] svg {
                 </div>
               </div>
 
+              <!-- ── Timer bar ───────────────────────────────────────── -->
+              <div id="pred-timer-bar" style="display:none;align-items:center;gap:0.5rem;padding:0.3rem 0.5rem;margin-bottom:0.35rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);border-radius:8px;">
+                <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;">Tajmer</span>
+                <span id="pred-timer-display" style="font-family:'JetBrains Mono',monospace;font-size:0.88rem;font-weight:700;color:#00d4ff;letter-spacing:.05em;flex:1;">00:00:00</span>
+                <button id="pred-timer-start-btn" onclick="timer_start()" style="padding:.22rem .6rem;border:1px solid rgba(0,212,255,0.35);border-radius:6px;background:rgba(0,212,255,0.1);color:#00d4ff;font-size:.7rem;font-weight:700;cursor:pointer;">▶ Start</button>
+                <button id="pred-timer-stop-btn" onclick="timer_stop()" style="display:none;padding:.22rem .6rem;border:1px solid rgba(248,113,113,0.4);border-radius:6px;background:rgba(248,113,113,0.1);color:#f87171;font-size:.7rem;font-weight:700;cursor:pointer;">■ Stop + Sačuvaj</button>
+                <button onclick="timer_discard()" style="padding:.22rem .45rem;border:none;background:transparent;color:rgba(255,255,255,0.25);font-size:.7rem;cursor:pointer;" title="Odbaci">✕</button>
+              </div>
+
               <!-- ── Subtab Navigation ────────────────────────────────── -->
               <div class="pred-subtab-nav">
                 <button class="pred-subtab-btn active" onclick="pred_subtabSwitch('pregled',this)">Pregled</button>
@@ -6286,10 +6295,14 @@ i[data-lucide] svg {
               </div>
               <div class="pred-section-lbl">Beleške</div>
               <div id="pred-beleske-list"></div>
-              <div style="display:flex;gap:0.4rem;margin-top:0.4rem;">
-                <textarea id="pred-beleska-input" class="t-input" placeholder="Nova beleška..." style="flex:1;height:52px;"></textarea>
-                <button onclick="pred_dodajBelesku()" style="padding:0 0.85rem;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;">Dodaj</button>
+              <div style="display:flex;gap:0.4rem;margin-top:0.4rem;align-items:flex-end;">
+                <div style="flex:1;position:relative;">
+                  <textarea id="pred-beleska-input" class="t-input" placeholder="Nova beleška..." style="width:100%;height:52px;box-sizing:border-box;padding-right:2.4rem;"></textarea>
+                  <button class="mic-btn" id="mic-pred-beleska-input" type="button" onclick="micToggle('pred-beleska-input')" title="Glasovni unos" style="position:absolute;right:6px;bottom:6px;width:28px;height:28px;min-width:28px;min-height:28px;padding:0;"><i class="fa-solid fa-microphone" style="font-size:0.7rem;"></i></button>
+                </div>
+                <button onclick="pred_dodajBelesku()" style="flex-shrink:0;padding:0 0.85rem;height:52px;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;">Dodaj</button>
               </div>
+              <div class="mic-status" id="mic-status-pred-beleska-input"><span class="mic-status-dot"></span><span>Snimam...</span></div>
               <!-- Zatvori predmet akcija -->
               <div id="pred-zatvori-section" style="margin-top:1.1rem;padding:.75rem .9rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;">
                 <div id="pred-ishod-display" style="display:none;margin-bottom:.5rem;"></div>
@@ -6413,9 +6426,13 @@ i[data-lucide] svg {
                     <div style="font-size:0.73rem;color:rgba(255,255,255,0.45);margin-bottom:0.55rem;">
                       Odaberi 2–5 dokumenata (čekbox) i postavi pravno pitanje.
                     </div>
-                    <textarea id="crossdoc-pitanje" class="t-input" rows="2"
-                      placeholder="npr. Da li postoje kontradikcije između ovih dokumenata?"
-                      style="width:100%;box-sizing:border-box;resize:vertical;font-size:0.78rem;"></textarea>
+                    <div style="position:relative;">
+                      <textarea id="crossdoc-pitanje" class="t-input" rows="2"
+                        placeholder="npr. Da li postoje kontradikcije između ovih dokumenata?"
+                        style="width:100%;box-sizing:border-box;resize:vertical;font-size:0.78rem;padding-right:2.4rem;"></textarea>
+                      <button class="mic-btn" id="mic-crossdoc-pitanje" type="button" onclick="micToggle('crossdoc-pitanje')" title="Glasovni unos" style="position:absolute;right:6px;bottom:6px;width:28px;height:28px;min-width:28px;min-height:28px;padding:0;"><i class="fa-solid fa-microphone" style="font-size:0.7rem;"></i></button>
+                    </div>
+                    <div class="mic-status" id="mic-status-crossdoc-pitanje"><span class="mic-status-dot"></span><span>Snimam...</span></div>
                     <button onclick="crossdoc_analiziraj()"
                       style="margin-top:0.55rem;width:100%;padding:0.6rem;border:none;border-radius:8px;
                              background:linear-gradient(135deg,#0099cc,#00d4ff);color:#000;
@@ -6436,7 +6453,11 @@ i[data-lucide] svg {
                 <div id="pred-procena-result" style="margin-top:0.3rem;"></div>
                 <details style="margin-top:0.5rem;">
                   <summary style="font-size:0.72rem;color:rgba(255,255,255,0.3);cursor:pointer;list-style:none;padding:0.3rem 0;">▸ Ručni unos činjenica</summary>
-                  <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;margin-top:0.4rem;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                  <div style="position:relative;margin-top:0.4rem;">
+                    <textarea id="pred-cinjenice" class="t-input" placeholder="Opišite činjenice predmeta za pravnu procenu..." style="height:68px;width:100%;box-sizing:border-box;padding-right:2.4rem;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                    <button class="mic-btn" id="mic-pred-cinjenice" type="button" onclick="micToggle('pred-cinjenice')" title="Glasovni unos" style="position:absolute;right:6px;bottom:6px;width:28px;height:28px;min-width:28px;min-height:28px;padding:0;"><i class="fa-solid fa-microphone" style="font-size:0.7rem;"></i></button>
+                  </div>
+                  <div class="mic-status" id="mic-status-pred-cinjenice"><span class="mic-status-dot"></span><span>Snimam...</span></div>
                   <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">Analiziraj predmet</button>
                 </details>
                 <div class="pred-section-lbl" style="margin-top:1rem;">AI alati u kontekstu predmeta</div>
@@ -6599,10 +6620,14 @@ i[data-lucide] svg {
                 <div class="pred-section-lbl">Copilot</div>
                 <div id="pred-copilot-messages" style="max-height:220px;overflow-y:auto;margin-bottom:0.5rem;display:flex;flex-direction:column;gap:0.35rem;"></div>
                 <div style="display:flex;gap:0.4rem;align-items:flex-end;">
-                  <textarea id="pred-copilot-input" class="t-input" placeholder="Napiši pitanje ili komandu… npr. Dodaj rok — ročište 20. jula" style="height:44px;flex:1;resize:none;font-size:0.78rem;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){pred_copilotSubmit();}"></textarea>
-                  <button onclick="pred_copilotSubmit()" style="padding:0.5rem 0.75rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.28);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;">Pošalji</button>
+                  <div style="flex:1;position:relative;">
+                    <textarea id="pred-copilot-input" class="t-input" placeholder="Napiši pitanje ili komandu… npr. Dodaj rok — ročište 20. jula" style="height:44px;width:100%;box-sizing:border-box;resize:none;font-size:0.78rem;padding-right:2.4rem;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){pred_copilotSubmit();}"></textarea>
+                    <button class="mic-btn" id="mic-pred-copilot-input" type="button" onclick="micToggle('pred-copilot-input')" title="Glasovni unos" style="position:absolute;right:6px;bottom:6px;width:28px;height:28px;min-width:28px;min-height:28px;padding:0;"><i class="fa-solid fa-microphone" style="font-size:0.7rem;"></i></button>
+                  </div>
+                  <button onclick="pred_copilotSubmit()" style="flex-shrink:0;padding:0.5rem 0.75rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.28);border-radius:8px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;">Pošalji</button>
                 </div>
                 <div style="font-size:0.6rem;color:rgba(255,255,255,.22);margin-top:0.25rem;">Ctrl+Enter za slanje</div>
+                <div class="mic-status" id="mic-status-pred-copilot-input"><span class="mic-status-dot"></span><span>Snimam...</span></div>
                 <div class="pred-section-lbl" style="margin-top:14px;">Istorija razgovora</div>
                 <div id="pred-istorija-list"></div>
                 <div class="pred-section-lbl" style="margin-top:14px;">Komentari tima</div>
@@ -9074,7 +9099,28 @@ function setTab(el,t){
   if (credRow) credRow.style.display = _noExec[t] ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
   if (t==='pi') piLoad();
-  if (t==='n') { updatePodnesakHint(); ucitajPlaybookStatus(); }
+  if (t==='n') {
+    updatePodnesakHint();
+    ucitajPlaybookStatus();
+    // Auto-fill podnesak-opis from active predmet workspace snapshot
+    var opisPodnesakEl = document.getElementById('podnesak-opis');
+    if (opisPodnesakEl && !opisPodnesakEl.value && window._predFull) {
+      var pf = window._predFull;
+      var parts = [];
+      if (pf.stranke && pf.stranke.length > 0) {
+        var kl = pf.stranke[0];
+        var kName = ((kl.ime||'') + ' ' + (kl.prezime||'')).trim() || kl.firma || '';
+        if (kName) parts.push('Tužilac/Stranka: ' + kName);
+      }
+      if (pf.protivna_strana && pf.protivna_strana.length > 0) {
+        var ps = pf.protivna_strana[0];
+        var psName = ((ps.ime||'') + ' ' + (ps.prezime||'')).trim() || ps.firma || '';
+        if (psName) parts.push('Protivna strana: ' + psName);
+      }
+      if (pf.predmet && pf.predmet.naziv) parts.push('Predmet: ' + pf.predmet.naziv);
+      if (parts.length) opisPodnesakEl.value = parts.join('\n') + '\n';
+    }
+  }
   if (t==='q' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
   if (t==='s') praksa_load_initial();
   if (t==='p') pred_load();
@@ -14076,6 +14122,105 @@ async function saradnja_ukloni(saradnikUid, predmetId, btn) {
   }
 }
 
+// ── Pred-hub quick timer (localStorage-based, posts to /billing/entries) ──────
+var _timerInterval = null;
+
+function timer_showBar() {
+  var bar = document.getElementById('pred-timer-bar');
+  if (bar) bar.style.display = 'flex';
+}
+
+function timer_start() {
+  if (!activePredmetId || !currentSession) return;
+  var key = 'vx_timer_' + activePredmetId;
+  // resume if already running (e.g. page reload)
+  var existing = JSON.parse(localStorage.getItem(key) || 'null');
+  if (!existing) {
+    localStorage.setItem(key, JSON.stringify({start: Date.now()}));
+  }
+  var startBtn = document.getElementById('pred-timer-start-btn');
+  var stopBtn  = document.getElementById('pred-timer-stop-btn');
+  if (startBtn) startBtn.style.display = 'none';
+  if (stopBtn)  stopBtn.style.display  = '';
+  if (_timerInterval) clearInterval(_timerInterval);
+  _timerInterval = setInterval(timer_tick, 1000);
+  timer_tick();
+}
+
+function timer_tick() {
+  if (!activePredmetId) return;
+  var key  = 'vx_timer_' + activePredmetId;
+  var data = JSON.parse(localStorage.getItem(key) || 'null');
+  if (!data || !data.start) return;
+  var elapsed = Math.floor((Date.now() - data.start) / 1000);
+  var h = Math.floor(elapsed / 3600);
+  var m = Math.floor((elapsed % 3600) / 60);
+  var s = elapsed % 60;
+  var el = document.getElementById('pred-timer-display');
+  if (el) el.textContent = (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+}
+
+async function timer_stop() {
+  if (!activePredmetId || !currentSession) return;
+  var key  = 'vx_timer_' + activePredmetId;
+  var data = JSON.parse(localStorage.getItem(key) || 'null');
+  if (!data || !data.start) { timer_discard(); return; }
+
+  var elapsed_s = Math.floor((Date.now() - data.start) / 1000);
+  var elapsed_h = parseFloat((elapsed_s / 3600).toFixed(4));
+
+  if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+  localStorage.removeItem(key);
+
+  var startBtn = document.getElementById('pred-timer-start-btn');
+  var stopBtn  = document.getElementById('pred-timer-stop-btn');
+  var dispEl   = document.getElementById('pred-timer-display');
+  if (stopBtn)  stopBtn.style.display  = 'none';
+  if (startBtn) startBtn.style.display = '';
+  if (dispEl)   dispEl.textContent     = '00:00:00';
+
+  if (elapsed_h < 0.0028) { // < ~10 sec — ignoriši
+    showToast('Tajmer resetovan (trajanje prekratko).', 'info');
+    return;
+  }
+
+  var hStr = elapsed_h < 1 ? Math.round(elapsed_h * 60) + ' min' : elapsed_h.toFixed(2) + ' h';
+
+  try {
+    var r = await fetch(BASE_URL + '/billing/entries', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify({
+        predmet_id: activePredmetId,
+        opis: 'Rad na predmetu (tajmer)',
+        tip: 'zastupanje',
+        trajanje_h: elapsed_h
+      })
+    });
+    if (r.ok) {
+      showToast('Tajmer zaustavljen — ' + hStr + '. Radnja dodata u naplatu.', 'ok');
+    } else {
+      var d = await r.json();
+      showToast(d.detail || 'Tajmer zatvoren, greška pri čuvanju.', 'err');
+    }
+  } catch(e) {
+    showToast('Greška veze — radnja nije sačuvana.', 'err');
+  }
+}
+
+function timer_discard() {
+  if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+  if (activePredmetId) localStorage.removeItem('vx_timer_' + activePredmetId);
+  var startBtn = document.getElementById('pred-timer-start-btn');
+  var stopBtn  = document.getElementById('pred-timer-stop-btn');
+  var dispEl   = document.getElementById('pred-timer-display');
+  var bar      = document.getElementById('pred-timer-bar');
+  if (stopBtn)  stopBtn.style.display  = 'none';
+  if (startBtn) startBtn.style.display = '';
+  if (dispEl)   dispEl.textContent     = '00:00:00';
+  if (bar)      bar.style.display      = 'none';
+}
+
 function pred_renderConfirmCard(predlozi, metadata) {
   var klijentItems = (predlozi || []).slice(0,3).map(function(p, i){
     var pct   = p.pouzdanost || 0;
@@ -14718,6 +14863,24 @@ async function pred_loadDetail(id) {
     var r = await fetch(BASE_URL+'/api/predmeti/'+id+'/workspace', { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
     if (!r.ok) { if (loadEl) loadEl.style.display='none'; return; }
     var d = await r.json();
+    window._predFull = d; // globalni snapshot za auto-fill generatora
+
+    // Timer bar: show and auto-resume if a timer was running for this predmet
+    timer_showBar();
+    (function() {
+      var key = 'vx_timer_' + id;
+      var running = JSON.parse(localStorage.getItem(key) || 'null');
+      if (running && running.start) {
+        // Resume display without re-setting start
+        var startBtn = document.getElementById('pred-timer-start-btn');
+        var stopBtn  = document.getElementById('pred-timer-stop-btn');
+        if (startBtn) startBtn.style.display = 'none';
+        if (stopBtn)  stopBtn.style.display  = '';
+        if (_timerInterval) clearInterval(_timerInterval);
+        _timerInterval = setInterval(timer_tick, 1000);
+        timer_tick();
+      }
+    })();
 
     // Badge
     var badge = document.getElementById('pred-detail-badge');
@@ -16125,6 +16288,20 @@ function ugovor_openModal() {
   // Pre-fill predmet opis from active predmet name
   var opisEl = document.getElementById('uz-predmet-opis');
   if (opisEl && !opisEl.value && activePredmetNaziv) opisEl.value = activePredmetNaziv;
+
+  // Pre-fill klijent fields from active predmet workspace snapshot
+  var predFull = window._predFull;
+  if (predFull && predFull.stranke && predFull.stranke.length > 0) {
+    var k = predFull.stranke[0];
+    var kImeEl   = document.getElementById('uz-klijent-ime');
+    var kFirmaEl = document.getElementById('uz-klijent-firma');
+    if (kImeEl && !kImeEl.value) {
+      var fullName = ((k.ime || '') + ' ' + (k.prezime || '')).trim();
+      if (fullName) kImeEl.value = fullName;
+      else if (k.firma) kImeEl.value = k.firma;
+    }
+    if (kFirmaEl && !kFirmaEl.value && k.firma) kFirmaEl.value = k.firma;
+  }
 }
 function ugovor_closeModal() {
   var m = document.getElementById('ugovor-modal');
