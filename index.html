@@ -5702,6 +5702,80 @@ i[data-lucide] svg {
 </div>
 
 <!-- PRED NEW MODAL -->
+<!-- ── Modal: Ugovor o zastupanju ──────────────────────────────────────── -->
+<div class="modal-overlay" id="ugovor-modal" onclick="if(event.target===this)ugovor_closeModal()" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+  <div class="modal" style="max-width:520px;width:90%;background:#111827;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:1.5rem;position:relative;max-height:88vh;overflow-y:auto;">
+    <button onclick="ugovor_closeModal()" style="position:absolute;top:.8rem;right:.8rem;background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;line-height:1;">&#x2715;</button>
+    <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.3rem;">Ugovor o zastupanju</div>
+    <div style="font-size:.75rem;color:rgba(255,255,255,0.35);margin-bottom:1rem;">Popunite podatke — ugovor se generiše automatski bez AI-a</div>
+    <div style="display:flex;flex-direction:column;gap:.65rem;">
+      <div>
+        <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Ime i prezime klijenta *</label>
+        <input type="text" id="uz-klijent-ime" placeholder="Petar Petrović" style="width:100%;padding:.45rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.82rem;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Adresa klijenta</label>
+        <input type="text" id="uz-klijent-adresa" placeholder="Ul. Knez Mihailova 1, Beograd" style="width:100%;padding:.45rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.82rem;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Firma klijenta (opcionalno)</label>
+        <input type="text" id="uz-klijent-firma" placeholder="Kompanija d.o.o." style="width:100%;padding:.45rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.82rem;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Ime i prezime advokata *</label>
+        <input type="text" id="uz-advokat-ime" placeholder="Marko Marković" style="width:100%;padding:.45rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.82rem;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Adresa kancelarije</label>
+        <input type="text" id="uz-advokat-adresa" placeholder="Ul. Terazije 10, Beograd" style="width:100%;padding:.45rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.82rem;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Predmet zastupanja *</label>
+        <textarea id="uz-predmet-opis" placeholder="Naknada štete iz saobraćajne nezgode od 12.03.2026" style="width:100%;height:60px;padding:.45rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.78rem;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>
+      <div style="display:flex;gap:.6rem;">
+        <div style="flex:1;">
+          <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Oblast prava</label>
+          <select id="uz-oblast" style="width:100%;padding:.42rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.78rem;">
+            <option value="parnicno">Parnični postupak</option>
+            <option value="krivicno">Krivični postupak</option>
+            <option value="upravno">Upravni postupak</option>
+            <option value="radno">Radno pravo</option>
+            <option value="porodicno">Porodičnopravni</option>
+            <option value="nasledjivanje">Ostavinski postupak</option>
+            <option value="privredno">Privredno pravo</option>
+            <option value="nepokretnosti">Nepokretnosti</option>
+            <option value="ostalo">Ostalo</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Naknada</label>
+          <select id="uz-nagrada-tip" style="width:100%;padding:.42rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.78rem;">
+            <option value="pausal">Paušalna</option>
+            <option value="po_satu">Satnica</option>
+            <option value="uspeh">Po uspehu</option>
+            <option value="po_aks_tarifi">AKS tarifa</option>
+            <option value="besplatno">Pro bono</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Iznos naknade</label>
+        <input type="text" id="uz-nagrada-iznos" placeholder="50.000 RSD ili po dogovoru" style="width:100%;padding:.45rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.82rem;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Datum zaključenja</label>
+        <input type="date" id="uz-datum" style="width:100%;padding:.42rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.78rem;box-sizing:border-box;">
+      </div>
+      <div id="uz-err" style="display:none;color:#ff9090;font-size:.75rem;"></div>
+      <div style="display:flex;gap:.5rem;margin-top:.3rem;">
+        <button onclick="ugovor_generiši(true)" id="uz-btn" style="flex:2;padding:.5rem;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);border-radius:7px;color:#00d4ff;font-size:.8rem;font-weight:600;cursor:pointer;">Generiši i sačuvaj</button>
+        <button onclick="ugovor_generiši(false)" style="flex:1;padding:.5rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:rgba(255,255,255,0.5);font-size:.8rem;cursor:pointer;">Samo prikaži</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="pred-new-modal" onclick="if(event.target===this)pred_closeNewModal()">
   <div class="modal" style="max-width:420px;">
     <button class="modal-close" onclick="pred_closeNewModal()">&#x2715;</button>
@@ -6087,6 +6161,15 @@ i[data-lucide] svg {
                   <div id="pred-rokovi-err" style="display:none;margin-top:.4rem;color:#ff9090;font-size:.75rem;"></div>
                 </div>
                 <div id="pred-rokovi-rezultat" style="display:none;"></div>
+              </div>
+
+              <!-- ── Ugovor o zastupanju ──────────────────────────────── -->
+              <div id="pred-ugovor-section" style="margin-top:1rem;padding:.75rem .9rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <span style="font-size:.75rem;font-weight:600;color:rgba(0,212,255,0.7);text-transform:uppercase;letter-spacing:.07em;">Ugovor o zastupanju</span>
+                  <button onclick="ugovor_openModal()" style="font-size:.72rem;color:rgba(0,212,255,0.6);background:none;border:none;cursor:pointer;padding:0;">+ Generiši ugovor</button>
+                </div>
+                <div id="pred-ugovor-poslednji" style="margin-top:.4rem;display:none;font-size:.72rem;color:rgba(255,255,255,0.35);"></div>
               </div>
               </div><!-- /pred-pane-pregled -->
 
@@ -13849,6 +13932,8 @@ async function pred_loadDetail(id) {
       document.getElementById('pred-rokovi-rezultat').style.display = 'none';
       pred_rokokiOtvoriFormu(false);
     }
+    var _uSec = document.getElementById('pred-ugovor-section');
+    if (_uSec) _uSec.style.display = 'block';
   } catch(e) {
     if (loadEl) loadEl.style.display = 'none';
   }
@@ -15116,6 +15201,88 @@ async function pred_rokokiGeneriši(sacuvaj) {
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+function ugovor_openModal() {
+  var m = document.getElementById('ugovor-modal');
+  if (m) m.style.display = 'flex';
+  document.getElementById('uz-err').style.display = 'none';
+}
+function ugovor_closeModal() {
+  var m = document.getElementById('ugovor-modal');
+  if (m) m.style.display = 'none';
+  var rez = document.getElementById('ugovor-result-modal');
+  if (rez) rez.style.display = 'none';
+}
+async function ugovor_generiši(sacuvaj) {
+  if (!currentSession) return;
+  var ime     = (document.getElementById('uz-klijent-ime').value || '').trim();
+  var advokat = (document.getElementById('uz-advokat-ime').value || '').trim();
+  var opis    = (document.getElementById('uz-predmet-opis').value || '').trim();
+  var errEl   = document.getElementById('uz-err');
+  if (!ime)     { errEl.textContent = 'Unesite ime klijenta.'; errEl.style.display = 'block'; return; }
+  if (!advokat) { errEl.textContent = 'Unesite ime advokata.'; errEl.style.display = 'block'; return; }
+  if (!opis || opis.length < 5) { errEl.textContent = 'Opis predmeta mora imati min. 5 znakova.'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  var btn = document.getElementById('uz-btn');
+  if (btn) btn.disabled = true;
+  try {
+    var body = {
+      klijent_ime_prezime: ime,
+      klijent_adresa: (document.getElementById('uz-klijent-adresa').value || '').trim(),
+      klijent_firma:  (document.getElementById('uz-klijent-firma').value || '').trim(),
+      advokat_ime:    advokat,
+      advokat_adresa: (document.getElementById('uz-advokat-adresa').value || '').trim(),
+      predmet_opis:   opis,
+      oblast_prava:   document.getElementById('uz-oblast').value,
+      nagrada_tip:    document.getElementById('uz-nagrada-tip').value,
+      nagrada_iznos:  (document.getElementById('uz-nagrada-iznos').value || '').trim(),
+      datum_zakljucenja: document.getElementById('uz-datum').value || null,
+    };
+    if (sacuvaj && activePredmetId) body.predmet_id = activePredmetId;
+    var r = await fetch('/api/ugovor-zastupanja/generi%C5%A1i', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify(body)
+    });
+    var d = await r.json().catch(function(){ return {}; });
+    if (!r.ok) { errEl.textContent = d.detail || 'Greška pri generisanju.'; errEl.style.display = 'block'; return; }
+    ugovor_closeModal();
+    ugovor_showResult(d);
+    if (d.sacuvano_u_predmet) {
+      var info = document.getElementById('pred-ugovor-poslednji');
+      if (info) { info.textContent = 'Poslednji: Ugovor br. ' + d.broj + ' · ' + d.datum_zakljucenja + ' · Sačuvano u hronologiji'; info.style.display = 'block'; }
+    }
+  } catch(e) {
+    errEl.textContent = 'Mrežna greška.'; errEl.style.display = 'block';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+function ugovor_showResult(d) {
+  var existing = document.getElementById('ugovor-result-modal');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'ugovor-result-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = '<div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:1.5rem;width:92%;max-width:680px;max-height:88vh;overflow-y:auto;position:relative;">'
+    + '<button onclick="document.getElementById(\'ugovor-result-modal\').remove()" style="position:absolute;top:.8rem;right:.8rem;background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;">&#x2715;</button>'
+    + '<div style="font-size:.85rem;font-weight:700;color:#00d4ff;margin-bottom:.3rem;">Ugovor br. ' + _htmlEsc(d.broj) + '</div>'
+    + '<div style="font-size:.72rem;color:rgba(255,255,255,0.35);margin-bottom:.8rem;">'
+    + d.datum_zakljucenja + (d.sacuvano_u_predmet ? ' · <span style="color:#4ade80;">Sačuvano u hronologiji</span>' : '') + '</div>'
+    + '<pre style="white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:.72rem;line-height:1.55;color:rgba(255,255,255,0.75);background:rgba(0,0,0,0.3);padding:.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.07);">' + _htmlEsc(d.ugovor_tekst) + '</pre>'
+    + '<button onclick="ugovor_kopiraj()" style="margin-top:.8rem;width:100%;padding:.5rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:8px;color:#00d4ff;font-size:.78rem;cursor:pointer;" id="uz-copy-btn">Kopiraj tekst</button>'
+    + '</div>';
+  document.body.appendChild(overlay);
+  window._ugovorTekst = d.ugovor_tekst;
+}
+async function ugovor_kopiraj() {
+  try {
+    await navigator.clipboard.writeText(window._ugovorTekst || '');
+    var b = document.getElementById('uz-copy-btn');
+    if (b) { b.textContent = 'Kopirano!'; setTimeout(function(){ b.textContent = 'Kopiraj tekst'; }, 2000); }
+  } catch(e) {}
 }
 
 function pred_openNewModal() {
