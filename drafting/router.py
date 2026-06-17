@@ -111,6 +111,27 @@ DEFAULTS_REGISTRY: dict[str, dict] = {
         "datum": _today_str,
         "mesto": lambda: "Beograd",
     },
+    "ugovor_kupoprodaja": {
+        "datum": _today_str,
+        "mesto": lambda: "Beograd",
+    },
+    "ugovor_zakup": {
+        "datum": _today_str,
+        "mesto": lambda: "Beograd",
+    },
+    "prigovor_platni_nalog": {
+        "datum": _today_str,
+        "mesto": lambda: "Beograd",
+    },
+    "predlog_privremena_mera": {
+        "datum": _today_str,
+    },
+    "tuzba_razvod": {
+        "datum": _today_str,
+    },
+    "krivicna_prijava": {
+        "datum": _today_str,
+    },
 }
 
 
@@ -285,6 +306,60 @@ def _pripremi_punomocje_fields(fields: dict) -> dict:
     return out
 
 
+def _pripremi_kupoprodaja_fields(fields: dict) -> dict:
+    out = {k: (v if v is not None else "") for k, v in fields.items()}
+    return out
+
+
+def _pripremi_zakup_fields(fields: dict) -> dict:
+    out = {k: (v if v is not None else "") for k, v in fields.items()}
+    depozit = out.get("depozit", "").strip()
+    out["depozit_clan"] = (
+        f"Zakupac plaća depozit u iznosu od {depozit} dinara pre preuzimanja nepokretnosti. "
+        "Depozit se vraća po isteku ugovora, umanjeno za eventualne nastale štete."
+        if depozit else
+        "Ugovorne strane su se sporazumele da nema depozita."
+    )
+    return out
+
+
+def _pripremi_razvod_fields(fields: dict) -> dict:
+    out = {k: (v if v is not None else "") for k, v in fields.items()}
+    deca = out.get("deca_opis", "").strip()
+    if deca:
+        out["deca_clan"] = f"Iz braka postoji zajednička deca: {deca}."
+        out["zahtev_deca_clan"] = (
+            "1. ZAHTEV U POGLEDU DECE\n" + (out.get("zahtev_deca", "") or "Staranje nad zajedničkom decom poverava se tužiocu.")
+        )
+        out["petitum_deca"] = "2. Poverava se staranje nad zajedničkom decom tužiocu;\n"
+    else:
+        out["deca_clan"] = "Iz braka nema zajedničke dece."
+        out["zahtev_deca_clan"] = ""
+        out["petitum_deca"] = ""
+    zahtev_imov = out.get("zahtev_imovina", "").strip()
+    if zahtev_imov:
+        out["zahtev_imovina_clan"] = f"2. ZAHTEV U POGLEDU BRAČNE TEKOVINE\n{zahtev_imov}"
+        out["petitum_imovina"] = "3. Raspoređuje se bračna tekovina u skladu sa iznetim zahtevom;\n"
+    else:
+        out["zahtev_imovina_clan"] = ""
+        out["petitum_imovina"] = ""
+    return out
+
+
+def _pripremi_krivicna_prijava_fields(fields: dict) -> dict:
+    out = {k: (v if v is not None else "") for k, v in fields.items()}
+    jmbg = out.get("podnosilac_jmbg", "").strip()
+    out["podnosilac_jmbg_clan"] = f"JMBG: {jmbg}" if jmbg else ""
+    return out
+
+
+def _pripremi_privremena_mera_fields(fields: dict) -> dict:
+    out = {k: (v if v is not None else "") for k, v in fields.items()}
+    iznos = out.get("iznos_potrazivanja", "").strip()
+    out["iznos_potrazivanja_clan"] = f"Vrednost potraživanja: {iznos} dinara." if iznos else ""
+    return out
+
+
 def _pripremi_fields(fields: dict, vrsta: str) -> dict:
     if vrsta in ("ugovor_neodredjeno", "ugovor_odredjeno"):
         return _pripremi_ugovor_fields(fields, vrsta)
@@ -292,6 +367,16 @@ def _pripremi_fields(fields: dict, vrsta: str) -> dict:
         return _pripremi_sporazum_fields(fields)
     if vrsta == "punomocje":
         return _pripremi_punomocje_fields(fields)
+    if vrsta == "ugovor_kupoprodaja":
+        return _pripremi_kupoprodaja_fields(fields)
+    if vrsta == "ugovor_zakup":
+        return _pripremi_zakup_fields(fields)
+    if vrsta == "tuzba_razvod":
+        return _pripremi_razvod_fields(fields)
+    if vrsta == "krivicna_prijava":
+        return _pripremi_krivicna_prijava_fields(fields)
+    if vrsta == "predlog_privremena_mera":
+        return _pripremi_privremena_mera_fields(fields)
     return {k: (v if v is not None else "") for k, v in fields.items()}
 
 

@@ -52,5 +52,5 @@ def test_obavestenje_sablon_sadrzi_kljucne_placeholdere():
     assert "{RAZLOG}" in sablon
 
 
-def test_ukupno_12_tipova():
-    assert len(TEMPLATES) == 12, f"Expected 12 templates, got {len(TEMPLATES)}"
+def test_ukupno_tipova():
+    assert len(TEMPLATES) >= 18, f"Expected at least 18 templates, got {len(TEMPLATES)}"

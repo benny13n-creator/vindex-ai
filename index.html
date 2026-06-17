@@ -6771,15 +6771,28 @@ i[data-lucide] svg {
             </div>
             <input type="hidden" id="podnesak-tip" value="tuzba_naknada_stete">
             <div class="podnesak-selector">
-              <div class="podnesak-category" style="margin-top:0">PODNESCI</div>
+              <div class="podnesak-category" style="margin-top:0">PODNESCI — PARNIČNI</div>
               <button type="button" class="podnesak-option selected" data-value="tuzba_naknada_stete" onclick="_selectPodnesakOption('tuzba_naknada_stete')">Tužba za naknadu štete</button>
-              <button type="button" class="podnesak-option" data-value="zalba_parnicna" onclick="_selectPodnesakOption('zalba_parnicna')">Žalba na prvostepenu presudu</button>
+              <button type="button" class="podnesak-option" data-value="tuzba_radni_spor" onclick="_selectPodnesakOption('tuzba_radni_spor')">Tužba — radni spor</button>
+              <button type="button" class="podnesak-option" data-value="tuzba_razvod" onclick="_selectPodnesakOption('tuzba_razvod')">Tužba za razvod braka</button>
+              <button type="button" class="podnesak-option" data-value="zalba_na_presudu" onclick="_selectPodnesakOption('zalba_na_presudu')">Žalba na presudu</button>
+              <button type="button" class="podnesak-option" data-value="zalba_na_resenje" onclick="_selectPodnesakOption('zalba_na_resenje')">Žalba na rešenje</button>
+              <button type="button" class="podnesak-option" data-value="prigovor_platni_nalog" onclick="_selectPodnesakOption('prigovor_platni_nalog')">Prigovor na platni nalog</button>
+              <button type="button" class="podnesak-option" data-value="predlog_privremena_mera" onclick="_selectPodnesakOption('predlog_privremena_mera')">Predlog za privremenu meru</button>
               <button type="button" class="podnesak-option" data-value="predlog_izvrsenje" onclick="_selectPodnesakOption('predlog_izvrsenje')">Predlog za izvršenje</button>
+              <div class="podnesak-category">KRIVIČNO I UPRAVNO</div>
+              <button type="button" class="podnesak-option" data-value="krivicna_prijava" onclick="_selectPodnesakOption('krivicna_prijava')">Krivična prijava</button>
+              <div class="podnesak-category">DOPISIVANJE I ZAHTEVI</div>
+              <button type="button" class="podnesak-option" data-value="opomena_duznik" onclick="_selectPodnesakOption('opomena_duznik')">Opomena pre tužbe</button>
+              <button type="button" class="podnesak-option" data-value="zahtev_poslodavcu" onclick="_selectPodnesakOption('zahtev_poslodavcu')">Zahtev zaposlenog poslodavcu</button>
+              <button type="button" class="podnesak-option" data-value="obaveštenje_o_otkazu" onclick="_selectPodnesakOption('obaveštenje_o_otkazu')">Obaveštenje o otkazu ugovora</button>
               <div class="podnesak-category">NACRTI UGOVORA</div>
-              <button type="button" class="podnesak-option" data-value="ugovor_neodredjeno" onclick="_selectPodnesakOption('ugovor_neodredjeno')">Ugovor o radu na neodređeno vreme</button>
-              <button type="button" class="podnesak-option" data-value="ugovor_odredjeno" onclick="_selectPodnesakOption('ugovor_odredjeno')">Ugovor o radu na određeno vreme</button>
+              <button type="button" class="podnesak-option" data-value="ugovor_neodredjeno" onclick="_selectPodnesakOption('ugovor_neodredjeno')">Ugovor o radu — neodređeno vreme</button>
+              <button type="button" class="podnesak-option" data-value="ugovor_odredjeno" onclick="_selectPodnesakOption('ugovor_odredjeno')">Ugovor o radu — određeno vreme</button>
               <button type="button" class="podnesak-option" data-value="aneks" onclick="_selectPodnesakOption('aneks')">Aneks ugovora o radu</button>
-              <button type="button" class="podnesak-option" data-value="sporazumni_raskid" onclick="_selectPodnesakOption('sporazumni_raskid')">Sporazumni raskid ugovora o radu</button>
+              <button type="button" class="podnesak-option" data-value="sporazumni_raskid" onclick="_selectPodnesakOption('sporazumni_raskid')">Sporazumni raskid radnog odnosa</button>
+              <button type="button" class="podnesak-option" data-value="ugovor_kupoprodaja" onclick="_selectPodnesakOption('ugovor_kupoprodaja')">Ugovor o kupoprodaji</button>
+              <button type="button" class="podnesak-option" data-value="ugovor_zakup" onclick="_selectPodnesakOption('ugovor_zakup')">Ugovor o zakupu nepokretnosti</button>
               <button type="button" class="podnesak-option" data-value="punomocje" onclick="_selectPodnesakOption('punomocje')">Punomoćje</button>
             </div>
             <div id="podnesak-hint" class="podnesak-hint"></div>
@@ -10799,15 +10812,33 @@ function scToggle(headerEl) {
 
 /* PODNESAK HELPERS */
 var _PODNESAK_HINTS = {
-  tuzba_naknada_stete: '⚖ Navedite: tužioca i tuženog (ime, adresa), opis štetnog dogadjaja, datum, vrstu i visinu štete, dostupne dokaze.',
-  zalba_parnicna:      '⚠ Navedite: naziv suda, broj predmeta, datum presude, razloge za žalbu (pogrešno utvrđeno činjenično stanje / pogrešna primena prava / bitna povreda ZPP).',
-  predlog_izvrsenje:   '⚡ Navedite: vrstu izvršne isprave (presuda/rešenje), broj i datum isprave, izvršenika (ime, adresa), iznos duga i željeno sredstvo izvršenja.',
+  tuzba_naknada_stete:    '⚖ Navedite: tužioca i tuženog (ime, adresa), opis štetnog dogadjaja, datum, vrstu i visinu štete, dostupne dokaze.',
+  tuzba_radni_spor:       '💼 Navedite: zaposlenog (ime, adresa), poslodavca (naziv, sedište), razlog spora (nezakonit otkaz / neisplaćena zarada / mobbing), datum i zahtevani iznos.',
+  tuzba_razvod:           '👪 Navedite: supružnike (ime, adresa), datum i mesto zaključenja braka, zajedničku decu (ime, godište), razloge za razvod, zahteve u pogledu dece i imovine.',
+  zalba_parnicna:         '⚠ Navedite: naziv suda, broj predmeta, datum presude, razloge za žalbu.',
+  zalba_na_presudu:       '⚠ Navedite: naziv suda, broj predmeta, datum presude, razloge za žalbu (pogrešna primena prava / pogrešno činjenično stanje / bitna povreda ZPP).',
+  zalba_na_resenje:       '📋 Navedite: naziv organa koji je doneo rešenje, broj rešenja, datum dostave, razloge za žalbu, broj drugostepenog organa.',
+  prigovor_platni_nalog:  '🔔 Navedite: naziv suda, broj platnog naloga (Pl. br.), datum dostave, dužnika, poverioca, iznos i razloge prigovora.',
+  predlog_privremena_mera:'⚡ Navedite: sud, predlagača, protivnika obezbeđenja, potraživanje (iznos/opis), predloženu meru (zabrana otuđenja, zaplena), razloge hitnosti.',
+  predlog_izvrsenje:      '⚡ Navedite: vrstu izvršne isprave (presuda/rešenje), broj i datum isprave, izvršenika (ime, adresa), iznos duga i željeno sredstvo izvršenja.',
+  krivicna_prijava:       '🚨 Navedite: podnosioca (ime, adresa), okrivljenog (ime, adresa), naziv krivičnog dela (npr. prevara čl. 208 KZ), datum i opis dogadjaja, dostupne dokaze.',
+  opomena_duznik:         '📩 Navedite: poverioca (ime/naziv), dužnika (ime/naziv), iznos duga, osnov (faktura, ugovor), rok za plaćanje.',
+  zahtev_poslodavcu:      '📝 Navedite: zaposlenog (ime), poslodavca (naziv), sadržaj zahteva (isplata zarade, godišnji odmor...), zakonski osnov, rok za odgovor.',
+  obaveštenje_o_otkazu:   '📨 Navedite: stranu koja otkazuje, drugu stranu, datum otkaza, otkazni rok, razlog otkaza.',
+  ugovor_kupoprodaja:     '🛒 Navedite: prodavca, kupca (ime, adresa), predmet prodaje (opis, serijski broj), cenu u RSD, način plaćanja, rok isporuke.',
+  ugovor_zakup:           '🏠 Navedite: zakupodavca, zakupca (ime, adresa), opis nepokretnosti (adresa, površina), zakupninu (RSD/mesečno), period zakupa, depozit.',
 };
 
 /* Tipovi koji idu na /api/nacrt (drafting modul) */
 var _NACRT_API_TYPES = new Set();
 /* Pre-populate nacrt types — confirmed/extended by /api/nacrt/types fetch */
-['ugovor_neodredjeno','ugovor_odredjeno','aneks','sporazumni_raskid','punomocje'].forEach(function(v){ _NACRT_API_TYPES.add(v); });
+[
+  'ugovor_neodredjeno','ugovor_odredjeno','aneks','sporazumni_raskid','punomocje',
+  'zalba_na_presudu','zalba_na_resenje','tuzba_naknada_stete','tuzba_radni_spor',
+  'opomena_duznik','zahtev_poslodavcu','obaveštenje_o_otkazu',
+  'ugovor_kupoprodaja','ugovor_zakup','prigovor_platni_nalog',
+  'predlog_privremena_mera','tuzba_razvod','krivicna_prijava'
+].forEach(function(v){ _NACRT_API_TYPES.add(v); });
 
 /* Dinamičko učitavanje tipova ugovora iz /api/nacrt/types */
 (function() {

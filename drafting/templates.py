@@ -574,6 +574,278 @@ SABLON_ZAHTEV_POSLODAVCU = (
 SABLON_OBAVEST_OTKAZ = _SABLON_OBAVEST_OTKAZ_RAW
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Novi šabloni P1.2 — Legal Form Library
+# ─────────────────────────────────────────────────────────────────────────────
+
+SABLON_UGOVOR_KUPOPRODAJA = """\
+UGOVOR O KUPOPRODAJI
+
+Zaključen {DATUM} u {MESTO}, između:
+
+PRODAVAC: {PRODAVAC_IME}, {PRODAVAC_ADRESA}
+(u daljem tekstu: Prodavac)
+
+i
+
+KUPAC: {KUPAC_IME}, {KUPAC_ADRESA}
+(u daljem tekstu: Kupac)
+
+
+Član 1 — Predmet ugovora
+Prodavac prodaje, a Kupac kupuje sledeći predmet:
+{PREDMET_PRODAJE}
+
+Član 2 — Kupoprodajna cena
+Kupoprodajna cena iznosi {KUPOPRODAJNA_CENA} dinara.
+Plaćanje se vrši: {NACIN_PLACANJA}.
+
+Član 3 — Rok isporuke
+Prodavac se obavezuje da preda predmet prodaje Kupcu u roku od {ROK_ISPORUKE}.
+
+Član 4 — Pravo vlasništva
+Pravo vlasništva na predmetu prodaje prelazi na Kupca nakon isplate celokupne kupoprodajne cene.
+
+Član 5 — Garancija i reklamacije
+Prodavac garantuje da predmet prodaje nema skrivenih mana i da nije opterećen pravima trećih lica.
+
+Član 6 — Rešavanje sporova
+Eventualne sporove ugovorne strane će rešavati sporazumno, a ako to ne bude moguće, nadležan je sud u mestu zaključenja ugovora.
+
+Član 7 — Primerci
+Ovaj ugovor je sačinjen u dva (2) istovetna primerka, po jedan za svaku ugovornu stranu.
+
+
+___________________________
+PRODAVAC
+
+___________________________
+KUPAC
+"""
+
+SABLON_UGOVOR_ZAKUP = """\
+UGOVOR O ZAKUPU NEPOKRETNOSTI
+
+Zaključen {DATUM} u {MESTO}, između:
+
+ZAKUPODAVAC: {ZAKUPODAVAC_IME}, {ZAKUPODAVAC_ADRESA}
+(u daljem tekstu: Zakupodavac)
+
+i
+
+ZAKUPAC: {ZAKUPAC_IME}, {ZAKUPAC_ADRESA}
+(u daljem tekstu: Zakupac)
+
+
+Član 1 — Predmet zakupa
+Zakupodavac daje u zakup Zakupcu sledeću nepokretnost:
+{NEKRETNINA_OPIS}
+
+Član 2 — Period zakupa
+Ugovor se zaključuje na period od {PERIOD_ZAKUPA_OD} do {PERIOD_ZAKUPA_DO}.
+
+Član 3 — Zakupnina
+Mesečna zakupnina iznosi {ZAKUPNINA} dinara i plaća se {ROK_PLACANJA} u mesecu za tekući mesec.
+
+Član 4 — Depozit
+{DEPOZIT_CLAN}
+
+Član 5 — Obaveze Zakupca
+Zakupac se obavezuje da: (1) plaća zakupninu u ugovorenom roku; (2) koristi nepokretnost isključivo u ugovorene svrhe; (3) održava nepokretnost u stanju u kakvom ju je preuzeo; (4) ne vrši izmene bez pisane saglasnosti Zakupodavca.
+
+Član 6 — Obaveze Zakupodavca
+Zakupodavac se obavezuje da: (1) preda nepokretnost u stanju pogodnom za ugovorenu upotrebu; (2) vrši redovne popravke i održavanje nosive konstrukcije.
+
+Član 7 — Raskid ugovora
+Svaka ugovorna strana može raskinuti ugovor davanjem pisane otkazne izjave sa 30 dana unapred.
+
+Član 8 — Primerci
+Ovaj ugovor je sačinjen u dva (2) istovetna primerka, po jedan za svaku ugovornu stranu.
+
+
+___________________________
+ZAKUPODAVAC
+
+___________________________
+ZAKUPAC
+"""
+
+SABLON_PRIGOVOR_PLATNI_NALOG = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+                                                    Dužnik (podnosilac prigovora): {DUZNIK_IME},
+                                                    {DUZNIK_ADRESA}
+
+                                                    Poverilac: {POVERILAC_IME}
+
+Predmet: Prigovor na platni nalog br. {BROJ_PREDMETA}
+
+
+P R I G O V O R
+na platni nalog
+
+
+Platni nalog ovog suda br. {BROJ_PREDMETA} dostavljen je dužniku dana {DATUM_DOSTAVE}.
+Dužnik u zakonskom roku od 8 dana izjavljuje prigovor na navedeni platni nalog.
+
+
+RAZLOZI PRIGOVORA:
+
+{RAZLOZI_PRIGOVORA}
+
+
+Na osnovu navedenog, dužnik predlaže sudu da:
+1. Prihvati ovaj prigovor kao osnovan i blagovremen;
+2. Ukine platni nalog br. {BROJ_PREDMETA} u delu koji se ospori;
+3. Zakazane ročište za glavnu raspravu.
+
+Prilog: Dokazi u prilogu.
+
+Dana {DATUM} u {MESTO}.
+
+___________________________
+Dužnik / Punomoćnik
+"""
+
+SABLON_PREDLOG_PRIVREMENA_MERA = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+                                                    Predlagač: {PREDLAGAC_IME},
+                                                    {PREDLAGAC_ADRESA}
+
+                                                    Protivnik obezbeđenja: {PROTIVNIK_IME},
+                                                    {PROTIVNIK_ADRESA}
+
+
+PREDLOG ZA ODREĐIVANJE PRIVREMENE MERE
+(čl. 302-319 ZIO)
+
+
+I. POTRAŽIVANJE KOJE SE OBEZBEĐUJE
+
+{POTRAZIVANJE_OPIS}
+{IZNOS_POTRAZIVANJA_CLAN}
+
+
+II. PREDLOŽENA PRIVREMENA MERA
+
+Predlagač predlaže sudu da odredi sledeću privremenu meru:
+{PREDLOZENA_MERA}
+
+
+III. OKOLNOSTI KOJE OPRAVDAVAJU ODREĐIVANJE PRIVREMENE MERE
+
+{OPASNOST_OPIS}
+
+Predlagač ukazuje da bez određivanja predložene mere postoji ozbiljna opasnost da će ostvarivanje potraživanja biti onemogućeno ili znatno otežano (čl. 302 st. 1 ZIO).
+
+
+IV. PREDLOG
+
+Na osnovu iznetog, predlagač predlaže sudu da:
+1. Odredi traženu privremenu meru;
+2. Naloži protivniku obezbeđenja da postupi u skladu sa merom.
+
+Prilog: Dokazi u prilogu.
+
+Dana {DATUM}.
+
+___________________________
+Predlagač / Punomoćnik
+"""
+
+SABLON_TUZBA_RAZVOD = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+                                                    Tužilac: {TUZILAC_IME},
+                                                    {TUZILAC_ADRESA}
+
+                                                    Tuženi: {TUZENI_IME},
+                                                    {TUZENI_ADRESA}
+
+
+T U Ž B A
+radi razvoda braka
+
+
+I. BRAK
+
+Tužilac i tuženi zaključili su brak pred matičarom {MATICNA_OPSTINA} dana {DATUM_BRAKA}.
+Brak je trajao {ZAJEDNICKI_BRAK_TRAJAO}.
+{DECA_CLAN}
+
+
+II. RAZLOZI ZA RAZVOD
+
+{RAZLOZI}
+
+Odnosi između stranaka su ozbiljno i trajno poremećeni tako da je zajednički život postao nepodnošljiv (čl. 41 Porodičnog zakona).
+
+
+III. ZAHTEVI
+{ZAHTEV_DECA_CLAN}
+{ZAHTEV_IMOVINA_CLAN}
+
+
+IV. PREDLOG
+
+Na osnovu svega navedenog, predlaže se sudu da donese presudu kojom se:
+1. RAZVODI brak zaključen između tužioca {TUZILAC_IME} i tuženog {TUZENI_IME};
+{PETITUM_DECA}{PETITUM_IMOVINA}
+2. Tuženi obaveže da tužiocu naknadi troškove postupka.
+
+Dana {DATUM}.
+
+___________________________
+Tužilac / Punomoćnik
+"""
+
+SABLON_KRIVICNA_PRIJAVA = """\
+REPUBLIČKO JAVNO TUŽILAŠTVO
+(Osnovno javno tužilaštvo u ________________________)
+
+                                                    Podnosilac: {PODNOSILAC_IME},
+                                                    {PODNOSILAC_ADRESA}
+                                                    {PODNOSILAC_JMBG_CLAN}
+
+
+KRIVIČNA PRIJAVA
+
+
+Podnosim krivičnu prijavu protiv:
+
+Okrivljenog: {OKRIVLJENI_IME}, {OKRIVLJENI_ADRESA}
+
+Zbog krivičnog dela: {KRIVICNO_DELO} iz {ZAKONSKI_CLAN} Krivičnog zakonika RS.
+
+
+I. OPIS DOGADJAJA
+
+{OPIS_DOGADJAJA}
+
+Navedena dela su učinjena dana {DATUM_DOGADJAJA}.
+
+
+II. DOKAZI
+
+{DOKAZI}
+
+
+III. ZAHTEV
+
+Na osnovu izloženog, predlažem nadležnom tužiocu da:
+1. Pokrene istragu/predistražni postupak protiv okrivljenog;
+2. Preduzme sve potrebne mere radi rasvjetljavanja slučaja.
+
+Dana {DATUM}.
+
+___________________________
+Podnosilac prijave
+"""
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Ekstrakcioni promptovi po tipu
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -782,6 +1054,104 @@ EKSTRAKCIONI_PROMPTOVI: dict[str, str] = {
   "razlog": "Razlog otkaza — slobodan tekst"
 }
 """,
+
+"ugovor_kupoprodaja": _EKSTRAKCIONI_BAZA + """
+{
+  "prodavac_ime": "Puno ime/naziv prodavca",
+  "prodavac_adresa": "Adresa prodavca",
+  "kupac_ime": "Puno ime/naziv kupca",
+  "kupac_adresa": "Adresa kupca",
+  "predmet_prodaje": "Opis predmeta prodaje",
+  "kupoprodajna_cena": "Kupoprodajna cena u RSD (samo broj)",
+  "nacin_placanja": "Način plaćanja (npr. gotovinom, virmanskim prenosom)",
+  "rok_isporuke": "Rok isporuke predmeta (npr. '5 dana od uplate')",
+  "datum": "Datum zaključenja ugovora, format DD.MM.YYYY bez trailing tačke",
+  "mesto": "Mesto zaključenja ugovora"
+}
+""",
+
+"ugovor_zakup": _EKSTRAKCIONI_BAZA + """
+{
+  "zakupodavac_ime": "Puno ime/naziv zakupodavca",
+  "zakupodavac_adresa": "Adresa zakupodavca",
+  "zakupac_ime": "Puno ime/naziv zakupca",
+  "zakupac_adresa": "Adresa zakupca",
+  "nekretnina_opis": "Opis nepokretnosti koja se daje u zakup (adresa, katastarska parcela, površina)",
+  "zakupnina": "Mesečna zakupnina u RSD",
+  "rok_placanja": "Rok za plaćanje zakupnine (npr. 'do 5. u mesecu')",
+  "period_zakupa_od": "Početak zakupa, format DD.MM.YYYY",
+  "period_zakupa_do": "Kraj zakupa (ili 'na neodređeno vreme')",
+  "depozit": "Depozit u RSD ako je naveden, inače prazno",
+  "datum": "Datum zaključenja ugovora, format DD.MM.YYYY bez trailing tačke",
+  "mesto": "Mesto zaključenja"
+}
+""",
+
+"prigovor_platni_nalog": _EKSTRAKCIONI_BAZA + """
+{
+  "sud_naziv": "Naziv suda koji je izdao platni nalog",
+  "sud_adresa": "Adresa suda",
+  "broj_predmeta": "Broj predmeta (Pl br. X/YYYY)",
+  "duznik_ime": "Puno ime/naziv dužnika koji podnosi prigovor",
+  "duznik_adresa": "Adresa dužnika",
+  "poverilac_ime": "Ime/naziv poverioca",
+  "iznos": "Iznos iz platnog naloga u RSD",
+  "datum_dostave": "Datum dostave platnog naloga, format DD.MM.YYYY",
+  "razlozi_prigovora": "Razlozi zbog kojih se podnosi prigovor",
+  "datum": "Datum podnošenja prigovora, format DD.MM.YYYY bez trailing tačke"
+}
+""",
+
+"predlog_privremena_mera": _EKSTRAKCIONI_BAZA + """
+{
+  "sud_naziv": "Naziv suda",
+  "sud_adresa": "Adresa suda",
+  "predlagac_ime": "Ime/naziv predlagača",
+  "predlagac_adresa": "Adresa predlagača",
+  "protivnik_ime": "Ime/naziv protivnika obezbeđenja",
+  "protivnik_adresa": "Adresa protivnika",
+  "potraživanje_opis": "Opis potraživanja koje se obezbeđuje",
+  "iznos_potrazivanja": "Iznos potraživanja u RSD ako je naveden",
+  "predlozena_mera": "Konkretna predložena privremena mera (npr. zabrana otuđenja imovine, zaplena računa)",
+  "opasnost_opis": "Opis opasnosti i razlozi hitnosti",
+  "datum": "Datum podnošenja predloga, format DD.MM.YYYY bez trailing tačke"
+}
+""",
+
+"tuzba_razvod": _EKSTRAKCIONI_BAZA + """
+{
+  "sud_naziv": "Naziv porodičnog/osnovnog suda",
+  "sud_adresa": "Adresa suda",
+  "tuzilac_ime": "Puno ime tužioca",
+  "tuzilac_adresa": "Adresa tužioca",
+  "tuzeni_ime": "Puno ime tuženog",
+  "tuzeni_adresa": "Adresa tuženog",
+  "datum_braka": "Datum zaključenja braka, format DD.MM.YYYY",
+  "maticna_opstina": "Matična opština gde je brak zaključen",
+  "zajednicki_brak_trajao": "Koliko dugo je brak trajao (npr. '5 godina')",
+  "deca_opis": "Podaci o zajedničkoj deci ako ima (ime, datum rodjenja), inače prazno",
+  "razlozi": "Razlozi za razvod (slobodan tekst — ne navodi se konkretni razlog ako stranka ne želi)",
+  "zahtev_deca": "Zahtev u pogledu staranja nad decom (ako ima dece)",
+  "zahtev_imovina": "Zahtev u pogledu podele bračne tekovine (kratko)",
+  "datum": "Datum podnošenja tužbe, format DD.MM.YYYY bez trailing tačke"
+}
+""",
+
+"krivicna_prijava": _EKSTRAKCIONI_BAZA + """
+{
+  "podnosilac_ime": "Puno ime podnosioca krivične prijave",
+  "podnosilac_adresa": "Adresa podnosioca",
+  "podnosilac_jmbg": "JMBG podnosioca — 13 cifara ako je naveden, inače prazno",
+  "okrivljeni_ime": "Puno ime osumnjičenog/okrivljenog",
+  "okrivljeni_adresa": "Adresa okrivljenog ako je poznata",
+  "krivicno_delo": "Naziv krivičnog dela (npr. prevara, kradja, teška telesna povreda)",
+  "zakonski_clan": "Zakonski osnov — član KZ-a (npr. čl. 208 KZ)",
+  "opis_dogadjaja": "Detaljan opis dogadjaja — šta se desilo, kada i gde",
+  "datum_dogadjaja": "Datum kada se krivično delo desilo, format DD.MM.YYYY",
+  "dokazi": "Dostupni dokazi (npr. svedoci, snimci, dokumenti)",
+  "datum": "Datum podnošenja prijave, format DD.MM.YYYY bez trailing tačke"
+}
+""",
 }
 
 
@@ -919,6 +1289,72 @@ TEMPLATES: dict[str, dict] = {
         ),
         "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["obaveštenje_o_otkazu"],
         "sablon":     SABLON_OBAVEST_OTKAZ,
+        "compliance_tip": None,
+    },
+    "ugovor_kupoprodaja": {
+        "label":      "Ugovor o kupoprodaji",
+        "opis_hint":  (
+            "Npr. Prodavac: Marko Marković, Beograd. Kupac: 'Trgovina Plus' d.o.o. "
+            "Predmet: laptop Lenovo ThinkPad X1, serijski br. 12345. Cena: 150.000 RSD. "
+            "Plaćanje: virmanskim prenosom u roku od 3 dana."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["ugovor_kupoprodaja"],
+        "sablon":     SABLON_UGOVOR_KUPOPRODAJA,
+        "compliance_tip": None,
+    },
+    "ugovor_zakup": {
+        "label":      "Ugovor o zakupu nepokretnosti",
+        "opis_hint":  (
+            "Npr. Zakupodavac: Jelena Jović, ul. Cara Lazara 5, Beograd. "
+            "Zakupac: 'StartupCo' d.o.o. Stan: 60m², ul. Kneza Miloša 10, Beograd. "
+            "Zakupnina: 60.000 RSD/mesečno. Period: 01.07.2026 – 01.07.2027. Depozit: 2 zakupnine."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["ugovor_zakup"],
+        "sablon":     SABLON_UGOVOR_ZAKUP,
+        "compliance_tip": None,
+    },
+    "prigovor_platni_nalog": {
+        "label":      "Prigovor na platni nalog",
+        "opis_hint":  (
+            "Npr. Sud: Osnovni sud u Beogradu. Broj predmeta: Pl. 1234/2026. "
+            "Dužnik: Nikola Nikolić, ul. Vojvode Mišića 3, Beograd. Iznos: 80.000 RSD. "
+            "Dostava: 10.06.2026. Razlog prigovora: dug nije osnovan, faktura je sporna."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["prigovor_platni_nalog"],
+        "sablon":     SABLON_PRIGOVOR_PLATNI_NALOG,
+        "compliance_tip": None,
+    },
+    "predlog_privremena_mera": {
+        "label":      "Predlog za privremenu meru",
+        "opis_hint":  (
+            "Npr. Predlagač: 'Pekara ABC' d.o.o. Protivnik: Petar Petrović. "
+            "Potraživanje: 500.000 RSD iz ugovora o delu. Mera: zabrana otuđenja nekretnine. "
+            "Opasnost: protivnik prodaje jedinu imovinu. Sud: Privredni sud Beograd."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["predlog_privremena_mera"],
+        "sablon":     SABLON_PREDLOG_PRIVREMENA_MERA,
+        "compliance_tip": None,
+    },
+    "tuzba_razvod": {
+        "label":      "Tužba za razvod braka",
+        "opis_hint":  (
+            "Npr. Tužilac: Ana Anić, Novi Sad. Tuženi: Milan Anić, Novi Sad. "
+            "Brak zaključen 15.06.2018 pred matičarom Novi Sad. Zajednička deca: Iva (2020). "
+            "Razlozi: dugotrajni bračni nesporazumi, tražilac staranje nad detetom."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["tuzba_razvod"],
+        "sablon":     SABLON_TUZBA_RAZVOD,
+        "compliance_tip": None,
+    },
+    "krivicna_prijava": {
+        "label":      "Krivična prijava",
+        "opis_hint":  (
+            "Npr. Podnosilac: Dragana Dragić, Beograd. Okrivljeni: Vuk Vukić, Beograd. "
+            "Krivično delo: prevara (čl. 208 KZ). Dana 05.05.2026. prodao lažni stan. "
+            "Dokazi: ugovor, priznanica, izjave svedoka."
+        ),
+        "ekstrakcioni_prompt": EKSTRAKCIONI_PROMPTOVI["krivicna_prijava"],
+        "sablon":     SABLON_KRIVICNA_PRIJAVA,
         "compliance_tip": None,
     },
 }

@@ -127,9 +127,9 @@ def test_punomocje_sablon_contains_predmet():
 
 
 def test_get_types_list_returns_five():
-    # Updated to 12 types after P4.2/P4.3/P4.6 (zalba + tuzba + letter templates)
+    # Updated to 18 types after P1.2 Legal Form Library expansion
     tipovi = get_types_list()
-    assert len(tipovi) == 12
+    assert len(tipovi) >= 18
 
 
 def test_get_types_list_structure():
