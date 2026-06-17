@@ -15684,8 +15684,25 @@ async function pred_rokokiGeneriši(sacuvaj) {
 
 function ugovor_openModal() {
   var m = document.getElementById('ugovor-modal');
-  if (m) m.style.display = 'flex';
+  if (!m) return;
+  m.style.display = 'flex';
   document.getElementById('uz-err').style.display = 'none';
+
+  // Pre-fill advokat from firma settings
+  var firma = {};
+  try { firma = JSON.parse(localStorage.getItem('vindex_firma') || '{}'); } catch(e) {}
+  var advokatEl = document.getElementById('uz-advokat-ime');
+  var adresaEl  = document.getElementById('uz-advokat-adresa');
+  if (advokatEl && !advokatEl.value && firma.naziv) advokatEl.value = firma.naziv;
+  if (adresaEl  && !adresaEl.value  && firma.adresa) adresaEl.value = firma.adresa;
+
+  // Pre-fill today's date if empty
+  var datumEl = document.getElementById('uz-datum');
+  if (datumEl && !datumEl.value) datumEl.value = new Date().toISOString().slice(0, 10);
+
+  // Pre-fill predmet opis from active predmet name
+  var opisEl = document.getElementById('uz-predmet-opis');
+  if (opisEl && !opisEl.value && activePredmetNaziv) opisEl.value = activePredmetNaziv;
 }
 function ugovor_closeModal() {
   var m = document.getElementById('ugovor-modal');
@@ -15719,7 +15736,7 @@ async function ugovor_generiši(sacuvaj) {
       datum_zakljucenja: document.getElementById('uz-datum').value || null,
     };
     if (sacuvaj && activePredmetId) body.predmet_id = activePredmetId;
-    var r = await fetch('/api/ugovor-zastupanja/generi%C5%A1i', {
+    var r = await fetch(BASE_URL + '/api/ugovor-zastupanja/generi%C5%A1i', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
       body: JSON.stringify(body)
@@ -15751,7 +15768,10 @@ function ugovor_showResult(d) {
     + '<div style="font-size:.72rem;color:rgba(255,255,255,0.35);margin-bottom:.8rem;">'
     + d.datum_zakljucenja + (d.sacuvano_u_predmet ? ' · <span style="color:#4ade80;">Sačuvano u hronologiji</span>' : '') + '</div>'
     + '<pre style="white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:.72rem;line-height:1.55;color:rgba(255,255,255,0.75);background:rgba(0,0,0,0.3);padding:.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.07);">' + _htmlEsc(d.ugovor_tekst) + '</pre>'
-    + '<button onclick="ugovor_kopiraj()" style="margin-top:.8rem;width:100%;padding:.5rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:8px;color:#00d4ff;font-size:.78rem;cursor:pointer;" id="uz-copy-btn">Kopiraj tekst</button>'
+    + '<div style="display:flex;gap:.5rem;margin-top:.8rem;">'
+    + '<button onclick="ugovor_kopiraj()" style="flex:1;padding:.5rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:8px;color:#00d4ff;font-size:.78rem;cursor:pointer;" id="uz-copy-btn">📋 Kopiraj tekst</button>'
+    + '<button onclick="ugovor_stampaj()" style="flex:1;padding:.5rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-size:.78rem;cursor:pointer;">🖨 Štampaj / PDF</button>'
+    + '</div>'
     + '</div>';
   document.body.appendChild(overlay);
   window._ugovorTekst = d.ugovor_tekst;
@@ -15760,8 +15780,20 @@ async function ugovor_kopiraj() {
   try {
     await navigator.clipboard.writeText(window._ugovorTekst || '');
     var b = document.getElementById('uz-copy-btn');
-    if (b) { b.textContent = 'Kopirano!'; setTimeout(function(){ b.textContent = 'Kopiraj tekst'; }, 2000); }
+    if (b) { b.textContent = '✓ Kopirano!'; setTimeout(function(){ b.textContent = '📋 Kopiraj tekst'; }, 2000); }
   } catch(e) {}
+}
+
+function ugovor_stampaj() {
+  var tekst = window._ugovorTekst || '';
+  var w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ugovor o zastupanju</title>'
+    + '<style>body{font-family:"Courier New",monospace;font-size:11pt;line-height:1.6;padding:2.5cm;max-width:800px;margin:0 auto;color:#111;}pre{white-space:pre-wrap;word-break:break-word;}@media print{body{padding:1.5cm;}button{display:none!important;}}</style>'
+    + '</head><body><pre>' + _htmlEsc(tekst) + '</pre>'
+    + '<script>window.onload=function(){window.print();}<\/script>'
+    + '</body></html>');
+  w.document.close();
 }
 
 function pred_openNewModal() {
