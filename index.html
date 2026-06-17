@@ -6059,6 +6059,35 @@ i[data-lucide] svg {
                 </div>
                 <button id="pred-zatvori-trigger" onclick="pred_zatvoriOtvori()" style="width:100%;padding:.45rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.2);border-radius:7px;color:rgba(255,140,140,0.75);font-size:.78rem;font-weight:600;cursor:pointer;display:none;">✕ Zatvori predmet</button>
               </div>
+
+              <!-- ── ZPP Rokovi Lanac ────────────────────────────────── -->
+              <div id="pred-rokovi-section" style="margin-top:1rem;padding:.75rem .9rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                  <span style="font-size:.75rem;font-weight:600;color:rgba(0,212,255,0.7);text-transform:uppercase;letter-spacing:.07em;">ZPP Rokovi</span>
+                  <button onclick="pred_rokokiToggle()" id="pred-rokovi-toggle-btn" style="font-size:.72rem;color:rgba(0,212,255,0.6);background:none;border:none;cursor:pointer;padding:0;">+ Generiši lanac</button>
+                </div>
+                <div id="pred-rokovi-form" style="display:none;margin-bottom:.6rem;">
+                  <label style="font-size:.72rem;color:rgba(255,255,255,0.4);display:block;margin-bottom:.2rem;">Procesni akt</label>
+                  <select id="pred-rokovi-tip" style="width:100%;padding:.42rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.78rem;margin-bottom:.5rem;">
+                    <option value="">-- Izaberite akt --</option>
+                    <option value="dostava_presude_prvostepene">Dostava presude prvostepenog suda</option>
+                    <option value="dostava_presude_drugostepene">Dostava presude drugostepenog suda</option>
+                    <option value="dostava_zalbe">Dostava žalbe protivnoj strani</option>
+                    <option value="dostava_tuzbe">Dostava tužbe tuženom</option>
+                    <option value="dostava_resenja">Dostava rešenja suda</option>
+                    <option value="dostava_revizije">Dostava revizije protivnoj strani</option>
+                  </select>
+                  <label style="font-size:.72rem;color:rgba(255,255,255,0.4);display:block;margin-bottom:.2rem;">Datum dostave</label>
+                  <input type="date" id="pred-rokovi-datum" style="width:100%;padding:.42rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#fff;font-size:.78rem;box-sizing:border-box;margin-bottom:.5rem;">
+                  <div style="display:flex;gap:.5rem;">
+                    <button onclick="pred_rokokiGeneriši(true)" style="flex:1;padding:.45rem;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);border-radius:7px;color:#00d4ff;font-size:.77rem;font-weight:600;cursor:pointer;" id="pred-rokovi-btn">Generiši i sačuvaj</button>
+                    <button onclick="pred_rokokiGeneriši(false)" style="flex:1;padding:.45rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:7px;color:rgba(255,255,255,0.5);font-size:.77rem;cursor:pointer;">Samo prikaži</button>
+                    <button onclick="pred_rokokiOtvoriFormu(false)" style="padding:.45rem .7rem;background:none;border:1px solid rgba(255,255,255,0.08);border-radius:7px;color:rgba(255,255,255,0.3);font-size:.77rem;cursor:pointer;">✕</button>
+                  </div>
+                  <div id="pred-rokovi-err" style="display:none;margin-top:.4rem;color:#ff9090;font-size:.75rem;"></div>
+                </div>
+                <div id="pred-rokovi-rezultat" style="display:none;"></div>
+              </div>
               </div><!-- /pred-pane-pregled -->
 
               <!-- ── TAB 2: Dokumenti ─────────────────────────────────── -->
@@ -13814,6 +13843,12 @@ async function pred_loadDetail(id) {
     ucitajKomentare(id);
     billing_load(id);
     pred_zatvoriRenderSection(d.predmet || null);
+    var _rSec = document.getElementById('pred-rokovi-section');
+    if (_rSec) {
+      _rSec.style.display = 'block';
+      document.getElementById('pred-rokovi-rezultat').style.display = 'none';
+      pred_rokokiOtvoriFormu(false);
+    }
   } catch(e) {
     if (loadEl) loadEl.style.display = 'none';
   }
@@ -15009,6 +15044,77 @@ function pred_zatvoriRenderSection(predmetData) {
   } else {
     if (dispEl) dispEl.style.display = 'none';
     if (trigger) trigger.style.display = 'block';
+  }
+}
+
+function pred_rokokiToggle() {
+  pred_rokokiOtvoriFormu(true);
+}
+function pred_rokokiOtvoriFormu(show) {
+  var form = document.getElementById('pred-rokovi-form');
+  var btn  = document.getElementById('pred-rokovi-toggle-btn');
+  var err  = document.getElementById('pred-rokovi-err');
+  if (!form) return;
+  if (show) {
+    form.style.display = 'block';
+    if (btn) btn.style.display = 'none';
+    if (err) err.style.display = 'none';
+  } else {
+    form.style.display = 'none';
+    if (btn) btn.style.display = 'inline';
+  }
+}
+async function pred_rokokiGeneriši(sacuvaj) {
+  if (!currentSession) return;
+  var tip   = document.getElementById('pred-rokovi-tip').value;
+  var datum = document.getElementById('pred-rokovi-datum').value;
+  var errEl = document.getElementById('pred-rokovi-err');
+  var rezEl = document.getElementById('pred-rokovi-rezultat');
+  if (!tip)   { if (errEl) { errEl.textContent = 'Izaberite procesni akt.'; errEl.style.display = 'block'; } return; }
+  if (!datum) { if (errEl) { errEl.textContent = 'Unesite datum dostave.'; errEl.style.display = 'block'; } return; }
+  if (errEl) errEl.style.display = 'none';
+  var btn = document.getElementById('pred-rokovi-btn');
+  if (btn) btn.disabled = true;
+  try {
+    var body = { tip_dogadjaja: tip, datum_pocetka: datum };
+    if (sacuvaj && activePredmetId) body.predmet_id = activePredmetId;
+    var r = await fetch('/api/rokovi/lanac', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify(body)
+    });
+    var d = await r.json().catch(function(){ return {}; });
+    if (!r.ok) { if (errEl) { errEl.textContent = d.detail || 'Greška pri generisanju rokova.'; errEl.style.display = 'block'; } return; }
+    pred_rokokiOtvoriFormu(false);
+    if (rezEl) {
+      var _vaznostColor = { kritican: '#ff9090', vazno: '#fbbf24', info: 'rgba(255,255,255,0.35)' };
+      var _vaznostLabel = { kritican: 'KRITIČAN', vazno: 'VAŽNO', info: 'INFO' };
+      var html = '<div style="font-size:.72rem;color:rgba(255,255,255,0.4);margin-bottom:.5rem;">'
+        + _htmlEsc(d.tip_naziv) + ' · ' + _htmlEsc(d.datum_pocetka_display)
+        + (d.sacuvano_u_predmet ? ' · <span style="color:#4ade80;">Sačuvano u hronologiji</span>' : '') + '</div>';
+      html += '<div style="display:flex;flex-direction:column;gap:.4rem;">';
+      (d.lanac || []).forEach(function(r) {
+        var col = _vaznostColor[r.vaznost] || 'rgba(255,255,255,0.4)';
+        var lbl = _vaznostLabel[r.vaznost] || r.vaznost;
+        html += '<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.4rem .5rem;background:rgba(255,255,255,0.03);border-radius:7px;border-left:2px solid ' + col + ';">'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-size:.76rem;font-weight:600;color:rgba(255,255,255,0.85);">' + _htmlEsc(r.naziv) + '</div>'
+          + '<div style="font-size:.7rem;color:rgba(255,255,255,0.35);">' + _htmlEsc(r.zakonski_osnov) + '</div>'
+          + '</div>'
+          + '<div style="text-align:right;flex-shrink:0;">'
+          + '<div style="font-size:.78rem;font-weight:600;color:' + col + ';">' + _htmlEsc(r.datum_display) + '</div>'
+          + '<div style="font-size:.67rem;color:' + col + ';opacity:.7;">' + lbl + '</div>'
+          + '</div>'
+          + '</div>';
+      });
+      html += '</div>';
+      rezEl.innerHTML = html;
+      rezEl.style.display = 'block';
+    }
+  } catch(e) {
+    if (errEl) { errEl.textContent = 'Mrežna greška.'; errEl.style.display = 'block'; }
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
