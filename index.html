@@ -1018,6 +1018,8 @@ footer { padding: 2rem 1.5rem; }
 .billing-kc-n{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;color:#89c8ff;line-height:1;}
 .billing-kc-n.warn{color:#fb923c;}
 .billing-kc-l{font-family:'JetBrains Mono',monospace;font-size:0.46rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-top:0.25rem;line-height:1.4;}
+.billing-report-btn{width:100%;padding:0.38rem 0.5rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:7px;color:rgba(255,255,255,0.55);font-size:0.7rem;cursor:pointer;transition:all .2s;font-family:inherit;text-align:left;}
+.billing-report-btn:hover{background:rgba(0,212,255,0.07);border-color:rgba(0,212,255,0.2);color:#89d8ff;}
 /* ── F8: Komentari ─────────────────────────────────────────── */
 .kom-lista{margin-top:10px;}
 .kom-red{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
@@ -6316,6 +6318,21 @@ i[data-lucide] svg {
                         </div>
                       </div>
                       <button onclick="billing_showRecurringForm()" id="btn-new-recurring" style="width:100%;padding:0.38rem;background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.12);border-radius:7px;color:rgba(255,255,255,0.4);font-size:0.71rem;cursor:pointer;font-family:inherit;">+ Nov šablon</button>
+                    </div>
+                  </div>
+                  <!-- ── Izveštaji ──────────────────────────────────────── -->
+                  <div style="margin-top:0.75rem;">
+                    <button onclick="billing_toggleReports(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">
+                      <span>📊 Izveštaji</span><span id="reports-chevron">▼</span>
+                    </button>
+                    <div id="reports-section" style="display:none;margin-top:0.4rem;display:none;">
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.3rem;">
+                        <button onclick="billing_openReport('godisnji')" class="billing-report-btn">📅 Godišnji</button>
+                        <button onclick="billing_openReport('zastarele')" class="billing-report-btn">⏱ Starele stavke</button>
+                        <button onclick="billing_openReport('po-tipu')" class="billing-report-btn">⚖️ Po tipu predmeta</button>
+                        <button onclick="billing_csvDownload()" class="billing-report-btn">⬇ Preuzmi CSV</button>
+                      </div>
+                      <div id="billing-report-result" style="display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.6rem;margin-top:0.3rem;font-size:0.72rem;"></div>
                     </div>
                   </div>
                 </div>
@@ -16195,6 +16212,92 @@ function searchActivateFocus() {
   var el = document.querySelector('#search-results .srch-item.srch-focus');
   if (el) el.click();
 }
+
+// ── Billing Izveštaji ────────────────────────────────────────────────────────
+
+function billing_toggleReports(btn) {
+  var sec = document.getElementById('reports-section');
+  var chv = document.getElementById('reports-chevron');
+  if (!sec) return;
+  var open = sec.style.display !== 'none';
+  sec.style.display = open ? 'none' : 'block';
+  if (chv) chv.textContent = open ? '▼' : '▲';
+}
+
+async function billing_openReport(tip) {
+  var resEl = document.getElementById('billing-report-result');
+  if (!resEl || !currentSession) return;
+  resEl.style.display = 'block';
+  resEl.innerHTML = '<div style="color:rgba(255,255,255,0.3);padding:0.5rem 0;">Učitavam...</div>';
+
+  var today = new Date();
+  var yr = today.getFullYear();
+  var od  = yr + '-01-01';
+  var url = '';
+  if (tip === 'godisnji')   url = BASE_URL + '/billing/report/godisnji?godina=' + yr;
+  if (tip === 'zastarele')  url = BASE_URL + '/billing/report/zastarele';
+  if (tip === 'po-tipu')    url = BASE_URL + '/billing/report/po-tipu?od=' + od + '&do=' + today.toISOString().slice(0,10);
+
+  try {
+    var r = await fetch(url, {headers:{Authorization:'Bearer '+currentSession.access_token}});
+    var d = await r.json();
+    if (!r.ok) { resEl.innerHTML='<div style="color:rgba(255,100,100,0.7);">'+(d.detail||'Greška.')+'</div>'; return; }
+    resEl.innerHTML = billing_renderReport(tip, d);
+  } catch(e) { resEl.innerHTML='<div style="color:rgba(255,100,100,0.7);">Greška veze.</div>'; }
+}
+
+function billing_renderReport(tip, d) {
+  if (tip === 'godisnji') {
+    return '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Godišnji izveštaj '+(d.godina||'')+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;margin-bottom:0.4rem;">'
+      +'<div style="background:rgba(0,212,127,0.07);border:1px solid rgba(0,212,127,0.15);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Uneseno</div><div style="font-size:0.82rem;font-weight:700;color:#00d47f;">'+Math.round(d.ukupno_uneseno_rsd||0).toLocaleString('sr-RS')+' RSD</div></div>'
+      +'<div style="background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.15);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Naplaćeno</div><div style="font-size:0.82rem;font-weight:700;color:#89c8ff;">'+Math.round(d.ukupno_naplaceno_rsd||0).toLocaleString('sr-RS')+' RSD</div></div>'
+      +'<div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.1);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Fakturisano</div><div style="font-size:0.82rem;font-weight:600;color:#00d4ff;">'+Math.round(d.ukupno_fakturisano||0).toLocaleString('sr-RS')+' RSD</div></div>'
+      +'<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Stopa naplate</div><div style="font-size:0.82rem;font-weight:600;color:rgba(255,255,255,0.7);">'+(d.stopa_naplate_pct||0)+'%</div></div>'
+      +'</div>'
+      +(d.top_klijenti && d.top_klijenti.length ? '<div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin-bottom:0.2rem;">TOP KLIJENTI</div>'
+        +d.top_klijenti.slice(0,3).map(function(k){ return '<div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-size:0.7rem;"><span style="color:rgba(255,255,255,0.6);">'+escHtml(k.naziv||'—')+'</span><span style="color:#89c8ff;font-weight:600;">'+Math.round(k.iznos).toLocaleString('sr-RS')+' RSD</span></div>'; }).join('') : '');
+  }
+  if (tip === 'zastarele') {
+    var aging = d.aging || {};
+    return '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Starele nenaplaćene stavke</div>'
+      +'<div style="font-size:0.8rem;font-weight:700;color:#ff9966;margin-bottom:0.35rem;">Ukupno: '+Math.round(d.ukupno_nenaplaceno_rsd||0).toLocaleString('sr-RS')+' RSD</div>'
+      +[['do_30_dana','0-30 dana','rgba(0,212,127,0.1)','#00d47f'],['31_60_dana','31-60 dana','rgba(255,200,100,0.08)','#ffc864'],['61_90_dana','61-90 dana','rgba(255,150,100,0.08)','#ff9664'],['starije_90','90+ dana','rgba(255,80,80,0.08)','#ff5050']].map(function(b){
+        var bkt = aging[b[0]]||{};
+        return '<div style="display:flex;justify-content:space-between;align-items:center;background:'+b[2]+';border-radius:5px;padding:0.25rem 0.4rem;margin-bottom:0.15rem;">'
+          +'<span style="font-size:0.67rem;color:rgba(255,255,255,0.5);">'+b[1]+' ('+((bkt.stavki)||0)+' stav.)</span>'
+          +'<span style="font-size:0.72rem;font-weight:600;color:'+b[3]+';">'+Math.round(bkt.iznos||0).toLocaleString('sr-RS')+' RSD</span></div>';
+      }).join('');
+  }
+  if (tip === 'po-tipu') {
+    var rows = d.po_tipu || [];
+    return '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Prihodi po tipu predmeta</div>'
+      +'<div style="font-size:0.8rem;font-weight:700;color:#00d4ff;margin-bottom:0.35rem;">Ukupno: '+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</div>'
+      +rows.slice(0,5).map(function(t){
+        return '<div style="margin-bottom:0.3rem;">'
+          +'<div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:0.1rem;"><span style="color:rgba(255,255,255,0.65);text-transform:capitalize;">'+escHtml(t.tip||'ostalo')+'</span><span style="color:#89c8ff;font-weight:600;">'+Math.round(t.iznos_rsd).toLocaleString('sr-RS')+' RSD</span></div>'
+          +'<div style="background:rgba(0,212,255,0.06);border-radius:3px;height:4px;"><div style="background:#00d4ff;border-radius:3px;height:4px;width:'+Math.min(100,(t.ucesce_pct||0))+'%;"></div></div>'
+          +'</div>';
+      }).join('');
+  }
+  return '<pre style="font-size:0.65rem;color:rgba(255,255,255,0.4);">'+JSON.stringify(d,null,2)+'</pre>';
+}
+
+async function billing_csvDownload() {
+  if (!currentSession) return;
+  var yr  = new Date().getFullYear();
+  var url = BASE_URL+'/billing/report/csv?od='+yr+'-01-01&do='+yr+'-12-31';
+  var r   = await fetch(url, {headers:{Authorization:'Bearer '+currentSession.access_token}});
+  if (!r.ok) { showToast('Greška pri preuzimanju.','err'); return; }
+  var blob = await r.blob();
+  var a    = document.createElement('a');
+  a.href   = URL.createObjectURL(blob);
+  a.download = 'billing-'+yr+'.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('CSV preuzet.','ok');
+}
+
 </script>
 
 <!-- SETTINGS MODAL -->
