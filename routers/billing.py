@@ -15,14 +15,21 @@ POST   /billing/faktura                  — kreiraj fakturu iz odabranih radnji
 GET    /billing/faktura/{id}/pdf         — PDF fakture
 PATCH  /billing/faktura/{id}/status      — promeni status fakture
 GET    /billing/pregled                  — mesecni pregled naplativosti
+POST   /billing/faktura/{id}/posalji-email — PDF fakture emailom klijentu
 """
 from __future__ import annotations
 
 import asyncio
+import email as _email_lib
 import io
 import logging
 import math
+import os
+import smtplib
 from datetime import date, datetime, timezone
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -31,6 +38,12 @@ from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+
+_EMAIL_SMTP_HOST = os.getenv("EMAIL_SMTP_HOST", "")
+_EMAIL_SMTP_PORT = int(os.getenv("EMAIL_SMTP_PORT", "587"))
+_EMAIL_SMTP_USER = os.getenv("EMAIL_SMTP_USER", "")
+_EMAIL_SMTP_PASS = os.getenv("EMAIL_SMTP_PASS", "")
+_EMAIL_FROM      = os.getenv("EMAIL_FROM", "")
 
 logger = logging.getLogger("vindex.billing")
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -542,6 +555,100 @@ async def faktura_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _send_email_smtp(to_addr: str, subject: str, html_body: str, pdf_bytes: bytes, pdf_filename: str) -> None:
+    """Patchable SMTP wrapper — raises on failure."""
+    if not _EMAIL_SMTP_HOST:
+        raise RuntimeError("EMAIL_SMTP_HOST nije konfigurisan.")
+
+    msg = MIMEMultipart("mixed")
+    msg["From"]    = _EMAIL_FROM or _EMAIL_SMTP_USER
+    msg["To"]      = to_addr
+    msg["Subject"] = subject
+
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    attach = MIMEApplication(pdf_bytes, _subtype="pdf")
+    attach.add_header("Content-Disposition", "attachment", filename=pdf_filename)
+    msg.attach(attach)
+
+    with smtplib.SMTP(_EMAIL_SMTP_HOST, _EMAIL_SMTP_PORT, timeout=15) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.login(_EMAIL_SMTP_USER, _EMAIL_SMTP_PASS)
+        smtp.sendmail(msg["From"], [to_addr], msg.as_string())
+
+
+@router.post("/faktura/{faktura_id}/posalji-email", status_code=200)
+@limiter.limit("10/minute")
+async def posalji_fakturu_email(
+    faktura_id: str,
+    request:    Request,
+    user:       dict = Depends(get_current_user),
+):
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    if not _EMAIL_SMTP_HOST:
+        raise HTTPException(status_code=503, detail="Email nije konfigurisan. Dodajte EMAIL_SMTP_* env varijable.")
+
+    f_r = await _db(lambda: supa.table("fakture").select("*").eq("id", faktura_id).eq("user_id", uid).maybe_single().execute())
+    if not f_r.data:
+        raise HTTPException(status_code=404, detail="Faktura nije pronađena.")
+    f = f_r.data
+
+    to_email = f.get("klijent_email") or ""
+    if not to_email:
+        if f.get("klijent_id"):
+            kl_r = await _db(
+                lambda: supa.table("klijenti").select("email").eq("id", f["klijent_id"]).maybe_single().execute()
+            )
+            to_email = (kl_r.data or {}).get("email", "")
+
+    if not to_email:
+        raise HTTPException(status_code=422, detail="Klijent nema email adresu.")
+
+    e_r = await _db(lambda: supa.table("billing_entries").select("*").eq("faktura_id", faktura_id).eq("user_id", uid).order("datum").execute())
+    entries = e_r.data or []
+
+    pdf_bytes = await asyncio.to_thread(_generate_pdf, f, entries)
+    filename  = f"faktura_{f.get('broj_fakture', faktura_id).replace('/', '-')}.pdf"
+
+    broj     = f.get("broj_fakture", "")
+    iznos    = f"{float(f.get('iznos_sa_pdv') or f.get('iznos_rsd') or 0):,.2f}"
+    html_body = (
+        f"<p>Poštovani,</p>"
+        f"<p>U prilogu se nalazi faktura <strong>{broj}</strong> "
+        f"na iznos <strong>{iznos} RSD</strong>.</p>"
+        f"<p>Hvala na saradnji.</p>"
+        f"<hr><small>Generisano putem Vindex AI — vindex.ai</small>"
+    )
+    subject = f"Faktura {broj} — {iznos} RSD"
+
+    try:
+        await asyncio.to_thread(
+            _send_email_smtp, to_email, subject, html_body, pdf_bytes, filename
+        )
+    except Exception as exc:
+        await _db(lambda: supa.table("email_log").insert({
+            "user_id":    uid,
+            "faktura_id": faktura_id,
+            "poslato_na": to_email,
+            "status":     "greska",
+            "greska":     str(exc)[:500],
+        }).execute())
+        raise HTTPException(status_code=502, detail=f"Greška pri slanju emaila: {exc}")
+
+    await _db(lambda: supa.table("email_log").insert({
+        "user_id":    uid,
+        "faktura_id": faktura_id,
+        "poslato_na": to_email,
+        "status":     "poslato",
+    }).execute())
+
+    logger.info("[BILLING-EMAIL] faktura=%s poslata na=%s", faktura_id, to_email)
+    return {"status": "poslato", "poslato_na": to_email, "faktura_id": faktura_id}
 
 
 @router.patch("/faktura/{faktura_id}/status")

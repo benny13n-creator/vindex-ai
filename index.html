@@ -6282,6 +6282,39 @@ i[data-lucide] svg {
                   </div>
                   <div id="billing-entries-list" style="margin-top:0.5rem;"></div>
                   <div id="billing-faktura-bar" style="display:none;margin-top:0.5rem;"></div>
+
+                  <!-- ── Ponavljajuće fakture ─────────────────────────────── -->
+                  <div style="margin-top:0.75rem;">
+                    <button onclick="billing_toggleRecurring(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">
+                      <span>🔁 Ponavljajuće fakture</span><span id="recurring-chevron">▼</span>
+                    </button>
+                    <div id="recurring-section" style="display:none;margin-top:0.4rem;">
+                      <div id="recurring-list" style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.4rem;"></div>
+                      <!-- Nova forma -->
+                      <div id="recurring-form" style="display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.6rem;margin-bottom:0.4rem;">
+                        <div style="font-size:0.7rem;font-weight:600;color:rgba(255,255,255,0.5);margin-bottom:0.4rem;">Nov šablon</div>
+                        <input id="rec-naziv" class="t-input" type="text" placeholder="Naziv šablona..." style="width:100%;margin-bottom:0.3rem;font-size:0.72rem;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.3rem;">
+                          <select id="rec-ucestalost" class="t-input" style="font-size:0.71rem;padding:0.38rem 0.5rem;">
+                            <option value="mesecno">Mesečno</option>
+                            <option value="kvartalno">Kvartalno</option>
+                            <option value="godisnje">Godišnje</option>
+                          </select>
+                          <input id="rec-iznos" class="t-input" type="number" placeholder="Iznos RSD" min="1" step="100" style="font-size:0.72rem;">
+                        </div>
+                        <input id="rec-opis" class="t-input" type="text" placeholder="Opis usluge..." style="width:100%;margin-bottom:0.3rem;font-size:0.72rem;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.4rem;">
+                          <input id="rec-datum" class="t-input" type="date" style="font-size:0.72rem;">
+                          <input id="rec-pdv" class="t-input" type="number" placeholder="PDV %" min="0" max="100" step="1" value="0" style="font-size:0.72rem;">
+                        </div>
+                        <div style="display:flex;gap:0.35rem;">
+                          <button onclick="billing_saveRecurring()" style="flex:1;padding:0.4rem;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#89c8ff;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">Sačuvaj šablon</button>
+                          <button onclick="document.getElementById('recurring-form').style.display='none'" style="padding:0.4rem 0.6rem;background:none;border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:rgba(255,255,255,0.4);font-size:0.72rem;cursor:pointer;font-family:inherit;">Otkaži</button>
+                        </div>
+                      </div>
+                      <button onclick="billing_showRecurringForm()" id="btn-new-recurring" style="width:100%;padding:0.38rem;background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.12);border-radius:7px;color:rgba(255,255,255,0.4);font-size:0.71rem;cursor:pointer;font-family:inherit;">+ Nov šablon</button>
+                    </div>
+                  </div>
                 </div>
               </div><!-- /pred-pane-naplata -->
 
@@ -15846,11 +15879,142 @@ async function billing_doGenerateFaktura() {
     var fakt = d.faktura;
     var pdfUrl = BASE_URL+'/billing/faktura/'+fakt.id+'/pdf';
     var barEl = document.getElementById('billing-faktura-bar');
-    if (barEl) barEl.innerHTML = '<div class="billing-faktura-ok">✓ Faktura br. <b>'+escHtml(fakt.broj_fakture)+'</b> kreirana &mdash; <a href="'+pdfUrl+'" target="_blank" style="color:#89c8ff;">Preuzmi PDF</a></div>';
+    if (barEl) barEl.innerHTML = '<div class="billing-faktura-ok">✓ Faktura br. <b>'+escHtml(fakt.broj_fakture)+'</b> kreirana &mdash; <a href="'+pdfUrl+'" target="_blank" style="color:#89c8ff;">Preuzmi PDF</a> &nbsp;<button onclick="billing_sendEmail(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:5px;color:#89c8ff;font-size:0.68rem;cursor:pointer;font-family:inherit;">✉ Pošalji email</button></div>';
     showToast('Faktura br. '+fakt.broj_fakture+' kreirana.','ok');
     await billing_loadEntries();
   } catch(e) { showToast('Greška veze.','err'); }
   finally { if (btn) { btn.disabled=false; btn.textContent='Kreiraj fakturu'; } }
+}
+
+// ── Ponavljajuće fakture ─────────────────────────────────────────────────────
+
+function billing_toggleRecurring(btn) {
+  var sec = document.getElementById('recurring-section');
+  var chv = document.getElementById('recurring-chevron');
+  if (sec.style.display === 'none') {
+    sec.style.display = 'block';
+    if (chv) chv.textContent = '▲';
+    billing_loadRecurring();
+  } else {
+    sec.style.display = 'none';
+    if (chv) chv.textContent = '▼';
+  }
+}
+
+async function billing_loadRecurring() {
+  var listEl = document.getElementById('recurring-list');
+  if (!listEl || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL+'/billing/recurring', {headers:{Authorization:'Bearer '+currentSession.access_token}});
+    var d = await r.json();
+    if (!r.ok) { listEl.innerHTML='<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);padding:0.3rem 0;">Greška učitavanja.</div>'; return; }
+    var rows = d.templates || [];
+    if (!rows.length) { listEl.innerHTML='<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);padding:0.3rem 0;">Nema šablona.</div>'; return; }
+    listEl.innerHTML = rows.map(function(t) {
+      var aktBadge = t.aktivan
+        ? '<span style="background:rgba(0,212,127,0.12);color:#00d47f;border:1px solid rgba(0,212,127,0.2);border-radius:4px;font-size:0.62rem;padding:0.1rem 0.3rem;">aktivan</span>'
+        : '<span style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:4px;font-size:0.62rem;padding:0.1rem 0.3rem;">neaktivan</span>';
+      var uc = {'mesecno':'Mes.','kvartalno':'Kvart.','godisnje':'God.'}[t.ucestalost]||t.ucestalost;
+      return '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:0.45rem 0.6rem;display:flex;align-items:center;gap:0.5rem;">'
+        +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(t.naziv)+'</div>'
+        +'<div style="font-size:0.66rem;color:rgba(255,255,255,0.4);margin-top:0.1rem;">'+uc+' · '+(t.iznos_rsd||0).toLocaleString('sr-RS')+' RSD · sledeci: '+(t.sledeci_datum||'—')+'</div>'
+        +'</div>'
+        +aktBadge
+        +(t.aktivan ? '<button onclick="billing_generiši(\''+escHtml(t.id)+'\')" style="padding:0.2rem 0.55rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.2);border-radius:5px;color:#89c8ff;font-size:0.67rem;cursor:pointer;white-space:nowrap;font-family:inherit;">Generiši</button>' : '')
+        +'<button onclick="billing_deactivateRecurring(\''+escHtml(t.id)+'\','+t.aktivan+')" style="padding:0.2rem 0.4rem;background:none;border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:rgba(255,255,255,0.3);font-size:0.67rem;cursor:pointer;font-family:inherit;" title="'+(t.aktivan?'Deaktiviraj':'Aktiviraj')+'">'+(t.aktivan?'⏸':'▶')+'</button>'
+        +'</div>';
+    }).join('');
+  } catch(e) { listEl.innerHTML='<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Greška.</div>'; }
+}
+
+function billing_showRecurringForm() {
+  var form = document.getElementById('recurring-form');
+  var btn  = document.getElementById('btn-new-recurring');
+  if (!form) return;
+  // postavi podrazumevani datum na sledeći mesec
+  var d = new Date(); d.setMonth(d.getMonth()+1); d.setDate(1);
+  var dateEl = document.getElementById('rec-datum');
+  if (dateEl) dateEl.value = d.toISOString().slice(0,10);
+  form.style.display = 'block';
+  if (btn) btn.style.display = 'none';
+}
+
+async function billing_saveRecurring() {
+  var naziv = (document.getElementById('rec-naziv')||{}).value.trim();
+  var uc    = (document.getElementById('rec-ucestalost')||{}).value;
+  var iznos = parseFloat((document.getElementById('rec-iznos')||{}).value)||0;
+  var opis  = (document.getElementById('rec-opis')||{}).value.trim();
+  var datum = (document.getElementById('rec-datum')||{}).value;
+  var pdv   = parseFloat((document.getElementById('rec-pdv')||{}).value)||0;
+  if (!naziv||!opis||!datum||iznos<=0) { showToast('Popunite sva obavezna polja.','warn'); return; }
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL+'/billing/recurring', {
+      method:'POST',
+      headers:{Authorization:'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
+      body: JSON.stringify({naziv:naziv,ucestalost:uc,iznos_rsd:iznos,opis:opis,sledeci_datum:datum,pdv_procenat:pdv,
+                            predmet_id:_billingPredmetId||null})
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    showToast('Šablon kreiran.','ok');
+    document.getElementById('recurring-form').style.display='none';
+    document.getElementById('btn-new-recurring').style.display='';
+    // reset form
+    ['rec-naziv','rec-opis'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    billing_loadRecurring();
+  } catch(e) { showToast('Greška veze.','err'); }
+}
+
+async function billing_generiši(templateId) {
+  if (!currentSession) return;
+  var btn = event && event.target;
+  if (btn) { btn.disabled=true; btn.textContent='...'; }
+  try {
+    var r = await fetch(BASE_URL+'/billing/recurring/'+templateId+'/generi%C5%A1i', {
+      method:'POST',
+      headers:{Authorization:'Bearer '+currentSession.access_token}
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    showToast('Faktura generisana. Sledeći datum: '+d.sledeci_datum,'ok');
+    billing_loadRecurring();
+    billing_loadEntries();
+  } catch(e) { showToast('Greška veze.','err'); }
+  finally { if (btn) { btn.disabled=false; btn.textContent='Generiši'; } }
+}
+
+async function billing_deactivateRecurring(templateId, currently_active) {
+  if (!currentSession) return;
+  var aktivan = !currently_active;
+  try {
+    var r = await fetch(BASE_URL+'/billing/recurring/'+templateId, {
+      method:'PATCH',
+      headers:{Authorization:'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
+      body: JSON.stringify({aktivan:aktivan})
+    });
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.','err'); return; }
+    showToast(aktivan?'Šablon aktiviran.':'Šablon deaktiviran.','ok');
+    billing_loadRecurring();
+  } catch(e) { showToast('Greška veze.','err'); }
+}
+
+async function billing_sendEmail(fakturaId) {
+  if (!currentSession) return;
+  var btn = event && event.target;
+  if (btn) { btn.disabled=true; btn.textContent='Šaljem...'; }
+  try {
+    var r = await fetch(BASE_URL+'/billing/faktura/'+fakturaId+'/posalji-email', {
+      method:'POST',
+      headers:{Authorization:'Bearer '+currentSession.access_token}
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Greška slanja.','err'); return; }
+    showToast('Email poslat na '+d.poslato_na,'ok');
+    if (btn) btn.textContent='✓ Poslato';
+  } catch(e) { showToast('Greška veze.','err'); }
+  finally { if (btn && btn.textContent!=='✓ Poslato') { btn.disabled=false; btn.textContent='✉ Pošalji email'; } }
 }
 
 </script>
