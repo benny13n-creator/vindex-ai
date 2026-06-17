@@ -734,6 +734,19 @@ def serve_html():
     })
 
 
+@app.get("/portal")
+def serve_portal():
+    """Javna stranica za klijentski portal — čita ?token= query param u JS-u."""
+    path = BASE_DIR / "index.html"
+    if not path.exists():
+        return greska_odgovor(404, "Frontend nije pronađen.")
+    return FileResponse(path, headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    })
+
+
 # ─── Auth endpointi ───────────────────────────────────────────────────────────
 
 

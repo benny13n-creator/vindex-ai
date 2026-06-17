@@ -17369,13 +17369,13 @@ function portal_toggleForm() {
 }
 
 async function portal_generateLink() {
-  if (!currentSession || !_predmetId) return;
+  if (!currentSession || !activePredmetId) return;
   var email = (document.getElementById('portal-email') || {}).value || '';
   var days  = parseInt((document.getElementById('portal-days') || {}).value || '30');
   var btn   = document.getElementById('portal-gen-btn');
   if (btn) { btn.disabled=true; btn.textContent='Generišem...'; }
   try {
-    var r = await fetch(BASE_URL+'/api/client-portal/token/'+_predmetId, {
+    var r = await fetch(BASE_URL+'/api/client-portal/token/'+activePredmetId, {
       method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
       body: JSON.stringify({klijent_email: email||null, valjanost_dana: days})
     });
@@ -17395,11 +17395,11 @@ async function portal_generateLink() {
 }
 
 async function portal_loadTokens() {
-  if (!currentSession || !_predmetId) return;
+  if (!currentSession || !activePredmetId) return;
   var listEl = document.getElementById('portal-tokens-list');
   if (!listEl) return;
   try {
-    var r = await fetch(BASE_URL+'/api/client-portal/tokens/'+_predmetId, {headers:{Authorization:'Bearer '+currentSession.access_token}});
+    var r = await fetch(BASE_URL+'/api/client-portal/tokens/'+activePredmetId, {headers:{Authorization:'Bearer '+currentSession.access_token}});
     if (!r.ok) return;
     var d = await r.json();
     var tokeni = d.tokeni || [];
