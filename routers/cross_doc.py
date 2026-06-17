@@ -5,6 +5,10 @@ Vindex AI — routers/cross_doc.py
 POST /api/analiza/cross-doc
   Višedokumentna pravna analiza: konflikti, sličnosti, preporuke.
   GPT-4o poredi 2-5 dokumenata/odlomaka u kontekstu datog pravnog pitanja.
+
+POST /api/analiza/cross-doc/predmet
+  Cross-doc v1: uzima ID-jeve dokumenata vezanih za predmet, rekonstruiše
+  tekst iz Pinecone i pokreće analizu konflikata.
 """
 import asyncio
 import json
@@ -12,11 +16,11 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
-from shared.deps import get_current_user
+from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
 logger = logging.getLogger("vindex.api")
@@ -147,6 +151,94 @@ async def cross_doc_analiza(
         return result
     except Exception:
         logger.exception("Greška u /api/analiza/cross-doc")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Greška pri analizi dokumenata. Pokušajte ponovo."},
+        )
+
+
+# ─── Cross-doc v1 — predmetni endpoint ───────────────────────────────────────
+
+class CrossDocPredmetReq(BaseModel):
+    predmet_id:     str            = Field(..., min_length=1)
+    dokument_ids:   list[str]      = Field(..., min_length=2, max_length=5)
+    pravno_pitanje: str            = Field(..., min_length=10, max_length=500)
+
+
+@router.post("/api/analiza/cross-doc/predmet")
+@limiter.limit("5/minute")
+async def cross_doc_predmet(
+    req: CrossDocPredmetReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Cross-doc v1: uzima IDs dokumenata predmeta, rekonstruiše tekst iz Pinecone
+    i pronalazi konflikte između dokumenata.
+    """
+    supa = _get_supa()
+    user_id = user["user_id"]
+
+    # Fetch storage_path for requested doc ids, scoped to this predmet + user
+    def _fetch_docs():
+        return (
+            supa.table("predmet_dokumenti")
+            .select("id,naziv_fajla,storage_path")
+            .eq("predmet_id", req.predmet_id)
+            .eq("user_id", user_id)
+            .in_("id", req.dokument_ids)
+            .execute()
+        )
+
+    try:
+        docs_r = await asyncio.to_thread(_fetch_docs)
+    except Exception:
+        logger.exception("[CROSS_DOC] DB greška pri dohvatanju dokumenata")
+        raise HTTPException(status_code=500, detail="Greška pri čitanju dokumenata.")
+
+    rows = docs_r.data or []
+    if len(rows) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Potrebna su najmanje 2 dokumenta koja postoje u ovom predmetu.",
+        )
+
+    # Reconstruct text for each doc via Pinecone
+    from routers.dokument import _fetch_session_tekst
+
+    async def _get_tekst(row: dict) -> tuple[str, str]:
+        storage_path = row.get("storage_path", "")
+        session_id = storage_path.replace("session/", "", 1) if storage_path else ""
+        if not session_id:
+            return row.get("naziv_fajla", "Dokument"), ""
+        tekst = await asyncio.to_thread(_fetch_session_tekst, session_id)
+        return row.get("naziv_fajla", "Dokument"), tekst[:4000]
+
+    tekst_results = await asyncio.gather(*[_get_tekst(r) for r in rows])
+
+    # Drop docs with no text
+    dokumenti = [
+        DokumentUnos(naziv=naziv, tekst=tekst)
+        for naziv, tekst in tekst_results
+        if tekst and len(tekst.strip()) >= 10
+    ]
+
+    if len(dokumenti) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Nije moguće rekonstruisati tekst za dovoljno dokumenata. Proverite da li su dokumenti pravilno indeksirani.",
+        )
+
+    try:
+        result = await asyncio.to_thread(
+            _cross_doc_sync,
+            dokumenti,
+            req.pravno_pitanje,
+            None,
+        )
+        return result
+    except Exception:
+        logger.exception("Greška u /api/analiza/cross-doc/predmet")
         return JSONResponse(
             status_code=500,
             content={"error": "Greška pri analizi dokumenata. Pokušajte ponovo."},

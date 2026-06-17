@@ -5471,6 +5471,72 @@ i[data-lucide] svg {
   color: rgba(255,255,255,0.3);
   flex-shrink: 0;
 }
+.pred-dok-item-cb {
+  width: 14px; height: 14px;
+  accent-color: #00d4ff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.pred-dok-item.cd-selected {
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.25);
+}
+/* Cross-doc analiza sekija */
+.crossdoc-section {
+  margin-top: 0.85rem;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.crossdoc-hd {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(0,212,255,0.05);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+  user-select: none;
+}
+.crossdoc-hd:hover { background: rgba(0,212,255,0.09); }
+.crossdoc-body { padding: 0.75rem; display: none; }
+.crossdoc-count {
+  font-size: 0.72rem;
+  color: #00d4ff;
+  background: rgba(0,212,255,0.12);
+  border-radius: 20px;
+  padding: 0.1rem 0.5rem;
+  margin-left: auto;
+}
+.crossdoc-konf-card {
+  border-radius: 7px;
+  padding: 0.55rem 0.7rem;
+  margin-top: 0.45rem;
+  font-size: 0.77rem;
+  line-height: 1.45;
+}
+.crossdoc-konf-visoka { background: rgba(248,113,113,0.1); border-left: 3px solid #f87171; }
+.crossdoc-konf-srednja { background: rgba(251,146,60,0.1); border-left: 3px solid #fb923c; }
+.crossdoc-konf-niska   { background: rgba(137,200,255,0.1); border-left: 3px solid #89c8ff; }
+.crossdoc-konf-label {
+  font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; margin-bottom: 0.3rem;
+}
+.crossdoc-preporuka {
+  background: rgba(255,255,255,0.04);
+  border-radius: 7px;
+  padding: 0.45rem 0.7rem;
+  margin-top: 0.35rem;
+  font-size: 0.76rem;
+}
+.crossdoc-prio-badge {
+  display: inline-block;
+  font-size: 0.62rem; font-weight: 700;
+  background: rgba(0,212,255,0.18);
+  color: #00d4ff; border-radius: 4px;
+  padding: 0.06rem 0.4rem;
+  margin-right: 0.35rem;
+}
 @media (max-width: 768px) {
   .pred-subtab-btn { padding: 0.42rem 0.52rem; font-size: 0.65rem; }
   .pred-ai-tool-btn { font-size: 0.75rem; padding: 0.48rem 0.65rem; }
@@ -6324,6 +6390,33 @@ i[data-lucide] svg {
                 <div id="pred-upload-error" style="display:none;padding:.65rem .85rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:8px;color:#ff9090;font-size:.8rem;margin-top:.45rem;"></div>
                 <div class="pred-section-lbl" style="margin-top:0.75rem;">Dokumenti predmeta</div>
                 <div id="pred-dok-lista" style="margin-top:0.3rem;"></div>
+
+                <!-- ── Cross-doc analiza ──────────────────────────────── -->
+                <div class="crossdoc-section" id="crossdoc-section" style="display:none;">
+                  <div class="crossdoc-hd" onclick="crossdoc_toggleSection(this)">
+                    <span>🔍 Cross-doc analiza</span>
+                    <span class="crossdoc-count" id="crossdoc-count">0 odabrano</span>
+                    <span id="crossdoc-chevron" style="margin-left:0.25rem;font-size:0.7rem;color:rgba(255,255,255,0.4);">▼</span>
+                  </div>
+                  <div class="crossdoc-body" id="crossdoc-body">
+                    <div style="font-size:0.73rem;color:rgba(255,255,255,0.45);margin-bottom:0.55rem;">
+                      Odaberi 2–5 dokumenata (čekbox) i postavi pravno pitanje.
+                    </div>
+                    <textarea id="crossdoc-pitanje" class="t-input" rows="2"
+                      placeholder="npr. Da li postoje kontradikcije između ovih dokumenata?"
+                      style="width:100%;box-sizing:border-box;resize:vertical;font-size:0.78rem;"></textarea>
+                    <button onclick="crossdoc_analiziraj()"
+                      style="margin-top:0.55rem;width:100%;padding:0.6rem;border:none;border-radius:8px;
+                             background:linear-gradient(135deg,#0099cc,#00d4ff);color:#000;
+                             font-weight:700;font-size:0.82rem;cursor:pointer;">
+                      Analiziraj konflikte
+                    </button>
+                    <div id="crossdoc-loading" style="display:none;text-align:center;padding:0.75rem 0;color:rgba(255,255,255,0.5);font-size:0.8rem;">
+                      <span class="upload-spinner"></span>Analiziram dokumente...
+                    </div>
+                    <div id="crossdoc-result" style="margin-top:0.6rem;"></div>
+                  </div>
+                </div>
               </div><!-- /pred-pane-dokumenti -->
 
               <!-- ── TAB 3: AI Analiza ─────────────────────────────────── -->
@@ -14168,7 +14261,134 @@ async function lanac_sacuvaj(tip, datum, btn) {
   }
 }
 
-// ── Copilot Agent Chat ────────────────────────────────────────────────────────
+// ── Cross-doc analiza ─────────────────────────────────────────────────────────
+
+var _crossdocSelected = {}; // { dokId: naziv }
+
+function crossdoc_toggleSection(hd) {
+  var body = document.getElementById('crossdoc-body');
+  var chev = document.getElementById('crossdoc-chevron');
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (chev) chev.textContent = open ? '▼' : '▲';
+}
+
+function crossdoc_toggleDok(cb) {
+  var row = cb.closest('[data-dok-id]');
+  if (!row) return;
+  var id = row.getAttribute('data-dok-id');
+  var naziv = row.getAttribute('data-dok-naziv');
+  if (cb.checked) {
+    _crossdocSelected[id] = naziv;
+    row.classList.add('cd-selected');
+  } else {
+    delete _crossdocSelected[id];
+    row.classList.remove('cd-selected');
+  }
+  // Keep max 5
+  if (Object.keys(_crossdocSelected).length > 5) {
+    cb.checked = false;
+    delete _crossdocSelected[id];
+    row.classList.remove('cd-selected');
+    showToast('Maksimalno 5 dokumenata za analizu.', 'error');
+    return;
+  }
+  var cnt = Object.keys(_crossdocSelected).length;
+  var countEl = document.getElementById('crossdoc-count');
+  if (countEl) countEl.textContent = cnt + ' odabrano';
+  // Auto-open section when first doc selected
+  var body = document.getElementById('crossdoc-body');
+  if (cnt >= 1 && body && body.style.display === 'none') {
+    crossdoc_toggleSection(null);
+  }
+}
+
+async function crossdoc_analiziraj() {
+  var ids = Object.keys(_crossdocSelected);
+  if (ids.length < 2) { showToast('Odaberi najmanje 2 dokumenta.', 'error'); return; }
+  if (!activePredmetId || !currentSession) { showToast('Nema aktivnog predmeta.', 'error'); return; }
+  var pitEl = document.getElementById('crossdoc-pitanje');
+  var pitanje = pitEl ? pitEl.value.trim() : '';
+  if (!pitanje || pitanje.length < 10) { showToast('Upiši pravno pitanje (min. 10 znakova).', 'error'); return; }
+
+  var loadEl = document.getElementById('crossdoc-loading');
+  var resEl  = document.getElementById('crossdoc-result');
+  if (loadEl) loadEl.style.display = '';
+  if (resEl)  resEl.innerHTML = '';
+
+  try {
+    var r = await fetch(BASE_URL + '/api/analiza/cross-doc/predmet', {
+      method:  'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body:    JSON.stringify({
+        predmet_id:     activePredmetId,
+        dokument_ids:   ids,
+        pravno_pitanje: pitanje
+      })
+    });
+    var d = await r.json();
+    if (!r.ok) { if (resEl) resEl.innerHTML = '<div style="color:#ff9090;font-size:0.77rem;">'+(d.error||d.detail||'Greška pri analizi.')+'</div>'; return; }
+    if (resEl) crossdoc_renderResult(d, resEl);
+  } catch(e) {
+    if (resEl) resEl.innerHTML = '<div style="color:#ff9090;font-size:0.77rem;">Greška pri analizi. Pokušajte ponovo.</div>';
+  } finally {
+    if (loadEl) loadEl.style.display = 'none';
+  }
+}
+
+function crossdoc_renderResult(d, el) {
+  var _OZB_CLS = { visoka:'crossdoc-konf-visoka', srednja:'crossdoc-konf-srednja', niska:'crossdoc-konf-niska' };
+  var _OZB_LBL = { visoka:'⚠ VISOKA', srednja:'▲ SREDNJA', niska:'◦ NISKA' };
+  var html = '';
+
+  // Rezime
+  if (d.rezime) {
+    html += '<div style="font-size:0.78rem;color:rgba(255,255,255,0.7);margin-bottom:0.6rem;padding:0.5rem 0.7rem;background:rgba(255,255,255,0.03);border-radius:7px;">'+escHtml(d.rezime)+'</div>';
+  }
+
+  // Konflikti
+  var konflikti = d.konflikti || [];
+  html += '<div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.05em;margin-bottom:0.2rem;">Konflikti ('+konflikti.length+')</div>';
+  if (!konflikti.length) {
+    html += '<div style="font-size:0.77rem;color:rgba(255,255,255,0.35);padding:0.35rem 0;">Nisu pronađeni konflikti između odabranih dokumenata.</div>';
+  } else {
+    konflikti.forEach(function(k) {
+      var cls = _OZB_CLS[k.ozbiljnost] || 'crossdoc-konf-niska';
+      var lbl = _OZB_LBL[k.ozbiljnost] || k.ozbiljnost;
+      html += '<div class="crossdoc-konf-card '+cls+'">'
+        +'<div class="crossdoc-konf-label" style="color:'+(k.ozbiljnost==='visoka'?'#f87171':k.ozbiljnost==='srednja'?'#fb923c':'#89c8ff')+';">'+lbl+'</div>'
+        +'<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-bottom:0.2rem;">'+escHtml(k.dokument_a||'')+'  ←→  '+escHtml(k.dokument_b||'')+'</div>'
+        +'<div style="font-size:0.77rem;color:rgba(255,255,255,0.82);">'+escHtml(k.opis||'')+'</div>'
+        +'</div>';
+    });
+  }
+
+  // Preporuke
+  var preporuke = d.preporuke || [];
+  if (preporuke.length) {
+    html += '<div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.05em;margin:0.75rem 0 0.2rem;">Preporuke</div>';
+    preporuke.forEach(function(p) {
+      html += '<div class="crossdoc-preporuka">'
+        +'<span class="crossdoc-prio-badge">#'+p.prioritet+'</span>'
+        +'<span style="font-size:0.77rem;color:rgba(255,255,255,0.85);">'+escHtml(p.akcija||'')+'</span>'
+        +(p.obrazloženje ? '<div style="font-size:0.71rem;color:rgba(255,255,255,0.4);margin-top:0.2rem;">'+escHtml(p.obrazloženje)+'</div>' : '')
+        +'</div>';
+    });
+  }
+
+  // Pravni zaključak
+  if (d.pravni_zakljucak) {
+    html += '<div style="margin-top:0.75rem;padding:0.55rem 0.7rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:7px;font-size:0.77rem;color:rgba(255,255,255,0.72);">'
+      +'<span style="font-size:0.68rem;font-weight:700;color:#00d4ff;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:0.3rem;">Pravni zaključak</span>'
+      +escHtml(d.pravni_zakljucak)
+      +'</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+// ── Copilot Agent Chat ─────────────────────────────────────────────────────────
 
 function copilot_appendMsg(role, html) {
   var container = document.getElementById('pred-copilot-messages');
@@ -14328,7 +14548,8 @@ async function pred_loadDetail(id) {
         dokListEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-top:0.3rem;">Nema dokumenata.</div>';
       } else {
         dokListEl.innerHTML = d.dokumenti.map(function(dok) {
-          return '<div class="pred-dok-item">'
+          return '<div class="pred-dok-item" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'">'
+            +'<input type="checkbox" class="pred-dok-item-cb" onchange="crossdoc_toggleDok(this)" title="Odaberi za cross-doc analizu">'
             +'<i data-lucide="file-text" style="width:14px;height:14px;flex-shrink:0;color:rgba(74,168,255,0.6);"></i>'
             +'<span class="pred-dok-item-name">'+escHtml(dok.naziv_fajla||'')+'</span>'
             +'<span class="pred-dok-item-status">'+escHtml(dok.status||'')+'</span>'
@@ -14336,6 +14557,11 @@ async function pred_loadDetail(id) {
         }).join('');
         if (typeof lucide !== 'undefined') lucide.createIcons();
       }
+    }
+    // Cross-doc section (renders once; always present when docs exist)
+    var cdSecEl = document.getElementById('crossdoc-section');
+    if (cdSecEl) {
+      cdSecEl.style.display = (d.dokumenti && d.dokumenti.length >= 2) ? '' : 'none';
     }
 
     // Status panel — fill with real data from workspace

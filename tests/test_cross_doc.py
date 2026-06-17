@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Tests for POST /api/analiza/cross-doc (Cross-Document Analysis)"""
+"""Tests for POST /api/analiza/cross-doc and /api/analiza/cross-doc/predmet"""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+os.environ.setdefault("FOUNDER_EMAILS", "admin@vindex.ai")
+os.environ.setdefault("SUPABASE_URL", "https://x.supabase.co")
+os.environ.setdefault("SUPABASE_SERVICE_KEY", "fake-svc-key")
+os.environ.setdefault("SUPABASE_JWT_SECRET", "fake-jwt-secret")
+os.environ.setdefault("OPENAI_API_KEY", "sk-fake")
+os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
 
 import json
 import pytest
@@ -271,3 +278,117 @@ async def test_endpoint_gpt_greška_vraća_500():
 
     assert isinstance(result, JSONResponse)
     assert result.status_code == 500
+
+
+# ─── /api/analiza/cross-doc/predmet ──────────────────────────────────────────
+
+def _fake_request_predmet():
+    scope = {
+        "type": "http", "method": "POST",
+        "headers": [], "query_string": b"",
+        "path": "/api/analiza/cross-doc/predmet",
+        "app": MagicMock(), "state": MagicMock(),
+    }
+    return StarletteRequest(scope=scope)
+
+
+_DB_ROWS = [
+    {"id": "d-001", "naziv_fajla": "Ugovor o radu",    "storage_path": "session/sess-aaa"},
+    {"id": "d-002", "naziv_fajla": "Interni pravilnik", "storage_path": "session/sess-bbb"},
+]
+
+_TEKST_A = "Zaposleni je obavezan da radi 8 sati dnevno. Otkaz se daje sa 15 dana otkaznog roka."
+_TEKST_B = "Otkazni rok iznosi 30 dana za sve zaposlene. Radno vreme je 8 sati dnevno."
+
+
+def _make_supa_crossdoc(rows=None):
+    supa = MagicMock()
+    tbl = MagicMock()
+    sel = MagicMock()
+    sel.eq.return_value  = sel
+    sel.in_.return_value = sel
+    sel.execute.return_value = MagicMock(data=rows if rows is not None else _DB_ROWS)
+    tbl.select.return_value = sel
+    supa.table.return_value = tbl
+    return supa
+
+
+@pytest.mark.anyio
+async def test_predmet_endpoint_uspesno():
+    from routers.cross_doc import cross_doc_predmet, CrossDocPredmetReq
+
+    req_body = CrossDocPredmetReq(
+        predmet_id="p-001",
+        dokument_ids=["d-001", "d-002"],
+        pravno_pitanje="Da li postoje kontradikcije između ovih dokumenata?",
+    )
+
+    supa = _make_supa_crossdoc()
+    with patch("routers.cross_doc._get_supa", return_value=supa), \
+         patch("routers.dokument._fetch_session_tekst", side_effect=[_TEKST_A, _TEKST_B]), \
+         _patch_gpt():
+        result = await cross_doc_predmet(req_body, _fake_request_predmet(), _fake_user())
+
+    assert "konflikti" in result
+    assert "preporuke" in result
+    assert result["broj_dokumenata"] == 2
+
+
+@pytest.mark.anyio
+async def test_predmet_endpoint_nedovoljno_dokumenata():
+    from fastapi import HTTPException
+    from routers.cross_doc import cross_doc_predmet, CrossDocPredmetReq
+
+    req_body = CrossDocPredmetReq(
+        predmet_id="p-001",
+        dokument_ids=["d-001", "d-002"],
+        pravno_pitanje="Da li postoje kontradikcije između ovih dokumenata?",
+    )
+
+    # DB returns only 1 row → should raise 422
+    supa = _make_supa_crossdoc(rows=[_DB_ROWS[0]])
+    with patch("routers.cross_doc._get_supa", return_value=supa):
+        with pytest.raises(HTTPException) as exc_info:
+            await cross_doc_predmet(req_body, _fake_request_predmet(), _fake_user())
+
+    assert exc_info.value.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_predmet_endpoint_prazni_tekstovi():
+    from fastapi import HTTPException
+    from routers.cross_doc import cross_doc_predmet, CrossDocPredmetReq
+
+    req_body = CrossDocPredmetReq(
+        predmet_id="p-001",
+        dokument_ids=["d-001", "d-002"],
+        pravno_pitanje="Da li postoje kontradikcije između ovih dokumenata?",
+    )
+
+    supa = _make_supa_crossdoc()
+    with patch("routers.cross_doc._get_supa", return_value=supa), \
+         patch("routers.dokument._fetch_session_tekst", return_value=""):
+        with pytest.raises(HTTPException) as exc_info:
+            await cross_doc_predmet(req_body, _fake_request_predmet(), _fake_user())
+
+    assert exc_info.value.status_code == 422
+
+
+def test_predmet_req_model_jedan_id():
+    from routers.cross_doc import CrossDocPredmetReq
+    with pytest.raises(ValidationError):
+        CrossDocPredmetReq(
+            predmet_id="p-001",
+            dokument_ids=["d-001"],
+            pravno_pitanje="Da li postoje kontradikcije između ovih dokumenata?",
+        )
+
+
+def test_predmet_req_model_vise_od_5():
+    from routers.cross_doc import CrossDocPredmetReq
+    with pytest.raises(ValidationError):
+        CrossDocPredmetReq(
+            predmet_id="p-001",
+            dokument_ids=[f"d-00{i}" for i in range(6)],
+            pravno_pitanje="Da li postoje kontradikcije između ovih dokumenata?",
+        )
