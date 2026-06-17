@@ -5239,6 +5239,61 @@ i[data-lucide] svg {
 .kc-inbox-sub    { font-size: 0.6rem; color: rgba(255,255,255,0.32); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .kc-inbox-datum  { font-family: var(--font-mono); font-size: 0.58rem; color: rgba(255,255,255,0.22); flex-shrink: 0; }
 
+/* ── Phase 15 — ZPP Lanac Rokova ── */
+.lanac-rok-card {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 7px;
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 0.3rem;
+}
+.lanac-rok-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+}
+.lanac-rok-datum {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.75);
+  font-weight: 600;
+}
+.lanac-rok-badge {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+.lanac-rok-naziv {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.82);
+  margin-bottom: 0.1rem;
+}
+.lanac-rok-osnov {
+  font-size: 0.58rem;
+  color: rgba(255,255,255,0.3);
+  font-family: var(--font-mono);
+}
+.lanac-save-btn {
+  width: 100%;
+  margin-top: 0.55rem;
+  padding: 0.42rem 0;
+  background: rgba(74,168,255,0.08);
+  border: 1px solid rgba(74,168,255,0.2);
+  border-radius: 7px;
+  color: #89c8ff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.lanac-save-btn:hover { background: rgba(74,168,255,0.15); border-color: rgba(74,168,255,0.35); }
+.lanac-save-btn:disabled { opacity: 0.5; cursor: default; }
+
 /* Lucide icon in topbar */
 .vx-topbar-ico {
   width: 16px;
@@ -6331,6 +6386,25 @@ i[data-lucide] svg {
                 <div class="pred-section-lbl">Hronologija i rokovi</div>
                 <div id="pred-hronologija-wrap">
                   <div id="pred-hronologija-list" style="margin-top:0.3rem;"></div>
+                </div>
+
+                <!-- ── ZPP Lanac Rokova ─────────────────────────────── -->
+                <div style="margin-top:0.9rem;">
+                  <button onclick="lanac_toggleSection(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">
+                    <span>⛓ ZPP Lanac rokova</span><span id="lanac-chevron">▼</span>
+                  </button>
+                  <div id="lanac-section" style="display:none;margin-top:0.4rem;padding:0.55rem 0.7rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:8px;">
+                    <div style="font-size:0.62rem;color:rgba(255,255,255,0.32);margin-bottom:0.5rem;">Automatski izračun procesnih rokova po ZPP-u od datuma ključnog akta.</div>
+                    <select id="lanac-tip" class="t-input" style="width:100%;font-size:0.71rem;margin-bottom:0.28rem;" onchange="lanac_tipChange()">
+                      <option value="">-- Tip procesnog akta --</option>
+                    </select>
+                    <div id="lanac-tip-opis" style="font-size:0.6rem;color:rgba(255,255,255,0.32);margin-bottom:0.4rem;min-height:0.75rem;line-height:1.35;"></div>
+                    <div style="display:flex;gap:0.3rem;margin-bottom:0.4rem;">
+                      <input id="lanac-datum" class="t-input" type="date" style="flex:1;font-size:0.72rem;" title="Datum prijema/dostave akta">
+                      <button onclick="lanac_kalkulisi()" style="padding:0 0.9rem;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#89c8ff;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Izračunaj</button>
+                    </div>
+                    <div id="lanac-result"></div>
+                  </div>
                 </div>
               </div><!-- /pred-pane-rokovi -->
 
@@ -13970,6 +14044,129 @@ document.addEventListener('click', function(e) {
 
 // Auto-refresh every 15 minutes
 setInterval(function() { if (currentSession) notif_load(); }, 15 * 60 * 1000);
+
+// ── Phase 15: ZPP Lanac Rokova ───────────────────────────────────────────────
+
+var _lanacTipovi = null;
+
+async function lanac_toggleSection(btn) {
+  var sec = document.getElementById('lanac-section');
+  var chv = document.getElementById('lanac-chevron');
+  if (!sec) return;
+  var open = sec.style.display !== 'none';
+  sec.style.display = open ? 'none' : 'block';
+  if (chv) chv.textContent = open ? '▼' : '▲';
+  if (!open && !_lanacTipovi) await lanac_loadTipovi();
+}
+
+async function lanac_loadTipovi() {
+  try {
+    var r = await fetch(BASE_URL + '/api/rokovi/tipovi-dogadjaja');
+    if (!r.ok) return;
+    var d = await r.json();
+    _lanacTipovi = d.tipovi || [];
+    var sel = document.getElementById('lanac-tip');
+    if (!sel) return;
+    _lanacTipovi.forEach(function(t) {
+      var opt = document.createElement('option');
+      opt.value = t.kljuc;
+      opt.textContent = t.naziv;
+      opt.dataset.opis = t.opis || '';
+      sel.appendChild(opt);
+    });
+  } catch(e) {}
+}
+
+function lanac_tipChange() {
+  var sel   = document.getElementById('lanac-tip');
+  var opis  = document.getElementById('lanac-tip-opis');
+  if (!sel || !opis) return;
+  var opt = sel.options[sel.selectedIndex];
+  opis.textContent = (opt && opt.dataset.opis) ? opt.dataset.opis : '';
+}
+
+async function lanac_kalkulisi() {
+  var tipEl   = document.getElementById('lanac-tip');
+  var datumEl = document.getElementById('lanac-datum');
+  var resEl   = document.getElementById('lanac-result');
+  if (!tipEl || !datumEl || !resEl) return;
+  var tip   = tipEl.value;
+  var datum = datumEl.value;
+  if (!tip)   { showToast('Izaberite tip procesnog akta.', 'warn'); return; }
+  if (!datum) { showToast('Unesite datum akta.', 'warn'); return; }
+  if (!currentSession) { showToast('Prijavite se.', 'warn'); return; }
+  resEl.innerHTML = '<div style="font-size:0.72rem;color:rgba(255,255,255,0.35);padding:0.3rem 0;">Računam rokove...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/rokovi/lanac', {
+      method:  'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body:    JSON.stringify({tip_dogadjaja: tip, datum_pocetka: datum})
+    });
+    if (!r.ok) {
+      var err = await r.json().catch(function(){return{};});
+      resEl.innerHTML = '<div style="color:#f87171;font-size:0.72rem;">'+(err.detail||'Greška pri izračunu.')+'</div>';
+      return;
+    }
+    var d = await r.json();
+    lanac_renderResult(d);
+  } catch(e) {
+    resEl.innerHTML = '<div style="color:#f87171;font-size:0.72rem;">Greška pri izračunu.</div>';
+  }
+}
+
+function lanac_renderResult(d) {
+  var resEl = document.getElementById('lanac-result');
+  if (!resEl) return;
+  var _VC = {kritican:'#f87171', vazno:'#fb923c', info:'#89c8ff'};
+  var _VL = {kritican:'KRITIČAN', vazno:'VAŽNO',  info:'INFO'};
+  var html = '<div style="margin-top:0.3rem;">';
+  html += '<div style="font-size:0.6rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.45rem;">Počev od: '+escHtml(d.datum_pocetka_display)+' — '+escHtml(d.tip_naziv)+'</div>';
+  (d.lanac || []).forEach(function(rok) {
+    var c = _VC[rok.vaznost] || 'rgba(255,255,255,0.4)';
+    var l = _VL[rok.vaznost] || 'INFO';
+    html += '<div class="lanac-rok-card">';
+    html += '<div class="lanac-rok-header">';
+    html += '<span class="lanac-rok-datum">'+escHtml(rok.datum_display)+'</span>';
+    html += '<span class="lanac-rok-badge" style="background:'+c+'22;color:'+c+';border-color:'+c+'44;">'+l+'</span>';
+    html += '</div>';
+    html += '<div class="lanac-rok-naziv">'+escHtml(rok.naziv)+'</div>';
+    html += '<div class="lanac-rok-osnov">'+escHtml(rok.zakonski_osnov)+'</div>';
+    html += '</div>';
+  });
+  if (activePredmetId) {
+    var tipVal   = document.getElementById('lanac-tip')   ? document.getElementById('lanac-tip').value   : '';
+    var datumVal = document.getElementById('lanac-datum') ? document.getElementById('lanac-datum').value : '';
+    html += '<button class="lanac-save-btn" onclick="lanac_sacuvaj(\''+escHtml(tipVal)+'\',\''+escHtml(datumVal)+'\',this)">⛓ Sačuvaj u hronologiju predmeta →</button>';
+  }
+  html += '</div>';
+  resEl.innerHTML = html;
+}
+
+async function lanac_sacuvaj(tip, datum, btn) {
+  if (!activePredmetId || !currentSession) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Čuvam...'; }
+  try {
+    var r = await fetch(BASE_URL + '/api/rokovi/lanac', {
+      method:  'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body:    JSON.stringify({tip_dogadjaja: tip, datum_pocetka: datum, predmet_id: activePredmetId})
+    });
+    if (!r.ok) {
+      showToast('Greška pri čuvanju.', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = '⛓ Sačuvaj u hronologiju predmeta →'; }
+      return;
+    }
+    var d = await r.json();
+    if (d.sacuvano_u_predmet) {
+      showToast('Rokovi sačuvani u hronologiju!', 'success');
+      if (btn) { btn.textContent = '✓ Sačuvano'; btn.style.color = '#4ade80'; btn.style.borderColor = 'rgba(74,222,128,0.3)'; }
+      pred_loadHronologija(activePredmetId);
+    }
+  } catch(e) {
+    showToast('Greška pri čuvanju.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '⛓ Sačuvaj u hronologiju predmeta →'; }
+  }
+}
 
 // ── Copilot Agent Chat ────────────────────────────────────────────────────────
 
