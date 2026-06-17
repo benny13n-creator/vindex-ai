@@ -460,6 +460,7 @@ from routers.dashboard            import router as dashboard_router
 from routers.inbox                import router as inbox_router
 from routers.product_intelligence import router as pi_router
 from routers.case_pipeline        import router as case_pipeline_router
+from routers.predmeti_close       import router as predmeti_close_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -485,6 +486,7 @@ app.include_router(dashboard_router)
 app.include_router(inbox_router)
 app.include_router(pi_router)
 app.include_router(case_pipeline_router)
+app.include_router(predmeti_close_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles

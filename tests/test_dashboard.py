@@ -48,13 +48,13 @@ def _make_cc_supa(predmeti=None, rocista=None, rokovi=None, risks=None,
                   beleske=None, dokumenti=None, ist_recent=None):
     """
     Route by table name — safe for concurrent asyncio.gather calls.
-    predmet_istorija queried twice (risks + ist_recent); uses a call counter
-    for that table only, all others respond with static data.
+    predmet_istorija is queried twice; discriminated by select() fields:
+    - risk query selects "odgovor" → returns risks data
+    - recent query selects only "predmet_id" → returns ist_recent data
     """
     supa = MagicMock()
     risk_data    = risks      or []
     ist_rec_data = ist_recent or []
-    ist_calls    = [0]
 
     table_map = {
         "predmeti":            predmeti  or [],
@@ -66,10 +66,13 @@ def _make_cc_supa(predmeti=None, rocista=None, rokovi=None, risks=None,
 
     def _table(name):
         if name == "predmet_istorija":
-            idx = ist_calls[0]
-            ist_calls[0] += 1
-            data = risk_data if idx == 0 else ist_rec_data
-            return _make_chain(data)
+            # Discriminate by select fields — thread-safe, no call counter needed
+            def _select(fields):
+                data = risk_data if "odgovor" in fields else ist_rec_data
+                return _make_chain(data)
+            chain = MagicMock()
+            chain.select = MagicMock(side_effect=_select)
+            return chain
         return _make_chain(table_map.get(name, []))
 
     supa.table = MagicMock(side_effect=_table)
