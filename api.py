@@ -633,6 +633,28 @@ async def pokreni(fn, *args):
     return await asyncio.to_thread(fn, *args)
 
 
+def normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None) -> dict:
+    """Pretvara interni rezultat agenta u API odgovor."""
+    resp: dict = {}
+    if not isinstance(rezultat, dict):
+        resp["odgovor"] = str(rezultat)
+    elif rezultat.get("status") == "success":
+        resp["odgovor"] = rezultat.get("data", "")
+    else:
+        resp["odgovor"] = rezultat.get(
+            "message",
+            "Došlo je do greške prilikom obrade zahteva. Pokušajte ponovo.",
+        )
+    if credits_remaining is not None:
+        resp["credits_remaining"] = credits_remaining
+    return resp
+
+
+def greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
+    logger.warning("API greška %d: %s", status_code, poruka)
+    return JSONResponse(status_code=status_code, content={"greska": poruka})
+
+
 # ─── Rute ─────────────────────────────────────────────────────────────────────
 
 @app.get("/")
