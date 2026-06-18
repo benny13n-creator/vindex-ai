@@ -51,8 +51,21 @@ _setup_sentry()
 def _setup_prometheus(application) -> None:
     try:
         from starlette_exporter import PrometheusMiddleware, handle_metrics
+        from starlette.requests import Request as _SR
+        from starlette.responses import Response as _SResp
         application.add_middleware(PrometheusMiddleware, app_name="vindex_ai", prefix="vindex")
-        application.add_route("/metrics", handle_metrics)
+
+        async def _metrics_gated(scope, receive, send):
+            req = _SR(scope, receive)
+            key = req.headers.get("x-admin-key", "")
+            admin_key = os.getenv("ADMIN_DEBUG_KEY", "")
+            if not admin_key or key != admin_key:
+                resp = _SResp(status_code=404)
+                await resp(scope, receive, send)
+                return
+            await handle_metrics(scope, receive, send)
+
+        application.add_route("/metrics", _metrics_gated)
     except ImportError:
         pass  # Not installed in dev — no-op
 
@@ -573,13 +586,20 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 async def security_headers(request: Request, call_next):
     """Dodaje security i permissions headere na svaki odgovor."""
     response = await call_next(request)
-    # Dozvoljava Web Speech API (mikrofon) na self i Render domenu
     response.headers["Permissions-Policy"] = (
         "microphone=(self \"https://vindex-ai.onrender.com\")"
     )
-    # Sprečava clickjacking
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; "
+        "style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com fonts.googleapis.com; "
+        "font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com; "
+        "img-src 'self' data: blob:; "
+        "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com; "
+        "worker-src 'self' blob:;"
+    )
     return response
 
 
@@ -631,7 +651,10 @@ def health():
 
 
 @app.get("/test-pinecone")
-async def test_pinecone():
+async def test_pinecone(x_admin_key: str = Header(default="")):
+    admin_key = os.getenv("ADMIN_DEBUG_KEY", "")
+    if not admin_key or x_admin_key != admin_key:
+        raise HTTPException(status_code=404, detail="Not found")
     def _run():
         try:
             from pinecone import Pinecone
@@ -659,11 +682,14 @@ async def test_pinecone():
 
 
 @app.get("/test-zdi")
-async def test_zdi_indeksiranost():
+async def test_zdi_indeksiranost(x_admin_key: str = Header(default="")):
     """
     Proverava da li su ključni članovi ZDI (2, 74, 75, 78) indeksirani u Pinecone.
     Vraća status svakog člana: pronađen/nije pronađen.
     """
+    admin_key = os.getenv("ADMIN_DEBUG_KEY", "")
+    if not admin_key or x_admin_key != admin_key:
+        raise HTTPException(status_code=404, detail="Not found")
     def _run():
         try:
             from app.services.retrieve import proveri_zdi_indeksiranost
@@ -681,8 +707,11 @@ async def test_zdi_indeksiranost():
 
 
 @app.get("/api/diagnose")
-async def diagnose():
+async def diagnose(x_admin_key: str = Header(default="")):
     """Testira konekciju sa Pinecone i OpenAI — sve u thread-u da ne blokira event loop."""
+    admin_key = os.getenv("ADMIN_DEBUG_KEY", "")
+    if not admin_key or x_admin_key != admin_key:
+        raise HTTPException(status_code=404, detail="Not found")
 
     def _run_checks():
         result = {}

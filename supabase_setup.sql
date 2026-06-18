@@ -613,6 +613,16 @@ CREATE TABLE IF NOT EXISTS public.predmet_klijenti (
   uloga      TEXT DEFAULT 'stranka' CHECK (uloga IN ('stranka','protivna_stranka','svedok','ostalo')),
   PRIMARY KEY (predmet_id, klijent_id)
 );
+ALTER TABLE public.predmet_klijenti ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pk_owner_all" ON public.predmet_klijenti;
+CREATE POLICY "pk_owner_all" ON public.predmet_klijenti
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.predmeti
+            WHERE id = predmet_klijenti.predmet_id
+              AND user_id = auth.uid()
+        )
+    );
 CREATE INDEX IF NOT EXISTS idx_pk_predmet ON public.predmet_klijenti(predmet_id);
 CREATE INDEX IF NOT EXISTS idx_pk_klijent ON public.predmet_klijenti(klijent_id);
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.predmet_klijenti TO service_role;

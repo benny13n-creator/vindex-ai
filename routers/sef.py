@@ -56,6 +56,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from security.crypto import encrypt_field, decrypt_field
 
 logger = logging.getLogger("vindex.sef")
 router = APIRouter(prefix="/api/sef", tags=["sef"])
@@ -162,6 +163,11 @@ async def get_sef_podesavanja(
         if not r.data:
             return {"konfigurisano": False, "podaci": None}
         d = r.data
+        raw_key = d.get("api_key", "")
+        try:
+            plain_key = decrypt_field(raw_key) if raw_key.startswith("enc_v1:") else raw_key
+        except Exception:
+            plain_key = raw_key
         return {
             "konfigurisano":  True,
             "podaci": {
@@ -169,7 +175,7 @@ async def get_sef_podesavanja(
                 "seller_naziv":  d.get("seller_naziv", ""),
                 "seller_adresa": d.get("seller_adresa", ""),
                 "seller_mesto":  d.get("seller_mesto", ""),
-                "api_key_preview": _mask_key(d.get("api_key", "")),
+                "api_key_preview": _mask_key(plain_key),
                 "updated_at":    d.get("updated_at"),
             },
         }
@@ -189,9 +195,9 @@ async def post_sef_podesavanja(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    # Ako api_key nije poslat, proveravamo da li već postoji — ako ne, greška
-    final_api_key = body.api_key
-    if not final_api_key:
+    # Ako api_key nije poslat, zadržati postojeći enkriptovani
+    final_api_key_enc = None
+    if not body.api_key:
         try:
             existing = await _db(lambda: supa.table("sef_podesavanja")
                                  .select("api_key")
@@ -199,17 +205,19 @@ async def post_sef_podesavanja(
                                  .maybe_single()
                                  .execute())
             if existing.data and existing.data.get("api_key"):
-                final_api_key = existing.data["api_key"]
+                final_api_key_enc = existing.data["api_key"]
             else:
                 raise HTTPException(status_code=422, detail="SEF API ključ je obavezan pri prvom čuvanju podešavanja.")
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"DB greška pri proveri API ključa: {e}")
+    else:
+        final_api_key_enc = encrypt_field(body.api_key)
 
     row = {
         "user_id":       uid,
-        "api_key":       final_api_key,
+        "api_key":       final_api_key_enc,
         "seller_pib":    body.seller_pib,
         "seller_naziv":  body.seller_naziv,
         "seller_adresa": body.seller_adresa,
@@ -313,9 +321,13 @@ async def sef_posalji(
         raise HTTPException(status_code=400, detail="SEF podešavanja nisu konfigurisana. Unesite PIB i API ključ u SEF sekciji.")
 
     pod = pod_r.data
-    api_key = pod.get("api_key", "")
-    if not api_key:
+    _raw_key = pod.get("api_key", "")
+    if not _raw_key:
         raise HTTPException(status_code=400, detail="SEF API ključ nije podešen.")
+    try:
+        api_key = decrypt_field(_raw_key) if _raw_key.startswith("enc_v1:") else _raw_key
+    except Exception:
+        api_key = _raw_key
 
     if not faktura.get("klijent_pib"):
         raise HTTPException(status_code=400, detail="Klijent nema PIB u fakturi. SEF zahteva PIB primaoca za B2B fakture.")
