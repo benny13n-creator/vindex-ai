@@ -2306,6 +2306,15 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
 
 # ── Phase 1.1: Auto-trigger — upload document to predmet + auto-analyze ───────
 
+_ALLOWED_MIMES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/msword",
+    "application/octet-stream",  # some browsers send this for .docx
+}
+_ALLOWED_SUFFIXES = {".pdf", ".docx", ".doc"}
+_MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
 @app.post("/api/predmeti/{predmet_id}/upload")
 @limiter.limit("10/minute")
 async def predmet_upload_auto_analyze(
