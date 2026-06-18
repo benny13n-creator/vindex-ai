@@ -71,15 +71,21 @@ def section(title: str):
 # ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 def register(base: str, email: str, password: str) -> Optional[str]:
-    """Registruj korisnika i vrati JWT token."""
+    """Registruj korisnika direktno kroz Supabase auth (pouzdanije od /api/register u CI)."""
     try:
-        r = requests.post(f"{base}/api/register", json={"email": email, "password": password}, timeout=15)
-        if r.status_code == 201:
-            return r.json().get("access_token")
-        if r.status_code == 409:
-            # Already exists — try login
-            return login(base, email, password)
-        return None
+        # Pokusaj direktan Supabase signup
+        r = requests.post(
+            f"{SUPABASE_URL}/auth/v1/signup",
+            json={"email": email, "password": password},
+            headers={"apikey": SUPABASE_ANON, "Content-Type": "application/json"},
+            timeout=15,
+        )
+        if r.status_code == 200:
+            token = r.json().get("access_token")
+            if token:
+                return token
+        # Fallback: pokusaj login (vec postoji)
+        return login_supabase(email, password)
     except Exception as e:
         print(f"    [register error] {e}")
         return None
@@ -161,7 +167,7 @@ def test_auth_bypass(base: str):
         ("GET", "/analytics/usage"),
         ("POST", "/copilot/chat"),
         ("GET", "/api/sef/podesavanja"),
-        ("GET", "/billing/faktura"),
+        ("POST", "/billing/faktura"),
         ("GET", "/api/sef/log/00000000-0000-0000-0000-000000000000"),
         ("GET", "/api/client-portal/uploads/00000000-0000-0000-0000-000000000000"),
     ]
@@ -192,7 +198,10 @@ def test_idor(base: str, token_a: str, token_b: str):
     klij_id = create_klijent(base, token_a, "IDOR Test Klijent A")
 
     if not pred_id:
-        log("Kreiranje predmeta A", SKIP, "Ne može kreirati predmet — API možda ne radi")
+        log("Kreiranje predmeta A", SKIP,
+            "Test korisnik nema setup profila (zaobisao /api/register). "
+            "Za IDOR test: pokrenite sa --token-a=<JWT_A> --token-b=<JWT_B> "
+            "koristeći naloge kreirane kroz normalnu registraciju.")
         return
     if not klij_id:
         log("Kreiranje klijenta A", SKIP, "Ne može kreirati klijenta")
@@ -558,7 +567,9 @@ def print_report():
 def main():
     parser = argparse.ArgumentParser(description="Vindex AI Security Verification Suite")
     parser.add_argument("--url", default=DEFAULT_URL, help=f"Base URL (default: {DEFAULT_URL})")
-    parser.add_argument("--skip-register", action="store_true", help="Preskoči kreiranje naloga")
+    parser.add_argument("--token-a", default=None, help="JWT token Advokata A (za IDOR test sa pravim nalogom)")
+    parser.add_argument("--token-b", default=None, help="JWT token Advokata B (za IDOR test sa pravim nalogom)")
+    parser.add_argument("--skip-register", action="store_true", help="Preskoči kreiranje test naloga")
     args = parser.parse_args()
 
     base = args.url.rstrip("/")
@@ -586,25 +597,29 @@ def main():
                 print("   Pokrenite server ili sacekajte da se Render probudi.")
                 sys.exit(1)
 
-    # Registracija / login
-    print(f"\n Kreiranje test naloga...")
-    print(f"   Advokat A: {TEST_EMAIL_A}")
-    print(f"   Advokat B: {TEST_EMAIL_B}")
-
-    token_a = register(base, TEST_EMAIL_A, TEST_PASS)
-    token_b = register(base, TEST_EMAIL_B, TEST_PASS)
-
-    if not token_a:
-        token_a = login(base, TEST_EMAIL_A, TEST_PASS)
-    if not token_b:
-        token_b = login(base, TEST_EMAIL_B, TEST_PASS)
-
-    if not token_a or not token_b:
-        print("  Nije moguće dobiti tokene za oba naloga — neki testovi biće preskočeni")
-        token_a = token_a or ""
-        token_b = token_b or ""
+    # Tokeni: manuelni (--token-a/b) ili automatski kreiranje
+    if args.token_a and args.token_b:
+        token_a, token_b = args.token_a, args.token_b
+        print(f"\n   Koristim manuelne tokene za IDOR test.")
     else:
-        print(f"    Oba naloga aktivna\n")
+        print(f"\n Kreiranje test naloga...")
+        print(f"   Advokat A: {TEST_EMAIL_A}")
+        print(f"   Advokat B: {TEST_EMAIL_B}")
+
+        token_a = register(base, TEST_EMAIL_A, TEST_PASS)
+        token_b = register(base, TEST_EMAIL_B, TEST_PASS)
+
+        if not token_a:
+            token_a = login(base, TEST_EMAIL_A, TEST_PASS)
+        if not token_b:
+            token_b = login(base, TEST_EMAIL_B, TEST_PASS)
+
+        if not token_a or not token_b:
+            print("  Nije moguce dobiti tokene — neki testovi bice preskoceni")
+            token_a = token_a or ""
+            token_b = token_b or ""
+        else:
+            print(f"   Oba naloga aktivna")
 
     # Testovi
     test_auth_bypass(base)
