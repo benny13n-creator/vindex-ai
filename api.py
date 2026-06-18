@@ -1747,7 +1747,10 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
 async def update_predmet(predmet_id: str, request: Request, authorization: str = Header(None)):
     user = _require_auth(authorization)
     body = await request.json()
-    allowed = {k: v for k, v in body.items() if k in {"naziv", "opis", "tip", "status"}}
+    allowed = {k: v for k, v in body.items() if k in {
+        "naziv", "opis", "tip", "status",
+        "tuzilac", "tuzeni", "oblast", "rizik", "vrednost_spora",
+    }}
     if not allowed:
         raise HTTPException(status_code=400, detail="Nema validnih polja za update")
     _get_supa().table("predmeti").update(allowed).eq("id", predmet_id).eq("user_id", user.id).execute()

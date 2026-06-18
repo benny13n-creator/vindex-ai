@@ -6282,27 +6282,27 @@ i[data-lucide] svg {
                 <div id="pred-status-panel" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin:0.55rem 0 0.6rem;padding:0.7rem;background:rgba(255,255,255,0.04);border-radius:8px;">
   <div style="display:flex;flex-direction:column;gap:2px;">
     <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Tužilac</span>
-    <span id="pred-s-tuzilac" style="font-size:0.8rem;color:#fff;">—</span>
+    <span id="pred-s-tuzilac" style="font-size:0.8rem;color:#fff;cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-tuzilac','tuzilac','text')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
     <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Tuženi</span>
-    <span id="pred-s-tuzeni" style="font-size:0.8rem;color:#fff;">—</span>
+    <span id="pred-s-tuzeni" style="font-size:0.8rem;color:#fff;cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-tuzeni','tuzeni','text')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
     <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Oblast</span>
-    <span id="pred-s-oblast" style="font-size:0.8rem;color:#fff;">—</span>
+    <span id="pred-s-oblast" style="font-size:0.8rem;color:#fff;cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-oblast','tip','oblast-select')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
     <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Rizik</span>
-    <span id="pred-s-rizik" style="font-size:0.8rem;color:rgba(255,255,255,0.5);">—</span>
+    <span id="pred-s-rizik" style="font-size:0.8rem;color:rgba(255,255,255,0.5);cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-rizik','rizik','rizik-select')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
     <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Nedostaju dokazi</span>
     <span id="pred-s-dokazi" style="font-size:0.8rem;color:#fff;">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
-    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Rokovi</span>
-    <span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">—</span>
+    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Vrednost spora</span>
+    <span id="pred-s-vrednost" style="font-size:0.8rem;color:#fff;cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-vrednost','vrednost_spora','text')">—</span>
   </div>
 </div>
               <!-- Cockpit panel — AI procena na vrhu -->
@@ -15266,6 +15266,75 @@ async function pred_copilotSubmit() {
   }
 }
 
+var _TIP_LABELS = {parnicno:'Parnični postupak',krivicno:'Krivični postupak',upravno:'Upravni postupak',radno:'Radno pravo',porodicno:'Porodičnopravni',nasledjivanje:'Ostavinski postupak',privredno:'Privredno pravo',nepokretnosti:'Nepokretnosti',ostalo:'Ostalo'};
+
+function _predInlineEdit(spanId, field, inputType) {
+  if (!activePredmetId || !currentSession) return;
+  var span = document.getElementById(spanId);
+  if (!span || span.querySelector('input,select')) return; // already editing
+  var curText = span.textContent.trim();
+  var curVal = curText === '—' ? '' : curText;
+
+  var inp;
+  if (inputType === 'oblast-select') {
+    inp = document.createElement('select');
+    var tipOpts = [['parnicno','Parnični'],['krivicno','Krivični'],['upravno','Upravni'],['radno','Radno'],['porodicno','Porodičnopravni'],['nasledjivanje','Ostavinski'],['privredno','Privredno'],['nepokretnosti','Nepokretnosti'],['ostalo','Ostalo']];
+    tipOpts.forEach(function(o){var el=document.createElement('option');el.value=o[0];el.textContent=o[1];if(o[0]===curVal||_TIP_LABELS[o[0]]===curText)el.selected=true;inp.appendChild(el);});
+  } else if (inputType === 'rizik-select') {
+    inp = document.createElement('select');
+    [['','—'],['nizak','Nizak'],['srednji','Srednji'],['visok','Visok']].forEach(function(o){var el=document.createElement('option');el.value=o[0];el.textContent=o[1];if(o[0]===curVal.toLowerCase())el.selected=true;inp.appendChild(el);});
+  } else {
+    inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = curVal;
+    inp.maxLength = 200;
+  }
+  inp.style.cssText = 'width:100%;max-width:150px;padding:2px 5px;background:rgba(255,255,255,0.12);border:1px solid rgba(74,168,255,.5);border-radius:5px;color:#fff;font-size:0.78rem;outline:none;box-sizing:border-box;';
+
+  span.style.display = 'none';
+  span.parentNode.insertBefore(inp, span.nextSibling);
+  inp.focus();
+  if (inp.tagName === 'INPUT' && inp.select) inp.select();
+
+  var _done = false;
+  async function doSave() {
+    if (_done) return; _done = true;
+    var val = inp.value !== undefined ? (typeof inp.value === 'string' ? inp.value.trim() : inp.value) : '';
+    inp.remove();
+    span.style.display = '';
+
+    var body = {}; body[field] = val;
+    try {
+      var r = await fetch(BASE_URL+'/api/predmeti/'+encodeURIComponent(activePredmetId), {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+        body:JSON.stringify(body)
+      });
+      if (!r.ok) { showToast('Greška pri čuvanju.','error'); return; }
+      if (field === 'tip') {
+        var lbl = _TIP_LABELS[val] || val; span.textContent = lbl || '—';
+        var badge = document.getElementById('pred-detail-badge');
+        if (badge){badge.textContent=val;badge.className='pred-badge '+val;}
+      } else if (field === 'rizik') {
+        span.textContent = val ? val.charAt(0).toUpperCase()+val.slice(1) : '—';
+        span.style.color = val==='visok'?'#ff9090':val==='srednji'?'#ffbb70':val==='nizak'?'#7de0a0':'rgba(255,255,255,.5)';
+      } else {
+        span.textContent = val || '—';
+      }
+      var flash = document.createElement('span');
+      flash.textContent = ' Sačuvano ✓';
+      flash.style.cssText = 'font-size:.65rem;color:#7de0a0;margin-left:3px;';
+      span.parentNode.appendChild(flash);
+      setTimeout(function(){flash.remove();}, 1500);
+    } catch(e) { showToast('Greška pri čuvanju.','error'); }
+  }
+  inp.addEventListener('blur', doSave);
+  inp.addEventListener('keydown', function(e){
+    if (e.key==='Enter'){e.preventDefault();doSave();}
+    if (e.key==='Escape'){_done=true;inp.remove();span.style.display='';}
+  });
+}
+
 async function pred_loadDetail(id) {
   if (!currentSession) return;
   piTrack('predmeti','open',{predmet_id:id});
@@ -15342,24 +15411,34 @@ async function pred_loadDetail(id) {
     // Status panel — fill with real data from workspace
     var tuzEl = document.getElementById('pred-s-tuzilac');
     if (tuzEl) {
-      var st0 = d.stranke && d.stranke[0];
-      tuzEl.textContent = st0 ? (((st0.ime||'')+' '+(st0.prezime||'')).trim() || st0.firma || '—') : '—';
+      if (d.predmet && d.predmet.tuzilac) {
+        tuzEl.textContent = d.predmet.tuzilac;
+      } else {
+        var st0 = d.stranke && d.stranke[0];
+        tuzEl.textContent = st0 ? (((st0.ime||'')+' '+(st0.prezime||'')).trim() || st0.firma || '—') : '—';
+      }
     }
     var tuzeniEl = document.getElementById('pred-s-tuzeni');
     if (tuzeniEl) {
-      var ps0 = d.protivna_strana && d.protivna_strana[0];
-      tuzeniEl.textContent = ps0 ? (((ps0.ime||'')+' '+(ps0.prezime||'')).trim() || ps0.firma || '—') : '—';
+      if (d.predmet && d.predmet.tuzeni) {
+        tuzeniEl.textContent = d.predmet.tuzeni;
+      } else {
+        var ps0 = d.protivna_strana && d.protivna_strana[0];
+        tuzeniEl.textContent = ps0 ? (((ps0.ime||'')+' '+(ps0.prezime||'')).trim() || ps0.firma || '—') : '—';
+      }
     }
     var oblEl = document.getElementById('pred-s-oblast');
     if (oblEl && d.predmet) oblEl.textContent = d.predmet.tip || '—';
     var rizikEl = document.getElementById('pred-s-rizik');
-    if (rizikEl && d.cockpit && d.cockpit.procena_rizika) {
-      var rn = d.cockpit.procena_rizika.nivo || '';
+    if (rizikEl) {
+      var rn = (d.predmet && d.predmet.rizik) || (d.cockpit && d.cockpit.procena_rizika && d.cockpit.procena_rizika.nivo) || '';
       rizikEl.textContent = rn ? rn.charAt(0).toUpperCase()+rn.slice(1) : '—';
       rizikEl.style.color = rn==='visok'?'#ff9090':rn==='srednji'?'#ffbb70':rn==='nizak'?'#7de0a0':'rgba(255,255,255,.5)';
     }
     var dozEl = document.getElementById('pred-s-dokazi');
     if (dozEl) dozEl.textContent = d.statistike ? d.statistike.dokumenti_count+' dok.' : '—';
+    var vsEl = document.getElementById('pred-s-vrednost');
+    if (vsEl && d.predmet) vsEl.textContent = d.predmet.vrednost_spora || '—';
 
     // Beleške
     var belEl = document.getElementById('pred-beleske-list');
