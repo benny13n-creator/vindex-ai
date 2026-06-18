@@ -14173,7 +14173,7 @@ function pred_select(id) {
   if (nazivEl) nazivEl.textContent = naziv;
   if (predmetObj) {
     var oblEl = document.getElementById('pred-s-oblast');
-    if (oblEl) oblEl.textContent = predmetObj.tip || '—';
+    if (oblEl) oblEl.textContent = (typeof _TIP_LABELS !== 'undefined' && _TIP_LABELS[predmetObj.tip]) || predmetObj.tip || '—';
   }
   if (history.pushState) history.pushState(null, '', '#pregled');
   var targetSubtab = _aicPendingSubtab || 'pregled';
@@ -15433,7 +15433,7 @@ async function pred_loadDetail(id) {
       }
     }
     var oblEl = document.getElementById('pred-s-oblast');
-    if (oblEl && d.predmet) oblEl.textContent = d.predmet.tip || '—';
+    if (oblEl && d.predmet) oblEl.textContent = (_TIP_LABELS && _TIP_LABELS[d.predmet.tip]) || d.predmet.tip || '—';
     var rizikEl = document.getElementById('pred-s-rizik');
     if (rizikEl) {
       var rn = (d.predmet && d.predmet.rizik) || (d.cockpit && d.cockpit.procena_rizika && d.cockpit.procena_rizika.nivo) || '';
