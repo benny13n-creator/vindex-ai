@@ -281,12 +281,14 @@ async def billing_entries_list(
     ukupno       = sum(float(e.get("iznos_rsd") or 0) for e in entries)
     obracunato   = sum(float(e.get("iznos_rsd") or 0) for e in entries if e.get("obracunato"))
     neobracunato = ukupno - obracunato
+    ukupno_h     = sum(float(e.get("sati") or 0) for e in entries)
 
     return {
         "entries":          entries,
         "ukupno_rsd":       ukupno,
         "obracunato_rsd":   obracunato,
         "neobracunato_rsd": neobracunato,
+        "ukupno_h":         round(ukupno_h, 2),
     }
 
 

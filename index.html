@@ -14524,8 +14524,8 @@ async function timer_stop() {
       body: JSON.stringify({
         predmet_id: activePredmetId,
         opis: 'Rad na predmetu (tajmer)',
-        tip: 'zastupanje',
-        trajanje_h: elapsed_h
+        tip: 'satnica',
+        sati: elapsed_h
       })
     });
     if (r.ok) {
@@ -17176,6 +17176,16 @@ var _billingTimerInterval  = null;
 var _billingTarifa         = [];
 var _billingEntries        = [];
 
+function _fmtBillingH(h) {
+  var total = Math.round((h || 0) * 60);
+  if (!total) return '';
+  var hours = Math.floor(total / 60);
+  var mins  = total % 60;
+  if (hours && mins) return hours + ' h ' + mins + ' min';
+  if (hours) return hours + ' h';
+  return mins + ' min';
+}
+
 async function billing_load(predmetId) {
   _billingPredmetId = predmetId;
   await Promise.all([billing_loadTarifa(), billing_loadTimerState(), billing_loadEntries()]);
@@ -17236,7 +17246,9 @@ async function billing_loadEntries() {
     if (summEl) {
       if (_billingEntries.length) {
         summEl.style.display = '';
-        summEl.innerHTML = '<span class="billing-sum-lbl">Nenaplaćeno:</span> <span class="billing-sum-val">'+Math.round(d.neobracunato_rsd||0).toLocaleString('sr-RS')+' RSD</span><span class="billing-sum-sep">·</span><span class="billing-sum-lbl">Ukupno:</span> <span class="billing-sum-val">'+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</span>';
+        var _hTot = d.ukupno_h || 0;
+        var _hStr = _hTot > 0 ? ('<span class="billing-sum-sep">·</span><span class="billing-sum-lbl">Vreme:</span> <span class="billing-sum-val">'+_fmtBillingH(_hTot)+'</span>') : '';
+        summEl.innerHTML = '<span class="billing-sum-lbl">Nenaplaćeno:</span> <span class="billing-sum-val">'+Math.round(d.neobracunato_rsd||0).toLocaleString('sr-RS')+' RSD</span><span class="billing-sum-sep">·</span><span class="billing-sum-lbl">Ukupno:</span> <span class="billing-sum-val">'+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</span>'+_hStr;
       } else { summEl.style.display = 'none'; }
     }
     if (!_billingEntries.length) {
@@ -17248,9 +17260,10 @@ async function billing_loadEntries() {
     _billingEntries.forEach(function(e) {
       var iznos = Math.round(e.iznos_rsd||0).toLocaleString('sr-RS');
       var badge = e.obracunato ? '<span class="billing-badge-ok">fakturisano</span>' : '<span class="billing-badge-open">nenaplaćeno</span>';
+      var hBadge = (e.sati && e.sati > 0) ? ' · <span style="color:rgba(0,212,255,0.6);font-family:\'JetBrains Mono\',monospace;">⏱ '+escHtml(_fmtBillingH(e.sati))+'</span>' : '';
       html += '<div class="billing-entry-row">';
       html += '<div class="billing-entry-main"><div class="billing-entry-opis">'+escHtml(e.opis||'')+'</div>';
-      html += '<div class="billing-entry-meta">'+escHtml(e.datum||'')+(e.tarifa_sifra?' · '+escHtml(e.tarifa_sifra):'')+'&nbsp;'+badge+'</div></div>';
+      html += '<div class="billing-entry-meta">'+escHtml(e.datum||'')+(e.tarifa_sifra?' · '+escHtml(e.tarifa_sifra):'')+hBadge+'&nbsp;'+badge+'</div></div>';
       html += '<div class="billing-entry-iznos">'+iznos+' <span style="font-size:0.62rem;color:rgba(255,255,255,0.28);">RSD</span></div>';
       if (!e.obracunato) {
         html += '<button onclick="billing_deleteEntry(\''+e.id+'\')" class="billing-del-btn" title="Obriši">✕</button>';
