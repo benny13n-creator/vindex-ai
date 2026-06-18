@@ -384,9 +384,13 @@ _PRAKSA_NS = "sudska_praksa"
 # Namespace for ministry opinions (Phase 2.4 ingest)
 _MISLJENJA_NS = "misljenja"
 
-# Confidence threshold for misljenja — slightly lower than praksa since
-# opinions are shorter texts and embeddings are denser
-MISLJENJA_CONFIDENCE_THRESHOLD = 0.52
+# Confidence threshold for misljenja.
+# Raised from 0.52 to 0.62: at 0.52 irrelevant opinions (e.g. "ugovorna kazna"
+# for a "nematerijalna šteta" query) were passing the gate. 0.62 requires a
+# genuinely topic-relevant opinion before any are shown.
+MISLJENJA_CONFIDENCE_THRESHOLD     = 0.62
+# Per-opinion minimum: opinions below this score are dropped even when the gate passes.
+MISLJENJA_PER_OPINION_MIN_SCORE    = 0.58
 
 # Query triggers that indicate a misljenja search is relevant
 _MISLJENJA_TRIGERI = frozenset([
@@ -1788,13 +1792,15 @@ def process_misljenja_chunks(chunks: list, k: int = 3) -> list[dict]:
 
     seen: dict[str, dict] = {}
     for m in sorted_chunks:
+        score = float(getattr(m, "score", 0.0))
+        if score < MISLJENJA_PER_OPINION_MIN_SCORE:
+            continue
         meta = m.metadata or {}
         key = (
             meta.get("broj")
             or meta.get("naziv")
             or f"_unk_{id(m)}"
         )
-        score = float(getattr(m, "score", 0.0))
         if key not in seen or score > seen[key]["score"]:
             seen[key] = {
                 "broj":          meta.get("broj", ""),
