@@ -724,6 +724,10 @@ footer { padding: 2rem 1.5rem; }
 #tab-s select option:hover,#tab-s select option:focus,#tab-s select option:checked{background-color:rgba(59,130,246,0.2);color:rgba(255,255,255,1);}
 #tab-s select{background-color:#010308;color:rgba(255,255,255,0.95);border:1px solid rgba(255,255,255,0.1);}
 #tab-s select:focus{outline:none;border-color:rgba(59,130,246,0.5);}
+/* Global: ensure all select dropdowns are readable on dark background */
+select{background-color:#131929;color:rgba(255,255,255,0.9);}
+select option{background-color:#131929;color:rgba(255,255,255,0.9);}
+select option:hover,select option:focus,select option:checked{background-color:rgba(74,168,255,0.25);color:#fff;}
 /* ── Rokovi panel P3.5 / Phase 4.1 ──────────────────────────────── */
 .rokovi-btn{margin-top:.85rem;width:100%;padding:.65rem 1rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.22);border-radius:9px;color:#89c8ff;font-family:var(--font-ui);font-size:.8rem;font-weight:600;cursor:pointer;text-align:left;transition:background .2s,border-color .2s;}
 .rokovi-btn:hover{background:rgba(74,168,255,0.13);border-color:rgba(74,168,255,0.38);}
@@ -15289,7 +15293,8 @@ function _predInlineEdit(spanId, field, inputType) {
     inp.value = curVal;
     inp.maxLength = 200;
   }
-  inp.style.cssText = 'width:100%;max-width:150px;padding:2px 5px;background:rgba(255,255,255,0.12);border:1px solid rgba(74,168,255,.5);border-radius:5px;color:#fff;font-size:0.78rem;outline:none;box-sizing:border-box;';
+  var isSelect = inp.tagName === 'SELECT';
+  inp.style.cssText = 'width:100%;max-width:150px;padding:2px 5px;background:' + (isSelect ? '#131929' : 'rgba(255,255,255,0.12)') + ';border:1px solid rgba(74,168,255,.5);border-radius:5px;color:#e2eeff;font-size:0.78rem;outline:none;box-sizing:border-box;';
 
   span.style.display = 'none';
   span.parentNode.insertBefore(inp, span.nextSibling);
