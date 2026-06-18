@@ -286,7 +286,8 @@ async def client_portal_view(
     except HTTPException:
         raise
     except Exception as exc:
-        logger.warning("[CLIENT_PORTAL] DB provera tokena nije uspela: %s — nastavljamo", exc)
+        logger.error("[CLIENT_PORTAL] DB provera tokena nije uspela: %s", exc)
+        raise HTTPException(status_code=503, detail="Portal privremeno nedostupan. Pokušajte ponovo.")
 
     # Dohvati predmet, hronologiju i ročišta paralelno
     predmet_r, hron_r, roc_r = await asyncio.gather(
@@ -421,6 +422,19 @@ async def client_portal_upload(
         )
     if len(sadrzaj) == 0:
         raise HTTPException(status_code=422, detail="Fajl je prazan.")
+
+    # Magic bytes validacija — sprečava rename EXE→PDF i slično
+    _MAGIC_MAP = {
+        b"%PDF":      "application/pdf",
+        b"PK\x03\x04": None,  # ZIP-based: DOCX, XLSX — dozvoljen
+        b"\xff\xd8\xff": "image/jpeg",
+        b"\x89PNG":   "image/png",
+        b"RIFF":      "image/webp",
+    }
+    hdr = sadrzaj[:8]
+    magic_ok = any(hdr.startswith(sig) for sig in _MAGIC_MAP) or content_type == "text/plain"
+    if not magic_ok:
+        raise HTTPException(status_code=415, detail="Sadržaj fajla ne odgovara deklarisanom tipu.")
 
     import re
     bezbedan_naziv = re.sub(r"[^\w\-\. ]", "_", fajl.filename or "dokument")[:100]

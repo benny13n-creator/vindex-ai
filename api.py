@@ -861,7 +861,7 @@ async def register(req: RegisterReq, request: Request):
                 )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Registracija nije uspela: {err_str[:200]}",
+                detail="Registracija nije uspela. Pokušajte ponovo ili kontaktirajte podršku.",
             )
 
     try:
@@ -871,6 +871,21 @@ async def register(req: RegisterReq, request: Request):
     except Exception:
         logger.exception("Neočekivana greška u /api/register")
         raise HTTPException(status_code=500, detail="Greška servera. Pokušajte ponovo.")
+
+
+@app.post("/api/logout")
+async def logout(user: dict = Depends(get_current_user)):
+    """Invaliduje sve aktivne sesije korisnika na Supabase nivou.
+    Čak i ako klijent drži JWT token, Supabase get_user() poziv će ga odbiti.
+    """
+    uid = user["user_id"]
+    try:
+        supa = _get_supa()
+        await asyncio.to_thread(lambda: supa.auth.admin.sign_out(uid))
+        logger.info("[LOGOUT] sve sesije invalidovane uid=%.8s", uid)
+    except Exception as e:
+        logger.warning("[LOGOUT] sign_out partial fail uid=%.8s: %s", uid, e)
+    return {"ok": True, "poruka": "Odjavili ste se sa svih uređaja."}
 
 
 @app.get("/api/me")

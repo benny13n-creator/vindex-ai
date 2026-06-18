@@ -9731,7 +9731,7 @@ async function ucitajApiKljuceve() {
         ? new Date(k.poslednje_koriscenje).toLocaleDateString('sr-RS')
         : 'Nije korišćen';
       return '<div class="api-kljuc-red">' +
-        '<span class="api-kljuc-naziv">' + k.naziv + '</span>' +
+        '<span class="api-kljuc-naziv">' + _htmlEsc(k.naziv) + '</span>' +
         '<span class="api-kljuc-stat">' + (k.broj_poziva || 0) + ' poziva</span>' +
         '<span class="api-kljuc-datum">' + dat + '</span>' +
         '<button class="btn-danger-small" onclick="opoziviApiKljuc(\'' + k.id + '\')">Opozovi</button>' +
@@ -16355,7 +16355,7 @@ function _intakeShowAiResult(a) {
   var docsEl = document.getElementById('intake-potrebni-docs');
   var docsListEl = document.getElementById('intake-potrebni-docs-list');
   if (a.potrebni_dokumenti && a.potrebni_dokumenti.length) {
-    docsListEl.innerHTML = a.potrebni_dokumenti.map(function(d){ return '<li>' + d + '</li>'; }).join('');
+    docsListEl.innerHTML = a.potrebni_dokumenti.map(function(d){ return '<li>' + escHtml(d) + '</li>'; }).join('');
     docsEl.style.display = '';
   } else {
     docsEl.style.display = 'none';
@@ -16500,7 +16500,7 @@ function _intakeShowPipelineResult(pr) {
   checklistEl.innerHTML = checklist.map(function(item) {
     return '<div class="pipeline-check-item ' + (item.ok ? 'ok' : '') + '">'
       + '<span class="pipeline-check-icon">' + (item.ok ? '✓' : '□') + '</span>'
-      + '<span>' + (item.stavka || '') + '</span>'
+      + '<span>' + escHtml(item.stavka || '') + '</span>'
       + '</div>';
   }).join('');
 

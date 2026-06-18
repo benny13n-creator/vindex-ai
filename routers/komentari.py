@@ -34,12 +34,27 @@ async def post_komentar(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """F8.1 — Dodaj komentar na predmet."""
+    """F8.1 — Dodaj komentar na predmet (samo vlasnik predmeta)."""
+    uid = user["user_id"]
     supa = _get_supa()
+
+    # Verify predmet ownership before allowing comment
+    own = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+                    .select("id")
+                    .eq("id", predmet_id)
+                    .eq("user_id", uid)
+                    .maybe_single()
+                    .execute()
+    )
+    if not own.data:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Pristup predmetu nije dozvoljen.")
+
     res = await asyncio.to_thread(
         lambda: supa.table("predmet_komentari").insert({
             "predmet_id": predmet_id,
-            "user_id":    user["user_id"],
+            "user_id":    uid,
             "tekst":      req.tekst.strip(),
         }).execute()
     )
@@ -53,8 +68,23 @@ async def get_komentari(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """F8.1 — Lista komentara za predmet."""
+    """F8.1 — Lista komentara za predmet (samo vlasnik predmeta)."""
+    uid = user["user_id"]
     supa = _get_supa()
+
+    # Verify predmet ownership — service_role bypasses RLS so we enforce manually
+    own = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+                    .select("id")
+                    .eq("id", predmet_id)
+                    .eq("user_id", uid)
+                    .maybe_single()
+                    .execute()
+    )
+    if not own.data:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Pristup predmetu nije dozvoljen.")
+
     res = await asyncio.to_thread(
         lambda: supa.table("predmet_komentari")
                     .select("*")
