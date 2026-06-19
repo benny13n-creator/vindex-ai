@@ -19478,26 +19478,47 @@ function voice_execute(text) {
 function voice_doAction(action, params) {
   if (!action) return;
   switch(action) {
+
     case 'navigate_predmet':
-      var q = (params.query || '').toLowerCase();
-      // Pretraži predmete po nazivu/klijentu
-      var cards = document.querySelectorAll('.pred-card');
+      var q = (params.query || '').trim().toLowerCase();
+      if (!q) { showToast('Nije prepoznat naziv predmeta', 'warn'); break; }
+
+      // 1. Pretraži _predmeti[] niz po nazivu, tužiocu ili tuženom
       var found = null;
-      cards.forEach(function(c) {
-        var naziv = (c.querySelector('.pred-card-naziv') || c).textContent.toLowerCase();
-        if (naziv.includes(q)) found = c;
-      });
-      if (found) { found.click(); showToast('📂 Otvaram predmet...'); }
-      else {
-        // Ako nije na ekranu, napravi search
-        if (typeof searchOpen === 'function') { searchOpen(); }
-        showToast('Tražim predmet: ' + params.query, 'info');
+      if (typeof _predmeti !== 'undefined' && _predmeti.length) {
+        found = _predmeti.find(function(p) {
+          return (p.naziv       || '').toLowerCase().includes(q) ||
+                 (p.tuzilac     || '').toLowerCase().includes(q) ||
+                 (p.tuzeni      || '').toLowerCase().includes(q) ||
+                 (p.opis        || '').toLowerCase().includes(q);
+        }) || null;
+      }
+
+      if (found) {
+        // Prebaci na tab Predmeti pa otvori predmet
+        setTab(document.getElementById('tab-btn-p'), 'p');
+        setTimeout(function() { pred_select(found.id); }, 120);
+        showToast('📂 Otvarám predmet: ' + found.naziv);
+      } else {
+        // Nije pronađen lokalno — otvori search modal i popuni query
+        searchOpen();
+        setTimeout(function() {
+          var inp = document.getElementById('search-input');
+          if (inp) {
+            inp.value = params.query || q;
+            inp.dispatchEvent(new Event('input'));
+            searchDebounce();
+          }
+        }, 80);
+        showToast('🔍 Tražim predmet: ' + (params.query || q), 'info');
       }
       break;
+
     case 'analyze_predmet':
       if (activePredmetId) { pred_subtabSwitch('ai-analiza'); pred_submitProcena && pred_submitProcena(); }
       else showToast('Najpre otvorite predmet', 'warn');
       break;
+
     case 'ask_question':
       var txt = params.text || '';
       if (txt) {
@@ -19506,35 +19527,77 @@ function voice_doAction(action, params) {
         if (typeof setTab === 'function') setTab(document.getElementById('tab-btn-agent'),'agent');
       }
       break;
+
     case 'generate_document':
       if (typeof setTab === 'function') setTab(document.getElementById('tab-btn-alati'),'alati');
       break;
+
     case 'show_tab':
       if (activePredmetId && params.tab) pred_subtabSwitch(params.tab);
+      else if (!activePredmetId) showToast('Najpre otvorite predmet', 'warn');
       break;
+
     case 'start_timer':
-      if (typeof timer_start === 'function') timer_start();
-      showToast('⏱ Tajmer pokrenut');
+      if (!activePredmetId) {
+        showToast('Otvorite predmet pre pokretanja tajmera', 'warn');
+        break;
+      }
+      // Koristi billing tajmer (API). Ako _billingPredmetId nije setovan, postavi ga.
+      if (typeof _billingPredmetId !== 'undefined' && !_billingPredmetId) {
+        _billingPredmetId = activePredmetId;
+      }
+      if (typeof billing_timerToggle === 'function') {
+        // Pokreni samo ako tajmer nije već aktivan
+        if (!_billingTimerSessionId) { billing_timerToggle(); }
+        else showToast('Tajmer već radi', 'info');
+      } else {
+        showToast('Modul naplata nije učitan', 'warn');
+      }
       break;
+
     case 'stop_timer':
-      if (typeof timer_stop === 'function') timer_stop();
-      showToast('⏱ Tajmer zaustavljen');
+      if (typeof _billingTimerSessionId !== 'undefined' && _billingTimerSessionId) {
+        if (typeof billing_timerToggle === 'function') billing_timerToggle();
+      } else if (typeof timer_stop === 'function' && activePredmetId) {
+        timer_stop();
+      } else {
+        showToast('Tajmer nije aktivan', 'warn');
+      }
       break;
+
     case 'show_dashboard':
       if (typeof setTab === 'function') setTab(document.getElementById('tab-btn-home'),'home');
       break;
+
     case 'show_klijenti':
       if (typeof setTab === 'function') setTab(document.getElementById('tab-btn-klijenti'),'klijenti');
       break;
+
+    case 'search':
+      if (params.query) {
+        searchOpen();
+        setTimeout(function() {
+          var inp = document.getElementById('search-input');
+          if (inp) { inp.value = params.query; inp.dispatchEvent(new Event('input')); searchDebounce(); }
+        }, 80);
+      }
+      break;
+
     case 'procena_rizika':
       if (activePredmetId) { pred_subtabSwitch('ai-analiza'); pred_submitProcena && pred_submitProcena(); }
+      else showToast('Najpre otvorite predmet', 'warn');
       break;
+
     case 'red_team':
       if (activePredmetId) pred_subtabSwitch('strategija');
+      else showToast('Najpre otvorite predmet', 'warn');
       break;
+
     case 'hearing_prep':
       if (activePredmetId) pred_subtabSwitch('rokovi');
+      else showToast('Najpre otvorite predmet', 'warn');
       break;
+
     default:
       showToast('Nisam razumeo: "' + (params.text||action) + '"', 'warn');
   }
