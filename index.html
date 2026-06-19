@@ -17284,6 +17284,9 @@ async function pred_zatvoriPredmet() {
     pred_load();
     var badge = document.getElementById('pred-detail-badge');
     if (badge) badge.textContent = 'zatvoren';
+
+    // Outcome Intelligence feedback — pokreni u pozadini
+    _outcome_feedback_show(activePredmetId);
   } catch(e) {
     errEl.textContent = 'Greška veze.';
     errEl.style.display = 'block';
@@ -17319,6 +17322,42 @@ function pred_zatvoriRenderSection(predmetData) {
     if (dispEl) dispEl.style.display = 'none';
     if (trigger) trigger.style.display = 'block';
   }
+}
+
+/* OUTCOME INTELLIGENCE FEEDBACK — prikazuje se odmah posle zatvaranja predmeta */
+async function _outcome_feedback_show(predmetId) {
+  if (!predmetId || !currentSession) return;
+  // Pokušaj da dohvati analizu — neće uvek imati dovoljno podataka
+  try {
+    var r = await fetch(BASE_URL + '/api/outcome-intel/predmeti/' + predmetId, {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) return;
+    var d = await r.json();
+    if (!d.analiza || d.ukupno_predmeta < 2) return; // nema dovoljno istorije
+
+    // Prikaži modal sa analizom
+    var winBadge = '';
+    if (d.win_rate !== null && d.win_rate !== undefined) {
+      var wc = d.win_rate >= 60 ? '#4ade80' : d.win_rate >= 40 ? '#facc15' : '#f87171';
+      winBadge = '<span style="background:rgba(0,0,0,0.3);border:1px solid ' + wc + ';color:' + wc + ';border-radius:6px;padding:.15rem .5rem;font-size:.72rem;font-weight:700;margin-left:.5rem;">Win rate ' + d.win_rate + '%</span>';
+    }
+    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this)this.remove()">'
+      + '<div style="background:#0f1623;border:1px solid rgba(74,168,255,.25);border-radius:14px;padding:1.5rem;max-width:480px;width:100%;position:relative;">'
+      + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="position:absolute;top:.75rem;right:.75rem;background:none;border:none;color:rgba(255,255,255,.4);font-size:1.1rem;cursor:pointer;line-height:1;">✕</button>'
+      + '<div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#89c8ff;margin-bottom:.4rem;">Outcome Intelligence</div>'
+      + '<div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:.25rem;">Analiza kancelarije — tip: ' + _htmlEsc(d.tip) + winBadge + '</div>'
+      + '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:1rem;">'
+        + (d.zatvoreni || 0) + ' zatvorenih predmeta · ' + (d.pobede || 0) + ' pobeda · ' + (d.porazi || 0) + ' poraza'
+      + '</div>'
+      + '<div style="font-size:.8rem;color:rgba(255,255,255,.8);white-space:pre-wrap;line-height:1.6;max-height:280px;overflow-y:auto;">' + _htmlEsc(d.analiza) + '</div>'
+      + '</div>'
+      + '</div>';
+
+    var el = document.createElement('div');
+    el.innerHTML = html;
+    document.body.appendChild(el.firstElementChild);
+  } catch(e) {}
 }
 
 function pred_rokokiToggle() {
