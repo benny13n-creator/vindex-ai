@@ -13586,7 +13586,7 @@ async function execQuery() {
             // Auto-čitanje kada je pitanje postavljeno glasom
             if (window._vxLastInputWasVoice) {
               window._vxLastInputWasVoice = false;
-              setTimeout(function() { vx_tts_speak(text); }, 400);
+              setTimeout(function() { vx_tts_speak(_vxLastResponseText || text); }, 400);
             }
           } else { rb.textContent+=text[i]; i++; }
         },speed);
@@ -13606,9 +13606,9 @@ async function execQuery() {
 function _feedbackBar(pitanje, odgovor) {
   var p = encodeURIComponent(pitanje||'').substring(0,500);
   var o = encodeURIComponent(odgovor||'').substring(0,1000);
-  var safeOdg = (odgovor||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ').substring(0,3000);
+  _vxLastResponseText = odgovor || '';  // sačuvaj za TTS dugme
   return '<div class="feedback-bar">'
-    + '<button class="vx-tts-btn" id="vx-tts-play-btn" onclick="vx_tts_toggle(\''+safeOdg+'\')">🔊 Pročitaj</button>'
+    + '<button class="vx-tts-btn" id="vx-tts-play-btn" onclick="vx_tts_toggle()">🔊 Pročitaj</button>'
     + '<button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">⚑ Prijavi netačan odgovor</button>'
     + '</div>';
 }
@@ -20680,17 +20680,34 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════════════════════
 var _voiceRec = null;
 var _voiceActive = false;
+var _voiceTextSent = false;  // guard: ne zatvaraj modal ako je execute već poslat
+
+function _voice_close_modal() {
+  var modal = document.getElementById('voice-modal');
+  if (modal) modal.style.display = 'none';
+  var btn = document.getElementById('voice-cmd-btn');
+  if (btn) btn.classList.remove('voice-active');
+  _voiceActive = false;
+}
 
 function voice_start() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    alert('Glasovne komande nisu podržane u ovom browseru. Koristite Chrome ili Edge.');
+    showToast('Glasovne komande zahtevaju Chrome ili Edge browser.', 'warn');
     return;
   }
+  if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+    showToast('Glasovne komande zahtevaju HTTPS konekciju.', 'warn');
+    return;
+  }
+  // Zaustavi prethodno snimanje ako postoji
+  if (_voiceRec) { try { _voiceRec.abort(); } catch(e){} _voiceRec = null; }
+
   var modal = document.getElementById('voice-modal');
   modal.style.display = 'flex';
   document.getElementById('voice-transcript').textContent = 'Izgovorite komandu...';
   document.getElementById('voice-status').textContent = '';
-  document.getElementById('voice-cmd-btn').classList.add('voice-active');
+  var cmdBtn = document.getElementById('voice-cmd-btn');
+  if (cmdBtn) cmdBtn.classList.add('voice-active');
 
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   _voiceRec = new SpeechRecognition();
@@ -20698,6 +20715,7 @@ function voice_start() {
   _voiceRec.continuous = false;
   _voiceRec.interimResults = true;
   _voiceActive = true;
+  _voiceTextSent = false;
 
   _voiceRec.onresult = function(e) {
     var transcript = '';
@@ -20705,41 +20723,70 @@ function voice_start() {
       transcript += e.results[i][0].transcript;
     }
     document.getElementById('voice-transcript').textContent = transcript;
-    if (e.results[e.results.length-1].isFinal) {
-      voice_execute(transcript);
+    if (e.results[e.results.length - 1].isFinal && transcript.trim()) {
+      _voiceTextSent = true;
+      voice_execute(transcript.trim());
     }
   };
+
   _voiceRec.onerror = function(e) {
-    document.getElementById('voice-status').textContent = 'Greška: ' + e.error;
+    if (e.error === 'no-speech' || e.error === 'aborted') {
+      // Tiho zatvori — nije greška, korisnik nije govorio
+      _voice_close_modal();
+      return;
+    }
+    var msgs = {
+      'not-allowed':    '🔒 Dozvolite mikrofon u podešavanjima browsera.',
+      'audio-capture':  '🎙 Mikrofon nije pronađen.',
+      'network':        '🌐 Nema internet konekcije za glasovni unos.',
+    };
+    showToast(msgs[e.error] || ('Greška mikrofona: ' + e.error), 'err');
+    _voice_close_modal();
   };
+
   _voiceRec.onend = function() {
-    _voiceActive = false;
-    document.getElementById('voice-cmd-btn').classList.remove('voice-active');
+    // Zatvorimo modal samo ako execute nije već preuzeo kontrolu
+    if (!_voiceTextSent) {
+      _voice_close_modal();
+    }
   };
-  _voiceRec.start();
+
+  try {
+    _voiceRec.start();
+  } catch(e) {
+    showToast('Nije moguće pokrenuti mikrofon: ' + e.message, 'err');
+    _voice_close_modal();
+  }
 }
 
 function voice_stop() {
-  if (_voiceRec) { try { _voiceRec.stop(); } catch(e){} }
-  document.getElementById('voice-modal').style.display = 'none';
-  document.getElementById('voice-cmd-btn').classList.remove('voice-active');
-  _voiceActive = false;
+  if (_voiceRec) { try { _voiceRec.abort(); } catch(e){} _voiceRec = null; }
+  _voice_close_modal();
 }
 
 function voice_execute(text) {
-  if (!text || !currentSession) return;
+  if (!text) { _voice_close_modal(); return; }
+  if (!currentSession) {
+    _voice_close_modal();
+    showToast('Prijavite se da biste koristili glasovne komande.', 'warn');
+    openModal();
+    return;
+  }
   document.getElementById('voice-status').textContent = '⏳ Interpretiram komandu...';
   fetch('/api/voice/command', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
     body: JSON.stringify({ text: text }),
-  }).then(function(r){ return r.json(); }).then(function(d) {
-    document.getElementById('voice-modal').style.display = 'none';
-    document.getElementById('voice-cmd-btn').classList.remove('voice-active');
-    voice_doAction(d.action, d.params);
-    if (d.followup) { setTimeout(function(){ voice_doAction(d.followup, {}); }, 800); }
+  }).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(d) {
+    _voice_close_modal();
+    voice_doAction(d.action, d.params || {});
+    if (d.followup) { setTimeout(function() { voice_doAction(d.followup, {}); }, 900); }
   }).catch(function(e) {
-    document.getElementById('voice-status').textContent = 'Greška: ' + e.message;
+    _voice_close_modal();
+    showToast('Greška glasovne komande: ' + e.message, 'err');
   });
 }
 
@@ -20881,13 +20928,10 @@ window.voiceStart = voice_start;
 
 /* ── TTS — čitanje odgovora glasom (Web Speech API) ──────────────────────── */
 var _ttsUtterance = null;
+var _vxLastResponseText = '';  // globalna referenca — dugme čita odavde, bez inline teksta
 
-function vx_tts_speak(text) {
-  if (!window.speechSynthesis) { showToast('Vaš browser ne podržava čitanje teksta.', 'warn'); return; }
-  vx_tts_stop();
-
-  // Očisti markdown i HTML tagove za čitanje
-  var clean = text
+function _tts_clean(text) {
+  return (text || '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/#{1,6}\s*/g, '')
     .replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1')
@@ -20898,45 +20942,58 @@ function vx_tts_speak(text) {
     .replace(/\n/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
+}
 
-  _ttsUtterance = new SpeechSynthesisUtterance(clean);
-  _ttsUtterance.lang = 'sr-RS';
-  _ttsUtterance.rate = 0.92;
-  _ttsUtterance.pitch = 1.0;
-
-  // Pokušaj srpski glas, fallback na prvi dostupni
+function _tts_pick_voice() {
   var voices = window.speechSynthesis.getVoices();
-  var srVoice = voices.find(function(v) { return v.lang.startsWith('sr'); })
-             || voices.find(function(v) { return v.lang.startsWith('hr') || v.lang.startsWith('bs'); })
-             || null;
-  if (srVoice) _ttsUtterance.voice = srVoice;
+  return voices.find(function(v) { return v.lang.startsWith('sr'); })
+      || voices.find(function(v) { return v.lang.startsWith('hr') || v.lang.startsWith('bs'); })
+      || null;
+}
 
+function _tts_update_btn(speaking) {
   var btn = document.getElementById('vx-tts-play-btn');
-  if (btn) btn.classList.add('speaking');
+  if (!btn) return;
+  if (speaking) { btn.classList.add('speaking'); btn.innerHTML = '⏹ Zaustavi'; }
+  else          { btn.classList.remove('speaking'); btn.innerHTML = '🔊 Pročitaj'; }
+}
 
-  _ttsUtterance.onend = function() {
-    _ttsUtterance = null;
-    if (btn) { btn.classList.remove('speaking'); btn.innerHTML = '🔊 Pročitaj'; }
-  };
-  _ttsUtterance.onerror = function() {
-    _ttsUtterance = null;
-    if (btn) { btn.classList.remove('speaking'); btn.innerHTML = '🔊 Pročitaj'; }
-  };
+function vx_tts_speak(text) {
+  if (!window.speechSynthesis) { showToast('Vaš browser ne podržava čitanje teksta.', 'warn'); return; }
+  vx_tts_stop();
+  var clean = _tts_clean(text);
+  if (!clean) return;
 
-  window.speechSynthesis.speak(_ttsUtterance);
-  if (btn) btn.innerHTML = '⏹ Zaustavi';
+  function _doSpeak() {
+    _ttsUtterance = new SpeechSynthesisUtterance(clean);
+    _ttsUtterance.lang = 'sr-RS';
+    _ttsUtterance.rate = 0.92;
+    _ttsUtterance.pitch = 1.0;
+    var v = _tts_pick_voice();
+    if (v) _ttsUtterance.voice = v;
+    _ttsUtterance.onend = function() { _ttsUtterance = null; _tts_update_btn(false); };
+    _ttsUtterance.onerror = function() { _ttsUtterance = null; _tts_update_btn(false); };
+    window.speechSynthesis.speak(_ttsUtterance);
+    _tts_update_btn(true);
+  }
+
+  // Glasovi se možda još učitavaju — sačekaj ako je lista prazna
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.onvoiceschanged = null; _doSpeak(); };
+  } else {
+    _doSpeak();
+  }
 }
 
 function vx_tts_stop() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   _ttsUtterance = null;
-  var btn = document.getElementById('vx-tts-play-btn');
-  if (btn) { btn.classList.remove('speaking'); btn.innerHTML = '🔊 Pročitaj'; }
+  _tts_update_btn(false);
 }
 
-function vx_tts_toggle(text) {
+function vx_tts_toggle() {
   if (_ttsUtterance) { vx_tts_stop(); }
-  else { vx_tts_speak(text); }
+  else { vx_tts_speak(_vxLastResponseText); }
 }
 
 // ═══════════════════════════════════════════════════════════════
