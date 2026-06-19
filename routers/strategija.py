@@ -200,10 +200,19 @@ class OrkestratorRequest(BaseModel):
 async def post_kompletna_analiza(
     req: OrkestratorRequest,
     request: Request,
+    background_tasks: "BackgroundTasks",
     user: dict = Depends(require_pro),
 ):
-    """F10 — Strateški Orkestrator — 6 sekvencijalnih analiza u jednom pozivu (PRO, 6 kredita, 8 GPT-4o poziva)."""
-    uid = user["user_id"]
+    """
+    F10 — Strateški Orkestrator — 6 sekvencijalnih analiza (PRO, 6 kredita, 8 GPT-4o poziva).
+
+    Vraća job_id odmah (HTTP 202). Klijent poluje GET /api/jobs/{job_id} dok status != done|error.
+    Ovo sprečava HTTP timeout na Render (60s) — analiza traje 30-90s.
+    """
+    from fastapi import BackgroundTasks as _BT
+    from routers.jobs import create_job, run_in_background
+
+    uid   = user["user_id"]
     email = user.get("email", "")
 
     if not _is_founder(email):
@@ -220,7 +229,7 @@ async def post_kompletna_analiza(
 
     asyncio.create_task(_audit(uid, "kompletna_analiza", ""))
 
-    try:
+    async def _run_analiza():
         begin_cost_tracking()
         rezultat = await asyncio.to_thread(
             orkestrator_kompletna_analiza_sync,
@@ -230,19 +239,22 @@ async def post_kompletna_analiza(
             req.iskazi_svedoka,
         )
         asyncio.create_task(log_cost_to_db(uid, "kompletna_analiza"))
-        preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 6)
-        return {
-            **rezultat,
-            "modul": "kompletna_analiza",
-            "credits_deducted": 6,
-            "credits_remaining": max(preostalo, 0),
-        }
-    except Exception:
-        logger.exception("[F10] kompletna_analiza greška")
-        raise HTTPException(
-            status_code=500,
-            detail="Greška pri generisanju kompletne analize. Pokušajte ponovo.",
-        )
+        await asyncio.to_thread(_deduct_n_credits, uid, email, 6)
+        return {**rezultat, "modul": "kompletna_analiza", "credits_deducted": 6}
+
+    jid = create_job(uid, "kompletna_analiza")
+    background_tasks.add_task(run_in_background, jid, _run_analiza)
+
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=202,
+        content={
+            "job_id":   jid,
+            "status":   "pending",
+            "poruka":   "Analiza pokrenuta. Pratite napredak na GET /api/jobs/" + jid,
+            "poll_url": f"/api/jobs/{jid}",
+        },
+    )
 
 
 # ── P5 — Strategija V2 (Structured JSON Output) ───────────────────────────────

@@ -10106,6 +10106,15 @@ async function stratPokreni() {
       if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 <strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim AI strategijskim alatima.</small></div>';
       return;
     }
+
+    // HTTP 202 = dugotrajni posao → polling
+    if (res.status === 202) {
+      var jobData = await res.json();
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ Analiza pokrenuta (posao: '+jobData.job_id.slice(0,8)+'...)<br><small>Ovo može trajati 60-90 sekundi. Pratimo napredak...</small></div>';
+      await strat_job_poll(jobData.job_id, bodyEl, submitBtn);
+      return;
+    }
+
     if (!res.ok) throw new Error('Server greška: ' + res.status);
 
     var data = await res.json();
@@ -10132,6 +10141,42 @@ async function stratPokreni() {
   } finally {
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
   }
+}
+
+// Polling za async AI poslove (HTTP 202 pattern)
+async function strat_job_poll(jobId, bodyEl, submitBtn) {
+  var elapsed = 0;
+  var dotStr  = ['⏳', '⌛', '⏳', '⌛'];
+  var dotIdx  = 0;
+  while (elapsed < 180) { // max 3 minuta
+    await new Promise(function(r){ setTimeout(r, 4000); });
+    elapsed += 4;
+    try {
+      var r = await fetch(BASE_URL + '/api/jobs/' + jobId, {
+        headers: { 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') }
+      });
+      if (!r.ok) { if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška pri proveri statusa.</div>'; break; }
+      var j = await r.json();
+      if (j.status === 'done') {
+        var d = j.result || {};
+        if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(d.rezultat || JSON.stringify(d, null, 2));
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
+        return;
+      }
+      if (j.status === 'error') {
+        if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(j.error || 'Nepoznata greška') + '</div>';
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
+        return;
+      }
+      // pending/running — ažuriraj prikaz
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">'+dotStr[dotIdx%4]+' Analiza u toku — '+elapsed+'s...<br><small>Kompleksna analiza (6 AI modula) traje 60-90s.</small></div>';
+      dotIdx++;
+    } catch(e) {
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+      break;
+    }
+  }
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
 }
 
 function stratFormatirajRezultat(tekst) {
