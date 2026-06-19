@@ -12784,6 +12784,37 @@ async function execQuery() {
     a: { tekst: document.getElementById('aitxt').value, pitanje: document.getElementById('aq').value }
   };
 
+  // ── CHECKLIST FAZA (samo za nacrt tab, pre generisanja) ──────────────────
+  if (activeTab === 'n' && _selectedTip && !_NACRT_API_TYPES.has(_selectedTip)) {
+    var _clOpisVal = (document.getElementById('podnesak-opis') || {}).value || '';
+    if (_clOpisVal.trim().length >= 20) {
+      try {
+        btnLbl.textContent = 'Proveravam kompletnost...';
+        var _clR = await fetch(BASE_URL + '/api/nacrti/checklist', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
+          body: JSON.stringify({ tip: _selectedTip, cinjenice: _clOpisVal })
+        });
+        if (_clR.ok) {
+          var _clD = await _clR.json();
+          if (_clD.blokira_nastavak && _clD.nedostajuci_kriticni && _clD.nedostajuci_kriticni.length) {
+            // Kritični elementi nedostaju — prikaži upozorenje ali dozvoli nastavak
+            var _clMsg = '⚠️ Checklist upozorenje — nedostaju obavezni elementi:\n\n'
+              + _clD.nedostajuci_kriticni.map(function(n){ return '• ' + n; }).join('\n')
+              + '\n\nPokrivenost: ' + _clD.procenat_pokrivenosti + '%'
+              + '\n\nŽelite li ipak da generišete nacrt?';
+            if (!confirm(_clMsg)) {
+              execBtn.disabled = false;
+              btnLbl.textContent = orig;
+              _execInProgress = false;
+              return;
+            }
+          }
+        }
+      } catch(_clErr) { /* ignoriši greške checklista — nastavi sa generisanjem */ }
+    }
+  }
+
   var _maxRetries = 2;
   var _attempt = 0;
 
