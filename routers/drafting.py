@@ -76,7 +76,10 @@ class PodnesakReq(BaseModel):
     @field_validator("tip")
     @classmethod
     def validiraj_tip(cls, v: str) -> str:
-        dozvoljeni = {"tuzba_naknada_stete", "zalba_parnicna", "predlog_izvrsenje"}
+        dozvoljeni = {
+            "tuzba_naknada_stete", "zalba_parnicna", "predlog_izvrsenje",
+            "tuzba_radni_spor", "tuzba_razvod", "prigovor_platni_nalog",
+        }
         if v not in dozvoljeni:
             raise ValueError(f"Tip podneska mora biti jedan od: {dozvoljeni}")
         return v

@@ -10,9 +10,12 @@ from typing import Optional
 
 # ─── Tipovi podnesaka ─────────────────────────────────────────────────────────
 TIPOVI = {
-    "tuzba_naknada_stete":  "Tužba za naknadu štete",
-    "zalba_parnicna":       "Žalba na prvostepenu presudu (parnični postupak)",
-    "predlog_izvrsenje":    "Predlog za izvršenje",
+    "tuzba_naknada_stete":   "Tužba za naknadu štete",
+    "zalba_parnicna":        "Žalba na prvostepenu presudu (parnični postupak)",
+    "predlog_izvrsenje":     "Predlog za izvršenje",
+    "tuzba_radni_spor":      "Tužba u radnom sporu",
+    "tuzba_razvod":          "Tužba za razvod braka",
+    "prigovor_platni_nalog": "Prigovor na platni nalog",
 }
 
 # ─── ŠABLON 1: Tužba za naknadu nematerijalne štete ──────────────────────────
@@ -245,11 +248,253 @@ Prilozi:
 NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.
 """
 
+# ─── ŠABLON 4: Tužba u radnom sporu ─────────────────────────────────────────
+SABLON_TUZBA_RADNI_SPOR = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+                                                    Tužilac (radnik): {TUZILAC_IME},
+                                                    iz {TUZILAC_ADRESA},
+                                                    JMBG: {TUZILAC_JMBG}
+
+                                                    Punomoćnik tužioca: {ADVOKAT_IME},
+                                                    advokat iz {ADVOKAT_ADRESA}
+
+                                                    Tuženi (poslodavac): {TUZENI_IME},
+                                                    {TUZENI_ADRESA}
+                                                    PIB/MB: {TUZENI_PIB}
+
+Vrednost spora: {VREDNOST_SPORA} dinara
+
+
+              T U Ž B A
+              radi poništaja odluke o otkazu / isplate zarade / naknade štete
+              (radni spor)
+
+
+I. STRANKE I RADNI ODNOS
+
+{STRANKE_I_RADNI_ODNOS}
+
+
+II. ČINJENIČNO STANJE
+
+{CINJENICNO_STANJE}
+
+
+III. RAZLOZI TUŽBE
+
+{RAZLOZI_TUZBE}
+
+
+IV. PRAVNA KVALIFIKACIJA
+
+{PRAVNA_KVALIFIKACIJA}
+
+
+V. DOKAZNA SREDSTVA
+
+{DOKAZNA_SREDSTVA}
+
+
+VI. TUŽBENI ZAHTEV
+
+Na osnovu svega izloženog, predlaže se sudu da donese sledeću
+
+P R E S U D U
+
+{TUZBENI_ZAHTEV}
+
+sve sa zakonskom zateznom kamatom od dana dospelosti do isplate, kao i da tuženi naknadi tužiocu troškove parničnog postupka, sve u roku od 15 dana pod pretnjom prinudnog izvršenja.
+
+                                                    Tužilac, odnosno punomoćnik tužioca:
+                                                    ____________________________
+                                                    {ADVOKAT_IME}
+                                                    {ADVOKAT_ADRESA}
+
+{MESTO}, {DATUM}
+
+
+Prilozi:
+- Ugovor o radu / rešenje o zasnivanju radnog odnosa
+- Odluka o prestanku radnog odnosa (pobijani akt)
+- Potvrda o zaradi / obračun zarade
+- Punomoćje
+{DODATNI_PRILOZI}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.
+{VIKI_ANALIZA}"""
+
+# ─── ŠABLON 5: Tužba za razvod braka ─────────────────────────────────────────
+SABLON_TUZBA_RAZVOD = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+                                                    Tužilac (bračni drug): {TUZILAC_IME},
+                                                    iz {TUZILAC_ADRESA},
+                                                    JMBG: {TUZILAC_JMBG}
+
+                                                    Punomoćnik tužioca: {ADVOKAT_IME},
+                                                    advokat iz {ADVOKAT_ADRESA}
+
+                                                    Tuženi/a (bračni drug): {TUZENI_IME},
+                                                    iz {TUZENI_ADRESA},
+                                                    JMBG: {TUZENI_JMBG}
+
+
+              T U Ž B A
+              radi razvoda braka
+              (porodičnopravni spor)
+
+
+I. BRAK STRANAKA
+
+Tužilac {TUZILAC_IME} i tuženi/a {TUZENI_IME} zaključili su brak dana {DATUM_BRAKA} pred {MATICNI_URED}, o čemu postoji upis u matičnu knjigu venčanih, izvod broj {BROJ_IZVODA}.
+{DECA_SEKCIJA}
+
+II. OKOLNOSTI RASPADA BRAKA
+
+{CINJENICNO_STANJE}
+
+
+III. RAZLOZI ZA RAZVOD BRAKA
+
+{RAZLOZI_RAZVODA}
+
+Na osnovu navedenih okolnosti, bračna zajednica između tužioca i tuženog/e je ozbiljno i trajno poremećena do mere koja onemogućava njeno dalje trajanje u smislu čl. 41 Porodičnog zakona (Sl. glasnik RS, br. 18/2005, 72/2011, 6/2015).
+
+
+IV. VRŠENJE RODITELJSKOG PRAVA
+
+{STARATELJSTVO_SEKCIJA}
+
+
+V. IZDRŽAVANJE
+
+{IZDRZAVANJE_SEKCIJA}
+
+
+VI. PODELA ZAJEDNIČKE IMOVINE
+
+{IMOVINA_SEKCIJA}
+
+
+VII. DOKAZNA SREDSTVA
+
+{DOKAZNA_SREDSTVA}
+
+
+VIII. TUŽBENI ZAHTEV
+
+Na osnovu svega izloženog, predlaže se sudu da donese sledeću
+
+P R E S U D U
+
+1. Razvodi se brak zaključen između {TUZILAC_IME} i {TUZENI_IME};
+
+{PETITUM_STARATELJSTVO}
+
+{PETITUM_IMOVINA}
+
+Tuženi/a se obavezuje da tužiocu naknadi troškove parničnog postupka, u roku od 15 dana.
+
+                                                    Tužilac, odnosno punomoćnik tužioca:
+                                                    ____________________________
+                                                    {ADVOKAT_IME}
+                                                    {ADVOKAT_ADRESA}
+
+{MESTO}, {DATUM}
+
+
+Prilozi:
+- Izvod iz matične knjige venčanih
+- Izvod iz matične knjige rodjenih za maloletnу decu
+- Dokazi o imovinskom stanju
+- Punomoćje
+{DODATNI_PRILOZI}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.
+"""
+
+# ─── ŠABLON 6: Prigovor na platni nalog ──────────────────────────────────────
+SABLON_PRIGOVOR_PLATNI_NALOG = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+PREDMET: {BROJ_PREDMETA}
+
+
+                                                    Tuženi (podnosilac prigovora): {TUZENI_IME},
+                                                    iz {TUZENI_ADRESA},
+                                                    JMBG/PIB: {TUZENI_JMBG_PIB}
+
+                                                    Punomoćnik: {ADVOKAT_IME},
+                                                    advokat iz {ADVOKAT_ADRESA}
+
+                                                    Tužilac (poverilac): {TUZILAC_IME}
+
+
+              P R I G O V O R
+              na platni nalog
+
+              (rok: 8 dana od dostavljanja — čl. 462 st. 1 ZPP)
+
+
+I. PLATNI NALOG KOJI SE POBIJA
+
+Platni nalog {SUD_NAZIV} broj {BROJ_PREDMETA} od {DATUM_PLATNOG_NALOGA}, dostavljen tuženom dana {DATUM_DOSTAVLJANJA}, kojim je tuženi obavezan da tužiocu isplati iznos od {IZNOS_PLATNOG_NALOGA} dinara sa troškovima.
+
+Prigovor se podnosi blagovremeno — u zakonskom roku od 8 dana od dana dostavljanja platnog naloga (čl. 462 st. 1 ZPP, Sl. glasnik RS, br. 72/2011).
+
+
+II. RAZLOZI PRIGOVORA
+
+{RAZLOZI_PRIGOVORA}
+
+
+III. PRAVNA KVALIFIKACIJA
+
+{PRAVNA_KVALIFIKACIJA}
+
+
+IV. DOKAZNA SREDSTVA
+
+{DOKAZNA_SREDSTVA}
+
+
+V. PRIGOVOR
+
+Na osnovu navedenog, tuženi izjavljuje prigovor i predlaže sudu da:
+
+{PRIGOVOR_PREDLOG}
+
+Tužilac se obavezuje da tuženom naknadi troškove postupka po prigovoru.
+
+                                                    Tuženi, odnosno punomoćnik tuženog:
+                                                    ____________________________
+                                                    {ADVOKAT_IME}
+                                                    {ADVOKAT_ADRESA}
+
+{MESTO}, {DATUM}
+
+
+Prilozi:
+- Kopija pobijanog platnog naloga
+- Dokazi uz prigovor
+- Punomoćje
+{DODATNI_PRILOZI}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.
+"""
+
 # ─── Mapa tip → šablon ────────────────────────────────────────────────────────
 SABLONI: dict[str, str] = {
-    "tuzba_naknada_stete": SABLON_TUZBA_NAKNADA,
-    "zalba_parnicna":      SABLON_ZALBA_PARNICNA,
-    "predlog_izvrsenje":   SABLON_PREDLOG_IZVRSENJE,
+    "tuzba_naknada_stete":   SABLON_TUZBA_NAKNADA,
+    "zalba_parnicna":        SABLON_ZALBA_PARNICNA,
+    "predlog_izvrsenje":     SABLON_PREDLOG_IZVRSENJE,
+    "tuzba_radni_spor":      SABLON_TUZBA_RADNI_SPOR,
+    "tuzba_razvod":          SABLON_TUZBA_RAZVOD,
+    "prigovor_platni_nalog": SABLON_PRIGOVOR_PLATNI_NALOG,
 }
 
 # ─── Ekstrakcioni promptovi po tipu ──────────────────────────────────────────
@@ -362,6 +607,106 @@ PRAVILA:
 - Izvršna isprava mora biti navedena precizno — bez nje predlog nije validan.
 - Ekavica, formalni pravni stil.
 """,
+
+"tuzba_radni_spor": """\
+Ti si asistent koji ekstraktuje pravne entitete iz opisa radnog spora.
+Iz teksta izvuci TAČNO sledeća polja i vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "tuzilac_ime": "Puno ime radnika-tužioca",
+  "tuzilac_adresa": "Adresa tužioca ili prazno",
+  "tuzilac_jmbg": "JMBG tužioca ako je naveden, inače prazno",
+  "tuzeni_ime": "Naziv poslodavca-tuženog (puno pravno ime firme ili preduzetnika)",
+  "tuzeni_adresa": "Sedište poslodavca ili prazno",
+  "tuzeni_pib": "PIB ili MB poslodavca ako je naveden, inače prazno",
+  "sud_naziv": "Nadležni sud: radni sporovi — uvek 'Osnovni sud u [grad]' (čl. 22 ZPP). Grad = mesto sedišta poslodavca ili mesto rada.",
+  "sud_adresa": "Adresa suda ili prazno",
+  "vrednost_spora": "Cifra u dinarima — zbir potraživanja (zaostale zarade, naknada štete). Ako iznos nije naveden: prazno.",
+  "datum_otkaza": "Datum donošenja odluke o otkazu u formatu DD.MM.YYYY, ili prazno",
+  "datum_saznanja": "Datum kada je radnik primio odluku (rok 60 dana za tužbu teče od tada) u formatu DD.MM.YYYY, ili prazno",
+  "vrsta_spora": "Tip: 'poništaj otkaza' / 'isplata zarade' / 'diskriminacija' / 'mobing' / 'naknada štete' / 'promena ugovora'",
+  "osnov_otkaza_raw": "Razlog koji je poslodavac naveo u odluci o otkazu, iz teksta ili prazno",
+  "radni_staz": "Period rada kod ovog poslodavca (npr. '5 godina') ako je naveden, inače prazno",
+  "iznos_zarade": "Mesečni neto iznos zarade u dinarima ako je naveden, inače prazno",
+  "cinjenicno_stanje_raw": "Opis spornih dogadjaja direktno iz teksta (3-5 rečenica)",
+  "dokazna_sredstva_raw": "Eksplicitno pomenuti dokazi iz teksta",
+  "advokat_ime": "Ime advokata ako je naveden, inače prazno",
+  "advokat_adresa": "Adresa advokata ako je navedena, inače prazno",
+  "mesto": "Grad podnošenja tužbe",
+  "datum": "Datum u formatu [dan]. [mesec u slovima] [godina]. godine"
+}
+
+PRAVILA:
+- Rok za tužbu zbog nezakonitog otkaza je 60 dana od saznanja (čl. 195 ZR) — ne navoditi u JSON.
+- NE izmišljati podatke koji nisu eksplicitno u tekstu.
+- Ekavica, formalni stil.
+""",
+
+"tuzba_razvod": """\
+Ti si asistent koji ekstraktuje entitete iz opisa bračnog spora za razvod.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "tuzilac_ime": "Puno ime bračnog druga koji tuži",
+  "tuzilac_adresa": "Adresa tužioca ili prazno",
+  "tuzilac_jmbg": "JMBG tužioca ako je naveden, inače prazno",
+  "tuzeni_ime": "Puno ime drugog bračnog druga",
+  "tuzeni_adresa": "Adresa tuženog ili prazno",
+  "tuzeni_jmbg": "JMBG tuženog ako je naveden, inače prazno",
+  "sud_naziv": "Nadležni sud: uvek 'Osnovni sud u [grad]' (čl. 263 PZ). Grad = zajedničko poslednje boravište ili boravište tužioca.",
+  "sud_adresa": "Adresa suda ili prazno",
+  "datum_braka": "Datum zaključenja braka u formatu DD.MM.YYYY",
+  "maticni_ured": "Naziv matičnog ureda gde je brak zaključen, ili 'nadležnog matičnog ureda'",
+  "broj_izvoda": "Broj izvoda iz knjige venčanih ako je naveden, inače prazno",
+  "ima_dece": true ili false — true ako postoji maloletna deca iz ovog braka,
+  "deca_raw": "Imena i datumi rodjenja maloletne dece ako su navedeni, inače prazno",
+  "starateljstvo_predlog": "Ko traži staratelstvo i nad kojom decom iz teksta, ili prazno",
+  "alimentacija_iznos": "Mesečni iznos alimentacije u dinarima ako je naveden, inače prazno",
+  "ima_zajednicke_imovine": true ili false — true ako je pomenuta zajednička imovina za podelu,
+  "imovina_raw": "Opis zajedničke imovine za podelu ako je naveden, inače prazno",
+  "cinjenicno_stanje_raw": "Opis razloga raspada braka direktno iz teksta (3-5 rečenica)",
+  "dokazna_sredstva_raw": "Eksplicitno pomenuti dokazi iz teksta",
+  "advokat_ime": "Ime advokata ako je naveden, inače prazno",
+  "advokat_adresa": "Adresa advokata ako je navedena, inače prazno",
+  "mesto": "Grad podnošenja tužbe",
+  "datum": "Datum u formatu [dan]. [mesec u slovima] [godina]. godine"
+}
+
+PRAVILA:
+- NE izmišljati podatke koji nisu eksplicitno u tekstu.
+- Ekavica, formalni stil.
+""",
+
+"prigovor_platni_nalog": """\
+Ti si asistent koji ekstraktuje entitete za prigovor na platni nalog.
+ROK JE 8 DANA OD DOSTAVLJANJA (čl. 462 st. 1 ZPP) — ovo je kritičan zakonski rok.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "tuzeni_ime": "Puno ime/naziv dužnika (podnosioca prigovora)",
+  "tuzeni_adresa": "Adresa dužnika ili prazno",
+  "tuzeni_jmbg_pib": "JMBG ili PIB dužnika ako je naveden, inače prazno",
+  "tuzilac_ime": "Puno ime/naziv poverioca",
+  "tuzilac_adresa": "Adresa poverioca ili prazno",
+  "sud_naziv": "Naziv suda koji je doneo platni nalog",
+  "sud_adresa": "Adresa suda ili prazno",
+  "broj_predmeta": "Broj predmeta platnog naloga (npr. Pl. 123/2024)",
+  "datum_platnog_naloga": "Datum donošenja platnog naloga u formatu DD.MM.YYYY",
+  "datum_dostavljanja": "Datum dostavljanja platnog naloga dužniku u formatu DD.MM.YYYY",
+  "iznos_platnog_naloga": "Iznos koji je platnim nalogom određen (samo cifra u dinarima)",
+  "razlog_prigovora": "Vrsta prigovora: 'nepostojanje duga' / 'zastarelost' / 'pogrešan iznos' / 'neuredna dostava' / 'nedostajuća dokumentacija' / 'prigovor nadležnosti'",
+  "cinjenicno_stanje_raw": "Opis razloga prigovora direktno iz teksta",
+  "dokazna_sredstva_raw": "Eksplicitno pomenuti dokazi iz teksta",
+  "advokat_ime": "Ime advokata ako je naveden, inače prazno",
+  "advokat_adresa": "Adresa advokata ako je navedena, inače prazno",
+  "mesto": "Grad podnošenja prigovora",
+  "datum": "Datum u formatu [dan]. [mesec u slovima] [godina]. godine"
+}
+
+PRAVILA:
+- NE izmišljati podatke koji nisu eksplicitno u tekstu.
+- Ekavica, formalni stil.
+""",
 }
 
 # ─── Promptovi za pravno obogaćivanje (RAG kontekst → šablon placeholder) ───
@@ -426,6 +771,58 @@ PRAVILA:
 - Sredstvo izvršenja: zaplemba zarade (ZIO čl. 189), zaplemba računa (ZIO čl. 183), zaplemba pokretnih (ZIO čl. 195).
 - Referišaj na ZIO (Sl. glasnik RS, br. 106/2015) samo ako je u kontekstu.
 - Ekavica, formalni pravni stil.
+""",
+
+"tuzba_radni_spor": """\
+Ti si iskusni srpski advokat koji piše tužbu u radnom sporu pred redovnim sudom.
+Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "stranke_i_radni_odnos": "Uvodni paragraf: identifikacija stranaka i radnopravni odnos — od kada, na kojim poslovima, vrsta ugovora o radu, period trajanja radnog odnosa. Koristiti formulu: 'Tužilac [ime] zaposlen je kod tuženog [naziv] od [datum] na poslovima [opis], na osnovu Ugovora o radu br. [broj] od [datum].'",
+  "cinjenicno_stanje": "Pravno formulisano činjenično stanje u 3-4 paragrafa: (1) tok radnog odnosa — relevantni dogadjaji koji prethode sporu; (2) pobijana odluka — datum donošenja, obrazloženje poslodavca iz pobijanog akta; (3) nezakonitost — formalni ili materijalni nedostaci odluke; (4) posledice za tužioca.",
+  "razlozi_tuzbe": "Konkretni razlozi nezakonitosti sa zakonskim referencama: (1) procesni nedostaci — upozorenje pre otkaza (čl. 180 ZR), rok za izjašnjavanje, pravo na odbranu; (2) materijalni razlozi — da li zakonski osnov postoji (čl. 109, 110, 111 ZR za redovni otkaz; čl. 116 ZR za vanredni otkaz); (3) diskriminacija/mobing ako je relevantno (ZZD čl. 18, ZR čl. 7); (4) proceduralne povrede u postupku donošenja odluke.",
+  "pravna_kvalifikacija": "Pravna analiza u 2-3 paragrafa: (1) zakonski osnov ZR (Sl. glasnik RS, br. 24/2005 sa izmenama — preciziraj iz RAG konteksta); (2) primenjeni član koji reguliše sporni otkaz; (3) VKS praksa iz RAG konteksta ako postoji. KRITIČNO: navoditi ISKLJUČIVO zakone iz RAG konteksta ili opštepoznate (ZR, ZPP, ZZD).",
+  "dokazna_sredstva": "Numerisana lista: 1. Ugovor o radu — radi dokazivanja zasnivanja radnog odnosa; 2. Pobijana odluka o otkazu — predmet osporavanja; 3. Upozorenje pre otkaza (ili konstatacija da nije dostavljeno); 4. Potvrda o zaradi i obračun zaostale zarade; 5. Izjave svedoka — radi dokazivanja okolnosti; 6. Ostali dokazi iz opisa slučaja.",
+  "tuzbeni_zahtev": "Konkretan tužbeni zahtev: (1) poništaj pobijane odluke o prestanku radnog odnosa kao nezakonite; (2) vraćanje na rad na iste ili odgovarajuće poslove (alternativno: isplata otpremnine po ZR čl. 158-160); (3) isplata zarada za period nezakonitog prestanka sa zakonskom kamatom; (4) naknada štete ako je relevantno; (5) troškovi postupka. Konkretni iznosi ili placeholder [IZNOS — POPUNITI]."
+}
+
+ZABRANA: Ne navoditi iznose koje korisnik nije naveo. Ekavica, formalni pravni stil.
+""",
+
+"tuzba_razvod": """\
+Ti si iskusni srpski advokat koji piše tužbu za razvod braka.
+Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "cinjenicno_stanje": "Pravno formulisan opis raspada braka u 3-4 paragrafa: (1) okolnosti zajedničkog života — period, mesto boravka; (2) početak poremećenih odnosa — uzroci opisani u tekstu bez pripisivanja krivice; (3) trenutno stanje — faktička separacija, prestanak bračne zajednice; (4) neuspeli pokušaji pomirenja ako su pomenuti. Referisati na PZ čl. 41.",
+  "razlozi_razvoda": "Pravno formulisani razlozi u 2 paragrafa: (1) ozbiljnost i trajnost poremećaja bračnih odnosa (PZ čl. 41 — ne zahteva se krivica); (2) konkretni uzroci iz teksta; (3) konstatacija da brak ne može ispunjavati svoju funkciju.",
+  "starateljstvo_sekcija": "Ako ima_dece=true: sekcija o vršenju roditeljskog prava — ko predlaže staratelstvo nad kojom decom (PZ čl. 77-80), predlog za regulisanje kontakta sa roditeljem koji ne vrši staratelstvo, predlog alimentacije sa iznosom ili placeholder-om (PZ čl. 160-164). Ako ima_dece=false: prazno string.",
+  "izdrzavanje_sekcija": "Predlog za izdržavanje bivšeg bračnog druga ako je relevantno (PZ čl. 151-159), sa iznosima ili placeholder-om [IZNOS — POPUNITI]. Ako nije pomenuto: prazno string.",
+  "imovina_sekcija": "Ako ima_zajednicke_imovine=true: predlog za podelu zajedničke imovine stečene u braku (PZ čl. 171-178) sa opisom imovine iz teksta. Ako nije relevantno: prazno string.",
+  "dokazna_sredstva": "Numerisana lista: 1. Izvod iz matične knjige venčanih — dokaz braka; 2. Izvodi iz MKR za maloletnu decu; 3. Potvrda o boravištu stranaka; 4. Dokazi o imovinom stanju (izvod iz ZK, saobraćajna dozvola, bankarski izvodi) ako je relevantno; 5. Ostali dokazi iz teksta.",
+  "petitum_starateljstvo": "Ako ima_dece=true: numerisani petitum — 2. Maloletno/a dete/ca [IME] poverava se na čuvanje, vaspitanje i vršenje roditeljskog prava [tužiocu/tuženom]; 3. Obavezuje se [drugi roditelj] da na ime alimentacije plaća iznos od [IZNOS — POPUNITI] mesečno. Ako ima_dece=false: prazno string.",
+  "petitum_imovina": "Ako ima_zajednicke_imovine=true: numerisani petitum za podelu zajedničke imovine sa opisom. Ako nema: prazno string."
+}
+
+ZABRANA: Ekavica, formalni pravni stil. NE navoditi iznose koje korisnik nije naveo.
+""",
+
+"prigovor_platni_nalog": """\
+Ti si iskusni srpski advokat koji piše prigovor na platni nalog.
+Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "razlozi_prigovora": "Konkretni razlozi prigovora u 2-4 paragrafa: (1) meritorna osnovanost — da li dug postoji, da li je u navedenom iznosu, koji deo je sporan; (2) procesni prigovori — zastarelost (ZOO čl. 371 i dalje: opšti rok 10 god., ugovorni 3 god.), neuredna dostava platnog naloga (ZPP čl. 136-143), nedostatak verodostojne isprave; (3) prigovor mesne nadležnosti ako je relevantno (ZPP čl. 22-41); (4) prigovor stvarne nadležnosti. Svaki razlog sa referencom na zakon iz RAG konteksta ili opštepoznate zakone.",
+  "pravna_kvalifikacija": "Pravna analiza u 2 paragrafa: (1) zakonski osnov — ZPP čl. 453-462 (platni nalog); (2) primena materijalnog prava na sporni dug — ZOO ili posebni zakon iz RAG konteksta; (3) VKS praksa iz RAG konteksta ako postoji. KRITIČNO: navoditi ISKLJUČIVO zakone iz RAG konteksta ili opštepoznate.",
+  "dokazna_sredstva": "Numerisana lista dokaza kojima se potkrepljuju razlozi prigovora: 1. Kopija platnog naloga — predmet pobijanja; 2. Dokazi o plaćanju / izmirivanju duga (uplatnice, izvodi računa); 3. Korespondencija stranaka — radi dokazivanja spornih okolnosti; 4. Ugovor na osnovu kojeg se tvrdi dug — radi analize osnovanosti; 5. Ostali dokazi iz teksta.",
+  "prigovor_predlog": "Konkretan predlog u 2-3 tačke: 1. Usvoji prigovor i ukine platni nalog broj [broj] u celini / u delu koji prelazi iznos od [IZNOS — POPUNITI]; 2. Predmet uputi u parnični postupak radi utvrdjivanja osnovanosti potraživanja; 3. Tužilac se obaveže da tuženom naknadi troškove postupka po prigovoru."
+}
+
+KRITIČNO: Zakonski rok 8 dana od dostavljanja (čl. 462 st. 1 ZPP) mora biti istaknut.
+Ekavica, formalni pravni stil.
 """,
 }
 
@@ -539,6 +936,83 @@ def popuni_sablon(tip: str, entiteti: dict, obogacivanje: dict,
             "MESTO":                   entiteti.get("mesto", "[MESTO]"),
             "DATUM":                   entiteti.get("datum", "[DATUM]"),
             "DODATNI_PRILOZI":         obogacivanje.get("dodatni_prilozi", "[DODATNI PRILOZI — POPUNITI]"),
+        }
+
+    elif tip == "tuzba_radni_spor":
+        merged = {
+            "SUD_NAZIV":             entiteti.get("sud_naziv", "[SUD — POPUNITI]"),
+            "SUD_ADRESA":            entiteti.get("sud_adresa", ""),
+            "TUZILAC_IME":           entiteti.get("tuzilac_ime", "[TUŽILAC — POPUNITI]"),
+            "TUZILAC_ADRESA":        entiteti.get("tuzilac_adresa", "[ADRESA — POPUNITI]"),
+            "TUZILAC_JMBG":          entiteti.get("tuzilac_jmbg", "[JMBG — POPUNITI]"),
+            "TUZENI_IME":            entiteti.get("tuzeni_ime", "[TUŽENI — POPUNITI]"),
+            "TUZENI_ADRESA":         entiteti.get("tuzeni_adresa", "[ADRESA — POPUNITI]"),
+            "TUZENI_PIB":            entiteti.get("tuzeni_pib", ""),
+            "VREDNOST_SPORA":        entiteti.get("vrednost_spora", "[VREDNOST SPORA — POPUNITI]"),
+            "STRANKE_I_RADNI_ODNOS": obogacivanje.get("stranke_i_radni_odnos", "[RADNI ODNOS — POPUNITI]"),
+            "CINJENICNO_STANJE":     obogacivanje.get("cinjenicno_stanje", entiteti.get("cinjenicno_stanje_raw", "[STANJE — POPUNITI]")),
+            "RAZLOZI_TUZBE":         obogacivanje.get("razlozi_tuzbe", "[RAZLOZI — POPUNITI]"),
+            "PRAVNA_KVALIFIKACIJA":  obogacivanje.get("pravna_kvalifikacija", "[PRAVNA KVALIFIKACIJA — POPUNITI]"),
+            "DOKAZNA_SREDSTVA":      obogacivanje.get("dokazna_sredstva", entiteti.get("dokazna_sredstva_raw", "[DOKAZI — POPUNITI]")),
+            "TUZBENI_ZAHTEV":        obogacivanje.get("tuzbeni_zahtev", "[ZAHTEV — POPUNITI]"),
+            "ADVOKAT_IME":           entiteti.get("advokat_ime", "[IME ADVOKATA — POPUNITI]"),
+            "ADVOKAT_ADRESA":        entiteti.get("advokat_adresa", "[ADRESA ADVOKATA — POPUNITI]"),
+            "MESTO":                 entiteti.get("mesto", "[MESTO]"),
+            "DATUM":                 entiteti.get("datum", "[DATUM]"),
+            "DODATNI_PRILOZI":       "[DODATNI PRILOZI — POPUNITI]",
+            "VIKI_ANALIZA":          vks_analiza,
+        }
+
+    elif tip == "tuzba_razvod":
+        merged = {
+            "SUD_NAZIV":              entiteti.get("sud_naziv", "[SUD — POPUNITI]"),
+            "SUD_ADRESA":             entiteti.get("sud_adresa", ""),
+            "TUZILAC_IME":            entiteti.get("tuzilac_ime", "[TUŽILAC — POPUNITI]"),
+            "TUZILAC_ADRESA":         entiteti.get("tuzilac_adresa", "[ADRESA — POPUNITI]"),
+            "TUZILAC_JMBG":           entiteti.get("tuzilac_jmbg", "[JMBG — POPUNITI]"),
+            "TUZENI_IME":             entiteti.get("tuzeni_ime", "[TUŽENI — POPUNITI]"),
+            "TUZENI_ADRESA":          entiteti.get("tuzeni_adresa", "[ADRESA — POPUNITI]"),
+            "TUZENI_JMBG":            entiteti.get("tuzeni_jmbg", "[JMBG — POPUNITI]"),
+            "DATUM_BRAKA":            entiteti.get("datum_braka", "[DATUM BRAKA — POPUNITI]"),
+            "MATICNI_URED":           entiteti.get("maticni_ured", "nadležnog matičnog ureda"),
+            "BROJ_IZVODA":            entiteti.get("broj_izvoda", "[BROJ — POPUNITI]"),
+            "DECA_SEKCIJA":           ("\nIz ovog braka potiče: " + entiteti.get("deca_raw", "")) if entiteti.get("ima_dece") else "",
+            "CINJENICNO_STANJE":      obogacivanje.get("cinjenicno_stanje", entiteti.get("cinjenicno_stanje_raw", "[STANJE — POPUNITI]")),
+            "RAZLOZI_RAZVODA":        obogacivanje.get("razlozi_razvoda", "[RAZLOZI — POPUNITI]"),
+            "STARATELJSTVO_SEKCIJA":  obogacivanje.get("starateljstvo_sekcija", "[STARATELSTVO — POPUNITI ako ima dece]"),
+            "IZDRZAVANJE_SEKCIJA":    obogacivanje.get("izdrzavanje_sekcija", ""),
+            "IMOVINA_SEKCIJA":        obogacivanje.get("imovina_sekcija", ""),
+            "DOKAZNA_SREDSTVA":       obogacivanje.get("dokazna_sredstva", entiteti.get("dokazna_sredstva_raw", "[DOKAZI — POPUNITI]")),
+            "PETITUM_STARATELJSTVO":  obogacivanje.get("petitum_starateljstvo", ""),
+            "PETITUM_IMOVINA":        obogacivanje.get("petitum_imovina", ""),
+            "ADVOKAT_IME":            entiteti.get("advokat_ime", "[IME ADVOKATA — POPUNITI]"),
+            "ADVOKAT_ADRESA":         entiteti.get("advokat_adresa", "[ADRESA ADVOKATA — POPUNITI]"),
+            "MESTO":                  entiteti.get("mesto", "[MESTO]"),
+            "DATUM":                  entiteti.get("datum", "[DATUM]"),
+            "DODATNI_PRILOZI":        "[DODATNI PRILOZI — POPUNITI]",
+        }
+
+    elif tip == "prigovor_platni_nalog":
+        merged = {
+            "SUD_NAZIV":             entiteti.get("sud_naziv", "[SUD — POPUNITI]"),
+            "SUD_ADRESA":            entiteti.get("sud_adresa", ""),
+            "BROJ_PREDMETA":         entiteti.get("broj_predmeta", "[BROJ — POPUNITI]"),
+            "TUZENI_IME":            entiteti.get("tuzeni_ime", "[DUŽNIK — POPUNITI]"),
+            "TUZENI_ADRESA":         entiteti.get("tuzeni_adresa", "[ADRESA — POPUNITI]"),
+            "TUZENI_JMBG_PIB":       entiteti.get("tuzeni_jmbg_pib", ""),
+            "ADVOKAT_IME":           entiteti.get("advokat_ime", "[IME ADVOKATA — POPUNITI]"),
+            "ADVOKAT_ADRESA":        entiteti.get("advokat_adresa", "[ADRESA ADVOKATA — POPUNITI]"),
+            "TUZILAC_IME":           entiteti.get("tuzilac_ime", "[POVERILAC — POPUNITI]"),
+            "DATUM_PLATNOG_NALOGA":  entiteti.get("datum_platnog_naloga", "[DATUM — POPUNITI]"),
+            "DATUM_DOSTAVLJANJA":    entiteti.get("datum_dostavljanja", "[DATUM — POPUNITI]"),
+            "IZNOS_PLATNOG_NALOGA":  entiteti.get("iznos_platnog_naloga", "[IZNOS — POPUNITI]"),
+            "RAZLOZI_PRIGOVORA":     obogacivanje.get("razlozi_prigovora", entiteti.get("cinjenicno_stanje_raw", "[RAZLOZI — POPUNITI]")),
+            "PRAVNA_KVALIFIKACIJA":  obogacivanje.get("pravna_kvalifikacija", "[PRAVNA KVALIFIKACIJA — POPUNITI]"),
+            "DOKAZNA_SREDSTVA":      obogacivanje.get("dokazna_sredstva", entiteti.get("dokazna_sredstva_raw", "[DOKAZI — POPUNITI]")),
+            "PRIGOVOR_PREDLOG":      obogacivanje.get("prigovor_predlog", "[PREDLOG — POPUNITI]"),
+            "MESTO":                 entiteti.get("mesto", "[MESTO]"),
+            "DATUM":                 entiteti.get("datum", "[DATUM]"),
+            "DODATNI_PRILOZI":       "[DODATNI PRILOZI — POPUNITI]",
         }
 
     # Popuni šablon — nepoznati placeholderi ostaju [POPUNITI]
