@@ -5916,9 +5916,11 @@ i[data-lucide] svg {
 .pred-subtab-btn { font-size: 13px !important; }
 .ccc-block-hd { font-size: 13px !important; }
 
-/* ── Svetla tema — KOMPLETNI OVERRIDE ───────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   SVETLA TEMA — kompletni dizajn sistem
+   Pristup: globalni text-color override + targetovane pozadine
+   ═══════════════════════════════════════════════════════════════ */
 body.light-theme {
-  /* CSS varijable — automatski fiksira sve var(--...) selektore */
   --void:    #f0f4f8;
   --deep:    #ffffff;
   --surface: #ffffff;
@@ -5943,8 +5945,27 @@ body.light-theme {
   --s2: rgba(10,18,32,0.05);
   --s3: rgba(10,18,32,0.08);
   background: #f0f4f8 !important;
-  color: rgba(10,18,32,0.92) !important;
+  color: rgba(10,18,32,0.88) !important;
 }
+/* ── GLOBALNI TEKST-FIX ─────────────────────────────────────────
+   Pokriva svih 800+ hardkodovanih rgba(255,255,255,...) boja
+   odjednom. Specifičnost: 0-0-1 (body) + 0-0-0 (*) = 0-0-1.
+   Svi targetovani body.light-theme .klasa blokovi ispod imaju
+   specifičnost 0-1-1 i pobeđuju ovaj globalni fallback.
+   ─────────────────────────────────────────────────────────────── */
+body.light-theme * { color: rgba(10,18,32,0.88) !important; }
+/* Primarna dugmad — zadržava beli tekst na plavom gradijentu */
+body.light-theme .crm-save-btn,
+body.light-theme .intake-next-btn,
+body.light-theme .web3-submit-btn,
+body.light-theme .strat-submit-btn,
+body.light-theme .podnesak-preview-pdf,
+body.light-theme #pred-fab-btn,
+body.light-theme #btn-start-compare,
+body.light-theme #praksa-search-btn,
+body.light-theme #onboard-next,
+body.light-theme .kal-dodaj-btn { color: #ffffff !important; }
+body.light-theme button[style*="linear-gradient"] { color: #ffffff !important; }
 /* Struktura */
 body.light-theme .terminal { background: #f0f2f5 !important; }
 body.light-theme .vx-sidebar { background: #ffffff !important; border-right: 1px solid rgba(0,0,0,0.08) !important; }
@@ -6253,6 +6274,93 @@ body.light-theme .kc-kpi-n.warn { color: #ef4444 !important; }
 
 /* ── Svetla tema: headings (h1/h2/h3) ───────────────────────── */
 body.light-theme h1, body.light-theme h2, body.light-theme h3 { color: rgba(10,18,32,0.92) !important; }
+
+/* ── Svetla tema: Select / Input elementi ────────────────────── */
+body.light-theme select,
+body.light-theme select option { background: #ffffff !important; border-color: rgba(10,18,32,0.14) !important; }
+body.light-theme select { border: 1px solid rgba(10,18,32,0.14) !important; }
+body.light-theme input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.light-theme textarea { background: #ffffff !important; border-color: rgba(10,18,32,0.14) !important; }
+body.light-theme input::placeholder, body.light-theme textarea::placeholder { color: rgba(10,18,32,0.35) !important; }
+
+/* ── Svetla tema: CRM slide-in panel ────────────────────────── */
+body.light-theme .crm-panel { background: #ffffff !important; border-left-color: rgba(10,18,32,0.10) !important; }
+body.light-theme .crm-panel-header { border-bottom-color: rgba(10,18,32,0.08) !important; }
+body.light-theme .crm-panel-footer { background: #f5f7fa !important; border-top-color: rgba(10,18,32,0.08) !important; }
+body.light-theme .crm-section-lbl { border-bottom-color: rgba(10,18,32,0.07) !important; }
+body.light-theme .crm-field { background: rgba(10,18,32,0.04) !important; border-color: rgba(10,18,32,0.12) !important; }
+body.light-theme .crm-cancel-btn { background: rgba(10,18,32,0.04) !important; border-color: rgba(10,18,32,0.10) !important; }
+
+/* ── Svetla tema: Intake slide-in panel ──────────────────────── */
+body.light-theme .intake-panel { background: #ffffff !important; border-left-color: rgba(10,18,32,0.10) !important; }
+body.light-theme .intake-panel-header { border-bottom-color: rgba(10,18,32,0.08) !important; }
+body.light-theme .intake-panel-footer { background: #f5f7fa !important; border-top-color: rgba(10,18,32,0.08) !important; }
+body.light-theme .intake-back-btn { background: rgba(10,18,32,0.04) !important; border-color: rgba(10,18,32,0.10) !important; }
+body.light-theme .intake-step-dot { background: rgba(10,18,32,0.12) !important; }
+body.light-theme .intake-step-dot.done { background: #0099bb !important; }
+body.light-theme .intake-step-dot.active { background: rgba(0,153,187,0.50) !important; }
+body.light-theme .intake-step-heading { border-bottom-color: rgba(10,18,32,0.07) !important; }
+body.light-theme .intake-klijent-result { background: rgba(10,18,32,0.02) !important; border-color: rgba(10,18,32,0.08) !important; }
+body.light-theme .intake-klijent-result:hover { background: rgba(0,153,187,0.06) !important; border-color: rgba(0,153,187,0.22) !important; }
+body.light-theme .intake-klijent-result.selected { background: rgba(0,153,187,0.10) !important; border-color: rgba(0,153,187,0.38) !important; }
+body.light-theme .intake-upload-zone { border-color: rgba(10,18,32,0.15) !important; }
+body.light-theme .intake-upload-zone:hover,
+body.light-theme .intake-upload-zone.dragover { border-color: rgba(0,153,187,0.40) !important; background: rgba(0,153,187,0.04) !important; }
+body.light-theme .intake-file-item { background: rgba(10,18,32,0.03) !important; border-color: rgba(10,18,32,0.08) !important; }
+
+/* ── Svetla tema: Toast notifikacije ─────────────────────────── */
+body.light-theme .toast { background: rgba(10,18,32,0.92) !important; border-color: rgba(10,18,32,0.12) !important; }
+
+/* ── Svetla tema: Intelligence / Analytics paneli ────────────── */
+body.light-theme .intel-panel,
+body.light-theme .analytics-wrap,
+body.light-theme .pi-card,
+body.light-theme .pi-section,
+body.light-theme .pi-block,
+body.light-theme .ccc-dash-block { background: #ffffff !important; border-color: rgba(10,18,32,0.09) !important; }
+body.light-theme .pi-period-sel { background: rgba(10,18,32,0.04) !important; border-color: rgba(10,18,32,0.10) !important; }
+body.light-theme .pi-ftab { background: rgba(10,18,32,0.04) !important; border-color: rgba(10,18,32,0.10) !important; }
+body.light-theme .pi-ftab.active { background: rgba(0,153,187,0.12) !important; border-color: rgba(0,153,187,0.30) !important; }
+
+/* ── Svetla tema: Pred Timeline i ostali elementi ────────────── */
+body.light-theme .pred-timeline::before { background: rgba(10,18,32,0.12) !important; }
+body.light-theme .pck-prio-badge.odlozen { background: rgba(10,18,32,0.05) !important; border-color: rgba(10,18,32,0.10) !important; }
+body.light-theme .w3-progress { background: rgba(10,18,32,0.08) !important; }
+body.light-theme .fa-chip-missing { background: rgba(10,18,32,0.04) !important; border-color: rgba(10,18,32,0.15) !important; }
+body.light-theme .fa-excerpt { background: rgba(168,74,255,0.05) !important; border-left-color: rgba(168,74,255,0.40) !important; }
+body.light-theme .health-bar-wrap { background: rgba(10,18,32,0.08) !important; }
+
+/* ── Svetla tema: Modali sa inline stilovima ─────────────────── */
+body.light-theme .modal[style*="background:#111827"],
+body.light-theme [style*="background:#0f1623"],
+body.light-theme [style*="background:#111827"],
+body.light-theme [style*="background:#0d1117"],
+body.light-theme [style*="background:#161b22"],
+body.light-theme [style*="background:#131929"],
+body.light-theme [style*="background:#1a2332"] { background: #ffffff !important; }
+body.light-theme [style*="border:1px solid rgba(255,255,255"] { border-color: rgba(10,18,32,0.12) !important; }
+
+/* ── Svetla tema: Akcentovane boje — ostaju ──────────────────── */
+body.light-theme .kc-sh-lbl,
+body.light-theme .hub-eyebrow,
+body.light-theme .kc-hdr-eyebrow,
+body.light-theme .kc-hdr-clock,
+body.light-theme .vx-logo-mark,
+body.light-theme .kc-sphere-lbl,
+body.light-theme .kc-sphere-ico,
+body.light-theme .kc-panel-hd-cta,
+body.light-theme .kc-panel-expand,
+body.light-theme .kc-ai-card-cta,
+body.light-theme .hub-tool-cta,
+body.light-theme #vx-breadcrumb-path { color: #0099bb !important; }
+
+body.light-theme .kc-kpi-n.warn { color: #ef4444 !important; }
+body.light-theme .resp-status-err .resp-section-body { color: #dc2626 !important; }
+body.light-theme .resp-status-warn .resp-section-body { color: #d97706 !important; }
+body.light-theme .resp-status-ok .resp-section-body { color: #16a34a !important; }
+
+body.light-theme .t-tab.active { color: rgba(10,18,32,0.95) !important; }
+body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !important; }
 
 /* ── Print view ─────────────────────────────────────────────── */
 @media print {
