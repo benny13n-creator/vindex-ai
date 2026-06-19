@@ -14120,7 +14120,7 @@ async function pred_bulkAkcija(akcija) {
 }
 
 function pred_subtabSwitch(pane, btn) {
-  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja'];
+  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi'];
   if (VALID.indexOf(pane) === -1) pane = 'pregled';
   document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
   document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -14135,8 +14135,10 @@ function pred_subtabSwitch(pane, btn) {
   }
   if (history.replaceState && activePredmetId) history.replaceState(null, '', '#' + pane);
   if (typeof lucide !== 'undefined') lucide.createIcons();
-  // Lazy-load saradnja tab
+  // Lazy-load tabovi
   if (pane === 'saradnja' && activePredmetId) saradnja_load(activePredmetId);
+  if (pane === 'timeline' && activePredmetId) timeline_load();
+  if (pane === 'dokazi'   && activePredmetId) evidence_load();
 }
 
 function pred_openStrat(modul) {
@@ -19429,7 +19431,7 @@ function timeline_load() {
   fetch('/api/predmeti/' + activePredmetId + '/hronologija', {
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
   }).then(function(r){ return r.json(); }).then(function(d) {
-    var events = d.dogadjaji || d.hronologija || d || [];
+    var events = d.hronologija || d.dogadjaji || (Array.isArray(d) ? d : []);
     if (!Array.isArray(events) || !events.length) {
       container.innerHTML = '<div style="color:rgba(255,255,255,.25);font-size:.8rem;text-align:center;padding:1.5rem 0;">Hronologija je prazna.<br><span style="font-size:.72rem;">Uploadujte dokument da biste automatski generisali hronologiju.</span></div>';
       return;
@@ -19590,17 +19592,7 @@ function brain_load() {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Sub-tab loading hooks (proširuje pred_subtabSwitch)
-// ═══════════════════════════════════════════════════════════════
-(function() {
-  var _origSwitch = window.pred_subtabSwitch;
-  window.pred_subtabSwitch = function(name, btn) {
-    if (typeof _origSwitch === 'function') _origSwitch(name, btn);
-    if (name === 'timeline') { setTimeout(timeline_load, 50); }
-    if (name === 'dokazi')   { setTimeout(evidence_load, 50); }
-  };
-})();
+// Timeline i Evidence Vault se lazy-loaduju direktno iz pred_subtabSwitch.
 </script>
 
 </body>
