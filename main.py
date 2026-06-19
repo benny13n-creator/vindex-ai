@@ -9,7 +9,7 @@ import os
 import re
 import hashlib
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from openai import OpenAI
 from app.services.retrieve import (
@@ -163,11 +163,24 @@ SL_GLASNIK_MAP = {
         "Sl. glasnik RS, br. 72/2009, 18/2010, 65/2013, 15/2015, 96/2015, 47/2017, 113/2017, 27/2018, 41/2018, 9/2020, 52/2021",
 }
 
-# ─── Query cache (TTL 1h, max 500 unosa) ────────────────────────────────────
+# ─── Query cache (L1: memorija 6h / L2: Supabase 7 dana) ────────────────────
+#
+# Supabase SQL migracija (pokreni jednom u SQL editoru):
+# CREATE TABLE IF NOT EXISTS ai_cache (
+#   cache_key  text PRIMARY KEY,
+#   odgovor    text NOT NULL,
+#   metadata   jsonb DEFAULT '{}',
+#   created_at timestamptz DEFAULT now(),
+#   expires_at timestamptz NOT NULL
+# );
+# CREATE INDEX IF NOT EXISTS ai_cache_expires_idx ON ai_cache (expires_at);
+# ALTER TABLE ai_cache ENABLE ROW LEVEL SECURITY;
+# CREATE POLICY "service_only" ON ai_cache USING (false);
 
 _CACHE: dict[str, tuple[dict, datetime]] = {}
-_CACHE_TTL = timedelta(hours=1)
-_CACHE_MAX = 500
+_CACHE_TTL     = timedelta(hours=6)
+_CACHE_TTL_DB  = timedelta(days=7)
+_CACHE_MAX     = 500
 
 
 def _cache_kljuc(pitanje: str) -> str:
@@ -181,25 +194,64 @@ def _normalizuj_za_cache(tekst: str) -> str:
     return re.sub(r"\s+", " ", t)
 
 
+def _supa_cache_get(kljuc: str) -> dict | None:
+    try:
+        from shared.deps import _get_supa
+        now_iso = datetime.now(timezone.utc).isoformat()
+        row = _get_supa().table("ai_cache").select("odgovor, metadata").eq("cache_key", kljuc).gt("expires_at", now_iso).limit(1).execute()
+        if row.data:
+            meta = row.data[0].get("metadata") or {}
+            return {"status": "success", "data": row.data[0]["odgovor"], **meta}
+    except Exception as e:
+        logger.debug("Cache L2 get skip: %s", e)
+    return None
+
+
+def _supa_cache_set(kljuc: str, rezultat: dict) -> None:
+    try:
+        from shared.deps import _get_supa
+        odgovor = rezultat.get("data", "")
+        if not odgovor:
+            return
+        meta = {k: v for k, v in rezultat.items() if k not in ("data", "status")}
+        expires = (datetime.now(timezone.utc) + _CACHE_TTL_DB).isoformat()
+        _get_supa().table("ai_cache").upsert({
+            "cache_key":  kljuc,
+            "odgovor":    odgovor[:12000],
+            "metadata":   meta,
+            "expires_at": expires,
+        }).execute()
+    except Exception as e:
+        logger.debug("Cache L2 set skip: %s", e)
+
+
 def _cache_get(pitanje: str) -> dict | None:
-    # VINDEX_CACHE_BYPASS=1 forces cache miss — used by benchmark runner (--no-cache flag)
     if os.getenv("VINDEX_CACHE_BYPASS") == "1":
         return None
     kljuc = _cache_kljuc(pitanje)
+    # L1 — memorija
     if kljuc in _CACHE:
         rezultat, ts = _CACHE[kljuc]
         if datetime.now() - ts < _CACHE_TTL:
-            logger.info("Cache HIT [q=%s]", _hash_za_log(pitanje))
+            logger.info("Cache HIT L1 [q=%s]", _hash_za_log(pitanje))
             return rezultat
         del _CACHE[kljuc]
+    # L2 — Supabase (preživljava restarte, 7 dana)
+    db_rez = _supa_cache_get(kljuc)
+    if db_rez:
+        _CACHE[kljuc] = (db_rez, datetime.now())  # popuni L1
+        logger.info("Cache HIT L2 [q=%s]", _hash_za_log(pitanje))
+        return db_rez
     return None
 
 
 def _cache_set(pitanje: str, rezultat: dict) -> None:
+    kljuc = _cache_kljuc(pitanje)
     if len(_CACHE) >= _CACHE_MAX:
         najstariji = min(_CACHE.keys(), key=lambda k: _CACHE[k][1])
         del _CACHE[najstariji]
-    _CACHE[_cache_kljuc(pitanje)] = (rezultat, datetime.now())
+    _CACHE[kljuc] = (rezultat, datetime.now())
+    _supa_cache_set(kljuc, rezultat)  # L2 persist
 
 
 # ─── Fallback system prompt kad Pinecone ne vrati rezultate ─────────────────
