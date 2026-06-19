@@ -2254,6 +2254,31 @@
                 <button class="settings-btn" onclick="doLogout ? doLogout() : null" style="border-color:rgba(239,68,68,0.3);color:#f87171;">Odjavi se</button>
               </div>
             </div>
+
+            <!-- ── WAITLIST ADMIN (samo osnivač) ───────────────────────── -->
+            <div class="settings-section" id="wl-admin-section" style="display:none;">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Waitlist — Early Access</span>
+                <button class="settings-btn" onclick="wl_admin_load()" id="wl-admin-refresh-btn">↻ Osveži</button>
+              </div>
+              <div id="wl-admin-stats" style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;"></div>
+              <div id="wl-admin-table-wrap" style="overflow-x:auto;">
+                <div id="wl-admin-empty" style="font-size:.78rem;color:rgba(255,255,255,0.3);padding:.5rem 0;">Učitavam...</div>
+                <table id="wl-admin-table" style="display:none;width:100%;border-collapse:collapse;font-size:.78rem;">
+                  <thead>
+                    <tr style="color:rgba(255,255,255,0.35);text-align:left;">
+                      <th style="padding:5px 8px;font-weight:600;">Ime</th>
+                      <th style="padding:5px 8px;font-weight:600;">Email</th>
+                      <th style="padding:5px 8px;font-weight:600;">Firma</th>
+                      <th style="padding:5px 8px;font-weight:600;">Poruka</th>
+                      <th style="padding:5px 8px;font-weight:600;">Datum</th>
+                      <th style="padding:5px 8px;font-weight:600;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="wl-admin-tbody"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <div class="t-exec-row" id="t-exec-row">

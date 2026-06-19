@@ -9880,6 +9880,103 @@ window.addEventListener('load', function() {
 function _updateAdminTabUI() {
   var btn = document.getElementById('tab-btn-pi');
   if (btn) btn.style.display = currentUserIsFounder ? '' : 'none';
+  var wlSection = document.getElementById('wl-admin-section');
+  if (wlSection) {
+    wlSection.style.display = currentUserIsFounder ? '' : 'none';
+    if (currentUserIsFounder) wl_admin_load();
+  }
+}
+
+/* ── Waitlist Admin ────────────────────────────────────────────────────────── */
+var _wlAdminData = [];
+
+function wl_admin_load() {
+  if (!currentSession || !currentUserIsFounder) return;
+  var emptyEl = document.getElementById('wl-admin-empty');
+  var tableEl = document.getElementById('wl-admin-table');
+  if (emptyEl) emptyEl.textContent = 'Učitavam...';
+  if (tableEl) tableEl.style.display = 'none';
+
+  fetch('/waitlist/admin/lista', {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  }).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(d) {
+    _wlAdminData = d.prijave || [];
+    _wl_admin_render(d);
+  }).catch(function(e) {
+    if (emptyEl) emptyEl.textContent = 'Greška: ' + e.message;
+  });
+}
+
+function _wl_admin_render(d) {
+  var statsEl = document.getElementById('wl-admin-stats');
+  var emptyEl = document.getElementById('wl-admin-empty');
+  var tableEl = document.getElementById('wl-admin-table');
+  var tbodyEl = document.getElementById('wl-admin-tbody');
+
+  if (statsEl) {
+    var statColor = { pending: '#ffaa40', contacted: '#4aa8ff', active: '#4ade80' };
+    statsEl.innerHTML = [
+      { label: 'Ukupno', val: d.total || 0, color: 'rgba(255,255,255,0.5)' },
+      { label: 'Na čekanju', val: d.pending || 0, color: '#ffaa40' },
+      { label: 'Aktivni', val: d.active || 0, color: '#4ade80' },
+    ].map(function(s) {
+      return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:6px 12px;text-align:center;">'
+        + '<div style="font-size:1.1rem;font-weight:700;color:' + s.color + ';">' + s.val + '</div>'
+        + '<div style="font-size:.65rem;color:rgba(255,255,255,0.35);margin-top:1px;">' + s.label + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  if (!_wlAdminData.length) {
+    if (emptyEl) emptyEl.textContent = 'Nema prijava još.';
+    if (tableEl) tableEl.style.display = 'none';
+    return;
+  }
+
+  if (emptyEl) emptyEl.textContent = '';
+  if (tableEl) tableEl.style.display = 'table';
+
+  var statusColors = { pending: '#ffaa40', contacted: '#4aa8ff', active: '#4ade80' };
+  var statusLabels = { pending: 'Na čekanju', contacted: 'Kontaktiran', active: 'Aktivan' };
+
+  tbodyEl.innerHTML = _wlAdminData.map(function(p) {
+    var dt = p.created_at ? new Date(p.created_at).toLocaleDateString('sr-Latn-RS') : '—';
+    var st = p.status || 'pending';
+    var col = statusColors[st] || '#888';
+    var options = ['pending','contacted','active'].map(function(s) {
+      return '<option value="' + s + '"' + (s === st ? ' selected' : '') + '>' + (statusLabels[s] || s) + '</option>';
+    }).join('');
+    return '<tr style="border-top:1px solid rgba(255,255,255,0.05);">'
+      + '<td style="padding:6px 8px;color:rgba(255,255,255,0.85);">' + escHtml(p.ime || '') + '</td>'
+      + '<td style="padding:6px 8px;"><a href="mailto:' + escHtml(p.email) + '" style="color:#4aa8ff;">' + escHtml(p.email) + '</a></td>'
+      + '<td style="padding:6px 8px;color:rgba(255,255,255,0.55);">' + escHtml(p.firma || '—') + '</td>'
+      + '<td style="padding:6px 8px;color:rgba(255,255,255,0.45);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(p.poruka || '') + '">' + escHtml((p.poruka || '—').substring(0, 40)) + '</td>'
+      + '<td style="padding:6px 8px;color:rgba(255,255,255,0.35);">' + dt + '</td>'
+      + '<td style="padding:6px 8px;">'
+      + '<select onchange="wl_admin_set_status(\'' + p.id + '\', this.value)" '
+      + 'style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:' + col + ';font-size:.72rem;padding:2px 5px;cursor:pointer;">'
+      + options + '</select></td>'
+      + '</tr>';
+  }).join('');
+}
+
+function wl_admin_set_status(id, status) {
+  if (!currentSession) return;
+  fetch('/waitlist/admin/' + id + '/status?status=' + encodeURIComponent(status), {
+    method: 'PATCH',
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  }).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    showToast('Status ažuriran.', 'ok');
+    var entry = _wlAdminData.find(function(p) { return p.id === id; });
+    if (entry) entry.status = status;
+  }).catch(function(e) {
+    showToast('Greška: ' + e.message, 'err');
+    wl_admin_load();
+  });
 }
 
 // ── Tracking helper ──────────────────────────────────────────
