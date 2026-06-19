@@ -5916,27 +5916,273 @@ i[data-lucide] svg {
 .pred-subtab-btn { font-size: 13px !important; }
 .ccc-block-hd { font-size: 13px !important; }
 
-/* ── Svetla tema ─────────────────────────────────────────────── */
+/* ── Svetla tema — KOMPLETNI OVERRIDE ───────────────────────── */
 body.light-theme {
-  background: #f0f2f5 !important;
-  color: #1a1a2e !important;
+  /* CSS varijable — automatski fiksira sve var(--...) selektore */
+  --void:    #f0f4f8;
+  --deep:    #ffffff;
+  --surface: #ffffff;
+  --tx-1: rgba(10,18,32,0.92);
+  --tx-2: rgba(10,18,32,0.60);
+  --tx-3: rgba(10,18,32,0.40);
+  --tx-4: rgba(10,18,32,0.22);
+  --tx-blue: #0099bb;
+  --blue:    #0099bb;
+  --bd-1: rgba(10,18,32,0.08);
+  --bd-2: rgba(10,18,32,0.12);
+  --bd-3: rgba(10,18,32,0.18);
+  --bd-blue: rgba(0,153,187,0.25);
+  --blue-lo: rgba(0,153,187,0.08);
+  --blue-md: rgba(0,153,187,0.14);
+  --blue-hi: rgba(0,153,187,0.28);
+  --teal:    #0099bb;
+  --bd-teal: rgba(0,153,187,0.25);
+  --teal-lo: rgba(0,153,187,0.08);
+  --s0: rgba(10,18,32,0.018);
+  --s1: rgba(10,18,32,0.03);
+  --s2: rgba(10,18,32,0.05);
+  --s3: rgba(10,18,32,0.08);
+  background: #f0f4f8 !important;
+  color: rgba(10,18,32,0.92) !important;
 }
+/* Struktura */
+body.light-theme .terminal { background: #f0f2f5 !important; }
 body.light-theme .vx-sidebar { background: #ffffff !important; border-right: 1px solid rgba(0,0,0,0.08) !important; }
-body.light-theme .vx-body { background: #f0f2f5 !important; }
+body.light-theme .vx-sidebar-logo { border-bottom-color: rgba(0,0,0,0.07) !important; }
+body.light-theme .vx-sidebar-footer { border-top-color: rgba(0,0,0,0.07) !important; }
 body.light-theme .vx-topbar { background: #ffffff !important; border-bottom: 1px solid rgba(0,0,0,0.08) !important; }
-body.light-theme .pred-card,
-body.light-theme .kc-section,
-body.light-theme .kc-kpi,
-body.light-theme .ccc-block { background: #ffffff !important; border-color: rgba(0,0,0,0.1) !important; color: #1a1a2e !important; }
+body.light-theme .vx-body { background: #f0f2f5 !important; }
+body.light-theme .vx-nav-group { color: rgba(0,0,0,0.30) !important; }
+body.light-theme .vx-logo-text { color: rgba(0,0,0,0.88) !important; }
+/* Tabs / Nav */
 body.light-theme .vx-tab-lbl,
-body.light-theme .t-tab { color: rgba(0,0,0,0.65) !important; }
-body.light-theme .t-tab.active { background: rgba(74,168,255,0.12) !important; color: #1a6bbf !important; }
-body.light-theme .pred-subtab-btn { background: #f0f2f5 !important; color: rgba(0,0,0,0.6) !important; border-color: rgba(0,0,0,0.1) !important; }
+body.light-theme .t-tab { color: rgba(0,0,0,0.50) !important; }
+body.light-theme .t-tab:hover { color: rgba(0,0,0,0.75) !important; background: rgba(0,0,0,0.03) !important; border-left-color: rgba(0,0,0,0.1) !important; }
+body.light-theme .t-tab.active { color: #1a6bbf !important; background: rgba(74,168,255,0.08) !important; border-left-color: #4aa8ff !important; }
+body.light-theme .pred-subtab-btn { background: #f0f2f5 !important; color: rgba(0,0,0,0.55) !important; border-color: rgba(0,0,0,0.1) !important; }
 body.light-theme .pred-subtab-btn.active { background: #e8f0fe !important; color: #1a6bbf !important; }
-body.light-theme #kc-body { color: #1a1a2e !important; }
-body.light-theme .kc-row { background: #f7f8fa !important; color: #1a1a2e !important; }
-body.light-theme .kc-greeting, body.light-theme .kc-date { color: #1a1a2e !important; }
-body.light-theme .vx-sidebar-foot button { background: rgba(0,0,0,0.05) !important; border-color: rgba(0,0,0,0.12) !important; color: rgba(0,0,0,0.6) !important; }
+/* Dashboard — Komandna tabla */
+body.light-theme #kc-body { color: rgba(0,0,0,0.88) !important; }
+body.light-theme .kc-greeting { color: rgba(0,0,0,0.88) !important; }
+body.light-theme .kc-date { color: rgba(0,0,0,0.40) !important; }
+body.light-theme .kc-kpi { background: #ffffff !important; border-color: rgba(0,0,0,0.10) !important; }
+body.light-theme .kc-kpi-l { color: rgba(0,0,0,0.42) !important; }
+body.light-theme .kc-section { background: transparent !important; }
+body.light-theme .kc-section-hd { color: rgba(0,0,0,0.40) !important; border-bottom-color: rgba(0,0,0,0.08) !important; }
+body.light-theme .kc-row { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .kc-row:hover { background: rgba(74,168,255,0.05) !important; border-color: rgba(74,168,255,0.25) !important; }
+body.light-theme .kc-row-naziv { color: rgba(0,0,0,0.85) !important; }
+body.light-theme .kc-row-sub { color: rgba(0,0,0,0.45) !important; }
+body.light-theme .kc-row-datum { color: rgba(0,0,0,0.38) !important; }
+body.light-theme .kc-empty { color: rgba(0,0,0,0.30) !important; }
+body.light-theme .kc-summary { color: rgba(0,0,0,0.55) !important; background: rgba(74,168,255,0.03) !important; border-color: rgba(74,168,255,0.15) !important; }
+body.light-theme .kc-prep-item { color: rgba(0,0,0,0.65) !important; }
+body.light-theme .kc-loading { color: rgba(0,0,0,0.28) !important; }
+body.light-theme .kc-qa-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.60) !important; }
+body.light-theme .ccc-block { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; color: rgba(0,0,0,0.88) !important; }
+/* Pred Card / Panel */
+body.light-theme .pred-card { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .pred-item { background: #ffffff !important; border-color: rgba(0,0,0,0.08) !important; }
+body.light-theme .pred-badge { background: rgba(0,0,0,0.05) !important; color: rgba(0,0,0,0.45) !important; border-color: rgba(0,0,0,0.10) !important; }
+/* Response Sections */
+body.light-theme .resp-inner { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+body.light-theme .resp-section { border-bottom-color: rgba(0,0,0,0.06) !important; }
+body.light-theme .resp-section-body { color: rgba(0,0,0,0.78) !important; }
+body.light-theme .resp-odgovor .resp-section-body { color: rgba(0,0,0,0.78) !important; }
+body.light-theme .resp-zakljucak .resp-section-body,
+body.light-theme .resp-tldr .resp-section-body { color: rgba(0,0,0,0.90) !important; }
+body.light-theme .resp-izvor .resp-section-body { color: rgba(0,0,0,0.42) !important; }
+body.light-theme .resp-disclaimer-box { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.09) !important; color: rgba(0,0,0,0.45) !important; }
+body.light-theme .resp-nacrt-podnesak { color: rgba(0,0,0,0.82) !important; background: rgba(0,0,0,0.015) !important; border-color: rgba(0,0,0,0.09) !important; }
+body.light-theme .resp-action-btn { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.65) !important; }
+body.light-theme .resp-action-btn:hover { background: rgba(0,0,0,0.07) !important; color: rgba(0,0,0,0.88) !important; }
+/* Citat blockquote */
+body.light-theme blockquote.citat-blockquote { color: rgba(140,100,0,0.85) !important; background: rgba(200,160,0,0.05) !important; border-left-color: rgba(200,160,0,0.45) !important; }
+body.light-theme .citat-clan-title { color: rgba(150,110,0,0.90) !important; }
+body.light-theme .citat-toggle { border-color: rgba(200,160,0,0.35) !important; color: rgba(140,100,0,0.70) !important; }
+body.light-theme blockquote.citat-collapsed::after { background: linear-gradient(transparent, rgba(240,242,245,0.95)) !important; }
+/* Misljenje Cards */
+body.light-theme .misljenje-card { background: rgba(251,146,60,0.04) !important; border-color: rgba(251,146,60,0.18) !important; }
+body.light-theme .misljenje-naziv { color: rgba(160,80,0,0.90) !important; }
+body.light-theme .misljenje-tekst { color: rgba(120,60,0,0.65) !important; }
+body.light-theme .misljenje-datum { color: rgba(0,0,0,0.38) !important; }
+body.light-theme .resp-misljenje .resp-section-body { color: rgba(160,90,0,0.88) !important; }
+/* Podnesak UI */
+body.light-theme .podnesak-option { background: #f5f7fa !important; border-color: rgba(0,0,0,0.12) !important; color: rgba(0,0,0,0.80) !important; }
+body.light-theme .podnesak-option:hover { background: #e8f0fe !important; border-color: rgba(74,168,255,0.35) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .podnesak-option.selected { background: #e8f0fe !important; border-color: #4aa8ff !important; border-left-color: #4aa8ff !important; color: #1a4080 !important; }
+body.light-theme .podnesak-preview-edit { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.65) !important; }
+/* Unosi / Inputs */
+body.light-theme .tarife-stavka-iznos { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.12) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .crm-tarifa-input { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.12) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .rok-datum-inp { background: rgba(0,0,0,0.03) !important; border-color: rgba(74,168,255,0.25) !important; color: rgba(0,0,0,0.80) !important; }
+body.light-theme .zast-wrap { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.09) !important; }
+body.light-theme .zast-sel,
+body.light-theme .zast-inp { background: rgba(0,0,0,0.03) !important; border-color: rgba(74,168,255,0.22) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .zast-sel option { background: #ffffff !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .strat-textarea { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .strat-rezultat-body { background: rgba(0,0,0,0.015) !important; border-color: rgba(0,0,0,0.09) !important; color: rgba(0,0,0,0.80) !important; }
+body.light-theme .strat-opis-box { color: rgba(0,0,0,0.50) !important; background: rgba(0,0,0,0.015) !important; }
+body.light-theme .strat-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.55) !important; }
+body.light-theme .interni-input { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .interni-search-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.55) !important; }
+body.light-theme .interni-rezultat-red { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
+body.light-theme .kom-input { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme .auth-tabs { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.07) !important; }
+body.light-theme .cyr-toggle-wrap { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.14) !important; }
+body.light-theme .manual-compare-inputs input { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.80) !important; }
+/* Billing */
+body.light-theme .billing-timer-bar { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+body.light-theme .billing-timer-btn-start { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.55) !important; }
+body.light-theme .billing-entry-row { background: #ffffff !important; border-color: rgba(0,0,0,0.07) !important; }
+body.light-theme .billing-faktura-form { background: rgba(0,0,0,0.02) !important; border-color: rgba(74,168,255,0.15) !important; }
+body.light-theme .billing-report-btn { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.09) !important; color: rgba(0,0,0,0.50) !important; }
+/* Komunikacija */
+body.light-theme .kom-red { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+/* Modali */
+body.light-theme .settings-modal { background: #ffffff !important; border-color: rgba(0,0,0,0.12) !important; }
+body.light-theme .settings-modal h3 { color: rgba(0,0,0,0.88) !important; }
+body.light-theme .crm-modal { background: #ffffff !important; border-color: rgba(0,0,0,0.12) !important; }
+body.light-theme .crm-modal-title { color: rgba(0,0,0,0.88) !important; }
+body.light-theme .vx-compare-modal { background: #ffffff !important; border-color: rgba(74,168,255,0.22) !important; }
+body.light-theme .vx-modal-header h2 { color: rgba(0,0,0,0.88) !important; }
+body.light-theme .vx-modal-close { color: rgba(0,0,0,0.38) !important; }
+body.light-theme .vx-modal-footer button { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.55) !important; }
+body.light-theme .vx-compare-loading { color: rgba(0,0,0,0.38) !important; }
+body.light-theme .vx-manual-compare { color: rgba(0,0,0,0.42) !important; }
+body.light-theme .compare-bar-actions button { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.55) !important; }
+/* Compare Bar */
+body.light-theme .vx-compare-bar { background: #ffffff !important; border-top-color: rgba(0,0,0,0.10) !important; box-shadow: 0 -4px 24px rgba(0,0,0,0.10) !important; }
+/* FAB Menu */
+body.light-theme #pred-fab-menu { background: #ffffff !important; border-color: rgba(0,0,0,0.12) !important; }
+body.light-theme #pred-fab-menu button { color: rgba(0,0,0,0.75) !important; }
+body.light-theme #pred-fab-menu button:hover { background: rgba(0,0,0,0.05) !important; }
+/* Decision Cards */
+body.light-theme .pg-decision-card { background: #ffffff !important; border-color: rgba(0,0,0,0.09) !important; }
+body.light-theme .pg-decision-dn { color: rgba(0,0,0,0.82) !important; }
+body.light-theme .pg-decision-meta { color: rgba(0,0,0,0.38) !important; }
+body.light-theme .pg-decision-preview { color: rgba(0,0,0,0.55) !important; }
+body.light-theme .pg-group-count { color: rgba(0,0,0,0.38) !important; }
+body.light-theme .pg-group-nepoznato { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.09) !important; }
+body.light-theme .pg-group-lbl-nepoznato { color: rgba(0,0,0,0.45) !important; }
+/* PC Preview Cards */
+body.light-theme .pc-title { color: rgba(0,0,0,0.88) !important; }
+body.light-theme .pc-sub { color: rgba(0,0,0,0.40) !important; }
+body.light-theme .pc-bar { background: rgba(0,0,0,0.08) !important; }
+/* VP panel */
+body.light-theme .vp-title { color: rgba(0,0,0,0.88) !important; }
+body.light-theme .vp-desc { color: rgba(0,0,0,0.42) !important; }
+/* How-step */
+body.light-theme .how-htitle { color: rgba(0,0,0,0.88) !important; }
+body.light-theme .how-hdesc { color: rgba(0,0,0,0.50) !important; }
+/* Ratio Box */
+body.light-theme .ratio-box { background: rgba(120,100,200,0.04) !important; border-left-color: rgba(120,100,200,0.35) !important; }
+body.light-theme .ratio-text { color: rgba(100,80,180,0.85) !important; }
+body.light-theme .ratio-lbl { color: rgba(120,100,200,0.55) !important; }
+body.light-theme .ratio-loading { color: rgba(0,0,0,0.25) !important; }
+/* Sidebar footer buttons */
+body.light-theme .vx-sidebar-footer button,
+body.light-theme .vx-sidebar-foot button { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.60) !important; }
+/* Razni elementi */
+body.light-theme .rok-card { background: rgba(0,0,0,0.02) !important; }
+body.light-theme .playbook-akcija-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.50) !important; }
+body.light-theme .btn-ics-all { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.45) !important; }
+body.light-theme .push-btn { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.45) !important; }
+body.light-theme .pi-reload-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.12) !important; color: rgba(0,0,0,0.50) !important; }
+body.light-theme .api-kljuc-value { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; }
+body.light-theme .procena-section-hdr { background: rgba(0,0,0,0.03) !important; color: rgba(0,0,0,0.80) !important; }
+body.light-theme .procena-progress-wrap { background: rgba(0,0,0,0.08) !important; }
+body.light-theme .zast-osnov-badge { background: rgba(0,0,0,0.06) !important; }
+body.light-theme .izmena-tag { background: rgba(0,0,0,0.06) !important; color: rgba(0,0,0,0.45) !important; border-color: rgba(0,0,0,0.10) !important; }
+body.light-theme .beleska-item { color: rgba(10,18,32,0.65) !important; background: rgba(10,18,32,0.02) !important; border-color: rgba(10,18,32,0.07) !important; }
+body.light-theme #vx-breadcrumb-path { color: rgba(0,130,160,0.75) !important; }
+
+/* ── Svetla tema: Sidebar (novi dizajn) ──────────────────────── */
+body.light-theme .terminal { background: #f0f4f8 !important; }
+body.light-theme .vx-sidebar { background: #ffffff !important; border-right: 1px solid rgba(10,18,32,0.08) !important; }
+body.light-theme .vx-logo-wrap { border-bottom-color: rgba(10,18,32,0.08) !important; }
+body.light-theme .vx-logo-mark { color: #0099bb !important; }
+body.light-theme .vx-logo-mark em { color: #007a99 !important; }
+body.light-theme .t-tab { color: rgba(10,18,32,0.65) !important; background: transparent !important; border-left-color: transparent !important; }
+body.light-theme .t-tab:hover { color: rgba(10,18,32,0.88) !important; background: rgba(0,153,187,0.05) !important; border-left-color: rgba(0,153,187,0.15) !important; }
+body.light-theme .t-tab.active { color: rgba(10,18,32,0.95) !important; background: rgba(0,153,187,0.09) !important; border-left-color: rgba(0,153,187,0.75) !important; font-weight: 600 !important; }
+body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !important; }
+body.light-theme .vx-nav-group-lbl { color: rgba(10,18,32,0.30) !important; }
+body.light-theme .vx-nav-sub { color: rgba(10,18,32,0.60) !important; }
+body.light-theme .vx-nav-sub:hover { color: rgba(0,153,187,0.85) !important; background: rgba(0,153,187,0.05) !important; }
+body.light-theme .vx-nav-sub-dot { background: rgba(0,153,187,0.45) !important; }
+body.light-theme .vx-nav-sep,
+body.light-theme .vx-sidebar-sep { background: rgba(10,18,32,0.08) !important; }
+body.light-theme .vx-sidebar-help { color: rgba(10,18,32,0.40) !important; }
+body.light-theme .vx-sidebar-help:hover { color: rgba(10,18,32,0.65) !important; }
+body.light-theme .vx-sidebar-foot,
+body.light-theme .vx-sidebar-footer { border-top-color: rgba(10,18,32,0.08) !important; }
+body.light-theme #theme-toggle-btn { background: rgba(10,18,32,0.05) !important; border-color: rgba(10,18,32,0.12) !important; color: rgba(10,18,32,0.65) !important; }
+body.light-theme .t-bar { background: rgba(10,18,32,0.018) !important; border-bottom-color: rgba(10,18,32,0.07) !important; }
+body.light-theme .t-title { color: rgba(10,18,32,0.45) !important; }
+
+/* ── Svetla tema: Komandni centar header ─────────────────────── */
+body.light-theme .kc-hdr-title { color: rgba(10,18,32,0.92) !important; }
+body.light-theme .kc-hdr-sub { color: rgba(10,18,32,0.52) !important; }
+body.light-theme .kc-hdr-eyebrow { color: rgba(0,153,187,0.80) !important; }
+body.light-theme .kc-hdr-date { color: rgba(10,18,32,0.82) !important; }
+body.light-theme .kc-hdr-clock { color: rgba(0,153,187,0.82) !important; }
+
+/* ── Svetla tema: Sfera ──────────────────────────────────────── */
+@keyframes kc-sphere-pulse-light {
+  0%,100% { box-shadow: 0 0 30px rgba(0,153,187,0.20), 0 0 60px rgba(0,153,187,0.10), inset 0 0 20px rgba(0,153,187,0.05); }
+  50%      { box-shadow: 0 0 45px rgba(0,153,187,0.30), 0 0 90px rgba(0,153,187,0.15), inset 0 0 30px rgba(0,153,187,0.08); }
+}
+body.light-theme .kc-sphere {
+  background: radial-gradient(circle at 50% 50%, rgba(0,153,187,0.06) 0%, rgba(240,244,248,0.94) 60%, rgba(228,238,248,0.98) 100%) !important;
+  border: 2px solid rgba(0,153,187,0.55) !important;
+  box-shadow: 0 0 30px rgba(0,153,187,0.20), 0 0 60px rgba(0,153,187,0.10), inset 0 0 20px rgba(0,153,187,0.05) !important;
+  animation-name: kc-sphere-pulse-light !important;
+}
+body.light-theme .kc-sphere-num { color: rgba(10,18,32,0.88) !important; }
+body.light-theme .kc-sphere-quad.clickable:hover .kc-sphere-num { color: rgba(10,18,32,1) !important; }
+body.light-theme .kc-sphere-lbl { color: rgba(0,153,187,0.70) !important; }
+body.light-theme .kc-sphere-divv,
+body.light-theme .kc-sphere-divh { background: rgba(0,153,187,0.18) !important; }
+body.light-theme .kc-sphere-ico { color: rgba(0,153,187,0.72) !important; }
+
+/* ── Svetla tema: Hub Tool Grid (AI Alati) ───────────────────── */
+body.light-theme .hub-hd { border-bottom-color: rgba(10,18,32,0.07) !important; }
+body.light-theme .hub-title { color: rgba(10,18,32,0.92) !important; }
+body.light-theme .hub-eyebrow { color: rgba(0,153,187,0.70) !important; }
+body.light-theme .hub-eyebrow::before { background: rgba(0,153,187,0.55) !important; }
+body.light-theme .hub-stat-n { color: rgba(10,18,32,0.65) !important; }
+body.light-theme .hub-stat-l { color: rgba(10,18,32,0.30) !important; }
+body.light-theme .hub-tool-grid { border-top-color: rgba(10,18,32,0.08) !important; border-left-color: rgba(10,18,32,0.08) !important; }
+body.light-theme .hub-tool { border-right-color: rgba(10,18,32,0.08) !important; border-bottom-color: rgba(10,18,32,0.08) !important; }
+body.light-theme .hub-tool:hover { background: rgba(0,153,187,0.04) !important; }
+body.light-theme .hub-tool:hover::after { background: rgba(0,153,187,0.65) !important; }
+body.light-theme .hub-tool-num { color: rgba(10,18,32,0.15) !important; }
+body.light-theme .hub-tool-cat { color: rgba(10,18,32,0.35) !important; }
+body.light-theme .hub-tool-name { color: rgba(10,18,32,0.88) !important; }
+body.light-theme .hub-tool-desc { color: rgba(10,18,32,0.45) !important; }
+body.light-theme .hub-tool-foot { border-top-color: rgba(10,18,32,0.06) !important; }
+body.light-theme .hub-tool-tag { color: rgba(10,18,32,0.22) !important; }
+body.light-theme .hub-tool-cta { color: rgba(0,153,187,0.60) !important; }
+body.light-theme .hub-tool:hover .hub-tool-cta { color: rgba(0,153,187,0.90) !important; }
+
+/* ── Svetla tema: Settings panel ─────────────────────────────── */
+body.light-theme .settings-header { color: rgba(10,18,32,0.92) !important; }
+body.light-theme .settings-section-hd { color: rgba(10,18,32,0.38) !important; border-bottom-color: rgba(10,18,32,0.07) !important; }
+body.light-theme .settings-row-label { color: rgba(10,18,32,0.80) !important; }
+body.light-theme .settings-row-sub { color: rgba(10,18,32,0.38) !important; }
+
+/* ── Svetla tema: Dok panel ──────────────────────────────────── */
+body.light-theme .dok-notice strong { color: rgba(10,18,32,0.88) !important; }
+body.light-theme .dok-nav-label { color: rgba(10,18,32,0.82) !important; }
+body.light-theme .dok-nav-sub { color: rgba(10,18,32,0.35) !important; }
+
+/* ── Svetla tema: Topbar / global search ─────────────────────── */
+body.light-theme .vx-topbar { background: rgba(255,255,255,0.97) !important; border-bottom: 1px solid rgba(10,18,32,0.08) !important; backdrop-filter: blur(8px) !important; }
+body.light-theme .vx-global-search { background: rgba(10,18,32,0.04) !important; border-color: rgba(10,18,32,0.10) !important; }
+body.light-theme .vx-search-ph { color: rgba(10,18,32,0.38) !important; }
+body.light-theme .vx-search-icon,
+body.light-theme .vx-search-kbd { color: rgba(10,18,32,0.30) !important; }
 
 /* ── Print view ─────────────────────────────────────────────── */
 @media print {
@@ -8933,7 +9179,7 @@ window.addEventListener('resize',function(){W=cv.width=window.innerWidth;H=cv.he
 window.addEventListener('mousemove',function(e){mx=e.clientX;my=e.clientY;});
 var pts=[];
 for(var i=0;i<60;i++){pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,t:Math.random()*Math.PI*2,r:Math.random()*.8+.25});}
-function drawBg(){ctx.clearRect(0,0,W,H);ctx.strokeStyle='rgba(0,212,255,0.048)';ctx.lineWidth=1;for(var x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}for(var y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}var g=ctx.createRadialGradient(mx,my,0,mx,my,420);g.addColorStop(0,'rgba(0,212,255,0.07)');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;p.t+=.007;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;var a=Math.max(0.35,Math.min(0.75,(.4+.4*Math.sin(p.t))*.75));ctx.beginPath();ctx.arc(p.x,p.y,p.r+.5,0,Math.PI*2);ctx.fillStyle='rgba(0,212,255,'+a+')';ctx.fill();for(var j=i+1;j<pts.length;j++){var q=pts[j],d=Math.hypot(p.x-q.x,p.y-q.y);if(d<160){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(0,212,255,'+(0.18*(1-d/160))+')';ctx.lineWidth=.7;ctx.stroke();}}}requestAnimationFrame(drawBg);}
+function drawBg(){var isL=document.body.classList.contains('light-theme');var rgb=isL?'0,153,187':'0,212,255';ctx.clearRect(0,0,W,H);ctx.strokeStyle='rgba('+rgb+','+(isL?'0.04':'0.048')+')';ctx.lineWidth=1;for(var x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}for(var y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}var g=ctx.createRadialGradient(mx,my,0,mx,my,420);g.addColorStop(0,'rgba('+rgb+','+(isL?'0.05':'0.07')+')');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;p.t+=.007;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;var rawA=.4+.4*Math.sin(p.t);var a=isL?Math.max(0.12,Math.min(0.22,rawA*.28)):Math.max(0.35,Math.min(0.75,rawA*.75));ctx.beginPath();ctx.arc(p.x,p.y,p.r+.5,0,Math.PI*2);ctx.fillStyle='rgba('+rgb+','+a+')';ctx.fill();for(var j=i+1;j<pts.length;j++){var q=pts[j],d=Math.hypot(p.x-q.x,p.y-q.y);if(d<160){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba('+rgb+','+((isL?0.09:0.18)*(1-d/160))+')';ctx.lineWidth=.7;ctx.stroke();}}}requestAnimationFrame(drawBg);}
 drawBg();
 
 /* SPHERE */
