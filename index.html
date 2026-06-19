@@ -4451,6 +4451,109 @@ select.pro-input option { background: var(--surface); }
   line-height: 1.5;
 }
 
+/* ── Waitlist / Early Access modal ──────────────────────────────── */
+.wl-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+  z-index: 3100; display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(6px);
+}
+.wl-overlay.open { display: flex; }
+.wl-modal {
+  background: #0d1117; border: 1px solid rgba(0,153,187,0.30);
+  border-radius: 16px; padding: 32px 28px; width: min(480px, 94vw);
+  position: relative; animation: wl-in 0.22s ease;
+}
+@keyframes wl-in {
+  from { opacity:0; transform: translateY(12px) scale(0.97); }
+  to   { opacity:1; transform: none; }
+}
+.wl-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none; color: rgba(255,255,255,0.35);
+  font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 4px 8px;
+  border-radius: 6px; transition: color 0.15s;
+}
+.wl-close:hover { color: rgba(255,255,255,0.75); }
+.wl-eyebrow {
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #0099bb; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace;
+  display: flex; align-items: center; gap: 7px;
+}
+.wl-eyebrow::before {
+  content: ''; width: 18px; height: 2px;
+  background: #0099bb; border-radius: 2px; display: inline-block;
+}
+.wl-title {
+  font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.95);
+  margin: 0 0 6px; line-height: 1.25;
+}
+.wl-sub {
+  font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.6;
+  margin: 0 0 24px;
+}
+.wl-field { margin-bottom: 14px; }
+.wl-label {
+  display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: rgba(255,255,255,0.40);
+  margin-bottom: 5px; font-family: 'JetBrains Mono', monospace;
+}
+.wl-label span { color: rgba(248,113,113,0.8); margin-left: 2px; }
+.wl-input {
+  width: 100%; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 9px;
+  color: rgba(255,255,255,0.88); font-size: 14px; padding: 10px 13px;
+  font-family: inherit; outline: none; box-sizing: border-box;
+  transition: border-color 0.18s;
+}
+.wl-input:focus { border-color: rgba(0,153,187,0.55); }
+.wl-input::placeholder { color: rgba(255,255,255,0.22); }
+.wl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wl-submit {
+  width: 100%; margin-top: 20px; padding: 12px;
+  background: linear-gradient(135deg, #0099bb, #006a8a);
+  border: none; border-radius: 10px; color: #fff;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  font-family: inherit; letter-spacing: 0.02em;
+  transition: opacity 0.18s, box-shadow 0.18s;
+}
+.wl-submit:hover { opacity: 0.88; box-shadow: 0 0 24px rgba(0,153,187,0.40); }
+.wl-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.wl-success {
+  text-align: center; padding: 20px 0 10px;
+}
+.wl-success-ico { font-size: 48px; margin-bottom: 14px; }
+.wl-success-title { font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.92); margin-bottom: 8px; }
+.wl-success-sub { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.65; }
+.wl-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(0,153,187,0.12); border: 1px solid rgba(0,153,187,0.28);
+  border-radius: 99px; padding: 4px 12px; font-size: 11px;
+  color: rgba(0,153,187,0.85); font-weight: 600; margin-bottom: 18px;
+}
+.wl-badge::before { content:''; width:6px; height:6px; border-radius:50%; background:#0099bb; }
+/* Landing page — novi CTA baner */
+.vx-land-wl-strip {
+  margin: 28px auto 0; max-width: 520px; padding: 0 16px;
+  text-align: center;
+}
+.vx-land-wl-note {
+  font-size: 11px; color: rgba(255,255,255,0.28); margin-top: 10px;
+  letter-spacing: 0.04em;
+}
+/* Sidebar: Pozovi kolegu dugme */
+.vx-wl-invite-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 10px; background: rgba(0,153,187,0.06);
+  border: 1px solid rgba(0,153,187,0.18); border-radius: 8px;
+  color: rgba(0,153,187,0.72); font-size: 12px; cursor: pointer;
+  font-family: inherit; margin-top: 6px; transition: all 0.18s;
+}
+.vx-wl-invite-btn:hover { background: rgba(0,153,187,0.12); color: rgba(0,153,187,0.95); }
+/* Light theme overrides */
+body.light-theme .wl-modal { background: #ffffff; border-color: rgba(0,153,187,0.22); }
+body.light-theme .wl-input { background: rgba(10,18,32,0.04); border-color: rgba(10,18,32,0.12); }
+body.light-theme .wl-input::placeholder { color: rgba(10,18,32,0.28); }
+
 /* 15. OVERRIDES for old HTML elements ───────────────────────────── */
 /* Remove old nav/hero/footer from DOM influence */
 .terminal, .terminal-wrap { overflow: visible !important; backdrop-filter: none !important; }
@@ -6803,6 +6906,10 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
           <span id="theme-toggle-ico">☀️</span>
           <span id="theme-toggle-lbl">Svetla tema</span>
         </button>
+        <button class="vx-wl-invite-btn" onclick="wl_open()" title="Pozovite kolegu advokata na Vindex AI">
+          <i data-lucide="user-plus" style="width:13px;height:13px;flex-shrink:0;stroke-width:2;"></i>
+          <span>Pozovite kolegu</span>
+        </button>
         <div class="vx-sidebar-help">
           <i data-lucide="help-circle"></i>
           <span>Pomoć &amp; podrška</span>
@@ -8754,6 +8861,48 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   </div>
 </div>
 
+<!-- ── WAITLIST / EARLY ACCESS MODAL ─────────────────────────────────── -->
+<div id="wl-overlay" class="wl-overlay" onclick="if(event.target===this)wl_close()">
+  <div class="wl-modal">
+    <button class="wl-close" onclick="wl_close()">&#x2715;</button>
+    <div id="wl-form-wrap">
+      <div class="wl-eyebrow">Early Access</div>
+      <h2 class="wl-title">Pridružite se Vindex AI</h2>
+      <p class="wl-sub">Prijavite se za rani pristup. Javićemo vam se sa pozivom čim otvorimo mesta.</p>
+      <div class="wl-row">
+        <div class="wl-field">
+          <label class="wl-label">Ime i prezime <span>*</span></label>
+          <input id="wl-ime" class="wl-input" type="text" placeholder="Marko Marković" maxlength="120" />
+        </div>
+        <div class="wl-field">
+          <label class="wl-label">Advokatska kancelarija</label>
+          <input id="wl-firma" class="wl-input" type="text" placeholder="AK Marković" maxlength="200" />
+        </div>
+      </div>
+      <div class="wl-row">
+        <div class="wl-field">
+          <label class="wl-label">Email adresa <span>*</span></label>
+          <input id="wl-email" class="wl-input" type="email" placeholder="marko@kancelarija.rs" />
+        </div>
+        <div class="wl-field">
+          <label class="wl-label">Telefon (opciono)</label>
+          <input id="wl-telefon" class="wl-input" type="tel" placeholder="+381 60 123 4567" maxlength="30" />
+        </div>
+      </div>
+      <div class="wl-field">
+        <label class="wl-label">Šta vas najviše zanima?</label>
+        <input id="wl-poruka" class="wl-input" type="text" placeholder="Npr. istraživanje zakona, upravljanje predmetima..." maxlength="500" />
+      </div>
+      <button class="wl-submit" id="wl-submit-btn" onclick="wl_submit()">Prijavite se za rani pristup</button>
+    </div>
+    <div id="wl-success-wrap" class="wl-success" style="display:none;">
+      <div class="wl-success-ico">🎉</div>
+      <div class="wl-success-title">Prijava primljena!</div>
+      <p class="wl-success-sub">Hvala na interesovanju za Vindex AI.<br>Javićemo vam se na <strong id="wl-confirmed-email"></strong><br>čim otvorimo pristup.</p>
+    </div>
+  </div>
+</div>
+
 <div id="vx-landing" class="vx-landing">
   <nav class="vx-land-nav">
     <a href="#" class="vx-land-logo">Vindex<em>AI</em></a>
@@ -8775,8 +8924,12 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
     </p>
 
     <div class="vx-land-ctas">
-      <button class="vx-land-btn-primary" onclick="openModal()">Po&#269;ni besplatno &rarr;</button>
-      <button class="vx-land-btn-secondary" onclick="openModal()">Prijavi se</button>
+      <button class="vx-land-btn-primary" onclick="wl_open()">Zatražite rani pristup &rarr;</button>
+      <button class="vx-land-btn-secondary" onclick="openModal()">Već imam nalog</button>
+    </div>
+    <div class="vx-land-wl-strip">
+      <div class="wl-badge">Beta · Ograničen broj mesta</div>
+      <div class="vx-land-wl-note">Prijavite se i javićemo vam se čim otvorimo pristup. Besplatno tokom beta faze.</div>
     </div>
 
     <div class="vx-land-features">
@@ -9038,6 +9191,56 @@ function closeModal() {
   document.getElementById('auth-error').textContent = '';
   document.getElementById('auth-error').style.color = '';
 }
+
+/* ── Waitlist / Early Access ─────────────────────────────────────── */
+function wl_open() {
+  document.getElementById('wl-overlay').classList.add('open');
+  document.getElementById('wl-form-wrap').style.display = '';
+  document.getElementById('wl-success-wrap').style.display = 'none';
+  setTimeout(function(){ var el = document.getElementById('wl-ime'); if(el) el.focus(); }, 80);
+}
+function wl_close() {
+  document.getElementById('wl-overlay').classList.remove('open');
+}
+async function wl_submit() {
+  var ime     = (document.getElementById('wl-ime').value     || '').trim();
+  var email   = (document.getElementById('wl-email').value   || '').trim();
+  var firma   = (document.getElementById('wl-firma').value   || '').trim();
+  var telefon = (document.getElementById('wl-telefon').value || '').trim();
+  var poruka  = (document.getElementById('wl-poruka').value  || '').trim();
+
+  if (!ime)   { showToast('Unesite ime i prezime.', 'warn'); document.getElementById('wl-ime').focus(); return; }
+  if (!email || !email.includes('@')) { showToast('Unesite ispravnu email adresu.', 'warn'); document.getElementById('wl-email').focus(); return; }
+
+  var btn = document.getElementById('wl-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Šaljem...';
+
+  try {
+    var resp = await fetch('/waitlist/prijava', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ime: ime, email: email, firma: firma, telefon: telefon, poruka: poruka })
+    });
+    var data = await resp.json();
+    if (data.ok) {
+      document.getElementById('wl-confirmed-email').textContent = email;
+      document.getElementById('wl-form-wrap').style.display = 'none';
+      document.getElementById('wl-success-wrap').style.display = '';
+    } else {
+      showToast(data.detail || 'Greška pri prijavi. Pokušajte ponovo.', 'err');
+      btn.disabled = false;
+      btn.textContent = 'Prijavite se za rani pristup';
+    }
+  } catch(e) {
+    showToast('Greška mreže. Proverite konekciju.', 'err');
+    btn.disabled = false;
+    btn.textContent = 'Prijavite se za rani pristup';
+  }
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && document.getElementById('wl-overlay').classList.contains('open')) wl_close();
+});
 
 var _EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 var _EYE_SHUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
