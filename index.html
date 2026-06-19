@@ -11575,14 +11575,15 @@ var _PODNESAK_HINTS = {
 /* Tipovi koji idu na /api/nacrt (drafting modul) */
 var _NACRT_API_TYPES = new Set();
 /* Pre-populate nacrt types — confirmed/extended by /api/nacrt/types fetch */
-/* NOTE: tuzba_naknada_stete, tuzba_radni_spor, tuzba_razvod, prigovor_platni_nalog,
-         zalba_parnicna, predlog_izvrsenje → /api/podnesak (structured pipeline) */
+/* NOTE: 8 tipova → /api/podnesak (structured extraction+RAG+enrichment pipeline):
+   tuzba_naknada_stete, zalba_parnicna, predlog_izvrsenje,
+   tuzba_radni_spor, tuzba_razvod, prigovor_platni_nalog,
+   krivicna_prijava, predlog_privremena_mera */
 [
   'ugovor_neodredjeno','ugovor_odredjeno','aneks','sporazumni_raskid','punomocje',
   'zalba_na_presudu','zalba_na_resenje',
   'opomena_duznik','zahtev_poslodavcu','obaveštenje_o_otkazu',
-  'ugovor_kupoprodaja','ugovor_zakup',
-  'predlog_privremena_mera','krivicna_prijava'
+  'ugovor_kupoprodaja','ugovor_zakup'
 ].forEach(function(v){ _NACRT_API_TYPES.add(v); });
 
 /* Dinamičko učitavanje tipova ugovora iz /api/nacrt/types */

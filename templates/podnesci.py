@@ -10,12 +10,14 @@ from typing import Optional
 
 # ─── Tipovi podnesaka ─────────────────────────────────────────────────────────
 TIPOVI = {
-    "tuzba_naknada_stete":   "Tužba za naknadu štete",
-    "zalba_parnicna":        "Žalba na prvostepenu presudu (parnični postupak)",
-    "predlog_izvrsenje":     "Predlog za izvršenje",
-    "tuzba_radni_spor":      "Tužba u radnom sporu",
-    "tuzba_razvod":          "Tužba za razvod braka",
-    "prigovor_platni_nalog": "Prigovor na platni nalog",
+    "tuzba_naknada_stete":    "Tužba za naknadu štete",
+    "zalba_parnicna":         "Žalba na prvostepenu presudu (parnični postupak)",
+    "predlog_izvrsenje":      "Predlog za izvršenje",
+    "tuzba_radni_spor":       "Tužba u radnom sporu",
+    "tuzba_razvod":           "Tužba za razvod braka",
+    "prigovor_platni_nalog":  "Prigovor na platni nalog",
+    "krivicna_prijava":       "Krivična prijava",
+    "predlog_privremena_mera":"Predlog za određivanje privremene mere",
 }
 
 # ─── ŠABLON 1: Tužba za naknadu nematerijalne štete ──────────────────────────
@@ -487,14 +489,163 @@ Prilozi:
 NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.
 """
 
+# ─── ŠABLON 7: Krivična prijava ──────────────────────────────────────────────
+SABLON_KRIVICNA_PRIJAVA = """\
+{TUZILAC_NAZIV}
+{TUZILAC_ADRESA}
+
+
+                                                    Prijavljivač: {PRIJAVLJIVAC_IME},
+                                                    iz {PRIJAVLJIVAC_ADRESA}
+
+                                                    Punomoćnik: {ADVOKAT_IME},
+                                                    advokat iz {ADVOKAT_ADRESA}
+
+
+              K R I V I Č N A   P R I J A V A
+
+              (podneta na osnovu čl. 280 ZKP, Sl. glasnik RS, br. 72/2011)
+
+
+I. PRIJAVLJENI
+
+{OKRIVLJENI_IME}, {OKRIVLJENI_ADRESA}
+{OKRIVLJENI_JMBG_RED}
+
+
+II. KRIVIČNO DELO ZA KOJE SE PRIJAVLJUJE
+
+{KZ_CLAN_NAZIV}
+
+(kažnjivo po čl. {KZ_CLAN_BROJ} Krivičnog zakonika, Sl. glasnik RS, br. 85/2005)
+
+
+III. OPIS KRIVIČNOG DELA — ČINJENIČNO STANJE
+
+{CINJENICNO_STANJE}
+
+
+IV. PRAVNA KVALIFIKACIJA
+
+{PRAVNA_KVALIFIKACIJA}
+
+
+V. DOKAZNA SREDSTVA
+
+{DOKAZNA_SREDSTVA}
+
+
+VI. PREDLOG
+
+Na osnovu izloženog, prijavljivač predlaže {TUZILAC_NAZIV} da:
+
+{PREDLOG_TUZILAC}
+
+                                                    Prijavljivač, odnosno punomoćnik:
+                                                    ____________________________
+                                                    {ADVOKAT_IME}
+                                                    {ADVOKAT_ADRESA}
+
+{MESTO}, {DATUM}
+
+
+Prilozi:
+{PRILOG_LISTA}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja. Krivična prijava obavezuje tužilaštvo na procesuiranje samo ako postoje osnovi sumnje.
+"""
+
+# ─── ŠABLON 8: Predlog za privremenu meru ─────────────────────────────────────
+SABLON_PREDLOG_PRIVREMENA_MERA = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+
+                                                    Predlagač: {PREDLAGAC_IME},
+                                                    iz {PREDLAGAC_ADRESA}
+
+                                                    Punomoćnik predlagača: {ADVOKAT_IME},
+                                                    advokat iz {ADVOKAT_ADRESA}
+
+                                                    Protivnik obezbeđenja: {PROTIVNIK_IME},
+                                                    {PROTIVNIK_ADRESA}
+
+Vrednost potraživanja: {VREDNOST_POTRAZIVANJA} dinara
+
+
+              P R E D L O G
+              za određivanje privremene mere
+
+              (čl. 283-316 Zakona o izvršenju i obezbeđenju,
+               Sl. glasnik RS, br. 106/2015)
+
+
+I. POTRAŽIVANJE ČIJE SE OBEZBEĐENJE TRAŽI
+
+{POTRAZIVANJE_SEKCIJA}
+
+
+II. USLOVI ZA ODREĐIVANJE PRIVREMENE MERE
+
+A) Fumus boni iuris — verovatnost potraživanja (čl. 285 ZIO)
+
+{FUMUS_BONI_IURIS}
+
+B) Periculum in mora — opasnost od onemogućavanja izvršenja (čl. 286 ZIO)
+
+{PERICULUM_IN_MORA}
+
+
+III. PREDLOŽENA PRIVREMENA MERA
+
+{VRSTA_MERE}
+
+
+IV. PRAVNA OSNOVA
+
+{PRAVNA_OSNOVA}
+
+
+V. DOKAZNA SREDSTVA
+
+{DOKAZNA_SREDSTVA}
+
+
+VI. PREDLOG
+
+Na osnovu navedenog, predlagač predlaže {SUD_NAZIV} da donese sledeće
+
+R E Š E N J E
+
+{PREDLOG_RESENJA}
+
+                                                    Predlagač, odnosno punomoćnik:
+                                                    ____________________________
+                                                    {ADVOKAT_IME}
+                                                    {ADVOKAT_ADRESA}
+
+{MESTO}, {DATUM}
+
+
+Prilozi:
+- Dokazi uz predlog (prema listi u tački V)
+- Punomoćje
+{DODATNI_PRILOZI}
+
+NAPOMENA: Predlog za privremenu meru se podnosi HITNO. Sud odlučuje u roku od 3 dana (čl. 297 ZIO). Uz predlog se može priložiti i ponuda sredstva obezbeđenja (čl. 289 ZIO) radi bržeg usvajanja.
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.
+"""
+
 # ─── Mapa tip → šablon ────────────────────────────────────────────────────────
 SABLONI: dict[str, str] = {
-    "tuzba_naknada_stete":   SABLON_TUZBA_NAKNADA,
-    "zalba_parnicna":        SABLON_ZALBA_PARNICNA,
-    "predlog_izvrsenje":     SABLON_PREDLOG_IZVRSENJE,
-    "tuzba_radni_spor":      SABLON_TUZBA_RADNI_SPOR,
-    "tuzba_razvod":          SABLON_TUZBA_RAZVOD,
-    "prigovor_platni_nalog": SABLON_PRIGOVOR_PLATNI_NALOG,
+    "tuzba_naknada_stete":    SABLON_TUZBA_NAKNADA,
+    "zalba_parnicna":         SABLON_ZALBA_PARNICNA,
+    "predlog_izvrsenje":      SABLON_PREDLOG_IZVRSENJE,
+    "tuzba_radni_spor":       SABLON_TUZBA_RADNI_SPOR,
+    "tuzba_razvod":           SABLON_TUZBA_RAZVOD,
+    "prigovor_platni_nalog":  SABLON_PRIGOVOR_PLATNI_NALOG,
+    "krivicna_prijava":       SABLON_KRIVICNA_PRIJAVA,
+    "predlog_privremena_mera":SABLON_PREDLOG_PRIVREMENA_MERA,
 }
 
 # ─── Ekstrakcioni promptovi po tipu ──────────────────────────────────────────
@@ -707,6 +858,67 @@ PRAVILA:
 - NE izmišljati podatke koji nisu eksplicitno u tekstu.
 - Ekavica, formalni stil.
 """,
+
+"krivicna_prijava": """\
+Ti si asistent koji ekstraktuje entitete iz opisa za krivičnu prijavu.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "prijavljivac_ime": "Puno ime/naziv podnosioca prijave (fizičko ili pravno lice)",
+  "prijavljivac_adresa": "Adresa prijavljivača ili prazno",
+  "okrivljeni_ime": "Puno ime/naziv prijavljenog (fizičko ili pravno lice)",
+  "okrivljeni_adresa": "Adresa prijavljenog ili prazno",
+  "okrivljeni_jmbg": "JMBG prijavljenog ako je naveden, inače prazno",
+  "tuzilac_naziv": "Naziv nadležnog javnog tužilaštva: 'Osnovno javno tužilaštvo u [grad]' za većinu krivičnih dela; 'Više javno tužilaštvo u [grad]' za dela kažnjiva iznad 8 god. zatvora ili specijalna; 'Tužilaštvo za organizovani kriminal' ako se pominje organizovani kriminal.",
+  "tuzilac_adresa": "Adresa tužilaštva ili prazno",
+  "kz_clan_naziv": "Naziv krivičnog dela (npr. 'Prevara' / 'Teška krađa' / 'Falsifikovanje isprave' / 'Ugrožavanje bezbednosti' / 'Zlostavljanje i mučenje')",
+  "kz_clan_broj": "Broj člana KZ koji reguliše prijavljeno krivično delo (npr. '208' za prevaru, '204' za tešku krađu, '355' za falsifikovanje isprave)",
+  "datum_dogadjaja": "Datum krivičnog dela u formatu DD.MM.YYYY ili opis perioda",
+  "mesto_dogadjaja": "Mesto gde se krivično delo desilo",
+  "cinjenicno_stanje_raw": "Opis krivičnog dela direktno iz teksta: ko je šta uradio, kada, gde, na koji način (3-5 rečenica)",
+  "dokazna_sredstva_raw": "Eksplicitno pomenuti dokazi iz teksta (svedoci, dokumentacija, snimci, veštaci...)",
+  "steta_raw": "Opis nastale štete ili posledica krivičnog dela, ako je naveden",
+  "advokat_ime": "Ime advokata ako je naveden, inače prazno",
+  "advokat_adresa": "Adresa advokata ako je navedena, inače prazno",
+  "mesto": "Grad podnošenja prijave",
+  "datum": "Datum u formatu [dan]. [mesec u slovima] [godina]. godine"
+}
+
+PRAVILA:
+- NE izmišljati podatke koji nisu eksplicitno u tekstu.
+- Krivično delo identifikovati ISKLJUČIVO iz opisa — ne pretpostavljati.
+- Ekavica, formalni stil.
+""",
+
+"predlog_privremena_mera": """\
+Ti si asistent koji ekstraktuje entitete za predlog privremene mere.
+Privremena mera zahteva 2 uslova: fumus boni iuris (verovatnost potraživanja) + periculum in mora (opasnost od ometanja).
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "predlagac_ime": "Puno ime/naziv predlagača (poverilac čije se potraživanje obezbeđuje)",
+  "predlagac_adresa": "Adresa predlagača ili prazno",
+  "protivnik_ime": "Puno ime/naziv protivnika obezbeđenja (dužnik)",
+  "protivnik_adresa": "Adresa protivnika ili prazno",
+  "sud_naziv": "Nadležni sud: 'Osnovno/Viši sud u [grad]' — isti kao sud pred kojim teče ili će se pokrenuti parnica",
+  "sud_adresa": "Adresa suda ili prazno",
+  "vrednost_potrazivanja": "Cifra potraživanja čije se obezbeđenje traži (u dinarima), ili prazno",
+  "vrsta_mere": "Vrsta predložene mere: 'zabrana otuđenja i opterećenja nepokretnosti' / 'privremena zaplena pokretnih stvari' / 'zabrana raspolaganja bankovnim računom' / 'privremena zabrana isplate iz osiguranja' / 'upis zabeležbe u katastar'",
+  "osnov_potrazivanja": "Pravni osnov potraživanja: ugovor / šteta / restitucija / naknada zarade itd.",
+  "fumus_raw": "Dokazi koji verovatno potvrđuju potraživanje — šta prijavljivač ima kao dokaz",
+  "periculum_raw": "Razlozi hitnosti — zašto postoji opasnost da će dužnik osujeti izvršenje (prodaja imovine, bekstvo, rasipanje...)",
+  "cinjenicno_stanje_raw": "Opis spora i razloga za meru direktno iz teksta",
+  "dokazna_sredstva_raw": "Eksplicitno pomenuti dokazi iz teksta",
+  "advokat_ime": "Ime advokata ako je naveden, inače prazno",
+  "advokat_adresa": "Adresa advokata ako je navedena, inače prazno",
+  "mesto": "Grad podnošenja predloga",
+  "datum": "Datum u formatu [dan]. [mesec u slovima] [godina]. godine"
+}
+
+PRAVILA:
+- NE izmišljati podatke koji nisu eksplicitno u tekstu.
+- Ekavica, formalni stil.
+""",
 }
 
 # ─── Promptovi za pravno obogaćivanje (RAG kontekst → šablon placeholder) ───
@@ -822,6 +1034,42 @@ Vrati ČIST JSON — bez markdown, bez komentara.
 }
 
 KRITIČNO: Zakonski rok 8 dana od dostavljanja (čl. 462 st. 1 ZPP) mora biti istaknut.
+Ekavica, formalni pravni stil.
+""",
+
+"krivicna_prijava": """\
+Ti si iskusni srpski advokat koji piše krivičnu prijavu.
+Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "cinjenicno_stanje": "Pravno formulisan opis krivičnog dela u 3-4 paragrafa: (1) identifikacija stranaka i odnos; (2) tok događaja — datum, mesto, radnje prijavljenog; (3) nastala šteta/posledica za prijavljivača; (4) dokazi kojima prijavljivač raspolaže. Stil: hronološki, precizna faktika, bez pravnih kvalifikacija — te idu u sekciju IV.",
+  "pravna_kvalifikacija": "Pravna analiza u 2 paragrafa: (1) elementi bića krivičnog dela — koji elementi (radnja, posledica, krivica) su ostvareni; (2) odredba KZ — čl. [broj] i zaprećena kazna; (3) eventualni otežavajući ili olakšavajući elementi; (4) procesni osnov — ZKP čl. 280. KRITIČNO: navoditi ISKLJUČIVO odredbe iz RAG konteksta ili opštepoznate (KZ, ZKP). Ne izmišljati Sl. glasnik.",
+  "dokazna_sredstva": "Numerisana lista dokaznih sredstava: 1. [Vrsta] — radi dokazivanja [elementa]; 2. [Vrsta] — radi dokazivanja [elementa]; itd. Standardni dokazi: pisana dokumentacija, elektronska prepiska, svedoci, video/foto snimci, veštačenja. Dodati dokaze pomenute u tekstu.",
+  "predlog_tuzilac": "Konkretan predlog tužilaštvu u 2-3 tačke: 1. Preduzme istražne radnje utvrdjivanja okolnosti krivičnog dela; 2. Prikupi dokaze navedene u tački V; 3. Ako postoje osnovi sumnje da je prijavljeni učinio krivično delo — podigne optužnicu. Referisati na ZKP čl. 280 st. 2 i čl. 284.",
+  "prilog_lista": "Numerisana lista dokumenata koji se prilog uz prijavu: 1. [dokument]; 2. [dokument]. Ako nema dokaza uz prijavu: '1. Izjava prijavljivača'"
+}
+
+ZABRANA: Ne navoditi konkretne visine kazni osim ako su eksplicitno u KZ odredbi. Ekavica, formalni pravni stil.
+""",
+
+"predlog_privremena_mera": """\
+Ti si iskusni srpski advokat koji piše predlog za privremenu meru prema ZIO.
+Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Dva OBAVEZNA uslova: (A) fumus boni iuris — verovatnost potraživanja (ZIO čl. 285), (B) periculum in mora — opasnost od onemogućavanja izvršenja (ZIO čl. 286).
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "potrazivanje_sekcija": "Opis potraživanja koje se obezbeđuje: (1) pravni osnov (ugovor/šteta/druga osnova); (2) iznos potraživanja u dinarima ili opis nenovčanog potraživanja; (3) dospelost — da li je potraživanje dospelo ili tek treba da dospe; (4) konstatacija da parnica nije okončana ili tek treba da se pokrene (privremena mera može se tražiti pre i tokom parnice per čl. 291 ZIO).",
+  "fumus_boni_iuris": "Dokazi koji čine verovatnim potraživanje (ZIO čl. 285): (1) navesti konkretne dokaze iz teksta kojima predlagač raspolaže — ugovor, fakture, prepiska, sudska presuda; (2) kratka pravna analiza — zašto ovi dokazi čine potraživanje verovatnim; (3) konstatacija: 'Priloženim dokazima predlagač je učinio verovatnim postojanje potraživanja...' Referisati na ZIO čl. 285.",
+  "periculum_in_mora": "Razlozi hitnosti — zašto bez mere izvršenje ne bi bilo moguće ili bi bilo otežano (ZIO čl. 286): (1) konkretne okolnosti koje ukazuju na opasnost — protivnik rasprodaje imovinu, prenosi na treća lica, sprema bekstvo, ima evidenciju neplaćanja; (2) ili: vrednost spora je takva da bi budući izvršni postupak bio nemoguć bez obezbeđenja; (3) konstatacija: 'Postoji ozbiljna opasnost da će protivnik...'. Referisati na ZIO čl. 286.",
+  "vrsta_mere": "Precizno definisana privremena mera jednim od zakonskih oblika: (1) 'zabrana otuđenja i opterećenja nepokretnosti [opis], uz upis zabeležbe u katastar nepokretnosti (čl. 291 ZIO, čl. 295 ZIO)'; (2) 'privremena zaplena pokretnih stvari [opis]'; (3) 'zabrana raspolaganja novčanim sredstvima na računu br. [broj] kod [banka] do iznosa od [iznos] dinara'; (4) druge mere. Mera mora biti SRAZMERNA potraživanju.",
+  "pravna_osnova": "Zakonska osnova u 2 paragrafa: (1) ZIO čl. 283-295 — opšte odredbe o privremenim merama; (2) ZIO čl. 285 (fumus) i čl. 286 (periculum) — konkretni uslovi; (3) ZIO čl. 291 — rok trajanja mere; (4) eventualno: ZPP čl. 304 (ako je parnica već pokrenuta). Navesti Sl. glasnik RS 106/2015 samo ako je u RAG kontekstu.",
+  "dokazna_sredstva": "Numerisana lista dokaza priloženih uz predlog: 1. [dokument] — radi dokazivanja [elementa]; 2. ... Obavezno: dokaz osnova potraživanja + dokaz periculum-a (prepiska, procena imovine, izjava svedoka).",
+  "predlog_resenja": "Konkretan sadržaj predloženog rešenja u 2-4 tačke: 1. Određuje se privremena mera: [opis mere] prema protivniku obezbeđenja [ime]; 2. Mera važi do pravosnažnog okončanja parničnog postupka, odnosno do pravnosnažnosti i izvršnosti presude (čl. 291 ZIO); 3. Predlagač je dužan da u roku od [30 dana od dostave rešenja] pokrene parnicu. Alternativno: predlagač nudi sredstvo obezbeđenja u smislu čl. 289 ZIO."
+}
+
+KRITIČNO: Oba uslova (fumus + periculum) moraju biti jasno obrazložena. Mera mora biti srazmerna potraživanju.
 Ekavica, formalni pravni stil.
 """,
 }
@@ -1013,6 +1261,52 @@ def popuni_sablon(tip: str, entiteti: dict, obogacivanje: dict,
             "MESTO":                 entiteti.get("mesto", "[MESTO]"),
             "DATUM":                 entiteti.get("datum", "[DATUM]"),
             "DODATNI_PRILOZI":       "[DODATNI PRILOZI — POPUNITI]",
+        }
+
+    elif tip == "krivicna_prijava":
+        jmbg = entiteti.get("okrivljeni_jmbg", "")
+        merged = {
+            "TUZILAC_NAZIV":     entiteti.get("tuzilac_naziv", "[JAVNO TUŽILAŠTVO — POPUNITI]"),
+            "TUZILAC_ADRESA":    entiteti.get("tuzilac_adresa", ""),
+            "PRIJAVLJIVAC_IME":  entiteti.get("prijavljivac_ime", "[PRIJAVLJIVAČ — POPUNITI]"),
+            "PRIJAVLJIVAC_ADRESA": entiteti.get("prijavljivac_adresa", "[ADRESA — POPUNITI]"),
+            "ADVOKAT_IME":       entiteti.get("advokat_ime", "[IME ADVOKATA — POPUNITI]"),
+            "ADVOKAT_ADRESA":    entiteti.get("advokat_adresa", "[ADRESA ADVOKATA — POPUNITI]"),
+            "OKRIVLJENI_IME":    entiteti.get("okrivljeni_ime", "[PRIJAVLJENI — POPUNITI]"),
+            "OKRIVLJENI_ADRESA": entiteti.get("okrivljeni_adresa", "[ADRESA — POPUNITI]"),
+            "OKRIVLJENI_JMBG_RED": f"JMBG: {jmbg}" if jmbg else "",
+            "KZ_CLAN_NAZIV":     entiteti.get("kz_clan_naziv", "[KRIVIČNO DELO — POPUNITI]"),
+            "KZ_CLAN_BROJ":      entiteti.get("kz_clan_broj", "[ČLAN — POPUNITI]"),
+            "CINJENICNO_STANJE": obogacivanje.get("cinjenicno_stanje", entiteti.get("cinjenicno_stanje_raw", "[STANJE — POPUNITI]")),
+            "PRAVNA_KVALIFIKACIJA": obogacivanje.get("pravna_kvalifikacija", "[PRAVNA KVALIFIKACIJA — POPUNITI]"),
+            "DOKAZNA_SREDSTVA":  obogacivanje.get("dokazna_sredstva", entiteti.get("dokazna_sredstva_raw", "[DOKAZI — POPUNITI]")),
+            "PREDLOG_TUZILAC":   obogacivanje.get("predlog_tuzilac", "[PREDLOG — POPUNITI]"),
+            "PRILOG_LISTA":      obogacivanje.get("prilog_lista", "1. Izjava prijavljivača"),
+            "MESTO":             entiteti.get("mesto", "[MESTO]"),
+            "DATUM":             entiteti.get("datum", "[DATUM]"),
+        }
+
+    elif tip == "predlog_privremena_mera":
+        merged = {
+            "SUD_NAZIV":              entiteti.get("sud_naziv", "[SUD — POPUNITI]"),
+            "SUD_ADRESA":             entiteti.get("sud_adresa", ""),
+            "PREDLAGAC_IME":          entiteti.get("predlagac_ime", "[PREDLAGAČ — POPUNITI]"),
+            "PREDLAGAC_ADRESA":       entiteti.get("predlagac_adresa", "[ADRESA — POPUNITI]"),
+            "ADVOKAT_IME":            entiteti.get("advokat_ime", "[IME ADVOKATA — POPUNITI]"),
+            "ADVOKAT_ADRESA":         entiteti.get("advokat_adresa", "[ADRESA ADVOKATA — POPUNITI]"),
+            "PROTIVNIK_IME":          entiteti.get("protivnik_ime", "[PROTIVNIK — POPUNITI]"),
+            "PROTIVNIK_ADRESA":       entiteti.get("protivnik_adresa", "[ADRESA — POPUNITI]"),
+            "VREDNOST_POTRAZIVANJA":  entiteti.get("vrednost_potrazivanja", "[VREDNOST — POPUNITI]"),
+            "POTRAZIVANJE_SEKCIJA":   obogacivanje.get("potrazivanje_sekcija", entiteti.get("cinjenicno_stanje_raw", "[POTRAŽIVANJE — POPUNITI]")),
+            "FUMUS_BONI_IURIS":       obogacivanje.get("fumus_boni_iuris", entiteti.get("fumus_raw", "[FUMUS BONI IURIS — POPUNITI]")),
+            "PERICULUM_IN_MORA":      obogacivanje.get("periculum_in_mora", entiteti.get("periculum_raw", "[PERICULUM IN MORA — POPUNITI]")),
+            "VRSTA_MERE":             obogacivanje.get("vrsta_mere", entiteti.get("vrsta_mere", "[MERA — POPUNITI]")),
+            "PRAVNA_OSNOVA":          obogacivanje.get("pravna_osnova", "[PRAVNA OSNOVA — POPUNITI]"),
+            "DOKAZNA_SREDSTVA":       obogacivanje.get("dokazna_sredstva", entiteti.get("dokazna_sredstva_raw", "[DOKAZI — POPUNITI]")),
+            "PREDLOG_RESENJA":        obogacivanje.get("predlog_resenja", "[PREDLOG — POPUNITI]"),
+            "MESTO":                  entiteti.get("mesto", "[MESTO]"),
+            "DATUM":                  entiteti.get("datum", "[DATUM]"),
+            "DODATNI_PRILOZI":        "[DODATNI PRILOZI — POPUNITI]",
         }
 
     # Popuni šablon — nepoznati placeholderi ostaju [POPUNITI]

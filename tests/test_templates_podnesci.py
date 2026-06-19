@@ -25,6 +25,8 @@ _OCEKIVANI_TIPOVI = [
     "tuzba_radni_spor",
     "tuzba_razvod",
     "prigovor_platni_nalog",
+    "krivicna_prijava",
+    "predlog_privremena_mera",
 ]
 
 # ─── Konzistentnost rečnika ──────────────────────────────────────────────────
@@ -46,8 +48,8 @@ def test_svi_ocekivani_tipovi_prisutni():
     assert not missing, f"Nedostaju tipovi u TIPOVI: {missing}"
 
 
-def test_tacno_6_tipova():
-    assert len(TIPOVI) == 6, f"Očekivano 6 tipova, ima {len(TIPOVI)}"
+def test_tacno_8_tipova():
+    assert len(TIPOVI) == 8, f"Očekivano 8 tipova, ima {len(TIPOVI)}"
 
 
 # ─── popuni_sablon: osnovna validacija ───────────────────────────────────────
@@ -227,3 +229,100 @@ def test_ekstrakcioni_rok_prigovor():
     """Ekstrakcioni prompt za prigovor mora pomenuti rok od 8 dana (čl. 462 ZPP)."""
     prompt = EKSTRAKCIONI_PROMPTOVI["prigovor_platni_nalog"]
     assert "8" in prompt and "462" in prompt
+
+
+# ─── Novi tip: krivicna_prijava ───────────────────────────────────────────────
+
+def test_krivicna_prijava_zkp_u_sablonu():
+    r = popuni_sablon("krivicna_prijava", {}, {})
+    assert "280" in r or "ZKP" in r
+
+
+def test_krivicna_prijava_popunjava_stranke():
+    e = {
+        "prijavljivac_ime": "Milica Milić",
+        "okrivljeni_ime": "Igor Igić",
+        "kz_clan_naziv": "Prevara",
+        "kz_clan_broj": "208",
+        "tuzilac_naziv": "Osnovno javno tužilaštvo u Beogradu",
+    }
+    r = popuni_sablon("krivicna_prijava", e, {})
+    assert "Milica Milić" in r
+    assert "Igor Igić" in r
+    assert "Prevara" in r
+    assert "208" in r
+    assert "Osnovno javno tužilaštvo u Beogradu" in r
+
+
+def test_krivicna_prijava_jmbg_okrivljenog():
+    e = {"okrivljeni_jmbg": "1234567890123"}
+    r = popuni_sablon("krivicna_prijava", e, {})
+    assert "1234567890123" in r
+
+
+def test_krivicna_prijava_bez_jmbg_nema_placeholder():
+    e = {}
+    r = popuni_sablon("krivicna_prijava", e, {})
+    assert "OKRIVLJENI_JMBG_RED" not in r
+
+
+def test_krivicna_prijava_obogacivanje():
+    o = {
+        "cinjenicno_stanje": "Prijavljeni je prevarom uzeo novac.",
+        "predlog_tuzilac": "Podigne optužnicu.",
+    }
+    r = popuni_sablon("krivicna_prijava", {}, o)
+    assert "Prijavljeni je prevarom uzeo novac." in r
+    assert "Podigne optužnicu." in r
+
+
+def test_ekstrakcioni_krivicna_pominje_kz():
+    prompt = EKSTRAKCIONI_PROMPTOVI["krivicna_prijava"]
+    assert "KZ" in prompt or "Krivičnog zakonika" in prompt
+
+
+# ─── Novi tip: predlog_privremena_mera ───────────────────────────────────────
+
+def test_predlog_privremena_mera_zio_u_sablonu():
+    r = popuni_sablon("predlog_privremena_mera", {}, {})
+    assert "ZIO" in r or "283" in r
+
+
+def test_predlog_privremena_mera_fumus_i_periculum():
+    r = popuni_sablon("predlog_privremena_mera", {}, {})
+    assert "fumus boni iuris" in r.lower() or "fumus" in r.lower()
+    assert "periculum in mora" in r.lower() or "periculum" in r.lower()
+
+
+def test_predlog_privremena_mera_popunjava_stranke():
+    e = {
+        "predlagac_ime": "Zorana Zorić",
+        "protivnik_ime": "XY d.o.o.",
+        "vrednost_potrazivanja": "800000",
+        "sud_naziv": "Viši sud u Beogradu",
+    }
+    r = popuni_sablon("predlog_privremena_mera", e, {})
+    assert "Zorana Zorić" in r
+    assert "XY d.o.o." in r
+    assert "800000" in r
+    assert "Viši sud u Beogradu" in r
+
+
+def test_predlog_privremena_mera_obogacivanje():
+    o = {
+        "fumus_boni_iuris": "Predlagač raspolaže ugovorom.",
+        "periculum_in_mora": "Protivnik prodaje imovinu.",
+        "vrsta_mere": "Zabrana otuđenja nepokretnosti.",
+        "predlog_resenja": "Odredi privremenu meru.",
+    }
+    r = popuni_sablon("predlog_privremena_mera", {}, o)
+    assert "Predlagač raspolaže ugovorom." in r
+    assert "Protivnik prodaje imovinu." in r
+    assert "Zabrana otuđenja nepokretnosti." in r
+    assert "Odredi privremenu meru." in r
+
+
+def test_ekstrakcioni_privremena_mera_pominje_fumus_periculum():
+    prompt = EKSTRAKCIONI_PROMPTOVI["predlog_privremena_mera"]
+    assert "fumus" in prompt.lower() or "verovatnost" in prompt.lower()
+    assert "periculum" in prompt.lower() or "opasnost" in prompt.lower()
