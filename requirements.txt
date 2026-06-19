@@ -19,6 +19,7 @@ pywebpush
 argon2-cffi
 cryptography
 sentry-sdk[fastapi]
+email-validator
 prometheus-client
 starlette-exporter
 twilio
