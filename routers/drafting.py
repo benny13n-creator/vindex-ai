@@ -68,8 +68,10 @@ class FeedbackReq(BaseModel):
 
 
 class PodnesakReq(BaseModel):
-    tip:  str = Field(..., max_length=50)
-    opis: str = Field(..., min_length=20, max_length=5000)
+    tip:        str           = Field(..., max_length=50)
+    opis:       str           = Field(..., min_length=20, max_length=5000)
+    sud_naziv:  Optional[str] = Field(None, max_length=200)
+    sud_adresa: Optional[str] = Field(None, max_length=300)
 
     @field_validator("tip")
     @classmethod
@@ -83,6 +85,11 @@ class PodnesakReq(BaseModel):
     @classmethod
     def ocisti_opis(cls, v: str) -> str:
         return v.strip()
+
+    @field_validator("sud_naziv", "sud_adresa")
+    @classmethod
+    def ocisti_sud(cls, v: Optional[str]) -> Optional[str]:
+        return v.strip() if v else None
 
 
 class NacrtChecklistReq(BaseModel):
@@ -140,6 +147,13 @@ def _greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
 async def nacrt_types():
     """Vraća listu dostupnih tipova nacrta (bez autentifikacije)."""
     return {"tipovi": _drafting_get_types()}
+
+
+@router.get("/api/courts")
+async def get_courts():
+    """Katalog srpskih sudova sa adresama — za popunjavanje zaglavlja podnesaka."""
+    from knowledge.sudovi import SUDOVI
+    return {"sudovi": SUDOVI}
 
 
 @router.post("/api/playbook/upload")
@@ -350,10 +364,21 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
     from openai import OpenAI as _OAI
 
     log_id = _q_hash(req.opis)
-    logger.info("Podnesak [uid=%.8s] tip=%s [q=%s]", user["user_id"], req.tip, log_id)
+    logger.info("Podnesak [uid=%.8s] tip=%s sud=%s [q=%s]",
+                user["user_id"], req.tip, req.sud_naziv or "-", log_id)
 
     oai = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
     opis_api = _skini_pii(req.opis)
+
+    # Pripremi kontekst sa sudom ako je korisnik izabrao
+    sud_ctx = ""
+    if req.sud_naziv:
+        sud_ctx = (
+            f"\n\nSUD (unapred određen — OBAVEZNO koristiti):\n"
+            f"  Naziv: {req.sud_naziv}\n"
+            f"  Adresa: {req.sud_adresa or 'N/A'}\n"
+            f"Polja SUD_NAZIV i SUD_ADRESA popuniti ovim vrednostima."
+        )
 
     ekstr_prompt = EKSTRAKCIONI_PROMPTOVI[req.tip]
 
@@ -379,7 +404,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
                 max_tokens=900,
                 messages=[
                     {"role": "system", "content": ekstr_prompt},
-                    {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}"},
+                    {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}{sud_ctx}"},
                 ],
             )
         )

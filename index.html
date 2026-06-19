@@ -7351,6 +7351,16 @@ body.light-theme .vx-sidebar-foot button { background: rgba(0,0,0,0.05) !importa
               <button type="button" class="podnesak-option" data-value="punomocje" onclick="_selectPodnesakOption('punomocje')">Punomoćje</button>
             </div>
             <div id="podnesak-hint" class="podnesak-hint"></div>
+            <!-- Sud selekcija -->
+            <label class="t-label" style="margin-bottom:.3rem;">Sud:</label>
+            <div style="position:relative;margin-bottom:.7rem;">
+              <input type="text" id="podnesak-sud-input" placeholder="Pretražite sud ili ukucajte naziv..." autocomplete="off"
+                style="width:100%;padding:.5rem .75rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#e6edf3;font-size:.82rem;font-family:inherit;outline:none;box-sizing:border-box;"
+                oninput="_sud_filter(this.value)" onfocus="_sud_dropdown_show()" onblur="setTimeout(_sud_dropdown_hide,200)">
+              <input type="hidden" id="podnesak-sud-naziv" value="">
+              <input type="hidden" id="podnesak-sud-adresa" value="">
+              <div id="podnesak-sud-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:#0f1623;border:1px solid rgba(74,168,255,.3);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+            </div>
             <label class="t-label">Opis slučaja (stranke, činjenice, iznosi):</label>
             <div class="mic-input-wrap">
               <textarea class="t-input" id="podnesak-opis" placeholder="Npr. Tužilac Petar Petrović, ul. Vojvode Mišića 5, Beograd traži naknadu štete od tuženog Jovana Jovanovića zbog saobraćajne nezgode dana 15.03.2024. Pretrpljene su telesne povrede i materijalna šteta u iznosu od 350.000 RSD. Štetnik je isključivo odgovoran..." style="height:100px;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
@@ -11597,6 +11607,61 @@ function updatePodnesakHint() {
   var hint = document.getElementById('podnesak-hint');
   if (tip && hint) hint.textContent = _PODNESAK_HINTS[tip.value] || '';
 }
+
+/* ─── SUD SELEKCIJA ─────────────────────────────────────────────────────── */
+var _sudoviCache = null;
+(function _loadSudovi() {
+  fetch(BASE_URL + '/api/courts')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ _sudoviCache = d.sudovi; })
+    .catch(function(){});
+})();
+
+function _sud_dropdown_show() {
+  if (!_sudoviCache) return;
+  _sud_filter(document.getElementById('podnesak-sud-input').value || '');
+}
+function _sud_dropdown_hide() {
+  var dd = document.getElementById('podnesak-sud-dropdown');
+  if (dd) dd.style.display = 'none';
+}
+function _sud_filter(q) {
+  var dd = document.getElementById('podnesak-sud-dropdown');
+  if (!dd || !_sudoviCache) return;
+  var ql = q.toLowerCase().trim();
+  var html = '';
+  var shown = 0;
+  Object.entries(_sudoviCache).forEach(function(entry) {
+    var kat = entry[0], lista = entry[1];
+    var matches = lista.filter(function(s) {
+      return !ql || s.naziv.toLowerCase().includes(ql) || s.grad.toLowerCase().includes(ql);
+    });
+    if (!matches.length) return;
+    html += '<div style="padding:.35rem .75rem;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:#6b7d95;border-top:1px solid rgba(255,255,255,.05);">' + _htmlEsc(kat) + '</div>';
+    matches.forEach(function(s) {
+      html += '<div onclick="_sud_select(' + JSON.stringify(s.naziv) + ',' + JSON.stringify(s.adresa) + ')"'
+        + ' style="padding:.45rem .75rem;font-size:.8rem;color:#cbd5e0;cursor:pointer;" '
+        + ' onmouseenter="this.style.background=\'rgba(74,168,255,.1)\'" onmouseleave="this.style.background=\'\'">'
+        + '<div style="color:#e2e8f0;font-weight:500;">' + _htmlEsc(s.naziv) + '</div>'
+        + '<div style="font-size:.72rem;color:rgba(255,255,255,.35);">' + _htmlEsc(s.adresa) + '</div>'
+        + '</div>';
+      shown++;
+    });
+  });
+  dd.innerHTML = html || '<div style="padding:.6rem .75rem;font-size:.8rem;color:rgba(255,255,255,.3);">Nije pronađen sud.</div>';
+  dd.style.display = shown > 0 || ql ? 'block' : 'none';
+}
+function _sud_select(naziv, adresa) {
+  document.getElementById('podnesak-sud-input').value = naziv;
+  document.getElementById('podnesak-sud-naziv').value = naziv;
+  document.getElementById('podnesak-sud-adresa').value = adresa;
+  document.getElementById('podnesak-sud-dropdown').style.display = 'none';
+}
+function _sud_clear() {
+  document.getElementById('podnesak-sud-input').value = '';
+  document.getElementById('podnesak-sud-naziv').value = '';
+  document.getElementById('podnesak-sud-adresa').value = '';
+}
 function _selectPodnesakOption(value) {
   var hidden = document.getElementById('podnesak-tip');
   if (hidden) hidden.value = value;
@@ -12709,7 +12774,13 @@ async function execQuery() {
   if (activePredmetId) _qBody.predmet_id = activePredmetId;
   var bodies = {
     q: _qBody,
-    n: { vrsta: _selectedTip, tip: _selectedTip, opis: document.getElementById('podnesak-opis').value },
+    n: (function(){
+      var b = { vrsta: _selectedTip, tip: _selectedTip, opis: document.getElementById('podnesak-opis').value };
+      var sn = (document.getElementById('podnesak-sud-naziv') || {}).value;
+      var sa = (document.getElementById('podnesak-sud-adresa') || {}).value;
+      if (sn) { b.sud_naziv = sn; b.sud_adresa = sa || ''; }
+      return b;
+    })(),
     a: { tekst: document.getElementById('aitxt').value, pitanje: document.getElementById('aq').value }
   };
 
