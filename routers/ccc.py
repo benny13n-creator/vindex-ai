@@ -103,6 +103,30 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     except Exception as exc:
         logger.debug("[CCC] klijenti greška: %s", exc)
 
+    # ── Nedostajući dokumenti (za smart chips) ───────────────────────────────
+    _EXPECTED_DOCS: dict = {
+        "parnicno":     ["sudska_odluka","podnesak","ugovor","dopis"],
+        "krivicno":     ["sudska_odluka","podnesak","medicinska_dokumentacija","vestacki_nalaz"],
+        "radno":        ["ugovor","dopis","finansijska_dokumentacija","sudska_odluka"],
+        "upravno":      ["javna_isprava","podnesak","dopis","sudska_odluka"],
+        "porodicno":    ["javna_isprava","medicinska_dokumentacija","finansijska_dokumentacija","sudska_odluka"],
+        "nasledjivanje":["javna_isprava","ugovor","sudska_odluka","dopis"],
+        "privredno":    ["ugovor","finansijska_dokumentacija","dopis","sudska_odluka"],
+        "nepokretnosti":["javna_isprava","ugovor","sudska_odluka","dopis"],
+        "ostalo":       ["podnesak","dopis"],
+    }
+    expected = _EXPECTED_DOCS.get(predmet.get("tip","ostalo"), _EXPECTED_DOCS["ostalo"])
+    postojeci_tipovi = {d.get("tip_dokaza") for d in (dok_count_r.data or []) if d.get("tip_dokaza")}
+    nedostajuci = [t for t in expected if t not in postojeci_tipovi]
+
+    # Kritičan rok (najhitniji u narednih 7 dana)
+    kritican_rok = None
+    for r in sorted(rokovi_data, key=lambda x: (x.get("dana_ostalo") is None, x.get("dana_ostalo") or 9999)):
+        dana = r.get("dana_ostalo")
+        if dana is not None and 0 <= dana <= 7:
+            kritican_rok = r
+            break
+
     # ── Matter Intelligence (brzo, bez GPT-a) ───────────────────────────────
     health_score = _compute_health(dok_stats, predstojeći, len(dokazi))
 
@@ -116,6 +140,8 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         "billing":          billing_data,
         "aktivnosti":       hron_r.data or [],
         "health_score":     health_score,
+        "nedostajuci":      nedostajuci,
+        "kritican_rok":     kritican_rok,
     }
 
 

@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vindex AI — Prezentacija Platforme</title>
+<style>
+  :root {
+    --navy:   #0a0f1e;
+    --dark:   #0d1428;
+    --panel:  #111827;
+    --card:   #1a2235;
+    --border: rgba(99,179,237,.15);
+    --gold:   #f0c040;
+    --blue:   #4aa8ff;
+    --green:  #4ade80;
+    --purple: #a78bfa;
+    --red:    #f87171;
+    --cyan:   #67e8f9;
+    --text:   #e2e8f0;
+    --muted:  #94a3b8;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:var(--navy); font-family:'Segoe UI',Arial,sans-serif; color:var(--text); }
+
+  /* ── Slide engine ── */
+  .deck { width:100%; height:100%; position:relative; }
+  .slide {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:3rem 5rem;
+    opacity:0; pointer-events:none;
+    transition:opacity .45s ease, transform .45s ease;
+    transform:translateX(60px);
+    overflow:hidden;
+  }
+  .slide.active  { opacity:1; pointer-events:all; transform:translateX(0); }
+  .slide.prev    { opacity:0; transform:translateX(-60px); }
+
+  /* ── Background decorations ── */
+  .slide::before {
+    content:'';
+    position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse 70% 60% at 80% 20%, rgba(74,168,255,.06) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 10% 80%, rgba(167,139,250,.05) 0%, transparent 60%);
+    pointer-events:none;
+  }
+
+  /* ── Nav ── */
+  .nav {
+    position:fixed; bottom:2rem; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:1rem; z-index:100;
+    background:rgba(17,24,39,.9); border:1px solid var(--border);
+    border-radius:50px; padding:.5rem 1.2rem;
+    backdrop-filter:blur(12px);
+  }
+  .nav button {
+    background:none; border:none; color:var(--blue); cursor:pointer;
+    font-size:1.2rem; padding:.3rem .6rem; border-radius:8px;
+    transition:background .2s;
+  }
+  .nav button:hover { background:rgba(74,168,255,.12); }
+  .nav button:disabled { color:var(--muted); cursor:default; }
+  #slide-counter { font-size:.8rem; color:var(--muted); min-width:4rem; text-align:center; }
+
+  /* ── Progress bar ── */
+  .progress {
+    position:fixed; top:0; left:0; height:3px;
+    background:linear-gradient(90deg, var(--blue), var(--purple));
+    transition:width .4s ease; z-index:200;
+  }
+
+  /* ── Logo badge ── */
+  .logo-badge {
+    position:fixed; top:1.5rem; left:2rem; z-index:100;
+    display:flex; align-items:center; gap:.6rem;
+    font-size:.8rem; color:var(--muted); letter-spacing:.08em;
+  }
+  .logo-badge span { color:var(--blue); font-weight:700; font-size:.95rem; }
+
+  /* ── Slide num badge ── */
+  .slide-num {
+    position:fixed; top:1.5rem; right:2rem; z-index:100;
+    font-size:.75rem; color:var(--muted);
+  }
+
+  /* ─────────── TYPOGRAPHY ─────────── */
+  .tag {
+    display:inline-block; font-size:.7rem; font-weight:700;
+    letter-spacing:.12em; text-transform:uppercase;
+    padding:.25rem .7rem; border-radius:20px; margin-bottom:1rem;
+  }
+  .tag-blue   { background:rgba(74,168,255,.12); color:var(--blue); border:1px solid rgba(74,168,255,.3); }
+  .tag-gold   { background:rgba(240,192,64,.12);  color:var(--gold); border:1px solid rgba(240,192,64,.3); }
+  .tag-green  { background:rgba(74,222,128,.12);  color:var(--green); border:1px solid rgba(74,222,128,.3); }
+  .tag-purple { background:rgba(167,139,250,.12); color:var(--purple); border:1px solid rgba(167,139,250,.3); }
+  .tag-cyan   { background:rgba(103,232,249,.12); color:var(--cyan); border:1px solid rgba(103,232,249,.3); }
+
+  h1 { font-size:3.2rem; font-weight:800; line-height:1.1; }
+  h2 { font-size:2.2rem; font-weight:700; line-height:1.2; margin-bottom:.6rem; }
+  h3 { font-size:1.1rem; font-weight:600; margin-bottom:.4rem; }
+  .sub { font-size:1.15rem; color:var(--muted); line-height:1.6; max-width:700px; margin-top:.8rem; }
+  .accent { color:var(--blue); }
+  .gold   { color:var(--gold); }
+  .green  { color:var(--green); }
+  .purple { color:var(--purple); }
+
+  /* ─────────── CARDS ─────────── */
+  .card-grid {
+    display:grid; gap:1rem; width:100%; max-width:1100px; margin-top:1.5rem;
+  }
+  .g2 { grid-template-columns:1fr 1fr; }
+  .g3 { grid-template-columns:1fr 1fr 1fr; }
+  .g4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+
+  .card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:14px; padding:1.3rem 1.4rem;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  .card:hover { border-color:rgba(74,168,255,.35); box-shadow:0 0 20px rgba(74,168,255,.07); }
+  .card-icon { font-size:1.8rem; margin-bottom:.6rem; display:block; }
+  .card p  { font-size:.83rem; color:var(--muted); line-height:1.5; margin-top:.3rem; }
+  .card ul { font-size:.82rem; color:var(--muted); line-height:1.7; padding-left:1rem; margin-top:.4rem; }
+
+  /* ─────────── FEATURE LIST ─────────── */
+  .feat-list { list-style:none; width:100%; max-width:900px; margin-top:1.2rem; }
+  .feat-list li {
+    display:flex; align-items:flex-start; gap:.9rem;
+    padding:.7rem 0; border-bottom:1px solid rgba(255,255,255,.05);
+    font-size:.9rem;
+  }
+  .feat-list li:last-child { border-bottom:none; }
+  .feat-list .fi { font-size:1.2rem; flex-shrink:0; margin-top:.1rem; }
+  .feat-list .ft { font-weight:600; }
+  .feat-list .fd { color:var(--muted); font-size:.82rem; margin-top:.2rem; }
+
+  /* ─────────── STAT ROW ─────────── */
+  .stat-row { display:flex; gap:1.5rem; margin-top:1.5rem; flex-wrap:wrap; justify-content:center; }
+  .stat {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:14px; padding:1.2rem 1.6rem; text-align:center; min-width:130px;
+  }
+  .stat-num { font-size:2.2rem; font-weight:800; color:var(--blue); line-height:1; }
+  .stat-lbl { font-size:.75rem; color:var(--muted); margin-top:.3rem; text-transform:uppercase; letter-spacing:.07em; }
+
+  /* ─────────── SPLIT LAYOUT ─────────── */
+  .split { display:flex; gap:3rem; align-items:center; width:100%; max-width:1100px; }
+  .split-text { flex:1; }
+  .split-visual { flex:1; }
+
+  /* ─────────── TIMELINE DEMO ─────────── */
+  .tl { position:relative; padding-left:2rem; }
+  .tl::before { content:''; position:absolute; left:.55rem; top:.3rem; bottom:.3rem; width:2px; background:rgba(74,168,255,.2); }
+  .tl-item { position:relative; margin-bottom:1rem; }
+  .tl-item::before {
+    content:''; position:absolute; left:-1.45rem; top:.35rem;
+    width:10px; height:10px; border-radius:50%; background:var(--blue);
+    box-shadow:0 0 8px rgba(74,168,255,.6);
+  }
+  .tl-item .tl-date { font-size:.72rem; color:var(--muted); }
+  .tl-item .tl-ev   { font-size:.85rem; font-weight:500; }
+
+  /* ─────────── SECURITY TABLE ─────────── */
+  .sec-table { width:100%; max-width:900px; border-collapse:collapse; margin-top:1.2rem; }
+  .sec-table th { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; text-align:left; padding:.5rem .8rem; border-bottom:1px solid var(--border); }
+  .sec-table td { font-size:.85rem; padding:.55rem .8rem; border-bottom:1px solid rgba(255,255,255,.04); }
+  .badge { font-size:.7rem; padding:.15rem .5rem; border-radius:6px; font-weight:600; }
+  .b-green  { background:rgba(74,222,128,.15); color:var(--green); }
+  .b-blue   { background:rgba(74,168,255,.15); color:var(--blue); }
+  .b-gold   { background:rgba(240,192,64,.15);  color:var(--gold); }
+  .b-purple { background:rgba(167,139,250,.15); color:var(--purple); }
+
+  /* ─────────── HERO ─────────── */
+  .hero-glow {
+    position:absolute; width:700px; height:700px;
+    background:radial-gradient(circle, rgba(74,168,255,.08) 0%, transparent 70%);
+    border-radius:50%; pointer-events:none;
+    top:50%; left:50%; transform:translate(-50%,-50%);
+  }
+  .hero-title { text-align:center; position:relative; z-index:1; }
+  .hero-title h1 { font-size:4rem; }
+  .hero-title .sub { margin:1rem auto 0; text-align:center; }
+  .divider { width:60px; height:3px; background:linear-gradient(90deg,var(--blue),var(--purple)); border-radius:2px; margin:1.2rem auto; }
+
+  /* ─────────── CLOSING ─────────── */
+  .cta-btn {
+    display:inline-flex; align-items:center; gap:.6rem;
+    background:linear-gradient(135deg, var(--blue), #6366f1);
+    color:#fff; font-weight:700; font-size:1rem;
+    padding:.9rem 2rem; border-radius:12px;
+    text-decoration:none; margin-top:1.5rem;
+    box-shadow:0 4px 20px rgba(74,168,255,.3);
+    transition:transform .2s, box-shadow .2s;
+    cursor:pointer; border:none;
+  }
+  .cta-btn:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(74,168,255,.4); }
+
+  /* ─────────── SCROLLABLE inner ─────────── */
+  .scroll-inner { overflow-y:auto; max-height:calc(100vh - 12rem); width:100%; padding-right:.5rem; scrollbar-width:thin; scrollbar-color:rgba(74,168,255,.2) transparent; }
+
+  /* Keyboard hint */
+  .kbd-hint { position:fixed; top:1.5rem; left:50%; transform:translateX(-50%); font-size:.72rem; color:rgba(148,163,184,.4); z-index:100; }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="logo-badge">⚖️ <span>Vindex AI</span> — Platforma</div>
+<div class="slide-num" id="snum">1 / 20</div>
+<div class="kbd-hint">← → strelice ili klik za navigaciju</div>
+
+<div class="deck" id="deck">
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 1 — NASLOVNA
+══════════════════════════════════════════════════════ -->
+<div class="slide active" id="s1">
+  <div class="hero-glow"></div>
+  <div class="hero-title">
+    <div class="tag tag-blue">Pravna Tehnologija · 2026</div>
+    <h1>⚖️ <span class="accent">Vindex</span> AI</h1>
+    <div class="divider"></div>
+    <p class="sub">Operativni sistem za modernu advokatsku kancelariju.<br>Veštačka inteligencija + srpsko pravo + potpuna automatizacija.</p>
+
+    <div class="stat-row" style="margin-top:2rem;">
+      <div class="stat"><div class="stat-num">40+</div><div class="stat-lbl">AI modula</div></div>
+      <div class="stat"><div class="stat-num">GPT-4o</div><div class="stat-lbl">AI jezgro</div></div>
+      <div class="stat"><div class="stat-num">AKS</div><div class="stat-lbl">Tarifa 2025</div></div>
+      <div class="stat"><div class="stat-num">RLS</div><div class="stat-lbl">Bezbednost</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 2 — ZAŠTO VINDEX
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s2">
+  <div class="tag tag-gold">Problem koji rešavamo</div>
+  <h2>Advokat gubi <span class="gold">3–4 sata dnevno</span> na administrativne zadatke</h2>
+  <p class="sub" style="max-width:800px;">Traganje za zakonima, pisanje podnesaka, praćenje rokova, fakturisanje — sve to može AI da uradi za sekunde.</p>
+
+  <div class="card-grid g3" style="margin-top:2rem; max-width:960px;">
+    <div class="card">
+      <span class="card-icon">📄</span>
+      <h3>Pre Vindex-a</h3>
+      <ul>
+        <li>Ručna pretraga sudske prakse</li>
+        <li>Propušteni rokovi</li>
+        <li>Izgubljena naplata (25–50%)</li>
+        <li>Papirna dokumentacija</li>
+        <li>Nema uvida u kancelariju</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(74,168,255,.3); background:rgba(74,168,255,.04);">
+      <span class="card-icon">✨</span>
+      <h3 class="accent">Sa Vindex-om</h3>
+      <ul style="color:#c7dff7;">
+        <li>AI agent odgovara za 3 sekunde</li>
+        <li>Automatski alarm za rokove</li>
+        <li>AKS tarifa automatski obračunata</li>
+        <li>Digitalni Evidence Vault</li>
+        <li>Portfolio + Analytics u realnom vremenu</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="card-icon">📊</span>
+      <h3>Rezultati</h3>
+      <ul>
+        <li>–70% vremena na administraciju</li>
+        <li>+40% naplaćenih sati</li>
+        <li>0 propuštenih zakonskih rokova</li>
+        <li>Prva linija odbrane 24/7</li>
+        <li>Rast prihoda kancelarije</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 3 — PREGLED MODULA
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s3">
+  <div class="tag tag-blue">Arhitektura platforme</div>
+  <h2>6 stubova <span class="accent">jednog sistema</span></h2>
+
+  <div class="card-grid g3" style="max-width:1050px; margin-top:1.5rem;">
+    <div class="card">
+      <span class="card-icon">🧠</span>
+      <h3 class="accent">AI Pravni Agent</h3>
+      <p>GPT-4o + Pinecone RAG. Odgovara na pravna pitanja, citira srpske zakone i sudsku praksu.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📁</span>
+      <h3 class="accent">Upravljanje predmetima</h3>
+      <p>CRM klijenata, predmeti po tipu spora, dokumenti, hronologija, saradnja.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">💰</span>
+      <h3 class="accent">Naplata i tajmer</h3>
+      <p>AKS tarifa 2025, live tajmer, automatske fakture, PDF, SEF e-faktura.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">⚔️</span>
+      <h3 class="accent">Strategija i analiza</h3>
+      <p>Red Team, procena rizika, Copilot predlozi, zastarelost kalkulator, Law Firm Brain.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔒</span>
+      <h3 class="accent">Evidence Vault</h3>
+      <p>AI klasifikacija dokumenata, matrica dokaza, Knowledge Graph mreža odnosa.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📊</span>
+      <h3 class="accent">Inteligencija kancelarije</h3>
+      <p>Portfolio dashboard, Analytics, obaveštenja, Intake Wizard, klijentski portal.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 4 — AI PRAVNI AGENT
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s4">
+  <div class="split" style="max-width:1100px;">
+    <div class="split-text">
+      <div class="tag tag-blue">Modul 1</div>
+      <h2>🧠 AI Pravni <span class="accent">Agent</span></h2>
+      <p class="sub" style="margin-top:.5rem; max-width:500px;">Srce platforme. Advokat postavlja pitanje — AI agent pretražuje zakone, sudsku praksu i relevantna ministarstvena mišljenja i daje konkretan odgovor sa citatima.</p>
+
+      <ul class="feat-list" style="margin-top:1.2rem;">
+        <li>
+          <span class="fi">⚡</span>
+          <div><div class="ft">Odgovor za 3–5 sekundi</div><div class="fd">GPT-4o + Pinecone vektorska pretraga zakona</div></div>
+        </li>
+        <li>
+          <span class="fi">📖</span>
+          <div><div class="ft">Citira srpski zakon</div><div class="fd">ZPP, KZ, ZUP, Zakon o radu, ZPD, Porodični zakon i više</div></div>
+        </li>
+        <li>
+          <span class="fi">⚖️</span>
+          <div><div class="ft">Sudska praksa</div><div class="fd">Presude Vrhovnog i Apelacionog suda (ratio decidendi)</div></div>
+        </li>
+        <li>
+          <span class="fi">🏛️</span>
+          <div><div class="ft">Ministarstvena mišljenja</div><div class="fd">Filtrirana po relevantnosti — threshold 0.62 (anti-hallucination)</div></div>
+        </li>
+        <li>
+          <span class="fi">💬</span>
+          <div><div class="ft">Istorija pitanja</div><div class="fd">Svaki odgovor sačuvan u predmetu, pretraživ</div></div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="split-visual">
+      <div class="card" style="background:rgba(10,15,30,.8); border-color:rgba(74,168,255,.25);">
+        <div style="font-size:.72rem; color:var(--muted); margin-bottom:.8rem; text-transform:uppercase; letter-spacing:.1em;">Primer sesije</div>
+        <div style="background:rgba(74,168,255,.06); border:1px solid rgba(74,168,255,.15); border-radius:10px; padding:.8rem; margin-bottom:.7rem; font-size:.83rem; color:#c7dff7; font-style:italic;">
+          „Da li klijent ima pravo na naknadu nematerijalne štete zbog povrede na radu i koje su procesne pretpostavke?"
+        </div>
+        <div style="background:rgba(255,255,255,.03); border-radius:10px; padding:.9rem; font-size:.8rem; line-height:1.6; color:var(--muted);">
+          <span style="color:var(--green); font-weight:600;">✓ Agent odgovara:</span><br>
+          Prema čl. 200 ZOO, oštećeni ima pravo na naknadu nematerijalne štete za fizičke bolove, strah i umanjenje opšte životne aktivnosti... <span style="color:var(--blue);">[Apel. Beograd Gž 1234/2024]</span>
+        </div>
+        <div style="margin-top:.8rem; display:flex; gap:.5rem; flex-wrap:wrap;">
+          <span class="badge b-blue">ZOO čl. 200</span>
+          <span class="badge b-green">ZOR čl. 116</span>
+          <span class="badge b-gold">Apel. Beograd 2024</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 5 — UPRAVLJANJE PREDMETIMA
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s5">
+  <div class="tag tag-green">Modul 2</div>
+  <h2>📁 Upravljanje <span class="green">predmetima</span></h2>
+
+  <div class="card-grid g4" style="max-width:1100px; margin-top:1.5rem;">
+    <div class="card">
+      <span class="card-icon">👤</span>
+      <h3>CRM klijenata</h3>
+      <p>Kompletna baza klijenata. Pretraga, kontakti, firma/fizičko lice, PIB, veze sa predmetima.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">⚖️</span>
+      <h3>Tipovi spora</h3>
+      <p>Parnica, krivično, upravno, radno, porodično, nasledno, privredno, nepokretnosti, ostalo.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📄</span>
+      <h3>Dokumenti</h3>
+      <p>Upload PDF/Word, auto-ekstrakcija teksta, pretraga po sadržaju, veza sa dokazima.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🤝</span>
+      <h3>Saradnja</h3>
+      <p>Više advokata na jednom predmetu, komentari, zadaci, internal notifications.</p>
+    </div>
+  </div>
+
+  <div class="card-grid g3" style="max-width:1100px; margin-top:1rem;">
+    <div class="card">
+      <span class="card-icon">🧭</span>
+      <h3>5-koračni Intake Wizard</h3>
+      <p>Odaberi klijenta → opis problema → upload dokumenata → AI ekstrakcija podataka → kreiranje predmeta jednim klikom.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔍</span>
+      <h3>Globalna pretraga</h3>
+      <p>Pretraga po klijentu, predmetu, dokumentu, pravnom pitanju — sve na jednom mestu.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🚦</span>
+      <h3>Status pipeline</h3>
+      <p>Aktivan → U toku → Čeka → Zatvoren. Vizuelni Kanban prikaz po statusu predmeta.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 6 — ROKOVI I HCC
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s6">
+  <div class="split" style="max-width:1100px;">
+    <div class="split-text">
+      <div class="tag tag-purple">Modul 3</div>
+      <h2>⏰ Rokovi i <span class="purple">Hearing Command Center</span></h2>
+      <p class="sub" style="max-width:480px;">Ni jedan rok ne sme da propadne. Vindex automatski prati procesne rokove, šalje alarme i priprema advokata za ročište.</p>
+
+      <ul class="feat-list" style="margin-top:1.2rem;">
+        <li>
+          <span class="fi">📅</span>
+          <div><div class="ft">Automatski rokovi po tipu spora</div><div class="fd">ZPP žalbeni rok (15 dana), prekršajni (8 dana), itd.</div></div>
+        </li>
+        <li>
+          <span class="fi">🔔</span>
+          <div><div class="ft">Push notifikacije 7 i 3 dana pre</div><div class="fd">Browser push + email alarm (konfigurabilno)</div></div>
+        </li>
+        <li>
+          <span class="fi">🔗</span>
+          <div><div class="ft">Lanac rokova</div><div class="fd">Promena jednog roka automatski koriguje sve zavisne</div></div>
+        </li>
+        <li>
+          <span class="fi">🎯</span>
+          <div><div class="ft">Hearing Command Center</div><div class="fd">Checklist za ročište, strategija, ključni argumenti</div></div>
+        </li>
+        <li>
+          <span class="fi">📆</span>
+          <div><div class="ft">Integrisani kalendar</div><div class="fd">Prikaz svih rokova u kalendarskom formatu</div></div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="split-visual">
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.3rem;">
+        <div style="font-size:.75rem; color:var(--muted); margin-bottom:1rem; text-transform:uppercase; letter-spacing:.08em;">Rok lanac — primer</div>
+        <div class="tl">
+          <div class="tl-item">
+            <div class="tl-date">15.06.2026</div>
+            <div class="tl-ev">📩 Dostava presude klijentu</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">22.06.2026</div>
+            <div class="tl-ev" style="color:#fcd34d;">⚠️ Rok za žalbu (7 dana)</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">29.06.2026</div>
+            <div class="tl-ev">📋 Rok za žalbu istekao (ZPP)</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">15.07.2026</div>
+            <div class="tl-ev" style="color:var(--red);">🔴 Ročište — Apelacioni sud</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">17.07.2026</div>
+            <div class="tl-ev" style="color:var(--muted);">📁 Arhiviranje predmeta</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 7 — NAPLATA I TAJMER
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s7">
+  <div class="tag tag-gold">Modul 4</div>
+  <h2>💰 Naplata, Tajmer i <span class="gold">AKS Tarifa</span></h2>
+  <p class="sub">Automatski obračun po Advokatskoj komori Srbije (Sl. gl. 56/2025). Nema više izgubljenih sati.</p>
+
+  <div class="card-grid g3" style="max-width:1050px; margin-top:1.5rem;">
+    <div class="card">
+      <span class="card-icon">⏱️</span>
+      <h3>Live tajmer</h3>
+      <p>Start/stop jednim klikom. Automatski kreira naplatnu stavku po zaustavljanju. Minimalna satnica 7.500 RSD/h.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📋</span>
+      <h3>AKS Tarifa</h3>
+      <p>30 tarifnih stavki ugređeno u sistem. Odaberi radnju → automatski se popunjava iznos i opis. 1 bod = 50 RSD.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🧾</span>
+      <h3>Fakture i PDF</h3>
+      <p>Generiši fakturu jednim klikom. PDF A4 format (ReportLab). Status: nacrt → izdata → plaćena → stornirana.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📤</span>
+      <h3>SEF E-faktura</h3>
+      <p>Direktna integracija sa Sistemom e-faktura — slanje elektronskih faktura u skladu sa zakonom.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📊</span>
+      <h3>Finansijski KPI</h3>
+      <p>Mesečni pregled: uneseno / nenaplaćeno / naplaćeno. Portfolio view ukupnih prihoda kancelarije.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔄</span>
+      <h3>Recurring fakture</h3>
+      <p>Mesečni retainer za klijenta? Podesi jednom — sistem automatski generiše fakturu svaki mesec.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 8 — STRATEGIJA I AI ANALIZA
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s8">
+  <div class="tag tag-purple">Modul 5</div>
+  <h2>⚔️ Strategija i <span class="purple">AI Analiza</span></h2>
+
+  <div class="card-grid g4" style="max-width:1100px; margin-top:1.5rem;">
+    <div class="card">
+      <span class="card-icon">🎯</span>
+      <h3>Red Team analiza</h3>
+      <p>AI preuzima ulogu protivničkog advokata i napada vašu argumentaciju. Pronalazi slabe tačke pre suđenja.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📊</span>
+      <h3>Procena rizika</h3>
+      <p>AI ocenjuje šanse na uspehu: 0–100%. Identifikuje ključne faktore rizika i preporučuje strategiju.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🏛️</span>
+      <h3>Priprema za ročište</h3>
+      <p>Strukturirani checklist. Ključni argumenti, protivargumenti, pitanja za svedoke, relevantni zakoni.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🤖</span>
+      <h3>Copilot PREDLOZI</h3>
+      <p>Proaktivni AI saveti — bez pitanja. „Preporučujem reviziju tužbenog zahteva zbog promene sudske prakse."</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📝</span>
+      <h3>Generator dokumenata</h3>
+      <p>Tužba, žalba, ugovor o zastupanju, podnesak — generisano AI-em, prilagođeno predmetu.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">⏳</span>
+      <h3>Zastarelost kalkulator</h3>
+      <p>26 tipova zastarelosti (apsolutna, relativna, izvršna...). Unesi datum — sistem računa rok i upozorava.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔀</span>
+      <h3>Cross-doc analiza</h3>
+      <p>Uporedi više dokumenata, pronađi kontradikcije, identifikuj ključne klauzule između ugovora.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🧬</span>
+      <h3>Law Firm Brain</h3>
+      <p>Uči iz iskustva kancelarije — pronalazi slične zatvorene predmete i primenjuje naučene lekcije.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 9 — EVIDENCE VAULT
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s9">
+  <div class="split" style="max-width:1100px;">
+    <div class="split-text">
+      <div class="tag tag-blue">Modul 6 · Novo</div>
+      <h2>🔒 Evidence <span class="accent">Vault</span></h2>
+      <p class="sub" style="max-width:480px;">AI automatski klasifikuje svaki uploadovani dokument, izvlači pravne elemente i gradi matricu dokaza predmeta.</p>
+
+      <ul class="feat-list" style="margin-top:1.2rem;">
+        <li>
+          <span class="fi">🤖</span>
+          <div><div class="ft">Automatska klasifikacija pri uploadu</div><div class="fd">GPT-4o-mini → tip dokaza, pravni elementi, stranke, datumi, iznosi</div></div>
+        </li>
+        <li>
+          <span class="fi">📊</span>
+          <div><div class="ft">Matrica dokaza</div><div class="fd">Svaka dokazna stavka: tvrdnja + jačina (jaka/srednja/slaba) + pravni element</div></div>
+        </li>
+        <li>
+          <span class="fi">🏷️</span>
+          <div><div class="ft">9 tipova dokumenata</div><div class="fd">Sudska odluka, podnesak, ugovor, dopis, medicinska, finansijska, javna isprava, veštak, ostalo</div></div>
+        </li>
+        <li>
+          <span class="fi">🔄</span>
+          <div><div class="ft">Reklasifikacija</div><div class="fd">Ako AI nije tačno prepoznao tip — jedan klik za ponovnu analizu</div></div>
+        </li>
+        <li>
+          <span class="fi">➕</span>
+          <div><div class="ft">Manuelni unos dokaza</div><div class="fd">Dodaj sopstvenu dokaznu stavku sa kategorijom i napomenom</div></div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="split-visual">
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.3rem;">
+        <div style="font-size:.75rem; color:var(--muted); margin-bottom:1rem; text-transform:uppercase; letter-spacing:.08em;">Matrica dokaza — primer predmeta</div>
+        <table style="width:100%; border-collapse:collapse; font-size:.78rem;">
+          <thead>
+            <tr>
+              <th style="text-align:left; color:var(--muted); padding:.3rem; border-bottom:1px solid var(--border);">Dokument</th>
+              <th style="text-align:left; color:var(--muted); padding:.3rem; border-bottom:1px solid var(--border);">Tip</th>
+              <th style="text-align:left; color:var(--muted); padding:.3rem; border-bottom:1px solid var(--border);">Jačina</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:.4rem .3rem;">Nalaz veštaka</td><td><span class="badge b-purple">Veštak</span></td><td><span class="badge b-green">Jaka</span></td></tr>
+            <tr><td style="padding:.4rem .3rem;">Ugovor o radu</td><td><span class="badge b-blue">Ugovor</span></td><td><span class="badge b-green">Jaka</span></td></tr>
+            <tr><td style="padding:.4rem .3rem;">Medicinsk. nalaz</td><td><span class="badge b-gold">Med.</span></td><td><span class="badge b-gold">Srednja</span></td></tr>
+            <tr><td style="padding:.4rem .3rem;">Dopis poslodavca</td><td><span class="badge b-blue">Dopis</span></td><td><span class="badge b-gold">Srednja</span></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:1rem; padding:.7rem; background:rgba(74,168,255,.05); border-radius:8px; font-size:.78rem; color:var(--muted);">
+          <span style="color:var(--green);">✓ AI ekstrahovao:</span> uzročna veza, visina štete, osnov odgovornosti — 3 ključna pravna elementa
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 10 — KNOWLEDGE GRAPH
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s10">
+  <div class="tag tag-cyan">Modul 7 · Novo</div>
+  <h2>🕸 Knowledge <span class="accent">Graph</span></h2>
+  <p class="sub">Interaktivna mapa odnosa predmeta. Klikni na "Graf" tab — AI crta veze između predmeta, klijenata, dokumenata, rokova i zakona.</p>
+
+  <div class="card-grid g2" style="max-width:1000px; margin-top:1.5rem;">
+    <div class="card">
+      <h3>5 tipova čvorova</h3>
+      <div style="margin-top:.8rem; display:flex; flex-direction:column; gap:.5rem;">
+        <div style="display:flex;align-items:center;gap:.7rem;font-size:.85rem;">
+          <div style="width:16px;height:16px;border-radius:50%;background:#4aa8ff;flex-shrink:0;"></div>
+          <span><b>Predmet</b> — centralni čvor (veći radijus)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.7rem;font-size:.85rem;">
+          <div style="width:14px;height:14px;border-radius:50%;background:#7de0a0;flex-shrink:0;"></div>
+          <span><b>Klijenti / stranke</b> — tužilac, tuženi</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.7rem;font-size:.85rem;">
+          <div style="width:12px;height:12px;border-radius:50%;background:#b89aff;flex-shrink:0;"></div>
+          <span><b>Dokumenti</b> — sa tipom dokaza</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.7rem;font-size:.85rem;">
+          <div style="width:10px;height:10px;border-radius:50%;background:#f87171;flex-shrink:0;"></div>
+          <span><b>Rokovi</b> — sa datumom isteka</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.7rem;font-size:.85rem;">
+          <div style="width:10px;height:10px;border-radius:50%;background:#ffcc50;flex-shrink:0;"></div>
+          <span><b>Zakoni / akteri</b> — pravni osnov, sud</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Kako funkcioniše</h3>
+      <ul style="margin-top:.6rem;">
+        <li style="margin-bottom:.5rem; font-size:.85rem;">AI povlači sve veze iz baze podataka predmeta</li>
+        <li style="margin-bottom:.5rem; font-size:.85rem;">Force-directed algoritam raspoređuje čvorove vizuelno</li>
+        <li style="margin-bottom:.5rem; font-size:.85rem;">Hover na čvor → tooltip sa detaljima</li>
+        <li style="margin-bottom:.5rem; font-size:.85rem;">Strelice pokazuju smer veze (predmet → dokument)</li>
+        <li style="font-size:.85rem;">Jake veze (pravni osnov, stranke) su deblje</li>
+      </ul>
+      <div style="margin-top:1rem; padding:.7rem; background:rgba(103,232,249,.05); border:1px solid rgba(103,232,249,.15); border-radius:8px; font-size:.8rem; color:var(--cyan);">
+        💡 Savršeno za vizuelno objašnjavanje predmeta klijentu na sastanku
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 11 — TIMELINE
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s11">
+  <div class="split" style="max-width:1100px;">
+    <div class="split-text">
+      <div class="tag tag-blue">Modul 8</div>
+      <h2>📅 Hronologija <span class="accent">predmeta</span></h2>
+      <p class="sub" style="max-width:480px;">Vertikalni timeline svakog događaja u predmetu — tužba, ročišta, presude, žalbe, rokovi, komunikacija.</p>
+
+      <ul class="feat-list" style="margin-top:1.2rem;">
+        <li>
+          <span class="fi">🕐</span>
+          <div><div class="ft">Automatski unos događaja</div><div class="fd">Svaki dokument, svako pitanje AI-u, svaki rok beleže se u hronologiji</div></div>
+        </li>
+        <li>
+          <span class="fi">✏️</span>
+          <div><div class="ft">Manuelni unos</div><div class="fd">Dodaj ročište, poziv, termin — sa datumom, akterom i opisom</div></div>
+        </li>
+        <li>
+          <span class="fi">⭐</span>
+          <div><div class="ft">Važnost događaja</div><div class="fd">Tri nivoa: ključno / standardno / info — vizuelno razlikovani</div></div>
+        </li>
+        <li>
+          <span class="fi">📤</span>
+          <div><div class="ft">Export hronologije</div><div class="fd">PDF izveštaj kompletnog toka predmeta za klijenta</div></div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="split-visual">
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.3rem;">
+        <div style="font-size:.75rem; color:var(--muted); margin-bottom:1rem; text-transform:uppercase; letter-spacing:.08em;">Timeline — Radni spor Petrović</div>
+        <div class="tl">
+          <div class="tl-item">
+            <div class="tl-date">03.01.2025</div>
+            <div class="tl-ev">📥 Klijent se javio — otpuštanje bez razloga</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">10.01.2025</div>
+            <div class="tl-ev" style="color:var(--blue);">⭐ Podneta tužba — Osnovni sud Beograd</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">15.03.2025</div>
+            <div class="tl-ev">🏛️ Ročište 1 — sud nije zasedao (bolovanje sudije)</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">22.05.2025</div>
+            <div class="tl-ev">🏛️ Ročište 2 — saslušanje tužioca</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">14.01.2026</div>
+            <div class="tl-ev" style="color:var(--green);">⭐ Presuda — tužba usvojena, naknada 450.000 RSD</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 12 — GLASOVNE KOMANDE
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s12">
+  <div class="tag tag-purple">Modul 9 · Novo</div>
+  <h2>🎤 Glasovne <span class="purple">komande</span></h2>
+  <p class="sub">Advokat govori — platforma sluša. Alt+V ili klik na mikrofon i daj komandu na srpskom jeziku.</p>
+
+  <div class="card-grid g2" style="max-width:1000px; margin-top:1.5rem;">
+    <div class="card">
+      <h3>Primeri komandi</h3>
+      <div style="margin-top:.8rem; display:flex; flex-direction:column; gap:.6rem;">
+        <div style="background:rgba(74,168,255,.06); border:1px solid rgba(74,168,255,.12); border-radius:8px; padding:.6rem .9rem; font-size:.83rem; color:#c7dff7; font-style:italic;">
+          „Otvori mi predmet Petrović i analiziraj ga"
+        </div>
+        <div style="background:rgba(74,168,255,.06); border:1px solid rgba(74,168,255,.12); border-radius:8px; padding:.6rem .9rem; font-size:.83rem; color:#c7dff7; font-style:italic;">
+          „Prikaži mi rokove za sledeću sedmicu"
+        </div>
+        <div style="background:rgba(74,168,255,.06); border:1px solid rgba(74,168,255,.12); border-radius:8px; padding:.6rem .9rem; font-size:.83rem; color:#c7dff7; font-style:italic;">
+          „Pokreni tajmer za naplatu"
+        </div>
+        <div style="background:rgba(74,168,255,.06); border:1px solid rgba(74,168,255,.12); border-radius:8px; padding:.6rem .9rem; font-size:.83rem; color:#c7dff7; font-style:italic;">
+          „Napravi mi žalbu za ovaj predmet"
+        </div>
+        <div style="background:rgba(74,168,255,.06); border:1px solid rgba(74,168,255,.12); border-radius:8px; padding:.6rem .9rem; font-size:.83rem; color:#c7dff7; font-style:italic;">
+          „Proceni rizik ovog predmeta"
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>14 tipova akcija</h3>
+      <div style="margin-top:.8rem; display:grid; grid-template-columns:1fr 1fr; gap:.4rem; font-size:.78rem; color:var(--muted);">
+        <span>🔍 Otvori predmet</span>
+        <span>🧠 AI analiza</span>
+        <span>❓ Postavi pitanje</span>
+        <span>📝 Generiši dokument</span>
+        <span>📑 Pređi na tab</span>
+        <span>⏱️ Start/stop tajmer</span>
+        <span>🏠 Idi na dashboard</span>
+        <span>👤 Idi na klijente</span>
+        <span>🔎 Pretraži</span>
+        <span>⚠️ Procena rizika</span>
+        <span>🎯 Red Team</span>
+        <span>🏛️ Priprema ročišta</span>
+        <span>📊 Portfolio</span>
+        <span>🔔 Notifikacije</span>
+      </div>
+      <div style="margin-top:1rem; padding:.7rem; background:rgba(167,139,250,.05); border:1px solid rgba(167,139,250,.2); border-radius:8px; font-size:.8rem; color:var(--purple);">
+        💡 Složene komande: „Otvori predmet X i analiziraj ga" → sistem automatski izvršava oba koraka
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 13 — PORTFOLIO I ANALYTICS
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s13">
+  <div class="tag tag-gold">Modul 10</div>
+  <h2>📊 Portfolio Intelligence & <span class="gold">Analytics</span></h2>
+  <p class="sub">Uvid u celu kancelariju na jednom ekranu. Šta se dešava, šta zaostaje, gde je novac.</p>
+
+  <div class="card-grid g3" style="max-width:1050px; margin-top:1.5rem;">
+    <div class="card">
+      <span class="card-icon">🏢</span>
+      <h3>Portfolio Dashboard</h3>
+      <p>Ukupan pregled: aktivni predmeti, rokovi u sledećih 7/14 dana, neaktivni predmeti (>30 dana), finansijski KPI.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📈</span>
+      <h3>Usage Analytics</h3>
+      <p>Top 10 korišćenih funkcija, top predmeti po aktivnosti, dnevna aktivnost, trend poslednjih 30 dana.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔔</span>
+      <h3>Pametne notifikacije</h3>
+      <p>Automatski alarm za predmete koji se bliže roku. „Predmet Jovanović — rok za žalbu za 3 dana." Čita i arhivira.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🧬</span>
+      <h3>Law Firm Brain</h3>
+      <p>AI analizira sve zatvorene predmete kancelarije i daje preporuku: „U sličnim predmetima ovog tipa uspeli smo u 73% slučajeva."</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">⚡</span>
+      <h3>Case Pipeline</h3>
+      <p>Vizuelni Kanban toka predmeta — od prvog kontakta do arhive. Drag & drop statusima.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🎯</span>
+      <h3>Product Intelligence</h3>
+      <p>Interno praćenje funkcija — koji moduli se koriste, gde korisnici zapnu, šta treba poboljšati.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 14 — KOMUNIKACIJA
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s14">
+  <div class="tag tag-green">Modul 11</div>
+  <h2>📱 Komunikacija, SMS i <span class="green">Klijentski Portal</span></h2>
+
+  <div class="card-grid g3" style="max-width:1050px; margin-top:1.5rem;">
+    <div class="card">
+      <span class="card-icon">📲</span>
+      <h3>SMS obaveštenja</h3>
+      <p>Pošalji SMS klijentu direktno iz platforme. Automatski podsetnici za ročišta i rokove. Srpski jezik.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🌐</span>
+      <h3>Klijentski Portal</h3>
+      <p>Klijent dobija link — vidi status svog predmeta, dokumenta, rokova. Bez otkrivanja internih informacija.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📥</span>
+      <h3>Inbox</h3>
+      <p>Centralno mesto za sve poruke, obaveštenja i zadatke kancelarije. Ništa ne promiče.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">💬</span>
+      <h3>Komentari na predmetu</h3>
+      <p>Interni komentari advokata na predmetu. Taguj kolegu, ostavi napomenu, prati diskusiju.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🤝</span>
+      <h3>Saradnja tima</h3>
+      <p>Više advokata na jednom predmetu sa različitim ulogama i dozvolama. Potpuna reviziona staza.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔗</span>
+      <h3>Integracije</h3>
+      <p>API za spoljne sisteme, Zapier webhook, kalendar export (iCal). Otvorena arhitektura.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 15 — BEZBEDNOST
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s15">
+  <div class="tag tag-blue">Bezbednost i usaglašenost</div>
+  <h2>🛡️ Bulletproof <span class="accent">sigurnost</span></h2>
+  <p class="sub">Advokatska tajna nije kompromis. Svaki sloj sistema je dizajniran da zaštiti podatke klijenata.</p>
+
+  <table class="sec-table" style="max-width:900px; margin-top:1.2rem;">
+    <thead>
+      <tr>
+        <th>Oblast</th>
+        <th>Implementacija</th>
+        <th>Standard</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🔐 Autentifikacija</td>
+        <td>JWT token + triple verifikacija (signature, expiry, user_id)</td>
+        <td><span class="badge b-green">OAuth2</span></td>
+      </tr>
+      <tr>
+        <td>🗄️ Izolacija podataka</td>
+        <td>Row Level Security (RLS) — korisnik vidi SAMO svoje predmete</td>
+        <td><span class="badge b-green">PostgreSQL RLS</span></td>
+      </tr>
+      <tr>
+        <td>🔒 Osetljivi podaci</td>
+        <td>JMBG, PIB, pasoš → AES-256 enkripcija, nikad plaintext</td>
+        <td><span class="badge b-blue">AES-256</span></td>
+      </tr>
+      <tr>
+        <td>🔑 Lozinke</td>
+        <td>Argon2id hash (najjači dostupni algoritam, 2025 standard)</td>
+        <td><span class="badge b-blue">Argon2id</span></td>
+      </tr>
+      <tr>
+        <td>📋 Audit log</td>
+        <td>Svaka akcija beleži se — append-only, bez brisanja</td>
+        <td><span class="badge b-gold">Immutable log</span></td>
+      </tr>
+      <tr>
+        <td>🛑 Anti-hallucination</td>
+        <td>Confidence threshold filter — AI ne daje odgovore ispod 62% pouzdanosti</td>
+        <td><span class="badge b-purple">RAG guard</span></td>
+      </tr>
+      <tr>
+        <td>⚡ Rate limiting</td>
+        <td>Max 60 zahteva/min po korisniku — zaštita od zloupotrebe</td>
+        <td><span class="badge b-green">Active</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 16 — TEHNIČKI STACK
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s16">
+  <div class="tag tag-cyan">Tehničke specifikacije</div>
+  <h2>🏗️ Infrastruktura <span class="accent">svetske klase</span></h2>
+
+  <div class="card-grid g4" style="max-width:1100px; margin-top:1.5rem;">
+    <div class="card" style="text-align:center;">
+      <span class="card-icon">⚡</span>
+      <h3>FastAPI</h3>
+      <p>Python backend. Asinhroni, brz, 40+ API endpointa. Auto-dokumentacija.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <span class="card-icon">🧠</span>
+      <h3>GPT-4o</h3>
+      <p>OpenAI najjači model za pravne odgovore. GPT-4o-mini za klasifikaciju i glasovne komande.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <span class="card-icon">🔍</span>
+      <h3>Pinecone</h3>
+      <p>Vektorska baza zakona. Semantička pretraga. Milioni vektora, milisekunde latencije.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <span class="card-icon">🗄️</span>
+      <h3>Supabase</h3>
+      <p>PostgreSQL + Auth + RLS. Real-time sync. 16 migracija, 20+ tabela, indeksi, trigeri.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <span class="card-icon">🚀</span>
+      <h3>Railway</h3>
+      <p>Cloudni deploy. Auto-deploy na git push. Dockerfile build, health check, auto-restart.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <span class="card-icon">📱</span>
+      <h3>PWA</h3>
+      <p>Progressive Web App. Radi na telefonu kao aplikacija. Mobile bottom nav, touch 44px.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <span class="card-icon">🎤</span>
+      <h3>Web Speech API</h3>
+      <p>Browser-native glasovno prepoznavanje. Srpski jezik (sr-RS). Nula eksternih zavisnosti.</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <span class="card-icon">📧</span>
+      <h3>SEF + SMS</h3>
+      <p>Sistem e-faktura integracija. SMS gateway za obaveštenja klijentima. GDPR compliant.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 17 — ROADMAP
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s17">
+  <div class="tag tag-gold">Razvojna strategija</div>
+  <h2>🗺️ Roadmap <span class="gold">2026</span></h2>
+
+  <div class="card-grid g3" style="max-width:1050px; margin-top:1.5rem;">
+    <div class="card" style="border-color:rgba(74,222,128,.3); background:rgba(74,222,128,.03);">
+      <span class="card-icon">✅</span>
+      <h3 class="green">Faza 1 — Osnova (Gotovo)</h3>
+      <ul>
+        <li>AI pravni agent (RAG)</li>
+        <li>CRM + upravljanje predmetima</li>
+        <li>Naplata + AKS tarifa 2025</li>
+        <li>Rokovi + HCC</li>
+        <li>Bezbednost (RLS + AES-256)</li>
+        <li>Generator dokumenata</li>
+        <li>SEF e-faktura</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(74,168,255,.3); background:rgba(74,168,255,.03);">
+      <span class="card-icon">🔨</span>
+      <h3 class="accent">Faza 2 — Inteligencija (Gotovo)</h3>
+      <ul>
+        <li>Evidence Vault + klasifikacija</li>
+        <li>Knowledge Graph</li>
+        <li>Timeline hronologije</li>
+        <li>Glasovne komande</li>
+        <li>Law Firm Brain</li>
+        <li>Portfolio Intelligence</li>
+        <li>Analytics dashboard</li>
+        <li>Intake Wizard</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(167,139,250,.3); background:rgba(167,139,250,.03);">
+      <span class="card-icon">🔭</span>
+      <h3 class="purple">Faza 3 — Ekspanzija (Sledeće)</h3>
+      <ul>
+        <li>Sentry monitoring + alerting</li>
+        <li>Proširenje baze zakona (ZPD, ZKP)</li>
+        <li>Bulk import predmeta</li>
+        <li>Mobilna aplikacija (React Native)</li>
+        <li>Multi-kancelarija / white-label</li>
+        <li>AI sudija (simulacija ishoda)</li>
+        <li>Benchmark evaluacija (30 pitanja)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 18 — TRŽIŠTE
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s18">
+  <div class="tag tag-gold">Tržišna pozicija</div>
+  <h2>🌍 Regionalni <span class="gold">lider</span> u pravnoj tehnologiji</h2>
+  <p class="sub">Jedini AI sistem koji razume srpsko pravo u dubini. Konkurencija nudi generičke alate na engleskom.</p>
+
+  <div class="stat-row" style="margin-top:1.5rem;">
+    <div class="stat"><div class="stat-num" style="color:var(--gold);">8.000+</div><div class="stat-lbl">Advokata u Srbiji</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--green);">0</div><div class="stat-lbl">AI konkurenata na srpskom</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--blue);">40+</div><div class="stat-lbl">Implementiranih modula</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--purple);">7</div><div class="stat-lbl">Aktivnih zakona u RAG-u</div></div>
+  </div>
+
+  <div class="card-grid g3" style="max-width:1050px; margin-top:1.5rem;">
+    <div class="card">
+      <span class="card-icon">🇷🇸</span>
+      <h3>Srbija — primarna</h3>
+      <p>Srpski zakoni, srpski jezik, AKS tarifa, SEF e-faktura. Dizajniran specifično za srpsko tržište.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🌐</span>
+      <h3>Region — sledeće</h3>
+      <p>BiH, Hrvatska, Slovenija — slična pravna tradicija, isti model. Adaptacija u mesecima, ne godinama.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">💡</span>
+      <h3>Prednost prvog</h3>
+      <p>Kancelarija koja koristi Vindex danas gradi podatkovnu prednost. Više predmeta = pametniji AI = bolja strategija.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 19 — KOMPLETNA LISTA MODULA
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s19">
+  <div class="tag tag-blue">Kompletna platforma</div>
+  <h2>Svi moduli <span class="accent">u jednom pogledu</span></h2>
+
+  <div class="scroll-inner" style="max-width:1100px; margin-top:1rem;">
+    <div class="card-grid g3" style="max-width:1100px;">
+      <div style="display:flex; flex-direction:column; gap:.4rem;">
+        <div style="font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; padding:.3rem 0; border-bottom:1px solid var(--border);">AI i analiza</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🧠 AI Pravni Agent (GPT-4o + RAG)</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🎯 Red Team analiza</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">📊 Procena rizika</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🤖 Copilot PREDLOZI</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🏛️ Hearing Command Center</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🧬 Law Firm Brain</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🔀 Cross-doc analiza</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">⏳ Zastarelost kalkulator (26 tipova)</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🔒 Evidence Vault + klasifikacija</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🕸 Knowledge Graph</div>
+        <div style="font-size:.82rem; padding:.25rem 0;">🎤 Glasovne komande (sr-RS)</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:.4rem;">
+        <div style="font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; padding:.3rem 0; border-bottom:1px solid var(--border);">Predmeti i dokumenti</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">📁 CRM klijenata</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">⚖️ Upravljanje predmetima (9 tipova)</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🧭 Intake Wizard (5 koraka)</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">📄 Upload + auto-ekstrakcija teksta</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">📝 Generator dokumenata (tužba, žalba...)</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">📅 Timeline hronologije</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🔍 Globalna pretraga</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🚦 Case Pipeline (Kanban)</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🤝 Saradnja tima</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">💬 Komentari i zadaci</div>
+        <div style="font-size:.82rem; padding:.25rem 0;">📤 Export (PDF izveštaji)</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:.4rem;">
+        <div style="font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; padding:.3rem 0; border-bottom:1px solid var(--border);">Naplata, rokovi i komunikacija</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">⏱️ Live tajmer</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">📋 AKS tarifa 2025 (30 stavki)</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🧾 Fakture + PDF (ReportLab)</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">📤 SEF e-faktura</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🔄 Recurring fakture</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">⏰ Rokovi + lanac rokova</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🔔 Push notifikacije</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">📲 SMS obaveštenja</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">🌐 Klijentski portal</div>
+        <div style="font-size:.82rem; padding:.25rem 0; border-bottom:1px solid rgba(255,255,255,.03);">📊 Portfolio + Analytics</div>
+        <div style="font-size:.82rem; padding:.25rem 0;">📱 PWA (mobilna aplikacija)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 20 — ZAKLJUČAK
+══════════════════════════════════════════════════════ -->
+<div class="slide" id="s20">
+  <div class="hero-glow" style="background:radial-gradient(circle, rgba(240,192,64,.06) 0%, transparent 70%);"></div>
+  <div class="hero-title">
+    <div class="tag tag-gold">Zaključak</div>
+    <h1>⚖️ Vaša kancelarija.<br><span class="gold">Vaš AI partner.</span></h1>
+    <div class="divider" style="background:linear-gradient(90deg,var(--gold),var(--purple));"></div>
+    <p class="sub" style="text-align:center; max-width:700px;">
+      Vindex AI nije alat — to je operativni sistem za modernu advokatsku kancelariju.<br>
+      Svaka funkcija je dizajnirana za srpsko pravo, srpske advokate i srpske klijente.
+    </p>
+
+    <div class="stat-row" style="justify-content:center; margin-top:1.5rem;">
+      <div class="stat"><div class="stat-num" style="color:var(--gold);">40+</div><div class="stat-lbl">AI modula</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--green);">100%</div><div class="stat-lbl">Srpski zakoni</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--blue);">AES-256</div><div class="stat-lbl">Bezbednost</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--purple);">24/7</div><div class="stat-lbl">AI asistent</div></div>
+    </div>
+
+    <div style="margin-top:2rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+      <div style="background:var(--card); border:1px solid rgba(240,192,64,.3); border-radius:12px; padding:1rem 1.5rem; font-size:.9rem; color:var(--gold);">
+        ✅ Trenutno dostupno — demo verzija aktivna
+      </div>
+      <div style="background:var(--card); border:1px solid rgba(74,168,255,.3); border-radius:12px; padding:1rem 1.5rem; font-size:.9rem; color:var(--blue);">
+        🚀 Deploy: Railway Cloud — production ready
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- ── NAV ── -->
+<div class="nav">
+  <button id="btn-prev" onclick="goSlide(-1)" disabled>←</button>
+  <span id="slide-counter">1 / 20</span>
+  <button id="btn-next" onclick="goSlide(1)">→</button>
+</div>
+
+<script>
+var TOTAL   = 20;
+var current = 1;
+
+function goSlide(dir) {
+  var prev = current;
+  current = Math.max(1, Math.min(TOTAL, current + dir));
+  if (current === prev) return;
+
+  var old = document.getElementById('s' + prev);
+  var nw  = document.getElementById('s' + current);
+
+  old.classList.remove('active');
+  old.classList.add('prev');
+  setTimeout(function(){ old.classList.remove('prev'); }, 500);
+
+  nw.style.transform = dir > 0 ? 'translateX(60px)' : 'translateX(-60px)';
+  nw.style.opacity   = '0';
+  nw.classList.add('active');
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      nw.style.transform = '';
+      nw.style.opacity   = '';
+    });
+  });
+
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
+  document.getElementById('snum').textContent          = current + ' / ' + TOTAL;
+  document.getElementById('btn-prev').disabled         = current === 1;
+  document.getElementById('btn-next').disabled         = current === TOTAL;
+  document.getElementById('progress').style.width      = ((current / TOTAL) * 100) + '%';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goSlide(1); }
+  if (e.key === 'ArrowLeft')                   { e.preventDefault(); goSlide(-1); }
+});
+
+// Touch swipe
+var txStart = null;
+document.addEventListener('touchstart', function(e){ txStart = e.touches[0].clientX; });
+document.addEventListener('touchend',   function(e){
+  if (txStart === null) return;
+  var dx = e.changedTouches[0].clientX - txStart;
+  if (Math.abs(dx) > 50) goSlide(dx < 0 ? 1 : -1);
+  txStart = null;
+});
+
+// Click on deck (not nav) to advance
+document.getElementById('deck').addEventListener('click', function(e){
+  if (!e.target.closest('.nav')) goSlide(1);
+});
+
+updateUI();
+</script>
+</body>
+</html>

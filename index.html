@@ -5476,6 +5476,60 @@ i[data-lucide] svg {
 .kg-link { stroke: rgba(255,255,255,.12); stroke-width: 1.5; fill: none; }
 .kg-link.strong { stroke: rgba(74,168,255,.35); stroke-width: 2; }
 
+/* ── Simplified Tab Nav ─────────────────────────────────────── */
+.pred-tab-primary {
+  font-weight: 600;
+  font-size: .8rem !important;
+}
+.pred-tab-primary.active {
+  background: linear-gradient(135deg, rgba(74,168,255,.2), rgba(167,139,250,.12)) !important;
+  border-color: rgba(74,168,255,.5) !important;
+  color: #c7dff7 !important;
+}
+.pred-tab-more {
+  color: rgba(255,255,255,.45) !important;
+  font-size: .78rem !important;
+}
+.pred-more-wrap { position: relative; display: inline-block; }
+.pred-more-menu {
+  position: absolute; right: 0; top: calc(100% + 4px);
+  background: #111827; border: 1px solid rgba(74,168,255,.2);
+  border-radius: 10px; padding: .35rem; min-width: 170px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5); z-index: 500;
+}
+.pred-more-menu button {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; color: rgba(255,255,255,.7);
+  font-size: .82rem; padding: .45rem .7rem; border-radius: 7px;
+  cursor: pointer; font-family: inherit;
+}
+.pred-more-menu button:hover { background: rgba(74,168,255,.1); color: #89c8ff; }
+
+/* ── Smart Action Chips ──────────────────────────────────────── */
+.smart-chips-wrap {
+  margin-bottom: .7rem;
+  padding: .65rem .8rem;
+  background: rgba(10,15,30,.6);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px;
+}
+.smart-chips-title {
+  font-size: .62rem; color: rgba(255,255,255,.35);
+  text-transform: uppercase; letter-spacing: .1em; margin-bottom: .45rem;
+}
+.smart-chips-row { display: flex; flex-wrap: wrap; gap: .4rem; }
+.smart-chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .35rem .75rem; border-radius: 20px; font-size: .76rem;
+  font-weight: 600; cursor: pointer; border: 1px solid transparent;
+  transition: opacity .15s, transform .1s; white-space: nowrap;
+}
+.smart-chip:hover { opacity: .85; transform: translateY(-1px); }
+.chip-red    { background: rgba(248,113,113,.12); border-color: rgba(248,113,113,.35); color: #fca5a5; }
+.chip-yellow { background: rgba(251,191,36,.1);   border-color: rgba(251,191,36,.3);  color: #fcd34d; }
+.chip-blue   { background: rgba(74,168,255,.1);   border-color: rgba(74,168,255,.3);  color: #89c8ff; }
+.chip-green  { background: rgba(74,222,128,.1);   border-color: rgba(74,222,128,.3);  color: #86efac; }
+
 /* ── Case Command Center ─────────────────────────────────────── */
 .ccc-grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
 .ccc-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.7rem; }
@@ -6349,25 +6403,32 @@ i[data-lucide] svg {
                 <button onclick="timer_discard()" style="padding:.22rem .45rem;border:none;background:transparent;color:rgba(255,255,255,0.25);font-size:.7rem;cursor:pointer;" title="Odbaci">✕</button>
               </div>
 
-              <!-- ── Subtab Navigation ────────────────────────────────── -->
-              <div class="pred-subtab-nav">
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('ccc',this)" style="background:linear-gradient(135deg,rgba(74,168,255,.18),rgba(167,139,250,.12));border-color:rgba(74,168,255,.4);color:#89c8ff;font-weight:700;">🎯 Komandni Centar</button>
-                <button class="pred-subtab-btn active" onclick="pred_subtabSwitch('pregled',this)">Pregled</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('dokumenti',this)">Dokumenti</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('timeline',this)">📅 Timeline</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('dokazi',this)">🔒 Dokazi</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('graf',this)">🕸 Graf</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('ai-analiza',this)">AI Analiza</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('strategija',this)">Strategija</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('rokovi',this)">Rokovi</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('naplata',this)">Naplata</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('komunikacija',this)">Komunikacija</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('saradnja',this)">Saradnja</button>
-                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('agenti',this)">🤖 Agenti</button>
+              <!-- ── Subtab Navigation (Primary + More) ───────────────── -->
+              <div class="pred-subtab-nav" style="position:relative;">
+                <!-- PRIMARY TABS — dnevne radnje -->
+                <button class="pred-subtab-btn pred-tab-primary active" id="tab-ccc-btn" onclick="pred_subtabSwitch('ccc',this)">🎯 Centar</button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('dokumenti',this)">📁 Dokumenti</button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('ai-analiza',this)">🧠 AI</button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('strategija',this)">⚔️ Strategija</button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('rokovi',this)">⏰ Rokovi</button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('naplata',this)">💰 Naplata</button>
+                <!-- VIŠE dropdown -->
+                <div class="pred-more-wrap" id="pred-more-wrap">
+                  <button class="pred-subtab-btn pred-tab-more" id="pred-more-btn" onclick="pred_more_toggle(event)">··· Više</button>
+                  <div class="pred-more-menu" id="pred-more-menu" style="display:none;">
+                    <button onclick="pred_more_select('pregled')">📋 Pregled</button>
+                    <button onclick="pred_more_select('timeline')">📅 Timeline</button>
+                    <button onclick="pred_more_select('dokazi')">🔒 Dokazi</button>
+                    <button onclick="pred_more_select('graf')">🕸 Graf</button>
+                    <button onclick="pred_more_select('agenti')">🤖 Agenti</button>
+                    <button onclick="pred_more_select('komunikacija')">💬 Komunikacija</button>
+                    <button onclick="pred_more_select('saradnja')">🤝 Saradnja</button>
+                  </div>
+                </div>
               </div>
 
               <!-- ── TAB: Case Command Center ─────────────────────────── -->
-              <div class="pred-subtab-pane" id="pred-pane-ccc" style="display:none;">
+              <div class="pred-subtab-pane" id="pred-pane-ccc">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
                   <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">🎯 Komandni Centar Predmeta</div>
                   <button onclick="ccc_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(74,168,255,.3);border-radius:6px;background:rgba(74,168,255,.08);color:#89c8ff;cursor:pointer;">↺ Osveži</button>
@@ -6378,7 +6439,7 @@ i[data-lucide] svg {
               </div><!-- /pred-pane-ccc -->
 
               <!-- ── TAB 1: Pregled ───────────────────────────────────── -->
-              <div class="pred-subtab-pane" id="pred-pane-pregled">
+              <div class="pred-subtab-pane" id="pred-pane-pregled" style="display:none;">
                 <!-- Matter Intelligence Bar — auto-učitava se pri otvaranju predmeta -->
                 <div id="matter-intel-bar" style="display:none;margin-bottom:.7rem;padding:.65rem .8rem;background:linear-gradient(135deg,rgba(10,15,30,.8),rgba(17,24,39,.9));border:1px solid rgba(74,168,255,.15);border-radius:10px;">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
@@ -14437,6 +14498,13 @@ function pred_subtabSwitch(pane, btn) {
       if ((b.getAttribute('onclick') || '').indexOf("'"+pane+"'") > -1) b.classList.add('active');
     });
   }
+  // Ažuriraj "Više" btn: active samo kad je sekundarni tab otvoren
+  var _moreBtn = document.getElementById('pred-more-btn');
+  if (_moreBtn) {
+    var _secondary = ['pregled','timeline','dokazi','graf','agenti','komunikacija','saradnja'];
+    if (_secondary.indexOf(pane) > -1) _moreBtn.classList.add('active');
+    else _moreBtn.classList.remove('active');
+  }
   if (history.replaceState && activePredmetId) history.replaceState(null, '', '#' + pane);
   if (typeof lucide !== 'undefined') lucide.createIcons();
   // Lazy-load tabovi
@@ -14445,6 +14513,41 @@ function pred_subtabSwitch(pane, btn) {
   if (pane === 'dokazi'   && activePredmetId) evidence_load();
   if (pane === 'graf'     && activePredmetId) kg_load();
   if (pane === 'ccc'      && activePredmetId) ccc_load();
+}
+
+/* ── "··· Više" dropdown toggle ─────────────────────────────────────────── */
+function pred_more_toggle(e) {
+  e.stopPropagation();
+  var menu = document.getElementById('pred-more-menu');
+  if (!menu) return;
+  var open = menu.style.display !== 'none';
+  if (open) {
+    menu.style.display = 'none';
+  } else {
+    menu.style.display = 'block';
+    // Zatvori klik van menija
+    setTimeout(function() {
+      document.addEventListener('click', pred_more_outside_, { once: true, capture: true });
+    }, 0);
+  }
+}
+function pred_more_outside_(e) {
+  var wrap = document.getElementById('pred-more-wrap');
+  if (wrap && !wrap.contains(e.target)) pred_more_close();
+}
+function pred_more_close() {
+  var menu = document.getElementById('pred-more-menu');
+  if (menu) menu.style.display = 'none';
+  // Osvetli "··· Više" btn ako je aktivan sekundarni tab
+  var moreBtn = document.getElementById('pred-more-btn');
+  if (moreBtn) moreBtn.classList.remove('active');
+}
+/* Kad se bira sekundarni tab, označi "Više" kao aktivan */
+function pred_more_select(pane) {
+  pred_subtabSwitch(pane);
+  pred_more_close();
+  var moreBtn = document.getElementById('pred-more-btn');
+  if (moreBtn) moreBtn.classList.add('active');
 }
 
 function pred_openStrat(modul) {
@@ -14529,11 +14632,11 @@ function pred_select(id) {
     if (oblEl) oblEl.textContent = (typeof _TIP_LABELS !== 'undefined' && _TIP_LABELS[predmetObj.tip]) || predmetObj.tip || '—';
   }
   if (history.pushState) history.pushState(null, '', '#pregled');
-  var targetSubtab = _aicPendingSubtab || 'pregled';
+  var targetSubtab = _aicPendingSubtab || 'ccc';
   _aicPendingSubtab = null;
   pred_subtabSwitch(targetSubtab);
-  // Auto-load Matter Intelligence bar
-  setTimeout(function(){ matter_intel_load(); }, 300);
+  // Auto-load Matter Intelligence bar (u Pregledu)
+  setTimeout(function(){ matter_intel_load(); }, 400);
   var terminal = document.querySelector('.terminal');
   if (terminal && window.innerWidth > 900) terminal.style.overflow = 'visible';
 }
@@ -20015,90 +20118,153 @@ function ccc_load() {
 }
 
 function _ccc_render(el, d) {
-  var p   = d.predmet || {};
-  var dok = d.dok_stats || {};
-  var bil = d.billing   || {};
-
-  // Health ring color
-  var hs = d.health_score || 0;
+  var p   = d.predmet    || {};
+  var dok = d.dok_stats  || {};
+  var bil = d.billing    || {};
+  var hs  = d.health_score || 0;
   var hsColor = hs >= 70 ? '#4ade80' : hs >= 45 ? '#fbbf24' : '#f87171';
 
-  var klijentiStr = (d.klijenti || []).map(function(k){ return k.ime + (k.uloga ? ' <span style="color:rgba(255,255,255,.35);font-size:.7rem;">('+k.uloga+')</span>':''); }).join(', ') || '—';
+  var _TL = { parnicno:'Parnica', krivicno:'Krivično', radno:'Radno pravo',
+    upravno:'Upravni postupak', porodicno:'Porodično', nasledjivanje:'Nasleđivanje',
+    privredno:'Privredno', nepokretnosti:'Nepokretnosti', ostalo:'Ostalo' };
+  var tipStr = _TL[p.tip] || p.tip || '';
 
+  var klijentiStr = (d.klijenti || []).map(function(k){ return k.ime; }).join(', ') || '';
+
+  // ── SMART ACTION CHIPS ──────────────────────────────────────────────────
+  var chips = [];
+  // 1. Kritičan rok (≤7 dana) — CRVENA
+  var kr = d.kritican_rok;
+  if (kr) {
+    var dana = kr.dana_ostalo;
+    var tag  = dana === 0 ? 'DANAS' : dana + 'd';
+    chips.push({ cls:'chip-red', icon:'🔴', text: tag+' — '+(_htmlEsc((kr.naziv||'Rok').slice(0,30))), action:"pred_subtabSwitch('rokovi')" });
+  }
+  // 2. Predmeti bez dokumenta — CRVENA
+  if ((dok.ukupno||0) === 0) {
+    chips.push({ cls:'chip-red', icon:'📤', text:'Uploaduj prvi dokument', action:"pred_subtabSwitch('dokumenti')" });
+  }
+  // 3. Nedostajući dokaz — ŽUTA
+  var nedo = (d.nedostajuci || []);
+  if (nedo.length > 0) {
+    var _DL = { sudska_odluka:'sudsku odluku', podnesak:'podnesak', ugovor:'ugovor',
+      dopis:'pisanu komunikaciju', medicinska_dokumentacija:'medicinski nalaz',
+      finansijska_dokumentacija:'fin. dokumentaciju', javna_isprava:'javnu ispravu',
+      vestacki_nalaz:'nalaz veštaka' };
+    chips.push({ cls:'chip-yellow', icon:'📄', text:'Pribavi '+(_DL[nedo[0]]||nedo[0]), action:"pred_subtabSwitch('dokazi')" });
+  }
+  // 4. Nenaplaćeni iznos — ŽUTA
+  if ((bil.nenaplaceno||0) > 0) {
+    chips.push({ cls:'chip-yellow', icon:'💰', text: Math.round(bil.nenaplaceno/1000)+'k RSD nenaplaćeno', action:"pred_subtabSwitch('naplata')" });
+  }
+  // 5. Preporučena AI analiza — PLAVA (uvek)
+  chips.push({ cls:'chip-blue', icon:'🧠', text:'Pokreni AI analizu', action:"pred_subtabSwitch('ai-analiza')" });
+  // 6. Ako nema rokova — PLAVA
+  if (!kr && (d.predstojeći||0) === 0 && (d.rokovi||[]).length === 0) {
+    chips.push({ cls:'chip-blue', icon:'⏰', text:'Evidentiraj rokove', action:"pred_subtabSwitch('rokovi')" });
+  }
+  // Ograniči na 4 chipa
+  chips = chips.slice(0, 4);
+
+  var chips_html = '';
+  chips.forEach(function(c) {
+    chips_html += '<button class="smart-chip '+c.cls+'" onclick="'+c.action+'">'+c.icon+' '+c.text+'</button>';
+  });
+
+  // ── ROKOVI ──────────────────────────────────────────────────────────────
   var rokovi_html = '';
   (d.rokovi || []).slice(0,5).forEach(function(r) {
     var dana = r.dana_ostalo;
     var boja = dana === null ? '#aaa' : dana < 0 ? '#f87171' : dana <= 7 ? '#f87171' : dana <= 14 ? '#fbbf24' : '#4ade80';
     var tag  = dana === null ? '?' : dana < 0 ? 'Istekao' : dana === 0 ? 'Danas' : dana + 'd';
-    rokovi_html += '<div class="ccc-rok-item"><span style="color:'+boja+';font-weight:700;min-width:44px;font-size:.78rem;">'+tag+'</span><span style="flex:1;font-size:.78rem;">'+_htmlEsc(r.naziv||'Rok')+'</span></div>';
+    rokovi_html += '<div class="ccc-rok-item"><span style="color:'+boja+';font-weight:700;min-width:44px;font-size:.78rem;">'+tag+'</span><span style="flex:1;font-size:.78rem;">'+_htmlEsc((r.naziv||'Rok').slice(0,34))+'</span></div>';
   });
-  if (!rokovi_html) rokovi_html = '<div style="color:rgba(255,255,255,.25);font-size:.78rem;">Nema evidentiranih rokova</div>';
+  if (!rokovi_html) rokovi_html = '<div style="color:rgba(255,255,255,.22);font-size:.78rem;padding:.5rem 0;">Nema evidentiranih rokova.<br><span style="font-size:.7rem;opacity:.7;">Dodajte rokove u tabu ⏰ Rokovi.</span></div>';
 
+  // ── AKTIVNOSTI ───────────────────────────────────────────────────────────
   var akt_html = '';
   (d.aktivnosti || []).slice(0,5).forEach(function(a) {
-    akt_html += '<div class="ccc-act-item"><span style="opacity:.5;flex-shrink:0;">'+(a.datum||'').slice(0,10)+'</span><span style="flex:1;">'+_htmlEsc((a.dogadjaj||'').slice(0,70))+'</span></div>';
+    akt_html += '<div class="ccc-act-item"><span style="opacity:.4;flex-shrink:0;font-size:.72rem;">'+(a.datum||'').slice(5,10)+'</span><span style="flex:1;font-size:.78rem;">'+_htmlEsc((a.dogadjaj||'').slice(0,65))+'</span></div>';
   });
-  if (!akt_html) akt_html = '<div style="color:rgba(255,255,255,.25);font-size:.78rem;">Nema aktivnosti</div>';
+  if (!akt_html) akt_html = '<div style="color:rgba(255,255,255,.22);font-size:.78rem;padding:.5rem 0;">Nema zabeleženih aktivnosti.</div>';
 
   el.innerHTML = [
-    // Header bar
-    '<div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem;padding:.7rem .9rem;background:rgba(74,168,255,.06);border:1px solid rgba(74,168,255,.15);border-radius:10px;">',
-      '<div style="flex:1;">',
-        '<div style="font-size:1rem;font-weight:700;">'+_htmlEsc(p.naziv||'Predmet')+'</div>',
-        '<div style="font-size:.75rem;color:rgba(255,255,255,.45);margin-top:.15rem;">'+_htmlEsc(klijentiStr)+'</div>',
+    // ── HEADER ─────────────────────────────────────────────────────────────
+    '<div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.75rem;padding:.75rem 1rem;',
+      'background:linear-gradient(135deg,rgba(74,168,255,.07),rgba(167,139,250,.04));',
+      'border:1px solid rgba(74,168,255,.18);border-radius:12px;">',
+      '<div style="flex:1;min-width:0;">',
+        '<div style="font-size:1rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_htmlEsc(p.naziv||'Predmet')+'</div>',
+        '<div style="display:flex;gap:.6rem;margin-top:.25rem;flex-wrap:wrap;">',
+          tipStr ? '<span style="font-size:.7rem;padding:.1rem .5rem;background:rgba(74,168,255,.12);border-radius:10px;color:#89c8ff;">'+_htmlEsc(tipStr)+'</span>' : '',
+          p.status ? '<span style="font-size:.7rem;padding:.1rem .5rem;background:rgba(255,255,255,.06);border-radius:10px;color:rgba(255,255,255,.55);">'+_htmlEsc(p.status)+'</span>' : '',
+          klijentiStr ? '<span style="font-size:.7rem;color:rgba(255,255,255,.4);">👤 '+_htmlEsc(klijentiStr.slice(0,30))+'</span>' : '',
+        '</div>',
       '</div>',
-      '<div style="text-align:center;flex-shrink:0;">',
-        '<div style="font-size:1.6rem;font-weight:800;color:'+hsColor+';">'+hs+'</div>',
-        '<div style="font-size:.6rem;color:rgba(255,255,255,.3);">Health Score</div>',
+      '<div style="text-align:center;flex-shrink:0;padding:.4rem .7rem;background:rgba(255,255,255,.04);border-radius:8px;min-width:60px;">',
+        '<div style="font-size:1.5rem;font-weight:800;line-height:1;color:'+hsColor+';">'+hs+'</div>',
+        '<div style="font-size:.58rem;color:rgba(255,255,255,.3);margin-top:.15rem;">Health</div>',
       '</div>',
     '</div>',
-    // Main grid: 2 columns top
-    '<div class="ccc-grid" style="margin-bottom:.7rem;">',
-      // Dokazi + Finansije
+
+    // ── SMART ACTION CHIPS ─────────────────────────────────────────────────
+    '<div class="smart-chips-wrap">',
+      '<div class="smart-chips-title">💡 Šta trebate uraditi</div>',
+      '<div class="smart-chips-row">',
+        chips_html,
+      '</div>',
+    '</div>',
+
+    // ── DOKAZI + FINANSIJE ─────────────────────────────────────────────────
+    '<div class="ccc-grid" style="margin-bottom:.65rem;">',
       '<div class="ccc-block">',
         '<div class="ccc-block-hd">🔒 Dokazi</div>',
-        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;">',
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-bottom:.5rem;">',
           '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#4ade80;">'+(dok.jaka||0)+'</div><div class="ccc-metric-lbl">Jaki</div></div>',
           '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#fbbf24;">'+(dok.srednja||0)+'</div><div class="ccc-metric-lbl">Srednji</div></div>',
           '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#f87171;">'+(dok.slaba||0)+'</div><div class="ccc-metric-lbl">Slabi</div></div>',
         '</div>',
-        '<div style="margin-top:.6rem;"><div class="health-bar-wrap"><div class="health-bar-fill" style="width:'+Math.min(100,((dok.jaka||0)/(Math.max(1,dok.ukupno||1))*100)).toFixed(0)+'%;background:#4ade80;"></div></div></div>',
-        '<div style="text-align:center;margin-top:.4rem;"><button onclick="pred_subtabSwitch(\'dokazi\')" style="font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.1);border-radius:5px;color:rgba(255,255,255,.4);padding:.2rem .6rem;cursor:pointer;">Otvori Evidence Vault →</button></div>',
+        '<div class="health-bar-wrap"><div class="health-bar-fill" style="width:'+
+          Math.min(100, dok.ukupno ? Math.round(dok.jaka/dok.ukupno*100) : 0)+
+          '%;background:linear-gradient(90deg,#4ade80,#22c55e);"></div></div>',
+        '<button onclick="pred_subtabSwitch(\'dokazi\')" style="margin-top:.5rem;width:100%;font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.35);padding:.25rem;cursor:pointer;">Otvori Evidence Vault →</button>',
       '</div>',
-      // Finansije
       '<div class="ccc-block">',
-        '<div class="ccc-block-hd">💰 Finansije</div>',
-        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;">',
-          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#89c8ff;font-size:1rem;">'+(Math.round((bil.uneseno||0)/1000))+'k</div><div class="ccc-metric-lbl">Uneseno RSD</div></div>',
-          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#fbbf24;font-size:1rem;">'+(Math.round((bil.nenaplaceno||0)/1000))+'k</div><div class="ccc-metric-lbl">Nenaplaćeno</div></div>',
-          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#4ade80;font-size:1rem;">'+(Math.round((bil.naplaceno||0)/1000))+'k</div><div class="ccc-metric-lbl">Naplaćeno</div></div>',
+        '<div class="ccc-block-hd">💰 Finansije (RSD)</div>',
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-bottom:.5rem;">',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#89c8ff;font-size:1rem;">'+(Math.round((bil.uneseno||0)/1000)||0)+'k</div><div class="ccc-metric-lbl">Uneseno</div></div>',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#fbbf24;font-size:1rem;">'+(Math.round((bil.nenaplaceno||0)/1000)||0)+'k</div><div class="ccc-metric-lbl">Neplaćeno</div></div>',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#4ade80;font-size:1rem;">'+(Math.round((bil.naplaceno||0)/1000)||0)+'k</div><div class="ccc-metric-lbl">Naplaćeno</div></div>',
         '</div>',
-        '<div style="text-align:center;margin-top:.7rem;"><button onclick="pred_subtabSwitch(\'naplata\')" style="font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.1);border-radius:5px;color:rgba(255,255,255,.4);padding:.2rem .6rem;cursor:pointer;">Otvori Naplatu →</button></div>',
+        '<div class="health-bar-wrap"><div class="health-bar-fill" style="width:'+
+          (bil.uneseno ? Math.min(100,Math.round(bil.naplaceno/bil.uneseno*100)) : 0)+
+          '%;background:linear-gradient(90deg,#4ade80,#16a34a);"></div></div>',
+        '<button onclick="pred_subtabSwitch(\'naplata\')" style="margin-top:.5rem;width:100%;font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.35);padding:.25rem;cursor:pointer;">Otvori Naplatu →</button>',
       '</div>',
     '</div>',
-    // Rokovi + Aktivnosti grid
-    '<div class="ccc-grid">',
+
+    // ── ROKOVI + AKTIVNOSTI ────────────────────────────────────────────────
+    '<div class="ccc-grid" style="margin-bottom:.65rem;">',
       '<div class="ccc-block">',
         '<div class="ccc-block-hd">⏰ Predstojeći rokovi</div>',
         rokovi_html,
-        '<div style="text-align:center;margin-top:.5rem;"><button onclick="pred_subtabSwitch(\'rokovi\')" style="font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.1);border-radius:5px;color:rgba(255,255,255,.4);padding:.2rem .6rem;cursor:pointer;">Svi rokovi →</button></div>',
+        '<button onclick="pred_subtabSwitch(\'rokovi\')" style="margin-top:.5rem;width:100%;font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.35);padding:.25rem;cursor:pointer;">Svi rokovi →</button>',
       '</div>',
       '<div class="ccc-block">',
-        '<div class="ccc-block-hd">📋 Aktivnosti tima</div>',
+        '<div class="ccc-block-hd">📋 Aktivnosti</div>',
         akt_html,
-        '<div style="text-align:center;margin-top:.5rem;"><button onclick="pred_subtabSwitch(\'timeline\')" style="font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.1);border-radius:5px;color:rgba(255,255,255,.4);padding:.2rem .6rem;cursor:pointer;">Puna hronologija →</button></div>',
+        '<button onclick="pred_subtabSwitch(\'timeline\')" style="margin-top:.5rem;width:100%;font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.35);padding:.25rem;cursor:pointer;">Puna hronologija →</button>',
       '</div>',
     '</div>',
-    // Quick actions
-    '<div class="ccc-block" style="margin-top:.7rem;">',
-      '<div class="ccc-block-hd">⚡ Brze akcije</div>',
-      '<div style="display:flex;flex-wrap:wrap;gap:.5rem;">',
-        '<button onclick="pred_subtabSwitch(\'ai-analiza\')" style="padding:.35rem .8rem;background:rgba(74,168,255,.1);border:1px solid rgba(74,168,255,.25);border-radius:7px;color:#89c8ff;font-size:.75rem;cursor:pointer;">🧠 AI Analiza</button>',
-        '<button onclick="pred_subtabSwitch(\'strategija\')" style="padding:.35rem .8rem;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);border-radius:7px;color:#a78bfa;font-size:.75rem;cursor:pointer;">⚔️ Strategija</button>',
-        '<button onclick="pred_subtabSwitch(\'agenti\')" style="padding:.35rem .8rem;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);border-radius:7px;color:#818cf8;font-size:.75rem;cursor:pointer;">🤖 AI Agenti</button>',
-        '<button onclick="pred_subtabSwitch(\'graf\')" style="padding:.35rem .8rem;background:rgba(103,232,249,.1);border:1px solid rgba(103,232,249,.25);border-radius:7px;color:#67e8f9;font-size:.75rem;cursor:pointer;">🕸 Graf</button>',
-        '<button onclick="if(typeof billing_timerToggle===\'function\'){if(!_billingPredmetId)_billingPredmetId=activePredmetId;billing_timerToggle();}" style="padding:.35rem .8rem;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.25);border-radius:7px;color:#f0c040;font-size:.75rem;cursor:pointer;">⏱ Start Tajmer</button>',
-      '</div>',
+
+    // ── BRZE AKCIJE ───────────────────────────────────────────────────────
+    '<div style="display:flex;flex-wrap:wrap;gap:.4rem;">',
+      '<button onclick="pred_subtabSwitch(\'ai-analiza\')" class="smart-chip chip-blue">🧠 AI Analiza</button>',
+      '<button onclick="pred_subtabSwitch(\'strategija\')" class="smart-chip" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#a78bfa;">⚔️ Strategija</button>',
+      '<button onclick="pred_subtabSwitch(\'agenti\')" class="smart-chip" style="background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);color:#818cf8;">🤖 Agenti</button>',
+      '<button onclick="pred_subtabSwitch(\'dokumenti\')" class="smart-chip" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.55);">📁 Dokumenti</button>',
+      '<button onclick="if(typeof billing_timerToggle===\'function\'){if(!_billingPredmetId)_billingPredmetId=activePredmetId;billing_timerToggle();}" class="smart-chip" style="background:rgba(240,192,64,.1);border-color:rgba(240,192,64,.3);color:#f0c040;">⏱ Tajmer</button>',
+      '<button onclick="pred_subtabSwitch(\'graf\')" class="smart-chip" style="background:rgba(103,232,249,.08);border-color:rgba(103,232,249,.2);color:#67e8f9;">🕸 Graf</button>',
     '</div>',
   ].join('');
 }
