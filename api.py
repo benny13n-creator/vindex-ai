@@ -491,6 +491,11 @@ from routers.evidence             import router as evidence_router
 from routers.voice                import router as voice_router
 from routers.precedenti           import router as precedenti_router
 from routers.knowledge_graph      import router as knowledge_graph_router
+from routers.ccc                  import router as ccc_router
+from routers.conflict_check       import router as conflict_check_router
+from routers.matter_intel         import router as matter_intel_router
+from routers.outcome_intel        import router as outcome_intel_router
+from routers.multi_agent          import router as multi_agent_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -534,6 +539,11 @@ app.include_router(evidence_router)
 app.include_router(voice_router)
 app.include_router(precedenti_router)
 app.include_router(knowledge_graph_router)
+app.include_router(ccc_router)
+app.include_router(conflict_check_router)
+app.include_router(matter_intel_router)
+app.include_router(outcome_intel_router)
+app.include_router(multi_agent_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles

@@ -5476,6 +5476,59 @@ i[data-lucide] svg {
 .kg-link { stroke: rgba(255,255,255,.12); stroke-width: 1.5; fill: none; }
 .kg-link.strong { stroke: rgba(74,168,255,.35); stroke-width: 2; }
 
+/* ── Case Command Center ─────────────────────────────────────── */
+.ccc-grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+.ccc-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.7rem; }
+.ccc-block {
+  background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07);
+  border-radius:10px; padding:.85rem 1rem;
+}
+.ccc-block-hd {
+  font-size:.68rem; color:rgba(255,255,255,.4); text-transform:uppercase;
+  letter-spacing:.1em; margin-bottom:.6rem; display:flex; align-items:center; gap:.4rem;
+}
+.ccc-metric { text-align:center; padding:.5rem .3rem; }
+.ccc-metric-val { font-size:1.4rem; font-weight:800; line-height:1; }
+.ccc-metric-lbl { font-size:.62rem; color:rgba(255,255,255,.35); margin-top:.2rem; }
+.ccc-act-item {
+  display:flex; align-items:flex-start; gap:.5rem; padding:.35rem 0;
+  border-bottom:1px solid rgba(255,255,255,.04); font-size:.78rem;
+}
+.ccc-act-item:last-child { border-bottom:none; }
+.ccc-rok-item {
+  display:flex; align-items:center; gap:.5rem; padding:.32rem 0;
+  border-bottom:1px solid rgba(255,255,255,.04); font-size:.78rem;
+}
+.health-bar-wrap { height:6px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; margin:.4rem 0; }
+.health-bar-fill { height:100%; border-radius:3px; transition:width .6s ease; }
+
+/* ── Conflict Check ──────────────────────────────────────────── */
+.cc-modal-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+  z-index:3000; align-items:center; justify-content:center;
+}
+.cc-modal {
+  background:#0d1428; border:1px solid rgba(74,168,255,.25); border-radius:16px;
+  padding:2rem; width:min(580px,95vw); max-height:80vh; overflow-y:auto;
+}
+.cc-conflict-item {
+  padding:.6rem .8rem; border-radius:8px; margin-bottom:.4rem;
+  border:1px solid rgba(248,113,113,.2); background:rgba(248,113,113,.06);
+}
+.cc-clear { padding:1rem; background:rgba(74,222,128,.06); border:1px solid rgba(74,222,128,.2); border-radius:8px; color:#4ade80; }
+.cc-review { padding:1rem; background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.2); border-radius:8px; color:#fbbf24; }
+
+/* ── Multi-Agent ─────────────────────────────────────────────── */
+.agent-card {
+  background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
+  border-radius:12px; padding:1rem; cursor:pointer; transition:border-color .2s,background .2s;
+}
+.agent-card:hover { border-color:rgba(74,168,255,.4); background:rgba(74,168,255,.05); }
+.agent-card.active { border-color:rgba(74,168,255,.6); background:rgba(74,168,255,.08); }
+.agent-icon { font-size:1.6rem; margin-bottom:.4rem; }
+.agent-name { font-size:.82rem; font-weight:700; }
+.agent-desc { font-size:.72rem; color:rgba(255,255,255,.45); margin-top:.2rem; }
+
 .pred-dok-item {
   display: flex;
   align-items: center;
@@ -6298,6 +6351,7 @@ i[data-lucide] svg {
 
               <!-- ── Subtab Navigation ────────────────────────────────── -->
               <div class="pred-subtab-nav">
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('ccc',this)" style="background:linear-gradient(135deg,rgba(74,168,255,.18),rgba(167,139,250,.12));border-color:rgba(74,168,255,.4);color:#89c8ff;font-weight:700;">🎯 Komandni Centar</button>
                 <button class="pred-subtab-btn active" onclick="pred_subtabSwitch('pregled',this)">Pregled</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('dokumenti',this)">Dokumenti</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('timeline',this)">📅 Timeline</button>
@@ -6309,10 +6363,52 @@ i[data-lucide] svg {
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('naplata',this)">Naplata</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('komunikacija',this)">Komunikacija</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('saradnja',this)">Saradnja</button>
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('agenti',this)">🤖 Agenti</button>
               </div>
+
+              <!-- ── TAB: Case Command Center ─────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-ccc" style="display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">🎯 Komandni Centar Predmeta</div>
+                  <button onclick="ccc_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(74,168,255,.3);border-radius:6px;background:rgba(74,168,255,.08);color:#89c8ff;cursor:pointer;">↺ Osveži</button>
+                </div>
+                <div id="ccc-container">
+                  <div style="color:rgba(255,255,255,.3);font-size:.8rem;text-align:center;padding:2rem;">Učitavam komandni centar...</div>
+                </div>
+              </div><!-- /pred-pane-ccc -->
 
               <!-- ── TAB 1: Pregled ───────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-pregled">
+                <!-- Matter Intelligence Bar — auto-učitava se pri otvaranju predmeta -->
+                <div id="matter-intel-bar" style="display:none;margin-bottom:.7rem;padding:.65rem .8rem;background:linear-gradient(135deg,rgba(10,15,30,.8),rgba(17,24,39,.9));border:1px solid rgba(74,168,255,.15);border-radius:10px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                    <span style="font-size:.68rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">⚡ Matter Intelligence</span>
+                    <button onclick="matter_intel_load()" style="font-size:.65rem;background:none;border:none;color:rgba(74,168,255,.6);cursor:pointer;">↺</button>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;">
+                    <div style="text-align:center;">
+                      <div id="mi-snaga" style="font-size:.9rem;font-weight:700;color:#4ade80;">—</div>
+                      <div style="font-size:.62rem;color:rgba(255,255,255,.35);">Snaga dokaza</div>
+                    </div>
+                    <div style="text-align:center;">
+                      <div id="mi-rizik" style="font-size:.9rem;font-weight:700;color:#fbbf24;">—</div>
+                      <div style="font-size:.62rem;color:rgba(255,255,255,.35);">Procesni rizik</div>
+                    </div>
+                    <div style="text-align:center;">
+                      <div id="mi-nedostaje" style="font-size:.9rem;font-weight:700;color:#f87171;">—</div>
+                      <div style="font-size:.62rem;color:rgba(255,255,255,.35);">Nedostaje dokaza</div>
+                    </div>
+                    <div style="text-align:center;">
+                      <div id="mi-rokovi" style="font-size:.9rem;font-weight:700;color:#89c8ff;">—</div>
+                      <div style="font-size:.62rem;color:rgba(255,255,255,.35);">Predstojeći rokovi</div>
+                    </div>
+                    <div style="text-align:center;">
+                      <div id="mi-health" style="font-size:.9rem;font-weight:700;color:#a78bfa;">—%</div>
+                      <div style="font-size:.62rem;color:rgba(255,255,255,.35);">Health score</div>
+                    </div>
+                  </div>
+                  <div id="mi-sledeca" style="margin-top:.55rem;padding:.45rem .6rem;background:rgba(255,255,255,.03);border-radius:7px;font-size:.73rem;color:rgba(255,255,255,.55);line-height:1.4;display:none;"></div>
+                </div>
                 <div id="pred-status-panel" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin:0.55rem 0 0.6rem;padding:0.7rem;background:rgba(255,255,255,0.04);border-radius:8px;">
   <div style="display:flex;flex-direction:column;gap:2px;">
     <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Tužilac</span>
@@ -6692,6 +6788,28 @@ i[data-lucide] svg {
                   <div class="sfc-arrow">›</div>
                 </div>
 
+                <!-- KATEGORIJA: INTELIGENCIJA KANCELARIJE -->
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.28);margin-bottom:.4rem;margin-top:.6rem;">Inteligencija kancelarije</div>
+                <div class="strat-feature-card" onclick="outcome_intel_panel_show()" id="outcome-intel-card" style="margin-bottom:.4rem;">
+                  <div class="sfc-icon">📈</div>
+                  <div class="sfc-body">
+                    <div class="sfc-title">Outcome Intelligence <span class="pro-badge">PRO</span></div>
+                    <div class="sfc-desc">Statistička analiza svih zatvorenih predmeta kancelarije — faktori uspeha, faktori rizika, preporuka na osnovu istorije.</div>
+                  </div>
+                  <div class="sfc-arrow">›</div>
+                </div>
+
+                <!-- Outcome Intel rezultat panel -->
+                <div id="outcome-intel-panel" style="display:none;margin-top:.5rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.9rem;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+                    <span style="font-size:.72rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;">📈 Outcome Intelligence</span>
+                    <button onclick="document.getElementById('outcome-intel-panel').style.display='none';" style="background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:.8rem;">✕</button>
+                  </div>
+                  <div id="outcome-intel-loading" style="color:rgba(255,255,255,.3);font-size:.8rem;">Analiziram istoriju kancelarije...</div>
+                  <div id="outcome-intel-result" style="display:none;font-size:.82rem;white-space:pre-wrap;line-height:1.6;color:#c7d7f0;"></div>
+                  <div id="outcome-intel-stats" style="display:none;margin-top:.7rem;display:flex;gap:1rem;flex-wrap:wrap;"></div>
+                </div>
+
               </div><!-- /pred-pane-strategija -->
 
               <!-- ── TAB 5: Rokovi ─────────────────────────────────────── -->
@@ -6907,6 +7025,67 @@ i[data-lucide] svg {
                 </div>
                 <div id="kg-tooltip" style="display:none;position:absolute;background:#1a1f2e;border:1px solid rgba(74,168,255,.3);border-radius:7px;padding:.4rem .65rem;font-size:.72rem;color:#e6edf3;pointer-events:none;z-index:1000;max-width:200px;"></div>
               </div><!-- /pred-pane-graf -->
+
+              <!-- ── TAB: Agenti ──────────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-agenti" style="display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
+                  <div>
+                    <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">🤖 Multi-Agent Centar</div>
+                    <div style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.1rem;">6 specijalizovanih AI agenata — izaberi ili opi šta treba</div>
+                  </div>
+                </div>
+
+                <!-- Agent grid -->
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1rem;" id="agent-cards-grid">
+                  <div class="agent-card" onclick="agent_select('intake',this)">
+                    <div class="agent-icon">📥</div>
+                    <div class="agent-name">Intake Agent</div>
+                    <div class="agent-desc">Prima i analizira inicijalne informacije od klijenta</div>
+                  </div>
+                  <div class="agent-card" onclick="agent_select('research',this)">
+                    <div class="agent-icon">🔍</div>
+                    <div class="agent-name">Research Agent</div>
+                    <div class="agent-desc">Pretražuje relevantnu sudsku praksu i zakone</div>
+                  </div>
+                  <div class="agent-card" onclick="agent_select('drafting',this)">
+                    <div class="agent-icon">✍️</div>
+                    <div class="agent-name">Drafting Agent</div>
+                    <div class="agent-desc">Generiše pravne dokumente i podneske</div>
+                  </div>
+                  <div class="agent-card" onclick="agent_select('litigation',this)">
+                    <div class="agent-icon">⚔️</div>
+                    <div class="agent-name">Litigation Agent</div>
+                    <div class="agent-desc">Napada argumentaciju, pronalazi slabosti</div>
+                  </div>
+                  <div class="agent-card" onclick="agent_select('billing',this)">
+                    <div class="agent-icon">💰</div>
+                    <div class="agent-name">Billing Agent</div>
+                    <div class="agent-desc">Saveti o naplati i AKS tarifi</div>
+                  </div>
+                  <div class="agent-card" onclick="agent_select('deadline',this)">
+                    <div class="agent-icon">⏰</div>
+                    <div class="agent-name">Deadline Agent</div>
+                    <div class="agent-desc">Prati i upravlja procesnim rokovima</div>
+                  </div>
+                </div>
+
+                <!-- Task input -->
+                <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:.8rem;">
+                  <div id="agent-selected-badge" style="display:none;margin-bottom:.5rem;padding:.3rem .7rem;background:rgba(74,168,255,.1);border:1px solid rgba(74,168,255,.25);border-radius:6px;font-size:.75rem;color:#89c8ff;"></div>
+                  <textarea id="agent-task-input" placeholder="Opišite šta trebate od agenta... (ili izaberite agenta gore, pa unesite zadatak)" style="width:100%;background:transparent;border:none;color:#e2e8f0;font-size:.85rem;resize:vertical;min-height:80px;outline:none;font-family:inherit;"></textarea>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.5rem;">
+                    <span style="font-size:.7rem;color:rgba(255,255,255,.25);">Bez agenta = automatski izbor najprikladnijeg</span>
+                    <button onclick="agent_run()" style="padding:.45rem 1.2rem;background:linear-gradient(135deg,#4aa8ff,#6366f1);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;">▶ Pokreni agenta</button>
+                  </div>
+                </div>
+
+                <!-- Result -->
+                <div id="agent-result-wrap" style="display:none;margin-top:.8rem;">
+                  <div id="agent-result-badge" style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.4rem;"></div>
+                  <div id="agent-result" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.9rem;font-size:.83rem;white-space:pre-wrap;line-height:1.6;color:#c7d7f0;max-height:320px;overflow-y:auto;"></div>
+                </div>
+                <div id="agent-loading" style="display:none;text-align:center;padding:1.5rem;color:rgba(74,168,255,.6);font-size:.82rem;">⏳ Agent analizira...</div>
+              </div><!-- /pred-pane-agenti -->
 
               <!-- ── TAB: Timeline ─────────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-timeline" style="display:none;">
@@ -14245,7 +14424,7 @@ async function pred_bulkAkcija(akcija) {
 }
 
 function pred_subtabSwitch(pane, btn) {
-  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi'];
+  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','ccc','agenti'];
   if (VALID.indexOf(pane) === -1) pane = 'pregled';
   document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
   document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -14265,6 +14444,7 @@ function pred_subtabSwitch(pane, btn) {
   if (pane === 'timeline' && activePredmetId) timeline_load();
   if (pane === 'dokazi'   && activePredmetId) evidence_load();
   if (pane === 'graf'     && activePredmetId) kg_load();
+  if (pane === 'ccc'      && activePredmetId) ccc_load();
 }
 
 function pred_openStrat(modul) {
@@ -14352,6 +14532,8 @@ function pred_select(id) {
   var targetSubtab = _aicPendingSubtab || 'pregled';
   _aicPendingSubtab = null;
   pred_subtabSwitch(targetSubtab);
+  // Auto-load Matter Intelligence bar
+  setTimeout(function(){ matter_intel_load(); }, 300);
   var terminal = document.querySelector('.terminal');
   if (terminal && window.innerWidth > 900) terminal.style.overflow = 'visible';
 }
@@ -19782,6 +19964,285 @@ function brain_load() {
 }
 
 // Timeline i Evidence Vault se lazy-loaduju direktno iz pred_subtabSwitch.
+
+// ═══════════════════════════════════════════════════════════════
+// MATTER INTELLIGENCE BAR
+// ═══════════════════════════════════════════════════════════════
+function matter_intel_load() {
+  if (!activePredmetId || !currentSession) return;
+  var bar = document.getElementById('matter-intel-bar');
+  if (!bar) return;
+
+  fetch('/api/matter-intel/predmeti/' + activePredmetId, {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    bar.style.display = 'block';
+    var rizikColor = d.rizik_boja === 'green' ? '#4ade80' : d.rizik_boja === 'red' ? '#f87171' : '#fbbf24';
+    var snagaColor = d.snaga_dokaza === 'Jaka' ? '#4ade80' : d.snaga_dokaza === 'Slaba' ? '#f87171' : '#fbbf24';
+
+    document.getElementById('mi-snaga').textContent    = d.snaga_dokaza || '—';
+    document.getElementById('mi-snaga').style.color    = snagaColor;
+    document.getElementById('mi-rizik').textContent    = d.procesni_rizik || '—';
+    document.getElementById('mi-rizik').style.color    = rizikColor;
+    document.getElementById('mi-nedostaje').textContent = (d.nedostajuci_count || 0) + ' tip(a)';
+    document.getElementById('mi-rokovi').textContent   = (d.predstojeći_rokovi || 0) + ' / 30d';
+    document.getElementById('mi-health').textContent   = (d.health_score || 0) + '%';
+
+    var sl = document.getElementById('mi-sledeca');
+    if (d.sledeca_radnja && sl) {
+      sl.style.display = 'block';
+      sl.innerHTML = '💡 <b>Preporučena radnja:</b> ' + _htmlEsc(d.sledeca_radnja.replace('SLEDEĆA RADNJA: ','').split('\n')[0]);
+    }
+  }).catch(function(e){ console.warn('[MI] load greška:', e); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CASE COMMAND CENTER
+// ═══════════════════════════════════════════════════════════════
+function ccc_load() {
+  if (!activePredmetId || !currentSession) return;
+  var container = document.getElementById('ccc-container');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(74,168,255,.5);">⏳ Učitavam komandni centar...</div>';
+
+  fetch('/api/ccc/predmeti/' + activePredmetId, {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    _ccc_render(container, d);
+  }).catch(function(e){
+    container.innerHTML = '<div style="padding:1rem;color:#f87171;">Greška: ' + e.message + '</div>';
+  });
+}
+
+function _ccc_render(el, d) {
+  var p   = d.predmet || {};
+  var dok = d.dok_stats || {};
+  var bil = d.billing   || {};
+
+  // Health ring color
+  var hs = d.health_score || 0;
+  var hsColor = hs >= 70 ? '#4ade80' : hs >= 45 ? '#fbbf24' : '#f87171';
+
+  var klijentiStr = (d.klijenti || []).map(function(k){ return k.ime + (k.uloga ? ' <span style="color:rgba(255,255,255,.35);font-size:.7rem;">('+k.uloga+')</span>':''); }).join(', ') || '—';
+
+  var rokovi_html = '';
+  (d.rokovi || []).slice(0,5).forEach(function(r) {
+    var dana = r.dana_ostalo;
+    var boja = dana === null ? '#aaa' : dana < 0 ? '#f87171' : dana <= 7 ? '#f87171' : dana <= 14 ? '#fbbf24' : '#4ade80';
+    var tag  = dana === null ? '?' : dana < 0 ? 'Istekao' : dana === 0 ? 'Danas' : dana + 'd';
+    rokovi_html += '<div class="ccc-rok-item"><span style="color:'+boja+';font-weight:700;min-width:44px;font-size:.78rem;">'+tag+'</span><span style="flex:1;font-size:.78rem;">'+_htmlEsc(r.naziv||'Rok')+'</span></div>';
+  });
+  if (!rokovi_html) rokovi_html = '<div style="color:rgba(255,255,255,.25);font-size:.78rem;">Nema evidentiranih rokova</div>';
+
+  var akt_html = '';
+  (d.aktivnosti || []).slice(0,5).forEach(function(a) {
+    akt_html += '<div class="ccc-act-item"><span style="opacity:.5;flex-shrink:0;">'+(a.datum||'').slice(0,10)+'</span><span style="flex:1;">'+_htmlEsc((a.dogadjaj||'').slice(0,70))+'</span></div>';
+  });
+  if (!akt_html) akt_html = '<div style="color:rgba(255,255,255,.25);font-size:.78rem;">Nema aktivnosti</div>';
+
+  el.innerHTML = [
+    // Header bar
+    '<div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem;padding:.7rem .9rem;background:rgba(74,168,255,.06);border:1px solid rgba(74,168,255,.15);border-radius:10px;">',
+      '<div style="flex:1;">',
+        '<div style="font-size:1rem;font-weight:700;">'+_htmlEsc(p.naziv||'Predmet')+'</div>',
+        '<div style="font-size:.75rem;color:rgba(255,255,255,.45);margin-top:.15rem;">'+_htmlEsc(klijentiStr)+'</div>',
+      '</div>',
+      '<div style="text-align:center;flex-shrink:0;">',
+        '<div style="font-size:1.6rem;font-weight:800;color:'+hsColor+';">'+hs+'</div>',
+        '<div style="font-size:.6rem;color:rgba(255,255,255,.3);">Health Score</div>',
+      '</div>',
+    '</div>',
+    // Main grid: 2 columns top
+    '<div class="ccc-grid" style="margin-bottom:.7rem;">',
+      // Dokazi + Finansije
+      '<div class="ccc-block">',
+        '<div class="ccc-block-hd">🔒 Dokazi</div>',
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;">',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#4ade80;">'+(dok.jaka||0)+'</div><div class="ccc-metric-lbl">Jaki</div></div>',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#fbbf24;">'+(dok.srednja||0)+'</div><div class="ccc-metric-lbl">Srednji</div></div>',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#f87171;">'+(dok.slaba||0)+'</div><div class="ccc-metric-lbl">Slabi</div></div>',
+        '</div>',
+        '<div style="margin-top:.6rem;"><div class="health-bar-wrap"><div class="health-bar-fill" style="width:'+Math.min(100,((dok.jaka||0)/(Math.max(1,dok.ukupno||1))*100)).toFixed(0)+'%;background:#4ade80;"></div></div></div>',
+        '<div style="text-align:center;margin-top:.4rem;"><button onclick="pred_subtabSwitch(\'dokazi\')" style="font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.1);border-radius:5px;color:rgba(255,255,255,.4);padding:.2rem .6rem;cursor:pointer;">Otvori Evidence Vault →</button></div>',
+      '</div>',
+      // Finansije
+      '<div class="ccc-block">',
+        '<div class="ccc-block-hd">💰 Finansije</div>',
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;">',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#89c8ff;font-size:1rem;">'+(Math.round((bil.uneseno||0)/1000))+'k</div><div class="ccc-metric-lbl">Uneseno RSD</div></div>',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#fbbf24;font-size:1rem;">'+(Math.round((bil.nenaplaceno||0)/1000))+'k</div><div class="ccc-metric-lbl">Nenaplaćeno</div></div>',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#4ade80;font-size:1rem;">'+(Math.round((bil.naplaceno||0)/1000))+'k</div><div class="ccc-metric-lbl">Naplaćeno</div></div>',
+        '</div>',
+        '<div style="text-align:center;margin-top:.7rem;"><button onclick="pred_subtabSwitch(\'naplata\')" style="font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.1);border-radius:5px;color:rgba(255,255,255,.4);padding:.2rem .6rem;cursor:pointer;">Otvori Naplatu →</button></div>',
+      '</div>',
+    '</div>',
+    // Rokovi + Aktivnosti grid
+    '<div class="ccc-grid">',
+      '<div class="ccc-block">',
+        '<div class="ccc-block-hd">⏰ Predstojeći rokovi</div>',
+        rokovi_html,
+        '<div style="text-align:center;margin-top:.5rem;"><button onclick="pred_subtabSwitch(\'rokovi\')" style="font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.1);border-radius:5px;color:rgba(255,255,255,.4);padding:.2rem .6rem;cursor:pointer;">Svi rokovi →</button></div>',
+      '</div>',
+      '<div class="ccc-block">',
+        '<div class="ccc-block-hd">📋 Aktivnosti tima</div>',
+        akt_html,
+        '<div style="text-align:center;margin-top:.5rem;"><button onclick="pred_subtabSwitch(\'timeline\')" style="font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.1);border-radius:5px;color:rgba(255,255,255,.4);padding:.2rem .6rem;cursor:pointer;">Puna hronologija →</button></div>',
+      '</div>',
+    '</div>',
+    // Quick actions
+    '<div class="ccc-block" style="margin-top:.7rem;">',
+      '<div class="ccc-block-hd">⚡ Brze akcije</div>',
+      '<div style="display:flex;flex-wrap:wrap;gap:.5rem;">',
+        '<button onclick="pred_subtabSwitch(\'ai-analiza\')" style="padding:.35rem .8rem;background:rgba(74,168,255,.1);border:1px solid rgba(74,168,255,.25);border-radius:7px;color:#89c8ff;font-size:.75rem;cursor:pointer;">🧠 AI Analiza</button>',
+        '<button onclick="pred_subtabSwitch(\'strategija\')" style="padding:.35rem .8rem;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);border-radius:7px;color:#a78bfa;font-size:.75rem;cursor:pointer;">⚔️ Strategija</button>',
+        '<button onclick="pred_subtabSwitch(\'agenti\')" style="padding:.35rem .8rem;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);border-radius:7px;color:#818cf8;font-size:.75rem;cursor:pointer;">🤖 AI Agenti</button>',
+        '<button onclick="pred_subtabSwitch(\'graf\')" style="padding:.35rem .8rem;background:rgba(103,232,249,.1);border:1px solid rgba(103,232,249,.25);border-radius:7px;color:#67e8f9;font-size:.75rem;cursor:pointer;">🕸 Graf</button>',
+        '<button onclick="if(typeof billing_timerToggle===\'function\'){if(!_billingPredmetId)_billingPredmetId=activePredmetId;billing_timerToggle();}" style="padding:.35rem .8rem;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.25);border-radius:7px;color:#f0c040;font-size:.75rem;cursor:pointer;">⏱ Start Tajmer</button>',
+      '</div>',
+    '</div>',
+  ].join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OUTCOME INTELLIGENCE
+// ═══════════════════════════════════════════════════════════════
+function outcome_intel_panel_show() {
+  var panel = document.getElementById('outcome-intel-panel');
+  if (!panel) return;
+  panel.style.display = 'block';
+  var loading = document.getElementById('outcome-intel-loading');
+  var result  = document.getElementById('outcome-intel-result');
+  var stats   = document.getElementById('outcome-intel-stats');
+  if (loading) loading.style.display = 'block';
+  if (result)  result.style.display  = 'none';
+  if (stats)   stats.style.display   = 'none';
+
+  if (!activePredmetId || !currentSession) {
+    if (loading) loading.textContent = 'Otvorite predmet da biste videli analizu.';
+    return;
+  }
+
+  fetch('/api/outcome-intel/predmeti/' + activePredmetId, {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (loading) loading.style.display = 'none';
+    if (result) {
+      result.style.display = 'block';
+      result.textContent = d.analiza || 'Nema podataka.';
+    }
+    if (stats && d.ukupno_predmeta) {
+      var shtml = '';
+      shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:6px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:#89c8ff;">'+d.ukupno_predmeta+'</div><div style="color:rgba(255,255,255,.4);">Ukupno predmeta</div></div>';
+      shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:6px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:#4ade80;">'+d.zatvoreni+'</div><div style="color:rgba(255,255,255,.4);">Zatvorenih</div></div>';
+      if (d.avg_vrednost) {
+        shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:6px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:#f0c040;">'+Math.round(d.avg_vrednost/1000)+'k</div><div style="color:rgba(255,255,255,.4);">Prosečna vrednost</div></div>';
+      }
+      stats.innerHTML = shtml;
+      stats.style.display = 'flex';
+      stats.style.gap = '.5rem';
+    }
+  }).catch(function(e) {
+    if (loading) loading.textContent = 'Greška: ' + e.message;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONFLICT CHECK — ažuriran da zove novi endpoint
+// ═══════════════════════════════════════════════════════════════
+async function crmPokreniKonfliktNovi() {
+  var ime_prez = ((document.getElementById('cf-ime')||{}).value||'').trim() + ' ' +
+                 ((document.getElementById('cf-prezime')||{}).value||'').trim();
+  ime_prez = ime_prez.trim();
+  var firma = ((document.getElementById('cf-firma')||{}).value||'').trim();
+  if (!ime_prez && !firma) { showToast('Unesite ime ili naziv firme za proveru', 'warn'); return; }
+  var rez = document.getElementById('cf-rezultat');
+  if (rez) rez.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:.82rem;">⏳ Proveravam...</div>';
+  try {
+    var r = await fetch('/api/conflict-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ ime_prezime: ime_prez || null, firma: firma || null }),
+    });
+    var d = await r.json();
+    var html = '';
+    if (d.status === 'clear') {
+      html = '<div class="cc-clear">✅ <b>Nema konflikta</b><br><span style="font-size:.8rem;">'+_htmlEsc(d.poruka)+'</span></div>';
+    } else if (d.status === 'conflict') {
+      html = '<div class="cc-modal" style="background:rgba(248,113,113,.06);border-color:rgba(248,113,113,.3);border-radius:8px;padding:.8rem;margin-bottom:.5rem;">⛔ <b style="color:#f87171;">KONFLIKT INTERESA!</b><br><span style="font-size:.8rem;color:rgba(255,255,255,.6);">'+_htmlEsc(d.poruka)+'</span></div>';
+    } else {
+      html = '<div class="cc-review">⚠️ <b>Preporučena provera</b><br><span style="font-size:.8rem;">'+_htmlEsc(d.poruka)+'</span></div>';
+    }
+    if (d.konflikti && d.konflikti.length) {
+      html += '<div style="margin-top:.6rem;font-size:.72rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;">Pronađeni predmeti:</div>';
+      d.konflikti.forEach(function(k) {
+        var boja = k.tip_konflikta === 'tuzilac' || k.tip_konflikta === 'tuzeni' ? '#f87171' : '#fbbf24';
+        html += '<div class="cc-conflict-item"><div style="font-size:.78rem;font-weight:600;color:'+boja+';">'+_htmlEsc(k.predmet_naziv||'')+'</div>';
+        html += '<div style="font-size:.72rem;color:rgba(255,255,255,.45);">'+_htmlEsc(k.opis||'')+'</div>';
+        html += '<div style="font-size:.68rem;color:rgba(255,255,255,.3);margin-top:.2rem;">Status: '+_htmlEsc(k.predmet_status||'')+'</div></div>';
+      });
+    }
+    if (rez) rez.innerHTML = html;
+  } catch(e) {
+    if (rez) rez.innerHTML = '<div style="color:#f87171;font-size:.82rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
+}
+
+// Override stare funkcije sa novom
+window.crmPokreniKonflikt = crmPokreniKonfliktNovi;
+
+// ═══════════════════════════════════════════════════════════════
+// MULTI-AGENT CENTAR
+// ═══════════════════════════════════════════════════════════════
+var _selectedAgent = null;
+
+function agent_select(agentId, cardEl) {
+  _selectedAgent = agentId;
+  document.querySelectorAll('.agent-card').forEach(function(c){ c.classList.remove('active'); });
+  if (cardEl) cardEl.classList.add('active');
+  var badge = document.getElementById('agent-selected-badge');
+  var icons = {'intake':'📥','research':'🔍','drafting':'✍️','litigation':'⚔️','billing':'💰','deadline':'⏰'};
+  var names = {'intake':'Intake Agent','research':'Research Agent','drafting':'Drafting Agent','litigation':'Litigation Agent','billing':'Billing Agent','deadline':'Deadline Agent'};
+  if (badge) {
+    badge.style.display = 'block';
+    badge.textContent   = (icons[agentId]||'🤖') + ' ' + (names[agentId]||agentId) + ' — aktivan';
+  }
+}
+
+async function agent_run() {
+  var task = (document.getElementById('agent-task-input')||{}).value || '';
+  task = task.trim();
+  if (!task) { showToast('Unesite zadatak za agenta', 'warn'); return; }
+  if (!currentSession) { showToast('Prijavite se', 'warn'); return; }
+
+  var loading = document.getElementById('agent-loading');
+  var wrap    = document.getElementById('agent-result-wrap');
+  var result  = document.getElementById('agent-result');
+  var badge   = document.getElementById('agent-result-badge');
+  if (loading) loading.style.display = 'block';
+  if (wrap)    wrap.style.display    = 'none';
+
+  try {
+    var body = { task: task };
+    if (_selectedAgent)  body.agent      = _selectedAgent;
+    if (activePredmetId) body.predmet_id = activePredmetId;
+
+    var r = await fetch('/api/agents/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify(body),
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail || 'Greška', 'err'); return; }
+
+    if (loading) loading.style.display = 'none';
+    if (badge)   badge.textContent = (d.ikona||'🤖') + ' ' + (d.naziv||d.agent) + ' odgovorio:';
+    if (result)  result.textContent = d.odgovor || '—';
+    if (wrap)    wrap.style.display = 'block';
+  } catch(e) {
+    if (loading) loading.style.display = 'none';
+    showToast('Greška: ' + e.message, 'err');
+  }
+}
 
 // ─── Knowledge Graph ──────────────────────────────────────────────────────────
 var _kg_loaded = false;
