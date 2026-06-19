@@ -5452,6 +5452,30 @@ i[data-lucide] svg {
   border-color: rgba(74,168,255,0.3);
   color: #89c8ff;
 }
+/* ── Strategy Feature Cards ─────────────────────────────────── */
+.strat-feature-card {
+  display: flex; align-items: flex-start; gap: .7rem;
+  padding: .6rem .75rem; border-radius: 10px; cursor: pointer;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
+  transition: background .18s, border-color .18s;
+}
+.strat-feature-card:hover {
+  background: rgba(74,168,255,.07); border-color: rgba(74,168,255,.22);
+}
+.sfc-icon { font-size: 1.15rem; flex-shrink: 0; margin-top: .05rem; }
+.sfc-body { flex: 1; min-width: 0; }
+.sfc-title { font-size: .78rem; font-weight: 600; color: rgba(255,255,255,.88); margin-bottom: .18rem; }
+.sfc-desc  { font-size: .7rem; color: rgba(255,255,255,.38); line-height: 1.5; }
+.sfc-arrow { font-size: 1rem; color: rgba(255,255,255,.2); flex-shrink: 0; margin-top: .1rem; }
+.strat-feature-card:hover .sfc-arrow { color: #89c8ff; }
+
+/* ── Knowledge Graph ────────────────────────────────────────── */
+.kg-node { cursor: pointer; transition: opacity .18s; }
+.kg-node:hover { opacity: .8; }
+.kg-node circle { transition: r .18s; }
+.kg-link { stroke: rgba(255,255,255,.12); stroke-width: 1.5; fill: none; }
+.kg-link.strong { stroke: rgba(74,168,255,.35); stroke-width: 2; }
+
 .pred-dok-item {
   display: flex;
   align-items: center;
@@ -6278,6 +6302,7 @@ i[data-lucide] svg {
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('dokumenti',this)">Dokumenti</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('timeline',this)">📅 Timeline</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('dokazi',this)">🔒 Dokazi</button>
+                <button class="pred-subtab-btn" onclick="pred_subtabSwitch('graf',this)">🕸 Graf</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('ai-analiza',this)">AI Analiza</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('strategija',this)">Strategija</button>
                 <button class="pred-subtab-btn" onclick="pred_subtabSwitch('rokovi',this)">Rokovi</button>
@@ -6575,31 +6600,98 @@ i[data-lucide] svg {
 
               <!-- ── TAB 4: Strategija ─────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-strategija" style="display:none;">
-                <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin:0.4rem 0 0.75rem;line-height:1.55;">Procesna strategija u kontekstu predmeta. Predmet je aktivan — AI alati rade sa ovim predmetom kao kontekstom.</div>
-                <div class="pred-ai-tool-links">
-                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('red_team')">
-                    <i data-lucide="target" style="width:16px;height:16px;flex-shrink:0;"></i>Red Team analiza
-                  </button>
-                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('litigation')">
-                    <i data-lucide="scale" style="width:16px;height:16px;flex-shrink:0;"></i>Litigation Simulator
-                  </button>
-                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('sudija')">
-                    <i data-lucide="gavel" style="width:16px;height:16px;flex-shrink:0;"></i>Procena ishoda predmeta
-                  </button>
-                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('sudija_v2')">
-                    <i data-lucide="users" style="width:16px;height:16px;flex-shrink:0;"></i>Simulacija sudskog postupka
-                  </button>
-                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('due_diligence')">
-                    <i data-lucide="clipboard-check" style="width:16px;height:16px;flex-shrink:0;"></i>Due Diligence
-                  </button>
-                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('revizor')">
-                    <i data-lucide="file-pen" style="width:16px;height:16px;flex-shrink:0;"></i>Revizija dokumenta
-                  </button>
-                  <button class="pred-ai-tool-btn" onclick="pred_openStrat('witness')">
-                    <i data-lucide="users" style="width:16px;height:16px;flex-shrink:0;"></i>Witness Analyzer
-                  </button>
+                <div style="font-size:0.72rem;color:rgba(255,255,255,0.32);margin:.2rem 0 .85rem;line-height:1.5;">Svi alati rade u kontekstu ovog predmeta. AI analizira vaše dokumente, činjenice i stranke automatski.</div>
+
+                <!-- KATEGORIJA: ANALIZA RIZIKA -->
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.28);margin-bottom:.4rem;">Analiza i procena</div>
+                <div style="display:grid;gap:.45rem;margin-bottom:.85rem;">
+                  <div class="strat-feature-card" onclick="pred_openStrat('red_team')">
+                    <div class="sfc-icon">🎯</div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Red Team analiza <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">AI preuzima ulogu protivničkog advokata i napada vašu argumentaciju. Otkriva slabe tačke pre suđenja.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" onclick="pred_openStrat('kompletna_analiza')">
+                    <div class="sfc-icon">🔬</div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Kompletna analiza predmeta <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Sveobuhvatna pravna analiza: osnov, dokazi, procesni rizici, strategija, procena ishoda — sve u jednom izveštaju.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
                 </div>
-                <div style="font-size:0.62rem;color:rgba(255,255,255,0.22);margin-top:0.6rem;">Zahteva PRO licencu.</div>
+
+                <!-- KATEGORIJA: SIMULACIJA SUDA -->
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.28);margin-bottom:.4rem;">Simulacija suda</div>
+                <div style="display:grid;gap:.45rem;margin-bottom:.85rem;">
+                  <div class="strat-feature-card" onclick="pred_openStrat('sudija')">
+                    <div class="sfc-icon">⚖️</div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">AI Sudija — procena ishoda <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">AI simulira sudijsku odluku na osnovu vaših argumenata, dokaza i relevantne prakse. Dobijate obrazloženu presudu.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" onclick="pred_openStrat('sudija_v2')">
+                    <div class="sfc-icon">🏛️</div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Simulacija sudskog postupka <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Detaljna simulacija celog postupka: pitanja suda, argumenti protivnika, replika. Priprema za svaki scenario.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" onclick="pred_openStrat('litigation')">
+                    <div class="sfc-icon">⚡</div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Litigation Simulator <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Kompletna simulacija parničnog postupka od tužbe do presude. Identifikuje procesne zamke i prilike.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                </div>
+
+                <!-- KATEGORIJA: DOKUMENTI I SVEDOCI -->
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.28);margin-bottom:.4rem;">Dokumenti i svedoci</div>
+                <div style="display:grid;gap:.45rem;margin-bottom:.85rem;">
+                  <div class="strat-feature-card" onclick="pred_openStrat('witness')">
+                    <div class="sfc-icon">👤</div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Witness Analyzer <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Analizira iskaze svedoka, otkriva kontradikcije, predlaže pitanja za unakrsno ispitivanje.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" onclick="pred_openStrat('revizor')">
+                    <div class="sfc-icon">📋</div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Revizija dokumenta <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">AI čita vaš podnesak ili ugovor i daje konkretne sugestije za poboljšanje — pravne i stilske.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" onclick="pred_openStrat('due_diligence')">
+                    <div class="sfc-icon">🔍</div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Due Diligence <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Sistemska provera pravnih rizika pre preuzimanja, investicije ili ulaganja u predmet.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                </div>
+
+                <!-- KATEGORIJA: PRIPREMA ZA ROČIŠTE -->
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.28);margin-bottom:.4rem;">Priprema za ročište</div>
+                <div class="strat-feature-card" onclick="pred_subtabSwitch('rokovi')" style="margin-bottom:.85rem;">
+                  <div class="sfc-icon">🎯</div>
+                  <div class="sfc-body">
+                    <div class="sfc-title">Hearing Command Center <span class="pro-badge">PRO</span></div>
+                    <div class="sfc-desc">Borbeni brifing pred ročište: teret dokazivanja, nedostajući dokazi, analiza svedoka, procesni rizici. Score pripremljenosti 0-100.</div>
+                  </div>
+                  <div class="sfc-arrow">›</div>
+                </div>
+
               </div><!-- /pred-pane-strategija -->
 
               <!-- ── TAB 5: Rokovi ─────────────────────────────────────── -->
@@ -6625,6 +6717,30 @@ i[data-lucide] svg {
                       <button onclick="lanac_kalkulisi()" style="padding:0 0.9rem;background:rgba(74,168,255,0.12);border:1px solid rgba(74,168,255,0.25);border-radius:7px;color:#89c8ff;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Izračunaj</button>
                     </div>
                     <div id="lanac-result"></div>
+                  </div>
+                </div>
+
+                <!-- ── Hearing Command Center (premešten ovde) ────────── -->
+                <div style="margin-top:.9rem;">
+                  <div style="font-size:.72rem;font-weight:700;color:rgba(139,92,246,.85);margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem;">
+                    🎯 Hearing Command Center <span class="pro-badge">PRO</span>
+                  </div>
+                  <div style="font-size:.7rem;color:rgba(255,255,255,.32);margin-bottom:.5rem;line-height:1.5;">Borbeni brifing pred ročište: teret dokazivanja, nedostajući dokazi, analiza svedoka, procesni rizici i score pripremljenosti 0-100.</div>
+                  <div id="hcc-panel">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.35rem;">
+                      <input id="hcc-datum" class="t-input" type="date" style="font-size:0.72rem;height:34px;" placeholder="Datum ročišta">
+                      <select id="hcc-tip" class="t-input" style="font-size:0.72rem;height:34px;">
+                        <option value="gradjanski">Parničan (ZPP)</option>
+                        <option value="krivicni">Krivičan (ZKP)</option>
+                        <option value="upravni">Upravni (ZUP)</option>
+                        <option value="privredni">Privredni</option>
+                        <option value="radni">Radni (ZOR)</option>
+                      </select>
+                    </div>
+                    <button id="hcc-btn" onclick="hccGeneriši()" style="width:100%;padding:0.6rem;background:linear-gradient(135deg,rgba(139,92,246,0.25),rgba(59,130,246,0.2));border:1px solid rgba(139,92,246,0.4);border-radius:8px;color:#c4b5fd;font-size:0.78rem;font-weight:700;cursor:pointer;letter-spacing:.04em;">Generiši borbeni brifing (3 kredita)</button>
+                    <div id="hcc-loading" style="display:none;text-align:center;padding:1rem 0;color:rgba(255,255,255,0.45);font-size:0.8rem;"><span class="upload-spinner"></span> Analiziram predmet i generišem brifing...</div>
+                    <div id="hcc-error" style="display:none;margin-top:0.4rem;padding:0.5rem 0.75rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:7px;color:#ff9090;font-size:0.75rem;"></div>
+                    <div id="hcc-result" style="display:none;margin-top:0.5rem;"></div>
                   </div>
                 </div>
               </div><!-- /pred-pane-rokovi -->
@@ -6733,22 +6849,8 @@ i[data-lucide] svg {
                   <textarea id="pred-kom-input" class="kom-input" placeholder="Dodaj komentar..." rows="1"></textarea>
                   <button class="kom-submit" onclick="dodajKomentar()">Pošalji</button>
                 </div>
-                <div class="pred-section-lbl" style="margin-top:14px;">Ročište — Command Center <span class="pro-badge" style="font-size:0.55rem;vertical-align:middle;">PRO</span></div>
-                <div id="hcc-panel">
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.35rem;">
-                    <input id="hcc-datum" class="t-input" type="date" style="font-size:0.72rem;height:34px;" placeholder="Datum ročišta">
-                    <select id="hcc-tip" class="t-input" style="font-size:0.72rem;height:34px;">
-                      <option value="gradjanski">Parničan (ZPP)</option>
-                      <option value="krivicni">Krivičan (ZKP)</option>
-                      <option value="upravni">Upravni (ZUP)</option>
-                      <option value="privredni">Privredni</option>
-                      <option value="radni">Radni (ZOR)</option>
-                    </select>
-                  </div>
-                  <button id="hcc-btn" onclick="hccGeneriši()" style="width:100%;padding:0.6rem;background:linear-gradient(135deg,rgba(139,92,246,0.25),rgba(59,130,246,0.2));border:1px solid rgba(139,92,246,0.4);border-radius:8px;color:#c4b5fd;font-size:0.78rem;font-weight:700;cursor:pointer;letter-spacing:.04em;">Generiši borbeni brifing (3 kredita)</button>
-                  <div id="hcc-loading" style="display:none;text-align:center;padding:1rem 0;color:rgba(255,255,255,0.45);font-size:0.8rem;"><span class="upload-spinner"></span> Analiziram predmet i generišem brifing...</div>
-                  <div id="hcc-error" style="display:none;margin-top:0.4rem;padding:0.5rem 0.75rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:7px;color:#ff9090;font-size:0.75rem;"></div>
-                  <div id="hcc-result" style="display:none;margin-top:0.5rem;"></div>
+                <div style="margin-top:.9rem;padding:.55rem .7rem;background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.18);border-radius:8px;font-size:.72rem;color:rgba(200,180,255,.7);cursor:pointer;" onclick="pred_subtabSwitch('rokovi')">
+                  🎯 Hearing Command Center premešten u tab <strong style="color:#c4b5fd;">Rokovi</strong> →
                 </div>
               </div><!-- /pred-pane-komunikacija -->
 
@@ -6782,6 +6884,29 @@ i[data-lucide] svg {
                   <div style="font-size:.75rem;color:rgba(255,255,255,.3);">Učitavam...</div>
                 </div>
               </div><!-- /pred-pane-saradnja -->
+
+              <!-- ── TAB: Knowledge Graph ─────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-graf" style="display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+                  <div>
+                    <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Knowledge Graph</div>
+                    <div style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.15rem;">Mreža odnosa predmeta: stranke, zakoni, presude, dokumenti, rokovi</div>
+                  </div>
+                  <button onclick="kg_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(74,168,255,.3);border-radius:6px;background:rgba(74,168,255,.08);color:#89c8ff;cursor:pointer;">↺ Osveži</button>
+                </div>
+                <!-- Legenda -->
+                <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem;" id="kg-legenda">
+                  <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#4aa8ff;display:inline-block;"></span>Predmet</span>
+                  <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#7de0a0;display:inline-block;"></span>Klijent/Stranka</span>
+                  <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#ffcc50;display:inline-block;"></span>Zakon/Presuda</span>
+                  <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#ff9090;display:inline-block;"></span>Rok</span>
+                  <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#b89aff;display:inline-block;"></span>Dokument</span>
+                </div>
+                <div id="kg-container" style="width:100%;height:420px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;overflow:hidden;position:relative;">
+                  <div style="color:rgba(255,255,255,.2);font-size:.8rem;text-align:center;padding-top:5rem;">Učitavam graf...</div>
+                </div>
+                <div id="kg-tooltip" style="display:none;position:absolute;background:#1a1f2e;border:1px solid rgba(74,168,255,.3);border-radius:7px;padding:.4rem .65rem;font-size:.72rem;color:#e6edf3;pointer-events:none;z-index:1000;max-width:200px;"></div>
+              </div><!-- /pred-pane-graf -->
 
               <!-- ── TAB: Timeline ─────────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-timeline" style="display:none;">
@@ -14139,6 +14264,7 @@ function pred_subtabSwitch(pane, btn) {
   if (pane === 'saradnja' && activePredmetId) saradnja_load(activePredmetId);
   if (pane === 'timeline' && activePredmetId) timeline_load();
   if (pane === 'dokazi'   && activePredmetId) evidence_load();
+  if (pane === 'graf'     && activePredmetId) kg_load();
 }
 
 function pred_openStrat(modul) {
@@ -19593,6 +19719,214 @@ function brain_load() {
 }
 
 // Timeline i Evidence Vault se lazy-loaduju direktno iz pred_subtabSwitch.
+
+// ─── Knowledge Graph ──────────────────────────────────────────────────────────
+var _kg_loaded = false;
+
+function kg_load() {
+  if (!activePredmetId || !currentSession) return;
+  _kg_loaded = true;
+
+  var container = document.getElementById('kg-container');
+  var tooltip   = document.getElementById('kg-tooltip');
+  if (!container) return;
+
+  container.innerHTML = '<div style="padding:2rem;text-align:center;color:#89c8ff;opacity:.6;">Učitavam graf...</div>';
+
+  fetch('/api/knowledge-graph/predmeti/' + activePredmetId, {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){ _kg_render(container, tooltip, data); })
+  .catch(function(e){
+    container.innerHTML = '<div style="padding:2rem;text-align:center;color:#f87171;">Greška pri učitavanju grafa: ' + e.message + '</div>';
+  });
+}
+
+function _kg_render(container, tooltip, data) {
+  var nodes = data.nodes || [];
+  var edges = data.edges || [];
+
+  if (!nodes.length) {
+    container.innerHTML = '<div style="padding:2rem;text-align:center;color:#aaa;">Nema podataka za prikaz.</div>';
+    return;
+  }
+
+  var W = container.offsetWidth  || 700;
+  var H = container.offsetHeight || 420;
+
+  // Assign initial positions in a circle
+  var cx = W / 2, cy = H / 2;
+  var R  = Math.min(W, H) * 0.35;
+  nodes.forEach(function(n, i) {
+    if (n.id.startsWith('predmet_')) { n.x = cx; n.y = cy; }
+    else {
+      var angle = (2 * Math.PI * i) / nodes.length;
+      n.x = cx + R * Math.cos(angle) + (Math.random() - 0.5) * 40;
+      n.y = cy + R * Math.sin(angle) + (Math.random() - 0.5) * 40;
+    }
+    n.vx = 0; n.vy = 0;
+  });
+
+  // Build index for fast lookup
+  var nodeById = {};
+  nodes.forEach(function(n){ nodeById[n.id] = n; });
+
+  // Resolve edge references to node objects
+  var validEdges = edges.filter(function(e){
+    return nodeById[e.from] && nodeById[e.to] && e.from !== e.to;
+  });
+
+  // ─── Force simulation (simple, no D3 dependency) ─────────────────────────
+  var ITER = 120;
+  var K    = 60; // spring rest length
+  for (var it = 0; it < ITER; it++) {
+    // Repulsion between all pairs
+    for (var a = 0; a < nodes.length; a++) {
+      for (var b = a + 1; b < nodes.length; b++) {
+        var na = nodes[a], nb = nodes[b];
+        var dx = nb.x - na.x, dy = nb.y - na.y;
+        var dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        var force = 2200 / (dist * dist);
+        var fx = force * dx / dist, fy = force * dy / dist;
+        na.vx -= fx; na.vy -= fy;
+        nb.vx += fx; nb.vy += fy;
+      }
+    }
+    // Spring attraction along edges
+    validEdges.forEach(function(e) {
+      var na = nodeById[e.from], nb = nodeById[e.to];
+      var dx = nb.x - na.x, dy = nb.y - na.y;
+      var dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      var strength = e.strength === 'strong' ? 0.08 : 0.04;
+      var fx = (dx - K * dx / dist) * strength;
+      var fy = (dy - K * dy / dist) * strength;
+      na.vx += fx; na.vy += fy;
+      nb.vx -= fx; nb.vy -= fy;
+    });
+    // Gravity toward center
+    nodes.forEach(function(n) {
+      n.vx += (cx - n.x) * 0.012;
+      n.vy += (cy - n.y) * 0.012;
+    });
+    // Apply velocity with damping
+    var damping = 0.82;
+    nodes.forEach(function(n) {
+      n.vx *= damping; n.vy *= damping;
+      n.x  += n.vx;   n.y  += n.vy;
+      // Clamp to bounds
+      var pad = (n.radius || 12) + 4;
+      n.x = Math.max(pad, Math.min(W - pad, n.x));
+      n.y = Math.max(pad, Math.min(H - pad, n.y));
+    });
+  }
+
+  // ─── Build SVG ────────────────────────────────────────────────────────────
+  var svgNS = 'http://www.w3.org/2000/svg';
+  var svg   = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('width',  W);
+  svg.setAttribute('height', H);
+  svg.style.cssText = 'position:absolute;top:0;left:0;';
+
+  // Defs: arrowhead marker
+  var defs   = document.createElementNS(svgNS, 'defs');
+  var marker = document.createElementNS(svgNS, 'marker');
+  marker.setAttribute('id', 'kg-arrow');
+  marker.setAttribute('markerWidth',  '6');
+  marker.setAttribute('markerHeight', '6');
+  marker.setAttribute('refX', '6');
+  marker.setAttribute('refY', '3');
+  marker.setAttribute('orient', 'auto');
+  var poly = document.createElementNS(svgNS, 'polygon');
+  poly.setAttribute('points', '0 0, 6 3, 0 6');
+  poly.setAttribute('fill', 'rgba(255,255,255,.25)');
+  marker.appendChild(poly);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
+  // Draw edges
+  validEdges.forEach(function(e) {
+    var na = nodeById[e.from], nb = nodeById[e.to];
+    // Shorten line to edge of circle
+    var dx = nb.x - na.x, dy = nb.y - na.y;
+    var dist = Math.sqrt(dx*dx + dy*dy) || 1;
+    var ra = na.radius || 12, rb = nb.radius || 12;
+    var x1 = na.x + dx/dist * ra;
+    var y1 = na.y + dy/dist * ra;
+    var x2 = nb.x - dx/dist * (rb + 6);
+    var y2 = nb.y - dy/dist * (rb + 6);
+
+    var line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    var strokeW = e.strength === 'strong' ? '1.5' : '1';
+    line.setAttribute('stroke', 'rgba(255,255,255,.18)');
+    line.setAttribute('stroke-width', strokeW);
+    line.setAttribute('marker-end', 'url(#kg-arrow)');
+    svg.appendChild(line);
+
+    // Edge label (only for strong links, not too cluttered)
+    if (e.strength === 'strong' && e.label) {
+      var mx = (na.x + nb.x) / 2, my = (na.y + nb.y) / 2;
+      var lt = document.createElementNS(svgNS, 'text');
+      lt.setAttribute('x', mx); lt.setAttribute('y', my - 4);
+      lt.setAttribute('text-anchor', 'middle');
+      lt.setAttribute('font-size', '9');
+      lt.setAttribute('fill', 'rgba(255,255,255,.35)');
+      lt.textContent = e.label.slice(0, 16);
+      svg.appendChild(lt);
+    }
+  });
+
+  // Draw nodes
+  nodes.forEach(function(n) {
+    var r = n.radius || 12;
+    var g = document.createElementNS(svgNS, 'g');
+    g.style.cursor = 'pointer';
+
+    // Circle
+    var circ = document.createElementNS(svgNS, 'circle');
+    circ.setAttribute('cx', n.x); circ.setAttribute('cy', n.y); circ.setAttribute('r', r);
+    circ.setAttribute('fill', n.color || '#666');
+    circ.setAttribute('stroke', 'rgba(255,255,255,.3)');
+    circ.setAttribute('stroke-width', '1.5');
+    g.appendChild(circ);
+
+    // Label
+    var lbl = document.createElementNS(svgNS, 'text');
+    lbl.setAttribute('x', n.x); lbl.setAttribute('y', n.y + r + 12);
+    lbl.setAttribute('text-anchor', 'middle');
+    lbl.setAttribute('font-size', '10');
+    lbl.setAttribute('fill', 'rgba(255,255,255,.75)');
+    lbl.textContent = n.label;
+    g.appendChild(lbl);
+
+    // Tooltip on hover
+    g.addEventListener('mouseenter', function(ev) {
+      if (!tooltip) return;
+      var meta = n.meta || {};
+      var lines = ['<b>' + n.label + '</b>', 'Tip: ' + n.tip];
+      Object.keys(meta).forEach(function(k){ if (meta[k]) lines.push(k + ': ' + meta[k]); });
+      tooltip.innerHTML = lines.join('<br>');
+      tooltip.style.display = 'block';
+      tooltip.style.left = (ev.offsetX + 12) + 'px';
+      tooltip.style.top  = (ev.offsetY + 12) + 'px';
+    });
+    g.addEventListener('mousemove', function(ev) {
+      if (!tooltip) return;
+      tooltip.style.left = (ev.offsetX + 12) + 'px';
+      tooltip.style.top  = (ev.offsetY + 12) + 'px';
+    });
+    g.addEventListener('mouseleave', function() {
+      if (tooltip) tooltip.style.display = 'none';
+    });
+
+    svg.appendChild(g);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(svg);
+}
 </script>
 
 </body>

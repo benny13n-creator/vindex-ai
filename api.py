@@ -490,6 +490,7 @@ from routers.sms                  import router as sms_router
 from routers.evidence             import router as evidence_router
 from routers.voice                import router as voice_router
 from routers.precedenti           import router as precedenti_router
+from routers.knowledge_graph      import router as knowledge_graph_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -532,6 +533,7 @@ app.include_router(sms_router)
 app.include_router(evidence_router)
 app.include_router(voice_router)
 app.include_router(precedenti_router)
+app.include_router(knowledge_graph_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
