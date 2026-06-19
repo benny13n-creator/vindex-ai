@@ -487,6 +487,9 @@ from routers.recurring            import router as recurring_router
 from routers.search               import router as search_router
 from routers.billing_reports      import router as billing_reports_router
 from routers.sms                  import router as sms_router
+from routers.evidence             import router as evidence_router
+from routers.voice                import router as voice_router
+from routers.precedenti           import router as precedenti_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -526,6 +529,9 @@ app.include_router(recurring_router)
 app.include_router(search_router)
 app.include_router(billing_reports_router)
 app.include_router(sms_router)
+app.include_router(evidence_router)
+app.include_router(voice_router)
+app.include_router(precedenti_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -2419,8 +2425,9 @@ async def predmet_upload_auto_analyze(
     count = await asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours)
 
     # Record in predmet_dokumenti
+    _dok_id = None
     try:
-        _get_supa().table("predmet_dokumenti").insert({
+        _ins = _get_supa().table("predmet_dokumenti").insert({
             "predmet_id":          predmet_id,
             "user_id":             user.id,
             "naziv_fajla":         file.filename or "dokument",
@@ -2429,8 +2436,20 @@ async def predmet_upload_auto_analyze(
             "status":              "indeksirano",
             "velicina_kb":         max(1, len(raw) // 1024),
         }).execute()
+        _dok_id = (_ins.data or [{}])[0].get("id")
     except Exception:
         logger.warning("[P1.1] predmet_dokumenti insert failed for predmet=%s", predmet_id)
+
+    # Auto-classify document in background (Evidence Vault)
+    if _dok_id:
+        try:
+            from routers.evidence import klasifikuj_i_sacuvaj
+            asyncio.create_task(asyncio.to_thread(
+                klasifikuj_i_sacuvaj, predmet_id, _dok_id,
+                file.filename or "dokument", text[:2000], user.id
+            ))
+        except Exception as _ce:
+            logger.warning("[EVIDENCE] Auto-classify task greška: %s", _ce)
 
     # ── AUTO ANALYSIS ──────────────────────────────────────────────────────────
     # Phase 2.1: choose prompt and text limit based on detected doc type
