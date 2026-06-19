@@ -649,10 +649,36 @@ class EmailCheckReq(BaseModel):
     email: str = Field(..., min_length=5, max_length=254)
 
 
-# ─── Pomoćne async funkcije ───────────────────────────────────────────────────
+# ─── Async queue za AI pozive (sprečava OpenAI rate-limit pucanje) ───────────
+# Max concurrent OpenAI calls. Threshold: 8 = safe za GPT-4o tier-1 limits.
+# Zahtev koji čeka > 30s dobija 503 — bolje odmah nego viseti.
+
+_AI_CONCURRENCY = int(os.getenv("AI_MAX_CONCURRENCY", "8"))
+_AI_SEMAPHORE: asyncio.Semaphore | None = None
+_AI_QUEUE_TIMEOUT = 30.0  # sekundi
+
+
+def _get_ai_semaphore() -> asyncio.Semaphore:
+    global _AI_SEMAPHORE
+    if _AI_SEMAPHORE is None:
+        _AI_SEMAPHORE = asyncio.Semaphore(_AI_CONCURRENCY)
+    return _AI_SEMAPHORE
+
 
 async def pokreni(fn, *args):
-    return await asyncio.to_thread(fn, *args)
+    sem = _get_ai_semaphore()
+    try:
+        await asyncio.wait_for(sem.acquire(), timeout=_AI_QUEUE_TIMEOUT)
+    except asyncio.TimeoutError:
+        logger.warning("[QUEUE] AI semaphore timeout — %d concurrent slots zauzeto", _AI_CONCURRENCY)
+        raise HTTPException(
+            status_code=503,
+            detail="Server je trenutno preopterećen. Pokušajte ponovo za nekoliko sekundi.",
+        )
+    try:
+        return await asyncio.to_thread(fn, *args)
+    finally:
+        sem.release()
 
 
 def normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None) -> dict:
