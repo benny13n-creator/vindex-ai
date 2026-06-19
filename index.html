@@ -6069,8 +6069,8 @@ body.light-theme .vx-sidebar-foot button { background: rgba(0,0,0,0.05) !importa
       <li><span class="pub-icon">🔍</span> RAG pretraga kroz 30.365 pravnih izvora pri generisanju</li>
       <li><span class="pub-icon">🔒</span> Zero-persistence protokol — dokumenti se ne čuvaju na serveru</li>
     </ul>
-    <button class="modal-btn pro-upgrade-cta" onclick="closeProUpgradeModal();openProModal();">Saznaj više o PRO verziji &rarr;</button>
-    <p style="font-size:0.68rem;color:rgba(255,255,255,0.22);margin-top:0.8rem;">Promotivna cena garantovana pri ranoj prijavi.</p>
+    <button class="modal-btn pro-upgrade-cta" onclick="closeProUpgradeModal();openProModal();">Pogledajte planove i cene &rarr;</button>
+    <p style="font-size:0.68rem;color:rgba(255,255,255,0.22);margin-top:0.8rem;">14 dana besplatno · Bez kreditne kartice · Otkazivanje u svakom trenutku.</p>
   </div>
 </div>
 
@@ -6096,20 +6096,71 @@ body.light-theme .vx-sidebar-foot button { background: rgba(0,0,0,0.05) !importa
   </div>
 </div>
 
-<!-- PRO WAITLIST MODAL -->
-<div class="modal-overlay" id="pro-modal" onclick="if(event.target===this)closeProModal()">
-  <div class="modal" style="max-width:440px;text-align:center;">
-    <button class="modal-close" onclick="closeProModal()">&#x2715;</button>
-    <div class="modal-badge" style="background:rgba(201,168,76,0.1);border-color:rgba(201,168,76,0.3);color:#c9a84c;margin:0 auto 1rem;display:inline-block;">VindexAI PRO</div>
-    <div class="modal-title" style="font-size:1.55rem;">Rana prijava<br>za PRO plan</div>
-    <p class="modal-sub">Budite prvi kada VindexAI PRO bude dostupan. Promotivna cena garantovana pri ranoj prijavi.</p>
-    <div id="pro-form" style="display:flex;flex-direction:column;gap:0.8rem;">
-      <input class="modal-input" type="email" id="pro-email" placeholder="Vaša email adresa" autocomplete="email">
-      <button class="modal-btn" onclick="submitWaitlist()">Prijavi me na listu čekanja</button>
+<!-- PRICING MODAL — 3 plana -->
+<div class="modal-overlay" id="pro-modal" onclick="if(event.target===this)closeProModal()" style="align-items:flex-start;padding-top:2rem;overflow-y:auto;">
+  <div style="background:#0f1623;border:1px solid rgba(74,168,255,.2);border-radius:16px;padding:2rem;max-width:780px;width:95%;margin:0 auto;">
+    <button class="modal-close" onclick="closeProModal()" style="position:absolute;right:1rem;top:1rem;">&#x2715;</button>
+    <div style="text-align:center;margin-bottom:1.5rem;">
+      <div style="font-size:1.5rem;font-weight:800;color:#fff;">Odaberite plan za vašu kancelariju</div>
+      <div style="font-size:.85rem;color:rgba(255,255,255,.45);margin-top:.4rem;">Bez skrivenih troškova. Otkazivanje u bilo kom trenutku.</div>
     </div>
-    <div class="pro-success" id="pro-success">
-      <div style="font-size:1.8rem;margin-bottom:0.5rem;">&#x2713;</div>
-      <div style="font-size:0.85rem;color:rgba(255,255,255,0.55);">Prijavljeni ste! Javićemo vam se pri lansiranju.</div>
+    <!-- Planovi -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
+      <!-- Solo -->
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1.5rem;display:flex;flex-direction:column;">
+        <div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:.5rem;">Solo advokat</div>
+        <div style="font-size:2rem;font-weight:800;color:#fff;">4.990 <span style="font-size:1rem;font-weight:400;color:rgba(255,255,255,.4);">RSD/mes</span></div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-bottom:1rem;">Godišnja pretplata — uštedite 20%</div>
+        <ul style="list-style:none;padding:0;margin:0 0 1.2rem;flex:1;display:flex;flex-direction:column;gap:.5rem;">
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 1 korisnik</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Do 50 predmeta</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ AI analiza, nacrti, RAG pretraga</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ SEF e-faktura</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 100 AI kredita/mes</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.3);">✗ Višekorisnički pristup</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.3);">✗ PRO strategija moduli</li>
+        </ul>
+        <button onclick="pricing_kontakt('solo')" style="padding:.7rem;background:rgba(74,168,255,.1);border:1px solid rgba(74,168,255,.3);border-radius:8px;color:#89c8ff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;">Počnite besplatno →</button>
+      </div>
+      <!-- PRO — highlighted -->
+      <div style="background:linear-gradient(135deg,rgba(74,168,255,.12),rgba(99,102,241,.08));border:1px solid rgba(74,168,255,.4);border-radius:12px;padding:1.5rem;display:flex;flex-direction:column;position:relative;">
+        <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#4aa8ff;color:#000;font-size:.65rem;font-weight:700;letter-spacing:.08em;padding:.2rem .7rem;border-radius:10px;">NAJPOPULARNIJI</div>
+        <div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#89c8ff;margin-bottom:.5rem;">PRO</div>
+        <div style="font-size:2rem;font-weight:800;color:#fff;">9.990 <span style="font-size:1rem;font-weight:400;color:rgba(255,255,255,.4);">RSD/mes</span></div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-bottom:1rem;">Godišnja pretplata — uštedite 20%</div>
+        <ul style="list-style:none;padding:0;margin:0 0 1.2rem;flex:1;display:flex;flex-direction:column;gap:.5rem;">
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 1-3 korisnika</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Neograničeni predmeti</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Sve Solo funkcije</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ PRO strategija (6 modula)</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Multi-Agent (6 AI agenata)</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 500 AI kredita/mes</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Klijentski portal</li>
+        </ul>
+        <button onclick="pricing_kontakt('pro')" style="padding:.7rem;background:linear-gradient(135deg,#4aa8ff,#6366f1);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Aktivirajte PRO →</button>
+      </div>
+      <!-- Kancelarija -->
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(201,168,76,.25);border-radius:12px;padding:1.5rem;display:flex;flex-direction:column;">
+        <div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#c9a84c;margin-bottom:.5rem;">Kancelarija</div>
+        <div style="font-size:2rem;font-weight:800;color:#fff;">Kontakt <span style="font-size:1rem;font-weight:400;color:rgba(255,255,255,.4);">cena</span></div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-bottom:1rem;">Za kancelarije 5+ advokata</div>
+        <ul style="list-style:none;padding:0;margin:0 0 1.2rem;flex:1;display:flex;flex-direction:column;gap:.5rem;">
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Neograničeni korisnici</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Sve PRO funkcije</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Dedicirani server</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ SLA ugovor 99.9%</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Onboarding i obuka tima</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ API pristup</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Prilagođena integracija</li>
+        </ul>
+        <button onclick="pricing_kontakt('kancelarija')" style="padding:.7rem;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);border-radius:8px;color:#c9a84c;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;">Kontaktirajte nas →</button>
+      </div>
+    </div>
+    <!-- FAQ red -->
+    <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;">
+      <div style="font-size:.75rem;color:rgba(255,255,255,.5);"><strong style="color:rgba(255,255,255,.7);">Da li postoji besplatni period?</strong><br>Da — 14 dana bez kreditne kartice.</div>
+      <div style="font-size:.75rem;color:rgba(255,255,255,.5);"><strong style="color:rgba(255,255,255,.7);">Mogu li otkazati?</strong><br>U svakom trenutku, bez penala.</div>
+      <div style="font-size:.75rem;color:rgba(255,255,255,.5);"><strong style="color:rgba(255,255,255,.7);">Da li su podaci bezbedni?</strong><br>AES-256 enkripcija, server u EU.</div>
     </div>
   </div>
 </div>
@@ -12970,34 +13021,32 @@ function _setPrices(){
 }
 function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.toggle('on',annual);_setPrices();}
 
-/* PRO WAITLIST MODAL */
+/* PRICING MODAL */
 function openProModal() {
   document.getElementById('pro-modal').classList.add('open');
-  document.getElementById('pro-form').style.display = '';
-  document.getElementById('pro-success').classList.remove('show');
-  document.getElementById('pro-email').value = '';
 }
 function closeProModal() {
   document.getElementById('pro-modal').classList.remove('open');
 }
-async function submitWaitlist() {
-  var email = document.getElementById('pro-email').value.trim();
-  if (!email || !email.includes('@')) {
-    document.getElementById('pro-email').focus(); return;
-  }
-  var btn = document.querySelector('#pro-form .modal-btn');
-  btn.textContent = 'Slanje...'; btn.disabled = true;
+async function pricing_kontakt(plan) {
+  var labels = { solo: 'Solo', pro: 'PRO', kancelarija: 'Kancelarija' };
+  var emails = { solo: 'Počnite besplatno', pro: 'Aktivirajte PRO', kancelarija: 'Kontaktirajte nas' };
+  var subject = encodeURIComponent('Vindex AI ' + (labels[plan] || plan) + ' plan');
+  var body = encodeURIComponent('Zdravo,\n\nZainteresovan sam za ' + (labels[plan] || plan) + ' plan.\n\nMoje ime: \nBroj advokata: \nBroj korisnika: ');
   try {
     if (currentSession) {
       await fetch(BASE_URL + '/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
-        body: JSON.stringify({ pitanje: 'WAITLIST: ' + email, odgovor: '', tip: 'ostalo' })
+        body: JSON.stringify({ pitanje: 'PRICING_INTEREST: ' + plan, odgovor: '', tip: 'ostalo' })
       });
     }
   } catch(e) {}
-  document.getElementById('pro-form').style.display = 'none';
-  document.getElementById('pro-success').classList.add('show');
+  window.open('mailto:kontakt@vindex.ai?subject=' + subject + '&body=' + body);
+  if (plan !== 'kancelarija') {
+    closeProModal();
+    showToast('Otvoren je vaš email klijent. Pošaljite nam poruku i aktiviraćemo vaš plan!');
+  }
 }
 
 /* NAV SCROLL */
