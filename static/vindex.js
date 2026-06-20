@@ -10474,6 +10474,145 @@ async function emailNotifDeaktivaj() {
   } catch(e) { _enMsg('Greška mreže.','#f87171'); }
 }
 
+// ── Global Search (⌘K) ───────────────────────────────────────────────────────
+
+var _gsOpen      = false;
+var _gsTimer     = null;
+var _gsVrste     = 'predmeti,klijenti,hronologija,beleske,dokumenti,billing';
+var _gsResults   = [];
+var _gsFocusIdx  = -1;
+
+function gsOpen() {
+  if (!currentSession) return;
+  _gsOpen = true;
+  var overlay = document.getElementById('gs-overlay');
+  var modal   = document.getElementById('gs-modal');
+  var inp     = document.getElementById('gs-input');
+  if (overlay) overlay.style.display = '';
+  if (modal)   modal.style.display = '';
+  if (inp)     { inp.value = ''; inp.focus(); }
+  gsRender([]);
+}
+
+function gsClose() {
+  _gsOpen = false;
+  var overlay = document.getElementById('gs-overlay');
+  var modal   = document.getElementById('gs-modal');
+  if (overlay) overlay.style.display = 'none';
+  if (modal)   modal.style.display = 'none';
+  _gsFocusIdx = -1;
+  if (_gsTimer) { clearTimeout(_gsTimer); _gsTimer = null; }
+}
+
+function gsSetFilter(btn) {
+  document.querySelectorAll('.gs-filter').forEach(function(b){
+    b.style.background   = 'transparent';
+    b.style.borderColor  = 'rgba(255,255,255,0.12)';
+    b.style.color        = 'rgba(255,255,255,0.45)';
+    b.classList.remove('active');
+  });
+  btn.style.background  = 'rgba(74,168,255,0.12)';
+  btn.style.borderColor = 'rgba(74,168,255,0.3)';
+  btn.style.color       = '#89c8ff';
+  btn.classList.add('active');
+  _gsVrste = btn.dataset.vrste;
+  var inp = document.getElementById('gs-input');
+  if (inp && inp.value.trim().length >= 2) gsQuery(inp.value);
+}
+
+function gsQuery(val) {
+  if (_gsTimer) clearTimeout(_gsTimer);
+  if (!val || val.trim().length < 2) { gsRender([]); return; }
+  _gsTimer = setTimeout(function(){ _gsFetch(val.trim()); }, 260);
+}
+
+async function _gsFetch(q) {
+  if (!currentSession) return;
+  var resEl = document.getElementById('gs-results');
+  if (resEl) resEl.innerHTML = '<div style="padding:0.8rem 1rem;font-size:0.8rem;color:rgba(255,255,255,0.3);">Tražim...</div>';
+  try {
+    var url = '/api/search?q=' + encodeURIComponent(q) + '&vrste=' + encodeURIComponent(_gsVrste) + '&limit=6';
+    var r   = await fetch(url, {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { gsRender([]); return; }
+    var d = await r.json();
+    _gsResults  = d.rezultati || [];
+    _gsFocusIdx = _gsResults.length ? 0 : -1;
+    gsRender(_gsResults);
+  } catch(e) { gsRender([]); }
+}
+
+var _GS_ICONS = {predmet:'📁', klijent:'👤', dokument:'📄', billing:'💰', hronologija:'⏰', beleska:'📝'};
+var _GS_COLORS = {predmet:'#89c8ff', klijent:'#4ade80', dokument:'#c9a84c', billing:'#a78bfa', hronologija:'#f97316', beleska:'#94a3b8'};
+
+function gsRender(items) {
+  var el = document.getElementById('gs-results');
+  if (!el) return;
+  if (!items.length) {
+    var inp = document.getElementById('gs-input');
+    el.innerHTML = inp && inp.value.trim().length >= 2
+      ? '<div style="padding:1.2rem 1rem;font-size:0.8rem;color:rgba(255,255,255,0.3);text-align:center;">Nema rezultata.</div>'
+      : '<div style="padding:1rem 1rem;font-size:0.8rem;color:rgba(255,255,255,0.25);text-align:center;">Ukucajte barem 2 slova...</div>';
+    return;
+  }
+  el.innerHTML = items.map(function(item, i){
+    var ico   = _GS_ICONS[item.tip]  || '·';
+    var col   = _GS_COLORS[item.tip] || '#94a3b8';
+    var focus = (i === _gsFocusIdx) ? 'background:rgba(74,168,255,0.09);' : '';
+    return '<div class="gs-item" data-idx="'+i+'" onclick="gsSelect('+i+')" onmouseover="gsFocus('+i+')"'
+      +' style="display:flex;align-items:center;gap:0.65rem;padding:0.55rem 1rem;cursor:pointer;'+focus+'">'
+      +'<span style="font-size:1rem;flex-shrink:0;">'+ico+'</span>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:0.82rem;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(item.naziv)+'</div>'
+      +(item.preview ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.38);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(item.preview)+'</div>' : '')
+      +'</div>'
+      +'<span style="font-size:0.62rem;color:'+col+';flex-shrink:0;letter-spacing:.05em;text-transform:uppercase;">'+item.tip+'</span>'
+      +'</div>';
+  }).join('');
+}
+
+function gsFocus(idx) {
+  _gsFocusIdx = idx;
+  document.querySelectorAll('.gs-item').forEach(function(el, i){
+    el.style.background = (i === idx) ? 'rgba(74,168,255,0.09)' : '';
+  });
+}
+
+function gsKeyNav(e) {
+  if (e.key === 'Escape') { gsClose(); return; }
+  if (!_gsResults.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); gsFocus(Math.min(_gsFocusIdx + 1, _gsResults.length - 1)); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); gsFocus(Math.max(_gsFocusIdx - 1, 0)); }
+  if (e.key === 'Enter' && _gsFocusIdx >= 0) { e.preventDefault(); gsSelect(_gsFocusIdx); }
+}
+
+function gsSelect(idx) {
+  var item = _gsResults[idx];
+  if (!item) return;
+  gsClose();
+  if (item.tip === 'predmet') {
+    setTab(document.getElementById('tab-btn-p'), 'p');
+    setTimeout(function(){ pred_select(item.id); }, 300);
+  } else if (item.tip === 'klijent') {
+    setTab(document.getElementById('tab-btn-k'), 'k');
+    setTimeout(function(){ if(typeof klijentOtvori==='function') klijentOtvori(item.id); }, 400);
+  } else if (item.tip === 'dokument' || item.tip === 'billing' || item.tip === 'hronologija' || item.tip === 'beleska') {
+    var predId = item.meta && item.meta.predmet_id;
+    if (predId) {
+      setTab(document.getElementById('tab-btn-p'), 'p');
+      setTimeout(function(){ pred_select(predId); }, 300);
+    }
+  }
+}
+
+// ⌘K / Ctrl+K keyboard shortcut
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    if (_gsOpen) gsClose(); else gsOpen();
+  }
+  if (e.key === 'Escape' && _gsOpen) gsClose();
+});
+
 // ── Integracije — Phase 5.5 ──────────────────────────────────────────────────
 
 function integr_copy(tip) {
