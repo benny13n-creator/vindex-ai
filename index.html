@@ -459,6 +459,7 @@
           <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
             <i data-lucide="bell" class="vx-topbar-ico" style="color:rgba(255,255,255,0.32);"></i>
             <span id="notif-badge" style="display:none;position:absolute;top:0;right:-4px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.52rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
+            <div id="notif-dropdown" style="display:none;position:absolute;top:calc(100% + 10px);right:-8px;width:320px;background:#0d1b2a;border:1px solid rgba(74,168,255,0.18);border-radius:10px;box-shadow:0 16px 48px rgba(0,0,0,0.6);z-index:8000;max-height:420px;overflow-y:auto;"></div>
           </div>
           <div class="nav-user" id="nav-user" style="display:none;">
             <span class="nav-user-email" id="nav-user-email"></span>
@@ -474,7 +475,6 @@
           <button class="settings-btn vx-topbar-settings" onclick="openSettings()" title="Podešavanja" style="display:none;"><i data-lucide="settings" class="vx-topbar-ico"></i></button>
         </div>
       </div>
-      <div id="notif-dropdown" style="display:none;"></div>
       <div id="vx-breadcrumb-bar">
         <button id="vx-back-btn" onclick="vxGoBack()">
           <i data-lucide="chevron-left"></i>Nazad

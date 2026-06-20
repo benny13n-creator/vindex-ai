@@ -7644,7 +7644,7 @@ function opposing_render(d, panel) {
 async function notif_load() {
   if (!currentSession) return;
   try {
-    var r = await fetch(BASE_URL+'/api/notifications', { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
+    var r = await fetch(BASE_URL+'/notifications', { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
     if (!r.ok) return;
     var d  = await r.json();
     _notifData = d.notifications || [];
