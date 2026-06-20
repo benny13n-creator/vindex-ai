@@ -382,6 +382,15 @@
         <div class="vx-nav-sub" onclick="openAITool('w')">
           <span class="vx-nav-sub-dot"></span>Web3 &amp; Compliance
         </div>
+        <div class="vx-nav-sub" onclick="aicOtvoriPredmet('graf')" style="color:#67e8f9;">
+          <span class="vx-nav-sub-dot" style="background:#67e8f9;"></span>🕸 Knowledge Graph
+        </div>
+        <div class="vx-nav-sub" onclick="aicOtvoriPredmet('agenti')" style="color:#c4b5fd;">
+          <span class="vx-nav-sub-dot" style="background:#c4b5fd;"></span>🤖 Multi-Agent AI
+        </div>
+        <div class="vx-nav-sub" onclick="docTplOpen()" style="color:#86efac;">
+          <span class="vx-nav-sub-dot" style="background:#86efac;"></span>📋 Šabloni dokumenata
+        </div>
         <div class="vx-nav-sep" style="margin-top:24px !important;"></div>
         <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
           <i data-lucide="book-open" class="vx-tab-ico"></i>
@@ -626,6 +635,8 @@
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('strategija',this)">⚔️ Strategija</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('rokovi',this)">⏰ Rokovi</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('naplata',this)">💰 Naplata</button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('graf',this)" style="position:relative;">🕸 Graf<span style="position:absolute;top:-4px;right:-4px;background:#ff6b35;color:#fff;font-size:.48rem;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:.04em;">NOVO</span></button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('agenti',this)" style="position:relative;">🤖 Agenti<span style="position:absolute;top:-4px;right:-4px;background:#7c3aed;color:#fff;font-size:.48rem;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:.04em;">AI</span></button>
                 <!-- VIŠE dropdown -->
                 <div class="pred-more-wrap" id="pred-more-wrap">
                   <button class="pred-subtab-btn pred-tab-more" id="pred-more-btn" onclick="pred_more_toggle(event)">··· Više</button>
@@ -633,8 +644,6 @@
                     <button onclick="pred_more_select('pregled')">📋 Pregled</button>
                     <button onclick="pred_more_select('timeline')">📅 Hronologija</button>
                     <button onclick="pred_more_select('dokazi')">🔒 Dokazi</button>
-                    <button onclick="pred_more_select('graf')">🕸 Mapa veza</button>
-                    <button onclick="pred_more_select('agenti')">🤖 AI Pomoćnici</button>
                     <button onclick="pred_more_select('komunikacija')">💬 Komunikacija</button>
                     <button onclick="pred_more_select('saradnja')">🤝 Saradnja</button>
                     <button onclick="predmetPdfExport()">📄 PDF Izveštaj</button>
@@ -2289,6 +2298,22 @@
                     <div class="aic3-module-desc">Generator tuzbi, zalbi i ugovora po srpskim procesnim standardima.</div>
                   </div>
                   <button class="aic3-open-btn" onclick="aicOtvoriPredmet('ai-analiza')">Otvori predmet</button>
+                </div>
+                <div class="aic3-module-card" style="border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.05);">
+                  <div class="aic3-module-icon" style="background:rgba(99,102,241,.15);"><i data-lucide="network" style="width:17px;height:17px;color:#818cf8;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name" style="color:#a5b4fc;">Knowledge Graph <span style="font-size:.62rem;background:#4f46e5;color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle;">NOVO</span></div>
+                    <div class="aic3-module-desc">Interaktivna mreža veza: stranke, zakoni, presude, dokumenti i rokovi predmeta.</div>
+                  </div>
+                  <button class="aic3-open-btn" style="background:rgba(99,102,241,.15);color:#a5b4fc;border-color:rgba(99,102,241,.3);" onclick="aicOtvoriPredmet('graf')">Otvori predmet</button>
+                </div>
+                <div class="aic3-module-card" style="border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.05);">
+                  <div class="aic3-module-icon" style="background:rgba(139,92,246,.15);"><i data-lucide="bot" style="width:17px;height:17px;color:#c4b5fd;"></i></div>
+                  <div class="aic3-module-body">
+                    <div class="aic3-module-name" style="color:#c4b5fd;">Multi-Agent Centar <span style="font-size:.62rem;background:#7c3aed;color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle;">AI</span></div>
+                    <div class="aic3-module-desc">6 specijalizovanih AI agenata: Intake, Research, Drafting, Litigation, Billing, Deadline.</div>
+                  </div>
+                  <button class="aic3-open-btn" style="background:rgba(139,92,246,.15);color:#c4b5fd;border-color:rgba(139,92,246,.3);" onclick="aicOtvoriPredmet('agenti')">Otvori predmet</button>
                 </div>
               </div>
             </div>
