@@ -6732,3 +6732,203 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   .kal-grid-dot { width: 5px; height: 5px; }
   .kal-grid-hd { font-size: 0.55rem; }
 }
+
+/* =======================================================================
+   MOBILE UX — COMPREHENSIVE FIX v2 (2026-06-20)
+   Detaljni pregled i ispravka svakog elementa za mobilni ekran
+   ======================================================================= */
+
+/* --- A. NOTIFICATION DROPDOWN --- glavni bug: position:absolute + overflow:hidden
+         Resenje: position:fixed, pojavljuje se iznad bottom nav bara --- */
+@media (max-width: 768px) {
+  #notif-dropdown {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 64px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: 60dvh !important;
+    overflow-y: auto !important;
+    border-radius: 12px !important;
+    z-index: 9500 !important;
+    box-shadow: 0 -4px 32px rgba(0,0,0,0.6) !important;
+  }
+}
+
+/* --- B. BOTTOM NAV --- AI sub-items i section label ne trebaju biti u nav baru --- */
+@media (max-width: 640px) {
+  .vx-nav-group-lbl { display: none !important; }
+  .vx-nav-sub       { display: none !important; }
+
+  /* Prikazi tab-btn-alati kao AI dugme u bottom nav */
+  #tab-btn-alati {
+    display: flex !important;
+    width: auto !important;
+    height: 52px !important;
+    min-width: 44px !important;
+    padding: 6px 8px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    font-size: 0.5rem !important;
+    border-left: none !important;
+    border-top: 2px solid transparent !important;
+    overflow: visible !important;
+  }
+  #tab-btn-alati.active { border-top-color: #00d4ff !important; }
+
+  /* Sakrij skrivene tabove bez labele */
+  #tab-btn-q, #tab-btn-a, #tab-btn-s,
+  #tab-btn-n, #tab-btn-t, #tab-btn-w,
+  #tab-btn-pi, #tab-btn-ob { display: none !important; }
+
+  .vx-nav-sep { display: none !important; }
+  .vx-sidebar-foot { display: none !important; }
+  .vx-logo-wrap { display: none !important; }
+}
+
+/* --- C. TOPBAR --- kompaktnost i layout --- */
+@media (max-width: 640px) {
+  .vx-topbar {
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    padding: 0 10px !important;
+  }
+  .vx-global-search { display: none !important; }
+  .vx-btn-new {
+    font-size: 0.68rem !important;
+    padding: 5px 9px !important;
+    gap: 3px !important;
+    white-space: nowrap !important;
+    margin-left: auto !important;
+  }
+}
+
+/* --- D. PREDMET FAB --- iznad bottom nav --- */
+@media (max-width: 640px) {
+  #pred-fab { bottom: calc(56px + 16px) !important; right: 14px !important; }
+  #pred-fab-menu { bottom: 70px !important; right: 0 !important; }
+}
+
+/* --- E. MODALI --- bottom-sheet pattern --- */
+@media (max-width: 640px) {
+  .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh !important;
+    border-radius: 20px 20px 0 0 !important;
+    margin: 0 !important;
+    padding: 24px 18px 32px !important;
+    overflow-y: auto !important;
+  }
+  .modal-title { font-size: 1.4rem !important; margin-bottom: 16px !important; }
+}
+
+/* --- F. KOMANDNI CENTAR --- KPI i AI grid --- */
+@media (max-width: 640px) {
+  #tab-h { padding: 14px !important; }
+  .kc-hdr { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+  .kc-hdr-actions { flex-wrap: wrap !important; gap: 6px !important; }
+  .kc-kpi-row { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .kc-kpi-card { padding: 12px !important; }
+  .kc-kpi-val { font-size: 1.5rem !important; }
+  .kc-ai-grid { grid-template-columns: 1fr !important; gap: 6px !important; }
+  .kc-ai-card { padding: 12px !important; }
+}
+
+/* --- G. PREDMETI --- lista i detail --- */
+@media (max-width: 640px) {
+  #tab-p { padding: 0 !important; }
+  .pred-header { padding: 12px 14px !important; flex-wrap: wrap !important; gap: 8px !important; }
+  .pred-header h2 { font-size: 1.1rem !important; }
+  .pred-list-item { padding: 10px 14px !important; }
+  .pred-list-item-name { font-size: 0.88rem !important; }
+  .pred-list-item-meta { font-size: 0.7rem !important; flex-wrap: wrap !important; gap: 4px !important; }
+}
+
+/* --- H. AI ALATI --- textarea i rezultat --- */
+@media (max-width: 640px) {
+  #tab-q, #tab-a, #tab-s, #tab-n, #tab-t, #tab-w { padding: 14px !important; }
+  .t-input { font-size: 0.88rem !important; min-height: 100px !important; }
+  .t-exec-row { padding: 0 0 12px !important; flex-wrap: wrap !important; gap: 6px !important; }
+  .t-exec { padding: 0 12px !important; height: 38px !important; font-size: 0.65rem !important; }
+  .t-chips { overflow-x: auto !important; flex-wrap: nowrap !important; padding-bottom: 4px !important; -webkit-overflow-scrolling: touch !important; }
+  .t-chip { flex-shrink: 0 !important; font-size: 0.68rem !important; padding: 4px 10px !important; }
+  .strat-rezultat-body { max-height: 45dvh !important; font-size: 0.82rem !important; }
+  .web3-rezultat-body  { max-height: 45dvh !important; font-size: 0.82rem !important; }
+  .t-tool-back { padding: 8px 12px !important; font-size: 0.78rem !important; }
+}
+
+/* --- I. ROKOVI / KALENDAR --- */
+@media (max-width: 640px) {
+  #tab-kal { padding: 14px !important; }
+  .kal-hdr { flex-direction: column !important; gap: 8px !important; align-items: flex-start !important; }
+  .kal-month-nav { gap: 6px !important; }
+  .rok-item { padding: 10px 12px !important; }
+  .rok-item-naslov { font-size: 0.85rem !important; }
+}
+
+/* --- J. SETTINGS panel --- */
+@media (max-width: 640px) {
+  #tab-settings { padding: 14px !important; }
+}
+
+/* --- K. KLIJENTI panel --- */
+@media (max-width: 640px) {
+  #tab-k { padding: 0 !important; }
+  .kl-header { padding: 12px 14px !important; }
+  .kl-list-item { padding: 10px 14px !important; }
+  .kl-ime { font-size: 0.88rem !important; }
+}
+
+/* --- L. BAZA ZNANJA --- */
+@media (max-width: 640px) {
+  #tab-dok { padding: 14px !important; }
+}
+
+/* --- M. GLOBAL SEARCH modal --- */
+@media (max-width: 640px) {
+  #gs-modal {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important; right: 0 !important;
+    width: 100% !important;
+    transform: none !important;
+    border-radius: 0 0 14px 14px !important;
+    max-height: 88dvh !important;
+    z-index: 9001 !important;
+  }
+}
+
+/* --- N. CRM i Intake --- fullscreen --- */
+@media (max-width: 640px) {
+  .crm-panel { width: 100vw !important; height: 100dvh !important; border-radius: 0 !important; }
+  .intake-panel { width: 100vw !important; height: 100dvh !important; border-radius: 0 !important; }
+}
+
+/* --- O. Toast --- iznad bottom nav --- */
+@media (max-width: 640px) {
+  .toast-container { bottom: calc(56px + 12px) !important; }
+}
+
+/* --- P. Safe area --- iPhone notch/home bar --- */
+@media (max-width: 640px) {
+  .vx-sidebar {
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    height: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .vx-body {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* --- Q. iOS auto-zoom sprjecavanje --- */
+@media (max-width: 640px) {
+  input[type="text"], input[type="email"], input[type="password"],
+  input[type="search"], textarea, select {
+    font-size: 16px !important;
+  }
+}
