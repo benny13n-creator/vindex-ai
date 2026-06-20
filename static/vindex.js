@@ -9989,6 +9989,178 @@ function _kalEsc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ═══════════════════════════════════════════════════════════════
+// CALENDAR — Monthly Grid View
+// ═══════════════════════════════════════════════════════════════
+var _kalView      = 'grid';
+var _kalAllEvents = [];
+var _kalGridDate  = new Date(); // active month for grid
+
+var _KAL_MESECI = ['Januar','Februar','Mart','April','Maj','Jun','Jul','Avgust','Septembar','Oktobar','Novembar','Decembar'];
+var _KAL_DANI   = ['Pon','Uto','Sre','Čet','Pet','Sub','Ned'];
+
+function kalSetView(v) {
+  _kalView = v;
+  var gBtn = document.getElementById('kal-view-grid-btn');
+  var lBtn = document.getElementById('kal-view-list-btn');
+  var nav  = document.getElementById('kal-month-nav');
+  if (gBtn) { gBtn.style.background = v === 'grid' ? 'rgba(74,168,255,0.2)' : 'transparent'; gBtn.style.color = v === 'grid' ? '#89c8ff' : 'rgba(255,255,255,0.4)'; }
+  if (lBtn) { lBtn.style.background = v === 'list' ? 'rgba(74,168,255,0.2)' : 'transparent'; lBtn.style.color = v === 'list' ? '#89c8ff' : 'rgba(255,255,255,0.4)'; }
+  if (nav)  nav.style.display = v === 'grid' ? 'flex' : 'none';
+  var dd = document.getElementById('kal-day-detail');
+  if (dd) dd.style.display = 'none';
+  if (_kalAllEvents.length) _kalRenderActive();
+}
+
+function kalMesecPrev() {
+  _kalGridDate = new Date(_kalGridDate.getFullYear(), _kalGridDate.getMonth() - 1, 1);
+  _kalRenderGrid(_kalAllEvents);
+}
+function kalMesecNext() {
+  _kalGridDate = new Date(_kalGridDate.getFullYear(), _kalGridDate.getMonth() + 1, 1);
+  _kalRenderGrid(_kalAllEvents);
+}
+function kalMesecToday() {
+  _kalGridDate = new Date();
+  _kalRenderGrid(_kalAllEvents);
+}
+
+function _kalRenderActive() {
+  if (_kalView === 'grid') _kalRenderGrid(_kalAllEvents);
+  else {
+    var bodyEl = document.getElementById('kal-body');
+    if (bodyEl) bodyEl.innerHTML = _kalendarRender(_kalAllEvents);
+  }
+}
+
+function _kalRenderGrid(eventi) {
+  var bodyEl = document.getElementById('kal-body');
+  if (!bodyEl) return;
+
+  // Update month label
+  var lbl = document.getElementById('kal-month-lbl');
+  if (lbl) lbl.textContent = _KAL_MESECI[_kalGridDate.getMonth()] + ' ' + _kalGridDate.getFullYear() + '.';
+
+  // Build event map by ISO date
+  var byDate = {};
+  (eventi || []).forEach(function(e) {
+    var d = (e.datum || '').slice(0, 10);
+    if (!d) return;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(e);
+  });
+
+  var yr  = _kalGridDate.getFullYear();
+  var mo  = _kalGridDate.getMonth();
+  var firstDay = new Date(yr, mo, 1);
+  var lastDay  = new Date(yr, mo + 1, 0);
+
+  // Monday-first offset
+  var startDow = (firstDay.getDay() + 6) % 7;
+  var todayIso = new Date().toISOString().slice(0, 10);
+
+  var html = '<div class="kal-grid-wrap">';
+  // Day headers
+  _KAL_DANI.forEach(function(d) { html += '<div class="kal-grid-hd">' + d + '</div>'; });
+
+  // Empty cells before month start
+  for (var i = 0; i < startDow; i++) html += '<div class="kal-grid-cell empty"></div>';
+
+  // Day cells
+  for (var day = 1; day <= lastDay.getDate(); day++) {
+    var iso  = yr + '-' + String(mo + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    var evs  = byDate[iso] || [];
+    var isToday = iso === todayIso;
+    var hasCls  = evs.length ? ' has-events' : '';
+    var todCls  = isToday ? ' today' : '';
+    html += '<div class="kal-grid-cell' + hasCls + todCls + '" onclick="kalDayClick(\'' + iso + '\')">';
+    html += '<div class="kal-grid-cell-num' + (isToday ? ' today' : '') + '">' + day + '</div>';
+    if (evs.length) {
+      html += '<div class="kal-grid-dots">';
+      evs.slice(0, 3).forEach(function(e) {
+        var col = e.tip === 'rociste' ? '#4aa8ff' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
+        html += '<span class="kal-grid-dot" style="background:' + col + ';"></span>';
+      });
+      if (evs.length > 3) html += '<span style="font-size:.52rem;color:rgba(255,255,255,.35);">+' + (evs.length - 3) + '</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Trailing empties
+  var totalCells = startDow + lastDay.getDate();
+  var trailing = (7 - (totalCells % 7)) % 7;
+  for (var j = 0; j < trailing; j++) html += '<div class="kal-grid-cell empty"></div>';
+
+  html += '</div>';
+  bodyEl.innerHTML = html;
+}
+
+function kalDayClick(iso) {
+  var evs = _kalAllEvents.filter(function(e) { return (e.datum || '').slice(0, 10) === iso; });
+  var detEl   = document.getElementById('kal-day-detail');
+  var titleEl = document.getElementById('kal-day-detail-title');
+  var bodyEl2 = document.getElementById('kal-day-detail-body');
+  if (!detEl) return;
+  if (!evs.length) { detEl.style.display = 'none'; return; }
+
+  var d = new Date(iso + 'T12:00:00');
+  var dani = ['ned','pon','uto','sre','čet','pet','sub'];
+  var mes  = ['jan','feb','mar','apr','maj','jun','jul','avg','sep','okt','nov','dec'];
+  if (titleEl) titleEl.textContent = dani[d.getDay()] + ', ' + d.getDate() + '. ' + mes[d.getMonth()] + ' ' + d.getFullYear() + '.';
+
+  var html = '';
+  evs.forEach(function(e) {
+    var tipLabel = e.tip === 'rociste' ? '🏛 Ročište' : e.tip === 'rok_zastarelost' ? '⏳ Rok' : '📅 Rok';
+    var col = e.tip === 'rociste' ? '#89c8ff' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
+    html += '<div style="padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);">';
+    html += '<div style="font-size:.72rem;color:' + col + ';margin-bottom:.1rem;">' + tipLabel + (e.vreme ? ' · ' + _kalEsc(e.vreme) : '') + '</div>';
+    html += '<div style="font-weight:600;font-size:.82rem;color:#e2e8f0;">' + _kalEsc(e.naslov) + '</div>';
+    if (e.predmet_naziv) html += '<div style="font-size:.72rem;color:rgba(255,255,255,.45);margin-top:.1rem;">' + _kalEsc(e.predmet_naziv) + '</div>';
+    if (e.detalji && e.detalji.sud) html += '<div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.1rem;">' + _kalEsc(e.detalji.sud) + (e.detalji.sudnica ? ' · ' + _kalEsc(e.detalji.sudnica) : '') + '</div>';
+    html += '</div>';
+  });
+  if (bodyEl2) bodyEl2.innerHTML = html;
+  detEl.style.display = '';
+  detEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Override kalendarLoad to store events + render grid
+var _kalendarLoad_orig = kalendarLoad;
+kalendarLoad = function() {
+  var bodyEl   = document.getElementById('kal-body');
+  var loadEl   = document.getElementById('kal-loading');
+  var praznoEl = document.getElementById('kal-prazno');
+  if (!bodyEl) return;
+  bodyEl.innerHTML = '';
+  if (praznoEl) praznoEl.style.display = 'none';
+  if (loadEl) loadEl.style.display = '';
+
+  // Init view toggle state
+  var nav = document.getElementById('kal-month-nav');
+  if (nav) nav.style.display = _kalView === 'grid' ? 'flex' : 'none';
+
+  if (typeof _predmeti !== 'undefined' && _predmeti.length) _kalendarPredmeti = _predmeti;
+
+  fetch(BASE_URL + '/api/kalendar/pregled', {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (loadEl) loadEl.style.display = 'none';
+    _kalAllEvents = data.dogadjaji || [];
+    if (!_kalAllEvents.length) {
+      if (praznoEl) praznoEl.style.display = '';
+      return;
+    }
+    _kalRenderActive();
+  })
+  .catch(function() {
+    if (loadEl) loadEl.style.display = 'none';
+    if (bodyEl) bodyEl.innerHTML = '<div class="kal-greska">Greška pri učitavanju kalendara.</div>';
+  });
+};
+
 function kalendarIcsExport() {
   if (!currentSession) return;
   fetch(BASE_URL + '/api/kalendar/ics', {

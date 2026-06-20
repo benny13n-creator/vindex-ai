@@ -2134,7 +2134,14 @@
           <!-- Faza 1: Centralizovani Kalendar -->
           <div id="tab-kal" style="display:none">
             <div class="kal-header">
-              <div class="kal-naslov">📅 Kalendar rokova i ročišta</div>
+              <div style="display:flex;align-items:center;gap:0.75rem;">
+                <div class="kal-naslov">📅 Kalendar</div>
+                <!-- View toggle -->
+                <div style="display:flex;gap:2px;background:rgba(255,255,255,0.05);border-radius:7px;padding:2px;">
+                  <button id="kal-view-grid-btn" onclick="kalSetView('grid')" style="padding:4px 10px;border:none;border-radius:5px;font-size:0.7rem;cursor:pointer;background:rgba(74,168,255,0.2);color:#89c8ff;font-family:inherit;">Mesec</button>
+                  <button id="kal-view-list-btn" onclick="kalSetView('list')" style="padding:4px 10px;border:none;border-radius:5px;font-size:0.7rem;cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-family:inherit;">Lista</button>
+                </div>
+              </div>
               <div class="kal-header-actions">
                 <button class="kal-ics-btn" onclick="kalendarIcsExport()">⬇ .ics</button>
                 <button class="kal-ics-btn" style="background:rgba(66,133,244,0.1);color:#8ab4f8;border-color:rgba(66,133,244,0.3);" onclick="kalendarGoogleExport()">📅 Google</button>
@@ -2142,8 +2149,23 @@
                 <button class="kal-dodaj-btn" onclick="rocisteOtvoriFormu()">+ Ročište</button>
               </div>
             </div>
+            <!-- Month nav (shown in grid view) -->
+            <div id="kal-month-nav" style="display:flex;align-items:center;gap:0.75rem;margin:0.5rem 0 0.7rem;padding:0 0.1rem;">
+              <button onclick="kalMesecPrev()" style="width:30px;height:30px;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">‹</button>
+              <div id="kal-month-lbl" style="font-size:0.88rem;font-weight:600;color:#e2e8f0;min-width:120px;text-align:center;"></div>
+              <button onclick="kalMesecNext()" style="width:30px;height:30px;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">›</button>
+              <button onclick="kalMesecToday()" style="margin-left:auto;padding:4px 10px;border:1px solid rgba(74,168,255,.2);border-radius:6px;background:rgba(74,168,255,.06);color:#89c8ff;font-size:0.7rem;cursor:pointer;font-family:inherit;">Danas</button>
+            </div>
+            <!-- Day detail popup (grid view) -->
+            <div id="kal-day-detail" style="display:none;margin-bottom:0.75rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:0.7rem 0.85rem;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                <div id="kal-day-detail-title" style="font-size:0.82rem;font-weight:600;color:#e2e8f0;"></div>
+                <button onclick="document.getElementById('kal-day-detail').style.display='none';" style="background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:0.9rem;">✕</button>
+              </div>
+              <div id="kal-day-detail-body" style="font-size:0.78rem;"></div>
+            </div>
             <div id="kal-loading" class="kal-loading" style="display:none">⏳ Učitavam...</div>
-            <div id="kal-prazno" class="kal-prazno" style="display:none">Nema nadolazećih rokova ni ročišta u narednih 30 dana.</div>
+            <div id="kal-prazno" class="kal-prazno" style="display:none">Nema nadolazećih rokova ni ročišta u narednih 60 dana.</div>
             <div id="kal-body" class="kal-body"></div>
           </div>
 

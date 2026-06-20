@@ -8034,3 +8034,94 @@ function ugovor_stampaj() {
 @media (max-width: 640px) {
   #vx-breadcrumb-bar { padding: 6px 12px !important; font-size: 0.68rem !important; }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   CALENDAR — Monthly Grid View (2026-06-20)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.kal-grid-wrap {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-bottom: 0.75rem;
+}
+
+.kal-grid-hd {
+  text-align: center;
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 2px 6px;
+  font-weight: 600;
+}
+
+.kal-grid-cell {
+  min-height: 62px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 7px;
+  padding: 5px 5px 4px;
+  cursor: default;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.kal-grid-cell.empty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+.kal-grid-cell.has-events {
+  background: rgba(74,168,255,0.04);
+  border-color: rgba(74,168,255,0.12);
+  cursor: pointer;
+}
+
+.kal-grid-cell.has-events:hover {
+  background: rgba(74,168,255,0.09);
+  border-color: rgba(74,168,255,0.22);
+}
+
+.kal-grid-cell.today {
+  border-color: rgba(74,168,255,0.35) !important;
+  background: rgba(74,168,255,0.07) !important;
+}
+
+.kal-grid-cell-num {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.45);
+  font-weight: 500;
+  margin-bottom: 4px;
+  line-height: 1;
+}
+
+.kal-grid-cell-num.today {
+  color: #4aa8ff;
+  font-weight: 700;
+}
+
+.kal-grid-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+}
+
+.kal-grid-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Mobile: tighter grid */
+@media (max-width: 480px) {
+  .kal-grid-cell { min-height: 44px; padding: 3px 3px 2px; }
+  .kal-grid-cell-num { font-size: 0.62rem; }
+  .kal-grid-dot { width: 5px; height: 5px; }
+  .kal-grid-hd { font-size: 0.55rem; }
+}
