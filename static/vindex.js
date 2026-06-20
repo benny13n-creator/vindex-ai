@@ -8163,15 +8163,39 @@ async function pred_loadHronologija(predmetId) {
 }
 
 function pred_exportHronologija() {
-  var naziv = activePredmetNaziv || 'Predmet';
-  var w = window.open('', '_blank');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
-  w.document.write('<title>Hronologija — ' + naziv + '<\/title>');
-  w.document.write('__CSS_REMOVED__'
-    + '</head><body><pre>' + _htmlEsc(tekst) + '</pre>'
-    + '<script>window.onload=function(){window.print();}<\/script>'
-    + '</body></html>');
-  w.document.close();
+  // Delegate to full PDF export (Phase 5.3)
+  predmetPdfExport();
+}
+
+/* ── Phase 5.3: PDF Izveštaj predmeta ───────────────────────────────────── */
+async function predmetPdfExport(btn) {
+  if (!activePredmetId || !currentSession) { openModal(); return; }
+  var btnEl = btn || document.getElementById('pred-pdf-export-btn');
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Generišem...'; }
+  try {
+    var res = await fetch(
+      BASE_URL + '/api/predmeti/' + encodeURIComponent(activePredmetId) + '/pdf-export',
+      { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } }
+    );
+    if (!res.ok) {
+      var err = {}; try { err = await res.json(); } catch(e2) {}
+      throw new Error(err.detail || 'HTTP ' + res.status);
+    }
+    var blob = await res.blob();
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    var safe = (activePredmetNaziv || 'predmet').replace(/[^\w\-]/g, '_').substring(0, 40);
+    a.href = url;
+    a.download = 'vindex_predmet_' + safe + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('Greška pri generisanju PDF-a: ' + e.message);
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '📄 PDF Izveštaj'; }
+  }
 }
 
 function pred_openNewModal() {
