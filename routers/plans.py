@@ -1,8 +1,12 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
-from ..dependencies import get_current_user, supabase_client
+from shared.deps import _get_supa, get_current_user
 
 router = APIRouter(prefix="/api/plan", tags=["plan"])
+
+
+def supabase_client():
+    return _get_supa()
 
 PLAN_LIMITS = {
     "free":    {"ai_queries": 15,  "doc_analyses": 2,    "strategies": 0},
