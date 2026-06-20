@@ -448,61 +448,77 @@ button { font-family: var(--font-ui); cursor: pointer; border: none; outline: no
 
 /* ── Cenovnik ── */
 #cenovnik { padding: 100px 0; }
-.cen-head { text-align: center; margin-bottom: 64px; }
+.cen-head { text-align: center; margin-bottom: 48px; }
 .cen-head h2 {
   font-family: var(--font-brand);
   font-size: clamp(2.2rem, 3.5vw, 3.4rem);
-  font-weight: 700;
-  color: var(--tx-1);
-  letter-spacing: -0.02em;
+  font-weight: 700; color: var(--tx-1); letter-spacing: -0.02em;
 }
-.cen-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; max-width: 860px; margin: 0 auto; }
+/* Toggle mesečno/godišnje */
+.cen-toggle-wrap { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 48px; }
+.cen-toggle-lbl { font-size: 0.85rem; color: var(--tx-3); }
+.cen-toggle-lbl.active { color: var(--tx-1); font-weight: 600; }
+.cen-toggle { position: relative; width: 44px; height: 24px; cursor: pointer; }
+.cen-toggle input { opacity: 0; width: 0; height: 0; }
+.cen-toggle-track {
+  position: absolute; inset: 0; border-radius: 999px;
+  background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.3);
+  transition: background 0.2s;
+}
+.cen-toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--teal); transition: transform 0.2s;
+}
+.cen-toggle input:checked ~ .cen-toggle-track { background: rgba(0,212,255,0.25); }
+.cen-toggle input:checked ~ .cen-thumb-wrap .cen-toggle-thumb { transform: translateX(20px); }
+.cen-save-badge { background: rgba(74,255,120,0.12); border: 1px solid rgba(74,255,120,0.25); color: #4ade80; font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.06em; }
+/* Grid — 4 karte */
+.cen-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; max-width: 1240px; margin: 0 auto; align-items: start; }
 .cen-card {
-  border: 1px solid var(--bd-1);
-  border-radius: var(--r-lg);
-  padding: 40px 36px;
-  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--bd-1); border-radius: var(--r-lg);
+  padding: 32px 28px; background: rgba(255,255,255,0.02);
+  display: flex; flex-direction: column;
 }
+.cen-card.free { opacity: 0.75; }
 .cen-card.pro {
-  border-color: rgba(0,212,255,0.45);
-  background: rgba(0,212,255,0.04);
+  border-color: rgba(0,212,255,0.45); background: rgba(0,212,255,0.04);
   box-shadow: 0 0 60px rgba(0,212,255,0.10), 0 0 120px rgba(0,212,255,0.05);
   position: relative;
 }
-.cen-pro-badge {
-  position: absolute;
-  top: -13px; left: 50%;
-  transform: translateX(-50%);
-  background: var(--teal);
-  color: #010308;
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 4px 16px;
-  border-radius: 999px;
-  white-space: nowrap;
+.cen-card.firma { border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.04); }
+.cen-badge {
+  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+  background: var(--teal); color: #010308;
+  font-family: var(--font-mono); font-size: 0.58rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 4px 14px; border-radius: 999px; white-space: nowrap;
 }
-.cen-plan { font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tx-3); margin-bottom: 10px; }
-.cen-price { font-family: var(--font-brand); font-size: 3rem; font-weight: 700; color: var(--tx-1); line-height: 1; margin-bottom: 6px; }
-.cen-price span { font-size: 1rem; font-weight: 400; color: var(--tx-3); font-family: var(--font-ui); }
-.cen-divider { height: 1px; background: var(--bd-1); margin: 24px 0; }
+.cen-plan { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tx-3); margin-bottom: 8px; }
+.cen-price { font-family: var(--font-brand); font-size: 2.6rem; font-weight: 700; color: var(--tx-1); line-height: 1; margin-bottom: 4px; }
+.cen-price span { font-size: 0.9rem; font-weight: 400; color: var(--tx-3); font-family: var(--font-ui); }
+.cen-price-sub { font-size: 0.72rem; color: var(--tx-3); margin-bottom: 4px; min-height: 18px; }
+.cen-divider { height: 1px; background: var(--bd-1); margin: 20px 0; }
 .cen-card.pro .cen-divider { background: var(--bd-teal); }
-.cen-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
-.cen-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; color: var(--tx-2); line-height: 1.5; }
-.cen-check { width: 16px; height: 16px; color: var(--teal); flex-shrink: 0; margin-top: 2px; }
+.cen-card.firma .cen-divider { background: rgba(139,92,246,0.3); }
+.cen-features { list-style: none; display: flex; flex-direction: column; gap: 9px; margin-bottom: 28px; flex: 1; }
+.cen-features li { display: flex; align-items: flex-start; gap: 9px; font-size: 0.8rem; color: var(--tx-2); line-height: 1.5; }
+.cen-check { width: 15px; height: 15px; color: var(--teal); flex-shrink: 0; margin-top: 2px; }
 .cen-check svg { width: 100%; height: 100%; display: block; }
+.cen-check.purple svg { stroke: #a78bfa; }
+.cen-overage { font-size: 0.72rem; color: rgba(167,139,250,0.7); margin-bottom: 20px; padding: 8px 10px; background: rgba(139,92,246,0.06); border-radius: 8px; border: 1px solid rgba(139,92,246,0.15); line-height: 1.5; }
 .cen-btn {
-  width: 100%; padding: 14px; border-radius: var(--r-sm);
-  font-size: 0.9rem; font-weight: 700;
+  width: 100%; padding: 13px; border-radius: var(--r-sm);
+  font-size: 0.85rem; font-weight: 700; letter-spacing: 0.02em;
   border: 1px solid var(--bd-2);
   background: transparent; color: var(--tx-1);
-  cursor: pointer; transition: all 0.15s;
+  cursor: pointer; transition: all 0.15s; margin-top: auto;
 }
 .cen-btn:hover { border-color: var(--bd-teal); background: var(--teal-lo); }
 .cen-card.pro .cen-btn { background: var(--teal); color: #010308; border-color: transparent; }
 .cen-card.pro .cen-btn:hover { opacity: 0.88; }
+.cen-card.firma .cen-btn { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: #c4b5fd; }
+.cen-card.firma .cen-btn:hover { background: rgba(139,92,246,0.25); }
 .cen-note { text-align: center; margin-top: 28px; font-size: 0.82rem; color: var(--tx-3); }
 
 /* ── CTA ── */
@@ -564,7 +580,8 @@ footer {
   .kako-steps { grid-template-columns: 1fr; }
   .fn-grid { grid-template-columns: 1fr; }
   .zasto-grid { grid-template-columns: 1fr; }
-  .cen-grid { grid-template-columns: 1fr; max-width: 440px; }
+  .cen-grid { grid-template-columns: repeat(2, 1fr); max-width: 760px; }
+  .cen-card.pro { position: relative; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 480px) {
@@ -573,6 +590,7 @@ footer {
   .hero-h1 { font-size: 2.6rem; }
   .hero-ctas { flex-direction: column; align-items: flex-start; }
   .footer-grid { grid-template-columns: 1fr; }
+  .cen-grid { grid-template-columns: 1fr; max-width: 400px; }
 }
 </style>
 </head>
@@ -811,44 +829,96 @@ footer {
       <span class="section-label">Cenovnik</span>
       <h2>Jednostavno. Transparentno.</h2>
     </div>
+    <!-- Mesečno / Godišnje toggle -->
+    <div class="cen-toggle-wrap">
+      <span class="cen-toggle-lbl active" id="lbl-mesecno">Mesečno</span>
+      <label class="cen-toggle" aria-label="Godišnja naplata">
+        <input type="checkbox" id="cenToggle" onchange="cenSwitchBilling()">
+        <div class="cen-toggle-track"></div>
+        <div class="cen-thumb-wrap"><div class="cen-toggle-thumb"></div></div>
+      </label>
+      <span class="cen-toggle-lbl" id="lbl-godisnje">Godišnje</span>
+      <span class="cen-save-badge">Uštedi 20%</span>
+    </div>
     <div class="cen-grid">
-      <div class="cen-card">
-        <div class="cen-plan">Basic</div>
-        <div class="cen-price">€29<span>/mo</span></div>
+
+      <!-- BESPLATNO -->
+      <div class="cen-card free">
+        <div class="cen-plan">Besplatno</div>
+        <div class="cen-price">€0<span>/mes</span></div>
+        <div class="cen-price-sub">Zauvek besplatno</div>
         <div class="cen-divider"></div>
         <ul class="cen-features">
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>50 upita mesečno</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>30 pretraga sudske prakse</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Predmeti, Klijenti, Rokovi</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>15 AI upita mesečno</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>5 predmeta</li>
           <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Istraživanje zakona</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sudska praksa</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Analiza dokumenta</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Nacrti i podnesci</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sudska praksa (ograničeno)</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Predmeti, Klijenti, Rokovi</li>
         </ul>
-        <button class="cen-btn" onclick="window.location='/app#register'">Počni sa Basic</button>
+        <button class="cen-btn" onclick="window.location='/app#register'">Počni besplatno</button>
       </div>
-      <div class="cen-card pro">
-        <div class="cen-pro-badge">Najpopularnije</div>
-        <div class="cen-plan">Pro</div>
-        <div class="cen-price">€79<span>/mo</span></div>
+
+      <!-- ADVOKAT -->
+      <div class="cen-card">
+        <div class="cen-plan">Advokat</div>
+        <div class="cen-price" id="price-advokat">€49<span>/mes</span></div>
+        <div class="cen-price-sub" id="sub-advokat">ili €39/mes godišnje</div>
         <div class="cen-divider"></div>
         <ul class="cen-features">
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Neograničeni upiti</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sve Basic funkcije +</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>100 AI upita mesečno</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Neograničeni predmeti</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>10 analiza dokumenata</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Istraživanje zakona i prakse</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Nacrti i podnesci</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Naplata i fakture</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Kalendar i rokovi</li>
+        </ul>
+        <button class="cen-btn" onclick="window.location='/app#register'">Počni sa Advokat</button>
+      </div>
+
+      <!-- PRO -->
+      <div class="cen-card pro">
+        <div class="cen-badge">Najpopularnije</div>
+        <div class="cen-plan">Pro</div>
+        <div class="cen-price" id="price-pro">€89<span>/mes</span></div>
+        <div class="cen-price-sub" id="sub-pro">ili €74/mes godišnje</div>
+        <div class="cen-divider"></div>
+        <ul class="cen-features">
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>300 AI upita mesečno</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sve Advokat funkcije +</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Neograničene analize dok.</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>5 Strategija mesečno</li>
           <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Red Team analiza</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Litigation Simulator</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>AI Judge (3 runde debate)</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Due Diligence</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Pravni Revizor</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>AI Sudija (3 runde debate)</li>
           <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Witness Analyzer</li>
+          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Due Diligence</li>
           <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Strategic Orchestrator</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Web3 &amp; Compliance (ZDI + MiCA)</li>
           <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Audit log + Export</li>
         </ul>
-        <button class="cen-btn" onclick="window.location='/app#register'">Počni sa PRO</button>
+        <button class="cen-btn" onclick="window.location='/app#register'">Počni sa Pro</button>
       </div>
+
+      <!-- FIRMA -->
+      <div class="cen-card firma">
+        <div class="cen-plan">Firma</div>
+        <div class="cen-price" id="price-firma">€59<span>/seat/mes</span></div>
+        <div class="cen-price-sub" id="sub-firma">ili €49/seat godišnje · min. 3 korisnika</div>
+        <div class="cen-divider"></div>
+        <ul class="cen-features">
+          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>200 AI upita / seat</li>
+          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sve Pro funkcije</li>
+          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>20 analiza dok. / seat</li>
+          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>10 Strategija / seat</li>
+          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Admin panel + timski dashboard</li>
+          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Prioritetna podrška</li>
+          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>SLA 99.9% + dedikovani onboarding</li>
+        </ul>
+        <div class="cen-overage">Prekoračenje: €0.15/upit · €0.50/analiza · €1.50/strategija</div>
+        <button class="cen-btn" onclick="window.location='mailto:hello@vindex.ai?subject=Firma plan'">Kontaktirajte nas</button>
+      </div>
+
     </div>
-    <p class="cen-note">Plaćanje mesečno. Otkazivanje u bilo kom trenutku. 15 pitanja besplatno bez kreditne kartice.</p>
+    <p class="cen-note">Otkazivanje u bilo kom trenutku. 15 upita besplatno — bez kreditne kartice.</p>
   </div>
 </section>
 
@@ -1021,6 +1091,19 @@ footer {
   }catch(e){}
   resize(); frame();
 })();
+</script>
+<script>
+function cenSwitchBilling() {
+  var godisnje = document.getElementById('cenToggle').checked;
+  document.getElementById('lbl-mesecno').classList.toggle('active', !godisnje);
+  document.getElementById('lbl-godisnje').classList.toggle('active', godisnje);
+  document.getElementById('price-advokat').innerHTML = godisnje ? '€39<span>/mes</span>' : '€49<span>/mes</span>';
+  document.getElementById('sub-advokat').textContent  = godisnje ? 'naplaćuje se godišnje (€468/god)' : 'ili €39/mes godišnje';
+  document.getElementById('price-pro').innerHTML      = godisnje ? '€74<span>/mes</span>' : '€89<span>/mes</span>';
+  document.getElementById('sub-pro').textContent      = godisnje ? 'naplaćuje se godišnje (€888/god)' : 'ili €74/mes godišnje';
+  document.getElementById('price-firma').innerHTML    = godisnje ? '€49<span>/seat/mes</span>' : '€59<span>/seat/mes</span>';
+  document.getElementById('sub-firma').textContent    = godisnje ? 'naplaćuje se godišnje · min. 3 korisnika' : 'ili €49/seat godišnje · min. 3 korisnika';
+}
 </script>
 </body>
 </html>
