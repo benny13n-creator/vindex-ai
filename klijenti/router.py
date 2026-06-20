@@ -1394,3 +1394,104 @@ async def _update_activity(supa, klijent_id: str, user_id: str) -> None:
         )
     except Exception:
         pass
+
+
+# ─── CSV Import ───────────────────────────────────────────────────────────────
+
+@router.post("/klijenti/import-csv")
+async def import_klijenti_csv(
+    request: Request,
+):
+    """
+    Import klijenata iz CSV fajla.
+    Očekivane kolone (header red obavezan): ime, prezime, firma, email, telefon, adresa, tip
+    Maksimum 500 redova po importu.
+    """
+    import csv
+    import io
+    from fastapi import UploadFile, File
+
+    user = await _auth_from_request(request)
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    # Parse multipart form
+    form = await request.form()
+    fajl: UploadFile = form.get("fajl")
+    if not fajl:
+        raise HTTPException(status_code=422, detail="Polje 'fajl' je obavezno.")
+
+    content = await fajl.read()
+    try:
+        text = content.decode("utf-8-sig")  # utf-8-sig handles BOM from Excel
+    except UnicodeDecodeError:
+        try:
+            text = content.decode("windows-1250")  # Windows Eastern Europe
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=422, detail="Fajl mora biti UTF-8 ili Windows-1250 enkodiranje.")
+
+    reader = csv.DictReader(io.StringIO(text))
+    rows   = list(reader)
+
+    if not rows:
+        raise HTTPException(status_code=422, detail="CSV je prazan ili nema header reda.")
+    if len(rows) > 500:
+        raise HTTPException(status_code=422, detail="Maksimum 500 klijenata po importu.")
+
+    _ALLOWED_TIPS = {"fizicko_lice", "pravno_lice", "fizicko", "pravno"}
+    kreiran = 0
+    greske  = []
+
+    def _col(row: dict, *names: str) -> str:
+        for n in names:
+            v = (row.get(n) or row.get(n.lower()) or row.get(n.upper()) or "").strip()
+            if v:
+                return v
+        return ""
+
+    for i, row in enumerate(rows, start=2):
+        ime = _col(row, "ime", "Ime", "first_name", "name")
+        if not ime or len(ime) < 2:
+            greske.append(f"Red {i}: ime je obavezno (min 2 slova).")
+            continue
+
+        tip_raw = _col(row, "tip", "Tip", "type").lower()
+        if tip_raw in ("pravno", "pravno_lice", "firma", "company"):
+            tip = "pravno_lice"
+        else:
+            tip = "fizicko_lice"
+
+        db_row = {
+            "user_id":     uid,
+            "tip":         tip,
+            "ime":         ime[:200],
+            "prezime":     _col(row, "prezime", "Prezime", "last_name", "surname")[:200],
+            "firma":       _col(row, "firma", "Firma", "company", "naziv")[:300],
+            "email":       _col(row, "email", "Email", "e-mail")[:200],
+            "telefon":     _col(row, "telefon", "Telefon", "phone", "tel")[:50],
+            "adresa":      _col(row, "adresa", "Adresa", "address")[:500],
+            "napomena":    _col(row, "napomena", "Napomena", "note", "notes")[:2000],
+            "maticni_broj": _col(row, "maticni_broj", "MB", "mb")[:30],
+            "pravni_osnov_obrade": "legitimni_interes",
+            "status":      "aktivan",
+            "datum_nastanka": _now_iso(),
+            "datum_poslednje_aktivnosti": _now_iso(),
+        }
+
+        try:
+            res = await asyncio.to_thread(lambda r=db_row: supa.table("klijenti").insert(r).execute())
+            if res.data:
+                kreiran += 1
+                asyncio.create_task(log_event(
+                    supa=supa, user_id=uid, user_email=user.get("email", ""),
+                    user_role=user.get("role_str", "advokat"), akcija=Akcija.CREATE,
+                    entitet_id=res.data[0].get("id"), detalji={"import": "csv"}, ip_adresa="",
+                ))
+        except Exception as exc:
+            greske.append(f"Red {i} ({ime}): {str(exc)[:80]}")
+
+    return {
+        "kreiran": kreiran,
+        "greske":  greske[:20],
+        "ukupno_pokusano": len(rows),
+    }

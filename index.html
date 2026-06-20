@@ -1672,8 +1672,9 @@
             <div id="crm-lista-view">
               <div class="crm-header">
                 <span class="crm-header-title">👥 Klijenti</span>
-                <div style="display:flex;gap:8px;">
-                  <button class="crm-add-btn" onclick="crmCheckKonfliktOtvori()" style="background:rgba(255,180,50,0.1);border-color:rgba(255,180,50,0.3);color:#ffd080;">⚠ Proveri konflikt</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="crm-add-btn" onclick="crmCheckKonfliktOtvori()" style="background:rgba(255,180,50,0.1);border-color:rgba(255,180,50,0.3);color:#ffd080;">⚠ Konflikt</button>
+                  <button class="crm-add-btn" onclick="crmCsvImportOtvori()" style="background:rgba(74,222,128,0.08);border-color:rgba(74,222,128,0.25);color:#4ade80;">⬆ CSV</button>
                   <button class="crm-add-btn" onclick="crmOtvoriFormu()">+ Novi klijent</button>
                 </div>
               </div>
@@ -1813,6 +1814,29 @@
               <div class="crm-modal-actions">
                 <button class="crm-save-btn" onclick="crmPokreniKonflikt()">Proveri</button>
                 <button class="crm-cancel-btn" onclick="crmZatvoriKonflikt()">Zatvori</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CSV Import Modal -->
+          <div id="crm-csv-overlay" class="crm-overlay" onclick="if(event.target===this)crmCsvImportZatvori()">
+            <div class="crm-modal" style="max-width:440px;">
+              <div class="crm-modal-title">⬆ Import klijenata iz CSV</div>
+              <div style="font-size:0.72rem;color:rgba(255,255,255,0.45);margin-bottom:0.75rem;line-height:1.5;">
+                CSV mora imati header red sa kolonama:<br>
+                <code style="background:rgba(255,255,255,0.07);padding:2px 6px;border-radius:4px;font-size:0.68rem;">ime, prezime, firma, email, telefon, adresa, tip, napomena</code><br>
+                Maksimum 500 klijenata. JMBG/PIB <strong>ne</strong> unosite u CSV (koristite manuelni unos za poverljiva polja).
+              </div>
+              <div id="crm-csv-drop" onclick="document.getElementById('crm-csv-file').click()" style="border:2px dashed rgba(74,222,128,0.3);border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;background:rgba(74,222,128,0.04);transition:all .2s;" onmouseover="this.style.borderColor='rgba(74,222,128,0.6)'" onmouseout="this.style.borderColor='rgba(74,222,128,0.3)'">
+                <div style="font-size:1.5rem;margin-bottom:0.4rem;">📄</div>
+                <div style="font-size:0.8rem;color:rgba(255,255,255,0.6);">Kliknite ili prevucite CSV fajl ovde</div>
+                <div id="crm-csv-filename" style="font-size:0.72rem;color:#4ade80;margin-top:0.3rem;display:none;"></div>
+              </div>
+              <input type="file" id="crm-csv-file" accept=".csv,text/csv" style="display:none;" onchange="crmCsvFileSelected(this)">
+              <div id="crm-csv-result" style="display:none;margin-top:0.75rem;padding:0.65rem 0.8rem;border-radius:8px;font-size:0.78rem;line-height:1.6;"></div>
+              <div class="crm-modal-actions" style="margin-top:0.75rem;">
+                <button class="crm-save-btn" id="crm-csv-btn" onclick="crmCsvPosalji()" disabled style="opacity:0.5;cursor:not-allowed;">Uvezi klijente</button>
+                <button class="crm-cancel-btn" onclick="crmCsvImportZatvori()">Zatvori</button>
               </div>
             </div>
           </div>

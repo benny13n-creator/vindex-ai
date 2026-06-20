@@ -2916,6 +2916,73 @@ function crmCheckKonfliktOtvori() {
 }
 function crmZatvoriKonflikt() { document.getElementById('crm-conflict-overlay').classList.remove('open'); }
 
+// ── CSV Import ──────────────────────────────────────────────────────────────
+var _csvFajl = null;
+
+function crmCsvImportOtvori() {
+  _csvFajl = null;
+  var btn  = document.getElementById('crm-csv-btn');
+  var res  = document.getElementById('crm-csv-result');
+  var nm   = document.getElementById('crm-csv-filename');
+  var inp  = document.getElementById('crm-csv-file');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; btn.textContent = 'Uvezi klijente'; }
+  if (res) { res.style.display = 'none'; res.innerHTML = ''; }
+  if (nm)  { nm.style.display = 'none'; nm.textContent = ''; }
+  if (inp) inp.value = '';
+  document.getElementById('crm-csv-overlay').classList.add('open');
+}
+
+function crmCsvImportZatvori() {
+  document.getElementById('crm-csv-overlay').classList.remove('open');
+}
+
+function crmCsvFileSelected(input) {
+  var f = input.files && input.files[0];
+  if (!f) return;
+  _csvFajl = f;
+  var nm  = document.getElementById('crm-csv-filename');
+  var btn = document.getElementById('crm-csv-btn');
+  if (nm)  { nm.textContent = f.name + ' (' + (f.size/1024).toFixed(0) + ' KB)'; nm.style.display = ''; }
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+}
+
+async function crmCsvPosalji() {
+  if (!_csvFajl || !currentSession) return;
+  var btn = document.getElementById('crm-csv-btn');
+  var res = document.getElementById('crm-csv-result');
+  if (btn) { btn.disabled = true; btn.textContent = 'Uvozim...'; }
+  if (res) { res.style.display = 'none'; res.innerHTML = ''; }
+  try {
+    var fd = new FormData();
+    fd.append('fajl', _csvFajl);
+    var r = await fetch(BASE_URL + '/klijenti/import-csv', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: fd,
+    });
+    var d = await r.json();
+    if (!r.ok) {
+      res.innerHTML = '<span style="color:#f87171;">⚠ Greška: ' + _htmlEsc(d.detail || 'Nepoznata greška') + '</span>';
+    } else {
+      var greske = (d.greske || []).length;
+      var html = '<span style="color:#4ade80;font-weight:600;">✓ Uvezeno: ' + d.kreiran + ' klijenata</span>';
+      if (d.ukupno_pokusano) html += ' <span style="color:rgba(255,255,255,.4);">od ' + d.ukupno_pokusano + '</span>';
+      if (greske > 0) {
+        html += '<br><span style="color:#fbbf24;">⚠ ' + greske + ' grešaka:</span><ul style="margin:.3rem 0 0;padding-left:1.2rem;color:rgba(255,255,255,.5);font-size:.72rem;">';
+        d.greske.forEach(function(g) { html += '<li>' + _htmlEsc(g) + '</li>'; });
+        html += '</ul>';
+      }
+      res.innerHTML = html;
+      if (d.kreiran > 0) { crm_load(); showToast('Uvezeno ' + d.kreiran + ' klijenata', 'ok'); }
+    }
+    if (res) res.style.display = '';
+  } catch(e) {
+    if (res) { res.style.display = ''; res.innerHTML = '<span style="color:#f87171;">Greška mreže: ' + _htmlEsc(e.message) + '</span>'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Uvezi klijente'; }
+  }
+}
+
 async function crmPokreniKonflikt() {
   var ime = (document.getElementById('cf-ime').value||'').trim();
   if (!ime) { alert('Ime je obavezno.'); return; }
