@@ -439,7 +439,18 @@ logger.info("PINECONE_API_KEY set : %s", bool(os.getenv("PINECONE_API_KEY", ""))
 logger.info("PINECONE_HOST       : %r", os.getenv("PINECONE_HOST", ""))
 logger.info("OPENAI_API_KEY set   : %s", bool(os.getenv("OPENAI_API_KEY", "")))
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["60/hour"])
+# Redis URL (Upstash ili drugi) → distribuirani rate limit za multi-worker deploy.
+# Ako REDIS_URL nije setovan, pada na in-memory (ok za single-worker dev).
+_REDIS_URL = os.getenv("REDIS_URL", "").strip()
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["60/hour"],
+    storage_uri=_REDIS_URL if _REDIS_URL else "memory://",
+)
+if _REDIS_URL:
+    logger.info("Rate limiter: Redis (%s...)", _REDIS_URL[:30])
+else:
+    logger.warning("Rate limiter: in-memory — nije deljeno između workera. Postavi REDIS_URL.")
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -614,8 +625,17 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
-    """Dodaje security i permissions headere na svaki odgovor."""
+    """Dodaje security, cache i permissions headere na svaki odgovor."""
     response = await call_next(request)
+
+    # Dugoročni cache za verzionisane static fajlove (JS/CSS) — bezbedan jer
+    # index.html koji ih uključuje ima no-cache pa odmah vidi novi ?v= param.
+    path = request.url.path
+    if path.startswith("/static/") and (path.endswith(".js") or path.endswith(".css")):
+        response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    elif path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+
     response.headers["Permissions-Policy"] = (
         "microphone=(self \"https://vindex-ai.onrender.com\")"
     )
@@ -725,7 +745,13 @@ def root():
 @app.get("/health")
 @app.head("/health")
 def health():
-    return {"status": "ok"}
+    import os as _os
+    return {
+        "status": "ok",
+        "pid": _os.getpid(),
+        "redis": bool(_REDIS_URL),
+        "workers": int(_os.getenv("WEB_CONCURRENCY", 1)),
+    }
 
 
 @app.get("/test-pinecone")

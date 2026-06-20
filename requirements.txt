@@ -1,10 +1,12 @@
 fastapi
 uvicorn[standard]
+gunicorn
 openai
 python-dotenv
 langchain-openai
 pinecone
 slowapi
+redis
 supabase
 python-jose[cryptography]
 python-docx
