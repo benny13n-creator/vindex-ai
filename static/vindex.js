@@ -10731,6 +10731,8 @@ async function emailNotifLoad() {
     if (d7) d7.checked = !!d.dan_7;
     if (d3) d3.checked = !!d.dan_3;
     if (d1) d1.checked = !!d.dan_1;
+    var dn = document.getElementById('en-nedeljni');
+    if (dn) dn.checked = d.nedeljni !== false;
     if (badge) {
       if (d.aktivan) {
         badge.textContent = 'AKTIVNO'; badge.style.background='rgba(74,222,128,0.15)'; badge.style.color='#4ade80'; badge.style.display='inline';
@@ -10761,7 +10763,7 @@ async function emailNotifSacuvaj() {
   try {
     var r = await fetch('/email-notif/profil', {
       method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
-      body: JSON.stringify({aktivan:true, dan_7: d7?!!d7.checked:true, dan_3: d3?!!d3.checked:true, dan_1: d1?!!d1.checked:true})
+      body: JSON.stringify({aktivan:true, dan_7: d7?!!d7.checked:true, dan_3: d3?!!d3.checked:true, dan_1: d1?!!d1.checked:true, nedeljni: !!(document.getElementById('en-nedeljni')||{}).checked})
     });
     var d = await r.json();
     if (!r.ok) { _enMsg(d.detail||'Greška.','#f87171'); return; }

@@ -110,10 +110,11 @@ def _email_html(rokovi: list[dict], dana_pre: int) -> str:
 # ─── Models ───────────────────────────────────────────────────────────────────
 
 class EmailNotifReq(BaseModel):
-    aktivan: bool = True
-    dan_7:   bool = True
-    dan_3:   bool = True
-    dan_1:   bool = True
+    aktivan:  bool = True
+    dan_7:    bool = True
+    dan_3:    bool = True
+    dan_1:    bool = True
+    nedeljni: bool = True
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -150,6 +151,7 @@ async def sacuvaj_profil(request: Request, req: EmailNotifReq, user: dict = Depe
             "dan_7":      req.dan_7,
             "dan_3":      req.dan_3,
             "dan_1":      req.dan_1,
+            "nedeljni":   req.nedeljni,
             "updated_at": date.today().isoformat(),
         }, on_conflict="user_id").execute()
     )
@@ -276,3 +278,207 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
 
     result = await asyncio.to_thread(_run)
     return result
+
+
+# ─── Weekly Digest ────────────────────────────────────────────────────────────
+
+def _weekly_digest_html(
+    user_name: str,
+    rokovi: list[dict],
+    rocista: list[dict],
+    aktivnih: int,
+    neplaceno_rsd: float,
+    hitnih: int,
+) -> str:
+    """Generiše HTML za nedeljni sažetak email (ponedjeljak ujutru)."""
+    from datetime import date as _date
+    today = _date.today()
+    nedelja_kraj = today + timedelta(days=6)
+    period_lbl = f"{today.day}. — {nedelja_kraj.day}. {['jan','feb','mar','apr','maj','jun','jul','avg','sep','okt','nov','dec'][nedelja_kraj.month-1]}."
+
+    def _rok_row(r: dict) -> str:
+        tip = "🏛 Ročište" if r.get("tip") == "rociste" else "📅 Rok"
+        boja = "#ef4444" if r.get("vaznost") == "kritičan" else "#f97316"
+        return (
+            f'<tr><td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;">'
+            f'{tip} — {r.get("dogadjaj", r.get("sud", "Dogadjaj"))}</td>'
+            f'<td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:{boja};white-space:nowrap;font-weight:600;">'
+            f'{r.get("datum_iso", r.get("datum", ""))}</td></tr>'
+        )
+
+    all_items = [{"tip": "rokovi", **r} for r in (rokovi or [])] + [{"tip": "rociste", **r} for r in (rocista or [])]
+    all_items.sort(key=lambda x: x.get("datum_iso", x.get("datum", "")))
+
+    rows_html = "".join(_rok_row(r) for r in all_items[:10])
+    if not rows_html:
+        rows_html = '<tr><td colspan="2" style="padding:12px;text-align:center;color:#475569;">Nema zakazanih rokova ili ročišta za ovu nedelju.</td></tr>'
+
+    hitni_html = ""
+    if hitnih > 0:
+        hitni_html = (
+            f'<div style="margin:16px 0;padding:12px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;">'
+            f'<span style="color:#f87171;font-weight:700;">⚠ {hitnih} hitan{"a" if hitnih > 1 else ""} predmet{"a" if hitnih > 1 else ""}!</span>'
+            f'<span style="color:#94a3b8;font-size:13px;"> Proverite Komandni Centar.</span>'
+            f'</div>'
+        )
+
+    neplaceno_str = f"{int(neplaceno_rsd):,}".replace(",", ".") if neplaceno_rsd else "0"
+
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#1e3a5f,#0d2744);padding:24px 28px;">
+    <div style="font-size:13px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Vindex AI — Nedeljni sažetak</div>
+    <div style="font-size:22px;font-weight:700;color:#fff;">Dobro jutro, {user_name}! 👋</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:4px;">Ovo je vaš plan za {period_lbl}</div>
+  </div>
+  <div style="padding:24px 28px;">
+    <!-- KPI row -->
+    <div style="display:flex;gap:12px;margin-bottom:20px;">
+      <div style="flex:1;background:#0d1b2a;border:1px solid #1e3a5f;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:#4aa8ff;">{aktivnih}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px;">aktivnih predmeta</div>
+      </div>
+      <div style="flex:1;background:#0d1b2a;border:1px solid #1e3a5f;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:#fbbf24;">{len(all_items)}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px;">obaveza ove nedelje</div>
+      </div>
+      <div style="flex:1;background:#0d1b2a;border:1px solid #1e3a5f;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:{"#f87171" if neplaceno_rsd > 0 else "#4ade80"};">{neplaceno_str}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px;">nenaplaćeno RSD</div>
+      </div>
+    </div>
+    {hitni_html}
+    <!-- Schedule -->
+    <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600;">Plan za ovu nedelju</div>
+    <table style="width:100%;border-collapse:collapse;background:#0d1b2a;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+      <thead>
+        <tr style="background:#1e3a5f;">
+          <th style="padding:8px 12px;text-align:left;color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Obaveza</th>
+          <th style="padding:8px 12px;text-align:left;color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Datum</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+    <div style="text-align:center;">
+      <a href="https://vindex.rs" style="display:inline-block;padding:11px 28px;background:#4aa8ff;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Otvori Vindex AI →</a>
+    </div>
+  </div>
+  <div style="padding:14px 28px;border-top:1px solid #1e293b;">
+    <p style="color:#475569;font-size:12px;margin:0;">Nedeljni sažetak stižena svaki ponedeljak. Isključite u Podešavanja → Email notifikacije.</p>
+  </div>
+</div>
+</body></html>"""
+
+
+@router.post("/email-notif/nedeljni-sazetak")
+@limiter.limit("5/minute")
+async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Cron trigger (ponedjeljak 07:00) — šalje nedeljni sažetak svim korisnicima
+    koji imaju aktivan email notif profil sa nedeljni=True.
+    Dostupno samo founderu.
+    """
+    if (user.get("email") or "").lower() not in FOUNDER_EMAILS:
+        raise HTTPException(status_code=403, detail="Restricted.")
+
+    supa  = _get_supa()
+    today = date.today()
+    in_7  = (today + timedelta(days=7)).isoformat()
+
+    def _run():
+        profili_r = (supa.table("korisnik_email_notif")
+                        .select("*")
+                        .eq("aktivan", True)
+                        .eq("nedeljni", True)
+                        .execute())
+        profili = profili_r.data or []
+        if not profili:
+            return {"poslato": 0, "greske": 0, "napomena": "Nema korisnika sa aktivnim nedeljnim sažetkom"}
+
+        emails_r  = supa.table("profiles").select("id,email,full_name").execute()
+        predm_r   = supa.table("predmeti").select("id,user_id,naziv,status").eq("status", "aktivan").execute()
+        email_map = {str(p["id"]): p for p in (emails_r.data or [])}
+
+        aktivan_by_uid: dict[str, int] = {}
+        for p in (predm_r.data or []):
+            aktivan_by_uid[p["user_id"]] = aktivan_by_uid.get(p["user_id"], 0) + 1
+
+        poslato = greske = 0
+        today_iso = today.isoformat()
+
+        for profil in profili:
+            uid     = profil["user_id"]
+            profil_data = email_map.get(uid, {})
+            to_addr = profil_data.get("email", "")
+            if not to_addr:
+                continue
+
+            # Prevent duplicate (already sent this week)
+            dup = (supa.table("email_notif_log")
+                       .select("id")
+                       .eq("user_id", uid)
+                       .eq("datum_roka", today_iso)
+                       .eq("dana_pre", 0)
+                       .limit(1)
+                       .execute())
+            if dup.data:
+                continue
+
+            # Fetch this user's deadlines for the next 7 days
+            rokovi_r  = (supa.table("predmet_hronologija")
+                             .select("dogadjaj,datum_iso,vaznost")
+                             .eq("user_id", uid)
+                             .gte("datum_iso", today_iso)
+                             .lte("datum_iso", in_7)
+                             .order("datum_iso")
+                             .limit(20)
+                             .execute())
+            rocista_r = (supa.table("rocista")
+                             .select("sud,datum,vreme,status")
+                             .eq("user_id", uid)
+                             .gte("datum", today_iso)
+                             .lte("datum", in_7)
+                             .order("datum")
+                             .limit(10)
+                             .execute())
+            billing_r = (supa.table("billing_entries")
+                             .select("iznos_rsd")
+                             .eq("user_id", uid)
+                             .eq("obracunato", False)
+                             .execute())
+            hitnih_r  = (supa.table("predmet_hronologija")
+                             .select("predmet_id")
+                             .eq("user_id", uid)
+                             .eq("vaznost", "kritičan")
+                             .gte("datum_iso", today_iso)
+                             .lte("datum_iso", in_7)
+                             .execute())
+
+            rokovi     = rokovi_r.data or []
+            rocista    = [{"datum_iso": r.get("datum", ""), "dogadjaj": r.get("sud", "Sud"), "tip": "rociste"} for r in (rocista_r.data or [])]
+            neplaceno  = sum(float(r.get("iznos_rsd", 0) or 0) for r in (billing_r.data or []))
+            hitnih     = len(set(r.get("predmet_id") for r in (hitnih_r.data or [])))
+            aktivnih   = aktivan_by_uid.get(uid, 0)
+            user_name  = (profil_data.get("full_name") or to_addr.split("@")[0] or "").title()
+
+            html    = _weekly_digest_html(user_name, rokovi, rocista, aktivnih, neplaceno, hitnih)
+            subject = f"📅 Vindex AI — Vaš plan za nedelju ({today.strftime('%d.%m.')})"
+
+            try:
+                _smtp_send(to_addr, subject, html)
+                supa.table("email_notif_log").insert({
+                    "user_id":    uid,
+                    "predmet_id": None,
+                    "datum_roka": today_iso,
+                    "dana_pre":   0,
+                }).execute()
+                poslato += 1
+                logger.info("[WEEKLY-DIGEST] poslato uid=%.8s", uid)
+            except Exception as exc:
+                logger.error("[WEEKLY-DIGEST] greška uid=%.8s: %s", uid, exc)
+                greske += 1
+
+        return {"poslato": poslato, "greske": greske}
+
+    return await asyncio.to_thread(_run)
