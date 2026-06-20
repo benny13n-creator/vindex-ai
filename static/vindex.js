@@ -10236,6 +10236,93 @@ function _updateAdminTabUI() {
   }
   var corpusSection = document.getElementById('corpus-admin-section');
   if (corpusSection) corpusSection.style.display = currentUserIsFounder ? '' : 'none';
+  var lawSection = document.getElementById('law-upload-section');
+  if (lawSection) lawSection.style.display = currentUserIsFounder ? '' : 'none';
+}
+
+/* ── Law Upload Admin — Law database expansion ────────────────────────────── */
+
+async function lawUploadRun() {
+  if (!currentSession) return;
+  var nazivInp  = document.getElementById('law-naziv-input');
+  var slInp     = document.getElementById('law-sl-glasnik-input');
+  var pdfInp    = document.getElementById('law-pdf-input');
+  var statusEl  = document.getElementById('law-upload-status');
+  var btn       = document.getElementById('law-upload-btn');
+
+  var naziv = (nazivInp ? nazivInp.value.trim() : '');
+  if (!naziv) { _lawStatus('Unesite naziv zakona.', '#f87171'); return; }
+  if (!pdfInp || !pdfInp.files || !pdfInp.files.length) { _lawStatus('Izaberite PDF fajl.', '#f87171'); return; }
+
+  var formData = new FormData();
+  formData.append('naziv', naziv);
+  formData.append('broj_sl_glasnika', slInp ? slInp.value.trim() : '');
+  formData.append('pdf', pdfInp.files[0]);
+
+  btn.disabled = true; btn.textContent = '⏳ Upload...';
+  _lawStatus('Uploadujem i pokrećem ingest...', '#c9a84c');
+
+  try {
+    var r = await fetch('/api/admin/law/upload', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + currentSession.access_token},
+      body: formData
+    });
+    var d = await r.json();
+    if (!r.ok) { _lawStatus(d.detail || 'Greška.', '#f87171'); }
+    else {
+      _lawStatus('✓ Ingest pokrenut za "' + naziv + '". Pratite status ispod.', '#4ade80');
+      if (nazivInp) nazivInp.value = '';
+      if (slInp)    slInp.value = '';
+      if (pdfInp)   pdfInp.value = '';
+      await lawListLoad();
+    }
+  } catch(e) { _lawStatus('Greška mreže.', '#f87171'); }
+  finally { btn.disabled = false; btn.textContent = '⬆ Upload'; }
+}
+
+function _lawStatus(txt, color) {
+  var el = document.getElementById('law-upload-status');
+  if (!el) return;
+  el.textContent = txt;
+  el.style.color = color || '#fff';
+  el.style.display = '';
+  setTimeout(function(){ if(el.textContent === txt) el.style.display = 'none'; }, 6000);
+}
+
+async function lawListLoad() {
+  if (!currentSession) return;
+  var result = document.getElementById('law-lista-result');
+  if (result) result.innerHTML = '<div style="color:rgba(255,255,255,0.35);">Učitavam...</div>';
+  try {
+    var r = await fetch('/api/admin/law/lista', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { if(result) result.innerHTML = ''; return; }
+    var d = await r.json();
+    var zakoni = d.zakoni || [];
+    if (!zakoni.length) { if(result) result.innerHTML = '<div style="color:rgba(255,255,255,0.3);">Nema uploadovanih zakona.</div>'; return; }
+    var statIco = {pending:'⏳', running:'🔄', done:'✅', failed:'❌', obrisan:'🗑'};
+    var statCol = {pending:'#c9a84c', running:'#89c8ff', done:'#4ade80', failed:'#f87171', obrisan:'rgba(255,255,255,0.25)'};
+    if (result) result.innerHTML = zakoni.map(function(z){
+      var ico = statIco[z.status] || '?';
+      var col = statCol[z.status] || '#fff';
+      var vek = z.vektori_upserted ? (' · ' + z.vektori_upserted + ' vektora') : '';
+      var delBtn = z.status !== 'obrisan' ? '<button onclick="lawDelete(\''+z.id+'\',\''+_htmlEsc(z.naziv)+'\')" style="background:none;border:1px solid rgba(239,68,68,0.25);border-radius:4px;padding:1px 6px;color:rgba(239,68,68,0.6);font-size:0.68rem;cursor:pointer;font-family:inherit;margin-left:4px;">×</button>' : '';
+      return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">'
+        +'<span style="color:'+col+';font-size:0.8rem;">'+ico+'</span>'
+        +'<span style="flex:1;font-size:0.76rem;color:rgba(255,255,255,0.8);">'+_htmlEsc(z.naziv)+'<span style="color:rgba(255,255,255,0.3);font-size:0.68rem;">'+vek+'</span></span>'
+        +delBtn+'</div>';
+    }).join('');
+  } catch(e) {}
+}
+
+async function lawDelete(docId, naziv) {
+  if (!currentSession) return;
+  if (!confirm('Soft-delete "' + naziv + '"?\n(Vektori u Pinecone ostaju — kontaktirajte admina za puno brisanje.)')) return;
+  try {
+    var r = await fetch('/api/admin/law/' + docId, {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.','err'); return; }
+    await lawListLoad();
+  } catch(e) { showToast('Greška mreže.','err'); }
 }
 
 /* ── Corpus Admin — auto-scraper ─────────────────────────────────────────── */

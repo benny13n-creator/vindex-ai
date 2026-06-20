@@ -2423,6 +2423,30 @@
               <div id="corpus-discover-result" style="font-size:.77rem;"></div>
             </div>
 
+            <!-- ── LAW UPLOAD ADMIN (samo osnivač) — Law database expansion ── -->
+            <div class="settings-section" id="law-upload-section" style="display:none;">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>📚 Zakoni — Proširenje baze</span>
+                <button class="settings-btn" onclick="lawListLoad()" id="law-list-btn">📋 Lista</button>
+              </div>
+              <div style="font-size:.75rem;color:rgba(255,255,255,0.4);margin-bottom:10px;line-height:1.5;">
+                Upload PDF zakona (selektabilan tekst). Automatski se chunka, embeduje i dodaje u Pinecone <code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px;">default</code> namespace.
+              </div>
+              <div style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:10px;">
+                <input type="text" id="law-naziv-input" placeholder="Naziv zakona (npr. Zakon o privrednim društvima)" maxlength="300"
+                  style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;width:100%;box-sizing:border-box;">
+                <input type="text" id="law-sl-glasnik-input" placeholder="Sl. glasnik RS (npr. 36/2011, 99/2011...)" maxlength="100"
+                  style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;width:100%;box-sizing:border-box;">
+                <div style="display:flex;gap:0.4rem;align-items:center;">
+                  <input type="file" id="law-pdf-input" accept=".pdf"
+                    style="flex:1;background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.15);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.6);font-size:0.74rem;font-family:inherit;cursor:pointer;">
+                  <button class="settings-btn" onclick="lawUploadRun()" id="law-upload-btn" style="white-space:nowrap;">⬆ Upload</button>
+                </div>
+              </div>
+              <div id="law-upload-status" style="font-size:.74rem;margin-bottom:8px;display:none;"></div>
+              <div id="law-lista-result" style="font-size:.77rem;max-height:200px;overflow-y:auto;"></div>
+            </div>
+
             <!-- ── WAITLIST ADMIN (samo osnivač) ───────────────────────── -->
             <div class="settings-section" id="wl-admin-section" style="display:none;">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">

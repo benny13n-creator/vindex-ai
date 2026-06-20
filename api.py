@@ -499,6 +499,7 @@ from routers.multi_agent          import router as multi_agent_router
 from routers.jobs                 import router as jobs_router
 from routers.waitlist             import router as waitlist_router
 from routers.kancelarija          import router as kancelarija_router
+from routers.law_upload           import router as law_upload_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -550,6 +551,7 @@ app.include_router(multi_agent_router)
 app.include_router(jobs_router)
 app.include_router(waitlist_router)
 app.include_router(kancelarija_router)
+app.include_router(law_upload_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
