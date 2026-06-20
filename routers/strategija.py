@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from shared.deps import _audit, _deduct_credit, _deduct_n_credits, _get_credits, _is_founder, require_pro
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.rate import limiter
+from routers.plans import enforce_and_increment
 from strategija import (
     red_team_analiza_sync,
     litigation_simulator_sync,
@@ -47,6 +48,7 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
     """F5.1 — Red Team analiza predmeta iz perspektive protivne strane (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
+    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "red_team", ""))
     try:
         rezultat = await asyncio.to_thread(
@@ -65,6 +67,7 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
     """F5.2 — Litigation Simulator — procena ishoda sa % verovatnoće (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
+    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "litigation", ""))
     _praksa_context = ""
     try:
@@ -99,6 +102,7 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
     """F5.3 — AI Sudija — neutralna sudska perspektiva (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
+    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "ai_sudija", ""))
     try:
         rezultat = await asyncio.to_thread(
@@ -117,6 +121,7 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
     """F5.4 — Due Diligence analiza dokumenta (PRO)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
+    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "due_diligence", ""))
     try:
         rezultat = await asyncio.to_thread(
@@ -135,6 +140,7 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
     """F7.1 — AI Pravni Revizor — pregled dokumenta sa predlozima izmena (PRO)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
+    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "pravni_revizor", ""))
     try:
         rezultat = await asyncio.to_thread(
@@ -153,6 +159,7 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
     """F9.1 — AI Witness Analyzer — analiza iskaza/svedočenja (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Iskaz mora imati najmanje 50 karaktera.")
+    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "witness_analyzer", ""))
     try:
         rezultat = await asyncio.to_thread(
@@ -171,6 +178,7 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
     """F9.2 — AI Judge v2 — tužilac vs branilac → sudija (PRO, 3-round chain)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 100 karaktera.")
+    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "sudija_v2", ""))
     try:
         rezultat = await asyncio.to_thread(
@@ -227,6 +235,7 @@ async def post_kompletna_analiza(
                 },
             )
 
+    await enforce_and_increment(uid, "strategies")
     asyncio.create_task(_audit(uid, "kompletna_analiza", ""))
 
     async def _run_analiza():
@@ -306,6 +315,7 @@ async def strategija_v2_analiza(
 
     uid   = user["user_id"]
     email = user.get("email", "")
+    await enforce_and_increment(uid, "strategies")
     asyncio.create_task(_audit(uid, "strategija_v2", ""))
 
     user_msg = f"Opis predmeta:\n{req.opis_predmeta}"

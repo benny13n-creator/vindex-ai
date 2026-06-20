@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _deduct_credit, _get_supa, get_current_user, require_credits
 from shared.rate import limiter
+from routers.plans import enforce_and_increment
 
 logger = logging.getLogger("vindex.api")
 router = APIRouter()
@@ -232,6 +233,8 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require
     if not session_valid:
         raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
 
+    await enforce_and_increment(user["user_id"], "doc_analyses")
+
     rezultat = await asyncio.to_thread(
         ask_agent,
         body.pitanje,
@@ -272,6 +275,8 @@ async def dokument_analiza(
 
     if not tekst or len(tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Dokument je prazan ili previše kratak za analizu")
+
+    await enforce_and_increment(user["user_id"], "doc_analyses")
 
     try:
         segmented = await asyncio.to_thread(segment_document, tekst)

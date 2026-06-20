@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user, require_credits, _deduct_credit
 from shared.rate import limiter
+from routers.plans import enforce_and_increment
 
 logger = logging.getLogger("vindex.copilot")
 router = APIRouter(tags=["copilot"])
@@ -873,6 +874,8 @@ async def copilot_chat(
     uid      = user["user_id"]
     email    = user.get("email", "")
     predmet_ctx = ""
+
+    await enforce_and_increment(uid, "ai_queries")
 
     if req.predmet_id:
         predmet_ctx = await _load_predmet_context(req.predmet_id, uid)
