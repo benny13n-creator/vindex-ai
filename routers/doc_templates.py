@@ -7,8 +7,8 @@ Podržani tipovi: ugovor o zastupanju, tužba, žalba, punomoćje, opomena.
 
 Endpoints:
   GET  /api/doc-templates/lista       — lista dostupnih šablona
-  POST /api/doc-templates/generiši    — generiše dokument iz šablona (GPT-4o)
-  POST /api/doc-templates/sačuvaj     — čuva generisani dokument u predmet_dokumenti
+  POST /api/doc-templates/generisi    — generiše dokument iz šablona (GPT-4o)
+  POST /api/doc-templates/sacuvaj     — čuva generisani dokument u predmet_dokumenti
 """
 from __future__ import annotations
 
@@ -121,9 +121,9 @@ async def lista_sablona(request: Request, user: dict = Depends(get_current_user)
     }
 
 
-@router.post("/generiši")
+@router.post("/generisi")
 @limiter.limit("10/minute")
-async def generiši_dokument(
+async def generisi_dokument(
     request: Request,
     req: GenerisuReq,
     user: dict = Depends(get_current_user),
@@ -173,7 +173,7 @@ async def generiši_dokument(
     }
 
 
-@router.post("/sačuvaj")
+@router.post("/sacuvaj")
 @limiter.limit("20/minute")
 async def sacuvaj_dokument(
     request: Request,

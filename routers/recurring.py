@@ -9,7 +9,7 @@ GET    /billing/recurring                   — lista (aktivan filter opcioni)
 GET    /billing/recurring/{id}              — jedna
 PATCH  /billing/recurring/{id}              — izmeni / deaktiviraj
 DELETE /billing/recurring/{id}              — obriši (samo neaktivirane)
-POST   /billing/recurring/{id}/generiši     — kreira fakturu + pomera sledeci_datum
+POST   /billing/recurring/{id}/generisi     — kreira fakturu + pomera sledeci_datum
 """
 from __future__ import annotations
 
@@ -262,11 +262,11 @@ async def delete_recurring(
     )
 
 
-# ─── POST /billing/recurring/{id}/generiši ───────────────────────────────────
+# ─── POST /billing/recurring/{id}/generisi ───────────────────────────────────
 
-@router.post("/{template_id}/generiši", status_code=201)
+@router.post("/{template_id}/generisi", status_code=201)
 @limiter.limit("20/minute")
-async def generiši_iz_sablona(
+async def generisi_iz_sablona(
     template_id: str,
     request:     Request,
     user:        dict = Depends(get_current_user),

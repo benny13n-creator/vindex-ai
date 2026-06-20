@@ -1943,6 +1943,52 @@
             </div>
           </div>
 
+          <!-- Onboarding Welcome Modal -->
+          <div id="onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:11000;align-items:center;justify-content:center;">
+            <div onclick="event.stopPropagation()" style="width:min(520px,94vw);background:linear-gradient(145deg,#0d1b2a,#0f2035);border:1px solid rgba(74,168,255,0.25);border-radius:16px;box-shadow:0 32px 80px rgba(0,0,0,0.8);overflow:hidden;">
+              <!-- Header -->
+              <div style="background:linear-gradient(135deg,rgba(74,168,255,0.15),rgba(74,168,255,0.05));padding:1.75rem 1.75rem 1.25rem;text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);">
+                <div style="font-size:2rem;margin-bottom:0.5rem;">⚖️</div>
+                <div style="font-size:1.15rem;font-weight:700;color:#e2e8f0;margin-bottom:0.3rem;">Dobrodošli u Vindex AI</div>
+                <div style="font-size:0.8rem;color:rgba(255,255,255,0.5);">Pravni operativni sistem za srpske advokate</div>
+              </div>
+              <!-- Steps -->
+              <div style="padding:1.25rem 1.75rem;">
+                <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.85rem;">Počnite za 3 koraka</div>
+                <div id="ob-steps" style="display:flex;flex-direction:column;gap:0.6rem;">
+                  <div class="ob-step" id="ob-step-1" onclick="onboardingStep(1)" style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;background:rgba(74,168,255,0.06);border:1px solid rgba(74,168,255,0.2);border-radius:9px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(74,168,255,0.1)'" onmouseout="this.style.background='rgba(74,168,255,0.06)'">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(74,168,255,0.15);border:1px solid rgba(74,168,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;">👤</div>
+                    <div>
+                      <div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">Dodajte prvog klijenta</div>
+                      <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-top:1px;">Ime, kontakt, tip klijenta</div>
+                    </div>
+                    <span style="margin-left:auto;font-size:0.75rem;color:#89c8ff;">→</span>
+                  </div>
+                  <div class="ob-step" id="ob-step-2" onclick="onboardingStep(2)" style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:9px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;">📁</div>
+                    <div>
+                      <div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">Otvorite predmet</div>
+                      <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-top:1px;">AI Intake Wizard vodi vas kroz proces</div>
+                    </div>
+                    <span style="margin-left:auto;font-size:0.75rem;color:rgba(255,255,255,0.3);">→</span>
+                  </div>
+                  <div class="ob-step" id="ob-step-3" onclick="onboardingStep(3)" style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:9px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;">⚖️</div>
+                    <div>
+                      <div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">Postavite pravno pitanje</div>
+                      <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-top:1px;">847 zakona RS + 12.604 presuda u sekundi</div>
+                    </div>
+                    <span style="margin-left:auto;font-size:0.75rem;color:rgba(255,255,255,0.3);">→</span>
+                  </div>
+                </div>
+              </div>
+              <div style="padding:0.75rem 1.75rem 1.25rem;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.06);">
+                <button onclick="onboardingDismiss()" style="background:none;border:none;font-size:0.72rem;color:rgba(255,255,255,0.3);cursor:pointer;padding:0;font-family:inherit;">Preskoči za sada</button>
+                <button onclick="onboardingStep(1)" style="padding:8px 22px;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:7px;color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;">Počnimo →</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Intake Template Modal -->
           <div id="intake-tpl-overlay" onclick="if(event.target===this)intakeTemplateClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:none;align-items:center;justify-content:center;">
             <div onclick="event.stopPropagation()" style="width:min(560px,94vw);max-height:80vh;background:#0d1b2a;border:1px solid rgba(74,168,255,0.2);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);display:flex;flex-direction:column;overflow:hidden;">
@@ -1976,7 +2022,9 @@
                   <div id="doctpl-fields" style="display:flex;flex-direction:column;gap:0.55rem;"></div>
                   <div id="doctpl-predmet-row" style="display:none;flex-direction:column;gap:0.3rem;">
                     <label style="font-size:0.7rem;color:rgba(255,255,255,0.45);">Sačuvaj uz predmet (opciono)</label>
-                    <input id="doctpl-predmet-id" type="text" placeholder="ID predmeta (ostavite prazno)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.78rem;font-family:inherit;outline:none;">
+                    <select id="doctpl-predmet-id" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.78rem;font-family:inherit;outline:none;cursor:pointer;">
+                      <option value="">— Izaberi predmet —</option>
+                    </select>
                   </div>
                   <button id="doctpl-gen-btn" onclick="docTplGeneriši()" style="display:none;padding:8px 18px;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:7px;color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;align-self:flex-start;">
                     ✨ Generiši dokument
@@ -2386,6 +2434,16 @@
             </div>
 
             <!-- ── SEF e-faktura ─────────────────────────────────── -->
+            <!-- ── BILLING DUGOVANJA ────────────────────────────────────── -->
+            <div class="settings-section" id="billing-dugovanja-section">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>💸 Neplaćena dugovanja</span>
+                <button class="settings-btn" onclick="billingDugovanjaLoad()">↻ Osveži</button>
+              </div>
+              <div id="billing-dugovanja-kpi" style="display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;"></div>
+              <div id="billing-dugovanja-list" style="display:flex;flex-direction:column;gap:0.35rem;max-height:260px;overflow-y:auto;"></div>
+            </div>
+
             <div class="settings-section" id="sef-settings-section">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
                 <span>SEF e-Faktura</span>
@@ -2562,6 +2620,38 @@
               </div>
               <div id="law-upload-status" style="font-size:.74rem;margin-bottom:8px;display:none;"></div>
               <div id="law-lista-result" style="font-size:.77rem;max-height:200px;overflow-y:auto;"></div>
+            </div>
+
+            <!-- ── USAGE ANALYTICS (samo osnivač) ──────────────────────── -->
+            <div class="settings-section" id="analytics-section" style="display:none;">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>📊 Usage Analytics</span>
+                <div style="display:flex;gap:0.4rem;align-items:center;">
+                  <select id="analytics-period" onchange="analyticsLoad()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 7px;color:rgba(255,255,255,0.7);font-size:0.7rem;font-family:inherit;cursor:pointer;">
+                    <option value="7">7 dana</option>
+                    <option value="30" selected>30 dana</option>
+                    <option value="90">90 dana</option>
+                  </select>
+                  <button class="settings-btn" onclick="analyticsLoad()">↻</button>
+                </div>
+              </div>
+              <!-- KPI row -->
+              <div id="analytics-kpi" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;margin-bottom:0.85rem;"></div>
+              <!-- Aktivnost po danu (bar chart) -->
+              <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;">Aktivnost po danu</div>
+              <div id="analytics-chart" style="display:flex;align-items:flex-end;gap:2px;height:60px;margin-bottom:0.9rem;"></div>
+              <!-- Top funkcije + Top predmeti -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                <div>
+                  <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.35rem;">Top funkcije</div>
+                  <div id="analytics-features" style="display:flex;flex-direction:column;gap:0.2rem;"></div>
+                </div>
+                <div>
+                  <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.35rem;">Top predmeti</div>
+                  <div id="analytics-predmeti" style="display:flex;flex-direction:column;gap:0.2rem;"></div>
+                </div>
+              </div>
+              <div id="analytics-empty" style="display:none;font-size:0.78rem;color:rgba(255,255,255,0.3);text-align:center;padding:1.5rem 0;">Nema podataka za izabrani period.</div>
             </div>
 
             <!-- ── WAITLIST ADMIN (samo osnivač) ───────────────────────── -->

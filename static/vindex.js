@@ -1675,6 +1675,59 @@ function settingsLoad() {
   sms_loadProfil();
   emailNotifLoad();
   kancelarijaLoad();
+  billingDugovanjaLoad();
+}
+
+// ── Billing Dugovanja ────────────────────────────────────────────────────────
+
+async function billingDugovanjaLoad() {
+  if (!currentSession) return;
+  var listEl = document.getElementById('billing-dugovanja-list');
+  var kpiEl  = document.getElementById('billing-dugovanja-kpi');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);padding:0.5rem 0;">Učitavam...</div>';
+  try {
+    var r = await fetch('/billing/dugovanja', { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
+    if (!r.ok) { listEl.innerHTML = '<div style="font-size:0.75rem;color:#f87171;">Greška pri učitavanju.</div>'; return; }
+    var d = await r.json();
+    var dugovanja = d.dugovanja || [];
+
+    if (kpiEl) {
+      var fmt = function(n){ return Math.round(n).toLocaleString('sr-RS') + ' RSD'; };
+      kpiEl.innerHTML = [
+        { label: 'Ukupno duguje', val: fmt(d.ukupno_rsd || 0), color: d.ukupno_rsd > 0 ? '#f87171' : '#4ade80' },
+        { label: 'Predmeta', val: d.predmeta || 0, color: '#89c8ff' },
+        { label: 'Stavki', val: d.stavki || 0, color: 'rgba(255,255,255,0.5)' },
+      ].map(function(k){
+        return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:0.45rem 0.7rem;text-align:center;flex:1;">'
+          +'<div style="font-size:0.9rem;font-weight:700;color:'+k.color+';">'+k.val+'</div>'
+          +'<div style="font-size:0.57rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;margin-top:1px;">'+k.label+'</div>'
+          +'</div>';
+      }).join('');
+    }
+
+    if (!dugovanja.length) {
+      listEl.innerHTML = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.3);padding:0.5rem 0;text-align:center;">✅ Nema neplaćenih stavki. Sve je naplaćeno!</div>';
+      return;
+    }
+
+    listEl.innerHTML = dugovanja.map(function(g){
+      var iznos = Math.round(g.ukupno_rsd || 0).toLocaleString('sr-RS');
+      return '<div onclick="pred_select(\''+g.predmet_id+'\')" style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.65rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:7px;cursor:pointer;transition:border-color .15s;" onmouseover="this.style.borderColor=\'rgba(74,168,255,0.2)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.07)\'">'
+        +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:0.78rem;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(g.predmet_naziv||'—')+'</div>'
+        +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.38);margin-top:1px;">'+(g.stavke||[]).length+' stavk'+(g.stavke&&g.stavke.length===1?'a':'i')+'</div>'
+        +'</div>'
+        +'<div style="flex-shrink:0;text-align:right;">'
+        +'<div style="font-size:0.82rem;font-weight:700;color:#f87171;">'+iznos+'</div>'
+        +'<div style="font-size:0.58rem;color:rgba(255,255,255,0.3);">RSD</div>'
+        +'</div>'
+        +'<span style="font-size:0.65rem;color:#89c8ff;flex-shrink:0;">→</span>'
+        +'</div>';
+    }).join('');
+  } catch(e) {
+    if (listEl) listEl.innerHTML = '<div style="font-size:0.75rem;color:#f87171;">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
 }
 
 // ── SMS / WhatsApp notifikacije ───────────────────────────────────────────────
@@ -6669,9 +6722,10 @@ async function pred_load() {
       fetch(BASE_URL+'/api/predmeti',           { headers: { 'Authorization':'Bearer '+currentSession.access_token } }),
       fetch(BASE_URL+'/api/predmeti/dashboard', { headers: { 'Authorization':'Bearer '+currentSession.access_token } }),
     ]);
-    // Fire portfolio and notifications in background (non-blocking)
+    // Fire portfolio, notifications and onboarding check in background (non-blocking)
     portfolio_load();
     notif_load();
+    setTimeout(onboardingCheck, 1500);
     if (!r.ok) return;
     var d = await r.json();
     _predmeti = d.predmeti || [];
@@ -9105,7 +9159,7 @@ async function billing_generiši(templateId) {
   var btn = event && event.target;
   if (btn) { btn.disabled=true; btn.textContent='...'; }
   try {
-    var r = await fetch(BASE_URL+'/billing/recurring/'+templateId+'/generi%C5%A1i', {
+    var r = await fetch(BASE_URL+'/billing/recurring/'+templateId+'/generisi', {
       method:'POST',
       headers:{Authorization:'Bearer '+currentSession.access_token}
     });
@@ -10239,6 +10293,95 @@ function _updateAdminTabUI() {
   if (corpusSection) corpusSection.style.display = currentUserIsFounder ? '' : 'none';
   var lawSection = document.getElementById('law-upload-section');
   if (lawSection) lawSection.style.display = currentUserIsFounder ? '' : 'none';
+  var analyticsSection = document.getElementById('analytics-section');
+  if (analyticsSection) {
+    analyticsSection.style.display = currentUserIsFounder ? '' : 'none';
+    if (currentUserIsFounder) analyticsLoad();
+  }
+}
+
+/* ── Usage Analytics Dashboard ──────────────────────────────────────────────── */
+
+async function analyticsLoad() {
+  if (!currentSession) return;
+  var period = (document.getElementById('analytics-period') || {}).value || '30';
+  try {
+    var r = await fetch('/analytics/usage?dana=' + period, { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
+    if (!r.ok) return;
+    var d = await r.json();
+    analyticsRender(d);
+  } catch(e) {}
+}
+
+function analyticsRender(d) {
+  var total    = d.ukupno_dogadjaja || 0;
+  var features = d.top_funkcije || [];
+  var predmeti = d.top_predmeti || [];
+  var aktivnost = d.aktivnost_po_danu || [];
+
+  var emptyEl = document.getElementById('analytics-empty');
+
+  // KPI
+  var kpiEl = document.getElementById('analytics-kpi');
+  if (kpiEl) {
+    kpiEl.innerHTML = [
+      { label: 'Ukupno akcija', val: total, color: '#89c8ff' },
+      { label: 'Funkcija korišćeno', val: features.length, color: '#4ade80' },
+      { label: 'Period (dana)', val: d.period_dana || 30, color: 'rgba(255,255,255,0.4)' },
+    ].map(function(k){
+      return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:0.5rem 0.6rem;text-align:center;">'
+        +'<div style="font-size:1.1rem;font-weight:700;color:'+k.color+';line-height:1.2;">'+k.val+'</div>'
+        +'<div style="font-size:0.57rem;color:rgba(255,255,255,0.38);text-transform:uppercase;letter-spacing:.05em;margin-top:1px;">'+k.label+'</div>'
+        +'</div>';
+    }).join('');
+  }
+
+  // Bar chart aktivnost
+  var chartEl = document.getElementById('analytics-chart');
+  if (chartEl && aktivnost.length) {
+    var maxVal = Math.max.apply(null, aktivnost.map(function(a){ return a.count; })) || 1;
+    chartEl.innerHTML = aktivnost.map(function(a){
+      var pct = Math.round((a.count / maxVal) * 100);
+      var dan = (a.datum || '').slice(5);
+      return '<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;" title="'+a.datum+': '+a.count+' akcija">'
+        +'<div style="width:100%;background:rgba(74,168,255,0.5);border-radius:2px 2px 0 0;height:'+pct+'%;min-height:'+(a.count?2:0)+'px;"></div>'
+        +'<div style="font-size:0.42rem;color:rgba(255,255,255,0.25);writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap;">'+dan+'</div>'
+        +'</div>';
+    }).join('');
+  } else if (chartEl) {
+    chartEl.innerHTML = '<div style="color:rgba(255,255,255,0.2);font-size:0.75rem;width:100%;text-align:center;">Nema podataka</div>';
+  }
+
+  // Top funkcije
+  var featEl = document.getElementById('analytics-features');
+  if (featEl) {
+    var maxF = features.length ? features[0].count : 1;
+    featEl.innerHTML = features.slice(0, 8).map(function(f){
+      var pct = Math.round((f.count / maxF) * 100);
+      return '<div style="margin-bottom:2px;">'
+        +'<div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-bottom:1px;">'
+        +'<span style="color:rgba(255,255,255,0.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">'+_htmlEsc(f.feature)+'</span>'
+        +'<span style="color:rgba(255,255,255,0.4);flex-shrink:0;margin-left:4px;">'+f.count+'</span>'
+        +'</div>'
+        +'<div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;">'
+        +'<div style="height:100%;width:'+pct+'%;background:#4aa8ff;border-radius:2px;"></div>'
+        +'</div></div>';
+    }).join('') || '<div style="font-size:0.7rem;color:rgba(255,255,255,0.25);">Nema podataka</div>';
+  }
+
+  // Top predmeti
+  var predEl = document.getElementById('analytics-predmeti');
+  if (predEl) {
+    predEl.innerHTML = predmeti.slice(0, 5).map(function(p, i){
+      return '<div style="display:flex;align-items:center;gap:0.4rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+        +'<span style="font-size:0.6rem;color:rgba(255,255,255,0.3);flex-shrink:0;width:12px;">'+(i+1)+'.</span>'
+        +'<span style="font-size:0.7rem;color:rgba(255,255,255,0.75);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(p.naziv||p.predmet_id)+'</span>'
+        +'<span style="font-size:0.65rem;color:#89c8ff;flex-shrink:0;">'+p.pristupa+'×</span>'
+        +'</div>';
+    }).join('') || '<div style="font-size:0.7rem;color:rgba(255,255,255,0.25);">Nema podataka</div>';
+  }
+
+  if (emptyEl) emptyEl.style.display = total ? 'none' : 'block';
 }
 
 /* ── Law Upload Admin — Law database expansion ────────────────────────────── */
@@ -10696,6 +10839,24 @@ async function docTplOpen() {
     } catch(e) { _doctplSabloni = []; }
   }
   _doctplRenderLista();
+  _doctplLoadPredmeti();
+}
+
+async function _doctplLoadPredmeti() {
+  if (!currentSession) return;
+  var sel = document.getElementById('doctpl-predmet-id');
+  if (!sel) return;
+  try {
+    var r = await fetch('/api/predmeti?limit=100', { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
+    if (!r.ok) return;
+    var d = await r.json();
+    var lista = d.predmeti || d || [];
+    sel.innerHTML = '<option value="">— Izaberi predmet —</option>'
+      + lista.filter(function(p){ return p.status !== 'zatvoren' && p.status !== 'arhiviran'; })
+             .slice(0, 50)
+             .map(function(p){ return '<option value="'+p.id+'">'+_htmlEsc(p.naziv||'Bez naziva')+'</option>'; })
+             .join('');
+  } catch(e) {}
 }
 
 function docTplClose() {
@@ -10786,7 +10947,7 @@ async function docTplGeneriši() {
   if (genBtn)  genBtn.style.display = 'none';
   if (loadEl)  loadEl.style.display = 'block';
   try {
-    var r = await fetch('/api/doc-templates/generiši', {
+    var r = await fetch('/api/doc-templates/generisi', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ sablon_id: _doctplAktivni.id, polja: polja }),
@@ -10815,10 +10976,10 @@ async function docTplSacuvaj() {
   var txtEl   = document.getElementById('doctpl-result-txt');
   var predEl  = document.getElementById('doctpl-predmet-id');
   if (!txtEl || !txtEl.value.trim()) { showToast('Nema dokumenta za čuvanje', 'info'); return; }
-  var predId  = predEl ? predEl.value.trim() : '';
-  if (!predId) { showToast('Unesite ID predmeta za čuvanje', 'info'); return; }
+  var predId  = predEl ? predEl.value : '';
+  if (!predId) { showToast('Izaberite predmet iz liste', 'info'); return; }
   try {
-    var r = await fetch('/api/doc-templates/sačuvaj', {
+    var r = await fetch('/api/doc-templates/sacuvaj', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ predmet_id: predId, naziv: _doctplAktivni ? _doctplAktivni.naziv : 'Dokument', sadrzaj: txtEl.value, sablon_id: _doctplAktivni ? _doctplAktivni.id : '' }),
@@ -10827,6 +10988,49 @@ async function docTplSacuvaj() {
     if (!r.ok) { showToast(d.detail || 'Greška', 'error'); return; }
     showToast('Dokument sačuvan uz predmet!', 'success');
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+// ── Onboarding Welcome Flow ──────────────────────────────────────────────────
+
+function onboardingCheck() {
+  if (!currentSession || !currentUser) return;
+  var uid = currentUser.id || currentUser.user_id || '';
+  var key = 'vx_onboarded_' + uid.slice(0, 8);
+  if (localStorage.getItem(key)) return;
+  var createdAt = currentUser.created_at || '';
+  var isNew = !createdAt || (Date.now() - new Date(createdAt).getTime()) < 7 * 24 * 60 * 60 * 1000;
+  if (!isNew) { localStorage.setItem(key, '1'); return; }
+  var overlay = document.getElementById('onboarding-overlay');
+  if (overlay) overlay.style.display = 'flex';
+}
+
+function onboardingDismiss() {
+  var overlay = document.getElementById('onboarding-overlay');
+  if (overlay) overlay.style.display = 'none';
+  if (!currentUser) return;
+  var uid = currentUser.id || currentUser.user_id || '';
+  localStorage.setItem('vx_onboarded_' + uid.slice(0, 8), '1');
+}
+
+function onboardingStep(step) {
+  onboardingDismiss();
+  if (step === 1) {
+    var tabBtn = document.getElementById('tab-btn-k');
+    if (tabBtn) setTab(tabBtn, 'k');
+    setTimeout(function(){
+      var addBtn = document.querySelector('.crm-add-btn');
+      if (addBtn) addBtn.click();
+    }, 400);
+  } else if (step === 2) {
+    intakeOtvori();
+  } else if (step === 3) {
+    var tabBtn = document.getElementById('tab-btn-q');
+    if (tabBtn) setTab(tabBtn, 'q');
+    setTimeout(function(){
+      var inp = document.getElementById('qi');
+      if (inp) inp.focus();
+    }, 300);
+  }
 }
 
 // ── Integracije — Phase 5.5 ──────────────────────────────────────────────────
