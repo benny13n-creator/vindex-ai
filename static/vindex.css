@@ -6932,3 +6932,26 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
     font-size: 16px !important;
   }
 }
+
+/* ── Onboarding overlay — hover + mobile (2026-06-20) ── */
+.ob-step:hover { transform: translateX(3px); }
+@media (max-width: 640px) {
+  #onboarding-overlay { align-items: flex-end !important; padding: 0 !important; }
+  #onboarding-overlay > div {
+    border-radius: 20px 20px 0 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+  }
+  #onboarding-overlay > div::before {
+    content: '';
+    display: block;
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    margin: 12px auto 0;
+  }
+}

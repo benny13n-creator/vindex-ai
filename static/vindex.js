@@ -204,8 +204,7 @@ async function initAuth() {
         piTrack('auth', 'login', {event: event});
         var hTab = document.querySelector('[onclick*="\'h\'"]');
         if (hTab) setTab(hTab, 'h');
-        // Onboarding wizard — prikazuje se samo prvi put
-        setTimeout(function() { if (typeof onboard_show === 'function') onboard_show(); }, 800);
+        // Onboarding — jedini flow je onboardingCheck (stari onboard_show je deaktiviran)
       }
     } else {
       userCredits = 0; _creditsLoaded = false; _creditsLoadedAt = 0; _chatHistoryRows = [];
@@ -12823,10 +12822,7 @@ var _onboardSteps = [
   { icon: '💡', title: 'Vindex vam govori šta da radite', body: 'Kad otvorite predmet, videćete obojene preporuke: 🔴 hitno, 🟡 pažnja, 🔵 savet. Jedan klik — odlazite tačno tamo gde treba.' },
 ];
 function onboard_show() {
-  if (localStorage.getItem('vx_onboarded')) return;
-  _onboardStep = 0;
-  var el = document.getElementById('onboard-overlay');
-  if (el) { el.style.display = 'flex'; onboard_render(); }
+  /* deaktivirano — onboardingCheck() je jedini onboarding flow */
 }
 function onboard_render() {
   var s = _onboardSteps[_onboardStep];

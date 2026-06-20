@@ -1979,47 +1979,75 @@
           </div>
 
           <!-- Onboarding Welcome Modal -->
-          <div id="onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:11000;align-items:center;justify-content:center;">
-            <div onclick="event.stopPropagation()" style="width:min(520px,94vw);background:linear-gradient(145deg,#0d1b2a,#0f2035);border:1px solid rgba(74,168,255,0.25);border-radius:16px;box-shadow:0 32px 80px rgba(0,0,0,0.8);overflow:hidden;">
+          <div id="onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:11000;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">
+            <div onclick="event.stopPropagation()" style="width:min(540px,96vw);background:#080f1c;border:1px solid rgba(0,212,255,0.18);border-radius:20px;box-shadow:0 40px 100px rgba(0,0,0,0.85),0 0 0 1px rgba(0,212,255,0.06);overflow:hidden;max-height:96dvh;display:flex;flex-direction:column;">
+
               <!-- Header -->
-              <div style="background:linear-gradient(135deg,rgba(74,168,255,0.15),rgba(74,168,255,0.05));padding:1.75rem 1.75rem 1.25rem;text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);">
-                <div style="font-size:2rem;margin-bottom:0.5rem;">⚖️</div>
-                <div style="font-size:1.15rem;font-weight:700;color:#e2e8f0;margin-bottom:0.3rem;">Dobrodošli u Vindex AI</div>
-                <div style="font-size:0.8rem;color:rgba(255,255,255,0.5);">Pravni operativni sistem za srpske advokate</div>
+              <div style="padding:2rem 2rem 1.5rem;background:linear-gradient(145deg,rgba(0,212,255,0.08),rgba(0,212,255,0.02));border-bottom:1px solid rgba(255,255,255,0.06);text-align:center;flex-shrink:0;">
+                <div style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:700;color:#fff;letter-spacing:-0.02em;margin-bottom:4px;">
+                  Vindex <span style="color:#00d4ff;font-style:italic;">AI</span>
+                </div>
+                <div style="font-size:0.72rem;font-family:'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:rgba(0,212,255,0.55);margin-bottom:1rem;">Pravni operativni sistem</div>
+                <div style="font-size:1.05rem;font-weight:600;color:rgba(255,255,255,0.88);margin-bottom:6px;">Dobrodošli! Spremni ste za rad.</div>
+                <div style="font-size:0.82rem;color:rgba(255,255,255,0.4);line-height:1.6;">Pratite tri koraka i Vindex AI će početi da radi za vas odmah.</div>
               </div>
+
               <!-- Steps -->
-              <div style="padding:1.25rem 1.75rem;">
-                <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.85rem;">Počnite za 3 koraka</div>
-                <div id="ob-steps" style="display:flex;flex-direction:column;gap:0.6rem;">
-                  <div class="ob-step" id="ob-step-1" onclick="onboardingStep(1)" style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;background:rgba(74,168,255,0.06);border:1px solid rgba(74,168,255,0.2);border-radius:9px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(74,168,255,0.1)'" onmouseout="this.style.background='rgba(74,168,255,0.06)'">
-                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(74,168,255,0.15);border:1px solid rgba(74,168,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;">👤</div>
-                    <div>
-                      <div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">Dodajte prvog klijenta</div>
-                      <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-top:1px;">Ime, kontakt, tip klijenta</div>
-                    </div>
-                    <span style="margin-left:auto;font-size:0.75rem;color:#89c8ff;">→</span>
+              <div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.55rem;overflow-y:auto;">
+
+                <div class="ob-step" id="ob-step-1" onclick="onboardingStep(1)"
+                  style="display:flex;align-items:center;gap:1rem;padding:0.9rem 1rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.22);border-radius:12px;cursor:pointer;transition:all .15s;">
+                  <div style="width:40px;height:40px;border-radius:10px;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   </div>
-                  <div class="ob-step" id="ob-step-2" onclick="onboardingStep(2)" style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:9px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;">📁</div>
-                    <div>
-                      <div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">Otvorite predmet</div>
-                      <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-top:1px;">AI Intake Wizard vodi vas kroz proces</div>
-                    </div>
-                    <span style="margin-left:auto;font-size:0.75rem;color:rgba(255,255,255,0.3);">→</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:0.88rem;font-weight:600;color:#e2e8f0;margin-bottom:2px;">Dodajte prvog klijenta</div>
+                    <div style="font-size:0.72rem;color:rgba(255,255,255,0.38);">Ime, kontakt, tip — 30 sekundi</div>
                   </div>
-                  <div class="ob-step" id="ob-step-3" onclick="onboardingStep(3)" style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:9px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;">⚖️</div>
-                    <div>
-                      <div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">Postavite pravno pitanje</div>
-                      <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-top:1px;">847 zakona RS + 12.604 presuda u sekundi</div>
-                    </div>
-                    <span style="margin-left:auto;font-size:0.75rem;color:rgba(255,255,255,0.3);">→</span>
+                  <div style="width:24px;height:24px;border-radius:50%;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                   </div>
                 </div>
+
+                <div class="ob-step" id="ob-step-2" onclick="onboardingStep(2)"
+                  style="display:flex;align-items:center;gap:1rem;padding:0.9rem 1rem;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.08);border-radius:12px;cursor:pointer;transition:all .15s;">
+                  <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:0.88rem;font-weight:600;color:#e2e8f0;margin-bottom:2px;">Otvorite prvi predmet</div>
+                    <div style="font-size:0.72rem;color:rgba(255,255,255,0.38);">AI Intake Wizard — automatska ekstrakcija podataka</div>
+                  </div>
+                  <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                  </div>
+                </div>
+
+                <div class="ob-step" id="ob-step-3" onclick="onboardingStep(3)"
+                  style="display:flex;align-items:center;gap:1rem;padding:0.9rem 1rem;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.08);border-radius:12px;cursor:pointer;transition:all .15s;">
+                  <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:0.88rem;font-weight:600;color:#e2e8f0;margin-bottom:2px;">Postavite pravno pitanje</div>
+                    <div style="font-size:0.72rem;color:rgba(255,255,255,0.38);">847 zakona RS + 12.604 presuda — odgovor za &lt;10 sek</div>
+                  </div>
+                  <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                  </div>
+                </div>
+
+                <!-- Bonus: besplatnih upita info -->
+                <div style="margin-top:4px;padding:0.65rem 0.9rem;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.15);border-radius:8px;display:flex;align-items:center;gap:0.6rem;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span style="font-size:0.72rem;color:rgba(74,222,128,0.8);">15 besplatnih AI upita aktivirano — bez kreditne kartice</span>
+                </div>
               </div>
-              <div style="padding:0.75rem 1.75rem 1.25rem;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.06);">
-                <button onclick="onboardingDismiss()" style="background:none;border:none;font-size:0.72rem;color:rgba(255,255,255,0.3);cursor:pointer;padding:0;font-family:inherit;">Preskoči za sada</button>
-                <button onclick="onboardingStep(1)" style="padding:8px 22px;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:7px;color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;">Počnimo →</button>
+
+              <!-- Footer -->
+              <div style="padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.06);flex-shrink:0;">
+                <button onclick="onboardingDismiss()" style="background:none;border:none;font-size:0.72rem;color:rgba(255,255,255,0.25);cursor:pointer;padding:4px 0;font-family:inherit;min-height:44px;">Preskoči za sada</button>
+                <button onclick="onboardingStep(1)" style="padding:10px 24px;background:linear-gradient(135deg,#00d4ff,#0088cc);border:none;border-radius:8px;color:#010308;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;min-height:44px;">Počnimo →</button>
               </div>
             </div>
           </div>
