@@ -555,8 +555,110 @@ footer {
 .footer-links a:hover { color: var(--teal); }
 .footer-bottom { border-top: 1px solid var(--bd-1); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: var(--tx-3); font-family: var(--font-mono); }
 
-/* ── Mobile nav ── */
-.mobile-menu-btn { display: none; background: none; border: 1px solid var(--bd-2); color: var(--tx-2); padding: 7px 14px; border-radius: var(--r-sm); font-size: 0.82rem; }
+/* ── Mobile nav menu (drawer) ── */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: 1px solid var(--bd-2);
+  color: var(--tx-2);
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  font-size: 0.82rem;
+  cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 44px; min-height: 44px;
+  align-items: center; justify-content: center;
+}
+.mobile-menu-btn svg { width: 20px; height: 20px; display: block; }
+
+.mobile-drawer {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+.mobile-drawer.open { display: flex; flex-direction: column; }
+.mobile-drawer-bg {
+  position: absolute; inset: 0;
+  background: rgba(1,3,8,0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.mobile-drawer-panel {
+  position: relative;
+  z-index: 1;
+  background: rgba(6,10,20,0.98);
+  border-bottom: 1px solid var(--bd-2);
+  padding: 20px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: drawer-slide-down 0.22s ease;
+}
+@keyframes drawer-slide-down {
+  from { transform: translateY(-8px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.mobile-drawer-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--bd-1);
+  margin-bottom: 8px;
+}
+.mobile-drawer-logo { font-family: var(--font-brand); font-size: 1.35rem; font-weight: 700; }
+.mobile-drawer-logo em { font-style: italic; color: var(--teal); }
+.mobile-drawer-close {
+  background: none; border: 1px solid var(--bd-2); color: var(--tx-2);
+  border-radius: var(--r-sm); padding: 7px 12px; font-size: 0.82rem; cursor: pointer;
+  min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;
+}
+.mobile-drawer-close svg { width: 18px; height: 18px; }
+.mobile-nav-link {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--tx-2);
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--bd-1);
+  transition: color 0.15s;
+}
+.mobile-nav-link:hover { color: var(--tx-1); }
+.mobile-drawer-cta {
+  margin-top: 20px;
+  display: block;
+  width: 100%;
+  background: var(--teal);
+  color: #010308;
+  text-align: center;
+  padding: 15px;
+  border-radius: var(--r-sm);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* ── Sticky bottom CTA (mobile only) ── */
+.mobile-sticky-cta {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 150;
+  padding: 12px 20px 20px;
+  background: linear-gradient(to top, rgba(1,3,8,0.98) 60%, transparent);
+}
+.mobile-sticky-cta a {
+  display: block;
+  width: 100%;
+  background: var(--teal);
+  color: #010308;
+  text-align: center;
+  padding: 15px;
+  border-radius: var(--r-sm);
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 4px 24px rgba(0,212,255,0.35);
+}
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {
@@ -566,31 +668,80 @@ footer {
   .sphere-grid { width: 175px; height: 175px; }
   .sq-num { font-size: 1.4rem; }
   .footer-grid { grid-template-columns: 1fr 1fr 1fr; }
+  #cenovnik { padding: 80px 0; }
+  #kako, #funkcije, #zasto, #cta { padding: 80px 0; }
 }
+
 @media (max-width: 768px) {
+  /* Nav */
+  .lp-nav { padding: 0 20px; gap: 16px; }
   .lp-nav-links { display: none; }
-  .mobile-menu-btn { display: block; margin-left: auto; }
-  .hero-inner { grid-template-columns: 1fr; gap: 56px; }
-  .hero-right { order: -1; }
-  .hero-sphere-wrap { height: 340px; }
-  .hero-sphere { width: 250px; height: 250px; }
-  .sphere-grid { width: 155px; height: 155px; }
-  .sq-num { font-size: 1.2rem; }
-  .sq-lbl { font-size: 0.33rem; }
-  .kako-steps { grid-template-columns: 1fr; }
-  .fn-grid { grid-template-columns: 1fr; }
-  .zasto-grid { grid-template-columns: 1fr; }
-  .cen-grid { grid-template-columns: repeat(2, 1fr); max-width: 760px; }
+  .lp-nav-cta { display: none; }
+  .mobile-menu-btn { display: flex; }
+
+  /* Hero */
+  #hero { min-height: auto; padding: 56px 0 72px; }
+  .hero-inner { grid-template-columns: 1fr; gap: 0; }
+  .hero-left { text-align: center; order: 1; }
+  .hero-right { order: 0; margin-bottom: 40px; }
+  .hero-eyebrow { text-align: center; }
+  .hero-h1 { font-size: clamp(2.6rem, 9vw, 3.6rem); }
+  .hero-p { font-size: 1rem; margin: 0 auto 32px; text-align: center; }
+  .hero-ctas { justify-content: center; }
+  .hero-sphere-wrap { height: 280px; }
+  .hero-sphere { width: 220px; height: 220px; }
+  .sphere-grid { width: 138px; height: 138px; }
+  .sq-num { font-size: 1.1rem; }
+  .sq-lbl { font-size: 0.31rem; }
+
+  /* Sekcije */
+  #kako, #funkcije, #zasto, #cenovnik { padding: 64px 0; }
+  #cta { padding: 72px 0; }
+  .kako-steps { grid-template-columns: 1fr; gap: 20px; }
+  .kako-step { padding: 28px 24px; }
+  .fn-grid { grid-template-columns: 1fr; gap: 1px; }
+  .fn-card { padding: 28px 24px; }
+  .zasto-grid { grid-template-columns: 1fr; gap: 16px; }
+  .zasto-card { padding: 28px 24px; }
+
+  /* Cenovnik */
+  .cen-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .cen-card.pro { position: relative; }
-  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .cen-card { padding: 24px 20px; }
+  .cen-price { font-size: 2.1rem; }
+  .cen-toggle-wrap { flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+  /* CTA */
+  .cta-logo { font-size: clamp(2.6rem, 10vw, 4rem); }
+  .cta-btn { width: 100%; text-align: center; justify-content: center; padding: 15px 24px; }
+
+  /* Footer */
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
+  .footer-bottom { flex-direction: column; gap: 10px; text-align: center; }
+
+  /* Sticky CTA visible */
+  .mobile-sticky-cta { display: block; }
+  /* add bottom padding so content doesn't hide behind sticky bar */
+  footer { padding-bottom: 88px; }
 }
+
 @media (max-width: 480px) {
-  .container { padding: 0 20px; }
-  .lp-nav { padding: 0 20px; }
-  .hero-h1 { font-size: 2.6rem; }
-  .hero-ctas { flex-direction: column; align-items: flex-start; }
-  .footer-grid { grid-template-columns: 1fr; }
-  .cen-grid { grid-template-columns: 1fr; max-width: 400px; }
+  .container { padding: 0 18px; }
+  .hero-h1 { font-size: clamp(2.2rem, 11vw, 3rem); }
+  .hero-ctas { flex-direction: column; align-items: stretch; }
+  .hero-ctas .btn-filled,
+  .hero-ctas .btn-outline { text-align: center; justify-content: center; }
+  .hero-sphere-wrap { height: 240px; }
+  .hero-sphere { width: 190px; height: 190px; }
+  .sphere-grid { width: 120px; height: 120px; }
+  .cen-grid { grid-template-columns: 1fr; max-width: 360px; margin: 0 auto; }
+  .cen-card.pro { margin-top: 16px; }
+  .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+  .kako-head h2, .fn-head h2, .zasto-head h2, .cen-head h2 {
+    font-size: clamp(1.9rem, 8vw, 2.8rem);
+  }
+  #hero { padding: 40px 0 80px; }
+  .how-step { padding: 24px 18px; }
 }
 </style>
 </head>
@@ -609,9 +760,34 @@ footer {
       <li><a href="#funkcije">Dokumentacija</a></li>
     </ul>
     <a href="/app#register" class="lp-nav-cta">Počni besplatno</a>
-    <button class="mobile-menu-btn">Meni</button>
+    <button class="mobile-menu-btn" onclick="mobileMenuOpen()" aria-label="Otvori meni">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
   </nav>
 </header>
+
+<!-- ── Mobile Drawer ── -->
+<div class="mobile-drawer" id="mobileDrawer">
+  <div class="mobile-drawer-bg" onclick="mobileMenuClose()"></div>
+  <div class="mobile-drawer-panel">
+    <div class="mobile-drawer-top">
+      <div class="mobile-drawer-logo">Vindex <em>AI</em></div>
+      <button class="mobile-drawer-close" onclick="mobileMenuClose()" aria-label="Zatvori meni">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <a href="#funkcije" class="mobile-nav-link" onclick="mobileMenuClose()">Funkcije</a>
+    <a href="#kako" class="mobile-nav-link" onclick="mobileMenuClose()">Kako radi</a>
+    <a href="#zasto" class="mobile-nav-link" onclick="mobileMenuClose()">Zašto Vindex</a>
+    <a href="#cenovnik" class="mobile-nav-link" onclick="mobileMenuClose()">Cenovnik</a>
+    <a href="/app#register" class="mobile-drawer-cta" onclick="mobileMenuClose()">Počni besplatno →</a>
+  </div>
+</div>
+
+<!-- ── Sticky bottom CTA (mobile) ── -->
+<div class="mobile-sticky-cta">
+  <a href="/app#register">Počni besplatno — 15 upita bez kartice →</a>
+</div>
 
 <!-- ── HERO ── -->
 <section id="hero">
@@ -1093,6 +1269,18 @@ footer {
 })();
 </script>
 <script>
+function mobileMenuOpen() {
+  document.getElementById('mobileDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function mobileMenuClose() {
+  document.getElementById('mobileDrawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') mobileMenuClose();
+});
+
 function cenSwitchBilling() {
   var godisnje = document.getElementById('cenToggle').checked;
   document.getElementById('lbl-mesecno').classList.toggle('active', !godisnje);
