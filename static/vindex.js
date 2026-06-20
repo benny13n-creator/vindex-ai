@@ -11620,12 +11620,13 @@ async function piLoad() {
 
   var hdr = {'Authorization':'Bearer '+currentSession.access_token};
   try {
-    var [ovR, featR, retR, funR, tlR] = await Promise.all([
+    var [ovR, featR, retR, funR, tlR, plR] = await Promise.all([
       fetch(BASE_URL+'/admin/pi/overview',  {headers:hdr}),
       fetch(BASE_URL+'/admin/pi/features',  {headers:hdr}),
       fetch(BASE_URL+'/admin/pi/retention', {headers:hdr}),
       fetch(BASE_URL+'/admin/pi/funnels',   {headers:hdr}),
       fetch(BASE_URL+'/admin/pi/timeline',  {headers:hdr}),
+      fetch(BASE_URL+'/admin/pi/plans',     {headers:hdr}),
     ]);
 
     if (ovR.status===403) {
@@ -11638,10 +11639,14 @@ async function piLoad() {
     var ret  = retR.ok  ? await retR.json()   : {};
     var fun  = funR.ok  ? await funR.json()   : {};
     var tl   = tlR.ok   ? await tlR.json()    : {};
+    var pl   = plR.ok   ? await plR.json()    : {};
 
     window._piFunnelData = fun.funnels || [];
 
     var h = '';
+
+    // Plan distribucija + MRR (na vrhu — najvažniji business metric)
+    h += _piRenderPlans(pl);
 
     // Overview KPIs + charts
     h += _piRenderOverview(ov, tl);
@@ -11671,6 +11676,70 @@ async function piLoad() {
   } catch(e) {
     body.innerHTML = '<div class="pi-empty">Greška: '+escHtml(String(e))+'</div>';
   }
+}
+
+function _piRenderPlans(pl) {
+  if (!pl || !pl.plan_distribucija) return '';
+  var dist = pl.plan_distribucija || {};
+  var total = pl.ukupno_korisnika || 0;
+  var h = '';
+
+  // MRR / ARR header row
+  h += '<div class="pi-section" style="background:linear-gradient(135deg,rgba(30,58,95,0.6),rgba(13,39,68,0.4));border:1px solid rgba(74,168,255,0.15);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;">';
+  h += '<div style="font-size:0.6rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:0.7rem;">Revenue · Planovi · AI Usage</div>';
+
+  // KPI row
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:1rem;">';
+  var mrr = (pl.mrr_eur||0).toFixed(0);
+  var arr = (pl.arr_eur||0).toFixed(0);
+  var paid = pl.placajuci || 0;
+  var cvr = total > 0 ? (paid/total*100).toFixed(1) : '0';
+  h += '<div class="pi-kpi" style="background:rgba(74,168,255,0.06);"><div class="pi-kpi-val" style="color:#4aa8ff;">€'+mrr+'</div><div class="pi-kpi-lbl">MRR procena</div></div>';
+  h += '<div class="pi-kpi" style="background:rgba(74,168,255,0.06);"><div class="pi-kpi-val" style="color:#4ade80;">€'+arr+'</div><div class="pi-kpi-lbl">ARR procena</div></div>';
+  h += '<div class="pi-kpi" style="background:rgba(74,168,255,0.06);"><div class="pi-kpi-val">'+paid+'</div><div class="pi-kpi-lbl">Plaćajućih</div></div>';
+  h += '<div class="pi-kpi" style="background:rgba(74,168,255,0.06);"><div class="pi-kpi-val" style="color:'+(parseFloat(cvr)>=5?'#4ade80':'#fb923c')+';">'+cvr+'%</div><div class="pi-kpi-lbl">Konverzija</div></div>';
+  h += '</div>';
+
+  // Plan distribucija bars
+  h += '<div style="font-size:0.55rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:0.5rem;">Distribucija planova</div>';
+  var planColors = {free:'rgba(148,163,184,0.4)', advokat:'rgba(74,168,255,0.6)', pro:'rgba(201,168,76,0.7)', firma:'rgba(139,92,246,0.7)'};
+  var planLabels = {free:'Besplatno', advokat:'Advokat €19', pro:'Pro €39', firma:'Firma €59'};
+  ['free','advokat','pro','firma'].forEach(function(pt){
+    var n = dist[pt] || 0;
+    var pct = total > 0 ? Math.round(n/total*100) : 0;
+    h += '<div class="pi-feat-row" style="margin-bottom:0.3rem;">';
+    h += '<div class="pi-feat-name" style="min-width:90px;color:rgba(255,255,255,0.7);">'+planLabels[pt]+'</div>';
+    h += '<div class="pi-feat-bar-wrap"><div class="pi-feat-bar" style="width:'+pct+'%;background:'+planColors[pt]+';"></div></div>';
+    h += '<div class="pi-feat-cnt">'+n+'</div>';
+    h += '<div class="pi-feat-cred" style="color:rgba(255,255,255,0.3);">'+pct+'%</div>';
+    h += '</div>';
+  });
+
+  // AI Usage ovog meseca
+  var ai = pl.ai_usage_ovaj_mesec || {};
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;margin-top:0.8rem;">';
+  h += '<div class="pi-stat"><div class="pi-stat-val">'+(ai.ai_queries||0)+'</div><div class="pi-stat-lbl">AI upita · ovaj mesec</div></div>';
+  h += '<div class="pi-stat"><div class="pi-stat-val">'+(ai.doc_analyses||0)+'</div><div class="pi-stat-lbl">Analiza dok. · ovaj mesec</div></div>';
+  h += '<div class="pi-stat"><div class="pi-stat-val">'+(ai.strategies||0)+'</div><div class="pi-stat-lbl">Strategija · ovaj mesec</div></div>';
+  h += '</div>';
+
+  // Onboarding email funnel
+  var ob = pl.onboarding_emails || {};
+  var obr = pl.onboarding_rates || {};
+  h += '<div style="margin-top:0.8rem;padding-top:0.7rem;border-top:1px solid rgba(255,255,255,0.06);">';
+  h += '<div style="font-size:0.55rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:0.4rem;">Onboarding email sekvenca</div>';
+  h += '<div style="display:flex;gap:1.5rem;">';
+  [['welcome','Welcome',obr.welcome_rate],['day1','Day 1',obr.day1_rate],['day3','Day 3',obr.day3_rate]].forEach(function(item){
+    h += '<div style="text-align:center;">';
+    h += '<div style="font-size:0.85rem;font-weight:700;color:#4aa8ff;">'+(ob[item[0]]||0)+'</div>';
+    h += '<div style="font-size:0.52rem;color:rgba(255,255,255,0.35);">'+item[1]+' · '+(item[2]||0)+'%</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  h += '</div>';
+
+  h += '</div>'; // end pi-section
+  return h;
 }
 
 async function piReloadFeatures(dana) {

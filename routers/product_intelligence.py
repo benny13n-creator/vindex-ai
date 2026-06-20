@@ -539,3 +539,83 @@ async def pi_timeline(
         "peak_dau":    max((t["dau"] for t in timeline), default=0),
         "peak_datum":  max(timeline, key=lambda t: t["dau"], default={}).get("datum"),
     }
+
+
+@router.get("/admin/pi/plans")
+@limiter.limit("30/minute")
+async def pi_plans(
+    request: Request,
+    user: dict = Depends(_require_admin),
+):
+    """Plan distribucija, MRR procena, AI usage ovog meseca, onboarding email stats."""
+    from datetime import datetime, timezone
+    supa  = _get_supa()
+    now   = datetime.now(timezone.utc)
+    ym    = now.strftime("%Y-%m")
+
+    _PLAN_PRICE_EUR = {"free": 0, "advokat": 19, "pro": 39, "firma": 59}
+
+    plans_r, usage_r, profiles_r, onboard_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("korisnik_plan").select("plan_type, seats, billing_cycle").execute()),
+        asyncio.to_thread(lambda: supa.table("korisnik_usage").select("ai_queries, doc_analyses, strategies").eq("year_month", ym).execute()),
+        asyncio.to_thread(lambda: supa.table("profiles").select("id, registered_at, created_at").execute()),
+        asyncio.to_thread(lambda: supa.table("onboarding_email_log").select("tip").execute()),
+        return_exceptions=True,
+    )
+
+    plans    = _safe(plans_r)
+    usages   = _safe(usage_r)
+    profiles = _safe(profiles_r)
+    onboard  = _safe(onboard_r)
+
+    # Plan distribution
+    dist: dict[str, int] = {"free": 0, "advokat": 0, "pro": 0, "firma": 0}
+    mrr_eur = 0.0
+    for p in plans:
+        pt    = p.get("plan_type", "free")
+        seats = p.get("seats", 1) or 1
+        mult  = 0.8 if p.get("billing_cycle") == "yearly" else 1.0
+        dist[pt] = dist.get(pt, 0) + 1
+        mrr_eur += _PLAN_PRICE_EUR.get(pt, 0) * seats * mult
+
+    # Free users = profiles not in korisnik_plan
+    plan_uids = set()
+    if not isinstance(plans_r, Exception):
+        plan_uids = {p.get("user_id", "") for p in (plans_r.data or []) if p.get("user_id")}
+    total_profiles = len(profiles)
+    dist["free"] = max(0, total_profiles - sum(dist[k] for k in ["advokat", "pro", "firma"]))
+
+    # Monthly AI usage totals
+    total_queries    = sum(u.get("ai_queries", 0) or 0 for u in usages)
+    total_docs       = sum(u.get("doc_analyses", 0) or 0 for u in usages)
+    total_strategies = sum(u.get("strategies", 0) or 0 for u in usages)
+
+    # Onboarding email stats
+    ob_counts: dict[str, int] = {"welcome": 0, "day1": 0, "day3": 0}
+    for ob in onboard:
+        tip = ob.get("tip", "")
+        if tip in ob_counts:
+            ob_counts[tip] += 1
+
+    # Conversion: % of registered who got past welcome (rough)
+    reg_total = total_profiles
+    ob_pct = {
+        "welcome_rate": round(ob_counts["welcome"] / reg_total * 100, 1) if reg_total else 0,
+        "day1_rate":    round(ob_counts["day1"]    / reg_total * 100, 1) if reg_total else 0,
+        "day3_rate":    round(ob_counts["day3"]    / reg_total * 100, 1) if reg_total else 0,
+    }
+
+    return {
+        "plan_distribucija":  dist,
+        "ukupno_korisnika":   reg_total,
+        "placajuci":          dist["advokat"] + dist["pro"] + dist["firma"],
+        "mrr_eur":            round(mrr_eur, 2),
+        "arr_eur":            round(mrr_eur * 12, 2),
+        "ai_usage_ovaj_mesec": {
+            "ai_queries":   total_queries,
+            "doc_analyses": total_docs,
+            "strategies":   total_strategies,
+        },
+        "onboarding_emails":  ob_counts,
+        "onboarding_rates":   ob_pct,
+    }
