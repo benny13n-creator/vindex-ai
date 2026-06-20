@@ -1557,19 +1557,19 @@ function setTab(el,t){
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
   // Ako je AI tool tab aktivan — označi i "AI Alati" nav dugme kao aktivno
-  var _aiTools = {q:1,a:1,n:1,s:1,t:1,w:1};
+  var _aiTools = {q:1,a:1,n:1,s:1,t:1,w:1,ob:1};
   if (_aiTools[t]) {
     var _ab = document.getElementById('tab-btn-alati');
     if (_ab) _ab.classList.add('active');
   }
-  ['h','q','n','a','s','p','t','k','w','kal','pi','alati','dok','settings'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
+  ['h','q','n','a','s','p','t','k','w','ob','kal','pi','alati','dok','settings'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 Compliance',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'AI Centar',dok:'Baza znanja',settings:'Podešavanja'};
+  var lbl={h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 Compliance',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'AI Centar',dok:'Baza znanja',settings:'Podešavanja'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  var _noExec = {h:1,t:1,k:1,w:1,kal:1,pi:1,alati:1,dok:1,settings:1,p:1};
+  var _noExec = {h:1,t:1,k:1,w:1,ob:1,kal:1,pi:1,alati:1,dok:1,settings:1,p:1};
   if (execRow) execRow.style.display = _noExec[t] ? 'none' : '';
   if (credRow) credRow.style.display = _noExec[t] ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
@@ -1603,6 +1603,7 @@ function setTab(el,t){
   if (t==='p') pred_load();
   if (t==='k') ucitajKlijente();
   if (t==='w') web3InitTab();
+  if (t==='ob') oblastiInit();
   if (t==='kal') kalendarLoad();
   if (t==='settings') settingsLoad();
   if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'smooth' });
@@ -2920,6 +2921,96 @@ function web3Kopiraj() {
     var btn = document.querySelector('.web3-copy-btn');
     if (btn) { btn.textContent = '✓ Kopirano'; setTimeout(function() { btn.textContent = '📋 Kopiraj'; }, 2000); }
   });
+}
+
+/* ── Phase 5.1: Pravne oblasti ──────────────────────────────────────────── */
+var _oblastTrenutna = 'krivicno';
+
+var _OBLASTI_META = {
+  krivicno: {
+    naziv: 'Krivično pravo',
+    opis: 'Specijalizovani asistent za krivično pravo (KZ + ZKP). Pitajte o krivičnim delima, kaznama, pritvoru, krivičnom postupku i pravnim sredstvima.',
+    reference: ['KZ čl. 1-368', 'ZKP postupak', 'Zaštitne mere', 'Zastarelost KZ'],
+    placeholder: 'npr. Koja je kazna za krađu? Koji su uslovi za uslovnu osudu? Šta je pritvoreničko pravo?'
+  },
+  privredno: {
+    naziv: 'Privredno pravo',
+    opis: 'Specijalizovani asistent za privredno pravo (ZPD + ZOO + Zakon o stečaju). Pitajte o osnivanju društava, organima upravljanja, stečaju i privrednim ugovorima.',
+    reference: ['ZPD čl. 1-750+', 'ZOO privredni', 'Zakon o stečaju', 'APR registracija'],
+    placeholder: 'npr. Kako se osniva DOO? Ko odgovara za dugove DOO? Šta je reorganizacija u stečaju?'
+  },
+  radno: {
+    naziv: 'Radno pravo',
+    opis: 'Specijalizovani asistent za radno pravo (ZR + ZBZO). Pitajte o otkazima, pravima zaposlenih, radnim sporovima, otpremnini i rokovima.',
+    reference: ['ZR čl. 1-287', 'ZBZO zaštita', 'Rok za tužbu 60d', 'Zastarelost 3g'],
+    placeholder: 'npr. Koji je rok za pobijanje otkaza? Šta je obavezna procedura kod otkaza? Kolika je otpremnina?'
+  }
+};
+
+function oblastiIzaberiOblast(oblast, btn) {
+  _oblastTrenutna = oblast;
+  document.querySelectorAll('[data-oblast]').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var meta = _OBLASTI_META[oblast];
+  var opisEl = document.getElementById('ob-opis');
+  if (opisEl) opisEl.innerHTML = '<span style="color:rgba(255,255,255,0.65);">' + _htmlEsc(meta.opis) + '</span>';
+  var refEl = document.getElementById('ob-reference');
+  if (refEl) refEl.innerHTML = '<span>📚 Baza znanja:</span>' + meta.reference.map(function(r){ return '<span class="web3-ref-badge">' + _htmlEsc(r) + '</span>'; }).join('');
+  var tEl = document.getElementById('ob-tekst');
+  if (tEl) tEl.placeholder = meta.placeholder;
+  var wEl = document.getElementById('ob-rezultat-wrap');
+  if (wEl) wEl.style.display = 'none';
+}
+
+async function oblastiPokreni() {
+  var pitanje = (document.getElementById('ob-tekst').value || '').trim();
+  if (!pitanje || pitanje.length < 5) {
+    document.getElementById('ob-rezultat-body').innerHTML = '<div class="strat-error">Unesite pitanje (min. 5 karaktera).</div>';
+    document.getElementById('ob-rezultat-wrap').style.display = 'block';
+    return;
+  }
+  if (!currentUser) { openModal(); return; }
+  var btn    = document.getElementById('ob-submit-btn');
+  var wrapEl = document.getElementById('ob-rezultat-wrap');
+  var bodyEl = document.getElementById('ob-rezultat-body');
+  var naslov = document.getElementById('ob-rezultat-naslov');
+  btn.disabled = true; btn.textContent = '⏳ Analiziram...';
+  if (naslov) naslov.textContent = _OBLASTI_META[_oblastTrenutna].naziv + ' — AI odgovor';
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ ' + _OBLASTI_META[_oblastTrenutna].naziv + ' — analiza u toku...</div>';
+  if (wrapEl) wrapEl.style.display = 'block';
+  try {
+    var res = await fetch(BASE_URL + '/api/oblasti/' + _oblastTrenutna, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+(currentSession ? currentSession.access_token : '')},
+      body: JSON.stringify({pitanje: pitanje})
+    });
+    if (res.status === 402) {
+      var ed = {}; try { ed = await res.json(); } catch(e2) {}
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">💳 ' + _htmlEsc((ed.detail && ed.detail.message) || 'Nemate dovoljno kredita.') + '</div>';
+      return;
+    }
+    if (!res.ok) throw new Error('Server greška: ' + res.status);
+    var data = await res.json();
+    if (bodyEl) bodyEl.innerHTML = web3FormatirajRezultat(data.data || '');
+    if (wrapEl) wrapEl.scrollIntoView({behavior:'smooth', block:'start'});
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Pitaj AI';
+  }
+}
+
+function oblastiKopiraj() {
+  var bodyEl = document.getElementById('ob-rezultat-body');
+  if (!bodyEl) return;
+  navigator.clipboard.writeText(bodyEl.innerText).then(function() {
+    var btns = document.querySelectorAll('#ob-rezultat-wrap .web3-copy-btn');
+    btns.forEach(function(b) { b.textContent = '✓ Kopirano'; setTimeout(function() { b.textContent = '📋 Kopiraj'; }, 2000); });
+  });
+}
+
+function oblastiInit() {
+  oblastiIzaberiOblast('krivicno', document.querySelector('[data-oblast="krivicno"]'));
 }
 
 function web3ScoreBojaKlasa(score, max) {
