@@ -10613,6 +10613,222 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && _gsOpen) gsClose();
 });
 
+// ── Intake Faza 2 — Template predmeti ───────────────────────────────────────
+
+var _intakeTplData = null;
+
+async function intakeTemplateOpen() {
+  var overlay = document.getElementById('intake-tpl-overlay');
+  if (overlay) { overlay.style.display = 'flex'; }
+  var listEl = document.getElementById('intake-tpl-list');
+  if (listEl) listEl.innerHTML = '<div style="padding:1rem;text-align:center;font-size:0.8rem;color:rgba(255,255,255,0.35);">Učitavam šablone...</div>';
+  if (!_intakeTplData) {
+    try {
+      var r = await fetch('/api/intake/templates', { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
+      var d = await r.json();
+      _intakeTplData = d.templates || [];
+    } catch(e) { _intakeTplData = []; }
+  }
+  _intakeRenderTpl();
+}
+
+function intakeTemplateClose() {
+  var overlay = document.getElementById('intake-tpl-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function _intakeRenderTpl() {
+  var listEl = document.getElementById('intake-tpl-list');
+  if (!listEl) return;
+  if (!_intakeTplData || !_intakeTplData.length) {
+    listEl.innerHTML = '<div style="padding:1rem;text-align:center;font-size:0.8rem;color:rgba(255,255,255,0.35);">Nema šablona.</div>';
+    return;
+  }
+  var _TIP_COLOR = { gradjansko:'#89c8ff', radno:'#4ade80', porodicno:'#f97316', krivicno:'#f87171', privredno:'#a78bfa', upravno:'#94a3b8', izvrsenje:'#fbbf24' };
+  listEl.innerHTML = _intakeTplData.map(function(t){
+    var col = _TIP_COLOR[t.tip] || '#94a3b8';
+    var docs = (t.potrebni_dokumenti || []).slice(0,3).join(', ');
+    return '<div onclick="intakeTemplateIzaberi(\''+_htmlEsc(t.id)+'\',\''+_htmlEsc(t.naziv)+'\')" style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem 0.85rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;cursor:pointer;transition:border-color .15s;" onmouseover="this.style.borderColor=\'rgba(74,168,255,0.25)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.07)\'">'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">'
+      +'<span style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">'+_htmlEsc(t.naziv)+'</span>'
+      +'<span style="font-size:0.58rem;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,0.06);color:'+col+';text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">'+_htmlEsc(t.tip)+'</span>'
+      +'</div>'
+      +(docs ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 '+_htmlEsc(docs)+(t.potrebni_dokumenti.length>3?' ...':'')+'</div>' : '')
+      +'</div>'
+      +'<span style="font-size:0.7rem;color:rgba(74,168,255,0.6);flex-shrink:0;align-self:center;">Izaberi →</span>'
+      +'</div>';
+  }).join('');
+}
+
+function intakeTemplateIzaberi(tplId, tplNaziv) {
+  intakeTemplateClose();
+  var nazEl = document.getElementById('intake-opis');
+  window._selectedTplId    = tplId;
+  window._selectedTplNaziv = tplNaziv;
+  var step2 = document.getElementById('intake-s2');
+  if (step2) {
+    step2.querySelector && (step2.querySelector('.intake-step-heading') || {}).textContent;
+    if (document.getElementById('intake-s1').style.display !== 'none') {
+      intakeNext();
+    }
+  }
+  if (nazEl && !nazEl.value) {
+    nazEl.value = 'Predmet po šablonu: ' + tplNaziv;
+    var ev = new Event('input'); nazEl.dispatchEvent(ev);
+  }
+  showToast('Šablon "' + tplNaziv + '" izabran — predmet će biti kreiran sa predefinisanom hronologijom.', 'info');
+}
+
+// ── Document Templates ───────────────────────────────────────────────────────
+
+var _doctplSabloni  = null;
+var _doctplAktivni  = null;
+
+async function docTplOpen() {
+  var overlay = document.getElementById('doctpl-overlay');
+  if (overlay) overlay.style.display = 'flex';
+  if (!_doctplSabloni) {
+    try {
+      var r = await fetch('/api/doc-templates/lista', { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
+      var d = await r.json();
+      _doctplSabloni = d.sabloni || [];
+    } catch(e) { _doctplSabloni = []; }
+  }
+  _doctplRenderLista();
+}
+
+function docTplClose() {
+  var overlay = document.getElementById('doctpl-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+var _DOCTPL_TIP_ICO = { tuzba:'⚖️', zalba:'📨', punomocje:'✍️', opomena:'⚠️', ugovor:'📝' };
+
+function _doctplRenderLista() {
+  var el = document.getElementById('doctpl-list');
+  if (!el || !_doctplSabloni) return;
+  el.innerHTML = _doctplSabloni.map(function(s, i){
+    var ico = _DOCTPL_TIP_ICO[s.tip] || '📄';
+    return '<div onclick="docTplIzaberi('+i+')" style="padding:0.6rem 0.85rem;cursor:pointer;border-left:2px solid transparent;transition:all .15s;" onmouseover="this.style.background=\'rgba(74,168,255,0.06)\'" onmouseout="if(docTplGetAktivniIdx()!=='+i+')this.style.background=\'\';" id="doctpl-item-'+i+'">'
+      +'<div style="font-size:0.75rem;font-weight:600;color:#e2e8f0;margin-bottom:2px;">'+ico+' '+_htmlEsc(s.naziv)+'</div>'
+      +'<div style="font-size:0.62rem;color:rgba(255,255,255,0.32);">'+_htmlEsc(s.opis)+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function docTplGetAktivniIdx() {
+  return _doctplAktivni ? _doctplSabloni.indexOf(_doctplAktivni) : -1;
+}
+
+function docTplIzaberi(idx) {
+  _doctplAktivni = _doctplSabloni[idx];
+  document.querySelectorAll('[id^="doctpl-item-"]').forEach(function(el, i){
+    el.style.background = (i === idx) ? 'rgba(74,168,255,0.08)' : '';
+    el.style.borderLeftColor = (i === idx) ? '#4aa8ff' : 'transparent';
+  });
+
+  var titleEl   = document.getElementById('doctpl-form-title');
+  var fieldsEl  = document.getElementById('doctpl-fields');
+  var genBtn    = document.getElementById('doctpl-gen-btn');
+  var predRow   = document.getElementById('doctpl-predmet-row');
+  var resultWrap = document.getElementById('doctpl-result-wrap');
+  var loadingEl = document.getElementById('doctpl-loading');
+
+  if (titleEl)    { titleEl.textContent = _doctplAktivni.naziv; titleEl.style.display = 'block'; }
+  if (genBtn)     genBtn.style.display = 'flex';
+  if (predRow)    predRow.style.display = 'flex';
+  if (resultWrap) resultWrap.style.display = 'none';
+  if (loadingEl)  loadingEl.style.display = 'none';
+
+  var _FIELD_LABELS = {
+    ime_tuzitelja:'Ime tužioca', adresa_tuzitelja:'Adresa tužioca', ime_tuzenog:'Ime tuženog',
+    adresa_tuzenog:'Adresa tuženog', cinjenice:'Činjenični opis', vrednost_spora_rsd:'Vrednost spora (RSD)',
+    datum:'Datum', ime_stranke:'Ime stranke', broj_predmeta:'Broj predmeta', naziv_suda:'Naziv suda',
+    datum_presude:'Datum presude', razlozi_zalbe:'Razlozi žalbe', ime_vlastodavca:'Ime vlastodavca',
+    jmbg_vlastodavca:'JMBG vlastodavca', adresa_vlastodavca:'Adresa vlastodavca',
+    ime_punomoćnika:'Ime punomoćnika (advokat)', ime_poverioca:'Ime poverioca',
+    ime_duznika:'Ime dužnika', adresa_duznika:'Adresa dužnika', iznos_rsd:'Iznos (RSD)',
+    osnov_duga:'Osnov duga', rok_dana:'Rok za plaćanje (dana)', ime_narucioca:'Ime naručioca',
+    adresa_narucioca:'Adresa naručioca', ime_izvodjaca:'Ime izvođača', adresa_izvodjaca:'Adresa izvođača',
+    opis_posla:'Opis posla', rok_izvrsenja:'Rok izvršenja', naknada_rsd:'Naknada (RSD)',
+    ime_zajmodavca:'Ime zajmodavca', ime_zajmoprimca:'Ime zajmoprimca', iznos_rsd:'Iznos (RSD)',
+    rok_vracanja:'Rok vraćanja', kamata_posto:'Kamata (%)', ime_trazioca:'Tražilac izvršenja',
+    adresa_trazioca:'Adresa tražioca', izvrsna_isprava:'Izvršna isprava', nacin_izvrsenja:'Način izvršenja'
+  };
+
+  var today = new Date().toISOString().slice(0,10);
+  if (fieldsEl) {
+    fieldsEl.innerHTML = (_doctplAktivni.polja || []).map(function(f){
+      var isMultiline = f === 'cinjenice' || f === 'razlozi_zalbe' || f === 'opis_posla' || f === 'osnov_duga';
+      var lbl = _FIELD_LABELS[f] || f;
+      var defaultVal = f === 'datum' ? today : '';
+      return '<div style="display:flex;flex-direction:column;gap:3px;">'
+        +'<label style="font-size:0.68rem;color:rgba(255,255,255,0.45);">'+_htmlEsc(lbl)+'</label>'
+        +(isMultiline
+          ? '<textarea id="dtf-'+f+'" rows="3" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:0.78rem;font-family:inherit;outline:none;resize:vertical;">'+defaultVal+'</textarea>'
+          : '<input id="dtf-'+f+'" type="text" value="'+_htmlEsc(defaultVal)+'" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:0.78rem;font-family:inherit;outline:none;">')
+        +'</div>';
+    }).join('');
+  }
+}
+
+async function docTplGeneriši() {
+  if (!_doctplAktivni || !currentSession) return;
+  var polja = {};
+  (_doctplAktivni.polja || []).forEach(function(f){
+    var el = document.getElementById('dtf-'+f);
+    if (el) polja[f] = el.value.trim();
+  });
+  var genBtn   = document.getElementById('doctpl-gen-btn');
+  var loadEl   = document.getElementById('doctpl-loading');
+  var resultWr = document.getElementById('doctpl-result-wrap');
+  if (genBtn)  genBtn.style.display = 'none';
+  if (loadEl)  loadEl.style.display = 'block';
+  try {
+    var r = await fetch('/api/doc-templates/generiši', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sablon_id: _doctplAktivni.id, polja: polja }),
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail || 'Greška pri generisanju', 'error'); return; }
+    var txtEl = document.getElementById('doctpl-result-txt');
+    if (txtEl) txtEl.value = d.sadrzaj || '';
+    if (resultWr) resultWr.style.display = 'block';
+  } catch(e) {
+    showToast('Greška: ' + e.message, 'error');
+  } finally {
+    if (loadEl)  loadEl.style.display = 'none';
+    if (genBtn)  genBtn.style.display = 'flex';
+  }
+}
+
+function docTplKopiraj() {
+  var el = document.getElementById('doctpl-result-txt');
+  if (!el) return;
+  navigator.clipboard.writeText(el.value).then(function(){ showToast('Dokument kopiran!', 'success'); });
+}
+
+async function docTplSacuvaj() {
+  if (!currentSession) return;
+  var txtEl   = document.getElementById('doctpl-result-txt');
+  var predEl  = document.getElementById('doctpl-predmet-id');
+  if (!txtEl || !txtEl.value.trim()) { showToast('Nema dokumenta za čuvanje', 'info'); return; }
+  var predId  = predEl ? predEl.value.trim() : '';
+  if (!predId) { showToast('Unesite ID predmeta za čuvanje', 'info'); return; }
+  try {
+    var r = await fetch('/api/doc-templates/sačuvaj', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ predmet_id: predId, naziv: _doctplAktivni ? _doctplAktivni.naziv : 'Dokument', sadrzaj: txtEl.value, sablon_id: _doctplAktivni ? _doctplAktivni.id : '' }),
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail || 'Greška', 'error'); return; }
+    showToast('Dokument sačuvan uz predmet!', 'success');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
 // ── Integracije — Phase 5.5 ──────────────────────────────────────────────────
 
 function integr_copy(tip) {

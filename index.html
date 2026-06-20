@@ -1828,7 +1828,10 @@
               <div class="intake-panel-body">
                 <!-- Step 1 — Klijent -->
                 <div id="intake-s1" class="intake-step-content">
-                  <div class="intake-step-heading">Izaberite klijenta</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
+                    <div class="intake-step-heading" style="margin-bottom:0;">Izaberite klijenta</div>
+                    <button onclick="intakeTemplateOpen()" style="font-size:0.7rem;padding:5px 11px;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.22);border-radius:6px;color:#89c8ff;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Iz šablona</button>
+                  </div>
                   <input id="intake-klijent-search" class="intake-field" type="text" placeholder="Pretraži po imenu ili firmi..." oninput="intakeKlijentSearch(this.value)" autocomplete="off">
                   <div id="intake-klijent-results" style="margin-top:8px;"></div>
                   <div id="intake-klijent-selected" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(74,168,255,0.09);border:1px solid rgba(74,168,255,0.3);border-radius:8px;">
@@ -1936,6 +1939,61 @@
               <div class="intake-panel-footer" id="intake-panel-footer">
                 <button class="intake-back-btn" id="intake-btn-back" onclick="intakeBack()" style="display:none">← Nazad</button>
                 <button class="intake-next-btn" id="intake-btn-next" onclick="intakeNext()">Dalje →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Intake Template Modal -->
+          <div id="intake-tpl-overlay" onclick="if(event.target===this)intakeTemplateClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:none;align-items:center;justify-content:center;">
+            <div onclick="event.stopPropagation()" style="width:min(560px,94vw);max-height:80vh;background:#0d1b2a;border:1px solid rgba(74,168,255,0.2);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);display:flex;flex-direction:column;overflow:hidden;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:1px solid rgba(255,255,255,0.08);">
+                <div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">📋 Šabloni predmeta</div>
+                <button onclick="intakeTemplateClose()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:0 4px;">✕</button>
+              </div>
+              <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);padding:0.6rem 1.2rem 0.4rem;">Izaberite šablon — predmet se kreira sa predefinisanom hronologijom i potrebnom dokumentacijom.</div>
+              <div id="intake-tpl-list" style="overflow-y:auto;padding:0.5rem 0.75rem 1rem;display:flex;flex-direction:column;gap:0.4rem;"></div>
+            </div>
+          </div>
+
+          <!-- Document Templates Modal -->
+          <div id="doctpl-overlay" onclick="if(event.target===this)docTplClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:10000;align-items:flex-start;justify-content:center;padding-top:5vh;">
+            <div onclick="event.stopPropagation()" style="width:min(680px,96vw);max-height:90vh;background:#0d1b2a;border:1px solid rgba(74,168,255,0.2);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);display:flex;flex-direction:column;overflow:hidden;">
+              <!-- Header -->
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;">
+                <div>
+                  <div style="font-size:0.92rem;font-weight:700;color:#e2e8f0;">📄 Šabloni dokumenata</div>
+                  <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:2px;">Generiši pravni akt uz pomoć AI — tužbe, ugovori, punomoćja</div>
+                </div>
+                <button onclick="docTplClose()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:0 4px;">✕</button>
+              </div>
+              <!-- Body — 2 kolone: lista levo, forma desno -->
+              <div style="display:flex;flex:1;overflow:hidden;">
+                <!-- Lista šablona -->
+                <div id="doctpl-list" style="width:220px;flex-shrink:0;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.07);padding:0.5rem 0;"></div>
+                <!-- Forma i rezultat -->
+                <div style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:flex;flex-direction:column;gap:0.75rem;">
+                  <div id="doctpl-form-title" style="font-size:0.82rem;font-weight:600;color:#89c8ff;display:none;"></div>
+                  <div id="doctpl-fields" style="display:flex;flex-direction:column;gap:0.55rem;"></div>
+                  <div id="doctpl-predmet-row" style="display:none;flex-direction:column;gap:0.3rem;">
+                    <label style="font-size:0.7rem;color:rgba(255,255,255,0.45);">Sačuvaj uz predmet (opciono)</label>
+                    <input id="doctpl-predmet-id" type="text" placeholder="ID predmeta (ostavite prazno)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.78rem;font-family:inherit;outline:none;">
+                  </div>
+                  <button id="doctpl-gen-btn" onclick="docTplGeneriši()" style="display:none;padding:8px 18px;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:7px;color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;align-self:flex-start;">
+                    ✨ Generiši dokument
+                  </button>
+                  <div id="doctpl-loading" style="display:none;font-size:0.78rem;color:rgba(255,255,255,0.45);padding:0.5rem 0;">Generišem dokument...</div>
+                  <!-- Rezultat -->
+                  <div id="doctpl-result-wrap" style="display:none;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                      <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;">Generisani dokument</div>
+                      <div style="display:flex;gap:0.4rem;">
+                        <button onclick="docTplKopiraj()" style="font-size:0.68rem;padding:3px 9px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:rgba(255,255,255,0.55);cursor:pointer;font-family:inherit;">📋 Kopiraj</button>
+                        <button onclick="docTplSacuvaj()" style="font-size:0.68rem;padding:3px 9px;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:4px;color:#89c8ff;cursor:pointer;font-family:inherit;">💾 Sačuvaj uz predmet</button>
+                      </div>
+                    </div>
+                    <textarea id="doctpl-result-txt" rows="14" style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:12px;color:#e2e8f0;font-size:0.78rem;font-family:'Courier New',monospace;line-height:1.6;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2105,6 +2163,11 @@
                     <i data-lucide="scale" style="width:17px;height:17px;color:rgba(74,168,255,0.55);"></i>
                     <span class="aic3-global-btn-name">Pravne oblasti</span>
                     <span class="aic3-global-btn-sub">Krivično · Privredno · Radno</span>
+                  </button>
+                  <button class="aic3-global-btn" onclick="docTplOpen()">
+                    <i data-lucide="file-pen" style="width:17px;height:17px;color:rgba(74,168,255,0.55);"></i>
+                    <span class="aic3-global-btn-name">Šabloni dokumenata</span>
+                    <span class="aic3-global-btn-sub">Tužbe · Ugovori · Punomoćja</span>
                   </button>
                 </div>
               </div>
