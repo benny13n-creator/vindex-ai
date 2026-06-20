@@ -438,3 +438,83 @@ async def napusti_kancelariju(
         return {"ok": True}
 
     return await asyncio.to_thread(_leave)
+
+
+@router.get("/api/kancelarija/predmeti")
+@limiter.limit("60/minute")
+async def firma_predmeti(
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Kancelarija Faza 2 — vraća predmete svih aktivnih članova firme.
+    Dostupno i adminu i memberima (uloga: partner/saradnik/citanje).
+    """
+    uid   = user["user_id"]
+    email = (user.get("email") or "").lower()
+    supa  = _get_supa()
+
+    def _fetch():
+        # Pronađi firmu (kao admin ili member)
+        firma = _get_firma_for_admin(supa, uid)
+        kancelarija_id = firma["id"] if firma else None
+
+        if not kancelarija_id:
+            member_row = _get_firma_for_member(supa, uid, email)
+            if not member_row:
+                return {"predmeti": [], "firma_naziv": None, "razlog": "nije_clan"}
+            nested = member_row.get("kancelarije") or {}
+            kancelarija_id = nested.get("id")
+            firma_naziv    = nested.get("naziv", "")
+        else:
+            firma_naziv = firma.get("naziv", "")
+
+        if not kancelarija_id:
+            return {"predmeti": [], "firma_naziv": None}
+
+        # Svi aktivni članovi
+        clanovi_res = (
+            supa.table("kancelarija_clanovi")
+            .select("user_id, email, uloga")
+            .eq("kancelarija_id", kancelarija_id)
+            .eq("status", "aktivan")
+            .execute()
+        )
+        clanovi = clanovi_res.data or []
+
+        # Admin je uvek u listi (nema red u kancelarija_clanovi za admina)
+        if firma:
+            admin_u = {"user_id": uid, "email": email, "uloga": "admin"}
+            if not any(c["user_id"] == uid for c in clanovi):
+                clanovi.insert(0, admin_u)
+
+        clan_uids = [c["user_id"] for c in clanovi if c.get("user_id")]
+        if not clan_uids:
+            return {"predmeti": [], "firma_naziv": firma_naziv}
+
+        # Email mapa za prikaz vlasnika
+        email_by_uid = {c["user_id"]: c["email"] for c in clanovi if c.get("user_id")}
+
+        # Predmeti svih članova (max 200)
+        pred_res = (
+            supa.table("predmeti")
+            .select("id, naziv, tip, status, created_at, user_id")
+            .in_("user_id", clan_uids)
+            .order("created_at", desc=True)
+            .limit(200)
+            .execute()
+        )
+        predmeti = pred_res.data or []
+
+        # Dodaj vlasnik info
+        for p in predmeti:
+            p["vlasnik_email"] = email_by_uid.get(p.get("user_id"), "—")
+            p["je_moj"]        = (p.get("user_id") == uid)
+
+        return {
+            "predmeti":    predmeti,
+            "firma_naziv": firma_naziv,
+            "clan_count":  len(clanovi),
+        }
+
+    return await asyncio.to_thread(_fetch)

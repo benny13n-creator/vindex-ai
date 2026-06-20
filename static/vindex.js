@@ -1600,7 +1600,7 @@ function setTab(el,t){
   }
   if (t==='q' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
   if (t==='s') praksa_load_initial();
-  if (t==='p') pred_load();
+  if (t==='p') { pred_load(); predFirmaInit(); }
   if (t==='k') ucitajKlijente();
   if (t==='w') web3InitTab();
   if (t==='ob') oblastiInit();
@@ -6709,6 +6709,79 @@ function pred_setSort(mode) {
     b.style.color        = isActive ? '#89c8ff' : 'rgba(255,255,255,.45)';
   });
   pred_renderList();
+}
+
+// ── Kancelarija Faza 2 — Firma predmeti ──────────────────────────────────────
+
+var _predFirmaOpen  = false;
+var _predFirmaData  = null;
+
+async function predFirmaInit() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch('/api/kancelarija/moja', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) return;
+    var d = await r.json();
+    var btn = document.getElementById('pred-firma-toggle');
+    if (btn && (d.status === 'aktivan' || d.status === 'pending_invite')) {
+      btn.style.display = 'inline-block';
+      if (d.status === 'aktivan') {
+        btn.title = d.firma ? d.firma.naziv : 'Firma predmeti';
+      }
+    }
+  } catch(e) {}
+}
+
+async function predFirmaToggle() {
+  _predFirmaOpen = !_predFirmaOpen;
+  var panel = document.getElementById('pred-firma-panel');
+  var btn   = document.getElementById('pred-firma-toggle');
+  if (!panel) return;
+  if (!_predFirmaOpen) {
+    panel.style.display = 'none';
+    if (btn) { btn.style.background='transparent'; btn.style.borderColor='rgba(0,212,255,0.25)'; btn.style.color='rgba(0,212,255,0.6)'; }
+    return;
+  }
+  panel.style.display = '';
+  if (btn) { btn.style.background='rgba(0,212,255,0.12)'; btn.style.borderColor='rgba(0,212,255,0.4)'; btn.style.color='#00d4ff'; }
+  await predFirmaLoad();
+}
+
+async function predFirmaLoad() {
+  if (!currentSession) return;
+  var listEl  = document.getElementById('pred-firma-list');
+  var emptyEl = document.getElementById('pred-firma-empty');
+  var lblEl   = document.getElementById('pred-firma-label');
+  var cntEl   = document.getElementById('pred-firma-count');
+  if (listEl) listEl.innerHTML = '<div style="font-size:0.73rem;color:rgba(255,255,255,0.3);">Učitavam...</div>';
+  try {
+    var r = await fetch('/api/kancelarija/predmeti', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { if(listEl) listEl.innerHTML = '<div style="color:#f87171;font-size:0.73rem;">Greška pri učitavanju.</div>'; return; }
+    var d = await r.json();
+    _predFirmaData = d;
+    if (lblEl && d.firma_naziv) lblEl.textContent = d.firma_naziv + ' — predmeti';
+    var predmeti = d.predmeti || [];
+    // Exclude own predmeti (already visible in main list)
+    var tudjji = predmeti.filter(function(p){ return !p.je_moj; });
+    if (cntEl) cntEl.textContent = tudjji.length || predmeti.length;
+    if (!tudjji.length) {
+      if(listEl) listEl.innerHTML = '';
+      if(emptyEl) emptyEl.style.display = '';
+      return;
+    }
+    if(emptyEl) emptyEl.style.display = 'none';
+    var statColors = {aktivan:'#4ade80', arhiviran:'rgba(255,255,255,0.3)', zatvoren:'#f87171'};
+    if (listEl) listEl.innerHTML = tudjji.map(function(p){
+      var sc = statColors[p.status] || 'rgba(255,255,255,0.4)';
+      var owner = (p.vlasnik_email || '').split('@')[0];
+      var tipLabel = p.tip ? (' · ' + p.tip) : '';
+      return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.55rem;background:rgba(0,212,255,0.03);border:1px solid rgba(0,212,255,0.08);border-radius:6px;">'
+        +'<span style="width:6px;height:6px;border-radius:50%;background:'+sc+';flex-shrink:0;"></span>'
+        +'<span style="flex:1;font-size:0.78rem;color:rgba(255,255,255,0.82);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_htmlEsc(p.naziv)+'">'+_htmlEsc(p.naziv)+'</span>'
+        +'<span style="font-size:0.62rem;color:rgba(0,212,255,0.45);white-space:nowrap;flex-shrink:0;">@'+_htmlEsc(owner)+'</span>'
+        +'</div>';
+    }).join('');
+  } catch(e) { if(listEl) listEl.innerHTML = '<div style="color:#f87171;font-size:0.73rem;">Greška mreže.</div>'; }
 }
 
 function pred_renderList() {

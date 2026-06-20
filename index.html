@@ -543,11 +543,22 @@
             </div>
             <button class="pred-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>
             <div id="pred-dashboard-alert" style="display:none;font-size:0.65rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:6px;color:#ffbb70;letter-spacing:.03em;"></div>
-            <div id="pred-sort-bar" style="display:flex;gap:0.35rem;margin:0.55rem 0 0.35rem;flex-wrap:wrap;">
+            <div id="pred-sort-bar" style="display:flex;gap:0.35rem;margin:0.55rem 0 0.35rem;flex-wrap:wrap;align-items:center;">
               <button class="pred-sort-btn active" data-sort="svi"         onclick="pred_setSort('svi')"         style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);cursor:pointer;letter-spacing:.04em;">Svi</button>
               <button class="pred-sort-btn"        data-sort="prioritet"   onclick="pred_setSort('prioritet')"   style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">⚡ Prioritet</button>
               <button class="pred-sort-btn"        data-sort="rizik"       onclick="pred_setSort('rizik')"       style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">⚠ Rizik</button>
               <button class="pred-sort-btn"        data-sort="rokovi"      onclick="pred_setSort('rokovi')"      style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">📅 Rokovi</button>
+              <!-- Firma toggle — shown only if user is in a kancelarija -->
+              <button id="pred-firma-toggle" onclick="predFirmaToggle()" style="display:none;margin-left:auto;font-size:0.62rem;padding:0.28rem 0.65rem;border-radius:5px;border:1px solid rgba(0,212,255,0.25);background:transparent;color:rgba(0,212,255,0.6);cursor:pointer;letter-spacing:.04em;">🏢 Firma</button>
+            </div>
+            <!-- Firma predmeti panel -->
+            <div id="pred-firma-panel" style="display:none;margin-bottom:0.5rem;">
+              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.07em;margin-bottom:0.35rem;display:flex;align-items:center;gap:0.5rem;">
+                <span id="pred-firma-label">Firmini predmeti</span>
+                <span id="pred-firma-count" style="background:rgba(0,212,255,0.1);color:#00d4ff;border-radius:3px;padding:0 5px;font-size:0.6rem;"></span>
+              </div>
+              <div id="pred-firma-list" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
+              <div id="pred-firma-empty" style="display:none;font-size:0.75rem;color:rgba(255,255,255,0.3);padding:0.4rem 0;">Nema deljenih predmeta u firmi.</div>
             </div>
             <div id="pred-bulk-bar" style="display:none;align-items:center;gap:0.4rem;margin:0.3rem 0;padding:0.35rem 0.55rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.2);border-radius:7px;">
               <span id="pred-bulk-count" style="font-size:0.65rem;color:#89c8ff;flex:1;font-weight:600;"></span>
