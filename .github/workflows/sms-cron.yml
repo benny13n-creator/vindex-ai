@@ -1,0 +1,15 @@
+name: SMS Podsetnici za rokove
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pošalji SMS podsetnike
+        run: |
+          curl -X POST https://vindex.rs/sms/send-reminders \
+            -H "Authorization: Bearer ${{ secrets.CRON_TOKEN }}" \
+            -H "Content-Type: application/json"
