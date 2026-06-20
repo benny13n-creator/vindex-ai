@@ -6,11 +6,13 @@ Email podsetnici za kritične rokove (7, 3, 1 dan pre).
 Koristi isti SMTP kao billing (EMAIL_SMTP_* env vars).
 
 Endpoints:
-  GET  /email-notif/profil         — dohvata podešavanja (opt-in, 7/3/1 dan)
-  POST /email-notif/profil         — čuva/ažurira podešavanja
-  DELETE /email-notif/profil       — deaktivira email notifikacije
-  POST /email-notif/test           — šalje test email na login email
-  POST /email-notif/send-reminders — interni cron trigger (founder only)
+  GET  /email-notif/profil            — dohvata podešavanja (opt-in, 7/3/1 dan)
+  POST /email-notif/profil            — čuva/ažurira podešavanja
+  DELETE /email-notif/profil          — deaktivira email notifikacije
+  POST /email-notif/test              — šalje test email na login email
+  POST /email-notif/send-reminders    — interni cron trigger (founder only)
+  POST /email-notif/onboarding-welcome — šalje welcome email jednom korisniku
+  POST /email-notif/onboarding-cron   — cron: šalje day1 i day3 onboarding emailove
 """
 from __future__ import annotations
 
@@ -478,6 +480,245 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(get_cu
             except Exception as exc:
                 logger.error("[WEEKLY-DIGEST] greška uid=%.8s: %s", uid, exc)
                 greske += 1
+
+        return {"poslato": poslato, "greske": greske}
+
+    return await asyncio.to_thread(_run)
+
+
+# ─── Onboarding email sekvenca ────────────────────────────────────────────────
+
+_APP_URL = "https://vindex.rs"
+
+def _onboarding_welcome_html(email: str) -> str:
+    ime = email.split("@")[0].replace(".", " ").title()
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#1e3a5f,#0d2744);padding:28px;">
+    <div style="font-size:11px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px;">Vindex AI</div>
+    <div style="font-size:24px;font-weight:700;color:#fff;font-family:Georgia,serif;">Dobrodošli, {ime}!</div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.65);margin-top:6px;">Vaš pravni AI asistent je spreman.</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="color:#cbd5e1;font-size:14px;margin:0 0 20px;line-height:1.6;">
+      Upravo ste aktivirali <strong style="color:#4aa8ff;">15 besplatnih AI upita</strong> — bez kreditne kartice, bez obaveza.
+      Vindex AI čita zakon, analizira dokumente i predlaže strategiju — sve u jednom mestu.
+    </p>
+    <div style="background:#0d1b2a;border:1px solid #1e3a5f;border-radius:10px;padding:18px;margin-bottom:20px;">
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:12px;">Počnite ovde — 3 koraka</div>
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">
+        <div style="min-width:28px;height:28px;background:#1e3a5f;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#4aa8ff;">1</div>
+        <div><div style="color:#e2e8f0;font-size:13px;font-weight:600;">Otvorite predmet</div><div style="color:#94a3b8;font-size:12px;margin-top:2px;">Unesite naziv i tip vaše parnice ili savetodavnog predmeta.</div></div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">
+        <div style="min-width:28px;height:28px;background:#1e3a5f;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#4aa8ff;">2</div>
+        <div><div style="color:#e2e8f0;font-size:13px;font-weight:600;">Postavite pravno pitanje</div><div style="color:#94a3b8;font-size:12px;margin-top:2px;">AI przoruje važeće zakone i vraća konkretan odgovor sa izvorom.</div></div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="min-width:28px;height:28px;background:#1e3a5f;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#4aa8ff;">3</div>
+        <div><div style="color:#e2e8f0;font-size:13px;font-weight:600;">Analizirajte dokument</div><div style="color:#94a3b8;font-size:12px;margin-top:2px;">Uploadujte ugovor ili tužbu — dobijate pravni revizorski izveštaj.</div></div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="{_APP_URL}" style="display:inline-block;padding:13px 32px;background:linear-gradient(135deg,#4aa8ff,#2563eb);color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:.02em;">Otvorite Vindex AI →</a>
+    </div>
+    <div style="background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.2);border-radius:8px;padding:12px 16px;">
+      <span style="color:#4aa8ff;font-size:13px;font-weight:600;">15 besplatnih AI upita aktivirano</span>
+      <span style="color:#64748b;font-size:12px;"> — bez kreditne kartice.</span>
+    </div>
+  </div>
+  <div style="padding:14px 28px;border-top:1px solid #1e293b;">
+    <p style="color:#475569;font-size:12px;margin:0;">Registrovali ste se na Vindex AI. Imate pitanje? Odgovorite na ovaj email.</p>
+  </div>
+</div>
+</body></html>"""
+
+
+def _onboarding_day1_html(email: str) -> str:
+    ime = email.split("@")[0].replace(".", " ").title()
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#0f4c2a,#0d2744);padding:24px 28px;">
+    <div style="font-size:11px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;">Vindex AI — Podsetnik</div>
+    <div style="font-size:21px;font-weight:700;color:#fff;">{ime}, niste još probali AI analizu 📄</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="color:#cbd5e1;font-size:14px;margin:0 0 18px;line-height:1.6;">
+      Juče ste se registrovali. Još uvek imate <strong style="color:#4aa8ff;">15 besplatnih upita</strong> koji čekaju.
+    </p>
+    <div style="background:#0d1b2a;border:1px solid #1e3a5f;border-radius:10px;padding:18px;margin-bottom:20px;">
+      <div style="font-size:12px;color:#64748b;font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;">Isprobajte za 60 sekundi:</div>
+      <div style="color:#e2e8f0;font-size:14px;margin-bottom:8px;">📋 <strong>Uploadujte ugovor ili tužbu</strong> — dobijate forenzički izveštaj: rizici, pravne praznine, preporuke izmena.</div>
+      <div style="color:#e2e8f0;font-size:14px;">⚖️ <strong>Postavite pravno pitanje</strong> — AI pretražuje ZPP, KZ, ZOO i 50+ zakona i vraća odgovor sa članom.</div>
+    </div>
+    <div style="text-align:center;margin-bottom:16px;">
+      <a href="{_APP_URL}" style="display:inline-block;padding:13px 32px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Isprobaj sada →</a>
+    </div>
+    <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">Pristup bez kreditne kartice. Bez obaveza.</p>
+  </div>
+  <div style="padding:14px 28px;border-top:1px solid #1e293b;">
+    <p style="color:#475569;font-size:12px;margin:0;">Dobijate ovu poruku jer ste se registrovali na Vindex AI juče.</p>
+  </div>
+</div>
+</body></html>"""
+
+
+def _onboarding_day3_html(email: str) -> str:
+    ime = email.split("@")[0].replace(".", " ").title()
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#4c1d95,#1e1b4b);padding:24px 28px;">
+    <div style="font-size:11px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;">Vindex AI</div>
+    <div style="font-size:21px;font-weight:700;color:#fff;">{ime}, imate li aktivnih predmeta? 🗂</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="color:#cbd5e1;font-size:14px;margin:0 0 18px;line-height:1.6;">
+      Advokati koji koriste Vindex AI kažu da im štedi <strong style="color:#a78bfa;">2-3 sata nedeljno</strong>
+      na istraživanju prava i pripremi dokumenata.
+    </p>
+    <div style="background:#0d1b2a;border:1px solid #1e3a5f;border-radius:10px;padding:18px;margin-bottom:20px;">
+      <div style="font-size:12px;color:#64748b;font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;">Kreirajte predmet za 30 sekundi:</div>
+      <div style="color:#94a3b8;font-size:13px;line-height:1.7;">
+        ✓ Pratite rokove i ročišta<br>
+        ✓ Čuvajte dokumente i beleške<br>
+        ✓ AI analizira predmet i predlaže strategiju<br>
+        ✓ Copilot odgovara na pitanja u kontekstu vašeg predmeta
+      </div>
+    </div>
+    <div style="text-align:center;margin-bottom:16px;">
+      <a href="{_APP_URL}" style="display:inline-block;padding:13px 32px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Otvorite predmet →</a>
+    </div>
+    <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">Ili odgovorite na ovaj email ako imate pitanje — lično odgovaramo.</p>
+  </div>
+  <div style="padding:14px 28px;border-top:1px solid #1e293b;">
+    <p style="color:#475569;font-size:12px;margin:0;">Registrovali ste se pre 3 dana. Ovo je poslednji podsetnik — nećemo vam slati više.</p>
+  </div>
+</div>
+</body></html>"""
+
+
+def _log_onboarding(supa, user_id: str, tip: str, email: str) -> None:
+    try:
+        supa.table("onboarding_email_log").insert({
+            "user_id": user_id,
+            "tip":     tip,
+            "email":   email,
+        }).execute()
+    except Exception:
+        pass
+
+
+def send_welcome_email(user_id: str, to_addr: str) -> None:
+    """Sinhronski poziv — koristi se iz api.py registracija (background task)."""
+    if not _SMTP_HOST or not to_addr:
+        return
+    supa = _get_supa()
+    # Dedup
+    dup = supa.table("onboarding_email_log").select("id").eq("user_id", user_id).eq("tip", "welcome").limit(1).execute()
+    if dup.data:
+        return
+    try:
+        html = _onboarding_welcome_html(to_addr)
+        _smtp_send(to_addr, "Dobrodošli u Vindex AI — vaš pravni asistent je spreman", html)
+        _log_onboarding(supa, user_id, "welcome", to_addr)
+        logger.info("[ONBOARDING] welcome poslat uid=%.8s", user_id)
+    except Exception as exc:
+        logger.error("[ONBOARDING] welcome greška uid=%.8s: %s", user_id, exc)
+
+
+@router.post("/email-notif/onboarding-welcome")
+@limiter.limit("5/minute")
+async def onboarding_welcome(request: Request, user: dict = Depends(get_current_user)):
+    """Šalje welcome email trenutno ulogovanom korisniku (za testiranje)."""
+    if (user.get("email") or "").lower() not in FOUNDER_EMAILS:
+        raise HTTPException(status_code=403, detail="Restricted.")
+    to_addr = user.get("email", "")
+    if not to_addr:
+        raise HTTPException(status_code=400, detail="Email nije dostupan.")
+    await asyncio.to_thread(send_welcome_email, user["user_id"], to_addr)
+    return {"ok": True, "poslato_na": to_addr}
+
+
+@router.post("/email-notif/onboarding-cron")
+@limiter.limit("5/minute")
+async def onboarding_cron(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Cron trigger — pokreće se svaki dan (08:00).
+    Šalje day1 email korisnicima registrovanim pre 24-48h koji nisu koristili AI.
+    Šalje day3 email korisnicima registrovanim pre 72-96h koji nemaju predmete.
+    Founder only.
+    """
+    if (user.get("email") or "").lower() not in FOUNDER_EMAILS:
+        raise HTTPException(status_code=403, detail="Restricted.")
+
+    from datetime import datetime, timezone, timedelta as _td
+
+    def _run():
+        supa  = _get_supa()
+        now   = datetime.now(timezone.utc)
+        poslato = 0
+        greske  = 0
+
+        # Dohvati sve profile sa email i registered_at
+        profiles_r = supa.table("profiles").select("id, email, registered_at, created_at").execute()
+        profiles   = profiles_r.data or []
+
+        for p in profiles:
+            uid     = p.get("id", "")
+            email   = p.get("email", "")
+            if not email or not uid:
+                continue
+
+            reg_str = p.get("registered_at") or p.get("created_at") or ""
+            if not reg_str:
+                continue
+            try:
+                reg_at = datetime.fromisoformat(reg_str.replace("Z", "+00:00"))
+                if reg_at.tzinfo is None:
+                    reg_at = reg_at.replace(tzinfo=timezone.utc)
+            except Exception:
+                continue
+
+            hours_since = (now - reg_at).total_seconds() / 3600
+
+            # ── DAY 1: 24-48h, nije koristio AI ──────────────────────────────
+            if 24 <= hours_since < 48:
+                dup = supa.table("onboarding_email_log").select("id").eq("user_id", uid).eq("tip", "day1").limit(1).execute()
+                if not dup.data:
+                    # Provjeri da li je koristio AI (korisnik_usage)
+                    ym = now.strftime("%Y-%m")
+                    usage_r = supa.table("korisnik_usage").select("ai_queries, doc_analyses, strategies").eq("user_id", uid).eq("year_month", ym).maybe_single().execute()
+                    usage   = usage_r.data or {}
+                    total_ai = (usage.get("ai_queries") or 0) + (usage.get("doc_analyses") or 0) + (usage.get("strategies") or 0)
+                    if total_ai == 0:
+                        try:
+                            html = _onboarding_day1_html(email)
+                            _smtp_send(email, "Niste još probali Vindex AI — 15 upita čeka vas", html)
+                            _log_onboarding(supa, uid, "day1", email)
+                            poslato += 1
+                            logger.info("[ONBOARDING-CRON] day1 uid=%.8s", uid)
+                        except Exception as exc:
+                            logger.error("[ONBOARDING-CRON] day1 greška uid=%.8s: %s", uid, exc)
+                            greske += 1
+
+            # ── DAY 3: 72-96h, nema predmeta ─────────────────────────────────
+            elif 72 <= hours_since < 96:
+                dup = supa.table("onboarding_email_log").select("id").eq("user_id", uid).eq("tip", "day3").limit(1).execute()
+                if not dup.data:
+                    predmeti_r = supa.table("predmeti").select("id").eq("user_id", uid).limit(1).execute()
+                    if not (predmeti_r.data):
+                        try:
+                            html = _onboarding_day3_html(email)
+                            _smtp_send(email, "Vindex AI — otvorite prvi predmet za 30 sekundi", html)
+                            _log_onboarding(supa, uid, "day3", email)
+                            poslato += 1
+                            logger.info("[ONBOARDING-CRON] day3 uid=%.8s", uid)
+                        except Exception as exc:
+                            logger.error("[ONBOARDING-CRON] day3 greška uid=%.8s: %s", uid, exc)
+                            greske += 1
 
         return {"poslato": poslato, "greske": greske}
 

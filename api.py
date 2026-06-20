@@ -511,7 +511,7 @@ from routers.jobs                 import router as jobs_router
 from routers.waitlist             import router as waitlist_router
 from routers.kancelarija          import router as kancelarija_router
 from routers.law_upload           import router as law_upload_router
-from routers.email_notif          import router as email_notif_router
+from routers.email_notif          import router as email_notif_router, send_welcome_email
 from routers.doc_templates        import router as doc_templates_router
 from routers.plans                import router as plans_router
 
@@ -971,7 +971,9 @@ async def register(req: RegisterReq, request: Request):
             )
 
     try:
-        return await asyncio.to_thread(_do_register)
+        result = await asyncio.to_thread(_do_register)
+        asyncio.create_task(asyncio.to_thread(send_welcome_email, result["user_id"], req.email))
+        return result
     except HTTPException:
         raise
     except Exception:
