@@ -2363,6 +2363,35 @@
               </div>
             </div>
 
+            <!-- ── Email notifikacije za rokove ──────────────────────── -->
+            <div class="settings-section" id="email-notif-section">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Email notifikacije za rokove</span>
+                <span id="email-notif-badge" style="font-size:0.6rem;font-weight:700;letter-spacing:.06em;padding:0.1rem 0.4rem;border-radius:4px;display:none;"></span>
+              </div>
+              <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:0.45rem;">
+                <div class="settings-row-sub">Primajte email podsetnike 7, 3 i 1 dan pre kritičnih rokova.</div>
+                <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);">Šalje se na: <span id="email-notif-addr" style="color:rgba(255,255,255,0.7);">—</span></div>
+                <div style="display:flex;flex-direction:column;gap:0.3rem;width:100%;margin-top:0.15rem;">
+                  <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.78rem;color:rgba(255,255,255,0.7);">
+                    <input type="checkbox" id="en-dan-7" style="accent-color:#00d4ff;"> 7 dana pre
+                  </label>
+                  <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.78rem;color:rgba(255,255,255,0.7);">
+                    <input type="checkbox" id="en-dan-3" style="accent-color:#00d4ff;"> 3 dana pre
+                  </label>
+                  <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.78rem;color:rgba(255,255,255,0.7);">
+                    <input type="checkbox" id="en-dan-1" style="accent-color:#00d4ff;"> 1 dan pre (dan uoči roka)
+                  </label>
+                </div>
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.1rem;">
+                  <button class="settings-btn" onclick="emailNotifSacuvaj()" id="en-save-btn">Aktiviraj</button>
+                  <button class="settings-btn" onclick="emailNotifTest()" id="en-test-btn" style="display:none;">Pošalji test</button>
+                  <button class="settings-btn" onclick="emailNotifDeaktivaj()" id="en-deaktiv-btn" style="display:none;border-color:rgba(239,68,68,0.3);color:#f87171;">Deaktiviraj</button>
+                </div>
+                <span id="en-msg" style="font-size:0.7rem;display:none;"></span>
+              </div>
+            </div>
+
             <!-- ── Integracije — Phase 5.5 ────────────────────────── -->
             <div class="settings-section" id="integracije-section">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">

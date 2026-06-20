@@ -1673,6 +1673,7 @@ function settingsLoad() {
   if (planEl) planEl.textContent = currentUserIsPro ? 'VindexAI PRO' : 'Basic';
   sef_loadSettings();
   sms_loadProfil();
+  emailNotifLoad();
   kancelarijaLoad();
 }
 
@@ -10393,6 +10394,84 @@ async function corpusListDiscovered() {
   } catch(e) {
     if (result) result.innerHTML = '<div style="color:#f87171;">Greška: ' + _htmlEsc(e.message) + '</div>';
   }
+}
+
+// ── Email notifikacije za rokove ─────────────────────────────────────────────
+
+async function emailNotifLoad() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch('/email-notif/profil', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) return;
+    var d = await r.json();
+    var badge = document.getElementById('email-notif-badge');
+    var addrEl = document.getElementById('email-notif-addr');
+    var d7 = document.getElementById('en-dan-7');
+    var d3 = document.getElementById('en-dan-3');
+    var d1 = document.getElementById('en-dan-1');
+    var testBtn  = document.getElementById('en-test-btn');
+    var deakBtn  = document.getElementById('en-deaktiv-btn');
+    var saveBtn  = document.getElementById('en-save-btn');
+    if (addrEl) addrEl.textContent = d.email || '—';
+    if (d7) d7.checked = !!d.dan_7;
+    if (d3) d3.checked = !!d.dan_3;
+    if (d1) d1.checked = !!d.dan_1;
+    if (badge) {
+      if (d.aktivan) {
+        badge.textContent = 'AKTIVNO'; badge.style.background='rgba(74,222,128,0.15)'; badge.style.color='#4ade80'; badge.style.display='inline';
+      } else { badge.style.display='none'; }
+    }
+    if (testBtn)  testBtn.style.display  = d.aktivan ? 'inline-block' : 'none';
+    if (deakBtn)  deakBtn.style.display  = d.aktivan ? 'inline-block' : 'none';
+    if (saveBtn)  saveBtn.textContent    = d.aktivan ? 'Sačuvaj' : 'Aktiviraj';
+    if (!d.smtp_ok) {
+      var sec = document.getElementById('email-notif-section');
+      if (sec) { var warn=document.createElement('div'); warn.style.cssText='font-size:.7rem;color:#f87171;margin-top:.3rem;'; warn.textContent='⚠ Email server nije konfigurisan (EMAIL_SMTP_HOST).'; sec.appendChild(warn); }
+    }
+  } catch(e) {}
+}
+
+function _enMsg(txt, color) {
+  var el = document.getElementById('en-msg');
+  if (!el) return;
+  el.textContent = txt; el.style.color = color || '#4ade80'; el.style.display = '';
+  setTimeout(function(){ if(el.textContent===txt) el.style.display='none'; }, 4000);
+}
+
+async function emailNotifSacuvaj() {
+  if (!currentSession) return;
+  var d7 = document.getElementById('en-dan-7');
+  var d3 = document.getElementById('en-dan-3');
+  var d1 = document.getElementById('en-dan-1');
+  try {
+    var r = await fetch('/email-notif/profil', {
+      method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
+      body: JSON.stringify({aktivan:true, dan_7: d7?!!d7.checked:true, dan_3: d3?!!d3.checked:true, dan_1: d1?!!d1.checked:true})
+    });
+    var d = await r.json();
+    if (!r.ok) { _enMsg(d.detail||'Greška.','#f87171'); return; }
+    _enMsg('✓ Email notifikacije aktivirane.');
+    await emailNotifLoad();
+  } catch(e) { _enMsg('Greška mreže.','#f87171'); }
+}
+
+async function emailNotifTest() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch('/email-notif/test', {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    var d = await r.json();
+    if (!r.ok) { _enMsg(d.detail||'Greška.','#f87171'); return; }
+    _enMsg('✓ Test email poslat na ' + d.poslato_na);
+  } catch(e) { _enMsg('Greška mreže.','#f87171'); }
+}
+
+async function emailNotifDeaktivaj() {
+  if (!currentSession || !confirm('Deaktivirati email notifikacije?')) return;
+  try {
+    await fetch('/email-notif/profil', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    _enMsg('Email notifikacije deaktivirane.');
+    await emailNotifLoad();
+  } catch(e) { _enMsg('Greška mreže.','#f87171'); }
 }
 
 // ── Integracije — Phase 5.5 ──────────────────────────────────────────────────
