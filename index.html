@@ -2212,14 +2212,77 @@
               </div>
             </div>
 
-            <div class="settings-section">
-              <div class="settings-section-hd">Firma</div>
-              <div class="settings-row">
-                <div class="settings-row-left">
-                  <div class="settings-row-label">Naziv firme</div>
-                  <div class="settings-row-sub" id="settings-firma-val">—</div>
+            <!-- ── Advokatska kancelarija — Phase 5.4 ───────────── -->
+            <div class="settings-section" id="kancelarija-section">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Advokatska kancelarija</span>
+                <span id="kancelarija-loading" style="font-size:0.65rem;color:rgba(255,255,255,0.35);">učitavanje...</span>
+              </div>
+
+              <!-- no firma -->
+              <div id="kancelarija-no-firma" style="display:none;">
+                <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem;">
+                  <div class="settings-row-sub">Kreirajte firmu da pozovete kolege i zajedno upravljate predmetima.</div>
+                  <div style="display:flex;gap:0.5rem;width:100%;align-items:center;">
+                    <input type="text" id="kancelarija-new-naziv" placeholder="Naziv kancelarije" maxlength="120"
+                      style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;">
+                    <button class="settings-btn" onclick="kancelarijaKreiraj()">Kreiraj</button>
+                  </div>
+                  <div id="kancelarija-kreiraj-err" style="font-size:0.72rem;color:#f87171;display:none;"></div>
                 </div>
-                <button class="settings-btn" onclick="openSettingsModal ? openSettingsModal() : null">Uredi</button>
+              </div>
+
+              <!-- pending invite -->
+              <div id="kancelarija-pending" style="display:none;">
+                <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem;">
+                  <div class="settings-row-sub">Pozvani ste da se pridružite firmi:</div>
+                  <div id="kancelarija-pending-naziv" style="color:#fff;font-weight:600;font-size:0.88rem;margin:0.1rem 0;"></div>
+                  <div style="display:flex;gap:0.5rem;">
+                    <button class="settings-btn" style="background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.3);color:#00d4ff;" onclick="kancPrihvati()">Prihvati pozivnicu</button>
+                    <button class="settings-btn" style="border-color:rgba(239,68,68,0.3);color:#f87171;" onclick="kancOdbij()">Odbij</button>
+                  </div>
+                  <div id="kancelarija-pending-err" style="font-size:0.72rem;color:#f87171;display:none;"></div>
+                </div>
+              </div>
+
+              <!-- active firma -->
+              <div id="kancelarija-aktivan" style="display:none;">
+                <div class="settings-row">
+                  <div class="settings-row-left">
+                    <div class="settings-row-label" id="kancelarija-naziv-display" style="font-size:0.95rem;"></div>
+                    <div class="settings-row-sub" id="kancelarija-role-display"></div>
+                  </div>
+                  <div id="kancelarija-admin-btns" style="display:none;display:flex;gap:0.35rem;">
+                    <button class="settings-btn" onclick="kancRename()">Preimenuj</button>
+                  </div>
+                </div>
+
+                <div style="margin-top:0.5rem;">
+                  <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.35rem;">Članovi</div>
+                  <div id="kancelarija-clanovi-list" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
+                </div>
+
+                <!-- invite panel (admin only) -->
+                <div id="kancelarija-invite-panel" style="display:none;margin-top:0.75rem;border-top:1px solid rgba(255,255,255,0.07);padding-top:0.6rem;">
+                  <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.35rem;">Pozovi kolegu</div>
+                  <div style="display:grid;grid-template-columns:1fr auto auto;gap:0.3rem;align-items:center;">
+                    <input type="email" id="kancelarija-invite-email" placeholder="email@kancelarija.rs"
+                      style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;">
+                    <select id="kancelarija-invite-uloga"
+                      style="background:rgba(13,27,42,0.97);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:5px 8px;color:rgba(255,255,255,0.85);font-size:0.78rem;outline:none;font-family:inherit;cursor:pointer;">
+                      <option value="partner">Partner</option>
+                      <option value="saradnik" selected>Saradnik</option>
+                      <option value="citanje">Samo čitanje</option>
+                    </select>
+                    <button class="settings-btn" onclick="kancPozovi()">Pošalji</button>
+                  </div>
+                  <div id="kancelarija-invite-status" style="font-size:0.72rem;margin-top:0.3rem;display:none;"></div>
+                </div>
+
+                <!-- leave btn (non-admin) -->
+                <div id="kancelarija-leave-panel" style="display:none;margin-top:0.6rem;border-top:1px solid rgba(255,255,255,0.07);padding-top:0.5rem;">
+                  <button class="settings-btn" style="border-color:rgba(239,68,68,0.3);color:#f87171;" onclick="kancOstavi()">Napusti firmu</button>
+                </div>
               </div>
             </div>
 

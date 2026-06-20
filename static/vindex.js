@@ -1666,16 +1666,14 @@ function saveDisplayName() {
 function settingsLoad() {
   var emailEl = document.getElementById('settings-email-val');
   var planEl  = document.getElementById('settings-plan-val');
-  var firmaEl = document.getElementById('settings-firma-val');
   var dnEl    = document.getElementById('settings-display-name-input');
   if (dnEl) dnEl.value = localStorage.getItem('vindex_display_name') || '';
   var _email = currentUser ? (currentUser.email || '') : '';
   if (emailEl) emailEl.textContent = _email || '—';
   if (planEl) planEl.textContent = currentUserIsPro ? 'VindexAI PRO' : 'Basic';
-  var firma = localStorage.getItem('vindex_firma');
-  if (firmaEl && firma) { try { var f=JSON.parse(firma); firmaEl.textContent = f.naziv||'—'; } catch(e){} }
   sef_loadSettings();
   sms_loadProfil();
+  kancelarijaLoad();
 }
 
 // ── SMS / WhatsApp notifikacije ───────────────────────────────────────────────
@@ -1754,17 +1752,180 @@ async function sms_deaktiviraj() {
   } catch(e) { _smsMsg('Greška mreže', '#f87171'); }
 }
 
-function openSettingsModal() {
-  var current = '';
-  try { var f = JSON.parse(localStorage.getItem('vindex_firma') || '{}'); current = f.naziv || ''; } catch(e) {}
-  var novi = prompt('Naziv firme:', current);
-  if (novi === null) return;
-  var obj = {};
-  try { obj = JSON.parse(localStorage.getItem('vindex_firma') || '{}'); } catch(e) {}
-  obj.naziv = novi.trim();
-  localStorage.setItem('vindex_firma', JSON.stringify(obj));
-  var firmaEl = document.getElementById('settings-firma-val');
-  if (firmaEl) firmaEl.textContent = obj.naziv || '—';
+// ── Kancelarija (Phase 5.4) ───────────────────────────────────────────────────
+
+var _kancData = null; // cached /api/kancelarija/moja response
+
+function _kancShow(state) {
+  ['kancelarija-no-firma','kancelarija-pending','kancelarija-aktivan'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = (id === 'kancelarija-'+state) ? '' : 'none';
+  });
+  var ldg = document.getElementById('kancelarija-loading');
+  if (ldg) ldg.style.display = 'none';
+}
+
+async function kancelarijaLoad() {
+  if (!currentSession) return;
+  var ldg = document.getElementById('kancelarija-loading');
+  if (ldg) ldg.style.display = 'inline';
+  try {
+    var r = await fetch('/api/kancelarija/moja', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { _kancShow('no-firma'); return; }
+    var d = await r.json();
+    _kancData = d;
+    if (d.status === 'no_firma') {
+      _kancShow('no-firma');
+    } else if (d.status === 'pending_invite') {
+      _kancShow('pending');
+      var nnEl = document.getElementById('kancelarija-pending-naziv');
+      if (nnEl) nnEl.textContent = d.firma_naziv || '—';
+    } else if (d.status === 'aktivan') {
+      _kancShow('aktivan');
+      var nazEl = document.getElementById('kancelarija-naziv-display');
+      var roleEl = document.getElementById('kancelarija-role-display');
+      var adminBtns = document.getElementById('kancelarija-admin-btns');
+      var invPanel = document.getElementById('kancelarija-invite-panel');
+      var leavePanel = document.getElementById('kancelarija-leave-panel');
+      if (nazEl) nazEl.textContent = d.firma.naziv;
+      var roleLabels = {admin:'Administrator', partner:'Partner', saradnik:'Saradnik', citanje:'Samo čitanje'};
+      if (roleEl) roleEl.textContent = 'Vaša uloga: ' + (roleLabels[d.moja_uloga] || d.moja_uloga);
+      var isAdmin = d.moja_uloga === 'admin';
+      if (adminBtns) adminBtns.style.display = isAdmin ? 'flex' : 'none';
+      if (invPanel)  invPanel.style.display  = isAdmin ? '' : 'none';
+      if (leavePanel) leavePanel.style.display = isAdmin ? 'none' : '';
+      _kancRenderClanovi(d.clanovi || [], isAdmin);
+    }
+  } catch(e) { _kancShow('no-firma'); }
+}
+
+function _kancRenderClanovi(clanovi, isAdmin) {
+  var list = document.getElementById('kancelarija-clanovi-list');
+  if (!list) return;
+  if (!clanovi.length) { list.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);">Nema članova.</div>'; return; }
+  var statusLabels = {pending:'Čeka', aktivan:'Aktivan', odbijen:'Odbijen'};
+  var statusColors = {pending:'#c9a84c', aktivan:'#4ade80', odbijen:'#f87171'};
+  list.innerHTML = clanovi.map(function(c){
+    var stColor = statusColors[c.status] || '#aaa';
+    var stLabel = statusLabels[c.status] || c.status;
+    var actions = '';
+    if (isAdmin) {
+      var roleOpts = ['partner','saradnik','citanje'].map(function(u){
+        return '<option value="'+u+'"'+(c.uloga===u?' selected':'')+'>'+({partner:'Partner',saradnik:'Saradnik',citanje:'Čitanje'}[u]||u)+'</option>';
+      }).join('');
+      actions = '<select onchange="kancPromeniUlogu(\''+c.id+'\',this.value)" style="background:rgba(13,27,42,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:2px 5px;color:rgba(255,255,255,0.8);font-size:0.72rem;outline:none;font-family:inherit;cursor:pointer;">'+roleOpts+'</select>'
+        +'<button onclick="kancUkloni(\''+c.id+'\',\''+c.email+'\')" style="background:none;border:1px solid rgba(239,68,68,0.3);border-radius:5px;padding:2px 7px;color:#f87171;font-size:0.72rem;cursor:pointer;font-family:inherit;">×</button>';
+    }
+    return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.45rem;background:rgba(255,255,255,0.03);border-radius:6px;">'
+      +'<span style="flex:1;font-size:0.78rem;color:rgba(255,255,255,0.8);">'+c.email+'</span>'
+      +'<span style="font-size:0.65rem;color:'+stColor+';padding:1px 5px;border-radius:3px;border:1px solid '+stColor+'33;">'+stLabel+'</span>'
+      +actions+'</div>';
+  }).join('');
+}
+
+async function kancelarijaKreiraj() {
+  if (!currentSession) return;
+  var inp = document.getElementById('kancelarija-new-naziv');
+  var errEl = document.getElementById('kancelarija-kreiraj-err');
+  if (!inp || !inp.value.trim()) { if(errEl){errEl.textContent='Unesite naziv.';errEl.style.display='';} return; }
+  try {
+    var r = await fetch('/api/kancelarija/kreiraj', {
+      method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
+      body: JSON.stringify({naziv: inp.value.trim()})
+    });
+    var d = await r.json();
+    if (!r.ok) { if(errEl){errEl.textContent=d.detail||'Greška.';errEl.style.display='';} return; }
+    if (errEl) errEl.style.display = 'none';
+    inp.value = '';
+    await kancelarijaLoad();
+  } catch(e) { if(errEl){errEl.textContent='Greška mreže.';errEl.style.display='';} }
+}
+
+async function kancPrihvati() {
+  if (!currentSession) return;
+  var errEl = document.getElementById('kancelarija-pending-err');
+  try {
+    var r = await fetch('/api/kancelarija/prihvati', {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { var d=await r.json(); if(errEl){errEl.textContent=d.detail||'Greška.';errEl.style.display='';} return; }
+    await kancelarijaLoad();
+  } catch(e) { if(errEl){errEl.textContent='Greška mreže.';errEl.style.display='';} }
+}
+
+async function kancOdbij() {
+  if (!currentSession) return;
+  if (!confirm('Odbiti pozivnicu?')) return;
+  try {
+    await fetch('/api/kancelarija/odbij', {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    await kancelarijaLoad();
+  } catch(e) {}
+}
+
+async function kancPozovi() {
+  if (!currentSession) return;
+  var emailInp = document.getElementById('kancelarija-invite-email');
+  var ulogaInp = document.getElementById('kancelarija-invite-uloga');
+  var stEl = document.getElementById('kancelarija-invite-status');
+  if (!emailInp || !emailInp.value.trim()) return;
+  try {
+    var r = await fetch('/api/kancelarija/pozovi', {
+      method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
+      body: JSON.stringify({email: emailInp.value.trim(), uloga: ulogaInp ? ulogaInp.value : 'saradnik'})
+    });
+    var d = await r.json();
+    if (!r.ok) {
+      if(stEl){stEl.textContent=d.detail||'Greška.';stEl.style.color='#f87171';stEl.style.display='';}
+    } else {
+      if(stEl){stEl.textContent='Poziv poslat na '+emailInp.value.trim();stEl.style.color='#4ade80';stEl.style.display='';}
+      emailInp.value = '';
+      await kancelarijaLoad();
+    }
+    setTimeout(function(){ if(stEl) stEl.style.display='none'; }, 4000);
+  } catch(e) { if(stEl){stEl.textContent='Greška mreže.';stEl.style.color='#f87171';stEl.style.display='';} }
+}
+
+async function kancUkloni(clanId, email) {
+  if (!currentSession) return;
+  if (!confirm('Ukloniti '+email+' iz firme?')) return;
+  try {
+    var r = await fetch('/api/kancelarija/ukloni/'+clanId, {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
+    await kancelarijaLoad();
+  } catch(e) { showToast('Greška mreže.', 'err'); }
+}
+
+async function kancPromeniUlogu(clanId, uloga) {
+  if (!currentSession) return;
+  try {
+    var r = await fetch('/api/kancelarija/uloga/'+clanId, {
+      method:'PUT', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
+      body: JSON.stringify({uloga: uloga})
+    });
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); await kancelarijaLoad(); }
+  } catch(e) { showToast('Greška mreže.', 'err'); }
+}
+
+async function kancRename() {
+  if (!currentSession || !_kancData || !_kancData.firma) return;
+  var novi = prompt('Novi naziv firme:', _kancData.firma.naziv || '');
+  if (!novi || !novi.trim()) return;
+  try {
+    var r = await fetch('/api/kancelarija/naziv', {
+      method:'PUT', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
+      body: JSON.stringify({naziv: novi.trim()})
+    });
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
+    await kancelarijaLoad();
+  } catch(e) { showToast('Greška mreže.', 'err'); }
+}
+
+async function kancOstavi() {
+  if (!currentSession) return;
+  if (!confirm('Napustiti firmu? Izgubićete pristup svim deljenim predmetima.')) return;
+  try {
+    var r = await fetch('/api/kancelarija/napusti', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
+    await kancelarijaLoad();
+  } catch(e) { showToast('Greška mreže.', 'err'); }
 }
 
 // Reset lozinke iz Podešavanja
