@@ -1,0 +1,15 @@
+name: Email Podsetnici za rokove
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  send-email-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pošalji email podsetnike
+        run: |
+          curl -X POST https://vindex.rs/email-notif/send-reminders \
+            -H "Authorization: Bearer ${{ secrets.CRON_TOKEN }}" \
+            -H "Content-Type: application/json"
