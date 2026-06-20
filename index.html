@@ -2298,6 +2298,22 @@
               </div>
             </div>
 
+            <!-- ── CORPUS ADMIN — auto-scraper (samo osnivač) ────────────── -->
+            <div class="settings-section" id="corpus-admin-section" style="display:none;">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>📚 Corpus — Auto-scraper</span>
+                <button class="settings-btn" onclick="corpusDiscoverRun()" id="corpus-discover-btn">🔍 Traži nove biltene</button>
+              </div>
+              <div style="font-size:.75rem;color:rgba(255,255,255,0.4);margin-bottom:10px;">
+                Crawla VKS · AS Beograd · AS Niš · AS Kragujevac za nove sudske biltene od 2024.
+              </div>
+              <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                <button class="settings-btn" style="font-size:.72rem;padding:3px 10px;" onclick="corpusListDiscovered()">📋 Lista otkrivenih</button>
+                <span id="corpus-discover-status" style="font-size:.73rem;color:rgba(255,255,255,0.45);align-self:center;"></span>
+              </div>
+              <div id="corpus-discover-result" style="font-size:.77rem;"></div>
+            </div>
+
             <!-- ── WAITLIST ADMIN (samo osnivač) ───────────────────────── -->
             <div class="settings-section" id="wl-admin-section" style="display:none;">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">

@@ -266,3 +266,97 @@ async def get_ingest_job(
     if not result.data:
         raise HTTPException(status_code=404, detail="Posao nije pronađen.")
     return result.data
+
+
+# ─── Auto-scraper endpoints ───────────────────────────────────────────────────
+
+class DiscoverReq(BaseModel):
+    courts:     list[str] = Field(default=["vks", "as_bg", "as_nis", "as_kg"])
+    since_year: int       = Field(default=2024, ge=2020, le=2030)
+    use_html:   bool      = Field(default=True)
+
+
+def _run_discover_sync(courts: list[str], since_year: int, use_html: bool, supa) -> list[dict]:
+    """Runs auto-discovery synchronously (via asyncio.to_thread)."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+    from auto_scraper import discover
+
+    found = discover(courts=courts, since_year=since_year, use_html=use_html)
+    if not found:
+        return []
+
+    # Upsert discovered bilteni into Supabase (ignore conflicts on url UNIQUE)
+    rows = [
+        {
+            "url":          b["url"],
+            "court":        b["court"],
+            "filename":     b.get("slug", b["url"].split("/")[-1]),
+            "label":        b["label"],
+            "size_bytes":   b.get("size_bytes"),
+            "status":       "discovered",
+            "discovered_at": datetime.now(timezone.utc).isoformat(),
+        }
+        for b in found
+    ]
+    try:
+        supa.table("discovered_bilteni").upsert(rows, on_conflict="url").execute()
+    except Exception as exc:
+        logger.warning("[DISCOVER] Supabase upsert greška: %s", exc)
+
+    return found
+
+
+@router.post("/api/admin/ingest/discover", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("3/minute")
+async def discover_new_bilteni(
+    request: Request,
+    req: DiscoverReq,
+    user: dict = Depends(_require_admin),
+):
+    """
+    Phase 5.2 — Pokreće auto-discovery novih sudskih biltena.
+    Crawla VKS, AS Beograd, AS Niš, AS Kragujevac za nove PDF biltene.
+    Rezultat sprema u discovered_bilteni tabelu za admin pregled.
+    """
+    allowed = {"vks", "as_bg", "as_nis", "as_kg"}
+    invalid = set(req.courts) - allowed
+    if invalid:
+        raise HTTPException(status_code=422,
+                            detail=f"Nepoznati sudovi: {sorted(invalid)}. Dozvoljeni: {sorted(allowed)}")
+
+    supa = _get_supa()
+    found = await asyncio.to_thread(
+        _run_discover_sync, req.courts, req.since_year, req.use_html, supa
+    )
+
+    logger.info("[DISCOVER] uid=%.8s courts=%s since=%d → %d novih",
+                user.get("user_id","?"), req.courts, req.since_year, len(found))
+    return {
+        "ok":         True,
+        "new_count":  len(found),
+        "courts":     req.courts,
+        "since_year": req.since_year,
+        "bilteni":    found,
+    }
+
+
+@router.get("/api/admin/ingest/discovered")
+@limiter.limit("30/minute")
+async def list_discovered_bilteni(
+    request: Request,
+    status_filter: Optional[str] = None,
+    user: dict = Depends(_require_admin),
+):
+    """Phase 5.2 — Lista otkrivenih biltena iz discovered_bilteni tabele."""
+    supa = _get_supa()
+    q = supa.table("discovered_bilteni").select("*").order("discovered_at", desc=True).limit(100)
+    if status_filter:
+        q = q.eq("status", status_filter)
+    result = await asyncio.to_thread(lambda: q.execute())
+    rows = result.data or []
+    counts: dict[str, int] = {}
+    for r in rows:
+        counts[r["status"]] = counts.get(r["status"], 0) + 1
+    return {"bilteni": rows, "total": len(rows), "by_status": counts}

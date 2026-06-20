@@ -9976,6 +9976,78 @@ function _updateAdminTabUI() {
     wlSection.style.display = currentUserIsFounder ? '' : 'none';
     if (currentUserIsFounder) wl_admin_load();
   }
+  var corpusSection = document.getElementById('corpus-admin-section');
+  if (corpusSection) corpusSection.style.display = currentUserIsFounder ? '' : 'none';
+}
+
+/* ── Corpus Admin — auto-scraper ─────────────────────────────────────────── */
+async function corpusDiscoverRun() {
+  var btn    = document.getElementById('corpus-discover-btn');
+  var status = document.getElementById('corpus-discover-status');
+  var result = document.getElementById('corpus-discover-result');
+  btn.disabled = true; btn.textContent = '⏳ Tražim...';
+  if (status) status.textContent = '';
+  if (result) result.innerHTML = '<div style="color:rgba(255,255,255,0.4);">Crawlam VKS · AS Beograd · AS Niš · AS Kragujevac...</div>';
+  try {
+    var res = await fetch(BASE_URL + '/api/admin/ingest/discover', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+(currentSession ? currentSession.access_token : '')},
+      body: JSON.stringify({courts:['vks','as_bg','as_nis','as_kg'], since_year:2024, use_html:true})
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    var n = data.new_count || 0;
+    if (status) status.textContent = n === 0 ? 'Nema novih biltena.' : n + ' novih biltena!';
+    if (result) {
+      if (n === 0) {
+        result.innerHTML = '<div style="color:rgba(255,255,255,0.35);padding:.5rem 0;">Svi bilteni su već u bazi.</div>';
+      } else {
+        var html = '<div style="margin-bottom:6px;color:#86efac;font-weight:600;">' + n + ' novih biltena pronađeno:</div>';
+        (data.bilteni || []).forEach(function(b) {
+          html += '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.07);">';
+          html += '<span style="color:rgba(255,255,255,0.5);font-size:.72rem;">[' + (b.court||'').toUpperCase() + ']</span> ';
+          html += '<span style="color:rgba(255,255,255,0.85);">' + _htmlEsc(b.label || b.url) + '</span>';
+          if (b.size_bytes) html += ' <span style="color:rgba(255,255,255,0.3);font-size:.7rem;">' + Math.round(b.size_bytes/1024) + ' KB</span>';
+          html += '</div>';
+        });
+        html += '<div style="margin-top:8px;font-size:.72rem;color:rgba(255,255,255,0.35);">Pokrenite ingest script da ih unesete u Pinecone.</div>';
+        result.innerHTML = html;
+      }
+    }
+  } catch(e) {
+    if (result) result.innerHTML = '<div style="color:#f87171;">Greška: ' + _htmlEsc(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '🔍 Traži nove biltene';
+  }
+}
+
+async function corpusListDiscovered() {
+  var result = document.getElementById('corpus-discover-result');
+  if (result) result.innerHTML = '<div style="color:rgba(255,255,255,0.4);">Učitavam...</div>';
+  try {
+    var res = await fetch(BASE_URL + '/api/admin/ingest/discovered', {
+      headers: {'Authorization':'Bearer '+(currentSession ? currentSession.access_token : '')}
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    var rows = data.bilteni || [];
+    if (!rows.length) {
+      if (result) result.innerHTML = '<div style="color:rgba(255,255,255,0.35);">Nema otkrivenih biltena u bazi.</div>';
+      return;
+    }
+    var html = '<div style="margin-bottom:6px;font-size:.73rem;color:rgba(255,255,255,0.5);">Ukupno: ' + data.total + '</div>';
+    rows.forEach(function(b) {
+      var statusColor = b.status==='ingested' ? '#86efac' : b.status==='failed' ? '#f87171' : 'rgba(255,255,255,0.6)';
+      html += '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;align-items:center;">';
+      html += '<span style="color:' + statusColor + ';font-size:.7rem;min-width:70px;">' + b.status + '</span>';
+      html += '<span style="color:rgba(255,255,255,0.7);font-size:.73rem;">' + _htmlEsc(b.label) + '</span>';
+      html += '<span style="color:rgba(255,255,255,0.3);font-size:.7rem;">' + (b.court||'').toUpperCase() + '</span>';
+      html += '</div>';
+    });
+    if (result) result.innerHTML = html;
+  } catch(e) {
+    if (result) result.innerHTML = '<div style="color:#f87171;">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
 }
 
 /* ── Waitlist Admin ────────────────────────────────────────────────────────── */
