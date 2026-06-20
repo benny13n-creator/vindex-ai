@@ -10235,6 +10235,23 @@ async function corpusListDiscovered() {
   }
 }
 
+// ── Integracije — Phase 5.5 ──────────────────────────────────────────────────
+
+function integr_copy(tip) {
+  var base = window.location.origin;
+  var urls = {
+    analyze: base + '/v1/analyze',
+    predmeti: base + '/v1/predmeti',
+    clio:    base + '/v1/webhook/clio',
+    imanage: base + '/v1/webhook/imanage',
+  };
+  var url = urls[tip] || '';
+  if (!url) return;
+  navigator.clipboard.writeText(url).then(function(){
+    showToast('URL kopiran: ' + url, 'ok');
+  }).catch(function(){ showToast('Kopiranje nije uspelo.', 'err'); });
+}
+
 /* ── Waitlist Admin ────────────────────────────────────────────────────────── */
 var _wlAdminData = [];
 

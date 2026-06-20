@@ -2352,6 +2352,39 @@
               </div>
             </div>
 
+            <!-- ── Integracije — Phase 5.5 ────────────────────────── -->
+            <div class="settings-section" id="integracije-section">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Spoljne integracije</span>
+                <span style="font-size:0.6rem;font-weight:700;letter-spacing:.06em;padding:0.1rem 0.45rem;border-radius:4px;background:rgba(0,212,255,0.1);color:#00d4ff;border:1px solid rgba(0,212,255,0.25);">PRO</span>
+              </div>
+              <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:0.35rem;">
+                <div class="settings-row-sub">REST API za spoljne sisteme (Clio, iManage, vlastite integracije). Koristite API ključ iz sekcije Predmeti → 🔑.</div>
+                <div style="display:flex;flex-direction:column;gap:0.22rem;width:100%;margin-top:0.2rem;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <span style="font-size:0.68rem;color:rgba(255,255,255,0.38);min-width:80px;">Analiza</span>
+                    <code id="integr-url-analyze" style="flex:1;font-size:0.72rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 7px;color:rgba(255,255,255,0.7);cursor:pointer;" onclick="integr_copy('analyze')" title="Klikni za kopiranje">POST /v1/analyze</code>
+                    <button onclick="integr_copy('analyze')" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:5px;padding:2px 6px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;">kopuj</button>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <span style="font-size:0.68rem;color:rgba(255,255,255,0.38);min-width:80px;">Predmeti</span>
+                    <code style="flex:1;font-size:0.72rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 7px;color:rgba(255,255,255,0.7);">GET/POST /v1/predmeti</code>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <span style="font-size:0.68rem;color:rgba(255,255,255,0.38);min-width:80px;">Clio</span>
+                    <code id="integr-url-clio" style="flex:1;font-size:0.72rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 7px;color:rgba(255,255,255,0.7);cursor:pointer;" onclick="integr_copy('clio')" title="Klikni za kopiranje">POST /v1/webhook/clio</code>
+                    <button onclick="integr_copy('clio')" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:5px;padding:2px 6px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;">kopuj</button>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <span style="font-size:0.68rem;color:rgba(255,255,255,0.38);min-width:80px;">iManage</span>
+                    <code id="integr-url-imanage" style="flex:1;font-size:0.72rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 7px;color:rgba(255,255,255,0.7);cursor:pointer;" onclick="integr_copy('imanage')" title="Klikni za kopiranje">POST /v1/webhook/imanage</code>
+                    <button onclick="integr_copy('imanage')" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:5px;padding:2px 6px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;">kopuj</button>
+                  </div>
+                </div>
+                <div style="font-size:0.69rem;color:rgba(255,255,255,0.3);margin-top:0.15rem;">Header: <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;">X-Vindex-Key: vndx_...</code></div>
+              </div>
+            </div>
+
             <div class="settings-section">
               <div class="settings-section-hd">Sistem</div>
               <div class="settings-row">
