@@ -429,7 +429,7 @@ function setAuthMode(mode) {
 
 async function doForgotPassword() {
   var sb = getSupabase();
-  if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
+  if (!sb) { _setAuthError('Greška učitavanja — osvežite stranicu (F5) ili pokušajte u Incognito modu.'); return; }
   var email = document.getElementById('forgot-email').value.trim();
   if (!email) { _setAuthError('Unesite email adresu.'); return; }
   var btn = document.getElementById('forgot-btn');
@@ -444,7 +444,7 @@ async function doForgotPassword() {
 
 async function doResetPassword() {
   var sb = getSupabase();
-  if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
+  if (!sb) { _setAuthError('Greška učitavanja — osvežite stranicu (F5) ili pokušajte u Incognito modu.'); return; }
   var p1 = document.getElementById('reset-password').value;
   var p2 = document.getElementById('reset-password2').value;
   if (!p1 || p1.length < 8) { _setAuthError('Lozinka mora imati najmanje 8 karaktera.'); return; }
@@ -473,7 +473,7 @@ function _setAuthError(msg, isOk) {
 
 async function doLogin() {
   var sb = getSupabase();
-  if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
+  if (!sb) { _setAuthError('Greška učitavanja — osvežite stranicu (F5) ili pokušajte u Incognito modu.'); return; }
   var email = document.getElementById('login-email').value.trim();
   var pass  = document.getElementById('login-password').value;
   if (!email || !pass) { _setAuthError('Unesite email i lozinku.'); return; }
@@ -491,7 +491,7 @@ async function doLogin() {
 
 async function doRegister() {
   var sb = getSupabase();
-  if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
+  if (!sb) { _setAuthError('Greška učitavanja — osvežite stranicu (F5) ili pokušajte u Incognito modu.'); return; }
   var fullName = (document.getElementById('reg-name')?.value?.trim()) || '';
   var email   = document.getElementById('reg-email').value.trim();
   var pass    = document.getElementById('reg-password').value;
