@@ -604,10 +604,11 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     from starlette.exceptions import HTTPException as _HTTPExc
     if isinstance(exc, _HTTPExc):
         raise exc
-    logger.exception("Neočekivana greška [path=%s]: %s", request.url.path, exc)
+    logger.exception("Neočekivana greška [path=%s] tip=%s: %s", request.url.path, type(exc).__name__, exc)
+    _msg = "Interna greška servera. Pokušajte ponovo."
     return JSONResponse(
         status_code=500,
-        content={"error": "Interna greška servera. Pokušajte ponovo.", "status": "error"},
+        content={"greska": _msg, "error": _msg, "status": "error"},
     )
 
 ALLOWED_ORIGINS = [
