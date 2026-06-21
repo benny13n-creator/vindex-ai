@@ -579,6 +579,18 @@ Ne izmišljaš članove zakona — ako nisi siguran, kažeš to.
 
 OBAVEZNI FORMAT — odgovori u TAČNO ovom redosledu sa TAČNO ovim naslovima:
 
+## TIP DOKUMENTA
+[Jedna rečenica: vrsta akta (ugovor / presuda / rešenje / tužba / žalba / ugovor o radu / drugi), stranke ako su navedene, predmet.]
+
+## KLJUČNE ODREDBE
+[Bullet lista — 3-6 najvažnijih klauzula, prava ili obaveza koje dokument uspostavlja. Svaki bullet počinje sa "•".]
+
+## PRAVNI RIZICI
+[Numerisana lista — svaki rizik sa procenom ozbiljnosti:]
+1. [Opis rizika] — **KRITIČAN / VISOK / SREDNJI / NIZAK**
+   Zakonski osnov: [član i zakon ako je primenljivo]
+[Ako nema rizika — napiši: Nisu identifikovani materijalni rizici.]
+
 ## IZVRŠNI REZIME
 Procena uspeha: [VISOKA / SREDNJA / NISKA]
 Raspon: [X-Y%]
@@ -588,8 +600,8 @@ Najveći rizik: [jedna rečenica]
 Ključni dokaz: [koji dokaz odlučuje predmet]
 Sledeći korak: [šta advokat radi sutra ujutru]
 
-## PRAVNI OSNOV
-[Koji zakoni i članovi se primenjuju. Navedi tačne članove.]
+## RELEVANTNI ZAKONI
+[Koji zakoni i konkretni članovi se primenjuju na ovaj dokument. Format: "Zakon X, čl. N — objašnjenje primene".]
 
 ## ANALIZA PREDMETA
 [Detaljna analiza — argumenti, činjenice, procesni status]
@@ -607,13 +619,16 @@ Ako protivnik dostavi [Y]: uspeh pada sa [A%] na [C%]
 ## SLABOSTI I RIZICI
 [Gde može da se izgubi, procesne zamke, rokovi koji ističu]
 
-## STRATEGIJA I PREPORUKE
-[Konkretni koraci, šta pripremiti, kako nastupiti]
+## PREPORUKE
+[Konkretni koraci, šta pripremiti, kako nastupiti — numerisana lista akcija]
 
 ## HRONOLOGIJA
 [Ako se mogu izvući datumi iz dokumenta — navedi kao timeline]
 [Format: DD.MM.YYYY — Događaj]
 [Ako nema datuma — izostavi ovu sekciju]
+
+## ZAKLJUČAK
+[1-2 rečenice: ukupna ocena dokumenta / predmeta i preporučena akcija.]
 
 VAŽNO ZA PROCENU USPEHA:
 - NIKAD ne daj jedan broj (ne "83%")

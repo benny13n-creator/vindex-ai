@@ -132,17 +132,33 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
 
 
+async def _fetch_zakon_ctx(tekst: str, k: int = 4) -> str:
+    """Dohvata relevantne zakonske odredbe iz Pinecone — za due diligence."""
+    try:
+        from app.services.retrieve import _pretraga_vec, _ugradi_query, _formatiraj_match
+        vec = await asyncio.wait_for(asyncio.to_thread(_ugradi_query, tekst[:600]), timeout=8.0)
+        matches = await asyncio.wait_for(asyncio.to_thread(_pretraga_vec, vec, k), timeout=5.0)
+        if matches:
+            parts = [_formatiraj_match(m) for m in matches]
+            parts = [p for p in parts if p and len(p.strip()) > 30]
+            return "\n\n---\n\n".join(parts[:k])
+    except Exception as e:
+        logger.warning("[DD] zakon fetch greška: %s", e)
+    return ""
+
+
 @router.post("/strategija/due-diligence")  # F5.4
 @limiter.limit("5/minute")
 async def post_due_diligence(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
-    """F5.4 — Due Diligence analiza dokumenta (PRO)."""
+    """F5.4 — Due Diligence analiza dokumenta sa RAG zakonskim kontekstom (PRO)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
     await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "due_diligence", ""))
+    _zakon_context = await _fetch_zakon_ctx(req.tekst)
     try:
         rezultat = await asyncio.to_thread(
-            due_diligence_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+            due_diligence_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _zakon_context
         )
         preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0)}

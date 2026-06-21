@@ -61,19 +61,36 @@ Na kraju: Preliminarni stav: TUŽBA OSNOVANA / TUŽBA NEOSNOVANA / NEDOVOLJNO PO
 _DUE_DILIGENCE_SYSTEM = """Ti si pravni savetnik specijalizovan za due diligence analizu dokumenata
 po srpskom pravu. Sistematski analiziraj dostavljeni dokument.
 
-Odgovori ISKLJUČIVO na osnovu važećeg srpskog prava.
+Ako ti je dostupan blok RELEVANTNI ZAKONI IZ BAZE, citiraj konkretne odredbe iz njega.
+Ako blok nije dostupan, osloni se na opšte poznato srpsko pravo — ali nikada ne izmišljaj članove.
 
 Struktura odgovora (obavezna):
-1. TIP I PRIRODA DOKUMENTA
-2. KRITIČNI RIZICI (🔴 odmah zahtevaju pažnju)
-3. SREDNJI RIZICI (🟡 treba razmotriti)
-4. FORMALNI NEDOSTACI (forma, potpisi, overa, registracija)
-5. NEDOSTAJUĆE KLAUZULE (šta mora biti dodato)
-6. ZAKONSKA USKLAĐENOST (sa kojim zakonima, da li je usklađen)
-7. PREPORUKA (potpisati / pregovarati / odbiti / dopuniti)
 
-Za svaki rizik navedi: šta je problem, koji zakon se krši/primenjuje, kako popraviti.
-Na kraju: Ukupna ocena dokumenta: BEZBEDAN / RIZIČAN / NEPRIHVATLJIV"""
+**1. TIP I PRIRODA DOKUMENTA**
+Jednom rečenicom: vrsta dokumenta, stranke, predmet, vrednost ako je navedena.
+
+**2. KRITIČNI RIZICI** 🔴 (odmah zahtevaju pažnju)
+Za svaki rizik:
+- Šta: konkretan problem
+- Zakon: tačan zakonski osnov (član i zakon)
+- Fix: šta mora biti izmenjeno pre potpisivanja
+
+**3. SREDNJI RIZICI** 🟡 (treba razmotriti)
+Isti format — potencijalni problemi koji ne blokiraju ali nose rizik.
+
+**4. FORMALNI NEDOSTACI**
+Forma, potpisi, overa, registracija, taksene marke — po važećim propisima.
+
+**5. NEDOSTAJUĆE KLAUZULE**
+Šta mora biti dodato i zašto (navedi tip klauzule i relevantni zakon).
+
+**6. ZAKONSKA USKLAĐENOST**
+Sa kojim zakonima je/nije usklađen. Citiraj konkretne odredbe iz RELEVANTNI ZAKONI bloka.
+
+**7. PREPORUKA**
+POTPISATI / PREGOVARATI / ODBITI / DOPUNITI — sa kratkim obrazloženjem.
+
+Na kraju: **Ukupna ocena: BEZBEDAN / RIZIČAN / NEPRIHVATLJIV**"""
 
 
 # ── Sinhroni pozivi GPT-4o ────────────────────────────────────────────────────
@@ -129,17 +146,18 @@ def ai_judge_mode_sync(opis_predmeta: str, api_key: str, pinecone_context: str =
     return (resp.choices[0].message.content or "").strip()
 
 
-def due_diligence_analiza_sync(tekst_dokumenta: str, api_key: str) -> str:
+def due_diligence_analiza_sync(tekst_dokumenta: str, api_key: str, pinecone_context: str = "") -> str:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
+    ctx_block = f"\nRELEVANTNI ZAKONI IZ BAZE (citiraj konkretne odredbe):\n{pinecone_context}\n" if pinecone_context else ""
     resp = client.chat.completions.create(
         model="gpt-4o",
         temperature=0.1,
-        max_tokens=2500,
+        max_tokens=2800,
         timeout=90.0,
         messages=[
             {"role": "system", "content": _DUE_DILIGENCE_SYSTEM},
-            {"role": "user",   "content": f"Dokument za due diligence:\n\n{tekst_dokumenta}"},
+            {"role": "user",   "content": f"Dokument za due diligence:{ctx_block}\n\n{tekst_dokumenta}"},
         ],
     )
     return (resp.choices[0].message.content or "").strip()
