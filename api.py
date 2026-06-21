@@ -279,30 +279,8 @@ BESPLATNI_KREDITI = 15
 BASIC_MESECNI_KREDITI = 200
 PRO_MESECNI_KREDITI   = 600
 
-# In-memory mesečna upotreba: {user_id: {"month": "YYYY-MM", "count": N}}
-# Resetuje se pri restartovanju servera (prihvatljivo za single-instance deployment)
-_mesecna_upotreba: dict[str, dict] = {}
-
-
-def _get_current_month() -> str:
-    from datetime import datetime
-    return datetime.now().strftime("%Y-%m")
-
-
-def _get_monthly_usage(user_id: str) -> int:
-    entry = _mesecna_upotreba.get(user_id, {})
-    if entry.get("month") != _get_current_month():
-        return 0
-    return entry.get("count", 0)
-
-
-def _increment_monthly_usage(user_id: str) -> None:
-    month = _get_current_month()
-    entry = _mesecna_upotreba.get(user_id, {})
-    if entry.get("month") != month:
-        _mesecna_upotreba[user_id] = {"month": month, "count": 1}
-    else:
-        _mesecna_upotreba[user_id] = {"month": month, "count": entry.get("count", 0) + 1}
+# _mesecna_upotreba, _get_monthly_usage i _increment_monthly_usage su u shared/deps.py
+# — uvozimo ih odatle da bi svi workeri koristili isti objekat unutar procesa.
 
 
 def _ensure_profile(user_id: str, email: str = "") -> dict:
@@ -424,14 +402,14 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 
 # require_credits is the canonical shared version \u2014 same object as shared.deps.require_credits
 # so a single dependency_overrides entry covers all routes (api.py + all router modules).
-from shared.deps import require_credits, _refund_one_credit
+from shared.deps import require_credits, _refund_one_credit, _increment_monthly_usage, _get_monthly_usage
 from shared.cost import begin_cost_tracking, log_cost_to_db
 
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 logger.info("=== STARTUP ENV CHECK ===")
 logger.info("=== CODE VERSION: legal-analysis-redesign-v2 ===")
-logger.info("SUPABASE_URL    : %r", SUPABASE_URL)
+logger.info("SUPABASE_URL    : %s...%s", SUPABASE_URL[:20] if SUPABASE_URL else "N/A", SUPABASE_URL[-8:] if SUPABASE_URL and len(SUPABASE_URL) > 28 else "")
 logger.info("SERVICE_KEY set : %s", bool(SUPABASE_SERVICE_KEY))
 logger.info("JWT_SECRET set  : %s", bool(SUPABASE_JWT_SECRET))
 logger.info("FOUNDER_EMAILS  : %s", FOUNDER_EMAILS)
@@ -600,16 +578,12 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     logger.exception("Neočekivana greška [path=%s]: %s", request.url.path, exc)
     return JSONResponse(
         status_code=500,
-        content={
-            "error": str(exc),
-            "type": type(exc).__name__,
-            "status": "error",
-        },
+        content={"error": "Interna greška servera. Pokušajte ponovo.", "status": "error"},
     )
 
 ALLOWED_ORIGINS = [
     o.strip()
-    for o in os.getenv("ALLOWED_ORIGINS", "https://vindex-ai.onrender.com").split(",")
+    for o in os.getenv("ALLOWED_ORIGINS", "https://vindex.rs").split(",")
     if o.strip()
 ]
 
@@ -625,6 +599,20 @@ from fastapi.middleware.gzip import GZipMiddleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
+import uuid as _uuid
+import contextvars as _cv
+_correlation_id_var: _cv.ContextVar[str] = _cv.ContextVar("correlation_id", default="")
+
+
+@app.middleware("http")
+async def correlation_id_middleware(request: Request, call_next):
+    cid = request.headers.get("X-Correlation-ID") or str(_uuid.uuid4())
+    _correlation_id_var.set(cid)
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = cid
+    return response
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     """Dodaje security, cache i permissions headere na svaki odgovor."""
@@ -638,9 +626,7 @@ async def security_headers(request: Request, call_next):
     elif path.startswith("/static/"):
         response.headers["Cache-Control"] = "public, max-age=86400"
 
-    response.headers["Permissions-Policy"] = (
-        "microphone=(self \"https://vindex-ai.onrender.com\")"
-    )
+    response.headers["Permissions-Policy"] = "microphone=(self)"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Content-Security-Policy"] = (
