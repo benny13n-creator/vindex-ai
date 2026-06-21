@@ -1670,11 +1670,91 @@ function settingsLoad() {
   var _email = currentUser ? (currentUser.email || '') : '';
   if (emailEl) emailEl.textContent = _email || '—';
   if (planEl) planEl.textContent = currentUserIsPro ? 'VindexAI PRO' : 'Basic';
+  planLoad();
   sef_loadSettings();
   sms_loadProfil();
   emailNotifLoad();
   kancelarijaLoad();
   billingDugovanjaLoad();
+}
+
+// ── Moj plan — status i upotreba ─────────────────────────────────────────────
+
+async function planLoad() {
+  if (!currentSession) return;
+  var badge = document.getElementById('plan-badge');
+  var wrap  = document.getElementById('plan-usage-wrap');
+  if (!wrap) return;
+
+  var PLAN_LABELS = {free:'Free', advokat:'Advokat', pro:'PRO', firma:'Firma'};
+  var PLAN_COLORS = {free:'rgba(255,255,255,.45)', advokat:'#4aa8ff', pro:'#a78bfa', firma:'#c9a84c'};
+
+  try {
+    var r = await fetch(BASE_URL + '/api/plan/status', {
+      headers: {'Authorization': 'Bearer ' + currentSession.access_token}
+    });
+    if (!r.ok) { wrap.innerHTML = ''; return; }
+    var d = await r.json();
+
+    var planName = d.plan || 'free';
+    var label    = PLAN_LABELS[planName] || planName;
+    var color    = PLAN_COLORS[planName] || '#fff';
+
+    if (badge) {
+      badge.textContent = label;
+      badge.style.cssText = 'font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.1rem .5rem;border-radius:4px;background:rgba(74,168,255,.12);color:'+color+';border:1px solid rgba(74,168,255,.18);';
+      badge.style.display = '';
+    }
+    var planVal = document.getElementById('settings-plan-val');
+    if (planVal) planVal.textContent = label;
+
+    var usage  = d.usage  || {};
+    var overage = d.overage || {};
+    var fields = [
+      {key:'ai_queries',   label:'AI upiti'},
+      {key:'doc_analyses', label:'Analize dokumenata'},
+      {key:'strategies',   label:'Strategije'},
+    ];
+
+    var html = '';
+    for (var i = 0; i < fields.length; i++) {
+      var f    = fields[i];
+      var u    = usage[f.key] || {};
+      var used  = u.used  || 0;
+      var limit = u.limit;
+
+      var barHtml;
+      if (limit === null) {
+        barHtml = '<div style="font-size:.68rem;color:#4ade80;margin-top:2px;">∞ neograničeno</div>';
+      } else if (!limit) {
+        barHtml = '<div style="font-size:.68rem;color:rgba(255,255,255,.25);margin-top:2px;">nije u ovom planu</div>';
+      } else {
+        var pct = Math.min(100, Math.round(used / limit * 100));
+        var barColor = pct >= 90 ? '#f87171' : pct >= 70 ? '#fb923c' : '#4aa8ff';
+        barHtml = '<div style="background:rgba(255,255,255,.07);border-radius:4px;height:4px;overflow:hidden;margin-top:4px;">'
+          + '<div style="height:100%;width:'+pct+'%;background:'+barColor+';border-radius:4px;transition:width .3s;"></div>'
+          + '</div>'
+          + '<div style="font-size:.63rem;color:rgba(255,255,255,.3);margin-top:2px;">'+used+' / '+limit+'</div>';
+      }
+
+      html += '<div style="margin-bottom:.5rem;">'
+        + '<div style="font-size:.71rem;color:rgba(255,255,255,.5);">'+f.label+'</div>'
+        + barHtml
+        + '</div>';
+    }
+
+    var totalOverage = (overage.queries||0) + (overage.docs||0) + (overage.strategies||0);
+    if (totalOverage > 0) {
+      html += '<div style="margin-top:.35rem;padding:.3rem .5rem;background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.2);border-radius:6px;font-size:.7rem;color:#fb923c;">⚠ Overage: '+totalOverage+' jedinica iznad plana</div>';
+    }
+
+    var ym = d.year_month || '';
+    if (ym) html += '<div style="font-size:.6rem;color:rgba(255,255,255,.2);margin-top:.5rem;">Mesec: '+ym+'</div>';
+
+    wrap.innerHTML = html;
+  } catch(e) {
+    if (wrap) wrap.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.25);">Nije moguće učitati podatke o planu.</div>';
+  }
 }
 
 // ── Billing Dugovanja ────────────────────────────────────────────────────────

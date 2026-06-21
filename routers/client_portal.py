@@ -164,7 +164,7 @@ async def generiši_portal_token(
         logger.error("[CLIENT_PORTAL] DB greška pri čuvanju tokena: %s", exc)
         raise HTTPException(status_code=500, detail="Greška pri generisanju tokena.")
 
-    base_url = os.getenv("APP_BASE_URL", "https://vindex-ai.up.railway.app")
+    base_url = os.getenv("APP_BASE_URL", "https://vindex.rs")
     portal_url = f"{base_url}/portal?token={token}"
 
     logger.info("[CLIENT_PORTAL] Token kreiran: predmet=%s advokat=%.8s token_id=%s exp=%s",

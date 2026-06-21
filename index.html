@@ -2460,6 +2460,21 @@
               </div>
             </div>
 
+            <!-- ── Moj plan ────────────────────────────────────────── -->
+            <div class="settings-section" id="plan-section">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Moj plan</span>
+                <span id="plan-badge" style="font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.1rem .5rem;border-radius:4px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);display:none;"></span>
+              </div>
+              <div id="plan-usage-wrap" style="margin-bottom:.65rem;">
+                <div style="color:rgba(255,255,255,0.25);font-size:.78rem;">Učitavam...</div>
+              </div>
+              <div style="display:flex;gap:.5rem;">
+                <button class="settings-btn" onclick="planLoad()">↻ Osveži</button>
+                <button class="settings-btn" onclick="openProModal()" style="background:linear-gradient(135deg,rgba(74,168,255,.18),rgba(99,102,241,.12));border-color:rgba(74,168,255,.35);color:#89c8ff;">⬆ Upgrade plan</button>
+              </div>
+            </div>
+
             <!-- ── Advokatska kancelarija — Phase 5.4 ───────────── -->
             <div class="settings-section" id="kancelarija-section">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
