@@ -59,6 +59,19 @@ LAW_HINTS = {
     "klauzula o zabrani":         "zakon o radu",   # "klauzula o zabrani konkurencije" explicit form
     "konkurentsk":                "zakon o radu",   # "konkurentski rad" / zabrana — čl. 161-162
     "konkurencij":                "zakon o radu",   # "zabranu konkurencije" accusative + all case forms
+    "godisnji odmor":             "zakon o radu",
+    "bolovanje":                  "zakon o radu",
+    "porodiljsk":                 "zakon o radu",
+    "trudnicko odsustvo":         "zakon o radu",
+    "prekovremeni rad":           "zakon o radu",
+    "probni rad":                 "zakon o radu",
+    "kolektivni ugovor":          "zakon o radu",
+    "minimalna zarada":           "zakon o radu",
+    "nocni rad":                  "zakon o radu",
+    "sindika":                    "zakon o radu",
+    "otpremnin":                  "zakon o radu",
+    "regres":                     "zakon o radu",
+    "radno vreme":                "zakon o radu",
     # Porodični zakon
     "staratelj":                  "porodicni zakon",
     "aliment":                    "porodicni zakon",
@@ -114,6 +127,16 @@ LAW_HINTS = {
     "naknada":                    "zakon o obligacionim odnosima",
     "ugovor":                     "zakon o obligacionim odnosima",
     "steta":                      "zakon o obligacionim odnosima",
+    "kamata":                     "zakon o obligacionim odnosima",
+    "zatezna kamata":             "zakon o obligacionim odnosima",
+    "zakonska kamata":            "zakon o obligacionim odnosima",
+    "raskid ugovora":             "zakon o obligacionim odnosima",
+    "kupoprodaj":                 "zakon o obligacionim odnosima",
+    "cesija":                     "zakon o obligacionim odnosima",
+    "jemstvo":                    "zakon o obligacionim odnosima",
+    "solidarna odgovornost":      "zakon o obligacionim odnosima",
+    "zakupac":                    "zakon o obligacionim odnosima",
+    "zakupnin":                   "zakon o obligacionim odnosima",
     # Zakon o privrednim društvima
     "privredn":                   "zakon o privrednim drustvima",
     "drustv":                     "zakon o privrednim drustvima",
@@ -121,6 +144,12 @@ LAW_HINTS = {
     "registracija":               "zakon o privrednim drustvima",
     "osnivanje":                  "zakon o privrednim drustvima",
     "zastupnik":                  "zakon o privrednim drustvima",
+    "akcionar":                   "zakon o privrednim drustvima",
+    "skupstina akcionara":        "zakon o privrednim drustvima",
+    "nadzorni odbor":             "zakon o privrednim drustvima",
+    "osnivacki akt":              "zakon o privrednim drustvima",
+    "ortacko drustvo":            "zakon o privrednim drustvima",
+    "komanditno drustvo":         "zakon o privrednim drustvima",
     # Opšti upravni postupak / Upravni sporovi
     "upravni spor":               "zakon o upravnim sporovima",
     "upravni postupak":           "zakon o opstem upravnom postupku",
@@ -920,7 +949,7 @@ def _oceni_relevantnost(query: str, docs: list[str]) -> str:
     if not docs:
         return "NIJE RELEVANTNO"
 
-    kontekst = "\n---\n".join(docs[:3])[:3000]
+    kontekst = "\n---\n".join(docs[:5])[:4000]
     try:
         resp = _get_client().chat.completions.create(
             model="gpt-4o-mini",
@@ -956,21 +985,21 @@ def _oceni_relevantnost(query: str, docs: list[str]) -> str:
 # ─── Sprint 5B: CRAG — proširivanje pretrage ─────────────────────────────────
 
 def _prosiri_pretragu_crag(query: str) -> list[str]:
-    """Generiše 2 sinonimna upita za DELIMIČNO granu CRAG petlje."""
+    """Generiše 3 sinonimna upita za DELIMIČNO granu CRAG petlje."""
     try:
         resp = _get_client().chat.completions.create(
             model="gpt-4o-mini",
             temperature=0.3,
-            max_tokens=120,
+            max_tokens=160,
             timeout=5.0,
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "Generiši tačno 2 kratka alternativna pravna upita (3-6 reči svaki) "
+                        "Generiši tačno 3 kratka alternativna pravna upita (3-6 reči svaki) "
                         "koji bi pronašli relevantne odredbe zakona za dato pitanje. "
                         "Koristi sinonime i srodne pravne pojmove. "
-                        "Vrati JSON listu od 2 stringa."
+                        "Vrati JSON listu od 3 stringa."
                     ),
                 },
                 {"role": "user", "content": f"Pitanje: {query}"},
@@ -979,9 +1008,16 @@ def _prosiri_pretragu_crag(query: str) -> list[str]:
         raw = resp.choices[0].message.content.strip()
         raw = re.sub(r"^```(?:json)?\s*", "", raw)
         raw = re.sub(r"\s*```$", "", raw)
-        parsed = json.loads(raw)
-        if isinstance(parsed, list):
-            return [s for s in parsed[:2] if isinstance(s, str)]
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [s for s in parsed[:3] if isinstance(s, str)]
+        except json.JSONDecodeError:
+            # Fallback: izvuci stringove red po red ako JSON parsing ne uspe
+            lines = [ln.strip().strip('"').strip("'").strip(",").strip() for ln in raw.splitlines()]
+            candidates = [ln for ln in lines if 3 <= len(ln) <= 80]
+            if candidates:
+                return candidates[:3]
     except Exception as e:
         logger.warning("[CRAG] Proširivanje pretrage nije uspelo: %s", e)
     return []
@@ -1676,18 +1712,34 @@ def _fallback_poruka(query: str) -> str:
     q = _normalizuj(query)
 
     relevantni = []
-    if any(x in q for x in ["privredn", "drustv", "apr", "osnivanj", "registraci", "zastupnik"]):
+    if any(x in q for x in ["privredn", "drustv", "apr", "osnivanj", "registraci", "zastupnik",
+                              "akcionar", "nadzorni odbor", "osnivacki akt", "doo"]):
         relevantni.append("Zakon o privrednim društvima (ZPD)")
-    if any(x in q for x in ["rad", "zaposlen", "otkaz", "zarada"]):
+    if any(x in q for x in ["rad", "zaposlen", "otkaz", "zarada", "godisnji odmor", "bolovanje",
+                              "porodiljsko", "prekovremeni", "probni rad", "kolektivni ugovor",
+                              "minimalna zarada", "nocni rad", "sindikat"]):
         relevantni.append("Zakon o radu (ZR)")
-    if any(x in q for x in ["ugovor", "obavez", "steta", "naknada"]):
+    if any(x in q for x in ["ugovor", "obavez", "steta", "naknada", "kamata", "raskid",
+                              "kupoprodaj", "zakup", "cesija", "jemstvo", "solidarn"]):
         relevantni.append("Zakon o obligacionim odnosima (ZOO)")
-    if any(x in q for x in ["porez", "poresk", "prihod", "priход"]):
+    if any(x in q for x in ["porez", "poresk", "prihod", "kapitaln", "kripto prihod"]):
         relevantni.append("Zakon o porezu na dohodak građana (ZPDG)")
-    if any(x in q for x in ["krivic", "kazna", "kradja", "hakovan"]):
+    if any(x in q for x in ["krivic", "kazna", "kradja", "hakovan", "prevara", "iznuda"]):
         relevantni.append("Krivični zakonik (KZ)")
+    if any(x in q for x in ["krivicni postupak", "optuznica", "pritvora", "branilac", "okrivljen"]):
+        relevantni.append("Zakonik o krivičnom postupku (ZKP)")
+    if any(x in q for x in ["izvrs", "obezbedjenj", "zaplena", "prinudna naplata"]):
+        relevantni.append("Zakon o izvršenju i obezbeđenju (ZIO)")
+    if any(x in q for x in ["parnic", "tuzba", "presuda", "revizij", "drugostepen"]):
+        relevantni.append("Zakon o parničnom postupku (ZPP)")
+    if any(x in q for x in ["upravni", "resenje", "uprava", "organ uprave"]):
+        relevantni.append("Zakon o opštem upravnom postupku (ZUP)")
+    if any(x in q for x in ["saobracaj", "vozacka", "saobracan", "alkohol volan"]):
+        relevantni.append("Zakon o bezbednosti saobraćaja na putevima (ZBSN)")
+    if any(x in q for x in ["digitalna imovina", "kriptovaluta", "kripto", "bitcoin", "nft", "blockchain"]):
+        relevantni.append("Zakon o digitalnoj imovini (ZDI)")
     if not relevantni:
-        relevantni = ["Zakon o privrednim društvima", "Zakon o obligacionim odnosima"]
+        relevantni = ["Zakon o privrednim društvima (ZPD)", "Zakon o obligacionim odnosima (ZOO)"]
 
     zakoni_str = "; ".join(relevantni)
     return (
