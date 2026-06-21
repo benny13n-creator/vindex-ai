@@ -23,7 +23,16 @@ logger = logging.getLogger("vindex.api")
 router = APIRouter()
 
 _VALID_MATTERS    = frozenset({"Građanska", "Zaštita prava", "Upravna", "Krivična"})
-_VALID_COURTS     = frozenset({"Vrhovni sud", "Vrhovni kasacioni sud"})
+_VALID_COURTS = frozenset({
+    "Vrhovni sud", "Vrhovni kasacioni sud",
+    "Apelacioni sud u Beogradu", "Apelacioni sud u Novom Sadu",
+    "Apelacioni sud u Nišu", "Apelacioni sud u Kragujevcu",
+    "Privredni apelacioni sud",
+    "Upravni sud",
+    "Viši sud u Beogradu", "Viši sud u Novom Sadu",
+    "Osnovni sud u Beogradu", "Osnovni sud u Novom Sadu",
+    "Privredni sud u Beogradu", "Privredni sud u Novom Sadu",
+})
 _PRAKSA_NS_SEARCH = "sudska_praksa"
 
 
@@ -128,10 +137,11 @@ def _praksa_search_sync(
             "decision_date":     g["decision_date"],
             "court":             g["court"],
             "matter":            g["matter"],
-            "izreka_preview":    izreka_full[:200],
+            "izreka_preview":    izreka_full[:400],
             "izreka_full":       izreka_full,
             "obrazlozenje_full": obrazloz_full,
             "score":             round(g["max_score"], 6),
+            "citat_format":      f"{g['court']}, {g['decision_number']}, od {g['decision_date']}.".strip(" ,"),
         })
 
     if year_from is not None or year_to is not None:

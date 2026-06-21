@@ -43,6 +43,14 @@ from pydantic import BaseModel, EmailStr, Field
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
+try:
+    from routers.email_notif import _smtp_send as _smtp_send_email
+    _EMAIL_ENABLED = True
+except Exception:
+    _EMAIL_ENABLED = False
+    def _smtp_send_email(*args, **kwargs):  # type: ignore
+        raise RuntimeError("Email nije konfigurisan")
+
 logger = logging.getLogger("vindex.client_portal")
 router = APIRouter(tags=["client-portal"])
 
@@ -111,6 +119,78 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+# ─── Email helpers ────────────────────────────────────────────────────────────
+
+def _email_html_portal_link(portal_url: str, predmet_naziv: str, expires_at: str) -> str:
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+  <div style="background:#3b82f6;padding:20px 28px;">
+    <div style="font-size:20px;font-weight:700;color:#fff;">Pristup vašem pravnom predmetu</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;">Vindex AI — Klijentski Portal</div>
+  </div>
+  <div style="padding:24px 28px;">
+    <p style="color:#cbd5e1;font-size:14px;">Vaš advokat vam je odobrio pristup predmetu: <strong style="color:#fff;">{predmet_naziv}</strong></p>
+    <a href="{portal_url}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Otvori klijentski portal →</a>
+    <p style="color:#64748b;font-size:12px;">Link važi do: {expires_at[:10] if expires_at else '—'}<br>Ne delite ovaj link sa trećim licima.</p>
+  </div>
+</div></body></html>"""
+
+
+async def _send_portal_email_bg(to: str, portal_url: str, predmet_naziv: str, expires_at: str) -> None:
+    try:
+        html = _email_html_portal_link(portal_url, predmet_naziv, expires_at)
+        await asyncio.to_thread(_smtp_send_email, to, "Pristup vašem pravnom predmetu — Vindex AI", html)
+        logger.info("[CLIENT_PORTAL] Email klijentu poslat: %s", to)
+    except Exception as exc:
+        logger.warning("[CLIENT_PORTAL] Email klijentu nije poslat: %s", exc)
+
+
+async def _notify_advokat_upload_bg(advokat_uid: str, predmet_id: str, fajl_naziv: str, supa) -> None:
+    try:
+        prof_r = await asyncio.to_thread(
+            lambda: supa.table("profiles").select("email").eq("id", advokat_uid).maybe_single().execute()
+        )
+        advokat_email = (prof_r.data or {}).get("email") if prof_r else None
+        if not advokat_email:
+            return
+        html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+  <div style="background:#f59e0b;padding:20px 28px;"><div style="font-size:18px;font-weight:700;color:#fff;">Klijent je uploadovao dokument</div></div>
+  <div style="padding:24px 28px;">
+    <p style="color:#cbd5e1;font-size:14px;">Klijent je dostavio novi dokument za predmet <strong style="color:#fff;">{predmet_id}</strong>:</p>
+    <p style="color:#f59e0b;font-size:16px;font-weight:600;">{fajl_naziv}</p>
+    <p style="color:#64748b;font-size:12px;">Prijavite se u Vindex AI da pregledate dokument.</p>
+  </div></div></body></html>"""
+        await asyncio.to_thread(_smtp_send_email, advokat_email, "Novi dokument od klijenta — Vindex AI", html)
+        logger.info("[PORTAL_UPLOAD] Notifikacija advokatu poslata: %.8s", advokat_uid)
+    except Exception as exc:
+        logger.warning("[PORTAL_UPLOAD] Notifikacija advokatu nije poslata: %s", exc)
+
+
+async def _notify_advokat_pregled_bg(advokat_uid: str, predmet_id: str, klijent_email: Optional[str], supa) -> None:
+    try:
+        prof_r = await asyncio.to_thread(
+            lambda: supa.table("profiles").select("email").eq("id", advokat_uid).maybe_single().execute()
+        )
+        advokat_email = (prof_r.data or {}).get("email") if prof_r else None
+        if not advokat_email:
+            return
+        klijent_str = klijent_email or "Klijent"
+        html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+  <div style="background:#10b981;padding:20px 28px;"><div style="font-size:18px;font-weight:700;color:#fff;">Klijent je pregledao predmet</div></div>
+  <div style="padding:24px 28px;">
+    <p style="color:#cbd5e1;font-size:14px;">{klijent_str} je potvrdio/la pregled predmeta <strong style="color:#fff;">{predmet_id}</strong> u klijentskom portalu.</p>
+    <p style="color:#64748b;font-size:12px;">Prijavite se u Vindex AI za detalje.</p>
+  </div></div></body></html>"""
+        await asyncio.to_thread(_smtp_send_email, advokat_email, "Klijent pregledao predmet — Vindex AI", html)
+    except Exception as exc:
+        logger.warning("[PORTAL_PREGLED] Notifikacija advokatu nije poslata: %s", exc)
+
+
 # ─── Modeli ───────────────────────────────────────────────────────────────────
 
 class GeneriišiTokenReq(BaseModel):
@@ -128,11 +208,11 @@ async def generiši_portal_token(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """Advokat generiše share link za klijenta. Token važi `valjanost_dana` dana."""
+    """Advokat ili saradnik sa ulogom 'vodenje' generiše share link za klijenta."""
     uid  = user["user_id"]
     supa = _get_supa()
 
-    # Verifikuj vlasništvo predmeta
+    # Primarno: proveri vlasništvo predmeta
     pred_r = await asyncio.to_thread(
         lambda: supa.table("predmeti")
             .select("id, naziv, status")
@@ -140,6 +220,29 @@ async def generiši_portal_token(
             .eq("user_id", uid)
             .execute()
     )
+    if not pred_r.data:
+        # Sekundarno: proveri da li je saradnik sa ulogom 'vodenje'
+        try:
+            sar_r = await asyncio.to_thread(
+                lambda: supa.table("predmet_saradnici")
+                    .select("owner_user_id, uloga")
+                    .eq("predmet_id", predmet_id)
+                    .eq("saradnik_user_id", uid)
+                    .eq("uloga", "vodenje")
+                    .maybe_single()
+                    .execute()
+            )
+            if sar_r and sar_r.data:
+                owner_uid = sar_r.data["owner_user_id"]
+                pred_r = await asyncio.to_thread(
+                    lambda: supa.table("predmeti")
+                        .select("id, naziv, status")
+                        .eq("id", predmet_id)
+                        .eq("user_id", owner_uid)
+                        .execute()
+                )
+        except Exception:
+            pass
     if not pred_r.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 
@@ -169,6 +272,13 @@ async def generiši_portal_token(
 
     logger.info("[CLIENT_PORTAL] Token kreiran: predmet=%s advokat=%.8s token_id=%s exp=%s",
                 predmet_id, uid, token_id, exp_iso)
+
+    # Pošalji email klijentu ako je email naveden (fire-and-forget)
+    if body.klijent_email:
+        asyncio.create_task(_send_portal_email_bg(
+            body.klijent_email, portal_url, pred_r.data[0]["naziv"], exp_iso
+        ))
+
     return {
         "ok":         True,
         "token":      token,
@@ -493,6 +603,10 @@ async def client_portal_upload(
         upload_id = None
 
     logger.info("[PORTAL_UPLOAD] predmet=%s velicina=%d naziv=%r", predmet_id, len(sadrzaj), bezbedan_naziv)
+
+    # Notifikuj advokata o novom uploadu (fire-and-forget)
+    asyncio.create_task(_notify_advokat_upload_bg(advokat_uid, predmet_id, bezbedan_naziv, supa))
+
     return {
         "ok":        True,
         "upload_id": upload_id,
@@ -640,3 +754,61 @@ async def client_portal_obrisi_upload(
 
     logger.info("[PORTAL_DELETE] upload_id=%s uid=%.8s", upload_id, uid)
     return {"ok": True, "upload_id": upload_id}
+
+
+# ─── Klijent: potvrda pregleda ───────────────────────────────────────────────
+
+@router.patch("/api/client-portal/potvrdi-pregled")
+@limiter.limit("10/minute")
+async def client_portal_potvrdi_pregled(
+    request: Request,
+    x_portal_token: Optional[str] = Header(default=None, alias="X-Portal-Token"),
+):
+    """
+    Klijent potvrđuje da je pregledao predmet (evidencija pregleda).
+    Advokat dobija email notifikaciju. Ne zahteva login — koristi portal token.
+    """
+    if not x_portal_token:
+        raise HTTPException(status_code=401, detail="X-Portal-Token header je obavezan.")
+
+    predmet_id, advokat_uid = _verifikuj_token(x_portal_token)
+    t_hash = _token_hash(x_portal_token)
+    supa   = _get_supa()
+
+    # Proveri aktivan token i dohvati klijent_email
+    try:
+        tok_r = await asyncio.to_thread(
+            lambda: supa.table("client_portal_tokens")
+                .select("id, is_active, klijent_email")
+                .eq("token_hash", t_hash)
+                .eq("predmet_id", predmet_id)
+                .maybe_single()
+                .execute()
+        )
+        tok_data = tok_r.data if tok_r else None
+        if not tok_data or not tok_data.get("is_active"):
+            raise HTTPException(status_code=401, detail="Token nije validan ili je opozvan.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("[PORTAL_PREGLED] DB greška: %s", exc)
+        raise HTTPException(status_code=503, detail="Portal privremeno nedostupan.")
+
+    # Zabeležimo pregled (graceful — kolona možda ne postoji)
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("client_portal_tokens")
+                .update({"klijent_pregledao": True})
+                .eq("token_hash", t_hash)
+                .execute()
+        )
+    except Exception:
+        pass
+
+    # Notifikuj advokata o pregledu (fire-and-forget)
+    asyncio.create_task(_notify_advokat_pregled_bg(
+        advokat_uid, predmet_id, tok_data.get("klijent_email"), supa
+    ))
+
+    logger.info("[PORTAL_PREGLED] Klijent pregledao predmet=%s advokat=%.8s", predmet_id, advokat_uid)
+    return {"ok": True, "poruka": "Potvrda pregleda je zabeležena. Hvala."}

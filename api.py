@@ -496,6 +496,7 @@ from routers.law_upload           import router as law_upload_router
 from routers.email_notif          import router as email_notif_router, send_welcome_email
 from routers.doc_templates        import router as doc_templates_router
 from routers.plans                import router as plans_router
+from routers.knowledge_base       import router as knowledge_base_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -551,6 +552,7 @@ app.include_router(law_upload_router)
 app.include_router(email_notif_router)
 app.include_router(doc_templates_router)
 app.include_router(plans_router)
+app.include_router(knowledge_base_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles

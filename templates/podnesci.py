@@ -18,6 +18,10 @@ TIPOVI = {
     "prigovor_platni_nalog":  "Prigovor na platni nalog",
     "krivicna_prijava":       "Krivična prijava",
     "predlog_privremena_mera":"Predlog za određivanje privremene mere",
+    "odgovor_na_tuzbu":       "Odgovor na tužbu",
+    "zalba_krivicna":         "Žalba na prvostepenu presudu (krivični postupak)",
+    "urgencija_sudu":         "Urgencija sudu (hitno postupanje)",
+    "prigovor_izvrsenje":     "Prigovor na rešenje o izvršenju",
 }
 
 # ─── ŠABLON 1: Tužba za naknadu nematerijalne štete ──────────────────────────
@@ -636,6 +640,223 @@ NAPOMENA: Predlog za privremenu meru se podnosi HITNO. Sud odlučuje u roku od 3
 NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.
 """
 
+# ─── ŠABLON 9: Odgovor na tužbu ──────────────────────────────────────────────
+SABLON_ODGOVOR_NA_TUZBU = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+Predmet: {BROJ_PREDMETA}
+
+                                                    Tuženi: {TUZENI_IME},
+                                                    iz {TUZENI_ADRESA}
+
+                                                    Punomoćnik tuženog: {ADVOKAT_IME},
+                                                    advokat iz {ADVOKAT_ADRESA}
+
+                                                    Tužilac: {TUZILAC_IME},
+                                                    {TUZILAC_ADRESA}
+
+
+              O D G O V O R   N A   T U Ž B U
+
+
+I. UVOD
+
+{UVOD}
+
+
+II. IZJAŠNJENJE O NAVODIMA TUŽBE
+
+{IZJASNENJE_O_NAVODIMA}
+
+
+III. PROCESNI PRIGOVORI
+
+{PROCESNI_PRIGOVORI}
+
+
+IV. MATERIJALNOPRAVNI RAZLOZI ODBIJANJA TUŽBENOG ZAHTEVA
+
+{MATERIJALNOPRAVNI_RAZLOZI}
+
+
+V. DOKAZNA SREDSTVA
+
+{DOKAZNA_SREDSTVA}
+
+
+VI. PREDLOG
+
+Na osnovu navedenog, predlaže se sudu da odbije tužbeni zahtev tužioca kao neosnovan u celosti, te da obaveže tužioca da tuženom naknadi troškove parničnog postupka.
+
+                                                    Tuženi, odnosno punomoćnik tuženog:
+                                                    ____________________________
+                                                    {ADVOKAT_IME}
+                                                    {ADVOKAT_ADRESA}
+
+{MESTO}, {DATUM}
+
+
+Prilozi:
+{PRILOZI}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu."""
+
+
+# ─── ŠABLON 10: Žalba u krivičnom postupku ───────────────────────────────────
+SABLON_ZALBA_KRIVICNA = """\
+{DRUGOSTEPENI_SUD_NAZIV}
+{DRUGOSTEPENI_SUD_ADRESA}
+
+Putem:
+{PRVOSTEPENI_SUD_NAZIV}
+{PRVOSTEPENI_SUD_ADRESA}
+
+                                                    Žalilac (optuženi/okrivljeni): {ZALILAC_IME}
+                                                    {ZALILAC_ADRESA}
+                                                    Branilac: {ADVOKAT_IME}
+
+Predmet: {BROJ_PREDMETA_KRIVICNOG}
+
+
+                                Ž A L B A
+                        (krivični postupak — ZKP čl. 437)
+
+na presudu {PRVOSTEPENI_SUD_NAZIV} broj {BROJ_PRESUDE} od {DATUM_PRESUDE}
+
+
+I. POBIJANA PRESUDA
+
+{IZREKA_POBIJANE_PRESUDE}
+
+Presuda je dostavljena žaliocu dana {DATUM_DOSTAVLJANJA}. Žalba se podnosi u zakonskom roku od 15 dana (ZKP čl. 447).
+
+
+II. ŽALBENI RAZLOZI (ZKP čl. 437)
+
+Pobijana presuda se napada zbog:
+
+{ZALBA_RAZLOZI_LISTA}
+
+
+III. OBRAZLOŽENJE ŽALBENIH RAZLOGA
+
+{OBRAZLOZENJE_ZALBE}
+
+
+IV. ŽALBENI PREDLOG
+
+{ZALBA_PREDLOG}
+
+
+V. TROŠKOVI ŽALBENOG POSTUPKA
+
+Predlaže se sudu da obaveže tužilaštvo/oštećenog na naknadu troškova ovog žalbenog postupka.
+
+                                                    Žalilac, odnosno branilac:
+                                                    ____________________________
+                                                    {ADVOKAT_IME}
+                                                    {ADVOKAT_ADRESA}
+
+{MESTO}, {DATUM}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu."""
+
+
+# ─── ŠABLON 11: Urgencija sudu ───────────────────────────────────────────────
+SABLON_URGENCIJA_SUDU = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+Predmet: {BROJ_PREDMETA}
+
+
+                    U R G E N C I J A
+
+radi hitnog postupanja u predmetu {BROJ_PREDMETA}
+
+
+Stranka: {STRANKA_IME}, {STRANKA_ADRESA}
+Punomoćnik: {ADVOKAT_IME}, advokat iz {ADVOKAT_ADRESA}
+
+
+Cenjeni sude,
+
+{OPIS_SITUACIJE}
+
+{RAZLOG_HITNOSTI}
+
+{PREDLOG_HITNOG_POSTUPANJA}
+
+                                                    Stranka, odnosno punomoćnik:
+                                                    ____________________________
+                                                    {ADVOKAT_IME}
+                                                    {ADVOKAT_ADRESA}
+
+{MESTO}, {DATUM}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu."""
+
+
+# ─── ŠABLON 12: Prigovor na rešenje o izvršenju ──────────────────────────────
+SABLON_PRIGOVOR_IZVRSENJE = """\
+{SUD_NAZIV}
+{SUD_ADRESA}
+
+Predmet: {BROJ_PREDMETA_IZVRSNOG}
+
+                                                    Izvršni dužnik (prigovarač): {DUZNIK_IME},
+                                                    iz {DUZNIK_ADRESA}
+
+                                                    Punomoćnik: {ADVOKAT_IME},
+                                                    advokat iz {ADVOKAT_ADRESA}
+
+                                                    Izvršni poverilac: {POVERILAC_IME},
+                                                    {POVERILAC_ADRESA}
+
+
+              P R I G O V O R
+              na rešenje o izvršenju
+
+
+I. POBIJANO REŠENJE
+
+Rešenjem {SUD_NAZIV}, {BROJ_RESENJA} od {DATUM_RESENJA}, određeno je izvršenje na osnovu {IZVRSNA_ISPRAVA}.
+
+
+II. RAZLOZI PRIGOVORA
+
+{RAZLOZI_PRIGOVORA}
+
+
+III. PRAVNA OSNOVA
+
+{PRAVNA_OSNOVA}
+
+
+IV. DOKAZNA SREDSTVA
+
+{DOKAZNA_SREDSTVA}
+
+
+V. PREDLOG
+
+Na osnovu navedenog, predlaže se sudu da usvoji prigovor i ukine pobijano rešenje o izvršenju broj {BROJ_RESENJA}.
+
+                                                    Izvršni dužnik, odnosno punomoćnik:
+                                                    ____________________________
+                                                    {ADVOKAT_IME}
+                                                    {ADVOKAT_ADRESA}
+
+{MESTO}, {DATUM}
+
+
+Prilozi:
+{PRILOZI}
+
+NAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu."""
+
+
 # ─── Mapa tip → šablon ────────────────────────────────────────────────────────
 SABLONI: dict[str, str] = {
     "tuzba_naknada_stete":    SABLON_TUZBA_NAKNADA,
@@ -646,6 +867,10 @@ SABLONI: dict[str, str] = {
     "prigovor_platni_nalog":  SABLON_PRIGOVOR_PLATNI_NALOG,
     "krivicna_prijava":       SABLON_KRIVICNA_PRIJAVA,
     "predlog_privremena_mera":SABLON_PREDLOG_PRIVREMENA_MERA,
+    "odgovor_na_tuzbu":       SABLON_ODGOVOR_NA_TUZBU,
+    "zalba_krivicna":         SABLON_ZALBA_KRIVICNA,
+    "urgencija_sudu":         SABLON_URGENCIJA_SUDU,
+    "prigovor_izvrsenje":     SABLON_PRIGOVOR_IZVRSENJE,
 }
 
 # ─── Ekstrakcioni promptovi po tipu ──────────────────────────────────────────
@@ -919,6 +1144,105 @@ PRAVILA:
 - NE izmišljati podatke koji nisu eksplicitno u tekstu.
 - Ekavica, formalni stil.
 """,
+
+"odgovor_na_tuzbu": """\
+Ti si pravni asistent koji ekstraktuje podatke iz opisa za odgovor na tužbu.
+Vrati ČIST JSON — bez komentara, bez markdown.
+
+{
+  "tuzeni_ime": "Puno ime/naziv tuženog",
+  "tuzeni_adresa": "Adresa tuženog ili prazno",
+  "tuzilac_ime": "Puno ime/naziv tužioca",
+  "tuzilac_adresa": "Adresa tužioca ili prazno",
+  "advokat_ime": "Ime advokata tuženog ili prazno",
+  "advokat_adresa": "Adresa advokata tuženog ili prazno",
+  "sud_naziv": "Naziv suda iz tužbe",
+  "sud_adresa": "Adresa suda ili prazno",
+  "broj_predmeta": "Broj sudskog predmeta ako je naveden ili prazno",
+  "navodi_tuzbe_raw": "Ključni navodi tužbe koje tuženi osporava — direktno iz teksta",
+  "procesni_prigovori_raw": "Eventualni procesni prigovori: nenadležnost suda, zastarelost, litispendencija, pravnosnažnost — ako postoje u tekstu",
+  "materijalni_razlozi_raw": "Materijalnopravni razlozi za odbijanje tužbe iz teksta",
+  "dokazna_sredstva_raw": "Dokazi koje tuženi predlaže iz teksta",
+  "mesto": "Grad podnošenja",
+  "datum": "Datum u formatu DD. mesec YYYY. godine"
+}
+
+PRAVILA: NE izmišljati podatke. Ekavica.
+""",
+
+"zalba_krivicna": """\
+Ti si pravni asistent koji ekstraktuje podatke iz opisa krivične žalbe.
+Vrati ČIST JSON — bez komentara, bez markdown.
+
+{
+  "zalilac_ime": "Puno ime optuženog/okrivljenog",
+  "zalilac_adresa": "Adresa žalioca ili prazno",
+  "advokat_ime": "Ime branioca ili prazno",
+  "advokat_adresa": "Adresa branioca ili prazno",
+  "prvostepeni_sud_naziv": "Naziv prvostepenog suda",
+  "prvostepeni_sud_adresa": "Adresa prvostepenog suda ili prazno",
+  "drugostepeni_sud_naziv": "Naziv drugostepenog suda (Apelacioni sud u [grad])",
+  "drugostepeni_sud_adresa": "Adresa drugostepenog suda ili prazno",
+  "broj_predmeta_krivicnog": "Broj krivičnog predmeta K. ili Km. ili prazno",
+  "broj_presude": "Broj pobijane presude ili prazno",
+  "datum_presude": "Datum pobijane presude DD.MM.YYYY ili prazno",
+  "datum_dostavljanja": "Datum dostavljanja presude optuženom ili prazno",
+  "izreka_pobijane_presude_raw": "Izreka pobijane presude — šta je prvostepeni sud zaključio",
+  "zalba_razlozi_raw": "Razlozi žalbe iz teksta — šta je sud pogrešno uradio",
+  "mesto": "Grad podnošenja žalbe",
+  "datum": "Datum u formatu DD. mesec YYYY. godine"
+}
+
+PRAVILA: NE izmišljati podatke. Ekavica.
+""",
+
+"urgencija_sudu": """\
+Ti si pravni asistent koji ekstraktuje podatke iz opisa urgencije sudu.
+Vrati ČIST JSON — bez komentara, bez markdown.
+
+{
+  "stranka_ime": "Puno ime stranke koja podnosi urgenciju",
+  "stranka_adresa": "Adresa stranke ili prazno",
+  "advokat_ime": "Ime advokata ili prazno",
+  "advokat_adresa": "Adresa advokata ili prazno",
+  "sud_naziv": "Naziv suda kome se upućuje urgencija",
+  "sud_adresa": "Adresa suda ili prazno",
+  "broj_predmeta": "Broj predmeta u kome se urgira ili prazno",
+  "opis_situacije_raw": "Opis situacije zbog koje se urgira — direktno iz teksta",
+  "razlog_hitnosti_raw": "Zašto je hitno postupanje neophodno — šta se dešava ako se ne postupi hitno",
+  "predlog_raw": "Šta konkretno stranka traži od suda da hitno preduzme",
+  "mesto": "Grad podnošenja",
+  "datum": "Datum u formatu DD. mesec YYYY. godine"
+}
+
+PRAVILA: NE izmišljati podatke. Ekavica.
+""",
+
+"prigovor_izvrsenje": """\
+Ti si pravni asistent koji ekstraktuje podatke iz opisa prigovora na rešenje o izvršenju.
+Vrati ČIST JSON — bez komentara, bez markdown.
+
+{
+  "duznik_ime": "Puno ime/naziv izvršnog dužnika (prigovarača)",
+  "duznik_adresa": "Adresa izvršnog dužnika ili prazno",
+  "poverilac_ime": "Puno ime/naziv izvršnog poverioca",
+  "poverilac_adresa": "Adresa izvršnog poverioca ili prazno",
+  "advokat_ime": "Ime advokata dužnika ili prazno",
+  "advokat_adresa": "Adresa advokata ili prazno",
+  "sud_naziv": "Naziv izvršnog suda",
+  "sud_adresa": "Adresa suda ili prazno",
+  "broj_predmeta_izvrsnog": "Broj izvršnog predmeta I. ili Iv. ili prazno",
+  "broj_resenja": "Broj rešenja o izvršenju ili prazno",
+  "datum_resenja": "Datum rešenja o izvršenju DD.MM.YYYY ili prazno",
+  "izvrsna_isprava": "Vrsta izvršne isprave: pravnosnažna presuda / platni nalog / verodostojna isprava / ugovor notara itd.",
+  "razlozi_prigovora_raw": "Razlozi prigovora iz teksta: zastarelost, već izmireno, nepostojanje duga, pogrešan iznos, nenadležnost...",
+  "dokazna_sredstva_raw": "Dokazi koji potkrepljuju prigovor iz teksta",
+  "mesto": "Grad podnošenja",
+  "datum": "Datum u formatu DD. mesec YYYY. godine"
+}
+
+PRAVILA: Rok za prigovor je 8 dana od dostave rešenja (ZIO čl. 75). NE izmišljati podatke. Ekavica.
+""",
 }
 
 # ─── Promptovi za pravno obogaćivanje (RAG kontekst → šablon placeholder) ───
@@ -952,20 +1276,21 @@ APSOLUTNO ZABRANJENO:
 """,
 
 "zalba_parnicna": """\
-Ti si pravni pisac koji popunjava žalbu na prvostepenu presudu.
-Na osnovu dostavljenih podataka (JSON) i relevantnog zakonskog konteksta (RAG), napiši sadržaj za 2 sekcije.
-Vrati ČIST JSON — bez komentara, bez markdown.
+Ti si iskusni srpski advokat koji popunjava žalbu na prvostepenu presudu pred srpskim sudom.
+Na osnovu dostavljenih podataka (JSON entiteti) i relevantnog zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Vrati ČIST JSON — bez komentara, bez markdown blokova, bez ikakvog teksta van JSON-a.
 
 {
-  "zalba_razlozi_lista": "Numerisana lista žalbenih razloga sa referencama na ZPP (čl. 374) i konkretnim razlozima",
-  "obrazlozenje_zalbe": "Detaljno pravno obrazloženje sa referencama na zakone iz konteksta (3-5 paragrafa)",
-  "zalba_predlog": "Konkretan žalbeni predlog — preinačenje u korist žalioca ili ukidanje i vraćanje"
+  "zalba_razlozi_lista": "Numerisana lista ISKLJUČIVO primenljivih žalbenih razloga. ZPP čl. 374 propisuje 3 razloga — OBAVEZNO analitički odrediti koji od ova 3 se primenjuje u konkretnom slučaju i ZAŠTO: (1) Bitna povreda odredaba parničnog postupka (ZPP čl. 374 tač. 1 u vezi čl. 361) — primenjuje se AKO je sud počinio procesnu grešku koja je uticala na zakonitost presude: nepravilno izvođenje dokaza, odbijanje predloženih dokaza, povreda prava na saslušanje, neuredna dostava, apsolutno bitna povreda (čl. 374 st. 2). (2) Pogrešno ili nepotpuno utvrđeno činjenično stanje (ZPP čl. 374 tač. 2) — primenjuje se AKO sud nije pravilno utvrdio relevantne činjenice: ignorisao dokaze, pogrešno ocenio iskaz svedoka, prevideo dokumentaciju. (3) Pogrešna primena materijalnog prava (ZPP čl. 374 tač. 3) — primenjuje se AKO je sud primenio pogrešan zakon ili pogrešno protumačio primenjeni zakon. Navedi KONKRETNO koji razlog se primenjuje, uz referencu na čl. 374 ZPP i opis kako se manifestuje u predmetnoj presudi.",
+  "obrazlozenje_zalbe": "Detaljno pravno obrazloženje u 3-5 paragrafa koje razvija svaki žalbeni razlog iz prethodne sekcije. Za svaki razlog: (a) koji deo presude se pobija i zašto je pogrešan; (b) koja konkretna procesna ili materijalna norma je povređena (sa tačnim brojem člana); (c) kako bi ispravna primena normi promenila ishod. Referišaj na sudsku praksu iz RAG konteksta ako postoji. Ekavica, formalni pravni stil.",
+  "zalba_predlog": "Konkretan žalbeni predlog u 2 alternative — navedi KOJA je primarna: (1) Preinačenje: '[Drugostepeni sud naziv] PREINAČI presudu [sud] broj [broj] od [datum] u pobijanom delu, tako što [konkretan novi izreku].' — koristiti kada je iz spisa moguće doneti meritumsku odluku. (2) Ukidanje i vraćanje: '[Drugostepeni sud naziv] UKINE presudu [sud] broj [broj] od [datum] u pobijanom delu i predmet vrati prvostepenom sudu na ponovni postupak.' — koristiti kada je potrebno ponavljanje dokaznog postupka. Izaberi primarnu alternativu na osnovu žalbenih razloga."
 }
 
-PRAVILA:
-- Žalbeni razlozi iz ZPP čl. 374: 1. bitna povreda odredaba parničnog postupka, 2. pogrešno ili nepotpuno utvrđeno činjenično stanje, 3. pogrešna primena materijalnog prava.
-- Navedeni razlozi moraju odgovarati opisanom slučaju — ne koristiti sve razloge ako nisu primenljivi.
-- Ekavica, formalni pravni stil.
+OBAVEZNA PRAVILA:
+- NIKAD ne koristiti sve 3 razloga ako nisu SVI primenljivi — izmišljanje razloga je etički problem.
+- Svaki naveden razlog mora biti konkretno potkrepljen činjenicama iz slučaja.
+- Referišaj na ZPP čl. 374 eksplicitno; Sl. glasnik RS br. 72/2011, sa izm. i dop.
+- Ekavica, formalni pravni stil. Ne koristiti kondicional ('navodno', 'kako tvrdi').
 """,
 
 "predlog_izvrsenje": """\
@@ -1071,6 +1396,64 @@ Vrati ČIST JSON — bez markdown, bez komentara.
 
 KRITIČNO: Oba uslova (fumus + periculum) moraju biti jasno obrazložena. Mera mora biti srazmerna potraživanju.
 Ekavica, formalni pravni stil.
+""",
+
+"odgovor_na_tuzbu": """\
+Ti si iskusni srpski advokat koji piše odgovor na tužbu.
+Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "uvod": "Uvodna izjava u 2-3 rečenice: tuženi se pojavljuje u ovom postupku kao stranka, tužba mu je dostavljena, i u zakonskom roku od 30 dana (ZPP čl. 298) podnosi ovaj odgovor. Navedi broj predmeta i naziv suda.",
+  "izjasnenje_o_navodima": "Tačka po tačku izjašnjenje o navodima tužbe u 3-5 paragrafa. Format: 'Tuženi OSPORAVA navod tužioca da... jer...' / 'Tuženi PRIHVATA navod tužioca da...' Svako osporavanje mora biti potkrepljeno konkretnim razlogom ili dokazom. KRITIČNO: Jasno razgraničiti koje navode tuženi prihvata a koje osporava — ne osporavati neosnovano sve navode.",
+  "procesni_prigovori": "Procesni prigovori ako postoje osnovi: (1) nenadležnost — stvarna (ZPP čl. 16-21) ili mesna (ZPP čl. 22-41); (2) zastarelost potraživanja — navesti primenjeni zastarni rok (ZOO čl. 371 i dalje); (3) litispendencija — parnica o istom predmetu već u toku (ZPP čl. 291); (4) pravnosnažno presuđena stvar. Ako nema procesnih prigovora: prazno string.",
+  "materijalnopravni_razlozi": "Materijalnopravni razlozi zbog kojih treba odbiti tužbu u 3-4 paragrafa: (1) analiza da li su ispunjeni zakonski uslovi za tužbeni zahtev; (2) relevantni zakonski propisi iz RAG konteksta; (3) sudska praksa iz RAG konteksta ako postoji; (4) zaključak zašto tužbeni zahtev treba odbiti.",
+  "dokazna_sredstva": "Numerisana lista dokaznih sredstava tuženog: 1. [Vrsta] — radi dokazivanja [elementa]; 2. ... Dodati dokaze pomenute u tekstu."
+}
+
+PRAVILA: Ekavica, formalni pravni stil. NE izmišljati podatke koji nisu u tekstu.
+""",
+
+"zalba_krivicna": """\
+Ti si iskusni srpski advokat koji piše krivičnu žalbu (ZKP).
+Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "zalba_razlozi_lista": "Numerisana lista ISKLJUČIVO primenljivih žalbenih razloga iz ZKP čl. 437. OBAVEZNO analitički odrediti koji se primenjuje: (1) Bitna povreda odredaba krivičnog postupka (ZKP čl. 437 tač. 1 u vezi čl. 438) — procesne greške suda; (2) Povreda krivičnog zakona (ZKP čl. 437 tač. 2) — pogrešna primena KZ; (3) Pogrešno ili nepotpuno utvrđeno činjenično stanje (ZKP čl. 437 tač. 3) — sud nije pravilno utvrdio činjenice; (4) Odluka o krivičnoj sankciji (ZKP čl. 437 tač. 4) — neprimerennost izrečene kazne. Za svaki razlog: konkretno u čemu se greška ogleda.",
+  "obrazlozenje_zalbe": "Detaljno obrazloženje u 3-5 paragrafa za svaki žalbeni razlog: (a) koji deo presude se pobija; (b) konkretna norma KZ ili ZKP koja je povređena; (c) sudska praksa iz RAG konteksta; (d) kako bi ispravna primena prava promenila ishod.",
+  "zalba_predlog": "Žalbeni predlog — izaberi odgovarajući: (1) Ukidanje presude i vraćanje na ponovni postupak (ZKP čl. 456); (2) Preinačenje presude i oslobađanje optuženog (ZKP čl. 457); (3) Preinačenje u pogledu sankcije — smanjenje kazne. Navedi PRIMARNI predlog i ALTERNATIVU."
+}
+
+PRAVILA: NIKAD ne navoditi sve razloge ako nisu primenljivi. Referisati na ZKP (Sl. glasnik RS br. 72/2011). Ekavica, formalni pravni stil.
+""",
+
+"urgencija_sudu": """\
+Ti si iskusni srpski advokat koji piše urgenciju sudu.
+Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "opis_situacije": "Koncizan opis situacije u 2-3 rečenice: ko urgira, u kom predmetu, koliko dugo čeka, šta se desilo ili nije desilo. Formalni pravni ton.",
+  "razlog_hitnosti": "Obrazloženje hitnosti u 2-3 paragrafa: (1) koji konkretni rok ili pravo je ugroženo; (2) koja šteta nastaje stranki zbog oklevanja; (3) zakonska osnova za hitno postupanje — npr. ZPP čl. 10 (suđenje u razumnom roku); Zakon o zaštiti prava na suđenje u razumnom roku.",
+  "predlog_hitnog_postupanja": "Konkretan predlog šta sud treba hitno da preduzme u roku od [X dana]. Format: 'Predlaže se sudu da u najkraćem roku, a najkasnije u roku od [X dana] od prijema ove urgencije, preduzme sledeće: [konkretna radnja].'"
+}
+
+PRAVILA: Ton je formalan ali asertivan. NIKAD ne koristiti uvredljive formulacije prema sudu. Ekavica.
+""",
+
+"prigovor_izvrsenje": """\
+Ti si iskusni srpski advokat koji piše prigovor na rešenje o izvršenju.
+Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), napiši sadržaj sekcija.
+Vrati ČIST JSON — bez markdown, bez komentara.
+
+{
+  "razlozi_prigovora": "Konkretni razlozi prigovora u 2-4 paragrafa sa zakonskim referencama. OBAVEZNO navesti koji od zakonskih osnova prigovora se primenjuje prema ZIO: (1) Nepostojanje/izmirenje duga — ZIO čl. 74 tač. 5; (2) Zastarelost — ZIO čl. 74 tač. 2 (ZOO čl. 371); (3) Nevalidnost izvršne isprave — ZIO čl. 74 tač. 1; (4) Nenadležnost suda — ZIO čl. 74 tač. 3. Za svaki razlog: konkretna činjenica iz slučaja + zakonska referenca.",
+  "pravna_osnova": "Pravna analiza u 2 paragrafa: (1) zakonska osnova — ZIO čl. 74 (osnovi prigovora), čl. 75 (rok 8 dana od dostave rešenja!), čl. 76 (postupak po prigovoru); (2) VKS/sudska praksa iz RAG konteksta. Referisati na ZIO (Sl. glasnik RS br. 106/2015).",
+  "dokazna_sredstva": "Numerisana lista dokaza kojima se potkrepljuje prigovor: 1. [Vrsta] — radi dokazivanja [tvrdnje]; 2. ... Standardni dokazi: uplatnice, izvodi računa, korespondencija, veštačenje."
+}
+
+KRITIČNO: Rok za prigovor je 8 dana od dostave rešenja o izvršenju (ZIO čl. 75 st. 1). Ekavica, formalni pravni stil.
 """,
 }
 

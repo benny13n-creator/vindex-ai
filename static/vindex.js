@@ -5233,8 +5233,28 @@ function _feedbackBar(pitanje, odgovor) {
   _vxLastResponseText = odgovor || '';  // sačuvaj za TTS dugme
   return '<div class="feedback-bar">'
     + '<button class="vx-tts-btn" id="vx-tts-play-btn" onclick="vx_tts_toggle()">🔊 Pročitaj</button>'
+    + '<button class="feedback-btn" onclick="_generateDraftFromQA()" title="Koristi ovaj odgovor kao osnov za generisanje nacrta podneska">📝 Generiši nacrt</button>'
     + '<button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">⚑ Prijavi netačan odgovor</button>'
     + '</div>';
+}
+
+function _generateDraftFromQA() {
+  var text = _vxLastResponseText || '';
+  if (!text) { showToast('Nema teksta za generisanje nacrta.', 'err'); return; }
+  // Switch to drafting tab
+  var nBtn = document.getElementById('tab-n') || document.querySelector('[data-tab="n"]');
+  if (nBtn) { nBtn.click(); }
+  setTimeout(function() {
+    var opisEl = document.getElementById('opis') || document.querySelector('textarea[name="opis"]');
+    if (opisEl) {
+      opisEl.value = text.substring(0, 3000);
+      opisEl.dispatchEvent(new Event('input'));
+      opisEl.focus();
+      showToast('Tekst preuzet iz Q&A. Odaberite tip podneska i kliknite Generiši.', 'ok');
+    } else {
+      showToast('Otvorite tab Nacrt da biste generisali podnesak.', 'info');
+    }
+  }, 300);
 }
 
 // ── ANALIZA RICH RENDER ───────────────────────────────────────────────────────
