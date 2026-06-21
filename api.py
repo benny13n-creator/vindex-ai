@@ -420,15 +420,19 @@ logger.info("OPENAI_API_KEY set   : %s", bool(os.getenv("OPENAI_API_KEY", "")))
 # Redis URL (Upstash ili drugi) → distribuirani rate limit za multi-worker deploy.
 # Ako REDIS_URL nije setovan, pada na in-memory (ok za single-worker dev).
 _REDIS_URL = os.getenv("REDIS_URL", "").strip()
+_redis_storage = "memory://"
+if _REDIS_URL and _REDIS_URL.startswith(("redis://", "rediss://")):
+    _redis_storage = _REDIS_URL
+    logger.info("Rate limiter: Redis (%s...)", _REDIS_URL[:30])
+elif _REDIS_URL:
+    logger.warning("Rate limiter: REDIS_URL nije validan URL (mora početi sa rediss://) — pada na in-memory.")
+else:
+    logger.warning("Rate limiter: in-memory — postavi REDIS_URL=rediss://... za distribuirani limit.")
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["60/hour"],
-    storage_uri=_REDIS_URL if _REDIS_URL else "memory://",
+    storage_uri=_redis_storage,
 )
-if _REDIS_URL:
-    logger.info("Rate limiter: Redis (%s...)", _REDIS_URL[:30])
-else:
-    logger.warning("Rate limiter: in-memory — nije deljeno između workera. Postavi REDIS_URL.")
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
