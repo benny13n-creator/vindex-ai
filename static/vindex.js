@@ -12048,12 +12048,30 @@ function voice_execute(text) {
     return r.json();
   }).then(function(d) {
     _voice_close_modal();
-    voice_doAction(d.action, d.params || {});
-    if (d.followup) { setTimeout(function() { voice_doAction(d.followup, {}); }, 900); }
+    // TTS potvrda šta se radi
+    if (d.odgovor) { ttsSpeak(d.odgovor); }
+    // Novi format: actions niz
+    if (d.actions && d.actions.length) {
+      _voice_run_actions(d.actions);
+    } else {
+      // Backward compat sa starim formatom
+      voice_doAction(d.action, d.params || {});
+      if (d.followup) { setTimeout(function() { voice_doAction(d.followup, {}); }, 2200); }
+    }
   }).catch(function(e) {
     _voice_close_modal();
     showToast('Greška glasovne komande: ' + e.message, 'err');
   });
+}
+
+// Izvršava niz voice akcija sekvencijalno sa zadatim kašnjenjima
+async function _voice_run_actions(actions) {
+  for (var i = 0; i < actions.length; i++) {
+    var a = actions[i];
+    var delay = (typeof a.wait_ms === 'number' ? a.wait_ms : 0);
+    if (delay > 0) await new Promise(function(r) { setTimeout(r, delay); });
+    voice_doAction(a.action, a.params || {});
+  }
 }
 
 function voice_doAction(action, params) {
@@ -12064,53 +12082,95 @@ function voice_doAction(action, params) {
       var q = (params.query || '').trim().toLowerCase();
       if (!q) { showToast('Nije prepoznat naziv predmeta', 'warn'); break; }
 
-      // 1. Pretraži _predmeti[] niz po nazivu, tužiocu ili tuženom
+      // Pretraži _predmeti[] niz po nazivu, tužiocu ili tuženom
       var found = null;
       if (typeof _predmeti !== 'undefined' && _predmeti.length) {
         found = _predmeti.find(function(p) {
-          return (p.naziv       || '').toLowerCase().includes(q) ||
-                 (p.tuzilac     || '').toLowerCase().includes(q) ||
-                 (p.tuzeni      || '').toLowerCase().includes(q) ||
-                 (p.opis        || '').toLowerCase().includes(q);
+          return (p.naziv   || '').toLowerCase().includes(q) ||
+                 (p.tuzilac || '').toLowerCase().includes(q) ||
+                 (p.tuzeni  || '').toLowerCase().includes(q) ||
+                 (p.opis    || '').toLowerCase().includes(q);
         }) || null;
+        // Fuzzy: probaj i reč po reč ako nema direktnog match-a
+        if (!found) {
+          var qWords = q.split(/\s+/).filter(function(w) { return w.length >= 3; });
+          if (qWords.length) {
+            found = _predmeti.find(function(p) {
+              var haystack = ((p.naziv||'')+(p.tuzilac||'')+(p.tuzeni||'')).toLowerCase();
+              return qWords.every(function(w) { return haystack.includes(w); });
+            }) || null;
+          }
+        }
       }
 
       if (found) {
-        // Prebaci na tab Predmeti pa otvori predmet
         setTab(document.getElementById('tab-btn-p'), 'p');
         setTimeout(function() { pred_select(found.id); }, 120);
-        showToast('📂 Otvarám predmet: ' + found.naziv);
+        showToast('Otvaram predmet: ' + found.naziv);
       } else {
-        // Nije pronađen lokalno — otvori search modal i popuni query
-        searchOpen();
+        // Nije u lokalnom nizu — pretraži API i prikaži rezultate
+        setTab(document.getElementById('tab-btn-p'), 'p');
         setTimeout(function() {
-          var inp = document.getElementById('search-input');
-          if (inp) {
-            inp.value = params.query || q;
-            inp.dispatchEvent(new Event('input'));
-            searchDebounce();
-          }
-        }, 80);
-        showToast('🔍 Tražim predmet: ' + (params.query || q), 'info');
+          searchOpen();
+          setTimeout(function() {
+            var inp = document.getElementById('search-input');
+            if (inp) { inp.value = params.query || q; searchDebounce(); }
+          }, 80);
+          showToast('Tražim predmet: ' + (params.query || q), 'info');
+        }, 200);
       }
       break;
 
     case 'analyze_predmet':
-      if (activePredmetId) { pred_subtabSwitch('ai-analiza'); pred_submitProcena && pred_submitProcena(); }
-      else showToast('Najpre otvorite predmet', 'warn');
+    case 'procena_rizika':
+      if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
+      pred_subtabSwitch('ai-analiza');
+      // Auto-popuni cinjenice ako su prazne, pa tek onda submit
+      setTimeout(function() {
+        var cinj = document.getElementById('pred-cinjenice');
+        if (cinj && !cinj.value.trim()) {
+          var naziv = activePredmetNaziv || '';
+          var tipEl = document.getElementById('pred-s-oblast');
+          var tip = tipEl ? tipEl.textContent : '';
+          cinj.value = 'Predmet: ' + naziv + (tip ? '. Oblast: ' + tip : '') + '. Molim analizu rizika i strategiju.';
+        }
+        if (typeof pred_submitProcena === 'function') pred_submitProcena();
+      }, 400);
       break;
 
     case 'ask_question':
       var txt = params.text || '';
-      if (txt) {
+      if (!txt) { showToast('Nisam razumeo pitanje', 'warn'); break; }
+      setTab(document.getElementById('tab-btn-agent'), 'agent');
+      setTimeout(function() {
         var inp = document.getElementById('agent-input') || document.getElementById('pitanje-input');
-        if (inp) { inp.value = txt; inp.dispatchEvent(new Event('input')); }
-        if (typeof setTab === 'function') setTab(document.getElementById('tab-btn-agent'),'agent');
-      }
+        if (!inp) return;
+        inp.value = txt;
+        inp.dispatchEvent(new Event('input'));
+        // Auto-submit: klikni na dugme "Pitaj" ako postoji
+        setTimeout(function() {
+          var btn = document.getElementById('agent-submit-btn') || document.querySelector('[onclick*="sendQuestion"]');
+          if (btn) btn.click();
+        }, 200);
+      }, 300);
       break;
 
     case 'generate_document':
-      if (typeof setTab === 'function') setTab(document.getElementById('tab-btn-alati'),'alati');
+      if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
+      pred_subtabSwitch('nacrti');
+      // Ako je tip specificiran, pokušaj pre-selekciju
+      if (params.tip) {
+        setTimeout(function() {
+          var sel = document.getElementById('tip-podneska');
+          if (sel) {
+            var opt = Array.from(sel.options).find(function(o) {
+              return o.value.toLowerCase().includes(params.tip.toLowerCase());
+            });
+            if (opt) { sel.value = opt.value; sel.dispatchEvent(new Event('change')); }
+          }
+        }, 400);
+      }
+      showToast('Otvaram generator dokumenata' + (params.tip ? ': ' + params.tip : ''));
       break;
 
     case 'show_tab':
@@ -12170,19 +12230,28 @@ function voice_doAction(action, params) {
       break;
 
     case 'red_team':
-      if (activePredmetId) pred_subtabSwitch('strategija');
-      else showToast('Najpre otvorite predmet', 'warn');
+      if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
+      pred_subtabSwitch('strategija');
+      showToast('Red Team strategija — birajte tip analize');
       break;
 
     case 'hearing_prep':
-      if (activePredmetId) pred_subtabSwitch('rokovi');
-      else showToast('Najpre otvorite predmet', 'warn');
+      if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
+      pred_subtabSwitch('rokovi');
+      showToast('Rokovi i ročišta — priprema za sud');
       break;
 
     default:
       showToast('Nisam razumeo: "' + (params.text||action) + '"', 'warn');
   }
 }
+
+// openPredmet — koriste search rezultati (srch-item onclick)
+window.openPredmet = function(id) {
+  if (!id) return;
+  setTab(document.getElementById('tab-btn-p'), 'p');
+  setTimeout(function() { pred_select(id); }, 100);
+};
 
 // Alt+V shortcut
 document.addEventListener('keydown', function(e) {

@@ -19,41 +19,53 @@ from shared.rate import limiter
 logger = logging.getLogger("vindex.voice")
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
-_INTENT_SYSTEM = """Ti si glasovni asistent za Vindex AI — pravni operativni sistem.
+_INTENT_SYSTEM = """Ti si glasovni asistent za Vindex AI — pravni operativni sistem za srpske advokate.
 
-Korisnik je advokat koji govori srpski. Pretvori njegovu komandu u strukturiranu akciju.
+Korisnik govori srpski. Pretvori komandu u niz akcija koje treba izvršiti po redu.
 
-Vrati JSON objekat sa poljem "action" i "params". Primer:
-{"action": "navigate_predmet", "params": {"query": "Petrović"}}
+Vrati JSON: {"actions": [...], "odgovor": "kratak TTS tekst za potvrdu na srpskom"}
 
-Dostupne akcije:
-- navigate_predmet — otvori predmet (params: {query: naziv klijenta ili predmeta})
-- analyze_predmet — pokreni AI analizu otvorenog predmeta (params: {})
-- ask_question — postavi pravno pitanje agentu (params: {text: pitanje})
-- generate_document — generiši dokument (params: {tip: "tuzba"|"zalba"|"ugovor"|"podnesak"})
-- show_tab — pređi na tab (params: {tab: "rokovi"|"naplata"|"dokumenti"|"strategija"|"ai-analiza"|"pregled"|"timeline"|"dokazi"})
-- start_timer — pokreni tajmer (params: {})
-- stop_timer — zaustavi tajmer (params: {})
-- show_dashboard — idi na dashboard (params: {})
-- show_klijenti — idi na klijente (params: {})
-- search — pretraži (params: {query: tekst pretrage})
-- procena_rizika — pokreni procenu rizika (params: {})
-- red_team — pokreni red team analizu (params: {})
-- hearing_prep — priprema za ročište (params: {})
-- unknown — nismo razumeli komandu (params: {text: originalni tekst})
+Svaka akcija: {"action": "...", "params": {...}, "wait_ms": 0}
+- wait_ms = kašnjenje u ms PRE ove akcije (npr. 2200 ako prethodna otvara predmet koji treba da se učita)
 
-Pravila:
-- Ako korisnik kaže "otvori mi predmet X" ili "prikaži predmet X" → navigate_predmet
-- Ako kaže "analiziraj" ili "uradi analizu" → analyze_predmet
-- Ako kaže "postavi pitanje" ili "pitaj agenta" ili konkretno pravno pitanje → ask_question
-- Ako kaže "napravi tužbu" / "generiši žalbu" itd. → generate_document
-- Ako kaže "prikaži rokove" / "idi na naplatu" itd. → show_tab
-- Ako kaže "pokreni tajmer" → start_timer
-- Ako kaže "zaustavi tajmer" / "stopi tajmer" → stop_timer
-- Ako kaže "idi na dashboard" / "početna" → show_dashboard
-- Ako kaže "proceni rizik" ili "kakav je rizik" → procena_rizika
+DOSTUPNE AKCIJE:
+navigate_predmet  — otvori predmet (params: {query: string})
+show_tab          — pređi na subtab unutar predmeta (params: {tab: "rokovi"|"dokumenti"|"strategija"|"ai-analiza"|"naplata"|"pregled"|"timeline"|"dokazi"})
+ask_question      — postavi pravno pitanje AI agentu (params: {text: string})
+generate_document — generiši dokument (params: {tip: "tuzba"|"zalba"|"ugovor"|"podnesak"|"urgencija"})
+start_timer       — pokreni tajmer naplate (params: {})
+stop_timer        — zaustavi tajmer (params: {})
+show_dashboard    — idi na početnu (params: {})
+show_klijenti     — idi na klijente (params: {})
+procena_rizika    — pokreni procenu rizika predmeta (params: {})
+red_team          — pokreni red team strategiju (params: {})
+hearing_prep      — priprema za ročište (params: {})
+search            — pretraži sistem (params: {query: string})
+unknown           — nije prepoznata komanda (params: {text: string})
 
-Vrati SAMO JSON bez markdown fenci."""
+PRAVILA:
+- "otvori/prikaži/nađi predmet X" → navigate_predmet({query:X})
+- "analiziraj dokument" ili "pogledaj dokumente" → show_tab({tab:"dokumenti"})
+- "uradi AI analizu" ili "proceni predmet" → procena_rizika
+- "idi na rokove/naplatu/strategiju/dokumenti" → show_tab odgovarajući tab
+- "pokreni tajmer" / "počni naplatу" → start_timer
+- "zaustavi tajmer" / "stopi" → stop_timer
+- "idi na dashboard" / "početna" / "komandni centar" → show_dashboard
+- "postavi pitanje o X" ili konkretno pravno pitanje → ask_question({text: pitanje})
+- "napravi tužbu/žalbu/ugovor" → generate_document
+- "proceni rizik" / "kakav je rizik" → procena_rizika
+- "uradi red team" / "napravi strategiju" → red_team
+- "pripremi ročište" / "šta treba za ročište" → hearing_prep
+
+SLOŽENE KOMANDE (vraćaj actions niz):
+- "otvori predmet X i analiziraj dokument" → [navigate_predmet(X, wait_ms:0), show_tab(dokumenti, wait_ms:2200)]
+- "otvori predmet X i idi na rokove" → [navigate_predmet(X, wait_ms:0), show_tab(rokovi, wait_ms:2200)]
+- "otvori predmet X i postavi pitanje o Y" → [navigate_predmet(X, wait_ms:0), ask_question(Y, wait_ms:2200)]
+- "otvori predmet X i pokreni tajmer" → [navigate_predmet(X, wait_ms:0), start_timer(wait_ms:2500)]
+
+odgovor = 1 kratak rečenica šta se radi (bez emojija), max 12 reči.
+
+Vrati SAMO JSON bez markdown."""
 
 
 class VoiceCommandReq(BaseModel):
@@ -81,38 +93,42 @@ async def voice_command(req: VoiceCommandReq, request: Request, user=Depends(req
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             temperature=0,
-            max_tokens=200,
+            max_tokens=400,
+            response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": _INTENT_SYSTEM},
                 {"role": "user", "content": f"Komanda: {text}"},
             ],
         )
         raw = (resp.choices[0].message.content or "").strip()
-        if raw.startswith("```"):
-            raw = "\n".join(l for l in raw.splitlines() if not l.strip().startswith("```"))
         parsed = json.loads(raw)
     except Exception as exc:
         logger.warning("[VOICE] Parse greška: %s", exc)
-        parsed = {"action": "ask_question", "params": {"text": text}}
+        parsed = {"actions": [{"action": "ask_question", "params": {"text": text}, "wait_ms": 0}], "odgovor": ""}
 
-    action = parsed.get("action", "unknown")
-    params = parsed.get("params", {})
+    # Normalizuj: ako GPT vrati stari format {action, params}, konvertuj
+    if "action" in parsed and "actions" not in parsed:
+        actions = [{"action": parsed["action"], "params": parsed.get("params", {}), "wait_ms": 0}]
+        if parsed.get("followup"):
+            actions.append({"action": parsed["followup"], "params": {}, "wait_ms": 2200})
+        parsed = {"actions": actions, "odgovor": parsed.get("odgovor", "")}
 
-    # Složene komande — "otvori predmet X i analiziraj ga"
-    followup = None
-    text_lower = text.lower()
-    if action == "navigate_predmet" and ("analiz" in text_lower):
-        followup = "analyze_predmet"
-    if action == "navigate_predmet" and ("izveštaj" in text_lower or "izvestaj" in text_lower):
-        followup = "analyze_predmet"
+    actions = parsed.get("actions") or []
+    if not actions:
+        actions = [{"action": "unknown", "params": {"text": text}, "wait_ms": 0}]
 
-    logger.info("[VOICE] Action=%s params=%s followup=%s", action, params, followup)
+    odgovor = parsed.get("odgovor", "")
+
+    logger.info("[VOICE] %d akcija(e): %s", len(actions), [a.get("action") for a in actions])
 
     return {
-        "action":   action,
-        "params":   params,
-        "followup": followup,
+        "actions":  actions,
+        "odgovor":  odgovor,
         "original": text,
+        # Backward compat polja (stari frontend format)
+        "action":   actions[0].get("action") if actions else "unknown",
+        "params":   actions[0].get("params", {}) if actions else {},
+        "followup": actions[1].get("action") if len(actions) > 1 else None,
     }
 
 
