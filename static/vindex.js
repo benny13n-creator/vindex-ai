@@ -12064,13 +12064,84 @@ function voice_execute(text) {
   });
 }
 
-// Izvršava niz voice akcija sekvencijalno sa zadatim kašnjenjima
+// Normalizuje string za poređenje: uklanja dijakritike i konvertuje u lowercase
+function _voice_normalize(s) {
+  return (s || '').toLowerCase()
+    .replace(/[čć]/g, 'c').replace(/š/g, 's').replace(/ž/g, 'z')
+    .replace(/đ/g, 'd').replace(/[áàâä]/g, 'a').replace(/[éèêë]/g, 'e')
+    .replace(/[íìîï]/g, 'i').replace(/[óòôö]/g, 'o').replace(/[úùûü]/g, 'u');
+}
+
+// Tiha API pretraga predmeta + automatski selektuj prvi rezultat
+// Vraća Promise koji se razreši kad je predmet otvoren (ili odmah ako nema rezultata)
+async function _voice_open_predmet(rawQuery) {
+  var q = (rawQuery || '').trim();
+  if (!q) { showToast('Nije prepoznat naziv predmeta', 'warn'); return; }
+
+  var qNorm  = _voice_normalize(q);
+  var qWords = qNorm.split(/\s+/).filter(function(w) { return w.length >= 2; });
+
+  // 1. Lokalna pretraga sa normalizacijom dijakritika
+  var found = null;
+  if (typeof _predmeti !== 'undefined' && _predmeti.length) {
+    found = _predmeti.find(function(p) {
+      var h = _voice_normalize((p.naziv||'') + ' ' + (p.tuzilac||'') + ' ' + (p.tuzeni||'') + ' ' + (p.opis||''));
+      return qWords.every(function(w) { return h.includes(w); });
+    }) || null;
+  }
+
+  // 2. Ako nije lokalno → tiha API pretraga
+  if (!found && currentSession) {
+    try {
+      showToast('Tražim predmet...', 'info');
+      var r = await fetch(BASE_URL + '/api/search?q=' + encodeURIComponent(q) + '&limit=5&vrste=predmeti', {
+        headers: { Authorization: 'Bearer ' + currentSession.access_token }
+      });
+      if (r.ok) {
+        var d = await r.json();
+        var hits = d.predmeti || [];
+        if (hits.length) {
+          found = { id: hits[0].id, naziv: hits[0].naziv || hits[0].naziv || q };
+        }
+      }
+    } catch(e) { /* ignore, fall through to search modal */ }
+  }
+
+  if (found) {
+    setTab(document.getElementById('tab-btn-p'), 'p');
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        pred_select(found.id);
+        showToast('Otvaram predmet: ' + found.naziv);
+        // Čekaj da se detail učita (~1800ms) pa razreši Promise
+        setTimeout(resolve, 1800);
+      }, 150);
+    });
+  } else {
+    // Nema rezultata — otvori search modal kao poslednji fallback
+    setTab(document.getElementById('tab-btn-p'), 'p');
+    setTimeout(function() {
+      searchOpen();
+      setTimeout(function() {
+        var inp = document.getElementById('search-input');
+        if (inp) { inp.value = rawQuery; searchDebounce(); }
+        showToast('Odaberite predmet iz liste', 'info');
+      }, 100);
+    }, 200);
+    // Ne možemo automatski otvoriti — vrati resolved Promise
+    return Promise.resolve();
+  }
+}
+
+// Izvršava niz voice akcija sekvencijalno — čeka Promise ako akcija vrati jedan
 async function _voice_run_actions(actions) {
   for (var i = 0; i < actions.length; i++) {
     var a = actions[i];
     var delay = (typeof a.wait_ms === 'number' ? a.wait_ms : 0);
     if (delay > 0) await new Promise(function(r) { setTimeout(r, delay); });
-    voice_doAction(a.action, a.params || {});
+    var result = voice_doAction(a.action, a.params || {});
+    // Ako akcija vrati Promise (npr. navigate_predmet), čekaj je pre sledeće
+    if (result && typeof result.then === 'function') await result;
   }
 }
 
@@ -12079,47 +12150,8 @@ function voice_doAction(action, params) {
   switch(action) {
 
     case 'navigate_predmet':
-      var q = (params.query || '').trim().toLowerCase();
-      if (!q) { showToast('Nije prepoznat naziv predmeta', 'warn'); break; }
-
-      // Pretraži _predmeti[] niz po nazivu, tužiocu ili tuženom
-      var found = null;
-      if (typeof _predmeti !== 'undefined' && _predmeti.length) {
-        found = _predmeti.find(function(p) {
-          return (p.naziv   || '').toLowerCase().includes(q) ||
-                 (p.tuzilac || '').toLowerCase().includes(q) ||
-                 (p.tuzeni  || '').toLowerCase().includes(q) ||
-                 (p.opis    || '').toLowerCase().includes(q);
-        }) || null;
-        // Fuzzy: probaj i reč po reč ako nema direktnog match-a
-        if (!found) {
-          var qWords = q.split(/\s+/).filter(function(w) { return w.length >= 3; });
-          if (qWords.length) {
-            found = _predmeti.find(function(p) {
-              var haystack = ((p.naziv||'')+(p.tuzilac||'')+(p.tuzeni||'')).toLowerCase();
-              return qWords.every(function(w) { return haystack.includes(w); });
-            }) || null;
-          }
-        }
-      }
-
-      if (found) {
-        setTab(document.getElementById('tab-btn-p'), 'p');
-        setTimeout(function() { pred_select(found.id); }, 120);
-        showToast('Otvaram predmet: ' + found.naziv);
-      } else {
-        // Nije u lokalnom nizu — pretraži API i prikaži rezultate
-        setTab(document.getElementById('tab-btn-p'), 'p');
-        setTimeout(function() {
-          searchOpen();
-          setTimeout(function() {
-            var inp = document.getElementById('search-input');
-            if (inp) { inp.value = params.query || q; searchDebounce(); }
-          }, 80);
-          showToast('Tražim predmet: ' + (params.query || q), 'info');
-        }, 200);
-      }
-      break;
+      // Vraća Promise — _voice_run_actions čeka da se predmet otvori
+      return _voice_open_predmet(params.query || '');
 
     case 'analyze_predmet':
     case 'procena_rizika':
