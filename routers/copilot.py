@@ -152,7 +152,12 @@ async def _handle_pravno_pitanje(poruka: str, predmet_ctx: str, user: dict, hist
     try:
         q = f"{predmet_ctx}\n\n{poruka}".strip() if predmet_ctx else poruka
         rezultat = await asyncio.to_thread(_ask, q, history or None)
-        odgovor = rezultat.get("data", "") if isinstance(rezultat, dict) else str(rezultat)
+        if isinstance(rezultat, dict):
+            odgovor = rezultat.get("data") or rezultat.get("message") or ""
+        else:
+            odgovor = str(rezultat)
+        if not odgovor.strip():
+            odgovor = "Sistem nije mogao da obradi pitanje. Pokušajte ponovo."
         return {"tip": "PRAVNO_PITANJE", "odgovor": odgovor}
     except Exception as e:
         logger.error("[COPILOT] pravno_pitanje greška: %s", e)

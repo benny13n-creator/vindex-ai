@@ -5141,7 +5141,7 @@ async function execQuery() {
       if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
       _renderRagConfidence(d);
 
-      var text = d.odgovor || d.greska || 'Greška u odgovoru servera.';
+      var text = d.odgovor || d.greska || d.detail || 'Greška pri obradi odgovora. Pokušajte ponovo.';
 
       // Sačuvaj u in-memory i Supabase history
       if (d.odgovor) {
@@ -6202,7 +6202,7 @@ async function doc_ask_question() {
       if (typeof userCredits !== 'undefined') userCredits = d.credits_remaining;
       if (typeof updateCreditDisplay === 'function') updateCreditDisplay();
     }
-    var text = d.data || d.odgovor || d.greska || 'Greška u odgovoru servera.';
+    var text = d.data || d.odgovor || d.greska || d.detail || 'Greška pri obradi odgovora. Pokušajte ponovo.';
     resp.classList.add('show'); rb.textContent = ''; rb.style.whiteSpace = 'pre-wrap'; rb.classList.add('resp-cursor');
     var idx = 0, speed = text.length > 600 ? 4 : text.length > 300 ? 7 : 12;
     var iv = setInterval(function() {

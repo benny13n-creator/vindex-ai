@@ -749,7 +749,7 @@ def normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None)
     if not isinstance(rezultat, dict):
         resp["odgovor"] = str(rezultat)
     elif rezultat.get("status") == "success":
-        resp["odgovor"] = rezultat.get("data", "")
+        resp["odgovor"] = rezultat.get("data") or "Sistem nije vratio odgovor. Pokušajte ponovo."
     else:
         resp["odgovor"] = rezultat.get(
             "message",
