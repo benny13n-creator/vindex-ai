@@ -129,6 +129,9 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
     # ── Sledeća radnja (GPT) ─────────────────────────────────────────────────
     sledeca_radnja = _compute_next_action(predmet, snaga_label, nedostajuci, predstojeći, kriticni)
 
+    # ── Trend aktivnosti (poslednjih 3×7 dana) ───────────────────────────────
+    trend = _compute_trend(supa, predmet_id, now)
+
     return {
         "snaga_dokaza":     snaga_label,
         "snaga_pct":        snaga_pct,
@@ -141,7 +144,37 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
         "kriticni_rokovi":    kriticni,
         "health_score":       health,
         "sledeca_radnja":     sledeca_radnja,
+        "trend":              trend,
     }
+
+
+def _compute_trend(supa, predmet_id: str, now: datetime) -> str:
+    """Trend aktivnosti: poredi broj Q&A unosa u 3 uzastopna perioda od 7 dana."""
+    try:
+        from datetime import timedelta
+        p1_start = (now - timedelta(days=7)).isoformat()
+        p2_start = (now - timedelta(days=14)).isoformat()
+        p3_start = (now - timedelta(days=21)).isoformat()
+
+        def _count(after: str, before: str) -> int:
+            r = supa.table("predmet_istorija").select("id", count="exact") \
+                .eq("predmet_id", predmet_id) \
+                .gte("created_at", after).lt("created_at", before).execute()
+            return r.count or 0
+
+        c1 = _count(p1_start, now.isoformat())   # najnoviji period
+        c2 = _count(p2_start, p1_start)
+        c3 = _count(p3_start, p2_start)
+
+        if c1 == 0 and c2 == 0 and c3 == 0:
+            return None
+        if c1 > c2:
+            return "raste"
+        if c1 < c2:
+            return "opada"
+        return "stagnira"
+    except Exception:
+        return None
 
 
 def _compute_next_action(predmet: dict, snaga: str, nedostajuci: list, predstojeći: int, kriticni: int) -> str:

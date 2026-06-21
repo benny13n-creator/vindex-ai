@@ -694,7 +694,9 @@
                       <div style="font-size:.62rem;color:rgba(255,255,255,.35);">Predstojeći rokovi</div>
                     </div>
                     <div style="text-align:center;">
-                      <div id="mi-health" style="font-size:.9rem;font-weight:700;color:#a78bfa;">—%</div>
+                      <div style="font-size:.9rem;font-weight:700;color:#a78bfa;">
+                        <span id="mi-health">—%</span><span id="mi-trend" style="display:none;margin-left:.25rem;font-size:.8rem;"></span>
+                      </div>
                       <div style="font-size:.62rem;color:rgba(255,255,255,.35);">Health score</div>
                     </div>
                   </div>
@@ -916,13 +918,13 @@
                 <!-- ── Cross-doc analiza ──────────────────────────────── -->
                 <div class="crossdoc-section" id="crossdoc-section" style="display:none;">
                   <div class="crossdoc-hd" onclick="crossdoc_toggleSection(this)">
-                    <span>🔍 Cross-doc analiza</span>
+                    <span>🔍 Cross-doc analiza <span style="font-size:.65rem;font-weight:400;color:rgba(255,255,255,.35);">— poređenje dokumenata</span></span>
                     <span class="crossdoc-count" id="crossdoc-count">0 odabrano</span>
                     <span id="crossdoc-chevron" style="margin-left:0.25rem;font-size:0.7rem;color:rgba(255,255,255,0.4);">▼</span>
                   </div>
                   <div class="crossdoc-body" id="crossdoc-body">
                     <div style="font-size:0.73rem;color:rgba(255,255,255,0.45);margin-bottom:0.55rem;">
-                      Odaberi 2–5 dokumenata (čekbox) i postavi pravno pitanje.
+                      Označi 2–5 dokumenata čekboxom iz liste iznad, zatim postavi pravno pitanje (kontradikcije, razlike, usklađenost...).
                     </div>
                     <div style="position:relative;">
                       <textarea id="crossdoc-pitanje" class="t-input" rows="2"

@@ -5054,7 +5054,7 @@ async function execQuery() {
   };
 
   // ── CHECKLIST FAZA (samo za nacrt tab, pre generisanja) ──────────────────
-  if (activeTab === 'n' && _selectedTip && !_NACRT_API_TYPES.has(_selectedTip)) {
+  if (activeTab === 'n' && _selectedTip) {
     var _clOpisVal = (document.getElementById('podnesak-opis') || {}).value || '';
     if (_clOpisVal.trim().length >= 20) {
       try {
@@ -8510,7 +8510,7 @@ async function pred_loadDetail(id) {
     // Cross-doc section (renders once; always present when docs exist)
     var cdSecEl = document.getElementById('crossdoc-section');
     if (cdSecEl) {
-      cdSecEl.style.display = (d.dokumenti && d.dokumenti.length >= 2) ? '' : 'none';
+      cdSecEl.style.display = (d.dokumenti && d.dokumenti.length >= 1) ? '' : 'none';
     }
 
     // Status panel — fill with real data from workspace
@@ -12420,7 +12420,15 @@ function matter_intel_load() {
     document.getElementById('mi-rizik').style.color    = rizikColor;
     document.getElementById('mi-nedostaje').textContent = (d.nedostajuci_count || 0) + ' tip(a)';
     document.getElementById('mi-rokovi').textContent   = (d.predstojeći_rokovi || 0) + ' / 30d';
-    document.getElementById('mi-health').textContent   = (d.health_score || 0) + '%';
+    var healthEl = document.getElementById('mi-health');
+    if (healthEl) { healthEl.textContent = (d.health_score || 0) + '%'; }
+    var trendEl = document.getElementById('mi-trend');
+    if (trendEl && d.trend) {
+      var tMap = { raste: { icon: '↑', color: '#4ade80' }, stagnira: { icon: '→', color: '#fbbf24' }, opada: { icon: '↓', color: '#f87171' } };
+      var tm = tMap[d.trend] || null;
+      if (tm) { trendEl.textContent = tm.icon; trendEl.style.color = tm.color; trendEl.style.display = 'inline'; }
+      else trendEl.style.display = 'none';
+    } else if (trendEl) { trendEl.style.display = 'none'; }
 
     var sl = document.getElementById('mi-sledeca');
     if (d.sledeca_radnja && sl) {
