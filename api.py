@@ -429,21 +429,15 @@ logger.info("PINECONE_API_KEY set : %s", bool(os.getenv("PINECONE_API_KEY", ""))
 logger.info("PINECONE_HOST       : %r", os.getenv("PINECONE_HOST", ""))
 logger.info("OPENAI_API_KEY set   : %s", bool(os.getenv("OPENAI_API_KEY", "")))
 
-# Redis URL (Upstash ili drugi) → distribuirani rate limit za multi-worker deploy.
-# Ako REDIS_URL nije setovan, pada na in-memory (ok za single-worker dev).
+# REDIS_URL ostaje samo za info (health check) — rate limiter UVEK in-memory.
+# Razlog: Upstash free tier (256MB) može prekoračiti kvotu; redis.ResponseError
+# iz slowapi dekoratora ruši sve rute pre nego što se endpoint body izvrši,
+# zaobilazeći sve try/except blokove unutar endpointa.
 _REDIS_URL = os.getenv("REDIS_URL", "").strip()
-_redis_storage = "memory://"
-if _REDIS_URL and _REDIS_URL.startswith(("redis://", "rediss://")):
-    _redis_storage = _REDIS_URL
-    logger.info("Rate limiter: Redis (%s...)", _REDIS_URL[:30])
-elif _REDIS_URL:
-    logger.warning("Rate limiter: REDIS_URL nije validan URL (mora početi sa rediss://) — pada na in-memory.")
-else:
-    logger.warning("Rate limiter: in-memory — postavi REDIS_URL=rediss://... za distribuirani limit.")
+logger.info("Rate limiter: in-memory (single-worker; REDIS_URL=%s)", bool(_REDIS_URL))
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["60/hour"],
-    storage_uri=_redis_storage,
 )
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
@@ -604,6 +598,18 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     from starlette.exceptions import HTTPException as _HTTPExc
     if isinstance(exc, _HTTPExc):
         raise exc
+    # Redis quota/connection error — posebna poruka, ne 500
+    try:
+        from redis.exceptions import RedisError as _RedisError
+        if isinstance(exc, _RedisError):
+            logger.error("Redis greška [path=%s] %s: %s", request.url.path, type(exc).__name__, exc)
+            _msg = "Usluga privremeno nedostupna. Pokušajte ponovo za nekoliko sekundi."
+            return JSONResponse(
+                status_code=503,
+                content={"greska": _msg, "error": _msg, "status": "error"},
+            )
+    except ImportError:
+        pass
     logger.exception("Neočekivana greška [path=%s] tip=%s: %s", request.url.path, type(exc).__name__, exc)
     _msg = "Interna greška servera. Pokušajte ponovo."
     return JSONResponse(
