@@ -56,9 +56,12 @@ async def get_outcome_intel(predmet_id: str, user=Depends(get_current_user)):
     if len(svi) <= 1:
         return {
             "analiza": (
-                "Nema dovoljno istorijskih predmeta za statističku analizu. "
-                f"Ovo je jedan od prvih predmeta tipa '{tip}' u kancelariji. "
-                "Outcome Intelligence postaje moćniji sa svakim novim zatvorenim predmetom."
+                f"📊 STATISTIKA KANCELARIJE\n"
+                f"Tip '{tip}': {len(svi)} predmet(a) ukupno — premalo podataka za statističku analizu.\n\n"
+                "💡 PREPORUKA\n"
+                "Outcome Intelligence se aktivira kada kancelarija ima ≥2 predmeta istog tipa, "
+                "od kojih je bar jedan zatvoren sa ishodom. "
+                "Zatvarajte predmete kroz Hronologiju → 'Predmet zatvoren' kako bi sistem učio."
             ),
             "ukupno_predmeta": len(svi),
             "isti_tip": 0,
@@ -71,8 +74,19 @@ async def get_outcome_intel(predmet_id: str, user=Depends(get_current_user)):
     aktivni   = [p for p in svi if p.get("status") not in zatvoreni_statusi]
 
     # ── Dohvati ishod iz hronologije za svaki zatvoren predmet ───────────────
-    _POBEDA_ISHODI = {"pobeda", "Pobeda", "nagodba", "Nagodba / Poravnanje"}
-    _PORAZ_ISHODI  = {"poraz", "Poraz", "odbacena", "Tužba odbačena"}
+    _POBEDA_KW = {"pobeda", "nagodba", "poravnanje", "uspeh", "uspesno", "uspešno", "prihvacena", "prihvaćena"}
+    _PORAZ_KW  = {"poraz", "odbacena", "odbijen", "izgubio", "neuspesno", "neuspešno", "odbijen"}
+
+    def _klasifikuj_ishod(ishod_str: str) -> str:
+        """Fleksibilna klasifikacija — radi i kad tekst nije tačan."""
+        low = (ishod_str or "").lower().strip()
+        for kw in _POBEDA_KW:
+            if kw in low:
+                return "pobeda"
+        for kw in _PORAZ_KW:
+            if kw in low:
+                return "poraz"
+        return "nepoznato"
 
     ishod_map: dict[str, str] = {}
     if zatvoreni:
@@ -80,17 +94,30 @@ async def get_outcome_intel(predmet_id: str, user=Depends(get_current_user)):
             zids = [p["id"] for p in zatvoreni[:30]]
             hr = supa.table("predmet_hronologija").select(
                 "predmet_id,dogadjaj"
-            ).in_("predmet_id", zids).ilike("dogadjaj", "Predmet zatvoren%").execute()
+            ).in_("predmet_id", zids).ilike("dogadjaj", "%zatvoren%").execute()
             for h in (hr.data or []):
                 pid = h.get("predmet_id","")
                 dog = h.get("dogadjaj","")
                 if "Ishod:" in dog and pid not in ishod_map:
-                    ishod_map[pid] = dog.split("Ishod:", 1)[1].strip()
+                    raw_ishod = dog.split("Ishod:", 1)[1].strip()
+                    ishod_map[pid] = _klasifikuj_ishod(raw_ishod)
+                elif pid not in ishod_map:
+                    ishod_map[pid] = _klasifikuj_ishod(dog)
         except Exception as exc:
             logger.debug("[OUTCOME] hronologija greška: %s", exc)
 
-    pobede = [p for p in zatvoreni if ishod_map.get(p["id"], "") in _POBEDA_ISHODI]
-    porazi = [p for p in zatvoreni if ishod_map.get(p["id"], "") in _PORAZ_ISHODI]
+    # Dopuni iz status polja predmeta ako hronologija nema ishod
+    for p in zatvoreni:
+        pid = p["id"]
+        if ishod_map.get(pid) in (None, "nepoznato"):
+            st = (p.get("status") or "").lower()
+            if st in ("uspesno", "uspešno"):
+                ishod_map[pid] = "pobeda"
+            elif st in ("neuspesno", "neuspešno"):
+                ishod_map[pid] = "poraz"
+
+    pobede = [p for p in zatvoreni if ishod_map.get(p["id"]) == "pobeda"]
+    porazi = [p for p in zatvoreni if ishod_map.get(p["id"]) == "poraz"]
     win_rate = round(len(pobede) / max(1, len(pobede) + len(porazi)) * 100) if (pobede or porazi) else None
 
     # ── Dokument korelacija po ishodu ────────────────────────────────────────

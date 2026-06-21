@@ -116,6 +116,7 @@ class NacrtChecklistReq(BaseModel):
 
 class SazmiReq(BaseModel):
     odgovor: str = Field(..., max_length=6000)
+    format:  str = Field(default="email", pattern="^(email|viber|pisano)$")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -298,28 +299,46 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(requir
         )
 
 
+_FORMAT_INSTRUKCIJA = {
+    "email": (
+        "Format: EMAIL klijentu. Ton: profesionalan, formalan. "
+        "Početak: 'Poštovani/a,' — zatim 4-5 rečenica — kraj: 'S poštovanjem, Vaš advokat'."
+    ),
+    "viber": (
+        "Format: KRATKA VIBER PORUKA klijentu. Ton: neformalan, prijatan, bez 'Poštovani'. "
+        "Maksimalno 3-4 kratke rečenice. Bez formalnog pozdrava na kraju."
+    ),
+    "pisano": (
+        "Format: PISANO OBAVEŠTENJE klijentu. Ton: formalan, kao zvanično pismo. "
+        "Koristiti 'Obaveštavamo Vas...' — 5-6 rečenica — zaključna napomena o konsultaciji."
+    ),
+}
+
+
 @router.post("/api/sazmi")
 @limiter.limit("10/minute")
 async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(require_credits)):
-    """Generiše verziju odgovora na 'ljudskom' jeziku za klijenta (Viber/Mejl)."""
+    """Generiše verziju odgovora na 'ljudskom' jeziku za klijenta (email/viber/pisano)."""
     from openai import OpenAI as _OAI
     try:
+        fmt_instr = _FORMAT_INSTRUKCIJA.get(req.format, _FORMAT_INSTRUKCIJA["email"])
         klijent_prompt = (
             "Advokat ti šalje pravni odgovor koji treba da prepišeš za klijenta — laika koji ne zna pravo.\n"
-            "PRAVILA TONA: Profesionalan, smiren, poverljiv. BEZ: latinštine, paragrafa, citata, 'čl.', 'Sl. glasnik', 'lex specialis'.\n"
-            "STRUKTURA (4–6 rečenica):\n"
-            "  1. Šta znači situacija za klijenta u jednoj jasnoj rečenici.\n"
-            "  2. Šta je klijentov ključni dokaz ili korak — konkretan, bez teorije.\n"
+            "PRAVILA TONA: Profesionalan, smiren, poverljiv. BEZ: latinštine, paragrafa, citata, 'čl.', 'Sl. glasnik', 'lex specialis'.\n\n"
+            f"{fmt_instr}\n\n"
+            "SADRŽAJ (obavezni elementi):\n"
+            "  1. Šta znači situacija za klijenta — jasno i konkretno.\n"
+            "  2. Šta je klijentov ključni dokaz ili sledeći korak — bez teorije.\n"
             "  3. Koji je rizik ako ne preduzme ništa (rok, zastarelost, gubitak prava).\n"
-            "  4. Šta je sledeći korak koji klijent treba da uradi — imperativ, ne upit.\n"
-            "  5. Kratka napomena: 'Pre preduzimanja koraka, konsultujte svog advokata za konačno mišljenje.'\n"
-            "Počni direktno prvom rečenicom. Bez uvoda, bez 'Evo sažetka', bez zaglavlja."
+            "  4. Šta konkretno da uradi — imperativ.\n"
+            "  5. Napomena: konsultacija sa advokatom pre svakog koraka.\n"
+            "Počni direktno. Bez uvoda, bez 'Evo sažetka', bez zaglavlja."
         )
         client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             temperature=0.3,
-            max_tokens=300,
+            max_tokens=600,
             messages=[
                 {"role": "system", "content": klijent_prompt},
                 {"role": "user",   "content": _skini_pii(req.odgovor[:4000])},
@@ -328,7 +347,7 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(require_cr
         tekst = resp.choices[0].message.content.strip()
         if not user.get("credit_pre_deducted"):
             await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
-        return {"status": "ok", "sazetak": tekst}
+        return {"status": "ok", "sazetak": tekst, "format": req.format}
     except Exception:
         logger.exception("Greška u /api/sazmi")
         return _greska_odgovor(500, "Greška pri generisanju sažetka.")

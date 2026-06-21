@@ -333,8 +333,50 @@ async def run_agent(req: AgentReq, user=Depends(get_current_user)):
         except Exception as exc:
             logger.debug("[AGENT] predmet ctx greška: %s", exc)
 
+    # ── RAG kontekst za Research agenta ─────────────────────────────────────
+    rag_ctx = ""
+    if agent_id == "research":
+        try:
+            import asyncio as _aio
+            from app.services.retrieve import retrieve_documents as _rd
+            rag_query = (req.task + " " + (req.kontekst or ""))[:600]
+            docs = await _aio.to_thread(_rd, rag_query, 5)
+            if docs:
+                rag_ctx = "\n\nRELEVANTNI ZAKONI IZ BAZE (koristiti kao primarne izvore):\n"
+                for i, d in enumerate(docs[:4], 1):
+                    rag_ctx += f"\n[Izvor {i}]\n{d[:600]}\n"
+        except Exception as _re:
+            logger.warning("[AGENT/research] RAG greška: %s", _re)
+
+    # ── Stvarni rokovi iz predmeta za Deadline agenta ─────────────────────
+    rokovi_ctx = ""
+    if agent_id == "deadline" and req.predmet_id:
+        try:
+            from datetime import datetime, timezone as _tz
+            rok_r = supa.table("predmet_rokovi").select(
+                "naziv,datum_isteka,status,opis"
+            ).eq("predmet_id", req.predmet_id).order("datum_isteka").limit(20).execute()
+            now = datetime.now(_tz.utc)
+            rokovi_list = []
+            for r in (rok_r.data or []):
+                dt_str = r.get("datum_isteka", "")
+                dana = "?"
+                try:
+                    dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                    dana = (dt - now).days
+                except Exception:
+                    pass
+                status_emoji = "✅" if r.get("status") == "zavrsen" else ("🔴" if isinstance(dana, int) and dana <= 7 else ("⚠️" if isinstance(dana, int) and dana <= 15 else "📅"))
+                rokovi_list.append(
+                    f"{status_emoji} {r.get('naziv','?')} | Ističe: {dt_str[:10]} | Dana ostalo: {dana} | Status: {r.get('status','aktivan')}"
+                )
+            if rokovi_list:
+                rokovi_ctx = "\n\nSTVARNI ROKOVI IZ PREDMETA (analizirati ove konkretne rokove):\n" + "\n".join(rokovi_list)
+        except Exception as _de:
+            logger.warning("[AGENT/deadline] rokovi greška: %s", _de)
+
     # ── Pozovi agent ─────────────────────────────────────────────────────────
-    user_msg = f"{predmet_ctx}\n{req.kontekst or ''}\n\nZahtev: {req.task}".strip()
+    user_msg = f"{predmet_ctx}{rokovi_ctx}{rag_ctx}\n{req.kontekst or ''}\n\nZahtev: {req.task}".strip()
 
     try:
         from openai import OpenAI
@@ -342,7 +384,7 @@ async def run_agent(req: AgentReq, user=Depends(get_current_user)):
         resp = client.chat.completions.create(
             model="gpt-4o",
             temperature=0.35,
-            max_tokens=1200,
+            max_tokens=2000,
             messages=[
                 {"role": "system", "content": agent_cfg["system"]},
                 {"role": "user",   "content": user_msg},
@@ -353,7 +395,7 @@ async def run_agent(req: AgentReq, user=Depends(get_current_user)):
         logger.error("[AGENT] GPT greška: %s", exc)
         raise HTTPException(status_code=503, detail="AI servis trenutno nedostupan.")
 
-    logger.info("[AGENT] user=%s agent=%s predmet=%s", uid[:8], agent_id, req.predmet_id or "-")
+    logger.info("[AGENT] user=%s agent=%s predmet=%s rag=%s", uid[:8], agent_id, req.predmet_id or "-", bool(rag_ctx))
 
     return {
         "agent":     agent_id,
@@ -361,4 +403,5 @@ async def run_agent(req: AgentReq, user=Depends(get_current_user)):
         "ikona":     agent_cfg["ikona"],
         "odgovor":   odgovor,
         "task":      req.task,
+        "rag_korišćen": bool(rag_ctx),
     }

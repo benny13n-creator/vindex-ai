@@ -78,9 +78,10 @@ Na kraju: Ukupna ocena dokumenta: BEZBEDAN / RIZIČAN / NEPRIHVATLJIV"""
 
 # ── Sinhroni pozivi GPT-4o ────────────────────────────────────────────────────
 
-def red_team_analiza_sync(opis_predmeta: str, api_key: str) -> str:
+def red_team_analiza_sync(opis_predmeta: str, api_key: str, pinecone_context: str = "") -> str:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
+    ctx_block = f"\nRelevantna sudska praksa i zakonski kontekst iz baze:\n{pinecone_context}\n" if pinecone_context else ""
     resp = client.chat.completions.create(
         model="gpt-4o",
         temperature=0.3,
@@ -88,7 +89,7 @@ def red_team_analiza_sync(opis_predmeta: str, api_key: str) -> str:
         timeout=90.0,
         messages=[
             {"role": "system", "content": _RED_TEAM_SYSTEM},
-            {"role": "user",   "content": f"Predmet za red team analizu:\n\n{opis_predmeta}"},
+            {"role": "user",   "content": f"Predmet za red team analizu:{ctx_block}\n\n{opis_predmeta}"},
         ],
     )
     return (resp.choices[0].message.content or "").strip()
@@ -111,9 +112,10 @@ def litigation_simulator_sync(opis_predmeta: str, api_key: str, pinecone_context
     return (resp.choices[0].message.content or "").strip()
 
 
-def ai_judge_mode_sync(opis_predmeta: str, api_key: str) -> str:
+def ai_judge_mode_sync(opis_predmeta: str, api_key: str, pinecone_context: str = "") -> str:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
+    ctx_block = f"\nRelevantna sudska praksa iz baze (uzeti u obzir pri analizi):\n{pinecone_context}\n" if pinecone_context else ""
     resp = client.chat.completions.create(
         model="gpt-4o",
         temperature=0.1,
@@ -121,7 +123,7 @@ def ai_judge_mode_sync(opis_predmeta: str, api_key: str) -> str:
         timeout=90.0,
         messages=[
             {"role": "system", "content": _JUDGE_SYSTEM},
-            {"role": "user",   "content": f"Predmet na razmatranje:\n\n{opis_predmeta}"},
+            {"role": "user",   "content": f"Predmet na razmatranje:{ctx_block}\n\n{opis_predmeta}"},
         ],
     )
     return (resp.choices[0].message.content or "").strip()

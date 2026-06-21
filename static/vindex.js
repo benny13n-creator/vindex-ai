@@ -4591,25 +4591,49 @@ function sazimiZaKlijenta(fullText, btn) {
     showToast('Morate biti prijavljeni za ovu funkciju.', 'err');
     return;
   }
+  var sel = document.createElement('div');
+  sel.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  sel.innerHTML = '<div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:1.8rem;max-width:420px;width:90%;">'
+    + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:1rem;">✨ Sažetak za klijenta — odaberite format</div>'
+    + '<div style="display:flex;flex-direction:column;gap:0.6rem;">'
+    + '<button data-fmt="email" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);color:#a5b4fc;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;">📧 Email — formalni, sa pozdravom</button>'
+    + '<button data-fmt="viber" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);color:#4ade80;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;">💬 Viber — kratak, neformalan (3-4 rečenice)</button>'
+    + '<button data-fmt="pisano" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#fbbf24;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;">📄 Pisano obaveštenje — zvanično pismo</button>'
+    + '</div>'
+    + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="margin-top:1rem;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-family:inherit;font-size:0.8rem;">✕ Odustani</button>'
+    + '</div>';
+  sel.addEventListener('click', function(e){ if(e.target===sel) sel.remove(); });
+  sel.querySelectorAll('[data-fmt]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var fmt = b.getAttribute('data-fmt');
+      sel.remove();
+      _doSazmi(fullText, btn, fmt);
+    });
+  });
+  document.body.appendChild(sel);
+}
+
+function _doSazmi(fullText, btn, fmt) {
   var orig = btn.textContent;
-  btn.textContent = '\u23f3 Generi\u0161em...'; btn.disabled = true;
+  btn.textContent = '⏳ Generišem...'; btn.disabled = true;
   var token = currentSession.access_token;
   fetch(BASE_URL + '/api/sazmi', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-    body: JSON.stringify({ odgovor: fullText.substring(0, 6000) })
+    body: JSON.stringify({ odgovor: fullText.substring(0, 6000), format: fmt })
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
     btn.textContent = orig; btn.disabled = false;
     var sazetak = data.sazetak || data.detail || 'Greška pri generisanju.';
+    var fmtLabel = { email: '📧 Email', viber: '💬 Viber', pisano: '📄 Pisano obaveštenje' }[fmt] || '';
     var modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = '<div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:2rem;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;position:relative;">'
-      + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:0.75rem;">✨ Verzija za klijenta (Viber/Mejl)</div>'
+      + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:0.75rem;">✨ Verzija za klijenta — ' + fmtLabel + '</div>'
       + '<div style="font-size:0.9rem;line-height:1.7;color:rgba(255,255,255,0.85);white-space:pre-wrap;">' + escHtml(sazetak) + '</div>'
       + '<div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;">'
-      + '<button onclick="navigator.clipboard.writeText('+JSON.stringify(sazetak)+').then(function(){this.textContent=\'✓ Kopirano!\';}.bind(this))" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);color:#4ade80;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.75rem;">📋 Kopiraj tekst</button>'
+      + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(sazetak) + ').then(function(){this.textContent=\'✓ Kopirano!\';}.bind(this))" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);color:#4ade80;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.75rem;">📋 Kopiraj tekst</button>'
       + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.75rem;">✕ Zatvori</button>'
       + '</div></div>';
     modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
@@ -4617,7 +4641,6 @@ function sazimiZaKlijenta(fullText, btn) {
   })
   .catch(function(){ btn.textContent = '⚠ Greška'; btn.disabled = false; setTimeout(function(){ btn.textContent = orig; }, 2000); });
 }
-
 function showIzvor(text, btn) {
   var orig = btn.textContent;
   btn.textContent = text.length > 5 ? text.substring(0, 80) : 'Izvor nije dostupan';

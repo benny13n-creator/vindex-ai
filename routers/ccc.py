@@ -146,18 +146,31 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
 
 
 def _compute_health(dok_stats: dict, predstojeći: int, ukupno_dokaza: int) -> int:
-    score = 50  # baseline
+    """Isti algoritam kao matter_intel.py — rizik_score → health."""
     jaka   = dok_stats.get("jaka", 0)
     srednja = dok_stats.get("srednja", 0)
     slaba  = dok_stats.get("slaba", 0)
+    # Proceni snagu
     if ukupno_dokaza == 0:
-        score -= 15
+        snaga = "Nema dokaza"
     else:
-        score += min(25, jaka * 8 + srednja * 3 - slaba * 5)
-    if predstojeći == 0:
-        score += 10
-    elif predstojeći <= 2:
-        score -= 5
-    else:
-        score -= 15
-    return max(0, min(100, score))
+        jaka_pct = jaka / ukupno_dokaza
+        sred_pct = srednja / ukupno_dokaza
+        if jaka_pct >= 0.5:
+            snaga = "Jaka"
+        elif jaka_pct + sred_pct >= 0.6:
+            snaga = "Srednja"
+        else:
+            snaga = "Slaba"
+    nedostajuci_count = 0  # CCC ne računa nedostajuće ovde — konzervativna nula
+    kriticni = 1 if predstojeći > 0 else 0  # predstojeći ≤ 30 dana, tretiramo kao potencijalno kritično
+    # Rizik score (isti kao matter_intel)
+    rizik_score = 50
+    if ukupno_dokaza == 0:        rizik_score += 20
+    elif snaga == "Jaka":         rizik_score -= 20
+    elif snaga == "Slaba":        rizik_score += 15
+    if nedostajuci_count >= 3:    rizik_score += 15
+    if kriticni > 0 and predstojeći > 2: rizik_score += 20
+    elif kriticni > 0:            rizik_score += 5
+    health = 100 - rizik_score
+    return max(5, min(95, health))
