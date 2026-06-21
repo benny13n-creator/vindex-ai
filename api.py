@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Str
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
@@ -447,7 +447,16 @@ limiter = Limiter(
 )
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+def _json_rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={"greska": "Previše zahteva. Sačekajte nekoliko sekundi i pokušajte ponovo."},
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _json_rate_limit_handler)
 _setup_prometheus(app)
 
 # Klijenti CRM router (P1–P8, sve faze)
@@ -1450,7 +1459,7 @@ async def bot_ask(req: PitanjeReq, request: Request, x_api_key: str = Header(def
 
 
 @app.post("/api/pitanje")
-@limiter.limit("10/minute")
+@limiter.limit("30/minute")
 async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(require_credits)):
     """Pravno istraživanje — pretražuje bazu zakona."""
     qh = _q_hash(req.pitanje)

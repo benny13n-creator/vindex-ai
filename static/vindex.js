@@ -5121,6 +5121,11 @@ async function execQuery() {
         console.warn('[Vindex] execQuery: 403 — nije PRO');
         openProUpgradeModal(); return;
       }
+      if (r.status === 429) {
+        resp.classList.add('show'); rb.style.whiteSpace='pre-wrap';
+        rb.textContent = 'Previše zahteva u kratkom vremenskom periodu. Sačekajte koji sekund i pokušajte ponovo.';
+        return;
+      }
 
       // Content-type guard — server vratio HTML (cold start, nginx greška)
       var _ct = r.headers.get('content-type');
