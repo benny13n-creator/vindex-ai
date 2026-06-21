@@ -153,6 +153,9 @@ async def kreiraj_rociste(
 async def lista_rocista(
     request: Request,
     predmet_id: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    status: Optional[str] = None,
     user: dict = Depends(get_current_user),
 ):
     uid  = user["user_id"]
@@ -161,12 +164,14 @@ async def lista_rocista(
     q = supa.table("rocista").select("*").eq("user_id", uid)
     if predmet_id:
         q = q.eq("predmet_id", predmet_id)
+    if status:
+        q = q.eq("status", status)
 
-    r = await asyncio.to_thread(lambda: q.order("datum").execute())
+    r = await asyncio.to_thread(lambda: q.order("datum").limit(limit).offset(offset).execute())
     rows = r.data or []
     for row in rows:
         row["vreme"] = _norm_vreme(row.get("vreme"))
-    return {"rocista": rows, "ukupno": len(rows)}
+    return {"rocista": rows, "ukupno": len(rows), "limit": limit, "offset": offset}
 
 
 @router.patch("/api/rocista/{rociste_id}")

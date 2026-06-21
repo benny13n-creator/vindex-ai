@@ -656,70 +656,103 @@ async def onboarding_cron(request: Request, user: dict = Depends(get_current_use
 
     from datetime import datetime, timezone, timedelta as _td
 
-    def _run():
-        supa  = _get_supa()
-        now   = datetime.now(timezone.utc)
-        poslato = 0
-        greske  = 0
+    import asyncio as _asyncio
 
-        # Dohvati sve profile sa email i registered_at
-        profiles_r = supa.table("profiles").select("id, email, registered_at, created_at").execute()
-        profiles   = profiles_r.data or []
+    supa = _get_supa()
+    now  = datetime.now(timezone.utc)
 
-        for p in profiles:
-            uid     = p.get("id", "")
-            email   = p.get("email", "")
-            if not email or not uid:
-                continue
+    profiles_r = await asyncio.to_thread(
+        lambda: supa.table("profiles").select("id, email, registered_at, created_at").execute()
+    )
+    profiles = profiles_r.data or []
 
-            reg_str = p.get("registered_at") or p.get("created_at") or ""
-            if not reg_str:
-                continue
-            try:
-                reg_at = datetime.fromisoformat(reg_str.replace("Z", "+00:00"))
-                if reg_at.tzinfo is None:
-                    reg_at = reg_at.replace(tzinfo=timezone.utc)
-            except Exception:
-                continue
+    poslato_total = 0
+    greske_total  = 0
 
-            hours_since = (now - reg_at).total_seconds() / 3600
+    async def send_for_user(p: dict) -> tuple[int, int]:
+        uid   = p.get("id", "")
+        email = p.get("email", "")
+        if not email or not uid:
+            return 0, 0
 
-            # ── DAY 1: 24-48h, nije koristio AI ──────────────────────────────
-            if 24 <= hours_since < 48:
-                dup = supa.table("onboarding_email_log").select("id").eq("user_id", uid).eq("tip", "day1").limit(1).execute()
-                if not dup.data:
-                    # Provjeri da li je koristio AI (korisnik_usage)
-                    ym = now.strftime("%Y-%m")
-                    usage_r = supa.table("korisnik_usage").select("ai_queries, doc_analyses, strategies").eq("user_id", uid).eq("year_month", ym).maybe_single().execute()
-                    usage   = usage_r.data or {}
-                    total_ai = (usage.get("ai_queries") or 0) + (usage.get("doc_analyses") or 0) + (usage.get("strategies") or 0)
-                    if total_ai == 0:
-                        try:
-                            html = _onboarding_day1_html(email)
-                            _smtp_send(email, "Niste još probali Vindex AI — 15 upita čeka vas", html)
-                            _log_onboarding(supa, uid, "day1", email)
-                            poslato += 1
-                            logger.info("[ONBOARDING-CRON] day1 uid=%.8s", uid)
-                        except Exception as exc:
-                            logger.error("[ONBOARDING-CRON] day1 greška uid=%.8s: %s", uid, exc)
-                            greske += 1
+        reg_str = p.get("registered_at") or p.get("created_at") or ""
+        if not reg_str:
+            return 0, 0
+        try:
+            reg_at = datetime.fromisoformat(reg_str.replace("Z", "+00:00"))
+            if reg_at.tzinfo is None:
+                reg_at = reg_at.replace(tzinfo=timezone.utc)
+        except Exception:
+            return 0, 0
 
-            # ── DAY 3: 72-96h, nema predmeta ─────────────────────────────────
-            elif 72 <= hours_since < 96:
-                dup = supa.table("onboarding_email_log").select("id").eq("user_id", uid).eq("tip", "day3").limit(1).execute()
-                if not dup.data:
-                    predmeti_r = supa.table("predmeti").select("id").eq("user_id", uid).limit(1).execute()
-                    if not (predmeti_r.data):
-                        try:
-                            html = _onboarding_day3_html(email)
-                            _smtp_send(email, "Vindex AI — otvorite prvi predmet za 30 sekundi", html)
-                            _log_onboarding(supa, uid, "day3", email)
-                            poslato += 1
-                            logger.info("[ONBOARDING-CRON] day3 uid=%.8s", uid)
-                        except Exception as exc:
-                            logger.error("[ONBOARDING-CRON] day3 greška uid=%.8s: %s", uid, exc)
-                            greske += 1
+        hours_since = (now - reg_at).total_seconds() / 3600
+        p_sent = 0
+        p_err  = 0
 
-        return {"poslato": poslato, "greske": greske}
+        # ── DAY 1: 24-48h, nije koristio AI ──────────────────────────────
+        if 24 <= hours_since < 48:
+            dup = await asyncio.to_thread(
+                lambda: supa.table("onboarding_email_log").select("id").eq("user_id", uid).eq("tip", "day1").limit(1).execute()
+            )
+            if not dup.data:
+                # Proveri korišćenje AI od registracije (ne od tekućeg meseca — fix day1 bug)
+                reg_iso = reg_at.isoformat()
+                usage_r = await asyncio.to_thread(
+                    lambda: supa.table("korisnik_usage")
+                    .select("ai_queries, doc_analyses, strategies")
+                    .eq("user_id", uid)
+                    .gte("created_at", reg_iso)
+                    .execute()
+                )
+                rows_usage = usage_r.data or []
+                total_ai = sum(
+                    (r.get("ai_queries") or 0) + (r.get("doc_analyses") or 0) + (r.get("strategies") or 0)
+                    for r in rows_usage
+                )
+                if total_ai == 0:
+                    try:
+                        html = _onboarding_day1_html(email)
+                        await asyncio.to_thread(lambda: _smtp_send(email, "Niste još probali Vindex AI — 15 upita čeka vas", html))
+                        await asyncio.to_thread(lambda: _log_onboarding(supa, uid, "day1", email))
+                        p_sent += 1
+                        logger.info("[ONBOARDING-CRON] day1 uid=%.8s", uid)
+                    except Exception as exc:
+                        logger.error("[ONBOARDING-CRON] day1 greška uid=%.8s: %s", uid, exc)
+                        p_err += 1
 
-    return await asyncio.to_thread(_run)
+        # ── DAY 3: 72-96h, nema predmeta ─────────────────────────────────
+        elif 72 <= hours_since < 96:
+            dup = await asyncio.to_thread(
+                lambda: supa.table("onboarding_email_log").select("id").eq("user_id", uid).eq("tip", "day3").limit(1).execute()
+            )
+            if not dup.data:
+                predmeti_r = await asyncio.to_thread(
+                    lambda: supa.table("predmeti").select("id").eq("user_id", uid).limit(1).execute()
+                )
+                if not predmeti_r.data:
+                    try:
+                        html = _onboarding_day3_html(email)
+                        await asyncio.to_thread(lambda: _smtp_send(email, "Vindex AI — otvorite prvi predmet za 30 sekundi", html))
+                        await asyncio.to_thread(lambda: _log_onboarding(supa, uid, "day3", email))
+                        p_sent += 1
+                        logger.info("[ONBOARDING-CRON] day3 uid=%.8s", uid)
+                    except Exception as exc:
+                        logger.error("[ONBOARDING-CRON] day3 greška uid=%.8s: %s", uid, exc)
+                        p_err += 1
+
+        return p_sent, p_err
+
+    # Batch paralelizacija — grupe od 10 korisnika
+    BATCH_SIZE = 10
+    for i in range(0, len(profiles), BATCH_SIZE):
+        batch   = profiles[i:i + BATCH_SIZE]
+        results = await _asyncio.gather(*[send_for_user(u) for u in batch], return_exceptions=True)
+        for res in results:
+            if isinstance(res, Exception):
+                logger.error("[ONBOARDING-CRON] batch greška: %s", res)
+                greske_total += 1
+            else:
+                poslato_total += res[0]
+                greske_total  += res[1]
+
+    return {"poslato": poslato_total, "greske": greske_total}

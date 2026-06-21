@@ -188,7 +188,7 @@ async def billing_entry_create(
 
     if iznos is None and body.sati:
         satnica = await _resolve_tarifa_for_predmet(supa, uid, body.predmet_id)
-        iznos = max(satnica, math.ceil(body.sati * satnica))
+        iznos = math.ceil(body.sati * satnica)
 
     if iznos is None:
         raise HTTPException(status_code=422, detail="iznos_rsd je obavezan kad tarifa_sifra nije navedena.")
@@ -361,7 +361,7 @@ async def timer_stop(
     if body.kreiraj_entry:
         sati    = round(trajanje / 3600, 2)
         satnica = await _resolve_tarifa_for_predmet(supa, uid, t["predmet_id"])
-        iznos   = max(satnica, math.ceil(sati * satnica))
+        iznos   = math.ceil(sati * satnica)
         opis    = (body.opis or t.get("opis") or "Rad po predmetu (tajmer)").strip()[:400]
         er = await _db(lambda: supa.table("billing_entries").insert({
             "user_id":    uid,
@@ -884,8 +884,8 @@ def _generate_pdf(faktura: dict, entries: list) -> bytes:
     sub_s   = ParagraphStyle("s", parent=styles["Normal"],   fontSize=9,  textColor=colors.grey)
     bold_s  = ParagraphStyle("b", parent=styles["Normal"],   fontSize=10, fontName="Helvetica-Bold")
 
-    story.append(Paragraph(f"FAKTURA br. {faktura['broj_fakture']}", title_s))
-    story.append(Paragraph(f"Datum: {faktura['datum_fakture']}", sub_s))
+    story.append(Paragraph(f"FAKTURA br. {faktura.get('broj_fakture', 'NACRT')}", title_s))
+    story.append(Paragraph(f"Datum: {faktura.get('datum_fakture', date.today().isoformat())}", sub_s))
     story.append(Spacer(1, 0.5*cm))
 
     story.append(Paragraph("Primalac:", bold_s))

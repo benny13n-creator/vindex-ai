@@ -124,9 +124,10 @@ def _get_user_predmet_ids(supa, uid: str) -> list[str]:
     return [row["id"] for row in (r.data or [])]
 
 
-def _search_hronologija(supa, uid: str, q: str, limit: int) -> list[dict]:
+def _search_hronologija(supa, uid: str, q: str, limit: int, pids: Optional[list[str]] = None) -> list[dict]:
     q2   = q.replace("%", "")
-    pids = _get_user_predmet_ids(supa, uid)
+    if pids is None:
+        pids = _get_user_predmet_ids(supa, uid)
     if not pids:
         return []
     r = (supa.table("predmet_hronologija")
@@ -147,9 +148,10 @@ def _search_hronologija(supa, uid: str, q: str, limit: int) -> list[dict]:
     ]
 
 
-def _search_beleske(supa, uid: str, q: str, limit: int) -> list[dict]:
+def _search_beleske(supa, uid: str, q: str, limit: int, pids: Optional[list[str]] = None) -> list[dict]:
     q2   = q.replace("%", "")
-    pids = _get_user_predmet_ids(supa, uid)
+    if pids is None:
+        pids = _get_user_predmet_ids(supa, uid)
     if not pids:
         return []
     r = (supa.table("predmet_beleske")
@@ -206,8 +208,19 @@ async def global_search(
     else:
         tražene = _VALID_VRSTE
 
+    # N+1 eliminacija: ako se traže i hronologija i beleske, dohvati predmet_ids jednom
+    needs_pids = tražene & {"hronologija", "beleske"}
+    cached_pids: Optional[list[str]] = None
+    if needs_pids:
+        cached_pids = await _db(lambda: _get_user_predmet_ids(supa, uid))
+
+    def _make_task(tip: str, fn):
+        if tip in ("hronologija", "beleske"):
+            return _db(lambda fn=fn: fn(supa, uid, q, limit, cached_pids))
+        return _db(lambda fn=fn: fn(supa, uid, q, limit))
+
     tasks = {
-        tip: _db(lambda fn=fn: fn(supa, uid, q, limit))
+        tip: _make_task(tip, fn)
         for tip, fn in _SEARCHERS.items()
         if tip in tražene
     }

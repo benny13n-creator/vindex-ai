@@ -492,6 +492,7 @@ async function doLogin() {
 async function doRegister() {
   var sb = getSupabase();
   if (!sb) { _setAuthError('Autentifikacija nije konfigurisana.'); return; }
+  var fullName = (document.getElementById('reg-name')?.value?.trim()) || '';
   var email   = document.getElementById('reg-email').value.trim();
   var pass    = document.getElementById('reg-password').value;
   var confirm = document.getElementById('reg-confirm-password').value;
@@ -518,7 +519,7 @@ async function doRegister() {
     var regRes = await fetch(BASE_URL + '/api/register', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ email: email, password: pass })
+      body: JSON.stringify({ email: email, password: pass, full_name: fullName || undefined })
     });
     var regData = await regRes.json();
     if (!regRes.ok) {
@@ -545,6 +546,12 @@ async function doRegister() {
   }
   currentSession = loginRes.data.session;
   currentUser    = loginRes.data.user;
+  // Ažuriraj profiles tabelu sa full_name ako je uneto
+  if (fullName && currentUser && currentUser.id) {
+    try {
+      await sb.from('profiles').update({ full_name: fullName }).eq('id', currentUser.id);
+    } catch(e) { /* neblokira registraciju */ }
+  }
   closeModal();
   updateAuthUI();
   loadCredits();

@@ -332,6 +332,22 @@ async def sef_posalji(
     if not faktura.get("klijent_pib"):
         raise HTTPException(status_code=400, detail="Klijent nema PIB u fakturi. SEF zahteva PIB primaoca za B2B fakture.")
 
+    # Dedup: sprečiti duple slanje — proveri da li faktura već ima Sent/Approved status u sef_log
+    try:
+        dedup_r = await _db(lambda: supa.table("sef_log")
+                            .select("id,sef_status")
+                            .eq("user_id", uid)
+                            .eq("faktura_id", faktura_id)
+                            .in_("sef_status", ["Sent", "Approved"])
+                            .limit(1)
+                            .execute())
+        if dedup_r.data:
+            raise HTTPException(status_code=409, detail="Faktura je već poslata na SEF.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("[SEF] dedup provera greška: %s", e)
+
     # Generate UBL XML
     from sef_ubl import generiši_ubl_xml
     try:
@@ -402,6 +418,43 @@ async def sef_posalji(
         "broj_fakture": faktura.get("broj_fakture"),
         "xml_bytes":    len(xml_bytes),
         "poruka":       f"Faktura br. {faktura.get('broj_fakture')} je uspešno poslata na SEF. ID: {sef_id}",
+    }
+
+
+@router.get("/status/{faktura_id}")
+@limiter.limit("30/minute")
+async def get_sef_status(
+    faktura_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Dohvata poslednji SEF status za datu fakturu iz sef_log tabele."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    try:
+        log_r = await _db(lambda: supa.table("sef_log")
+                          .select("id,sef_id,sef_status,greska,poslato_at")
+                          .eq("user_id", uid)
+                          .eq("faktura_id", faktura_id)
+                          .order("poslato_at", desc=True)
+                          .limit(1)
+                          .maybe_single()
+                          .execute())
+    except Exception as e:
+        logger.warning("[SEF] status fetch greška: %s", e)
+        raise HTTPException(status_code=500, detail=f"DB greška: {e}")
+
+    if not log_r.data:
+        raise HTTPException(status_code=404, detail="Faktura nije poslata na SEF.")
+
+    log_row = log_r.data
+    return {
+        "faktura_id": faktura_id,
+        "sef_id":     log_row.get("sef_id"),
+        "sef_status": log_row.get("sef_status"),
+        "greska":     log_row.get("greska"),
+        "poslato_at": log_row.get("poslato_at"),
     }
 
 
