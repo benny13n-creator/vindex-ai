@@ -6,6 +6,7 @@ GET /api/outcome-intel/predmeti/{predmet_id}
 Analizira sve zatvorene predmete istog tipa i vraća statističke uvide.
 "U 82% uspešnih radnih sporova postojala je pisana komunikacija poslodavca."
 """
+import asyncio
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from shared.deps import _get_supa, get_current_user
@@ -39,18 +40,22 @@ async def get_outcome_intel(predmet_id: str, user=Depends(get_current_user)):
     uid  = user["user_id"]
 
     # Ownership + tekući predmet
-    pr = supa.table("predmeti").select(
-        "id,naziv,tip,status,opis"
-    ).eq("id", predmet_id).eq("user_id", uid).execute()
+    pr = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select(
+            "id,naziv,tip,status,opis"
+        ).eq("id", predmet_id).eq("user_id", uid).execute()
+    )
     if not pr.data:
         raise HTTPException(status_code=404)
     predmet = pr.data[0]
     tip = predmet.get("tip") or "ostalo"
 
     # Svi predmeti istog tipa
-    svi_r = supa.table("predmeti").select(
-        "id,naziv,tip,status,created_at,opis"
-    ).eq("user_id", uid).eq("tip", tip).execute()
+    svi_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select(
+            "id,naziv,tip,status,created_at,opis"
+        ).eq("user_id", uid).eq("tip", tip).execute()
+    )
     svi = svi_r.data or []
 
     if len(svi) <= 1:
@@ -92,9 +97,11 @@ async def get_outcome_intel(predmet_id: str, user=Depends(get_current_user)):
     if zatvoreni:
         try:
             zids = [p["id"] for p in zatvoreni[:30]]
-            hr = supa.table("predmet_hronologija").select(
-                "predmet_id,dogadjaj"
-            ).in_("predmet_id", zids).ilike("dogadjaj", "%zatvoren%").execute()
+            hr = await asyncio.to_thread(
+                lambda: supa.table("predmet_hronologija").select(
+                    "predmet_id,dogadjaj"
+                ).in_("predmet_id", zids).ilike("dogadjaj", "%zatvoren%").execute()
+            )
             for h in (hr.data or []):
                 pid = h.get("predmet_id","")
                 dog = h.get("dogadjaj","")
@@ -120,38 +127,53 @@ async def get_outcome_intel(predmet_id: str, user=Depends(get_current_user)):
     porazi = [p for p in zatvoreni if ishod_map.get(p["id"]) == "poraz"]
     win_rate = round(len(pobede) / max(1, len(pobede) + len(porazi)) * 100) if (pobede or porazi) else None
 
-    # ── Dokument korelacija po ishodu ────────────────────────────────────────
-    def _get_dok_tipovi(predmet_ids: list) -> dict:
-        pattern: dict = {}
-        for pid in predmet_ids[:15]:
-            try:
-                dk = supa.table("predmet_dokumenti").select("tip_dokaza").eq(
-                    "predmet_id", pid).is_("deleted_at","null").execute()
-                for d in (dk.data or []):
-                    t = d.get("tip_dokaza")
-                    if t:
-                        pattern[t] = pattern.get(t, 0) + 1
-            except Exception:
-                pass
-        return pattern
-
+    # ── Dokument korelacija po ishodu — batch upiti ───────────────────────────
     win_ids  = [p["id"] for p in pobede]
     lose_ids = [p["id"] for p in porazi]
     all_ids  = [p["id"] for p in zatvoreni]
 
-    win_docs  = _get_dok_tipovi(win_ids)
-    lose_docs = _get_dok_tipovi(lose_ids)
-    all_docs  = _get_dok_tipovi(all_ids)
-
-    # ── Billing prosek ────────────────────────────────────────────────────────
-    billing_avg = []
-    for zp in zatvoreni[:10]:
+    async def _get_dok_tipovi_batch(predmet_ids: list) -> dict:
+        if not predmet_ids:
+            return {}
+        pattern: dict = {}
         try:
-            be = supa.table("billing_entries").select("iznos").eq(
-                "predmet_id", zp["id"]).is_("deleted_at","null").execute()
-            total = sum(float(e.get("iznos",0)) for e in (be.data or []))
-            if total > 0:
-                billing_avg.append(total)
+            dk = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokumenti").select("predmet_id,tip_dokaza")
+                    .in_("predmet_id", predmet_ids[:15])
+                    .is_("deleted_at", "null")
+                    .execute()
+            )
+            for d in (dk.data or []):
+                t = d.get("tip_dokaza")
+                if t:
+                    pattern[t] = pattern.get(t, 0) + 1
+        except Exception:
+            pass
+        return pattern
+
+    win_docs, lose_docs, all_docs = await asyncio.gather(
+        _get_dok_tipovi_batch(win_ids),
+        _get_dok_tipovi_batch(lose_ids),
+        _get_dok_tipovi_batch(all_ids),
+        return_exceptions=False,
+    )
+
+    # ── Billing prosek — batch upit ───────────────────────────────────────────
+    billing_avg = []
+    billing_ids = [zp["id"] for zp in zatvoreni[:10]]
+    if billing_ids:
+        try:
+            be_all = await asyncio.to_thread(
+                lambda: supa.table("billing_entries").select("predmet_id,iznos")
+                    .in_("predmet_id", billing_ids)
+                    .is_("deleted_at", "null")
+                    .execute()
+            )
+            totals_by_pid: dict[str, float] = {}
+            for e in (be_all.data or []):
+                pid = e.get("predmet_id", "")
+                totals_by_pid[pid] = totals_by_pid.get(pid, 0.0) + float(e.get("iznos", 0))
+            billing_avg = [v for v in totals_by_pid.values() if v > 0]
         except Exception:
             pass
     avg_vrednost = int(sum(billing_avg) / len(billing_avg)) if billing_avg else 0

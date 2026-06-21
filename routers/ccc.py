@@ -5,10 +5,12 @@ Case Command Center — jedan API poziv koji agregira sve podatke predmeta.
 GET /api/ccc/predmeti/{predmet_id}
 Vraća: predmet, matter_intel, dokazi, rokovi, billing, aktivnosti, sudska_praksa
 """
+import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from shared.deps import _get_supa, get_current_user
+from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
 
 logger = logging.getLogger("vindex.ccc")
 router = APIRouter(prefix="/api/ccc", tags=["ccc"])
@@ -20,18 +22,46 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     uid  = user["user_id"]
 
     # ── Ownership check ─────────────────────────────────────────────────────
-    pr = supa.table("predmeti").select(
-        "id,naziv,tip,status,oblast,tuzilac,tuzeni,rizik,vrednost_spora,opis,created_at"
-    ).eq("id", predmet_id).eq("user_id", uid).execute()
+    pr = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select(
+            "id,naziv,tip,status,oblast,tuzilac,tuzeni,rizik,vrednost_spora,opis,created_at"
+        ).eq("id", predmet_id).eq("user_id", uid).execute()
+    )
     if not pr.data:
         raise HTTPException(status_code=404)
     predmet = pr.data[0]
 
+    # ── Svih 6 upita paralelno ───────────────────────────────────────────────
+    (
+        dokazi_r,
+        dok_count_r,
+        rok_r,
+        be_r,
+        hron_r,
+        kl_r,
+    ) = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
+            "snaga,kategorija"
+        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,tip_dokaza").eq(
+            "predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
+            "id,naziv,datum_isteka,status"
+        ).eq("predmet_id", predmet_id).order("datum_isteka").limit(10).execute()),
+        asyncio.to_thread(lambda: supa.table("billing_entries").select(
+            "iznos,obracunato"
+        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select(
+            "dogadjaj,akter,datum,vaznost"
+        ).eq("predmet_id", predmet_id).order("datum_iso", desc=True).limit(8).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_klijenti").select(
+            "uloga,klijenti(ime,prezime,firma)"
+        ).eq("predmet_id", predmet_id).limit(4).execute()),
+        return_exceptions=True,
+    )
+
     # ── Dokazi statistika ────────────────────────────────────────────────────
-    dokazi_r = supa.table("predmet_dokazi").select(
-        "snaga,kategorija"
-    ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()
-    dokazi = dokazi_r.data or []
+    dokazi = (dokazi_r.data if not isinstance(dokazi_r, Exception) else []) or []
     dok_stats = {"jaka": 0, "srednja": 0, "slaba": 0, "ukupno": len(dokazi)}
     for d in dokazi:
         s = d.get("snaga", "srednja")
@@ -39,21 +69,16 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
             dok_stats[s] += 1
 
     # ── Dokumenti broji ─────────────────────────────────────────────────────
-    dok_count_r = supa.table("predmet_dokumenti").select("id,tip_dokaza").eq(
-        "predmet_id", predmet_id).is_("deleted_at", "null").execute()
     tip_stat: dict = {}
-    for d in (dok_count_r.data or []):
-        t = d.get("tip_dokaza") or "neklafikovan"
+    for d in ((dok_count_r.data if not isinstance(dok_count_r, Exception) else []) or []):
+        t = d.get("tip_dokaza") or "neklasifikovan"
         tip_stat[t] = tip_stat.get(t, 0) + 1
 
-    # ── Rokovi (sledeći 60 dana) ─────────────────────────────────────────────
-    rok_r = supa.table("predmet_rokovi").select(
-        "id,naziv,datum_isteka,status"
-    ).eq("predmet_id", predmet_id).order("datum_isteka").limit(10).execute()
+    # ── Rokovi (sledeći 30 dana) ─────────────────────────────────────────────
     now = datetime.now(timezone.utc)
     rokovi_data = []
     predstojeći = 0
-    for r in (rok_r.data or []):
+    for r in ((rok_r.data if not isinstance(rok_r, Exception) else []) or []):
         dana = None
         try:
             dt_str = r.get("datum_isteka", "")
@@ -69,10 +94,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     # ── Billing summary ──────────────────────────────────────────────────────
     billing_data = {"uneseno": 0, "nenaplaceno": 0, "naplaceno": 0}
     try:
-        be_r = supa.table("billing_entries").select(
-            "iznos,obracunato"
-        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()
-        for e in (be_r.data or []):
+        for e in ((be_r.data if not isinstance(be_r, Exception) else []) or []):
             iznos = float(e.get("iznos") or 0)
             billing_data["uneseno"] += iznos
             if e.get("obracunato"):
@@ -82,18 +104,10 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     except Exception as exc:
         logger.debug("[CCC] billing greška: %s", exc)
 
-    # ── Tim aktivnosti (iz hronologije, posled. 8) ───────────────────────────
-    hron_r = supa.table("predmet_hronologija").select(
-        "dogadjaj,akter,datum,vaznost"
-    ).eq("predmet_id", predmet_id).order("datum_iso", desc=True).limit(8).execute()
-
     # ── Klijenti ─────────────────────────────────────────────────────────────
     klijenti = []
     try:
-        kl_r = supa.table("predmet_klijenti").select(
-            "uloga,klijenti(ime,prezime,firma)"
-        ).eq("predmet_id", predmet_id).limit(4).execute()
-        for k in (kl_r.data or []):
+        for k in ((kl_r.data if not isinstance(kl_r, Exception) else []) or []):
             ki = k.get("klijenti") or {}
             klijenti.append({
                 "uloga": k.get("uloga", ""),
@@ -104,19 +118,9 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         logger.debug("[CCC] klijenti greška: %s", exc)
 
     # ── Nedostajući dokumenti (za smart chips) ───────────────────────────────
-    _EXPECTED_DOCS: dict = {
-        "parnicno":     ["sudska_odluka","podnesak","ugovor","dopis"],
-        "krivicno":     ["sudska_odluka","podnesak","medicinska_dokumentacija","vestacki_nalaz"],
-        "radno":        ["ugovor","dopis","finansijska_dokumentacija","sudska_odluka"],
-        "upravno":      ["javna_isprava","podnesak","dopis","sudska_odluka"],
-        "porodicno":    ["javna_isprava","medicinska_dokumentacija","finansijska_dokumentacija","sudska_odluka"],
-        "nasledjivanje":["javna_isprava","ugovor","sudska_odluka","dopis"],
-        "privredno":    ["ugovor","finansijska_dokumentacija","dopis","sudska_odluka"],
-        "nepokretnosti":["javna_isprava","ugovor","sudska_odluka","dopis"],
-        "ostalo":       ["podnesak","dopis"],
-    }
     expected = _EXPECTED_DOCS.get(predmet.get("tip","ostalo"), _EXPECTED_DOCS["ostalo"])
-    postojeci_tipovi = {d.get("tip_dokaza") for d in (dok_count_r.data or []) if d.get("tip_dokaza")}
+    _dok_count_data = (dok_count_r.data if not isinstance(dok_count_r, Exception) else []) or []
+    postojeci_tipovi = {d.get("tip_dokaza") for d in _dok_count_data if d.get("tip_dokaza")}
     nedostajuci = [t for t in expected if t not in postojeci_tipovi]
 
     # Kritičan rok (najhitniji u narednih 7 dana)
@@ -138,7 +142,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         "rokovi":           rokovi_data,
         "predstojeći":      predstojeći,
         "billing":          billing_data,
-        "aktivnosti":       hron_r.data or [],
+        "aktivnosti":       (hron_r.data if not isinstance(hron_r, Exception) else []) or [],
         "health_score":     health_score,
         "nedostajuci":      nedostajuci,
         "kritican_rok":     kritican_rok,

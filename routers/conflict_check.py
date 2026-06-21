@@ -111,32 +111,41 @@ async def check_conflict(req: ConflictReq, user=Depends(get_current_user)):
     # ── SLOJ 2: Klijenti — ime, firma, email, PIB ────────────────────────────
     try:
         kl = supa.table("klijenti").select(
-            "id,ime,prezime,firma,email"
+            "id,ime,prezime,firma,email,pib"
         ).eq("user_id", uid).execute()
 
+        # Pronađi matching klijente (ime/firma/email/PIB)
+        matching_klijent_ids = []
+        matching_klijenti_map = {}
         for k in (kl.data or []):
             puno_ime = ((k.get("ime","") + " " + k.get("prezime","")).strip()).lower()
             firma_k  = (k.get("firma","") or "").lower()
             email_k  = (k.get("email","") or "").lower()
+            pib_k    = (k.get("pib","") or "").strip()
 
-            # Matching po imenu/firmi
             matched = any(t.lower() in puno_ime or t.lower() in firma_k for t in termini)
-            # Matching po emailu
             if req.email and req.email.lower() == email_k:
                 matched = True
+            if req.pib and req.pib.strip() and req.pib.strip() == pib_k:
+                matched = True
 
-            if not matched:
-                continue
+            if matched:
+                matching_klijent_ids.append(k["id"])
+                matching_klijenti_map[k["id"]] = k
 
-            kpr = supa.table("predmet_klijenti").select(
-                "predmet_id,uloga,predmeti(naziv,status,tip)"
-            ).eq("klijent_id", k["id"]).execute()
+        # Batch upit za sve matching klijente odjednom
+        if matching_klijent_ids:
+            kpr_all = supa.table("predmet_klijenti").select(
+                "klijent_id,predmet_id,uloga,predmeti(naziv,status,tip)"
+            ).in_("klijent_id", matching_klijent_ids).execute()
 
-            for kp in (kpr.data or []):
+            for kp in (kpr_all.data or []):
                 pp   = kp.get("predmeti") or {}
                 pid  = kp.get("predmet_id","")
+                kid  = kp.get("klijent_id","")
                 if pid in reviewed:
                     continue
+                k = matching_klijenti_map.get(kid, {})
                 uloga   = kp.get("uloga","")
                 display = (k.get("firma","").strip() or
                            (k.get("ime","")+" "+k.get("prezime","")).strip() or "?")

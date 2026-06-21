@@ -5,14 +5,16 @@ Voice Command Engine — glasovne komande za Vindex AI.
 Advokat govori → browser Web Speech API → POST /api/voice/command →
 GPT-4o-mini parsira intent → vraća action + params → frontend izvršava.
 """
+import asyncio
 import logging
 import json
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel, Field
 from typing import Optional
 
-from shared.deps import get_current_user as require_user
+from shared.deps import _get_supa, get_current_user as require_user
+from shared.rate import limiter
 
 logger = logging.getLogger("vindex.voice")
 router = APIRouter(prefix="/api/voice", tags=["voice"])
@@ -54,15 +56,20 @@ Pravila:
 Vrati SAMO JSON bez markdown fenci."""
 
 
+class VoiceCommandReq(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+
+
 @router.post("/command")
-async def voice_command(body: dict, user=Depends(require_user)):
+@limiter.limit("30/minute")
+async def voice_command(req: VoiceCommandReq, request: Request, user=Depends(require_user)):
     """
     Parsira glasovnu komandu i vraća akciju za frontend.
 
     Body: {"text": "otvori mi predmet Petrović i analiziraj ga"}
     Response: {"action": "navigate_predmet", "params": {"query": "Petrović"}, "followup": "analyze_predmet"}
     """
-    text = (body.get("text") or "").strip()
+    text = req.text.strip()
     if not text:
         return {"action": "unknown", "params": {"text": ""}, "followup": None}
 
@@ -110,13 +117,34 @@ async def voice_command(body: dict, user=Depends(require_user)):
 
 
 class VoiceFeedbackReq(BaseModel):
-    action:  str
-    uspeh:   bool
+    action:   str
+    uspeh:    bool
+    text:     Optional[str] = None
+    response: Optional[str] = None
     komentar: Optional[str] = None
 
 
 @router.post("/feedback")
 async def voice_feedback(req: VoiceFeedbackReq, user=Depends(require_user)):
     """Beleži da li je akcija bila ispravno interpretirana (za buduće poboljšanje)."""
-    logger.info("[VOICE_FB] user=%s action=%s uspeh=%s", user["user_id"][:8], req.action, req.uspeh)
+    uid = user["user_id"]
+    logger.info("[VOICE_FB] user=%s action=%s uspeh=%s", uid[:8], req.action, req.uspeh)
+    try:
+        supa = _get_supa()
+        await asyncio.to_thread(
+            lambda: supa.table("usage_events").insert({
+                "user_id": uid,
+                "feature": "voice",
+                "action":  "voice_feedback",
+                "meta": {
+                    "voice_action": req.action,
+                    "uspeh":        req.uspeh,
+                    "text":         req.text,
+                    "response":     req.response,
+                    "komentar":     req.komentar,
+                },
+            }).execute()
+        )
+    except Exception as exc:
+        logger.warning("[VOICE_FB] Greška pri čuvanju u usage_events: %s", exc)
     return {"ok": True}

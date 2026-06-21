@@ -5,24 +5,29 @@ Legal Knowledge Graph — mreža odnosa predmeta.
 Vraća nodes + edges za SVG vizualizaciju:
   Predmet ↔ Klijenti/Stranke ↔ Zakoni ↔ Presude ↔ Dokumenti ↔ Rokovi
 """
+import asyncio
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.deps import _get_supa, get_current_user
+from shared.rate import limiter
 
 logger = logging.getLogger("vindex.knowledge_graph")
 router = APIRouter(prefix="/api/knowledge-graph", tags=["knowledge_graph"])
 
 
 @router.get("/predmeti/{predmet_id}")
-async def get_knowledge_graph(predmet_id: str, user=Depends(get_current_user)):
+@limiter.limit("20/minute")
+async def get_knowledge_graph(predmet_id: str, request: Request, user=Depends(get_current_user)):
     """Vraća nodes i edges za Knowledge Graph predmeta."""
     supa = _get_supa()
     uid = user["user_id"]
 
     # Ownership check
-    pr = supa.table("predmeti").select(
-        "id,naziv,tip,status,oblast,tuzilac,tuzeni"
-    ).eq("id", predmet_id).eq("user_id", uid).execute()
+    pr = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select(
+            "id,naziv,tip,status,oblast,tuzilac,tuzeni"
+        ).eq("id", predmet_id).eq("user_id", uid).execute()
+    )
     if not pr.data:
         raise HTTPException(status_code=404)
     predmet = pr.data[0]
@@ -42,9 +47,11 @@ async def get_knowledge_graph(predmet_id: str, user=Depends(get_current_user)):
 
     # ── Klijenti (stranke) ────────────────────────────────────────────────────
     try:
-        pk = supa.table("predmet_klijenti").select(
-            "klijent_id,uloga,klijenti(ime,prezime,firma)"
-        ).eq("predmet_id", predmet_id).limit(8).execute()
+        pk = await asyncio.to_thread(
+            lambda: supa.table("predmet_klijenti").select(
+                "klijent_id,uloga,klijenti(ime,prezime,firma)"
+            ).eq("predmet_id", predmet_id).limit(8).execute()
+        )
         for r in (pk.data or []):
             k = r.get("klijenti") or {}
             ime = ((k.get("ime", "") + " " + k.get("prezime", "")).strip()
@@ -71,9 +78,11 @@ async def get_knowledge_graph(predmet_id: str, user=Depends(get_current_user)):
 
     # ── Dokumenti ─────────────────────────────────────────────────────────────
     try:
-        dok = supa.table("predmet_dokumenti").select(
-            "id,naziv_fajla,tip_dokaza"
-        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").limit(8).execute()
+        dok = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").select(
+                "id,naziv_fajla,tip_dokaza"
+            ).eq("predmet_id", predmet_id).is_("deleted_at", "null").limit(8).execute()
+        )
         for d in (dok.data or []):
             did = f"dok_{d['id']}"
             nodes.append({"id": did, "label": (d.get("naziv_fajla") or "Dokument")[:20],
@@ -86,9 +95,11 @@ async def get_knowledge_graph(predmet_id: str, user=Depends(get_current_user)):
 
     # ── Rokovi ────────────────────────────────────────────────────────────────
     try:
-        rok = supa.table("predmet_rokovi").select(
-            "id,naziv,datum_isteka,status"
-        ).eq("predmet_id", predmet_id).limit(5).execute()
+        rok = await asyncio.to_thread(
+            lambda: supa.table("predmet_rokovi").select(
+                "id,naziv,datum_isteka,status"
+            ).eq("predmet_id", predmet_id).limit(5).execute()
+        )
         for r in (rok.data or []):
             rid = f"rok_{r['id']}"
             nodes.append({"id": rid, "label": (r.get("naziv") or "Rok")[:18],
@@ -101,17 +112,19 @@ async def get_knowledge_graph(predmet_id: str, user=Depends(get_current_user)):
 
     # ── Sudska praksa iz hronologije (zakon reference) ────────────────────────
     try:
-        hron = supa.table("predmet_hronologija").select(
-            "dogadjaj,akter,vaznost"
-        ).eq("predmet_id", predmet_id).order("datum_iso").limit(6).execute()
+        hron = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija").select(
+                "dogadjaj,akter,vaznost"
+            ).eq("predmet_id", predmet_id).order("datum_iso").limit(6).execute()
+        )
         seen_akteri = set()
         for h in (hron.data or []):
             akter = (h.get("akter") or "").strip()
             if akter and akter not in seen_akteri:
                 seen_akteri.add(akter)
                 aid = f"akter_{akter[:15].replace(' ','_')}"
-                nodes.append({"id": aid, "label": akter[:20], "tip": "zakon",
-                              "color": "#ffcc50", "radius": 10,
+                nodes.append({"id": aid, "label": akter[:20], "tip": "akter",
+                              "color": "#a78bfa", "radius": 10,
                               "meta": {"vaznost": h.get("vaznost", "")}})
                 edges.append({"from": f"predmet_{predmet_id}", "to": aid,
                               "label": h.get("vaznost", ""), "strength": "normal"})

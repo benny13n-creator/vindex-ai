@@ -10,22 +10,10 @@ import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from shared.deps import _get_supa, get_current_user
+from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
 
 logger = logging.getLogger("vindex.matter_intel")
 router = APIRouter(prefix="/api/matter-intel", tags=["matter_intel"])
-
-# Očekivani tipovi dokaza po tipu spora
-_EXPECTED_DOCS: dict = {
-    "parnicno":     ["sudska_odluka", "podnesak", "ugovor", "dopis"],
-    "krivicno":     ["sudska_odluka", "podnesak", "medicinska_dokumentacija", "vestacki_nalaz"],
-    "radno":        ["ugovor", "dopis", "finansijska_dokumentacija", "sudska_odluka"],
-    "upravno":      ["javna_isprava", "podnesak", "dopis", "sudska_odluka"],
-    "porodicno":    ["javna_isprava", "medicinska_dokumentacija", "finansijska_dokumentacija", "sudska_odluka"],
-    "nasledjivanje":["javna_isprava", "ugovor", "sudska_odluka", "dopis"],
-    "privredno":    ["ugovor", "finansijska_dokumentacija", "dopis", "sudska_odluka"],
-    "nepokretnosti":["javna_isprava", "ugovor", "sudska_odluka", "dopis"],
-    "ostalo":       ["podnesak", "dopis"],
-}
 
 _INTEL_SYSTEM = """Ti si pravni asistent koji analizira stanje predmeta.
 

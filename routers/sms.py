@@ -247,44 +247,70 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
         if not profili:
             return {"poslato": 0, "greske": 0, "napomena": "Nema aktivnih SMS profila"}
 
-        # Rokovi u narednih 48h za sve korisnike koji imaju SMS
+        # Batch upit — svi rokovi u narednih 48h za sve korisnike odjednom
+        user_ids = list(profili.keys())
+        try:
+            svi_rokovi_r = await asyncio.to_thread(
+                lambda: supa.table("predmet_hronologija")
+                    .select("user_id,dogadjaj,datum_iso,predmet_id")
+                    .in_("user_id", user_ids)
+                    .eq("vaznost", "kritičan")
+                    .gte("datum_iso", today_s)
+                    .lte("datum_iso", in_48h)
+                    .execute()
+            )
+            svi_rokovi = svi_rokovi_r.data or []
+        except Exception as e:
+            logger.error("[SMS-CRON] Batch upit greška: %s", e)
+            svi_rokovi = []
+
+        # Grupiši po user_id
+        rokovi_po_korisniku: dict[str, list] = {}
+        for rok in svi_rokovi:
+            uid_r = rok.get("user_id", "")
+            if uid_r:
+                rokovi_po_korisniku.setdefault(uid_r, []).append(rok)
+
+        # Deduplication set — (user_id, predmet_id, datum_iso)
+        vec_poslato: set[tuple] = set()
+
         for uid, profil in profili.items():
-            try:
-                rokovi_r = await asyncio.to_thread(
-                    lambda uid=uid: supa.table("predmet_hronologija")
-                        .select("dogadjaj,datum_iso,predmet_id")
-                        .eq("user_id", uid)
-                        .eq("vaznost", "kritičan")
-                        .gte("datum_iso", today_s)
-                        .lte("datum_iso", in_48h)
-                        .execute()
-                )
-                rokovi = rokovi_r.data or []
-                if not rokovi:
+            rokovi = rokovi_po_korisniku.get(uid, [])
+            if not rokovi:
+                continue
+
+            telefon  = profil["telefon"]
+            whatsapp = profil.get("whatsapp", False)
+            to_num   = (f"whatsapp:{telefon}" if whatsapp else telefon)
+
+            for rok in rokovi:
+                datum_iso = rok.get("datum_iso", "")
+                datum_d   = datum_iso[:10]  # ispravljeno poređenje — poredi samo datum deo
+                predmet_id = rok.get("predmet_id", "")
+                dedupe_key = (uid, predmet_id, datum_d)
+
+                if dedupe_key in vec_poslato:
+                    logger.debug("[SMS-CRON] Preskačem duplikat: %s", dedupe_key)
                     continue
+                vec_poslato.add(dedupe_key)
 
-                telefon  = profil["telefon"]
-                whatsapp = profil.get("whatsapp", False)
-                to_num   = (f"whatsapp:{telefon}" if whatsapp else telefon)
-
-                for rok in rokovi:
-                    datum   = rok.get("datum_iso", "")
-                    dogadjaj = rok.get("dogadjaj", "Rok")
-                    hitnost  = "🔴 SUTRA" if datum == in_24h else "⚠ Za 2 dana"
-                    poruka = (
-                        f"Vindex AI — {hitnost}\n"
-                        f"ROK: {dogadjaj}\n"
-                        f"Datum: {datum}\n"
-                        "Prijavite se na Vindex AI za detalje."
-                    )
+                dogadjaj = rok.get("dogadjaj", "Rok")
+                hitnost  = "SUTRA" if datum_d == in_24h else "Za 2 dana"
+                poruka = (
+                    f"Vindex AI — {hitnost}\n"
+                    f"ROK: {dogadjaj}\n"
+                    f"Datum: {datum_d}\n"
+                    "Prijavite se na Vindex AI za detalje."
+                )
+                try:
                     ok = await asyncio.to_thread(_send_sms, to_num, poruka)
                     if ok:
                         poslato += 1
                     else:
                         greske += 1
-            except Exception as e:
-                logger.error("[SMS-CRON] Greška za korisnika %s: %s", uid[:8], e)
-                greske += 1
+                except Exception as e:
+                    logger.error("[SMS-CRON] Greška za korisnika %s: %s", uid[:8], e)
+                    greske += 1
 
     except Exception as exc:
         logger.error("[SMS-CRON] Fatalna greška: %s", exc)

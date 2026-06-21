@@ -10,7 +10,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from shared.deps import _get_supa, get_current_user
+from shared.deps import _get_supa, get_current_user, _deduct_credit, _is_founder
 
 logger = logging.getLogger("vindex.multi_agent")
 router = APIRouter(prefix="/api/agents", tags=["agents"])
@@ -394,6 +394,12 @@ async def run_agent(req: AgentReq, user=Depends(get_current_user)):
     except Exception as exc:
         logger.error("[AGENT] GPT greška: %s", exc)
         raise HTTPException(status_code=503, detail="AI servis trenutno nedostupan.")
+
+    # ── Credit deduction (founder bypass) ────────────────────────────────────
+    import asyncio as _aio2
+    email = user.get("email", "")
+    if not _is_founder(email):
+        await _aio2.to_thread(_deduct_credit, uid, email)
 
     logger.info("[AGENT] user=%s agent=%s predmet=%s rag=%s", uid[:8], agent_id, req.predmet_id or "-", bool(rag_ctx))
 

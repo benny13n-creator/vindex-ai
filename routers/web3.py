@@ -264,10 +264,6 @@ JSON SCHEMA:
       "faktori_protiv": ["string"]
     }
   ],
-  // Sortirano po prioritetu definisanom iznad (centralizacija → izmena parametara → mint → upravljanje → zaključavanje → odsustvo zaštite)
-  // PRAVILO za lock period BEZ emergency withdraw: OBAVEZNO uključi:
-  // {"rizik": "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim okolnostima.", "ozbiljnost": "VISOK",
-  //  "obrazlozenje": "Korisnička sredstva su zaključana do isteka perioda bez mogućnosti ranijeg povlačenja, čak ni u slučaju kompromitacije ključa ili nestanka administratora."}
   "pravni_rizici": [
     {
       "rizik": "string (jasna rečenica — pravna posledica, ne opis koda)",
@@ -289,9 +285,6 @@ JSON SCHEMA:
       "obrazlozenje": "string"
     }
   ],
-  // OBAVEZNO POLJE — nikad prazan niz [].
-  // Ako kod nema eksplicitnih off-chain zavisnosti, vrati TAČNO ovaj objekat:
-  // {"zavisnost": "Nema identifikovanih eksplicitnih off-chain zavisnosti u dostavljenom kodu", "napomena": "Stvarna primena (frontend, deployment proces, upravljanje privatnim ključevima) može uvesti dodatne zavisnosti koje nisu predmet ove analize."}
   "offchain_zavisnosti": [
     {
       "zavisnost": "string",
@@ -418,12 +411,16 @@ async def post_analiziraj_ugovor(
                     "credits_remaining": credits,
                 },
             )
+        # Deduciraj kredite PRE GPT poziva (isti pattern kao u /api/pitanje)
+        preostalo = await asyncio.to_thread(_deduct_n_credits, user["user_id"], email, 5)
+    else:
+        preostalo = 9999
 
-    solidity_version     = await asyncio.to_thread(_sc_extract_version, source)
-    contract_name        = await asyncio.to_thread(_sc_extract_name, source)
-    is_proxy_detected    = await asyncio.to_thread(_sc_detect_proxy, source)
-    is_lock_without_exit  = await asyncio.to_thread(_sc_detect_lock_without_exit, source)
-    is_unrestricted_mint  = await asyncio.to_thread(_sc_detect_unrestricted_mint, source)
+    solidity_version  = _sc_extract_version(source)
+    contract_name     = _sc_extract_name(source)
+    is_proxy_detected = _sc_detect_proxy(source)
+    is_lock_without_exit = _sc_detect_lock_without_exit(source)
+    is_unrestricted_mint = _sc_detect_unrestricted_mint(source)
 
     asyncio.create_task(_audit(user["user_id"], "smart_contract_analiza", ""))
 
@@ -563,8 +560,6 @@ async def post_analiziraj_ugovor(
         await asyncio.to_thread(_save)
     except Exception:
         logger.exception("[F12] Greška pri čuvanju analize u Supabase — nastavljam")
-
-    preostalo = await asyncio.to_thread(_deduct_n_credits, user["user_id"], email, 5)
 
     return {
         "modul":             "smart_contract",

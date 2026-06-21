@@ -502,7 +502,7 @@ async def pi_timeline(
         .select("user_id,feature,created_at")
         .gte("created_at", since)
         .order("created_at")
-        .limit(200000)
+        .limit(5000)
         .execute())
 
     events = _safe(r)
@@ -579,9 +579,6 @@ async def pi_plans(
         mrr_eur += _PLAN_PRICE_EUR.get(pt, 0) * seats * mult
 
     # Free users = profiles not in korisnik_plan
-    plan_uids = set()
-    if not isinstance(plans_r, Exception):
-        plan_uids = {p.get("user_id", "") for p in (plans_r.data or []) if p.get("user_id")}
     total_profiles = len(profiles)
     dist["free"] = max(0, total_profiles - sum(dist[k] for k in ["advokat", "pro", "firma"]))
 
