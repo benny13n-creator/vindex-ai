@@ -104,6 +104,7 @@ class CopilotReq(BaseModel):
     poruka: str = Field(..., min_length=3, max_length=4000)
     predmet_id: Optional[str] = None
     session_id: Optional[str] = None
+    history: list[dict] = Field(default_factory=list, max_length=5)
 
 
 async def _detect_intent(poruka: str) -> str:
@@ -145,15 +146,14 @@ async def _load_predmet_context(predmet_id: str, user_id: str) -> str:
     return ""
 
 
-async def _handle_pravno_pitanje(poruka: str, predmet_ctx: str, user: dict) -> dict:
-    """Poziva RAG zakon pipeline direktno."""
-    from app.services.retrieve import retrieve_documents
+async def _handle_pravno_pitanje(poruka: str, predmet_ctx: str, user: dict, history: list | None = None) -> dict:
+    """Poziva RAG zakon pipeline direktno. ask_agent interno radi retrieve — ne pre-fetchujemo."""
     from main import ask_agent as _ask
     try:
         q = f"{predmet_ctx}\n\n{poruka}".strip() if predmet_ctx else poruka
-        chunks = await asyncio.to_thread(retrieve_documents, q, 5)
-        odgovor = await asyncio.to_thread(_ask, q, chunks)
-        return {"tip": "PRAVNO_PITANJE", "odgovor": odgovor, "chunks": len(chunks)}
+        rezultat = await asyncio.to_thread(_ask, q, history or None)
+        odgovor = rezultat.get("data", "") if isinstance(rezultat, dict) else str(rezultat)
+        return {"tip": "PRAVNO_PITANJE", "odgovor": odgovor}
     except Exception as e:
         logger.error("[COPILOT] pravno_pitanje greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri pravnom istraživanju.")
@@ -883,16 +883,17 @@ async def copilot_chat(
     intent = await _detect_intent(req.poruka)
     logger.info("[COPILOT] uid=%.8s intent=%s predmet=%s", uid, intent, req.predmet_id or "-")
 
+    _hist = (req.history or [])[-5:]
     handlers = {
-        "PRAVNO_PITANJE":   lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
+        "PRAVNO_PITANJE":   lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist),
         "SUDSKA_PRAKSA":    lambda: _handle_sudska_praksa(req.poruka),
         "NACRT":            lambda: _handle_nacrt(req.poruka, predmet_ctx, user),
-        "ANALIZA_PREDMETA": lambda: _handle_analiza_predmeta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
-        "PLAN":             lambda: _handle_plan_predmeta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
+        "ANALIZA_PREDMETA": lambda: _handle_analiza_predmeta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist),
+        "PLAN":             lambda: _handle_plan_predmeta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist),
         "DODAJ_ROK":        lambda: _handle_akcija_rok(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
         "KREIRAJ_BELEŠKU":  lambda: _handle_akcija_beleska(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
         "POVEZI_KLIJENTA":  lambda: _handle_akcija_povezi_klijenta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
-        "ROKOVI":           lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user),
+        "ROKOVI":           lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist),
         "PRETRAGA":         lambda: _handle_pretraga(req.poruka, uid),
         "PREDLOZI":         lambda: _handle_predlozi(req.predmet_id, uid),
         "NAPLATI_RADNJU":   lambda: _handle_naplati_radnju(req.poruka, req.predmet_id, uid),

@@ -43,9 +43,12 @@ async def command_center(
     ago_30_iso = (today - timedelta(days=30)).isoformat()
     ago_24h    = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 
-    # ── 7 parallel batch queries ──────────────────────────────────────────────
+    in_90_iso = (today + timedelta(days=90)).isoformat()
+
+    # ── 9 parallel batch queries ──────────────────────────────────────────────
     (predmeti_r, rocista_r, rokovi_r, risk_r,
-     beleske_r, dokumenti_r, ist_recent_r) = await asyncio.gather(
+     beleske_r, dokumenti_r, ist_recent_r,
+     fakture_r, rocista_buduci_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,naziv,tip,status,updated_at")
             .eq("user_id", uid)
@@ -88,6 +91,19 @@ async def command_center(
             .eq("user_id", uid)
             .gte("created_at", ago_30_iso)
             .execute()),
+        asyncio.to_thread(lambda: supa.table("fakture")
+            .select("iznos_sa_pdv,status")
+            .eq("user_id", uid)
+            .in_("status", ["nacrt", "izdata"])
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("rocista")
+            .select("predmet_id,datum")
+            .eq("user_id", uid)
+            .eq("status", "zakazano")
+            .gte("datum", today_iso)
+            .lte("datum", in_90_iso)
+            .order("datum")
+            .execute()),
         return_exceptions=True,
     )
 
@@ -101,10 +117,41 @@ async def command_center(
     aktivni    = [p for p in predmeti if p.get("status") not in ("zatvoren", "arhiviran", "odbijen")]
     aktivni_count = len(aktivni)
 
-    # Top 5 aktivnih predmeta za KC panel (sortiran po updated_at)
+    # Neplaćene fakture (nacrt + izdata)
+    neplaceno_fakture_rsd = sum(
+        float(f.get("iznos_sa_pdv") or 0)
+        for f in _safe(fakture_r)
+    )
+
+    # Najranije nadolazeće ročište po predmetu (za sorting top_aktivni)
+    earliest_rociste: dict[str, str] = {}
+    for r in _safe(rocista_buduci_r):
+        pid = r.get("predmet_id")
+        d = r.get("datum") or "9999-12-31"
+        if pid and d < earliest_rociste.get(pid, "9999-12-31"):
+            earliest_rociste[pid] = d
+
+    # Top 5 aktivnih — primarno po najranijem budućem ročištu, sekundarno po updated_at
+    def _sort_key_aktivni(p: dict) -> tuple:
+        has_rociste = p["id"] in earliest_rociste
+        return (
+            0 if has_rociste else 1,
+            earliest_rociste.get(p["id"], "9999-12-31"),
+            -(p.get("updated_at") or ""),
+        )
+
     top_aktivni_predmeti = [
-        {"id": p["id"], "naziv": p.get("naziv", "—"), "status": p.get("status", "—"), "tip": p.get("tip", "")}
-        for p in sorted(aktivni, key=lambda p: p.get("updated_at") or "", reverse=True)[:5]
+        {
+            "id":              p["id"],
+            "naziv":           p.get("naziv", "—"),
+            "status":          p.get("status", "—"),
+            "tip":             p.get("tip", ""),
+            "sledece_rociste": earliest_rociste.get(p["id"]),
+        }
+        for p in sorted(aktivni, key=lambda p: (
+            0 if p["id"] in earliest_rociste else 1,
+            earliest_rociste.get(p["id"], "9999-12-31"),
+        ))[:5]
     ]
 
     # 1. Danasnja ročišta
@@ -226,19 +273,21 @@ async def command_center(
         "summary":           summary,
         # New OS fields
         "danasnja_rocista":     danasnja_rocista,
-        "predmeti_visok_rizik": predmeti_visok_rizik,
-        "pad_procene":          pad_procene,
-        "novi_dokumenti":       novi_dokumenti,
-        "ai_preporuke":         preporuke,
-        "top_aktivni_predmeti": top_aktivni_predmeti,
+        "predmeti_visok_rizik":   predmeti_visok_rizik,
+        "pad_procene":            pad_procene,
+        "novi_dokumenti":         novi_dokumenti,
+        "ai_preporuke":           preporuke,
+        "top_aktivni_predmeti":   top_aktivni_predmeti,
+        "neplaceno_fakture_rsd":  neplaceno_fakture_rsd,
         "statistike": {
-            "ukupno_aktivnih":      aktivni_count,
-            "danasnja_rocista":     len(danasnja_rocista),
-            "hitni_rokovi":         len(hitni_rokovi),
-            "predmeti_visok_rizik": len(predmeti_visok_rizik),
-            "pad_procene":          len(pad_procene),
-            "novi_dokumenti":       len(novi_dokumenti),
-            "neaktivni":            len(neaktivni_predmeti),
+            "ukupno_aktivnih":        aktivni_count,
+            "danasnja_rocista":       len(danasnja_rocista),
+            "hitni_rokovi":           len(hitni_rokovi),
+            "predmeti_visok_rizik":   len(predmeti_visok_rizik),
+            "pad_procene":            len(pad_procene),
+            "novi_dokumenti":         len(novi_dokumenti),
+            "neaktivni":              len(neaktivni_predmeti),
+            "neplaceno_fakture_rsd":  neplaceno_fakture_rsd,
         },
     }
 

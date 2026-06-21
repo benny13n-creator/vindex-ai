@@ -144,6 +144,138 @@ _TIPOVI: dict[str, dict] = {
             },
         ],
     },
+    # ── ZKP — Zakonik o krivičnom postupku ───────────────────────────────────
+    "zkp_dostava_presude": {
+        "naziv": "Dostava krivične presude (ZKP)",
+        "opis":  "Datum prijema presude krivičnog suda od strane stranke ili branioca",
+        "rokovi": [
+            {
+                "naziv":          "Rok za žalbu na presudu",
+                "opis":           "Rok za izjavljivanje žalbe na presudu prvostepenog krivičnog suda",
+                "zakonski_osnov": "ZKP čl. 443",
+                "dana":           15,
+                "vaznost":        "kritican",
+                "tip_roka":       "zkp_zalba_presuda",
+            },
+        ],
+    },
+    "zkp_dostava_resenja": {
+        "naziv": "Dostava rešenja u krivičnom postupku (ZKP)",
+        "opis":  "Datum prijema rešenja donetog u toku krivičnog postupka",
+        "rokovi": [
+            {
+                "naziv":          "Rok za žalbu na rešenje",
+                "opis":           "Rok za izjavljivanje žalbe na rešenje u krivičnom postupku",
+                "zakonski_osnov": "ZKP čl. 448",
+                "dana":           8,
+                "vaznost":        "kritican",
+                "tip_roka":       "zkp_zalba_resenje",
+            },
+        ],
+    },
+    "zkp_pravosnaznost_presude": {
+        "naziv": "Pravosnažnost krivične presude (ZKP)",
+        "opis":  "Datum pravosnažnosti krivične presude — polazni datum za zahtev za zaštitu zakonitosti",
+        "rokovi": [
+            {
+                "naziv":          "Rok za zahtev za zaštitu zakonitosti",
+                "opis":           "Rok za podnošenje zahteva za zaštitu zakonitosti Vrhovnom kasacionom sudu",
+                "zakonski_osnov": "ZKP čl. 484",
+                "dana":           30,
+                "vaznost":        "kritican",
+                "tip_roka":       "zkp_zahtev_zastita_zakonitosti",
+            },
+        ],
+    },
+    # ── Zakon o radu ─────────────────────────────────────────────────────────
+    "zr_dostava_resenja_otkaz": {
+        "naziv": "Dostava rešenja o otkazu ugovora o radu (ZR)",
+        "opis":  "Datum kada je zaposleni primio rešenje o otkazu ugovora o radu",
+        "rokovi": [
+            {
+                "naziv":          "Rok za žalbu na rešenje o otkazu",
+                "opis":           "Rok zaposlenog za izjavljivanje žalbe poslodavcu na rešenje o otkazu",
+                "zakonski_osnov": "ZR čl. 185",
+                "dana":           8,
+                "vaznost":        "kritican",
+                "tip_roka":       "zr_zalba_resenje_otkaz",
+            },
+            {
+                "naziv":          "Rok za tužbu zbog nezakonitog otkaza",
+                "opis":           "Rok zaposlenog za podnošenje tužbe sudu zbog nezakonitog otkaza (od dana saznanja)",
+                "zakonski_osnov": "ZR čl. 195",
+                "dana":           90,
+                "vaznost":        "kritican",
+                "tip_roka":       "zr_tuzba_otkaz",
+            },
+        ],
+    },
+    # ── Zakon o opštem upravnom postupku / Zakon o upravnim sporovima ────────
+    "zup_dostava_prvostepenog_resenja": {
+        "naziv": "Dostava prvostepenog upravnog rešenja (ZUP)",
+        "opis":  "Datum kada je stranka primila prvostepeno rešenje organa uprave",
+        "rokovi": [
+            {
+                "naziv":          "Rok za žalbu na prvostepeno rešenje",
+                "opis":           "Rok za izjavljivanje žalbe drugostepenom organu na prvostepeno rešenje",
+                "zakonski_osnov": "ZUP čl. 224",
+                "dana":           15,
+                "vaznost":        "kritican",
+                "tip_roka":       "zup_zalba_prvostepeno",
+            },
+        ],
+    },
+    "zup_dostava_konacnog_resenja": {
+        "naziv": "Dostava konačnog upravnog rešenja (ZUS)",
+        "opis":  "Datum kada je stranka primila konačno rešenje organa uprave (prvostepeno bez žalbe ili drugostepeno)",
+        "rokovi": [
+            {
+                "naziv":          "Rok za tužbu Upravnom sudu",
+                "opis":           "Rok za podnošenje tužbe Upravnom sudu radi pokretanja upravnog spora",
+                "zakonski_osnov": "ZUS čl. 18",
+                "dana":           30,
+                "vaznost":        "kritican",
+                "tip_roka":       "zup_tuzba_upravni_sud",
+            },
+        ],
+    },
+    "zup_cutanje_uprave": {
+        "naziv": "Ćutanje uprave — protok roka za donošenje rešenja (ZUP)",
+        "opis":  "Datum podnošenja zahteva od koga se računa rok za ćutanje uprave",
+        "rokovi": [
+            {
+                "naziv":          "Rok za prigovor zbog ćutanja uprave",
+                "opis":           "Ako prvostepeni organ nije doneo rešenje u roku od 60 dana, stranka može izjaviti žalbu",
+                "zakonski_osnov": "ZUP čl. 226",
+                "dana":           60,
+                "vaznost":        "vazno",
+                "tip_roka":       "zup_prigovor_cutanje",
+            },
+        ],
+    },
+    # ── Zakon o izvršenju i obezbeđenju ──────────────────────────────────────
+    "zio_dostava_resenja_o_izvrsenju": {
+        "naziv": "Dostava rešenja o izvršenju (ZIO)",
+        "opis":  "Datum kada je izvršni dužnik primio rešenje o izvršenju",
+        "rokovi": [
+            {
+                "naziv":          "Rok za prigovor na rešenje o izvršenju",
+                "opis":           "Rok izvršnog dužnika za podnošenje prigovora na rešenje o izvršenju",
+                "zakonski_osnov": "ZIO čl. 74",
+                "dana":           8,
+                "vaznost":        "kritican",
+                "tip_roka":       "zio_prigovor_resenje",
+            },
+            {
+                "naziv":          "Rok za žalbu na rešenje o izvršenju",
+                "opis":           "Rok za izjavljivanje žalbe na rešenje o izvršenju (ako prigovor nije dozvoljen)",
+                "zakonski_osnov": "ZIO čl. 25",
+                "dana":           15,
+                "vaznost":        "kritican",
+                "tip_roka":       "zio_zalba_resenje",
+            },
+        ],
+    },
 }
 
 _VALID_TIPOVI = frozenset(_TIPOVI)
@@ -170,10 +302,43 @@ def _parse_date(raw: str) -> date:
     return date.fromisoformat(raw)
 
 
+# Državni praznici Srbije (fiksni) — mesec/dan
+_PRAZNICI_FIKSNI: set[tuple[int, int]] = {
+    (1, 1), (1, 2),   # Nova godina
+    (1, 7),            # Božić
+    (2, 15), (2, 16),  # Dan državnosti
+    (5, 1), (5, 2),    # Praznik rada
+    (11, 11),          # Dan primirja
+}
+
+# Pokretni praznici 2025–2027 (pravoslavni Uskrs)
+_PRAZNICI_POKRETNI: set[date] = {
+    date(2025, 4, 18), date(2025, 4, 19), date(2025, 4, 20), date(2025, 4, 21),
+    date(2026, 4, 10), date(2026, 4, 11), date(2026, 4, 12), date(2026, 4, 13),
+    date(2027, 4, 30), date(2027, 5, 1),  date(2027, 5, 2),  date(2027, 5, 3),
+}
+
+
+def _je_neradan(d: date) -> bool:
+    if d.weekday() >= 5:
+        return True
+    if (d.month, d.day) in _PRAZNICI_FIKSNI:
+        return True
+    return d in _PRAZNICI_POKRETNI
+
+
+def _adjust_for_weekend_holiday(datum: date) -> date:
+    """Pomera procesni rok na sledeći radni dan ako pada na vikend ili praznik."""
+    while _je_neradan(datum):
+        datum += timedelta(days=1)
+    return datum
+
+
 def _build_lanac(tip: str, datum_pocetka: date) -> list[dict]:
     items = []
     for rok in _TIPOVI[tip]["rokovi"]:
-        target = datum_pocetka + timedelta(days=rok["dana"])
+        raw_target = datum_pocetka + timedelta(days=rok["dana"])
+        target = _adjust_for_weekend_holiday(raw_target)
         items.append({
             "naziv":          rok["naziv"],
             "opis":           rok["opis"],

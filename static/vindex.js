@@ -6896,6 +6896,7 @@ async function kalkulisiZastarelost() {
 var activePredmetId   = null;
 var activePredmetNaziv = '';
 var _predmeti         = [];
+var _copilotHistory   = [];  // last 5 copilot exchanges {q, a} for multi-turn context
 var _predIstorijaData = [];
 var _dashboardData    = {};   // predmet_id → {rizik_nivo, urgentni_rokovi_count, sledeci_rok}
 var _predSort         = 'svi';
@@ -7255,6 +7256,7 @@ function aicOtvoriPredmet(subtab) {
 function pred_select(id) {
   var predmetObj = _predmeti.find(function(p){ return p.id === id; }) || null;
   var naziv = predmetObj ? predmetObj.naziv : '';
+  if (id !== activePredmetId) _copilotHistory = [];
   activePredmetId    = id;
   activePredmetNaziv = naziv;
   pred_renderList();
@@ -8359,11 +8361,20 @@ async function pred_copilotSubmit() {
     var r = await fetch(BASE_URL+'/copilot/chat', {
       method: 'POST',
       headers: _predAuthHdr(),
-      body: JSON.stringify({ poruka: poruka, predmet_id: activePredmetId }),
+      body: JSON.stringify({
+        poruka:     poruka,
+        predmet_id: activePredmetId,
+        history:    _copilotHistory.slice(-5),
+      }),
     });
     var d = await r.json();
     if (loadingMsg) loadingMsg.remove();
     copilot_renderResponse(d);
+    var odgovor = d.odgovor || d.poruka || '';
+    if (odgovor) {
+      _copilotHistory.push({ q: poruka, a: odgovor });
+      if (_copilotHistory.length > 5) _copilotHistory.shift();
+    }
   } catch(e) {
     if (loadingMsg) loadingMsg.remove();
     copilot_appendMsg('bot', '<span style="color:#ff9090;">Greška pri slanju. Proverite konekciju.</span>');

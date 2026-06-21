@@ -195,6 +195,37 @@ LAW_HINTS = {
     "vasp":                       "zakon o digitalnoj imovini",
     "casp":                       "zakon o digitalnoj imovini",
     "mica":                       "zakon o digitalnoj imovini",
+    # ZBSN — Zakon o bezbednosti saobraćaja na putevima
+    "saobracaj":                  "zakon o bezbednosti saobracaja na putevima",
+    "saobracajna nesreca":        "zakon o bezbednosti saobracaja na putevima",
+    "saobracajna kazna":          "zakon o bezbednosti saobracaja na putevima",
+    "oduzimanje vozacke":         "zakon o bezbednosti saobracaja na putevima",
+    "prekrsaj u saobracaju":      "zakon o bezbednosti saobracaja na putevima",
+    "brzina vozila":              "zakon o bezbednosti saobracaja na putevima",
+    "alkohol za volanom":         "zakon o bezbednosti saobracaja na putevima",
+    "zbsn":                       "zakon o bezbednosti saobracaja na putevima",
+    # ZDF — Zakon o deviznom poslovanju
+    "devizno":                    "zakon o deviznom poslovanju",
+    "devizna":                    "zakon o deviznom poslovanju",
+    "devizni racun":              "zakon o deviznom poslovanju",
+    "konverzija valute":          "zakon o deviznom poslovanju",
+    "transfer novca u inostranstvo": "zakon o deviznom poslovanju",
+    "platni promet sa inostranstvom": "zakon o deviznom poslovanju",
+    "zdf":                        "zakon o deviznom poslovanju",
+    # ZRDS — Zakon o strancima / Zakon o zapošljavanju stranaca
+    "radna dozvola":              "zakon o zaposljavanju stranaca",
+    "dozvola boravka":            "zakon o strancima",
+    "viza":                       "zakon o strancima",
+    "azil":                       "zakon o azilu",
+    "stranac":                    "zakon o strancima",
+    "boraviste stranac":          "zakon o strancima",
+    "zrds":                       "zakon o zaposljavanju stranaca",
+    # ZPPI — Zakon o pristupu informacijama od javnog značaja
+    "pristup informacijam":       "zakon o pristupu informacijama od javnog znacaja",
+    "informacija od javnog znacaja": "zakon o pristupu informacijama od javnog znacaja",
+    "zahtev za informacije":      "zakon o pristupu informacijama od javnog znacaja",
+    "poverenik za informacije":   "zakon o pristupu informacijama od javnog znacaja",
+    "zppi":                       "zakon o pristupu informacijama od javnog znacaja",
 }
 
 STOPWORDS = {

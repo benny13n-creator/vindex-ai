@@ -64,25 +64,29 @@ async def _call_ekstrakcija(opis: str, nalazi: list) -> dict:
 
     user_msg = "\n".join(context_parts)
 
-    try:
-        r = await oai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": _EKSTRAKCIJA_SYSTEM},
-                {"role": "user",   "content": user_msg[:3000]},
-            ],
-            temperature=0.2,
-            max_tokens=600,
-            response_format={"type": "json_object"},
-        )
-        raw = (r.choices[0].message.content or "{}").strip()
-        return json.loads(raw)
-    except json.JSONDecodeError as e:
-        logger.error("[INTAKE] JSON parse greška: %s", e)
-        raise HTTPException(status_code=502, detail="AI ekstrakcija vratila neispravan odgovor.")
-    except Exception as e:
-        logger.error("[INTAKE] OpenAI greška: %s", e)
-        raise HTTPException(status_code=502, detail="AI ekstrakcija trenutno nedostupna.")
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            r = await oai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": _EKSTRAKCIJA_SYSTEM},
+                    {"role": "user",   "content": user_msg[:3000]},
+                ],
+                temperature=0.2,
+                max_tokens=600,
+                response_format={"type": "json_object"},
+            )
+            raw = (r.choices[0].message.content or "{}").strip()
+            return json.loads(raw)
+        except json.JSONDecodeError as e:
+            logger.warning("[INTAKE] JSON parse greška (pokušaj %d/3): %s", attempt + 1, e)
+            last_exc = e
+        except Exception as e:
+            logger.error("[INTAKE] OpenAI greška: %s", e)
+            raise HTTPException(status_code=502, detail="AI ekstrakcija trenutno nedostupna.")
+    logger.error("[INTAKE] JSON parse greška posle 3 pokušaja: %s", last_exc)
+    raise HTTPException(status_code=422, detail="AI ekstrakcija nije mogla da parsira odgovor. Pokušajte ponovo ili unesite podatke ručno.")
 
 
 class EkstrakcijReq(BaseModel):

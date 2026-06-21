@@ -570,7 +570,9 @@ PRAVILA:
 1. Koristi formalni pravni stil i srpsku pravnu terminologiju.
 2. Uvek piši sa srpskim dijakritičkim znacima (č, ć, ž, š, đ).
 3. Nacrt mora biti u skladu sa važećim srpskim zakonodavstvom.
-4. Ne izmišljaj činjenice koje nisu navedene u pitanju."""
+4. Ne izmišljaj činjenice koje nisu navedene u pitanju.
+5. OBAVEZNO navedi zakonski osnov (zakon i član) za svaku ključnu odredbu nacrta. Ako nisi siguran koji tačno član se primenjuje, označi sa [PROVERITI ČLAN] — ne izostavljaj referencu.
+6. Svaki navod zakona koji nije potvrđen iz dostavljenog konteksta, ali ga dodaješ iz opšteg znanja, mora biti praćen oznakom [PROVERITI ČLAN]."""
 
 SYSTEM_PROMPT_ANALIZA = """Ti si iskusan pravni saradnik za advokate u Srbiji.
 Analiziraš pravne dokumente, predmete i situacije.

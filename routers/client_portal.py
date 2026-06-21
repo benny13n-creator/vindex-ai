@@ -33,7 +33,7 @@ import hmac
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
@@ -290,7 +290,7 @@ async def client_portal_view(
         raise HTTPException(status_code=503, detail="Portal privremeno nedostupan. Pokušajte ponovo.")
 
     # Dohvati predmet, hronologiju i ročišta paralelno
-    predmet_r, hron_r, roc_r = await asyncio.gather(
+    predmet_r, hron_r, roc_r, rokovi_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmeti")
                 .select("naziv, opis, tip, status, created_at")
@@ -317,6 +317,18 @@ async def client_portal_view(
                 .limit(20)
                 .execute()
         ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija")
+                .select("dogadjaj, datum_iso, vaznost, tip_roka")
+                .eq("predmet_id", predmet_id)
+                .eq("user_id", advokat_uid)
+                .gte("datum_iso", date.today().isoformat())
+                .lte("datum_iso", (date.today() + timedelta(days=30)).isoformat())
+                .in_("vaznost", ["kritican", "vazno"])
+                .order("datum_iso", desc=False)
+                .limit(10)
+                .execute()
+        ),
     )
 
     predmet = predmet_r.data if predmet_r else None
@@ -336,6 +348,8 @@ async def client_portal_view(
     # Buduca ročišta (status=zakazano) i prošla (status=odrzano) — sve sem otkazanih
     roc_vidljiva = [r for r in roc_raw if r.get("status") != "otkazano"]
 
+    kriticni_rokovi = rokovi_r.data if rokovi_r else []
+
     return {
         "predmet": {
             "naziv":      predmet.get("naziv"),
@@ -344,8 +358,9 @@ async def client_portal_view(
             "status":     predmet.get("status"),
             "kreiran":    predmet.get("created_at"),
         },
-        "hronologija": hron_filtered,
-        "rocista":     roc_vidljiva,
+        "hronologija":    hron_filtered,
+        "rocista":        roc_vidljiva,
+        "kriticni_rokovi": kriticni_rokovi,
         "token_expires_at": tok_data.get("expires_at") if tok_data else None,
     }
 
