@@ -1463,11 +1463,11 @@ async def bot_ask(req: PitanjeReq, request: Request, x_api_key: str = Header(def
 @limiter.limit("30/minute")
 async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(require_credits)):
     """Pravno istraživanje — pretražuje bazu zakona."""
-    qh = _q_hash(req.pitanje)
-    logger.info("Pitanje [uid=%.8s] [q=%s]", user["user_id"], qh)
-    asyncio.create_task(_audit(user["user_id"], "pitanje", qh))
-    predmet_id = (req.predmet_id or "").strip() or None
     try:
+        qh = _q_hash(req.pitanje)
+        logger.info("Pitanje [uid=%.8s] [q=%s]", user["user_id"], qh)
+        asyncio.create_task(_audit(user["user_id"], "pitanje", qh))
+        predmet_id = (req.predmet_id or "").strip() or None
         history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
         # F5.4: inject predmet context when predmet_id is provided
@@ -1549,7 +1549,8 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
             resp["odgovor"] = "Sistem nije mogao da formuliše odgovor. Pokušajte ponovo."
         return resp
     except Exception:
-        logger.exception("Greška u /api/pitanje [q=%s]", qh)
+        _qh_safe = locals().get("qh", "?")
+        logger.exception("Greška u /api/pitanje [q=%s]", _qh_safe)
         return greska_odgovor(
             500,
             "Došlo je do greške na serveru. Pokušajte ponovo za nekoliko sekundi.",
