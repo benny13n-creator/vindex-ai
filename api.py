@@ -74,6 +74,18 @@ from security.crypto import validate_field_encryption_key as _validate_enc_key
 _validate_enc_key()
 
 import time as _time
+from collections import deque as _deque
+from datetime import datetime, timedelta
+
+# ─── Performance ring buffers (in-memory, reset on restart) ──────────────────
+_PERF: dict[str, _deque] = {
+    "copilot":     _deque(maxlen=500),
+    "upload":      _deque(maxlen=500),
+    "predmet_new": _deque(maxlen=500),
+    "ccc":         _deque(maxlen=500),
+}
+_ERR_LOG: list[float] = []  # timestamps 5xx grešaka
+
 from main import ask_agent, ask_nacrt, ask_analiza, ask_analiza_v2, _skini_pii, klasifikuj_pitanje
 from drafting.router import generate_draft as _drafting_generate
 from drafting.templates import get_types_list as _drafting_get_types
@@ -497,6 +509,7 @@ from routers.email_notif          import router as email_notif_router, send_welc
 from routers.doc_templates        import router as doc_templates_router
 from routers.plans                import router as plans_router
 from routers.knowledge_base       import router as knowledge_base_router
+from routers.gdpr                 import router as gdpr_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -553,6 +566,7 @@ app.include_router(email_notif_router)
 app.include_router(doc_templates_router)
 app.include_router(plans_router)
 app.include_router(knowledge_base_router)
+app.include_router(gdpr_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -645,6 +659,32 @@ async def security_headers(request: Request, call_next):
         "worker-src 'self' blob:;"
     )
     return response
+
+
+@app.middleware("http")
+async def _perf_tracking(request: Request, call_next):
+    """Beleži vreme odgovora za 4 ključna endpointa u ring bufferima."""
+    t0  = _time.perf_counter()
+    resp = await call_next(request)
+    ms   = int((_time.perf_counter() - t0) * 1000)
+    path = request.url.path
+    m    = request.method
+
+    if "/copilot" in path:
+        _PERF["copilot"].append(ms)
+    elif "/dokument" in path and m in ("POST", "PUT"):
+        _PERF["upload"].append(ms)
+    elif path.rstrip("/").endswith("/predmeti") and m == "POST":
+        _PERF["predmet_new"].append(ms)
+    elif "/ccc" in path:
+        _PERF["ccc"].append(ms)
+
+    if resp.status_code >= 500:
+        _ERR_LOG.append(_time.time())
+        if len(_ERR_LOG) > 5000:
+            del _ERR_LOG[:1000]
+
+    return resp
 
 
 # ─── Modeli zahteva ───────────────────────────────────────────────────────────
@@ -802,6 +842,57 @@ def health():
         "pid": _os.getpid(),
         "redis": bool(_REDIS_URL),
         "workers": int(_os.getenv("WEB_CONCURRENCY", 1)),
+    }
+
+
+@app.get("/api/admin/kpi")
+@limiter.limit("10/minute")
+async def admin_kpi(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Founder-only endpoint: vraća 7 KPI metrika u realnom vremenu.
+    Metrike se akumuliraju od poslednjeg restarta servera.
+    """
+    if not _is_founder(user.get("email", "")):
+        raise HTTPException(status_code=403, detail="Restricted.")
+
+    def _stats(dq: _deque) -> dict:
+        if not dq:
+            return {"avg_ms": None, "p95_ms": None, "n": 0, "ok": None}
+        s = sorted(dq)
+        avg = int(sum(s) / len(s))
+        p95 = s[min(int(len(s) * 0.95), len(s) - 1)]
+        return {"avg_ms": avg, "p95_ms": p95, "n": len(s), "ok": None}
+
+    def _annotate(stats: dict, cilj_ms: int) -> dict:
+        avg = stats.get("avg_ms")
+        stats["cilj_ms"] = cilj_ms
+        if avg is not None:
+            stats["ok"] = avg <= cilj_ms
+        return stats
+
+    week_ago  = _time.time() - 7 * 86400
+    greske_7d = sum(1 for ts in _ERR_LOG if ts > week_ago)
+
+    supa     = _get_supa()
+    week_iso = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    au_r = await asyncio.to_thread(
+        lambda: supa.table("usage_events")
+                     .select("user_id")
+                     .gte("created_at", week_iso)
+                     .execute()
+    )
+    aktivni_7d = len(set(r["user_id"] for r in (au_r.data or []) if r.get("user_id")))
+
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "uptime":    "prati https://dashboard.render.com",
+        "copilot":         _annotate(_stats(_PERF["copilot"]),     10_000),
+        "upload_dokumenta": _annotate(_stats(_PERF["upload"]),      5_000),
+        "kreiranje_predmeta": _annotate(_stats(_PERF["predmet_new"]), 2_000),
+        "ccc_load":        _annotate(_stats(_PERF["ccc"]),          2_000),
+        "greske_7d":       {"vrednost": greske_7d, "cilj": 1, "ok": greske_7d <= 1},
+        "aktivni_korisnici_7d": {"vrednost": aktivni_7d},
+        "napomena": "Timing metrike se resetuju pri restartu. Prikupljaju se automatski od prvog zahteva.",
     }
 
 

@@ -30,6 +30,7 @@ from pydantic import BaseModel
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
 from shared.rate import limiter
+from routers.gdpr import make_unsub_url
 
 logger = logging.getLogger("vindex.email_notif")
 router = APIRouter(tags=["email_notif"])
@@ -58,7 +59,7 @@ def _smtp_send(to_addr: str, subject: str, html: str) -> None:
         smtp.sendmail(_FROM_ADDR, [to_addr], msg.as_bytes())
 
 
-def _email_html(rokovi: list[dict], dana_pre: int) -> str:
+def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str = "") -> str:
     if dana_pre == 1:
         naslov = "⚠️ Sutra ističe rok!"
         boja   = "#ef4444"
@@ -80,6 +81,7 @@ def _email_html(rokovi: list[dict], dana_pre: int) -> str:
         for r in rokovi
     )
 
+    unsub = f' <a href="{make_unsub_url(user_id, email)}" style="color:#64748b;">Odjavi se</a>' if user_id and email else ""
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
 <div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
@@ -103,7 +105,7 @@ def _email_html(rokovi: list[dict], dana_pre: int) -> str:
     </div>
   </div>
   <div style="padding:14px 28px;border-top:1px solid #1e293b;">
-    <p style="color:#475569;font-size:12px;margin:0;">Prijavili ste se na email podsetnik za rokove u Vindex AI. Da odjavljujete, idite na Podešavanja → Email notifikacije.</p>
+    <p style="color:#475569;font-size:12px;margin:0;">Prijavili ste se na email podsetnik za rokove u Vindex AI.{unsub}</p>
   </div>
 </div>
 </body></html>"""
@@ -255,7 +257,7 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
                     continue
 
                 subject = f"Vindex AI — {'Sutra ističe rok!' if dana_pre == 1 else f'Za {dana_pre} dana — kritični rokovi'}"
-                html    = _email_html(rokovi, dana_pre)
+                html    = _email_html(rokovi, dana_pre, user_id=uid, email=to_addr)
 
                 try:
                     _smtp_send(to_addr, subject, html)
@@ -291,6 +293,8 @@ def _weekly_digest_html(
     aktivnih: int,
     neplaceno_rsd: float,
     hitnih: int,
+    user_id: str = "",
+    email: str = "",
 ) -> str:
     """Generiše HTML za nedeljni sažetak email (ponedjeljak ujutru)."""
     from datetime import date as _date
@@ -367,7 +371,7 @@ def _weekly_digest_html(
     </div>
   </div>
   <div style="padding:14px 28px;border-top:1px solid #1e293b;">
-    <p style="color:#475569;font-size:12px;margin:0;">Nedeljni sažetak stižena svaki ponedeljak. Isključite u Podešavanja → Email notifikacije.</p>
+    <p style="color:#475569;font-size:12px;margin:0;">Nedeljni sažetak stiže svakog ponedeljka.{"  <a href='" + make_unsub_url(user_id, email) + "' style='color:#64748b;'>Odjavi se</a>" if user_id and email else ""}</p>
   </div>
 </div>
 </body></html>"""
@@ -464,7 +468,7 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(get_cu
             aktivnih   = aktivan_by_uid.get(uid, 0)
             user_name  = (profil_data.get("full_name") or to_addr.split("@")[0] or "").title()
 
-            html    = _weekly_digest_html(user_name, rokovi, rocista, aktivnih, neplaceno, hitnih)
+            html    = _weekly_digest_html(user_name, rokovi, rocista, aktivnih, neplaceno, hitnih, user_id=uid, email=to_addr)
             subject = f"📅 Vindex AI — Vaš plan za nedelju ({today.strftime('%d.%m.')})"
 
             try:
@@ -490,7 +494,7 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(get_cu
 
 _APP_URL = "https://vindex.rs"
 
-def _onboarding_welcome_html(email: str) -> str:
+def _onboarding_welcome_html(email: str, user_id: str = "") -> str:
     ime = email.split("@")[0].replace(".", " ").title()
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
@@ -529,13 +533,13 @@ def _onboarding_welcome_html(email: str) -> str:
     </div>
   </div>
   <div style="padding:14px 28px;border-top:1px solid #1e293b;">
-    <p style="color:#475569;font-size:12px;margin:0;">Registrovali ste se na Vindex AI. Imate pitanje? Odgovorite na ovaj email.</p>
+    <p style="color:#475569;font-size:12px;margin:0;">Registrovali ste se na Vindex AI. Imate pitanje? Odgovorite na ovaj email.{"  <a href='" + make_unsub_url(user_id, email) + "' style='color:#64748b;'>Odjavi se</a>" if user_id else ""}</p>
   </div>
 </div>
 </body></html>"""
 
 
-def _onboarding_day1_html(email: str) -> str:
+def _onboarding_day1_html(email: str, user_id: str = "") -> str:
     ime = email.split("@")[0].replace(".", " ").title()
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
@@ -559,13 +563,13 @@ def _onboarding_day1_html(email: str) -> str:
     <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">Pristup bez kreditne kartice. Bez obaveza.</p>
   </div>
   <div style="padding:14px 28px;border-top:1px solid #1e293b;">
-    <p style="color:#475569;font-size:12px;margin:0;">Dobijate ovu poruku jer ste se registrovali na Vindex AI juče.</p>
+    <p style="color:#475569;font-size:12px;margin:0;">Dobijate ovu poruku jer ste se registrovali na Vindex AI juče.{"  <a href='" + make_unsub_url(user_id, email) + "' style='color:#64748b;'>Odjavi se</a>" if user_id else ""}</p>
   </div>
 </div>
 </body></html>"""
 
 
-def _onboarding_day3_html(email: str) -> str:
+def _onboarding_day3_html(email: str, user_id: str = "") -> str:
     ime = email.split("@")[0].replace(".", " ").title()
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
@@ -594,7 +598,7 @@ def _onboarding_day3_html(email: str) -> str:
     <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">Ili odgovorite na ovaj email ako imate pitanje — lično odgovaramo.</p>
   </div>
   <div style="padding:14px 28px;border-top:1px solid #1e293b;">
-    <p style="color:#475569;font-size:12px;margin:0;">Registrovali ste se pre 3 dana. Ovo je poslednji podsetnik — nećemo vam slati više.</p>
+    <p style="color:#475569;font-size:12px;margin:0;">Ovo je poslednji podsetnik — nećemo vam slati više.{"  <a href='" + make_unsub_url(user_id, email) + "' style='color:#64748b;'>Odjavi se</a>" if user_id else ""}</p>
   </div>
 </div>
 </body></html>"""
@@ -621,7 +625,7 @@ def send_welcome_email(user_id: str, to_addr: str) -> None:
     if dup.data:
         return
     try:
-        html = _onboarding_welcome_html(to_addr)
+        html = _onboarding_welcome_html(to_addr, user_id=user_id)
         _smtp_send(to_addr, "Dobrodošli u Vindex AI — vaš pravni asistent je spreman", html)
         _log_onboarding(supa, user_id, "welcome", to_addr)
         logger.info("[ONBOARDING] welcome poslat uid=%.8s", user_id)
@@ -711,7 +715,7 @@ async def onboarding_cron(request: Request, user: dict = Depends(get_current_use
                 )
                 if total_ai == 0:
                     try:
-                        html = _onboarding_day1_html(email)
+                        html = _onboarding_day1_html(email, user_id=uid)
                         await asyncio.to_thread(lambda: _smtp_send(email, "Niste još probali Vindex AI — 15 upita čeka vas", html))
                         await asyncio.to_thread(lambda: _log_onboarding(supa, uid, "day1", email))
                         p_sent += 1
@@ -731,7 +735,7 @@ async def onboarding_cron(request: Request, user: dict = Depends(get_current_use
                 )
                 if not predmeti_r.data:
                     try:
-                        html = _onboarding_day3_html(email)
+                        html = _onboarding_day3_html(email, user_id=uid)
                         await asyncio.to_thread(lambda: _smtp_send(email, "Vindex AI — otvorite prvi predmet za 30 sekundi", html))
                         await asyncio.to_thread(lambda: _log_onboarding(supa, uid, "day3", email))
                         p_sent += 1
