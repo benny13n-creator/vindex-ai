@@ -12049,7 +12049,7 @@ function voice_execute(text) {
   }).then(function(d) {
     _voice_close_modal();
     // TTS potvrda šta se radi
-    if (d.odgovor) { ttsSpeak(d.odgovor); }
+    if (d.odgovor) { vx_tts_speak(d.odgovor); }
     // Novi format: actions niz
     if (d.actions && d.actions.length) {
       _voice_run_actions(d.actions);
