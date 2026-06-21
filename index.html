@@ -2475,6 +2475,15 @@
               </div>
             </div>
 
+            <!-- ── Pravni dokumenti ────────────────────────────── -->
+            <div class="settings-section" id="legal-section">
+              <div class="settings-section-hd"><span>Pravni dokumenti</span></div>
+              <div style="display:flex;flex-direction:column;gap:.45rem;">
+                <a href="/privacy" target="_blank" class="settings-btn" style="text-align:left;text-decoration:none;">🔒 Politika privatnosti</a>
+                <a href="/terms" target="_blank" class="settings-btn" style="text-align:left;text-decoration:none;">📄 Uslovi korišćenja</a>
+              </div>
+            </div>
+
             <!-- ── Advokatska kancelarija — Phase 5.4 ───────────── -->
             <div class="settings-section" id="kancelarija-section">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
@@ -2814,7 +2823,11 @@
           </div>
           <div class="t-resp" id="resp">
             <div class="resp-inner">
-              <div class="resp-lbl">Odgovor - Vindex AI</div>
+              <div class="resp-lbl" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+                <span>Odgovor - Vindex AI</span>
+                <span id="rag-confidence-badge" style="display:none;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:4px;letter-spacing:.04em;"></span>
+              </div>
+              <div id="rag-source-info" style="display:none;font-size:.72rem;color:rgba(255,255,255,.38);margin-bottom:.4rem;"></div>
               <div class="resp-body" id="rb"></div>
             </div>
           </div>
@@ -3003,6 +3016,11 @@
   <footer class="vx-land-foot">
     <div class="vx-land-foot-copy">&copy; 2026 Vindex AI. Sva prava zadržana.</div>
     <div class="vx-land-foot-disc">Vindex AI ne zamenjuje profesionalno pravno rasuđivanje advokata.</div>
+    <div class="vx-land-foot-links" style="margin-top:.5rem;font-size:.8rem;opacity:.6;">
+      <a href="/privacy" target="_blank" style="color:inherit;text-decoration:underline;">Politika privatnosti</a>
+      &nbsp;·&nbsp;
+      <a href="/terms" target="_blank" style="color:inherit;text-decoration:underline;">Uslovi korišćenja</a>
+    </div>
   </footer>
 </div>
 

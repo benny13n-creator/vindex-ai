@@ -588,6 +588,8 @@ function newChat() {
   // Čisti ekran i polja
   document.getElementById('resp').classList.remove('show');
   document.getElementById('rb').innerHTML = '';
+  var _cb = document.getElementById('rag-confidence-badge'); if (_cb) _cb.style.display='none';
+  var _si = document.getElementById('rag-source-info'); if (_si) _si.style.display='none';
   ['qi','no','aitxt','aq'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   // Resetuje stanje
   conversationHistory = [];
@@ -5107,6 +5109,7 @@ async function execQuery() {
       var d = await r.json();
       console.log('[Vindex] execQuery: kredit posle upita =', d.credits_remaining);
       if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
+      _renderRagConfidence(d);
 
       var text = d.odgovor || d.greska || 'Greška u odgovoru servera.';
 
@@ -5179,6 +5182,26 @@ async function execQuery() {
     execBtn.disabled = false;
     btnLbl.textContent = orig;
   }
+}
+
+function _renderRagConfidence(d) {
+  var badge = document.getElementById('rag-confidence-badge');
+  var src   = document.getElementById('rag-source-info');
+  if (!badge || !src) return;
+  var conf = d.confidence || '';
+  if (!conf) { badge.style.display='none'; src.style.display='none'; return; }
+  var map = { HIGH: { label:'Visoka relevantnost', bg:'rgba(34,197,94,.18)', color:'#4ade80', border:'rgba(34,197,94,.3)' },
+              MEDIUM: { label:'Srednja relevantnost', bg:'rgba(251,191,36,.13)', color:'#fbbf24', border:'rgba(251,191,36,.3)' },
+              LOW: { label:'Niska relevantnost', bg:'rgba(239,68,68,.13)', color:'#f87171', border:'rgba(239,68,68,.3)' } };
+  var meta = map[conf.toUpperCase()] || map.MEDIUM;
+  badge.textContent = meta.label;
+  badge.style.cssText = 'display:inline-block;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:4px;letter-spacing:.04em;background:'+meta.bg+';color:'+meta.color+';border:1px solid '+meta.border+';';
+  var parts = [];
+  if (d.top_law) parts.push(d.top_law);
+  if (d.top_article) parts.push(d.top_article);
+  if (d.top_score !== undefined) parts.push('skor: ' + Math.round(d.top_score * 100) + '%');
+  if (parts.length) { src.textContent = 'Najrelevantniji izvor: ' + parts.join(' · '); src.style.display='block'; }
+  else src.style.display = 'none';
 }
 
 function _feedbackBar(pitanje, odgovor) {

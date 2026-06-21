@@ -711,12 +711,53 @@ def normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None)
         )
     if credits_remaining is not None:
         resp["credits_remaining"] = credits_remaining
+    # RAG confidence signal — šalje se klijentu radi prikaza
+    if isinstance(rezultat, dict):
+        if rezultat.get("confidence"):
+            resp["confidence"] = rezultat["confidence"]
+        if rezultat.get("top_score") is not None:
+            resp["top_score"] = round(float(rezultat["top_score"]), 3)
+        if rezultat.get("top_law"):
+            resp["top_law"] = rezultat["top_law"]
+        if rezultat.get("top_article"):
+            resp["top_article"] = rezultat["top_article"]
     return resp
 
 
 def greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
     logger.warning("API greška %d: %s", status_code, poruka)
     return JSONResponse(status_code=status_code, content={"greska": poruka})
+
+
+# ─── Cache busting ────────────────────────────────────────────────────────────
+import re as _re
+import subprocess as _subprocess
+
+def _get_git_hash() -> str:
+    try:
+        return _subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(BASE_DIR), stderr=_subprocess.DEVNULL, timeout=3
+        ).decode().strip()
+    except Exception:
+        import time
+        return str(int(time.time()))[-6:]
+
+_GIT_HASH: str = _get_git_hash()
+_INDEX_HTML_BYTES: bytes = b""
+
+def _load_index_html() -> bytes:
+    global _INDEX_HTML_BYTES
+    path = BASE_DIR / "index.html"
+    if not path.exists():
+        return b""
+    content = path.read_text(encoding="utf-8")
+    content = _re.sub(r'\?v=\w+', f"?v={_GIT_HASH}", content)
+    _INDEX_HTML_BYTES = content.encode("utf-8")
+    return _INDEX_HTML_BYTES
+
+_load_index_html()
+logger.info("Cache busting: ?v=%s", _GIT_HASH)
 
 
 # ─── Rute ─────────────────────────────────────────────────────────────────────
@@ -728,6 +769,22 @@ def root():
     if path.exists():
         return FileResponse(path)
     return {"status": "ok", "servis": "Vindex AI"}
+
+
+@app.get("/privacy")
+def privacy_policy():
+    path = BASE_DIR / "privacy.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=86400"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
+@app.get("/terms")
+def terms_of_service():
+    path = BASE_DIR / "terms.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=86400"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
 
 
 @app.get("/health")
@@ -845,29 +902,32 @@ def robots():
     )
 
 
+def _serve_index_html():
+    from fastapi.responses import Response
+    html = _INDEX_HTML_BYTES or _load_index_html()
+    if not html:
+        return greska_odgovor(404, "Frontend nije pronađen.")
+    return Response(
+        content=html,
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "X-Build": _GIT_HASH,
+        },
+    )
+
+
 @app.get("/app")
 def serve_html():
-    path = BASE_DIR / "index.html"
-    if not path.exists():
-        return greska_odgovor(404, "Frontend nije pronađen.")
-    return FileResponse(path, headers={
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
-    })
+    return _serve_index_html()
 
 
 @app.get("/portal")
 def serve_portal():
     """Javna stranica za klijentski portal — čita ?token= query param u JS-u."""
-    path = BASE_DIR / "index.html"
-    if not path.exists():
-        return greska_odgovor(404, "Frontend nije pronađen.")
-    return FileResponse(path, headers={
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
-    })
+    return _serve_index_html()
 
 
 # ─── Auth endpointi ───────────────────────────────────────────────────────────
