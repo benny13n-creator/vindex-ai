@@ -11946,7 +11946,10 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════════════════════
 var _voiceRec = null;
 var _voiceActive = false;
-var _voiceTextSent = false;  // guard: ne zatvaraj modal ako je execute već poslat
+var _voiceTextSent = false;   // guard: ne zatvaraj modal ako je execute već poslat
+var _voiceConvMode = false;   // conversation mode: nakon query odgovora mic se automatski restartuje
+var _voiceConvTurns = 0;      // broj uzastopnih query turnova (max 8, zaštita od loop-a)
+var _VOICE_STOP_WORDS = ['zatvori', 'hvala', 'kraj', 'stop', 'izlaz', 'ok hvala', 'to je sve'];
 
 function _voice_close_modal() {
   var modal = document.getElementById('voice-modal');
@@ -11970,8 +11973,8 @@ function voice_start() {
 
   var modal = document.getElementById('voice-modal');
   modal.style.display = 'flex';
-  document.getElementById('voice-transcript').textContent = 'Izgovorite komandu...';
-  document.getElementById('voice-status').textContent = '';
+  document.getElementById('voice-transcript').textContent = _voiceConvMode ? 'Slušam...' : 'Izgovorite komandu...';
+  document.getElementById('voice-status').textContent = _voiceConvMode ? 'Razgovorni mod — recite "zatvori" za kraj' : '';
   var cmdBtn = document.getElementById('voice-cmd-btn');
   if (cmdBtn) cmdBtn.classList.add('voice-active');
 
@@ -12038,7 +12041,18 @@ function voice_execute(text) {
     openModal();
     return;
   }
-  document.getElementById('voice-status').textContent = '⏳ Interpretiram komandu...';
+
+  // Lokalna detekcija stop reči — zatvori bez API poziva
+  var textLow = text.toLowerCase().trim().replace(/[.!?]+$/, '');
+  if (_VOICE_STOP_WORDS.indexOf(textLow) !== -1) {
+    _voiceConvMode = false;
+    _voiceConvTurns = 0;
+    _voice_close_modal();
+    vx_tts_speak('Doviđenja.');
+    return;
+  }
+
+  document.getElementById('voice-status').textContent = 'Interpretiram...';
   fetch('/api/voice/command', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
@@ -12048,13 +12062,37 @@ function voice_execute(text) {
     return r.json();
   }).then(function(d) {
     _voice_close_modal();
-    // TTS potvrda šta se radi
-    if (d.odgovor) { vx_tts_speak(d.odgovor); }
-    // Novi format: actions niz
+
+    var isQuery   = d.type === 'query';
+    var isStop    = d.actions && d.actions.length === 1 && d.actions[0].action === 'stop_voice';
+
+    // Govori odgovor
+    if (d.odgovor) {
+      if (isQuery) {
+        // Query mode: nakon što TTS završi → automatski restartuj mic
+        _voiceConvTurns++;
+        vx_tts_speak(d.odgovor, _voiceConvTurns < 8 ? function() {
+          // Mali delay da korisnik primi odgovor, pa restartuj
+          setTimeout(function() {
+            _voiceConvMode = true;
+            voice_start();
+          }, 700);
+        } : null);
+      } else {
+        vx_tts_speak(d.odgovor);
+        _voiceConvMode = false;
+        _voiceConvTurns = 0;
+      }
+    }
+
+    if (isStop) { _voiceConvMode = false; _voiceConvTurns = 0; return; }
+    if (isQuery) return; // Nema akcija za izvršenje
+
+    // Command mode: izvršavaj akcije
     if (d.actions && d.actions.length) {
       _voice_run_actions(d.actions);
     } else {
-      // Backward compat sa starim formatom
+      // Backward compat
       voice_doAction(d.action, d.params || {});
       if (d.followup) { setTimeout(function() { voice_doAction(d.followup, {}); }, 2200); }
     }
@@ -12273,6 +12311,21 @@ function voice_doAction(action, params) {
       showToast('Rokovi i ročišta — priprema za sud');
       break;
 
+    case 'export_pdf':
+      if (!activePredmetId) { showToast('Nema otvorenog predmeta za PDF export', 'warn'); break; }
+      if (typeof predmetPdfExport === 'function') {
+        predmetPdfExport();
+      } else {
+        showToast('PDF export nije dostupan', 'warn');
+      }
+      break;
+
+    case 'stop_voice':
+      _voiceConvMode = false;
+      _voiceConvTurns = 0;
+      vx_tts_stop();
+      break;
+
     default:
       showToast('Nisam razumeo: "' + (params.text||action) + '"', 'warn');
   }
@@ -12325,11 +12378,11 @@ function _tts_update_btn(speaking) {
   else          { btn.classList.remove('speaking'); btn.innerHTML = '🔊 Pročitaj'; }
 }
 
-function vx_tts_speak(text) {
+function vx_tts_speak(text, afterSpeak) {
   if (!window.speechSynthesis) { showToast('Vaš browser ne podržava čitanje teksta.', 'warn'); return; }
   vx_tts_stop();
   var clean = _tts_clean(text);
-  if (!clean) return;
+  if (!clean) { if (typeof afterSpeak === 'function') afterSpeak(); return; }
 
   function _doSpeak() {
     _ttsUtterance = new SpeechSynthesisUtterance(clean);
@@ -12338,8 +12391,17 @@ function vx_tts_speak(text) {
     _ttsUtterance.pitch = 1.0;
     var v = _tts_pick_voice();
     if (v) _ttsUtterance.voice = v;
-    _ttsUtterance.onend = function() { _ttsUtterance = null; _tts_update_btn(false); };
-    _ttsUtterance.onerror = function() { _ttsUtterance = null; _tts_update_btn(false); };
+    _ttsUtterance.onend = function() {
+      _ttsUtterance = null;
+      _tts_update_btn(false);
+      if (typeof afterSpeak === 'function') afterSpeak();
+    };
+    _ttsUtterance.onerror = function() {
+      _ttsUtterance = null;
+      _tts_update_btn(false);
+      // Pokrenemo afterSpeak čak i ako TTS nije radio
+      if (typeof afterSpeak === 'function') afterSpeak();
+    };
     window.speechSynthesis.speak(_ttsUtterance);
     _tts_update_btn(true);
   }
