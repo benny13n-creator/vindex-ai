@@ -5142,11 +5142,16 @@ async function execQuery() {
       }
 
       var d = await r.json();
-      console.log('[Vindex] execQuery: kredit posle upita =', d.credits_remaining);
+      console.log('[Vindex] execQuery: status=' + r.status + ' body=', d);
       if (d.credits_remaining !== undefined) { userCredits = d.credits_remaining; updateCreditDisplay(); }
       _renderRagConfidence(d);
 
-      var text = d.odgovor || d.greska || d.detail || 'Greška pri obradi odgovora. Pokušajte ponovo.';
+      var text = d.odgovor || d.greska || d.detail || d.message || d.error || d.data ||
+        (r.status !== 200 ? ('Greška servera (' + r.status + '). Pokušajte ponovo.') : 'Greška pri obradi odgovora. Pokušajte ponovo.');
+      if (!text || !text.trim()) {
+        console.error('[Vindex] PRAZNI ODGOVOR — raw d:', JSON.stringify(d));
+        text = 'Server nije vratio odgovor. HTTP ' + r.status + '. Proverite konzolu (F12) i pošaljite grešku podršci.';
+      }
 
       // Sačuvaj u in-memory i Supabase history
       if (d.odgovor) {

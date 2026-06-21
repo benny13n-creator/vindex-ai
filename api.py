@@ -1542,7 +1542,11 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
             except Exception:
                 logger.warning("[F5] predmet_istorija save failed for predmet_id=%s", predmet_id)
 
-        return normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
+        resp = normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
+        if not resp.get("odgovor"):
+            logger.error("[PITANJE] normalizuj_rezultat vratio prazan odgovor — rezultat=%s", rezultat)
+            resp["odgovor"] = "Sistem nije mogao da formuliše odgovor. Pokušajte ponovo."
+        return resp
     except Exception:
         logger.exception("Greška u /api/pitanje [q=%s]", qh)
         return greska_odgovor(
