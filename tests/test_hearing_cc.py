@@ -227,7 +227,7 @@ def test_build_prompt_includes_hronologija():
         "dokumenti":   [],
         "beleske":     [],
         "istorija":    [],
-        "hronologija": [{"datum":"2025-01-01","naslov":"Tužba","opis":"Podneta tužba","tip":"dogadjaj"}],
+        "hronologija": [{"datum_iso":"2025-01-01","dogadjaj":"Tužba","vaznost":"visoka"}],
         "komentari":   [],
         "rocista":     [],
     }
