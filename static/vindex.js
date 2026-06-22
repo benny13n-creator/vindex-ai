@@ -3266,6 +3266,22 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
+// Subtab nav fade indicator — shows when nav can scroll further right
+document.addEventListener('DOMContentLoaded', function() {
+  var navEl = document.getElementById('pred-subtab-nav-el');
+  var fade  = document.getElementById('subtab-fade-right');
+  if (navEl && fade) {
+    function _subtabFadeUpdate() {
+      var canScroll = navEl.scrollWidth > navEl.clientWidth + 10;
+      var atEnd = navEl.scrollLeft >= navEl.scrollWidth - navEl.clientWidth - 5;
+      fade.style.opacity = (canScroll && !atEnd) ? '1' : '0';
+    }
+    navEl.addEventListener('scroll', _subtabFadeUpdate);
+    window.addEventListener('resize', _subtabFadeUpdate);
+    _subtabFadeUpdate();
+  }
+});
+
 // Portal init — runs early; if ?token= in URL, shows client portal view instead of app
 document.addEventListener('DOMContentLoaded', function() {
   if (window.location.search.indexOf('token=') !== -1) {
@@ -7254,10 +7270,21 @@ function pred_subtabSwitch(pane, btn) {
   // Ažuriraj "Više" btn: active samo kad je sekundarni tab otvoren
   var _moreBtn = document.getElementById('pred-more-btn');
   if (_moreBtn) {
-    var _secondary = ['pregled','timeline','dokazi','graf','agenti','komunikacija','saradnja'];
+    var _secondary = ['timeline','dokazi','komunikacija','saradnja','graf'];
     if (_secondary.indexOf(pane) > -1) _moreBtn.classList.add('active');
     else _moreBtn.classList.remove('active');
   }
+  // Scroll activated tab into view in tab nav
+  setTimeout(function() {
+    var navEl = document.getElementById('pred-subtab-nav-el');
+    if (navEl) {
+      var activeBtn = navEl.querySelector('.pred-subtab-btn.active');
+      if (activeBtn) activeBtn.scrollIntoView({behavior:'smooth', block:'nearest', inline:'nearest'});
+      // Update fade indicator
+      var fade = document.getElementById('subtab-fade-right');
+      if (fade) fade.style.opacity = (navEl.scrollWidth > navEl.clientWidth + 10) ? '1' : '0';
+    }
+  }, 50);
   if (history.replaceState && activePredmetId) history.replaceState(null, '', '#' + pane);
   if (typeof lucide !== 'undefined') lucide.createIcons();
   // Lazy-load tabovi
