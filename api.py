@@ -3200,9 +3200,10 @@ async def predmet_dokument_preview(
     if not tekst:
         ns = d.get("pinecone_namespace") or ""
         if ns:
+            ns_prefix = "pred_" if ns.startswith("pred_") else "tmp_"
             session_id = ns.removeprefix("tmp_").removeprefix("pred_")
             from routers.dokument import _fetch_session_tekst
-            tekst = await asyncio.to_thread(_fetch_session_tekst, session_id)
+            tekst = await asyncio.to_thread(_fetch_session_tekst, session_id, ns_prefix)
 
     return {
         "naziv_fajla": d.get("naziv_fajla", ""),

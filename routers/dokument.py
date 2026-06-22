@@ -59,27 +59,35 @@ class RokoviRequest(BaseModel):
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
-def _fetch_session_tekst(session_id: str) -> str:
-    """Reconstruct document text from Pinecone tmp_<session_id> chunk metadata."""
+def _fetch_session_tekst(session_id: str, namespace_prefix: str = "tmp_") -> str:
+    """Reconstruct document text from Pinecone <prefix><session_id> chunk metadata.
+    Tries given prefix first; if empty, falls back to the other prefix."""
     try:
         from uploaded_doc.ingest import _get_pinecone_index
         index = _get_pinecone_index()
-        namespace = f"tmp_{session_id}"
-        result = index.query(
-            vector=[0.0] * 3072,
-            top_k=1000,
-            namespace=namespace,
-            include_metadata=True,
-        )
-        matches = result.matches if hasattr(result, "matches") else result.get("matches", [])
-        if not matches:
-            return ""
-        matches_sorted = sorted(
-            matches,
-            key=lambda m: int((m.metadata or {}).get("chunk_index", 0))
-        )
-        texts = [(m.metadata or {}).get("text", "") for m in matches_sorted]
-        return "\n\n".join(t for t in texts if t.strip())
+
+        def _query_ns(ns: str) -> str:
+            result = index.query(
+                vector=[0.0] * 3072,
+                top_k=1000,
+                namespace=ns,
+                include_metadata=True,
+            )
+            matches = result.matches if hasattr(result, "matches") else result.get("matches", [])
+            if not matches:
+                return ""
+            matches_sorted = sorted(
+                matches,
+                key=lambda m: int((m.metadata or {}).get("chunk_index", 0))
+            )
+            texts = [(m.metadata or {}).get("text", "") for m in matches_sorted]
+            return "\n\n".join(t for t in texts if t.strip())
+
+        tekst = _query_ns(f"{namespace_prefix}{session_id}")
+        if not tekst:
+            other = "pred_" if namespace_prefix == "tmp_" else "tmp_"
+            tekst = _query_ns(f"{other}{session_id}")
+        return tekst
     except Exception:
         logger.exception("[ROKOVI] Greška pri čitanju chunks iz Pinecone za session=%s", session_id)
         return ""
