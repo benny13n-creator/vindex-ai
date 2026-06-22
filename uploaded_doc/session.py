@@ -32,8 +32,9 @@ def expires_at_iso(ttl_hours: int) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def validate_session(session_id: str) -> bool:
-    """Return True if tmp_<session_id> namespace exists and has at least one non-expired vector."""
+def validate_session(session_id: str, namespace_prefix: str = "tmp_") -> bool:
+    """Return True if <prefix><session_id> namespace exists and has at least one valid vector.
+    pred_* namespaces never expire; tmp_* namespaces check expires_at metadata."""
     import os
     try:
         from pinecone import Pinecone
@@ -42,7 +43,7 @@ def validate_session(session_id: str) -> bool:
         pc = Pinecone(api_key=api_key)
         index = pc.Index(host=host) if host else pc.Index(pc.list_indexes()[0].name)
 
-        namespace = f"tmp_{session_id}"
+        namespace = f"{namespace_prefix}{session_id}"
         result = index.query(
             vector=[0.1] * 3072,
             top_k=1,
@@ -52,9 +53,10 @@ def validate_session(session_id: str) -> bool:
         matches = result.matches if hasattr(result, "matches") else result.get("matches", [])
         if not matches:
             return False
-        expires_at = (matches[0].metadata or {}).get("expires_at", "")
-        if expires_at and is_expired(expires_at):
-            return False
+        if namespace_prefix == "tmp_":
+            expires_at = (matches[0].metadata or {}).get("expires_at", "")
+            if expires_at and is_expired(expires_at):
+                return False
         return True
     except Exception:
         return False

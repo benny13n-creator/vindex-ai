@@ -6179,9 +6179,10 @@ function praksa_render_grupisano(data) {
 }
 
 /* ── Document Upload P2.6a ───────────────────────────────────── */
-var _docSessionId  = null;
-var _docUploadName = null;
-var _docUploadSize = 0;
+var _docSessionId       = null;
+var _docNamespacePrefix = 'tmp_';
+var _docUploadName      = null;
+var _docUploadSize      = 0;
 
 function doc_upload_trigger() {
   if (!currentSession) { openModal(); return; }
@@ -6290,7 +6291,7 @@ async function doc_ask_question() {
     var r = await fetch(BASE_URL + '/api/dokument/pitanje', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
-      body:    JSON.stringify({ session_id: _docSessionId, pitanje: pitanje })
+      body:    JSON.stringify({ session_id: _docSessionId, pitanje: pitanje, namespace_prefix: _docNamespacePrefix || 'tmp_' })
     });
     if (r.status === 404) {
       doc_clear_session();
@@ -6328,9 +6329,10 @@ async function doc_ask_question() {
 }
 
 function doc_clear_session() {
-  _docSessionId  = null;
-  _docUploadName = null;
-  _docUploadSize = 0;
+  _docSessionId       = null;
+  _docNamespacePrefix = 'tmp_';
+  _docUploadName      = null;
+  _docUploadSize      = 0;
   var sa = document.getElementById('doc-session-active');
   var z  = document.getElementById('doc-upload-zone');
   var ld = document.getElementById('doc-upload-loading');
@@ -8820,6 +8822,7 @@ async function pred_loadDetail(id) {
           ? '<div style="font-size:0.7rem;color:rgba(0,212,255,0.55);margin-bottom:0.3rem;">☑ Označi 2–5 dokumenata za poređenje (Cross-doc analiza)</div>'
           : '';
         dokListEl.innerHTML = _dokHint + d.dokumenti.map(function(dok) {
+          var _ns = dok.pinecone_namespace || '';
           return '<div class="pred-dok-item" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'">'
             +'<input type="checkbox" class="pred-dok-item-cb" onchange="crossdoc_toggleDok(this)" title="Odaberi za cross-doc analizu">'
             +'<i data-lucide="file-text" style="width:14px;height:14px;flex-shrink:0;color:rgba(74,168,255,0.6);"></i>'
@@ -8827,9 +8830,14 @@ async function pred_loadDetail(id) {
             +'<span class="pred-dok-item-status">'+escHtml(dok.status||'')+'</span>'
             +'<button onclick="dokPreviewOpen(\''+escHtml(dok.id||'')+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml((dok.velicina_kb||0)+'')+'\')" '
             +'title="Pogledaj sadržaj dokumenta" '
-            +'style="margin-left:auto;flex-shrink:0;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:5px;color:rgba(74,168,255,0.75);font-size:0.68rem;padding:2px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;">'
+            +'style="flex-shrink:0;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:5px;color:rgba(74,168,255,0.75);font-size:0.68rem;padding:2px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;margin-left:auto;">'
             +'👁 Pogledaj'
             +'</button>'
+            +(_ns ? '<button onclick="dokUcitajZaAnalizu(\''+escHtml(_ns)+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml((dok.velicina_kb||0)+'')+'\',\''+escHtml(dok.id||'')+'\')" '
+            +'title="Učitaj dokument u AI analizu" '
+            +'style="flex-shrink:0;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);border-radius:5px;color:rgba(0,212,255,0.85);font-size:0.68rem;padding:2px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;margin-left:4px;">'
+            +'⚡ Analiziraj'
+            +'</button>' : '')
             +'</div>';
         }).join('');
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -11695,6 +11703,39 @@ async function dokPreviewOpen(dokId, naziv, velicinaKb) {
 function dokPreviewClose() {
   var overlay = document.getElementById('dok-preview-overlay');
   if (overlay) overlay.style.display = 'none';
+}
+
+function dokUcitajZaAnalizu(ns, naziv, velicinaKb, dokId) {
+  // ns = "pred_SESSION" or "tmp_SESSION"
+  var prefix = ns.startsWith('pred_') ? 'pred_' : 'tmp_';
+  var sessionId = ns.replace(/^(pred_|tmp_)/, '');
+  if (!sessionId) { showToast('Dokument nema aktivan namespace.', 'warn'); return; }
+
+  _docSessionId       = sessionId;
+  _docNamespacePrefix = prefix;
+  _docUploadName      = naziv;
+  _docUploadSize      = (parseInt(velicinaKb, 10) || 0) * 1024;
+
+  // Prikaži "aktivni dokument" UI u tab-a (Analiza dokumenta)
+  var z   = document.getElementById('doc-upload-zone');
+  var ld  = document.getElementById('doc-upload-loading');
+  var er  = document.getElementById('doc-upload-error');
+  var sa  = document.getElementById('doc-session-active');
+  var fn  = document.getElementById('doc-file-name');
+  var fm  = document.getElementById('doc-file-meta');
+  var ocrW = document.getElementById('doc-ocr-warning');
+  if (z)   z.style.display  = 'none';
+  if (ld)  ld.style.display = 'none';
+  if (er)  er.style.display = 'none';
+  if (sa)  sa.style.display = 'block';
+  if (fn)  fn.textContent   = naziv || 'Dokument';
+  if (fm)  fm.textContent   = (parseInt(velicinaKb,10)||0) + ' KB • trajno sačuvan';
+  if (ocrW) ocrW.style.display = 'none';
+
+  // Prebaci na tab "Analiza dokumenta"
+  var tabBtn = document.getElementById('tab-btn-a');
+  if (tabBtn) setTab(tabBtn, 'a');
+  showToast('Dokument učitan — postavite pitanje ili pokrenite analizu.', 'ok');
 }
 
 var _DOCTPL_TIP_ICO = { tuzba:'⚖️', zalba:'📨', punomocje:'✍️', opomena:'⚠️', ugovor:'📝' };

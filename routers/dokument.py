@@ -34,9 +34,10 @@ _MAX_DOC_PITANJE_LEN = 2000
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class PitanjeDocRequest(BaseModel):
-    session_id: str
-    pitanje:    str
-    history:    Optional[List[dict]] = None
+    session_id:       str
+    pitanje:          str
+    history:          Optional[List[dict]] = None
+    namespace_prefix: Optional[str] = "tmp_"
 
 
 class DokumentAnalizaReq(BaseModel):
@@ -229,7 +230,11 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require
     if not body.session_id or not body.session_id.strip():
         raise HTTPException(status_code=422, detail="session_id je obavezan")
 
-    session_valid = await asyncio.to_thread(validate_session, body.session_id)
+    ns_prefix = body.namespace_prefix or "tmp_"
+    if ns_prefix not in ("tmp_", "pred_"):
+        ns_prefix = "tmp_"
+
+    session_valid = await asyncio.to_thread(validate_session, body.session_id, ns_prefix)
     if not session_valid:
         raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
 
@@ -239,7 +244,7 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require
         ask_agent,
         body.pitanje,
         body.history,
-        [f"tmp_{body.session_id}"],
+        [f"{ns_prefix}{body.session_id}"],
     )
     if not user.get("credit_pre_deducted"):
         await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
