@@ -603,7 +603,16 @@
               <button onclick="pred_bulkAkcija('aktiviranje')" style="padding:0.22rem 0.6rem;border:1px solid rgba(0,212,255,.2);border-radius:5px;background:rgba(0,212,255,.06);color:rgba(0,212,255,.85);font-size:0.68rem;cursor:pointer;">Aktiviraj</button>
               <button onclick="pred_bulkOtkaziOznacavanje()" style="border:none;background:none;color:rgba(255,255,255,.3);font-size:0.75rem;cursor:pointer;">✕</button>
             </div>
+            <!-- Kanban / Lista toggle -->
+            <div style="display:flex;align-items:center;justify-content:flex-end;margin:.35rem 0 .25rem;">
+              <div style="display:flex;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:7px;overflow:hidden;">
+                <button id="kanban-view-btn-lista" onclick="kanban_setView('lista')" style="padding:.25rem .65rem;font-size:.65rem;border:none;cursor:pointer;font-family:inherit;background:rgba(74,168,255,.18);color:#89c8ff;font-weight:600;letter-spacing:.04em;">≡ Lista</button>
+                <button id="kanban-view-btn-kanban" onclick="kanban_setView('kanban')" style="padding:.25rem .65rem;font-size:.65rem;border:none;cursor:pointer;font-family:inherit;background:transparent;color:rgba(255,255,255,.4);letter-spacing:.04em;">⬛ Kanban</button>
+              </div>
+            </div>
             <div id="pred-list" class="pred-list"></div>
+            <!-- ── Case Pipeline Kanban ──────────────────────────────── -->
+            <div id="pred-kanban-view" style="display:none;"></div>
             <div id="pred-detail" class="pred-detail">
 
               <!-- ── Case Hub Header (always visible) ────────────────── -->

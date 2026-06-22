@@ -7308,6 +7308,134 @@ function pred_more_select(pane) {
   if (moreBtn) moreBtn.classList.add('active');
 }
 
+/* ── Case Pipeline Kanban ─────────────────────────────────────────────────── */
+var _kanbanDragId = null;
+var _KANBAN_FAZE = [
+  { id: 'inicijalna_procena', label: 'Inicijalna procena', dot: 'rgba(74,168,255,.6)' },
+  { id: 'priprema',           label: 'Priprema',           dot: 'rgba(167,139,250,.7)' },
+  { id: 'aktivan_postupak',   label: 'Aktivan postupak',   dot: 'rgba(74,222,128,.7)' },
+  { id: 'ceka_odluku',        label: 'Čeka odluku',        dot: 'rgba(251,191,36,.7)' },
+  { id: 'zavrsen',            label: 'Završen',            dot: 'rgba(100,116,139,.6)' },
+];
+var _TIP_SR = {
+  parnicno:'Parnično', krivicno:'Krivično', upravno:'Upravno',
+  radno:'Radno', porodicno:'Porodično', privredno:'Privredno',
+  nepokretnosti:'Nepokretn.', nasledjivanje:'Nasleđivanje', ostalo:'Ostalo',
+};
+
+function kanban_setView(mode) {
+  var lista   = document.getElementById('pred-list');
+  var detail  = document.getElementById('pred-detail');
+  var kanban  = document.getElementById('pred-kanban-view');
+  var btnL    = document.getElementById('kanban-view-btn-lista');
+  var btnK    = document.getElementById('kanban-view-btn-kanban');
+  if (mode === 'kanban') {
+    if (lista)  lista.style.display  = 'none';
+    if (detail) detail.style.display = 'none';
+    if (kanban) kanban.style.display = 'block';
+    if (btnL) { btnL.style.background = 'transparent'; btnL.style.color = 'rgba(255,255,255,.4)'; }
+    if (btnK) { btnK.style.background = 'rgba(74,168,255,.18)'; btnK.style.color = '#89c8ff'; btnK.style.fontWeight = '600'; }
+    kanban_render();
+  } else {
+    if (lista)  lista.style.display  = '';
+    if (detail) detail.style.display = '';
+    if (kanban) kanban.style.display = 'none';
+    if (btnL) { btnL.style.background = 'rgba(74,168,255,.18)'; btnL.style.color = '#89c8ff'; btnL.style.fontWeight = '600'; }
+    if (btnK) { btnK.style.background = 'transparent'; btnK.style.color = 'rgba(255,255,255,.4)'; btnK.style.fontWeight = ''; }
+  }
+}
+
+function kanban_render() {
+  var container = document.getElementById('pred-kanban-view');
+  if (!container) return;
+  var predmeti = (typeof _predmeti !== 'undefined' ? _predmeti : []) || [];
+
+  var html = '<div class="kanban-board">';
+  _KANBAN_FAZE.forEach(function(faza) {
+    var cards = predmeti.filter(function(p) {
+      var f = p.kanban_faza || 'inicijalna_procena';
+      return f === faza.id;
+    });
+    html += '<div class="kanban-col" data-faza="'+faza.id+'"'
+      + ' ondragover="event.preventDefault();kanban_dragOver(event,this)"'
+      + ' ondragleave="kanban_dragLeave(this)"'
+      + ' ondrop="kanban_drop(event,\''+faza.id+'\')">';
+    html += '<div class="kanban-col-header">'
+      + '<span style="display:flex;align-items:center;gap:.35rem;">'
+      + '<span style="width:7px;height:7px;border-radius:50%;background:'+faza.dot+';flex-shrink:0;"></span>'
+      + _htmlEsc(faza.label)+'</span>'
+      + '<span class="kanban-count">'+cards.length+'</span></div>';
+    html += '<div class="kanban-cards">';
+    if (!cards.length) {
+      html += '<div class="kanban-empty">Nema predmeta</div>';
+    }
+    cards.forEach(function(p) {
+      var tipLabel = _TIP_SR[p.tip] || p.tip || '';
+      html += '<div class="kanban-card" draggable="true"'
+        + ' ondragstart="kanban_dragStart(event,\''+_htmlEsc(p.id)+'\')"'
+        + ' ondragend="kanban_dragEnd(event)"'
+        + ' onclick="kanban_openPredmet(\''+_htmlEsc(p.id)+'\')">';
+      html += '<div class="kanban-card-naziv">'+_htmlEsc(p.naziv || 'Bez naziva')+'</div>';
+      html += '<div class="kanban-card-meta">';
+      if (tipLabel) html += '<span class="kanban-card-tip">'+_htmlEsc(tipLabel)+'</span>';
+      if (p.tuzilac) html += '<span>'+_htmlEsc((p.tuzilac||'').split(' ')[0])+'</span>';
+      html += '</div></div>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function kanban_dragStart(e, predmetId) {
+  _kanbanDragId = predmetId;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(function() {
+    var card = e.target;
+    if (card) card.classList.add('dragging');
+  }, 0);
+}
+function kanban_dragEnd(e) {
+  if (e.target) e.target.classList.remove('dragging');
+}
+function kanban_dragOver(e, col) {
+  e.preventDefault();
+  col.classList.add('drag-over');
+}
+function kanban_dragLeave(col) {
+  col.classList.remove('drag-over');
+}
+async function kanban_drop(e, novaFaza) {
+  e.preventDefault();
+  var col = e.currentTarget;
+  if (col) col.classList.remove('drag-over');
+  if (!_kanbanDragId || !currentSession) return;
+  var id = _kanbanDragId;
+  _kanbanDragId = null;
+  // Optimistic update
+  var p = (typeof _predmeti !== 'undefined' ? _predmeti : []).find(function(x){ return x.id === id; });
+  if (p) p.kanban_faza = novaFaza;
+  kanban_render();
+  // Save
+  try {
+    var r = await fetch(BASE_URL + '/api/predmeti/' + encodeURIComponent(id) + '/kanban-faza', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ kanban_faza: novaFaza }),
+    });
+    if (!r.ok) { showToast('Greška pri čuvanju faze.', 'err'); }
+  } catch(err) {
+    showToast('Greška veze.', 'err');
+  }
+}
+function kanban_openPredmet(id) {
+  kanban_setView('lista');
+  var p = (typeof _predmeti !== 'undefined' ? _predmeti : []).find(function(x){ return x.id === id; });
+  if (p) {
+    setTimeout(function() { pred_select(id); }, 50);
+  }
+}
+
 function pred_openStrat(modul) {
   openAITool('t');
   setTimeout(function() {

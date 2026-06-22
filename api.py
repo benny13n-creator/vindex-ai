@@ -2029,6 +2029,22 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
     return {"ok": True}
 
 
+@app.patch("/api/predmeti/{predmet_id}/kanban-faza")
+@limiter.limit("30/minute")
+async def update_kanban_faza(predmet_id: str, request: Request, authorization: str = Header(None)):
+    """Kanban Case Pipeline — premesti predmet u drugu fazu."""
+    user = _require_auth(authorization)
+    body = await request.json()
+    faza = (body.get("kanban_faza") or "").strip()
+    _VALID = {"inicijalna_procena", "priprema", "aktivan_postupak", "ceka_odluku", "zavrsen"}
+    if faza not in _VALID:
+        raise HTTPException(status_code=400, detail="Nevalidna faza")
+    result = _get_supa().table("predmeti").update({"kanban_faza": faza}).eq("id", predmet_id).eq("user_id", user.id).execute()
+    if not (result.data):
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+    return {"ok": True, "kanban_faza": faza}
+
+
 @app.post("/api/predmeti/{predmet_id}/beleske")
 @limiter.limit("30/minute")
 async def dodaj_belesku(predmet_id: str, request: Request, authorization: str = Header(None)):

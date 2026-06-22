@@ -5504,6 +5504,50 @@ i[data-lucide] svg {
 }
 .pred-more-menu button:hover { background: rgba(74,168,255,.1); color: #89c8ff; }
 
+/* ── Case Pipeline Kanban ───────────────────────────────────── */
+.kanban-board {
+  display: flex; gap: .75rem; overflow-x: auto; padding: .25rem 0 .75rem;
+  scrollbar-width: thin; scrollbar-color: rgba(74,168,255,.2) transparent;
+}
+.kanban-board::-webkit-scrollbar { height: 4px; }
+.kanban-board::-webkit-scrollbar-thumb { background: rgba(74,168,255,.2); border-radius: 4px; }
+.kanban-col {
+  flex: 0 0 195px; background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.07); border-radius: 12px;
+  padding: .65rem .6rem; transition: border-color .15s;
+}
+.kanban-col.drag-over { border-color: rgba(74,168,255,.4); background: rgba(74,168,255,.04); }
+.kanban-col-header {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: .67rem; font-weight: 700; color: rgba(255,255,255,.45);
+  text-transform: uppercase; letter-spacing: .09em; margin-bottom: .55rem;
+  padding-bottom: .45rem; border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.kanban-count {
+  background: rgba(255,255,255,.07); color: rgba(255,255,255,.5);
+  border-radius: 8px; padding: 0 .45rem; font-size: .65rem; font-weight: 700; min-width: 18px; text-align: center;
+}
+.kanban-cards { display: flex; flex-direction: column; gap: .45rem; min-height: 80px; }
+.kanban-card {
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px; padding: .6rem .7rem; cursor: grab;
+  transition: background .12s, border-color .12s, transform .1s;
+  user-select: none;
+}
+.kanban-card:hover { background: rgba(74,168,255,.08); border-color: rgba(74,168,255,.22); }
+.kanban-card:active { cursor: grabbing; transform: scale(.98); }
+.kanban-card.dragging { opacity: .45; }
+.kanban-card-naziv {
+  font-size: .78rem; font-weight: 600; color: rgba(255,255,255,.85);
+  margin-bottom: .18rem; line-height: 1.35; word-break: break-word;
+}
+.kanban-card-meta { font-size: .65rem; color: rgba(255,255,255,.32); display: flex; gap: .35rem; flex-wrap: wrap; }
+.kanban-card-tip {
+  background: rgba(74,168,255,.1); color: rgba(74,168,255,.75);
+  border-radius: 4px; padding: 0 .35rem; font-size: .62rem;
+}
+.kanban-empty { font-size: .7rem; color: rgba(255,255,255,.18); text-align: center; padding: .75rem 0; }
+
 /* ── Smart Action Chips ──────────────────────────────────────── */
 .smart-chips-wrap {
   margin-bottom: .7rem;
