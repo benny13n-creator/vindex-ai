@@ -12678,6 +12678,43 @@ function matter_intel_load() {
       sl.style.display = 'block';
       sl.innerHTML = '💡 <b>Preporučena radnja:</b> ' + _htmlEsc(d.sledeca_radnja.replace('SLEDEĆA RADNJA: ','').split('\n')[0]);
     }
+
+    // ── Sparkline trend zdravlja ─────────────────────────────────────────────
+    var spWrap = document.getElementById('mi-sparkline-wrap');
+    var spSvg  = document.getElementById('mi-sparkline');
+    var spLbl  = document.getElementById('mi-sparkline-labels');
+    var hist   = Array.isArray(d.health_history) ? d.health_history : [];
+    if (spWrap && spSvg && hist.length >= 2) {
+      spWrap.style.display = '';
+      var W = 240, H = 36, pad = 4;
+      var scores = hist.map(function(h){ return h.score; });
+      var minS = Math.min.apply(null, scores);
+      var maxS = Math.max.apply(null, scores);
+      var range = Math.max(maxS - minS, 10);
+      var pts = hist.map(function(h, i) {
+        var x = pad + i / (hist.length - 1) * (W - 2 * pad);
+        var y = H - pad - (h.score - minS) / range * (H - 2 * pad);
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      });
+      // Filled area path
+      var lastX = (pad + (hist.length - 1) / (hist.length - 1) * (W - 2 * pad)).toFixed(1);
+      var lastY = (H - pad - (scores[scores.length - 1] - minS) / range * (H - 2 * pad)).toFixed(1);
+      var firstX = pad.toFixed(1);
+      var lastScore = scores[scores.length - 1];
+      var lineColor = lastScore >= 70 ? '#4ade80' : lastScore >= 45 ? '#fbbf24' : '#f87171';
+      var fillColor = lastScore >= 70 ? 'rgba(74,222,128,.12)' : lastScore >= 45 ? 'rgba(251,191,36,.12)' : 'rgba(248,113,113,.12)';
+      var areaD = 'M ' + firstX + ',' + H + ' L ' + pts.join(' L ') + ' L ' + lastX + ',' + H + ' Z';
+      var lineD = 'M ' + pts.join(' L ');
+      spSvg.innerHTML = '<path d="' + areaD + '" fill="' + fillColor + '" stroke="none"/>'
+        + '<path d="' + lineD + '" fill="none" stroke="' + lineColor + '" stroke-width="1.5" stroke-linejoin="round"/>'
+        + '<circle cx="' + lastX + '" cy="' + lastY + '" r="2.5" fill="' + lineColor + '"/>';
+      // Labels: first and last date
+      if (spLbl) {
+        spLbl.innerHTML = '<span>' + (hist[0].date || '') + '</span><span>' + (hist[hist.length-1].date || '') + '</span>';
+      }
+    } else if (spWrap) {
+      spWrap.style.display = 'none';
+    }
   }).catch(function(e){ console.warn('[MI] load greška:', e); });
 }
 

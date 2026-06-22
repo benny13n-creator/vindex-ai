@@ -120,6 +120,9 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
     # ── Trend aktivnosti (poslednjih 3×7 dana) ───────────────────────────────
     trend = _compute_trend(supa, predmet_id, now)
 
+    # ── Health log: snimi dnevni snapshot i vrati istoriju ───────────────────
+    health_history = _log_and_fetch_health(supa, predmet_id, health, procesni_rizik, now)
+
     return {
         "snaga_dokaza":     snaga_label,
         "snaga_pct":        snaga_pct,
@@ -133,7 +136,56 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
         "health_score":       health,
         "sledeca_radnja":     sledeca_radnja,
         "trend":              trend,
+        "health_history":     health_history,
     }
+
+
+def _log_and_fetch_health(supa, predmet_id: str, health: int, rizik_label: str, now: datetime) -> list:
+    """
+    Snimi dnevni health_score snapshot i vrati poslednjih 30 dana.
+    Gracefully ignoriše greške (tabela možda ne postoji pre migracije 026).
+    Vraća: [{"date": "YYYY-MM-DD", "score": int}, ...] ili []
+    """
+    try:
+        today = now.date().isoformat()
+        today_start = f"{today}T00:00:00+00:00"
+        tomorrow    = f"{now.date().isoformat()}T23:59:59+00:00"
+
+        # Upiši samo jednom dnevno (idempotentno)
+        existing = supa.table("predmet_health_log").select("id") \
+            .eq("predmet_id", predmet_id) \
+            .gte("logged_at", today_start) \
+            .lte("logged_at", tomorrow) \
+            .limit(1).execute()
+
+        if not existing.data:
+            supa.table("predmet_health_log").insert({
+                "predmet_id": predmet_id,
+                "health_score": health,
+                "rizik_label": rizik_label,
+            }).execute()
+    except Exception:
+        pass  # tabela još ne postoji — migracija 026 nije primenjena
+
+    try:
+        from datetime import timedelta
+        since = (now - timedelta(days=30)).isoformat()
+        rows = supa.table("predmet_health_log").select("health_score,logged_at") \
+            .eq("predmet_id", predmet_id) \
+            .gte("logged_at", since) \
+            .order("logged_at") \
+            .execute()
+
+        # Grupiši po danu — uzmi poslednji zapis po danu
+        daily: dict[str, int] = {}
+        for row in (rows.data or []):
+            d = (row.get("logged_at","") or "")[:10]
+            if d:
+                daily[d] = row["health_score"]
+
+        return [{"date": d, "score": s} for d, s in sorted(daily.items())]
+    except Exception:
+        return []
 
 
 def _compute_trend(supa, predmet_id: str, now: datetime) -> str:
