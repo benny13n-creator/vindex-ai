@@ -6267,6 +6267,40 @@ body.light-theme #theme-toggle-btn { background: rgba(10,18,32,0.05) !important;
 body.light-theme .t-bar { background: rgba(10,18,32,0.018) !important; border-bottom-color: rgba(10,18,32,0.07) !important; }
 body.light-theme .t-title { color: rgba(10,18,32,0.45) !important; }
 
+/* ── Svetla tema: svi dark modali (#0d1b2a pozadina) ─────────── */
+/* Global Search modal */
+body.light-theme #gs-modal {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.10) !important;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.14) !important;
+}
+body.light-theme #gs-modal > div { border-color: rgba(0,0,0,0.07) !important; }
+body.light-theme #gs-input { color: rgba(10,18,32,0.85) !important; }
+body.light-theme #gs-filters .gs-filter { color: rgba(10,18,32,0.45) !important; border-color: rgba(0,0,0,0.12) !important; }
+body.light-theme #gs-filters .gs-filter.active { background: rgba(74,168,255,0.10) !important; color: #1a6ab0 !important; border-color: rgba(74,168,255,0.28) !important; }
+body.light-theme #gs-results { color: rgba(10,18,32,0.80) !important; }
+body.light-theme #gs-results * { color: rgba(10,18,32,0.75) !important; }
+/* Search modal overlay (RAG pretraga) */
+body.light-theme #search-modal-overlay > div {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.10) !important;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.14) !important;
+}
+body.light-theme #search-modal-overlay > div > div { border-color: rgba(0,0,0,0.07) !important; }
+body.light-theme #search-input { color: rgba(10,18,32,0.85) !important; caret-color: #1a6ab0 !important; }
+body.light-theme #search-results { color: rgba(10,18,32,0.80) !important; }
+body.light-theme #search-results * { color: rgba(10,18,32,0.75) !important; }
+/* Šabloni predmeta (intake template) modal */
+body.light-theme #intake-tpl-overlay > div {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.10) !important;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.14) !important;
+}
+body.light-theme #intake-tpl-overlay > div > div:first-child { border-color: rgba(0,0,0,0.07) !important; }
+body.light-theme #intake-tpl-overlay > div > div:first-child > div { color: rgba(10,18,32,0.88) !important; }
+body.light-theme #intake-tpl-overlay > div > div:nth-child(2) { color: rgba(10,18,32,0.48) !important; }
+body.light-theme #intake-tpl-list * { color: rgba(10,18,32,0.78) !important; }
+
 /* ── Svetla tema: Šabloni dokumenata modal ───────────────────── */
 body.light-theme #doctpl-overlay > div {
   background: #ffffff !important;
