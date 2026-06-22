@@ -2681,21 +2681,31 @@ async def predmet_upload_auto_analyze(
         raise HTTPException(status_code=422, detail="Dokument je prazan.")
 
     session_id = generate_session_id()
-    ttl_hours  = 24 * 7  # 7 dana za predmet dokumente
-    count = await asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours)
+    # Predmet dokumenti su trajni — koristimo 'pred_' prefix da cleanup_expired
+    # (koji brise samo 'tmp_*') nikad ne obrise ove vektore iz Pinecone-a.
+    count = await asyncio.to_thread(
+        ingest_session, manifest, session_id,
+        namespace_prefix="pred_"
+    )
 
-    # Record in predmet_dokumenti
+    # Record in predmet_dokumenti — tekst_sadrzaj se cuva za trajni preview
     _dok_id = None
+    _tekst_preview = text[:100_000] if text else ""
     try:
-        _ins = _get_supa().table("predmet_dokumenti").insert({
+        _row = {
             "predmet_id":          predmet_id,
             "user_id":             user.id,
             "naziv_fajla":         file.filename or "dokument",
             "storage_path":        f"session/{session_id}",
-            "pinecone_namespace":  f"tmp_{session_id}",
+            "pinecone_namespace":  f"pred_{session_id}",
             "status":              "indeksirano",
             "velicina_kb":         max(1, len(raw) // 1024),
-        }).execute()
+        }
+        # Sačuvaj tekst ako kolona postoji (migration: ALTER TABLE predmet_dokumenti ADD COLUMN tekst_sadrzaj TEXT)
+        try:
+            _ins = _get_supa().table("predmet_dokumenti").insert({**_row, "tekst_sadrzaj": _tekst_preview}).execute()
+        except Exception:
+            _ins = _get_supa().table("predmet_dokumenti").insert(_row).execute()
         _dok_id = (_ins.data or [{}])[0].get("id")
     except Exception:
         logger.warning("[P1.1] predmet_dokumenti insert failed for predmet=%s", predmet_id)
@@ -3165,13 +3175,13 @@ async def predmet_dokument_preview(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """Vraća rekonstruisani tekst dokumenta iz Pinecone namespace-a."""
+    """Vraća tekst dokumenta. Čita iz Supabase (trajno), ili kao fallback iz Pinecone."""
     uid = user["user_id"]
     supa = _get_supa()
 
     row = await asyncio.to_thread(
         lambda: supa.table("predmet_dokumenti")
-            .select("id,naziv_fajla,pinecone_namespace,velicina_kb,status,created_at")
+            .select("id,naziv_fajla,pinecone_namespace,velicina_kb,status,created_at,tekst_sadrzaj")
             .eq("id", dok_id)
             .eq("predmet_id", predmet_id)
             .eq("user_id", uid)
@@ -3182,12 +3192,17 @@ async def predmet_dokument_preview(
         raise HTTPException(status_code=404, detail="Dokument nije pronađen")
 
     d = row.data
-    ns = d.get("pinecone_namespace") or ""
-    tekst = ""
-    if ns:
-        session_id = ns.replace("tmp_", "", 1) if ns.startswith("tmp_") else ns
-        from routers.dokument import _fetch_session_tekst
-        tekst = await asyncio.to_thread(_fetch_session_tekst, session_id)
+
+    # 1. Primaran izvor: tekst_sadrzaj u Supabase (trajno, ne ističe)
+    tekst = (d.get("tekst_sadrzaj") or "").strip()
+
+    # 2. Fallback: rekonstrukcija iz Pinecone (za stare dokumente bez tekst_sadrzaj)
+    if not tekst:
+        ns = d.get("pinecone_namespace") or ""
+        if ns:
+            session_id = ns.removeprefix("tmp_").removeprefix("pred_")
+            from routers.dokument import _fetch_session_tekst
+            tekst = await asyncio.to_thread(_fetch_session_tekst, session_id)
 
     return {
         "naziv_fajla": d.get("naziv_fajla", ""),

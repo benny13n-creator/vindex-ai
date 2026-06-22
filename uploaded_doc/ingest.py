@@ -39,16 +39,20 @@ def ingest_session(
     manifest: ChunkingManifest,
     session_id: str,
     ttl_hours: int = 24,
+    namespace_prefix: str = _TMP_NS_PREFIX,
 ) -> int:
-    """Embed chunks and upsert to tmp_<session_id> Pinecone namespace.
+    """Embed chunks and upsert to <prefix><session_id> Pinecone namespace.
+
+    Use namespace_prefix='pred_' for permanent predmet documents (cleanup_expired
+    only deletes tmp_* namespaces). Default prefix 'tmp_' is for temporary sessions.
 
     Returns the number of vectors upserted. Raises on API errors.
     """
     if manifest.total_chunks == 0:
         return 0
 
-    namespace = f"{_TMP_NS_PREFIX}{session_id}"
-    exp_iso = expires_at_iso(ttl_hours)
+    namespace = f"{namespace_prefix}{session_id}"
+    exp_iso = expires_at_iso(ttl_hours) if namespace_prefix == _TMP_NS_PREFIX else ""
 
     embeddings_client = _get_embeddings_client()
     index = _get_pinecone_index()
