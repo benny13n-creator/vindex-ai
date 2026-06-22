@@ -5486,8 +5486,16 @@ i[data-lucide] svg {
   color: #c7dff7 !important;
 }
 .pred-tab-more {
-  color: rgba(255,255,255,.45) !important;
-  font-size: .78rem !important;
+  color: rgba(255,255,255,.6) !important;
+  font-size: .76rem !important;
+  font-weight: 500 !important;
+  background: rgba(255,255,255,.05) !important;
+  border: 1px solid rgba(255,255,255,.13) !important;
+  border-radius: 6px !important;
+}
+.pred-tab-more:hover {
+  background: rgba(255,255,255,.09) !important;
+  color: rgba(255,255,255,.85) !important;
 }
 .pred-more-wrap { position: relative; display: inline-block; }
 .pred-more-menu {

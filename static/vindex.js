@@ -7144,7 +7144,11 @@ function pred_renderList() {
   var el = document.getElementById('pred-list');
   if (!el) return;
   if (!_predmeti.length) {
-    el.innerHTML = '<div style="font-size:0.78rem;color:rgba(255,255,255,0.3);text-align:center;padding:1.2rem 0;">Nemate predmeta. Kreirajte prvi.</div>';
+    el.innerHTML = '<div style="font-size:0.82rem;color:rgba(255,255,255,0.38);text-align:center;padding:1.5rem 0.5rem;line-height:1.7;">'
+      + '<div style="font-size:1.8rem;margin-bottom:.5rem;opacity:.25;">📁</div>'
+      + '<div style="font-weight:600;color:rgba(255,255,255,.5);margin-bottom:.3rem;">Nema predmeta</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.25);max-width:200px;margin:0 auto;">Kliknite <strong style="color:rgba(74,168,255,.6);">+ Novi predmet</strong> gore desno da dodate prvi predmet.</div>'
+      + '</div>';
     return;
   }
 
@@ -9331,7 +9335,7 @@ async function billing_loadEntries() {
       } else { summEl.style.display = 'none'; }
     }
     if (!_billingEntries.length) {
-      listEl.innerHTML = '<div style="font-size:0.71rem;color:rgba(255,255,255,0.22);padding:0.25rem 0;">Nema unesenih radnji za ovaj predmet.</div>';
+      listEl.innerHTML = '<div style="font-size:0.73rem;color:rgba(255,255,255,0.28);padding:0.35rem 0;line-height:1.6;">Još nema unesenih radnji. Kliknite <strong style="color:rgba(74,168,255,.5);">▶ Start tajmer</strong> kad počnete da radite, ili ručno dodajte radnju ispod.</div>';
       if (barEl) barEl.style.display = 'none';
       return;
     }
@@ -13509,10 +13513,10 @@ function kg_load() {
   if (!container) return;
 
   if (!activePredmetId || !currentSession) {
-    container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;text-align:center;">'
+    container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;text-align:center;padding:1rem;">'
       + '<div style="font-size:2.2rem;opacity:.18;">◉</div>'
-      + '<div style="font-size:.82rem;color:rgba(255,255,255,.35);">Izaberite predmet sa liste levo</div>'
-      + '<div style="font-size:.72rem;color:rgba(255,255,255,.2);">Knowledge Graph će prikazati sve veze tog predmeta</div>'
+      + '<div style="font-size:.85rem;color:rgba(255,255,255,.45);font-weight:600;">Prvo otvorite predmet</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.28);max-width:240px;line-height:1.6;">Kliknite na predmet sa liste sa leve strane, pa se vratite ovde i kliknite ↺ Osveži graf.</div>'
       + '</div>';
     return;
   }
@@ -13826,10 +13830,41 @@ function pred_fab_hide() { var f = document.getElementById('pred-fab'); if (f) {
    ══════════════════════════════════════════════════ */
 var _onboardStep = 0;
 var _onboardSteps = [
-  { icon: '⚖️', title: 'Dobrodošli u Vindex AI', body: 'Vaš digitalni pravni asistent. Upravljajte predmetima, rokovima i dokumentima — sve na jednom mestu.' },
-  { icon: '📁', title: 'Dodajte prvi predmet', body: 'Kliknite "+ Novi predmet" na komandnom centru i unesite naziv, klijenta i tip spora. Vindex AI će pratiti sve rokove i dokumente automatski.' },
-  { icon: '🎤', title: 'Govorite — Vindex sluša', body: 'Kliknite dugme 🎤 Govori u gornjem desnom uglu i recite: "otvori predmet Marković" ili "uključi tajmer". Ne morate ništa da kucate.' },
-  { icon: '💡', title: 'Vindex vam govori šta da radite', body: 'Kad otvorite predmet, videćete obojene preporuke: 🔴 hitno, 🟡 pažnja, 🔵 savet. Jedan klik — odlazite tačno tamo gde treba.' },
+  {
+    icon: '⚖️',
+    title: 'Dobrodošli u Vindex AI',
+    body: 'Vaš digitalni pravni asistent za srpsku advokaturу. Upravljajte predmetima, klijentima, rokovima i naplatom — sve na jednom mestu, bez papira.'
+  },
+  {
+    icon: '👤',
+    title: 'Korak 1: Dodajte klijenta',
+    body: 'Pre nego što kreirate predmet, dodajte klijenta. Kliknite <strong style="color:#89c8ff;">Klijenti</strong> u levom meniju → dugme <strong style="color:#89c8ff;">+ Novi klijent</strong>. Unesite ime, telefon i email. To je sve.'
+  },
+  {
+    icon: '📁',
+    title: 'Korak 2: Otvorite predmet',
+    body: 'Kliknite <strong style="color:#89c8ff;">+ Novi predmet</strong> (gore desno ili u Predmeti tabu). Wizard će vas voditi korak po korak — naziv predmeta, klijent, oblast prava. Traje 2 minuta.'
+  },
+  {
+    icon: '📄',
+    title: 'Korak 3: Otpremite dokumente',
+    body: 'Unutar predmeta kliknite tab <strong style="color:#89c8ff;">Dokumenti</strong>. Prevucite PDF ili DOCX fajl u zonu za upload. Vindex AI će automatski analizirati dokument i izvući ključne informacije.'
+  },
+  {
+    icon: '🤖',
+    title: 'Korak 4: Pitajte AI',
+    body: 'Kliknite tab <strong style="color:#89c8ff;">AI Analiza</strong> unutar predmeta. AI će analizirati vaš predmet i predložiti strategiju. Ili koristite <strong style="color:#89c8ff;">AI Centar</strong> u levom meniju za pretragu zakona i sudske prakse.'
+  },
+  {
+    icon: '⏱️',
+    title: 'Korak 5: Pratite rokove i naplatite',
+    body: 'Tab <strong style="color:#89c8ff;">Rokovi</strong> — unesite ročišta i ZPP rokovi se računaju automatski. Tab <strong style="color:#89c8ff;">Naplata</strong> — uključite tajmer dok radite, dodajte stavke, kliknite Generiši fakturu.'
+  },
+  {
+    icon: '💡',
+    title: 'Saveti dok radite',
+    body: 'Svuda vidite obojene preporuke: 🔴 hitno, 🟡 pažnja, 🔵 informacija. Dugme <strong style="color:#89c8ff;">Više ▾</strong> u tabovima predmeta otkriva još alata. Ako nešto nije jasno — kliknite ? u donjem levom uglu.'
+  },
 ];
 function onboard_show() {
   /* deaktivirano — onboardingCheck() je jedini onboarding flow */
@@ -14963,6 +14998,7 @@ function pred_zatvoriRenderSection(predmetData) {
   var status = predmetData.status;
   document.getElementById('pred-zatvori-form').style.display = 'none';
 
+  var cccZatvoriBtn = document.getElementById('ccc-zatvori-btn');
   if (status === 'zatvoren') {
     // Show ishod from opis
     if (dispEl) {
@@ -14976,9 +15012,11 @@ function pred_zatvoriRenderSection(predmetData) {
       dispEl.style.display = 'block';
     }
     if (trigger) trigger.style.display = 'none';
+    if (cccZatvoriBtn) cccZatvoriBtn.style.display = 'none';
   } else {
     if (dispEl) dispEl.style.display = 'none';
     if (trigger) trigger.style.display = 'block';
+    if (cccZatvoriBtn) cccZatvoriBtn.style.display = 'inline-flex';
   }
 }
 
