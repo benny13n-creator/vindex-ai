@@ -186,7 +186,11 @@ async def moja_kancelarija(
             ],
         }
 
-    return await asyncio.to_thread(_fetch)
+    try:
+        return await asyncio.to_thread(_fetch)
+    except Exception as exc:
+        logger.warning("[KANCELARIJA] moja_kancelarija greška: %s", exc)
+        return {"status": "no_firma"}
 
 
 @router.post("/api/kancelarija/kreiraj", status_code=status.HTTP_201_CREATED)
