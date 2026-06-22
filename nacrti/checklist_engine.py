@@ -53,7 +53,7 @@ def _build_user_prompt(cinjenice: str, elementi: list[ChecklistElement]) -> str:
         "Odgovori u JSON formatu:\n"
         '{"rezultati": [{"id": 0, "pokriven": true/false}, ...]}\n\n'
         "Budi liberalan — ako je element implicitno prisutan u tekstu, označi kao pokriven. "
-        "Element je pokriven samo ako NIJE pokriven — označi false."
+        "Element je NIJE pokriven (false) samo ako nije ni eksplicitno ni implicitno naveden u tekstu."
     )
 
 

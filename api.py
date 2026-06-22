@@ -3280,13 +3280,13 @@ async def predmet_workspace(
                 _vec = await asyncio.wait_for(asyncio.to_thread(_ugradi_query, _q), timeout=5.0)
                 _matches = await asyncio.wait_for(asyncio.to_thread(_pretraga_praksa, _vec, 3), timeout=4.0)
                 for m in (_matches or [])[:3]:
-                    meta = m.get("metadata", {})
+                    meta = getattr(m, "metadata", None) or {}
                     _results.append({
                         "decision_number": meta.get("decision_number", ""),
                         "court":           meta.get("court", ""),
                         "decision_date":   meta.get("decision_date", ""),
                         "izreka_preview":  meta.get("izreka_preview", "")[:200],
-                        "score":           round(m.get("score", 0), 4),
+                        "score":           round(getattr(m, "score", 0), 4),
                     })
         except Exception as _pe:
             logger.warning("[WORKSPACE] praksa preview greška: %s", _pe)

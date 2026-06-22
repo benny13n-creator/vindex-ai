@@ -125,20 +125,20 @@ async def _load_all_context(supa, uid: str, predmet_id: str) -> dict:
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("*").eq("id", predmet_id).eq("user_id", uid).limit(1).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_klijenti")
-            .select("klijent_id,klijenti(naziv,tip)")
+            .select("klijent_id,klijenti(ime,prezime,firma)")
             .eq("predmet_id", predmet_id).execute()),
-        asyncio.to_thread(lambda: supa.table("dokumenti")
-            .select("naziv,tip,created_at,ai_sazetak").eq("predmet_id", predmet_id)
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
+            .select("naziv_fajla,tip_dokaza,created_at").eq("predmet_id", predmet_id)
             .eq("user_id", uid).order("created_at", desc=True).limit(20).execute()),
-        asyncio.to_thread(lambda: supa.table("beleske")
+        asyncio.to_thread(lambda: supa.table("predmet_beleske")
             .select("sadrzaj,created_at").eq("predmet_id", predmet_id)
             .eq("user_id", uid).order("created_at", desc=True).limit(15).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija")
             .select("pitanje,odgovor,created_at").eq("predmet_id", predmet_id)
             .eq("user_id", uid).order("created_at", desc=True).limit(10).execute()),
-        asyncio.to_thread(lambda: supa.table("hronologija")
-            .select("datum,naslov,opis,tip").eq("predmet_id", predmet_id)
-            .eq("user_id", uid).order("datum").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+            .select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id)
+            .eq("user_id", uid).order("datum_iso").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_komentari")
             .select("sadrzaj,kreirano").eq("predmet_id", predmet_id)
             .eq("user_id", uid).order("kreirano", desc=True).limit(10).execute()),
@@ -184,18 +184,18 @@ def _build_prompt(ctx: dict, datum_rocista: str, tip_postupka: str) -> str:
         lines.append("KLIJENTI:")
         for k in ctx["klijenti"]:
             kl = k.get("klijenti") or {}
-            lines.append(f"  - {kl.get('naziv','?')} ({kl.get('tip','?')})")
+            naziv = f"{kl.get('ime','')} {kl.get('prezime','')}".strip() or kl.get("firma", "?")
+            lines.append(f"  - {naziv}")
 
     if ctx["hronologija"]:
         lines.append("\nHRONOLOGIJA DOGAĐAJA:")
         for h in ctx["hronologija"]:
-            lines.append(f"  {h.get('datum','?')} — {h.get('naslov','')}: {(h.get('opis') or '')[:200]}")
+            lines.append(f"  {h.get('datum_iso','?')} — {(h.get('dogadjaj') or '')[:200]} [{h.get('vaznost','')}]")
 
     if ctx["dokumenti"]:
         lines.append("\nDOKUMENTI:")
         for d in ctx["dokumenti"][:12]:
-            saz = d.get("ai_sazetak") or ""
-            lines.append(f"  [{d.get('tip','?')}] {d.get('naziv','?')}" + (f" — {saz[:250]}" if saz else ""))
+            lines.append(f"  [{d.get('tip_dokaza','?')}] {d.get('naziv_fajla','?')}")
 
     if ctx["beleske"]:
         lines.append("\nBELEŠKE:")

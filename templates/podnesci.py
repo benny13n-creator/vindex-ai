@@ -1692,6 +1692,87 @@ def popuni_sablon(tip: str, entiteti: dict, obogacivanje: dict,
             "DODATNI_PRILOZI":        "[DODATNI PRILOZI — POPUNITI]",
         }
 
+    elif tip == "odgovor_na_tuzbu":
+        merged = {
+            "SUD_NAZIV":                   entiteti.get("sud_naziv", "[SUD — POPUNITI]"),
+            "SUD_ADRESA":                  entiteti.get("sud_adresa", ""),
+            "BROJ_PREDMETA":               entiteti.get("broj_predmeta", "[BROJ — POPUNITI]"),
+            "TUZENI_IME":                  entiteti.get("tuzeni_ime", "[TUŽENI — POPUNITI]"),
+            "TUZENI_ADRESA":               entiteti.get("tuzeni_adresa", "[ADRESA — POPUNITI]"),
+            "ADVOKAT_IME":                 entiteti.get("advokat_ime", "[IME ADVOKATA — POPUNITI]"),
+            "ADVOKAT_ADRESA":              entiteti.get("advokat_adresa", "[ADRESA ADVOKATA — POPUNITI]"),
+            "TUZILAC_IME":                 entiteti.get("tuzilac_ime", "[TUŽILAC — POPUNITI]"),
+            "TUZILAC_ADRESA":              entiteti.get("tuzilac_adresa", "[ADRESA — POPUNITI]"),
+            "UVOD":                        obogacivanje.get("uvod", "[UVOD — POPUNITI]"),
+            "IZJASNENJE_O_NAVODIMA":       obogacivanje.get("izjasnenje_o_navodima", "[IZJAŠNJENJE — POPUNITI]"),
+            "PROCESNI_PRIGOVORI":          obogacivanje.get("procesni_prigovori", ""),
+            "MATERIJALNOPRAVNI_RAZLOZI":   obogacivanje.get("materijalnopravni_razlozi", "[RAZLOZI — POPUNITI]"),
+            "DOKAZNA_SREDSTVA":            obogacivanje.get("dokazna_sredstva", entiteti.get("dokazna_sredstva_raw", "[DOKAZI — POPUNITI]")),
+            "MESTO":                       entiteti.get("mesto", "[MESTO]"),
+            "DATUM":                       entiteti.get("datum", "[DATUM]"),
+            "PRILOZI":                     "[DODATNI PRILOZI — POPUNITI]",
+        }
+
+    elif tip == "zalba_krivicna":
+        merged = {
+            "DRUGOSTEPENI_SUD_NAZIV":  entiteti.get("drugostepeni_sud_naziv", "[DRUGOSTEPENI SUD — POPUNITI]"),
+            "DRUGOSTEPENI_SUD_ADRESA": entiteti.get("drugostepeni_sud_adresa", ""),
+            "PRVOSTEPENI_SUD_NAZIV":   entiteti.get("prvostepeni_sud_naziv", entiteti.get("sud_naziv", "[PRVOSTEPENI SUD — POPUNITI]")),
+            "PRVOSTEPENI_SUD_ADRESA":  entiteti.get("prvostepeni_sud_adresa", entiteti.get("sud_adresa", "")),
+            "ZALILAC_IME":             entiteti.get("zalilac_ime", entiteti.get("okrivljeni_ime", "[ŽALILAC — POPUNITI]")),
+            "ZALILAC_ADRESA":          entiteti.get("zalilac_adresa", entiteti.get("okrivljeni_adresa", "[ADRESA — POPUNITI]")),
+            "ADVOKAT_IME":             entiteti.get("advokat_ime", "[IME ADVOKATA — POPUNITI]"),
+            "ADVOKAT_ADRESA":          entiteti.get("advokat_adresa", "[ADRESA ADVOKATA — POPUNITI]"),
+            "BROJ_PREDMETA_KRIVICNOG": entiteti.get("broj_predmeta_krivicnog", entiteti.get("broj_predmeta", "[BROJ — POPUNITI]")),
+            "BROJ_PRESUDE":            entiteti.get("broj_presude", "[BROJ PRESUDE — POPUNITI]"),
+            "DATUM_PRESUDE":           entiteti.get("datum_presude", "[DATUM PRESUDE — POPUNITI]"),
+            "IZREKA_POBIJANE_PRESUDE": entiteti.get("izreka_pobijane_presude", entiteti.get("cinjenicno_stanje_raw", "[IZREKA — POPUNITI]")),
+            "DATUM_DOSTAVLJANJA":      entiteti.get("datum_dostavljanja", "[DATUM DOSTAVLJANJA — POPUNITI]"),
+            "ZALBA_RAZLOZI_LISTA":     obogacivanje.get("zalba_razlozi_lista", "[RAZLOZI ŽALBE — POPUNITI]"),
+            "OBRAZLOZENJE_ZALBE":      obogacivanje.get("obrazlozenje_zalbe", "[OBRAZLOŽENJE — POPUNITI]"),
+            "ZALBA_PREDLOG":           obogacivanje.get("zalba_predlog", "[PREDLOG — POPUNITI]"),
+            "MESTO":                   entiteti.get("mesto", "[MESTO]"),
+            "DATUM":                   entiteti.get("datum", "[DATUM]"),
+        }
+
+    elif tip == "urgencija_sudu":
+        merged = {
+            "SUD_NAZIV":               entiteti.get("sud_naziv", "[SUD — POPUNITI]"),
+            "SUD_ADRESA":              entiteti.get("sud_adresa", ""),
+            "BROJ_PREDMETA":           entiteti.get("broj_predmeta", "[BROJ — POPUNITI]"),
+            "STRANKA_IME":             entiteti.get("stranka_ime", entiteti.get("klijent_ime", "[STRANKA — POPUNITI]")),
+            "STRANKA_ADRESA":          entiteti.get("stranka_adresa", entiteti.get("klijent_adresa", "[ADRESA — POPUNITI]")),
+            "ADVOKAT_IME":             entiteti.get("advokat_ime", "[IME ADVOKATA — POPUNITI]"),
+            "ADVOKAT_ADRESA":          entiteti.get("advokat_adresa", "[ADRESA ADVOKATA — POPUNITI]"),
+            "OPIS_SITUACIJE":          obogacivanje.get("opis_situacije", entiteti.get("cinjenicno_stanje_raw", "[OPIS — POPUNITI]")),
+            "RAZLOG_HITNOSTI":         obogacivanje.get("razlog_hitnosti", "[RAZLOG HITNOSTI — POPUNITI]"),
+            "PREDLOG_HITNOG_POSTUPANJA": obogacivanje.get("predlog_hitnog_postupanja", "[PREDLOG — POPUNITI]"),
+            "MESTO":                   entiteti.get("mesto", "[MESTO]"),
+            "DATUM":                   entiteti.get("datum", "[DATUM]"),
+        }
+
+    elif tip == "prigovor_izvrsenje":
+        merged = {
+            "SUD_NAZIV":             entiteti.get("sud_naziv", "[SUD — POPUNITI]"),
+            "SUD_ADRESA":            entiteti.get("sud_adresa", ""),
+            "BROJ_PREDMETA_IZVRSNOG": entiteti.get("broj_predmeta_izvrsnog", entiteti.get("broj_predmeta", "[BROJ — POPUNITI]")),
+            "DUZNIK_IME":            entiteti.get("duznik_ime", entiteti.get("klijent_ime", "[DUŽNIK — POPUNITI]")),
+            "DUZNIK_ADRESA":         entiteti.get("duznik_adresa", entiteti.get("klijent_adresa", "[ADRESA — POPUNITI]")),
+            "ADVOKAT_IME":           entiteti.get("advokat_ime", "[IME ADVOKATA — POPUNITI]"),
+            "ADVOKAT_ADRESA":        entiteti.get("advokat_adresa", "[ADRESA ADVOKATA — POPUNITI]"),
+            "POVERILAC_IME":         entiteti.get("poverilac_ime", "[POVERILAC — POPUNITI]"),
+            "POVERILAC_ADRESA":      entiteti.get("poverilac_adresa", "[ADRESA — POPUNITI]"),
+            "BROJ_RESENJA":          entiteti.get("broj_resenja", "[BROJ REŠENJA — POPUNITI]"),
+            "DATUM_RESENJA":         entiteti.get("datum_resenja", "[DATUM REŠENJA — POPUNITI]"),
+            "IZVRSNA_ISPRAVA":       entiteti.get("izvrsna_isprava", "[IZVRŠNA ISPRAVA — POPUNITI]"),
+            "RAZLOZI_PRIGOVORA":     obogacivanje.get("razlozi_prigovora", entiteti.get("cinjenicno_stanje_raw", "[RAZLOZI — POPUNITI]")),
+            "PRAVNA_OSNOVA":         obogacivanje.get("pravna_osnova", "[PRAVNA OSNOVA — POPUNITI]"),
+            "DOKAZNA_SREDSTVA":      obogacivanje.get("dokazna_sredstva", entiteti.get("dokazna_sredstva_raw", "[DOKAZI — POPUNITI]")),
+            "MESTO":                 entiteti.get("mesto", "[MESTO]"),
+            "DATUM":                 entiteti.get("datum", "[DATUM]"),
+            "PRILOZI":               "[DODATNI PRILOZI — POPUNITI]",
+        }
+
     # Popuni šablon — nepoznati placeholderi ostaju [POPUNITI]
     tekst = sablon
     for kljuc, vrednost in merged.items():

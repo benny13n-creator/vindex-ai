@@ -27,6 +27,10 @@ _OCEKIVANI_TIPOVI = [
     "prigovor_platni_nalog",
     "krivicna_prijava",
     "predlog_privremena_mera",
+    "odgovor_na_tuzbu",
+    "zalba_krivicna",
+    "urgencija_sudu",
+    "prigovor_izvrsenje",
 ]
 
 # ─── Konzistentnost rečnika ──────────────────────────────────────────────────
@@ -49,7 +53,7 @@ def test_svi_ocekivani_tipovi_prisutni():
 
 
 def test_tacno_8_tipova():
-    assert len(TIPOVI) == 8, f"Očekivano 8 tipova, ima {len(TIPOVI)}"
+    assert len(TIPOVI) == 12, f"Očekivano 12 tipova, ima {len(TIPOVI)}"
 
 
 # ─── popuni_sablon: osnovna validacija ───────────────────────────────────────

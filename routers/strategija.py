@@ -15,7 +15,7 @@ import asyncio
 import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _audit, _deduct_credit, _deduct_n_credits, _get_credits, _is_founder, require_pro
@@ -241,7 +241,7 @@ class OrkestratorRequest(BaseModel):
 async def post_kompletna_analiza(
     req: OrkestratorRequest,
     request: Request,
-    background_tasks: "BackgroundTasks",
+    background_tasks: BackgroundTasks,
     user: dict = Depends(require_pro),
 ):
     """

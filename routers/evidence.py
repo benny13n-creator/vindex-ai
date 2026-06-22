@@ -207,7 +207,7 @@ async def reklasifikuj(predmet_id: str, dok_id: str, user=Depends(require_user))
         raise HTTPException(status_code=404, detail="Dokument nije pronađen.")
 
     d = dok.data[0]
-    asyncio.get_event_loop().run_in_executor(
+    asyncio.get_running_loop().run_in_executor(
         None, klasifikuj_i_sacuvaj, predmet_id, dok_id, d.get("naziv_fajla", ""), "", uid
     )
     return {"ok": True, "poruka": "Reklasifikacija pokrenuta u pozadini."}

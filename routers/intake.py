@@ -590,10 +590,10 @@ async def post_from_template(
         try:
             await asyncio.to_thread(
                 lambda: supa.table("predmet_klijenti").insert({
-                    "predmet_id": predmet_id,
-                    "klijent_id": body.klijent_id,
-                    "user_id":    uid,
-                    "uloga":      "stranka",
+                    "predmet_id":     predmet_id,
+                    "klijent_id":     body.klijent_id,
+                    "user_id":        uid,
+                    "uloga_klijenta": "stranka",
                 }).execute()
             )
         except Exception:
