@@ -559,9 +559,17 @@ async function doRegister() {
 
 async function doLogout() {
   var sb = getSupabase();
-  if (sb) await sb.auth.signOut();
-  currentUser = null; currentSession = null; userCredits = 0;
-  updateAuthUI();
+  if (sb) { try { await sb.auth.signOut(); } catch(e) {} }
+  // Briši sve korisničke podatke iz localStorage — sprečava kontaminaciju između naloga
+  ['vindex_session_id','vindex_display_name','vindex_firma','vx_notif_read'].forEach(function(k) {
+    localStorage.removeItem(k);
+  });
+  // Ukloni sve vx_timer_* ključeve (tajmeri su vezani za konkretnog korisnika)
+  Object.keys(localStorage).filter(function(k){ return k.startsWith('vx_timer_'); }).forEach(function(k){
+    localStorage.removeItem(k);
+  });
+  // Pun reload — jedini siguran način da se obriše sav JS state u memoriji
+  window.location.reload();
 }
 
 // ─── Chat sesija & memorija ───────────────────────────────────────────────────
