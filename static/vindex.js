@@ -7195,6 +7195,7 @@ function pred_subtabSwitch(pane, btn) {
   if (pane === 'dokazi'   && activePredmetId) evidence_load();
   if (pane === 'graf'     && activePredmetId) kg_load();
   if (pane === 'ccc'      && activePredmetId) ccc_load();
+  if (pane === 'rokovi'   && activePredmetId) predRocistaLoad();
 }
 
 /* ── "··· Više" dropdown toggle ─────────────────────────────────────────── */
@@ -10492,7 +10493,7 @@ async function kalendarOutlookExport() {
   }
 }
 
-function rocisteOtvoriFormu() {
+function rocisteOtvoriFormu(predmetId) {
   var ov = document.getElementById('rociste-overlay');
   if (!ov) return;
   document.getElementById('rociste-edit-id').value = '';
@@ -10506,17 +10507,77 @@ function rocisteOtvoriFormu() {
   document.getElementById('rociste-modal-title').textContent = 'Novo ročište';
   var sel = document.getElementById('rociste-predmet-id');
   sel.innerHTML = '<option value="">— Izaberi predmet —</option>';
-  (_kalendarPredmeti || []).forEach(function(p) {
+  var lista = _kalendarPredmeti && _kalendarPredmeti.length ? _kalendarPredmeti : (typeof _predmeti !== 'undefined' ? _predmeti : []);
+  lista.forEach(function(p) {
     var opt = document.createElement('option');
     opt.value = p.id; opt.textContent = p.naziv || p.id;
     sel.appendChild(opt);
   });
+  if (predmetId) {
+    // Ako predmet nije u listi (npr. kalendar nije učitan), dodaj ga ručno
+    if (!sel.querySelector('option[value="' + predmetId + '"]')) {
+      var opt = document.createElement('option');
+      opt.value = predmetId;
+      opt.textContent = (typeof activePredmetNaziv !== 'undefined' && activePredmetNaziv) ? activePredmetNaziv : predmetId;
+      sel.appendChild(opt);
+    }
+    sel.value = predmetId;
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+  }
   ov.classList.add('open');
 }
 
 function rocisteZatvoriFormu() {
   var ov = document.getElementById('rociste-overlay');
   if (ov) ov.classList.remove('open');
+  var sel = document.getElementById('rociste-predmet-id');
+  if (sel) sel.disabled = false;
+}
+
+function predRocistaLoad() {
+  if (!activePredmetId || !currentSession) return;
+  var listEl = document.getElementById('pred-rocista-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<span style="font-size:.75rem;color:rgba(255,255,255,.3);">Učitavam...</span>';
+  fetch(BASE_URL + '/api/rocista?predmet_id=' + encodeURIComponent(activePredmetId) + '&limit=20', {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    var lista = d.rocista || [];
+    var listEl2 = document.getElementById('pred-rocista-list');
+    if (!listEl2) return;
+    if (!lista.length) {
+      listEl2.innerHTML = '<div style="font-size:.74rem;color:rgba(255,255,255,.25);padding:.4rem 0;">Nema zakazanih ročišta.</div>';
+      return;
+    }
+    var _sLab = { zakazano:'Zakazano', odrzano:'Održano', odlozeno:'Odloženo', otkazano:'Otkazano' };
+    var _sClr = { zakazano:'rgba(74,168,255,.7)', odrzano:'rgba(52,211,153,.7)', odlozeno:'rgba(251,191,36,.7)', otkazano:'rgba(248,113,113,.7)' };
+    var h = '';
+    lista.forEach(function(r) {
+      var s = r.status || 'zakazano';
+      var clr = _sClr[s] || 'rgba(255,255,255,.4)';
+      h += '<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.5rem .65rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:8px;margin-bottom:.32rem;">';
+      h += '<div style="flex:1;min-width:0;">';
+      h += '<div style="font-size:.79rem;font-weight:600;color:rgba(255,255,255,.82);margin-bottom:.12rem;">' + escHtml(r.sud || '') + '</div>';
+      var meta = escHtml(r.datum || '');
+      if (r.vreme) meta += ' u ' + escHtml(r.vreme);
+      if (r.sudnica) meta += ' &middot; Sudnica: ' + escHtml(r.sudnica);
+      if (r.broj_predmeta_suda) meta += ' &middot; ' + escHtml(r.broj_predmeta_suda);
+      h += '<div style="font-size:.68rem;color:rgba(255,255,255,.38);">' + meta + '</div>';
+      if (r.napomena) h += '<div style="font-size:.66rem;color:rgba(255,255,255,.28);margin-top:.1rem;">' + escHtml(r.napomena.slice(0, 80)) + (r.napomena.length > 80 ? '…' : '') + '</div>';
+      h += '</div>';
+      h += '<span style="flex-shrink:0;font-size:.6rem;padding:.15rem .45rem;border-radius:4px;border:1px solid ' + clr + ';color:' + clr + ';font-weight:600;align-self:flex-start;">' + (escHtml(_sLab[s] || s)) + '</span>';
+      h += '</div>';
+    });
+    listEl2.innerHTML = h;
+  })
+  .catch(function() {
+    var el = document.getElementById('pred-rocista-list');
+    if (el) el.innerHTML = '<div style="font-size:.74rem;color:rgba(248,113,113,.6);">Greška pri učitavanju ročišta.</div>';
+  });
 }
 
 function rocisteSnimi() {
@@ -10543,6 +10604,7 @@ function rocisteSnimi() {
     rocisteZatvoriFormu();
     showToast('Ročište sačuvano.', 'ok');
     kalendarLoad();
+    if (activePredmetId) predRocistaLoad();
   })
   .catch(function() { grEl.textContent = 'Mrežna greška.'; grEl.style.display = ''; });
 }

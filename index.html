@@ -1116,6 +1116,12 @@
 
               <!-- ── TAB 5: Rokovi ─────────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-rokovi" style="display:none;">
+                <!-- ── Zakazana ročišta predmeta ─────────────────────── -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                  <div class="pred-section-lbl" style="margin-bottom:0;">Zakazana ročišta</div>
+                  <button onclick="rocisteOtvoriFormu(activePredmetId)" style="padding:.28rem .7rem;font-size:.72rem;background:rgba(74,168,255,.1);border:1px solid rgba(74,168,255,.28);border-radius:6px;color:#89c8ff;cursor:pointer;font-family:inherit;">+ Zakaži</button>
+                </div>
+                <div id="pred-rocista-list" style="margin-bottom:.9rem;"></div>
                 <div class="pred-section-lbl">Hronologija i rokovi</div>
                 <div id="pred-hronologija-wrap">
                   <div id="pred-hronologija-list" style="margin-top:0.3rem;"></div>
@@ -3247,6 +3253,7 @@
   <div id="pred-fab-menu">
     <button onclick="pred_fab_close();pred_subtabSwitch('dokumenti')">Dodaj dokument</button>
     <button onclick="pred_fab_close();pred_subtabSwitch('rokovi')">Dodaj rok</button>
+    <button onclick="pred_fab_close();rocisteOtvoriFormu(activePredmetId)">Zakaži ročište</button>
     <button onclick="pred_fab_close();pred_subtabSwitch('naplata')">Unesi naplatu</button>
     <button onclick="pred_fab_close();if(activePredmetId){pred_subtabSwitch('timeline');}">📝 Dodaj belešku</button>
     <button onclick="pred_fab_close();if(!_billingPredmetId)_billingPredmetId=activePredmetId;if(typeof billing_timerToggle==='function')billing_timerToggle();">⏱ Pokreni tajmer</button>
