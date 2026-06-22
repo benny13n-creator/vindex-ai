@@ -7167,7 +7167,7 @@ async function pred_bulkAkcija(akcija) {
 }
 
 function pred_subtabSwitch(pane, btn) {
-  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','ccc','agenti'];
+  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','ccc','agenti','graf'];
   if (VALID.indexOf(pane) === -1) pane = 'pregled';
   document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
   document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -13048,17 +13048,111 @@ window.crmPokreniKonflikt = crmPokreniKonfliktNovi;
 // ═══════════════════════════════════════════════════════════════
 var _selectedAgent = null;
 
+// ── Markdown renderer ──────────────────────────────────────────
+function _htmlEscMd(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function _inlineMd(text) {
+  var t = _htmlEscMd(text);
+  t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/\*(.+?)\*/g,     '<em style="color:rgba(255,255,255,.75);">$1</em>');
+  t = t.replace(/`(.+?)`/g,       '<code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px;font-size:.85em;">$1</code>');
+  return t;
+}
+function _mdToHtml(text) {
+  if (!text) return '';
+  var lines = text.split('\n');
+  var out = [];
+  var inList = false;
+  lines.forEach(function(line) {
+    if (/^---+$/.test(line.trim())) {
+      if (inList) { out.push('</ul>'); inList = false; }
+      out.push('<hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:.6rem 0;">');
+      return;
+    }
+    var hm = line.match(/^(#{1,3})\s+(.+)/);
+    if (hm) {
+      if (inList) { out.push('</ul>'); inList = false; }
+      var lvl = hm[1].length;
+      var sz = lvl===1?'.92rem':lvl===2?'.85rem':'.8rem';
+      var mt = lvl===1?'1rem':'.7rem';
+      out.push('<div style="font-size:'+sz+';font-weight:700;color:#89c8ff;margin-top:'+mt+';margin-bottom:.25rem;">' + _htmlEscMd(hm[2]) + '</div>');
+      return;
+    }
+    if (/^[-*]\s+/.test(line)) {
+      if (!inList) { out.push('<ul style="margin:.2rem 0 .2rem 1rem;padding:0;list-style:disc;">'); inList = true; }
+      out.push('<li style="margin:.15rem 0;line-height:1.5;">' + _inlineMd(line.replace(/^[-*]\s+/, '')) + '</li>');
+      return;
+    }
+    var nm = line.match(/^\d+\.\s+(.+)/);
+    if (nm) {
+      if (inList) { out.push('</ul>'); inList = false; }
+      out.push('<div style="margin:.2rem 0;line-height:1.6;">' + _inlineMd(line) + '</div>');
+      return;
+    }
+    if (!line.trim()) {
+      if (inList) { out.push('</ul>'); inList = false; }
+      out.push('<div style="margin:.25rem 0;"></div>');
+      return;
+    }
+    if (inList) { out.push('</ul>'); inList = false; }
+    out.push('<div style="line-height:1.6;margin:.1rem 0;">' + _inlineMd(line) + '</div>');
+  });
+  if (inList) out.push('</ul>');
+  return out.join('');
+}
+
+var _AGENT_ICONS = {'intake':'📥','research':'🔍','drafting':'✍️','litigation':'⚖️','billing':'💰','deadline':'⏰'};
+var _AGENT_NAMES = {'intake':'Intake Agent','research':'Research Agent','drafting':'Drafting Agent','litigation':'Litigation Agent','billing':'Billing Agent','deadline':'Deadline Agent'};
+var _AGENT_PLACEHOLDERS = {
+  'intake':    'Opišite situaciju klijenta... (npr. "Zaposleni dobio otkaz posle 8 godina, tvrdi da je nezakonit")',
+  'research':  'Koje pravno pitanje da istražim? (npr. "Rok zastarelosti za naknadu štete iz saobraćajne nezgode?")',
+  'drafting':  'Koji dokument da generišem? (npr. "Tužba za naknadu štete, tužilac Petar Petrović, 350.000 RSD")',
+  'litigation':'Analiziraj slabosti slučaja... (npr. "Tužim za naknadu štete ali nemam pismeni ugovor")',
+  'billing':   'Koje radnje su preduzete? (npr. "Vodio spor godinu dana, 4 ročišta, žalba, vrednost 800.000 RSD")',
+  'deadline':  'Koji rokovi te interesuju? (npr. "Dobio rešenje o otkazu 01.06.2025., do kada da podnesem tužbu?")'
+};
+var _AGENT_LOADING = {
+  'intake':'Intake Agent prima informacije...','research':'Research Agent pretražuje zakone i praksu...',
+  'drafting':'Drafting Agent generiše dokument...','litigation':'Litigation Agent analizira slabosti...',
+  'billing':'Billing Agent obračunava tarife...','deadline':'Deadline Agent proverava rokove...'
+};
+
 function agent_select(agentId, cardEl) {
   _selectedAgent = agentId;
   document.querySelectorAll('.agent-card').forEach(function(c){ c.classList.remove('active'); });
   if (cardEl) cardEl.classList.add('active');
   var badge = document.getElementById('agent-selected-badge');
-  var icons = {'intake':'📥','research':'🔍','drafting':'✍️','litigation':'⚖️','billing':'💰','deadline':'⏰'};
-  var names = {'intake':'Intake Agent','research':'Research Agent','drafting':'Drafting Agent','litigation':'Litigation Agent','billing':'Billing Agent','deadline':'Deadline Agent'};
+  var wrap  = document.getElementById('agent-result-wrap');
+  var input = document.getElementById('agent-task-input');
   if (badge) {
     badge.style.display = 'block';
-    badge.textContent   = (icons[agentId]||'▶') + ' ' + (names[agentId]||agentId) + ' — aktivan';
+    badge.textContent   = (_AGENT_ICONS[agentId]||'▶') + ' ' + (_AGENT_NAMES[agentId]||agentId) + ' — aktivan';
   }
+  if (wrap)  wrap.style.display  = 'none';
+  if (input && _AGENT_PLACEHOLDERS[agentId]) input.placeholder = _AGENT_PLACEHOLDERS[agentId];
+}
+
+function agent_copy() {
+  var result = document.getElementById('agent-result');
+  if (!result) return;
+  var text = result.innerText || result.textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    showToast('Kopirano u clipboard', 'ok');
+  }).catch(function() {
+    showToast('Copy nije uspeo — selektujte tekst ručno', 'warn');
+  });
+}
+
+function agent_novo() {
+  var wrap  = document.getElementById('agent-result-wrap');
+  var input = document.getElementById('agent-task-input');
+  var badge = document.getElementById('agent-selected-badge');
+  if (wrap)  wrap.style.display  = 'none';
+  if (input) { input.value = ''; input.placeholder = 'Opišite šta trebate od agenta...'; input.focus(); }
+  if (badge) badge.style.display = 'none';
+  _selectedAgent = null;
+  document.querySelectorAll('.agent-card').forEach(function(c){ c.classList.remove('active'); });
 }
 
 async function agent_run() {
@@ -13067,12 +13161,22 @@ async function agent_run() {
   if (!task) { showToast('Unesite zadatak za agenta', 'warn'); return; }
   if (!currentSession) { showToast('Prijavite se', 'warn'); return; }
 
-  var loading = document.getElementById('agent-loading');
-  var wrap    = document.getElementById('agent-result-wrap');
-  var result  = document.getElementById('agent-result');
-  var badge   = document.getElementById('agent-result-badge');
+  var loading    = document.getElementById('agent-loading');
+  var loadingTxt = document.getElementById('agent-loading-txt');
+  var wrap       = document.getElementById('agent-result-wrap');
+  var result     = document.getElementById('agent-result');
+  var badge      = document.getElementById('agent-result-badge');
+  var selBadge   = document.getElementById('agent-selected-badge');
+
+  if (loadingTxt) loadingTxt.textContent = (_selectedAgent && _AGENT_LOADING[_selectedAgent]) || 'Agent analizira predmet...';
   if (loading) loading.style.display = 'block';
   if (wrap)    wrap.style.display    = 'none';
+
+  // Update badge to show predmet context
+  if (selBadge && activePredmetId && activePredmetNaziv) {
+    selBadge.style.display = 'block';
+    selBadge.textContent   = (_AGENT_ICONS[_selectedAgent]||'▶') + ' ' + (_AGENT_NAMES[_selectedAgent]||'Auto') + ' — analizira: ' + activePredmetNaziv;
+  }
 
   try {
     var body = { task: task };
@@ -13085,12 +13189,15 @@ async function agent_run() {
       body: JSON.stringify(body),
     });
     var d = await r.json();
+    if (loading) loading.style.display = 'none';
     if (!r.ok) { showToast(d.detail || 'Greška', 'err'); return; }
 
-    if (loading) loading.style.display = 'none';
-    if (badge)   badge.textContent = (d.naziv||d.agent) + ' odgovorio:';
-    if (result)  result.textContent = d.odgovor || '—';
-    if (wrap)    wrap.style.display = 'block';
+    if (badge)  badge.textContent  = (_AGENT_ICONS[d.agent]||'▶') + ' ' + (d.naziv||d.agent) + ' odgovorio:';
+    if (result) result.innerHTML   = _mdToHtml(d.odgovor || '—');
+    if (wrap) {
+      wrap.style.display = 'block';
+      setTimeout(function() { wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
+    }
   } catch(e) {
     if (loading) loading.style.display = 'none';
     showToast('Greška: ' + e.message, 'err');
@@ -13108,7 +13215,7 @@ function kg_load() {
   var tooltip   = document.getElementById('kg-tooltip');
   if (!container) return;
 
-  container.innerHTML = '<div style="padding:2rem;text-align:center;color:#89c8ff;opacity:.6;">Učitavam graf...</div>';
+  container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;"><div class="kg-loading-dots"><span></span><span></span><span></span></div><div style="font-size:.78rem;color:rgba(74,168,255,.6);">Gradim graf predmeta...</div></div>';
 
   fetch('/api/knowledge-graph/predmeti/' + activePredmetId, {
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
@@ -13221,10 +13328,13 @@ function _kg_render(container, tooltip, data) {
   defs.appendChild(marker);
   svg.appendChild(defs);
 
-  // Draw edges
+  // Root group for zoom/pan transform
+  var rootG = document.createElementNS(svgNS, 'g');
+  rootG.id = 'kg-root-group';
+
+  // Draw edges into rootG
   validEdges.forEach(function(e) {
     var na = nodeById[e.from], nb = nodeById[e.to];
-    // Shorten line to edge of circle
     var dx = nb.x - na.x, dy = nb.y - na.y;
     var dist = Math.sqrt(dx*dx + dy*dy) || 1;
     var ra = na.radius || 12, rb = nb.radius || 12;
@@ -13240,9 +13350,8 @@ function _kg_render(container, tooltip, data) {
     line.setAttribute('stroke', 'rgba(255,255,255,.18)');
     line.setAttribute('stroke-width', strokeW);
     line.setAttribute('marker-end', 'url(#kg-arrow)');
-    svg.appendChild(line);
+    rootG.appendChild(line);
 
-    // Edge label (only for strong links, not too cluttered)
     if (e.strength === 'strong' && e.label) {
       var mx = (na.x + nb.x) / 2, my = (na.y + nb.y) / 2;
       var lt = document.createElementNS(svgNS, 'text');
@@ -13251,17 +13360,16 @@ function _kg_render(container, tooltip, data) {
       lt.setAttribute('font-size', '9');
       lt.setAttribute('fill', 'rgba(255,255,255,.35)');
       lt.textContent = e.label.slice(0, 16);
-      svg.appendChild(lt);
+      rootG.appendChild(lt);
     }
   });
 
-  // Draw nodes
+  // Draw nodes into rootG
   nodes.forEach(function(n) {
     var r = n.radius || 12;
     var g = document.createElementNS(svgNS, 'g');
     g.style.cursor = 'pointer';
 
-    // Circle
     var circ = document.createElementNS(svgNS, 'circle');
     circ.setAttribute('cx', n.x); circ.setAttribute('cy', n.y); circ.setAttribute('r', r);
     circ.setAttribute('fill', n.color || '#666');
@@ -13269,7 +13377,6 @@ function _kg_render(container, tooltip, data) {
     circ.setAttribute('stroke-width', '1.5');
     g.appendChild(circ);
 
-    // Label
     var lbl = document.createElementNS(svgNS, 'text');
     lbl.setAttribute('x', n.x); lbl.setAttribute('y', n.y + r + 12);
     lbl.setAttribute('text-anchor', 'middle');
@@ -13278,31 +13385,80 @@ function _kg_render(container, tooltip, data) {
     lbl.textContent = n.label;
     g.appendChild(lbl);
 
-    // Tooltip on hover
-    g.addEventListener('mouseenter', function(ev) {
+    // Tooltip — fixed positioning via getBoundingClientRect
+    g.addEventListener('mouseenter', function() {
       if (!tooltip) return;
       var meta = n.meta || {};
-      var lines = ['<b>' + n.label + '</b>', 'Tip: ' + n.tip];
-      Object.keys(meta).forEach(function(k){ if (meta[k]) lines.push(k + ': ' + meta[k]); });
+      var lines = ['<b>' + escHtml(n.label) + '</b>', '<span style="opacity:.6">Tip: ' + n.tip + '</span>'];
+      Object.keys(meta).forEach(function(k){ if (meta[k]) lines.push('<span style="opacity:.55">' + k + ': ' + escHtml(String(meta[k])) + '</span>'); });
       tooltip.innerHTML = lines.join('<br>');
       tooltip.style.display = 'block';
-      tooltip.style.left = (ev.offsetX + 12) + 'px';
-      tooltip.style.top  = (ev.offsetY + 12) + 'px';
     });
     g.addEventListener('mousemove', function(ev) {
       if (!tooltip) return;
-      tooltip.style.left = (ev.offsetX + 12) + 'px';
-      tooltip.style.top  = (ev.offsetY + 12) + 'px';
+      var rect = container.getBoundingClientRect();
+      var tx = ev.clientX - rect.left + 14;
+      var ty = ev.clientY - rect.top  + 14;
+      if (tx + 200 > rect.width)  tx = ev.clientX - rect.left - 214;
+      if (ty + 80  > rect.height) ty = ev.clientY - rect.top  - 84;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top  = ty + 'px';
     });
     g.addEventListener('mouseleave', function() {
       if (tooltip) tooltip.style.display = 'none';
     });
 
-    svg.appendChild(g);
+    // Click → detail panel
+    g.addEventListener('click', function() {
+      var panel = document.getElementById('kg-detail-panel');
+      var title = document.getElementById('kg-detail-title');
+      var body  = document.getElementById('kg-detail-body');
+      if (!panel || !title || !body) return;
+      title.textContent = n.label + ' [' + n.tip + ']';
+      var meta = n.meta || {};
+      body.innerHTML = Object.keys(meta).filter(function(k){ return meta[k]; }).map(function(k){
+        return '<div><span style="opacity:.5;min-width:80px;display:inline-block;">' + k + ':</span> ' + escHtml(String(meta[k])) + '</div>';
+      }).join('') || '<div style="opacity:.4">Nema dodatnih detalja.</div>';
+      panel.style.display = 'block';
+    });
+
+    rootG.appendChild(g);
   });
 
+  svg.appendChild(rootG);
   container.innerHTML = '';
   container.appendChild(svg);
+
+  // Update subtitle with counts
+  var subtitleEl = document.getElementById('kg-subtitle');
+  if (subtitleEl) subtitleEl.textContent = nodes.length + ' čvorova · ' + validEdges.length + ' veza — klik za detalje · skrol = zoom · drag = pomeri';
+
+  // ── Zoom + Pan ────────────────────────────────────────────────────────────
+  var _kgS = 1, _kgTx = 0, _kgTy = 0;
+  function _kgApplyTransform() {
+    rootG.setAttribute('transform', 'translate('+_kgTx+','+_kgTy+') scale('+_kgS+')');
+  }
+  svg.addEventListener('wheel', function(ev) {
+    ev.preventDefault();
+    var factor = ev.deltaY < 0 ? 1.1 : 0.9;
+    _kgS = Math.max(0.3, Math.min(3, _kgS * factor));
+    _kgApplyTransform();
+  }, { passive: false });
+  var _kgDragging = false, _kgPx = 0, _kgPy = 0;
+  svg.addEventListener('mousedown', function(ev) {
+    if (ev.button !== 0) return;
+    _kgDragging = true; _kgPx = ev.clientX - _kgTx; _kgPy = ev.clientY - _kgTy;
+    svg.style.cursor = 'grabbing';
+  });
+  svg.addEventListener('mousemove', function(ev) {
+    if (!_kgDragging) return;
+    _kgTx = ev.clientX - _kgPx; _kgTy = ev.clientY - _kgPy;
+    _kgApplyTransform();
+  });
+  svg.addEventListener('mouseup',    function() { _kgDragging = false; svg.style.cursor = 'grab'; });
+  svg.addEventListener('mouseleave', function() { _kgDragging = false; svg.style.cursor = 'grab'; });
+  svg.addEventListener('dblclick',   function() { _kgS=1; _kgTx=0; _kgTy=0; _kgApplyTransform(); });
+  svg.style.cursor = 'grab';
 }
 
 /* ══════════════════════════════════════════════════

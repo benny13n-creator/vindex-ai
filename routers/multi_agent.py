@@ -7,7 +7,8 @@ Agenti: intake | research | drafting | litigation | billing | deadline
 """
 import logging
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from shared.rate import limiter
 from pydantic import BaseModel
 from typing import Optional
 from shared.deps import _get_supa, get_current_user, _deduct_credit, _is_founder
@@ -282,7 +283,8 @@ async def lista_agenata():
 
 
 @router.post("/run")
-async def run_agent(req: AgentReq, user=Depends(get_current_user)):
+@limiter.limit("15/minute")
+async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_user)):
     """Pokreće izabrani agent ili automatski bira najprikladniji."""
     supa = _get_supa()
     uid  = user["user_id"]
@@ -314,6 +316,18 @@ async def run_agent(req: AgentReq, user=Depends(get_current_user)):
 
     agent_cfg = _AGENTS[agent_id]
 
+    # ── Credit check before OpenAI (fail fast) ───────────────────────────────
+    _email_early = user.get("email", "")
+    if not _is_founder(_email_early):
+        try:
+            cr = supa.table("korisnici").select("krediti").eq("user_id", uid).execute()
+            if cr.data and (cr.data[0].get("krediti") or 0) <= 0:
+                raise HTTPException(status_code=402, detail="Nema dovoljno kredita. Dopunite nalog.")
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.warning("[AGENT] credit-check greška: %s", exc)
+
     # ── Dohvati kontekst predmeta ────────────────────────────────────────────
     predmet_ctx = ""
     if req.predmet_id:
@@ -323,19 +337,37 @@ async def run_agent(req: AgentReq, user=Depends(get_current_user)):
             ).eq("id", req.predmet_id).eq("user_id", uid).execute()
             if pr.data:
                 p = pr.data[0]
+                try:
+                    doc_count = len((supa.table("predmet_dokumenti").select("id")
+                        .eq("predmet_id", req.predmet_id).is_("deleted_at", "null")
+                        .limit(20).execute()).data or [])
+                except Exception:
+                    doc_count = 0
+                try:
+                    rok_data  = supa.table("predmet_rokovi").select("naziv,datum_isteka,status") \
+                        .eq("predmet_id", req.predmet_id).order("datum_isteka").limit(5).execute()
+                    rok_count = len(rok_data.data or [])
+                    rok_summary = "; ".join([
+                        (r.get("naziv","?") + "(" + r.get("datum_isteka","")[:10] + ")")
+                        for r in (rok_data.data or [])[:3]
+                    ])
+                except Exception:
+                    rok_count = 0; rok_summary = ""
                 predmet_ctx = (
                     f"\nKontekst predmeta: {p.get('naziv','?')} | Tip: {p.get('tip','?')} | "
                     f"Status: {p.get('status','?')}\n"
                     f"Tužilac: {p.get('tuzilac','?')} | Tuženi: {p.get('tuzeni','?')}\n"
+                    f"Dokumenti: {doc_count} | Rokovi: {rok_count}"
+                    + (f" ({rok_summary})" if rok_summary else "") + "\n"
                 )
                 if p.get("opis"):
                     predmet_ctx += f"Opis: {p['opis'][:400]}\n"
         except Exception as exc:
             logger.debug("[AGENT] predmet ctx greška: %s", exc)
 
-    # ── RAG kontekst za Research agenta ─────────────────────────────────────
+    # ── RAG kontekst za Research + Litigation agenta ──────────────────────────
     rag_ctx = ""
-    if agent_id == "research":
+    if agent_id in ("research", "litigation"):
         try:
             import asyncio as _aio
             from app.services.retrieve import retrieve_documents as _rd

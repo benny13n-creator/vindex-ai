@@ -131,6 +131,26 @@ async def get_knowledge_graph(predmet_id: str, request: Request, user=Depends(ge
     except Exception as e:
         logger.debug("[KG] hronologija greška: %s", e)
 
+    # ── Ročišta ───────────────────────────────────────────────────────────────
+    try:
+        roc = await asyncio.to_thread(
+            lambda: supa.table("rocista").select(
+                "id,datum,sud,tip_rocista,status"
+            ).eq("predmet_id", predmet_id).order("datum").limit(5).execute()
+        )
+        for r in (roc.data or []):
+            rid2 = f"rociste_{r['id']}"
+            sud_lbl   = (r.get("sud") or "Sud")[:18]
+            datum_lbl = (r.get("datum") or "")[:10]
+            label     = (datum_lbl[:5] + " " + sud_lbl).strip()[:20]
+            nodes.append({"id": rid2, "label": label, "tip": "ročište", "color": "#f59e0b", "radius": 10,
+                          "meta": {"datum": datum_lbl, "sud": sud_lbl,
+                                   "status": r.get("status", ""), "tip": r.get("tip_rocista", "")}})
+            edges.append({"from": f"predmet_{predmet_id}", "to": rid2,
+                          "label": "ročište", "strength": "normal"})
+    except Exception as e:
+        logger.debug("[KG] rocista greška: %s", e)
+
     # ── Oblast zakona ─────────────────────────────────────────────────────────
     if predmet.get("tip"):
         _OBLAST_MAP = {

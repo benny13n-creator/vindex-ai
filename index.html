@@ -1316,7 +1316,7 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
                   <div>
                     <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Knowledge Graph</div>
-                    <div style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.15rem;">Mreža odnosa predmeta: stranke, zakoni, presude, dokumenti, rokovi</div>
+                    <div id="kg-subtitle" style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.15rem;">Mreža odnosa predmeta — klik na čvor za detalje · skrol = zoom · drag = pomeri</div>
                   </div>
                   <button onclick="kg_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(74,168,255,.3);border-radius:6px;background:rgba(74,168,255,.08);color:#89c8ff;cursor:pointer;">↺ Osveži</button>
                 </div>
@@ -1327,11 +1327,20 @@
                   <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#ffcc50;display:inline-block;"></span>Zakon/Presuda</span>
                   <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#ff9090;display:inline-block;"></span>Rok</span>
                   <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#b89aff;display:inline-block;"></span>Dokument</span>
+                  <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>Ročište</span>
                 </div>
                 <div id="kg-container" style="width:100%;height:420px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;overflow:hidden;position:relative;">
-                  <div style="color:rgba(255,255,255,.2);font-size:.8rem;text-align:center;padding-top:5rem;">Učitavam graf...</div>
+                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;"><div class="kg-loading-dots"><span></span><span></span><span></span></div><div style="font-size:.78rem;color:rgba(74,168,255,.6);">Otvorite predmet i kliknite ↺ Osveži</div></div>
                 </div>
-                <div id="kg-tooltip" style="display:none;position:absolute;background:#1a1f2e;border:1px solid rgba(74,168,255,.3);border-radius:7px;padding:.4rem .65rem;font-size:.72rem;color:#e6edf3;pointer-events:none;z-index:1000;max-width:200px;"></div>
+                <div id="kg-tooltip" style="display:none;position:absolute;background:#1a1f2e;border:1px solid rgba(74,168,255,.3);border-radius:7px;padding:.4rem .65rem;font-size:.72rem;color:#e6edf3;pointer-events:none;z-index:1000;max-width:200px;line-height:1.5;"></div>
+                <!-- Detail panel — otvara se klik na čvor -->
+                <div id="kg-detail-panel" style="display:none;margin-top:.7rem;padding:.75rem 1rem;background:rgba(255,255,255,.03);border:1px solid rgba(74,168,255,.2);border-radius:10px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+                    <div id="kg-detail-title" style="font-size:.82rem;font-weight:700;color:#89c8ff;"></div>
+                    <button onclick="document.getElementById('kg-detail-panel').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,.35);cursor:pointer;font-size:.85rem;line-height:1;">✕</button>
+                  </div>
+                  <div id="kg-detail-body" style="font-size:.78rem;color:rgba(255,255,255,.65);line-height:1.7;"></div>
+                </div>
               </div><!-- /pred-pane-graf -->
 
               <!-- ── TAB: Agenti ──────────────────────────────────────── -->
@@ -1389,10 +1398,19 @@
 
                 <!-- Result -->
                 <div id="agent-result-wrap" style="display:none;margin-top:.8rem;">
-                  <div id="agent-result-badge" style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.4rem;"></div>
-                  <div id="agent-result" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.9rem;font-size:.83rem;white-space:pre-wrap;line-height:1.6;color:#c7d7f0;max-height:320px;overflow-y:auto;"></div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+                    <div id="agent-result-badge" style="font-size:.7rem;color:rgba(255,255,255,.4);"></div>
+                    <div style="display:flex;gap:.4rem;">
+                      <button onclick="agent_copy()" style="font-size:.68rem;padding:3px 9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:4px;color:rgba(255,255,255,.55);cursor:pointer;font-family:inherit;">📋 Kopiraj</button>
+                      <button onclick="agent_novo()" style="font-size:.68rem;padding:3px 9px;background:rgba(74,168,255,.08);border:1px solid rgba(74,168,255,.2);border-radius:4px;color:#89c8ff;cursor:pointer;font-family:inherit;">+ Novo pitanje</button>
+                    </div>
+                  </div>
+                  <div id="agent-result" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.9rem;font-size:.83rem;line-height:1.6;color:#c7d7f0;max-height:420px;overflow-y:auto;"></div>
                 </div>
-                <div id="agent-loading" style="display:none;text-align:center;padding:1.5rem;color:rgba(74,168,255,.6);font-size:.82rem;">⏳ Agent analizira...</div>
+                <div id="agent-loading" style="display:none;text-align:center;padding:1.5rem;color:rgba(74,168,255,.6);font-size:.82rem;">
+                  <div class="kg-loading-dots" style="justify-content:center;margin-bottom:.5rem;"><span></span><span></span><span></span></div>
+                  <div id="agent-loading-txt">Agent analizira predmet...</div>
+                </div>
               </div><!-- /pred-pane-agenti -->
 
               <!-- ── TAB: Timeline ─────────────────────────────────────── -->
