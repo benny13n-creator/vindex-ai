@@ -2297,7 +2297,8 @@ async function stratPokreni() {
 }
 
 // Polling za async AI poslove (HTTP 202 pattern)
-async function strat_job_poll(jobId, bodyEl, submitBtn) {
+async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel) {
+  var _resetLabel = resetLabel || 'Pokreni analizu';
   var elapsed = 0;
   var dotStr  = ['⏳', '⌛', '⏳', '⌛'];
   var dotIdx  = 0;
@@ -2313,12 +2314,12 @@ async function strat_job_poll(jobId, bodyEl, submitBtn) {
       if (j.status === 'done') {
         var d = j.result || {};
         if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(d.rezultat || JSON.stringify(d, null, 2));
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = _resetLabel; }
         return;
       }
       if (j.status === 'error') {
         if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(j.error || 'Nepoznata greška') + '</div>';
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = _resetLabel; }
         return;
       }
       // pending/running — ažuriraj prikaz
@@ -2329,7 +2330,73 @@ async function strat_job_poll(jobId, bodyEl, submitBtn) {
       break;
     }
   }
-  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = _resetLabel; }
+}
+
+// Kompletna strateška analiza — orkestrator svih 6 modula
+async function stratOrkestratorPokreni() {
+  var tekstEl  = document.getElementById('strat-tekst');
+  var orkBtn   = document.getElementById('strat-ork-btn');
+  var wrapEl   = document.getElementById('strat-rezultat-wrap');
+  var naslovEl = document.getElementById('strat-rezultat-naslov');
+  var bodyEl   = document.getElementById('strat-rezultat-body');
+
+  var tekst = tekstEl ? tekstEl.value.trim() : '';
+
+  if (!currentUser) { openModal(); return; }
+  if (!currentUserIsPro) {
+    if (wrapEl) wrapEl.style.display = 'block';
+    if (naslovEl) naslovEl.textContent = 'Kompletna strateška analiza';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate"><strong>Kompletna strateška analiza</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim AI strategijskim alatima.</small></div>';
+    return;
+  }
+  if (tekst.length < 100) {
+    showToast('Unesite najmanje 100 karaktera opisa predmeta pre pokretanja kompletne analize.', 'warn');
+    return;
+  }
+
+  var _resetLabel = 'Pokreni kompletnu analizu (6 kredita)';
+  if (orkBtn) { orkBtn.disabled = true; orkBtn.textContent = 'Analiziram (6 modula)...'; }
+  if (wrapEl) wrapEl.style.display = 'block';
+  if (naslovEl) naslovEl.textContent = 'Kompletna strateška analiza';
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Pokrenuto 6 AI modula...<br><small>Red Team → Litigation → AI Sudija → Due Diligence → Revizor → Witness<br>Procenjeno vreme: 60–90 sekundi</small></div>';
+
+  piTrack('strategija','kompletna_analiza',{});
+  try {
+    var res = await fetch(BASE_URL + '/strategija/kompletna-analiza', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : ''),
+      },
+      body: JSON.stringify({ opis_predmeta: tekst }),
+    });
+
+    if (res.status === 202) {
+      var jobData = await res.json();
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Analiza pokrenuta (ID: '+jobData.job_id.slice(0,8)+'...)<br><small>6 AI modula u toku — pratimo napredak...</small></div>';
+      await strat_job_poll(jobData.job_id, bodyEl, orkBtn, _resetLabel);
+      return;
+    }
+    if (res.status === 402) {
+      var errData = await res.json().catch(function(){return {};});
+      var msg = (errData.detail && typeof errData.detail === 'object' ? errData.detail.message : errData.detail) || 'Nema dovoljno kredita za kompletnu analizu (potrebno 6).';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">' + _htmlEsc(msg) + '</div>';
+      return;
+    }
+    if (res.status === 429) {
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Kompletna analiza je ograničena na 1 poziv po satu. Pokušajte ponovo.</div>';
+      return;
+    }
+    if (!res.ok) throw new Error('Server greška: ' + res.status);
+
+    var data = await res.json();
+    if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.rezultat || JSON.stringify(data, null, 2));
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  } finally {
+    if (orkBtn) { orkBtn.disabled = false; orkBtn.textContent = _resetLabel; }
+  }
 }
 
 function stratFormatirajRezultat(tekst) {
@@ -11368,9 +11435,34 @@ async function _doctplLoadPredmeti() {
     sel.innerHTML = '<option value="">— Izaberi predmet —</option>'
       + lista.filter(function(p){ return p.status !== 'zatvoren' && p.status !== 'arhiviran'; })
              .slice(0, 50)
-             .map(function(p){ return '<option value="'+p.id+'">'+_htmlEsc(p.naziv||'Bez naziva')+'</option>'; })
+             .map(function(p){ return '<option value="'+p.id+'" data-tuzilac="'+_htmlEsc(p.tuzilac||'')+'" data-tuzeni="'+_htmlEsc(p.tuzeni||'')+'" data-naziv="'+_htmlEsc(p.naziv||'')+'" data-oblast="'+_htmlEsc(p.oblast||p.tip||'')+'">'+_htmlEsc(p.naziv||'Bez naziva')+'</option>'; })
              .join('');
+    // Auto-select aktivni predmet ako je otvoren
+    if (activePredmetId) {
+      sel.value = activePredmetId;
+      _doctplAutopopulate(sel);
+    }
+    sel.onchange = function() { _doctplAutopopulate(this); };
   } catch(e) {}
+}
+
+function _doctplAutopopulate(sel) {
+  var opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  var tuzilac = opt.getAttribute('data-tuzilac') || '';
+  var tuzeni  = opt.getAttribute('data-tuzeni')  || '';
+  // Pokušaj da popuni poznata polja iz predmeta
+  var _tryFill = function(fieldId, val) {
+    var el = document.getElementById('dtf-' + fieldId);
+    if (el && !el.value && val) el.value = val;
+  };
+  _tryFill('ime_tuzitelja', tuzilac);
+  _tryFill('ime_tuzenog',   tuzeni);
+  _tryFill('ime_stranke',   tuzilac || tuzeni);
+  _tryFill('ime_poverioca', tuzilac);
+  _tryFill('ime_duznika',   tuzeni);
+  _tryFill('ime_trazioca',  tuzilac);
+  if (tuzilac || tuzeni) showToast('Podaci iz predmeta ubačeni u formu', 'ok');
 }
 
 function docTplClose() {
@@ -11445,6 +11537,9 @@ function docTplIzaberi(idx) {
           : '<input id="dtf-'+f+'" type="text" value="'+_htmlEsc(defaultVal)+'" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:0.78rem;font-family:inherit;outline:none;">')
         +'</div>';
     }).join('');
+    // Auto-popuni iz selektovanog predmeta ako već postoji
+    var sel = document.getElementById('doctpl-predmet-id');
+    if (sel && sel.value) _doctplAutopopulate(sel);
   }
 }
 
@@ -13201,6 +13296,66 @@ async function agent_run() {
   } catch(e) {
     if (loading) loading.style.display = 'none';
     showToast('Greška: ' + e.message, 'err');
+  }
+}
+
+// ─── Paralelna analiza agenata ────────────────────────────────────────────────
+async function agent_run_parallel() {
+  var task = (document.getElementById('agent-task-input')||{}).value || '';
+  task = task.trim();
+  if (!task) { showToast('Unesite zadatak za paralelnu analizu', 'warn'); return; }
+  if (!currentSession) { showToast('Prijavite se', 'warn'); return; }
+
+  var paraBtn  = document.getElementById('agent-para-btn');
+  var loading  = document.getElementById('agent-loading');
+  var loadTxt  = document.getElementById('agent-loading-txt');
+  var wrap     = document.getElementById('agent-result-wrap');
+  var result   = document.getElementById('agent-result');
+  var badge    = document.getElementById('agent-result-badge');
+
+  if (paraBtn) { paraBtn.disabled = true; paraBtn.textContent = 'Analiziram (3 agenta)...'; }
+  if (loading) loading.style.display = 'block';
+  if (loadTxt) loadTxt.textContent = 'Research, Litigation i Intake agent rade istovremeno...';
+  if (wrap)    wrap.style.display   = 'none';
+
+  try {
+    var body = { task: task, agenti: ['research', 'litigation', 'intake'] };
+    if (activePredmetId) body.predmet_id = activePredmetId;
+
+    var r = await fetch('/api/agents/run-parallel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify(body),
+    });
+    var d = await r.json();
+    if (loading) loading.style.display = 'none';
+    if (!r.ok) { showToast((d.detail && typeof d.detail === 'string' ? d.detail : 'Greška pri paralelnoj analizi'), 'err'); return; }
+
+    // Prikaži konsolidovane rezultate sva 3 agenta
+    var html = '<div style="font-size:.72rem;color:rgba(255,255,255,.35);margin-bottom:.7rem;">Paralelna analiza — 3 AI agenta odgovorila istovremeno</div>';
+    (d.rezultati || []).forEach(function(res) {
+      if (res.greska) {
+        html += '<div style="margin-bottom:.8rem;padding:.6rem .8rem;background:rgba(255,80,80,.06);border:1px solid rgba(255,80,80,.2);border-radius:8px;">'
+          + '<div style="font-size:.73rem;font-weight:700;color:#f87171;margin-bottom:.3rem;">' + _htmlEsc(res.naziv || res.agent_id) + ' — greška</div>'
+          + '<div style="font-size:.75rem;color:rgba(255,255,255,.45);">' + _htmlEsc(res.greska) + '</div></div>';
+      } else {
+        html += '<div style="margin-bottom:.8rem;padding:.6rem .8rem;background:rgba(255,255,255,.025);border:1px solid rgba(74,168,255,.15);border-radius:8px;">'
+          + '<div style="font-size:.73rem;font-weight:700;color:#89c8ff;margin-bottom:.4rem;">' + _htmlEsc(res.naziv || res.agent_id) + '</div>'
+          + '<div style="font-size:.8rem;line-height:1.6;color:#c7d7f0;">' + _mdToHtml(res.odgovor || '—') + '</div></div>';
+      }
+    });
+
+    if (badge)  badge.textContent = '3 agenta — paralelna analiza';
+    if (result) result.innerHTML  = html;
+    if (wrap) {
+      wrap.style.display = 'block';
+      setTimeout(function() { wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
+    }
+  } catch(e) {
+    if (loading) loading.style.display = 'none';
+    showToast('Greška: ' + e.message, 'err');
+  } finally {
+    if (paraBtn) { paraBtn.disabled = false; paraBtn.textContent = 'Pokreni paralelnu analizu (3 kredita)'; }
   }
 }
 

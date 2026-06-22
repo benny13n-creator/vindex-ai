@@ -6410,6 +6410,13 @@ body.light-theme [style*="background:#131929"],
 body.light-theme [style*="background:#1a2332"] { background: #ffffff !important; }
 body.light-theme [style*="border:1px solid rgba(255,255,255"] { border-color: rgba(10,18,32,0.12) !important; }
 
+/* ── Svetla tema: Strategic Orchestrator sekcija ──────────────── */
+body.light-theme #strat-ork-btn { background: linear-gradient(135deg,rgba(74,74,200,0.08),rgba(74,168,255,0.06)) !important; border-color: rgba(74,74,200,0.25) !important; color: rgba(74,74,200,0.9) !important; }
+body.light-theme #strat-ork-btn:disabled { color: rgba(100,100,200,0.5) !important; }
+/* ── Svetla tema: Paralelna analiza + HCC brzi pristup ─────────── */
+body.light-theme #agent-para-btn { background: linear-gradient(135deg,rgba(74,168,255,0.08),rgba(99,102,241,0.05)) !important; border-color: rgba(74,168,255,0.25) !important; color: rgba(14,80,160,0.9) !important; }
+body.light-theme #agent-para-btn:disabled { color: rgba(14,80,160,0.4) !important; }
+
 /* ── Svetla tema: Akcentovane boje — ostaju ──────────────────── */
 body.light-theme .kc-sh-lbl,
 body.light-theme .hub-eyebrow,

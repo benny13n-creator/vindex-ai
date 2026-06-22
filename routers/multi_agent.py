@@ -443,3 +443,118 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
         "task":      req.task,
         "rag_korišćen": bool(rag_ctx),
     }
+
+
+# ── Paralelna analiza — 3 agenta istovremeno ─────────────────────────────────
+
+class ParalelnaReq(BaseModel):
+    task:       str
+    predmet_id: Optional[str] = None
+    agenti:     Optional[list] = None  # npr. ["research","litigation","drafting"]; None = default
+
+
+@router.post("/run-parallel")
+@limiter.limit("5/minute")
+async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(get_current_user)):
+    """Pokreće 3 agenta istovremeno i vraća konsolidovani izveštaj."""
+    import asyncio as _aio
+    from openai import AsyncOpenAI
+
+    supa = _get_supa()
+    uid  = user["user_id"]
+    email = user.get("email", "")
+
+    # Podrazumevani agenti za paralelnu analizu
+    agenti_ids = req.agenti or ["research", "litigation", "intake"]
+    agenti_ids = [a for a in agenti_ids if a in _AGENTS][:3]
+    if not agenti_ids:
+        agenti_ids = ["research", "litigation", "intake"]
+
+    # Kredit provera — potrebno N kredita (jedan po agentu)
+    n_needed = len(agenti_ids)
+    if not _is_founder(email):
+        try:
+            cr = supa.table("korisnici").select("krediti").eq("user_id", uid).execute()
+            curr = (cr.data[0].get("krediti") or 0) if cr.data else 0
+            if curr < n_needed:
+                raise HTTPException(
+                    status_code=402,
+                    detail=f"Paralelna analiza zahteva {n_needed} kredita. Trenutno imate {curr}.",
+                )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.warning("[PARA] credit-check greška: %s", exc)
+
+    # Dohvati kontekst predmeta
+    predmet_ctx = ""
+    if req.predmet_id:
+        try:
+            pr = supa.table("predmeti").select(
+                "naziv,tip,status,tuzilac,tuzeni,opis"
+            ).eq("id", req.predmet_id).eq("user_id", uid).execute()
+            if pr.data:
+                p = pr.data[0]
+                predmet_ctx = (
+                    f"\nKontekst predmeta: {p.get('naziv','?')} | Tip: {p.get('tip','?')} | "
+                    f"Status: {p.get('status','?')}\n"
+                    f"Tužilac: {p.get('tuzilac','?')} | Tuženi: {p.get('tuzeni','?')}\n"
+                )
+                if p.get("opis"):
+                    predmet_ctx += f"Opis: {p['opis'][:400]}\n"
+        except Exception as exc:
+            logger.debug("[PARA] predmet ctx greška: %s", exc)
+
+    # RAG za research i litigation
+    rag_ctx = ""
+    if any(a in ("research", "litigation") for a in agenti_ids):
+        try:
+            from app.services.retrieve import retrieve_documents as _rd
+            docs = await _aio.to_thread(_rd, (req.task + " " + (predmet_ctx or ""))[:600], 5)
+            if docs:
+                rag_ctx = "\n\nRELEVANTNI ZAKONI IZ BAZE:\n" + "\n".join(f"[{i+1}] {d[:500]}" for i, d in enumerate(docs[:3]))
+        except Exception as _re:
+            logger.warning("[PARA/rag] greška: %s", _re)
+
+    oai = AsyncOpenAI()
+    base_msg = f"{predmet_ctx}{rag_ctx}\n\nZahtev: {req.task}".strip()
+
+    async def _pozovi_agenta(agent_id: str) -> dict:
+        cfg = _AGENTS[agent_id]
+        try:
+            resp = await oai.chat.completions.create(
+                model="gpt-4o",
+                temperature=0.35,
+                max_tokens=1500,
+                messages=[
+                    {"role": "system", "content": cfg["system"]},
+                    {"role": "user",   "content": base_msg},
+                ],
+            )
+            return {
+                "agent_id": agent_id,
+                "naziv":    cfg["naziv"],
+                "ikona":    cfg["ikona"],
+                "odgovor":  (resp.choices[0].message.content or "").strip(),
+                "greska":   None,
+            }
+        except Exception as exc:
+            logger.error("[PARA] agent=%s greška: %s", agent_id, exc)
+            return {"agent_id": agent_id, "naziv": cfg["naziv"], "ikona": cfg["ikona"], "odgovor": "", "greska": str(exc)[:80]}
+
+    # Pokreni sve agente istovremeno
+    rezultati = await _aio.gather(*[_pozovi_agenta(a) for a in agenti_ids])
+
+    # Oduzmi kredite
+    if not _is_founder(email):
+        for _ in range(n_needed):
+            await _aio.to_thread(_deduct_credit, uid, email)
+
+    logger.info("[PARA] uid=%s agenti=%s predmet=%s", uid[:8], agenti_ids, req.predmet_id or "-")
+
+    return {
+        "tip":     "paralelna_analiza",
+        "agenti":  agenti_ids,
+        "rezultati": list(rezultati),
+        "task":    req.task,
+    }

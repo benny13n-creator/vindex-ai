@@ -151,6 +151,39 @@ async def get_knowledge_graph(predmet_id: str, request: Request, user=Depends(ge
     except Exception as e:
         logger.debug("[KG] rocista greška: %s", e)
 
+    # ── Sudska praksa (RAG lookup) ────────────────────────────────────────────
+    try:
+        from app.services.retrieve import _pretraga_praksa, _ugradi_query
+        _kg_query = (
+            (predmet.get("naziv") or "") + " " +
+            (predmet.get("oblast") or predmet.get("tip") or "")
+        ).strip()[:300]
+        if _kg_query:
+            _vec = await asyncio.wait_for(
+                asyncio.to_thread(_ugradi_query, _kg_query), timeout=8.0
+            )
+            _praksa = await asyncio.wait_for(
+                asyncio.to_thread(_pretraga_praksa, _vec, 3), timeout=5.0
+            )
+            for i, m in enumerate(_praksa):
+                meta = getattr(m, "metadata", {}) or {}
+                court  = (meta.get("court") or meta.get("sud") or "VKS")[:18]
+                dec_no = (meta.get("decision_number") or meta.get("broj_odluke") or f"Odluka {i+1}")[:18]
+                label  = (court[:10] + " " + dec_no[:9]).strip()[:20]
+                score  = round(float(getattr(m, "score", 0) or 0), 2)
+                pid    = f"praksa_{i}"
+                nodes.append({
+                    "id": pid, "label": label, "tip": "sudska_praksa",
+                    "color": "#e879f9", "radius": 11,
+                    "meta": {"court": court, "decision": dec_no, "score": score},
+                })
+                edges.append({
+                    "from": f"predmet_{predmet_id}", "to": pid,
+                    "label": "relevantna praksa", "strength": "normal",
+                })
+    except Exception as e:
+        logger.debug("[KG] praksa RAG greška: %s", e)
+
     # ── Oblast zakona ─────────────────────────────────────────────────────────
     if predmet.get("tip"):
         _OBLAST_MAP = {
