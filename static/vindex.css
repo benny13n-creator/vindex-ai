@@ -6267,6 +6267,80 @@ body.light-theme #theme-toggle-btn { background: rgba(10,18,32,0.05) !important;
 body.light-theme .t-bar { background: rgba(10,18,32,0.018) !important; border-bottom-color: rgba(10,18,32,0.07) !important; }
 body.light-theme .t-title { color: rgba(10,18,32,0.45) !important; }
 
+/* ── Svetla tema: Šabloni dokumenata modal ───────────────────── */
+body.light-theme #doctpl-overlay > div {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.10) !important;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.14) !important;
+}
+body.light-theme #doctpl-overlay > div > div:first-child {
+  border-bottom-color: rgba(0,0,0,0.08) !important;
+}
+body.light-theme #doctpl-overlay > div > div:first-child > div > div:first-child {
+  color: rgba(10,18,32,0.88) !important;
+}
+body.light-theme #doctpl-overlay > div > div:first-child > div > div:last-child {
+  color: rgba(10,18,32,0.45) !important;
+}
+body.light-theme #doctpl-overlay button[onclick="docTplClose()"] {
+  color: rgba(10,18,32,0.40) !important;
+}
+body.light-theme #doctpl-list {
+  border-right-color: rgba(0,0,0,0.08) !important;
+}
+body.light-theme #doctpl-form-title {
+  color: #1a6ab0 !important;
+}
+body.light-theme #doctpl-fields label,
+body.light-theme #doctpl-predmet-row label {
+  color: rgba(10,18,32,0.55) !important;
+}
+body.light-theme #doctpl-fields input,
+body.light-theme #doctpl-fields textarea,
+body.light-theme #doctpl-predmet-id {
+  background: rgba(10,18,32,0.04) !important;
+  border-color: rgba(10,18,32,0.12) !important;
+  color: rgba(10,18,32,0.85) !important;
+}
+body.light-theme #doctpl-loading {
+  color: rgba(10,18,32,0.45) !important;
+}
+body.light-theme #doctpl-result-wrap > div:first-child > div:first-child {
+  color: rgba(10,18,32,0.42) !important;
+}
+body.light-theme #doctpl-result-txt {
+  background: rgba(10,18,32,0.03) !important;
+  border-color: rgba(10,18,32,0.10) !important;
+  color: rgba(10,18,32,0.85) !important;
+}
+body.light-theme button[onclick="docTplKopiraj()"] {
+  background: rgba(10,18,32,0.05) !important;
+  border-color: rgba(10,18,32,0.12) !important;
+  color: rgba(10,18,32,0.55) !important;
+}
+body.light-theme button[onclick="docTplSacuvaj()"] {
+  background: rgba(26,106,176,0.08) !important;
+  border-color: rgba(26,106,176,0.22) !important;
+  color: #1a6ab0 !important;
+}
+/* JS-generisana lista šablona levo */
+body.light-theme [id^="doctpl-item-"] > div:first-child {
+  color: rgba(10,18,32,0.85) !important;
+}
+body.light-theme [id^="doctpl-item-"] > div:last-child {
+  color: rgba(10,18,32,0.45) !important;
+}
+/* JS-generisana polja forme */
+body.light-theme #doctpl-fields label {
+  color: rgba(10,18,32,0.55) !important;
+}
+body.light-theme #doctpl-fields input,
+body.light-theme #doctpl-fields textarea {
+  background: rgba(10,18,32,0.04) !important;
+  border-color: rgba(10,18,32,0.12) !important;
+  color: rgba(10,18,32,0.85) !important;
+}
+
 /* ── Svetla tema: Komandni centar header ─────────────────────── */
 body.light-theme .kc-hdr-title { color: rgba(10,18,32,0.92) !important; }
 body.light-theme .kc-hdr-sub { color: rgba(10,18,32,0.52) !important; }
