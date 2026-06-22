@@ -3819,6 +3819,10 @@ var _PODNESAK_HINTS = {
   obaveštenje_o_otkazu:   '📨 Navedite: stranu koja otkazuje, drugu stranu, datum otkaza, otkazni rok, razlog otkaza.',
   ugovor_kupoprodaja:     '🛒 Navedite: prodavca, kupca (ime, adresa), predmet prodaje (opis, serijski broj), cenu u RSD, način plaćanja, rok isporuke.',
   ugovor_zakup:           '🏠 Navedite: zakupodavca, zakupca (ime, adresa), opis nepokretnosti (adresa, površina), zakupninu (RSD/mesečno), period zakupa, depozit.',
+  odgovor_na_tuzbu:       '🛡 Navedite: tuženog (ime, adresa), broj predmeta i datum tužbe, navode tužioca koje osporavate, dokaze u odbranu, datum prijema tužbe.',
+  zalba_krivicna:         '⚖ Navedite: optuženog (ime), naziv suda, broj presude, datum dostave, razloge žalbe (bitna povreda ZKP / pogrešne činjenice / pogrešna primena KZ), žalbeni predlog.',
+  urgencija_sudu:         '⏰ Navedite: stranku (ime), broj predmeta, naziv suda, period čekanja, šta sud nije uradio i koje posledice to ima, konkretan zahtev.',
+  prigovor_izvrsenje:     '🚫 Navedite: dužnika (ime), broj rešenja o izvršenju, datum dostave, razloge prigovora (potraživanje ne postoji, zastarelo, pogodba...), dokaze.',
 };
 
 /* Tipovi koji idu na /api/nacrt (drafting modul) */

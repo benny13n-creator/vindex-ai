@@ -933,6 +933,174 @@ CHECKLIST: dict[str, TipConfig] = {
             },
         ],
     },
+
+    "odgovor_na_tuzbu": {
+        "naziv": "Odgovor na tužbu",
+        "vrsta_spora": "parnicni_postupak",
+        "elementi": [
+            {
+                "naziv": "Identitet tuženog i oznaka predmeta",
+                "pitanje": "Da li su navedeni podaci tuženog i broj/datum tužbe na koju se odgovara?",
+                "kljucne_reci": ["tuženi", "ime", "naziv", "predmet", "tužba", "broj", "od dana"],
+                "kriticnost": "visoka",
+                "razlog": "Odgovor mora identifikovati tuženog i tužbu na koju se odgovara (čl. 98 i 274 ZPP).",
+            },
+            {
+                "naziv": "Osporavanje tužbenih navoda",
+                "pitanje": "Da li su konkretan navedeni tužbeni navodi koji se osporavaju?",
+                "kljucne_reci": ["osporavam", "ne stoji", "pogrešno", "nije tačno", "neosnovano", "navod"],
+                "kriticnost": "visoka",
+                "razlog": "Neosporeni navodi smatraju se priznatim — svaki navod koji se osporava mora biti izričito naveden.",
+            },
+            {
+                "naziv": "Rok za odgovor (30 dana od prijema tužbe)",
+                "pitanje": "Da li je navedeno kada je tužba primljena (relevantno za prekluzivni rok od 30 dana)?",
+                "kljucne_reci": ["primio tužbu", "dostava", "dan dostave", "dan prijema", "30 dana"],
+                "kriticnost": "visoka",
+                "razlog": "Rok za odgovor na tužbu je 30 dana od dostave (čl. 274 ZPP) — kasno podnesen odgovor se ne uzima u obzir.",
+            },
+            {
+                "naziv": "Prigovor nadležnosti (ako se ističe)",
+                "pitanje": "Da li se ističe prigovor stvarne ili mesne nadležnosti suda?",
+                "kljucne_reci": ["nadležnost", "prigovor", "mesna nadležnost", "stvarna nadležnost", "nenadležan"],
+                "kriticnost": "srednja",
+                "razlog": "Prigovor nadležnosti mora biti istaknut najkasnije u odgovoru na tužbu — posle toga se gubi (čl. 16 ZPP).",
+            },
+            {
+                "naziv": "Dokazi tuženog",
+                "pitanje": "Da li su predloženi dokazi u odbranu (dokumenta, svedoci, veštaci)?",
+                "kljucne_reci": ["dokaz", "prilaže", "svedok", "veštak", "prilog", "izjava"],
+                "kriticnost": "srednja",
+                "razlog": "Dokazi koji nisu predloženi u odgovoru mogu biti odbijeni u daljem toku postupka.",
+            },
+        ],
+    },
+
+    "zalba_krivicna": {
+        "naziv": "Žalba na presudu (krivični postupak)",
+        "vrsta_spora": "krivicni",
+        "elementi": [
+            {
+                "naziv": "Oznaka presude koja se pobija",
+                "pitanje": "Da li je naveden broj i datum krivične presude na koju se žali i sud koji ju je doneo?",
+                "kljucne_reci": ["presuda", "broj", "k.", "od dana", "doneo sud", "prvostepeni"],
+                "kriticnost": "visoka",
+                "razlog": "Žalba mora precizno identifikovati pobijanu presudu (čl. 453 ZKP).",
+            },
+            {
+                "naziv": "Identitet žalioca (optuženi, branilac ili oštećeni)",
+                "pitanje": "Da li je jasno ko podnosi žalbu — optuženi, branilac ili oštećeni?",
+                "kljucne_reci": ["optuženi", "okrivljeni", "branilac", "oštećeni", "žalilac", "ime"],
+                "kriticnost": "visoka",
+                "razlog": "Legitimacija za žalbu zavisi od statusa žalioca (čl. 441 ZKP).",
+            },
+            {
+                "naziv": "Razlozi žalbe (ZKP osnovi pobijanja)",
+                "pitanje": "Da li su navedeni zakonski razlozi žalbe (bitna povreda ZKP, pogrešno utvrđene činjenice, pogrešna primena krivičnog zakona, odluka o sankciji)?",
+                "kljucne_reci": ["bitna povreda", "pogrešno utvrđene", "pogrešna primena", "sankcija", "kazna", "razlog žalbe", "zkp"],
+                "kriticnost": "visoka",
+                "razlog": "Žalba bez konkretnih zakonskih razloga biće odbačena — razlozi iz čl. 438 ZKP su taksativno nabrojani.",
+            },
+            {
+                "naziv": "Žalbeni predlog",
+                "pitanje": "Da li je naveden konkretan predlog (osloboditi, ukinuti presudu, preinačiti odluku o kazni)?",
+                "kljucne_reci": ["osloboditi", "ukinuti", "preinačiti", "predlažem", "žalbeni predlog"],
+                "kriticnost": "visoka",
+                "razlog": "Drugostepeni sud presuđuje u granicama žalbenog predloga.",
+            },
+            {
+                "naziv": "Rok za žalbu (15 dana od dostave presude)",
+                "pitanje": "Da li je navedeno kada je presuda dostavljena (rok 15 dana)?",
+                "kljucne_reci": ["dostavljena", "primio presudu", "dan dostave", "15 dana"],
+                "kriticnost": "visoka",
+                "razlog": "Rok za žalbu u krivičnom postupku je 15 dana od dostave presude (čl. 455 ZKP) — kasna žalba se odbacuje.",
+            },
+        ],
+    },
+
+    "urgencija_sudu": {
+        "naziv": "Urgencija sudu (hitno postupanje)",
+        "vrsta_spora": "parnicni_postupak",
+        "elementi": [
+            {
+                "naziv": "Identitet stranke i broj predmeta",
+                "pitanje": "Da li su navedeni podaci stranke koja podnosi urgenciju i broj predmeta kod suda?",
+                "kljucne_reci": ["ime", "naziv", "stranka", "predmet", "broj predmeta", "sud"],
+                "kriticnost": "visoka",
+                "razlog": "Urgencija mora identifikovati predmet o kom se traži hitno postupanje.",
+            },
+            {
+                "naziv": "Razlog urgencije i period nepostupanja",
+                "pitanje": "Da li je opisano zašto se urgira i koliko dugo sud nije postupao?",
+                "kljucne_reci": ["nije postupio", "zakašnjenje", "mesec", "dana", "period", "čekamo", "razlog"],
+                "kriticnost": "visoka",
+                "razlog": "Urgencija bez konkretnog razloga i perioda nepostupanja nema dejstvo.",
+            },
+            {
+                "naziv": "Posledice nepostupanja (šteta stranci)",
+                "pitanje": "Da li je opisano kakvu štetu ili nepovoljne posledice uzrokuje zakašnjenje?",
+                "kljucne_reci": ["šteta", "gubitak", "zastarelost", "rok", "posledica", "ugroženo pravo"],
+                "kriticnost": "visoka",
+                "razlog": "Hitnost se pravda konkretnim posledicama — bez toga urgencija je formalna.",
+            },
+            {
+                "naziv": "Konkretan predlog (šta se traži od suda)",
+                "pitanje": "Da li je naveden konkretan zahtev (zakazati ročište, doneti odluku, dostaviti poziv)?",
+                "kljucne_reci": ["tražim", "predlažem", "zakazati", "doneti", "dostaviti", "hitno"],
+                "kriticnost": "visoka",
+                "razlog": "Sud mora znati šta se od njega traži — urgencija bez predloga je informativna.",
+            },
+        ],
+    },
+
+    "prigovor_izvrsenje": {
+        "naziv": "Prigovor na rešenje o izvršenju",
+        "vrsta_spora": "izvrsni_postupak",
+        "elementi": [
+            {
+                "naziv": "Oznaka rešenja o izvršenju (broj, datum, sud)",
+                "pitanje": "Da li je naveden broj i datum rešenja o izvršenju koje se pobija?",
+                "kljucne_reci": ["rešenje o izvršenju", "broj", "i.", "od dana", "sud doneo"],
+                "kriticnost": "visoka",
+                "razlog": "Prigovor mora precizno identifikovati pobijano rešenje (čl. 74 ZIO).",
+            },
+            {
+                "naziv": "Identitet izvršnog dužnika (prigovarača)",
+                "pitanje": "Da li su navedeni podaci izvršnog dužnika koji podnosi prigovor?",
+                "kljucne_reci": ["dužnik", "izvršni dužnik", "ime", "naziv", "jmbg", "pib"],
+                "kriticnost": "visoka",
+                "razlog": "Prigovor može podneti samo izvršni dužnik ili treće lice (čl. 74 ZIO).",
+            },
+            {
+                "naziv": "Razlozi prigovora",
+                "pitanje": "Da li su navedeni konkretni razlozi zašto je rešenje o izvršenju nezakonito?",
+                "kljucne_reci": ["razlog", "potraživanje ne postoji", "zastarelo", "ispunjeno", "nedopušteno", "nezakonito", "pogrešno"],
+                "kriticnost": "visoka",
+                "razlog": "Prigovor bez razloga nema suspenzivno dejstvo — moraju biti navedeni konkretni osnovi.",
+            },
+            {
+                "naziv": "Rok za prigovor (8 dana od dostave rešenja)",
+                "pitanje": "Da li je navedeno kada je rešenje o izvršenju dostavljeno?",
+                "kljucne_reci": ["dostavljeno", "dan dostave", "primio rešenje", "8 dana"],
+                "kriticnost": "visoka",
+                "razlog": "Rok za prigovor je 8 dana od dostave rešenja (čl. 74 ZIO) — kasni prigovor se odbacuje.",
+            },
+            {
+                "naziv": "Predlog (ukidanje rešenja o izvršenju)",
+                "pitanje": "Da li je naveden predlog šta sud treba da uradi sa rešenjem?",
+                "kljucne_reci": ["predlažem", "ukine", "poništi", "odbaci", "ukinuti rešenje"],
+                "kriticnost": "visoka",
+                "razlog": "Sud odlučuje u granicama prigovornog predloga.",
+            },
+            {
+                "naziv": "Dokazi uz prigovor",
+                "pitanje": "Da li su navedeni dokazi koji potkrepljuju prigovor (priznanica, sporazum, zastarelost)?",
+                "kljucne_reci": ["dokaz", "prilaže", "priznanica", "potvrda", "sporazum", "otpis"],
+                "kriticnost": "srednja",
+                "razlog": "Prigovor bez dokaza je slabiji procesno — dokazi se predaju uz prigovor.",
+            },
+        ],
+    },
 }
 
 # Mapping: tipovi koji su prethodno bili u /api/podnesak → novi tipovi ovde

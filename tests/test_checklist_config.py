@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Tests za nacrti/checklist_config.py — validacija svih 21 tipova.
+Tests za nacrti/checklist_config.py — validacija svih tipova.
 
 Pokriva:
   - Svi tipovi imaju obavezna polja (naziv, vrsta_spora, elementi)
@@ -38,11 +38,15 @@ _OCEKIVANI_TIPOVI = [
     "punomocje",
     "aneks",
     "obaveštenje_o_otkazu",
+    "odgovor_na_tuzbu",
+    "zalba_krivicna",
+    "urgencija_sudu",
+    "prigovor_izvrsenje",
 ]
 
 
 def test_svi_tipovi_count():
-    assert len(SVI_TIPOVI) == 21, f"Očekivano 21 tipova, pronađeno {len(SVI_TIPOVI)}"
+    assert len(SVI_TIPOVI) == 25, f"Očekivano 25 tipova, pronađeno {len(SVI_TIPOVI)}"
 
 
 def test_svi_ocekivani_tipovi_prisutni():
