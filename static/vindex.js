@@ -12597,16 +12597,27 @@ function voice_execute(text) {
 
     // Govori odgovor
     if (d.odgovor) {
+      // Uvek prikaži tekst odgovora u voice modalu kao fallback
+      var _vResp = document.getElementById('voice-response');
+      if (_vResp) {
+        _vResp.textContent = d.odgovor;
+        _vResp.style.display = 'block';
+      }
       if (isQuery) {
-        // Query mode: nakon što TTS završi → automatski restartuj mic
         _voiceConvTurns++;
+        // Ponovo otvori modal da se vidi tekstualni odgovor
+        var modal = document.getElementById('voice-modal');
+        if (modal) modal.style.display = 'flex';
+        var statusEl = document.getElementById('voice-status');
+        if (statusEl) statusEl.textContent = 'Odgovor:';
+        var transcriptEl = document.getElementById('voice-transcript');
+        if (transcriptEl) transcriptEl.textContent = '';
         vx_tts_speak(d.odgovor, _voiceConvTurns < 8 ? function() {
-          // Mali delay da korisnik primi odgovor, pa restartuj
           setTimeout(function() {
             _voiceConvMode = true;
             voice_start();
           }, 700);
-        } : null);
+        } : function() { _voice_close_modal(); });
       } else {
         vx_tts_speak(d.odgovor);
         _voiceConvMode = false;
@@ -12740,16 +12751,15 @@ function voice_doAction(action, params) {
     case 'ask_question':
       var txt = params.text || '';
       if (!txt) { showToast('Nisam razumeo pitanje', 'warn'); break; }
-      setTab(document.getElementById('tab-btn-agent'), 'agent');
+      // Navigiraj na AI Istraživanje (tab 'q') i postavi pitanje
+      setTab(document.getElementById('tab-btn-q'), 'q');
       setTimeout(function() {
-        var inp = document.getElementById('agent-input') || document.getElementById('pitanje-input');
+        var inp = document.getElementById('qi');
         if (!inp) return;
         inp.value = txt;
         inp.dispatchEvent(new Event('input'));
-        // Auto-submit: klikni na dugme "Pitaj" ako postoji
         setTimeout(function() {
-          var btn = document.getElementById('agent-submit-btn') || document.querySelector('[onclick*="sendQuestion"]');
-          if (btn) btn.click();
+          if (typeof execQuery === 'function') execQuery();
         }, 200);
       }, 300);
       break;
@@ -12806,11 +12816,11 @@ function voice_doAction(action, params) {
       break;
 
     case 'show_dashboard':
-      if (typeof setTab === 'function') setTab(document.getElementById('tab-btn-home'),'home');
+      setTab(document.getElementById('tab-btn-h'), 'h');
       break;
 
     case 'show_klijenti':
-      if (typeof setTab === 'function') setTab(document.getElementById('tab-btn-klijenti'),'klijenti');
+      setTab(document.getElementById('tab-btn-k'), 'k');
       break;
 
     case 'search':
