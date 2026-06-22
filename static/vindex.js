@@ -2274,7 +2274,7 @@ async function stratPokreni() {
     if (data.modul === 'sudija_v2') {
       if (bodyEl) bodyEl.innerHTML =
         '<div class="debate-sekcija debate-tuzilac">'
-        + '<div class="debate-header">⚔️ TUŽILAC — Argumenti</div>'
+        + '<div class="debate-header">⚖️ TUŽILAC — Argumenti</div>'
         + '<div class="debate-sadrzaj">' + stratFormatirajRezultat(data.tuzilac || '') + '</div>'
         + '</div>'
         + '<div class="debate-sekcija debate-branilac">'
@@ -7281,7 +7281,7 @@ async function aic3_submit() {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="sparkles" style="width:14px;height:14px;"></i> Istrazi';
+      btn.innerHTML = '<i data-lucide="file-search" style="width:14px;height:14px;"></i> Istrazi';
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
   }
@@ -10663,10 +10663,10 @@ function hccRenderBrifing(el, b, krediti) {
   html += _sec('📅', 'Hronologija', _list(b.timeline));
 
   // Judge attack
-  html += _sec('⚔️', 'Napad pred sudom — pravni argumenti', _txt(b.judge_attack_mode));
+  html += _sec('⚖️', 'Napad pred sudom — pravni argumenti', _txt(b.judge_attack_mode));
 
   // Opposing counsel
-  html += _sec('🎯', 'Strategija protivne strane', _txt(b.opposing_counsel));
+  html += _sec('📋', 'Strategija protivne strane', _txt(b.opposing_counsel));
 
   // Missing evidence
   html += _sec('🔍', 'Dokazi koji nedostaju', _list(b.missing_evidence));
@@ -12777,7 +12777,7 @@ function _ccc_render(el, d) {
     chips.push({ cls:'chip-yellow', icon:'💰', text: Math.round(bil.nenaplaceno/1000)+'k RSD nenaplaćeno', action:"pred_subtabSwitch('naplata')" });
   }
   // 5. Preporučena AI analiza — PLAVA (uvek)
-  chips.push({ cls:'chip-blue', icon:'🧠', text:'Pokreni AI analizu', action:"pred_subtabSwitch('ai-analiza')" });
+  chips.push({ cls:'chip-blue', icon:'⚖️', text:'Pokreni AI analizu', action:"pred_subtabSwitch('ai-analiza')" });
   // 6. Ako nema rokova — PLAVA
   if (!kr && (d.predstojeći||0) === 0 && (d.rokovi||[]).length === 0) {
     chips.push({ cls:'chip-blue', icon:'⏰', text:'Evidentiraj rokove', action:"pred_subtabSwitch('rokovi')" });
@@ -12878,9 +12878,9 @@ function _ccc_render(el, d) {
 
     // ── BRZE AKCIJE ───────────────────────────────────────────────────────
     '<div style="display:flex;flex-wrap:wrap;gap:.4rem;">',
-      '<button onclick="pred_subtabSwitch(\'ai-analiza\')" class="smart-chip chip-blue">🧠 AI Analiza</button>',
-      '<button onclick="pred_subtabSwitch(\'strategija\')" class="smart-chip" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#a78bfa;">⚔️ Strategija</button>',
-      '<button onclick="pred_subtabSwitch(\'agenti\')" class="smart-chip" style="background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);color:#818cf8;">🤖 AI Pomoćnici</button>',
+      '<button onclick="pred_subtabSwitch(\'ai-analiza\')" class="smart-chip chip-blue">⚖️ AI Analiza</button>',
+      '<button onclick="pred_subtabSwitch(\'strategija\')" class="smart-chip" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#a78bfa;">📋 Strategija</button>',
+      '<button onclick="pred_subtabSwitch(\'agenti\')" class="smart-chip" style="background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);color:#818cf8;">👤 AI Pomoćnici</button>',
       '<button onclick="pred_subtabSwitch(\'dokumenti\')" class="smart-chip" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.55);">📁 Dokumenti</button>',
       '<button onclick="if(typeof billing_timerToggle===\'function\'){if(!_billingPredmetId)_billingPredmetId=activePredmetId;billing_timerToggle();}" class="smart-chip" style="background:rgba(240,192,64,.1);border-color:rgba(240,192,64,.3);color:#f0c040;">⏱ Tajmer</button>',
       '<button onclick="pred_subtabSwitch(\'graf\')" class="smart-chip" style="background:rgba(103,232,249,.08);border-color:rgba(103,232,249,.2);color:#67e8f9;">🕸 Mapa veza</button>',
@@ -12985,11 +12985,11 @@ function agent_select(agentId, cardEl) {
   document.querySelectorAll('.agent-card').forEach(function(c){ c.classList.remove('active'); });
   if (cardEl) cardEl.classList.add('active');
   var badge = document.getElementById('agent-selected-badge');
-  var icons = {'intake':'📥','research':'🔍','drafting':'✍️','litigation':'⚔️','billing':'💰','deadline':'⏰'};
+  var icons = {'intake':'📥','research':'🔍','drafting':'✍️','litigation':'⚖️','billing':'💰','deadline':'⏰'};
   var names = {'intake':'Intake Agent','research':'Research Agent','drafting':'Drafting Agent','litigation':'Litigation Agent','billing':'Billing Agent','deadline':'Deadline Agent'};
   if (badge) {
     badge.style.display = 'block';
-    badge.textContent   = (icons[agentId]||'🤖') + ' ' + (names[agentId]||agentId) + ' — aktivan';
+    badge.textContent   = (icons[agentId]||'▶') + ' ' + (names[agentId]||agentId) + ' — aktivan';
   }
 }
 
@@ -13020,7 +13020,7 @@ async function agent_run() {
     if (!r.ok) { showToast(d.detail || 'Greška', 'err'); return; }
 
     if (loading) loading.style.display = 'none';
-    if (badge)   badge.textContent = (d.ikona||'🤖') + ' ' + (d.naziv||d.agent) + ' odgovorio:';
+    if (badge)   badge.textContent = (d.naziv||d.agent) + ' odgovorio:';
     if (result)  result.textContent = d.odgovor || '—';
     if (wrap)    wrap.style.display = 'block';
   } catch(e) {
