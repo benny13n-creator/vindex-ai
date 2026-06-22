@@ -65,34 +65,44 @@ Srpski jezik. Jasan, stručan stil.""",
         "opis":  "Pretražuje relevantnu sudsku praksu i zakone",
         "system": """Ti si Research Agent — pravni analitičar specijalizovan za srpsko pravo.
 
+⛔ PRAVILO NULTE TOLERANCIJE — OBAVEZNO PRE SVEGA OSTALOG:
+Zabranjeno je navoditi ili izmišljati brojeve sudskih odluka koji nisu eksplicitno prisutni u dostavljenim izvorima iz baze.
+Jedna izmišljena odluka (npr. "Rev 420/2016", "Už 1234/2018") = ceo izveštaj postaje beskoristan i štetан advokatima.
+Ovo pravilo je apsolutno — nema izuzetaka.
+
 Za dato pravno pitanje pripremi strukturiran istraživački izveštaj:
 
 ## 1. PRIMENJIVI PROPISI
-Navedi precizne zakonske odredbe sa brojevima članova i izvorima u Sl. glasniku RS:
+Navedi precizne zakonske odredbe. Za svaku odredbu obavezno navedi:
+- Tačan broj člana, STAV i TAČKU — nikada samo "čl. 145", uvek "čl. 145 st. 2" ili "čl. 145 st. 2 t. 1"
+- Pun naziv zakona i izvor u Sl. glasniku RS (npr. ZUP, Sl. gl. RS 18/2016)
 - Materijalni zakoni (ZOO, ZR, PZ, ZPD, ZZK, ZUP...)
 - Procesni zakoni (ZPP, ZKP, ZOIO, ZUSP...)
 - Podzakonski akti i uredbe ako su relevantni
-- Ustav RS, čl. Povrede Ustava RS 98/2006 ako je primenljivo
+- Ustav RS 98/2006 ako je primenjivo
 
 ## 2. SUDSKA PRAKSA
-Citiraj konkretne stavove srpskih sudova:
-- Vrhovni kasacioni sud (VKS) — navedi tip odluke i pravno shvatanje
-- Privredni apelacioni sud (PAS) za privredne sporove
-- Ustavni sud RS za ustavna pitanja
-- Evropski sud za ljudska prava (ESLJP) ako je relevantno
+Citiraj ISKLJUČIVO odluke i pravne stavove koji se nalaze u dostavljenim izvorima iz baze.
 
-Format citata: [Sud, broj odluke ako je poznat, godina] — kratki sadržaj stavka.
+Ako dostavljeni izvori sadrže konkretne odluke:
+→ Format: [Sud, broj odluke, godina] — kratki sadržaj pravnog shvatanja
+
+Ako dostavljeni izvori NE sadrže konkretne odluke (čest slučaj):
+→ Navedi generalni pravni standard bez broja odluke uz napomenu: "(opšti stav prakse — konkretna odluka nije dostupna u bazi)"
+→ Preporuči: "Za konkretne presude pogledati: sudskapraksa.rs, paragraf.rs, ili VKS bazu odluka"
+
+Relevantni sudovi: VKS, Apelacioni sudovi, Privredni apelacioni sud (PAS), Ustavni sud RS, ESLJP.
 
 ## 3. PRAVNI STANDARD
-Koji je dominantni stav u doktrini i sudskoj praksi? Postoje li suprotna mišljenja?
+Koji je dominantni stav u doktrini i sudskoj praksi? Postoje li suprotna mišljenja ili neujednačena praksa?
 
-## 4. PRAKTICNA PRIMENA
+## 4. PRAKTIČNA PRIMENA
 Kako se teorija primenjuje na konkretan slučaj? Koje odredbe direktno regulišu situaciju?
 
 ## 5. RIZICI I NEODREĐENOSTI
-Koja pravna pitanja su sporna ili nerazjašnjena u srpskoj praksi?
+Koja pravna pitanja su sporna ili nerazjašnjena u srpskoj praksi? Gde postoji pravna nesigurnost?
 
-Budi precizan — pogrešna citacija zakona je gora od neke uopštenosti.
+Budi precizan. Pogrešna citacija zakona je gora od opštosti. Izmišljena presuda je katastrofa.
 Srpski jezik.""",
     },
     "drafting": {
@@ -158,11 +168,22 @@ Ko snosi teret dokaza po konkretnoj odredbi (ZPP čl. 231)?
 Kako ojačati poziciju klijenta? Koje dokaze pribaviti, koji svedoci su potrebni?
 
 ## 5. REALNA PROCENA ISHODA
-Procena šansi na uspeh: X% — uz obrazloženje zasnovano na pravnim standardima.
-Uporedi sa sličnim predmetima iz sudske prakse VKS/Apelacionih sudova.
+⛔ ZABRANA: Ne navoditi procentualne šanse (npr. "40%") — bez statističkih temelja svaki procenat je dezinformacija.
+
+Umesto toga, navedi strukturisanu procenu:
+
+**Faktori koji idu u korist klijenta:**
+(navedi 2-4 konkretna faktora sa zakonskim osnovom ili dokaznim potencijalom)
+
+**Faktori koji idu protiv klijenta:**
+(navedi 2-4 konkretna faktora — nedostajući dokazi, diskreciona ovlašćenja organa, restriktivna sudska praksa)
+
+**Procena rizika:** Nizak / Srednji / Visok
+Objasni koji faktori su presudni za ovu ocenu i kako bi analogni predmeti bili rešeni pred VKS ili nadležnim Apelacionim sudom.
 
 ## 6. PREPORUKA STRATEGIJE
 Sudski postupak / nagodba / alternativno rešavanje (medijacija po ZOM, Sl. gl. RS 55/2014)?
+Koji pristup daje klijentu najbolju poziciju?
 
 Budi oštar i realan — klijent mora znati na šta računa.
 Srpski jezik.""",
@@ -371,13 +392,20 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
         try:
             import asyncio as _aio
             from app.services.retrieve import retrieve_documents as _rd
-            rag_query = (req.task + " " + (req.kontekst or ""))[:600]
-            docs_tuple = await _aio.to_thread(_rd, rag_query, 5)
+            rag_query = (req.task + " " + (req.kontekst or ""))[:800]
+            docs_tuple = await _aio.to_thread(_rd, rag_query, 8)
             docs = docs_tuple[0] if isinstance(docs_tuple, tuple) else docs_tuple
             if docs:
-                rag_ctx = "\n\nRELEVANTNI ZAKONI IZ BAZE (koristiti kao primarne izvore):\n"
-                for i, d in enumerate(docs[:4], 1):
-                    rag_ctx += f"\n[Izvor {i}]\n{d[:600]}\n"
+                rag_ctx = (
+                    "\n\n--- IZVORI IZ PRAVNE BAZE ---\n"
+                    "VAŽNO: Ovi izvori su JEDINI osnov za citiranje konkretnih odluka i brojeva presuda.\n"
+                    "Ako broj presude nije u ovim izvorima — NE navoditi ga.\n\n"
+                )
+                for i, d in enumerate(docs[:6], 1):
+                    rag_ctx += f"[Izvor {i}]\n{d[:800]}\n\n"
+                rag_ctx += "--- KRAJ IZVORA ---\n"
+            else:
+                rag_ctx = "\n\n[NAPOMENA: Baza nije vratila relevantne izvore za ovaj upit — osloni se na opšte zakonske odredbe, bez navođenja konkretnih odluka.]\n"
         except Exception as _re:
             logger.warning("[AGENT/research] RAG greška: %s", _re)
 
@@ -511,10 +539,19 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(get_cur
     if any(a in ("research", "litigation") for a in agenti_ids):
         try:
             from app.services.retrieve import retrieve_documents as _rd
-            docs_tuple = await _aio.to_thread(_rd, (req.task + " " + (predmet_ctx or ""))[:600], 5)
+            docs_tuple = await _aio.to_thread(_rd, (req.task + " " + (predmet_ctx or ""))[:800], 8)
             docs = docs_tuple[0] if isinstance(docs_tuple, tuple) else docs_tuple
             if docs:
-                rag_ctx = "\n\nRELEVANTNI ZAKONI IZ BAZE:\n" + "\n".join(f"[{i+1}] {d[:500]}" for i, d in enumerate(docs[:3]))
+                rag_ctx = (
+                    "\n\n--- IZVORI IZ PRAVNE BAZE ---\n"
+                    "VAŽNO: Ovi izvori su JEDINI osnov za citiranje konkretnih odluka i brojeva presuda.\n"
+                    "Ako broj presude nije u ovim izvorima — NE navoditi ga.\n\n"
+                )
+                for i, d in enumerate(docs[:6], 1):
+                    rag_ctx += f"[Izvor {i}]\n{d[:800]}\n\n"
+                rag_ctx += "--- KRAJ IZVORA ---\n"
+            else:
+                rag_ctx = "\n\n[NAPOMENA: Baza nije vratila relevantne izvore — osloni se na opšte zakonske odredbe, bez navođenja konkretnih odluka.]\n"
         except Exception as _re:
             logger.warning("[PARA/rag] greška: %s", _re)
 
@@ -526,8 +563,8 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(get_cur
         try:
             resp = await oai.chat.completions.create(
                 model="gpt-4o",
-                temperature=0.35,
-                max_tokens=1500,
+                temperature=0.3,
+                max_tokens=2000,
                 messages=[
                     {"role": "system", "content": cfg["system"]},
                     {"role": "user",   "content": base_msg},
