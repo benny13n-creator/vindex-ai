@@ -348,6 +348,42 @@ async def _handle_command(text: str) -> dict:
     }
 
 
+# ── TTS endpoint — OpenAI višejezični sintetizator ───────────────────────────
+
+class VoiceTtsReq(BaseModel):
+    text: str = Field(..., min_length=1, max_length=600)
+
+
+@router.post("/tts")
+@limiter.limit("40/minute")
+async def voice_tts(req: VoiceTtsReq, request: Request, user=Depends(require_user)):
+    """Generiše MP3 audio iz teksta pomoću OpenAI TTS (višejezičan — srpski radi ispravno)."""
+    from fastapi.responses import Response as _Resp
+    from openai import OpenAI
+
+    text = req.text.strip()[:600]
+    if not text:
+        return _Resp(content=b"", media_type="audio/mpeg")
+
+    try:
+        client = OpenAI()
+        resp = await asyncio.to_thread(
+            lambda: client.audio.speech.create(
+                model="tts-1",
+                voice="onyx",   # Dubok, profesionalan glas
+                input=text,
+                speed=0.94,
+                response_format="mp3",
+            )
+        )
+        return _Resp(content=resp.content, media_type="audio/mpeg",
+                     headers={"Cache-Control": "no-store"})
+    except Exception as exc:
+        logger.warning("[VOICE/TTS] OpenAI TTS greška: %s", exc)
+        # Vraćamo 204 — frontend će koristiti browser fallback
+        return _Resp(status_code=204, content=b"")
+
+
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
 class VoiceCommandReq(BaseModel):

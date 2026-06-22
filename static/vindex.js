@@ -12795,6 +12795,44 @@ function _tts_pick_voice() {
       || null;
 }
 
+// OpenAI TTS — glavni put za glasovne odgovore (srpski uvek ispravan)
+var _ttsAudio = null;
+async function _tts_openai_speak(text, afterSpeak) {
+  if (!currentSession) { return false; }
+  var clean = _tts_clean(text);
+  if (!clean) { if (typeof afterSpeak === 'function') afterSpeak(); return true; }
+  try {
+    var r = await fetch(BASE_URL + '/api/voice/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ text: clean.slice(0, 600) })
+    });
+    if (!r.ok || r.status === 204) return false;
+    var blob = await r.blob();
+    if (!blob || blob.size < 100) return false;
+    var url = URL.createObjectURL(blob);
+    if (_ttsAudio) { try { _ttsAudio.pause(); } catch(e){} }
+    _ttsAudio = new Audio(url);
+    _tts_update_btn(true);
+    _ttsAudio.onended = function() {
+      URL.revokeObjectURL(url);
+      _ttsAudio = null;
+      _tts_update_btn(false);
+      if (typeof afterSpeak === 'function') afterSpeak();
+    };
+    _ttsAudio.onerror = function() {
+      URL.revokeObjectURL(url);
+      _ttsAudio = null;
+      _tts_update_btn(false);
+      if (typeof afterSpeak === 'function') afterSpeak();
+    };
+    _ttsAudio.play();
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
 function _tts_update_btn(speaking) {
   var btn = document.getElementById('vx-tts-play-btn');
   if (!btn) return;
@@ -12803,42 +12841,49 @@ function _tts_update_btn(speaking) {
 }
 
 function vx_tts_speak(text, afterSpeak) {
-  if (!window.speechSynthesis) { showToast('Vaš browser ne podržava čitanje teksta.', 'warn'); return; }
   vx_tts_stop();
   var clean = _tts_clean(text);
   if (!clean) { if (typeof afterSpeak === 'function') afterSpeak(); return; }
 
-  function _doSpeak() {
-    _ttsUtterance = new SpeechSynthesisUtterance(clean);
-    _ttsUtterance.lang = 'sr-RS';
-    _ttsUtterance.rate = 0.92;
-    _ttsUtterance.pitch = 1.0;
-    var v = _tts_pick_voice();
-    if (v) _ttsUtterance.voice = v;
-    _ttsUtterance.onend = function() {
-      _ttsUtterance = null;
-      _tts_update_btn(false);
-      if (typeof afterSpeak === 'function') afterSpeak();
-    };
-    _ttsUtterance.onerror = function() {
-      _ttsUtterance = null;
-      _tts_update_btn(false);
-      // Pokrenemo afterSpeak čak i ako TTS nije radio
-      if (typeof afterSpeak === 'function') afterSpeak();
-    };
-    window.speechSynthesis.speak(_ttsUtterance);
-    _tts_update_btn(true);
-  }
+  // Primarni put: OpenAI TTS — višejezičan, srpski uvek ispravan
+  _tts_openai_speak(text, afterSpeak).then(function(ok) {
+    if (ok) return; // OpenAI TTS radi — gotovo
 
-  // Glasovi se možda još učitavaju — sačekaj ako je lista prazna
-  if (window.speechSynthesis.getVoices().length === 0) {
-    window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.onvoiceschanged = null; _doSpeak(); };
-  } else {
-    _doSpeak();
-  }
+    // Fallback: browser Web Speech API (može zvučati čudno bez srpskog glasa)
+    if (!window.speechSynthesis) {
+      if (typeof afterSpeak === 'function') afterSpeak();
+      return;
+    }
+    function _doSpeak() {
+      _ttsUtterance = new SpeechSynthesisUtterance(clean);
+      _ttsUtterance.lang = 'sr-RS';
+      _ttsUtterance.rate = 0.92;
+      _ttsUtterance.pitch = 1.0;
+      var v = _tts_pick_voice();
+      if (v) _ttsUtterance.voice = v;
+      _ttsUtterance.onend = function() {
+        _ttsUtterance = null;
+        _tts_update_btn(false);
+        if (typeof afterSpeak === 'function') afterSpeak();
+      };
+      _ttsUtterance.onerror = function() {
+        _ttsUtterance = null;
+        _tts_update_btn(false);
+        if (typeof afterSpeak === 'function') afterSpeak();
+      };
+      window.speechSynthesis.speak(_ttsUtterance);
+      _tts_update_btn(true);
+    }
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.onvoiceschanged = null; _doSpeak(); };
+    } else {
+      _doSpeak();
+    }
+  });
 }
 
 function vx_tts_stop() {
+  if (_ttsAudio) { try { _ttsAudio.pause(); _ttsAudio.src = ''; } catch(e){} _ttsAudio = null; }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   _ttsUtterance = null;
   _tts_update_btn(false);
