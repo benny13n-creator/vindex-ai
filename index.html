@@ -1313,12 +1313,16 @@
 
               <!-- ── TAB: Knowledge Graph ─────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-graf" style="display:none;">
+                <!-- Uputstvo za korišćenje -->
+                <div style="margin-bottom:.75rem;padding:.6rem .85rem;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:9px;font-size:.71rem;color:rgba(180,170,255,.8);line-height:1.6;">
+                  <strong style="color:rgba(165,180,252,.9);">Kako koristiti Knowledge Graph:</strong> Kliknite <strong>↺ Osveži</strong> da vidite mrežu svih veza ovog predmeta — stranke, zakoni, relevantne presude VKS, dokumenti, rokovi i ročišta. Kliknite na bilo koji čvor za detalje. Skrolujte za zum, držite i vucite za pomeranje.
+                </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
                   <div>
                     <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Knowledge Graph</div>
-                    <div id="kg-subtitle" style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.15rem;">Mreža odnosa predmeta — klik na čvor za detalje · skrol = zoom · drag = pomeri</div>
+                    <div id="kg-subtitle" style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.15rem;">Kliknite ↺ Osveži za generisanje mreže odnosa · klik na čvor = detalji · skrol = zum · drag = pomeri</div>
                   </div>
-                  <button onclick="kg_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(74,168,255,.3);border-radius:6px;background:rgba(74,168,255,.08);color:#89c8ff;cursor:pointer;">↺ Osveži</button>
+                  <button onclick="kg_load()" style="padding:.4rem .9rem;font-size:.75rem;border:1px solid rgba(99,102,241,.4);border-radius:7px;background:rgba(99,102,241,.15);color:#a5b4fc;cursor:pointer;font-weight:600;">↺ Osveži graf</button>
                 </div>
                 <!-- Legenda -->
                 <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem;" id="kg-legenda">
@@ -1331,7 +1335,11 @@
                   <span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;color:rgba(255,255,255,.4);"><span style="width:9px;height:9px;border-radius:50%;background:#e879f9;display:inline-block;"></span>Sudska praksa</span>
                 </div>
                 <div id="kg-container" style="width:100%;height:420px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;overflow:hidden;position:relative;">
-                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;"><div class="kg-loading-dots"><span></span><span></span><span></span></div><div style="font-size:.78rem;color:rgba(74,168,255,.6);">Otvorite predmet i kliknite ↺ Osveži</div></div>
+                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;text-align:center;">
+                    <div style="font-size:2.2rem;opacity:.18;">◉</div>
+                    <div style="font-size:.82rem;color:rgba(255,255,255,.35);">Izaberite predmet sa liste levo</div>
+                    <div style="font-size:.72rem;color:rgba(255,255,255,.2);">Graf će se automatski učitati</div>
+                  </div>
                 </div>
                 <div id="kg-tooltip" style="display:none;position:absolute;background:#1a1f2e;border:1px solid rgba(74,168,255,.3);border-radius:7px;padding:.4rem .65rem;font-size:.72rem;color:#e6edf3;pointer-events:none;z-index:1000;max-width:200px;line-height:1.5;"></div>
                 <!-- Detail panel — otvara se klik na čvor -->
@@ -1346,10 +1354,14 @@
 
               <!-- ── TAB: Agenti ──────────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-agenti" style="display:none;">
+                <!-- Uputstvo za korišćenje -->
+                <div style="margin-bottom:.75rem;padding:.6rem .85rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:9px;font-size:.71rem;color:rgba(140,220,255,.8);line-height:1.6;">
+                  <strong style="color:rgba(0,212,255,.9);">Kako koristiti AI Agente:</strong> Svaki agent je specijalizovan za drugu oblast. <strong>1.</strong> Izaberite agenta (Research, Litigation, Drafting…). <strong>2.</strong> Unesite konkretno pitanje ili zadatak u polje ispod. <strong>3.</strong> Kliknite <em>Pokreni agenta</em>. Za simultanu analizu više perspektiva koristite <em>Paralelna analiza</em>.
+                </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
                   <div>
                     <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Multi-Agent Centar</div>
-                    <div style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.1rem;">6 specijalizovanih AI agenata — izaberi ili opi šta treba</div>
+                    <div style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.1rem;">6 specijalizovanih AI agenata — izaberi agenta → unesite zadatak → pokrenite</div>
                   </div>
                 </div>
 
@@ -2440,17 +2452,17 @@
                   <div class="aic3-module-icon" style="background:rgba(99,102,241,.15);"><i data-lucide="network" style="width:17px;height:17px;color:#818cf8;"></i></div>
                   <div class="aic3-module-body">
                     <div class="aic3-module-name" style="color:#a5b4fc;">Knowledge Graph <span style="font-size:.62rem;background:#4f46e5;color:#fff;padding:1px 5px;border-radius:4px;vertical-align:middle;">NOVO</span></div>
-                    <div class="aic3-module-desc">Interaktivna mreža veza: stranke, zakoni, presude, dokumenti i rokovi predmeta.</div>
+                    <div class="aic3-module-desc">Vizuelna mapa veza predmeta: stranke, zakoni, relevantne presude, dokumenti i rokovi. <strong style="color:rgba(165,180,252,.7);">Izaberite predmet → tab Graf → kliknite Osveži.</strong></div>
                   </div>
-                  <button class="aic3-open-btn" style="background:rgba(99,102,241,.15);color:#a5b4fc;border-color:rgba(99,102,241,.3);" onclick="aicOtvoriPredmet('graf')">Otvori predmet</button>
+                  <button class="aic3-open-btn" style="background:rgba(99,102,241,.15);color:#a5b4fc;border-color:rgba(99,102,241,.3);" onclick="aicOtvoriPredmet('graf')">Vizualizuj predmet →</button>
                 </div>
                 <div class="aic3-module-card" style="border-color:rgba(0,212,255,.2);background:rgba(0,212,255,.04);">
                   <div class="aic3-module-icon" style="background:rgba(0,212,255,.1);"><i data-lucide="users" style="width:17px;height:17px;color:rgba(0,212,255,0.7);"></i></div>
                   <div class="aic3-module-body">
                     <div class="aic3-module-name" style="color:rgba(0,212,255,0.85);">Multi-Agent Centar <span style="font-size:.62rem;background:rgba(0,212,255,0.15);color:rgba(0,212,255,0.9);border:1px solid rgba(0,212,255,0.3);padding:1px 5px;border-radius:4px;vertical-align:middle;">AI</span></div>
-                    <div class="aic3-module-desc">6 specijalizovanih AI agenata: Intake, Research, Drafting, Litigation, Billing, Deadline.</div>
+                    <div class="aic3-module-desc">6 AI stručnjaka koji rade na vašem predmetu. Pitajte konkretno pitanje ili dajte zadatak. <strong style="color:rgba(0,212,255,.65);">Izaberite predmet → tab Agenti → izaberite agenta → unesite zadatak.</strong></div>
                   </div>
-                  <button class="aic3-open-btn" style="background:rgba(0,212,255,.1);color:rgba(0,212,255,0.85);border-color:rgba(0,212,255,.25);" onclick="aicOtvoriPredmet('agenti')">Otvori predmet</button>
+                  <button class="aic3-open-btn" style="background:rgba(0,212,255,.1);color:rgba(0,212,255,0.85);border-color:rgba(0,212,255,.25);" onclick="aicOtvoriPredmet('agenti')">Pitaj AI agente →</button>
                 </div>
               </div>
             </div>

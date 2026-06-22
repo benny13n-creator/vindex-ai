@@ -7364,7 +7364,12 @@ function aicOtvoriPredmet(subtab) {
   } else {
     _aicPendingSubtab = subtab || null;
     setTab(document.getElementById('tab-btn-p'), 'p');
-    showToast('Izaberite predmet da biste koristili ovaj alat.', 'info');
+    var _msg = subtab === 'graf'
+      ? 'Izaberite predmet → otvoriće se Knowledge Graph sa mrežom odnosa.'
+      : subtab === 'agenti'
+      ? 'Izaberite predmet → otvoriće se Multi-Agent Centar za postavljanje pitanja.'
+      : 'Izaberite predmet da biste koristili ovaj alat.';
+    showToast(_msg, 'info');
   }
 }
 
@@ -13363,14 +13368,21 @@ async function agent_run_parallel() {
 var _kg_loaded = false;
 
 function kg_load() {
-  if (!activePredmetId || !currentSession) return;
-  _kg_loaded = true;
-
   var container = document.getElementById('kg-container');
   var tooltip   = document.getElementById('kg-tooltip');
   if (!container) return;
 
-  container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;"><div class="kg-loading-dots"><span></span><span></span><span></span></div><div style="font-size:.78rem;color:rgba(74,168,255,.6);">Gradim graf predmeta...</div></div>';
+  if (!activePredmetId || !currentSession) {
+    container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;text-align:center;">'
+      + '<div style="font-size:2.2rem;opacity:.18;">◉</div>'
+      + '<div style="font-size:.82rem;color:rgba(255,255,255,.35);">Izaberite predmet sa liste levo</div>'
+      + '<div style="font-size:.72rem;color:rgba(255,255,255,.2);">Knowledge Graph će prikazati sve veze tog predmeta</div>'
+      + '</div>';
+    return;
+  }
+  _kg_loaded = true;
+
+  container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;"><div class="kg-loading-dots"><span></span><span></span><span></span></div><div style="font-size:.78rem;color:rgba(74,168,255,.6);">Gradim mrežu odnosa predmeta...</div></div>';
 
   fetch('/api/knowledge-graph/predmeti/' + activePredmetId, {
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
@@ -13387,7 +13399,7 @@ function _kg_render(container, tooltip, data) {
   var edges = data.edges || [];
 
   if (!nodes.length) {
-    container.innerHTML = '<div style="padding:2rem;text-align:center;color:#aaa;">Nema podataka za prikaz.</div>';
+    container.innerHTML = '<div style="padding:2rem;text-align:center;color:rgba(255,255,255,.35);">Ovaj predmet još nema dovoljno podataka za prikaz grafa. Dodajte dokumente, rokove ili stranke.</div>';
     return;
   }
 
