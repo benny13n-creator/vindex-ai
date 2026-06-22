@@ -7291,8 +7291,14 @@ async function aic3_submit() {
 var _aicPendingSubtab = null;
 
 function aicOtvoriPredmet(subtab) {
-  _aicPendingSubtab = subtab || null;
-  setTab(document.getElementById('tab-btn-p'), 'p');
+  if (activePredmetId) {
+    setTab(document.getElementById('tab-btn-p'), 'p');
+    setTimeout(function() { pred_subtabSwitch(subtab || 'ccc'); }, 80);
+  } else {
+    _aicPendingSubtab = subtab || null;
+    setTab(document.getElementById('tab-btn-p'), 'p');
+    showToast('Izaberite predmet da biste koristili ovaj alat.', 'info');
+  }
 }
 
 function pred_select(id) {

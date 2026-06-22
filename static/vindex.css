@@ -6075,6 +6075,8 @@ body.light-theme .strat-textarea { background: rgba(0,0,0,0.02) !important; bord
 body.light-theme .strat-rezultat-body { background: rgba(0,0,0,0.015) !important; border-color: rgba(0,0,0,0.09) !important; color: rgba(0,0,0,0.80) !important; }
 body.light-theme .strat-opis-box { color: rgba(0,0,0,0.50) !important; background: rgba(0,0,0,0.015) !important; }
 body.light-theme .strat-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.55) !important; }
+body.light-theme .strat-btn.active { background: rgba(74,168,255,0.12) !important; border-color: rgba(74,168,255,0.45) !important; color: #1a5fa8 !important; }
+body.light-theme .strat-btn:hover:not(.active) { border-color: rgba(0,0,0,0.22) !important; color: rgba(0,0,0,0.75) !important; }
 body.light-theme .interni-input { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.88) !important; }
 body.light-theme .interni-search-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.55) !important; }
 body.light-theme .interni-rezultat-red { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
@@ -6339,7 +6341,16 @@ body.light-theme .intake-upload-zone.dragover { border-color: rgba(0,153,187,0.4
 body.light-theme .intake-file-item { background: rgba(10,18,32,0.03) !important; border-color: rgba(10,18,32,0.08) !important; }
 
 /* ── Svetla tema: Toast notifikacije ─────────────────────────── */
-body.light-theme .toast { background: rgba(10,18,32,0.92) !important; border-color: rgba(10,18,32,0.12) !important; }
+body.light-theme .toast { background: rgba(10,18,32,0.92) !important; border-color: rgba(10,18,32,0.12) !important; color: rgba(255,255,255,0.88) !important; }
+
+/* ── Svetla tema: Notification dropdown — dark overlay ──────── */
+body.light-theme #notif-dropdown { background: #0d1b2a !important; border-color: rgba(74,168,255,0.18) !important; }
+
+/* ── Svetla tema: Nacrti tab + API ključevi — inline white text ── */
+body.light-theme #podnesak-sud-input { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.15) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme #podnesak-sud-dropdown { background: #0d1b2a !important; border-color: rgba(74,168,255,0.3) !important; }
+body.light-theme #api-kljuc-naziv { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.12) !important; color: rgba(0,0,0,0.88) !important; }
+body.light-theme #agent-task-input { color: rgba(0,0,0,0.88) !important; }
 
 /* ── Svetla tema: Intelligence / Analytics paneli ────────────── */
 body.light-theme .intel-panel,
