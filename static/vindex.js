@@ -1595,24 +1595,10 @@ function setTab(el,t){
   if (t==='n') {
     updatePodnesakHint();
     ucitajPlaybookStatus();
-    // Auto-fill podnesak-opis from active predmet workspace snapshot
-    var opisPodnesakEl = document.getElementById('podnesak-opis');
-    if (opisPodnesakEl && !opisPodnesakEl.value && window._predFull) {
-      var pf = window._predFull;
-      var parts = [];
-      if (pf.stranke && pf.stranke.length > 0) {
-        var kl = pf.stranke[0];
-        var kName = ((kl.ime||'') + ' ' + (kl.prezime||'')).trim() || kl.firma || '';
-        if (kName) parts.push('Tužilac/Stranka: ' + kName);
-      }
-      if (pf.protivna_strana && pf.protivna_strana.length > 0) {
-        var ps = pf.protivna_strana[0];
-        var psName = ((ps.ime||'') + ' ' + (ps.prezime||'')).trim() || ps.firma || '';
-        if (psName) parts.push('Protivna strana: ' + psName);
-      }
-      if (pf.predmet && pf.predmet.naziv) parts.push('Predmet: ' + pf.predmet.naziv);
-      if (parts.length) opisPodnesakEl.value = parts.join('\n') + '\n';
-    }
+    _predAutoFill('podnesak-opis', false);
+  }
+  if (t==='t') {
+    _predAutoFill('strat-tekst', false);
   }
   if (t==='q' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
   if (t==='s') praksa_load_initial();
@@ -7032,6 +7018,63 @@ var activePredmetNaziv = '';
 var _predmeti         = [];
 var _copilotHistory   = [];  // last 5 copilot exchanges {q, a} for multi-turn context
 var _predIstorijaData = [];
+
+// Gradi kontekst string iz aktivnog predmeta za auto-fill AI polja
+function _buildPredmetKontekst() {
+  var pf = window._predFull;
+  if (!pf || !pf.predmet) return '';
+  var p = pf.predmet;
+  var lines = [];
+
+  if (p.naziv) lines.push('Predmet: ' + p.naziv);
+  if (p.tip) {
+    var tipLabel = (typeof _TIP_LABELS !== 'undefined' && _TIP_LABELS[p.tip]) ? _TIP_LABELS[p.tip] : p.tip;
+    if (tipLabel) lines.push('Oblast: ' + tipLabel);
+  }
+
+  var kName = '';
+  if (pf.stranke && pf.stranke.length > 0) {
+    var kl = pf.stranke[0];
+    kName = ((kl.ime||'') + ' ' + (kl.prezime||'')).trim() || kl.firma || '';
+    if (kName) lines.push('Stranka/Tužilac: ' + kName);
+  } else if (p.tuzilac) {
+    lines.push('Tužilac: ' + p.tuzilac);
+  }
+
+  var psName = '';
+  if (pf.protivna_strana && pf.protivna_strana.length > 0) {
+    var ps = pf.protivna_strana[0];
+    psName = ((ps.ime||'') + ' ' + (ps.prezime||'')).trim() || ps.firma || '';
+    if (psName) lines.push('Protivna strana: ' + psName);
+  } else if (p.tuzeni) {
+    lines.push('Tuženi: ' + p.tuzeni);
+  }
+
+  if (p.opis && p.opis.trim()) {
+    lines.push('');
+    lines.push('Opis slučaja:');
+    lines.push(p.opis.trim());
+  }
+
+  return lines.join('\n');
+}
+
+// Auto-puni polje kontekstom predmeta. force=true uvek puni (za osvezi dugme).
+function _predAutoFill(fieldId, force) {
+  var el = document.getElementById(fieldId);
+  if (!el || !activePredmetId || !window._predFull) return;
+  var samePred = (el.dataset.predId === activePredmetId);
+  // Ne prepisuj ako je korisnik ručno uneo tekst za isti predmet
+  if (!force && el.value && samePred) return;
+  var kontekst = _buildPredmetKontekst();
+  if (!kontekst) return;
+  el.value = kontekst;
+  el.dataset.predId = activePredmetId;
+  // Ažuriraj char counter ako postoji (npr. strat-chars)
+  var charsId = fieldId === 'strat-tekst' ? 'strat-chars' : null;
+  if (charsId) { var chEl = document.getElementById(charsId); if (chEl) chEl.textContent = el.value.length; }
+  if (force) showToast('Kontekst osvežen iz predmeta.', 'ok');
+}
 var _dashboardData    = {};   // predmet_id → {rizik_nivo, urgentni_rokovi_count, sledeci_rok}
 var _predSort         = 'svi';
 var _dashboardLists   = {};   // po_prioritetu, po_riziku, po_rokovima
@@ -7591,6 +7634,12 @@ function pred_updateIndicator() {
   } else {
     el.classList.remove('show');
   }
+  // Prikaži/sakrij "↺ Iz predmeta" dugmad
+  var _afBtns = ['btn-autofill-podnesak','btn-autofill-strat'];
+  _afBtns.forEach(function(bid) {
+    var b = document.getElementById(bid);
+    if (b) b.style.display = activePredmetId ? '' : 'none';
+  });
 }
 
 function pred_renderCockpit(cockpit, urgentni) {
@@ -8776,6 +8825,9 @@ async function pred_loadDetail(id) {
     if (!r.ok) { if (loadEl) loadEl.style.display='none'; return; }
     var d = await r.json();
     window._predFull = d; // globalni snapshot za auto-fill generatora
+    // Auto-fill svih AI polja kontekstom novog predmeta
+    _predAutoFill('podnesak-opis', false);
+    _predAutoFill('strat-tekst', false);
 
     // Timer bar: show and auto-resume if a timer was running for this predmet
     timer_showBar();

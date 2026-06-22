@@ -1592,7 +1592,10 @@
               <input type="hidden" id="podnesak-sud-adresa" value="">
               <div id="podnesak-sud-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:#0f1623;border:1px solid rgba(74,168,255,.3);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
             </div>
-            <label class="t-label">Opis slučaja (stranke, činjenice, iznosi):</label>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+              <label class="t-label" style="margin-bottom:0;">Opis slučaja (stranke, činjenice, iznosi):</label>
+              <button onclick="_predAutoFill('podnesak-opis',true)" title="Popuni iz aktivnog predmeta" style="display:none;font-size:0.68rem;padding:2px 9px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:5px;color:rgba(0,212,255,0.7);cursor:pointer;font-family:inherit;white-space:nowrap;" id="btn-autofill-podnesak">↺ Iz predmeta</button>
+            </div>
             <div class="mic-input-wrap">
               <textarea class="t-input" id="podnesak-opis" placeholder="Npr. Tužilac Petar Petrović, ul. Vojvode Mišića 5, Beograd traži naknadu štete od tuženog Jovana Jovanovića zbog saobraćajne nezgode dana 15.03.2024. Pretrpljene su telesne povrede i materijalna šteta u iznosu od 350.000 RSD. Štetnik je isključivo odgovoran..." style="height:100px;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
               <button class="mic-btn" id="mic-podnesak-opis" type="button" onclick="micToggle('podnesak-opis')" title="Glasovni unos — diktirajte opis slučaja (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
@@ -1770,7 +1773,10 @@
             </div>
             <div id="strat-opis" class="strat-opis-box"></div>
             <div class="strat-input-wrap">
-              <label id="strat-input-label" class="strat-label">Opis predmeta</label>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <label id="strat-input-label" class="strat-label" style="margin-bottom:0;">Opis predmeta</label>
+                <button onclick="_predAutoFill('strat-tekst',true)" title="Popuni iz aktivnog predmeta" style="display:none;font-size:0.68rem;padding:2px 9px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:5px;color:rgba(0,212,255,0.7);cursor:pointer;font-family:inherit;white-space:nowrap;" id="btn-autofill-strat">↺ Iz predmeta</button>
+              </div>
               <textarea id="strat-tekst" class="strat-textarea" placeholder="Unesite detaljan opis predmeta ili tekst dokumenta..." rows="8"></textarea>
               <div class="strat-char-count"><span id="strat-chars">0</span> karaktera</div>
             </div>
