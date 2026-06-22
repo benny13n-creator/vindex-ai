@@ -2051,10 +2051,6 @@ select option:hover,select option:focus,select option:checked{background-color:r
 }
 .t-tab-pro.locked { opacity: 0.35 !important; cursor: not-allowed !important; }
 
-/* Sidebar footer */
-.vx-sidebar-footer {
-  padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;
-}
 .vx-newchat-btn {
   width: 100% !important; display: flex !important; align-items: center !important;
   justify-content: center !important; gap: 6px !important;
@@ -2315,16 +2311,6 @@ select option:hover,select option:focus,select option:checked{background-color:r
   flex-shrink: 0;
 }
 
-/* Sidebar footer */
-.vx-sidebar-footer {
-  width: 100% !important;
-  padding: 8px 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-top: 1px solid var(--border-1) !important;
-  flex-shrink: 0 !important;
-}
 .vx-newchat-btn {
   width: 36px !important;
   height: 36px !important;
@@ -2918,16 +2904,6 @@ body {
 /* Hidden tabs — in DOM for JS compatibility, invisible */
 .vx-hidden-tab {
   display: none !important;
-}
-
-.vx-sidebar-foot {
-  width: 100%;
-  padding: 8px 0;
-  border-top: 1px solid var(--bd-1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .vx-new-btn {
@@ -6091,7 +6067,6 @@ body.light-theme button[style*="linear-gradient"] { color: #ffffff !important; }
 body.light-theme .terminal { background: #f0f2f5 !important; }
 body.light-theme .vx-sidebar { background: #ffffff !important; border-right: 1px solid rgba(0,0,0,0.08) !important; }
 body.light-theme .vx-sidebar-logo { border-bottom-color: rgba(0,0,0,0.07) !important; }
-body.light-theme .vx-sidebar-footer { border-top-color: rgba(0,0,0,0.07) !important; }
 body.light-theme .vx-topbar { background: #ffffff !important; border-bottom: 1px solid rgba(0,0,0,0.08) !important; }
 body.light-theme .vx-body { background: #f0f2f5 !important; }
 body.light-theme .vx-nav-group { color: rgba(0,0,0,0.30) !important; }
