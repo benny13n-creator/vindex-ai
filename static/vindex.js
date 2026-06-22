@@ -7269,13 +7269,21 @@ function pred_subtabSwitch(pane, btn) {
 function pred_more_toggle(e) {
   e.stopPropagation();
   var menu = document.getElementById('pred-more-menu');
+  var btn  = document.getElementById('pred-more-btn');
   if (!menu) return;
   var open = menu.style.display !== 'none';
   if (open) {
     menu.style.display = 'none';
   } else {
+    // Pozicioniramo fixed da izbjegnemo overflow:auto clipping u pred-subtab-nav
+    if (btn) {
+      var r = btn.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.top  = (r.bottom + 4) + 'px';
+      menu.style.right = (window.innerWidth - r.right) + 'px';
+      menu.style.left = 'auto';
+    }
     menu.style.display = 'block';
-    // Zatvori klik van menija
     setTimeout(function() {
       document.addEventListener('click', pred_more_outside_, { once: true, capture: true });
     }, 0);
