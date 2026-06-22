@@ -7347,6 +7347,10 @@ function pred_subtabSwitch(pane, btn) {
   if (pane === 'graf'     && activePredmetId) kg_load();
   if (pane === 'ccc'      && activePredmetId) ccc_load();
   if (pane === 'rokovi'   && activePredmetId) predRocistaLoad();
+  // Auto-fill kontekst predmeta u relevantna polja
+  if (pane === 'ai-analiza') _predAutoFill('pred-cinjenice', false);
+  if (pane === 'agenti')     _predAutoFill('agent-task-input', false);
+  if (pane === 'strategija') _predAutoFill('strat-tekst', false);
 }
 
 /* ── "··· Više" dropdown toggle ─────────────────────────────────────────── */
@@ -7635,7 +7639,7 @@ function pred_updateIndicator() {
     el.classList.remove('show');
   }
   // Prikaži/sakrij "↺ Iz predmeta" dugmad
-  var _afBtns = ['btn-autofill-podnesak','btn-autofill-strat'];
+  var _afBtns = ['btn-autofill-podnesak','btn-autofill-strat','btn-autofill-cinjenice','btn-autofill-agenti'];
   _afBtns.forEach(function(bid) {
     var b = document.getElementById(bid);
     if (b) b.style.display = activePredmetId ? '' : 'none';
