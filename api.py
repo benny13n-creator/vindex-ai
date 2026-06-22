@@ -667,7 +667,7 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; "
+        "script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; "
         "style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com fonts.googleapis.com; "
         "font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com; "
         "img-src 'self' data: blob:; "
