@@ -8169,6 +8169,20 @@ async function lanac_sacuvaj(tip, datum, btn) {
 
 var _crossdocSelected = {}; // { dokId: naziv }
 
+function openCrossDoc() {
+  // Navigate to Dokumenti subtab and ensure crossdoc section is open
+  var dokBtn = document.querySelector('.pred-subtab-btn[onclick*="dokumenti"]');
+  if (dokBtn) pred_subtabSwitch('dokumenti', dokBtn);
+  setTimeout(function() {
+    var cdBody = document.getElementById('crossdoc-body');
+    var cdChev = document.getElementById('crossdoc-chevron');
+    if (cdBody) cdBody.style.display = '';
+    if (cdChev) cdChev.textContent = '▲';
+    var cdSec = document.getElementById('crossdoc-section');
+    if (cdSec) cdSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 80);
+}
+
 function crossdoc_toggleSection(hd) {
   var body = document.getElementById('crossdoc-body');
   var chev = document.getElementById('crossdoc-chevron');
@@ -8548,7 +8562,10 @@ async function pred_loadDetail(id) {
       if (!d.dokumenti || !d.dokumenti.length) {
         dokListEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-top:0.3rem;">Nema dokumenata.</div>';
       } else {
-        dokListEl.innerHTML = d.dokumenti.map(function(dok) {
+        var _dokHint = d.dokumenti.length >= 2
+          ? '<div style="font-size:0.7rem;color:rgba(0,212,255,0.55);margin-bottom:0.3rem;">☑ Označi 2–5 dokumenata za poređenje (Cross-doc analiza)</div>'
+          : '';
+        dokListEl.innerHTML = _dokHint + d.dokumenti.map(function(dok) {
           return '<div class="pred-dok-item" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'">'
             +'<input type="checkbox" class="pred-dok-item-cb" onchange="crossdoc_toggleDok(this)" title="Odaberi za cross-doc analizu">'
             +'<i data-lucide="file-text" style="width:14px;height:14px;flex-shrink:0;color:rgba(74,168,255,0.6);"></i>'
@@ -8562,7 +8579,18 @@ async function pred_loadDetail(id) {
     // Cross-doc section (renders once; always present when docs exist)
     var cdSecEl = document.getElementById('crossdoc-section');
     if (cdSecEl) {
-      cdSecEl.style.display = (d.dokumenti && d.dokumenti.length >= 1) ? '' : 'none';
+      var _dokCount = (d.dokumenti && d.dokumenti.length) || 0;
+      cdSecEl.style.display = _dokCount >= 1 ? '' : 'none';
+      // Auto-expand when ≥2 docs are available so the feature is discoverable
+      if (_dokCount >= 2) {
+        var cdBody = document.getElementById('crossdoc-body');
+        var cdChev = document.getElementById('crossdoc-chevron');
+        if (cdBody) cdBody.style.display = '';
+        if (cdChev) cdChev.textContent = '▲';
+      }
+      // Show shortcut button in AI tools panel
+      var cdToolBtn = document.getElementById('crossdoc-tool-btn');
+      if (cdToolBtn) cdToolBtn.style.display = _dokCount >= 2 ? '' : 'none';
     }
 
     // Status panel — fill with real data from workspace
