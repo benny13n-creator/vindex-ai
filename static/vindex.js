@@ -8817,6 +8817,11 @@ async function pred_loadDetail(id) {
             +'<i data-lucide="file-text" style="width:14px;height:14px;flex-shrink:0;color:rgba(74,168,255,0.6);"></i>'
             +'<span class="pred-dok-item-name">'+escHtml(dok.naziv_fajla||'')+'</span>'
             +'<span class="pred-dok-item-status">'+escHtml(dok.status||'')+'</span>'
+            +'<button onclick="dokPreviewOpen(\''+escHtml(dok.id||'')+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml((dok.velicina_kb||0)+'')+'\')" '
+            +'title="Pogledaj sadržaj dokumenta" '
+            +'style="margin-left:auto;flex-shrink:0;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:5px;color:rgba(74,168,255,0.75);font-size:0.68rem;padding:2px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;">'
+            +'👁 Pogledaj'
+            +'</button>'
             +'</div>';
         }).join('');
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -11639,6 +11644,48 @@ function _doctplAutopopulate(sel) {
 
 function docTplClose() {
   var overlay = document.getElementById('doctpl-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+// ── Dokument Preview ──────────────────────────────────────────────────────────
+
+async function dokPreviewOpen(dokId, naziv, velicinaKb) {
+  if (!activePredmetId || !currentSession) return;
+  var overlay  = document.getElementById('dok-preview-overlay');
+  var nazivEl  = document.getElementById('dok-preview-naziv');
+  var metaEl   = document.getElementById('dok-preview-meta');
+  var loadEl   = document.getElementById('dok-preview-loading');
+  var tekEl    = document.getElementById('dok-preview-tekst');
+  var emptyEl  = document.getElementById('dok-preview-empty');
+  if (!overlay) return;
+
+  if (nazivEl) nazivEl.textContent = naziv || 'Dokument';
+  if (metaEl)  metaEl.textContent  = velicinaKb ? velicinaKb + ' KB' : '';
+  if (loadEl)  loadEl.style.display = 'block';
+  if (tekEl)   { tekEl.style.display = 'none'; tekEl.textContent = ''; }
+  if (emptyEl) emptyEl.style.display = 'none';
+  overlay.style.display = 'flex';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  try {
+    var r = await fetch(BASE_URL + '/api/predmeti/' + activePredmetId + '/dokumenti/' + dokId + '/preview', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (loadEl) loadEl.style.display = 'none';
+    if (d.dostupan && d.tekst) {
+      if (tekEl) { tekEl.textContent = d.tekst; tekEl.style.display = 'block'; }
+    } else {
+      if (emptyEl) emptyEl.style.display = 'block';
+    }
+  } catch(e) {
+    if (loadEl) loadEl.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'block';
+  }
+}
+
+function dokPreviewClose() {
+  var overlay = document.getElementById('dok-preview-overlay');
   if (overlay) overlay.style.display = 'none';
 }
 

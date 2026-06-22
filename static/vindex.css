@@ -6276,6 +6276,27 @@ body.light-theme #intake-tpl-overlay > div > div:first-child > div { color: rgba
 body.light-theme #intake-tpl-overlay > div > div:nth-child(2) { color: rgba(10,18,32,0.48) !important; }
 body.light-theme #intake-tpl-list * { color: rgba(10,18,32,0.78) !important; }
 
+/* ── Svetla tema: Dokument Preview modal ─────────────────────── */
+body.light-theme #dok-preview-overlay > div {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.10) !important;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.14) !important;
+}
+body.light-theme #dok-preview-overlay > div > div:first-child {
+  border-bottom-color: rgba(0,0,0,0.08) !important;
+}
+body.light-theme #dok-preview-naziv { color: rgba(10,18,32,0.88) !important; }
+body.light-theme #dok-preview-meta  { color: rgba(10,18,32,0.38) !important; }
+body.light-theme button[onclick="dokPreviewClose()"] { color: rgba(10,18,32,0.40) !important; }
+body.light-theme #dok-preview-tekst {
+  color: rgba(10,18,32,0.82) !important;
+  background: rgba(10,18,32,0.02) !important;
+  padding: 0.5rem !important;
+  border-radius: 6px !important;
+}
+body.light-theme #dok-preview-empty { color: rgba(10,18,32,0.35) !important; }
+body.light-theme #dok-preview-loading { color: rgba(10,18,32,0.40) !important; }
+
 /* ── Svetla tema: Šabloni dokumenata modal ───────────────────── */
 body.light-theme #doctpl-overlay > div {
   background: #ffffff !important;

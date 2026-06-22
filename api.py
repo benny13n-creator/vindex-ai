@@ -3155,6 +3155,50 @@ async def predmet_ai_preporuka(
     return {"predmet_id": predmet_id, "preporuka": preporuka}
 
 
+# ── Dokument preview — rekonstruiše tekst iz Pinecone ────────────────────────
+
+@app.get("/api/predmeti/{predmet_id}/dokumenti/{dok_id}/preview")
+@limiter.limit("20/minute")
+async def predmet_dokument_preview(
+    predmet_id: str,
+    dok_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Vraća rekonstruisani tekst dokumenta iz Pinecone namespace-a."""
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    row = await asyncio.to_thread(
+        lambda: supa.table("predmet_dokumenti")
+            .select("id,naziv_fajla,pinecone_namespace,velicina_kb,status,created_at")
+            .eq("id", dok_id)
+            .eq("predmet_id", predmet_id)
+            .eq("user_id", uid)
+            .single()
+            .execute()
+    )
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Dokument nije pronađen")
+
+    d = row.data
+    ns = d.get("pinecone_namespace") or ""
+    tekst = ""
+    if ns:
+        session_id = ns.replace("tmp_", "", 1) if ns.startswith("tmp_") else ns
+        from routers.dokument import _fetch_session_tekst
+        tekst = await asyncio.to_thread(_fetch_session_tekst, session_id)
+
+    return {
+        "naziv_fajla": d.get("naziv_fajla", ""),
+        "velicina_kb": d.get("velicina_kb", 0),
+        "status": d.get("status", ""),
+        "created_at": d.get("created_at", ""),
+        "tekst": tekst or "",
+        "dostupan": bool(tekst),
+    }
+
+
 # ── P1 — Case Workspace ───────────────────────────────────────────────────────
 
 @app.get("/api/predmeti/{predmet_id}/workspace")

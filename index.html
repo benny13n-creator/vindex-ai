@@ -2189,6 +2189,31 @@
             </div>
           </div>
 
+          <!-- Dokument Preview Modal -->
+          <div id="dok-preview-overlay" onclick="if(event.target===this)dokPreviewClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10001;align-items:flex-start;justify-content:center;padding-top:4vh;">
+            <div onclick="event.stopPropagation()" style="width:min(760px,96vw);max-height:92vh;background:#0d1b2a;border:1px solid rgba(74,168,255,0.18);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);display:flex;flex-direction:column;overflow:hidden;">
+              <!-- Header -->
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.2rem;border-bottom:1px solid rgba(255,255,255,0.07);flex-shrink:0;">
+                <div style="display:flex;align-items:center;gap:.6rem;min-width:0;">
+                  <i data-lucide="file-text" style="width:16px;height:16px;flex-shrink:0;color:rgba(74,168,255,0.7);"></i>
+                  <div id="dok-preview-naziv" style="font-size:.88rem;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
+                  <span id="dok-preview-meta" style="font-size:.68rem;color:rgba(255,255,255,.3);"></span>
+                  <button onclick="dokPreviewClose()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:0 4px;line-height:1;">✕</button>
+                </div>
+              </div>
+              <!-- Body -->
+              <div id="dok-preview-body" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;">
+                <div id="dok-preview-loading" style="text-align:center;padding:2rem;color:rgba(255,255,255,0.4);font-size:.82rem;"><span class="upload-spinner"></span> Učitavam dokument...</div>
+                <pre id="dok-preview-tekst" style="display:none;white-space:pre-wrap;word-break:break-word;font-family:'Courier New',monospace;font-size:.77rem;line-height:1.65;color:#d4e0f0;margin:0;"></pre>
+                <div id="dok-preview-empty" style="display:none;text-align:center;padding:2rem;color:rgba(255,255,255,0.3);font-size:.82rem;">
+                  Tekst dokumenta nije dostupan — dokument je možda istekao (čuva se 7 dana) ili nije indeksiran.
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Document Templates Modal -->
           <div id="doctpl-overlay" onclick="if(event.target===this)docTplClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:10000;align-items:flex-start;justify-content:center;padding-top:5vh;">
             <div onclick="event.stopPropagation()" style="width:min(680px,96vw);max-height:90vh;background:#0d1b2a;border:1px solid rgba(74,168,255,0.2);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);display:flex;flex-direction:column;overflow:hidden;">
