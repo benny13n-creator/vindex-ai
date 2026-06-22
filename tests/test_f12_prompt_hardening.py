@@ -18,13 +18,13 @@ os.environ["VINDEX_CACHE_BYPASS"] = "1"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from routers.web3 import _SC_SYSTEM_PROMPT as PROMPT
+from routers.web3 import _SC_SYSTEM_PROMPT as PROMPT, _DEFAULT_OFFCHAIN_PLACEHOLDER, _LOCK_WITHOUT_EXIT_RISK
 
 
 def test_t1_offchain_embedded_default():
-    assert "nikad prazan niz []" in PROMPT
-    assert "Nema identifikovanih eksplicitnih off-chain zavisnosti u dostavljenom kodu" in PROMPT
-    assert "frontend, deployment proces" in PROMPT
+    # Post-processing injects _DEFAULT_OFFCHAIN_PLACEHOLDER when offchain_zavisnosti is empty
+    assert "Nema identifikovanih eksplicitnih off-chain zavisnosti u dostavljenom kodu" in _DEFAULT_OFFCHAIN_PLACEHOLDER["zavisnost"]
+    assert "frontend, deployment proces" in _DEFAULT_OFFCHAIN_PLACEHOLDER["napomena"]
 
 
 def test_t2_aml_kyc_block_and_anonimnost_present():
@@ -37,9 +37,9 @@ def test_t2_aml_kyc_block_and_anonimnost_present():
 
 
 def test_t3_lock_period_risk_example():
-    assert "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim okolnostima." in PROMPT
-    assert "lock period" in PROMPT
-    assert "kompromitacije ključa" in PROMPT
+    # Lock-period risk is in _LOCK_WITHOUT_EXIT_RISK constant, injected by post-processing
+    assert "Ne postoji mehanizam za prevremeni povraćaj sredstava u vanrednim okolnostima." in _LOCK_WITHOUT_EXIT_RISK["rizik"]
+    assert "kompromitacije ključa" in _LOCK_WITHOUT_EXIT_RISK["obrazlozenje"]
 
 
 def test_t4_removed_abstract_blocks():

@@ -262,11 +262,11 @@ def test_delete_active_recurring_409(client):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# POST /billing/recurring/{id}/generiši
+# POST /billing/recurring/{id}/generisi
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def test_generiši_faktura_201(client):
-    r = client.post("/billing/recurring/tpl-001/generiši")
+def test_generisi_faktura_201(client):
+    r = client.post("/billing/recurring/tpl-001/generisi")
     assert r.status_code == 201
     data = r.json()
     assert data["status"]        == "generisano"
@@ -275,7 +275,7 @@ def test_generiši_faktura_201(client):
     assert data["iznos_rsd"]     == SAMPLE_FAKTURA["iznos_rsd"]
 
 
-def test_generiši_pomera_mesecno_datum():
+def test_generisi_pomera_mesecno_datum():
     from routers.recurring import _next_datum
     d = date(2026, 1, 15)
     assert _next_datum(d, "mesecno")   == date(2026, 2, 15)
@@ -283,30 +283,30 @@ def test_generiši_pomera_mesecno_datum():
     assert _next_datum(d, "godisnje")  == date(2027, 1, 15)
 
 
-def test_generiši_inactive_409():
+def test_generisi_inactive_409():
     inactive = {**SAMPLE_TPL, "aktivan": False}
     supa = _make_supa_recurring(tpl=inactive)
     api.app.dependency_overrides[get_current_user] = lambda: FAKE_USER
     with patch("routers.recurring._get_supa", return_value=supa):
         c = TestClient(api.app, raise_server_exceptions=False)
-        r = c.post("/billing/recurring/tpl-001/generiši")
+        r = c.post("/billing/recurring/tpl-001/generisi")
     assert r.status_code == 409
 
 
-def test_generiši_not_found_404():
+def test_generisi_not_found_404():
     supa = _make_supa_recurring()
     # Override da vrati None za template
     supa.table("recurring_templates").select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data=None)
     api.app.dependency_overrides[get_current_user] = lambda: FAKE_USER
     with patch("routers.recurring._get_supa", return_value=supa):
         c = TestClient(api.app, raise_server_exceptions=False)
-        r = c.post("/billing/recurring/nonexistent/generiši")
+        r = c.post("/billing/recurring/nonexistent/generisi")
     assert r.status_code == 404
 
 
-def test_generiši_requires_auth():
+def test_generisi_requires_auth():
     c = TestClient(api.app, raise_server_exceptions=False)
-    r = c.post("/billing/recurring/tpl-001/generiši")
+    r = c.post("/billing/recurring/tpl-001/generisi")
     assert r.status_code == 401
 
 

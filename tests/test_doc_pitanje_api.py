@@ -88,7 +88,8 @@ def test_pitanje_expired_session():
 def test_pitanje_happy_path():
     sys.modules["main"].ask_agent.return_value = _HAPPY_RESPONSE
 
-    with patch("uploaded_doc.session.validate_session", return_value=True):
+    with patch("uploaded_doc.session.validate_session", return_value=True), \
+         patch("routers.dokument.enforce_and_increment"):
         resp = client.post("/api/dokument/pitanje", json={
             "session_id": _VALID_SESSION,
             "pitanje": _VALID_PITANJE,
@@ -127,7 +128,8 @@ def test_pitanje_passes_extra_namespace_to_ask_agent():
     # Patch main.ask_agent directly — the handler does `from main import ask_agent`
     # inside the function body, so patching main.ask_agent is the correct target.
     with patch("main.ask_agent", mock_ask), \
-         patch("uploaded_doc.session.validate_session", return_value=True):
+         patch("uploaded_doc.session.validate_session", return_value=True), \
+         patch("routers.dokument.enforce_and_increment"):
         resp = client.post("/api/dokument/pitanje", json={
             "session_id": _VALID_SESSION,
             "pitanje": _VALID_PITANJE,

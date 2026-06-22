@@ -44,6 +44,7 @@ def _supa_ok(data):
     chain.lte.return_value = chain
     chain.order.return_value = chain
     chain.limit.return_value = chain
+    chain.offset.return_value = chain
     chain.in_.return_value = chain
     supa.table.return_value.select.return_value = chain
     supa.table.return_value.insert.return_value = chain
@@ -286,7 +287,7 @@ async def test_lista_rocista_all():
     supa = _supa_ok(rows)
 
     with patch("routers.rocista._get_supa", return_value=supa):
-        result = await lista_rocista(_req(method="GET"), None, _user())
+        result = await lista_rocista(_req(method="GET"), user=_user())
 
     assert result["ukupno"] == 2
     assert result["rocista"][0]["vreme"] == "09:00"
@@ -301,7 +302,7 @@ async def test_lista_rocista_filtered_by_predmet():
     supa = _supa_ok(rows)
 
     with patch("routers.rocista._get_supa", return_value=supa):
-        result = await lista_rocista(_req(method="GET"), "p1", _user())
+        result = await lista_rocista(_req(method="GET"), predmet_id="p1", user=_user())
 
     assert result["ukupno"] == 1
     assert result["rocista"][0]["predmet_id"] == "p1"
@@ -314,7 +315,7 @@ async def test_lista_rocista_empty():
     supa = _supa_ok([])
 
     with patch("routers.rocista._get_supa", return_value=supa):
-        result = await lista_rocista(_req(method="GET"), None, _user())
+        result = await lista_rocista(_req(method="GET"), user=_user())
 
     assert result["ukupno"] == 0
     assert result["rocista"] == []

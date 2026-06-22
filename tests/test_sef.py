@@ -82,10 +82,15 @@ def _build_supa(faktura=_FAKTURA, entries=_ENTRIES, pod=_SEF_POD, log_ok=True):
             ins = MagicMock()
             ins.execute.return_value.data = [{}]
             t.insert.return_value = ins
-            # log fetch
+            # dedup check: .select().eq().eq().in_().limit().execute()
+            eq2 = t.select.return_value.eq.return_value.eq.return_value
+            dedup_sel = MagicMock()
+            dedup_sel.execute.return_value.data = []
+            eq2.in_.return_value.limit.return_value = dedup_sel
+            # log fetch: .select().eq().eq().order().limit().execute()
             sel2 = MagicMock()
             sel2.execute.return_value.data = []
-            t.select.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value = sel2
+            eq2.order.return_value.limit.return_value = sel2
         return t
 
     mock.table.side_effect = _table

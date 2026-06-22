@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 from unittest.mock import MagicMock, patch
+from starlette.requests import Request as StarletteRequest
 
 @pytest.fixture
 def anyio_backend():
@@ -15,6 +16,12 @@ def anyio_backend():
 
 def _user():
     return {"user_id": "ffff0000-0000-0000-0000-000000000006", "email": "test@vindex.rs"}
+
+
+def _req():
+    scope = {"type": "http", "method": "GET", "headers": [], "query_string": b"",
+             "path": "/api/knowledge-graph/predmeti/x", "app": MagicMock(), "state": MagicMock()}
+    return StarletteRequest(scope=scope)
 
 
 PID = "pred-kg-0001"
@@ -53,7 +60,7 @@ async def test_kg_response_structure():
     from routers.knowledge_graph import get_knowledge_graph
     supa = _make_supa(_PRED)
     with patch("routers.knowledge_graph._get_supa", return_value=supa):
-        result = await get_knowledge_graph(PID, _user())
+        result = await get_knowledge_graph(PID, _req(), _user())
     assert "nodes" in result
     assert "edges" in result
     assert isinstance(result["nodes"], list)
@@ -67,7 +74,7 @@ async def test_kg_predmet_node_exists():
     from routers.knowledge_graph import get_knowledge_graph
     supa = _make_supa(_PRED)
     with patch("routers.knowledge_graph._get_supa", return_value=supa):
-        result = await get_knowledge_graph(PID, _user())
+        result = await get_knowledge_graph(PID, _req(), _user())
     # Nodes koriste "tip" (ne "type") kao ključ
     pred_nodes = [n for n in result["nodes"] if n.get("tip") == "predmet"]
     assert len(pred_nodes) == 1
@@ -85,7 +92,7 @@ async def test_kg_document_nodes():
     ]
     supa = _make_supa(_PRED, dokumenti=dokumenti)
     with patch("routers.knowledge_graph._get_supa", return_value=supa):
-        result = await get_knowledge_graph(PID, _user())
+        result = await get_knowledge_graph(PID, _req(), _user())
     dok_nodes = [n for n in result["nodes"] if n.get("tip") == "dokument"]
     assert len(dok_nodes) == 2
 
@@ -101,7 +108,7 @@ async def test_kg_rok_nodes():
     ]
     supa = _make_supa(_PRED, rokovi=rokovi)
     with patch("routers.knowledge_graph._get_supa", return_value=supa):
-        result = await get_knowledge_graph(PID, _user())
+        result = await get_knowledge_graph(PID, _req(), _user())
     rok_nodes = [n for n in result["nodes"] if n.get("tip") == "rok"]
     assert len(rok_nodes) == 2
 
@@ -115,7 +122,7 @@ async def test_kg_predmet_doc_edge():
     dokumenti = [{"id": "d1", "naziv_fajla": "Ugovor", "tip_dokaza": "ugovor", "deleted_at": None}]
     supa = _make_supa(_PRED, dokumenti=dokumenti)
     with patch("routers.knowledge_graph._get_supa", return_value=supa):
-        result = await get_knowledge_graph(PID, _user())
+        result = await get_knowledge_graph(PID, _req(), _user())
     edges = result["edges"]
     pred_node_id = f"predmet_{PID}"
     connected = any(
@@ -135,7 +142,7 @@ async def test_kg_404_wrong_user():
     supa.table.return_value = _make_chain([])
     with patch("routers.knowledge_graph._get_supa", return_value=supa):
         with pytest.raises(HTTPException) as exc:
-            await get_knowledge_graph("ghost-id", _user())
+            await get_knowledge_graph("ghost-id", _req(), _user())
     assert exc.value.status_code == 404
 
 
@@ -146,7 +153,7 @@ async def test_kg_empty_predmet_single_node():
     from routers.knowledge_graph import get_knowledge_graph
     supa = _make_supa(_PRED)
     with patch("routers.knowledge_graph._get_supa", return_value=supa):
-        result = await get_knowledge_graph(PID, _user())
+        result = await get_knowledge_graph(PID, _req(), _user())
     # Uvek: 1 predmet + 1 zakon node (tip se mapira na zakon) + klijent nodovi iz tuzilac/tuzeni
     pred_nodes = [n for n in result["nodes"] if n.get("tip") == "predmet"]
     assert len(pred_nodes) == 1

@@ -76,7 +76,12 @@ def _build_supa(
         elif name == "predmet_hronologija":
             sel = MagicMock()
             sel.execute.return_value.data = hron
-            t.select.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value = sel
+            eq2 = t.select.return_value.eq.return_value.eq.return_value
+            eq2.order.return_value.limit.return_value = sel
+            # rokovi query: .gte().lte().in_().order().limit()
+            rokovi_sel = MagicMock()
+            rokovi_sel.execute.return_value.data = []
+            eq2.gte.return_value.lte.return_value.in_.return_value.order.return_value.limit.return_value = rokovi_sel
         elif name == "rocista":
             sel = MagicMock()
             sel.execute.return_value.data = roc
