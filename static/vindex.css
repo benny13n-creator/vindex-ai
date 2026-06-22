@@ -6345,6 +6345,8 @@ body.light-theme .toast { background: rgba(10,18,32,0.92) !important; border-col
 
 /* ── Svetla tema: Notification dropdown — dark overlay ──────── */
 body.light-theme #notif-dropdown { background: #0d1b2a !important; border-color: rgba(74,168,255,0.18) !important; }
+body.light-theme #notif-dropdown,
+body.light-theme #notif-dropdown * { color: rgba(255,255,255,0.82) !important; }
 
 /* ── Svetla tema: Nacrti tab + API ključevi — inline white text ── */
 body.light-theme #podnesak-sud-input { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.15) !important; color: rgba(0,0,0,0.88) !important; }
