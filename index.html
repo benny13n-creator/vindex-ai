@@ -414,15 +414,15 @@
         <div class="t-tab vx-hidden-tab" id="tab-btn-ob" onclick="setTab(this,'ob')"></div>
       </nav>
       <div class="vx-sidebar-foot">
-        <button id="theme-toggle-btn" onclick="toggleLightTheme()" style="width:100%;display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:rgba(255,255,255,.6);font-size:13px;cursor:pointer;margin-bottom:.5rem;font-family:inherit;">
-          <span id="theme-toggle-ico">☀️</span>
+        <div class="vx-foot-row" onclick="toggleLightTheme()" title="Prebacite između tamne i svetle teme">
+          <span id="theme-toggle-ico" style="font-size:14px;line-height:1;">☀️</span>
           <span id="theme-toggle-lbl">Svetla tema</span>
-        </button>
-        <button class="vx-wl-invite-btn" onclick="wl_open()" title="Pozovite kolegu advokata na Vindex AI">
-          <i data-lucide="user-plus" style="width:13px;height:13px;flex-shrink:0;stroke-width:2;"></i>
+        </div>
+        <div class="vx-foot-row" onclick="wl_open()" title="Pozovite kolegu advokata na Vindex AI">
+          <i data-lucide="user-plus"></i>
           <span>Pozovite kolegu</span>
-        </button>
-        <div class="vx-sidebar-help">
+        </div>
+        <div class="vx-foot-row vx-sidebar-help">
           <i data-lucide="help-circle"></i>
           <span>Pomoć &amp; podrška</span>
         </div>

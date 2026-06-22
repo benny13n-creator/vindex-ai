@@ -4694,14 +4694,46 @@ body.light-theme .wl-input::placeholder { color: rgba(10,18,32,0.28); }
 }
 /* Footer */
 .vx-sidebar-foot, .vx-sidebar-footer {
-  padding: 12px 16px !important;
+  padding: 10px 10px 12px !important;
   border-top: 1px solid rgba(255,255,255,0.06) !important;
   flex-shrink: 0 !important;
   width: 100% !important;
   box-sizing: border-box !important;
   margin-top: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
 }
-/* "Pomoć & podrška" help item */
+/* Unified footer row — tema, kolega, pomoć */
+.vx-foot-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 7px 10px !important;
+  border-radius: 7px !important;
+  color: rgba(255,255,255,0.42) !important;
+  font-family: var(--font-ui) !important;
+  font-size: 0.8rem !important;
+  font-weight: 400 !important;
+  cursor: pointer !important;
+  transition: background 0.14s, color 0.14s !important;
+  user-select: none !important;
+}
+.vx-foot-row:hover {
+  background: rgba(255,255,255,0.05) !important;
+  color: rgba(255,255,255,0.72) !important;
+}
+.vx-foot-row svg {
+  width: 14px !important;
+  height: 14px !important;
+  stroke-width: 1.75 !important;
+  flex-shrink: 0 !important;
+}
+/* Override legacy help class when inside foot-row */
+.vx-foot-row.vx-sidebar-help {
+  display: flex !important;
+}
+/* "Pomoć & podrška" help item — standalone fallback */
 .vx-sidebar-help {
   display: flex !important;
   align-items: center !important;
@@ -6227,6 +6259,8 @@ body.light-theme .vx-nav-sep,
 body.light-theme .vx-sidebar-sep { background: rgba(10,18,32,0.08) !important; }
 body.light-theme .vx-sidebar-help { color: rgba(10,18,32,0.40) !important; }
 body.light-theme .vx-sidebar-help:hover { color: rgba(10,18,32,0.65) !important; }
+body.light-theme .vx-foot-row { color: rgba(10,18,32,0.42) !important; }
+body.light-theme .vx-foot-row:hover { background: rgba(10,18,32,0.05) !important; color: rgba(10,18,32,0.72) !important; }
 body.light-theme .vx-sidebar-foot,
 body.light-theme .vx-sidebar-footer { border-top-color: rgba(10,18,32,0.08) !important; }
 body.light-theme #theme-toggle-btn { background: rgba(10,18,32,0.05) !important; border-color: rgba(10,18,32,0.12) !important; color: rgba(10,18,32,0.65) !important; }
