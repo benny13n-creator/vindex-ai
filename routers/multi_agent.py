@@ -372,7 +372,8 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
             import asyncio as _aio
             from app.services.retrieve import retrieve_documents as _rd
             rag_query = (req.task + " " + (req.kontekst or ""))[:600]
-            docs = await _aio.to_thread(_rd, rag_query, 5)
+            docs_tuple = await _aio.to_thread(_rd, rag_query, 5)
+            docs = docs_tuple[0] if isinstance(docs_tuple, tuple) else docs_tuple
             if docs:
                 rag_ctx = "\n\nRELEVANTNI ZAKONI IZ BAZE (koristiti kao primarne izvore):\n"
                 for i, d in enumerate(docs[:4], 1):
@@ -510,7 +511,8 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(get_cur
     if any(a in ("research", "litigation") for a in agenti_ids):
         try:
             from app.services.retrieve import retrieve_documents as _rd
-            docs = await _aio.to_thread(_rd, (req.task + " " + (predmet_ctx or ""))[:600], 5)
+            docs_tuple = await _aio.to_thread(_rd, (req.task + " " + (predmet_ctx or ""))[:600], 5)
+            docs = docs_tuple[0] if isinstance(docs_tuple, tuple) else docs_tuple
             if docs:
                 rag_ctx = "\n\nRELEVANTNI ZAKONI IZ BAZE:\n" + "\n".join(f"[{i+1}] {d[:500]}" for i, d in enumerate(docs[:3]))
         except Exception as _re:
