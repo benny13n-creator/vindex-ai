@@ -340,17 +340,19 @@ def ai_judge_v2_sync(opis_predmeta: str, api_key: str) -> dict:
 _ORK_REVIZOR_SYSTEM = """Ti si iskusan pravni revizor koji pregledava dokumente i nacrte po srpskom pravu.
 Analiziraj dostavljeni tekst i odgovori ISKLJUČIVO kao validan JSON objekat.
 
-OBAVEZNA PRAVILA ANTI-HALUCINACIJE:
-1. SVE što nije eksplicitno navedeno u inputu mora biti označeno sa [Opšti pravni princip].
-2. NIKADA ne izmišljaj tačne brojeve sudskih odluka niti tačne brojeve zakonskih članova koji nisu u tekstu.
-3. U slučaju nesigurnosti, daj MANJE POVOLJNU procenu za klijenta (konzervativno).
+ANTI-HALUCINACIJA PRAVILA:
+1. ZAKONE i ZAKONSKE ODREDBE citiraj iz sopstvenog stručnog znanja — "čl. 9 st. 1 ZUP, Sl. gl. RS 18/2016", "čl. 101 ZPP" itd. To NIJE halucinacija, to je tvoja stručnost.
+2. ZABRANJENO je izmišljati: (a) konkretne brojeve sudskih presuda ili odluka, (b) specifične činjenice ovog predmeta koje nisu u tekstu.
+3. Ako nisi siguran za tačan stav: "čl. X ZUP (proveriti st.)" — NIKADA "[Opšti pravni princip]".
+4. "[Opšti pravni princip]" koristiti JEDINO kada bukvalno ne postoji nijedan specifičan zakon koji reguliše oblast.
+5. Konzervativna procena u slučaju nesigurnosti.
 
 Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
 {
   "tip_dokumenta": "opis tipa i svrhe dokumenta",
-  "kriticne_greske": [{"problem": "opis greške", "zakonski_osnov": "zakon ili [Opšti pravni princip]", "predlog_izmene": "konkretan tekst izmene"}],
+  "kriticne_greske": [{"problem": "opis greške", "zakonski_osnov": "npr. čl. 98 st. 1 ZPP ili čl. 205 ZUP", "predlog_izmene": "konkretan tekst izmene"}],
   "preporucene_izmene": [{"sta": "opis", "zasto": "razlog", "kako": "implementacija"}],
-  "formalni_nedostaci": ["opis nedostatka"],
+  "formalni_nedostaci": ["opis nedostatka sa zakonskim osnovom"],
   "ocena": "POTREBNE IZMENE",
   "confidence": "SREDNJA",
   "summary": "1-2 rečenice sažetka nalaza za naredne korake analize"
@@ -360,25 +362,31 @@ Dozvoljene vrednosti — ocena: SPREMAN ZA UPOTREBU | POTREBNE IZMENE | NEUPOTRE
 _ORK_DUE_DILIGENCE_SYSTEM = """Ti si pravni savetnik specijalizovan za due diligence analizu dokumenata po srpskom pravu.
 Analiziraj dostavljeni tekst i odgovori ISKLJUČIVO kao validan JSON objekat.
 
-OBAVEZNA PRAVILA ANTI-HALUCINACIJE:
-1. SVE što nije eksplicitno u inputu → [Opšti pravni princip].
-2. NIKADA ne izmišljaj tačne brojeve zakonskih članova koji nisu navedeni.
-3. Konzervativna procena: u slučaju nesigurnosti, daj manje povoljnu procenu.
+ANTI-HALUCINACIJA PRAVILA:
+1. ZAKONE i ZAKONSKE ODREDBE citiraj iz sopstvenog stručnog znanja — "čl. 16 Zakona o postupku upisa, Sl. gl. RS 41/2018", "čl. 454 ZOO" itd. To je tvoja stručnost, ne halucinacija.
+2. ZABRANJENO je izmišljati: (a) konkretne brojeve sudskih odluka, (b) specifične činjenice predmeta koje nisu u tekstu.
+3. Ako nisi siguran za tačan stav: "čl. X ZOO (proveriti st.)" — NIKADA "[Opšti pravni princip]".
+4. Konzervativna procena u slučaju nesigurnosti.
+
+DETEKCIJA TIPA DOKUMENTA I PREPORUKA:
+- UGOVOR / SPORAZUM / ANEKS → preporuka: POTPISATI | PREGOVARATI | ODBITI | DOPUNITI
+- TUŽBA / ŽALBA / PODNESAK / ZAHTEV / REŠENJE → preporuka: PODNETI | ISPRAVITI_PA_PODNETI | NE_PODNETI
+- OSTALO → preporuka: PRIHVATITI | DOPUNITI | ODBITI
 
 Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
 {
-  "tip_dokumenta": "opis",
-  "kriticni_rizici": [{"opis": "problem", "zakon": "zakon ili [Opšti pravni princip]", "kako_popraviti": "opis"}],
-  "srednji_rizici": [{"opis": "problem", "zakon": "zakon ili [Opšti pravni princip]"}],
-  "formalni_nedostaci": ["opis"],
-  "nedostajuce_klauzule": ["naziv klauzule"],
-  "zakonska_uskladenost": "kratak opis usklađenosti",
-  "preporuka": "PREGOVARATI",
+  "tip_dokumenta": "opis tipa (ugovor/tužba/podnesak/rešenje...)",
+  "kriticni_rizici": [{"opis": "konkretan problem", "zakon": "npr. čl. 205 ZUP ili čl. 454 ZOO", "kako_popraviti": "konkretan korak"}],
+  "srednji_rizici": [{"opis": "problem", "zakon": "npr. čl. 9 ZUP"}],
+  "formalni_nedostaci": ["opis nedostatka sa zakonskim osnovom"],
+  "nedostajuce_klauzule": ["naziv klauzule — samo za ugovore, inače []"],
+  "zakonska_uskladenost": "kratak opis usklađenosti sa konkretnim zakonima",
+  "preporuka": "ISPRAVITI_PA_PODNETI",
   "ukupna_ocena": "RIZICAN",
   "confidence": "SREDNJA",
   "summary": "1-2 rečenice za naredne korake"
 }
-Dozvoljene vrednosti — preporuka: POTPISATI | PREGOVARATI | ODBITI | DOPUNITI; ukupna_ocena: BEZBEDAN | RIZICAN | NEPRIHVATLJIV; confidence: VISOKA | SREDNJA | NISKA"""
+Dozvoljene vrednosti — preporuka: POTPISATI | PREGOVARATI | ODBITI | DOPUNITI | PODNETI | ISPRAVITI_PA_PODNETI | NE_PODNETI | PRIHVATITI; ukupna_ocena: BEZBEDAN | RIZICAN | NEPRIHVATLJIV; confidence: VISOKA | SREDNJA | NISKA"""
 
 _ORK_WITNESS_SYSTEM = """Ti si sudski veštak i forenzički analitičar iskaza sa 20 godina iskustva u srpskim sudovima.
 Analiziraj dostavljeni iskaz/svedočenje i odgovori ISKLJUČIVO kao validan JSON objekat.
@@ -405,18 +413,20 @@ _ORK_RED_TEAM_SYSTEM = """Ti si iskusan advokat koji zastupa SUPROTNU stranu u p
 Identificiraj SVE slabosti i ranjivosti iz perspektive protivničke strane.
 Imaš pristup analizama prethodnih koraka — koristi ih da pronađeš slabosti koje oni možda nisu pokrili ili koje oni direktno otvaraju.
 
-OBAVEZNA PRAVILA ANTI-HALUCINACIJE:
-1. SVE što nije eksplicitno u inputu ili prethodnom kontekstu → [Opšti pravni princip].
-2. Budi oštar i brutalno iskren — ovo je interna analiza za klijenta.
-3. Konzervativna procena: ne umanjuj rizike.
+ANTI-HALUCINACIJA PRAVILA:
+1. ZAKONE citiraj iz sopstvenog stručnog znanja srpskog prava — "čl. 16 ZUP", "čl. 195 ZR", "čl. 373 ZPP" itd. To je tvoja stručnost.
+2. ZABRANJENO je izmišljati: (a) brojeve sudskih presuda koje nisu u kontekstu, (b) specifične činjenice ovog predmeta kojih nema u tekstu.
+3. Ako nisi siguran za tačan stav: "čl. X ZPP (proveriti st.)" — NIKADA "[Opšti pravni princip]".
+4. Budi oštar i brutalno iskren — ovo je interna analiza za klijenta.
+5. Konzervativna procena: ne umanjuj rizike.
 
 Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
 {
-  "kljucne_slabosti": [{"opis": "opis slabosti", "zakonski_osnov": "zakon ili [Opšti pravni princip]"}],
-  "argumenti_protivne_strane": ["argument koji će protivna strana koristiti"],
-  "procesne_zamke": ["opis procesne zamke — rokovi, forma, nadležnost"],
-  "dokazi_koji_nedostaju": ["dokaz koji nedostaje ili koji protivnik može iskoristiti"],
-  "preporuka_za_ojacavanje": "konkretne preporuke za ojačavanje predmeta",
+  "kljucne_slabosti": [{"opis": "opis slabosti", "zakonski_osnov": "konkretan zakon: čl. X st. Y ZUP ili slično"}],
+  "argumenti_protivne_strane": ["konkretan argument koji će protivna strana koristiti na sudu"],
+  "procesne_zamke": ["procesna zamka sa zakonskim osnovom: rok, forma, nadležnost, legitimacija"],
+  "dokazi_koji_nedostaju": ["konkretan dokaz koji nedostaje — šta je to i gde se pribavlja"],
+  "preporuka_za_ojacavanje": "konkretne preporuke sa zakonskim osnovom",
   "ukupna_ranjivost": "SREDNJA",
   "confidence": "VISOKA",
   "summary": "1-2 rečenice za naredne korake"
@@ -428,7 +438,7 @@ Saslušao si argumente tužioca i tuženog. Donesi odluku i odgovori ISKLJUČIVO
 
 OBAVEZNA PRAVILA:
 1. Budi potpuno neutralan — odlučuj isključivo na osnovu prava i iznesenih argumenata.
-2. SVE što nije iz iznesenih argumenata ili predmeta → [Opšti pravni princip].
+2. ZAKONE citiraj iz sopstvenog znanja — "čl. 18 st. 1 ZUSP", "čl. 9 ZUP" itd. Zabranjeno je izmišljati brojeve sudskih odluka.
 3. Konzervativna procena: ne daj lažni optimizam ni jednoj strani.
 
 Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
@@ -452,11 +462,10 @@ Dobio si rezultate 5 analiza: Pravni Revizor, Due Diligence, Witness Analyzer, R
 
 OBAVEZNE DUŽNOSTI:
 1. Integriši sve nalaze u koherentnu stratešku preporuku.
-2. Identifikuj KONFLIKTE između koraka. Primeri: Revizor kaže SPREMAN ZA UPOTREBU ali Red Team identifikuje VISOKA ranjivost zbog iste klauzule; Due Diligence kaže NEPRIHVATLJIV ali Sudija pretpostavlja valjanost dokumenta; Witness Analyzer kaže NEPOUZDANO ali predmet se oslanja na taj iskaz.
+2. Identifikuj KONFLIKTE između koraka. Primeri: Revizor kaže SPREMAN ZA UPOTREBU ali Red Team identifikuje VISOKA ranjivost zbog iste klauzule; Due Diligence kaže NEPRIHVATLJIV ali Sudija pretpostavlja valjanost dokumenta.
 3. Prioritizuj akcije: hitno_crveno (mora odmah), vazno_zuto (u narednih 30 dana), preporuceno_zeleno (poboljšanje).
-4. Ako su 2 ili više koraka imali confidence = NISKA, OBAVEZNO postavi sistemsko_upozorenje sa konkretnim objašnjenjem.
+4. Ako su 2 ili više RELEVANTNIH koraka imali confidence = NISKA, postavi sistemsko_upozorenje. VAŽNO: Witness Analyzer sa ocena_pouzdanosti = NIJE_PRIMENLJIVO se NE broji u ovu računicu — to znači da iskazi nisu bili dostavljeni, ne da su dokazi nepouzdani.
 5. Konzervativna procena uvek — ne davaj lažni optimizam.
-6. SVE što nije iz dostavljenih inputa → [Opšti pravni princip].
 
 Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
 {
@@ -554,7 +563,7 @@ def orkestrator_kompletna_analiza_sync(
     )
     kontekst += f"\n\n=== KORAK 2 — DUE DILIGENCE ===\n{_json.dumps(korak2, ensure_ascii=False)}"
 
-    # ── Korak 3: Witness Analyzer ─────────────────────────────────────────────
+    # ── Korak 3: Witness Analyzer (samo ako su iskazi dostavljeni) ────────────
     if iskazi_svedoka:
         tekst_iskaza = "\n\n---\n\n".join(iskazi_svedoka)
         witness_user = (
@@ -562,19 +571,24 @@ def orkestrator_kompletna_analiza_sync(
             f"Osnovni opis predmeta:\n\n{opis_predmeta}\n\n"
             f"Kontekst prethodnih analiza:{kontekst}"
         )
-    else:
-        witness_user = (
-            f"Napomena: Iskazi svedoka nisu dostavljeni. "
-            f"Analiziraj da li opis predmeta sadrži implicitne iskaze ili svedočanstva.\n\n"
-            f"Opis predmeta:\n\n{opis_predmeta}\n\n"
-            f"Kontekst prethodnih analiza:{kontekst}"
+        korak3 = _gpt_json(
+            _ORK_WITNESS_SYSTEM,
+            witness_user,
+            temperature=0.2,
+            max_tokens=2000,
         )
-    korak3 = _gpt_json(
-        _ORK_WITNESS_SYSTEM,
-        witness_user,
-        temperature=0.2,
-        max_tokens=2000,
-    )
+    else:
+        # Bez iskaza — ne pozivamo AI, vraćamo fiksni skip result
+        korak3 = {
+            "sazetak_iskaza": "Iskazi svedoka nisu dostavljeni.",
+            "unutrasnje_kontradikcije": [],
+            "sumnjivi_delovi": [],
+            "procesna_upotrebljivost": "Witness Analyzer nije primenljiv — iskazi svedoka nisu dostavljeni za ovaj predmet.",
+            "pitanja_za_unakrsno": [],
+            "ocena_pouzdanosti": "NIJE_PRIMENLJIVO",
+            "confidence": "NIJE_PRIMENLJIVO",
+            "summary": "Modul preskočen — iskazi nisu dostavljeni. Ako postoje svedoci, dostavite iskaze za aktivaciju ovog modula.",
+        }
     kontekst += f"\n\n=== KORAK 3 — WITNESS ANALYZER ===\n{_json.dumps(korak3, ensure_ascii=False)}"
 
     # ── Korak 4: Red Team ─────────────────────────────────────────────────────
