@@ -8881,21 +8881,28 @@ async function pred_loadDetail(id) {
           : '';
         dokListEl.innerHTML = _dokHint + d.dokumenti.map(function(dok) {
           var _ns = dok.pinecone_namespace || '';
-          return '<div class="pred-dok-item" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'">'
-            +'<input type="checkbox" class="pred-dok-item-cb" onchange="crossdoc_toggleDok(this)" title="Odaberi za cross-doc analizu">'
-            +'<i data-lucide="file-text" style="width:14px;height:14px;flex-shrink:0;color:rgba(74,168,255,0.6);"></i>'
-            +'<span class="pred-dok-item-name">'+escHtml(dok.naziv_fajla||'')+'</span>'
-            +'<span class="pred-dok-item-status">'+escHtml(dok.status||'')+'</span>'
-            +'<button onclick="dokPreviewOpen(\''+escHtml(dok.id||'')+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml((dok.velicina_kb||0)+'')+'\')" '
-            +'title="Pogledaj sadržaj dokumenta" '
-            +'style="flex-shrink:0;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:5px;color:rgba(74,168,255,0.75);font-size:0.68rem;padding:2px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;margin-left:auto;">'
-            +'👁 Pogledaj'
+          var _kb = dok.velicina_kb || 0;
+          var _hasNs = !!_ns;
+          return '<div class="pred-dok-card" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'" '
+            +'onclick="dokUcitajZaAnalizu(\''+escHtml(_ns)+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml(_kb+'')+'\',\''+escHtml(dok.id||'')+'\')" '
+            +'title="Klikni da učitaš u AI analizu" '
+            +'style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;margin-bottom:0.35rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+');border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;" '
+            +'onmouseover="this.style.background=\'rgba(0,212,255,0.12)\';this.style.borderColor=\'rgba(0,212,255,0.45)\'" '
+            +'onmouseout="this.style.background=\'rgba(0,212,255,0.06)\';this.style.borderColor=\'rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+')\'">'
+            +'<i data-lucide="file-text" style="width:18px;height:18px;flex-shrink:0;color:rgba(0,212,255,'+(_hasNs?'0.85':'0.4')+');"></i>'
+            +'<div style="flex:1;min-width:0;">'
+            +'<div style="font-size:0.78rem;font-weight:600;color:'+(_hasNs?'#e2e8f0':'rgba(255,255,255,0.45)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(dok.naziv_fajla||'')+'</div>'
+            +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.32);margin-top:1px;">'+_kb+' KB'
+            +(_hasNs?' • <span style="color:rgba(0,212,255,0.65);">⚡ klikni za analizu</span>':' • <span style="color:rgba(255,180,0,0.65);">nije vektorizovan — re-upload</span>')
+            +'</div>'
+            +'</div>'
+            +'<button onclick="event.stopPropagation();dokPreviewOpen(\''+escHtml(dok.id||'')+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml(_kb+'')+'\')" '
+            +'title="Pogledaj sadržaj" '
+            +'style="flex-shrink:0;background:transparent;border:1px solid rgba(74,168,255,0.2);border-radius:5px;color:rgba(74,168,255,0.6);font-size:0.65rem;padding:2px 7px;cursor:pointer;font-family:inherit;">'
+            +'👁'
             +'</button>'
-            +'<button onclick="dokUcitajZaAnalizu(\''+escHtml(_ns)+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml((dok.velicina_kb||0)+'')+'\',\''+escHtml(dok.id||'')+'\')" '
-            +'title="Učitaj dokument u AI analizu" '
-            +'style="flex-shrink:0;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);border-radius:5px;color:rgba(0,212,255,0.85);font-size:0.68rem;padding:2px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;margin-left:4px;">'
-            +'⚡ Analiziraj'
-            +'</button>'
+            +'<input type="checkbox" class="pred-dok-item-cb" onclick="event.stopPropagation()" onchange="crossdoc_toggleDok(this)" title="Označi za cross-doc analizu" '
+            +'style="flex-shrink:0;width:14px;height:14px;cursor:pointer;accent-color:rgba(0,212,255,0.8);">'
             +'</div>';
         }).join('');
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -14219,6 +14226,13 @@ async function pred_upload_doc(file) {
       return;
     }
     var d = await r.json();
+    // Odmah aktiviraj document session od novog uploada — ne čekaj pred_loadDetail
+    if (d.session_id) {
+      _docSessionId       = d.session_id;
+      _docNamespacePrefix = 'pred_';
+      _docUploadName      = file.name;
+      _docUploadSize      = file.size;
+    }
     var mainHtml = '';
     if (d.procena) {
       var _rndr = (d.doc_type === 'presuda') ? pred_renderPresuda : pred_renderProcena;
