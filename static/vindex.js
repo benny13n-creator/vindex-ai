@@ -8818,6 +8818,8 @@ function _predInlineEdit(spanId, field, inputType) {
 async function pred_loadDetail(id) {
   if (!currentSession) return;
   piTrack('predmeti','open',{predmet_id:id});
+  // Resetuj doc session od prethodnog predmeta
+  doc_clear_session();
   // Reset cockpit to loading state
   var loadEl = document.getElementById('pck-loading');
   var bodyEl = document.getElementById('pck-body');
@@ -8889,14 +8891,38 @@ async function pred_loadDetail(id) {
             +'style="flex-shrink:0;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:5px;color:rgba(74,168,255,0.75);font-size:0.68rem;padding:2px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;margin-left:auto;">'
             +'👁 Pogledaj'
             +'</button>'
-            +(_ns ? '<button onclick="dokUcitajZaAnalizu(\''+escHtml(_ns)+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml((dok.velicina_kb||0)+'')+'\',\''+escHtml(dok.id||'')+'\')" '
+            +'<button onclick="dokUcitajZaAnalizu(\''+escHtml(_ns)+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml((dok.velicina_kb||0)+'')+'\',\''+escHtml(dok.id||'')+'\')" '
             +'title="Učitaj dokument u AI analizu" '
             +'style="flex-shrink:0;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);border-radius:5px;color:rgba(0,212,255,0.85);font-size:0.68rem;padding:2px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;margin-left:4px;">'
             +'⚡ Analiziraj'
-            +'</button>' : '')
+            +'</button>'
             +'</div>';
         }).join('');
         if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+    }
+    // Auto-restore doc session: tiho postavi _docSessionId od najnovijeg pred_ dokumenta
+    if (d.dokumenti && d.dokumenti.length && !_docSessionId) {
+      for (var _ri = 0; _ri < d.dokumenti.length; _ri++) {
+        var _rNs = (d.dokumenti[_ri].pinecone_namespace || '');
+        if (_rNs.startsWith('pred_')) {
+          var _rDok = d.dokumenti[_ri];
+          _docSessionId       = _rNs.replace(/^pred_/, '');
+          _docNamespacePrefix = 'pred_';
+          _docUploadName      = _rDok.naziv_fajla;
+          _docUploadSize      = (_rDok.velicina_kb || 0) * 1024;
+          var _rZ  = document.getElementById('doc-upload-zone');
+          var _rSa = document.getElementById('doc-session-active');
+          var _rFn = document.getElementById('doc-file-name');
+          var _rFm = document.getElementById('doc-file-meta');
+          var _rOw = document.getElementById('doc-ocr-warning');
+          if (_rZ)  _rZ.style.display  = 'none';
+          if (_rSa) _rSa.style.display = 'block';
+          if (_rFn) _rFn.textContent   = _rDok.naziv_fajla || 'Dokument';
+          if (_rFm) _rFm.textContent   = (_rDok.velicina_kb || 0) + ' KB • trajno sačuvan';
+          if (_rOw) _rOw.style.display = 'none';
+          break;
+        }
       }
     }
     // Cross-doc section (renders once; always present when docs exist)
@@ -11765,7 +11791,7 @@ function dokUcitajZaAnalizu(ns, naziv, velicinaKb, dokId) {
   // ns = "pred_SESSION" or "tmp_SESSION"
   var prefix = ns.startsWith('pred_') ? 'pred_' : 'tmp_';
   var sessionId = ns.replace(/^(pred_|tmp_)/, '');
-  if (!sessionId) { showToast('Dokument nema aktivan namespace.', 'warn'); return; }
+  if (!sessionId) { showToast('Ovaj dokument nije vektorizovan — otpremite ga ponovo da biste koristili AI analizu.', 'warn'); return; }
 
   _docSessionId       = sessionId;
   _docNamespacePrefix = prefix;
