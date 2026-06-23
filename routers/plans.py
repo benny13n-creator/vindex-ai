@@ -99,6 +99,20 @@ async def enforce_and_increment(user_id: str, resource: str):
       - Blokira free/advokat/pro na limitu
       - Firma beleži overage umesto blokiranja
     """
+    try:
+        await _enforce_and_increment_inner(user_id, resource)
+    except HTTPException:
+        raise  # limit exceeded — namerno, ne swallowati
+    except Exception as exc:
+        # DB tabele (korisnik_plan/korisnik_usage) možda nisu kreirane — ne blokira funkcionalnost
+        import logging as _lg
+        _lg.getLogger("vindex.plans").warning(
+            "[ENFORCE] DB tracking greška (non-fatal) uid=%.8s: %s", user_id, exc
+        )
+
+
+async def _enforce_and_increment_inner(user_id: str, resource: str):
+    """Unutrašnja implementacija — baca izuzetak ako DB nije dostupna."""
     ym = _year_month()
     plan = await _get_plan(user_id)
     usage = await _get_usage(user_id, ym)
