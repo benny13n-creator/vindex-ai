@@ -8019,7 +8019,7 @@ function timer_discard() {
 }
 
 // ── Mobile bottom nav helper ──────────────────────────────────────────────────
-var _mobNavMap = {h:'h', p:'p', k:'k', kal:'kal', q:'q'};
+var _mobNavMap = {h:'h', p:'p', kal:'kal', k:'k', 'mob-more':'more'};
 
 function mobileNavGo(t) {
   var btn = document.getElementById('tab-btn-' + t);
@@ -8030,12 +8030,36 @@ function mobileNavGo(t) {
 }
 
 function mobileNavUpdateActive(t) {
-  // Map AI sub-tabs back to 'q' for the bottom nav highlight
-  var highlight = (t === 'n' || t === 'a' || t === 's' || t === 'w') ? 'q' : t;
+  var aiTabs = ['n', 'a', 's', 'w'];
+  var moreTabs = ['q', 'dok', 'pi', 'alati', 'settings', 'n'];
+  var highlight = aiTabs.indexOf(t) !== -1 ? 'q' : t;
+  var inMore = moreTabs.indexOf(t) !== -1;
   Object.keys(_mobNavMap).forEach(function(key) {
     var el = document.getElementById('mob-btn-' + key);
-    if (el) el.classList.toggle('active', _mobNavMap[key] === highlight);
+    if (!el) return;
+    if (key === 'mob-more') {
+      el.classList.toggle('active', inMore);
+    } else {
+      el.classList.toggle('active', _mobNavMap[key] === highlight && !inMore);
+    }
   });
+}
+
+function mobileMoreOtvori() {
+  document.getElementById('mob-more-overlay').style.display = 'block';
+  document.getElementById('mob-more-sheet').style.display = 'block';
+}
+
+function mobileMoreZatvori() {
+  document.getElementById('mob-more-overlay').style.display = 'none';
+  document.getElementById('mob-more-sheet').style.display = 'none';
+}
+
+function mobileMoreGo(t) {
+  mobileMoreZatvori();
+  var btn = document.getElementById('tab-btn-' + t);
+  if (btn) setTab(btn, t);
+  mobileNavUpdateActive(t);
 }
 
 function pred_renderConfirmCard(predlozi, metadata) {

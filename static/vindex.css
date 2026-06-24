@@ -4927,12 +4927,12 @@ i[data-lucide] svg {
 .kc-sphere-num.danger { color: rgba(239,68,68,0.92); }
 .kc-sphere-lbl {
   font-family: var(--font-mono);
-  font-size: 0.43rem;
-  color: rgba(0,212,255,0.5);
+  font-size: 0.62rem;
+  color: rgba(0,212,255,0.65);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-align: center;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 /* Ikona u svakoj sferi ćeliji */
 .kc-sphere-ico {
@@ -5321,40 +5321,14 @@ i[data-lucide] svg {
   .kc-sphere { width: 250px; height: 250px; }
   .kc-sphere-inner { width: 178px; height: 178px; }
   .kc-sphere-num { font-size: 2rem; }
+  .kc-sphere-lbl { font-size: 0.58rem; }
   .kc-qa-bar { grid-template-columns: repeat(4, 1fr); }
   .kc-panels-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 768px) {
-  .vx-sidebar {
-    width: 100% !important; min-width: 100% !important; max-width: 100% !important;
-    flex-direction: row !important;
-    height: auto !important;
-    overflow-x: auto !important; overflow-y: hidden !important;
-    border-right: none !important;
-    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
-  }
-  .vx-logo-wrap { display: none !important; }
-  .vx-nav, .t-tabs-wrap.vx-nav-wrap {
-    flex-direction: row !important;
-    padding: 4px 6px !important;
-    gap: 2px !important;
-    overflow-x: auto !important;
-  }
-  .t-tab {
-    flex-direction: column !important;
-    gap: 2px !important;
-    padding: 6px 10px !important;
-    min-width: 60px !important;
-    width: auto !important;
-    align-items: center !important;
-    border-left: none !important;
-    border-bottom: 2px solid transparent !important;
-    flex-shrink: 0 !important;
-  }
-  .t-tab.active { border-left: none !important; border-bottom-color: var(--blue) !important; background: transparent !important; }
-  .vx-tab-lbl { font-size: 0.6rem !important; }
-  .vx-nav-sep { display: none !important; }
-  .vx-sidebar-foot, .vx-sidebar-footer { display: none !important; }
+  /* Sidebar skrit na mobilnom — bottom nav preuzima navigaciju */
+  .vx-sidebar { display: none !important; }
+  .vx-panels-wrap { margin-left: 0 !important; }
   .kc-panels-grid { grid-template-columns: repeat(2, 1fr); }
   .kc-qa-bar { grid-template-columns: repeat(2, 1fr); }
 }
@@ -5362,7 +5336,7 @@ i[data-lucide] svg {
   .kc-sphere { width: 240px; height: 240px; }
   .kc-sphere-inner { width: 168px; height: 168px; }
   .kc-sphere-num { font-size: 1.85rem; }
-  .kc-sphere-lbl { font-size: 0.4rem; }
+  .kc-sphere-lbl { font-size: 0.56rem; }
   .kc-qa-bar { grid-template-columns: repeat(2, 1fr); }
   .kc-qa-btn { padding: 9px 10px; }
   .kc-panels-grid { grid-template-columns: 1fr; }
@@ -5371,7 +5345,7 @@ i[data-lucide] svg {
 @media (max-width: 375px) {
   .kc-sphere { width: 210px; height: 210px; }
   .kc-sphere-num { font-size: 1.6rem; }
-  .kc-sphere-lbl { font-size: 0.38rem; }
+  .kc-sphere-lbl { font-size: 0.52rem; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -5750,27 +5724,54 @@ i[data-lucide] svg {
 #vx-mobile-nav {
   display: none;
 }
+/* FAB — Novi predmet */
+#vx-mobile-fab {
+  display: none;
+}
 @media (max-width: 768px) {
   #vx-mobile-nav {
     display: flex;
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    height: 56px;
-    background: rgba(13,27,42,0.97);
-    border-top: 1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    height: 60px;
+    background: rgba(10,20,35,0.98);
+    border-top: 1px solid rgba(0,212,255,0.18);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     z-index: 9999;
     align-items: stretch;
     justify-content: space-around;
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
-  /* Push main content up so it's not hidden behind the nav bar */
-  .vx-panels-wrap { padding-bottom: 60px !important; }
+  /* FAB — plutajuće dugme "+ Novi predmet" */
+  #vx-mobile-fab {
+    display: flex;
+    position: fixed;
+    bottom: 76px;
+    right: 18px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00d4ff, #0066cc);
+    border: none;
+    cursor: pointer;
+    z-index: 9998;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,212,255,0.45), 0 2px 8px rgba(0,0,0,0.4);
+    transition: transform .15s, box-shadow .15s;
+  }
+  #vx-mobile-fab:active {
+    transform: scale(0.93);
+    box-shadow: 0 2px 10px rgba(0,212,255,0.3);
+  }
+  #vx-mobile-fab svg { width: 24px; height: 24px; stroke: #fff; stroke-width: 2; fill: none; }
+  /* Push main content above bottom nav */
+  .vx-panels-wrap { padding-bottom: 68px !important; }
   #tab-p, #tab-h, #tab-k, #tab-q, #tab-kal, #tab-alati,
   #tab-n, #tab-a, #tab-s, #tab-t, #tab-w, #tab-pi,
   #tab-dok, #tab-settings { padding-bottom: 72px !important; }
-  /* Touch target enforcement */
+  /* Touch targets */
   button, a, input[type="button"], input[type="submit"],
   .t-tab, .pred-subtab-btn, .vx-nav-sub {
     min-height: 44px;
@@ -5783,22 +5784,41 @@ i[data-lucide] svg {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
     background: none;
     border: none;
     cursor: pointer;
-    color: rgba(255,255,255,0.45);
-    font-size: 0.56rem;
+    color: rgba(255,255,255,0.4);
+    font-size: 0.6rem;
     font-weight: 600;
-    letter-spacing: .04em;
+    letter-spacing: .03em;
     text-transform: uppercase;
     transition: color .15s;
-    min-height: 56px;
-    padding: 0;
+    min-height: 60px;
+    padding: 0 4px;
   }
-  .vx-mobile-nav-btn.active { color: #00d4ff; }
-  .vx-mobile-nav-btn svg { width: 22px; height: 22px; stroke-width: 1.6; }
+  .vx-mobile-nav-btn.active {
+    color: #00d4ff;
+  }
+  .vx-mobile-nav-btn svg {
+    width: 22px; height: 22px; stroke-width: 1.7;
+    transition: stroke .15s;
+  }
   .vx-mobile-nav-btn.active svg { stroke: #00d4ff; }
+  /* Topbar na mobilnom — kompaktniji */
+  .vx-topbar { padding: 0 10px !important; height: 46px !important; gap: 8px !important; }
+  .vx-topbar-logo-mobile { font-size: 0.92rem !important; font-weight: 700; }
+  .kc-topbar-right button { padding: 0.32rem 0.65rem !important; font-size: 0.72rem !important; }
+  /* Sfera na mobilnom — kompaktnija */
+  .kc-sphere-wrap { margin: 24px 0 28px !important; }
+  /* Paneli na mobilnom — jedna kolona */
+  .kc-panels-grid { grid-template-columns: 1fr !important; }
+  /* Intake i CRM panel — full screen */
+  .intake-panel, .crm-panel { width: 100vw !important; max-width: 100vw !important; border-radius: 0 !important; }
+  /* Predmet hub na mobilnom */
+  .pred-hub-hdr-top { flex-wrap: wrap !important; }
+  /* AI chat input lakši za kucanje */
+  #chat-input, .ai-chat-input { font-size: 16px !important; }
 }
 
 /* ── AI Centar Faza 3 ──────────────────────────────────────────────────────── */
@@ -7191,4 +7211,31 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
     border-radius: 2px;
     margin: 12px auto 0;
   }
+}
+
+/* ── Mobile "Više" bottom sheet ────────────────────────────────────────────── */
+.mob-more-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 12px 6px;
+  cursor: pointer;
+  color: rgba(255,255,255,0.7);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  transition: background .15s, color .15s;
+  min-height: 70px;
+}
+.mob-more-btn:active { background: rgba(0,212,255,0.12); color: #00d4ff; }
+.mob-more-btn svg {
+  width: 22px; height: 22px;
+  stroke: currentColor; stroke-width: 1.7;
+  fill: none;
 }
