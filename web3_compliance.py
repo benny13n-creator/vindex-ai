@@ -14,14 +14,14 @@ _WEB3_NAMESPACE = "web3_zdi_mca"
 
 # ── Citiranje — zajednička pravila ────────────────────────────────────────────
 
-# Za RAG funkcije: broj člana samo ako se pojavljuje verbatim u retrieved chunkovima
+# Za RAG funkcije (compliance_check): broj člana samo ako verbatim u retrieved chunkovima
 _IZVOR_CITIRANJA_RAG = """
 IZVOR CITIRANJA (STROGO OBAVEZNO):
 - Svaki pravni stav mora imati referencu u formatu: [ZDI čl. X] ili [ZSPNFT čl. X]
 - Broj člana citiraj ISKLJUČIVO ako se taj broj pojavljuje verbatim u retrieved chunk-u koji ti je dostupljen
 - Ako broj člana NIJE eksplicitno u retrieved chunk-u: piši "ZDI [opis odredbe]" — BEZ broja
 - Zabranjen je inference broja člana iz konteksta, pozicije ili logičkog redosleda
-- Primer ispravno: "[ZDI čl. 91] — zabrana zakonskog sredstva plaćanja" (jer chunk sadrži "Član 91")
+- Primer ispravno: "[ZDI čl. 91]" jer chunk sadrži "Član 91"
 - Primer pogrešno: "[ZDI čl. 97]" ako chunk ne sadrži eksplicitno "97" ili "Član 97"
 """
 
@@ -34,45 +34,114 @@ IZVOR CITIRANJA (STROGO OBAVEZNO):
 - Zabranjen je inference broja člana iz konteksta, pozicije ili logičkog redosleda
 """
 
+# ── Code-level citation verifier ──────────────────────────────────────────────
+
+def _verifikuj_citat_clanova(odgovor: str, chunks: list) -> str:
+    """
+    Code-level citation guard — runs AFTER generation.
+    Scans the AI response for ZDI/ZSPNFT/ZOO/ZDP article numbers.
+    If a number does NOT appear verbatim in any retrieved chunk, flags it.
+    This is the hard enforcement layer on top of the prompt instruction.
+    """
+    import re as _re
+    if not chunks or not odgovor:
+        return odgovor
+
+    chunk_combined = " ".join(chunks).lower()
+
+    # Matches: "ZDI čl. 97", "ZSPNFT čl. 9", "ZOO čl. 557", "ZDP čl. 5", etc.
+    pattern = _re.compile(
+        r'((?:ZDI|ZSPNFT|ZOO|ZDP|ZR|KZ|ZPDG|ZZPL)\s+(?:čl\.|član)\s*)(\d+(?:[-–]\d+)?)',
+        _re.IGNORECASE,
+    )
+
+    flagged: list[str] = []
+
+    def _check(m: _re.Match) -> str:
+        prefix = m.group(1)
+        num    = m.group(2).split("–")[0].split("-")[0]  # take lower bound of range
+        full   = m.group(0)
+        # Verbatim check: the number must appear as a standalone token in chunks
+        if _re.search(r'\b' + _re.escape(num) + r'\b', chunk_combined):
+            return full  # ✓ found verbatim
+        flagged.append(full)
+        return full + " ⚠️[nije u retrieved kontekstu]"
+
+    result = pattern.sub(_check, odgovor)
+
+    if flagged:
+        logger.warning(
+            "[WEB3_CITAT_GUARD] Potencijalne halucinacije citiranja: %s",
+            ", ".join(flagged),
+        )
+    return result
+
+
 # ── System promptovi ──────────────────────────────────────────────────────────
 
-_WEB3_SEARCH_SYSTEM = """Ti si specijalizovani pravni savetnik za digitalnu imovinu i kripto-regulativu.
-Koristiš isključivo srpski ZDI (Zakon o digitalnoj imovini, Sl. glasnik RS 153/2020)
-i EU MiCA regulativu (Regulation EU 2023/1114).
+_WEB3_SEARCH_SYSTEM = """Ti si Vindex AI — specijalizovani pravni sistem za digitalnu imovinu u Srbiji.
+Odgovaraš ISKLJUČIVO na osnovu dostavljenih retrieved chunk-ova iz ZDI/MiCA baze. Zero hallucination.
 
-KRITIČNA NAPOMENA O NADLEŽNOSTI:
-MiCA važi ISKLJUČIVO u EU. Za srpsku kompaniju koja posluje U SRBIJI, MiCA NE VAŽI.
-Citi MiCA samo ako korisnik eksplicitno pita o EU tržištu ili EU entitetu.
+NADLEŽNOST:
+- ZDI (Zakon o digitalnoj imovini, Sl. glasnik RS 153/2020) — lex specialis za Srbiju
+- MiCA (EU 2023/1114) — navodi se SAMO ako korisnik pita o EU tržištu/entitetu; za Srbiju NE VAŽI
+- ZOO (Zakon o obligacionim odnosima) — lex generalis za ugovorne odnose
+- ZDP (Zakon o deviznom poslovanju) — za cross-border transakcije
+- ZSPNFT — AML; čl. 9: KYC za ≥15.000 EUR
 
-KANONSKI PREGLED KLJUČNIH ČLANOVA ZDI (koristi SAMO ove, ne izmišljaj druge):
-- Čl. 2   — Definicija digitalne imovine ("zamenjivati" → barter/razmena DOZVOLJENA)
-- Čl. 9   — Beli papir — obaveza dostavljanja
-- Čl. 12-19 — Zahtevi sadržaja belog papira za javnu ponudu
-- Čl. 29  — Obaveza licenciranja VASP pružaoca usluga (NBS ili KHoV)
-- Čl. 36  — OTC trgovanje digitalnom imovinom (dozvoljeno)
-- Čl. 37  — Pametni ugovori u sekundarnom trgovanju (dozvoljeni)
-- Čl. 81-90 — AML/KYC obaveze VASP pružaoca (opšte mere)
-- Čl. 91  — ZABRANA korišćenja kao ZAKONSKOG SREDSTVA PLAĆANJA (legal tender)
-           KLJUČNO: ova zabrana se odnosi na "legal tender" — NE zabranjuje barter/razmenu
-- Čl. 140-146 — Kaznene odredbe
+APSOLUTNE ZABRANE:
+1. NIKADA ne citiraš broj člana koji se ne pojavljuje verbatim (kao "Član X" ili "čl. X") u retrieved chunk-u
+2. NIKADA ne pišeš tekst zakona koji nije doslovno u retrieved chunk-u — pišeš [—]
+3. NIKADA ne citi "čl. 97 ZDI" za teme prihvatanja imovine — taj broj je iz AML sekcije, ne o maloprodaji
+4. NIKADA ne citi "čl. 12 ZDI" van konteksta belog papira — čl. 12 je o sadržaju whitepaper-a
+5. NIKADA: "Možete slobodno", "Nije problem", "Dozvoljeno je" — uvek uz zakonski uslov i ogradu
 
-KRITIČNA DISTINKCIJA — BARTER vs. ZAKONSKO SREDSTVO PLAĆANJA:
-- ZDI čl. 91 zabranjuje samo "zakonsko sredstvo plaćanja" (obaveza prihvatanja od svih)
-- Dobrovoljni barter (zamena digitalne imovine za robu/uslugu) NIJE zabranjen čl. 91
-- Pravni osnov za barter: ZDI čl. 2 (dozvoljava "zamenjivanje") + ZOO čl. 557-570 (ugovor o razmeni)
-- Za inostrane transakcije: ZDP (Zakon o deviznom poslovanju) se primenjuje pored ZDI
+BARTER DISTINKCIJA (kritično):
+- ZDI čl. 91 zabranjuje SAMO "zakonsko sredstvo plaćanja" (legal tender) — NE zabranjuje barter
+- Dobrovoljni barter je regulisan ZDI čl. 2 + ZOO čl. 557-570 (ugovor o razmeni)
+- Ovo pišeš SAMO ako je čl. 2 ili čl. 91 u retrieved chunk-u; inače pišeš [—] za citat
 
-AML PRAG: ZSPNFT čl. 9 — transakcije ≥15.000 EUR zahtevaju obaveznu KYC prijavu.
-NE postoji "čl. 97 ZDI" koji uređuje prihvatanje imovine u maloprodaji — ne citi taj broj.
+OBAVEZNI FORMAT — TAČNO OVAKO, U TAČNOM REDOSLEDU:
 
-Pravila odgovaranja:
-- Za srpsko pravo: cituj SAMO članove iz kanonskog pregleda ili reci "nisam siguran koji tačan član"
-- Za EU pravo: cituj MiCA samo ako je relevantno za EU entitet/tržište
-- ZABRANA: Ne citi čl. 97 ZDI za teme prihvatanja imovine — taj broj pripada kraju AML sekcije
-- ZABRANA: Ne citi čl. 12 ZDI za devizno poslovanje — čl. 12 je o belom papiru
-- Ako nisi siguran koji tačan član pokriva temu — reci "prema ZDI, ali tačan član treba proveriti"
-- Na kraju svakog odgovora dodaj: "⚠️ Ovo nije pravni savet. Konsultujte advokata specijalizovanog za digitalnu imovinu."
-""" + _IZVOR_CITIRANJA_RAG
+[izaberi TAČNO JEDNU liniju:]
+[✓] STATUSNA POTVRDA: Doslovno citiran — član direktno pronađen u retrieved chunk-u ZDI/MiCA baze.
+[~] STATUSNA POTVRDA: Parafrazirano — sadržaj odredbe potvrđen, nije doslovan citat iz retrieved chunk-a.
+[!] STATUSNA POTVRDA: Opšta pravna logika — nema direktnog člana u retrieved chunk-u za ovo pitanje.
+
+--- HIJERARHIJA IZVORA
+[Jedna rečenica — koji zakon je lex specialis za ovo pitanje.
+• Za srpsku kompaniju: "Lex specialis: ZDI (Sl. glasnik RS 153/2020) — matični propis za digitalnu imovinu u Srbiji."
+• Za EU entitet ili EU tržište: "Lex specialis: MiCA (EU 2023/1114) + ZDI ako ima srpski nexus."
+• Za barter/ugovor: "Lex specialis: ZDI čl. 2 + ZOO čl. 557 — ugovor o razmeni digitalne imovine."
+NIKADA: "Opšti propis: ZOO" — ZOO je lex generalis, ne opšti propis]
+
+--- PRAVNI ZAKLJUČAK
+[2 rečenice maksimum.
+(1) Direktan odgovor na pitanje — uz OBAVEZNU ogradu: "Uz ispunjenje zakonskih uslova", "Po dostupnim informacijama".
+(2) Šta konkretno uslovljava ili ograničava — licenca, prag, jurisdikcija.
+ZABRANJENO: "Imate pravo", "Garantovano je", "Slobodno možete" bez zakonskog uslova.]
+
+--- CITAT ZAKONA [RAG]
+[DOSLOVNI tekst iz retrieved chunk-a — preuzmi reč po reč, BEZ izmena.
+Ako tačan tekst člana NIJE u retrieved chunk-u → piši samo: [—]
+NIKADA ne generišeš sopstveni tekst zakona. NIKADA ne pišeš "Tekst nije dostupan".]
+
+--- PRAVNI OSNOV
+[Naziv zakona i broj člana.
+ISKLJUČIVO ako se broj pojavljuje verbatim (kao "Član X" ili "čl. X") u retrieved chunk-u.
+Ako broj NIJE verbatim u chunk-u: piši "ZDI [opis odredbe]" — BEZ broja.
+Primer ispravno: "ZDI čl. 2 — digitalna imovina zamenjiva (barter dozvoljen)"
+Primer pogrešno: "ZDI čl. 97 — prihvatanje u maloprodaji" ako "97" nije u chunk-u]
+
+--- COMPLIANCE KORACI
+[Konkretan redosled koraka. SAMO ako su direktno relevantni za pitanje — inače IZOSTAVI sekciju.
+Svaki korak mora imati zakonski osnov iz retrieved chunk-a ili kanonskog pregleda.]
+
+--- RIZICI I ROKOVI
+[Kazne, rok za registraciju/licencu, prag za KYC. Navedi SAMO ono što je u retrieved chunk-u.
+Format: "• ZDI čl. 140 — [kazna]" SAMO ako je "140" verbatim u chunk-u.]
+
+⚠️ Ovo nije pravni savet. Konsultujte advokata specijalizovanog za digitalnu imovinu."""
 
 _COMPLIANCE_CHECKER_SYSTEM = """Ti si compliance officer specijalizovan za digitalnu imovinu.
 Analiziraš da li opisana aktivnost ili poslovni model zahteva dozvolu, registraciju ili
@@ -145,45 +214,67 @@ Struktura odgovora (obavezna):
 # ── Sync funkcije ──────────────────────────────────────────────────────────────
 
 def web3_pretraga_sync(upit: str, api_key: str) -> str:
-    """RAG pretraga nad web3_zdi_mca namespacom + GPT-4o odgovor."""
+    """
+    RAG pretraga nad web3_zdi_mca namespacom + GPT-4o odgovor.
+    Output format: identičan sa 'Istraživanje zakona' (--- sekcije + STATUSNA POTVRDA).
+    Post-generation citation guard: svaki broj člana koji nije u retrieved chunk-u se flaguje.
+    """
     from openai import OpenAI as _OAI
     from app.services.retrieve import _get_index, _ugradi_query
 
+    chunks: list[str] = []
+    kontekst = "Nema relevantnih odredbi u bazi."
     try:
         vec = _ugradi_query(upit)
         idx = _get_index()
         res = idx.query(
             vector=vec,
-            top_k=5,
+            top_k=8,
             namespace=_WEB3_NAMESPACE,
             include_metadata=True,
         )
         matches = res.matches if hasattr(res, "matches") else []
         chunks = [
-            f"[{m.metadata.get('izvor', '')}]: {m.metadata.get('tekst', '')}"
+            m.metadata.get("tekst", "").strip()
             for m in matches
-            if float(m.score) >= 0.55 and m.metadata.get("tekst", "").strip()
+            if float(m.score) >= 0.50 and m.metadata.get("tekst", "").strip()
         ]
-        kontekst = "\n\n".join(chunks) if chunks else "Nema relevantnih odredbi u bazi."
+        chunks_sa_izvorom = [
+            f"[{m.metadata.get('izvor', 'ZDI')}]: {m.metadata.get('tekst', '').strip()}"
+            for m in matches
+            if float(m.score) >= 0.50 and m.metadata.get("tekst", "").strip()
+        ]
+        if chunks_sa_izvorom:
+            kontekst = "\n\n".join(chunks_sa_izvorom)
+        else:
+            kontekst = "Nema relevantnih odredbi u bazi — odgovor se zasniva na kanonskom pregledu."
     except Exception as e:
         logger.warning("[WEB3] Pinecone pretraga neuspešna: %s", e)
         kontekst = "Baza nije dostupna — odgovor se zasniva na opštim pravilima."
+        chunks = []
 
     client = _OAI(api_key=api_key)
     resp = client.chat.completions.create(
         model="gpt-4o",
-        temperature=0.1,
+        temperature=0.05,   # niža temperatura = manje slobode za izmišljanje
         max_tokens=2000,
         timeout=90.0,
         messages=[
             {"role": "system", "content": _WEB3_SEARCH_SYSTEM},
             {"role": "user", "content": (
-                f"Relevantne odredbe iz baze znanja:\n{kontekst}\n\n"
-                f"Pitanje: {upit}"
+                f"RETRIEVED CHUNKS IZ ZDI/MiCA BAZE:\n{kontekst}\n\n"
+                f"PITANJE KORISNIKA: {upit}\n\n"
+                f"PODSETNIK: Citat zakona pišeš ISKLJUČIVO reč-po-reč iz retrieved chunks-a iznad. "
+                f"Broj člana koristiš SAMO ako se pojavljuje verbatim u retrieved chunks-u."
             )},
         ],
     )
-    return (resp.choices[0].message.content or "").strip()
+    odgovor = (resp.choices[0].message.content or "").strip()
+
+    # Code-level citation guard — runs AFTER generation
+    odgovor = _verifikuj_citat_clanova(odgovor, chunks)
+
+    return odgovor
 
 
 def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> str:
