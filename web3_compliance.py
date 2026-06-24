@@ -108,26 +108,26 @@ def _verifikuj_citat_clanova(odgovor: str, chunks: list) -> str:
 # ── System promptovi ──────────────────────────────────────────────────────────
 
 _WEB3_SEARCH_SYSTEM = """Ti si Vindex AI — specijalizovani pravni sistem za digitalnu imovinu u Srbiji.
-Odgovaraš ISKLJUČIVO na osnovu dostavljenih retrieved chunk-ova iz ZDI/MiCA baze. Zero hallucination.
+Odgovaraš na osnovu dostavljenih izvoda iz ZDI, ZOO i MiCA baze. Zero hallucination.
 
 NADLEŽNOST:
-- ZDI (Zakon o digitalnoj imovini, Sl. glasnik RS 153/2020) — lex specialis za Srbiju
-- MiCA (EU 2023/1114) — navodi se SAMO ako korisnik pita o EU tržištu/entitetu; za Srbiju NE VAŽI
-- ZOO (Zakon o obligacionim odnosima) — lex generalis za ugovorne odnose
+- ZDI (Zakon o digitalnoj imovini, Sl. glasnik RS 153/2020) — lex specialis za DI u Srbiji
+- ZOO (Zakon o obligacionim odnosima) — lex generalis za ugovorne odnose; čl. 552-553: ugovor o razmeni
 - ZDP (Zakon o deviznom poslovanju) — za cross-border transakcije
 - ZSPNFT — AML; čl. 9: KYC za ≥15.000 EUR
+- MiCA (EU 2023/1114) — navodi se SAMO ako korisnik pita o EU tržištu/entitetu; za Srbiju NE VAŽI
 
 APSOLUTNE ZABRANE:
 1. NIKADA ne citiraš broj člana koji se ne pojavljuje verbatim (kao "Član X" ili "čl. X") u dostavljenom tekstu zakona
 2. NIKADA ne pišeš tekst zakona koji nije doslovno u dostavljenom tekstu — pišeš [—]
 3. NIKADA ne citi "čl. 12 ZDI" van konteksta belog papira — čl. 12 je o sadržaju whitepaper-a
 4. NIKADA: "Možete slobodno", "Nije problem", "Dozvoljeno je" — uvek uz zakonski uslov i ogradu
-5. NIKADA ne koristiš markdown linkove niti URL-ove — sve reference piši kao plain text (npr. "Sl. glasnik RS 153/2020", NE "[Sl. glasnik](url)")
+5. NIKADA ne koristiš markdown linkove niti URL-ove — sve reference piši kao plain text
 
 BARTER DISTINKCIJA (kritično):
-- ZDI čl. 91 zabranjuje SAMO "zakonsko sredstvo plaćanja" (legal tender) — NE zabranjuje barter
-- Dobrovoljni barter je regulisan ZDI čl. 2 + ZOO čl. 557-570 (ugovor o razmeni)
-- Ovo pišeš SAMO ako je čl. 2 ili čl. 91 u retrieved chunk-u; inače pišeš [—] za citat
+- Barter/razmena između pravnih lica regulisana je ZDI čl. 2 ("razmenjivati") + ZOO čl. 552 (ugovor o razmeni)
+- ZDI čl. 97 zabrana važi SAMO za maloprodaju (B2C potrošač→trgovac) — NE za B2B ugovore
+- ZDI čl. 91 je o dostavljanju finansijskih izveštaja VASP-a nadzornom organu — NE o zabrani bartera
 
 OBAVEZNI FORMAT — TAČNO OVAKO, U TAČNOM REDOSLEDU:
 
@@ -140,9 +140,10 @@ OBAVEZNI FORMAT — TAČNO OVAKO, U TAČNOM REDOSLEDU:
 
 --- HIJERARHIJA IZVORA
 [Jedna rečenica — koji zakon je lex specialis za ovo pitanje.
-• Za srpsku kompaniju: "Lex specialis: ZDI (Sl. glasnik RS 153/2020) — matični propis za digitalnu imovinu u Srbiji."
+• Za srpsku kompaniju (DI dozvole, whitepaper, VASP): "Lex specialis: ZDI (Sl. glasnik RS 153/2020)."
 • Za EU entitet ili EU tržište: "Lex specialis: MiCA (EU 2023/1114) + ZDI ako ima srpski nexus."
-• Za barter/ugovor: "Lex specialis: ZDI čl. 2 + ZOO čl. 557 — ugovor o razmeni digitalne imovine."
+• Za B2B barter/razmenu DI: "ZDI čl. 2 (lex specialis) + ZOO čl. 552-553 (ugovor o razmeni)."
+• Za cross-border transakcije: "ZDI + ZDP (Zakon o deviznom poslovanju)."
 NIKADA: "Opšti propis: ZOO" — ZOO je lex generalis, ne opšti propis]
 
 --- PRAVNI ZAKLJUČAK
@@ -183,28 +184,35 @@ Analiziraš da li opisana aktivnost ili poslovni model zahteva dozvolu, registra
 posebne mere po ZDI (Srbija). MiCA navodi SAMO ako korisnik pita o EU tržištu/entitetu.
 
 KANONSKI PREGLED KLJUČNIH ČLANOVA ZDI (KORISTI SAMO OVE):
-- Čl. 2   — Definicija: "zamenjivati" → barter dozvoljen; razmena digitalne imovine za robu = legalno
+- Čl. 2   — Definicija: DI se može "kupovati, prodavati, razmenjivati ili prenositi" → razmena/barter dozvoljena
 - Čl. 15  — Prag za beli papir (ispod praga → beli papir nije obavezan)
 - Čl. 29  — VASP licenca: svaki pružalac usluga mora imati dozvolu NBS ili KHoV
 - Čl. 36  — OTC: dozvoljeno bez VASP licence za krajnje stranke (ali VASP mora imati)
-- Čl. 91  — Zabrana ZAKONSKOG SREDSTVA PLAĆANJA — NE zabranjuje barter/dobrovoljnu razmenu
-- Čl. 97  — Prihvatanje DI u maloprodaji: ISKLJUČIVO kroz licenciranog VASP-a; direktan prenos potrošač→trgovac je zabranjen
+- Čl. 91  — Dostavljanje finansijskih izveštaja VASP pružaoca nadzornom organu (rok: 30 dana)
+- Čl. 94  — VASP može pružati usluge i u stranoj državi, u skladu s propisima te države
+- Čl. 97  — Prihvatanje DI u maloprodaji (B2C): ISKLJUČIVO kroz licenciranog VASP-a; direktan prenos potrošač→trgovac ZABRANJEN
 - Čl. 140-146 — Kaznene odredbe
+
+KANONSKI PREGLED ZOO (za ugovorne odnose i barter):
+- ZOO čl. 552 — Ugovor o razmeni: svaki ugovarač prenosi na saugovarača svojinu stvari ili drugog prenosivog prava (digitalna imovina = prenosivo pravo)
+- ZOO čl. 553 — Prava i obaveze iz ugovora o prodaji primenjuju se na oba učesnika razmene
 
 POSEBNA PRAVILA ZA BARTER/RAZMENU:
 - Srpska kompanija MOŽE dati digitalnu imovinu i primiti robu/uslugu od inostranca (i obrnuto)
-- Pravni osnov: ZDI čl. 2 + ZOO čl. 557-570 (ugovor o razmeni)
-- Zabrana iz čl. 91 se odnosi na "legal tender", NE na barter
+- Pravni osnov: ZDI čl. 2 ("razmenjivati") + ZOO čl. 552 (ugovor o razmeni)
+- ZDI čl. 97 zabrana važi SAMO za B2C maloprodaju — NE za B2B između pravnih lica
+- ZDI čl. 91 je o finansijskim izveštajima VASP-a, NE o zabrani bartera
 - Za konverziju u/iz RSD: koristiti licenciranog VASP pružaoca (čl. 29)
 - Inostrane transakcije: pored ZDI, važi ZDP (Zakon o deviznom poslovanju) — tekuće i kapitalne transakcije
 
 AML/KYC OBAVEZE:
 - ZSPNFT (Zakon o sprečavanju pranja novca i finansiranja terorizma) čl. 9: KYC obaveza za ≥15.000 EUR
 - ZDI čl. 81-90: opšte AML mere za VASP pružaoce
-- ZDI čl. 97: maloprodajno prihvatanje DI — VASP posrednik obavezan; direktan prenos zabranjen
+- ZDI čl. 97: maloprodajno prihvatanje DI (B2C) — VASP posrednik obavezan; direktan prenos zabranjen
 
-ZABRANA CITIRANJA IZMIŠLJENIH ČLANOVA:
+ZABRANA CITIRANJA NETAČNIH ČLANOVA:
 - Ne citi čl. 12 ZDI za devizno poslovanje — čl. 12 je o sadržaju belog papira
+- Ne citi ZOO čl. 557 za barter — ugovor o razmeni je čl. 552, ne čl. 557 (čl. 557 = zajam)
 - Ako nisi siguran koji tačan član važi — navedi samo zakon (npr. "po ZDI"), bez broja člana
 
 Struktura odgovora (obavezna):
@@ -248,35 +256,79 @@ Struktura odgovora (obavezna):
 
 # ── Sync funkcije ──────────────────────────────────────────────────────────────
 
+# Ključne reči koje signalizuju B2B/razmenu/cross-border tematiku
+_B2B_KLJUCNE = (
+    "razmena", "barter", "zamena", "ugovor o razmeni", "inostran", "stran",
+    "b2b", "pravno lice", "kompanija", "firma", "cross-border", "uvoz", "izvoz",
+    "zoo 552", "zoo čl", "ugovor o zameni",
+)
+
+def _je_b2b_upit(upit: str) -> bool:
+    """Detektuje da li korisnik pita o B2B razmeni/cross-border transakcijama."""
+    u = upit.lower()
+    return any(k in u for k in _B2B_KLJUCNE)
+
+
 def web3_pretraga_sync(upit: str, api_key: str) -> str:
     """
     RAG pretraga nad web3_zdi_mca namespacom + GPT-4o odgovor.
-    Output format: identičan sa 'Istraživanje zakona' (--- sekcije + STATUSNA POTVRDA).
-    Post-generation citation guard: svaki broj člana koji nije u retrieved chunk-u se flaguje.
+    Za B2B/razmenu/cross-border upite: hibridni dual-query (semantički + tematski boost).
+    Fallback upozorenje kada max score < 0.55.
+    Post-generation citation guard uklanja neverbatim brojeve članova.
     """
     from openai import OpenAI as _OAI
     from app.services.retrieve import _get_index, _ugradi_query
 
     chunks: list[str] = []
     kontekst = "Nema relevantnih odredbi u bazi."
+    max_score = 0.0
+
     try:
         vec = _ugradi_query(upit)
         idx = _get_index()
+
+        # Primarni upit
         res = idx.query(
             vector=vec,
             top_k=8,
             namespace=_WEB3_NAMESPACE,
             include_metadata=True,
         )
-        matches = res.matches if hasattr(res, "matches") else []
+        primarni = res.matches if hasattr(res, "matches") else []
+
+        # Hibridni boost za B2B/razmenu tematiku
+        svi_matches = list(primarni)
+        if _je_b2b_upit(upit):
+            boost_q = (
+                "B2B razmena digitalna imovina ugovor o razmeni ZDI čl. 2 "
+                "ZOO čl. 552 barter inostrana kompanija cross-border"
+            )
+            vec_b = _ugradi_query(boost_q)
+            res_b = idx.query(
+                vector=vec_b,
+                top_k=6,
+                namespace=_WEB3_NAMESPACE,
+                include_metadata=True,
+            )
+            # Merge — deduplikacija po ID-u
+            postojeci_ids = {m.id for m in svi_matches}
+            for m in (res_b.matches or []):
+                if m.id not in postojeci_ids:
+                    svi_matches.append(m)
+                    postojeci_ids.add(m.id)
+            logger.info("[WEB3] B2B boost aktivan — ukupno matches: %d", len(svi_matches))
+
+        if svi_matches:
+            max_score = max(float(m.score) for m in svi_matches)
+
         chunks = [
             m.metadata.get("tekst", "").strip()
-            for m in matches
+            for m in svi_matches
             if float(m.score) >= 0.50 and m.metadata.get("tekst", "").strip()
         ]
         chunks_sa_izvorom = [
             f"[{m.metadata.get('izvor', 'ZDI')}]: {m.metadata.get('tekst', '').strip()}"
-            for m in matches
+            for m in svi_matches
             if float(m.score) >= 0.50 and m.metadata.get("tekst", "").strip()
         ]
         if chunks_sa_izvorom:
@@ -291,23 +343,32 @@ def web3_pretraga_sync(upit: str, api_key: str) -> str:
     client = _OAI(api_key=api_key)
     resp = client.chat.completions.create(
         model="gpt-4o",
-        temperature=0.05,   # niža temperatura = manje slobode za izmišljanje
+        temperature=0.05,
         max_tokens=2000,
         timeout=90.0,
         messages=[
             {"role": "system", "content": _WEB3_SEARCH_SYSTEM},
             {"role": "user", "content": (
-                f"RETRIEVED CHUNKS IZ ZDI/MiCA BAZE:\n{kontekst}\n\n"
+                f"IZVODI IZ ZDI/ZOO/MiCA BAZE:\n{kontekst}\n\n"
                 f"PITANJE KORISNIKA: {upit}\n\n"
-                f"PODSETNIK: Citat zakona pišeš ISKLJUČIVO reč-po-reč iz retrieved chunks-a iznad. "
-                f"Broj člana koristiš SAMO ako se pojavljuje verbatim u retrieved chunks-u."
+                f"PODSETNIK: Citat zakona pišeš ISKLJUČIVO reč-po-reč iz izvoda iznad. "
+                f"Broj člana koristiš SAMO ako se pojavljuje verbatim u izvodu."
             )},
         ],
     )
     odgovor = (resp.choices[0].message.content or "").strip()
 
-    # Code-level citation guard — runs AFTER generation
+    # Code-level citation guard
     odgovor = _verifikuj_citat_clanova(odgovor, chunks)
+
+    # Fallback upozorenje kada relevantnost niska (score < 0.55)
+    if max_score < 0.55 and chunks:
+        napomena = (
+            "\n\n⚠️ Napomena o pouzdanosti: Za ovo pitanje nisu pronađeni visoko relevantni "
+            "izvodi iz baze zakona (max relevantnost: {:.0%}). Odgovor se delimično zasniva "
+            "na pravnoj logici — preporučujemo konsultaciju sa advokatom pre donošenja odluke."
+        ).format(max_score)
+        odgovor = odgovor + napomena
 
     return odgovor
 
@@ -468,11 +529,13 @@ Klasifikacija:
 rizik_nivo: NIZAK (informacione aktivnosti), SREDNJI (razmena/čuvanje), VISOK (javna ponuda/CASP bez dozvole)
 
 POSEBNA PRAVILA — BARTER I RAZMENA:
-- Barter digitalne imovine za robu/uslugu: dozvola za VASP pružaoca (čl. 29), ali ne za krajnje stranke
-- ZDI čl. 91 zabranjuje samo "zakonsko sredstvo plaćanja" — NE zabranjuje dobrovoljni barter
+- B2B barter: osnov ZDI čl. 2 ("razmenjivati") + ZOO čl. 552 (ugovor o razmeni) — dozvoljen
+- Dozvola VASP (čl. 29) potrebna je VASP posredniku, ne krajnjim strankama u B2B ugovoru
+- ZDI čl. 91 = dostavljanje finansijskih izveštaja VASP-a nadzornom organu — NE zabrana bartera
 - Za inostrane barter transakcije: ZDP (devizno poslovanje) pored ZDI
-- Čl. 97 ZDI: maloprodajno prihvatanje DI u zamenu za robu/usluge — obavezno kroz VASP posrednika; direktan prenos potrošač→trgovac zabranjen
-- ZABRANA: Ne citi "čl. 12 ZDI" za platne usluge — čl. 12 je o sadržaju belog papira""" + _IZVOR_CITIRANJA_NORAG
+- Čl. 97 ZDI: isključivo B2C maloprodajni scenario; ne primenjuje se na B2B između pravnih lica
+- ZABRANA: Ne citi "čl. 12 ZDI" za platne usluge — čl. 12 je o sadržaju belog papira
+- ZABRANA: Ne citi "ZOO čl. 557" za barter — čl. 557 ZOO je zajam, ne razmena (razmena = čl. 552)""" + _IZVOR_CITIRANJA_NORAG
 
 
 def zdi_license_checker_sync(opis_aktivnosti: str, api_key: str) -> dict:
