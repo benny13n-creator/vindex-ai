@@ -3342,8 +3342,8 @@ async function web3Pokreni() {
       else if (data.modul === 'aml_audit') bodyEl.innerHTML = web3RenderAudit(data.audit_data, data.objasnjenje);
       else if (data.modul === 'web3_pretraga') {
         // Isti renderer kao "Istraživanje zakona" — prepoznaje --- sekcije + STATUSNA POTVRDA
-        var _w3html = _injectIzmeneBadges(formatResponse(data.rezultat || ''));
-        bodyEl.innerHTML = _w3html;
+        // NAPOMENA: formatResponse() već interno poziva _injectIzmeneBadges() — ne pozivati ponovo
+        bodyEl.innerHTML = formatResponse(data.rezultat || '');
         if (_cyrillicOn) cirilicaElement(bodyEl);
       }
       else bodyEl.innerHTML = web3FormatirajRezultat(data.rezultat || '');
