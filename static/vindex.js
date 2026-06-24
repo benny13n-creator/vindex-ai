@@ -14778,7 +14778,8 @@ var _iKlijentName = '';
 var _iKlijentFirma = '';
 var _iSessionId   = null;   // uploaded doc session_id
 var _iFiles       = [];     // [{name, sessionId, chunks}]
-var _iAnaliza     = null;   // ekstrakcija result
+var _iAnaliza              = null;   // ekstrakcija result
+var _iEkstrakcijaRunning   = false;  // guard: prevents duplicate AI calls on step 4
 var _iDirty       = false;
 var _iSearchTimer = null;
 
@@ -14787,7 +14788,7 @@ var _INTAKE_STEP_LABELS = ['Klijent','Opis problema','Dokumenti','AI analiza','P
 function intakeOtvori() {
   if (!currentSession) { openModal(); return; }
   _iStep = 1; _iKlijentId = null; _iKlijentName = ''; _iKlijentFirma = ''; _iSessionId = null;
-  _iFiles = []; _iAnaliza = null; _iDirty = false;
+  _iFiles = []; _iAnaliza = null; _iEkstrakcijaRunning = false; _iDirty = false;
   document.getElementById('intake-overlay').classList.add('open');
   _intakeRenderStep();
   document.getElementById('intake-klijent-search').value = '';
@@ -14799,7 +14800,11 @@ function intakeOtvori() {
   document.getElementById('intake-files-list').innerHTML = '';
   document.getElementById('intake-upload-status').textContent = '';
   document.getElementById('intake-ai-result').style.display = 'none';
-  document.getElementById('intake-ai-loading').style.display = 'block';
+  var _ail = document.getElementById('intake-ai-loading');
+  _ail.style.display = 'block';
+  _ail.innerHTML = '<div style="margin-bottom:8px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div><div>Vindex AI analizira opis problema...</div>';
+  document.getElementById('intake-conflict-warning').style.display = 'none';
+  document.getElementById('intake-kreiraj-err').style.display = 'none';
   _intakeBillingReset();
 }
 
@@ -14847,7 +14852,7 @@ function _intakeRenderStep() {
 
   if (_iStep === 4 && !_iAnaliza) {
     nextBtn.disabled = true;
-    _intakeRunEkstrakcija();
+    if (!_iEkstrakcijaRunning) _intakeRunEkstrakcija();
   }
 }
 
@@ -15161,6 +15166,7 @@ function intakeRemoveFile(i) {
 }
 
 async function _intakeRunEkstrakcija() {
+  _iEkstrakcijaRunning = true;
   var opis = (document.getElementById('intake-opis').value || '').trim();
   var nextBtn = document.getElementById('intake-btn-next');
   nextBtn.disabled = true;
@@ -15202,6 +15208,8 @@ async function _intakeRunEkstrakcija() {
     document.getElementById('intake-ai-loading').innerHTML = '<div style="color:#ff9090;font-size:0.82rem;">Greška pri AI analizi. Kliknite "Dalje" da preskočite.</div>';
     _iAnaliza = { predlog_naziva_predmeta: '', vrsta_spora: '', protivna_strana: null, vrednost_spora: null, prvi_rok: null, rok_opis: null, potrebni_dokumenti: [] };
     nextBtn.disabled = false;
+  } finally {
+    _iEkstrakcijaRunning = false;
   }
 }
 

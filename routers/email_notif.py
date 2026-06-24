@@ -31,6 +31,17 @@ from pydantic import BaseModel
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user, _verify_token
 from shared.rate import limiter
+from routers.gdpr import make_unsub_url
+
+logger = logging.getLogger("vindex.email_notif")
+router = APIRouter(tags=["email_notif"])
+
+_SMTP_HOST   = os.getenv("EMAIL_SMTP_HOST", "")
+_SMTP_PORT   = int(os.getenv("EMAIL_SMTP_PORT", "587"))
+_SMTP_USER   = os.getenv("EMAIL_SMTP_USER", "")
+_SMTP_PASS   = os.getenv("EMAIL_SMTP_PASS", "")
+_FROM_ADDR   = os.getenv("EMAIL_FROM", "") or _SMTP_USER
+_CRON_SECRET = os.getenv("CRON_SECRET", "")
 
 _security_opt = HTTPBearer(auto_error=False)
 
@@ -51,17 +62,6 @@ async def _require_cron_or_founder(
             if email in FOUNDER_EMAILS:
                 return {"user_id": payload.get("sub"), "email": email}
     raise HTTPException(status_code=403, detail="Restricted to founder or valid cron key.")
-from routers.gdpr import make_unsub_url
-
-logger = logging.getLogger("vindex.email_notif")
-router = APIRouter(tags=["email_notif"])
-
-_SMTP_HOST   = os.getenv("EMAIL_SMTP_HOST", "")
-_SMTP_PORT   = int(os.getenv("EMAIL_SMTP_PORT", "587"))
-_SMTP_USER   = os.getenv("EMAIL_SMTP_USER", "")
-_SMTP_PASS   = os.getenv("EMAIL_SMTP_PASS", "")
-_FROM_ADDR   = os.getenv("EMAIL_FROM", "") or _SMTP_USER
-_CRON_SECRET = os.getenv("CRON_SECRET", "")
 
 
 # ─── SMTP helper ──────────────────────────────────────────────────────────────
