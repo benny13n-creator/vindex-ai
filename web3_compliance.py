@@ -120,9 +120,8 @@ NADLEŽNOST:
 APSOLUTNE ZABRANE:
 1. NIKADA ne citiraš broj člana koji se ne pojavljuje verbatim (kao "Član X" ili "čl. X") u retrieved chunk-u
 2. NIKADA ne pišeš tekst zakona koji nije doslovno u retrieved chunk-u — pišeš [—]
-3. NIKADA ne citi "čl. 97 ZDI" za teme prihvatanja imovine — taj broj je iz AML sekcije, ne o maloprodaji
-4. NIKADA ne citi "čl. 12 ZDI" van konteksta belog papira — čl. 12 je o sadržaju whitepaper-a
-5. NIKADA: "Možete slobodno", "Nije problem", "Dozvoljeno je" — uvek uz zakonski uslov i ogradu
+3. NIKADA ne citi "čl. 12 ZDI" van konteksta belog papira — čl. 12 je o sadržaju whitepaper-a
+4. NIKADA: "Možete slobodno", "Nije problem", "Dozvoljeno je" — uvek uz zakonski uslov i ogradu
 
 BARTER DISTINKCIJA (kritično):
 - ZDI čl. 91 zabranjuje SAMO "zakonsko sredstvo plaćanja" (legal tender) — NE zabranjuje barter
@@ -172,8 +171,7 @@ STROGO PRAVILO ZA OVU SEKCIJU — identično sa svim ostalim sekcijama:
 • Ako broj NIJE u chunk-u: "• ZDI [opis rizika/kazne]" — BEZ broja
 • Primer ispravno: "• ZDI čl. 140 — [kazna]" ako je "140" doslovno u chunk-u
 • Primer pogrešno: "• ZDI čl. 97 — ..." ako "97" NIJE u chunk-u
-• Ako nema kazni/rokova u retrieved chunks-u: piši "Specifični rokovi i kazne nisu u retrieved kontekstu."
-NIKADA ne navodi čl. 97 ZDI za ovu temu — taj broj nije relevantan za barter/razmenu.]
+• Ako nema kazni/rokova u retrieved chunks-u: piši "Specifični rokovi i kazne nisu u retrieved kontekstu."]
 
 ⚠️ Ovo nije pravni savet. Konsultujte advokata specijalizovanog za digitalnu imovinu.""" + _IZVOR_CITIRANJA_RAG
 
@@ -187,6 +185,7 @@ KANONSKI PREGLED KLJUČNIH ČLANOVA ZDI (KORISTI SAMO OVE):
 - Čl. 29  — VASP licenca: svaki pružalac usluga mora imati dozvolu NBS ili KHoV
 - Čl. 36  — OTC: dozvoljeno bez VASP licence za krajnje stranke (ali VASP mora imati)
 - Čl. 91  — Zabrana ZAKONSKOG SREDSTVA PLAĆANJA — NE zabranjuje barter/dobrovoljnu razmenu
+- Čl. 97  — Prihvatanje DI u maloprodaji: ISKLJUČIVO kroz licenciranog VASP-a; direktan prenos potrošač→trgovac je zabranjen
 - Čl. 140-146 — Kaznene odredbe
 
 POSEBNA PRAVILA ZA BARTER/RAZMENU:
@@ -199,10 +198,9 @@ POSEBNA PRAVILA ZA BARTER/RAZMENU:
 AML/KYC OBAVEZE:
 - ZSPNFT (Zakon o sprečavanju pranja novca i finansiranja terorizma) čl. 9: KYC obaveza za ≥15.000 EUR
 - ZDI čl. 81-90: opšte AML mere za VASP pružaoce
-- NE postoji "čl. 97 ZDI" koji reguliše maloprodajno prihvatanje — ne citi taj broj
+- ZDI čl. 97: maloprodajno prihvatanje DI — VASP posrednik obavezan; direktan prenos zabranjen
 
 ZABRANA CITIRANJA IZMIŠLJENIH ČLANOVA:
-- Ne citi čl. 97 ZDI za prihvatanje imovine — to je kraj AML sekcije, ne odnosi se na maloprodaju
 - Ne citi čl. 12 ZDI za devizno poslovanje — čl. 12 je o sadržaju belog papira
 - Ako nisi siguran koji tačan član važi — navedi samo zakon (npr. "po ZDI"), bez broja člana
 
@@ -470,7 +468,7 @@ POSEBNA PRAVILA — BARTER I RAZMENA:
 - Barter digitalne imovine za robu/uslugu: dozvola za VASP pružaoca (čl. 29), ali ne za krajnje stranke
 - ZDI čl. 91 zabranjuje samo "zakonsko sredstvo plaćanja" — NE zabranjuje dobrovoljni barter
 - Za inostrane barter transakcije: ZDP (devizno poslovanje) pored ZDI
-- ZABRANA: Ne citi "čl. 97 ZDI" za prihvatanje imovine — taj čl. spada u kraj AML sekcije
+- Čl. 97 ZDI: maloprodajno prihvatanje DI u zamenu za robu/usluge — obavezno kroz VASP posrednika; direktan prenos potrošač→trgovac zabranjen
 - ZABRANA: Ne citi "čl. 12 ZDI" za platne usluge — čl. 12 je o sadržaju belog papira""" + _IZVOR_CITIRANJA_NORAG
 
 
@@ -504,9 +502,9 @@ TAČNI AML PRAGOVI I REFERENCE:
 - ZSPNFT čl. 9: KYC obaveza za transakcije ≥15.000 EUR (ili ekvivalent)
 - ZSPNFT čl. 37: monitoring sumnjivih transakcija
 - ZSPNFT čl. 47: prijava APML u roku od 24h
-- ZDI čl. 81-90: opšte AML mere za VASP pružaoce (NE čl. 97)
+- ZDI čl. 81-90: opšte AML mere za VASP pružaoce
+- ZDI čl. 97: maloprodajno prihvatanje DI u zamenu za robu/usluge — obavezno kroz VASP posrednika
 - Travel Rule: FATF R.16 — za transfere ≥1.000 EUR prenosi se info o pošiljaocu/primaocu
-ZABRANA: Ne navodi "čl. 97 ZDI" kao regulatora maloprodajnog prihvatanja — taj broj ne postoji u tom kontekstu.
 """ + _IZVOR_CITIRANJA_NORAG + """
 Analiziraj dostavljeni tekst AML/KYC politike i izračunaj skor usklađenosti.
 
