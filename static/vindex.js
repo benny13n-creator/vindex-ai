@@ -14774,8 +14774,9 @@ function _pred_setDokazi(n) {
 var _iStep = 1;
 var _iKlijentId   = null;
 var _iKlijentName = '';
+var _iKlijentFirma = '';
 var _iSessionId   = null;   // uploaded doc session_id
-var _iFiles       = [];     // [{name, sessionId}]
+var _iFiles       = [];     // [{name, sessionId, chunks}]
 var _iAnaliza     = null;   // ekstrakcija result
 var _iDirty       = false;
 var _iSearchTimer = null;
@@ -14784,7 +14785,7 @@ var _INTAKE_STEP_LABELS = ['Klijent','Opis problema','Dokumenti','AI analiza','P
 
 function intakeOtvori() {
   if (!currentSession) { openModal(); return; }
-  _iStep = 1; _iKlijentId = null; _iKlijentName = ''; _iSessionId = null;
+  _iStep = 1; _iKlijentId = null; _iKlijentName = ''; _iKlijentFirma = ''; _iSessionId = null;
   _iFiles = []; _iAnaliza = null; _iDirty = false;
   document.getElementById('intake-overlay').classList.add('open');
   _intakeRenderStep();
@@ -14894,7 +14895,7 @@ async function intakeKlijentSearch(q) {
         var name = [k.ime, k.prezime, k.firma].filter(Boolean).join(' ');
         var sub  = k.email || k.telefon || k.tip || '';
         html += '<div class="intake-klijent-result' + (k.id === _iKlijentId ? ' selected' : '') + '"'
-             +  ' onclick="intakeKlijentSelect(\'' + k.id + '\',\'' + (name.replace(/'/g,"&#39;")) + '\')">'
+             +  ' onclick="intakeKlijentSelect(\'' + k.id + '\',\'' + (name.replace(/'/g,"&#39;")) + '\',\'' + ((k.firma||'').replace(/'/g,"&#39;")) + '\')">'
              +  '<div class="intake-klijent-name">' + name + '</div>'
              +  (sub ? '<div class="intake-klijent-sub">' + sub + '</div>' : '')
              +  '</div>';
@@ -14905,9 +14906,10 @@ async function intakeKlijentSearch(q) {
   }, 300);
 }
 
-function intakeKlijentSelect(id, name) {
-  _iKlijentId   = id;
-  _iKlijentName = name;
+function intakeKlijentSelect(id, name, firma) {
+  _iKlijentId    = id;
+  _iKlijentName  = name;
+  _iKlijentFirma = firma || '';
   document.querySelectorAll('.intake-klijent-result').forEach(function(el){ el.classList.remove('selected'); });
   var sel = document.getElementById('intake-klijent-selected');
   sel.style.display = '';
@@ -14935,6 +14937,7 @@ async function intakeUploadFile(file) {
     }
     var d = await r.json();
     _iFiles.push({ name: file.name, sessionId: d.session_id, chunks: d.chunk_count });
+    _iDirty = true;
     status.textContent = '';
     status.style.color = '';
     _intakeRenderFileList();
@@ -14977,17 +14980,22 @@ async function _intakeRunEkstrakcija() {
   var body = { opis_problema: opis, analiza_results: null };
 
   if (_iFiles.length > 0) {
-    try {
-      var ar = await fetch(BASE_URL + '/api/dokument/analiza', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
-        body: JSON.stringify({ session_id: _iFiles[0].sessionId, tekst: '', pitanje: '' })
-      });
-      if (ar.ok) {
-        var ad = await ar.json();
-        body.analiza_results = (ad.report && ad.report.findings) || [];
-      }
-    } catch(e) {}
+    var allFindings = [];
+    await Promise.all(_iFiles.map(async function(f) {
+      try {
+        var ar = await fetch(BASE_URL + '/api/dokument/analiza', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+          body: JSON.stringify({ session_id: f.sessionId, tekst: '', pitanje: '' })
+        });
+        if (ar.ok) {
+          var ad = await ar.json();
+          var findings = (ad.report && ad.report.findings) || [];
+          allFindings = allFindings.concat(findings);
+        }
+      } catch(e) {}
+    }));
+    if (allFindings.length > 0) body.analiza_results = allFindings.slice(0, 15);
   }
 
   try {
@@ -15073,7 +15081,7 @@ async function _intakeKreiraj() {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
       body: JSON.stringify({
         novi_klijent_ime:   _iKlijentName || 'Klijent',
-        novi_klijent_firma: '',
+        novi_klijent_firma: _iKlijentFirma || '',
         protivna_strana:    _protivna,
       })
     });
@@ -15117,6 +15125,7 @@ async function _intakeKreiraj() {
     protivna_strana: (document.getElementById('intake-f-protivna').value || '').trim(),
     prvi_rok:        rokVal || null,
     rok_opis:        (document.getElementById('intake-f-rok-opis').value || '').trim() || null,
+    dokumenti:       _iFiles.map(function(f) { return { naziv_fajla: f.name, session_id: f.sessionId, chunks: f.chunks }; }),
   };
 
   try {

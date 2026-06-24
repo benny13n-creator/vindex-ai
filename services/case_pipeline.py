@@ -663,14 +663,24 @@ async def run_case_pipeline(predmet_id: str, user_id: str) -> PipelineResult:
     predmet = pred_r.data
     result  = PipelineResult(predmet_id=predmet_id, user_id=user_id)
 
-    # Run steps sequentially; each step is isolated
-    step1 = await _step_analiza_dokumenata(supa, predmet_id, user_id)
-    step2 = await _step_auto_linking(supa, predmet_id, user_id, predmet)
-    step3 = await _step_ekstrakcija_rokova(supa, predmet_id, user_id, predmet)
+    # Batch 1: DB-only checks — run in parallel
+    step1, step2 = await asyncio.gather(
+        _step_analiza_dokumenata(supa, predmet_id, user_id),
+        _step_auto_linking(supa, predmet_id, user_id, predmet),
+    )
+
+    # Batch 2: Independent GPT calls — run in parallel (~4 concurrent OpenAI calls)
+    step3, step5, step6, step7 = await asyncio.gather(
+        _step_ekstrakcija_rokova(supa, predmet_id, user_id, predmet),
+        _step_strategija(supa, predmet_id, user_id, predmet),
+        _step_hcc(supa, predmet_id, user_id, predmet),
+        _step_risk_snapshot(supa, predmet_id, user_id, predmet),
+    )
+
+    # Step 4 checks if step 3 actually added rokovi to calendar
     step4 = await _step_kalendar(supa, predmet_id, user_id)
-    step5 = await _step_strategija(supa, predmet_id, user_id, predmet)
-    step6 = await _step_hcc(supa, predmet_id, user_id, predmet)
-    step7 = await _step_risk_snapshot(supa, predmet_id, user_id, predmet)
+
+    # Step 8 synthesizes from step 3 (rok count) and step 7 (risk level)
     step8 = await _step_copilot_preporuka(supa, predmet_id, user_id, predmet,
                                            step3, step7)
     step9 = await _step_istorija(supa, predmet_id, user_id,

@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import unicodedata
+from datetime import date, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -94,6 +95,12 @@ class EkstrakcijReq(BaseModel):
     analiza_results: Optional[List[dict]] = None
 
 
+class DokumentIntakeRef(BaseModel):
+    naziv_fajla: str = Field(..., min_length=1, max_length=500)
+    session_id:  str = Field(..., min_length=1, max_length=128)
+    chunks:      int = Field(default=0)
+
+
 class IntakeKreirajReq(BaseModel):
     klijent_id:      str           = Field(..., min_length=1, max_length=64)
     naziv:           str           = Field(..., min_length=2, max_length=200)
@@ -104,6 +111,7 @@ class IntakeKreirajReq(BaseModel):
     protivna_strana: str           = Field(default="", max_length=200)
     prvi_rok:        Optional[str] = Field(default=None, max_length=12)
     rok_opis:        Optional[str] = Field(default=None, max_length=300)
+    dokumenti:       List[DokumentIntakeRef] = Field(default_factory=list)
 
 
 @router.post("/api/intake/ekstrakcija")
@@ -193,12 +201,37 @@ async def intake_kreiraj(
         except Exception as e:
             logger.warning("[INTAKE] rok insert greška: %s", e)
 
-    logger.info("[INTAKE] predmet=%s uid=%.8s rok=%s", predmet_id, uid, rok_dodat)
+    # Link uploaded documents to the new predmet
+    docs_linked = 0
+    for dok in body.dokumenti[:10]:
+        try:
+            _doc_row = {
+                "predmet_id":  predmet_id,
+                "user_id":     uid,
+                "naziv_fajla": dok.naziv_fajla[:500],
+                "velicina_kb": 1,
+            }
+            try:
+                await asyncio.to_thread(
+                    lambda r=_doc_row, sid=dok.session_id: supa.table("predmet_dokumenti").insert(
+                        {**r, "session_id": sid}
+                    ).execute()
+                )
+            except Exception:
+                await asyncio.to_thread(
+                    lambda r=_doc_row: supa.table("predmet_dokumenti").insert(r).execute()
+                )
+            docs_linked += 1
+        except Exception as e:
+            logger.warning("[INTAKE] dok link greška (%s): %s", dok.naziv_fajla, e)
+
+    logger.info("[INTAKE] predmet=%s uid=%.8s rok=%s docs=%d", predmet_id, uid, rok_dodat, docs_linked)
     return {
-        "success":    True,
-        "predmet_id": predmet_id,
-        "predmet":    predmet,
-        "rok_dodat":  rok_dodat,
+        "success":      True,
+        "predmet_id":   predmet_id,
+        "predmet":      predmet,
+        "rok_dodat":    rok_dodat,
+        "docs_linked":  docs_linked,
     }
 
 
@@ -431,9 +464,9 @@ _TEMPLATES: list[dict] = [
         "vrsta_spora": "naknada štete",
         "potrebni_dokumenti": ["Zapisnik o uviđaju", "Medicinska dokumentacija", "Veštačenje štete", "Polica osiguranja"],
         "hronologija_predlozi": [
-            {"dogadjaj": "Prijem predmeta i analiza dokumentacije", "vaznost": "kritičan"},
-            {"dogadjaj": "Podnošenje tužbe sudu",                   "vaznost": "kritičan"},
-            {"dogadjaj": "Odgovor na tužbu protivne strane",        "vaznost": "važan"},
+            {"dogadjaj": "Prijem predmeta i analiza dokumentacije", "vaznost": "kritičan", "days_offset": 0},
+            {"dogadjaj": "Podnošenje tužbe sudu",                   "vaznost": "kritičan", "days_offset": 30},
+            {"dogadjaj": "Odgovor na tužbu protivne strane",        "vaznost": "važan",    "days_offset": 60},
         ],
         "tarifa_preporuka": "T01",
     },
@@ -445,9 +478,9 @@ _TEMPLATES: list[dict] = [
         "vrsta_spora": "radni spor",
         "potrebni_dokumenti": ["Rešenje o otkazu", "Ugovor o radu", "Evidencija radnog vremena", "Plate i obračuni"],
         "hronologija_predlozi": [
-            {"dogadjaj": "Prijem rešenja o otkazu",               "vaznost": "kritičan"},
-            {"dogadjaj": "Podnošenje tužbe (rok: 60 dana)",       "vaznost": "kritičan"},
-            {"dogadjaj": "Predlog za vraćanje na rad",             "vaznost": "važan"},
+            {"dogadjaj": "Prijem rešenja o otkazu",               "vaznost": "kritičan", "days_offset": 0},
+            {"dogadjaj": "Podnošenje tužbe (rok: 60 dana)",       "vaznost": "kritičan", "days_offset": 55},
+            {"dogadjaj": "Predlog za vraćanje na rad",             "vaznost": "važan",    "days_offset": 70},
         ],
         "tarifa_preporuka": "T01",
     },
@@ -459,9 +492,9 @@ _TEMPLATES: list[dict] = [
         "vrsta_spora": "porodično pravo",
         "potrebni_dokumenti": ["Izvod iz matične knjige venčanih", "Izvod iz matične knjige rođenih (deca)", "Imovinska izjava", "Dokazi o zajedničkoj imovini"],
         "hronologija_predlozi": [
-            {"dogadjaj": "Podnošenje tužbe/predloga za razvod",    "vaznost": "kritičan"},
-            {"dogadjaj": "Ročište o starateljstvu",                 "vaznost": "kritičan"},
-            {"dogadjaj": "Presuda o razvodu",                       "vaznost": "važan"},
+            {"dogadjaj": "Podnošenje tužbe/predloga za razvod",    "vaznost": "kritičan", "days_offset": 0},
+            {"dogadjaj": "Ročište o starateljstvu",                 "vaznost": "kritičan", "days_offset": 45},
+            {"dogadjaj": "Presuda o razvodu",                       "vaznost": "važan",    "days_offset": 120},
         ],
         "tarifa_preporuka": "T27",
     },
@@ -473,9 +506,9 @@ _TEMPLATES: list[dict] = [
         "vrsta_spora": "krivično",
         "potrebni_dokumenti": ["Krivična prijava", "Rešenje o pritvoru (ako postoji)", "Optužnica", "Dokazi odbrane"],
         "hronologija_predlozi": [
-            {"dogadjaj": "Prisustvo prvom saslušanju",               "vaznost": "kritičan"},
-            {"dogadjaj": "Uvid u spis predmeta",                     "vaznost": "kritičan"},
-            {"dogadjaj": "Priprema odbrane za glavni pretres",        "vaznost": "važan"},
+            {"dogadjaj": "Prisustvo prvom saslušanju",               "vaznost": "kritičan", "days_offset": 0},
+            {"dogadjaj": "Uvid u spis predmeta",                     "vaznost": "kritičan", "days_offset": 7},
+            {"dogadjaj": "Priprema odbrane za glavni pretres",        "vaznost": "važan",    "days_offset": 30},
         ],
         "tarifa_preporuka": "T12",
     },
@@ -487,9 +520,9 @@ _TEMPLATES: list[dict] = [
         "vrsta_spora": "ugovorni spor",
         "potrebni_dokumenti": ["Ugovor", "Fakture i otpremnice", "Prepiska stranaka", "Izvod iz APR-a"],
         "hronologija_predlozi": [
-            {"dogadjaj": "Slanje opomene pred utuženje",              "vaznost": "važan"},
-            {"dogadjaj": "Podnošenje tužbe privrednom sudu",          "vaznost": "kritičan"},
-            {"dogadjaj": "Predlog za privremenu meru obezbeđenja",    "vaznost": "važan"},
+            {"dogadjaj": "Slanje opomene pred utuženje",              "vaznost": "važan",    "days_offset": 0},
+            {"dogadjaj": "Podnošenje tužbe privrednom sudu",          "vaznost": "kritičan", "days_offset": 15},
+            {"dogadjaj": "Predlog za privremenu meru obezbeđenja",    "vaznost": "važan",    "days_offset": 7},
         ],
         "tarifa_preporuka": "T02",
     },
@@ -501,9 +534,9 @@ _TEMPLATES: list[dict] = [
         "vrsta_spora": "ostalo",
         "potrebni_dokumenti": ["Prvostepeno rešenje", "Žalba (ako postoji)", "Dokazna dokumentacija", "Potvrda o dostavljanju"],
         "hronologija_predlozi": [
-            {"dogadjaj": "Prijem prvostepenog rešenja",               "vaznost": "kritičan"},
-            {"dogadjaj": "Podnošenje žalbe (rok: 15 dana)",           "vaznost": "kritičan"},
-            {"dogadjaj": "Tužba Upravnom sudu (rok: 30 dana)",        "vaznost": "važan"},
+            {"dogadjaj": "Prijem prvostepenog rešenja",               "vaznost": "kritičan", "days_offset": 0},
+            {"dogadjaj": "Podnošenje žalbe (rok: 15 dana)",           "vaznost": "kritičan", "days_offset": 12},
+            {"dogadjaj": "Tužba Upravnom sudu (rok: 30 dana)",        "vaznost": "važan",    "days_offset": 27},
         ],
         "tarifa_preporuka": "T29",
     },
@@ -515,9 +548,9 @@ _TEMPLATES: list[dict] = [
         "vrsta_spora": "naknada štete",
         "potrebni_dokumenti": ["Izvršna isprava (presuda/rešenje)", "Potvrda pravosnažnosti", "Dokaz o dugu", "Podaci o dužniku"],
         "hronologija_predlozi": [
-            {"dogadjaj": "Predlog za izvršenje",                      "vaznost": "kritičan"},
-            {"dogadjaj": "Rešenje o izvršenju",                       "vaznost": "važan"},
-            {"dogadjaj": "Sprovođenje izvršenja",                     "vaznost": "informativan"},
+            {"dogadjaj": "Predlog za izvršenje",                      "vaznost": "kritičan",    "days_offset": 0},
+            {"dogadjaj": "Rešenje o izvršenju",                       "vaznost": "važan",       "days_offset": 30},
+            {"dogadjaj": "Sprovođenje izvršenja",                     "vaznost": "informativan", "days_offset": 60},
         ],
         "tarifa_preporuka": "T14",
     },
@@ -599,16 +632,21 @@ async def post_from_template(
         except Exception:
             pass  # non-blocking
 
-    # Dodaj predefinisanu hronologiju
-    hron_rows = [
-        {
+    # Dodaj predefinisanu hronologiju sa relativnim datumima
+    today = date.today()
+    hron_rows = []
+    for h in tpl.get("hronologija_predlozi", []):
+        offset = h.get("days_offset", 0)
+        datum  = (today + timedelta(days=offset)).isoformat()
+        hron_rows.append({
             "predmet_id": predmet_id,
             "user_id":    uid,
             "dogadjaj":   h["dogadjaj"],
             "vaznost":    h["vaznost"],
-        }
-        for h in tpl.get("hronologija_predlozi", [])
-    ]
+            "datum":      datum,
+            "datum_iso":  datum,
+            "akter":      "Template (AI)",
+        })
     if hron_rows:
         try:
             await asyncio.to_thread(
@@ -620,13 +658,23 @@ async def post_from_template(
     logger.info("[INTAKE-TEMPLATE] uid=%.8s template=%s predmet=%s",
                 uid, body.template_id, predmet_id)
 
+    # Pokreni pipeline u pozadini (ne blokira odgovor)
+    async def _run_pipeline() -> None:
+        try:
+            from services.case_pipeline import run_case_pipeline
+            await run_case_pipeline(predmet_id, uid)
+        except Exception as _pe:
+            logger.warning("[INTAKE-TEMPLATE] pipeline greška predmet=%s: %s", predmet_id, _pe)
+
+    asyncio.create_task(_run_pipeline())
+
     return {
-        "predmet_id":          predmet_id,
-        "naziv":               body.naziv,
-        "tip":                 tpl["tip"],
-        "template_id":         body.template_id,
-        "potrebni_dokumenti":  tpl["potrebni_dokumenti"],
+        "predmet_id":           predmet_id,
+        "naziv":                body.naziv,
+        "tip":                  tpl["tip"],
+        "template_id":          body.template_id,
+        "potrebni_dokumenti":   tpl["potrebni_dokumenti"],
         "hronologija_kreirana": len(hron_rows),
-        "tarifa_preporuka":    tpl["tarifa_preporuka"],
-        "status":              "kreiran",
+        "tarifa_preporuka":     tpl["tarifa_preporuka"],
+        "status":               "kreiran",
     }
