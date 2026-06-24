@@ -36,12 +36,21 @@ IZVOR CITIRANJA (STROGO OBAVEZNO):
 
 # ── Code-level citation verifier ──────────────────────────────────────────────
 
+_LAWS = r'(?:ZDI|ZSPNFT|ZOO|ZDP|ZR|KZ|ZPDG|ZZPL|MiCA)'
+_CL   = r'(?:čl\.|član[a-z]*|art\.?|member)'
+
 def _verifikuj_citat_clanova(odgovor: str, chunks: list) -> str:
     """
     Code-level citation guard — runs AFTER generation.
-    Scans the AI response for ZDI/ZSPNFT/ZOO/ZDP article numbers.
-    If a number does NOT appear verbatim in any retrieved chunk, flags it.
-    This is the hard enforcement layer on top of the prompt instruction.
+
+    Catches ALL orderings:
+      • "ZDI čl. 97"          (law first)
+      • "čl. 97 ZDI"          (article first)
+      • "člana 97 ZDI"        (genitive form)
+      • "čl. 97"              (standalone — ambiguous, still checked)
+
+    Action when NOT in chunks: REMOVES the article number entirely,
+    replaces with "[br. nije u bazi]" — the number must not appear in output.
     """
     import re as _re
     if not chunks or not odgovor:
@@ -49,29 +58,48 @@ def _verifikuj_citat_clanova(odgovor: str, chunks: list) -> str:
 
     chunk_combined = " ".join(chunks).lower()
 
-    # Matches: "ZDI čl. 97", "ZSPNFT čl. 9", "ZOO čl. 557", "ZDP čl. 5", etc.
-    pattern = _re.compile(
-        r'((?:ZDI|ZSPNFT|ZOO|ZDP|ZR|KZ|ZPDG|ZZPL)\s+(?:čl\.|član)\s*)(\d+(?:[-–]\d+)?)',
+    # Pattern A: "ZDI čl. 97"  →  groups: (law_prefix, number)
+    pat_a = _re.compile(
+        r'(' + _LAWS + r'\s+' + _CL + r'\s*)(\d+(?:[-–]\d+)?)',
+        _re.IGNORECASE,
+    )
+    # Pattern B: "čl. 97 ZDI"  →  groups: (cl_prefix, number, law_suffix)
+    pat_b = _re.compile(
+        r'(' + _CL + r'\s*)(\d+(?:[-–]\d+)?)(\s+' + _LAWS + r')',
         _re.IGNORECASE,
     )
 
     flagged: list[str] = []
 
-    def _check(m: _re.Match) -> str:
-        prefix = m.group(1)
-        num    = m.group(2).split("–")[0].split("-")[0]  # take lower bound of range
-        full   = m.group(0)
-        # Verbatim check: the number must appear as a standalone token in chunks
-        if _re.search(r'\b' + _re.escape(num) + r'\b', chunk_combined):
-            return full  # ✓ found verbatim
-        flagged.append(full)
-        return full + " ⚠️[nije u retrieved kontekstu]"
+    def _num_in_chunks(num: str) -> bool:
+        base = num.split("–")[0].split("-")[0]
+        return bool(_re.search(r'\b' + _re.escape(base) + r'\b', chunk_combined))
 
-    result = pattern.sub(_check, odgovor)
+    def _check_a(m: _re.Match) -> str:
+        num  = m.group(2)
+        full = m.group(0)
+        if _num_in_chunks(num):
+            return full
+        flagged.append(full)
+        # Remove number — keep law+čl. prefix, replace number with [br. nije u bazi]
+        return m.group(1) + "[br. nije u bazi]"
+
+    def _check_b(m: _re.Match) -> str:
+        num  = m.group(2)
+        full = m.group(0)
+        if _num_in_chunks(num):
+            return full
+        flagged.append(full)
+        # Remove number — keep čl. prefix and law suffix
+        return m.group(1) + "[br. nije u bazi]" + m.group(3)
+
+    # Apply B first (more specific — prevents A from partially matching)
+    result = pat_b.sub(_check_b, odgovor)
+    result = pat_a.sub(_check_a, result)
 
     if flagged:
         logger.warning(
-            "[WEB3_CITAT_GUARD] Potencijalne halucinacije citiranja: %s",
+            "[WEB3_CITAT_GUARD] Uklonjene halucinacije: %s",
             ", ".join(flagged),
         )
     return result
@@ -138,10 +166,16 @@ Primer pogrešno: "ZDI čl. 97 — prihvatanje u maloprodaji" ako "97" nije u ch
 Svaki korak mora imati zakonski osnov iz retrieved chunk-a ili kanonskog pregleda.]
 
 --- RIZICI I ROKOVI
-[Kazne, rok za registraciju/licencu, prag za KYC. Navedi SAMO ono što je u retrieved chunk-u.
-Format: "• ZDI čl. 140 — [kazna]" SAMO ako je "140" verbatim u chunk-u.]
+[Kazne, rok za registraciju/licencu, prag za KYC.
+STROGO PRAVILO ZA OVU SEKCIJU — identično sa svim ostalim sekcijama:
+• Broj člana navoditi ISKLJUČIVO ako se pojavljuje verbatim u retrieved chunk-u (kao "Član X" ili "čl. X")
+• Ako broj NIJE u chunk-u: "• ZDI [opis rizika/kazne]" — BEZ broja
+• Primer ispravno: "• ZDI čl. 140 — [kazna]" ako je "140" doslovno u chunk-u
+• Primer pogrešno: "• ZDI čl. 97 — ..." ako "97" NIJE u chunk-u
+• Ako nema kazni/rokova u retrieved chunks-u: piši "Specifični rokovi i kazne nisu u retrieved kontekstu."
+NIKADA ne navodi čl. 97 ZDI za ovu temu — taj broj nije relevantan za barter/razmenu.]
 
-⚠️ Ovo nije pravni savet. Konsultujte advokata specijalizovanog za digitalnu imovinu."""
+⚠️ Ovo nije pravni savet. Konsultujte advokata specijalizovanog za digitalnu imovinu.""" + _IZVOR_CITIRANJA_RAG
 
 _COMPLIANCE_CHECKER_SYSTEM = """Ti si compliance officer specijalizovan za digitalnu imovinu.
 Analiziraš da li opisana aktivnost ili poslovni model zahteva dozvolu, registraciju ili
