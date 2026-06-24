@@ -378,6 +378,9 @@ def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> str:
     from openai import OpenAI as _OAI
     from app.services.retrieve import _get_index, _ugradi_query
 
+    chunks: list[str] = []
+    kontekst = ""
+
     try:
         vec = _ugradi_query(opis_aktivnosti)
         idx = _get_index()
@@ -396,7 +399,6 @@ def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> str:
         kontekst = "\n\n".join(chunks) if chunks else ""
     except Exception as e:
         logger.warning("[WEB3] Compliance Pinecone neuspešna: %s", e)
-        kontekst = ""
 
     client = _OAI(api_key=api_key)
     resp = client.chat.completions.create(
@@ -412,7 +414,8 @@ def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> str:
             )},
         ],
     )
-    return (resp.choices[0].message.content or "").strip()
+    odgovor = (resp.choices[0].message.content or "").strip()
+    return _verifikuj_citat_clanova(odgovor, chunks)
 
 
 def whitepaper_check_sync(tekst_whitepaper: str, api_key: str) -> str:

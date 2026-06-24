@@ -234,12 +234,15 @@ def _tip_za_clan(article: str) -> str:
         "124":  "predlog_izvrsenje",
         "154":  "tuzba_naknada_stete",
         "262":  "tuzba_naknada_stete",
-        "557":  "ugovor_o_razmeni",          # barter — ZOO čl. 557
+        "552":  "ugovor_o_razmeni",           # ugovor o razmeni (barter) — ZOO čl. 552
+        "553":  "ugovor_o_razmeni",           # dejstva ugovora o razmeni — ZOO čl. 553
+        "557":  "tuzba_naknada_stete",        # zajam (ugovor o zajmu) — NE barter; čl. 552 = razmena
         # ZDI
-        "2":    "pravno_misljenje",           # definicija — razmena dozvoljena
+        "2":    "pravno_misljenje",           # definicija — razmena/barter dozvoljena
         "9":    "zahtev_za_odobrenje_nbs",    # beli papir + odobrenje
         "29":   "prijava_nbs",                # VASP licenca
-        "91":   "pravno_misljenje",           # zabrana zakonskog sredstva plaćanja
+        "91":   "pravno_misljenje",           # finansijski izveštaji VASP-a nadzornom organu (rok: 30d)
+        "97":   "pravno_misljenje",           # maloprodajno prihvatanje DI — obavezno kroz VASP (B2C)
         # ZDP
         "5":    "izvestaj_nbs_tekuca",        # tekuća devizna transakcija
         "18":   "zahtev_nbs_kapitalna",       # kapitalna devizna transakcija

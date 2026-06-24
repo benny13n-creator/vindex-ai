@@ -63,15 +63,15 @@ ZOO_KATALOG: dict[str, ZOOClan] = {
 ZDI_KATALOG: dict[str, ZOOClan] = {
     "barter_digitalne_imovine": ZOOClan(
         broj         = "2",
-        naziv        = "Definicija — digitalna imovina zamenjiva",
+        naziv        = "Definicija — digitalna imovina razmenjiva",
         opis         = (
             "ZDI čl. 2: Digitalna imovina su digitalni zapisi vrednosti koji se mogu "
-            "digitalno čuvati, kupovati, prodavati, zamenjivati ili prenositi. "
-            "Reč 'zamenjivati' eksplicitno dozvoljava barter/razmenu. "
+            "digitalno čuvati, kupovati, prodavati, razmenjivati ili prenositi. "
+            "Reč 'razmenjivati' eksplicitno dozvoljava barter/razmenu između pravnih lica. "
             "Kompanija iz Srbije MOŽE zaključiti ugovor o razmeni kojim daje digitalnu "
             "imovinu a prima robu/uslugu od inostrane kompanije (ili obrnuto). "
             "Uslov: koristiti licenciranog VASP pružaoca za konverziju u/iz RSD (čl. 29 ZDI). "
-            "ZDI čl. 91 zabranjuje samo 'zakonsko sredstvo plaćanja' — ne zabranjuje barter."
+            "Pravni osnov za B2B barter: ZDI čl. 2 + ZOO čl. 552 (ugovor o razmeni)."
         ),
         tip_podneska = "pravno_misljenje",
     ),
@@ -86,15 +86,15 @@ ZDI_KATALOG: dict[str, ZOOClan] = {
         ),
         tip_podneska = "prijava_nbs",
     ),
-    "zabrana_zakonskog_placanja": ZOOClan(
+    "finansijski_izvestaji_vasp": ZOOClan(
         broj         = "91",
-        naziv        = "Zabrana korišćenja kao zakonskog sredstva plaćanja",
+        naziv        = "Dostavljanje finansijskih izveštaja VASP-a nadzornom organu",
         opis         = (
-            "Zabranjeno je korišćenje digitalne imovine kao zakonskog sredstva plaćanja "
-            "u Republici Srbiji. KLJUČNA DISTINKCIJA: ova zabrana se odnosi na 'zakonsko "
-            "sredstvo plaćanja' (legal tender) — tj. obavezu prihvatanja od svih. "
-            "Dobrovoljni barter/razmena između dve kompanije NIJE zabranjena ovim članom. "
-            "ZOO čl. 557-570 (ugovor o razmeni) ostaje potpuno primenljiv."
+            "ZDI čl. 91: VASP pružalac usluga digitalne imovine dužan je dostaviti "
+            "finansijske izveštaje nadzornom organu (NBS ili KHoV) u roku od 30 dana. "
+            "KLJUČNA NAPOMENA: čl. 91 NE zabranjuje barter ni razmenu digitalne imovine — "
+            "radi se isključivo o izveštajnoj obavezi VASP-a. "
+            "Za B2B razmenu: pravni osnov je ZDI čl. 2 + ZOO čl. 552 (ugovor o razmeni)."
         ),
         tip_podneska = "pravno_misljenje",
     ),
