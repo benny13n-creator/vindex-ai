@@ -1,0 +1,174 @@
+{
+  "audit_date": "2026-06-24",
+  "audit_type": "post_implementation",
+  "pinecone_total_vectors": 39009,
+  "default_namespace_vectors": 25822,
+  "indexed_laws": [
+    {
+      "name": "zakon o privrednim drustvima",
+      "chunks": 2249,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o obligacionim odnosima",
+      "chunks": 2239,
+      "has_vectors": true
+    },
+    {
+      "name": "zakonik o krivicnom postupku",
+      "chunks": 1867,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o bezbednosti saobracaja na putevima",
+      "chunks": 1533,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o izvrsenju i obezbedjenju",
+      "chunks": 1400,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o planiranju i izgradnji",
+      "chunks": 1300,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o parnicnom postupku",
+      "chunks": 1087,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o javnim nabavkama",
+      "chunks": 1067,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o prekrsajima",
+      "chunks": 937,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o sprecavanju pranja novca i finansiranja terorizma",
+      "chunks": 884,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o zastiti potrosaca",
+      "chunks": 876,
+      "has_vectors": true
+    },
+    {
+      "name": "porodicni zakon",
+      "chunks": 858,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o strancima",
+      "chunks": 773,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o stecaju",
+      "chunks": 748,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o opstem upravnom postupku",
+      "chunks": 700,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o radu",
+      "chunks": 694,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o digitalnoj imovini",
+      "chunks": 665,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o autorskom i srodnim pravima",
+      "chunks": 633,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o zastiti podataka o licnosti",
+      "chunks": 593,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o vanparnicnom postupku",
+      "chunks": 550,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o porezu na dohodak gradjana",
+      "chunks": 537,
+      "has_vectors": true
+    },
+    {
+      "name": "ustav republike srbije",
+      "chunks": 476,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o nasledjivanju",
+      "chunks": 341,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o deviznom poslovanju",
+      "chunks": 320,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o azilu",
+      "chunks": 305,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o pristupu informacijama od javnog znacaja",
+      "chunks": 207,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o upravnim sporovima",
+      "chunks": 161,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o hipoteci",
+      "chunks": 157,
+      "has_vectors": true
+    },
+    {
+      "name": "zakon o zaposljavanju stranaca",
+      "chunks": 132,
+      "has_vectors": true
+    },
+    {
+      "name": "krivicni zakonik",
+      "chunks": 0,
+      "has_vectors": false
+    }
+  ],
+  "law_hints_trigger_count": 262,
+  "law_hints_unique_targets": 30,
+  "bugs": [],
+  "notes": [
+    "KZ (Krivični zakonik) koristi shortcode 'KZ' kao metadata law vrednost (1533 chunks potvrđeno). Ovo je namerna dizajn odluka — filter {'law': {'$eq': 'KZ'}} radi ispravno. Nije bug.",
+    "Audit skript je kveri za 'krivicni zakonik' (puni naziv) koji ne postoji u indeksu — false alarm. Pravi naziv u metapodacima je 'KZ'.",
+    "Sve ostale LAW_HINTS vrednosti su puni nazivi zakona i matchuju Pinecone metadata."
+  ],
+  "summary": {
+    "laws_with_chunks": 29,
+    "laws_with_0_chunks_real": 0,
+    "laws_with_50plus": 29,
+    "total_laws_checked": 30,
+    "real_bugs_found": 0,
+    "kz_note": "KZ has 1533 chunks under law='KZ', filter confirmed working"
+  }
+}

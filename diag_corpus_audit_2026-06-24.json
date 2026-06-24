@@ -1,0 +1,185 @@
+{
+  "audit_date": "2026-06-24",
+  "pinecone_index": "vindex-ai",
+  "namespace_used": "__default__",
+  "metadata_field_used": "law (full name) + zakon (short code) — both present on every vector",
+  "total_vectors_all_namespaces": 30897,
+  "namespace_breakdown": {
+    "__default__": 17710,
+    "sudska_praksa": 12604,
+    "misljenja": 74,
+    "web3_zdi_mca": 479,
+    "pred_*": 30
+  },
+
+  "indexed_laws": [
+    {"name": "zakon o privrednim drustvima",                          "short": "ZPD",    "chunks": 2249},
+    {"name": "zakon o obligacionim odnosima",                         "short": "ZOO",    "chunks": 2239},
+    {"name": "zakonik o krivicnom postupku",                          "short": "ZKP",    "chunks": 1867},
+    {"name": "KZ",                                                    "short": "KZ",     "chunks": 1533},
+    {"name": "zakon o izvrsenju i obezbedjenju",                      "short": "ZIO",    "chunks": 1400},
+    {"name": "zakon o parnicnom postupku",                            "short": "ZPP",    "chunks": 1087},
+    {"name": "zakon o sprecavanju pranja novca i finansiranja terorizma", "short": "ZSPNFT", "chunks": 884},
+    {"name": "zakon o zastiti potrosaca",                             "short": "ZZP",    "chunks": 876},
+    {"name": "porodicni zakon",                                       "short": "PZ",     "chunks": 858},
+    {"name": "zakon o opstem upravnom postupku",                      "short": "ZOUP",   "chunks": 700},
+    {"name": "zakon o radu",                                          "short": "ZR",     "chunks": 694},
+    {"name": "zakon o digitalnoj imovini",                            "short": "ZDI",    "chunks": 665},
+    {"name": "zakon o zastiti podataka o licnosti",                   "short": "ZZPL",   "chunks": 593},
+    {"name": "zakon o vanparnicnom postupku",                         "short": "ZVP",    "chunks": 550},
+    {"name": "zakon o porezu na dohodak gradjana",                    "short": "ZPDG",   "chunks": 537},
+    {"name": "ustav republike srbije",                                "short": "USTAV",  "chunks": 476},
+    {"name": "zakon o nasledjivanju",                                 "short": "ZN",     "chunks": 341},
+    {"name": "zakon o upravnim sporovima",                            "short": "ZUS",    "chunks": 161}
+  ],
+
+  "law_hints_laws": [
+    "zakon o radu",
+    "porodicni zakon",
+    "zakonik o krivicnom postupku",
+    "KZ",
+    "zakon o parnicnom postupku",
+    "zakon o izvrsenju i obezbedjenju",
+    "zakon o obligacionim odnosima",
+    "zakon o privrednim drustvima",
+    "zakon o upravnim sporovima",
+    "zakon o opstem upravnom postupku",
+    "zakon o vanparnicnom postupku",
+    "zakon o nasledjivanju",
+    "ustav republike srbije",
+    "zakon o zastiti potrosaca",
+    "zakon o sprecavanju pranja novca i finansiranja terorizma",
+    "zakon o digitalnoj imovini",
+    "ZPDG",
+    "zakon o bezbednosti saobracaja na putevima",
+    "zakon o deviznom poslovanju",
+    "zakon o zaposljavanju stranaca",
+    "zakon o strancima",
+    "zakon o azilu",
+    "zakon o pristupu informacijama od javnog znacaja"
+  ],
+
+  "missing_from_corpus": [
+    {
+      "law": "zakon o bezbednosti saobracaja na putevima",
+      "short": "ZBSN",
+      "chunks": 0,
+      "priority": "P0",
+      "triggers": ["saobracaj", "saobracajna nesreca", "saobracajna kazna", "oduzimanje vozacke", "prekrsaj u saobracaju", "brzina vozila", "alkohol za volanom", "zbsn"],
+      "impact": "Queries about traffic violations, DUI, speed limits, license revocation return empty Pinecone results — AI answers from training data only, no grounding"
+    },
+    {
+      "law": "zakon o deviznom poslovanju",
+      "short": "ZDF",
+      "chunks": 0,
+      "priority": "P0",
+      "triggers": ["devizno", "devizna", "devizni racun", "konverzija valute", "transfer novca u inostranstvo", "platni promet sa inostranstvom", "zdf"],
+      "impact": "Queries about foreign exchange, money transfers abroad, currency conversion return empty Pinecone results"
+    },
+    {
+      "law": "zakon o zaposljavanju stranaca",
+      "short": "ZRDS",
+      "chunks": 0,
+      "priority": "P0",
+      "triggers": ["radna dozvola", "zrds"],
+      "impact": "Work permit queries return empty Pinecone results"
+    },
+    {
+      "law": "zakon o strancima",
+      "short": "—",
+      "chunks": 0,
+      "priority": "P0",
+      "triggers": ["dozvola boravka", "viza", "stranac", "boraviste stranac"],
+      "impact": "Visa, residence permit, and foreigner status queries return empty Pinecone results"
+    },
+    {
+      "law": "zakon o azilu",
+      "short": "—",
+      "chunks": 0,
+      "priority": "P0",
+      "triggers": ["azil"],
+      "impact": "Asylum queries return empty Pinecone results"
+    },
+    {
+      "law": "zakon o pristupu informacijama od javnog znacaja",
+      "short": "ZPPI",
+      "chunks": 0,
+      "priority": "P0",
+      "triggers": ["pristup informacijam", "informacija od javnog znacaja", "zahtev za informacije", "poverenik za informacije", "zppi"],
+      "impact": "FOIA-equivalent queries (public information access) return empty Pinecone results"
+    }
+  ],
+
+  "orphaned_vectors": [
+    {
+      "name": "zakon o zastiti podataka o licnosti",
+      "short": "ZZPL",
+      "chunks": 593,
+      "namespace": "__default__",
+      "issue": "Indexed in Pinecone but ZERO entries in LAW_HINTS route to it. No keyword triggers (GDPR, licni podaci, obrada podataka, etc.) are defined. Content reachable only via non-filtered semantic fallback — law-specific accuracy severely degraded.",
+      "priority": "HIGH — add LAW_HINTS triggers"
+    },
+    {
+      "name": "web3_zdi_mca namespace",
+      "short": "—",
+      "chunks": 479,
+      "namespace": "web3_zdi_mca",
+      "issue": "Entire namespace exists in Pinecone but retrieve.py never queries it. Metadata schema differs (fields: izvor, naslov, propis, tekst, tip — not the standard law/zakon/article schema). These 479 vectors are completely unreachable by any user query.",
+      "priority": "MEDIUM — investigate whether to integrate or delete"
+    }
+  ],
+
+  "bugs_found": [
+    {
+      "bug": "ZPDG LAW_HINTS filter mismatch",
+      "severity": "HIGH",
+      "description": "LAW_HINTS maps ZPDG triggers to the string 'ZPDG'. retrieve.py passes this as filter={\"law\":{\"$eq\":\"ZPDG\"}}. But vectors in Pinecone have law='zakon o porezu na dohodak gradjana', NOT 'ZPDG'. The filter silently returns 0 results. Expansion queries (_ZPDG_TERMINI via _semanticka_pretraga(term, 3, 'ZPDG')) also fail for the same reason. ZPDG content is found only via the non-filtered semantic fallback — unguaranteed and diluted by other law results.",
+      "fix": "Change LAW_HINTS value from 'ZPDG' to 'zakon o porezu na dohodak gradjana'. Also fix _ZPDG_TERMINI expansion call to use the full name."
+    }
+  ],
+
+  "scraping_candidates": {
+    "P0": [
+      "zakon o bezbednosti saobracaja na putevima (ZBSN) — traffic law, very common queries",
+      "zakon o deviznom poslovanju (ZDF) — foreign exchange law",
+      "zakon o zaposljavanju stranaca (ZRDS) — work permits for foreigners",
+      "zakon o strancima — residence/visa law",
+      "zakon o azilu — asylum law",
+      "zakon o pristupu informacijama od javnog znacaja (ZPPI) — public information access"
+    ],
+    "P1": [
+      "zakon o upravnim sporovima (ZUS): only 161 chunks — may be incomplete; full text ~200 clanova expected ~400+ chunks",
+      "zakon o nasledjivanju (ZN): 341 chunks — verify completeness against official PDF"
+    ],
+    "P2": [
+      "zakon o hipoteci — mortgage law, common in real estate disputes",
+      "zakon o planiranju i izgradnji — construction/zoning, high query volume expected",
+      "zakon o stecaju — bankruptcy/insolvency",
+      "zakon o autorskom i srodnim pravima — copyright law (IP practices)",
+      "zakon o prekrsajima — misdemeanor procedure (precedes ZKP for minor offenses)",
+      "zakon o javnim nabavkama — public procurement (relevant for lawyers advising companies)",
+      "zakon o elektronskim komunikacijama — telecom/data law (overlaps with ZDI scope)"
+    ]
+  },
+
+  "coverage_summary": {
+    "total_law_chunks": 17710,
+    "laws_with_hints_and_corpus": 17,
+    "laws_with_hints_but_no_corpus": 6,
+    "laws_in_corpus_but_no_hints": 1,
+    "filter_bugs": 1,
+    "unreachable_namespace_vectors": 479,
+    "sudska_praksa_vectors": 12604,
+    "misljenja_vectors": 74
+  },
+
+  "notes": [
+    "Both metadata fields exist on every vector: 'law' (full Serbian name) and 'zakon' (uppercase short code, e.g. 'ZOO'). retrieve.py uses 'law' for semantic filter and 'zakon' for article-level fetch.",
+    "The 17 laws sum to exactly 17,710 — full default namespace accounted for. No unknown/stray vectors.",
+    "KZ and ZKP are separate laws with separate chunks (KZ=criminal code, ZKP=criminal procedure code) — correct architecture.",
+    "ZPD (Zakon o privrednim drustvima) has the highest chunk count at 2249, suggesting a large and complex law or very fine-grained chunking.",
+    "web3_zdi_mca namespace (479 vectors) has a different metadata schema (izvor/naslov/propis/tekst/tip) — possibly ingested by a different pipeline. Not integrated into main retrieval.",
+    "pred_* namespaces (5 vectors each, 6 total = 30 vectors) are per-case uploaded document namespaces for document-level RAG — these are correct and expected.",
+    "Audit method: targeted filter queries per known law value. Zero-vector dummy queries with law filter to count matches. All 17710 default-namespace vectors accounted for. NOT a full sequential fetch — counts are exact due to Pinecone top_k=10000 filter behavior."
+  ]
+}
