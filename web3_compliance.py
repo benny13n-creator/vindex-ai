@@ -12,6 +12,28 @@ logger = logging.getLogger(__name__)
 
 _WEB3_NAMESPACE = "web3_zdi_mca"
 
+# ── Citiranje — zajednička pravila ────────────────────────────────────────────
+
+# Za RAG funkcije: broj člana samo ako se pojavljuje verbatim u retrieved chunkovima
+_IZVOR_CITIRANJA_RAG = """
+IZVOR CITIRANJA (STROGO OBAVEZNO):
+- Svaki pravni stav mora imati referencu u formatu: [ZDI čl. X] ili [ZSPNFT čl. X]
+- Broj člana citiraj ISKLJUČIVO ako se taj broj pojavljuje verbatim u retrieved chunk-u koji ti je dostupljen
+- Ako broj člana NIJE eksplicitno u retrieved chunk-u: piši "ZDI [opis odredbe]" — BEZ broja
+- Zabranjen je inference broja člana iz konteksta, pozicije ili logičkog redosleda
+- Primer ispravno: "[ZDI čl. 91] — zabrana zakonskog sredstva plaćanja" (jer chunk sadrži "Član 91")
+- Primer pogrešno: "[ZDI čl. 97]" ako chunk ne sadrži eksplicitno "97" ili "Član 97"
+"""
+
+# Za non-RAG funkcije: broj samo iz kanonskog pregleda ugrađenog u prompt
+_IZVOR_CITIRANJA_NORAG = """
+IZVOR CITIRANJA (STROGO OBAVEZNO):
+- Svaki pravni stav mora imati referencu u formatu: [ZDI čl. X] ili [ZSPNFT čl. X]
+- Broj člana citiraj ISKLJUČIVO iz kanonskog pregleda definisanog u ovom promptu
+- Ako tema nije pokrivena kanonskim pregledom: piši samo naziv zakona (npr. "po ZDI") — BEZ broja
+- Zabranjen je inference broja člana iz konteksta, pozicije ili logičkog redosleda
+"""
+
 # ── System promptovi ──────────────────────────────────────────────────────────
 
 _WEB3_SEARCH_SYSTEM = """Ti si specijalizovani pravni savetnik za digitalnu imovinu i kripto-regulativu.
@@ -50,7 +72,7 @@ Pravila odgovaranja:
 - ZABRANA: Ne citi čl. 12 ZDI za devizno poslovanje — čl. 12 je o belom papiru
 - Ako nisi siguran koji tačan član pokriva temu — reci "prema ZDI, ali tačan član treba proveriti"
 - Na kraju svakog odgovora dodaj: "⚠️ Ovo nije pravni savet. Konsultujte advokata specijalizovanog za digitalnu imovinu."
-"""
+""" + _IZVOR_CITIRANJA_RAG
 
 _COMPLIANCE_CHECKER_SYSTEM = """Ti si compliance officer specijalizovan za digitalnu imovinu.
 Analiziraš da li opisana aktivnost ili poslovni model zahteva dozvolu, registraciju ili
@@ -102,7 +124,7 @@ Struktura odgovora (obavezna):
 
 7. PREPORUČENE AKCIJE (konkretan redosled koraka)
 
-Na kraju: UKUPNA PROCENA RIZIKA: NIZAK / SREDNJI / VISOK"""
+Na kraju: UKUPNA PROCENA RIZIKA: NIZAK / SREDNJI / VISOK""" + _IZVOR_CITIRANJA_RAG
 
 _WHITEPAPER_CHECKER_SYSTEM = """Ti si pravni ekspert za bele papire (whitepaper) digitalne imovine.
 Analiziraš da li dostavljeni whitepaper (ili opis projekta) ispunjava zahteve
@@ -117,7 +139,7 @@ Struktura odgovora (obavezna):
    Za svaki: šta nedostaje, koji član to zahteva, predlog kako dodati
 3. ZABRANJENI SADRŽAJI (obmanjujuće izjave, garantovanje prinosa)
 4. PREPORUKA: SPREMAN / POTREBNE DOPUNE / ODBACITI
-5. PROCENJENI ROK ODOBRAVANJA (po ZDI: KHoV/NBS ima 30 dana)"""
+5. PROCENJENI ROK ODOBRAVANJA (po ZDI: KHoV/NBS ima 30 dana)""" + _IZVOR_CITIRANJA_NORAG
 
 
 # ── Sync funkcije ──────────────────────────────────────────────────────────────
@@ -271,7 +293,7 @@ Pravila bodovanja (0-100):
 - rezerve_i_backing: 0-20 (za ART/EMT — da li postoji backing; za ostale tokene — 20 automatski)
 - market_abuse: 0-20 (zabrana insider trading, wash trading, pump&dump)
 
-skor_nivo: NIZAK (0-39), SREDNJI (40-69), VISOK (70-100)"""
+skor_nivo: NIZAK (0-39), SREDNJI (40-69), VISOK (70-100)""" + _IZVOR_CITIRANJA_NORAG
 
 
 def mica_readiness_score_sync(tekst_projekta: str, api_key: str) -> dict:
@@ -324,7 +346,7 @@ POSEBNA PRAVILA — BARTER I RAZMENA:
 - ZDI čl. 91 zabranjuje samo "zakonsko sredstvo plaćanja" — NE zabranjuje dobrovoljni barter
 - Za inostrane barter transakcije: ZDP (devizno poslovanje) pored ZDI
 - ZABRANA: Ne citi "čl. 97 ZDI" za prihvatanje imovine — taj čl. spada u kraj AML sekcije
-- ZABRANA: Ne citi "čl. 12 ZDI" za platne usluge — čl. 12 je o sadržaju belog papira"""
+- ZABRANA: Ne citi "čl. 12 ZDI" za platne usluge — čl. 12 je o sadržaju belog papira""" + _IZVOR_CITIRANJA_NORAG
 
 
 def zdi_license_checker_sync(opis_aktivnosti: str, api_key: str) -> dict:
@@ -360,7 +382,7 @@ TAČNI AML PRAGOVI I REFERENCE:
 - ZDI čl. 81-90: opšte AML mere za VASP pružaoce (NE čl. 97)
 - Travel Rule: FATF R.16 — za transfere ≥1.000 EUR prenosi se info o pošiljaocu/primaocu
 ZABRANA: Ne navodi "čl. 97 ZDI" kao regulatora maloprodajnog prihvatanja — taj broj ne postoji u tom kontekstu.
-
+""" + _IZVOR_CITIRANJA_NORAG + """
 Analiziraj dostavljeni tekst AML/KYC politike i izračunaj skor usklađenosti.
 
 Odgovori ISKLJUČIVO u JSON formatu:
