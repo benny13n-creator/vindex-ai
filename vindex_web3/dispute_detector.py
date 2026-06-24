@@ -14,7 +14,8 @@ from .interfaces import BlockchainEvent, DisputeResult, DisputeType
 
 logger = get_logger(__name__)
 
-_DEDUP_TTL_S: float = 60.0
+_DEDUP_TTL_S: float = 3600.0   # 1h — blockchain reorg window; 60s je bio premalo
+_AML_THRESHOLD_ETH: float = 40.0  # ~15.000 EUR pri ETH ceni ~375 EUR; ZSPNFT čl. 9
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,37 @@ def _eth_eq(value: float) -> Callable[[BlockchainEvent], bool]:
 # ── Rule table ────────────────────────────────────────────────────────────────
 
 DISPUTE_RULES: list[DisputeRule] = [
+    # AML threshold pravilo — ZSPNFT čl. 9: ≥15.000 EUR u ekvivalentu → obavezna KYC prijava
+    DisputeRule(
+        name         = "aml_threshold_exceeded",
+        dispute_type = "aml_threshold_exceeded",
+        confidence   = 0.97,
+        predicate    = lambda e: float(e.value_eth) >= _AML_THRESHOLD_ETH,
+        evidence_fn  = lambda e: [
+            f"value_eth={e.value_eth}",
+            f"aml_threshold_eth={_AML_THRESHOLD_ETH}",
+            f"pravni_osnov=ZSPNFT_cl_9_obavezna_kyc_prijava",
+            f"event_type={e.event_type}",
+            f"tx_hash={e.tx_hash}",
+        ],
+    ),
+    # Cross-border flag — transakcija prema/sa inostranstvom (from/to adresa != RS VASP)
+    DisputeRule(
+        name         = "cross_border_high_value",
+        dispute_type = "cross_border_violation",
+        confidence   = 0.75,
+        predicate    = lambda e: (
+            e.event_type == "cross_border_transfer" and float(e.value_eth) > 1.0
+        ),
+        evidence_fn  = lambda e: [
+            f"event_type=cross_border_transfer",
+            f"value_eth={e.value_eth}",
+            f"from={e.from_address}",
+            f"to={e.to_address}",
+            f"pravni_osnov=ZDP_cl_18_izvestavanje_nbs",
+            f"tx_hash={e.tx_hash}",
+        ],
+    ),
     DisputeRule(
         name         = "payment_failed_high_value",
         dispute_type = "breach_of_contract",

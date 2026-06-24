@@ -68,6 +68,34 @@ MAPPING_TABLE: dict[str, LegalMapping] = {
             "Prestanak imovinskog prava — raskid token-ugovora (čl. 360 ZOO)."
         ),
     ),
+    # Razmena digitalne imovine za robu/usluge — primarni pravni osnov je ZOO čl. 557
+    # (ugovor o razmeni). ZDI ne zabranjuje razmenu, zabranjuje samo zakonsko sredstvo plaćanja.
+    "barter_exchange": LegalMapping(
+        pravna_kategorija = "ugovor_o_razmeni_digitalna_imovina",
+        zakon             = "ZOO",
+        clan              = 557,
+        opis              = (
+            "Ugovor o razmeni (trampa) digitalne imovine za robu ili usluge. "
+            "ZOO čl. 557: svaka ugovorna strana se obavezuje da drugoj prenese pravo "
+            "svojine na određenoj stvari. Digitalna imovina se tretira kao 'stvar' u "
+            "smislu ZOO. ZDI čl. 91 zabranjuje samo zakonsko sredstvo plaćanja — "
+            "ne zabranjuje barter. Uslov: transakcija mora proći kroz licenciranog "
+            "VASP pružaoca usluga (čl. 29 ZDI)."
+        ),
+    ),
+    # Prekogranični prenos digitalne imovine — primarno reguliše ZDP.
+    "cross_border_transfer": LegalMapping(
+        pravna_kategorija = "prekogranican_prenos_digitalne_imovine",
+        zakon             = "ZDP",
+        clan              = 5,
+        opis              = (
+            "Prekogranični prenos digitalne imovine ka/iz inostranstva. "
+            "ZDP čl. 5: tekuće transakcije po osnovu robe/usluga su slobodne. "
+            "ZDP čl. 18: obaveza izveštavanja NBS za kapitalne transakcije. "
+            "ZDI čl. 29: VASP licenca obavezna za pružaoca u transakciji. "
+            "ZSPNFT čl. 37: AML praćenje prekograničnih tokova digitalne imovine."
+        ),
+    ),
 }
 
 # ── ZDI — Zakon o digitalnoj imovini ─────────────────────────────────────────
@@ -117,6 +145,59 @@ ZDI_TABLE: dict[str, LegalMapping] = {
         opis              = (
             "Trajno uklanjanje digitalne imovine iz opticaja. "
             "Mora biti usklađeno sa definicijom i pravilima (čl. 2 ZDI)."
+        ),
+    ),
+    "barter_exchange": LegalMapping(
+        pravna_kategorija = "razmena_digitalne_imovine_dozvoljena",
+        zakon             = "ZDI",
+        clan              = 2,
+        opis              = (
+            "Digitalna imovina se može 'zamenjivati' prema definiciji čl. 2 ZDI. "
+            "Čl. 91 ZDI zabranjuje SAMO upotrebu kao zakonsko sredstvo plaćanja — "
+            "barter je dozvoljen. Obavezno: korišćenje licenciranog VASP pružaoca "
+            "za konverziju u/iz dinara (čl. 29 ZDI)."
+        ),
+    ),
+    "cross_border_transfer": LegalMapping(
+        pravna_kategorija = "prekogranican_prenos_vasp_licenca",
+        zakon             = "ZDI",
+        clan              = 29,
+        opis              = (
+            "Prekogranični prenos digitalne imovine zahteva učešće licenciranog VASP "
+            "pružaoca usluga (čl. 29 ZDI). Nelicencirani prenos može povući "
+            "administrativnu odgovornost prema NBS/KHoV."
+        ),
+    ),
+}
+
+# ── ZDP — Zakon o deviznom poslovanju ─────────────────────────────────────────
+# Primenjuje se na prekogranične transakcije s digitalnom imovinom.
+# Lex specialis za devizni aspekt cross_border_transfer; sekundarni za barter_exchange.
+
+ZDP_TABLE: dict[str, LegalMapping] = {
+    "cross_border_transfer": LegalMapping(
+        pravna_kategorija = "devizna_transakcija_inostranstvo",
+        zakon             = "ZDP",
+        clan              = 5,
+        weight            = 8,
+        opis              = (
+            "Tekuća devizna transakcija sa inostranstvom po osnovu robe/usluga slobodna je. "
+            "Kompanija iz Srbije koja šalje digitalnu imovinu inostranstvu (ili prima) "
+            "po osnovu ugovora o razmeni može to tretirati kao tekuću transakciju (čl. 5 ZDP). "
+            "Kapitalne transakcije (investicije, zajmovi) zahtevaju saglasnost NBS (čl. 18 ZDP). "
+            "ZDP je lex specialis za devizni aspekt — ima prednost nad ZOO za prekogranično."
+        ),
+    ),
+    "barter_exchange": LegalMapping(
+        pravna_kategorija = "devizni_aspekt_razmene",
+        zakon             = "ZDP",
+        clan              = 5,
+        weight            = 8,
+        opis              = (
+            "Barter ugovor između srpske kompanije i inostrane kompanije može biti "
+            "tekuća devizna transakcija (čl. 5 ZDP) ako se radi o razmeni robe/usluga. "
+            "Evidencija i izveštavanje NBS obavezni. VASP posrednik kroz koga prolaze "
+            "dinari je sam obveznik deviznih propisa."
         ),
     ),
 }
@@ -169,6 +250,29 @@ ZSPNFT_TABLE: dict[str, LegalMapping] = {
             "Prag identifikacije: ≥ 15.000 EUR u gotovini ili ekvivalentu (ZSPNFT čl. 9)."
         ),
     ),
+    "barter_exchange": LegalMapping(
+        pravna_kategorija = "kyc_pri_razmeni",
+        zakon             = "ZSPNFT",
+        clan              = 7,
+        weight            = 10,
+        opis              = (
+            "Razmena digitalne imovine za robu/usluge zahteva KYC identifikaciju. "
+            "Licencirani VASP posrednik je obveznik — mora sprovoditi dubinsku analizu "
+            "obe ugovorne strane (čl. 7 ZSPNFT). Prag: ≥ 15.000 EUR ekvivalent (čl. 9 ZSPNFT)."
+        ),
+    ),
+    "cross_border_transfer": LegalMapping(
+        pravna_kategorija = "aml_pracenje_prekogranican",
+        zakon             = "ZSPNFT",
+        clan              = 37,
+        weight            = 10,
+        opis              = (
+            "Prekogranični prenos digitalne imovine podleže pojačanom AML praćenju. "
+            "Obveznik prati obrazac transakcija sa inostranstvom (čl. 37 ZSPNFT). "
+            "Transakcije sa jurisdikcijama visokog rizika podležu pojačanoj "
+            "dubinskoj analizi (čl. 8 ZSPNFT)."
+        ),
+    ),
 }
 
 # ── ZPDG — Zakon o porezu na dohodak građana ─────────────────────────────────
@@ -201,6 +305,19 @@ ZPDG_TABLE: dict[str, LegalMapping] = {
             "Kapitalni gubitak se može preneti na naredni period (čl. 72v ZPDG)."
         ),
     ),
+    # Razmena digitalne imovine za robu/usluge — oporeziv događaj
+    "barter_exchange": LegalMapping(
+        pravna_kategorija = "prihod_od_razmene_digitalne_imovine",
+        zakon             = "ZPDG",
+        clan              = 72,
+        opis              = (
+            "Kompanija koja primi digitalnu imovinu za pruženu uslugu ili robu "
+            "ostvaruje prihod koji je oporeziv. Vrednost u RSD se utvrđuje na dan "
+            "transakcije. Kompanija koja daje digitalnu imovinu realizuje kapitalnu "
+            "dobit/gubitak (čl. 72b/72v ZPDG). Obaveza: samooporezivanje — obveznik "
+            "sam obračunava i plaća porez."
+        ),
+    ),
 }
 
 # ── Compile-time check: svaki EventType mora biti u MAPPING_TABLE ─────────────
@@ -212,10 +329,11 @@ if _MISSING:
         f"Dodajte unose pre nastavka."
     )
 
-# Agregirana tabela svih zakona
+# Agregirana tabela svih zakona (ZDP dodat za devizni aspekt)
 _ALL_TABLES: list[dict[str, LegalMapping]] = [
     MAPPING_TABLE,
     ZDI_TABLE,
+    ZDP_TABLE,
     ZSPNFT_TABLE,
     ZPDG_TABLE,
 ]
@@ -225,6 +343,8 @@ _AML_KEYWORDS: frozenset[str] = frozenset([
     "aml", "kyc", "pranje", "pranja", "compliance", "sumnjiva",
     "obveznik", "identifikacija", "dubinska analiza", "finansiranje terorizma",
     "str prijava", "apml", "zspnft",
+    # Dodatne ključne reči za prekogranične kripto transakcije
+    "inostranstvo", "devizn", "nbs saglasnost", "cross_border",
 ])
 
 

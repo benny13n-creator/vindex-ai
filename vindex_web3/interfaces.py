@@ -15,9 +15,15 @@ from pydantic import BaseModel, Field, field_validator
 # ── Type aliases ──────────────────────────────────────────────────────────────
 
 EventType   = Literal["transfer", "contract_call", "payment_failed",
-                      "approval", "mint", "burn"]
+                      "approval", "mint", "burn",
+                      "barter_exchange",        # razmena digitalne imovine za robu/usluge (ZOO čl. 557 + ZDI čl. 2)
+                      "cross_border_transfer",  # prekogranični prenos digitalne imovine (ZDP + ZDI čl. 91)
+                      ]
 DisputeType = Literal["breach_of_contract", "non_payment",
-                      "unauthorized_transfer", "contract_violation", "no_dispute"]
+                      "unauthorized_transfer", "contract_violation",
+                      "aml_threshold_exceeded", # transakcija iznad 15.000 EUR — ZSPNFT čl. 9
+                      "cross_border_violation",  # prekršaj ZDP pri prenosu u inostranstvo
+                      "no_dispute"]
 RiskLevel   = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 
 _TX_PATTERN   = re.compile(r"^0x[a-fA-F0-9]{64}$")

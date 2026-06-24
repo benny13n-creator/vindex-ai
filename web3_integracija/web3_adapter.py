@@ -225,9 +225,26 @@ class Web3Adapter:
 
 
 def _tip_za_clan(article: str) -> str:
-    """Mapira ZOO član na tip podneska koji Legal Engine razume."""
+    """
+    Mapira član zakona na tip podneska koji Legal Engine razume.
+    Pokriva ZOO, ZDI, ZDP, ZSPNFT.
+    """
     return {
-        "124": "predlog_izvrsenje",
-        "154": "tuzba_naknada_stete",
-        "262": "tuzba_naknada_stete",
-    }.get(article, "tuzba_naknada_stete")
+        # ZOO
+        "124":  "predlog_izvrsenje",
+        "154":  "tuzba_naknada_stete",
+        "262":  "tuzba_naknada_stete",
+        "557":  "ugovor_o_razmeni",          # barter — ZOO čl. 557
+        # ZDI
+        "2":    "pravno_misljenje",           # definicija — razmena dozvoljena
+        "9":    "zahtev_za_odobrenje_nbs",    # beli papir + odobrenje
+        "29":   "prijava_nbs",                # VASP licenca
+        "91":   "pravno_misljenje",           # zabrana zakonskog sredstva plaćanja
+        # ZDP
+        "5":    "izvestaj_nbs_tekuca",        # tekuća devizna transakcija
+        "18":   "zahtev_nbs_kapitalna",       # kapitalna devizna transakcija
+        # ZSPNFT
+        "7":    "kyc_dokumentacija",          # KYC identifikacija
+        "37":   "str_prijava_apml",           # sumnjiva transakcija
+        "47":   "str_prijava_apml",           # prijava APML u roku 24h
+    }.get(str(article), "tuzba_naknada_stete")

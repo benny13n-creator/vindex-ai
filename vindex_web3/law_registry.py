@@ -125,6 +125,62 @@ _REGISTRY: dict[str, LawReference] = {
         ),
         compliance_risk_level = "MEDIUM",
     ),
+    "ZDI_91": LawReference(
+        law_code             = "ZDI",
+        law_name_sr          = "Zakon o digitalnoj imovini",
+        article_number       = "91",
+        article_title_sr     = "Zabrana korišćenja digitalne imovine kao zakonskog sredstva plaćanja",
+        article_summary_sr   = (
+            "Zabranjeno je korišćenje digitalne imovine kao zakonskog sredstva plaćanja "
+            "u Republici Srbiji. Ova zabrana se odnosi isključivo na ulogu 'zakonskog "
+            "sredstva plaćanja' (legal tender) — NE zabranjuje barter/razmenu. "
+            "Kompanija iz Srbije MOŽE zaključiti ugovor o razmeni (ZOO čl. 557) kojim "
+            "daje digitalnu imovinu a prima robu/usluge, ili prima digitalnu imovinu za "
+            "pruženu uslugu, pod uslovom da transakcije prolaze kroz licenciranog VASP "
+            "pružaoca usluga (čl. 29 ZDI)."
+        ),
+        compliance_risk_level = "HIGH",
+    ),
+
+    # ── ZDP (Zakon o deviznom poslovanju) ────────────────────────────────────
+    "ZDP_2": LawReference(
+        law_code             = "ZDP",
+        law_name_sr          = "Zakon o deviznom poslovanju",
+        article_number       = "2",
+        article_title_sr     = "Definicije i obuhvat deviznih transakcija",
+        article_summary_sr   = (
+            "Zakon reguliše tekuće i kapitalне devizne transakcije sa inostranstvom. "
+            "Digitalna imovina koja se tretira kao devizna vrednost potpada pod odredbe "
+            "ovog zakona pri prenosu u/iz inostranstva."
+        ),
+        compliance_risk_level = "MEDIUM",
+    ),
+    "ZDP_5": LawReference(
+        law_code             = "ZDP",
+        law_name_sr          = "Zakon o deviznom poslovanju",
+        article_number       = "5",
+        article_title_sr     = "Tekuće devizne transakcije sa inostranstvom",
+        article_summary_sr   = (
+            "Plaćanja i naplate po osnovu tekućih deviznih transakcija (roba, usluge) "
+            "sa inostranstvom su slobodna. Kompanija iz Srbije koja prima ili šalje "
+            "digitalnu imovinu inostranstvu po osnovu robe/usluga može ovo tretirati "
+            "kao tekuću transakciju — uz obavezu evidentiranja i izveštavanja NBS."
+        ),
+        compliance_risk_level = "MEDIUM",
+    ),
+    "ZDP_18": LawReference(
+        law_code             = "ZDP",
+        law_name_sr          = "Zakon o deviznom poslovanju",
+        article_number       = "18",
+        article_title_sr     = "Obaveza izveštavanja o transakcijama sa inostranstvom",
+        article_summary_sr   = (
+            "Rezidenti su dužni da izveštavaju NBS o kapitalnim transakcijama sa "
+            "inostranstvom. Prenos digitalne imovine u inostranstvo ili iz inostranstva "
+            "može zahtevati prethodnu saglasnost NBS ili naknadno izveštavanje, u "
+            "zavisnosti od iznosa i prirode transakcije."
+        ),
+        compliance_risk_level = "HIGH",
+    ),
 
     # ── ZSPNFT (Zakon o sprečavanju pranja novca i finansiranja terorizma) ───
     "ZSPNFT_7": LawReference(
@@ -200,12 +256,19 @@ _REGISTRY: dict[str, LawReference] = {
 # ── Mapiranje event_type → lista ključeva registra ────────────────────────────
 
 _EVENT_LAW_MAP: dict[str, list[str]] = {
-    "transfer":       ["ZOO_262", "ZDI_29",  "ZSPNFT_37", "ZPDG_72b"],
-    "payment_failed": ["ZOO_262", "ZSPNFT_37", "ZSPNFT_47"],
-    "contract_call":  ["ZOO_124", "ZDI_29",  "ZDI_54"],
-    "approval":       ["ZOO_88",  "ZDI_29"],
-    "mint":           ["ZOO_19",  "ZDI_9",   "ZDI_54",  "ZPDG_72b", "ZPDG_72v"],
-    "burn":           ["ZOO_360", "ZDI_2",   "ZPDG_72v"],
+    "transfer":              ["ZOO_262", "ZDI_29",  "ZSPNFT_37", "ZPDG_72b"],
+    "payment_failed":        ["ZOO_262", "ZSPNFT_37", "ZSPNFT_47"],
+    "contract_call":         ["ZOO_124", "ZDI_29",  "ZDI_54"],
+    "approval":              ["ZOO_88",  "ZDI_29"],
+    "mint":                  ["ZOO_19",  "ZDI_9",   "ZDI_54",  "ZPDG_72b", "ZPDG_72v"],
+    "burn":                  ["ZOO_360", "ZDI_2",   "ZPDG_72v"],
+    # Razmena digitalne imovine za robu/usluge — ZOO čl. 557 (ugovor o razmeni) je primarni,
+    # ZDI čl. 2 (definicija — zamenjivanje dozvoljeno) + čl. 91 (nije zakonsko sredstvo plaćanja),
+    # ZSPNFT čl. 7 (KYC), ZPDG čl. 72b (porez na prihod od razmene).
+    "barter_exchange":       ["ZOO_262", "ZDI_2",   "ZDI_91",  "ZSPNFT_7",  "ZPDG_72b"],
+    # Prekogranični prenos digitalne imovine — ZDP je primarni, ZDI čl. 29 (VASP licenca),
+    # ZSPNFT čl. 37 (AML praćenje prekograničnih transakcija).
+    "cross_border_transfer": ["ZDP_5",   "ZDP_18",  "ZDI_29",  "ZDI_91",   "ZSPNFT_37"],
 }
 
 # Poredak rizika za izračunavanje najvišeg nivoa

@@ -15,9 +15,10 @@ from typing import Optional
 
 @dataclass
 class LegalContext:
-    law:          str = "ZOO"
-    article:      str = ""    # "262" | "154" | "124"
+    law:          str = ""    # "ZOO" | "ZDI" | "ZDP" | "ZSPNFT" | "ZPDG" — eksplicitno postavljati
+    article:      str = ""    # "262" | "154" | "124" | "91" | "5" itd.
     breach_type:  str = ""    # human-readable naziv kršenja
+    jurisdiction: str = ""    # "domestic" | "cross_border" — za ZDP aspekt
 
 
 @dataclass
