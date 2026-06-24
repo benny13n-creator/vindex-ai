@@ -145,6 +145,81 @@ LAWS = [
         "sc":       "ZUS",
         "del_alts": ["ZUS", "zakon o upravnim sporovima"],
     },
+    # ── P0: zakoni koji su imali triggere ali 0 chunkova ───────────────────
+    {
+        "file":     "zakon_o_bezbednosti_saobracaja.pdf",
+        "name":     "zakon o bezbednosti saobracaja na putevima",
+        "sc":       "ZBSN",
+        "del_alts": ["ZBSN", "zakon o bezbednosti saobraćaja na putevima"],
+    },
+    {
+        "file":     "zakon_o_deviznom_poslovanju.pdf",
+        "name":     "zakon o deviznom poslovanju",
+        "sc":       "ZDF",
+        "del_alts": ["ZDF", "zakon o deviznom poslovanju"],
+    },
+    {
+        "file":     "zakon_o_zaposljavanju_stranaca.pdf",
+        "name":     "zakon o zaposljavanju stranaca",
+        "sc":       "ZRDS",
+        "del_alts": ["ZRDS", "zakon o zapošljavanju stranaca"],
+    },
+    {
+        "file":     "zakon_o_strancima.pdf",
+        "name":     "zakon o strancima",
+        "sc":       "ZOS",
+        "del_alts": ["ZOS", "zakon o strancima"],
+    },
+    {
+        "file":     "zakon_o_azilu.pdf",
+        "name":     "zakon o azilu",
+        "sc":       "ZOA",
+        "del_alts": ["ZOA", "zakon o azilu"],
+    },
+    {
+        "file":     "zakon_o_pristupu_informacijama.pdf",
+        "name":     "zakon o pristupu informacijama od javnog znacaja",
+        "sc":       "ZPPI",
+        "del_alts": ["ZPPI", "zakon o pristupu informacijama od javnog značaja",
+                     "zakon o slobodnom pristupu informacijama od javnog znacaja"],
+    },
+    # ── P2: strateški zakoni ────────────────────────────────────────────────
+    {
+        "file":     "zakon_o_hipoteci.pdf",
+        "name":     "zakon o hipoteci",
+        "sc":       "ZH",
+        "del_alts": ["ZH", "zakon o hipoteci"],
+    },
+    {
+        "file":     "zakon_o_planiranju_i_izgradnji.pdf",
+        "name":     "zakon o planiranju i izgradnji",
+        "sc":       "ZPIG",
+        "del_alts": ["ZPIG", "zakon o planiranju i izgradnji"],
+    },
+    {
+        "file":     "zakon_o_stecaju.pdf",
+        "name":     "zakon o stecaju",
+        "sc":       "ZSTEC",
+        "del_alts": ["ZSTEC", "zakon o stečaju"],
+    },
+    {
+        "file":     "zakon_o_autorskom_pravu.pdf",
+        "name":     "zakon o autorskom i srodnim pravima",
+        "sc":       "ZASP",
+        "del_alts": ["ZASP", "zakon o autorskom i srodnim pravima"],
+    },
+    {
+        "file":     "zakon_o_prekrsajima.pdf",
+        "name":     "zakon o prekrsajima",
+        "sc":       "ZPRK",
+        "del_alts": ["ZPRK", "zakon o prekršajima"],
+    },
+    {
+        "file":     "zakon_o_javnim_nabavkama.pdf",
+        "name":     "zakon o javnim nabavkama",
+        "sc":       "ZJN",
+        "del_alts": ["ZJN", "zakon o javnim nabavkama"],
+    },
 ]
 
 

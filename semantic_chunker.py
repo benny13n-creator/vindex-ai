@@ -34,6 +34,20 @@ ZAKON_SHORTCODES: dict[str, str] = {
     "zakon o sprecavanju pranja novca i finansiranja terorizma": "ZSPNFT",
     "krivicni zakonik":                                       "KZ",
     "zakon o porezu na dohodak gradjana":                     "ZPDG",
+    # P0 zakoni
+    "zakon o bezbednosti saobracaja na putevima":         "ZBSN",
+    "zakon o deviznom poslovanju":                        "ZDF",
+    "zakon o zaposljavanju stranaca":                     "ZRDS",
+    "zakon o strancima":                                  "ZOS",
+    "zakon o azilu":                                      "ZOA",
+    "zakon o pristupu informacijama od javnog znacaja":   "ZPPI",
+    # P2 zakoni
+    "zakon o hipoteci":                                   "ZH",
+    "zakon o planiranju i izgradnji":                     "ZPIG",
+    "zakon o stecaju":                                    "ZSTEC",
+    "zakon o autorskom i srodnim pravima":                "ZASP",
+    "zakon o prekrsajima":                                "ZPRK",
+    "zakon o javnim nabavkama":                           "ZJN",
     # Already-short codes remain as-is
     "KZ":   "KZ",
     "ZPDG": "ZPDG",

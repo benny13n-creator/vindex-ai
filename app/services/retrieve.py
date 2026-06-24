@@ -244,36 +244,97 @@ LAW_HINTS = {
     "casp":                       "zakon o digitalnoj imovini",
     "mica":                       "zakon o digitalnoj imovini",
     # ZBSN — Zakon o bezbednosti saobraćaja na putevima
-    "saobracaj":                  "zakon o bezbednosti saobracaja na putevima",
-    "saobracajna nesreca":        "zakon o bezbednosti saobracaja na putevima",
-    "saobracajna kazna":          "zakon o bezbednosti saobracaja na putevima",
-    "oduzimanje vozacke":         "zakon o bezbednosti saobracaja na putevima",
-    "prekrsaj u saobracaju":      "zakon o bezbednosti saobracaja na putevima",
-    "brzina vozila":              "zakon o bezbednosti saobracaja na putevima",
-    "alkohol za volanom":         "zakon o bezbednosti saobracaja na putevima",
-    "zbsn":                       "zakon o bezbednosti saobracaja na putevima",
+    "saobracaj":                      "zakon o bezbednosti saobracaja na putevima",
+    "saobracajna nesreca":            "zakon o bezbednosti saobracaja na putevima",
+    "saobracajna kazna":              "zakon o bezbednosti saobracaja na putevima",
+    "oduzimanje vozacke":             "zakon o bezbednosti saobracaja na putevima",
+    "prekrsaj u saobracaju":          "zakon o bezbednosti saobracaja na putevima",
+    "brzina vozila":                  "zakon o bezbednosti saobracaja na putevima",
+    "alkohol za volanom":             "zakon o bezbednosti saobracaja na putevima",
+    "zbsn":                           "zakon o bezbednosti saobracaja na putevima",
+    "vozacka dozvola":                "zakon o bezbednosti saobracaja na putevima",
+    "registracija vozila":            "zakon o bezbednosti saobracaja na putevima",
     # ZDF — Zakon o deviznom poslovanju
-    "devizno":                    "zakon o deviznom poslovanju",
-    "devizna":                    "zakon o deviznom poslovanju",
-    "devizni racun":              "zakon o deviznom poslovanju",
-    "konverzija valute":          "zakon o deviznom poslovanju",
-    "transfer novca u inostranstvo": "zakon o deviznom poslovanju",
+    "devizno":                        "zakon o deviznom poslovanju",
+    "devizna":                        "zakon o deviznom poslovanju",
+    "devizni racun":                  "zakon o deviznom poslovanju",
+    "konverzija valute":              "zakon o deviznom poslovanju",
+    "transfer novca u inostranstvo":  "zakon o deviznom poslovanju",
     "platni promet sa inostranstvom": "zakon o deviznom poslovanju",
-    "zdf":                        "zakon o deviznom poslovanju",
-    # ZRDS — Zakon o strancima / Zakon o zapošljavanju stranaca
-    "radna dozvola":              "zakon o zaposljavanju stranaca",
-    "dozvola boravka":            "zakon o strancima",
-    "viza":                       "zakon o strancima",
-    "azil":                       "zakon o azilu",
-    "stranac":                    "zakon o strancima",
-    "boraviste stranac":          "zakon o strancima",
-    "zrds":                       "zakon o zaposljavanju stranaca",
+    "zdf":                            "zakon o deviznom poslovanju",
+    "devize":                         "zakon o deviznom poslovanju",
+    # ZRDS — Zakon o zapošljavanju stranaca
+    "radna dozvola":                  "zakon o zaposljavanju stranaca",
+    "zrds":                           "zakon o zaposljavanju stranaca",
+    "zaposlenje stranac":             "zakon o zaposljavanju stranaca",
+    "radna viza":                     "zakon o zaposljavanju stranaca",
+    "strani drzavljanin rad":         "zakon o zaposljavanju stranaca",
+    # ZOS — Zakon o strancima
+    "dozvola boravka":                "zakon o strancima",
+    "viza":                           "zakon o strancima",
+    "stranac":                        "zakon o strancima",
+    "boraviste stranac":              "zakon o strancima",
+    "privremeni boravak":             "zakon o strancima",
+    "stalni boravak":                 "zakon o strancima",
+    # ZOA — Zakon o azilu
+    "azil":                           "zakon o azilu",
+    "izbeglica":                      "zakon o azilu",
+    "zahtev za azil":                 "zakon o azilu",
+    "privremena zastita":             "zakon o azilu",
     # ZPPI — Zakon o pristupu informacijama od javnog značaja
-    "pristup informacijam":       "zakon o pristupu informacijama od javnog znacaja",
-    "informacija od javnog znacaja": "zakon o pristupu informacijama od javnog znacaja",
-    "zahtev za informacije":      "zakon o pristupu informacijama od javnog znacaja",
-    "poverenik za informacije":   "zakon o pristupu informacijama od javnog znacaja",
-    "zppi":                       "zakon o pristupu informacijama od javnog znacaja",
+    "pristup informacijam":           "zakon o pristupu informacijama od javnog znacaja",
+    "informacija od javnog znacaja":  "zakon o pristupu informacijama od javnog znacaja",
+    "zahtev za informacije":          "zakon o pristupu informacijama od javnog znacaja",
+    "poverenik za informacije":       "zakon o pristupu informacijama od javnog znacaja",
+    "zppi":                           "zakon o pristupu informacijama od javnog znacaja",
+    # ZZPL — Zakon o zaštiti podataka o ličnosti (orphan fix — 593 chunks bez trigera)
+    "licni podaci":                   "zakon o zastiti podataka o licnosti",
+    "gdpr":                           "zakon o zastiti podataka o licnosti",
+    "obrada podataka":                "zakon o zastiti podataka o licnosti",
+    "poverenik za zastitu podataka":  "zakon o zastiti podataka o licnosti",
+    "zzpl":                           "zakon o zastiti podataka o licnosti",
+    "pristanak za obradu":            "zakon o zastiti podataka o licnosti",
+    "pravo na zaborav":               "zakon o zastiti podataka o licnosti",
+    "zastita podataka":               "zakon o zastiti podataka o licnosti",
+    # ZH — Zakon o hipoteci
+    "hipoteka":                       "zakon o hipoteci",
+    "hipotekarni kredit":             "zakon o hipoteci",
+    "zaloga na nepokretnosti":        "zakon o hipoteci",
+    "izvrsenje hipoteke":             "zakon o hipoteci",
+    "zabelezba hipoteke":             "zakon o hipoteci",
+    # ZPIG — Zakon o planiranju i izgradnji
+    "gradjevinska dozvola":           "zakon o planiranju i izgradnji",
+    "urbanisticka dozvola":           "zakon o planiranju i izgradnji",
+    "legalizacija objekta":           "zakon o planiranju i izgradnji",
+    "upotrebna dozvola":              "zakon o planiranju i izgradnji",
+    "bespravna gradnja":              "zakon o planiranju i izgradnji",
+    "zpig":                           "zakon o planiranju i izgradnji",
+    "izgradnja objekta":              "zakon o planiranju i izgradnji",
+    # ZSTEC — Zakon o stečaju
+    "stecaj":                         "zakon o stecaju",
+    "stecajni postupak":              "zakon o stecaju",
+    "insolventnost":                  "zakon o stecaju",
+    "likvidacija firme":              "zakon o stecaju",
+    "stecajni upravnik":              "zakon o stecaju",
+    "reorganizacija duznika":         "zakon o stecaju",
+    # ZASP — Zakon o autorskom i srodnim pravima
+    "autorsko pravo":                 "zakon o autorskom i srodnim pravima",
+    "copyright":                      "zakon o autorskom i srodnim pravima",
+    "plagijat":                       "zakon o autorskom i srodnim pravima",
+    "intelektualna svojina":          "zakon o autorskom i srodnim pravima",
+    "zasp":                           "zakon o autorskom i srodnim pravima",
+    "softverski kod autorsk":         "zakon o autorskom i srodnim pravima",
+    # ZPRK — Zakon o prekršajima
+    "prekrsajni postupak":            "zakon o prekrsajima",
+    "novcana kazna prekrsaj":         "zakon o prekrsajima",
+    "prekrsajni sud":                 "zakon o prekrsajima",
+    "zprk":                           "zakon o prekrsajima",
+    # ZJN — Zakon o javnim nabavkama
+    "javna nabavka":                  "zakon o javnim nabavkama",
+    "tender":                         "zakon o javnim nabavkama",
+    "ponuda javna nabavka":           "zakon o javnim nabavkama",
+    "zjn":                            "zakon o javnim nabavkama",
+    "narucioc":                       "zakon o javnim nabavkama",
 }
 
 STOPWORDS = {
@@ -1753,10 +1814,34 @@ def _fallback_poruka(query: str) -> str:
         relevantni.append("Zakon o parničnom postupku (ZPP)")
     if any(x in q for x in ["upravni", "resenje", "uprava", "organ uprave"]):
         relevantni.append("Zakon o opštem upravnom postupku (ZUP)")
-    if any(x in q for x in ["saobracaj", "vozacka", "saobracan", "alkohol volan"]):
+    if any(x in q for x in ["saobracaj", "vozacka", "saobracan", "alkohol volan", "registracija vozila"]):
         relevantni.append("Zakon o bezbednosti saobraćaja na putevima (ZBSN)")
     if any(x in q for x in ["digitalna imovina", "kriptovaluta", "kripto", "bitcoin", "nft", "blockchain"]):
         relevantni.append("Zakon o digitalnoj imovini (ZDI)")
+    if any(x in q for x in ["devizno", "devizna", "devize", "transfer novca inostranstvo"]):
+        relevantni.append("Zakon o deviznom poslovanju (ZDF)")
+    if any(x in q for x in ["radna dozvola", "zaposlenje stranac", "radna viza"]):
+        relevantni.append("Zakon o zapošljavanju stranaca (ZRDS)")
+    if any(x in q for x in ["dozvola boravka", "viza", "stranac boravak", "privremeni boravak"]):
+        relevantni.append("Zakon o strancima (ZOS)")
+    if any(x in q for x in ["azil", "izbeglica", "zahtev azil"]):
+        relevantni.append("Zakon o azilu (ZOA)")
+    if any(x in q for x in ["pristup informacij", "javnog znacaja", "poverenik informacij"]):
+        relevantni.append("Zakon o slobodnom pristupu informacijama od javnog značaja (ZPPI)")
+    if any(x in q for x in ["licni podaci", "gdpr", "obrada podataka", "zastita podataka"]):
+        relevantni.append("Zakon o zaštiti podataka o ličnosti (ZZPL)")
+    if any(x in q for x in ["hipoteka", "hipotekarni", "zaloga nepokretnost"]):
+        relevantni.append("Zakon o hipoteci (ZH)")
+    if any(x in q for x in ["gradjevinska dozvola", "legalizacija", "upotrebna dozvola", "bespravna gradnja"]):
+        relevantni.append("Zakon o planiranju i izgradnji (ZPIG)")
+    if any(x in q for x in ["stecaj", "insolventnost", "likvidacija firm", "stecajni"]):
+        relevantni.append("Zakon o stečaju (ZSTEC)")
+    if any(x in q for x in ["autorsko pravo", "copyright", "plagijat", "intelektualna svojina"]):
+        relevantni.append("Zakon o autorskom i srodnim pravima (ZASP)")
+    if any(x in q for x in ["prekrsajni postupak", "novcana kazna prekrsaj", "prekrsajni sud"]):
+        relevantni.append("Zakon o prekršajima (ZPRK)")
+    if any(x in q for x in ["javna nabavka", "tender", "narucioc", "ponudiac"]):
+        relevantni.append("Zakon o javnim nabavkama (ZJN)")
     if not relevantni:
         relevantni = ["Zakon o privrednim društvima (ZPD)", "Zakon o obligacionim odnosima (ZOO)"]
 
