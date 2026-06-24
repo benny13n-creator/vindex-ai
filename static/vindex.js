@@ -3342,8 +3342,15 @@ async function web3Pokreni() {
       else if (data.modul === 'aml_audit') bodyEl.innerHTML = web3RenderAudit(data.audit_data, data.objasnjenje);
       else if (data.modul === 'web3_pretraga') {
         // Isti renderer kao "Istraživanje zakona" — prepoznaje --- sekcije + STATUSNA POTVRDA
-        // NAPOMENA: formatResponse() već interno poziva _injectIzmeneBadges() — ne pozivati ponovo
-        bodyEl.innerHTML = formatResponse(data.rezultat || '');
+        // NAPOMENA: formatResponse() interno poziva _injectIzmeneBadges() — ne pozivati ponovo
+        var _w3div = document.createElement('div');
+        _w3div.innerHTML = formatResponse(data.rezultat || '');
+        // Za web3 pretraga: Sl. glasnik ostaje plain text — bez klikabilnih linkova ni bedževa
+        _w3div.querySelectorAll('a.glasnik-link').forEach(function(a) {
+          a.replaceWith(document.createTextNode(a.textContent));
+        });
+        _w3div.querySelectorAll('.izmena-tag').forEach(function(el) { el.remove(); });
+        bodyEl.innerHTML = _w3div.innerHTML;
         if (_cyrillicOn) cirilicaElement(bodyEl);
       }
       else bodyEl.innerHTML = web3FormatirajRezultat(data.rezultat || '');
