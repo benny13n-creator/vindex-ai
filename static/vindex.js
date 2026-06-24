@@ -965,6 +965,7 @@ function _dashRender(d,bd,inboxData){
   html+='</div>';
   html+='<div class="kc-topbar-right">';
   html+='<div class="kc-search" title="Globalna pretraga — dolazi uskoro"><span class="kc-search-icon">⌕</span><span class="kc-search-ph">Pretraži predmete, klijente...</span><span class="kc-search-kbd">⌘K</span></div>';
+  html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(74,168,255,.25);border-radius:7px;background:rgba(74,168,255,.07);color:#89c8ff;cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">📊 Izveštaj</button>';
   html+='<button class="kc-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
   html+='</div></div>';
 
@@ -14799,7 +14800,10 @@ function intakeOtvori() {
   document.getElementById('intake-upload-status').textContent = '';
   document.getElementById('intake-ai-result').style.display = 'none';
   document.getElementById('intake-ai-loading').style.display = 'block';
+  _intakeBillingReset();
 }
+
+function intakeBillingAksIznos() { _intakeBillingAksIznos(); }
 
 function intakeZatvori() {
   _iDirty = false;
@@ -14874,10 +14878,196 @@ function intakeBack() {
   if (_iStep > 1) { _iStep--; _intakeRenderStep(); }
 }
 
+// ── Billing setup u Wizard-u ──────────────────────────────────────────────────
+
+var _AKS_TARIFA_CACHE = null;
+
+function intakeBillingToggle() {
+  var body  = document.getElementById('intake-billing-body');
+  var arrow = document.getElementById('intake-billing-arrow');
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display  = open ? 'none' : '';
+  if (arrow) arrow.textContent = open ? '▼' : '▲';
+  if (!open && !_AKS_TARIFA_CACHE) _intakeLoadAksTarifa();
+}
+
+async function _intakeLoadAksTarifa() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/billing/tarifa', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) return;
+    var d = await r.json();
+    _AKS_TARIFA_CACHE = d.tarifa || [];
+    var sel = document.getElementById('intake-billing-aks');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- Izaberite stavku --</option>';
+      _AKS_TARIFA_CACHE.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t.sifra;
+        opt.textContent = t.sifra + ' — ' + t.naziv + ' (' + (t.iznos_rsd ? t.iznos_rsd.toLocaleString('sr') + ' RSD' : '—') + ')';
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) {}
+}
+
+function intakeBillingTipChange() {
+  var tip = (document.querySelector('input[name="intake-billing-tip"]:checked') || {}).value || '';
+  document.getElementById('intake-billing-iznos-wrap').style.display = tip === 'fiksni' ? '' : 'none';
+  document.getElementById('intake-billing-aks-wrap').style.display   = tip === 'aks'    ? '' : 'none';
+  if (tip === 'aks' && !_AKS_TARIFA_CACHE) _intakeLoadAksTarifa();
+}
+
+function _intakeBillingAksIznos() {
+  var sel = document.getElementById('intake-billing-aks');
+  var inf = document.getElementById('intake-billing-aks-iznos');
+  if (!sel || !inf || !_AKS_TARIFA_CACHE) return;
+  var sifra = sel.value;
+  var t = _AKS_TARIFA_CACHE.find(function(x){ return x.sifra === sifra; });
+  if (t && t.iznos_rsd) {
+    inf.textContent = 'Iznos po AKS tarifi: ' + t.iznos_rsd.toLocaleString('sr') + ' RSD';
+  } else { inf.textContent = ''; }
+}
+
+function _intakeBillingReset() {
+  var radios = document.querySelectorAll('input[name="intake-billing-tip"]');
+  radios.forEach(function(r){ r.checked = false; });
+  var iznos = document.getElementById('intake-billing-iznos');
+  if (iznos) iznos.value = '';
+  var sel = document.getElementById('intake-billing-aks');
+  if (sel) sel.value = '';
+  var body  = document.getElementById('intake-billing-body');
+  var arrow = document.getElementById('intake-billing-arrow');
+  if (body) body.style.display = 'none';
+  if (arrow) arrow.textContent = '▼';
+  document.getElementById('intake-billing-iznos-wrap').style.display = 'none';
+  document.getElementById('intake-billing-aks-wrap').style.display   = 'none';
+}
+
 function intakeOpisChange() {
   var v = (document.getElementById('intake-opis').value || '');
   document.getElementById('intake-opis-counter').textContent = v.length + ' / 4000';
   if (v.trim().length >= 20) document.getElementById('intake-opis-warn').style.display = 'none';
+}
+
+// ── Mesečni izveštaj ──────────────────────────────────────────────────────────
+
+function mesecniIzvestajOtvori() {
+  var ov = document.getElementById('mi-overlay');
+  var md = document.getElementById('mi-modal');
+  if (!ov || !md) return;
+  ov.style.display = 'block';
+  md.style.display = 'block';
+
+  var sel = document.getElementById('mi-mesec-sel');
+  sel.innerHTML = '';
+  var now = new Date();
+  for (var i = 0; i < 12; i++) {
+    var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    var label = d.toLocaleString('sr', { month: 'long', year: 'numeric' });
+    var opt = document.createElement('option');
+    opt.value = iso;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  }
+  mesecniIzvestajUcitaj();
+}
+
+function mesecniIzvestajZatvori() {
+  var ov = document.getElementById('mi-overlay');
+  var md = document.getElementById('mi-modal');
+  if (ov) ov.style.display = 'none';
+  if (md) md.style.display = 'none';
+}
+
+async function mesecniIzvestajUcitaj() {
+  var sel = document.getElementById('mi-mesec-sel');
+  var body = document.getElementById('mi-body');
+  var naslov = document.getElementById('mi-naslov');
+  if (!sel || !body) return;
+  var mesec = sel.value;
+  body.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);font-size:0.82rem;padding:2rem 0;">Učitavam...</div>';
+  if (naslov) naslov.textContent = mesec;
+  try {
+    var r = await fetch(BASE_URL + '/billing/report/mesecni?mesec=' + mesec, {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) throw new Error('status ' + r.status);
+    var d = await r.json();
+    body.innerHTML = _miRender(d);
+  } catch(e) {
+    body.innerHTML = '<div style="color:#f87171;font-size:0.82rem;text-align:center;padding:2rem 0;">Greška pri učitavanju izveštaja.</div>';
+  }
+}
+
+function _miRender(d) {
+  var h = '';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">';
+  h += _miKpi('Aktivnih predmeta', d.aktivnih_predmeta || 0, '#60a5fa');
+  h += _miKpi('Ročišta u mesecu', d.rocista_mesec || 0, '#a78bfa');
+  h += _miKpi('Fakturisano', _miRsd(d.fakturisano_rsd), '#34d399');
+  h += _miKpi('Naplaćeno', _miRsd(d.naplaceno_rsd), '#4ade80');
+  h += _miKpi('Neplaćeno', _miRsd(d.neplaceno_rsd), '#f87171');
+  h += _miKpi('Prekoračeni rokovi', d.prekoraceni_rokovi || 0, '#fb923c');
+  h += '</div>';
+
+  if (d.rocista && d.rocista.length > 0) {
+    h += '<div style="margin-bottom:14px;">';
+    h += '<div style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Ročišta</div>';
+    d.rocista.forEach(function(ro) {
+      h += '<div style="display:flex;justify-content:space-between;padding:7px 10px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:4px;font-size:0.78rem;">';
+      h += '<span style="color:#e2e8f0;">' + _miEsc(ro.naziv || '—') + '</span>';
+      h += '<span style="color:#94a3b8;">' + _miEsc(ro.datum_rocista || '') + '</span>';
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+
+  if (d.sledecih_14_dana && d.sledecih_14_dana.length > 0) {
+    h += '<div style="margin-bottom:14px;">';
+    h += '<div style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Sledećih 14 dana</div>';
+    d.sledecih_14_dana.forEach(function(ro) {
+      h += '<div style="display:flex;justify-content:space-between;padding:7px 10px;background:rgba(251,146,60,0.08);border:1px solid rgba(251,146,60,0.15);border-radius:6px;margin-bottom:4px;font-size:0.78rem;">';
+      h += '<span style="color:#e2e8f0;">' + _miEsc(ro.naziv || '—') + '</span>';
+      h += '<span style="color:#fb923c;">' + _miEsc(ro.datum_iso || ro.datum || '') + '</span>';
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+
+  if (d.predmeti_po_tipu && Object.keys(d.predmeti_po_tipu).length > 0) {
+    h += '<div>';
+    h += '<div style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Predmeti po tipu</div>';
+    Object.entries(d.predmeti_po_tipu).forEach(function(kv) {
+      h += '<div style="display:flex;justify-content:space-between;padding:5px 10px;font-size:0.77rem;">';
+      h += '<span style="color:#94a3b8;">' + _miEsc(kv[0]) + '</span>';
+      h += '<span style="color:#e2e8f0;font-weight:600;">' + kv[1] + '</span>';
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+
+  return h;
+}
+
+function _miKpi(label, val, color) {
+  return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;text-align:center;">' +
+    '<div style="font-size:1.2rem;font-weight:700;color:' + color + ';">' + val + '</div>' +
+    '<div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:4px;">' + label + '</div>' +
+    '</div>';
+}
+
+function _miRsd(v) {
+  if (!v) return '0 RSD';
+  return Number(v).toLocaleString('sr') + ' RSD';
+}
+
+function _miEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 async function intakeKlijentSearch(q) {
@@ -15126,6 +15316,9 @@ async function _intakeKreiraj() {
     prvi_rok:        rokVal || null,
     rok_opis:        (document.getElementById('intake-f-rok-opis').value || '').trim() || null,
     dokumenti:       _iFiles.map(function(f) { return { naziv_fajla: f.name, session_id: f.sessionId, chunks: f.chunks }; }),
+    billing_tip:     (document.querySelector('input[name="intake-billing-tip"]:checked') || {}).value || null,
+    billing_iznos:   parseFloat(document.getElementById('intake-billing-iznos').value) || null,
+    billing_aks:     (document.getElementById('intake-billing-aks') || {}).value || null,
   };
 
   try {

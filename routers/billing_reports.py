@@ -483,3 +483,106 @@ async def billing_po_klijentu(
             agg.get("_bez_klijenta", {}).get("ukupno_rsd", 0.0), 2
         ),
     }
+
+
+# ─── GET /billing/report/mesecni ─────────────────────────────────────────────
+
+@router.get("/mesecni")
+@limiter.limit("30/minute")
+async def billing_mesecni(
+    request: Request,
+    mesec:   Optional[str] = None,   # YYYY-MM, default = tekući mesec
+    user:    dict          = Depends(get_current_user),
+):
+    """
+    Mesečni operativni izveštaj — jedinstven prikaz za advokata:
+    aktivni predmeti, ročišta, fakturisano, naplaćeno, prekoračeni rokovi.
+    Koristi se za dashboard i mesečni pregled na jednom ekranu.
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+    today = date.today()
+
+    if mesec:
+        try:
+            godina, mese = int(mesec[:4]), int(mesec[5:7])
+        except Exception:
+            raise HTTPException(status_code=422, detail="Format meseca: YYYY-MM")
+    else:
+        godina, mese = today.year, today.month
+
+    od_iso = f"{godina}-{mese:02d}-01"
+    if mese == 12:
+        do_iso = f"{godina + 1}-01-01"
+    else:
+        do_iso = f"{godina}-{mese + 1:02d}-01"
+
+    do_inc_iso = (date.fromisoformat(do_iso) - timedelta(days=1)).isoformat()
+    today_iso  = today.isoformat()
+
+    (pred_r, rocista_r, billing_r, rokovi_r, hronologija_r) = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmeti")
+            .select("id,naziv,tip,status")
+            .eq("user_id", uid)
+            .eq("status", "aktivan")
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("rocista")
+            .select("id,datum,sud,vreme,predmet_id,status")
+            .eq("user_id", uid)
+            .gte("datum", od_iso)
+            .lte("datum", do_inc_iso)
+            .order("datum")
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("billing_entries")
+            .select("iznos_rsd,obracunato,datum")
+            .eq("user_id", uid)
+            .gte("datum", od_iso)
+            .lte("datum", do_inc_iso)
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+            .select("id,datum_iso,dogadjaj,vaznost,predmet_id")
+            .eq("user_id", uid)
+            .eq("vaznost", "kritičan")
+            .lt("datum_iso", today_iso)
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+            .select("id,datum_iso,dogadjaj,predmet_id")
+            .eq("user_id", uid)
+            .gte("datum_iso", today_iso)
+            .lte("datum_iso", (today + timedelta(days=14)).isoformat())
+            .order("datum_iso")
+            .execute()),
+        return_exceptions=True,
+    )
+
+    def _safe(r):
+        return [] if isinstance(r, Exception) else (r.data or [])
+
+    predmeti    = _safe(pred_r)
+    rocista     = _safe(rocista_r)
+    entries     = _safe(billing_r)
+    prekoraceni = _safe(rokovi_r)
+    sledeci14   = _safe(hronologija_r)
+
+    fakturisano = sum(float(e.get("iznos_rsd") or 0) for e in entries)
+    naplaceno   = sum(float(e.get("iznos_rsd") or 0) for e in entries if e.get("obracunato"))
+
+    pred_by_tip: dict[str, int] = {}
+    for p in predmeti:
+        t = p.get("tip", "opsti")
+        pred_by_tip[t] = pred_by_tip.get(t, 0) + 1
+
+    return {
+        "mesec":              f"{godina}-{mese:02d}",
+        "mesec_prikaz":       f"{mese:02d}/{godina}",
+        "aktivnih_predmeta":  len(predmeti),
+        "predmeti_po_tipu":   pred_by_tip,
+        "rocista_mesec":      len(rocista),
+        "rocista":            rocista[:20],
+        "fakturisano_rsd":    round(fakturisano, 2),
+        "naplaceno_rsd":      round(naplaceno, 2),
+        "neplaceno_rsd":      round(fakturisano - naplaceno, 2),
+        "prekoraceni_rokovi": len(prekoraceni),
+        "sledecih_14_dana":   sledeci14[:10],
+        "generisano":         today_iso,
+    }

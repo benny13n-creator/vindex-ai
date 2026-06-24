@@ -112,6 +112,10 @@ class IntakeKreirajReq(BaseModel):
     prvi_rok:        Optional[str] = Field(default=None, max_length=12)
     rok_opis:        Optional[str] = Field(default=None, max_length=300)
     dokumenti:       List[DokumentIntakeRef] = Field(default_factory=list)
+    # Billing setup (opciono)
+    billing_tip:     Optional[str]   = Field(default=None, max_length=20)   # fiksni | satnica | aks
+    billing_iznos:   Optional[float] = Field(default=None, ge=0)
+    billing_aks:     Optional[str]   = Field(default=None, max_length=10)   # T01, T02...
 
 
 @router.post("/api/intake/ekstrakcija")
@@ -225,13 +229,78 @@ async def intake_kreiraj(
         except Exception as e:
             logger.warning("[INTAKE] dok link greška (%s): %s", dok.naziv_fajla, e)
 
-    logger.info("[INTAKE] predmet=%s uid=%.8s rok=%s docs=%d", predmet_id, uid, rok_dodat, docs_linked)
+    # Billing entry — kreiranje ako je advokat izabrao tip
+    billing_kreiran = False
+    if body.billing_tip in ("fiksni", "aks"):
+        try:
+            from routers.billing import AKS_TARIFA, BOD_RSD
+            _today_iso = date.today().isoformat()
+            if body.billing_tip == "fiksni" and body.billing_iznos:
+                billing_row = {
+                    "user_id":    uid,
+                    "predmet_id": predmet_id,
+                    "opis":       f"Honorar — {body.naziv}"[:400],
+                    "tip":        "konsultacija",
+                    "iznos_rsd":  float(body.billing_iznos),
+                    "datum":      _today_iso,
+                    "obracunato": False,
+                }
+            elif body.billing_tip == "aks" and body.billing_aks:
+                sifra  = (body.billing_aks or "").upper()
+                tarifa = AKS_TARIFA.get(sifra)
+                if tarifa:
+                    bodovi = tarifa.get("bodovi") or 0
+                    iznos  = tarifa.get("fiksno_rsd") or (bodovi * BOD_RSD)
+                    billing_row = {
+                        "user_id":      uid,
+                        "predmet_id":   predmet_id,
+                        "opis":         tarifa["naziv"][:400],
+                        "tip":          "postupak",
+                        "tarifa_sifra": sifra,
+                        "tarifa_naziv": tarifa["naziv"],
+                        "bodovi":       bodovi,
+                        "iznos_rsd":    float(iznos),
+                        "datum":        _today_iso,
+                        "obracunato":   False,
+                    }
+                else:
+                    billing_row = None
+            else:
+                billing_row = None
+
+            if billing_row:
+                await asyncio.to_thread(
+                    lambda r=billing_row: supa.table("billing_entries").insert(r).execute()
+                )
+                billing_kreiran = True
+        except Exception as e:
+            logger.warning("[INTAKE] billing entry greška: %s", e)
+
+    elif body.billing_tip == "satnica":
+        # Startuj tajmer odmah
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("timer_sessions").insert({
+                    "user_id":    uid,
+                    "predmet_id": predmet_id,
+                    "aktivan":    True,
+                    "opis":       f"Rad — {body.naziv}"[:400],
+                    "tip":        "satnica",
+                }).execute()
+            )
+            billing_kreiran = True
+        except Exception as e:
+            logger.warning("[INTAKE] timer start greška: %s", e)
+
+    logger.info("[INTAKE] predmet=%s uid=%.8s rok=%s docs=%d billing=%s",
+                predmet_id, uid, rok_dodat, docs_linked, billing_kreiran)
     return {
-        "success":      True,
-        "predmet_id":   predmet_id,
-        "predmet":      predmet,
-        "rok_dodat":    rok_dodat,
-        "docs_linked":  docs_linked,
+        "success":         True,
+        "predmet_id":      predmet_id,
+        "predmet":         predmet,
+        "rok_dodat":       rok_dodat,
+        "docs_linked":     docs_linked,
+        "billing_kreiran": billing_kreiran,
     }
 
 

@@ -439,6 +439,24 @@
           <span class="vx-search-kbd">⌘K</span>
         </div>
 
+        <!-- ── Mesečni izveštaj Modal ─────────────────────────── -->
+        <div id="mi-overlay" onclick="mesecniIzvestajZatvori()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9010;backdrop-filter:blur(3px);"></div>
+        <div id="mi-modal" style="display:none;position:fixed;top:8vh;left:50%;transform:translateX(-50%);width:min(640px,94vw);max-height:82vh;overflow-y:auto;background:#0d1b2a;border:1px solid rgba(74,168,255,0.2);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);z-index:9011;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.07);position:sticky;top:0;background:#0d1b2a;z-index:1;">
+            <div>
+              <div style="font-size:0.88rem;font-weight:700;color:#e2e8f0;">📊 Mesečni operativni izveštaj</div>
+              <div id="mi-naslov" style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:2px;"></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="mi-mesec-sel" onchange="mesecniIzvestajUcitaj()" style="font-size:0.72rem;background:#0f2035;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#94a3b8;padding:4px 8px;"></select>
+              <button onclick="mesecniIzvestajZatvori()" style="background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:1.1rem;padding:2px 6px;">✕</button>
+            </div>
+          </div>
+          <div id="mi-body" style="padding:18px;">
+            <div style="text-align:center;color:rgba(255,255,255,0.35);font-size:0.82rem;padding:2rem 0;">Učitavam...</div>
+          </div>
+        </div>
+
         <!-- ── Global Search Modal ───────────────────────────── -->
         <div id="gs-overlay" onclick="gsClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9000;backdrop-filter:blur(3px);"></div>
         <div id="gs-modal" style="display:none;position:fixed;top:15vh;left:50%;transform:translateX(-50%);width:min(600px,92vw);background:#0d1b2a;border:1px solid rgba(74,168,255,0.25);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);z-index:9001;overflow:hidden;">
@@ -2072,6 +2090,34 @@
                   <div id="intake-potrebni-docs" style="display:none;margin-top:16px;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;">
                     <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em;">Preporučena dokumentacija</div>
                     <ul id="intake-potrebni-docs-list" class="intake-docs-list" style="margin:0;padding-left:16px;"></ul>
+                  </div>
+                  <!-- Billing setup accordion -->
+                  <div style="margin-top:14px;border:1px solid rgba(255,255,255,0.07);border-radius:8px;overflow:hidden;">
+                    <div onclick="intakeBillingToggle()" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:rgba(255,255,255,0.03);cursor:pointer;user-select:none;">
+                      <span style="font-size:0.78rem;color:rgba(255,255,255,0.6);">💰 Billing podešavanje <span style="color:rgba(255,255,255,0.3);font-size:0.7rem;">(opciono)</span></span>
+                      <span id="intake-billing-arrow" style="font-size:0.65rem;color:rgba(255,255,255,0.3);">▼</span>
+                    </div>
+                    <div id="intake-billing-body" style="display:none;padding:10px 12px;border-top:1px solid rgba(255,255,255,0.05);">
+                      <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-bottom:8px;">Izaberite model naplate za ovaj predmet:</div>
+                      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+                        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:0.78rem;color:rgba(255,255,255,0.7);">
+                          <input type="radio" name="intake-billing-tip" value="fiksni" onchange="intakeBillingTipChange()" style="accent-color:#4aa8ff;"> Fiksni honorar
+                        </label>
+                        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:0.78rem;color:rgba(255,255,255,0.7);">
+                          <input type="radio" name="intake-billing-tip" value="satnica" onchange="intakeBillingTipChange()" style="accent-color:#4aa8ff;"> Po satu (tajmer startuje odmah)
+                        </label>
+                        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:0.78rem;color:rgba(255,255,255,0.7);">
+                          <input type="radio" name="intake-billing-tip" value="aks" onchange="intakeBillingTipChange()" style="accent-color:#4aa8ff;"> AKS tarifa
+                        </label>
+                      </div>
+                      <div id="intake-billing-iznos-wrap" style="display:none;">
+                        <input id="intake-billing-iznos" class="intake-field" type="number" min="0" step="100" placeholder="Iznos u RSD" style="margin-bottom:0;">
+                      </div>
+                      <div id="intake-billing-aks-wrap" style="display:none;">
+                        <select id="intake-billing-aks" class="intake-field" onchange="intakeBillingAksIznos()" style="background:#0d1117;color:#e6edf3;border:1px solid rgba(255,255,255,0.15);margin-bottom:0;"></select>
+                        <div id="intake-billing-aks-iznos" style="font-size:0.72rem;color:#4aa8ff;margin-top:4px;"></div>
+                      </div>
+                    </div>
                   </div>
                   <div id="intake-conflict-warning" style="display:none;margin-top:10px;padding:.6rem .85rem;border-radius:8px;font-size:0.78rem;line-height:1.5;"></div>
                   <div id="intake-kreiraj-err" style="display:none;color:#ff9090;font-size:0.78rem;margin-top:8px;"></div>
