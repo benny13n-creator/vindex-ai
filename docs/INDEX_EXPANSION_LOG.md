@@ -50,3 +50,15 @@
 | 2026-06-07 15:23 UTC | PZ | porodicni zakon | 362 articles | 0 vectors | DRY_RUN |
 | 2026-06-07 15:24 UTC | ZN | zakon o nasledjivanju | 240 articles | 341 vectors | OK |
 | 2026-06-07 15:26 UTC | PZ | porodicni zakon | 362 articles | 858 vectors | OK |
+| 2026-06-24 19:47 UTC | ZBSN | zakon o bezbednosti saobracaja na putevima | 345 articles | 1533 vectors | OK |
+| 2026-06-24 19:48 UTC | ZDF | zakon o deviznom poslovanju | 67 articles | 320 vectors | OK |
+| 2026-06-24 19:48 UTC | ZRDS | zakon o zaposljavanju stranaca | 31 articles | 132 vectors | OK |
+| 2026-06-24 19:50 UTC | ZOS | zakon o strancima | 137 articles | 773 vectors | OK |
+| 2026-06-24 19:51 UTC | ZOA | zakon o azilu | 103 articles | 305 vectors | OK |
+| 2026-06-24 19:51 UTC | ZPPI | zakon o pristupu informacijama od javnog znacaja | 50 articles | 207 vectors | OK |
+| 2026-06-24 19:52 UTC | ZH | zakon o hipoteci | 54 articles | 157 vectors | OK |
+| 2026-06-24 19:53 UTC | ZSTEC | zakon o stecaju | 217 articles | 748 vectors | OK |
+| 2026-06-24 19:55 UTC | ZASP | zakon o autorskom i srodnim pravima | 236 articles | 633 vectors | OK |
+| 2026-06-24 19:57 UTC | ZPRK | zakon o prekrsajima | 342 articles | 937 vectors | OK |
+| 2026-06-24 20:00 UTC | ZPIG | zakon o planiranju i izgradnji | 236 articles | 1300 vectors | OK |
+| 2026-06-24 20:02 UTC | ZJN | zakon o javnim nabavkama | 247 articles | 1067 vectors | OK |

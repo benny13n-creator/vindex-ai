@@ -1,0 +1,103 @@
+{
+  "datum": "2026-06-23",
+  "base_url": "https://vindex-ai.onrender.com",
+  "session_id": "6c51b968f539429ba3d18ef401d0652e",
+  "prosek_skor": 5.0,
+  "testovi": [
+    {
+      "test_br": 1,
+      "naziv": "Procesne slabosti",
+      "agent": "litigation",
+      "pitanje": "Koje su procesne slabosti ove upravne tužbe? Navedi konkretne procesne nedostatke prema ZUP i ZUSP.",
+      "odgovor": "[GREŠKA AGENTA 502] <!DOCTYPE html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>502</title>\n    <style>@font-face {\n  font-fami",
+      "skor": 0,
+      "ocena": "NEPRIHVATLJIVO",
+      "detalji": {
+        "skor": 0,
+        "kljucne_pogodene": 0,
+        "kljucne_ukupno": 10,
+        "zabranjene": [],
+        "duzina_ok": false,
+        "duzina_znakova": 220,
+        "clan_stav_count": null
+      },
+      "trajanje_s": 7.4
+    },
+    {
+      "test_br": 2,
+      "naziv": "Nedostajući dokaz",
+      "agent": "litigation",
+      "pitanje": "Koji dokaz najviše nedostaje u ovom predmetu i zašto je kritičan za ishod spora?",
+      "odgovor": "Dokaz koji najviše nedostaje u ovom predmetu je dokumentacija koja dokazuje pravni kontinuitet od zadnjeg upisanog vlasnika do trenutnog vlasnika. Ovaj dokaz je kritičan jer je ključan za dokazivanje pravnog osnova za upis prava svojine u katastar. Bez ovog dokaza, tužilac ne može pokazati da postoji neprekinut lanac vlasništva, što je osnovni uslov za uknjižbu prava svojine prema Zakonu o postupku upisa u katastar nepokretnosti i vodova. Bez dokaza o pravnom kontinuitetu, upravni organi i sud mogu smatrati da nisu ispunjeni svi uslovi za upis, što može dovesti do odbijanja tužbe.",
+      "skor": 7,
+      "ocena": "DOBRO",
+      "detalji": {
+        "skor": 7,
+        "kljucne_pogodene": 6,
+        "kljucne_ukupno": 10,
+        "zabranjene": [],
+        "duzina_ok": true,
+        "duzina_znakova": 587,
+        "clan_stav_count": null
+      },
+      "trajanje_s": 40.3
+    },
+    {
+      "test_br": 3,
+      "naziv": "Sporne činjenice",
+      "agent": "litigation",
+      "pitanje": "Koje činjenice protivnik može najlakše osporavati i kako će to učiniti na ročištu?",
+      "odgovor": "Protivnik može najlakše osporavati sledeće činjenice:\n\n1. **Pravni kontinuitet vlasništva:**\n   - Protivnik će verovatno osporavati postojanje pravnog kontinuiteta od zadnjeg upisanog vlasnika do trenutnog tužioca. Na ročištu može insistirati na tome da priloženi dokazi (ugovor o kupoprodaji i rešenje o nasleđivanju) ne dokazuju taj kontinuitet, jer nedostaje dokumentacija koja povezuje prethodnog vlasnika sa trenutnim vlasnikom.\n\n2. **Netačno i nepotpuno utvrđeno činjenično stanje:**\n   - Protivnik može tvrditi da je organ pravilno utvrdio činjenično stanje i da je notarski ugovor nedovoljan kao pravni osnov za sticanje svojine bez dodatnih dokaza o kontinuitetu vlasništva.\n\n3. **Povreda čl. 205 ZUP i čl. 16 Zakona o postupku upisa u katastar:**\n   - Protivnik može osporavati tvrdnju da organ nije naveo koji dokazi nedostaju ili da nije pozvao tužioca da otkloni formalne nedostatke, tvrdeći da su svi potrebni koraci preduzeti u skladu sa zakonom i da je tužilac imao priliku da dopuni zahtev.\n\nNa ročištu, protivnik će verovatno insistirati na proceduralnim pravilnostima i nedostatku ključnih dokaza koji bi potvrdili pravni kontinuitet vlasništva.",
+      "skor": 6,
+      "ocena": "PRIHVATLJIVO",
+      "detalji": {
+        "skor": 6,
+        "kljucne_pogodene": 5,
+        "kljucne_ukupno": 10,
+        "zabranjene": [],
+        "duzina_ok": true,
+        "duzina_znakova": 1164,
+        "clan_stav_count": null
+      },
+      "trajanje_s": 18.9
+    },
+    {
+      "test_br": 4,
+      "naziv": "ZUP članovi",
+      "agent": "research",
+      "pitanje": "Koji članovi ZUP-a su najrelevantniji za ovaj upravni spor? Za svaki član navedi tačan stav i objasni kako se primenjuje na konkretan slučaj.",
+      "odgovor": "## 1. PRIMENJIVI PROPISI\n\n### Zakon o opštem upravnom postupku (ZUP), Sl. gl. RS 18/2016\n\n- **Član 9** (Načelo efikasnosti i ekonomičnosti)\n  - **Stav 1**: Organ je dužan da postupa efikasno i ekonomično, i da obezbedi da se postupak sprovede bez nepotrebnog odlaganja. U konkretnom slučaju, tužilac tvrdi da je organ povredio ovo načelo jer nije bio obavešten o razlozima za odbijanje zahteva, čime je sprečen da blagovremeno dopuni zahtev.\n\n- **Član 205** (Otklanjanje formalnih nedostataka)\n  - **Stav 1**: Ako organ utvrdi da podnesak ima formalne nedostatke, dužan je da obavesti podnosioca i da mu ostavi rok za otklanjanje nedostataka. Tužilac tvrdi da organ nije naveo koji tačno dokazi nedostaju, niti je pozvao tužioca da otkloni formalne nedostatke, što je povreda ovog člana.\n\n### Zakon o postupku upisa u katastar nepokretnosti i vodova, Sl. gl. RS 41/2018, 95/2018, 31/2019\n\n- **Član 16**: Obavezuje katastar da pozove podnosioca da dopuni zahtev pre donošenja odbijajućeg rešenja. U ovom slučaju, tužilac tvrdi da je katastar povredio ovu obavezu jer nije omogućio tužiocu da dopuni zahtev pre donošenja rešenja o odbijanju.\n\n### Zakon o osnovama svojinskopravnih odnosa, Sl. gl. RS 115/2005\n\n- **Član 20**: Definiše pravni osnov za sticanje svojine, uključujući i ugovor o kupoprodaji. Tužilac tvrdi da je organ zanemario notarski ugovor kao punovažni pravni osnov za sticanje svojine.\n\n## 2. SUDSKA PRAKSA\n\nU dostavljenim izvorima nema konkretnih odluka koje bi se direktno odnosile na ovu situaciju. Preporučuje se konsultacija baze sudskih odluka kao što su sudskapraksa.rs, paragraf.rs ili VKS baza odluka za konkretne presude.\n\n## 3. PRAVNI STANDARD\n\nU praksi, sudovi često insistiraju na poštovanju načela efikasnosti i ekonomičnosti, kao i na obavezi organa da obaveste stranku o formalnim nedostacima kako bi se omogućilo njihovo otklanjanje. Nepoštovanje ovih načela može dovesti do poništaja upravnog akta.\n\n## 4. PRAKTIČNA PRIMENA\n\nU konkretnom slučaju, tužilac može argumentovati da je povređen član 205 ZUP-a jer organ nije naveo koji dokazi nedostaju niti je omogućio dopunu zahteva. Takođe, član 16 Zakona o postupku upisa u katastar je relevantan jer organ nije pozvao tužioca da dopuni zahtev pre donošenja rešenja o odbijanju.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nJedan od rizika je da sud može smatrati da je organ ipak postupio u skladu sa zakonom ako je smatrao da dostavljeni dokazi nisu dovoljni za upis, bez obzira na formalne nedostatke. Takođe, može postojati pravna nesigurnost u vezi sa tumačenjem šta tačno predstavlja \"pravni kontinuitet\" u kontekstu upisa prava svojine.",
+      "skor": 6,
+      "ocena": "PRIHVATLJIVO",
+      "detalji": {
+        "skor": 6,
+        "kljucne_pogodene": 5,
+        "kljucne_ukupno": 10,
+        "zabranjene": [],
+        "duzina_ok": true,
+        "duzina_znakova": 2611,
+        "clan_stav_count": 0
+      },
+      "trajanje_s": 14.5
+    },
+    {
+      "test_br": 5,
+      "naziv": "Plan pripreme za ročište",
+      "agent": "drafting",
+      "pitanje": "Napravi konkretan plan pripreme za ročište korak po korak — šta uraditi, kojim redosledom i do kog roka.",
+      "odgovor": "### Plan pripreme za ročište\n\n1. **Pregled dokumentacije**\n   - **Odgovorno lice:** Advokat Dragan Popović\n   - **Rok:** 17.05.2024.\n   - **Opis:** Detaljno pregledati sve priložene dokaze navedene u tužbi, uključujući ugovor o kupoprodaji, rešenje o nasleđivanju, posedovni list i druge relevantne dokumente. Osigurati da su svi dokumenti u skladu sa zakonskim zahtevima i da su dostupni u originalu ili overenoj kopiji.\n\n2. **Priprema dodatnih dokaza**\n   - **Odgovorno lice:** Advokat Dragan Popović\n   - **Rok:** 24.05.2024.\n   - **Opis:** Ukoliko nedostaju neki dokazi ili je potrebno dodatno pojašnjenje, obezbediti dodatne dokumente kao što su geodetski snimci ili dodatni izvod iz matice umrlih. Kontaktirati relevantne institucije ili stručnjake za pribavljanje potrebnih dokumenata.\n\n3. **Priprema pravne argumentacije**\n   - **Odgovorno lice:** Advokat Dragan Popović\n   - **Rok:** 31.05.2024.\n   - **Opis:** Razraditi pravne argumente na osnovu povreda zakona navedenih u tužbi. Pripremiti se za moguće kontrargumente tuženog i planirati odgovore. Fokusirati se na povrede čl. 205 ZUP, načela efikasnosti i ekonomičnosti, i druge relevantne zakonske odredbe.\n\n4. **Simulacija ročišta**\n   - **Odgovorno lice:** Advokat Dragan Popović\n   - **Rok:** 07.06.2024.\n   - **Opis:** Organizovati simulaciju ročišta kako bi se proverila spremnost za iznošenje argumenata i reagovanje na pitanja suda. Uključiti sve članove pravnog tima i, po mogućnosti, treću stranu koja će igrati ulogu sudije.\n\n5. **Finalna revizija i priprema za ročište**\n   - **Odgovorno lice:** Advokat Dragan Popović\n   - **Rok:** 10.06.2024.\n   - **Opis:** Obaviti finalnu reviziju svih dokumenata i pravne argumentacije. Osigurati da su svi članovi tima upoznati sa strategijom i da su svi dokazi spremni za prezentaciju. Pripremiti sve potrebne kopije dokumenata za sud i suprotnu stranu.\n\n6. **Ročište**\n   - **Datum:** 13.06.2024.\n   - **Opis:** Prisustvovati ročištu, izneti tužbeni zahtev i pravne argumente, prezentovati dokaze i odgovarati na pitanja suda.\n\nNapomena: Ovaj plan je okviran i može biti prilagođen u zavisnosti od daljeg razvoja slučaja ili dodatnih informacija.",
+      "skor": 6,
+      "ocena": "PRIHVATLJIVO",
+      "detalji": {
+        "skor": 6,
+        "kljucne_pogodene": 5,
+        "kljucne_ukupno": 10,
+        "zabranjene": [],
+        "duzina_ok": true,
+        "duzina_znakova": 2162,
+        "clan_stav_count": null
+      },
+      "trajanje_s": 12.2
+    }
+  ]
+}
