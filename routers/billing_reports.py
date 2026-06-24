@@ -520,7 +520,7 @@ async def billing_mesecni(
     do_inc_iso = (date.fromisoformat(do_iso) - timedelta(days=1)).isoformat()
     today_iso  = today.isoformat()
 
-    (pred_r, rocista_r, billing_r, rokovi_r, hronologija_r) = await asyncio.gather(
+    (pred_r, rocista_r, billing_r, fakture_r, rokovi_r, hronologija_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,naziv,tip,status")
             .eq("user_id", uid)
@@ -538,6 +538,12 @@ async def billing_mesecni(
             .eq("user_id", uid)
             .gte("datum", od_iso)
             .lte("datum", do_inc_iso)
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("fakture")
+            .select("iznos_sa_pdv,iznos_rsd,status,datum_fakture")
+            .eq("user_id", uid)
+            .gte("datum_fakture", od_iso)
+            .lte("datum_fakture", do_inc_iso)
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija")
             .select("id,datum_iso,dogadjaj,vaznost,predmet_id")
@@ -561,11 +567,15 @@ async def billing_mesecni(
     predmeti    = _safe(pred_r)
     rocista     = _safe(rocista_r)
     entries     = _safe(billing_r)
+    fakture     = _safe(fakture_r)
     prekoraceni = _safe(rokovi_r)
     sledeci14   = _safe(hronologija_r)
 
     fakturisano = sum(float(e.get("iznos_rsd") or 0) for e in entries)
-    naplaceno   = sum(float(e.get("iznos_rsd") or 0) for e in entries if e.get("obracunato"))
+    naplaceno   = sum(
+        float(f.get("iznos_sa_pdv") or f.get("iznos_rsd") or 0)
+        for f in fakture if f.get("status") == "placena"
+    )
 
     pred_by_tip: dict[str, int] = {}
     for p in predmeti:

@@ -29,8 +29,28 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
-from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
+from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user, _verify_token
 from shared.rate import limiter
+
+_security_opt = HTTPBearer(auto_error=False)
+
+
+async def _require_cron_or_founder(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_security_opt),
+) -> dict:
+    """FastAPI dep: accepts X-Cron-Key header OR valid founder Bearer JWT."""
+    cron_key = request.headers.get("X-Cron-Key", "")
+    if _CRON_SECRET and cron_key == _CRON_SECRET:
+        founder_email = next(iter(FOUNDER_EMAILS), "")
+        return {"user_id": "cron-scheduler", "email": founder_email}
+    if credentials:
+        payload = await asyncio.to_thread(_verify_token, credentials.credentials)
+        if payload:
+            email = (payload.get("email") or "").lower()
+            if email in FOUNDER_EMAILS:
+                return {"user_id": payload.get("sub"), "email": email}
+    raise HTTPException(status_code=403, detail="Restricted to founder or valid cron key.")
 from routers.gdpr import make_unsub_url
 
 logger = logging.getLogger("vindex.email_notif")
@@ -197,27 +217,15 @@ async def test_email(request: Request, user: dict = Depends(get_current_user)):
     return {"ok": True, "poslato_na": to_addr}
 
 
-def _cron_auth(request: Request) -> None:
-    """Allows access if caller is founder OR provides valid X-Cron-Key header."""
-    cron_key = request.headers.get("X-Cron-Key", "")
-    if _CRON_SECRET and cron_key == _CRON_SECRET:
-        return
-    raise HTTPException(status_code=403, detail="Restricted.")
-
 
 @router.post("/email-notif/send-reminders")
 @limiter.limit("10/minute")
-async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_user)):
+async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cron_or_founder)):
     """
     Cron trigger — šalje email podsetnik za kritične rokove.
     Dostupno: founder račun ILI X-Cron-Key header (Railway/Render cron).
     Šalje za 7, 3 i 1 dan (samo ako se već nije slao za taj rok+dana).
     """
-    is_founder = (user.get("email") or "").lower() in FOUNDER_EMAILS
-    cron_key   = request.headers.get("X-Cron-Key", "")
-    valid_cron = bool(_CRON_SECRET) and cron_key == _CRON_SECRET
-    if not is_founder and not valid_cron:
-        raise HTTPException(status_code=403, detail="Restricted.")
 
     supa    = _get_supa()
     today   = date.today()
@@ -392,16 +400,11 @@ def _weekly_digest_html(
 
 @router.post("/email-notif/nedeljni-sazetak")
 @limiter.limit("10/minute")
-async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(get_current_user)):
+async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_require_cron_or_founder)):
     """
     Cron trigger (ponedeljak 07:00) — šalje nedeljni sažetak svim korisnicima.
     Dostupno: founder ILI X-Cron-Key header.
     """
-    is_founder = (user.get("email") or "").lower() in FOUNDER_EMAILS
-    cron_key   = request.headers.get("X-Cron-Key", "")
-    valid_cron = bool(_CRON_SECRET) and cron_key == _CRON_SECRET
-    if not is_founder and not valid_cron:
-        raise HTTPException(status_code=403, detail="Restricted.")
 
     supa  = _get_supa()
     today = date.today()
@@ -663,15 +666,13 @@ async def onboarding_welcome(request: Request, user: dict = Depends(get_current_
 
 @router.post("/email-notif/onboarding-cron")
 @limiter.limit("5/minute")
-async def onboarding_cron(request: Request, user: dict = Depends(get_current_user)):
+async def onboarding_cron(request: Request, user: dict = Depends(_require_cron_or_founder)):
     """
     Cron trigger — pokreće se svaki dan (08:00).
     Šalje day1 email korisnicima registrovanim pre 24-48h koji nisu koristili AI.
     Šalje day3 email korisnicima registrovanim pre 72-96h koji nemaju predmete.
-    Founder only.
+    Founder only OR cron key.
     """
-    if (user.get("email") or "").lower() not in FOUNDER_EMAILS:
-        raise HTTPException(status_code=403, detail="Restricted.")
 
     from datetime import datetime, timezone, timedelta as _td
 
@@ -781,10 +782,10 @@ async def onboarding_cron(request: Request, user: dict = Depends(get_current_use
 
 @router.post("/api/cron/daily")
 @limiter.limit("10/minute")
-async def cron_daily(request: Request, user: dict = Depends(get_current_user)):
+async def cron_daily(request: Request, user: dict = Depends(_require_cron_or_founder)):
     """
     Master dnevni cron — poziva se jednom dnevno (07:00) od strane scheduler-a.
-    Autentifikacija: X-Cron-Key header sa CRON_SECRET env varom.
+    Autentifikacija: X-Cron-Key header sa CRON_SECRET env varom (bez Bearer tokena).
 
     Podešavanje na Railway/Render/Vercel:
       URL: POST https://vindex.rs/api/cron/daily
@@ -796,11 +797,6 @@ async def cron_daily(request: Request, user: dict = Depends(get_current_user)):
       2. Onboarding email sekvenca (day1, day3)
       3. Nedeljni sažetak (samo ponedeljkom)
     """
-    is_founder = (user.get("email") or "").lower() in FOUNDER_EMAILS
-    cron_key   = request.headers.get("X-Cron-Key", "")
-    valid_cron = bool(_CRON_SECRET) and cron_key == _CRON_SECRET
-    if not is_founder and not valid_cron:
-        raise HTTPException(status_code=403, detail="Restricted.")
 
     from datetime import datetime
     rezultati: dict = {}

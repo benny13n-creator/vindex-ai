@@ -15020,8 +15020,8 @@ function _miRender(d) {
     h += '<div style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Ročišta</div>';
     d.rocista.forEach(function(ro) {
       h += '<div style="display:flex;justify-content:space-between;padding:7px 10px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:4px;font-size:0.78rem;">';
-      h += '<span style="color:#e2e8f0;">' + _miEsc(ro.naziv || '—') + '</span>';
-      h += '<span style="color:#94a3b8;">' + _miEsc(ro.datum_rocista || '') + '</span>';
+      h += '<span style="color:#e2e8f0;">' + _miEsc(ro.sud || ro.naziv || '—') + '</span>';
+      h += '<span style="color:#94a3b8;">' + _miEsc(ro.datum || ro.datum_rocista || '') + '</span>';
       h += '</div>';
     });
     h += '</div>';
@@ -15032,7 +15032,7 @@ function _miRender(d) {
     h += '<div style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Sledećih 14 dana</div>';
     d.sledecih_14_dana.forEach(function(ro) {
       h += '<div style="display:flex;justify-content:space-between;padding:7px 10px;background:rgba(251,146,60,0.08);border:1px solid rgba(251,146,60,0.15);border-radius:6px;margin-bottom:4px;font-size:0.78rem;">';
-      h += '<span style="color:#e2e8f0;">' + _miEsc(ro.naziv || '—') + '</span>';
+      h += '<span style="color:#e2e8f0;">' + _miEsc(ro.dogadjaj || ro.naziv || '—') + '</span>';
       h += '<span style="color:#fb923c;">' + _miEsc(ro.datum_iso || ro.datum || '') + '</span>';
       h += '</div>';
     });
