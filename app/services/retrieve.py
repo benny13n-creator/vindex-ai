@@ -233,12 +233,12 @@ LAW_HINTS = {
     "kradja kriptovalute":        "KZ",
     "kradja kripto":              "KZ",
     # ZPDG
-    "zarada od kripto":           "ZPDG",
-    "prihod od kripto":           "ZPDG",
-    "prihodi od kripto":          "ZPDG",
-    "kapitalni dobitak":          "ZPDG",
-    "kapitaln":                   "ZPDG",
-    "porez na kripto":            "ZPDG",
+    "zarada od kripto":           "zakon o porezu na dohodak gradjana",
+    "prihod od kripto":           "zakon o porezu na dohodak gradjana",
+    "prihodi od kripto":          "zakon o porezu na dohodak gradjana",
+    "kapitalni dobitak":          "zakon o porezu na dohodak gradjana",
+    "kapitaln":                   "zakon o porezu na dohodak gradjana",
+    "porez na kripto":            "zakon o porezu na dohodak gradjana",
     # EU/FATF terminology → srpski ekvivalent u ZDI
     "vasp":                       "zakon o digitalnoj imovini",
     "casp":                       "zakon o digitalnoj imovini",
@@ -1251,7 +1251,7 @@ def _jedan_retrieval_krug(
     # g) ZPDG ekspanzija
     if any(x in q_norm for x in _ZPDG_TRIGERI):
         for term in _ZPDG_TERMINI:
-            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "ZPDG"))
+            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o porezu na dohodak gradjana"))
 
     # h) Prevara/fraud ekspanzija — Q5: embedding collision forces KZ 208 out of top-10
     if re.search(r'\bprevar', q_norm) and re.search(r'\b(milion|hiljada|dinara)\b', q_norm):
