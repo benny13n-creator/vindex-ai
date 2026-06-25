@@ -1043,6 +1043,28 @@ def serve_portal():
     return _serve_index_html()
 
 
+@app.get("/sw.js", include_in_schema=False)
+def serve_sw():
+    """Service Worker mora biti na root scope-u da bi mogao da interceptuje /app i /api/*."""
+    from fastapi.responses import FileResponse as _FR
+    sw_path = BASE_DIR / "static" / "sw.js"
+    return _FR(str(sw_path), media_type="application/javascript", headers={
+        "Service-Worker-Allowed": "/",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+    })
+
+
+@app.get("/manifest.json", include_in_schema=False)
+def serve_manifest():
+    from fastapi.responses import FileResponse as _FR
+    return _FR(str(BASE_DIR / "static" / "manifest.json"), media_type="application/manifest+json")
+
+
+@app.get("/offline", include_in_schema=False)
+def serve_offline():
+    return _serve_index_html()
+
+
 # ─── Auth endpointi ───────────────────────────────────────────────────────────
 
 

@@ -12531,11 +12531,11 @@ async function piReloadFeatures(dana) {
 /* ═══════════════════════════════ NEXT BLOCK ═══════════════════════════════ */
 
 
-// F6 — PWA Service Worker registracija
+// PWA Service Worker registracija — /sw.js na root-u da scope bude "/"
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/static/sw.js')
-      .then(function(reg) { console.log('[Vindex] SW registered:', reg.scope); })
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(function(reg) { console.log('[Vindex] SW registered, scope:', reg.scope); })
       .catch(function(err) { console.warn('[Vindex] SW registration failed:', err); });
   });
 }
