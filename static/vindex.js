@@ -8353,11 +8353,68 @@ function notif_render() {
 }
 
 function notif_toggleDropdown() {
+  // Na mobilnom koristimo dedicated bottom sheet panel
+  if (window.innerWidth <= 768) {
+    mobNotifOtvori();
+    return;
+  }
   var dd = document.getElementById('notif-dropdown');
   if (!dd) return;
   var showing = dd.style.display !== 'none';
   dd.style.display = showing ? 'none' : 'block';
   if (!showing) notif_render();
+}
+
+function mobNotifOtvori() {
+  var overlay = document.getElementById('mob-notif-overlay');
+  var panel   = document.getElementById('mob-notif-panel');
+  if (!panel) return;
+  // Popuni listu pre otvaranja
+  var list = document.getElementById('mob-notif-list');
+  if (list) {
+    var _TIP_LABEL = {
+      rok_blizu:'📅 Rok', hitan_rok:'⚠ Hitan rok', rok:'📅 Rok',
+      rizik_promena:'⚠ Rizik', bez_klijenta:'👤 Klijent', neaktivnost:'💤 Neaktivnost'
+    };
+    var _PRIO_COLOR = {
+      visoka:'#ff9090', hitan:'#ff9090', srednja:'#ffbb70',
+      normalan:'#ffbb70', niska:'rgba(255,255,255,.4)', info:'rgba(255,255,255,.4)'
+    };
+    var unreadCount = _notifData.filter(function(n){ return !_notifRead.has(n.id); }).length;
+    var hdr = '<div style="padding:0.5rem 1rem 0.4rem;display:flex;justify-content:space-between;align-items:center;">'
+      +'<span style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.35);">'+
+        (unreadCount ? unreadCount+' nepročitano' : 'Sve pročitano')+'</span>'
+      +(unreadCount ? '<button onclick="notif_markAllRead()" style="background:none;border:none;font-size:0.72rem;color:#4aa8ff;cursor:pointer;padding:0;font-family:inherit;">Označi sve</button>' : '')
+      +'</div>';
+    if (!_notifData.length) {
+      list.innerHTML = hdr + '<div style="padding:2rem 1rem;font-size:0.8rem;color:rgba(255,255,255,.3);text-align:center;">Nema obaveštenja.</div>';
+    } else {
+      list.innerHTML = hdr + _notifData.map(function(n) {
+        var isRead = _notifRead.has(n.id);
+        var pColor = _PRIO_COLOR[n.prioritet] || 'rgba(255,255,255,.4)';
+        var tipLbl = n.naslov || _TIP_LABEL[n.tip] || 'ℹ Info';
+        return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||')\')"'
+          +' style="padding:0.7rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.06);opacity:'+(isRead?'0.4':'1')+';active-background:rgba(74,168,255,.08);">'
+          +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">'
+          +'<span style="font-size:0.65rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
+          +'<span style="font-size:0.62rem;color:rgba(255,255,255,.28);margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
+          +'</div>'
+          +'<div style="font-size:0.82rem;color:rgba(255,255,255,.85);line-height:1.45;">'+escHtml(n.poruka)+'</div>'
+          +(n.predmet_naziv ? '<div style="font-size:0.72rem;color:rgba(255,255,255,.38);margin-top:0.2rem;display:flex;justify-content:space-between;">'
+            +escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:#89c8ff;">Otvori →</span>':'')+'</div>' : '')
+          +'</div>';
+      }).join('');
+    }
+  }
+  if (overlay) { overlay.style.display = 'block'; }
+  panel.style.display = 'flex';
+}
+
+function mobNotifZatvori() {
+  var overlay = document.getElementById('mob-notif-overlay');
+  var panel   = document.getElementById('mob-notif-panel');
+  if (overlay) overlay.style.display = 'none';
+  if (panel)   panel.style.display = 'none';
 }
 
 function notif_click(el, id, predmetId) {
@@ -8368,7 +8425,9 @@ function notif_click(el, id, predmetId) {
   var unread = _notifData.filter(function(n){ return !_notifRead.has(n.id); });
   if (badge) { if(unread.length){badge.textContent=unread.length>9?'9+':String(unread.length);badge.style.display='block';}else{badge.style.display='none';} }
   if (predmetId) {
-    document.getElementById('notif-dropdown').style.display = 'none';
+    var dd = document.getElementById('notif-dropdown');
+    if (dd) dd.style.display = 'none';
+    mobNotifZatvori();
     var tabEl = document.querySelector('[onclick*="setTab"][onclick*="\'p\'"]');
     if (tabEl) setTab(tabEl,'p');
     setTimeout(function(){ pred_select(predmetId); }, 150);

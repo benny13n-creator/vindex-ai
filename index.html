@@ -3542,6 +3542,16 @@
   </div>
 </div>
 
+<!-- Mobile notifikacije panel -->
+<div id="mob-notif-overlay" onclick="mobNotifZatvori()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10002;backdrop-filter:blur(3px);"></div>
+<div id="mob-notif-panel" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0d1b2a;border-top:1px solid rgba(74,168,255,0.2);border-radius:16px 16px 0 0;z-index:10003;max-height:75vh;display:none;flex-direction:column;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid rgba(255,255,255,0.07);flex-shrink:0;">
+    <span style="font-size:0.82rem;font-weight:700;color:#e6edf3;letter-spacing:.03em;">Obaveštenja</span>
+    <button onclick="mobNotifZatvori()" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:rgba(255,255,255,0.45);font-size:0.8rem;padding:3px 10px;cursor:pointer;font-family:inherit;">✕</button>
+  </div>
+  <div id="mob-notif-list" style="overflow-y:auto;flex:1;padding:4px 0 env(safe-area-inset-bottom,16px);"></div>
+</div>
+
 <!-- Android install modal -->
 <div id="android-install-modal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.72);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);">
   <div style="background:#0f1a2e;border:1px solid rgba(0,212,255,0.22);border-radius:16px 16px 0 0;padding:1.6rem 1.5rem 2.4rem;width:100%;max-width:480px;animation:slide-up-ios .28s ease;">
