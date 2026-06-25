@@ -1,7 +1,7 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v3";
+const CACHE_NAME = "vindex-v4";
 
 const PRECACHE = [
   "/app",
@@ -36,6 +36,14 @@ self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
 
   if (event.request.method !== "GET") return;
+
+  // Supabase i eksterni auth/API servisi — nikad ne keširati
+  if (
+    url.hostname.includes("supabase.co") ||
+    url.hostname.includes("supabase.io")
+  ) {
+    return; // browser handles natively, no SW interference
+  }
 
   // API — network-first, offline JSON fallback
   if (
