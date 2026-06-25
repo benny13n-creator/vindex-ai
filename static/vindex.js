@@ -12605,7 +12605,9 @@ function _vxPrompt(msg, defaultVal, onOk, onCancel) {
 
 // ── PWA Install prompt ──
 var _pwaPrompt = null;
-var _pwaIsIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+// iPadOS 13+ se maskira kao Macintosh — detekcija po touch points
+var _pwaIsIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 var _pwaIsAndroid = /Android/.test(navigator.userAgent);
 var _pwaIsMobile = _pwaIsIOS || _pwaIsAndroid;
 var _pwaIsStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
