@@ -3538,6 +3538,31 @@
   </div>
 </div>
 
+<!-- Android install modal -->
+<div id="android-install-modal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.72);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);">
+  <div style="background:#0f1a2e;border:1px solid rgba(0,212,255,0.22);border-radius:16px 16px 0 0;padding:1.6rem 1.5rem 2.4rem;width:100%;max-width:480px;animation:slide-up-ios .28s ease;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <span style="font-size:0.82rem;font-weight:700;color:#00d4ff;letter-spacing:.06em;text-transform:uppercase;">Instaliraj Vindex AI</span>
+      <button onclick="document.getElementById('android-install-modal').style.display='none'" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:rgba(255,255,255,0.5);font-size:0.8rem;padding:3px 10px;cursor:pointer;font-family:inherit;">✕</button>
+    </div>
+    <p style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-bottom:1.2rem;line-height:1.5;">Dodajte Vindex AI na početni ekran putem Chrome menija:</p>
+    <div style="display:flex;flex-direction:column;gap:0.75rem;">
+      <div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.12);border-radius:10px;">
+        <span style="font-size:1.3rem;flex-shrink:0;">1</span>
+        <span style="font-size:0.83rem;color:rgba(255,255,255,0.75);line-height:1.4;">Tapnite <strong style="color:#fff;">tri tačke</strong> u gornjem desnom uglu Chrome-a</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.12);border-radius:10px;">
+        <span style="font-size:1.3rem;flex-shrink:0;">2</span>
+        <span style="font-size:0.83rem;color:rgba(255,255,255,0.75);line-height:1.4;">Izaberite <strong style="color:#fff;">Dodaj na početni ekran</strong> ili <strong style="color:#fff;">Instaliraj aplikaciju</strong></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.12);border-radius:10px;">
+        <span style="font-size:1.3rem;flex-shrink:0;">3</span>
+        <span style="font-size:0.83rem;color:rgba(255,255,255,0.75);line-height:1.4;">Tapnite <strong style="color:#fff;">Instaliraj</strong> i aplikacija se pojavljuje na ekranu</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- VX Custom Dialog (replaces native alert/confirm/prompt for iOS PWA compat) -->
 <div id="vx-dialog-overlay" onclick="if(event.target===this)_vxDlgCancel()" style="display:none;position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.65);align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">
   <div style="background:#0f1a2e;border:1px solid rgba(0,212,255,0.2);border-radius:14px;padding:1.5rem;width:min(380px,88vw);animation:scale-in-dlg .2s ease;">

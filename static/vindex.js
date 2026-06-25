@@ -12606,15 +12606,21 @@ function _vxPrompt(msg, defaultVal, onOk, onCancel) {
 // ── PWA Install prompt ──
 var _pwaPrompt = null;
 var _pwaIsIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+var _pwaIsAndroid = /Android/.test(navigator.userAgent);
+var _pwaIsMobile = _pwaIsIOS || _pwaIsAndroid;
 var _pwaIsStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+// Ako je već instaliran kao standalone — ne prikazuj dugme
+if (!_pwaIsStandalone) {
+  document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'flex'; // uvek vidljivo na mobilnom i desktopu
+  });
+}
 
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
-  _pwaPrompt = e;
-  if (!_pwaIsStandalone) {
-    var btn = document.getElementById('pwa-install-btn');
-    if (btn) btn.style.display = 'flex';
-  }
+  _pwaPrompt = e; // sačuvaj za direktnu instalaciju
 });
 
 window.addEventListener('appinstalled', function() {
@@ -12623,32 +12629,33 @@ window.addEventListener('appinstalled', function() {
   if (btn) btn.style.display = 'none';
 });
 
-// Show install button on iOS (beforeinstallprompt never fires on iOS)
-if (_pwaIsIOS && !_pwaIsStandalone) {
-  document.addEventListener('DOMContentLoaded', function() {
-    var btn = document.getElementById('pwa-install-btn');
-    if (btn) btn.style.display = 'flex';
-  });
-}
-
 function pwaInstall() {
+  // iOS — uvek manuelno uputstvo
   if (_pwaIsIOS) {
-    var modal = document.getElementById('ios-install-modal');
-    if (modal) modal.style.display = 'flex';
+    var m = document.getElementById('ios-install-modal');
+    if (m) m.style.display = 'flex';
     return;
   }
-  if (!_pwaPrompt) {
-    showToast('Vaš pregledač ne podržava instalaciju ili je aplikacija već instalirana.', 'info');
+  // Android/Desktop sa native promptom — koristi ga
+  if (_pwaPrompt) {
+    _pwaPrompt.prompt();
+    _pwaPrompt.userChoice.then(function(result) {
+      if (result.outcome === 'accepted') {
+        var btn = document.getElementById('pwa-install-btn');
+        if (btn) btn.style.display = 'none';
+      }
+      _pwaPrompt = null;
+    });
     return;
   }
-  _pwaPrompt.prompt();
-  _pwaPrompt.userChoice.then(function(result) {
-    if (result.outcome === 'accepted') {
-      var btn = document.getElementById('pwa-install-btn');
-      if (btn) btn.style.display = 'none';
-    }
-    _pwaPrompt = null;
-  });
+  // Android bez prompta — manuelno uputstvo za Chrome meni
+  if (_pwaIsAndroid) {
+    var m2 = document.getElementById('android-install-modal');
+    if (m2) m2.style.display = 'flex';
+    return;
+  }
+  // Desktop bez prompta
+  showToast('Klikni na ikonu za instalaciju u adresnoj traci pregledača (desno od URL-a).', 'info');
 }
 
 
