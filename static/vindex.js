@@ -8303,6 +8303,9 @@ function notif_render() {
   } else {
     badge.style.display = 'none';
   }
+  // Sync mobile "Više" sheet notif dot
+  var mobDot = document.getElementById('mob-more-notif-dot');
+  if (mobDot) mobDot.style.display = unread.length > 0 ? '' : 'none';
 
   if (!dropdown) return;
   var _TIP_LABEL = {
