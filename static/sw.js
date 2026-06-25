@@ -1,7 +1,7 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v5";
+const CACHE_NAME = "vindex-v6";
 
 const PRECACHE = [
   "/app",
@@ -9,8 +9,8 @@ const PRECACHE = [
   "/static/vindex.css",
   "/static/vindex.js",
   "/static/manifest.json",
-  "/static/icon-192.png",
-  "/static/icon-512.png",
+  "/static/icon-192-v2.png",
+  "/static/icon-512-v2.png",
 ];
 
 // ── Install ──────────────────────────────────────────────────────────────────
