@@ -366,7 +366,7 @@ async def _step_strategija(supa, predmet_id: str, user_id: str,
         oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
         _system = (
             "Ti si srpski pravni strateg. Na osnovu opisa predmeta daj kratku inicijalnu "
-            "procenu (max 200 reči, srpski ekavica):\n"
+            "procenu (max 200 reči, ISKLJUČIVO srpska ekavica — ZABRANJENA ijekavica: procijeniti→proceniti, procjena→procena, vrijed→vred, rješen→rešen, savjet→savet, mjesto→mesto):\n"
             "1. Vrsta spora i primenljivi zakoni\n"
             "2. Procena izgleda (optimistično / neutralno / pesimistično)\n"
             "3. Preporučena strategija (tužba / odbrana / nagodba)\n"
@@ -568,7 +568,7 @@ async def _step_copilot_preporuka(supa, predmet_id: str, user_id: str,
         _system = (
             "Ti si Vindex Copilot — AI pravni asistent. "
             "Generiši 2-3 konkretne akcione preporuke za advokata koji je upravo otvorio ovaj predmet. "
-            "Format: kratke rečenice, bez numeracije, srpski ekavica, max 100 reči. "
+            "Format: kratke rečenice, bez numeracije, ISKLJUČIVO srpska ekavica (ZABRANJENA ijekavica: procjena→procena, savjet→savet, rješen→rešen, mjesto→mesto), max 100 reči. "
             "Preporuke moraju biti specifične za ovaj predmet, ne opšte."
         )
         r = await asyncio.wait_for(

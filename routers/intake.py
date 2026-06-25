@@ -45,7 +45,7 @@ APSOLUTNA PRAVILA:
 1. prvi_rok = null osim ako datum nije EKSPLICITNO naveden u tekstu. NE izmišljaj datume.
 2. vrednost_spora = null ako iznos nije pomenut.
 3. protivna_strana = null ako nije pomenuta.
-4. Jezik: srpski ekavica.
+4. Jezik: ISKLJUČIVO srpska ekavica. ZABRANJENA ijekavica: procijeniti→proceniti, procjena→procena, vrijed→vred, rješen→rešen, savjet→savet, mjesto→mesto.
 5. potrebni_dokumenti: navedi 2-5 dokumenata tipičnih za ovu vrstu spora."""
 
 
