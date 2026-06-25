@@ -12614,7 +12614,9 @@ var _pwaIsStandalone = window.matchMedia('(display-mode: standalone)').matches |
 if (!_pwaIsStandalone) {
   document.addEventListener('DOMContentLoaded', function() {
     var btn = document.getElementById('pwa-install-btn');
-    if (btn) btn.style.display = 'flex'; // uvek vidljivo na mobilnom i desktopu
+    if (btn) btn.style.display = 'flex';
+    var mobBtn = document.getElementById('mob-more-install-btn');
+    if (mobBtn) mobBtn.style.display = 'flex';
   });
 }
 
