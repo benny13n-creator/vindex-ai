@@ -1879,14 +1879,15 @@ async function sms_testSms() {
   finally { if (btn) btn.disabled = false; }
 }
 
-async function sms_deaktiviraj() {
+function sms_deaktiviraj() {
   if (!currentSession) return;
-  if (!confirm('Deaktivirati SMS notifikacije?')) return;
-  try {
-    await fetch('/sms/telefon', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    _smsMsg('SMS notifikacije deaktivirane');
-    sms_loadProfil();
-  } catch(e) { _smsMsg('Greška mreže', '#f87171'); }
+  _vxConfirm('Deaktivirati SMS notifikacije?', async function() {
+    try {
+      await fetch('/sms/telefon', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+      _smsMsg('SMS notifikacije deaktivirane');
+      sms_loadProfil();
+    } catch(e) { _smsMsg('Greška mreže', '#f87171'); }
+  });
 }
 
 // ── Kancelarija (Phase 5.4) ───────────────────────────────────────────────────
@@ -1988,13 +1989,14 @@ async function kancPrihvati() {
   } catch(e) { if(errEl){errEl.textContent='Greška mreže.';errEl.style.display='';} }
 }
 
-async function kancOdbij() {
+function kancOdbij() {
   if (!currentSession) return;
-  if (!confirm('Odbiti pozivnicu?')) return;
-  try {
-    await fetch('/api/kancelarija/odbij', {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    await kancelarijaLoad();
-  } catch(e) {}
+  _vxConfirm('Odbiti pozivnicu?', async function() {
+    try {
+      await fetch('/api/kancelarija/odbij', {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+      await kancelarijaLoad();
+    } catch(e) {}
+  });
 }
 
 async function kancPozovi() {
@@ -2020,14 +2022,15 @@ async function kancPozovi() {
   } catch(e) { if(stEl){stEl.textContent='Greška mreže.';stEl.style.color='#f87171';stEl.style.display='';} }
 }
 
-async function kancUkloni(clanId, email) {
+function kancUkloni(clanId, email) {
   if (!currentSession) return;
-  if (!confirm('Ukloniti '+email+' iz firme?')) return;
-  try {
-    var r = await fetch('/api/kancelarija/ukloni/'+clanId, {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
-    await kancelarijaLoad();
-  } catch(e) { showToast('Greška mreže.', 'err'); }
+  _vxConfirm('Ukloniti ' + email + ' iz firme?', async function() {
+    try {
+      var r = await fetch('/api/kancelarija/ukloni/'+clanId, {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+      if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
+      await kancelarijaLoad();
+    } catch(e) { showToast('Greška mreže.', 'err'); }
+  });
 }
 
 async function kancPromeniUlogu(clanId, uloga) {
@@ -2041,28 +2044,30 @@ async function kancPromeniUlogu(clanId, uloga) {
   } catch(e) { showToast('Greška mreže.', 'err'); }
 }
 
-async function kancRename() {
+function kancRename() {
   if (!currentSession || !_kancData || !_kancData.firma) return;
-  var novi = prompt('Novi naziv firme:', _kancData.firma.naziv || '');
-  if (!novi || !novi.trim()) return;
-  try {
-    var r = await fetch('/api/kancelarija/naziv', {
-      method:'PUT', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
-      body: JSON.stringify({naziv: novi.trim()})
-    });
-    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
-    await kancelarijaLoad();
-  } catch(e) { showToast('Greška mreže.', 'err'); }
+  _vxPrompt('Novi naziv firme:', _kancData.firma.naziv || '', async function(novi) {
+    if (!novi || !novi.trim()) return;
+    try {
+      var r = await fetch('/api/kancelarija/naziv', {
+        method:'PUT', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
+        body: JSON.stringify({naziv: novi.trim()})
+      });
+      if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
+      await kancelarijaLoad();
+    } catch(e) { showToast('Greška mreže.', 'err'); }
+  });
 }
 
-async function kancOstavi() {
+function kancOstavi() {
   if (!currentSession) return;
-  if (!confirm('Napustiti firmu? Izgubićete pristup svim deljenim predmetima.')) return;
-  try {
-    var r = await fetch('/api/kancelarija/napusti', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
-    await kancelarijaLoad();
-  } catch(e) { showToast('Greška mreže.', 'err'); }
+  _vxConfirm('Napustiti firmu? Izgubićete pristup svim deljenim predmetima.', async function() {
+    try {
+      var r = await fetch('/api/kancelarija/napusti', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+      if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
+      await kancelarijaLoad();
+    } catch(e) { showToast('Greška mreže.', 'err'); }
+  });
 }
 
 // Reset lozinke iz Podešavanja
@@ -11512,13 +11517,15 @@ async function emailNotifTest() {
   } catch(e) { _enMsg('Greška mreže.','#f87171'); }
 }
 
-async function emailNotifDeaktivaj() {
-  if (!currentSession || !confirm('Deaktivirati email notifikacije?')) return;
-  try {
-    await fetch('/email-notif/profil', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    _enMsg('Email notifikacije deaktivirane.');
-    await emailNotifLoad();
-  } catch(e) { _enMsg('Greška mreže.','#f87171'); }
+function emailNotifDeaktivaj() {
+  if (!currentSession) return;
+  _vxConfirm('Deaktivirati email notifikacije?', async function() {
+    try {
+      await fetch('/email-notif/profil', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+      _enMsg('Email notifikacije deaktivirane.');
+      await emailNotifLoad();
+    } catch(e) { _enMsg('Greška mreže.','#f87171'); }
+  });
 }
 
 // ── Global Search (⌘K) ───────────────────────────────────────────────────────
@@ -12540,13 +12547,74 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// PWA Install prompt
+// ── Custom dialog system (replaces native confirm/alert/prompt for iOS PWA compat) ──
+var _vxDlgOk = null;
+var _vxDlgCancel = function() {
+  var o = document.getElementById('vx-dialog-overlay');
+  if (o) o.style.display = 'none';
+};
+
+function _vxConfirm(msg, onOk, onCancel) {
+  var overlay = document.getElementById('vx-dialog-overlay');
+  if (!overlay) {
+    if (confirm(msg)) { if (onOk) onOk(); } else { if (onCancel) onCancel(); }
+    return;
+  }
+  document.getElementById('vx-dialog-msg').textContent = msg;
+  document.getElementById('vx-dialog-input').style.display = 'none';
+  var cancelBtn = document.getElementById('vx-dialog-cancel');
+  cancelBtn.style.display = '';
+  overlay.style.display = 'flex';
+  document.getElementById('vx-dialog-ok').onclick = function() {
+    overlay.style.display = 'none';
+    if (onOk) onOk();
+  };
+  _vxDlgCancel = function() {
+    overlay.style.display = 'none';
+    if (onCancel) onCancel();
+  };
+  cancelBtn.onclick = _vxDlgCancel;
+}
+
+function _vxPrompt(msg, defaultVal, onOk, onCancel) {
+  var overlay = document.getElementById('vx-dialog-overlay');
+  if (!overlay) {
+    var v = prompt(msg, defaultVal || '');
+    if (v !== null) { if (onOk) onOk(v); } else { if (onCancel) onCancel(); }
+    return;
+  }
+  document.getElementById('vx-dialog-msg').textContent = msg;
+  var inp = document.getElementById('vx-dialog-input');
+  inp.value = defaultVal || '';
+  inp.style.display = '';
+  var cancelBtn = document.getElementById('vx-dialog-cancel');
+  cancelBtn.style.display = '';
+  overlay.style.display = 'flex';
+  setTimeout(function() { inp.focus(); }, 80);
+  document.getElementById('vx-dialog-ok').onclick = function() {
+    overlay.style.display = 'none';
+    if (onOk) onOk(inp.value);
+  };
+  _vxDlgCancel = function() {
+    overlay.style.display = 'none';
+    if (onCancel) onCancel();
+  };
+  cancelBtn.onclick = _vxDlgCancel;
+  inp.onkeydown = function(e) { if (e.key === 'Enter') { overlay.style.display = 'none'; if (onOk) onOk(inp.value); } };
+}
+
+// ── PWA Install prompt ──
 var _pwaPrompt = null;
+var _pwaIsIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+var _pwaIsStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   _pwaPrompt = e;
-  var btn = document.getElementById('pwa-install-btn');
-  if (btn) btn.style.display = 'flex';
+  if (!_pwaIsStandalone) {
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'flex';
+  }
 });
 
 window.addEventListener('appinstalled', function() {
@@ -12555,8 +12623,24 @@ window.addEventListener('appinstalled', function() {
   if (btn) btn.style.display = 'none';
 });
 
+// Show install button on iOS (beforeinstallprompt never fires on iOS)
+if (_pwaIsIOS && !_pwaIsStandalone) {
+  document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'flex';
+  });
+}
+
 function pwaInstall() {
-  if (!_pwaPrompt) return;
+  if (_pwaIsIOS) {
+    var modal = document.getElementById('ios-install-modal');
+    if (modal) modal.style.display = 'flex';
+    return;
+  }
+  if (!_pwaPrompt) {
+    showToast('Vaš pregledač ne podržava instalaciju ili je aplikacija već instalirana.', 'info');
+    return;
+  }
   _pwaPrompt.prompt();
   _pwaPrompt.userChoice.then(function(result) {
     if (result.outcome === 'accepted') {

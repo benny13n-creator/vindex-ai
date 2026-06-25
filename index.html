@@ -3513,6 +3513,47 @@
   </div>
 </div>
 
+<!-- iOS PWA Install Instructions Modal -->
+<div id="ios-install-modal" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.72);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);">
+  <div style="background:#0f1a2e;border:1px solid rgba(0,212,255,0.22);border-radius:16px 16px 0 0;padding:1.6rem 1.5rem 2.4rem;width:100%;max-width:480px;animation:slide-up-ios .28s ease;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <span style="font-size:0.82rem;font-weight:700;color:#00d4ff;letter-spacing:.06em;text-transform:uppercase;">Instaliraj Vindex AI</span>
+      <button onclick="document.getElementById('ios-install-modal').style.display='none'" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:rgba(255,255,255,0.5);font-size:0.8rem;padding:3px 10px;cursor:pointer;font-family:inherit;">✕</button>
+    </div>
+    <p style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-bottom:1.2rem;line-height:1.5;">Dodajte Vindex AI na početni ekran za brži pristup:</p>
+    <div style="display:flex;flex-direction:column;gap:0.75rem;">
+      <div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.12);border-radius:10px;">
+        <span style="font-size:1.3rem;flex-shrink:0;">1</span>
+        <span style="font-size:0.83rem;color:rgba(255,255,255,0.75);line-height:1.4;">Tapnite dugme <strong style="color:#fff;">Podeli</strong> <span style="font-size:1rem;">⎋</span> u dnu Safari pregledača</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.12);border-radius:10px;">
+        <span style="font-size:1.3rem;flex-shrink:0;">2</span>
+        <span style="font-size:0.83rem;color:rgba(255,255,255,0.75);line-height:1.4;">Izaberite <strong style="color:#fff;">Dodaj na početni ekran</strong> <span style="font-size:1rem;">＋</span></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.12);border-radius:10px;">
+        <span style="font-size:1.3rem;flex-shrink:0;">3</span>
+        <span style="font-size:0.83rem;color:rgba(255,255,255,0.75);line-height:1.4;">Tapnite <strong style="color:#fff;">Dodaj</strong> u gornjem desnom uglu</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VX Custom Dialog (replaces native alert/confirm/prompt for iOS PWA compat) -->
+<div id="vx-dialog-overlay" onclick="if(event.target===this)_vxDlgCancel()" style="display:none;position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.65);align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">
+  <div style="background:#0f1a2e;border:1px solid rgba(0,212,255,0.2);border-radius:14px;padding:1.5rem;width:min(380px,88vw);animation:scale-in-dlg .2s ease;">
+    <p id="vx-dialog-msg" style="color:rgba(255,255,255,0.85);font-size:0.88rem;margin:0 0 1.1rem;line-height:1.55;"></p>
+    <input id="vx-dialog-input" type="text" style="display:none;width:100%;margin-bottom:1rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:8px;padding:0.6rem 0.75rem;color:#fff;font-size:0.88rem;outline:none;font-family:inherit;" />
+    <div style="display:flex;gap:0.6rem;justify-content:flex-end;">
+      <button id="vx-dialog-cancel" onclick="_vxDlgCancel()" style="padding:0.48rem 1.1rem;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:rgba(255,255,255,0.55);cursor:pointer;font-size:0.82rem;font-family:inherit;">Odustani</button>
+      <button id="vx-dialog-ok" style="padding:0.48rem 1.1rem;border:none;border-radius:8px;background:#00d4ff;color:#010308;cursor:pointer;font-size:0.82rem;font-weight:700;font-family:inherit;">OK</button>
+    </div>
+  </div>
+</div>
+<style>
+@keyframes slide-up-ios { from { transform: translateY(100%); opacity:0; } to { transform: translateY(0); opacity:1; } }
+@keyframes scale-in-dlg { from { transform: scale(0.92); opacity:0; } to { transform: scale(1); opacity:1; } }
+</style>
+
 <script src="/static/vindex.js?v=1"></script>
 </body>
 </html>
