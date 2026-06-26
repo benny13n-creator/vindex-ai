@@ -171,6 +171,15 @@ function getSupabase() {
   }
   return _supa;
 }
+// Čeka na Supabase CDN (max maxMs ms) — fallback CDN može biti sporiji na mobilnom
+async function _waitSupa(maxMs) {
+  var t = 0, interval = 150;
+  while (!window.supabase && t < (maxMs || 6000)) {
+    await new Promise(function(r) { setTimeout(r, interval); });
+    t += interval;
+  }
+  return getSupabase();
+}
 
 // ─── Auth stanje ──────────────────────────────────────────────────────────────
 var currentUser         = null;
@@ -182,7 +191,7 @@ var currentChatSessionId = null;
 var _chatHistoryRows     = [];
 
 async function initAuth() {
-  var sb = getSupabase();
+  var sb = await _waitSupa(6000);
   if (!sb) return;
   var res = await sb.auth.getSession();
   if (res.data && res.data.session) {
@@ -430,8 +439,8 @@ function setAuthMode(mode) {
 }
 
 async function doForgotPassword() {
-  var sb = getSupabase();
-  if (!sb) { _setAuthError('Greška učitavanja — osvežite stranicu (F5) ili pokušajte u Incognito modu.'); return; }
+  var sb = await _waitSupa(4000);
+  if (!sb) { _setAuthError('Veza nije uspostavljena. Proverite internet i pokušajte ponovo.'); return; }
   var email = document.getElementById('forgot-email').value.trim();
   if (!email) { _setAuthError('Unesite email adresu.'); return; }
   var btn = document.getElementById('forgot-btn');
@@ -445,8 +454,8 @@ async function doForgotPassword() {
 }
 
 async function doResetPassword() {
-  var sb = getSupabase();
-  if (!sb) { _setAuthError('Greška učitavanja — osvežite stranicu (F5) ili pokušajte u Incognito modu.'); return; }
+  var sb = await _waitSupa(4000);
+  if (!sb) { _setAuthError('Veza nije uspostavljena. Proverite internet i pokušajte ponovo.'); return; }
   var p1 = document.getElementById('reset-password').value;
   var p2 = document.getElementById('reset-password2').value;
   if (!p1 || p1.length < 8) { _setAuthError('Lozinka mora imati najmanje 8 karaktera.'); return; }
@@ -474,8 +483,8 @@ function _setAuthError(msg, isOk) {
 }
 
 async function doLogin() {
-  var sb = getSupabase();
-  if (!sb) { _setAuthError('Greška učitavanja — osvežite stranicu (F5) ili pokušajte u Incognito modu.'); return; }
+  var sb = await _waitSupa(4000);
+  if (!sb) { _setAuthError('Veza nije uspostavljena. Proverite internet i pokušajte ponovo.'); return; }
   var email = document.getElementById('login-email').value.trim();
   var pass  = document.getElementById('login-password').value;
   if (!email || !pass) { _setAuthError('Unesite email i lozinku.'); return; }
@@ -492,8 +501,8 @@ async function doLogin() {
 }
 
 async function doRegister() {
-  var sb = getSupabase();
-  if (!sb) { _setAuthError('Greška učitavanja — osvežite stranicu (F5) ili pokušajte u Incognito modu.'); return; }
+  var sb = await _waitSupa(4000);
+  if (!sb) { _setAuthError('Veza nije uspostavljena. Proverite internet i pokušajte ponovo.'); return; }
   var fullName = (document.getElementById('reg-name')?.value?.trim()) || '';
   var email   = document.getElementById('reg-email').value.trim();
   var pass    = document.getElementById('reg-password').value;
