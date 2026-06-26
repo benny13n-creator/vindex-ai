@@ -5,6 +5,7 @@ const CACHE_NAME = "vindex-v9";
 
 const PRECACHE = [
   "/offline",
+  "/static/supabase.min.js",
   "/static/manifest.json",
   "/static/icon-192-v3.png",
   "/static/icon-512-v3.png",
