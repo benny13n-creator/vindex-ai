@@ -112,6 +112,7 @@ class IntakeKreirajReq(BaseModel):
     prvi_rok:        Optional[str] = Field(default=None, max_length=12)
     rok_opis:        Optional[str] = Field(default=None, max_length=300)
     dokumenti:       List[DokumentIntakeRef] = Field(default_factory=list)
+    template_id:     Optional[str] = Field(default=None, max_length=100)
     # Billing setup (opciono)
     billing_tip:     Optional[str]   = Field(default=None, max_length=20)   # fiksni | satnica | aks
     billing_iznos:   Optional[float] = Field(default=None, ge=0)
@@ -292,15 +293,44 @@ async def intake_kreiraj(
         except Exception as e:
             logger.warning("[INTAKE] timer start greška: %s", e)
 
-    logger.info("[INTAKE] predmet=%s uid=%.8s rok=%s docs=%d billing=%s",
-                predmet_id, uid, rok_dodat, docs_linked, billing_kreiran)
+    # Template hronologija — ako je template izabran, dodaj predefinisane rokove
+    tpl_hron_dodat = 0
+    if body.template_id:
+        tpl = next((t for t in _TEMPLATES if t["id"] == body.template_id), None)
+        if tpl:
+            today = date.today()
+            hron_rows = []
+            for h in tpl.get("hronologija_predlozi", []):
+                offset = h.get("days_offset", 0)
+                datum  = (today + timedelta(days=offset)).isoformat()
+                hron_rows.append({
+                    "predmet_id": predmet_id,
+                    "user_id":    uid,
+                    "dogadjaj":   h["dogadjaj"],
+                    "vaznost":    h["vaznost"],
+                    "datum":      datum,
+                    "datum_iso":  datum,
+                    "akter":      "Intake Wizard — šablon",
+                })
+            if hron_rows:
+                try:
+                    await asyncio.to_thread(
+                        lambda: supa.table("predmet_hronologija").insert(hron_rows).execute()
+                    )
+                    tpl_hron_dodat = len(hron_rows)
+                except Exception as e:
+                    logger.warning("[INTAKE] template hronologija greška: %s", e)
+
+    logger.info("[INTAKE] predmet=%s uid=%.8s rok=%s docs=%d billing=%s tpl_hron=%d",
+                predmet_id, uid, rok_dodat, docs_linked, billing_kreiran, tpl_hron_dodat)
     return {
-        "success":         True,
-        "predmet_id":      predmet_id,
-        "predmet":         predmet,
-        "rok_dodat":       rok_dodat,
-        "docs_linked":     docs_linked,
-        "billing_kreiran": billing_kreiran,
+        "success":          True,
+        "predmet_id":       predmet_id,
+        "predmet":          predmet,
+        "rok_dodat":        rok_dodat,
+        "docs_linked":      docs_linked,
+        "billing_kreiran":  billing_kreiran,
+        "tpl_hron_dodat":   tpl_hron_dodat,
     }
 
 
@@ -746,4 +776,105 @@ async def post_from_template(
         "hronologija_kreirana": len(hron_rows),
         "tarifa_preporuka":     tpl["tarifa_preporuka"],
         "status":               "kreiran",
+    }
+
+
+# ─── Bulk Import ──────────────────────────────────────────────────────────────
+
+class BulkImportRed(BaseModel):
+    ime:             str           = Field(default="", max_length=100)
+    prezime:         str           = Field(default="", max_length=100)
+    firma:           str           = Field(default="", max_length=200)
+    email:           str           = Field(default="", max_length=200)
+    telefon:         str           = Field(default="", max_length=50)
+    naziv_predmeta:  str           = Field(..., min_length=2, max_length=200)
+    tip:             str           = Field(default="opsti", max_length=50)
+    opis:            str           = Field(default="", max_length=2000)
+
+
+class BulkImportReq(BaseModel):
+    redovi: List[BulkImportRed] = Field(..., min_length=1, max_length=100)
+
+
+@router.post("/api/intake/bulk-import", status_code=201)
+@limiter.limit("5/minute")
+async def intake_bulk_import(
+    request: Request,
+    body: BulkImportReq,
+    user: dict = Depends(get_current_user),
+):
+    """Bulk import klijenata i predmeta iz parsiranog CSV-a."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    uspeh: list[dict] = []
+    greske: list[dict] = []
+
+    for i, red in enumerate(body.redovi):
+        try:
+            # Pronađi ili kreiraj klijenta
+            klijent_id: str | None = None
+
+            if red.email:
+                existing = await asyncio.to_thread(
+                    lambda e=red.email: supa.table("klijenti")
+                        .select("id")
+                        .eq("user_id", uid)
+                        .eq("email", e[:200])
+                        .neq("status", "soft_deleted")
+                        .limit(1)
+                        .execute()
+                )
+                if existing.data:
+                    klijent_id = existing.data[0]["id"]
+
+            if not klijent_id:
+                kl_row: dict = {"user_id": uid, "status": "aktivan"}
+                if red.ime:    kl_row["ime"]    = red.ime[:100]
+                if red.prezime: kl_row["prezime"] = red.prezime[:100]
+                if red.firma:  kl_row["firma"]  = red.firma[:200]
+                if red.email:  kl_row["email"]  = red.email[:200]
+                if red.telefon: kl_row["telefon"] = red.telefon[:50]
+                kl_res = await asyncio.to_thread(
+                    lambda r=kl_row: supa.table("klijenti").insert(r).execute()
+                )
+                if not kl_res.data:
+                    raise ValueError("Kreiranje klijenta nije uspelo")
+                klijent_id = kl_res.data[0]["id"]
+
+            # Kreiraj predmet
+            pr_res = await asyncio.to_thread(
+                lambda: supa.table("predmeti").insert({
+                    "user_id": uid,
+                    "naziv":   red.naziv_predmeta,
+                    "opis":    red.opis or "",
+                    "tip":     red.tip or "opsti",
+                    "status":  "aktivan",
+                }).execute()
+            )
+            if not pr_res.data:
+                raise ValueError("Kreiranje predmeta nije uspelo")
+            predmet_id = pr_res.data[0]["id"]
+
+            # Poveži klijenta
+            await asyncio.to_thread(
+                lambda: supa.table("predmet_klijenti").insert({
+                    "predmet_id":     predmet_id,
+                    "klijent_id":     klijent_id,
+                    "user_id":        uid,
+                    "uloga_klijenta": "stranka",
+                }).execute()
+            )
+
+            uspeh.append({"red": i + 1, "predmet_id": predmet_id, "naziv": red.naziv_predmeta})
+
+        except Exception as e:
+            greske.append({"red": i + 1, "naziv": red.naziv_predmeta, "greska": str(e)[:200]})
+
+    logger.info("[BULK-IMPORT] uid=%.8s uspeh=%d greske=%d", uid, len(uspeh), len(greske))
+    return {
+        "uspeh":         len(uspeh),
+        "greske_broj":   len(greske),
+        "greske":        greske[:20],
+        "predmeti":      uspeh,
     }

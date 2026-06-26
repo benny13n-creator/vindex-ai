@@ -15022,6 +15022,8 @@ function intakeBillingAksIznos() { _intakeBillingAksIznos(); }
 
 function intakeZatvori() {
   _iDirty = false;
+  window._selectedTplId = null;
+  window._selectedTplNaziv = null;
   document.getElementById('intake-overlay').classList.remove('open');
   // Reset pipeline screen for next open
   var prs = document.getElementById('intake-pipeline-result');
@@ -15534,6 +15536,7 @@ async function _intakeKreiraj() {
     prvi_rok:        rokVal || null,
     rok_opis:        (document.getElementById('intake-f-rok-opis').value || '').trim() || null,
     dokumenti:       _iFiles.map(function(f) { return { naziv_fajla: f.name, session_id: f.sessionId, chunks: f.chunks }; }),
+    template_id:     window._selectedTplId || null,
     billing_tip:     (document.querySelector('input[name="intake-billing-tip"]:checked') || {}).value || null,
     billing_iznos:   parseFloat(document.getElementById('intake-billing-iznos').value) || null,
     billing_aks:     (document.getElementById('intake-billing-aks') || {}).value || null,
@@ -15628,6 +15631,231 @@ function intakePipelineDone() {
   if (tabEl) setTab(tabEl, 'p');
   if (_intakePipelinePredmetId) pred_select(_intakePipelinePredmetId);
   _intakePipelinePredmetId = null;
+}
+
+// ── Quick Intake ──────────────────────────────────────────────────────────────
+var _qiKlijentId = null;
+var _qiKlijentName = '';
+
+function qiOtvori() {
+  if (!currentSession) { openModal(); return; }
+  _qiKlijentId = null; _qiKlijentName = '';
+  var ov = document.getElementById('qi-overlay');
+  if (ov) { ov.style.display = 'flex'; }
+  document.getElementById('qi-klijent-search').value = '';
+  document.getElementById('qi-klijent-results').innerHTML = '';
+  document.getElementById('qi-klijent-selected').style.display = 'none';
+  document.getElementById('qi-naziv').value = '';
+  document.getElementById('qi-tip').value = 'opsti';
+  document.getElementById('qi-err').style.display = 'none';
+  document.getElementById('qi-btn').disabled = false;
+  document.getElementById('qi-btn').textContent = 'Kreiraj predmet →';
+}
+
+function qiZatvori() {
+  var ov = document.getElementById('qi-overlay');
+  if (ov) ov.style.display = 'none';
+}
+
+var _qiSearchTimeout = null;
+function qiKlijentSearch(q) {
+  clearTimeout(_qiSearchTimeout);
+  if (!q || q.length < 2) { document.getElementById('qi-klijent-results').innerHTML = ''; return; }
+  _qiSearchTimeout = setTimeout(async function() {
+    try {
+      var r = await fetch(BASE_URL + '/klijenti?pretraga=' + encodeURIComponent(q) + '&limit=5', {
+        headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+      });
+      var d = await r.json();
+      var items = d.klijenti || [];
+      var html = items.map(function(k) {
+        var name = ((k.ime||'') + ' ' + (k.prezime||'')).trim() || k.firma || 'Klijent';
+        var sub = k.firma && k.ime ? k.firma : (k.email || '');
+        return '<div class="intake-klijent-result" onclick="qiKlijentIzaberi(\''+k.id+'\',\''+escHtml(name)+'\')">'
+          + '<div class="intake-klijent-name">' + escHtml(name) + '</div>'
+          + (sub ? '<div class="intake-klijent-sub">' + escHtml(sub) + '</div>' : '')
+          + '</div>';
+      }).join('');
+      document.getElementById('qi-klijent-results').innerHTML = html || '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);padding:6px 0;">Nema rezultata.</div>';
+    } catch(e) {}
+  }, 280);
+}
+
+function qiKlijentIzaberi(id, name) {
+  _qiKlijentId = id; _qiKlijentName = name;
+  document.getElementById('qi-klijent-results').innerHTML = '';
+  document.getElementById('qi-klijent-search').value = '';
+  var sel = document.getElementById('qi-klijent-selected');
+  sel.textContent = '✓ ' + name;
+  sel.style.display = 'block';
+}
+
+async function qiKreiraj() {
+  var errEl = document.getElementById('qi-err');
+  errEl.style.display = 'none';
+  var naziv = (document.getElementById('qi-naziv').value || '').trim();
+  if (!_qiKlijentId) { errEl.textContent = 'Izaberite klijenta.'; errEl.style.display = 'block'; return; }
+  if (!naziv) { errEl.textContent = 'Unesite naziv predmeta.'; errEl.style.display = 'block'; return; }
+  var btn = document.getElementById('qi-btn');
+  btn.disabled = true; btn.textContent = 'Kreiranje...';
+  try {
+    var r = await fetch(BASE_URL + '/api/intake/kreiraj', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({
+        klijent_id: _qiKlijentId,
+        naziv:      naziv,
+        tip:        document.getElementById('qi-tip').value || 'opsti',
+      })
+    });
+    var d = await r.json();
+    if (!r.ok) { errEl.textContent = d.detail || 'Greška.'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Kreiraj predmet →'; return; }
+    qiZatvori();
+    showToast('✓ Predmet "' + naziv + '" kreiran!', 'ok');
+    pred_load();
+    if (d.predmet_id) pred_select(d.predmet_id);
+  } catch(e) {
+    errEl.textContent = 'Greška veze.'; errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Kreiraj predmet →';
+  }
+}
+
+// ── Bulk Import ───────────────────────────────────────────────────────────────
+var _bulkRedovi = [];
+
+function bulkOtvori() {
+  if (!currentSession) { openModal(); return; }
+  _bulkRedovi = [];
+  var ov = document.getElementById('bulk-overlay');
+  if (ov) ov.style.display = 'flex';
+  bulkResetUpload();
+}
+
+function bulkZatvori() {
+  var ov = document.getElementById('bulk-overlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function bulkResetUpload() {
+  document.getElementById('bulk-step-upload').style.display = '';
+  document.getElementById('bulk-step-preview').style.display = 'none';
+  document.getElementById('bulk-footer').style.display = 'none';
+  document.getElementById('bulk-parse-status').textContent = '';
+  document.getElementById('bulk-import-result').style.display = 'none';
+  document.getElementById('bulk-import-progress').style.display = 'none';
+  document.getElementById('bulk-file-input').value = '';
+  _bulkRedovi = [];
+}
+
+function bulkParseFile(file) {
+  if (!file) return;
+  var status = document.getElementById('bulk-parse-status');
+  status.textContent = 'Čitam fajl...';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var lines = (e.target.result || '').split(/\r?\n/).filter(function(l){ return l.trim(); });
+      if (!lines.length) { status.textContent = 'Fajl je prazan.'; return; }
+      var header = lines[0].split(',').map(function(h){ return h.trim().toLowerCase().replace(/"/g,''); });
+      var validCols = ['ime','prezime','firma','email','telefon','naziv_predmeta','tip','opis'];
+      var colIdx = {};
+      validCols.forEach(function(c){ colIdx[c] = header.indexOf(c); });
+      if (colIdx['naziv_predmeta'] === -1) {
+        status.textContent = 'Greška: kolona "naziv_predmeta" je obavezna.';
+        return;
+      }
+      var redovi = [];
+      for (var i = 1; i < Math.min(lines.length, 501); i++) {
+        var cols = _bulkParseCsvLine(lines[i]);
+        var red = {};
+        validCols.forEach(function(c){ red[c] = colIdx[c] >= 0 ? (cols[colIdx[c]] || '').trim() : ''; });
+        if (red['naziv_predmeta']) redovi.push(red);
+      }
+      if (!redovi.length) { status.textContent = 'Nema validnih redova (naziv_predmeta je prazan za sve).'; return; }
+      _bulkRedovi = redovi;
+      _bulkRenderPreview();
+    } catch(e2) {
+      status.textContent = 'Greška pri parsiranju: ' + e2.message;
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function _bulkParseCsvLine(line) {
+  var result = []; var cur = ''; var inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
+
+function _bulkRenderPreview() {
+  document.getElementById('bulk-step-upload').style.display = 'none';
+  document.getElementById('bulk-step-preview').style.display = '';
+  document.getElementById('bulk-footer').style.display = 'flex';
+  document.getElementById('bulk-import-result').style.display = 'none';
+  document.getElementById('bulk-import-progress').style.display = 'none';
+  document.getElementById('bulk-import-btn').disabled = false;
+  document.getElementById('bulk-import-btn').textContent = '📤 Uvezi sve';
+  var info = document.getElementById('bulk-preview-info');
+  info.textContent = 'Pronađeno ' + _bulkRedovi.length + ' redova. Prvih 10 prikazano ispod:';
+  var preview = _bulkRedovi.slice(0, 10);
+  var cols = ['naziv_predmeta','ime','prezime','firma','email','tip'];
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:0.72rem;">'
+    + '<thead><tr>' + cols.map(function(c){ return '<th style="text-align:left;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);">' + c + '</th>'; }).join('') + '</tr></thead>'
+    + '<tbody>' + preview.map(function(r, i){
+      return '<tr style="background:' + (i % 2 ? 'rgba(255,255,255,0.02)' : 'transparent') + ';">'
+        + cols.map(function(c){ return '<td style="padding:5px 8px;color:rgba(255,255,255,0.7);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r[c] || '—') + '</td>'; }).join('')
+        + '</tr>';
+    }).join('') + '</tbody></table>';
+  document.getElementById('bulk-preview-table').innerHTML = html;
+}
+
+async function bulkImportuj() {
+  if (!_bulkRedovi.length) return;
+  var btn = document.getElementById('bulk-import-btn');
+  btn.disabled = true; btn.textContent = 'Uvozim...';
+  var prog = document.getElementById('bulk-import-progress');
+  var progBar = document.getElementById('bulk-progress-bar');
+  var progTxt = document.getElementById('bulk-progress-txt');
+  prog.style.display = 'block';
+  progBar.style.width = '0%';
+  progTxt.textContent = 'Slanje ' + _bulkRedovi.length + ' redova...';
+
+  try {
+    var r = await fetch(BASE_URL + '/api/intake/bulk-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ redovi: _bulkRedovi })
+    });
+    progBar.style.width = '100%';
+    var d = await r.json();
+    if (!r.ok) {
+      progTxt.textContent = 'Greška: ' + (d.detail || 'Server greška');
+      btn.disabled = false; btn.textContent = '📤 Uvezi sve';
+      return;
+    }
+    var resultEl = document.getElementById('bulk-import-result');
+    var isOk = d.greske_broj === 0;
+    resultEl.style.background = isOk ? 'rgba(74,222,128,0.07)' : 'rgba(255,180,0,0.07)';
+    resultEl.style.border = '1px solid ' + (isOk ? 'rgba(74,222,128,0.25)' : 'rgba(255,180,0,0.25)');
+    resultEl.style.color = isOk ? '#4ade80' : '#ffd166';
+    resultEl.style.borderRadius = '8px';
+    resultEl.style.padding = '10px 14px';
+    resultEl.innerHTML = '<strong>✓ Uvezeno: ' + d.uspeh + '</strong>' + (d.greske_broj ? ' &nbsp;|&nbsp; ⚠ Greške: ' + d.greske_broj : '')
+      + (d.greske && d.greske.length ? '<div style="margin-top:6px;font-size:0.7rem;opacity:.7;">' + d.greske.slice(0,3).map(function(g){ return 'Red ' + g.red + ': ' + escHtml(g.greska); }).join('<br>') + '</div>' : '');
+    resultEl.style.display = 'block';
+    progTxt.textContent = '';
+    btn.textContent = '✓ Uvoz završen';
+    if (d.uspeh > 0) { pred_load(); showToast('✓ Uvezeno ' + d.uspeh + ' predmeta', 'ok'); }
+  } catch(e) {
+    progTxt.textContent = 'Greška veze. Pokušajte ponovo.';
+    btn.disabled = false; btn.textContent = '📤 Uvezi sve';
+  }
 }
 
 // ── Zatvaranje predmeta ────────────────────────────────────────────────────

@@ -506,6 +506,8 @@
           <button id="pwa-install-btn" onclick="pwaInstall()" title="Instaliraj Vindex AI kao aplikaciju" style="display:none;padding:0.32rem 0.65rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;color:#00d4ff;font-size:0.72rem;cursor:pointer;font-family:inherit;display:none;align-items:center;gap:0.3rem;white-space:nowrap;transition:background .15s;">
             <i data-lucide="download" style="width:14px;height:14px;stroke:#00d4ff;stroke-width:2;flex-shrink:0;"></i> Instaliraj
           </button>
+          <button onclick="qiOtvori()" title="Brzo kreiranje predmeta bez AI analize" style="padding:0.32rem 0.65rem;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.25);border-radius:8px;color:#ffd166;font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:0.25rem;">⚡ Hitan</button>
+          <button onclick="bulkOtvori()" title="Uvezi predmete iz CSV fajla" style="padding:0.32rem 0.65rem;background:rgba(74,168,255,0.06);border:1px solid rgba(74,168,255,0.2);border-radius:8px;color:rgba(74,168,255,0.7);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:0.25rem;">📤 CSV</button>
           <button class="vx-btn-new" onclick="intakeOtvori()">+ Novi predmet</button>
           <button class="settings-btn vx-topbar-settings" onclick="openSettings()" title="Podešavanja" style="display:none;"><i data-lucide="settings" class="vx-topbar-ico"></i></button>
         </div>
@@ -2161,6 +2163,79 @@
               <div class="intake-panel-footer" id="intake-panel-footer">
                 <button class="intake-back-btn" id="intake-btn-back" onclick="intakeBack()" style="display:none">← Nazad</button>
                 <button class="intake-next-btn" id="intake-btn-next" onclick="intakeNext()">Dalje →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ⚡ Quick Intake Modal -->
+          <div id="qi-overlay" onclick="if(event.target===this)qiZatvori()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2200;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+            <div onclick="event.stopPropagation()" style="width:min(440px,96vw);background:#0d1117;border:1px solid rgba(74,168,255,0.22);border-radius:14px;padding:1.5rem;box-shadow:0 24px 80px rgba(0,0,0,0.7);">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;">
+                <div style="font-size:0.88rem;font-weight:700;color:#e6edf3;">⚡ Hitan predmet</div>
+                <button onclick="qiZatvori()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>
+              </div>
+              <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:1rem;">Brzo kreiranje bez AI analize — popunite minimum podataka.</div>
+              <div class="intake-field-lbl">Klijent *</div>
+              <input id="qi-klijent-search" class="intake-field" type="text" placeholder="Pretraži po imenu..." oninput="qiKlijentSearch(this.value)" autocomplete="off">
+              <div id="qi-klijent-results" style="margin-top:4px;"></div>
+              <div id="qi-klijent-selected" style="display:none;margin-top:6px;padding:6px 10px;background:rgba(74,168,255,0.09);border:1px solid rgba(74,168,255,0.3);border-radius:7px;font-size:0.82rem;color:#89c8ff;"></div>
+              <div class="intake-field-lbl" style="margin-top:10px;">Naziv predmeta *</div>
+              <input id="qi-naziv" class="intake-field" type="text" placeholder="Npr. Radni spor — Jovanović vs. Firma" maxlength="200">
+              <div class="intake-field-lbl">Tip predmeta</div>
+              <select id="qi-tip" class="intake-field" style="background:#0d1117;color:#e6edf3;border:1px solid rgba(255,255,255,0.15);">
+                <option value="opsti">Opšti</option>
+                <option value="radno">Radni spor</option>
+                <option value="gradjansko">Građansko</option>
+                <option value="privredno">Privredno</option>
+                <option value="krivicno">Krivično</option>
+                <option value="porodicno">Porodično</option>
+                <option value="ostalo">Ostalo</option>
+              </select>
+              <div id="qi-err" style="display:none;color:#ff9090;font-size:0.75rem;margin-top:8px;"></div>
+              <button id="qi-btn" onclick="qiKreiraj()" style="width:100%;margin-top:1rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.88rem;font-weight:600;padding:11px;cursor:pointer;">Kreiraj predmet →</button>
+            </div>
+          </div>
+
+          <!-- 📤 Bulk Import Modal -->
+          <div id="bulk-overlay" onclick="if(event.target===this)bulkZatvori()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2200;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+            <div onclick="event.stopPropagation()" style="width:min(680px,96vw);max-height:88vh;background:#0d1117;border:1px solid rgba(74,168,255,0.2);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);display:flex;flex-direction:column;">
+              <div style="flex-shrink:0;padding:1.2rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;">
+                <div style="font-size:0.9rem;font-weight:700;color:#e6edf3;">📤 Uvezi predmete iz CSV-a</div>
+                <button onclick="bulkZatvori()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>
+              </div>
+              <div style="flex:1;overflow-y:auto;padding:1.2rem 1.5rem;">
+                <div id="bulk-step-upload" style="">
+                  <div style="font-size:0.78rem;color:rgba(255,255,255,0.5);margin-bottom:1rem;line-height:1.6;">
+                    Prihvatamo <strong style="color:#89c8ff;">.csv</strong> fajl sa sledećim kolonama:<br>
+                    <code style="font-size:0.68rem;color:rgba(255,255,255,0.4);">ime, prezime, firma, email, telefon, naziv_predmeta, tip, opis</code><br>
+                    <span style="color:rgba(255,255,255,0.3);">Obavezno: naziv_predmeta. Ostalo opciono.</span>
+                  </div>
+                  <div id="bulk-upload-zone" onclick="document.getElementById('bulk-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='rgba(74,168,255,0.4)'" ondragleave="this.style.borderColor=''" ondrop="event.preventDefault();this.style.borderColor='';bulkParseFile(event.dataTransfer.files[0])" style="border:2px dashed rgba(255,255,255,0.12);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .15s;">
+                    <div style="font-size:1.6rem;margin-bottom:8px;">📄</div>
+                    <div style="font-size:0.82rem;color:rgba(255,255,255,0.5);">Kliknite ili prevucite CSV fajl</div>
+                    <div style="font-size:0.7rem;color:rgba(255,255,255,0.28);margin-top:4px;">Maks. 500 redova</div>
+                  </div>
+                  <input type="file" id="bulk-file-input" accept=".csv,.txt" style="display:none" onchange="bulkParseFile(this.files[0])">
+                  <div id="bulk-parse-status" style="margin-top:10px;font-size:0.78rem;color:rgba(255,255,255,0.4);"></div>
+                </div>
+                <div id="bulk-step-preview" style="display:none;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div id="bulk-preview-info" style="font-size:0.78rem;color:rgba(255,255,255,0.5);"></div>
+                    <button onclick="bulkResetUpload()" style="font-size:0.72rem;padding:4px 10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.5);cursor:pointer;">← Novi fajl</button>
+                  </div>
+                  <div id="bulk-preview-table" style="overflow-x:auto;"></div>
+                  <div id="bulk-import-progress" style="display:none;margin-top:12px;">
+                    <div id="bulk-progress-bar-wrap" style="height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;margin-bottom:8px;">
+                      <div id="bulk-progress-bar" style="height:100%;background:#4aa8ff;width:0%;transition:width .3s;"></div>
+                    </div>
+                    <div id="bulk-progress-txt" style="font-size:0.75rem;color:rgba(255,255,255,0.45);"></div>
+                  </div>
+                  <div id="bulk-import-result" style="display:none;margin-top:12px;padding:12px 14px;border-radius:8px;font-size:0.78rem;"></div>
+                </div>
+              </div>
+              <div id="bulk-footer" style="display:none;flex-shrink:0;padding:12px 1.5rem;border-top:1px solid rgba(255,255,255,0.07);display:flex;justify-content:flex-end;gap:10px;">
+                <button onclick="bulkZatvori()" style="padding:9px 18px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-size:0.84rem;cursor:pointer;">Zatvori</button>
+                <button id="bulk-import-btn" onclick="bulkImportuj()" style="padding:9px 22px;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.84rem;font-weight:600;cursor:pointer;">📤 Uvezi sve</button>
               </div>
             </div>
           </div>

@@ -7238,3 +7238,14 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   stroke: currentColor; stroke-width: 1.7;
   fill: none;
 }
+
+/* ── Intake Wizard — mobile tap targets ── */
+@media (max-width: 640px) {
+  .intake-panel-footer .intake-next-btn,
+  .intake-panel-footer .intake-back-btn { padding: 13px 16px !important; font-size: 0.9rem !important; min-height: 46px; }
+  .intake-field { padding: 11px 12px !important; font-size: 0.88rem !important; min-height: 44px; }
+  .intake-klijent-result { padding: 12px 14px !important; }
+  .intake-upload-zone { padding: 36px 20px !important; }
+  .intake-step-heading { font-size: 0.8rem !important; }
+  .intake-panel-body { padding: 16px !important; }
+}
