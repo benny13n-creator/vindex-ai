@@ -8395,7 +8395,7 @@ function mobNotifOtvori() {
         var isRead = _notifRead.has(n.id);
         var pColor = _PRIO_COLOR[n.prioritet] || 'rgba(255,255,255,.4)';
         var tipLbl = n.naslov || _TIP_LABEL[n.tip] || 'ℹ Info';
-        return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||')\')"'
+        return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')"'
           +' style="padding:0.7rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.06);opacity:'+(isRead?'0.4':'1')+';active-background:rgba(74,168,255,.08);">'
           +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">'
           +'<span style="font-size:0.65rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
