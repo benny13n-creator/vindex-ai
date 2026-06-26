@@ -299,6 +299,7 @@ function updateAuthUI() {
     if (tRow)     tRow.style.display     = 'flex';
     if (shell)    shell.style.display    = 'flex';
     if (landing)  landing.style.display  = 'none';
+    document.body.style.overflowY = 'hidden';
     updateCreditDisplay();
   } else {
     if (navUser)  navUser.style.display  = 'none';
@@ -306,6 +307,7 @@ function updateAuthUI() {
     if (tRow)     tRow.style.display     = 'none';
     if (shell)    shell.style.display    = 'none';
     if (landing)  landing.style.display  = 'flex';
+    document.body.style.overflowY = 'auto';
   }
 }
 

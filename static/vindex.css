@@ -4083,9 +4083,8 @@ select.pro-input option { background: var(--surface); }
   display: flex;
   flex-direction: column;
   width: 100vw;
-  height: 100vh;
+  min-height: 100dvh;
   background: var(--void);
-  overflow-y: auto;
   position: relative;
   z-index: 1;
 }

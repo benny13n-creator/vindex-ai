@@ -1,7 +1,7 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v7";
+const CACHE_NAME = "vindex-v8";
 
 const PRECACHE = [
   "/app",
@@ -91,7 +91,20 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // App shell i staticki fajlovi — stale-while-revalidate
+  // HTML navigacija (/app, /) — network-first da se uvek dobije sveža verzija
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).then(resp => {
+        if (resp.ok) caches.open(CACHE_NAME).then(c => c.put(event.request, resp.clone()));
+        return resp;
+      }).catch(() =>
+        caches.match(event.request).then(c => c || caches.match("/offline"))
+      )
+    );
+    return;
+  }
+
+  // Staticki fajlovi (JS, CSS, slike) — stale-while-revalidate
   event.respondWith(
     caches.open(CACHE_NAME).then(cache =>
       cache.match(event.request).then(cached => {
