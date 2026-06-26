@@ -12601,9 +12601,31 @@ async function piReloadFeatures(dana) {
 
 // PWA Service Worker registracija — /sw.js na root-u da scope bude "/"
 if ('serviceWorker' in navigator) {
+  // Reload kada novi SW preuzme kontrolu (npr. posle deploya dok je PWA bila u pozadini)
+  var _swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (!_swRefreshing) { _swRefreshing = true; window.location.reload(); }
+  });
+
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .then(function(reg) { console.log('[Vindex] SW registered, scope:', reg.scope); })
+      .then(function(reg) {
+        console.log('[Vindex] SW registered, scope:', reg.scope);
+        // Ako već postoji waiting worker (korisnik nije reloadovao od prethodnog deploya)
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+        // Kad se novi SW instalira, odmah ga aktiviraj
+        reg.addEventListener('updatefound', function() {
+          var newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', function() {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      })
       .catch(function(err) { console.warn('[Vindex] SW registration failed:', err); });
   });
 }

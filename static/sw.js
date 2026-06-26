@@ -1,13 +1,10 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v8";
+const CACHE_NAME = "vindex-v9";
 
 const PRECACHE = [
-  "/app",
   "/offline",
-  "/static/vindex.css",
-  "/static/vindex.js",
   "/static/manifest.json",
   "/static/icon-192-v3.png",
   "/static/icon-512-v3.png",
@@ -116,6 +113,13 @@ self.addEventListener("fetch", event => {
       })
     )
   );
+});
+
+// ── Message — SKIP_WAITING za auto-update flow ───────────────────────────────
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 // ── Push notifikacije ─────────────────────────────────────────────────────────
