@@ -37,6 +37,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -50,6 +53,23 @@ logger = logging.getLogger("vindex.saradnja")
 router = APIRouter(tags=["saradnja"])
 
 _VALID_ULOGE = {"citanje", "saradnja", "vodenje"}
+
+
+# ─── Audit log helper ─────────────────────────────────────────────────────────
+
+async def _audit_log(supa, predmet_id: str, user_id: str, akcija: str, detalji: dict | None = None) -> None:
+    """Beleži svaku akciju u saradnji — ko je sta uradio i kada."""
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("saradnja_audit").insert({
+                "predmet_id": predmet_id,
+                "user_id":    user_id,
+                "akcija":     akcija,
+                "detalji":    detalji or {},
+            }).execute()
+        )
+    except Exception as e:
+        logger.debug("Audit log greška: %s", e)
 
 
 # ─── Modeli ───────────────────────────────────────────────────────────────────
@@ -151,6 +171,11 @@ async def dodaj_saradnika(
         logger.error("[SARADNJA] Greška dodavanja saradnika: %s", exc)
         raise HTTPException(status_code=500, detail="Greška pri dodavanju saradnika.")
 
+    await _audit_log(supa, predmet_id, uid, "saradnik_dodat", {
+        "saradnik_email": body.saradnik_email,
+        "saradnik_uid": saradnik_uid,
+        "uloga": body.uloga,
+    })
     logger.info("[SARADNJA] Saradnik dodat: predmet=%s owner=%.8s saradnik=%.8s uloga=%s",
                 predmet_id, uid, saradnik_uid, body.uloga)
     return {
@@ -195,6 +220,7 @@ async def ukloni_saradnika(
         logger.error("[SARADNJA] Greška uklanjanja saradnika: %s", exc)
         raise HTTPException(status_code=500, detail="Greška pri uklanjanju saradnika.")
 
+    await _audit_log(supa, predmet_id, uid, "saradnik_uklonjen", {"saradnik_user_id": saradnik_user_id})
     logger.info("[SARADNJA] Saradnik uklonjen: predmet=%s saradnik=%.8s", predmet_id, saradnik_user_id)
     return {"ok": True, "predmet_id": predmet_id, "saradnik_user_id": saradnik_user_id}
 
@@ -353,8 +379,102 @@ async def moja_uloga_na_predmetu(
                 .execute()
         )
         if sar_r.data:
-            return {"predmet_id": predmet_id, "uloga": sar_r.data[0]["uloga"]}
+            uloga = sar_r.data[0]["uloga"]
+            await _audit_log(supa, predmet_id, uid, "pristup", {"uloga": uloga})
+            return {"predmet_id": predmet_id, "uloga": uloga}
     except Exception:
         pass
 
     return {"predmet_id": predmet_id, "uloga": None}
+
+
+# ─── POST /api/saradnja/privremeni-pristup ────────────────────────────────────
+
+class PrivremeniPristupRequest(BaseModel):
+    predmet_id: str
+    email_saradnika: str
+    trajanje_sati: int = 24
+    dozvole: list[str] = ["citanje"]
+
+
+@router.post("/api/saradnja/privremeni-pristup")
+@limiter.limit("10/minute")
+async def kreiraj_privremeni_pristup(
+    payload: PrivremeniPristupRequest,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Generiše vremenski ogranicen link za pristup predmetu (max 168h)."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    trajanje = max(1, min(payload.trajanje_sati, 168))
+
+    await _proveri_vlasnistvo(supa, payload.predmet_id, uid)
+
+    token  = secrets.token_urlsafe(32)
+    istice = datetime.now(timezone.utc) + timedelta(hours=trajanje)
+
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("privremeni_pristup").insert({
+                "predmet_id":      payload.predmet_id,
+                "vlasnik_user_id": uid,
+                "email_saradnika": payload.email_saradnika,
+                "token":           token,
+                "dozvole":         payload.dozvole,
+                "istice_u":        istice.isoformat(),
+                "iskoriscen":      False,
+            }).execute()
+        )
+    except Exception as exc:
+        logger.error("[SARADNJA] privremeni_pristup insert greška: %s", exc)
+        raise HTTPException(status_code=500, detail="Greška pri kreiranju pristupa.")
+
+    await _audit_log(supa, payload.predmet_id, uid, "privremeni_pristup_kreiran", {
+        "email": payload.email_saradnika,
+        "trajanje_sati": trajanje,
+        "dozvole": payload.dozvole,
+    })
+
+    base_url = os.getenv("APP_URL", "https://vindex-ai.onrender.com")
+    link = f"{base_url}/app?privremeni_token={token}"
+
+    return {
+        "ok":            True,
+        "link":          link,
+        "token":         token,
+        "istice_u":      istice.isoformat(),
+        "trajanje_sati": trajanje,
+    }
+
+
+# ─── GET /api/saradnja/audit/{predmet_id} ─────────────────────────────────────
+
+@router.get("/api/saradnja/audit/{predmet_id}")
+@limiter.limit("30/minute")
+async def get_audit_log(
+    predmet_id: str,
+    request: Request,
+    limit: int = 50,
+    user: dict = Depends(get_current_user),
+):
+    """Audit log pristupa i izmena na predmetu (samo vlasnik)."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    await _proveri_vlasnistvo(supa, predmet_id, uid)
+
+    try:
+        result = await asyncio.to_thread(
+            lambda: supa.table("saradnja_audit")
+                .select("*")
+                .eq("predmet_id", predmet_id)
+                .order("created_at", desc=True)
+                .limit(min(limit, 100))
+                .execute()
+        )
+        return {"log": result.data or [], "predmet_id": predmet_id}
+    except Exception as exc:
+        logger.warning("[SARADNJA] audit log greška: %s", exc)
+        return {"log": [], "predmet_id": predmet_id, "napomena": "Tabela saradnja_audit ne postoji — pokrenite SQL migraciju."}
