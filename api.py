@@ -718,6 +718,7 @@ class PitanjeReq(BaseModel):
     pitanje:    str = Field(..., min_length=3, max_length=2000)
     history:    List[HistoryItem] = Field(default_factory=list, max_length=3)
     predmet_id: Optional[str] = Field(None, max_length=64)
+    session_id: Optional[str] = Field(None, max_length=64)  # F1.5: konverzaciona memorija
 
     @field_validator("pitanje")
     @classmethod
@@ -1491,6 +1492,50 @@ async def bot_ask(req: PitanjeReq, request: Request, x_api_key: str = Header(def
         return greska_odgovor(500, "Greška servera.")
 
 
+# ─── F1.5: Konverzaciona memorija (ai_sessions, TTL=2h) ─────────────────────
+_SESSION_TTL_HOURS = 2
+
+
+async def _session_dohvati(supa, session_id: str, user_id: str) -> list[dict]:
+    """Vraća poslednjih 5 razmena (10 poruka) iz tekuće sesije."""
+    from datetime import datetime, timezone, timedelta
+    if not session_id:
+        return []
+    try:
+        ttl_from = (datetime.now(timezone.utc) - timedelta(hours=_SESSION_TTL_HOURS)).isoformat()
+        result = await asyncio.to_thread(
+            lambda: supa.table("ai_sessions")
+                .select("uloga, sadrzaj")
+                .eq("session_id", session_id)
+                .eq("user_id", user_id)
+                .gte("created_at", ttl_from)
+                .order("created_at", desc=False)
+                .limit(10)
+                .execute()
+        )
+        return result.data or []
+    except Exception as _se:
+        logger.debug("[SESSION] dohvati greška: %s", _se)
+        return []
+
+
+async def _session_sacuvaj(supa, session_id: str, user_id: str, uloga: str, sadrzaj: str) -> None:
+    """Čuva jednu poruku u ai_sessions. Fire-and-forget."""
+    if not session_id or not sadrzaj:
+        return
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("ai_sessions").insert({
+                "session_id": session_id,
+                "user_id":    user_id,
+                "uloga":      uloga,
+                "sadrzaj":    sadrzaj[:4000],
+            }).execute()
+        )
+    except Exception as _se:
+        logger.debug("[SESSION] sacuvaj greška (tabela možda ne postoji): %s", _se)
+
+
 @app.post("/api/pitanje")
 @limiter.limit("30/minute")
 async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(require_credits)):
@@ -1500,7 +1545,22 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
         logger.info("Pitanje [uid=%.8s] [q=%s]", user["user_id"], qh)
         asyncio.create_task(_audit(user["user_id"], "pitanje", qh))
         predmet_id = (req.predmet_id or "").strip() or None
+        session_id = (req.session_id or "").strip() or None
+
+        # F1.5: ako frontend nije poslao history, dohvati iz ai_sessions (2h TTL)
         history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
+        if not history and session_id:
+            supa = _get_supa()
+            sesija_redovi = await _session_dohvati(supa, session_id, user["user_id"])
+            if sesija_redovi:
+                # Konvertuj poruke u format koji ask_agent razume
+                _hist: list[dict] = []
+                for i in range(0, len(sesija_redovi) - 1, 2):
+                    u_row = sesija_redovi[i]
+                    a_row = sesija_redovi[i + 1] if i + 1 < len(sesija_redovi) else None
+                    if u_row.get("uloga") == "user" and a_row and a_row.get("uloga") == "assistant":
+                        _hist.append({"q": u_row["sadrzaj"], "a": a_row["sadrzaj"]})
+                history = _hist[-3:] if _hist else None  # max 3 razmene kao i req.history
 
         # F5.4: inject predmet context when predmet_id is provided
         pitanje_za_agenta = req.pitanje
@@ -1574,6 +1634,14 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
                 }).execute()
             except Exception:
                 logger.warning("[F5] predmet_istorija save failed for predmet_id=%s", predmet_id)
+
+        # F1.5: persist Q&A turn to ai_sessions (fire-and-forget)
+        if session_id and rezultat.get("status") == "success" and not rezultat.get("blocked", False):
+            ai_odgovor = (rezultat.get("data") or "").strip()
+            if ai_odgovor:
+                _supa = _get_supa()
+                asyncio.create_task(_session_sacuvaj(_supa, session_id, user["user_id"], "user", req.pitanje))
+                asyncio.create_task(_session_sacuvaj(_supa, session_id, user["user_id"], "assistant", ai_odgovor))
 
         resp = normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
         if not resp.get("odgovor"):
