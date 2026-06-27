@@ -40,6 +40,7 @@ logger = __import__("logging").getLogger("vindex.api")
 
 class StrategijaRequest(BaseModel):
     tekst: str = Field(..., max_length=20000)
+    tip_postupka: Optional[str] = Field(None, description="gradjansko|krivicno|upravno|privredno|radno")
 
 
 async def _fetch_praksa_ctx(tekst: str, k: int = 3) -> str:
@@ -68,7 +69,8 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         rezultat = await asyncio.to_thread(
-            red_team_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
+            red_team_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context,
+            req.tip_postupka or "gradjansko"
         )
         preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
         return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0)}
@@ -85,22 +87,7 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
     await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "litigation", ""))
-    _praksa_context = ""
-    try:
-        from app.services.retrieve import _pretraga_praksa, _ugradi_query, _formatiraj_praksa_match
-        _vec = await asyncio.wait_for(
-            asyncio.to_thread(_ugradi_query, req.tekst[:500]), timeout=8.0
-        )
-        _matches = await asyncio.wait_for(
-            asyncio.to_thread(_pretraga_praksa, _vec, 3), timeout=5.0
-        )
-        if _matches:
-            _parts = [_formatiraj_praksa_match(m) for m in _matches]
-            _parts = [p for p in _parts if p and len(p.strip()) > 30]
-            if _parts:
-                _praksa_context = "\n\n---\n\n".join(_parts[:3])
-    except (asyncio.TimeoutError, Exception) as _pe:
-        logger.warning("[F5] litigation praksa greška: %s", _pe)
+    _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         rezultat = await asyncio.to_thread(
             litigation_simulator_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
