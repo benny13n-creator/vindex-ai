@@ -1159,12 +1159,82 @@ async def register(req: RegisterReq, request: Request):
     try:
         result = await asyncio.to_thread(_do_register)
         asyncio.create_task(asyncio.to_thread(send_welcome_email, result["user_id"], req.email))
+        asyncio.create_task(_setup_trial(_get_supa(), result["user_id"]))
         return result
     except HTTPException:
         raise
     except Exception:
         logger.exception("Neočekivana greška u /api/register")
         raise HTTPException(status_code=500, detail="Greška servera. Pokušajte ponovo.")
+
+
+async def _setup_trial(supa, user_id: str) -> None:
+    """Postavi 30-dnevni trial za novog korisnika."""
+    from datetime import datetime, timezone, timedelta
+    trial_kraj = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("profiles").update({
+                "plan":            "trial",
+                "trial_kraj":      trial_kraj,
+                "onboarding_done": False,
+            }).eq("id", user_id).execute()
+        )
+    except Exception as e:
+        logger.warning("Trial setup greška: %s", e)
+
+
+@app.post("/api/auth/onboarding/complete")
+async def onboarding_complete(
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    """Označi onboarding kao završen i sačuvaj početne podatke firme."""
+    uid = user["user_id"]
+    supa = _get_supa()
+    update_data: dict = {"onboarding_done": True}
+    if payload.get("naziv_firme"):
+        update_data["naziv_firme"] = str(payload["naziv_firme"])[:100]
+    if payload.get("specijalizacija"):
+        update_data["specijalizacija"] = str(payload["specijalizacija"])[:100]
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("profiles").update(update_data).eq("id", uid).execute()
+        )
+    except Exception as e:
+        logger.warning("Onboarding complete greška: %s", e)
+    return {"ok": True, "message": "Dobrodošli u Vindex AI!"}
+
+
+@app.get("/api/auth/trial/status")
+async def trial_status(user: dict = Depends(get_current_user)):
+    """Vraća status triala i onboarding flag."""
+    from datetime import datetime, timezone
+    uid = user["user_id"]
+    supa = _get_supa()
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("profiles").select("plan, trial_kraj, onboarding_done").eq("id", uid).maybe_single().execute()
+        )
+        if r and r.data:
+            plan = r.data.get("plan", "trial")
+            trial_kraj_str = r.data.get("trial_kraj")
+            dani_ostalo = None
+            if trial_kraj_str and plan == "trial":
+                try:
+                    trial_kraj_dt = datetime.fromisoformat(trial_kraj_str.replace("Z", "+00:00"))
+                    dani_ostalo = max(0, (trial_kraj_dt - datetime.now(timezone.utc)).days)
+                except Exception:
+                    dani_ostalo = 30
+            return {
+                "plan":           plan,
+                "trial_aktivan":  plan == "trial" and (dani_ostalo is None or dani_ostalo > 0),
+                "dani_ostalo":    dani_ostalo,
+                "onboarding_done": r.data.get("onboarding_done", True),
+            }
+    except Exception as e:
+        logger.debug("Trial status greška: %s", e)
+    return {"plan": "trial", "trial_aktivan": True, "dani_ostalo": 30, "onboarding_done": True}
 
 
 @app.post("/api/logout")

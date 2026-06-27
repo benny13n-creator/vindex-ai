@@ -12086,6 +12086,8 @@ function onboardingCheck() {
   if (!isNew) { localStorage.setItem(key, '1'); return; }
   var overlay = document.getElementById('onboarding-overlay');
   if (overlay) overlay.style.display = 'flex';
+  // Also check trial status for badge
+  checkTrialStatus();
 }
 
 function onboardingDismiss() {
@@ -12094,6 +12096,21 @@ function onboardingDismiss() {
   if (!currentUser) return;
   var uid = currentUser.id || currentUser.user_id || '';
   localStorage.setItem('vx_onboarded_' + uid.slice(0, 8), '1');
+  // Notify backend that onboarding is done
+  apiFetch('/api/auth/onboarding/complete', { method: 'POST', body: JSON.stringify({}) }).catch(function(){});
+}
+
+async function checkTrialStatus() {
+  try {
+    var r = await apiFetch('/api/auth/trial/status');
+    if (!r) return;
+    var badge = document.getElementById('trial-badge');
+    if (badge && r.trial_aktivan && r.dani_ostalo !== null && r.dani_ostalo !== undefined) {
+      badge.textContent = 'Trial: ' + r.dani_ostalo + 'd';
+      badge.classList.remove('hidden');
+      if (r.dani_ostalo <= 3) badge.classList.add('trial-badge-urgent');
+    }
+  } catch(e) { /* ignoriši */ }
 }
 
 function onboardingStep(step) {
