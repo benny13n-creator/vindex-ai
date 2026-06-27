@@ -23,17 +23,77 @@ logger = logging.getLogger("vindex.api")
 router = APIRouter()
 
 _VALID_MATTERS    = frozenset({"Građanska", "Zaštita prava", "Upravna", "Krivična"})
-_VALID_COURTS = frozenset({
-    "Vrhovni sud", "Vrhovni kasacioni sud",
-    "Apelacioni sud u Beogradu", "Apelacioni sud u Novom Sadu",
-    "Apelacioni sud u Nišu", "Apelacioni sud u Kragujevcu",
-    "Privredni apelacioni sud",
-    "Upravni sud",
-    "Viši sud u Beogradu", "Viši sud u Novom Sadu",
+
+# Kompletna mreža sudova RS po Sl. gl. RS 101/2019 + Vrhovni upravni sud 2023
+SUDOVI_SRBIJE: dict[str, str] = {
+    # Vrhovna instanca
+    "VKS":    "Vrhovni kasacioni sud",
+    "US":     "Ustavni sud Srbije",
+    # Apelacioni sudovi
+    "AS_BG":  "Apelacioni sud u Beogradu",
+    "AS_NS":  "Apelacioni sud u Novom Sadu",
+    "AS_NI":  "Apelacioni sud u Nišu",
+    "AS_KG":  "Apelacioni sud u Kragujevcu",
+    # Privredni apelacioni
+    "PAS":    "Privredni apelacioni sud",
+    # Upravni sudovi
+    "VUS":    "Vrhovni upravni sud",
+    "US_ADM": "Upravni sud",
+    # Viši sudovi
+    "VSS_BG": "Viši sud u Beogradu",
+    "VSS_NS": "Viši sud u Novom Sadu",
+    "VSS_NI": "Viši sud u Nišu",
+    "VSS_KG": "Viši sud u Kragujevcu",
+    "VSS_SK": "Viši sud u Šapcu",
+    "VSS_VJ": "Viši sud u Valjevu",
+    "VSS_ZA": "Viši sud u Zaječaru",
+    "VSS_ZR": "Viši sud u Zrenjaninu",
+    "VSS_JA": "Viši sud u Jagodini",
+    "VSS_KC": "Viši sud u Kraljevu",
+    "VSS_KS": "Viši sud u Kosovskoj Mitrovici",
+    "VSS_LZ": "Viši sud u Leskovcu",
+    "VSS_NP": "Viši sud u Negotinu",
+    "VSS_PC": "Viši sud u Pančevu",
+    "VSS_PI": "Viši sud u Pirotu",
+    "VSS_PZ": "Viši sud u Požarevcu",
+    "VSS_PK": "Viši sud u Prokuplju",
+    "VSS_SM": "Viši sud u Smederevu",
+    "VSS_SO": "Viši sud u Somboru",
+    "VSS_SR": "Viši sud u Sremskoj Mitrovici",
+    "VSS_SU": "Viši sud u Subotici",
+    "VSS_UZ": "Viši sud u Užicu",
+    "VSS_VR": "Viši sud u Vranju",
+    "VSS_VB": "Viši sud u Vrbasu",
+    # Privredni sudovi
+    "PS_BG":  "Privredni sud u Beogradu",
+    "PS_NS":  "Privredni sud u Novom Sadu",
+    "PS_NI":  "Privredni sud u Nišu",
+    "PS_KG":  "Privredni sud u Kragujevcu",
+    "PS_SK":  "Privredni sud u Šapcu",
+    "PS_VJ":  "Privredni sud u Valjevu",
+    "PS_ZR":  "Privredni sud u Zrenjaninu",
+    "PS_JA":  "Privredni sud u Jagodini",
+    "PS_KC":  "Privredni sud u Kraljevu",
+    "PS_LZ":  "Privredni sud u Leskovcu",
+    "PS_PC":  "Privredni sud u Pančevu",
+    "PS_PZ":  "Privredni sud u Požarevcu",
+    "PS_SM":  "Privredni sud u Smederevu",
+    "PS_SO":  "Privredni sud u Somboru",
+    "PS_SR":  "Privredni sud u Sremskoj Mitrovici",
+    "PS_UZ":  "Privredni sud u Užicu",
+    # Specijalni / međunarodni
+    "ESLJP":  "Evropski sud za ljudska prava",
+    "MKS":    "Međunarodni krivični sud",
+}
+
+# Skup punih naziva za brzu validaciju (vrednosti iz dicts + stari nazivi iz baze)
+_VALID_COURTS: frozenset = frozenset(SUDOVI_SRBIJE.values()) | frozenset({
+    "Vrhovni sud", "Vrhovni sud Srbije",
     "Osnovni sud u Beogradu", "Osnovni sud u Novom Sadu",
-    "Privredni sud u Beogradu", "Privredni sud u Novom Sadu",
 })
+
 _PRAKSA_NS_SEARCH = "sudska_praksa"
+_KEYWORD_FALLBACK_THRESHOLD = 0.45  # semantic score ispod ovog → keyword fallback
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -66,6 +126,47 @@ class UporediReq(BaseModel):
 
 
 # ── /api/praksa/search helpers ────────────────────────────────────────────────
+
+def _keyword_fallback_sync(
+    query: str,
+    top_k: int,
+    filter_dict: Optional[dict],
+    index,
+) -> list:
+    """Keyword-reranking fallback: širi semantic query + keyword hit scoring po metadata."""
+    import math as _math
+    from app.services.retrieve import _ugradi_query
+    try:
+        keywords = [w.lower() for w in query.split() if len(w) > 3]
+        if not keywords:
+            return []
+        vector = _ugradi_query(query)
+        res = index.query(
+            vector=vector,
+            top_k=top_k * 4,
+            filter=filter_dict,
+            namespace=_PRAKSA_NS_SEARCH,
+            include_metadata=True,
+        )
+        scored = []
+        for m in res.matches:
+            meta = m.metadata or {}
+            haystack = " ".join(filter(None, [
+                meta.get("text", ""),
+                meta.get("kljucne_reci", ""),
+                meta.get("matter", ""),
+                meta.get("court", ""),
+                meta.get("decision_number", ""),
+            ])).lower()
+            hits = sum(1 for kw in keywords if kw in haystack)
+            if hits > 0:
+                scored.append((hits, m.score, m))
+        scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+        return [m for _, _, m in scored[:top_k]]
+    except Exception as e:
+        logger.warning("[PRAKSA] Keyword fallback greška: %s", e)
+        return []
+
 
 def _praksa_search_sync(
     query:     Optional[str],
@@ -105,8 +206,19 @@ def _praksa_search_sync(
         include_metadata=True,
     )
 
+    # Keyword fallback: ako semantic scores nisu dovoljno visoki, rerankiraj po ključnim rečima
+    raw_matches = res.matches
+    if has_query and raw_matches:
+        max_score = max((m.score for m in raw_matches), default=0.0)
+        if max_score < _KEYWORD_FALLBACK_THRESHOLD:
+            logger.info("[PRAKSA] Semantic max_score=%.3f < %.2f — keyword fallback",
+                        max_score, _KEYWORD_FALLBACK_THRESHOLD)
+            fallback = _keyword_fallback_sync(query, top_k, filter_dict, index)
+            if fallback:
+                raw_matches = fallback
+
     groups: dict[str, dict] = {}
-    for m in res.matches:
+    for m in raw_matches:
         meta = m.metadata or {}
         dn = (meta.get("decision_number") or "").strip() or m.id
         if dn not in groups:
@@ -458,6 +570,40 @@ async def praksa_uporedi(
     except Exception:
         logger.exception("Greška u /api/praksa/uporedi")
         return JSONResponse(status_code=500, content={"error": "Interna greška servera."})
+
+
+@router.get("/api/praksa/sudovi")
+async def get_sudovi():
+    """Vraća kompletnu listu srpskih sudova za frontend dropdown."""
+    categories = {
+        "vrhovna": [],
+        "apelacioni": [],
+        "privredni_apelacioni": [],
+        "upravni": [],
+        "visi": [],
+        "privredni": [],
+        "specijalni": [],
+    }
+    for kod, naziv in SUDOVI_SRBIJE.items():
+        if kod in ("VKS", "US"):
+            categories["vrhovna"].append({"kod": kod, "naziv": naziv})
+        elif kod.startswith("AS_"):
+            categories["apelacioni"].append({"kod": kod, "naziv": naziv})
+        elif kod == "PAS":
+            categories["privredni_apelacioni"].append({"kod": kod, "naziv": naziv})
+        elif kod in ("VUS", "US_ADM"):
+            categories["upravni"].append({"kod": kod, "naziv": naziv})
+        elif kod.startswith("VSS_"):
+            categories["visi"].append({"kod": kod, "naziv": naziv})
+        elif kod.startswith("PS_"):
+            categories["privredni"].append({"kod": kod, "naziv": naziv})
+        else:
+            categories["specijalni"].append({"kod": kod, "naziv": naziv})
+    return {
+        "sudovi": [{"kod": k, "naziv": v} for k, v in SUDOVI_SRBIJE.items()],
+        "kategorije": categories,
+        "ukupno": len(SUDOVI_SRBIJE),
+    }
 
 
 @router.get("/api/sudska-praksa/grupisano")
