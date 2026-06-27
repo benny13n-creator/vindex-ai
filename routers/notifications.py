@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import defaultdict
 from datetime import date, datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -22,6 +23,109 @@ logger = logging.getLogger("vindex.notifications")
 router = APIRouter(tags=["notifications"])
 
 _REFRESH_HOURS = 6
+
+# ── Tipovi notifikacija sa prioritetima i ikonama ─────────────────────────────
+NOTIF_TIPOVI: dict[str, dict] = {
+    # Rokovi
+    "rok":          {"label": "Nadolazeći rok",         "priority": "normal",  "icon": "calendar"},
+    "hitan_rok":    {"label": "Hitan rok",               "priority": "high",    "icon": "calendar-alert"},
+    "rok_7":        {"label": "Rok za 7 dana",           "priority": "normal",  "icon": "calendar"},
+    "rok_3":        {"label": "Rok za 3 dana",           "priority": "high",    "icon": "calendar-alert"},
+    "rok_1":        {"label": "Rok SUTRA",               "priority": "urgent",  "icon": "alarm"},
+    # Ročišta
+    "rociste_sutra":  {"label": "Ročište SUTRA",         "priority": "urgent",  "icon": "gavel"},
+    "rociste_nedelja":{"label": "Ročište za 7 dana",     "priority": "normal",  "icon": "gavel"},
+    # Predmeti
+    "neaktivnost":    {"label": "Neaktivan predmet",     "priority": "low",     "icon": "sleep"},
+    "predmet_zatvoren":{"label": "Predmet zatvoren",     "priority": "low",     "icon": "archive"},
+    # Saradnja
+    "saradnja_predmet": {"label": "Dodeljen predmet",    "priority": "high",    "icon": "users"},
+    "saradnja_komentar":{"label": "Novi komentar saradnika","priority": "normal","icon": "message-square"},
+    # Inbox
+    "inbox_poruka":   {"label": "Nova poruka u inboxu",  "priority": "normal",  "icon": "mail"},
+    # Billing / SEF
+    "faktura_kasnjenje":{"label": "Faktura kasni > 30 dana","priority": "high", "icon": "alert-circle"},
+    "faktura_placena":  {"label": "Faktura plaćena",     "priority": "normal",  "icon": "check-circle"},
+    "sef_status":       {"label": "SEF status fakture",  "priority": "normal",  "icon": "file-check"},
+    # AI
+    "ai_analiza_gotova":{"label": "AI analiza završena", "priority": "normal",  "icon": "cpu"},
+}
+
+PRIORITY_ORDER = {"urgent": 0, "high": 1, "normal": 2, "low": 3, "info": 4}
+
+
+def _u_tihom_periodu() -> bool:
+    """Tihi period: 22:00–08:00 — push se ne šalje (osim urgent)."""
+    h = datetime.now().hour
+    return h >= 22 or h < 8
+
+
+def _grupiraj_notifikacije(notifs: list[dict]) -> list[dict]:
+    """Grupiši rok_* notifikacije istog tipa u jednu sa brojem."""
+    grupe: dict[str, list[dict]] = defaultdict(list)
+    single: list[dict] = []
+
+    for n in notifs:
+        tip = n.get("tip", "ostalo")
+        if tip.startswith("rok") or tip.startswith("hitan_rok") or tip.startswith("rociste"):
+            grupe[tip].append(n)
+        else:
+            single.append(n)
+
+    result = list(single)
+    for tip, items in grupe.items():
+        if len(items) == 1:
+            result.append(items[0])
+        else:
+            tip_label = NOTIF_TIPOVI.get(tip, {}).get("label", tip)
+            grouped_item = {
+                **items[0],
+                "naslov": f"{len(items)} × {tip_label}",
+                "grouped_count": len(items),
+                "grouped_items": [i.get("naslov", "") for i in items[:5]],
+            }
+            result.append(grouped_item)
+
+    result.sort(key=lambda n: PRIORITY_ORDER.get(
+        n.get("prioritet") or NOTIF_TIPOVI.get(n.get("tip", ""), {}).get("priority", "normal"),
+        2
+    ))
+    return result
+
+
+async def trigger_notifikacija(
+    supa,
+    user_id: str,
+    tip: str,
+    naslov: str,
+    tekst: str,
+    predmet_id: str | None = None,
+    priority: str | None = None,
+) -> None:
+    """
+    Kreira notifikaciju u bazi. Pozivati iz billing.py, saradnja.py, itd.
+    Push se ne šalje u tihom periodu (22:00–08:00) osim za urgent prioritet.
+    """
+    tip_info = NOTIF_TIPOVI.get(tip, {})
+    p = priority or tip_info.get("priority", "normal")
+
+    if _u_tihom_periodu() and p != "urgent":
+        logger.debug("[NOTIF] Tihi period — notifikacija odložena: %s", tip)
+
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("notifications").insert({
+                "user_id":    user_id,
+                "tip":        tip,
+                "naslov":     naslov,
+                "poruka":     tekst,
+                "predmet_id": predmet_id,
+                "prioritet":  p,
+                "procitano":  False,
+            }).execute()
+        )
+    except Exception as e:
+        logger.warning("[NOTIF] trigger_notifikacija greška: %s", e)
 
 
 async def _generate_notifications(uid: str) -> int:
@@ -201,6 +305,7 @@ async def get_notifications(
             lambda: q.order("created_at", desc=True).limit(50).execute()
         )
         data = r.data or []
+        data = _grupiraj_notifikacije(data)
         neprocitane = sum(1 for n in data if not n.get("procitano"))
         return {
             "notifications": data,
