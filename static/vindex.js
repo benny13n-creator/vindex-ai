@@ -15047,6 +15047,68 @@ function intakeOtvori() {
   document.getElementById('intake-conflict-warning').style.display = 'none';
   document.getElementById('intake-kreiraj-err').style.display = 'none';
   _intakeBillingReset();
+  intakeHistoryLoad();
+}
+
+async function intakeHistoryLoad() {
+  var list = document.getElementById('intake-hist-list');
+  var spin = document.getElementById('intake-hist-spinner');
+  if (!list) return;
+  list.innerHTML = '';
+  if (spin) spin.style.display = '';
+
+  try {
+    var sb = await _waitSupa(4000);
+    var sess = sb ? await sb.auth.getSession() : null;
+    var tok = sess && sess.data && sess.data.session ? sess.data.session.access_token : null;
+    if (!tok) { if (spin) spin.style.display = 'none'; return; }
+
+    var r = await fetch('/api/intake/history?limit=12', {
+      headers: { 'Authorization': 'Bearer ' + tok }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var data = await r.json();
+    var items = data.items || [];
+
+    if (spin) spin.style.display = 'none';
+
+    if (!items.length) {
+      list.innerHTML = '<div style="font-size:0.72rem;color:rgba(255,255,255,0.22);padding:4px 0;">Još nema kreiranih predmeta.</div>';
+      return;
+    }
+
+    var html = '';
+    items.forEach(function(it) {
+      var statusColor = it.status === 'aktivan' ? 'rgba(74,168,255,0.7)' : 'rgba(255,255,255,0.3)';
+      var datum = it.datum || '';
+      var naziv = escHtml(it.naziv || '—');
+      var klijent = escHtml(it.klijent || '—');
+      html += '<div onclick="intakeHistOtvoriPredmet(\''+escHtml(it.id)+'\')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;transition:background 0.15s;margin-bottom:3px;" onmouseover="this.style.background=\'rgba(255,255,255,0.04)\'" onmouseout="this.style.background=\'transparent\'">'
+        + '<div style="flex:1;min-width:0;">'
+        +   '<div style="font-size:0.77rem;color:#c9d1d9;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + naziv + '</div>'
+        +   '<div style="font-size:0.67rem;color:rgba(255,255,255,0.35);margin-top:1px;">' + klijent + '</div>'
+        + '</div>'
+        + '<div style="text-align:right;flex-shrink:0;">'
+        +   '<div style="font-size:0.67rem;color:rgba(255,255,255,0.3);">' + datum + '</div>'
+        +   '<div style="font-size:0.62rem;color:' + statusColor + ';margin-top:1px;">' + escHtml(it.status) + '</div>'
+        + '</div>'
+        + '<div style="color:rgba(255,255,255,0.2);font-size:0.8rem;">›</div>'
+        + '</div>';
+    });
+    list.innerHTML = html;
+  } catch(e) {
+    if (spin) spin.style.display = 'none';
+    if (list) list.innerHTML = '<div style="font-size:0.68rem;color:rgba(255,100,80,0.5);">Greška pri učitavanju istorije.</div>';
+  }
+}
+
+function intakeHistOtvoriPredmet(id) {
+  intakeZatvori();
+  setTimeout(function() {
+    var btn = document.querySelector('.t-tab[onclick*="\'p\'"]');
+    if (btn) btn.click();
+    setTimeout(function() { typeof pred_select === 'function' && pred_select(id); }, 120);
+  }, 150);
 }
 
 function intakeBillingAksIznos() { _intakeBillingAksIznos(); }

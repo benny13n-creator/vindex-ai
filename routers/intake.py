@@ -878,3 +878,44 @@ async def intake_bulk_import(
         "greske":        greske[:20],
         "predmeti":      uspeh,
     }
+
+
+# ── Intake History ─────────────────────────────────────────────────────────────
+@router.get("/api/intake/history")
+async def intake_history(
+    limit: int = 15,
+    user: dict = Depends(get_current_user),
+):
+    """Poslednjih N predmeta koje je korisnik kreirao — za History sekciju u wizardu."""
+    supa = _get_supa()
+    uid  = user["user_id"]
+
+    r = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id, naziv, status, tip, created_at, predmet_klijenti(klijenti(ime, prezime, naziv_kompanije))")
+            .eq("user_id", uid)
+            .order("created_at", desc=True)
+            .limit(max(1, min(limit, 30)))
+            .execute()
+    )
+
+    items = []
+    for p in (r.data or []):
+        klijent = "—"
+        veze = p.get("predmet_klijenti") or []
+        if veze:
+            k = veze[0].get("klijenti") or {}
+            if k.get("naziv_kompanije"):
+                klijent = k["naziv_kompanije"]
+            elif k.get("prezime"):
+                klijent = f"{(k.get('ime') or '').strip()} {k['prezime']}".strip()
+
+        items.append({
+            "id":      p["id"],
+            "naziv":   p["naziv"],
+            "status":  p.get("status", "aktivan"),
+            "klijent": klijent,
+            "datum":   (p.get("created_at") or "")[:10],
+        })
+
+    return {"items": items}
