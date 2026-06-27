@@ -6,6 +6,7 @@ GET /api/matter-intel/predmeti/{predmet_id}
 Vraća: snaga_dokaza, procesni_rizik, nedostajuci_dokazi, predstojeći_rokovi,
        sledeca_radnja (GPT-4o-mini), health_score (0-100)
 """
+import asyncio
 import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
@@ -30,19 +31,33 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
     supa = _get_supa()
     uid  = user["user_id"]
 
-    pr = supa.table("predmeti").select(
-        "id,naziv,tip,status,rizik,opis,created_at"
-    ).eq("id", predmet_id).eq("user_id", uid).execute()
+    pr = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select(
+            "id,naziv,tip,status,rizik,opis,created_at"
+        ).eq("id", predmet_id).eq("user_id", uid).execute()
+    )
     if not pr.data:
         raise HTTPException(status_code=404)
     predmet = pr.data[0]
     tip     = predmet.get("tip") or "ostalo"
 
+    now = datetime.now(timezone.utc)
+
+    # ── Sva 3 upita paralelno ────────────────────────────────────────────────
+    dokazi_r, dok_r, rok_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
+            "snaga,kategorija,pravni_element"
+        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("tip_dokaza").eq(
+            "predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
+            "naziv,datum_isteka,status"
+        ).eq("predmet_id", predmet_id).order("datum_isteka").execute()),
+        return_exceptions=True,
+    )
+
     # ── Dokazi analiza ───────────────────────────────────────────────────────
-    dokazi_r = supa.table("predmet_dokazi").select(
-        "snaga,kategorija,pravni_element"
-    ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()
-    dokazi = dokazi_r.data or []
+    dokazi = ((dokazi_r.data if not isinstance(dokazi_r, Exception) else []) or [])
 
     snaga_count = {"jaka": 0, "srednja": 0, "slaba": 0}
     for d in dokazi:
@@ -69,19 +84,12 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
 
     # ── Nedostajući dokumenti ────────────────────────────────────────────────
     expected = _EXPECTED_DOCS.get(tip, _EXPECTED_DOCS["ostalo"])
-    dok_r = supa.table("predmet_dokumenti").select("tip_dokaza").eq(
-        "predmet_id", predmet_id).is_("deleted_at", "null").execute()
-    postojeci_tipovi = {d.get("tip_dokaza") for d in (dok_r.data or []) if d.get("tip_dokaza")}
+    _dok_data = ((dok_r.data if not isinstance(dok_r, Exception) else []) or [])
+    postojeci_tipovi = {d.get("tip_dokaza") for d in _dok_data if d.get("tip_dokaza")}
     nedostajuci = [t for t in expected if t not in postojeci_tipovi]
-
-    # ── Rokovi ──────────────────────────────────────────────────────────────
-    rok_r = supa.table("predmet_rokovi").select(
-        "naziv,datum_isteka,status"
-    ).eq("predmet_id", predmet_id).order("datum_isteka").execute()
-    now = datetime.now(timezone.utc)
     predstojeći = 0
     kriticni    = 0
-    for r in (rok_r.data or []):
+    for r in ((rok_r.data if not isinstance(rok_r, Exception) else []) or []):
         try:
             dt = datetime.fromisoformat((r.get("datum_isteka","") or "").replace("Z","+00:00"))
             dana = (dt - now).days
@@ -117,11 +125,11 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
     # ── Sledeća radnja (GPT) ─────────────────────────────────────────────────
     sledeca_radnja = _compute_next_action(predmet, snaga_label, nedostajuci, predstojeći, kriticni)
 
-    # ── Trend aktivnosti (poslednjih 3×7 dana) ───────────────────────────────
-    trend = _compute_trend(supa, predmet_id, now)
-
-    # ── Health log: snimi dnevni snapshot i vrati istoriju ───────────────────
-    health_history = _log_and_fetch_health(supa, predmet_id, health, procesni_rizik, now)
+    # ── Trend aktivnosti + Health log — paralelno ────────────────────────────
+    trend, health_history = await asyncio.gather(
+        asyncio.to_thread(_compute_trend, supa, predmet_id, now),
+        asyncio.to_thread(_log_and_fetch_health, supa, predmet_id, health, procesni_rizik, now),
+    )
 
     return {
         "snaga_dokaza":     snaga_label,
