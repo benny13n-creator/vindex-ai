@@ -10,13 +10,14 @@ POST /api/voice/command   — glavna ruta
 POST /api/voice/feedback  — beleži feedback o tačnosti
 """
 import asyncio
+import io
 import logging
 import json
 import re
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user as require_user
@@ -346,6 +347,66 @@ async def _handle_command(text: str) -> dict:
         "params":  actions[0].get("params", {}) if actions else {},
         "followup": actions[1].get("action") if len(actions) > 1 else None,
     }
+
+
+# ── Whisper STT — transkribovanje audio snimka ───────────────────────────────
+
+@router.post("/transcribe")
+@limiter.limit("20/minute")
+async def voice_transcribe(
+    request: Request,
+    audio: UploadFile = File(...),
+    language: str = "sr",
+    user=Depends(require_user),
+):
+    """
+    Prima audio blob (webm/mp4/wav/ogg) od MediaRecorder-a i vraća transkript
+    putem OpenAI Whisper-1. Koristiti umesto browser Web Speech API.
+    """
+    data = await audio.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Audio fajl je prazan.")
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Audio fajl ne sme biti veći od 10MB.")
+
+    content_type = audio.content_type or "audio/webm"
+    filename = audio.filename or "audio.webm"
+    if "webm" in content_type or "webm" in filename:
+        filename = "audio.webm"
+    elif "mp4" in content_type:
+        filename = "audio.mp4"
+    elif "wav" in content_type:
+        filename = "audio.wav"
+    elif "ogg" in content_type:
+        filename = "audio.ogg"
+    else:
+        filename = "audio.webm"
+
+    lang = language if language in ("sr", "en", "de", "fr", "bs", "hr") else "sr"
+
+    try:
+        from openai import OpenAI
+        import os
+        oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+        buf = io.BytesIO(data)
+        buf.name = filename
+
+        response = await asyncio.to_thread(
+            lambda: oai.audio.transcriptions.create(
+                model="whisper-1",
+                file=(filename, buf, content_type),
+                language=lang,
+                prompt="Pravni tekst na srpskom jeziku. Advokat, sud, predmet, tužba, žalba, ročište.",
+            )
+        )
+        transkript = (response.text or "").strip()
+        logger.info("[VOICE/STT] uid=%.8s %d chars", user["user_id"], len(transkript))
+        return {"transkript": transkript, "language": lang, "chars": len(transkript)}
+
+    except Exception as exc:
+        logger.error("[VOICE/STT] Whisper greška: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Transkribovanje nije uspelo: {exc}")
 
 
 # ── TTS endpoint — OpenAI višejezični sintetizator ───────────────────────────
