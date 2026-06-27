@@ -88,7 +88,7 @@ _NAPLATA_PARSE_SYSTEM = """Iz korisničke poruke izvuci podatke za fakturisanje 
 Polja:
 {
   "sati": <broj ili null — broj sati rada ako je naveden>,
-  "tarifa_sifra": <"T01"–"T30" ili null — AKS šifra ako se prepoznaje>,
+  "tarifa_sifra": <"T01"–"T71" ili null — AKS šifra ako se prepoznaje>,
   "opis": <string — kratak opis radnje>,
   "iznos_rsd": <integer ili null — ako je korisnik naveo eksplicitan iznos u RSD/din>
 }
@@ -769,7 +769,7 @@ async def _handle_naplati_radnju(poruka: str, predmet_id: str | None, uid: str) 
     elif sati:
         iznos_final = int(sati * 7500)
         tip = "satnica"
-        tarifa_sifra = "T30"
+        tarifa_sifra = "T71"
     else:
         return {
             "tip":     "NAPLATI_RADNJU",

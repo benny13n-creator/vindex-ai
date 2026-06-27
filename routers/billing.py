@@ -49,41 +49,98 @@ logger = logging.getLogger("vindex.billing")
 router = APIRouter(prefix="/billing", tags=["billing"])
 
 # Sl. glasnik RS 56/2025 — od 5. jula 2025.
-BOD_RSD = 50
+# Vrednost boda se može pregaziti env varom BOD_RSD (npr. BOD_RSD=55)
+BOD_RSD: float = float(os.getenv("BOD_RSD", "50"))
 
-# AKS Advokatska tarifa — najcesci postupci.
-# Bodovi su okvirni; verifikuj u Sluzbenom glasniku RS 56/2025.
+# AKS Advokatska tarifa — Sl. gl. RS 56/2025.
+# Bodovi su okvirni prema zvaničnoj tarifi; prilagodite po potrebi.
 AKS_TARIFA: dict[str, dict] = {
-    "T01": {"naziv": "Tužba za novčano potraživanje (prostija)",  "bodovi": 12},
-    "T02": {"naziv": "Tužba za novčano potraživanje (složenija)", "bodovi": 24},
-    "T03": {"naziv": "Tužba na davanje/činjenje/trpljenje",       "bodovi": 18},
-    "T04": {"naziv": "Žalba na prvostepenu presudu",              "bodovi": 12},
-    "T05": {"naziv": "Revizija / vanredni pravni lek",            "bodovi": 20},
-    "T06": {"naziv": "Ustavna žalba",                             "bodovi": 30},
-    "T07": {"naziv": "Odgovor na tužbu",                          "bodovi": 12},
-    "T08": {"naziv": "Odgovor na žalbu",                          "bodovi": 10},
-    "T09": {"naziv": "Prigovor (procesni ili materijalni)",        "bodovi": 10},
-    "T10": {"naziv": "Zastupanje na ročištu (prostija parnica)",  "bodovi": 16},
-    "T11": {"naziv": "Zastupanje na ročištu (složenija parnica)", "bodovi": 24},
-    "T12": {"naziv": "Zastupanje u krivičnom predmetu (ročište)", "bodovi": 24},
-    "T13": {"naziv": "Žalba u krivičnom postupku",                "bodovi": 16},
-    "T14": {"naziv": "Predlog za izvršenje (prostiji)",           "bodovi": 10},
-    "T15": {"naziv": "Predlog za izvršenje (složeniji)",          "bodovi": 16},
-    "T16": {"naziv": "Predlog za obezbeđenje potraživanja",       "bodovi": 14},
-    "T17": {"naziv": "Usmena konsultacija (do 1 sat)",            "bodovi": 6},
-    "T18": {"naziv": "Pisana konsultacija / pravni savet",        "bodovi": 10},
-    "T19": {"naziv": "Podnesak u sudskom postupku",               "bodovi": 8},
-    "T20": {"naziv": "Podnesak / uputstvo stranci",               "bodovi": 6},
-    "T21": {"naziv": "Ugovor (prostiji)",                         "bodovi": 16},
-    "T22": {"naziv": "Ugovor (složeniji)",                        "bodovi": 30},
-    "T23": {"naziv": "Punomoćje / ovlašćenje",                   "bodovi": 4},
-    "T24": {"naziv": "Krivična prijava",                          "bodovi": 12},
-    "T25": {"naziv": "Prisustvo uviđaju / veštačenju",            "bodovi": 10},
-    "T26": {"naziv": "Zahtev za mirno rešenje spora",             "bodovi": 10},
-    "T27": {"naziv": "Zastupanje u porodičnom sporu (ročište)",   "bodovi": 20},
-    "T28": {"naziv": "Nasledno-pravna izjava / tužba",            "bodovi": 18},
-    "T29": {"naziv": "Zastupanje u upravnom postupku",            "bodovi": 14},
-    "T30": {"naziv": "Satnica — 1 sat (minimalna tarifa)",        "bodovi": None, "fiksno_rsd": 7500},
+    # ── PARNIČNI POSTUPAK ──────────────────────────────────────────────────────
+    "T01": {"naziv": "Tužba za novčano potraživanje (prostija)",         "bodovi": 12,  "kategorija": "Parnični postupak"},
+    "T02": {"naziv": "Tužba za novčano potraživanje (složenija)",        "bodovi": 24,  "kategorija": "Parnični postupak"},
+    "T03": {"naziv": "Tužba na davanje / činjenje / trpljenje",          "bodovi": 18,  "kategorija": "Parnični postupak"},
+    "T04": {"naziv": "Odgovor na tužbu",                                 "bodovi": 12,  "kategorija": "Parnični postupak"},
+    "T05": {"naziv": "Žalba na prvostepenu presudu",                     "bodovi": 12,  "kategorija": "Parnični postupak"},
+    "T06": {"naziv": "Odgovor na žalbu",                                 "bodovi": 10,  "kategorija": "Parnični postupak"},
+    "T07": {"naziv": "Revizija / odgovor na reviziju",                   "bodovi": 20,  "kategorija": "Parnični postupak"},
+    "T08": {"naziv": "Prigovor (procesni ili materijalni)",              "bodovi": 10,  "kategorija": "Parnični postupak"},
+    "T09": {"naziv": "Predlog za ponavljanje postupka",                  "bodovi": 14,  "kategorija": "Parnični postupak"},
+    "T10": {"naziv": "Zastupanje na ročištu (prostija parnica)",         "bodovi": 16,  "kategorija": "Parnični postupak"},
+    "T11": {"naziv": "Zastupanje na ročištu (složenija parnica)",        "bodovi": 24,  "kategorija": "Parnični postupak"},
+    "T12": {"naziv": "Podnesak u sudskom postupku",                      "bodovi": 8,   "kategorija": "Parnični postupak"},
+    "T13": {"naziv": "Podnesak / uputstvo stranci",                      "bodovi": 6,   "kategorija": "Parnični postupak"},
+    # ── IZVRŠNI POSTUPAK ──────────────────────────────────────────────────────
+    "T14": {"naziv": "Predlog za izvršenje (prostiji)",                  "bodovi": 10,  "kategorija": "Izvršni postupak"},
+    "T15": {"naziv": "Predlog za izvršenje (složeniji)",                 "bodovi": 16,  "kategorija": "Izvršni postupak"},
+    "T16": {"naziv": "Prigovor na rešenje o izvršenju",                  "bodovi": 10,  "kategorija": "Izvršni postupak"},
+    "T17": {"naziv": "Predlog za obezbeđenje potraživanja / mera",       "bodovi": 14,  "kategorija": "Izvršni postupak"},
+    "T18": {"naziv": "Zastupanje u izvršnom postupku (po ročištu)",      "bodovi": 12,  "kategorija": "Izvršni postupak"},
+    "T19": {"naziv": "Obezbeđenje dokaza",                               "bodovi": 10,  "kategorija": "Izvršni postupak"},
+    # ── KRIVIČNI POSTUPAK ─────────────────────────────────────────────────────
+    "T20": {"naziv": "Odbrana na istražnom ročištu",                     "bodovi": 20,  "kategorija": "Krivični postupak"},
+    "T21": {"naziv": "Odbrana na glavnom pretresu (po ročištu)",         "bodovi": 24,  "kategorija": "Krivični postupak"},
+    "T22": {"naziv": "Žalba na presudu / rešenje (krivično)",            "bodovi": 16,  "kategorija": "Krivični postupak"},
+    "T23": {"naziv": "Vanredni pravni lek u krivičnom postupku",         "bodovi": 20,  "kategorija": "Krivični postupak"},
+    "T24": {"naziv": "Pritvorska ročišta (prigovor / žalba na pritvor)", "bodovi": 16,  "kategorija": "Krivični postupak"},
+    "T25": {"naziv": "Krivična prijava",                                 "bodovi": 12,  "kategorija": "Krivični postupak"},
+    # ── UPRAVNI POSTUPAK ──────────────────────────────────────────────────────
+    "T26": {"naziv": "Žalba u upravnom postupku",                        "bodovi": 12,  "kategorija": "Upravni postupak"},
+    "T27": {"naziv": "Tužba u upravnom sporu",                           "bodovi": 16,  "kategorija": "Upravni postupak"},
+    "T28": {"naziv": "Žalba u upravnom sporu",                           "bodovi": 12,  "kategorija": "Upravni postupak"},
+    "T29": {"naziv": "Zastupanje na pretresu u upravnom sporu",          "bodovi": 14,  "kategorija": "Upravni postupak"},
+    # ── UGOVORI I ISPRAVE ─────────────────────────────────────────────────────
+    "T30": {"naziv": "Ugovor — vrednost do 100.000 RSD",                 "bodovi": 10,  "kategorija": "Ugovori i isprave"},
+    "T31": {"naziv": "Ugovor — vrednost 100.001–1.000.000 RSD",          "bodovi": 16,  "kategorija": "Ugovori i isprave"},
+    "T32": {"naziv": "Ugovor — vrednost 1.000.001–10.000.000 RSD",       "bodovi": 30,  "kategorija": "Ugovori i isprave"},
+    "T33": {"naziv": "Ugovor — vrednost preko 10.000.000 RSD",           "bodovi": 50,  "kategorija": "Ugovori i isprave"},
+    "T34": {"naziv": "Punomoćje / overena izjava",                       "bodovi": 4,   "kategorija": "Ugovori i isprave"},
+    "T35": {"naziv": "Osnivački akt DOO / preduzetnika",                 "bodovi": 20,  "kategorija": "Ugovori i isprave"},
+    # ── RADNO PRAVO ───────────────────────────────────────────────────────────
+    "T36": {"naziv": "Tužba u radnom sporu",                             "bodovi": 16,  "kategorija": "Radno pravo"},
+    "T37": {"naziv": "Zastupanje u radnom sporu (po ročištu)",           "bodovi": 18,  "kategorija": "Radno pravo"},
+    "T38": {"naziv": "Žalba u radnom sporu",                             "bodovi": 12,  "kategorija": "Radno pravo"},
+    # ── PORODIČNO PRAVO ───────────────────────────────────────────────────────
+    "T39": {"naziv": "Tužba za razvod braka",                            "bodovi": 18,  "kategorija": "Porodično pravo"},
+    "T40": {"naziv": "Sporazumni razvod (zahtev)",                       "bodovi": 12,  "kategorija": "Porodično pravo"},
+    "T41": {"naziv": "Zastupanje u bračnom sporu (po ročištu)",          "bodovi": 20,  "kategorija": "Porodično pravo"},
+    "T42": {"naziv": "Tužba za izdržavanje",                             "bodovi": 14,  "kategorija": "Porodično pravo"},
+    "T43": {"naziv": "Tužba za starateljstvo / poveravanje dece",        "bodovi": 18,  "kategorija": "Porodično pravo"},
+    # ── NASLEDNO PRAVO ────────────────────────────────────────────────────────
+    "T44": {"naziv": "Ostavinsko ročište (po ročištu)",                  "bodovi": 14,  "kategorija": "Nasledno pravo"},
+    "T45": {"naziv": "Tužba za deobu zaostavštine",                      "bodovi": 18,  "kategorija": "Nasledno pravo"},
+    "T46": {"naziv": "Testament (sastavljanje / osporavanje)",            "bodovi": 16,  "kategorija": "Nasledno pravo"},
+    "T47": {"naziv": "Nasledno-pravna izjava",                           "bodovi": 8,   "kategorija": "Nasledno pravo"},
+    # ── PRIVREDNOPRAVNI POSTUPAK ──────────────────────────────────────────────
+    "T48": {"naziv": "Tužba u privrednom sporu",                         "bodovi": 24,  "kategorija": "Privrednopravni postupak"},
+    "T49": {"naziv": "Zastupanje u privrednom sporu (po ročištu)",       "bodovi": 24,  "kategorija": "Privrednopravni postupak"},
+    "T50": {"naziv": "Stečajni postupak — prijavljivanje potraživanja",  "bodovi": 16,  "kategorija": "Privrednopravni postupak"},
+    "T51": {"naziv": "Stečajni postupak — zastupanje na ročištu",        "bodovi": 20,  "kategorija": "Privrednopravni postupak"},
+    "T52": {"naziv": "Žalba u privrednom sporu",                         "bodovi": 16,  "kategorija": "Privrednopravni postupak"},
+    # ── ARBITRAŽA ─────────────────────────────────────────────────────────────
+    "T53": {"naziv": "Tužba / zahtev u arbitraži",                       "bodovi": 24,  "kategorija": "Arbitraža"},
+    "T54": {"naziv": "Zastupanje u arbitraži (po ročištu)",              "bodovi": 24,  "kategorija": "Arbitraža"},
+    "T55": {"naziv": "Žalba / pobijanje arbitražne odluke",              "bodovi": 20,  "kategorija": "Arbitraža"},
+    # ── PREKRŠAJNI POSTUPAK ───────────────────────────────────────────────────
+    "T56": {"naziv": "Odbrana u prekršajnom postupku (po ročištu)",      "bodovi": 14,  "kategorija": "Prekršajni postupak"},
+    "T57": {"naziv": "Žalba na prekršajnu odluku",                       "bodovi": 10,  "kategorija": "Prekršajni postupak"},
+    # ── USTAVNI I MEĐUNARODNI POSTUPCI ────────────────────────────────────────
+    "T58": {"naziv": "Ustavna žalba",                                    "bodovi": 30,  "kategorija": "Ustavni i međunarodni"},
+    "T59": {"naziv": "Predstavka Evropskom sudu za ljudska prava",       "bodovi": 40,  "kategorija": "Ustavni i međunarodni"},
+    "T60": {"naziv": "Zastupanje pred ESLJP (po fazi postupka)",         "bodovi": 50,  "kategorija": "Ustavni i međunarodni"},
+    # ── KONSULTACIJE I MIŠLJENJA ──────────────────────────────────────────────
+    "T61": {"naziv": "Usmena konsultacija (do 1 sat)",                   "bodovi": 6,   "kategorija": "Konsultacije"},
+    "T62": {"naziv": "Pisana konsultacija / pravni savet",               "bodovi": 10,  "kategorija": "Konsultacije"},
+    "T63": {"naziv": "Pravno mišljenje (pisano, složenije)",             "bodovi": 20,  "kategorija": "Konsultacije"},
+    "T64": {"naziv": "Pravna analiza / due diligence (po satu)",         "bodovi": None, "fiksno_rsd": 7500, "kategorija": "Konsultacije"},
+    # ── ALTERNATIVNO REŠAVANJE SPOROVA ────────────────────────────────────────
+    "T65": {"naziv": "Zahtev za mirno rešenje spora / medijacija",       "bodovi": 10,  "kategorija": "Alternativno rešavanje"},
+    "T66": {"naziv": "Zastupanje u medijaciji (po ročištu)",             "bodovi": 14,  "kategorija": "Alternativno rešavanje"},
+    "T67": {"naziv": "Pregovaranje (po satu)",                           "bodovi": None, "fiksno_rsd": 7500, "kategorija": "Alternativno rešavanje"},
+    # ── OSTALO ────────────────────────────────────────────────────────────────
+    "T68": {"naziv": "Prisustvo uviđaju / veštačenju",                   "bodovi": 10,  "kategorija": "Ostalo"},
+    "T69": {"naziv": "Notarski posao (prisustvo advokata)",              "bodovi": 6,   "kategorija": "Ostalo"},
+    "T70": {"naziv": "Zastupanje u upravnom postupku (opšte)",           "bodovi": 14,  "kategorija": "Ostalo"},
+    "T71": {"naziv": "Satnica — 1 sat (minimalna tarifa)",               "bodovi": None, "fiksno_rsd": 7500, "kategorija": "Ostalo"},
 }
 
 

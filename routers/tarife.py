@@ -222,6 +222,33 @@ async def put_klijent_tarifa(
     return {"ok": True, "klijent_id": klijent_id, "tarifa_po_satu": float(r.data[0]["tarifa_po_satu"])}
 
 
+@router.get("/search")
+@limiter.limit("60/minute")
+async def tarife_search(
+    q: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Pretraga AKS stavki po nazivu ili kategoriji (case-insensitive)."""
+    q_low = q.strip().lower()
+    if not q_low:
+        raise HTTPException(status_code=422, detail="Parametar q ne sme biti prazan.")
+    matches = []
+    for kod, t in AKS_TARIFA.items():
+        naziv = t.get("naziv", "")
+        kat   = t.get("kategorija", "")
+        if q_low in naziv.lower() or q_low in kat.lower() or q_low in kod.lower():
+            iznos = t.get("fiksno_rsd") or (t["bodovi"] * BOD_RSD if t.get("bodovi") else 0)
+            matches.append({
+                "sifra":      kod,
+                "naziv":      naziv,
+                "kategorija": kat,
+                "bodovi":     t.get("bodovi"),
+                "iznos_rsd":  float(iznos),
+            })
+    return {"results": matches, "total": len(matches), "bod_rsd": BOD_RSD}
+
+
 @router.get("/stavke")
 @limiter.limit("60/minute")
 async def get_stavke(
@@ -233,12 +260,13 @@ async def get_stavke(
     resolved = await resolve_tarifne_stavke(supa, uid)
     stavke = [
         {
-            "sifra":     kod,
-            "naziv":     v["naziv"],
-            "bodovi":    v["bodovi"],
-            "aks_iznos": v["aks_iznos"],
-            "iznos_rsd": v["iznos_rsd"],
-            "is_custom": v["is_custom"],
+            "sifra":      kod,
+            "naziv":      v["naziv"],
+            "kategorija": AKS_TARIFA.get(kod, {}).get("kategorija", ""),
+            "bodovi":     v["bodovi"],
+            "aks_iznos":  v["aks_iznos"],
+            "iznos_rsd":  v["iznos_rsd"],
+            "is_custom":  v["is_custom"],
         }
         for kod, v in resolved.items()
     ]
