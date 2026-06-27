@@ -57,6 +57,52 @@ class RokoviRequest(BaseModel):
     datum_dokumenta: str = Field("", max_length=12)
 
 
+# ── AI klasifikacija dokaza ───────────────────────────────────────────────────
+
+async def _klasifikuj_dokaz(tekst: str, filename: str) -> dict:
+    """GPT-4o-mini klasifikuje dokument kao pravni dokaz."""
+    try:
+        import json, os
+        from openai import OpenAI
+
+        oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        preview = tekst[:2000] if tekst else ""
+
+        prompt = (
+            "Analiziraj ovaj pravni dokument i vrati JSON sa tacno ovim poljima:\n"
+            '{"tip_dokaza":"ugovor|presuda|resenje|zapisnik|izvestaj|priznanica|dopis|punomocje|ostalo",'
+            '"oblast_prava":"gradjansko|krivicno|radno|upravno|privredno|poresko|porodicno|nasledno|ostalo",'
+            '"kljucne_odredbe":["clan X zakona Y"],'
+            '"snaga_dokaza":"visoka|srednja|niska",'
+            '"preporuka":"Kratak savet advokatu (1 recen.)",'
+            '"tagovi":["tag1","tag2","tag3"]}\n\n'
+            f"Naziv fajla: {filename}\n"
+            f"Sadrzaj (prvih 2000 znakova):\n{preview}\n\n"
+            "Odgovori SAMO JSON-om, bez objasnjenja."
+        )
+
+        resp = await asyncio.to_thread(
+            lambda: oai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=300,
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
+        )
+        return json.loads(resp.choices[0].message.content)
+    except Exception as e:
+        logger.warning("Klasifikacija dokaza greška: %s", e)
+        return {
+            "tip_dokaza": "ostalo",
+            "oblast_prava": "ostalo",
+            "kljucne_odredbe": [],
+            "snaga_dokaza": "niska",
+            "preporuka": "Nije moguće automatski klasifikovati dokument.",
+            "tagovi": [],
+        }
+
+
 # ── Helper ────────────────────────────────────────────────────────────────────
 
 def _fetch_session_tekst(session_id: str, namespace_prefix: str = "tmp_") -> str:
@@ -163,7 +209,12 @@ async def dokument_upload(
         session_id = generate_session_id()
         ttl_hours = 24
         try:
-            count = await asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours)
+            # Pokreni ingest i klasifikaciju paralelno
+            count, klasifikacija = await asyncio.gather(
+                asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours),
+                _klasifikuj_dokaz(text, file.filename or "dokument"),
+                return_exceptions=False,
+            )
         except Exception as e:
             logger.error("[UPLOAD] ingest_session greška: %s", str(e), exc_info=True)
             raise HTTPException(status_code=500, detail=f"Greška pri obradi dokumenta: {str(e)}")
@@ -181,7 +232,8 @@ async def dokument_upload(
 
         if not user.get("credit_pre_deducted"):
             await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
-        return UploadResponse(
+
+        base_resp = UploadResponse(
             session_id=session_id,
             chunk_count=count,
             chunk_mode_used=manifest.chunk_mode_used,
@@ -194,6 +246,10 @@ async def dokument_upload(
                 "Kvalitet analize može biti niži nego kod digitalnog PDF-a."
             ) if ocr_used else "",
         )
+        # Dodaj klasifikaciju na response
+        resp_dict = base_resp.model_dump()
+        resp_dict["klasifikacija"] = klasifikacija
+        return resp_dict
 
     finally:
         if tmp_path and tmp_path.exists():
@@ -322,6 +378,29 @@ async def dokument_analiza(
         "report":           rezultat["data"],
         "credits_remaining": max(preostalo, 0),
     }
+
+
+@router.post("/api/dokument/klasifikuj-sesija")
+@limiter.limit("10/minute")
+async def klasifikuj_sesiju(
+    request: Request,
+    body: dict,
+    user: dict = Depends(get_current_user),
+):
+    """Ručna AI klasifikacija dokumenta iz aktivne sesije."""
+    session_id = (body.get("session_id") or "").strip()
+    namespace_prefix = body.get("namespace_prefix") or "tmp_"
+    filename = body.get("filename") or "dokument"
+
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id je obavezan.")
+
+    tekst = await asyncio.to_thread(_fetch_session_tekst, session_id, namespace_prefix)
+    if not tekst:
+        raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla.")
+
+    klasifikacija = await _klasifikuj_dokaz(tekst, filename)
+    return {"ok": True, "session_id": session_id, "klasifikacija": klasifikacija}
 
 
 @router.post("/api/dokument/rokovi")
