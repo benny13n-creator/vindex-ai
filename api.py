@@ -472,6 +472,7 @@ from routers.analytics     import router as analytics_router
 from routers.portfolio     import router as portfolio_router
 from routers.notifications import router as notifications_router
 from routers.intake        import router as intake_router
+from routers.import_klijenti import router as import_klijenti_router
 from routers.billing       import router as billing_router
 from routers.tarife        import router as tarife_router
 from routers.rocista       import router as rocista_router
@@ -513,6 +514,7 @@ from routers.doc_templates        import router as doc_templates_router
 from routers.plans                import router as plans_router
 from routers.knowledge_base       import router as knowledge_base_router
 from routers.gdpr                 import router as gdpr_router
+from routers.support              import router as support_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -529,6 +531,7 @@ app.include_router(analytics_router)
 app.include_router(portfolio_router)
 app.include_router(notifications_router)
 app.include_router(intake_router)
+app.include_router(import_klijenti_router)
 app.include_router(billing_router)
 app.include_router(tarife_router)
 app.include_router(rocista_router)
@@ -570,6 +573,7 @@ app.include_router(doc_templates_router)
 app.include_router(plans_router)
 app.include_router(knowledge_base_router)
 app.include_router(gdpr_router)
+app.include_router(support_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
