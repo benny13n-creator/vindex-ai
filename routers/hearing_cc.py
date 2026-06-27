@@ -50,11 +50,30 @@ Posebno analiziraj: rokove za žalbu i tužbu (čl. 17 ZUSUS), diskreciona ovla�
 načelo zakonitosti, pravo na izjašnjenje (čl. 9 ZUP), razloge poništaja upravnog akta.
 Odgovori ISKLJUČIVO na srpskom jeziku. Reference na ZUP, ZUSUS i posebne zakone."""
 
-_SYSTEM_PRIVREDNI = """Ti si specijalizovani pravnik za privrednopravne sporove pred privrednim sudovima Srbije.
-Pripremaš brifing za ročište u privrednom sporu.
-Posebno analiziraj: nadležnost privrednih sudova (čl. 17 Zakona o uređenju sudova), hitnost sporova,
-dokazivanje u privredi (poslovne knjige, veštačenje), te odgovornost pravnih lica.
-Odgovori ISKLJUČIVO na srpskom jeziku. Reference na relevantne zakone privrednog prava."""
+_SYSTEM_PRIVREDNI = """Ti si iskusni advokat specijalizovan za privrednopravne sporove pred privrednim sudovima u Srbiji.
+Pripremaš sveobuhvatan borbeni brifing za predstojeće ročište u privrednom sporu.
+
+SPECIFIKUM PRIVREDNIH SUDOVA:
+- Nadležnost: Zakon o uređenju sudova — privredni sudovi sude u sporovima između privrednih subjekata
+- Hitnost: privrednopravni sporovi imaju zakonski prioritet i kraće rokove (čl. 467 ZPP)
+- Dokazi: poslovne knjige (čl. 55-59 Zakona o računovodstvu), finansijski izveštaji, fakture, izvodi, veštačenje
+- ZPD (Zakon o privrednim društvima) — odgovornost direktora, kapital, skupštinska odluka, zastupanje
+- ZOSL (Zakon o stečaju) — ako je stranka u stečaju ili likvidaciji, posebni prioriteti potraživanja
+- ZOO (Zakon o obligacionim odnosima) — ugovorni osnov, odgovornost, raskid, naknada štete
+- ZPP — parničný postupak pred privrednim sudom (iste procesne odredbe, ali hitno)
+
+BRIFING SEKCIJE:
+1. Stranke i kapacitet (privredno pravno lice, zastupnik, ovlašćenja, matični br./PIB)
+2. Predmet spora (ugovorni osnov, vrednost potraživanja, kamate, troškovi)
+3. Ključni dokazi (poslovne knjige, fakture, ugovori, izvodi — šta imamo, šta nedostaje)
+4. Pravni osnov (konkretni članovi ZOO, ZPD, posebnih zakona)
+5. Taktika na ročištu (procesne primedbe, predlozi za dokaze, veštačenje)
+6. Rizici i alternativni ishodi (stečaj stranke, zastara, prigovor prebijanja)
+7. Poravnanje vs. nastavak — komercijalna i pravna procena
+8. Sledeći koraci i rokovi
+
+Uvek navodi konkretne zakonske odredbe. Budi koncizan i operativan.
+Odgovori ISKLJUČIVO na srpskom jeziku."""
 
 _SYSTEM_RADNI = """Ti si specijalizovani pravnik za radne sporove i zaštitu prava radnika u Srbiji.
 Pripremaš brifing za ročište u radnom sporu.
@@ -67,6 +86,7 @@ _SYSTEM_PROMPTS: dict[str, str] = {
     "krivicni":   _SYSTEM_KRIVICNI,
     "upravni":    _SYSTEM_UPRAVNI,
     "privredni":  _SYSTEM_PRIVREDNI,
+    "privredno":  _SYSTEM_PRIVREDNI,   # alias
     "radni":      _SYSTEM_RADNI,
 }
 
@@ -284,3 +304,182 @@ async def hearing_command_center(
         "brifing":           brifing,
         "krediti_preostalo": preostalo,
     }
+
+
+# ─── Cross-examination generator ─────────────────────────────────────────────
+
+class CrossExamRequest(BaseModel):
+    predmet_id:    str = Field(..., min_length=1, max_length=64)
+    svedok_opis:   str = Field(..., min_length=5, max_length=1000)
+    tema:          str = Field(..., min_length=5, max_length=2000)
+    nasa_pozicija: str = Field(..., min_length=3, max_length=500)
+    tip_postupka:  str = Field("gradjanski", max_length=20)
+
+    @field_validator("tip_postupka")
+    @classmethod
+    def _val_tip(cls, v: str) -> str:
+        return v.lower().strip()
+
+
+@router.post("/api/rociste/cross-exam")
+@limiter.limit("10/minute")
+async def cross_examination(
+    body: CrossExamRequest,
+    request: Request,
+    user: dict = Depends(require_pro),
+    _cred: dict = Depends(require_credits),
+):
+    """Generiše listu pitanja za unakrsno ispitivanje svedoka/veštaka (1 kredit)."""
+    uid   = user["user_id"]
+    email = user.get("email", "")
+
+    prompt = f"""Si iskusni parničar sa 25 godina iskustva. Pripremaš pitanja za unakrsno ispitivanje svedoka.
+
+TIP POSTUPKA: {body.tip_postupka.upper()}
+NAŠA POZICIJA: {body.nasa_pozicija}
+SVEDOK (ko je, šta zna, kakva je njegova uloga): {body.svedok_opis}
+TEMA SVEDOČENJA (o čemu svedoči, šta tvrdi): {body.tema}
+
+Generiši listu od 15-20 preciznih pitanja za unakrsno ispitivanje ovog svedoka.
+
+## Pitanja za utvrđivanje kredibiliteta svedoka
+(Lično poznavanje, pristranost, odnos sa strankom, interes u ishodu)
+1. ...
+
+## Pitanja za utvrđivanje činjenica
+(Gde je bio, šta je video/čuo/znao, redosled događaja, direktno opažanje vs. zaključak)
+1. ...
+
+## Pitanja za slabljenje iskaza
+(Kontradikcije sa ranijim izjavama, nemoguće tvrdnje, šta nije video, šta nije znao)
+1. ...
+
+## Zaključna pitanja
+(Finalna poenta koja potkrepljuje naš narativ)
+1. ...
+
+Za svako pitanje koje je "dvostruko sečivo" (može nas povrediti ako svedok odgovori neočekivano) dodaj ⚠️ na kraju.
+Sva pitanja moraju biti zatvorena (da/ne) ili precizno usmerena — bez otvorenih pitanja.
+Odgovori ISKLJUČIVO na srpskom jeziku."""
+
+    from openai import AsyncOpenAI
+    oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+    try:
+        resp = await oai.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.2,
+            max_tokens=2500,
+            timeout=60.0,
+            messages=[
+                {"role": "system", "content": "Ti si elitni parničar koji priprema precizna pitanja za unakrsno ispitivanje. Odgovaraj ISKLJUČIVO na srpskom."},
+                {"role": "user",   "content": prompt},
+            ],
+        )
+    except Exception as e:
+        logger.error("[CrossExam] OpenAI greška uid=%.8s: %s", uid, e)
+        raise HTTPException(status_code=503, detail="AI servis privremeno nedostupan.")
+
+    pitanja = (resp.choices[0].message.content or "").strip()
+
+    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 0 if _cred.get("credit_pre_deducted") else 1)
+    asyncio.create_task(_audit(uid, "cross_examination", body.predmet_id[:16]))
+
+    logger.info("[CrossExam] uid=%.8s predmet=%s tip=%s", uid, body.predmet_id, body.tip_postupka)
+
+    return {
+        "ok":                True,
+        "predmet_id":        body.predmet_id,
+        "pitanja":           pitanja,
+        "krediti_preostalo": preostalo,
+    }
+
+
+# ─── Brifing export (plain text) ─────────────────────────────────────────────
+
+class BrifingExportReq(BaseModel):
+    predmet_naziv:  str = Field("Predmet", max_length=200)
+    datum_rocista:  str = Field("", max_length=10)
+    tip_postupka:   str = Field("", max_length=20)
+    brifing:        dict
+
+
+@router.post("/api/rociste/command-center/export")
+@limiter.limit("20/minute")
+async def export_brifing(
+    body: BrifingExportReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Konvertuje brifing JSON u plain text za copy/paste ili štampanje."""
+    b = body.brifing
+    lines = [
+        "=" * 65,
+        f"ROČIŠNI BRIFING — Vindex AI",
+        f"Predmet:      {body.predmet_naziv}",
+        f"Datum ročišta: {body.datum_rocista}",
+        f"Tip postupka: {body.tip_postupka.upper()}",
+        f"Ocena spremi: {b.get('hearing_score', '—')}/100",
+        "=" * 65,
+        "",
+        "## SAŽETAK",
+        b.get("executive_brief", "—"),
+        "",
+    ]
+
+    if b.get("win_lose_matrix"):
+        wlm = b["win_lose_matrix"]
+        lines += ["## U PRILOG"]
+        for item in (wlm.get("u_prilog") or []):
+            lines.append(f"  + {item}")
+        lines += ["", "## NA ŠTETU"]
+        for item in (wlm.get("na_stetu") or []):
+            lines.append(f"  - {item}")
+        lines.append("")
+
+    if b.get("timeline"):
+        lines += ["## HRONOLOGIJA"]
+        for t in b["timeline"]:
+            lines.append(f"  {t}")
+        lines.append("")
+
+    if b.get("opposing_counsel"):
+        lines += ["## STRATEGIJA PROTIVNE STRANE", b["opposing_counsel"], ""]
+
+    if b.get("judge_attack_mode"):
+        lines += ["## KLJUČNI PRAVNI ARGUMENTI", b["judge_attack_mode"], ""]
+
+    if b.get("witness_analysis"):
+        lines += ["## ANALIZA SVEDOKA", b["witness_analysis"], ""]
+
+    if b.get("cross_examination"):
+        lines += ["## PITANJA ZA UNAKRSNO ISPITIVANJE"]
+        for q in b["cross_examination"]:
+            lines.append(f"  ? {q}")
+        lines.append("")
+
+    if b.get("missing_evidence"):
+        lines += ["## NEDOSTAJUĆI DOKAZI"]
+        for e in b["missing_evidence"]:
+            lines.append(f"  ! {e}")
+        lines.append("")
+
+    if b.get("practice_pack"):
+        lines += ["## SUDSKA PRAKSA", b["practice_pack"], ""]
+
+    if b.get("hearing_checklist"):
+        lines += ["## KONTROLNA LISTA"]
+        for c in b["hearing_checklist"]:
+            lines.append(f"  ☐ {c}")
+        lines.append("")
+
+    if b.get("risk_breakdown"):
+        rb = b["risk_breakdown"]
+        lines += [f"## PROCENA RIZIKA: {rb.get('overall', '—')}"]
+        for f_ in (rb.get("factors") or []):
+            lines.append(f"  • {f_}")
+        lines.append("")
+
+    lines += ["=" * 65, "Generisano uz pomoć Vindex AI — za informativne svrhe.", "=" * 65]
+
+    return {"tekst": "\n".join(lines)}

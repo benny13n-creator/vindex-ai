@@ -440,6 +440,30 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
         except Exception as _re:
             logger.warning("[AGENT/research] RAG greška: %s", _re)
 
+    # ── Billing kontekst iz DB za Billing agenta ─────────────────────────────
+    billing_ctx = ""
+    if agent_id == "billing" and req.predmet_id:
+        try:
+            from datetime import datetime as _dt
+            be = supa.table("billing_entries").select(
+                "opis,kolicina,jedinica,cena_po_jedinici,ukupno,datum,fakturisano"
+            ).eq("predmet_id", req.predmet_id).order("datum", desc=True).limit(30).execute()
+            if be.data:
+                ukupno_sve = sum(float(r.get("ukupno") or 0) for r in be.data)
+                fakturisano = sum(float(r.get("ukupno") or 0) for r in be.data if r.get("fakturisano"))
+                nefakturisano = ukupno_sve - fakturisano
+                stavke = "\n".join(
+                    f"- {r.get('opis','?')} | {r.get('kolicina','?')} {r.get('jedinica','?')} × {r.get('cena_po_jedinici','?')} RSD = {r.get('ukupno','?')} RSD {'[FAKTURISANO]' if r.get('fakturisano') else '[NEFAKTURISANO]'}"
+                    for r in be.data[:20]
+                )
+                billing_ctx = (
+                    f"\n\nSTVARNE BILLING STAVKE IZ PREDMETA:\n"
+                    f"Ukupno naplaćeno: {ukupno_sve:,.0f} RSD | Fakturisano: {fakturisano:,.0f} RSD | Nefakturisano: {nefakturisano:,.0f} RSD\n"
+                    f"{stavke}\n"
+                )
+        except Exception as _be:
+            logger.warning("[AGENT/billing] billing ctx greška: %s", _be)
+
     # ── Stvarni rokovi iz predmeta za Deadline agenta ─────────────────────
     rokovi_ctx = ""
     if agent_id == "deadline" and req.predmet_id:
@@ -468,7 +492,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
             logger.warning("[AGENT/deadline] rokovi greška: %s", _de)
 
     # ── Pozovi agent ─────────────────────────────────────────────────────────
-    user_msg = f"{predmet_ctx}{rokovi_ctx}{rag_ctx}\n{req.kontekst or ''}\n\nZahtev: {req.task}".strip()
+    user_msg = f"{predmet_ctx}{billing_ctx}{rokovi_ctx}{rag_ctx}\n{req.kontekst or ''}\n\nZahtev: {req.task}".strip()
 
     try:
         from openai import OpenAI
@@ -495,13 +519,23 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
 
     logger.info("[AGENT] user=%s agent=%s predmet=%s rag=%s", uid[:8], agent_id, req.predmet_id or "-", bool(rag_ctx))
 
+    _NEXT_AGENT = {
+        "intake":    "research",
+        "research":  "drafting",
+        "drafting":  "litigation",
+        "litigation": "billing",
+        "billing":   "deadline",
+        "deadline":  None,
+    }
+
     return {
-        "agent":     agent_id,
-        "naziv":     agent_cfg["naziv"],
-        "ikona":     agent_cfg["ikona"],
-        "odgovor":   odgovor,
-        "task":      req.task,
-        "rag_korišćen": bool(rag_ctx),
+        "agent":          agent_id,
+        "naziv":          agent_cfg["naziv"],
+        "ikona":          agent_cfg["ikona"],
+        "odgovor":        odgovor,
+        "task":           req.task,
+        "rag_korišćen":   bool(rag_ctx),
+        "suggested_next": _NEXT_AGENT.get(agent_id),
     }
 
 
@@ -627,4 +661,93 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(get_cur
         "agenti":  agenti_ids,
         "rezultati": list(rezultati),
         "task":    req.task,
+    }
+
+
+# ── Sekvencijalni pipeline — output jednog agenta ide kao input sledećeg ──────
+
+class PipelineReq(BaseModel):
+    predmet_id: Optional[str] = None
+    opis:       str
+    pipeline:   list  # npr. ["intake", "research", "drafting"]
+
+
+@router.post("/pipeline")
+@limiter.limit("3/minute")
+async def run_pipeline(req: PipelineReq, request: Request, user=Depends(get_current_user)):
+    """Sekvencijalni pipeline: output svakog agenta postaje input sledećeg."""
+    import asyncio as _aio
+    from fastapi import Request as _Req
+
+    VALID = set(_AGENTS.keys())
+    pipeline = [a for a in req.pipeline if a in VALID][:5]  # max 5 koraka
+    if not pipeline:
+        raise HTTPException(status_code=400, detail="Nevažeći pipeline — navedite validne agente.")
+
+    supa = _get_supa()
+    uid   = user["user_id"]
+    email = user.get("email", "")
+
+    # Kredit provera
+    if not _is_founder(email):
+        try:
+            cr = supa.table("korisnici").select("krediti").eq("user_id", uid).execute()
+            curr = (cr.data[0].get("krediti") or 0) if cr.data else 0
+            if curr < len(pipeline):
+                raise HTTPException(
+                    status_code=402,
+                    detail=f"Pipeline zahteva {len(pipeline)} kredita. Trenutno imate {curr}.",
+                )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.warning("[PIPELINE] credit-check greška: %s", exc)
+
+    results = []
+    accumulated_ctx = req.opis
+
+    for step, agent_id in enumerate(pipeline):
+        try:
+            # Pozovi /run endpoint interno — reuse sva logika (RAG, billing, rokovi ctx)
+            inner_req = AgentReq(
+                agent=agent_id,
+                task=accumulated_ctx,
+                predmet_id=req.predmet_id,
+                kontekst=f"[Korak {step+1}/{len(pipeline)} pipeline-a]",
+            )
+            result = await run_agent(inner_req, request, user)
+            odgovor = result.get("odgovor", "")
+            results.append({
+                "korak":      step + 1,
+                "agent":      agent_id,
+                "naziv":      _AGENTS[agent_id]["naziv"],
+                "ikona":      _AGENTS[agent_id]["ikona"],
+                "output":     odgovor,
+                "rag_korišćen": result.get("rag_korišćen", False),
+            })
+            # Akumuliraj kontekst za sledeći agent
+            accumulated_ctx = (
+                f"{req.opis}\n\n"
+                f"[{_AGENTS[agent_id]['naziv'].upper()} — PRETHODNI KORAK]:\n{odgovor[:2000]}"
+            )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("[PIPELINE] agent=%s korak=%d greška: %s", agent_id, step+1, exc)
+            results.append({
+                "korak": step + 1, "agent": agent_id,
+                "naziv": _AGENTS[agent_id]["naziv"], "ikona": _AGENTS[agent_id]["ikona"],
+                "output": f"Greška: {str(exc)[:120]}", "greska": True,
+            })
+            break  # Zaustavi pipeline na grešci
+
+    logger.info("[PIPELINE] uid=%s pipeline=%s predmet=%s koraci=%d",
+                uid[:8], pipeline, req.predmet_id or "-", len(results))
+
+    return {
+        "tip":        "pipeline",
+        "pipeline":   pipeline,
+        "predmet_id": req.predmet_id,
+        "koraci":     len(results),
+        "rezultati":  results,
     }

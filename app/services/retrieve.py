@@ -14,6 +14,8 @@ import re
 import os
 import json
 import logging
+import threading
+import time
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 
@@ -31,6 +33,33 @@ except ImportError:
     _COHERE_AVAILABLE = False
 
 logger = logging.getLogger("vindex.retrieve")
+
+# ─── Embedding cache (TTL=1h, LRU eviction) ──────────────────────────────────
+
+class _EmbedCache:
+    def __init__(self, maxsize: int = 512, ttl: int = 3600):
+        self._cache: dict = {}
+        self._lock = threading.Lock()
+        self._maxsize = maxsize
+        self._ttl = ttl
+
+    def get(self, key: str):
+        with self._lock:
+            entry = self._cache.get(key)
+            if entry and (time.time() - entry["ts"]) < self._ttl:
+                return entry["val"]
+            if entry:
+                del self._cache[key]
+            return None
+
+    def set(self, key: str, val) -> None:
+        with self._lock:
+            if len(self._cache) >= self._maxsize:
+                oldest = min(self._cache, key=lambda k: self._cache[k]["ts"])
+                del self._cache[oldest]
+            self._cache[key] = {"val": val, "ts": time.time()}
+
+_embed_cache = _EmbedCache(maxsize=512, ttl=3600)
 
 # ─── Konfiguracija ────────────────────────────────────────────────────────────
 
@@ -335,6 +364,67 @@ LAW_HINTS = {
     "ponuda javna nabavka":           "zakon o javnim nabavkama",
     "zjn":                            "zakon o javnim nabavkama",
     "narucioc":                       "zakon o javnim nabavkama",
+    # Porodični zakon — dopuna
+    "usvojenj":                       "porodicni zakon",
+    "poveravan":                      "porodicni zakon",
+    "roditeljsko pravo":              "porodicni zakon",
+    "roditeljsk":                     "porodicni zakon",
+    "bracna stecevina":               "porodicni zakon",
+    "bracna imovina":                 "porodicni zakon",
+    "razvod braka":                   "porodicni zakon",
+    "alimentacij":                    "porodicni zakon",
+    # KZ — dopuna
+    "maloletnick":                    "KZ",
+    "maloletni ucinioc":              "KZ",
+    "okrivljenj":                     "KZ",
+    "ostecenj":                       "KZ",
+    "javno tuzilastvo":               "zakonik o krivicnom postupku",
+    "pritvor":                        "zakonik o krivicnom postupku",
+    "branilac":                       "zakonik o krivicnom postupku",
+    "optuznica":                      "zakonik o krivicnom postupku",
+    "sporazum o priznavanju":         "zakonik o krivicnom postupku",
+    # Zakon o nasleđivanju — dopuna
+    "testament":                      "zakon o nasledjivanju",
+    "nasledstvo":                     "zakon o nasledjivanju",
+    "zaostavstina":                   "zakon o nasledjivanju",
+    "naslednik":                      "zakon o nasledjivanju",
+    "legat":                          "zakon o nasledjivanju",
+    "nuzni nasledni deo":             "zakon o nasledjivanju",
+    "nuzni deo":                      "zakon o nasledjivanju",
+    "raspolagan za slucaj smrti":     "zakon o nasledjivanju",
+    # ZR — dopuna
+    "mobing":                         "zakon o radu",
+    "mobbing":                        "zakon o radu",
+    "uznemiravan na radu":            "zakon o radu",
+    "naknada stete za vreme bolovan": "zakon o radu",
+    # ZOO — dopuna
+    "zajam":                          "zakon o obligacionim odnosima",
+    "zajmop":                         "zakon o obligacionim odnosima",
+    "ugovor o zajmu":                 "zakon o obligacionim odnosima",
+    "osiguranje imovine":             "zakon o obligacionim odnosima",
+    "ugovor o osiguranju":            "zakon o obligacionim odnosima",
+    "ugovor o zakupu":                "zakon o obligacionim odnosima",
+    "zakupn":                         "zakon o obligacionim odnosima",
+    "neosnovano obogacenj":           "zakon o obligacionim odnosima",
+    "sticanj bez osnova":             "zakon o obligacionim odnosima",
+    "poslovodstvo bez naloga":        "zakon o obligacionim odnosima",
+    # ZOSO — Zakon o osnovama svojinskopravnih odnosa
+    "pravo svojine":                  "zakon o osnovama svojinskopravnih odnosa",
+    "pravo vlasnistva":               "zakon o osnovama svojinskopravnih odnosa",
+    "stvar u susvojini":              "zakon o osnovama svojinskopravnih odnosa",
+    "susvojina":                      "zakon o osnovama svojinskopravnih odnosa",
+    "etazna svojina":                 "zakon o osnovama svojinskopravnih odnosa",
+    "sluzbenost":                     "zakon o osnovama svojinskopravnih odnosa",
+    "pravo plodouzivanja":            "zakon o osnovama svojinskopravnih odnosa",
+    "eksproprijacij":                 "zakon o eksproprijaciji",
+    # ZEK — Zakon o eksproprijaciji
+    "eksproprijacija":                "zakon o eksproprijaciji",
+    "naknada za eksproprijaciju":     "zakon o eksproprijaciji",
+    # Privredno pravo — dopuna
+    "potrazivanj":                    "zakon o privrednim drustvima",
+    "kapital drustva":                "zakon o privrednim drustvima",
+    "poslovni udeo":                  "zakon o privrednim drustvima",
+    "likvidacij":                     "zakon o stecaju",
 }
 
 STOPWORDS = {
@@ -498,7 +588,12 @@ def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
 
 
 def _ugradi_query(query: str) -> list[float]:
-    return _get_embeddings().embed_query(query)
+    cached = _embed_cache.get(query)
+    if cached is not None:
+        return cached
+    vec = _get_embeddings().embed_query(query)
+    _embed_cache.set(query, vec)
+    return vec
 
 
 # ─── Confidence thresholds ───────────────────────────────────────────────────
@@ -508,7 +603,9 @@ def _ugradi_query(query: str) -> list[float]:
 # MEDIUM=0.52 → catches Q14, Q30 (true LOW — wrong law returned) correctly
 # Known limitation: Q06 (uslovna osuda) routes to ZKP instead of KZ;
 # mitigated by anti-hallucination gate on article number citation.
-# Re-calibrate when index expands beyond current ZOO/KZ/ZKP scope.
+# TODO: Rekalibrirati posle 87k sudska_praksa ingesta — indeks se utrostručuje;
+#       testirati 50 reprezentativnih pitanja i podesiti oba praga.
+#       Očekivano: HIGH može pasti na 0.60, MEDIUM na 0.48 zbog gustoće vektora.
 
 CONFIDENCE_HIGH_THRESHOLD   = 0.65
 CONFIDENCE_MEDIUM_THRESHOLD = 0.52
