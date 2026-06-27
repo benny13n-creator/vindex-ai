@@ -4456,6 +4456,49 @@ body.light-theme .wl-input::placeholder { color: rgba(10,18,32,0.28); }
 }
 .settings-btn:hover { color: var(--tx-1); }
 
+/* ── Pomoć i podrška — FAQ accordion ─────────────────────────── */
+.pomoc-faq-item {
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 7px;
+  margin-bottom: 0.3rem;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.pomoc-faq-item:hover { border-color: rgba(255,255,255,0.13); }
+.pomoc-faq-item.open  { border-color: rgba(0,212,255,0.2); }
+
+.pomoc-faq-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  user-select: none;
+  gap: 0.5rem;
+}
+.pomoc-faq-q:hover { color: rgba(255,255,255,0.95); }
+.pomoc-faq-item.open .pomoc-faq-q { color: #fff; }
+
+.pomoc-faq-arrow {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.3);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.pomoc-faq-item.open .pomoc-faq-arrow { transform: rotate(90deg); color: #00d4ff; }
+
+.pomoc-faq-a {
+  display: none;
+  padding: 0 0.75rem 0.65rem;
+  font-size: 0.76rem;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.6;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.pomoc-faq-item.open .pomoc-faq-a { display: block; }
+
 /* Responsive: sidebar becomes bottom bar on mobile */
 @media (max-width: 640px) {
   .vx-shell { flex-direction: column; }
@@ -7248,4 +7291,85 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   .intake-upload-zone { padding: 36px 20px !important; }
   .intake-step-heading { font-size: 0.8rem !important; }
   .intake-panel-body { padding: 16px !important; }
+}
+
+/* ── Mobile PWA Optimizacije ──────────────────────────────────────────────── */
+
+/* Safe area insets za iPhone notch/Dynamic Island */
+.app-shell {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Sprečava zoom na input focus na iOS */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Bolji touch targets — minimum 44px po Apple HIG */
+  button, .btn, .nav-item, .tab-btn, .action-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Horizontalni scroll za tabele na mobilnom */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Bolje modali na mobilnom */
+  .modal-content {
+    margin: 0;
+    border-radius: 16px 16px 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Sprečava text selection pri swipe gesture-ima */
+  .swipeable {
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: pan-y;
+  }
+}
+
+/* Window Controls Overlay — title bar area za desktop PWA */
+@media (display-mode: window-controls-overlay) {
+  .topbar, .header {
+    padding-top: env(titlebar-area-height, 32px);
+  }
+}
+
+/* Standalone PWA — sakrij browser UI elemente */
+@media (display-mode: standalone) {
+  .install-prompt {
+    display: none !important;
+  }
+}
+
+/* Splash screen loading state */
+.pwa-splash {
+  position: fixed;
+  inset: 0;
+  background: #0a1628;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.3s ease;
+}
+
+.pwa-splash.hidden {
+  opacity: 0;
+  pointer-events: none;
 }

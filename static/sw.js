@@ -1,7 +1,7 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v9";
+const CACHE_NAME = "vindex-v11";
 
 const PRECACHE = [
   "/offline",
@@ -144,5 +144,40 @@ self.addEventListener("notificationclick", event => {
   event.notification.close();
   if (event.action !== "zatvori") {
     event.waitUntil(clients.openWindow(event.notification.data.url || "/app"));
+  }
+});
+
+// ── Background Sync — retry offline akcija ──────────────────────────────────
+self.addEventListener("sync", event => {
+  if (event.tag === "sync-pending-actions") {
+    event.waitUntil(
+      caches.open("vindex-pending").then(async cache => {
+        const keys = await cache.keys();
+        const promises = keys.map(async req => {
+          try {
+            const cached = await cache.match(req);
+            const body   = await cached.json();
+            const resp   = await fetch(req.url, {
+              method:  "POST",
+              headers: { "Content-Type": "application/json", ...body._headers },
+              body:    JSON.stringify(body._body),
+            });
+            if (resp.ok) await cache.delete(req);
+          } catch (e) {
+            // Ostavi u kesu za sledeći sync
+          }
+        });
+        return Promise.all(promises);
+      })
+    );
+  }
+});
+
+// ── Periodic Background Sync — podsetnici (ako browser podrzava) ────────────
+self.addEventListener("periodicsync", event => {
+  if (event.tag === "check-rokovi") {
+    event.waitUntil(
+      fetch("/api/notifications/rokovi-check", { method: "POST" }).catch(() => {})
+    );
   }
 });

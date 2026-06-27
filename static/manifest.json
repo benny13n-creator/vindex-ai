@@ -5,10 +5,19 @@
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#0a0a0f",
   "theme_color": "#00d4ff",
   "orientation": "portrait-primary",
   "lang": "sr",
+  "categories": ["business", "productivity"],
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
   "icons": [
     {
       "src": "/static/icon-192-v3.png",
@@ -33,6 +42,38 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Novi predmet",
+      "short_name": "Predmet",
+      "description": "Dodaj novi predmet brzo",
+      "url": "/app?action=novi-predmet",
+      "icons": [{ "src": "/static/icon-192-v3.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "AI Savetnik",
+      "short_name": "AI",
+      "description": "Postavi pravno pitanje",
+      "url": "/app?action=copilot",
+      "icons": [{ "src": "/static/icon-192-v3.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/static/screenshot-desktop.png",
+      "type": "image/png",
+      "sizes": "1280x720",
+      "form_factor": "wide",
+      "label": "Vindex AI — upravljanje predmetima"
+    },
+    {
+      "src": "/static/screenshot-mobile.png",
+      "type": "image/png",
+      "sizes": "390x844",
+      "form_factor": "narrow",
+      "label": "Vindex AI na mobilnom"
     }
   ]
 }
