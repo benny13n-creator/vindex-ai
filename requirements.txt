@@ -28,3 +28,5 @@ twilio>=9.0.0
 langchain==1.2.13
 starlette==1.0.0
 lxml>=5.2.0
+rapidfuzz>=3.6.0
+pdf2image>=1.16.3
