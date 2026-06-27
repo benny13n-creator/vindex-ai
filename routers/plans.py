@@ -12,10 +12,11 @@ import os as _os
 _ENFORCE_LIMITS = _os.getenv("ENFORCE_LIMITS", "false").lower() == "true"
 
 PLAN_LIMITS = {
-    "free":    {"ai_queries": 15,  "doc_analyses": 2,    "strategies": 0},
-    "advokat": {"ai_queries": 100, "doc_analyses": 10,   "strategies": 2},
-    "pro":     {"ai_queries": 300, "doc_analyses": None, "strategies": 5},
-    "firma":   {"ai_queries": 200, "doc_analyses": 20,   "strategies": 10},
+    "free":       {"ai_queries": 15,   "doc_analyses": 2,    "strategies": 0},
+    "advokat":    {"ai_queries": 100,  "doc_analyses": 10,   "strategies": 2},
+    "pro":        {"ai_queries": 300,  "doc_analyses": None, "strategies": 5},
+    "firma":      {"ai_queries": 200,  "doc_analyses": 20,   "strategies": 10},
+    "enterprise": {"ai_queries": None, "doc_analyses": None, "strategies": None},
 }
 
 OVERAGE_PRICE = {

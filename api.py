@@ -516,6 +516,7 @@ from routers.knowledge_base       import router as knowledge_base_router
 from routers.gdpr                 import router as gdpr_router
 from routers.support              import router as support_router
 from routers.court_predictor      import router as court_predictor_router
+from routers.onboarding           import router as onboarding_router
 from routers.integrations         import router as new_integrations_router
 from routers.enterprise           import router as enterprise_router
 
@@ -578,6 +579,7 @@ app.include_router(knowledge_base_router)
 app.include_router(gdpr_router)
 app.include_router(support_router)
 app.include_router(court_predictor_router)
+app.include_router(onboarding_router)
 app.include_router(new_integrations_router)
 app.include_router(enterprise_router)
 
