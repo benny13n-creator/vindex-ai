@@ -45,6 +45,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -61,8 +62,21 @@ from security.crypto import encrypt_field, decrypt_field
 logger = logging.getLogger("vindex.sef")
 router = APIRouter(prefix="/api/sef", tags=["sef"])
 
-SEF_API_BASE = "https://efaktura.mfin.gov.rs/api/publicApi"
-SEF_INVOICE_ENDPOINT = f"{SEF_API_BASE}/SalesInvoice"
+# ─── Sandbox / Produkcija mode ────────────────────────────────────────────────
+_SEF_SANDBOX = os.getenv("SEF_SANDBOX", "false").lower() == "true"
+_SEF_BASE_URL = (
+    "https://pilot.efaktura.mfin.gov.rs/api/publicApi"
+    if _SEF_SANDBOX
+    else "https://efaktura.mfin.gov.rs/api/publicApi"
+)
+_SEF_INVOICE_ENDPOINT = f"{_SEF_BASE_URL}/SalesInvoice"
+
+if _SEF_SANDBOX:
+    logger.warning("[SEF] *** SANDBOX MODE *** — fakture idu na pilot.efaktura.mfin.gov.rs")
+
+# Ostaviti stare konstante kao alias radi backward compat
+SEF_API_BASE = _SEF_BASE_URL
+SEF_INVOICE_ENDPOINT = _SEF_INVOICE_ENDPOINT
 
 
 # ─── Pydantic modeli ──────────────────────────────────────────────────────────
@@ -95,13 +109,65 @@ def _mask_key(key: str) -> str:
     return key[:4] + "***" + key[-4:]
 
 
+def _validate_ubl_xml(xml_str: str) -> tuple[bool, str]:
+    """
+    Validuje UBL XML: provera XML sintakse + obaveznih elemenata pre slanja na SEF.
+    Vraća (is_valid, error_message).
+    """
+    # Pokušaj lxml za detaljniju validaciju, fallback na stdlib
+    try:
+        from lxml import etree as _etree
+        try:
+            doc = _etree.fromstring(xml_str.encode("utf-8") if isinstance(xml_str, str) else xml_str)
+        except _etree.XMLSyntaxError as e:
+            return False, f"XML sintaksa greška: {e}"
+        _use_lxml = True
+    except ImportError:
+        import xml.etree.ElementTree as _ET
+        try:
+            doc = _ET.fromstring(xml_str if isinstance(xml_str, str) else xml_str.decode("utf-8"))
+        except _ET.ParseError as e:
+            return False, f"XML sintaksa greška: {e}"
+        _use_lxml = False
+
+    # Provjeri obavezna UBL polja
+    ns = {
+        "cbc": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+        "cac": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+    }
+    errors = []
+
+    def _find(path: str):
+        if _use_lxml:
+            from lxml import etree as _et
+            return doc.find(path, ns)
+        else:
+            import xml.etree.ElementTree as _ET
+            return doc.find(path, ns)
+
+    if _find(".//cbc:ID") is None:
+        errors.append("Nedostaje cbc:ID (broj fakture)")
+    if _find(".//cbc:IssueDate") is None:
+        errors.append("Nedostaje cbc:IssueDate (datum fakture)")
+    if _find(".//cac:AccountingSupplierParty") is None:
+        errors.append("Nedostaje AccountingSupplierParty (podaci dobavljača)")
+    if _find(".//cac:AccountingCustomerParty") is None:
+        errors.append("Nedostaje AccountingCustomerParty (podaci kupca)")
+    if _find(".//cac:LegalMonetaryTotal") is None:
+        errors.append("Nedostaje LegalMonetaryTotal (iznosi)")
+    if _find(".//cac:InvoiceLine") is None:
+        errors.append("Nedostaje najmanje jedna InvoiceLine (stavka fakture)")
+
+    if errors:
+        return False, "; ".join(errors)
+    return True, ""
+
+
 def _sef_post(api_key: str, xml_bytes: bytes, filename: str) -> dict:
     """
     Šalje UBL XML na SEF API kao multipart/form-data.
     Blokira — pozivati unutar asyncio.to_thread.
     """
-    import email.mime.multipart as _mm
-
     boundary = "VindexSEFBoundary"
     body = (
         f"--{boundary}\r\n"
@@ -115,8 +181,12 @@ def _sef_post(api_key: str, xml_bytes: bytes, filename: str) -> dict:
         "Content-Length": str(len(body)),
     }
 
+    target_url = _SEF_INVOICE_ENDPOINT
+    if _SEF_SANDBOX:
+        logger.info("[SEF] SANDBOX slanje na %s", target_url)
+
     req = urllib.request.Request(
-        SEF_INVOICE_ENDPOINT,
+        target_url,
         data=body,
         headers=headers,
         method="POST",
@@ -362,6 +432,15 @@ async def sef_posalji(
     except Exception as e:
         logger.exception("[SEF] UBL generisanje neuspelo faktura=%s", faktura_id)
         raise HTTPException(status_code=500, detail=f"Generisanje UBL XML nije uspelo: {e}")
+
+    # Validacija UBL XML pre slanja
+    xml_str = xml_bytes.decode("utf-8") if isinstance(xml_bytes, bytes) else xml_bytes
+    is_valid, xml_error = _validate_ubl_xml(xml_str)
+    if not is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail=f"UBL XML validacija neuspešna: {xml_error}. Faktura nije poslata na SEF.",
+        )
 
     broj = (faktura.get("broj_fakture") or "faktura").replace("/", "-")
     filename = f"vindex_faktura_{broj}.xml"

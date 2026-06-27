@@ -27,3 +27,4 @@ starlette-exporter>=0.17.0
 twilio>=9.0.0
 langchain==1.2.13
 starlette==1.0.0
+lxml>=5.2.0
