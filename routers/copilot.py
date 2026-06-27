@@ -39,22 +39,39 @@ router = APIRouter(tags=["copilot"])
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
-_INTENT_SYSTEM = """Ti si detektor namere za srpski pravni AI asistent.
+_INTENT_SYSTEM = """Ti si detektor namere za srpski pravni AI asistent za advokate.
 Na osnovu korisničke poruke, vrati SAMO jednu od sledećih reči (bez ikakvog drugog teksta):
-PRAVNO_PITANJE — korisnik pita šta zakon kaže, koji član, kakvo je pravo
-SUDSKA_PRAKSA — korisnik traži sudske odluke, presude, praksu VKS
-NACRT — korisnik traži da se napiše, generiše ili napravi dokument (tužba, ugovor, žalba...)
-ANALIZA_PREDMETA — korisnik traži analizu, procenu predmeta, strategiju
+
+PRAVNO_PITANJE — korisnik pita šta zakon kaže, koji član, kakvo je pravo, opšte pravno istraživanje
+SUDSKA_PRAKSA — korisnik traži sudske odluke, presude, praksu VKS, apelacionih sudova
+NACRT — korisnik traži da se napiše, generiše ili napravi dokument (tužba, ugovor, žalba, dopis, odluka...)
+ANALIZA_PREDMETA — korisnik traži analizu, procenu predmeta, strategiju, šanse uspeha
 PLAN — korisnik traži plan, korake, šta dalje, akcioni plan, naredne korake, šta treba uraditi
 DODAJ_ROK — korisnik želi da doda, upiše ili zabeleži rok, ročište, termin, rok za dostavu
-KREIRAJ_BELEŠKU — korisnik želi da napiše, zabeleži ili sačuva beleška, napomenu, podsetniku
+KREIRAJ_BELEŠKU — korisnik želi da napiše, zabeleži ili sačuva belešku, napomenu, podsetnik
 POVEZI_KLIJENTA — korisnik želi da poveže, doda ili veže klijenta, stranku, protivnu stranu
-ROKOVI — korisnik pita o rokovima, zastarelosti, kalendarskim terminima (pitanje, ne akcija)
+ROKOVI — korisnik pita o rokovima, kalendarskim terminima (pitanje, ne akcija)
+ZASTARELOST — korisnik pita o zastarelosti potraživanja, rokovima zastarelosti, da li je potraživanje zastarelo
+CONFLICT_CHECK — korisnik pita o konfliktu interesa, suprotnoj strani, da li može da zastupa
+BILLING_SAVET — korisnik pita o naplati, tarifi, bodovima, honoraru, koliko može da naplati
+ROCISTE_PRIPREMA — korisnik traži pripremu za ročište, brifing, šta da kaže na sudu, cross-exam
+IZVRSENJE — korisnik pita o izvršnom postupku, prinudnoj naplati, pljenidbi, izvršnom dužniku
+NASLEDSTVO — korisnik pita o nasleđu, ostavini, testamentu, naslednicima, deobi zaostavštine
+RADNI_SPOR — korisnik pita o otkazу, radnom pravu, mobbingu, otpremnini, radnom sporu
 PRETRAGA — korisnik traži određenu osobu, predmet ili dokument u sistemu
 PREDLOZI — korisnik pita šta treba da uradi sledeće, koji su prioriteti, šta mu nedostaje, pregled zadataka
 NAPLATI_RADNJU — korisnik želi da naplati, obračuna, upiše radnju, sate, honorar, tarifa stavku
 PRIKAŽI_TARIFU — korisnik pita koliko košta neka pravna radnja, tarifa, bodovi, cena, honorar AKS
 OSTALO — ništa od navedenog
+
+Primeri:
+"Da li je zastarelo potraživanje iz 2019?" → ZASTARELOST
+"Mogu li da zastupam i tužioca i tuženog?" → CONFLICT_CHECK
+"Koliko mogu da naplatim za zastupanje na ročištu?" → BILLING_SAVET
+"Pripremi me za sutra" → ROCISTE_PRIPREMA
+"Kako da naplatim dug prinudno?" → IZVRSENJE
+"Moj klijent je naslednik — šta može da zahteva?" → NASLEDSTVO
+"Klijent je dobio otkaz — šta da radimo?" → RADNI_SPOR
 
 Vrati SAMO jednu reč, ništa više."""
 
@@ -62,9 +79,36 @@ _INTENT_CHOICES = {
     "PRAVNO_PITANJE", "SUDSKA_PRAKSA", "NACRT",
     "ANALIZA_PREDMETA", "PLAN",
     "DODAJ_ROK", "KREIRAJ_BELEŠKU", "POVEZI_KLIJENTA",
-    "ROKOVI", "PRETRAGA", "PREDLOZI",
+    "ROKOVI", "ZASTARELOST", "CONFLICT_CHECK",
+    "BILLING_SAVET", "ROCISTE_PRIPREMA", "IZVRSENJE",
+    "NASLEDSTVO", "RADNI_SPOR",
+    "PRETRAGA", "PREDLOZI",
     "NAPLATI_RADNJU", "PRIKAŽI_TARIFU",
     "OSTALO",
+}
+
+INTENT_LABELS = {
+    "PRAVNO_PITANJE":  "Pravno istraživanje",
+    "SUDSKA_PRAKSA":   "Sudska praksa",
+    "NACRT":           "Generisanje dokumenta",
+    "ANALIZA_PREDMETA":"Analiza predmeta",
+    "PLAN":            "Akcioni plan",
+    "DODAJ_ROK":       "Dodavanje roka",
+    "KREIRAJ_BELEŠKU": "Kreiranje beleške",
+    "POVEZI_KLIJENTA": "Povezivanje klijenta",
+    "ROKOVI":          "Rokovi i termini",
+    "ZASTARELOST":     "Zastarelost potraživanja",
+    "CONFLICT_CHECK":  "Provera konflikta interesa",
+    "BILLING_SAVET":   "Savet o naplati",
+    "ROCISTE_PRIPREMA":"Priprema za ročište",
+    "IZVRSENJE":       "Izvršni postupak",
+    "NASLEDSTVO":      "Nasleđivanje i ostavina",
+    "RADNI_SPOR":      "Radno pravo i spor",
+    "PRETRAGA":        "Pretraga sistema",
+    "PREDLOZI":        "Predlozi sledećih akcija",
+    "NAPLATI_RADNJU":  "Unos naplatne radnje",
+    "PRIKAŽI_TARIFU":  "AKS tarifa",
+    "OSTALO":          "Opšto pitanje",
 }
 
 async def _oai_parse_json(system_prompt: str, user_content: str) -> str:
@@ -865,6 +909,83 @@ async def _handle_prikazi_tarifu(poruka: str) -> dict:
     }
 
 
+async def _handle_zastarelost(poruka: str, predmet_ctx: str, user: dict, history: list | None = None) -> dict:
+    """Zastarelost — RAG pipeline sa zastarelost kontekstom."""
+    enriched = f"[Oblast: zastarelost potraživanja, rokovi zastarelosti ZOO]\n{predmet_ctx}\n\n{poruka}".strip()
+    result = await _handle_pravno_pitanje(enriched, "", user, history)
+    result["tip"] = "ZASTARELOST"
+    result["akcija"] = "otvori_zastarelost"
+    return result
+
+
+async def _handle_conflict_check(poruka: str, predmet_id: str | None, user_id: str) -> dict:
+    """Conflict check — upućuje na modul ili daje savet."""
+    return {
+        "tip":    "CONFLICT_CHECK",
+        "odgovor": (
+            "Prepoznao sam pitanje o konfliktu interesa. "
+            + ("Otvorite predmet → dugme **Conflict Check** za automatsku proveru u svim vašim predmetima i klijentima. "
+               if predmet_id else
+               "Koristite **Intake Wizard** (+ dugme) koji automatski proverava konflikt pri kreiranju novog predmeta. ")
+            + "Zakonska osnova: Zakon o advokaturi čl. 23 — zabrana zastupanja suprotnih interesa."
+        ),
+        "akcija": "otvori_conflict_check",
+        "predmet_id": predmet_id,
+    }
+
+
+async def _handle_billing_savet(poruka: str) -> dict:
+    """Billing savet — prikazuje relevantne AKS stavke + opšti savet."""
+    tarife_result = await _handle_prikazi_tarifu(poruka)
+    tarife_result["tip"] = "BILLING_SAVET"
+    tarife_result["napomena"] = (
+        "Tarifa po AKS (Sl. gl. RS 56/2025) — 1 bod = 50 RSD. "
+        "Možete naplatiti više ako ste ugovorili veću nagradu sa klijentom (čl. 14 ZA). "
+        "Koristite tab **Naplata** u predmetu za unos stavki i generisanje fakture."
+    )
+    return tarife_result
+
+
+async def _handle_rociste_priprema(poruka: str, predmet_id: str | None) -> dict:
+    """Ročište — upućuje na Hearing CC modul."""
+    return {
+        "tip":    "ROCISTE_PRIPREMA",
+        "odgovor": (
+            "Prepoznao sam zahtev za pripremu ročišta. "
+            + (f"Otvorite predmet → tab **Rokovi** → **Priprema za ročište** za kompletan brifing u 12 sekcija "
+               "(pravna osnova, dokazi, taktika, rizici, cross-exam pitanja)."
+               if predmet_id else
+               "Otvorite predmet koji se tiče ročišta, zatim tab **Rokovi** → **Priprema za ročište**.")
+        ),
+        "akcija":    "otvori_hearing_cc",
+        "predmet_id": predmet_id,
+    }
+
+
+async def _handle_izvrsenje(poruka: str, predmet_ctx: str, user: dict, history: list | None = None) -> dict:
+    """Izvršni postupak — RAG sa izvršno pravo kontekstom."""
+    enriched = f"[Oblast: izvršni postupak, prinudna naplata, ZIO]\n{predmet_ctx}\n\n{poruka}".strip()
+    result = await _handle_pravno_pitanje(enriched, "", user, history)
+    result["tip"] = "IZVRSENJE"
+    return result
+
+
+async def _handle_nasledstvo(poruka: str, predmet_ctx: str, user: dict, history: list | None = None) -> dict:
+    """Nasledno pravo — RAG sa nasledno pravo kontekstom."""
+    enriched = f"[Oblast: nasledno pravo, ostavina, testament, Zakon o nasleđivanju]\n{predmet_ctx}\n\n{poruka}".strip()
+    result = await _handle_pravno_pitanje(enriched, "", user, history)
+    result["tip"] = "NASLEDSTVO"
+    return result
+
+
+async def _handle_radni_spor(poruka: str, predmet_ctx: str, user: dict, history: list | None = None) -> dict:
+    """Radno pravo — RAG sa radno pravo kontekstom."""
+    enriched = f"[Oblast: radno pravo, otkaz, radni spor, Zakon o radu]\n{predmet_ctx}\n\n{poruka}".strip()
+    result = await _handle_pravno_pitanje(enriched, "", user, history)
+    result["tip"] = "RADNI_SPOR"
+    return result
+
+
 @router.post("/copilot/chat")
 @limiter.limit("30/minute")
 async def copilot_chat(
@@ -899,6 +1020,13 @@ async def copilot_chat(
         "KREIRAJ_BELEŠKU":  lambda: _handle_akcija_beleska(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
         "POVEZI_KLIJENTA":  lambda: _handle_akcija_povezi_klijenta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
         "ROKOVI":           lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist),
+        "ZASTARELOST":      lambda: _handle_zastarelost(req.poruka, predmet_ctx, user, _hist),
+        "CONFLICT_CHECK":   lambda: _handle_conflict_check(req.poruka, req.predmet_id, uid),
+        "BILLING_SAVET":    lambda: _handle_billing_savet(req.poruka),
+        "ROCISTE_PRIPREMA": lambda: _handle_rociste_priprema(req.poruka, req.predmet_id),
+        "IZVRSENJE":        lambda: _handle_izvrsenje(req.poruka, predmet_ctx, user, _hist),
+        "NASLEDSTVO":       lambda: _handle_nasledstvo(req.poruka, predmet_ctx, user, _hist),
+        "RADNI_SPOR":       lambda: _handle_radni_spor(req.poruka, predmet_ctx, user, _hist),
         "PRETRAGA":         lambda: _handle_pretraga(req.poruka, uid),
         "PREDLOZI":         lambda: _handle_predlozi(req.predmet_id, uid),
         "NAPLATI_RADNJU":   lambda: _handle_naplati_radnju(req.poruka, req.predmet_id, uid),
@@ -909,12 +1037,12 @@ async def copilot_chat(
     handler = handlers.get(intent, handlers["OSTALO"])
     result  = await handler()
 
-    # Oduzmi kredit (require_credits već pre-deductovao atomično)
     if not user.get("credit_pre_deducted"):
         await asyncio.to_thread(_deduct_credit, uid, email)
 
     return {
-        "intent":     intent,
-        "predmet_id": req.predmet_id,
+        "intent":        intent,
+        "intent_label":  INTENT_LABELS.get(intent, "Opšto pitanje"),
+        "predmet_id":    req.predmet_id,
         **result,
     }
