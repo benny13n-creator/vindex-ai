@@ -11,16 +11,18 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
+import urllib.request
 from datetime import date, datetime, timezone
-from typing import Any, Optional
+from typing import Any, List, Optional
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from shared.deps import _get_supa
+from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
 logger = logging.getLogger("vindex.integracije")
@@ -317,3 +319,137 @@ async def post_webhook_imanage(request: Request):
         "dokument":   doc_name,
         "napomena":   "Dokument je evidentiran u Vindex AI.",
     }
+
+
+# ─── F3.7: Korisnički webhook sistem ─────────────────────────────────────────
+
+_DOZVOLJENI_EVENTI = {
+    "predmet.kreiran", "predmet.zatvoren", "rok.istice",
+    "faktura.izdata",  "faktura.placena",  "klijent.dodat", "dokument.uploadovan",
+}
+
+
+class WebhookReq(BaseModel):
+    url:    str            = Field(..., min_length=10, max_length=500)
+    events: List[str]      = Field(..., min_length=1)
+    secret: Optional[str] = Field(default=None, max_length=64)
+    naziv:  Optional[str] = Field(default=None, max_length=100)
+
+
+def _slanje_webhook_sync(url: str, payload: str, secret: Optional[str]) -> None:
+    headers = {"Content-Type": "application/json"}
+    if secret:
+        sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        headers["X-Vindex-Signature"] = f"sha256={sig}"
+    req_obj = urllib.request.Request(url, data=payload.encode(), headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req_obj, timeout=10) as resp:
+            logger.debug("Webhook isporucen url=%s status=%s", url, resp.status)
+    except Exception as exc:
+        logger.warning("Webhook greška url=%s: %s", url, exc)
+
+
+async def trigger_webhook(event: str, user_id: str, data: dict) -> None:
+    """Šalje webhook notifikaciju svim aktivnim registrovanim endpointima."""
+    supa = _get_supa()
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("user_webhooks")
+                .select("url,secret,events")
+                .eq("user_id", user_id)
+                .eq("aktivan", True)
+                .execute()
+        )
+        hookovi = [w for w in (r.data or []) if event in (w.get("events") or [])]
+        if not hookovi:
+            return
+        ts = datetime.now(timezone.utc).isoformat()
+        payload = json.dumps({"event": event, "timestamp": ts, "data": data}, ensure_ascii=False)
+        for wh in hookovi:
+            await asyncio.to_thread(_slanje_webhook_sync, wh["url"], payload, wh.get("secret"))
+    except Exception as exc:
+        logger.warning("trigger_webhook greška: %s", exc)
+
+
+@router.post("/api/webhooks")
+@limiter.limit("20/minute")
+async def webhook_registruj(
+    body: WebhookReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    eventi = [e for e in body.events if e in _DOZVOLJENI_EVENTI]
+    if not eventi:
+        raise HTTPException(status_code=400, detail=f"Nijedan validan event. Dozvoljeni: {sorted(_DOZVOLJENI_EVENTI)}")
+
+    count_r = await asyncio.to_thread(
+        lambda: supa.table("user_webhooks").select("id", count="exact").eq("user_id", uid).eq("aktivan", True).execute()
+    )
+    if (count_r.count or 0) >= 5:
+        raise HTTPException(status_code=400, detail="Dostignut limit od 5 webhook-a po korisniku.")
+
+    r = await asyncio.to_thread(
+        lambda: supa.table("user_webhooks").insert({
+            "user_id": uid,
+            "url":     body.url,
+            "events":  eventi,
+            "secret":  body.secret,
+            "naziv":   body.naziv,
+        }).execute()
+    )
+    return {"success": True, "webhook": r.data[0] if r.data else {}}
+
+
+@router.get("/api/webhooks")
+@limiter.limit("30/minute")
+async def webhook_lista(
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    uid  = user["user_id"]
+    supa = _get_supa()
+    r = await asyncio.to_thread(
+        lambda: supa.table("user_webhooks").select("id,url,events,naziv,aktivan,created_at").eq("user_id", uid).order("created_at", desc=True).execute()
+    )
+    return {"webhooks": r.data or []}
+
+
+@router.delete("/api/webhooks/{webhook_id}")
+@limiter.limit("20/minute")
+async def webhook_brisi(
+    webhook_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    uid  = user["user_id"]
+    supa = _get_supa()
+    r = await asyncio.to_thread(
+        lambda: supa.table("user_webhooks").delete().eq("id", webhook_id).eq("user_id", uid).execute()
+    )
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Webhook nije pronađen.")
+    return {"success": True, "id": webhook_id}
+
+
+@router.post("/api/webhooks/test/{webhook_id}")
+@limiter.limit("10/minute")
+async def webhook_test(
+    webhook_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    uid  = user["user_id"]
+    supa = _get_supa()
+    r = await asyncio.to_thread(
+        lambda: supa.table("user_webhooks").select("*").eq("id", webhook_id).eq("user_id", uid).maybe_single().execute()
+    )
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Webhook nije pronađen.")
+    wh = r.data
+    ts      = datetime.now(timezone.utc).isoformat()
+    payload = json.dumps({"event": "test", "timestamp": ts, "data": {"message": "Vindex AI webhook test"}}, ensure_ascii=False)
+    await asyncio.to_thread(_slanje_webhook_sync, wh["url"], payload, wh.get("secret"))
+    return {"success": True, "url": wh["url"], "timestamp": ts}
