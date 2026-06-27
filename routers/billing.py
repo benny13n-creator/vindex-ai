@@ -26,7 +26,7 @@ import logging
 import math
 import os
 import smtplib
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -200,6 +200,8 @@ class FakturaReq(BaseModel):
     klijent_pib:    Optional[str] = Field(default=None)
     pdv_stopa:      float          = Field(default=0.0, ge=0, le=100)
     napomena:       Optional[str] = Field(default=None, max_length=1000)
+    is_proforma:    bool           = Field(default=False)
+    datum_dospeca:  Optional[str] = Field(default=None)
 
 
 class FakturaStatusReq(BaseModel):
@@ -519,6 +521,26 @@ async def tarifa_get(
     return {"sifra": sifra.upper(), "naziv": t["naziv"], "bodovi": t.get("bodovi"), "iznos_rsd": iznos, "bod_rsd": BOD_RSD}
 
 
+async def _sledeci_broj_fakture(supa, uid: str) -> str:
+    year = date.today().year
+    try:
+        r = await _db(lambda: supa.table("fakture")
+            .select("broj_fakture")
+            .eq("user_id", uid)
+            .like("broj_fakture", f"{year}/%")
+            .order("broj_fakture", desc=True)
+            .limit(1)
+            .execute())
+        if r.data:
+            last = r.data[0]["broj_fakture"].lstrip("PRF-")
+            seq = int(last.split("/")[-1]) + 1
+        else:
+            seq = 1
+    except Exception:
+        seq = 1
+    return f"{year}/{seq:04d}"
+
+
 @router.post("/faktura")
 @limiter.limit("20/minute")
 async def faktura_create(
@@ -542,11 +564,9 @@ async def faktura_create(
     pdv_iznos     = round(iznos_bez_pdv * body.pdv_stopa / 100, 2)
     iznos_sa_pdv  = iznos_bez_pdv + pdv_iznos
 
-    try:
-        broj_r       = await _db(lambda: supa.rpc("get_next_broj_fakture", {"p_user_id": uid}).execute())
-        broj_fakture = str(broj_r.data) if broj_r.data else f"{date.today().year}-001"
-    except Exception:
-        broj_fakture = f"{date.today().year}-001"
+    auto_broj    = await _sledeci_broj_fakture(supa, uid)
+    broj_fakture = f"PRF-{auto_broj}" if body.is_proforma else auto_broj
+    datum_dospeca = body.datum_dospeca or (date.today() + timedelta(days=30)).isoformat()
 
     faktura_r = await _db(lambda: supa.table("fakture").insert({
         "user_id":        uid,
@@ -560,6 +580,8 @@ async def faktura_create(
         "iznos_sa_pdv":   iznos_sa_pdv,
         "napomena":       body.napomena,
         "status":         "nacrt",
+        "is_proforma":    body.is_proforma,
+        "datum_dospeca":  datum_dospeca,
     }).execute())
     if not faktura_r.data:
         raise HTTPException(status_code=500, detail="Kreiranje fakture nije uspelo.")
@@ -585,8 +607,39 @@ async def faktura_create(
             detail=f"Konflikt: {len(entries) - updated_count} radnja/e su u međuvremenu naplaćene. Osvežite stranicu i pokušajte ponovo."
         )
 
-    logger.info("[BILLING] faktura=%s uid=%.8s iznos=%.2f", faktura_id, uid, iznos_sa_pdv)
+    logger.info("[BILLING] faktura=%s uid=%.8s iznos=%.2f proforma=%s", faktura_id, uid, iznos_sa_pdv, body.is_proforma)
     return {"success": True, "faktura": faktura, "stavke": updated_count}
+
+
+@router.post("/faktura/{faktura_id}/konvertuj-proformu")
+@limiter.limit("20/minute")
+async def konvertuj_proformu(
+    faktura_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Konvertuje proforma fakturu u regularnu sa novim serijskim brojem."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    f_r = await _db(lambda: supa.table("fakture").select("*").eq("id", faktura_id).eq("user_id", uid).maybe_single().execute())
+    if not f_r.data:
+        raise HTTPException(status_code=404, detail="Faktura nije pronađena.")
+    if not f_r.data.get("is_proforma"):
+        raise HTTPException(status_code=400, detail="Faktura nije proforma.")
+
+    novi_broj     = await _sledeci_broj_fakture(supa, uid)
+    datum_dospeca = (date.today() + timedelta(days=30)).isoformat()
+    await _db(lambda: supa.table("fakture").update({
+        "is_proforma":   False,
+        "broj_fakture":  novi_broj,
+        "status":        "nacrt",
+        "datum_fakture": date.today().isoformat(),
+        "datum_dospeca": datum_dospeca,
+    }).eq("id", faktura_id).eq("user_id", uid).execute())
+
+    logger.info("[BILLING] proforma konvertovana=%s -> %s uid=%.8s", faktura_id, novi_broj, uid)
+    return {"success": True, "novi_broj": novi_broj, "faktura_id": faktura_id, "datum_dospeca": datum_dospeca}
 
 
 @router.get("/faktura/{faktura_id}/pdf")
