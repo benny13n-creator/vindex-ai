@@ -23,7 +23,8 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool]:
         total_chars += len(text)
 
     avg_chars = total_chars / max(len(reader.pages), 1)
-    is_scanned = avg_chars < 50 or total_chars < 100
+    # Threshold: <30 chars/stranica ili ukupno <80 = verovatno skenirani
+    is_scanned = avg_chars < 30 or total_chars < 80
 
     if not is_scanned:
         return "\n\n".join(pages), False, False
@@ -35,25 +36,52 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool]:
         import pytesseract
         from PIL import Image, ImageEnhance, ImageFilter
 
+        # Detect available Tesseract languages for Serbian support
+        try:
+            available_langs = pytesseract.get_languages(config="")
+        except Exception:
+            available_langs = []
+
+        # Prefer Cyrillic (srp) + Latin (srp_latn) + English
+        if "srp" in available_langs and "srp_latn" in available_langs:
+            ocr_lang = "srp+srp_latn+eng"
+        elif "srp_latn" in available_langs:
+            ocr_lang = "srp_latn+eng"
+        elif "srp" in available_langs:
+            ocr_lang = "srp+eng"
+        else:
+            ocr_lang = "eng"
+
+        logger.info("[OCR] Pokrenuti OCR za %s — jezik: %s", path.name, ocr_lang)
+
         doc = fitz.open(str(path))
         ocr_pages: list[str] = []
-        for page in doc:
+        for page_num, page in enumerate(doc):
             pixmap = page.get_pixmap(dpi=300)
             img = Image.open(io.BytesIO(pixmap.tobytes("png")))
             img = img.convert("L")
             img = ImageEnhance.Contrast(img).enhance(2.0)
             img = img.filter(ImageFilter.MedianFilter(size=3))
             try:
-                page_text = pytesseract.image_to_string(img, lang="srp_latn+eng", timeout=30)
+                page_text = pytesseract.image_to_string(img, lang=ocr_lang, timeout=45)
             except Exception:
-                page_text = pytesseract.image_to_string(img, lang="eng", timeout=30)
+                try:
+                    page_text = pytesseract.image_to_string(img, lang="eng", timeout=30)
+                except Exception as e2:
+                    logger.warning("[OCR] Stranica %d neuspešna: %s", page_num + 1, e2)
+                    page_text = ""
             ocr_pages.append(page_text.strip())
 
-        ocr_text = "\n\n".join(ocr_pages)
+        ocr_text = "\n\n".join(p for p in ocr_pages if p)
         if len(ocr_text.strip()) > 100:
+            logger.info("[OCR] Uspešno — %d karaktera iz %d stranica", len(ocr_text), len(ocr_pages))
             return ocr_text, False, True
-    except Exception:
-        pass
+        else:
+            logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(ocr_text.strip()))
+    except ImportError as ie:
+        logger.warning("[OCR] Potrebni paketi nisu instalirani (%s) — skenirani PDF ne može biti obrađen", ie)
+    except Exception as e:
+        logger.error("[OCR] Neočekivana greška: %s", e)
 
     return "", True, False
 

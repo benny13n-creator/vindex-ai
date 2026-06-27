@@ -27,7 +27,7 @@ _ALLOWED_MIMES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 _ALLOWED_SUFFIXES  = {".pdf", ".docx"}
-_MAX_UPLOAD_BYTES  = 10 * 1024 * 1024  # 10 MB
+_MAX_UPLOAD_BYTES  = 25 * 1024 * 1024  # 25 MB
 _MAX_DOC_PITANJE_LEN = 2000
 
 
@@ -140,9 +140,11 @@ async def dokument_upload(
             raise HTTPException(
                 status_code=422,
                 detail=(
-                    "Skenirani ili nečitljivi PDF — OCR nije uspeo da prepozna tekst. "
-                    "Pokušajte sa višom rezolucijom skeniranja (300 DPI ili više), "
-                    "ili pošaljite digitalni PDF nastao direktno iz Word-a ili procesora teksta."
+                    "Skenirani PDF — automatski OCR nije uspeo da prepozna tekst. "
+                    "Mogući razlozi: loš kvalitet skeniranja, rukopisni tekst, ili nestandardni font. "
+                    "Preporuke: (1) Ponovo skenirajte u 300 DPI ili višoj rezoluciji, "
+                    "(2) Koristite digitalni PDF nastao direktno iz Word-a ili suda, "
+                    "(3) Ručno kopirajte i nalepite tekst u polje za analizu."
                 ),
             )
 
