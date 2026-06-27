@@ -515,6 +515,7 @@ from routers.plans                import router as plans_router
 from routers.knowledge_base       import router as knowledge_base_router
 from routers.gdpr                 import router as gdpr_router
 from routers.support              import router as support_router
+from routers.court_predictor      import router as court_predictor_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -574,6 +575,7 @@ app.include_router(plans_router)
 app.include_router(knowledge_base_router)
 app.include_router(gdpr_router)
 app.include_router(support_router)
+app.include_router(court_predictor_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -851,6 +853,14 @@ def terms_of_service():
     path = BASE_DIR / "terms.html"
     if path.exists():
         return FileResponse(path, headers={"Cache-Control": "public, max-age=86400"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
+@app.get("/pricing", include_in_schema=False)
+def pricing_page():
+    path = BASE_DIR / "pricing.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=3600"})
     return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
 
 

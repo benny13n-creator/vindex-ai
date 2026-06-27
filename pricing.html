@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Vindex AI — cene i planovi. Besplatan trial 30 dana za sve advokate.">
+  <title>Cene — Vindex AI</title>
+  <link rel="icon" href="/static/icon-192-v3.png" type="image/png">
+  <link rel="canonical" href="https://vindex-ai.com/pricing">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #060e1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    .nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      background: rgba(6,14,26,0.95);
+      backdrop-filter: blur(10px);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo {
+      font-size: 20px; font-weight: 800;
+      background: linear-gradient(135deg, #00d4ff, #0095b3);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a {
+      color: #94a3b8; text-decoration: none; font-size: 14px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #e2e8f0; }
+    .btn-nav {
+      background: #00d4ff; color: #000;
+      padding: 8px 20px; border-radius: 8px;
+      font-weight: 600; font-size: 14px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn-nav:hover { opacity: 0.85; }
+
+    .hero {
+      text-align: center;
+      padding: 80px 24px 48px;
+    }
+    .hero h1 {
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 16px;
+      line-height: 1.15;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, #00d4ff, #7c3aed);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 18px; color: #94a3b8;
+      max-width: 560px; margin: 0 auto 32px;
+      line-height: 1.6;
+    }
+    .trial-badge {
+      display: inline-block;
+      background: rgba(0,212,255,0.1);
+      border: 1px solid rgba(0,212,255,0.3);
+      color: #00d4ff;
+      padding: 8px 20px; border-radius: 24px;
+      font-size: 14px; font-weight: 600;
+      margin-bottom: 48px;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .plan-card {
+      background: #0a1628;
+      border: 1px solid #1e293b;
+      border-radius: 20px;
+      padding: 36px 32px;
+      position: relative;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .plan-card:hover {
+      border-color: #2d4a7a;
+      transform: translateY(-4px);
+    }
+    .plan-card.popular {
+      border-color: #00d4ff;
+      background: #0c1e35;
+    }
+    .popular-badge {
+      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+      background: #00d4ff; color: #000;
+      font-size: 12px; font-weight: 700;
+      padding: 4px 16px; border-radius: 12px;
+      white-space: nowrap;
+    }
+
+    .plan-name {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #64748b;
+      margin-bottom: 12px;
+    }
+    .plan-price {
+      font-size: 48px; font-weight: 800; color: #fff;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .plan-price sup { font-size: 22px; vertical-align: top; margin-top: 10px; }
+    .plan-price .period { font-size: 16px; color: #64748b; font-weight: 400; }
+    .plan-desc {
+      font-size: 14px; color: #64748b;
+      margin: 12px 0 28px;
+      min-height: 40px;
+    }
+
+    .plan-features {
+      list-style: none;
+      margin-bottom: 32px;
+    }
+    .plan-features li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 14px; color: #94a3b8;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .plan-features li:last-child { border-bottom: none; }
+    .plan-features .check { color: #00d4ff; font-weight: 700; flex-shrink: 0; }
+    .plan-features .cross { color: #374151; }
+
+    .btn-plan {
+      display: block; width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px; font-weight: 700;
+      text-align: center; text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer; border: none;
+    }
+    .btn-plan.primary { background: #00d4ff; color: #000; }
+    .btn-plan.primary:hover { background: #00b8d9; }
+    .btn-plan.secondary {
+      background: transparent;
+      border: 1px solid #1e293b; color: #94a3b8;
+    }
+    .btn-plan.secondary:hover { border-color: #2d4a7a; color: #e2e8f0; }
+
+    .faq-section {
+      max-width: 720px; margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .faq-section h2 {
+      text-align: center; font-size: 28px; font-weight: 700;
+      color: #fff; margin-bottom: 40px;
+    }
+    .faq-item {
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .faq-q {
+      padding: 18px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; font-size: 15px; font-weight: 600; color: #e2e8f0;
+    }
+    .faq-q:hover { background: rgba(255,255,255,0.03); }
+    .faq-a {
+      padding: 0 20px;
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.2s;
+      font-size: 14px; color: #94a3b8; line-height: 1.7;
+    }
+    .faq-item.open .faq-a {
+      max-height: 200px;
+      padding: 0 20px 18px;
+    }
+    .faq-arrow { transition: transform 0.3s; color: #00d4ff; }
+    .faq-item.open .faq-arrow { transform: rotate(90deg); }
+
+    .cta-section {
+      text-align: center;
+      padding: 60px 24px 80px;
+      border-top: 1px solid #1e293b;
+    }
+    .cta-section h2 { font-size: 32px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+    .cta-section p { color: #94a3b8; margin-bottom: 32px; font-size: 16px; }
+    .btn-cta {
+      display: inline-block;
+      background: linear-gradient(135deg, #00d4ff, #0095b3);
+      color: #000; font-weight: 700; font-size: 16px;
+      padding: 16px 40px; border-radius: 14px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn-cta:hover { opacity: 0.85; }
+
+    @media (max-width: 640px) {
+      .nav { padding: 16px 20px; }
+      .nav-links a:not(.btn-nav) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a class="nav-logo" href="/">Vindex AI</a>
+  <div class="nav-links">
+    <a href="/">Pocetna</a>
+    <a href="/app" class="btn-nav">Prijavi se</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="trial-badge">Besplatan trial 30 dana &mdash; bez kreditne kartice</div>
+  <h1>Jednostavne cene<br>za <span>srpske advokate</span></h1>
+  <p>Sve sto vam treba za modernu advokatsku kancelariju.<br>Pocnite besplatno, nadogradite kad budete spremni.</p>
+</section>
+
+<div class="pricing-grid">
+
+  <div class="plan-card">
+    <div class="plan-name">Starter</div>
+    <div class="plan-price">
+      <sup>&euro;</sup>0<span class="period">/mes</span>
+    </div>
+    <div class="plan-desc">Za probu. Sve funkcije, 30 dana.</div>
+    <ul class="plan-features">
+      <li><span class="check">&#10003;</span> AI pravni savetnik</li>
+      <li><span class="check">&#10003;</span> 5 predmeta</li>
+      <li><span class="check">&#10003;</span> 100 AI kredita</li>
+      <li><span class="check">&#10003;</span> Sudska praksa (87k odluka)</li>
+      <li><span class="cross">&#10007;</span> Fakturisanje</li>
+      <li><span class="cross">&#10007;</span> CSV import</li>
+      <li><span class="cross">&#10007;</span> API pristup</li>
+    </ul>
+    <a href="/app" class="btn-plan secondary">Pocni besplatno</a>
+  </div>
+
+  <div class="plan-card popular">
+    <div class="popular-badge">NAJPOPULARNIJI</div>
+    <div class="plan-name">Pro</div>
+    <div class="plan-price">
+      <sup>&euro;</sup>29<span class="period">/mes</span>
+    </div>
+    <div class="plan-desc">Za individualnog advokata. Sve sto treba za svakodnevni rad.</div>
+    <ul class="plan-features">
+      <li><span class="check">&#10003;</span> Neograniceni predmeti</li>
+      <li><span class="check">&#10003;</span> 1.000 AI kredita/mes</li>
+      <li><span class="check">&#10003;</span> Fakturisanje + SEF integracija</li>
+      <li><span class="check">&#10003;</span> DOCX export nacrta</li>
+      <li><span class="check">&#10003;</span> CSV import klijenata</li>
+      <li><span class="check">&#10003;</span> Procesni rokovi kalkulator</li>
+      <li><span class="check">&#10003;</span> AI Court Predictor</li>
+    </ul>
+    <a href="/app" class="btn-plan primary">Pocni trial &rarr;</a>
+  </div>
+
+  <div class="plan-card">
+    <div class="plan-name">Enterprise</div>
+    <div class="plan-price">
+      <sup>&euro;</sup>99<span class="period">/mes</span>
+    </div>
+    <div class="plan-desc">Za advokatske kancelarije. Tim, audit log, delegiranje predmeta.</div>
+    <ul class="plan-features">
+      <li><span class="check">&#10003;</span> Do 20 advokata</li>
+      <li><span class="check">&#10003;</span> 10.000 AI kredita/mes</li>
+      <li><span class="check">&#10003;</span> Team management + uloge</li>
+      <li><span class="check">&#10003;</span> Audit log i saradnja</li>
+      <li><span class="check">&#10003;</span> Webhook integracije</li>
+      <li><span class="check">&#10003;</span> Google Calendar sync</li>
+      <li><span class="check">&#10003;</span> Prioritetna podrska</li>
+    </ul>
+    <a href="mailto:kontakt@vindex.rs" class="btn-plan secondary">Kontaktirajte nas</a>
+  </div>
+
+</div>
+
+<section class="faq-section">
+  <h2>Cesta pitanja</h2>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="faqToggle(this)">
+      Da li je trial zaista besplatan? <span class="faq-arrow">&#8250;</span>
+    </div>
+    <div class="faq-a">
+      Da, 30 dana potpuno besplatno bez kreditne kartice. Dobijate pristup svim Pro funkcijama i 100 AI kredita za probu.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="faqToggle(this)">
+      Sta su AI krediti? <span class="faq-arrow">&#8250;</span>
+    </div>
+    <div class="faq-a">
+      Svaki AI upit (analiza predmeta, generisanje nacrta, pretraga sudske prakse) trosi odredjen broj kredita. Jednostavna pitanja trose 1 kredit, slozene analize 2-5 kredita. Pro plan ukljucuje 1.000 kredita mesecno.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="faqToggle(this)">
+      Mogu li da otkazem u bilo kom trenutku? <span class="faq-arrow">&#8250;</span>
+    </div>
+    <div class="faq-a">
+      Da, bez otkaznog roka. Vasi podaci ostaju dostupni 30 dana posle otkazivanja, a mozete ih exportovati.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="faqToggle(this)">
+      Da li su podaci bezbedni? <span class="faq-arrow">&#8250;</span>
+    </div>
+    <div class="faq-a">
+      Svi podaci su enkriptovani AES-256-GCM i cuvaju se na serverima u EU. Vindex AI ne koristi vase podatke za treniranje AI modela.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="faqToggle(this)">
+      Podrzavate li fakturisanje prema SEF-u? <span class="faq-arrow">&#8250;</span>
+    </div>
+    <div class="faq-a">
+      Da. Pro i Enterprise planovi ukljucuju punu integraciju sa Sistemom e-faktura (SEF) Ministarstva finansija RS, ukljucujuci UBL 2.1 XML format.
+    </div>
+  </div>
+</section>
+
+<section class="cta-section">
+  <h2>Spremni za modernu kancelariju?</h2>
+  <p>Pridruzite se advokatima koji vec koriste Vindex AI.<br>Pocnite za manje od 2 minuta.</p>
+  <a href="/app" class="btn-cta">Besplatno 30 dana &rarr;</a>
+</section>
+
+<script>
+function faqToggle(el) {
+  const item = el.closest(".faq-item");
+  const isOpen = item.classList.contains("open");
+  document.querySelectorAll(".faq-item.open").forEach(i => i.classList.remove("open"));
+  if (!isOpen) item.classList.add("open");
+}
+</script>
+
+</body>
+</html>
