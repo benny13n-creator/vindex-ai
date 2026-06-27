@@ -2183,6 +2183,14 @@ var STRAT_MODULI = {
     label:    'Opis predmeta (strane, činjenice, pravni osnov, stadijum postupka)',
     min:      100,
     tip:      'debate'
+  },
+  court_predictor: {
+    naziv:    'AI Predikcija ishoda',
+    endpoint: '/api/predictor/analiza',
+    opis:     'Statistička procena šansi za uspeh (%) na osnovu srpske sudske prakse, dokaza i argumenta. Generiše preporuku strategije i ključne rizike.',
+    label:    'Opis predmeta: stranke, pravni osnov, ključni dokazi, argumenti obe strane',
+    min:      80,
+    tip:      'predictor'
   }
 };
 
@@ -2215,6 +2223,9 @@ function stratIzaberiModul(modul, btn) {
   var labelEl = document.getElementById('strat-input-label');
   if (opisEl) opisEl.textContent = m.opis;
   if (labelEl) labelEl.textContent = m.label;
+  // Prikaži tip_postupka dropdown za Red Team, Litigation Simulator i Court Predictor
+  var tipWrap = document.getElementById('strat-tip-wrap');
+  if (tipWrap) tipWrap.style.display = (modul === 'red_team' || modul === 'litigation' || modul === 'court_predictor') ? 'block' : 'none';
   // Sakrij prethodni rezultat i resetuj polje
   var wrapEl = document.getElementById('strat-rezultat-wrap');
   var tekstEl = document.getElementById('strat-tekst');
@@ -2257,13 +2268,24 @@ async function stratPokreni() {
 
   piTrack('strategija','query',{modul:_stratAktivniModul});
   try {
+    var tipEl = document.getElementById('strat-tip-postupka');
+    var tipVal = tipEl ? tipEl.value : 'gradjansko';
+    var reqBody;
+    if (_stratAktivniModul === 'court_predictor') {
+      reqBody = { opis_predmeta: tekst, cinjenicni_opis: tekst, tip_postupka: tipVal };
+    } else {
+      reqBody = { tekst: tekst };
+      if (_stratAktivniModul === 'red_team' || _stratAktivniModul === 'litigation') {
+        reqBody.tip_postupka = tipVal;
+      }
+    }
     var res = await fetch(BASE_URL + modul.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '')
       },
-      body: JSON.stringify({ tekst: tekst })
+      body: JSON.stringify(reqBody)
     });
 
     if (res.status === 403) {
@@ -2296,6 +2318,10 @@ async function stratPokreni() {
         + '<div class="debate-header">👨‍⚖️ SUDIJA — Odluka</div>'
         + '<div class="debate-sadrzaj">' + stratFormatirajRezultat(data.presuda || '') + '</div>'
         + '</div>';
+    } else if (data.analiza) {
+      // Court predictor format
+      if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.analiza);
+      if (data.krediti_utroseni) showToast('Utroseno ' + data.krediti_utroseni + ' kredita.', 'info');
     } else {
       if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.rezultat || '');
     }
@@ -16357,5 +16383,39 @@ async function pomocPosalji() {
     if (msg) { msg.style.display=''; msg.style.color='#f87171'; msg.textContent='Mrežna greška — pokušajte ponovo.'; }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Pošalji poruku'; }
+  }
+}
+
+// ── DOCX export nacrta (backend sa firma headerom) ────────────────────────────
+
+async function nacrtExportDocx() {
+  var btn = document.getElementById('nacrt-docx-btn');
+  var tekst = _lastRawText || '';
+  if (!tekst) { showToast('Nema teksta nacrta za export.', 'warn'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Generisem...'; }
+  try {
+    var tipEl = document.getElementById('podnesak-tip');
+    var tip   = tipEl ? tipEl.value : '';
+    var res = await fetch(BASE_URL + '/api/nacrti/export/docx', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '')
+      },
+      body: JSON.stringify({ tekst: tekst, naslov: 'Nacrt dokumenta', tip: tip })
+    });
+    if (!res.ok) { showToast('Greška pri generisanju DOCX.', 'error'); return; }
+    var blob = await res.blob();
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href   = url;
+    a.download = 'nacrt_vindex.docx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 2000);
+  } catch(e) {
+    showToast('Mrežna greška — pokušajte ponovo.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬇ DOCX'; }
   }
 }

@@ -1801,12 +1801,24 @@
               <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">Pravni Revizor</button>
               <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">Witness Analyzer</button>
               <button class="strat-btn" data-modul="sudija_v2" onclick="stratIzaberiModul('sudija_v2',this)">Judge v2 — Debata</button>
+              <button class="strat-btn" data-modul="court_predictor" onclick="stratIzaberiModul('court_predictor',this)">AI Predikcija ishoda</button>
             </div>
             <div id="strat-opis" class="strat-opis-box"></div>
             <div class="strat-input-wrap">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                 <label id="strat-input-label" class="strat-label" style="margin-bottom:0;">Opis predmeta</label>
                 <button onclick="_predAutoFill('strat-tekst',true)" title="Popuni iz aktivnog predmeta" style="display:none;font-size:0.68rem;padding:2px 9px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:5px;color:rgba(0,212,255,0.7);cursor:pointer;font-family:inherit;white-space:nowrap;" id="btn-autofill-strat">↺ Iz predmeta</button>
+              </div>
+              <!-- Tip postupka (samo za Red Team i Litigation Simulator) -->
+              <div id="strat-tip-wrap" style="margin-bottom:0.5rem;display:none;">
+                <label style="font-size:0.65rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:3px;">Tip postupka</label>
+                <select id="strat-tip-postupka" style="width:100%;background:rgba(13,27,42,0.97);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 10px;color:rgba(255,255,255,0.8);font-size:0.78rem;outline:none;font-family:inherit;cursor:pointer;">
+                  <option value="gradjansko">Gradjansko / Parnično</option>
+                  <option value="krivicno">Krivično</option>
+                  <option value="upravno">Upravno</option>
+                  <option value="privredno">Privredno</option>
+                  <option value="radno">Radno</option>
+                </select>
               </div>
               <textarea id="strat-tekst" class="strat-textarea" placeholder="Unesite detaljan opis predmeta ili tekst dokumenta..." rows="8"></textarea>
               <div class="strat-char-count"><span id="strat-chars">0</span> karaktera</div>
@@ -3241,6 +3253,7 @@
               <button class="podnesak-preview-btn podnesak-preview-pdf" id="podnesak-pdf-btn" onclick="exportPDF(_lastRawText, this)">📄 Preuzmi PDF</button>
               <button class="podnesak-preview-btn podnesak-preview-copy" id="podnesak-copy-btn" onclick="copyPodnesak(this)">📋 Kopiraj tekst</button>
               <button class="podnesak-preview-btn btn-word" onclick="exportujKaoWord('Nacrt dokumenta',_lastRawText,'nacrt')">📝 Word</button>
+              <button class="podnesak-preview-btn" id="nacrt-docx-btn" onclick="nacrtExportDocx()" style="background:rgba(0,212,255,0.08);border-color:rgba(0,212,255,0.3);color:#00d4ff;">⬇ DOCX</button>
               <button class="podnesak-preview-btn podnesak-preview-edit" onclick="editPodnesak()">✏ Uredi / Follow-up</button>
             </div>
           </div>
