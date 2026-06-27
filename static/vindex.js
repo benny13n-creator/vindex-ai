@@ -16283,3 +16283,62 @@ function ugovor_stampaj() {
   w.document.close();
   setTimeout(function(){ w.print(); }, 400);
 }
+
+// ── Pomoć i podrška ──────────────────────────────────────────────────────────
+
+function pomocFaqToggle(idx) {
+  var item = document.getElementById('faq-' + idx);
+  if (!item) return;
+  var isOpen = item.classList.contains('open');
+  // zatvori sve
+  document.querySelectorAll('.pomoc-faq-item').forEach(function(el) {
+    el.classList.remove('open');
+  });
+  // otvori kliknuti ako nije bio otvoren
+  if (!isOpen) item.classList.add('open');
+}
+
+async function pomocPosalji() {
+  var btn = document.getElementById('pomoc-send-btn');
+  var msg = document.getElementById('pomoc-msg');
+  var kat = document.getElementById('pomoc-kategorija');
+  var txt = document.getElementById('pomoc-poruka');
+
+  if (!txt || !txt.value.trim()) {
+    if (msg) { msg.style.display=''; msg.style.color='#f87171'; msg.textContent='Unesite poruku.'; }
+    return;
+  }
+  if (txt.value.trim().length < 10) {
+    if (msg) { msg.style.display=''; msg.style.color='#f87171'; msg.textContent='Poruka je prekratka.'; }
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Šalje se...'; }
+  if (msg) msg.style.display = 'none';
+
+  try {
+    var r = await fetch(BASE_URL + '/api/support/poruka', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '')
+      },
+      body: JSON.stringify({
+        kategorija: kat ? kat.value : 'ostalo',
+        poruka: txt.value.trim()
+      })
+    });
+    var d = await r.json();
+    if (r.ok) {
+      txt.value = '';
+      if (msg) { msg.style.display=''; msg.style.color='#4ade80'; msg.textContent='Poruka poslata. Odgovorićemo u roku od 24h.'; }
+    } else {
+      var errTxt = (d && d.detail) ? d.detail : 'Greška pri slanju.';
+      if (msg) { msg.style.display=''; msg.style.color='#f87171'; msg.textContent=errTxt; }
+    }
+  } catch(e) {
+    if (msg) { msg.style.display=''; msg.style.color='#f87171'; msg.textContent='Mrežna greška — pokušajte ponovo.'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Pošalji poruku'; }
+  }
+}

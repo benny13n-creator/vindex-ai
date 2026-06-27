@@ -2995,6 +2995,99 @@
               </div>
             </div>
 
+            <!-- ── Pomoć i podrška ─────────────────────────────────── -->
+            <div class="settings-section" id="pomoc-section">
+              <div class="settings-section-hd">Pomoć i podrška</div>
+
+              <!-- FAQ accordion -->
+              <div style="margin-bottom:1rem;">
+                <div style="font-size:0.62rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem;">Najčešća pitanja</div>
+
+                <div class="pomoc-faq-item" id="faq-0">
+                  <div class="pomoc-faq-q" onclick="pomocFaqToggle(0)">
+                    <span>Koliko je tačan AI?</span>
+                    <span class="pomoc-faq-arrow">▸</span>
+                  </div>
+                  <div class="pomoc-faq-a" id="faq-a-0">
+                    Vindex AI koristi GPT-4o i bazu od ~95.000 sudskih odluka VKS i apelacionih sudova. AI daje preporuke na osnovu relevantnih presedana — uvek proverite konačni odgovor sa aktuelnim propisima i nadležnim organima. Korišćenje AI ne zamenjuje pravni savet.
+                  </div>
+                </div>
+
+                <div class="pomoc-faq-item" id="faq-1">
+                  <div class="pomoc-faq-q" onclick="pomocFaqToggle(1)">
+                    <span>Kako da uploadujem dokument?</span>
+                    <span class="pomoc-faq-arrow">▸</span>
+                  </div>
+                  <div class="pomoc-faq-a" id="faq-a-1">
+                    Otvorite predmet → tab <strong>Dokumenti</strong> → kliknite <strong>+ Dodaj dokument</strong>. Podržani formati: PDF, DOCX, TXT (maks. 25 MB). Alternativno, koristite tab <strong>Analiza dokumenta</strong> za direktnu AI analizu bez vezivanja za predmet.
+                  </div>
+                </div>
+
+                <div class="pomoc-faq-item" id="faq-2">
+                  <div class="pomoc-faq-q" onclick="pomocFaqToggle(2)">
+                    <span>Kako da dodam novog klijenta?</span>
+                    <span class="pomoc-faq-arrow">▸</span>
+                  </div>
+                  <div class="pomoc-faq-a" id="faq-a-2">
+                    Tab <strong>Klijenti</strong> → dugme <strong>+ Novi klijent</strong>. Ili koristite <strong>Intake čarobnjak</strong> (dugme + u gornjem desnom uglu) koji kreira klijenta i predmet u jednom toku sa AI ekstrakcijom podataka.
+                  </div>
+                </div>
+
+                <div class="pomoc-faq-item" id="faq-3">
+                  <div class="pomoc-faq-q" onclick="pomocFaqToggle(3)">
+                    <span>Koja sudska praksa je dostupna?</span>
+                    <span class="pomoc-faq-arrow">▸</span>
+                  </div>
+                  <div class="pomoc-faq-a" id="faq-a-3">
+                    Baza sadrži odluke Vrhovnog kasacionog suda, apelacionih sudova i ESLJP (Evropski sud za ljudska prava), ukupno ~95.000 odluka. Baza se redovno ažurira. Pretraga je dostupna na tabu <strong>Sudska praksa</strong>.
+                  </div>
+                </div>
+
+                <div class="pomoc-faq-item" id="faq-4">
+                  <div class="pomoc-faq-q" onclick="pomocFaqToggle(4)">
+                    <span>Da li su moji podaci bezbedni?</span>
+                    <span class="pomoc-faq-arrow">▸</span>
+                  </div>
+                  <div class="pomoc-faq-a" id="faq-a-4">
+                    Da. Podaci su šifrovani (TLS 1.3 u tranzitu, AES-256 u mirovanju) i čuvaju se na Supabase infrastrukturi u EU regionu. Niko iz tima Vindex AI nema pristup sadržaju vaših predmeta. Vidite <a href="/privacy" target="_blank" style="color:#00d4ff;">Politiku privatnosti</a>.
+                  </div>
+                </div>
+
+                <div class="pomoc-faq-item" id="faq-5">
+                  <div class="pomoc-faq-q" onclick="pomocFaqToggle(5)">
+                    <span>Kako da promenim ili otkazhem pretplatu?</span>
+                    <span class="pomoc-faq-arrow">▸</span>
+                  </div>
+                  <div class="pomoc-faq-a" id="faq-a-5">
+                    Podešavanja → <strong>Moj plan</strong> → <strong>Upravljaj</strong>. Možete nadograditi, sniziti ili otkazati plan u svakom trenutku. Otkazivanje stupa na snagu na kraju tekućeg perioda.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Kontakt forma -->
+              <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.85rem;">
+                <div style="font-size:0.62rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem;">Pošaljite poruku timu</div>
+                <select id="pomoc-kategorija"
+                  style="width:100%;background:rgba(13,27,42,0.97);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 10px;color:rgba(255,255,255,0.8);font-size:0.78rem;outline:none;font-family:inherit;cursor:pointer;margin-bottom:0.4rem;">
+                  <option value="tehnicko">Tehnički problem</option>
+                  <option value="nalog">Nalog i pretplata</option>
+                  <option value="ai">AI / tačnost odgovora</option>
+                  <option value="podatak">Podatak ili odluka</option>
+                  <option value="predlog">Predlog / ideja</option>
+                  <option value="ostalo" selected>Ostalo</option>
+                </select>
+                <textarea id="pomoc-poruka" placeholder="Opišite problem ili pišite nam šta mislite..." rows="4"
+                  style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px 10px;color:rgba(255,255,255,0.85);font-size:0.8rem;outline:none;font-family:inherit;resize:vertical;line-height:1.5;"></textarea>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.35rem;flex-wrap:wrap;">
+                  <button class="settings-btn" id="pomoc-send-btn" onclick="pomocPosalji()"
+                    style="background:rgba(0,212,255,0.1);border-color:rgba(0,212,255,0.3);color:#00d4ff;">
+                    Pošalji poruku
+                  </button>
+                  <span id="pomoc-msg" style="font-size:0.72rem;display:none;"></span>
+                </div>
+              </div>
+            </div>
+
             <div class="settings-section">
               <div class="settings-section-hd">Sistem</div>
               <div class="settings-row">
