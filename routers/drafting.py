@@ -12,7 +12,7 @@ import time as _time
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import (
@@ -532,3 +532,154 @@ async def nacrti_checklist(req: NacrtChecklistReq, request: Request, user: dict 
         raise HTTPException(status_code=502, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
 
     return rezultat
+
+
+# ── DOCX Export ───────────────────────────────────────────────────────────────
+
+class DocxExportReq(BaseModel):
+    tekst:  str = Field(..., min_length=1, max_length=100_000)
+    naslov: str = Field("Nacrt", max_length=200)
+    tip:    str = Field("", max_length=100)
+
+
+def _nacrt_to_docx(tekst: str, naslov: str, firma_info: dict | None = None) -> bytes:
+    """Konvertuje nacrt tekst u .docx sa kancelarijskim headerom. Vraća bytes."""
+    import io
+    from docx import Document
+    from docx.shared import Pt, Cm, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    doc = Document()
+
+    for section in doc.sections:
+        section.top_margin    = Cm(2.5)
+        section.bottom_margin = Cm(2.5)
+        section.left_margin   = Cm(3.0)
+        section.right_margin  = Cm(2.5)
+
+    if firma_info:
+        naziv   = (firma_info.get("seller_naziv") or firma_info.get("naziv") or "").strip()
+        adresa  = (firma_info.get("seller_adresa") or firma_info.get("adresa") or "").strip()
+        mesto   = (firma_info.get("seller_mesto") or firma_info.get("mesto") or "").strip()
+        pib     = (firma_info.get("seller_pib") or firma_info.get("pib") or "").strip()
+        email   = (firma_info.get("email") or "").strip()
+
+        if naziv:
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run(naziv)
+            run.bold = True
+            run.font.size = Pt(14)
+
+        kontakt_delovi = [adresa, mesto, email]
+        kontakt = " | ".join(d for d in kontakt_delovi if d)
+        if kontakt:
+            p = doc.add_paragraph(kontakt)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.runs[0].font.size = Pt(10)
+            p.runs[0].font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+
+        if pib:
+            p = doc.add_paragraph(f"PIB: {pib}")
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.runs[0].font.size = Pt(9)
+            p.runs[0].font.color.rgb = RGBColor(0x77, 0x77, 0x77)
+
+        # Separator
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(4)
+        pPr = p._p.get_or_add_pPr()
+        pBdr = OxmlElement("w:pBdr")
+        bottom = OxmlElement("w:bottom")
+        bottom.set(qn("w:val"), "single")
+        bottom.set(qn("w:sz"), "6")
+        bottom.set(qn("w:space"), "1")
+        bottom.set(qn("w:color"), "999999")
+        pBdr.append(bottom)
+        pPr.append(pBdr)
+
+    # Naslov
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run(naslov.upper())
+    run.bold = True
+    run.font.size = Pt(13)
+    doc.add_paragraph()
+
+    # Sadržaj — markdown-aware parsing
+    for linija in tekst.split("\n"):
+        if linija.startswith("# "):
+            doc.add_heading(linija[2:], level=1)
+        elif linija.startswith("## "):
+            doc.add_heading(linija[3:], level=2)
+        elif linija.startswith("### "):
+            doc.add_heading(linija[4:], level=3)
+        elif linija.strip() == "":
+            doc.add_paragraph()
+        else:
+            p = doc.add_paragraph()
+            parts = linija.split("**")
+            for idx, part in enumerate(parts):
+                if part:
+                    run = p.add_run(part)
+                    run.bold = (idx % 2 == 1)
+                    run.font.size = Pt(11)
+
+    # Footer
+    from datetime import date as _date
+    footer = doc.sections[0].footer
+    fp = footer.paragraphs[0]
+    fp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    run = fp.add_run(f"Generisano: {_date.today().strftime('%d.%m.%Y.')} | Vindex AI")
+    run.font.size = Pt(8)
+    run.font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+
+@router.post("/api/nacrti/export/docx")
+@limiter.limit("30/minute")
+async def export_nacrt_docx(
+    req: DocxExportReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Preuzmi nacrt kao .docx fajl sa kancelarijskim headerom."""
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    # Dohvati firma/SEF info za header
+    firma_info = None
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("sef_podesavanja")
+                .select("seller_pib,seller_naziv,seller_adresa,seller_mesto")
+                .eq("user_id", uid)
+                .maybe_single()
+                .execute()
+        )
+        if r and r.data:
+            firma_info = r.data
+    except Exception:
+        pass
+
+    naslov = req.naslov or req.tip or "Nacrt"
+
+    try:
+        docx_bytes = await asyncio.to_thread(_nacrt_to_docx, req.tekst, naslov, firma_info)
+    except Exception as e:
+        logger.error("DOCX export greška: %s", e)
+        raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
+
+    safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in naslov)[:40]
+    filename = f"{safe_name}.docx"
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
