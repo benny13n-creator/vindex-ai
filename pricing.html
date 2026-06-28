@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Vindex AI — cene i planovi. Besplatan trial 30 dana za sve advokate.">
+  <meta name="description" content="Vindex AI — planovi i cene za srpske advokate. Počnite besplatno.">
   <title>Cene — Vindex AI</title>
   <link rel="icon" href="/static/icon-192-v3.png" type="image/png">
   <link rel="canonical" href="https://vindex-ai.com/pricing">
@@ -17,12 +17,13 @@
       min-height: 100vh;
     }
 
+    /* NAV */
     .nav {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 20px 40px;
+      padding: 18px 40px;
       border-bottom: 1px solid rgba(255,255,255,0.07);
-      background: rgba(6,14,26,0.95);
-      backdrop-filter: blur(10px);
+      background: rgba(6,14,26,0.97);
+      backdrop-filter: blur(12px);
       position: sticky; top: 0; z-index: 100;
     }
     .nav-logo {
@@ -32,185 +33,284 @@
       text-decoration: none;
     }
     .nav-links { display: flex; gap: 24px; align-items: center; }
-    .nav-links a {
-      color: #94a3b8; text-decoration: none; font-size: 14px;
-      transition: color 0.2s;
-    }
+    .nav-links a { color: #94a3b8; text-decoration: none; font-size: 14px; transition: color .2s; }
     .nav-links a:hover { color: #e2e8f0; }
     .btn-nav {
       background: #00d4ff; color: #000;
-      padding: 8px 20px; border-radius: 8px;
-      font-weight: 600; font-size: 14px;
-      text-decoration: none;
-      transition: opacity 0.2s;
+      padding: 8px 22px; border-radius: 8px;
+      font-weight: 700; font-size: 14px;
+      text-decoration: none; transition: opacity .2s;
     }
-    .btn-nav:hover { opacity: 0.85; }
+    .btn-nav:hover { opacity: .85; }
 
+    /* HERO */
     .hero {
       text-align: center;
-      padding: 80px 24px 48px;
+      padding: 72px 24px 40px;
     }
     .hero h1 {
-      font-size: clamp(32px, 5vw, 52px);
-      font-weight: 800;
-      color: #fff;
-      margin-bottom: 16px;
-      line-height: 1.15;
+      font-size: clamp(30px, 5vw, 50px);
+      font-weight: 800; color: #fff;
+      margin-bottom: 14px; line-height: 1.15;
     }
     .hero h1 span {
       background: linear-gradient(135deg, #00d4ff, #7c3aed);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     .hero p {
-      font-size: 18px; color: #94a3b8;
-      max-width: 560px; margin: 0 auto 32px;
-      line-height: 1.6;
-    }
-    .trial-badge {
-      display: inline-block;
-      background: rgba(0,212,255,0.1);
-      border: 1px solid rgba(0,212,255,0.3);
-      color: #00d4ff;
-      padding: 8px 20px; border-radius: 24px;
-      font-size: 14px; font-weight: 600;
-      margin-bottom: 48px;
+      font-size: 17px; color: #94a3b8;
+      max-width: 540px; margin: 0 auto 10px; line-height: 1.6;
     }
 
+    /* BILLING TOGGLE */
+    .billing-toggle {
+      display: flex; align-items: center; justify-content: center;
+      gap: 14px; margin: 28px auto 48px;
+    }
+    .toggle-label { font-size: 14px; color: #64748b; cursor: pointer; transition: color .2s; }
+    .toggle-label.active { color: #e2e8f0; font-weight: 600; }
+    .toggle-switch {
+      position: relative; width: 52px; height: 28px; cursor: pointer;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: rgba(0,212,255,.15);
+      border: 1px solid rgba(0,212,255,.3);
+      border-radius: 14px;
+      transition: background .3s;
+    }
+    .toggle-switch input:checked + .toggle-track {
+      background: rgba(0,212,255,.25);
+    }
+    .toggle-thumb {
+      position: absolute; top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      background: #00d4ff; border-radius: 50%;
+      transition: transform .3s;
+    }
+    .toggle-switch input:checked ~ .toggle-thumb { transform: translateX(24px); }
+    .annual-badge {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff; font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px;
+      letter-spacing: .04em;
+    }
+
+    /* PRICING GRID */
     .pricing-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 24px;
-      max-width: 1100px;
+      grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+      gap: 20px;
+      max-width: 1160px;
       margin: 0 auto;
       padding: 0 24px 80px;
+      align-items: start;
     }
 
     .plan-card {
       background: #0a1628;
       border: 1px solid #1e293b;
-      border-radius: 20px;
-      padding: 36px 32px;
+      border-radius: 22px;
+      padding: 32px 28px 28px;
       position: relative;
-      transition: border-color 0.2s, transform 0.2s;
+      transition: border-color .25s, transform .25s, box-shadow .25s;
     }
     .plan-card:hover {
       border-color: #2d4a7a;
-      transform: translateY(-4px);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.3);
     }
     .plan-card.popular {
       border-color: #00d4ff;
-      background: #0c1e35;
+      background: linear-gradient(160deg, #0d2040 0%, #0a1a32 100%);
+      box-shadow: 0 0 0 1px rgba(0,212,255,.15), 0 20px 60px rgba(0,0,0,.4);
+      transform: scale(1.03);
     }
+    .plan-card.popular:hover { transform: scale(1.03) translateY(-3px); }
+
     .popular-badge {
       position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
-      background: #00d4ff; color: #000;
-      font-size: 12px; font-weight: 700;
-      padding: 4px 16px; border-radius: 12px;
+      background: linear-gradient(135deg, #00d4ff, #0095b3);
+      color: #000; font-size: 11px; font-weight: 800;
+      padding: 5px 18px; border-radius: 14px;
+      white-space: nowrap; letter-spacing: .06em;
+    }
+    .free-badge {
+      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; border: 1px solid #334155;
+      color: #64748b; font-size: 11px; font-weight: 700;
+      padding: 5px 18px; border-radius: 14px;
       white-space: nowrap;
     }
 
     .plan-name {
-      font-size: 13px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #64748b;
-      margin-bottom: 12px;
+      font-size: 11px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: .1em; color: #475569;
+      margin-bottom: 10px;
     }
+    .plan-card.popular .plan-name { color: #00d4ff; }
+
+    .plan-price-wrap { margin-bottom: 6px; }
     .plan-price {
-      font-size: 48px; font-weight: 800; color: #fff;
-      line-height: 1;
-      margin-bottom: 4px;
+      font-size: 52px; font-weight: 900; color: #fff;
+      line-height: 1; display: flex; align-items: flex-start; gap: 2px;
     }
-    .plan-price sup { font-size: 22px; vertical-align: top; margin-top: 10px; }
-    .plan-price .period { font-size: 16px; color: #64748b; font-weight: 400; }
+    .plan-price-free { font-size: 42px; }
+    .plan-price sup { font-size: 20px; margin-top: 10px; font-weight: 700; }
+    .plan-price .period { font-size: 15px; color: #64748b; font-weight: 400; align-self: flex-end; margin-bottom: 4px; }
+    .plan-price-annual-note {
+      font-size: 12px; color: #22c55e; margin-top: 4px; display: none;
+    }
+    .annual-on .plan-price-annual-note { display: block; }
+
     .plan-desc {
-      font-size: 14px; color: #64748b;
-      margin: 12px 0 28px;
-      min-height: 40px;
+      font-size: 13px; color: #64748b;
+      margin: 12px 0 22px; line-height: 1.5;
+      min-height: 36px;
     }
 
-    .plan-features {
-      list-style: none;
-      margin-bottom: 32px;
-    }
-    .plan-features li {
-      display: flex; align-items: flex-start; gap: 10px;
-      font-size: 14px; color: #94a3b8;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-    }
-    .plan-features li:last-child { border-bottom: none; }
-    .plan-features .check { color: #00d4ff; font-weight: 700; flex-shrink: 0; }
-    .plan-features .cross { color: #374151; }
-
-    .btn-plan {
+    .plan-cta {
       display: block; width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      font-size: 15px; font-weight: 700;
+      padding: 13px 0;
+      border-radius: 11px;
+      font-size: 14px; font-weight: 700;
       text-align: center; text-decoration: none;
-      transition: all 0.2s;
+      transition: all .2s;
       cursor: pointer; border: none;
+      margin-bottom: 22px;
     }
-    .btn-plan.primary { background: #00d4ff; color: #000; }
-    .btn-plan.primary:hover { background: #00b8d9; }
-    .btn-plan.secondary {
+    .plan-cta.primary {
+      background: linear-gradient(135deg, #00d4ff, #0095b3);
+      color: #000;
+      box-shadow: 0 4px 20px rgba(0,212,255,.25);
+    }
+    .plan-cta.primary:hover { opacity: .9; box-shadow: 0 4px 28px rgba(0,212,255,.4); }
+    .plan-cta.secondary {
       background: transparent;
-      border: 1px solid #1e293b; color: #94a3b8;
+      border: 1px solid #1e293b; color: #64748b;
     }
-    .btn-plan.secondary:hover { border-color: #2d4a7a; color: #e2e8f0; }
+    .plan-cta.secondary:hover { border-color: #334155; color: #94a3b8; }
+    .plan-cta.ghost {
+      background: rgba(0,212,255,.06);
+      border: 1px solid rgba(0,212,255,.2); color: #00d4ff;
+    }
+    .plan-cta.ghost:hover { background: rgba(0,212,255,.12); }
 
+    /* Features */
+    .plan-divider {
+      border: none; border-top: 1px solid rgba(255,255,255,.05);
+      margin-bottom: 18px;
+    }
+    .plan-section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: #334155;
+      margin-bottom: 10px;
+    }
+    .plan-features { list-style: none; margin-bottom: 16px; }
+    .plan-features li {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 13px; color: #94a3b8;
+      padding: 5px 0;
+    }
+    .plan-features li strong { color: #e2e8f0; }
+    .f-check { color: #00d4ff; flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+    .f-yes  { color: #22c55e; flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+    .f-no   { color: #1e293b; flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+
+    /* COMPARISON TABLE */
+    .compare-section {
+      max-width: 1100px; margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .compare-section h2 {
+      text-align: center; font-size: 26px; font-weight: 700;
+      color: #fff; margin-bottom: 40px;
+    }
+    .compare-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 13px;
+    }
+    .compare-table th, .compare-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      text-align: center;
+    }
+    .compare-table th:first-child,
+    .compare-table td:first-child { text-align: left; color: #94a3b8; width: 35%; }
+    .compare-table th {
+      font-size: 11px; font-weight: 800; letter-spacing: .06em;
+      text-transform: uppercase; color: #475569; padding-bottom: 16px;
+    }
+    .compare-table th.col-pro { color: #00d4ff; }
+    .compare-table td.col-pro { background: rgba(0,212,255,.04); }
+    .compare-table tr:hover td { background: rgba(255,255,255,.02); }
+    .compare-table tr:hover td.col-pro { background: rgba(0,212,255,.07); }
+    .cmp-yes { color: #22c55e; font-weight: 700; }
+    .cmp-no  { color: #1e293b; }
+    .cmp-val { color: #e2e8f0; font-weight: 600; }
+
+    @media (max-width: 768px) {
+      .compare-section { display: none; }
+    }
+
+    /* FAQ */
     .faq-section {
       max-width: 720px; margin: 0 auto;
       padding: 0 24px 80px;
     }
     .faq-section h2 {
-      text-align: center; font-size: 28px; font-weight: 700;
-      color: #fff; margin-bottom: 40px;
+      text-align: center; font-size: 26px; font-weight: 700;
+      color: #fff; margin-bottom: 36px;
     }
     .faq-item {
       border: 1px solid #1e293b;
       border-radius: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       overflow: hidden;
     }
     .faq-q {
-      padding: 18px 20px;
+      padding: 16px 20px;
       display: flex; justify-content: space-between; align-items: center;
-      cursor: pointer; font-size: 15px; font-weight: 600; color: #e2e8f0;
+      cursor: pointer; font-size: 14px; font-weight: 600; color: #e2e8f0;
+      transition: background .2s;
     }
-    .faq-q:hover { background: rgba(255,255,255,0.03); }
+    .faq-q:hover { background: rgba(255,255,255,.03); }
     .faq-a {
       padding: 0 20px;
       max-height: 0; overflow: hidden;
-      transition: max-height 0.3s ease, padding 0.2s;
-      font-size: 14px; color: #94a3b8; line-height: 1.7;
+      transition: max-height .35s ease, padding .2s;
+      font-size: 13px; color: #94a3b8; line-height: 1.75;
     }
-    .faq-item.open .faq-a {
-      max-height: 200px;
-      padding: 0 20px 18px;
-    }
-    .faq-arrow { transition: transform 0.3s; color: #00d4ff; }
+    .faq-item.open .faq-a { max-height: 250px; padding: 0 20px 18px; }
+    .faq-arrow { transition: transform .3s; color: #00d4ff; font-size: 18px; }
     .faq-item.open .faq-arrow { transform: rotate(90deg); }
 
+    /* CTA */
     .cta-section {
       text-align: center;
-      padding: 60px 24px 80px;
+      padding: 64px 24px 80px;
       border-top: 1px solid #1e293b;
     }
-    .cta-section h2 { font-size: 32px; font-weight: 700; color: #fff; margin-bottom: 16px; }
-    .cta-section p { color: #94a3b8; margin-bottom: 32px; font-size: 16px; }
+    .cta-section h2 { font-size: 30px; font-weight: 800; color: #fff; margin-bottom: 14px; }
+    .cta-section p { color: #64748b; margin-bottom: 32px; font-size: 15px; line-height: 1.6; }
     .btn-cta {
       display: inline-block;
       background: linear-gradient(135deg, #00d4ff, #0095b3);
-      color: #000; font-weight: 700; font-size: 16px;
-      padding: 16px 40px; border-radius: 14px;
-      text-decoration: none;
-      transition: opacity 0.2s;
+      color: #000; font-weight: 800; font-size: 16px;
+      padding: 16px 44px; border-radius: 14px;
+      text-decoration: none; transition: opacity .2s;
+      box-shadow: 0 4px 30px rgba(0,212,255,.3);
     }
-    .btn-cta:hover { opacity: 0.85; }
+    .btn-cta:hover { opacity: .88; }
+    .cta-note { margin-top: 14px; font-size: 13px; color: #334155; }
 
     @media (max-width: 640px) {
-      .nav { padding: 16px 20px; }
+      .nav { padding: 14px 18px; }
       .nav-links a:not(.btn-nav) { display: none; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .plan-card.popular { transform: none; }
+      .plan-card.popular:hover { transform: translateY(-3px); }
     }
   </style>
 </head>
@@ -220,111 +320,378 @@
   <a class="nav-logo" href="/">Vindex AI</a>
   <div class="nav-links">
     <a href="/">Pocetna</a>
-    <a href="/app" class="btn-nav">Prijavi se</a>
+    <a href="/app" class="btn-nav">Otvori aplikaciju</a>
   </div>
 </nav>
 
 <section class="hero">
-  <div class="trial-badge">Besplatan trial 30 dana &mdash; bez kreditne kartice</div>
-  <h1>Jednostavne cene<br>za <span>srpske advokate</span></h1>
-  <p>Sve sto vam treba za modernu advokatsku kancelariju.<br>Pocnite besplatno, nadogradite kad budete spremni.</p>
+  <h1>Izaberite plan koji<br>odgovara <span>vašoj kancelariji</span></h1>
+  <p>Počnite besplatno. Nadogradite kada budete spremni. Otkažite u bilo kom trenutku.</p>
+
+  <!-- Annual / Monthly toggle -->
+  <div class="billing-toggle">
+    <span class="toggle-label active" id="lbl-monthly" onclick="setBilling('monthly')">Mesecno</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="billing-toggle-cb" onchange="toggleBilling(this)">
+      <div class="toggle-track"></div>
+      <div class="toggle-thumb"></div>
+    </label>
+    <span class="toggle-label" id="lbl-annual" onclick="setBilling('annual')">Godisnje</span>
+    <span class="annual-badge">-20%</span>
+  </div>
 </section>
 
-<div class="pricing-grid">
+<!-- PRICING GRID -->
+<div class="pricing-grid" id="pricing-grid">
 
-  <div class="plan-card">
-    <div class="plan-name">Starter</div>
-    <div class="plan-price">
-      <sup>&euro;</sup>0<span class="period">/mes</span>
+  <!-- BESPLATNO -->
+  <div class="plan-card" id="card-free">
+    <div class="free-badge">BESPLATNO ZAUVEK</div>
+    <div class="plan-name">Besplatno</div>
+    <div class="plan-price-wrap">
+      <div class="plan-price plan-price-free">
+        <sup>&euro;</sup>0<span class="period">/mes</span>
+      </div>
     </div>
-    <div class="plan-desc">Za probu. Sve funkcije, 30 dana.</div>
+    <div class="plan-desc">Da probate kako platforma funkcionise. Stroga ogranicenja.</div>
+    <a href="/app" class="plan-cta secondary">Pocni besplatno</a>
+    <hr class="plan-divider">
+    <div class="plan-section-label">Ukljuceno</div>
     <ul class="plan-features">
-      <li><span class="check">&#10003;</span> AI pravni savetnik</li>
-      <li><span class="check">&#10003;</span> 5 predmeta</li>
-      <li><span class="check">&#10003;</span> 100 AI kredita</li>
-      <li><span class="check">&#10003;</span> Sudska praksa (87k odluka)</li>
-      <li><span class="cross">&#10007;</span> Fakturisanje</li>
-      <li><span class="cross">&#10007;</span> CSV import</li>
-      <li><span class="cross">&#10007;</span> API pristup</li>
+      <li><span class="f-check">✓</span> <span><strong>5</strong> AI pitanja/mesec</span></li>
+      <li><span class="f-check">✓</span> <span><strong>1</strong> analiza dokumenta</span></li>
+      <li><span class="f-check">✓</span> <span>Maks. <strong>3</strong> predmeta</span></li>
+      <li><span class="f-check">✓</span> <span>Kalkulator rokova</span></li>
+      <li><span class="f-check">✓</span> <span>Pretraga zakona</span></li>
+      <li><span class="f-no">✗</span> <span style="color:#374151">Jutarnji brifing</span></li>
+      <li><span class="f-no">✗</span> <span style="color:#374151">Nacrte podnesaka</span></li>
+      <li><span class="f-no">✗</span> <span style="color:#374151">Court Predictor</span></li>
+      <li><span class="f-no">✗</span> <span style="color:#374151">Fakturisanje</span></li>
     </ul>
-    <a href="/app" class="btn-plan secondary">Pocni besplatno</a>
   </div>
 
-  <div class="plan-card popular">
+  <!-- STARTER -->
+  <div class="plan-card" id="card-starter">
+    <div class="plan-name">Starter</div>
+    <div class="plan-price-wrap">
+      <div class="plan-price">
+        <sup>&euro;</sup><span id="price-starter">29</span><span class="period">/mes</span>
+      </div>
+      <div class="plan-price-annual-note" id="note-starter">€278 godisnje &mdash; ustedite €70</div>
+    </div>
+    <div class="plan-desc">Za solo advokata koji tek pocinje sa AI-om. Sve osnove, po pristupacnoj ceni.</div>
+    <a href="/app" class="plan-cta ghost">Pocni trial 30 dana &rarr;</a>
+    <hr class="plan-divider">
+    <div class="plan-section-label">Limiti/mesec</div>
+    <ul class="plan-features">
+      <li><span class="f-check">✓</span> <span><strong>100</strong> AI pitanja</span></li>
+      <li><span class="f-check">✓</span> <span><strong>20</strong> analiza dokumenata</span></li>
+      <li><span class="f-check">✓</span> <span><strong>15</strong> nacrta podnesaka</span></li>
+      <li><span class="f-check">✓</span> <span><strong>5</strong> Court Predictor analiza</span></li>
+      <li><span class="f-check">✓</span> <span>Maks. <strong>50</strong> predmeta</span></li>
+    </ul>
+    <div class="plan-section-label">Ukljucene funkcije</div>
+    <ul class="plan-features">
+      <li><span class="f-yes">✓</span> <span>Jutarnji AI brifing (email)</span></li>
+      <li><span class="f-yes">✓</span> <span>Fakturisanje + AKS tarifa</span></li>
+      <li><span class="f-yes">✓</span> <span>Vindex Memory (100 unosa)</span></li>
+      <li><span class="f-yes">✓</span> <span>Regionalna podrska (6 zemalja)</span></li>
+      <li><span class="f-yes">✓</span> <span>Case Commander (10/mes)</span></li>
+      <li><span class="f-no">✗</span> <span style="color:#374151">WhatsApp/Viber notifikacije</span></li>
+      <li><span class="f-no">✗</span> <span style="color:#374151">Google Calendar</span></li>
+      <li><span class="f-no">✗</span> <span style="color:#374151">Tim advokata</span></li>
+    </ul>
+  </div>
+
+  <!-- PRO — TARGET -->
+  <div class="plan-card popular" id="card-pro">
     <div class="popular-badge">NAJPOPULARNIJI</div>
     <div class="plan-name">Pro</div>
-    <div class="plan-price">
-      <sup>&euro;</sup>29<span class="period">/mes</span>
+    <div class="plan-price-wrap">
+      <div class="plan-price">
+        <sup>&euro;</sup><span id="price-pro">79</span><span class="period">/mes</span>
+      </div>
+      <div class="plan-price-annual-note" id="note-pro">€758 godisnje &mdash; ustedite €190</div>
     </div>
-    <div class="plan-desc">Za individualnog advokata. Sve sto treba za svakodnevni rad.</div>
+    <div class="plan-desc">Za aktivnu kancelariju. Puna platforma, sve funkcije, dovoljno za svakodnevni rad.</div>
+    <a href="/app" class="plan-cta primary">Pocni trial 30 dana &rarr;</a>
+    <hr class="plan-divider">
+    <div class="plan-section-label">Limiti/mesec</div>
     <ul class="plan-features">
-      <li><span class="check">&#10003;</span> Neograniceni predmeti</li>
-      <li><span class="check">&#10003;</span> 1.000 AI kredita/mes</li>
-      <li><span class="check">&#10003;</span> Fakturisanje + SEF integracija</li>
-      <li><span class="check">&#10003;</span> DOCX export nacrta</li>
-      <li><span class="check">&#10003;</span> CSV import klijenata</li>
-      <li><span class="check">&#10003;</span> Procesni rokovi kalkulator</li>
-      <li><span class="check">&#10003;</span> AI Court Predictor</li>
+      <li><span class="f-check">✓</span> <span><strong>500</strong> AI pitanja</span></li>
+      <li><span class="f-check">✓</span> <span><strong>75</strong> analiza dokumenata</span></li>
+      <li><span class="f-check">✓</span> <span><strong>60</strong> nacrta podnesaka</span></li>
+      <li><span class="f-check">✓</span> <span><strong>20</strong> Court Predictor analiza</span></li>
+      <li><span class="f-check">✓</span> <span><strong>8</strong> Battle Reportova</span></li>
+      <li><span class="f-check">✓</span> <span>Neogr. predmeta i klijenata</span></li>
     </ul>
-    <a href="/app" class="btn-plan primary">Pocni trial &rarr;</a>
+    <div class="plan-section-label">Sve iz Starter +</div>
+    <ul class="plan-features">
+      <li><span class="f-yes">✓</span> <span><strong>Neogranicen</strong> Case Commander</span></li>
+      <li><span class="f-yes">✓</span> <span><strong>Neogranicen</strong> Strategy Simulator</span></li>
+      <li><span class="f-yes">✓</span> <span><strong>Neogranicen</strong> Hearing Prep</span></li>
+      <li><span class="f-yes">✓</span> <span>Vindex Memory (1.000 unosa)</span></li>
+      <li><span class="f-yes">✓</span> <span>WhatsApp/Viber notifikacije</span></li>
+      <li><span class="f-yes">✓</span> <span>Google Calendar sinhronizacija</span></li>
+      <li><span class="f-yes">✓</span> <span>Klijentski portal</span></li>
+      <li><span class="f-yes">✓</span> <span>1 dodatni korisnik (asistent)</span></li>
+      <li><span class="f-no">✗</span> <span style="color:#374151">Tim vise advokata</span></li>
+      <li><span class="f-no">✗</span> <span style="color:#374151">Webhook integracije</span></li>
+    </ul>
   </div>
 
-  <div class="plan-card">
+  <!-- ENTERPRISE -->
+  <div class="plan-card" id="card-enterprise">
     <div class="plan-name">Enterprise</div>
-    <div class="plan-price">
-      <sup>&euro;</sup>99<span class="period">/mes</span>
+    <div class="plan-price-wrap">
+      <div class="plan-price">
+        <sup>&euro;</sup><span id="price-enterprise">130</span><span class="period">/mes</span>
+      </div>
+      <div class="plan-price-annual-note" id="note-enterprise">€1.248 godisnje &mdash; ustedite €312</div>
     </div>
-    <div class="plan-desc">Za advokatske kancelarije. Tim, audit log, delegiranje predmeta.</div>
+    <div class="plan-desc">Za kancelarije sa timom. Sve neograniceno. Do 5 advokata, firmina inteligencija.</div>
+    <a href="/app" class="plan-cta ghost">Pocni trial 30 dana &rarr;</a>
+    <hr class="plan-divider">
+    <div class="plan-section-label">Neograniceno</div>
     <ul class="plan-features">
-      <li><span class="check">&#10003;</span> Do 20 advokata</li>
-      <li><span class="check">&#10003;</span> 10.000 AI kredita/mes</li>
-      <li><span class="check">&#10003;</span> Team management + uloge</li>
-      <li><span class="check">&#10003;</span> Audit log i saradnja</li>
-      <li><span class="check">&#10003;</span> Webhook integracije</li>
-      <li><span class="check">&#10003;</span> Google Calendar sync</li>
-      <li><span class="check">&#10003;</span> Prioritetna podrska</li>
+      <li><span class="f-yes">✓</span> <span><strong>Sve bez limita</strong> — AI pitanja, analize, nacrte</span></li>
+      <li><span class="f-yes">✓</span> <span>Do <strong>5 advokata</strong> u timu</span></li>
+      <li><span class="f-yes">✓</span> <span>Firmina Vindex Memory (deljena)</span></li>
     </ul>
-    <a href="mailto:kontakt@vindex.rs" class="btn-plan secondary">Kontaktirajte nas</a>
+    <div class="plan-section-label">Sve iz Pro +</div>
+    <ul class="plan-features">
+      <li><span class="f-yes">✓</span> <span>Enterprise tim upravljanje</span></li>
+      <li><span class="f-yes">✓</span> <span>Delegiranje predmeta</span></li>
+      <li><span class="f-yes">✓</span> <span>Firma-nivo dashboard i analitika</span></li>
+      <li><span class="f-yes">✓</span> <span>Webhook integracije</span></li>
+      <li><span class="f-yes">✓</span> <span>Audit log svih akcija</span></li>
+      <li><span class="f-yes">✓</span> <span>Prioritetna podrska</span></li>
+      <li><span class="f-yes">✓</span> <span>Onboarding sesija (Zoom)</span></li>
+    </ul>
   </div>
 
 </div>
 
+<!-- COMPARISON TABLE -->
+<section class="compare-section">
+  <h2>Uporedna tabela planova</h2>
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Besplatno</th>
+        <th>Starter<br><small style="color:#64748b">€29/mes</small></th>
+        <th class="col-pro">Pro<br><small style="color:#00d4ff">€79/mes</small></th>
+        <th>Enterprise<br><small style="color:#64748b">€130/mes</small></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="5" style="padding:8px 16px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#334155">Kolicinska ogranicenja</td></tr>
+      <tr>
+        <td>AI pitanja / mesec</td>
+        <td class="cmp-val">5</td>
+        <td class="cmp-val">100</td>
+        <td class="cmp-val col-pro">500</td>
+        <td class="cmp-val">Neogr.</td>
+      </tr>
+      <tr>
+        <td>Analiza dokumenata / mes</td>
+        <td class="cmp-val">1</td>
+        <td class="cmp-val">20</td>
+        <td class="cmp-val col-pro">75</td>
+        <td class="cmp-val">Neogr.</td>
+      </tr>
+      <tr>
+        <td>Nacrte podnesaka / mes</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-val">15</td>
+        <td class="cmp-val col-pro">60</td>
+        <td class="cmp-val">Neogr.</td>
+      </tr>
+      <tr>
+        <td>Court Predictor / mes</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-val">5</td>
+        <td class="cmp-val col-pro">20</td>
+        <td class="cmp-val">Neogr.</td>
+      </tr>
+      <tr>
+        <td>Battle Report / mes</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-val">2</td>
+        <td class="cmp-val col-pro">8</td>
+        <td class="cmp-val">Neogr.</td>
+      </tr>
+      <tr>
+        <td>Maksimalan broj predmeta</td>
+        <td class="cmp-val">3</td>
+        <td class="cmp-val">50</td>
+        <td class="cmp-val col-pro">Neogr.</td>
+        <td class="cmp-val">Neogr.</td>
+      </tr>
+
+      <tr><td colspan="5" style="padding:8px 16px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#334155">Neogranicene funkcije</td></tr>
+      <tr>
+        <td>Case Commander</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-val">10/mes</td>
+        <td class="cmp-yes col-pro">Neogr. ✓</td>
+        <td class="cmp-yes">Neogr. ✓</td>
+      </tr>
+      <tr>
+        <td>Hearing Prep Auto-Brief</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-val">5/mes</td>
+        <td class="cmp-yes col-pro">Neogr. ✓</td>
+        <td class="cmp-yes">Neogr. ✓</td>
+      </tr>
+      <tr>
+        <td>Strategy Simulator</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-val">3/mes</td>
+        <td class="cmp-yes col-pro">Neogr. ✓</td>
+        <td class="cmp-yes">Neogr. ✓</td>
+      </tr>
+
+      <tr><td colspan="5" style="padding:8px 16px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#334155">Kljucne funkcije</td></tr>
+      <tr>
+        <td>Jutarnji AI brifing (email)</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-yes">✓</td>
+        <td class="cmp-yes col-pro">✓</td>
+        <td class="cmp-yes">✓</td>
+      </tr>
+      <tr>
+        <td>Fakturisanje + AKS tarifa</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-yes">✓</td>
+        <td class="cmp-yes col-pro">✓</td>
+        <td class="cmp-yes">✓</td>
+      </tr>
+      <tr>
+        <td>Vindex Memory</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-val">100 unosa</td>
+        <td class="cmp-val col-pro">1.000 unosa</td>
+        <td class="cmp-yes">Neogr. ✓</td>
+      </tr>
+      <tr>
+        <td>WhatsApp/Viber notif.</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-yes col-pro">✓</td>
+        <td class="cmp-yes">✓</td>
+      </tr>
+      <tr>
+        <td>Google Calendar</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-yes col-pro">✓</td>
+        <td class="cmp-yes">✓</td>
+      </tr>
+      <tr>
+        <td>Regionalna podrska (6 zemalja)</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-yes">✓</td>
+        <td class="cmp-yes col-pro">✓</td>
+        <td class="cmp-yes">✓</td>
+      </tr>
+
+      <tr><td colspan="5" style="padding:8px 16px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#334155">Timski rad (Enterprise)</td></tr>
+      <tr>
+        <td>Broj korisnika</td>
+        <td class="cmp-val">1</td>
+        <td class="cmp-val">1</td>
+        <td class="cmp-val col-pro">2</td>
+        <td class="cmp-val">Do 5</td>
+      </tr>
+      <tr>
+        <td>Webhook integracije</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-yes">✓</td>
+      </tr>
+      <tr>
+        <td>Firmina Vindex Memory</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-yes">✓</td>
+      </tr>
+      <tr>
+        <td>Firma analitika</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-yes">✓</td>
+      </tr>
+      <tr>
+        <td>Prioritetna podrska</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-no">—</td>
+        <td class="cmp-yes">✓</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- FAQ -->
 <section class="faq-section">
   <h2>Cesta pitanja</h2>
 
   <div class="faq-item">
     <div class="faq-q" onclick="faqToggle(this)">
-      Da li je trial zaista besplatan? <span class="faq-arrow">&#8250;</span>
+      Sta se desava posle 30-dnevnog triala? <span class="faq-arrow">&#8250;</span>
     </div>
     <div class="faq-a">
-      Da, 30 dana potpuno besplatno bez kreditne kartice. Dobijate pristup svim Pro funkcijama i 100 AI kredita za probu.
+      Posle triala automatski prelazite na besplatni plan. Nema automatskog naplacivanja bez vase saglasnosti. Ako zelite da nastavite sa Pro ili Enterprise funkcijama, sami birate plan i unosite podatke za placanje.
     </div>
   </div>
 
   <div class="faq-item">
     <div class="faq-q" onclick="faqToggle(this)">
-      Sta su AI krediti? <span class="faq-arrow">&#8250;</span>
+      Koliki je popust na godisnju pretplatu? <span class="faq-arrow">&#8250;</span>
     </div>
     <div class="faq-a">
-      Svaki AI upit (analiza predmeta, generisanje nacrta, pretraga sudske prakse) trosi odredjen broj kredita. Jednostavna pitanja trose 1 kredit, slozene analize 2-5 kredita. Pro plan ukljucuje 1.000 kredita mesecno.
+      Tacno 20% na sve placene planove. Starter: €29 → €23.20/mes (€278/god). Pro: €79 → €63.20/mes (€758/god). Enterprise: €130 → €104/mes (€1.248/god). Godisnja pretplata se naplacuje jednom unapred.
     </div>
   </div>
 
   <div class="faq-item">
     <div class="faq-q" onclick="faqToggle(this)">
-      Mogu li da otkazem u bilo kom trenutku? <span class="faq-arrow">&#8250;</span>
+      Sta se desava kada dostignem mesecni limit? <span class="faq-arrow">&#8250;</span>
     </div>
     <div class="faq-a">
-      Da, bez otkaznog roka. Vasi podaci ostaju dostupni 30 dana posle otkazivanja, a mozete ih exportovati.
+      Videcete obavestenje sa predlogom za nadogradnju. Mozete: (1) sacekati sledeci mesec kada se limiti resetuju, (2) nadograditi plan odmah, ili (3) platiti po upotrebi za svaki prekoraceni upit (cene u podescavanjima). Vasi podaci i predmeti ostaju uvek sacuvani.
     </div>
   </div>
 
   <div class="faq-item">
     <div class="faq-q" onclick="faqToggle(this)">
-      Da li su podaci bezbedni? <span class="faq-arrow">&#8250;</span>
+      Mogu li da promenim plan ili okazem u bilo kom trenutku? <span class="faq-arrow">&#8250;</span>
     </div>
     <div class="faq-a">
-      Svi podaci su enkriptovani AES-256-GCM i cuvaju se na serverima u EU. Vindex AI ne koristi vase podatke za treniranje AI modela.
+      Da, bez naknade za otkazivanje. Nadogradnja je trenutna. Downgrade stupa na snagu na kraju tekuceg naplatnog perioda. Vasi podaci su uvek vasi — mozete ih eksportovati.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="faqToggle(this)">
+      Da li je Pro plan zaista dovoljan za normalnu kancelariju? <span class="faq-arrow">&#8250;</span>
+    </div>
+    <div class="faq-a">
+      Da. 500 AI pitanja mesecno je vise od 16 pitanja dnevno — daleko vise nego sto prosecna kancelarija koristi. 75 analiza dokumenata znaci skoro 4 dokumenta svaki radni dan. 60 nacrta podnesaka mesecno pokriva 3 nacrta dnevno. Pro je dizajniran da bude dovoljno za aktivnu solo kancelariju ili manji tim.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="faqToggle(this)">
+      Da li su moji klijentski podaci bezbedni? <span class="faq-arrow">&#8250;</span>
+    </div>
+    <div class="faq-a">
+      Svi podaci su enktriptovani i cuvaju se na serverima u EU. Vindex AI NE koristi vase podatke za treniranje AI modela. Podaci su izolovani po korisniku — niko drugi nema pristup vasim predmetima. Autentifikacija je zastitena industrijskim standardima (JWT).
     </div>
   </div>
 
@@ -333,25 +700,77 @@
       Podrzavate li fakturisanje prema SEF-u? <span class="faq-arrow">&#8250;</span>
     </div>
     <div class="faq-a">
-      Da. Pro i Enterprise planovi ukljucuju punu integraciju sa Sistemom e-faktura (SEF) Ministarstva finansija RS, ukljucujuci UBL 2.1 XML format.
+      Da, na Starter, Pro i Enterprise planovima. Fakture se generisu sa automatskim serijskim brojem (GGGG/NNNN) i salju klijentu emailom. SEF (Sistem e-faktura) integracija je dostupna svim placenim korisnicima.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="faqToggle(this)">
+      Ima li vise od 5 advokata u kancelariji — sta radimo? <span class="faq-arrow">&#8250;</span>
+    </div>
+    <div class="faq-a">
+      Kontaktirajte nas na kontakt@vindex.rs. Za kancelarije sa vise od 5 advokata nudimo prilagodjene cene per-seat. Enterprise plan se skalira prema vasim potrebama.
     </div>
   </div>
 </section>
 
+<!-- CTA -->
 <section class="cta-section">
-  <h2>Spremni za modernu kancelariju?</h2>
-  <p>Pridruzite se advokatima koji vec koriste Vindex AI.<br>Pocnite za manje od 2 minuta.</p>
-  <a href="/app" class="btn-cta">Besplatno 30 dana &rarr;</a>
+  <h2>Pocnite danas — besplatno</h2>
+  <p>30 dana Pro plana bez kreditne kartice.<br>Vidite zasto sve vise srpskih advokata bira Vindex AI.</p>
+  <a href="/app" class="btn-cta">Otvoriti nalog &rarr;</a>
+  <div class="cta-note">Bez kreditne kartice. Bez automatskog naplacivanja.</div>
 </section>
 
 <script>
+// Annual / Monthly toggle
+var isAnnual = false;
+
+var prices = {
+  starter:    { monthly: 29,  annual: 23 },
+  pro:        { monthly: 79,  annual: 63 },
+  enterprise: { monthly: 130, annual: 104 },
+};
+
+var notes = {
+  starter:    { annual: '€278 godisnje — ustedite €70' },
+  pro:        { annual: '€758 godisnje — ustedite €190' },
+  enterprise: { annual: '€1.248 godisnje — ustedite €312' },
+};
+
+function toggleBilling(cb) {
+  isAnnual = cb.checked;
+  updatePrices();
+  document.getElementById('lbl-monthly').classList.toggle('active', !isAnnual);
+  document.getElementById('lbl-annual').classList.toggle('active', isAnnual);
+  document.getElementById('pricing-grid').classList.toggle('annual-on', isAnnual);
+}
+
+function setBilling(mode) {
+  isAnnual = (mode === 'annual');
+  document.getElementById('billing-toggle-cb').checked = isAnnual;
+  updatePrices();
+  document.getElementById('lbl-monthly').classList.toggle('active', !isAnnual);
+  document.getElementById('lbl-annual').classList.toggle('active', isAnnual);
+  document.getElementById('pricing-grid').classList.toggle('annual-on', isAnnual);
+}
+
+function updatePrices() {
+  ['starter','pro','enterprise'].forEach(function(plan) {
+    var p = prices[plan];
+    document.getElementById('price-' + plan).textContent = isAnnual ? p.annual : p.monthly;
+    var noteEl = document.getElementById('note-' + plan);
+    if (noteEl) noteEl.textContent = isAnnual ? notes[plan].annual : '';
+  });
+}
+
+// FAQ accordion
 function faqToggle(el) {
-  const item = el.closest(".faq-item");
-  const isOpen = item.classList.contains("open");
-  document.querySelectorAll(".faq-item.open").forEach(i => i.classList.remove("open"));
-  if (!isOpen) item.classList.add("open");
+  var item = el.closest('.faq-item');
+  var isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(function(i) { i.classList.remove('open'); });
+  if (!isOpen) item.classList.add('open');
 }
 </script>
-
 </body>
 </html>
