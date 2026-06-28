@@ -938,6 +938,7 @@ async function dash_load(){
     kcConstellationInit();
     _kcStartClock();
     notif_load();
+    loadBriefing(false);
   }catch(e){
     body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
@@ -987,6 +988,19 @@ function _dashRender(d,bd,inboxData){
   html+='<div class="kc-kpi'+(rocistaCount>0?' warn':'')+'"><div class="kc-kpi-n'+(rocistaCount>0?' warn':'')+'">'+rocistaCount+'</div><div class="kc-kpi-l">Ročišta<br>danas</div></div>';
   html+='<div class="kc-kpi"><div class="kc-kpi-n">'+neobracunato+'</div><div class="kc-kpi-l">Nenaplaćeno<br>RSD</div></div>';
   html+='</div>';
+
+  // ── JUTARNJI BRIFING ──────────────────────────────────────────
+  html+='<div id="briefing-card" class="kc-briefing-card">';
+  html+='<div class="kc-briefing-header">';
+  html+='<div class="kc-briefing-title"><span class="kc-briefing-sun">☀</span> Jutarnji brifing</div>';
+  html+='<div class="kc-briefing-actions">';
+  html+='<button onclick="posaljiBriefingEmail()" class="kc-briefing-btn-email" title="Pošalji brifing na email">✉ Email</button>';
+  html+='<button onclick="loadBriefing(true)" class="kc-briefing-btn-refresh" title="Osveži brifing">↻</button>';
+  html+='<button onclick="toggleBriefing()" class="kc-briefing-toggle" id="briefing-toggle-btn">▲</button>';
+  html+='</div></div>';
+  html+='<div id="briefing-content">';
+  html+='<div class="kc-briefing-skeleton"><div class="kc-sk-line"></div><div class="kc-sk-line short"></div><div class="kc-sk-line"></div></div>';
+  html+='</div></div>';
 
   // ── AI PREPORUKE / SUMMARY ─────────────────────────────────────
   var preporuke=d.ai_preporuke||[];
@@ -1119,6 +1133,72 @@ function _dashRender(d,bd,inboxData){
   html+='</div></div>';
 
   return html;
+}
+
+/* ── Morning Briefing ───────────────────────────────────────────── */
+var _briefingKolaps = false;
+
+async function loadBriefing(forceRefresh) {
+  if (!currentSession) return;
+  var card = document.getElementById('briefing-card');
+  var content = document.getElementById('briefing-content');
+  if (!card || !content) return;
+  content.innerHTML = '<div class="kc-briefing-skeleton"><div class="kc-sk-line"></div><div class="kc-sk-line short"></div><div class="kc-sk-line"></div></div>';
+  try {
+    var url = BASE_URL + '/api/briefing/daily' + (forceRefresh ? '?force=true' : '');
+    var r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var d = await r.json();
+    _renderBriefing(d, content);
+  } catch (e) {
+    content.innerHTML = '<div class="kc-briefing-err">Brifing nije dostupan. <span onclick="loadBriefing(true)" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
+  }
+}
+
+function _renderBriefing(d, content) {
+  var stat = d.statistike || {};
+  var html = '<div class="kc-briefing-stats">';
+  var hitniN = stat.rokovi_hitni || 0;
+  html += '<div class="kc-brf-stat'+(hitniN>0?' warn':'')+'"><div class="kc-brf-stat-n">'+hitniN+'</div><div class="kc-brf-stat-l">Hitnih rokova</div></div>';
+  html += '<div class="kc-brf-stat"><div class="kc-brf-stat-n">'+(stat.rocista_danas||0)+'</div><div class="kc-brf-stat-l">Ročišta danas</div></div>';
+  html += '<div class="kc-brf-stat"><div class="kc-brf-stat-n">'+(stat.aktivni_predmeti||0)+'</div><div class="kc-brf-stat-l">Aktivnih predmeta</div></div>';
+  html += '<div class="kc-brf-stat"><div class="kc-brf-stat-n">'+(stat.rokovi_uskoro||0)+'</div><div class="kc-brf-stat-l">Rokova (7 dana)</div></div>';
+  html += '</div>';
+  var hitni = d.hitni_rokovi || [];
+  if (hitni.length) {
+    html += '<div class="kc-briefing-hitni">';
+    hitni.slice(0, 3).forEach(function(r) {
+      html += '<div class="kc-briefing-hitni-item"><span class="kc-brf-hitni-ico">⚠</span>';
+      html += '<span class="kc-brf-hitni-text"><strong>'+escHtml(r.dogadjaj||r.naziv||'Rok')+'</strong>';
+      if (r.predmet_naziv) html += ' · '+escHtml(r.predmet_naziv);
+      html += '</span><span class="kc-brf-hitni-datum">'+escHtml(r.datum||'')+'</span></div>';
+    });
+    html += '</div>';
+  }
+  if (d.ai_briefing) {
+    html += '<div class="kc-briefing-ai-text">'+escHtml(d.ai_briefing).replace(/\n/g,'<br>')+'</div>';
+  }
+  content.innerHTML = html;
+}
+
+function toggleBriefing() {
+  _briefingKolaps = !_briefingKolaps;
+  var content = document.getElementById('briefing-content');
+  var btn = document.getElementById('briefing-toggle-btn');
+  if (content) content.style.display = _briefingKolaps ? 'none' : '';
+  if (btn) btn.textContent = _briefingKolaps ? '▼' : '▲';
+}
+
+async function posaljiBriefingEmail() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/briefing/send-email', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token, 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    showToast(r.ok ? 'Brifing poslat na email!' : 'Greška pri slanju.', r.ok ? 'ok' : 'err');
+  } catch (e) { showToast('Greška pri slanju.', 'err'); }
 }
 
 /* ── FAZA 1 — Komandni centar panel components ─────────────────── */
