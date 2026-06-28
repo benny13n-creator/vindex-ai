@@ -2,21 +2,28 @@
 """
 Vindex AI — routers/digital_twin.py
 
-Digital Twin predmeta — AI reprezentacija svakog predmeta koja evoluira.
+Digital Twin predmeta — AI simulira 3 scenarija razvoja predmeta,
+predvida ishode sa procentima, identifikuje kljucne tacke odlucivanja
+i analizira "sta ako" hipoteze.
 
-Koncept: svakom predmetu je pridružen AI "digitalni blizanac" koji:
-  1. Rekonstruiše kompletan narativ predmeta iz svih dostupnih podataka
-  2. Mapira aktere, dokaze, rokove, prethodne odluke
-  3. Simulira scenarije i strategije (What-If analiza)
-  4. Predviđa vjerovatne ishode na osnovu sudske prakse
+Endpoints:
+  POST /api/twin/simulacija    — kreira Digital Twin simulaciju (3 scenarija, 3 kredita)
+  POST /api/twin/sta-ako       — "Sta ako" hipoteza analiza (1 kredit)
+  GET  /api/twin/{predmet_id}  — dohvata poslednju simulaciju
 
-Endpointi:
-  POST /api/twin/generisi/{predmet_id}     — kreira/osvežava digital twin
-  GET  /api/twin/{predmet_id}              — vraća poslednji twin
-  POST /api/twin/simulacija/{predmet_id}   — What-If simulacija strategije
-  POST /api/twin/scenario/{predmet_id}     — detaljni scenario analiza
-
-Kreditni sistem: generisi=3 kredita, simulacija=2 kredita, scenario=2 kredita
+SQL migracija (primeni rucno u Supabase Dashboard):
+  CREATE TABLE IF NOT EXISTS twin_simulacije (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    predmet_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    scenariji JSONB DEFAULT '[]',
+    kljucne_tacke JSONB DEFAULT '[]',
+    optimalna_strategija TEXT,
+    hipoteza TEXT,
+    tip TEXT DEFAULT 'simulacija',
+    created_at TIMESTAMPTZ DEFAULT now()
+  );
+  CREATE INDEX idx_twin_predmet ON twin_simulacije(predmet_id, created_at DESC);
 """
 from __future__ import annotations
 
@@ -24,344 +31,372 @@ import asyncio
 import json
 import logging
 import os
-from datetime import date
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from openai import AsyncOpenAI
 from pydantic import BaseModel
 
-from shared.deps import _get_supa, get_current_user
+from shared.deps import (
+    _deduct_credit,
+    _deduct_n_credits,
+    _get_credits,
+    _get_supa,
+    _is_founder,
+    get_current_user,
+)
 from shared.rate import limiter
 
-logger = logging.getLogger("vindex.twin")
-router = APIRouter(tags=["digital_twin"])
-
-_oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+logger = logging.getLogger("vindex.digital_twin")
+router = APIRouter(prefix="/api/twin", tags=["digital_twin"])
 
 
-# ─── Modeli ───────────────────────────────────────────────────────────────────
+# ── GPT-4o sistem prompt za simulaciju ───────────────────────────────────────
 
-class SimulacijaReq(BaseModel):
-    strategija: str
-    opis_strategije: str = ""
+_TWIN_SYSTEM = """Ti si pravni strateg koji simulira razvoj sudskog predmeta.
+Na osnovu dostavljenih informacija, kreiraj 3 detaljne simulacije razvoja.
 
-class ScenarioReq(BaseModel):
-    scenario: str  # npr. "optimistican", "pesimistican", "realistican"
+Odgovori SAMO validnim JSON-om u sledecem formatu:
+{
+  "scenariji": [
+    {
+      "naziv": "Optimisticki",
+      "verovatnoca": 30,
+      "opis": "...",
+      "kljucni_rizici": ["..."],
+      "preporucene_akcije": ["..."],
+      "procenjeno_trajanje_meseci": 6
+    },
+    {
+      "naziv": "Realni",
+      "verovatnoca": 50,
+      "opis": "...",
+      "kljucni_rizici": ["..."],
+      "preporucene_akcije": ["..."],
+      "procenjeno_trajanje_meseci": 12
+    },
+    {
+      "naziv": "Pesimisticki",
+      "verovatnoca": 20,
+      "opis": "...",
+      "kljucni_rizici": ["..."],
+      "preporucene_akcije": ["..."],
+      "procenjeno_trajanje_meseci": 24
+    }
+  ],
+  "kljucne_tacke": ["Rok za odgovor na tuzbu je kritican..."],
+  "optimalna_strategija": "..."
+}
+
+Ekavica. Budi konkretan i direktan."""
+
+# ── GPT-4o sistem prompt za sta-ako analizu ──────────────────────────────────
+
+_STA_AKO_SYSTEM = """Ti si pravni strateg koji analizira uticaj hipoteze na sudski predmet.
+Na osnovu dostavljenih informacija, analiziraj sta bi se desilo u datom scenariju.
+
+Odgovori SAMO validnim JSON-om u sledecem formatu:
+{
+  "uticaj": "Detaljan opis kako hipoteza menja tok predmeta...",
+  "nova_verovatnoca_uspeha": 65,
+  "preporucene_akcije": ["Prva konkretna akcija", "Druga konkretna akcija"]
+}
+
+Ekavica. Budi konkretan i direktan."""
 
 
-# ─── Interni: prikupljanje podataka o predmetu ───────────────────────────────
+# ── Pydantic modeli ───────────────────────────────────────────────────────────
 
-async def _prikupi_podatke_predmeta(predmet_id: str, uid: str, supa) -> dict:
-    """Paralelno prikuplja sve dostupne podatke o predmetu."""
-    pred_r, hron_r, dok_r, rock_r, kom_r = await asyncio.gather(
-        asyncio.to_thread(lambda: supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("*").eq("predmet_id", predmet_id).order("datum_iso").limit(50).execute()),
-        asyncio.to_thread(lambda: supa.table("dokumenti").select("naziv,vrsta,created_at").eq("predmet_id", predmet_id).limit(20).execute()),
-        asyncio.to_thread(lambda: supa.table("rocista").select("naziv,datum,napomena").eq("predmet_id", predmet_id).order("datum").limit(20).execute()),
-        asyncio.to_thread(lambda: supa.table("komentari").select("tekst,created_at").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(10).execute()),
+class SimulacijaRequest(BaseModel):
+    predmet_id: str
+    strategija_promena: Optional[str] = None
+
+
+class StaAkoRequest(BaseModel):
+    predmet_id: str
+    hipoteza: str
+
+
+# ── Interni helperi ───────────────────────────────────────────────────────────
+
+async def _dohvati_kontekst_predmeta(supa, predmet_id: str, uid: str) -> dict:
+    """
+    Paralelno dohvata predmet + rokove + dokumente + komentare iz Supabase.
+    Baca 404 ako predmet ne postoji ili ne pripada korisniku.
+    """
+    predmet_r, rokovi_r, dokumenti_r, komentari_r = await asyncio.gather(
+        asyncio.to_thread(
+            lambda: supa.table("predmeti").select(
+                "id,naziv,tip,status,rizik,opis,created_at"
+            ).eq("id", predmet_id).eq("user_id", uid).execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_rokovi").select(
+                "naziv,datum_isteka,status"
+            ).eq("predmet_id", predmet_id).order("datum_isteka").execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").select(
+                "naziv,tip_dokaza,created_at"
+            ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_komentari").select(
+                "tekst,created_at"
+            ).eq("predmet_id", predmet_id).order("created_at", desc=True).limit(10).execute()
+        ),
+        return_exceptions=True,
     )
 
+    predmet_data = (predmet_r.data if not isinstance(predmet_r, Exception) else []) or []
+    if not predmet_data:
+        raise HTTPException(
+            status_code=404,
+            detail="Predmet nije pronadjen ili nije u vasem vlasnistvu.",
+        )
+
     return {
-        "predmet":    pred_r.data or {},
-        "hronologija": hron_r.data or [],
-        "dokumenti":  dok_r.data or [],
-        "rocista":    rock_r.data or [],
-        "komentari":  kom_r.data or [],
+        "predmet":    predmet_data[0],
+        "rokovi":     (rokovi_r.data    if not isinstance(rokovi_r,    Exception) else []) or [],
+        "dokumenti":  (dokumenti_r.data if not isinstance(dokumenti_r, Exception) else []) or [],
+        "komentari":  (komentari_r.data if not isinstance(komentari_r, Exception) else []) or [],
     }
 
 
-def _formatiraj_kontekst_za_twin(podaci: dict) -> str:
-    """Formatira podatke predmeta u kontekst za LLM."""
-    pred = podaci.get("predmet") or {}
-    linije = [
-        f"PREDMET: {pred.get('naziv', 'Nepoznato')}",
-        f"Tip: {pred.get('tip_postupka', '—')} | Status: {pred.get('status', '—')}",
-        f"Opis: {pred.get('opis', '—')[:500]}",
-        f"Datum otvaranja: {pred.get('created_at', '—')[:10]}",
-        "",
-    ]
+def _build_kontekst_tekst(ctx: dict, strategija_promena: Optional[str] = None) -> str:
+    """Formatira kontekst predmeta u tekst za GPT."""
+    predmet   = ctx["predmet"]
+    rokovi    = ctx["rokovi"]
+    dokumenti = ctx["dokumenti"]
+    komentari = ctx["komentari"]
 
-    hron = podaci.get("hronologija", [])
-    if hron:
-        linije.append(f"HRONOLOGIJA ({len(hron)} dogadjaja):")
-        for h in hron[:15]:
-            linije.append(f"  {h.get('datum_iso', '—')[:10]} | {h.get('dogadjaj', '—')} [{h.get('vaznost', '—')}]")
-        linije.append("")
+    tekst = (
+        f"PREDMET: {predmet.get('naziv', 'Nepoznato')}\n"
+        f"Tip: {predmet.get('tip', 'ostalo')}\n"
+        f"Status: {predmet.get('status', 'aktivan')}\n"
+        f"Rizik: {predmet.get('rizik', 'srednji')}\n"
+        f"Opis: {(predmet.get('opis') or 'Nije unet opis.')[:1000]}\n"
+    )
 
-    doks = podaci.get("dokumenti", [])
-    if doks:
-        linije.append(f"DOKUMENTI ({len(doks)}):")
-        for d in doks[:10]:
-            linije.append(f"  • {d.get('naziv', '—')} [{d.get('vrsta', '—')}]")
-        linije.append("")
+    tekst += f"\nROKOVI ({len(rokovi)}):\n"
+    for r in rokovi[:15]:
+        tekst += f"- {r.get('naziv', '?')} — {r.get('datum_isteka', '?')} [{r.get('status', '?')}]\n"
 
-    rocs = podaci.get("rocista", [])
-    if rocs:
-        linije.append(f"ROCISTA ({len(rocs)}):")
-        for r in rocs[:8]:
-            linije.append(f"  {r.get('datum', '—')} | {r.get('naziv', '—')}")
-        linije.append("")
+    tekst += f"\nDOKUMENTI ({len(dokumenti)}):\n"
+    for d in dokumenti[:15]:
+        tekst += f"- {d.get('naziv', '?')} [{d.get('tip_dokaza', '?')}]\n"
 
-    koms = podaci.get("komentari", [])
-    if koms:
-        linije.append(f"POSLEDNJE BELESKE ({len(koms)}):")
-        for k in koms[:5]:
-            linije.append(f"  • {k.get('tekst', '—')[:200]}")
+    if komentari:
+        tekst += f"\nPOSLEDNJE BELESKE ({len(komentari)}):\n"
+        for k in komentari[:5]:
+            tekst += f"- {(k.get('tekst') or '')[:300]}\n"
 
-    return "\n".join(linije)
+    if strategija_promena:
+        tekst += f"\nPREDLOZENA PROMENA STRATEGIJE:\n{strategija_promena[:500]}\n"
+
+    return tekst
 
 
-# ─── Generisanje Digital Twin ─────────────────────────────────────────────────
+# ── Endpoint 1: Digital Twin simulacija ──────────────────────────────────────
 
-@router.post("/api/twin/generisi/{predmet_id}")
+@router.post("/simulacija")
 @limiter.limit("5/minute")
-async def generisi_twin(
-    predmet_id: str,
+async def kreiraj_simulaciju(
+    req: SimulacijaRequest,
     request: Request,
     user: dict = Depends(get_current_user),
 ):
     """
-    Kreira/osvežava Digital Twin predmeta. 3 kredita.
-    AI analizira SVE podatke o predmetu i generiše strukturiranu reprezentaciju.
+    Digital Twin — simulira 3 scenarija razvoja predmeta sa procentima verovatnoce,
+    kljucnim tackama odlucivanja i optimalnom strategijom. Kosta 3 kredita.
     """
-    supa = _get_supa()
-    uid  = user["user_id"]
+    uid   = user["user_id"]
+    email = user.get("email", "")
+    supa  = _get_supa()
 
-    podaci = await _prikupi_podatke_predmeta(predmet_id, uid, supa)
-    if not podaci["predmet"]:
-        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+    # Provera kredita pre GPT poziva (founder uvek prolazi)
+    if not _is_founder(email):
+        krediti = await asyncio.to_thread(_get_credits, uid)
+        if krediti < 3:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code":              "NO_CREDITS",
+                    "message":           f"Digital Twin simulacija zahteva 3 kredita. Trenutno imate {krediti}.",
+                    "credits_remaining": krediti,
+                },
+            )
 
-    kontekst = _formatiraj_kontekst_za_twin(podaci)
-    today = date.today().isoformat()
+    ctx = await _dohvati_kontekst_predmeta(supa, req.predmet_id, uid)
+    kontekst_tekst = _build_kontekst_tekst(ctx, req.strategija_promena)
 
-    system_prompt = """Ti si AI pravni analitičar koji kreira Digital Twin pravnog predmeta.
-Digital Twin je živa, strukturirana AI reprezentacija predmeta koja se ažurira sa svakim novim podatkom.
-
-Generiši kompletan JSON Digital Twin sa sledećim sekcijama:
-1. NARATIV — 3-5 rečenica: šta je suština ovog predmeta
-2. AKTERI — lista aktera (stranka, protivnik, sudija, svedoci, veštaci)
-3. SNAGE_I_SLABOSTI — SWOT analiza predmeta
-4. KLJUCNI_DOKAZI — lista ključnih dokaza i njihova težina
-5. KRITICNI_MOMENTI — najvažniji rokovi i datumi koji određuju ishod
-6. PREDVIDJENI_ISHOD — procena sa verovatnoćama (%) za 3 scenarija: pobeda/neodlučeno/poraz
-7. PREPORUCENA_STRATEGIJA — 3 konkretne akcije za sledeće 30 dana
-8. ZDRAVLJE_PREDMETA — ocena 1-10 sa obrazloženjem
-
-Vrati SAMO validan JSON. Ekavica. Bez uvoda."""
-
-    user_msg = f"Datum analize: {today}\n\n{kontekst}"
+    from openai import OpenAI
+    oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     try:
-        resp = await _oai.chat.completions.create(
-            model="gpt-4o",
-            temperature=0.2,
-            max_tokens=2000,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": user_msg},
-            ],
-            response_format={"type": "json_object"},
+        resp = await asyncio.to_thread(
+            lambda: oai.chat.completions.create(
+                model="gpt-4o",
+                temperature=0.3,
+                max_tokens=3000,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _TWIN_SYSTEM},
+                    {"role": "user",   "content": kontekst_tekst},
+                ],
+            )
         )
-        twin_json = resp.choices[0].message.content.strip()
-    except Exception as exc:
-        logger.error("[TWIN] GPT greška: %s", exc)
-        raise HTTPException(status_code=503, detail="AI servis nije dostupan.")
+        rezultat = json.loads(resp.choices[0].message.content or "{}")
+    except json.JSONDecodeError as je:
+        logger.error("[TWIN] JSON parse greska pri simulaciji: %s", je)
+        raise HTTPException(status_code=500, detail="Greska pri parsiranju AI odgovora.")
+    except Exception:
+        logger.exception("[TWIN] Greska pri kreiranju simulacije")
+        raise HTTPException(status_code=500, detail="Greska pri generisanju simulacije. Pokusajte ponovo.")
 
-    try:
-        twin_data = json.loads(twin_json)
-    except json.JSONDecodeError:
-        twin_data = {"raw": twin_json}
+    scenariji            = rezultat.get("scenariji", [])
+    kljucne_tacke        = rezultat.get("kljucne_tacke", [])
+    optimalna_strategija = rezultat.get("optimalna_strategija", "")
 
+    # Sacuvaj u twin_simulacije
     try:
         await asyncio.to_thread(
-            lambda: supa.table("digital_twins").upsert({
-                "predmet_id":  predmet_id,
-                "user_id":     uid,
-                "twin_data":   twin_data,
-                "created_at":  today,
-            }, on_conflict="predmet_id").execute()
+            lambda: supa.table("twin_simulacije").insert({
+                "predmet_id":           req.predmet_id,
+                "user_id":              uid,
+                "scenariji":            scenariji,
+                "kljucne_tacke":        kljucne_tacke,
+                "optimalna_strategija": optimalna_strategija,
+                "tip":                  "simulacija",
+            }).execute()
         )
-    except Exception as e:
-        logger.warning("[TWIN] Greška pri snimanju twin-a: %s", e)
+    except Exception:
+        logger.warning("[TWIN] Cuvanje simulacije u bazu nije uspelo — nastavlja se.")
+
+    # Oduzmi 3 kredita
+    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 3)
 
     return {
-        "predmet_id": predmet_id,
-        "twin":       twin_data,
-        "generisan":  today,
-        "krediti_potroseno": 3,
+        "scenariji":            scenariji,
+        "kljucne_tacke":        kljucne_tacke,
+        "optimalna_strategija": optimalna_strategija,
+        "credits_remaining":    max(int(preostalo), 0),
     }
 
 
-@router.get("/api/twin/{predmet_id}")
-@limiter.limit("30/minute")
-async def get_twin(
-    predmet_id: str,
+# ── Endpoint 2: Sta ako analiza ───────────────────────────────────────────────
+
+@router.post("/sta-ako")
+@limiter.limit("5/minute")
+async def sta_ako_analiza(
+    req: StaAkoRequest,
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """Vraća poslednji sačuvani Digital Twin predmeta."""
-    supa = _get_supa()
-    uid  = user["user_id"]
+    """
+    'Sta ako' analiza — GPT-4o analizira uticaj hipoteze na predmet
+    i racuna novu verovatnocu uspeha. Kosta 1 kredit.
+    """
+    uid   = user["user_id"]
+    email = user.get("email", "")
+    supa  = _get_supa()
+
+    if not req.hipoteza or len(req.hipoteza.strip()) < 5:
+        raise HTTPException(status_code=422, detail="Hipoteza mora imati najmanje 5 karaktera.")
+
+    ctx = await _dohvati_kontekst_predmeta(supa, req.predmet_id, uid)
+    kontekst_tekst = _build_kontekst_tekst(ctx)
+    user_msg = f"{kontekst_tekst}\n\nHIPOTEZA ZA ANALIZU: {req.hipoteza[:1000]}"
+
+    from openai import OpenAI
+    oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("digital_twins")
-                .select("twin_data,created_at")
-                .eq("predmet_id", predmet_id)
-                .eq("user_id", uid)
-                .maybe_single()
-                .execute()
+        resp = await asyncio.to_thread(
+            lambda: oai.chat.completions.create(
+                model="gpt-4o",
+                temperature=0.3,
+                max_tokens=1000,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _STA_AKO_SYSTEM},
+                    {"role": "user",   "content": user_msg},
+                ],
+            )
         )
-        if not r.data:
-            raise HTTPException(status_code=404, detail="Digital Twin nije generisan. Pokrenite /api/twin/generisi/{predmet_id}")
-        return r.data
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        rezultat = json.loads(resp.choices[0].message.content or "{}")
+    except json.JSONDecodeError as je:
+        logger.error("[TWIN] JSON parse greska pri sta-ako: %s", je)
+        raise HTTPException(status_code=500, detail="Greska pri parsiranju AI odgovora.")
+    except Exception:
+        logger.exception("[TWIN] Greska pri sta-ako analizi")
+        raise HTTPException(status_code=500, detail="Greska pri analizi hipoteze. Pokusajte ponovo.")
+
+    uticaj             = rezultat.get("uticaj", "")
+    nova_verovatnoca   = rezultat.get("nova_verovatnoca_uspeha", 50)
+    preporucene_akcije = rezultat.get("preporucene_akcije", [])
+
+    # Sacuvaj u twin_simulacije
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("twin_simulacije").insert({
+                "predmet_id":           req.predmet_id,
+                "user_id":              uid,
+                "scenariji":            [],
+                "kljucne_tacke":        [],
+                "optimalna_strategija": uticaj,
+                "hipoteza":             req.hipoteza,
+                "tip":                  "sta_ako",
+            }).execute()
+        )
+    except Exception:
+        logger.warning("[TWIN] Cuvanje sta-ako analize u bazu nije uspelo — nastavlja se.")
+
+    # Oduzmi 1 kredit
+    preostalo = await asyncio.to_thread(_deduct_credit, uid, email)
+
+    return {
+        "uticaj":                  uticaj,
+        "nova_verovatnoca_uspeha": nova_verovatnoca,
+        "preporucene_akcije":      preporucene_akcije,
+        "credits_remaining":       max(int(preostalo), 0),
+    }
 
 
-# ─── What-If Simulacija ───────────────────────────────────────────────────────
+# ── Endpoint 3: Dohvata poslednju simulaciju ──────────────────────────────────
 
-@router.post("/api/twin/simulacija/{predmet_id}")
-@limiter.limit("10/minute")
-async def what_if_simulacija(
+@router.get("/{predmet_id}")
+async def dohvati_simulaciju(
     predmet_id: str,
-    payload: SimulacijaReq,
-    request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """
-    What-If simulacija strategije. 2 kredita.
-    "Šta se dešava ako primenimo ovu strategiju?"
-    """
-    supa = _get_supa()
+    """Dohvata poslednju sacuvanu Digital Twin simulaciju za predmet."""
     uid  = user["user_id"]
+    supa = _get_supa()
 
-    podaci = await _prikupi_podatke_predmeta(predmet_id, uid, supa)
-    if not podaci["predmet"]:
-        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+    # Validacija vlasnistva predmeta
+    pr = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id")
+            .eq("id", predmet_id)
+            .eq("user_id", uid)
+            .execute()
+    )
+    if not pr.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronadjen.")
 
-    kontekst = _formatiraj_kontekst_za_twin(podaci)
-
-    system_prompt = """Ti si AI pravni strateg koji simulira ishode pravnih strategija.
-Dato je stanje predmeta i predložena strategija. Proceni:
-
-1. VEROVATNOST_USPEHA — broj 0-100%
-2. RIZICI — lista konkretnih rizika ove strategije
-3. PREDNOSTI — lista prednosti
-4. ALTERNATIVE — 2 alternativne strategije sa prednostima/manama
-5. VREMENSKI_OKVIR — kada bi ova strategija dala rezultate
-6. PREPORUKA — da li preporučuješ ovu strategiju? (DA/MOZDA/NE) sa obrazloženjem
-7. SLEDECI_KORAK — jedan konkretan sledeći korak ako se odlučiš za ovu strategiju
-
-Vrati SAMO validan JSON. Ekavica."""
-
-    user_msg = (
-        f"STRATEGIJA: {payload.strategija}\n"
-        f"OPIS: {payload.opis_strategije}\n\n"
-        f"STANJE PREDMETA:\n{kontekst}"
+    r = await asyncio.to_thread(
+        lambda: supa.table("twin_simulacije").select("*")
+            .eq("predmet_id", predmet_id)
+            .eq("user_id", uid)
+            .eq("tip", "simulacija")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
     )
 
-    try:
-        resp = await _oai.chat.completions.create(
-            model="gpt-4o",
-            temperature=0.3,
-            max_tokens=1500,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": user_msg},
-            ],
-            response_format={"type": "json_object"},
+    if not r.data:
+        raise HTTPException(
+            status_code=404,
+            detail="Nema sacuvane simulacije za ovaj predmet. Pokrenite POST /api/twin/simulacija.",
         )
-        sim_json = resp.choices[0].message.content.strip()
-    except Exception as exc:
-        logger.error("[TWIN-SIM] GPT greška: %s", exc)
-        raise HTTPException(status_code=503, detail="AI servis nije dostupan.")
 
-    try:
-        sim_data = json.loads(sim_json)
-    except json.JSONDecodeError:
-        sim_data = {"raw": sim_json}
-
-    return {
-        "predmet_id":        predmet_id,
-        "simulirana_strategija": payload.strategija,
-        "rezultat":          sim_data,
-        "krediti_potroseno": 2,
-    }
-
-
-# ─── Scenario Analiza ─────────────────────────────────────────────────────────
-
-@router.post("/api/twin/scenario/{predmet_id}")
-@limiter.limit("10/minute")
-async def scenario_analiza(
-    predmet_id: str,
-    payload: ScenarioReq,
-    request: Request,
-    user: dict = Depends(get_current_user),
-):
-    """
-    Detaljni scenario prikaz (optimistican/realistican/pesimistican). 2 kredita.
-    Šta bi se tačno desilo u ovom scenariju?
-    """
-    supa = _get_supa()
-    uid  = user["user_id"]
-
-    podaci = await _prikupi_podatke_predmeta(predmet_id, uid, supa)
-    if not podaci["predmet"]:
-        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
-
-    kontekst = _formatiraj_kontekst_za_twin(podaci)
-
-    scenario_opisi = {
-        "optimistican": "Sve ide u prilog naše stranke — sud prihvata sve argumente, dokazi su snažni, protivnik griješi.",
-        "pesimistican": "Najgori mogući razvoj — sud odbija argumente, dokazi su slabi, protivnik je spreman.",
-        "realistican":  "Najvjerovatniji razvoj — mešovit rezultat, postoje i prednosti i slabosti.",
-    }
-
-    opis_scenarija = scenario_opisi.get(payload.scenario.lower(), payload.scenario)
-
-    system_prompt = f"""Ti si AI pravni analitičar koji detaljno opisuje jedan scenario predmeta.
-Scenario: {payload.scenario.upper()} — {opis_scenarija}
-
-Za ovaj scenario generiši:
-1. NARATIV_SCENARIJA — detaljni opis šta se dešava u ovom scenariju (3-5 rečenica)
-2. KLJUCNI_MOMENTI — 3-5 ključnih momenata koji određuju ovaj scenario
-3. FINANSIJSKI_ISHOD — procena finansijskog ishoda (u RSD ili %)
-4. VREMENSKI_OKVIR — koliko bi trajao ovaj scenario
-5. STA_TREBA_URADITI — konkretne akcije koje povećavaju verovatnoću ovog scenarija (ili ga izbegavaju ako je pesimistican)
-6. VEROVATNOCA — procena verovatnoće ovog scenarija (0-100%)
-
-Vrati SAMO validan JSON. Ekavica."""
-
-    user_msg = f"PREDMET:\n{kontekst}"
-
-    try:
-        resp = await _oai.chat.completions.create(
-            model="gpt-4o",
-            temperature=0.3,
-            max_tokens=1200,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": user_msg},
-            ],
-            response_format={"type": "json_object"},
-        )
-        sc_json = resp.choices[0].message.content.strip()
-    except Exception as exc:
-        logger.error("[TWIN-SC] GPT greška: %s", exc)
-        raise HTTPException(status_code=503, detail="AI servis nije dostupan.")
-
-    try:
-        sc_data = json.loads(sc_json)
-    except json.JSONDecodeError:
-        sc_data = {"raw": sc_json}
-
-    return {
-        "predmet_id":        predmet_id,
-        "scenario":          payload.scenario,
-        "rezultat":          sc_data,
-        "krediti_potroseno": 2,
-    }
+    return r.data[0]
