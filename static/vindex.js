@@ -16499,3 +16499,288 @@ async function nacrtExportDocx() {
     if (btn) { btn.disabled = false; btn.textContent = '⬇ DOCX'; }
   }
 }
+
+// ── Evidence Graph ─────────────────────────────────────────────────
+// Renderuje vizuelni graf entiteta i veza predmeta kao SVG
+// Koristi se iz pred_subtab 'agenti' sekcije
+
+var _egGraf = null; // { nodes, edges }
+var _egPredmetId = null;
+
+async function evidenceGraph_generiši(predmetId) {
+  // POST /api/evidence-graph/generiši
+  var canvas = document.getElementById('eg-svg-container');
+  if (!document.getElementById('eg-modal')) {
+    evidenceGraph_otvoriModal(predmetId);
+    return;
+  }
+  _egPredmetId = predmetId;
+  if (canvas) canvas.innerHTML = '<div class="eg-loading"><div class="eg-spinner"></div><span>Generisanje grafa u toku...</span></div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/evidence-graph/generi%C5%A1i', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.access_token
+      },
+      body: JSON.stringify({ predmet_id: predmetId })
+    });
+    var d = await r.json().catch(function() { return {}; });
+    if (!r.ok) { showToast(d.detail || 'Greška pri generisanju grafa.', 'error'); return; }
+    _egGraf = d;
+    evidenceGraph_renderSVG(d, 'eg-svg-container');
+  } catch(e) {
+    showToast('Mrežna greška — pokušajte ponovo.', 'error');
+    if (canvas) canvas.innerHTML = '<div class="eg-err">Greška pri ucitavanju grafa.</div>';
+  }
+}
+
+async function evidenceGraph_load(predmetId) {
+  // GET /api/evidence-graph/{predmetId}
+  _egPredmetId = predmetId;
+  var canvas = document.getElementById('eg-svg-container');
+  if (canvas) canvas.innerHTML = '<div class="eg-loading"><div class="eg-spinner"></div><span>Ucitavanje grafa...</span></div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/evidence-graph/' + encodeURIComponent(predmetId), {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json().catch(function() { return {}; });
+    if (!r.ok) {
+      if (r.status === 404) {
+        if (canvas) canvas.innerHTML =
+          '<div class="eg-empty">'
+          + '<div style="font-size:2rem;margin-bottom:.8rem;">&#x1F578;</div>'
+          + '<div>Graf jos nije generisan za ovaj predmet.</div>'
+          + '<button onclick="evidenceGraph_generiši(_egPredmetId)" class="eg-gen-btn">Generisi graf</button>'
+          + '</div>';
+      } else {
+        showToast(d.detail || 'Greška pri ucitavanju grafa.', 'error');
+        if (canvas) canvas.innerHTML = '<div class="eg-err">Greška pri ucitavanju grafa.</div>';
+      }
+      return;
+    }
+    _egGraf = d;
+    evidenceGraph_renderSVG(d, 'eg-svg-container');
+  } catch(e) {
+    showToast('Mrežna greška — pokušajte ponovo.', 'error');
+    if (canvas) canvas.innerHTML = '<div class="eg-err">Greška pri ucitavanju grafa.</div>';
+  }
+}
+
+function evidenceGraph_renderSVG(graf, containerId) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+
+  var nodes = (graf && graf.nodes) ? graf.nodes : [];
+  var edges = (graf && graf.edges) ? graf.edges : [];
+
+  if (!nodes.length) {
+    container.innerHTML = '<div class="eg-empty"><div style="font-size:2rem;margin-bottom:.8rem;">&#x1F578;</div><div>Graf je prazan — nema entiteta.</div></div>';
+    return;
+  }
+
+  var W  = container.clientWidth  || 800;
+  var H  = container.clientHeight || 520;
+  var cx = W / 2, cy = H / 2;
+
+  // Boje po tipu cvora
+  var nodeColors = {
+    lice:     '#4aa8ff',
+    dokument: '#86efac',
+    dogadjaj: '#fbbf24',
+    tvrdnja:  '#f472b6',
+    datum:    '#94a3b8'
+  };
+  var defaultColor = '#94a3b8';
+
+  // Inicijalne pozicije — rasporediti cvorove u krug
+  var pos = {};
+  nodes.forEach(function(n, i) {
+    var angle  = (2 * Math.PI * i) / nodes.length;
+    var radius = Math.min(W, H) * 0.28;
+    pos[n.id] = {
+      x:  cx + radius * Math.cos(angle) + (Math.random() - 0.5) * 50,
+      y:  cy + radius * Math.sin(angle) + (Math.random() - 0.5) * 50,
+      vx: 0, vy: 0, fx: 0, fy: 0
+    };
+  });
+
+  // Force-directed layout — 200 iteracija
+  var kIdeal = 120;   // idealna duzina grane
+  var kRep   = 8000;  // jacina odbijanja
+  var kAtt   = 0.05;  // jacina privlacenja
+  var damp   = 0.85;  // prigusenje brzine
+
+  for (var iter = 0; iter < 200; iter++) {
+    // Reset sila
+    nodes.forEach(function(n) { pos[n.id].fx = 0; pos[n.id].fy = 0; });
+
+    // Coulomb — odbijanje svakog para cvorova
+    for (var a = 0; a < nodes.length; a++) {
+      for (var b = a + 1; b < nodes.length; b++) {
+        var na = pos[nodes[a].id], nb = pos[nodes[b].id];
+        var dx = nb.x - na.x, dy = nb.y - na.y;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        var force = kRep / (dist * dist);
+        var fx = force * dx / dist, fy = force * dy / dist;
+        na.fx -= fx; na.fy -= fy;
+        nb.fx += fx; nb.fy += fy;
+      }
+    }
+
+    // Hooke — privlacenje duz grana
+    edges.forEach(function(e) {
+      var src = pos[e.source || e.from];
+      var tgt = pos[e.target || e.to];
+      if (!src || !tgt) return;
+      var dx = tgt.x - src.x, dy = tgt.y - src.y;
+      var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      var force = kAtt * (dist - kIdeal);
+      var fx = force * dx / dist, fy = force * dy / dist;
+      src.fx += fx; src.fy += fy;
+      tgt.fx -= fx; tgt.fy -= fy;
+    });
+
+    // Primeni sile i ograni na SVG okvir
+    var pad = 55;
+    nodes.forEach(function(n) {
+      var p = pos[n.id];
+      p.vx = (p.vx + p.fx) * damp;
+      p.vy = (p.vy + p.fy) * damp;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.x = Math.max(pad, Math.min(W - pad, p.x));
+      p.y = Math.max(pad, Math.min(H - pad, p.y));
+    });
+  }
+
+  // Boje grana
+  var edgeColors = {
+    'POTVĐUJE': '#4ade80',
+    'POTVRDUJE':     '#4ade80',
+    'OSPORAVA':      '#f87171'
+  };
+  var defaultEdgeColor = '#475569';
+
+  var svgLines = [], svgEdgeLabels = [], svgNodes = [];
+
+  // Grane
+  edges.forEach(function(e) {
+    var src = pos[e.source || e.from];
+    var tgt = pos[e.target || e.to];
+    if (!src || !tgt) return;
+    var tipGrane = e.tip || e.type || '';
+    var eColor   = edgeColors[tipGrane] || defaultEdgeColor;
+    var mx = (src.x + tgt.x) / 2, my = (src.y + tgt.y) / 2;
+    svgLines.push(
+      '<line x1="' + src.x.toFixed(1) + '" y1="' + src.y.toFixed(1) + '"'
+      + ' x2="' + tgt.x.toFixed(1) + '" y2="' + tgt.y.toFixed(1) + '"'
+      + ' stroke="' + eColor + '" stroke-width="1.5" stroke-opacity="0.6"/>'
+    );
+    if (tipGrane) {
+      svgEdgeLabels.push(
+        '<text x="' + mx.toFixed(1) + '" y="' + my.toFixed(1) + '"'
+        + ' text-anchor="middle" dominant-baseline="middle"'
+        + ' font-size="9" fill="' + eColor + '" opacity="0.8" font-family="sans-serif">'
+        + _htmlEsc(tipGrane)
+        + '</text>'
+      );
+    }
+  });
+
+  // Cvorovi
+  nodes.forEach(function(n) {
+    var p     = pos[n.id];
+    var color = nodeColors[n.tip || n.type] || defaultColor;
+    var label = _htmlEsc((n.naziv || n.label || n.id || '').substring(0, 22));
+    var desc  = _htmlEsc(n.opis || n.description || '');
+    svgNodes.push(
+      '<g class="eg-node" data-desc="' + desc + '" data-label="' + label + '">'
+      + '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="22"'
+      + ' fill="' + color + '" fill-opacity="0.18" stroke="' + color + '" stroke-width="1.8"/>'
+      + '<text x="' + p.x.toFixed(1) + '" y="' + (p.y + 34).toFixed(1) + '"'
+      + ' text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.72)" font-family="sans-serif">'
+      + label
+      + '</text>'
+      + '</g>'
+    );
+  });
+
+  var svgHtml =
+    '<svg id="eg-svg" width="' + W + '" height="' + H + '" xmlns="http://www.w3.org/2000/svg">'
+    + svgLines.join('')
+    + svgEdgeLabels.join('')
+    + svgNodes.join('')
+    + '</svg>';
+
+  container.innerHTML = svgHtml;
+
+  // Node klik — tooltip
+  container.querySelectorAll('.eg-node').forEach(function(el) {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', function(ev) {
+      ev.stopPropagation();
+      var tt = document.getElementById('eg-tooltip');
+      if (!tt) return;
+      var lbl  = el.getAttribute('data-label') || '';
+      var desc = el.getAttribute('data-desc')  || '';
+      tt.textContent = lbl + (desc ? ': ' + desc : '');
+      var circle = el.querySelector('circle');
+      var svgEl  = document.getElementById('eg-svg');
+      var rect   = svgEl ? svgEl.getBoundingClientRect() : container.getBoundingClientRect();
+      var ncx    = parseFloat(circle.getAttribute('cx'));
+      var ncy    = parseFloat(circle.getAttribute('cy'));
+      tt.style.display = 'block';
+      tt.style.left = (rect.left + ncx - tt.offsetWidth / 2) + 'px';
+      tt.style.top  = (rect.top  + ncy - 52) + 'px';
+    });
+  });
+
+  // Klik izvan cvora — zatvori tooltip
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest || !e.target.closest('.eg-node')) {
+      var tt = document.getElementById('eg-tooltip');
+      if (tt) tt.style.display = 'none';
+    }
+  });
+}
+
+function evidenceGraph_otvoriModal(predmetId) {
+  var existing = document.getElementById('eg-modal');
+  if (existing) existing.remove();
+
+  _egPredmetId = predmetId;
+  var naziv = window.activePredmetNaziv || '';
+
+  var overlay = document.createElement('div');
+  overlay.id        = 'eg-modal';
+  overlay.className = 'eg-modal-overlay';
+  overlay.onclick   = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML =
+    '<div class="eg-modal-card">'
+    + '<div class="eg-modal-header">'
+    + '<span class="eg-modal-title">Graf entiteta'
+    + (naziv ? ' — ' + _htmlEsc(naziv) : '')
+    + '</span>'
+    + '<div class="eg-modal-actions">'
+    + '<button class="eg-regen-btn" onclick="evidenceGraph_generiši(_egPredmetId)">&#x21BA; Regenerisi</button>'
+    + '<button class="eg-close-btn" onclick="document.getElementById(\'eg-modal\').remove()">&#x2715;</button>'
+    + '</div>'
+    + '</div>'
+    + '<div class="eg-modal-body">'
+    + '<div id="eg-svg-container" class="eg-svg-container"></div>'
+    + '<div id="eg-tooltip" class="eg-tooltip" style="display:none;"></div>'
+    + '<div class="eg-legenda">'
+    + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#4aa8ff;"></span>Lice</span>'
+    + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#86efac;"></span>Dokument</span>'
+    + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#fbbf24;"></span>Dogadjaj</span>'
+    + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#f472b6;"></span>Tvrdnja</span>'
+    + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#94a3b8;"></span>Datum</span>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+
+  document.body.appendChild(overlay);
+  evidenceGraph_load(predmetId);
+}
