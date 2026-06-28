@@ -522,6 +522,7 @@ from routers.enterprise           import router as enterprise_router
 from routers.morning_briefing     import router as morning_briefing_router
 from routers.vindex_memory        import router as vindex_memory_router
 from routers.case_commander       import router as case_commander_router
+from routers.region               import router as region_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -588,6 +589,7 @@ app.include_router(enterprise_router)
 app.include_router(morning_briefing_router)
 app.include_router(vindex_memory_router)
 app.include_router(case_commander_router)
+app.include_router(region_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -796,6 +798,10 @@ def normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None)
     if isinstance(rezultat, dict):
         if rezultat.get("confidence"):
             resp["confidence"] = rezultat["confidence"]
+        if rezultat.get("confidence_detail"):
+            resp["confidence_detail"] = rezultat["confidence_detail"]
+        if rezultat.get("izvori"):
+            resp["izvori"] = rezultat["izvori"]
         if rezultat.get("top_score") is not None:
             resp["top_score"] = round(float(rezultat["top_score"]), 3)
         if rezultat.get("top_law"):
