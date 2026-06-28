@@ -521,6 +521,7 @@ from routers.integrations         import router as new_integrations_router
 from routers.enterprise           import router as enterprise_router
 from routers.morning_briefing     import router as morning_briefing_router
 from routers.vindex_memory        import router as vindex_memory_router
+from routers.case_commander       import router as case_commander_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -586,6 +587,7 @@ app.include_router(new_integrations_router)
 app.include_router(enterprise_router)
 app.include_router(morning_briefing_router)
 app.include_router(vindex_memory_router)
+app.include_router(case_commander_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
