@@ -939,6 +939,7 @@ async function dash_load(){
     _kcStartClock();
     notif_load();
     loadBriefing(false);
+    _ccCaricaAiAnaliza(hdr);
   }catch(e){
     body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
@@ -1091,8 +1092,61 @@ function _ccBrifingHtml(d, uName) {
     h += '</div>';
   }
 
+  // AI Duboka analiza placeholder — puni se async posle rendera
+  h += '<div id="cc-ai-nalazi" class="cc-ai-nalazi-wrap hidden">';
+  h += '<div class="cc-intel-sec-lbl cc-ai-sec-lbl">AI duboka analiza</div>';
+  h += '<div id="cc-ai-nalazi-lista"></div>';
+  h += '</div>';
+
   h += '</div>'; // cc-intel-card
   return h;
+}
+
+// ── AI Enrichment: async GPT-4o cross-case analiza ───────────────────────────
+async function _ccCaricaAiAnaliza(hdr) {
+  try {
+    var resp = await fetch(BASE_URL + '/api/commander/jutarnji', { headers: hdr });
+    if (!resp.ok) return;
+    var data = await resp.json();
+
+    var nalazi = data.nalazi || [];
+    if (!nalazi.length) return;
+
+    var sekcija = document.getElementById('cc-ai-nalazi');
+    var lista   = document.getElementById('cc-ai-nalazi-lista');
+    if (!sekcija || !lista) return;
+
+    var tipIkone = { rizik: '⚠', kontradikcija: '⇄', nepovezan_dokument: '⊡' };
+    var tipKlasa = { rizik: 'cc-ni-rizik', kontradikcija: 'cc-ni-kontr', nepovezan_dokument: 'cc-ni-neakt' };
+
+    var html = '';
+    nalazi.forEach(function(n) {
+      var ikona = tipIkone[n.tip] || '•';
+      var klasa = tipKlasa[n.tip]  || '';
+      html += '<div class="cc-nalaz-item ' + klasa + '">';
+      html += '<span class="cc-ni-ikona">' + ikona + '</span>';
+      html += '<div class="cc-ni-txt">';
+      html += '<span class="cc-ni-naziv">' + escHtml(n.predmet_naziv || '') + '</span>';
+      if (n.naslov) html += '<span class="cc-ni-opis"> — ' + escHtml(n.naslov) + '</span>';
+      if (n.opis)   html += '<div class="cc-ni-detail">' + escHtml(n.opis) + '</div>';
+      html += '</div>';
+      html += '</div>';
+    });
+
+    lista.innerHTML = html;
+    sekcija.classList.remove('hidden');
+
+    // Ažuriraj header tekst sa AI reziméom ako postoji
+    if (data.rezime) {
+      var subEl = document.querySelector('.cc-intel-sub');
+      if (subEl && data.pozdrav) {
+        subEl.textContent = data.pozdrav + ' ' + data.poruka;
+      }
+    }
+
+  } catch(e) {
+    // Silent fail — statistički prikaz ostaje vidljiv
+  }
 }
 
 function _dashRender(d,bd,inboxData){

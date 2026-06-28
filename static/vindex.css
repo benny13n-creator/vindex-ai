@@ -7855,6 +7855,15 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   padding: 24px 20px; font-size: 13px; color: #334155; text-align: center;
 }
 
+/* AI Duboka analiza sekcija (async enrichment) */
+.cc-ai-nalazi-wrap {
+  padding: 0 20px 14px;
+  border-top: 1px solid rgba(0,212,255,0.06);
+  margin-top: 2px;
+}
+.cc-ai-sec-lbl { color: #00d4ff !important; margin-top: 12px; }
+.cc-ni-detail { display: block; font-size: 11px; color: #64748b; margin-top: 3px; line-height: 1.4; }
+
 @media (max-width: 600px) {
   .cc-intel-stats { grid-template-columns: repeat(2,1fr); }
   .cc-intel-stat:nth-child(2) { border-right: none; }
