@@ -595,6 +595,7 @@ app.include_router(morning_briefing_router)
 app.include_router(vindex_memory_router)
 app.include_router(case_commander_router)
 app.include_router(region_router)
+app.include_router(auto_discovery_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
