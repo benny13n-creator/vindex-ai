@@ -498,6 +498,7 @@ from routers.billing_reports      import router as billing_reports_router
 from routers.sms                  import router as sms_router
 from routers.viber                import router as viber_router
 from routers.evidence             import router as evidence_router
+from routers.evidence_graph       import router as evidence_graph_router
 from routers.voice                import router as voice_router
 from routers.precedenti           import router as precedenti_router
 from routers.knowledge_graph      import router as knowledge_graph_router
@@ -524,6 +525,7 @@ from routers.morning_briefing     import router as morning_briefing_router
 from routers.vindex_memory        import router as vindex_memory_router
 from routers.case_commander       import router as case_commander_router
 from routers.region               import router as region_router
+from routers.auto_discovery       import router as auto_discovery_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -566,6 +568,7 @@ app.include_router(billing_reports_router)
 app.include_router(sms_router)
 app.include_router(viber_router)
 app.include_router(evidence_router)
+app.include_router(evidence_graph_router)
 app.include_router(voice_router)
 app.include_router(precedenti_router)
 app.include_router(knowledge_graph_router)
