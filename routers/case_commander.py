@@ -13,6 +13,7 @@ Endpoints:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from typing import Optional
@@ -352,3 +353,271 @@ async def commander_checklist(
         "predmet_id":      payload.predmet_id,
         "tip_postupka":    tip,
     }
+
+
+# ── AI Command Center — Jutarnji brifing ──────────────────────────────────────
+
+async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
+    """Paralelno dohvata sve aktivne predmete + rokove/dokumente/komentare iz 30/7 dana."""
+    from datetime import datetime, timedelta
+
+    danas     = datetime.now().date()
+    za_30     = (danas + timedelta(days=30)).isoformat()
+    pre_7     = (datetime.now() - timedelta(days=7)).isoformat()
+    supa      = _get_supa()
+
+    predmeti_r, rokovi_r, dokumenti_r, komentari_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmeti")
+            .select("id, naziv, opis, status, tip_postupka, protivnik, sud, vrednost_spora, created_at")
+            .eq("user_id", user_id).eq("status", "aktivan")
+            .order("created_at", desc=True).limit(20).execute()),
+        asyncio.to_thread(lambda: supa.table("rokovi")
+            .select("id, naziv, datum, opis, predmet_id, status")
+            .eq("user_id", user_id)
+            .gte("datum", danas.isoformat()).lte("datum", za_30)
+            .order("datum").limit(50).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
+            .select("id, naziv, tip, predmet_id, created_at")
+            .eq("user_id", user_id)
+            .gte("created_at", pre_7)
+            .order("created_at", desc=True).limit(30).execute()),
+        asyncio.to_thread(lambda: supa.table("komentari")
+            .select("id, sadrzaj, predmet_id, created_at")
+            .eq("user_id", user_id)
+            .gte("created_at", pre_7)
+            .order("created_at", desc=True).limit(20).execute()),
+        return_exceptions=True,
+    )
+
+    def _d(r):
+        if isinstance(r, Exception):
+            return []
+        return getattr(r, "data", None) or []
+
+    predmeti  = _d(predmeti_r)
+    rokovi    = _d(rokovi_r)
+    dokumenti = _d(dokumenti_r)
+    komentari = _d(komentari_r)
+
+    predmeti_map = {p["id"]: {**p, "rokovi": [], "dokumenti": [], "komentari": []} for p in predmeti}
+    for r in rokovi:
+        if r.get("predmet_id") in predmeti_map:
+            predmeti_map[r["predmet_id"]]["rokovi"].append(r)
+    for d in dokumenti:
+        if d.get("predmet_id") in predmeti_map:
+            predmeti_map[d["predmet_id"]]["dokumenti"].append(d)
+    for k in komentari:
+        if k.get("predmet_id") in predmeti_map:
+            predmeti_map[k["predmet_id"]]["komentari"].append(k)
+
+    return {
+        "predmeti":           list(predmeti_map.values()),
+        "ukupno_rokova":      len(rokovi),
+        "ukupno_dokumentata": len(dokumenti),
+    }
+
+
+async def _cross_case_analiza(podaci: dict, ime_korisnika: str) -> dict:
+    """GPT-4o cross-case analiza — rizici, kontradikcije, nepovezani dokumenti, prioritet."""
+    from datetime import datetime, timedelta
+    from openai import OpenAI
+
+    predmeti = podaci["predmeti"]
+    n = len(predmeti)
+
+    if n == 0:
+        return {
+            "nalazeni": False,
+            "rezime": "",
+            "nalazi": [],
+            "prioritet": None,
+            "statistike": {"aktivnih": 0, "rizika": 0, "kontradikcija": 0, "nepovezanih": 0, "rokova_hitnih": 0},
+        }
+
+    predmeti_txt = ""
+    for p in predmeti:
+        predmeti_txt += f"\n--- PREDMET: {p['naziv']} (ID: {p['id'][:8]}) ---\n"
+        predmeti_txt += f"Tip: {p.get('tip_postupka','?')} | Protivnik: {p.get('protivnik','?')} | Sud: {p.get('sud','?')}\n"
+        if p.get("opis"):
+            predmeti_txt += f"Opis: {p['opis'][:300]}\n"
+        if p["rokovi"]:
+            predmeti_txt += "Rokovi: " + ", ".join(
+                f"{r['naziv']} ({r['datum']})" for r in p["rokovi"][:5]
+            ) + "\n"
+        if p["dokumenti"]:
+            predmeti_txt += "Novi dokumenti: " + ", ".join(d["naziv"] for d in p["dokumenti"][:5]) + "\n"
+        if p["komentari"]:
+            predmeti_txt += "Beleške: " + " | ".join(
+                (k.get("sadrzaj") or k.get("tekst") or "")[:100] for k in p["komentari"][:3]
+            ) + "\n"
+
+    danas_str = datetime.now().strftime("%d.%m.%Y")
+
+    prompt = f"""Analiziraj sledeće aktivne pravne predmete advokata {ime_korisnika} (datum: {danas_str}):
+
+{predmeti_txt}
+
+Identifikuj:
+1. RIZICI — stvari koje mogu negativno uticati na ishod (max 5)
+2. KONTRADIKCIJE — protivrečnosti unutar jednog predmeta ili između beleški i dokumenta (max 3)
+3. NEPOVEZANI DOKUMENTI — dokumenti uploadovani u poslednjih 7 dana koji nisu pomenuti u rokovima niti belešci (max 3)
+4. PRIORITET — koji JEDAN predmet treba da bude prioritet danas i zašto (konkretno)
+
+Odgovori SAMO validnim JSON-om:
+
+{{
+  "nalazi": [
+    {{
+      "tip": "rizik",
+      "predmet_naziv": "naziv predmeta",
+      "predmet_id_prefix": "prva 8 slova ID-a",
+      "naslov": "kratak naslov nalaza (max 60 karaktera)",
+      "opis": "konkretan opis i šta treba uraditi (max 200 karaktera)"
+    }}
+  ],
+  "prioritet": {{
+    "predmet_naziv": "naziv",
+    "predmet_id_prefix": "prva 8 slova",
+    "razlog": "konkretan razlog zašto baš ovaj predmet (max 150 karaktera)"
+  }},
+  "rezime": "jedna rečenica koja opisuje opšte stanje svih predmeta (max 120 karaktera)"
+}}
+
+Pravila: Budi konkretan. Ako nema stvarnih nalaza, vrati praznu listu. Ekavica obavezna. tip mora biti tačno: rizik | kontradikcija | nepovezan_dokument"""
+
+    oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    resp = await asyncio.to_thread(
+        lambda: oai.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Ti si AI pravni operativni asistent. Odgovaraš SAMO validnim JSON-om. Ekavica."},
+                {"role": "user",   "content": prompt},
+            ],
+            max_tokens=1500,
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+    )
+
+    analiza = json.loads(resp.choices[0].message.content.strip())
+    nalazi  = analiza.get("nalazi", [])
+
+    za_7  = (datetime.now().date() + timedelta(days=7)).isoformat()
+    hitni = [r for p in predmeti for r in p["rokovi"] if r.get("datum", "") <= za_7]
+
+    return {
+        "nalazeni": True,
+        "rezime":   analiza.get("rezime", ""),
+        "nalazi":   nalazi,
+        "prioritet": analiza.get("prioritet"),
+        "statistike": {
+            "aktivnih":      n,
+            "rizika":        sum(1 for f in nalazi if f["tip"] == "rizik"),
+            "kontradikcija": sum(1 for f in nalazi if f["tip"] == "kontradikcija"),
+            "nepovezanih":   sum(1 for f in nalazi if f["tip"] == "nepovezan_dokument"),
+            "rokova_hitnih": len(hitni),
+        },
+    }
+
+
+@router.get("/api/commander/jutarnji")
+async def commander_jutarnji(
+    user: dict = Depends(get_current_user),
+):
+    """
+    AI Command Center jutarnji brifing — srce platforme.
+
+    Keširan po korisniku za tekući dan. Analizira SVE aktivne predmete odjednom.
+    Pronalazi rizike, kontradikcije, nepovezane dokumente i preporučuje prioritet za danas.
+    0 kredita — uključeno u pretplatu.
+    """
+    from datetime import datetime, date
+
+    uid   = user["user_id"]
+    danas = date.today().isoformat()
+    supa  = _get_supa()
+
+    cached = await asyncio.to_thread(
+        lambda: supa.table("commander_jutarnji")
+            .select("brifing")
+            .eq("user_id", uid)
+            .eq("datum", danas)
+            .limit(1)
+            .execute()
+    )
+    if cached.data:
+        return cached.data[0]["brifing"]
+
+    korisnik_r = await asyncio.to_thread(
+        lambda: supa.table("korisnici")
+            .select("ime, prezime")
+            .eq("id", uid)
+            .maybe_single()
+            .execute()
+    )
+    k   = (korisnik_r.data if not isinstance(korisnik_r, Exception) else None) or {}
+    ime = k.get("ime") or "advokate"
+
+    sat = datetime.now().hour
+    if sat < 12:
+        pozdrav_prefix = "Dobro jutro"
+    elif sat < 18:
+        pozdrav_prefix = "Dobar dan"
+    else:
+        pozdrav_prefix = "Dobro veče"
+
+    podaci  = await _dohvati_sve_predmete_za_analizu(uid)
+    n       = len(podaci["predmeti"])
+    analiza = await _cross_case_analiza(podaci, ime)
+
+    if n == 0:
+        poruka = "Još uvek nemaš aktivnih predmeta. Dodaj prvi predmet da bi AI Command Center počeo da radi."
+    elif n == 1:
+        poruka = "Analizirao sam tvoj aktivan predmet."
+    else:
+        poruka = f"Analizirao sam svih {n} aktivnih predmeta."
+
+    brifing = {
+        "pozdrav":      f"{pozdrav_prefix}, {ime}.",
+        "poruka":       poruka,
+        "datum":        danas,
+        "generisan_u":  datetime.now().isoformat(),
+        **analiza,
+    }
+
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("commander_jutarnji")
+                .upsert({"user_id": uid, "datum": danas, "brifing": brifing},
+                        on_conflict="user_id,datum")
+                .execute()
+        )
+    except Exception:
+        pass
+
+    return brifing
+
+
+@router.post("/api/commander/jutarnji/refresh")
+async def commander_jutarnji_refresh(
+    user: dict = Depends(get_current_user),
+):
+    """Briše keš za danas i generiše novi brifing."""
+    from datetime import date
+    from fastapi.responses import RedirectResponse
+
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("commander_jutarnji")
+                .delete()
+                .eq("user_id", uid)
+                .eq("datum", date.today().isoformat())
+                .execute()
+        )
+    except Exception:
+        pass
+
+    return RedirectResponse(url="/api/commander/jutarnji", status_code=303)
