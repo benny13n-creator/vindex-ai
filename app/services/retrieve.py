@@ -650,6 +650,55 @@ def get_confidence_level(score: float) -> str:
     return "LOW"
 
 
+def _calculate_confidence(top_score: float, n_results: int, query: str) -> dict:
+    """
+    Numeric confidence score 0-100 with Serbian labels for frontend display.
+    - similarity (0-50 pts): Pinecone cosine score
+    - results count (0-30 pts): number of retrieved docs
+    - query specificity (0-20 pts): number of content tokens
+    """
+    score_pts = round(min(top_score, 1.0) * 50)
+    results_pts = min(n_results, 10) * 3  # max 30 pts
+    token_pts = min(len(_tokenizuj(query)), 10) * 2  # max 20 pts
+    skor = score_pts + results_pts + token_pts
+
+    if skor >= 80:
+        nivo = "visoko"
+    elif skor >= 60:
+        nivo = "srednje"
+    elif skor >= 40:
+        nivo = "nisko"
+    else:
+        nivo = "veoma nisko"
+
+    return {
+        "skor": skor,
+        "nivo": nivo,
+        "upozorenje": top_score < 0.55,
+    }
+
+
+def _build_izvori(matches: list) -> list[dict]:
+    """Extract deduplicated source references from Pinecone match objects."""
+    vidjeni: set[str] = set()
+    izvori: list[dict] = []
+    for m in matches[:8]:
+        meta = m.metadata or {}
+        zakon = meta.get("law") or ""
+        clan  = meta.get("article") or ""
+        key   = f"{zakon}|{clan}"
+        if key not in vidjeni and zakon:
+            vidjeni.add(key)
+            izvori.append({
+                "zakon": zakon,
+                "clan":  clan,
+                "score": round(float(getattr(m, "score", 0.0)), 4),
+            })
+        if len(izvori) >= 5:
+            break
+    return izvori
+
+
 # ─── Pinecone operacije ───────────────────────────────────────────────────────
 
 def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = None) -> list:
@@ -1769,13 +1818,15 @@ def retrieve_documents(
         )
 
     retrieval_meta = {
-        "top_score":      _top_score,
-        "top_article":    _top_article,
-        "top_law":        _top_law,
-        "top_text":       _top_text,
-        "confidence":     get_confidence_level(_top_score),
-        "doc_passages":   _doc_passages_raw,
-        "praksa_matches": _praksa_matches_raw,
+        "top_score":          _top_score,
+        "top_article":        _top_article,
+        "top_law":            _top_law,
+        "top_text":           _top_text,
+        "confidence":         get_confidence_level(_top_score),
+        "confidence_detail":  _calculate_confidence(_top_score, len(reranked), query),
+        "izvori":             _build_izvori(reranked),
+        "doc_passages":       _doc_passages_raw,
+        "praksa_matches":     _praksa_matches_raw,
     }
     logger.info(
         "[RETRIEVE] confidence=%s score=%.4f article=%s law=%s",

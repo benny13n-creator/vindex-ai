@@ -2936,10 +2936,12 @@ def ask_agent(
                             old_band, new_band,
                         )
 
-        confidence   = retrieval_meta["confidence"]
-        top_score    = retrieval_meta["top_score"]
-        top_article  = retrieval_meta["top_article"]
-        top_law      = retrieval_meta["top_law"]
+        confidence        = retrieval_meta["confidence"]
+        top_score         = retrieval_meta["top_score"]
+        top_article       = retrieval_meta["top_article"]
+        top_law           = retrieval_meta["top_law"]
+        _conf_detail      = retrieval_meta.get("confidence_detail", {})
+        _izvori           = retrieval_meta.get("izvori", [])
 
         logger.info(
             "[ASK_AGENT] confidence=%s score=%.4f article=%s law=%s query=%s [q=%s]",
@@ -3080,12 +3082,20 @@ def ask_agent(
                 stavke.append(f"[{i}] Korisnik: {q_h}\n    Vindex AI: {a_h}...")
             history_blok = "ISTORIJA RAZGOVORA (kontekst):\n" + "\n".join(stavke) + "\n\n"
 
-        _HEDGE = (
-            f"[POUZDANOST: SREDNJA — score {top_score:.3f}] "
-            "Odgovaraj sa posebnom pažnjom. "
-            "Ako neki podatak iz pitanja nije eksplicitno pokriven retrieved kontekstom, "
-            "jasno reci da nije sigurno.\n\n"
-        )
+        if top_score < 0.55:
+            _HEDGE = (
+                f"[UPOZORENJE: NISKA POUZDANOST — score {top_score:.3f}] "
+                "Relevantni zakonski tekst možda nije pronađen u bazi. "
+                "Odgovaraj samo na osnovu retrieved konteksta. "
+                "Eksplicitno navedi da postoji neizvesnost i preporuči konsultaciju sa advokatom.\n\n"
+            )
+        else:
+            _HEDGE = (
+                f"[POUZDANOST: SREDNJA — score {top_score:.3f}] "
+                "Odgovaraj sa posebnom pažnjom. "
+                "Ako neki podatak iz pitanja nije eksplicitno pokriven retrieved kontekstom, "
+                "jasno reci da nije sigurno.\n\n"
+            )
 
         # KORAK 5: MEDIUM — puni topic prompt sa hedge banerom
         if confidence == "MEDIUM":
@@ -3146,6 +3156,7 @@ def ask_agent(
                 "status": "success", "data": odgovor,
                 "confidence": "MEDIUM", "top_score": top_score,
                 "top_article": top_article, "top_law": top_law,
+                "confidence_detail": _conf_detail, "izvori": _izvori,
             }
             if not history:
                 _cache_set(pitanje, rezultat)
@@ -3254,6 +3265,7 @@ def ask_agent(
             "status": "success", "data": odgovor,
             "confidence": confidence, "top_score": top_score,
             "top_article": top_article, "top_law": top_law,
+            "confidence_detail": _conf_detail, "izvori": _izvori,
         }
         if not history:
             _cache_set(pitanje, rezultat)
