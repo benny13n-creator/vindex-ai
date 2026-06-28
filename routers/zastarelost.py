@@ -10,11 +10,14 @@ import asyncio
 from datetime import date as _date, timedelta as _td
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response as _Resp
 from pydantic import BaseModel, Field
 
-from shared.deps import get_current_user
+from shared.deps import _get_supa, get_current_user
+from shared.rate import limiter
 
 router = APIRouter()
 
@@ -333,3 +336,180 @@ async def post_ics_export(req: IcsExportRequest):
         media_type="text/calendar",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── AI Deadline Guardian ──────────────────────────────────────────────────────
+
+class GuardianRequest(BaseModel):
+    rok_naziv:       str
+    rok_datum:       str                    # ISO: "2026-07-15"
+    tip_postupka:    str                    # gradjansko|krivicno|radno|upravno|privredno
+    opis_predmeta:   Optional[str]  = None
+    dostupni_dokazi: list[str]      = []
+    predmet_id:      Optional[str]  = None
+
+
+@router.post("/api/rokovi/guardian")
+@limiter.limit("20/minute")
+async def deadline_guardian(
+    request: Request,
+    payload: GuardianRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    AI Deadline Guardian: analizira rok i generiše konkretan lanac akcija
+    sa međurokovima, kritičnom putanjom i preporukom za danas.
+    """
+    from openai import OpenAI
+
+    try:
+        rok_datum = _date.fromisoformat(payload.rok_datum)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Neispravan format datuma. Koristite YYYY-MM-DD.")
+
+    danas = _date.today()
+    dani_do_roka = (rok_datum - danas).days
+
+    if dani_do_roka < 0:
+        raise HTTPException(status_code=400, detail="Rok je već prošao.")
+
+    praznici = _srpski_praznici(danas.year) | _srpski_praznici(rok_datum.year)
+    radnih_dana = sum(
+        1 for i in range(dani_do_roka)
+        if (danas + _td(days=i + 1)).weekday() < 5
+        and (danas + _td(days=i + 1)) not in praznici
+    )
+
+    dokazi_txt = "\n".join(f"- {d}" for d in payload.dostupni_dokazi) if payload.dostupni_dokazi else "Nisu navedeni"
+
+    system_prompt = (
+        "Ti si ekspertni pravni strateg sa 30 godina iskustva u srpskim sudovima.\n\n"
+        "Tvoj zadatak: Na osnovu roka i opisa predmeta, napravi KONKRETAN vremenski plan svih akcija "
+        "koje advokat mora da preduzme PRE nego što rok istekne.\n\n"
+        "Razmišljaj unatrag od roka: šta mora biti gotovo dan pre roka? Šta nedelju dana pre? Itd.\n\n"
+        "Pravila:\n"
+        "- Budi apsolutno konkretan (ne 'pribavi dokumenta' nego 'pozovi sud i zatraži overenu kopiju presude')\n"
+        "- Svaka akcija ima rok do kada mora biti završena\n"
+        "- Identifikuj KRITIČNU PUTANJU — koja akcija, ako kasni, ruši ceo plan\n"
+        "- Upozori na skrivene zamke (praznike, sudske odmore, notarske rokove)\n"
+        "- Ekavica, direktan ton"
+    )
+
+    user_prompt = (
+        f"ROK: {payload.rok_naziv}\n"
+        f"Datum isteka: {payload.rok_datum} (za {dani_do_roka} kalendarskih dana / {radnih_dana} radnih dana)\n"
+        f"Tip postupka: {payload.tip_postupka}\n\n"
+        f"Opis predmeta: {payload.opis_predmeta or 'Nije naveden'}\n\n"
+        f"Dostupni dokumenti:\n{dokazi_txt}\n\n"
+        "Napravi:\n"
+        "1. LANAC AKCIJA (sa konkretnim međurokovima za svaku akciju)\n"
+        "2. KRITIČNA PUTANJA (koja akcija je najhitnija DANAS)\n"
+        "3. SKRIVENE ZAMKE (šta može da pokvari plan)\n"
+        "4. PREPORUČENA AKCIJA ZA DANAS (jedna konkretna stvar)\n\n"
+        "Format: strukturiran, čitljiv, sa datumima i brojevima dana."
+    )
+
+    oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    resp = await asyncio.to_thread(
+        lambda: oai.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_prompt},
+            ],
+            max_tokens=1200,
+            temperature=0.3,
+        )
+    )
+
+    analiza = resp.choices[0].message.content.strip()
+    hitnost = (
+        "kritično" if dani_do_roka <= 3 else
+        "hitno"    if dani_do_roka <= 7 else
+        "prati"    if dani_do_roka <= 14 else
+        "planiraj"
+    )
+
+    return {
+        "rok_naziv":    payload.rok_naziv,
+        "rok_datum":    payload.rok_datum,
+        "dani_do_roka": dani_do_roka,
+        "radnih_dana":  radnih_dana,
+        "hitnost":      hitnost,
+        "analiza":      analiza,
+        "tip_postupka": payload.tip_postupka,
+        "predmet_id":   payload.predmet_id,
+    }
+
+
+@router.post("/api/rokovi/guardian/scan")
+async def guardian_scan(
+    user: dict = Depends(get_current_user),
+):
+    """
+    Skenira sve aktivne rokove korisnika u narednih 30 dana i vraća
+    prioritizovanu listu sa procenom hitnosti za svaki.
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+    danas     = _date.today()
+    za_30d    = danas + _td(days=30)
+
+    rokovi_r = await asyncio.to_thread(
+        lambda: supa.table("rokovi")
+            .select("id, naziv, datum, tip, predmet_id, opis")
+            .eq("user_id", uid)
+            .gte("datum", danas.isoformat())
+            .lte("datum", za_30d.isoformat())
+            .order("datum")
+            .execute()
+    )
+
+    rokovi = rokovi_r.data or []
+    if not rokovi:
+        return {"scan": [], "ukupno": 0, "kriticno": 0, "hitno": 0,
+                "period_dana": 30, "generirano": danas.isoformat(),
+                "poruka": "Nema rokova u narednih 30 dana."}
+
+    praznici = _srpski_praznici(danas.year)
+
+    scan = []
+    for rok in rokovi:
+        try:
+            rok_datum = _date.fromisoformat(str(rok["datum"])[:10])
+            dani      = (rok_datum - danas).days
+            radnih    = sum(
+                1 for i in range(dani)
+                if (danas + _td(days=i + 1)).weekday() < 5
+                and (danas + _td(days=i + 1)) not in praznici
+            )
+            hitnost = (
+                "kritično" if dani <= 2 else
+                "hitno"    if dani <= 5 else
+                "prati"    if dani <= 14 else
+                "ok"
+            )
+            scan.append({
+                "id":          rok.get("id"),
+                "naziv":       rok.get("naziv", "Rok"),
+                "datum":       str(rok["datum"])[:10],
+                "dani_ostalo": dani,
+                "radnih_dana": radnih,
+                "hitnost":     hitnost,
+                "predmet_id":  rok.get("predmet_id"),
+                "tip":         rok.get("tip"),
+            })
+        except Exception:
+            continue
+
+    hitnost_order = {"kritično": 0, "hitno": 1, "prati": 2, "ok": 3}
+    scan.sort(key=lambda x: (hitnost_order.get(x["hitnost"], 4), x["dani_ostalo"]))
+
+    return {
+        "scan":        scan,
+        "ukupno":      len(scan),
+        "kriticno":    sum(1 for r in scan if r["hitnost"] == "kritično"),
+        "hitno":       sum(1 for r in scan if r["hitnost"] == "hitno"),
+        "period_dana": 30,
+        "generirano":  danas.isoformat(),
+    }
