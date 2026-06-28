@@ -318,3 +318,74 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
 
     logger.info("[SMS-CRON] Završeno: poslato=%d greške=%d", poslato, greske)
     return {"poslato": poslato, "greske": greske}
+
+
+@router.post("/sms/briefing-whatsapp")
+@limiter.limit("5/minute")
+async def posalji_briefing_whatsapp(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Šalje jutarnji briefing (sažetak) korisniku via WhatsApp.
+    Zahteva aktivan WhatsApp profil i whatsapp=True.
+    """
+    supa = _get_supa()
+    uid  = user["user_id"]
+
+    try:
+        profil_r = await asyncio.to_thread(
+            lambda: supa.table("korisnik_sms_profil")
+                .select("telefon,whatsapp,aktivan")
+                .eq("user_id", uid)
+                .eq("aktivan", True)
+                .maybe_single()
+                .execute()
+        )
+        profil = profil_r.data
+    except Exception:
+        profil = None
+
+    if not profil or not profil.get("telefon"):
+        raise HTTPException(status_code=422, detail="WhatsApp broj nije registrovan.")
+
+    if not profil.get("whatsapp"):
+        raise HTTPException(status_code=422, detail="WhatsApp kanal nije aktiviran. Idite na Podešavanja → Notifikacije.")
+
+    today = date.today()
+    today_s = today.isoformat()
+    in_7d = (today + timedelta(days=7)).isoformat()
+
+    predmeti_r, rokovi_r, rocista_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmeti").select("id").eq("user_id", uid).eq("status", "aktivan").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso").eq("user_id", uid).gte("datum_iso", today_s).lte("datum_iso", in_7d).eq("vaznost", "kritičan").order("datum_iso").limit(3).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select("naziv,datum").eq("user_id", uid).gte("datum", today_s).lte("datum", today_s).limit(5).execute()),
+    )
+
+    n_predmeta = len(predmeti_r.data or [])
+    hitni_rokovi = rokovi_r.data or []
+    rocista_danas = rocista_r.data or []
+
+    linije = [f"*Vindex AI — Jutarnji izveštaj {today_s}*"]
+    linije.append(f"Aktivni predmeti: {n_predmeta}")
+
+    if rocista_danas:
+        linije.append(f"\n📅 *Današnja ročišta:*")
+        for r in rocista_danas[:3]:
+            linije.append(f"  • {r.get('naziv', 'Ročište')}")
+
+    if hitni_rokovi:
+        linije.append(f"\n⚠️ *Hitni rokovi (7 dana):*")
+        for rok in hitni_rokovi[:3]:
+            linije.append(f"  • {rok.get('dogadjaj', 'Rok')} — {rok.get('datum_iso', '')[:10]}")
+
+    if not rocista_danas and not hitni_rokovi:
+        linije.append("\n✅ Nema hitnih rokova ni ročišta danas.")
+
+    linije.append("\nDetalji: vindex.rs/app")
+
+    poruka = "\n".join(linije)
+    to_num = f"whatsapp:{profil['telefon']}"
+    ok = await asyncio.to_thread(_send_sms, to_num, poruka)
+
+    if not ok:
+        raise HTTPException(status_code=503, detail="WhatsApp poruka nije mogla biti poslata.")
+
+    return {"ok": True, "poslat_na": profil["telefon"], "linija": len(poruka)}

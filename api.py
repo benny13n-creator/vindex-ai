@@ -496,6 +496,7 @@ from routers.recurring            import router as recurring_router
 from routers.search               import router as search_router
 from routers.billing_reports      import router as billing_reports_router
 from routers.sms                  import router as sms_router
+from routers.viber                import router as viber_router
 from routers.evidence             import router as evidence_router
 from routers.voice                import router as voice_router
 from routers.precedenti           import router as precedenti_router
@@ -563,6 +564,7 @@ app.include_router(recurring_router)
 app.include_router(search_router)
 app.include_router(billing_reports_router)
 app.include_router(sms_router)
+app.include_router(viber_router)
 app.include_router(evidence_router)
 app.include_router(voice_router)
 app.include_router(precedenti_router)
