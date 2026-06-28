@@ -958,6 +958,143 @@ function _kcStartClock() {
 }
 
 function _fmtRSD(v){var n=Math.round(v||0);if(n>=1000000)return(n/1000000).toFixed(1)+'M';if(n>=1000)return(n/1000).toFixed(0)+'k';return String(n);}
+
+// ══════════════════════════════════════════════ AI COMMAND CENTER INTEL BRIFING
+
+function _ccBrifingHtml(d, uName) {
+  var aktivnih    = d.ukupno_aktivnih || 0;
+  var rizici      = d.predmeti_visok_rizik || [];
+  var kontr       = d.pad_procene || [];
+  var hitniRokovi = d.hitni_rokovi || [];
+  var neaktivni   = d.neaktivni_30_dana || [];
+  var rocista     = d.danasnja_rocista || [];
+  var preporuke   = d.ai_preporuke || [];
+
+  var nRizika   = rizici.length;
+  var nKontr    = kontr.length;
+  var nHitni    = hitniRokovi.length;
+  var nRocista  = rocista.length;
+
+  // Poruka zaglavlja
+  var pozdrav = _dashGreeting() + (uName ? ', ' + escHtml(uName) : '');
+  var nalazeni = nRizika + nKontr + neaktivni.length;
+  var analizaTxt;
+  if (aktivnih === 0) {
+    analizaTxt = 'Nema aktivnih predmeta za analizu.';
+  } else {
+    analizaTxt = 'Analizirao sam ' + aktivnih + ' aktivn' + (aktivnih === 1 ? 'i predmet' : aktivnih < 5 ? 'a predmeta' : 'ih predmeta') + '.';
+    if (nalazeni > 0) {
+      var delovi = [];
+      if (nRizika > 0)       delovi.push(nRizika + (nRizika === 1 ? ' rizik' : ' rizika'));
+      if (nKontr > 0)        delovi.push(nKontr + (nKontr === 1 ? ' promenu' : nKontr < 5 ? ' promene' : ' promena'));
+      if (neaktivni.length > 0) delovi.push(neaktivni.length + (neaktivni.length === 1 ? ' predmet bez aktivnosti' : ' predmeta bez aktivnosti'));
+      analizaTxt += ' Otkrio sam: ' + delovi.join(', ') + '.';
+    } else {
+      analizaTxt += ' Sve je u redu — nema kritičnih nalaza.';
+    }
+  }
+
+  // Prioritetni predmet
+  var prioPredmet = null;
+  if (rizici.length > 0) {
+    prioPredmet = { id: rizici[0].predmet_id, naziv: rizici[0].predmet_naziv || 'Predmet', razlog: (rizici[0].faktori || []).slice(0, 2).join(', ') || 'Visok rizik' };
+  } else if (hitniRokovi.length > 0) {
+    prioPredmet = { id: hitniRokovi[0].predmet_id, naziv: hitniRokovi[0].predmet_naziv || 'Predmet', razlog: hitniRokovi[0].dogadjaj || 'Hitan rok' };
+  } else if (preporuke.length > 0 && d.predmeti_visok_rizik && d.predmeti_visok_rizik[0]) {
+    prioPredmet = { id: d.predmeti_visok_rizik[0].predmet_id, naziv: d.predmeti_visok_rizik[0].predmet_naziv || 'Predmet', razlog: preporuke[0].substring(0, 80) };
+  }
+
+  var h = '';
+  h += '<div class="cc-intel-card" id="cc-intel-card">';
+
+  // Header
+  h += '<div class="cc-intel-header">';
+  h += '<div class="cc-intel-logo"><div class="cc-intel-hex">⬡</div><div class="cc-intel-pulse"></div></div>';
+  h += '<div class="cc-intel-heading">';
+  h += '<div class="cc-intel-title">AI Command Center</div>';
+  h += '<div class="cc-intel-sub">' + pozdrav + '. ' + escHtml(analizaTxt) + '</div>';
+  h += '</div>';
+  h += '<div class="cc-intel-live"><span class="cc-live-dot"></span>LIVE</div>';
+  h += '</div>';
+
+  if (aktivnih === 0) {
+    h += '<div class="cc-intel-empty">Dodajte predmet da biste aktivirali Command Center.</div>';
+    h += '</div>';
+    return h;
+  }
+
+  // Stats strip
+  h += '<div class="cc-intel-stats">';
+  h += '<div class="cc-intel-stat' + (nRizika > 0 ? ' cc-is-danger' : ' cc-is-ok') + '">';
+  h += '<span class="cc-is-val">' + nRizika + '</span><span class="cc-is-lbl">Rizika</span>';
+  h += '</div>';
+  h += '<div class="cc-intel-stat' + (nKontr > 0 ? ' cc-is-warn' : ' cc-is-ok') + '">';
+  h += '<span class="cc-is-val">' + nKontr + '</span><span class="cc-is-lbl">Promena</span>';
+  h += '</div>';
+  h += '<div class="cc-intel-stat' + (nHitni > 0 ? ' cc-is-danger' : ' cc-is-ok') + '">';
+  h += '<span class="cc-is-val">' + nHitni + '</span><span class="cc-is-lbl">Hitnih rokova</span>';
+  h += '</div>';
+  h += '<div class="cc-intel-stat' + (nRocista > 0 ? ' cc-is-warn' : '') + '">';
+  h += '<span class="cc-is-val">' + nRocista + '</span><span class="cc-is-lbl">Ročišta danas</span>';
+  h += '</div>';
+  h += '</div>';
+
+  // Nalazi
+  var imaListe = (rizici.length + kontr.length + neaktivni.length) > 0;
+  if (imaListe) {
+    h += '<div class="cc-intel-nalazi">';
+    h += '<div class="cc-intel-sec-lbl">Otkriveno</div>';
+
+    rizici.slice(0, 3).forEach(function(p) {
+      var faktori = (p.faktori || []).slice(0, 2).join(' · ');
+      h += '<div class="cc-nalaz-item cc-ni-rizik" onclick="_dashGoToPredmet(\'' + escHtml(p.predmet_id) + '\')">';
+      h += '<span class="cc-ni-ikona">⚠</span>';
+      h += '<div class="cc-ni-txt">';
+      h += '<span class="cc-ni-naziv">' + escHtml(p.predmet_naziv || 'Predmet') + '</span>';
+      if (faktori) h += '<span class="cc-ni-opis"> — ' + escHtml(faktori) + '</span>';
+      h += '</div><span class="cc-ni-arrow">›</span>';
+      h += '</div>';
+    });
+
+    kontr.slice(0, 2).forEach(function(p) {
+      h += '<div class="cc-nalaz-item cc-ni-kontr" onclick="_dashGoToPredmet(\'' + escHtml(p.predmet_id) + '\')">';
+      h += '<span class="cc-ni-ikona">⇄</span>';
+      h += '<div class="cc-ni-txt">';
+      h += '<span class="cc-ni-naziv">' + escHtml(p.predmet_naziv || 'Predmet') + '</span>';
+      h += '<span class="cc-ni-opis"> — prognoza: ' + escHtml(p.prethodni_rizik || '?') + ' → ' + escHtml(p.trenutni_rizik || '?') + '</span>';
+      h += '</div><span class="cc-ni-arrow">›</span>';
+      h += '</div>';
+    });
+
+    neaktivni.slice(0, 2).forEach(function(p) {
+      h += '<div class="cc-nalaz-item cc-ni-neakt" onclick="_dashGoToPredmet(\'' + escHtml(p.predmet_id) + '\')">';
+      h += '<span class="cc-ni-ikona">⊡</span>';
+      h += '<div class="cc-ni-txt">';
+      h += '<span class="cc-ni-naziv">' + escHtml(p.naziv || 'Predmet') + '</span>';
+      h += '<span class="cc-ni-opis"> — bez aktivnosti od ' + escHtml(p.poslednja_izmena || '—') + '</span>';
+      h += '</div><span class="cc-ni-arrow">›</span>';
+      h += '</div>';
+    });
+
+    h += '</div>';
+  }
+
+  // Prioritet
+  if (prioPredmet) {
+    h += '<div class="cc-intel-prioritet" onclick="_dashGoToPredmet(\'' + escHtml(prioPredmet.id) + '\')">';
+    h += '<div class="cc-prio-left">';
+    h += '<div class="cc-prio-label">Prioritet danas</div>';
+    h += '<div class="cc-prio-naziv">' + escHtml(prioPredmet.naziv) + '</div>';
+    if (prioPredmet.razlog) h += '<div class="cc-prio-razlog">' + escHtml(prioPredmet.razlog) + '</div>';
+    h += '</div>';
+    h += '<div class="cc-prio-cta">Otvori →</div>';
+    h += '</div>';
+  }
+
+  h += '</div>'; // cc-intel-card
+  return h;
+}
+
 function _dashRender(d,bd,inboxData){
   var today=new Date().toISOString().slice(0,10);
   var p2=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
@@ -981,6 +1118,9 @@ function _dashRender(d,bd,inboxData){
   html+='<button class="kc-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
   html+='</div></div>';
 
+  // ── AI COMMAND CENTER INTEL BRIFING ────────────────────────────
+  html += _ccBrifingHtml(d, uName);
+
   // ── 4 KPI KARTICE ──────────────────────────────────────────────
   html+='<div class="kc-kpi-row">';
   html+='<div class="kc-kpi"><div class="kc-kpi-n">'+(d.ukupno_aktivnih||0)+'</div><div class="kc-kpi-l">Aktivnih<br>predmeta</div></div>';
@@ -1001,16 +1141,6 @@ function _dashRender(d,bd,inboxData){
   html+='<div id="briefing-content">';
   html+='<div class="kc-briefing-skeleton"><div class="kc-sk-line"></div><div class="kc-sk-line short"></div><div class="kc-sk-line"></div></div>';
   html+='</div></div>';
-
-  // ── AI PREPORUKE / SUMMARY ─────────────────────────────────────
-  var preporuke=d.ai_preporuke||[];
-  if(preporuke.length){
-    html+='<div class="kc-preporuke">';
-    preporuke.forEach(function(p){html+='<div class="kc-prep-item">'+escHtml(p)+'</div>';});
-    html+='</div>';
-  }else if(d.summary){
-    html+='<div class="kc-summary">'+escHtml(d.summary)+'</div>';
-  }
 
   // ── 2-COLUMN MAIN ──────────────────────────────────────────────
   html+='<div class="kc-two-col">';
