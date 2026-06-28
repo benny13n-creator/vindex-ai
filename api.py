@@ -519,6 +519,8 @@ from routers.court_predictor      import router as court_predictor_router
 from routers.onboarding           import router as onboarding_router
 from routers.integrations         import router as new_integrations_router
 from routers.enterprise           import router as enterprise_router
+from routers.morning_briefing     import router as morning_briefing_router
+from routers.vindex_memory        import router as vindex_memory_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -582,6 +584,8 @@ app.include_router(court_predictor_router)
 app.include_router(onboarding_router)
 app.include_router(new_integrations_router)
 app.include_router(enterprise_router)
+app.include_router(morning_briefing_router)
+app.include_router(vindex_memory_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -1058,10 +1062,108 @@ def serve_html():
     return _serve_index_html()
 
 
-@app.get("/portal")
+@app.get("/portal", include_in_schema=False)
 def serve_portal():
-    """Javna stranica za klijentski portal — čita ?token= query param u JS-u."""
+    """Klijentski portal — stranica za klijente, pristup putem tokena."""
+    path = BASE_DIR / "client_portal.html"
+    if path.exists():
+        return FileResponse(str(path), headers={"Cache-Control": "no-cache"})
     return _serve_index_html()
+
+
+@app.get("/api/portal/predmet")
+async def portal_predmet_data(token: str):
+    """
+    Vraća podatke o predmetu za klijentski portal.
+    Zaštićen vremenskim tokenom iz privremeni_pristup tabele.
+    Nije potrebna autentifikacija — pristup je kontrolisan tokenom.
+    """
+    from datetime import datetime, timezone
+
+    if not token or len(token) < 10:
+        raise HTTPException(status_code=400, detail="Neispravan token.")
+
+    supa = _get_supa()
+
+    tok_r = await asyncio.to_thread(
+        lambda: supa.table("privremeni_pristup")
+            .select("*")
+            .eq("token", token)
+            .eq("iskoriscen", False)
+            .maybe_single()
+            .execute()
+    )
+
+    if not tok_r.data:
+        raise HTTPException(status_code=404, detail="Token nije pronađen ili je iskorišćen.")
+
+    tok = tok_r.data
+    istice = tok.get("istice_u")
+    if istice:
+        istice_dt = datetime.fromisoformat(istice.replace("Z", "+00:00"))
+        if istice_dt < datetime.now(timezone.utc):
+            raise HTTPException(status_code=410, detail="Link je istekao. Kontaktirajte advokata za novi link.")
+
+    predmet_id      = tok.get("predmet_id")
+    vlasnik_user_id = tok.get("vlasnik_user_id")
+
+    pred_r, rok_r, advokat_r = await asyncio.gather(
+        asyncio.to_thread(
+            lambda: supa.table("predmeti").select("*").eq("id", predmet_id).maybe_single().execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("rokovi")
+                .select("naziv, datum, tip")
+                .eq("predmet_id", predmet_id)
+                .gte("datum", datetime.now(timezone.utc).date().isoformat())
+                .order("datum")
+                .limit(10)
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("korisnici")
+                .select("ime, email")
+                .eq("id", vlasnik_user_id)
+                .maybe_single()
+                .execute()
+        ),
+    )
+
+    predmet = pred_r.data  or {}
+    rokovi  = rok_r.data   or []
+    advokat = advokat_r.data or {}
+
+    ai_status = "Predmet je aktivan. Advokat aktivno radi na slučaju."
+    try:
+        from openai import OpenAI as _OAI
+        _oai = _OAI(api_key=os.environ["OPENAI_API_KEY"])
+        naziv  = predmet.get("naziv", "Predmet")
+        status = predmet.get("status", "aktivan")
+        ai_r   = await asyncio.to_thread(
+            lambda: _oai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content":
+                    f"Napiši kratku, profesionalnu poruku za klijenta o statusu predmeta '{naziv}' "
+                    f"(status: {status}). Jedna do dve rečenice. Bez pravnih saveta. Ekavica. Ne pominjaj AI."}],
+                max_tokens=100,
+                temperature=0.4,
+            )
+        )
+        ai_status = ai_r.choices[0].message.content.strip()
+    except Exception:
+        pass
+
+    return {
+        "naziv":         predmet.get("naziv", "Predmet"),
+        "status":        predmet.get("status", "aktivan"),
+        "stranka":       predmet.get("stranka"),
+        "datum_otvoren": predmet.get("created_at"),
+        "ai_status":     ai_status,
+        "rokovi":        rokovi,
+        "dokumenti":     [],
+        "advokat_ime":   advokat.get("ime", "Advokat"),
+        "advokat_email": advokat.get("email"),
+    }
 
 
 @app.get("/sw.js", include_in_schema=False)
