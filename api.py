@@ -528,6 +528,7 @@ from routers.case_commander       import router as case_commander_router
 from routers.region               import router as region_router
 from routers.auto_discovery       import router as auto_discovery_router
 from routers.strategy_simulator   import router as strategy_simulator_router
+from routers.digital_twin         import router as digital_twin_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -599,6 +600,7 @@ app.include_router(vindex_memory_router)
 app.include_router(case_commander_router)
 app.include_router(region_router)
 app.include_router(strategy_simulator_router)
+app.include_router(digital_twin_router)
 app.include_router(auto_discovery_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
