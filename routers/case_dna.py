@@ -317,7 +317,7 @@ async def _run_genome_background(predmet_id: str, uid: str, stari_procent: Optio
 
         dok_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,tip_dokaza,velicina_kb")
+                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb")
                 .eq("predmet_id", predmet_id)
                 .order("redni_broj")
                 .limit(10).execute()
@@ -425,7 +425,7 @@ async def refresh_case_dna(predmet_id: str, user=Depends(get_current_user)):
     try:
         dok_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,tip_dokaza,velicina_kb")
+                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb")
                 .eq("predmet_id", predmet_id)
                 .order("redni_broj")
                 .limit(10).execute()
@@ -557,7 +557,7 @@ async def compare_docs(predmet_id: str, req: CompareDoksReq, user=Depends(get_cu
 
         dok_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,tip_dokaza")
+                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj")
                 .eq("predmet_id", predmet_id)
                 .in_("redni_broj", [n1, n2]).execute()
         )

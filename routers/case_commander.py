@@ -92,14 +92,14 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("naziv, tip, created_at")
+                .select("naziv_fajla, created_at")
                 .eq("predmet_id", predmet_id)
                 .limit(20)
                 .execute()
         ),
         asyncio.to_thread(
-            lambda: supa.table("komentari")
-                .select("sadrzaj, created_at")
+            lambda: supa.table("predmet_komentari")
+                .select("tekst, created_at")
                 .eq("predmet_id", predmet_id)
                 .order("created_at", desc=True)
                 .limit(5)
@@ -156,13 +156,13 @@ def _formatiraj_kontekst(ctx: dict, dodatni: str = "") -> str:
     if ctx["dokumenta"]:
         lines.append(f"\nDOKUMENTA U SISTEMU ({len(ctx['dokumenta'])}):")
         for d in ctx["dokumenta"][:10]:
-            lines.append(f"  - {d.get('naziv', 'N/A')} ({d.get('tip', 'N/A')})")
+            lines.append(f"  - {d.get('naziv_fajla', 'N/A')}")
     else:
         lines.append("\nDOKUMENTA: Nema uploadovanih dokumenata")
 
     if ctx["komentari"]:
         lines.append("\nPOSLEDNJA BELEZKA:")
-        lines.append(f"  {ctx['komentari'][0].get('sadrzaj', '')[:300]}")
+        lines.append(f"  {ctx['komentari'][0].get('tekst', '')[:300]}")
 
     if dodatni:
         lines.append(f"\nDODATNI KONTEKST OD ADVOKATA: {dodatni}")
@@ -377,12 +377,12 @@ async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
             .gte("datum", danas.isoformat()).lte("datum", za_30)
             .order("datum").limit(50).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
-            .select("id, naziv, tip, predmet_id, created_at")
+            .select("id, naziv_fajla, predmet_id, created_at")
             .eq("user_id", user_id)
             .gte("created_at", pre_7)
             .order("created_at", desc=True).limit(30).execute()),
-        asyncio.to_thread(lambda: supa.table("komentari")
-            .select("id, sadrzaj, predmet_id, created_at")
+        asyncio.to_thread(lambda: supa.table("predmet_komentari")
+            .select("id, tekst, predmet_id, created_at")
             .eq("user_id", user_id)
             .gte("created_at", pre_7)
             .order("created_at", desc=True).limit(20).execute()),

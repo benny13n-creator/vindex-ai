@@ -391,7 +391,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
                 p = pr.data[0]
                 try:
                     dok_res = supa.table("predmet_dokumenti") \
-                        .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,tip_dokaza,velicina_kb") \
+                        .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb") \
                         .eq("predmet_id", req.predmet_id) \
                         .order("redni_broj").limit(10).execute()
                     dok_rows = dok_res.data or []

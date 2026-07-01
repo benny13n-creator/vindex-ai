@@ -319,7 +319,7 @@ async def matter_health_score(
             .select("odgovor").eq("predmet_id", predmet_id)
             .like("pitanje", "[Rizik]%").order("created_at", desc=True).limit(1).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_komentari")
-            .select("id").eq("predmet_id", predmet_id).gte("kreirano", ago_7_iso).limit(1).execute()),
+            .select("id").eq("predmet_id", predmet_id).gte("created_at", ago_7_iso).limit(1).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija")
             .select("datum_iso,vaznost").eq("predmet_id", predmet_id)
             .gte("datum_iso", today_iso).order("datum_iso").limit(20).execute()),

@@ -279,7 +279,7 @@ async def _briefing_tekst(uid: str, supa) -> str:
     predmeti_r, rokovi_r, rocista_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti").select("id").eq("user_id", uid).eq("status", "aktivan").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso").eq("user_id", uid).gte("datum_iso", today_s).lte("datum_iso", in_7d).eq("vaznost", "kritičan").order("datum_iso").limit(3).execute()),
-        asyncio.to_thread(lambda: supa.table("rocista").select("naziv,datum").eq("user_id", uid).gte("datum", today_s).lte("datum", today_s).limit(3).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select("sud,datum,napomena").eq("user_id", uid).gte("datum", today_s).lte("datum", today_s).limit(3).execute()),
     )
 
     n_predmeta = len(predmeti_r.data or [])
@@ -291,7 +291,7 @@ async def _briefing_tekst(uid: str, supa) -> str:
     if rocista:
         linije.append("\nDanasnja rocista:")
         for r in rocista:
-            linije.append(f"  • {r.get('naziv', 'Rociste')}")
+            linije.append(f"  • {r.get('sud', 'Rociste')} ({r.get('datum','')})")
 
     if hitni:
         linije.append("\nHitni rokovi (7 dana):")

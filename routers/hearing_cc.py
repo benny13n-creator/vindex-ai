@@ -148,7 +148,7 @@ async def _load_all_context(supa, uid: str, predmet_id: str) -> dict:
             .select("klijent_id,klijenti(ime,prezime,firma)")
             .eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
-            .select("naziv_fajla,tip_dokaza,created_at").eq("predmet_id", predmet_id)
+            .select("naziv_fajla,created_at").eq("predmet_id", predmet_id)
             .eq("user_id", uid).order("created_at", desc=True).limit(20).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_beleske")
             .select("sadrzaj,created_at").eq("predmet_id", predmet_id)
@@ -160,8 +160,8 @@ async def _load_all_context(supa, uid: str, predmet_id: str) -> dict:
             .select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id)
             .eq("user_id", uid).order("datum_iso").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_komentari")
-            .select("sadrzaj,kreirano").eq("predmet_id", predmet_id)
-            .eq("user_id", uid).order("kreirano", desc=True).limit(10).execute()),
+            .select("tekst,created_at").eq("predmet_id", predmet_id)
+            .eq("user_id", uid).order("created_at", desc=True).limit(10).execute()),
         asyncio.to_thread(lambda: supa.table("rocista")
             .select("datum,vreme,sud,status,napomena").eq("predmet_id", predmet_id)
             .eq("user_id", uid).order("datum", desc=True).limit(10).execute()),
@@ -215,7 +215,7 @@ def _build_prompt(ctx: dict, datum_rocista: str, tip_postupka: str) -> str:
     if ctx["dokumenti"]:
         lines.append("\nDOKUMENTI:")
         for d in ctx["dokumenti"][:12]:
-            lines.append(f"  [{d.get('tip_dokaza','?')}] {d.get('naziv_fajla','?')}")
+            lines.append(f"  {d.get('naziv_fajla','?')}")
 
     if ctx["beleske"]:
         lines.append("\nBELEŠKE:")

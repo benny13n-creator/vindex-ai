@@ -356,7 +356,7 @@ async def posalji_briefing_whatsapp(request: Request, user: dict = Depends(get_c
     predmeti_r, rokovi_r, rocista_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti").select("id").eq("user_id", uid).eq("status", "aktivan").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso").eq("user_id", uid).gte("datum_iso", today_s).lte("datum_iso", in_7d).eq("vaznost", "kritičan").order("datum_iso").limit(3).execute()),
-        asyncio.to_thread(lambda: supa.table("rocista").select("naziv,datum").eq("user_id", uid).gte("datum", today_s).lte("datum", today_s).limit(5).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select("sud,datum,napomena").eq("user_id", uid).gte("datum", today_s).lte("datum", today_s).limit(5).execute()),
     )
 
     n_predmeta = len(predmeti_r.data or [])
@@ -369,7 +369,7 @@ async def posalji_briefing_whatsapp(request: Request, user: dict = Depends(get_c
     if rocista_danas:
         linije.append(f"\n📅 *Današnja ročišta:*")
         for r in rocista_danas[:3]:
-            linije.append(f"  • {r.get('naziv', 'Ročište')}")
+            linije.append(f"  • {r.get('sud', 'Ročište')} ({r.get('datum','')})")
 
     if hitni_rokovi:
         linije.append(f"\n⚠️ *Hitni rokovi (7 dana):*")

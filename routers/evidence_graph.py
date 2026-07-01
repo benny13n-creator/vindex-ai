@@ -209,13 +209,13 @@ async def generisi_graf(
     dok_r, kom_r, rok_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti").select(
-                "id,naziv_fajla,tip_dokaza,tekst,izvod"
-            ).eq("predmet_id", req.predmet_id).is_("deleted_at", "null").limit(15).execute()
+                "id,naziv_fajla,tip_dokaza,tekst_sadrzaj"
+            ).eq("predmet_id", req.predmet_id).limit(15).execute()
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_komentari").select(
                 "tekst"
-            ).eq("predmet_id", req.predmet_id).order("kreirano", desc=True).limit(10).execute()
+            ).eq("predmet_id", req.predmet_id).order("created_at", desc=True).limit(10).execute()
         ),
         asyncio.to_thread(
             lambda: supa.table("rocista").select(

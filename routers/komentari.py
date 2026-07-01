@@ -89,7 +89,7 @@ async def get_komentari(
         lambda: supa.table("predmet_komentari")
                     .select("*")
                     .eq("predmet_id", predmet_id)
-                    .order("kreirano", desc=False)
+                    .order("created_at", desc=False)
                     .execute()
     )
     return {"komentari": res.data or []}

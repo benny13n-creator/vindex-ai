@@ -48,7 +48,7 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
             "snaga,kategorija,pravni_element"
         ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("tip_dokaza").eq(
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq(
             "predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("rocista").select(
             "sud,datum,status"

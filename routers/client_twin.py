@@ -83,7 +83,7 @@ class RucnoAzuriranjeRequest(BaseModel):
 
 async def _get_klijent_materijali(supa, klijent_id: str, user_id: str) -> dict:
     try:
-        klijent_row, predmeti_row, komentari_row = await asyncio.gather(
+        klijent_row, predmeti_row, komentari_row = await asyncio.gather(  # noqa: E501
             asyncio.to_thread(
                 lambda: supa.table("klijenti")
                 .select("ime, prezime, tip_lica, napomene")
@@ -102,19 +102,27 @@ async def _get_klijent_materijali(supa, klijent_id: str, user_id: str) -> dict:
                 .execute()
             ),
             asyncio.to_thread(
-                lambda: supa.table("komentari")
-                .select("sadrzaj, tip, created_at")
-                .eq("entitet_tip", "klijent")
-                .eq("entitet_id", klijent_id)
+                lambda: supa.table("predmet_komentari")
+                .select("tekst, created_at")
+                .eq("user_id", user_id)
                 .order("created_at", desc=True)
                 .limit(20)
                 .execute()
             ),
+            return_exceptions=True,
         )
+        def _d(r):
+            if isinstance(r, Exception):
+                return []
+            return getattr(r, "data", None) or []
+        def _d1(r):
+            if isinstance(r, Exception):
+                return {}
+            return getattr(r, "data", None) or {}
         return {
-            "klijent": klijent_row.data or {},
-            "predmeti": predmeti_row.data or [],
-            "beleske": komentari_row.data or [],
+            "klijent": _d1(klijent_row),
+            "predmeti": _d(predmeti_row),
+            "beleske": _d(komentari_row),
         }
     except Exception as e:
         logger.warning("_get_klijent_materijali: %s", e)

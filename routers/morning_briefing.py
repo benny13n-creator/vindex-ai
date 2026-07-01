@@ -901,16 +901,16 @@ async def today_focus(
     try:
         rr = await asyncio.to_thread(
             lambda: supa.table("rokovi")
-                .select("predmet_id,naziv,datum_isteka,tip")
+                .select("predmet_id,naziv,datum,tip")
                 .eq("user_id", uid)
-                .gte("datum_isteka", today_iso)
-                .lte("datum_isteka", in_3d_iso)
-                .order("datum_isteka")
+                .gte("datum", today_iso)
+                .lte("datum", in_3d_iso)
+                .order("datum")
                 .limit(10)
                 .execute()
         )
         for r in (rr.data or []):
-            datum = r.get("datum_isteka", "")
+            datum = r.get("datum", "")
             try:
                 dana_do = (date.fromisoformat(datum) - now.date()).days
             except Exception:
