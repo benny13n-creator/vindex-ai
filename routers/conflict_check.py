@@ -147,7 +147,7 @@ async def check_conflict(req: ConflictReq, user=Depends(get_current_user)):
         pr = await asyncio.to_thread(
             lambda: supa.table("predmeti").select(
                 "id,naziv,tip,status,tuzilac,tuzeni,created_at"
-            ).eq("user_id", uid).is_("deleted_at", "null").execute()
+            ).eq("user_id", uid).execute()
         )
 
         for p in (pr.data or []):

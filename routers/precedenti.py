@@ -53,7 +53,7 @@ async def get_precedenti(predmet_id: str, user=Depends(require_user)):
     # Pronađi slične ZATVORENE predmete istog tipa/oblasti
     q = supa.table("predmeti").select(
         "id,naziv,tip,status,oblast,opis,created_at"
-    ).eq("user_id", uid).neq("id", predmet_id).not_.is_("deleted_at", "null")
+    ).eq("user_id", uid).neq("id", predmet_id).eq("status", "zatvoren")
 
     # Filter po tipu (isti tip spora)
     slicni = []

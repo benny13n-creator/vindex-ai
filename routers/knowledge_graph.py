@@ -80,16 +80,16 @@ async def get_knowledge_graph(predmet_id: str, request: Request, user=Depends(ge
     try:
         dok = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti").select(
-                "id,naziv_fajla,tip_dokaza"
-            ).eq("predmet_id", predmet_id).is_("deleted_at", "null").limit(8).execute()
+                "id,naziv_fajla"
+            ).eq("predmet_id", predmet_id).limit(8).execute()
         )
         for d in (dok.data or []):
             did = f"dok_{d['id']}"
             nodes.append({"id": did, "label": (d.get("naziv_fajla") or "Dokument")[:20],
                           "tip": "dokument", "color": "#b89aff", "radius": 11,
-                          "meta": {"tip_dokaza": d.get("tip_dokaza") or ""}})
+                          "meta": {}})
             edges.append({"from": f"predmet_{predmet_id}", "to": did,
-                          "label": d.get("tip_dokaza") or "dokument", "strength": "normal"})
+                          "label": "dokument", "strength": "normal"})
     except Exception as e:
         logger.debug("[KG] dokumenti greška: %s", e)
 

@@ -138,15 +138,14 @@ async def get_outcome_intel(predmet_id: str, user=Depends(get_current_user)):
         pattern: dict = {}
         try:
             dk = await asyncio.to_thread(
-                lambda: supa.table("predmet_dokumenti").select("predmet_id,tip_dokaza")
+                lambda: supa.table("predmet_dokumenti").select("predmet_id")
                     .in_("predmet_id", predmet_ids[:15])
-                    .is_("deleted_at", "null")
                     .execute()
             )
             for d in (dk.data or []):
-                t = d.get("tip_dokaza")
-                if t:
-                    pattern[t] = pattern.get(t, 0) + 1
+                pid = d.get("predmet_id")
+                if pid:
+                    pattern[pid] = pattern.get(pid, 0) + 1
         except Exception:
             pass
         return pattern
@@ -166,7 +165,6 @@ async def get_outcome_intel(predmet_id: str, user=Depends(get_current_user)):
             be_all = await asyncio.to_thread(
                 lambda: supa.table("billing_entries").select("predmet_id,iznos")
                     .in_("predmet_id", billing_ids)
-                    .is_("deleted_at", "null")
                     .execute()
             )
             totals_by_pid: dict[str, float] = {}

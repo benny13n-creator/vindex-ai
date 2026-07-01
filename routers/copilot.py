@@ -559,7 +559,6 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
             lambda: supa.table("klijenti")
                 .select("id,ime,prezime,firma")
                 .eq("user_id", user_id)
-                .is_("deleted_at","null")
                 .or_(f"ime.ilike.%{ime}%,prezime.ilike.%{ime}%,firma.ilike.%{ime}%")
                 .limit(3)
                 .execute()

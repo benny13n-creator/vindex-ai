@@ -136,8 +136,8 @@ async def _dohvati_kontekst_predmeta(supa, predmet_id: str, uid: str) -> dict:
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti").select(
-                "naziv,tip_dokaza,created_at"
-            ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()
+                "naziv_fajla,created_at"
+            ).eq("predmet_id", predmet_id).execute()
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_komentari").select(
@@ -183,7 +183,7 @@ def _build_kontekst_tekst(ctx: dict, strategija_promena: Optional[str] = None) -
 
     tekst += f"\nDOKUMENTI ({len(dokumenti)}):\n"
     for d in dokumenti[:15]:
-        tekst += f"- {d.get('naziv', '?')} [{d.get('tip_dokaza', '?')}]\n"
+        tekst += f"- {d.get('naziv_fajla', '?')}\n"
 
     if komentari:
         tekst += f"\nPOSLEDNJE BELESKE ({len(komentari)}):\n"
