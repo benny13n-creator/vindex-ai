@@ -2828,11 +2828,13 @@ async function kreirajApiKljuc() {
 async function opoziviApiKljuc(id) {
   if (!confirm('Opozovite ovaj API ključ? Integracije koje ga koriste prestaće da rade.')) return;
   if (!currentSession) return;
-  await fetch(BASE_URL + '/api-kljucevi/' + id, {
-    method: 'DELETE',
-    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
-  });
-  await ucitajApiKljuceve();
+  try {
+    await fetch(BASE_URL + '/api-kljucevi/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    await ucitajApiKljuceve();
+  } catch(e) { showToast('Greška pri opozivanju kluča.', 'err'); }
 }
 
 // ── F6 WEB PUSH ───────────────────────────────────────────────────────────────
@@ -3117,11 +3119,13 @@ async function dodajKomentar() {
 
 async function obrisiKomentar(komId) {
   if (!confirm('Obrisati komentar?')) return;
-  await fetch('/komentari/'+komId, {
-    method:'DELETE',
-    headers:{'Authorization':'Bearer '+currentSession.access_token}
-  });
-  if (_aktPredmetId) ucitajKomentare(_aktPredmetId);
+  try {
+    await fetch('/komentari/'+komId, {
+      method:'DELETE',
+      headers:{'Authorization':'Bearer '+currentSession.access_token}
+    });
+    if (_aktPredmetId) ucitajKomentare(_aktPredmetId);
+  } catch(e) { showToast('Greška pri brisanju komentara.', 'err'); }
 }
 
 /* ── F8: CRM KLIJENTI ──────────────────────────────────────── */
@@ -9147,6 +9151,11 @@ async function pred_copilotSubmit() {
       }),
     });
     var d = await r.json();
+    if (!r.ok) {
+      if (loadingMsg) loadingMsg.remove();
+      copilot_appendMsg('bot', '<span style="color:#ff9090;">' + (d.detail || 'Greska servera: ' + r.status) + '</span>');
+      return;
+    }
     if (loadingMsg) loadingMsg.remove();
     copilot_renderResponse(d);
     var odgovor = d.odgovor || d.poruka || '';
@@ -9232,6 +9241,8 @@ function _predInlineEdit(spanId, field, inputType) {
 
 async function pred_loadDetail(id) {
   if (!currentSession) return;
+  if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+  _copilotHistory = [];
   piTrack('predmeti','open',{predmet_id:id});
   // Resetuj doc session od prethodnog predmeta
   doc_clear_session();
@@ -9250,13 +9261,13 @@ async function pred_loadDetail(id) {
     _predAutoFill('podnesak-opis', false);
     _predAutoFill('strat-tekst', false);
 
-    // Timer bar: show and auto-resume if a timer was running for this predmet
-    timer_showBar();
+    // Timer bar: show only when active timer exists for this predmet
     (function() {
       var key = 'vx_timer_' + id;
       var running = JSON.parse(localStorage.getItem(key) || 'null');
       if (running && running.start) {
         // Resume display without re-setting start
+        timer_showBar();
         var startBtn = document.getElementById('pred-timer-start-btn');
         var stopBtn  = document.getElementById('pred-timer-stop-btn');
         if (startBtn) startBtn.style.display = 'none';
@@ -9569,7 +9580,7 @@ async function pred_kreiraj() {
     pred_closeNewModal();
     await pred_load();
     if (d.predmet) pred_select(d.predmet.id, d.predmet.naziv);
-    setTab(document.querySelector('[onclick*="\'p\'"]'), 'p');
+    setTab(document.getElementById('tab-btn-p'), 'p');
   } catch(e) {
     if (errEl) { errEl.textContent='Greška veze.'; errEl.style.display='block'; }
   }
@@ -10939,15 +10950,17 @@ async function billing_csvDownload() {
   if (!currentSession) return;
   var yr  = new Date().getFullYear();
   var url = BASE_URL+'/billing/report/csv?od='+yr+'-01-01&do='+yr+'-12-31';
-  var r   = await fetch(url, {headers:{Authorization:'Bearer '+currentSession.access_token}});
-  if (!r.ok) { showToast('Greška pri preuzimanju.','err'); return; }
-  var blob = await r.blob();
-  var a    = document.createElement('a');
-  a.href   = URL.createObjectURL(blob);
-  a.download = 'billing-'+yr+'.csv';
-  a.click();
-  URL.revokeObjectURL(a.href);
-  showToast('CSV preuzet.','ok');
+  try {
+    var r   = await fetch(url, {headers:{Authorization:'Bearer '+currentSession.access_token}});
+    if (!r.ok) { showToast('Greška pri preuzimanju.','err'); return; }
+    var blob = await r.blob();
+    var a    = document.createElement('a');
+    a.href   = URL.createObjectURL(blob);
+    a.download = 'billing-'+yr+'.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('CSV preuzet.','ok');
+  } catch(e) { showToast('Greška pri preuzimanju CSV-a.', 'err'); }
 }
 
 
@@ -11376,9 +11389,9 @@ function rocisteSnimi() {
   var broj      = document.getElementById('rociste-broj').value.trim() || null;
   var napomena  = document.getElementById('rociste-napomena').value.trim() || null;
   var grEl      = document.getElementById('rociste-greska');
-  if (!predmetId) { grEl.textContent = 'Izaberite predmet.'; grEl.style.display = ''; return; }
-  if (!sud)       { grEl.textContent = 'Unesite naziv suda.'; grEl.style.display = ''; return; }
-  if (!datum)     { grEl.textContent = 'Unesite datum ročišta.'; grEl.style.display = ''; return; }
+  if (!predmetId) { if(grEl){grEl.textContent = 'Izaberite predmet.'; grEl.style.display = '';} return; }
+  if (!sud)       { if(grEl){grEl.textContent = 'Unesite naziv suda.'; grEl.style.display = '';} return; }
+  if (!datum)     { if(grEl){grEl.textContent = 'Unesite datum ročišta.'; grEl.style.display = '';} return; }
   grEl.style.display = 'none';
   fetch(BASE_URL + '/api/rocista', {
     method: 'POST',
@@ -13547,7 +13560,7 @@ async function _voice_refresh_case_dna(predmetId) {
   try {
     var resp = await fetch('/api/predmeti/' + predmetId + '/case-dna/refresh', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_authToken || '') }
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') }
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     var data = await resp.json();
@@ -13574,7 +13587,7 @@ async function _cioLoad(hdr, forceRun) {
   try {
     var url = forceRun ? '/api/cio/run' : '/api/cio/daily';
     var method = forceRun ? 'POST' : 'GET';
-    var resp = await fetch(url, { method: method, headers: hdr || {'Authorization':'Bearer '+(_authToken||'')} });
+    var resp = await fetch(url, { method: method, headers: hdr || {'Authorization':'Bearer '+(currentSession ? currentSession.access_token : '')} });
     if (!resp.ok) throw new Error('HTTP '+resp.status);
     var data = await resp.json();
     section.innerHTML = _cioRender(data.izvestaj || {}, data);
@@ -13924,7 +13937,7 @@ async function _genomHistoryOpen(predmetId) {
 
   try {
     var resp = await fetch('/api/predmeti/'+predmetId+'/case-dna/history', {
-      headers: { 'Authorization': 'Bearer '+(_authToken||'') }
+      headers: { 'Authorization': 'Bearer '+(currentSession ? currentSession.access_token : '') }
     });
     if (!resp.ok) throw new Error('HTTP '+resp.status);
     var data = await resp.json();
@@ -14073,7 +14086,7 @@ async function _voice_compare_docs(predmetId, numbers) {
   try {
     var resp = await fetch('/api/predmeti/'+predmetId+'/case-dna/compare', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer '+(_authToken||'')},
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer '+(currentSession ? currentSession.access_token : '')},
       body: JSON.stringify({numbers: [n1, n2]})
     });
     if (!resp.ok) throw new Error('HTTP '+resp.status);
@@ -15373,7 +15386,7 @@ async function pred_dodajBelesku() {
       body: JSON.stringify({ sadrzaj: sadrzaj })
     });
     if (r.ok) { if (inp) inp.value = ''; pred_loadDetail(activePredmetId); }
-  } catch(e) {}
+  } catch(e) { showToast('Greška pri čuvanju beleške.', 'err'); }
 }
 
 function pred_upload_trigger() {
@@ -16331,7 +16344,7 @@ function _miEsc(s) {
 async function intakeKlijentSearch(q) {
   clearTimeout(_iSearchTimer);
   var res = document.getElementById('intake-klijent-results');
-  if (!q || q.length < 2) { res.innerHTML = ''; return; }
+  if (!q || q.length < 2) { if (res) res.innerHTML = ''; return; }
   _iSearchTimer = setTimeout(async function() {
     try {
       var r = await fetch(BASE_URL + '/klijenti?pretraga=' + encodeURIComponent(q), {
@@ -16374,7 +16387,7 @@ function intakeKlijentSelect(id, name, firma) {
 async function intakeUploadFile(file) {
   if (!file) return;
   var status = document.getElementById('intake-upload-status');
-  status.textContent = 'Učitavam ' + file.name + '...';
+  if (status) status.textContent = 'Učitavam ' + file.name + '...';
   try {
     var fd = new FormData();
     fd.append('file', file);
@@ -16465,6 +16478,8 @@ async function _intakeRunEkstrakcija() {
     _intakeShowAiResult(_iAnaliza);
     nextBtn.disabled = false;
   } catch(e) {
+    var _iLoadEl = document.getElementById('intake-ai-loading');
+    if (_iLoadEl) _iLoadEl.style.display = 'none';
     document.getElementById('intake-ai-loading').innerHTML = '<div style="color:#ff9090;font-size:0.82rem;">Greška pri analizi. Kliknite "Dalje" da preskočite.</div>';
     _iAnaliza = { predlog_naziva_predmeta: '', vrsta_spora: '', protivna_strana: null, vrednost_spora: null, prvi_rok: null, rok_opis: null, potrebni_dokumenti: [] };
     nextBtn.disabled = false;
@@ -16909,11 +16924,11 @@ async function bulkImportuj() {
 // ── Zatvaranje predmeta ────────────────────────────────────────────────────
 
 function pred_zatvoriOtvori() {
-  document.getElementById('pred-zatvori-form').style.display = 'block';
-  document.getElementById('pred-zatvori-trigger').style.display = 'none';
-  document.getElementById('pred-zatvori-err').style.display = 'none';
-  document.getElementById('pred-zatvori-ishod').value = '';
-  document.getElementById('pred-zatvori-zakljucak').value = '';
+  var _zfEl = document.getElementById('pred-zatvori-form'); if(_zfEl) _zfEl.style.display = 'block';
+  var _ztEl = document.getElementById('pred-zatvori-trigger'); if(_ztEl) _ztEl.style.display = 'none';
+  var _zeEl = document.getElementById('pred-zatvori-err'); if(_zeEl) _zeEl.style.display = 'none';
+  var _ziEl = document.getElementById('pred-zatvori-ishod'); if(_ziEl) _ziEl.value = '';
+  var _zzEl = document.getElementById('pred-zatvori-zakljucak'); if(_zzEl) _zzEl.value = '';
 }
 
 function pred_zatvoriCancel() {
