@@ -7920,7 +7920,7 @@ function aicOtvoriPredmet(subtab) {
     var _msg = subtab === 'graf'
       ? 'Izaberite predmet → otvoriće se Knowledge Graph sa mrežom odnosa.'
       : subtab === 'agenti'
-      ? 'Izaberite predmet → otvoriće se Multi-Agent Centar za postavljanje pitanja.'
+      ? 'Izaberite predmet → otvoriće se AI Tim za postavljanje pitanja.'
       : 'Izaberite predmet da biste koristili ovaj alat.';
     showToast(_msg, 'info');
   }
@@ -14057,7 +14057,7 @@ function _genomHeatmapDrill(predmetId, dimension) {
         content += '<div style="font-size:0.65rem;color:#a5f3fc;margin-bottom:1px;">• '+escHtml(z)+'</div>';
       });
     }
-    content += '<div style="margin-top:5px;font-size:0.63rem;color:rgba(0,212,255,0.5);border-top:1px solid rgba(0,212,255,0.1);padding-top:4px;">→ Pretraži sudsku praksu u Knowledge Base za vise referenci</div>';
+    content += '<div style="margin-top:5px;font-size:0.63rem;color:rgba(0,212,255,0.5);border-top:1px solid rgba(0,212,255,0.1);padding-top:4px;">→ Pretraži sudsku praksu u Baza znanja za više referenci</div>';
   }
 
   content += '</div>';
