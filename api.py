@@ -529,6 +529,15 @@ from routers.region               import router as region_router
 from routers.auto_discovery       import router as auto_discovery_router
 from routers.strategy_simulator   import router as strategy_simulator_router
 from routers.digital_twin         import router as digital_twin_router
+from routers.learning             import router as learning_router
+from routers.style_checker        import router as style_checker_router
+from routers.knowledge_transfer   import router as knowledge_transfer_router
+from routers.client_twin          import router as client_twin_router
+from routers.confidence_audit     import router as confidence_audit_router
+from routers.knowledge_hygiene    import router as knowledge_hygiene_router
+from routers.case_intelligence    import router as case_intelligence_router
+from routers.decision_replay      import router as decision_replay_router
+from routers.case_dna             import router as case_dna_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -602,6 +611,18 @@ app.include_router(region_router)
 app.include_router(strategy_simulator_router)
 app.include_router(digital_twin_router)
 app.include_router(auto_discovery_router)
+app.include_router(learning_router)
+app.include_router(style_checker_router)
+app.include_router(knowledge_transfer_router)
+app.include_router(client_twin_router)
+app.include_router(confidence_audit_router)
+app.include_router(knowledge_hygiene_router)
+app.include_router(case_intelligence_router)
+app.include_router(decision_replay_router)
+app.include_router(case_dna_router)
+
+from routers.cio import router as cio_router
+app.include_router(cio_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
@@ -1141,8 +1162,8 @@ async def portal_predmet_data(token: str):
                 .execute()
         ),
         asyncio.to_thread(
-            lambda: supa.table("korisnici")
-                .select("ime, email")
+            lambda: supa.table("profiles")
+                .select("email")
                 .eq("id", vlasnik_user_id)
                 .maybe_single()
                 .execute()
@@ -2994,6 +3015,18 @@ async def predmet_upload_auto_analyze(
     _dok_id = None
     _tekst_preview = text[:100_000] if text else ""
     try:
+        # Izracunaj sledeci redni_broj za DOK-01, DOK-02...
+        try:
+            _rn_res = _get_supa().table("predmet_dokumenti") \
+                .select("redni_broj") \
+                .eq("predmet_id", predmet_id) \
+                .order("redni_broj", desc=True) \
+                .limit(1).execute()
+            _max_rn = (_rn_res.data or [{}])[0].get("redni_broj") or 0
+            _next_rn = int(_max_rn) + 1
+        except Exception:
+            _next_rn = 1
+
         _row = {
             "predmet_id":          predmet_id,
             "user_id":             user.id,
@@ -3002,6 +3035,7 @@ async def predmet_upload_auto_analyze(
             "pinecone_namespace":  f"pred_{session_id}",
             "status":              "indeksirano",
             "velicina_kb":         max(1, len(raw) // 1024),
+            "redni_broj":          _next_rn,
         }
         # Sačuvaj tekst ako kolona postoji (migration: ALTER TABLE predmet_dokumenti ADD COLUMN tekst_sadrzaj TEXT)
         try:
@@ -3022,6 +3056,21 @@ async def predmet_upload_auto_analyze(
             ))
         except Exception as _ce:
             logger.warning("[EVIDENCE] Auto-classify task greška: %s", _ce)
+
+    # Auto-refresh Case Genome u pozadini posle svakog novog dokumenta
+    if _dok_id and predmet_id:
+        async def _genome_bg():
+            await asyncio.sleep(3)  # sacekaj da klasifikacija upisice tip_dokaza
+            try:
+                from routers.case_dna import _run_genome_background
+                _stari_g = _get_supa().table("predmeti").select("case_dna") \
+                    .eq("id", predmet_id).eq("user_id", str(user.id)).execute()
+                _sg = ((_stari_g.data or [{}])[0].get("case_dna") or {})
+                _sp = _sg.get("snaga_predmeta_procent") if isinstance(_sg, dict) else None
+                await _run_genome_background(predmet_id, str(user.id), _sp)
+            except Exception as _ge:
+                logger.warning("[GENOME] Auto-refresh bg greška: %s", _ge)
+        asyncio.create_task(_genome_bg())
 
     # ── AUTO ANALYSIS ──────────────────────────────────────────────────────────
     # Phase 2.1: choose prompt and text limit based on detected doc type
@@ -3545,7 +3594,7 @@ async def predmet_workspace(
     (beleske_r, istorija_r, dokumenti_r, hronologija_r, komentari_r, pk_r, rocista_ws_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(50).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor,confidence,created_at").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(30).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,velicina_kb,created_at,pinecone_namespace").eq("predmet_id", predmet_id).order("created_at", desc=True).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,velicina_kb,created_at,pinecone_namespace,redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("*").eq("predmet_id", predmet_id).order("datum_iso", desc=False).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_komentari").select("*").eq("predmet_id", predmet_id).order("kreirano", desc=True).limit(50).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_klijenti").select("klijent_id,uloga_klijenta,napomena").eq("predmet_id", predmet_id).execute()),

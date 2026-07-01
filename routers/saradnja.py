@@ -357,7 +357,7 @@ async def moja_uloga_na_predmetu(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    # Provjeri je li vlasnik
+    # Proveri je li vlasnik
     own_r = await asyncio.to_thread(
         lambda: supa.table("predmeti")
             .select("id")
@@ -368,7 +368,7 @@ async def moja_uloga_na_predmetu(
     if own_r.data:
         return {"predmet_id": predmet_id, "uloga": "vlasnik"}
 
-    # Provjeri saradnju
+    # Proveri saradnju
     try:
         sar_r = await asyncio.to_thread(
             lambda: supa.table("predmet_saradnici")

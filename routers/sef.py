@@ -130,7 +130,7 @@ def _validate_ubl_xml(xml_str: str) -> tuple[bool, str]:
             return False, f"XML sintaksa greška: {e}"
         _use_lxml = False
 
-    # Provjeri obavezna UBL polja
+    # Proveri obavezna UBL polja
     ns = {
         "cbc": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
         "cac": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",

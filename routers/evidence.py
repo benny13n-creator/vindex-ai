@@ -118,21 +118,28 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
 @router.get("/predmeti/{predmet_id}")
 async def get_evidence(predmet_id: str, user=Depends(require_user)):
     """Vraća Evidence Vault za predmet — dokumente sa klasifikacijom i matricu dokaza."""
+    import asyncio
     supa = get_supa()
     uid = user["user_id"]
 
     # Provera vlasništva
-    pr = supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).execute()
+    pr = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).execute()
+    )
     if not pr.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 
-    # Dokumenti sa klasifikacijom
-    dok_r = supa.table("predmet_dokumenti").select(
-        "id,naziv_fajla,tip_dokaza,pravni_elementi,ai_tags,velicina_kb,status,klasifikovan_at,created_at"
-    ).eq("predmet_id", predmet_id).is_("deleted_at", "null").order("created_at", desc=False).execute()
-
-    # Matrica dokaza
-    dokaz_r = supa.table("predmet_dokazi").select("*").eq("predmet_id", predmet_id).is_("deleted_at", "null").order("created_at", desc=True).execute()
+    # Dokumenti + matrica dokaza paralelno
+    dok_r, dokaz_r = await asyncio.gather(
+        asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").select(
+                "id,naziv_fajla,tip_dokaza,pravni_elementi,ai_tags,velicina_kb,status,klasifikovan_at,created_at"
+            ).eq("predmet_id", predmet_id).is_("deleted_at", "null").order("created_at", desc=False).execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_dokazi").select("*").eq("predmet_id", predmet_id).is_("deleted_at", "null").order("created_at", desc=True).execute()
+        ),
+    )
 
     # Statistika po tipu
     dokumenti = dok_r.data or []
@@ -162,10 +169,13 @@ class DokazReq(BaseModel):
 @router.post("/predmeti/{predmet_id}/dokaz")
 async def add_dokaz(predmet_id: str, req: DokazReq, user=Depends(require_user)):
     """Manuelno dodaje dokaznu stavku u Evidence Vault."""
+    import asyncio
     supa = get_supa()
     uid = user["user_id"]
 
-    pr = supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).execute()
+    pr = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).execute()
+    )
     if not pr.data:
         raise HTTPException(status_code=404)
 
@@ -179,15 +189,20 @@ async def add_dokaz(predmet_id: str, req: DokazReq, user=Depends(require_user)):
         "napomena":      req.napomena,
         "dokument_id":   req.dokument_id,
     }
-    res = supa.table("predmet_dokazi").insert(row).execute()
+    res = await asyncio.to_thread(
+        lambda: supa.table("predmet_dokazi").insert(row).execute()
+    )
     return {"ok": True, "id": (res.data or [{}])[0].get("id")}
 
 
 @router.delete("/predmeti/{predmet_id}/dokaz/{dokaz_id}")
 async def delete_dokaz(predmet_id: str, dokaz_id: str, user=Depends(require_user)):
+    import asyncio
     supa = get_supa()
     uid = user["user_id"]
-    supa.table("predmet_dokazi").update({"deleted_at": "now()"}).eq("id", dokaz_id).eq("user_id", uid).execute()
+    await asyncio.to_thread(
+        lambda: supa.table("predmet_dokazi").update({"deleted_at": "now()"}).eq("id", dokaz_id).eq("user_id", uid).execute()
+    )
     return {"ok": True}
 
 
@@ -198,16 +213,21 @@ async def reklasifikuj(predmet_id: str, dok_id: str, user=Depends(require_user))
     supa = get_supa()
     uid = user["user_id"]
 
-    pr = supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).execute()
+    pr, dok = await asyncio.gather(
+        asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").select("naziv_fajla,pinecone_namespace").eq("id", dok_id).eq("user_id", uid).execute()
+        ),
+    )
     if not pr.data:
         raise HTTPException(status_code=404)
-
-    dok = supa.table("predmet_dokumenti").select("naziv_fajla,pinecone_namespace").eq("id", dok_id).eq("user_id", uid).execute()
     if not dok.data:
         raise HTTPException(status_code=404, detail="Dokument nije pronađen.")
 
     d = dok.data[0]
-    asyncio.get_running_loop().run_in_executor(
-        None, klasifikuj_i_sacuvaj, predmet_id, dok_id, d.get("naziv_fajla", ""), "", uid
+    asyncio.create_task(
+        asyncio.to_thread(klasifikuj_i_sacuvaj, predmet_id, dok_id, d.get("naziv_fajla", ""), "", uid)
     )
     return {"ok": True, "poruka": "Reklasifikacija pokrenuta u pozadini."}

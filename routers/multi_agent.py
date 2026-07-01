@@ -372,8 +372,8 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
     _email_early = user.get("email", "")
     if not _is_founder(_email_early):
         try:
-            cr = supa.table("korisnici").select("krediti").eq("user_id", uid).execute()
-            if cr.data and (cr.data[0].get("krediti") or 0) <= 0:
+            cr = supa.table("user_credits").select("credits_remaining").eq("user_id", uid).execute()
+            if cr.data and (cr.data[0].get("credits_remaining") or 0) <= 0:
                 raise HTTPException(status_code=402, detail="Nema dovoljno kredita. Dopunite nalog.")
         except HTTPException:
             raise
@@ -390,10 +390,14 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
             if pr.data:
                 p = pr.data[0]
                 try:
-                    doc_count = len((supa.table("predmet_dokumenti").select("id")
-                        .eq("predmet_id", req.predmet_id).is_("deleted_at", "null")
-                        .limit(20).execute()).data or [])
+                    dok_res = supa.table("predmet_dokumenti") \
+                        .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,tip_dokaza,velicina_kb") \
+                        .eq("predmet_id", req.predmet_id) \
+                        .order("redni_broj").limit(10).execute()
+                    dok_rows = dok_res.data or []
+                    doc_count = len(dok_rows)
                 except Exception:
+                    dok_rows = []
                     doc_count = 0
                 try:
                     rok_data  = supa.table("predmet_rokovi").select("naziv,datum_isteka,status") \
@@ -414,6 +418,91 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
                 )
                 if p.get("opis"):
                     predmet_ctx += f"Opis: {p['opis'][:400]}\n"
+
+                # Injektuj sadrzaj dokumenata predmeta sa metapodacima
+                if dok_rows:
+                    # Pokusaj da ucitas i Case Genome za dodatni kontekst
+                    try:
+                        genome_r = supa.table("predmeti").select("case_dna") \
+                            .eq("id", req.predmet_id).eq("user_id", uid).execute()
+                        genome = (genome_r.data or [{}])[0].get("case_dna") or {}
+                    except Exception:
+                        genome = {}
+
+                    doc_parts = []
+                    for i, dok in enumerate(dok_rows[:5]):
+                        rn = dok.get("redni_broj") or (i + 1)
+                        naziv = dok.get("naziv_fajla", "dokument")
+                        tip = dok.get("tip_dokaza") or ""
+                        kb = dok.get("velicina_kb") or ""
+                        tekst = (dok.get("tekst_sadrzaj") or "").strip()
+                        if tekst:
+                            header = f"\n[DOK-{int(rn):02d}: {naziv}"
+                            if tip:
+                                header += f" | Vrsta: {tip}"
+                            if kb:
+                                header += f" | {kb}KB"
+                            header += "]"
+                            doc_parts.append(
+                                header + f"\n{tekst[:2500]}"
+                                + ("..." if len(tekst) > 2500 else "")
+                            )
+
+                    if doc_parts:
+                        predmet_ctx += (
+                            "\n\nSADRZAJ DOKUMENATA PREDMETA:"
+                            + "".join(doc_parts)
+                            + "\n[KRAJ DOKUMENATA]\n"
+                        )
+
+                    # Dodaj Case Genome sazetak ako postoji
+                    if genome and not genome.get("greska"):
+                        gi = genome.get("pravna_teorija", {})
+                        v = genome.get("verzija", "")
+                        v_str = f" v{v}" if v else ""
+                        predmet_ctx += f"\nCASE GENOME{v_str} — SINGLE SOURCE OF TRUTH:\n"
+                        if gi.get("pravni_identitet"):
+                            predmet_ctx += f"  Identitet: {gi['pravni_identitet']}\n"
+                        if gi.get("osnov_odgovornosti"):
+                            predmet_ctx += f"  Pravni osnov: {gi['osnov_odgovornosti']}\n"
+                        if gi.get("uzrocna_veza"):
+                            predmet_ctx += f"  Uzrocna veza: {gi['uzrocna_veza']}\n"
+                        snaga = genome.get("snaga_predmeta_procent")
+                        if snaga is not None:
+                            predmet_ctx += f"  Snaga predmeta: {snaga}%\n"
+                        sf = genome.get("snaga_faktori") or []
+                        if sf:
+                            predmet_ctx += "  Faktori snage: " + "; ".join(
+                                f"{f.get('uticaj','')}{f.get('faktor','')}"
+                                for f in sf[:4]
+                            ) + "\n"
+                        nt = genome.get("najslabija_tacka") or {}
+                        if nt.get("rizik"):
+                            predmet_ctx += f"  NAJSLABIJA TACKA [{nt.get('kriticnost','')}%]: {nt['rizik']}\n"
+                            if nt.get("preporuka"):
+                                predmet_ctx += f"    Preporuka: {nt['preporuka']}\n"
+                        strat = genome.get("strategija") or {}
+                        if strat.get("primarni_cilj"):
+                            predmet_ctx += f"  Primarni cilj: {strat['primarni_cilj']}\n"
+                        if strat.get("rezervni_plan"):
+                            predmet_ctx += f"  Rezervni plan: {strat['rezervni_plan']}\n"
+                        ned = genome.get("nedostaje") or []
+                        if ned:
+                            predmet_ctx += "  NEDOSTAJUCI DOKAZI: " + "; ".join(
+                                f"[{n.get('hitnost','')}] {n.get('dokument','')}"
+                                for n in ned[:3]
+                            ) + "\n"
+                        kontr = genome.get("kontradikcije") or []
+                        if kontr:
+                            predmet_ctx += f"  KONTRADIKCIJE ({len(kontr)}): " + "; ".join(
+                                k.get("opis", "")[:80] for k in kontr[:2]
+                            ) + "\n"
+                        hm = genome.get("heatmap") or {}
+                        if hm:
+                            predmet_ctx += "  Heatmap: " + " | ".join(
+                                f"{k}={hv}%" for k, hv in hm.items() if isinstance(hv, int)
+                            ) + "\n"
+                        predmet_ctx += "  NAPOMENA: Analiziraj konkretne dokumente. Ne izmisljaj.\n"
         except Exception as exc:
             logger.debug("[AGENT] predmet ctx greška: %s", exc)
 
@@ -568,8 +657,8 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(get_cur
     n_needed = len(agenti_ids)
     if not _is_founder(email):
         try:
-            cr = supa.table("korisnici").select("krediti").eq("user_id", uid).execute()
-            curr = (cr.data[0].get("krediti") or 0) if cr.data else 0
+            cr = supa.table("user_credits").select("credits_remaining").eq("user_id", uid).execute()
+            curr = (cr.data[0].get("credits_remaining") or 0) if cr.data else 0
             if curr < n_needed:
                 raise HTTPException(
                     status_code=402,
@@ -691,8 +780,8 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(get_curr
     # Kredit provera
     if not _is_founder(email):
         try:
-            cr = supa.table("korisnici").select("krediti").eq("user_id", uid).execute()
-            curr = (cr.data[0].get("krediti") or 0) if cr.data else 0
+            cr = supa.table("user_credits").select("credits_remaining").eq("user_id", uid).execute()
+            curr = (cr.data[0].get("credits_remaining") or 0) if cr.data else 0
             if curr < len(pipeline):
                 raise HTTPException(
                     status_code=402,

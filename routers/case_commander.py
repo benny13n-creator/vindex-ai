@@ -549,14 +549,14 @@ async def commander_jutarnji(
         return cached.data[0]["brifing"]
 
     korisnik_r = await asyncio.to_thread(
-        lambda: supa.table("korisnici")
-            .select("ime, prezime")
+        lambda: supa.table("profiles")
+            .select("email")
             .eq("id", uid)
             .maybe_single()
             .execute()
     )
     k   = (korisnik_r.data if not isinstance(korisnik_r, Exception) else None) or {}
-    ime = k.get("ime") or "advokate"
+    ime = k.get("email", "").split("@")[0] or "advokate"
 
     sat = datetime.now().hour
     if sat < 12:

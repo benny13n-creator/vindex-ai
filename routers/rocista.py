@@ -145,6 +145,24 @@ async def kreiraj_rociste(
     row = r.data[0]
     row["vreme"] = _norm_vreme(row.get("vreme"))
     logger.info("[ROCISTE] kreirano uid=%.8s predmet=%s datum=%s", uid, body.predmet_id, body.datum)
+
+    # Living Case: novo rociste menja takticki kontekst → refresh Genome u pozadini
+    _pred_id = body.predmet_id
+    _uid = uid
+    async def _rociste_genome_bg():
+        await asyncio.sleep(2)
+        try:
+            from routers.case_dna import _run_genome_background
+            _pred_r = await asyncio.to_thread(
+                lambda: supa.table("predmeti").select("case_dna")
+                .eq("id", _pred_id).eq("user_id", _uid).single().execute()
+            )
+            _sp = ((_pred_r.data or {}).get("case_dna") or {}).get("snaga_predmeta_procent")
+            await _run_genome_background(_pred_id, _uid, _sp)
+        except Exception as _e:
+            logger.debug("[ROCISTE] Genome bg greška: %s", _e)
+    asyncio.create_task(_rociste_genome_bg())
+
     return {"rociste": row, "ok": True}
 
 

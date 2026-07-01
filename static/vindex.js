@@ -393,18 +393,19 @@ function togglePw(inputId, btn) {
   btn.title = showing ? 'Prikaži lozinku' : 'Sakrij lozinku';
 }
 
-function showToast(msg, type) {
+function showToast(msg, type, duration) {
   var c = document.getElementById('toast-container');
   if (!c) return;
   var t = document.createElement('div');
   t.className = 'toast' + (type ? ' toast-' + type : '');
+  t.style.whiteSpace = 'pre-wrap';
   t.textContent = msg;
   c.appendChild(t);
   setTimeout(function() {
     t.style.transition = 'opacity 0.35s';
     t.style.opacity = '0';
     setTimeout(function() { t.remove(); }, 380);
-  }, 3200);
+  }, duration || 3200);
 }
 
 function setAuthMode(mode) {
@@ -940,6 +941,7 @@ async function dash_load(){
     notif_load();
     loadBriefing(false);
     _ccCaricaAiAnaliza(hdr);
+    _cioLoad(hdr);
   }catch(e){
     body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
@@ -1644,6 +1646,13 @@ _dashRender = function(d, bd, inboxData) {
   html += _kcPanelPreporuke(d);
   html += _kcPanelAktivnosti(d);
   html += '</div>';
+
+  /* ── 4.5. CIO — Chief Intelligence Officer ──────────────────── */
+  html += '<div id="kc-cio-section" style="margin:1.2rem 0 0.4rem;">';
+  html += '<div id="kc-cio-loading" style="background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.1);border-radius:10px;padding:1rem 1.2rem;display:flex;align-items:center;gap:0.6rem;">';
+  html += '<div style="width:8px;height:8px;border-radius:50%;background:#00d4ff;animation:pulse 1.4s infinite;"></div>';
+  html += '<span style="color:rgba(0,212,255,0.6);font-size:0.72rem;letter-spacing:0.06em;">CIO analizira portfelj kancelarije...</span>';
+  html += '</div></div>';
 
   /* ── 5. INBOX — Prioritetne stavke (kriticno + visok) ─────────── */
   if (inboxData) {
@@ -9276,6 +9285,11 @@ async function pred_loadDetail(id) {
       hubUpdEl.textContent = new Date(d.predmet.updated_at).toLocaleDateString('sr-Latn-RS',{day:'2-digit',month:'2-digit',year:'numeric'});
     }
 
+    // Case DNA — ucitaj i prikazi ako postoji
+    if (d.predmet && d.predmet.case_dna && Object.keys(d.predmet.case_dna).length) {
+      _caseDnaRender(d.predmet.case_dna, activePredmetId);
+    }
+
     // Dokumenti lista u Dokumenti tabu
     var dokListEl = document.getElementById('pred-dok-lista');
     if (dokListEl) {
@@ -9285,17 +9299,20 @@ async function pred_loadDetail(id) {
         var _dokHint = d.dokumenti.length >= 2
           ? '<div style="font-size:0.7rem;color:rgba(0,212,255,0.55);margin-bottom:0.3rem;">☑ Označi 2–5 dokumenata za poređenje (Cross-doc analiza)</div>'
           : '';
-        dokListEl.innerHTML = _dokHint + d.dokumenti.map(function(dok) {
+        dokListEl.innerHTML = _dokHint + d.dokumenti.map(function(dok, _dokIdx) {
           var _ns = dok.pinecone_namespace || '';
           var _kb = dok.velicina_kb || 0;
           var _hasNs = !!_ns;
-          return '<div class="pred-dok-card" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'" '
+          var _rn = dok.redni_broj || (_dokIdx + 1);
+          var _rnStr = String(_rn).padStart(2, '0');
+          return '<div class="pred-dok-card" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'" data-dok-rn="'+_rn+'" '
             +'onclick="dokUcitajZaAnalizu(\''+escHtml(_ns)+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml(_kb+'')+'\',\''+escHtml(dok.id||'')+'\')" '
             +'title="Klikni da učitaš u AI analizu" '
             +'style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;margin-bottom:0.35rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+');border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;" '
             +'onmouseover="this.style.background=\'rgba(0,212,255,0.12)\';this.style.borderColor=\'rgba(0,212,255,0.45)\'" '
             +'onmouseout="this.style.background=\'rgba(0,212,255,0.06)\';this.style.borderColor=\'rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+')\'">'
-            +'<i data-lucide="file-text" style="width:18px;height:18px;flex-shrink:0;color:rgba(0,212,255,'+(_hasNs?'0.85':'0.4')+');"></i>'
+            +'<div style="flex-shrink:0;background:rgba(0,212,255,0.18);color:#00d4ff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.03em;font-family:monospace;">DOK-'+_rnStr+'</div>'
+            +'<i data-lucide="file-text" style="width:16px;height:16px;flex-shrink:0;color:rgba(0,212,255,'+(_hasNs?'0.85':'0.4')+');"></i>'
             +'<div style="flex:1;min-width:0;">'
             +'<div style="font-size:0.78rem;font-weight:600;color:'+(_hasNs?'#e2e8f0':'rgba(255,255,255,0.45)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(dok.naziv_fajla||'')+'</div>'
             +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.32);margin-top:1px;">'+_kb+' KB'
@@ -9311,6 +9328,15 @@ async function pred_loadDetail(id) {
             +'style="flex-shrink:0;width:14px;height:14px;cursor:pointer;accent-color:rgba(0,212,255,0.8);">'
             +'</div>';
         }).join('');
+        // Case DNA dugme i panel — ispod liste dokumenata
+        var _dnaPanelId = 'case-dna-panel-' + activePredmetId;
+        dokListEl.innerHTML += '<div style="margin-top:0.6rem;">'
+          + '<button onclick="_voice_refresh_case_dna(\''+escHtml(activePredmetId||'')+'\');return false;" '
+          + 'style="width:100%;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);border-radius:7px;color:#00d4ff;font-size:0.7rem;padding:0.4rem 0.6rem;cursor:pointer;font-family:inherit;transition:background .15s;letter-spacing:0.02em;" '
+          + 'onmouseover="this.style.background=\'rgba(0,212,255,0.16)\'" onmouseout="this.style.background=\'rgba(0,212,255,0.08)\'">'
+          + '🧬 Generiši Case DNA</button>'
+          + '<div id="'+_dnaPanelId+'" style="display:none;margin-top:0.5rem;padding:0.65rem 0.8rem;background:rgba(0,0,0,0.3);border:1px solid rgba(0,212,255,0.15);border-radius:8px;"></div>'
+          + '</div>';
         if (typeof lucide !== 'undefined') lucide.createIcons();
       }
     }
@@ -13454,6 +13480,25 @@ function voice_doAction(action, params) {
       }
       break;
 
+    case 'load_doc_by_number':
+      if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
+      var _ldNums = params.numbers || (params.number ? [params.number] : []);
+      if (!_ldNums.length) { showToast('Nisam razumeo koji dokument', 'warn'); break; }
+      _voice_load_docs_by_number(_ldNums);
+      break;
+
+    case 'compare_docs':
+      if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
+      var _cmpNums = params.numbers || [];
+      if (_cmpNums.length < 2) { showToast('Navedite 2 dokumenta za poređenje', 'warn'); break; }
+      _voice_compare_docs(activePredmetId, _cmpNums);
+      break;
+
+    case 'refresh_case_dna':
+      if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
+      _voice_refresh_case_dna(activePredmetId);
+      break;
+
     case 'stop_voice':
       _voiceConvMode = false;
       _voiceConvTurns = 0;
@@ -13462,6 +13507,602 @@ function voice_doAction(action, params) {
 
     default:
       showToast('Nisam razumeo: "' + (params.text||action) + '"', 'warn');
+  }
+}
+
+// Ucitava dokumente po rednom broju (DOK-01, DOK-02...) iz aktivnog predmeta
+async function _voice_load_docs_by_number(numbers) {
+  if (!activePredmetId) return;
+  var cards = document.querySelectorAll('.pred-dok-card[data-dok-rn]');
+  if (!cards.length) {
+    // Predji na tab dokumenti pa pokusaj ponovo
+    pred_subtabSwitch('dokumenti');
+    setTimeout(function() { _voice_load_docs_by_number(numbers); }, 600);
+    return;
+  }
+  var loaded = [];
+  numbers.forEach(function(num) {
+    var n = parseInt(num, 10);
+    for (var i = 0; i < cards.length; i++) {
+      var rn = parseInt(cards[i].getAttribute('data-dok-rn') || '0', 10);
+      if (rn === n) {
+        cards[i].click();
+        loaded.push('DOK-' + String(n).padStart(2, '0'));
+        break;
+      }
+    }
+  });
+  if (loaded.length) {
+    showToast('Učitavam: ' + loaded.join(', '), 'info');
+    // Posle ucitavanja poslednjeg dokumenta, predji na analizu
+    setTimeout(function() { pred_subtabSwitch('ai-analiza'); }, 800);
+  } else {
+    showToast('Dokumenti ' + numbers.map(function(n){return 'DOK-'+String(n).padStart(2,'0');}).join(', ') + ' nisu pronađeni', 'warn');
+  }
+}
+
+// Regenerise Case DNA za aktivni predmet
+async function _voice_refresh_case_dna(predmetId) {
+  showToast('Generišem Case DNA...', 'info');
+  try {
+    var resp = await fetch('/api/predmeti/' + predmetId + '/case-dna/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_authToken || '') }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var data = await resp.json();
+    var dna = data.case_dna || {};
+    var tip = dna.tip_spora || '';
+    var snaga = dna.snaga_predmeta || '';
+    var kontr = (dna.kontradikcije || []).length;
+    var msg = 'Case DNA ažuriran' + (tip ? ': ' + tip : '') + (snaga ? ' | Snaga: ' + snaga : '') + (kontr ? ' | ⚠ ' + kontr + ' kontradikcija' : '');
+    showToast(msg, kontr ? 'warn' : 'ok');
+    // Prikazi DNA panel ako postoji
+    _caseDnaRender(dna, predmetId);
+  } catch(e) {
+    showToast('Greška pri generisanju Case DNA', 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHIEF INTELLIGENCE OFFICER — proaktivna dnevna inteligencija
+// ═══════════════════════════════════════════════════════════════
+
+async function _cioLoad(hdr, forceRun) {
+  var section = document.getElementById('kc-cio-section');
+  if (!section) return;
+  try {
+    var url = forceRun ? '/api/cio/run' : '/api/cio/daily';
+    var method = forceRun ? 'POST' : 'GET';
+    var resp = await fetch(url, { method: method, headers: hdr || {'Authorization':'Bearer '+(_authToken||'')} });
+    if (!resp.ok) throw new Error('HTTP '+resp.status);
+    var data = await resp.json();
+    section.innerHTML = _cioRender(data.izvestaj || {}, data);
+    if (window.lucide) lucide.createIcons();
+  } catch(e) {
+    section.innerHTML = '<div style="color:rgba(255,255,255,0.25);font-size:0.68rem;padding:0.5rem;">CIO nije dostupan. <span onclick="_cioLoad(null,true)" style="color:rgba(0,212,255,0.5);cursor:pointer;">Pokušaj ponovo</span></div>';
+  }
+}
+
+function _cioRender(iz, meta) {
+  if (!iz || !iz.cio_preporuka) return '';
+  var pg = iz.portfolio_zdravlje || {};
+  var izKesa = meta && meta.iz_kesa;
+
+  var html = '<div style="background:linear-gradient(135deg,rgba(0,212,255,0.04),rgba(124,58,237,0.04));border:1px solid rgba(0,212,255,0.14);border-radius:10px;overflow:hidden;">';
+
+  // Header
+  html += '<div style="padding:0.65rem 1rem 0.5rem;border-bottom:1px solid rgba(0,212,255,0.08);display:flex;align-items:center;justify-content:space-between;">';
+  html += '<div style="display:flex;align-items:center;gap:0.5rem;">';
+  html += '<div style="width:6px;height:6px;border-radius:50%;background:#00d4ff;"></div>';
+  html += '<span style="color:rgba(0,212,255,0.8);font-size:0.65rem;font-weight:700;letter-spacing:0.1em;">CHIEF INTELLIGENCE OFFICER</span>';
+  if (pg.ukupno_aktivnih) html += '<span style="color:rgba(255,255,255,0.25);font-size:0.6rem;">· '+pg.ukupno_aktivnih+' predmeta</span>';
+  if (izKesa) html += '<span style="color:rgba(255,255,255,0.18);font-size:0.58rem;"> · keširano</span>';
+  html += '</div>';
+  html += '<button onclick="_cioLoad(null,true)" style="font-size:0.6rem;color:rgba(0,212,255,0.4);background:none;border:1px solid rgba(0,212,255,0.15);border-radius:4px;padding:2px 7px;cursor:pointer;font-family:inherit;">Osvezi</button>';
+  html += '</div>';
+
+  // Portfolio health bar
+  if (pg.ukupno_aktivnih) {
+    var jakih = pg.jakih || 0;
+    var slabih = pg.slabih || 0;
+    var srednje = pg.srednje || 0;
+    var ukupno = pg.ukupno_aktivnih || 1;
+    var snagaColor = (pg.prosecna_snaga||0) >= 65 ? '#4ade80' : (pg.prosecna_snaga||0) >= 40 ? '#fbbf24' : '#f87171';
+    html += '<div style="padding:0.5rem 1rem 0;display:flex;align-items:center;gap:0.8rem;">';
+    html += '<div style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;display:flex;overflow:hidden;">';
+    html += '<div style="height:4px;width:'+(jakih/ukupno*100).toFixed(0)+'%;background:#4ade80;"></div>';
+    html += '<div style="height:4px;width:'+(srednje/ukupno*100).toFixed(0)+'%;background:#fbbf24;"></div>';
+    html += '<div style="height:4px;width:'+(slabih/ukupno*100).toFixed(0)+'%;background:#f87171;"></div>';
+    html += '</div>';
+    html += '<span style="color:'+snagaColor+';font-size:0.65rem;font-weight:700;white-space:nowrap;">⌀ '+(pg.prosecna_snaga||0)+'%</span>';
+    if (pg.kriticnih_rizika) html += '<span style="color:#f87171;font-size:0.62rem;">'+pg.kriticnih_rizika+' kritičnih</span>';
+    html += '</div>';
+  }
+
+  // CIO preporuka — najistaknutija stavka
+  html += '<div style="padding:0.7rem 1rem;border-bottom:1px solid rgba(255,255,255,0.05);">';
+  html += '<div style="color:rgba(255,255,255,0.3);font-size:0.59rem;letter-spacing:0.07em;margin-bottom:3px;">PREPORUKA ZA DANAS</div>';
+  html += '<div style="color:#e2e8f0;font-size:0.78rem;font-weight:600;line-height:1.4;">'+escHtml(iz.cio_preporuka)+'</div>';
+  html += '</div>';
+
+  // Grid: 3 kolone — Rizik | Zapostavljan | Rok
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid rgba(255,255,255,0.05);">';
+
+  // Najveci rizik
+  var nr = iz.najveci_rizik;
+  html += '<div style="padding:0.55rem 0.75rem;border-right:1px solid rgba(255,255,255,0.05);">';
+  html += '<div style="color:#f87171;font-size:0.58rem;letter-spacing:0.07em;margin-bottom:3px;">NAJVECI RIZIK</div>';
+  if (nr && nr.predmet_naziv) {
+    html += '<div style="color:#fca5a5;font-size:0.68rem;font-weight:600;cursor:pointer;" onclick="_dashGoToPredmet(\''+escHtml(nr.predmet_id||'')+'\')">'+escHtml(nr.predmet_naziv)+'</div>';
+    html += '<div style="color:rgba(255,255,255,0.45);font-size:0.63rem;margin-top:2px;">'+escHtml((nr.rizik||'').slice(0,70))+'</div>';
+    if (nr.kriticnost) html += '<div style="color:#f87171;font-size:0.6rem;margin-top:2px;">kriticnost: '+nr.kriticnost+'%</div>';
+  } else { html += '<div style="color:rgba(255,255,255,0.2);font-size:0.63rem;">Nema podataka</div>'; }
+  html += '</div>';
+
+  // Zapostavljen predmet
+  var zp = iz.zapostavljen_predmet;
+  html += '<div style="padding:0.55rem 0.75rem;border-right:1px solid rgba(255,255,255,0.05);">';
+  html += '<div style="color:#fbbf24;font-size:0.58rem;letter-spacing:0.07em;margin-bottom:3px;">ZAPOSTAVLJEN</div>';
+  if (zp && zp.predmet_naziv) {
+    html += '<div style="color:#fde68a;font-size:0.68rem;font-weight:600;cursor:pointer;" onclick="_dashGoToPredmet(\''+escHtml(zp.predmet_id||'')+'\')">'+escHtml(zp.predmet_naziv)+'</div>';
+    html += '<div style="color:rgba(255,255,255,0.45);font-size:0.63rem;margin-top:2px;">'+escHtml(zp.dana_bez_aktivnosti||'?')+' dana bez aktivnosti</div>';
+    if (zp.rizik_zapustanja) html += '<div style="color:rgba(255,200,0,0.45);font-size:0.6rem;margin-top:1px;">'+escHtml(zp.rizik_zapustanja.slice(0,60))+'</div>';
+  } else { html += '<div style="color:rgba(255,255,255,0.2);font-size:0.63rem;">Svi predmeti aktivni</div>'; }
+  html += '</div>';
+
+  // Kriticni rok
+  var kr = iz.kriticni_rok;
+  html += '<div style="padding:0.55rem 0.75rem;">';
+  html += '<div style="color:#a78bfa;font-size:0.58rem;letter-spacing:0.07em;margin-bottom:3px;">KRITICNI ROK</div>';
+  if (kr && kr.predmet_naziv) {
+    html += '<div style="color:#c4b5fd;font-size:0.68rem;font-weight:600;cursor:pointer;" onclick="_dashGoToPredmet(\''+escHtml(kr.predmet_id||'')+'\')">'+escHtml(kr.predmet_naziv)+'</div>';
+    html += '<div style="color:rgba(255,255,255,0.45);font-size:0.63rem;margin-top:2px;">'+escHtml(kr.rok_naziv||'')+'</div>';
+    if (kr.dana_do != null) html += '<div style="color:#a78bfa;font-size:0.6rem;margin-top:1px;">za '+kr.dana_do+' dana ('+escHtml(kr.datum||'')+')</div>';
+  } else { html += '<div style="color:rgba(255,255,255,0.2);font-size:0.63rem;">Nema hitnih rokova</div>'; }
+  html += '</div>';
+
+  html += '</div>'; // grid 3 kolone
+
+  // Bottom: Neprimecena kontradikcija | Suboptimalna strategija | Slicni predmet
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;">';
+
+  var nk = iz.neprimecena_kontradikcija;
+  html += '<div style="padding:0.5rem 0.75rem;border-right:1px solid rgba(255,255,255,0.05);">';
+  html += '<div style="color:#fb923c;font-size:0.58rem;letter-spacing:0.07em;margin-bottom:2px;">NEPRIMECENA KONTR.</div>';
+  if (nk && nk.predmet_naziv) {
+    html += '<div style="color:#fed7aa;font-size:0.65rem;font-weight:600;cursor:pointer;" onclick="_dashGoToPredmet(\''+escHtml(nk.predmet_id||'')+'\')">'+escHtml(nk.predmet_naziv)+'</div>';
+    html += '<div style="color:rgba(255,200,130,0.5);font-size:0.61rem;margin-top:1px;">'+escHtml((nk.kontradikcija||'').slice(0,60))+'</div>';
+  } else { html += '<div style="color:rgba(255,255,255,0.2);font-size:0.61rem;">Nema novih</div>'; }
+  html += '</div>';
+
+  var ss = iz.suboptimalna_strategija;
+  html += '<div style="padding:0.5rem 0.75rem;border-right:1px solid rgba(255,255,255,0.05);">';
+  html += '<div style="color:#38bdf8;font-size:0.58rem;letter-spacing:0.07em;margin-bottom:2px;">SUBOPT. STRATEGIJA</div>';
+  if (ss && ss.predmet_naziv) {
+    html += '<div style="color:#7dd3fc;font-size:0.65rem;font-weight:600;cursor:pointer;" onclick="_dashGoToPredmet(\''+escHtml(ss.predmet_id||'')+'\')">'+escHtml(ss.predmet_naziv)+'</div>';
+    html += '<div style="color:rgba(125,211,252,0.5);font-size:0.61rem;margin-top:1px;">'+escHtml((ss.problem||'').slice(0,60))+'</div>';
+  } else { html += '<div style="color:rgba(255,255,255,0.2);font-size:0.61rem;">Sve strategije optimalne</div>'; }
+  html += '</div>';
+
+  var sp = iz.slicni_predmet;
+  html += '<div style="padding:0.5rem 0.75rem;">';
+  html += '<div style="color:#4ade80;font-size:0.58rem;letter-spacing:0.07em;margin-bottom:2px;">SLICNI PREDMET</div>';
+  if (sp && sp.predmet_naziv) {
+    html += '<div style="color:#86efac;font-size:0.65rem;font-weight:600;cursor:pointer;" onclick="_dashGoToPredmet(\''+escHtml(sp.predmet_id||'')+'\')">'+escHtml(sp.predmet_naziv)+'</div>';
+    html += '<div style="color:rgba(134,239,172,0.5);font-size:0.61rem;margin-top:1px;">'+escHtml((sp.slicnost||'').slice(0,60))+'</div>';
+  } else { html += '<div style="color:rgba(255,255,255,0.2);font-size:0.61rem;">Nema paralele u praksi</div>'; }
+  html += '</div>';
+
+  html += '</div>'; // bottom grid
+
+  // CIO zaključak
+  if (iz.cio_zakljucak) {
+    html += '<div style="padding:0.5rem 1rem 0.65rem;border-top:1px solid rgba(255,255,255,0.05);">';
+    html += '<div style="color:rgba(255,255,255,0.35);font-size:0.64rem;font-style:italic;line-height:1.5;">'+escHtml(iz.cio_zakljucak)+'</div>';
+    html += '</div>';
+  }
+
+  html += '</div>'; // kc-cio-section wrapper
+  return html;
+}
+
+var _genomeDnaCache = {};
+
+// Prikaz Case Genome panela u predmet prikazu
+function _caseDnaRender(dna, predmetId) {
+  _genomeDnaCache[predmetId] = dna;
+  var el = document.getElementById('case-dna-panel-' + predmetId);
+  if (!el) return;
+  if (!dna || !Object.keys(dna).length || dna.greska) { el.style.display = 'none'; return; }
+
+  var S = 'style="';
+  var html = '<div style="font-size:0.72rem;color:#e2e8f0;line-height:1.5;">';
+
+  // ── Header: identitet + verzija + kompletnost ─────────────────────────────
+  var gi = dna.pravna_teorija || {};
+  var verzija = dna.verzija ? ' <span style="font-size:0.58rem;opacity:0.5;font-weight:400;">v'+dna.verzija+'</span>' : '';
+  var komp = dna.genome_kompletnost;
+  var kc = komp === 'visoka' ? '#4ade80' : komp === 'niska' ? '#f87171' : '#fbbf24';
+  var kompBadge = komp ? '<span style="font-size:0.58rem;color:'+kc+';background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;margin-left:0.4rem;">'+komp+'</span>' : '';
+  if (gi.pravni_identitet) {
+    html += '<div style="font-weight:700;color:#00d4ff;margin-bottom:0.3rem;font-size:0.74rem;">'+escHtml(gi.pravni_identitet)+verzija+kompBadge+'</div>';
+  }
+
+  // ── Snaga predmeta — progress bar sa historijom ───────────────────────────
+  var procent = dna.snaga_predmeta_procent;
+  if (typeof procent === 'number') {
+    var barColor = procent >= 65 ? '#4ade80' : procent >= 40 ? '#fbbf24' : '#f87171';
+    html += '<div style="margin-bottom:0.5rem;">';
+    html += '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:3px;">';
+    html += '<span style="color:rgba(255,255,255,0.45);font-size:0.62rem;letter-spacing:0.06em;">SNAGA PREDMETA</span>';
+    html += '<span style="color:'+barColor+';font-weight:800;font-size:0.85rem;">'+procent+'%</span>';
+    html += '<button onclick="_genomHistoryOpen(\''+escHtml(predmetId||'')+'\')" style="margin-left:auto;font-size:0.58rem;color:rgba(0,212,255,0.5);background:none;border:none;cursor:pointer;padding:0;font-family:inherit;">istorija</button>';
+    html += '</div>';
+    html += '<div style="height:5px;background:rgba(255,255,255,0.08);border-radius:3px;">';
+    html += '<div style="height:5px;width:'+Math.min(procent,100)+'%;background:'+barColor+';border-radius:3px;transition:width .6s ease;"></div>';
+    html += '</div></div>';
+  }
+
+  // ── Explainable score — snaga faktori ────────────────────────────────────
+  var sf = dna.snaga_faktori || [];
+  if (sf.length) {
+    html += '<div style="margin-bottom:0.5rem;background:rgba(0,0,0,0.2);border-radius:6px;padding:0.35rem 0.5rem;">';
+    html += '<div style="color:rgba(255,255,255,0.35);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.25rem;">ZAŠTO '+procent+'%</div>';
+    sf.slice(0,6).forEach(function(f){
+      var uticajNum = parseInt((f.uticaj||'').replace(/[^-\d]/g,''), 10) || 0;
+      var uc = uticajNum >= 0 ? '#4ade80' : '#f87171';
+      var uStr = (uticajNum > 0 ? '+' : '') + f.uticaj;
+      html += '<div style="display:flex;gap:0.35rem;align-items:flex-start;margin-bottom:1px;">';
+      html += '<span style="color:'+uc+';font-weight:700;min-width:2.5rem;font-size:0.68rem;">'+escHtml(uStr)+'</span>';
+      html += '<span style="color:rgba(255,255,255,0.65);flex:1;">'+escHtml(f.faktor||'');
+      if (f.opis) html += '<span style="color:rgba(255,255,255,0.35);"> — '+escHtml(f.opis.slice(0,70))+'</span>';
+      html += '</span></div>';
+    });
+    html += '</div>';
+  }
+
+  // ── Genome Heat Map ───────────────────────────────────────────────────────
+  var hm = dna.heatmap || {};
+  var hmKeys = ['cinjenice','dokazi','praksa','vestaci','rizici','rokovi'];
+  var hmLabels = {'cinjenice':'Činjenice','dokazi':'Dokazi','praksa':'Praksa','vestaci':'Veštaci','rizici':'Rizici','rokovi':'Rokovi'};
+  var hasHm = hmKeys.some(function(k){ return typeof hm[k] === 'number'; });
+  if (hasHm) {
+    html += '<div style="margin-bottom:0.5rem;">';
+    html += '<div style="color:rgba(255,255,255,0.35);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.3rem;">GENOME HEAT MAP</div>';
+    hmKeys.forEach(function(k){
+      if (typeof hm[k] !== 'number') return;
+      var v = hm[k];
+      var bc = v >= 75 ? '#4ade80' : v >= 50 ? '#fbbf24' : '#f87171';
+      var drillId = 'hm-drill-'+k+'-'+predmetId;
+      html += '<div onclick="_genomHeatmapDrill(\''+escHtml(predmetId||'')+'\',\''+k+'\')" '
+           + 'style="display:flex;align-items:center;gap:0.4rem;margin-bottom:3px;cursor:pointer;border-radius:3px;padding:1px 2px;transition:background .12s;" '
+           + 'title="Kliknite za detalje — '+escHtml(hmLabels[k])+'">';
+      html += '<span style="color:rgba(255,255,255,0.45);width:4.5rem;font-size:0.62rem;">'+hmLabels[k]+'</span>';
+      html += '<div style="flex:1;height:4px;background:rgba(255,255,255,0.07);border-radius:2px;">';
+      html += '<div style="height:4px;width:'+v+'%;background:'+bc+';border-radius:2px;"></div>';
+      html += '</div>';
+      html += '<span style="color:'+bc+';font-size:0.62rem;min-width:2rem;text-align:right;">'+v+'%</span>';
+      html += '</div>';
+      html += '<div id="'+drillId+'"></div>';
+    });
+    html += '</div>';
+  }
+
+  // ── Evidence Ranking ──────────────────────────────────────────────────────
+  var dr = dna.dokazi_rang || [];
+  if (dr.length) {
+    html += '<div style="margin-bottom:0.5rem;">';
+    html += '<div style="color:rgba(255,255,255,0.35);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.25rem;">RANGIRANA EVIDENCIJA</div>';
+    dr.slice(0,5).forEach(function(d){
+      var sc = d.snaga_score || 0;
+      var sc_c = sc >= 80 ? '#4ade80' : sc >= 60 ? '#fbbf24' : '#f87171';
+      var zvez = Math.min(5, Math.max(1, d.zvezdice || Math.round(sc/20)));
+      var zvStr = '★'.repeat(zvez) + '☆'.repeat(5-zvez);
+      var rnStr = d.redni_broj ? 'DOK-'+String(d.redni_broj).padStart(2,'0') : '';
+      html += '<div style="display:flex;gap:0.35rem;align-items:flex-start;margin-bottom:2px;">';
+      html += '<span style="color:rgba(0,212,255,0.7);font-family:monospace;font-size:0.63rem;min-width:3.2rem;">'+escHtml(rnStr)+'</span>';
+      html += '<span style="color:'+sc_c+';font-size:0.63rem;min-width:2.6rem;">'+zvStr+'</span>';
+      html += '<span style="color:'+sc_c+';font-weight:700;min-width:2rem;font-size:0.63rem;">'+sc+'</span>';
+      html += '<span style="color:rgba(255,255,255,0.55);flex:1;font-size:0.63rem;">'+escHtml((d.naziv||'').slice(0,30));
+      if (d.razlog) html += '<br><span style="color:rgba(255,255,255,0.3);font-size:0.6rem;">'+escHtml(d.razlog.slice(0,60))+'</span>';
+      html += '</span></div>';
+    });
+    html += '</div>';
+  }
+
+  // ── Najslabija tačka — crveni alert box ──────────────────────────────────
+  var nt = dna.najslabija_tacka || {};
+  if (nt.rizik) {
+    var ntKrit = nt.kriticnost || 0;
+    var ntBorderColor = ntKrit >= 80 ? '#ef4444' : '#f59e0b';
+    html += '<div style="margin-bottom:0.5rem;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.25);border-left:3px solid '+ntBorderColor+';border-radius:5px;padding:0.35rem 0.5rem;">';
+    html += '<div style="color:#f87171;font-size:0.62rem;letter-spacing:0.06em;margin-bottom:2px;">NAJSLABIJA TAČKA · '+ntKrit+'/100</div>';
+    html += '<div style="color:#fca5a5;font-weight:600;">'+escHtml(nt.rizik)+'</div>';
+    if (nt.preporuka) {
+      html += '<div style="color:rgba(255,255,255,0.5);margin-top:2px;font-size:0.65rem;">→ '+escHtml(nt.preporuka)+'</div>';
+    }
+    html += '</div>';
+  }
+
+  // ── Strategija (War Plan) ─────────────────────────────────────────────────
+  var strat = dna.strategija || {};
+  var hasWarPlan = strat.primarni_cilj || strat.rezervni_plan || (strat.scenariji||[]).length;
+  if (hasWarPlan) {
+    html += '<div style="margin-bottom:0.5rem;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.12);border-radius:5px;padding:0.35rem 0.5rem;">';
+    html += '<div style="color:rgba(0,212,255,0.6);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.25rem;">PLAN POSTUPANJA</div>';
+    if (strat.primarni_cilj) {
+      html += '<div style="margin-bottom:2px;"><span style="color:rgba(255,255,255,0.35);font-size:0.62rem;">CILJ </span><span style="color:#a5f3fc;font-weight:600;">'+escHtml(strat.primarni_cilj)+'</span></div>';
+    }
+    if (strat.rezervni_plan) {
+      html += '<div style="margin-bottom:3px;"><span style="color:rgba(255,255,255,0.35);font-size:0.62rem;">BACKUP </span><span style="color:rgba(255,255,255,0.6);">'+escHtml(strat.rezervni_plan)+'</span></div>';
+    }
+    (strat.scenariji||[]).slice(0,3).forEach(function(sc){
+      if (!sc.uslov) return;
+      html += '<div style="margin-top:2px;padding-top:2px;border-top:1px solid rgba(255,255,255,0.05);">';
+      html += '<span style="color:rgba(255,200,0,0.6);font-size:0.62rem;">'+escHtml(sc.uslov)+'</span>';
+      if (sc.odgovor) html += '<div style="color:rgba(255,255,255,0.5);font-size:0.62rem;margin-left:0.5rem;">↳ '+escHtml(sc.odgovor)+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  } else if (dna.strategija_osnova) {
+    // Fallback na stari format
+    html += '<div style="margin-bottom:0.35rem;"><span style="color:rgba(0,212,255,0.5);font-size:0.62rem;">STRATEGIJA </span><span style="color:#a5f3fc;">'+escHtml(dna.strategija_osnova)+'</span></div>';
+  }
+
+  // ── Šta nedostaje ─────────────────────────────────────────────────────────
+  var ned = dna.nedostaje || [];
+  if (ned.length) {
+    html += '<div style="margin-bottom:0.5rem;background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.2);border-radius:5px;padding:0.35rem 0.5rem;">';
+    html += '<div style="color:#fbbf24;font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.2rem;">ŠTA NEDOSTAJE ('+ned.length+')</div>';
+    ned.slice(0,4).forEach(function(n){
+      var hc = n.hitnost === 'kriticno' ? '#f87171' : n.hitnost === 'vazno' ? '#fbbf24' : '#94a3b8';
+      html += '<div style="margin-bottom:2px;display:flex;gap:0.3rem;align-items:flex-start;">';
+      html += '<span style="color:'+hc+';font-size:0.62rem;min-width:4.5rem;">['+escHtml(n.hitnost||'')+ ']</span>';
+      html += '<span style="color:rgba(255,255,255,0.65);">'+escHtml(n.dokument||'');
+      if (n.opis) html += '<br><span style="color:rgba(255,255,255,0.3);font-size:0.6rem;">'+escHtml(n.opis.slice(0,70))+'</span>';
+      html += '</span></div>';
+    });
+    html += '</div>';
+  }
+
+  // ── Osnov odgovornosti + finansije ────────────────────────────────────────
+  if (gi.osnov_odgovornosti) {
+    html += '<div style="margin-bottom:0.25rem;color:rgba(255,255,255,0.55);"><span style="color:rgba(0,212,255,0.5);font-size:0.62rem;">OSNOV </span>'+escHtml(gi.osnov_odgovornosti)+'</div>';
+  }
+  var fin = dna.finansije || {};
+  if (fin.tuzeni_iznos || fin.ukupna_ekspozicija) {
+    html += '<div style="margin-bottom:0.25rem;"><span style="color:rgba(255,180,0,0.6);font-size:0.62rem;">FINANSIJE </span>';
+    if (fin.tuzeni_iznos) html += escHtml(fin.tuzeni_iznos);
+    if (fin.ukupna_ekspozicija && fin.ukupna_ekspozicija !== fin.tuzeni_iznos)
+      html += ' <span style="opacity:0.5;">(exp: '+escHtml(fin.ukupna_ekspozicija)+')</span>';
+    html += '</div>';
+  }
+
+  // ── Stranke ───────────────────────────────────────────────────────────────
+  if ((dna.stranke||[]).length) {
+    html += '<div style="margin:0.3rem 0 0.1rem;color:rgba(255,255,255,0.3);font-size:0.6rem;letter-spacing:0.06em;">STRANKE</div>';
+    dna.stranke.slice(0,4).forEach(function(s){
+      html += '<div style="margin-bottom:1px;">• <span style="color:rgba(0,212,255,0.65);">'+escHtml(s.uloga||'')+'</span>: '+escHtml(s.ime||'')+'</div>';
+    });
+  }
+
+  // ── Kontradikcije ─────────────────────────────────────────────────────────
+  var kontr = dna.kontradikcije || [];
+  if (kontr.length) {
+    html += '<div style="margin:0.4rem 0 0.1rem;color:#f87171;font-size:0.6rem;letter-spacing:0.06em;">⚠ KONTRADIKCIJE ('+kontr.length+')</div>';
+    kontr.slice(0,3).forEach(function(k){
+      var tc = k.tezina === 'kriticna' ? '#fca5a5' : '#fdba74';
+      html += '<div style="color:'+tc+';margin-bottom:1px;">• '+escHtml(k.opis||'')
+        +(k.lokacija_1 ? ' <span style="opacity:.4;font-size:.6rem;">['+escHtml(k.lokacija_1)+'↔'+escHtml(k.lokacija_2||'')+']</span>' : '')
+        +'</div>';
+    });
+  }
+
+  // ── Upozorenja ────────────────────────────────────────────────────────────
+  (dna.upozorenja||[]).slice(0,2).forEach(function(u){
+    html += '<div style="color:#fde68a;margin-top:0.2rem;font-size:0.68rem;">⚡ '+escHtml(u)+'</div>';
+  });
+
+  // ── Zaključak ─────────────────────────────────────────────────────────────
+  if (dna.zakljucak) {
+    html += '<div style="margin-top:0.45rem;padding-top:0.35rem;border-top:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);font-style:italic;font-size:0.68rem;">'+escHtml(dna.zakljucak)+'</div>';
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+// Otvori/zatvori Genome historiju inline ispod panela
+async function _genomHistoryOpen(predmetId) {
+  if (!predmetId) return;
+  var panelEl = document.getElementById('case-dna-panel-'+predmetId);
+  if (!panelEl) return;
+  var existing = panelEl.querySelector('.genome-history-panel');
+  if (existing) { existing.remove(); return; }
+
+  try {
+    var resp = await fetch('/api/predmeti/'+predmetId+'/case-dna/history', {
+      headers: { 'Authorization': 'Bearer '+(_authToken||'') }
+    });
+    if (!resp.ok) throw new Error('HTTP '+resp.status);
+    var data = await resp.json();
+    var hist = data.history || [];
+    if (!hist.length) { showToast('Nema sačuvanih verzija Genome-a', 'info'); return; }
+
+    var hHtml = '<div class="genome-history-panel" style="margin-top:0.5rem;border-top:1px solid rgba(0,212,255,0.12);padding-top:0.4rem;">';
+    hHtml += '<div style="color:rgba(0,212,255,0.45);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.25rem;">GENOME ISTORIJA ('+hist.length+' verzija)</div>';
+    hist.forEach(function(h){
+      var snaga = h.snaga_procent != null ? h.snaga_procent+'%' : '—';
+      var sc = h.snaga_procent;
+      var snagaC = sc >= 65 ? '#4ade80' : sc >= 40 ? '#fbbf24' : (sc != null ? '#f87171' : '#64748b');
+      var when = (h.created_at||'').slice(0,16).replace('T',' ');
+      var trigger = h.trigger_event === 'upload_trigger' ? 'upload' : h.trigger_event === 'manual_refresh' ? 'refresh' : h.trigger_event || '';
+      hHtml += '<div style="display:flex;gap:0.4rem;align-items:center;margin-bottom:2px;font-size:0.65rem;">';
+      hHtml += '<span style="color:rgba(255,255,255,0.35);min-width:1.6rem;">v'+h.verzija+'</span>';
+      hHtml += '<span style="color:'+snagaC+';font-weight:700;min-width:2.5rem;">'+escHtml(snaga)+'</span>';
+      hHtml += '<span style="color:rgba(255,255,255,0.28);">'+escHtml(when)+'</span>';
+      if (trigger) hHtml += '<span style="color:rgba(255,255,255,0.18);font-size:0.58rem;">['+escHtml(trigger)+']</span>';
+      hHtml += '</div>';
+    });
+    hHtml += '</div>';
+    panelEl.querySelector('div').insertAdjacentHTML('beforeend', hHtml);
+  } catch(e) {
+    showToast('Greška pri učitavanju istorije', 'error');
+  }
+}
+
+// Heat Map drill-down — klik na dimenziju otvara konkretan sadrzaj
+function _genomHeatmapDrill(predmetId, dimension) {
+  var dna = _genomeDnaCache[predmetId];
+  if (!dna) return;
+  var drillId = 'hm-drill-'+dimension+'-'+predmetId;
+  var drillEl = document.getElementById(drillId);
+  if (!drillEl) return;
+
+  if (drillEl.innerHTML) { drillEl.innerHTML = ''; return; }  // toggle
+
+  var content = '<div style="margin:3px 0 6px;padding:6px 8px;background:rgba(0,0,0,0.28);border-radius:5px;border-left:2px solid rgba(0,212,255,0.2);">';
+
+  if (dimension === 'dokazi') {
+    var slabi = (dna.dokazi_rang || []).filter(function(d){ return (d.snaga_score||0) < 70; });
+    var ned = dna.nedostaje || [];
+    if (slabi.length) {
+      content += '<div style="color:rgba(255,255,255,0.3);font-size:0.59rem;margin-bottom:2px;">SLABI DOKAZI:</div>';
+      slabi.slice(0,4).forEach(function(d){
+        var rnStr = d.redni_broj ? 'DOK-'+String(d.redni_broj).padStart(2,'0') : '';
+        content += '<div style="font-size:0.64rem;margin-bottom:1px;">• <span style="color:rgba(0,212,255,0.65);">'+escHtml(rnStr)+'</span> '+escHtml((d.naziv||'').slice(0,30))+' <span style="color:#f87171;">('+d.snaga_score+')</span></div>';
+      });
+    }
+    if (ned.length) {
+      content += '<div style="color:rgba(255,255,255,0.3);font-size:0.59rem;margin:4px 0 2px;">NEDOSTAJE:</div>';
+      ned.forEach(function(n){
+        var hc = n.hitnost === 'kriticno' ? '#f87171' : n.hitnost === 'vazno' ? '#fbbf24' : '#94a3b8';
+        content += '<div style="font-size:0.64rem;margin-bottom:2px;">• <span style="color:'+hc+';">['+escHtml(n.hitnost||'')+']</span> '+escHtml(n.dokument||'');
+        if (n.opis) content += '<div style="color:rgba(255,255,255,0.3);margin-left:1rem;font-size:0.6rem;">'+escHtml(n.opis.slice(0,70))+'</div>';
+        content += '</div>';
+      });
+    }
+    if (!slabi.length && !ned.length) content += '<div style="color:#4ade80;font-size:0.64rem;">Svi dokazi su snazni. Nema nedostajucih.</div>';
+
+  } else if (dimension === 'vestaci') {
+    var vestaci = dna.vestaci || [];
+    if (vestaci.length) {
+      vestaci.forEach(function(v){
+        content += '<div style="font-size:0.64rem;margin-bottom:4px;">';
+        content += '<span style="color:#a5f3fc;font-weight:600;">'+escHtml(v.ime||'')+'</span>';
+        content += ' <span style="color:rgba(255,255,255,0.4);">('+escHtml(v.oblast||'')+')</span>';
+        if (v.napadljivo) content += ' <span style="color:#f87171;font-size:0.6rem;">⚠ napadljiv</span>';
+        if (v.nalaz_sazetak) content += '<div style="color:rgba(255,255,255,0.35);margin-left:0.6rem;font-size:0.61rem;">'+escHtml(v.nalaz_sazetak.slice(0,90))+'</div>';
+        content += '</div>';
+      });
+    } else {
+      content += '<div style="color:#fbbf24;font-size:0.64rem;">Nema evidentiranih vestaka. Razmotrite potrebu za vestacenjem.</div>';
+    }
+
+  } else if (dimension === 'rizici') {
+    var nt = dna.najslabija_tacka || {};
+    if (nt.rizik) {
+      content += '<div style="color:#f87171;font-size:0.63rem;font-weight:600;margin-bottom:2px;">NAJSLABIJA TACKA ('+nt.kriticnost+'%):</div>';
+      content += '<div style="font-size:0.64rem;color:#fca5a5;margin-bottom:3px;">'+escHtml(nt.rizik)+'</div>';
+      if (nt.preporuka) content += '<div style="color:rgba(255,255,255,0.4);font-size:0.62rem;">→ '+escHtml(nt.preporuka)+'</div>';
+    }
+    var kontr = dna.kontradikcije || [];
+    if (kontr.length) {
+      content += '<div style="color:#fdba74;font-size:0.59rem;margin:4px 0 2px;">KONTRADIKCIJE ('+kontr.length+'):</div>';
+      kontr.slice(0,4).forEach(function(k){
+        var tc = k.tezina === 'kriticna' ? '#fca5a5' : '#fdba74';
+        content += '<div style="font-size:0.62rem;color:'+tc+';margin-bottom:1px;">• '+escHtml((k.opis||'').slice(0,90))+'</div>';
+      });
+    }
+
+  } else if (dimension === 'rokovi') {
+    var rokovi = dna.rokovi_kriticni || [];
+    if (rokovi.length) {
+      rokovi.forEach(function(r){
+        var sc = r.status === 'aktivan' ? '#fbbf24' : r.status === 'prosao' ? '#f87171' : '#94a3b8';
+        content += '<div style="font-size:0.64rem;margin-bottom:4px;">';
+        content += '<span style="color:'+sc+';font-weight:600;">'+escHtml(r.naziv||'')+'</span>';
+        if (r.datum) content += ' <span style="color:rgba(255,255,255,0.4);">'+escHtml(r.datum)+'</span>';
+        content += ' <span style="color:'+sc+';font-size:0.59rem;">['+escHtml(r.status||'')+']</span>';
+        if (r.opis) content += '<div style="color:rgba(255,255,255,0.3);margin-left:0.5rem;font-size:0.61rem;">'+escHtml(r.opis.slice(0,80))+'</div>';
+        content += '</div>';
+      });
+    } else {
+      content += '<div style="color:rgba(255,255,255,0.35);font-size:0.64rem;">Nema evidentiranih kriticnih rokova.</div>';
+    }
+
+  } else if (dimension === 'cinjenice') {
+    var za = dna.argumenti_za || [];
+    var prot = dna.argumenti_protiv || [];
+    if (za.length) {
+      content += '<div style="color:#4ade80;font-size:0.59rem;margin-bottom:2px;">ZA (+):</div>';
+      za.slice(0,3).forEach(function(a){
+        content += '<div style="font-size:0.63rem;color:rgba(255,255,255,0.6);margin-bottom:1px;">+ '+escHtml(a.slice(0,90))+'</div>';
+      });
+    }
+    if (prot.length) {
+      content += '<div style="color:#f87171;font-size:0.59rem;margin:4px 0 2px;">PROTIV (−):</div>';
+      prot.slice(0,3).forEach(function(a){
+        content += '<div style="font-size:0.63rem;color:rgba(255,200,100,0.7);margin-bottom:1px;">− '+escHtml(a.slice(0,90))+'</div>';
+      });
+    }
+
+  } else if (dimension === 'praksa') {
+    var zakoni = (dna.pravna_teorija || {}).relevantni_zakoni || [];
+    if (zakoni.length) {
+      content += '<div style="color:rgba(255,255,255,0.3);font-size:0.59rem;margin-bottom:2px;">RELEVANTNI ZAKONI:</div>';
+      zakoni.forEach(function(z){
+        content += '<div style="font-size:0.65rem;color:#a5f3fc;margin-bottom:1px;">• '+escHtml(z)+'</div>';
+      });
+    }
+    content += '<div style="margin-top:5px;font-size:0.63rem;color:rgba(0,212,255,0.5);border-top:1px solid rgba(0,212,255,0.1);padding-top:4px;">→ Pretraži sudsku praksu u Knowledge Base za vise referenci</div>';
+  }
+
+  content += '</div>';
+  drillEl.innerHTML = content;
+}
+
+// Uporedjuje dva dokumenta po broju — kreira i prikazuje Cross-Doc analizu
+async function _voice_compare_docs(predmetId, numbers) {
+  if (numbers.length < 2) return;
+  var n1 = numbers[0], n2 = numbers[1];
+  showToast('Upoređujem DOK-'+String(n1).padStart(2,'0')+' i DOK-'+String(n2).padStart(2,'0')+'...', 'info');
+  pred_subtabSwitch('dokumenti');
+  try {
+    var resp = await fetch('/api/predmeti/'+predmetId+'/case-dna/compare', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer '+(_authToken||'')},
+      body: JSON.stringify({numbers: [n1, n2]})
+    });
+    if (!resp.ok) throw new Error('HTTP '+resp.status);
+    var data = await resp.json();
+    var a = data.analiza || {};
+
+    // Prikazi rezultat u AI Agent delu — postavi pitanje koje sadrzi analizu
+    var resultText = '**Poređenje: '+escHtml(data.dok_1||'')+' vs '+escHtml(data.dok_2||'')+'**\n\n';
+    if ((a.razlike_kljucne||[]).length) {
+      resultText += '**Ključne razlike:**\n' + a.razlike_kljucne.map(function(r){return '• '+r;}).join('\n') + '\n\n';
+    }
+    if ((a.kontradikcije||[]).length) {
+      resultText += '**Kontradikcije:**\n' + a.kontradikcije.map(function(r){return '⚠ '+r;}).join('\n') + '\n\n';
+    }
+    if (a.koji_je_jaci_dokaz) resultText += '**Jači dokaz:** '+a.koji_je_jaci_dokaz+'\n\n';
+    if (a.preporuka_advokata) resultText += '**Preporuka:** '+a.preporuka_advokata+'\n';
+
+    // Postavi u AI analiza tab
+    pred_subtabSwitch('ai-analiza');
+    setTimeout(function() {
+      var cinj = document.getElementById('pred-cinjenice');
+      if (cinj) {
+        cinj.value = 'Poređenje dokumenta DOK-'+String(n1).padStart(2,'0')+' i DOK-'+String(n2).padStart(2,'0')+'\n\n'+resultText;
+        cinj.dispatchEvent(new Event('input'));
+      }
+    }, 300);
+    showToast('Poređenje završeno', 'ok');
+  } catch(e) {
+    showToast('Greška pri poređenju dokumenata: '+e.message, 'error');
   }
 }
 

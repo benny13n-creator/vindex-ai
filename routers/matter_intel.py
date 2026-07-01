@@ -253,3 +253,359 @@ def _compute_next_action(predmet: dict, snaga: str, nedostajuci: list, predstoje
     if snaga == "Slaba":
         return "SLEDEĆA RADNJA: Razmotriti mogućnost nalaza veštaka ili pribavljanja dodatnih svedoka.\nRAZLOG: Trenutni dokazi su slabe snage i ne pružaju dovoljnu osnovu za tužbu."
     return "SLEDEĆA RADNJA: Pokrenuti AI strategijsku analizu predmeta (Strategija tab).\nRAZLOG: Predmet ima solidnu osnovu — vreme je za konkretnu pravnu strategiju."
+
+
+# ─── Uncertainty Dashboard ───────────────────────────────────────────────────
+
+import os as _os
+from typing import Optional
+from fastapi import Request
+from pydantic import BaseModel
+
+
+def _semafor(score: int) -> str:
+    if score <= 35:
+        return "zelena"
+    if score <= 65:
+        return "žuta"
+    return "crvena"
+
+
+@router.get("/predmeti/{predmet_id}/uncertainty")
+async def get_uncertainty_dashboard(
+    predmet_id: str,
+    request: Request,
+    user=Depends(get_current_user),
+):
+    """
+    Uncertainty Dashboard — semafor sistem po 5 dimenzija rizika.
+    Vraća score 0-100 po svakoj dimenziji i AI analizu.
+    """
+    supa = _get_supa()
+    uid  = user["user_id"]
+
+    # Ownership check
+    pr = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select(
+            "id,naziv,tip,status,tuzeni,opis"
+        ).eq("id", predmet_id).eq("user_id", uid).execute()
+    )
+    if not pr.data:
+        raise HTTPException(status_code=404)
+    predmet = pr.data[0]
+    tip = predmet.get("tip") or "ostalo"
+
+    now = datetime.now(timezone.utc)
+
+    # Paralelno dohvati sve podatke
+    dok_r, rok_r, ist_r, billing_r, hron_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
+            "tip_dokaza"
+        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
+            "naziv,datum_isteka,status"
+        ).eq("predmet_id", predmet_id).order("datum_isteka").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija").select(
+            "pitanje"
+        ).eq("predmet_id", predmet_id).eq("user_id", uid).limit(100).execute()),
+        asyncio.to_thread(lambda: supa.table("billing_entries").select(
+            "id"
+        ).eq("predmet_id", predmet_id).limit(1).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select(
+            "dogadjaj"
+        ).eq("predmet_id", predmet_id).limit(50).execute()),
+        return_exceptions=True,
+    )
+
+    def _d(r):
+        return (r.data if not isinstance(r, Exception) else []) or []
+
+    dokumenti = _d(dok_r)
+    rokovi    = _d(rok_r)
+    istorija  = _d(ist_r)
+    billing   = _d(billing_r)
+    hronolog  = _d(hron_r)
+
+    # ── 1. Faktička nesigurnost ───────────────────────────────────────────────
+    expected = _EXPECTED_DOCS.get(tip, _EXPECTED_DOCS["ostalo"])
+    postojeci_tipovi = {d.get("tip_dokaza") for d in dokumenti if d.get("tip_dokaza")}
+    nedostajuci_br = len([t for t in expected if t not in postojeci_tipovi])
+    ukupno_ocekivanih = len(expected) if expected else 5
+    cinjenicna = min(100, int(nedostajuci_br / max(1, ukupno_ocekivanih) * 100))
+
+    # ── 2. Procesna nesigurnost ───────────────────────────────────────────────
+    kriticni_rokovi = 0
+    for r in rokovi:
+        try:
+            dt = datetime.fromisoformat((r.get("datum_isteka","") or "").replace("Z","+00:00"))
+            if 0 <= (dt - now).days <= 7:
+                kriticni_rokovi += 1
+        except Exception:
+            pass
+
+    if not rokovi:
+        procesna = 50
+    elif kriticni_rokovi == 0:
+        procesna = 0
+    elif kriticni_rokovi == 1:
+        procesna = 40
+    else:
+        procesna = 70
+
+    # ── 3. Pravna nesigurnost ─────────────────────────────────────────────────
+    ima_strategiju = any(
+        "[Strategija" in (r.get("pitanje") or "") for r in istorija
+    )
+    ima_praksu = any(
+        "praksa" in (h.get("dogadjaj") or "").lower() or
+        "presuda" in (h.get("dogadjaj") or "").lower()
+        for h in hronolog
+    )
+    if ima_strategiju and ima_praksu:
+        pravna = 15
+    elif ima_strategiju:
+        pravna = 30
+    else:
+        pravna = 80
+
+    # ── 4. Protivnička nesigurnost ────────────────────────────────────────────
+    ima_info_protivnik = bool(predmet.get("tuzeni")) or any(
+        "protivnik" in (h.get("dogadjaj") or "").lower() or
+        "tuženi" in (h.get("dogadjaj") or "").lower()
+        for h in hronolog
+    )
+    protivnicka = 50 if ima_info_protivnik else 70
+
+    # ── 5. Finansijska nesigurnost ────────────────────────────────────────────
+    finansijska = 30 if billing else 60
+
+    # ── Ukupni score ──────────────────────────────────────────────────────────
+    uncertainty_score = int((cinjenicna + procesna + pravna + protivnicka + finansijska) / 5)
+
+    dimenzije = {
+        "cinjenicna":   {"score": cinjenicna,   "boja": _semafor(cinjenicna),   "label": "Faktička nesigurnost"},
+        "procesna":     {"score": procesna,      "boja": _semafor(procesna),     "label": "Procesna nesigurnost"},
+        "pravna":       {"score": pravna,        "boja": _semafor(pravna),       "label": "Pravna nesigurnost"},
+        "protivnicka":  {"score": protivnicka,   "boja": _semafor(protivnicka),  "label": "Protivnička nesigurnost"},
+        "finansijska":  {"score": finansijska,   "boja": _semafor(finansijska),  "label": "Finansijska nesigurnost"},
+    }
+
+    # ── AI analiza ────────────────────────────────────────────────────────────
+    ai_analiza = ""
+    preporuke: list[str] = []
+    try:
+        from openai import OpenAI
+        oai = OpenAI(api_key=_os.environ["OPENAI_API_KEY"])
+        _ctx = (
+            f"Predmet: {predmet.get('naziv','')} (tip: {tip})\n"
+            f"Faktička nesigurnost: {cinjenicna}/100\n"
+            f"Procesna nesigurnost: {procesna}/100\n"
+            f"Pravna nesigurnost: {pravna}/100\n"
+            f"Protivnička nesigurnost: {protivnicka}/100\n"
+            f"Finansijska nesigurnost: {finansijska}/100\n"
+            f"Ukupni score: {uncertainty_score}/100"
+        )
+        _prompt = (
+            "Analiziraj uncertainty profile pravnog predmeta. "
+            "Vrati JSON: {\"analiza\": \"...\", \"preporuke\": [\"...\", \"...\"]}. "
+            "Analiza max 80 reči. Preporuke: 2-3 konkretne akcije. "
+            "Ekavica obavezno. Budi direktan i konkretan."
+        )
+        resp = await asyncio.to_thread(
+            lambda: oai.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.2,
+                max_tokens=300,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _prompt},
+                    {"role": "user",   "content": _ctx},
+                ],
+            )
+        )
+        import json as _json
+        parsed = _json.loads(resp.choices[0].message.content or "{}")
+        ai_analiza = parsed.get("analiza", "")
+        preporuke  = parsed.get("preporuke", [])
+    except Exception as e:
+        logger.debug("[UNCERTAINTY] AI greška: %s", e)
+
+    return {
+        "uncertainty_score": uncertainty_score,
+        "semafor":           _semafor(uncertainty_score),
+        "dimenzije":         dimenzije,
+        "ai_analiza":        ai_analiza,
+        "preporuke":         preporuke,
+    }
+
+
+# ─── Pre-Flight Check ─────────────────────────────────────────────────────────
+
+class PreflightRequest(BaseModel):
+    tip_radnje: str
+    opis_radnje: Optional[str] = None
+    datum_radnje: Optional[str] = None
+
+
+_PREFLIGHT_SYSTEM = """Ti si pravni asistent koji proverava spremnost pre važne pravne radnje.
+
+Na osnovu podataka o predmetu i planiranoj radnji, generiši Pre-Flight checklist.
+
+Vrati ISKLJUČIVO validan JSON:
+{
+  "status": "spreman" | "potrebna_paznja" | "nije_spreman",
+  "score": <int 0-100>,
+  "kategorije": [
+    {
+      "naziv": "Dokumentacija",
+      "status": "ok" | "upozorenje" | "problem",
+      "stavke": [
+        {"tekst": "...", "status": "ok" | "upozorenje" | "problem", "akcija": "..."}
+      ]
+    }
+  ],
+  "kriticna_upozorenja": ["..."],
+  "preporuke": ["konkretna akcija 1", "konkretna akcija 2"],
+  "procena_rizika": "Kratak opis kljucnih rizika (max 100 reci)"
+}
+
+Kategorije moraju biti: Dokumentacija, Rokovi, Strategija, Protivnicka strana, Finansije.
+Svaka kategorija ima 2-4 stavke. Ekavica. Budi konkretan i direktan."""
+
+
+@router.post("/predmeti/{predmet_id}/preflight")
+async def preflight_check(
+    predmet_id: str,
+    body: PreflightRequest,
+    request: Request,
+    user=Depends(get_current_user),
+):
+    """
+    Pre-Flight Check — provera spremnosti pre podneska, ročišta, nagodbe ili žalbe.
+    Generiše strukturisanu checklist sa AI analizom.
+    """
+    supa = _get_supa()
+    uid  = user["user_id"]
+
+    _DOZVOLJENI_TIPOVI = {"podnesak", "rociste", "nagodba", "zalba"}
+    if body.tip_radnje not in _DOZVOLJENI_TIPOVI:
+        raise HTTPException(status_code=400, detail=f"tip_radnje mora biti: {', '.join(_DOZVOLJENI_TIPOVI)}")
+
+    # Ownership check
+    pr = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select(
+            "id,naziv,tip,status,tuzeni,tuzilac,opis,sud"
+        ).eq("id", predmet_id).eq("user_id", uid).execute()
+    )
+    if not pr.data:
+        raise HTTPException(status_code=404)
+    predmet = pr.data[0]
+
+    # Paralelno dohvati kontekst predmeta
+    dok_r, rok_r, ist_r, hron_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
+            "naziv_fajla,tip_dokaza"
+        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
+            "naziv,datum_isteka,status"
+        ).eq("predmet_id", predmet_id).order("datum_isteka").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_istorija").select(
+            "pitanje,odgovor"
+        ).eq("predmet_id", predmet_id).eq("user_id", uid).order(
+            "created_at", desc=True
+        ).limit(20).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select(
+            "dogadjaj,datum_iso,vaznost"
+        ).eq("predmet_id", predmet_id).order("datum_iso", desc=True).limit(20).execute()),
+        return_exceptions=True,
+    )
+
+    def _d(r):
+        return (r.data if not isinstance(r, Exception) else []) or []
+
+    dokumenti = _d(dok_r)
+    rokovi    = _d(rok_r)
+    istorija  = _d(ist_r)
+    hronolog  = _d(hron_r)
+
+    # Formatiranje konteksta za GPT
+    tip_label = {
+        "podnesak": "podnošenje podneska",
+        "rociste":  "ročište",
+        "nagodba":  "nagodbu/poravnanje",
+        "zalba":    "žalbu",
+    }.get(body.tip_radnje, body.tip_radnje)
+
+    ctx_lines = [
+        f"PREDMET: {predmet.get('naziv','')} (tip: {predmet.get('tip','')})",
+        f"PLANIRANA RADNJA: {tip_label}",
+        f"Datum radnje: {body.datum_radnje or 'Nije naveden'}",
+        f"Opis radnje: {(body.opis_radnje or 'Nije naveden')[:300]}",
+        f"Tužilac: {predmet.get('tuzilac','N/A')} | Tuženi: {predmet.get('tuzeni','N/A')}",
+        f"Sud: {predmet.get('sud','N/A')}",
+        "",
+        f"DOKUMENTI ({len(dokumenti)}):",
+    ]
+    for d in dokumenti[:10]:
+        ctx_lines.append(f"  - {d.get('naziv_fajla','?')} [{d.get('tip_dokaza','?')}]")
+
+    ctx_lines.append(f"\nROKOVI ({len(rokovi)}):")
+    for r in rokovi[:8]:
+        ctx_lines.append(f"  - {r.get('naziv','?')} — {r.get('datum_isteka','?')} [{r.get('status','?')}]")
+
+    if istorija:
+        ctx_lines.append("\nPOSLEDNJE AKTIVNOSTI:")
+        for h in istorija[:5]:
+            ctx_lines.append(f"  - {(h.get('pitanje',''))[:80]}")
+
+    if hronolog:
+        ctx_lines.append("\nHRONOLOGIJA:")
+        for h in hronolog[:5]:
+            ctx_lines.append(f"  - {h.get('dogadjaj','')[:80]} ({h.get('datum_iso','')})")
+
+    kontekst = "\n".join(ctx_lines)
+
+    # GPT-4o Pre-Flight analiza
+    import json as _json
+    try:
+        from openai import OpenAI
+        oai = OpenAI(api_key=_os.environ["OPENAI_API_KEY"])
+        resp = await asyncio.to_thread(
+            lambda: oai.chat.completions.create(
+                model="gpt-4o",
+                temperature=0.2,
+                max_tokens=2000,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _PREFLIGHT_SYSTEM},
+                    {"role": "user",   "content": kontekst},
+                ],
+            )
+        )
+        rezultat = _json.loads(resp.choices[0].message.content or "{}")
+    except Exception as e:
+        logger.error("[PREFLIGHT] AI greška: %s", e)
+        raise HTTPException(status_code=500, detail="Greška pri generisanju Pre-Flight Check-a.")
+
+    # Snimi u predmet_istorija (idempotentno, best-effort)
+    try:
+        from datetime import date
+        tag = f"[PreFlight] {body.tip_radnje} {date.today().isoformat()}"
+        await asyncio.to_thread(
+            lambda: supa.table("predmet_istorija").insert({
+                "predmet_id": predmet_id,
+                "user_id":    uid,
+                "pitanje":    tag,
+                "odgovor":    _json.dumps(rezultat, ensure_ascii=False)[:8000],
+                "confidence": "HIGH",
+            }).execute()
+        )
+    except Exception:
+        pass
+
+    return {
+        "predmet_id":   predmet_id,
+        "tip_radnje":   body.tip_radnje,
+        "datum_radnje": body.datum_radnje,
+        **rezultat,
+    }

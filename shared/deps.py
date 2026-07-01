@@ -237,7 +237,7 @@ async def get_current_user(
         or payload.get("email_claim")
         or ""
     )
-    logger.info("get_current_user: sub=%s email=%s", payload.get("sub", "?")[:8], email)
+    logger.debug("get_current_user: sub=%s email=%s", payload.get("sub", "?")[:8], email)
     return {"user_id": payload.get("sub"), "email": email}
 
 
@@ -248,14 +248,41 @@ def _get_current_month() -> str:
 
 
 def _get_monthly_usage(user_id: str) -> int:
-    entry = _mesecna_upotreba.get(user_id, {})
-    if entry.get("month") != _get_current_month():
-        return 0
-    return entry.get("count", 0)
+    month = _get_current_month()
+    try:
+        row = _get_supa().table("user_credits") \
+            .select("mesecno_korisceno, mesec") \
+            .eq("user_id", user_id) \
+            .maybe_single() \
+            .execute()
+        if row.data and row.data.get("mesec") == month:
+            return row.data.get("mesecno_korisceno", 0)
+    except Exception:
+        entry = _mesecna_upotreba.get(user_id, {})
+        if entry.get("month") == month:
+            return entry.get("count", 0)
+    return 0
 
 
 def _increment_monthly_usage(user_id: str) -> None:
     month = _get_current_month()
+    try:
+        row = _get_supa().table("user_credits") \
+            .select("mesecno_korisceno, mesec") \
+            .eq("user_id", user_id) \
+            .maybe_single() \
+            .execute()
+        if row.data:
+            curr_month = row.data.get("mesec", "")
+            new_count = (row.data.get("mesecno_korisceno", 0) + 1) if curr_month == month else 1
+            _get_supa().table("user_credits").update({
+                "mesecno_korisceno": new_count,
+                "mesec": month,
+            }).eq("user_id", user_id).execute()
+            return
+    except Exception as e:
+        logger.warning("[CREDITS] _increment_monthly_usage DB failed: %s", e)
+    # Fallback na in-memory ako DB padne
     entry = _mesecna_upotreba.get(user_id, {})
     if entry.get("month") != month:
         _mesecna_upotreba[user_id] = {"month": month, "count": 1}

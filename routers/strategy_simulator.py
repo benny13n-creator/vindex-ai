@@ -227,13 +227,58 @@ async def nova_partija(
     predmet = await asyncio.to_thread(_dohvati_predmet, supa, req.predmet_id, uid)
     asyncio.create_task(_audit(uid, "simulator_nova_partija", req.predmet_id[:16]))
 
+    # Dohvati Case Genome — centralni model predmeta
+    genome_ctx = ""
+    try:
+        _gr = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+            .select("case_dna")
+            .eq("id", req.predmet_id)
+            .eq("user_id", uid)
+            .single()
+            .execute()
+        )
+        _g = (_gr.data or {}).get("case_dna") or {}
+        if _g and not _g.get("greska"):
+            _gi = _g.get("pravna_teorija") or {}
+            genome_ctx = (
+                f"\nCASE GENOME — Zivi model predmeta (v{_g.get('verzija',1)}):\n"
+                f"  Identitet: {_gi.get('pravni_identitet', 'N/A')}\n"
+                f"  Osnov odgovornosti: {_gi.get('osnov_odgovornosti', 'N/A')}\n"
+                f"  Snaga predmeta: {_g.get('snaga_predmeta_procent', '?')}%\n"
+            )
+            _nt = _g.get("najslabija_tacka") or {}
+            if _nt.get("rizik"):
+                genome_ctx += f"  NAJSLABIJA TACKA: {_nt['rizik']} [kriticnost {_nt.get('kriticnost', '')}%]\n"
+            _sp = _g.get("strategija") or {}
+            if _sp.get("primarni_cilj"):
+                genome_ctx += f"  Primarni cilj: {_sp['primarni_cilj']}\n"
+            if _sp.get("rezervni_plan"):
+                genome_ctx += f"  Rezervni plan: {_sp['rezervni_plan']}\n"
+            _kontr = _g.get("kontradikcije") or []
+            if _kontr:
+                genome_ctx += f"  Kontradikcije: {len(_kontr)} pronađeno\n"
+            _ned = _g.get("nedostaje") or []
+            if _ned:
+                genome_ctx += "  Nedostajuci dokazi: " + ", ".join(
+                    n.get("dokument", "") for n in _ned[:3]
+                ) + "\n"
+            _sf = _g.get("snaga_faktori") or []
+            if _sf:
+                genome_ctx += "  Faktori snage:\n"
+                for f in _sf[:4]:
+                    genome_ctx += f"    {f.get('uticaj','')} {f.get('faktor','')} — {f.get('opis','')[:80]}\n"
+    except Exception:
+        pass
+
     # Pripremi poruku za GPT
     user_msg = (
         f"PREDMET: {predmet.get('naziv', 'Nepoznato')}\n"
         f"Tip: {predmet.get('tip', 'ostalo')}\n"
-        f"Opis: {(predmet.get('opis') or '')[:1500]}\n"
-        f"Status: {predmet.get('status', '')}\n\n"
-        f"MOJA STRATEGIJA:\n{req.moja_strategija}"
+        f"Opis: {(predmet.get('opis') or '')[:1000]}\n"
+        f"Status: {predmet.get('status', '')}\n"
+        + genome_ctx
+        + f"\nMOJA STRATEGIJA:\n{req.moja_strategija}"
     )
 
     messages = [

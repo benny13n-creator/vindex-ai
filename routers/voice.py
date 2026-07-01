@@ -254,25 +254,35 @@ VAŽNO O wait_ms:
 - Inače: wait_ms = 0 uvek
 
 DOSTUPNE AKCIJE:
-navigate_predmet  — otvori predmet (params: {query: string})
-show_tab          — pređi na subtab (params: {tab: "rokovi"|"dokumenti"|"strategija"|"ai-analiza"|"naplata"|"pregled"|"timeline"|"dokazi"})
-analyze_predmet   — pokreni AI analizu predmeta, procenu rizika (params: {})
-ask_question      — pošalji pitanje AI agentu (params: {text: string})
-generate_document — otvori generator dokumenta (params: {tip: "tuzba"|"zalba"|"ugovor"|"podnesak"|"urgencija"})
-export_pdf        — exportuj predmet kao PDF (params: {})
-start_timer       — pokreni tajmer naplate (params: {})
-stop_timer        — zaustavi tajmer (params: {})
-show_dashboard    — idi na početnu/dashboard (params: {})
-show_klijenti     — idi na klijente (params: {})
-red_team          — red team strategija (params: {})
-hearing_prep      — priprema za ročište (params: {})
-search            — pretraži (params: {query: string})
-stop_voice        — zatvori glasovni asistent (params: {})
-unknown           — komanda nije prepoznata (params: {text: string})
+navigate_predmet    — otvori predmet (params: {query: string})
+show_tab            — pređi na subtab (params: {tab: "rokovi"|"dokumenti"|"strategija"|"ai-analiza"|"naplata"|"pregled"|"timeline"|"dokazi"})
+analyze_predmet     — pokreni AI analizu predmeta, procenu rizika (params: {})
+load_doc_by_number  — učitaj specifičan dokument po rednom broju za analizu (params: {numbers: [1, 2, 3]})
+compare_docs        — uporedi dva dokumenta po rednom broju (params: {numbers: [2, 5]})
+refresh_case_dna    — regeneriši Case Genome iz svih dokumenata predmeta (params: {})
+ask_question        — pošalji pitanje AI agentu (params: {text: string})
+generate_document   — otvori generator dokumenta (params: {tip: "tuzba"|"zalba"|"ugovor"|"podnesak"|"urgencija"})
+export_pdf          — exportuj predmet kao PDF (params: {})
+start_timer         — pokreni tajmer naplate (params: {})
+stop_timer          — zaustavi tajmer (params: {})
+show_dashboard      — idi na početnu/dashboard (params: {})
+show_klijenti       — idi na klijente (params: {})
+red_team            — red team strategija (params: {})
+hearing_prep        — priprema za ročište (params: {})
+search              — pretraži (params: {query: string})
+stop_voice          — zatvori glasovni asistent (params: {})
+unknown             — komanda nije prepoznana (params: {text: string})
 
 PRAVILA MAPIRANJA (precizno!):
 - "otvori/nađi/prikaži predmet X" → navigate_predmet({query:X})
-- "analiziraj" / "uradi analizu" / "proceni" / "analiziraj dokument" / "izvrši analizu" → analyze_predmet
+- "analiziraj" / "uradi analizu" / "proceni" / "izvrši analizu" (bez broja dokumenta) → analyze_predmet
+- "analiziraj [N]. dokument" / "učitaj [N]. dokument" / "otvori [N]. i [M]. dokument" → load_doc_by_number({numbers:[N,M]})
+  Primeri: "analiziraj treći dokument" → {numbers:[3]}, "učitaj 1. i 2. dokument" → {numbers:[1,2]}, "otvori četvrti i peti" → {numbers:[4,5]}
+  Redni brojevi rečima: prvi=1, drugi=2, treći=3, četvrti=4, peti=5, šesti=6, sedmi=7, osmi=8, deveti=9, deseti=10
+- "uporedi DOK-X i DOK-Y" / "pronađi razlike između X. i Y. dokumenta" / "pronađi kontradikcije između X. i Y." → compare_docs({numbers:[X,Y]})
+  Primer: "uporedi drugi i peti dokument" → compare_docs({numbers:[2,5]})
+- "koji dokument ide u prilog" / "koji je najjači dokaz" → ask_question({text: "Koji dokument iz predmeta najviše ide u prilog našem zahtevu i zašto?"})
+- "osveži Case Genome" / "analiziraj sve dokumente" / "regeneriši profil predmeta" → refresh_case_dna
 - "pogledaj dokumente" / "idi na dokumenta" / "prikaži dokumenta" → show_tab({tab:"dokumenti"})
 - "uradi red team" / "napravi strategiju" → red_team
 - "pripremi ročište" / "šta treba za ročište" / "brifing za sud" → hearing_prep
@@ -290,6 +300,8 @@ PRAVILA MAPIRANJA (precizno!):
 
 SLOŽENE KOMANDE — primeri sa tačnim wait_ms:
 - "otvori predmet X i analiziraj" → [navigate_predmet(X,wms:0), analyze_predmet(wms:0)]
+- "otvori predmet X i analiziraj 3. dokument" → [navigate_predmet(X,wms:0), load_doc_by_number({numbers:[3]},wms:0)]
+- "otvori predmet X, učitaj 2. i 3. dokument i analiziraj" → [navigate_predmet(X,wms:0), load_doc_by_number({numbers:[2,3]},wms:0), analyze_predmet(wms:0)]
 - "otvori predmet X i idi na rokove" → [navigate_predmet(X,wms:0), show_tab(rokovi,wms:0)]
 - "otvori predmet X, analiziraj i sačuvaj PDF" → [navigate_predmet(X,wms:0), analyze_predmet(wms:0), export_pdf(wms:12000)]
 - "otvori predmet X i postavi pitanje o Y" → [navigate_predmet(X,wms:0), ask_question(Y,wms:0)]
