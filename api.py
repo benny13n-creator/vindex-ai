@@ -3006,10 +3006,20 @@ async def predmet_upload_auto_analyze(
     session_id = generate_session_id()
     # Predmet dokumenti su trajni — koristimo 'pred_' prefix da cleanup_expired
     # (koji brise samo 'tmp_*') nikad ne obrise ove vektore iz Pinecone-a.
-    count = await asyncio.to_thread(
-        ingest_session, manifest, session_id,
-        namespace_prefix="pred_"
-    )
+    _pinecone_ok = True
+    try:
+        count = await asyncio.to_thread(
+            ingest_session, manifest, session_id,
+            namespace_prefix="pred_"
+        )
+    except Exception as _pe:
+        _pe_str = str(_pe)
+        if "429" in _pe_str or "storage" in _pe_str.lower() or "Too Many" in _pe_str:
+            logger.warning("[P1.1] Pinecone storage pun — dokument se cuva bez RAG indeksiranja: %s", _pe_str[:120])
+            _pinecone_ok = False
+            count = 0
+        else:
+            raise HTTPException(status_code=500, detail=f"Greška pri obradi dokumenta: {_pe_str}")
 
     # Record in predmet_dokumenti — tekst_sadrzaj se cuva za trajni preview
     _dok_id = None
@@ -3033,7 +3043,7 @@ async def predmet_upload_auto_analyze(
             "naziv_fajla":         file.filename or "dokument",
             "storage_path":        f"session/{session_id}",
             "pinecone_namespace":  f"pred_{session_id}",
-            "status":              "indeksirano",
+            "status":              "indeksirano" if _pinecone_ok else "sacuvano",
             "velicina_kb":         max(1, len(raw) // 1024),
             "redni_broj":          _next_rn,
         }

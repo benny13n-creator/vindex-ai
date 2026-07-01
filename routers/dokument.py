@@ -209,15 +209,21 @@ async def dokument_upload(
         session_id = generate_session_id()
         ttl_hours = 24
         try:
-            # Pokreni ingest i klasifikaciju paralelno
             count, klasifikacija = await asyncio.gather(
                 asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours),
                 _klasifikuj_dokaz(text, file.filename or "dokument"),
                 return_exceptions=False,
             )
         except Exception as e:
-            logger.error("[UPLOAD] ingest_session greška: %s", str(e), exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Greška pri obradi dokumenta: {str(e)}")
+            _es = str(e)
+            if "429" in _es or "storage" in _es.lower() or "Too Many" in _es:
+                # Pinecone pun — nastavi bez RAG, tekst je ekstraktovan
+                logger.warning("[UPLOAD] Pinecone storage pun, nastavljam bez indeksiranja: %s", _es[:120])
+                count = 0
+                klasifikacija = {}
+            else:
+                logger.error("[UPLOAD] ingest_session greška: %s", _es, exc_info=True)
+                raise HTTPException(status_code=500, detail=f"Greška pri obradi dokumenta: {_es}")
 
         exp_iso = expires_at_iso(ttl_hours)
 
