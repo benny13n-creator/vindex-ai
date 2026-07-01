@@ -2407,14 +2407,14 @@ function _updateStratTabUI() {
 
 var STRAT_MODULI = {
   red_team: {
-    naziv:    'Red Team analiza',
+    naziv:    'Analiza crvenog tima',
     endpoint: '/strategija/red-team',
     opis:     'Analizira slabosti tvog predmeta iz perspektive protivne strane. Identifikuje rupe, procesne zamke i argumente koje će protivnik koristiti.',
     label:    'Opis predmeta (tvoja strana, činjenice, dokazi)',
     min:      50
   },
   litigation: {
-    naziv:    'Litigation Simulator',
+    naziv:    'Simulator parnice',
     endpoint: '/strategija/litigation',
     opis:     'Procenjuje verovatnoću uspeha na sudu u % na osnovu srpske sudske prakse. Preporučuje strategiju: tužba / odbrana / nagodba.',
     label:    'Opis predmeta (strane, činjenice, pravni osnov)',
@@ -2428,7 +2428,7 @@ var STRAT_MODULI = {
     min:      50
   },
   due_diligence: {
-    naziv:    'Due Diligence',
+    naziv:    'Analiza rizika',
     endpoint: '/strategija/due-diligence',
     opis:     'Sistematski pregled ugovora ili dokumenta — kritični rizici, formalni nedostaci, nedostajuće klauzule, preporuka.',
     label:    'Tekst dokumenta / ugovora za analizu',
@@ -2669,7 +2669,7 @@ async function stratOrkestratorPokreni() {
   if (orkBtn) { orkBtn.disabled = true; orkBtn.textContent = 'Analiziram (6 modula)...'; }
   if (wrapEl) wrapEl.style.display = 'block';
   if (naslovEl) naslovEl.textContent = 'Kompletna strateška analiza';
-  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Pokrenuto 6 AI modula...<br><small>Red Team → Litigation → AI Sudija → Due Diligence → Revizor → Witness<br>Procenjeno vreme: 60–90 sekundi</small></div>';
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Pokrenuto 6 AI modula...<br><small>Crveni tim → Simulator parnice → AI Sudija → Analiza rizika → Revizor → Svedok<br>Procenjeno vreme: 60–90 sekundi</small></div>';
 
   piTrack('strategija','kompletna_analiza',{});
   try {
@@ -3484,7 +3484,7 @@ var WEB3_MODULI = {
     min:         10
   },
   compliance_check: {
-    naziv:       'Compliance Check',
+    naziv:       'Provera uskladenosti',
     endpoint:    '/web3/compliance',
     opis:        'Proverava da li opisana aktivnost ili poslovni model zahteva dozvolu NBS/KHoV (Srbija) ili CASP autorizaciju (EU MiCA). Dobijate konkretan odgovor: DA/NE/DELIMIČNO za svaki propis.',
     label:       'Opis aktivnosti ili poslovnog modela',
@@ -9334,7 +9334,7 @@ async function pred_loadDetail(id) {
           + '<button onclick="_voice_refresh_case_dna(\''+escHtml(activePredmetId||'')+'\');return false;" '
           + 'style="width:100%;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);border-radius:7px;color:#00d4ff;font-size:0.7rem;padding:0.4rem 0.6rem;cursor:pointer;font-family:inherit;transition:background .15s;letter-spacing:0.02em;" '
           + 'onmouseover="this.style.background=\'rgba(0,212,255,0.16)\'" onmouseout="this.style.background=\'rgba(0,212,255,0.08)\'">'
-          + '🧬 Generiši Case DNA</button>'
+          + '🧬 Generiši Genome predmeta</button>'
           + '<div id="'+_dnaPanelId+'" style="display:none;margin-top:0.5rem;padding:0.65rem 0.8rem;background:rgba(0,0,0,0.3);border:1px solid rgba(0,212,255,0.15);border-radius:8px;"></div>'
           + '</div>';
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -9704,7 +9704,7 @@ async function pred_kreiraj() {
     [
       ['$ strategija: "krivični, prodaja PAS, okr. poreklom iz EU"', 'hi'],
       ['', ''],
-      ['  MODE: Red Team  ★ PRO', 'hi'],
+      ['  REZIM: Crveni tim  ★ PRO', 'hi'],
       ['', ''],
       ['  SLABE TAČKE OPTUŽBE', 'warn'],
       ['  ▸ Dokaz o prodaji: audio snimak bez sudskog naloga', ''],
@@ -13462,7 +13462,7 @@ function voice_doAction(action, params) {
     case 'red_team':
       if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
       pred_subtabSwitch('strategija');
-      showToast('Red Team strategija — birajte tip analize');
+      showToast('Crveni tim — birajte tip analize');
       break;
 
     case 'hearing_prep':
@@ -13541,9 +13541,9 @@ async function _voice_load_docs_by_number(numbers) {
   }
 }
 
-// Regenerise Case DNA za aktivni predmet
+// Regenerise Genome predmeta za aktivni predmet
 async function _voice_refresh_case_dna(predmetId) {
-  showToast('Generišem Case DNA...', 'info');
+  showToast('Generišem Genome predmeta...', 'info');
   try {
     var resp = await fetch('/api/predmeti/' + predmetId + '/case-dna/refresh', {
       method: 'POST',
@@ -13555,12 +13555,12 @@ async function _voice_refresh_case_dna(predmetId) {
     var tip = dna.tip_spora || '';
     var snaga = dna.snaga_predmeta || '';
     var kontr = (dna.kontradikcije || []).length;
-    var msg = 'Case DNA ažuriran' + (tip ? ': ' + tip : '') + (snaga ? ' | Snaga: ' + snaga : '') + (kontr ? ' | ⚠ ' + kontr + ' kontradikcija' : '');
+    var msg = 'Genome predmeta azuriran' + (tip ? ': ' + tip : '') + (snaga ? ' | Snaga: ' + snaga : '') + (kontr ? ' | ⚠ ' + kontr + ' kontradikcija' : '');
     showToast(msg, kontr ? 'warn' : 'ok');
     // Prikazi DNA panel ako postoji
     _caseDnaRender(dna, predmetId);
   } catch(e) {
-    showToast('Greška pri generisanju Case DNA', 'error');
+    showToast('Greška pri generisanju Genome predmeta', 'error');
   }
 }
 
@@ -14813,7 +14813,7 @@ function _mdToHtml(text) {
 }
 
 var _AGENT_ICONS = {'intake':'📥','research':'🔍','drafting':'✍️','litigation':'⚖️','billing':'💰','deadline':'⏰'};
-var _AGENT_NAMES = {'intake':'Intake Agent','research':'Research Agent','drafting':'Drafting Agent','litigation':'Litigation Agent','billing':'Billing Agent','deadline':'Deadline Agent'};
+var _AGENT_NAMES = {'intake':'Agent za prijem','research':'Agent za istraživanje','drafting':'Agent za pisanje','litigation':'Agent za parnice','billing':'Agent za naplatu','deadline':'Agent za rokove'};
 var _AGENT_PLACEHOLDERS = {
   'intake':    'Opišite situaciju klijenta... (npr. "Zaposleni dobio otkaz posle 8 godina, tvrdi da je nezakonit")',
   'research':  'Koje pravno pitanje da istražim? (npr. "Rok zastarelosti za naknadu štete iz saobraćajne nezgode?")',
@@ -14823,9 +14823,9 @@ var _AGENT_PLACEHOLDERS = {
   'deadline':  'Koji rokovi te interesuju? (npr. "Dobio rešenje o otkazu 01.06.2025., do kada da podnesem tužbu?")'
 };
 var _AGENT_LOADING = {
-  'intake':'Intake Agent prima informacije...','research':'Research Agent pretražuje zakone i praksu...',
-  'drafting':'Drafting Agent generiše dokument...','litigation':'Litigation Agent analizira slabosti...',
-  'billing':'Billing Agent obračunava tarife...','deadline':'Deadline Agent proverava rokove...'
+  'intake':'Agent za prijem prima informacije...','research':'Agent za istraživanje pretražuje zakone i praksu...',
+  'drafting':'Agent za pisanje generiše dokument...','litigation':'Agent za parnice analizira slabosti...',
+  'billing':'Agent za naplatu obračunava tarife...','deadline':'Agent za rokove proverava rokove...'
 };
 
 function agent_select(agentId, cardEl) {
@@ -14930,7 +14930,7 @@ async function agent_run_parallel() {
 
   if (paraBtn) { paraBtn.disabled = true; paraBtn.textContent = 'Analiziram (3 agenta)...'; }
   if (loading) loading.style.display = 'block';
-  if (loadTxt) loadTxt.textContent = 'Research, Litigation i Intake agent rade istovremeno...';
+  if (loadTxt) loadTxt.textContent = 'Agenti za istraživanje, parnice i prijem rade istovremeno...';
   if (wrap)    wrap.style.display   = 'none';
 
   try {

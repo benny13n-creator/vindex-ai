@@ -382,7 +382,7 @@
           <span class="vx-nav-sub-dot" style="background:#86efac;"></span>📋 Šabloni dokumenata
         </div>
         <div class="vx-nav-group-lbl" style="margin-top:.5rem;">AI Centar — Napredno</div>
-        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-p'),'p')" title="Otvorite predmet i idite na tab Strategija — Red Team, analiza, Kompletna analiza">
+        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-p'),'p')" title="Otvorite predmet i idite na tab Strategija — Crveni tim, analiza, Kompletna analiza">
           <span class="vx-nav-sub-dot"></span>Procesna strategija
         </div>
         <div class="vx-nav-sub" onclick="aicOtvoriPredmet('agenti')" style="color:rgba(0,212,255,0.7);" title="6 AI stručnjaka koji analiziraju vaš predmet — otvorite predmet i kliknite tab Agenti">
@@ -674,7 +674,7 @@
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('ai-analiza',this)" title="AI pravna procena i alati u kontekstu ovog predmeta">AI Analiza</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('rokovi',this)" title="Ročišta, hronologija, ZPP rokovi i priprema za ročište">Rokovi</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('naplata',this)" title="Tajmer, stavke naplate i generisanje fakture">Naplata</button>
-                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('strategija',this)" title="Procesna strategija — Red Team, kompletna analiza, simulacija suda">Strategija</button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('strategija',this)" title="Procesna strategija — Crveni tim, kompletna analiza, simulacija suda">Strategija</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('agenti',this)" style="position:relative;" title="6 specijalizovanih AI stručnjaka koji analiziraju vaš predmet">Agenti<span style="position:absolute;top:-4px;right:-4px;background:rgba(0,212,255,0.15);color:rgba(0,212,255,0.9);border:1px solid rgba(0,212,255,0.3);font-size:.42rem;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:.04em;">AI</span></button>
                 <!-- VIŠE dropdown — sada samo napredne opcije -->
                 <div class="pred-more-wrap" id="pred-more-wrap">
@@ -1061,7 +1061,7 @@
                   <div class="strat-feature-card" onclick="pred_openStrat('red_team')">
                     <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.6)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
                     <div class="sfc-body">
-                      <div class="sfc-title">Red Team analiza <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-title">Analiza crvenog tima <span class="pro-badge">PRO</span></div>
                       <div class="sfc-desc">AI preuzima ulogu protivničkog advokata i napada vašu argumentaciju. Otkriva slabe tačke pre suđenja.</div>
                     </div>
                     <div class="sfc-arrow">›</div>
@@ -1127,7 +1127,7 @@
                   <div class="strat-feature-card" onclick="pred_openStrat('due_diligence')">
                     <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.6)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
                     <div class="sfc-body">
-                      <div class="sfc-title">Due Diligence <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-title">Analiza rizika <span class="pro-badge">PRO</span></div>
                       <div class="sfc-desc">Sistemska provera pravnih rizika pre preuzimanja, investicije ili ulaganja u predmet.</div>
                     </div>
                     <div class="sfc-arrow">›</div>
@@ -1794,13 +1794,13 @@
           <div id="tab-t" style="display:none">
             <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
             <div class="strat-modul-izbor">
-              <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">Red Team</button>
-              <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">Litigation Simulator</button>
+              <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">Crveni tim</button>
+              <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">Simulator parnice</button>
               <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">Procena ishoda</button>
-              <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">Due Diligence</button>
+              <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">Analiza rizika</button>
               <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">Pravni Revizor</button>
-              <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">Witness Analyzer</button>
-              <button class="strat-btn" data-modul="sudija_v2" onclick="stratIzaberiModul('sudija_v2',this)">Judge v2 — Debata</button>
+              <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">Analizator svedoka</button>
+              <button class="strat-btn" data-modul="sudija_v2" onclick="stratIzaberiModul('sudija_v2',this)">Sudija v2 — Debata</button>
               <button class="strat-btn" data-modul="court_predictor" onclick="stratIzaberiModul('court_predictor',this)">AI Predikcija ishoda</button>
             </div>
             <div id="strat-opis" class="strat-opis-box"></div>
@@ -1827,7 +1827,7 @@
             <!-- Kompletna strateška analiza — orkestrator svih 6 modula -->
             <div style="margin-top:1.2rem;padding:1rem;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(74,168,255,0.06));border:1px solid rgba(99,102,241,0.25);border-radius:12px;">
               <div style="font-size:.78rem;font-weight:700;color:rgba(200,180,255,.9);margin-bottom:.3rem;">Kompletna strateška analiza <span class="pro-badge">PRO</span></div>
-              <div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.7rem;line-height:1.55;">Jedan klik pokreće svih 6 AI modula u automatskom pipeline-u: Pravni Revizor → Due Diligence → Witness Analyzer → Red Team → AI Sudija → Sinteza. Kompletan strateški izveštaj za 2–3 minuta. Koristi 6 kredita.</div>
+              <div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.7rem;line-height:1.55;">Jedan klik pokreće svih 6 AI modula u automatskom redosledu: Pravni Revizor → Analiza rizika → Analizator svedoka → Crveni tim → AI Sudija → Sinteza. Kompletan strateški izveštaj za 2–3 minuta. Koristi 6 kredita.</div>
               <button id="strat-ork-btn" onclick="stratOrkestratorPokreni()" style="width:100%;padding:.6rem 1rem;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(74,168,255,0.12));border:1px solid rgba(99,102,241,0.4);border-radius:8px;color:rgba(220,210,255,.9);font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit;">Pokreni kompletnu analizu (6 kredita)</button>
             </div>
             <div class="strat-rezultat-wrap" id="strat-rezultat-wrap">
@@ -2166,7 +2166,7 @@
                     </svg>
                     <div class="pipeline-score-val">
                       <span id="pipeline-score-num">0</span>
-                      <span class="pipeline-score-lbl">Score</span>
+                      <span class="pipeline-score-lbl">Skor</span>
                     </div>
                   </div>
                   <div class="pipeline-title">Predmet uspešno kreiran</div>
@@ -2426,10 +2426,10 @@
             </div>
             <div class="strat-modul-izbor web3-moduli">
               <button class="strat-btn active" data-modul="web3_pretraga" onclick="web3IzaberiModul('web3_pretraga',this)">🔍 ZDI/MiCA Pretraga</button>
-              <button class="strat-btn" data-modul="compliance_check" onclick="web3IzaberiModul('compliance_check',this)">Compliance Check</button>
+              <button class="strat-btn" data-modul="compliance_check" onclick="web3IzaberiModul('compliance_check',this)">Provera uskladenosti</button>
               <button class="strat-btn" data-modul="whitepaper_check" onclick="web3IzaberiModul('whitepaper_check',this)">📄 Whitepaper Analiza</button>
               <button class="strat-btn" data-modul="mica_score" onclick="web3IzaberiModul('mica_score',this)">📊 MiCA Score</button>
-              <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">🔑 License Check</button>
+              <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">🔑 Provera licence</button>
               <button class="strat-btn" data-modul="aml_audit" onclick="web3IzaberiModul('aml_audit',this)">🛡️ AML/KYC Audit</button>
               <button class="strat-btn" data-modul="smart_contract" onclick="web3IzaberiModul('smart_contract',this)">📜 Pametni Ugovor</button>
             </div>
@@ -2622,7 +2622,7 @@
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="scale" style="width:17px;height:17px;"></i></div>
                   <div class="aic3-module-body">
-                    <div class="aic3-module-name">Red Team analiza</div>
+                    <div class="aic3-module-name">Analiza crvenog tima</div>
                     <div class="aic3-module-desc">Simulacija napada na slabe tacke vaseg pravnog stanovista.</div>
                   </div>
                   <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
@@ -2630,7 +2630,7 @@
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="scale" style="width:17px;height:17px;"></i></div>
                   <div class="aic3-module-body">
-                    <div class="aic3-module-name">Litigation Simulator</div>
+                    <div class="aic3-module-name">Simulator parnice</div>
                     <div class="aic3-module-desc">Simulacija sudskog postupka i verovatnoce ishoda.</div>
                   </div>
                   <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
@@ -2638,7 +2638,7 @@
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="gavel" style="width:17px;height:17px;"></i></div>
                   <div class="aic3-module-body">
-                    <div class="aic3-module-name">AI Judge</div>
+                    <div class="aic3-module-name">AI Sudija</div>
                     <div class="aic3-module-desc">AI sudija procenjuje predmet na osnovu srpske sudske prakse.</div>
                   </div>
                   <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
@@ -2646,7 +2646,7 @@
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="clipboard-check" style="width:17px;height:17px;"></i></div>
                   <div class="aic3-module-body">
-                    <div class="aic3-module-name">Due Diligence</div>
+                    <div class="aic3-module-name">Analiza rizika</div>
                     <div class="aic3-module-desc">Pravna provera i analiza rizika u kontekstu predmeta.</div>
                   </div>
                   <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
@@ -2662,7 +2662,7 @@
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="users" style="width:17px;height:17px;"></i></div>
                   <div class="aic3-module-body">
-                    <div class="aic3-module-name">Witness Analyzer</div>
+                    <div class="aic3-module-name">Analizator svedoka</div>
                     <div class="aic3-module-desc">Analiza iskaza svedoka i procena verodostojnosti.</div>
                   </div>
                   <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
