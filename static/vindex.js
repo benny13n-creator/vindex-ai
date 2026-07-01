@@ -127,7 +127,7 @@ var _initialNavDone = false;
 var _cyrillicOn = false;
 var vxNavHistory = [];
 var _vxGoingBack = false;
-var _vxTabLabels = {h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Compliance',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'AI Centar',dok:'Baza znanja',settings:'Podešavanja'};
+var _vxTabLabels = {h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Compliance',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja'};
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
 var _lastRawText = '';
@@ -1014,7 +1014,7 @@ function _ccBrifingHtml(d, uName) {
   h += '<div class="cc-intel-header">';
   h += '<div class="cc-intel-logo"><div class="cc-intel-hex">⬡</div><div class="cc-intel-pulse"></div></div>';
   h += '<div class="cc-intel-heading">';
-  h += '<div class="cc-intel-title">AI Command Center</div>';
+  h += '<div class="cc-intel-title">Komandni centar predmeta</div>';
   h += '<div class="cc-intel-sub">' + pozdrav + '. ' + escHtml(analizaTxt) + '</div>';
   h += '</div>';
   h += '<div class="cc-intel-live"><span class="cc-live-dot"></span>LIVE</div>';
@@ -1096,7 +1096,7 @@ function _ccBrifingHtml(d, uName) {
 
   // AI Duboka analiza placeholder — puni se async posle rendera
   h += '<div id="cc-ai-nalazi" class="cc-ai-nalazi-wrap hidden">';
-  h += '<div class="cc-intel-sec-lbl cc-ai-sec-lbl">AI duboka analiza</div>';
+  h += '<div class="cc-intel-sec-lbl cc-ai-sec-lbl">Duboka analiza</div>';
   h += '<div id="cc-ai-nalazi-lista"></div>';
   h += '</div>';
 
@@ -1298,7 +1298,7 @@ function _dashRender(d,bd,inboxData){
 
   // ── AI ALATI ──────────────────────────────────────────────────
   html+='<div class="kc-ai-section">';
-  html+='<div class="kc-ai-section-hd">AI Alati</div>';
+  html+='<div class="kc-ai-section-hd">Pravni alati</div>';
   html+='<div class="kc-ai-grid">';
   html+='<div class="kc-ai-card" onclick="openAITool(\'q\')">';
   html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">⚖</span><span class="kc-ai-card-title">Istraživanje zakona</span></div>';
@@ -1306,7 +1306,7 @@ function _dashRender(d,bd,inboxData){
   html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
   html+='<div class="kc-ai-card" onclick="openAITool(\'a\')">';
   html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">📄</span><span class="kc-ai-card-title">Analiza dokumenta</span></div>';
-  html+='<div class="kc-ai-card-desc">Učitaj dokument. AI izvlači ključne klauzule, rizike i preporučene korake.</div>';
+  html+='<div class="kc-ai-card-desc">Učitaj dokument. Automatski izvlači ključne klauzule, rizike i preporučene korake.</div>';
   html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
   html+='<div class="kc-ai-card" onclick="openAITool(\'s\')">';
   html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">🏛</span><span class="kc-ai-card-title">Sudska praksa</span></div>';
@@ -1314,7 +1314,7 @@ function _dashRender(d,bd,inboxData){
   html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
   html+='<div class="kc-ai-card pro" onclick="openAITool(\'n\')">';
   html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">✍</span><span class="kc-ai-card-title">Nacrti i podnesci</span></div>';
-  html+='<div class="kc-ai-card-desc">AI generiše tužbu, žalbu, ugovor ili drugi pravni dokument za predmet.</div>';
+  html+='<div class="kc-ai-card-desc">Automatski generiše tužbu, žalbu, ugovor ili drugi pravni dokument za predmet.</div>';
   html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
   html+='</div></div>';
 
@@ -1502,7 +1502,7 @@ function _kcPanelRokovi(d) {
 function _kcPanelPreporuke(d) {
   var preporuke = d.ai_preporuke || [];
   var h = '<div class="kc-panel" id="kc-panel-preporuke">';
-  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('lightbulb')+'AI preporuke</span>';
+  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('lightbulb')+'Preporuke</span>';
   h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">Vidi sve →</span></div>';
   if (!preporuke.length) {
     h += '<div class="kc-panel-empty">';
@@ -1605,7 +1605,7 @@ _dashRender = function(d, bd, inboxData) {
   html += '<button class="kc-qa-btn" onclick="openAITool(\'a\')">'+_kcIco('file-text');
   html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Otpremi dokument</div><div class="kc-qa-btn-desc">Dodaj dokument</div></div></button>';
   html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles');
-  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Pokreni AI analizu</div><div class="kc-qa-btn-desc">Analiziraj sa AI</div></div></button>';
+  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Pokreni analizu</div><div class="kc-qa-btn-desc">Analiziraj</div></div></button>';
   html += '</div>';
 
   /* ── 3. SFERA sa statistikama unutra ──────────────────────── */
@@ -1777,7 +1777,7 @@ function _vx2_stub_start() { var html = ''; html += '<div class="vx2-core-wrap">
 
   /* Panel: AI HUB */
   html += '<div class="vx2-panel" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">';
-  html += '<div class="vx2-panel-hd"><span class="vx2-panel-name">AI Hub</span></div>';
+  html += '<div class="vx2-panel-hd"><span class="vx2-panel-name">Centar alata</span></div>';
   html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n" style="font-size:1.1rem;color:rgba(74,168,255,0.65)">847</span><span class="vx2-panel-stat-l">zakona RS</span></div>';
   html += '<div class="vx2-panel-ai-actions">';
   html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'q\')">⚖ Istraži zakon</button>';
@@ -1866,7 +1866,7 @@ function setTab(el,t){
   ['h','q','n','a','s','p','t','k','w','ob','kal','pi','alati','dok','settings'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 Compliance',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'AI Centar',dok:'Baza znanja',settings:'Podešavanja'};
+  var lbl={h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 Compliance',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
@@ -1929,7 +1929,7 @@ function vxUpdateBreadcrumb(t) {
   if (!pathEl) return;
   var _aiSubtabs = {q:1,a:1,n:1,s:1,t:1,w:1};
   var label = _vxTabLabels[t] || t;
-  pathEl.textContent = _aiSubtabs[t] ? 'AI Centar / ' + label : label;
+  pathEl.textContent = _aiSubtabs[t] ? 'Pravni alati / ' + label : label;
   if (vxNavHistory.length > 0) {
     if (backBtn) backBtn.classList.add('visible');
     if (backSep) backSep.classList.add('visible');
@@ -1999,7 +1999,7 @@ async function planLoad() {
     var usage  = d.usage  || {};
     var overage = d.overage || {};
     var fields = [
-      {key:'ai_queries',   label:'AI upiti'},
+      {key:'ai_queries',   label:'Upiti'},
       {key:'doc_analyses', label:'Analize dokumenata'},
       {key:'strategies',   label:'Strategije'},
     ];
@@ -2452,13 +2452,13 @@ var STRAT_MODULI = {
   sudija_v2: {
     naziv:    'Simulacija sudskog postupka',
     endpoint: '/strategija/sudija-v2',
-    opis:     'Trostepena simulacija: AI tužilac iznosi argumente → AI branilac odgovara → AI sudija donosi odluku. Najrealističniji prikaz sudskog ishoda.',
+    opis:     'Trostepena simulacija: Tužilac iznosi argumente → Branilac odgovara → Sudija donosi odluku. Najrealističniji prikaz sudskog ishoda.',
     label:    'Opis predmeta (strane, činjenice, pravni osnov, stadijum postupka)',
     min:      100,
     tip:      'debate'
   },
   court_predictor: {
-    naziv:    'AI Predikcija ishoda',
+    naziv:    'Predikcija ishoda',
     endpoint: '/api/predictor/analiza',
     opis:     'Statistička procena šansi za uspeh (%) na osnovu srpske sudske prakse, dokaza i argumenta. Generiše preporuku strategije i ključne rizike.',
     label:    'Opis predmeta: stranke, pravni osnov, ključni dokazi, argumenti obe strane',
@@ -2522,7 +2522,7 @@ async function stratPokreni() {
 
   if (!currentUserIsPro) {
     if (wrapEl) wrapEl.style.display = 'block';
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 <strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim AI strategijskim alatima.</small></div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 <strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim strategijskim alatima.</small></div>';
     if (naslovEl) naslovEl.textContent = modul.naziv;
     return;
   }
@@ -2562,7 +2562,7 @@ async function stratPokreni() {
     });
 
     if (res.status === 403) {
-      if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 <strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim AI strategijskim alatima.</small></div>';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 <strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim strategijskim alatima.</small></div>';
       return;
     }
 
@@ -2633,7 +2633,7 @@ async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel) {
         return;
       }
       // pending/running — ažuriraj prikaz
-      if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">'+dotStr[dotIdx%4]+' Analiza u toku — '+elapsed+'s...<br><small>Kompleksna analiza (6 AI modula) traje 60-90s.</small></div>';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">'+dotStr[dotIdx%4]+' Analiza u toku — '+elapsed+'s...<br><small>Kompleksna analiza (6 modula) traje 60-90s.</small></div>';
       dotIdx++;
     } catch(e) {
       if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
@@ -2657,7 +2657,7 @@ async function stratOrkestratorPokreni() {
   if (!currentUserIsPro) {
     if (wrapEl) wrapEl.style.display = 'block';
     if (naslovEl) naslovEl.textContent = 'Kompletna strateška analiza';
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate"><strong>Kompletna strateška analiza</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim AI strategijskim alatima.</small></div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate"><strong>Kompletna strateška analiza</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim strategijskim alatima.</small></div>';
     return;
   }
   if (tekst.length < 100) {
@@ -2669,7 +2669,7 @@ async function stratOrkestratorPokreni() {
   if (orkBtn) { orkBtn.disabled = true; orkBtn.textContent = 'Analiziram (6 modula)...'; }
   if (wrapEl) wrapEl.style.display = 'block';
   if (naslovEl) naslovEl.textContent = 'Kompletna strateška analiza';
-  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Pokrenuto 6 AI modula...<br><small>Crveni tim → Simulator parnice → AI Sudija → Analiza rizika → Revizor → Svedok<br>Procenjeno vreme: 60–90 sekundi</small></div>';
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Pokrenuto 6 modula...<br><small>Crveni tim → Simulator parnice → Sudija → Analiza rizika → Revizor → Svedok<br>Procenjeno vreme: 60–90 sekundi</small></div>';
 
   piTrack('strategija','kompletna_analiza',{});
   try {
@@ -2684,7 +2684,7 @@ async function stratOrkestratorPokreni() {
 
     if (res.status === 202) {
       var jobData = await res.json();
-      if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Analiza pokrenuta (ID: '+jobData.job_id.slice(0,8)+'...)<br><small>6 AI modula u toku — pratimo napredak...</small></div>';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Analiza pokrenuta (ID: '+jobData.job_id.slice(0,8)+'...)<br><small>6 modula u toku — pratimo napredak...</small></div>';
       await strat_job_poll(jobData.job_id, bodyEl, orkBtn, _resetLabel);
       return;
     }
@@ -3751,7 +3751,7 @@ async function oblastiPokreni() {
   var bodyEl = document.getElementById('ob-rezultat-body');
   var naslov = document.getElementById('ob-rezultat-naslov');
   btn.disabled = true; btn.textContent = '⏳ Analiziram...';
-  if (naslov) naslov.textContent = _OBLASTI_META[_oblastTrenutna].naziv + ' — AI odgovor';
+  if (naslov) naslov.textContent = _OBLASTI_META[_oblastTrenutna].naziv + ' — Odgovor';
   if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ ' + _OBLASTI_META[_oblastTrenutna].naziv + ' — analiza u toku...</div>';
   if (wrapEl) wrapEl.style.display = 'block';
   try {
@@ -3772,7 +3772,7 @@ async function oblastiPokreni() {
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   } finally {
-    btn.disabled = false; btn.textContent = 'Pitaj AI';
+    btn.disabled = false; btn.textContent = 'Postavi pitanje';
   }
 }
 
@@ -4962,7 +4962,7 @@ function formatResponse(rawText) {
   if (!isNewFmt) {
     html += '<div class="resp-disclaimer-box">'+
       '<span class="disc-icon">ℹ</span>'+
-      '<span class="disc-text">Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. '+
+      '<span class="disc-text">Ovaj izveštaj je generisan uz pomoć sistema i služi isključivo kao pomoćno sredstvo u radu. '+
       'Konsultujte originalni tekst propisa u Službenom glasniku RS. '+
       'Nije pravni savet — podložno promenama u sudskoj praksi.</span>'+
       '</div>';
@@ -7920,7 +7920,7 @@ function aicOtvoriPredmet(subtab) {
     var _msg = subtab === 'graf'
       ? 'Izaberite predmet → otvoriće se Knowledge Graph sa mrežom odnosa.'
       : subtab === 'agenti'
-      ? 'Izaberite predmet → otvoriće se AI Tim za postavljanje pitanja.'
+      ? 'Izaberite predmet → otvoriće se Savetnici za postavljanje pitanja.'
       : 'Izaberite predmet da biste koristili ovaj alat.';
     showToast(_msg, 'info');
   }
@@ -8409,7 +8409,7 @@ function pred_renderConfirmCard(predlozi, metadata) {
   var kIds = JSON.stringify(klijentItems.map(function(k){ return {id: k.id, idx: k.idx}; }));
   var rData = rokItems.length ? JSON.stringify(rokItems[0]) : 'null';
   var html = '<div id="pred-confirm-card" style="margin-top:0.75rem;border:1px solid rgba(74,168,255,.22);border-radius:10px;background:rgba(74,168,255,.05);padding:0.8rem 1rem;">'
-    +'<div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#4aa8ff;margin-bottom:0.6rem;font-weight:700;">⚡ AI Prepoznao</div>';
+    +'<div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#4aa8ff;margin-bottom:0.6rem;font-weight:700;">⚡ Prepoznato automatski</div>';
   klijentItems.forEach(function(k){ html += k.html; });
   rokItems.forEach(function(r){ html += r.html; });
   html += '<button onclick="pred_confirmLinks('+kIds+','+rData+')" style="margin-top:0.55rem;width:100%;padding:0.55rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.28);border-radius:7px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;letter-spacing:.02em;">✓ Potvrdi i poveži</button>'
@@ -9238,7 +9238,7 @@ async function pred_loadDetail(id) {
   // Reset cockpit to loading state
   var loadEl = document.getElementById('pck-loading');
   var bodyEl = document.getElementById('pck-body');
-  if (loadEl) { loadEl.textContent = '⚡ Učitavam AI procenu predmeta...'; loadEl.style.display = 'block'; }
+  if (loadEl) { loadEl.textContent = '⚡ Učitavam procenu predmeta...'; loadEl.style.display = 'block'; }
   if (bodyEl) bodyEl.style.display = 'none';
 
   try {
@@ -9307,7 +9307,7 @@ async function pred_loadDetail(id) {
           var _rnStr = String(_rn).padStart(2, '0');
           return '<div class="pred-dok-card" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'" data-dok-rn="'+_rn+'" '
             +'onclick="dokUcitajZaAnalizu(\''+escHtml(_ns)+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml(_kb+'')+'\',\''+escHtml(dok.id||'')+'\')" '
-            +'title="Klikni da učitaš u AI analizu" '
+            +'title="Klikni da učitaš u analizu" '
             +'style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;margin-bottom:0.35rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+');border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;" '
             +'onmouseover="this.style.background=\'rgba(0,212,255,0.12)\';this.style.borderColor=\'rgba(0,212,255,0.45)\'" '
             +'onmouseout="this.style.background=\'rgba(0,212,255,0.06)\';this.style.borderColor=\'rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+')\'">'
@@ -9334,7 +9334,7 @@ async function pred_loadDetail(id) {
           + '<button onclick="_voice_refresh_case_dna(\''+escHtml(activePredmetId||'')+'\');return false;" '
           + 'style="width:100%;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);border-radius:7px;color:#00d4ff;font-size:0.7rem;padding:0.4rem 0.6rem;cursor:pointer;font-family:inherit;transition:background .15s;letter-spacing:0.02em;" '
           + 'onmouseover="this.style.background=\'rgba(0,212,255,0.16)\'" onmouseout="this.style.background=\'rgba(0,212,255,0.08)\'">'
-          + '🧬 Generiši Genome predmeta</button>'
+          + '🧬 Generiši procenu predmeta</button>'
           + '<div id="'+_dnaPanelId+'" style="display:none;margin-top:0.5rem;padding:0.65rem 0.8rem;background:rgba(0,0,0,0.3);border:1px solid rgba(0,212,255,0.15);border-radius:8px;"></div>'
           + '</div>';
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -9698,7 +9698,7 @@ async function pred_kreiraj() {
       ['  ! Žalba APB: 15 dana → ističe [DATUM+14]', 'hi'],
       ['  ✓ Odgovor na tužbu — podneto', 'ok'],
       ['', ''],
-      ['  ▸ AI nastavlja od mesta gde ste stali', 'hi']
+      ['  ▸ Nastavlja od mesta gde ste stali', 'hi']
     ],
     // 5 — AI Strategija
     [
@@ -12232,7 +12232,7 @@ function dokUcitajZaAnalizu(ns, naziv, velicinaKb, dokId) {
   // ns = "pred_SESSION" or "tmp_SESSION"
   var prefix = ns.startsWith('pred_') ? 'pred_' : 'tmp_';
   var sessionId = ns.replace(/^(pred_|tmp_)/, '');
-  if (!sessionId) { showToast('Ovaj dokument nije vektorizovan — otpremite ga ponovo da biste koristili AI analizu.', 'warn'); return; }
+  if (!sessionId) { showToast('Ovaj dokument nije vektorizovan — otpremite ga ponovo da biste koristili analizu.', 'warn'); return; }
 
   _docSessionId       = sessionId;
   _docNamespacePrefix = prefix;
@@ -12895,7 +12895,7 @@ function _piRenderPlans(pl) {
   // AI Usage ovog meseca
   var ai = pl.ai_usage_ovaj_mesec || {};
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;margin-top:0.8rem;">';
-  h += '<div class="pi-stat"><div class="pi-stat-val">'+(ai.ai_queries||0)+'</div><div class="pi-stat-lbl">AI upita · ovaj mesec</div></div>';
+  h += '<div class="pi-stat"><div class="pi-stat-val">'+(ai.ai_queries||0)+'</div><div class="pi-stat-lbl">Upita mesečno</div></div>';
   h += '<div class="pi-stat"><div class="pi-stat-val">'+(ai.doc_analyses||0)+'</div><div class="pi-stat-lbl">Analiza dok. · ovaj mesec</div></div>';
   h += '<div class="pi-stat"><div class="pi-stat-val">'+(ai.strategies||0)+'</div><div class="pi-stat-lbl">Strategija · ovaj mesec</div></div>';
   h += '</div>';
@@ -13541,9 +13541,9 @@ async function _voice_load_docs_by_number(numbers) {
   }
 }
 
-// Regenerise Genome predmeta za aktivni predmet
+// Regenerise Procena predmeta za aktivni predmet
 async function _voice_refresh_case_dna(predmetId) {
-  showToast('Generišem Genome predmeta...', 'info');
+  showToast('Generišem procenu predmeta...', 'info');
   try {
     var resp = await fetch('/api/predmeti/' + predmetId + '/case-dna/refresh', {
       method: 'POST',
@@ -13555,12 +13555,12 @@ async function _voice_refresh_case_dna(predmetId) {
     var tip = dna.tip_spora || '';
     var snaga = dna.snaga_predmeta || '';
     var kontr = (dna.kontradikcije || []).length;
-    var msg = 'Genome predmeta azuriran' + (tip ? ': ' + tip : '') + (snaga ? ' | Snaga: ' + snaga : '') + (kontr ? ' | ⚠ ' + kontr + ' kontradikcija' : '');
+    var msg = 'Procena predmeta ažurirana' + (tip ? ': ' + tip : '') + (snaga ? ' | Snaga: ' + snaga : '') + (kontr ? ' | ⚠ ' + kontr + ' kontradikcija' : '');
     showToast(msg, kontr ? 'warn' : 'ok');
     // Prikazi DNA panel ako postoji
     _caseDnaRender(dna, predmetId);
   } catch(e) {
-    showToast('Greška pri generisanju Genome predmeta', 'error');
+    showToast('Greška pri generisanju Procena predmeta', 'error');
   }
 }
 
@@ -14091,7 +14091,7 @@ async function _voice_compare_docs(predmetId, numbers) {
     if (a.koji_je_jaci_dokaz) resultText += '**Jači dokaz:** '+a.koji_je_jaci_dokaz+'\n\n';
     if (a.preporuka_advokata) resultText += '**Preporuka:** '+a.preporuka_advokata+'\n';
 
-    // Postavi u AI analiza tab
+    // Postavi u Analiza tab
     pred_subtabSwitch('ai-analiza');
     setTimeout(function() {
       var cinj = document.getElementById('pred-cinjenice');
@@ -14554,8 +14554,8 @@ function _ccc_render(el, d) {
   if ((bil.nenaplaceno||0) > 0) {
     chips.push({ cls:'chip-yellow', icon:'💰', text: Math.round(bil.nenaplaceno/1000)+'k RSD nenaplaćeno', action:"pred_subtabSwitch('naplata')" });
   }
-  // 5. Preporučena AI analiza — PLAVA (uvek)
-  chips.push({ cls:'chip-blue', icon:'⚖️', text:'Pokreni AI analizu', action:"pred_subtabSwitch('ai-analiza')" });
+  // 5. Preporučena Analiza — PLAVA (uvek)
+  chips.push({ cls:'chip-blue', icon:'⚖️', text:'Pokreni analizu', action:"pred_subtabSwitch('ai-analiza')" });
   // 6. Ako nema rokova — PLAVA
   if (!kr && (d.predstojeći||0) === 0 && (d.rokovi||[]).length === 0) {
     chips.push({ cls:'chip-blue', icon:'⏰', text:'Evidentiraj rokove', action:"pred_subtabSwitch('rokovi')" });
@@ -14656,9 +14656,9 @@ function _ccc_render(el, d) {
 
     // ── BRZE AKCIJE ───────────────────────────────────────────────────────
     '<div style="display:flex;flex-wrap:wrap;gap:.4rem;">',
-      '<button onclick="pred_subtabSwitch(\'ai-analiza\')" class="smart-chip chip-blue">⚖️ AI Analiza</button>',
+      '<button onclick="pred_subtabSwitch(\'ai-analiza\')" class="smart-chip chip-blue">⚖️ Analiza</button>',
       '<button onclick="pred_subtabSwitch(\'strategija\')" class="smart-chip" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#a78bfa;">📋 Strategija</button>',
-      '<button onclick="pred_subtabSwitch(\'agenti\')" class="smart-chip" style="background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);color:#818cf8;">👤 AI Pomoćnici</button>',
+      '<button onclick="pred_subtabSwitch(\'agenti\')" class="smart-chip" style="background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);color:#818cf8;">👤 Savetnici</button>',
       '<button onclick="pred_subtabSwitch(\'dokumenti\')" class="smart-chip" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.55);">📁 Dokumenti</button>',
       '<button onclick="if(typeof billing_timerToggle===\'function\'){if(!_billingPredmetId)_billingPredmetId=activePredmetId;billing_timerToggle();}" class="smart-chip" style="background:rgba(240,192,64,.1);border-color:rgba(240,192,64,.3);color:#f0c040;">⏱ Tajmer</button>',
       '<button onclick="pred_subtabSwitch(\'graf\')" class="smart-chip" style="background:rgba(103,232,249,.08);border-color:rgba(103,232,249,.2);color:#67e8f9;">🕸 Mapa veza</button>',
@@ -14947,7 +14947,7 @@ async function agent_run_parallel() {
     if (!r.ok) { showToast((d.detail && typeof d.detail === 'string' ? d.detail : 'Greška pri paralelnoj analizi'), 'err'); return; }
 
     // Prikaži konsolidovane rezultate sva 3 agenta
-    var html = '<div style="font-size:.72rem;color:rgba(255,255,255,.35);margin-bottom:.7rem;">Paralelna analiza — 3 AI agenta odgovorila istovremeno</div>';
+    var html = '<div style="font-size:.72rem;color:rgba(255,255,255,.35);margin-bottom:.7rem;">Paralelna analiza — 3 agenta odgovorila istovremeno</div>';
     (d.rezultati || []).forEach(function(res) {
       if (res.greska) {
         html += '<div style="margin-bottom:.8rem;padding:.6rem .8rem;background:rgba(255,80,80,.06);border:1px solid rgba(255,80,80,.2);border-radius:8px;">'
@@ -15318,12 +15318,12 @@ var _onboardSteps = [
   {
     icon: '📄',
     title: 'Korak 3: Otpremite dokumente',
-    body: 'Unutar predmeta kliknite tab <strong style="color:#89c8ff;">Dokumenti</strong>. Prevucite PDF ili DOCX fajl u zonu za upload. Vindex AI će automatski analizirati dokument i izvući ključne informacije.'
+    body: 'Unutar predmeta kliknite tab <strong style="color:#89c8ff;">Dokumenti</strong>. Prevucite PDF ili DOCX fajl u zonu za upload. Sistem će automatski analizirati dokument i izvući ključne informacije.'
   },
   {
     icon: '🤖',
-    title: 'Korak 4: Pitajte AI',
-    body: 'Kliknite tab <strong style="color:#89c8ff;">AI Analiza</strong> unutar predmeta. AI će analizirati vaš predmet i predložiti strategiju. Ili koristite <strong style="color:#89c8ff;">AI Centar</strong> u levom meniju za pretragu zakona i sudske prakse.'
+    title: 'Korak 4: Postavljanje pitanja',
+    body: 'Kliknite tab <strong style="color:#89c8ff;">Analiza</strong> unutar predmeta. Sistem će analizirati vaš predmet i predložiti strategiju. Ili koristite <strong style="color:#89c8ff;">Pravni alati</strong> u levom meniju za pretragu zakona i sudske prakse.'
   },
   {
     icon: '⏱️',
@@ -15972,7 +15972,7 @@ var _iEkstrakcijaRunning   = false;  // guard: prevents duplicate AI calls on st
 var _iDirty       = false;
 var _iSearchTimer = null;
 
-var _INTAKE_STEP_LABELS = ['Klijent','Opis problema','Dokumenti','AI analiza','Predlog'];
+var _INTAKE_STEP_LABELS = ['Klijent','Opis problema','Dokumenti','Analiza','Predlog'];
 
 function intakeOtvori() {
   if (!currentSession) { openModal(); return; }
@@ -15991,7 +15991,7 @@ function intakeOtvori() {
   document.getElementById('intake-ai-result').style.display = 'none';
   var _ail = document.getElementById('intake-ai-loading');
   _ail.style.display = 'block';
-  _ail.innerHTML = '<div style="margin-bottom:8px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div><div>Vindex AI analizira opis problema...</div>';
+  _ail.innerHTML = '<div style="margin-bottom:8px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div><div>Analiziramo opis problema...</div>';
   document.getElementById('intake-conflict-warning').style.display = 'none';
   document.getElementById('intake-kreiraj-err').style.display = 'none';
   _intakeBillingReset();
@@ -16465,7 +16465,7 @@ async function _intakeRunEkstrakcija() {
     _intakeShowAiResult(_iAnaliza);
     nextBtn.disabled = false;
   } catch(e) {
-    document.getElementById('intake-ai-loading').innerHTML = '<div style="color:#ff9090;font-size:0.82rem;">Greška pri AI analizi. Kliknite "Dalje" da preskočite.</div>';
+    document.getElementById('intake-ai-loading').innerHTML = '<div style="color:#ff9090;font-size:0.82rem;">Greška pri analizi. Kliknite "Dalje" da preskočite.</div>';
     _iAnaliza = { predlog_naziva_predmeta: '', vrsta_spora: '', protivna_strana: null, vrednost_spora: null, prvi_rok: null, rok_opis: null, potrebni_dokumenti: [] };
     nextBtn.disabled = false;
   } finally {
@@ -16495,7 +16495,7 @@ function _intakeShowAiResult(a) {
   }
   document.getElementById('intake-ai-loading').style.display = 'none';
   var el = document.getElementById('intake-ai-result');
-  el.innerHTML = html || '<div style="color:rgba(255,255,255,0.4);font-size:0.82rem;">AI nije mogao da ekstrahuje podatke — ručno popunite polja u sledećem koraku.</div>';
+  el.innerHTML = html || '<div style="color:rgba(255,255,255,0.4);font-size:0.82rem;">Nije moguće automatski ekstraktovati podatke — ručno popunite polja u sledećem koraku.</div>';
   el.style.display = '';
 
   // Pre-fill step 5 fields

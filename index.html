@@ -123,7 +123,7 @@
     <div class="modal-title" style="font-size:1.4rem;margin-bottom:0.9rem;">Otključajte VindexAI PRO</div>
     <p style="font-size:0.82rem;color:rgba(255,255,255,0.52);margin-bottom:1.3rem;line-height:1.65;">Modul za podneske dostupan je isključivo PRO korisnicima. Nadogradite nalog i pristupite svim PRO funkcijama.</p>
     <ul class="pro-upgrade-benefits">
-      <li><span class="pub-icon">→</span> Automatsko pisanje tužbi, žalbi i predloga za izvršenje uz AI asistenciju</li>
+      <li><span class="pub-icon">→</span> Automatsko pisanje tužbi, žalbi i predloga za izvršenje uz automatsku asistenciju</li>
       <li><span class="pub-icon">⚖</span> Pravno precizni šabloni usklađeni sa srpskim sudskim procedurama</li>
       <li><span class="pub-icon">📄</span> PDF export gotovog podneska u jednom kliku</li>
       <li><span class="pub-icon">🔍</span> RAG pretraga kroz 30.365 pravnih izvora pri generisanju</li>
@@ -151,7 +151,7 @@
     </button>
     <button class="vx2-qa-item" onclick="vxCoreCloseQA();openAITool('q')">
       <span class="vx2-qa-icon"><i data-lucide="file-search" style="width:20px;height:20px;"></i></span>
-      <span class="vx2-qa-lbl">Pokreni AI analizu</span>
+      <span class="vx2-qa-lbl">Pokreni analizu</span>
     </button>
   </div>
 </div>
@@ -174,9 +174,9 @@
         <ul style="list-style:none;padding:0;margin:0 0 1.2rem;flex:1;display:flex;flex-direction:column;gap:.5rem;">
           <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 1 korisnik</li>
           <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Do 50 predmeta</li>
-          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ AI analiza, nacrti, RAG pretraga</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ analiza, nacrti, RAG pretraga</li>
           <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ SEF e-faktura</li>
-          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 100 AI kredita/mes</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 100 kredita/mes</li>
           <li style="font-size:.78rem;color:rgba(255,255,255,.3);">✗ Višekorisnički pristup</li>
           <li style="font-size:.78rem;color:rgba(255,255,255,.3);">✗ PRO strategija moduli</li>
         </ul>
@@ -193,8 +193,8 @@
           <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Neograničeni predmeti</li>
           <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Sve Solo funkcije</li>
           <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ PRO strategija (6 modula)</li>
-          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ AI Tim (6 specijalizovanih agenata)</li>
-          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 500 AI kredita/mes</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Tim savetnika (6 specijalizovanih agenata)</li>
+          <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 500 kredita/mes</li>
           <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Klijentski portal</li>
         </ul>
         <button onclick="pricing_kontakt('pro')" style="padding:.7rem;background:linear-gradient(135deg,#4aa8ff,#6366f1);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Aktivirajte PRO →</button>
@@ -231,7 +231,7 @@
   <div class="modal" style="max-width:520px;width:90%;background:#111827;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:1.5rem;position:relative;max-height:88vh;overflow-y:auto;">
     <button onclick="ugovor_closeModal()" style="position:absolute;top:.8rem;right:.8rem;background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;line-height:1;">&#x2715;</button>
     <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.3rem;">Ugovor o zastupanju</div>
-    <div style="font-size:.75rem;color:rgba(255,255,255,0.35);margin-bottom:1rem;">Popunite podatke — ugovor se generiše automatski bez AI-a</div>
+    <div style="font-size:.75rem;color:rgba(255,255,255,0.35);margin-bottom:1rem;">Popunite podatke — ugovor se generiše automatski</div>
     <div style="display:flex;flex-direction:column;gap:.65rem;">
       <div>
         <label style="font-size:.72rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:.2rem;">Ime i prezime klijenta *</label>
@@ -364,29 +364,29 @@
           <span class="vx-tab-lbl">Notifikacije</span>
         </div>
         <div class="vx-nav-sep"></div>
-        <!-- AI Centar — section label + always-visible sub-items -->
-        <div class="vx-nav-group-lbl">AI Centar — Osnovno</div>
+        <!-- Pravni alati — section label + always-visible sub-items -->
+        <div class="vx-nav-group-lbl">Pravni alati — Osnovno</div>
         <div class="vx-nav-sub" onclick="openAITool('q')" title="Postavite pitanje o zakonu — sistem pretražuje sve važeće zakone Srbije">
           <span class="vx-nav-sub-dot"></span>Istraživanje zakona
         </div>
         <div class="vx-nav-sub" onclick="openAITool('s')" title="Pronađite presude sudova koje su relevantne za vaš slučaj">
           <span class="vx-nav-sub-dot"></span>Sudska praksa
         </div>
-        <div class="vx-nav-sub" onclick="openAITool('a')" title="Otpremite PDF ili DOCX — AI analizira dokument i izvlači ključne informacije">
+        <div class="vx-nav-sub" onclick="openAITool('a')" title="Otpremite PDF ili DOCX — analizira dokument i izvlači ključne informacije">
           <span class="vx-nav-sub-dot"></span>Analiza dokumenta
         </div>
-        <div class="vx-nav-sub" onclick="openAITool('n')" title="Generišite tužbu, žalbu, ugovor ili drugi pravni podnesak uz AI asistenciju">
+        <div class="vx-nav-sub" onclick="openAITool('n')" title="Generišite tužbu, žalbu, ugovor ili drugi pravni podnesak uz automatsku asistenciju">
           <span class="vx-nav-sub-dot"></span>Nacrti podnesaka
         </div>
         <div class="vx-nav-sub" onclick="docTplOpen()" style="color:#86efac;" title="Gotovi šabloni dokumenata — prilagodite i preuzmite">
           <span class="vx-nav-sub-dot" style="background:#86efac;"></span>📋 Šabloni dokumenata
         </div>
-        <div class="vx-nav-group-lbl" style="margin-top:.5rem;">AI Centar — Napredno</div>
+        <div class="vx-nav-group-lbl" style="margin-top:.5rem;">Pravni alati — Napredno</div>
         <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-p'),'p')" title="Otvorite predmet i idite na tab Strategija — Crveni tim, analiza, Kompletna analiza">
           <span class="vx-nav-sub-dot"></span>Procesna strategija
         </div>
-        <div class="vx-nav-sub" onclick="aicOtvoriPredmet('agenti')" style="color:rgba(0,212,255,0.7);" title="6 AI stručnjaka koji analiziraju vaš predmet — otvorite predmet i kliknite tab Agenti">
-          <span class="vx-nav-sub-dot" style="background:rgba(0,212,255,0.7);"></span>AI Agenti (6 stručnjaka)
+        <div class="vx-nav-sub" onclick="aicOtvoriPredmet('agenti')" style="color:rgba(0,212,255,0.7);" title="6 stručnjaka koji analiziraju vaš predmet — otvorite predmet i kliknite tab Agenti">
+          <span class="vx-nav-sub-dot" style="background:rgba(0,212,255,0.7);"></span>Savetnici (6 stručnjaka)
         </div>
         <div class="vx-nav-sub" onclick="aicOtvoriPredmet('graf')" style="color:#67e8f9;" title="Vizuelna mapa veza predmeta — otvorite predmet i kliknite tab Više ▾ → Graf">
           <span class="vx-nav-sub-dot" style="background:#67e8f9;"></span>Graf veza predmeta
@@ -507,7 +507,7 @@
           <button id="pwa-install-btn" onclick="pwaInstall()" title="Instaliraj Vindex AI kao aplikaciju" style="display:none;padding:0.32rem 0.65rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;color:#00d4ff;font-size:0.72rem;cursor:pointer;font-family:inherit;display:none;align-items:center;gap:0.3rem;white-space:nowrap;transition:background .15s;">
             <i data-lucide="download" style="width:14px;height:14px;stroke:#00d4ff;stroke-width:2;flex-shrink:0;"></i> Instaliraj
           </button>
-          <button onclick="qiOtvori()" title="Brzo kreiranje predmeta bez AI analize" style="padding:0.32rem 0.65rem;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.25);border-radius:8px;color:#ffd166;font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:0.25rem;">⚡ Hitan</button>
+          <button onclick="qiOtvori()" title="Brzo kreiranje predmeta bez analize" style="padding:0.32rem 0.65rem;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.25);border-radius:8px;color:#ffd166;font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:0.25rem;">⚡ Hitan</button>
           <button onclick="bulkOtvori()" title="Uvezi predmete iz CSV fajla" style="padding:0.32rem 0.65rem;background:rgba(74,168,255,0.06);border:1px solid rgba(74,168,255,0.2);border-radius:8px;color:rgba(74,168,255,0.7);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:0.25rem;">📤 CSV</button>
           <button class="vx-btn-new" onclick="intakeOtvori()">+ Novi predmet</button>
           <button class="settings-btn vx-topbar-settings" onclick="openSettings()" title="Podešavanja" style="display:none;"><i data-lucide="settings" class="vx-topbar-ico"></i></button>
@@ -523,7 +523,7 @@
     <div class="vx-panels-wrap">
           <div id="chat-hist" class="chat-hist"></div>
           <div id="tab-q">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div id="predmet-indicator" class="predmet-indicator"></div>
             <div class="t-guide">
               <div class="t-guide-icon"><i data-lucide="search" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
@@ -668,14 +668,14 @@
               <div style="position:relative;">
               <div class="pred-subtab-nav" style="position:relative;" id="pred-subtab-nav-el">
                 <!-- PRIMARY TABS — dnevne radnje -->
-                <button class="pred-subtab-btn pred-tab-primary active" id="tab-ccc-btn" onclick="pred_subtabSwitch('ccc',this)" title="Pregled šta treba da uradite — sledeće akcije, rokovi, AI preporuke">Centar</button>
+                <button class="pred-subtab-btn pred-tab-primary active" id="tab-ccc-btn" onclick="pred_subtabSwitch('ccc',this)" title="Pregled šta treba da uradite — sledeće akcije, rokovi, preporuke">Centar</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('pregled',this)" title="Detalji predmeta, beleške, ugovor o zastupanju i zatvaranje predmeta">Pregled</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('dokumenti',this)" title="Otpremite i pregledajte dokumente predmeta">Dokumenti</button>
-                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('ai-analiza',this)" title="AI pravna procena i alati u kontekstu ovog predmeta">AI Analiza</button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('ai-analiza',this)" title="Pravna procena i alati u kontekstu ovog predmeta">Analiza</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('rokovi',this)" title="Ročišta, hronologija, ZPP rokovi i priprema za ročište">Rokovi</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('naplata',this)" title="Tajmer, stavke naplate i generisanje fakture">Naplata</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('strategija',this)" title="Procesna strategija — Crveni tim, kompletna analiza, simulacija suda">Strategija</button>
-                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('agenti',this)" style="position:relative;" title="6 specijalizovanih AI stručnjaka koji analiziraju vaš predmet">Agenti<span style="position:absolute;top:-4px;right:-4px;background:rgba(0,212,255,0.15);color:rgba(0,212,255,0.9);border:1px solid rgba(0,212,255,0.3);font-size:.42rem;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:.04em;">AI</span></button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('agenti',this)" style="position:relative;" title="6 specijalizovanih stručnjaka koji analiziraju vaš predmet">Agenti<span style="position:absolute;top:-4px;right:-4px;background:rgba(0,212,255,0.15);color:rgba(0,212,255,0.9);border:1px solid rgba(0,212,255,0.3);font-size:.42rem;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:.04em;"></span></button>
                 <!-- VIŠE dropdown — sada samo napredne opcije -->
                 <div class="pred-more-wrap" id="pred-more-wrap">
                   <button class="pred-subtab-btn pred-tab-more" id="pred-more-btn" onclick="pred_more_toggle(event)" title="Napredne opcije: Graf veza, Hronologija, Dokazi, Komunikacija, Saradnja">Više ▾</button>
@@ -714,7 +714,7 @@
                 <!-- Matter Intelligence Bar — auto-učitava se pri otvaranju predmeta -->
                 <div id="matter-intel-bar" style="display:none;margin-bottom:.7rem;padding:.65rem .8rem;background:linear-gradient(135deg,rgba(10,15,30,.8),rgba(17,24,39,.9));border:1px solid rgba(74,168,255,.15);border-radius:10px;">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-                    <span style="font-size:.68rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">AI Procena predmeta</span>
+                    <span style="font-size:.68rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Procena predmeta</span>
                     <button onclick="matter_intel_load()" style="font-size:.65rem;background:none;border:none;color:rgba(74,168,255,.6);cursor:pointer;">↺</button>
                   </div>
                   <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;">
@@ -776,7 +776,7 @@
 </div>
               <!-- Cockpit panel — AI procena na vrhu -->
               <div id="pred-cockpit" class="pred-cockpit">
-                <div id="pck-loading" class="pck-loading">Učitavam AI procenu predmeta...</div>
+                <div id="pck-loading" class="pck-loading">Učitavam procenu predmeta...</div>
                 <div id="pck-body" style="display:none;">
                   <div class="pck-sazetak-row">
                     <span class="pck-ai-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span>
@@ -822,13 +822,13 @@
                   <button id="pred-crs-run-btn" onclick="pred_runPipeline()"
                     style="flex-shrink:0;padding:.32rem .6rem;border:1px solid rgba(74,168,255,.3);border-radius:7px;
                            background:rgba(74,168,255,.08);color:#89c8ff;font-size:.72rem;font-weight:600;
-                           cursor:pointer;white-space:nowrap;" title="Pokreni AI analizu predmeta">
+                           cursor:pointer;white-space:nowrap;" title="Pokreni analizu predmeta">
                     ↻ Analiziraj
                   </button>
                 </div>
                 <div id="pred-crs-checklist" style="margin-top:.6rem;display:flex;flex-wrap:wrap;gap:.35rem .6rem;"></div>
                 <div id="pred-crs-copilot" style="display:none;margin-top:.6rem;padding:.45rem .6rem;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.12);border-radius:7px;font-size:.74rem;color:rgba(255,255,255,.65);line-height:1.5;">
-                  <span style="font-size:.65rem;font-weight:700;color:#00d4ff;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.2rem;">AI preporuka — sledeći korak</span>
+                  <span style="font-size:.65rem;font-weight:700;color:#00d4ff;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.2rem;">Preporuka — sledeći korak</span>
                   <span id="pred-crs-copilot-txt"></span>
                 </div>
               </div>
@@ -994,11 +994,11 @@
                 </div>
               </div><!-- /pred-pane-dokumenti -->
 
-              <!-- ── TAB 3: AI Analiza ─────────────────────────────────── -->
+              <!-- ── TAB 3: Analiza ─────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-ai-analiza" style="display:none;">
                 <!-- Kratko uputstvo -->
                 <div style="margin-bottom:.7rem;padding:.5rem .75rem;background:rgba(74,168,255,.04);border:1px solid rgba(74,168,255,.14);border-radius:8px;font-size:.7rem;color:rgba(150,200,255,.6);line-height:1.5;">
-                  AI analizira ovaj predmet u kontekstu vaših dokumenata, stranaka i činjenica. Ispod su i prečice do ostalih AI alata (istraživanje zakona, sudska praksa, pisanje podnesaka).
+                  Analiziramo ovaj predmet u kontekstu vaših dokumenata, stranaka i činjenica. Ispod su i prečice do ostalih alata (istraživanje zakona, sudska praksa, pisanje podnesaka).
                 </div>
                 <div class="pred-section-lbl">Pravna procena predmeta</div>
                 <div id="pred-procena-result" style="margin-top:0.3rem;"></div>
@@ -1014,7 +1014,7 @@
                   <div class="mic-status" id="mic-status-pred-cinjenice"><span class="mic-status-dot"></span><span>Snimam...</span></div>
                   <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">Analiziraj predmet</button>
                 </details>
-                <div class="pred-section-lbl" style="margin-top:1rem;">AI alati u kontekstu predmeta</div>
+                <div class="pred-section-lbl" style="margin-top:1rem;">Alati u kontekstu predmeta</div>
                 <div class="pred-ai-tool-links">
                   <button class="pred-ai-tool-btn" onclick="openAITool('a')">
                     <i data-lucide="file-search" style="width:16px;height:16px;flex-shrink:0;"></i>Analiza dokumenta
@@ -1050,7 +1050,7 @@
               <!-- ── TAB 4: Strategija ─────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-strategija" style="display:none;">
                 <div style="margin-bottom:.85rem;padding:.6rem .85rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:9px;font-size:.71rem;color:rgba(255,255,255,.45);line-height:1.6;">
-                  Alati procesne strategije rade u kontekstu ovog predmeta — AI čita vaše dokumente i činjenice automatski.
+                  Alati procesne strategije rade u kontekstu ovog predmeta — čita vaše dokumente i činjenice automatski.
                   Stavke označene sa <span style="display:inline-block;padding:1px 5px;background:rgba(99,102,241,.25);border:1px solid rgba(99,102,241,.4);border-radius:3px;font-size:.6rem;font-weight:700;color:#a5b4fc;vertical-align:middle;">PRO</span> dostupne su PRO korisnicima.
                   <span id="strat-plan-info" style="color:rgba(74,168,255,.7);cursor:pointer;" onclick="openProModal()"> Pogledajte planove →</span>
                 </div>
@@ -1062,7 +1062,7 @@
                     <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.6)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
                     <div class="sfc-body">
                       <div class="sfc-title">Analiza crvenog tima <span class="pro-badge">PRO</span></div>
-                      <div class="sfc-desc">AI preuzima ulogu protivničkog advokata i napada vašu argumentaciju. Otkriva slabe tačke pre suđenja.</div>
+                      <div class="sfc-desc">Sistem preuzima ulogu protivničkog advokata i napada vašu argumentaciju. Otkriva slabe tačke pre suđenja.</div>
                     </div>
                     <div class="sfc-arrow">›</div>
                   </div>
@@ -1082,8 +1082,8 @@
                   <div class="strat-feature-card" onclick="pred_openStrat('sudija')">
                     <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.6)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M5 21h14"/><path d="M4 12h16"/><path d="M4 7l8-4 8 4"/></svg></div>
                     <div class="sfc-body">
-                      <div class="sfc-title">AI Sudija — procena ishoda <span class="pro-badge">PRO</span></div>
-                      <div class="sfc-desc">AI simulira sudijsku odluku na osnovu vaših argumenata, dokaza i relevantne prakse. Dobijate obrazloženu presudu.</div>
+                      <div class="sfc-title">Sudija — procena ishoda <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Simulira sudijsku odluku na osnovu vaših argumenata, dokaza i relevantne prakse. Dobijate obrazloženu presudu.</div>
                     </div>
                     <div class="sfc-arrow">›</div>
                   </div>
@@ -1120,7 +1120,7 @@
                     <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.6)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg></div>
                     <div class="sfc-body">
                       <div class="sfc-title">Revizija dokumenta <span class="pro-badge">PRO</span></div>
-                      <div class="sfc-desc">AI čita vaš podnesak ili ugovor i daje konkretne sugestije za poboljšanje — pravne i stilske.</div>
+                      <div class="sfc-desc">Sistem čita vaš podnesak ili ugovor i daje konkretne sugestije za poboljšanje — pravne i stilske.</div>
                     </div>
                     <div class="sfc-arrow">›</div>
                   </div>
@@ -1173,7 +1173,7 @@
               <div class="pred-subtab-pane" id="pred-pane-rokovi" style="display:none;">
                 <!-- ── Zakazana ročišta predmeta ─────────────────────── -->
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-                  <div class="pred-section-lbl" style="margin-bottom:0;display:flex;align-items:center;gap:.4rem;">Zakazana ročišta <span style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.4);font-size:.6rem;display:inline-flex;align-items:center;justify-content:center;cursor:default;" title="Unesite datum ročišta klikom na + Zakaži. Sistem vas podseća 24h unapred. Ispod ročišta je Priprema za ročište — AI brifing pred suđenje.">?</span></div>
+                  <div class="pred-section-lbl" style="margin-bottom:0;display:flex;align-items:center;gap:.4rem;">Zakazana ročišta <span style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.4);font-size:.6rem;display:inline-flex;align-items:center;justify-content:center;cursor:default;" title="Unesite datum ročišta klikom na + Zakaži. Sistem vas podseća 24h unapred. Ispod ročišta je Priprema za ročište — brifing pred suđenje.">?</span></div>
                   <button onclick="rocisteOtvoriFormu(activePredmetId)" style="padding:.28rem .7rem;font-size:.72rem;background:rgba(74,168,255,.1);border:1px solid rgba(74,168,255,.28);border-radius:6px;color:#89c8ff;cursor:pointer;font-family:inherit;">+ Zakaži</button>
                 </div>
                 <div id="pred-rocista-list" style="margin-bottom:.9rem;"></div>
@@ -1207,7 +1207,7 @@
                     Priprema za ročište <span class="pro-badge">PRO</span>
                   </div>
                   <div style="font-size:.65rem;color:rgba(0,212,255,.45);margin-bottom:.35rem;letter-spacing:.04em;">Hearing Command Center</div>
-                  <div style="font-size:.7rem;color:rgba(255,255,255,.32);margin-bottom:.5rem;line-height:1.5;">AI kreira kompletnu pripremu za sutrašnje ročište: šta da dokažete, koji dokazi nedostaju, analiza svedoka, procesni rizici i ocena pripremljenosti 0–100.</div>
+                  <div style="font-size:.7rem;color:rgba(255,255,255,.32);margin-bottom:.5rem;line-height:1.5;">Sistem kreira kompletnu pripremu za sutrašnje ročište: šta da dokažete, koji dokazi nedostaju, analiza svedoka, procesni rizici i ocena pripremljenosti 0–100.</div>
                   <div id="hcc-panel">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.35rem;">
                       <input id="hcc-datum" class="t-input" type="date" style="font-size:0.72rem;height:34px;" placeholder="Datum ročišta">
@@ -1390,7 +1390,7 @@
                 <!-- Uputstvo za korišćenje -->
                 <div style="margin-bottom:.75rem;padding:.65rem .9rem;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:9px;font-size:.72rem;color:rgba(180,170,255,.8);line-height:1.65;">
                   <strong style="color:rgba(165,180,252,.9);display:block;margin-bottom:.3rem;">Graf veza predmeta — kako koristiti:</strong>
-                  <span style="color:rgba(165,180,252,.6);font-weight:700;">1.</span> Kliknite <strong style="color:#a5b4fc;">↺ Osveži graf</strong> (dugme gore desno) — AI pravi vizuelnu mapu.<br>
+                  <span style="color:rgba(165,180,252,.6);font-weight:700;">1.</span> Kliknite <strong style="color:#a5b4fc;">↺ Osveži graf</strong> (dugme gore desno) — sistem pravi vizuelnu mapu.<br>
                   <span style="color:rgba(165,180,252,.6);font-weight:700;">2.</span> Kliknite na bilo koji krug u grafu da vidite detalje (zakon, presudu, stranku...).<br>
                   <span style="color:rgba(165,180,252,.6);font-weight:700;">3.</span> Skrolujte za zum. Kliknite i vucite za pomeranje mape.
                 </div>
@@ -1433,15 +1433,15 @@
               <div class="pred-subtab-pane" id="pred-pane-agenti" style="display:none;">
                 <!-- Uputstvo za korišćenje -->
                 <div style="margin-bottom:.75rem;padding:.65rem .9rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:9px;font-size:.72rem;color:rgba(140,220,255,.8);line-height:1.65;">
-                  <strong style="color:rgba(0,212,255,.9);display:block;margin-bottom:.35rem;">Kako koristiti AI Agente — 3 koraka:</strong>
+                  <strong style="color:rgba(0,212,255,.9);display:block;margin-bottom:.35rem;">Kako koristiti Savetnika — 3 koraka:</strong>
                   <span style="color:rgba(0,212,255,.7);font-weight:700;">1.</span> Kliknite na jednog od 6 agenata ispod (izaberite onoga ko odgovara vašem pitanju).<br>
                   <span style="color:rgba(0,212,255,.7);font-weight:700;">2.</span> U polje za tekst napišite šta vas zanima ili šta trebate (npr. <em>"Koje zakone da citiram u žalbi?"</em>).<br>
                   <span style="color:rgba(0,212,255,.7);font-weight:700;">3.</span> Kliknite zeleno dugme <strong style="color:#89c8ff;">▶ Pokreni agenta</strong>. Agent analizira vaš predmet i odgovara za ~30 sekundi.
                 </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
                   <div>
-                    <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">AI Tim — Centar</div>
-                    <div style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.1rem;">6 specijalizovanih AI agenata — izaberi agenta → unesite zadatak → pokrenite</div>
+                    <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Tim savetnika — Centar</div>
+                    <div style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.1rem;">6 specijalizovanih savetnika — izaberi agenta → unesite zadatak → pokrenite</div>
                   </div>
                 </div>
 
@@ -1576,7 +1576,7 @@
 
           </div>
           <div id="tab-n" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div class="t-guide">
               <div class="t-guide-icon"><i data-lucide="file-text" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
               <div class="t-guide-text"><span class="t-guide-bold">Generišite nacrt podneska.</span> Izaberite tip, opišite stranke i činjenice slobodnim tekstom — sistem ekstraktuje entitete i popunjava zvanični šablon.</div>
@@ -1670,10 +1670,10 @@
             </details>
           </div>
           <div id="tab-a" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div class="t-guide">
               <div class="t-guide-icon"><i data-lucide="file-search" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
-              <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Otpremite ugovor, presudu ili pravni akt — AI identifikuje pravne rizike i problematične odredbe.</div>
+              <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Otpremite ugovor, presudu ili pravni akt — sistem identifikuje pravne rizike i problematične odredbe.</div>
             </div>
             <input type="file" id="doc-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="doc_upload_file(this.files[0])">
             <div id="doc-upload-zone" class="upload-dropzone" onclick="doc_upload_trigger()">
@@ -1738,7 +1738,7 @@
             </div>
           </div>
           <div id="tab-s" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div class="t-guide">
               <div class="t-guide-icon"><i data-lucide="landmark" style="width:24px;height:24px;color:rgba(74,168,255,0.6);stroke-width:1.5;"></i></div>
               <div class="t-guide-text"><span class="t-guide-bold">Sudska praksa</span> — pretraga kroz odluke Vrhovnog kasacionog suda i Vrhovnog suda RS. Filtrirajte po pravnoj oblasti, sudu i godini.</div>
@@ -1792,7 +1792,7 @@
           </div>
           <!-- TAB: STRATEGIJA (F5) -->
           <div id="tab-t" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div class="strat-modul-izbor">
               <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">Crveni tim</button>
               <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">Simulator parnice</button>
@@ -1801,7 +1801,7 @@
               <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">Pravni Revizor</button>
               <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">Analizator svedoka</button>
               <button class="strat-btn" data-modul="sudija_v2" onclick="stratIzaberiModul('sudija_v2',this)">Sudija v2 — Debata</button>
-              <button class="strat-btn" data-modul="court_predictor" onclick="stratIzaberiModul('court_predictor',this)">AI Predikcija ishoda</button>
+              <button class="strat-btn" data-modul="court_predictor" onclick="stratIzaberiModul('court_predictor',this)">Predikcija ishoda</button>
             </div>
             <div id="strat-opis" class="strat-opis-box"></div>
             <div class="strat-input-wrap">
@@ -1827,7 +1827,7 @@
             <!-- Kompletna strateška analiza — orkestrator svih 6 modula -->
             <div style="margin-top:1.2rem;padding:1rem;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(74,168,255,0.06));border:1px solid rgba(99,102,241,0.25);border-radius:12px;">
               <div style="font-size:.78rem;font-weight:700;color:rgba(200,180,255,.9);margin-bottom:.3rem;">Kompletna strateška analiza <span class="pro-badge">PRO</span></div>
-              <div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.7rem;line-height:1.55;">Jedan klik pokreće svih 6 AI modula u automatskom redosledu: Pravni Revizor → Analiza rizika → Analizator svedoka → Crveni tim → AI Sudija → Sinteza. Kompletan strateški izveštaj za 2–3 minuta. Koristi 6 kredita.</div>
+              <div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.7rem;line-height:1.55;">Jedan klik pokreće svih 6 modula u automatskom redosledu: Pravni Revizor → Analiza rizika → Analizator svedoka → Crveni tim → Sudija → Sinteza. Kompletan strateški izveštaj za 2–3 minuta. Koristi 6 kredita.</div>
               <button id="strat-ork-btn" onclick="stratOrkestratorPokreni()" style="width:100%;padding:.6rem 1rem;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(74,168,255,0.12));border:1px solid rgba(99,102,241,0.4);border-radius:8px;color:rgba(220,210,255,.9);font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit;">Pokreni kompletnu analizu (6 kredita)</button>
             </div>
             <div class="strat-rezultat-wrap" id="strat-rezultat-wrap">
@@ -2073,7 +2073,7 @@
                   <div class="intake-upload-zone" id="intake-upload-zone" onclick="document.getElementById('intake-file-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="intakeDropFile(event)">
                     <div style="font-size:1.4rem;margin-bottom:6px;">📄</div>
                     <div style="font-size:0.82rem;color:rgba(255,255,255,0.6);">Prevucite PDF/DOCX ili kliknite za upload</div>
-                    <div style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:4px;">Maks. 10MB — rezultati se koriste za bolji AI predlog</div>
+                    <div style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:4px;">Maks. 10MB — rezultati se koriste za bolji predlog</div>
                   </div>
                   <input type="file" id="intake-file-input" accept=".pdf,.docx" style="display:none" onchange="intakeUploadFile(this.files[0])">
                   <div id="intake-files-list"></div>
@@ -2081,10 +2081,10 @@
                 </div>
                 <!-- Step 4 — AI ekstrakcija -->
                 <div id="intake-s4" class="intake-step-content" style="display:none">
-                  <div class="intake-step-heading">AI analiza</div>
+                  <div class="intake-step-heading">analiza</div>
                   <div id="intake-ai-loading" class="intake-spinner">
                     <div style="margin-bottom:8px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
-                    <div>Vindex AI analizira opis problema...</div>
+                    <div>Analiziramo opis problema...</div>
                   </div>
                   <div id="intake-ai-result" style="display:none"></div>
                 </div>
@@ -2195,7 +2195,7 @@
                 <div style="font-size:0.88rem;font-weight:700;color:#e6edf3;">⚡ Hitan predmet</div>
                 <button onclick="qiZatvori()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>
               </div>
-              <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:1rem;">Brzo kreiranje bez AI analize — popunite minimum podataka.</div>
+              <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:1rem;">Brzo kreiranje bez analize — popunite minimum podataka.</div>
               <div class="intake-field-lbl">Klijent *</div>
               <input id="qi-klijent-search" class="intake-field" type="text" placeholder="Pretraži po imenu..." oninput="qiKlijentSearch(this.value)" autocomplete="off">
               <div id="qi-klijent-results" style="margin-top:4px;"></div>
@@ -2299,7 +2299,7 @@
                   </div>
                   <div style="flex:1;min-width:0;">
                     <div style="font-size:0.88rem;font-weight:600;color:#e2e8f0;margin-bottom:2px;">Otvorite prvi predmet</div>
-                    <div style="font-size:0.72rem;color:rgba(255,255,255,0.38);">AI Intake Wizard — automatska ekstrakcija podataka</div>
+                    <div style="font-size:0.72rem;color:rgba(255,255,255,0.38);">Intake Wizard — automatska ekstrakcija podataka</div>
                   </div>
                   <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -2323,7 +2323,7 @@
                 <!-- Bonus: besplatnih upita info -->
                 <div style="margin-top:4px;padding:0.65rem 0.9rem;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);border-radius:8px;display:flex;align-items:center;gap:0.6rem;">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
-                  <span style="font-size:0.72rem;color:rgba(0,212,255,0.75);">15 besplatnih AI upita aktivirano — bez kreditne kartice</span>
+                  <span style="font-size:0.72rem;color:rgba(0,212,255,0.75);">15 besplatnih upita aktivirano — bez kreditne kartice</span>
                 </div>
               </div>
 
@@ -2379,7 +2379,7 @@
               <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;">
                 <div>
                   <div style="font-size:0.92rem;font-weight:700;color:#e2e8f0;">📄 Šabloni dokumenata</div>
-                  <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:2px;">Generiši pravni akt uz pomoć AI — tužbe, ugovori, punomoćja</div>
+                  <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:2px;">Generiši pravni akt automatski — tužbe, ugovori, punomoćja</div>
                 </div>
                 <button onclick="docTplClose()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:0 4px;">✕</button>
               </div>
@@ -2419,7 +2419,7 @@
 
           <!-- F11: Web3/Compliance tab -->
           <div id="tab-w" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div class="web3-header">
               <div class="web3-naslov">₿ Web3 &amp; Crypto Compliance</div>
               <div class="web3-podnaslov">Pravna analiza zasnovana na ZDI (Srbija) i MiCA (EU 2023/1114)</div>
@@ -2458,10 +2458,10 @@
 
           <!-- Phase 5.1: Pravne oblasti — Krivično, Privredno, Radno -->
           <div id="tab-ob" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> AI Centar</button>
+            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div class="web3-header">
               <div class="web3-naslov">⚖️ Pravne oblasti</div>
-              <div class="web3-podnaslov">Specijalizovani AI asistenti za krivično, privredno i radno pravo RS</div>
+              <div class="web3-podnaslov">Specijalizovani pravni asistenti za krivično, privredno i radno pravo RS</div>
             </div>
             <div class="strat-modul-izbor web3-moduli">
               <button class="strat-btn active" data-oblast="krivicno" onclick="oblastiIzaberiOblast('krivicno',this)">🔒 Krivično pravo</button>
@@ -2483,7 +2483,7 @@
               <span class="web3-ref-badge">Zaštitne mere</span>
               <span class="web3-ref-badge">Zastarelost KZ</span>
             </div>
-            <button class="web3-submit-btn" id="ob-submit-btn" onclick="oblastiPokreni()">Pitaj AI</button>
+            <button class="web3-submit-btn" id="ob-submit-btn" onclick="oblastiPokreni()">Postavi pitanje</button>
             <div id="ob-rezultat-wrap" class="web3-rezultat-wrap" style="display:none">
               <div class="web3-rezultat-header">
                 <span id="ob-rezultat-naslov" class="web3-rezultat-naslov"></span>
@@ -2551,7 +2551,7 @@
             <div class="hub-hd">
               <div class="hub-hd-left">
                 <div class="hub-eyebrow">Vindex AI — Pravna Inteligencija</div>
-                <h2 class="hub-title">AI Centar.</h2>
+                <h2 class="hub-title">Pravni alati.</h2>
               </div>
               <div class="hub-hd-right">
                 <div class="hub-stat-pair">
@@ -2638,8 +2638,8 @@
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="gavel" style="width:17px;height:17px;"></i></div>
                   <div class="aic3-module-body">
-                    <div class="aic3-module-name">AI Sudija</div>
-                    <div class="aic3-module-desc">AI sudija procenjuje predmet na osnovu srpske sudske prakse.</div>
+                    <div class="aic3-module-name">Sudija</div>
+                    <div class="aic3-module-desc">Sudija procenjuje predmet na osnovu srpske sudske prakse.</div>
                   </div>
                   <button class="aic3-open-btn" onclick="aicOtvoriPredmet('strategija')">Otvori predmet</button>
                 </div>
@@ -2671,7 +2671,7 @@
                   <div class="aic3-module-icon"><i data-lucide="file-search" style="width:17px;height:17px;"></i></div>
                   <div class="aic3-module-body">
                     <div class="aic3-module-name">Analiza dokumenta</div>
-                    <div class="aic3-module-desc">AI pregled ugovora ili podneska uz identifikaciju pravnih rizika.</div>
+                    <div class="aic3-module-desc">Pregled ugovora ili podneska uz identifikaciju pravnih rizika.</div>
                   </div>
                   <button class="aic3-open-btn" onclick="aicOtvoriPredmet('ai-analiza')">Otvori predmet</button>
                 </div>
@@ -2694,10 +2694,10 @@
                 <div class="aic3-module-card" style="border-color:rgba(0,212,255,.2);background:rgba(0,212,255,.04);">
                   <div class="aic3-module-icon" style="background:rgba(0,212,255,.1);"><i data-lucide="users" style="width:17px;height:17px;color:rgba(0,212,255,0.7);"></i></div>
                   <div class="aic3-module-body">
-                    <div class="aic3-module-name" style="color:rgba(0,212,255,0.85);">AI Tim — Centar <span style="font-size:.62rem;background:rgba(0,212,255,0.15);color:rgba(0,212,255,0.9);border:1px solid rgba(0,212,255,0.3);padding:1px 5px;border-radius:4px;vertical-align:middle;">AI</span></div>
-                    <div class="aic3-module-desc">6 AI stručnjaka koji rade na vašem predmetu. Pitajte konkretno pitanje ili dajte zadatak. <strong style="color:rgba(0,212,255,.65);">Izaberite predmet → tab Agenti → izaberite agenta → unesite zadatak.</strong></div>
+                    <div class="aic3-module-name" style="color:rgba(0,212,255,0.85);">Tim savetnika — Centar <span style="font-size:.62rem;background:rgba(0,212,255,0.15);color:rgba(0,212,255,0.9);border:1px solid rgba(0,212,255,0.3);padding:1px 5px;border-radius:4px;vertical-align:middle;">AI</span></div>
+                    <div class="aic3-module-desc">6 stručnjaka koji rade na vašem predmetu. Pitajte konkretno pitanje ili dajte zadatak. <strong style="color:rgba(0,212,255,.65);">Izaberite predmet → tab Agenti → izaberite agenta → unesite zadatak.</strong></div>
                   </div>
-                  <button class="aic3-open-btn" style="background:rgba(0,212,255,.1);color:rgba(0,212,255,0.85);border-color:rgba(0,212,255,.25);" onclick="aicOtvoriPredmet('agenti')">Pitaj AI agente →</button>
+                  <button class="aic3-open-btn" style="background:rgba(0,212,255,.1);color:rgba(0,212,255,0.85);border-color:rgba(0,212,255,.25);" onclick="aicOtvoriPredmet('agenti')">Postavi pitanje agente →</button>
                 </div>
               </div>
             </div>
@@ -2708,7 +2708,7 @@
             <div class="dok-panel-wrap">
               <div class="dok-notice">
                 <strong>Dokumenti po predmetima</strong>
-                Svi otpremljeni dokumenti su organizovani unutar predmeta kojima pripadaju. Otvorite predmet da pristupite dokumentima, ili koristite AI Analizu za brzu analizu novog dokumenta.
+                Svi otpremljeni dokumenti su organizovani unutar predmeta kojima pripadaju. Otvorite predmet da pristupite dokumentima, ili koristite Analizu dokumenta za brzu analizu novog dokumenta.
               </div>
               <div class="dok-nav-grid">
                 <div class="dok-nav-card" onclick="setTab(document.getElementById('tab-btn-p'),'p')">
@@ -2722,7 +2722,7 @@
                   <div class="dok-nav-icon"><i data-lucide="search" style="width:20px;height:20px;color:rgba(74,168,255,0.6);"></i></div>
                   <div>
                     <div class="dok-nav-label">Analiza dokumenta</div>
-                    <div class="dok-nav-sub">AI analiza novog dokumenta</div>
+                    <div class="dok-nav-sub">analiza novog dokumenta</div>
                   </div>
                 </div>
               </div>
@@ -3032,7 +3032,7 @@
                     <span class="pomoc-faq-arrow">▸</span>
                   </div>
                   <div class="pomoc-faq-a" id="faq-a-1">
-                    Otvorite predmet → tab <strong>Dokumenti</strong> → kliknite <strong>+ Dodaj dokument</strong>. Podržani formati: PDF, DOCX, TXT (maks. 25 MB). Alternativno, koristite tab <strong>Analiza dokumenta</strong> za direktnu AI analizu bez vezivanja za predmet.
+                    Otvorite predmet → tab <strong>Dokumenti</strong> → kliknite <strong>+ Dodaj dokument</strong>. Podržani formati: PDF, DOCX, TXT (maks. 25 MB). Alternativno, koristite tab <strong>Analiza dokumenta</strong> za direktnu analizu bez vezivanja za predmet.
                   </div>
                 </div>
 
@@ -3042,7 +3042,7 @@
                     <span class="pomoc-faq-arrow">▸</span>
                   </div>
                   <div class="pomoc-faq-a" id="faq-a-2">
-                    Tab <strong>Klijenti</strong> → dugme <strong>+ Novi klijent</strong>. Ili koristite <strong>Intake čarobnjak</strong> (dugme + u gornjem desnom uglu) koji kreira klijenta i predmet u jednom toku sa AI ekstrakcijom podataka.
+                    Tab <strong>Klijenti</strong> → dugme <strong>+ Novi klijent</strong>. Ili koristite <strong>Intake čarobnjak</strong> (dugme + u gornjem desnom uglu) koji kreira klijenta i predmet u jednom toku sa automatskom ekstrakcijom podataka.
                   </div>
                 </div>
 
@@ -3084,7 +3084,7 @@
                   style="width:100%;background:rgba(13,27,42,0.97);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 10px;color:rgba(255,255,255,0.8);font-size:0.78rem;outline:none;font-family:inherit;cursor:pointer;margin-bottom:0.4rem;">
                   <option value="tehnicko">Tehnički problem</option>
                   <option value="nalog">Nalog i pretplata</option>
-                  <option value="ai">AI / tačnost odgovora</option>
+                  <option value="ai">Tačnost odgovora</option>
                   <option value="podatak">Podatak ili odluka</option>
                   <option value="predlog">Predlog / ideja</option>
                   <option value="ostalo" selected>Ostalo</option>
@@ -3379,7 +3379,7 @@
 
     <p class="vx-land-sub">
       Operativni sistem za advokatske kancelarije. Predmeti, klijenti, rokovi i dokumenti organizovani.
-      AI koji radi umesto vas &mdash; unutar svakog predmeta.
+      Analiza koja radi umesto vas &mdash; unutar svakog predmeta.
     </p>
 
     <div class="vx-land-ctas">
@@ -3404,7 +3404,7 @@
       </div>
       <div class="vx-land-feat">
         <div class="vx-land-feat-icon">&#x25C6;</div>
-        <div class="vx-land-feat-title">AI Istraživanje</div>
+        <div class="vx-land-feat-title">Pravno istraživanje</div>
         <div class="vx-land-feat-text">847 zakona Srbije pretraženo za manje od 10 sekundi. Citat, član, zakon &mdash; tačno.</div>
       </div>
       <div class="vx-land-feat">
@@ -3622,7 +3622,7 @@
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 12px 20px;">
     <button class="mob-more-btn" onclick="mobileMoreGo('q')">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <span>AI Centar</span>
+      <span>Pravni alati</span>
     </button>
     <button class="mob-more-btn" onclick="mobileMoreGo('n')">
       <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
