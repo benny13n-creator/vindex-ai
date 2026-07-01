@@ -255,7 +255,7 @@ async def list_klijenti(
         # Isključi soft-deleted
         q = q.neq("status", "soft_deleted")
         if pretraga:
-            q = q.ilike("ime", f"%{pretraga}%")
+            q = q.or_(f"ime.ilike.%{pretraga}%,prezime.ilike.%{pretraga}%,firma.ilike.%{pretraga}%")
         if status_filter:
             q = q.eq("status", status_filter)
         return q.order("kreirano", desc=True).execute()

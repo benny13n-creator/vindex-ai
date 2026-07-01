@@ -16359,9 +16359,16 @@ function intakeKlijentSelect(id, name, firma) {
   _iKlijentName  = name;
   _iKlijentFirma = firma || '';
   document.querySelectorAll('.intake-klijent-result').forEach(function(el){ el.classList.remove('selected'); });
+  // Sakrij rezultate pretrage, prikaži selekciju
+  document.getElementById('intake-klijent-results').innerHTML = '';
+  document.getElementById('intake-klijent-search').value = '';
   var sel = document.getElementById('intake-klijent-selected');
   sel.style.display = '';
-  document.getElementById('intake-klijent-selected-name').textContent = name;
+  document.getElementById('intake-klijent-selected-name').textContent = '✓ ' + name;
+  // Vizuelna potvrda
+  sel.style.background = 'rgba(74,168,255,0.15)';
+  sel.style.borderColor = 'rgba(74,168,255,0.5)';
+  setTimeout(function(){ sel.style.background = ''; sel.style.borderColor = ''; }, 1200);
 }
 
 async function intakeUploadFile(file) {
