@@ -134,7 +134,7 @@ async def get_evidence(predmet_id: str, user=Depends(require_user)):
         asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti").select(
                 "id,naziv_fajla,tip_dokaza,pravni_elementi,ai_tags,velicina_kb,status,klasifikovan_at,created_at"
-            ).eq("predmet_id", predmet_id).is_("deleted_at", "null").order("created_at", desc=False).execute()
+            ).eq("predmet_id", predmet_id).order("created_at", desc=False).execute()
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_dokazi").select("*").eq("predmet_id", predmet_id).is_("deleted_at", "null").order("created_at", desc=True).execute()

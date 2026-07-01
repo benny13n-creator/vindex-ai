@@ -364,7 +364,7 @@ async def _run_genome_background(predmet_id: str, uid: str, stari_procent: Optio
                 logger.warning("[GENOME] Alert insert greška: %s", ae)
 
         logger.info("[GENOME] bg refresh predmet=%s docs=%d snaga=%s%% v%s",
-                    predmet_id, len(docs), novi_procent, genome.get("verzija"))
+                    predmet_id, len(docs), genome.get("snaga_predmeta_procent"), genome.get("verzija"))
     except Exception as exc:
         logger.warning("[GENOME] Background refresh greška: %s", exc)
 

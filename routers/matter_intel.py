@@ -49,7 +49,7 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
             "snaga,kategorija,pravni_element"
         ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("tip_dokaza").eq(
-            "predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+            "predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
             "naziv,datum_isteka,status"
         ).eq("predmet_id", predmet_id).order("datum_isteka").execute()),
@@ -301,7 +301,7 @@ async def get_uncertainty_dashboard(
     dok_r, rok_r, ist_r, billing_r, hron_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
             "tip_dokaza"
-        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        ).eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
             "naziv,datum_isteka,status"
         ).eq("predmet_id", predmet_id).order("datum_isteka").execute()),
@@ -505,7 +505,7 @@ async def preflight_check(
     dok_r, rok_r, ist_r, hron_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
             "naziv_fajla,tip_dokaza"
-        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        ).eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
             "naziv,datum_isteka,status"
         ).eq("predmet_id", predmet_id).order("datum_isteka").execute()),

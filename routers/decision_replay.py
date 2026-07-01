@@ -98,7 +98,7 @@ async def _gather_timeline_events(supa, predmet_id: str, user_id: str) -> list[d
         ),
         asyncio.to_thread(
             lambda: supa.table("rocista")
-            .select("naziv, datum, status, beleske")
+            .select("sud, datum, vreme, status, napomena")
             .eq("predmet_id", predmet_id)
             .eq("user_id", user_id)
             .order("datum")
@@ -170,7 +170,7 @@ async def _gather_timeline_events(supa, predmet_id: str, user_id: str) -> list[d
             "datum_full": datum,
             "tip": "rociste",
             "tip_label": "Rociste",
-            "opis": f"{ro.get('naziv', 'Rociste')} — {ro.get('beleske', '')[:120]}",
+            "opis": f"Ročište ({ro.get('sud', 'Sud')}) — {(ro.get('napomena') or '')[:120]}",
             "detalji": {"status": ro.get("status")},
             "kriticnost": "srednja",
         })

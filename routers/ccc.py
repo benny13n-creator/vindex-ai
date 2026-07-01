@@ -44,7 +44,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
             "snaga,kategorija"
         ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,tip_dokaza").eq(
-            "predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+            "predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
             "id,naziv,datum_isteka,status"
         ).eq("predmet_id", predmet_id).order("datum_isteka").limit(10).execute()),

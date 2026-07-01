@@ -87,11 +87,11 @@ async def _generiši_briefing(uid: str, supa) -> dict:
         ),
         asyncio.to_thread(
             lambda: supa.table("rocista")
-                .select("id, naziv, datum_vreme, sud, predmet_id, tip")
+                .select("id, sud, datum, vreme, predmet_id, status")
                 .eq("user_id", uid)
-                .gte("datum_vreme", danas.isoformat())
-                .lte("datum_vreme", za_7.isoformat())
-                .order("datum_vreme")
+                .gte("datum", danas.isoformat())
+                .lte("datum", za_7.isoformat())
+                .order("datum")
                 .execute()
         ),
         asyncio.to_thread(
@@ -115,8 +115,8 @@ async def _generiši_briefing(uid: str, supa) -> dict:
 
     rokovi_hitni    = [r for r in rokovi if _dani_do(r["datum"]) <= 2]
     rokovi_uskoro   = [r for r in rokovi if 2 < _dani_do(r["datum"]) <= 7]
-    rocista_danas   = [r for r in rocista if str(r.get("datum_vreme", ""))[:10] == danas.isoformat()]
-    rocista_sedmica = [r for r in rocista if str(r.get("datum_vreme", ""))[:10] != danas.isoformat()]
+    rocista_danas   = [r for r in rocista if str(r.get("datum", ""))[:10] == danas.isoformat()]
+    rocista_sedmica = [r for r in rocista if str(r.get("datum", ""))[:10] != danas.isoformat()]
 
     # ── AI kontekst ────────────────────────────────────────────────────────────
     parts = []
@@ -124,7 +124,7 @@ async def _generiši_briefing(uid: str, supa) -> dict:
         parts.append(
             f"ROČIŠTA DANAS ({len(rocista_danas)}):\n" +
             "\n".join(
-                f"- {r.get('naziv','Ročište')} u {str(r.get('datum_vreme',''))[:16]}, sud: {r.get('sud','N/A')}"
+                f"- Ročište u {r.get('sud','N/A')} — {r.get('datum','')} {(r.get('vreme') or '')[:5]}"
                 for r in rocista_danas
             )
         )
@@ -150,7 +150,7 @@ async def _generiši_briefing(uid: str, supa) -> dict:
         parts.append(
             f"ROČIŠTA OVE NEDELJE ({len(rocista_sedmica)}):\n" +
             "\n".join(
-                f"- {r.get('naziv','Ročište')} — {str(r.get('datum_vreme',''))[:10]}"
+                f"- Ročište ({r.get('sud','N/A')}) — {r.get('datum','')}"
                 for r in rocista_sedmica[:5]
             )
         )
@@ -204,7 +204,7 @@ Budi direktan, koncizan, kao iskusan kolega koji te brifuje. Bez praznih reči. 
         },
         "rokovi_hitni":  [{"naziv": r.get("naziv"), "datum": r["datum"]} for r in rokovi_hitni],
         "rocista_danas": [
-            {"naziv": r.get("naziv"), "vreme": str(r.get("datum_vreme", ""))[:16], "sud": r.get("sud")}
+            {"naziv": f"Ročište - {r.get('sud','')}", "vreme": f"{r.get('datum','')} {(r.get('vreme') or '')[:5]}", "sud": r.get("sud")}
             for r in rocista_danas
         ],
         "generisano_u": datetime.now(timezone.utc).isoformat(),
@@ -930,7 +930,7 @@ async def today_focus(
     try:
         rocr = await asyncio.to_thread(
             lambda: supa.table("rocista")
-                .select("predmet_id,naziv,datum,sud")
+                .select("predmet_id,datum,vreme,sud")
                 .eq("user_id", uid)
                 .gte("datum", today_iso)
                 .lte("datum", in_7d_iso)
@@ -941,7 +941,7 @@ async def today_focus(
         for r in (rocr.data or []):
             rocista_nedelja.append({
                 "predmet_naziv": pred_map.get(r.get("predmet_id", ""), ""),
-                "naziv":         r.get("naziv", ""),
+                "naziv":         r.get("sud", ""),
                 "datum":         r.get("datum", ""),
                 "sud":           r.get("sud", ""),
             })
@@ -1058,7 +1058,7 @@ async def today_focus(
             )
         elif rocista_nedelja:
             r0 = rocista_nedelja[0]
-            ai_poruka = f"Imate rociste '{r0['naziv']}' dana {r0['datum']}. Pripremite se."
+            ai_poruka = f"Imate rociste u sudu '{r0.get('sud', '')}' dana {r0.get('datum', '')}. Pripremite se."
         else:
             ai_poruka = "Nema hitnih rokova ni rocista. Dobar dan za stratesko planiranje."
 
