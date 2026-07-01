@@ -14338,7 +14338,7 @@ function evidence_load() {
       dokDiv.innerHTML = '<div style="color:rgba(255,255,255,.25);font-size:.78rem;">Nema uploadovanih dokumenata.</div>';
     } else {
       dokDiv.innerHTML = docs.map(function(doc) {
-        var tip = doc.tip_dokaza || 'neklafikovan';
+        var tip = doc.tip_dokaza || 'neklasifikovan';
         var tipLabel = _TIP_DOKAZA_LABELS[tip] || tip;
         var elementi = (doc.pravni_elementi || []).slice(0,3).join(', ');
         return '<div class="evidence-dok-card">'
@@ -14347,7 +14347,7 @@ function evidence_load() {
           + '<div style="font-size:.78rem;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(doc.naziv_fajla||'') + '</div>'
           + (elementi ? '<div style="font-size:.67rem;color:rgba(255,255,255,.35);margin-top:.15rem;">' + escHtml(elementi) + '</div>' : '')
           + '</div>'
-          + (tip === 'neklafikovan' ? '<button onclick="evidence_reklasifikuj(\'' + doc.id + '\')" style="font-size:.62rem;padding:.15rem .4rem;border:1px solid rgba(255,255,255,.15);border-radius:4px;background:transparent;color:rgba(255,255,255,.35);cursor:pointer;white-space:nowrap;">Klasifikuj</button>' : '')
+          + (tip === 'neklasifikovan' ? '<button onclick="evidence_reklasifikuj(\'' + doc.id + '\')" style="font-size:.62rem;padding:.15rem .4rem;border:1px solid rgba(255,255,255,.15);border-radius:4px;background:transparent;color:rgba(255,255,255,.35);cursor:pointer;white-space:nowrap;">Klasifikuj</button>' : '')
           + '</div>';
       }).join('');
     }
@@ -16479,8 +16479,10 @@ async function _intakeRunEkstrakcija() {
     nextBtn.disabled = false;
   } catch(e) {
     var _iLoadEl = document.getElementById('intake-ai-loading');
-    if (_iLoadEl) _iLoadEl.style.display = 'none';
-    document.getElementById('intake-ai-loading').innerHTML = '<div style="color:#ff9090;font-size:0.82rem;">Greška pri analizi. Kliknite "Dalje" da preskočite.</div>';
+    if (_iLoadEl) {
+      _iLoadEl.innerHTML = '<div style="color:#ff9090;font-size:0.82rem;">Greška pri analizi. Kliknite "Dalje" da preskočite.</div>';
+      _iLoadEl.style.display = 'block';
+    }
     _iAnaliza = { predlog_naziva_predmeta: '', vrsta_spora: '', protivna_strana: null, vrednost_spora: null, prvi_rok: null, rok_opis: null, potrebni_dokumenti: [] };
     nextBtn.disabled = false;
   } finally {

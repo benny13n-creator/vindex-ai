@@ -130,9 +130,9 @@ async def _dohvati_kontekst_predmeta(supa, predmet_id: str, uid: str) -> dict:
             ).eq("id", predmet_id).eq("user_id", uid).execute()
         ),
         asyncio.to_thread(
-            lambda: supa.table("predmet_rokovi").select(
-                "naziv,datum_isteka,status"
-            ).eq("predmet_id", predmet_id).order("datum_isteka").execute()
+            lambda: supa.table("rocista").select(
+                "sud,datum,status"
+            ).eq("predmet_id", predmet_id).order("datum").execute()
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti").select(
@@ -177,9 +177,9 @@ def _build_kontekst_tekst(ctx: dict, strategija_promena: Optional[str] = None) -
         f"Opis: {(predmet.get('opis') or 'Nije unet opis.')[:1000]}\n"
     )
 
-    tekst += f"\nROKOVI ({len(rokovi)}):\n"
+    tekst += f"\nROCISTA ({len(rokovi)}):\n"
     for r in rokovi[:15]:
-        tekst += f"- {r.get('naziv', '?')} — {r.get('datum_isteka', '?')} [{r.get('status', '?')}]\n"
+        tekst += f"- {r.get('sud', '?')} — {r.get('datum', '?')} [{r.get('status', '?')}]\n"
 
     tekst += f"\nDOKUMENTI ({len(dokumenti)}):\n"
     for d in dokumenti[:15]:

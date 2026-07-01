@@ -505,19 +505,19 @@ async def _generiši_alerts_za_korisnika(uid: str, supa) -> list[dict]:
     # Rokovi koji ističu za <= 3 dana (hitni)
     try:
         rok_r = await asyncio.to_thread(
-            lambda: supa.table("predmet_rokovi")
-                .select("id, naziv, datum_isteka, predmet_id")
+            lambda: supa.table("rocista")
+                .select("id, sud, datum, predmet_id")
                 .in_("predmet_id", pred_ids[:30])
-                .gte("datum_isteka", danas.isoformat())
-                .lte("datum_isteka", za_3)
+                .gte("datum", danas.isoformat())
+                .lte("datum", za_3)
                 .execute()
         )
         for r in (rok_r.data or []):
             p = predmeti_map.get(r.get("predmet_id", ""), {})
             alerts.append({
                 "tip":        "rok_kritican",
-                "naslov":     f"Hitni rok — {r.get('naziv', 'Rok')}",
-                "opis":       f"Rok ističe {r.get('datum_isteka', '')[:10]} · Predmet: {p.get('naziv', '')}",
+                "naslov":     f"Hitno rociste — {r.get('sud', 'Rociste')}",
+                "opis":       f"Rociste {r.get('datum', '')[:10]} · Predmet: {p.get('naziv', '')}",
                 "urgentnost": "hitna",
                 "predmet_id": r.get("predmet_id"),
             })
@@ -527,19 +527,19 @@ async def _generiši_alerts_za_korisnika(uid: str, supa) -> list[dict]:
     # Rokovi 4-7 dana (visoka urgentnost)
     try:
         rok_r2 = await asyncio.to_thread(
-            lambda: supa.table("predmet_rokovi")
-                .select("id, naziv, datum_isteka, predmet_id")
+            lambda: supa.table("rocista")
+                .select("id, sud, datum, predmet_id")
                 .in_("predmet_id", pred_ids[:30])
-                .gt("datum_isteka", za_3)
-                .lte("datum_isteka", za_7)
+                .gt("datum", za_3)
+                .lte("datum", za_7)
                 .execute()
         )
         for r in (rok_r2.data or []):
             p = predmeti_map.get(r.get("predmet_id", ""), {})
             alerts.append({
                 "tip":        "rok_uskoro",
-                "naslov":     f"Rok uskoro — {r.get('naziv', 'Rok')}",
-                "opis":       f"Rok ističe {r.get('datum_isteka', '')[:10]} · Predmet: {p.get('naziv', '')}",
+                "naslov":     f"Rociste uskoro — {r.get('sud', 'Rociste')}",
+                "opis":       f"Rociste {r.get('datum', '')[:10]} · Predmet: {p.get('naziv', '')}",
                 "urgentnost": "visoka",
                 "predmet_id": r.get("predmet_id"),
             })

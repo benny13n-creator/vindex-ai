@@ -42,15 +42,15 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     ) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
             "snaga,kategorija"
-        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        ).eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,tip_dokaza").eq(
             "predmet_id", predmet_id).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
-            "id,naziv,datum_isteka,status"
-        ).eq("predmet_id", predmet_id).order("datum_isteka").limit(10).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select(
+            "id,sud,datum,status,napomena"
+        ).eq("predmet_id", predmet_id).order("datum").limit(10).execute()),
         asyncio.to_thread(lambda: supa.table("billing_entries").select(
             "iznos,obracunato"
-        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        ).eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select(
             "dogadjaj,akter,datum,vaznost"
         ).eq("predmet_id", predmet_id).order("datum_iso", desc=True).limit(8).execute()),
@@ -81,9 +81,9 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     for r in ((rok_r.data if not isinstance(rok_r, Exception) else []) or []):
         dana = None
         try:
-            dt_str = r.get("datum_isteka", "")
+            dt_str = r.get("datum", "")
             if dt_str:
-                dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                dt = datetime.fromisoformat((dt_str + "T00:00:00") if len(dt_str) == 10 else dt_str.replace("Z", "+00:00"))
                 dana = (dt - now).days
                 if 0 <= dana <= 30:
                     predstojeći += 1

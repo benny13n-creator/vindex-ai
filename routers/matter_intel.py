@@ -50,9 +50,9 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
         ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("tip_dokaza").eq(
             "predmet_id", predmet_id).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
-            "naziv,datum_isteka,status"
-        ).eq("predmet_id", predmet_id).order("datum_isteka").execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select(
+            "sud,datum,status"
+        ).eq("predmet_id", predmet_id).order("datum").execute()),
         return_exceptions=True,
     )
 
@@ -91,7 +91,8 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
     kriticni    = 0
     for r in ((rok_r.data if not isinstance(rok_r, Exception) else []) or []):
         try:
-            dt = datetime.fromisoformat((r.get("datum_isteka","") or "").replace("Z","+00:00"))
+            ds = r.get("datum","") or ""
+            dt = datetime.fromisoformat((ds + "T00:00:00") if len(ds) == 10 else ds.replace("Z","+00:00"))
             dana = (dt - now).days
             if 0 <= dana <= 30:
                 predstojeći += 1
@@ -302,9 +303,9 @@ async def get_uncertainty_dashboard(
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
             "tip_dokaza"
         ).eq("predmet_id", predmet_id).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
-            "naziv,datum_isteka,status"
-        ).eq("predmet_id", predmet_id).order("datum_isteka").execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select(
+            "sud,datum,status"
+        ).eq("predmet_id", predmet_id).order("datum").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").select(
             "pitanje"
         ).eq("predmet_id", predmet_id).eq("user_id", uid).limit(100).execute()),
@@ -337,7 +338,8 @@ async def get_uncertainty_dashboard(
     kriticni_rokovi = 0
     for r in rokovi:
         try:
-            dt = datetime.fromisoformat((r.get("datum_isteka","") or "").replace("Z","+00:00"))
+            ds = r.get("datum","") or ""
+            dt = datetime.fromisoformat((ds + "T00:00:00") if len(ds) == 10 else ds.replace("Z","+00:00"))
             if 0 <= (dt - now).days <= 7:
                 kriticni_rokovi += 1
         except Exception:
@@ -506,9 +508,9 @@ async def preflight_check(
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
             "naziv_fajla,tip_dokaza"
         ).eq("predmet_id", predmet_id).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_rokovi").select(
-            "naziv,datum_isteka,status"
-        ).eq("predmet_id", predmet_id).order("datum_isteka").execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select(
+            "sud,datum,status"
+        ).eq("predmet_id", predmet_id).order("datum").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").select(
             "pitanje,odgovor"
         ).eq("predmet_id", predmet_id).eq("user_id", uid).order(
@@ -549,9 +551,9 @@ async def preflight_check(
     for d in dokumenti[:10]:
         ctx_lines.append(f"  - {d.get('naziv_fajla','?')} [{d.get('tip_dokaza','?')}]")
 
-    ctx_lines.append(f"\nROKOVI ({len(rokovi)}):")
+    ctx_lines.append(f"\nROCISTA ({len(rokovi)}):")
     for r in rokovi[:8]:
-        ctx_lines.append(f"  - {r.get('naziv','?')} — {r.get('datum_isteka','?')} [{r.get('status','?')}]")
+        ctx_lines.append(f"  - {r.get('sud','?')} — {r.get('datum','?')} [{r.get('status','?')}]")
 
     if istorija:
         ctx_lines.append("\nPOSLEDNJE AKTIVNOSTI:")

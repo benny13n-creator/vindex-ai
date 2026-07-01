@@ -98,8 +98,8 @@ def _izgradj_kontekst(predmet: dict, dokumenti: list, komentari: list, rokovi: l
     if rokovi:
         delovi.append("\n\nROKOVI I DOGADJAJI:")
         for r in rokovi[:10]:
-            naziv = r.get("naziv") or "Rok"
-            datum = (r.get("datum_isteka") or "")[:10]
+            naziv = r.get("sud") or "Rociste"
+            datum = (r.get("datum") or "")[:10]
             status = r.get("status") or ""
             delovi.append(f"- {naziv} (datum: {datum}, status: {status})")
 
@@ -218,9 +218,9 @@ async def generisi_graf(
             ).eq("predmet_id", req.predmet_id).order("kreirano", desc=True).limit(10).execute()
         ),
         asyncio.to_thread(
-            lambda: supa.table("predmet_rokovi").select(
-                "naziv,datum_isteka,status"
-            ).eq("predmet_id", req.predmet_id).order("datum_isteka").limit(10).execute()
+            lambda: supa.table("rocista").select(
+                "sud,datum,status"
+            ).eq("predmet_id", req.predmet_id).order("datum").limit(10).execute()
         ),
         return_exceptions=True,
     )

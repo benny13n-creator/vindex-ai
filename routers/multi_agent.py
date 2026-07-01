@@ -400,11 +400,11 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
                     dok_rows = []
                     doc_count = 0
                 try:
-                    rok_data  = supa.table("predmet_rokovi").select("naziv,datum_isteka,status") \
-                        .eq("predmet_id", req.predmet_id).order("datum_isteka").limit(5).execute()
+                    rok_data  = supa.table("rocista").select("sud,datum,status") \
+                        .eq("predmet_id", req.predmet_id).order("datum").limit(5).execute()
                     rok_count = len(rok_data.data or [])
                     rok_summary = "; ".join([
-                        (r.get("naziv","?") + "(" + r.get("datum_isteka","")[:10] + ")")
+                        (r.get("sud","?") + "(" + r.get("datum","")[:10] + ")")
                         for r in (rok_data.data or [])[:3]
                     ])
                 except Exception:
@@ -558,22 +558,22 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
     if agent_id == "deadline" and req.predmet_id:
         try:
             from datetime import datetime, timezone as _tz
-            rok_r = supa.table("predmet_rokovi").select(
-                "naziv,datum_isteka,status,opis"
-            ).eq("predmet_id", req.predmet_id).order("datum_isteka").limit(20).execute()
+            rok_r = supa.table("rocista").select(
+                "sud,datum,status,napomena"
+            ).eq("predmet_id", req.predmet_id).order("datum").limit(20).execute()
             now = datetime.now(_tz.utc)
             rokovi_list = []
             for r in (rok_r.data or []):
-                dt_str = r.get("datum_isteka", "")
+                dt_str = r.get("datum", "")
                 dana = "?"
                 try:
-                    dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                    dt = datetime.fromisoformat((dt_str + "T00:00:00") if len(dt_str) == 10 else dt_str.replace("Z", "+00:00"))
                     dana = (dt - now).days
                 except Exception:
                     pass
                 status_emoji = "✅" if r.get("status") == "zavrsen" else ("🔴" if isinstance(dana, int) and dana <= 7 else ("⚠️" if isinstance(dana, int) and dana <= 15 else "📅"))
                 rokovi_list.append(
-                    f"{status_emoji} {r.get('naziv','?')} | Ističe: {dt_str[:10]} | Dana ostalo: {dana} | Status: {r.get('status','aktivan')}"
+                    f"{status_emoji} {r.get('sud','?')} | Datum: {dt_str[:10]} | Dana ostalo: {dana} | Status: {r.get('status','aktivan')}"
                 )
             if rokovi_list:
                 rokovi_ctx = "\n\nSTVARNI ROKOVI IZ PREDMETA (analizirati ove konkretne rokove):\n" + "\n".join(rokovi_list)

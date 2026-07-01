@@ -96,17 +96,17 @@ async def get_knowledge_graph(predmet_id: str, request: Request, user=Depends(ge
     # ── Rokovi ────────────────────────────────────────────────────────────────
     try:
         rok = await asyncio.to_thread(
-            lambda: supa.table("predmet_rokovi").select(
-                "id,naziv,datum_isteka,status"
+            lambda: supa.table("rocista").select(
+                "id,sud,datum,status"
             ).eq("predmet_id", predmet_id).limit(5).execute()
         )
         for r in (rok.data or []):
             rid = f"rok_{r['id']}"
-            nodes.append({"id": rid, "label": (r.get("naziv") or "Rok")[:18],
+            nodes.append({"id": rid, "label": (r.get("sud") or "Rociste")[:18],
                           "tip": "rok", "color": "#ff9090", "radius": 10,
-                          "meta": {"datum": r.get("datum_isteka", ""), "status": r.get("status", "")}})
+                          "meta": {"datum": r.get("datum", ""), "status": r.get("status", "")}})
             edges.append({"from": f"predmet_{predmet_id}", "to": rid,
-                          "label": r.get("datum_isteka", "rok")[:10], "strength": "normal"})
+                          "label": r.get("datum", "rociste")[:10], "strength": "normal"})
     except Exception as e:
         logger.debug("[KG] rokovi greška: %s", e)
 
