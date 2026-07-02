@@ -942,9 +942,117 @@ async function dash_load(){
     loadBriefing(false);
     _ccCaricaAiAnaliza(hdr);
     _cioLoad(hdr);
+    // Health Index — učitava se asinhrono, ne blokira dashboard
+    _healthIndexLoad(hdr);
   }catch(e){
     body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
+}
+
+// ─── Law Firm Health Index — frontend ────────────────────────────────────────
+
+var _hiData = null;
+
+async function _healthIndexLoad(hdr, force) {
+  var el = document.getElementById('hi-widget');
+  if (!el) return;
+  var url = BASE_URL + '/api/firm/health-index' + (force ? '?force=true' : '');
+  try {
+    var r = await fetch(url, { headers: hdr || {'Authorization':'Bearer '+currentSession.access_token} });
+    if (!r.ok) { el.style.display = 'none'; return; }
+    _hiData = await r.json();
+    _healthIndexRender(_hiData);
+    el.style.display = 'block';
+  } catch(e) {
+    el.style.display = 'none';
+  }
+}
+
+function _healthIndexRender(d) {
+  var el = document.getElementById('hi-widget');
+  if (!el || !d) return;
+  var score  = d.score  || 0;
+  var grade  = d.grade  || '—';
+  var color  = d.color  || '#94a3b8';
+  var alerts = d.alerts || [];
+  var chief  = d.chief_partner || '';
+  var signals= d.weak_signals  || [];
+  var risks  = d.inst_risks    || [];
+  var pct    = score;
+
+  // ── Zdravlje broj ─────────────────────────────────────────────────────────
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.9rem;">';
+
+  // Levo: veliki broj
+  html += '<div style="background:linear-gradient(135deg,rgba(10,20,40,.9),rgba(13,27,50,.95));border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:1.1rem 1rem;position:relative;overflow:hidden;">';
+  html += '<div style="font-size:.58rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.4rem;font-weight:700;">Zdravlje kancelarije danas</div>';
+  html += '<div style="display:flex;align-items:flex-end;gap:.5rem;margin-bottom:.55rem;">';
+  html += '<span style="font-size:3.2rem;font-weight:800;color:'+color+';line-height:1;letter-spacing:-.03em;">'+score+'</span>';
+  html += '<span style="font-size:1rem;color:rgba(255,255,255,.3);margin-bottom:.35rem;">/100</span>';
+  html += '<span style="font-size:1rem;font-weight:800;color:'+color+';margin-bottom:.3rem;margin-left:.2rem;">'+grade+'</span>';
+  html += '</div>';
+  // Progres bar
+  html += '<div style="height:4px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;margin-bottom:.6rem;">';
+  html += '<div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:4px;transition:width .8s ease;"></div>';
+  html += '</div>';
+  // Komponente mini
+  var comps = d.components || [];
+  html += '<div style="display:flex;gap:.25rem;flex-wrap:wrap;">';
+  comps.forEach(function(c) {
+    var cpct = Math.round((c.score/c.max)*100);
+    var cbg  = cpct >= 80 ? 'rgba(74,222,128,.12)' : cpct >= 50 ? 'rgba(251,191,36,.1)' : 'rgba(248,113,113,.12)';
+    var ccol = cpct >= 80 ? '#4ade80' : cpct >= 50 ? '#fbbf24' : '#f87171';
+    html += '<div style="font-size:.55rem;padding:.15rem .4rem;background:'+cbg+';border-radius:4px;color:'+ccol+';white-space:nowrap;" title="'+c.label+': '+c.score+'/'+c.max+'">'+c.label.split(' ')[0]+' '+c.score+'/'+c.max+'</div>';
+  });
+  html += '</div>';
+  html += '<button onclick="_healthIndexLoad(null,true)" style="position:absolute;top:.6rem;right:.6rem;background:none;border:none;color:rgba(255,255,255,.2);cursor:pointer;font-size:.75rem;padding:.2rem .4rem;" title="Osveži">↻</button>';
+  html += '</div>';
+
+  // Desno: upozorenja ili Chief Partner
+  html += '<div style="background:linear-gradient(135deg,rgba(10,20,40,.9),rgba(13,27,50,.95));border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:1.1rem 1rem;overflow:hidden;">';
+  if (chief) {
+    html += '<div style="font-size:.58rem;color:rgba(74,168,255,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.55rem;font-weight:700;">Chief Partner — Direktiva za danas</div>';
+    var lines = chief.split('\n').filter(function(l){ return l.trim(); });
+    lines.forEach(function(line) {
+      html += '<div style="font-size:.76rem;color:rgba(255,255,255,.75);margin-bottom:.4rem;line-height:1.55;padding-left:.1rem;">'+_htmlEsc(line.trim())+'</div>';
+    });
+  } else if (alerts.length) {
+    html += '<div style="font-size:.58rem;color:rgba(255,150,100,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.55rem;font-weight:700;">Upozorenja</div>';
+    alerts.forEach(function(a) {
+      html += '<div style="font-size:.74rem;color:rgba(255,255,255,.6);margin-bottom:.35rem;line-height:1.5;">'+_htmlEsc(a)+'</div>';
+    });
+  } else {
+    html += '<div style="font-size:.78rem;color:rgba(74,222,128,.7);padding-top:.5rem;">✓ Sve je pod kontrolom</div>';
+  }
+  html += '</div>';
+  html += '</div>'; // grid end
+
+  // ── Slabi signali ─────────────────────────────────────────────────────────
+  if (signals.length) {
+    html += '<div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.18);border-radius:12px;padding:.8rem 1rem;margin-bottom:.8rem;">';
+    html += '<div style="font-size:.58rem;color:rgba(165,180,252,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.5rem;font-weight:700;">⚡ Slabi signali — obrasci iz prošlih predmeta</div>';
+    signals.forEach(function(s) {
+      html += '<div style="font-size:.75rem;color:rgba(255,255,255,.55);margin-bottom:.3rem;display:flex;gap:.45rem;align-items:flex-start;">';
+      html += '<span style="flex-shrink:0;">'+_htmlEsc(s.icon||'•')+'</span>';
+      html += '<span>'+_htmlEsc(s.tekst)+'</span></div>';
+    });
+    html += '</div>';
+  }
+
+  // ── Institucionalni rizici ─────────────────────────────────────────────────
+  if (risks.length) {
+    html += '<div style="background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:12px;padding:.8rem 1rem;margin-bottom:.8rem;">';
+    html += '<div style="font-size:.58rem;color:rgba(251,191,36,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.5rem;font-weight:700;">🏢 Institucionalni rizici</div>';
+    risks.forEach(function(r) {
+      html += '<div style="margin-bottom:.45rem;">';
+      html += '<div style="font-size:.72rem;font-weight:700;color:rgba(255,255,255,.65);">'+_htmlEsc(r.ikona+' '+r.naslov)+'</div>';
+      html += '<div style="font-size:.7rem;color:rgba(255,255,255,.38);line-height:1.5;">'+_htmlEsc(r.opis)+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
 }
 
 var _kcClockInterval = null;
@@ -1173,6 +1281,9 @@ function _dashRender(d,bd,inboxData){
   html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(74,168,255,.25);border-radius:7px;background:rgba(74,168,255,.07);color:#89c8ff;cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">📊 Izveštaj</button>';
   html+='<button class="kc-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
   html+='</div></div>';
+
+  // ── LAW FIRM HEALTH INDEX — hero element, puni se async ───────
+  html += '<div id="hi-widget" style="display:none;margin-bottom:.9rem;"></div>';
 
   // ── AI COMMAND CENTER INTEL BRIFING ────────────────────────────
   html += _ccBrifingHtml(d, uName);

@@ -538,6 +538,7 @@ from routers.knowledge_hygiene    import router as knowledge_hygiene_router
 from routers.case_intelligence    import router as case_intelligence_router
 from routers.decision_replay      import router as decision_replay_router
 from routers.case_dna             import router as case_dna_router
+from routers.health_index         import router as health_index_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -620,6 +621,7 @@ app.include_router(knowledge_hygiene_router)
 app.include_router(case_intelligence_router)
 app.include_router(decision_replay_router)
 app.include_router(case_dna_router)
+app.include_router(health_index_router)
 
 from routers.cio import router as cio_router
 app.include_router(cio_router)
