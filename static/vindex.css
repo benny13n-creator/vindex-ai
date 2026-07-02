@@ -6746,6 +6746,25 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .timeline-date { font-size:.65rem; color:rgba(255,255,255,.35); font-family:'JetBrains Mono',monospace; margin-bottom:.2rem; }
 .timeline-event { font-size:.8rem; color:rgba(255,255,255,.82); line-height:1.45; }
 .timeline-akter { font-size:.68rem; color:rgba(255,255,255,.35); margin-top:.15rem; }
+/* Intelligence Timeline */
+.itl-wrap { position:relative; padding-left:0; }
+.itl-month { font-size:.6rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.28); padding:.4rem 0 .3rem; margin-top:.5rem; }
+.itl-month:first-child { margin-top:0; }
+.itl-item { display:flex; gap:.55rem; margin-bottom:.5rem; align-items:flex-start; }
+.itl-icon { font-size:.95rem; flex-shrink:0; width:1.5rem; text-align:center; padding-top:.05rem; }
+.itl-body { flex:1; min-width:0; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.065); border-radius:8px; padding:.45rem .65rem; border-left-width:3px; }
+.itl-body:hover { background:rgba(255,255,255,.05); }
+.itl-naslov { font-size:.8rem; color:rgba(255,255,255,.85); line-height:1.4; font-weight:500; }
+.itl-detalj { font-size:.68rem; color:rgba(255,255,255,.38); margin-top:.15rem; line-height:1.35; }
+.itl-badge { display:inline-block; font-size:.6rem; font-weight:700; border-radius:4px; padding:.05rem .3rem; margin-left:.4rem; vertical-align:middle; }
+.itl-badge-pos { background:rgba(125,224,160,.15); color:#7de0a0; border:1px solid rgba(125,224,160,.3); }
+.itl-badge-neg { background:rgba(255,144,144,.12); color:#ff9090; border:1px solid rgba(255,144,144,.25); }
+.itl-badge-neu { background:rgba(167,139,250,.12); color:#c4b5fd; border:1px solid rgba(167,139,250,.25); }
+.itl-score { font-family:'JetBrains Mono',monospace; font-size:.72rem; font-weight:700; }
+.itl-filters { display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:.7rem; }
+.itl-filter-btn { font-size:.62rem; padding:.18rem .5rem; border-radius:4px; border:1px solid rgba(255,255,255,.1); background:transparent; color:rgba(255,255,255,.38); cursor:pointer; letter-spacing:.03em; transition:all .15s; }
+.itl-filter-btn.active { background:rgba(74,168,255,.12); border-color:rgba(74,168,255,.3); color:#89c8ff; }
+.itl-empty { color:rgba(255,255,255,.25); font-size:.8rem; text-align:center; padding:1.5rem 0; }
 /* Evidence styles */
 .evidence-dok-card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-radius:8px; padding:.5rem .75rem; margin-bottom:.4rem; display:flex; gap:.6rem; align-items:flex-start; }
 .evidence-tip-badge { font-size:.58rem; font-weight:700; padding:.1rem .4rem; border-radius:4px; text-transform:uppercase; letter-spacing:.05em; flex-shrink:0; margin-top:.1rem; }

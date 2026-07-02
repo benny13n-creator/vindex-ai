@@ -14559,44 +14559,147 @@ function vx_tts_toggle() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TIMELINE ENGINE
+// INTELLIGENCE TIMELINE ENGINE
 // ═══════════════════════════════════════════════════════════════
+var _itlFilter = 'sve';
+
 function timeline_load() {
   if (!activePredmetId || !currentSession) return;
   var container = document.getElementById('timeline-container');
   if (!container) return;
-  container.innerHTML = '<div style="color:rgba(255,255,255,.3);font-size:.8rem;">Učitavam...</div>';
+  container.innerHTML = '<div style="color:rgba(255,255,255,.3);font-size:.8rem;text-align:center;padding:1rem 0;">Učitavam...</div>';
 
-  fetch('/api/predmeti/' + activePredmetId + '/hronologija', {
+  fetch('/api/predmeti/' + activePredmetId + '/intelligence-timeline', {
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
-  }).then(function(r){ return r.json(); }).then(function(d) {
-    var events = d.hronologija || d.dogadjaji || (Array.isArray(d) ? d : []);
-    if (!Array.isArray(events) || !events.length) {
-      container.innerHTML = '<div style="color:rgba(255,255,255,.25);font-size:.8rem;text-align:center;padding:1.5rem 0;">Hronologija je prazna.<br><span style="font-size:.72rem;">Uploadujte dokument da biste automatski generisali hronologiju.</span></div>';
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    var events = d.events || [];
+    if (!events.length) {
+      container.innerHTML = '<div class="itl-empty">Nema zabeleženih događaja.<br><span style="font-size:.72rem;">Uploadujte dokument da biste pokrenuli hronologiju.</span></div>';
       return;
     }
-    var html = '<div class="timeline-wrap">';
+    _itlRender(container, events);
+  }).catch(function(e) {
+    container.innerHTML = '<div style="color:#ff9090;font-size:.8rem;">Greška: ' + escHtml(e.message) + '</div>';
+  });
+}
+
+function _itlFilter_set(btn, tip) {
+  _itlFilter = tip;
+  var btns = document.querySelectorAll('.itl-filter-btn');
+  btns.forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var container = document.getElementById('timeline-container');
+  if (!container || !container._itlEvents) return;
+  _itlRender(container, container._itlEvents, true);
+}
+
+function _itlRender(container, events, skipFilters) {
+  container._itlEvents = events;
+  var filtered = _itlFilter === 'sve' ? events : events.filter(function(ev) { return ev.tip === _itlFilter; });
+
+  var _TIP_LABEL = {
+    'predmet_otvoren': 'Predmet', 'predmet_zatvoren': 'Predmet',
+    'dokument': 'Dokumenti', 'rociste': 'Ročišta',
+    'hronologija': 'Hronologija', 'genome': 'Procena',
+    'belezka': 'Beleške'
+  };
+  var _TIP_BOJA = {
+    'predmet_otvoren': '#4aa8ff', 'predmet_zatvoren': '#7de0a0',
+    'dokument': '#c9a84c', 'rociste': '#a78bfa',
+    'hronologija': '#4aa8ff', 'genome': '#7de0a0', 'belezka': '#94a3b8'
+  };
+
+  var html = '';
+
+  if (!skipFilters) {
+    var tipovi = ['sve'];
     events.forEach(function(ev) {
-      var vaznost = ev.vaznost || 'informativan';
-      html += '<div class="timeline-item">'
-        + '<div class="timeline-dot ' + vaznost + '"></div>'
-        + '<div class="timeline-card">'
-        + (ev.datum ? '<div class="timeline-date">' + ev.datum + '</div>' : '')
-        + '<div class="timeline-event">' + escHtml(ev.dogadjaj || '') + '</div>'
-        + (ev.akter ? '<div class="timeline-akter">— ' + escHtml(ev.akter) + '</div>' : '')
-        + (ev.dokument_naziv ? '<div class="timeline-akter">📎 ' + escHtml(ev.dokument_naziv) + '</div>' : '')
-        + '</div></div>';
+      if (tipovi.indexOf(ev.tip) < 0) tipovi.push(ev.tip);
+    });
+    html += '<div class="itl-filters">';
+    tipovi.forEach(function(t) {
+      var label = t === 'sve' ? 'Sve' : (_TIP_LABEL[t] || t);
+      var isActive = _itlFilter === t;
+      html += '<button class="itl-filter-btn' + (isActive ? ' active' : '') + '" onclick="_itlFilter_set(this,\'' + t + '\')">' + escHtml(label) + '</button>';
     });
     html += '</div>';
-    html += '<div style="margin-top:.6rem;display:flex;gap:.5rem;font-size:.65rem;color:rgba(255,255,255,.3);">'
-      + '<span style="display:flex;align-items:center;gap:.3rem;"><span style="width:8px;height:8px;border-radius:50%;background:#ff6060;display:inline-block;"></span>Kritičan</span>'
-      + '<span style="display:flex;align-items:center;gap:.3rem;"><span style="width:8px;height:8px;border-radius:50%;background:#ffaa40;display:inline-block;"></span>Važan</span>'
-      + '<span style="display:flex;align-items:center;gap:.3rem;"><span style="width:8px;height:8px;border-radius:50%;background:#4aa8ff;display:inline-block;"></span>Informativan</span>'
-      + '</div>';
+  }
+
+  if (!filtered.length) {
+    html += '<div class="itl-empty">Nema događaja ovog tipa.</div>';
     container.innerHTML = html;
-  }).catch(function(e) {
-    container.innerHTML = '<div style="color:#ff9090;font-size:.8rem;">Greška: ' + e.message + '</div>';
+    return;
+  }
+
+  // Group by month (format: "YYYY-MM" → label)
+  var _MESECI_SR = ['', 'januar', 'februar', 'mart', 'april', 'maj', 'jun', 'jul', 'avgust', 'septembar', 'oktobar', 'novembar', 'decembar'];
+  var grouped = {};
+  var monthOrder = [];
+  filtered.forEach(function(ev) {
+    var iso = ev.datum_iso || '';
+    var yearMonth = iso.slice(0, 7); // "2026-01"
+    if (!yearMonth || yearMonth === '0000-0') yearMonth = 'nepoznat';
+    if (!grouped[yearMonth]) {
+      grouped[yearMonth] = [];
+      monthOrder.push(yearMonth);
+    }
+    grouped[yearMonth].push(ev);
   });
+
+  html += '<div class="itl-wrap">';
+  monthOrder.forEach(function(ym) {
+    var label = ym;
+    if (ym !== 'nepoznat' && ym.length === 7) {
+      var parts = ym.split('-');
+      var mesec = _MESECI_SR[parseInt(parts[1], 10)] || parts[1];
+      label = mesec + ' ' + parts[0];
+    }
+    html += '<div class="itl-month">' + escHtml(label) + '</div>';
+
+    grouped[ym].forEach(function(ev) {
+      var boja = ev.boja || _TIP_BOJA[ev.tip] || '#4aa8ff';
+      var badge = ev.badge ? _itlBadgeHtml(ev) : '';
+      var detalj = ev.detalj ? '<div class="itl-detalj">' + escHtml(ev.detalj) + '</div>' : '';
+      var scoreHtml = '';
+      if (ev.tip === 'genome' && ev.score_old != null && ev.score_new != null) {
+        var delta = ev.score_new - ev.score_old;
+        scoreHtml = '<div class="itl-detalj"><span class="itl-score" style="color:' + boja + ';">' + ev.score_old + '%</span>'
+          + '<span style="color:rgba(255,255,255,.25);margin:0 .3rem;">→</span>'
+          + '<span class="itl-score" style="color:' + boja + ';">' + ev.score_new + '%</span>'
+          + (delta !== 0 ? ' <span style="font-size:.64rem;color:' + boja + ';">' + (delta > 0 ? '+' : '') + delta + ' boda</span>' : '')
+          + '</div>';
+        detalj = '';
+      }
+      var rocisteBadge = '';
+      if (ev.tip === 'rociste' && ev.status) {
+        var rColors = { odrzano: '#7de0a0', odlozeno: '#ffaa40', zakazano: '#89c8ff' };
+        var rBg = { odrzano: 'rgba(125,224,160,.12)', odlozeno: 'rgba(255,170,64,.1)', zakazano: 'rgba(74,168,255,.1)' };
+        rocisteBadge = '<span style="font-size:.58rem;margin-left:.4rem;padding:.05rem .3rem;border-radius:3px;background:'
+          + (rBg[ev.status] || 'rgba(255,255,255,.06)') + ';color:'
+          + (rColors[ev.status] || '#aaa') + ';">' + escHtml(ev.status) + '</span>';
+      }
+      html += '<div class="itl-item">'
+        + '<div class="itl-icon">' + (ev.ikona || '📌') + '</div>'
+        + '<div class="itl-body" style="border-left-color:' + boja + ';">'
+        + '<div class="itl-naslov">' + escHtml(ev.naslov || '') + badge + rocisteBadge + '</div>'
+        + scoreHtml
+        + detalj
+        + (ev.datum_label ? '<div class="itl-detalj" style="margin-top:.2rem;color:rgba(255,255,255,.22);">' + escHtml(ev.datum_label) + '</div>' : '')
+        + (ev.pouka ? '<div style="margin-top:.35rem;font-size:.7rem;padding:.3rem .5rem;background:rgba(125,224,160,.07);border-radius:5px;border:1px solid rgba(125,224,160,.15);color:rgba(125,224,160,.8);">💡 Pouka: ' + escHtml(ev.pouka) + '</div>' : '')
+        + '</div>'
+        + '</div>';
+    });
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function _itlBadgeHtml(ev) {
+  var badge = ev.badge || '';
+  var isPos = badge.charAt(0) === '+';
+  var isNeg = badge.charAt(0) === '-';
+  var cls = isPos ? 'itl-badge-pos' : isNeg ? 'itl-badge-neg' : 'itl-badge-neu';
+  return '<span class="itl-badge ' + cls + '">' + escHtml(badge) + '</span>';
 }
 
 // ═══════════════════════════════════════════════════════════════
