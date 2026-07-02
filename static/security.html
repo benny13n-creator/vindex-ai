@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vindex AI — Security Whitepaper</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;color:#1a1a2e;font-family:'Georgia',serif;font-size:15px;line-height:1.75;max-width:780px;margin:0 auto;padding:3rem 2rem 5rem;}
+  h1{font-size:2rem;font-weight:700;margin-bottom:.3rem;color:#0f172a;}
+  .subtitle{color:#64748b;font-size:.95rem;margin-bottom:3rem;font-style:italic;}
+  h2{font-size:1.2rem;font-weight:700;margin:2.5rem 0 .8rem;padding-bottom:.4rem;border-bottom:2px solid #e2e8f0;color:#1e293b;}
+  h3{font-size:1rem;font-weight:700;margin:1.5rem 0 .4rem;color:#334155;}
+  p{margin-bottom:1rem;}
+  ul,ol{margin:0 0 1rem 1.5rem;}
+  li{margin-bottom:.3rem;}
+  table{width:100%;border-collapse:collapse;margin:1rem 0;}
+  th{background:#f1f5f9;font-size:.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.5rem .75rem;text-align:left;border:1px solid #e2e8f0;}
+  td{padding:.5rem .75rem;border:1px solid #e2e8f0;font-size:.9rem;vertical-align:top;}
+  .chip{display:inline-block;font-size:.72rem;padding:.15rem .5rem;border-radius:4px;font-weight:600;}
+  .chip-green{background:#dcfce7;color:#15803d;}
+  .chip-blue{background:#dbeafe;color:#1d4ed8;}
+  .chip-yellow{background:#fef9c3;color:#a16207;}
+  .meta-table td{font-size:.82rem;}
+  .toc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1.2rem 1.5rem;margin-bottom:2.5rem;}
+  .toc-title{font-weight:700;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:.6rem;}
+  .toc ol{margin-left:1rem;}
+  .toc li{font-size:.88rem;color:#2563eb;margin-bottom:.2rem;}
+  footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e2e8f0;font-size:.75rem;color:#94a3b8;text-align:center;}
+  @media print{.no-print{display:none!important}}
+  .print-btn{position:fixed;top:1rem;right:1rem;background:#2563eb;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;cursor:pointer;font-size:.8rem;font-family:sans-serif;}
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">⬇ Preuzmi PDF</button>
+
+<h1>Vindex AI — Security Whitepaper</h1>
+<p class="subtitle">Verzija 1.0 · Jul 2026 · Poverljivo — samo za B2B klijente i revizore</p>
+
+<div class="toc">
+  <div class="toc-title">Sadržaj</div>
+  <ol>
+    <li>Pregled arhitekture</li>
+    <li>Autentifikacija i autorizacija</li>
+    <li>Enkripcija podataka</li>
+    <li>Izolacija podataka po korisniku</li>
+    <li>Tok podataka kroz AI sisteme</li>
+    <li>Backup i oporavak od katastrofe</li>
+    <li>Audit i logovanje</li>
+    <li>Upravljanje incidentima</li>
+    <li>Sertifikati i usklađenost</li>
+    <li>Role i dozvole (RBAC)</li>
+    <li>Politika čuvanja podataka</li>
+    <li>Odgovornost i kontakt</li>
+  </ol>
+</div>
+
+<h2>1. Pregled arhitekture</h2>
+<p>Vindex AI je SaaS platforma za pravne kancelarije izgrađena na sledećim komponentama:</p>
+<table>
+  <tr><th>Komponenta</th><th>Tehnologija</th><th>Lokacija</th><th>Uloga</th></tr>
+  <tr><td>API server</td><td>Python 3.12 / FastAPI</td><td>Render.com (EU)</td><td>Poslovna logika, autentifikacija</td></tr>
+  <tr><td>Baza podataka</td><td>PostgreSQL (Supabase)</td><td>Frankfurt, DE (AWS eu-central-1)</td><td>Svi podaci o predmetima, klijentima, korisnicima</td></tr>
+  <tr><td>Skladište fajlova</td><td>Supabase Storage (S3)</td><td>Frankfurt, DE</td><td>PDF dokumenti i uploadovani fajlovi</td></tr>
+  <tr><td>AI Engine</td><td>OpenAI API (GPT-4o)</td><td>SAD / EU (SCC)</td><td>Analiza teksta, Copilot, Genome</td></tr>
+  <tr><td>Vektorizacija</td><td>Pinecone</td><td>SAD (us-east-1)</td><td>Semantička pretraga dokumenata</td></tr>
+  <tr><td>Frontend</td><td>Vanilla JS (SPA)</td><td>CDN / Render</td><td>Korisnički interfejs</td></tr>
+</table>
+
+<h2>2. Autentifikacija i autorizacija</h2>
+<h3>2.1 Autentifikacija korisnika</h3>
+<ul>
+  <li>JWT tokeni (RS256) generisani od Supabase Auth servisa</li>
+  <li>Token TTL: 1 sat, refresh token: 7 dana</li>
+  <li>Lozinke nikad nisu dostupne API serveru — čuvaju se isključivo u Supabase Auth (bcrypt hash)</li>
+  <li>Opciona dvofaktorska autentifikacija (2FA) putem Supabase TOTP</li>
+</ul>
+<h3>2.2 Autorizacija API poziva</h3>
+<ul>
+  <li>Svaki API endpoint zahteva validan Bearer JWT token</li>
+  <li>Server validira potpis tokena koristeći Supabase JWT_SECRET</li>
+  <li>Korisnički ID (uid) se ekstraktuje iz tokena — nikad se ne preuzima iz query parametra</li>
+  <li>Role-Based Access Control (RBAC) — videti sekciju 10</li>
+</ul>
+
+<h2>3. Enkripcija podataka</h2>
+<table>
+  <tr><th>Nivo</th><th>Metoda</th><th>Obuhvat</th></tr>
+  <tr><td>U mirovanju (at rest)</td><td>AES-256</td><td>Supabase PostgreSQL, Storage, backupi</td></tr>
+  <tr><td>U prenosu (in transit)</td><td>TLS 1.2 / TLS 1.3</td><td>Sva API komunikacija, browser → server</td></tr>
+  <tr><td>JWT tokeni</td><td>RS256 (asimetrični)</td><td>Autentifikacija sesija</td></tr>
+  <tr><td>Lozinke</td><td>bcrypt (cost factor 10)</td><td>Supabase Auth — API nikad ne vidi lozinku</td></tr>
+</table>
+
+<h2>4. Izolacija podataka po korisniku</h2>
+<p>Svaki red u svakoj tabeli sadrži <code>user_id</code> kolonu. Izolacija je implementirana na dva nivoa:</p>
+<ol>
+  <li><strong>Aplikacioni nivo:</strong> Svaki DB upit obavezno filtrira po <code>user_id = trenutni_korisnik</code></li>
+  <li><strong>Bazni nivo:</strong> Row Level Security (RLS) politike u PostgreSQL-u — čak i direktan DB pristup ne može da vrati tuđe podatke</li>
+</ol>
+<p>Multi-tenant arhitektura sa kancelarijskim firmama: podaci se dele unutar iste firme samo između aktivnih članova sa odgovarajućom ulogom.</p>
+
+<h2>5. Tok podataka kroz AI sisteme</h2>
+<h3>5.1 Šta se šalje OpenAI-u</h3>
+<ul>
+  <li>Delovi teksta dokumenata (chunked excerpts, max ~4000 tokena po pozivu)</li>
+  <li>Opisi predmeta i pitanja advokata</li>
+  <li>Nikad: JMBG, broj računa, medicinska dokumentacija u sirovom obliku</li>
+</ul>
+<h3>5.2 OpenAI politika zadržavanja</h3>
+<ul>
+  <li>OpenAI <strong>ne koristi API podatke za trening modela</strong> (politika od marta 2023)</li>
+  <li>Podaci se zadržavaju max 30 dana radi detekcije zloupotrebe, zatim se brišu</li>
+  <li>EU Standard Contractual Clauses (SCC) su potpisani — pravna osnova za prenos u SAD</li>
+</ul>
+<h3>5.3 Pinecone</h3>
+<ul>
+  <li>Čuvaju se isključivo matematički vektori (embeddings), ne originalni tekst</li>
+  <li>Namespace izolacija po korisniku — vektori jednog korisnika nisu dostupni drugom</li>
+</ul>
+
+<h2>6. Backup i oporavak od katastrofe</h2>
+<table>
+  <tr><th>Tip</th><th>Frekvencija</th><th>Čuvanje</th><th>Lokacija</th></tr>
+  <tr><td>Automatski backup</td><td>Dnevno</td><td>30 dana</td><td>Supabase (eu-central-1)</td></tr>
+  <tr><td>Point-in-Time Recovery</td><td>Kontinualno (WAL)</td><td>7 dana (Pro plan)</td><td>Supabase</td></tr>
+  <tr><td>Storage fajlovi</td><td>S3 versioning</td><td>90 dana</td><td>AWS eu-central-1</td></tr>
+</table>
+<h3>Recovery Time Objective (RTO) i Recovery Point Objective (RPO)</h3>
+<ul>
+  <li><strong>RTO:</strong> max 4 sata (za katastrofalni pad infrastrukture)</li>
+  <li><strong>RPO:</strong> max 24 sata (sa dnevnim backupima) / max 5 minuta (sa PITR)</li>
+</ul>
+
+<h2>7. Audit i logovanje</h2>
+<ul>
+  <li>Svaki API poziv ka <code>/api/predmeti</code>, <code>/api/klijenti</code>, <code>/api/billing</code> se loguje sa: user_id, metod, putanja, HTTP status, IP adresa, vreme odgovora</li>
+  <li>Logovi se čuvaju 90 dana na Render.com logging infrastrukturi</li>
+  <li>Greške (HTTP 4xx/5xx) se dodatno markuju za reviziju</li>
+  <li>Sentry integracija za automatsko dojavljanje kritinih grešaka (opciono)</li>
+</ul>
+
+<h2>8. Upravljanje incidentima</h2>
+<ol>
+  <li><strong>Detekcija:</strong> Automatski health check svakih 60 sekundi + Sentry alertovi</li>
+  <li><strong>Klasifikacija:</strong> Minor / Major / Critical — prema uticaju na korisnike</li>
+  <li><strong>Notifikacija:</strong> Korisnici se obaveštavaju putem Status Page (status.vindex.ai)</li>
+  <li><strong>Rešavanje:</strong> Rollback u prethodnu verziju (<15 minuta za code deploy)</li>
+  <li><strong>Post-mortem:</strong> Analiza uzroka i preventivnih mera za Critical incidente</li>
+</ol>
+<p>Rok obaveštavanja o povredi podataka: 72 sata od saznanja (ZZPL čl. 52, GDPR čl. 33).</p>
+
+<h2>9. Sertifikati i usklađenost</h2>
+<table>
+  <tr><th>Standard</th><th>Status</th><th>Napomena</th></tr>
+  <tr><td>GDPR (EU)</td><td><span class="chip chip-green">Usklađen</span></td><td>SCC sa OpenAI, Supabase DPA</td></tr>
+  <tr><td>ZZPL (Srbija)</td><td><span class="chip chip-green">Usklađen</span></td><td>Pravo na brisanje, prenosivost, uvid</td></tr>
+  <tr><td>SOC 2 Type II</td><td><span class="chip chip-blue">Kroz partnere</span></td><td>Supabase, OpenAI, Render imaju SOC 2</td></tr>
+  <tr><td>ISO 27001</td><td><span class="chip chip-yellow">U planu</span></td><td>Planirano za Q2 2027</td></tr>
+  <tr><td>Pen test</td><td><span class="chip chip-yellow">U planu</span></td><td>Planirano pre enterprise lansiranja</td></tr>
+</table>
+
+<h2>10. Role i dozvole (RBAC)</h2>
+<table>
+  <tr><th>Uloga</th><th>Predmeti</th><th>Klijenti</th><th>Billing</th><th>AI analiza</th><th>Firma</th></tr>
+  <tr><td><strong>Administrator</strong></td><td>RW</td><td>RW</td><td>RW</td><td>RW</td><td>RW</td></tr>
+  <tr><td><strong>Partner</strong></td><td>RW</td><td>RW</td><td>RW</td><td>RW</td><td>R</td></tr>
+  <tr><td><strong>Advokat</strong></td><td>RW</td><td>RW</td><td>R</td><td>RW</td><td>–</td></tr>
+  <tr><td><strong>Pripravnik</strong></td><td>R</td><td>R</td><td>–</td><td>R</td><td>–</td></tr>
+  <tr><td><strong>Administracija</strong></td><td>R</td><td>R</td><td>RW</td><td>–</td><td>–</td></tr>
+</table>
+
+<h2>11. Politika čuvanja podataka</h2>
+<table>
+  <tr><th>Vrsta podataka</th><th>Period čuvanja</th><th>Osnov brisanja</th></tr>
+  <tr><td>Predmeti i klijenti</td><td>Do zahteva za brisanje</td><td>ZZPL čl. 29</td></tr>
+  <tr><td>Billing zapisi</td><td>7 godina</td><td>Zakon o računovodstvu</td></tr>
+  <tr><td>AI Q&A istorija</td><td>2 godine</td><td>Korisnost sistema</td></tr>
+  <tr><td>Audit logovi</td><td>90 dana</td><td>Operativna bezbednost</td></tr>
+  <tr><td>OpenAI API pozivi</td><td>30 dana (OpenAI politika)</td><td>Automatsko brisanje</td></tr>
+  <tr><td>Backup baze</td><td>30 dana</td><td>Supabase automatski</td></tr>
+</table>
+
+<h2>12. Odgovornost i kontakt</h2>
+<ul>
+  <li><strong>Rukovalac podacima:</strong> Vindex d.o.o., Srbija</li>
+  <li><strong>DPO kontakt:</strong> privacy@vindex.ai</li>
+  <li><strong>Bezbednosni incidenti:</strong> security@vindex.ai</li>
+  <li><strong>Status servisa:</strong> /status</li>
+</ul>
+
+<footer>
+  Vindex AI Security Whitepaper v1.0 · Jul 2026 · Ažurira se godišnje ili pri značajnoj promeni arhitekture
+</footer>
+</body>
+</html>

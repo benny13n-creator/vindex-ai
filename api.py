@@ -545,6 +545,8 @@ from routers.case_dna             import router as case_dna_router
 from routers.health_index         import router as health_index_router
 from routers.intelligence_timeline import router as intel_timeline_router
 from routers.tos                   import router as tos_router
+from routers.data_export           import router as data_export_router
+from routers.status_page           import router as status_page_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -630,6 +632,8 @@ app.include_router(case_dna_router)
 app.include_router(health_index_router)
 app.include_router(intel_timeline_router)
 app.include_router(tos_router)
+app.include_router(data_export_router)
+app.include_router(status_page_router)
 
 from routers.cio import router as cio_router
 app.include_router(cio_router)
@@ -910,6 +914,21 @@ def privacy_policy():
     if path.exists():
         return FileResponse(path, headers={"Cache-Control": "public, max-age=86400"})
     return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+@app.get("/status")
+def status_page():
+    path = BASE_DIR / "static" / "status.html"
+    return FileResponse(path, headers={"Cache-Control": "no-cache"})
+
+@app.get("/security")
+def security_whitepaper():
+    path = BASE_DIR / "static" / "security.html"
+    return FileResponse(path, headers={"Cache-Control": "public, max-age=3600"})
+
+@app.get("/dpa")
+def dpa_page():
+    path = BASE_DIR / "static" / "dpa.html"
+    return FileResponse(path, headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/terms")

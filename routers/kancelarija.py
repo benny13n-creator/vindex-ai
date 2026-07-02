@@ -30,13 +30,7 @@ from shared.rate import limiter
 logger = logging.getLogger("vindex.kancelarija")
 router = APIRouter(tags=["kancelarija"])
 
-ULOGE = ("admin", "partner", "saradnik", "citanje")
-ULOGA_LABELS = {
-    "admin":    "Administrator",
-    "partner":  "Partner",
-    "saradnik": "Saradnik",
-    "citanje":  "Samo čitanje",
-}
+from shared.rbac import ULOGE, ULOGA_LABELS
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────

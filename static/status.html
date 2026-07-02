@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vindex AI — Status servisa</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0c10;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:2rem 1rem;}
+  .wrap{max-width:680px;margin:0 auto;}
+  .logo{font-size:1.1rem;font-weight:700;color:#89c8ff;letter-spacing:.08em;margin-bottom:2.5rem;display:flex;align-items:center;gap:.5rem;}
+  .logo span{color:rgba(255,255,255,.35);font-weight:400;font-size:.85rem;}
+  .overall{border-radius:12px;padding:1.4rem 1.6rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;}
+  .overall.operational{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);}
+  .overall.degraded{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);}
+  .overall.down{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);}
+  .status-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+  .dot-op{background:#4ade80;box-shadow:0 0 10px rgba(74,222,128,.5);}
+  .dot-deg{background:#fbbf24;box-shadow:0 0 10px rgba(251,191,36,.4);}
+  .dot-down{background:#f87171;box-shadow:0 0 10px rgba(248,113,113,.4);}
+  .overall-title{font-size:1.1rem;font-weight:700;}
+  .overall-sub{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:.2rem;}
+  .section-title{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:.6rem;margin-top:1.5rem;}
+  .component{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:.75rem 1rem;margin-bottom:.4rem;display:flex;align-items:center;justify-content:space-between;}
+  .comp-left{display:flex;align-items:center;gap:.7rem;}
+  .comp-name{font-size:.85rem;color:rgba(255,255,255,.8);}
+  .comp-ms{font-size:.68rem;color:rgba(255,255,255,.28);margin-top:.1rem;}
+  .badge{font-size:.62rem;font-weight:700;padding:.2rem .5rem;border-radius:4px;letter-spacing:.04em;}
+  .badge-op{background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.25);}
+  .badge-deg{background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.25);}
+  .badge-down{background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.25);}
+  .badge-unk{background:rgba(255,255,255,.06);color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1);}
+  .incident{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:.8rem 1rem;margin-bottom:.4rem;}
+  .inc-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;}
+  .inc-title{font-size:.82rem;font-weight:600;}
+  .inc-sev-minor{color:#fbbf24}.inc-sev-major{color:#fb923c}.inc-sev-critical{color:#f87171}
+  .inc-desc{font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;}
+  .inc-meta{font-size:.65rem;color:rgba(255,255,255,.25);margin-top:.35rem;}
+  .footer{margin-top:2.5rem;font-size:.68rem;color:rgba(255,255,255,.2);text-align:center;}
+  .refresh-info{font-size:.65rem;color:rgba(255,255,255,.2);text-align:right;margin-bottom:.5rem;}
+  .empty{font-size:.78rem;color:rgba(255,255,255,.25);text-align:center;padding:1.2rem 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">⚖️ VINDEX AI <span>/ Status servisa</span></div>
+  <div class="refresh-info" id="refresh-info">Učitavam...</div>
+  <div id="overall-box" class="overall operational">
+    <div class="status-dot dot-op" id="overall-dot"></div>
+    <div>
+      <div class="overall-title" id="overall-title">Proveravam...</div>
+      <div class="overall-sub" id="overall-sub"></div>
+    </div>
+  </div>
+  <div class="section-title">Komponente sistema</div>
+  <div id="components"></div>
+  <div class="section-title">Poslednji incidenti</div>
+  <div id="incidents"></div>
+  <div class="footer">Vindex AI · support@vindex.ai · Osvežava se svakih 60 sekundi</div>
+</div>
+<script>
+var _COMP_ICONS = {'Baza podataka':'🗄️','AI Engine':'🤖','Pretraga dokumenata':'🔍','API':'⚡'};
+function _badge(s){
+  if(s==='operational') return '<span class="badge badge-op">Operativan</span>';
+  if(s==='degraded')    return '<span class="badge badge-deg">Degradiran</span>';
+  if(s==='down')        return '<span class="badge badge-down">Nedostupan</span>';
+  return '<span class="badge badge-unk">Nepoznato</span>';
+}
+function _dot(s){
+  if(s==='operational') return 'dot-op';
+  if(s==='degraded')    return 'dot-deg';
+  return 'dot-down';
+}
+function _fmtDate(iso){
+  if(!iso) return '';
+  try{var d=new Date(iso);return d.toLocaleDateString('sr-RS')+' '+d.toLocaleTimeString('sr-RS',{hour:'2-digit',minute:'2-digit'});}catch(e){return iso.slice(0,16).replace('T',' ');}
+}
+function _sevClass(s){return 'inc-sev-'+(s||'minor');}
+function _sevLabel(s){var m={minor:'Manji',major:'Veći',critical:'Kritičan'};return m[s]||s;}
+
+async function load(){
+  try{
+    var r=await fetch('/api/status/public');
+    var d=await r.json();
+    var s=d.status||'degraded';
+    var box=document.getElementById('overall-box');
+    box.className='overall '+(s==='operational'?'operational':s==='degraded'?'degraded':'down');
+    document.getElementById('overall-dot').className='status-dot '+_dot(s);
+    document.getElementById('overall-title').textContent=s==='operational'?'Svi sistemi rade normalno':s==='degraded'?'Degradirane performanse':'Sistem nedostupan';
+    document.getElementById('overall-sub').textContent='Poslednja provera: '+_fmtDate(d.checked_at);
+    document.getElementById('refresh-info').textContent='Osveženo: '+_fmtDate(d.checked_at);
+
+    var cHtml='';
+    (d.components||[]).forEach(function(c){
+      cHtml+='<div class="component"><div class="comp-left">'
+        +'<span style="font-size:1.1rem;">'+(_COMP_ICONS[c.naziv]||'⚙️')+'</span>'
+        +'<div><div class="comp-name">'+c.naziv+'</div>'
+        +(c.ms?'<div class="comp-ms">'+c.ms+' ms</div>':'')+'</div>'
+        +'</div>'+_badge(c.status)+'</div>';
+    });
+    document.getElementById('components').innerHTML=cHtml||'<div class="empty">Nema podataka.</div>';
+
+    var iHtml='';
+    (d.incidents||[]).forEach(function(inc){
+      var resolved=inc.resolved_at?'<span style="color:#4ade80;font-size:.65rem;margin-left:.5rem;">✓ Rešeno</span>':'';
+      iHtml+='<div class="incident">'
+        +'<div class="inc-header"><span class="'+_sevClass(inc.severity)+'">●</span>'
+        +'<span class="inc-title">'+inc.title+'</span>'
+        +'<span style="font-size:.6rem;color:rgba(255,255,255,.3);">'+_sevLabel(inc.severity)+'</span>'
+        +resolved+'</div>'
+        +(inc.description?'<div class="inc-desc">'+inc.description+'</div>':'')
+        +'<div class="inc-meta">'+_fmtDate(inc.started_at)+(inc.resolved_at?' → '+_fmtDate(inc.resolved_at):'')+'</div>'
+        +'</div>';
+    });
+    document.getElementById('incidents').innerHTML=iHtml||'<div class="empty">Nema prijavljenih incidenata u poslednjih 30 dana.</div>';
+  }catch(e){
+    document.getElementById('overall-title').textContent='Greška pri učitavanju statusa';
+  }
+}
+
+load();
+setInterval(load,60000);
+</script>
+</body>
+</html>

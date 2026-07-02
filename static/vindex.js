@@ -616,6 +616,34 @@ function dataResidencyClose() {
   if (ov) ov.style.display = 'none';
 }
 
+async function exportSviPodaci() {
+  if (!currentSession) return;
+  var btn = document.getElementById('export-btn');
+  if (btn) { btn.textContent = 'Priprema...'; btn.disabled = true; }
+  try {
+    var r = await fetch(BASE_URL + '/api/export/complete', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var blob = await r.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    var cd = r.headers.get('Content-Disposition') || '';
+    var m = cd.match(/filename="([^"]+)"/);
+    a.download = m ? m[1] : 'vindex-export.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Export preuzet!', 'success');
+  } catch(e) {
+    showToast('Greška pri exportu: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.textContent = 'Preuzmi ZIP'; btn.disabled = false; }
+  }
+}
+
 async function doLogout() {
   var sb = getSupabase();
   if (sb) { try { await sb.auth.signOut(); } catch(e) {} }
