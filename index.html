@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 
 <html lang="sr">
 <head>
@@ -118,16 +118,16 @@
 <div class="modal-overlay" id="pro-upgrade-modal" onclick="if(event.target===this)closeProUpgradeModal()">
   <div class="modal pro-upgrade-modal-inner" style="max-width:480px;text-align:center;">
     <button class="modal-close" onclick="closeProUpgradeModal()">&#x2715;</button>
-    <div class="pro-upgrade-lock-icon">🔒</div>
+    <div class="pro-upgrade-lock-icon">PRO</div>
     <div class="modal-badge" style="background:rgba(0,212,255,0.08);border-color:rgba(0,212,255,0.25);color:rgba(0,212,255,0.85);margin:0.6rem auto 1rem;display:inline-block;">Vindex AI PRO</div>
     <div class="modal-title" style="font-size:1.4rem;margin-bottom:0.9rem;">Otključajte VindexAI PRO</div>
     <p style="font-size:0.82rem;color:rgba(255,255,255,0.52);margin-bottom:1.3rem;line-height:1.65;">Modul za podneske dostupan je isključivo PRO korisnicima. Nadogradite nalog i pristupite svim PRO funkcijama.</p>
     <ul class="pro-upgrade-benefits">
       <li><span class="pub-icon">→</span> Automatsko pisanje tužbi, žalbi i predloga za izvršenje uz automatsku asistenciju</li>
-      <li><span class="pub-icon">⚖</span> Pravno precizni šabloni usklađeni sa srpskim sudskim procedurama</li>
-      <li><span class="pub-icon">📄</span> PDF export gotovog podneska u jednom kliku</li>
-      <li><span class="pub-icon">🔍</span> RAG pretraga kroz 30.365 pravnih izvora pri generisanju</li>
-      <li><span class="pub-icon">🔒</span> Zero-persistence protokol — dokumenti se ne čuvaju na serveru</li>
+      <li> Pravno precizni šabloni usklađeni sa srpskim sudskim procedurama</li>
+      <li> PDF export gotovog podneska u jednom kliku</li>
+      <li> RAG pretraga kroz 30.365 pravnih izvora pri generisanju</li>
+      <li> Zero-persistence protokol — dokumenti se ne čuvaju na serveru</li>
     </ul>
     <button class="modal-btn pro-upgrade-cta" onclick="closeProUpgradeModal();openProModal();">Pogledajte planove i cene &rarr;</button>
     <p style="font-size:0.68rem;color:rgba(255,255,255,0.22);margin-top:0.8rem;">14 dana besplatno · Bez kreditne kartice · Otkazivanje u svakom trenutku.</p>
@@ -337,7 +337,7 @@
 <!-- ═══ PROGRESSIVE DISCLOSURE — modal za otključavanje novih mogućnosti ═══ -->
 <div id="vx-unlock-overlay" onclick="_vxPdCloseModal()" style="display:none;position:fixed;inset:0;z-index:9998;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);">
   <div id="vx-unlock-modal" onclick="event.stopPropagation()" style="background:linear-gradient(135deg,#0a1628 0%,#0d2040 100%);border:1px solid rgba(74,168,255,0.35);border-radius:20px;padding:2.2rem 2rem;max-width:400px;width:92%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,0.8),0 0 60px rgba(74,168,255,0.08);animation:vxUnlockSlideUp .45s cubic-bezier(0.34,1.56,0.64,1);">
-    <div style="font-size:.62rem;color:rgba(74,168,255,.7);text-transform:uppercase;letter-spacing:.18em;margin-bottom:.8rem;font-weight:700;">🎉 Nova mogućnost otključana</div>
+    <div style="font-size:.62rem;color:rgba(74,168,255,.7);text-transform:uppercase;letter-spacing:.18em;margin-bottom:.8rem;font-weight:700;">Nova mogućnost otključana</div>
     <div id="vx-unlock-icon" style="font-size:3.2rem;margin-bottom:.7rem;line-height:1;"></div>
     <div id="vx-unlock-label" style="font-size:1.25rem;font-weight:800;color:#e2e8f0;margin-bottom:.6rem;letter-spacing:-.01em;"></div>
     <div id="vx-unlock-desc" style="font-size:.8rem;color:rgba(255,255,255,.48);line-height:1.7;margin-bottom:1.6rem;max-width:300px;margin-left:auto;margin-right:auto;"></div>
@@ -427,7 +427,7 @@
       </div>
       <div class="vx-sidebar-foot">
         <div class="vx-foot-row" onclick="toggleLightTheme()" title="Prebacite između tamne i svetle teme">
-          <span id="theme-toggle-ico" style="font-size:14px;line-height:1;">☀️</span>
+          <span id="theme-toggle-ico" style="font-size:14px;line-height:1;"></span>
           <span id="theme-toggle-lbl">Svetla tema</span>
         </div>
         <div class="vx-foot-row" onclick="wl_open()" title="Pozovite kolegu advokata na Vindex AI">
@@ -456,7 +456,7 @@
         <div id="mi-modal" style="display:none;position:fixed;top:8vh;left:50%;transform:translateX(-50%);width:min(640px,94vw);max-height:82vh;overflow-y:auto;background:#0d1b2a;border:1px solid rgba(74,168,255,0.2);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);z-index:9011;">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.07);position:sticky;top:0;background:#0d1b2a;z-index:1;">
             <div>
-              <div style="font-size:0.88rem;font-weight:700;color:#e2e8f0;">📊 Mesečni operativni izveštaj</div>
+              <div style="font-size:0.88rem;font-weight:700;color:#e2e8f0;">Mesečni operativni izveštaj</div>
               <div id="mi-naslov" style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:2px;"></div>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
@@ -496,7 +496,7 @@
         <button id="vx-mic-btn" onclick="typeof voiceStart==='function' ? voiceStart() : showToast('Glasovne komande rade u Chrome/Edge pregledaču','info')"
           title="Glasovna komanda — recite: 'otvori predmet Marković', 'uključi tajmer', 'novi predmet'. Radi u Chrome i Edge."
           style="display:flex;align-items:center;gap:.4rem;padding:.4rem .8rem;background:rgba(74,168,255,.08);border:1px solid rgba(74,168,255,.2);border-radius:8px;color:#89c8ff;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;">
-          🎤 Govori
+          Govori
         </button>
         <div class="vx-topbar-actions">
           <!-- Krediti i korisnik -->
@@ -507,11 +507,11 @@
           </div>
           <!-- Pretraga -->
           <button onclick="searchOpen()" title="Pretraži predmete, klijente, zakone (Ctrl+K)" style="padding:0.32rem 0.65rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.45);font-size:0.72rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:0.3rem;white-space:nowrap;" id="nav-search-btn">
-            🔍 <span style="display:none;" class="vx-kbd-hint"><kbd style="padding:0.05rem 0.35rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:3px;font-size:0.6rem;font-family:inherit;">Ctrl K</kbd></span>
+            <span style="display:none;" class="vx-kbd-hint"><kbd style="padding:0.05rem 0.35rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:3px;font-size:0.6rem;font-family:inherit;">Ctrl K</kbd></span>
           </button>
           <!-- Rokovi — brz pristup kalendaru -->
           <button onclick="setTab(document.getElementById('tab-btn-kal'),'kal')" title="Kalendar ročišta i rokova" style="padding:0.32rem 0.65rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.45);font-size:0.75rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:0.3rem;white-space:nowrap;" id="nav-rokovi-btn">
-            📅 Rokovi
+            Rokovi
           </button>
           <!-- Notifikacije -->
           <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
@@ -565,7 +565,7 @@
             <!-- F7: Interni stavovi firme -->
             <details id="interni-stavovi-panel" class="interni-panel" style="display:none;">
               <summary class="interni-summary">
-                🏛️ Interni stavovi firme
+                Interni stavovi firme
                 <span class="pro-badge">PRO</span>
               </summary>
               <div class="interni-body">
@@ -584,7 +584,7 @@
                   <button class="interni-search-btn" onclick="pretraziInterneStavove()">Pretraži</button>
                 </div>
                 <div id="interni-rezultati"></div>
-                <button class="btn-danger-small interni-del-btn" onclick="obrisiSveInterneStavove()">🗑️ Obriši sve stavove</button>
+                <button class="btn-danger-small interni-del-btn" onclick="obrisiSveInterneStavove()">Obriši sve stavove</button>
               </div>
             </details>
           </div>
@@ -631,7 +631,7 @@
               <button class="pred-sort-btn"        data-sort="rizik"       onclick="pred_setSort('rizik')"       style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">⚠ Rizik</button>
               <button class="pred-sort-btn"        data-sort="rokovi"      onclick="pred_setSort('rokovi')"      style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">Rokovi</button>
               <!-- Firma toggle — shown only if user is in a kancelarija -->
-              <button id="pred-firma-toggle" onclick="predFirmaToggle()" style="display:none;margin-left:auto;font-size:0.62rem;padding:0.28rem 0.65rem;border-radius:5px;border:1px solid rgba(0,212,255,0.25);background:transparent;color:rgba(0,212,255,0.6);cursor:pointer;letter-spacing:.04em;">🏢 Firma</button>
+              <button id="pred-firma-toggle" onclick="predFirmaToggle()" style="display:none;margin-left:auto;font-size:0.62rem;padding:0.28rem 0.65rem;border-radius:5px;border:1px solid rgba(0,212,255,0.25);background:transparent;color:rgba(0,212,255,0.6);cursor:pointer;letter-spacing:.04em;">Firma</button>
             </div>
             <!-- Firma predmeti panel -->
             <div id="pred-firma-panel" style="display:none;margin-bottom:0.5rem;">
@@ -644,7 +644,7 @@
             </div>
             <div id="pred-bulk-bar" style="display:none;align-items:center;gap:0.4rem;margin:0.3rem 0;padding:0.35rem 0.55rem;background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.2);border-radius:7px;">
               <span id="pred-bulk-count" style="font-size:0.65rem;color:#89c8ff;flex:1;font-weight:600;"></span>
-              <button onclick="pred_bulkAkcija('arhiviranje')" style="padding:0.22rem 0.6rem;border:1px solid rgba(255,255,255,.15);border-radius:5px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);font-size:0.68rem;cursor:pointer;">🗄 Arhivuj</button>
+              <button onclick="pred_bulkAkcija('arhiviranje')" style="padding:0.22rem 0.6rem;border:1px solid rgba(255,255,255,.15);border-radius:5px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);font-size:0.68rem;cursor:pointer;">Arhivuj</button>
               <button onclick="pred_bulkAkcija('aktiviranje')" style="padding:0.22rem 0.6rem;border:1px solid rgba(0,212,255,.2);border-radius:5px;background:rgba(0,212,255,.06);color:rgba(0,212,255,.85);font-size:0.68rem;cursor:pointer;">Aktiviraj</button>
               <button onclick="pred_bulkOtkaziOznacavanje()" style="border:none;background:none;color:rgba(255,255,255,.3);font-size:0.75rem;cursor:pointer;">✕</button>
             </div>
@@ -696,15 +696,15 @@
                 <div class="pred-more-wrap" id="pred-more-wrap">
                   <button class="pred-subtab-btn pred-tab-more" id="pred-more-btn" onclick="pred_more_toggle(event)" title="Napredne opcije">Više ▾</button>
                   <div class="pred-more-menu" id="pred-more-menu" style="display:none;">
-                    <button onclick="pred_more_select('ccc')">⚡ Komandni centar</button>
-                    <button onclick="pred_more_select('strategija')">⚔️ Strategija</button>
-                    <button onclick="pred_more_select('agenti')">🧠 Savetnici</button>
+                    <button onclick="pred_more_select('ccc')">Komandni centar</button>
+                    <button onclick="pred_more_select('strategija')">Strategija</button>
+                    <button onclick="pred_more_select('agenti')">Savetnici</button>
                     <button onclick="pred_more_select('graf')">◉ Graf veza</button>
-                    <button onclick="pred_more_select('timeline')">📅 Hronologija</button>
-                    <button onclick="pred_more_select('dokazi')">🔒 Trezor dokaza</button>
-                    <button onclick="pred_more_select('komunikacija')">💬 Komunikacija</button>
-                    <button onclick="pred_more_select('saradnja')">🤝 Saradnja</button>
-                    <button onclick="predmetPdfExport()">📄 PDF Izveštaj</button>
+                    <button onclick="pred_more_select('timeline')">Hronologija</button>
+                    <button onclick="pred_more_select('dokazi')">Trezor dokaza</button>
+                    <button onclick="pred_more_select('komunikacija')">Komunikacija</button>
+                    <button onclick="pred_more_select('saradnja')">Saradnja</button>
+                    <button onclick="predmetPdfExport()">PDF Izveštaj</button>
                   </div>
                 </div>
               </div>
@@ -718,8 +718,8 @@
                   <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Komandni Centar Predmeta</div>
                   <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
                     <button onclick="ccc_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);cursor:pointer;" title="Ponovo učitaj komandni centar">↺</button>
-                    <button onclick="pred_print()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.2);border-radius:6px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);cursor:pointer;">🖨 Štampaj</button>
-                    <button onclick="predmetPdfExport(this)" id="pred-pdf-export-btn" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(0,212,255,.25);border-radius:6px;background:rgba(0,212,255,.07);color:#00d4ff;cursor:pointer;">📄 PDF</button>
+                    <button onclick="pred_print()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.2);border-radius:6px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);cursor:pointer;">Štampaj</button>
+                    <button onclick="predmetPdfExport(this)" id="pred-pdf-export-btn" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(0,212,255,.25);border-radius:6px;background:rgba(0,212,255,.07);color:#00d4ff;cursor:pointer;">PDF</button>
                     <button onclick="pred_subtabSwitch('pregled');setTimeout(function(){pred_zatvoriOtvori();},300);" id="ccc-zatvori-btn" style="display:none;padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,80,80,.25);border-radius:6px;background:rgba(255,80,80,.06);color:rgba(255,140,140,.8);cursor:pointer;" title="Zatvori i arhiviraj predmet">✕ Zatvori</button>
                   </div>
                 </div>
@@ -927,7 +927,7 @@
               <!-- ── Klijentski portal ───────────────────────────── -->
               <div id="pred-portal-section" style="margin-top:1rem;padding:.75rem .9rem;background:rgba(0,212,127,0.03);border:1px solid rgba(0,212,127,0.1);border-radius:10px;display:none;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-                  <span style="font-size:.75rem;font-weight:600;color:rgba(0,212,127,0.7);text-transform:uppercase;letter-spacing:.07em;">🔗 Klijentski portal</span>
+                  <span style="font-size:.75rem;font-weight:600;color:rgba(0,212,127,0.7);text-transform:uppercase;letter-spacing:.07em;">Klijentski portal</span>
                   <button onclick="portal_toggleForm()" id="portal-toggle-btn" style="font-size:.72rem;color:rgba(0,212,127,0.6);background:none;border:none;cursor:pointer;padding:0;">+ Generiši link</button>
                 </div>
                 <div id="portal-form" style="display:none;margin-bottom:.6rem;">
@@ -951,7 +951,7 @@
                   <div style="font-size:.62rem;color:rgba(0,212,127,0.6);margin-bottom:.3rem;font-weight:600;">✓ LINK GENERISAN</div>
                   <div id="portal-url-text" style="font-size:.68rem;color:rgba(255,255,255,0.6);word-break:break-all;margin-bottom:.35rem;"></div>
                   <div style="display:flex;gap:.4rem;">
-                    <button onclick="portal_copyLink()" style="padding:.25rem .6rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.2);border-radius:5px;color:#89c8ff;font-size:.67rem;cursor:pointer;font-family:inherit;">📋 Kopiraj</button>
+                    <button onclick="portal_copyLink()" style="padding:.25rem .6rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.2);border-radius:5px;color:#89c8ff;font-size:.67rem;cursor:pointer;font-family:inherit;">Kopiraj</button>
                     <button onclick="portal_toggleForm()" style="padding:.25rem .5rem;background:none;border:1px solid rgba(255,255,255,0.08);border-radius:5px;color:rgba(255,255,255,0.3);font-size:.67rem;cursor:pointer;font-family:inherit;">✕ Zatvori</button>
                   </div>
                 </div>
@@ -959,7 +959,7 @@
                 <!-- Klijentski uploadi -->
                 <div style="margin-top:.7rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,0.05);">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
-                    <span style="font-size:.67rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.08em;">📥 Dokumenti od klijenta</span>
+                    <span style="font-size:.67rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.08em;">Dokumenti od klijenta</span>
                     <button onclick="portal_loadUploads()" style="font-size:.67rem;color:rgba(74,168,255,0.6);background:none;border:none;cursor:pointer;padding:0;">↻ Osveži</button>
                   </div>
                   <div id="portal-uploads-list" style="font-size:.72rem;color:rgba(255,255,255,0.3);">—</div>
@@ -984,7 +984,7 @@
                 <!-- ── Cross-doc analiza ──────────────────────────────── -->
                 <div class="crossdoc-section" id="crossdoc-section" style="display:none;">
                   <div class="crossdoc-hd" onclick="crossdoc_toggleSection(this)">
-                    <span>🔍 Cross-doc analiza <span style="font-size:.65rem;font-weight:400;color:rgba(255,255,255,.35);">— poređenje dokumenata</span></span>
+                    <span>Cross-doc analiza <span style="font-size:.65rem;font-weight:400;color:rgba(255,255,255,.35);">— poređenje dokumenata</span></span>
                     <span class="crossdoc-count" id="crossdoc-count">0 odabrano</span>
                     <span id="crossdoc-chevron" style="margin-left:0.25rem;font-size:0.7rem;color:rgba(255,255,255,0.4);">▼</span>
                   </div>
@@ -1178,7 +1178,7 @@
                 <!-- Outcome Intel rezultat panel -->
                 <div id="outcome-intel-panel" style="display:none;margin-top:.5rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.9rem;">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
-                    <span style="font-size:.72rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;">📈 Outcome Intelligence</span>
+                    <span style="font-size:.72rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;">Outcome Intelligence</span>
                     <button onclick="document.getElementById('outcome-intel-panel').style.display='none';" style="background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:.8rem;">✕</button>
                   </div>
                   <div id="outcome-intel-loading" style="color:rgba(255,255,255,.3);font-size:.8rem;">Analiziram istoriju kancelarije...</div>
@@ -1204,7 +1204,7 @@
                 <!-- ── ZPP Lanac Rokova ─────────────────────────────── -->
                 <div style="margin-top:0.9rem;">
                   <button onclick="lanac_toggleSection(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">
-                    <span>⛓ ZPP Lanac rokova</span><span id="lanac-chevron">▼</span>
+                    <span>ZPP Lanac rokova</span><span id="lanac-chevron">▼</span>
                   </button>
                   <div id="lanac-section" style="display:none;margin-top:0.4rem;padding:0.55rem 0.7rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:8px;">
                     <div style="font-size:0.62rem;color:rgba(255,255,255,0.32);margin-bottom:0.5rem;">Automatski izračun procesnih rokova po ZPP-u od datuma ključnog akta.</div>
@@ -1299,7 +1299,7 @@
                   <!-- ── Ponavljajuće fakture ─────────────────────────────── -->
                   <div style="margin-top:0.75rem;">
                     <button onclick="billing_toggleRecurring(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">
-                      <span>🔁 Ponavljajuće fakture</span><span id="recurring-chevron">▼</span>
+                      <span>Ponavljajuće fakture</span><span id="recurring-chevron">▼</span>
                     </button>
                     <div id="recurring-section" style="display:none;margin-top:0.4rem;">
                       <div id="recurring-list" style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.4rem;"></div>
@@ -1331,14 +1331,14 @@
                   <!-- ── Izveštaji ──────────────────────────────────────── -->
                   <div style="margin-top:0.75rem;">
                     <button onclick="billing_toggleReports(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">
-                      <span>📊 Izveštaji</span><span id="reports-chevron">▼</span>
+                      <span>Izveštaji</span><span id="reports-chevron">▼</span>
                     </button>
                     <div id="reports-section" style="display:none;margin-top:0.4rem;display:none;">
                       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.3rem;">
                         <button onclick="billing_openReport('godisnji')" class="billing-report-btn">Godišnji</button>
                         <button onclick="billing_openReport('zastarele')" class="billing-report-btn">⏱ Starele stavke</button>
-                        <button onclick="billing_openReport('po-tipu')" class="billing-report-btn">⚖️ Po tipu predmeta</button>
-                        <button onclick="billing_openReport('po-klijentu')" class="billing-report-btn">👤 Po klijentu</button>
+                        <button onclick="billing_openReport('po-tipu')" class="billing-report-btn">Po tipu predmeta</button>
+                        <button onclick="billing_openReport('po-klijentu')" class="billing-report-btn">Po klijentu</button>
                         <button onclick="billing_csvDownload()" class="billing-report-btn" style="grid-column:1/-1;">⬇ Preuzmi CSV</button>
                       </div>
                       <div id="billing-report-result" style="display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.6rem;margin-top:0.3rem;font-size:0.72rem;"></div>
@@ -1516,7 +1516,7 @@
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
                     <div id="agent-result-badge" style="font-size:.7rem;color:rgba(255,255,255,.4);"></div>
                     <div style="display:flex;gap:.4rem;">
-                      <button onclick="agent_copy()" style="font-size:.68rem;padding:3px 9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:4px;color:rgba(255,255,255,.55);cursor:pointer;font-family:inherit;">📋 Kopiraj</button>
+                      <button onclick="agent_copy()" style="font-size:.68rem;padding:3px 9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:4px;color:rgba(255,255,255,.55);cursor:pointer;font-family:inherit;">Kopiraj</button>
                       <button onclick="agent_novo()" style="font-size:.68rem;padding:3px 9px;background:rgba(74,168,255,.08);border:1px solid rgba(74,168,255,.2);border-radius:4px;color:#89c8ff;cursor:pointer;font-family:inherit;">+ Novo pitanje</button>
                     </div>
                   </div>
@@ -1576,7 +1576,7 @@
 
             <!-- F6: API ključevi sekcija (PRO only) -->
             <div id="api-kljucevi-sekcija" class="api-kljucevi-wrap" style="display:none;">
-              <div class="api-kljucevi-lbl">🔑 API ključevi</div>
+              <div class="api-kljucevi-lbl">API ključevi</div>
               <div style="font-size:0.8rem;color:rgba(255,255,255,0.38);margin-bottom:10px;line-height:1.55;">
                 Integrišite Vindex sa vašim sistemima. Header: <code style="font-size:0.78rem;background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:3px;">X-Vindex-Key: vndx_...</code>
               </div>
@@ -1589,7 +1589,7 @@
               <div id="api-novi-kljuc-display" class="api-kljuc-box" style="display:none;"></div>
               <!-- Push notifikacije dugme -->
               <div style="margin-top:12px;">
-                <button id="push-btn" class="push-btn" onclick="subscribePush()">🔔 Uključi podsetnik za rokove</button>
+                <button id="push-btn" class="push-btn" onclick="subscribePush()">Uključi podsetnik za rokove</button>
               </div>
             </div>
 
@@ -1661,7 +1661,7 @@
             <!-- F7: Playbook upravljanje -->
             <details id="playbook-detalji" class="playbook-panel" style="display:none;">
               <summary class="playbook-summary">
-                📚 Firmini dokumenti (Playbook)
+                Firmini dokumenti (Playbook)
                 <span class="pro-badge">PRO</span>
                 <span id="playbook-count-badge" class="playbook-count" style="display:none;"></span>
               </summary>
@@ -1675,15 +1675,15 @@
                          style="display:none"
                          onchange="playbookUploadFajlove(this.files)"/>
                   <div onclick="document.getElementById('playbook-file-input').click()">
-                    📎 Prevucite fajlove ovde ili <u>kliknite za izbor</u><br>
+                    Prevucite fajlove ovde ili <u>kliknite za izbor</u><br>
                     <small>PDF, DOCX, TXT — max 2MB po fajlu</small>
                   </div>
                 </div>
                 <div id="playbook-progress" style="display:none;" class="playbook-progress"></div>
                 <div id="playbook-lista" class="playbook-lista"></div>
                 <div class="playbook-akcije">
-                  <button class="playbook-akcija-btn" onclick="ucitajPlaybookStatus()">🔄 Osveži</button>
-                  <button class="btn-danger-small" onclick="obrisiSvPlaybook()">🗑️ Obriši sve</button>
+                  <button class="playbook-akcija-btn" onclick="ucitajPlaybookStatus()">Osveži</button>
+                  <button class="btn-danger-small" onclick="obrisiSvPlaybook()">Obriši sve</button>
                 </div>
               </div>
             </details>
@@ -1696,7 +1696,7 @@
             </div>
             <input type="file" id="doc-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="doc_upload_file(this.files[0])">
             <div id="doc-upload-zone" class="upload-dropzone" onclick="doc_upload_trigger()">
-              <div class="upload-zone-icon">📄</div>
+              <div class="upload-zone-icon"></div>
               <div class="upload-zone-text">Prevucite ugovor ovde ili kliknite za odabir</div>
               <div class="upload-zone-sub">Podržani formati: PDF, DOCX (do 25MB)</div>
             </div>
@@ -1705,7 +1705,7 @@
             <div id="doc-session-active" style="display:none">
               <div class="doc-file-card">
                 <div class="doc-file-info">
-                  <span class="doc-file-icon">📄</span>
+                  <span class="doc-file-icon"></span>
                   <div>
                     <div id="doc-file-name" style="font-weight:600;font-size:.9rem;color:#fff;word-break:break-all;"></div>
                     <div id="doc-file-meta" style="font-size:.77rem;color:rgba(255,255,255,0.45);margin-top:2px;"></div>
@@ -1732,7 +1732,7 @@
               </div>
               <!-- FORENZIČKI AUDIT dugme -->
               <button class="forensic-audit-btn" id="forensic-audit-btn" onclick="doc_forensic_audit()" style="margin-top:.85rem;">
-                <span id="forensic-btn-lbl">🔬 Forenzička analiza dokumenta</span>
+                <span id="forensic-btn-lbl">Forenzička analiza dokumenta</span>
               </button>
               <div id="forensic-audit-result" style="display:none;margin-top:.9rem;"></div>
               <!-- ZASTARELOST KALKULATOR Phase 3.6 -->
@@ -1853,8 +1853,8 @@
               <div class="strat-rezultat-header">
                 <span class="strat-rezultat-naslov" id="strat-rezultat-naslov"></span>
                 <div style="display:flex;gap:6px;">
-                  <button class="btn-word" onclick="exportujKaoWord(document.getElementById('strat-rezultat-naslov').textContent,document.getElementById('strat-rezultat-body').innerText,'strategija')">📝 Word</button>
-                  <button class="strat-copy-btn" onclick="stratKopiraj()">📋 Kopiraj</button>
+                  <button class="btn-word" onclick="exportujKaoWord(document.getElementById('strat-rezultat-naslov').textContent,document.getElementById('strat-rezultat-body').innerText,'strategija')">Word</button>
+                  <button class="strat-copy-btn" onclick="stratKopiraj()">Kopiraj</button>
                 </div>
               </div>
               <div class="strat-rezultat-body" id="strat-rezultat-body"></div>
@@ -1866,7 +1866,7 @@
             <!-- Lista view -->
             <div id="crm-lista-view">
               <div class="crm-header">
-                <span class="crm-header-title">👥 Klijenti</span>
+                <span class="crm-header-title">Klijenti</span>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                   <button class="crm-add-btn" onclick="crmCheckKonfliktOtvori()" style="background:rgba(255,180,50,0.1);border-color:rgba(255,180,50,0.3);color:#ffd080;">⚠ Konflikt</button>
                   <button class="crm-add-btn" onclick="crmCsvImportOtvori()" style="background:rgba(0,212,255,0.06);border-color:rgba(0,212,255,0.2);color:rgba(0,212,255,0.8);">CSV</button>
@@ -1886,7 +1886,7 @@
                 <button class="crm-back-btn" onclick="crmZatvoriProfil()">← Nazad</button>
                 <span class="crm-header-title" id="crm-profil-ime"></span>
                 <div style="display:flex;gap:6px;">
-                  <button class="crm-add-btn" style="font-size:0.78rem;padding:6px 10px;" onclick="crmOtvoriFormu(crmAktivniId)">✏ Uredi</button>
+                  <button class="crm-add-btn" style="font-size:0.78rem;padding:6px 10px;" onclick="crmOtvoriFormu(crmAktivniId)">Uredi</button>
                 </div>
               </div>
               <!-- Profil tabovi -->
@@ -1912,7 +1912,7 @@
                 </div>
                 <div id="crm-confidential-section">
                   <div class="crm-confidential-banner">
-                    <span>🔒 Poverljivi podaci (JMBG, pasoš, PIB)</span>
+                    <span>Poverljivi podaci (JMBG, pasoš, PIB)</span>
                     <button class="crm-reveal-btn" id="crm-reveal-btn" onclick="crmOtkrijPoverljivo()">Prikaži poverljive podatke</button>
                   </div>
                   <div id="crm-podaci-poverljivi" style="display:none"></div>
@@ -1965,7 +1965,7 @@
                 <div class="crm-field-lbl">Telefon</div>
                 <input id="crm-f-telefon" class="crm-field" type="text" placeholder="+381 ..." oninput="crmMarkDirty()">
 
-                <div class="crm-section-lbl">Identifikacioni podaci <span style="font-size:0.72rem;font-weight:400;color:rgba(255,165,0,0.75);margin-left:6px">🔒 enkriptuje se</span></div>
+                <div class="crm-section-lbl">Identifikacioni podaci <span style="font-size:0.72rem;font-weight:400;color:rgba(255,165,0,0.75);margin-left:6px">enkriptuje se</span></div>
                 <div class="crm-field-lbl">JMBG</div>
                 <input id="crm-f-jmbg" class="crm-field" type="text" placeholder="13 cifara" autocomplete="off" oninput="crmMarkDirty();crmValidateJmbg(this)">
                 <div id="crm-jmbg-warn" style="display:none;font-size:0.72rem;color:rgba(255,165,0,0.8);margin-top:3px">JMBG mora imati tačno 13 cifara</div>
@@ -2023,7 +2023,7 @@
                 Maksimum 500 klijenata. JMBG/PIB <strong>ne</strong> unosite u CSV (koristite manuelni unos za poverljiva polja).
               </div>
               <div id="crm-csv-drop" onclick="document.getElementById('crm-csv-file').click()" style="border:2px dashed rgba(0,212,255,0.25);border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;background:rgba(0,212,255,0.04);transition:all .2s;" onmouseover="this.style.borderColor='rgba(0,212,255,0.5)'" onmouseout="this.style.borderColor='rgba(0,212,255,0.25)'">
-                <div style="font-size:1.5rem;margin-bottom:0.4rem;">📄</div>
+                <div style="font-size:1.5rem;margin-bottom:0.4rem;"></div>
                 <div style="font-size:0.8rem;color:rgba(255,255,255,0.6);">Kliknite ili prevucite CSV fajl ovde</div>
                 <div id="crm-csv-filename" style="font-size:0.72rem;color:rgba(0,212,255,0.8);margin-top:0.3rem;display:none;"></div>
               </div>
@@ -2058,7 +2058,7 @@
                 <div id="intake-s1" class="intake-step-content">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
                     <div class="intake-step-heading" style="margin-bottom:0;">Izaberite klijenta</div>
-                    <button onclick="intakeTemplateOpen()" style="font-size:0.7rem;padding:5px 11px;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.22);border-radius:6px;color:#89c8ff;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Iz šablona</button>
+                    <button onclick="intakeTemplateOpen()" style="font-size:0.7rem;padding:5px 11px;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.22);border-radius:6px;color:#89c8ff;cursor:pointer;font-family:inherit;white-space:nowrap;">Iz šablona</button>
                   </div>
                   <input id="intake-klijent-search" class="intake-field" type="text" placeholder="Pretraži po imenu ili firmi..." oninput="intakeKlijentSearch(this.value)" autocomplete="off">
                   <div id="intake-klijent-results" style="margin-top:8px;"></div>
@@ -2090,7 +2090,7 @@
                 <div id="intake-s3" class="intake-step-content" style="display:none">
                   <div class="intake-step-heading">Dokumentacija (opciono)</div>
                   <div class="intake-upload-zone" id="intake-upload-zone" onclick="document.getElementById('intake-file-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="intakeDropFile(event)">
-                    <div style="font-size:1.4rem;margin-bottom:6px;">📄</div>
+                    <div style="font-size:1.4rem;margin-bottom:6px;"></div>
                     <div style="font-size:0.82rem;color:rgba(255,255,255,0.6);">Prevucite PDF/DOCX ili kliknite za upload</div>
                     <div style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:4px;">Maks. 10MB — rezultati se koriste za bolji predlog</div>
                   </div>
@@ -2140,7 +2140,7 @@
                   <!-- Billing setup accordion -->
                   <div style="margin-top:14px;border:1px solid rgba(255,255,255,0.07);border-radius:8px;overflow:hidden;">
                     <div onclick="intakeBillingToggle()" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:rgba(255,255,255,0.03);cursor:pointer;user-select:none;">
-                      <span style="font-size:0.78rem;color:rgba(255,255,255,0.6);">💰 Billing podešavanje <span style="color:rgba(255,255,255,0.3);font-size:0.7rem;">(opciono)</span></span>
+                      <span style="font-size:0.78rem;color:rgba(255,255,255,0.6);">Billing podešavanje <span style="color:rgba(255,255,255,0.3);font-size:0.7rem;">(opciono)</span></span>
                       <span id="intake-billing-arrow" style="font-size:0.65rem;color:rgba(255,255,255,0.3);">▼</span>
                     </div>
                     <div id="intake-billing-body" style="display:none;padding:10px 12px;border-top:1px solid rgba(255,255,255,0.05);">
@@ -2211,7 +2211,7 @@
           <div id="qi-overlay" onclick="if(event.target===this)qiZatvori()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2200;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
             <div onclick="event.stopPropagation()" style="width:min(440px,96vw);background:#0d1117;border:1px solid rgba(74,168,255,0.22);border-radius:14px;padding:1.5rem;box-shadow:0 24px 80px rgba(0,0,0,0.7);">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;">
-                <div style="font-size:0.88rem;font-weight:700;color:#e6edf3;">⚡ Hitan predmet</div>
+                <div style="font-size:0.88rem;font-weight:700;color:#e6edf3;">Hitan predmet</div>
                 <button onclick="qiZatvori()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>
               </div>
               <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin-bottom:1rem;">Brzo kreiranje bez analize — popunite minimum podataka.</div>
@@ -2240,7 +2240,7 @@
           <div id="bulk-overlay" onclick="if(event.target===this)bulkZatvori()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2200;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
             <div onclick="event.stopPropagation()" style="width:min(680px,96vw);max-height:88vh;background:#0d1117;border:1px solid rgba(74,168,255,0.2);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);display:flex;flex-direction:column;">
               <div style="flex-shrink:0;padding:1.2rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;">
-                <div style="font-size:0.9rem;font-weight:700;color:#e6edf3;">📤 Uvezi predmete iz CSV-a</div>
+                <div style="font-size:0.9rem;font-weight:700;color:#e6edf3;">Uvezi predmete iz CSV-a</div>
                 <button onclick="bulkZatvori()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>
               </div>
               <div style="flex:1;overflow-y:auto;padding:1.2rem 1.5rem;">
@@ -2251,7 +2251,7 @@
                     <span style="color:rgba(255,255,255,0.3);">Obavezno: naziv_predmeta. Ostalo opciono.</span>
                   </div>
                   <div id="bulk-upload-zone" onclick="document.getElementById('bulk-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='rgba(74,168,255,0.4)'" ondragleave="this.style.borderColor=''" ondrop="event.preventDefault();this.style.borderColor='';bulkParseFile(event.dataTransfer.files[0])" style="border:2px dashed rgba(255,255,255,0.12);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .15s;">
-                    <div style="font-size:1.6rem;margin-bottom:8px;">📄</div>
+                    <div style="font-size:1.6rem;margin-bottom:8px;"></div>
                     <div style="font-size:0.82rem;color:rgba(255,255,255,0.5);">Kliknite ili prevucite CSV fajl</div>
                     <div style="font-size:0.7rem;color:rgba(255,255,255,0.28);margin-top:4px;">Maks. 500 redova</div>
                   </div>
@@ -2275,7 +2275,7 @@
               </div>
               <div id="bulk-footer" style="display:none;flex-shrink:0;padding:12px 1.5rem;border-top:1px solid rgba(255,255,255,0.07);display:flex;justify-content:flex-end;gap:10px;">
                 <button onclick="bulkZatvori()" style="padding:9px 18px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-size:0.84rem;cursor:pointer;">Zatvori</button>
-                <button id="bulk-import-btn" onclick="bulkImportuj()" style="padding:9px 22px;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.84rem;font-weight:600;cursor:pointer;">📤 Uvezi sve</button>
+                <button id="bulk-import-btn" onclick="bulkImportuj()" style="padding:9px 22px;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:8px;color:#fff;font-size:0.84rem;font-weight:600;cursor:pointer;">Uvezi sve</button>
               </div>
             </div>
           </div>
@@ -2358,7 +2358,7 @@
           <div id="intake-tpl-overlay" onclick="if(event.target===this)intakeTemplateClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:none;align-items:center;justify-content:center;">
             <div onclick="event.stopPropagation()" style="width:min(560px,94vw);max-height:80vh;background:#0d1b2a;border:1px solid rgba(74,168,255,0.2);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,0.7);display:flex;flex-direction:column;overflow:hidden;">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:1px solid rgba(255,255,255,0.08);">
-                <div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">📋 Šabloni predmeta</div>
+                <div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">Šabloni predmeta</div>
                 <button onclick="intakeTemplateClose()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:0 4px;">✕</button>
               </div>
               <div style="font-size:0.72rem;color:rgba(255,255,255,0.35);padding:0.6rem 1.2rem 0.4rem;">Izaberite šablon — predmet se kreira sa predefinisanom hronologijom i potrebnom dokumentacijom.</div>
@@ -2397,7 +2397,7 @@
               <!-- Header -->
               <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;">
                 <div>
-                  <div style="font-size:0.92rem;font-weight:700;color:#e2e8f0;">📄 Šabloni dokumenata</div>
+                  <div style="font-size:0.92rem;font-weight:700;color:#e2e8f0;">Šabloni dokumenata</div>
                   <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:2px;">Generiši pravni akt automatski — tužbe, ugovori, punomoćja</div>
                 </div>
                 <button onclick="docTplClose()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;padding:0 4px;">✕</button>
@@ -2417,7 +2417,7 @@
                     </select>
                   </div>
                   <button id="doctpl-gen-btn" onclick="docTplGeneriši()" style="display:none;padding:8px 18px;background:linear-gradient(135deg,#4aa8ff,#1264c4);border:none;border-radius:7px;color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;align-self:flex-start;">
-                    ✨ Generiši dokument
+                    Generiši dokument
                   </button>
                   <div id="doctpl-loading" style="display:none;font-size:0.78rem;color:rgba(255,255,255,0.45);padding:0.5rem 0;">Generišem dokument...</div>
                   <!-- Rezultat -->
@@ -2425,8 +2425,8 @@
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
                       <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;">Generisani dokument</div>
                       <div style="display:flex;gap:0.4rem;">
-                        <button onclick="docTplKopiraj()" style="font-size:0.68rem;padding:3px 9px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:rgba(255,255,255,0.55);cursor:pointer;font-family:inherit;">📋 Kopiraj</button>
-                        <button onclick="docTplSacuvaj()" style="font-size:0.68rem;padding:3px 9px;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:4px;color:#89c8ff;cursor:pointer;font-family:inherit;">💾 Sačuvaj uz predmet</button>
+                        <button onclick="docTplKopiraj()" style="font-size:0.68rem;padding:3px 9px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:rgba(255,255,255,0.55);cursor:pointer;font-family:inherit;">Kopiraj</button>
+                        <button onclick="docTplSacuvaj()" style="font-size:0.68rem;padding:3px 9px;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:4px;color:#89c8ff;cursor:pointer;font-family:inherit;">Sačuvaj uz predmet</button>
                       </div>
                     </div>
                     <textarea id="doctpl-result-txt" rows="14" style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:12px;color:#e2e8f0;font-size:0.78rem;font-family:'Courier New',monospace;line-height:1.6;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
@@ -2444,13 +2444,13 @@
               <div class="web3-podnaslov">Pravna analiza zasnovana na ZDI (Srbija) i MiCA (EU 2023/1114)</div>
             </div>
             <div class="strat-modul-izbor web3-moduli">
-              <button class="strat-btn active" data-modul="web3_pretraga" onclick="web3IzaberiModul('web3_pretraga',this)">🔍 ZDI/MiCA Pretraga</button>
+              <button class="strat-btn active" data-modul="web3_pretraga" onclick="web3IzaberiModul('web3_pretraga',this)">ZDI/MiCA Pretraga</button>
               <button class="strat-btn" data-modul="compliance_check" onclick="web3IzaberiModul('compliance_check',this)">Provera uskladenosti</button>
-              <button class="strat-btn" data-modul="whitepaper_check" onclick="web3IzaberiModul('whitepaper_check',this)">📄 Whitepaper Analiza</button>
-              <button class="strat-btn" data-modul="mica_score" onclick="web3IzaberiModul('mica_score',this)">📊 MiCA Score</button>
-              <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">🔑 Provera licence</button>
-              <button class="strat-btn" data-modul="aml_audit" onclick="web3IzaberiModul('aml_audit',this)">🛡️ AML/KYC Audit</button>
-              <button class="strat-btn" data-modul="smart_contract" onclick="web3IzaberiModul('smart_contract',this)">📜 Pametni Ugovor</button>
+              <button class="strat-btn" data-modul="whitepaper_check" onclick="web3IzaberiModul('whitepaper_check',this)">Whitepaper Analiza</button>
+              <button class="strat-btn" data-modul="mica_score" onclick="web3IzaberiModul('mica_score',this)">MiCA Score</button>
+              <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">Provera licence</button>
+              <button class="strat-btn" data-modul="aml_audit" onclick="web3IzaberiModul('aml_audit',this)">AML/KYC Audit</button>
+              <button class="strat-btn" data-modul="smart_contract" onclick="web3IzaberiModul('smart_contract',this)">Pametni Ugovor</button>
             </div>
             <div id="web3-opis" class="strat-opis-box web3-opis-box"></div>
             <div class="strat-input-wrap">
@@ -2459,7 +2459,7 @@
               <div class="strat-char-count"><span id="web3-chars">0</span> karaktera</div>
             </div>
             <div class="web3-reference">
-              <span>📚 Baza znanja:</span>
+              <span>Baza znanja:</span>
               <span class="web3-ref-badge">ZDI čl. 1-146</span>
               <span class="web3-ref-badge">MiCA EU 2023/1114</span>
               <span class="web3-ref-badge">AML/KYC</span>
@@ -2469,7 +2469,7 @@
             <div id="web3-rezultat-wrap" class="web3-rezultat-wrap">
               <div class="web3-rezultat-header">
                 <span id="web3-rezultat-naslov" class="web3-rezultat-naslov"></span>
-                <button class="web3-copy-btn" onclick="web3Kopiraj()">📋 Kopiraj</button>
+                <button class="web3-copy-btn" onclick="web3Kopiraj()">Kopiraj</button>
               </div>
               <div id="web3-rezultat-body" class="web3-rezultat-body"></div>
             </div>
@@ -2479,13 +2479,13 @@
           <div id="tab-ob" style="display:none">
             <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div class="web3-header">
-              <div class="web3-naslov">⚖️ Pravne oblasti</div>
+              <div class="web3-naslov">Pravne oblasti</div>
               <div class="web3-podnaslov">Specijalizovani pravni asistenti za krivično, privredno i radno pravo RS</div>
             </div>
             <div class="strat-modul-izbor web3-moduli">
-              <button class="strat-btn active" data-oblast="krivicno" onclick="oblastiIzaberiOblast('krivicno',this)">🔒 Krivično pravo</button>
-              <button class="strat-btn" data-oblast="privredno" onclick="oblastiIzaberiOblast('privredno',this)">🏢 Privredno pravo</button>
-              <button class="strat-btn" data-oblast="radno" onclick="oblastiIzaberiOblast('radno',this)">👤 Radno pravo</button>
+              <button class="strat-btn active" data-oblast="krivicno" onclick="oblastiIzaberiOblast('krivicno',this)">Krivično pravo</button>
+              <button class="strat-btn" data-oblast="privredno" onclick="oblastiIzaberiOblast('privredno',this)">Privredno pravo</button>
+              <button class="strat-btn" data-oblast="radno" onclick="oblastiIzaberiOblast('radno',this)">Radno pravo</button>
             </div>
             <div id="ob-opis" class="strat-opis-box web3-opis-box"></div>
             <div class="strat-input-wrap">
@@ -2496,7 +2496,7 @@
               <div class="strat-char-count"><span id="ob-chars">0</span> karaktera</div>
             </div>
             <div class="web3-reference" id="ob-reference">
-              <span>📚 Baza znanja:</span>
+              <span>Baza znanja:</span>
               <span class="web3-ref-badge">KZ čl. 1-368</span>
               <span class="web3-ref-badge">ZKP postupak</span>
               <span class="web3-ref-badge">Zaštitne mere</span>
@@ -2506,7 +2506,7 @@
             <div id="ob-rezultat-wrap" class="web3-rezultat-wrap" style="display:none">
               <div class="web3-rezultat-header">
                 <span id="ob-rezultat-naslov" class="web3-rezultat-naslov"></span>
-                <button class="web3-copy-btn" onclick="oblastiKopiraj()">📋 Kopiraj</button>
+                <button class="web3-copy-btn" onclick="oblastiKopiraj()">Kopiraj</button>
               </div>
               <div id="ob-rezultat-body" class="web3-rezultat-body"></div>
             </div>
@@ -2554,10 +2554,10 @@
           <div id="tab-pi" style="display:none">
             <div class="pi-header">
               <div>
-                <div class="pi-title">📊 Product Intelligence</div>
+                <div class="pi-title">Product Intelligence</div>
                 <div class="pi-subtitle">Usage analytics · Retention · Funnels · Feature intelligence</div>
               </div>
-              <button class="pi-reload-btn" onclick="piLoad()">⟳ Osveži</button>
+              <button class="pi-reload-btn" onclick="piLoad()">Osveži</button>
             </div>
             <div id="pi-body">
               <div class="pi-empty">Učitavam...</div>
@@ -2787,14 +2787,14 @@
               </div>
               <div class="settings-row">
                 <div class="settings-row-left">
-                  <div class="settings-row-label">🔒 Zaštita podataka</div>
+                  <div class="settings-row-label">Zaštita podataka</div>
                   <div class="settings-row-sub">Gde se čuvaju vaši podaci i podaci klijenata</div>
                 </div>
                 <button class="settings-btn" onclick="dataResidencyOpen()">Detalji</button>
               </div>
               <div class="settings-row">
                 <div class="settings-row-left">
-                  <div class="settings-row-label">📦 Export podataka</div>
+                  <div class="settings-row-label">Export podataka</div>
                   <div class="settings-row-sub">Preuzmite sve vaše podatke (GDPR pravo na prenosivost)</div>
                 </div>
                 <button class="settings-btn" id="export-btn" onclick="exportSviPodaci()">Preuzmi ZIP</button>
@@ -2845,8 +2845,8 @@
             <div class="settings-section" id="legal-section">
               <div class="settings-section-hd"><span>Pravni dokumenti</span></div>
               <div style="display:flex;flex-direction:column;gap:.45rem;">
-                <a href="/privacy" target="_blank" class="settings-btn" style="text-align:left;text-decoration:none;">🔒 Politika privatnosti</a>
-                <a href="/terms" target="_blank" class="settings-btn" style="text-align:left;text-decoration:none;">📄 Uslovi korišćenja</a>
+                <a href="/privacy" target="_blank" class="settings-btn" style="text-align:left;text-decoration:none;">Politika privatnosti</a>
+                <a href="/terms" target="_blank" class="settings-btn" style="text-align:left;text-decoration:none;">Uslovi korišćenja</a>
               </div>
             </div>
 
@@ -2928,7 +2928,7 @@
             <!-- ── BILLING DUGOVANJA ────────────────────────────────────── -->
             <div class="settings-section" id="billing-dugovanja-section">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
-                <span>💸 Neplaćena dugovanja</span>
+                <span>Neplaćena dugovanja</span>
                 <button class="settings-btn" onclick="billingDugovanjaLoad()">↻ Osveži</button>
               </div>
               <div id="billing-dugovanja-kpi" style="display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;"></div>
@@ -3173,14 +3173,14 @@
             <!-- ── CORPUS ADMIN — auto-scraper (samo osnivač) ────────────── -->
             <div class="settings-section" id="corpus-admin-section" style="display:none;">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
-                <span>📚 Corpus — Auto-scraper</span>
-                <button class="settings-btn" onclick="corpusDiscoverRun()" id="corpus-discover-btn">🔍 Traži nove biltene</button>
+                <span>Corpus — Auto-scraper</span>
+                <button class="settings-btn" onclick="corpusDiscoverRun()" id="corpus-discover-btn">Traži nove biltene</button>
               </div>
               <div style="font-size:.75rem;color:rgba(255,255,255,0.4);margin-bottom:10px;">
                 Crawla VKS · AS Beograd · AS Niš · AS Kragujevac za nove sudske biltene od 2024.
               </div>
               <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-                <button class="settings-btn" style="font-size:.72rem;padding:3px 10px;" onclick="corpusListDiscovered()">📋 Lista otkrivenih</button>
+                <button class="settings-btn" style="font-size:.72rem;padding:3px 10px;" onclick="corpusListDiscovered()">Lista otkrivenih</button>
                 <span id="corpus-discover-status" style="font-size:.73rem;color:rgba(255,255,255,0.45);align-self:center;"></span>
               </div>
               <div id="corpus-discover-result" style="font-size:.77rem;"></div>
@@ -3189,8 +3189,8 @@
             <!-- ── LAW UPLOAD ADMIN (samo osnivač) — Law database expansion ── -->
             <div class="settings-section" id="law-upload-section" style="display:none;">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
-                <span>📚 Zakoni — Proširenje baze</span>
-                <button class="settings-btn" onclick="lawListLoad()" id="law-list-btn">📋 Lista</button>
+                <span>Zakoni — Proširenje baze</span>
+                <button class="settings-btn" onclick="lawListLoad()" id="law-list-btn">Lista</button>
               </div>
               <div style="font-size:.75rem;color:rgba(255,255,255,0.4);margin-bottom:10px;line-height:1.5;">
                 Upload PDF zakona (selektabilan tekst). Automatski se chunka, embeduje i dodaje u Pinecone <code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px;">default</code> namespace.
@@ -3213,7 +3213,7 @@
             <!-- ── USAGE ANALYTICS (samo osnivač) ──────────────────────── -->
             <div class="settings-section" id="analytics-section" style="display:none;">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
-                <span>📊 Usage Analytics</span>
+                <span>Usage Analytics</span>
                 <div style="display:flex;gap:0.4rem;align-items:center;">
                   <select id="analytics-period" onchange="analyticsLoad()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 7px;color:rgba(255,255,255,0.7);font-size:0.7rem;font-family:inherit;cursor:pointer;">
                     <option value="7">7 dana</option>
@@ -3295,10 +3295,10 @@
             <div class="analiza-workflow-naslov">Sledeći korak:</div>
             <div class="analiza-workflow-dugmad">
               <button class="analiza-wf-btn" onclick="analizaSacuvajUPredmet()">Sačuvaj u predmet</button>
-              <button class="analiza-wf-btn" onclick="analizaGenerisiNacrt()">📝 Generiši nacrt tužbe</button>
+              <button class="analiza-wf-btn" onclick="analizaGenerisiNacrt()">Generiši nacrt tužbe</button>
               <button class="analiza-wf-btn" onclick="analizaDodajUStrategiju()">Pošalji u Strategiju</button>
-              <button class="analiza-wf-btn" onclick="analizaKopiraj(this)">📋 Kopiraj analizu</button>
-              <button class="analiza-wf-btn" onclick="exportujKaoWord('Analiza predmeta', document.getElementById('rb').innerText, 'analiza')">📄 Izvezi Word</button>
+              <button class="analiza-wf-btn" onclick="analizaKopiraj(this)">Kopiraj analizu</button>
+              <button class="analiza-wf-btn" onclick="exportujKaoWord('Analiza predmeta', document.getElementById('rb').innerText, 'analiza')">Izvezi Word</button>
             </div>
           </div>
           <div class="podnesak-preview" id="podnesak-preview" style="display:none;">
@@ -3308,11 +3308,11 @@
             </div>
             <div class="resp-nacrt-podnesak podnesak-preview-body" id="podnesak-preview-body"></div>
             <div class="podnesak-preview-actions">
-              <button class="podnesak-preview-btn podnesak-preview-pdf" id="podnesak-pdf-btn" onclick="exportPDF(_lastRawText, this)">📄 Preuzmi PDF</button>
-              <button class="podnesak-preview-btn podnesak-preview-copy" id="podnesak-copy-btn" onclick="copyPodnesak(this)">📋 Kopiraj tekst</button>
-              <button class="podnesak-preview-btn btn-word" onclick="exportujKaoWord('Nacrt dokumenta',_lastRawText,'nacrt')">📝 Word</button>
+              <button class="podnesak-preview-btn podnesak-preview-pdf" id="podnesak-pdf-btn" onclick="exportPDF(_lastRawText, this)">Preuzmi PDF</button>
+              <button class="podnesak-preview-btn podnesak-preview-copy" id="podnesak-copy-btn" onclick="copyPodnesak(this)">Kopiraj tekst</button>
+              <button class="podnesak-preview-btn btn-word" onclick="exportujKaoWord('Nacrt dokumenta',_lastRawText,'nacrt')">Word</button>
               <button class="podnesak-preview-btn" id="nacrt-docx-btn" onclick="nacrtExportDocx()" style="background:rgba(0,212,255,0.08);border-color:rgba(0,212,255,0.3);color:#00d4ff;">⬇ DOCX</button>
-              <button class="podnesak-preview-btn podnesak-preview-edit" onclick="editPodnesak()">✏ Uredi / Follow-up</button>
+              <button class="podnesak-preview-btn podnesak-preview-edit" onclick="editPodnesak()">Uredi / Follow-up</button>
             </div>
           </div>
           <div class="chat-privacy-note">Sesije se čuvaju radi lakšeg rada. <span>Savetujemo korišćenje inicijala umesto punih imena stranaka.</span></div>
@@ -3358,7 +3358,7 @@
         <div id="portal-file-drop" onclick="document.getElementById('portal-file-input').click()"
           style="border:1.5px dashed rgba(255,255,255,0.12);border-radius:8px;padding:1.2rem;text-align:center;cursor:pointer;transition:border-color .2s;"
           onmouseover="this.style.borderColor='rgba(0,212,255,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.12)'">
-          <div style="font-size:1.4rem;margin-bottom:.3rem;">📎</div>
+          <div style="font-size:1.4rem;margin-bottom:.3rem;"></div>
           <div style="font-size:.8rem;color:rgba(255,255,255,0.5);">Kliknite ili prevucite fajl ovde</div>
           <div style="font-size:.67rem;color:rgba(255,255,255,0.25);margin-top:.25rem;">PDF, DOCX, JPG, PNG · maks 10 MB</div>
         </div>
@@ -3413,7 +3413,7 @@
       <button class="wl-submit" id="wl-submit-btn" onclick="wl_submit()">Prijavite se za rani pristup</button>
     </div>
     <div id="wl-success-wrap" class="wl-success" style="display:none;">
-      <div class="wl-success-ico">🎉</div>
+      <div class="wl-success-ico">✓</div>
       <div class="wl-success-title">Prijava primljena!</div>
       <p class="wl-success-sub">Hvala na interesovanju za Vindex AI.<br>Javićemo vam se na <strong id="wl-confirmed-email"></strong><br>čim otvorimo pristup.</p>
     </div>
@@ -3494,7 +3494,7 @@
   <div style="width:min(640px,92vw);background:#0d1b2a;border:1px solid rgba(0,212,255,0.18);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,0.7);overflow:hidden;">
     <!-- Search input -->
     <div style="display:flex;align-items:center;gap:0.6rem;padding:0.75rem 1rem;border-bottom:1px solid rgba(255,255,255,0.06);">
-      <span style="font-size:1.1rem;color:rgba(255,255,255,0.3);">🔍</span>
+      <span style="font-size:1.1rem;color:rgba(255,255,255,0.3);"></span>
       <input id="search-input" type="text" placeholder="Pretraži predmete, klijente, dokumente..." autocomplete="off" oninput="searchDebounce()"
         style="flex:1;background:none;border:none;outline:none;color:#fff;font-size:0.92rem;font-family:inherit;caret-color:#00d4ff;">
       <kbd onclick="searchClose()" style="padding:0.15rem 0.45rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;font-size:0.65rem;color:rgba(255,255,255,0.35);cursor:pointer;">ESC</kbd>
@@ -3529,7 +3529,7 @@
 <div class="settings-modal-overlay" id="settings-modal" onclick="if(event.target===this)closeSettings()">
   <div class="settings-modal">
     <button class="modal-close" onclick="closeSettings()" style="position:absolute;top:1rem;right:1rem;">&#x2715;</button>
-    <h3>⚙ Podešavanja kancelarije</h3>
+    <h3>Podešavanja kancelarije</h3>
     <p style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin:0 0 1.2rem;">Ovi podaci se prikazuju na PDF izveštajima. Čuvaju se lokalno u vašem pregledaču.</p>
     <div class="settings-row">
       <div class="settings-label">Naziv kancelarije</div>
@@ -3728,7 +3728,7 @@
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <div id="voice-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
   <div style="background:#0d1117;border:1px solid rgba(138,75,255,.4);border-radius:16px;padding:2rem 2.5rem;width:min(480px,90vw);text-align:center;box-shadow:0 0 60px rgba(138,75,255,.2);">
-    <div id="voice-pulse" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#8a4bff,#5b2fd4);margin:0 auto 1.2rem;display:flex;align-items:center;justify-content:center;font-size:1.8rem;box-shadow:0 0 0 0 rgba(138,75,255,.4);animation:voice-ring 1.5s ease-in-out infinite;">🎤</div>
+    <div id="voice-pulse" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#8a4bff,#5b2fd4);margin:0 auto 1.2rem;display:flex;align-items:center;justify-content:center;font-size:1.8rem;box-shadow:0 0 0 0 rgba(138,75,255,.4);animation:voice-ring 1.5s ease-in-out infinite;"></div>
     <div style="font-size:1rem;color:#fff;font-weight:600;margin-bottom:.4rem;">Slušam...</div>
     <div id="voice-transcript" style="min-height:2.5rem;font-size:.85rem;color:rgba(180,150,255,.8);margin:.6rem 0 1rem;font-style:italic;line-height:1.5;">Izgovorite komandu — npr. "otvori predmet Petrović i analiziraj ga"</div>
     <div id="voice-status" style="font-size:.75rem;color:rgba(138,75,255,.6);margin-bottom:.6rem;"></div>
@@ -3747,7 +3747,7 @@
     <button onclick="pred_fab_close();pred_subtabSwitch('rokovi')">Dodaj rok</button>
     <button onclick="pred_fab_close();rocisteOtvoriFormu(activePredmetId)">Zakaži ročište</button>
     <button onclick="pred_fab_close();pred_subtabSwitch('naplata')">Unesi naplatu</button>
-    <button onclick="pred_fab_close();if(activePredmetId){pred_subtabSwitch('timeline');}">📝 Dodaj belešku</button>
+    <button onclick="pred_fab_close();if(activePredmetId){pred_subtabSwitch('timeline');}">Dodaj belešku</button>
     <button onclick="pred_fab_close();if(!_billingPredmetId)_billingPredmetId=activePredmetId;if(typeof billing_timerToggle==='function')billing_timerToggle();">⏱ Pokreni tajmer</button>
   </div>
   <button id="pred-fab-btn" onclick="pred_fab_toggle()" title="Brze akcije — dodaj dokument, rok, naplatu">+</button>
@@ -3847,7 +3847,7 @@
 <div id="tos-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
   <div style="background:#0f1117;border:1px solid rgba(255,255,255,0.1);border-radius:14px;max-width:520px;width:92%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;animation:scale-in-dlg .2s ease;">
     <div style="padding:1.4rem 1.6rem 0.8rem;border-bottom:1px solid rgba(255,255,255,0.07);">
-      <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.3rem;">⚖️ Uslovi korišćenja i zaštita podataka</div>
+      <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.3rem;">Uslovi korišćenja i zaštita podataka</div>
       <div style="font-size:.72rem;color:rgba(255,255,255,.4);">Verzija 2026-07-02 — molimo pročitajte pre nastavka</div>
     </div>
     <div style="overflow-y:auto;padding:1rem 1.6rem;font-size:.77rem;color:rgba(255,255,255,.65);line-height:1.65;flex:1;">
@@ -3888,21 +3888,21 @@
 <div id="data-residency-overlay" onclick="dataResidencyClose()" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
   <div onclick="event.stopPropagation()" style="background:#0f1117;border:1px solid rgba(255,255,255,0.1);border-radius:14px;max-width:500px;width:92%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;animation:scale-in-dlg .2s ease;">
     <div style="padding:1.2rem 1.5rem .7rem;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-weight:700;color:#fff;font-size:.95rem;">🔒 Zaštita podataka klijenata</div>
+      <div style="font-weight:700;color:#fff;font-size:.95rem;">Zaštita podataka klijenata</div>
       <button onclick="dataResidencyClose()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:1.1rem;cursor:pointer;">✕</button>
     </div>
     <div style="overflow-y:auto;padding:1rem 1.5rem;font-size:.75rem;color:rgba(255,255,255,.6);line-height:1.6;">
       <div style="display:grid;gap:.6rem;">
 
         <div style="background:rgba(74,168,255,.07);border:1px solid rgba(74,168,255,.15);border-radius:9px;padding:.8rem 1rem;">
-          <div style="font-weight:700;color:#89c8ff;margin-bottom:.4rem;">🗄️ Supabase — Predmeti i klijenti</div>
+          <div style="font-weight:700;color:#89c8ff;margin-bottom:.4rem;">Supabase — Predmeti i klijenti</div>
           <div>Lokacija: <strong style="color:#fff;">Frankfurt, Nemačka (AWS eu-central-1)</strong></div>
           <div>Enkripcija: AES-256 u mirovanju, TLS 1.2+ u prenosu</div>
           <div>GDPR: ✓ &nbsp;SOC 2 Type II: ✓</div>
         </div>
 
         <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.15);border-radius:9px;padding:.8rem 1rem;">
-          <div style="font-weight:700;color:#fbbf24;margin-bottom:.4rem;">🤖 OpenAI — AI obrada</div>
+          <div style="font-weight:700;color:#fbbf24;margin-bottom:.4rem;">OpenAI — AI obrada</div>
           <div>Podaci: Delovi teksta dokumenata tokom AI analize</div>
           <div>Trening modela: <strong style="color:#7de0a0;">NE</strong> (politika od mar 2023)</div>
           <div>Zadržavanje: Max 30 dana radi detekcije zloupotrebe, zatim brisanje</div>
@@ -3910,7 +3910,7 @@
         </div>
 
         <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.15);border-radius:9px;padding:.8rem 1rem;">
-          <div style="font-weight:700;color:#c4b5fd;margin-bottom:.4rem;">📍 Pinecone — Pretraga dokumenata</div>
+          <div style="font-weight:700;color:#c4b5fd;margin-bottom:.4rem;">Pinecone — Pretraga dokumenata</div>
           <div>Podaci: Matematički vektori (ne originalni tekst)</div>
           <div>Lokacija: SAD (us-east-1)</div>
           <div>Izolovano po korisniku: ✓</div>

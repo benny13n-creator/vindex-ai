@@ -1,4 +1,4 @@
-
+﻿
 /* ── Srpska ćirilica — Vukova azbuka (inline, bez eksternog fajla) ────────── */
 (function(global){
   'use strict';
@@ -1105,7 +1105,7 @@ function _healthIndexRender(d) {
   // ── Slabi signali ─────────────────────────────────────────────────────────
   if (signals.length) {
     html += '<div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.18);border-radius:12px;padding:.8rem 1rem;margin-bottom:.8rem;">';
-    html += '<div style="font-size:.58rem;color:rgba(165,180,252,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.5rem;font-weight:700;">⚡ Slabi signali — obrasci iz prošlih predmeta</div>';
+    html += '<div style="font-size:.58rem;color:rgba(165,180,252,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.5rem;font-weight:700;">Slabi signali — obrasci iz prošlih predmeta</div>';
     signals.forEach(function(s) {
       html += '<div style="font-size:.75rem;color:rgba(255,255,255,.55);margin-bottom:.3rem;display:flex;gap:.45rem;align-items:flex-start;">';
       html += '<span style="flex-shrink:0;">'+_htmlEsc(s.icon||'•')+'</span>';
@@ -1117,7 +1117,7 @@ function _healthIndexRender(d) {
   // ── Institucionalni rizici ─────────────────────────────────────────────────
   if (risks.length) {
     html += '<div style="background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:12px;padding:.8rem 1rem;margin-bottom:.8rem;">';
-    html += '<div style="font-size:.58rem;color:rgba(251,191,36,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.5rem;font-weight:700;">🏢 Institucionalni rizici</div>';
+    html += '<div style="font-size:.58rem;color:rgba(251,191,36,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.5rem;font-weight:700;">Institucionalni rizici</div>';
     risks.forEach(function(r) {
       html += '<div style="margin-bottom:.45rem;">';
       html += '<div style="font-size:.72rem;font-weight:700;color:rgba(255,255,255,.65);">'+_htmlEsc(r.ikona+' '+r.naslov)+'</div>';
@@ -1353,7 +1353,7 @@ function _dashRender(d,bd,inboxData){
   html+='</div>';
   html+='<div class="kc-topbar-right">';
   html+='<div class="kc-search" title="Globalna pretraga — dolazi uskoro"><span class="kc-search-icon">⌕</span><span class="kc-search-ph">Pretraži predmete, klijente...</span><span class="kc-search-kbd">⌘K</span></div>';
-  html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(74,168,255,.25);border-radius:7px;background:rgba(74,168,255,.07);color:#89c8ff;cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">📊 Izveštaj</button>';
+  html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(74,168,255,.25);border-radius:7px;background:rgba(74,168,255,.07);color:#89c8ff;cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">Izveštaj</button>';
   html+='<button class="kc-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
   html+='</div></div>';
 
@@ -1374,7 +1374,7 @@ function _dashRender(d,bd,inboxData){
   // ── JUTARNJI BRIFING ──────────────────────────────────────────
   html+='<div id="briefing-card" class="kc-briefing-card">';
   html+='<div class="kc-briefing-header">';
-  html+='<div class="kc-briefing-title"><span class="kc-briefing-sun">☀</span> Jutarnji brifing</div>';
+  html+='<div class="kc-briefing-title">Jutarnji brifing</div>';
   html+='<div class="kc-briefing-actions">';
   html+='<button onclick="posaljiBriefingEmail()" class="kc-briefing-btn-email" title="Pošalji brifing na email">✉ Email</button>';
   html+='<button onclick="loadBriefing(true)" class="kc-briefing-btn-refresh" title="Osveži brifing">↻</button>';
@@ -1487,19 +1487,19 @@ function _dashRender(d,bd,inboxData){
   html+='<div class="kc-ai-section-hd">Pravni alati</div>';
   html+='<div class="kc-ai-grid">';
   html+='<div class="kc-ai-card" onclick="openAITool(\'q\')">';
-  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">⚖</span><span class="kc-ai-card-title">Istraživanje zakona</span></div>';
+  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon"></span><span class="kc-ai-card-title">Istraživanje zakona</span></div>';
   html+='<div class="kc-ai-card-desc">Postavi pravno pitanje. Dobij zakon, član i citat iz srpske pravne baze.</div>';
   html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
   html+='<div class="kc-ai-card" onclick="openAITool(\'a\')">';
-  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">📄</span><span class="kc-ai-card-title">Analiza dokumenta</span></div>';
+  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon"></span><span class="kc-ai-card-title">Analiza dokumenta</span></div>';
   html+='<div class="kc-ai-card-desc">Učitaj dokument. Automatski izvlači ključne klauzule, rizike i preporučene korake.</div>';
   html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
   html+='<div class="kc-ai-card" onclick="openAITool(\'s\')">';
-  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">🏛</span><span class="kc-ai-card-title">Sudska praksa</span></div>';
+  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon"></span><span class="kc-ai-card-title">Sudska praksa</span></div>';
   html+='<div class="kc-ai-card-desc">Pretraži relevantne presude srpskih sudova za tvoj predmet.</div>';
   html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
   html+='<div class="kc-ai-card pro" onclick="openAITool(\'n\')">';
-  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon">✍</span><span class="kc-ai-card-title">Nacrti i podnesci</span></div>';
+  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon"></span><span class="kc-ai-card-title">Nacrti i podnesci</span></div>';
   html+='<div class="kc-ai-card-desc">Automatski generiše tužbu, žalbu, ugovor ili drugi pravni dokument za predmet.</div>';
   html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
   html+='</div></div>';
@@ -1846,7 +1846,7 @@ _dashRender = function(d, bd, inboxData) {
       return i.prioritet === 'kriticno' || i.prioritet === 'visok';
     }).slice(0, 6);
     if (_hitne.length) {
-      var _tipIco = {rociste:'⚖',rok:'⏰',dokument:'📄',naplata:'💰',neaktivan:'💤'};
+      var _tipIco = {rociste:'',rok:'',dokument:'',naplata:'',neaktivan:''};
       var _kriticnoN = inboxData.kriticno || 0;
       var _visokN    = inboxData.visok    || 0;
       html += '<div class="kc-inbox-section">';
@@ -1966,7 +1966,7 @@ function _vx2_stub_start() { var html = ''; html += '<div class="vx2-core-wrap">
   html += '<div class="vx2-panel-hd"><span class="vx2-panel-name">Centar alata</span></div>';
   html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n" style="font-size:1.1rem;color:rgba(74,168,255,0.65)">847</span><span class="vx2-panel-stat-l">zakona RS</span></div>';
   html += '<div class="vx2-panel-ai-actions">';
-  html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'q\')">⚖ Istraži zakon</button>';
+  html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'q\')">Istraži zakon</button>';
   html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'a\')">☐ Analiziraj dokument</button>';
   html += '</div>';
   html += '<div class="vx2-panel-cta">Otvori hub →</div></div>';
@@ -2584,7 +2584,7 @@ function _updateStratTabUI() {
     tabBtn.title = 'PRO funkcija — pristup omogućen';
   } else {
     tabBtn.classList.add('locked');
-    if (badge) badge.textContent = '🔒 PRO';
+    if (badge) badge.textContent = 'PRO';
     tabBtn.title = 'Ova funkcija je dostupna isključivo PRO korisnicima';
   }
 }
@@ -2708,7 +2708,7 @@ async function stratPokreni() {
 
   if (!currentUserIsPro) {
     if (wrapEl) wrapEl.style.display = 'block';
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 <strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim strategijskim alatima.</small></div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate"><strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim strategijskim alatima.</small></div>';
     if (naslovEl) naslovEl.textContent = modul.naziv;
     return;
   }
@@ -2748,7 +2748,7 @@ async function stratPokreni() {
     });
 
     if (res.status === 403) {
-      if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 <strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim strategijskim alatima.</small></div>';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate"><strong>' + modul.naziv + '</strong> je dostupna samo PRO korisnicima.<br><small>Upgrade na PRO za pristup svim strategijskim alatima.</small></div>';
       return;
     }
 
@@ -2766,15 +2766,15 @@ async function stratPokreni() {
     if (data.modul === 'sudija_v2') {
       if (bodyEl) bodyEl.innerHTML =
         '<div class="debate-sekcija debate-tuzilac">'
-        + '<div class="debate-header">⚖️ TUŽILAC — Argumenti</div>'
+        + '<div class="debate-header">TUŽILAC — Argumenti</div>'
         + '<div class="debate-sadrzaj">' + stratFormatirajRezultat(data.tuzilac || '') + '</div>'
         + '</div>'
         + '<div class="debate-sekcija debate-branilac">'
-        + '<div class="debate-header">🛡️ BRANILAC — Odgovor</div>'
+        + '<div class="debate-header">BRANILAC — Odgovor</div>'
         + '<div class="debate-sadrzaj">' + stratFormatirajRezultat(data.branilac || '') + '</div>'
         + '</div>'
         + '<div class="debate-sekcija debate-presuda">'
-        + '<div class="debate-header">👨‍⚖️ SUDIJA — Odluka</div>'
+        + '<div class="debate-header">SUDIJA — Odluka</div>'
         + '<div class="debate-sadrzaj">' + stratFormatirajRezultat(data.presuda || '') + '</div>'
         + '</div>';
     } else if (data.analiza) {
@@ -2903,8 +2903,8 @@ function stratFormatirajRezultat(tekst) {
     .replace(/>/g, '&gt;');
   return escaped
     .replace(/^(\d+\.\s+[A-ZŠĐŽČĆА-Я\s]{3,})$/gm, '<span class="strat-sekcija">$1</span>')
-    .replace(/^(🔴[^\n]+)$/gm, '<span class="strat-kritican">$1</span>')
-    .replace(/^(🟡[^\n]+)$/gm, '<span class="strat-upozorenje">$1</span>')
+    .replace(/^🔴([^\n]+)$/gm, '<span class="strat-kritican">$1</span>')
+    .replace(/^🟡([^\n]+)$/gm, '<span class="strat-upozorenje">$1</span>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>');
 }
@@ -2917,7 +2917,7 @@ function stratKopiraj() {
     var btn = document.querySelector('.strat-copy-btn');
     if (btn) {
       btn.textContent = '✓ Kopirano';
-      setTimeout(function() { btn.textContent = '📋 Kopiraj'; }, 2000);
+      setTimeout(function() { btn.textContent = 'Kopiraj'; }, 2000);
     }
   });
 }
@@ -3004,7 +3004,7 @@ async function kreirajApiKljuc() {
     display.innerHTML =
       '<strong>Novi API ključ — sačuvajte, neće biti ponovo prikazan:</strong>' +
       '<span class="api-kljuc-value">' + data.kljuc + '</span>' +
-      '<button class="btn-word" onclick="navigator.clipboard.writeText(\'' + data.kljuc + '\');showToast(\'Ključ kopiran\')">📋 Kopiraj</button>';
+      '<button class="btn-word" onclick="navigator.clipboard.writeText(\'' + data.kljuc + '\');showToast(\'Ključ kopiran\')">Kopiraj</button>';
     display.style.display = 'block';
     document.getElementById('api-kljuc-naziv').value = '';
     await ucitajApiKljuceve();
@@ -3049,7 +3049,7 @@ function _urlBase64ToUint8Array(base64String) {
 async function subscribePush() {
   var btn = document.getElementById('push-btn');
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    if (btn) { btn.textContent = '❌ Browser ne podržava push'; btn.disabled = true; }
+    if (btn) { btn.textContent = 'Browser ne podržava push'; btn.disabled = true; }
     return;
   }
   if (!currentSession) { openModal(); return; }
@@ -3445,7 +3445,7 @@ async function crmUcitajTimeline(klijentId) {
     var events = d.timeline || [];
     if (!events.length) { el.innerHTML='<div class="crm-prazno">Nema aktivnosti.</div>'; return; }
     el.innerHTML = events.map(function(ev){
-      return '<div class="crm-timeline-item"><div class="crm-tl-ikona">'+(ev.ikona||'📌')+'</div><div class="crm-tl-body"><div class="crm-tl-datum">'+_htmlEsc((ev.datum||'').slice(0,16).replace('T',' '))+'</div><div class="crm-tl-opis">'+_htmlEsc(ev.opis||ev.tip||'')+'</div></div></div>';
+      return '<div class="crm-timeline-item"><div class="crm-tl-ikona">'+(ev.ikona||'')+'</div><div class="crm-tl-body"><div class="crm-tl-datum">'+_htmlEsc((ev.datum||'').slice(0,16).replace('T',' '))+'</div><div class="crm-tl-opis">'+_htmlEsc(ev.opis||ev.tip||'')+'</div></div></div>';
     }).join('');
   } catch(e) { el.innerHTML='<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška.</div>'; }
 }
@@ -3800,7 +3800,7 @@ async function web3Pokreni() {
 
   if (!currentUser) { openModal(); return; }
   if (!currentUserIsPro) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 Web3 Compliance je dostupan samo PRO korisnicima.</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">Web3 Compliance je dostupan samo PRO korisnicima.</div>';
     if (wrapEl) wrapEl.style.display = 'block';
     return;
   }
@@ -3830,13 +3830,13 @@ async function web3Pokreni() {
       body: reqBody
     });
     if (res.status === 403) {
-      if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">🔒 ' + modul.naziv + ' je dostupna samo PRO korisnicima.</div>';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">' + modul.naziv + ' je dostupna samo PRO korisnicima.</div>';
       return;
     }
     if (res.status === 402) {
       var errData = {}; try { errData = await res.json(); } catch(e2) {}
       var errMsg = (errData.detail && errData.detail.message) ? errData.detail.message : 'Nemate dovoljno kredita za ovu analizu.';
-      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">💳 ' + _htmlEsc(errMsg) + '</div>';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">' + _htmlEsc(errMsg) + '</div>';
       return;
     }
     if (!res.ok) throw new Error('Server greška: ' + res.status);
@@ -3885,7 +3885,7 @@ function web3Kopiraj() {
   if (!bodyEl) return;
   navigator.clipboard.writeText(bodyEl.innerText).then(function() {
     var btn = document.querySelector('.web3-copy-btn');
-    if (btn) { btn.textContent = '✓ Kopirano'; setTimeout(function() { btn.textContent = '📋 Kopiraj'; }, 2000); }
+    if (btn) { btn.textContent = '✓ Kopirano'; setTimeout(function() { btn.textContent = 'Kopiraj'; }, 2000); }
   });
 }
 
@@ -3921,7 +3921,7 @@ function oblastiIzaberiOblast(oblast, btn) {
   var opisEl = document.getElementById('ob-opis');
   if (opisEl) opisEl.innerHTML = '<span style="color:rgba(255,255,255,0.65);">' + _htmlEsc(meta.opis) + '</span>';
   var refEl = document.getElementById('ob-reference');
-  if (refEl) refEl.innerHTML = '<span>📚 Baza znanja:</span>' + meta.reference.map(function(r){ return '<span class="web3-ref-badge">' + _htmlEsc(r) + '</span>'; }).join('');
+  if (refEl) refEl.innerHTML = '<span>Baza znanja:</span>' + meta.reference.map(function(r){ return '<span class="web3-ref-badge">' + _htmlEsc(r) + '</span>'; }).join('');
   var tEl = document.getElementById('ob-tekst');
   if (tEl) tEl.placeholder = meta.placeholder;
   var wEl = document.getElementById('ob-rezultat-wrap');
@@ -3952,7 +3952,7 @@ async function oblastiPokreni() {
     });
     if (res.status === 402) {
       var ed = {}; try { ed = await res.json(); } catch(e2) {}
-      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">💳 ' + _htmlEsc((ed.detail && ed.detail.message) || 'Nemate dovoljno kredita.') + '</div>';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">' + _htmlEsc((ed.detail && ed.detail.message) || 'Nemate dovoljno kredita.') + '</div>';
       return;
     }
     if (!res.ok) throw new Error('Server greška: ' + res.status);
@@ -3989,7 +3989,7 @@ function web3ScoreBojaKlasa(score, max) {
 function web3StatusIkona(status) {
   if (status === 'ok') return '✅';
   if (status === 'warning') return '⚠️';
-  return '❌';
+  return '✕';
 }
 
 var _w3KatNazivi = {
@@ -4073,7 +4073,7 @@ function web3RenderLicense(licenseData, objasnjenje) {
 
   var html = '<div class="w3-license-wrap">';
   if (organ && organ !== 'nije_primenjivo') {
-    html += '<span class="w3-license-badge organ">🏛️ ' + _htmlEsc(organ) + '</span>';
+    html += '<span class="w3-license-badge organ"> + _htmlEsc(organ) + '</span>';
   }
   html += '<span class="w3-license-badge ' + (dozvola ? 'dozvola-da' : 'dozvola-ne') + '">';
   html += (dozvola ? '⚠️ Dozvola POTREBNA' : '✅ Dozvola NIJE potrebna') + '</span>';
@@ -4141,7 +4141,7 @@ function web3RenderSmartContract(data) {
   var ctLabel = ct === 'HIGH' ? 'Visoko poverenje' : ct === 'MEDIUM' ? 'Srednje poverenje' : 'Nisko poverenje — rezultati su indikativni';
   var ctClass = ct === 'HIGH' ? 'sc-conf-high' : ct === 'MEDIUM' ? 'sc-conf-medium' : 'sc-conf-low';
   html += '<div class="sc-header-row">';
-  html += '<div class="sc-contract-title">📜 ' + _htmlEsc(data.contract_name || 'Pametni ugovor');
+  html += '<div class="sc-contract-title">' + _htmlEsc(data.contract_name || 'Pametni ugovor');
   if (data.solidity_version && data.solidity_version !== 'nepoznata') {
     html += '<span class="sc-version">Solidity ' + _htmlEsc(data.solidity_version) + '</span>';
   }
@@ -4157,7 +4157,7 @@ function web3RenderSmartContract(data) {
   var sazetak = Array.isArray(a.pravni_sazetak) ? a.pravni_sazetak : [];
   if (sazetak.length) {
     html += '<div class="sc-section sc-sazetak-wrap">';
-    html += '<div class="sc-section-head">⚡ Pravni sažetak — 30 sekundi</div>';
+    html += '<div class="sc-section-head">Pravni sažetak — 30 sekundi</div>';
     html += '<div class="sc-section-body">';
     sazetak.forEach(function(s) { html += '<div class="sc-sazetak-item">• ' + _htmlEsc(s) + '</div>'; });
     html += '</div></div>';
@@ -4183,7 +4183,7 @@ function web3RenderSmartContract(data) {
     rizici.forEach(function(r) {
       var oz = ((r.ozbiljnost || '') + '').toUpperCase();
       var cls = (oz === 'KRITIČAN' || oz === 'KRITICAN') ? 'sc-rizik-kritican' : oz === 'VISOK' ? 'sc-rizik-visok' : oz === 'SREDNJI' ? 'sc-rizik-srednji' : 'sc-rizik-nizak';
-      var ikona = (oz === 'KRITIČAN' || oz === 'KRITICAN') ? '🚨' : oz === 'VISOK' ? '⚠️' : oz === 'SREDNJI' ? '🔶' : 'ℹ️';
+      var ikona = (oz === 'KRITIČAN' || oz === 'KRITICAN') ? '⚠️' : oz === 'VISOK' ? '⚠️' : oz === 'SREDNJI' ? '' : '';
       html += '<div class="sc-rizik-row ' + cls + '">';
       html += '<div class="sc-rizik-head">' + ikona + ' <span class="sc-rizik-oz">' + _htmlEsc(r.ozbiljnost || '') + '</span> — ' + _htmlEsc(r.rizik || '') + '</div>';
       if (r.obrazlozenje) html += '<div class="sc-rizik-obr">' + _htmlEsc(r.obrazlozenje) + '</div>';
@@ -4271,13 +4271,13 @@ function web3RenderSmartContract(data) {
   var indKeys = Object.keys(indNazivi);
   if (indKeys.some(function(k){ return !!(pi && pi[k]); })) {
     html += '<div class="sc-section">';
-    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">⚖️ Pravni indikatori <span class="sc-caret">▾</span></div>';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">Pravni indikatori <span class="sc-caret">▾</span></div>';
     html += '<div class="sc-section-body sc-indikatori-grid">';
     indKeys.forEach(function(k) {
       var ind = (pi && pi[k]) || {};
       var val = ((ind.indikator || 'NEDOVOLJNO PODATAKA') + '').toUpperCase();
       var valClass = val === 'DA' ? 'sc-ind-da' : (val === 'MOGUĆE' || val === 'MOGUCE') ? 'sc-ind-moguce' : val === 'NE' ? 'sc-ind-ne' : 'sc-ind-nd';
-      var valIkona = val === 'DA' ? '🔴' : (val === 'MOGUĆE' || val === 'MOGUCE') ? '🟡' : val === 'NE' ? '🟢' : '⚪';
+      var valIkona = val === 'DA' ? '' : (val === 'MOGUĆE' || val === 'MOGUCE') ? '' : val === 'NE' ? '' : '';
       html += '<div class="sc-indikator-card">';
       html += '<div class="sc-ind-naziv">' + _htmlEsc(indNazivi[k]) + '</div>';
       html += '<div class="sc-ind-value ' + valClass + '">' + valIkona + ' ' + _htmlEsc(ind.indikator || 'NEDOVOLJNO PODATAKA') + '</div>';
@@ -4378,7 +4378,7 @@ function web3RenderSmartContract(data) {
 
   if (Array.isArray(a.limitacije_analize) && a.limitacije_analize.length) {
     html += '<div class="sc-section">';
-    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">ℹ️ Limitacije analize <span class="sc-caret">▸</span></div>';
+    html += '<div class="sc-section-head sc-collapsible" onclick="scToggle(this)">Limitacije analize <span class="sc-caret">▸</span></div>';
     html += '<div class="sc-section-body" style="display:none">';
     a.limitacije_analize.forEach(function(l) { html += '<div class="sc-sazetak-item">• ' + _htmlEsc(l) + '</div>'; });
     html += '</div></div>';
@@ -4400,25 +4400,25 @@ function scToggle(headerEl) {
 
 /* PODNESAK HELPERS */
 var _PODNESAK_HINTS = {
-  tuzba_naknada_stete:    '⚖ Navedite: tužioca i tuženog (ime, adresa), opis štetnog dogadjaja, datum, vrstu i visinu štete, dostupne dokaze.',
-  tuzba_radni_spor:       '💼 Navedite: zaposlenog (ime, adresa), poslodavca (naziv, sedište), razlog spora (nezakonit otkaz / neisplaćena zarada / mobbing), datum i zahtevani iznos.',
-  tuzba_razvod:           '👪 Navedite: supružnike (ime, adresa), datum i mesto zaključenja braka, zajedničku decu (ime, godište), razloge za razvod, zahteve u pogledu dece i imovine.',
-  zalba_parnicna:         '⚠ Navedite: naziv suda, broj predmeta, datum presude, razloge za žalbu.',
-  zalba_na_presudu:       '⚠ Navedite: naziv suda, broj predmeta, datum presude, razloge za žalbu (pogrešna primena prava / pogrešno činjenično stanje / bitna povreda ZPP).',
-  zalba_na_resenje:       '📋 Navedite: naziv organa koji je doneo rešenje, broj rešenja, datum dostave, razloge za žalbu, broj drugostepenog organa.',
-  prigovor_platni_nalog:  '🔔 Navedite: naziv suda, broj platnog naloga (Pl. br.), datum dostave, dužnika, poverioca, iznos i razloge prigovora.',
-  predlog_privremena_mera:'⚡ Navedite: sud, predlagača, protivnika obezbeđenja, potraživanje (iznos/opis), predloženu meru (zabrana otuđenja, zaplena), razloge hitnosti.',
-  predlog_izvrsenje:      '⚡ Navedite: vrstu izvršne isprave (presuda/rešenje), broj i datum isprave, izvršenika (ime, adresa), iznos duga i željeno sredstvo izvršenja.',
-  krivicna_prijava:       '🚨 Navedite: podnosioca (ime, adresa), okrivljenog (ime, adresa), naziv krivičnog dela (npr. prevara čl. 208 KZ), datum i opis dogadjaja, dostupne dokaze.',
-  opomena_duznik:         '📩 Navedite: poverioca (ime/naziv), dužnika (ime/naziv), iznos duga, osnov (faktura, ugovor), rok za plaćanje.',
-  zahtev_poslodavcu:      '📝 Navedite: zaposlenog (ime), poslodavca (naziv), sadržaj zahteva (isplata zarade, godišnji odmor...), zakonski osnov, rok za odgovor.',
-  obaveštenje_o_otkazu:   '📨 Navedite: stranu koja otkazuje, drugu stranu, datum otkaza, otkazni rok, razlog otkaza.',
-  ugovor_kupoprodaja:     '🛒 Navedite: prodavca, kupca (ime, adresa), predmet prodaje (opis, serijski broj), cenu u RSD, način plaćanja, rok isporuke.',
-  ugovor_zakup:           '🏠 Navedite: zakupodavca, zakupca (ime, adresa), opis nepokretnosti (adresa, površina), zakupninu (RSD/mesečno), period zakupa, depozit.',
-  odgovor_na_tuzbu:       '🛡 Navedite: tuženog (ime, adresa), broj predmeta i datum tužbe, navode tužioca koje osporavate, dokaze u odbranu, datum prijema tužbe.',
-  zalba_krivicna:         '⚖ Navedite: optuženog (ime), naziv suda, broj presude, datum dostave, razloge žalbe (bitna povreda ZKP / pogrešne činjenice / pogrešna primena KZ), žalbeni predlog.',
-  urgencija_sudu:         '⏰ Navedite: stranku (ime), broj predmeta, naziv suda, period čekanja, šta sud nije uradio i koje posledice to ima, konkretan zahtev.',
-  prigovor_izvrsenje:     '🚫 Navedite: dužnika (ime), broj rešenja o izvršenju, datum dostave, razloge prigovora (potraživanje ne postoji, zastarelo, pogodba...), dokaze.',
+  tuzba_naknada_stete:    'Navedite: tužioca i tuženog (ime, adresa), opis štetnog dogadjaja, datum, vrstu i visinu štete, dostupne dokaze.',
+  tuzba_radni_spor:       'Navedite: zaposlenog (ime, adresa), poslodavca (naziv, sedište), razlog spora (nezakonit otkaz / neisplaćena zarada / mobbing), datum i zahtevani iznos.',
+  tuzba_razvod:           'Navedite: supružnike (ime, adresa), datum i mesto zaključenja braka, zajedničku decu (ime, godište), razloge za razvod, zahteve u pogledu dece i imovine.',
+  zalba_parnicna:         'Navedite: naziv suda, broj predmeta, datum presude, razloge za žalbu.',
+  zalba_na_presudu:       'Navedite: naziv suda, broj predmeta, datum presude, razloge za žalbu (pogrešna primena prava / pogrešno činjenično stanje / bitna povreda ZPP).',
+  zalba_na_resenje:       'Navedite: naziv organa koji je doneo rešenje, broj rešenja, datum dostave, razloge za žalbu, broj drugostepenog organa.',
+  prigovor_platni_nalog:  'Navedite: naziv suda, broj platnog naloga (Pl. br.), datum dostave, dužnika, poverioca, iznos i razloge prigovora.',
+  predlog_privremena_mera:'Navedite: sud, predlagača, protivnika obezbeđenja, potraživanje (iznos/opis), predloženu meru (zabrana otuđenja, zaplena), razloge hitnosti.',
+  predlog_izvrsenje:      'Navedite: vrstu izvršne isprave (presuda/rešenje), broj i datum isprave, izvršenika (ime, adresa), iznos duga i željeno sredstvo izvršenja.',
+  krivicna_prijava:       'Navedite: podnosioca (ime, adresa), okrivljenog (ime, adresa), naziv krivičnog dela (npr. prevara čl. 208 KZ), datum i opis dogadjaja, dostupne dokaze.',
+  opomena_duznik:         'Navedite: poverioca (ime/naziv), dužnika (ime/naziv), iznos duga, osnov (faktura, ugovor), rok za plaćanje.',
+  zahtev_poslodavcu:      'Navedite: zaposlenog (ime), poslodavca (naziv), sadržaj zahteva (isplata zarade, godišnji odmor...), zakonski osnov, rok za odgovor.',
+  obaveštenje_o_otkazu:   'Navedite: stranu koja otkazuje, drugu stranu, datum otkaza, otkazni rok, razlog otkaza.',
+  ugovor_kupoprodaja:     'Navedite: prodavca, kupca (ime, adresa), predmet prodaje (opis, serijski broj), cenu u RSD, način plaćanja, rok isporuke.',
+  ugovor_zakup:           'Navedite: zakupodavca, zakupca (ime, adresa), opis nepokretnosti (adresa, površina), zakupninu (RSD/mesečno), period zakupa, depozit.',
+  odgovor_na_tuzbu:       'Navedite: tuženog (ime, adresa), broj predmeta i datum tužbe, navode tužioca koje osporavate, dokaze u odbranu, datum prijema tužbe.',
+  zalba_krivicna:         'Navedite: optuženog (ime), naziv suda, broj presude, datum dostave, razloge žalbe (bitna povreda ZKP / pogrešne činjenice / pogrešna primena KZ), žalbeni predlog.',
+  urgencija_sudu:         'Navedite: stranku (ime), broj predmeta, naziv suda, period čekanja, šta sud nije uradio i koje posledice to ima, konkretan zahtev.',
+  prigovor_izvrsenje:     'Navedite: dužnika (ime), broj rešenja o izvršenju, datum dostave, razloge prigovora (potraživanje ne postoji, zastarelo, pogodba...), dokaze.',
 };
 
 /* Tipovi koji idu na /api/nacrt (drafting modul) */
@@ -4444,7 +4444,7 @@ var _NACRT_API_TYPES = new Set();
       if (!data || !Array.isArray(data.tipovi)) return;
       data.tipovi.forEach(function(t) {
         _NACRT_API_TYPES.add(t.vrsta);
-        if (t.opis_hint) _PODNESAK_HINTS[t.vrsta] = '📄 ' + t.opis_hint;
+        if (t.opis_hint) _PODNESAK_HINTS[t.vrsta] = t.opis_hint;
       });
     })
     .catch(function() {});
@@ -4585,9 +4585,9 @@ function editPodnesak() {
       'service-not-allowed':'⚙️ Servis blokiran. Probajte: Katanac → Mikrofon → Dozvoli. Ako ne radi, koristite Chrome na desktop-u.',
       'no-speech':          '',  // tiho — normalna situacija
       'aborted':            '',  // tiho — korisnik je sam zaustavio
-      'audio-capture':      '🎙️ Mikrofon nije pronađen. Proverite da li je uređaj priključen.',
-      'network':            '🌐 Nema internet konekcije. Glasovni unos zahteva online vezu.',
-      'language-not-supported': '🌍 Srpski jezik nije podržan na ovom uređaju. Probajte Chrome na Windows/Mac.',
+      'audio-capture':      'Mikrofon nije pronađen. Proverite da li je uređaj priključen.',
+      'network':            'Nema internet konekcije. Glasovni unos zahteva online vezu.',
+      'language-not-supported': 'Srpski jezik nije podržan na ovom uređaju. Probajte Chrome na Windows/Mac.',
     };
     return msgs[code] || ('Greška glasovnog unosa: ' + code + '. Probajte ponovo ili koristite kucanje.');
   }
@@ -4606,13 +4606,13 @@ function editPodnesak() {
 
     // Bez logovanog korisnika auto-submit samo otvara modal, ne šalje
     if (!window.currentUser) {
-      showToast('🎙 Prijavite se da biste koristili glasovni unos.', 'err');
+      showToast('Prijavite se da biste koristili glasovni unos.', 'err');
       if (typeof openModal === 'function') openModal();
       return;
     }
     var btn = document.getElementById('mic-' + targetId);
     if (btn) btn.classList.remove('mic-active');
-    showToast('🎙 Šaljem upit...', 'info');
+    showToast('Šaljem upit...', 'info');
     window._vxLastInputWasVoice = true;
     setTimeout(function() {
       if (typeof execQuery === 'function') execQuery();
@@ -4693,7 +4693,7 @@ function editPodnesak() {
         // service-not-allowed u continuous modu — retry bez continuous
         if (code === 'service-not-allowed' && useCont) {
           _useContinuous = false;
-          showToast('ℹ️ Prebacujem na jednorečenični mod...', 'info');
+          showToast('Prebacujem na jednorečenični mod...', 'info');
           setTimeout(function(){ tryStart(false); }, 400);
           return;
         }
@@ -4907,16 +4907,16 @@ function formatResponse(rawText) {
     { key:'[v] STATUSNA POTVRDA:',              cls:'resp-status-ok',   lbl:'✓ Potvrda citiranja',             icon:'' },
     { key:'[~] STATUSNA POTVRDA:',              cls:'resp-status-warn', lbl:'~ Potvrda citiranja',             icon:'' },
     { key:'[!] STATUSNA POTVRDA:',              cls:'resp-status-err',  lbl:'! Potvrda citiranja',             icon:'' },
-    { key:'--- HIJERARHIJA IZVORA',             cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora',            icon:'hijerarhija' },
-    { key:'--- PRAVNI ZAKLJUČAK',               cls:'resp-zakljucak',   lbl:'⚖️ Pravni zaključak',             icon:'zakljucak' },
+    { key:'--- HIJERARHIJA IZVORA',             cls:'resp-hijerarhija', lbl:'Hijerarhija izvora',            icon:'hijerarhija' },
+    { key:'--- PRAVNI ZAKLJUČAK',               cls:'resp-zakljucak',   lbl:'Pravni zaključak',             icon:'zakljucak' },
     // Specifičnije ANALIZA sekcije moraju biti pre generičke --- ANALIZA
-    { key:'--- ANALIZA USKLAĐENOSTI',           cls:'resp-steta',       lbl:'⚖ Analiza usklađenosti',          icon:'steta' },
-    { key:'--- ANALIZA PORESKE OBAVEZE',        cls:'resp-steta',       lbl:'⚖ Analiza poreske obaveze',       icon:'steta' },
-    { key:'--- ANALIZA ŠTETE',                  cls:'resp-steta',       lbl:'⚖ Analiza štete',                 icon:'steta' },
-    { key:'--- ANALIZA',                        cls:'resp-steta',       lbl:'⚖ Analiza',                       icon:'steta' },
-    { key:'--- PROCENA VREDNOSTI ZAHTEVA',      cls:'resp-procena',     lbl:'💰 Procena vrednosti zahteva',     icon:'' },
+    { key:'--- ANALIZA USKLAĐENOSTI',           cls:'resp-steta',       lbl:'Analiza usklađenosti',          icon:'steta' },
+    { key:'--- ANALIZA PORESKE OBAVEZE',        cls:'resp-steta',       lbl:'Analiza poreske obaveze',       icon:'steta' },
+    { key:'--- ANALIZA ŠTETE',                  cls:'resp-steta',       lbl:'Analiza štete',                 icon:'steta' },
+    { key:'--- ANALIZA',                        cls:'resp-steta',       lbl:'Analiza',                       icon:'steta' },
+    { key:'--- PROCENA VREDNOSTI ZAHTEVA',      cls:'resp-procena',     lbl:'Procena vrednosti zahteva',     icon:'' },
     { key:'--- CITAT ZAKONA',                   cls:'resp-citat',       lbl:'📖 Citat zakona [RAG]',            icon:'citat' },
-    { key:'--- PRAVNI OSNOV',                   cls:'resp-pravni-osnov',lbl:'⚖ Pravni osnov',                  icon:'osnov' },
+    { key:'--- PRAVNI OSNOV',                   cls:'resp-pravni-osnov',lbl:'Pravni osnov',                  icon:'osnov' },
     // Specifičnije RIZICI sekcije pre generičke
     { key:'--- RIZICI I ROKOVI',                cls:'resp-rizici',      lbl:'⚠️ Rizici i rokovi',              icon:'rizici' },
     { key:'--- PORESKI RIZICI',                 cls:'resp-rizici',      lbl:'⚠️ Poreski rizici',               icon:'rizici' },
@@ -4928,41 +4928,41 @@ function formatResponse(rawText) {
     { key:'--- PROCESNI KORACI',                cls:'resp-procesni',    lbl:'📋 Procesni koraci',               icon:'procesni' },
     // DEFINICIJA specifične sekcije
     { key:'--- PRAVNA DEFINICIJA',              cls:'resp-pravna-def',  lbl:'📖 Pravna definicija',             icon:'citat' },
-    { key:'--- PRAKTIČAN PRIMER',               cls:'resp-edgecase',    lbl:'💡 Praktičan primer',              icon:'' },
-    { key:'--- KLJUČNO PITANJE',                cls:'resp-kljucno-parnica', lbl:'🎯 Ključno pitanje',          icon:'' },
+    { key:'--- PRAKTIČAN PRIMER',               cls:'resp-edgecase',    lbl:'Praktičan primer',              icon:'' },
+    { key:'--- KLJUČNO PITANJE',                cls:'resp-kljucno-parnica', lbl:'Ključno pitanje',          icon:'' },
     { key:'--- POTREBNE INFORMACIJE',           cls:'resp-potrebne',    lbl:'📌 Potrebne informacije',          icon:'' },
     { key:'--- MIŠLJENJA MINISTARSTAVA',          cls:'resp-misljenje',   lbl:'📋 Mišljenja ministarstava',       icon:'' },
     { key:'--- IZVOR',                          cls:'resp-izvor',       lbl:'Izvor',                           icon:'' },
     // ── v2.0 sekcije (emoji + mixed case) ──────────────────────────────────
-    { key:'⚡ TL;DR',                      cls:'resp-tldr',        lbl:'⚡ TL;DR — Kratak zaključak', icon:'tldr' },
-    { key:'⚖️ Pravni zaključak',           cls:'resp-zakljucak',   lbl:'⚖️ Pravni zaključak',        icon:'zakljucak' },
+    { key:'⚡ TL;DR',                      cls:'resp-tldr',        lbl:'TL;DR — Kratak zaključak', icon:'tldr' },
+    { key:'⚖️ Pravni zaključak',           cls:'resp-zakljucak',   lbl:'Pravni zaključak',        icon:'zakljucak' },
     { key:'📖 Citat zakona',               cls:'resp-citat',       lbl:'📖 Citat zakona',             icon:'citat' },
     { key:'📖 Pravna definicija',          cls:'resp-zakljucak',   lbl:'📖 Pravna definicija',        icon:'zakljucak' },
     { key:'🔗 Lanac rezonovanja',          cls:'resp-lanac',       lbl:'🔗 Lanac rezonovanja',        icon:'lanac' },
-    { key:'⚖ Pravni osnov',               cls:'resp-pravni-osnov',lbl:'⚖ Pravni osnov',             icon:'osnov' },
+    { key:'⚖ Pravni osnov',               cls:'resp-pravni-osnov',lbl:'Pravni osnov',             icon:'osnov' },
     { key:'⚠️ Rizici i rokovi zastarelosti', cls:'resp-rizici',   lbl:'⚠️ Rizici i rokovi',         icon:'rizici' },
     { key:'⚠️ Rizici i rokovi',            cls:'resp-rizici',      lbl:'⚠️ Rizici i rokovi',         icon:'rizici' },
     { key:'⚠️ Poreski rizici',             cls:'resp-rizici',      lbl:'⚠️ Poreski rizici',          icon:'rizici' },
     { key:'✅ Compliance koraci',          cls:'resp-procesni',    lbl:'✅ Compliance koraci',        icon:'procesni' },
     { key:'📋 Poreske obaveze — koraci',   cls:'resp-procesni',    lbl:'📋 Poreske obaveze',         icon:'procesni' },
     { key:'📋 Procesni koraci',            cls:'resp-procesni',    lbl:'📋 Procesni koraci',          icon:'procesni' },
-    { key:'🎯 Pouzdanost',                 cls:'resp-pouzdanost',  lbl:'🎯 Pouzdanost',               icon:'pouzdanost' },
-    { key:'🎯 Ključno pitanje',            cls:'resp-kljucno',     lbl:'🎯 Ključno pitanje',          icon:'kljucno' },
-    { key:'💡 Praktičan primer',           cls:'resp-edgecase',    lbl:'💡 Praktičan primer',         icon:'' },
+    { key:'🎯 Pouzdanost',                 cls:'resp-pouzdanost',  lbl:'Pouzdanost',               icon:'pouzdanost' },
+    { key:'🎯 Ključno pitanje',            cls:'resp-kljucno',     lbl:'Ključno pitanje',          icon:'kljucno' },
+    { key:'💡 Praktičan primer',           cls:'resp-edgecase',    lbl:'Praktičan primer',         icon:'' },
     { key:'ℹ️ Napomena',                   cls:'resp-disclaimer',  lbl:'Napomena',                   icon:'' },
     // ── v1 sekcije (CAPS + colon) — zadržane za kompatibilnost ─────────────
-    { key:'KRATAK ZAKLJUČAK (TL;DR):', cls:'resp-tldr',       lbl:'⚡ TL;DR — Kratak zaključak', icon:'tldr' },
-    { key:'HIJERARHIJA IZVORA:', cls:'resp-hijerarhija', lbl:'⚖ Hijerarhija izvora',   icon:'hijerarhija' },
-    { key:'PRAVNI ZAKLJUČAK:',  cls:'resp-zakljucak',  lbl:'⚖️ Pravni zaključak',    icon:'zakljucak' },
-    { key:'ANALIZA ŠTETE:',     cls:'resp-steta',      lbl:'⚖ Analiza štete',         icon:'steta' },
+    { key:'KRATAK ZAKLJUČAK (TL;DR):', cls:'resp-tldr',       lbl:'TL;DR — Kratak zaključak', icon:'tldr' },
+    { key:'HIJERARHIJA IZVORA:', cls:'resp-hijerarhija', lbl:'Hijerarhija izvora',   icon:'hijerarhija' },
+    { key:'PRAVNI ZAKLJUČAK:',  cls:'resp-zakljucak',  lbl:'Pravni zaključak',    icon:'zakljucak' },
+    { key:'ANALIZA ŠTETE:',     cls:'resp-steta',      lbl:'Analiza štete',         icon:'steta' },
     { key:'CITAT ZAKONA:',      cls:'resp-citat',      lbl:'📖 Citat zakona',          icon:'citat' },
     { key:'CITAT IZ ZAKONA:',   cls:'resp-citat',      lbl:'📖 Citat zakona',          icon:'citat' },
     { key:'PRAVNI OSNOV:',      cls:'resp-pravni-osnov',lbl:'Pravni osnov',            icon:'osnov' },
     { key:'POUZDANOST:',        cls:'resp-pouzdanost', lbl:'Pouzdanost',               icon:'pouzdanost' },
     { key:'RIZICI I IZUZECI:',  cls:'resp-rizici',     lbl:'⚠️ Rizici i izuzeci',     icon:'rizici' },
     { key:'KADA OVO NE VAŽI:',  cls:'resp-edgecase',   lbl:'📍 Kada ovo ne važi',     icon:'edgecase' },
-    { key:'PROCESNI KORACI:',   cls:'resp-procesni',   lbl:'⚡ Procesni koraci',       icon:'procesni' },
-    { key:'KLJUČNO PITANJE:',   cls:'resp-kljucno',    lbl:'🎯 Ključno pitanje',       icon:'kljucno' },
+    { key:'PROCESNI KORACI:',   cls:'resp-procesni',   lbl:'Procesni koraci',       icon:'procesni' },
+    { key:'KLJUČNO PITANJE:',   cls:'resp-kljucno',    lbl:'Ključno pitanje',       icon:'kljucno' },
     { key:'DODATNA PITANJA:',   cls:'resp-pitanja',    lbl:'🔍 Potrebne informacije',  icon:'pitanja' },
     { key:'NACRT:',             cls:'resp-nacrt',      lbl:'Nacrt dokumenta',       icon:'' },
     { key:'ANALIZA:',           cls:'resp-analiza',    lbl:'Analiza',               icon:'' },
@@ -5024,7 +5024,7 @@ function formatResponse(rawText) {
   } else if (pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1) {
     trustBadge = '<div class="trust-badge trust-high">✅ Doslovno citiran — član direktno pronađen u bazi zakona RS.</div>';
   } else if (pouzdanostVal.indexOf('📝') !== -1 || pouzdanostVal.indexOf('Parafrazirano') !== -1) {
-    trustBadge = '<div class="trust-badge trust-mid">📝 Parafrazirano — sadržaj zakona potvrđen, nije doslovan citat.</div>';
+    trustBadge = '<div class="trust-badge trust-mid">Parafrazirano — sadržaj zakona potvrđen, nije doslovan citat.</div>';
   } else if (isV2) {
     trustBadge = '';
   } else {
@@ -5165,11 +5165,11 @@ function formatResponse(rawText) {
   var fullEnc = encodeURIComponent(rawText);
   var osnovLabel = osnovVal ? osnovVal.replace(/\*\*/g,'').trim().substring(0,60) : 'Sl. glasnik';
   html += '<div class="resp-actions">'+
-    '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +citatEnc+ '\'),this)">📎 Kopiraj citat</button>'+
-    '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +osnovEnc+ '\'),this)">📋 Izvor: '+ osnovLabel +'</button>'+
-    '<button class="resp-action-btn" style="background:rgba(74,168,255,0.07);border-color:rgba(74,168,255,0.25);color:#89c8ff;" onclick="exportPDF(decodeURIComponent(\'' +fullEnc+ '\'),this)">📄 Sačuvaj PDF</button>'+
-    '<button class="resp-action-btn btn-word" onclick="exportujKaoWord(\'Pravno istraživanje\',_lastRawText,\'istrazivanje\')">📝 Word</button>'+
-    '<button class="resp-action-btn follow-up-btn" id="followUpBtn_'+Date.now()+'" onclick="startFollowUp(this)">🔁 Follow-up</button>'+
+    '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +citatEnc+ '\'),this)">Kopiraj citat</button>'+
+    '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +osnovEnc+ '\'),this)">Izvor: '+ osnovLabel +'</button>'+
+    '<button class="resp-action-btn" style="background:rgba(74,168,255,0.07);border-color:rgba(74,168,255,0.25);color:#89c8ff;" onclick="exportPDF(decodeURIComponent(\'' +fullEnc+ '\'),this)">Sačuvaj PDF</button>'+
+    '<button class="resp-action-btn btn-word" onclick="exportujKaoWord(\'Pravno istraživanje\',_lastRawText,\'istrazivanje\')">Word</button>'+
+    '<button class="resp-action-btn follow-up-btn" id="followUpBtn_'+Date.now()+'" onclick="startFollowUp(this)">Follow-up</button>'+
     '</div>';
   html = _injectIzmeneBadges(html);
   return html;
@@ -5201,11 +5201,11 @@ function sazimiZaKlijenta(fullText, btn) {
   var sel = document.createElement('div');
   sel.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
   sel.innerHTML = '<div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:1.8rem;max-width:420px;width:90%;">'
-    + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:1rem;">✨ Sažetak za klijenta — odaberite format</div>'
+    + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:1rem;">Sažetak za klijenta — odaberite format</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.6rem;">'
-    + '<button data-fmt="email" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);color:#a5b4fc;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;">📧 Email — formalni, sa pozdravom</button>'
-    + '<button data-fmt="viber" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);color:#4ade80;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;">💬 Viber — kratak, neformalan (3-4 rečenice)</button>'
-    + '<button data-fmt="pisano" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#fbbf24;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;">📄 Pisano obaveštenje — zvanično pismo</button>'
+    + '<button data-fmt="email" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);color:#a5b4fc;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;">Email — formalni, sa pozdravom</button>'
+    + '<button data-fmt="viber" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);color:#4ade80;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;">Viber — kratak, neformalan (3-4 rečenice)</button>'
+    + '<button data-fmt="pisano" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#fbbf24;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;text-align:left;">Pisano obaveštenje — zvanično pismo</button>'
     + '</div>'
     + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="margin-top:1rem;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-family:inherit;font-size:0.8rem;">✕ Odustani</button>'
     + '</div>';
@@ -5233,14 +5233,14 @@ function _doSazmi(fullText, btn, fmt) {
   .then(function(data){
     btn.textContent = orig; btn.disabled = false;
     var sazetak = data.sazetak || data.detail || 'Greška pri generisanju.';
-    var fmtLabel = { email: '📧 Email', viber: '💬 Viber', pisano: '📄 Pisano obaveštenje' }[fmt] || '';
+    var fmtLabel = { email: 'Email', viber: 'Viber', pisano: 'Pisano obaveštenje' }[fmt] || '';
     var modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = '<div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:2rem;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;position:relative;">'
-      + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:0.75rem;">✨ Verzija za klijenta — ' + fmtLabel + '</div>'
+      + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.4);margin-bottom:0.75rem;">Verzija za klijenta — ' + fmtLabel + '</div>'
       + '<div style="font-size:0.9rem;line-height:1.7;color:rgba(255,255,255,0.85);white-space:pre-wrap;">' + escHtml(sazetak) + '</div>'
       + '<div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;">'
-      + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(sazetak) + ').then(function(){this.textContent=\'✓ Kopirano!\';}.bind(this))" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);color:#4ade80;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.75rem;">📋 Kopiraj tekst</button>'
+      + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(sazetak) + ').then(function(){this.textContent=\'✓ Kopirano!\';}.bind(this))" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);color:#4ade80;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.75rem;">Kopiraj tekst</button>'
       + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.75rem;">✕ Zatvori</button>'
       + '</div></div>';
     modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
@@ -5580,7 +5580,7 @@ function startFollowUp(btn) {
     // Novo pitanje — resetuj sesiju
     newChat();
     _followUpUsed = false;
-    if (btn) btn.textContent = '🔁 Follow-up';
+    if (btn) btn.textContent = 'Follow-up';
     return;
   }
   var el = document.getElementById('qi');
@@ -5849,9 +5849,9 @@ function _feedbackBar(pitanje, odgovor) {
   var o = encodeURIComponent(odgovor||'').substring(0,1000);
   _vxLastResponseText = odgovor || '';  // sačuvaj za TTS dugme
   return '<div class="feedback-bar">'
-    + '<button class="vx-tts-btn" id="vx-tts-play-btn" onclick="vx_tts_toggle()">🔊 Pročitaj</button>'
-    + '<button class="feedback-btn" onclick="_generateDraftFromQA()" title="Koristi ovaj odgovor kao osnov za generisanje nacrta podneska">📝 Generiši nacrt</button>'
-    + '<button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">⚑ Prijavi netačan odgovor</button>'
+    + '<button class="vx-tts-btn" id="vx-tts-play-btn" onclick="vx_tts_toggle()">Pročitaj</button>'
+    + '<button class="feedback-btn" onclick="_generateDraftFromQA()" title="Koristi ovaj odgovor kao osnov za generisanje nacrta podneska">Generiši nacrt</button>'
+    + '<button class="feedback-btn" id="fb-btn" onclick="sendFeedback(this,\''+p+'\',\''+o+'\')">Prijavi netačan odgovor</button>'
     + '</div>';
 }
 
@@ -5917,7 +5917,7 @@ function analizaRenderRezultat(tekst) {
                   procena.indexOf('SREDNJA') !== -1 ? 'score-warning' : 'score-danger';
 
     html += '<div class="analiza-rezime">';
-    html += '<div class="analiza-rezime-header">🎯 Izvršni rezime</div>';
+    html += '<div class="analiza-rezime-header">Izvršni rezime</div>';
     html += '<div class="analiza-rezime-body"><div class="analiza-procena-wrap">';
     html += '<div class="analiza-procena-krug ' + bojaCls + '">';
     html += '<span class="analiza-procena-label">' + escHtml(procena) + '</span>';
@@ -5925,10 +5925,10 @@ function analizaRenderRezultat(tekst) {
     if (pouzdanost) html += '<span class="analiza-procena-pouzdanost">pouzdanost: ' + escHtml(pouzdanost) + '</span>';
     html += '</div>';
     html += '<div class="analiza-rezime-polja">';
-    if (argument) html += '<div class="analiza-rezime-polje"><span class="analiza-rezime-ikona">💪</span><div><strong>Najjači argument</strong><p>' + escHtml(argument) + '</p></div></div>';
-    if (rizik)    html += '<div class="analiza-rezime-polje"><span class="analiza-rezime-ikona">⚠️</span><div><strong>Najveći rizik</strong><p>' + escHtml(rizik) + '</p></div></div>';
-    if (dokaz)    html += '<div class="analiza-rezime-polje"><span class="analiza-rezime-ikona">🔑</span><div><strong>Ključni dokaz</strong><p>' + escHtml(dokaz) + '</p></div></div>';
-    if (korak)    html += '<div class="analiza-rezime-polje analiza-sledeci-korak"><span class="analiza-rezime-ikona">➡️</span><div><strong>Sledeći korak</strong><p>' + escHtml(korak) + '</p></div></div>';
+    if (argument) html += '<div class="analiza-rezime-polje"><span class="analiza-rezime-ikona"></span><div><strong>Najjači argument</strong><p>' + escHtml(argument) + '</p></div></div>';
+    if (rizik)    html += '<div class="analiza-rezime-polje"><span class="analiza-rezime-ikona"></span><div><strong>Najveći rizik</strong><p>' + escHtml(rizik) + '</p></div></div>';
+    if (dokaz)    html += '<div class="analiza-rezime-polje"><span class="analiza-rezime-ikona"></span><div><strong>Ključni dokaz</strong><p>' + escHtml(dokaz) + '</p></div></div>';
+    if (korak)    html += '<div class="analiza-rezime-polje analiza-sledeci-korak"><span class="analiza-rezime-ikona"></span><div><strong>Sledeći korak</strong><p>' + escHtml(korak) + '</p></div></div>';
     html += '</div></div></div></div>';
   }
 
@@ -5937,7 +5937,7 @@ function analizaRenderRezultat(tekst) {
   if (zast) {
     var lines = zast.split('\n').filter(function(l){ return l.trim().indexOf('🚨') !== -1; });
     if (lines.length) {
-      html += '<div class="analiza-sekcija analiza-zastavice-wrap"><div class="analiza-sekcija-naslov">🚨 Crvene zastavice</div>';
+      html += '<div class="analiza-sekcija analiza-zastavice-wrap"><div class="analiza-sekcija-naslov">Crvene zastavice</div>';
       lines.forEach(function(l){ html += '<div class="analiza-zastavica">' + escHtml(l.trim()) + '</div>'; });
       html += '</div>';
     }
@@ -5946,7 +5946,7 @@ function analizaRenderRezultat(tekst) {
   // ── DOKAZ KOJI MENJA SVE ──
   var dkm = sekcije['DOKAZ KOJI MENJA SVE'];
   if (dkm) {
-    html += '<div class="analiza-sekcija analiza-dokaz-wrap"><div class="analiza-sekcija-naslov">🔄 Dokaz koji menja sve</div>';
+    html += '<div class="analiza-sekcija analiza-dokaz-wrap"><div class="analiza-sekcija-naslov">Dokaz koji menja sve</div>';
     html += '<div class="analiza-dokaz-body">' + escHtml(dkm).replace(/\n/g, '<br>') + '</div></div>';
   }
 
@@ -6859,7 +6859,7 @@ function doc_clear_session() {
   if (rp)  { rp.classList.remove('show'); document.getElementById('rokovi-lista').innerHTML = ''; }
   if (rdi) rdi.value = '';
   if (rdh) rdh.textContent = '';
-  if (btn) btn.textContent = '📅 Prikaži rokove';
+  if (btn) btn.textContent = 'Prikaži rokove';
 }
 
 /* ── Forenzički audit (Executive Report) ───────────────────────── */
@@ -7073,18 +7073,18 @@ async function doc_forensic_audit() {
     result.style.display = 'block';
   } finally {
     btn.disabled = false;
-    lbl.textContent = '🔬 Forenzička analiza dokumenta';
+    lbl.textContent = 'Forenzička analiza dokumenta';
   }
 }
 
 /* ── Rokovi panel Phase 4.1 ───────────────────────────────────────── */
-var _ROK_ICONS = { zastarelost:'⏰', otkaz:'📋', zalba:'⚖️', podnesak:'📝', isplata:'💰', ostalo:'📌' };
+var _ROK_ICONS = { zastarelost:'', otkaz:'', zalba:'', podnesak:'', isplata:'', ostalo:'' };
 var _rokovi_debounce = null;
 
 function _rok_render_alert(rok) {
   if (rok.dana_do_roka === null || rok.dana_do_roka === undefined) {
     if (rok.tip === 'relativni') {
-      return '<div class="rok-nepoznat">📅 Datum dokumenta nepoznat — unesite ručno</div>';
+      return '<div class="rok-nepoznat">Datum dokumenta nepoznat — unesite ručno</div>';
     }
     return '';
   }
@@ -7092,14 +7092,14 @@ function _rok_render_alert(rok) {
   if (rok.istekao) {
     return '<div class="rok-alert rok-istekao">⚠️ Rok istekao pre ' + Math.abs(n) + ' dana</div>';
   }
-  if (n <= 7)  return '<div class="rok-alert rok-hitno">🔴 Ističe za ' + n + ' dan' + (n === 1 ? '' : 'a') + '</div>';
-  if (n <= 30) return '<div class="rok-alert rok-upozorenje">🟡 Ističe za ' + n + ' dana</div>';
+  if (n <= 7)  return '<div class="rok-alert rok-hitno">Ističe za ' + n + ' dan' + (n === 1 ? '' : 'a') + '</div>';
+  if (n <= 30) return '<div class="rok-alert rok-upozorenje">Ističe za ' + n + ' dana</div>';
   return '<div class="rok-alert rok-ok">✅ Ističe za ' + n + ' dana</div>';
 }
 
 function _rok_build_card(rok) {
   var kat     = rok.kategorija || 'ostalo';
-  var icon    = _ROK_ICONS[kat] || '📌';
+  var icon    = _ROK_ICONS[kat] || '';
   var ctx     = rok.kontekst ? rok.kontekst.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
   var isoAttr = rok.konkretan_datum_iso ? ' data-rok-iso="' + rok.konkretan_datum_iso + '"' +
     ' data-rok-naslov="' + (kat + ': ' + rok.vrednost).replace(/"/g,'&quot;') + '"' +
@@ -7111,7 +7111,7 @@ function _rok_build_card(rok) {
       '<span class="rok-badge ' + rok.tip + '">' + rok.tip + '</span>';
   if (ctx) html += '<div class="rok-kontekst">' + ctx + '</div>';
   if (rok.konkretan_datum && rok.tip === 'relativni') {
-    html += '<div class="rok-konkretan">📅 ' + rok.konkretan_datum + '</div>';
+    html += '<div class="rok-konkretan">' + rok.konkretan_datum + '</div>';
   }
   html += _rok_render_alert(rok);
   if (rok.konkretan_datum_iso && !rok.istekao) {
@@ -7119,8 +7119,8 @@ function _rok_build_card(rok) {
     var opisIcs = ctx ? ctx.substring(0,120).replace(/'/g,"\\'") : '';
     html += '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.4rem;">'
       + '<button class="btn-ics" onclick="dodajUKalendar(\'' + naslov + '\',\'' + rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">⬇ .ics</button>'
-      + '<button class="btn-ics" style="background:rgba(66,133,244,0.08);border-color:rgba(66,133,244,0.35);color:#8ab4f8;" onclick="otvoriGoogleKalendar(\'' + naslov + '\',\'' + rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">📅 Google</button>'
-      + '<button class="btn-ics" style="background:rgba(0,120,212,0.08);border-color:rgba(0,120,212,0.35);color:#60a5fa;" onclick="otvoriOutlookKalendar(\'' + naslov + '\',\'' + rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">📅 Outlook</button>'
+      + '<button class="btn-ics" style="background:rgba(66,133,244,0.08);border-color:rgba(66,133,244,0.35);color:#8ab4f8;" onclick="otvoriGoogleKalendar(\'' + naslov + '\',\'' + rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">Google</button>'
+      + '<button class="btn-ics" style="background:rgba(0,120,212,0.08);border-color:rgba(0,120,212,0.35);color:#60a5fa;" onclick="otvoriOutlookKalendar(\'' + naslov + '\',\'' + rok.konkretan_datum_iso + '\',\'' + opisIcs + '\')">Outlook</button>'
       + '</div>';
   }
   html += '</div></div>';
@@ -7188,12 +7188,12 @@ async function doc_prikaži_rokove(btn) {
   var isOpen = panel.classList.contains('show');
   if (isOpen) {
     panel.classList.remove('show');
-    btn.textContent = '📅 Prikaži rokove';
+    btn.textContent = 'Prikaži rokove';
     return;
   }
 
   panel.classList.add('show');
-  btn.textContent = '📅 Sakrij rokove';
+  btn.textContent = 'Sakrij rokove';
   await _doc_fetch_rokove();
 }
 
@@ -7341,17 +7341,17 @@ async function kalkulisiZastarelost() {
     var cls = 'zc-ok';
     var statusTxt = '✅ Ističe za ' + d.dana_preostalo + ' dana';
     if (d.isteklo)               { cls = 'zc-isteklo'; statusTxt = '⚠️ Zastarelo pre ' + Math.abs(d.dana_preostalo) + ' dana'; }
-    else if (d.dana_preostalo <= 7)  { cls = 'zc-hitno';  statusTxt = '🔴 HITNO — ističe za ' + d.dana_preostalo + ' dana'; }
-    else if (d.dana_preostalo <= 30) { cls = 'zc-warn';   statusTxt = '🟡 Ističe za ' + d.dana_preostalo + ' dana'; }
+    else if (d.dana_preostalo <= 7)  { cls = 'zc-hitno';  statusTxt = 'HITNO — ističe za ' + d.dana_preostalo + ' dana'; }
+    else if (d.dana_preostalo <= 30) { cls = 'zc-warn';   statusTxt = 'Ističe za ' + d.dana_preostalo + ' dana'; }
 
-    var napHtml = d.napomena ? '<div class="zast-napomena">ℹ️ ' + d.napomena + '</div>' : '';
+    var napHtml = d.napomena ? '<div class="zast-napomena">' + d.napomena + '</div>' : '';
     var _zastNaslov = 'Zastarelost: ' + d.tip_potrazivanja.replace(/'/g,"\\'");
     var _zastOsnov  = d.zakonski_osnov.replace(/'/g,"\\'");
     var icsBtnHtml = (!d.isteklo && d.datum_zastarelosti_iso)
       ? '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.5rem;">'
         + '<button class="btn-ics" onclick="dodajUKalendar(\'' + _zastNaslov + '\',\'' + d.datum_zastarelosti_iso + '\',\'' + _zastOsnov + '\')">⬇ .ics</button>'
-        + '<button class="btn-ics" style="background:rgba(66,133,244,0.08);border-color:rgba(66,133,244,0.35);color:#8ab4f8;" onclick="otvoriGoogleKalendar(\'' + _zastNaslov + '\',\'' + d.datum_zastarelosti_iso + '\',\'' + _zastOsnov + '\')">📅 Google</button>'
-        + '<button class="btn-ics" style="background:rgba(0,120,212,0.08);border-color:rgba(0,120,212,0.35);color:#60a5fa;" onclick="otvoriOutlookKalendar(\'' + _zastNaslov + '\',\'' + d.datum_zastarelosti_iso + '\',\'' + _zastOsnov + '\')">📅 Outlook</button>'
+        + '<button class="btn-ics" style="background:rgba(66,133,244,0.08);border-color:rgba(66,133,244,0.35);color:#8ab4f8;" onclick="otvoriGoogleKalendar(\'' + _zastNaslov + '\',\'' + d.datum_zastarelosti_iso + '\',\'' + _zastOsnov + '\')">Google</button>'
+        + '<button class="btn-ics" style="background:rgba(0,120,212,0.08);border-color:rgba(0,120,212,0.35);color:#60a5fa;" onclick="otvoriOutlookKalendar(\'' + _zastNaslov + '\',\'' + d.datum_zastarelosti_iso + '\',\'' + _zastOsnov + '\')">Outlook</button>'
         + '</div>'
       : '';
 
@@ -7733,7 +7733,7 @@ function pred_renderList() {
   if (!el) return;
   if (!_predmeti.length) {
     el.innerHTML = '<div style="padding:2rem 1rem;text-align:center;">'
-      + '<div style="font-size:2.5rem;margin-bottom:.8rem;opacity:.3;">⚖️</div>'
+      + '<div style="font-size:2.5rem;margin-bottom:.8rem;opacity:.3;"></div>'
       + '<div style="font-size:.95rem;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:.4rem;">Još uvek nemate predmeta</div>'
       + '<div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-bottom:1.2rem;line-height:1.6;">Dodajte prvog klijenta, zatim kreirajte predmet.<br>Ceo proces traje manje od 2 minuta.</div>'
       + '<button onclick="intakeOtvori()" style="padding:.55rem 1.4rem;background:rgba(74,168,255,.15);border:1px solid rgba(74,168,255,.4);border-radius:8px;color:#89c8ff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;">+ Kreiraj prvi predmet</button>'
@@ -7775,12 +7775,12 @@ function pred_renderList() {
     }
     var rokHtml = '';
     if (di.urgentni_rokovi_count && di.urgentni_rokovi_count > 0) {
-      rokHtml = '<span style="font-size:0.58rem;color:#ffbb70;margin-left:0.25rem;" title="Hitnih rokova: '+di.urgentni_rokovi_count+'">⏰'+di.urgentni_rokovi_count+'</span>';
+      rokHtml = '<span style="font-size:0.58rem;color:#ffbb70;margin-left:0.25rem;" title="Hitnih rokova: '+di.urgentni_rokovi_count+'">'+di.urgentni_rokovi_count+'</span>';
     }
     var chked = _selectedPredmeti.has(p.id) ? ' checked' : '';
     return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'">'
       +'<input type="checkbox" class="pred-chk"'+chked+' style="margin:0;cursor:pointer;flex-shrink:0;" onclick="event.stopPropagation();pred_toggleOznaci(\''+p.id+'\')">'
-      +'<span class="pred-naziv" style="flex:1;cursor:pointer;" onclick="pred_select(\''+p.id+'\')">📁 '+escHtml(p.naziv)+'</span>'
+      +'<span class="pred-naziv" style="flex:1;cursor:pointer;" onclick="pred_select(\''+p.id+'\')">'+escHtml(p.naziv)+'</span>'
       +'<span style="display:flex;align-items:center;gap:0;flex-shrink:0;">'
       +'<span class="pred-badge '+tipCls+'" style="margin-right:0.25rem;">'+escHtml(p.tip)+'</span>'
       +'<span class="'+statusCls+'" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span>'
@@ -7797,22 +7797,22 @@ function pred_renderList() {
 // ═══════════════════════════════════════════════════════════════════════════════
 var _VX_PD_TIERS = [
   { at: 3,  key: 'strategija', label: 'Strategy Simulator',
-    icon: '⚔️',
+    icon: '',
     desc: 'Pokrenite 6 paralelnih analitičkih modula koji simuliraju sudski postupak — Crveni tim, Sudija, Analiza rizika i više. Sve u 2–3 minuta.' },
   { at: 5,  key: 'agenti', label: 'Savetnici — 6 specijalista',
-    icon: '🧠',
+    icon: '',
     desc: 'Šest specijalizovanih savetnika koji analiziraju vaš predmet iz krivičnog, privrednog, procesnog i finansijskog ugla. Postavite konkretno pitanje.' },
   { at: 10, key: 'saradnja', label: 'Saradnja i deljeni predmeti',
-    icon: '🤝',
+    icon: '',
     desc: 'Podelite predmet sa kolegom advokatom, delegirajte zadatke i pratite zajednički rad na predmetu.' },
   { at: 15, key: 'knowledge', label: 'Knowledge Transfer',
-    icon: '🔄',
+    icon: '',
     desc: 'Platforma uči iz vaših zatvorenih predmeta i automatski prenosi iskustvo na nove — preporuke na osnovu onoga što je već radilo u vašoj kancelariji.' },
   { at: 20, key: 'firmdna', label: 'Firm DNA',
-    icon: '🏢',
+    icon: '',
     desc: 'Analiza DNA vaše kancelarije — kako odlučujete, kako pobeđujete, gde su slabosti. Godišnji izveštaj o stilu i snazi vašeg zastupanja.' },
   { at: 30, key: 'intel', label: 'Intelligence Engine',
-    icon: '⚡',
+    icon: '',
     desc: 'Kompletni prediktivni mozak platforme. Aktivira se kada akumulirate dovoljno podataka — analizira obrasce u svim predmetima i predviđa ishode.' },
 ];
 
@@ -7923,7 +7923,7 @@ function _vxPdApplyLocks() {
           // Dodaj kat bravu ikonu ako je nema
           if (btn.textContent.indexOf('🔒') === -1) {
             btn.setAttribute('data-pd-label', btn.textContent.trim());
-            btn.textContent = '🔒 ' + btn.textContent.trim() + ' (' + threshold + ')';
+            btn.textContent = btn.textContent.trim() + ' (' + threshold + ')';
           }
         } else {
           btn.style.opacity = '';
@@ -7948,7 +7948,7 @@ function _vxPdApplyLocks() {
 
 function _vxPdLockedClick(threshold) {
   var remaining = threshold - _vxPdGetCount();
-  showToast('Otključava se sa ' + threshold + '. predmetom — još ' + remaining + ' ' + (remaining === 1 ? 'predmet' : remaining < 5 ? 'predmeta' : 'predmeta') + ' 🔒', 'info');
+  showToast('Otključava se sa ' + threshold + '. predmetom — još ' + remaining + ' ' + (remaining === 1 ? 'predmet' : remaining < 5 ? 'predmeta' : 'predmeta') + '', 'info');
   pred_more_close();
 }
 
@@ -8341,7 +8341,7 @@ function pred_updateIndicator() {
   var el = document.getElementById('predmet-indicator');
   if (!el) return;
   if (activePredmetId && activePredmetNaziv) {
-    el.textContent = '📁 Radite unutar predmeta: ' + activePredmetNaziv;
+    el.textContent = 'Radite unutar predmeta: ' + activePredmetNaziv;
     el.classList.add('show');
   } else {
     el.classList.remove('show');
@@ -8418,7 +8418,7 @@ function pred_renderCockpit(cockpit, urgentni) {
       rkEl.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.28);">Nema hitnih rokova.</div>';
     } else {
       rkEl.innerHTML = ur.map(function(h){
-        return '<div class="pck-rok-item">📅 '+escHtml(h.dogadjaj||'')+(h.datum_iso?' ('+h.datum_iso+')':'')+'</div>';
+        return '<div class="pck-rok-item">'+escHtml(h.dogadjaj||'')+(h.datum_iso?' ('+h.datum_iso+')':'')+'</div>';
       }).join('');
     }
   }
@@ -8515,7 +8515,7 @@ async function saradnja_load(predmetId) {
       var formaEl = document.getElementById('saradnja-forma-wrap');
       if (badgeEl) {
         if (ud.uloga && ud.uloga !== 'vlasnik') {
-          var _ulogaLbl = {citanje:'👁 Čitanje', saradnja:'✏ Saradnja', vodenje:'⚙ Vođenje'};
+          var _ulogaLbl = {citanje:'Čitanje', saradnja:'Saradnja', vodenje:'Vođenje'};
           badgeEl.textContent = 'Vaša uloga: ' + (_ulogaLbl[ud.uloga] || ud.uloga);
           badgeEl.style.display = '';
         } else {
@@ -8788,7 +8788,7 @@ function pred_renderConfirmCard(predlozi, metadata) {
   var kIds = JSON.stringify(klijentItems.map(function(k){ return {id: k.id, idx: k.idx}; }));
   var rData = rokItems.length ? JSON.stringify(rokItems[0]) : 'null';
   var html = '<div id="pred-confirm-card" style="margin-top:0.75rem;border:1px solid rgba(74,168,255,.22);border-radius:10px;background:rgba(74,168,255,.05);padding:0.8rem 1rem;">'
-    +'<div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#4aa8ff;margin-bottom:0.6rem;font-weight:700;">⚡ Prepoznato automatski</div>';
+    +'<div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#4aa8ff;margin-bottom:0.6rem;font-weight:700;">Prepoznato automatski</div>';
   klijentItems.forEach(function(k){ html += k.html; });
   rokItems.forEach(function(r){ html += r.html; });
   html += '<button onclick="pred_confirmLinks('+kIds+','+rData+')" style="margin-top:0.55rem;width:100%;padding:0.55rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.28);border-radius:7px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;letter-spacing:.02em;">✓ Potvrdi i poveži</button>'
@@ -9003,8 +9003,8 @@ function notif_render() {
 
   if (!dropdown) return;
   var _TIP_LABEL = {
-    rok_blizu:'📅 Rok', hitan_rok:'⚠ Hitan rok', rok:'📅 Rok',
-    rizik_promena:'⚠ Rizik', bez_klijenta:'👤 Klijent', neaktivnost:'💤 Neaktivnost'
+    rok_blizu:'Rok', hitan_rok:'⚠ Hitan rok', rok:'Rok',
+    rizik_promena:'⚠ Rizik', bez_klijenta:'Klijent', neaktivnost:'Neaktivnost'
   };
   var _PRIO_COLOR = {
     visoka:'#ff9090', hitan:'#ff9090',
@@ -9062,8 +9062,8 @@ function mobNotifOtvori() {
   var list = document.getElementById('mob-notif-list');
   if (list) {
     var _TIP_LABEL = {
-      rok_blizu:'📅 Rok', hitan_rok:'⚠ Hitan rok', rok:'📅 Rok',
-      rizik_promena:'⚠ Rizik', bez_klijenta:'👤 Klijent', neaktivnost:'💤 Neaktivnost'
+      rok_blizu:'Rok', hitan_rok:'⚠ Hitan rok', rok:'Rok',
+      rizik_promena:'⚠ Rizik', bez_klijenta:'Klijent', neaktivnost:'Neaktivnost'
     };
     var _PRIO_COLOR = {
       visoka:'#ff9090', hitan:'#ff9090', srednja:'#ffbb70',
@@ -9427,7 +9427,7 @@ function copilot_renderResponse(d) {
   var tip = d.tip || '';
 
   if (tip === 'DODAJ_ROK' || tip === 'KREIRAJ_BELEŠKU' || tip === 'POVEZI_KLIJENTA') {
-    var icon = tip==='DODAJ_ROK'?'📅':tip==='KREIRAJ_BELEŠKU'?'📝':'🔗';
+    var icon = '';
     var color = d.uspeh ? '#7de0a0' : '#ff9090';
     var html = '<div style="display:flex;align-items:flex-start;gap:0.4rem;">'
       +'<span style="font-size:0.9rem;flex-shrink:0;">'+icon+'</span>'
@@ -9443,7 +9443,7 @@ function copilot_renderResponse(d) {
   }
 
   if (tip === 'PLAN' && d.faze) {
-    var html = '<div style="font-size:0.72rem;color:#4aa8ff;font-weight:700;margin-bottom:0.4rem;">📋 '+escHtml(d.cilj||'Akcioni plan')+'</div>';
+    var html = '<div style="font-size:0.72rem;color:#4aa8ff;font-weight:700;margin-bottom:0.4rem;">'+escHtml(d.cilj||'Akcioni plan')+'</div>';
     (d.faze||[]).forEach(function(f, fi){
       html += '<div style="margin-bottom:0.35rem;"><div style="font-size:0.7rem;font-weight:600;color:rgba(255,255,255,.7);">'+(fi+1)+'. '+escHtml(f.naziv||'')+(f.trajanje?' ('+f.trajanje+')':'')+'</div>';
       (f.koraci||[]).forEach(function(k){
@@ -9624,7 +9624,7 @@ async function pred_loadDetail(id) {
   // Reset cockpit to loading state
   var loadEl = document.getElementById('pck-loading');
   var bodyEl = document.getElementById('pck-body');
-  if (loadEl) { loadEl.textContent = '⚡ Učitavam procenu predmeta...'; loadEl.style.display = 'block'; }
+  if (loadEl) { loadEl.textContent = 'Učitavam procenu predmeta...'; loadEl.style.display = 'block'; }
   if (bodyEl) bodyEl.style.display = 'none';
 
   try {
@@ -9683,7 +9683,7 @@ async function pred_loadDetail(id) {
         dokListEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-top:0.3rem;">Nema dokumenata.</div>';
       } else {
         var _dokHint = d.dokumenti.length >= 2
-          ? '<div style="font-size:0.7rem;color:rgba(0,212,255,0.55);margin-bottom:0.3rem;">☑ Označi 2–5 dokumenata za poređenje (Cross-doc analiza)</div>'
+          ? '<div style="font-size:0.7rem;color:rgba(0,212,255,0.55);margin-bottom:0.3rem;">Označi 2–5 dokumenata za poređenje (Cross-doc analiza)</div>'
           : '';
         dokListEl.innerHTML = _dokHint + d.dokumenti.map(function(dok, _dokIdx) {
           var _ns = dok.pinecone_namespace || '';
@@ -9702,13 +9702,13 @@ async function pred_loadDetail(id) {
             +'<div style="flex:1;min-width:0;">'
             +'<div style="font-size:0.78rem;font-weight:600;color:'+(_hasNs?'#e2e8f0':'rgba(255,255,255,0.45)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(dok.naziv_fajla||'')+'</div>'
             +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.32);margin-top:1px;">'+_kb+' KB'
-            +(_hasNs?' • <span style="color:rgba(0,212,255,0.65);">⚡ klikni za analizu</span>':' • <span style="color:rgba(255,180,0,0.65);">nije vektorizovan — re-upload</span>')
+            +(_hasNs?' • <span style="color:rgba(0,212,255,0.65);">klikni za analizu</span>':' • <span style="color:rgba(255,180,0,0.65);">nije vektorizovan — re-upload</span>')
             +'</div>'
             +'</div>'
             +'<button onclick="event.stopPropagation();dokPreviewOpen(\''+escHtml(dok.id||'')+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml(_kb+'')+'\')" '
             +'title="Pogledaj sadržaj" '
             +'style="flex-shrink:0;background:transparent;border:1px solid rgba(74,168,255,0.2);border-radius:5px;color:rgba(74,168,255,0.6);font-size:0.65rem;padding:2px 7px;cursor:pointer;font-family:inherit;">'
-            +'👁'
+            +'→'
             +'</button>'
             +'<input type="checkbox" class="pred-dok-item-cb" onclick="event.stopPropagation()" onchange="crossdoc_toggleDok(this)" title="Označi za cross-doc analizu" '
             +'style="flex-shrink:0;width:14px;height:14px;cursor:pointer;accent-color:rgba(0,212,255,0.8);">'
@@ -9720,7 +9720,7 @@ async function pred_loadDetail(id) {
           + '<button onclick="_voice_refresh_case_dna(\''+escHtml(activePredmetId||'')+'\');return false;" '
           + 'style="width:100%;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);border-radius:7px;color:#00d4ff;font-size:0.7rem;padding:0.4rem 0.6rem;cursor:pointer;font-family:inherit;transition:background .15s;letter-spacing:0.02em;" '
           + 'onmouseover="this.style.background=\'rgba(0,212,255,0.16)\'" onmouseout="this.style.background=\'rgba(0,212,255,0.08)\'">'
-          + '🧬 Generiši procenu predmeta</button>'
+          + 'Generiši procenu predmeta</button>'
           + '<div id="'+_dnaPanelId+'" style="display:none;margin-top:0.5rem;padding:0.65rem 0.8rem;background:rgba(0,0,0,0.3);border:1px solid rgba(0,212,255,0.15);border-radius:8px;"></div>'
           + '</div>';
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -9929,7 +9929,7 @@ async function predmetPdfExport(btn) {
   } catch(e) {
     alert('Greška pri generisanju PDF-a: ' + e.message);
   } finally {
-    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '📄 PDF Izveštaj'; }
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'PDF Izveštaj'; }
   }
 }
 
@@ -10298,7 +10298,7 @@ async function billing_loadEntries() {
     _billingEntries.forEach(function(e) {
       var iznos = Math.round(e.iznos_rsd||0).toLocaleString('sr-RS');
       var badge = e.obracunato ? '<span class="billing-badge-ok">fakturisano</span>' : '<span class="billing-badge-open">nenaplaćeno</span>';
-      var hBadge = (e.sati && e.sati > 0) ? ' · <span style="color:rgba(0,212,255,0.6);font-family:\'JetBrains Mono\',monospace;">⏱ '+escHtml(_fmtBillingH(e.sati))+'</span>' : '';
+      var hBadge = (e.sati && e.sati > 0) ? ' · <span style="color:rgba(0,212,255,0.6);font-family:\'JetBrains Mono\',monospace;">'+escHtml(_fmtBillingH(e.sati))+'</span>' : '';
       html += '<div class="billing-entry-row">';
       html += '<div class="billing-entry-main"><div class="billing-entry-opis">'+escHtml(e.opis||'')+'</div>';
       html += '<div class="billing-entry-meta">'+escHtml(e.datum||'')+(e.tarifa_sifra?' · '+escHtml(e.tarifa_sifra):'')+hBadge+'&nbsp;'+badge+'</div></div>';
@@ -10326,17 +10326,17 @@ function billing_renderTimerBar(aktivan, isCurrent) {
   var clk = document.getElementById('billing-timer-clock');
   if (!lbl || !btn) return;
   if (aktivan && isCurrent) {
-    lbl.textContent = '⏱ Tajmer aktivan';
+    lbl.textContent = 'Tajmer aktivan';
     btn.textContent = '⏹ Zaustavi tajmer';
     btn.className = 'billing-timer-btn-stop';
     if (clk) clk.style.display = '';
   } else if (aktivan && !isCurrent) {
-    lbl.textContent = '⏱ Tajmer aktivan na drugom predmetu';
+    lbl.textContent = 'Tajmer aktivan na drugom predmetu';
     btn.textContent = '⏹ Zaustavi i prebaci';
     btn.className = 'billing-timer-btn-stop';
     if (clk) clk.style.display = 'none';
   } else {
-    lbl.textContent = '⏱ Tajmer nije aktivan';
+    lbl.textContent = 'Tajmer nije aktivan';
     btn.textContent = '▶ Start tajmer';
     btn.className = 'billing-timer-btn-start';
     if (clk) { clk.style.display = 'none'; clk.textContent = '00:00:00'; }
@@ -10509,9 +10509,9 @@ async function billing_doGenerateFaktura() {
     var barEl = document.getElementById('billing-faktura-bar');
     if (barEl) barEl.innerHTML = '<div class="billing-faktura-ok">✓ Faktura br. <b>'+escHtml(fakt.broj_fakture)+'</b> kreirana &mdash; <a href="'+pdfUrl+'" target="_blank" style="color:#89c8ff;">Preuzmi PDF</a>'
       +' &nbsp;<button onclick="billing_sendEmail(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:5px;color:#89c8ff;font-size:0.68rem;cursor:pointer;font-family:inherit;">✉ Email</button>'
-      +' <button onclick="sef_posalji(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(0,212,127,0.08);border:1px solid rgba(0,212,127,0.2);border-radius:5px;color:#00d47f;font-size:0.68rem;cursor:pointer;font-family:inherit;">⚡ SEF</button>'
+      +' <button onclick="sef_posalji(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(0,212,127,0.08);border:1px solid rgba(0,212,127,0.2);border-radius:5px;color:#00d47f;font-size:0.68rem;cursor:pointer;font-family:inherit;">SEF</button>'
       +' <button onclick="sef_preuzmiXml(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;font-family:inherit;">⬇ XML</button>'
-      +' <button onclick="sef_prikaziLog(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;font-family:inherit;">📋 SEF log</button>'
+      +' <button onclick="sef_prikaziLog(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;font-family:inherit;">SEF log</button>'
       +'</div>';
     showToast('Faktura br. '+fakt.broj_fakture+' kreirana.','ok');
     await billing_loadEntries();
@@ -10720,12 +10720,12 @@ async function searchRun() {
 }
 
 var _SRCH_ICONS = {
-  predmet:    {icon:'⚖️',  bg:'rgba(0,212,127,0.10)', label:'Predmet'},
-  klijent:    {icon:'👤',  bg:'rgba(74,168,255,0.10)', label:'Klijent'},
-  dokument:   {icon:'📄',  bg:'rgba(255,200,100,0.10)',label:'Dokument'},
-  billing:    {icon:'💰',  bg:'rgba(0,212,255,0.10)',  label:'Billing'},
-  hronologija:{icon:'📅',  bg:'rgba(200,100,255,0.10)',label:'Hronolog.'},
-  beleska:    {icon:'📝',  bg:'rgba(255,255,255,0.06)',label:'Beleška'},
+  predmet:    {icon:'',  bg:'rgba(0,212,127,0.10)', label:'Predmet'},
+  klijent:    {icon:'',  bg:'rgba(74,168,255,0.10)', label:'Klijent'},
+  dokument:   {icon:'',  bg:'rgba(255,200,100,0.10)',label:'Dokument'},
+  billing:    {icon:'',  bg:'rgba(0,212,255,0.10)',  label:'Billing'},
+  hronologija:{icon:'',  bg:'rgba(200,100,255,0.10)',label:'Hronolog.'},
+  beleska:    {icon:'',  bg:'rgba(255,255,255,0.06)',label:'Beleška'},
 };
 var _SRCH_ORDER = ['predmeti','klijenti','dokumenti','billing','hronologija','beleske'];
 var _TIP_MAP    = {predmeti:'predmet',klijenti:'klijent',dokumenti:'dokument',billing:'billing',hronologija:'hronologija',beleske:'beleska'};
@@ -10742,7 +10742,7 @@ function searchRenderResults(d) {
     var rows = d[skupina];
     if (!rows || !rows.length) return;
     var tipKey = _TIP_MAP[skupina];
-    var meta   = _SRCH_ICONS[tipKey] || {icon:'📌',bg:'rgba(255,255,255,0.05)',label:skupina};
+    var meta   = _SRCH_ICONS[tipKey] || {icon:'',bg:'rgba(255,255,255,0.05)',label:skupina};
     html += '<div class="srch-group-hd">'+meta.label+' ('+rows.length+')</div>';
     rows.forEach(function(item) {
       var action = searchBuildAction(item);
@@ -10893,7 +10893,7 @@ async function portal_loadUploads() {
       var velKB    = u.fajl_velicina ? Math.round(u.fajl_velicina/1024)+' KB' : '';
       return '<div style="padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:flex-start;gap:.5rem;">'
         +'<div style="flex:1;min-width:0;">'
-        +'<div style="font-size:.72rem;color:rgba(255,255,255,.7);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📄 '+escHtml(u.fajl_naziv||'dokument')+'</div>'
+        +'<div style="font-size:.72rem;color:rgba(255,255,255,.7);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(u.fajl_naziv||'dokument')+'</div>'
         +'<div style="font-size:.63rem;color:rgba(255,255,255,.3);margin-top:.1rem;">'+datum+(velKB?' · '+velKB:'')+'</div>'
         +(u.napomena?'<div style="font-size:.65rem;color:rgba(255,255,255,.4);margin-top:.1rem;font-style:italic;">'+escHtml(u.napomena)+'</div>':'')
         +'</div>'
@@ -10901,7 +10901,7 @@ async function portal_loadUploads() {
         +'<span style="font-size:.6rem;color:'+pregBoja+';">'+pregTxt+'</span>'
         +(u.download_url ? '<a href="'+u.download_url+'" target="_blank" rel="noopener" style="font-size:.62rem;color:#89c8ff;text-decoration:none;">⬇ Preuzmi</a>' : '')
         +(!u.pregledano ? '<button onclick="portal_oznacPregledano(\''+escHtml(u.id)+'\')" style="font-size:.6rem;color:rgba(0,212,127,.6);background:none;border:1px solid rgba(0,212,127,.15);border-radius:3px;padding:.1rem .3rem;cursor:pointer;">✓ Pregledano</button>' : '')
-        +'<button onclick="portal_obrisiUpload(\''+escHtml(u.id)+'\')" style="font-size:.6rem;color:rgba(255,80,80,.5);background:none;border:none;cursor:pointer;padding:0;">🗑</button>'
+        +'<button onclick="portal_obrisiUpload(\''+escHtml(u.id)+'\')" style="font-size:.6rem;color:rgba(255,80,80,.5);background:none;border:none;cursor:pointer;padding:0;">×</button>'
         +'</div>'
         +'</div>';
     }).join('');
@@ -11559,7 +11559,7 @@ function kalDayClick(iso) {
 
   var html = '';
   evs.forEach(function(e) {
-    var tipLabel = e.tip === 'rociste' ? '🏛 Ročište' : e.tip === 'rok_zastarelost' ? '⏳ Rok' : '📅 Rok';
+    var tipLabel = e.tip === 'rociste' ? 'Ročište' : e.tip === 'rok_zastarelost' ? 'Rok' : 'Rok';
     var col = e.tip === 'rociste' ? '#89c8ff' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
     html += '<div style="padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);">';
     html += '<div style="font-size:.72rem;color:' + col + ';margin-bottom:.1rem;">' + tipLabel + (e.vreme ? ' · ' + _kalEsc(e.vreme) : '') + '</div>';
@@ -11882,7 +11882,7 @@ function hccRenderBrifing(el, b, krediti) {
 
   // Score + executive brief
   html += _score(Number(b.hearing_score) || 0);
-  html += _sec('📋', 'Izvršni sažetak', _txt(b.executive_brief));
+  html += _sec('', 'Izvršni sažetak', _txt(b.executive_brief));
 
   // Risk breakdown
   html += _sec('⚠', 'Procena rizika',
@@ -11890,32 +11890,32 @@ function hccRenderBrifing(el, b, krediti) {
     + _list(rb.factors));
 
   // Win/lose matrix
-  html += _sec('⚖️', 'Matrica pobede / poraza',
+  html += _sec('', 'Matrica pobede / poraza',
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.2rem;">'
     + '<div><div style="font-size:0.6rem;color:#4ade80;letter-spacing:.08em;margin-bottom:0.1rem;">U PRILOG</div>' + _list(wlm.u_prilog) + '</div>'
     + '<div><div style="font-size:0.6rem;color:#f87171;letter-spacing:.08em;margin-bottom:0.1rem;">NA ŠTETU</div>' + _list(wlm.na_stetu) + '</div>'
     + '</div>');
 
   // Timeline
-  html += _sec('📅', 'Hronologija', _list(b.timeline));
+  html += _sec('', 'Hronologija', _list(b.timeline));
 
   // Judge attack
-  html += _sec('⚖️', 'Napad pred sudom — pravni argumenti', _txt(b.judge_attack_mode));
+  html += _sec('', 'Napad pred sudom — pravni argumenti', _txt(b.judge_attack_mode));
 
   // Opposing counsel
-  html += _sec('📋', 'Strategija protivne strane', _txt(b.opposing_counsel));
+  html += _sec('', 'Strategija protivne strane', _txt(b.opposing_counsel));
 
   // Missing evidence
-  html += _sec('🔍', 'Dokazi koji nedostaju', _list(b.missing_evidence));
+  html += _sec('', 'Dokazi koji nedostaju', _list(b.missing_evidence));
 
   // Witness analysis
-  html += _sec('👁', 'Analiza svedoka', _txt(b.witness_analysis));
+  html += _sec('', 'Analiza svedoka', _txt(b.witness_analysis));
 
   // Cross examination
-  html += _sec('❓', 'Unakrsno ispitivanje', _list(b.cross_examination));
+  html += _sec('', 'Unakrsno ispitivanje', _list(b.cross_examination));
 
   // Practice pack
-  html += _sec('📚', 'Sudska praksa', _txt(b.practice_pack));
+  html += _sec('', 'Sudska praksa', _txt(b.practice_pack));
 
   // Hearing checklist
   html += _sec('✅', 'Kontrolna lista za ročište', _list(b.hearing_checklist));
@@ -12187,7 +12187,7 @@ async function corpusDiscoverRun() {
   } catch(e) {
     if (result) result.innerHTML = '<div style="color:#f87171;">Greška: ' + _htmlEsc(e.message) + '</div>';
   } finally {
-    btn.disabled = false; btn.textContent = '🔍 Traži nove biltene';
+    btn.disabled = false; btn.textContent = 'Traži nove biltene';
   }
 }
 
@@ -12369,7 +12369,7 @@ async function _gsFetch(q) {
   } catch(e) { gsRender([]); }
 }
 
-var _GS_ICONS = {predmet:'📁', klijent:'👤', dokument:'📄', billing:'💰', hronologija:'⏰', beleska:'📝'};
+var _GS_ICONS = {predmet:'', klijent:'', dokument:'', billing:'', hronologija:'', beleska:''};
 var _GS_COLORS = {predmet:'#89c8ff', klijent:'#4ade80', dokument:'#c9a84c', billing:'#a78bfa', hronologija:'#f97316', beleska:'#94a3b8'};
 
 function gsRender(items) {
@@ -12482,7 +12482,7 @@ function _intakeRenderTpl() {
       +'<span style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">'+_htmlEsc(t.naziv)+'</span>'
       +'<span style="font-size:0.58rem;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,0.06);color:'+col+';text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">'+_htmlEsc(t.tip)+'</span>'
       +'</div>'
-      +(docs ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 '+_htmlEsc(docs)+(t.potrebni_dokumenti.length>3?' ...':'')+'</div>' : '')
+      +(docs ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(docs)+(t.potrebni_dokumenti.length>3?' ...':'')+'</div>' : '')
       +'</div>'
       +'<span style="font-size:0.7rem;color:rgba(74,168,255,0.6);flex-shrink:0;align-self:center;">Izaberi →</span>'
       +'</div>';
@@ -12649,13 +12649,13 @@ function dokUcitajZaAnalizu(ns, naziv, velicinaKb, dokId) {
   showToast('Dokument učitan — postavite pitanje ili pokrenite analizu.', 'ok');
 }
 
-var _DOCTPL_TIP_ICO = { tuzba:'⚖️', zalba:'📨', punomocje:'✍️', opomena:'⚠️', ugovor:'📝' };
+var _DOCTPL_TIP_ICO = { tuzba:'', zalba:'', punomocje:'', opomena:'', ugovor:'' };
 
 function _doctplRenderLista() {
   var el = document.getElementById('doctpl-list');
   if (!el || !_doctplSabloni) return;
   el.innerHTML = _doctplSabloni.map(function(s, i){
-    var ico = _DOCTPL_TIP_ICO[s.tip] || '📄';
+    var ico = _DOCTPL_TIP_ICO[s.tip] || '';
     return '<div onclick="docTplIzaberi('+i+')" style="padding:0.6rem 0.85rem;cursor:pointer;border-left:2px solid transparent;transition:all .15s;" onmouseover="this.style.background=\'rgba(74,168,255,0.06)\'" onmouseout="if(docTplGetAktivniIdx()!=='+i+')this.style.background=\'\';" id="doctpl-item-'+i+'">'
       +'<div style="font-size:0.75rem;font-weight:600;color:#e2e8f0;margin-bottom:2px;">'+ico+' '+_htmlEsc(s.naziv)+'</div>'
       +'<div style="font-size:0.62rem;color:rgba(255,255,255,0.32);">'+_htmlEsc(s.opis)+'</div>'
@@ -13543,9 +13543,9 @@ function voice_start() {
       return;
     }
     var msgs = {
-      'not-allowed':    '🔒 Dozvolite mikrofon u podešavanjima browsera.',
-      'audio-capture':  '🎙 Mikrofon nije pronađen.',
-      'network':        '🌐 Nema internet konekcije za glasovni unos.',
+      'not-allowed':    'Dozvolite mikrofon u podešavanjima browsera.',
+      'audio-capture':  'Mikrofon nije pronađen.',
+      'network':        'Nema internet konekcije za glasovni unos.',
     };
     showToast(msgs[e.error] || ('Greška mikrofona: ' + e.error), 'err');
     _voice_close_modal();
@@ -14289,7 +14289,7 @@ function _caseDnaRender(dna, predmetId) {
 
   // ── Upozorenja ────────────────────────────────────────────────────────────
   (dna.upozorenja||[]).slice(0,2).forEach(function(u){
-    html += '<div style="color:#fde68a;margin-top:0.2rem;font-size:0.68rem;">⚡ '+escHtml(u)+'</div>';
+    html += '<div style="color:#fde68a;margin-top:0.2rem;font-size:0.68rem;">'+escHtml(u)+'</div>';
   });
 
   // ── Zaključak ─────────────────────────────────────────────────────────────
@@ -14576,7 +14576,7 @@ function _tts_update_btn(speaking) {
   var btn = document.getElementById('vx-tts-play-btn');
   if (!btn) return;
   if (speaking) { btn.classList.add('speaking'); btn.innerHTML = '⏹ Zaustavi'; }
-  else          { btn.classList.remove('speaking'); btn.innerHTML = '🔊 Pročitaj'; }
+  else          { btn.classList.remove('speaking'); btn.innerHTML = 'Pročitaj'; }
 }
 
 function vx_tts_speak(text, afterSpeak) {
@@ -14754,13 +14754,13 @@ function _itlRender(container, events, skipFilters) {
           + (rColors[ev.status] || '#aaa') + ';">' + escHtml(ev.status) + '</span>';
       }
       html += '<div class="itl-item">'
-        + '<div class="itl-icon">' + (ev.ikona || '📌') + '</div>'
+        + '<div class="itl-icon">' + (ev.ikona || '') + '</div>'
         + '<div class="itl-body" style="border-left-color:' + boja + ';">'
         + '<div class="itl-naslov">' + escHtml(ev.naslov || '') + badge + rocisteBadge + '</div>'
         + scoreHtml
         + detalj
         + (ev.datum_label ? '<div class="itl-detalj" style="margin-top:.2rem;color:rgba(255,255,255,.22);">' + escHtml(ev.datum_label) + '</div>' : '')
-        + (ev.pouka ? '<div style="margin-top:.35rem;font-size:.7rem;padding:.3rem .5rem;background:rgba(125,224,160,.07);border-radius:5px;border:1px solid rgba(125,224,160,.15);color:rgba(125,224,160,.8);">💡 Pouka: ' + escHtml(ev.pouka) + '</div>' : '')
+        + (ev.pouka ? '<div style="margin-top:.35rem;font-size:.7rem;padding:.3rem .5rem;background:rgba(125,224,160,.07);border-radius:5px;border:1px solid rgba(125,224,160,.15);color:rgba(125,224,160,.8);">Pouka: ' + escHtml(ev.pouka) + '</div>' : '')
         + '</div>'
         + '</div>';
     });
@@ -14897,7 +14897,7 @@ function brain_load() {
     if (btn) btn.disabled = false;
     var tekst = d.analiza || 'Nema podataka.';
     if (d.ukupno_slicnih > 0) {
-      tekst += '\n\n📁 Pronađeno ' + d.ukupno_slicnih + ' sličnih predmeta tipa "' + (d.tip||'') + '" u kancelariji.';
+      tekst += '\n\nPronađeno ' + d.ukupno_slicnih + ' sličnih predmeta tipa "' + (d.tip||'') + '" u kancelariji.';
     }
     rez.textContent = tekst;
     rez.style.display = 'block';
@@ -14945,7 +14945,7 @@ function matter_intel_load() {
     var sl = document.getElementById('mi-sledeca');
     if (d.sledeca_radnja && sl) {
       sl.style.display = 'block';
-      sl.innerHTML = '💡 <b>Preporučena radnja:</b> ' + _htmlEsc(d.sledeca_radnja.replace('SLEDEĆA RADNJA: ','').split('\n')[0]);
+      sl.innerHTML = '<b>Preporučena radnja:</b> ' + _htmlEsc(d.sledeca_radnja.replace('SLEDEĆA RADNJA: ','').split('\n')[0]);
     }
 
     // ── Sparkline trend zdravlja ─────────────────────────────────────────────
@@ -15026,11 +15026,11 @@ function _ccc_render(el, d) {
   if (kr) {
     var dana = kr.dana_ostalo;
     var tag  = dana === 0 ? 'DANAS' : dana + 'd';
-    chips.push({ cls:'chip-red', icon:'🔴', text: tag+' — '+(_htmlEsc((kr.naziv||'Rok').slice(0,30))), action:"pred_subtabSwitch('rokovi')" });
+    chips.push({ cls:'chip-red', icon:'', text: tag+' — '+(_htmlEsc((kr.naziv||'Rok').slice(0,30))), action:"pred_subtabSwitch('rokovi')" });
   }
   // 2. Predmeti bez dokumenta — CRVENA
   if ((dok.ukupno||0) === 0) {
-    chips.push({ cls:'chip-red', icon:'📤', text:'Uploaduj prvi dokument', action:"pred_subtabSwitch('dokumenti')" });
+    chips.push({ cls:'chip-red', icon:'', text:'Uploaduj prvi dokument', action:"pred_subtabSwitch('dokumenti')" });
   }
   // 3. Nedostajući dokaz — ŽUTA
   var nedo = (d.nedostajuci || []);
@@ -15039,17 +15039,17 @@ function _ccc_render(el, d) {
       dopis:'pisanu komunikaciju', medicinska_dokumentacija:'medicinski nalaz',
       finansijska_dokumentacija:'fin. dokumentaciju', javna_isprava:'javnu ispravu',
       vestacki_nalaz:'nalaz veštaka' };
-    chips.push({ cls:'chip-yellow', icon:'📄', text:'Pribavi '+(_DL[nedo[0]]||nedo[0]), action:"pred_subtabSwitch('dokazi')" });
+    chips.push({ cls:'chip-yellow', icon:'', text:'Pribavi '+(_DL[nedo[0]]||nedo[0]), action:"pred_subtabSwitch('dokazi')" });
   }
   // 4. Nenaplaćeni iznos — ŽUTA
   if ((bil.nenaplaceno||0) > 0) {
-    chips.push({ cls:'chip-yellow', icon:'💰', text: Math.round(bil.nenaplaceno/1000)+'k RSD nenaplaćeno', action:"pred_subtabSwitch('naplata')" });
+    chips.push({ cls:'chip-yellow', icon:'', text: Math.round(bil.nenaplaceno/1000)+'k RSD nenaplaćeno', action:"pred_subtabSwitch('naplata')" });
   }
   // 5. Preporučena Analiza — PLAVA (uvek)
-  chips.push({ cls:'chip-blue', icon:'⚖️', text:'Pokreni analizu', action:"pred_subtabSwitch('ai-analiza')" });
+  chips.push({ cls:'chip-blue', icon:'', text:'Pokreni analizu', action:"pred_subtabSwitch('ai-analiza')" });
   // 6. Ako nema rokova — PLAVA
   if (!kr && (d.predstojeći||0) === 0 && (d.rokovi||[]).length === 0) {
-    chips.push({ cls:'chip-blue', icon:'⏰', text:'Evidentiraj rokove', action:"pred_subtabSwitch('rokovi')" });
+    chips.push({ cls:'chip-blue', icon:'', text:'Evidentiraj rokove', action:"pred_subtabSwitch('rokovi')" });
   }
   // Ograniči na 4 chipa
   chips = chips.slice(0, 4);
@@ -15067,7 +15067,7 @@ function _ccc_render(el, d) {
     var tag  = dana === null ? '?' : dana < 0 ? 'Istekao' : dana === 0 ? 'Danas' : dana + 'd';
     rokovi_html += '<div class="ccc-rok-item"><span style="color:'+boja+';font-weight:700;min-width:44px;font-size:.78rem;">'+tag+'</span><span style="flex:1;font-size:.78rem;">'+_htmlEsc((r.naziv||'Rok').slice(0,34))+'</span></div>';
   });
-  if (!rokovi_html) rokovi_html = '<div style="color:rgba(255,255,255,.22);font-size:.78rem;padding:.5rem 0;">Nema evidentiranih rokova.<br><span style="font-size:.7rem;opacity:.7;">Dodajte rokove u tabu ⏰ Rokovi.</span></div>';
+  if (!rokovi_html) rokovi_html = '<div style="color:rgba(255,255,255,.22);font-size:.78rem;padding:.5rem 0;">Nema evidentiranih rokova.<br><span style="font-size:.7rem;opacity:.7;">Dodajte rokove u tabu Rokovi.</span></div>';
 
   // ── AKTIVNOSTI ───────────────────────────────────────────────────────────
   var akt_html = '';
@@ -15086,7 +15086,7 @@ function _ccc_render(el, d) {
         '<div style="display:flex;gap:.6rem;margin-top:.25rem;flex-wrap:wrap;">',
           tipStr ? '<span style="font-size:.7rem;padding:.1rem .5rem;background:rgba(74,168,255,.12);border-radius:10px;color:#89c8ff;">'+_htmlEsc(tipStr)+'</span>' : '',
           p.status ? '<span style="font-size:.7rem;padding:.1rem .5rem;background:rgba(255,255,255,.06);border-radius:10px;color:rgba(255,255,255,.55);">'+_htmlEsc(p.status)+'</span>' : '',
-          klijentiStr ? '<span style="font-size:.7rem;color:rgba(255,255,255,.4);">👤 '+_htmlEsc(klijentiStr.slice(0,30))+'</span>' : '',
+          klijentiStr ? '<span style="font-size:.7rem;color:rgba(255,255,255,.4);">'+_htmlEsc(klijentiStr.slice(0,30))+'</span>' : '',
         '</div>',
       '</div>',
       '<div style="text-align:center;flex-shrink:0;padding:.4rem .7rem;background:rgba(255,255,255,.04);border-radius:8px;min-width:60px;">',
@@ -15097,7 +15097,7 @@ function _ccc_render(el, d) {
 
     // ── SMART ACTION CHIPS ─────────────────────────────────────────────────
     '<div class="smart-chips-wrap">',
-      '<div class="smart-chips-title">💡 Šta trebate uraditi</div>',
+      '<div class="smart-chips-title">Šta trebate uraditi</div>',
       '<div class="smart-chips-row">',
         chips_html,
       '</div>',
@@ -15106,7 +15106,7 @@ function _ccc_render(el, d) {
     // ── DOKAZI + FINANSIJE ─────────────────────────────────────────────────
     '<div class="ccc-grid" style="margin-bottom:.65rem;">',
       '<div class="ccc-block">',
-        '<div class="ccc-block-hd">🔒 Dokazi</div>',
+        '<div class="ccc-block-hd">Dokazi</div>',
         '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-bottom:.5rem;">',
           '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#4ade80;">'+(dok.jaka||0)+'</div><div class="ccc-metric-lbl">Jaki</div></div>',
           '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#fbbf24;">'+(dok.srednja||0)+'</div><div class="ccc-metric-lbl">Srednji</div></div>',
@@ -15118,7 +15118,7 @@ function _ccc_render(el, d) {
         '<button onclick="pred_subtabSwitch(\'dokazi\')" style="margin-top:.5rem;width:100%;font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.35);padding:.25rem;cursor:pointer;">Otvori trezor dokaza →</button>',
       '</div>',
       '<div class="ccc-block">',
-        '<div class="ccc-block-hd">💰 Finansije (RSD)</div>',
+        '<div class="ccc-block-hd">Finansije (RSD)</div>',
         '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-bottom:.5rem;">',
           '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#89c8ff;font-size:1rem;">'+(Math.round((bil.uneseno||0)/1000)||0)+'k</div><div class="ccc-metric-lbl">Uneseno</div></div>',
           '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#fbbf24;font-size:1rem;">'+(Math.round((bil.nenaplaceno||0)/1000)||0)+'k</div><div class="ccc-metric-lbl">Neplaćeno</div></div>',
@@ -15134,12 +15134,12 @@ function _ccc_render(el, d) {
     // ── ROKOVI + AKTIVNOSTI ────────────────────────────────────────────────
     '<div class="ccc-grid" style="margin-bottom:.65rem;">',
       '<div class="ccc-block">',
-        '<div class="ccc-block-hd">⏰ Predstojeći rokovi</div>',
+        '<div class="ccc-block-hd">Predstojeći rokovi</div>',
         rokovi_html,
         '<button onclick="pred_subtabSwitch(\'rokovi\')" style="margin-top:.5rem;width:100%;font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.35);padding:.25rem;cursor:pointer;">Svi rokovi →</button>',
       '</div>',
       '<div class="ccc-block">',
-        '<div class="ccc-block-hd">📋 Aktivnosti</div>',
+        '<div class="ccc-block-hd">Aktivnosti</div>',
         akt_html,
         '<button onclick="pred_subtabSwitch(\'timeline\')" style="margin-top:.5rem;width:100%;font-size:.7rem;background:none;border:1px solid rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.35);padding:.25rem;cursor:pointer;">Puna hronologija →</button>',
       '</div>',
@@ -15147,12 +15147,12 @@ function _ccc_render(el, d) {
 
     // ── BRZE AKCIJE ───────────────────────────────────────────────────────
     '<div style="display:flex;flex-wrap:wrap;gap:.4rem;">',
-      '<button onclick="pred_subtabSwitch(\'ai-analiza\')" class="smart-chip chip-blue">⚖️ Analiza</button>',
-      '<button onclick="pred_subtabSwitch(\'strategija\')" class="smart-chip" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#a78bfa;">📋 Strategija</button>',
-      '<button onclick="pred_subtabSwitch(\'agenti\')" class="smart-chip" style="background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);color:#818cf8;">👤 Savetnici</button>',
-      '<button onclick="pred_subtabSwitch(\'dokumenti\')" class="smart-chip" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.55);">📁 Dokumenti</button>',
-      '<button onclick="if(typeof billing_timerToggle===\'function\'){if(!_billingPredmetId)_billingPredmetId=activePredmetId;billing_timerToggle();}" class="smart-chip" style="background:rgba(240,192,64,.1);border-color:rgba(240,192,64,.3);color:#f0c040;">⏱ Tajmer</button>',
-      '<button onclick="pred_subtabSwitch(\'graf\')" class="smart-chip" style="background:rgba(103,232,249,.08);border-color:rgba(103,232,249,.2);color:#67e8f9;">🕸 Mapa veza</button>',
+      '<button onclick="pred_subtabSwitch(\'ai-analiza\')" class="smart-chip chip-blue">Analiza</button>',
+      '<button onclick="pred_subtabSwitch(\'strategija\')" class="smart-chip" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#a78bfa;">Strategija</button>',
+      '<button onclick="pred_subtabSwitch(\'agenti\')" class="smart-chip" style="background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);color:#818cf8;">Savetnici</button>',
+      '<button onclick="pred_subtabSwitch(\'dokumenti\')" class="smart-chip" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.55);">Dokumenti</button>',
+      '<button onclick="if(typeof billing_timerToggle===\'function\'){if(!_billingPredmetId)_billingPredmetId=activePredmetId;billing_timerToggle();}" class="smart-chip" style="background:rgba(240,192,64,.1);border-color:rgba(240,192,64,.3);color:#f0c040;">Tajmer</button>',
+      '<button onclick="pred_subtabSwitch(\'graf\')" class="smart-chip" style="background:rgba(103,232,249,.08);border-color:rgba(103,232,249,.2);color:#67e8f9;">Mapa veza</button>',
     '</div>',
   ].join('');
 }
@@ -15222,7 +15222,7 @@ async function crmPokreniKonfliktNovi() {
     if (d.status === 'clear') {
       html = '<div class="cc-clear">✅ <b>Nema konflikta</b><br><span style="font-size:.8rem;">'+_htmlEsc(d.poruka)+'</span></div>';
     } else if (d.status === 'conflict') {
-      html = '<div class="cc-modal" style="background:rgba(248,113,113,.06);border-color:rgba(248,113,113,.3);border-radius:8px;padding:.8rem;margin-bottom:.5rem;">⛔ <b style="color:#f87171;">KONFLIKT INTERESA!</b><br><span style="font-size:.8rem;color:rgba(255,255,255,.6);">'+_htmlEsc(d.poruka)+'</span></div>';
+      html = '<div class="cc-modal" style="background:rgba(248,113,113,.06);border-color:rgba(248,113,113,.3);border-radius:8px;padding:.8rem;margin-bottom:.5rem;">⚠️ <b style="color:#f87171;">KONFLIKT INTERESA!</b><br><span style="font-size:.8rem;color:rgba(255,255,255,.6);">'+_htmlEsc(d.poruka)+'</span></div>';
     } else {
       html = '<div class="cc-review">⚠️ <b>Preporučena provera</b><br><span style="font-size:.8rem;">'+_htmlEsc(d.poruka)+'</span></div>';
     }
@@ -15303,7 +15303,7 @@ function _mdToHtml(text) {
   return out.join('');
 }
 
-var _AGENT_ICONS = {'intake':'📥','research':'🔍','drafting':'✍️','litigation':'⚖️','billing':'💰','deadline':'⏰'};
+var _AGENT_ICONS = {'intake':'','research':'','drafting':'','litigation':'','billing':'','deadline':''};
 var _AGENT_NAMES = {'intake':'Agent za prijem','research':'Agent za istraživanje','drafting':'Agent za pisanje','litigation':'Agent za parnice','billing':'Agent za naplatu','deadline':'Agent za rokove'};
 var _AGENT_PLACEHOLDERS = {
   'intake':    'Opišite situaciju klijenta... (npr. "Zaposleni dobio otkaz posle 8 godina, tvrdi da je nezakonit")',
@@ -15738,7 +15738,7 @@ function toggleLightTheme() {
   localStorage.setItem('vx_theme', isLight ? 'light' : 'dark');
   var ico = document.getElementById('theme-toggle-ico');
   var lbl = document.getElementById('theme-toggle-lbl');
-  if (ico) ico.textContent = isLight ? '🌙' : '☀️';
+  if (ico) ico.textContent = isLight ? 'Tamno' : 'Svetlo';
   if (lbl) lbl.textContent = isLight ? 'Tamna tema' : 'Svetla tema';
 }
 (function() {
@@ -15747,7 +15747,7 @@ function toggleLightTheme() {
     document.addEventListener('DOMContentLoaded', function() {
       var ico = document.getElementById('theme-toggle-ico');
       var lbl = document.getElementById('theme-toggle-lbl');
-      if (ico) ico.textContent = '🌙';
+      if (ico) ico.textContent = 'Tamno';
       if (lbl) lbl.textContent = 'Tamna tema';
     });
   }
@@ -15792,37 +15792,37 @@ function pred_fab_hide() { var f = document.getElementById('pred-fab'); if (f) {
 var _onboardStep = 0;
 var _onboardSteps = [
   {
-    icon: '⚖️',
+    icon: '',
     title: 'Dobrodošli u Vindex AI',
     body: 'Vaš digitalni pravni asistent za srpsku advokaturу. Upravljajte predmetima, klijentima, rokovima i naplatom — sve na jednom mestu, bez papira.'
   },
   {
-    icon: '👤',
+    icon: '',
     title: 'Korak 1: Dodajte klijenta',
     body: 'Pre nego što kreirate predmet, dodajte klijenta. Kliknite <strong style="color:#89c8ff;">Klijenti</strong> u levom meniju → dugme <strong style="color:#89c8ff;">+ Novi klijent</strong>. Unesite ime, telefon i email. To je sve.'
   },
   {
-    icon: '📁',
+    icon: '',
     title: 'Korak 2: Otvorite predmet',
     body: 'Kliknite <strong style="color:#89c8ff;">+ Novi predmet</strong> (gore desno ili u Predmeti tabu). Wizard će vas voditi korak po korak — naziv predmeta, klijent, oblast prava. Traje 2 minuta.'
   },
   {
-    icon: '📄',
+    icon: '',
     title: 'Korak 3: Otpremite dokumente',
     body: 'Unutar predmeta kliknite tab <strong style="color:#89c8ff;">Dokumenti</strong>. Prevucite PDF ili DOCX fajl u zonu za upload. Sistem će automatski analizirati dokument i izvući ključne informacije.'
   },
   {
-    icon: '🤖',
+    icon: '',
     title: 'Korak 4: Postavljanje pitanja',
     body: 'Kliknite tab <strong style="color:#89c8ff;">Analiza</strong> unutar predmeta. Sistem će analizirati vaš predmet i predložiti strategiju. Ili koristite <strong style="color:#89c8ff;">Pravni alati</strong> u levom meniju za pretragu zakona i sudske prakse.'
   },
   {
-    icon: '⏱️',
+    icon: '',
     title: 'Korak 5: Pratite rokove i naplatite',
     body: 'Tab <strong style="color:#89c8ff;">Rokovi</strong> — unesite ročišta i ZPP rokovi se računaju automatski. Tab <strong style="color:#89c8ff;">Naplata</strong> — uključite tajmer dok radite, dodajte stavke, kliknite Generiši fakturu.'
   },
   {
-    icon: '💡',
+    icon: '',
     title: 'Saveti dok radite',
     body: 'Svuda vidite obojene preporuke: 🔴 hitno, 🟡 pažnja, 🔵 informacija. Dugme <strong style="color:#89c8ff;">Više ▾</strong> u tabovima predmeta otkriva još alata. Ako nešto nije jasno — kliknite ? u donjem levom uglu.'
   },
@@ -15977,78 +15977,78 @@ async function pred_submitProcena() {
 
 function pred_renderProcena(tekst) {
   var sekcije = [
-    {k:'1. PRAVNI OSNOV',                    icon:'⚖️',  lbl:'Pravni osnov',                   special:''},
+    {k:'1. PRAVNI OSNOV',                    icon:'',  lbl:'Pravni osnov',                   special:''},
     {k:'2. ARGUMENTI ZA TUŽIOCA',            icon:'✅',  lbl:'Argumenti tužioca',               special:''},
     {k:'3. SLABOSTI U POZICIJI TUŽIOCA',     icon:'⚠️',  lbl:'Slabosti tužioca',                special:'slabosti'},
-    {k:'4. POTENCIJALNI ARGUMENTI TUŽENOG',  icon:'🛡️',  lbl:'Argumenti tuženog',               special:''},
-    {k:'5. STRATEGIJA ZA TUŽIOCA',           icon:'🗺️',  lbl:'Strategija tužioca',              special:'strategija'},
-    {k:'6. STRATEGIJA ZA TUŽENOG',           icon:'🛡️',  lbl:'Strategija tuženog',              special:'strategija'},
-    {k:'7. PREDVIĐENI ARGUMENTI TUŽENOG',    icon:'🧩',  lbl:'Predviđeni argumenti tuženog',    special:'predvidjeni'},
-    {k:'8. FAKTORI KOJI UTIČU NA ISHOD',     icon:'⚡',  lbl:'Faktori koji utiču na ishod',     special:'faktori'},
-    {k:'9. SPORNE TAČKE',                    icon:'🔍',  lbl:'Sporne tačke',                    special:''},
-    {k:'10. NEDOSTAJUĆE ČINJENICE',          icon:'❓',  lbl:'Nedostajuće činjenice',            special:'nedostajuce'},
-    {k:'11. CRVENE ZASTAVICE',               icon:'🚨',  lbl:'Crvene zastavice',                special:'zastavice'},
-    {k:'12. POTREBNI DOKAZI',                icon:'📋',  lbl:'Potrebni dokazi',                 special:'dokazi'},
-    {k:'13. KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                  special:'kompletiranost'},
-    {k:'14. PROCENA RIZIKA',                 icon:'🎯',  lbl:'Procena rizika',                  special:'rizik'},
-    {k:'15. RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',               special:'praksa'},
-    {k:'17. PITANJA ZA KLIJENTA',            icon:'💬',  lbl:'Pitanja za klijenta',             special:'pitanja'},
-    {k:'18. POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
+    {k:'4. POTENCIJALNI ARGUMENTI TUŽENOG',  icon:'',  lbl:'Argumenti tuženog',               special:''},
+    {k:'5. STRATEGIJA ZA TUŽIOCA',           icon:'',  lbl:'Strategija tužioca',              special:'strategija'},
+    {k:'6. STRATEGIJA ZA TUŽENOG',           icon:'',  lbl:'Strategija tuženog',              special:'strategija'},
+    {k:'7. PREDVIĐENI ARGUMENTI TUŽENOG',    icon:'',  lbl:'Predviđeni argumenti tuženog',    special:'predvidjeni'},
+    {k:'8. FAKTORI KOJI UTIČU NA ISHOD',     icon:'',  lbl:'Faktori koji utiču na ishod',     special:'faktori'},
+    {k:'9. SPORNE TAČKE',                    icon:'',  lbl:'Sporne tačke',                    special:''},
+    {k:'10. NEDOSTAJUĆE ČINJENICE',          icon:'',  lbl:'Nedostajuće činjenice',            special:'nedostajuce'},
+    {k:'11. CRVENE ZASTAVICE',               icon:'',  lbl:'Crvene zastavice',                special:'zastavice'},
+    {k:'12. POTREBNI DOKAZI',                icon:'',  lbl:'Potrebni dokazi',                 special:'dokazi'},
+    {k:'13. KOMPLETIRANOST PREDMETA',        icon:'',  lbl:'Kompletiranost',                  special:'kompletiranost'},
+    {k:'14. PROCENA RIZIKA',                 icon:'',  lbl:'Procena rizika',                  special:'rizik'},
+    {k:'15. RELEVANTNA PRAKSA',              icon:'',  lbl:'Relevantna praksa',               special:'praksa'},
+    {k:'17. PITANJA ZA KLIJENTA',            icon:'',  lbl:'Pitanja za klijenta',             special:'pitanja'},
+    {k:'18. POUZDANOST PROCENE',             icon:'',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
     // v2 extended sections (Phase 3.4)
-    {k:'19. ŽALBENI OSNOVI',                 icon:'⚖️',  lbl:'Žalbeni osnovi',                  special:''},
-    {k:'20. SLEDEĆI KORACI',                 icon:'🚀',  lbl:'Sledeći koraci',                  special:'sledeci_koraci'},
-    {k:'21. PROCENA USPEHA',                 icon:'🎯',  lbl:'Procena uspeha',                  special:'uspeh'},
-    {k:'22. RELEVANTNA SUDSKA PRAKSA',       icon:'📚',  lbl:'Relevantna sudska praksa',         special:'praksa'},
+    {k:'19. ŽALBENI OSNOVI',                 icon:'',  lbl:'Žalbeni osnovi',                  special:''},
+    {k:'20. SLEDEĆI KORACI',                 icon:'',  lbl:'Sledeći koraci',                  special:'sledeci_koraci'},
+    {k:'21. PROCENA USPEHA',                 icon:'',  lbl:'Procena uspeha',                  special:'uspeh'},
+    {k:'22. RELEVANTNA SUDSKA PRAKSA',       icon:'',  lbl:'Relevantna sudska praksa',         special:'praksa'},
     // legacy v6 16-section fallback
-    {k:'9. NEDOSTAJUĆE ČINJENICE',           icon:'❓',  lbl:'Nedostajuće činjenice',            special:'nedostajuce'},
-    {k:'10. POTREBNI DOKAZI',                icon:'📋',  lbl:'Potrebni dokazi',                 special:'dokazi'},
-    {k:'11. KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                  special:'kompletiranost'},
-    {k:'12. PROCENA RIZIKA',                 icon:'🎯',  lbl:'Procena rizika',                  special:'rizik'},
-    {k:'13. RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',               special:'praksa'},
-    {k:'15. PITANJA ZA KLIJENTA',            icon:'💬',  lbl:'Pitanja za klijenta',             special:'pitanja'},
-    {k:'16. POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
+    {k:'9. NEDOSTAJUĆE ČINJENICE',           icon:'',  lbl:'Nedostajuće činjenice',            special:'nedostajuce'},
+    {k:'10. POTREBNI DOKAZI',                icon:'',  lbl:'Potrebni dokazi',                 special:'dokazi'},
+    {k:'11. KOMPLETIRANOST PREDMETA',        icon:'',  lbl:'Kompletiranost',                  special:'kompletiranost'},
+    {k:'12. PROCENA RIZIKA',                 icon:'',  lbl:'Procena rizika',                  special:'rizik'},
+    {k:'13. RELEVANTNA PRAKSA',              icon:'',  lbl:'Relevantna praksa',               special:'praksa'},
+    {k:'15. PITANJA ZA KLIJENTA',            icon:'',  lbl:'Pitanja za klijenta',             special:'pitanja'},
+    {k:'16. POUZDANOST PROCENE',             icon:'',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
     // legacy v5 14-section fallback
-    {k:'9. POTREBNI DOKAZI',                 icon:'📋',  lbl:'Potrebni dokazi',                 special:'dokazi'},
-    {k:'10. KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                  special:'kompletiranost'},
-    {k:'11. PROCENA RIZIKA',                 icon:'🎯',  lbl:'Procena rizika',                  special:'rizik'},
-    {k:'12. RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',               special:'praksa'},
-    {k:'14. POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
+    {k:'9. POTREBNI DOKAZI',                 icon:'',  lbl:'Potrebni dokazi',                 special:'dokazi'},
+    {k:'10. KOMPLETIRANOST PREDMETA',        icon:'',  lbl:'Kompletiranost',                  special:'kompletiranost'},
+    {k:'11. PROCENA RIZIKA',                 icon:'',  lbl:'Procena rizika',                  special:'rizik'},
+    {k:'12. RELEVANTNA PRAKSA',              icon:'',  lbl:'Relevantna praksa',               special:'praksa'},
+    {k:'14. POUZDANOST PROCENE',             icon:'',  lbl:'Pouzdanost procene',              special:'pouzdanost'},
     // legacy v4 13-section fallback
-    {k:'7. KLJUČNA ČINJENICA',               icon:'🔑',  lbl:'Ključna činjenica',               special:'kljucna'},
-    {k:'8. SPORNE TAČKE',                    icon:'🔍',  lbl:'Sporne tačke',                    special:''},
+    {k:'7. KLJUČNA ČINJENICA',               icon:'',  lbl:'Ključna činjenica',               special:'kljucna'},
+    {k:'8. SPORNE TAČKE',                    icon:'',  lbl:'Sporne tačke',                    special:''},
     // legacy v3 12-section fallback
-    {k:'6. KLJUČNA ČINJENICA',               icon:'🔑',  lbl:'Ključna činjenica',               special:'kljucna'},
+    {k:'6. KLJUČNA ČINJENICA',               icon:'',  lbl:'Ključna činjenica',               special:'kljucna'},
     // legacy v2 fallback
-    {k:'6. SPORNE TAČKE',                    icon:'🔍',  lbl:'Sporne tačke',                    special:''},
-    {k:'7. POTREBNI DOKAZI',                 icon:'📋',  lbl:'Potrebni dokazi',                 special:'dokazi'},
-    {k:'8. KOMPLETIRANOST PREDMETA',         icon:'📊',  lbl:'Kompletiranost',                  special:'kompletiranost'},
-    {k:'9. PROCENA RIZIKA',                  icon:'🎯',  lbl:'Procena rizika',                  special:'rizik'},
-    {k:'10. RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',               special:'praksa'},
+    {k:'6. SPORNE TAČKE',                    icon:'',  lbl:'Sporne tačke',                    special:''},
+    {k:'7. POTREBNI DOKAZI',                 icon:'',  lbl:'Potrebni dokazi',                 special:'dokazi'},
+    {k:'8. KOMPLETIRANOST PREDMETA',         icon:'',  lbl:'Kompletiranost',                  special:'kompletiranost'},
+    {k:'9. PROCENA RIZIKA',                  icon:'',  lbl:'Procena rizika',                  special:'rizik'},
+    {k:'10. RELEVANTNA PRAKSA',              icon:'',  lbl:'Relevantna praksa',               special:'praksa'},
     // legacy v1 6-section fallback
-    {k:'4. SPORNE TAČKE',                    icon:'🔍',  lbl:'Sporne tačke',                    special:''},
-    {k:'5. NEDOSTAJUĆI DOKAZI',              icon:'📋',  lbl:'Potrebni dokazi',                 special:'dokazi'},
-    {k:'6. PROCENA RIZIKA',                  icon:'🎯',  lbl:'Procena rizika',                  special:'rizik'},
+    {k:'4. SPORNE TAČKE',                    icon:'',  lbl:'Sporne tačke',                    special:''},
+    {k:'5. NEDOSTAJUĆI DOKAZI',              icon:'',  lbl:'Potrebni dokazi',                 special:'dokazi'},
+    {k:'6. PROCENA RIZIKA',                  icon:'',  lbl:'Procena rizika',                  special:'rizik'},
   ];
   // Try to find sections without number prefix as fallback (GPT sometimes omits numbers)
   var _fallbackSek = [
-    {k:'FAKTORI KOJI UTIČU NA ISHOD',    icon:'⚡',  lbl:'Faktori koji utiču na ishod',   special:'faktori'},
+    {k:'FAKTORI KOJI UTIČU NA ISHOD',    icon:'',  lbl:'Faktori koji utiču na ishod',   special:'faktori'},
     {k:'SLABOSTI U POZICIJI TUŽIOCA',    icon:'⚠️',  lbl:'Slabosti tužioca',              special:'slabosti'},
-    {k:'POTENCIJALNI ARGUMENTI TUŽENOG', icon:'🛡️',  lbl:'Argumenti tuženog',             special:''},
-    {k:'CRVENE ZASTAVICE',               icon:'🚨',  lbl:'Crvene zastavice',              special:'zastavice'},
-    {k:'NEDOSTAJUĆE ČINJENICE',          icon:'❓',  lbl:'Nedostajuće činjenice',          special:'nedostajuce'},
-    {k:'KLJUČNA ČINJENICA',              icon:'🔑',  lbl:'Ključna činjenica',              special:'kljucna'},
-    {k:'KOMPLETIRANOST PREDMETA',        icon:'📊',  lbl:'Kompletiranost',                 special:'kompletiranost'},
-    {k:'PROCENA RIZIKA',                 icon:'🎯',  lbl:'Procena rizika',                 special:'rizik'},
-    {k:'RELEVANTNA PRAKSA',              icon:'📚',  lbl:'Relevantna praksa',              special:'praksa'},
-    {k:'PITANJA ZA KLIJENTA',            icon:'💬',  lbl:'Pitanja za klijenta',            special:'pitanja'},
-    {k:'POUZDANOST PROCENE',             icon:'🔬',  lbl:'Pouzdanost procene',             special:'pouzdanost'},
-    {k:'ŽALBENI OSNOVI',                 icon:'⚖️',  lbl:'Žalbeni osnovi',                 special:''},
-    {k:'SLEDEĆI KORACI',                 icon:'🚀',  lbl:'Sledeći koraci',                 special:'sledeci_koraci'},
-    {k:'PROCENA USPEHA',                 icon:'🎯',  lbl:'Procena uspeha',                 special:'uspeh'},
-    {k:'RELEVANTNA SUDSKA PRAKSA',       icon:'📚',  lbl:'Relevantna sudska praksa',        special:'praksa'},
-    {k:'STRATEGIJA ZA TUŽIOCA',          icon:'🗺️',  lbl:'Strategija tužioca',             special:'strategija'},
-    {k:'STRATEGIJA ZA TUŽENOG',          icon:'🛡️',  lbl:'Strategija tuženog',             special:'strategija'},
-    {k:'PREDVIĐENI ARGUMENTI TUŽENOG',   icon:'🧩',  lbl:'Predviđeni argumenti tuženog',   special:'predvidjeni'},
+    {k:'POTENCIJALNI ARGUMENTI TUŽENOG', icon:'',  lbl:'Argumenti tuženog',             special:''},
+    {k:'CRVENE ZASTAVICE',               icon:'',  lbl:'Crvene zastavice',              special:'zastavice'},
+    {k:'NEDOSTAJUĆE ČINJENICE',          icon:'',  lbl:'Nedostajuće činjenice',          special:'nedostajuce'},
+    {k:'KLJUČNA ČINJENICA',              icon:'',  lbl:'Ključna činjenica',              special:'kljucna'},
+    {k:'KOMPLETIRANOST PREDMETA',        icon:'',  lbl:'Kompletiranost',                 special:'kompletiranost'},
+    {k:'PROCENA RIZIKA',                 icon:'',  lbl:'Procena rizika',                 special:'rizik'},
+    {k:'RELEVANTNA PRAKSA',              icon:'',  lbl:'Relevantna praksa',              special:'praksa'},
+    {k:'PITANJA ZA KLIJENTA',            icon:'',  lbl:'Pitanja za klijenta',            special:'pitanja'},
+    {k:'POUZDANOST PROCENE',             icon:'',  lbl:'Pouzdanost procene',             special:'pouzdanost'},
+    {k:'ŽALBENI OSNOVI',                 icon:'',  lbl:'Žalbeni osnovi',                 special:''},
+    {k:'SLEDEĆI KORACI',                 icon:'',  lbl:'Sledeći koraci',                 special:'sledeci_koraci'},
+    {k:'PROCENA USPEHA',                 icon:'',  lbl:'Procena uspeha',                 special:'uspeh'},
+    {k:'RELEVANTNA SUDSKA PRAKSA',       icon:'',  lbl:'Relevantna sudska praksa',        special:'praksa'},
+    {k:'STRATEGIJA ZA TUŽIOCA',          icon:'',  lbl:'Strategija tužioca',             special:'strategija'},
+    {k:'STRATEGIJA ZA TUŽENOG',          icon:'',  lbl:'Strategija tuženog',             special:'strategija'},
+    {k:'PREDVIĐENI ARGUMENTI TUŽENOG',   icon:'',  lbl:'Predviđeni argumenti tuženog',   special:'predvidjeni'},
   ];
   var positions = [];
   sekcije.forEach(function(s) {
@@ -16391,11 +16391,11 @@ function pred_renderProcena(tekst) {
 
 function pred_renderPresuda(tekst) {
   var sekcije = [
-    {k:'1. REZIME PRESUDE',              icon:'📄', lbl:'Rezime presude',        isZalba:false},
-    {k:'2. KLJUČNI ARGUMENTI SUDA',      icon:'⚖️',  lbl:'Argumenti suda',        isZalba:false},
-    {k:'3. PRIMENJENI PROPISI',          icon:'📋', lbl:'Primenjeni propisi',     isZalba:false},
-    {k:'4. POTENCIJALNI ŽALBENI OSNOVI', icon:'🔍', lbl:'Žalbeni osnovi',         isZalba:false},
-    {k:'5. PROCENA IZGLEDA ŽALBE',       icon:'🎯', lbl:'Procena izgleda žalbe', isZalba:true},
+    {k:'1. REZIME PRESUDE',              icon:'', lbl:'Rezime presude',        isZalba:false},
+    {k:'2. KLJUČNI ARGUMENTI SUDA',      icon:'',  lbl:'Argumenti suda',        isZalba:false},
+    {k:'3. PRIMENJENI PROPISI',          icon:'', lbl:'Primenjeni propisi',     isZalba:false},
+    {k:'4. POTENCIJALNI ŽALBENI OSNOVI', icon:'', lbl:'Žalbeni osnovi',         isZalba:false},
+    {k:'5. PROCENA IZGLEDA ŽALBE',       icon:'', lbl:'Procena izgleda žalbe', isZalba:true},
   ];
   var positions = [];
   sekcije.forEach(function(s) {
@@ -16408,7 +16408,7 @@ function pred_renderPresuda(tekst) {
     if (!deduped.length || p.pos - deduped[deduped.length-1].pos > 5) deduped.push(p);
   });
   if (!deduped.length) return '<pre style="font-size:0.78rem;white-space:pre-wrap;color:rgba(255,255,255,0.72);">'+escHtml(tekst)+'</pre>';
-  var html = '<div style="font-size:0.67rem;font-weight:700;letter-spacing:.07em;color:rgba(255,255,255,0.28);text-transform:uppercase;margin-bottom:0.5rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(255,255,255,0.06);">📄 Analiza presude</div>';
+  var html = '<div style="font-size:0.67rem;font-weight:700;letter-spacing:.07em;color:rgba(255,255,255,0.28);text-transform:uppercase;margin-bottom:0.5rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(255,255,255,0.06);">Analiza presude</div>';
   deduped.forEach(function(x,i) {
     var start = x.pos + x.s.k.length;
     var end   = i+1 < deduped.length ? deduped[i+1].pos : tekst.length;
@@ -16904,7 +16904,7 @@ function _intakeRenderFileList() {
   var html = '';
   _iFiles.forEach(function(f, i) {
     html += '<div class="intake-file-item">'
-         +  '<span class="intake-file-name">📄 ' + f.name + ' <span style="color:rgba(255,255,255,0.3);font-size:0.7rem;">(' + f.chunks + ' segmenata)</span></span>'
+         +  '<span class="intake-file-name"> ' + f.name + ' <span style="color:rgba(255,255,255,0.3);font-size:0.7rem;">(' + f.chunks + ' segmenata)</span></span>'
          +  '<button class="intake-file-rm" onclick="intakeRemoveFile(' + i + ')">✕</button>'
          +  '</div>';
   });
@@ -17343,7 +17343,7 @@ function _bulkRenderPreview() {
   document.getElementById('bulk-import-result').style.display = 'none';
   document.getElementById('bulk-import-progress').style.display = 'none';
   document.getElementById('bulk-import-btn').disabled = false;
-  document.getElementById('bulk-import-btn').textContent = '📤 Uvezi sve';
+  document.getElementById('bulk-import-btn').textContent = 'Uvezi sve';
   var info = document.getElementById('bulk-preview-info');
   info.textContent = 'Pronađeno ' + _bulkRedovi.length + ' redova. Prvih 10 prikazano ispod:';
   var preview = _bulkRedovi.slice(0, 10);
@@ -17379,7 +17379,7 @@ async function bulkImportuj() {
     var d = await r.json();
     if (!r.ok) {
       progTxt.textContent = 'Greška: ' + (d.detail || 'Server greška');
-      btn.disabled = false; btn.textContent = '📤 Uvezi sve';
+      btn.disabled = false; btn.textContent = 'Uvezi sve';
       return;
     }
     var resultEl = document.getElementById('bulk-import-result');
@@ -17397,7 +17397,7 @@ async function bulkImportuj() {
     if (d.uspeh > 0) { pred_load(); showToast('✓ Uvezeno ' + d.uspeh + ' predmeta', 'ok'); }
   } catch(e) {
     progTxt.textContent = 'Greška veze. Pokušajte ponovo.';
-    btn.disabled = false; btn.textContent = '📤 Uvezi sve';
+    btn.disabled = false; btn.textContent = 'Uvezi sve';
   }
 }
 
@@ -17706,8 +17706,8 @@ function ugovor_showResult(d) {
     + d.datum_zakljucenja + (d.sacuvano_u_predmet ? ' · <span style="color:#4ade80;">Sačuvano u hronologiji</span>' : '') + '</div>'
     + '<pre style="white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:.72rem;line-height:1.55;color:rgba(255,255,255,0.75);background:rgba(0,0,0,0.3);padding:.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.07);">' + _htmlEsc(d.ugovor_tekst) + '</pre>'
     + '<div style="display:flex;gap:.5rem;margin-top:.8rem;">'
-    + '<button onclick="ugovor_kopiraj()" style="flex:1;padding:.5rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:8px;color:#00d4ff;font-size:.78rem;cursor:pointer;" id="uz-copy-btn">📋 Kopiraj tekst</button>'
-    + '<button onclick="ugovor_stampaj()" style="flex:1;padding:.5rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-size:.78rem;cursor:pointer;">🖨 Štampaj / PDF</button>'
+    + '<button onclick="ugovor_kopiraj()" style="flex:1;padding:.5rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:8px;color:#00d4ff;font-size:.78rem;cursor:pointer;" id="uz-copy-btn">Kopiraj tekst</button>'
+    + '<button onclick="ugovor_stampaj()" style="flex:1;padding:.5rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-size:.78rem;cursor:pointer;">Štampaj / PDF</button>'
     + '</div>'
     + '</div>';
   document.body.appendChild(overlay);
