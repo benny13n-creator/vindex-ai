@@ -342,11 +342,11 @@
         <span class="vx-logo-mark">Vindex <em>AI</em></span>
       </div>
       <nav class="vx-nav" id="t-tabs-el">
+        <!-- ── Osnovna navigacija — 3 stvari koje advokat koristi svaki dan ── -->
         <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')">
           <i data-lucide="layout-dashboard" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Komandni centar</span>
+          <span class="vx-tab-lbl">Pregled dana</span>
         </div>
-        <div class="vx-nav-sep"></div>
         <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')">
           <i data-lucide="briefcase" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Predmeti</span>
@@ -355,54 +355,33 @@
           <i data-lucide="users" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Klijenti</span>
         </div>
-        <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal')">
-          <i data-lucide="calendar-clock" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Rokovi</span>
-        </div>
-        <div class="t-tab" id="tab-btn-notif" onclick="notif_toggleDropdown()">
-          <i data-lucide="bell" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Notifikacije</span>
-        </div>
         <div class="vx-nav-sep"></div>
-        <!-- Pravni alati — section label + always-visible sub-items -->
-        <div class="vx-nav-group-lbl">Pravni alati — Osnovno</div>
+        <!-- ── Pravni alati — kad treba nešto istražiti ili napisati ── -->
+        <div class="vx-nav-group-lbl">Pravni alati</div>
         <div class="vx-nav-sub" onclick="openAITool('q')" title="Postavite pitanje o zakonu — sistem pretražuje sve važeće zakone Srbije">
           <span class="vx-nav-sub-dot"></span>Istraživanje zakona
         </div>
         <div class="vx-nav-sub" onclick="openAITool('s')" title="Pronađite presude sudova koje su relevantne za vaš slučaj">
           <span class="vx-nav-sub-dot"></span>Sudska praksa
         </div>
+        <div class="vx-nav-sub" onclick="openAITool('n')" title="Generišite tužbu, žalbu, ugovor ili drugi pravni podnesak">
+          <span class="vx-nav-sub-dot"></span>Nacrti podnesaka
+        </div>
         <div class="vx-nav-sub" onclick="openAITool('a')" title="Otpremite PDF ili DOCX — analizira dokument i izvlači ključne informacije">
           <span class="vx-nav-sub-dot"></span>Analiza dokumenta
         </div>
-        <div class="vx-nav-sub" onclick="openAITool('n')" title="Generišite tužbu, žalbu, ugovor ili drugi pravni podnesak uz automatsku asistenciju">
-          <span class="vx-nav-sub-dot"></span>Nacrti podnesaka
-        </div>
         <div class="vx-nav-sub" onclick="docTplOpen()" style="color:#86efac;" title="Gotovi šabloni dokumenata — prilagodite i preuzmite">
-          <span class="vx-nav-sub-dot" style="background:#86efac;"></span>📋 Šabloni dokumenata
-        </div>
-        <div class="vx-nav-group-lbl" style="margin-top:.5rem;">Pravni alati — Napredno</div>
-        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-p'),'p')" title="Otvorite predmet i idite na tab Strategija — Crveni tim, analiza, Kompletna analiza">
-          <span class="vx-nav-sub-dot"></span>Procesna strategija
-        </div>
-        <div class="vx-nav-sub" onclick="aicOtvoriPredmet('agenti')" style="color:rgba(0,212,255,0.7);" title="6 stručnjaka koji analiziraju vaš predmet — otvorite predmet i kliknite tab Agenti">
-          <span class="vx-nav-sub-dot" style="background:rgba(0,212,255,0.7);"></span>Savetnici (6 stručnjaka)
-        </div>
-        <div class="vx-nav-sub" onclick="aicOtvoriPredmet('graf')" style="color:#67e8f9;" title="Vizuelna mapa veza predmeta — otvorite predmet i kliknite tab Više ▾ → Graf">
-          <span class="vx-nav-sub-dot" style="background:#67e8f9;"></span>Graf veza predmeta
-        </div>
-        <div class="vx-nav-sub" onclick="openAITool('w')" title="Analiza usklađenosti sa regulativom — za digitalne usluge, kripto i Web3 projekte">
-          <span class="vx-nav-sub-dot"></span>Web3 &amp; Compliance
+          <span class="vx-nav-sub-dot" style="background:#86efac;"></span>Šabloni dokumenata
         </div>
         <div class="vx-nav-sep" style="margin-top:24px !important;"></div>
-        <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
-          <i data-lucide="book-open" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Baza znanja</span>
-        </div>
         <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')">
           <i data-lucide="settings" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Podešavanja</span>
         </div>
+        <!-- Skriveni tabovi — funkcionalnost sačuvana, dostupna iz predmeta ili podešavanja -->
+        <div class="t-tab vx-hidden-tab" id="tab-btn-kal" onclick="setTab(this,'kal')"></div>
+        <div class="t-tab vx-hidden-tab" id="tab-btn-notif" onclick="notif_toggleDropdown()"></div>
+        <div class="t-tab vx-hidden-tab" id="tab-btn-dok" onclick="setTab(this,'dok')"></div>
         <!-- Hidden tabs — all functionality preserved -->
         <div class="t-tab vx-hidden-tab" id="tab-btn-alati" onclick="setTab(this,'alati')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-q" onclick="setTab(this,'q')"></div>
@@ -488,28 +467,36 @@
           🎤 Govori
         </button>
         <div class="vx-topbar-actions">
-          <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
-            <i data-lucide="bell" class="vx-topbar-ico" style="color:rgba(255,255,255,0.32);"></i>
-            <span id="notif-badge" style="display:none;position:absolute;top:0;right:-4px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.52rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
-            <div id="notif-dropdown" style="display:none;position:absolute;top:calc(100% + 10px);right:-8px;width:320px;background:#0d1b2a;border:1px solid rgba(74,168,255,0.18);border-radius:10px;box-shadow:0 16px 48px rgba(0,0,0,0.6);z-index:8000;max-height:420px;overflow-y:auto;"></div>
-          </div>
+          <!-- Krediti i korisnik -->
           <div class="nav-user" id="nav-user" style="display:none;">
             <span class="nav-user-email" id="nav-user-email"></span>
             <span class="nav-credit-pill" id="nav-credit-pill"><span id="nav-credits-num" class="cp-num">15</span></span>
             <span id="trial-badge" class="trial-badge hidden"></span>
           </div>
-          <button onclick="searchOpen()" title="Pretraži (Ctrl+K)" style="padding:0.32rem 0.65rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.45);font-size:0.72rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:0.3rem;white-space:nowrap;" id="nav-search-btn">
-            🔍 <kbd style="padding:0.05rem 0.35rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:3px;font-size:0.6rem;font-family:inherit;">Ctrl K</kbd>
+          <!-- Pretraga -->
+          <button onclick="searchOpen()" title="Pretraži predmete, klijente, zakone (Ctrl+K)" style="padding:0.32rem 0.65rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.45);font-size:0.72rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:0.3rem;white-space:nowrap;" id="nav-search-btn">
+            🔍 <span style="display:none;" class="vx-kbd-hint"><kbd style="padding:0.05rem 0.35rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:3px;font-size:0.6rem;font-family:inherit;">Ctrl K</kbd></span>
           </button>
-          <button id="voice-cmd-btn" onclick="voice_start()" title="Glasovna komanda (Alt+V)" style="padding:0.32rem 0.65rem;background:rgba(138,75,255,0.08);border:1px solid rgba(138,75,255,0.3);border-radius:8px;color:#b89aff;font-size:0.75rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:0.3rem;transition:all .2s;white-space:nowrap;">
-            🎤 <kbd style="padding:.05rem .3rem;background:rgba(138,75,255,.1);border:1px solid rgba(138,75,255,.25);border-radius:3px;font-size:.6rem;font-family:inherit;">Alt V</kbd>
+          <!-- Rokovi — brz pristup kalendaru -->
+          <button onclick="setTab(document.getElementById('tab-btn-kal'),'kal')" title="Kalendar ročišta i rokova" style="padding:0.32rem 0.65rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.45);font-size:0.75rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:0.3rem;white-space:nowrap;" id="nav-rokovi-btn">
+            📅 Rokovi
           </button>
-          <button id="pwa-install-btn" onclick="pwaInstall()" title="Instaliraj Vindex AI kao aplikaciju" style="display:none;padding:0.32rem 0.65rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;color:#00d4ff;font-size:0.72rem;cursor:pointer;font-family:inherit;display:none;align-items:center;gap:0.3rem;white-space:nowrap;transition:background .15s;">
+          <!-- Notifikacije -->
+          <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:none;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
+            <i data-lucide="bell" class="vx-topbar-ico" style="color:rgba(255,255,255,0.32);"></i>
+            <span id="notif-badge" style="display:none;position:absolute;top:0;right:-4px;min-width:14px;height:14px;padding:0 3px;background:#ff5050;border-radius:7px;font-size:0.52rem;font-weight:700;color:#fff;text-align:center;line-height:14px;"></span>
+            <div id="notif-dropdown" style="display:none;position:absolute;top:calc(100% + 10px);right:-8px;width:320px;background:#0d1b2a;border:1px solid rgba(74,168,255,0.18);border-radius:10px;box-shadow:0 16px 48px rgba(0,0,0,0.6);z-index:8000;max-height:420px;overflow-y:auto;"></div>
+          </div>
+          <!-- PWA install — vidljivo samo kad je dostupno -->
+          <button id="pwa-install-btn" onclick="pwaInstall()" title="Instaliraj Vindex AI kao aplikaciju" style="display:none;padding:0.32rem 0.65rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;color:#00d4ff;font-size:0.72rem;cursor:pointer;font-family:inherit;align-items:center;gap:0.3rem;white-space:nowrap;transition:background .15s;">
             <i data-lucide="download" style="width:14px;height:14px;stroke:#00d4ff;stroke-width:2;flex-shrink:0;"></i> Instaliraj
           </button>
-          <button onclick="qiOtvori()" title="Brzo kreiranje predmeta bez analize" style="padding:0.32rem 0.65rem;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.25);border-radius:8px;color:#ffd166;font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:0.25rem;">⚡ Hitan</button>
-          <button onclick="bulkOtvori()" title="Uvezi predmete iz CSV fajla" style="padding:0.32rem 0.65rem;background:rgba(74,168,255,0.06);border:1px solid rgba(74,168,255,0.2);border-radius:8px;color:rgba(74,168,255,0.7);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:0.25rem;">📤 CSV</button>
+          <!-- Glavni poziv na akciju -->
           <button class="vx-btn-new" onclick="intakeOtvori()">+ Novi predmet</button>
+          <!-- Skrivene alatke — dostupne iz predmeta ili podešavanja -->
+          <button id="voice-cmd-btn" onclick="voice_start()" title="Glasovna komanda (Alt+V)" style="display:none;"></button>
+          <button onclick="qiOtvori()" title="Brzo kreiranje predmeta" id="btn-hitan-hidden" style="display:none;"></button>
+          <button onclick="bulkOtvori()" title="Uvezi iz CSV" id="btn-csv-hidden" style="display:none;"></button>
           <button class="settings-btn vx-topbar-settings" onclick="openSettings()" title="Podešavanja" style="display:none;"><i data-lucide="settings" class="vx-topbar-ico"></i></button>
         </div>
       </div>
@@ -667,20 +654,20 @@
               <!-- ── Subtab Navigation (Primary + More) ───────────────── -->
               <div style="position:relative;">
               <div class="pred-subtab-nav" style="position:relative;" id="pred-subtab-nav-el">
-                <!-- PRIMARY TABS — dnevne radnje -->
-                <button class="pred-subtab-btn pred-tab-primary active" id="tab-ccc-btn" onclick="pred_subtabSwitch('ccc',this)" title="Pregled šta treba da uradite — sledeće akcije, rokovi, preporuke">Centar</button>
-                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('pregled',this)" title="Detalji predmeta, beleške, ugovor o zastupanju i zatvaranje predmeta">Pregled</button>
+                <!-- PRIMARY TABS — 5 stvari koje advokat radi svaki dan -->
+                <button class="pred-subtab-btn pred-tab-primary active" id="tab-pregled-btn" onclick="pred_subtabSwitch('pregled',this)" title="Detalji predmeta, klijent, beleške i status">Predmet</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('dokumenti',this)" title="Otpremite i pregledajte dokumente predmeta">Dokumenti</button>
-                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('ai-analiza',this)" title="Pravna procena i alati u kontekstu ovog predmeta">Analiza</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('rokovi',this)" title="Ročišta, hronologija, ZPP rokovi i priprema za ročište">Rokovi</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('naplata',this)" title="Tajmer, stavke naplate i generisanje fakture">Naplata</button>
-                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('strategija',this)" title="Procesna strategija — Crveni tim, kompletna analiza, simulacija suda">Strategija</button>
-                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('agenti',this)" style="position:relative;" title="6 specijalizovanih stručnjaka koji analiziraju vaš predmet">Agenti<span style="position:absolute;top:-4px;right:-4px;background:rgba(0,212,255,0.15);color:rgba(0,212,255,0.9);border:1px solid rgba(0,212,255,0.3);font-size:.42rem;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:.04em;"></span></button>
-                <!-- VIŠE dropdown — sada samo napredne opcije -->
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('ai-analiza',this)" title="Procena predmeta i pravna analiza u kontekstu vaših dokumenata">Procena</button>
+                <!-- VIŠE — napredne opcije za iskusne korisnike -->
                 <div class="pred-more-wrap" id="pred-more-wrap">
-                  <button class="pred-subtab-btn pred-tab-more" id="pred-more-btn" onclick="pred_more_toggle(event)" title="Napredne opcije: Graf veza, Hronologija, Dokazi, Komunikacija, Saradnja">Više ▾</button>
+                  <button class="pred-subtab-btn pred-tab-more" id="pred-more-btn" onclick="pred_more_toggle(event)" title="Napredne opcije">Više ▾</button>
                   <div class="pred-more-menu" id="pred-more-menu" style="display:none;">
-                    <button onclick="pred_more_select('graf')">◉ Graf veza predmeta</button>
+                    <button onclick="pred_more_select('ccc')">⚡ Komandni centar</button>
+                    <button onclick="pred_more_select('strategija')">⚔️ Strategija</button>
+                    <button onclick="pred_more_select('agenti')">🧠 Savetnici</button>
+                    <button onclick="pred_more_select('graf')">◉ Graf veza</button>
                     <button onclick="pred_more_select('timeline')">📅 Hronologija</button>
                     <button onclick="pred_more_select('dokazi')">🔒 Trezor dokaza</button>
                     <button onclick="pred_more_select('komunikacija')">💬 Komunikacija</button>

@@ -7546,10 +7546,18 @@ function pred_renderList() {
   var el = document.getElementById('pred-list');
   if (!el) return;
   if (!_predmeti.length) {
-    el.innerHTML = '<div style="font-size:0.82rem;color:rgba(255,255,255,0.38);text-align:center;padding:1.5rem 0.5rem;line-height:1.7;">'
-      + '<div style="font-size:1.8rem;margin-bottom:.5rem;opacity:.25;">📁</div>'
-      + '<div style="font-weight:600;color:rgba(255,255,255,.5);margin-bottom:.3rem;">Nema predmeta</div>'
-      + '<div style="font-size:.75rem;color:rgba(255,255,255,.25);max-width:200px;margin:0 auto;">Kliknite <strong style="color:rgba(74,168,255,.6);">+ Novi predmet</strong> gore desno da dodate prvi predmet.</div>'
+    el.innerHTML = '<div style="padding:2rem 1rem;text-align:center;">'
+      + '<div style="font-size:2.5rem;margin-bottom:.8rem;opacity:.3;">⚖️</div>'
+      + '<div style="font-size:.95rem;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:.4rem;">Još uvek nemate predmeta</div>'
+      + '<div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-bottom:1.2rem;line-height:1.6;">Dodajte prvog klijenta, zatim kreirajte predmet.<br>Ceo proces traje manje od 2 minuta.</div>'
+      + '<button onclick="intakeOtvori()" style="padding:.55rem 1.4rem;background:rgba(74,168,255,.15);border:1px solid rgba(74,168,255,.4);border-radius:8px;color:#89c8ff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;">+ Kreiraj prvi predmet</button>'
+      + '<div style="margin-top:1.5rem;display:flex;flex-direction:column;gap:.5rem;text-align:left;max-width:240px;margin-left:auto;margin-right:auto;">'
+      + '<div style="font-size:.68rem;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.2rem;">Kako to radi</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:#4aa8ff;font-weight:700;flex-shrink:0;">1.</span> Dodajte klijenta (Klijenti u meniju)</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:#4aa8ff;font-weight:700;flex-shrink:0;">2.</span> Kliknite + Kreiraj prvi predmet</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:#4aa8ff;font-weight:700;flex-shrink:0;">3.</span> Opišite predmet i dodajte dokumente</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:#4aa8ff;font-weight:700;flex-shrink:0;">4.</span> Pokrenite analizu — dobijate procenu</div>'
+      + '</div>'
       + '</div>';
     return;
   }
@@ -7653,10 +7661,10 @@ function pred_subtabSwitch(pane, btn) {
       if ((b.getAttribute('onclick') || '').indexOf("'"+pane+"'") > -1) b.classList.add('active');
     });
   }
-  // Ažuriraj "Više" btn: active samo kad je sekundarni tab otvoren
+  // Ažuriraj "Više" btn: active kad je bilo koji sekundarni tab otvoren
   var _moreBtn = document.getElementById('pred-more-btn');
   if (_moreBtn) {
-    var _secondary = ['timeline','dokazi','komunikacija','saradnja','graf'];
+    var _secondary = ['timeline','dokazi','komunikacija','saradnja','graf','ccc','strategija','agenti'];
     if (_secondary.indexOf(pane) > -1) _moreBtn.classList.add('active');
     else _moreBtn.classList.remove('active');
   }
@@ -7917,7 +7925,7 @@ var _aicPendingSubtab = null;
 function aicOtvoriPredmet(subtab) {
   if (activePredmetId) {
     setTab(document.getElementById('tab-btn-p'), 'p');
-    setTimeout(function() { pred_subtabSwitch(subtab || 'ccc'); }, 80);
+    setTimeout(function() { pred_subtabSwitch(subtab || 'pregled'); }, 80);
   } else {
     _aicPendingSubtab = subtab || null;
     setTab(document.getElementById('tab-btn-p'), 'p');
@@ -7951,7 +7959,7 @@ function pred_select(id) {
     if (oblEl) oblEl.textContent = (typeof _TIP_LABELS !== 'undefined' && _TIP_LABELS[predmetObj.tip]) || predmetObj.tip || '—';
   }
   if (history.pushState) history.pushState(null, '', '#pregled');
-  var targetSubtab = _aicPendingSubtab || 'ccc';
+  var targetSubtab = _aicPendingSubtab || 'pregled';
   _aicPendingSubtab = null;
   pred_subtabSwitch(targetSubtab);
   // Auto-load Matter Intelligence bar (u Pregledu)
