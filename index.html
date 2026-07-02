@@ -334,6 +334,27 @@
   </div>
 </div>
 
+<!-- ═══ PROGRESSIVE DISCLOSURE — modal za otključavanje novih mogućnosti ═══ -->
+<div id="vx-unlock-overlay" onclick="_vxPdCloseModal()" style="display:none;position:fixed;inset:0;z-index:9998;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);">
+  <div id="vx-unlock-modal" onclick="event.stopPropagation()" style="background:linear-gradient(135deg,#0a1628 0%,#0d2040 100%);border:1px solid rgba(74,168,255,0.35);border-radius:20px;padding:2.2rem 2rem;max-width:400px;width:92%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,0.8),0 0 60px rgba(74,168,255,0.08);animation:vxUnlockSlideUp .45s cubic-bezier(0.34,1.56,0.64,1);">
+    <div style="font-size:.62rem;color:rgba(74,168,255,.7);text-transform:uppercase;letter-spacing:.18em;margin-bottom:.8rem;font-weight:700;">🎉 Nova mogućnost otključana</div>
+    <div id="vx-unlock-icon" style="font-size:3.2rem;margin-bottom:.7rem;line-height:1;"></div>
+    <div id="vx-unlock-label" style="font-size:1.25rem;font-weight:800;color:#e2e8f0;margin-bottom:.6rem;letter-spacing:-.01em;"></div>
+    <div id="vx-unlock-desc" style="font-size:.8rem;color:rgba(255,255,255,.48);line-height:1.7;margin-bottom:1.6rem;max-width:300px;margin-left:auto;margin-right:auto;"></div>
+    <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;">
+      <button onclick="_vxPdCloseModal()" style="padding:.55rem 1.4rem;background:linear-gradient(135deg,rgba(74,168,255,.2),rgba(74,168,255,.12));border:1px solid rgba(74,168,255,.45);border-radius:10px;color:#89c8ff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;transition:background .15s;">Isprobaj odmah →</button>
+      <button onclick="_vxPdCloseModal()" style="padding:.55rem 1rem;background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:10px;color:rgba(255,255,255,.38);font-size:.82rem;cursor:pointer;font-family:inherit;">Zatvori</button>
+    </div>
+    <div style="font-size:.62rem;color:rgba(255,255,255,.18);margin-top:1rem;">automatski se zatvara za 8 sekundi</div>
+  </div>
+</div>
+<style>
+@keyframes vxUnlockSlideUp {
+  from { opacity:0; transform:translateY(28px) scale(.96); }
+  to   { opacity:1; transform:translateY(0)   scale(1);    }
+}
+</style>
+
 <!-- ═══ VINDEX AI 3.0 — APP SHELL ═══════════════════════════════ -->
 <div id="vx-shell" class="vx-shell">
 
@@ -393,6 +414,17 @@
         <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')" style="display:none"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-ob" onclick="setTab(this,'ob')"></div>
       </nav>
+      <!-- ── Progres do sledećeg otključavanja ─────────────────── -->
+      <div id="vx-pd-progress" style="display:none;padding:.7rem .9rem .4rem;border-top:1px solid rgba(255,255,255,.06);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
+          <span style="font-size:.6rem;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.08em;">Do sledećeg otključavanja</span>
+          <span id="vx-pd-next-label" style="font-size:.6rem;color:rgba(74,168,255,.6);font-weight:700;"></span>
+        </div>
+        <div style="height:3px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;">
+          <div id="vx-pd-bar" style="height:100%;background:linear-gradient(90deg,rgba(74,168,255,.6),rgba(74,168,255,.9));border-radius:3px;transition:width .6s ease;width:0%;"></div>
+        </div>
+        <div id="vx-pd-hint" style="font-size:.58rem;color:rgba(255,255,255,.2);margin-top:.3rem;text-align:right;"></div>
+      </div>
       <div class="vx-sidebar-foot">
         <div class="vx-foot-row" onclick="toggleLightTheme()" title="Prebacite između tamne i svetle teme">
           <span id="theme-toggle-ico" style="font-size:14px;line-height:1;">☀️</span>

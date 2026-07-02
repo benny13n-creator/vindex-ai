@@ -7602,6 +7602,187 @@ function pred_renderList() {
       +'</span>'
       +'</div>';
   }).join('');
+  // Proveri otključavanja posle svakog renderovanja liste
+  setTimeout(_vxPdCheckUnlocks, 100);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROGRESSIVE DISCLOSURE — funkcije se otključavaju kako korisnik raste
+// ═══════════════════════════════════════════════════════════════════════════════
+var _VX_PD_TIERS = [
+  { at: 3,  key: 'strategija', label: 'Strategy Simulator',
+    icon: '⚔️',
+    desc: 'Pokrenite 6 paralelnih analitičkih modula koji simuliraju sudski postupak — Crveni tim, Sudija, Analiza rizika i više. Sve u 2–3 minuta.' },
+  { at: 5,  key: 'agenti', label: 'Savetnici — 6 specijalista',
+    icon: '🧠',
+    desc: 'Šest specijalizovanih savetnika koji analiziraju vaš predmet iz krivičnog, privrednog, procesnog i finansijskog ugla. Postavite konkretno pitanje.' },
+  { at: 10, key: 'saradnja', label: 'Saradnja i deljeni predmeti',
+    icon: '🤝',
+    desc: 'Podelite predmet sa kolegom advokatom, delegirajte zadatke i pratite zajednički rad na predmetu.' },
+  { at: 15, key: 'knowledge', label: 'Knowledge Transfer',
+    icon: '🔄',
+    desc: 'Platforma uči iz vaših zatvorenih predmeta i automatski prenosi iskustvo na nove — preporuke na osnovu onoga što je već radilo u vašoj kancelariji.' },
+  { at: 20, key: 'firmdna', label: 'Firm DNA',
+    icon: '🏢',
+    desc: 'Analiza DNA vaše kancelarije — kako odlučujete, kako pobeđujete, gde su slabosti. Godišnji izveštaj o stilu i snazi vašeg zastupanja.' },
+  { at: 30, key: 'intel', label: 'Intelligence Engine',
+    icon: '⚡',
+    desc: 'Kompletni prediktivni mozak platforme. Aktivira se kada akumulirate dovoljno podataka — analizira obrasce u svim predmetima i predviđa ishode.' },
+];
+
+// Mapa: koji pane u Više ▾ meniju je zaključan i od kog broja predmeta se otključava
+var _VX_PD_LOCK_MAP = {
+  'strategija': 3,
+  'graf':       3,
+  'agenti':     5,
+  'saradnja':   10,
+};
+
+function _vxPdGetCount() {
+  return (_predmeti && _predmeti.length) ? _predmeti.length : 0;
+}
+
+function _vxPdIsLocked(pane) {
+  var threshold = _VX_PD_LOCK_MAP[pane];
+  if (!threshold) return false;
+  return _vxPdGetCount() < threshold;
+}
+
+function _vxPdCheckUnlocks() {
+  var n = _vxPdGetCount();
+  var prevN = parseInt(localStorage.getItem('vx_pd_count') || '-1', 10);
+  var shown = JSON.parse(localStorage.getItem('vx_pd_shown') || '[]');
+  var isFirstRun = prevN === -1;
+  var queue = [];
+
+  _VX_PD_TIERS.forEach(function(tier) {
+    if (n >= tier.at && shown.indexOf(tier.key) === -1) {
+      if (!isFirstRun && prevN < tier.at) {
+        queue.push(tier); // novi otključaj — prikaži modal
+      }
+      shown.push(tier.key);
+    }
+  });
+
+  localStorage.setItem('vx_pd_count', String(n));
+  localStorage.setItem('vx_pd_shown', JSON.stringify(shown));
+
+  // Prikaži modale jedan po jedan sa razmakom
+  queue.forEach(function(tier, idx) {
+    setTimeout(function() { _vxPdShowModal(tier); }, 1000 + idx * 7000);
+  });
+
+  _vxPdApplyLocks();
+  _vxPdUpdateProgress();
+}
+
+function _vxPdUpdateProgress() {
+  var n = _vxPdGetCount();
+  var progressEl = document.getElementById('vx-pd-progress');
+  var barEl      = document.getElementById('vx-pd-bar');
+  var labelEl    = document.getElementById('vx-pd-next-label');
+  var hintEl     = document.getElementById('vx-pd-hint');
+  if (!progressEl || !barEl || !labelEl || !hintEl) return;
+
+  // Nađi sledeći tier koji još nije otključan
+  var nextTier = null;
+  for (var i = 0; i < _VX_PD_TIERS.length; i++) {
+    if (n < _VX_PD_TIERS[i].at) { nextTier = _VX_PD_TIERS[i]; break; }
+  }
+
+  if (!nextTier) {
+    // Sve otključano
+    progressEl.style.display = 'none';
+    return;
+  }
+
+  // Nađi prethodni tier (start)
+  var prevAt = 0;
+  for (var j = 0; j < _VX_PD_TIERS.length; j++) {
+    if (_VX_PD_TIERS[j].at >= nextTier.at) break;
+    prevAt = _VX_PD_TIERS[j].at;
+  }
+
+  var range = nextTier.at - prevAt;
+  var done  = n - prevAt;
+  var pct   = Math.max(0, Math.min(100, Math.round((done / range) * 100)));
+  var remaining = nextTier.at - n;
+
+  progressEl.style.display = 'block';
+  barEl.style.width = pct + '%';
+  labelEl.textContent = nextTier.icon + ' ' + nextTier.label;
+  hintEl.textContent = remaining + ' ' + (remaining === 1 ? 'predmet' : 'predmeta') + ' do otključavanja';
+}
+
+function _vxPdApplyLocks() {
+  var menu = document.getElementById('pred-more-menu');
+  if (!menu) return;
+  var n = _vxPdGetCount();
+  Object.keys(_VX_PD_LOCK_MAP).forEach(function(pane) {
+    var threshold = _VX_PD_LOCK_MAP[pane];
+    var isLocked = n < threshold;
+    // Nađi dugme po onclick sadržaju
+    var btns = menu.querySelectorAll('button');
+    btns.forEach(function(btn) {
+      var oc = btn.getAttribute('onclick') || '';
+      if (oc.indexOf("'" + pane + "'") > -1 || oc.indexOf('"' + pane + '"') > -1) {
+        if (isLocked) {
+          btn.style.opacity = '0.38';
+          btn.style.cursor = 'not-allowed';
+          btn.title = 'Otključava se sa ' + threshold + '. predmetom';
+          if (btn.getAttribute('data-pd-orig') === null) {
+            btn.setAttribute('data-pd-orig', oc);
+            btn.setAttribute('onclick', '_vxPdLockedClick(' + threshold + ')');
+          }
+          // Dodaj kat bravu ikonu ako je nema
+          if (btn.textContent.indexOf('🔒') === -1) {
+            btn.setAttribute('data-pd-label', btn.textContent.trim());
+            btn.textContent = '🔒 ' + btn.textContent.trim() + ' (' + threshold + ')';
+          }
+        } else {
+          btn.style.opacity = '';
+          btn.style.cursor = '';
+          btn.title = '';
+          var orig = btn.getAttribute('data-pd-orig');
+          if (orig) {
+            btn.setAttribute('onclick', orig);
+            btn.removeAttribute('data-pd-orig');
+          }
+          // Vrati originalni tekst
+          var origLabel = btn.getAttribute('data-pd-label');
+          if (origLabel) {
+            btn.textContent = origLabel;
+            btn.removeAttribute('data-pd-label');
+          }
+        }
+      }
+    });
+  });
+}
+
+function _vxPdLockedClick(threshold) {
+  var remaining = threshold - _vxPdGetCount();
+  showToast('Otključava se sa ' + threshold + '. predmetom — još ' + remaining + ' ' + (remaining === 1 ? 'predmet' : remaining < 5 ? 'predmeta' : 'predmeta') + ' 🔒', 'info');
+  pred_more_close();
+}
+
+function _vxPdShowModal(tier) {
+  var overlay = document.getElementById('vx-unlock-overlay');
+  var modal   = document.getElementById('vx-unlock-modal');
+  if (!overlay || !modal) return;
+  document.getElementById('vx-unlock-icon').textContent  = tier.icon;
+  document.getElementById('vx-unlock-label').textContent = tier.label;
+  document.getElementById('vx-unlock-desc').textContent  = tier.desc;
+  overlay.style.display = 'flex';
+  // Auto-zatvori za 8 sekundi
+  if (window._vxUnlockTimer) clearTimeout(window._vxUnlockTimer);
+  window._vxUnlockTimer = setTimeout(_vxPdCloseModal, 8000);
+}
+
+function _vxPdCloseModal() {
+  var overlay = document.getElementById('vx-unlock-overlay');
+  if (overlay) overlay.style.display = 'none';
+  if (window._vxUnlockTimer) clearTimeout(window._vxUnlockTimer);
 }
 
 // ── Bulk operacije na predmetima ─────────────────────────────────────────────
