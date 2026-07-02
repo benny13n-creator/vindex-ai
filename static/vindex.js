@@ -499,6 +499,7 @@ async function doLogin() {
   closeModal();
   updateAuthUI();
   loadCredits();
+  tosCheck();
 }
 
 async function doRegister() {
@@ -567,6 +568,52 @@ async function doRegister() {
   closeModal();
   updateAuthUI();
   loadCredits();
+  tosCheck();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOS + DATA RESIDENCY
+// ═══════════════════════════════════════════════════════════════
+async function tosCheck() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/tos/status', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!d.accepted) {
+      var ov = document.getElementById('tos-overlay');
+      if (ov) { ov.style.display = 'flex'; }
+    }
+  } catch(e) { /* ne blokiraj na greški */ }
+}
+
+async function tosAccept() {
+  if (!currentSession) return;
+  try {
+    await fetch(BASE_URL + '/api/tos/accept', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+  } catch(e) {}
+  var ov = document.getElementById('tos-overlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function tosDecline() {
+  var ov = document.getElementById('tos-overlay');
+  if (ov) ov.style.display = 'none';
+  doLogout();
+}
+
+function dataResidencyOpen() {
+  var ov = document.getElementById('data-residency-overlay');
+  if (ov) ov.style.display = 'flex';
+}
+
+function dataResidencyClose() {
+  var ov = document.getElementById('data-residency-overlay');
+  if (ov) ov.style.display = 'none';
 }
 
 async function doLogout() {

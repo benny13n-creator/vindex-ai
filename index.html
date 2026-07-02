@@ -2785,6 +2785,13 @@
                 </div>
                 <button class="settings-btn" onclick="doForgotPasswordFromSettings()">Resetuj</button>
               </div>
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div class="settings-row-label">🔒 Zaštita podataka</div>
+                  <div class="settings-row-sub">Gde se čuvaju vaši podaci i podaci klijenata</div>
+                </div>
+                <button class="settings-btn" onclick="dataResidencyOpen()">Detalji</button>
+              </div>
             </div>
 
             <!-- ── Moj plan ────────────────────────────────────────── -->
@@ -3801,6 +3808,90 @@
 @keyframes slide-up-ios { from { transform: translateY(100%); opacity:0; } to { transform: translateY(0); opacity:1; } }
 @keyframes scale-in-dlg { from { transform: scale(0.92); opacity:0; } to { transform: scale(1); opacity:1; } }
 </style>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TOS MODAL — prikazuje se posle prve prijave ako ToS nije prihvaćen
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="tos-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+  <div style="background:#0f1117;border:1px solid rgba(255,255,255,0.1);border-radius:14px;max-width:520px;width:92%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;animation:scale-in-dlg .2s ease;">
+    <div style="padding:1.4rem 1.6rem 0.8rem;border-bottom:1px solid rgba(255,255,255,0.07);">
+      <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.3rem;">⚖️ Uslovi korišćenja i zaštita podataka</div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.4);">Verzija 2026-07-02 — molimo pročitajte pre nastavka</div>
+    </div>
+    <div style="overflow-y:auto;padding:1rem 1.6rem;font-size:.77rem;color:rgba(255,255,255,.65);line-height:1.65;flex:1;">
+      <div style="color:#89c8ff;font-weight:600;margin-bottom:.4rem;font-size:.8rem;">1. Ko obrađuje vaše podatke</div>
+      <p>Vindex AI (vlasnik: Vindex d.o.o.) obrađuje podatke koje unosite u platformu radi pružanja usluga pravne analize, upravljanja predmetima i veštačke inteligencije.</p>
+
+      <div style="color:#89c8ff;font-weight:600;margin:1rem 0 .4rem;font-size:.8rem;">2. Saglasnost za AI obradu</div>
+      <p>Da biste koristili AI funkcije (Copilot, Procena predmeta, Analiza dokumenata), delovi teksta vaših dokumenata i opisa predmeta biće obrađeni putem <strong style="color:rgba(255,255,255,.85);">OpenAI API-ja</strong>. OpenAI ne koristi API podatke za trening modela i briše ih u roku od 30 dana (politika od marta 2023).</p>
+      <p>Preporučujemo da pre uploada osetljivih dokumenata obavestite klijente da platforma koristi AI obradu trećih strana.</p>
+
+      <div style="color:#89c8ff;font-weight:600;margin:1rem 0 .4rem;font-size:.8rem;">3. Gde se podaci čuvaju</div>
+      <ul style="padding-left:1.2rem;margin:0;">
+        <li><strong style="color:rgba(255,255,255,.8);">Supabase (EU):</strong> Predmeti, klijenti, dokumenti — serveri u Frankfurtu (AWS eu-central-1)</li>
+        <li><strong style="color:rgba(255,255,255,.8);">OpenAI API:</strong> Tekstovi dokumenata tokom AI analize — serveri u SAD/EU, brisanje u 30 dana</li>
+        <li><strong style="color:rgba(255,255,255,.8);">Pinecone:</strong> Vektorizovani sadržaj dokumenata — serveri u SAD</li>
+      </ul>
+
+      <div style="color:#89c8ff;font-weight:600;margin:1rem 0 .4rem;font-size:.8rem;">4. Vaša prava</div>
+      <p>Imate pravo na uvid, ispravku i brisanje svih ličnih podataka u skladu sa ZZPL (Zakon o zaštiti podataka o ličnosti, Srbija) i GDPR. Zahteve šaljite na: <span style="color:#89c8ff;">privacy@vindex.ai</span></p>
+
+      <div style="color:#89c8ff;font-weight:600;margin:1rem 0 .4rem;font-size:.8rem;">5. Profesionalna tajna</div>
+      <p>Vindex AI ne pristupa vašim predmetima bez vaše eksplicitne dozvole. Preporučujemo da u ugovorima sa klijentima navadete da koristite platformu koja uključuje AI obradu dokumenata.</p>
+
+      <div style="margin-top:1rem;padding:.7rem;background:rgba(74,168,255,.07);border:1px solid rgba(74,168,255,.15);border-radius:8px;font-size:.73rem;color:rgba(255,255,255,.55);">
+        Prihvatanjem ovih uslova potvrđujete da ste pročitali i razumeli politiku zaštite podataka i dajete saglasnost za AI obradu podataka u gore navedenom obimu.
+      </div>
+    </div>
+    <div style="padding:.9rem 1.6rem;border-top:1px solid rgba(255,255,255,0.07);display:flex;gap:.6rem;justify-content:flex-end;">
+      <button onclick="tosDecline()" style="padding:.45rem 1rem;font-size:.78rem;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;">Odjavi se</button>
+      <button onclick="tosAccept()" style="padding:.45rem 1.4rem;font-size:.78rem;border:none;border-radius:7px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;cursor:pointer;font-weight:600;">Prihvatam uslove ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     DATA RESIDENCY MODAL — dostupan iz podešavanja
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="data-residency-overlay" onclick="dataResidencyClose()" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+  <div onclick="event.stopPropagation()" style="background:#0f1117;border:1px solid rgba(255,255,255,0.1);border-radius:14px;max-width:500px;width:92%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;animation:scale-in-dlg .2s ease;">
+    <div style="padding:1.2rem 1.5rem .7rem;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-weight:700;color:#fff;font-size:.95rem;">🔒 Zaštita podataka klijenata</div>
+      <button onclick="dataResidencyClose()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:1.1rem;cursor:pointer;">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding:1rem 1.5rem;font-size:.75rem;color:rgba(255,255,255,.6);line-height:1.6;">
+      <div style="display:grid;gap:.6rem;">
+
+        <div style="background:rgba(74,168,255,.07);border:1px solid rgba(74,168,255,.15);border-radius:9px;padding:.8rem 1rem;">
+          <div style="font-weight:700;color:#89c8ff;margin-bottom:.4rem;">🗄️ Supabase — Predmeti i klijenti</div>
+          <div>Lokacija: <strong style="color:#fff;">Frankfurt, Nemačka (AWS eu-central-1)</strong></div>
+          <div>Enkripcija: AES-256 u mirovanju, TLS 1.2+ u prenosu</div>
+          <div>GDPR: ✓ &nbsp;SOC 2 Type II: ✓</div>
+        </div>
+
+        <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.15);border-radius:9px;padding:.8rem 1rem;">
+          <div style="font-weight:700;color:#fbbf24;margin-bottom:.4rem;">🤖 OpenAI — AI obrada</div>
+          <div>Podaci: Delovi teksta dokumenata tokom AI analize</div>
+          <div>Trening modela: <strong style="color:#7de0a0;">NE</strong> (politika od mar 2023)</div>
+          <div>Zadržavanje: Max 30 dana radi detekcije zloupotrebe, zatim brisanje</div>
+          <div>SCC: ✓ (EU Standard Contractual Clauses)</div>
+        </div>
+
+        <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.15);border-radius:9px;padding:.8rem 1rem;">
+          <div style="font-weight:700;color:#c4b5fd;margin-bottom:.4rem;">📍 Pinecone — Pretraga dokumenata</div>
+          <div>Podaci: Matematički vektori (ne originalni tekst)</div>
+          <div>Lokacija: SAD (us-east-1)</div>
+          <div>Izolovano po korisniku: ✓</div>
+        </div>
+
+        <div style="background:rgba(125,224,160,.05);border:1px solid rgba(125,224,160,.12);border-radius:9px;padding:.7rem 1rem;font-size:.72rem;color:rgba(255,255,255,.5);">
+          <strong style="color:rgba(255,255,255,.7);">Vaša prava:</strong> Brisanje svih podataka na zahtev u roku od 30 dana.<br>
+          Kontakt: <span style="color:#89c8ff;">privacy@vindex.ai</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="/static/vindex.js?v=1"></script>
 </body>

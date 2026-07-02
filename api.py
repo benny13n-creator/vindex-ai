@@ -22,6 +22,10 @@ from slowapi.errors import RateLimitExceeded
 BASE_DIR = Path(__file__).parent
 load_dotenv()
 
+# ─── Azure OpenAI patch (mora pre svih router importa) ───────────────────────
+from shared.ai_client import _patch_openai_module
+_patch_openai_module()
+
 # ─── Sentry error tracking ────────────────────────────────────────────────────
 def _setup_sentry() -> None:
     dsn = os.getenv("SENTRY_DSN", "").strip()
@@ -540,6 +544,7 @@ from routers.decision_replay      import router as decision_replay_router
 from routers.case_dna             import router as case_dna_router
 from routers.health_index         import router as health_index_router
 from routers.intelligence_timeline import router as intel_timeline_router
+from routers.tos                   import router as tos_router
 
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
@@ -624,6 +629,7 @@ app.include_router(decision_replay_router)
 app.include_router(case_dna_router)
 app.include_router(health_index_router)
 app.include_router(intel_timeline_router)
+app.include_router(tos_router)
 
 from routers.cio import router as cio_router
 app.include_router(cio_router)
@@ -690,6 +696,9 @@ app.add_middleware(
 
 from fastapi.middleware.gzip import GZipMiddleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+from shared.audit import AuditMiddleware
+app.add_middleware(AuditMiddleware)
 
 
 import uuid as _uuid
