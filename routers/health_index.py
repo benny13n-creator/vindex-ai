@@ -9,11 +9,10 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from openai import AsyncOpenAI
 
-from supabase_client import get_supabase
-from auth import verify_token
+from shared.deps import _get_supa, get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health_index"])
@@ -21,14 +20,6 @@ router = APIRouter(tags=["health_index"])
 _openai = AsyncOpenAI()
 _CACHE: dict = {}          # {uid: {score:…, ts:…, chief_partner:…, signals:…}}
 _CACHE_TTL = 3600          # 1 sat
-
-
-# ─── Pomoćne funkcije ─────────────────────────────────────────────────────────
-
-def _require_auth(authorization: Optional[str]) -> dict:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Nedostaje token.")
-    return verify_token(authorization.split(" ", 1)[1])
 
 
 def _grade(score: int) -> str:
@@ -369,18 +360,17 @@ async def _compute_inst_risk(uid: str, supa, aktivni: list) -> list[dict]:
 
 @router.get("/api/firm/health-index")
 async def get_health_index(
-    authorization: str = Header(None),
     force: bool = False,
+    user=Depends(get_current_user),
 ):
-    user = _require_auth(authorization)
-    uid  = user["user_id"]
+    uid = user["user_id"]
 
     # Cache hit
     cached = _CACHE.get(uid)
     if not force and cached and (datetime.utcnow() - cached["ts"]).total_seconds() < _CACHE_TTL:
         return cached["data"]
 
-    supa = get_supabase()
+    supa = _get_supa()
 
     health  = await _compute_health(uid, supa)
     raw     = health.pop("_raw", {})
