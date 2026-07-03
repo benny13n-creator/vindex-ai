@@ -8725,7 +8725,7 @@ function mobileNavGo(t) {
 
 function mobileNavUpdateActive(t) {
   var aiTabs = ['n', 'a', 's', 'w'];
-  var moreTabs = ['q', 'dok', 'pi', 'alati', 'settings', 'n'];
+  var moreTabs = ['q', 'dok', 'pi', 'alati', 'settings', 'n', 's', 'a', 't'];
   var highlight = aiTabs.indexOf(t) !== -1 ? 'q' : t;
   var inMore = moreTabs.indexOf(t) !== -1;
   Object.keys(_mobNavMap).forEach(function(key) {
