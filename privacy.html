@@ -96,14 +96,14 @@
   <div class="card-title">OpenAI, Inc. — AI obrada</div>
   <div><strong>Lokacija:</strong> SAD i EU (Microsoft Azure)</div>
   <div><strong>Podaci:</strong> Tekst upita i dokumenti koje korisnik eksplicitno šalje AI funkcijama</div>
-  <div><strong>Trening modela: NE</strong> — API podaci se ne koriste za treniranje OpenAI modela (politika od marta 2023)</div>
+  <div><strong>Trening modela: NE</strong> — u skladu sa OpenAI API politikom (važeća od marta 2023), podaci poslati putem API-ja ne koriste se za treniranje OpenAI modela. Preporučujemo periodičnu proveru važeće verzije politike na <a href="https://openai.com/enterprise-privacy" target="_blank">openai.com/enterprise-privacy</a>.</div>
   <div><strong>Zadržavanje:</strong> Max 30 dana, zatim automatsko brisanje</div>
   <div><strong>Ugovor:</strong> EU Standard Contractual Clauses (SCC)</div>
 </div>
 <div class="card">
   <div class="card-title">Pinecone Systems, Inc. — Vektorska baza</div>
   <div><strong>Lokacija:</strong> SAD (us-east-1)</div>
-  <div><strong>Podaci:</strong> Numeričke vektorske reprezentacije sadržaja dokumenata (embeddings) — <strong>ne originalni tekst dokumenata</strong>. Embeddings su matematički vektori koji ne mogu biti korišćeni za rekonstrukciju originalnog sadržaja.</div>
+  <div><strong>Podaci:</strong> Numeričke vektorske reprezentacije sadržaja dokumenata (embeddings) — ne originalni tekst dokumenata. Embeddings predstavljaju matematičke vektore i nisu namenjeni niti pogodni za rekonstrukciju originalnog dokumenta. Iako ne sadrže originalni tekst u čitljivom obliku, tretiraju se kao podaci koji podležu svim odgovarajućim merama zaštite.</div>
   <div><strong>Izolovano po korisniku:</strong> Da</div>
   <div><strong>Ugovor:</strong> EU Standard Contractual Clauses (SCC)</div>
 </div>
@@ -117,7 +117,7 @@
 <h2>Rokovi čuvanja podataka</h2>
 <table>
   <tr><th>Kategorija podataka</th><th>Rok čuvanja</th><th>Osnov</th></tr>
-  <tr><td>Predmeti i dokumenti</td><td>Dok je nalog aktivan + 90 dana po brisanju</td><td>Ugovor</td></tr>
+  <tr><td>Predmeti i dokumenti</td><td>Dok je nalog aktivan + 90 dana po brisanju naloga<br><small style="color:#64748b;">Obrazloženje: 90 dana daje korisnicima razuman period za oporavak od slučajnog brisanja i istovremeno ograničava period neaktivne obrade na minimum — ravnoteža između operativne bezbednosti korisnika i prava na brisanje.</small></td><td>Ugovor</td></tr>
   <tr><td>Embeddings (Pinecone)</td><td>Dok je nalog aktivan</td><td>Ugovor</td></tr>
   <tr><td>AI upiti (OpenAI)</td><td>Max 30 dana</td><td>OpenAI politika</td></tr>
   <tr><td>Fakturisanje i računovodstvo</td><td>10 godina</td><td>Zakon o računovodstvu</td></tr>
@@ -130,10 +130,10 @@
   <li><strong>Enkripcija u tranzitu:</strong> TLS 1.3 za sve veze između klijenta i servera</li>
   <li><strong>Enkripcija pri skladištenju:</strong> AES-256 (Supabase)</li>
   <li><strong>Kontrola pristupa:</strong> Row Level Security (RLS) — svaki korisnik pristupa isključivo sopstvenim podacima na nivou baze podataka</li>
-  <li><strong>Pristup zaposlenih:</strong> Zaposleni Pružaoca usluge nemaju operativni pristup sadržaju predmeta korisnika — pristup je tehnički blokiran RLS politikama</li>
+  <li><strong>Pristup zaposlenih:</strong> Pristup podacima korisnika ograničen je po principu najmanjih privilegija (least privilege). Operativni pristup sadržaju predmeta odobrava se isključivo kada je neophodan za rešavanje bezbednosnog incidenta ili kritične tehničke poteškoće, uz obavezno evidentiranje u audit logu.</li>
   <li><strong>Audit logovi:</strong> Sve kritične operacije se beleže sa vremenskim žigom i identifikatorom korisnika</li>
   <li><strong>Backup:</strong> Dnevni automatski backup sa 30-dnevnim rokom čuvanja</li>
-  <li><strong>Incident response:</strong> U slučaju povrede bezbednosti, korisnici se obaveštavaju u roku od 72 sata (GDPR čl. 33–34)</li>
+  <li><strong>Incident response:</strong> U slučaju povrede zaštite podataka, nadzorni organ se obaveštava bez nepotrebnog odlaganja u skladu sa GDPR čl. 33 (rok od 72 sata primenjuje se na prijavu nadzornom organu, ne automatski na svaki incident). Korisnici se obaveštavaju kada postoji visok rizik po njihova prava i slobode (GDPR čl. 34).</li>
 </ul>
 
 <h2>Pristup podacima i profesionalna tajna</h2>

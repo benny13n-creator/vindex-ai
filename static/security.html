@@ -52,6 +52,9 @@
     <li>Role i dozvole (RBAC)</li>
     <li>Politika čuvanja podataka</li>
     <li>Odgovornost i kontakt</li>
+    <li>Politika logovanja prompta i odgovora</li>
+    <li>Procedura brisanja i izvoza podataka</li>
+    <li>Upravljanje ključevima enkripcije</li>
   </ol>
 </div>
 
@@ -133,22 +136,65 @@
 </ul>
 
 <h2>7. Audit i logovanje</h2>
+<h3>7.1 Šta se loguje</h3>
+<table>
+  <tr><th>Kategorija</th><th>Šta se beleži</th><th>Šta se NE beleži</th></tr>
+  <tr>
+    <td>API pozivi</td>
+    <td>user_id, metod, putanja, HTTP status, IP adresa, vreme odgovora, trajanje</td>
+    <td>Sadržaj request body-ja (tekst dokumenta, opisi predmeta)</td>
+  </tr>
+  <tr>
+    <td>AI pozivi (OpenAI)</td>
+    <td>user_id, tip analize (kompletna/revizor/...), broj tokena, trajanje, status</td>
+    <td>Tekst prompta, tekst odgovora — ovi podaci se ne čuvaju na serverima Vindex AI</td>
+  </tr>
+  <tr>
+    <td>Autentifikacija</td>
+    <td>Uspešni i neuspešni pokušaji prijave, vreme, IP adresa</td>
+    <td>Lozinke (nikad) — hash čuva Supabase Auth</td>
+  </tr>
+  <tr>
+    <td>Operacije nad podacima</td>
+    <td>Kreiranje/brisanje predmeta, upload dokumenta, brisanje naloga — vreme i user_id</td>
+    <td>Sadržaj predmeta pri čitanju (read-only operacije se ne loguju po sadržaju)</td>
+  </tr>
+  <tr>
+    <td>Administratorski pristup</td>
+    <td>Svaki pristup production bazi od strane internih naloga: vreme, identitet, akcija</td>
+    <td>—</td>
+  </tr>
+</table>
+<h3>7.2 Čuvanje i brisanje logova</h3>
 <ul>
-  <li>Svaki API poziv ka <code>/api/predmeti</code>, <code>/api/klijenti</code>, <code>/api/billing</code> se loguje sa: user_id, metod, putanja, HTTP status, IP adresa, vreme odgovora</li>
-  <li>Logovi se čuvaju 90 dana na Render.com logging infrastrukturi</li>
-  <li>Greške (HTTP 4xx/5xx) se dodatno markuju za reviziju</li>
-  <li>Sentry integracija za automatsko dojavljanje kritinih grešaka (opciono)</li>
+  <li>Aplikacioni logovi: 90 dana na Render.com infrastrukturi, automatsko brisanje po isteku</li>
+  <li>Supabase audit logovi (pristup bazi): 90 dana</li>
+  <li>Na zahtev korisnika za brisanjem naloga: aplikacioni logovi koji sadrže user_id brišu se po isteku redovnog roka (max 90 dana); ne vrši se ručno brisanje pre isteka roka osim u slučaju naloga suda</li>
 </ul>
 
 <h2>8. Upravljanje incidentima</h2>
+<h3>8.1 Klasifikacija incidenata</h3>
+<table>
+  <tr><th>Nivo</th><th>Definicija</th><th>Rok reakcije</th></tr>
+  <tr><td><strong>Minor</strong></td><td>Degradacija performansi, nema gubitka podataka</td><td>8 radnih sati</td></tr>
+  <tr><td><strong>Major</strong></td><td>Nedostupnost servisa &gt;30 min, bez povrede podataka</td><td>2 sata</td></tr>
+  <tr><td><strong>Critical</strong></td><td>Povreda zaštite podataka ili gubitak podataka</td><td>1 sat — pokretanje procedure</td></tr>
+</table>
+<h3>8.2 Procedura za povredu zaštite podataka (Critical)</h3>
 <ol>
-  <li><strong>Detekcija:</strong> Automatski health check svakih 60 sekundi + Sentry alertovi</li>
-  <li><strong>Klasifikacija:</strong> Minor / Major / Critical — prema uticaju na korisnike</li>
-  <li><strong>Notifikacija:</strong> Korisnici se obaveštavaju putem Status Page (status.vindex.ai)</li>
-  <li><strong>Rešavanje:</strong> Rollback u prethodnu verziju (<15 minuta za code deploy)</li>
-  <li><strong>Post-mortem:</strong> Analiza uzroka i preventivnih mera za Critical incidente</li>
+  <li>Detekcija i potvrda incidenta (max 1 sat)</li>
+  <li>Izolacija pogođene komponente</li>
+  <li>Procena: koje kategorije podataka su pogođene, koliko lica, koji je rizik</li>
+  <li>Obaveštenje Povereniku (nadzornom organu) <em>bez nepotrebnog odlaganja</em>, najkasnije 72 sata od saznanja — u skladu sa GDPR čl. 33 i ZZPL čl. 52. Rok od 72 sata odnosi se na obaveštenje nadzornom organu, ne automatski na sve incidente.</li>
+  <li>Obaveštenje pogođenih korisnika kada postoji visok rizik po njihova prava i slobode (GDPR čl. 34)</li>
+  <li>Post-mortem izveštaj i korektivne mere</li>
 </ol>
-<p>Rok obaveštavanja o povredi podataka: 72 sata od saznanja (ZZPL čl. 52, GDPR čl. 33).</p>
+<h3>8.3 Praćenje dostupnosti</h3>
+<ul>
+  <li>Health check svakih 60 sekundi (Render.com)</li>
+  <li>Status stranica: /status (javno dostupna)</li>
+  <li>Rollback u prethodnu verziju: &lt;15 minuta za code deploy</li>
+</ul>
 
 <h2>9. Sertifikati i usklađenost</h2>
 <table>
@@ -187,7 +233,77 @@
   <li><strong>DPO kontakt:</strong> privacy@vindex.ai</li>
   <li><strong>Bezbednosni incidenti:</strong> security@vindex.ai</li>
   <li><strong>Status servisa:</strong> /status</li>
+  <li><strong>DPA:</strong> /dpa — dostupan za preuzimanje i potpisivanje</li>
 </ul>
+
+<h2>13. Politika logovanja prompta i odgovora</h2>
+<p>Ovo je pitanje koje security officeri redovno postavljaju. Odgovor je eksplicitan:</p>
+<table>
+  <tr><th>Pitanje</th><th>Odgovor</th><th>Objašnjenje</th></tr>
+  <tr>
+    <td>Da li se promptovi (tekst koji se šalje AI-u) loguju na serverima Vindex AI?</td>
+    <td><span class="chip chip-green">NE</span></td>
+    <td>Tekst prompta se šalje direktno OpenAI API-ju. Na serverima Vindex AI se loguje samo metapodatak (user_id, tip analize, broj tokena, status) — ne sam tekst.</td>
+  </tr>
+  <tr>
+    <td>Da li se AI odgovori loguju na serverima Vindex AI?</td>
+    <td><span class="chip chip-green">NE</span></td>
+    <td>AI odgovor se streama direktno klijentu i čuva u browser sesiji. Nije persitovan na serverima Vindex AI.</td>
+  </tr>
+  <tr>
+    <td>Da li OpenAI loguje promptove?</td>
+    <td><span class="chip chip-yellow">Privremeno</span></td>
+    <td>OpenAI zadržava API podatke max 30 dana radi detekcije zloupotrebe, zatim automatski briše. Promptovi se NE koriste za trening modela. Vidi <a href="https://openai.com/enterprise-privacy">openai.com/enterprise-privacy</a>.</td>
+  </tr>
+  <tr>
+    <td>Da li se logovi mogu potpuno obrisati na zahtev?</td>
+    <td><span class="chip chip-yellow">Delimično</span></td>
+    <td>Aplikacioni logovi Render.com se automatski brišu po isteku 90-dnevnog roka. Ručno brisanje pre isteka nije moguće bez naloga suda (logovi su na infrastrukturi treće strane). Supabase audit logovi brišu se po isteku roka.</td>
+  </tr>
+</table>
+
+<h2>14. Procedura brisanja i izvoza podataka</h2>
+<h3>14.1 Procedura brisanja naloga (GDPR čl. 17)</h3>
+<ol>
+  <li>Korisnik podnosi zahtev na: privacy@vindex.ai ili putem opcije "Izbriši nalog" u podešavanjima</li>
+  <li>Verifikacija identiteta (email potvrda)</li>
+  <li>U roku od 30 dana: brisanje svih predmeta, klijenata, dokumenata, embeddings (Pinecone), korisničkog naloga</li>
+  <li>Izuzeci koji se čuvaju duže: billing zapisi (zakonska obaveza — Zakon o računovodstvu, 10 godina), anonimizovani audit logovi koji ne sadrže poslovni sadržaj</li>
+  <li>Potvrda brisanja šalje se na email korisnika</li>
+</ol>
+<h3>14.2 Procedura izvoza podataka (GDPR čl. 20)</h3>
+<ol>
+  <li>Korisnik pokreće export iz podešavanja platforme (dugme "Izvezi podatke")</li>
+  <li>Generiše se ZIP arhiva sa: svim predmetima (JSON), svim klijentima (JSON/CSV), svim dokumentima (originalni fajlovi), billing istorijom (CSV)</li>
+  <li>Link za preuzimanje dostupan 24 sata, zatim se briše</li>
+  <li>Alternativno: zahtev na privacy@vindex.ai sa odgovorom u roku od 30 dana</li>
+</ol>
+
+<h2>15. Upravljanje ključevima enkripcije</h2>
+<table>
+  <tr><th>Sloj</th><th>Ko upravlja ključevima</th><th>Rotacija</th></tr>
+  <tr>
+    <td>AES-256 enkripcija baze podataka</td>
+    <td>Supabase (upravljani servis) — ključevi su u AWS KMS eu-central-1</td>
+    <td>Automatski, po AWS KMS politici</td>
+  </tr>
+  <tr>
+    <td>TLS sertifikati</td>
+    <td>Render.com (Let's Encrypt, auto-renewal)</td>
+    <td>Automatski, svakih 90 dana</td>
+  </tr>
+  <tr>
+    <td>JWT potpisni ključ (RS256)</td>
+    <td>Supabase Auth</td>
+    <td>Na zahtev ili po sigurnosnom incidentu</td>
+  </tr>
+  <tr>
+    <td>API ključevi (OpenAI, Pinecone)</td>
+    <td>Vindex — čuvaju se kao environment varijable na Render.com (encrypted secrets)</td>
+    <td>Manualno, min jednom godišnje ili pri sumnji na kompromitaciju</td>
+  </tr>
+</table>
+<p><strong>Napomena:</strong> Vindex AI koristi upravljane cloud servise (Supabase, Render) koji implementiraju HSM (Hardware Security Module) za master ključeve. Vindex AI tim nema direktan pristup master ključevima enkripcije.</p>
 
 <footer>
   Vindex AI Security Whitepaper v1.0 · Jul 2026 · Ažurira se godišnje ili pri značajnoj promeni arhitekture
