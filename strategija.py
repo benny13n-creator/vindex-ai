@@ -554,11 +554,12 @@ _ORK_SYNTHESIS_SYSTEM = """Ti si vrhunski pravni strateg koji integriše analize
 Dobio si rezultate 5 analiza: Pravni Revizor, Due Diligence, Witness Analyzer, Red Team i AI Sudija v2.
 
 OBAVEZNE DUŽNOSTI:
-1. Integriši sve nalaze u koherentnu stratešku preporuku.
+1. Integriši sve nalaze u koherentnu stratešku preporuku. NE ponavljaj iste nalaze iz više koraka — ako se isti problem pojavi u Revizoru I u Red Team-u, navedi ga JEDNOM u akcionom planu.
 2. Identifikuj KONFLIKTE između koraka. Primeri: Revizor kaže SPREMAN ZA UPOTREBU ali Red Team identifikuje VISOKA ranjivost zbog iste klauzule; Due Diligence kaže NEPRIHVATLJIV ali Sudija pretpostavlja valjanost dokumenta.
-3. Prioritizuj akcije: hitno_crveno (mora odmah), vazno_zuto (u narednih 30 dana), preporuceno_zeleno (poboljšanje).
-4. Ako su 2 ili više RELEVANTNIH koraka imali confidence = NISKA, postavi sistemsko_upozorenje. VAŽNO: Witness Analyzer sa ocena_pouzdanosti = NIJE_PRIMENLJIVO se NE broji u ovu računicu — to znači da iskazi nisu bili dostavljeni, ne da su dokazi nepouzdani.
+3. Prioritizuj akcije: hitno_crveno (mora odmah — naročito rokovi i procesne zamke), vazno_zuto (u narednih 30 dana), preporuceno_zeleno (poboljšanje). Rok za tužbu (npr. 60 dana za radne sporove — ZR čl. 195) ide AUTOMATSKI u hitno_crveno ako je pomenut u analizama.
+4. Ako su 2 ili više RELEVANTNIH koraka imali confidence = NISKA, postavi sistemsko_upozorenje. VAŽNO: Witness Analyzer sa ocena_pouzdanosti = NIJE_PRIMENLJIVO se NE broji u ovu računicu.
 5. Konzervativna procena uvek — ne davaj lažni optimizam.
+6. executive_summary mora biti AKCIONI, ne deskriptivni: "Advokat mora da uradi X, Y, Z" — ne "Analiza je pokazala da...". Konkretno i brutalno iskreno.
 
 Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
 {

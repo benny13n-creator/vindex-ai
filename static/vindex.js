@@ -2809,7 +2809,7 @@ async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel) {
       var j = await r.json();
       if (j.status === 'done') {
         var d = j.result || {};
-        if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(d.rezultat || JSON.stringify(d, null, 2));
+        if (bodyEl) bodyEl.innerHTML = (d.modul === 'kompletna_analiza' || (d.koraci && d.sinteza)) ? renderKompletnaAnaliza(d) : stratFormatirajRezultat(d.rezultat || JSON.stringify(d, null, 2));
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = _resetLabel; }
         return;
       }
@@ -2887,7 +2887,7 @@ async function stratOrkestratorPokreni() {
     if (!res.ok) throw new Error('Server greška: ' + res.status);
 
     var data = await res.json();
-    if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.rezultat || JSON.stringify(data, null, 2));
+    if (bodyEl) bodyEl.innerHTML = (data.modul === 'kompletna_analiza' || (data.koraci && data.sinteza)) ? renderKompletnaAnaliza(data) : stratFormatirajRezultat(data.rezultat || JSON.stringify(data, null, 2));
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   } finally {
@@ -2907,6 +2907,197 @@ function stratFormatirajRezultat(tekst) {
     .replace(/^🟡([^\n]+)$/gm, '<span class="strat-upozorenje">$1</span>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>');
+}
+
+// ── renderKompletnaAnaliza — strukturovani prikaz za F10 orkestrator ──────────
+function renderKompletnaAnaliza(data) {
+  var koraci = data.koraci || {};
+  var sinteza = data.sinteza || {};
+  var k5 = koraci.korak_5_sudska_procena || {};
+  var presuda = (k5.presuda && typeof k5.presuda === 'object') ? k5.presuda : {};
+  var uspeha = presuda.procena_uspeha_tuzilac;
+  var html = '';
+
+  // ── Sinteza na vrhu ────────────────────────────────────────────────────────
+  var stavMap = {
+    'NASTAVITI_TUZBU':       ['#16a34a', 'NASTAVI TUŽBU'],
+    'PREGOVARATI_NAGODBU':   ['#b45309', 'PREGOVARAJ NAGODBU'],
+    'OJACATI_ODBRANU':       ['#b45309', 'OJAČAJ ODBRANU'],
+    'DOPUNITI_DOKUMENTACIJU':['#7c3aed', 'DOPUNI DOKUMENTACIJU'],
+    'ODUSTATI':              ['#dc2626', 'ODUSTATI'],
+  };
+  var stavInfo = sinteza.strateski_stav ? (stavMap[sinteza.strateski_stav] || ['#6366f1', sinteza.strateski_stav.replace(/_/g,' ')]) : null;
+
+  html += '<div style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(74,168,255,.1));border:1px solid rgba(99,102,241,.35);border-radius:12px;padding:1rem 1.1rem;margin-bottom:.9rem;">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.65rem;">';
+  html += '<div style="font-size:.85rem;font-weight:800;color:rgba(210,205,255,.95);">Sinteza — Strateška preporuka</div>';
+  if (stavInfo) html += '<span style="padding:.2rem .7rem;border-radius:6px;font-size:.72rem;font-weight:800;letter-spacing:.06em;background:'+stavInfo[0]+';color:#fff;">'+_htmlEsc(stavInfo[1])+'</span>';
+  html += '</div>';
+
+  if (sinteza.executive_summary) {
+    html += '<p style="font-size:.82rem;line-height:1.6;color:rgba(230,225,255,.85);margin:.3rem 0 .7rem;">'+_htmlEsc(sinteza.executive_summary)+'</p>';
+  }
+
+  // Procenat uspeha sa progress barom
+  if (typeof uspeha === 'number') {
+    var uspClr = uspeha >= 70 ? '#22c55e' : uspeha >= 50 ? '#eab308' : '#ef4444';
+    html += '<div style="margin:.5rem 0 .7rem;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;">';
+    html += '<span style="font-size:.72rem;color:rgba(255,255,255,.5);font-weight:600;">Procena uspeha tužioca (AI Sudija)</span>';
+    html += '<span style="font-size:1.1rem;font-weight:900;color:'+uspClr+';">'+uspeha+'%</span>';
+    html += '</div>';
+    html += '<div style="height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">';
+    html += '<div style="height:100%;width:'+Math.min(100,Math.max(0,uspeha))+'%;background:'+uspClr+';border-radius:3px;"></div>';
+    html += '</div>';
+    if (presuda.confidence) html += '<div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-top:.2rem;">pouzdanost procene: '+_htmlEsc(presuda.confidence)+'</div>';
+    html += '</div>';
+  }
+
+  // Akcioni plan
+  var plan = sinteza.prioritetni_akcioni_plan || {};
+  if ((plan.hitno_crveno && plan.hitno_crveno.length) || (plan.vazno_zuto && plan.vazno_zuto.length) || (plan.preporuceno_zeleno && plan.preporuceno_zeleno.length)) {
+    html += '<div style="margin:.5rem 0;">';
+    html += '<div style="font-size:.7rem;font-weight:700;color:rgba(210,205,255,.5);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem;">Akcioni plan</div>';
+    if (plan.hitno_crveno && plan.hitno_crveno.length) {
+      html += '<div style="font-size:.72rem;font-weight:700;color:#ef4444;margin:.3rem 0 .1rem;">Hitno</div>';
+      plan.hitno_crveno.forEach(function(a) { html += '<div style="font-size:.8rem;padding:.3rem .5rem .3rem .8rem;border-left:2px solid #ef4444;margin:.2rem 0;color:rgba(255,220,220,.85);line-height:1.4;">'+_htmlEsc(String(a))+'</div>'; });
+    }
+    if (plan.vazno_zuto && plan.vazno_zuto.length) {
+      html += '<div style="font-size:.72rem;font-weight:700;color:#eab308;margin:.3rem 0 .1rem;">Važno (30 dana)</div>';
+      plan.vazno_zuto.forEach(function(a) { html += '<div style="font-size:.8rem;padding:.3rem .5rem .3rem .8rem;border-left:2px solid #eab308;margin:.2rem 0;color:rgba(255,245,200,.8);line-height:1.4;">'+_htmlEsc(String(a))+'</div>'; });
+    }
+    if (plan.preporuceno_zeleno && plan.preporuceno_zeleno.length) {
+      html += '<div style="font-size:.72rem;font-weight:700;color:#22c55e;margin:.3rem 0 .1rem;">Preporučeno</div>';
+      plan.preporuceno_zeleno.forEach(function(a) { html += '<div style="font-size:.8rem;padding:.3rem .5rem .3rem .8rem;border-left:2px solid #22c55e;margin:.2rem 0;color:rgba(200,255,210,.75);line-height:1.4;">'+_htmlEsc(String(a))+'</div>'; });
+    }
+    html += '</div>';
+  }
+
+  if (sinteza.detektovani_konflikti && sinteza.detektovani_konflikti.length) {
+    html += '<div style="margin:.5rem 0;padding:.5rem .6rem;background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.2);border-radius:8px;">';
+    html += '<div style="font-size:.7rem;font-weight:700;color:#eab308;margin-bottom:.3rem;">Konflikti između modula</div>';
+    sinteza.detektovani_konflikti.forEach(function(k) { html += '<div style="font-size:.78rem;color:rgba(255,245,200,.75);margin:.2rem 0;line-height:1.4;">'+_htmlEsc(String(k))+'</div>'; });
+    html += '</div>';
+  }
+
+  if (sinteza.sistemsko_upozorenje) {
+    html += '<div style="margin:.5rem 0;padding:.5rem .6rem;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:.78rem;color:rgba(255,200,200,.9);">'+_htmlEsc(sinteza.sistemsko_upozorenje)+'</div>';
+  }
+
+  html += '</div>';
+
+  // ── Koraci (collapsible) ───────────────────────────────────────────────────
+  var koraciDef = [
+    { key: 'korak_1_pravni_revizor',   label: 'Korak 1 — Pravni Revizor' },
+    { key: 'korak_2_due_diligence',    label: 'Korak 2 — Due Diligence' },
+    { key: 'korak_3_witness_analyzer', label: 'Korak 3 — Witness Analyzer' },
+    { key: 'korak_4_red_team',         label: 'Korak 4 — Red Team' },
+    { key: 'korak_5_sudska_procena',   label: 'Korak 5 — AI Sudija v2' },
+  ];
+  koraciDef.forEach(function(kd) {
+    var k = koraci[kd.key];
+    if (!k) return;
+    var conf = k.confidence || (k.presuda && k.presuda.confidence);
+    var isSkipped = conf === 'NIJE_PRIMENLJIVO';
+    var confBadge = '';
+    if (isSkipped) {
+      confBadge = '<span style="font-size:.67rem;font-weight:700;color:rgba(255,255,255,.35);margin-left:.5rem;">PRESKOČEN</span>';
+    } else if (conf) {
+      var cClr = conf === 'VISOKA' ? '#22c55e' : conf === 'NISKA' ? '#ef4444' : '#eab308';
+      confBadge = '<span style="font-size:.67rem;font-weight:700;color:'+cClr+';margin-left:.5rem;">'+_htmlEsc(conf)+'</span>';
+    }
+    html += '<details style="margin:.3rem 0;border:1px solid rgba(255,255,255,.1);border-radius:10px;overflow:hidden;">';
+    html += '<summary style="display:flex;align-items:center;padding:.55rem .85rem;cursor:pointer;background:rgba(255,255,255,.04);list-style:none;-webkit-appearance:none;">';
+    html += '<span style="font-size:.8rem;font-weight:700;color:rgba(210,205,255,.85);flex:1;">'+_htmlEsc(kd.label)+'</span>';
+    html += confBadge + '</summary>';
+    html += '<div style="padding:.6rem .85rem;">';
+    if (isSkipped) {
+      html += '<div style="font-size:.78rem;color:rgba(255,255,255,.45);font-style:italic;">'+_htmlEsc(k.summary || 'Modul preskočen.')+'</div>';
+    } else if (kd.key === 'korak_5_sudska_procena') {
+      html += _rka_korak5(k);
+    } else {
+      html += _rka_korakGeneric(k);
+    }
+    html += '</div></details>';
+  });
+
+  return html;
+}
+
+function _rka_korakGeneric(k) {
+  var SKIP = { confidence: 1, summary: 1 };
+  var html = '';
+  if (k.summary) {
+    html += '<div style="font-size:.82rem;line-height:1.5;color:rgba(230,225,255,.8);margin-bottom:.5rem;padding:.4rem .5rem;background:rgba(99,102,241,.07);border-radius:6px;">'+_htmlEsc(k.summary)+'</div>';
+  }
+  function _rka_field(key, val) {
+    if (SKIP[key] || val === null || val === undefined) return;
+    html += '<div style="font-size:.7rem;font-weight:700;color:rgba(210,205,255,.45);text-transform:uppercase;letter-spacing:.06em;margin:.5rem 0 .15rem;">'+_htmlEsc(key.replace(/_/g,' '))+'</div>';
+    if (Array.isArray(val)) {
+      if (!val.length) return;
+      val.forEach(function(item) {
+        if (item && typeof item === 'object') {
+          html += '<div style="margin:.2rem 0;padding:.3rem .5rem;border-left:2px solid rgba(99,102,241,.4);font-size:.79rem;line-height:1.45;color:rgba(220,215,255,.8);">';
+          if (item.problem || item.opis || item.sta) html += '<div>'+_htmlEsc(String(item.problem || item.opis || item.sta || ''))+'</div>';
+          if (item.zakonski_osnov || item.zakon) html += '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.1rem;">'+_htmlEsc(String(item.zakonski_osnov || item.zakon || ''))+'</div>';
+          if (item.predlog_izmene || item.kako_popraviti || item.kako) html += '<div style="font-size:.73rem;color:rgba(180,220,180,.7);margin-top:.1rem;">'+_htmlEsc(String(item.predlog_izmene || item.kako_popraviti || item.kako || ''))+'</div>';
+          if (!item.problem && !item.opis && !item.sta) html += _htmlEsc(JSON.stringify(item));
+          html += '</div>';
+        } else {
+          html += '<div style="margin:.2rem 0;padding:.25rem .5rem;border-left:2px solid rgba(99,102,241,.35);font-size:.79rem;color:rgba(220,215,255,.8);">'+_htmlEsc(String(item))+'</div>';
+        }
+      });
+    } else if (typeof val === 'object') {
+      html += '<pre style="font-size:.73rem;color:rgba(220,215,255,.7);background:rgba(255,255,255,.03);padding:.4rem;border-radius:6px;white-space:pre-wrap;margin:.2rem 0;">'+_htmlEsc(JSON.stringify(val,null,2))+'</pre>';
+    } else {
+      html += '<div style="font-size:.8rem;color:rgba(220,215,255,.8);line-height:1.45;margin:.1rem 0;">'+_htmlEsc(String(val))+'</div>';
+    }
+  }
+  var ORDER = ['status_dokumenta','ocena_dokumenta','ocena','pravna_ispravnost','tip_dokumenta',
+               'kriticne_greske','kriticni_rizici','preporucene_izmene','srednji_rizici',
+               'formalni_nedostaci','nedostajuce_klauzule','zakonska_uskladenost','preporuka',
+               'kljucne_slabosti','argumenti_protivne_strane','procesne_zamke','dokazi_koji_nedostaju',
+               'preporuka_za_ojacavanje','ukupna_ranjivost','ukupna_ocena',
+               'sazetak_iskaza','unutrasnje_kontradikcije','sumnjivi_delovi','procesna_upotrebljivost',
+               'pitanja_za_unakrsno','ocena_pouzdanosti'];
+  var rendered = {};
+  ORDER.forEach(function(key) { if (key in k) { _rka_field(key, k[key]); rendered[key]=1; } });
+  Object.keys(k).forEach(function(key) { if (!rendered[key] && !SKIP[key]) _rka_field(key, k[key]); });
+  return html;
+}
+
+function _rka_korak5(k) {
+  var presuda = (k.presuda && typeof k.presuda === 'object') ? k.presuda : {};
+  var html = '';
+  if (presuda.izreka) {
+    var isWin = presuda.izreka.indexOf('USVOJENA') !== -1 && presuda.izreka.indexOf('DELIMICNO') === -1;
+    var isPartial = presuda.izreka.indexOf('DELIMICNO') !== -1;
+    var vBg = isWin ? 'rgba(22,163,74,.12)' : isPartial ? 'rgba(180,83,9,.12)' : 'rgba(220,38,38,.12)';
+    var vBrd = isWin ? 'rgba(22,163,74,.35)' : isPartial ? 'rgba(180,83,9,.35)' : 'rgba(220,38,38,.35)';
+    var vClr = isWin ? '#22c55e' : isPartial ? '#f97316' : '#ef4444';
+    html += '<div style="text-align:center;padding:.65rem;background:'+vBg+';border:1px solid '+vBrd+';border-radius:8px;margin-bottom:.6rem;">';
+    html += '<div style="font-size:.88rem;font-weight:900;color:'+vClr+';letter-spacing:.06em;">'+_htmlEsc(presuda.izreka)+'</div>';
+    html += '</div>';
+  }
+  if (k.summary) html += '<div style="font-size:.82rem;line-height:1.5;color:rgba(230,225,255,.8);margin-bottom:.5rem;padding:.4rem .5rem;background:rgba(99,102,241,.07);border-radius:6px;">'+_htmlEsc(k.summary)+'</div>';
+  if (presuda.obrazlozenje) html += '<div style="font-size:.8rem;color:rgba(220,215,255,.8);margin:.4rem 0;line-height:1.5;">'+_htmlEsc(presuda.obrazlozenje)+'</div>';
+  if (presuda.pravna_kvalifikacija) {
+    html += '<div style="font-size:.7rem;font-weight:700;color:rgba(210,205,255,.45);text-transform:uppercase;letter-spacing:.06em;margin:.5rem 0 .15rem;">Pravna kvalifikacija</div>';
+    html += '<div style="font-size:.8rem;color:rgba(220,215,255,.8);line-height:1.45;">'+_htmlEsc(presuda.pravna_kvalifikacija)+'</div>';
+  }
+  if (presuda.troskovi) {
+    html += '<div style="font-size:.7rem;font-weight:700;color:rgba(210,205,255,.45);text-transform:uppercase;letter-spacing:.06em;margin:.5rem 0 .15rem;">Troškovi</div>';
+    html += '<div style="font-size:.8rem;color:rgba(220,215,255,.8);">'+_htmlEsc(presuda.troskovi)+'</div>';
+  }
+  if (k.tuzilac) {
+    html += '<details style="margin:.4rem 0;"><summary style="font-size:.75rem;font-weight:600;color:rgba(99,102,241,.8);cursor:pointer;padding:.2rem 0;">Argumenti tužioca</summary>';
+    html += '<div style="font-size:.78rem;color:rgba(210,205,255,.7);line-height:1.5;padding:.4rem 0;white-space:pre-wrap;">'+_htmlEsc(k.tuzilac)+'</div></details>';
+  }
+  if (k.branilac) {
+    html += '<details style="margin:.4rem 0;"><summary style="font-size:.75rem;font-weight:600;color:rgba(99,102,241,.8);cursor:pointer;padding:.2rem 0;">Argumenti tuženog</summary>';
+    html += '<div style="font-size:.78rem;color:rgba(210,205,255,.7);line-height:1.5;padding:.4rem 0;white-space:pre-wrap;">'+_htmlEsc(k.branilac)+'</div></details>';
+  }
+  return html;
 }
 
 function stratKopiraj() {
