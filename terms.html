@@ -1,132 +1,99 @@
 <!DOCTYPE html>
 <html lang="sr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Uslovi korišćenja — Vindex AI</title>
-  <style>
-    :root { --bg: #0f1117; --card: #1a1d27; --border: rgba(255,255,255,0.08); --accent: #6c63ff; --text: rgba(255,255,255,0.88); --muted: rgba(255,255,255,0.45); }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.7; }
-    .wrap { max-width: 780px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
-    header { display: flex; align-items: center; gap: 1rem; margin-bottom: 3rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; }
-    header a { color: var(--accent); text-decoration: none; font-size: .9rem; }
-    header .logo { font-size: 1.4rem; font-weight: 700; color: #fff; flex: 1; }
-    h1 { font-size: 2rem; font-weight: 700; margin-bottom: .5rem; }
-    .subtitle { color: var(--muted); margin-bottom: 2.5rem; font-size: .95rem; }
-    h2 { font-size: 1.15rem; font-weight: 600; color: #fff; margin: 2rem 0 .75rem; }
-    p, li { color: var(--text); font-size: .95rem; }
-    ul { padding-left: 1.4rem; }
-    ul li { margin-bottom: .35rem; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
-    .card p { margin: 0; }
-    .warn { background: rgba(255,160,0,.08); border-color: rgba(255,160,0,.25); }
-    .warn p { color: rgba(255,200,80,.9); }
-    a { color: var(--accent); }
-    .badge { display: inline-block; background: rgba(108,99,255,.15); color: var(--accent); border: 1px solid rgba(108,99,255,.3); border-radius: 6px; font-size: .75rem; font-weight: 600; padding: .2rem .55rem; margin-right: .4rem; }
-    footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vindex AI — Uslovi korišćenja</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;color:#1a1a2e;font-family:'Georgia',serif;font-size:15px;line-height:1.8;max-width:780px;margin:0 auto;padding:3rem 2rem 5rem;}
+  h1{font-size:1.8rem;font-weight:700;margin-bottom:.2rem;color:#0f172a;}
+  .meta{color:#64748b;font-size:.88rem;margin-bottom:2.5rem;padding-bottom:1rem;border-bottom:1px solid #e2e8f0;}
+  h2{font-size:1.05rem;font-weight:700;margin:2rem 0 .6rem;color:#1e293b;counter-increment:section;}
+  h2::before{content:counter(section)". ";}
+  body{counter-reset:section;}
+  p{margin-bottom:.9rem;}
+  ul{margin:0 0 .9rem 1.5rem;}
+  li{margin-bottom:.3rem;}
+  .warn-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:1rem 1.2rem;margin:1.2rem 0;font-size:.9rem;}
+  .warn-box strong{color:#92400e;}
+  footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e2e8f0;font-size:.75rem;color:#94a3b8;text-align:center;}
+  a{color:#2563eb;}
+  nav{display:flex;gap:1.5rem;font-size:.82rem;margin-bottom:2rem;padding:.6rem 0;border-bottom:1px solid #e2e8f0;}
+  nav a{color:#64748b;text-decoration:none;}
+  nav a:hover{color:#2563eb;}
+</style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <span class="logo">⚖ Vindex AI</span>
-    <a href="/">← Nazad na aplikaciju</a>
-  </header>
+<nav>
+  <a href="/">Vindex AI</a>
+  <a href="/terms">Uslovi korišćenja</a>
+  <a href="/privacy">Politika privatnosti</a>
+  <a href="/ai-disclosure">AI Disclosure</a>
+  <a href="/dpa">DPA</a>
+</nav>
 
-  <h1>Uslovi korišćenja</h1>
-  <p class="subtitle">Poslednje ažuriranje: jun 2026. &nbsp;·&nbsp; Verzija 1.0</p>
-
-  <div class="card warn">
-    <p><strong>Važno:</strong> Vindex AI je alat za pravna istraživanja i automatizaciju kancelarijske dokumentacije. Odgovori koje generiše veštačka inteligencija <strong>nisu pravni savet</strong> i ne zamenjuju konsultaciju sa licenciranim advokatom.</p>
-  </div>
-
-  <h2>1. Prihvatanje uslova</h2>
-  <p>Korišćenjem platforme Vindex AI (u daljem tekstu: »Platforma«) prihvatate ove Uslove korišćenja u celosti. Ako se ne slažete sa bilo kojim delom, molimo vas da prestanete sa korišćenjem Platforme.</p>
-
-  <h2>2. Ko može da koristi Platformu</h2>
-  <ul>
-    <li>Advokati i advokatski pripravnici upisani u Imenik Advokatske komore Srbije</li>
-    <li>Pravnici zaposleni u privrednim društvima i institucijama</li>
-    <li>Pravni timovi koji rade na teritoriji Republike Srbije</li>
-  </ul>
-  <p style="margin-top:.75rem;">Korisnik mora imati najmanje 18 godina i mora biti pravno sposoban za zaključenje ugovora. Korišćenje Platforme u ime pravnog lica moguće je samo uz ovlašćenje tog pravnog lica.</p>
-
-  <h2>3. Opis usluge</h2>
-  <p>Platforma pruža:</p>
-  <ul>
-    <li>AI pretragu sudske prakse i zakonodavstva</li>
-    <li>Analizu pravnih dokumenata i predmeta</li>
-    <li>Generisanje nacrta podnesaka i strategija</li>
-    <li>Upravljanje rokovanjima i predmetima (CRM)</li>
-    <li>E-fakturu po SEF standardu</li>
-    <li>Klijentski portal za razmenu dokumenata</li>
-  </ul>
-
-  <h2>4. Planovi i plaćanje</h2>
-  <ul>
-    <li><strong>Besplatni plan:</strong> ograničen broj AI upita mesečno, bez garancije dostupnosti</li>
-    <li><strong>Advokat / Pro / Firma planovi:</strong> plaćanje unapred, mesečna pretplata</li>
-    <li>Cene su iskazane u RSD i podložne su promeni uz 14 dana najave</li>
-    <li>Nema povraćaja naknade za delom iskorišćen mesec, osim u slučaju tehničke nemogućnosti pružanja usluge duže od 24 časa</li>
-    <li>Neplaćanje u roku od 7 dana od dospeća rezultira suspenzijom naloga</li>
-  </ul>
-
-  <h2>5. Odricanje od odgovornosti za AI izlaze</h2>
-  <div class="card">
-    <p><strong>Vindex AI nije pravni savetnik i nije zamena za advokata.</strong> AI modeli mogu sadržati nepreciznosti, zastarele podatke ili pogrešne zaključke. Vindex AI <strong>ne odgovara</strong> za:</p>
-  </div>
-  <ul>
-    <li>Pravne ili poslovne odluke donete na osnovu AI generisanog sadržaja</li>
-    <li>Propuštene rokove, izgubljene predmete ili finansijske gubitke</li>
-    <li>Tačnost citiranih zakonskih odredbi ili sudskih odluka</li>
-    <li>Neusklađenost sa izmenama zakona nastalim posle poslednjeg ažuriranja baze</li>
-  </ul>
-  <p style="margin-top:.75rem;">Korisnik je dužan da svaki AI izlaz proveri pre upotrebe u pravnoj praksi.</p>
-
-  <h2>6. Dozvoljeno korišćenje</h2>
-  <p>Zabranjeno je:</p>
-  <ul>
-    <li>Automatizovano masovno prikupljanje podataka (scraping) sa Platforme</li>
-    <li>Unos podataka o predmetima trećih lica bez njihove saglasnosti</li>
-    <li>Deljenje naloga između više korisnika</li>
-    <li>Korišćenje Platforme za generisanje lažnih ili obmanjujućih pravnih dokumenata</li>
-    <li>Pokušaj zaobilaženja ograničenja planova ili mehanizama naplate</li>
-    <li>Reverse engineering ili kopiranje koda Platforme</li>
-  </ul>
-
-  <h2>7. Prava intelektualne svojine</h2>
-  <p>Sva prava na Platformu, kod, dizajn i sadržaj zadržava Vindex AI. Korisnik zadržava prava na podatke koje unosi (predmeti, dokumenti, klijenti). Davanjem pristupa Platformi, korisnik daje Vindex AI neekskluzivnu licencu za obradu tih podataka isključivo u svrhu pružanja usluge.</p>
-
-  <h2>8. Dostupnost i SLA</h2>
-  <p>Ciljna dostupnost je 99%. Ne garantujemo neprekidnost usluge. Planirano održavanje najavljuje se unapred. U slučaju nedostupnosti duže od 24 časa, korisnik ima pravo na srazmerni kredit za naredni period.</p>
-
-  <h2>9. Raskid i deaktivacija</h2>
-  <ul>
-    <li>Korisnik može deaktivirati nalog u bilo kom trenutku iz podešavanja</li>
-    <li>Vindex AI može suspendovati ili ukinuti nalog pri kršenju ovih Uslova, uz obaveštenje e-mailom</li>
-    <li>Po deaktivaciji, podaci se čuvaju 12 meseci, a zatim trajno brišu (izuzev finansijskih evidencija)</li>
-  </ul>
-
-  <h2>10. Ograničenje odgovornosti</h2>
-  <p>U najvećoj meri dozvoljenoj važećim pravom, ukupna odgovornost Vindex AI prema korisniku ograničena je na iznos naknada koje je korisnik platio u prethodna 3 meseca. Vindex AI ne odgovara za indirektnu, posledičnu ili izmaklu dobit.</p>
-
-  <h2>11. Merodavno pravo i nadležnost</h2>
-  <p>Na ove Uslove primenjuje se pravo Republike Srbije. Za sporove je nadležan stvarno nadležni sud u Beogradu.</p>
-
-  <h2>12. Izmene uslova</h2>
-  <p>Vindex AI može izmeniti ove Uslove uz pisano obaveštenje korisniku najmanje 14 dana unapred. Nastavak korišćenja Platforme posle stupanja izmena na snagu znači prihvatanje novih uslova.</p>
-
-  <h2>13. Kontakt</h2>
-  <p>Za sva pitanja u vezi sa Uslovima: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a></p>
-
-  <footer>
-    <a href="/">Aplikacija</a>
-    <a href="/privacy">Politika privatnosti</a>
-    <span>© 2026 Vindex AI</span>
-  </footer>
+<h1>Uslovi korišćenja</h1>
+<div class="meta">
+  Vindex AI &nbsp;·&nbsp; Verzija: 2026-07-05 &nbsp;·&nbsp; Primena od: 2026-07-05<br>
+  Kontakt: <a href="mailto:legal@vindex.ai">legal@vindex.ai</a>
 </div>
+
+<h2>Ugovorne strane i prihvatanje</h2>
+<p>Ovi Uslovi korišćenja ("Uslovi") uređuju pravni odnos između Vindex d.o.o. ("Pružalac usluge", "mi") i fizičkog ili pravnog lica koje koristi platformu Vindex AI ("Korisnik", "vi"). Korišćenjem Platforme, Korisnik potvrđuje da je pročitao, razumeo i prihvatio ove Uslove kao pravno obavezujući ugovor. Ako ne prihvatate ove Uslove, niste ovlašćeni da koristite Platformu.</p>
+
+<h2>Opis usluge</h2>
+<p>Vindex AI je softverska platforma koja pruža sledeće usluge:</p>
+<ul>
+  <li>Upravljanje pravnim predmetima i dokumentima</li>
+  <li>AI analiza pravnih dokumenata i predmeta (GPT-4o)</li>
+  <li>Semantička pretraga srpske sudske prakse</li>
+  <li>Generisanje pravnih dokumenata uz asistenciju veštačke inteligencije</li>
+  <li>Praćenje rokova, fakturisanje i CRM za advokatske kancelarije</li>
+</ul>
+<p>Usluge se pružaju putem pretplatnog modela prema važećem cenovniku objavljenom na sajtu Pružaoca usluge.</p>
+
+<h2>Ograničenje odgovornosti za AI</h2>
+<div class="warn-box">
+  <strong>Važno upozorenje:</strong> AI analize, odgovori i dokumenti koje generiše Platforma predstavljaju <strong>pomoćni alat pri radu</strong> i ne predstavljaju pravni savet u smislu Zakona o advokaturi Republike Srbije. Svaki AI output mora biti proveren i validiran od strane stručnog lica pre profesionalne primene. <strong>Korisnik snosi isključivu odgovornost</strong> za sve profesionalne odluke donete na osnovu rezultata generisanih Platformom. Pružalac usluge ne odgovara za direktnu ili indirektnu štetu nastalu oslanjanjem na neproveren AI output.
+</div>
+
+<h2>Obaveze korisnika</h2>
+<p>Korisnik se obavezuje da:</p>
+<ul>
+  <li>Platformu koristi isključivo u zakonite svrhe, u skladu sa važećim propisima Republike Srbije i EU</li>
+  <li>Ne deli pristupne podatke (email, lozinka) sa trećim licima</li>
+  <li>Pre unosa podataka klijenata, pribavi potrebne saglasnosti od klijenata za AI obradu</li>
+  <li>Obavesti klijente da platforma koristi AI obradu podataka putem trećih strana (OpenAI)</li>
+  <li>Ne koristi Platformu za generisanje lažnih, obmanjujućih ili štetnih pravnih dokumenata</li>
+  <li>Ne pokušava da zaobiđe tehničke mere zaštite ili ograničenja Platforme</li>
+  <li>Odmah prijavi Pružaocu usluge svaku neovlašćenu upotrebu svog naloga</li>
+</ul>
+
+<h2>Intelektualna svojina</h2>
+<p>Korisnik zadržava sva prava intelektualne svojine na sadržaj koji unosi u Platformu (predmeti, dokumenti, opisi). Pružalac usluge ne stiče nikakva prava na predmete, dokumente, podatke klijenata ili drugu poverljivu informaciju unetu u sistem.</p>
+<p>Platforma, uključujući softverski kod, UI dizajn, AI modele i baze sudske prakse, zaštićena je autorskim pravom u korist Pružaoca usluge. Korisnik dobija ograničenu, neekskluzivnu, neprenosivu licencu za korišćenje Platforme u skladu sa ovim Uslovima.</p>
+
+<h2>Pretplata, plaćanje i raskid</h2>
+<p>Pretplata se obračunava unapred na mesečnom ili godišnjem nivou prema odabranom planu. Pružalac usluge zadržava pravo na promenu cena uz prethodni pisani nalog od 30 dana. Korisnik može raskinuti pretplatu u bilo kom trenutku bez naknade, uz pravo na korišćenje do isteka plaćenog perioda. U slučaju kršenja ovih Uslova, Pružalac usluge može odmah obustaviti pristup bez povrata sredstava.</p>
+
+<h2>Dostupnost i promene usluge</h2>
+<p>Pružalac usluge nastoji da obezbedi dostupnost Platforme od 99% mesečno, ali ne garantuje neprekidno funkcionisanje. Planirana nedostupnost (maintenance) najavljivaće se unapred. Pružalac usluge zadržava pravo na izmenu, dopunu ili ukidanje pojedinih funkcionalnosti uz prethodnu obavest Korisnicima.</p>
+
+<h2>Ograničenje odgovornosti</h2>
+<p>U maksimalnoj meri dozvoljenoj važećim pravom, ukupna odgovornost Pružaoca usluge prema Korisniku ne može preći iznos pretplate koji je Korisnik platio u periodu od 12 meseci pre nastanka štete. Pružalac usluge ne odgovara za indirektnu, posledičnu ili izmaklu dobit.</p>
+
+<h2>Izmene Uslova</h2>
+<p>Pružalac usluge može izmeniti ove Uslove uz obaveštenje Korisnika putem email adrese registrovane na nalogu, najmanje 14 dana pre primene izmena. Nastavak korišćenja Platforme posle stupanja izmena na snagu smatra se prihvatanjem izmenjenih Uslova.</p>
+
+<h2>Pravo i nadležnost</h2>
+<p>Na ove Uslove primenjuje se pravo Republike Srbije. Za sporove koji nastanu iz ili u vezi sa ovim Uslovima nadležan je Privredni sud u Beogradu. Pre pokretanja sudskog postupka, strane su obavezne da pokušaju rešavanje spora mirnim putem.</p>
+
+<footer>
+  Vindex AI &nbsp;·&nbsp; legal@vindex.ai &nbsp;·&nbsp;
+  <a href="/privacy">Politika privatnosti</a> &nbsp;·&nbsp;
+  <a href="/ai-disclosure">AI Disclosure</a> &nbsp;·&nbsp;
+  <a href="/dpa">DPA</a>
+</footer>
 </body>
 </html>

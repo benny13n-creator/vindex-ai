@@ -3872,40 +3872,151 @@
 <!-- ═══════════════════════════════════════════════════════════════
      TOS MODAL — prikazuje se posle prve prijave ako ToS nije prihvaćen
      ═══════════════════════════════════════════════════════════════ -->
-<div id="tos-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
-  <div style="background:#0f1117;border:1px solid rgba(255,255,255,0.1);border-radius:14px;max-width:520px;width:92%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;animation:scale-in-dlg .2s ease;">
-    <div style="padding:1.4rem 1.6rem 0.8rem;border-bottom:1px solid rgba(255,255,255,0.07);">
-      <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.3rem;">Uslovi korišćenja i zaštita podataka</div>
-      <div style="font-size:.72rem;color:rgba(255,255,255,.4);">Verzija 2026-07-02 — molimo pročitajte pre nastavka</div>
-    </div>
-    <div style="overflow-y:auto;padding:1rem 1.6rem;font-size:.77rem;color:rgba(255,255,255,.65);line-height:1.65;flex:1;">
-      <div style="color:#89c8ff;font-weight:600;margin-bottom:.4rem;font-size:.8rem;">1. Ko obrađuje vaše podatke</div>
-      <p>Vindex AI (vlasnik: Vindex d.o.o.) obrađuje podatke koje unosite u platformu radi pružanja usluga pravne analize, upravljanja predmetima i veštačke inteligencije.</p>
+<div id="tos-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);align-items:center;justify-content:center;">
+  <div style="background:#0f1117;border:1px solid rgba(255,255,255,0.1);border-radius:16px;max-width:560px;width:94%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;animation:scale-in-dlg .2s ease;">
 
-      <div style="color:#89c8ff;font-weight:600;margin:1rem 0 .4rem;font-size:.8rem;">2. Saglasnost za AI obradu</div>
-      <p>Da biste koristili AI funkcije (Copilot, Procena predmeta, Analiza dokumenata), delovi teksta vaših dokumenata i opisa predmeta biće obrađeni putem <strong style="color:rgba(255,255,255,.85);">OpenAI API-ja</strong>. OpenAI ne koristi API podatke za trening modela i briše ih u roku od 30 dana (politika od marta 2023).</p>
-      <p>Preporučujemo da pre uploada osetljivih dokumenata obavestite klijente da platforma koristi AI obradu trećih strana.</p>
-
-      <div style="color:#89c8ff;font-weight:600;margin:1rem 0 .4rem;font-size:.8rem;">3. Gde se podaci čuvaju</div>
-      <ul style="padding-left:1.2rem;margin:0;">
-        <li><strong style="color:rgba(255,255,255,.8);">Supabase (EU):</strong> Predmeti, klijenti, dokumenti — serveri u Frankfurtu (AWS eu-central-1)</li>
-        <li><strong style="color:rgba(255,255,255,.8);">OpenAI API:</strong> Tekstovi dokumenata tokom AI analize — serveri u SAD/EU, brisanje u 30 dana</li>
-        <li><strong style="color:rgba(255,255,255,.8);">Pinecone:</strong> Vektorizovani sadržaj dokumenata — serveri u SAD</li>
-      </ul>
-
-      <div style="color:#89c8ff;font-weight:600;margin:1rem 0 .4rem;font-size:.8rem;">4. Vaša prava</div>
-      <p>Imate pravo na uvid, ispravku i brisanje svih ličnih podataka u skladu sa ZZPL (Zakon o zaštiti podataka o ličnosti, Srbija) i GDPR. Zahteve šaljite na: <span style="color:#89c8ff;">privacy@vindex.ai</span></p>
-
-      <div style="color:#89c8ff;font-weight:600;margin:1rem 0 .4rem;font-size:.8rem;">5. Profesionalna tajna</div>
-      <p>Vindex AI ne pristupa vašim predmetima bez vaše eksplicitne dozvole. Preporučujemo da u ugovorima sa klijentima navadete da koristite platformu koja uključuje AI obradu dokumenata.</p>
-
-      <div style="margin-top:1rem;padding:.7rem;background:rgba(74,168,255,.07);border:1px solid rgba(74,168,255,.15);border-radius:8px;font-size:.73rem;color:rgba(255,255,255,.55);">
-        Prihvatanjem ovih uslova potvrđujete da ste pročitali i razumeli politiku zaštite podataka i dajete saglasnost za AI obradu podataka u gore navedenom obimu.
+    <!-- Header -->
+    <div style="padding:1.3rem 1.6rem 0.9rem;border-bottom:1px solid rgba(255,255,255,0.07);">
+      <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.2rem;">Pravna dokumentacija platforme</div>
+      <div style="font-size:.7rem;color:rgba(255,255,255,.35);">Verzija 2026-07-05 &nbsp;·&nbsp; Molimo pročitajte pre nastavka</div>
+      <!-- Tabs -->
+      <div style="display:flex;gap:.3rem;margin-top:.8rem;" id="tos-tabs">
+        <button onclick="tosTab('tos')" id="tos-tab-tos" style="padding:.3rem .8rem;font-size:.72rem;font-weight:700;border-radius:6px;border:1px solid rgba(99,102,241,.6);background:rgba(99,102,241,.2);color:rgba(210,205,255,.95);cursor:pointer;">Uslovi</button>
+        <button onclick="tosTab('privacy')" id="tos-tab-privacy" style="padding:.3rem .8rem;font-size:.72rem;font-weight:600;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;">Privatnost</button>
+        <button onclick="tosTab('ai')" id="tos-tab-ai" style="padding:.3rem .8rem;font-size:.72rem;font-weight:600;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;">AI Obrada</button>
       </div>
     </div>
-    <div style="padding:.9rem 1.6rem;border-top:1px solid rgba(255,255,255,0.07);display:flex;gap:.6rem;justify-content:flex-end;">
-      <button onclick="tosDecline()" style="padding:.45rem 1rem;font-size:.78rem;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;">Odjavi se</button>
-      <button onclick="tosAccept()" style="padding:.45rem 1.4rem;font-size:.78rem;border:none;border-radius:7px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;cursor:pointer;font-weight:600;">Prihvatam uslove ✓</button>
+
+    <!-- Scrollable body -->
+    <div style="overflow-y:auto;padding:1rem 1.6rem;font-size:.77rem;color:rgba(255,255,255,.65);line-height:1.68;flex:1;">
+
+      <!-- TAB: Uslovi korišćenja -->
+      <div id="tos-pane-tos">
+        <div style="color:#89c8ff;font-weight:700;margin-bottom:.5rem;font-size:.8rem;">1. Ugovorne strane i predmet</div>
+        <p>Vindex AI platforma (u daljem tekstu: "Platforma") je softverski servis koji pruža Vindex d.o.o. (u daljem tekstu: "Pružalac usluge"). Korišćenjem Platforme, korisnik (advokat, pravnik ili pravno lice, u daljem tekstu: "Korisnik") prihvata ove Uslove kao pravno obavezujući ugovor.</p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">2. Opis usluge</div>
+        <p>Platforma pruža alate za upravljanje predmetima, AI analizu pravnih dokumenata, semantičku pretragu sudske prakse i generisanje pravnih dokumenata. Usluga se pruža putem pretplatnog modela definisanog cenovnikom Pružaoca usluge.</p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">3. Ograničenje odgovornosti za AI</div>
+        <p style="background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.22);border-radius:8px;padding:.7rem .9rem;color:rgba(255,245,200,.85);">AI analize i odgovori koje generiše Platforma predstavljaju <strong>pomoćni alat pri radu</strong> i ne predstavljaju pravni savet u smislu Zakona o advokaturi. Korisnik je <strong>isključivo odgovoran</strong> za proveru tačnosti rezultata pre profesionalne upotrebe. Pružalac usluge ne odgovara za štetu nastalu oslanjanjem na AI output bez stručne provere.</p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">4. Obaveze korisnika</div>
+        <ul style="padding-left:1.2rem;margin:.3rem 0;">
+          <li>Ne koristiti Platformu za nezakonite svrhe</li>
+          <li>Čuvati pristupne podatke i ne deliti nalog sa trećim licima</li>
+          <li>Obavestiti klijente da platforma koristi AI obradu podataka</li>
+          <li>Pre unosa osetljivih podataka, proceniti primerenost u skladu sa advokatskom etikom</li>
+        </ul>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">5. Intelektualna svojina</div>
+        <p>Korisnik zadržava sva prava na sadržaj koji unosi u Platformu. Pružalac usluge ne stiče nikakva prava na predmete, dokumente ili podatke korisnika.</p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">6. Pravo i nadležnost</div>
+        <p>Na ovaj ugovor primenjuje se pravo Republike Srbije. Za sporove je nadležan Privredni sud u Beogradu.</p>
+
+        <div style="margin-top:.8rem;text-align:right;"><a href="/terms" target="_blank" style="font-size:.72rem;color:rgba(137,200,255,.7);text-decoration:underline;">Puni tekst Uslova korišćenja →</a></div>
+      </div>
+
+      <!-- TAB: Politika privatnosti -->
+      <div id="tos-pane-privacy" style="display:none;">
+        <div style="color:#89c8ff;font-weight:700;margin-bottom:.5rem;font-size:.8rem;">1. Rukovalac podacima</div>
+        <p>Rukovalac podacima o ličnosti je Vindex d.o.o. Kontakt za zaštitu podataka: <span style="color:#89c8ff;">privacy@vindex.ai</span></p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">2. Pravni osnov obrade (ZZPL / GDPR čl. 6)</div>
+        <ul style="padding-left:1.2rem;margin:.3rem 0;">
+          <li><strong style="color:rgba(255,255,255,.8);">Izvršenje ugovora (čl. 6 st. 1 tač. b GDPR):</strong> Obrada neophodna za pružanje ugovorenih usluga</li>
+          <li><strong style="color:rgba(255,255,255,.8);">Saglasnost (čl. 6 st. 1 tač. a GDPR):</strong> AI obrada dokumenata putem OpenAI API-ja</li>
+          <li><strong style="color:rgba(255,255,255,.8);">Zakonska obaveza (čl. 6 st. 1 tač. c GDPR):</strong> Čuvanje poreskih i računovodstvenih zapisa</li>
+        </ul>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">3. Gde i koliko dugo se podaci čuvaju</div>
+        <div style="display:grid;gap:.5rem;margin:.3rem 0;">
+          <div style="background:rgba(74,168,255,.06);border:1px solid rgba(74,168,255,.15);border-radius:8px;padding:.65rem .85rem;">
+            <div style="font-weight:700;color:#89c8ff;margin-bottom:.2rem;font-size:.76rem;">Supabase — Frankfurt (AWS eu-central-1)</div>
+            <div>Predmeti, klijenti, dokumenti, korisničke postavke</div>
+            <div style="color:rgba(255,255,255,.45);margin-top:.2rem;">Čuvanje: dok je nalog aktivan + 90 dana po brisanju</div>
+          </div>
+          <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:.65rem .85rem;">
+            <div style="font-weight:700;color:#fbbf24;margin-bottom:.2rem;font-size:.76rem;">OpenAI API — SAD/EU</div>
+            <div>Tekst upita i dokumenata tokom AI analize — isključivo radi izvršenja zahteva</div>
+            <div style="color:rgba(255,255,255,.45);margin-top:.2rem;">OpenAI ne koristi API podatke za trening modela. Brisanje: max 30 dana (OpenAI politika, mar 2023). SCC: ✓</div>
+          </div>
+          <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.15);border-radius:8px;padding:.65rem .85rem;">
+            <div style="font-weight:700;color:#c4b5fd;margin-bottom:.2rem;font-size:.76rem;">Pinecone — SAD (us-east-1)</div>
+            <div>Numeričke vektorske reprezentacije sadržaja dokumenata (embeddings) — <strong style="color:rgba(255,255,255,.8);">ne originalni tekst dokumenata</strong></div>
+            <div style="color:rgba(255,255,255,.45);margin-top:.2rem;">Izolovano po korisniku. Čuvanje: dok je nalog aktivan</div>
+          </div>
+        </div>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">4. Bezbednost podataka</div>
+        <ul style="padding-left:1.2rem;margin:.3rem 0;">
+          <li>Enkripcija u tranzitu: TLS 1.3</li>
+          <li>Enkripcija pri skladištenju: AES-256 (Supabase)</li>
+          <li>Kontrola pristupa: svaki korisnik vidi isključivo sopstvene podatke (Row Level Security)</li>
+          <li>Audit logovi: svi pristupi i operacije se beleže</li>
+          <li>Backup: dnevni automatski backup sa 30-dnevnim rokom čuvanja</li>
+        </ul>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">5. Pristup podacima i profesionalna tajna</div>
+        <p>Pristup sadržaju predmeta ograničen je <strong style="color:rgba(255,255,255,.85);">isključivo na tehničku obradu potrebnu za izvršenje funkcija koje korisnik pokrene</strong>. Vindex AI ne pregledava niti koristi sadržaj predmeta u bilo koje druge svrhe. Zaposleni Pružaoca usluge nemaju pristup sadržaju predmeta korisnika.</p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">6. Vaša prava</div>
+        <p>U skladu sa ZZPL i GDPR imate pravo na: uvid, ispravku, brisanje, prenosivost i prigovor na obradu. Zahteve šaljite na <span style="color:#89c8ff;">privacy@vindex.ai</span>. Rok za odgovor: 30 dana.</p>
+
+        <div style="margin-top:.8rem;text-align:right;"><a href="/privacy" target="_blank" style="font-size:.72rem;color:rgba(137,200,255,.7);text-decoration:underline;">Puna Politika privatnosti →</a></div>
+      </div>
+
+      <!-- TAB: AI Obrada -->
+      <div id="tos-pane-ai" style="display:none;">
+        <div style="color:#89c8ff;font-weight:700;margin-bottom:.5rem;font-size:.8rem;">1. Koji AI sistem se koristi</div>
+        <p>Platforma koristi <strong style="color:rgba(255,255,255,.85);">OpenAI GPT-4o</strong> putem zvaničnog OpenAI API servisa za sve AI funkcije (pravna analiza, generisanje dokumenata, semantička pretraga).</p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">2. Kako se podaci obrađuju</div>
+        <p>AI obrada vrši se putem OpenAI API servisa. <strong style="color:rgba(255,255,255,.85);">Podaci poslati putem API-ja ne koriste se za treniranje OpenAI modela.</strong> Obrada se vrši isključivo radi izvršenja korisničkog zahteva i rezultat se vraća korisniku.</p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">3. Šta se šalje AI modelu</div>
+        <ul style="padding-left:1.2rem;margin:.3rem 0;">
+          <li>Tekst opisa predmeta koji korisnik unese u polje za analizu</li>
+          <li>Sadržaj dokumenata koji korisnik eksplicitno pokrene za analizu</li>
+          <li>Nije: ime klijenta, JMBG, kontakt podaci — osim ako ih korisnik sam unese u opis</li>
+        </ul>
+        <p style="background:rgba(74,168,255,.07);border:1px solid rgba(74,168,255,.15);border-radius:7px;padding:.6rem .8rem;margin:.5rem 0;color:rgba(200,235,255,.8);">Preporučujemo korišćenje inicijala ili pseudonima umesto punih imena stranaka u opisima predmeta koji se šalju AI-u.</p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">4. Ograničenje AI odgovornosti</div>
+        <p style="background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.22);border-radius:8px;padding:.7rem .9rem;color:rgba(255,245,200,.85);">AI analiza je <strong>pomoćni alat</strong>, ne zamena za stručnu pravnu procenu. Platforma može pogrešiti. Svaki AI output mora biti proveren od strane stručnog lica pre profesionalne primene. Pružalac usluge nije odgovoran za štetu nastalu oslanjanjem na neproveren AI output.</p>
+
+        <div style="color:#89c8ff;font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">5. Podobrađivači (subprocessors)</div>
+        <div style="display:grid;gap:.4rem;margin:.3rem 0;font-size:.74rem;">
+          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:6px;">
+            <span style="color:rgba(255,255,255,.7);">OpenAI, Inc.</span><span style="color:rgba(255,255,255,.4);">AI obrada — SAD/EU — SCC ✓</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:6px;">
+            <span style="color:rgba(255,255,255,.7);">Supabase, Inc.</span><span style="color:rgba(255,255,255,.4);">Baza podataka — Frankfurt (EU) — GDPR ✓</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:6px;">
+            <span style="color:rgba(255,255,255,.7);">Pinecone Systems, Inc.</span><span style="color:rgba(255,255,255,.4);">Vektorska baza — SAD — SCCs ✓</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:6px;">
+            <span style="color:rgba(255,255,255,.7);">Render Services, Inc.</span><span style="color:rgba(255,255,255,.4);">Hosting — SAD — SOC 2 ✓</span>
+          </div>
+        </div>
+
+        <div style="margin-top:.8rem;text-align:right;"><a href="/ai-disclosure" target="_blank" style="font-size:.72rem;color:rgba(137,200,255,.7);text-decoration:underline;">Puni AI Disclosure dokument →</a>&nbsp;&nbsp;<a href="/dpa" target="_blank" style="font-size:.72rem;color:rgba(167,139,250,.7);text-decoration:underline;">DPA za poslovne korisnike →</a></div>
+      </div>
+
+    </div>
+
+    <!-- Footer: checkbox + dugmad -->
+    <div style="padding:.85rem 1.6rem;border-top:1px solid rgba(255,255,255,0.07);">
+      <label style="display:flex;align-items:flex-start;gap:.7rem;cursor:pointer;margin-bottom:.75rem;">
+        <input type="checkbox" id="tos-confirm-chk" onchange="tosChkChange()" style="margin-top:.1rem;flex-shrink:0;accent-color:#2563eb;width:15px;height:15px;cursor:pointer;">
+        <span style="font-size:.72rem;color:rgba(255,255,255,.5);line-height:1.55;">Potvrđujem da sam pročitao/la <a href="/terms" target="_blank" style="color:#89c8ff;text-decoration:none;">Uslove korišćenja</a> i <a href="/privacy" target="_blank" style="color:#89c8ff;text-decoration:none;">Politiku privatnosti</a>, i da sam saglasan/na sa obradom podataka putem AI servisa u obimu neophodnom za izvršavanje funkcionalnosti platforme.</span>
+      </label>
+      <div style="display:flex;gap:.6rem;justify-content:flex-end;">
+        <button onclick="tosDecline()" style="padding:.45rem 1rem;font-size:.78rem;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;">Odjavi se</button>
+        <button id="tos-accept-btn" onclick="tosAccept()" disabled style="padding:.45rem 1.4rem;font-size:.78rem;border:none;border-radius:7px;background:rgba(37,99,235,.35);color:rgba(255,255,255,.35);cursor:not-allowed;font-weight:600;transition:all .2s;">Prihvatam ✓</button>
+      </div>
     </div>
   </div>
 </div>

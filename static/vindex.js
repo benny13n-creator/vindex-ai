@@ -588,7 +588,41 @@ async function tosCheck() {
   } catch(e) { /* ne blokiraj na greški */ }
 }
 
+function tosTab(tab) {
+  ['tos','privacy','ai'].forEach(function(t) {
+    var pane = document.getElementById('tos-pane-' + t);
+    var btn  = document.getElementById('tos-tab-' + t);
+    var active = t === tab;
+    if (pane) pane.style.display = active ? '' : 'none';
+    if (btn) {
+      btn.style.background   = active ? 'rgba(99,102,241,.2)' : 'transparent';
+      btn.style.borderColor  = active ? 'rgba(99,102,241,.6)' : 'rgba(255,255,255,.1)';
+      btn.style.color        = active ? 'rgba(210,205,255,.95)' : 'rgba(255,255,255,.45)';
+      btn.style.fontWeight   = active ? '700' : '600';
+    }
+  });
+}
+
+function tosChkChange() {
+  var chk = document.getElementById('tos-confirm-chk');
+  var btn = document.getElementById('tos-accept-btn');
+  if (!chk || !btn) return;
+  if (chk.checked) {
+    btn.disabled = false;
+    btn.style.background = 'linear-gradient(135deg,#2563eb,#1d4ed8)';
+    btn.style.color = '#fff';
+    btn.style.cursor = 'pointer';
+  } else {
+    btn.disabled = true;
+    btn.style.background = 'rgba(37,99,235,.35)';
+    btn.style.color = 'rgba(255,255,255,.35)';
+    btn.style.cursor = 'not-allowed';
+  }
+}
+
 async function tosAccept() {
+  var chk = document.getElementById('tos-confirm-chk');
+  if (chk && !chk.checked) return;
   if (!currentSession) return;
   try {
     await fetch(BASE_URL + '/api/tos/accept', {

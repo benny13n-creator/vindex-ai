@@ -930,6 +930,11 @@ def dpa_page():
     path = BASE_DIR / "static" / "dpa.html"
     return FileResponse(path, headers={"Cache-Control": "public, max-age=3600"})
 
+@app.get("/ai-disclosure")
+def ai_disclosure_page():
+    path = BASE_DIR / "static" / "ai-disclosure.html"
+    return FileResponse(path, headers={"Cache-Control": "public, max-age=3600"})
+
 
 @app.get("/terms")
 def terms_of_service():

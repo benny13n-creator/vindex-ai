@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vindex AI — AI Disclosure</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;color:#1a1a2e;font-family:'Georgia',serif;font-size:15px;line-height:1.8;max-width:780px;margin:0 auto;padding:3rem 2rem 5rem;}
+  h1{font-size:1.8rem;font-weight:700;margin-bottom:.2rem;color:#0f172a;}
+  .meta{color:#64748b;font-size:.88rem;margin-bottom:2.5rem;padding-bottom:1rem;border-bottom:1px solid #e2e8f0;}
+  h2{font-size:1.05rem;font-weight:700;margin:2rem 0 .6rem;color:#1e293b;counter-increment:section;}
+  h2::before{content:counter(section)". ";}
+  body{counter-reset:section;}
+  p{margin-bottom:.9rem;}
+  ul{margin:0 0 .9rem 1.5rem;}
+  li{margin-bottom:.3rem;}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.88rem;}
+  th{background:#f1f5f9;padding:.5rem .75rem;text-align:left;border:1px solid #e2e8f0;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:#475569;}
+  td{padding:.5rem .75rem;border:1px solid #e2e8f0;vertical-align:top;}
+  .warn-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:1rem 1.2rem;margin:1.2rem 0;font-size:.9rem;}
+  .warn-box strong{color:#92400e;}
+  .ok-box{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:1rem 1.2rem;margin:.8rem 0;font-size:.9rem;color:#14532d;}
+  .card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem 1.2rem;margin:.6rem 0;}
+  .card-title{font-weight:700;font-size:.88rem;margin-bottom:.5rem;color:#0f172a;}
+  footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e2e8f0;font-size:.75rem;color:#94a3b8;text-align:center;}
+  a{color:#2563eb;}
+  nav{display:flex;gap:1.5rem;font-size:.82rem;margin-bottom:2rem;padding:.6rem 0;border-bottom:1px solid #e2e8f0;}
+  nav a{color:#64748b;text-decoration:none;}
+  nav a:hover{color:#2563eb;}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/">Vindex AI</a>
+  <a href="/terms">Uslovi korišćenja</a>
+  <a href="/privacy">Politika privatnosti</a>
+  <a href="/ai-disclosure">AI Disclosure</a>
+  <a href="/dpa">DPA</a>
+</nav>
+
+<h1>AI Disclosure — Obaveštenje o AI obradi</h1>
+<div class="meta">
+  Vindex AI &nbsp;·&nbsp; Verzija: 2026-07-05 &nbsp;·&nbsp; Primena od: 2026-07-05<br>
+  Kontakt: <a href="mailto:privacy@vindex.ai">privacy@vindex.ai</a>
+</div>
+
+<h2>Koji AI sistem se koristi</h2>
+<p>Platforma Vindex AI koristi <strong>OpenAI GPT-4o</strong> putem zvaničnog OpenAI API servisa za sve funkcije veštačke inteligencije. Nijedan sopstveni model nije treniran na podacima korisnika. Sistem ne koristi alternativne AI provajdere bez prethodnog obaveštenja korisnika.</p>
+
+<div class="card">
+  <div class="card-title">Specifikacija AI sistema</div>
+  <table>
+    <tr><th>Parametar</th><th>Vrednost</th></tr>
+    <tr><td>Provajder</td><td>OpenAI, Inc.</td></tr>
+    <tr><td>Model</td><td>GPT-4o (gpt-4o)</td></tr>
+    <tr><td>Pristup</td><td>API (ne ChatGPT aplikacija)</td></tr>
+    <tr><td>Trening na korisničkim podacima</td><td>NE — API politika od marta 2023</td></tr>
+    <tr><td>Čuvanje upita</td><td>Max 30 dana, isključivo radi detekcije zloupotrebe</td></tr>
+    <tr><td>Prenos u treće države</td><td>SAD — EU SCC garancije</td></tr>
+  </table>
+</div>
+
+<h2>Koje AI funkcije postoje i šta šalju</h2>
+<table>
+  <tr><th>Funkcija</th><th>Šta se šalje AI modelu</th><th>Šta se NE šalje</th></tr>
+  <tr>
+    <td>Copilot — pravna pitanja</td>
+    <td>Tekst pitanja koji korisnik unese</td>
+    <td>Predmeti, klijenti, dokumenti koji nisu u pitanju</td>
+  </tr>
+  <tr>
+    <td>Kompletna analiza predmeta</td>
+    <td>Opis predmeta koji korisnik unese ili generiše iz predmeta</td>
+    <td>Ceo tekst dokumenata osim onih eksplicitno uključenih</td>
+  </tr>
+  <tr>
+    <td>Analiza dokumenta</td>
+    <td>Tekstualni sadržaj dokumenta koji korisnik pokrene za analizu</td>
+    <td>Ostali dokumenti iz predmeta</td>
+  </tr>
+  <tr>
+    <td>Case Genome / DNA</td>
+    <td>Opis predmeta i tekst dokumenata iz predmeta</td>
+    <td>Podaci klijenata koji nisu uneti u predmet</td>
+  </tr>
+  <tr>
+    <td>Generisanje dokumenata</td>
+    <td>Parametri dokumenta koje korisnik unese (stranke, predmet, iznos...)</td>
+    <td>Ostali predmeti i dokumenti</td>
+  </tr>
+  <tr>
+    <td>Semantička pretraga prakse</td>
+    <td>Tekst upita za pretragu</td>
+    <td>Predmeti, dokumenti, podaci o klijentima</td>
+  </tr>
+</table>
+
+<h2>Šta OpenAI NE radi sa podacima korisnika</h2>
+<div class="ok-box">
+  <strong>Potvrđeno od strane OpenAI:</strong>
+  <ul style="margin:.4rem 0 0 1.2rem;">
+    <li>Podaci poslati putem API-ja <strong>ne koriste se za treniranje</strong> OpenAI modela</li>
+    <li>Podaci se <strong>ne dele</strong> sa trećim stranama radi reklamnih svrha</li>
+    <li>Podaci se <strong>automatski brišu</strong> u roku od 30 dana</li>
+    <li>Obrada je ograničena na <strong>izvršenje korisničkog zahteva</strong></li>
+  </ul>
+  <p style="margin-top:.6rem;font-size:.85rem;">Izvor: <a href="https://openai.com/enterprise-privacy" target="_blank">openai.com/enterprise-privacy</a> (OpenAI API Data Usage Policy, mart 2023)</p>
+</div>
+
+<h2>Ograničenje tačnosti AI</h2>
+<div class="warn-box">
+  <strong>Važno upozorenje za profesionalnu upotrebu:</strong>
+  <ul style="margin:.5rem 0 0 1.2rem;">
+    <li>AI modeli mogu pogrešiti, halucinirati ili dati netačne pravne informacije</li>
+    <li>AI ne poznaje najnovije izmene propisa nastale posle datuma treninga modela</li>
+    <li>AI ne vrši pravno zastupanje i ne preuzima profesionalnu odgovornost</li>
+    <li>Svi AI rezultati <strong>moraju biti provereni</strong> od strane stručnog lica pre profesionalne primene</li>
+    <li>Korisnik snosi isključivu profesionalnu odgovornost za sve odluke donete na osnovu AI output-a</li>
+  </ul>
+</div>
+
+<h2>Autonomno donošenje odluka</h2>
+<p>Platforma Vindex AI <strong>ne donosi autonomne odluke</strong> koje imaju pravno dejstvo prema klijentima ili trećim stranama. Sve AI analize su preporuke, procena i alati za podršku — finalna odluka uvek ostaje na korisniku (advokatu, pravniku).</p>
+<p>U skladu sa GDPR čl. 22, korisnici imaju pravo da zatraže da odluke koje ih se tiču ne budu zasnovane isključivo na automatizovanoj obradi.</p>
+
+<h2>Preporuke za zaštitu podataka klijenata pri korišćenju AI</h2>
+<ul>
+  <li><strong>Koristite inicijale ili pseudonime</strong> umesto punih imena stranaka u opisima predmeta koji se šalju AI-u</li>
+  <li><strong>Ne unosite JMBG, broj računa, zdravstvene podatke</strong> osim ako je apsolutno neophodno za analizu</li>
+  <li><strong>Obavestite klijente</strong> da platforma koristi AI obradu podataka putem trećih strana</li>
+  <li><strong>Koristite opšti opis</strong> predmeta umesto doslovnog kopiranja osetljivih delova dokumenata kada god je to moguće</li>
+</ul>
+
+<h2>Opt-out iz AI obrade</h2>
+<p>Korisnik koji ne želi da koristi AI funkcije može koristiti Platformu isključivo za upravljanje predmetima i dokumentima bez pokretanja AI analize. AI obrada se aktivira isključivo eksplicitnom akcijom korisnika (klik na dugme za analizu). Nijedna automatska AI obrada se ne vrši bez akcije korisnika.</p>
+
+<h2>Kontakt za pitanja o AI obradi</h2>
+<p>Za sva pitanja o AI obradi, načinu funkcionisanja modela, ili zahteve za dodatne informacije, kontaktirajte nas na: <a href="mailto:privacy@vindex.ai">privacy@vindex.ai</a></p>
+
+<footer>
+  Vindex AI &nbsp;·&nbsp; privacy@vindex.ai &nbsp;·&nbsp;
+  <a href="/terms">Uslovi korišćenja</a> &nbsp;·&nbsp;
+  <a href="/privacy">Politika privatnosti</a> &nbsp;·&nbsp;
+  <a href="/dpa">DPA</a>
+</footer>
+</body>
+</html>

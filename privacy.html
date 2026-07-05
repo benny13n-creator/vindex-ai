@@ -1,127 +1,167 @@
 <!DOCTYPE html>
 <html lang="sr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Politika privatnosti — Vindex AI</title>
-  <style>
-    :root { --bg: #0f1117; --card: #1a1d27; --border: rgba(255,255,255,0.08); --accent: #6c63ff; --text: rgba(255,255,255,0.88); --muted: rgba(255,255,255,0.45); }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.7; }
-    .wrap { max-width: 780px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
-    header { display: flex; align-items: center; gap: 1rem; margin-bottom: 3rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; }
-    header a { color: var(--accent); text-decoration: none; font-size: .9rem; }
-    header .logo { font-size: 1.4rem; font-weight: 700; color: #fff; flex: 1; }
-    h1 { font-size: 2rem; font-weight: 700; margin-bottom: .5rem; }
-    .subtitle { color: var(--muted); margin-bottom: 2.5rem; font-size: .95rem; }
-    h2 { font-size: 1.15rem; font-weight: 600; color: #fff; margin: 2rem 0 .75rem; }
-    p, li { color: var(--text); font-size: .95rem; }
-    ul { padding-left: 1.4rem; }
-    ul li { margin-bottom: .35rem; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
-    .card p { margin: 0; }
-    a { color: var(--accent); }
-    .badge { display: inline-block; background: rgba(108,99,255,.15); color: var(--accent); border: 1px solid rgba(108,99,255,.3); border-radius: 6px; font-size: .75rem; font-weight: 600; padding: .2rem .55rem; margin-right: .4rem; }
-    footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vindex AI — Politika privatnosti</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;color:#1a1a2e;font-family:'Georgia',serif;font-size:15px;line-height:1.8;max-width:780px;margin:0 auto;padding:3rem 2rem 5rem;}
+  h1{font-size:1.8rem;font-weight:700;margin-bottom:.2rem;color:#0f172a;}
+  .meta{color:#64748b;font-size:.88rem;margin-bottom:2.5rem;padding-bottom:1rem;border-bottom:1px solid #e2e8f0;}
+  h2{font-size:1.05rem;font-weight:700;margin:2rem 0 .6rem;color:#1e293b;counter-increment:section;}
+  h2::before{content:counter(section)". ";}
+  body{counter-reset:section;}
+  p{margin-bottom:.9rem;}
+  ul{margin:0 0 .9rem 1.5rem;}
+  li{margin-bottom:.3rem;}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.88rem;}
+  th{background:#f1f5f9;padding:.5rem .75rem;text-align:left;border:1px solid #e2e8f0;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:#475569;}
+  td{padding:.5rem .75rem;border:1px solid #e2e8f0;vertical-align:top;}
+  .card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem 1.2rem;margin:.6rem 0;}
+  .card-title{font-weight:700;font-size:.88rem;margin-bottom:.5rem;color:#0f172a;}
+  .highlight{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:.8rem 1rem;font-size:.9rem;color:#1e40af;margin:.8rem 0;}
+  footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e2e8f0;font-size:.75rem;color:#94a3b8;text-align:center;}
+  a{color:#2563eb;}
+  nav{display:flex;gap:1.5rem;font-size:.82rem;margin-bottom:2rem;padding:.6rem 0;border-bottom:1px solid #e2e8f0;}
+  nav a{color:#64748b;text-decoration:none;}
+  nav a:hover{color:#2563eb;}
+</style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <span class="logo">⚖ Vindex AI</span>
-    <a href="/">← Nazad na aplikaciju</a>
-  </header>
+<nav>
+  <a href="/">Vindex AI</a>
+  <a href="/terms">Uslovi korišćenja</a>
+  <a href="/privacy">Politika privatnosti</a>
+  <a href="/ai-disclosure">AI Disclosure</a>
+  <a href="/dpa">DPA</a>
+</nav>
 
-  <h1>Politika privatnosti</h1>
-  <p class="subtitle">Poslednje ažuriranje: jun 2026. &nbsp;·&nbsp; Verzija 1.0</p>
-
-  <div class="card">
-    <p><span class="badge">VAŽNO</span> Vindex AI je alat za pravna istraživanja — <strong>nije zamena za pravni savet advokata.</strong> Obrađujemo vaše podatke isključivo radi pružanja usluge opisane u ovom dokumentu.</p>
-  </div>
-
-  <h2>1. Ko je rukovalac podataka</h2>
-  <p>Rukovalac ličnih podataka u smislu Zakona o zaštiti podataka o ličnosti (»Sl. glasnik RS« br. 87/2018) i Opšte uredbe o zaštiti podataka (GDPR) je:</p>
-  <ul style="margin-top:.75rem;">
-    <li><strong>Naziv:</strong> Vindex AI</li>
-    <li><strong>Kontakt:</strong> <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a></li>
-  </ul>
-
-  <h2>2. Koje podatke prikupljamo</h2>
-  <ul>
-    <li><strong>Nalog:</strong> ime, prezime, e-mail adresa, naziv kancelarije, zanimanje (advokat / pripravnik / firma)</li>
-    <li><strong>Lični identifikatori klijenata (opciono):</strong> JMBG, broj pasoša, broj lične karte, PIB — <strong>čuvaju se isključivo u šifrovanom obliku (AES-256-GCM)</strong> i nikad se ne prenose u nešifrovanom vidu</li>
-    <li><strong>Pravni predmeti i dokumenti:</strong> tekst predmeta, uploadovani dokumenti, istorija pitanja i odgovora</li>
-    <li><strong>Podaci o korišćenju:</strong> broj AI upita, vreme sesije, tip plana, IP adresa</li>
-    <li><strong>Tehnički podaci:</strong> tip uređaja, pretraživač, Correlation ID za logove grešaka</li>
-  </ul>
-
-  <h2>3. Svrha i pravni osnov obrade</h2>
-  <ul>
-    <li><strong>Izvršenje ugovora</strong> (čl. 12 st. 1 t. 2 ZZPL) — pružanje usluge AI pretrage i analize pravnih dokumenata</li>
-    <li><strong>Legitimni interes</strong> — bezbednost platforme, sprečavanje zloupotreba, analytics agregiran i anonimiziran</li>
-    <li><strong>Zakonska obaveza</strong> — čuvanje evidencija propisano računovodstvenim i poreskim zakonima</li>
-  </ul>
-
-  <h2>4. Primaoci podataka (treće strane)</h2>
-  <ul>
-    <li><strong>OpenAI (SAD)</strong> — AI modeli za obradu teksta. Podaci se prenose na osnovu standardnih ugovornih klauzula (SCC). Videti <a href="https://openai.com/policies/privacy-policy" target="_blank">OpenAI Privacy Policy</a>.</li>
-    <li><strong>Supabase (SAD/EU)</strong> — baza podataka i autentifikacija. Videti <a href="https://supabase.com/privacy" target="_blank">Supabase Privacy Policy</a>.</li>
-    <li><strong>Pinecone (SAD)</strong> — vektorska pretraga (čuvaju se isključivo anonimizovani embeddings, bez PII). Videti <a href="https://www.pinecone.io/privacy/" target="_blank">Pinecone Privacy Policy</a>.</li>
-    <li><strong>Render (SAD)</strong> — hosting platforme.</li>
-    <li><strong>Sentry</strong> — logovanje grešaka (bez korisničkih podataka o predmetima).</li>
-  </ul>
-  <p style="margin-top:.75rem;">Ne prodajemo, ne iznajmljujemo i ne razmenjujemo vaše podatke ni sa jednom trećom stranom u komercijalne svrhe.</p>
-
-  <h2>5. Rok čuvanja podataka</h2>
-  <ul>
-    <li>Nalog i predmeti: dok nalog postoji + 12 meseci nakon deaktivacije</li>
-    <li>Fakture i finansijski podaci: 5 godina (zakonska obaveza)</li>
-    <li>Logovi i audit trail: 90 dana, zatim automatsko brisanje</li>
-    <li>Šifrovani identifikatori klijenata: brišu se trajno na zahtev, istovremeno sa brisanjem predmeta</li>
-  </ul>
-
-  <h2>6. Vaša prava</h2>
-  <p>U skladu sa ZZPL i GDPR, imate pravo da:</p>
-  <ul>
-    <li><strong>Pristupite</strong> vašim podacima — export svih podataka dostupan iz podešavanja naloga</li>
-    <li><strong>Ispravite</strong> netačne podatke</li>
-    <li><strong>Izbrišete</strong> nalog i sve povezane podatke (»pravo na zaborav«)</li>
-    <li><strong>Ograničite</strong> obradu podataka</li>
-    <li><strong>Prigovorite</strong> obradi zasnovanoj na legitimnom interesu</li>
-    <li><strong>Prenesete</strong> vaše podatke drugom rukovaocu (portabilnost)</li>
-  </ul>
-  <p style="margin-top:.75rem;">Zahteve šaljite na: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a>. Odgovorićemo u roku od 30 dana.</p>
-  <p style="margin-top:.5rem;">Imate pravo i da podneste pritužbu Povereniku za informacije od javnog značaja i zaštitu podataka o ličnosti (<a href="https://www.poverenik.rs" target="_blank">www.poverenik.rs</a>).</p>
-
-  <h2>7. Bezbednost podataka</h2>
-  <ul>
-    <li>Svi podaci u prenosu zaštićeni TLS 1.2+</li>
-    <li>Osetljivi identifikatori: AES-256-GCM šifrovanje na nivou polja</li>
-    <li>Lozinke: Argon2id heš, nikad u plaintext obliku</li>
-    <li>Dokumenti: šifrovano skladište sa randomizovanim identifikatorima</li>
-    <li>Audit log: append-only, bez mogućnosti naknadne izmene</li>
-    <li>Pristup produkcijskim podacima: isključivo ovlašćeno osoblje</li>
-  </ul>
-
-  <h2>8. Kolačići i praćenje</h2>
-  <p>Koristimo isključivo funkcionalne kolačiće neophodne za rad aplikacije (JWT sesija). Ne koristimo kolačiće za praćenje ili oglašavanje. Google Analytics ni drugi analytics alati <strong>nisu</strong> ugrađeni u aplikaciju.</p>
-
-  <h2>9. Prenos podataka van Srbije</h2>
-  <p>Podaci se prenose u SAD na osnovu standardnih ugovornih klauzula (SCC/SCCs) u skladu sa čl. 65 ZZPL, ka gore navedenim obrađivačima (OpenAI, Supabase, Pinecone, Render).</p>
-
-  <h2>10. Izmene politike</h2>
-  <p>O svim značajnim izmenama obavestićemo vas e-mailom najmanje 14 dana pre stupanja na snagu. Datum poslednjeg ažuriranja je vidljiv na vrhu ovog dokumenta.</p>
-
-  <h2>11. Kontakt</h2>
-  <p>Za sva pitanja u vezi sa zaštitom podataka: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a></p>
-
-  <footer>
-    <a href="/">Aplikacija</a>
-    <a href="/terms">Uslovi korišćenja</a>
-    <span>© 2026 Vindex AI</span>
-  </footer>
+<h1>Politika privatnosti</h1>
+<div class="meta">
+  Vindex AI &nbsp;·&nbsp; Verzija: 2026-07-05 &nbsp;·&nbsp; Primena od: 2026-07-05<br>
+  Kontakt za zaštitu podataka: <a href="mailto:privacy@vindex.ai">privacy@vindex.ai</a>
 </div>
+
+<h2>Ko je rukovalac podacima</h2>
+<p>Rukovalac podacima o ličnosti u smislu ZZPL (Zakon o zaštiti podataka o ličnosti, "Sl. glasnik RS" br. 87/2018) i GDPR (Uredba EU 2016/679) je:</p>
+<div class="card">
+  <div class="card-title">Vindex d.o.o.</div>
+  <div>Beograd, Republika Srbija</div>
+  <div>Email: <a href="mailto:privacy@vindex.ai">privacy@vindex.ai</a></div>
+</div>
+
+<h2>Koje podatke prikupljamo</h2>
+<table>
+  <tr><th>Kategorija</th><th>Konkretni podaci</th><th>Izvor</th></tr>
+  <tr><td>Nalog</td><td>Email adresa, lozinka (hash), datum registracije</td><td>Korisnik</td></tr>
+  <tr><td>Predmeti</td><td>Nazivi, opisi, tip postupka, status, stranke</td><td>Korisnik</td></tr>
+  <tr><td>Dokumenti</td><td>Uploadovani fajlovi i njihov tekstualni sadržaj</td><td>Korisnik</td></tr>
+  <tr><td>AI upiti</td><td>Tekst koji korisnik šalje AI funkcijama</td><td>Korisnik</td></tr>
+  <tr><td>Fakturisanje</td><td>Podaci o pretplati, podaci za fakturu (PIB, adresa)</td><td>Korisnik</td></tr>
+  <tr><td>Tehničke evidencije</td><td>IP adresa, tip uređaja, aktivnosti, API logovi</td><td>Automatski</td></tr>
+</table>
+<p><strong>Ne prikupljamo:</strong> JMBG, broj lične karte, biometrijske podatke, podatke o zdravlju — osim ukoliko ih korisnik sam unese u opis predmeta.</p>
+
+<h2>Pravni osnov obrade (ZZPL / GDPR čl. 6)</h2>
+<table>
+  <tr><th>Osnov</th><th>Konkretna obrada</th></tr>
+  <tr>
+    <td><strong>Izvršenje ugovora</strong><br><small>čl. 6 st. 1 tač. b GDPR</small></td>
+    <td>Upravljanje nalogom, predmetima, dokumentima, fakturisanje, tehnička podrška</td>
+  </tr>
+  <tr>
+    <td><strong>Saglasnost</strong><br><small>čl. 6 st. 1 tač. a GDPR</small></td>
+    <td>AI obrada teksta dokumenata putem OpenAI API-ja; marketinška komunikacija</td>
+  </tr>
+  <tr>
+    <td><strong>Zakonska obaveza</strong><br><small>čl. 6 st. 1 tač. c GDPR</small></td>
+    <td>Čuvanje računovodstvenih isprava i poreskih zapisa</td>
+  </tr>
+  <tr>
+    <td><strong>Legitimni interes</strong><br><small>čl. 6 st. 1 tač. f GDPR</small></td>
+    <td>Bezbednost platforme, detekcija zloupotrebe, audit logovi</td>
+  </tr>
+</table>
+
+<h2>Gde se podaci čuvaju — podobrađivači</h2>
+<div class="card">
+  <div class="card-title">Supabase, Inc. — Baza podataka i autentifikacija</div>
+  <div><strong>Lokacija:</strong> Frankfurt, Nemačka (AWS eu-central-1) — EU region</div>
+  <div><strong>Podaci:</strong> Predmeti, klijenti, dokumenti, korisničke postavke, autentifikacija</div>
+  <div><strong>Bezbednost:</strong> AES-256 enkripcija u mirovanju, TLS 1.3 u tranzitu</div>
+  <div><strong>Certifikati:</strong> SOC 2 Type II, GDPR usklađenost</div>
+</div>
+<div class="card">
+  <div class="card-title">OpenAI, Inc. — AI obrada</div>
+  <div><strong>Lokacija:</strong> SAD i EU (Microsoft Azure)</div>
+  <div><strong>Podaci:</strong> Tekst upita i dokumenti koje korisnik eksplicitno šalje AI funkcijama</div>
+  <div><strong>Trening modela: NE</strong> — API podaci se ne koriste za treniranje OpenAI modela (politika od marta 2023)</div>
+  <div><strong>Zadržavanje:</strong> Max 30 dana, zatim automatsko brisanje</div>
+  <div><strong>Ugovor:</strong> EU Standard Contractual Clauses (SCC)</div>
+</div>
+<div class="card">
+  <div class="card-title">Pinecone Systems, Inc. — Vektorska baza</div>
+  <div><strong>Lokacija:</strong> SAD (us-east-1)</div>
+  <div><strong>Podaci:</strong> Numeričke vektorske reprezentacije sadržaja dokumenata (embeddings) — <strong>ne originalni tekst dokumenata</strong>. Embeddings su matematički vektori koji ne mogu biti korišćeni za rekonstrukciju originalnog sadržaja.</div>
+  <div><strong>Izolovano po korisniku:</strong> Da</div>
+  <div><strong>Ugovor:</strong> EU Standard Contractual Clauses (SCC)</div>
+</div>
+<div class="card">
+  <div class="card-title">Render Services, Inc. — Hosting</div>
+  <div><strong>Lokacija:</strong> SAD</div>
+  <div><strong>Podaci:</strong> Aplikacioni logovi, privremeni keš</div>
+  <div><strong>Certifikati:</strong> SOC 2 Type II</div>
+</div>
+
+<h2>Rokovi čuvanja podataka</h2>
+<table>
+  <tr><th>Kategorija podataka</th><th>Rok čuvanja</th><th>Osnov</th></tr>
+  <tr><td>Predmeti i dokumenti</td><td>Dok je nalog aktivan + 90 dana po brisanju</td><td>Ugovor</td></tr>
+  <tr><td>Embeddings (Pinecone)</td><td>Dok je nalog aktivan</td><td>Ugovor</td></tr>
+  <tr><td>AI upiti (OpenAI)</td><td>Max 30 dana</td><td>OpenAI politika</td></tr>
+  <tr><td>Fakturisanje i računovodstvo</td><td>10 godina</td><td>Zakon o računovodstvu</td></tr>
+  <tr><td>Audit logovi</td><td>2 godine</td><td>Legitimni interes</td></tr>
+  <tr><td>Backup</td><td>30 dana (rolling)</td><td>Ugovor</td></tr>
+</table>
+
+<h2>Bezbednost podataka</h2>
+<ul>
+  <li><strong>Enkripcija u tranzitu:</strong> TLS 1.3 za sve veze između klijenta i servera</li>
+  <li><strong>Enkripcija pri skladištenju:</strong> AES-256 (Supabase)</li>
+  <li><strong>Kontrola pristupa:</strong> Row Level Security (RLS) — svaki korisnik pristupa isključivo sopstvenim podacima na nivou baze podataka</li>
+  <li><strong>Pristup zaposlenih:</strong> Zaposleni Pružaoca usluge nemaju operativni pristup sadržaju predmeta korisnika — pristup je tehnički blokiran RLS politikama</li>
+  <li><strong>Audit logovi:</strong> Sve kritične operacije se beleže sa vremenskim žigom i identifikatorom korisnika</li>
+  <li><strong>Backup:</strong> Dnevni automatski backup sa 30-dnevnim rokom čuvanja</li>
+  <li><strong>Incident response:</strong> U slučaju povrede bezbednosti, korisnici se obaveštavaju u roku od 72 sata (GDPR čl. 33–34)</li>
+</ul>
+
+<h2>Pristup podacima i profesionalna tajna</h2>
+<div class="highlight">
+  Pristup sadržaju predmeta ograničen je isključivo na tehničku obradu potrebnu za izvršenje funkcija koje korisnik eksplicitno pokrene. Vindex AI ne pregledava, ne analizira niti koristi sadržaj predmeta u bilo koje druge svrhe. Zaposleni Pružaoca usluge nemaju pristup sadržaju predmeta korisnika.
+</div>
+
+<h2>Vaša prava</h2>
+<p>U skladu sa ZZPL i GDPR imate sledeća prava:</p>
+<ul>
+  <li><strong>Pravo na pristup (čl. 26 ZZPL / čl. 15 GDPR):</strong> Uvid u podatke koji se o vama obrađuju</li>
+  <li><strong>Pravo na ispravku (čl. 29 ZZPL / čl. 16 GDPR):</strong> Ispravka netačnih podataka</li>
+  <li><strong>Pravo na brisanje (čl. 30 ZZPL / čl. 17 GDPR):</strong> Brisanje naloga i svih podataka u roku od 30 dana</li>
+  <li><strong>Pravo na prenosivost (čl. 36 ZZPL / čl. 20 GDPR):</strong> Export podataka u mašinski čitljivom formatu (JSON/CSV)</li>
+  <li><strong>Pravo na prigovor (čl. 37 ZZPL / čl. 21 GDPR):</strong> Prigovor na obradu zasnovanu na legitimnom interesu</li>
+  <li><strong>Pravo na povlačenje saglasnosti:</strong> U svakom trenutku, bez uticaja na zakonitost prethodne obrade</li>
+</ul>
+<p>Zahteve šaljite na: <a href="mailto:privacy@vindex.ai">privacy@vindex.ai</a>. Rok za odgovor: <strong>30 dana</strong>.<br>
+Imate pravo na pritužbu Povereniku za informacije od javnog značaja i zaštitu podataka o ličnosti (<a href="https://www.poverenik.rs" target="_blank">poverenik.rs</a>).</p>
+
+<h2>Izmene Politike privatnosti</h2>
+<p>Pružalac usluge može izmeniti ovu Politiku uz pisano obaveštenje Korisnika najmanje 14 dana unapred. Aktuelna verzija uvek je dostupna na ovoj adresi.</p>
+
+<footer>
+  Vindex AI &nbsp;·&nbsp; privacy@vindex.ai &nbsp;·&nbsp;
+  <a href="/terms">Uslovi korišćenja</a> &nbsp;·&nbsp;
+  <a href="/ai-disclosure">AI Disclosure</a> &nbsp;·&nbsp;
+  <a href="/dpa">DPA</a>
+</footer>
 </body>
 </html>
