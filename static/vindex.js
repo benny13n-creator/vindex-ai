@@ -7778,13 +7778,14 @@ function pred_renderList() {
       rokHtml = '<span style="font-size:0.58rem;color:#ffbb70;margin-left:0.25rem;" title="Hitnih rokova: '+di.urgentni_rokovi_count+'">'+di.urgentni_rokovi_count+'</span>';
     }
     var chked = _selectedPredmeti.has(p.id) ? ' checked' : '';
-    return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'">'
+    return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'" onclick="pred_select(\''+p.id+'\')" style="cursor:pointer;">'
       +'<input type="checkbox" class="pred-chk"'+chked+' style="margin:0;cursor:pointer;flex-shrink:0;" onclick="event.stopPropagation();pred_toggleOznaci(\''+p.id+'\')">'
-      +'<span class="pred-naziv" style="flex:1;cursor:pointer;" onclick="pred_select(\''+p.id+'\')">'+escHtml(p.naziv)+'</span>'
-      +'<span style="display:flex;align-items:center;gap:0;flex-shrink:0;">'
+      +'<span class="pred-naziv" style="flex:1;">'+escHtml(p.naziv)+'</span>'
+      +'<span style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">'
       +'<span class="pred-badge '+tipCls+'" style="margin-right:0.25rem;">'+escHtml(p.tip)+'</span>'
       +'<span class="'+statusCls+'" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span>'
       +rizikHtml+rokHtml
+      +'<span style="font-size:0.7rem;color:rgba(74,168,255,0.6);font-weight:600;margin-left:0.3rem;">Otvori →</span>'
       +'</span>'
       +'</div>';
   }).join('');
