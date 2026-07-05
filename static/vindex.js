@@ -4073,7 +4073,7 @@ function web3RenderLicense(licenseData, objasnjenje) {
 
   var html = '<div class="w3-license-wrap">';
   if (organ && organ !== 'nije_primenjivo') {
-    html += '<span class="w3-license-badge organ"> + _htmlEsc(organ) + '</span>';
+    html += '<span class="w3-license-badge organ">' + _htmlEsc(organ) + '</span>';
   }
   html += '<span class="w3-license-badge ' + (dozvola ? 'dozvola-da' : 'dozvola-ne') + '">';
   html += (dozvola ? '⚠️ Dozvola POTREBNA' : '✅ Dozvola NIJE potrebna') + '</span>';
