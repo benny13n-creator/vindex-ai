@@ -8240,6 +8240,21 @@ function pred_openStrat(modul) {
   }, 150);
 }
 
+function pred_launchKompletnaAnaliza() {
+  openAITool('t');
+  setTimeout(function() {
+    _predAutoFill('strat-tekst', false);
+    var el = document.getElementById('strat-tekst');
+    if (el && el.value.length < 100) {
+      showToast('Otvoren alat za stratešku analizu — proverite opis i kliknite Pokreni.', 'ok');
+      var ork = document.getElementById('strat-ork-btn');
+      if (ork) ork.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    stratOrkestratorPokreni();
+  }, 350);
+}
+
 /* ── AI Centar Faza 3 — centralni input ─────────────────────────────────── */
 async function aic3_submit() {
   if (!currentUser) { openModal(); return; }
