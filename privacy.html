@@ -117,7 +117,7 @@
 <h2>Rokovi čuvanja podataka</h2>
 <table>
   <tr><th>Kategorija podataka</th><th>Rok čuvanja</th><th>Osnov</th></tr>
-  <tr><td>Predmeti i dokumenti</td><td>Dok je nalog aktivan + 90 dana po brisanju naloga<br><small style="color:#64748b;">Obrazloženje: 90 dana daje korisnicima razuman period za oporavak od slučajnog brisanja i istovremeno ograničava period neaktivne obrade na minimum — ravnoteža između operativne bezbednosti korisnika i prava na brisanje.</small></td><td>Ugovor</td></tr>
+  <tr><td>Predmeti i dokumenti</td><td>Brisanje iz produkcione baze: max 30 dana od zahteva.<br>Šifrovane backup kopije: do isteka backup ciklusa (max 30 dana), nakon čega se trajno uklanjaju.<br><small style="color:#64748b;">Obrazloženje: 90-dnevni period od brisanja naloga (produkcija + backup ciklus) daje razuman period za oporavak od slučajnog brisanja uz ograničavanje neaktivne obrade na minimum.</small></td><td>Ugovor</td></tr>
   <tr><td>Embeddings (Pinecone)</td><td>Dok je nalog aktivan</td><td>Ugovor</td></tr>
   <tr><td>AI upiti (OpenAI)</td><td>Max 30 dana</td><td>OpenAI politika</td></tr>
   <tr><td>Fakturisanje i računovodstvo</td><td>10 godina</td><td>Zakon o računovodstvu</td></tr>

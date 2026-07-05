@@ -273,37 +273,53 @@
 </ol>
 <h3>14.2 Procedura izvoza podataka (GDPR čl. 20)</h3>
 <ol>
-  <li>Korisnik pokreće export iz podešavanja platforme (dugme "Izvezi podatke")</li>
+  <li><strong>Verifikacija identiteta:</strong> Zahtev se pokreće isključivo dok je korisnik prijavljen sa verifikovanim JWT tokenom; za zahteve putem email-a šalje se verifikacioni link na registrovanu adresu pre generisanja arhive</li>
   <li>Generiše se ZIP arhiva sa: svim predmetima (JSON), svim klijentima (JSON/CSV), svim dokumentima (originalni fajlovi), billing istorijom (CSV)</li>
-  <li>Link za preuzimanje dostupan 24 sata, zatim se briše</li>
-  <li>Alternativno: zahtev na privacy@vindex.ai sa odgovorom u roku od 30 dana</li>
+  <li><strong>Link za preuzimanje:</strong> Jednokratan (one-time), važi 24 sata, zatim se automatski briše zajedno sa arhivom</li>
+  <li><strong>Zaštita arhive:</strong> ZIP download je dostupan samo autentifikovanom korisniku putem potpisanog URL-a (Supabase Storage signed URL) — nije javno dostupan</li>
+  <li>Alternativno: zahtev na privacy@vindex.ai uz email verifikaciju, odgovor u roku od 30 dana</li>
 </ol>
+<h3>14.3 Brisanje podataka: produkcija vs. backup</h3>
+<table>
+  <tr><th>Sloj</th><th>Rok brisanja</th><th>Napomena</th></tr>
+  <tr><td>Produkciona baza (Supabase PostgreSQL)</td><td>Max 30 dana od zahteva</td><td>Hard delete, ne soft delete</td></tr>
+  <tr><td>Storage fajlovi (Supabase S3)</td><td>Max 30 dana od zahteva</td><td>S3 object deletion</td></tr>
+  <tr><td>Pinecone embeddings</td><td>Max 30 dana od zahteva</td><td>Namespace delete po user_id</td></tr>
+  <tr><td>Šifrovane backup kopije</td><td>Do isteka backup ciklusa (max 30 dana od poslednjeg backupa)</td><td>Brišu se automatski po Supabase rolling backup politici; nisu dostupne bez Supabase infrastrukturnog pristupa</td></tr>
+  <tr><td>Aplikacioni logovi (Render.com)</td><td>90 dana od nastanka, automatski</td><td>Sadrže metapodatke (user_id, path, status), ne sadržaj predmeta</td></tr>
+</table>
 
 <h2>15. Upravljanje ključevima enkripcije</h2>
 <table>
-  <tr><th>Sloj</th><th>Ko upravlja ključevima</th><th>Rotacija</th></tr>
+  <tr><th>Sloj</th><th>Ko upravlja</th><th>Frekvencija rotacije</th><th>Procedura pri kompromitaciji</th></tr>
   <tr>
-    <td>AES-256 enkripcija baze podataka</td>
-    <td>Supabase (upravljani servis) — ključevi su u AWS KMS eu-central-1</td>
-    <td>Automatski, po AWS KMS politici</td>
+    <td>AES-256 enkripcija baze</td>
+    <td>Supabase / AWS KMS (eu-central-1)</td>
+    <td>Automatski po AWS KMS politici</td>
+    <td>Supabase support + AWS KMS key rotation — Vindex AI prima obaveštenje</td>
   </tr>
   <tr>
     <td>TLS sertifikati</td>
-    <td>Render.com (Let's Encrypt, auto-renewal)</td>
+    <td>Render.com (Let's Encrypt)</td>
     <td>Automatski, svakih 90 dana</td>
+    <td>Render.com emergency re-issue, &lt;1h; praćenje putem Render dashboard</td>
   </tr>
   <tr>
     <td>JWT potpisni ključ (RS256)</td>
     <td>Supabase Auth</td>
-    <td>Na zahtev ili po sigurnosnom incidentu</td>
+    <td>Na zahtev ili pri incidentu</td>
+    <td>Reset putem Supabase dashboard; invalidira sve aktivne sesije — korisnici moraju da se ponovo prijave</td>
   </tr>
   <tr>
     <td>API ključevi (OpenAI, Pinecone)</td>
-    <td>Vindex — čuvaju se kao environment varijable na Render.com (encrypted secrets)</td>
-    <td>Manualno, min jednom godišnje ili pri sumnji na kompromitaciju</td>
+    <td>Vindex — Render.com encrypted env vars</td>
+    <td>Min jednom godišnje; odmah pri sumnji</td>
+    <td>(1) Revoke starog ključa u provajder dashboardu, (2) Generisanje novog, (3) Deploy na Render.com bez downtime-a, (4) Verifikacija funkcionalnosti, (5) Upis u incident log</td>
   </tr>
 </table>
-<p><strong>Napomena:</strong> Vindex AI koristi upravljane cloud servise (Supabase, Render) koji implementiraju HSM (Hardware Security Module) za master ključeve. Vindex AI tim nema direktan pristup master ključevima enkripcije.</p>
+<p><strong>Ko može rotirati ključeve:</strong> Isključivo vlasnik Vindex naloga na Render.com, Supabase i OpenAI dashboardima. Pristup je zaštićen dvofaktorskom autentifikacijom (2FA) na svim provajder portalima.</p>
+<p><strong>Master ključevi enkripcije:</strong> Vindex AI tim nema direktan pristup master ključevima enkripcije baze podataka — oni su u AWS KMS (Hardware Security Module). Supabase ih upravlja u ime Vindex AI kao upravljani servis.</p>
+<p><strong>Interna procedura pri kompromitaciji:</strong> (1) Odmah revoke, (2) Klasifikacija incidenta kao Critical, (3) Pokretanje incident response procedure iz sekcije 8, (4) Procena da li je došlo do povrede podataka, (5) Obaveštenje po GDPR čl. 33–34 ako je primenljivo.</p>
 
 <footer>
   Vindex AI Security Whitepaper v1.0 · Jul 2026 · Ažurira se godišnje ili pri značajnoj promeni arhitekture
