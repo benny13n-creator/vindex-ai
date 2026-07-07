@@ -52,10 +52,21 @@ async def export_complete(user=Depends(get_current_user)):
     Exportuje SVE podatke korisnika kao ZIP sa JSON fajlovima.
     GDPR čl. 20 — pravo na prenosivost podataka.
     """
+    from shared.audit_immutable import log_action as _imm_log
+    import asyncio as _aio
+
     supa = _get_supa()
     uid  = user["user_id"]
     email = user.get("email", uid)
     now  = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
+
+    # Zabeleži export u nepromenjivi audit log — GDPR čl. 20 praćenje
+    _aio.create_task(_imm_log(
+        "data_export",
+        user_id=uid,
+        resource_type="all_user_data",
+        metadata={"email": email, "format": "zip"},
+    ))
 
     tables = [
         ("predmeti",          "predmeti.json",     "created_at"),

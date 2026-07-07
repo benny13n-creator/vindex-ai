@@ -704,6 +704,46 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 from shared.audit import AuditMiddleware
 app.add_middleware(AuditMiddleware)
 
+# ─── User-level rate limiting (in-memory sliding window) ─────────────────────
+# Dopuna IP-based slowapi limitera: prati pozive po user_id
+# Limiti su namerno blaži od IP limita — korisnik može biti iza NAT-a
+
+import collections as _collections
+
+_USER_RATE: dict[str, _deque] = {}
+_USER_RATE_LOCK = asyncio.Lock()
+
+_USER_AI_LIMIT    = int(os.getenv("USER_AI_LIMIT_PER_HOUR", "60"))    # AI endpointi
+_USER_API_LIMIT   = int(os.getenv("USER_API_LIMIT_PER_HOUR", "600"))   # svi API endpointi
+
+_AI_ENDPOINTS = {"/api/pitanje", "/api/analiza", "/api/kompletna", "/api/copilot",
+                 "/api/nacrt", "/api/drafting"}
+
+
+async def _check_user_rate_limit(user_id: str, path: str) -> bool:
+    """
+    Proverava korisnički sliding-window rate limit.
+    Vraća True ako je zahtev dozvoljen, False ako je prekoračen.
+    """
+    if not user_id:
+        return True
+    now = _time.time()
+    window = 3600.0  # 1 sat
+
+    is_ai = any(ep in path for ep in _AI_ENDPOINTS)
+    limit = _USER_AI_LIMIT if is_ai else _USER_API_LIMIT
+    key = f"{user_id}:{'ai' if is_ai else 'api'}"
+
+    async with _USER_RATE_LOCK:
+        dq = _USER_RATE.setdefault(key, _deque())
+        # Očisti zastarele unose
+        while dq and now - dq[0] > window:
+            dq.popleft()
+        if len(dq) >= limit:
+            return False
+        dq.append(now)
+    return True
+
 
 import uuid as _uuid
 import contextvars as _cv
@@ -720,6 +760,34 @@ async def correlation_id_middleware(request: Request, call_next):
 
 
 @app.middleware("http")
+async def user_rate_limit_middleware(request: Request, call_next):
+    """
+    User-level sliding window rate limiter.
+    Dopunjuje IP-based slowapi — štiti od botnet-a koji rotira IP adrese.
+    Aktivira se samo na /api/ rutama da ne usporava static fajlove.
+    """
+    path = request.url.path
+    if not path.startswith("/api/"):
+        return await call_next(request)
+
+    uid = getattr(request.state, "user_id", None)
+    if uid and not await _check_user_rate_limit(uid, path):
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            "rate_limit_exceeded",
+            user_id=uid,
+            resource_type="api",
+            resource_id=path[:100],
+            ip=request.client.host if request.client else None,
+        ))
+        return JSONResponse(
+            status_code=429,
+            content={"greska": "Previše zahteva. Sačekajte nekoliko minuta i pokušajte ponovo."},
+        )
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def security_headers(request: Request, call_next):
     """Dodaje security, cache i permissions headere na svaki odgovor."""
     response = await call_next(request)
@@ -732,17 +800,22 @@ async def security_headers(request: Request, call_next):
     elif path.startswith("/static/"):
         response.headers["Cache-Control"] = "public, max-age=86400"
 
-    response.headers["Permissions-Policy"] = "microphone=(self)"
+    response.headers["Permissions-Policy"] = "microphone=(self), camera=(), geolocation=(), payment=()"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; "
         "style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com fonts.googleapis.com; "
-        "font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com; "
+        "font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com data:; "
         "img-src 'self' data: blob:; "
-        "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com; "
-        "worker-src 'self' blob:;"
+        "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com "
+        "https://api.emailjs.com; "
+        "worker-src 'self' blob:; "
+        "frame-ancestors 'none'; "
+        "report-uri /api/security/csp-report"
     )
     return response
 
@@ -1013,6 +1086,80 @@ async def admin_kpi(request: Request, user: dict = Depends(get_current_user)):
         "aktivni_korisnici_7d": {"vrednost": aktivni_7d},
         "napomena": "Timing metrike se resetuju pri restartu. Prikupljaju se automatski od prvog zahteva.",
     }
+
+
+# ─── CSP Violation Report Endpoint ───────────────────────────────────────────
+
+@app.post("/api/security/csp-report")
+async def csp_violation_report(request: Request):
+    """
+    Prima Content Security Policy violation reportove iz browsera.
+    Loguje u security_events tabelu i Python logger.
+    Ne zahteva autentifikaciju — browser šalje automatski.
+    """
+    try:
+        body = await request.json()
+        report = body.get("csp-report", body)
+
+        blocked_uri   = report.get("blocked-uri", "")
+        violated_dir  = report.get("violated-directive", "")
+        document_uri  = report.get("document-uri", "")
+        source_file   = report.get("source-file", "")
+
+        logger.warning(
+            "[CSP] violation: directive=%s blocked=%s source=%s",
+            violated_dir, blocked_uri[:100], source_file[:100],
+        )
+
+        # Upiši u security_events (fire-and-forget)
+        import hashlib as _hl
+        ip = request.client.host if request.client else None
+        ip_hash = _hl.sha256((ip or "").encode()).hexdigest()[:16] if ip else None
+
+        await asyncio.to_thread(
+            lambda: _get_supa().table("security_events").insert({
+                "event_type": "csp_violation",
+                "ip_hash": ip_hash,
+                "details": {
+                    "blocked_uri":   blocked_uri[:200],
+                    "violated_dir":  violated_dir[:100],
+                    "document_uri":  document_uri[:200],
+                    "source_file":   source_file[:200],
+                },
+            }).execute()
+        )
+    except Exception as e:
+        logger.debug("[CSP] report parse greška: %s", e)
+    return JSONResponse(status_code=204, content=None)
+
+
+@app.get("/api/admin/security/audit-verify")
+@limiter.limit("2/minute")
+async def admin_audit_verify(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Founder-only: verifikuje integritet hash-chain audit loga.
+    Skenira poslednjih 1000 zapisa i proveri da li je lanac nepolupan.
+    """
+    if not _is_founder(user.get("email", "")):
+        raise HTTPException(status_code=403, detail="Restricted.")
+    from shared.audit_immutable import verify_chain_integrity
+    result = await verify_chain_integrity(limit=1000)
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        **result,
+    }
+
+
+@app.get("/api/admin/security/agents")
+async def admin_agent_permissions(
+    x_admin_key: str = Header(default=""),
+    user: dict = Depends(get_current_user),
+):
+    """Founder-only: pregled dozvola svih AI agenata."""
+    if not _is_founder(user.get("email", "")):
+        raise HTTPException(status_code=403, detail="Restricted.")
+    from security.agent_isolation import get_agent_permissions_summary
+    return {"agents": get_agent_permissions_summary()}
 
 
 @app.get("/test-pinecone")
@@ -1434,7 +1581,7 @@ async def trial_status(user: dict = Depends(get_current_user)):
 
 
 @app.post("/api/logout")
-async def logout(user: dict = Depends(get_current_user)):
+async def logout(user: dict = Depends(get_current_user), request: Request = None):
     """Invaliduje sve aktivne sesije korisnika na Supabase nivou.
     Čak i ako klijent drži JWT token, Supabase get_user() poziv će ga odbiti.
     """
@@ -1445,6 +1592,11 @@ async def logout(user: dict = Depends(get_current_user)):
         logger.info("[LOGOUT] sve sesije invalidovane uid=%.8s", uid)
     except Exception as e:
         logger.warning("[LOGOUT] sign_out partial fail uid=%.8s: %s", uid, e)
+
+    from shared.audit_immutable import log_action as _imm_log
+    ip = request.client.host if request and request.client else None
+    asyncio.create_task(_imm_log("logout", user_id=uid, ip=ip))
+
     return {"ok": True, "poruka": "Odjavili ste se sa svih uređaja."}
 
 
@@ -1810,6 +1962,30 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
         qh = _q_hash(req.pitanje)
         logger.info("Pitanje [uid=%.8s] [q=%s]", user["user_id"], qh)
         asyncio.create_task(_audit(user["user_id"], "pitanje", qh))
+
+        # ── Prompt injection detekcija ────────────────────────────────────────
+        from security.prompt_guard import analyze as _guard_analyze
+        from security.prompt_guard import truncate_safe as _guard_truncate
+        from shared.audit_immutable import log_action as _imm_log
+
+        _guard_result = await asyncio.to_thread(_guard_analyze, req.pitanje)
+        if _guard_result.blocked:
+            logger.warning(
+                "[GUARD] BLOCKED pitanje uid=%.8s score=%.2f",
+                user["user_id"], _guard_result.risk_score,
+            )
+            asyncio.create_task(_imm_log(
+                "injection_attempt_blocked",
+                user_id=user["user_id"],
+                resource_type="pitanje",
+                ip=request.client.host if request.client else None,
+                metadata={"score": _guard_result.risk_score, "flags": _guard_result.flags[:5]},
+            ))
+            return greska_odgovor(400, "Zahtev sadrži neodgovarajući sadržaj i nije obrađen.")
+
+        # Ograniči veličinu pre slanja AI-u
+        req_pitanje_safe = _guard_truncate(req.pitanje)
+
         predmet_id = (req.predmet_id or "").strip() or None
         session_id = (req.session_id or "").strip() or None
 

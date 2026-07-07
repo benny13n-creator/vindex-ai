@@ -1,1 +1,1 @@
-# security — field-level encryption, password hashing, storage key generation
+# security — field-level encryption, password hashing, prompt injection defense, AI forensics

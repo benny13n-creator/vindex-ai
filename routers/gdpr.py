@@ -193,6 +193,18 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
 
     await asyncio.to_thread(_delete)
     logger.info("[GDPR] account deleted uid=%.8s", uid)
+
+    # Zabeleži brisanje u nepromenjivi audit log — ne može biti obrisano
+    from shared.audit_immutable import log_action as _imm_log
+    ip = request.client.host if request.client else None
+    asyncio.create_task(_imm_log(
+        "gdpr_erasure",
+        user_id=uid,
+        resource_type="account",
+        ip=ip,
+        metadata={"email_hash": hashlib.sha256(email.encode()).hexdigest()[:16]},
+    ))
+
     return {
         "ok": True,
         "poruka": "Vaš nalog je anonimizovan. Lični podaci su obrisani iz profila.",
