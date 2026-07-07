@@ -709,6 +709,7 @@ app.add_middleware(AuditMiddleware)
 # Limiti su namerno blaži od IP limita — korisnik može biti iza NAT-a
 
 import collections as _collections
+from security.anomaly_detection import record_request as _anomaly_record, check_anomaly as _anomaly_check
 
 _USER_RATE: dict[str, _deque] = {}
 _USER_RATE_LOCK = asyncio.Lock()
@@ -771,19 +772,44 @@ async def user_rate_limit_middleware(request: Request, call_next):
         return await call_next(request)
 
     uid = getattr(request.state, "user_id", None)
-    if uid and not await _check_user_rate_limit(uid, path):
-        from shared.audit_immutable import log_action
-        asyncio.create_task(log_action(
-            "rate_limit_exceeded",
-            user_id=uid,
-            resource_type="api",
-            resource_id=path[:100],
-            ip=request.client.host if request.client else None,
-        ))
-        return JSONResponse(
-            status_code=429,
-            content={"greska": "Previše zahteva. Sačekajte nekoliko minuta i pokušajte ponovo."},
-        )
+    client_ip = request.client.host if request.client else None
+    is_ai = any(ep in path for ep in _AI_ENDPOINTS)
+
+    if uid:
+        # Beleži zahtev u anomaly sliding windows (ne-blokira)
+        _anomaly_record(uid, path, client_ip or "", is_ai)
+
+        # Rate limit provera
+        if not await _check_user_rate_limit(uid, path):
+            from shared.audit_immutable import log_action
+            asyncio.create_task(log_action(
+                "rate_limit_exceeded",
+                user_id=uid,
+                resource_type="api",
+                resource_id=path[:100],
+                ip=client_ip,
+            ))
+            return JSONResponse(
+                status_code=429,
+                content={"greska": "Previše zahteva. Sačekajte nekoliko minuta i pokušajte ponovo."},
+            )
+
+        # Anomaly detection — samo za AI endpointe (sporije, nije potrebno za svaki zahtev)
+        if is_ai:
+            signal = await _anomaly_check(uid, client_ip)
+            if signal.is_anomaly:
+                logger.warning(
+                    "[ANOMALY] uid=%.8s score=%.2f blocked reasons=%s",
+                    uid, signal.score, signal.reasons,
+                )
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "greska": "Neobičan obrazac aktivnosti. Kontaktirajte podršku ako mislite da je ovo greška.",
+                        "code": "anomaly_detected",
+                    },
+                )
+
     return await call_next(request)
 
 
@@ -1160,6 +1186,35 @@ async def admin_agent_permissions(
         raise HTTPException(status_code=403, detail="Restricted.")
     from security.agent_isolation import get_agent_permissions_summary
     return {"agents": get_agent_permissions_summary()}
+
+
+@app.post("/api/admin/security/anchor-today")
+@limiter.limit("4/hour")
+async def admin_anchor_today(request: Request, user: dict = Depends(get_current_user)):
+    """Founder-only: sidri dnevni root hash audit lanca na nezavisnoj lokaciji."""
+    if not _is_founder(user.get("email", "")):
+        raise HTTPException(status_code=403, detail="Restricted.")
+    from security.chain_anchor import anchor_today
+    result = await anchor_today()
+    return {"timestamp": datetime.utcnow().isoformat(), **result}
+
+
+@app.get("/api/admin/security/anchor-verify/{target_date}")
+@limiter.limit("10/minute")
+async def admin_anchor_verify(
+    target_date: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Founder-only: verifikuje integritet audit lanca za dati datum (YYYY-MM-DD)."""
+    if not _is_founder(user.get("email", "")):
+        raise HTTPException(status_code=403, detail="Restricted.")
+    import re
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", target_date):
+        raise HTTPException(status_code=400, detail="Format datuma mora biti YYYY-MM-DD.")
+    from security.chain_anchor import verify_anchor
+    result = await verify_anchor(target_date)
+    return {"timestamp": datetime.utcnow().isoformat(), **result}
 
 
 @app.get("/test-pinecone")
