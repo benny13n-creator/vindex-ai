@@ -200,8 +200,9 @@ async def benchmark_satnica(
         r = await asyncio.to_thread(lambda: q.limit(500).execute())
         rows = r.data or []
 
-        if len(rows) < 3:
-            return {"podaci": [], "poruka": "Nedovoljno podataka za benchmark (minimum 3 zapisa)."}
+        _K_ANON_MIN = 20
+        if len(rows) < _K_ANON_MIN:
+            return {"podaci": [], "poruka": f"Nedovoljno anonimnih podataka (potrebno minimum {_K_ANON_MIN} uzoraka za ovu kategoriju). Doprinesi podacima da otključaš benchmark."}
 
         # Agregiraj po tipu
         by_tip: dict[str, list] = {}
@@ -214,7 +215,7 @@ async def benchmark_satnica(
 
         rezultat = []
         for tip, seme in by_tip.items():
-            if len(seme) >= 3:
+            if len(seme) >= _K_ANON_MIN:
                 avg_mesecno = sum(seme) / len(seme)
                 rezultat.append({
                     "tip_predmeta":  tip,
@@ -249,8 +250,9 @@ async def benchmark_trajanje(
         r = await asyncio.to_thread(lambda: q.limit(500).execute())
         rows = r.data or []
 
-        if len(rows) < 3:
-            return {"podaci": [], "poruka": "Nedovoljno podataka."}
+        _K_ANON_MIN = 20
+        if len(rows) < _K_ANON_MIN:
+            return {"podaci": [], "poruka": f"Nedovoljno anonimnih podataka (potrebno minimum {_K_ANON_MIN} uzoraka za ovu kategoriju). Doprinesi podacima da otključaš benchmark."}
 
         by_tip: dict[str, list] = {}
         for row in rows:
@@ -261,7 +263,7 @@ async def benchmark_trajanje(
 
         rezultat = []
         for tip, trajanja in by_tip.items():
-            if len(trajanja) >= 3:
+            if len(trajanja) >= _K_ANON_MIN:
                 rezultat.append({
                     "tip_predmeta":         tip,
                     "prosecno_meseci":      round(sum(trajanja) / len(trajanja), 1),
@@ -296,8 +298,9 @@ async def benchmark_win_rate(
         r = await asyncio.to_thread(lambda: q.limit(1000).execute())
         rows = r.data or []
 
-        if len(rows) < 5:
-            return {"podaci": [], "poruka": "Nedovoljno podataka."}
+        _K_ANON_MIN = 20
+        if len(rows) < _K_ANON_MIN:
+            return {"podaci": [], "poruka": f"Nedovoljno anonimnih podataka (potrebno minimum {_K_ANON_MIN} uzoraka za ovu kategoriju). Doprinesi podacima da otključaš benchmark."}
 
         by_tip: dict[str, dict] = {}
         for row in rows:
@@ -312,7 +315,7 @@ async def benchmark_win_rate(
         rezultat = []
         for tip, d in by_tip.items():
             uk = d["ukupno"]
-            if uk >= 5:
+            if uk >= _K_ANON_MIN:
                 rezultat.append({
                     "tip_predmeta":    tip,
                     "win_rate":        round(d["pobeda"] / uk * 100, 1),
@@ -374,7 +377,7 @@ async def moj_rang(
             )
             bench = bench_r.data or []
 
-            if len(bench) < 5:
+            if len(bench) < 20:
                 continue
 
             bench_pobede = sum(1 for b in bench if b.get("ishod") == "pobeda")

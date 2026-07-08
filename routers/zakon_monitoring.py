@@ -394,3 +394,163 @@ async def zakoni_moji_predmeti(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/impact-analiza/{predmet_id}")
+@limiter.limit("3/hour")
+async def impact_analiza(
+    predmet_id: str,
+    request:    Request,
+    user:       dict = Depends(get_current_user),
+):
+    """
+    Dubinska analiza uticaja promena zakona na konkretni predmet.
+
+    Tok:
+      1. Učitaj dokumente predmeta (tekst sadrzaj)
+      2. Učitaj relevantne izmene zakona (poslenjih 90 dana)
+      3. GPT-4o-mini analizira koje pasuse dokumenata pogađaju izmene
+      4. Vraća: pogođeni pasusi + predložene izmene + nivo rizika
+      5. Kreira proactive_alert ako je rizik visok
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    try:
+        # Predmet
+        pred_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+                .select("naziv, tip, status")
+                .eq("id", predmet_id)
+                .eq("user_id", uid)
+                .maybe_single()
+                .execute()
+        )
+        if not pred_r.data:
+            raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+        predmet = pred_r.data
+
+        # Dokumenti predmeta (tekst sadrzaj)
+        dok_r = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti")
+                .select("naziv_fajla, tekst_sadrzaj")
+                .eq("predmet_id", predmet_id)
+                .not_.is_("tekst_sadrzaj", "null")
+                .limit(5)
+                .execute()
+        )
+        dokumenti = dok_r.data or []
+
+        if not dokumenti:
+            return {
+                "predmet":  predmet,
+                "analiza":  "Predmet nema uploadovanih dokumenata sa tekstualnim sadržajem. Uploadujte dokumente da biste koristili impact analizu.",
+                "rizik":    "nepoznat",
+                "alertova": 0,
+            }
+
+        tekst_predmeta = "\n\n".join(
+            f"=== {d.get('naziv_fajla', '?')} ===\n{(d.get('tekst_sadrzaj') or '')[:1500]}"
+            for d in dokumenti
+        )[:5000]
+
+        # Izmene zakona relevantne za tip predmeta
+        od = (date.today() - timedelta(days=90)).isoformat()
+        tip = predmet.get("tip", "ostalo")
+
+        zakoni_r = await asyncio.to_thread(
+            lambda: supa.table("zakoni_monitoring")
+                .select("naziv_zakona, datum_objave, sazetak, oblasti_prava")
+                .gte("datum_objave", od)
+                .order("datum_objave", desc=True)
+                .limit(20)
+                .execute()
+        )
+        svi_zakoni = zakoni_r.data or []
+
+        # Filtriraj relevantne (oblast odgovara tipu predmeta)
+        relevantni = [
+            z for z in svi_zakoni
+            if tip in (z.get("oblasti_prava") or []) or not z.get("oblasti_prava")
+        ][:10]
+
+        if not relevantni:
+            return {
+                "predmet":  predmet,
+                "analiza":  "Nije pronađena nijedna izmena zakona relevantna za ovaj predmet u poslenjih 90 dana.",
+                "rizik":    "nizak",
+                "alertova": 0,
+            }
+
+        zakoni_tekst = "\n".join(
+            f"- {z.get('naziv_zakona', '?')} ({z.get('datum_objave', '?')}): {(z.get('sazetak') or '')[:300]}"
+            for z in relevantni
+        )
+
+        # AI analiza
+        from openai import AsyncOpenAI
+        oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+        resp = await oai.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.2,
+            max_tokens=1000,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Ti si pravni analitičar. Analiziraj kako nedavne izmene zakona utiču na konkretne dokumente predmeta. "
+                        "Odgovori SAMO validnim JSON-om:\n"
+                        '{"rizik": "visok|srednji|nizak", "pogodeni_pasusi": ["..."], '
+                        '"predlozene_izmene": ["..."], "zakoni_koji_uticu": ["..."], '
+                        '"obrazlozenje": "..."}'
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Predmet: {predmet.get('naziv', '?')} (tip: {predmet.get('tip', '?')})\n\n"
+                        f"Dokumenti predmeta:\n{tekst_predmeta}\n\n"
+                        f"Relevantne izmene zakona (poslenjih 90 dana):\n{zakoni_tekst}"
+                    ),
+                },
+            ],
+            response_format={"type": "json_object"},
+        )
+
+        import json as _json
+        ai_result = _json.loads(resp.choices[0].message.content or "{}")
+        rizik = ai_result.get("rizik", "nizak")
+
+        # Alert ako visok rizik
+        alertova = 0
+        if rizik == "visok":
+            try:
+                await asyncio.to_thread(
+                    lambda: supa.table("proactive_alerts").insert({
+                        "user_id":    uid,
+                        "tip":        "zakon_promenjen",
+                        "naslov":     f"Visok rizik: izmene zakona utiču na predmet '{predmet.get('naziv', '')[:60]}'",
+                        "opis":       ai_result.get("obrazlozenje", "")[:800],
+                        "urgentnost": "visoka",
+                        "procitana":  False,
+                    }).execute()
+                )
+                alertova = 1
+            except Exception:
+                pass
+
+        return {
+            "predmet":           predmet,
+            "rizik":             rizik,
+            "pogodeni_pasusi":   ai_result.get("pogodeni_pasusi", []),
+            "predlozene_izmene": ai_result.get("predlozene_izmene", []),
+            "zakoni_koji_uticu": ai_result.get("zakoni_koji_uticu", []),
+            "obrazlozenje":      ai_result.get("obrazlozenje", ""),
+            "period_dana":       90,
+            "alertova":          alertova,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

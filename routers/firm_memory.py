@@ -32,7 +32,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -77,6 +77,55 @@ async def _get_kancelarija_id(supa, uid: str) -> Optional[str]:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _apply_trust(memorije: list[dict], supa, kancelarija_id: str) -> list[dict]:
+    """
+    Annotates memory entries with trust metadata and auto-marks expired ones.
+    Runs synchronously after fetch; DB update for zastarela is fire-and-forget.
+    """
+    today = date.today()
+    expired_ids: list[str] = []
+    result: list[dict] = []
+
+    for m in memorije:
+        confidence = float(m.get("confidence") or 1.0)
+        zastarela  = bool(m.get("zastarela") or False)
+        expires_at = m.get("expires_at")
+
+        if expires_at and not zastarela:
+            try:
+                exp = date.fromisoformat(str(expires_at)[:10])
+                if exp < today:
+                    zastarela = True
+                    expired_ids.append(m["id"])
+            except Exception:
+                pass
+
+        m["_trust"] = {
+            "confidence":    confidence,
+            "izvor":         m.get("izvor", "manual"),
+            "potvrde_count": m.get("potvrde_count", 1),
+            "zastarela":     zastarela,
+            "expires_at":    expires_at,
+            "upozorenje":    (
+                "Memorija je istekla — proverite da li je još uvek tačna."
+                if zastarela else
+                "Nizak nivo pouzdanosti — preporučuje se ručna potvrda."
+                if confidence < 0.5 else None
+            ),
+        }
+        result.append(m)
+
+    if expired_ids:
+        try:
+            supa.table("memory_entries").update(
+                {"zastarela": True, "updated_at": _now()}
+            ).in_("id", expired_ids).execute()
+        except Exception:
+            pass
+
+    return result
 
 
 # ─── Pydantic modeli ──────────────────────────────────────────────────────────
@@ -206,6 +255,8 @@ async def pretrazi_memoriju(
                 m for m in memorije
                 if q_l in (m.get("sadrzaj", "") + m.get("entity_name", "")).lower()
             ]
+
+        memorije = _apply_trust(memorije, _get_supa(), kancelarija_id)
 
         return {
             "memorije": memorije,
@@ -645,7 +696,7 @@ async def sve_memorije(
         r = await asyncio.to_thread(
             lambda: qb.order("vaznost").order("created_at", desc=True).limit(min(limit, 200)).execute()
         )
-        memorije = r.data or []
+        memorije = _apply_trust(r.data or [], _get_supa(), kancelarija_id)
 
         by_type: dict[str, int] = {}
         for m in memorije:
@@ -657,5 +708,70 @@ async def sve_memorije(
             "ukupno":    len(memorije),
             "by_type":   by_type,
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/potvrdi/{memorija_id}")
+@limiter.limit("30/minute")
+async def potvrdi_memoriju(
+    memorija_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Partner potvrđuje da je memorija tačna i aktuelna.
+    Svaka potvrda povećava potvrde_count; 3+ potvrde boostuju confidence za 0.2.
+    """
+    uid  = user["user_id"]
+    supa = _get_supa()
+    kancelarija_id = await _get_kancelarija_id(supa, uid)
+    if not kancelarija_id:
+        raise HTTPException(status_code=403, detail="Niste član nijedne kancelarije.")
+
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("memory_entries")
+                .select("id, confidence, potvrde_count, potvrdjeno_od, zastarela")
+                .eq("id", memorija_id)
+                .eq("kancelarija_id", kancelarija_id)
+                .eq("aktivan", True)
+                .maybe_single()
+                .execute()
+        )
+        if not r.data:
+            raise HTTPException(status_code=404, detail="Memorija nije pronađena.")
+
+        entry = r.data
+        potvrdjeno_od: list = list(entry.get("potvrdjeno_od") or [])
+        potvrde_count: int  = int(entry.get("potvrde_count") or 0)
+        confidence:   float = float(entry.get("confidence") or 1.0)
+
+        if uid not in potvrdjeno_od:
+            potvrdjeno_od.append(uid)
+            potvrde_count += 1
+
+        # 3+ unique confirmations boost confidence
+        if potvrde_count >= 3:
+            confidence = min(1.0, confidence + 0.2)
+
+        await asyncio.to_thread(
+            lambda: supa.table("memory_entries").update({
+                "potvrde_count": potvrde_count,
+                "potvrdjeno_od": potvrdjeno_od,
+                "confidence":    round(confidence, 2),
+                "zastarela":     False,
+                "updated_at":    _now(),
+            }).eq("id", memorija_id).execute()
+        )
+
+        return {
+            "ok":            True,
+            "potvrde_count": potvrde_count,
+            "confidence":    round(confidence, 2),
+            "poruka":        f"Potvrđeno. Pouzdanost memorije: {round(confidence * 100)}%.",
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
