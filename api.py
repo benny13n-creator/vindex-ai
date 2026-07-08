@@ -1258,56 +1258,129 @@ async def cron_daily(request: Request):
     Unified daily cron — jedan poziv, sve pozadinske operacije.
     Zaštićen X-Cron-Secret headerom.
     Render.com cron: POST /api/cron/daily svaki dan u 07:00 UTC
+
+    Guarantees:
+      - Idempotent: drugi poziv unutar 60 min vraća skip bez ponovnog izvršavanja
+      - Isolated: svaki modul u try/except; greška jednog ne obarajre ostatak
+      - Auditable: svaki run dobija Run ID + per-modul counts + duration
     """
-    from datetime import datetime as _dt
+    import uuid as _uuid
+    from datetime import datetime as _dt, timezone as _tz
+
     cron_secret = os.getenv("BRIEFING_CRON_SECRET", "")
     x_secret = request.headers.get("X-Cron-Secret", "")
     if cron_secret and x_secret != cron_secret:
         raise HTTPException(status_code=403, detail="Neovlašćen pristup.")
 
-    rezultati: dict = {}
+    run_id = _uuid.uuid4().hex[:8]
+
+    # ── Idempotency guard: preskoči ako je već pokrenuto u poslednjih 60 min ──
+    try:
+        _last_r = await asyncio.to_thread(
+            lambda: _get_supa().table("chain_anchors")
+                .select("anchored_at")
+                .eq("id", "cron_daily_heartbeat")
+                .maybe_single()
+                .execute()
+        )
+        if _last_r.data and _last_r.data.get("anchored_at"):
+            _last_ts = _dt.fromisoformat(_last_r.data["anchored_at"].replace("Z", "+00:00"))
+            _min_ago = (_dt.now(_tz.utc) - _last_ts).total_seconds() / 60
+            if _min_ago < 60:
+                logger.info("[CRON_DAILY] run_id=%s SKIPPED — already ran %.1f min ago", run_id, _min_ago)
+                return {"ok": True, "skipped": True, "run_id": run_id,
+                        "razlog": f"Već pokrenuto pre {round(_min_ago, 1)} min — zaštita od duplikata"}
+    except Exception:
+        pass  # Ne možemo proveriti — nastavljamo
+
+    rezultati: dict = {"run_id": run_id}
     _t_start = _time.monotonic()
     _broj_grešaka = 0
     _stavke_obradjene = 0
 
-    # 1. Workflow eskalacije
+    # ── Modul 1: Workflow eskalacije ─────────────────────────────────────────
+    _t_wf = _time.monotonic()
     try:
         from routers.workflow import _check_escalations
         _wf = await _check_escalations()
-        rezultati["workflow_eskalacije"] = _wf
-        _stavke_obradjene += int(_wf.get("eskaliranih", 0) or 0) if isinstance(_wf, dict) else 0
+        _wf_esc = int(_wf.get("eskaliranih", 0) or 0) if isinstance(_wf, dict) else 0
+        _wf_chk = int(_wf.get("proverenih", 0) or 0) if isinstance(_wf, dict) else 0
+        _stavke_obradjene += _wf_esc
+        rezultati["workflow"] = {
+            "proverenih": _wf_chk,
+            "eskaliranih": _wf_esc,
+            "duration_ms": round((_time.monotonic() - _t_wf) * 1000),
+            "status": "ok",
+        }
     except Exception as _ce:
-        rezultati["workflow_eskalacije"] = {"greska": str(_ce)[:100]}
+        rezultati["workflow"] = {"status": "greska", "greska": str(_ce)[:120],
+                                  "duration_ms": round((_time.monotonic() - _t_wf) * 1000)}
         _broj_grešaka += 1
 
-    # 2. Zakon monitoring (samo ponedeljkom)
-    if _dt.utcnow().weekday() == 0:
+    # ── Modul 2: Zakon monitoring (samo ponedeljkom) ─────────────────────────
+    if _dt.now(_tz.utc).weekday() == 0:
+        _t_zm = _time.monotonic()
         try:
             from routers.zakon_monitoring import _skeniraj_sl_glasnik
-            _supa_cron = _get_supa()
-            _zm = await _skeniraj_sl_glasnik(_supa_cron, dana_unazad=7)
-            rezultati["zakon_monitoring"] = _zm
-            _stavke_obradjene += int(_zm.get("pronadjeno", 0) or 0) if isinstance(_zm, dict) else 0
+            _zm = await _skeniraj_sl_glasnik(_get_supa(), dana_unazad=7)
+            _zm_pron = int(_zm.get("pronadjeno", 0) or 0) if isinstance(_zm, dict) else 0
+            _zm_prom = int(_zm.get("promena", 0) or 0) if isinstance(_zm, dict) else 0
+            _stavke_obradjene += _zm_pron
+            rezultati["zakon_monitoring"] = {
+                "proverenih": _zm_pron,
+                "promena": _zm_prom,
+                "duration_ms": round((_time.monotonic() - _t_zm) * 1000),
+                "status": "ok",
+            }
         except Exception as _ze:
-            rezultati["zakon_monitoring"] = {"greska": str(_ze)[:100]}
+            rezultati["zakon_monitoring"] = {"status": "greska", "greska": str(_ze)[:120],
+                                              "duration_ms": round((_time.monotonic() - _t_zm) * 1000)}
             _broj_grešaka += 1
+    else:
+        rezultati["zakon_monitoring"] = {"status": "preskoceno", "razlog": "nije ponedeljak"}
 
-    # 3. Enriched heartbeat:
-    #    - anchored_at: timestamp
-    #    - record_count: obrađene stavke (eskalacije + zakoni)
-    #    - hash_256: sadrži duration_ms i failure_count za dijagnostiku
-    _ts = _dt.utcnow().isoformat()
+    # ── Modul 3: Memory cleanup — čisti zastarele unose (confidence < 0.1) ──
+    _t_mc = _time.monotonic()
+    try:
+        from datetime import timezone as _tz2
+        _now_iso = _dt.now(_tz2.utc).isoformat()
+        _del_exp = await asyncio.to_thread(
+            lambda: _get_supa().table("memory_entries")
+                .delete()
+                .lt("confidence", 0.1)
+                .execute()
+        )
+        _del_exp2 = await asyncio.to_thread(
+            lambda: _get_supa().table("memory_entries")
+                .delete()
+                .eq("zastarela", True)
+                .execute()
+        )
+        _obrisano = len(_del_exp.data or []) + len(_del_exp2.data or [])
+        rezultati["memory_cleanup"] = {
+            "obrisano": _obrisano,
+            "duration_ms": round((_time.monotonic() - _t_mc) * 1000),
+            "status": "ok",
+        }
+    except Exception as _mce:
+        rezultati["memory_cleanup"] = {"status": "greska", "greska": str(_mce)[:120],
+                                        "duration_ms": round((_time.monotonic() - _t_mc) * 1000)}
+        _broj_grešaka += 1
+
+    # ── Heartbeat (uvek se izvršava, bez obzira na greške iznad) ────────────
+    _ts = _dt.now(_tz.utc).isoformat()
     _duration_ms = round((_time.monotonic() - _t_start) * 1000)
     try:
         import hashlib as _hl, json as _json
-        _meta = {
+        _audit = {
+            "run_id": run_id,
             "ts": _ts,
             "duration_ms": _duration_ms,
             "stavke_obradjene": _stavke_obradjene,
             "broj_gresaka": _broj_grešaka,
-            "rezultati_summary": {k: "greska" if "greska" in str(v) else "ok" for k, v in rezultati.items()},
+            "moduli": {k: v.get("status", "?") for k, v in rezultati.items() if isinstance(v, dict) and k != "run_id"},
         }
-        _hash = _hl.sha256(_json.dumps(_meta, default=str).encode()).hexdigest()[:32]
+        _hash = _hl.sha256(_json.dumps(_audit, default=str).encode()).hexdigest()[:32]
         await asyncio.to_thread(
             lambda: _get_supa().table("chain_anchors").upsert({
                 "id":           "cron_daily_heartbeat",
@@ -1317,19 +1390,22 @@ async def cron_daily(request: Request):
             }).execute()
         )
         rezultati["heartbeat"] = {
-            "ok":                _broj_grešaka == 0,
-            "duration_ms":       _duration_ms,
-            "stavke_obradjene":  _stavke_obradjene,
-            "broj_gresaka":      _broj_grešaka,
+            "ok": _broj_grešaka == 0,
+            "run_id": run_id,
+            "duration_ms": _duration_ms,
+            "stavke_obradjene": _stavke_obradjene,
+            "broj_gresaka": _broj_grešaka,
+            "status": "ok",
         }
     except Exception as _he:
-        rezultati["heartbeat"] = {"ok": False, "greska": str(_he)[:100]}
+        rezultati["heartbeat"] = {"ok": False, "status": "greska", "greska": str(_he)[:100]}
 
     logger.info(
-        "[CRON_DAILY] %s | %dms | %d stavki | %d grešaka",
-        _ts, _duration_ms, _stavke_obradjene, _broj_grešaka
+        "[CRON_DAILY] run_id=%s | %s | %dms | %d stavki | %d grešaka | moduli: %s",
+        run_id, _ts, _duration_ms, _stavke_obradjene, _broj_grešaka,
+        {k: v.get("status", "?") for k, v in rezultati.items() if isinstance(v, dict)},
     )
-    return {"ok": _broj_grešaka == 0, "timestamp": _ts, **rezultati}
+    return {"ok": _broj_grešaka == 0, "run_id": run_id, "timestamp": _ts, **rezultati}
 
 
 @app.get("/api/admin/kpi")
