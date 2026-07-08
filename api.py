@@ -643,11 +643,15 @@ from routers.zakon_monitoring import router as zakon_monitoring_router
 from routers.profitabilnost   import router as profitabilnost_router
 from routers.zadaci           import router as zadaci_router
 from routers.benchmarking     import router as benchmarking_router
+from routers.firm_memory      import router as firm_memory_router
+from routers.proof            import router as proof_router
 app.include_router(corrections_router)
 app.include_router(zakon_monitoring_router)
 app.include_router(profitabilnost_router)
 app.include_router(zadaci_router)
 app.include_router(benchmarking_router)
+app.include_router(firm_memory_router)
+app.include_router(proof_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles

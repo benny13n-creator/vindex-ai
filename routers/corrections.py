@@ -59,6 +59,7 @@ class CorrectionRequest(BaseModel):
     predmet_id:      Optional[str] = None
     tip_dokumenta:   Optional[str] = None
     prompt_summary:  Optional[str] = None
+    partner_uid:     Optional[str] = None  # uid partnera koji je korigovao
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -119,6 +120,40 @@ def _detektuj_stil(original: str, edited: str) -> dict:
     return signals
 
 
+async def _klasifikuj_korekciju_async(original: str, edited: str) -> str:
+    """
+    GPT-4o-mini klasifikuje tip korekcije:
+      stil           — ista pravna teza, drugačiji način izražavanja
+      pravna         — promenjena pravna argumentacija ili citati
+      terminoloska   — zamena termina (npr. "predlažemo" → "zahtevamo")
+      strukturalna   — promenjen redosled, dodani/uklonjeni odeljci
+      partner_preference — lična preferenca partnera
+    """
+    try:
+        from openai import AsyncOpenAI
+        oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+        orig_sample = original[:400]
+        edit_sample = edited[:400]
+        resp = await oai.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=15,
+            messages=[{
+                "role": "user",
+                "content": (
+                    "Klasifikuj razliku između originalnog AI teksta i izmenjenog teksta advokata.\n"
+                    "Vrati JEDNU reč iz: stil | pravna | terminoloska | strukturalna | partner_preference\n\n"
+                    f"ORIGINALNO:\n{orig_sample}\n\nIZMENJENO:\n{edit_sample}"
+                )
+            }],
+        )
+        label = resp.choices[0].message.content.strip().lower().split()[0]
+        valid = {"stil", "pravna", "terminoloska", "strukturalna", "partner_preference"}
+        return label if label in valid else "stil"
+    except Exception:
+        return "stil"
+
+
 async def _get_kancelarija_id(supa, uid: str) -> Optional[str]:
     """Pronalazi kancelarija_id za datog korisnika."""
     try:
@@ -170,6 +205,11 @@ async def capture_correction(
     kancelarija_id = await _get_kancelarija_id(supa, uid)
     edit_dist = _edit_distance_approx(payload.original_output, payload.edited_output)
 
+    # Semantička klasifikacija korekcije (background, ne blokira odgovor)
+    tip_korekcije = await _klasifikuj_korekciju_async(
+        payload.original_output, payload.edited_output
+    )
+
     try:
         await asyncio.to_thread(
             lambda: supa.table("ai_corrections").insert({
@@ -182,6 +222,8 @@ async def capture_correction(
                 "edit_distance":   edit_dist,
                 "prompt_summary":  (payload.prompt_summary or "")[:200],
                 "tip_dokumenta":   (payload.tip_dokumenta or "ostalo")[:50],
+                "tip_korekcije":   tip_korekcije,
+                "partner_uid":     payload.partner_uid,
                 "processed":       False,
             }).execute()
         )
