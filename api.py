@@ -993,6 +993,100 @@ async def _get_firma_namespace(uid: str) -> Optional[str]:
     return None
 
 
+async def _fetch_firm_memory_context(uid: str) -> Optional[str]:
+    """
+    Dohvata institucionalnu memoriju kancelarije i partner profil za dati uid.
+    Vraća formatiran string koji se ubacuje u system prompt ask_agent-a.
+    Nikad ne blokira — sve greške se gutaju.
+    """
+    try:
+        supa = _get_supa()
+        kanc_id: Optional[str] = None
+
+        adm = await asyncio.to_thread(
+            lambda: supa.table("kancelarije")
+                .select("id")
+                .eq("admin_uid", uid)
+                .maybe_single()
+                .execute()
+        )
+        if adm.data:
+            kanc_id = adm.data.get("id")
+
+        if not kanc_id:
+            clan = await asyncio.to_thread(
+                lambda: supa.table("kancelarija_clanovi")
+                    .select("kancelarija_id")
+                    .eq("user_id", uid)
+                    .eq("status", "aktivan")
+                    .maybe_single()
+                    .execute()
+            )
+            if clan.data:
+                kanc_id = clan.data.get("kancelarija_id")
+
+        if not kanc_id:
+            return None
+
+        mem_r, prof_r = await asyncio.gather(
+            asyncio.to_thread(
+                lambda: supa.table("memory_entries")
+                    .select("sadrzaj,entity_name,confidence")
+                    .eq("kancelarija_id", kanc_id)
+                    .eq("aktivan", True)
+                    .eq("zastarela", False)
+                    .gte("confidence", 0.5)
+                    .order("confidence", desc=True)
+                    .limit(7)
+                    .execute()
+            ),
+            asyncio.to_thread(
+                lambda: supa.table("partner_profiles")
+                    .select("preferira_krace,preferira_bullet,preferira_formalan,odbijene_strategije")
+                    .eq("kancelarija_id", kanc_id)
+                    .eq("partner_uid", uid)
+                    .maybe_single()
+                    .execute()
+            ),
+        )
+
+        memories = mem_r.data or []
+        profil = prof_r.data
+
+        if not memories and not profil:
+            return None
+
+        lines = ["INSTITUCIONALNA MEMORIJA KANCELARIJE:"]
+        for m in memories:
+            naziv = m.get("entity_name", "")
+            sadrzaj = m.get("sadrzaj", "")
+            conf = float(m.get("confidence") or 1.0)
+            pouzdanost = "visoka" if conf >= 0.8 else ("srednja" if conf >= 0.6 else "niska")
+            prefix = f"[{naziv}] " if naziv else ""
+            lines.append(f"- {prefix}{sadrzaj} [pouzdanost: {pouzdanost}]")
+
+        if profil:
+            stil_delovi = []
+            if profil.get("preferira_krace"):
+                stil_delovi.append("kraći podnesci")
+            if profil.get("preferira_bullet"):
+                stil_delovi.append("bullet liste")
+            else:
+                stil_delovi.append("bez bullet lista")
+            if profil.get("preferira_formalan"):
+                stil_delovi.append("formalan ton")
+            if stil_delovi:
+                lines.append(f"- Stilske preferencije partnera: {', '.join(stil_delovi)}")
+            odbijene = profil.get("odbijene_strategije") or []
+            for s in (odbijene[:3] if isinstance(odbijene, list) else []):
+                lines.append(f"- NIKAD NE PREDLAGATI: {s}")
+
+        return "\n".join(lines)
+    except Exception as _me:
+        logger.debug("[FIRM_MEM] Greška pri dohvatanju memorije: %s", _me)
+        return None
+
+
 def normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None) -> dict:
     """Pretvara interni rezultat agenta u API odgovor."""
     resp: dict = {}
@@ -1125,6 +1219,40 @@ def health():
         "redis": bool(_REDIS_URL),
         "workers": int(_os.getenv("WEB_CONCURRENCY", 1)),
     }
+
+
+@app.post("/api/cron/daily")
+async def cron_daily(request: Request):
+    """
+    Unified daily cron — jedan poziv, sve pozadinske operacije.
+    Zaštićen X-Cron-Secret headerom.
+    Render.com cron: POST /api/cron/daily svaki dan u 07:00 UTC
+    """
+    from datetime import datetime as _dt
+    cron_secret = os.getenv("BRIEFING_CRON_SECRET", "")
+    x_secret = request.headers.get("X-Cron-Secret", "")
+    if cron_secret and x_secret != cron_secret:
+        raise HTTPException(status_code=403, detail="Neovlašćen pristup.")
+
+    rezultati: dict = {}
+
+    # 1. Workflow eskalacije
+    try:
+        from routers.workflow import _check_escalations
+        rezultati["workflow_eskalacije"] = await _check_escalations()
+    except Exception as _ce:
+        rezultati["workflow_eskalacije"] = {"greska": str(_ce)[:100]}
+
+    # 2. Zakon monitoring (samo ponedeljkom)
+    if _dt.utcnow().weekday() == 0:
+        try:
+            from routers.zakon_monitoring import _skeniraj_sl_glasnik
+            _supa_cron = _get_supa()
+            rezultati["zakon_monitoring"] = await _skeniraj_sl_glasnik(_supa_cron, dana_unazad=7)
+        except Exception as _ze:
+            rezultati["zakon_monitoring"] = {"greska": str(_ze)[:100]}
+
+    return {"ok": True, "timestamp": _dt.utcnow().isoformat(), **rezultati}
 
 
 @app.get("/api/admin/kpi")
@@ -2152,7 +2280,8 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
         t0 = _time.monotonic()
         _firma_ns = await _get_firma_namespace(user["user_id"])
         _extra_ns = [_firma_ns] if _firma_ns else None
-        rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns)
+        _mem_ctx = await _fetch_firm_memory_context(user["user_id"])
+        rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns, _mem_ctx)
         latency_ms = int((_time.monotonic() - t0) * 1000)
         asyncio.create_task(log_cost_to_db(user["user_id"], "pitanje"))
         _al.log_response(
@@ -2258,7 +2387,8 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
         try:
             history_obj = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
-            rezultat = await pokreni(ask_agent, req.pitanje, history_obj, _stream_extra_ns)
+            _stream_mem_ctx = await _fetch_firm_memory_context(user["user_id"])
+            rezultat = await pokreni(ask_agent, req.pitanje, history_obj, _stream_extra_ns, _stream_mem_ctx)
             latency_ms = int((_time.monotonic() - t0) * 1000)
 
             if rezultat.get("status") == "success":

@@ -126,6 +126,50 @@ async def zatvori_predmet(
     if not updated_res.data:
         raise HTTPException(status_code=500, detail="Ažuriranje predmeta nije uspelo.")
 
+    # Auto-doprinos anonimnom benchmarku (fire-and-forget, nikad ne blokira zatvaranje)
+    async def _benchmark_doprinos():
+        try:
+            opt_r = await asyncio.to_thread(
+                lambda: supa.table("profiles")
+                    .select("benchmark_opt_in")
+                    .eq("id", uid)
+                    .maybe_single()
+                    .execute()
+            )
+            if not (opt_r.data or {}).get("benchmark_opt_in"):
+                return
+            bill_r = await asyncio.to_thread(
+                lambda: supa.table("billing_entries")
+                    .select("iznos_rsd, sati")
+                    .eq("predmet_id", predmet_id)
+                    .execute()
+            )
+            ukupno_rsd = sum(float(b.get("iznos_rsd") or 0) for b in (bill_r.data or []))
+            tip_pred = pred.get("opis", "")  # type extracted below
+            pred_tip_r = await asyncio.to_thread(
+                lambda: supa.table("predmeti")
+                    .select("tip")
+                    .eq("id", predmet_id)
+                    .maybe_single()
+                    .execute()
+            )
+            tip_pred = (pred_tip_r.data or {}).get("tip") or "ostalo"
+            if tip_pred and ukupno_rsd > 0:
+                # 5% band anonymization
+                band = max(round(ukupno_rsd / 5000) * 5000, 5000)
+                await asyncio.to_thread(
+                    lambda: supa.table("case_benchmarks").insert({
+                        "tip_predmeta": tip_pred,
+                        "naplaceno_rsd": band,
+                        "ishod": body.ishod,
+                        "opt_in": True,
+                    }).execute()
+                )
+        except Exception as _be:
+            logger.debug("[BENCHMARK] Doprinos greška: %s", _be)
+
+    asyncio.create_task(_benchmark_doprinos())
+
     # Record closure in hronologija
     hron_dogadjaj = f"Predmet zatvoren — Ishod: {ishod_label}"
     hron_akter    = "Advokat (ručno zatvaranje)"

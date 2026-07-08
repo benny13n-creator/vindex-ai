@@ -2888,12 +2888,14 @@ def ask_agent(
     pitanje: str,
     history: list[dict] | None = None,
     extra_namespaces: list | None = None,
+    memory_context: str | None = None,
 ) -> dict:
     """
     Hallucination-free confidence-gated pipeline v3.0.
     Returns confidence level + article metadata alongside the response.
     history: lista {'q': str, 'a': str} — poslednja 3 pitanja/odgovora iz sesije.
     extra_namespaces: optional Pinecone namespace list (e.g. ["tmp_<session_id>"]).
+    memory_context: institucionalna memorija kancelarije, ubacuje se u system prompt.
     """
     pitanje = (pitanje or "").strip()
     if not pitanje:
@@ -3046,6 +3048,9 @@ def ask_agent(
             "DEFINICIJA": (SYSTEM_PROMPT_DEFINICIJA, SEKCIJE_DEFINICIJA, "gpt-4o", 2500),
         }
         system_prompt, aktivan_sekcije, _model, _max_tokens = _prompt_map.get(tip, _prompt_map["DEFINICIJA"])
+
+        if memory_context:
+            system_prompt = memory_context + "\n\n" + system_prompt
 
         if any("KORISNIKOV DOKUMENT" in d for d in filtrirani):
             system_prompt = system_prompt + "\n\n" + _DOC_CONTEXT_ADDENDUM

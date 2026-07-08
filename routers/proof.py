@@ -256,7 +256,34 @@ async def proof_check(
     for ruta in rute:
         checks.append(await _test_router_url(ruta))
 
-    # ── 10. ENV varijable ─────────────────────────────────────────────────────
+    # ── 12. Firm memory pipeline konekcije ───────────────────────────────────
+    try:
+        import api as _api_mod
+        has_mem_fn = hasattr(_api_mod, "_fetch_firm_memory_context")
+        checks.append(_check(
+            "Firma memorija: _fetch_firm_memory_context",
+            "PASS" if has_mem_fn else "FAIL",
+            "Funkcija postoji u api.py" if has_mem_fn else "Funkcija nije pronađena",
+        ))
+    except Exception as _fme:
+        checks.append(_check("Firma memorija: _fetch_firm_memory_context", "WARN", str(_fme)[:100]))
+
+    try:
+        import inspect
+        from main import ask_agent as _ask_agent
+        sig = inspect.signature(_ask_agent)
+        has_mem_param = "memory_context" in sig.parameters
+        checks.append(_check(
+            "ask_agent: memory_context parametar",
+            "PASS" if has_mem_param else "FAIL",
+            "Parametar postoji" if has_mem_param else "Parametar nije pronađen u ask_agent potpisu",
+        ))
+    except Exception as _ame:
+        checks.append(_check("ask_agent: memory_context parametar", "WARN", str(_ame)[:100]))
+
+    checks.append(await _test_router_url("/api/cron/daily"))
+
+    # ── 13. ENV varijable ─────────────────────────────────────────────────────
     env_checks = [
         ("OPENAI_API_KEY", True),
         ("PINECONE_API_KEY", True),

@@ -480,6 +480,45 @@ async def eskalacije(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def _check_escalations() -> dict:
+    """Standalone helper — šalje eskalacione alertove za prekoračene korake. Koristi unified cron."""
+    supa  = _get_supa()
+    danas = date.today().isoformat()
+    poslato = 0
+
+    r = await asyncio.to_thread(
+        lambda: supa.table("workflow_steps")
+            .select("id, naziv, assigned_uid, rok_datum, eskalacija_dana")
+            .eq("status", "aktivan")
+            .lt("rok_datum", danas)
+            .limit(200)
+            .execute()
+    )
+    for korak in (r.data or []):
+        if not korak.get("assigned_uid"):
+            continue
+        rok = korak.get("rok_datum", danas)
+        try:
+            dana = (date.today() - date.fromisoformat(rok)).days
+        except Exception:
+            dana = 0
+        if dana < (korak.get("eskalacija_dana") or 3):
+            continue
+        await _notify(supa, korak["assigned_uid"],
+                      f"KASNJENJE: {korak['naziv']}",
+                      f"Korak '{korak['naziv']}' kasni {dana} dan(a). Rok je bio: {rok}.",
+                      "hitna")
+        await asyncio.to_thread(
+            lambda kid=korak["id"]: supa.table("workflow_steps")
+                .update({"status": "eskaliran", "updated_at": _now_iso()})
+                .eq("id", kid)
+                .execute()
+        )
+        poslato += 1
+
+    return {"eskalacionih_alertova": poslato}
+
+
 @router.post("/eskalacije/cron")
 async def eskalacije_cron(request: Request):
     """
@@ -491,46 +530,9 @@ async def eskalacije_cron(request: Request):
     if cron_secret and x_secret != cron_secret:
         raise HTTPException(status_code=403, detail="Neovlašćen pristup.")
 
-    supa  = _get_supa()
-    danas = date.today().isoformat()
-    poslato = 0
-
     try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("workflow_steps")
-                .select("id, naziv, assigned_uid, rok_datum, eskalacija_dana, workflow_id")
-                .eq("status", "aktivan")
-                .lt("rok_datum", danas)
-                .limit(200)
-                .execute()
-        )
-        prekoraceni = r.data or []
-
-        for korak in prekoraceni:
-            if not korak.get("assigned_uid"):
-                continue
-            rok = korak.get("rok_datum", danas)
-            try:
-                dana = (date.today() - date.fromisoformat(rok)).days
-            except Exception:
-                dana = 0
-            if dana < (korak.get("eskalacija_dana") or 3):
-                continue
-            await _notify(
-                supa, korak["assigned_uid"],
-                f"KASNJENJE: {korak['naziv']}",
-                f"Korak '{korak['naziv']}' kasni {dana} dan(a). Rok je bio: {rok}.",
-                "hitna",
-            )
-            await asyncio.to_thread(
-                lambda kid=korak["id"]: supa.table("workflow_steps")
-                    .update({"status": "eskaliran", "updated_at": _now_iso()})
-                    .eq("id", kid)
-                    .execute()
-            )
-            poslato += 1
-
-        return {"ok": True, "eskalacionih_alertova": poslato}
+        rezultat = await _check_escalations()
+        return {"ok": True, **rezultat}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
