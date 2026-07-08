@@ -297,14 +297,15 @@ async def proof_check(
             last = datetime.fromisoformat(hb_r.data["anchored_at"].replace("Z", "+00:00"))
             sada = datetime.now(timezone.utc)
             sati_od = round((sada - last).total_seconds() / 3600, 1)
+            stavki = hb_r.data.get("record_count", 0) or 0
             status = "PASS" if sati_od <= 36 else "WARN"
             checks.append(_check(
                 "Cron heartbeat (poslednji run)",
                 status,
-                f"Pre {sati_od}h — {'OK' if status == 'PASS' else 'UPOZORENJE: cron možda ne radi!'}",
+                f"Pre {sati_od}h | {stavki} stavki obrađeno | {'OK' if status == 'PASS' else 'UPOZORENJE >36h bez pokretanja!'}",
             ))
         else:
-            checks.append(_check("Cron heartbeat", "WARN", "Cron još nije pokrenut ni jednom — pokrenite ručno ili podesite na Render.com"))
+            checks.append(_check("Cron heartbeat", "WARN", "Cron još nije pokrenut — pokrenite ručno POST /api/cron/daily ili podesite na Render.com"))
     except Exception as _hbe:
         checks.append(_check("Cron heartbeat", "WARN", str(_hbe)[:100]))
 

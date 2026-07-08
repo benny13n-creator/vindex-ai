@@ -4760,10 +4760,12 @@ function copyPodnesak(btn) {
   var originalText = _lastRawText || '';
   var text = editedText.trim() || originalText;
   if (!text) return;
+  var _tipKtx = window._lastNacrtTip || 'drafting';
+  var _aiSek = window._aiResponseTimestamp ? Math.round((Date.now() - window._aiResponseTimestamp) / 1000) : null;
+
   // Invisible correction capture — samo ako je korisnik zaista izmenio tekst
   if (window._podnesakEdited && editedText.trim() && originalText && editedText.trim() !== originalText.trim() && currentSession) {
     window._podnesakEdited = false;
-    var _tipKtx = window._lastNacrtTip || 'drafting';
     fetch(BASE_URL + '/api/corrections/capture', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
@@ -4774,11 +4776,20 @@ function copyPodnesak(btn) {
         predmet_id: activePredmetId || null
       })
     }).catch(function(){}); // fire-and-forget, nikad ne blokira korisnika
-    // Merimo vreme koje je advokat proveo editujući AI tekst
-    if (window._aiResponseTimestamp) {
-      var _sekundDoEdit = Math.round((Date.now() - window._aiResponseTimestamp) / 1000);
-      piTrack('corrections', 'edit_captured', { sekunde_do_edit: _sekundDoEdit, tip: _tipKtx });
-    }
+
+    // ISHOD: AI_EDITED — korisnik izmenjuje pre kopiranja
+    piTrack('ai_outcome', 'edited', {
+      tip: _tipKtx,
+      predmet_id: activePredmetId || null,
+      sekunde_do_akcije: _aiSek
+    });
+  } else {
+    // ISHOD: AI_ACCEPTED — korisnik kopira bez izmena
+    piTrack('ai_outcome', 'accepted', {
+      tip: _tipKtx,
+      predmet_id: activePredmetId || null,
+      sekunde_do_akcije: _aiSek
+    });
   }
   navigator.clipboard.writeText(text).then(function(){
     var orig = btn.textContent;
@@ -4802,6 +4813,26 @@ function editPodnesak() {
   document.getElementById('podnesak-preview').style.display='none';
   var el = document.getElementById('podnesak-opis');
   if (el) { el.focus(); el.scrollIntoView({behavior:'smooth', block:'center'}); }
+}
+
+function regenerisiPodnesak(btn) {
+  // ISHOD: AI_REJECTED — korisnik odbacuje nacrt i traži novi
+  piTrack('ai_outcome', 'rejected', {
+    tip: window._lastNacrtTip || 'drafting',
+    predmet_id: activePredmetId || null,
+    sekunde_do_akcije: window._aiResponseTimestamp ? Math.round((Date.now() - window._aiResponseTimestamp) / 1000) : null
+  });
+  // Sakrij preview, fokusiraj opis polje, pripremi za ponovni unos
+  document.getElementById('podnesak-preview').style.display = 'none';
+  window._podnesakEdited = false;
+  window._aiResponseTimestamp = null;
+  var el = document.getElementById('podnesak-opis');
+  if (el) {
+    el.focus();
+    el.select();
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+  showToast('Nacrt odbačen. Prilagodite opis i generišite ponovo.', 'ok');
 }
 
 /* ─── GLASOVNI UNOS (Web Speech API) ─────────────────────────────────────── */
@@ -18532,14 +18563,23 @@ async function profitabilnost_load(predmetId) {
       naplEl.style.color = naplPct >= 80 ? '#4ade80' : (naplPct >= 50 ? '#fbbf24' : '#f87171');
     }
 
-    // Status ocena
+    // Status ocena + AI preporuka
     var ocena = d.ocena || '';
     if (statusEl && ocena) {
       var _ocColors = { zelena: '#4ade80', zuta: '#fbbf24', crvena: '#f87171', siva: 'rgba(255,255,255,.35)' };
       var _ocTekst = { zelena: 'Profitabilan predmet', zuta: 'Granični — preporučena akcija', crvena: 'Nerentabilan — hitna akcija', siva: 'Nema dovoljno podataka' };
       var ocenaColor = _ocColors[ocena] || _ocColors.siva;
       var ocenaTekst = _ocTekst[ocena] || ocena;
-      statusEl.innerHTML = '<div style="padding:.5rem .7rem;background:rgba(0,0,0,.2);border-left:3px solid ' + ocenaColor + ';border-radius:0 7px 7px 0;font-size:.78rem;color:' + ocenaColor + ';font-weight:600;">' + ocenaTekst + '</div>';
+      var preporukaHtml = '';
+      if (d.ai_preporuka) {
+        preporukaHtml = '<div style="margin-top:.4rem;font-size:.75rem;color:rgba(255,255,255,.72);font-weight:400;line-height:1.55;border-top:1px solid rgba(255,255,255,.06);padding-top:.4rem;">'
+          + escHtml(d.ai_preporuka)
+          + '</div>';
+      }
+      statusEl.innerHTML = '<div style="padding:.5rem .7rem;background:rgba(0,0,0,.2);border-left:3px solid ' + ocenaColor + ';border-radius:0 7px 7px 0;">'
+        + '<div style="font-size:.78rem;color:' + ocenaColor + ';font-weight:600;">' + ocenaTekst + '</div>'
+        + preporukaHtml
+        + '</div>';
     }
 
     // Benchmark

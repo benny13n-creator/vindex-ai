@@ -71,6 +71,52 @@ def _oceni_profitabilnost(row: dict) -> str:
     return "zuta"
 
 
+async def _ai_profitabilnost_preporuka(
+    ocena: str,
+    napl: float,
+    nefakt: float,
+    sati: float,
+    satnica: Optional[float],
+    naplativost: float,
+    tip_predmeta: str,
+    broj_unosa: int,
+) -> Optional[str]:
+    """
+    GPT-4o-mini dijagnoza profitabilnosti i konkretna preporuka akcije.
+    Maksimalno 2 rečenice. Bez generalnosti — samo konkretna radnja.
+    """
+    if ocena == "zelena":
+        return None  # Profitabilan predmet ne treba komentar
+    if not napl and not nefakt:
+        return None  # Nema dovoljno podataka
+
+    from openai import AsyncOpenAI
+    oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+
+    prompt = (
+        f"Predmet tip: {tip_predmeta or 'nepoznat'}. "
+        f"Naplaćeno: {round(napl):,} RSD. "
+        f"Nefakturisano: {round(nefakt):,} RSD. "
+        f"Ukupno sati: {round(sati, 1)}. "
+        f"Efektivna satnica: {round(satnica) if satnica else 'N/A'} RSD/h. "
+        f"Naplativost: {round(naplativost)}%. "
+        f"Ocena: {ocena}. "
+        f"Broj billing unosa: {broj_unosa}.\n\n"
+        "U 1-2 rečenice (srpski), daj: (1) glavni uzrok niske profitabilnosti i "
+        "(2) jednu konkretnu akciju koju partner može odmah preduzeti. "
+        "Budi direktan, bez uvoda. Primer: 'Predmet ima 18h nenaplaćenog rada — "
+        "pošaljite fakturu klijentu do kraja nedelje. Razmotrite podizanje satnice za ovaj tip predmeta.'"
+    )
+
+    resp = await oai.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=120,
+        temperature=0.3,
+    )
+    return resp.choices[0].message.content.strip() if resp.choices else None
+
+
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/predmet/{predmet_id}")
@@ -114,6 +160,25 @@ async def profitabilnost_predmeta(
                 .execute()
         )
 
+        ocena = _oceni_profitabilnost(row)
+        billing_unosi = entries_r.data or []
+
+        # AI preporuka — generišemo async u pozadini (ne blokira odgovor)
+        ai_preporuka: Optional[str] = None
+        try:
+            ai_preporuka = await _ai_profitabilnost_preporuka(
+                ocena=ocena,
+                napl=napl,
+                nefakt=nefakt,
+                sati=sati,
+                satnica=_satnica(napl, sati),
+                naplativost=_naplativost_procenat(fakt, napl),
+                tip_predmeta=row.get("predmet_tip", ""),
+                broj_unosa=len(billing_unosi),
+            )
+        except Exception:
+            pass  # Preporuka je bonus, nikad ne blokira
+
         return {
             "predmet_id":           predmet_id,
             "predmet_naziv":        row.get("predmet_naziv", ""),
@@ -128,8 +193,9 @@ async def profitabilnost_predmeta(
                 "satnica_rsd":           _satnica(napl, sati),
                 "broj_unosa":            row.get("broj_unosa", 0),
             },
-            "ocena":              _oceni_profitabilnost(row),
-            "billing_unosi":      entries_r.data or [],
+            "ocena":              ocena,
+            "ai_preporuka":       ai_preporuka,
+            "billing_unosi":      billing_unosi,
         }
 
     except HTTPException:

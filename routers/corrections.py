@@ -110,6 +110,38 @@ def _semanticka_slicnost(original: str, edited: str) -> float:
     return difflib.SequenceMatcher(None, a, b).ratio()
 
 
+# Negacioni markeri u srpskom koji menjaju pravno značenje rečenice
+_NEGACIONI_MARKERI = frozenset([
+    "ne", "nije", "nisu", "nema", "nemaju", "nemamo", "nemam",
+    "nikad", "nikada", "nijedan", "nijedno", "nijedna",
+    "niti", "bez", "isključuje", "zabranjuje", "ne može", "ne sme",
+    "neće", "nećemo", "nisam", "nismo", "nevaljanost", "ništavost",
+])
+
+
+def _ima_negacionu_promenu(original: str, edited: str) -> bool:
+    """
+    Detektuje da li je korisnik dodao ili uklonio negacioni marker.
+    Primer: 'preporučujemo' → 'ne preporučujemo' ili
+            'nije obavezan' → 'je obavezan'
+
+    Ovo hvata najopasnije slučajeve gde char-diff nije dovoljan
+    (kratka negacija u dugom tekstu → visoka char-sličnost, suprotno pravno značenje).
+    """
+    import re
+
+    def _negacije(tekst: str) -> set:
+        reci = set(re.findall(r'\b\w+\b', tekst.lower()))
+        return reci & _NEGACIONI_MARKERI
+
+    orig_neg = _negacije(original)
+    edit_neg = _negacije(edited)
+
+    # Dodate ili uklonjene negacije
+    razlika = orig_neg.symmetric_difference(edit_neg)
+    return len(razlika) > 0
+
+
 def _detektuj_stil(original: str, edited: str) -> dict:
     """Detektuje karakteristike izmene za izgradnju stil profila."""
     signals = {}
@@ -220,16 +252,28 @@ async def capture_correction(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    # Ako je identično ili samo formatiranje — ne čuvaj (sprečava zagađivanje memorije)
+    # Ako je identično — ne čuvaj
     izmena = _izmena_procenat(payload.original_output, payload.edited_output)
     if izmena < 0.02:
         return {"ok": True, "captured": False, "reason": "no_change"}
 
-    # Semantički filter: ako su tekstovi >97% slični nakon normalizacije,
-    # korisnik je samo promenio razmak/zarez/veliko slovo — ne treba u memoriju
+    # Negacioni override: "preporučujemo" → "ne preporučujemo" je pravna promena,
+    # bez obzira na char-sličnost. Uvek čuvamo ako se promenio negacioni marker.
+    negaciona_promena = _ima_negacionu_promenu(payload.original_output, payload.edited_output)
+
+    # Semantički filter: preskačemo samo ako su >=97% slični I nema negacione promene.
+    # Razlog: "Preporučujemo X." → "Preporučujemo X!" prolazi, ali
+    #         "Nije obavezan." → "Je obavezan." NE prolazi (negaciona promena).
     slicnost = _semanticka_slicnost(payload.original_output, payload.edited_output)
-    if slicnost >= 0.97:
+    if slicnost >= 0.97 and not negaciona_promena:
         return {"ok": True, "captured": False, "reason": "minor_formatting", "slicnost": round(slicnost, 4)}
+
+    # Zabeleži nivo semantičke promene za buduću analizu
+    semanticki_nivo = (
+        "negacija_znacenja" if negaciona_promena
+        else "suštinska" if slicnost < 0.85
+        else "umerena"
+    )
 
     kancelarija_id = await _get_kancelarija_id(supa, uid)
     edit_dist = _edit_distance_approx(payload.original_output, payload.edited_output)
@@ -249,7 +293,7 @@ async def capture_correction(
                 "original_output": payload.original_output[:8000],
                 "edited_output":   payload.edited_output[:8000],
                 "edit_distance":   edit_dist,
-                "prompt_summary":  (payload.prompt_summary or "")[:200],
+                "prompt_summary":  f"[{semanticki_nivo}] " + (payload.prompt_summary or "")[:185],
                 "tip_dokumenta":   (payload.tip_dokumenta or "ostalo")[:50],
                 "tip_korekcije":   tip_korekcije,
                 "partner_uid":     payload.partner_uid,
@@ -264,7 +308,13 @@ async def capture_correction(
     if kancelarija_id:
         asyncio.create_task(_maybe_update_style_profile(kancelarija_id, supa))
 
-    return {"ok": True, "captured": True, "izmena_procenat": izmena}
+    return {
+        "ok": True,
+        "captured": True,
+        "izmena_procenat": izmena,
+        "semanticki_nivo": semanticki_nivo,
+        "negaciona_promena": negaciona_promena,
+    }
 
 
 @router.post("/analyze")

@@ -1266,45 +1266,70 @@ async def cron_daily(request: Request):
         raise HTTPException(status_code=403, detail="Neovlašćen pristup.")
 
     rezultati: dict = {}
+    _t_start = _time.monotonic()
+    _broj_grešaka = 0
+    _stavke_obradjene = 0
 
     # 1. Workflow eskalacije
     try:
         from routers.workflow import _check_escalations
-        rezultati["workflow_eskalacije"] = await _check_escalations()
+        _wf = await _check_escalations()
+        rezultati["workflow_eskalacije"] = _wf
+        _stavke_obradjene += int(_wf.get("eskaliranih", 0) or 0) if isinstance(_wf, dict) else 0
     except Exception as _ce:
         rezultati["workflow_eskalacije"] = {"greska": str(_ce)[:100]}
+        _broj_grešaka += 1
 
     # 2. Zakon monitoring (samo ponedeljkom)
     if _dt.utcnow().weekday() == 0:
         try:
             from routers.zakon_monitoring import _skeniraj_sl_glasnik
             _supa_cron = _get_supa()
-            rezultati["zakon_monitoring"] = await _skeniraj_sl_glasnik(_supa_cron, dana_unazad=7)
+            _zm = await _skeniraj_sl_glasnik(_supa_cron, dana_unazad=7)
+            rezultati["zakon_monitoring"] = _zm
+            _stavke_obradjene += int(_zm.get("pronadjeno", 0) or 0) if isinstance(_zm, dict) else 0
         except Exception as _ze:
             rezultati["zakon_monitoring"] = {"greska": str(_ze)[:100]}
+            _broj_grešaka += 1
 
-    # 3. Heartbeat — zapisujemo poslednji uspešni run u chain_anchors
-    #    Ovo je naš "dead man's switch" — ako nema heartbeat-a > 36h, nešto nije u redu
+    # 3. Enriched heartbeat:
+    #    - anchored_at: timestamp
+    #    - record_count: obrađene stavke (eskalacije + zakoni)
+    #    - hash_256: sadrži duration_ms i failure_count za dijagnostiku
     _ts = _dt.utcnow().isoformat()
-    _ima_gresku = any("greska" in str(v) for v in rezultati.values())
+    _duration_ms = round((_time.monotonic() - _t_start) * 1000)
     try:
         import hashlib as _hl, json as _json
-        _payload = _json.dumps({"ts": _ts, "rezultati": rezultati}, default=str)
-        _hash = _hl.sha256(_payload.encode()).hexdigest()[:32]
+        _meta = {
+            "ts": _ts,
+            "duration_ms": _duration_ms,
+            "stavke_obradjene": _stavke_obradjene,
+            "broj_gresaka": _broj_grešaka,
+            "rezultati_summary": {k: "greska" if "greska" in str(v) else "ok" for k, v in rezultati.items()},
+        }
+        _hash = _hl.sha256(_json.dumps(_meta, default=str).encode()).hexdigest()[:32]
         await asyncio.to_thread(
             lambda: _get_supa().table("chain_anchors").upsert({
-                "id": "cron_daily_heartbeat",
-                "hash_256": _hash,
-                "record_count": 1,
-                "anchored_at": _ts,
+                "id":           "cron_daily_heartbeat",
+                "hash_256":     _hash,
+                "record_count": _stavke_obradjene,
+                "anchored_at":  _ts,
             }).execute()
         )
-        rezultati["heartbeat"] = {"ok": not _ima_gresku, "zapisano_u": "chain_anchors"}
+        rezultati["heartbeat"] = {
+            "ok":                _broj_grešaka == 0,
+            "duration_ms":       _duration_ms,
+            "stavke_obradjene":  _stavke_obradjene,
+            "broj_gresaka":      _broj_grešaka,
+        }
     except Exception as _he:
         rezultati["heartbeat"] = {"ok": False, "greska": str(_he)[:100]}
 
-    logger.info("[CRON_DAILY] %s | greške: %s", _ts, _ima_gresku)
-    return {"ok": not _ima_gresku, "timestamp": _ts, **rezultati}
+    logger.info(
+        "[CRON_DAILY] %s | %dms | %d stavki | %d grešaka",
+        _ts, _duration_ms, _stavke_obradjene, _broj_grešaka
+    )
+    return {"ok": _broj_grešaka == 0, "timestamp": _ts, **rezultati}
 
 
 @app.get("/api/admin/kpi")
