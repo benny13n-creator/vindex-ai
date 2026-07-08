@@ -26,7 +26,7 @@ ALTER TABLE kancelarije
 
 -- Automatski generiši namespace za postojeće firme (slug iz ID-a)
 UPDATE kancelarije
-SET pinecone_namespace = 'firm_' || REPLACE(id::text, '-', '')[:16]
+SET pinecone_namespace = 'firm_' || LEFT(REPLACE(id::text, '-', ''), 16)
 WHERE pinecone_namespace IS NULL;
 
 -- ─── 2. AI Corrections — nevidljivo hvatanje korekcija ───────────────────────
@@ -161,15 +161,15 @@ SELECT
     p.status                AS predmet_status,
     p.created_at            AS otvoren,
 
-    -- Naplativo vreme
-    COALESCE(SUM(be.kolicina * be.cena_po_jedinici), 0)::NUMERIC AS ukupno_naplaceno_rsd,
-    COALESCE(SUM(be.kolicina), 0)::NUMERIC                        AS ukupno_sati,
+    -- Ukupno naplaćeno (iznos_rsd = already-calculated amount per entry)
+    COALESCE(SUM(be.iznos_rsd), 0)::NUMERIC                        AS ukupno_naplaceno_rsd,
+    COALESCE(SUM(be.sati), 0)::NUMERIC                             AS ukupno_sati,
 
-    -- Fakturisano
-    COALESCE(SUM(CASE WHEN be.fakturisana THEN be.kolicina * be.cena_po_jedinici ELSE 0 END), 0)::NUMERIC
+    -- Fakturisano (obracunato = TRUE znači vezano za fakturu)
+    COALESCE(SUM(CASE WHEN be.obracunato THEN be.iznos_rsd ELSE 0 END), 0)::NUMERIC
                                                                    AS fakturisano_rsd,
-    -- Nenaplatiivo
-    COALESCE(SUM(CASE WHEN NOT COALESCE(be.fakturisana, FALSE) THEN be.kolicina * be.cena_po_jedinici ELSE 0 END), 0)::NUMERIC
+    -- Nefakturisano
+    COALESCE(SUM(CASE WHEN NOT COALESCE(be.obracunato, FALSE) THEN be.iznos_rsd ELSE 0 END), 0)::NUMERIC
                                                                    AS nefakturisano_rsd,
 
     -- Broj unosa

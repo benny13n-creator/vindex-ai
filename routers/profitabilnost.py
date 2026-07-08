@@ -107,7 +107,7 @@ async def profitabilnost_predmeta(
         # Detalji billing unosa
         entries_r = await asyncio.to_thread(
             lambda: supa.table("billing_entries")
-                .select("opis, kolicina, cena_po_jedinici, fakturisana, created_at")
+                .select("opis, sati, iznos_rsd, obracunato, created_at")
                 .eq("predmet_id", predmet_id)
                 .order("created_at", desc=True)
                 .limit(50)
@@ -319,9 +319,9 @@ async def nenaplacene_stavke(
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("billing_entries")
-                .select("id, predmet_id, opis, kolicina, cena_po_jedinici, created_at")
+                .select("id, predmet_id, opis, sati, iznos_rsd, created_at")
                 .eq("user_id", uid)
-                .eq("fakturisana", False)
+                .eq("obracunato", False)
                 .order("created_at", desc=True)
                 .limit(100)
                 .execute()
@@ -329,7 +329,7 @@ async def nenaplacene_stavke(
         stavke = r.data or []
 
         ukupno_rsd = sum(
-            float(s.get("kolicina", 0)) * float(s.get("cena_po_jedinici", 0))
+            float(s.get("iznos_rsd", 0))
             for s in stavke
         )
 
