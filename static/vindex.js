@@ -968,7 +968,7 @@ function kcConstellationInit() {
     }
     ctx.strokeStyle = 'rgba(0,212,255,' + alpha + ')';
     ctx.lineWidth = 1.2;
-    ctx.shadowColor = 'rgba(0,212,255,0.4)';
+    ctx.shadowColor = 'rgba(75,119,232,0.28)';
     ctx.shadowBlur = 6;
     ctx.stroke();
     ctx.shadowBlur = 0;
@@ -1054,7 +1054,7 @@ async function dash_load(){
     // Health Index — učitava se asinhrono, ne blokira dashboard
     _healthIndexLoad(hdr);
   }catch(e){
-    body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
+    body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:rgba(255,255,255,0.72);cursor:pointer;">Pokušaj ponovo</span></div>';
   }
 }
 
@@ -1120,7 +1120,7 @@ function _healthIndexRender(d) {
   // Desno: upozorenja ili Chief Partner
   html += '<div style="background:linear-gradient(135deg,rgba(10,20,40,.9),rgba(13,27,50,.95));border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:1.1rem 1rem;overflow:hidden;">';
   if (chief) {
-    html += '<div style="font-size:.58rem;color:rgba(74,168,255,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.55rem;font-weight:700;">Chief Partner — Direktiva za danas</div>';
+    html += '<div style="font-size:.58rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.55rem;font-weight:700;">Chief Partner — Direktiva za danas</div>';
     var lines = chief.split('\n').filter(function(l){ return l.trim(); });
     lines.forEach(function(line) {
       html += '<div style="font-size:.76rem;color:rgba(255,255,255,.75);margin-bottom:.4rem;line-height:1.55;padding-left:.1rem;">'+_htmlEsc(line.trim())+'</div>';
@@ -1387,7 +1387,7 @@ function _dashRender(d,bd,inboxData){
   html+='</div>';
   html+='<div class="kc-topbar-right">';
   html+='<div class="kc-search" title="Globalna pretraga — dolazi uskoro"><span class="kc-search-icon">⌕</span><span class="kc-search-ph">Pretraži predmete, klijente...</span><span class="kc-search-kbd">⌘K</span></div>';
-  html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(74,168,255,.25);border-radius:7px;background:rgba(74,168,255,.07);color:#89c8ff;cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">Izveštaj</button>';
+  html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(255,255,255,0.10);border-radius:7px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.72);cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">Izveštaj</button>';
   html+='<button class="kc-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
   html+='</div></div>';
 
@@ -1557,7 +1557,7 @@ async function loadBriefing(forceRefresh) {
     var d = await r.json();
     _renderBriefing(d, content);
   } catch (e) {
-    content.innerHTML = '<div class="kc-briefing-err">Brifing nije dostupan. <span onclick="loadBriefing(true)" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
+    content.innerHTML = '<div class="kc-briefing-err">Brifing nije dostupan. <span onclick="loadBriefing(true)" style="color:rgba(255,255,255,0.72);cursor:pointer;">Pokušaj ponovo</span></div>';
   }
 }
 
@@ -1869,9 +1869,9 @@ _dashRender = function(d, bd, inboxData) {
 
   /* ── 4.5. CIO — Chief Intelligence Officer ──────────────────── */
   html += '<div id="kc-cio-section" style="margin:1.2rem 0 0.4rem;">';
-  html += '<div id="kc-cio-loading" style="background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.1);border-radius:10px;padding:1rem 1.2rem;display:flex;align-items:center;gap:0.6rem;">';
-  html += '<div style="width:8px;height:8px;border-radius:50%;background:#00d4ff;animation:pulse 1.4s infinite;"></div>';
-  html += '<span style="color:rgba(0,212,255,0.6);font-size:0.72rem;letter-spacing:0.06em;">CIO analizira portfelj kancelarije...</span>';
+  html += '<div id="kc-cio-loading" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:1rem 1.2rem;display:flex;align-items:center;gap:0.6rem;">';
+  html += '<div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.72);animation:pulse 1.4s infinite;"></div>';
+  html += '<span style="color:rgba(255,255,255,0.45);font-size:0.72rem;letter-spacing:0.06em;">CIO analizira portfelj kancelarije...</span>';
   html += '</div></div>';
 
   /* ── 5. INBOX — Prioritetne stavke (kriticno + visok) ─────────── */
@@ -1998,7 +1998,7 @@ function _vx2_stub_start() { var html = ''; html += '<div class="vx2-core-wrap">
   /* Panel: AI HUB */
   html += '<div class="vx2-panel" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">';
   html += '<div class="vx2-panel-hd"><span class="vx2-panel-name">Centar alata</span></div>';
-  html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n" style="font-size:1.1rem;color:rgba(74,168,255,0.65)">847</span><span class="vx2-panel-stat-l">zakona RS</span></div>';
+  html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n" style="font-size:1.1rem;color:rgba(255,255,255,0.50)">847</span><span class="vx2-panel-stat-l">zakona RS</span></div>';
   html += '<div class="vx2-panel-ai-actions">';
   html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'q\')">Istraži zakon</button>';
   html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'a\')">☐ Analiziraj dokument</button>';
@@ -2195,7 +2195,7 @@ async function planLoad() {
   if (!wrap) return;
 
   var PLAN_LABELS = {free:'Free', advokat:'Advokat', pro:'PRO', firma:'Firma'};
-  var PLAN_COLORS = {free:'rgba(255,255,255,.45)', advokat:'#4aa8ff', pro:'#a78bfa', firma:'#c9a84c'};
+  var PLAN_COLORS = {free:'rgba(255,255,255,.45)', advokat:'#4B77E8', pro:'#a78bfa', firma:'#c9a84c'};
 
   try {
     var r = await fetch(BASE_URL + '/api/plan/status', {
@@ -2210,7 +2210,7 @@ async function planLoad() {
 
     if (badge) {
       badge.textContent = label;
-      badge.style.cssText = 'font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.1rem .5rem;border-radius:4px;background:rgba(74,168,255,.12);color:'+color+';border:1px solid rgba(74,168,255,.18);';
+      badge.style.cssText = 'font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.1rem .5rem;border-radius:4px;background:rgba(75,119,232,0.07);color:'+color+';border:1px solid rgba(75,119,232,0.12);';
       badge.style.display = '';
     }
     var planVal = document.getElementById('settings-plan-val');
@@ -2238,7 +2238,7 @@ async function planLoad() {
         barHtml = '<div style="font-size:.68rem;color:rgba(255,255,255,.25);margin-top:2px;">nije u ovom planu</div>';
       } else {
         var pct = Math.min(100, Math.round(used / limit * 100));
-        var barColor = pct >= 90 ? '#f87171' : pct >= 70 ? '#fb923c' : '#4aa8ff';
+        var barColor = pct >= 90 ? '#f87171' : pct >= 70 ? '#fb923c' : '#4B77E8';
         barHtml = '<div style="background:rgba(255,255,255,.07);border-radius:4px;height:4px;overflow:hidden;margin-top:4px;">'
           + '<div style="height:100%;width:'+pct+'%;background:'+barColor+';border-radius:4px;transition:width .3s;"></div>'
           + '</div>'
@@ -2283,7 +2283,7 @@ async function billingDugovanjaLoad() {
       var fmt = function(n){ return Math.round(n).toLocaleString('sr-RS') + ' RSD'; };
       kpiEl.innerHTML = [
         { label: 'Ukupno duguje', val: fmt(d.ukupno_rsd || 0), color: d.ukupno_rsd > 0 ? '#f87171' : '#4ade80' },
-        { label: 'Predmeta', val: d.predmeta || 0, color: '#89c8ff' },
+        { label: 'Predmeta', val: d.predmeta || 0, color: 'rgba(255,255,255,0.72)' },
         { label: 'Stavki', val: d.stavki || 0, color: 'rgba(255,255,255,0.5)' },
       ].map(function(k){
         return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:0.45rem 0.7rem;text-align:center;flex:1;">'
@@ -2300,7 +2300,7 @@ async function billingDugovanjaLoad() {
 
     listEl.innerHTML = dugovanja.map(function(g){
       var iznos = Math.round(g.ukupno_rsd || 0).toLocaleString('sr-RS');
-      return '<div onclick="pred_select(\''+g.predmet_id+'\')" style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.65rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:7px;cursor:pointer;transition:border-color .15s;" onmouseover="this.style.borderColor=\'rgba(74,168,255,0.2)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.07)\'">'
+      return '<div onclick="pred_select(\''+g.predmet_id+'\')" style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.65rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:7px;cursor:pointer;transition:border-color .15s;" onmouseover="this.style.borderColor=\'rgba(255,255,255,0.09)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.07)\'">'
         +'<div style="flex:1;min-width:0;">'
         +'<div style="font-size:0.78rem;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(g.predmet_naziv||'—')+'</div>'
         +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.38);margin-top:1px;">'+(g.stavke||[]).length+' stavk'+(g.stavke&&g.stavke.length===1?'a':'i')+'</div>'
@@ -2309,7 +2309,7 @@ async function billingDugovanjaLoad() {
         +'<div style="font-size:0.82rem;font-weight:700;color:#f87171;">'+iznos+'</div>'
         +'<div style="font-size:0.58rem;color:rgba(255,255,255,0.3);">RSD</div>'
         +'</div>'
-        +'<span style="font-size:0.65rem;color:#89c8ff;flex-shrink:0;">→</span>'
+        +'<span style="font-size:0.65rem;color:rgba(255,255,255,0.72);flex-shrink:0;">→</span>'
         +'</div>';
     }).join('');
   } catch(e) {
@@ -2962,7 +2962,7 @@ function renderKompletnaAnaliza(data) {
   };
   var stavInfo = sinteza.strateski_stav ? (stavMap[sinteza.strateski_stav] || ['#6366f1', sinteza.strateski_stav.replace(/_/g,' ')]) : null;
 
-  html += '<div style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(74,168,255,.1));border:1px solid rgba(99,102,241,.35);border-radius:12px;padding:1rem 1.1rem;margin-bottom:.9rem;">';
+  html += '<div style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(255,255,255,0.05));border:1px solid rgba(99,102,241,.35);border-radius:12px;padding:1rem 1.1rem;margin-bottom:.9rem;">';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.65rem;">';
   html += '<div style="font-size:.85rem;font-weight:800;color:rgba(210,205,255,.95);">Sinteza — Strateška preporuka</div>';
   if (stavInfo) html += '<span style="padding:.2rem .7rem;border-radius:6px;font-size:.72rem;font-weight:800;letter-spacing:.06em;background:'+stavInfo[0]+';color:#fff;">'+_htmlEsc(stavInfo[1])+'</span>';
@@ -3554,7 +3554,7 @@ async function ucitajKlijente(pretraga) {
     var d = await r.json();
     var klijenti = d.klijenti || [];
     if (!klijenti.length) {
-      lista.innerHTML = '<div style="padding:2rem 0;text-align:center;">'+'<div style="font-size:.82rem;color:rgba(255,255,255,.38);margin-bottom:.9rem;">Nemate klijenata.</div>'+'<button onclick="crmOtvoriFormu()" style="padding:.55rem 1.3rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.3);border-radius:8px;color:#89c8ff;font-size:.78rem;cursor:pointer;font-family:inherit;">+ Dodaj prvog klijenta</button>'+'</div>';
+      lista.innerHTML = '<div style="padding:2rem 0;text-align:center;">'+'<div style="font-size:.82rem;color:rgba(255,255,255,.38);margin-bottom:.9rem;">Nemate klijenata.</div>'+'<button onclick="crmOtvoriFormu()" style="padding:.55rem 1.3rem;background:rgba(75,119,232,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.72);font-size:.78rem;cursor:pointer;font-family:inherit;">+ Dodaj prvog klijenta</button>'+'</div>';
       return;
     }
     lista.innerHTML = klijenti.map(function(k){
@@ -4718,7 +4718,7 @@ function _sud_filter(q) {
     matches.forEach(function(s) {
       html += '<div onclick="_sud_select(' + JSON.stringify(s.naziv) + ',' + JSON.stringify(s.adresa) + ')"'
         + ' style="padding:.45rem .75rem;font-size:.8rem;color:#cbd5e0;cursor:pointer;" '
-        + ' onmouseenter="this.style.background=\'rgba(74,168,255,.1)\'" onmouseleave="this.style.background=\'\'">'
+        + ' onmouseenter="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseleave="this.style.background=\'\'">'
         + '<div style="color:#e2e8f0;font-weight:500;">' + _htmlEsc(s.naziv) + '</div>'
         + '<div style="font-size:.72rem;color:rgba(255,255,255,.35);">' + _htmlEsc(s.adresa) + '</div>'
         + '</div>';
@@ -5446,7 +5446,7 @@ function formatResponse(rawText) {
   html += '<div class="resp-actions">'+
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +citatEnc+ '\'),this)">Kopiraj citat</button>'+
     '<button class="resp-action-btn" onclick="copyToClipboard(decodeURIComponent(\'' +osnovEnc+ '\'),this)">Izvor: '+ osnovLabel +'</button>'+
-    '<button class="resp-action-btn" style="background:rgba(74,168,255,0.07);border-color:rgba(74,168,255,0.25);color:#89c8ff;" onclick="exportPDF(decodeURIComponent(\'' +fullEnc+ '\'),this)">Sačuvaj PDF</button>'+
+    '<button class="resp-action-btn" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.10);color:rgba(255,255,255,0.72);" onclick="exportPDF(decodeURIComponent(\'' +fullEnc+ '\'),this)">Sačuvaj PDF</button>'+
     '<button class="resp-action-btn btn-word" onclick="exportujKaoWord(\'Pravno istraživanje\',_lastRawText,\'istrazivanje\')">Word</button>'+
     '<button class="resp-action-btn follow-up-btn" id="followUpBtn_'+Date.now()+'" onclick="startFollowUp(this)">Follow-up</button>'+
     '</div>';
@@ -6461,8 +6461,8 @@ function praksa_show_state(state) {
 }
 
 function praksa_render_card(d, idx) {
-  var mBg  = { 'Građanska':'rgba(74,168,255,0.12)', 'Zaštita prava':'rgba(74,222,128,0.10)', 'Upravna':'rgba(240,180,41,0.10)', 'Krivična':'rgba(255,100,100,0.10)' };
-  var mClr = { 'Građanska':'#4aa8ff', 'Zaštita prava':'#4ade80', 'Upravna':'#f0b429', 'Krivična':'rgba(255,140,140,0.9)' };
+  var mBg  = { 'Građanska':'rgba(75,119,232,0.07)', 'Zaštita prava':'rgba(74,222,128,0.10)', 'Upravna':'rgba(240,180,41,0.10)', 'Krivična':'rgba(255,100,100,0.10)' };
+  var mClr = { 'Građanska':'#4B77E8', 'Zaštita prava':'#4ade80', 'Upravna':'#f0b429', 'Krivična':'rgba(255,140,140,0.9)' };
   var bg   = mBg[d.matter]  || 'rgba(255,255,255,0.06)';
   var clr  = mClr[d.matter] || 'rgba(255,255,255,0.45)';
   var esc = function(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
@@ -6473,7 +6473,7 @@ function praksa_render_card(d, idx) {
   var safeDn   = esc(d.decision_number);
   var jsDn     = (d.decision_number||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   var jsCourt  = (d.court||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-  var h = '<div style="background:rgba(74,168,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:0.85rem 1rem;">';
+  var h = '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:0.85rem 1rem;">';
   h += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;margin-bottom:0.45rem;">';
   h += '<span style="font-family:JetBrains Mono,monospace;font-size:0.74rem;font-weight:500;color:rgba(255,255,255,0.85);">' + safeDn + '</span>';
   h += '<span style="flex-shrink:0;padding:0.14rem 0.55rem;border-radius:999px;font-family:JetBrains Mono,monospace;font-size:0.55rem;letter-spacing:0.1em;background:' + bg + ';color:' + clr + ';">' + esc(d.matter) + '</span>';
@@ -6491,7 +6491,7 @@ function praksa_render_card(d, idx) {
   h += '</div>';
   h += '<div style="display:flex;gap:0.45rem;flex-wrap:wrap;">';
   if (hasDetail) {
-    h += '<button id="praksa-expand-btn-' + idx + '" onclick="praksa_expand_decision(' + idx + ')" style="padding:0.25rem 0.7rem;background:rgba(74,168,255,0.08);border:1px solid rgba(74,168,255,0.18);border-radius:6px;color:#4aa8ff;font-family:var(--font-ui);font-size:0.71rem;cursor:pointer;">▾ Prikaži odluku</button>';
+    h += '<button id="praksa-expand-btn-' + idx + '" onclick="praksa_expand_decision(' + idx + ')" style="padding:0.25rem 0.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(75,119,232,0.12);border-radius:6px;color:rgba(255,255,255,0.72);font-family:var(--font-ui);font-size:0.71rem;cursor:pointer;">▾ Prikaži odluku</button>';
   }
   h += '<button onclick="praksa_copy_citation(\'' + jsDn + '\',\'' + dateStr + '\',\'' + jsCourt + '\')" style="padding:0.25rem 0.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:rgba(255,255,255,0.38);font-family:var(--font-ui);font-size:0.71rem;cursor:pointer;">Kopiraj citiranje</button>';
   h += '<label class="vx-compare-checkbox" data-odluka-id="' + safeDn + '" data-odluka-naziv="' + safeDn + '">';
@@ -6501,11 +6501,11 @@ function praksa_render_card(d, idx) {
   if (hasDetail) {
     h += '<div id="' + expandId + '" style="display:none;margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid rgba(255,255,255,0.06);">';
     if (d.izreka_full) {
-      h += '<div style="font-family:JetBrains Mono,monospace;font-size:0.51rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(74,168,255,0.5);margin-bottom:0.3rem;">Izreka</div>';
+      h += '<div style="font-family:JetBrains Mono,monospace;font-size:0.51rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(75,119,232,0.35);margin-bottom:0.3rem;">Izreka</div>';
       h += '<div style="font-family:var(--font-serif);font-size:0.84rem;color:rgba(255,255,255,0.72);line-height:1.75;margin-bottom:0.75rem;white-space:pre-wrap;letter-spacing:0.01em;">' + esc(d.izreka_full) + '</div>';
     }
     if (d.obrazlozenje_full) {
-      h += '<div style="font-family:JetBrains Mono,monospace;font-size:0.51rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(74,168,255,0.5);margin-bottom:0.3rem;">Obrazloženje</div>';
+      h += '<div style="font-family:JetBrains Mono,monospace;font-size:0.51rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(75,119,232,0.35);margin-bottom:0.3rem;">Obrazloženje</div>';
       h += '<div style="font-family:var(--font-serif);font-size:0.82rem;color:rgba(255,255,255,0.62);line-height:1.72;white-space:pre-wrap;letter-spacing:0.01em;">' + esc(d.obrazlozenje_full) + '</div>';
     }
     h += '</div>';
@@ -7931,9 +7931,9 @@ function pred_setSort(mode) {
   _predSort = mode;
   document.querySelectorAll('.pred-sort-btn').forEach(function(b){
     var isActive = b.dataset.sort === mode;
-    b.style.background   = isActive ? 'rgba(74,168,255,.15)' : 'transparent';
-    b.style.borderColor  = isActive ? 'rgba(74,168,255,.35)' : 'rgba(255,255,255,.1)';
-    b.style.color        = isActive ? '#89c8ff' : 'rgba(255,255,255,.45)';
+    b.style.background   = isActive ? 'rgba(75,119,232,0.10)' : 'transparent';
+    b.style.borderColor  = isActive ? 'rgba(75,119,232,0.25)' : 'rgba(255,255,255,.1)';
+    b.style.color        = isActive ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,.45)';
   });
   pred_renderList();
 }
@@ -7966,11 +7966,11 @@ async function predFirmaToggle() {
   if (!panel) return;
   if (!_predFirmaOpen) {
     panel.style.display = 'none';
-    if (btn) { btn.style.background='transparent'; btn.style.borderColor='rgba(0,212,255,0.25)'; btn.style.color='rgba(0,212,255,0.6)'; }
+    if (btn) { btn.style.background='transparent'; btn.style.borderColor='rgba(255,255,255,0.10)'; btn.style.color='rgba(255,255,255,0.45)'; }
     return;
   }
   panel.style.display = '';
-  if (btn) { btn.style.background='rgba(0,212,255,0.12)'; btn.style.borderColor='rgba(0,212,255,0.4)'; btn.style.color='#00d4ff'; }
+  if (btn) { btn.style.background='rgba(75,119,232,0.07)'; btn.style.borderColor='rgba(75,119,232,0.28)'; btn.style.color='rgba(255,255,255,0.72)'; }
   await predFirmaLoad();
 }
 
@@ -8002,10 +8002,10 @@ async function predFirmaLoad() {
       var sc = statColors[p.status] || 'rgba(255,255,255,0.4)';
       var owner = (p.vlasnik_email || '').split('@')[0];
       var tipLabel = p.tip ? (' · ' + p.tip) : '';
-      return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.55rem;background:rgba(0,212,255,0.03);border:1px solid rgba(0,212,255,0.08);border-radius:6px;">'
+      return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.55rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:6px;">'
         +'<span style="width:6px;height:6px;border-radius:50%;background:'+sc+';flex-shrink:0;"></span>'
         +'<span style="flex:1;font-size:0.78rem;color:rgba(255,255,255,0.82);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+_htmlEsc(p.naziv)+'">'+_htmlEsc(p.naziv)+'</span>'
-        +'<span style="font-size:0.62rem;color:rgba(0,212,255,0.45);white-space:nowrap;flex-shrink:0;">@'+_htmlEsc(owner)+'</span>'
+        +'<span style="font-size:0.62rem;color:rgba(75,119,232,0.30);white-space:nowrap;flex-shrink:0;">@'+_htmlEsc(owner)+'</span>'
         +'</div>';
     }).join('');
   } catch(e) { if(listEl) listEl.innerHTML = '<div style="color:#f87171;font-size:0.73rem;">Greška mreže.</div>'; }
@@ -8019,13 +8019,13 @@ function pred_renderList() {
       + '<div style="font-size:2.5rem;margin-bottom:.8rem;opacity:.3;"></div>'
       + '<div style="font-size:.95rem;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:.4rem;">Još uvek nemate predmeta</div>'
       + '<div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-bottom:1.2rem;line-height:1.6;">Dodajte prvog klijenta, zatim kreirajte predmet.<br>Ceo proces traje manje od 2 minuta.</div>'
-      + '<button onclick="intakeOtvori()" style="padding:.55rem 1.4rem;background:rgba(74,168,255,.15);border:1px solid rgba(74,168,255,.4);border-radius:8px;color:#89c8ff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;">+ Kreiraj prvi predmet</button>'
+      + '<button onclick="intakeOtvori()" style="padding:.55rem 1.4rem;background:rgba(75,119,232,0.10);border:1px solid rgba(75,119,232,0.28);border-radius:8px;color:rgba(255,255,255,0.72);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;">+ Kreiraj prvi predmet</button>'
       + '<div style="margin-top:1.5rem;display:flex;flex-direction:column;gap:.5rem;text-align:left;max-width:240px;margin-left:auto;margin-right:auto;">'
       + '<div style="font-size:.68rem;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.2rem;">Kako to radi</div>'
-      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:#4aa8ff;font-weight:700;flex-shrink:0;">1.</span> Dodajte klijenta (Klijenti u meniju)</div>'
-      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:#4aa8ff;font-weight:700;flex-shrink:0;">2.</span> Kliknite + Kreiraj prvi predmet</div>'
-      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:#4aa8ff;font-weight:700;flex-shrink:0;">3.</span> Opišite predmet i dodajte dokumente</div>'
-      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:#4aa8ff;font-weight:700;flex-shrink:0;">4.</span> Pokrenite analizu — dobijate procenu</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:rgba(255,255,255,0.72);font-weight:700;flex-shrink:0;">1.</span> Dodajte klijenta (Klijenti u meniju)</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:rgba(255,255,255,0.72);font-weight:700;flex-shrink:0;">2.</span> Kliknite + Kreiraj prvi predmet</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:rgba(255,255,255,0.72);font-weight:700;flex-shrink:0;">3.</span> Opišite predmet i dodajte dokumente</div>'
+      + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:rgba(255,255,255,0.72);font-weight:700;flex-shrink:0;">4.</span> Pokrenite analizu — dobijate procenu</div>'
       + '</div>'
       + '</div>';
     return;
@@ -8068,7 +8068,7 @@ function pred_renderList() {
       +'<span class="pred-badge '+tipCls+'" style="margin-right:0.25rem;">'+escHtml(p.tip)+'</span>'
       +'<span class="'+statusCls+'" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span>'
       +rizikHtml+rokHtml
-      +'<span style="font-size:0.7rem;color:rgba(74,168,255,0.6);font-weight:600;margin-left:0.3rem;">Otvori →</span>'
+      +'<span style="font-size:0.7rem;color:rgba(255,255,255,0.45);font-weight:600;margin-left:0.3rem;">Otvori →</span>'
       +'</span>'
       +'</div>';
   }).join('');
@@ -8395,7 +8395,7 @@ function pred_more_select(pane) {
 /* ── Case Pipeline Kanban ─────────────────────────────────────────────────── */
 var _kanbanDragId = null;
 var _KANBAN_FAZE = [
-  { id: 'inicijalna_procena', label: 'Inicijalna procena', dot: 'rgba(74,168,255,.6)' },
+  { id: 'inicijalna_procena', label: 'Inicijalna procena', dot: 'rgba(255,255,255,0.45)' },
   { id: 'priprema',           label: 'Priprema',           dot: 'rgba(167,139,250,.7)' },
   { id: 'aktivan_postupak',   label: 'Aktivan postupak',   dot: 'rgba(74,222,128,.7)' },
   { id: 'ceka_odluku',        label: 'Čeka odluku',        dot: 'rgba(251,191,36,.7)' },
@@ -8418,13 +8418,13 @@ function kanban_setView(mode) {
     if (detail) detail.style.display = 'none';
     if (kanban) kanban.style.display = 'block';
     if (btnL) { btnL.style.background = 'transparent'; btnL.style.color = 'rgba(255,255,255,.4)'; }
-    if (btnK) { btnK.style.background = 'rgba(74,168,255,.18)'; btnK.style.color = '#89c8ff'; btnK.style.fontWeight = '600'; }
+    if (btnK) { btnK.style.background = 'rgba(75,119,232,0.12)'; btnK.style.color = 'rgba(255,255,255,0.72)'; btnK.style.fontWeight = '600'; }
     kanban_render();
   } else {
     if (lista)  lista.style.display  = '';
     if (detail) detail.style.display = '';
     if (kanban) kanban.style.display = 'none';
-    if (btnL) { btnL.style.background = 'rgba(74,168,255,.18)'; btnL.style.color = '#89c8ff'; btnL.style.fontWeight = '600'; }
+    if (btnL) { btnL.style.background = 'rgba(75,119,232,0.12)'; btnL.style.color = 'rgba(255,255,255,0.72)'; btnL.style.fontWeight = '600'; }
     if (btnK) { btnK.style.background = 'transparent'; btnK.style.color = 'rgba(255,255,255,.4)'; btnK.style.fontWeight = ''; }
   }
 }
@@ -9066,7 +9066,7 @@ function pred_renderConfirmCard(predlozi, metadata) {
     var naziv = p.naziv || ((p.ime||'')+' '+(p.prezime||'')).trim() || p.firma || p.id || '?';
     return {html:
       '<div style="display:flex;align-items:center;gap:0.55rem;margin-bottom:0.38rem;">'
-      +'<input type="checkbox" id="conf-kl-'+i+'" checked style="accent-color:#4aa8ff;width:14px;height:14px;">'
+      +'<input type="checkbox" id="conf-kl-'+i+'" checked style="accent-color:rgba(255,255,255,0.72);width:14px;height:14px;">'
       +'<label for="conf-kl-'+i+'" style="font-size:0.78rem;color:#fff;flex:1;cursor:pointer;">'+escHtml(naziv)+'</label>'
       +'<span style="font-size:0.6rem;color:'+pColor+';font-family:var(--font-mono);">'+pct+'%</span>'
       +'</div>',
@@ -9081,7 +9081,7 @@ function pred_renderConfirmCard(predlozi, metadata) {
     var rDatum = d0.datum_iso || d0.datum || '';
     rokItems.push({html:
       '<div style="display:flex;align-items:center;gap:0.55rem;margin-bottom:0.38rem;">'
-      +'<input type="checkbox" id="conf-rok-0" checked style="accent-color:#4aa8ff;width:14px;height:14px;">'
+      +'<input type="checkbox" id="conf-rok-0" checked style="accent-color:rgba(255,255,255,0.72);width:14px;height:14px;">'
       +'<label for="conf-rok-0" style="font-size:0.78rem;color:#fff;flex:1;cursor:pointer;">Dodaj rok: '+escHtml(rNaziv)+(rDatum?' ('+rDatum+')':'')+'</label>'
       +'</div>',
       naziv: rNaziv, datum_iso: rDatum, vaznost: 'bitan'
@@ -9090,11 +9090,11 @@ function pred_renderConfirmCard(predlozi, metadata) {
   if (!klijentItems.length && !rokItems.length) return '';
   var kIds = JSON.stringify(klijentItems.map(function(k){ return {id: k.id, idx: k.idx}; }));
   var rData = rokItems.length ? JSON.stringify(rokItems[0]) : 'null';
-  var html = '<div id="pred-confirm-card" style="margin-top:0.75rem;border:1px solid rgba(74,168,255,.22);border-radius:10px;background:rgba(74,168,255,.05);padding:0.8rem 1rem;">'
-    +'<div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#4aa8ff;margin-bottom:0.6rem;font-weight:700;">Prepoznato automatski</div>';
+  var html = '<div id="pred-confirm-card" style="margin-top:0.75rem;border:1px solid rgba(255,255,255,0.09);border-radius:10px;background:rgba(255,255,255,0.03);padding:0.8rem 1rem;">'
+    +'<div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.72);margin-bottom:0.6rem;font-weight:700;">Prepoznato automatski</div>';
   klijentItems.forEach(function(k){ html += k.html; });
   rokItems.forEach(function(r){ html += r.html; });
-  html += '<button onclick="pred_confirmLinks('+kIds+','+rData+')" style="margin-top:0.55rem;width:100%;padding:0.55rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.28);border-radius:7px;color:#89c8ff;font-size:0.78rem;font-weight:600;cursor:pointer;letter-spacing:.02em;">✓ Potvrdi i poveži</button>'
+  html += '<button onclick="pred_confirmLinks('+kIds+','+rData+')" style="margin-top:0.55rem;width:100%;padding:0.55rem;background:rgba(75,119,232,0.07);border:1px solid rgba(255,255,255,0.11);border-radius:7px;color:rgba(255,255,255,0.72);font-size:0.78rem;font-weight:600;cursor:pointer;letter-spacing:.02em;">✓ Potvrdi i poveži</button>'
     +'</div>';
   return html;
 }
@@ -9148,7 +9148,7 @@ function portfolio_render(d) {
   var zatvoren   = (d.po_statusu && d.po_statusu.zatvoren) || 0;
 
   var _kpiDefs = [
-    {label:'Aktivni',   val: aktivan,    color:'#89c8ff'},
+    {label:'Aktivni',   val: aktivan,    color:'rgba(255,255,255,0.72)'},
     {label:'Hitni rokovi', val: hitniN,  color: hitniN>0?'#ff9090':'rgba(255,255,255,.4)'},
     {label:'Rokovi 7d', val: rokovi7n,   color: rokovi7n>0?'#ffbb70':'rgba(255,255,255,.4)'},
     {label:'Neaktivni', val: neaktivniN, color: neaktivniN>0?'#c0a0ff':'rgba(255,255,255,.4)'},
@@ -9320,7 +9320,7 @@ function notif_render() {
     +'<span style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);">Obaveštenja'+(unreadCount?' ('+unreadCount+')':'')+'</span>'
     +'<div style="display:flex;gap:0.5rem;">'
     +'<button onclick="notif_load()" title="Osveži" style="background:none;border:none;font-size:0.62rem;color:rgba(255,255,255,.35);cursor:pointer;padding:0;">↻</button>'
-    +(unreadCount?'<button onclick="notif_markAllRead()" style="background:none;border:none;font-size:0.62rem;color:#4aa8ff;cursor:pointer;padding:0;">Označi sve</button>':'')
+    +(unreadCount?'<button onclick="notif_markAllRead()" style="background:none;border:none;font-size:0.62rem;color:rgba(255,255,255,0.72);cursor:pointer;padding:0;">Označi sve</button>':'')
     +'</div></div>';
 
   if (!_notifData.length) {
@@ -9333,13 +9333,13 @@ function notif_render() {
       var pColor = _PRIO_COLOR[n.prioritet]||'rgba(255,255,255,.4)';
       var tipLbl = n.naslov || _TIP_LABEL[n.tip] || 'ℹ Info';
       var bodyTxt = n.naslov ? n.poruka : n.poruka;
-      return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')" style="padding:0.5rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.05);opacity:'+(isRead?'0.45':'1')+';" onmouseover="this.style.background=\'rgba(74,168,255,.06)\'" onmouseout="this.style.background=\'none\'">'
+      return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')" style="padding:0.5rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.05);opacity:'+(isRead?'0.45':'1')+';" onmouseover="this.style.background=\'rgba(255,255,255,0.03)\'" onmouseout="this.style.background=\'none\'">'
         +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.18rem;">'
         +'<span style="font-size:0.62rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
         +'<span style="font-size:0.6rem;color:rgba(255,255,255,.28);margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
         +'</div>'
         +'<div style="font-size:0.78rem;color:rgba(255,255,255,.82);margin-bottom:0.18rem;line-height:1.4;">'+escHtml(bodyTxt)+'</div>'
-        +(n.predmet_naziv?'<div style="font-size:0.7rem;color:rgba(255,255,255,.4);display:flex;align-items:center;justify-content:space-between;margin-top:.1rem;">'+escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:#89c8ff;font-size:.68rem;">Otvori →</span>':'')+'</div>':'')
+        +(n.predmet_naziv?'<div style="font-size:0.7rem;color:rgba(255,255,255,.4);display:flex;align-items:center;justify-content:space-between;margin-top:.1rem;">'+escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:rgba(255,255,255,0.72);font-size:.68rem;">Otvori →</span>':'')+'</div>':'')
         +'</div>';
     }).join('');
 }
@@ -9376,7 +9376,7 @@ function mobNotifOtvori() {
     var hdr = '<div style="padding:0.5rem 1rem 0.4rem;display:flex;justify-content:space-between;align-items:center;">'
       +'<span style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.35);">'+
         (unreadCount ? unreadCount+' nepročitano' : 'Sve pročitano')+'</span>'
-      +(unreadCount ? '<button onclick="notif_markAllRead()" style="background:none;border:none;font-size:0.72rem;color:#4aa8ff;cursor:pointer;padding:0;font-family:inherit;">Označi sve</button>' : '')
+      +(unreadCount ? '<button onclick="notif_markAllRead()" style="background:none;border:none;font-size:0.72rem;color:rgba(255,255,255,0.72);cursor:pointer;padding:0;font-family:inherit;">Označi sve</button>' : '')
       +'</div>';
     if (!_notifData.length) {
       list.innerHTML = hdr + '<div style="padding:2rem 1rem;font-size:0.8rem;color:rgba(255,255,255,.3);text-align:center;">Nema obaveštenja.</div>';
@@ -9386,14 +9386,14 @@ function mobNotifOtvori() {
         var pColor = _PRIO_COLOR[n.prioritet] || 'rgba(255,255,255,.4)';
         var tipLbl = n.naslov || _TIP_LABEL[n.tip] || 'ℹ Info';
         return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')"'
-          +' style="padding:0.7rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.06);opacity:'+(isRead?'0.4':'1')+';active-background:rgba(74,168,255,.08);">'
+          +' style="padding:0.7rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.06);opacity:'+(isRead?'0.4':'1')+';active-background:rgba(255,255,255,0.04);">'
           +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">'
           +'<span style="font-size:0.65rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
           +'<span style="font-size:0.62rem;color:rgba(255,255,255,.28);margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
           +'</div>'
           +'<div style="font-size:0.82rem;color:rgba(255,255,255,.85);line-height:1.45;">'+escHtml(n.poruka)+'</div>'
           +(n.predmet_naziv ? '<div style="font-size:0.72rem;color:rgba(255,255,255,.38);margin-top:0.2rem;display:flex;justify-content:space-between;">'
-            +escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:#89c8ff;">Otvori →</span>':'')+'</div>' : '')
+            +escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:rgba(255,255,255,0.72);">Otvori →</span>':'')+'</div>' : '')
           +'</div>';
       }).join('');
     }
@@ -9520,7 +9520,7 @@ async function lanac_kalkulisi() {
 function lanac_renderResult(d) {
   var resEl = document.getElementById('lanac-result');
   if (!resEl) return;
-  var _VC = {kritican:'#f87171', vazno:'#fb923c', info:'#89c8ff'};
+  var _VC = {kritican:'#f87171', vazno:'#fb923c', info:'rgba(255,255,255,0.72)'};
   var _VL = {kritican:'KRITIČAN', vazno:'VAŽNO',  info:'INFO'};
   var html = '<div style="margin-top:0.3rem;">';
   html += '<div style="font-size:0.6rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.45rem;">Počev od: '+escHtml(d.datum_pocetka_display)+' — '+escHtml(d.tip_naziv)+'</div>';
@@ -9681,7 +9681,7 @@ function crossdoc_renderResult(d, el) {
       var cls = _OZB_CLS[k.ozbiljnost] || 'crossdoc-konf-niska';
       var lbl = _OZB_LBL[k.ozbiljnost] || k.ozbiljnost;
       html += '<div class="crossdoc-konf-card '+cls+'">'
-        +'<div class="crossdoc-konf-label" style="color:'+(k.ozbiljnost==='visoka'?'#f87171':k.ozbiljnost==='srednja'?'#fb923c':'#89c8ff')+';">'+lbl+'</div>'
+        +'<div class="crossdoc-konf-label" style="color:'+(k.ozbiljnost==='visoka'?'#f87171':k.ozbiljnost==='srednja'?'#fb923c':'rgba(255,255,255,0.72)')+';">'+lbl+'</div>'
         +'<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-bottom:0.2rem;">'+escHtml(k.dokument_a||'')+'  ←→  '+escHtml(k.dokument_b||'')+'</div>'
         +'<div style="font-size:0.77rem;color:rgba(255,255,255,0.82);">'+escHtml(k.opis||'')+'</div>'
         +'</div>';
@@ -9703,8 +9703,8 @@ function crossdoc_renderResult(d, el) {
 
   // Pravni zaključak
   if (d.pravni_zakljucak) {
-    html += '<div style="margin-top:0.75rem;padding:0.55rem 0.7rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:7px;font-size:0.77rem;color:rgba(255,255,255,0.72);">'
-      +'<span style="font-size:0.68rem;font-weight:700;color:#00d4ff;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:0.3rem;">Pravni zaključak</span>'
+    html += '<div style="margin-top:0.75rem;padding:0.55rem 0.7rem;background:rgba(255,255,255,0.03);border:1px solid rgba(75,119,232,0.10);border-radius:7px;font-size:0.77rem;color:rgba(255,255,255,0.72);">'
+      +'<span style="font-size:0.68rem;font-weight:700;color:rgba(255,255,255,0.72);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:0.3rem;">Pravni zaključak</span>'
       +escHtml(d.pravni_zakljucak)
       +'</div>';
   }
@@ -9719,7 +9719,7 @@ function copilot_appendMsg(role, html) {
   if (!container) return;
   var div = document.createElement('div');
   div.style.cssText = role === 'user'
-    ? 'background:rgba(74,168,255,.08);border:1px solid rgba(74,168,255,.15);border-radius:8px 8px 2px 8px;padding:0.45rem 0.65rem;font-size:0.76rem;color:rgba(255,255,255,.8);align-self:flex-end;max-width:85%;'
+    ? 'background:rgba(255,255,255,0.04);border:1px solid rgba(75,119,232,0.10);border-radius:8px 8px 2px 8px;padding:0.45rem 0.65rem;font-size:0.76rem;color:rgba(255,255,255,.8);align-self:flex-end;max-width:85%;'
     : 'background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:2px 8px 8px 8px;padding:0.45rem 0.65rem;font-size:0.76rem;color:#e6edf3;align-self:flex-start;max-width:95%;';
   div.innerHTML = html;
   container.appendChild(div);
@@ -9746,11 +9746,11 @@ function copilot_renderResponse(d) {
   }
 
   if (tip === 'PLAN' && d.faze) {
-    var html = '<div style="font-size:0.72rem;color:#4aa8ff;font-weight:700;margin-bottom:0.4rem;">'+escHtml(d.cilj||'Akcioni plan')+'</div>';
+    var html = '<div style="font-size:0.72rem;color:rgba(255,255,255,0.72);font-weight:700;margin-bottom:0.4rem;">'+escHtml(d.cilj||'Akcioni plan')+'</div>';
     (d.faze||[]).forEach(function(f, fi){
       html += '<div style="margin-bottom:0.35rem;"><div style="font-size:0.7rem;font-weight:600;color:rgba(255,255,255,.7);">'+(fi+1)+'. '+escHtml(f.naziv||'')+(f.trajanje?' ('+f.trajanje+')':'')+'</div>';
       (f.koraci||[]).forEach(function(k){
-        var pColor = k.prioritet==='hitan'?'#ff9090':k.prioritet==='normalan'?'#89c8ff':'rgba(255,255,255,.4)';
+        var pColor = k.prioritet==='hitan'?'#ff9090':k.prioritet==='normalan'?'rgba(255,255,255,0.72)':'rgba(255,255,255,.4)';
         html += '<div style="font-size:0.68rem;color:rgba(255,255,255,.65);padding-left:0.6rem;margin-top:0.15rem;">· '+escHtml(k.korak||'')
           +(k.rok?'<span style="color:rgba(255,255,255,.3);"> ('+k.rok+')</span>':'')
           +'<span style="color:'+pColor+';margin-left:0.3rem;font-size:0.6rem;">'+escHtml(k.prioritet||'')+'</span></div>';
@@ -9788,11 +9788,11 @@ function copilot_renderResponse(d) {
   }
 
   if (tip === 'SUDSKA_PRAKSA' && d.presude) {
-    var html = '<div style="font-size:0.7rem;color:#4aa8ff;margin-bottom:0.3rem;">Pronađena sudska praksa:</div>';
+    var html = '<div style="font-size:0.7rem;color:rgba(255,255,255,0.72);margin-bottom:0.3rem;">Pronađena sudska praksa:</div>';
     (d.presude||[]).slice(0,3).forEach(function(p){
       var m = p.metadata||p;
       html += '<div style="border:1px solid rgba(255,255,255,.08);border-radius:5px;padding:0.3rem 0.5rem;margin-bottom:0.25rem;">'
-        +'<div style="font-size:0.68rem;color:#89c8ff;font-weight:600;">'+(m.decision_number||m.broj_odluke||'?')+'</div>'
+        +'<div style="font-size:0.68rem;color:rgba(255,255,255,0.72);font-weight:600;">'+(m.decision_number||m.broj_odluke||'?')+'</div>'
         +'<div style="font-size:0.65rem;color:rgba(255,255,255,.55);">'+(m.izreka_preview||m.izreka||'').substring(0,100)+'…</div>'
         +'</div>';
     });
@@ -9871,7 +9871,7 @@ function _predInlineEdit(spanId, field, inputType) {
     inp.maxLength = 200;
   }
   var isSelect = inp.tagName === 'SELECT';
-  inp.style.cssText = 'width:100%;max-width:150px;padding:2px 5px;background:' + (isSelect ? '#131929' : 'rgba(255,255,255,0.12)') + ';border:1px solid rgba(74,168,255,.5);border-radius:5px;color:#e2eeff;font-size:0.78rem;outline:none;box-sizing:border-box;';
+  inp.style.cssText = 'width:100%;max-width:150px;padding:2px 5px;background:' + (isSelect ? '#131929' : 'rgba(255,255,255,0.12)') + ';border:1px solid rgba(75,119,232,0.35);border-radius:5px;color:#e2eeff;font-size:0.78rem;outline:none;box-sizing:border-box;';
 
   span.style.display = 'none';
   span.parentNode.insertBefore(inp, span.nextSibling);
@@ -9986,7 +9986,7 @@ async function pred_loadDetail(id) {
         dokListEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-top:0.3rem;">Nema dokumenata.</div>';
       } else {
         var _dokHint = d.dokumenti.length >= 2
-          ? '<div style="font-size:0.7rem;color:rgba(0,212,255,0.55);margin-bottom:0.3rem;">Označi 2–5 dokumenata za poređenje (Cross-doc analiza)</div>'
+          ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.40);margin-bottom:0.3rem;">Označi 2–5 dokumenata za poređenje (Cross-doc analiza)</div>'
           : '';
         dokListEl.innerHTML = _dokHint + d.dokumenti.map(function(dok, _dokIdx) {
           var _ns = dok.pinecone_namespace || '';
@@ -9997,34 +9997,34 @@ async function pred_loadDetail(id) {
           return '<div class="pred-dok-card" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'" data-dok-rn="'+_rn+'" '
             +'onclick="dokUcitajZaAnalizu(\''+escHtml(_ns)+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml(_kb+'')+'\',\''+escHtml(dok.id||'')+'\')" '
             +'title="Klikni da učitaš u analizu" '
-            +'style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;margin-bottom:0.35rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+');border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;" '
-            +'onmouseover="this.style.background=\'rgba(0,212,255,0.12)\';this.style.borderColor=\'rgba(0,212,255,0.45)\'" '
-            +'onmouseout="this.style.background=\'rgba(0,212,255,0.06)\';this.style.borderColor=\'rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+')\'">'
-            +'<div style="flex-shrink:0;background:rgba(0,212,255,0.18);color:#00d4ff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.03em;font-family:monospace;">DOK-'+_rnStr+'</div>'
+            +'style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;margin-bottom:0.35rem;background:rgba(255,255,255,0.03);border:1px solid rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+');border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;" '
+            +'onmouseover="this.style.background=\'rgba(75,119,232,0.07)\';this.style.borderColor=\'rgba(75,119,232,0.30)\'" '
+            +'onmouseout="this.style.background=\'rgba(255,255,255,0.03)\';this.style.borderColor=\'rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+')\'">'
+            +'<div style="flex-shrink:0;background:rgba(75,119,232,0.12);color:rgba(255,255,255,0.72);font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.03em;font-family:monospace;">DOK-'+_rnStr+'</div>'
             +'<i data-lucide="file-text" style="width:16px;height:16px;flex-shrink:0;color:rgba(0,212,255,'+(_hasNs?'0.85':'0.4')+');"></i>'
             +'<div style="flex:1;min-width:0;">'
             +'<div style="font-size:0.78rem;font-weight:600;color:'+(_hasNs?'#e2e8f0':'rgba(255,255,255,0.45)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(dok.naziv_fajla||'')+'</div>'
             +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.32);margin-top:1px;">'+_kb+' KB'
-            +(_hasNs?' • <span style="color:rgba(0,212,255,0.65);">klikni za analizu</span>':' • <span style="color:rgba(255,180,0,0.65);">nije vektorizovan — re-upload</span>')
+            +(_hasNs?' • <span style="color:rgba(255,255,255,0.50);">klikni za analizu</span>':' • <span style="color:rgba(255,180,0,0.65);">nije vektorizovan — re-upload</span>')
             +'</div>'
             +'</div>'
             +'<button onclick="event.stopPropagation();dokPreviewOpen(\''+escHtml(dok.id||'')+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml(_kb+'')+'\')" '
             +'title="Pogledaj sadržaj" '
-            +'style="flex-shrink:0;background:transparent;border:1px solid rgba(74,168,255,0.2);border-radius:5px;color:rgba(74,168,255,0.6);font-size:0.65rem;padding:2px 7px;cursor:pointer;font-family:inherit;">'
+            +'style="flex-shrink:0;background:transparent;border:1px solid rgba(255,255,255,0.09);border-radius:5px;color:rgba(255,255,255,0.45);font-size:0.65rem;padding:2px 7px;cursor:pointer;font-family:inherit;">'
             +'→'
             +'</button>'
             +'<input type="checkbox" class="pred-dok-item-cb" onclick="event.stopPropagation()" onchange="crossdoc_toggleDok(this)" title="Označi za cross-doc analizu" '
-            +'style="flex-shrink:0;width:14px;height:14px;cursor:pointer;accent-color:rgba(0,212,255,0.8);">'
+            +'style="flex-shrink:0;width:14px;height:14px;cursor:pointer;accent-color:rgba(255,255,255,0.65);">'
             +'</div>';
         }).join('');
         // Case DNA dugme i panel — ispod liste dokumenata
         var _dnaPanelId = 'case-dna-panel-' + activePredmetId;
         dokListEl.innerHTML += '<div style="margin-top:0.6rem;">'
           + '<button onclick="_voice_refresh_case_dna(\''+escHtml(activePredmetId||'')+'\');return false;" '
-          + 'style="width:100%;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.18);border-radius:7px;color:#00d4ff;font-size:0.7rem;padding:0.4rem 0.6rem;cursor:pointer;font-family:inherit;transition:background .15s;letter-spacing:0.02em;" '
-          + 'onmouseover="this.style.background=\'rgba(0,212,255,0.16)\'" onmouseout="this.style.background=\'rgba(0,212,255,0.08)\'">'
+          + 'style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(75,119,232,0.12);border-radius:7px;color:rgba(255,255,255,0.72);font-size:0.7rem;padding:0.4rem 0.6rem;cursor:pointer;font-family:inherit;transition:background .15s;letter-spacing:0.02em;" '
+          + 'onmouseover="this.style.background=\'rgba(75,119,232,0.10)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.04)\'">'
           + 'Generiši procenu predmeta</button>'
-          + '<div id="'+_dnaPanelId+'" style="display:none;margin-top:0.5rem;padding:0.65rem 0.8rem;background:rgba(0,0,0,0.3);border:1px solid rgba(0,212,255,0.15);border-radius:8px;"></div>'
+          + '<div id="'+_dnaPanelId+'" style="display:none;margin-top:0.5rem;padding:0.65rem 0.8rem;background:rgba(0,0,0,0.3);border:1px solid rgba(75,119,232,0.10);border-radius:8px;"></div>'
           + '</div>';
         if (typeof lucide !== 'undefined') lucide.createIcons();
       }
@@ -10593,7 +10593,7 @@ async function billing_loadEntries() {
       } else { summEl.style.display = 'none'; }
     }
     if (!_billingEntries.length) {
-      listEl.innerHTML = '<div style="font-size:0.73rem;color:rgba(255,255,255,0.28);padding:0.35rem 0;line-height:1.6;">Još nema unesenih radnji. Kliknite <strong style="color:rgba(74,168,255,.5);">▶ Start tajmer</strong> kad počnete da radite, ili ručno dodajte radnju ispod.</div>';
+      listEl.innerHTML = '<div style="font-size:0.73rem;color:rgba(255,255,255,0.28);padding:0.35rem 0;line-height:1.6;">Još nema unesenih radnji. Kliknite <strong style="color:rgba(75,119,232,0.35);">▶ Start tajmer</strong> kad počnete da radite, ili ručno dodajte radnju ispod.</div>';
       if (barEl) barEl.style.display = 'none';
       return;
     }
@@ -10601,7 +10601,7 @@ async function billing_loadEntries() {
     _billingEntries.forEach(function(e) {
       var iznos = Math.round(e.iznos_rsd||0).toLocaleString('sr-RS');
       var badge = e.obracunato ? '<span class="billing-badge-ok">fakturisano</span>' : '<span class="billing-badge-open">nenaplaćeno</span>';
-      var hBadge = (e.sati && e.sati > 0) ? ' · <span style="color:rgba(0,212,255,0.6);font-family:\'JetBrains Mono\',monospace;">'+escHtml(_fmtBillingH(e.sati))+'</span>' : '';
+      var hBadge = (e.sati && e.sati > 0) ? ' · <span style="color:rgba(255,255,255,0.45);font-family:\'JetBrains Mono\',monospace;">'+escHtml(_fmtBillingH(e.sati))+'</span>' : '';
       html += '<div class="billing-entry-row">';
       html += '<div class="billing-entry-main"><div class="billing-entry-opis">'+escHtml(e.opis||'')+'</div>';
       html += '<div class="billing-entry-meta">'+escHtml(e.datum||'')+(e.tarifa_sifra?' · '+escHtml(e.tarifa_sifra):'')+hBadge+'&nbsp;'+badge+'</div></div>';
@@ -10810,8 +10810,8 @@ async function billing_doGenerateFaktura() {
     var fakt = d.faktura;
     var pdfUrl = BASE_URL+'/billing/faktura/'+fakt.id+'/pdf';
     var barEl = document.getElementById('billing-faktura-bar');
-    if (barEl) barEl.innerHTML = '<div class="billing-faktura-ok">✓ Faktura br. <b>'+escHtml(fakt.broj_fakture)+'</b> kreirana &mdash; <a href="'+pdfUrl+'" target="_blank" style="color:#89c8ff;">Preuzmi PDF</a>'
-      +' &nbsp;<button onclick="billing_sendEmail(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.25);border-radius:5px;color:#89c8ff;font-size:0.68rem;cursor:pointer;font-family:inherit;">✉ Email</button>'
+    if (barEl) barEl.innerHTML = '<div class="billing-faktura-ok">✓ Faktura br. <b>'+escHtml(fakt.broj_fakture)+'</b> kreirana &mdash; <a href="'+pdfUrl+'" target="_blank" style="color:rgba(255,255,255,0.72);">Preuzmi PDF</a>'
+      +' &nbsp;<button onclick="billing_sendEmail(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:5px;color:rgba(255,255,255,0.72);font-size:0.68rem;cursor:pointer;font-family:inherit;">✉ Email</button>'
       +' <button onclick="sef_posalji(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(0,212,127,0.08);border:1px solid rgba(0,212,127,0.2);border-radius:5px;color:#00d47f;font-size:0.68rem;cursor:pointer;font-family:inherit;">SEF</button>'
       +' <button onclick="sef_preuzmiXml(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;font-family:inherit;">⬇ XML</button>'
       +' <button onclick="sef_prikaziLog(\''+escHtml(fakt.id)+'\')" style="padding:0.2rem 0.6rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:rgba(255,255,255,0.5);font-size:0.68rem;cursor:pointer;font-family:inherit;">SEF log</button>'
@@ -10857,7 +10857,7 @@ async function billing_loadRecurring() {
         +'<div style="font-size:0.66rem;color:rgba(255,255,255,0.4);margin-top:0.1rem;">'+uc+' · '+(t.iznos_rsd||0).toLocaleString('sr-RS')+' RSD · sledeci: '+(t.sledeci_datum||'—')+'</div>'
         +'</div>'
         +aktBadge
-        +(t.aktivan ? '<button onclick="billing_generiši(\''+escHtml(t.id)+'\')" style="padding:0.2rem 0.55rem;background:rgba(74,168,255,0.1);border:1px solid rgba(74,168,255,0.2);border-radius:5px;color:#89c8ff;font-size:0.67rem;cursor:pointer;white-space:nowrap;font-family:inherit;">Generiši</button>' : '')
+        +(t.aktivan ? '<button onclick="billing_generiši(\''+escHtml(t.id)+'\')" style="padding:0.2rem 0.55rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:5px;color:rgba(255,255,255,0.72);font-size:0.67rem;cursor:pointer;white-space:nowrap;font-family:inherit;">Generiši</button>' : '')
         +'<button onclick="billing_deactivateRecurring(\''+escHtml(t.id)+'\','+t.aktivan+')" style="padding:0.2rem 0.4rem;background:none;border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:rgba(255,255,255,0.3);font-size:0.67rem;cursor:pointer;font-family:inherit;" title="'+(t.aktivan?'Deaktiviraj':'Aktiviraj')+'">'+(t.aktivan?'⏸':'▶')+'</button>'
         +'</div>';
     }).join('');
@@ -11024,9 +11024,9 @@ async function searchRun() {
 
 var _SRCH_ICONS = {
   predmet:    {icon:'',  bg:'rgba(0,212,127,0.10)', label:'Predmet'},
-  klijent:    {icon:'',  bg:'rgba(74,168,255,0.10)', label:'Klijent'},
+  klijent:    {icon:'',  bg:'rgba(255,255,255,0.05)', label:'Klijent'},
   dokument:   {icon:'',  bg:'rgba(255,200,100,0.10)',label:'Dokument'},
-  billing:    {icon:'',  bg:'rgba(0,212,255,0.10)',  label:'Billing'},
+  billing:    {icon:'',  bg:'rgba(255,255,255,0.05)',  label:'Billing'},
   hronologija:{icon:'',  bg:'rgba(200,100,255,0.10)',label:'Hronolog.'},
   beleska:    {icon:'',  bg:'rgba(255,255,255,0.06)',label:'Beleška'},
 };
@@ -11202,7 +11202,7 @@ async function portal_loadUploads() {
         +'</div>'
         +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;flex-shrink:0;">'
         +'<span style="font-size:.6rem;color:'+pregBoja+';">'+pregTxt+'</span>'
-        +(u.download_url ? '<a href="'+u.download_url+'" target="_blank" rel="noopener" style="font-size:.62rem;color:#89c8ff;text-decoration:none;">⬇ Preuzmi</a>' : '')
+        +(u.download_url ? '<a href="'+u.download_url+'" target="_blank" rel="noopener" style="font-size:.62rem;color:rgba(255,255,255,0.72);text-decoration:none;">⬇ Preuzmi</a>' : '')
         +(!u.pregledano ? '<button onclick="portal_oznacPregledano(\''+escHtml(u.id)+'\')" style="font-size:.6rem;color:rgba(0,212,127,.6);background:none;border:1px solid rgba(0,212,127,.15);border-radius:3px;padding:.1rem .3rem;cursor:pointer;">✓ Pregledano</button>' : '')
         +'<button onclick="portal_obrisiUpload(\''+escHtml(u.id)+'\')" style="font-size:.6rem;color:rgba(255,80,80,.5);background:none;border:none;cursor:pointer;padding:0;">×</button>'
         +'</div>'
@@ -11285,7 +11285,7 @@ function portal_renderView(d) {
   if (tipEl)  tipEl.textContent  = pred.tip   || '';
   if (expEl && d.token_expires_at) expEl.textContent = 'Pristup ističe: '+(d.token_expires_at||'').slice(0,10);
 
-  var statusColor = {aktivan:'rgba(0,212,127,.15)',zatvoren:'rgba(255,255,255,.06)',arhiviran:'rgba(255,255,255,.04)'}[pred.status]||'rgba(74,168,255,.1)';
+  var statusColor = {aktivan:'rgba(0,212,127,.15)',zatvoren:'rgba(255,255,255,.06)',arhiviran:'rgba(255,255,255,.04)'}[pred.status]||'rgba(255,255,255,0.05)';
   var statusText  = {aktivan:'Aktivan',zatvoren:'Zatvoren',arhiviran:'Arhiviran'}[pred.status]||pred.status||'';
   if (staEl) { staEl.textContent=statusText; staEl.style.background=statusColor; staEl.style.color=pred.status==='aktivan'?'#00d47f':'rgba(255,255,255,.5)'; }
 
@@ -11318,7 +11318,7 @@ function portal_renderView(d) {
       var isLast = i === hron.length-1;
       return '<div style="display:flex;gap:.75rem;padding-bottom:.8rem;">'
         +'<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">'
-        +'<div style="width:8px;height:8px;border-radius:50%;background:'+(isLast?'#00d4ff':'rgba(74,168,255,.4)')+';""></div>'
+        +'<div style="width:8px;height:8px;border-radius:50%;background:'+(isLast?'rgba(255,255,255,0.72)':'rgba(75,119,232,0.28)')+';""></div>'
         +(isLast?'':'<div style="flex:1;width:1px;background:rgba(255,255,255,.07);margin-top:2px;"></div>')
         +'</div>'
         +'<div style="flex:1;min-width:0;padding-bottom:.2rem;">'
@@ -11350,7 +11350,7 @@ function portal_fileSelected(input) {
   var btn    = document.getElementById('portal-upload-btn');
   if (nameEl) nameEl.textContent = f.name + ' (' + (f.size/1024).toFixed(0) + ' KB)';
   if (prevEl) prevEl.style.display = 'flex';
-  if (btn)    { btn.disabled = false; btn.style.cursor = 'pointer'; btn.style.background = 'rgba(0,212,255,0.18)'; }
+  if (btn)    { btn.disabled = false; btn.style.cursor = 'pointer'; btn.style.background = 'rgba(75,119,232,0.12)'; }
 }
 
 function portal_fileOtkazi() {
@@ -11360,7 +11360,7 @@ function portal_fileOtkazi() {
   var btn    = document.getElementById('portal-upload-btn');
   if (input)  input.value = '';
   if (prevEl) prevEl.style.display = 'none';
-  if (btn)    { btn.disabled = true; btn.style.cursor = 'not-allowed'; btn.style.background = 'rgba(0,212,255,0.12)'; }
+  if (btn)    { btn.disabled = true; btn.style.cursor = 'not-allowed'; btn.style.background = 'rgba(75,119,232,0.07)'; }
 }
 
 async function portal_uploadFajl() {
@@ -11566,12 +11566,12 @@ function billing_renderReport(tip, d) {
     return '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Godišnji izveštaj '+(d.godina||'')+'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;margin-bottom:0.4rem;">'
       +'<div style="background:rgba(0,212,127,0.07);border:1px solid rgba(0,212,127,0.15);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Uneseno</div><div style="font-size:0.82rem;font-weight:700;color:#00d47f;">'+Math.round(d.ukupno_uneseno_rsd||0).toLocaleString('sr-RS')+' RSD</div></div>'
-      +'<div style="background:rgba(74,168,255,0.07);border:1px solid rgba(74,168,255,0.15);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Naplaćeno</div><div style="font-size:0.82rem;font-weight:700;color:#89c8ff;">'+Math.round(d.ukupno_naplaceno_rsd||0).toLocaleString('sr-RS')+' RSD</div></div>'
-      +'<div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.1);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Fakturisano</div><div style="font-size:0.82rem;font-weight:600;color:#00d4ff;">'+Math.round(d.ukupno_fakturisano||0).toLocaleString('sr-RS')+' RSD</div></div>'
+      +'<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(75,119,232,0.10);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Naplaćeno</div><div style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.72);">'+Math.round(d.ukupno_naplaceno_rsd||0).toLocaleString('sr-RS')+' RSD</div></div>'
+      +'<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Fakturisano</div><div style="font-size:0.82rem;font-weight:600;color:rgba(255,255,255,0.72);">'+Math.round(d.ukupno_fakturisano||0).toLocaleString('sr-RS')+' RSD</div></div>'
       +'<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Stopa naplate</div><div style="font-size:0.82rem;font-weight:600;color:rgba(255,255,255,0.7);">'+(d.stopa_naplate_pct||0)+'%</div></div>'
       +'</div>'
       +(d.top_klijenti && d.top_klijenti.length ? '<div style="font-size:0.65rem;color:rgba(255,255,255,0.35);margin-bottom:0.2rem;">TOP KLIJENTI</div>'
-        +d.top_klijenti.slice(0,3).map(function(k){ return '<div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-size:0.7rem;"><span style="color:rgba(255,255,255,0.6);">'+escHtml(k.naziv||'—')+'</span><span style="color:#89c8ff;font-weight:600;">'+Math.round(k.iznos).toLocaleString('sr-RS')+' RSD</span></div>'; }).join('') : '');
+        +d.top_klijenti.slice(0,3).map(function(k){ return '<div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-size:0.7rem;"><span style="color:rgba(255,255,255,0.6);">'+escHtml(k.naziv||'—')+'</span><span style="color:rgba(255,255,255,0.72);font-weight:600;">'+Math.round(k.iznos).toLocaleString('sr-RS')+' RSD</span></div>'; }).join('') : '');
   }
   if (tip === 'zastarele') {
     var aging = d.aging || {};
@@ -11587,11 +11587,11 @@ function billing_renderReport(tip, d) {
   if (tip === 'po-tipu') {
     var rows = d.po_tipu || [];
     return '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Prihodi po tipu predmeta</div>'
-      +'<div style="font-size:0.8rem;font-weight:700;color:#00d4ff;margin-bottom:0.35rem;">Ukupno: '+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</div>'
+      +'<div style="font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.72);margin-bottom:0.35rem;">Ukupno: '+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</div>'
       +rows.slice(0,5).map(function(t){
         return '<div style="margin-bottom:0.3rem;">'
-          +'<div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:0.1rem;"><span style="color:rgba(255,255,255,0.65);text-transform:capitalize;">'+escHtml(t.tip||'ostalo')+'</span><span style="color:#89c8ff;font-weight:600;">'+Math.round(t.iznos_rsd).toLocaleString('sr-RS')+' RSD</span></div>'
-          +'<div style="background:rgba(0,212,255,0.06);border-radius:3px;height:4px;"><div style="background:#00d4ff;border-radius:3px;height:4px;width:'+Math.min(100,(t.ucesce_pct||0))+'%;"></div></div>'
+          +'<div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:0.1rem;"><span style="color:rgba(255,255,255,0.65);text-transform:capitalize;">'+escHtml(t.tip||'ostalo')+'</span><span style="color:rgba(255,255,255,0.72);font-weight:600;">'+Math.round(t.iznos_rsd).toLocaleString('sr-RS')+' RSD</span></div>'
+          +'<div style="background:rgba(255,255,255,0.03);border-radius:3px;height:4px;"><div style="background:rgba(255,255,255,0.72);border-radius:3px;height:4px;width:'+Math.min(100,(t.ucesce_pct||0))+'%;"></div></div>'
           +'</div>';
       }).join('');
   }
@@ -11599,14 +11599,14 @@ function billing_renderReport(tip, d) {
     var rows = d.po_klijentu || [];
     if (!rows.length) return '<div style="color:rgba(255,255,255,0.35);padding:0.4rem 0;">Nema faktura za ovaj period.</div>';
     return '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Prihodi po klijentu</div>'
-      +'<div style="font-size:0.8rem;font-weight:700;color:#00d4ff;margin-bottom:0.4rem;">Ukupno: '+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</div>'
+      +'<div style="font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.72);margin-bottom:0.4rem;">Ukupno: '+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</div>'
       +rows.slice(0,8).map(function(k){
         var placPct = k.ukupno_rsd > 0 ? Math.round(k.naplaceno_rsd/k.ukupno_rsd*100) : 0;
         var barColor = placPct >= 75 ? '#00d47f' : placPct >= 40 ? '#ffc864' : '#ff7766';
         return '<div style="margin-bottom:0.45rem;padding:0.3rem 0.4rem;background:rgba(255,255,255,0.02);border-radius:6px;border:1px solid rgba(255,255,255,0.05);">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.15rem;">'
           +'<span style="font-size:0.7rem;color:rgba(255,255,255,0.75);font-weight:600;">'+escHtml(k.naziv||'—')+'</span>'
-          +'<span style="font-size:0.67rem;color:#89c8ff;">'+k.broj_faktura+' fakt. &nbsp;|&nbsp; <b style="color:#00d4ff;">'+Math.round(k.ukupno_rsd).toLocaleString('sr-RS')+' RSD</b></span>'
+          +'<span style="font-size:0.67rem;color:rgba(255,255,255,0.72);">'+k.broj_faktura+' fakt. &nbsp;|&nbsp; <b style="color:rgba(255,255,255,0.72);">'+Math.round(k.ukupno_rsd).toLocaleString('sr-RS')+' RSD</b></span>'
           +'</div>'
           +'<div style="display:flex;align-items:center;gap:0.4rem;">'
           +'<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:3px;height:5px;">'
@@ -11755,8 +11755,8 @@ function kalSetView(v) {
   var gBtn = document.getElementById('kal-view-grid-btn');
   var lBtn = document.getElementById('kal-view-list-btn');
   var nav  = document.getElementById('kal-month-nav');
-  if (gBtn) { gBtn.style.background = v === 'grid' ? 'rgba(74,168,255,0.2)' : 'transparent'; gBtn.style.color = v === 'grid' ? '#89c8ff' : 'rgba(255,255,255,0.4)'; }
-  if (lBtn) { lBtn.style.background = v === 'list' ? 'rgba(74,168,255,0.2)' : 'transparent'; lBtn.style.color = v === 'list' ? '#89c8ff' : 'rgba(255,255,255,0.4)'; }
+  if (gBtn) { gBtn.style.background = v === 'grid' ? 'rgba(255,255,255,0.09)' : 'transparent'; gBtn.style.color = v === 'grid' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.4)'; }
+  if (lBtn) { lBtn.style.background = v === 'list' ? 'rgba(255,255,255,0.09)' : 'transparent'; lBtn.style.color = v === 'list' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.4)'; }
   if (nav)  nav.style.display = v === 'grid' ? 'flex' : 'none';
   var dd = document.getElementById('kal-day-detail');
   if (dd) dd.style.display = 'none';
@@ -11829,7 +11829,7 @@ function _kalRenderGrid(eventi) {
     if (evs.length) {
       html += '<div class="kal-grid-dots">';
       evs.slice(0, 3).forEach(function(e) {
-        var col = e.tip === 'rociste' ? '#4aa8ff' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
+        var col = e.tip === 'rociste' ? '#4B77E8' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
         html += '<span class="kal-grid-dot" style="background:' + col + ';"></span>';
       });
       if (evs.length > 3) html += '<span style="font-size:.52rem;color:rgba(255,255,255,.35);">+' + (evs.length - 3) + '</span>';
@@ -11863,7 +11863,7 @@ function kalDayClick(iso) {
   var html = '';
   evs.forEach(function(e) {
     var tipLabel = e.tip === 'rociste' ? 'Ročište' : e.tip === 'rok_zastarelost' ? 'Rok' : 'Rok';
-    var col = e.tip === 'rociste' ? '#89c8ff' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
+    var col = e.tip === 'rociste' ? 'rgba(255,255,255,0.72)' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
     html += '<div style="padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);">';
     html += '<div style="font-size:.72rem;color:' + col + ';margin-bottom:.1rem;">' + tipLabel + (e.vreme ? ' · ' + _kalEsc(e.vreme) : '') + '</div>';
     html += '<div style="font-weight:600;font-size:.82rem;color:#e2e8f0;">' + _kalEsc(e.naslov) + '</div>';
@@ -12032,7 +12032,7 @@ function predRocistaLoad() {
       return;
     }
     var _sLab = { zakazano:'Zakazano', odrzano:'Održano', odlozeno:'Odloženo', otkazano:'Otkazano' };
-    var _sClr = { zakazano:'rgba(74,168,255,.7)', odrzano:'rgba(52,211,153,.7)', odlozeno:'rgba(251,191,36,.7)', otkazano:'rgba(248,113,113,.7)' };
+    var _sClr = { zakazano:'rgba(255,255,255,0.55)', odrzano:'rgba(52,211,153,.7)', odlozeno:'rgba(251,191,36,.7)', otkazano:'rgba(248,113,113,.7)' };
     var h = '';
     lista.forEach(function(r) {
       var s = r.status || 'zakazano';
@@ -12309,7 +12309,7 @@ function analyticsRender(d) {
   var kpiEl = document.getElementById('analytics-kpi');
   if (kpiEl) {
     kpiEl.innerHTML = [
-      { label: 'Ukupno akcija', val: total, color: '#89c8ff' },
+      { label: 'Ukupno akcija', val: total, color: 'rgba(255,255,255,0.72)' },
       { label: 'Funkcija korišćeno', val: features.length, color: '#4ade80' },
       { label: 'Period (dana)', val: d.period_dana || 30, color: 'rgba(255,255,255,0.4)' },
     ].map(function(k){
@@ -12328,7 +12328,7 @@ function analyticsRender(d) {
       var pct = Math.round((a.count / maxVal) * 100);
       var dan = (a.datum || '').slice(5);
       return '<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;" title="'+a.datum+': '+a.count+' akcija">'
-        +'<div style="width:100%;background:rgba(74,168,255,0.5);border-radius:2px 2px 0 0;height:'+pct+'%;min-height:'+(a.count?2:0)+'px;"></div>'
+        +'<div style="width:100%;background:rgba(75,119,232,0.35);border-radius:2px 2px 0 0;height:'+pct+'%;min-height:'+(a.count?2:0)+'px;"></div>'
         +'<div style="font-size:0.42rem;color:rgba(255,255,255,0.25);writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap;">'+dan+'</div>'
         +'</div>';
     }).join('');
@@ -12348,7 +12348,7 @@ function analyticsRender(d) {
         +'<span style="color:rgba(255,255,255,0.4);flex-shrink:0;margin-left:4px;">'+f.count+'</span>'
         +'</div>'
         +'<div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;">'
-        +'<div style="height:100%;width:'+pct+'%;background:#4aa8ff;border-radius:2px;"></div>'
+        +'<div style="height:100%;width:'+pct+'%;background:#4B77E8;border-radius:2px;"></div>'
         +'</div></div>';
     }).join('') || '<div style="font-size:0.7rem;color:rgba(255,255,255,0.25);">Nema podataka</div>';
   }
@@ -12360,7 +12360,7 @@ function analyticsRender(d) {
       return '<div style="display:flex;align-items:center;gap:0.4rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
         +'<span style="font-size:0.6rem;color:rgba(255,255,255,0.3);flex-shrink:0;width:12px;">'+(i+1)+'.</span>'
         +'<span style="font-size:0.7rem;color:rgba(255,255,255,0.75);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(p.naziv||p.predmet_id)+'</span>'
-        +'<span style="font-size:0.65rem;color:#89c8ff;flex-shrink:0;">'+p.pristupa+'×</span>'
+        +'<span style="font-size:0.65rem;color:rgba(255,255,255,0.72);flex-shrink:0;">'+p.pristupa+'×</span>'
         +'</div>';
     }).join('') || '<div style="font-size:0.7rem;color:rgba(255,255,255,0.25);">Nema podataka</div>';
   }
@@ -12429,7 +12429,7 @@ async function lawListLoad() {
     var zakoni = d.zakoni || [];
     if (!zakoni.length) { if(result) result.innerHTML = '<div style="color:rgba(255,255,255,0.3);">Nema uploadovanih zakona.</div>'; return; }
     var statIco = {pending:'⏳', running:'🔄', done:'✅', failed:'❌', obrisan:'🗑'};
-    var statCol = {pending:'#c9a84c', running:'#89c8ff', done:'#4ade80', failed:'#f87171', obrisan:'rgba(255,255,255,0.25)'};
+    var statCol = {pending:'#c9a84c', running:'rgba(255,255,255,0.72)', done:'#4ade80', failed:'#f87171', obrisan:'rgba(255,255,255,0.25)'};
     if (result) result.innerHTML = zakoni.map(function(z){
       var ico = statIco[z.status] || '?';
       var col = statCol[z.status] || '#fff';
@@ -12642,9 +12642,9 @@ function gsSetFilter(btn) {
     b.style.color        = 'rgba(255,255,255,0.45)';
     b.classList.remove('active');
   });
-  btn.style.background  = 'rgba(74,168,255,0.12)';
-  btn.style.borderColor = 'rgba(74,168,255,0.3)';
-  btn.style.color       = '#89c8ff';
+  btn.style.background  = 'rgba(75,119,232,0.07)';
+  btn.style.borderColor = 'rgba(255,255,255,0.12)';
+  btn.style.color       = 'rgba(255,255,255,0.72)';
   btn.classList.add('active');
   _gsVrste = btn.dataset.vrste;
   var inp = document.getElementById('gs-input');
@@ -12673,7 +12673,7 @@ async function _gsFetch(q) {
 }
 
 var _GS_ICONS = {predmet:'', klijent:'', dokument:'', billing:'', hronologija:'', beleska:''};
-var _GS_COLORS = {predmet:'#89c8ff', klijent:'#4ade80', dokument:'#c9a84c', billing:'#a78bfa', hronologija:'#f97316', beleska:'#94a3b8'};
+var _GS_COLORS = {predmet:'rgba(255,255,255,0.72)', klijent:'#4ade80', dokument:'#c9a84c', billing:'#a78bfa', hronologija:'#f97316', beleska:'#94a3b8'};
 
 function gsRender(items) {
   var el = document.getElementById('gs-results');
@@ -12688,7 +12688,7 @@ function gsRender(items) {
   el.innerHTML = items.map(function(item, i){
     var ico   = _GS_ICONS[item.tip]  || '·';
     var col   = _GS_COLORS[item.tip] || '#94a3b8';
-    var focus = (i === _gsFocusIdx) ? 'background:rgba(74,168,255,0.09);' : '';
+    var focus = (i === _gsFocusIdx) ? 'background:rgba(255,255,255,0.05);' : '';
     return '<div class="gs-item" data-idx="'+i+'" onclick="gsSelect('+i+')" onmouseover="gsFocus('+i+')"'
       +' style="display:flex;align-items:center;gap:0.65rem;padding:0.55rem 1rem;cursor:pointer;'+focus+'">'
       +'<span style="font-size:1rem;flex-shrink:0;">'+ico+'</span>'
@@ -12704,7 +12704,7 @@ function gsRender(items) {
 function gsFocus(idx) {
   _gsFocusIdx = idx;
   document.querySelectorAll('.gs-item').forEach(function(el, i){
-    el.style.background = (i === idx) ? 'rgba(74,168,255,0.09)' : '';
+    el.style.background = (i === idx) ? 'rgba(255,255,255,0.05)' : '';
   });
 }
 
@@ -12775,11 +12775,11 @@ function _intakeRenderTpl() {
     listEl.innerHTML = '<div style="padding:1rem;text-align:center;font-size:0.8rem;color:rgba(255,255,255,0.35);">Nema šablona.</div>';
     return;
   }
-  var _TIP_COLOR = { gradjansko:'#89c8ff', radno:'#4ade80', porodicno:'#f97316', krivicno:'#f87171', privredno:'#a78bfa', upravno:'#94a3b8', izvrsenje:'#fbbf24' };
+  var _TIP_COLOR = { gradjansko:'rgba(255,255,255,0.72)', radno:'#4ade80', porodicno:'#f97316', krivicno:'#f87171', privredno:'#a78bfa', upravno:'#94a3b8', izvrsenje:'#fbbf24' };
   listEl.innerHTML = _intakeTplData.map(function(t){
     var col = _TIP_COLOR[t.tip] || '#94a3b8';
     var docs = (t.potrebni_dokumenti || []).slice(0,3).join(', ');
-    return '<div onclick="intakeTemplateIzaberi(\''+_htmlEsc(t.id)+'\',\''+_htmlEsc(t.naziv)+'\')" style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem 0.85rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;cursor:pointer;transition:border-color .15s;" onmouseover="this.style.borderColor=\'rgba(74,168,255,0.25)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.07)\'">'
+    return '<div onclick="intakeTemplateIzaberi(\''+_htmlEsc(t.id)+'\',\''+_htmlEsc(t.naziv)+'\')" style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem 0.85rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;cursor:pointer;transition:border-color .15s;" onmouseover="this.style.borderColor=\'rgba(255,255,255,0.10)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.07)\'">'
       +'<div style="flex:1;min-width:0;">'
       +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">'
       +'<span style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">'+_htmlEsc(t.naziv)+'</span>'
@@ -12787,7 +12787,7 @@ function _intakeRenderTpl() {
       +'</div>'
       +(docs ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(docs)+(t.potrebni_dokumenti.length>3?' ...':'')+'</div>' : '')
       +'</div>'
-      +'<span style="font-size:0.7rem;color:rgba(74,168,255,0.6);flex-shrink:0;align-self:center;">Izaberi →</span>'
+      +'<span style="font-size:0.7rem;color:rgba(255,255,255,0.45);flex-shrink:0;align-self:center;">Izaberi →</span>'
       +'</div>';
   }).join('');
 }
@@ -13186,7 +13186,7 @@ function _wl_admin_render(d) {
   var tbodyEl = document.getElementById('wl-admin-tbody');
 
   if (statsEl) {
-    var statColor = { pending: '#ffaa40', contacted: '#4aa8ff', active: '#4ade80' };
+    var statColor = { pending: '#ffaa40', contacted: '#4B77E8', active: '#4ade80' };
     statsEl.innerHTML = [
       { label: 'Ukupno', val: d.total || 0, color: 'rgba(255,255,255,0.5)' },
       { label: 'Na čekanju', val: d.pending || 0, color: '#ffaa40' },
@@ -13208,7 +13208,7 @@ function _wl_admin_render(d) {
   if (emptyEl) emptyEl.textContent = '';
   if (tableEl) tableEl.style.display = 'table';
 
-  var statusColors = { pending: '#ffaa40', contacted: '#4aa8ff', active: '#4ade80' };
+  var statusColors = { pending: '#ffaa40', contacted: '#4B77E8', active: '#4ade80' };
   var statusLabels = { pending: 'Na čekanju', contacted: 'Kontaktiran', active: 'Aktivan' };
 
   tbodyEl.innerHTML = _wlAdminData.map(function(p) {
@@ -13220,7 +13220,7 @@ function _wl_admin_render(d) {
     }).join('');
     return '<tr style="border-top:1px solid rgba(255,255,255,0.05);">'
       + '<td style="padding:6px 8px;color:rgba(255,255,255,0.85);">' + escHtml(p.ime || '') + '</td>'
-      + '<td style="padding:6px 8px;"><a href="mailto:' + escHtml(p.email) + '" style="color:#4aa8ff;">' + escHtml(p.email) + '</a></td>'
+      + '<td style="padding:6px 8px;"><a href="mailto:' + escHtml(p.email) + '" style="color:rgba(255,255,255,0.72);">' + escHtml(p.email) + '</a></td>'
       + '<td style="padding:6px 8px;color:rgba(255,255,255,0.55);">' + escHtml(p.firma || '—') + '</td>'
       + '<td style="padding:6px 8px;color:rgba(255,255,255,0.45);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(p.poruka || '') + '">' + escHtml((p.poruka || '—').substring(0, 40)) + '</td>'
       + '<td style="padding:6px 8px;color:rgba(255,255,255,0.35);">' + dt + '</td>'
@@ -13272,7 +13272,7 @@ function _piTrend(str) {
 function _piColor(pct) {
   if (pct === null || pct === undefined) return 'rgba(255,255,255,0.06)';
   if (pct >= 70) return 'rgba(74,222,128,0.55)';
-  if (pct >= 40) return 'rgba(74,168,255,0.45)';
+  if (pct >= 40) return 'rgba(75,119,232,0.30)';
   if (pct >= 20) return 'rgba(251,146,60,0.45)';
   return 'rgba(248,113,113,0.35)';
 }
@@ -13331,7 +13331,7 @@ function _piRenderOverview(ov, tl) {
   if (tl && tl.timeline && tl.timeline.length) {
     h += '<div class="pi-section">';
     h += '<div class="pi-section-hd"><span>Dnevno aktivni korisnici (DAU)</span><span style="color:rgba(255,255,255,0.2);font-size:0.5rem;">poslednji '+tl.period_dana+' dana · peak='+tl.peak_dau+' ('+escHtml(tl.peak_datum||'-')+')</span></div>';
-    h += '<div class="pi-chart-wrap">'+_piLineChart(tl.timeline,'dau','#4aa8ff',80)+'</div>';
+    h += '<div class="pi-chart-wrap">'+_piLineChart(tl.timeline,'dau','#4B77E8',80)+'</div>';
     h += '<div style="display:flex;justify-content:space-between;margin-top:0.3rem;">';
     h += '<span style="font-family:JetBrains Mono,monospace;font-size:0.46rem;color:rgba(255,255,255,0.22);">'+(tl.timeline[0]||{}).datum+'</span>';
     h += '<span style="font-family:JetBrains Mono,monospace;font-size:0.46rem;color:rgba(255,255,255,0.22);">'+(tl.timeline[tl.timeline.length-1]||{}).datum+'</span>';
@@ -13416,7 +13416,7 @@ function _piRenderRetention(ret) {
     h += '<div class="pi-ret-row">';
     h += '<div class="pi-ret-week">'+c.week.slice(5)+'</div>';
     // W0 = 100%
-    h += '<div class="pi-ret-cell" style="background:rgba(74,168,255,0.5);color:rgba(255,255,255,0.9)">'+c.users+'u</div>';
+    h += '<div class="pi-ret-cell" style="background:rgba(75,119,232,0.35);color:rgba(255,255,255,0.9)">'+c.users+'u</div>';
     ['W1','W2','W3','W4'].forEach(function(w){
       var v = c[w];
       var txt = v===null||v===undefined ? '–' : v+'%';
@@ -13460,7 +13460,7 @@ function _piRenderOneFunnel(f) {
   var h = '';
   var maxN = (f.koraci && f.koraci[0]) ? f.koraci[0].korisnici : 1;
   h += '<div style="margin-bottom:0.6rem;font-family:JetBrains Mono,monospace;font-size:0.56rem;color:rgba(255,255,255,0.3);">';
-  h += 'Ukupna konverzija: <b style="color:#4aa8ff">'+(f.ukupna_konverzija||0)+'%</b> · Korisnika: <b style="color:rgba(255,255,255,0.6)">'+(f.ukupno_korisnika||0)+'</b>';
+  h += 'Ukupna konverzija: <b style="color:rgba(255,255,255,0.72)">'+(f.ukupna_konverzija||0)+'%</b> · Korisnika: <b style="color:rgba(255,255,255,0.6)">'+(f.ukupno_korisnika||0)+'</b>';
   h += '</div>';
   h += '<div class="pi-funnel">';
   (f.koraci||[]).forEach(function(k){
@@ -13551,7 +13551,7 @@ function _piRenderPlans(pl) {
   var h = '';
 
   // MRR / ARR header row
-  h += '<div class="pi-section" style="background:linear-gradient(135deg,rgba(30,58,95,0.6),rgba(13,39,68,0.4));border:1px solid rgba(74,168,255,0.15);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;">';
+  h += '<div class="pi-section" style="background:linear-gradient(135deg,rgba(30,58,95,0.6),rgba(13,39,68,0.4));border:1px solid rgba(75,119,232,0.10);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;">';
   h += '<div style="font-size:0.6rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:0.7rem;">Revenue · Planovi · AI Usage</div>';
 
   // KPI row
@@ -13560,15 +13560,15 @@ function _piRenderPlans(pl) {
   var arr = (pl.arr_eur||0).toFixed(0);
   var paid = pl.placajuci || 0;
   var cvr = total > 0 ? (paid/total*100).toFixed(1) : '0';
-  h += '<div class="pi-kpi" style="background:rgba(74,168,255,0.06);"><div class="pi-kpi-val" style="color:#4aa8ff;">€'+mrr+'</div><div class="pi-kpi-lbl">MRR procena</div></div>';
-  h += '<div class="pi-kpi" style="background:rgba(74,168,255,0.06);"><div class="pi-kpi-val" style="color:#4ade80;">€'+arr+'</div><div class="pi-kpi-lbl">ARR procena</div></div>';
-  h += '<div class="pi-kpi" style="background:rgba(74,168,255,0.06);"><div class="pi-kpi-val">'+paid+'</div><div class="pi-kpi-lbl">Plaćajućih</div></div>';
-  h += '<div class="pi-kpi" style="background:rgba(74,168,255,0.06);"><div class="pi-kpi-val" style="color:'+(parseFloat(cvr)>=5?'#4ade80':'#fb923c')+';">'+cvr+'%</div><div class="pi-kpi-lbl">Konverzija</div></div>';
+  h += '<div class="pi-kpi" style="background:rgba(255,255,255,0.03);"><div class="pi-kpi-val" style="color:rgba(255,255,255,0.72);">€'+mrr+'</div><div class="pi-kpi-lbl">MRR procena</div></div>';
+  h += '<div class="pi-kpi" style="background:rgba(255,255,255,0.03);"><div class="pi-kpi-val" style="color:#4ade80;">€'+arr+'</div><div class="pi-kpi-lbl">ARR procena</div></div>';
+  h += '<div class="pi-kpi" style="background:rgba(255,255,255,0.03);"><div class="pi-kpi-val">'+paid+'</div><div class="pi-kpi-lbl">Plaćajućih</div></div>';
+  h += '<div class="pi-kpi" style="background:rgba(255,255,255,0.03);"><div class="pi-kpi-val" style="color:'+(parseFloat(cvr)>=5?'#4ade80':'#fb923c')+';">'+cvr+'%</div><div class="pi-kpi-lbl">Konverzija</div></div>';
   h += '</div>';
 
   // Plan distribucija bars
   h += '<div style="font-size:0.55rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:0.5rem;">Distribucija planova</div>';
-  var planColors = {free:'rgba(148,163,184,0.4)', advokat:'rgba(74,168,255,0.6)', pro:'rgba(201,168,76,0.7)', firma:'rgba(139,92,246,0.7)'};
+  var planColors = {free:'rgba(148,163,184,0.4)', advokat:'rgba(255,255,255,0.45)', pro:'rgba(201,168,76,0.7)', firma:'rgba(139,92,246,0.7)'};
   var planLabels = {free:'Besplatno', advokat:'Advokat €19', pro:'Pro €39', firma:'Firma €59'};
   ['free','advokat','pro','firma'].forEach(function(pt){
     var n = dist[pt] || 0;
@@ -13597,7 +13597,7 @@ function _piRenderPlans(pl) {
   h += '<div style="display:flex;gap:1.5rem;">';
   [['welcome','Welcome',obr.welcome_rate],['day1','Day 1',obr.day1_rate],['day3','Day 3',obr.day3_rate]].forEach(function(item){
     h += '<div style="text-align:center;">';
-    h += '<div style="font-size:0.85rem;font-weight:700;color:#4aa8ff;">'+(ob[item[0]]||0)+'</div>';
+    h += '<div style="font-size:0.85rem;font-weight:700;color:rgba(255,255,255,0.72);">'+(ob[item[0]]||0)+'</div>';
     h += '<div style="font-size:0.52rem;color:rgba(255,255,255,0.35);">'+item[1]+' · '+(item[2]||0)+'%</div>';
     h += '</div>';
   });
@@ -14269,7 +14269,7 @@ async function _cioLoad(hdr, forceRun) {
     section.innerHTML = _cioRender(data.izvestaj || {}, data);
     if (window.lucide) lucide.createIcons();
   } catch(e) {
-    section.innerHTML = '<div style="color:rgba(255,255,255,0.25);font-size:0.68rem;padding:0.5rem;">CIO nije dostupan. <span onclick="_cioLoad(null,true)" style="color:rgba(0,212,255,0.5);cursor:pointer;">Pokušaj ponovo</span></div>';
+    section.innerHTML = '<div style="color:rgba(255,255,255,0.25);font-size:0.68rem;padding:0.5rem;">CIO nije dostupan. <span onclick="_cioLoad(null,true)" style="color:rgba(75,119,232,0.35);cursor:pointer;">Pokušaj ponovo</span></div>';
   }
 }
 
@@ -14278,17 +14278,17 @@ function _cioRender(iz, meta) {
   var pg = iz.portfolio_zdravlje || {};
   var izKesa = meta && meta.iz_kesa;
 
-  var html = '<div style="background:linear-gradient(135deg,rgba(0,212,255,0.04),rgba(124,58,237,0.04));border:1px solid rgba(0,212,255,0.14);border-radius:10px;overflow:hidden;">';
+  var html = '<div style="background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(124,58,237,0.04));border:1px solid rgba(75,119,232,0.09);border-radius:10px;overflow:hidden;">';
 
   // Header
-  html += '<div style="padding:0.65rem 1rem 0.5rem;border-bottom:1px solid rgba(0,212,255,0.08);display:flex;align-items:center;justify-content:space-between;">';
+  html += '<div style="padding:0.65rem 1rem 0.5rem;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:space-between;">';
   html += '<div style="display:flex;align-items:center;gap:0.5rem;">';
-  html += '<div style="width:6px;height:6px;border-radius:50%;background:#00d4ff;"></div>';
-  html += '<span style="color:rgba(0,212,255,0.8);font-size:0.65rem;font-weight:700;letter-spacing:0.1em;">CHIEF INTELLIGENCE OFFICER</span>';
+  html += '<div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.72);"></div>';
+  html += '<span style="color:rgba(255,255,255,0.65);font-size:0.65rem;font-weight:700;letter-spacing:0.1em;">CHIEF INTELLIGENCE OFFICER</span>';
   if (pg.ukupno_aktivnih) html += '<span style="color:rgba(255,255,255,0.25);font-size:0.6rem;">· '+pg.ukupno_aktivnih+' predmeta</span>';
   if (izKesa) html += '<span style="color:rgba(255,255,255,0.18);font-size:0.58rem;"> · keširano</span>';
   html += '</div>';
-  html += '<button onclick="_cioLoad(null,true)" style="font-size:0.6rem;color:rgba(0,212,255,0.4);background:none;border:1px solid rgba(0,212,255,0.15);border-radius:4px;padding:2px 7px;cursor:pointer;font-family:inherit;">Osvezi</button>';
+  html += '<button onclick="_cioLoad(null,true)" style="font-size:0.6rem;color:rgba(75,119,232,0.28);background:none;border:1px solid rgba(75,119,232,0.10);border-radius:4px;padding:2px 7px;cursor:pointer;font-family:inherit;">Osvezi</button>';
   html += '</div>';
 
   // Portfolio health bar
@@ -14415,7 +14415,7 @@ function _caseDnaRender(dna, predmetId) {
   var kc = komp === 'visoka' ? '#4ade80' : komp === 'niska' ? '#f87171' : '#fbbf24';
   var kompBadge = komp ? '<span style="font-size:0.58rem;color:'+kc+';background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;margin-left:0.4rem;">'+komp+'</span>' : '';
   if (gi.pravni_identitet) {
-    html += '<div style="font-weight:700;color:#00d4ff;margin-bottom:0.3rem;font-size:0.74rem;">'+escHtml(gi.pravni_identitet)+verzija+kompBadge+'</div>';
+    html += '<div style="font-weight:700;color:rgba(255,255,255,0.72);margin-bottom:0.3rem;font-size:0.74rem;">'+escHtml(gi.pravni_identitet)+verzija+kompBadge+'</div>';
   }
 
   // ── Snaga predmeta — progress bar sa historijom ───────────────────────────
@@ -14426,7 +14426,7 @@ function _caseDnaRender(dna, predmetId) {
     html += '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:3px;">';
     html += '<span style="color:rgba(255,255,255,0.45);font-size:0.62rem;letter-spacing:0.06em;">SNAGA PREDMETA</span>';
     html += '<span style="color:'+barColor+';font-weight:800;font-size:0.85rem;">'+procent+'%</span>';
-    html += '<button onclick="_genomHistoryOpen(\''+escHtml(predmetId||'')+'\')" style="margin-left:auto;font-size:0.58rem;color:rgba(0,212,255,0.5);background:none;border:none;cursor:pointer;padding:0;font-family:inherit;">istorija</button>';
+    html += '<button onclick="_genomHistoryOpen(\''+escHtml(predmetId||'')+'\')" style="margin-left:auto;font-size:0.58rem;color:rgba(75,119,232,0.35);background:none;border:none;cursor:pointer;padding:0;font-family:inherit;">istorija</button>';
     html += '</div>';
     html += '<div style="height:5px;background:rgba(255,255,255,0.08);border-radius:3px;">';
     html += '<div style="height:5px;width:'+Math.min(procent,100)+'%;background:'+barColor+';border-radius:3px;transition:width .6s ease;"></div>';
@@ -14490,7 +14490,7 @@ function _caseDnaRender(dna, predmetId) {
       var zvStr = '★'.repeat(zvez) + '☆'.repeat(5-zvez);
       var rnStr = d.redni_broj ? 'DOK-'+String(d.redni_broj).padStart(2,'0') : '';
       html += '<div style="display:flex;gap:0.35rem;align-items:flex-start;margin-bottom:2px;">';
-      html += '<span style="color:rgba(0,212,255,0.7);font-family:monospace;font-size:0.63rem;min-width:3.2rem;">'+escHtml(rnStr)+'</span>';
+      html += '<span style="color:rgba(255,255,255,0.55);font-family:monospace;font-size:0.63rem;min-width:3.2rem;">'+escHtml(rnStr)+'</span>';
       html += '<span style="color:'+sc_c+';font-size:0.63rem;min-width:2.6rem;">'+zvStr+'</span>';
       html += '<span style="color:'+sc_c+';font-weight:700;min-width:2rem;font-size:0.63rem;">'+sc+'</span>';
       html += '<span style="color:rgba(255,255,255,0.55);flex:1;font-size:0.63rem;">'+escHtml((d.naziv||'').slice(0,30));
@@ -14518,8 +14518,8 @@ function _caseDnaRender(dna, predmetId) {
   var strat = dna.strategija || {};
   var hasWarPlan = strat.primarni_cilj || strat.rezervni_plan || (strat.scenariji||[]).length;
   if (hasWarPlan) {
-    html += '<div style="margin-bottom:0.5rem;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.12);border-radius:5px;padding:0.35rem 0.5rem;">';
-    html += '<div style="color:rgba(0,212,255,0.6);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.25rem;">PLAN POSTUPANJA</div>';
+    html += '<div style="margin-bottom:0.5rem;background:rgba(255,255,255,0.02);border:1px solid rgba(75,119,232,0.07);border-radius:5px;padding:0.35rem 0.5rem;">';
+    html += '<div style="color:rgba(255,255,255,0.45);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.25rem;">PLAN POSTUPANJA</div>';
     if (strat.primarni_cilj) {
       html += '<div style="margin-bottom:2px;"><span style="color:rgba(255,255,255,0.35);font-size:0.62rem;">CILJ </span><span style="color:#a5f3fc;font-weight:600;">'+escHtml(strat.primarni_cilj)+'</span></div>';
     }
@@ -14536,7 +14536,7 @@ function _caseDnaRender(dna, predmetId) {
     html += '</div>';
   } else if (dna.strategija_osnova) {
     // Fallback na stari format
-    html += '<div style="margin-bottom:0.35rem;"><span style="color:rgba(0,212,255,0.5);font-size:0.62rem;">STRATEGIJA </span><span style="color:#a5f3fc;">'+escHtml(dna.strategija_osnova)+'</span></div>';
+    html += '<div style="margin-bottom:0.35rem;"><span style="color:rgba(75,119,232,0.35);font-size:0.62rem;">STRATEGIJA </span><span style="color:#a5f3fc;">'+escHtml(dna.strategija_osnova)+'</span></div>';
   }
 
   // ── Šta nedostaje ─────────────────────────────────────────────────────────
@@ -14557,7 +14557,7 @@ function _caseDnaRender(dna, predmetId) {
 
   // ── Osnov odgovornosti + finansije ────────────────────────────────────────
   if (gi.osnov_odgovornosti) {
-    html += '<div style="margin-bottom:0.25rem;color:rgba(255,255,255,0.55);"><span style="color:rgba(0,212,255,0.5);font-size:0.62rem;">OSNOV </span>'+escHtml(gi.osnov_odgovornosti)+'</div>';
+    html += '<div style="margin-bottom:0.25rem;color:rgba(255,255,255,0.55);"><span style="color:rgba(75,119,232,0.35);font-size:0.62rem;">OSNOV </span>'+escHtml(gi.osnov_odgovornosti)+'</div>';
   }
   var fin = dna.finansije || {};
   if (fin.tuzeni_iznos || fin.ukupna_ekspozicija) {
@@ -14572,7 +14572,7 @@ function _caseDnaRender(dna, predmetId) {
   if ((dna.stranke||[]).length) {
     html += '<div style="margin:0.3rem 0 0.1rem;color:rgba(255,255,255,0.3);font-size:0.6rem;letter-spacing:0.06em;">STRANKE</div>';
     dna.stranke.slice(0,4).forEach(function(s){
-      html += '<div style="margin-bottom:1px;">• <span style="color:rgba(0,212,255,0.65);">'+escHtml(s.uloga||'')+'</span>: '+escHtml(s.ime||'')+'</div>';
+      html += '<div style="margin-bottom:1px;">• <span style="color:rgba(255,255,255,0.50);">'+escHtml(s.uloga||'')+'</span>: '+escHtml(s.ime||'')+'</div>';
     });
   }
 
@@ -14620,8 +14620,8 @@ async function _genomHistoryOpen(predmetId) {
     var hist = data.history || [];
     if (!hist.length) { showToast('Nema sačuvanih verzija Genome-a', 'info'); return; }
 
-    var hHtml = '<div class="genome-history-panel" style="margin-top:0.5rem;border-top:1px solid rgba(0,212,255,0.12);padding-top:0.4rem;">';
-    hHtml += '<div style="color:rgba(0,212,255,0.45);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.25rem;">GENOME ISTORIJA ('+hist.length+' verzija)</div>';
+    var hHtml = '<div class="genome-history-panel" style="margin-top:0.5rem;border-top:1px solid rgba(75,119,232,0.07);padding-top:0.4rem;">';
+    hHtml += '<div style="color:rgba(75,119,232,0.30);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.25rem;">GENOME ISTORIJA ('+hist.length+' verzija)</div>';
     hist.forEach(function(h){
       var snaga = h.snaga_procent != null ? h.snaga_procent+'%' : '—';
       var sc = h.snaga_procent;
@@ -14652,7 +14652,7 @@ function _genomHeatmapDrill(predmetId, dimension) {
 
   if (drillEl.innerHTML) { drillEl.innerHTML = ''; return; }  // toggle
 
-  var content = '<div style="margin:3px 0 6px;padding:6px 8px;background:rgba(0,0,0,0.28);border-radius:5px;border-left:2px solid rgba(0,212,255,0.2);">';
+  var content = '<div style="margin:3px 0 6px;padding:6px 8px;background:rgba(0,0,0,0.28);border-radius:5px;border-left:2px solid rgba(255,255,255,0.09);">';
 
   if (dimension === 'dokazi') {
     var slabi = (dna.dokazi_rang || []).filter(function(d){ return (d.snaga_score||0) < 70; });
@@ -14661,7 +14661,7 @@ function _genomHeatmapDrill(predmetId, dimension) {
       content += '<div style="color:rgba(255,255,255,0.3);font-size:0.59rem;margin-bottom:2px;">SLABI DOKAZI:</div>';
       slabi.slice(0,4).forEach(function(d){
         var rnStr = d.redni_broj ? 'DOK-'+String(d.redni_broj).padStart(2,'0') : '';
-        content += '<div style="font-size:0.64rem;margin-bottom:1px;">• <span style="color:rgba(0,212,255,0.65);">'+escHtml(rnStr)+'</span> '+escHtml((d.naziv||'').slice(0,30))+' <span style="color:#f87171;">('+d.snaga_score+')</span></div>';
+        content += '<div style="font-size:0.64rem;margin-bottom:1px;">• <span style="color:rgba(255,255,255,0.50);">'+escHtml(rnStr)+'</span> '+escHtml((d.naziv||'').slice(0,30))+' <span style="color:#f87171;">('+d.snaga_score+')</span></div>';
       });
     }
     if (ned.length) {
@@ -14746,7 +14746,7 @@ function _genomHeatmapDrill(predmetId, dimension) {
         content += '<div style="font-size:0.65rem;color:#a5f3fc;margin-bottom:1px;">• '+escHtml(z)+'</div>';
       });
     }
-    content += '<div style="margin-top:5px;font-size:0.63rem;color:rgba(0,212,255,0.5);border-top:1px solid rgba(0,212,255,0.1);padding-top:4px;">→ Pretraži sudsku praksu u Baza znanja za više referenci</div>';
+    content += '<div style="margin-top:5px;font-size:0.63rem;color:rgba(75,119,232,0.35);border-top:1px solid rgba(255,255,255,0.05);padding-top:4px;">→ Pretraži sudsku praksu u Baza znanja za više referenci</div>';
   }
 
   content += '</div>';
@@ -14980,9 +14980,9 @@ function _itlRender(container, events, skipFilters) {
     'belezka': 'Beleške'
   };
   var _TIP_BOJA = {
-    'predmet_otvoren': '#4aa8ff', 'predmet_zatvoren': '#7de0a0',
+    'predmet_otvoren': '#4B77E8', 'predmet_zatvoren': '#7de0a0',
     'dokument': '#c9a84c', 'rociste': '#a78bfa',
-    'hronologija': '#4aa8ff', 'genome': '#7de0a0', 'belezka': '#94a3b8'
+    'hronologija': '#4B77E8', 'genome': '#7de0a0', 'belezka': '#94a3b8'
   };
 
   var html = '';
@@ -15033,7 +15033,7 @@ function _itlRender(container, events, skipFilters) {
     html += '<div class="itl-month">' + escHtml(label) + '</div>';
 
     grouped[ym].forEach(function(ev) {
-      var boja = ev.boja || _TIP_BOJA[ev.tip] || '#4aa8ff';
+      var boja = ev.boja || _TIP_BOJA[ev.tip] || '#4B77E8';
       var badge = ev.badge ? _itlBadgeHtml(ev) : '';
       var detalj = ev.detalj ? '<div class="itl-detalj">' + escHtml(ev.detalj) + '</div>' : '';
       var scoreHtml = '';
@@ -15048,8 +15048,8 @@ function _itlRender(container, events, skipFilters) {
       }
       var rocisteBadge = '';
       if (ev.tip === 'rociste' && ev.status) {
-        var rColors = { odrzano: '#7de0a0', odlozeno: '#ffaa40', zakazano: '#89c8ff' };
-        var rBg = { odrzano: 'rgba(125,224,160,.12)', odlozeno: 'rgba(255,170,64,.1)', zakazano: 'rgba(74,168,255,.1)' };
+        var rColors = { odrzano: '#7de0a0', odlozeno: '#ffaa40', zakazano: 'rgba(255,255,255,0.72)' };
+        var rBg = { odrzano: 'rgba(125,224,160,.12)', odlozeno: 'rgba(255,170,64,.1)', zakazano: 'rgba(255,255,255,0.05)' };
         rocisteBadge = '<span style="font-size:.58rem;margin-left:.4rem;padding:.05rem .3rem;border-radius:3px;background:'
           + (rBg[ev.status] || 'rgba(255,255,255,.06)') + ';color:'
           + (rColors[ev.status] || '#aaa') + ';">' + escHtml(ev.status) + '</span>';
@@ -15101,8 +15101,8 @@ function evidence_load() {
   }).then(function(r){ return r.json(); }).then(function(d) {
     // Stat
     statDiv.innerHTML = ''
-      + '<div style="background:rgba(74,168,255,.07);border:1px solid rgba(74,168,255,.15);border-radius:7px;padding:.45rem .6rem;text-align:center;">'
-      + '<div style="font-size:1.1rem;font-weight:700;color:#89c8ff;">' + (d.ukupno_dok||0) + '</div>'
+      + '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(75,119,232,0.10);border-radius:7px;padding:.45rem .6rem;text-align:center;">'
+      + '<div style="font-size:1.1rem;font-weight:700;color:rgba(255,255,255,0.72);">' + (d.ukupno_dok||0) + '</div>'
       + '<div style="font-size:.62rem;color:rgba(255,255,255,.35);">Dokumenata</div></div>'
       + '<div style="background:rgba(74,255,120,.06);border:1px solid rgba(74,255,120,.15);border-radius:7px;padding:.45rem .6rem;text-align:center;">'
       + '<div style="font-size:1.1rem;font-weight:700;color:#7de0a0;">' + (d.klasifikovano||0) + '</div>'
@@ -15141,7 +15141,7 @@ function evidence_load() {
           + '<div class="dokaz-snaga-' + (dz.snaga||'srednja') + '"></div>'
           + '<div style="flex:1;">'
           + '<div style="font-size:.78rem;color:rgba(255,255,255,.8);">' + escHtml(dz.tvrdnja||'') + '</div>'
-          + (dz.pravni_element ? '<div style="font-size:.65rem;color:rgba(74,168,255,.6);margin-top:.1rem;">' + escHtml(dz.pravni_element) + '</div>' : '')
+          + (dz.pravni_element ? '<div style="font-size:.65rem;color:rgba(255,255,255,0.45);margin-top:.1rem;">' + escHtml(dz.pravni_element) + '</div>' : '')
           + '</div>'
           + '<button onclick="evidence_deleteDokaz(\'' + dz.id + '\')" style="font-size:.62rem;color:rgba(255,255,255,.2);background:transparent;border:none;cursor:pointer;padding:.1rem .3rem;">✕</button>'
           + '</div>';
@@ -15295,7 +15295,7 @@ function ccc_load() {
   if (!activePredmetId || !currentSession) return;
   var container = document.getElementById('ccc-container');
   if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(74,168,255,.5);">⏳ Učitavam komandni centar...</div>';
+  container.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(75,119,232,0.35);">⏳ Učitavam komandni centar...</div>';
 
   fetch('/api/ccc/predmeti/' + activePredmetId, {
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
@@ -15380,12 +15380,12 @@ function _ccc_render(el, d) {
   el.innerHTML = [
     // ── HEADER ─────────────────────────────────────────────────────────────
     '<div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.75rem;padding:.75rem 1rem;',
-      'background:linear-gradient(135deg,rgba(74,168,255,.07),rgba(167,139,250,.04));',
-      'border:1px solid rgba(74,168,255,.18);border-radius:12px;">',
+      'background:linear-gradient(135deg,rgba(255,255,255,0.04),rgba(167,139,250,.04));',
+      'border:1px solid rgba(75,119,232,0.12);border-radius:12px;">',
       '<div style="flex:1;min-width:0;">',
         '<div style="font-size:1rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_htmlEsc(p.naziv||'Predmet')+'</div>',
         '<div style="display:flex;gap:.6rem;margin-top:.25rem;flex-wrap:wrap;">',
-          tipStr ? '<span style="font-size:.7rem;padding:.1rem .5rem;background:rgba(74,168,255,.12);border-radius:10px;color:#89c8ff;">'+_htmlEsc(tipStr)+'</span>' : '',
+          tipStr ? '<span style="font-size:.7rem;padding:.1rem .5rem;background:rgba(75,119,232,0.07);border-radius:10px;color:rgba(255,255,255,0.72);">'+_htmlEsc(tipStr)+'</span>' : '',
           p.status ? '<span style="font-size:.7rem;padding:.1rem .5rem;background:rgba(255,255,255,.06);border-radius:10px;color:rgba(255,255,255,.55);">'+_htmlEsc(p.status)+'</span>' : '',
           klijentiStr ? '<span style="font-size:.7rem;color:rgba(255,255,255,.4);">'+_htmlEsc(klijentiStr.slice(0,30))+'</span>' : '',
         '</div>',
@@ -15421,7 +15421,7 @@ function _ccc_render(el, d) {
       '<div class="ccc-block">',
         '<div class="ccc-block-hd">Finansije (RSD)</div>',
         '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-bottom:.5rem;">',
-          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#89c8ff;font-size:1rem;">'+(Math.round((bil.uneseno||0)/1000)||0)+'k</div><div class="ccc-metric-lbl">Uneseno</div></div>',
+          '<div class="ccc-metric"><div class="ccc-metric-val" style="color:rgba(255,255,255,0.72);font-size:1rem;">'+(Math.round((bil.uneseno||0)/1000)||0)+'k</div><div class="ccc-metric-lbl">Uneseno</div></div>',
           '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#fbbf24;font-size:1rem;">'+(Math.round((bil.nenaplaceno||0)/1000)||0)+'k</div><div class="ccc-metric-lbl">Neplaćeno</div></div>',
           '<div class="ccc-metric"><div class="ccc-metric-val" style="color:#4ade80;font-size:1rem;">'+(Math.round((bil.naplaceno||0)/1000)||0)+'k</div><div class="ccc-metric-lbl">Naplaćeno</div></div>',
         '</div>',
@@ -15487,7 +15487,7 @@ function outcome_intel_panel_show() {
     }
     if (stats && d.ukupno_predmeta) {
       var shtml = '';
-      shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:6px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:#89c8ff;">'+d.ukupno_predmeta+'</div><div style="color:rgba(255,255,255,.4);">Ukupno predmeta</div></div>';
+      shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:6px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:rgba(255,255,255,0.72);">'+d.ukupno_predmeta+'</div><div style="color:rgba(255,255,255,.4);">Ukupno predmeta</div></div>';
       shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:6px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:#4ade80;">'+d.zatvoreni+'</div><div style="color:rgba(255,255,255,.4);">Zatvorenih</div></div>';
       if (d.avg_vrednost) {
         shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:6px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:#f0c040;">'+Math.round(d.avg_vrednost/1000)+'k</div><div style="color:rgba(255,255,255,.4);">Prosečna vrednost</div></div>';
@@ -15578,7 +15578,7 @@ function _mdToHtml(text) {
       var lvl = hm[1].length;
       var sz = lvl===1?'.92rem':lvl===2?'.85rem':'.8rem';
       var mt = lvl===1?'1rem':'.7rem';
-      out.push('<div style="font-size:'+sz+';font-weight:700;color:#89c8ff;margin-top:'+mt+';margin-bottom:.25rem;">' + _htmlEscMd(hm[2]) + '</div>');
+      out.push('<div style="font-size:'+sz+';font-weight:700;color:rgba(255,255,255,0.72);margin-top:'+mt+';margin-bottom:.25rem;">' + _htmlEscMd(hm[2]) + '</div>');
       return;
     }
     if (/^[-*]\s+/.test(line)) {
@@ -15746,8 +15746,8 @@ async function agent_run_parallel() {
           + '<div style="font-size:.73rem;font-weight:700;color:#f87171;margin-bottom:.3rem;">' + _htmlEsc(res.naziv || res.agent_id) + ' — greška</div>'
           + '<div style="font-size:.75rem;color:rgba(255,255,255,.45);">' + _htmlEsc(res.greska) + '</div></div>';
       } else {
-        html += '<div style="margin-bottom:.8rem;padding:.6rem .8rem;background:rgba(255,255,255,.025);border:1px solid rgba(74,168,255,.15);border-radius:8px;">'
-          + '<div style="font-size:.73rem;font-weight:700;color:#89c8ff;margin-bottom:.4rem;">' + _htmlEsc(res.naziv || res.agent_id) + '</div>'
+        html += '<div style="margin-bottom:.8rem;padding:.6rem .8rem;background:rgba(255,255,255,.025);border:1px solid rgba(75,119,232,0.10);border-radius:8px;">'
+          + '<div style="font-size:.73rem;font-weight:700;color:rgba(255,255,255,0.72);margin-bottom:.4rem;">' + _htmlEsc(res.naziv || res.agent_id) + '</div>'
           + '<div style="font-size:.8rem;line-height:1.6;color:#c7d7f0;">' + _mdToHtml(res.odgovor || '—') + '</div></div>';
       }
     });
@@ -15784,7 +15784,7 @@ function kg_load() {
   }
   _kg_loaded = true;
 
-  container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;"><div class="kg-loading-dots"><span></span><span></span><span></span></div><div style="font-size:.78rem;color:rgba(74,168,255,.6);">Gradim mrežu odnosa predmeta...</div></div>';
+  container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;"><div class="kg-loading-dots"><span></span><span></span><span></span></div><div style="font-size:.78rem;color:rgba(255,255,255,0.45);">Gradim mrežu odnosa predmeta...</div></div>';
 
   fetch('/api/knowledge-graph/predmeti/' + activePredmetId, {
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
@@ -16100,32 +16100,32 @@ var _onboardSteps = [
   {
     icon: '',
     title: 'Korak 1: Dodajte klijenta',
-    body: 'Pre nego što kreirate predmet, dodajte klijenta. Kliknite <strong style="color:#89c8ff;">Klijenti</strong> u levom meniju → dugme <strong style="color:#89c8ff;">+ Novi klijent</strong>. Unesite ime, telefon i email. To je sve.'
+    body: 'Pre nego što kreirate predmet, dodajte klijenta. Kliknite <strong style="color:rgba(255,255,255,0.72);">Klijenti</strong> u levom meniju → dugme <strong style="color:rgba(255,255,255,0.72);">+ Novi klijent</strong>. Unesite ime, telefon i email. To je sve.'
   },
   {
     icon: '',
     title: 'Korak 2: Otvorite predmet',
-    body: 'Kliknite <strong style="color:#89c8ff;">+ Novi predmet</strong> (gore desno ili u Predmeti tabu). Wizard će vas voditi korak po korak — naziv predmeta, klijent, oblast prava. Traje 2 minuta.'
+    body: 'Kliknite <strong style="color:rgba(255,255,255,0.72);">+ Novi predmet</strong> (gore desno ili u Predmeti tabu). Wizard će vas voditi korak po korak — naziv predmeta, klijent, oblast prava. Traje 2 minuta.'
   },
   {
     icon: '',
     title: 'Korak 3: Otpremite dokumente',
-    body: 'Unutar predmeta kliknite tab <strong style="color:#89c8ff;">Dokumenti</strong>. Prevucite PDF ili DOCX fajl u zonu za upload. Sistem će automatski analizirati dokument i izvući ključne informacije.'
+    body: 'Unutar predmeta kliknite tab <strong style="color:rgba(255,255,255,0.72);">Dokumenti</strong>. Prevucite PDF ili DOCX fajl u zonu za upload. Sistem će automatski analizirati dokument i izvući ključne informacije.'
   },
   {
     icon: '',
     title: 'Korak 4: Postavljanje pitanja',
-    body: 'Kliknite tab <strong style="color:#89c8ff;">Analiza</strong> unutar predmeta. Sistem će analizirati vaš predmet i predložiti strategiju. Ili koristite <strong style="color:#89c8ff;">Pravni alati</strong> u levom meniju za pretragu zakona i sudske prakse.'
+    body: 'Kliknite tab <strong style="color:rgba(255,255,255,0.72);">Analiza</strong> unutar predmeta. Sistem će analizirati vaš predmet i predložiti strategiju. Ili koristite <strong style="color:rgba(255,255,255,0.72);">Pravni alati</strong> u levom meniju za pretragu zakona i sudske prakse.'
   },
   {
     icon: '',
     title: 'Korak 5: Pratite rokove i naplatite',
-    body: 'Tab <strong style="color:#89c8ff;">Rokovi</strong> — unesite ročišta i ZPP rokovi se računaju automatski. Tab <strong style="color:#89c8ff;">Naplata</strong> — uključite tajmer dok radite, dodajte stavke, kliknite Generiši fakturu.'
+    body: 'Tab <strong style="color:rgba(255,255,255,0.72);">Rokovi</strong> — unesite ročišta i ZPP rokovi se računaju automatski. Tab <strong style="color:rgba(255,255,255,0.72);">Naplata</strong> — uključite tajmer dok radite, dodajte stavke, kliknite Generiši fakturu.'
   },
   {
     icon: '',
     title: 'Saveti dok radite',
-    body: 'Svuda vidite obojene preporuke: 🔴 hitno, 🟡 pažnja, 🔵 informacija. Dugme <strong style="color:#89c8ff;">Više ▾</strong> u tabovima predmeta otkriva još alata. Ako nešto nije jasno — kliknite ? u donjem levom uglu.'
+    body: 'Svuda vidite obojene preporuke: 🔴 hitno, 🟡 pažnja, 🔵 informacija. Dugme <strong style="color:rgba(255,255,255,0.72);">Više ▾</strong> u tabovima predmeta otkriva još alata. Ako nešto nije jasno — kliknite ? u donjem levom uglu.'
   },
 ];
 function onboard_show() {
@@ -16141,7 +16141,7 @@ function onboard_render() {
   var dots = document.getElementById('onboard-dots');
   if (dots) dots.innerHTML = _onboardSteps.map(function(_, i) {
     return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
-      (i === _onboardStep ? '#4aa8ff' : 'rgba(255,255,255,.2)') + ';margin:0 3px;"></span>';
+      (i === _onboardStep ? '#4B77E8' : 'rgba(255,255,255,.2)') + ';margin:0 3px;"></span>';
   }).join('');
   var prev = document.getElementById('onboard-prev');
   var next = document.getElementById('onboard-next');
@@ -16466,7 +16466,7 @@ function pred_renderProcena(tekst) {
         var sc = s3 ? (/^Potv/i.test(s3) ? '#4ade80' : (/^Nepotv/i.test(s3) ? '#f87171' : '#facc15')) : '';
         var statusHtml = s3 ? '<span style="font-size:0.67rem;color:'+sc+';margin-left:0.25rem;padding:0.07rem 0.32rem;background:'+sc+'1a;border-radius:3px;white-space:nowrap;">'+escHtml(s3)+'</span>' : '';
         var s4 = m[4] ? m[4].trim() : '';
-        var ic = s4 ? (/Dostavljen dokument/i.test(s4) ? '#4ade80' : (/Dokument nije/i.test(s4) ? '#f87171' : (/Izjava/i.test(s4) ? '#89c8ff' : '#a78bfa'))) : '';
+        var ic = s4 ? (/Dostavljen dokument/i.test(s4) ? '#4ade80' : (/Dokument nije/i.test(s4) ? '#f87171' : (/Izjava/i.test(s4) ? 'rgba(255,255,255,0.72)' : '#a78bfa'))) : '';
         var izvorHtml = s4 ? '<span style="font-size:0.66rem;color:'+ic+';margin-left:0.25rem;padding:0.07rem 0.32rem;background:'+ic+'18;border-radius:3px;white-space:nowrap;">'+escHtml(s4)+'</span>' : '';
         return '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">'
           +'<span style="flex:1;min-width:8rem;font-size:0.78rem;color:rgba(255,255,255,0.78);">'+escHtml(m[1])+'</span>'
@@ -16573,7 +16573,7 @@ function pred_renderProcena(tekst) {
               +'<span style="color:'+sc+';font-weight:700;">'+sim+'%</span>';
           }
           if (/^Pravni stav:/i.test(ln)) {
-            return '<div style="color:#89c8ff;font-style:italic;font-size:0.74rem;margin:0.15rem 0;">'+escHtml(ln)+'</div>';
+            return '<div style="color:rgba(255,255,255,0.72);font-style:italic;font-size:0.74rem;margin:0.15rem 0;">'+escHtml(ln)+'</div>';
           }
           if (/^Zašto je relevantna:/i.test(ln)) {
             return '<div style="color:rgba(255,255,255,0.5);font-size:0.72rem;">'+escHtml(ln)+'</div>';
@@ -16649,7 +16649,7 @@ function pred_renderProcena(tekst) {
       var sHtml = lines.map(function(ln) {
         var m = ln.match(/^(\d+)\.\s+(.+)/);
         if (m) return '<div style="display:flex;gap:0.6rem;padding:0.22rem 0;align-items:baseline;border-bottom:1px solid rgba(255,255,255,0.04);">'
-          +'<span style="font-size:0.7rem;font-weight:700;color:#4aa8ff;min-width:1.3rem;flex-shrink:0;">'+escHtml(m[1])+'.</span>'
+          +'<span style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.72);min-width:1.3rem;flex-shrink:0;">'+escHtml(m[1])+'.</span>'
           +'<span style="font-size:0.78rem;color:rgba(255,255,255,0.82);">'+escHtml(m[2])+'</span>'
           +'</div>';
         return ln.trim() ? '<div style="font-size:0.74rem;color:rgba(255,255,255,0.4);">'+escHtml(ln)+'</div>' : '';
@@ -16783,7 +16783,7 @@ function intakeOtvori() {
   document.getElementById('intake-ai-result').style.display = 'none';
   var _ail = document.getElementById('intake-ai-loading');
   _ail.style.display = 'block';
-  _ail.innerHTML = '<div style="margin-bottom:8px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div><div>Analiziramo opis problema...</div>';
+  _ail.innerHTML = '<div style="margin-bottom:8px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div><div>Analiziramo opis problema...</div>';
   document.getElementById('intake-conflict-warning').style.display = 'none';
   document.getElementById('intake-kreiraj-err').style.display = 'none';
   _intakeBillingReset();
@@ -16813,13 +16813,13 @@ async function intakeHistoryLoad() {
     if (spin) spin.style.display = 'none';
 
     if (!items.length) {
-      list.innerHTML = '<div style="padding:2rem 0;text-align:center;">'+'<div style="font-size:.82rem;color:rgba(255,255,255,.38);margin-bottom:.9rem;">Nemate aktivnih predmeta.</div>'+'<button onclick="intakeOtvori()" style="padding:.55rem 1.3rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.3);border-radius:8px;color:#89c8ff;font-size:.78rem;cursor:pointer;font-family:inherit;">+ Kreiraj prvi predmet</button>'+'</div>';
+      list.innerHTML = '<div style="padding:2rem 0;text-align:center;">'+'<div style="font-size:.82rem;color:rgba(255,255,255,.38);margin-bottom:.9rem;">Nemate aktivnih predmeta.</div>'+'<button onclick="intakeOtvori()" style="padding:.55rem 1.3rem;background:rgba(75,119,232,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.72);font-size:.78rem;cursor:pointer;font-family:inherit;">+ Kreiraj prvi predmet</button>'+'</div>';
       return;
     }
 
     var html = '';
     items.forEach(function(it) {
-      var statusColor = it.status === 'aktivan' ? 'rgba(74,168,255,0.7)' : 'rgba(255,255,255,0.3)';
+      var statusColor = it.status === 'aktivan' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.3)';
       var datum = it.datum || '';
       var naziv = escHtml(it.naziv || '—');
       var klijent = escHtml(it.klijent || '—');
@@ -17158,8 +17158,8 @@ function intakeKlijentSelect(id, name, firma) {
   sel.style.display = '';
   document.getElementById('intake-klijent-selected-name').textContent = '✓ ' + name;
   // Vizuelna potvrda
-  sel.style.background = 'rgba(74,168,255,0.15)';
-  sel.style.borderColor = 'rgba(74,168,255,0.5)';
+  sel.style.background = 'rgba(75,119,232,0.10)';
+  sel.style.borderColor = 'rgba(75,119,232,0.35)';
   setTimeout(function(){ sel.style.background = ''; sel.style.borderColor = ''; }, 1200);
 }
 
@@ -17446,7 +17446,7 @@ function _intakeShowPipelineResult(pr) {
   scoreNum.textContent = score + '%';
   var circumference = 251.2;
   scoreArc.style.strokeDashoffset = String(circumference - (circumference * score / 100));
-  scoreArc.style.stroke = score >= 70 ? '#4aa8ff' : score >= 40 ? '#f0ad4e' : '#e05252';
+  scoreArc.style.stroke = score >= 70 ? '#4B77E8' : score >= 40 ? '#f0ad4e' : '#e05252';
 
   var statusMap = {70:'Predmet spreman za rad', 40:'Predmet delimično spreman', 0:'Predmet u pripremi'};
   var statusKey = score >= 70 ? 70 : score >= 40 ? 40 : 0;
@@ -17818,9 +17818,9 @@ async function _outcome_feedback_show(predmetId) {
       winBadge = '<span style="background:rgba(0,0,0,0.3);border:1px solid ' + wc + ';color:' + wc + ';border-radius:6px;padding:.15rem .5rem;font-size:.72rem;font-weight:700;margin-left:.5rem;">Win rate ' + d.win_rate + '%</span>';
     }
     var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this)this.remove()">'
-      + '<div style="background:#0f1623;border:1px solid rgba(74,168,255,.25);border-radius:14px;padding:1.5rem;max-width:480px;width:100%;position:relative;">'
+      + '<div style="background:#0c0e14;border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:1.5rem;max-width:480px;width:100%;position:relative;">'
       + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="position:absolute;top:.75rem;right:.75rem;background:none;border:none;color:rgba(255,255,255,.4);font-size:1.1rem;cursor:pointer;line-height:1;">✕</button>'
-      + '<div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#89c8ff;margin-bottom:.4rem;">Outcome Intelligence</div>'
+      + '<div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.72);margin-bottom:.4rem;">Outcome Intelligence</div>'
       + '<div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:.25rem;">Analiza kancelarije — tip: ' + _htmlEsc(d.tip) + winBadge + '</div>'
       + '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:1rem;">'
         + (d.zatvoreni || 0) + ' zatvorenih predmeta · ' + (d.pobede || 0) + ' pobeda · ' + (d.porazi || 0) + ' poraza'
@@ -18002,12 +18002,12 @@ function ugovor_showResult(d) {
   overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
   overlay.innerHTML = '<div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:1.5rem;width:92%;max-width:680px;max-height:88vh;overflow-y:auto;position:relative;">'
     + '<button onclick="document.getElementById(\'ugovor-result-modal\').remove()" style="position:absolute;top:.8rem;right:.8rem;background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.1rem;cursor:pointer;">&#x2715;</button>'
-    + '<div style="font-size:.85rem;font-weight:700;color:#00d4ff;margin-bottom:.3rem;">Ugovor br. ' + _htmlEsc(d.broj) + '</div>'
+    + '<div style="font-size:.85rem;font-weight:700;color:rgba(255,255,255,0.72);margin-bottom:.3rem;">Ugovor br. ' + _htmlEsc(d.broj) + '</div>'
     + '<div style="font-size:.72rem;color:rgba(255,255,255,0.35);margin-bottom:.8rem;">'
     + d.datum_zakljucenja + (d.sacuvano_u_predmet ? ' · <span style="color:#4ade80;">Sačuvano u hronologiji</span>' : '') + '</div>'
     + '<pre style="white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:.72rem;line-height:1.55;color:rgba(255,255,255,0.75);background:rgba(0,0,0,0.3);padding:.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.07);">' + _htmlEsc(d.ugovor_tekst) + '</pre>'
     + '<div style="display:flex;gap:.5rem;margin-top:.8rem;">'
-    + '<button onclick="ugovor_kopiraj()" style="flex:1;padding:.5rem;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:8px;color:#00d4ff;font-size:.78rem;cursor:pointer;" id="uz-copy-btn">Kopiraj tekst</button>'
+    + '<button onclick="ugovor_kopiraj()" style="flex:1;padding:.5rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:8px;color:rgba(255,255,255,0.72);font-size:.78rem;cursor:pointer;" id="uz-copy-btn">Kopiraj tekst</button>'
     + '<button onclick="ugovor_stampaj()" style="flex:1;padding:.5rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);font-size:.78rem;cursor:pointer;">Štampaj / PDF</button>'
     + '</div>'
     + '</div>';
@@ -18213,7 +18213,7 @@ function evidenceGraph_renderSVG(graf, containerId) {
 
   // Boje po tipu cvora
   var nodeColors = {
-    lice:     '#4aa8ff',
+    lice:     '#4B77E8',
     dokument: '#86efac',
     dogadjaj: '#fbbf24',
     tvrdnja:  '#f472b6',
@@ -18400,7 +18400,7 @@ function evidenceGraph_otvoriModal(predmetId) {
     + '<div id="eg-svg-container" class="eg-svg-container"></div>'
     + '<div id="eg-tooltip" class="eg-tooltip" style="display:none;"></div>'
     + '<div class="eg-legenda">'
-    + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#4aa8ff;"></span>Lice</span>'
+    + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#4B77E8;"></span>Lice</span>'
     + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#86efac;"></span>Dokument</span>'
     + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#fbbf24;"></span>Dogadjaj</span>'
     + '<span class="eg-leg-item"><span class="eg-leg-dot" style="background:#f472b6;"></span>Tvrdnja</span>'
@@ -18434,7 +18434,7 @@ async function zadaci_load(predmetId) {
       el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.28);text-align:center;padding:1.5rem;">Nema zadataka. Dodajte prvi ili koristite AI analizu.</div>';
       return;
     }
-    var _pColors = { hitan: '#f87171', normalan: '#89c8ff', nizak: 'rgba(255,255,255,.35)' };
+    var _pColors = { hitan: '#f87171', normalan: 'rgba(255,255,255,0.72)', nizak: 'rgba(255,255,255,.35)' };
     el.innerHTML = lista.map(function(z) {
       var done = z.status === 'zavrseno';
       var pColor = _pColors[z.prioritet] || _pColors.normalan;
@@ -18625,7 +18625,7 @@ async function profitabilnost_load(predmetId) {
                 + '<div style="flex:1;color:rgba(255,255,255,.65);">' + opis + '</div>'
                 + '<div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0;">'
                 + (sati ? '<span style="color:rgba(255,255,255,.35);">' + sati + '</span>' : '')
-                + '<span style="color:#89c8ff;">' + iznos + '</span>'
+                + '<span style="color:rgba(255,255,255,0.72);">' + iznos + '</span>'
                 + obr
                 + '</div>'
                 + '</div>';
