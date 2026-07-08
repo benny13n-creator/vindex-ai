@@ -4774,6 +4774,11 @@ function copyPodnesak(btn) {
         predmet_id: activePredmetId || null
       })
     }).catch(function(){}); // fire-and-forget, nikad ne blokira korisnika
+    // Merimo vreme koje je advokat proveo editujući AI tekst
+    if (window._aiResponseTimestamp) {
+      var _sekundDoEdit = Math.round((Date.now() - window._aiResponseTimestamp) / 1000);
+      piTrack('corrections', 'edit_captured', { sekunde_do_edit: _sekundDoEdit, tip: _tipKtx });
+    }
   }
   navigator.clipboard.writeText(text).then(function(){
     var orig = btn.textContent;
@@ -6022,8 +6027,9 @@ async function execQuery() {
           '<span class="popuniti">[$1 — POPUNITI]</span>');
         previewBody.innerHTML = highlighted;
         previewEl.style.display = 'block';
-        // Resetuj edit tracker za correction capture
+        // Resetuj edit tracker za correction capture + merimo vreme od AI odgovora do akcije
         window._podnesakEdited = false;
+        window._aiResponseTimestamp = Date.now();
         window._lastNacrtTip = _NACRT_API_TYPES.has(_selectedTip) ? 'nacrt' : 'drafting';
       } else {
         resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
@@ -8304,6 +8310,8 @@ function pred_subtabSwitch(pane, btn) {
   if (pane === 'rokovi'           && activePredmetId) predRocistaLoad();
   if (pane === 'zadaci'           && activePredmetId) zadaci_load(activePredmetId);
   if (pane === 'profitabilnost'   && activePredmetId) profitabilnost_load(activePredmetId);
+  // Merimo koji tabovi se zaista koriste — ovo je naša osnovna metrika korisnosti
+  piTrack('predmeti', 'subtab_open', { tab: pane, predmet_id: activePredmetId || null });
   // Auto-fill kontekst predmeta u relevantna polja
   if (pane === 'ai-analiza') _predAutoFill('pred-cinjenice', false);
   if (pane === 'agenti')     _predAutoFill('agent-task-input', false);
@@ -18534,9 +18542,59 @@ async function profitabilnost_load(predmetId) {
       statusEl.innerHTML = '<div style="padding:.5rem .7rem;background:rgba(0,0,0,.2);border-left:3px solid ' + ocenaColor + ';border-radius:0 7px 7px 0;font-size:.78rem;color:' + ocenaColor + ';font-weight:600;">' + ocenaTekst + '</div>';
     }
 
-    // Benchmark — ovaj endpoint ne vraća benchmark direktno; prikažemo placeholder
+    // Benchmark
     if (benchEl) {
       benchEl.textContent = 'Nema dovoljno podataka za benchmark (minimalno 20 kancelarija).';
+    }
+
+    // "Zašto?" breakdown — detaljni uzroci ROI-a
+    var unosi = d.billing_unosi || [];
+    var breakdown = document.getElementById('profit-breakdown');
+    if (!breakdown) {
+      // Dinamički dodaj breakdown sekciju ispod status kartice
+      var roiCard = document.getElementById('profit-roi-card');
+      if (roiCard) {
+        breakdown = document.createElement('div');
+        breakdown.id = 'profit-breakdown';
+        breakdown.style.cssText = 'margin-top:.6rem;';
+        roiCard.parentNode.insertBefore(breakdown, roiCard.nextSibling.nextSibling);
+      }
+    }
+    if (breakdown) {
+      if (!unosi.length) {
+        breakdown.innerHTML = '';
+      } else {
+        var nenapl = unosi.filter(function(u){ return !u.obracunato; });
+        var ukSati = unosi.reduce(function(s,u){ return s + (parseFloat(u.sati)||0); }, 0);
+        var neSati = nenapl.reduce(function(s,u){ return s + (parseFloat(u.sati)||0); }, 0);
+        var _fmt2 = function(n) { return Math.round(n).toLocaleString('sr-RS'); };
+        var razlozi = [];
+        if (neSati > 0) razlozi.push('<span style="color:#fbbf24;">' + neSati.toFixed(1) + 'h nenaplaćeno</span>');
+        if (unosi.length > 0) razlozi.push(unosi.length + ' billing ' + (unosi.length === 1 ? 'unos' : 'unosa'));
+        // Zadnji 3 unosa kao detalj
+        var zadnji = unosi.slice(0, 3);
+        breakdown.innerHTML = '<div style="padding:.6rem .7rem;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:9px;">'
+          + '<div style="font-size:.72rem;color:rgba(255,255,255,.45);font-weight:600;margin-bottom:.4rem;">Zašto ovaj ROI?</div>'
+          + (razlozi.length ? '<div style="font-size:.73rem;margin-bottom:.4rem;">' + razlozi.join(' &nbsp;·&nbsp; ') + '</div>' : '')
+          + zadnji.map(function(u){
+              var opis = escHtml((u.opis || 'Naplata').substring(0, 45));
+              var iznos = u.iznos_rsd ? _fmt2(u.iznos_rsd) + ' RSD' : '—';
+              var sati = u.sati ? u.sati.toFixed(1) + 'h' : '';
+              var obr = u.obracunato
+                ? '<span style="color:#4ade80;font-size:.6rem;">✓ napl.</span>'
+                : '<span style="color:#fbbf24;font-size:.6rem;">⚠ nenapl.</span>';
+              return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.3rem 0;border-top:1px solid rgba(255,255,255,.04);font-size:.72rem;">'
+                + '<div style="flex:1;color:rgba(255,255,255,.65);">' + opis + '</div>'
+                + '<div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0;">'
+                + (sati ? '<span style="color:rgba(255,255,255,.35);">' + sati + '</span>' : '')
+                + '<span style="color:#89c8ff;">' + iznos + '</span>'
+                + obr
+                + '</div>'
+                + '</div>';
+            }).join('')
+          + (unosi.length > 3 ? '<div style="font-size:.68rem;color:rgba(255,255,255,.28);margin-top:.3rem;">+ ' + (unosi.length - 3) + ' još unosa u Naplata tabu</div>' : '')
+          + '</div>';
+      }
     }
 
     // Opt-in status — checkbox ostaje kako ga korisnik postavi (sesijsko stanje)

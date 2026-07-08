@@ -87,6 +87,29 @@ def _izmena_procenat(original: str, edited: str) -> float:
     return round(1.0 - zajednicki / max(len(o_words), len(e_words)), 3)
 
 
+def _normalizuj_tekst(tekst: str) -> str:
+    """Normalizuje tekst za semantičko poređenje — uklanja formatiranje, višestruke razmake, interpunkciju."""
+    import re
+    tekst = tekst.lower().strip()
+    tekst = re.sub(r'[,;:!?\-–—\(\)\[\]\"\']+', ' ', tekst)  # interpunkcija → razmak
+    tekst = re.sub(r'\s+', ' ', tekst)                         # višestruki razmaci → jedan
+    return tekst
+
+
+def _semanticka_slicnost(original: str, edited: str) -> float:
+    """
+    Karakter-nivo sličnost normalizovanih tekstova.
+    Vraća 0.0 (potpuno različiti) do 1.0 (identični).
+    Ako je > 0.97 — promena je samo formatiranje/interpunkcija/whitespace.
+    """
+    import difflib
+    a = _normalizuj_tekst(original)
+    b = _normalizuj_tekst(edited)
+    if not a or not b:
+        return 0.0
+    return difflib.SequenceMatcher(None, a, b).ratio()
+
+
 def _detektuj_stil(original: str, edited: str) -> dict:
     """Detektuje karakteristike izmene za izgradnju stil profila."""
     signals = {}
@@ -197,10 +220,16 @@ async def capture_correction(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    # Ako je identično — ne čuvaj (nema korekcije)
+    # Ako je identično ili samo formatiranje — ne čuvaj (sprečava zagađivanje memorije)
     izmena = _izmena_procenat(payload.original_output, payload.edited_output)
     if izmena < 0.02:
         return {"ok": True, "captured": False, "reason": "no_change"}
+
+    # Semantički filter: ako su tekstovi >97% slični nakon normalizacije,
+    # korisnik je samo promenio razmak/zarez/veliko slovo — ne treba u memoriju
+    slicnost = _semanticka_slicnost(payload.original_output, payload.edited_output)
+    if slicnost >= 0.97:
+        return {"ok": True, "captured": False, "reason": "minor_formatting", "slicnost": round(slicnost, 4)}
 
     kancelarija_id = await _get_kancelarija_id(supa, uid)
     edit_dist = _edit_distance_approx(payload.original_output, payload.edited_output)

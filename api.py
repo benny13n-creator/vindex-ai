@@ -993,10 +993,25 @@ async def _get_firma_namespace(uid: str) -> Optional[str]:
     return None
 
 
-async def _fetch_firm_memory_context(uid: str) -> Optional[str]:
+def _mem_relevance_score(memory: dict, kljucne_reci: list[str]) -> float:
+    """
+    Skoruje relevantnost memorije u odnosu na pitanje.
+    Kombinuje confidence (0-1) i broj podudaranja sa ključnim rečima pitanja.
+    """
+    conf = float(memory.get("confidence") or 1.0)
+    if not kljucne_reci:
+        return conf
+    tekst = ((memory.get("entity_name") or "") + " " + (memory.get("sadrzaj") or "")).lower()
+    pogodci = sum(1 for r in kljucne_reci if r in tekst)
+    # Keyword hit povećava score; max 2× confidence
+    relevance = conf + min(pogodci * 0.15, conf)
+    return relevance
+
+
+async def _fetch_firm_memory_context(uid: str, pitanje: Optional[str] = None) -> Optional[str]:
     """
     Dohvata institucionalnu memoriju kancelarije i partner profil za dati uid.
-    Vraća formatiran string koji se ubacuje u system prompt ask_agent-a.
+    Ako je prosleđeno pitanje, vraća top-5 RELEVANTNIH memorija (ne samo top-confidence).
     Nikad ne blokira — sve greške se gutaju.
     """
     try:
@@ -1030,14 +1045,15 @@ async def _fetch_firm_memory_context(uid: str) -> Optional[str]:
 
         mem_r, prof_r = await asyncio.gather(
             asyncio.to_thread(
+                # Dohvatamo više (20) pa filtriramo/sortiramo lokalno po relevantnosti
                 lambda: supa.table("memory_entries")
-                    .select("sadrzaj,entity_name,confidence")
+                    .select("sadrzaj,entity_name,entity_type,confidence,vaznost")
                     .eq("kancelarija_id", kanc_id)
                     .eq("aktivan", True)
                     .eq("zastarela", False)
                     .gte("confidence", 0.5)
                     .order("confidence", desc=True)
-                    .limit(7)
+                    .limit(20)
                     .execute()
             ),
             asyncio.to_thread(
@@ -1050,13 +1066,28 @@ async def _fetch_firm_memory_context(uid: str) -> Optional[str]:
             ),
         )
 
-        memories = mem_r.data or []
+        all_memories = mem_r.data or []
         profil = prof_r.data
+
+        # Relevantni retrieval: ključne reči iz pitanja → rankiraj memorije
+        kljucne_reci: list[str] = []
+        if pitanje:
+            import re as _re
+            stop = {"i", "u", "da", "se", "je", "na", "za", "ne", "li", "ili", "ako", "ali", "što",
+                    "koji", "koje", "koja", "su", "sa", "od", "do", "po", "iz", "kao", "sve", "ima"}
+            kljucne_reci = [w.lower() for w in _re.findall(r'\b\w{3,}\b', pitanje) if w.lower() not in stop]
+
+        # Sortiraj po relevantnosti + uzmi top 5
+        memories = sorted(
+            all_memories,
+            key=lambda m: _mem_relevance_score(m, kljucne_reci),
+            reverse=True
+        )[:5]
 
         if not memories and not profil:
             return None
 
-        lines = ["INSTITUCIONALNA MEMORIJA KANCELARIJE:"]
+        lines = ["INSTITUCIONALNA MEMORIJA KANCELARIJE (top 5 relevantnih):"]
         for m in memories:
             naziv = m.get("entity_name", "")
             sadrzaj = m.get("sadrzaj", "")
@@ -1076,9 +1107,9 @@ async def _fetch_firm_memory_context(uid: str) -> Optional[str]:
             if profil.get("preferira_formalan"):
                 stil_delovi.append("formalan ton")
             if stil_delovi:
-                lines.append(f"- Stilske preferencije partnera: {', '.join(stil_delovi)}")
+                lines.append(f"- Stil partnera: {', '.join(stil_delovi)}")
             odbijene = profil.get("odbijene_strategije") or []
-            for s in (odbijene[:3] if isinstance(odbijene, list) else []):
+            for s in (odbijene[:2] if isinstance(odbijene, list) else []):
                 lines.append(f"- NIKAD NE PREDLAGATI: {s}")
 
         return "\n".join(lines)
@@ -1252,7 +1283,28 @@ async def cron_daily(request: Request):
         except Exception as _ze:
             rezultati["zakon_monitoring"] = {"greska": str(_ze)[:100]}
 
-    return {"ok": True, "timestamp": _dt.utcnow().isoformat(), **rezultati}
+    # 3. Heartbeat — zapisujemo poslednji uspešni run u chain_anchors
+    #    Ovo je naš "dead man's switch" — ako nema heartbeat-a > 36h, nešto nije u redu
+    _ts = _dt.utcnow().isoformat()
+    _ima_gresku = any("greska" in str(v) for v in rezultati.values())
+    try:
+        import hashlib as _hl, json as _json
+        _payload = _json.dumps({"ts": _ts, "rezultati": rezultati}, default=str)
+        _hash = _hl.sha256(_payload.encode()).hexdigest()[:32]
+        await asyncio.to_thread(
+            lambda: _get_supa().table("chain_anchors").upsert({
+                "id": "cron_daily_heartbeat",
+                "hash_256": _hash,
+                "record_count": 1,
+                "anchored_at": _ts,
+            }).execute()
+        )
+        rezultati["heartbeat"] = {"ok": not _ima_gresku, "zapisano_u": "chain_anchors"}
+    except Exception as _he:
+        rezultati["heartbeat"] = {"ok": False, "greska": str(_he)[:100]}
+
+    logger.info("[CRON_DAILY] %s | greške: %s", _ts, _ima_gresku)
+    return {"ok": not _ima_gresku, "timestamp": _ts, **rezultati}
 
 
 @app.get("/api/admin/kpi")
@@ -2280,7 +2332,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
         t0 = _time.monotonic()
         _firma_ns = await _get_firma_namespace(user["user_id"])
         _extra_ns = [_firma_ns] if _firma_ns else None
-        _mem_ctx = await _fetch_firm_memory_context(user["user_id"])
+        _mem_ctx = await _fetch_firm_memory_context(user["user_id"], pitanje=req.pitanje)
         rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns, _mem_ctx)
         latency_ms = int((_time.monotonic() - t0) * 1000)
         asyncio.create_task(log_cost_to_db(user["user_id"], "pitanje"))
@@ -2387,7 +2439,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
         try:
             history_obj = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
-            _stream_mem_ctx = await _fetch_firm_memory_context(user["user_id"])
+            _stream_mem_ctx = await _fetch_firm_memory_context(user["user_id"], pitanje=req.pitanje)
             rezultat = await pokreni(ask_agent, req.pitanje, history_obj, _stream_extra_ns, _stream_mem_ctx)
             latency_ms = int((_time.monotonic() - t0) * 1000)
 

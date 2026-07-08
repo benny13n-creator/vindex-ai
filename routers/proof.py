@@ -283,7 +283,32 @@ async def proof_check(
 
     checks.append(await _test_router_url("/api/cron/daily"))
 
-    # ── 13. ENV varijable ─────────────────────────────────────────────────────
+    # ── 13. Cron heartbeat — kada je poslednji put pokrenuto ─────────────────
+    try:
+        hb_r = await asyncio.to_thread(
+            lambda: supa.table("chain_anchors")
+                .select("anchored_at")
+                .eq("id", "cron_daily_heartbeat")
+                .maybe_single()
+                .execute()
+        )
+        if hb_r.data and hb_r.data.get("anchored_at"):
+            from datetime import datetime, timezone
+            last = datetime.fromisoformat(hb_r.data["anchored_at"].replace("Z", "+00:00"))
+            sada = datetime.now(timezone.utc)
+            sati_od = round((sada - last).total_seconds() / 3600, 1)
+            status = "PASS" if sati_od <= 36 else "WARN"
+            checks.append(_check(
+                "Cron heartbeat (poslednji run)",
+                status,
+                f"Pre {sati_od}h — {'OK' if status == 'PASS' else 'UPOZORENJE: cron možda ne radi!'}",
+            ))
+        else:
+            checks.append(_check("Cron heartbeat", "WARN", "Cron još nije pokrenut ni jednom — pokrenite ručno ili podesite na Render.com"))
+    except Exception as _hbe:
+        checks.append(_check("Cron heartbeat", "WARN", str(_hbe)[:100]))
+
+    # ── 14. ENV varijable ─────────────────────────────────────────────────────
     env_checks = [
         ("OPENAI_API_KEY", True),
         ("PINECONE_API_KEY", True),
