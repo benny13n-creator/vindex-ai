@@ -3554,7 +3554,7 @@ async function ucitajKlijente(pretraga) {
     var d = await r.json();
     var klijenti = d.klijenti || [];
     if (!klijenti.length) {
-      lista.innerHTML = '<div class="crm-prazno">Nema klijenata. Dodajte prvog klikom na "+ Novi klijent".</div>';
+      lista.innerHTML = '<div style="padding:2rem 0;text-align:center;">'+'<div style="font-size:.82rem;color:rgba(255,255,255,.38);margin-bottom:.9rem;">Nemate klijenata.</div>'+'<button onclick="crmOtvoriFormu()" style="padding:.55rem 1.3rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.3);border-radius:8px;color:#89c8ff;font-size:.78rem;cursor:pointer;font-family:inherit;">+ Dodaj prvog klijenta</button>'+'</div>';
       return;
     }
     lista.innerHTML = klijenti.map(function(k){
@@ -8315,7 +8315,7 @@ function pred_subtabSwitch(pane, btn) {
   // Ažuriraj "Više" btn: active kad je bilo koji sekundarni tab otvoren
   var _moreBtn = document.getElementById('pred-more-btn');
   if (_moreBtn) {
-    var _secondary = ['timeline','dokazi','komunikacija','saradnja','graf','ccc','strategija','agenti','zadaci','profitabilnost'];
+    var _secondary = ['timeline','dokazi','komunikacija','saradnja','graf','ccc','strategija','agenti'];
     if (_secondary.indexOf(pane) > -1) _moreBtn.classList.add('active');
     else _moreBtn.classList.remove('active');
   }
@@ -16815,7 +16815,7 @@ async function intakeHistoryLoad() {
     if (spin) spin.style.display = 'none';
 
     if (!items.length) {
-      list.innerHTML = '<div style="font-size:0.72rem;color:rgba(255,255,255,0.22);padding:4px 0;">Još nema kreiranih predmeta.</div>';
+      list.innerHTML = '<div style="padding:2rem 0;text-align:center;">'+'<div style="font-size:.82rem;color:rgba(255,255,255,.38);margin-bottom:.9rem;">Nemate aktivnih predmeta.</div>'+'<button onclick="intakeOtvori()" style="padding:.55rem 1.3rem;background:rgba(74,168,255,.12);border:1px solid rgba(74,168,255,.3);border-radius:8px;color:#89c8ff;font-size:.78rem;cursor:pointer;font-family:inherit;">+ Kreiraj prvi predmet</button>'+'</div>';
       return;
     }
 
