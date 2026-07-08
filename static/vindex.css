@@ -7888,3 +7888,331 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   .cc-intel-stat:nth-child(2) { border-right: none; }
   .cc-intel-sub { font-size: 12px; }
 }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   VINDEX PREMIUM — Professional Design System Override
+   Referenca: Linear, Vercel, Stripe Dashboard
+   Princip: jedan akcent, nula glowova, maksimalna cistoca
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* -- Design tokens --------------------------------------------------------- */
+:root {
+  --vp-accent:        #4B77E8;
+  --vp-accent-dim:    rgba(75,119,232,0.12);
+  --vp-accent-hover:  rgba(75,119,232,0.20);
+  --vp-border:        rgba(255,255,255,0.07);
+  --vp-border-strong: rgba(255,255,255,0.12);
+  --vp-surface:       rgba(255,255,255,0.025);
+  --vp-surface-2:     rgba(255,255,255,0.04);
+  --vp-txt-1:         rgba(255,255,255,0.92);
+  --vp-txt-2:         rgba(255,255,255,0.48);
+  --vp-txt-3:         rgba(255,255,255,0.22);
+  --vp-radius:        7px;
+}
+
+/* -- Eliminacija svih box-shadow glow efekata ------------------------------ */
+.resp-pravni-osnov, .resp-citat, .resp-procena, .resp-posledica,
+.resp-pouzdanost, .resp-lanac, .resp-misljenje,
+.resp-status-ok, .resp-status-warn, .resp-status-err {
+  box-shadow: none !important;
+}
+.resp-pravni-osnov .resp-section-lbl::before,
+.resp-citat .resp-section-lbl::before,
+.resp-procena .resp-section-lbl::before,
+.resp-posledica .resp-section-lbl::before,
+.resp-pouzdanost .resp-section-lbl::before,
+.resp-lanac .resp-section-lbl::before,
+.resp-misljenje .resp-section-lbl::before {
+  box-shadow: none !important;
+}
+
+/* -- Sidebar — Linear stil ------------------------------------------------- */
+.t-tab {
+  border-left: 2px solid transparent !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease !important;
+}
+.t-tab:hover {
+  background: rgba(255,255,255,0.04) !important;
+  border-left-color: rgba(255,255,255,0.10) !important;
+  color: rgba(255,255,255,0.82) !important;
+}
+.t-tab.active {
+  background: rgba(255,255,255,0.055) !important;
+  border-left-color: var(--vp-accent) !important;
+  color: var(--vp-txt-1) !important;
+}
+.t-tab.active .vx-tab-ico svg { stroke: var(--vp-txt-1) !important; }
+.vx-tab-lbl {
+  font-size: 0.84rem !important;
+  font-weight: 450 !important;
+  letter-spacing: 0 !important;
+}
+.vx-nav-sub:hover {
+  color: rgba(255,255,255,0.78) !important;
+  background: rgba(255,255,255,0.03) !important;
+}
+.vx-nav-sub-dot { background: var(--vp-txt-3) !important; }
+.vx-nav-sub:hover .vx-nav-sub-dot { background: rgba(75,119,232,0.6) !important; }
+
+/* -- Topbar New dugme ------------------------------------------------------ */
+.vx-btn-new {
+  background: var(--vp-accent-dim) !important;
+  border-color: rgba(75,119,232,0.35) !important;
+  color: rgba(140,165,255,0.92) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+.vx-btn-new:hover {
+  background: var(--vp-accent-hover) !important;
+  border-color: rgba(75,119,232,0.55) !important;
+}
+
+/* -- Quick action banner — suzdrzano, ne dominantno ------------------------ */
+#pred-quick-action {
+  background: transparent !important;
+  border: none !important;
+  border-left: 2px solid rgba(75,119,232,0.4) !important;
+  border-radius: 0 !important;
+  padding: 0.7rem 0.9rem !important;
+  margin-bottom: 1.1rem !important;
+}
+#pred-quick-action > div > div:first-child {
+  font-size: 0.77rem !important;
+  font-weight: 600 !important;
+  color: rgba(255,255,255,0.72) !important;
+}
+#pred-quick-action button {
+  background: var(--vp-accent-dim) !important;
+  border: 1px solid rgba(75,119,232,0.3) !important;
+  color: rgba(140,165,255,0.9) !important;
+  border-radius: var(--vp-radius) !important;
+  font-weight: 600 !important;
+  padding: 0.42rem 0.95rem !important;
+  font-size: 0.74rem !important;
+  transition: background 0.12s ease !important;
+}
+#pred-quick-action button:hover { background: var(--vp-accent-hover) !important; }
+
+/* -- Predmet subtabovi — clean underline stil ------------------------------ */
+.pred-subtab-btn {
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--vp-txt-2) !important;
+  font-size: 0.76rem !important;
+  font-weight: 500 !important;
+  padding: 0.42rem 0.7rem 0.46rem !important;
+  transition: color 0.12s ease, border-color 0.12s ease !important;
+  letter-spacing: 0 !important;
+}
+.pred-subtab-btn:hover { color: var(--vp-txt-1) !important; }
+.pred-subtab-btn.active {
+  color: var(--vp-txt-1) !important;
+  border-bottom-color: var(--vp-accent) !important;
+  background: transparent !important;
+}
+.pred-tab-primary {
+  font-weight: 500 !important;
+  font-size: 0.76rem !important;
+}
+.pred-tab-primary.active {
+  background: transparent !important;
+  color: var(--vp-txt-1) !important;
+  border-bottom-color: var(--vp-accent) !important;
+}
+.pred-tab-more {
+  color: var(--vp-txt-3) !important;
+  border: 1px solid var(--vp-border) !important;
+  border-radius: 5px !important;
+  font-size: 0.72rem !important;
+}
+.pred-tab-more:hover {
+  background: var(--vp-surface-2) !important;
+  color: var(--vp-txt-2) !important;
+}
+.pred-tab-more.active {
+  border-color: var(--vp-border-strong) !important;
+  color: var(--vp-txt-1) !important;
+}
+
+/* Vise dropdown */
+.pred-more-menu {
+  background: #0f1117 !important;
+  border: 1px solid var(--vp-border-strong) !important;
+  border-radius: var(--vp-radius) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4) !important;
+}
+.pred-more-menu button {
+  color: var(--vp-txt-2) !important;
+  font-size: 0.78rem !important;
+  border-radius: 4px !important;
+  padding: 0.42rem 0.65rem !important;
+  font-weight: 450 !important;
+}
+.pred-more-menu button:hover {
+  background: var(--vp-surface-2) !important;
+  color: var(--vp-txt-1) !important;
+}
+
+/* -- AI response sekcije — smireniji tonovi -------------------------------- */
+.resp-pravni-osnov .resp-section-body { color: rgba(140,180,255,0.82) !important; }
+.resp-pravni-osnov .resp-section-lbl  { color: rgba(140,180,255,0.65) !important; }
+.resp-citat .resp-section-lbl         { color: rgba(210,185,120,0.70) !important; }
+.resp-citat .resp-section-body        { color: rgba(210,185,120,0.72) !important; }
+.resp-procena .resp-section-lbl,
+.resp-posledica .resp-section-lbl     { color: rgba(80,195,120,0.70) !important; }
+.resp-pouzdanost .resp-section-lbl,
+.resp-pouzdanost .resp-section-body   { color: var(--vp-txt-2) !important; }
+.resp-lanac .resp-section-lbl         { color: rgba(155,130,220,0.70) !important; }
+.resp-lanac .resp-section-body        { color: rgba(185,165,240,0.72) !important; }
+
+.resp-misljenje {
+  border-left-color: rgba(200,140,80,0.50) !important;
+  background: rgba(200,140,80,0.04) !important;
+  border-color: rgba(200,140,80,0.12) !important;
+}
+.resp-misljenje .resp-section-lbl  { color: rgba(210,155,100,0.75) !important; }
+.resp-misljenje .resp-section-body { color: rgba(220,185,150,0.72) !important; }
+
+.resp-status-ok   { background: rgba(50,180,90,0.05)  !important; border-color: rgba(50,180,90,0.18)  !important; }
+.resp-status-ok .resp-section-body   { color: rgba(80,200,110,0.85)  !important; }
+.resp-status-warn { background: rgba(220,160,0,0.05)  !important; border-color: rgba(220,160,0,0.18)  !important; }
+.resp-status-warn .resp-section-body { color: rgba(220,180,60,0.85)  !important; }
+.resp-status-err  { background: rgba(220,60,60,0.05)  !important; border-color: rgba(220,60,60,0.18)  !important; }
+.resp-status-err .resp-section-body  { color: rgba(220,100,90,0.85)  !important; }
+
+/* -- Predmet list items — bez aure ---------------------------------------- */
+.pred-list-item, .predmet-item, [class*="pred-item"] {
+  border: 1px solid var(--vp-border) !important;
+  border-radius: var(--vp-radius) !important;
+  background: var(--vp-surface) !important;
+  transition: background 0.12s ease, border-color 0.12s ease !important;
+}
+.pred-list-item:hover, .predmet-item:hover, [class*="pred-item"]:hover {
+  border-color: var(--vp-border-strong) !important;
+  background: var(--vp-surface-2) !important;
+}
+
+/* -- Status badge unifikacija ---------------------------------------------- */
+.billing-badge-ok {
+  background: rgba(50,180,90,0.10) !important;
+  color: rgba(80,200,110,0.85) !important;
+  border: 1px solid rgba(50,180,90,0.18) !important;
+  font-size: 0.60rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  padding: 2px 7px !important;
+  border-radius: 4px !important;
+}
+.billing-badge-open {
+  background: rgba(220,160,0,0.08) !important;
+  color: rgba(220,180,60,0.85) !important;
+  border: 1px solid rgba(220,160,0,0.15) !important;
+  font-size: 0.60rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  padding: 2px 7px !important;
+  border-radius: 4px !important;
+}
+
+/* -- Notif badge ----------------------------------------------------------- */
+#notif-badge { background: rgba(255,69,58,0.75) !important; box-shadow: none !important; }
+
+/* -- Kanban ---------------------------------------------------------------- */
+.kanban-col {
+  border: 1px solid var(--vp-border) !important;
+  border-radius: var(--vp-radius) !important;
+  background: var(--vp-surface) !important;
+}
+.kanban-col-hd { border-bottom: 1px solid var(--vp-border) !important; }
+.kanban-card {
+  border: 1px solid var(--vp-border) !important;
+  background: rgba(255,255,255,0.02) !important;
+  border-radius: 5px !important;
+}
+.kanban-card:hover {
+  border-color: var(--vp-border-strong) !important;
+  background: var(--vp-surface-2) !important;
+}
+
+/* -- CRM kartice ----------------------------------------------------------- */
+.crm-kartica {
+  border: 1px solid var(--vp-border) !important;
+  background: var(--vp-surface) !important;
+  border-radius: var(--vp-radius) !important;
+  transition: border-color 0.12s !important;
+}
+.crm-kartica:hover {
+  border-color: var(--vp-border-strong) !important;
+  background: var(--vp-surface-2) !important;
+}
+
+/* -- Billing items --------------------------------------------------------- */
+.billing-item {
+  border: 1px solid var(--vp-border) !important;
+  border-radius: 5px !important;
+  background: transparent !important;
+}
+.billing-item:hover { border-color: var(--vp-border-strong) !important; }
+
+/* -- Modali ---------------------------------------------------------------- */
+.modal {
+  border-color: var(--vp-border-strong) !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.75) !important;
+}
+.modal-badge {
+  background: var(--vp-accent-dim) !important;
+  color: rgba(140,165,255,0.85) !important;
+  border: 1px solid rgba(75,119,232,0.20) !important;
+}
+.modal-btn {
+  background: var(--vp-accent) !important;
+  border: none !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+.modal-btn:hover { background: #5A84F0 !important; }
+
+/* -- Doc upload zone ------------------------------------------------------- */
+.dok-drop-zone, [class*="drop-zone"], [class*="dropzone"] {
+  border-color: var(--vp-border-strong) !important;
+  background: var(--vp-surface) !important;
+}
+.dok-drop-zone:hover, .dok-drop-zone.drag-over {
+  border-color: rgba(75,119,232,0.45) !important;
+  background: var(--vp-accent-dim) !important;
+}
+
+/* -- Pro badge ------------------------------------------------------------- */
+.pro-badge {
+  background: rgba(180,150,60,0.08) !important;
+  border-color: rgba(180,150,60,0.22) !important;
+  color: rgba(200,175,100,0.75) !important;
+}
+
+/* -- Toast notifikacije ---------------------------------------------------- */
+.vx-toast, .toast-msg, [class*="toast"] {
+  background: #13171f !important;
+  border: 1px solid var(--vp-border-strong) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.50) !important;
+  color: var(--vp-txt-1) !important;
+}
+
+/* -- Portfolio graf skor grupe --------------------------------------------- */
+.pg-group-tuzilac  { background: rgba(50,180,90,0.05)  !important; border-color: rgba(50,180,90,0.14)  !important; }
+.pg-group-tuzeni   { background: rgba(220,60,60,0.05)  !important; border-color: rgba(220,60,60,0.14)  !important; }
+.pg-group-mesovito { background: rgba(220,160,0,0.04)  !important; border-color: rgba(220,160,0,0.13)  !important; }
+.pg-score-tuzilac  { color: rgba(80,200,110,0.80)  !important; }
+.pg-score-tuzeni   { color: rgba(220,100,90,0.80)  !important; }
+.pg-score-mesovito { color: rgba(220,180,60,0.80)  !important; }
+
+/* -- Scrollbar — nenametljiv ----------------------------------------------- */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
