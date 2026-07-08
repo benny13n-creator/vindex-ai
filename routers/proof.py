@@ -204,25 +204,53 @@ async def proof_check(
     except Exception as e:
         checks.append(_check("DB: ai_corrections.tip_korekcije+partner_uid", "FAIL", str(e)[:150]))
 
-    # ── 6. Migracija 044 — anomaly detection ─────────────────────────────────
+    # ── 6. DB tabele — migracija 047 ──────────────────────────────────────────
+    tabele_047 = [
+        "memory_graph_edges",
+        "workflow_templates",
+        "workflow_instances",
+        "workflow_steps",
+    ]
+    for t in tabele_047:
+        checks.append(await _test_table(supa, t))
+
+    # ── 7. Trust score kolone u memory_entries (047) ──────────────────────────
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("memory_entries")
+                .select("confidence, izvor, potvrde_count, potvrdjeno_od, expires_at, zastarela")
+                .limit(1)
+                .execute()
+        )
+        checks.append(_check("DB: memory_entries trust kolone (047)", "PASS", "Sve trust score kolone postoje"))
+    except Exception as e:
+        checks.append(_check("DB: memory_entries trust kolone (047)", "FAIL", str(e)[:150]))
+
+    # ── 8. Migracija 044 — anomaly detection ─────────────────────────────────
     checks.append(await _test_table(supa, "user_daily_activity"))
     checks.append(await _test_table(supa, "chain_anchors"))
 
-    # ── 7. Pinecone ───────────────────────────────────────────────────────────
+    # ── 9. Pinecone ───────────────────────────────────────────────────────────
     checks.append(await _test_pinecone())
 
-    # ── 8. OpenAI ─────────────────────────────────────────────────────────────
+    # ── 10. OpenAI ────────────────────────────────────────────────────────────
     checks.append(await _test_openai())
 
-    # ── 9. Router registracija ────────────────────────────────────────────────
+    # ── 11. Router registracija ───────────────────────────────────────────────
     rute = [
         "/api/corrections/capture",
         "/api/zakon-monitoring/cron",
+        "/api/zakon-monitoring/impact-analiza",
         "/api/profitabilnost/pregled",
         "/api/zadaci/kreiraj",
         "/api/zadaci/ai-analiziraj",
         "/api/benchmarking/satnica",
         "/api/firma-memorija/dodaj",
+        "/api/firma-memorija/potvrdi",
+        "/api/memory-graph/dodaj-vezu",
+        "/api/memory-graph/preporuka",
+        "/api/workflow/pokreni",
+        "/api/workflow/eskalacije/cron",
         "/api/admin/proof",
     ]
     for ruta in rute:
