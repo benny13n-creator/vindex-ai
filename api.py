@@ -638,6 +638,17 @@ app.include_router(status_page_router)
 from routers.cio import router as cio_router
 app.include_router(cio_router)
 
+from routers.corrections      import router as corrections_router
+from routers.zakon_monitoring import router as zakon_monitoring_router
+from routers.profitabilnost   import router as profitabilnost_router
+from routers.zadaci           import router as zadaci_router
+from routers.benchmarking     import router as benchmarking_router
+app.include_router(corrections_router)
+app.include_router(zakon_monitoring_router)
+app.include_router(profitabilnost_router)
+app.include_router(zadaci_router)
+app.include_router(benchmarking_router)
+
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles
 if os.path.exists(BASE_DIR / "static"):
@@ -927,6 +938,51 @@ async def pokreni(fn, *args):
         return await asyncio.to_thread(fn, *args)
     finally:
         sem.release()
+
+
+async def _get_firma_namespace(uid: str) -> Optional[str]:
+    """
+    Vraća Pinecone namespace za kancelariju korisnika.
+    Proverava: admin → kancelarije.pinecone_namespace
+               član  → kancelarija_clanovi → kancelarije.pinecone_namespace
+    Vraća None ako korisnik nije u firmi ili firma nema namespace.
+    """
+    try:
+        supa = _get_supa()
+        # Admin?
+        adm = await asyncio.to_thread(
+            lambda: supa.table("kancelarije")
+                .select("pinecone_namespace")
+                .eq("admin_uid", uid)
+                .maybe_single()
+                .execute()
+        )
+        if adm.data and adm.data.get("pinecone_namespace"):
+            return adm.data["pinecone_namespace"]
+
+        # Član?
+        clan = await asyncio.to_thread(
+            lambda: supa.table("kancelarija_clanovi")
+                .select("kancelarija_id")
+                .eq("user_id", uid)
+                .eq("status", "aktivan")
+                .maybe_single()
+                .execute()
+        )
+        if clan.data and clan.data.get("kancelarija_id"):
+            kId = clan.data["kancelarija_id"]
+            kanc = await asyncio.to_thread(
+                lambda: supa.table("kancelarije")
+                    .select("pinecone_namespace")
+                    .eq("id", kId)
+                    .maybe_single()
+                    .execute()
+            )
+            if kanc.data and kanc.data.get("pinecone_namespace"):
+                return kanc.data["pinecone_namespace"]
+    except Exception as _e:
+        logger.debug("[FIRMA_NS] Greška pri dohvatanju namespace-a: %s", _e)
+    return None
 
 
 def normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None) -> dict:
@@ -2086,7 +2142,9 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
         tip = await asyncio.to_thread(klasifikuj_pitanje, _skini_pii(req.pitanje))
         begin_cost_tracking()
         t0 = _time.monotonic()
-        rezultat = await pokreni(ask_agent, pitanje_za_agenta, history)
+        _firma_ns = await _get_firma_namespace(user["user_id"])
+        _extra_ns = [_firma_ns] if _firma_ns else None
+        rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns)
         latency_ms = int((_time.monotonic() - t0) * 1000)
         asyncio.create_task(log_cost_to_db(user["user_id"], "pitanje"))
         _al.log_response(
@@ -2182,6 +2240,8 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
     qh = _q_hash(req.pitanje)
     logger.info("PitanjeStream [uid=%.8s] [q=%s]", user["user_id"], qh)
     asyncio.create_task(_audit(user["user_id"], "pitanje_stream", qh))
+    _stream_firma_ns = await _get_firma_namespace(user["user_id"])
+    _stream_extra_ns = [_stream_firma_ns] if _stream_firma_ns else None
 
     async def _event_generator():
         # Commit 4/T1: Guard-complete pipeline — all Commits (1+2+3) run inside ask_agent
@@ -2190,7 +2250,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
         try:
             history_obj = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
-            rezultat = await pokreni(ask_agent, req.pitanje, history_obj)
+            rezultat = await pokreni(ask_agent, req.pitanje, history_obj, _stream_extra_ns)
             latency_ms = int((_time.monotonic() - t0) * 1000)
 
             if rezultat.get("status") == "success":
