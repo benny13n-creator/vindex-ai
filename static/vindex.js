@@ -13551,7 +13551,7 @@ function _piRenderPlans(pl) {
   var h = '';
 
   // MRR / ARR header row
-  h += '<div class="pi-section" style="background:linear-gradient(135deg,rgba(30,58,95,0.6),rgba(13,39,68,0.4));border:1px solid rgba(75,119,232,0.10);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;">';
+  h += '<div class="pi-section" style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-top:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;">';
   h += '<div style="font-size:0.6rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:0.7rem;">Revenue · Planovi · AI Usage</div>';
 
   // KPI row
