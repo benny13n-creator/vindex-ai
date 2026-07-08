@@ -4755,8 +4755,26 @@ function fillPodnesakPrimer(kljuc) {
 }
 
 function copyPodnesak(btn) {
-  var text = _lastRawText || '';
+  var previewBody = document.getElementById('podnesak-preview-body');
+  var editedText = previewBody ? (previewBody.innerText || previewBody.textContent || '') : '';
+  var originalText = _lastRawText || '';
+  var text = editedText.trim() || originalText;
   if (!text) return;
+  // Invisible correction capture — samo ako je korisnik zaista izmenio tekst
+  if (window._podnesakEdited && editedText.trim() && originalText && editedText.trim() !== originalText.trim() && currentSession) {
+    window._podnesakEdited = false;
+    var _tipKtx = window._lastNacrtTip || 'drafting';
+    fetch(BASE_URL + '/api/corrections/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({
+        original_output: originalText,
+        edited_output: editedText.trim(),
+        context_type: _tipKtx,
+        predmet_id: activePredmetId || null
+      })
+    }).catch(function(){}); // fire-and-forget, nikad ne blokira korisnika
+  }
   navigator.clipboard.writeText(text).then(function(){
     var orig = btn.textContent;
     btn.textContent = '✓ Kopirano!';
@@ -6004,6 +6022,9 @@ async function execQuery() {
           '<span class="popuniti">[$1 — POPUNITI]</span>');
         previewBody.innerHTML = highlighted;
         previewEl.style.display = 'block';
+        // Resetuj edit tracker za correction capture
+        window._podnesakEdited = false;
+        window._lastNacrtTip = _NACRT_API_TYPES.has(_selectedTip) ? 'nacrt' : 'drafting';
       } else {
         resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
         var i=0, speed=text.length>600?4:text.length>300?7:12;
@@ -8241,7 +8262,7 @@ async function pred_bulkAkcija(akcija) {
 }
 
 function pred_subtabSwitch(pane, btn) {
-  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','ccc','agenti','graf'];
+  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','ccc','agenti','graf','zadaci','profitabilnost'];
   if (VALID.indexOf(pane) === -1) pane = 'pregled';
   document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
   document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -8257,7 +8278,7 @@ function pred_subtabSwitch(pane, btn) {
   // Ažuriraj "Više" btn: active kad je bilo koji sekundarni tab otvoren
   var _moreBtn = document.getElementById('pred-more-btn');
   if (_moreBtn) {
-    var _secondary = ['timeline','dokazi','komunikacija','saradnja','graf','ccc','strategija','agenti'];
+    var _secondary = ['timeline','dokazi','komunikacija','saradnja','graf','ccc','strategija','agenti','zadaci','profitabilnost'];
     if (_secondary.indexOf(pane) > -1) _moreBtn.classList.add('active');
     else _moreBtn.classList.remove('active');
   }
@@ -8275,12 +8296,14 @@ function pred_subtabSwitch(pane, btn) {
   if (history.replaceState && activePredmetId) history.replaceState(null, '', '#' + pane);
   if (typeof lucide !== 'undefined') lucide.createIcons();
   // Lazy-load tabovi
-  if (pane === 'saradnja' && activePredmetId) saradnja_load(activePredmetId);
-  if (pane === 'timeline' && activePredmetId) timeline_load();
-  if (pane === 'dokazi'   && activePredmetId) evidence_load();
-  if (pane === 'graf'     && activePredmetId) kg_load();
-  if (pane === 'ccc'      && activePredmetId) ccc_load();
-  if (pane === 'rokovi'   && activePredmetId) predRocistaLoad();
+  if (pane === 'saradnja'         && activePredmetId) saradnja_load(activePredmetId);
+  if (pane === 'timeline'         && activePredmetId) timeline_load();
+  if (pane === 'dokazi'           && activePredmetId) evidence_load();
+  if (pane === 'graf'             && activePredmetId) kg_load();
+  if (pane === 'ccc'              && activePredmetId) ccc_load();
+  if (pane === 'rokovi'           && activePredmetId) predRocistaLoad();
+  if (pane === 'zadaci'           && activePredmetId) zadaci_load(activePredmetId);
+  if (pane === 'profitabilnost'   && activePredmetId) profitabilnost_load(activePredmetId);
   // Auto-fill kontekst predmeta u relevantna polja
   if (pane === 'ai-analiza') _predAutoFill('pred-cinjenice', false);
   if (pane === 'agenti')     _predAutoFill('agent-task-input', false);
@@ -18351,4 +18374,188 @@ function evidenceGraph_otvoriModal(predmetId) {
 
   document.body.appendChild(overlay);
   evidenceGraph_load(predmetId);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ZADACI — upravljanje zadacima predmeta
+   ══════════════════════════════════════════════════════════════════ */
+var _zadaciPredmetId = null;
+
+async function zadaci_load(predmetId) {
+  _zadaciPredmetId = predmetId;
+  var el = document.getElementById('zadaci-lista');
+  if (!el || !currentSession) return;
+  el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.28);text-align:center;padding:1.5rem;">Učitavam zadatke...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/zadaci/predmet/' + encodeURIComponent(predmetId), {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) { el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška pri učitavanju zadataka.</div>'; return; }
+    var d = await r.json();
+    var lista = d.zadaci || d || [];
+    if (!lista.length) {
+      el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.28);text-align:center;padding:1.5rem;">Nema zadataka. Dodajte prvi ili koristite AI analizu.</div>';
+      return;
+    }
+    var _pColors = { hitan: '#f87171', normalan: '#89c8ff', nizak: 'rgba(255,255,255,.35)' };
+    el.innerHTML = lista.map(function(z) {
+      var done = z.status === 'zavrseno';
+      var pColor = _pColors[z.prioritet] || _pColors.normalan;
+      var rok = z.rok_datum ? ('<span style="font-size:.65rem;color:rgba(255,255,255,.35);">' + z.rok_datum + '</span>') : '';
+      return '<div style="display:flex;align-items:flex-start;gap:.5rem;padding:.55rem .7rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,' + (done ? '.04' : '.08') + ');border-radius:8px;opacity:' + (done ? '.5' : '1') + ';">'
+        + '<input type="checkbox" ' + (done ? 'checked' : '') + ' style="margin-top:2px;accent-color:#4ade80;cursor:pointer;" onchange="zadaci_toggleStatus(\'' + z.id + '\',this)">'
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-size:.8rem;font-weight:600;color:rgba(255,255,255,.85);' + (done ? 'text-decoration:line-through;' : '') + '">' + escHtml(z.naziv || '') + '</div>'
+        + '<div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;">'
+        + '<span style="font-size:.65rem;font-weight:700;color:' + pColor + ';">' + escHtml(z.prioritet || 'normalan') + '</span>'
+        + rok
+        + '</div>'
+        + '</div>'
+        + '<button onclick="zadaci_obrisi(\'' + z.id + '\')" style="flex-shrink:0;background:transparent;border:none;color:rgba(255,80,80,.4);cursor:pointer;font-size:.85rem;padding:0 .2rem;" title="Obriši">✕</button>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+async function zadaci_kreiraj() {
+  var naziv = (document.getElementById('zadaci-naziv') || {}).value || '';
+  if (!naziv.trim()) { showToast('Unesite naziv zadatka.', 'warn'); return; }
+  if (!_zadaciPredmetId || !currentSession) return;
+  var prioritet = (document.getElementById('zadaci-prioritet') || {}).value || 'normalan';
+  var rok = (document.getElementById('zadaci-rok') || {}).value || null;
+  try {
+    var r = await fetch(BASE_URL + '/api/zadaci/kreiraj', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ predmet_id: _zadaciPredmetId, naziv: naziv.trim(), prioritet: prioritet, rok_datum: rok || undefined })
+    });
+    if (!r.ok) { showToast('Greška pri kreiranju zadatka.', 'error'); return; }
+    var inp = document.getElementById('zadaci-naziv');
+    if (inp) inp.value = '';
+    zadaci_load(_zadaciPredmetId);
+    showToast('Zadatak dodat.', 'ok');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function zadaci_toggleStatus(id, cb) {
+  if (!currentSession) return;
+  var noviStatus = cb.checked ? 'zavrseno' : 'na_cekanju';
+  try {
+    await fetch(BASE_URL + '/api/zadaci/' + encodeURIComponent(id) + '/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ status: noviStatus })
+    });
+    zadaci_load(_zadaciPredmetId);
+  } catch(e) { showToast('Greška pri ažuriranju statusa.', 'error'); }
+}
+
+async function zadaci_obrisi(id) {
+  if (!confirm('Obrisati ovaj zadatak?') || !currentSession) return;
+  try {
+    await fetch(BASE_URL + '/api/zadaci/' + encodeURIComponent(id), {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    zadaci_load(_zadaciPredmetId);
+    showToast('Zadatak obrisan.', 'ok');
+  } catch(e) { showToast('Greška.', 'error'); }
+}
+
+async function zadaci_ai_analize() {
+  if (!activePredmetId || !currentSession) { showToast('Otvorite predmet.', 'warn'); return; }
+  var el = document.getElementById('zadaci-lista');
+  if (el) el.innerHTML = '<div style="font-size:.75rem;color:rgba(167,139,250,.6);padding:1rem;text-align:center;">AI analizira predmet i kreira zadatke...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/zadaci/ai-analiziraj/' + encodeURIComponent(activePredmetId), {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) { showToast('AI analiza zadataka nije uspela.', 'error'); zadaci_load(activePredmetId); return; }
+    var d = await r.json();
+    showToast((d.kreirano || 0) + ' zadataka kreirao AI.', 'ok');
+    zadaci_load(activePredmetId);
+  } catch(e) {
+    showToast('Greška pri AI analizi.', 'error');
+    zadaci_load(activePredmetId);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PROFITABILNOST — finansijska analiza predmeta
+   ══════════════════════════════════════════════════════════════════ */
+
+async function profitabilnost_load(predmetId) {
+  if (!predmetId || !currentSession) return;
+  var benchEl = document.getElementById('profit-bench-text');
+  if (benchEl) benchEl.textContent = 'Učitavam...';
+  try {
+    var r = await fetch(BASE_URL + '/api/profitabilnost/predmet/' + encodeURIComponent(predmetId), {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) {
+      var statusEl = document.getElementById('profit-status');
+      if (statusEl) statusEl.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.3);padding:.4rem;">Nema podataka o naplati za ovaj predmet.</div>';
+      if (benchEl) benchEl.textContent = '—';
+      return;
+    }
+    var d = await r.json();
+    var _fmt = function(n) { return n ? Math.round(n).toLocaleString('sr-RS') : '0'; };
+
+    var naEl = document.getElementById('profit-naplaceno');
+    var nnEl = document.getElementById('profit-nenaplaceno');
+    var saEl = document.getElementById('profit-sati');
+    var satEl = document.getElementById('profit-satnica');
+    var naplEl = document.getElementById('profit-naplativost');
+    var statusEl = document.getElementById('profit-status');
+
+    // Odgovor ima nested "finansije" objekat
+    var fin = d.finansije || d;
+    if (naEl) naEl.textContent = _fmt(fin.ukupno_naplaceno_rsd || fin.naplaceno_rsd || 0);
+    if (nnEl) nnEl.textContent = _fmt(fin.nefakturisano_rsd || fin.nenaplaceno_rsd || 0);
+    if (saEl) saEl.textContent = (fin.ukupno_sati || fin.sati || 0).toFixed(1) + 'h';
+    if (satEl) satEl.textContent = _fmt(fin.satnica_rsd || 0) + ' RSD/h';
+
+    var naplPct = fin.naplativost_procenat || fin.procenat_naplativosti;
+    if (naplEl) {
+      naplEl.textContent = naplPct ? Math.round(naplPct) + '%' : '—';
+      naplEl.style.color = naplPct >= 80 ? '#4ade80' : (naplPct >= 50 ? '#fbbf24' : '#f87171');
+    }
+
+    // Status ocena
+    var ocena = d.ocena || '';
+    if (statusEl && ocena) {
+      var _ocColors = { zelena: '#4ade80', zuta: '#fbbf24', crvena: '#f87171', siva: 'rgba(255,255,255,.35)' };
+      var _ocTekst = { zelena: 'Profitabilan predmet', zuta: 'Granični — preporučena akcija', crvena: 'Nerentabilan — hitna akcija', siva: 'Nema dovoljno podataka' };
+      var ocenaColor = _ocColors[ocena] || _ocColors.siva;
+      var ocenaTekst = _ocTekst[ocena] || ocena;
+      statusEl.innerHTML = '<div style="padding:.5rem .7rem;background:rgba(0,0,0,.2);border-left:3px solid ' + ocenaColor + ';border-radius:0 7px 7px 0;font-size:.78rem;color:' + ocenaColor + ';font-weight:600;">' + ocenaTekst + '</div>';
+    }
+
+    // Benchmark — ovaj endpoint ne vraća benchmark direktno; prikažemo placeholder
+    if (benchEl) {
+      benchEl.textContent = 'Nema dovoljno podataka za benchmark (minimalno 20 kancelarija).';
+    }
+
+    // Opt-in status — checkbox ostaje kako ga korisnik postavi (sesijsko stanje)
+
+  } catch(e) {
+    var bEl = document.getElementById('profit-bench-text');
+    if (bEl) bEl.textContent = 'Greška: ' + e.message;
+  }
+}
+
+async function profitabilnost_toggleOptIn(cb) {
+  if (!currentSession) return;
+  try {
+    await fetch(BASE_URL + '/api/benchmarking/opt-in', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ saglasan: cb.checked })
+    });
+    showToast(cb.checked ? 'Benchmark učešće aktivirano.' : 'Benchmark učešće deaktivirano.', 'ok');
+  } catch(e) { showToast('Greška pri ažuriranju podešavanja.', 'error'); }
+
 }

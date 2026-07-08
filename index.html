@@ -722,6 +722,8 @@
                   <button class="pred-subtab-btn pred-tab-more" id="pred-more-btn" onclick="pred_more_toggle(event)" title="Napredne opcije">Više ▾</button>
                   <div class="pred-more-menu" id="pred-more-menu" style="display:none;">
                     <button onclick="pred_more_select('ccc')">Komandni centar</button>
+                    <button onclick="pred_more_select('zadaci')">Zadaci</button>
+                    <button onclick="pred_more_select('profitabilnost')">Profitabilnost</button>
                     <button onclick="pred_more_select('strategija')">Strategija</button>
                     <button onclick="pred_more_select('agenti')">Savetnici</button>
                     <button onclick="pred_more_select('graf')">◉ Graf veza</button>
@@ -1604,6 +1606,69 @@
                 </div>
                 <div id="evidence-matrica"></div>
               </div><!-- /pred-pane-dokazi -->
+
+              <!-- ── TAB: Zadaci ──────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-zadaci" style="display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Zadaci predmeta</div>
+                  <div style="display:flex;gap:.4rem;">
+                    <button onclick="zadaci_ai_analize()" style="padding:.3rem .8rem;font-size:.72rem;border:1px solid rgba(167,139,250,.3);border-radius:6px;background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;">AI analiza</button>
+                    <button onclick="zadaci_load(activePredmetId)" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);cursor:pointer;">↺</button>
+                  </div>
+                </div>
+                <!-- Forma za novi zadatak -->
+                <div id="zadaci-form" style="margin-bottom:.8rem;padding:.65rem .8rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:9px;">
+                  <input id="zadaci-naziv" type="text" class="t-input" placeholder="Naziv zadatka..." style="font-size:.8rem;margin-bottom:.4rem;width:100%;box-sizing:border-box;" />
+                  <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                    <select id="zadaci-prioritet" class="t-input" style="font-size:.75rem;flex:1;min-width:100px;">
+                      <option value="normalan">Normalan prioritet</option>
+                      <option value="hitan">Hitan</option>
+                      <option value="nizak">Nizak</option>
+                    </select>
+                    <input id="zadaci-rok" type="date" class="t-input" style="font-size:.75rem;flex:1;min-width:120px;" />
+                    <button onclick="zadaci_kreiraj()" style="padding:.4rem .9rem;font-size:.78rem;border:none;border-radius:7px;background:linear-gradient(135deg,rgba(74,168,255,.25),rgba(99,102,241,.2));color:#89c8ff;cursor:pointer;font-weight:600;">+ Dodaj</button>
+                  </div>
+                </div>
+                <!-- Lista zadataka -->
+                <div id="zadaci-lista" style="display:flex;flex-direction:column;gap:.35rem;">
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.28);text-align:center;padding:1.5rem;">Učitavam zadatke...</div>
+                </div>
+              </div><!-- /pred-pane-zadaci -->
+
+              <!-- ── TAB: Profitabilnost ───────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-profitabilnost" style="display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Profitabilnost predmeta</div>
+                  <button onclick="profitabilnost_load(activePredmetId)" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);cursor:pointer;">↺</button>
+                </div>
+                <!-- ROI kartica -->
+                <div id="profit-roi-card" style="margin-bottom:.8rem;padding:.8rem 1rem;border-radius:10px;border:1px solid rgba(74,168,255,.15);background:rgba(74,168,255,.05);">
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);margin-bottom:.5rem;">Finansijski pregled</div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;" id="profit-kpi-grid">
+                    <div style="text-align:center;"><div style="font-size:1.3rem;font-weight:700;color:#4ade80;" id="profit-naplaceno">—</div><div style="font-size:.65rem;color:rgba(255,255,255,.38);">Naplaćeno RSD</div></div>
+                    <div style="text-align:center;"><div style="font-size:1.3rem;font-weight:700;color:#fbbf24;" id="profit-nenaplaceno">—</div><div style="font-size:.65rem;color:rgba(255,255,255,.38);">Nenaplaćeno RSD</div></div>
+                    <div style="text-align:center;"><div style="font-size:1.3rem;font-weight:700;" id="profit-sati">—</div><div style="font-size:.65rem;color:rgba(255,255,255,.38);">Ukupno sati</div></div>
+                  </div>
+                  <div style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;">
+                    <span style="font-size:.7rem;color:rgba(255,255,255,.4);">Satnica:</span>
+                    <span style="font-size:.8rem;font-weight:600;color:#89c8ff;" id="profit-satnica">— RSD/h</span>
+                    <span style="font-size:.7rem;color:rgba(255,255,255,.4);margin-left:.5rem;">Naplativost:</span>
+                    <span style="font-size:.8rem;font-weight:600;" id="profit-naplativost">— %</span>
+                  </div>
+                </div>
+                <!-- Status ocena -->
+                <div id="profit-status" style="margin-bottom:.8rem;"></div>
+                <!-- Benchmark poređenje (ako postoji dovoljno podataka) -->
+                <div id="profit-benchmark" style="font-size:.75rem;color:rgba(255,255,255,.32);padding:.5rem;background:rgba(255,255,255,.02);border-radius:7px;border:1px solid rgba(255,255,255,.06);">
+                  <div style="margin-bottom:.25rem;color:rgba(255,255,255,.45);font-weight:600;">Anonymni benchmark</div>
+                  <div id="profit-bench-text">Učitavam...</div>
+                </div>
+                <!-- Opt-in za benchmark -->
+                <div style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:rgba(255,255,255,.4);">
+                  <input type="checkbox" id="profit-opt-in" style="accent-color:#4ade80;cursor:pointer;" onchange="profitabilnost_toggleOptIn(this)" />
+                  <label for="profit-opt-in" style="cursor:pointer;">Doprinesi anonimnim benchmark podacima (pomaže svim advokatima)</label>
+                </div>
+              </div><!-- /pred-pane-profitabilnost -->
 
             </div><!-- /pred-detail -->
 
@@ -3339,7 +3404,7 @@
               <span class="podnesak-preview-banner-icon">⚠</span>
               <span>PREVIEW NACRTA — Nije finalna verzija. Pregledajte i popunite istaknuta polja pre podnošenja sudu.</span>
             </div>
-            <div class="resp-nacrt-podnesak podnesak-preview-body" id="podnesak-preview-body"></div>
+            <div class="resp-nacrt-podnesak podnesak-preview-body" id="podnesak-preview-body" contenteditable="true" spellcheck="false" style="outline:none;cursor:text;" oninput="window._podnesakEdited=true;" title="Kliknite za direktno uređivanje teksta"></div>
             <div class="podnesak-preview-actions">
               <button class="podnesak-preview-btn podnesak-preview-pdf" id="podnesak-pdf-btn" onclick="exportPDF(_lastRawText, this)">Preuzmi PDF</button>
               <button class="podnesak-preview-btn podnesak-preview-copy" id="podnesak-copy-btn" onclick="copyPodnesak(this)">Kopiraj tekst</button>
