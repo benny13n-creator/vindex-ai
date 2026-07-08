@@ -12958,10 +12958,9 @@ function _doctplRenderLista() {
   var el = document.getElementById('doctpl-list');
   if (!el || !_doctplSabloni) return;
   el.innerHTML = _doctplSabloni.map(function(s, i){
-    var ico = _DOCTPL_TIP_ICO[s.tip] || '';
-    return '<div onclick="docTplIzaberi('+i+')" style="padding:0.6rem 0.85rem;cursor:pointer;border-left:2px solid transparent;transition:all .15s;" onmouseover="this.style.background=\'rgba(74,168,255,0.06)\'" onmouseout="if(docTplGetAktivniIdx()!=='+i+')this.style.background=\'\';" id="doctpl-item-'+i+'">'
-      +'<div style="font-size:0.75rem;font-weight:600;color:#e2e8f0;margin-bottom:2px;">'+ico+' '+_htmlEsc(s.naziv)+'</div>'
-      +'<div style="font-size:0.62rem;color:rgba(255,255,255,0.32);">'+_htmlEsc(s.opis)+'</div>'
+    return '<div onclick="docTplIzaberi('+i+')" class="dtpl-item" id="doctpl-item-'+i+'">'
+      +'<div class="dtpl-item-title">'+_htmlEsc(s.naziv)+'</div>'
+      +'<div class="dtpl-item-desc">'+_htmlEsc(s.opis)+'</div>'
       +'</div>';
   }).join('');
 }
@@ -12973,8 +12972,7 @@ function docTplGetAktivniIdx() {
 function docTplIzaberi(idx) {
   _doctplAktivni = _doctplSabloni[idx];
   document.querySelectorAll('[id^="doctpl-item-"]').forEach(function(el, i){
-    el.style.background = (i === idx) ? 'rgba(74,168,255,0.08)' : '';
-    el.style.borderLeftColor = (i === idx) ? '#4aa8ff' : 'transparent';
+    el.classList.toggle('dtpl-item-active', i === idx);
   });
 
   var titleEl   = document.getElementById('doctpl-form-title');
