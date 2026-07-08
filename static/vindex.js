@@ -968,7 +968,7 @@ function kcConstellationInit() {
     }
     ctx.strokeStyle = 'rgba(0,212,255,' + alpha + ')';
     ctx.lineWidth = 1.2;
-    ctx.shadowColor = 'rgba(75,119,232,0.28)';
+    ctx.shadowColor = 'rgba(0,212,255,0.4)';
     ctx.shadowBlur = 6;
     ctx.stroke();
     ctx.shadowBlur = 0;
@@ -1054,7 +1054,7 @@ async function dash_load(){
     // Health Index — učitava se asinhrono, ne blokira dashboard
     _healthIndexLoad(hdr);
   }catch(e){
-    body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:rgba(255,255,255,0.72);cursor:pointer;">Pokušaj ponovo</span></div>';
+    body.innerHTML='<div class="kc-empty">Greška pri učitavanju. <span onclick="dash_load()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
 }
 
@@ -1120,7 +1120,7 @@ function _healthIndexRender(d) {
   // Desno: upozorenja ili Chief Partner
   html += '<div style="background:linear-gradient(135deg,rgba(10,20,40,.9),rgba(13,27,50,.95));border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:1.1rem 1rem;overflow:hidden;">';
   if (chief) {
-    html += '<div style="font-size:.58rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.55rem;font-weight:700;">Chief Partner — Direktiva za danas</div>';
+    html += '<div style="font-size:.58rem;color:rgba(74,168,255,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.55rem;font-weight:700;">Chief Partner — Direktiva za danas</div>';
     var lines = chief.split('\n').filter(function(l){ return l.trim(); });
     lines.forEach(function(line) {
       html += '<div style="font-size:.76rem;color:rgba(255,255,255,.75);margin-bottom:.4rem;line-height:1.55;padding-left:.1rem;">'+_htmlEsc(line.trim())+'</div>';
@@ -1387,7 +1387,7 @@ function _dashRender(d,bd,inboxData){
   html+='</div>';
   html+='<div class="kc-topbar-right">';
   html+='<div class="kc-search" title="Globalna pretraga — dolazi uskoro"><span class="kc-search-icon">⌕</span><span class="kc-search-ph">Pretraži predmete, klijente...</span><span class="kc-search-kbd">⌘K</span></div>';
-  html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(255,255,255,0.10);border-radius:7px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.72);cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">Izveštaj</button>';
+  html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(74,168,255,.25);border-radius:7px;background:rgba(74,168,255,.07);color:#89c8ff;cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">Izveštaj</button>';
   html+='<button class="kc-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
   html+='</div></div>';
 
@@ -1557,7 +1557,7 @@ async function loadBriefing(forceRefresh) {
     var d = await r.json();
     _renderBriefing(d, content);
   } catch (e) {
-    content.innerHTML = '<div class="kc-briefing-err">Brifing nije dostupan. <span onclick="loadBriefing(true)" style="color:rgba(255,255,255,0.72);cursor:pointer;">Pokušaj ponovo</span></div>';
+    content.innerHTML = '<div class="kc-briefing-err">Brifing nije dostupan. <span onclick="loadBriefing(true)" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
   }
 }
 
@@ -1869,9 +1869,9 @@ _dashRender = function(d, bd, inboxData) {
 
   /* ── 4.5. CIO — Chief Intelligence Officer ──────────────────── */
   html += '<div id="kc-cio-section" style="margin:1.2rem 0 0.4rem;">';
-  html += '<div id="kc-cio-loading" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:1rem 1.2rem;display:flex;align-items:center;gap:0.6rem;">';
-  html += '<div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.72);animation:pulse 1.4s infinite;"></div>';
-  html += '<span style="color:rgba(255,255,255,0.45);font-size:0.72rem;letter-spacing:0.06em;">CIO analizira portfelj kancelarije...</span>';
+  html += '<div id="kc-cio-loading" style="background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.1);border-radius:10px;padding:1rem 1.2rem;display:flex;align-items:center;gap:0.6rem;">';
+  html += '<div style="width:8px;height:8px;border-radius:50%;background:#00d4ff;animation:pulse 1.4s infinite;"></div>';
+  html += '<span style="color:rgba(0,212,255,0.6);font-size:0.72rem;letter-spacing:0.06em;">CIO analizira portfelj kancelarije...</span>';
   html += '</div></div>';
 
   /* ── 5. INBOX — Prioritetne stavke (kriticno + visok) ─────────── */
@@ -1998,7 +1998,7 @@ function _vx2_stub_start() { var html = ''; html += '<div class="vx2-core-wrap">
   /* Panel: AI HUB */
   html += '<div class="vx2-panel" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">';
   html += '<div class="vx2-panel-hd"><span class="vx2-panel-name">Centar alata</span></div>';
-  html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n" style="font-size:1.1rem;color:rgba(255,255,255,0.50)">847</span><span class="vx2-panel-stat-l">zakona RS</span></div>';
+  html += '<div class="vx2-panel-stats"><span class="vx2-panel-stat-n" style="font-size:1.1rem;color:rgba(74,168,255,0.65)">847</span><span class="vx2-panel-stat-l">zakona RS</span></div>';
   html += '<div class="vx2-panel-ai-actions">';
   html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'q\')">Istraži zakon</button>';
   html += '<button class="vx2-panel-ai-btn" onclick="event.stopPropagation();openAITool(\'a\')">☐ Analiziraj dokument</button>';
@@ -2195,7 +2195,7 @@ async function planLoad() {
   if (!wrap) return;
 
   var PLAN_LABELS = {free:'Free', advokat:'Advokat', pro:'PRO', firma:'Firma'};
-  var PLAN_COLORS = {free:'rgba(255,255,255,.45)', advokat:'#4B77E8', pro:'#a78bfa', firma:'#c9a84c'};
+  var PLAN_COLORS = {free:'rgba(255,255,255,.45)', advokat:'#4aa8ff', pro:'#a78bfa', firma:'#c9a84c'};
 
   try {
     var r = await fetch(BASE_URL + '/api/plan/status', {
@@ -2283,7 +2283,7 @@ async function billingDugovanjaLoad() {
       var fmt = function(n){ return Math.round(n).toLocaleString('sr-RS') + ' RSD'; };
       kpiEl.innerHTML = [
         { label: 'Ukupno duguje', val: fmt(d.ukupno_rsd || 0), color: d.ukupno_rsd > 0 ? '#f87171' : '#4ade80' },
-        { label: 'Predmeta', val: d.predmeta || 0, color: 'rgba(255,255,255,0.72)' },
+        { label: 'Predmeta', val: d.predmeta || 0, color: '#89c8ff' },
         { label: 'Stavki', val: d.stavki || 0, color: 'rgba(255,255,255,0.5)' },
       ].map(function(k){
         return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:0.45rem 0.7rem;text-align:center;flex:1;">'
