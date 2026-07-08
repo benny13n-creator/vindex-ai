@@ -1273,6 +1273,8 @@ async def cron_daily(request: Request):
         raise HTTPException(status_code=403, detail="Neovlašćen pristup.")
 
     run_id = _uuid.uuid4().hex[:8]
+    _now = _dt.now(_tz.utc)
+    _run_date = _now.strftime("%Y%m%d")
 
     # ── Idempotency guard: preskoči ako je već pokrenuto u poslednjih 60 min ──
     try:
@@ -1285,13 +1287,18 @@ async def cron_daily(request: Request):
         )
         if _last_r.data and _last_r.data.get("anchored_at"):
             _last_ts = _dt.fromisoformat(_last_r.data["anchored_at"].replace("Z", "+00:00"))
-            _min_ago = (_dt.now(_tz.utc) - _last_ts).total_seconds() / 60
-            if _min_ago < 60:
-                logger.info("[CRON_DAILY] run_id=%s SKIPPED — already ran %.1f min ago", run_id, _min_ago)
+            _sati_od = (_dt.now(_tz.utc) - _last_ts).total_seconds() / 3600
+            if _sati_od < 1:
+                logger.info("[CRON_DAILY] run_id=%s SKIPPED ran %.1f min ago", run_id, _sati_od * 60)
                 return {"ok": True, "skipped": True, "run_id": run_id,
-                        "razlog": f"Već pokrenuto pre {round(_min_ago, 1)} min — zaštita od duplikata"}
+                        "razlog": f"Već pokrenuto pre {round(_sati_od * 60, 1)} min"}
+            if _sati_od > 36:
+                logger.critical(
+                    "[CRON_DAILY] STALE ALERT run_id=%s poslednji run pre %.1fh! "
+                    "Proveriti cron-job.org i Render.com logs.", run_id, _sati_od
+                )
     except Exception:
-        pass  # Ne možemo proveriti — nastavljamo
+        pass
 
     rezultati: dict = {"run_id": run_id}
     _t_start = _time.monotonic()
@@ -1302,7 +1309,7 @@ async def cron_daily(request: Request):
     _t_wf = _time.monotonic()
     try:
         from routers.workflow import _check_escalations
-        _wf = await _check_escalations()
+        _wf = await asyncio.wait_for(_check_escalations(), timeout=60)
         _wf_esc = int(_wf.get("eskaliranih", 0) or 0) if isinstance(_wf, dict) else 0
         _wf_chk = int(_wf.get("proverenih", 0) or 0) if isinstance(_wf, dict) else 0
         _stavke_obradjene += _wf_esc
@@ -1312,6 +1319,10 @@ async def cron_daily(request: Request):
             "duration_ms": round((_time.monotonic() - _t_wf) * 1000),
             "status": "ok",
         }
+    except asyncio.TimeoutError:
+        rezultati["workflow"] = {"status": "timeout", "greska": "Prekoraceno 60s",
+                                  "duration_ms": round((_time.monotonic() - _t_wf) * 1000)}
+        _broj_grešaka += 1
     except Exception as _ce:
         rezultati["workflow"] = {"status": "greska", "greska": str(_ce)[:120],
                                   "duration_ms": round((_time.monotonic() - _t_wf) * 1000)}
@@ -1322,7 +1333,7 @@ async def cron_daily(request: Request):
         _t_zm = _time.monotonic()
         try:
             from routers.zakon_monitoring import _skeniraj_sl_glasnik
-            _zm = await _skeniraj_sl_glasnik(_get_supa(), dana_unazad=7)
+            _zm = await asyncio.wait_for(_skeniraj_sl_glasnik(_get_supa(), dana_unazad=7), timeout=180)
             _zm_pron = int(_zm.get("pronadjeno", 0) or 0) if isinstance(_zm, dict) else 0
             _zm_prom = int(_zm.get("promena", 0) or 0) if isinstance(_zm, dict) else 0
             _stavke_obradjene += _zm_pron
@@ -1332,6 +1343,10 @@ async def cron_daily(request: Request):
                 "duration_ms": round((_time.monotonic() - _t_zm) * 1000),
                 "status": "ok",
             }
+        except asyncio.TimeoutError:
+            rezultati["zakon_monitoring"] = {"status": "timeout", "greska": "Prekoraceno 180s",
+                                              "duration_ms": round((_time.monotonic() - _t_zm) * 1000)}
+            _broj_grešaka += 1
         except Exception as _ze:
             rezultati["zakon_monitoring"] = {"status": "greska", "greska": str(_ze)[:120],
                                               "duration_ms": round((_time.monotonic() - _t_zm) * 1000)}
@@ -1342,26 +1357,24 @@ async def cron_daily(request: Request):
     # ── Modul 3: Memory cleanup — čisti zastarele unose (confidence < 0.1) ──
     _t_mc = _time.monotonic()
     try:
-        from datetime import timezone as _tz2
-        _now_iso = _dt.now(_tz2.utc).isoformat()
-        _del_exp = await asyncio.to_thread(
-            lambda: _get_supa().table("memory_entries")
-                .delete()
-                .lt("confidence", 0.1)
-                .execute()
-        )
-        _del_exp2 = await asyncio.to_thread(
-            lambda: _get_supa().table("memory_entries")
-                .delete()
-                .eq("zastarela", True)
-                .execute()
-        )
-        _obrisano = len(_del_exp.data or []) + len(_del_exp2.data or [])
+        async def _cleanup():
+            r1 = await asyncio.to_thread(
+                lambda: _get_supa().table("memory_entries").delete().lt("confidence", 0.1).execute()
+            )
+            r2 = await asyncio.to_thread(
+                lambda: _get_supa().table("memory_entries").delete().eq("zastarela", True).execute()
+            )
+            return len(r1.data or []) + len(r2.data or [])
+        _obrisano = await asyncio.wait_for(_cleanup(), timeout=30)
         rezultati["memory_cleanup"] = {
             "obrisano": _obrisano,
             "duration_ms": round((_time.monotonic() - _t_mc) * 1000),
             "status": "ok",
         }
+    except asyncio.TimeoutError:
+        rezultati["memory_cleanup"] = {"status": "timeout", "greska": "Prekoraceno 30s",
+                                        "duration_ms": round((_time.monotonic() - _t_mc) * 1000)}
+        _broj_grešaka += 1
     except Exception as _mce:
         rezultati["memory_cleanup"] = {"status": "greska", "greska": str(_mce)[:120],
                                         "duration_ms": round((_time.monotonic() - _t_mc) * 1000)}
@@ -1376,15 +1389,24 @@ async def cron_daily(request: Request):
             "run_id": run_id,
             "ts": _ts,
             "duration_ms": _duration_ms,
-            "stavke_obradjene": _stavke_obradjene,
-            "broj_gresaka": _broj_grešaka,
+            "stavke": _stavke_obradjene,
+            "greske": _broj_grešaka,
             "moduli": {k: v.get("status", "?") for k, v in rezultati.items() if isinstance(v, dict) and k != "run_id"},
         }
         _hash = _hl.sha256(_json.dumps(_audit, default=str).encode()).hexdigest()[:32]
+        _supa_hb = _get_supa()
         await asyncio.to_thread(
-            lambda: _get_supa().table("chain_anchors").upsert({
+            lambda: _supa_hb.table("chain_anchors").upsert({
                 "id":           "cron_daily_heartbeat",
                 "hash_256":     _hash,
+                "record_count": _stavke_obradjene,
+                "anchored_at":  _ts,
+            }).execute()
+        )
+        await asyncio.to_thread(
+            lambda: _supa_hb.table("chain_anchors").upsert({
+                "id":           f"cron_run_{_run_date}",
+                "hash_256":     _json.dumps(_audit, default=str)[:500],
                 "record_count": _stavke_obradjene,
                 "anchored_at":  _ts,
             }).execute()
