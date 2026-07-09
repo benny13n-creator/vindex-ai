@@ -719,13 +719,13 @@
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('rokovi',this)" title="Ročišta, hronologija, ZPP rokovi i priprema za ročište">Rokovi</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('naplata',this)" title="Tajmer, stavke naplate i generisanje fakture">Naplata</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('ai-analiza',this)" title="Procena predmeta i pravna analiza u kontekstu vaših dokumenata">Procena</button>
-                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('zadaci',this)" title="Zadaci i akcije — šta treba uraditi na predmetu">Zadaci</button>
+                <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('zadaci',this)" title="Zadatci i akcije — šta treba uraditi na predmetu">Zadatci</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('profitabilnost',this)" title="Finansijski pregled — naplaćeno, satnica i prinos predmeta">Finansije</button>
                 <!-- VIŠE — napredne opcije za iskusne korisnike -->
                 <div class="pred-more-wrap" id="pred-more-wrap">
                   <button class="pred-subtab-btn pred-tab-more" id="pred-more-btn" onclick="pred_more_toggle(event)" title="Napredne opcije">Više ▾</button>
                   <div class="pred-more-menu" id="pred-more-menu" style="display:none;">
-                    <button onclick="pred_more_select('ccc')" title="Sažetak predmeta — dokumenti, rokovi, zadaci i finansije na jednom mestu">Komandni centar</button>
+                    <button onclick="pred_more_select('ccc')" title="Sažetak predmeta — dokumenti, rokovi, zadatci i finansije na jednom mestu">Komandni centar</button>
                     <button onclick="pred_more_select('graf')" title="Vizuelna mapa veza između dokumenata, lica i događaja">◉ Graf veza</button>
                     <button onclick="pred_more_select('timeline')" title="Hronološki pregled svih događaja na predmetu">Hronologija</button>
                     <button onclick="pred_more_select('dokazi')" title="Organizovani trezor svih dokaza i dokumenata predmeta">Trezor dokaza</button>
@@ -1609,10 +1609,10 @@
                 <div id="evidence-matrica"></div>
               </div><!-- /pred-pane-dokazi -->
 
-              <!-- ── TAB: Zadaci ──────────────────────────────────── -->
+              <!-- ── TAB: Zadatci ──────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-zadaci" style="display:none;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
-                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Zadaci predmeta</div>
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Zadatci predmeta</div>
                   <div style="display:flex;gap:.4rem;">
                     <button onclick="zadaci_ai_analize()" style="padding:.3rem .8rem;font-size:.72rem;border:1px solid rgba(167,139,250,.3);border-radius:6px;background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;">AI analiza</button>
                     <button onclick="zadaci_load(activePredmetId)" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);cursor:pointer;">↺</button>
