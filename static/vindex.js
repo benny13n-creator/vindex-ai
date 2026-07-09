@@ -8308,16 +8308,17 @@ function pred_subtabSwitch(pane, btn) {
   if (btn) {
     btn.classList.add('active');
   } else {
-    // Pametna aktivacija: sub-paneovi aktiviraju odgovarajući primarni tab
-    var _radPanes = ['rokovi','zadaci','ai-analiza','agenti','strategija','ccc','timeline','dokazi','graf','komunikacija','saradnja'];
-    var _finPanes = ['naplata','profitabilnost'];
+    // Pametna aktivacija: sekundarni paneovi aktiviraju odgovarajući primarni tab
+    var _radPanes = ['zadaci','strategija','ccc','timeline','dokazi','graf','komunikacija','saradnja','ai-analiza'];
+    var _naplPanes = ['naplata','profitabilnost'];
     if (_radPanes.indexOf(pane) > -1) {
       var radBtn = document.getElementById('tab-rad-btn');
       if (radBtn) radBtn.classList.add('active');
-    } else if (_finPanes.indexOf(pane) > -1) {
-      var finBtn = document.getElementById('tab-fin-btn');
-      if (finBtn) finBtn.classList.add('active');
+    } else if (_naplPanes.indexOf(pane) > -1) {
+      var naplBtn = document.getElementById('tab-naplata-btn');
+      if (naplBtn) naplBtn.classList.add('active');
     } else {
+      // Pregled, dokumenti, agenti (AI tab), rokovi — traži dugme po onclick sadržaju
       document.querySelectorAll('.pred-subtab-btn').forEach(function(b) {
         if ((b.getAttribute('onclick') || '').indexOf("'"+pane+"'") > -1) b.classList.add('active');
       });

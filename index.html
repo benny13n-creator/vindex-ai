@@ -391,7 +391,7 @@
         <!-- ── Osnovna navigacija — 3 stvari koje advokat koristi svaki dan ── -->
         <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')">
           <i data-lucide="layout-dashboard" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Danas</span>
+          <span class="vx-tab-lbl">Pregled dana</span>
         </div>
         <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')">
           <i data-lucide="briefcase" class="vx-tab-ico"></i>
@@ -400,6 +400,18 @@
         <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')">
           <i data-lucide="users" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Klijenti</span>
+        </div>
+        <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal');setTimeout(function(){if(typeof kalSetView==='function')kalSetView('list');},120)">
+          <i data-lucide="clock" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Rokovi</span>
+        </div>
+        <div class="t-tab" id="tab-btn-zadaci-g" onclick="setTab(this,'zadaci-g')">
+          <i data-lucide="check-square" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Zadatci</span>
+        </div>
+        <div class="t-tab" id="tab-btn-kal-cal" onclick="setTab(this,'kal');setTimeout(function(){if(typeof kalSetView==='function')kalSetView('grid');},120)">
+          <i data-lucide="calendar" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Kalendar</span>
         </div>
         <div class="vx-nav-sep"></div>
         <!-- ── Alati — kad treba nešto istražiti ili napisati ── -->
@@ -430,7 +442,6 @@
         <!-- Skriveni tabovi — funkcionalnost sačuvana, dostupna iz predmeta ili podešavanja -->
         <div class="t-tab vx-hidden-tab" id="tab-btn-notif" onclick="notif_toggleDropdown()"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-dok" onclick="setTab(this,'dok')"></div>
-        <div class="t-tab vx-hidden-tab" id="tab-btn-kal" onclick="setTab(this,'kal')"></div>
         <!-- Hidden tabs — all functionality preserved -->
         <div class="t-tab vx-hidden-tab" id="tab-btn-alati" onclick="setTab(this,'alati')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-q" onclick="setTab(this,'q')"></div>
@@ -710,11 +721,13 @@
               <!-- ── Subtab Navigation (Primary + More) ───────────────── -->
               <div style="position:relative;">
               <div class="pred-subtab-nav" style="position:relative;" id="pred-subtab-nav-el">
-                <!-- 4 taba — jedino što advokat treba da vidi -->
+                <!-- 6 tabova — svaka kritična funkcija dostupna 1 klikom -->
                 <button class="pred-subtab-btn pred-tab-primary active" id="tab-pregled-btn" onclick="pred_subtabSwitch('pregled',this)" title="Detalji predmeta, klijent, beleške i status">Pregled</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('dokumenti',this)" title="Dokumenti vezani za predmet">Dokumenti</button>
-                <button class="pred-subtab-btn pred-tab-primary" id="tab-rad-btn" onclick="pred_subtabSwitch('rad',this)" title="Sve što radite na predmetu — AI analiza, rokovi, zadatci, strategija">Rad</button>
-                <button class="pred-subtab-btn pred-tab-primary" id="tab-fin-btn" onclick="pred_subtabSwitch('finansije',this)" title="Tajmer, naplata i profitabilnost predmeta">Finansije</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-ai-btn" onclick="pred_subtabSwitch('agenti',this)" title="AI analiza — 6 agenata paralelno ili individualni savetnik">AI</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-rokovi-btn" onclick="pred_subtabSwitch('rokovi',this)" title="Ročišta i rokovi ovog predmeta">Rokovi</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-rad-btn" onclick="pred_subtabSwitch('rad',this)" title="Zadatci, strategija, hronologija i ostale alatke">Rad</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-naplata-btn" onclick="pred_subtabSwitch('naplata',this)" title="Tajmer, naplata i profitabilnost predmeta">Naplata</button>
               </div>
               <!-- Scroll fade indicator — pokazuje da ima još tabova desno -->
               <div id="subtab-fade-right" style="position:absolute;top:0;right:0;width:40px;height:100%;background:linear-gradient(to right,transparent,rgba(10,15,30,.95));pointer-events:none;border-radius:0 6px 6px 0;transition:opacity .2s;opacity:1;"></div>
@@ -736,32 +749,10 @@
                 </div>
               </div><!-- /pred-pane-ccc -->
 
-              <!-- ── TAB: Rad — centralni radni hub predmeta ────────── -->
+              <!-- ── TAB: Rad — alatke predmeta ─────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-rad" style="display:none;">
-                <!-- HERO: AI Analiza — najvažnija akcija, odmah vidljiva -->
-                <div class="vx-rad-hero" style="margin-bottom:1.2rem;padding:1.1rem 1.2rem;background:linear-gradient(135deg,rgba(99,102,241,0.12),rgba(75,119,232,0.06));border:1px solid rgba(99,102,241,0.35);border-radius:14px;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-                    <div>
-                      <div style="font-size:.9rem;font-weight:700;color:rgba(210,205,255,.95);margin-bottom:.3rem;">AI Savetnici predmeta</div>
-                      <div style="font-size:.72rem;color:rgba(255,255,255,.42);line-height:1.5;">6 agenata paralelno: pravni revizor, rizik, crveni tim, procena ishoda, strategija — za 2–3 min.</div>
-                    </div>
-                    <button onclick="this.textContent='Pokrećem...';this.disabled=true;pred_launchKompletnaAnaliza();var _b=this;setTimeout(function(){_b.textContent='Pokreni analizu';_b.disabled=false;},2500);" style="flex-shrink:0;padding:.65rem 1.3rem;background:linear-gradient(135deg,rgba(99,102,241,0.28),rgba(75,119,232,0.15));border:1px solid rgba(99,102,241,0.55);border-radius:10px;color:rgba(220,215,255,.95);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;letter-spacing:.02em;">Pokreni analizu</button>
-                  </div>
-                </div>
-                <!-- GRID: Sve radne alatke — klik vodi na odgovarajući pane -->
+                <!-- GRID: Alatke koje nemaju sopstveni tab -->
                 <div class="vx-rad-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:.7rem;">
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('agenti')" title="AI savetnici koji analiziraju predmet iz različitih uglova">
-                    <div class="vx-rad-card-label">Savetnici</div>
-                    <div class="vx-rad-card-sub">6 AI agenata paralelno</div>
-                  </div>
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('ai-analiza')" title="Detaljna procena predmeta i pravna analiza">
-                    <div class="vx-rad-card-label">AI Procena</div>
-                    <div class="vx-rad-card-sub">Snaga dokaza i rizici</div>
-                  </div>
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('rokovi')" title="Ročišta, hronologija i ZPP rokovi">
-                    <div class="vx-rad-card-label">Rokovi</div>
-                    <div class="vx-rad-card-sub">Ročišta i ZPP rokovi</div>
-                  </div>
                   <div class="vx-rad-card" onclick="pred_subtabSwitch('zadaci')" title="Zadatci i akcije na predmetu">
                     <div class="vx-rad-card-label">Zadatci</div>
                     <div class="vx-rad-card-sub">Šta treba uraditi</div>
@@ -787,9 +778,9 @@
                     <div class="vx-rad-card-sub">Vizuelna mapa predmeta</div>
                   </div>
                 </div>
-                <!-- SEKCIJA: Globalni alati (pristup iz konteksta predmeta) -->
-                <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.06);">
-                  <div style="font-size:.62rem;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem;">Pravni alati</div>
+                <!-- Globalni alati iz konteksta predmeta -->
+                <div style="margin-top:1.1rem;padding-top:.9rem;border-top:1px solid rgba(255,255,255,0.06);">
+                  <div style="font-size:.60rem;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.55rem;">Pravni alati</div>
                   <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
                     <button onclick="openAITool('q')" class="vx-rad-tool-btn">Istraživanje zakona</button>
                     <button onclick="openAITool('s')" class="vx-rad-tool-btn">Sudska praksa</button>
@@ -1545,11 +1536,20 @@
                 </div>
               </div><!-- /pred-pane-graf -->
 
-              <!-- ── TAB: Agenti ──────────────────────────────────────── -->
+              <!-- ── TAB: AI — Agenti i AI analiza ───────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-agenti" style="display:none;">
-                <!-- Uputstvo za korišćenje -->
+                <!-- HERO: Kompletna analiza — 6 agenata, 1 klik, nemoguće preskočiti -->
+                <div style="margin-bottom:1rem;padding:1rem 1.1rem;background:linear-gradient(135deg,rgba(75,119,232,0.12),rgba(99,102,241,0.06));border:1px solid rgba(75,119,232,0.32);border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:.9rem;flex-wrap:wrap;">
+                  <div>
+                    <div style="font-size:.9rem;font-weight:700;color:rgba(210,208,255,.95);margin-bottom:.3rem;">Kompletna AI analiza predmeta</div>
+                    <div style="font-size:.7rem;color:rgba(255,255,255,.40);line-height:1.55;">6 agenata paralelno — pravna ocena, analiza rizika, slabe tačke, procena ishoda, strategija — za 2–3 min</div>
+                  </div>
+                  <button id="agent-launch-all-btn" onclick="this.textContent='Analiziram...';this.disabled=true;pred_launchKompletnaAnaliza();var _b=this;setTimeout(function(){_b.textContent='Pokreni sve agente';_b.disabled=false;},3000);" style="flex-shrink:0;padding:.65rem 1.3rem;background:linear-gradient(135deg,#4B77E8,#1264c4);border:none;border-radius:9px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:0 2px 12px rgba(75,119,232,0.25);">Pokreni sve agente</button>
+                </div>
+                <div style="height:1px;background:rgba(255,255,255,0.05);margin-bottom:.85rem;"></div>
+                <!-- Uputstvo za individualne agente -->
                 <div style="margin-bottom:.75rem;padding:.65rem .9rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:9px;font-size:.72rem;color:rgba(140,220,255,.8);line-height:1.65;">
-                  <strong style="color:rgba(255,255,255,0.75);display:block;margin-bottom:.35rem;">Kako koristiti Savetnika — 3 koraka:</strong>
+                  <strong style="color:rgba(255,255,255,0.75);display:block;margin-bottom:.35rem;">Ili razgovarajte sa individualnim agentom — 3 koraka:</strong>
                   <span style="color:rgba(255,255,255,0.55);font-weight:700;">1.</span> Kliknite na jednog od 6 agenata ispod (izaberite onoga ko odgovara vašem pitanju).<br>
                   <span style="color:rgba(255,255,255,0.55);font-weight:700;">2.</span> U polje za tekst napišite šta vas zanima ili šta trebate (npr. <em>"Koje zakone da citiram u žalbi?"</em>).<br>
                   <span style="color:rgba(255,255,255,0.55);font-weight:700;">3.</span> Kliknite zeleno dugme <strong style="color:rgba(255,255,255,0.72);">▶ Pokreni agenta</strong>. Agent analizira vaš predmet i odgovara za ~30 sekundi.
@@ -2669,6 +2669,23 @@
                 <button class="web3-copy-btn" onclick="oblastiKopiraj()">Kopiraj</button>
               </div>
               <div id="ob-rezultat-body" class="web3-rezultat-body"></div>
+            </div>
+          </div>
+
+          <!-- ── Globalni zadatci panel ────────────────────────────── -->
+          <div id="tab-zadaci-g" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;">
+              <div>
+                <div style="font-size:.88rem;font-weight:700;color:rgba(255,255,255,.9);">Zadatci</div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.15rem;">Otvorite predmet da upravljate zadatcima</div>
+              </div>
+            </div>
+            <div id="zadaci-g-body">
+              <div style="text-align:center;padding:2.5rem 1rem 3rem;">
+                <div style="font-size:1.4rem;color:rgba(255,255,255,.08);margin-bottom:.9rem;">[ ]</div>
+                <div style="font-size:.82rem;color:rgba(255,255,255,.38);line-height:1.6;margin-bottom:1.2rem;">Zadatci su vezani za svaki predmet posebno.<br>Izaberite predmet i otvorite tab <strong style="color:rgba(255,255,255,.62);">Rad</strong> da vidite i dodajete zadatke.</div>
+                <button onclick="setTab(document.getElementById('tab-btn-p'),'p')" style="padding:.52rem 1.3rem;background:rgba(75,119,232,0.12);border:1px solid rgba(75,119,232,0.30);border-radius:7px;color:rgba(155,175,255,.9);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .12s;">Idi na Predmete</button>
+              </div>
             </div>
           </div>
 
