@@ -224,7 +224,7 @@ class OrkestratorRequest(BaseModel):
 
 
 @router.post("/strategija/kompletna-analiza")  # F10
-@limiter.limit("1/hour")
+@limiter.limit("10/hour")
 async def post_kompletna_analiza(
     req: OrkestratorRequest,
     request: Request,
