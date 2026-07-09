@@ -8299,7 +8299,7 @@ async function pred_bulkAkcija(akcija) {
 }
 
 function pred_subtabSwitch(pane, btn) {
-  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','ccc','agenti','graf','zadaci','profitabilnost'];
+  var VALID = ['pregled','dokumenti','rad','finansije','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','ccc','agenti','graf','zadaci','profitabilnost'];
   if (VALID.indexOf(pane) === -1) pane = 'pregled';
   document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
   document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -8308,16 +8308,20 @@ function pred_subtabSwitch(pane, btn) {
   if (btn) {
     btn.classList.add('active');
   } else {
-    document.querySelectorAll('.pred-subtab-btn').forEach(function(b) {
-      if ((b.getAttribute('onclick') || '').indexOf("'"+pane+"'") > -1) b.classList.add('active');
-    });
-  }
-  // Ažuriraj "Više" btn: active kad je bilo koji sekundarni tab otvoren
-  var _moreBtn = document.getElementById('pred-more-btn');
-  if (_moreBtn) {
-    var _secondary = ['timeline','dokazi','komunikacija','saradnja','graf','ccc','strategija','agenti'];
-    if (_secondary.indexOf(pane) > -1) _moreBtn.classList.add('active');
-    else _moreBtn.classList.remove('active');
+    // Pametna aktivacija: sub-paneovi aktiviraju odgovarajući primarni tab
+    var _radPanes = ['rokovi','zadaci','ai-analiza','agenti','strategija','ccc','timeline','dokazi','graf','komunikacija','saradnja'];
+    var _finPanes = ['naplata','profitabilnost'];
+    if (_radPanes.indexOf(pane) > -1) {
+      var radBtn = document.getElementById('tab-rad-btn');
+      if (radBtn) radBtn.classList.add('active');
+    } else if (_finPanes.indexOf(pane) > -1) {
+      var finBtn = document.getElementById('tab-fin-btn');
+      if (finBtn) finBtn.classList.add('active');
+    } else {
+      document.querySelectorAll('.pred-subtab-btn').forEach(function(b) {
+        if ((b.getAttribute('onclick') || '').indexOf("'"+pane+"'") > -1) b.classList.add('active');
+      });
+    }
   }
   // Scroll activated tab into view in tab nav
   setTimeout(function() {
@@ -12675,14 +12679,35 @@ async function _gsFetch(q) {
 var _GS_ICONS = {predmet:'', klijent:'', dokument:'', billing:'', hronologija:'', beleska:''};
 var _GS_COLORS = {predmet:'rgba(255,255,255,0.72)', klijent:'#4ade80', dokument:'#c9a84c', billing:'#a78bfa', hronologija:'#f97316', beleska:'#94a3b8'};
 
+var _GS_ACTIONS = [
+  { label: 'Novi predmet', sub: 'Otvori wizard za unos predmeta', action: 'intakeOtvori()' },
+  { label: 'Dodaj dokument', sub: 'Otpremi dokument u predmet', action: 'pred_subtabSwitch && activePredmetId ? pred_subtabSwitch("dokumenti") : setTab(document.getElementById("tab-btn-p"),"p")' },
+  { label: 'Pitaj AI', sub: 'Istraži zakon ili sudsku praksu', action: 'openAITool("q")' },
+  { label: 'Novi rok', sub: 'Dodaj ročište ili rok u predmet', action: 'activePredmetId ? pred_subtabSwitch("rokovi") : setTab(document.getElementById("tab-btn-p"),"p")' },
+  { label: 'Pokreni agente', sub: '6 AI agenata analiziraju predmet', action: 'pred_launchKompletnaAnaliza ? pred_launchKompletnaAnaliza() : null' },
+  { label: 'Idi na klijenta', sub: 'Pretraži i otvori klijenta', action: 'setTab(document.getElementById("tab-btn-k"),"k")' },
+  { label: 'Pretraži zakone', sub: 'Istraži važeće zakone Srbije', action: 'openAITool("q")' }
+];
+
 function gsRender(items) {
   var el = document.getElementById('gs-results');
   if (!el) return;
   if (!items.length) {
     var inp = document.getElementById('gs-input');
-    el.innerHTML = inp && inp.value.trim().length >= 2
-      ? '<div style="padding:1.2rem 1rem;font-size:0.8rem;color:rgba(255,255,255,0.3);text-align:center;">Nema rezultata.</div>'
-      : '<div style="padding:1rem 1rem;font-size:0.8rem;color:rgba(255,255,255,0.25);text-align:center;">Ukucajte barem 2 slova...</div>';
+    var hasQuery = inp && inp.value.trim().length >= 2;
+    if (hasQuery) {
+      el.innerHTML = '<div style="padding:1.2rem 1rem;font-size:0.8rem;color:rgba(255,255,255,0.3);text-align:center;">Nema rezultata.</div>';
+    } else {
+      el.innerHTML = '<div style="padding:.5rem .6rem .2rem;font-size:.62rem;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.1em;">Brze akcije</div>'
+        + _GS_ACTIONS.map(function(a, i) {
+          return '<div class="gs-item" onclick="gsClose();(function(){'+a.action+'})()" style="display:flex;align-items:center;gap:.65rem;padding:.5rem 1rem;cursor:pointer;border-radius:6px;">'
+            +'<div style="flex:1;min-width:0;">'
+            +'<div style="font-size:.82rem;color:#e2e8f0;">'+a.label+'</div>'
+            +'<div style="font-size:.7rem;color:rgba(255,255,255,.35);">'+a.sub+'</div>'
+            +'</div>'
+            +'</div>';
+        }).join('');
+    }
     return;
   }
   el.innerHTML = items.map(function(item, i){
