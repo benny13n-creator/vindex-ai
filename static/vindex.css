@@ -4573,7 +4573,7 @@ body.light-theme .wl-input::placeholder { color: rgba(10,18,32,0.28); }
 }
 .vx-logo-mark em {
   font-style: normal !important;
-  color: rgba(255,255,255,0.72) !important;
+  color: #00d4ff !important;
 }
 /* Hide legacy V mark */
 .vx-sidebar-logo::before { display: none !important; content: none !important; }
