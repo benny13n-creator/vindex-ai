@@ -127,7 +127,7 @@ var _initialNavDone = false;
 var _cyrillicOn = false;
 var vxNavHistory = [];
 var _vxGoingBack = false;
-var _vxTabLabels = {h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Compliance',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja'};
+var _vxTabLabels = {h:'Pregled dana',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja'};
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
 var _lastRawText = '';
@@ -1231,7 +1231,7 @@ function _ccBrifingHtml(d, uName) {
   h += '<div class="cc-intel-header">';
   h += '<div class="cc-intel-logo"><div class="cc-intel-hex">⬡</div><div class="cc-intel-pulse"></div></div>';
   h += '<div class="cc-intel-heading">';
-  h += '<div class="cc-intel-title">Komandni centar predmeta</div>';
+  h += '<div class="cc-intel-title">Pregled predmeta</div>';
   h += '<div class="cc-intel-sub">' + pozdrav + '. ' + escHtml(analizaTxt) + '</div>';
   h += '</div>';
   h += '<div class="cc-intel-live"><span class="cc-live-dot"></span>LIVE</div>';
@@ -1806,7 +1806,7 @@ _dashRender = function(d, bd, inboxData) {
   /* ── 1. HEADER — greeting ──────────────────────────────────── */
   html += '<div class="kc-hdr">';
   html += '<div class="kc-hdr-inner">';
-  html += '<div class="kc-hdr-eyebrow">Komandni centar</div>';
+  html += '<div class="kc-hdr-eyebrow">Pregled dana</div>';
   html += '<div class="kc-hdr-title">Dobrodošli nazad'+(userName ? ', '+userName : '')+'.</div>';
   html += '<div class="kc-hdr-sub">Ovde je pregled stanja vaše kancelarije.</div>';
   html += '</div>';
@@ -2086,7 +2086,7 @@ function setTab(el,t){
   ['h','q','n','a','s','p','t','k','w','ob','kal','pi','alati','dok','settings'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Komandni centar',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 Compliance',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja'};
+  var lbl={h:'Pregled dana',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
@@ -8080,12 +8080,12 @@ function pred_renderList() {
 // PROGRESSIVE DISCLOSURE — funkcije se otključavaju kako korisnik raste
 // ═══════════════════════════════════════════════════════════════════════════════
 var _VX_PD_TIERS = [
-  { at: 3,  key: 'strategija', label: 'Strategy Simulator',
+  { at: 3,  key: 'strategija', label: 'Simulator strategije',
     icon: '',
     desc: 'Pokrenite 6 paralelnih analitičkih modula koji simuliraju sudski postupak — Crveni tim, Sudija, Analiza rizika i više. Sve u 2–3 minuta.' },
-  { at: 5,  key: 'agenti', label: 'Savetnici — 6 specijalista',
+  { at: 5,  key: 'agenti', label: 'AI Analiza — 6 specijalista',
     icon: '',
-    desc: 'Šest specijalizovanih savetnika koji analiziraju vaš predmet iz krivičnog, privrednog, procesnog i finansijskog ugla. Postavite konkretno pitanje.' },
+    desc: 'Šest specijalizovanih analiza koje ispituju vaš predmet iz krivičnog, privrednog, procesnog i finansijskog ugla. Postavite konkretno pitanje.' },
   { at: 10, key: 'saradnja', label: 'Saradnja i deljeni predmeti',
     icon: '',
     desc: 'Podelite predmet sa kolegom advokatom, delegirajte zadatke i pratite zajednički rad na predmetu.' },
@@ -8605,9 +8605,9 @@ function aicOtvoriPredmet(subtab) {
     _aicPendingSubtab = subtab || null;
     setTab(document.getElementById('tab-btn-p'), 'p');
     var _msg = subtab === 'graf'
-      ? 'Izaberite predmet → otvoriće se Knowledge Graph sa mrežom odnosa.'
+      ? 'Izaberite predmet → otvoriće se Mapa veza sa mrežom odnosa.'
       : subtab === 'agenti'
-      ? 'Izaberite predmet → otvoriće se Savetnici za postavljanje pitanja.'
+      ? 'Izaberite predmet → otvoriće se AI Analiza za postavljanje pitanja.'
       : 'Izaberite predmet da biste koristili ovaj alat.';
     showToast(_msg, 'info');
   }
@@ -12685,7 +12685,7 @@ var _GS_ACTIONS = [
   { label: 'Dodaj dokument', sub: 'Otpremi dokument u predmet', action: 'pred_subtabSwitch && activePredmetId ? pred_subtabSwitch("dokumenti") : setTab(document.getElementById("tab-btn-p"),"p")' },
   { label: 'Pitaj AI', sub: 'Istraži zakon ili sudsku praksu', action: 'openAITool("q")' },
   { label: 'Novi rok', sub: 'Dodaj ročište ili rok u predmet', action: 'activePredmetId ? pred_subtabSwitch("rokovi") : setTab(document.getElementById("tab-btn-p"),"p")' },
-  { label: 'Pokreni agente', sub: '6 AI agenata analiziraju predmet', action: 'pred_launchKompletnaAnaliza ? pred_launchKompletnaAnaliza() : null' },
+  { label: 'Pokreni analizu', sub: '6 analiza analiziraju predmet', action: 'pred_launchKompletnaAnaliza ? pred_launchKompletnaAnaliza() : null' },
   { label: 'Idi na klijenta', sub: 'Pretraži i otvori klijenta', action: 'setTab(document.getElementById("tab-btn-k"),"k")' },
   { label: 'Pretraži zakone', sub: 'Istraži važeće zakone Srbije', action: 'openAITool("q")' }
 ];

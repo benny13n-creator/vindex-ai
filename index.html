@@ -449,7 +449,11 @@
         <div class="t-tab vx-hidden-tab" id="tab-btn-s" onclick="setTab(this,'s')"></div>
         <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')"><span class="pro-badge" id="pro-badge-n" style="display:none">PRO</span></div>
         <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="pro-badge" id="pro-badge-t" style="display:none">PRO</span></div>
-        <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')"><span class="pro-badge" id="pro-badge-w" style="display:none">PRO</span></div>
+        <div class="vx-nav-sep" style="margin-top:8px !important;"></div>
+        <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">
+          <i data-lucide="coins" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Web3 & Kripto <span class="pro-badge" id="pro-badge-w" style="display:none">PRO</span></span>
+        </div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-ob" onclick="setTab(this,'ob')"></div>
       </nav>
@@ -572,7 +576,7 @@
           <i data-lucide="chevron-left"></i>Nazad
         </button>
         <span id="vx-back-sep">/</span>
-        <span id="vx-breadcrumb-path">Komandni centar</span>
+        <span id="vx-breadcrumb-path">Pregled predmeta</span>
       </div>
     <div class="vx-panels-wrap">
           <div id="chat-hist" class="chat-hist"></div>
@@ -724,9 +728,9 @@
                 <!-- 6 tabova — svaka kritična funkcija dostupna 1 klikom -->
                 <button class="pred-subtab-btn pred-tab-primary active" id="tab-pregled-btn" onclick="pred_subtabSwitch('pregled',this)" title="Detalji predmeta, klijent, beleške i status">Pregled</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('dokumenti',this)" title="Dokumenti vezani za predmet">Dokumenti</button>
-                <button class="pred-subtab-btn pred-tab-primary" id="tab-ai-btn" onclick="pred_subtabSwitch('agenti',this)" title="AI analiza — 6 agenata paralelno ili individualni savetnik">AI</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-ai-btn" onclick="pred_subtabSwitch('agenti',this)" title="AI analiza — 6 modula paralelno ili pojedinačna analiza">AI Analiza</button>
                 <button class="pred-subtab-btn pred-tab-primary" id="tab-rokovi-btn" onclick="pred_subtabSwitch('rokovi',this)" title="Ročišta i rokovi ovog predmeta">Rokovi</button>
-                <button class="pred-subtab-btn pred-tab-primary" id="tab-rad-btn" onclick="pred_subtabSwitch('rad',this)" title="Zadatci, strategija, hronologija i ostale alatke">Rad</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-rad-btn" onclick="pred_subtabSwitch('rad',this)" title="Zadatci, strategija, hronologija i ostale alatke predmeta">Alatke</button>
                 <button class="pred-subtab-btn pred-tab-primary" id="tab-naplata-btn" onclick="pred_subtabSwitch('naplata',this)" title="Tajmer, naplata i profitabilnost predmeta">Naplata</button>
               </div>
               <!-- Scroll fade indicator — pokazuje da ima još tabova desno -->
@@ -736,7 +740,7 @@
               <!-- ── TAB: Case Command Center ─────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-ccc">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
-                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Komandni Centar Predmeta</div>
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Pregled predmeta</div>
                   <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
                     <button onclick="ccc_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);cursor:pointer;" title="Ponovo učitaj komandni centar">↺</button>
                     <button onclick="pred_print()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.2);border-radius:6px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);cursor:pointer;">Štampaj</button>
@@ -762,19 +766,19 @@
                     <div class="vx-rad-card-sub">Plan vođenja predmeta</div>
                   </div>
                   <div class="vx-rad-card" onclick="pred_subtabSwitch('ccc')" title="Sažetak predmeta na jednom mestu">
-                    <div class="vx-rad-card-label">Komandni centar</div>
+                    <div class="vx-rad-card-label">Pregled predmeta</div>
                     <div class="vx-rad-card-sub">Kompletni pregled</div>
                   </div>
                   <div class="vx-rad-card" onclick="pred_subtabSwitch('timeline')" title="Hronološki pregled svih događaja">
                     <div class="vx-rad-card-label">Hronologija</div>
                     <div class="vx-rad-card-sub">Tok događaja</div>
                   </div>
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('dokazi')" title="Organizovani trezor svih dokaza">
-                    <div class="vx-rad-card-label">Trezor dokaza</div>
+                  <div class="vx-rad-card" onclick="pred_subtabSwitch('dokazi')" title="Svi dokazi i materijali predmeta">
+                    <div class="vx-rad-card-label">Dokazi</div>
                     <div class="vx-rad-card-sub">Svi dokazi i materijali</div>
                   </div>
                   <div class="vx-rad-card" onclick="pred_subtabSwitch('graf')" title="Vizuelna mapa veza između entiteta">
-                    <div class="vx-rad-card-label">Graf veza</div>
+                    <div class="vx-rad-card-label">Mapa veza</div>
                     <div class="vx-rad-card-sub">Vizuelna mapa predmeta</div>
                   </div>
                 </div>
@@ -1542,22 +1546,22 @@
                 <div style="margin-bottom:1rem;padding:1rem 1.1rem;background:linear-gradient(135deg,rgba(75,119,232,0.12),rgba(99,102,241,0.06));border:1px solid rgba(75,119,232,0.32);border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:.9rem;flex-wrap:wrap;">
                   <div>
                     <div style="font-size:.9rem;font-weight:700;color:rgba(210,208,255,.95);margin-bottom:.3rem;">Kompletna AI analiza predmeta</div>
-                    <div style="font-size:.7rem;color:rgba(255,255,255,.40);line-height:1.55;">6 agenata paralelno — pravna ocena, analiza rizika, slabe tačke, procena ishoda, strategija — za 2–3 min</div>
+                    <div style="font-size:.7rem;color:rgba(255,255,255,.40);line-height:1.55;">6 analiza paralelno — pravna ocena, analiza rizika, slabe tačke, procena ishoda, strategija — za 2–3 min</div>
                   </div>
-                  <button id="agent-launch-all-btn" onclick="this.textContent='Analiziram...';this.disabled=true;pred_launchKompletnaAnaliza();var _b=this;setTimeout(function(){_b.textContent='Pokreni sve agente';_b.disabled=false;},3000);" style="flex-shrink:0;padding:.65rem 1.3rem;background:linear-gradient(135deg,#4B77E8,#1264c4);border:none;border-radius:9px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:0 2px 12px rgba(75,119,232,0.25);">Pokreni sve agente</button>
+                  <button id="agent-launch-all-btn" onclick="this.textContent='Analiziram...';this.disabled=true;pred_launchKompletnaAnaliza();var _b=this;setTimeout(function(){_b.textContent='Pokreni kompletnu analizu';_b.disabled=false;},3000);" style="flex-shrink:0;padding:.65rem 1.3rem;background:linear-gradient(135deg,#4B77E8,#1264c4);border:none;border-radius:9px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:0 2px 12px rgba(75,119,232,0.25);">Pokreni kompletnu analizu</button>
                 </div>
                 <div style="height:1px;background:rgba(255,255,255,0.05);margin-bottom:.85rem;"></div>
                 <!-- Uputstvo za individualne agente -->
                 <div style="margin-bottom:.75rem;padding:.65rem .9rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:9px;font-size:.72rem;color:rgba(140,220,255,.8);line-height:1.65;">
-                  <strong style="color:rgba(255,255,255,0.75);display:block;margin-bottom:.35rem;">Ili razgovarajte sa individualnim agentom — 3 koraka:</strong>
-                  <span style="color:rgba(255,255,255,0.55);font-weight:700;">1.</span> Kliknite na jednog od 6 agenata ispod (izaberite onoga ko odgovara vašem pitanju).<br>
+                  <strong style="color:rgba(255,255,255,0.75);display:block;margin-bottom:.35rem;">Ili koristite pojedinačnu analizu — 3 koraka:</strong>
+                  <span style="color:rgba(255,255,255,0.55);font-weight:700;">1.</span> Kliknite na jednu od 6 analiza ispod (izaberite onu koja odgovara vašem pitanju).<br>
                   <span style="color:rgba(255,255,255,0.55);font-weight:700;">2.</span> U polje za tekst napišite šta vas zanima ili šta trebate (npr. <em>"Koje zakone da citiram u žalbi?"</em>).<br>
-                  <span style="color:rgba(255,255,255,0.55);font-weight:700;">3.</span> Kliknite zeleno dugme <strong style="color:rgba(255,255,255,0.72);">▶ Pokreni agenta</strong>. Agent analizira vaš predmet i odgovara za ~30 sekundi.
+                  <span style="color:rgba(255,255,255,0.55);font-weight:700;">3.</span> Kliknite dugme <strong style="color:rgba(255,255,255,0.72);">▶ Pokreni analizu</strong>. Sistem analizira vaš predmet i odgovara za ~30 sekundi.
                 </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
                   <div>
-                    <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Tim savetnika — Centar</div>
-                    <div style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.1rem;">6 specijalizovanih savetnika — izaberi agenta → unesite zadatak → pokrenite</div>
+                    <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Specijalizovane analize</div>
+                    <div style="font-size:.68rem;color:rgba(255,255,255,.22);margin-top:.1rem;">6 pravnih analiza — izaberite, unesite zadatak i pokrenite</div>
                   </div>
                 </div>
 
@@ -1601,10 +1605,10 @@
                   <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;">
                     <button onclick="_predAutoFill('agent-task-input',true)" id="btn-autofill-agenti" style="display:none;font-size:0.65rem;padding:2px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:5px;color:rgba(255,255,255,0.55);cursor:pointer;font-family:inherit;white-space:nowrap;">↺ Iz predmeta</button>
                   </div>
-                  <textarea id="agent-task-input" placeholder="Opišite šta trebate od agenta... (ili izaberite agenta gore, pa unesite zadatak)" style="width:100%;background:transparent;border:none;color:#e2e8f0;font-size:.85rem;resize:vertical;min-height:80px;outline:none;font-family:inherit;"></textarea>
+                  <textarea id="agent-task-input" placeholder="Opišite šta trebate... (ili izaberite analizu gore, pa unesite zadatak)" style="width:100%;background:transparent;border:none;color:#e2e8f0;font-size:.85rem;resize:vertical;min-height:80px;outline:none;font-family:inherit;"></textarea>
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.5rem;">
-                    <span style="font-size:.7rem;color:rgba(255,255,255,.25);">Bez agenta = automatski izbor najprikladnijeg</span>
-                    <button onclick="agent_run()" style="padding:.45rem 1.2rem;background:linear-gradient(135deg,#4B77E8,#6366f1);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;">▶ Pokreni agenta</button>
+                    <span style="font-size:.7rem;color:rgba(255,255,255,.25);">Bez izbora = automatski odabir najprikladnije analize</span>
+                    <button onclick="agent_run()" style="padding:.45rem 1.2rem;background:linear-gradient(135deg,#4B77E8,#6366f1);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;">▶ Pokreni analizu</button>
                   </div>
                 </div>
 
@@ -1621,14 +1625,14 @@
                 </div>
                 <div id="agent-loading" style="display:none;text-align:center;padding:1.5rem;color:rgba(255,255,255,0.45);font-size:.82rem;">
                   <div class="kg-loading-dots" style="justify-content:center;margin-bottom:.5rem;"><span></span><span></span><span></span></div>
-                  <div id="agent-loading-txt">Agent analizira predmet...</div>
+                  <div id="agent-loading-txt">Analiza u toku...</div>
                 </div>
 
                 <!-- Paralelna analiza -->
                 <div style="margin-top:1rem;padding:.9rem 1rem;background:linear-gradient(135deg,rgba(255,255,255,0.03),rgba(99,102,241,0.05));border:1px solid rgba(75,119,232,0.12);border-radius:10px;">
                   <div style="font-size:.75rem;font-weight:700;color:rgba(150,200,255,.85);margin-bottom:.25rem;">Paralelna analiza</div>
-                  <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:.6rem;line-height:1.5;">Research + Litigation + Intake agent rade istovremeno. Konsolidovani izveštaj za brzu sveobuhvatnu procenu. (3 kredita)</div>
-                  <button id="agent-para-btn" onclick="agent_run_parallel()" style="width:100%;padding:.45rem;background:linear-gradient(135deg,rgba(75,119,232,0.10),rgba(99,102,241,0.12));border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:rgba(255,255,255,0.72);font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;">Pokreni paralelnu analizu (3 kredita)</button>
+                  <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:.6rem;line-height:1.5;">Istraživanje + Parnica + Prijem rade istovremeno. Konsolidovani izveštaj za brzu sveobuhvatnu procenu. (3 kredita)</div>
+                  <button id="agent-para-btn" onclick="agent_run_parallel()" style="width:100%;padding:.45rem;background:linear-gradient(135deg,rgba(75,119,232,0.10),rgba(99,102,241,0.12));border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:rgba(255,255,255,0.72);font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;">Pokreni tri istovremene analize (3 kredita)</button>
                 </div>
 
                 <!-- HCC brzi pristup -->
@@ -1653,7 +1657,7 @@
               <!-- ── TAB: Dokazi (Trezor dokaza) ──────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-dokazi" style="display:none;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
-                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Trezor dokaza — matrica dokaza</div>
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Dokazi — matrica dokaza</div>
                   <button onclick="evidence_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,0.12);border-radius:6px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.72);cursor:pointer;">↺ Osveži</button>
                 </div>
                 <!-- Statistika -->
@@ -2598,18 +2602,17 @@
 
           <!-- F11: Web3/Compliance tab -->
           <div id="tab-w" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div class="web3-header">
-              <div class="web3-naslov">₿ Web3 &amp; Crypto Compliance</div>
+              <div class="web3-naslov">₿ Web3 & Kripto Usklađenost</div>
               <div class="web3-podnaslov">Pravna analiza zasnovana na ZDI (Srbija) i MiCA (EU 2023/1114)</div>
             </div>
             <div class="strat-modul-izbor web3-moduli">
               <button class="strat-btn active" data-modul="web3_pretraga" onclick="web3IzaberiModul('web3_pretraga',this)">ZDI/MiCA Pretraga</button>
               <button class="strat-btn" data-modul="compliance_check" onclick="web3IzaberiModul('compliance_check',this)">Provera uskladenosti</button>
-              <button class="strat-btn" data-modul="whitepaper_check" onclick="web3IzaberiModul('whitepaper_check',this)">Whitepaper Analiza</button>
-              <button class="strat-btn" data-modul="mica_score" onclick="web3IzaberiModul('mica_score',this)">MiCA Score</button>
+              <button class="strat-btn" data-modul="whitepaper_check" onclick="web3IzaberiModul('whitepaper_check',this)">Analiza projekta</button>
+              <button class="strat-btn" data-modul="mica_score" onclick="web3IzaberiModul('mica_score',this)">MiCA ocena</button>
               <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">Provera licence</button>
-              <button class="strat-btn" data-modul="aml_audit" onclick="web3IzaberiModul('aml_audit',this)">AML/KYC Audit</button>
+              <button class="strat-btn" data-modul="aml_audit" onclick="web3IzaberiModul('aml_audit',this)">AML/KYC Revizija</button>
               <button class="strat-btn" data-modul="smart_contract" onclick="web3IzaberiModul('smart_contract',this)">Pametni Ugovor</button>
             </div>
             <div id="web3-opis" class="strat-opis-box web3-opis-box"></div>
@@ -2677,13 +2680,13 @@
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;">
               <div>
                 <div style="font-size:.88rem;font-weight:700;color:rgba(255,255,255,.9);">Zadatci</div>
-                <div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.15rem;">Otvorite predmet da upravljate zadatcima</div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.15rem;">Zadatci su vezani za svaki predmet posebno</div>
               </div>
             </div>
             <div id="zadaci-g-body">
               <div style="text-align:center;padding:2.5rem 1rem 3rem;">
                 <div style="font-size:1.4rem;color:rgba(255,255,255,.08);margin-bottom:.9rem;">[ ]</div>
-                <div style="font-size:.82rem;color:rgba(255,255,255,.38);line-height:1.6;margin-bottom:1.2rem;">Zadatci su vezani za svaki predmet posebno.<br>Izaberite predmet i otvorite tab <strong style="color:rgba(255,255,255,.62);">Rad</strong> da vidite i dodajete zadatke.</div>
+                <div style="font-size:.82rem;color:rgba(255,255,255,.38);line-height:1.6;margin-bottom:1.2rem;">Zadatci su vezani za svaki predmet posebno.<br>Izaberite predmet i otvorite tab <strong style="color:rgba(255,255,255,.62);">Alatke</strong> da vidite i dodajete zadatke.</div>
                 <button onclick="setTab(document.getElementById('tab-btn-p'),'p')" style="padding:.52rem 1.3rem;background:rgba(75,119,232,0.12);border:1px solid rgba(75,119,232,0.30);border-radius:7px;color:rgba(155,175,255,.9);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .12s;">Idi na Predmete</button>
               </div>
             </div>
@@ -2789,7 +2792,7 @@
                   <button class="aic3-global-btn" onclick="openAITool('w')">
                     <i data-lucide="coins" style="width:17px;height:17px;color:rgba(255,255,255,0.40);"></i>
                     <span class="aic3-global-btn-name">Web3 / MiCA</span>
-                    <span class="aic3-global-btn-sub">ZDI · MiCA · Crypto pravo</span>
+                    <span class="aic3-global-btn-sub">ZDI · MiCA · Kripto pravo</span>
                   </button>
                   <button class="aic3-global-btn" onclick="setTab(document.getElementById('tab-btn-dok'),'dok')">
                     <i data-lucide="book-open" style="width:17px;height:17px;color:rgba(255,255,255,0.40);"></i>
