@@ -637,6 +637,12 @@ app.include_router(status_page_router)
 from routers.sesije import router as sesije_router
 app.include_router(sesije_router)
 
+from routers.apr import router as apr_router
+app.include_router(apr_router)
+
+from routers.portal_monitoring import router as portal_monitoring_router
+app.include_router(portal_monitoring_router)
+
 from routers.cio import router as cio_router
 app.include_router(cio_router)
 
@@ -1380,6 +1386,35 @@ async def cron_daily(request: Request):
     except Exception as _mce:
         rezultati["memory_cleanup"] = {"status": "greska", "greska": str(_mce)[:120],
                                         "duration_ms": round((_time.monotonic() - _t_mc) * 1000)}
+        _broj_grešaka += 1
+
+    # ── Modul 4: Portal.sud.rs monitoring ────────────────────────────────────
+    _t_pm = _time.monotonic()
+    try:
+        from routers.portal_monitoring import cron_proveri as _pm_cron
+        class _FakeReq:
+            headers = {}
+            client = None
+        _pm_r = await asyncio.wait_for(
+            _pm_cron(_FakeReq(), x_cron_secret=cron_secret, user={"user_id": "cron", "email": ""}),
+            timeout=120,
+        )
+        _pm_prov = int(_pm_r.get("provereno", 0)) if isinstance(_pm_r, dict) else 0
+        _pm_prom = int(_pm_r.get("promena", 0)) if isinstance(_pm_r, dict) else 0
+        _stavke_obradjene += _pm_prom
+        rezultati["portal_monitoring"] = {
+            "provereno": _pm_prov,
+            "promena": _pm_prom,
+            "duration_ms": round((_time.monotonic() - _t_pm) * 1000),
+            "status": "ok",
+        }
+    except asyncio.TimeoutError:
+        rezultati["portal_monitoring"] = {"status": "timeout", "greska": "Prekoraceno 120s",
+                                           "duration_ms": round((_time.monotonic() - _t_pm) * 1000)}
+        _broj_grešaka += 1
+    except Exception as _pme:
+        rezultati["portal_monitoring"] = {"status": "greska", "greska": str(_pme)[:120],
+                                           "duration_ms": round((_time.monotonic() - _t_pm) * 1000)}
         _broj_grešaka += 1
 
     # ── Heartbeat (uvek se izvršava, bez obzira na greške iznad) ────────────

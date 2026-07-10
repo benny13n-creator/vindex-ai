@@ -3771,6 +3771,48 @@ async function crmUcitajDokumente(klijentId) {
 
 var _crmDirty = false;
 function crmMarkDirty() { _crmDirty = true; }
+
+async function crmAprAutofill() {
+  var mbEl  = document.getElementById('crm-f-mb');
+  var statEl = document.getElementById('crm-apr-status');
+  var btn   = document.getElementById('crm-apr-btn');
+  var mb    = (mbEl ? mbEl.value : '').replace(/\D/g, '');
+  if (!mb || mb.length < 6) {
+    if (statEl) { statEl.style.display='block'; statEl.style.color='rgba(255,165,0,0.85)'; statEl.textContent='Unesite matični broj (min. 6 cifara).'; }
+    return;
+  }
+  if (btn) { btn.disabled=true; btn.textContent='Pretraga...'; }
+  if (statEl) { statEl.style.display='block'; statEl.style.color='rgba(255,255,255,0.5)'; statEl.textContent='Pretraga APR registra...'; }
+  try {
+    var r = await fetch(BASE_URL + '/api/apr/lookup/'+encodeURIComponent(mb), {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!r.ok || d.greska) {
+      if (statEl) { statEl.style.color='rgba(255,80,80,0.85)'; statEl.textContent = d.greska || d.detail || 'Preduzece nije pronadjeno.'; }
+      return;
+    }
+    var popunjeno = [];
+    var naziv = d.naziv || d.firma || '';
+    if (naziv) { document.getElementById('crm-f-firma').value = naziv; popunjeno.push('firma'); crmMarkDirty(); }
+    if (d.adresa) { document.getElementById('crm-f-adresa').value = d.adresa; popunjeno.push('adresa'); }
+    if (d.pib) { var pibEl = document.getElementById('crm-f-pib'); if(pibEl) { pibEl.value=d.pib; popunjeno.push('PIB'); } }
+    if (statEl) {
+      if (popunjeno.length) {
+        statEl.style.color='rgba(74,222,128,0.85)';
+        statEl.textContent = 'Popunjeno iz APR: ' + popunjeno.join(', ') + (d.zastupnik ? ' | Zastupnik: '+d.zastupnik : '') + (d.status ? ' | Status: '+d.status : '');
+      } else {
+        statEl.style.color='rgba(255,165,0,0.85)';
+        statEl.textContent = 'Pronađeno ali podaci nisu kompletni. Proverite APR direktno.';
+      }
+    }
+  } catch(e) {
+    if (statEl) { statEl.style.color='rgba(255,80,80,0.85)'; statEl.textContent='Greška pri komunikaciji sa APR servisom.'; }
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='Popuni iz APR'; }
+  }
+}
+
 function crmConfirmClose() {
   if (_crmDirty && !confirm('Imate nesačuvane izmene. Zatvoriti bez čuvanja?')) return;
   crmZatvoriFormu();
@@ -3819,6 +3861,7 @@ async function crmSacuvaj() {
     adresa:               (document.getElementById('crm-f-adresa').value || '').trim(),
     napomena:             (document.getElementById('crm-f-napomena').value || '').trim(),
     pravni_osnov_obrade:  document.getElementById('crm-f-osnov').value || 'legitimni_interes',
+    maticni_broj:         (document.getElementById('crm-f-mb') ? document.getElementById('crm-f-mb').value || '' : '').trim(),
   };
   if (!payload.ime) { alert('Ime je obavezno polje.'); return; }
   var url = editId ? '/klijenti/'+editId : '/klijenti';
@@ -3848,6 +3891,7 @@ async function crmUredi(klijentId) {
     document.getElementById('crm-f-telefon').value  = k.telefon  || '';
     document.getElementById('crm-f-adresa').value   = k.adresa   || '';
     document.getElementById('crm-f-napomena').value = k.napomena || '';
+    if (document.getElementById('crm-f-mb')) document.getElementById('crm-f-mb').value = k.maticni_broj || '';
     if (document.getElementById('crm-f-osnov')) document.getElementById('crm-f-osnov').value = k.pravni_osnov_obrade || 'legitimni_interes';
     crmSetTip(k.tip || 'fizicko_lice');
     crmOtvoriFormu(klijentId);
@@ -18755,5 +18799,100 @@ async function profitabilnost_toggleOptIn(cb) {
     });
     showToast(cb.checked ? 'Benchmark učešće aktivirano.' : 'Benchmark učešće deaktivirano.', 'ok');
   } catch(e) { showToast('Greška pri ažuriranju podešavanja.', 'error'); }
+}
 
+// ── Portal.sud.rs praćenje ────────────────────────────────────────────────────
+
+function portalToggleSection(btn) {
+  var sec = document.getElementById('portal-section');
+  var chv = document.getElementById('portal-chevron');
+  if (!sec) return;
+  var open = sec.style.display !== 'none';
+  sec.style.display = open ? 'none' : 'block';
+  if (chv) chv.textContent = open ? '▼' : '▲';
+  if (!open) portalUcitajListu();
+}
+
+async function portalUcitajListu() {
+  if (!currentSession || !activePredmetId) return;
+  var listaEl = document.getElementById('portal-lista');
+  if (!listaEl) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/portal/praceni', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    var predmeti = (d.predmeti || []).filter(function(p) { return p.predmet_id === activePredmetId; });
+    if (!predmeti.length) {
+      listaEl.innerHTML = '<div style="font-size:.68rem;color:rgba(255,255,255,.3);text-align:center;padding:.4rem 0;">Nema praćenih predmeta za ovaj predmet.</div>';
+      return;
+    }
+    listaEl.innerHTML = predmeti.map(function(p) {
+      var statusColor = p.poslednji_status ? 'rgba(74,222,128,0.7)' : 'rgba(255,255,255,.3)';
+      var proveraStr = p.poslednja_provera ? new Date(p.poslednja_provera).toLocaleDateString('sr-RS') : 'Nije provereno';
+      return '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:.45rem .6rem;display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;">'
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-size:.72rem;font-weight:600;color:rgba(255,255,255,.75);">' + (p.naziv || p.broj_predmeta) + ' <span style="font-weight:400;color:rgba(255,255,255,.4);">(' + p.sud_naziv + ')</span></div>'
+        + '<div style="font-size:.65rem;color:rgba(255,255,255,.35);margin-top:.15rem;">Broj: ' + p.broj_predmeta + (p.poslednji_status ? ' &nbsp;|&nbsp; Status: <span style="color:' + statusColor + ';">' + p.poslednji_status + '</span>' : '') + '</div>'
+        + '<div style="font-size:.6rem;color:rgba(255,255,255,.25);margin-top:.1rem;">Poslednja provera: ' + proveraStr + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:.3rem;flex-shrink:0;">'
+        + '<button onclick="portalManualUpdate(\'' + p.id + '\',this)" style="padding:.2rem .45rem;font-size:.62rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:5px;color:rgba(255,255,255,.45);cursor:pointer;font-family:inherit;">Proveri</button>'
+        + '<button onclick="portalUkloni(\'' + p.id + '\')" style="padding:.2rem .45rem;font-size:.62rem;background:rgba(255,80,80,0.05);border:1px solid rgba(255,80,80,0.12);border-radius:5px;color:rgba(255,100,100,.5);cursor:pointer;font-family:inherit;">Ukloni</button>'
+        + '</div></div>';
+    }).join('');
+  } catch(e) {
+    var listaEl2 = document.getElementById('portal-lista');
+    if (listaEl2) listaEl2.innerHTML = '<div style="font-size:.68rem;color:rgba(255,80,80,.5);">Greška pri učitavanju.</div>';
+  }
+}
+
+async function portalDodajPraceni() {
+  if (!currentSession || !activePredmetId) { showToast('Otvorite predmet prvo.', 'warning'); return; }
+  var broj = (document.getElementById('portal-broj').value || '').trim();
+  var sud  = (document.getElementById('portal-sud').value || '').trim();
+  if (!broj) { showToast('Unesite broj predmeta.', 'warning'); return; }
+  if (!sud)  { showToast('Unesite naziv suda.', 'warning'); return; }
+  try {
+    var r = await fetch(BASE_URL + '/api/portal/prati', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ predmet_id: activePredmetId, broj_predmeta: broj, sud_naziv: sud, naziv: broj + ' — ' + sud })
+    });
+    if (!r.ok) { showToast('Greška pri dodavanju.', 'error'); return; }
+    document.getElementById('portal-broj').value = '';
+    document.getElementById('portal-sud').value  = '';
+    showToast('Predmet dodat na praćenje.', 'success');
+    portalUcitajListu();
+  } catch(e) { showToast('Greška.', 'error'); }
+}
+
+async function portalManualUpdate(praceniId, btn) {
+  if (!currentSession) return;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    var r = await fetch(BASE_URL + '/api/portal/manual-update/' + praceniId, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (d.promena) showToast('Status predmeta promenjen: ' + d.status, 'success');
+    else if (d.greska) showToast('Portal: ' + d.greska, 'warning');
+    else showToast('Status nepromenjen: ' + (d.status || 'nije dobijen'), 'ok');
+    portalUcitajListu();
+  } catch(e) { showToast('Greška pri proveri.', 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Proveri'; } }
+}
+
+async function portalUkloni(praceniId) {
+  if (!currentSession) return;
+  if (!confirm('Ukloniti predmet sa liste praćenja?')) return;
+  try {
+    await fetch(BASE_URL + '/api/portal/prati/' + praceniId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    showToast('Predmet uklonjen sa praćenja.', 'ok');
+    portalUcitajListu();
+  } catch(e) { showToast('Greška.', 'error'); }
 }
