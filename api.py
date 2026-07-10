@@ -634,6 +634,8 @@ app.include_router(intel_timeline_router)
 app.include_router(tos_router)
 app.include_router(data_export_router)
 app.include_router(status_page_router)
+from routers.sesije import router as sesije_router
+app.include_router(sesije_router)
 
 from routers.cio import router as cio_router
 app.include_router(cio_router)

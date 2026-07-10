@@ -123,6 +123,76 @@
 var BASE_URL   = window.location.origin;
 var STRIPE_URL = ''; // Set to your Stripe checkout or pricing page URL
 var activeTab = 'q';
+
+/* ── Zaštita od deljenja naloga — session management ─────────────────────── */
+var _VX_DEVICE_ID = (function() {
+  var k = 'vx_device_id';
+  var id = localStorage.getItem(k);
+  if (!id) {
+    id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2,9);
+    localStorage.setItem(k, id);
+  }
+  return id;
+})();
+var _vxHeartbeatTimer = null;
+
+async function _sesijaRegistruj() {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/sesija/registruj', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.access_token
+      },
+      body: JSON.stringify({ device_id: _VX_DEVICE_ID })
+    });
+    if (r.status === 409) {
+      var d = await r.json();
+      var msg = (d.detail && d.detail.message) ? d.detail.message
+        : 'Vaš nalog je već aktivan na drugom uređaju. Odjavite se tamo ili nadogradite na PRO (2 uređaja istovremeno).';
+      showToast(msg, 'warning', 9000);
+    }
+  } catch(e) {}
+}
+
+async function _sesijaPing() {
+  if (!currentSession) return;
+  try {
+    await fetch(BASE_URL + '/api/sesija/ping', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.access_token
+      },
+      body: JSON.stringify({ device_id: _VX_DEVICE_ID })
+    });
+  } catch(e) {}
+}
+
+async function _sesijaOdjavi() {
+  if (!currentSession) return;
+  try {
+    await fetch(BASE_URL + '/api/sesija/odjavi', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.access_token
+      },
+      body: JSON.stringify({ device_id: _VX_DEVICE_ID })
+    });
+  } catch(e) {}
+}
+
+function _sesijaStartHeartbeat() {
+  if (_vxHeartbeatTimer) clearInterval(_vxHeartbeatTimer);
+  _vxHeartbeatTimer = setInterval(_sesijaPing, 60000);
+}
+
+function _sesijaStopHeartbeat() {
+  if (_vxHeartbeatTimer) { clearInterval(_vxHeartbeatTimer); _vxHeartbeatTimer = null; }
+}
+/* ── kraj session management ──────────────────────────────────────────────── */
 var _initialNavDone = false;
 var _cyrillicOn = false;
 var vxNavHistory = [];
@@ -500,6 +570,8 @@ async function doLogin() {
   updateAuthUI();
   loadCredits();
   tosCheck();
+  await _sesijaRegistruj();
+  _sesijaStartHeartbeat();
 }
 
 async function doRegister() {
@@ -569,6 +641,8 @@ async function doRegister() {
   updateAuthUI();
   loadCredits();
   tosCheck();
+  await _sesijaRegistruj();
+  _sesijaStartHeartbeat();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -679,6 +753,8 @@ async function exportSviPodaci() {
 }
 
 async function doLogout() {
+  _sesijaStopHeartbeat();
+  await _sesijaOdjavi();
   var sb = getSupabase();
   if (sb) { try { await sb.auth.signOut(); } catch(e) {} }
   // Briši sve korisničke podatke iz localStorage — sprečava kontaminaciju između naloga
