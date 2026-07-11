@@ -18843,14 +18843,22 @@ async function portalUcitajListu() {
       listaEl.innerHTML = '<div style="font-size:.68rem;color:rgba(255,255,255,.3);text-align:center;padding:.4rem 0;">Nema praćenih predmeta za ovaj predmet.</div>';
       return;
     }
+    var statusBadge = {
+      tracked:     {c:'rgba(255,255,255,.35)', l:'Nije još provereno'},
+      unchanged:   {c:'rgba(255,255,255,.35)', l:'Bez promena'},
+      changed:     {c:'rgba(74,222,128,0.85)', l:'Promenjen status'},
+      unavailable: {c:'rgba(255,165,0,0.8)',   l:'Portal nedostupan'},
+      error:       {c:'rgba(255,100,100,0.7)', l:'Greška pri proveri'},
+    };
     listaEl.innerHTML = predmeti.map(function(p) {
       var statusColor = p.poslednji_status ? 'rgba(74,222,128,0.7)' : 'rgba(255,255,255,.3)';
       var proveraStr = p.poslednja_provera ? new Date(p.poslednja_provera).toLocaleDateString('sr-RS') : 'Nije provereno';
+      var sb = statusBadge[p.current_status] || statusBadge.tracked;
       return '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:.45rem .6rem;display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;">'
         + '<div style="flex:1;min-width:0;">'
         + '<div style="font-size:.72rem;font-weight:600;color:rgba(255,255,255,.75);">' + (p.naziv || p.broj_predmeta) + ' <span style="font-weight:400;color:rgba(255,255,255,.4);">(' + p.sud_naziv + ')</span></div>'
         + '<div style="font-size:.65rem;color:rgba(255,255,255,.35);margin-top:.15rem;">Broj: ' + p.broj_predmeta + (p.poslednji_status ? ' &nbsp;|&nbsp; Status: <span style="color:' + statusColor + ';">' + p.poslednji_status + '</span>' : '') + '</div>'
-        + '<div style="font-size:.6rem;color:rgba(255,255,255,.25);margin-top:.1rem;">Poslednja provera: ' + proveraStr + '</div>'
+        + '<div style="font-size:.6rem;color:rgba(255,255,255,.25);margin-top:.1rem;">Poslednja provera: ' + proveraStr + ' &nbsp;|&nbsp; <span style="color:' + sb.c + ';">' + sb.l + '</span>' + (p.last_error ? ' — ' + p.last_error : '') + '</div>'
         + '</div>'
         + '<div style="display:flex;gap:.3rem;flex-shrink:0;">'
         + '<button onclick="portalManualUpdate(\'' + p.id + '\',this)" style="padding:.2rem .45rem;font-size:.62rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:5px;color:rgba(255,255,255,.45);cursor:pointer;font-family:inherit;">Proveri</button>'
@@ -18879,6 +18887,7 @@ async function portalDodajPraceni() {
     document.getElementById('portal-broj').value = '';
     document.getElementById('portal-sud').value  = '';
     showToast('Predmet dodat na praćenje.', 'success');
+    if (typeof piTrack === 'function') piTrack('portal', 'tracking_enabled', {broj_predmeta: broj});
     portalUcitajListu();
   } catch(e) { showToast('Greška.', 'error'); }
 }
@@ -18892,7 +18901,8 @@ async function portalManualUpdate(praceniId, btn) {
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
     });
     var d = await r.json();
-    if (d.promena) showToast('Status predmeta promenjen: ' + d.status, 'success');
+    if (d.preskoceno) showToast(d.poruka || 'Nedavno proveravano.', 'ok');
+    else if (d.promena) showToast('Status predmeta promenjen: ' + d.status, 'success');
     else if (d.greska) showToast('Portal: ' + d.greska, 'warning');
     else showToast('Status nepromenjen: ' + (d.status || 'nije dobijen'), 'ok');
     portalUcitajListu();

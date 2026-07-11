@@ -44,6 +44,23 @@ _UA = (
     "Chrome/124.0.0.0 Safari/537.36"
 )
 
+_MIN_RECHECK_MINUTES = 30  # duplicate protection — ne proveravaj isti predmet cesce od ovoga
+
+_DISCLAIMER = (
+    "Vindex periodično proverava javno dostupne podatke sa Portala sudova. "
+    "Dostupnost i učestalost promena zavise od izvora podataka."
+)
+
+
+def _minutes_since(iso_ts: Optional[str]) -> Optional[float]:
+    if not iso_ts:
+        return None
+    try:
+        last = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
+        return (datetime.now(timezone.utc) - last).total_seconds() / 60
+    except Exception:
+        return None
+
 # ─── Modeli ───────────────────────────────────────────────────────────────────
 
 class PratiReq(BaseModel):
@@ -61,7 +78,7 @@ _PORTAL_SEARCH = "https://portal.sud.rs/webportal/faces/javni/pretraga.xhtml"
 async def _scrape_portal_status(broj_predmeta: str, sud_naziv: str) -> dict:
     """
     Dohvata status predmeta sa portal.sud.rs javnog modula.
-    Vraća: {status, datum, greska}
+    Vraća: {status, datum, greska, kind} — kind: ok | unavailable | error
     """
     try:
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
@@ -81,6 +98,7 @@ async def _scrape_portal_status(broj_predmeta: str, sud_naziv: str) -> dict:
                 "status": "",
                 "datum": "",
                 "greska": "Portal zahteva verifikaciju. Proverite ručno na portal.sud.rs.",
+                "kind": "unavailable",
             }
 
         if resp.status_code != 200:
@@ -88,6 +106,7 @@ async def _scrape_portal_status(broj_predmeta: str, sud_naziv: str) -> dict:
                 "status": "",
                 "datum": "",
                 "greska": f"Portal nedostupan (HTTP {resp.status_code})",
+                "kind": "unavailable",
             }
 
         status = _extrahuj_status(resp.text)
@@ -95,13 +114,14 @@ async def _scrape_portal_status(broj_predmeta: str, sud_naziv: str) -> dict:
             "status": status,
             "datum": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "greska": None if status else "Status nije pronađen — format portala se promenio.",
+            "kind": "ok" if status else "error",
         }
 
     except httpx.TimeoutException:
-        return {"status": "", "datum": "", "greska": "Portal nije odgovorio (timeout 20s)."}
+        return {"status": "", "datum": "", "greska": "Portal nije odgovorio (timeout 20s).", "kind": "unavailable"}
     except Exception as e:
         logger.warning("[PORTAL] Scraping greška: %s", e)
-        return {"status": "", "datum": "", "greska": "Greška pri pristupu portalu."}
+        return {"status": "", "datum": "", "greska": "Greška pri pristupu portalu.", "kind": "error"}
 
 
 def _extrahuj_status(html: str) -> str:
@@ -124,10 +144,8 @@ def _extrahuj_status(html: str) -> str:
 
 # ─── Notifikacije ─────────────────────────────────────────────────────────────
 
-async def _posalji_notifikaciju(user_id: str, naziv: str, stari: str, novi: str) -> None:
-    """Šalje Viber i/ili SMS notifikaciju o promeni statusa predmeta."""
-    supa = _get_supa()
-    poruka = (
+def _poruka_promena(naziv: str, stari: str, novi: str) -> str:
+    return (
         f"Vindex AI — Promena statusa\n\n"
         f"Predmet: {naziv}\n"
         f"Novi status: {novi}\n"
@@ -135,20 +153,45 @@ async def _posalji_notifikaciju(user_id: str, naziv: str, stari: str, novi: str)
         f"Prijavite se na vindex.rs za detalje."
     )
 
+
+def _poruka_digest(promene: list) -> str:
+    """Grupiše više promena istog korisnika u jednu poruku."""
+    linije = [f"Vindex AI — {len(promene)} promena statusa", ""]
+    for p in promene[:10]:
+        linije.append(f"• {p['naziv']}: {p['stari'] or '—'} → {p['novi']}")
+    if len(promene) > 10:
+        linije.append(f"... i još {len(promene) - 10} promena")
+    linije.append("")
+    linije.append("Prijavite se na vindex.rs za detalje.")
+    return "\n".join(linije)
+
+
+async def _posalji_poruku(user_id: str, poruka: str, tip: str, critical: bool = False) -> None:
+    """Šalje Viber i/ili SMS poruku, poštujući tihi period, i loguje ishod."""
+    from shared.notify_quiet import is_quiet_now, log_notification
+
+    supa = _get_supa()
+
     # Viber
     try:
         vr = await asyncio.to_thread(
             lambda: supa.table("korisnik_viber_profil")
-                .select("viber_user_id")
+                .select("viber_user_id,quiet_start,quiet_end,allow_critical_override")
                 .eq("user_id", user_id)
                 .eq("aktivan", True)
                 .maybe_single()
                 .execute()
         )
         if vr.data and vr.data.get("viber_user_id"):
-            from routers.viber import _viber_send
-            await _viber_send(vr.data["viber_user_id"], poruka)
-            logger.info("[PORTAL] Viber poslat: uid=%.8s", user_id)
+            if is_quiet_now(vr.data, critical=critical):
+                await log_notification(user_id, "viber", tip, "deferred_quiet_hours")
+            else:
+                from routers.viber import _viber_send
+                ok = await _viber_send(vr.data["viber_user_id"], poruka)
+                await log_notification(user_id, "viber", tip, "sent" if ok else "failed",
+                                        error_message=None if ok else "Viber slanje nije uspelo")
+                if ok:
+                    logger.info("[PORTAL] Viber poslat: uid=%.8s", user_id)
     except Exception as e:
         logger.warning("[PORTAL] Viber greška: %s", e)
 
@@ -156,20 +199,37 @@ async def _posalji_notifikaciju(user_id: str, naziv: str, stari: str, novi: str)
     try:
         sr = await asyncio.to_thread(
             lambda: supa.table("korisnik_sms_profil")
-                .select("telefon,whatsapp")
+                .select("telefon,whatsapp,quiet_start,quiet_end,allow_critical_override")
                 .eq("user_id", user_id)
                 .eq("aktivan", True)
                 .maybe_single()
                 .execute()
         )
         if sr.data and sr.data.get("telefon"):
-            from routers.sms import _send_sms
-            tel = sr.data["telefon"]
-            to  = f"whatsapp:{tel}" if sr.data.get("whatsapp") else tel
-            await asyncio.to_thread(_send_sms, to, poruka[:160])
-            logger.info("[PORTAL] SMS poslat: uid=%.8s", user_id)
+            if is_quiet_now(sr.data, critical=critical):
+                await log_notification(user_id, "sms", tip, "deferred_quiet_hours")
+            else:
+                from routers.sms import _send_sms
+                tel = sr.data["telefon"]
+                to  = f"whatsapp:{tel}" if sr.data.get("whatsapp") else tel
+                ok  = await asyncio.to_thread(_send_sms, to, poruka[:160])
+                await log_notification(user_id, "sms" if not sr.data.get("whatsapp") else "whatsapp",
+                                        tip, "sent" if ok else "failed",
+                                        error_message=None if ok else "SMS/WhatsApp slanje nije uspelo")
+                if ok:
+                    logger.info("[PORTAL] SMS poslat: uid=%.8s", user_id)
     except Exception as e:
         logger.warning("[PORTAL] SMS greška: %s", e)
+
+
+async def _posalji_notifikaciju(user_id: str, naziv: str, stari: str, novi: str) -> None:
+    """Šalje Viber i/ili SMS notifikaciju o promeni statusa jednog predmeta (koristi manual-update)."""
+    await _posalji_poruku(user_id, _poruka_promena(naziv, stari, novi), tip="portal_status_change")
+
+
+async def _posalji_digest_notifikaciju(user_id: str, promene: list) -> None:
+    """Šalje JEDNU poruku za više promena istog korisnika (koristi cron-proveri)."""
+    await _posalji_poruku(user_id, _poruka_digest(promene), tip="portal_status_digest")
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -210,16 +270,17 @@ async def lista_pracenih(request: Request, user: dict = Depends(get_current_user
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("praceni_predmeti")
-                .select("id,predmet_id,naziv,broj_predmeta,sud_naziv,poslednji_status,poslednji_status_datum,poslednja_provera")
+                .select("id,predmet_id,naziv,broj_predmeta,sud_naziv,poslednji_status,poslednji_status_datum,"
+                        "poslednja_provera,current_status,last_successful_check_at,last_error")
                 .eq("user_id", user["user_id"])
                 .eq("aktivan", True)
                 .order("created_at", desc=True)
                 .execute()
         )
-        return {"predmeti": r.data or []}
+        return {"predmeti": r.data or [], "napomena": _DISCLAIMER}
     except Exception as e:
         logger.error("[PORTAL] Lista greška: %s", e)
-        return {"predmeti": []}
+        return {"predmeti": [], "napomena": _DISCLAIMER}
 
 
 @router.delete("/prati/{praceni_id}")
@@ -258,6 +319,41 @@ async def status_log(praceni_id: str, user: dict = Depends(get_current_user)):
         return {"log": []}
 
 
+async def _audit_check(supa, pp_id: str, uid: str, stari: str, novi: str, source: str, run_id: str, is_change: bool) -> None:
+    """Upisuje red u portal_status_log za SVAKU proveru (audit trail), ne samo promene."""
+    try:
+        row = {
+            "praceni_predmet_id": pp_id,
+            "user_id":            uid,
+            "old_status":         stari,
+            "new_status":         novi,
+            "source":             source,
+            "run_id":             run_id,
+        }
+        if is_change:
+            row["status_tekst"] = novi
+            row["status_datum"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        await asyncio.to_thread(lambda: supa.table("portal_status_log").insert(row).execute())
+    except Exception as e:
+        logger.debug("[PORTAL] Audit log greška: %s", e)
+
+
+def _current_status_update(result: dict, promena: bool) -> dict:
+    """Gradi update dict za praceni_predmeti na osnovu ishoda provere."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    kind = result.get("kind", "error")
+    update = {"poslednja_provera": now_iso, "last_error": result.get("greska")}
+    if kind == "unavailable":
+        update["current_status"] = "unavailable"
+    elif kind == "error":
+        update["current_status"] = "error"
+    else:
+        update["current_status"] = "changed" if promena else "unchanged"
+        update["last_successful_check_at"] = now_iso
+        update["last_error"] = None
+    return update
+
+
 @router.post("/manual-update/{praceni_id}")
 @limiter.limit("10/minute")
 async def manual_update(
@@ -285,26 +381,27 @@ async def manual_update(
     if not pp:
         raise HTTPException(status_code=404, detail="Praćeni predmet nije pronađen.")
 
+    # Duplicate protection — preskoči ako je nedavno proveravano
+    minuta_od = _minutes_since(pp.get("poslednja_provera"))
+    if minuta_od is not None and minuta_od < _MIN_RECHECK_MINUTES:
+        return {
+            "ok": True, "preskoceno": True,
+            "poruka": f"Nedavno proveravano (pre {round(minuta_od)} min). Sačekajte {_MIN_RECHECK_MINUTES} min između provera.",
+            "status": pp.get("poslednji_status", ""),
+        }
+
     result     = await _scrape_portal_status(pp["broj_predmeta"], pp["sud_naziv"])
     stari      = pp.get("poslednji_status", "")
     novi       = result.get("status", "")
     promena    = bool(novi and novi != stari)
 
-    update = {"poslednja_provera": datetime.now(timezone.utc).isoformat()}
+    update = _current_status_update(result, promena)
     if promena:
         update["poslednji_status"]        = novi
         update["poslednji_status_datum"]  = result.get("datum", "")
-        try:
-            await asyncio.to_thread(
-                lambda: supa.table("portal_status_log").insert({
-                    "praceni_predmet_id": praceni_id,
-                    "user_id":            uid,
-                    "status_tekst":       novi,
-                    "status_datum":       result.get("datum", ""),
-                }).execute()
-            )
-        except Exception:
-            pass
+
+    await _audit_check(supa, praceni_id, uid, stari, novi, source="manual", run_id="manual", is_change=promena)
+    if promena:
         await _posalji_notifikaciju(uid, pp.get("naziv") or pp["broj_predmeta"], stari, novi)
 
     try:
@@ -328,21 +425,27 @@ async def cron_proveri(
     request: Request,
     x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
     user: dict = Depends(get_current_user),
+    run_id: Optional[str] = None,
 ):
     """
     Cron trigger — proveri status svih aktivnih praćenih predmeta.
     Samo za founder korisnika ili sa validnim X-Cron-Secret header-om.
+    `run_id` — prosledjen iz api.py::cron_daily radi audit trail-a; standalone poziv dobija sopstveni.
     """
     is_cron   = bool(_CRON_SECRET and x_cron_secret == _CRON_SECRET)
     is_admin  = _is_founder(user.get("email", ""))
     if not is_cron and not is_admin:
         raise HTTPException(status_code=403, detail="Restricted.")
 
+    if not run_id:
+        import uuid as _uuid
+        run_id = _uuid.uuid4().hex[:8]
+
     supa = _get_supa()
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("praceni_predmeti")
-                .select("id,user_id,naziv,broj_predmeta,sud_naziv,poslednji_status")
+                .select("id,user_id,naziv,broj_predmeta,sud_naziv,poslednji_status,poslednja_provera")
                 .eq("aktivan", True)
                 .execute()
         )
@@ -354,13 +457,20 @@ async def cron_proveri(
     if not predmeti:
         return {"provereno": 0, "promena": 0, "napomena": "Nema aktivnih praćenih predmeta."}
 
-    provereno = promena_ct = greska_ct = 0
+    provereno = promena_ct = greska_ct = preskoceno_ct = 0
+    promene_po_korisniku: dict[str, list] = {}
 
     for p in predmeti:
         pp_id      = p["id"]
         uid        = p["user_id"]
         naziv      = p.get("naziv") or p["broj_predmeta"]
         stari      = p.get("poslednji_status", "")
+
+        # Duplicate protection
+        minuta_od = _minutes_since(p.get("poslednja_provera"))
+        if minuta_od is not None and minuta_od < _MIN_RECHECK_MINUTES:
+            preskoceno_ct += 1
+            continue
 
         result = await _scrape_portal_status(p["broj_predmeta"], p["sud_naziv"])
         provereno += 1
@@ -369,28 +479,17 @@ async def cron_proveri(
             greska_ct += 1
             logger.warning("[PORTAL-CRON] %s: %s", p["broj_predmeta"], result["greska"])
 
-        novi   = result.get("status", "")
-        update = {"poslednja_provera": datetime.now(timezone.utc).isoformat()}
+        novi    = result.get("status", "")
+        promena = bool(novi and novi != stari)
+        update  = _current_status_update(result, promena)
 
-        if novi and novi != stari:
+        if promena:
             promena_ct += 1
             update["poslednji_status"]       = novi
             update["poslednji_status_datum"] = result.get("datum", "")
-            try:
-                await asyncio.to_thread(
-                    lambda: supa.table("portal_status_log").insert({
-                        "praceni_predmet_id": pp_id,
-                        "user_id":            uid,
-                        "status_tekst":       novi,
-                        "status_datum":       result.get("datum", ""),
-                    }).execute()
-                )
-            except Exception:
-                pass
-            try:
-                await _posalji_notifikaciju(uid, naziv, stari, novi)
-            except Exception as e:
-                logger.warning("[PORTAL-CRON] Notifikacija greška: %s", e)
+            promene_po_korisniku.setdefault(uid, []).append({"naziv": naziv, "stari": stari, "novi": novi})
+
+        await _audit_check(supa, pp_id, uid, stari, novi, source="cron", run_id=run_id, is_change=promena)
 
         try:
             await asyncio.to_thread(
@@ -399,5 +498,18 @@ async def cron_proveri(
         except Exception:
             pass
 
-    logger.info("[PORTAL-CRON] Završeno: provereno=%d promena=%d greška=%d", provereno, promena_ct, greska_ct)
-    return {"provereno": provereno, "promena": promena_ct, "greske": greska_ct}
+    # Digest — jedna poruka po korisniku, ne po predmetu
+    for uid, promene in promene_po_korisniku.items():
+        try:
+            await _posalji_digest_notifikaciju(uid, promene)
+        except Exception as e:
+            logger.warning("[PORTAL-CRON] Digest notifikacija greška: %s", e)
+
+    logger.info(
+        "[PORTAL-CRON] run_id=%s Završeno: provereno=%d promena=%d greška=%d preskočeno=%d",
+        run_id, provereno, promena_ct, greska_ct, preskoceno_ct,
+    )
+    return {
+        "run_id": run_id, "provereno": provereno, "promena": promena_ct,
+        "greske": greska_ct, "preskoceno": preskoceno_ct,
+    }

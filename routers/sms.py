@@ -238,7 +238,7 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
         # Svi aktivni SMS profili
         profili_r = await asyncio.to_thread(
             lambda: supa.table("korisnik_sms_profil")
-                .select("user_id,telefon,whatsapp")
+                .select("user_id,telefon,whatsapp,quiet_start,quiet_end,allow_critical_override")
                 .eq("aktivan", True)
                 .execute()
         )
@@ -274,6 +274,8 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
         # Deduplication set — (user_id, predmet_id, datum_iso)
         vec_poslato: set[tuple] = set()
 
+        from shared.notify_quiet import is_quiet_now, log_notification
+
         for uid, profil in profili.items():
             rokovi = rokovi_po_korisniku.get(uid, [])
             if not rokovi:
@@ -282,6 +284,7 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
             telefon  = profil["telefon"]
             whatsapp = profil.get("whatsapp", False)
             to_num   = (f"whatsapp:{telefon}" if whatsapp else telefon)
+            channel  = "whatsapp" if whatsapp else "sms"
 
             for rok in rokovi:
                 datum_iso = rok.get("datum_iso", "")
@@ -302,8 +305,15 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
                     f"Datum: {datum_d}\n"
                     "Prijavite se na Vindex AI za detalje."
                 )
+                # Rok SUTRA je kritičan i sme da zaobiđe tihi period ako je dozvoljeno
+                critical = (hitnost == "SUTRA")
+                if is_quiet_now(profil, critical=critical):
+                    await log_notification(uid, channel, "rok_podsetnik", "deferred_quiet_hours", ref_id=predmet_id)
+                    continue
                 try:
                     ok = await asyncio.to_thread(_send_sms, to_num, poruka)
+                    await log_notification(uid, channel, "rok_podsetnik", "sent" if ok else "failed",
+                                            ref_id=predmet_id, error_message=None if ok else "SMS slanje nije uspelo")
                     if ok:
                         poslato += 1
                     else:
