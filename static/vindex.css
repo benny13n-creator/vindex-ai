@@ -1462,22 +1462,34 @@ select option:hover,select option:focus,select option:checked{background-color:r
   font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 500;
   color: rgba(255,255,255,0.88); margin-bottom: 1.5rem; letter-spacing: -0.01em;
 }
-.settings-section { margin-bottom: 1.6rem; }
+.settings-section {
+  margin-bottom: 1.4rem;
+  background: rgba(13,17,23,0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  box-sizing: border-box;
+  transition: border-color .2s;
+}
+.settings-section:hover { border-color: rgba(0,212,255,0.16); }
 .settings-section-hd {
   font-family: var(--font-mono); font-size: 0.52rem; letter-spacing: 0.18em; text-transform: uppercase;
   color: rgba(255,255,255,0.28); margin-bottom: 0.75rem; padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 .settings-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+  padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background .15s;
 }
 .settings-row:last-child { border-bottom: none; }
 .settings-row-left { flex: 1; min-width: 0; }
 .settings-row-label { font-size: 0.82rem; color: rgba(255,255,255,0.78); font-weight: 500; }
 .settings-row-sub { font-size: 0.7rem; color: rgba(255,255,255,0.3); margin-top: 0.15rem; }
 .settings-row-val {
-  font-family: var(--font-mono); font-size: 0.68rem; color: rgba(255,255,255,0.55);
+  font-family: var(--font-mono); font-size: 0.68rem; color: #00d4ff;
   letter-spacing: 0.04em; flex-shrink: 0; margin-left: 1rem;
 }
 .settings-btn {
@@ -4453,13 +4465,14 @@ body.light-theme .wl-input::placeholder { color: rgba(10,18,32,0.28); }
 /* Fix: settings-btn in old CSS */
 .settings-btn {
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
+  border-radius: var(--vx-radius-sm, 8px);
   cursor: pointer;
   color: var(--tx-3);
   font-size: 0.9rem;
-  transition: color var(--t-fast);
+  transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast);
 }
-.settings-btn:hover { color: var(--tx-1); }
+.settings-btn:hover { color: #00d4ff; background: rgba(0,212,255,0.06); border-color: rgba(0,212,255,0.22); }
 
 /* ── Pomoć i podrška — FAQ accordion ─────────────────────────── */
 .pomoc-faq-item {
