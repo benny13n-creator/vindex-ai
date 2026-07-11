@@ -713,67 +713,76 @@
 
           <!-- ── F5: PREDMETI TAB ──────────────────────────────────────────── -->
           <div id="tab-p" style="display:none">
-            <!-- Portfolio Intelligence strip -->
-            <div id="portfolio-strip" style="display:none;margin-bottom:0.85rem;">
-              <div id="portfolio-kpi" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem;margin-bottom:0.5rem;"></div>
-              <div id="portfolio-hitni" style="display:none;border:1px solid rgba(255,80,80,.18);border-radius:8px;background:rgba(255,80,80,.04);padding:0.6rem 0.75rem;margin-bottom:0.4rem;">
-                <div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#ff9090;margin-bottom:0.45rem;font-weight:700;">⚠ Hitni predmeti</div>
-                <div id="portfolio-hitni-list"></div>
-              </div>
-              <div id="portfolio-rokovi" style="display:none;border:1px solid rgba(255,187,112,.18);border-radius:8px;background:rgba(255,187,112,.04);padding:0.6rem 0.75rem;margin-bottom:0.4rem;">
-                <div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:#ffbb70;margin-bottom:0.45rem;font-weight:700;">Rokovi narednih 7 dana</div>
-                <div id="portfolio-rokovi-list"></div>
-              </div>
-              <div id="portfolio-summary" style="font-size:0.67rem;color:rgba(255,255,255,0.35);padding:0.1rem 0;"></div>
+            <!-- Hero: portfolio stats -->
+            <div id="portfolio-strip" style="display:none;margin-bottom:1.1rem;">
+              <div id="portfolio-kpi" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.55rem;"></div>
+            </div>
 
-              <!-- Opposing counsel tracker -->
-              <div id="opposing-counsel-wrap" style="margin-top:0.35rem;">
-                <button onclick="opposing_toggle()" style="background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;gap:0.3rem;font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:.08em;text-transform:uppercase;">
-                  <span id="opposing-chevron">▶</span> Suprotne strane <span id="opposing-count-badge" style="display:none;background:rgba(255,255,255,.06);border-radius:3px;padding:0 4px;font-size:0.58rem;color:rgba(255,255,255,.5);"></span>
-                </button>
-                <div id="opposing-counsel-panel" style="display:none;margin-top:0.5rem;"></div>
+            <div class="pred-page-grid">
+              <!-- ── Glavna kolona: lista predmeta ─────────────────────── -->
+              <div class="pred-page-main">
+                <div class="t-guide">
+                  <div class="t-guide-icon"><i data-lucide="briefcase" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
+                  <div class="t-guide-text"><span class="t-guide-bold">Moji predmeti</span> — upravljajte predmetima, dodajte beleške i pratite istoriju razgovora po predmetu.</div>
+                </div>
+                <button class="pred-new-btn" onclick="intakeOtvori()">Otvori novi predmet</button>
+                <div style="font-size:0.62rem;color:rgba(255,255,255,.32);text-align:center;margin-top:0.3rem;">Vodićemo vas kroz 5 koraka i automatski popuniti podatke iz dokumentacije.</div>
+                <div id="pred-dashboard-alert" style="display:none;font-size:0.65rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:6px;color:#ffbb70;letter-spacing:.03em;"></div>
+                <div id="pred-sort-bar" style="display:flex;gap:0.45rem;margin:1.1rem 0 0.5rem;flex-wrap:wrap;align-items:center;">
+                  <button class="vx-pill pred-sort-btn is-active" data-sort="svi"       onclick="pred_setSort('svi')">Svi</button>
+                  <button class="vx-pill pred-sort-btn"           data-sort="prioritet" onclick="pred_setSort('prioritet')">Prioritet</button>
+                  <button class="vx-pill pred-sort-btn"           data-sort="rizik"     onclick="pred_setSort('rizik')">⚠ Rizik</button>
+                  <button class="vx-pill pred-sort-btn"           data-sort="rokovi"    onclick="pred_setSort('rokovi')">Rokovi</button>
+                  <!-- Firma toggle — shown only if user is in a kancelarija -->
+                  <button id="pred-firma-toggle" class="vx-pill" onclick="predFirmaToggle()" style="display:none;margin-left:auto;">Firma</button>
+                </div>
+                <!-- Firma predmeti panel -->
+                <div id="pred-firma-panel" style="display:none;margin-bottom:0.5rem;">
+                  <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.07em;margin-bottom:0.35rem;display:flex;align-items:center;gap:0.5rem;">
+                    <span id="pred-firma-label">Firmini predmeti</span>
+                    <span id="pred-firma-count" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.72);border-radius:3px;padding:0 5px;font-size:0.6rem;"></span>
+                  </div>
+                  <div id="pred-firma-list" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
+                  <div id="pred-firma-empty" style="display:none;font-size:0.75rem;color:rgba(255,255,255,0.3);padding:0.4rem 0;">Nema deljenih predmeta u firmi.</div>
+                </div>
+                <div id="pred-bulk-bar" class="vx-card" style="display:none;align-items:center;gap:0.5rem;margin:0.3rem 0;padding:0.5rem 0.65rem;border-color:rgba(0,212,255,0.22);">
+                  <span id="pred-bulk-count" style="font-size:0.65rem;color:rgba(255,255,255,0.72);flex:1;font-weight:600;"></span>
+                  <button onclick="pred_bulkAkcija('arhiviranje')" class="vx-btn vx-btn-secondary" style="height:28px;padding:0 0.6rem;font-size:0.68rem;">Arhivuj</button>
+                  <button onclick="pred_bulkAkcija('aktiviranje')" class="vx-btn vx-btn-ghost" style="height:28px;padding:0 0.6rem;font-size:0.68rem;">Aktiviraj</button>
+                  <button onclick="pred_bulkOtkaziOznacavanje()" class="vx-btn vx-btn-ghost" style="height:28px;width:28px;padding:0;">✕</button>
+                </div>
+                <!-- Kanban / Lista toggle -->
+                <div style="display:flex;align-items:center;justify-content:flex-end;margin:.6rem 0 .4rem;">
+                  <div style="display:flex;background:rgba(255,255,255,.03);border:1px solid var(--vx-border);border-radius:9px;overflow:hidden;">
+                    <button id="kanban-view-btn-lista" class="vx-seg-btn is-active" onclick="kanban_setView('lista')">≡ Lista</button>
+                    <button id="kanban-view-btn-kanban" class="vx-seg-btn" onclick="kanban_setView('kanban')">⬛ Kanban</button>
+                  </div>
+                </div>
+                <div id="pred-list" class="pred-list"></div>
+                <!-- ── Case Pipeline Kanban ──────────────────────────────── -->
+                <div id="pred-kanban-view" style="display:none;"></div>
+              </div>
+
+              <!-- ── Sporedna kolona: rokovi, aktivnosti ───────────────── -->
+              <div class="pred-page-side">
+                <div id="portfolio-hitni" class="vx-card" style="display:none;border-color:rgba(248,113,113,0.28);background:rgba(248,113,113,0.04);">
+                  <div class="vx-section-lbl" style="color:#f87171 !important;margin-bottom:0.5rem;">⚠ Hitni rokovi</div>
+                  <div id="portfolio-hitni-list"></div>
+                </div>
+                <div id="portfolio-rokovi" class="vx-card" style="display:none;margin-top:0.7rem;">
+                  <div class="vx-section-lbl" style="margin-bottom:0.5rem;">Rokovi narednih 7 dana</div>
+                  <div id="portfolio-rokovi-list"></div>
+                </div>
+                <!-- Opposing counsel tracker -->
+                <div id="opposing-counsel-wrap" class="vx-card" style="margin-top:0.7rem;">
+                  <button onclick="opposing_toggle()" style="background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;gap:0.3rem;font-size:0.6rem;color:rgba(255,255,255,0.35);letter-spacing:.08em;text-transform:uppercase;width:100%;">
+                    <span id="opposing-chevron">▶</span> Suprotne strane <span id="opposing-count-badge" style="display:none;background:rgba(255,255,255,.06);border-radius:3px;padding:0 4px;font-size:0.58rem;color:rgba(255,255,255,.5);"></span>
+                  </button>
+                  <div id="opposing-counsel-panel" style="display:none;margin-top:0.5rem;"></div>
+                </div>
+                <div id="portfolio-summary" class="vx-caption" style="padding:0.6rem 0.2rem 0;"></div>
               </div>
             </div>
-            <div class="t-guide">
-              <div class="t-guide-icon"><i data-lucide="briefcase" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
-              <div class="t-guide-text"><span class="t-guide-bold">Moji predmeti</span> — upravljajte predmetima, dodajte beleške i pratite istoriju razgovora po predmetu.</div>
-            </div>
-            <button class="pred-new-btn" onclick="intakeOtvori()">Otvori novi predmet</button>
-            <div style="font-size:0.62rem;color:rgba(255,255,255,.32);text-align:center;margin-top:0.3rem;">Vodićemo vas kroz 5 koraka i automatski popuniti podatke iz dokumentacije.</div>
-            <div id="pred-dashboard-alert" style="display:none;font-size:0.65rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:6px;color:#ffbb70;letter-spacing:.03em;"></div>
-            <div id="pred-sort-bar" style="display:flex;gap:0.45rem;margin:0.9rem 0 0.5rem;flex-wrap:wrap;align-items:center;">
-              <button class="vx-pill pred-sort-btn is-active" data-sort="svi"       onclick="pred_setSort('svi')">Svi</button>
-              <button class="vx-pill pred-sort-btn"           data-sort="prioritet" onclick="pred_setSort('prioritet')">Prioritet</button>
-              <button class="vx-pill pred-sort-btn"           data-sort="rizik"     onclick="pred_setSort('rizik')">⚠ Rizik</button>
-              <button class="vx-pill pred-sort-btn"           data-sort="rokovi"    onclick="pred_setSort('rokovi')">Rokovi</button>
-              <!-- Firma toggle — shown only if user is in a kancelarija -->
-              <button id="pred-firma-toggle" class="vx-pill" onclick="predFirmaToggle()" style="display:none;margin-left:auto;">Firma</button>
-            </div>
-            <!-- Firma predmeti panel -->
-            <div id="pred-firma-panel" style="display:none;margin-bottom:0.5rem;">
-              <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.07em;margin-bottom:0.35rem;display:flex;align-items:center;gap:0.5rem;">
-                <span id="pred-firma-label">Firmini predmeti</span>
-                <span id="pred-firma-count" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.72);border-radius:3px;padding:0 5px;font-size:0.6rem;"></span>
-              </div>
-              <div id="pred-firma-list" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
-              <div id="pred-firma-empty" style="display:none;font-size:0.75rem;color:rgba(255,255,255,0.3);padding:0.4rem 0;">Nema deljenih predmeta u firmi.</div>
-            </div>
-            <div id="pred-bulk-bar" style="display:none;align-items:center;gap:0.4rem;margin:0.3rem 0;padding:0.35rem 0.55rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:7px;">
-              <span id="pred-bulk-count" style="font-size:0.65rem;color:rgba(255,255,255,0.72);flex:1;font-weight:600;"></span>
-              <button onclick="pred_bulkAkcija('arhiviranje')" style="padding:0.22rem 0.6rem;border:1px solid rgba(255,255,255,.15);border-radius:5px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);font-size:0.68rem;cursor:pointer;">Arhivuj</button>
-              <button onclick="pred_bulkAkcija('aktiviranje')" style="padding:0.22rem 0.6rem;border:1px solid rgba(255,255,255,0.09);border-radius:5px;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.70);font-size:0.68rem;cursor:pointer;">Aktiviraj</button>
-              <button onclick="pred_bulkOtkaziOznacavanje()" style="border:none;background:none;color:rgba(255,255,255,.3);font-size:0.75rem;cursor:pointer;">✕</button>
-            </div>
-            <!-- Kanban / Lista toggle -->
-            <div style="display:flex;align-items:center;justify-content:flex-end;margin:.6rem 0 .4rem;">
-              <div style="display:flex;background:rgba(255,255,255,.03);border:1px solid var(--vx-border);border-radius:9px;overflow:hidden;">
-                <button id="kanban-view-btn-lista" class="vx-seg-btn is-active" onclick="kanban_setView('lista')">≡ Lista</button>
-                <button id="kanban-view-btn-kanban" class="vx-seg-btn" onclick="kanban_setView('kanban')">⬛ Kanban</button>
-              </div>
-            </div>
-            <div id="pred-list" class="pred-list"></div>
-            <!-- ── Case Pipeline Kanban ──────────────────────────────── -->
-            <div id="pred-kanban-view" style="display:none;"></div>
             <div id="pred-detail" class="pred-detail">
 
               <!-- ── Case Hub Header (always visible) ────────────────── -->

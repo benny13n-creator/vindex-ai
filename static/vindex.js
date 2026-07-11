@@ -9412,9 +9412,9 @@ function portfolio_render(d) {
   var kpiEl = document.getElementById('portfolio-kpi');
   if (kpiEl) {
     kpiEl.innerHTML = _kpiDefs.map(function(k){
-      return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:7px;padding:0.42rem 0.55rem;text-align:center;">'
-        +'<div style="font-size:1.1rem;font-weight:700;color:'+k.color+';line-height:1.2;">'+k.val+'</div>'
-        +'<div style="font-size:0.57rem;color:rgba(255,255,255,.38);letter-spacing:.05em;text-transform:uppercase;margin-top:1px;">'+k.label+'</div>'
+      return '<div class="vx-card" style="padding:0.75rem 0.7rem;text-align:center;">'
+        +'<div class="vx-kpi-number" style="font-size:1.5rem;color:'+k.color+';">'+k.val+'</div>'
+        +'<div class="vx-caption" style="text-transform:uppercase;letter-spacing:.05em;margin-top:2px;">'+k.label+'</div>'
         +'</div>';
     }).join('');
   }
