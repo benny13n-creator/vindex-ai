@@ -308,12 +308,13 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
                 # Rok SUTRA je kritičan i sme da zaobiđe tihi period ako je dozvoljeno
                 critical = (hitnost == "SUTRA")
                 if is_quiet_now(profil, critical=critical):
-                    await log_notification(uid, channel, "rok_podsetnik", "deferred_quiet_hours", ref_id=predmet_id)
+                    await log_notification(uid, channel, "rok_podsetnik", "deferred_quiet_hours", ref_id=predmet_id, message_text=poruka)
                     continue
                 try:
                     ok = await asyncio.to_thread(_send_sms, to_num, poruka)
                     await log_notification(uid, channel, "rok_podsetnik", "sent" if ok else "failed",
-                                            ref_id=predmet_id, error_message=None if ok else "SMS slanje nije uspelo")
+                                            ref_id=predmet_id, error_message=None if ok else "SMS slanje nije uspelo",
+                                            message_text=poruka)
                     if ok:
                         poslato += 1
                     else:

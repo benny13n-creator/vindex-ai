@@ -3496,6 +3496,46 @@
               <div id="law-lista-result" style="font-size:.77rem;max-height:200px;overflow-y:auto;"></div>
             </div>
 
+            <!-- ── ADMIN OPERATIONS DASHBOARD (samo osnivač) ──────────────── -->
+            <div class="settings-section" id="admin-ops-section" style="display:none;">
+              <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Admin Operations Dashboard</span>
+                <button class="settings-btn" onclick="adminOpsLoad()">↻ Osveži sve</button>
+              </div>
+              <div id="admin-ops-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.5rem;margin-bottom:1rem;"></div>
+
+              <div style="margin-top:0.9rem;">
+                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;display:flex;align-items:center;justify-content:space-between;">
+                  <span>Notification Center</span>
+                  <button class="settings-btn" onclick="adminNotifLoad()" style="font-size:0.65rem;padding:2px 8px;">↻</button>
+                </div>
+                <div style="display:flex;gap:0.35rem;margin-bottom:0.5rem;flex-wrap:wrap;">
+                  <select id="notif-filter-channel" onchange="adminNotifLoad()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 6px;color:rgba(255,255,255,0.7);font-size:0.7rem;font-family:inherit;">
+                    <option value="">Svi kanali</option>
+                    <option value="viber">Viber</option>
+                    <option value="sms">SMS</option>
+                    <option value="whatsapp">WhatsApp</option>
+                  </select>
+                  <select id="notif-filter-status" onchange="adminNotifLoad()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 6px;color:rgba(255,255,255,0.7);font-size:0.7rem;font-family:inherit;">
+                    <option value="">Svi statusi</option>
+                    <option value="sent">Poslato</option>
+                    <option value="failed">Neuspelo</option>
+                    <option value="deferred_quiet_hours">Odloženo (tihi period)</option>
+                  </select>
+                </div>
+                <div id="admin-notif-list" style="max-height:260px;overflow-y:auto;font-size:0.75rem;"></div>
+              </div>
+
+              <div style="margin-top:1rem;">
+                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;">Beta korisnici</div>
+                <div style="display:flex;gap:0.35rem;margin-bottom:0.5rem;">
+                  <input id="beta-add-email" placeholder="email@firma.rs" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:4px 7px;color:rgba(255,255,255,0.8);font-size:0.72rem;font-family:inherit;">
+                  <button class="settings-btn" onclick="adminBetaAdd()">+ Dodaj</button>
+                </div>
+                <div id="admin-beta-list" style="font-size:0.75rem;max-height:200px;overflow-y:auto;"></div>
+              </div>
+            </div>
+
             <!-- ── USAGE ANALYTICS (samo osnivač) ──────────────────────── -->
             <div class="settings-section" id="analytics-section" style="display:none;">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">

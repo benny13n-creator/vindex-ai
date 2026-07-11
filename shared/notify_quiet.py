@@ -59,8 +59,10 @@ async def log_notification(
     delivery_status: str,
     ref_id: Optional[str] = None,
     error_message: Optional[str] = None,
+    message_text: Optional[str] = None,
 ) -> None:
-    """Fire-and-forget audit upis svakog cron-trigerovanog Viber/SMS slanja."""
+    """Fire-and-forget audit upis svakog cron-trigerovanog Viber/SMS slanja.
+    message_text se cuva radi retry-a iz Notification Center-a (routers/admin_dashboard.py)."""
     try:
         supa = _get_supa()
         row = {
@@ -70,6 +72,7 @@ async def log_notification(
             "ref_id":          ref_id,
             "delivery_status": delivery_status,
             "error_message":   error_message,
+            "message_text":    message_text,
         }
         await asyncio.to_thread(lambda: supa.table("notification_log").insert(row).execute())
     except Exception as e:

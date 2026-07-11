@@ -655,6 +655,7 @@ from routers.firm_memory      import router as firm_memory_router
 from routers.proof            import router as proof_router
 from routers.memory_graph     import router as memory_graph_router
 from routers.workflow         import router as workflow_router
+from routers.admin_dashboard  import router as admin_dashboard_router
 app.include_router(corrections_router)
 app.include_router(zakon_monitoring_router)
 app.include_router(profitabilnost_router)
@@ -664,6 +665,7 @@ app.include_router(firm_memory_router)
 app.include_router(proof_router)
 app.include_router(memory_graph_router)
 app.include_router(workflow_router)
+app.include_router(admin_dashboard_router)
 
 # F6 — Serviranje static fajlova (PWA manifest, sw.js, ikone)
 from fastapi.staticfiles import StaticFiles as _StaticFiles

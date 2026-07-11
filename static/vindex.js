@@ -12458,6 +12458,135 @@ function _updateAdminTabUI() {
     analyticsSection.style.display = currentUserIsFounder ? '' : 'none';
     if (currentUserIsFounder) analyticsLoad();
   }
+  var adminOpsSection = document.getElementById('admin-ops-section');
+  if (adminOpsSection) {
+    adminOpsSection.style.display = currentUserIsFounder ? '' : 'none';
+    if (currentUserIsFounder) adminOpsLoad();
+  }
+}
+
+/* ── Admin Operations Dashboard ──────────────────────────────────────────── */
+
+function _adminCard(label, value, kind) {
+  var boja = kind === 'ok' ? 'rgba(74,222,128,0.85)' : (kind === 'err' ? 'rgba(255,100,100,0.85)' : 'rgba(255,187,112,0.85)');
+  return '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.55rem 0.65rem;">'
+    + '<div style="font-size:0.6rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">' + _htmlEsc(label) + '</div>'
+    + '<div style="font-size:0.8rem;font-weight:700;color:' + boja + ';">' + _htmlEsc(String(value)) + '</div>'
+    + '</div>';
+}
+
+async function adminOpsLoad() {
+  if (!currentSession || !currentUserIsFounder) return;
+  var cardsEl = document.getElementById('admin-ops-cards');
+  if (cardsEl) cardsEl.innerHTML = '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Učitavam...</div>';
+  var hdrs = { 'Authorization': 'Bearer ' + currentSession.access_token };
+
+  var results = await Promise.allSettled([
+    fetch(BASE_URL + '/api/admin/proof', { headers: hdrs }).then(function(r){ return r.json(); }),
+    fetch(BASE_URL + '/api/apr/health', { headers: hdrs }).then(function(r){ return r.json(); }),
+    fetch(BASE_URL + '/api/portal/health', { headers: hdrs }).then(function(r){ return r.json(); }),
+    fetch(BASE_URL + '/api/admin/security-overview', { headers: hdrs }).then(function(r){ return r.json(); }),
+  ]);
+  var proof  = results[0].status === 'fulfilled' ? results[0].value : null;
+  var apr    = results[1].status === 'fulfilled' ? results[1].value : null;
+  var portal = results[2].status === 'fulfilled' ? results[2].value : null;
+  var sec    = results[3].status === 'fulfilled' ? results[3].value : null;
+
+  var cards = [];
+  cards.push(_adminCard('System Health', proof ? (proof.overall + ' (' + proof.pass_count + '/' + (proof.pass_count + proof.fail_count + proof.warn_count) + ')') : '—',
+    proof && proof.overall === 'PASS' ? 'ok' : 'warn'));
+  cards.push(_adminCard('APR Health', apr ? apr.status + (apr.success_rate_24h != null ? ' · ' + apr.success_rate_24h + '%' : '') : '—',
+    apr && apr.status === 'HEALTHY' ? 'ok' : 'warn'));
+  cards.push(_adminCard('Portal Monitoring', portal ? portal.status + (portal.success_rate_24h != null ? ' · ' + portal.success_rate_24h + '%' : '') : '—',
+    portal && portal.status === 'HEALTHY' ? 'ok' : (portal && portal.status === 'DOWN' ? 'err' : 'warn')));
+  cards.push(_adminCard('Security (24h)', sec ? ((sec.security_events_24h != null ? sec.security_events_24h : '—') + ' event(a)') : '—', 'ok'));
+  if (cardsEl) cardsEl.innerHTML = cards.join('');
+
+  adminNotifLoad();
+  adminBetaLoad();
+}
+
+async function adminNotifLoad() {
+  if (!currentSession) return;
+  var listEl = document.getElementById('admin-notif-list');
+  if (!listEl) return;
+  var ch = (document.getElementById('notif-filter-channel') || {}).value || '';
+  var st = (document.getElementById('notif-filter-status') || {}).value || '';
+  var qs = [];
+  if (ch) qs.push('channel=' + encodeURIComponent(ch));
+  if (st) qs.push('delivery_status=' + encodeURIComponent(st));
+  try {
+    var r = await fetch(BASE_URL + '/api/admin/notification-log' + (qs.length ? '?' + qs.join('&') : ''), {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    var rows = d.notifikacije || [];
+    if (!rows.length) { listEl.innerHTML = '<div style="color:rgba(255,255,255,0.25);padding:0.5rem 0;">Nema notifikacija.</div>'; return; }
+    listEl.innerHTML = rows.map(function(n) {
+      var boja = n.delivery_status === 'sent' ? 'rgba(74,222,128,0.75)' : (n.delivery_status === 'failed' ? 'rgba(255,100,100,0.75)' : 'rgba(255,187,112,0.75)');
+      var retryBtn = (n.delivery_status === 'failed' || n.delivery_status === 'deferred_quiet_hours') && n.message_text
+        ? '<button onclick="adminNotifRetry(\'' + n.id + '\',this)" style="font-size:0.62rem;padding:1px 7px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit;flex-shrink:0;">Retry</button>'
+        : '';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 2px;border-bottom:1px solid rgba(255,255,255,0.04);gap:6px;">'
+        + '<div style="min-width:0;flex:1;">'
+        + '<span style="color:' + boja + ';">' + _htmlEsc(n.channel || '') + '</span> '
+        + '<span style="color:rgba(255,255,255,0.5);">' + _htmlEsc(n.tip || '') + '</span> '
+        + '<span style="color:rgba(255,255,255,0.25);font-size:0.65rem;">' + (n.sent_at ? new Date(n.sent_at).toLocaleString('sr-RS') : '') + '</span>'
+        + (n.error_message ? '<div style="font-size:0.62rem;color:rgba(255,100,100,0.5);">' + _htmlEsc(n.error_message) + '</div>' : '')
+        + '</div>' + retryBtn + '</div>';
+    }).join('');
+  } catch(e) { listEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);">Greška.</div>'; }
+}
+
+async function adminNotifRetry(id, btn) {
+  if (!currentSession) return;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    var r = await fetch(BASE_URL + '/api/admin/notification-log/' + id + '/retry', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    showToast(d.ok ? 'Ponovo poslato.' : ('Nije uspelo: ' + (d.error_message || 'nepoznata greška')), d.ok ? 'success' : 'warning');
+    adminNotifLoad();
+  } catch(e) { showToast('Greška pri ponovnom slanju.', 'error'); }
+}
+
+async function adminBetaLoad() {
+  if (!currentSession) return;
+  var listEl = document.getElementById('admin-beta-list');
+  if (!listEl) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/admin/beta-users', { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
+    var d = await r.json();
+    var rows = d.beta_korisnici || [];
+    if (!rows.length) { listEl.innerHTML = '<div style="color:rgba(255,255,255,0.25);padding:0.5rem 0;">Nema beta korisnika.</div>'; return; }
+    listEl.innerHTML = rows.map(function(b) {
+      var boja = b.status === 'active' ? 'rgba(74,222,128,0.75)' : (b.status === 'churned' ? 'rgba(255,100,100,0.6)' : 'rgba(255,187,112,0.7)');
+      return '<div style="display:flex;justify-content:space-between;padding:3px 2px;border-bottom:1px solid rgba(255,255,255,0.04);">'
+        + '<span>' + _htmlEsc(b.email) + (b.naziv_firme ? ' <span style="color:rgba(255,255,255,0.35);">(' + _htmlEsc(b.naziv_firme) + ')</span>' : '') + '</span>'
+        + '<span style="color:' + boja + ';">' + _htmlEsc(b.status || '') + '</span>'
+        + '</div>';
+    }).join('');
+  } catch(e) { listEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);">Greška.</div>'; }
+}
+
+async function adminBetaAdd() {
+  if (!currentSession) return;
+  var input = document.getElementById('beta-add-email');
+  var email = (input.value || '').trim();
+  if (!email) { showToast('Unesite email.', 'warning'); return; }
+  try {
+    var r = await fetch(BASE_URL + '/api/admin/beta-users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ email: email })
+    });
+    if (!r.ok) { showToast('Greška pri dodavanju.', 'error'); return; }
+    input.value = '';
+    showToast('Beta korisnik dodat.', 'success');
+    adminBetaLoad();
+  } catch(e) { showToast('Greška.', 'error'); }
 }
 
 /* ── Usage Analytics Dashboard ──────────────────────────────────────────────── */

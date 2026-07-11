@@ -201,12 +201,12 @@ async def _posalji_poruku(user_id: str, poruka: str, tip: str, critical: bool = 
         )
         if vr.data and vr.data.get("viber_user_id"):
             if is_quiet_now(vr.data, critical=critical):
-                await log_notification(user_id, "viber", tip, "deferred_quiet_hours")
+                await log_notification(user_id, "viber", tip, "deferred_quiet_hours", message_text=poruka)
             else:
                 from routers.viber import _viber_send
                 ok = await _viber_send(vr.data["viber_user_id"], poruka)
                 await log_notification(user_id, "viber", tip, "sent" if ok else "failed",
-                                        error_message=None if ok else "Viber slanje nije uspelo")
+                                        error_message=None if ok else "Viber slanje nije uspelo", message_text=poruka)
                 if ok:
                     logger.info("[PORTAL] Viber poslat: uid=%.8s", user_id)
     except Exception as e:
@@ -224,7 +224,7 @@ async def _posalji_poruku(user_id: str, poruka: str, tip: str, critical: bool = 
         )
         if sr.data and sr.data.get("telefon"):
             if is_quiet_now(sr.data, critical=critical):
-                await log_notification(user_id, "sms", tip, "deferred_quiet_hours")
+                await log_notification(user_id, "sms", tip, "deferred_quiet_hours", message_text=poruka)
             else:
                 from routers.sms import _send_sms
                 tel = sr.data["telefon"]
@@ -232,7 +232,8 @@ async def _posalji_poruku(user_id: str, poruka: str, tip: str, critical: bool = 
                 ok  = await asyncio.to_thread(_send_sms, to, poruka[:160])
                 await log_notification(user_id, "sms" if not sr.data.get("whatsapp") else "whatsapp",
                                         tip, "sent" if ok else "failed",
-                                        error_message=None if ok else "SMS/WhatsApp slanje nije uspelo")
+                                        error_message=None if ok else "SMS/WhatsApp slanje nije uspelo",
+                                        message_text=poruka[:160])
                 if ok:
                     logger.info("[PORTAL] SMS poslat: uid=%.8s", user_id)
     except Exception as e:
