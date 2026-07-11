@@ -1308,6 +1308,16 @@ async def cron_daily(request: Request):
     except Exception:
         pass
 
+    # ── cron_runs: zabeleži početak izvršavanja (operativna istorija) ────────
+    try:
+        await asyncio.to_thread(
+            lambda: _get_supa().table("cron_runs").insert({
+                "run_id": run_id, "started_at": _now.isoformat(), "status": "running",
+            }).execute()
+        )
+    except Exception:
+        pass
+
     rezultati: dict = {"run_id": run_id}
     _t_start = _time.monotonic()
     _broj_grešaka = 0
@@ -1396,7 +1406,7 @@ async def cron_daily(request: Request):
             headers = {}
             client = None
         _pm_r = await asyncio.wait_for(
-            _pm_cron(_FakeReq(), x_cron_secret=cron_secret, user={"user_id": "cron", "email": ""}),
+            _pm_cron(_FakeReq(), x_cron_secret=cron_secret, user={"user_id": "cron", "email": ""}, run_id=run_id),
             timeout=120,
         )
         _pm_prov = int(_pm_r.get("provereno", 0)) if isinstance(_pm_r, dict) else 0
@@ -1458,6 +1468,24 @@ async def cron_daily(request: Request):
         }
     except Exception as _he:
         rezultati["heartbeat"] = {"ok": False, "status": "greska", "greska": str(_he)[:100]}
+
+    # ── cron_runs: upiši ishod (nezavisno od heartbeat bloka iznad) ──────────
+    try:
+        _cr_status = "ok" if _broj_grešaka == 0 else "partial"
+        await asyncio.to_thread(
+            lambda: _get_supa().table("cron_runs").upsert({
+                "run_id":          run_id,
+                "started_at":      _now.isoformat(),
+                "finished_at":     _dt.now(_tz.utc).isoformat(),
+                "duration_ms":     _duration_ms,
+                "status":          _cr_status,
+                "processed_items": _stavke_obradjene,
+                "errors_count":    _broj_grešaka,
+                "moduli":          {k: v.get("status", "?") for k, v in rezultati.items() if isinstance(v, dict) and k != "run_id"},
+            }).execute()
+        )
+    except Exception as _cre:
+        logger.warning("[CRON_DAILY] cron_runs upis greška: %s", _cre)
 
     logger.info(
         "[CRON_DAILY] run_id=%s | %s | %dms | %d stavki | %d grešaka | moduli: %s",

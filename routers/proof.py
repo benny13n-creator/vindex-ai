@@ -309,7 +309,84 @@ async def proof_check(
     except Exception as _hbe:
         checks.append(_check("Cron heartbeat", "WARN", str(_hbe)[:100]))
 
-    # ── 14. ENV varijable ─────────────────────────────────────────────────────
+    # ── 14. cron_runs — istorija izvršavanja (reliability sprint) ────────────
+    try:
+        cr_r = await asyncio.to_thread(
+            lambda: supa.table("cron_runs")
+                .select("run_id,started_at,status,errors_count,processed_items")
+                .order("started_at", desc=True)
+                .limit(1)
+                .execute()
+        )
+        cr_rows = cr_r.data or []
+        if cr_rows:
+            from datetime import datetime, timezone
+            last = cr_rows[0]
+            last_ts = datetime.fromisoformat(last["started_at"].replace("Z", "+00:00"))
+            sati_od = round((datetime.now(timezone.utc) - last_ts).total_seconds() / 3600, 1)
+            errs = last.get("errors_count", 0) or 0
+            if sati_od > 36:
+                checks.append(_check("Cron runs (istorija)", "FAIL", f"KRITIČNO — poslednji run pre {sati_od}h (>36h bez pokretanja)"))
+            elif errs >= 2:
+                checks.append(_check("Cron runs (istorija)", "WARN", f"Poslednji run pre {sati_od}h sa {errs} grešaka"))
+            else:
+                checks.append(_check("Cron runs (istorija)", "PASS", f"Poslednji run pre {sati_od}h | status={last.get('status')} | {last.get('processed_items', 0)} stavki"))
+        else:
+            checks.append(_check("Cron runs (istorija)", "WARN", "Nema zapisa u cron_runs — migracija 048 možda nije pokrenuta ili cron još nije izvršen"))
+    except Exception as _cre:
+        checks.append(_check("Cron runs (istorija)", "WARN", str(_cre)[:150]))
+
+    # ── 15. APR success rate (poslednjih 7 dana) ──────────────────────────────
+    try:
+        from datetime import datetime, timezone, timedelta
+        od = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        apr_r = await asyncio.to_thread(
+            lambda: supa.table("apr_lookup_log").select("success").gte("created_at", od).execute()
+        )
+        apr_rows = apr_r.data or []
+        if apr_rows:
+            uspesno = sum(1 for x in apr_rows if x.get("success"))
+            stopa = round(uspesno / len(apr_rows) * 100, 1)
+            status = "PASS" if stopa >= 50 else "WARN"
+            checks.append(_check("APR success rate (7d)", status, f"{stopa}% ({uspesno}/{len(apr_rows)} pokušaja)"))
+        else:
+            checks.append(_check("APR success rate (7d)", "WARN", "Nema pokušaja u poslednjih 7 dana"))
+    except Exception as _apre:
+        checks.append(_check("APR success rate (7d)", "WARN", str(_apre)[:150]))
+
+    # ── 16. Portal monitoring health ──────────────────────────────────────────
+    try:
+        pm_r = await asyncio.to_thread(
+            lambda: supa.table("praceni_predmeti")
+                .select("current_status", count="exact")
+                .in_("current_status", ["unavailable", "error"])
+                .eq("aktivan", True)
+                .execute()
+        )
+        losi = pm_r.count if pm_r.count is not None else len(pm_r.data or [])
+        status = "PASS" if losi == 0 else ("WARN" if losi < 5 else "FAIL")
+        checks.append(_check("Portal monitoring health", status, f"{losi} praćenih predmeta sa unavailable/error statusom"))
+    except Exception as _pmhe:
+        checks.append(_check("Portal monitoring health", "WARN", str(_pmhe)[:150]))
+
+    # ── 17. Notification queue health (poslednjih 24h) ───────────────────────
+    try:
+        from datetime import datetime, timezone, timedelta
+        od24 = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        nl_r = await asyncio.to_thread(
+            lambda: supa.table("notification_log")
+                .select("delivery_status", count="exact")
+                .eq("delivery_status", "failed")
+                .gte("sent_at", od24)
+                .execute()
+        )
+        failed = nl_r.count if nl_r.count is not None else len(nl_r.data or [])
+        status = "PASS" if failed == 0 else ("WARN" if failed < 5 else "FAIL")
+        checks.append(_check("Notification queue health (24h)", status, f"{failed} neuspešnih slanja u poslednja 24h"))
+    except Exception as _nlhe:
+        checks.append(_check("Notification queue health (24h)", "WARN", str(_nlhe)[:150]))
+
+    # ── 18. ENV varijable ─────────────────────────────────────────────────────
     env_checks = [
         ("OPENAI_API_KEY", True),
         ("PINECONE_API_KEY", True),
