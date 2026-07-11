@@ -2140,11 +2140,17 @@ var revObs=new IntersectionObserver(function(entries){entries.forEach(function(e
 document.querySelectorAll('.r').forEach(function(el){revObs.observe(el);});
 
 /* TABS */
+var _vxScrollPositions = {};
 function setTab(el,t){
   // PRO gate — tabovi "n" i "t" zahtevaju PRO status
   if ((t === 'n' || t === 't' || t === 'w') && !currentUserIsPro) {
     openProUpgradeModal();
     return;
+  }
+  // Sačuvaj scroll poziciju taba koji se napušta — vraća se pri povratku
+  var _wrapEl = document.querySelector('.vx-panels-wrap');
+  if (_wrapEl && typeof activeTab !== 'undefined' && activeTab) {
+    _vxScrollPositions[activeTab] = _wrapEl.scrollTop;
   }
   // Navigation history — push current tab before switching
   if (!_vxGoingBack && typeof activeTab !== 'undefined' && activeTab && activeTab !== t) {
@@ -2191,6 +2197,13 @@ function setTab(el,t){
   if (t==='settings') settingsLoad();
   if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'smooth' });
   if (window.lucide) lucide.createIcons();
+  // Vrati scroll poziciju taba na koji se vraćamo (posle sinhronog renderovanja sadržaja)
+  (function(_t){
+    setTimeout(function(){
+      var w = document.querySelector('.vx-panels-wrap');
+      if (w && _vxScrollPositions[_t] !== undefined) w.scrollTop = _vxScrollPositions[_t];
+    }, 80);
+  })(t);
   piTrack('nav', 'tab_switch', {tab: t});
   setTimeout(tabsUpdateArrows, 350);
   document.getElementById('btn-lbl').textContent = lbl[t] || '';
@@ -2905,12 +2918,30 @@ async function stratPokreni() {
   }
 }
 
+// Progres kompletne analize — 6 modula, procenjeno 90s (~15s po modulu)
+var _STRAT_MODULI = ['Crveni tim', 'Simulator parnice', 'Sudija', 'Analiza rizika', 'Revizor', 'Svedok'];
+function _strat6ModuliHtml(elapsedSec, gotovo) {
+  var doneCount = gotovo ? 6 : Math.min(5, Math.floor((elapsedSec || 0) / 15));
+  var pct = gotovo ? 100 : Math.min(95, Math.round((elapsedSec || 0) / 90 * 100));
+  var koraci = _STRAT_MODULI.map(function(naziv, i) {
+    var stanje = i < doneCount ? 'done' : (i === doneCount ? 'active' : 'pending');
+    var ikona = stanje === 'done' ? '✓' : (stanje === 'active' ? '⏳' : '○');
+    var boja  = stanje === 'done' ? 'rgba(74,222,128,0.85)' : (stanje === 'active' ? 'rgba(150,200,255,0.9)' : 'rgba(255,255,255,0.25)');
+    return '<span style="color:'+boja+';font-size:.7rem;white-space:nowrap;">'+ikona+' '+naziv+'</span>';
+  }).join('<span style="color:rgba(255,255,255,0.15);margin:0 2px;">→</span>');
+  return '<div class="strat-loading">'
+    + '<div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin-bottom:.6rem;">'
+    +   '<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#4B77E8,#6366f1);border-radius:2px;transition:width .5s ease;"></div>'
+    + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:.5rem;">'+koraci+'</div>'
+    + '<small>'+(gotovo ? 'Gotovo.' : (elapsedSec ? elapsedSec+'s proteklo — procenjeno 60–90 sekundi' : 'Procenjeno vreme: 60–90 sekundi'))+'</small>'
+    + '</div>';
+}
+
 // Polling za async AI poslove (HTTP 202 pattern)
 async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel) {
   var _resetLabel = resetLabel || 'Pokreni analizu';
   var elapsed = 0;
-  var dotStr  = ['⏳', '⌛', '⏳', '⌛'];
-  var dotIdx  = 0;
   while (elapsed < 180) { // max 3 minuta
     await new Promise(function(r){ setTimeout(r, 4000); });
     elapsed += 4;
@@ -2932,8 +2963,7 @@ async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel) {
         return;
       }
       // pending/running — ažuriraj prikaz
-      if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">'+dotStr[dotIdx%4]+' Analiza u toku — '+elapsed+'s...<br><small>Kompleksna analiza (6 modula) traje 60-90s.</small></div>';
-      dotIdx++;
+      if (bodyEl) bodyEl.innerHTML = _strat6ModuliHtml(elapsed, false);
     } catch(e) {
       if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
       break;
@@ -2968,7 +2998,7 @@ async function stratOrkestratorPokreni() {
   if (orkBtn) { orkBtn.disabled = true; orkBtn.textContent = 'Analiziram (6 modula)...'; }
   if (wrapEl) wrapEl.style.display = 'block';
   if (naslovEl) naslovEl.textContent = 'Kompletna strateška analiza';
-  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Pokrenuto 6 modula...<br><small>Crveni tim → Simulator parnice → Sudija → Analiza rizika → Revizor → Svedok<br>Procenjeno vreme: 60–90 sekundi</small></div>';
+  if (bodyEl) bodyEl.innerHTML = _strat6ModuliHtml(0, false);
 
   piTrack('strategija','kompletna_analiza',{});
   piTrack('ai_analysis','started',{tip:'kompletna'});

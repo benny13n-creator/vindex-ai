@@ -604,7 +604,7 @@
             <i data-lucide="download" style="width:14px;height:14px;stroke:rgba(255,255,255,0.72);stroke-width:2;flex-shrink:0;"></i> Instaliraj
           </button>
           <!-- Glavni poziv na akciju -->
-          <button class="vx-btn-new" onclick="intakeOtvori()" title="Otvori novi predmet — vodićemo vas kroz 5 koraka">+ Novi predmet</button>
+          <button class="vx-btn-new" onclick="intakeOtvori()" title="Otvori novi predmet — vodićemo vas kroz 5 koraka i automatski popuniti podatke iz dokumentacije">+ Novi predmet</button>
           <!-- Skrivene alatke — dostupne iz predmeta ili podešavanja -->
           <button id="voice-cmd-btn" onclick="voice_start()" title="Glasovna komanda (Alt+V)" style="display:none;"></button>
           <button onclick="qiOtvori()" title="Brzo kreiranje predmeta" id="btn-hitan-hidden" style="display:none;"></button>
@@ -704,7 +704,7 @@
               <div class="t-guide-text"><span class="t-guide-bold">Moji predmeti</span> — upravljajte predmetima, dodajte beleške i pratite istoriju razgovora po predmetu.</div>
             </div>
             <button class="pred-new-btn" onclick="intakeOtvori()">Otvori novi predmet</button>
-            <div style="font-size:0.62rem;color:rgba(255,255,255,.32);text-align:center;margin-top:0.3rem;">Vodićemo vas kroz 5 koraka.</div>
+            <div style="font-size:0.62rem;color:rgba(255,255,255,.32);text-align:center;margin-top:0.3rem;">Vodićemo vas kroz 5 koraka i automatski popuniti podatke iz dokumentacije.</div>
             <div id="pred-dashboard-alert" style="display:none;font-size:0.65rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:6px;color:#ffbb70;letter-spacing:.03em;"></div>
             <div id="pred-sort-bar" style="display:flex;gap:0.35rem;margin:0.55rem 0 0.35rem;flex-wrap:wrap;align-items:center;">
               <button class="pred-sort-btn active" data-sort="svi"         onclick="pred_setSort('svi')"         style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);cursor:pointer;letter-spacing:.04em;">Svi</button>
