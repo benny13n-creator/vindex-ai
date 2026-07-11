@@ -736,13 +736,13 @@
             <button class="pred-new-btn" onclick="intakeOtvori()">Otvori novi predmet</button>
             <div style="font-size:0.62rem;color:rgba(255,255,255,.32);text-align:center;margin-top:0.3rem;">Vodićemo vas kroz 5 koraka i automatski popuniti podatke iz dokumentacije.</div>
             <div id="pred-dashboard-alert" style="display:none;font-size:0.65rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:6px;color:#ffbb70;letter-spacing:.03em;"></div>
-            <div id="pred-sort-bar" style="display:flex;gap:0.35rem;margin:0.55rem 0 0.35rem;flex-wrap:wrap;align-items:center;">
-              <button class="pred-sort-btn active" data-sort="svi"         onclick="pred_setSort('svi')"         style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);cursor:pointer;letter-spacing:.04em;">Svi</button>
-              <button class="pred-sort-btn"        data-sort="prioritet"   onclick="pred_setSort('prioritet')"   style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">Prioritet</button>
-              <button class="pred-sort-btn"        data-sort="rizik"       onclick="pred_setSort('rizik')"       style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">⚠ Rizik</button>
-              <button class="pred-sort-btn"        data-sort="rokovi"      onclick="pred_setSort('rokovi')"      style="font-size:0.62rem;padding:0.28rem 0.6rem;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);cursor:pointer;letter-spacing:.04em;">Rokovi</button>
+            <div id="pred-sort-bar" style="display:flex;gap:0.45rem;margin:0.9rem 0 0.5rem;flex-wrap:wrap;align-items:center;">
+              <button class="vx-pill pred-sort-btn is-active" data-sort="svi"       onclick="pred_setSort('svi')">Svi</button>
+              <button class="vx-pill pred-sort-btn"           data-sort="prioritet" onclick="pred_setSort('prioritet')">Prioritet</button>
+              <button class="vx-pill pred-sort-btn"           data-sort="rizik"     onclick="pred_setSort('rizik')">⚠ Rizik</button>
+              <button class="vx-pill pred-sort-btn"           data-sort="rokovi"    onclick="pred_setSort('rokovi')">Rokovi</button>
               <!-- Firma toggle — shown only if user is in a kancelarija -->
-              <button id="pred-firma-toggle" onclick="predFirmaToggle()" style="display:none;margin-left:auto;font-size:0.62rem;padding:0.28rem 0.65rem;border-radius:5px;border:1px solid rgba(255,255,255,0.10);background:transparent;color:rgba(255,255,255,0.45);cursor:pointer;letter-spacing:.04em;">Firma</button>
+              <button id="pred-firma-toggle" class="vx-pill" onclick="predFirmaToggle()" style="display:none;margin-left:auto;">Firma</button>
             </div>
             <!-- Firma predmeti panel -->
             <div id="pred-firma-panel" style="display:none;margin-bottom:0.5rem;">
@@ -760,10 +760,10 @@
               <button onclick="pred_bulkOtkaziOznacavanje()" style="border:none;background:none;color:rgba(255,255,255,.3);font-size:0.75rem;cursor:pointer;">✕</button>
             </div>
             <!-- Kanban / Lista toggle -->
-            <div style="display:flex;align-items:center;justify-content:flex-end;margin:.35rem 0 .25rem;">
-              <div style="display:flex;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:7px;overflow:hidden;">
-                <button id="kanban-view-btn-lista" onclick="kanban_setView('lista')" style="padding:.25rem .65rem;font-size:.65rem;border:none;cursor:pointer;font-family:inherit;background:rgba(75,119,232,0.12);color:rgba(255,255,255,0.72);font-weight:600;letter-spacing:.04em;">≡ Lista</button>
-                <button id="kanban-view-btn-kanban" onclick="kanban_setView('kanban')" style="padding:.25rem .65rem;font-size:.65rem;border:none;cursor:pointer;font-family:inherit;background:transparent;color:rgba(255,255,255,.4);letter-spacing:.04em;">⬛ Kanban</button>
+            <div style="display:flex;align-items:center;justify-content:flex-end;margin:.6rem 0 .4rem;">
+              <div style="display:flex;background:rgba(255,255,255,.03);border:1px solid var(--vx-border);border-radius:9px;overflow:hidden;">
+                <button id="kanban-view-btn-lista" class="vx-seg-btn is-active" onclick="kanban_setView('lista')">≡ Lista</button>
+                <button id="kanban-view-btn-kanban" class="vx-seg-btn" onclick="kanban_setView('kanban')">⬛ Kanban</button>
               </div>
             </div>
             <div id="pred-list" class="pred-list"></div>

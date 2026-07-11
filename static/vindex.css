@@ -734,12 +734,12 @@ select option:hover,select option:focus,select option:checked{background-color:r
 /* ── F5 Predmeti ─────────────────────────────────────────────────────────── */
 .predmet-indicator{display:none;font-size:0.7rem;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.72);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:6px;padding:0.25rem 0.7rem;margin-bottom:0.5rem;letter-spacing:0.03em;}
 .predmet-indicator.show{display:block;}
-.pred-list{display:flex;flex-direction:column;gap:0.4rem;margin-top:0.5rem;max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-.pred-item{display:flex;align-items:center;gap:0.55rem;padding:0.75rem 0.8rem;min-height:44px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;cursor:pointer;transition:background .15s;}
-.pred-item:hover,.pred-item.active{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.11);}
-.pred-naziv{flex:1;font-size:0.82rem;color:#e8eaf0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pred-badge{font-size:0.6rem;letter-spacing:0.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);}
-.pred-badge.radni{background:rgba(75,119,232,0.07);color:rgba(255,255,255,0.72);}
+.pred-list{display:flex;flex-direction:column;gap:0.5rem;margin-top:0.75rem;max-height:520px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.pred-item{display:flex;align-items:center;gap:0.7rem;padding:0.95rem 1.05rem;min-height:44px;background:rgba(13,17,23,0.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08);border-radius:14px;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s;}
+.pred-item:hover,.pred-item.active{background:rgba(255,255,255,0.045);border-color:rgba(0,212,255,0.35);box-shadow:0 0 22px rgba(0,212,255,0.07);}
+.pred-naziv{flex:1;font-size:0.84rem;color:#e8eaf0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pred-badge{font-size:0.6rem;letter-spacing:0.07em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);}
+.pred-badge.radni{background:rgba(0,212,255,0.08);color:#00d4ff;}
 .pred-badge.privredni{background:rgba(201,168,76,0.12);color:#c9a84c;}
 .pred-detail{margin-top:0.9rem;border-top:1px solid rgba(255,255,255,0.07);padding-top:0.9rem;display:none;}
 .pred-detail.show{display:block;}
@@ -8090,16 +8090,17 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .resp-status-err  { background: rgba(220,60,60,0.05)  !important; border-color: rgba(220,60,60,0.18)  !important; }
 .resp-status-err .resp-section-body  { color: rgba(220,100,90,0.85)  !important; }
 
-/* -- Predmet list items — bez aure ---------------------------------------- */
+/* -- Predmet list items — cyan hover glow (v2 redesign) --------------------- */
 .pred-list-item, .predmet-item, [class*="pred-item"] {
-  border: 1px solid var(--vp-border) !important;
-  border-radius: var(--vp-radius) !important;
-  background: var(--vp-surface) !important;
-  transition: background 0.12s ease, border-color 0.12s ease !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 14px !important;
+  background: rgba(13,17,23,0.5) !important;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 .pred-list-item:hover, .predmet-item:hover, [class*="pred-item"]:hover {
-  border-color: var(--vp-border-strong) !important;
-  background: var(--vp-surface-2) !important;
+  border-color: rgba(0,212,255,0.35) !important;
+  background: rgba(255,255,255,0.045) !important;
+  box-shadow: 0 0 22px rgba(0,212,255,0.07) !important;
 }
 
 /* -- Status badge unifikacija ---------------------------------------------- */
@@ -8355,18 +8356,18 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .pred-more-menu button:hover { background: var(--vp-surface-2) !important; color: rgba(255,255,255,0.88) !important; }
 
 /* KARTICE */
-.pred-item { background: var(--vp-surface) !important; border-color: var(--vp-border) !important; transition: background 0.12s, border-color 0.12s !important; }
-.pred-item:hover, .pred-item.active { background: var(--vp-surface-2) !important; border-color: var(--vp-border-md) !important; }
+.pred-item { background: rgba(13,17,23,0.5) !important; border-color: rgba(255,255,255,0.08) !important; transition: background 0.2s, border-color 0.2s, box-shadow 0.2s !important; }
+.pred-item:hover, .pred-item.active { background: rgba(255,255,255,0.045) !important; border-color: rgba(0,212,255,0.35) !important; box-shadow: 0 0 22px rgba(0,212,255,0.07) !important; }
 .crm-kartica { border-color: var(--vp-border) !important; background: var(--vp-surface) !important; }
 .crm-kartica:hover { border-color: var(--vp-border-md) !important; background: var(--vp-surface-2) !important; }
 .billing-item { border-color: var(--vp-border) !important; }
 .billing-item:hover { border-color: var(--vp-border-md) !important; }
-.kanban-col  { border-color: var(--vp-border) !important; background: var(--vp-surface) !important; }
-.kanban-card { border-color: var(--vp-border) !important; background: rgba(255,255,255,0.015) !important; }
-.kanban-card:hover { border-color: var(--vp-border-md) !important; background: var(--vp-surface-2) !important; }
+.kanban-col  { border-color: rgba(255,255,255,0.08) !important; background: rgba(13,17,23,0.5) !important; }
+.kanban-card { border-color: rgba(255,255,255,0.08) !important; background: rgba(255,255,255,0.02) !important; border-radius: 10px !important; }
+.kanban-card:hover { border-color: rgba(0,212,255,0.32) !important; background: rgba(255,255,255,0.04) !important; box-shadow: 0 0 18px rgba(0,212,255,0.06) !important; }
 
 /* BADGES */
-.pred-badge.radni     { background: var(--vp-dim) !important; color: rgba(155,175,255,0.80) !important; border: 1px solid rgba(75,119,232,0.20) !important; }
+.pred-badge.radni     { background: rgba(0,212,255,0.08) !important; color: #00d4ff !important; border: 1px solid rgba(0,212,255,0.22) !important; }
 .billing-badge-ok     { background:rgba(50,175,90,0.08) !important; color:rgba(80,195,110,0.80) !important; border:1px solid rgba(50,175,90,0.15) !important; }
 .billing-badge-open   { background:rgba(190,148,50,0.07)!important; color:rgba(195,168,62,0.80) !important; border:1px solid rgba(190,148,50,0.15)!important; }
 #notif-badge { background: rgba(195,65,60,0.75) !important; box-shadow: none !important; }
@@ -8753,6 +8754,23 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   color: var(--vx-accent);
 }
 
+.vx-seg-btn {
+  padding: 0.32rem 0.75rem;
+  font-size: 0.65rem;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  border: none;
+  background: transparent;
+  color: var(--vx-text-secondary);
+  cursor: pointer;
+  transition: background var(--vx-transition-fast), color var(--vx-transition-fast);
+}
+.vx-seg-btn.is-active {
+  background: var(--vx-accent-glow-soft);
+  color: var(--vx-accent);
+  font-weight: 600;
+}
+
 /* ── 8. MODAL / COMMAND PALETTE ──────────────────────────────────────────
    Markup: .vx-modal-overlay > .vx-modal[.vx-modal-palette]
    Palette variant: .vx-cp-search (top) + .vx-cp-categories (left) + .vx-cp-preview (right) */
@@ -8875,24 +8893,24 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .vx-danger-bg  { background: rgba(248,113,113,0.07) !important; border-color: rgba(248,113,113,0.22) !important; }
 .vx-warning-bg { background: rgba(240,180,41,0.07) !important; border-color: rgba(240,180,41,0.20) !important; }
 
-/* ── pred-new-btn — Wizard dugme mora biti nemoguće preskočiti ── */
+/* ── pred-new-btn — Wizard dugme mora biti nemoguće preskočiti (cyan primary) ── */
 .pred-new-btn {
   width: 100% !important;
-  padding: 0.65rem 1rem !important;
+  padding: 0.7rem 1rem !important;
   margin-top: 0.5rem !important;
-  background: linear-gradient(135deg, #4B77E8, #1264c4) !important;
-  border: none !important;
-  border-radius: 9px !important;
-  color: #fff !important;
+  background: linear-gradient(135deg, rgba(0,212,255,0.92), rgba(0,150,200,0.92)) !important;
+  border: 1px solid rgba(0,212,255,0.55) !important;
+  border-radius: 10px !important;
+  color: #010308 !important;
   font-size: 0.84rem !important;
   font-weight: 700 !important;
   cursor: pointer !important;
   font-family: inherit !important;
   letter-spacing: 0.01em !important;
-  transition: opacity 0.15s !important;
-  box-shadow: 0 2px 12px rgba(75,119,232,0.22) !important;
+  transition: opacity 0.15s, box-shadow 0.15s !important;
+  box-shadow: 0 2px 20px rgba(0,212,255,0.18) !important;
 }
-.pred-new-btn:hover { opacity: 0.88 !important; }
+.pred-new-btn:hover { opacity: 0.92 !important; box-shadow: 0 0 30px rgba(0,212,255,0.32) !important; }
 
 /* ── Rad hub: kartice alata predmeta ── */
 .vx-rad-card {

@@ -8182,10 +8182,7 @@ async function pred_load() {
 function pred_setSort(mode) {
   _predSort = mode;
   document.querySelectorAll('.pred-sort-btn').forEach(function(b){
-    var isActive = b.dataset.sort === mode;
-    b.style.background   = isActive ? 'rgba(75,119,232,0.10)' : 'transparent';
-    b.style.borderColor  = isActive ? 'rgba(75,119,232,0.25)' : 'rgba(255,255,255,.1)';
-    b.style.color        = isActive ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,.45)';
+    b.classList.toggle('is-active', b.dataset.sort === mode);
   });
   pred_renderList();
 }
@@ -8674,15 +8671,15 @@ function kanban_setView(mode) {
     if (lista)  lista.style.display  = 'none';
     if (detail) detail.style.display = 'none';
     if (kanban) kanban.style.display = 'block';
-    if (btnL) { btnL.style.background = 'transparent'; btnL.style.color = 'rgba(255,255,255,.4)'; }
-    if (btnK) { btnK.style.background = 'rgba(75,119,232,0.12)'; btnK.style.color = 'rgba(255,255,255,0.72)'; btnK.style.fontWeight = '600'; }
+    if (btnL) btnL.classList.remove('is-active');
+    if (btnK) btnK.classList.add('is-active');
     kanban_render();
   } else {
     if (lista)  lista.style.display  = '';
     if (detail) detail.style.display = '';
     if (kanban) kanban.style.display = 'none';
-    if (btnL) { btnL.style.background = 'rgba(75,119,232,0.12)'; btnL.style.color = 'rgba(255,255,255,0.72)'; btnL.style.fontWeight = '600'; }
-    if (btnK) { btnK.style.background = 'transparent'; btnK.style.color = 'rgba(255,255,255,.4)'; btnK.style.fontWeight = ''; }
+    if (btnL) btnL.classList.add('is-active');
+    if (btnK) btnK.classList.remove('is-active');
   }
 }
 
