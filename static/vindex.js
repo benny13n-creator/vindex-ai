@@ -3427,6 +3427,87 @@ function closeProUpgradeModal() {
   if (m) { m.classList.remove('open'); document.body.style.overflow = ''; }
 }
 
+// ── Feedback modal ───────────────────────────────────────────────────────────
+
+var _feedbackRating = 0;
+var _feedbackScreenshotB64 = null;
+
+function feedbackOpen() {
+  if (!currentSession) { openModal(); return; }
+  _feedbackRating = 0;
+  _feedbackScreenshotB64 = null;
+  var opis = document.getElementById('feedback-opis');
+  if (opis) opis.value = '';
+  var statusEl = document.getElementById('feedback-screenshot-status');
+  if (statusEl) statusEl.style.display = 'none';
+  feedbackSetRating(0);
+  var m = document.getElementById('feedback-modal');
+  if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
+}
+
+function feedbackClose() {
+  var m = document.getElementById('feedback-modal');
+  if (m) { m.classList.remove('open'); document.body.style.overflow = ''; }
+}
+
+function feedbackSetRating(val) {
+  _feedbackRating = val;
+  document.querySelectorAll('#feedback-stars .feedback-star').forEach(function(s) {
+    var starVal = parseInt(s.dataset.val, 10);
+    s.style.color = starVal <= val ? '#f0ad4e' : 'rgba(255,255,255,0.25)';
+  });
+}
+
+async function feedbackCaptureScreenshot() {
+  var btn = document.getElementById('feedback-screenshot-btn');
+  var statusEl = document.getElementById('feedback-screenshot-status');
+  if (typeof html2canvas !== 'function') { showToast('Snimak ekrana nije dostupan.', 'warning'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Snimam...'; }
+  try {
+    var modal = document.getElementById('feedback-modal');
+    if (modal) modal.style.visibility = 'hidden';
+    var canvas = await html2canvas(document.body, { logging: false, useCORS: true, scale: 0.6 });
+    if (modal) modal.style.visibility = '';
+    _feedbackScreenshotB64 = canvas.toDataURL('image/png');
+    if (statusEl) statusEl.style.display = 'inline';
+  } catch(e) {
+    showToast('Snimak ekrana nije uspeo.', 'warning');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📷 Uhvati snimak ekrana'; }
+  }
+}
+
+async function feedbackSubmit() {
+  if (!currentSession) { openModal(); return; }
+  var opisEl = document.getElementById('feedback-opis');
+  var poruka = (opisEl ? opisEl.value : '').trim();
+  if (poruka.length < 10) { showToast('Opišite malo detaljnije (bar 10 karaktera).', 'warning'); return; }
+  var btn = document.getElementById('feedback-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Šaljem...'; }
+  try {
+    var body = {
+      kategorija: 'feedback',
+      poruka: poruka,
+      kontekst: (typeof activeTab !== 'undefined' ? activeTab : '') || null,
+    };
+    if (_feedbackRating > 0) body.rating = _feedbackRating;
+    if (_feedbackScreenshotB64) body.screenshot_base64 = _feedbackScreenshotB64;
+    var r = await fetch(BASE_URL + '/api/support/poruka', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) { var d = await r.json().catch(function(){return {};}); throw new Error(d.detail || 'Greška'); }
+    showToast('Hvala na feedback-u! ✓', 'success');
+    if (typeof piTrack === 'function') piTrack('feedback', 'submitted', {rating: _feedbackRating || null, kontekst: body.kontekst});
+    feedbackClose();
+  } catch(e) {
+    showToast('Slanje nije uspelo: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Pošaljite'; }
+  }
+}
+
 // ── F7 PLAYBOOK UI ────────────────────────────────────────────────────────────
 
 async function ucitajPlaybookStatus() {

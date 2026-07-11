@@ -34,6 +34,11 @@
         crossorigin="anonymous"
         referrerpolicy="no-referrer"
         defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+        integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"
+        defer></script>
 <link rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
       integrity="sha384-t1nt8BQoYMLFN5p42tRAtuAAFQaCQODekUVeKKZrEnEyp4H2R0RHFz0KWpmj7i8g"
@@ -197,6 +202,31 @@
       <span class="vx2-qa-icon"><i data-lucide="file-search" style="width:20px;height:20px;"></i></span>
       <span class="vx2-qa-lbl">Pokreni analizu</span>
     </button>
+  </div>
+</div>
+
+<!-- Feedback — plutajuće dugme + modal -->
+<button id="feedback-fab" onclick="feedbackOpen()" title="Pošaljite feedback"
+  style="position:fixed;right:18px;bottom:18px;z-index:7000;width:42px;height:42px;border-radius:50%;background:rgba(75,119,232,0.15);border:1px solid rgba(75,119,232,0.35);color:rgba(200,210,255,.85);font-size:1.1rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.35);">💬</button>
+
+<div class="modal-overlay" id="feedback-modal" onclick="if(event.target===this)feedbackClose()">
+  <div class="modal" style="max-width:420px;">
+    <button class="modal-close" onclick="feedbackClose()">&#x2715;</button>
+    <div class="modal-title" style="font-size:1.1rem;margin-bottom:0.7rem;">Pošaljite feedback</div>
+    <div style="display:flex;gap:6px;margin-bottom:0.8rem;justify-content:center;" id="feedback-stars">
+      <span class="feedback-star" data-val="1" onclick="feedbackSetRating(1)" style="font-size:1.4rem;cursor:pointer;color:rgba(255,255,255,0.25);">★</span>
+      <span class="feedback-star" data-val="2" onclick="feedbackSetRating(2)" style="font-size:1.4rem;cursor:pointer;color:rgba(255,255,255,0.25);">★</span>
+      <span class="feedback-star" data-val="3" onclick="feedbackSetRating(3)" style="font-size:1.4rem;cursor:pointer;color:rgba(255,255,255,0.25);">★</span>
+      <span class="feedback-star" data-val="4" onclick="feedbackSetRating(4)" style="font-size:1.4rem;cursor:pointer;color:rgba(255,255,255,0.25);">★</span>
+      <span class="feedback-star" data-val="5" onclick="feedbackSetRating(5)" style="font-size:1.4rem;cursor:pointer;color:rgba(255,255,255,0.25);">★</span>
+    </div>
+    <textarea id="feedback-opis" placeholder="Šta ste primetili? Šta bismo mogli da poboljšamo?" maxlength="3000"
+      style="width:100%;min-height:100px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:.6rem .75rem;color:#e6edf3;font-size:.82rem;font-family:inherit;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.6rem;">
+      <button onclick="feedbackCaptureScreenshot()" id="feedback-screenshot-btn" style="font-size:.72rem;padding:.35rem .7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit;">📷 Uhvati snimak ekrana</button>
+      <span id="feedback-screenshot-status" style="font-size:.68rem;color:rgba(74,222,128,0.75);display:none;">✓ Snimljeno</span>
+    </div>
+    <button class="modal-btn" onclick="feedbackSubmit()" id="feedback-submit-btn" style="width:100%;margin-top:.9rem;">Pošaljite</button>
   </div>
 </div>
 
