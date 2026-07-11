@@ -13,16 +13,20 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from shared.deps import get_current_user
+from shared.deps import _get_supa, get_current_user, _is_founder
 from shared.rate import limiter
 
 logger = logging.getLogger("vindex.apr")
 router = APIRouter(prefix="/api/apr", tags=["apr"])
+
+_LOOKUP_METHOD = "html_search"  # jedini metod trenutno implementiran (nema APR JSON API-ja)
 
 _UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -36,8 +40,9 @@ _APR_SEARCH = "https://www.apr.gov.rs/registers/business-entities/search.aspx"
 async def _apr_lookup(maticni_broj: str) -> dict:
     """
     Pretrazuje APR registar po maticnom broju (8 cifara).
-    Vraca: {naziv, adresa, pib, status, maticni_broj, greska}
+    Vraca: {naziv, adresa, pib, status, maticni_broj, greska, source, fetched_at, lookup_method, response_ms}
     """
+    t0 = time.perf_counter()
     result: dict = {
         "naziv":        "",
         "adresa":       "",
@@ -45,7 +50,14 @@ async def _apr_lookup(maticni_broj: str) -> dict:
         "status":       "",
         "maticni_broj": maticni_broj,
         "greska":       None,
+        "source":       "APR",
+        "lookup_method": _LOOKUP_METHOD,
     }
+
+    def _finish(r: dict) -> dict:
+        r["fetched_at"]  = datetime.now(timezone.utc).isoformat()
+        r["response_ms"] = round((time.perf_counter() - t0) * 1000)
+        return r
 
     try:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
@@ -60,25 +72,26 @@ async def _apr_lookup(maticni_broj: str) -> dict:
             )
 
         if resp.status_code != 200:
-            result["greska"] = f"APR nedostupan (HTTP {resp.status_code}). Unesite podatke rucno."
-            return result
+            result["greska"] = "Podaci trenutno nisu dostupni. Mozete ih uneti rucno."
+            return _finish(result)
 
         _parse_apr(resp.text, result)
 
     except httpx.TimeoutException:
-        result["greska"] = "APR nije odgovorio. Pokusajte ponovo."
-        return result
+        result["greska"] = "Podaci trenutno nisu dostupni. Mozete ih uneti rucno."
+        return _finish(result)
     except Exception as e:
         logger.warning("[APR] Lookup greska: %s", e)
-        result["greska"] = "APR pretraga nije dostupna. Unesite podatke rucno."
-        return result
+        result["greska"] = "Podaci trenutno nisu dostupni. Mozete ih uneti rucno."
+        return _finish(result)
 
     if not result["naziv"] and not result["pib"]:
         result["greska"] = (
-            f"Firma sa maticnim brojem {maticni_broj} nije pronadjena u APR registru."
+            f"Firma sa maticnim brojem {maticni_broj} nije pronadjena u APR registru. "
+            "Mozete uneti podatke rucno."
         )
 
-    return result
+    return _finish(result)
 
 
 def _parse_apr(html: str, result: dict) -> None:
@@ -124,6 +137,25 @@ def _parse_apr(html: str, result: dict) -> None:
             break
 
 
+async def _log_apr_lookup(user_id: str, maticni_broj: str, result: dict) -> None:
+    """Fire-and-forget log svakog APR pokusaja (uspeh/neuspeh) — za proof.py success rate."""
+    try:
+        supa = _get_supa()
+        success = bool(result.get("naziv") or result.get("pib")) and not result.get("greska")
+        await asyncio.to_thread(
+            lambda: supa.table("apr_lookup_log").insert({
+                "user_id":       user_id,
+                "maticni_broj":  maticni_broj,
+                "success":       success,
+                "lookup_method": result.get("lookup_method", _LOOKUP_METHOD),
+                "response_ms":   result.get("response_ms"),
+                "greska":        result.get("greska"),
+            }).execute()
+        )
+    except Exception as e:
+        logger.debug("[APR] Log greska: %s", e)
+
+
 @router.get("/lookup/{maticni_broj}")
 @limiter.limit("20/minute")
 async def apr_lookup(
@@ -142,4 +174,42 @@ async def apr_lookup(
             detail="Maticni broj mora imati tacno 8 cifara (za privredna drustva)."
         )
 
-    return await _apr_lookup(mb)
+    result = await _apr_lookup(mb)
+    asyncio.create_task(_log_apr_lookup(user["user_id"], mb, result))
+    return result
+
+
+@router.get("/metrics")
+@limiter.limit("10/minute")
+async def apr_metrics(
+    request: Request,
+    dana: int = 7,
+    user: dict = Depends(get_current_user),
+):
+    """Founder-only: APR success rate za poslednjih N dana. Koristi ga proof.py."""
+    if not _is_founder(user.get("email", "")):
+        raise HTTPException(status_code=403, detail="Restricted.")
+
+    supa = _get_supa()
+    od = (datetime.now(timezone.utc) - timedelta(days=dana)).isoformat()
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("apr_lookup_log")
+                .select("success")
+                .gte("created_at", od)
+                .execute()
+        )
+        rows = r.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Greska pri citanju metrika: {e}")
+
+    total = len(rows)
+    uspesno = sum(1 for x in rows if x.get("success"))
+    stopa = round(uspesno / total * 100, 1) if total else None
+
+    return {
+        "dana": dana,
+        "ukupno_pokusaja": total,
+        "uspesno": uspesno,
+        "stopa_uspeha_pct": stopa,
+    }

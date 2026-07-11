@@ -3789,7 +3789,12 @@ async function crmAprAutofill() {
     });
     var d = await r.json();
     if (!r.ok || d.greska) {
-      if (statEl) { statEl.style.color='rgba(255,80,80,0.85)'; statEl.textContent = d.greska || d.detail || 'Preduzece nije pronadjeno.'; }
+      if (statEl) {
+        statEl.style.color='rgba(255,80,80,0.85)';
+        statEl.innerHTML = '<div>Podaci trenutno nisu dostupni. Možete ih uneti ručno.</div>'
+          + (d.greska || d.detail ? '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:2px;">'+_htmlEsc(d.greska||d.detail)+'</div>' : '');
+      }
+      if (typeof piTrack === 'function') piTrack('apr', 'lookup_failed', {maticni_broj: mb, razlog: d.greska || d.detail || ''});
       return;
     }
     var popunjeno = [];
@@ -3797,17 +3802,28 @@ async function crmAprAutofill() {
     if (naziv) { document.getElementById('crm-f-firma').value = naziv; popunjeno.push('firma'); crmMarkDirty(); }
     if (d.adresa) { document.getElementById('crm-f-adresa').value = d.adresa; popunjeno.push('adresa'); }
     if (d.pib) { var pibEl = document.getElementById('crm-f-pib'); if(pibEl) { pibEl.value=d.pib; popunjeno.push('PIB'); } }
+    var fetchedLbl = '';
+    if (d.fetched_at) {
+      var fd = new Date(d.fetched_at);
+      if (!isNaN(fd.getTime())) {
+        var pad = function(n){ return (n<10?'0':'')+n; };
+        fetchedLbl = 'Podaci preuzeti iz APR-a • ' + pad(fd.getDate())+'.'+pad(fd.getMonth()+1)+'.'+fd.getFullYear()+' '+pad(fd.getHours())+':'+pad(fd.getMinutes());
+      }
+    }
     if (statEl) {
       if (popunjeno.length) {
         statEl.style.color='rgba(74,222,128,0.85)';
-        statEl.textContent = 'Popunjeno iz APR: ' + popunjeno.join(', ') + (d.zastupnik ? ' | Zastupnik: '+d.zastupnik : '') + (d.status ? ' | Status: '+d.status : '');
+        statEl.innerHTML = '<div>Popunjeno iz APR: ' + popunjeno.join(', ') + (d.zastupnik ? ' | Zastupnik: '+d.zastupnik : '') + (d.status ? ' | Status: '+d.status : '') + '</div>'
+          + (fetchedLbl ? '<div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:2px;">'+fetchedLbl+'</div>' : '');
       } else {
         statEl.style.color='rgba(255,165,0,0.85)';
         statEl.textContent = 'Pronađeno ali podaci nisu kompletni. Proverite APR direktno.';
       }
     }
+    if (typeof piTrack === 'function') piTrack('apr', 'lookup_success', {maticni_broj: mb});
   } catch(e) {
-    if (statEl) { statEl.style.color='rgba(255,80,80,0.85)'; statEl.textContent='Greška pri komunikaciji sa APR servisom.'; }
+    if (statEl) { statEl.style.color='rgba(255,80,80,0.85)'; statEl.textContent='Podaci trenutno nisu dostupni. Možete ih uneti ručno.'; }
+    if (typeof piTrack === 'function') piTrack('apr', 'lookup_failed', {maticni_broj: mb, razlog: 'network'});
   } finally {
     if (btn) { btn.disabled=false; btn.textContent='Popuni iz APR'; }
   }
