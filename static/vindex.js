@@ -12547,10 +12547,14 @@ function _updateAdminTabUI() {
 
 function _adminCard(label, value, kind) {
   var boja = kind === 'ok' ? 'rgba(74,222,128,0.85)' : (kind === 'err' ? 'rgba(255,100,100,0.85)' : 'rgba(255,187,112,0.85)');
-  return '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.55rem 0.65rem;">'
-    + '<div style="font-size:0.6rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">' + _htmlEsc(label) + '</div>'
-    + '<div style="font-size:0.8rem;font-weight:700;color:' + boja + ';">' + _htmlEsc(String(value)) + '</div>'
+  return '<div class="vx-card" style="padding:0.6rem 0.75rem;">'
+    + '<div class="vx-caption" style="text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">' + _htmlEsc(label) + '</div>'
+    + '<div style="font-size:0.82rem;font-weight:700;color:' + boja + ';">' + _htmlEsc(String(value)) + '</div>'
     + '</div>';
+}
+
+function _adminAnalyticsGroupLbl(text) {
+  return '<div class="vx-section-lbl" style="grid-column:1/-1;margin:0.5rem 0 0.1rem;">' + _htmlEsc(text) + '</div>';
 }
 
 async function adminOpsLoad() {
@@ -12588,17 +12592,27 @@ async function adminOpsLoad() {
     if (!platform) {
       paEl.innerHTML = '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Nema podataka.</div>';
     } else {
-      var tiles = [
+      var growthTiles = [
         ['Wizard completion', (platform.wizard.completion_rate_pct != null ? platform.wizard.completion_rate_pct + '%' : '—') + ' (' + platform.wizard.completed + '/' + platform.wizard.started + ')'],
-        ['APR usage', (platform.apr_lookup.stopa_uspeha_pct != null ? platform.apr_lookup.stopa_uspeha_pct + '%' : '—') + ' (' + platform.apr_lookup.ukupno + ' pokušaja)'],
-        ['Portal adoption', (platform.portal_monitoring_adoption.stopa_pct != null ? platform.portal_monitoring_adoption.stopa_pct + '%' : '—') + ' (' + platform.portal_monitoring_adoption.korisnika_ukljucilo + ' korisnika)'],
-        ['Draft accepted rate', (platform.draft_outcomes.accepted_rate_pct != null ? platform.draft_outcomes.accepted_rate_pct + '%' : '—')],
         ['DAU / WAU', platform.dau + ' / ' + platform.wau],
+      ];
+      var adoptionTiles = [
+        ['Portal adoption', (platform.portal_monitoring_adoption.stopa_pct != null ? platform.portal_monitoring_adoption.stopa_pct + '%' : '—') + ' (' + platform.portal_monitoring_adoption.korisnika_ukljucilo + ' korisnika)'],
+        ['APR usage', (platform.apr_lookup.stopa_uspeha_pct != null ? platform.apr_lookup.stopa_uspeha_pct + '%' : '—') + ' (' + platform.apr_lookup.ukupno + ' pokušaja)'],
+      ];
+      var retentionTiles = [
         ['Prosek sesija/korisnik', platform.avg_sessions_per_user != null ? platform.avg_sessions_per_user : '—'],
+        ['Draft accepted rate', (platform.draft_outcomes.accepted_rate_pct != null ? platform.draft_outcomes.accepted_rate_pct + '%' : '—')],
       ];
       var topTabovi = (platform.top_tabovi || []).slice(0, 5).map(function(t){ return t.tab + ' (' + t.count + ')'; }).join(', ') || '—';
-      paEl.innerHTML = tiles.map(function(t){ return _adminCard(t[0], t[1], 'ok'); }).join('')
-        + '<div style="grid-column:1/-1;font-size:0.68rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">Najkorišćeniji tabovi: ' + _htmlEsc(topTabovi) + '</div>';
+      paEl.innerHTML = _adminAnalyticsGroupLbl('Growth')
+        + growthTiles.map(function(t){ return _adminCard(t[0], t[1], 'ok'); }).join('')
+        + _adminAnalyticsGroupLbl('Adoption')
+        + adoptionTiles.map(function(t){ return _adminCard(t[0], t[1], 'ok'); }).join('')
+        + _adminAnalyticsGroupLbl('Retention')
+        + retentionTiles.map(function(t){ return _adminCard(t[0], t[1], 'ok'); }).join('')
+        + _adminAnalyticsGroupLbl('Detaljne metrike')
+        + '<div class="vx-card vx-caption" style="grid-column:1/-1;">Najkorišćeniji tabovi: ' + _htmlEsc(topTabovi) + '</div>';
     }
   }
 
@@ -12710,31 +12724,34 @@ function analyticsRender(d) {
 
   var emptyEl = document.getElementById('analytics-empty');
 
-  // KPI
+  // 4 ključna KPI-ja
   var kpiEl = document.getElementById('analytics-kpi');
   if (kpiEl) {
+    var periodDana = d.period_dana || 30;
+    var prosekDnevno = periodDana ? Math.round((total / periodDana) * 10) / 10 : 0;
     kpiEl.innerHTML = [
-      { label: 'Ukupno akcija', val: total, color: 'rgba(255,255,255,0.72)' },
-      { label: 'Funkcija korišćeno', val: features.length, color: '#4ade80' },
-      { label: 'Period (dana)', val: d.period_dana || 30, color: 'rgba(255,255,255,0.4)' },
+      { label: 'Ukupno akcija', val: total },
+      { label: 'Funkcija korišćeno', val: features.length },
+      { label: 'Prosek akcija/dan', val: prosekDnevno },
+      { label: 'Period (dana)', val: periodDana },
     ].map(function(k){
-      return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:0.5rem 0.6rem;text-align:center;">'
-        +'<div style="font-size:1.1rem;font-weight:700;color:'+k.color+';line-height:1.2;">'+k.val+'</div>'
-        +'<div style="font-size:0.57rem;color:rgba(255,255,255,0.38);text-transform:uppercase;letter-spacing:.05em;margin-top:1px;">'+k.label+'</div>'
+      return '<div class="vx-card" style="padding:0.7rem 0.8rem;text-align:center;">'
+        +'<div class="vx-kpi-number" style="font-size:1.4rem;">'+k.val+'</div>'
+        +'<div class="vx-caption" style="text-transform:uppercase;letter-spacing:.05em;margin-top:2px;">'+k.label+'</div>'
         +'</div>';
     }).join('');
   }
 
-  // Bar chart aktivnost
+  // Bar chart aktivnost — hero
   var chartEl = document.getElementById('analytics-chart');
   if (chartEl && aktivnost.length) {
     var maxVal = Math.max.apply(null, aktivnost.map(function(a){ return a.count; })) || 1;
     chartEl.innerHTML = aktivnost.map(function(a){
       var pct = Math.round((a.count / maxVal) * 100);
       var dan = (a.datum || '').slice(5);
-      return '<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;" title="'+a.datum+': '+a.count+' akcija">'
-        +'<div style="width:100%;background:rgba(75,119,232,0.35);border-radius:2px 2px 0 0;height:'+pct+'%;min-height:'+(a.count?2:0)+'px;"></div>'
-        +'<div style="font-size:0.42rem;color:rgba(255,255,255,0.25);writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap;">'+dan+'</div>'
+      return '<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:4px;" title="'+a.datum+': '+a.count+' akcija">'
+        +'<div style="width:100%;background:linear-gradient(180deg,rgba(0,212,255,0.55),rgba(0,212,255,0.15));border-radius:3px 3px 0 0;height:'+pct+'%;min-height:'+(a.count?2:0)+'px;"></div>'
+        +'<div style="font-size:0.44rem;color:var(--vx-text-secondary);writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap;">'+dan+'</div>'
         +'</div>';
     }).join('');
   } else if (chartEl) {
@@ -12748,12 +12765,12 @@ function analyticsRender(d) {
     featEl.innerHTML = features.slice(0, 8).map(function(f){
       var pct = Math.round((f.count / maxF) * 100);
       return '<div style="margin-bottom:2px;">'
-        +'<div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-bottom:1px;">'
+        +'<div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-bottom:2px;">'
         +'<span style="color:rgba(255,255,255,0.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">'+_htmlEsc(f.feature)+'</span>'
-        +'<span style="color:rgba(255,255,255,0.4);flex-shrink:0;margin-left:4px;">'+f.count+'</span>'
+        +'<span style="color:var(--vx-text-secondary);flex-shrink:0;margin-left:4px;">'+f.count+'</span>'
         +'</div>'
-        +'<div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;">'
-        +'<div style="height:100%;width:'+pct+'%;background:#4B77E8;border-radius:2px;"></div>'
+        +'<div style="height:4px;background:rgba(255,255,255,0.06);border-radius:2px;">'
+        +'<div style="height:100%;width:'+pct+'%;background:#00d4ff;border-radius:2px;"></div>'
         +'</div></div>';
     }).join('') || '<div style="font-size:0.7rem;color:rgba(255,255,255,0.25);">Nema podataka</div>';
   }

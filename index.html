@@ -3587,19 +3587,22 @@
                   <button class="settings-btn" onclick="analyticsLoad()">↻</button>
                 </div>
               </div>
-              <!-- KPI row -->
-              <div id="analytics-kpi" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;margin-bottom:0.85rem;"></div>
-              <!-- Aktivnost po danu (bar chart) -->
-              <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;">Aktivnost po danu</div>
-              <div id="analytics-chart" style="display:flex;align-items:flex-end;gap:2px;height:60px;margin-bottom:0.9rem;"></div>
-              <!-- Top funkcije + Top predmeti -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                <div>
-                  <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.35rem;">Top funkcije</div>
-                  <div id="analytics-features" style="display:flex;flex-direction:column;gap:0.2rem;"></div>
+              <!-- Hero: Aktivnost po danu (bar chart), puna širina -->
+              <div class="vx-card" style="margin:0.7rem 0 0.9rem;padding:1.1rem;">
+                <div class="vx-section-lbl" style="margin-bottom:0.6rem;">Aktivnost po danu</div>
+                <div id="analytics-chart" style="display:flex;align-items:flex-end;gap:3px;height:90px;"></div>
+              </div>
+              <!-- 4 ključna KPI-ja -->
+              <div id="analytics-kpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:1rem;"></div>
+              <!-- Detaljne metrike: Top funkcije + Top predmeti -->
+              <div class="vx-section-lbl" style="margin-bottom:0.5rem;">Detaljne metrike</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;">
+                <div class="vx-card" style="padding:0.85rem;">
+                  <div class="vx-section-lbl" style="margin-bottom:0.5rem;">Top funkcije</div>
+                  <div id="analytics-features" style="display:flex;flex-direction:column;gap:0.35rem;"></div>
                 </div>
-                <div>
-                  <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.35rem;">Top predmeti</div>
+                <div class="vx-card" style="padding:0.85rem;">
+                  <div class="vx-section-lbl" style="margin-bottom:0.5rem;">Top predmeti</div>
                   <div id="analytics-predmeti" style="display:flex;flex-direction:column;gap:0.2rem;"></div>
                 </div>
               </div>
