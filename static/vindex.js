@@ -2219,19 +2219,22 @@ function vxGoBack() {
 }
 
 function vxUpdateBreadcrumb(t) {
-  var backBtn = document.getElementById('vx-back-btn');
-  var backSep = document.getElementById('vx-back-sep');
-  var pathEl  = document.getElementById('vx-breadcrumb-path');
+  var backBtn   = document.getElementById('vx-back-btn');
+  var backLabel = document.getElementById('vx-back-label');
+  var backSep   = document.getElementById('vx-back-sep');
+  var pathEl    = document.getElementById('vx-breadcrumb-path');
   if (!pathEl) return;
   var _aiSubtabs = {q:1,a:1,n:1,s:1,t:1,w:1};
   var label = _vxTabLabels[t] || t;
-  pathEl.textContent = _aiSubtabs[t] ? 'Pravni alati / ' + label : label;
+  var naPredmetu = (t === 'p' && activePredmetId && activePredmetNaziv);
+  pathEl.textContent = naPredmetu ? '' : (_aiSubtabs[t] ? 'Pravni alati / ' + label : label);
+  if (backLabel) backLabel.textContent = naPredmetu ? ('Nazad na predmet ' + activePredmetNaziv) : 'Nazad';
   if (vxNavHistory.length > 0) {
     if (backBtn) backBtn.classList.add('visible');
-    if (backSep) backSep.classList.add('visible');
+    if (backSep) { backSep.classList.toggle('visible', !naPredmetu); backSep.style.display = naPredmetu ? 'none' : ''; }
   } else {
     if (backBtn) backBtn.classList.remove('visible');
-    if (backSep) backSep.classList.remove('visible');
+    if (backSep) { backSep.classList.remove('visible'); backSep.style.display = ''; }
   }
 }
 
