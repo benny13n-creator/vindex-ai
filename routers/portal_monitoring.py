@@ -488,6 +488,11 @@ async def cron_proveri(
             update["poslednji_status"]       = novi
             update["poslednji_status_datum"] = result.get("datum", "")
             promene_po_korisniku.setdefault(uid, []).append({"naziv": naziv, "stari": stari, "novi": novi})
+            try:
+                from routers.analytics import _track_event
+                asyncio.create_task(_track_event(uid, "portal", "status_changed", metadata={"stari": stari, "novi": novi}))
+            except Exception:
+                pass
 
         await _audit_check(supa, pp_id, uid, stari, novi, source="cron", run_id=run_id, is_change=promena)
 

@@ -2971,6 +2971,7 @@ async function stratOrkestratorPokreni() {
   if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Pokrenuto 6 modula...<br><small>Crveni tim → Simulator parnice → Sudija → Analiza rizika → Revizor → Svedok<br>Procenjeno vreme: 60–90 sekundi</small></div>';
 
   piTrack('strategija','kompletna_analiza',{});
+  piTrack('ai_analysis','started',{tip:'kompletna'});
   try {
     var res = await fetch(BASE_URL + '/strategija/kompletna-analiza', {
       method: 'POST',
@@ -3005,6 +3006,7 @@ async function stratOrkestratorPokreni() {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   } finally {
     if (orkBtn) { orkBtn.disabled = false; orkBtn.textContent = _resetLabel; }
+    piTrack('ai_analysis','completed',{tip:'kompletna'});
   }
 }
 
@@ -15845,6 +15847,7 @@ async function agent_run() {
     selBadge.textContent   = (_AGENT_ICONS[_selectedAgent]||'▶') + ' ' + (_AGENT_NAMES[_selectedAgent]||'Auto') + ' — analizira: ' + activePredmetNaziv;
   }
 
+  if (typeof piTrack === 'function') piTrack('ai_analysis', 'started', {agent: _selectedAgent || 'auto'});
   try {
     var body = { task: task };
     if (_selectedAgent)  body.agent      = _selectedAgent;
@@ -15865,6 +15868,7 @@ async function agent_run() {
       wrap.style.display = 'block';
       setTimeout(function() { wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
     }
+    if (typeof piTrack === 'function') piTrack('ai_analysis', 'completed', {agent: d.agent || _selectedAgent || 'auto'});
   } catch(e) {
     if (loading) loading.style.display = 'none';
     showToast('Greška: ' + e.message, 'err');
@@ -16935,6 +16939,7 @@ function intakeOtvori() {
   if (!currentSession) { openModal(); return; }
   _iStep = 1; _iKlijentId = null; _iKlijentName = ''; _iKlijentFirma = ''; _iSessionId = null;
   _iFiles = []; _iAnaliza = null; _iEkstrakcijaRunning = false; _iDirty = false;
+  if (typeof piTrack === 'function') piTrack('wizard', 'started');
   document.getElementById('intake-overlay').classList.add('open');
   _intakeRenderStep();
   document.getElementById('intake-klijent-search').value = '';
@@ -17635,6 +17640,7 @@ function _intakeShowPipelineResult(pr) {
 }
 
 function intakePipelineDone() {
+  if (typeof piTrack === 'function') piTrack('wizard', 'completed', {predmet_id: _intakePipelinePredmetId || null});
   intakeZatvori();
   var tabEl = document.querySelector('[onclick*="setTab"][onclick*="\'p\'"]');
   if (tabEl) setTab(tabEl, 'p');
