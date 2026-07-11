@@ -24,7 +24,8 @@ import asyncio
 import logging
 import os
 import re
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -44,7 +45,8 @@ _UA = (
     "Chrome/124.0.0.0 Safari/537.36"
 )
 
-_MIN_RECHECK_MINUTES = 30  # duplicate protection — ne proveravaj isti predmet cesce od ovoga
+_MIN_RECHECK_MINUTES = 30  # normalan interval kad predmet nema uzastopnih grešaka
+_BACKOFF_MAX_MINUTES = 360  # 6h — gornja granica exponential backoff-a
 
 _DISCLAIMER = (
     "Vindex periodično proverava javno dostupne podatke sa Portala sudova. "
@@ -60,6 +62,13 @@ def _minutes_since(iso_ts: Optional[str]) -> Optional[float]:
         return (datetime.now(timezone.utc) - last).total_seconds() / 60
     except Exception:
         return None
+
+
+def _backoff_minutes(consecutive_failures: int) -> int:
+    """Per-predmet exponential backoff: 15m, 30m, 60m, ..., max 6h. Bez grešaka -> normalan interval."""
+    if not consecutive_failures or consecutive_failures <= 0:
+        return _MIN_RECHECK_MINUTES
+    return min(15 * (2 ** (consecutive_failures - 1)), _BACKOFF_MAX_MINUTES)
 
 # ─── Modeli ───────────────────────────────────────────────────────────────────
 
@@ -78,8 +87,13 @@ _PORTAL_SEARCH = "https://portal.sud.rs/webportal/faces/javni/pretraga.xhtml"
 async def _scrape_portal_status(broj_predmeta: str, sud_naziv: str) -> dict:
     """
     Dohvata status predmeta sa portal.sud.rs javnog modula.
-    Vraća: {status, datum, greska, kind} — kind: ok | unavailable | error
+    Vraća: {status, datum, greska, kind, response_ms} — kind: ok | unavailable | error
     """
+    t0 = time.perf_counter()
+
+    def _ms() -> int:
+        return round((time.perf_counter() - t0) * 1000)
+
     try:
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
             resp = await client.get(
@@ -99,6 +113,7 @@ async def _scrape_portal_status(broj_predmeta: str, sud_naziv: str) -> dict:
                 "datum": "",
                 "greska": "Portal zahteva verifikaciju. Proverite ručno na portal.sud.rs.",
                 "kind": "unavailable",
+                "response_ms": _ms(),
             }
 
         if resp.status_code != 200:
@@ -107,6 +122,7 @@ async def _scrape_portal_status(broj_predmeta: str, sud_naziv: str) -> dict:
                 "datum": "",
                 "greska": f"Portal nedostupan (HTTP {resp.status_code})",
                 "kind": "unavailable",
+                "response_ms": _ms(),
             }
 
         status = _extrahuj_status(resp.text)
@@ -115,13 +131,14 @@ async def _scrape_portal_status(broj_predmeta: str, sud_naziv: str) -> dict:
             "datum": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "greska": None if status else "Status nije pronađen — format portala se promenio.",
             "kind": "ok" if status else "error",
+            "response_ms": _ms(),
         }
 
     except httpx.TimeoutException:
-        return {"status": "", "datum": "", "greska": "Portal nije odgovorio (timeout 20s).", "kind": "unavailable"}
+        return {"status": "", "datum": "", "greska": "Portal nije odgovorio (timeout 20s).", "kind": "unavailable", "response_ms": _ms()}
     except Exception as e:
         logger.warning("[PORTAL] Scraping greška: %s", e)
-        return {"status": "", "datum": "", "greska": "Greška pri pristupu portalu.", "kind": "error"}
+        return {"status": "", "datum": "", "greska": "Greška pri pristupu portalu.", "kind": "error", "response_ms": _ms()}
 
 
 def _extrahuj_status(html: str) -> str:
@@ -283,6 +300,75 @@ async def lista_pracenih(request: Request, user: dict = Depends(get_current_user
         return {"predmeti": [], "napomena": _DISCLAIMER}
 
 
+@router.get("/health")
+@limiter.limit("30/minute")
+async def portal_health(request: Request, user: dict = Depends(get_current_user)):
+    """Founder-only: agregatno zdravlje portal.sud.rs monitoringa za admin dashboard."""
+    if not _is_founder(user.get("email", "")):
+        raise HTTPException(status_code=403, detail="Restricted.")
+
+    supa = _get_supa()
+    now = datetime.now(timezone.utc)
+    od_24h = (now - timedelta(hours=24)).isoformat()
+    od_7d  = (now - timedelta(days=7)).isoformat()
+
+    def _stats(rows: list) -> dict:
+        total = len(rows)
+        ok = sum(1 for r in rows if r.get("result_kind") == "ok")
+        return round(ok / total * 100, 1) if total else None
+
+    try:
+        r24 = await asyncio.to_thread(
+            lambda: supa.table("portal_status_log")
+                .select("result_kind,response_ms,created_at")
+                .gte("created_at", od_24h)
+                .execute()
+        )
+        rows_24h = r24.data or []
+        r7 = await asyncio.to_thread(
+            lambda: supa.table("portal_status_log")
+                .select("result_kind")
+                .gte("created_at", od_7d)
+                .execute()
+        )
+        rows_7d = r7.data or []
+        last_ok = await asyncio.to_thread(
+            lambda: supa.table("portal_status_log")
+                .select("created_at")
+                .eq("result_kind", "ok")
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Greska pri citanju metrika: {e}")
+
+    stopa_24h = _stats(rows_24h)
+    stopa_7d  = _stats(rows_7d)
+    failed_24h = sum(1 for r in rows_24h if r.get("result_kind") in ("unavailable", "error"))
+    response_times = [r["response_ms"] for r in rows_24h if r.get("response_ms") is not None]
+    avg_response = round(sum(response_times) / len(response_times)) if response_times else None
+    last_success_at = (last_ok.data or [{}])[0].get("created_at") if last_ok.data else None
+
+    if stopa_24h is None:
+        status = "UNKNOWN"
+    elif stopa_24h >= 90:
+        status = "HEALTHY"
+    elif stopa_24h >= 50:
+        status = "DEGRADED"
+    else:
+        status = "DOWN"
+
+    return {
+        "status":                   status,
+        "success_rate_24h":        stopa_24h,
+        "success_rate_7d":         stopa_7d,
+        "avg_response_ms":         avg_response,
+        "failed_checks_count":     failed_24h,
+        "last_successful_check_at": last_success_at,
+    }
+
+
 @router.delete("/prati/{praceni_id}")
 async def ukloni_praceni(praceni_id: str, user: dict = Depends(get_current_user)):
     """Deaktivira praćenje predmeta."""
@@ -319,7 +405,8 @@ async def status_log(praceni_id: str, user: dict = Depends(get_current_user)):
         return {"log": []}
 
 
-async def _audit_check(supa, pp_id: str, uid: str, stari: str, novi: str, source: str, run_id: str, is_change: bool) -> None:
+async def _audit_check(supa, pp_id: str, uid: str, stari: str, novi: str, source: str, run_id: str,
+                        is_change: bool, result_kind: Optional[str] = None, response_ms: Optional[int] = None) -> None:
     """Upisuje red u portal_status_log za SVAKU proveru (audit trail), ne samo promene."""
     try:
         row = {
@@ -329,6 +416,8 @@ async def _audit_check(supa, pp_id: str, uid: str, stari: str, novi: str, source
             "new_status":         novi,
             "source":             source,
             "run_id":             run_id,
+            "result_kind":        result_kind,
+            "response_ms":        response_ms,
         }
         if is_change:
             row["status_tekst"] = novi
@@ -338,19 +427,19 @@ async def _audit_check(supa, pp_id: str, uid: str, stari: str, novi: str, source
         logger.debug("[PORTAL] Audit log greška: %s", e)
 
 
-def _current_status_update(result: dict, promena: bool) -> dict:
-    """Gradi update dict za praceni_predmeti na osnovu ishoda provere."""
+def _current_status_update(result: dict, promena: bool, prev_consecutive_failures: int = 0) -> dict:
+    """Gradi update dict za praceni_predmeti na osnovu ishoda provere, uklj. backoff brojac."""
     now_iso = datetime.now(timezone.utc).isoformat()
     kind = result.get("kind", "error")
     update = {"poslednja_provera": now_iso, "last_error": result.get("greska")}
-    if kind == "unavailable":
-        update["current_status"] = "unavailable"
-    elif kind == "error":
-        update["current_status"] = "error"
+    if kind in ("unavailable", "error"):
+        update["current_status"]        = kind
+        update["consecutive_failures"]  = (prev_consecutive_failures or 0) + 1
     else:
-        update["current_status"] = "changed" if promena else "unchanged"
-        update["last_successful_check_at"] = now_iso
-        update["last_error"] = None
+        update["current_status"]              = "changed" if promena else "unchanged"
+        update["last_successful_check_at"]    = now_iso
+        update["last_error"]                  = None
+        update["consecutive_failures"]        = 0
     return update
 
 
@@ -381,12 +470,14 @@ async def manual_update(
     if not pp:
         raise HTTPException(status_code=404, detail="Praćeni predmet nije pronađen.")
 
-    # Duplicate protection — preskoči ako je nedavno proveravano
+    # Duplicate protection — per-predmet exponential backoff (15m/30m/60m.../max 6h posle grešaka)
+    prev_failures = pp.get("consecutive_failures", 0) or 0
+    cekaj_min = _backoff_minutes(prev_failures)
     minuta_od = _minutes_since(pp.get("poslednja_provera"))
-    if minuta_od is not None and minuta_od < _MIN_RECHECK_MINUTES:
+    if minuta_od is not None and minuta_od < cekaj_min:
         return {
             "ok": True, "preskoceno": True,
-            "poruka": f"Nedavno proveravano (pre {round(minuta_od)} min). Sačekajte {_MIN_RECHECK_MINUTES} min između provera.",
+            "poruka": f"Nedavno proveravano (pre {round(minuta_od)} min). Sačekajte {round(cekaj_min - minuta_od)} min.",
             "status": pp.get("poslednji_status", ""),
         }
 
@@ -395,12 +486,13 @@ async def manual_update(
     novi       = result.get("status", "")
     promena    = bool(novi and novi != stari)
 
-    update = _current_status_update(result, promena)
+    update = _current_status_update(result, promena, prev_consecutive_failures=prev_failures)
     if promena:
         update["poslednji_status"]        = novi
         update["poslednji_status_datum"]  = result.get("datum", "")
 
-    await _audit_check(supa, praceni_id, uid, stari, novi, source="manual", run_id="manual", is_change=promena)
+    await _audit_check(supa, praceni_id, uid, stari, novi, source="manual", run_id="manual", is_change=promena,
+                        result_kind=result.get("kind"), response_ms=result.get("response_ms"))
     if promena:
         await _posalji_notifikaciju(uid, pp.get("naziv") or pp["broj_predmeta"], stari, novi)
 
@@ -445,7 +537,7 @@ async def cron_proveri(
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("praceni_predmeti")
-                .select("id,user_id,naziv,broj_predmeta,sud_naziv,poslednji_status,poslednja_provera")
+                .select("id,user_id,naziv,broj_predmeta,sud_naziv,poslednji_status,poslednja_provera,consecutive_failures")
                 .eq("aktivan", True)
                 .execute()
         )
@@ -465,10 +557,11 @@ async def cron_proveri(
         uid        = p["user_id"]
         naziv      = p.get("naziv") or p["broj_predmeta"]
         stari      = p.get("poslednji_status", "")
+        prev_failures = p.get("consecutive_failures", 0) or 0
 
-        # Duplicate protection
+        # Duplicate protection — per-predmet exponential backoff
         minuta_od = _minutes_since(p.get("poslednja_provera"))
-        if minuta_od is not None and minuta_od < _MIN_RECHECK_MINUTES:
+        if minuta_od is not None and minuta_od < _backoff_minutes(prev_failures):
             preskoceno_ct += 1
             continue
 
@@ -481,7 +574,7 @@ async def cron_proveri(
 
         novi    = result.get("status", "")
         promena = bool(novi and novi != stari)
-        update  = _current_status_update(result, promena)
+        update  = _current_status_update(result, promena, prev_consecutive_failures=prev_failures)
 
         if promena:
             promena_ct += 1
@@ -494,7 +587,8 @@ async def cron_proveri(
             except Exception:
                 pass
 
-        await _audit_check(supa, pp_id, uid, stari, novi, source="cron", run_id=run_id, is_change=promena)
+        await _audit_check(supa, pp_id, uid, stari, novi, source="cron", run_id=run_id, is_change=promena,
+                            result_kind=result.get("kind"), response_ms=result.get("response_ms"))
 
         try:
             await asyncio.to_thread(
