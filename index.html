@@ -1183,10 +1183,7 @@
                       <button class="mic-btn" id="mic-crossdoc-pitanje" type="button" onclick="micToggle('crossdoc-pitanje')" title="Glasovni unos" style="position:absolute;right:6px;bottom:6px;width:28px;height:28px;min-width:28px;min-height:28px;padding:0;"><i class="fa-solid fa-microphone" style="font-size:0.7rem;"></i></button>
                     </div>
                     <div class="mic-status" id="mic-status-crossdoc-pitanje"><span class="mic-status-dot"></span><span>Snimam...</span></div>
-                    <button onclick="crossdoc_analiziraj()"
-                      style="margin-top:0.55rem;width:100%;padding:0.6rem;border:none;border-radius:8px;
-                             background:linear-gradient(135deg,#0099cc,rgba(255,255,255,0.72));color:#000;
-                             font-weight:700;font-size:0.82rem;cursor:pointer;">
+                    <button onclick="crossdoc_analiziraj()" class="vx-btn vx-btn-primary" style="margin-top:0.6rem;width:100%;">
                       Analiziraj konflikte
                     </button>
                     <div id="crossdoc-loading" style="display:none;text-align:center;padding:0.75rem 0;color:rgba(255,255,255,0.5);font-size:0.8rem;">
@@ -1387,7 +1384,7 @@
 
                 <!-- ── ZPP Lanac Rokova ─────────────────────────────── -->
                 <div style="margin-top:0.9rem;">
-                  <button onclick="lanac_toggleSection(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">
+                  <button onclick="lanac_toggleSection(this)" style="width:100%;text-align:left;background:rgba(13,17,23,0.4);border:1px solid var(--vx-border);border-radius:10px;padding:0.6rem 0.8rem;color:rgba(255,255,255,0.7);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;transition:border-color .15s;">
                     <span>ZPP Lanac rokova</span><span id="lanac-chevron">▼</span>
                   </button>
                   <div id="lanac-section" style="display:none;margin-top:0.4rem;padding:0.55rem 0.7rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:8px;">
@@ -1431,7 +1428,7 @@
 
                 <!-- ── Portal.sud.rs praćenje ─────────────────────── -->
                 <div style="margin-top:.9rem;">
-                  <button onclick="portalToggleSection(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;" id="portal-section-btn">
+                  <button onclick="portalToggleSection(this)" style="width:100%;text-align:left;background:rgba(13,17,23,0.4);border:1px solid var(--vx-border);border-radius:10px;padding:0.6rem 0.8rem;color:rgba(255,255,255,0.7);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;transition:border-color .15s;" id="portal-section-btn">
                     <span style="display:flex;align-items:center;gap:.4rem;">
                       Praćenje na portal.sud.rs
                       <span style="font-size:.6rem;padding:.1rem .35rem;background:rgba(0,120,212,0.15);border:1px solid rgba(0,120,212,0.25);border-radius:8px;color:#60a5fa;">NOVO</span>
@@ -1457,15 +1454,15 @@
                   <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,0.45);margin-bottom:.5rem;font-weight:700;">Kako naplatiti predmet — 3 koraka</div>
                   <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
                     <div style="flex:1;min-width:120px;display:flex;align-items:flex-start;gap:.4rem;">
-                      <span style="width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.09);border:1px solid rgba(75,119,232,0.28);color:rgba(255,255,255,0.72);font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</span>
+                      <span style="width:18px;height:18px;border-radius:50%;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.32);color:rgba(255,255,255,0.85);font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</span>
                       <span style="font-size:.72rem;color:rgba(255,255,255,.6);line-height:1.4;"><strong style="color:rgba(255,255,255,0.72);">Tajmer</strong> — kliknite Start kada počnete da radite na predmetu</span>
                     </div>
                     <div style="flex:1;min-width:120px;display:flex;align-items:flex-start;gap:.4rem;">
-                      <span style="width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.09);border:1px solid rgba(75,119,232,0.28);color:rgba(255,255,255,0.72);font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</span>
+                      <span style="width:18px;height:18px;border-radius:50%;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.32);color:rgba(255,255,255,0.85);font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</span>
                       <span style="font-size:.72rem;color:rgba(255,255,255,.6);line-height:1.4;"><strong style="color:rgba(255,255,255,0.72);">Dodajte stavke</strong> — izaberite tip (tarifa/satnica) i kliknite + Dodaj</span>
                     </div>
                     <div style="flex:1;min-width:120px;display:flex;align-items:flex-start;gap:.4rem;">
-                      <span style="width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.09);border:1px solid rgba(75,119,232,0.28);color:rgba(255,255,255,0.72);font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</span>
+                      <span style="width:18px;height:18px;border-radius:50%;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.32);color:rgba(255,255,255,0.85);font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</span>
                       <span style="font-size:.72rem;color:rgba(255,255,255,.6);line-height:1.4;"><strong style="color:rgba(255,255,255,0.72);">Generiši fakturu</strong> — dugme se pojavljuje automatski ispod liste stavki</span>
                     </div>
                   </div>
@@ -1494,7 +1491,7 @@
                     <div style="display:flex;gap:0.3rem;margin-top:0.3rem;align-items:center;">
                       <input id="billing-opis" class="t-input" type="text" placeholder="Opis radnje..." style="flex:1;font-size:0.72rem;height:34px;">
                       <input id="billing-iznos" class="t-input" type="number" placeholder="RSD" min="0" step="50" style="width:80px;font-size:0.72rem;height:34px;">
-                      <button onclick="billing_addEntry()" style="padding:0 0.7rem;height:34px;background:rgba(75,119,232,0.07);border:1px solid rgba(255,255,255,0.10);border-radius:7px;color:rgba(255,255,255,0.72);font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;">+ Dodaj</button>
+                      <button onclick="billing_addEntry()" class="vx-btn vx-btn-secondary" style="height:34px;padding:0 0.7rem;font-size:0.72rem;">+ Dodaj</button>
                     </div>
                   </div>
                   <div id="billing-entries-list" style="margin-top:0.5rem;"></div>
@@ -1502,7 +1499,7 @@
 
                   <!-- ── Ponavljajuće fakture ─────────────────────────────── -->
                   <div style="margin-top:0.75rem;">
-                    <button onclick="billing_toggleRecurring(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">
+                    <button onclick="billing_toggleRecurring(this)" style="width:100%;text-align:left;background:rgba(13,17,23,0.4);border:1px solid var(--vx-border);border-radius:10px;padding:0.6rem 0.8rem;color:rgba(255,255,255,0.7);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;transition:border-color .15s;">
                       <span>Ponavljajuće fakture</span><span id="recurring-chevron">▼</span>
                     </button>
                     <div id="recurring-section" style="display:none;margin-top:0.4rem;">
@@ -1525,16 +1522,16 @@
                           <input id="rec-pdv" class="t-input" type="number" placeholder="PDV %" min="0" max="100" step="1" value="0" style="font-size:0.72rem;">
                         </div>
                         <div style="display:flex;gap:0.35rem;">
-                          <button onclick="billing_saveRecurring()" style="flex:1;padding:0.4rem;background:rgba(75,119,232,0.07);border:1px solid rgba(255,255,255,0.10);border-radius:7px;color:rgba(255,255,255,0.72);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">Sačuvaj šablon</button>
-                          <button onclick="document.getElementById('recurring-form').style.display='none'" style="padding:0.4rem 0.6rem;background:none;border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:rgba(255,255,255,0.4);font-size:0.72rem;cursor:pointer;font-family:inherit;">Otkaži</button>
+                          <button onclick="billing_saveRecurring()" class="vx-btn vx-btn-secondary" style="flex:1;height:34px;font-size:0.72rem;">Sačuvaj šablon</button>
+                          <button onclick="document.getElementById('recurring-form').style.display='none'" class="vx-btn vx-btn-ghost" style="height:34px;font-size:0.72rem;">Otkaži</button>
                         </div>
                       </div>
-                      <button onclick="billing_showRecurringForm()" id="btn-new-recurring" style="width:100%;padding:0.38rem;background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.12);border-radius:7px;color:rgba(255,255,255,0.4);font-size:0.71rem;cursor:pointer;font-family:inherit;">+ Nov šablon</button>
+                      <button onclick="billing_showRecurringForm()" id="btn-new-recurring" style="width:100%;padding:0.42rem;background:rgba(255,255,255,0.03);border:1px dashed var(--vx-border-strong);border-radius:8px;color:var(--vx-text-secondary);font-size:0.71rem;cursor:pointer;font-family:inherit;transition:border-color .15s,color .15s;">+ Nov šablon</button>
                     </div>
                   </div>
                   <!-- ── Izveštaji ──────────────────────────────────────── -->
                   <div style="margin-top:0.75rem;">
-                    <button onclick="billing_toggleReports(this)" style="width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.7rem;color:rgba(255,255,255,0.6);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">
+                    <button onclick="billing_toggleReports(this)" style="width:100%;text-align:left;background:rgba(13,17,23,0.4);border:1px solid var(--vx-border);border-radius:10px;padding:0.6rem 0.8rem;color:rgba(255,255,255,0.7);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;transition:border-color .15s;">
                       <span>Izveštaji</span><span id="reports-chevron">▼</span>
                     </button>
                     <div id="reports-section" style="display:none;margin-top:0.4rem;display:none;">
@@ -1655,14 +1652,14 @@
               <!-- ── TAB: AI — Agenti i AI analiza ───────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-agenti" style="display:none;">
                 <!-- HERO: Kompletna analiza — 6 agenata, 1 klik, nemoguće preskočiti -->
-                <div style="margin-bottom:1rem;padding:1rem 1.1rem;background:linear-gradient(135deg,rgba(75,119,232,0.12),rgba(99,102,241,0.06));border:1px solid rgba(75,119,232,0.32);border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:.9rem;flex-wrap:wrap;">
+                <div class="vx-card" style="margin-bottom:1.2rem;padding:1.2rem 1.3rem;background:linear-gradient(135deg,rgba(0,212,255,0.08),rgba(0,212,255,0.02));border-color:rgba(0,212,255,0.28);display:flex;align-items:center;justify-content:space-between;gap:.9rem;flex-wrap:wrap;">
                   <div>
-                    <div style="font-size:.9rem;font-weight:700;color:rgba(210,208,255,.95);margin-bottom:.3rem;">Kompletna AI analiza predmeta</div>
-                    <div style="font-size:.7rem;color:rgba(255,255,255,.40);line-height:1.55;">6 analiza paralelno — pravna ocena, analiza rizika, slabe tačke, procena ishoda, strategija — za 2–3 min</div>
+                    <div style="font-size:.92rem;font-weight:700;color:var(--vx-text-primary);margin-bottom:.3rem;">Kompletna AI analiza predmeta</div>
+                    <div style="font-size:.72rem;color:var(--vx-text-secondary);line-height:1.55;">6 analiza paralelno — pravna ocena, analiza rizika, slabe tačke, procena ishoda, strategija — za 2–3 min</div>
                   </div>
-                  <button id="agent-launch-all-btn" onclick="this.textContent='Analiziram...';this.disabled=true;pred_launchKompletnaAnaliza();var _b=this;setTimeout(function(){_b.textContent='Pokreni kompletnu analizu';_b.disabled=false;},3000);" style="flex-shrink:0;padding:.65rem 1.3rem;background:linear-gradient(135deg,#4B77E8,#1264c4);border:none;border-radius:9px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:0 2px 12px rgba(75,119,232,0.25);">Pokreni kompletnu analizu</button>
+                  <button id="agent-launch-all-btn" class="vx-btn vx-btn-primary" onclick="this.textContent='Analiziram...';this.disabled=true;pred_launchKompletnaAnaliza();var _b=this;setTimeout(function(){_b.textContent='Pokreni kompletnu analizu';_b.disabled=false;},3000);" style="flex-shrink:0;white-space:nowrap;">Pokreni kompletnu analizu</button>
                 </div>
-                <div style="height:1px;background:rgba(255,255,255,0.05);margin-bottom:.85rem;"></div>
+                <div style="height:1px;background:var(--vx-border);margin-bottom:1rem;"></div>
                 <!-- Uputstvo za individualne agente -->
                 <div style="margin-bottom:.75rem;padding:.65rem .9rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:9px;font-size:.72rem;color:rgba(140,220,255,.8);line-height:1.65;">
                   <strong style="color:rgba(255,255,255,0.75);display:block;margin-bottom:.35rem;">Ili koristite pojedinačnu analizu — 3 koraka:</strong>
@@ -1712,39 +1709,39 @@
                 </div>
 
                 <!-- Task input -->
-                <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:.8rem;">
-                  <div id="agent-selected-badge" style="display:none;margin-bottom:.5rem;padding:.3rem .7rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:6px;font-size:.75rem;color:rgba(255,255,255,0.72);"></div>
-                  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;">
-                    <button onclick="_predAutoFill('agent-task-input',true)" id="btn-autofill-agenti" style="display:none;font-size:0.65rem;padding:2px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:5px;color:rgba(255,255,255,0.55);cursor:pointer;font-family:inherit;white-space:nowrap;">↺ Iz predmeta</button>
+                <div class="vx-card" style="padding:1rem;">
+                  <div id="agent-selected-badge" class="vx-badge vx-badge-accent" style="display:none;margin-bottom:.6rem;"></div>
+                  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px;">
+                    <button onclick="_predAutoFill('agent-task-input',true)" id="btn-autofill-agenti" class="vx-btn vx-btn-ghost" style="display:none;height:26px;padding:0 0.55rem;font-size:0.65rem;">↺ Iz predmeta</button>
                   </div>
-                  <textarea id="agent-task-input" placeholder="Opišite šta trebate... (ili izaberite analizu gore, pa unesite zadatak)" style="width:100%;background:transparent;border:none;color:#e2e8f0;font-size:.85rem;resize:vertical;min-height:80px;outline:none;font-family:inherit;"></textarea>
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.5rem;">
-                    <span style="font-size:.7rem;color:rgba(255,255,255,.25);">Bez izbora = automatski odabir najprikladnije analize</span>
-                    <button onclick="agent_run()" style="padding:.45rem 1.2rem;background:linear-gradient(135deg,#4B77E8,#6366f1);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;">▶ Pokreni analizu</button>
+                  <textarea id="agent-task-input" class="vx-textarea" placeholder="Opišite šta trebate... (ili izaberite analizu gore, pa unesite zadatak)" style="background:transparent;border:none;min-height:80px;padding:0;box-shadow:none;"></textarea>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.6rem;">
+                    <span style="font-size:.7rem;color:var(--vx-text-secondary);">Bez izbora = automatski odabir najprikladnije analize</span>
+                    <button onclick="agent_run()" class="vx-btn vx-btn-primary">▶ Pokreni analizu</button>
                   </div>
                 </div>
 
                 <!-- Result -->
-                <div id="agent-result-wrap" style="display:none;margin-top:.8rem;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
-                    <div id="agent-result-badge" style="font-size:.7rem;color:rgba(255,255,255,.4);"></div>
+                <div id="agent-result-wrap" style="display:none;margin-top:1rem;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;position:sticky;top:0;background:var(--vx-bg-primary);padding:.3rem 0;z-index:2;">
+                    <div id="agent-result-badge" class="vx-heading" style="font-size:.78rem;"></div>
                     <div style="display:flex;gap:.4rem;">
-                      <button onclick="agent_copy()" style="font-size:.68rem;padding:3px 9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:4px;color:rgba(255,255,255,.55);cursor:pointer;font-family:inherit;">Kopiraj</button>
-                      <button onclick="agent_novo()" style="font-size:.68rem;padding:3px 9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:4px;color:rgba(255,255,255,0.72);cursor:pointer;font-family:inherit;">+ Novo pitanje</button>
+                      <button onclick="agent_copy()" class="vx-btn vx-btn-ghost" style="height:28px;padding:0 0.6rem;font-size:0.68rem;">Kopiraj</button>
+                      <button onclick="agent_novo()" class="vx-btn vx-btn-ghost" style="height:28px;padding:0 0.6rem;font-size:0.68rem;">+ Novo pitanje</button>
                     </div>
                   </div>
-                  <div id="agent-result" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.9rem;font-size:.83rem;line-height:1.6;color:#c7d7f0;max-height:420px;overflow-y:auto;"></div>
+                  <div id="agent-result" class="vx-card" style="font-size:.83rem;line-height:1.65;color:rgba(255,255,255,0.85);max-height:420px;overflow-y:auto;"></div>
                 </div>
-                <div id="agent-loading" style="display:none;text-align:center;padding:1.5rem;color:rgba(255,255,255,0.45);font-size:.82rem;">
+                <div id="agent-loading" style="display:none;text-align:center;padding:1.5rem;color:var(--vx-text-secondary);font-size:.82rem;">
                   <div class="kg-loading-dots" style="justify-content:center;margin-bottom:.5rem;"><span></span><span></span><span></span></div>
                   <div id="agent-loading-txt">Analiza u toku...</div>
                 </div>
 
                 <!-- Paralelna analiza -->
-                <div style="margin-top:1rem;padding:.9rem 1rem;background:linear-gradient(135deg,rgba(255,255,255,0.03),rgba(99,102,241,0.05));border:1px solid rgba(75,119,232,0.12);border-radius:10px;">
-                  <div style="font-size:.75rem;font-weight:700;color:rgba(150,200,255,.85);margin-bottom:.25rem;">Paralelna analiza</div>
-                  <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:.6rem;line-height:1.5;">Istraživanje + Parnica + Prijem rade istovremeno. Konsolidovani izveštaj za brzu sveobuhvatnu procenu. (3 kredita)</div>
-                  <button id="agent-para-btn" onclick="agent_run_parallel()" style="width:100%;padding:.45rem;background:linear-gradient(135deg,rgba(75,119,232,0.10),rgba(99,102,241,0.12));border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:rgba(255,255,255,0.72);font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;">Pokreni tri istovremene analize (3 kredita)</button>
+                <div class="vx-card" style="margin-top:1.2rem;">
+                  <div style="font-size:.78rem;font-weight:700;color:var(--vx-accent);margin-bottom:.3rem;">Paralelna analiza</div>
+                  <div style="font-size:.7rem;color:var(--vx-text-secondary);margin-bottom:.7rem;line-height:1.55;">Istraživanje + Parnica + Prijem rade istovremeno. Konsolidovani izveštaj za brzu sveobuhvatnu procenu. (3 kredita)</div>
+                  <button id="agent-para-btn" onclick="agent_run_parallel()" class="vx-btn vx-btn-secondary" style="width:100%;">Pokreni tri istovremene analize (3 kredita)</button>
                 </div>
 
                 <!-- HCC brzi pristup -->

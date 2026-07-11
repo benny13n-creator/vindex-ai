@@ -16110,6 +16110,9 @@ async function agent_run() {
   if (loading) loading.style.display = 'block';
   if (wrap)    wrap.style.display    = 'none';
 
+  var runningCards = document.querySelectorAll(_selectedAgent ? '.agent-card.active' : '.agent-card');
+  runningCards.forEach(function(c){ c.classList.add('is-running'); });
+
   // Update badge to show predmet context
   if (selBadge && activePredmetId && activePredmetNaziv) {
     selBadge.style.display = 'block';
@@ -16141,6 +16144,8 @@ async function agent_run() {
   } catch(e) {
     if (loading) loading.style.display = 'none';
     showToast('Greška: ' + e.message, 'err');
+  } finally {
+    runningCards.forEach(function(c){ c.classList.remove('is-running'); });
   }
 }
 
