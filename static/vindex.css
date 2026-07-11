@@ -8164,24 +8164,24 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 }
 .billing-item:hover { border-color: var(--vp-border-strong) !important; }
 
-/* -- Modali ---------------------------------------------------------------- */
+/* -- Modali — migrirano na cyan akcenat (v2 redesign) ----------------------- */
 .modal {
-  border-color: var(--vp-border-strong) !important;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.75) !important;
+  border-color: var(--bd-3) !important;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 60px rgba(0,212,255,0.05) !important;
 }
 .modal-badge {
-  background: var(--vp-accent-dim) !important;
-  color: rgba(140,165,255,0.85) !important;
-  border: 1px solid rgba(75,119,232,0.20) !important;
+  background: rgba(0,212,255,0.08) !important;
+  color: #00d4ff !important;
+  border: 1px solid rgba(0,212,255,0.28) !important;
 }
 .modal-btn {
-  background: var(--vp-accent) !important;
-  border: none !important;
-  color: #ffffff !important;
-  font-weight: 600 !important;
+  background: linear-gradient(135deg, rgba(0,212,255,0.92), rgba(0,150,200,0.92)) !important;
+  border: 1px solid rgba(0,212,255,0.55) !important;
+  color: #010308 !important;
+  font-weight: 700 !important;
   letter-spacing: 0 !important;
 }
-.modal-btn:hover { background: #5A84F0 !important; }
+.modal-btn:hover { opacity: 0.92 !important; box-shadow: 0 0 24px rgba(0,212,255,0.32) !important; }
 
 /* -- Doc upload zone ------------------------------------------------------- */
 .dok-drop-zone, [class*="drop-zone"], [class*="dropzone"] {
@@ -8310,8 +8310,8 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   box-shadow: none !important;
 }
 .vx-btn-new:hover { background: var(--vp-hover) !important; border-color: rgba(75,119,232,0.48) !important; }
-.modal-btn { background: var(--vp) !important; border: none !important; color: #fff !important; font-weight: 600 !important; box-shadow: none !important; }
-.modal-btn:hover { background: #5A84F0 !important; }
+.modal-btn { background: linear-gradient(135deg, rgba(0,212,255,0.92), rgba(0,150,200,0.92)) !important; border: 1px solid rgba(0,212,255,0.55) !important; color: #010308 !important; font-weight: 700 !important; box-shadow: none !important; }
+.modal-btn:hover { opacity: 0.92 !important; box-shadow: 0 0 24px rgba(0,212,255,0.32) !important; }
 
 /* QUICK ACTION BANNER */
 #pred-quick-action {
