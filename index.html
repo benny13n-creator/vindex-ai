@@ -795,6 +795,9 @@
                   <i data-lucide="user" style="width:11px;height:11px;flex-shrink:0;"></i>
                   <span id="pred-hub-klijent">—</span>
                   <span class="pred-hub-meta-sep">·</span>
+                  <i data-lucide="landmark" style="width:11px;height:11px;flex-shrink:0;"></i>
+                  <span id="pred-hub-vrednost">—</span>
+                  <span class="pred-hub-meta-sep">·</span>
                   <span id="pred-hub-updated">—</span>
                 </div>
               </div>
@@ -811,115 +814,48 @@
               <!-- ── Subtab Navigation (Primary + More) ───────────────── -->
               <div style="position:relative;">
               <div class="pred-subtab-nav" style="position:relative;" id="pred-subtab-nav-el">
-                <!-- 6 tabova — svaka kritična funkcija dostupna 1 klikom -->
+                <!-- 7 primarnih tabova + Više — svaka kritična funkcija dostupna 1 klikom -->
                 <button class="pred-subtab-btn pred-tab-primary active" id="tab-pregled-btn" onclick="pred_subtabSwitch('pregled',this)" title="Detalji predmeta, klijent, beleške i status">Pregled</button>
                 <button class="pred-subtab-btn pred-tab-primary" onclick="pred_subtabSwitch('dokumenti',this)" title="Dokumenti vezani za predmet">Dokumenti</button>
                 <button class="pred-subtab-btn pred-tab-primary" id="tab-ai-btn" onclick="pred_subtabSwitch('agenti',this)" title="AI analiza — 6 modula paralelno ili pojedinačna analiza">AI Analiza</button>
                 <button class="pred-subtab-btn pred-tab-primary" id="tab-rokovi-btn" onclick="pred_subtabSwitch('rokovi',this)" title="Ročišta i rokovi ovog predmeta">Rokovi</button>
-                <button class="pred-subtab-btn pred-tab-primary" id="tab-rad-btn" onclick="pred_subtabSwitch('rad',this)" title="Zadatci, strategija, hronologija i ostale alatke predmeta">Alatke</button>
-                <button class="pred-subtab-btn pred-tab-primary" id="tab-naplata-btn" onclick="pred_subtabSwitch('naplata',this)" title="Tajmer, naplata i profitabilnost predmeta">Naplata</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-zadaci-btn" onclick="pred_subtabSwitch('zadaci',this)" title="Zadatci i akcije na predmetu">Zadaci</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-strategija-btn" onclick="pred_subtabSwitch('strategija',this)" title="Pravna strategija i preporuke">Strategija</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-naplata-btn" onclick="pred_subtabSwitch('naplata',this)" title="Tajmer i naplata predmeta">Naplata</button>
+                <span id="pred-more-wrap" style="position:relative;display:inline-block;">
+                  <button class="pred-subtab-btn pred-tab-primary" id="pred-more-btn" onclick="pred_more_toggle(event)" title="Više — komunikacija, saradnja, mapa veza, dokazi, profitabilnost">⋯ Više</button>
+                  <div class="pred-more-menu" id="pred-more-menu" style="display:none;">
+                    <button onclick="pred_more_select('komunikacija')">Komunikacija</button>
+                    <button onclick="pred_more_select('saradnja')">Saradnja</button>
+                    <button onclick="pred_more_select('graf')">Mapa veza</button>
+                    <button onclick="pred_more_select('dokazi')">Dokazi</button>
+                    <button onclick="pred_more_select('profitabilnost')">Profitabilnost</button>
+                  </div>
+                </span>
               </div>
               <!-- Scroll fade indicator — pokazuje da ima još tabova desno -->
               <div id="subtab-fade-right" style="position:absolute;top:0;right:0;width:40px;height:100%;background:linear-gradient(to right,transparent,rgba(10,15,30,.95));pointer-events:none;border-radius:0 6px 6px 0;transition:opacity .2s;opacity:1;"></div>
               </div>
 
-              <!-- ── TAB: Case Command Center ─────────────────────────── -->
-              <div class="pred-subtab-pane" id="pred-pane-ccc">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
-                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Pregled predmeta</div>
-                  <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-                    <button onclick="ccc_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);cursor:pointer;" title="Ponovo učitaj komandni centar">↺</button>
-                    <button onclick="pred_print()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.2);border-radius:6px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);cursor:pointer;">Štampaj</button>
-                    <button onclick="predmetPdfExport(this)" id="pred-pdf-export-btn" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,0.10);border-radius:6px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.72);cursor:pointer;">PDF</button>
-                    <button onclick="pred_subtabSwitch('pregled');setTimeout(function(){pred_zatvoriOtvori();},300);" id="ccc-zatvori-btn" style="display:none;padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,80,80,.25);border-radius:6px;background:rgba(255,80,80,.06);color:rgba(255,140,140,.8);cursor:pointer;" title="Zatvori i arhiviraj predmet">✕ Zatvori</button>
-                  </div>
+
+              <!-- "Alatke" i "Finansije" meni-tabovi ukinuti — sve njihove destinacije
+                   (Zadaci, Strategija, Pregled, Rokovi, Dokazi, Mapa veza, Naplata,
+                   Profitabilnost) sada su direktno dostupne kroz primarni tab nav ili
+                   "⋯ Više"; jedinstveni sadržaj (praćenje portal.sud.rs, pravni alati)
+                   preseljen je u Pregled pane. -->
+
+              <!-- ── TAB 1: Pregled ───────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-pregled" style="display:none;">
+                <!-- Case Command Center akcije (spojeno iz bivšeg zasebnog taba) -->
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:.4rem;margin-bottom:.7rem;flex-wrap:wrap;">
+                  <button onclick="ccc_load()" class="vx-btn vx-btn-ghost" style="height:30px;padding:0 0.6rem;font-size:0.72rem;" title="Ponovo učitaj komandni centar">↺</button>
+                  <button onclick="pred_print()" class="vx-btn vx-btn-ghost" style="height:30px;padding:0 0.7rem;font-size:0.72rem;">Štampaj</button>
+                  <button onclick="predmetPdfExport(this)" id="pred-pdf-export-btn" class="vx-btn vx-btn-secondary" style="height:30px;padding:0 0.7rem;font-size:0.72rem;">PDF</button>
+                  <button onclick="pred_zatvoriOtvori()" id="ccc-zatvori-btn" class="vx-btn vx-btn-danger" style="display:none;height:30px;padding:0 0.7rem;font-size:0.72rem;" title="Zatvori i arhiviraj predmet">✕ Zatvori</button>
                 </div>
                 <div id="ccc-container">
                   <div style="color:rgba(255,255,255,.3);font-size:.8rem;text-align:center;padding:2rem;">Učitavam komandni centar...</div>
                 </div>
-              </div><!-- /pred-pane-ccc -->
-
-              <!-- ── TAB: Rad — alatke predmeta ─────────────────────── -->
-              <div class="pred-subtab-pane" id="pred-pane-rad" style="display:none;">
-                <!-- GRID: Alatke koje nemaju sopstveni tab -->
-                <div class="vx-rad-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:.7rem;">
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('zadaci')" title="Zadatci i akcije na predmetu">
-                    <div class="vx-rad-card-label">Zadatci</div>
-                    <div class="vx-rad-card-sub">Šta treba uraditi</div>
-                  </div>
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('strategija')" title="Pravna strategija i preporuke">
-                    <div class="vx-rad-card-label">Strategija</div>
-                    <div class="vx-rad-card-sub">Plan vođenja predmeta</div>
-                  </div>
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('ccc')" title="Sažetak predmeta na jednom mestu">
-                    <div class="vx-rad-card-label">Pregled predmeta</div>
-                    <div class="vx-rad-card-sub">Kompletni pregled</div>
-                  </div>
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('timeline')" title="Hronološki pregled svih događaja">
-                    <div class="vx-rad-card-label">Hronologija</div>
-                    <div class="vx-rad-card-sub">Tok događaja</div>
-                  </div>
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('dokazi')" title="Svi dokazi i materijali predmeta">
-                    <div class="vx-rad-card-label">Dokazi</div>
-                    <div class="vx-rad-card-sub">Svi dokazi i materijali</div>
-                  </div>
-                  <div class="vx-rad-card" onclick="pred_subtabSwitch('graf')" title="Vizuelna mapa veza između entiteta">
-                    <div class="vx-rad-card-label">Mapa veza</div>
-                    <div class="vx-rad-card-sub">Vizuelna mapa predmeta</div>
-                  </div>
-                  <div class="vx-rad-card" onclick="portalToggleSection(this)" title="Automatsko pracenje statusa predmeta na portalu suda — notifikacija Viber/SMS">
-                    <div class="vx-rad-card-label">Pracenje statusa</div>
-                    <div class="vx-rad-card-sub">Notifikacija kad sud promeni status</div>
-                  </div>
-                </div>
-
-                <!-- Portal.sud.rs monitoring panel -->
-                <div id="portal-section" style="margin-top:.9rem;padding:.75rem;background:rgba(75,119,232,0.05);border:1px solid rgba(75,119,232,0.14);border-radius:10px;display:none;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.55rem;">
-                    <span style="font-size:.65rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Pracenje statusa — portal.sud.rs</span>
-                    <button onclick="portalUcitajListu()" style="font-size:.65rem;background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;">↺</button>
-                  </div>
-                  <div style="font-size:.62rem;color:rgba(255,255,255,.28);line-height:1.5;margin-bottom:.55rem;">Vindex periodično proverava javno dostupne podatke sa Portala sudova. Dostupnost i učestalost promena zavise od izvora podataka.</div>
-                  <div id="portal-lista" style="font-size:.75rem;color:rgba(255,255,255,.35);margin-bottom:.55rem;min-height:20px;"></div>
-                  <div style="display:flex;flex-direction:column;gap:.3rem;">
-                    <input id="portal-broj" type="text" placeholder="Broj predmeta (npr. P 123/2024)" style="padding:.35rem .6rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);font-size:.72rem;font-family:inherit;outline:none;">
-                    <input id="portal-sud"  type="text" placeholder="Naziv suda (npr. Osnovni sud u Beogradu)" style="padding:.35rem .6rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);font-size:.72rem;font-family:inherit;outline:none;">
-                    <button onclick="portalDodajPraceni()" style="padding:.4rem;border:1px solid rgba(75,119,232,0.3);border-radius:7px;background:rgba(75,119,232,0.08);color:rgba(200,210,255,.8);font-size:.73rem;cursor:pointer;font-family:inherit;">+ Prati ovaj predmet</button>
-                  </div>
-                </div>
-
-                <!-- Globalni alati iz konteksta predmeta -->
-                <div style="margin-top:1.1rem;padding-top:.9rem;border-top:1px solid rgba(255,255,255,0.06);">
-                  <div style="font-size:.60rem;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.55rem;">Pravni alati</div>
-                  <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-                    <button onclick="openAITool('q')" class="vx-rad-tool-btn">Istraživanje zakona</button>
-                    <button onclick="openAITool('s')" class="vx-rad-tool-btn">Sudska praksa</button>
-                    <button onclick="openAITool('n')" class="vx-rad-tool-btn">Nacrti podnesaka</button>
-                    <button onclick="openAITool('a')" class="vx-rad-tool-btn">Analiza dokumenta</button>
-                    <button onclick="docTplOpen()" class="vx-rad-tool-btn">Šabloni</button>
-                    <button onclick="predmetPdfExport()" class="vx-rad-tool-btn">PDF Izveštaj</button>
-                  </div>
-                </div>
-              </div><!-- /pred-pane-rad -->
-
-              <!-- ── TAB: Finansije — naplata i profitabilnost ─────── -->
-              <div class="pred-subtab-pane" id="pred-pane-finansije" style="display:none;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;">
-                  <!-- Tajmer i naplata -->
-                  <div class="vx-rad-card vx-fin-card" onclick="pred_subtabSwitch('naplata')" title="Tajmer, stavke naplate i generisanje fakture" style="padding:1.1rem 1.2rem;">
-                    <div class="vx-rad-card-label" style="font-size:.88rem;margin-bottom:.35rem;">Tajmer i naplata</div>
-                    <div class="vx-rad-card-sub" style="font-size:.75rem;">Evidentirajte sate i generišite fakturu</div>
-                  </div>
-                  <!-- Profitabilnost -->
-                  <div class="vx-rad-card vx-fin-card" onclick="pred_subtabSwitch('profitabilnost')" title="Finansijski pregled — naplaćeno, satnica i prinos" style="padding:1.1rem 1.2rem;">
-                    <div class="vx-rad-card-label" style="font-size:.88rem;margin-bottom:.35rem;">Profitabilnost</div>
-                    <div class="vx-rad-card-sub" style="font-size:.75rem;">Naplaćeno, satnica i prinos predmeta</div>
-                  </div>
-                </div>
-              </div><!-- /pred-pane-finansije -->
-
-              <!-- ── TAB 1: Pregled ───────────────────────────────────── -->
-              <div class="pred-subtab-pane" id="pred-pane-pregled" style="display:none;">
                 <!-- QUICK ACTION — Primarni poziv na akciju -->
                 <div id="pred-quick-action" style="margin-bottom:.9rem;padding:.8rem 1rem;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(255,255,255,0.04));border:1px solid rgba(99,102,241,0.3);border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;">
                   <div>
@@ -1161,6 +1097,39 @@
                     <button onclick="portal_loadUploads()" style="font-size:.67rem;color:rgba(255,255,255,0.45);background:none;border:none;cursor:pointer;padding:0;">↻ Osveži</button>
                   </div>
                   <div id="portal-uploads-list" style="font-size:.72rem;color:rgba(255,255,255,0.3);">—</div>
+                </div>
+
+                <!-- Praćenje statusa — portal.sud.rs (spojeno iz bivšeg "Alatke" taba) -->
+                <div style="margin-top:1rem;">
+                  <button onclick="portalToggleSection(this)" class="vx-btn vx-btn-secondary" style="width:100%;justify-content:space-between;">
+                    <span>Praćenje statusa — portal.sud.rs</span><span id="portal-chevron">▼</span>
+                  </button>
+                  <div id="portal-section" class="vx-card" style="margin-top:.4rem;display:none;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.55rem;">
+                      <span class="vx-section-lbl">Notifikacija kad sud promeni status</span>
+                      <button onclick="portalUcitajListu()" class="vx-btn vx-btn-ghost" style="height:26px;width:26px;padding:0;">↺</button>
+                    </div>
+                    <div class="vx-caption" style="margin-bottom:.55rem;">Vindex periodično proverava javno dostupne podatke sa Portala sudova. Dostupnost i učestalost promena zavise od izvora podataka.</div>
+                    <div id="portal-lista" style="font-size:.75rem;color:rgba(255,255,255,.35);margin-bottom:.55rem;min-height:20px;"></div>
+                    <div style="display:flex;flex-direction:column;gap:.4rem;">
+                      <input id="portal-broj" class="vx-input" type="text" placeholder="Broj predmeta (npr. P 123/2024)">
+                      <input id="portal-sud"  class="vx-input" type="text" placeholder="Naziv suda (npr. Osnovni sud u Beogradu)">
+                      <button onclick="portalDodajPraceni()" class="vx-btn vx-btn-primary">+ Prati ovaj predmet</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Globalni alati iz konteksta predmeta -->
+                <div style="margin-top:1.1rem;padding-top:.9rem;border-top:1px solid var(--vx-border);">
+                  <div class="vx-section-lbl" style="margin-bottom:.55rem;">Pravni alati</div>
+                  <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                    <button onclick="openAITool('q')" class="vx-rad-tool-btn">Istraživanje zakona</button>
+                    <button onclick="openAITool('s')" class="vx-rad-tool-btn">Sudska praksa</button>
+                    <button onclick="openAITool('n')" class="vx-rad-tool-btn">Nacrti podnesaka</button>
+                    <button onclick="openAITool('a')" class="vx-rad-tool-btn">Analiza dokumenta</button>
+                    <button onclick="docTplOpen()" class="vx-rad-tool-btn">Šabloni</button>
+                    <button onclick="predmetPdfExport()" class="vx-rad-tool-btn">PDF Izveštaj</button>
+                  </div>
                 </div>
               </div>
               </div><!-- /pred-pane-pregled -->
@@ -3009,7 +2978,7 @@
                     <div class="aic3-module-name">Analiza dokumenta</div>
                     <div class="aic3-module-desc">Pregled ugovora ili podneska uz identifikaciju pravnih rizika.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('ai-analiza')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('agenti')">Otvori predmet</button>
                 </div>
                 <div class="aic3-module-card">
                   <div class="aic3-module-icon"><i data-lucide="file-pen-line" style="width:17px;height:17px;"></i></div>
@@ -3017,7 +2986,7 @@
                     <div class="aic3-module-name">Nacrti i podnesci</div>
                     <div class="aic3-module-desc">Generator tuzbi, zalbi i ugovora po srpskim procesnim standardima.</div>
                   </div>
-                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('ai-analiza')">Otvori predmet</button>
+                  <button class="aic3-open-btn" onclick="aicOtvoriPredmet('agenti')">Otvori predmet</button>
                 </div>
                 <div class="aic3-module-card" style="border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.05);">
                   <div class="aic3-module-icon" style="background:rgba(99,102,241,.15);"><i data-lucide="network" style="width:17px;height:17px;color:#818cf8;"></i></div>
@@ -4149,7 +4118,7 @@
     <button onclick="pred_fab_close();pred_subtabSwitch('rokovi')">Dodaj rok</button>
     <button onclick="pred_fab_close();rocisteOtvoriFormu(activePredmetId)">Zakaži ročište</button>
     <button onclick="pred_fab_close();pred_subtabSwitch('naplata')">Unesi naplatu</button>
-    <button onclick="pred_fab_close();if(activePredmetId){pred_subtabSwitch('timeline');}">Dodaj belešku</button>
+    <button onclick="pred_fab_close();if(activePredmetId){pred_subtabSwitch('rokovi');}">Dodaj belešku</button>
     <button onclick="pred_fab_close();if(!_billingPredmetId)_billingPredmetId=activePredmetId;if(typeof billing_timerToggle==='function')billing_timerToggle();">⏱ Pokreni tajmer</button>
   </div>
   <button id="pred-fab-btn" onclick="pred_fab_toggle()" title="Brze akcije — dodaj dokument, rok, naplatu">+</button>

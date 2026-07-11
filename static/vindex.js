@@ -6692,7 +6692,7 @@ window.addEventListener('DOMContentLoaded', function() {
   window.addEventListener('popstate', function() {
     if (!activePredmetId) return;
     var h = window.location.hash.replace('#', '');
-    var VPANES = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija'];
+    var VPANES = ['pregled','dokumenti','agenti','rokovi','zadaci','strategija','naplata','komunikacija','saradnja','graf','dokazi','profitabilnost'];
     if (VPANES.indexOf(h) > -1) pred_subtabSwitch(h);
   });
 });
@@ -8548,7 +8548,7 @@ async function pred_bulkAkcija(akcija) {
 }
 
 function pred_subtabSwitch(pane, btn) {
-  var VALID = ['pregled','dokumenti','rad','finansije','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','ccc','agenti','graf','zadaci','profitabilnost'];
+  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','agenti','graf','zadaci','profitabilnost'];
   if (VALID.indexOf(pane) === -1) pane = 'pregled';
   document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
   document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -8557,17 +8557,18 @@ function pred_subtabSwitch(pane, btn) {
   if (btn) {
     btn.classList.add('active');
   } else {
-    // Pametna aktivacija: sekundarni paneovi aktiviraju odgovarajući primarni tab
-    var _radPanes = ['zadaci','strategija','ccc','timeline','dokazi','graf','komunikacija','saradnja','ai-analiza'];
-    var _naplPanes = ['naplata','profitabilnost'];
-    if (_radPanes.indexOf(pane) > -1) {
-      var radBtn = document.getElementById('tab-rad-btn');
-      if (radBtn) radBtn.classList.add('active');
-    } else if (_naplPanes.indexOf(pane) > -1) {
-      var naplBtn = document.getElementById('tab-naplata-btn');
-      if (naplBtn) naplBtn.classList.add('active');
+    // Pametna aktivacija: sekundarni paneovi (dostupni samo kroz "Više") aktiviraju taj tab
+    var _morePanes = ['komunikacija','saradnja','graf','dokazi','profitabilnost'];
+    // Legacy/retired panes (ccc, ai-analiza, timeline, rad, finansije) mapiraju se na svog naslednika
+    var _legacyMap = { ccc:'pregled', 'ai-analiza':'agenti', timeline:'rokovi' };
+    if (_legacyMap[pane]) {
+      var successorBtn = document.querySelector('.pred-subtab-btn[onclick*="\'' + _legacyMap[pane] + '\'"]');
+      if (successorBtn) successorBtn.classList.add('active');
+    } else if (_morePanes.indexOf(pane) > -1) {
+      var moreBtn = document.getElementById('pred-more-btn');
+      if (moreBtn) moreBtn.classList.add('active');
     } else {
-      // Pregled, dokumenti, agenti (AI tab), rokovi — traži dugme po onclick sadržaju
+      // Pregled, dokumenti, agenti, rokovi, zadaci, strategija, naplata — traži dugme po onclick sadržaju
       document.querySelectorAll('.pred-subtab-btn').forEach(function(b) {
         if ((b.getAttribute('onclick') || '').indexOf("'"+pane+"'") > -1) b.classList.add('active');
       });
@@ -8591,7 +8592,7 @@ function pred_subtabSwitch(pane, btn) {
   if (pane === 'timeline'         && activePredmetId) timeline_load();
   if (pane === 'dokazi'           && activePredmetId) evidence_load();
   if (pane === 'graf'             && activePredmetId) kg_load();
-  if (pane === 'ccc'              && activePredmetId) ccc_load();
+  if (pane === 'pregled'          && activePredmetId) ccc_load();
   if (pane === 'rokovi'           && activePredmetId) predRocistaLoad();
   if (pane === 'zadaci'           && activePredmetId) zadaci_load(activePredmetId);
   if (pane === 'profitabilnost'   && activePredmetId) profitabilnost_load(activePredmetId);
@@ -10355,6 +10356,8 @@ async function pred_loadDetail(id) {
     if (dozEl) dozEl.textContent = d.statistike ? d.statistike.dokumenti_count+' dok.' : '—';
     var vsEl = document.getElementById('pred-s-vrednost');
     if (vsEl && d.predmet) vsEl.textContent = d.predmet.vrednost_spora || '—';
+    var vsHubEl = document.getElementById('pred-hub-vrednost');
+    if (vsHubEl && d.predmet) vsHubEl.textContent = d.predmet.vrednost_spora ? (d.predmet.vrednost_spora + ' RSD') : 'Vrednost spora nije uneta';
 
     // Beleške
     var belEl = document.getElementById('pred-beleske-list');
@@ -14613,17 +14616,17 @@ function voice_doAction(action, params) {
     case 'analyze_predmet':
     case 'procena_rizika':
       if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
-      pred_subtabSwitch('ai-analiza');
-      // Auto-popuni cinjenice ako su prazne, pa tek onda submit
+      pred_subtabSwitch('agenti');
+      // Auto-popuni zadatak ako je prazan, pa tek onda pokreni
       setTimeout(function() {
-        var cinj = document.getElementById('pred-cinjenice');
-        if (cinj && !cinj.value.trim()) {
+        var task = document.getElementById('agent-task-input');
+        if (task && !task.value.trim()) {
           var naziv = activePredmetNaziv || '';
           var tipEl = document.getElementById('pred-s-oblast');
           var tip = tipEl ? tipEl.textContent : '';
-          cinj.value = 'Predmet: ' + naziv + (tip ? '. Oblast: ' + tip : '') + '. Molim analizu rizika i strategiju.';
+          task.value = 'Predmet: ' + naziv + (tip ? '. Oblast: ' + tip : '') + '. Molim analizu rizika i strategiju.';
         }
-        if (typeof pred_submitProcena === 'function') pred_submitProcena();
+        if (typeof agent_run === 'function') agent_run();
       }, 400);
       break;
 
@@ -14713,7 +14716,7 @@ function voice_doAction(action, params) {
       break;
 
     case 'procena_rizika':
-      if (activePredmetId) { pred_subtabSwitch('ai-analiza'); pred_submitProcena && pred_submitProcena(); }
+      if (activePredmetId) { pred_subtabSwitch('agenti'); agent_run && agent_run(); }
       else showToast('Najpre otvorite predmet', 'warn');
       break;
 
@@ -14793,7 +14796,7 @@ async function _voice_load_docs_by_number(numbers) {
   if (loaded.length) {
     showToast('Učitavam: ' + loaded.join(', '), 'info');
     // Posle ucitavanja poslednjeg dokumenta, predji na analizu
-    setTimeout(function() { pred_subtabSwitch('ai-analiza'); }, 800);
+    setTimeout(function() { pred_subtabSwitch('agenti'); }, 800);
   } else {
     showToast('Dokumenti ' + numbers.map(function(n){return 'DOK-'+String(n).padStart(2,'0');}).join(', ') + ' nisu pronađeni', 'warn');
   }
@@ -15349,13 +15352,13 @@ async function _voice_compare_docs(predmetId, numbers) {
     if (a.koji_je_jaci_dokaz) resultText += '**Jači dokaz:** '+a.koji_je_jaci_dokaz+'\n\n';
     if (a.preporuka_advokata) resultText += '**Preporuka:** '+a.preporuka_advokata+'\n';
 
-    // Postavi u Analiza tab
-    pred_subtabSwitch('ai-analiza');
+    // Postavi u AI Analiza tab
+    pred_subtabSwitch('agenti');
     setTimeout(function() {
-      var cinj = document.getElementById('pred-cinjenice');
-      if (cinj) {
-        cinj.value = 'Poređenje dokumenta DOK-'+String(n1).padStart(2,'0')+' i DOK-'+String(n2).padStart(2,'0')+'\n\n'+resultText;
-        cinj.dispatchEvent(new Event('input'));
+      var task = document.getElementById('agent-task-input');
+      if (task) {
+        task.value = 'Poređenje dokumenta DOK-'+String(n1).padStart(2,'0')+' i DOK-'+String(n2).padStart(2,'0')+'\n\n'+resultText;
+        task.dispatchEvent(new Event('input'));
       }
     }, 300);
     showToast('Poređenje završeno', 'ok');
@@ -15916,7 +15919,7 @@ function _ccc_render(el, d) {
     chips.push({ cls:'chip-yellow', icon:'', text: Math.round(bil.nenaplaceno/1000)+'k RSD nenaplaćeno', action:"pred_subtabSwitch('naplata')" });
   }
   // 5. Preporučena Analiza — PLAVA (uvek)
-  chips.push({ cls:'chip-blue', icon:'', text:'Pokreni analizu', action:"pred_subtabSwitch('ai-analiza')" });
+  chips.push({ cls:'chip-blue', icon:'', text:'Pokreni analizu', action:"pred_subtabSwitch('agenti')" });
   // 6. Ako nema rokova — PLAVA
   if (!kr && (d.predstojeći||0) === 0 && (d.rokovi||[]).length === 0) {
     chips.push({ cls:'chip-blue', icon:'', text:'Evidentiraj rokove', action:"pred_subtabSwitch('rokovi')" });
