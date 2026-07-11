@@ -10,7 +10,7 @@
 --   1. apr_lookup_log        — log svakog APR pokušaja (uspeh/neuspeh, trajanje)
 --   2. praceni_predmeti      — ALTER: current_status, last_successful_check_at, last_error
 --   3. portal_status_log     — ALTER: old_status, new_status, source, run_id
---   4. korisnik_viber_profil — ALTER: quiet hours + critical override
+--   4. korisnik_viber_profil — CREATE (nikad ranije migrirana!) + quiet hours + critical override
 --   5. korisnik_sms_profil   — ALTER: quiet hours + critical override
 --   6. notification_log      — log svakog Viber/SMS slanja (audit)
 --   7. cron_runs             — istorija izvršavanja /api/cron/daily
@@ -63,6 +63,35 @@ ALTER TABLE public.portal_status_log
 CREATE INDEX IF NOT EXISTS idx_status_log_run ON public.portal_status_log (run_id);
 
 -- ─── 4/5. Quiet hours — Viber i SMS profili ──────────────────────────────────
+
+-- korisnik_viber_profil nikad nije kreirana migracijom (routers/viber.py je
+-- referencirao tabelu koja ne postoji — Viber notifikacije su bile neispravne).
+-- Kreiramo je ovde pre ALTER-a. user_id je nullable jer webhook upisuje red
+-- pre nego sto je Viber nalog povezan sa Vindex korisnikom.
+CREATE TABLE IF NOT EXISTS public.korisnik_viber_profil (
+    id             uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id        uuid        REFERENCES auth.users(id) ON DELETE CASCADE,
+    viber_user_id  text        NOT NULL UNIQUE,
+    viber_name     text        DEFAULT '',
+    aktivan        boolean     NOT NULL DEFAULT true,
+    created_at     timestamptz DEFAULT now(),
+    updated_at     timestamptz DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_viber_profil_user
+    ON public.korisnik_viber_profil (user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_viber_profil_user ON public.korisnik_viber_profil (user_id);
+
+ALTER TABLE public.korisnik_viber_profil ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "viber_profil_sopstveni_select" ON public.korisnik_viber_profil
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "viber_profil_sopstveni_update" ON public.korisnik_viber_profil
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "viber_profil_service_role" ON public.korisnik_viber_profil
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 ALTER TABLE public.korisnik_viber_profil
     ADD COLUMN IF NOT EXISTS quiet_start smallint CHECK (quiet_start BETWEEN 0 AND 23),
