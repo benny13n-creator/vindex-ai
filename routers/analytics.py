@@ -8,14 +8,15 @@ GET  /analytics/usage  — aggregirani pregled za poslednje N dana
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from shared.deps import _get_supa, get_current_user
+from shared.deps import _get_supa, get_current_user, _is_founder
 from shared.rate import limiter
 
 logger = logging.getLogger("vindex.analytics")
@@ -328,4 +329,144 @@ async def opposing_counsel_tracker(
         "suprotne_strane":  result,
         "ukupno_predmeta":  len(predmeti_all),
         "ukupno_protivnika": len(result),
+    }
+
+
+# ─── Platform Analytics Dashboard (founder-only, svi korisnici) ──────────────
+
+@router.get("/api/admin/analytics/platform")
+@limiter.limit("15/minute")
+async def platform_analytics(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    dana: int = 30,
+):
+    """
+    Founder-only agregatna analitika preko SVIH korisnika (za razliku od
+    /analytics/usage koji je per-user). Koristi iste usage_events kao i
+    postojeci piTrack/_track_event pipeline — bez nove instrumentacije.
+    """
+    if not _is_founder(user.get("email", "")):
+        raise HTTPException(status_code=403, detail="Restricted.")
+
+    dana = min(max(dana, 1), 90)
+    supa = _get_supa()
+    now  = datetime.now(timezone.utc)
+    since = (now - timedelta(days=dana)).isoformat()
+    since_1d = (now - timedelta(days=1)).isoformat()
+    since_7d = (now - timedelta(days=7)).isoformat()
+
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("usage_events")
+                .select("user_id,feature,action,metadata,created_at")
+                .gte("created_at", since)
+                .limit(5000)
+                .execute()
+        )
+        events = r.data or []
+    except Exception as e:
+        logger.error("[ANALYTICS] platform query greška: %s", e)
+        events = []
+
+    def _count(feature: str, action: str) -> int:
+        return sum(1 for e in events if e.get("feature") == feature and e.get("action") == action)
+
+    def _distinct_users(feature: Optional[str] = None, action: Optional[str] = None, since_iso: Optional[str] = None) -> set:
+        out = set()
+        for e in events:
+            if feature and e.get("feature") != feature:
+                continue
+            if action and e.get("action") != action:
+                continue
+            if since_iso and (e.get("created_at") or "") < since_iso:
+                continue
+            if e.get("user_id"):
+                out.add(e["user_id"])
+        return out
+
+    wizard_started   = _count("wizard", "started")
+    wizard_completed = _count("wizard", "completed")
+    ai_started        = _count("ai_analysis", "started")
+    ai_completed      = _count("ai_analysis", "completed")
+    draft_accepted    = _count("ai_outcome", "accepted")
+    draft_edited      = _count("ai_outcome", "edited")
+    draft_rejected    = _count("ai_outcome", "rejected")
+    draft_total       = draft_accepted + draft_edited + draft_rejected
+
+    # Portal monitoring adoption
+    portal_users = _distinct_users("portal", "tracking_enabled")
+    active_users = _distinct_users()
+
+    # APR lookup usage (odvojena tabela — ne usage_events)
+    apr_uspesno = apr_total = 0
+    try:
+        apr_r = await asyncio.to_thread(
+            lambda: supa.table("apr_lookup_log").select("success").gte("created_at", since).execute()
+        )
+        apr_rows = apr_r.data or []
+        apr_total = len(apr_rows)
+        apr_uspesno = sum(1 for x in apr_rows if x.get("success"))
+    except Exception:
+        pass
+
+    # DAU/WAU
+    dau = len(_distinct_users(since_iso=since_1d))
+    wau = len(_distinct_users(since_iso=since_7d))
+
+    # Avg sesija po korisniku (aktivne_sesije: distinct device_id po user_id)
+    avg_sessions = None
+    try:
+        sess_r = await asyncio.to_thread(
+            lambda: supa.table("aktivne_sesije").select("user_id,device_id").execute()
+        )
+        sess_rows = sess_r.data or []
+        by_user: dict[str, set] = {}
+        for s in sess_rows:
+            uid = s.get("user_id")
+            if uid:
+                by_user.setdefault(uid, set()).add(s.get("device_id"))
+        if by_user:
+            avg_sessions = round(sum(len(v) for v in by_user.values()) / len(by_user), 2)
+    except Exception:
+        pass
+
+    # Najkorišćeniji/najmanje korišćeni tabovi (nav/tab_switch, metadata={"tab": t})
+    tab_counts: dict[str, int] = {}
+    for e in events:
+        if e.get("feature") == "nav" and e.get("action") == "tab_switch":
+            try:
+                meta = json.loads(e.get("metadata") or "{}")
+                t = meta.get("tab")
+                if t:
+                    tab_counts[t] = tab_counts.get(t, 0) + 1
+            except Exception:
+                pass
+    tab_sorted = sorted(tab_counts.items(), key=lambda x: -x[1])
+
+    return {
+        "period_dana": dana,
+        "wizard": {
+            "started": wizard_started, "completed": wizard_completed,
+            "completion_rate_pct": round(wizard_completed / wizard_started * 100, 1) if wizard_started else None,
+        },
+        "ai_analysis": {"started": ai_started, "completed": ai_completed},
+        "apr_lookup": {
+            "ukupno": apr_total, "uspesno": apr_uspesno,
+            "stopa_uspeha_pct": round(apr_uspesno / apr_total * 100, 1) if apr_total else None,
+        },
+        "portal_monitoring_adoption": {
+            "korisnika_ukljucilo": len(portal_users),
+            "aktivnih_korisnika": len(active_users),
+            "stopa_pct": round(len(portal_users) / len(active_users) * 100, 1) if active_users else None,
+        },
+        "draft_outcomes": {
+            "accepted": draft_accepted, "edited": draft_edited, "rejected": draft_rejected,
+            "accepted_rate_pct": round(draft_accepted / draft_total * 100, 1) if draft_total else None,
+        },
+        "dau": dau,
+        "wau": wau,
+        "avg_sessions_per_user": avg_sessions,
+        "top_tabovi": [{"tab": t, "count": c} for t, c in tab_sorted[:8]],
+        "najmanje_koriscenih_tabova": [{"tab": t, "count": c} for t, c in tab_sorted[-5:]] if len(tab_sorted) > 3 else [],
     }

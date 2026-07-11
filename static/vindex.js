@@ -12567,11 +12567,13 @@ async function adminOpsLoad() {
     fetch(BASE_URL + '/api/apr/health', { headers: hdrs }).then(function(r){ return r.json(); }),
     fetch(BASE_URL + '/api/portal/health', { headers: hdrs }).then(function(r){ return r.json(); }),
     fetch(BASE_URL + '/api/admin/security-overview', { headers: hdrs }).then(function(r){ return r.json(); }),
+    fetch(BASE_URL + '/api/admin/analytics/platform?dana=30', { headers: hdrs }).then(function(r){ return r.json(); }),
   ]);
-  var proof  = results[0].status === 'fulfilled' ? results[0].value : null;
-  var apr    = results[1].status === 'fulfilled' ? results[1].value : null;
-  var portal = results[2].status === 'fulfilled' ? results[2].value : null;
-  var sec    = results[3].status === 'fulfilled' ? results[3].value : null;
+  var proof    = results[0].status === 'fulfilled' ? results[0].value : null;
+  var apr      = results[1].status === 'fulfilled' ? results[1].value : null;
+  var portal   = results[2].status === 'fulfilled' ? results[2].value : null;
+  var sec      = results[3].status === 'fulfilled' ? results[3].value : null;
+  var platform = results[4].status === 'fulfilled' ? results[4].value : null;
 
   var cards = [];
   cards.push(_adminCard('System Health', proof ? (proof.overall + ' (' + proof.pass_count + '/' + (proof.pass_count + proof.fail_count + proof.warn_count) + ')') : '—',
@@ -12581,7 +12583,27 @@ async function adminOpsLoad() {
   cards.push(_adminCard('Portal Monitoring', portal ? portal.status + (portal.success_rate_24h != null ? ' · ' + portal.success_rate_24h + '%' : '') : '—',
     portal && portal.status === 'HEALTHY' ? 'ok' : (portal && portal.status === 'DOWN' ? 'err' : 'warn')));
   cards.push(_adminCard('Security (24h)', sec ? ((sec.security_events_24h != null ? sec.security_events_24h : '—') + ' event(a)') : '—', 'ok'));
+  cards.push(_adminCard('AI Usage (30d)', platform ? (platform.ai_analysis.started + ' pokrenuto / ' + platform.ai_analysis.completed + ' završeno') : '—', 'ok'));
   if (cardsEl) cardsEl.innerHTML = cards.join('');
+
+  var paEl = document.getElementById('admin-platform-analytics');
+  if (paEl) {
+    if (!platform) {
+      paEl.innerHTML = '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Nema podataka.</div>';
+    } else {
+      var tiles = [
+        ['Wizard completion', (platform.wizard.completion_rate_pct != null ? platform.wizard.completion_rate_pct + '%' : '—') + ' (' + platform.wizard.completed + '/' + platform.wizard.started + ')'],
+        ['APR usage', (platform.apr_lookup.stopa_uspeha_pct != null ? platform.apr_lookup.stopa_uspeha_pct + '%' : '—') + ' (' + platform.apr_lookup.ukupno + ' pokušaja)'],
+        ['Portal adoption', (platform.portal_monitoring_adoption.stopa_pct != null ? platform.portal_monitoring_adoption.stopa_pct + '%' : '—') + ' (' + platform.portal_monitoring_adoption.korisnika_ukljucilo + ' korisnika)'],
+        ['Draft accepted rate', (platform.draft_outcomes.accepted_rate_pct != null ? platform.draft_outcomes.accepted_rate_pct + '%' : '—')],
+        ['DAU / WAU', platform.dau + ' / ' + platform.wau],
+        ['Prosek sesija/korisnik', platform.avg_sessions_per_user != null ? platform.avg_sessions_per_user : '—'],
+      ];
+      var topTabovi = (platform.top_tabovi || []).slice(0, 5).map(function(t){ return t.tab + ' (' + t.count + ')'; }).join(', ') || '—';
+      paEl.innerHTML = tiles.map(function(t){ return _adminCard(t[0], t[1], 'ok'); }).join('')
+        + '<div style="grid-column:1/-1;font-size:0.68rem;color:rgba(255,255,255,0.4);margin-top:0.3rem;">Najkorišćeniji tabovi: ' + _htmlEsc(topTabovi) + '</div>';
+    }
+  }
 
   adminNotifLoad();
   adminBetaLoad();
