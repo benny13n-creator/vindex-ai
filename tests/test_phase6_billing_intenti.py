@@ -142,7 +142,7 @@ async def test_naplati_satnica_bez_tarife():
         result = await _handle_naplati_radnju("1.5h rada", None, "uid-001")
 
     assert result["iznos_rsd"] == int(1.5 * 7500)
-    assert result["tarifa_sifra"] == "T30"
+    assert result["tarifa_sifra"] == "T71"
 
 
 @pytest.mark.anyio
@@ -212,7 +212,7 @@ async def test_prikazi_tarifu_satnica():
     from routers.copilot import _handle_prikazi_tarifu
     result = await _handle_prikazi_tarifu("satnica")
     sifre = [s["sifra"] for s in result["stavke"]]
-    assert "T30" in sifre
+    assert "T71" in sifre
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -98,7 +98,7 @@ class TestPublicPages:
 
     def test_terms_contains_disclaimer(self, client):
         r = client.get("/terms")
-        assert "nije" in r.text.lower()
+        assert "ne predstavljaju pravni savet" in r.text.lower()
 
 
 class TestCORS:

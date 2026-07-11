@@ -102,12 +102,12 @@ def test_upload_pdf_happy_path():
 # ─── Test 7: oversized file rejected ─────────────────────────────────────────
 
 def test_upload_rejects_oversized():
-    # Set Content-Length header > 10MB to trigger fast-path rejection
+    # Set Content-Length header > 25MB (_MAX_UPLOAD_BYTES) to trigger fast-path rejection
     resp = client.post(
         "/api/dokument/upload",
         files={"file": ("big.docx", b"x" * 100,
                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
-        headers={"Content-Length": str(11 * 1024 * 1024)},
+        headers={"Content-Length": str(26 * 1024 * 1024)},
     )
     assert resp.status_code == 413, f"Expected 413, got {resp.status_code}"
 

@@ -46,7 +46,7 @@ def _make_supa(predmet, klijenti=None, dokumenti=None, rokovi=None, hron=None):
         if name == "predmeti":         return _make_chain([predmet])
         if name == "predmet_klijenti": return _make_chain(klijenti or [])
         if name == "predmet_dokumenti":return _make_chain(dokumenti or [])
-        if name == "predmet_rokovi":   return _make_chain(rokovi or [])
+        if name == "rocista":          return _make_chain(rokovi or [])
         if name == "predmet_hronologija": return _make_chain(hron or [])
         return _make_chain([])
     supa.table.side_effect = _table
@@ -103,8 +103,8 @@ async def test_kg_document_nodes():
 async def test_kg_rok_nodes():
     from routers.knowledge_graph import get_knowledge_graph
     rokovi = [
-        {"id": "r1", "naziv": "Rok za odgovor", "datum_isteka": "2026-07-01", "status": "aktivan"},
-        {"id": "r2", "naziv": "Rok za žalbu",   "datum_isteka": "2026-08-15", "status": "aktivan"},
+        {"id": "r1", "sud": "Osnovni sud", "datum": "2026-07-01", "status": "aktivan"},
+        {"id": "r2", "sud": "Apelacioni sud", "datum": "2026-08-15", "status": "aktivan"},
     ]
     supa = _make_supa(_PRED, rokovi=rokovi)
     with patch("routers.knowledge_graph._get_supa", return_value=supa):

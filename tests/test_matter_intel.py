@@ -37,7 +37,7 @@ def _make_supa(predmet, dokazi=None, dokumenti=None, rokovi=None):
         if name == "predmeti":         return _make_chain([predmet])
         if name == "predmet_dokazi":   return _make_chain(dokazi or [])
         if name == "predmet_dokumenti":return _make_chain(dokumenti or [])
-        if name == "predmet_rokovi":   return _make_chain(rokovi or [])
+        if name == "rocista":          return _make_chain(rokovi or [])
         return _make_chain([])
     supa.table.side_effect = _table
     return supa
@@ -98,7 +98,7 @@ async def test_missing_docs_radno():
 async def test_critical_deadline_raises_risk():
     from routers.matter_intel import get_matter_intel
     sutra = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
-    rokovi = [{"naziv": "Rok za žalbu", "datum_isteka": sutra, "status": "aktivan"}]
+    rokovi = [{"sud": "Osnovni sud", "datum": sutra, "status": "aktivan"}]
     supa = _make_supa(_PRED_RADNO, rokovi=rokovi)
     with patch("routers.matter_intel._get_supa", return_value=supa):
         result = await get_matter_intel(PID, _user())
@@ -113,7 +113,7 @@ async def test_health_score_bounds():
     from routers.matter_intel import get_matter_intel
     # Najgori scenario: bez dokaza + kritičan rok
     sutra = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
-    rokovi = [{"naziv": "Hitni rok", "datum_isteka": sutra, "status": "aktivan"}]
+    rokovi = [{"sud": "Osnovni sud", "datum": sutra, "status": "aktivan"}]
     supa = _make_supa(_PRED_RADNO, rokovi=rokovi)
     with patch("routers.matter_intel._get_supa", return_value=supa):
         result = await get_matter_intel(PID, _user())

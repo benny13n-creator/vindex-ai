@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
+from starlette.requests import Request as StarletteRequest
 
 @pytest.fixture
 def anyio_backend():
@@ -16,6 +17,12 @@ def anyio_backend():
 
 def _user():
     return {"user_id": "dddd0000-0000-0000-0000-000000000004", "email": "test@vindex.rs"}
+
+
+def _req():
+    scope = {"type": "http", "method": "POST", "headers": [], "query_string": b"",
+              "path": "/api/agents/run", "app": MagicMock(), "state": MagicMock()}
+    return StarletteRequest(scope=scope)
 
 
 def _make_chain(data):
@@ -71,7 +78,7 @@ async def test_run_agent_known():
     mock_client.chat.completions.create.return_value = _mock_openai_resp("Zastarelost je 3 godine.")
     with patch("routers.multi_agent._get_supa", return_value=supa), \
          patch("openai.OpenAI", return_value=mock_client):
-        result = await run_agent(req, _user())
+        result = await run_agent(req, _req(), _user())
     assert result["agent"]  == "research"
     assert result["odgovor"] == "Zastarelost je 3 godine."
     assert result["task"]   == "Koji je rok zastarelosti za naknadu štete?"
@@ -87,7 +94,7 @@ async def test_run_agent_unknown_raises_400():
     supa = MagicMock(); supa.table.return_value = _make_chain([])
     with patch("routers.multi_agent._get_supa", return_value=supa):
         with pytest.raises(HTTPException) as exc:
-            await run_agent(req, _user())
+            await run_agent(req, _req(), _user())
     assert exc.value.status_code == 400
 
 
@@ -114,7 +121,7 @@ async def test_run_agent_auto_select():
 
     with patch("routers.multi_agent._get_supa", return_value=supa), \
          patch("openai.OpenAI", return_value=mock_client):
-        result = await run_agent(req, _user())
+        result = await run_agent(req, _req(), _user())
 
     assert result["agent"] == "drafting"
     assert result["odgovor"] == "Tužba je generisana."
@@ -129,12 +136,12 @@ async def test_run_agent_with_predmet_context():
                   "tuzilac": "Petar", "tuzeni": "Firma", "opis": "Nezakonit otkaz"}]
     req = AgentReq(agent="billing", task="Koliko naplatiti?", predmet_id="pred-001")
     supa = MagicMock()
-    supa.table.return_value = _make_chain(pred_data)
+    supa.table.side_effect = lambda name: _make_chain(pred_data) if name == "predmeti" else _make_chain([])
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = _mock_openai_resp("Naplatiti 30.000 RSD.")
     with patch("routers.multi_agent._get_supa", return_value=supa), \
          patch("openai.OpenAI", return_value=mock_client):
-        result = await run_agent(req, _user())
+        result = await run_agent(req, _req(), _user())
     assert result["agent"] == "billing"
     # Proveri da je predmet kontekst prosleđen GPT-u
     call_args = mock_client.chat.completions.create.call_args
@@ -155,5 +162,5 @@ async def test_run_agent_openai_error_503():
     with patch("routers.multi_agent._get_supa", return_value=supa), \
          patch("openai.OpenAI", return_value=mock_client):
         with pytest.raises(HTTPException) as exc:
-            await run_agent(req, _user())
+            await run_agent(req, _req(), _user())
     assert exc.value.status_code == 503

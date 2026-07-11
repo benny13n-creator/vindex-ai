@@ -44,7 +44,7 @@ def _make_supa(predmet, dokazi=None, dokumenti=None, rokovi=None, billing=None, 
             return _make_chain(dokazi or [])
         if name == "predmet_dokumenti":
             return _make_chain(dokumenti or [])
-        if name == "predmet_rokovi":
+        if name == "rocista":
             return _make_chain(rokovi or [])
         if name == "billing_entries":
             return _make_chain(billing or [])
@@ -127,7 +127,7 @@ async def test_ccc_billing_aggregation():
 async def test_ccc_kritican_rok_detected():
     from routers.ccc import get_ccc
     sutra = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
-    rokovi = [{"id": "r1", "naziv": "Rok za odgovor", "datum_isteka": sutra, "status": "aktivan"}]
+    rokovi = [{"id": "r1", "naziv": "Rok za odgovor", "sud": "Osnovni sud", "datum": sutra, "status": "aktivan"}]
     supa = _make_supa(_PREDMET, rokovi=rokovi)
     with patch("routers.ccc._get_supa", return_value=supa):
         result = await get_ccc(PID, _user())
@@ -142,7 +142,7 @@ async def test_ccc_kritican_rok_detected():
 async def test_ccc_no_kritican_rok_when_far():
     from routers.ccc import get_ccc
     daleko = (datetime.now(timezone.utc) + timedelta(days=60)).isoformat()
-    rokovi = [{"id": "r2", "naziv": "Rok za žalbu", "datum_isteka": daleko, "status": "aktivan"}]
+    rokovi = [{"id": "r2", "naziv": "Rok za žalbu", "sud": "Osnovni sud", "datum": daleko, "status": "aktivan"}]
     supa = _make_supa(_PREDMET, rokovi=rokovi)
     with patch("routers.ccc._get_supa", return_value=supa):
         result = await get_ccc(PID, _user())

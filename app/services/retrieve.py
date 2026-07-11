@@ -421,7 +421,7 @@ LAW_HINTS = {
     "eksproprijacija":                "zakon o eksproprijaciji",
     "naknada za eksproprijaciju":     "zakon o eksproprijaciji",
     # Privredno pravo — dopuna
-    "potrazivanj":                    "zakon o privrednim drustvima",
+    "potrazivanje drustva":           "zakon o privrednim drustvima",
     "kapital drustva":                "zakon o privrednim drustvima",
     "poslovni udeo":                  "zakon o privrednim drustvima",
     "likvidacij":                     "zakon o stecaju",
