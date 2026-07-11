@@ -13248,6 +13248,8 @@ var _doctplAktivni  = null;
 async function docTplOpen() {
   var overlay = document.getElementById('doctpl-overlay');
   if (overlay) overlay.style.display = 'flex';
+  var searchEl = document.getElementById('doctpl-search');
+  if (searchEl) { searchEl.value = ''; setTimeout(function(){ searchEl.focus(); }, 50); }
   if (!_doctplSabloni) {
     try {
       var r = await fetch('/api/doc-templates/lista', { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
@@ -13257,6 +13259,14 @@ async function docTplOpen() {
   }
   _doctplRenderLista();
   _doctplLoadPredmeti();
+}
+
+function docTplFilter(q) {
+  q = (q || '').trim().toLowerCase();
+  document.querySelectorAll('[id^="doctpl-item-"]').forEach(function(el){
+    var match = !q || el.textContent.toLowerCase().indexOf(q) !== -1;
+    el.style.display = match ? '' : 'none';
+  });
 }
 
 async function _doctplLoadPredmeti() {
@@ -13440,10 +13450,10 @@ function docTplIzaberi(idx) {
       var lbl = _FIELD_LABELS[f] || f;
       var defaultVal = f === 'datum' ? today : '';
       return '<div style="display:flex;flex-direction:column;gap:3px;">'
-        +'<label style="font-size:0.68rem;color:rgba(255,255,255,0.45);">'+_htmlEsc(lbl)+'</label>'
+        +'<label class="vx-field-label">'+_htmlEsc(lbl)+'</label>'
         +(isMultiline
-          ? '<textarea id="dtf-'+f+'" rows="3" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:0.78rem;font-family:inherit;outline:none;resize:vertical;">'+defaultVal+'</textarea>'
-          : '<input id="dtf-'+f+'" type="text" value="'+_htmlEsc(defaultVal)+'" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:0.78rem;font-family:inherit;outline:none;">')
+          ? '<textarea id="dtf-'+f+'" class="vx-textarea" rows="3">'+defaultVal+'</textarea>'
+          : '<input id="dtf-'+f+'" class="vx-input" type="text" value="'+_htmlEsc(defaultVal)+'">')
         +'</div>';
     }).join('');
     // Auto-popuni iz selektovanog predmeta ako već postoji

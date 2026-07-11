@@ -6946,8 +6946,9 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 /* ── 12. Document templates modal na mobilnom ── */
 @media (max-width: 640px) {
   #doctpl-overlay > div { flex-direction: column !important; max-height: 100dvh !important; border-radius: 0 !important; width: 100% !important; }
+  .vx-cp-body { grid-template-columns: 1fr !important; grid-template-rows: auto 1fr !important; }
   #doctpl-list { width: 100% !important; max-height: 120px !important; border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.07) !important; flex-direction: row !important; overflow-x: auto !important; overflow-y: hidden !important; display: flex !important; padding: 0 !important; }
-  #doctpl-list > div { flex-shrink: 0 !important; min-width: 130px !important; border-left: none !important; border-bottom: 2px solid transparent !important; }
+  #doctpl-list > div { flex-shrink: 0 !important; min-width: 130px !important; border-left: none !important; border-bottom: 2px solid transparent !important; margin: 0 !important; }
 }
 
 /* ── 13. Touch targets — minimum 44px ── */
@@ -8374,9 +8375,9 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .risk-srednji { color: rgba(195,168,62,0.80) !important; }
 .risk-visok   { color: rgba(200,80,75,0.80)  !important; }
 
-/* MODALI */
-.modal { border-color: var(--vp-border-md) !important; box-shadow: 0 24px 80px rgba(0,0,0,0.70) !important; }
-.modal-badge { background: var(--vp-dim) !important; color: rgba(155,175,255,0.80) !important; border: 1px solid rgba(75,119,232,0.16) !important; }
+/* MODALI — migrirano na cyan akcenat (v2 redesign), vidi .modal/.modal-badge iznad */
+.modal { border-color: var(--bd-3) !important; box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 60px rgba(0,212,255,0.05) !important; }
+.modal-badge { background: rgba(0,212,255,0.08) !important; color: #00d4ff !important; border: 1px solid rgba(0,212,255,0.28) !important; }
 
 /* TOASTI */
 .toast.toast-ok   { border-color: rgba(50,175,90,0.28) !important; color: rgba(80,195,110,0.86) !important; }
@@ -8393,20 +8394,22 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.09); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
 
-/* ─── doctpl list items — premium ─── */
+/* ─── doctpl list items — Command Palette kategorije, cyan akcenat ─── */
 .dtpl-item {
-  padding: 0.55rem 0.9rem;
+  padding: 0.6rem 0.9rem;
+  margin: 0 0.4rem;
+  border-radius: var(--vx-radius-sm, 8px);
   cursor: pointer;
   border-left: 2px solid transparent;
   transition: background .12s, border-color .12s;
 }
 .dtpl-item:hover {
   background: rgba(255,255,255,0.04);
-  border-left-color: rgba(75,119,232,0.38);
+  border-left-color: rgba(0,212,255,0.38);
 }
 .dtpl-item-active {
-  background: rgba(75,119,232,0.08) !important;
-  border-left-color: #4B77E8 !important;
+  background: rgba(0,212,255,0.08) !important;
+  border-left-color: #00d4ff !important;
 }
 .dtpl-item-title {
   font-size: 0.76rem;
@@ -8776,8 +8779,8 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .vx-modal-palette {
   width: min(760px, 92vw);
   max-height: 78vh;
-  display: grid;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 .vx-cp-search {
@@ -8798,7 +8801,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   border-radius: 4px;
   padding: 0.1rem 0.4rem;
 }
-.vx-cp-body { display: grid; grid-template-columns: 200px 1fr; min-height: 0; }
+.vx-cp-body { display: grid; grid-template-columns: 200px 1fr; min-height: 0; flex: 1; }
 .vx-cp-categories {
   border-right: 1px solid var(--vx-border);
   padding: var(--vx-space-3);
