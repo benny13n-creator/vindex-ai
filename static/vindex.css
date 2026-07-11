@@ -8417,7 +8417,13 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   VINDEX AI — UI DESIGN SYSTEM v1.0
+   VINDEX AI — UI DESIGN SYSTEM v2.0 (premium redesign, jul 2026)
+   v1.0 je rešio 8 dijagnostikovanih problema; v2.0 dodaje pun --vx-* token
+   sloj (bg/border/text/accent/spacing/radius) i pravu komponentnu biblioteku
+   (.vx-btn-*, .vx-card, .vx-input/-select/-textarea, .vx-table, .vx-badge,
+   .vx-pill, .vx-modal command-palette varijanta, .vx-skeleton) koja se
+   postepeno uvodi po ekranu, van zaključanog dashboard-a. Originalni v1.0
+   opis ostaje ispod jer i dalje tačno opisuje CRM/Intake/Settings slojeve:
    Rešava 8 dijagnostikovanih problema:
      1. Token sistem    — jedna kanonična pozadina za panele/modale
      2. Dugmad         — 3 kanoničke klase (primary / ghost / danger)
@@ -8457,6 +8463,35 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   --vx-input-bg:     rgba(255,255,255,0.04);
   --vx-input-border: rgba(255,255,255,0.10);
   --vx-input-radius: 7px;
+
+  /* ════════════════════════════════════════════════════════════════════
+     v2 — GLOBALNI DESIGN TOKENI (premium redesign, jul 2026)
+     Izvedeni iz stvarnih boja zaključanog dashboard-a: sfera koristi
+     isključivo cyan #00d4ff (rgba(0,212,255,*)) kao glow. Ovaj sistem
+     širi taj isti akcent na ceo proizvod umesto plave #4B77E8, koja
+     ostaje samo kao istorijska boja u starijim, još neregistrovanim
+     komponentama dok se ne migriraju u kasnijim fazama.
+     ════════════════════════════════════════════════════════════════ */
+  --vx-bg-primary:     #010308;
+  --vx-bg-secondary:   #0a1220;
+  --vx-bg-elevated:    #0d1117;
+  --vx-border:         rgba(255,255,255,0.08);
+  --vx-border-strong:  rgba(255,255,255,0.16);
+  --vx-text-primary:   rgba(255,255,255,0.92);
+  --vx-text-secondary: rgba(255,255,255,0.55);
+  --vx-accent:         #00d4ff;
+  --vx-accent-dim:     rgba(0,212,255,0.55);
+  --vx-accent-glow:    rgba(0,212,255,0.35);
+  --vx-accent-glow-soft: rgba(0,212,255,0.14);
+  --vx-radius-sm:      8px;
+  --vx-radius-md:      14px;
+  --vx-radius-lg:      18px;
+  --vx-space-1: 4px; --vx-space-2: 8px; --vx-space-3: 12px;
+  --vx-space-4: 16px; --vx-space-5: 24px; --vx-space-6: 32px; --vx-space-7: 48px;
+  --vx-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --vx-transition-fast: 150ms var(--vx-ease);
+  --vx-transition: 200ms var(--vx-ease);
+  --vx-transition-slow: 250ms var(--vx-ease);
 }
 
 /* ── 1. SLIDE PANELI — crm == intake, isti background ───────────────────── */
@@ -8492,72 +8527,68 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   border-bottom-color: rgba(255,255,255,0.06) !important;
 }
 
-/* ── 4. DUGMAD — 3 kanoničke klase ──────────────────────────────────────── */
+/* ── 4. DUGMAD — 4 kanoničke klase (primary/secondary/ghost/danger) ─────── */
 
-/* Primary — puna akcija (spremi, nastavi, pošalji) */
-.vx-btn-primary {
+.vx-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.52rem 1.1rem;
-  background: linear-gradient(135deg, #4B77E8, #1264c4);
-  border: none;
-  border-radius: var(--vx-input-radius);
-  color: #fff;
+  gap: 0.45rem;
+  height: 38px;
+  padding: 0 1.05rem;
+  border-radius: var(--vx-radius-sm);
   font-size: var(--vx-t-body);
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: opacity 0.15s;
   white-space: nowrap;
+  transition: background var(--vx-transition-fast), border-color var(--vx-transition-fast),
+              color var(--vx-transition-fast), box-shadow var(--vx-transition-fast),
+              transform var(--vx-transition-fast);
 }
-.vx-btn-primary:hover   { opacity: 0.88; }
-.vx-btn-primary:disabled { opacity: 0.40; cursor: not-allowed; }
+.vx-btn:disabled { opacity: 0.40; cursor: not-allowed; }
+.vx-btn:active:not(:disabled) { transform: translateY(1px); }
 
-/* Ghost — sekundarna akcija (odustani, nazad) */
+/* Primary — retko, jedina akcija sa cyan glow-om na ekranu */
+.vx-btn-primary {
+  background: linear-gradient(135deg, rgba(0,212,255,0.92), rgba(0,150,200,0.92));
+  border: 1px solid rgba(0,212,255,0.55);
+  color: #011019;
+  box-shadow: 0 0 0 rgba(0,212,255,0);
+}
+.vx-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 0 22px var(--vx-accent-glow), 0 0 4px rgba(0,212,255,0.4);
+}
+
+/* Secondary — tamna pozadina + border, standardna akcija */
+.vx-btn-secondary {
+  background: var(--vx-bg-elevated);
+  border: 1px solid var(--vx-border-strong);
+  color: var(--vx-text-primary);
+}
+.vx-btn-secondary:hover:not(:disabled) {
+  border-color: var(--vx-accent-dim);
+  color: #fff;
+}
+
+/* Ghost — samo hover highlight, bez border-a po difoltu */
 .vx-btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.50rem 1rem;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: var(--vx-input-radius);
-  color: rgba(255,255,255,0.62);
-  font-size: var(--vx-t-body);
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
-  white-space: nowrap;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--vx-text-secondary);
 }
-.vx-btn-ghost:hover {
-  background: rgba(255,255,255,0.07);
-  border-color: rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.88);
+.vx-btn-ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,0.06);
+  color: var(--vx-text-primary);
 }
 
-/* Danger — destruktivna akcija (obriši, zatvori) */
+/* Danger — diskretan crveni akcenat, destruktivna akcija */
 .vx-btn-danger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.50rem 1rem;
   background: rgba(248,113,113,0.07);
   border: 1px solid rgba(248,113,113,0.22);
-  border-radius: var(--vx-input-radius);
   color: var(--vx-danger);
-  font-size: var(--vx-t-body);
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.12s, border-color 0.12s;
-  white-space: nowrap;
 }
-.vx-btn-danger:hover {
+.vx-btn-danger:hover:not(:disabled) {
   background: rgba(248,113,113,0.13);
   border-color: rgba(248,113,113,0.38);
 }
@@ -8584,60 +8615,251 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   color: rgba(255,255,255,0.84) !important;
 }
 
-/* ── 5. KARD KOMPONENTA — 1 klasa, 1 radius ─────────────────────────────── */
+/* ── 5. KARD KOMPONENTA — translucent, blur, hover glow ─────────────────── */
 .vx-card {
-  background: var(--vx-card-bg);
-  border: 1px solid var(--vx-card-border);
-  border-radius: var(--vx-card-radius);
-  padding: 0.85rem 1rem;
+  background: rgba(13,17,23,0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--vx-border);
+  border-radius: var(--vx-radius-md);
+  padding: var(--vx-space-5);
+  transition: border-color var(--vx-transition), box-shadow var(--vx-transition),
+              transform var(--vx-transition);
 }
-.vx-card:hover { border-color: rgba(255,255,255,0.12); }
+.vx-card:hover {
+  border-color: var(--vx-accent-dim);
+  box-shadow: 0 0 28px rgba(0,212,255,0.08);
+}
+.vx-card-title {
+  font-size: var(--vx-t-heading);
+  font-weight: 700;
+  color: var(--vx-text-primary);
+  line-height: 1.35;
+  margin-bottom: var(--vx-space-2);
+}
+.vx-card-sub {
+  font-size: var(--vx-t-caption);
+  color: var(--vx-text-secondary);
+  line-height: 1.55;
+}
 
-/* ── 6. INPUT KOMPONENTA — 1 klasa ──────────────────────────────────────── */
-.vx-input {
+/* ── 6. FORME I INPUTI — dosledna visina, cyan focus ring ───────────────── */
+.vx-input, .vx-select, .vx-textarea {
+  display: block;
   width: 100%;
-  height: 36px;
-  padding: 0 0.75rem;
-  background: var(--vx-input-bg);
-  border: 1px solid var(--vx-input-border);
-  border-radius: var(--vx-input-radius);
-  color: rgba(255,255,255,0.88);
+  height: 40px;
+  padding: 0 0.85rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--vx-border);
+  border-radius: var(--vx-radius-sm);
+  color: var(--vx-text-primary);
   font-size: var(--vx-t-body);
   font-family: inherit;
   outline: none;
-  transition: border-color 0.15s;
   box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color var(--vx-transition-fast), box-shadow var(--vx-transition-fast);
 }
-.vx-input:focus { border-color: rgba(75,119,232,0.55); }
-.vx-input::placeholder { color: rgba(255,255,255,0.24); }
-.vx-input.vx-textarea { height: auto; padding: 0.6rem 0.75rem; resize: vertical; }
+.vx-input:focus, .vx-select:focus, .vx-textarea:focus {
+  border-color: var(--vx-accent-dim);
+  box-shadow: 0 0 0 3px var(--vx-accent-glow-soft), inset 0 0 12px rgba(0,212,255,0.05);
+}
+.vx-input::placeholder, .vx-textarea::placeholder { color: rgba(255,255,255,0.28); }
+.vx-textarea { height: auto; min-height: 88px; padding: 0.65rem 0.85rem; resize: vertical; line-height: 1.5; }
+.vx-field-label {
+  display: block;
+  font-size: var(--vx-t-caption);
+  font-weight: 600;
+  color: var(--vx-text-secondary);
+  margin-bottom: var(--vx-space-1);
+}
 
-/* ── 7. TIPOGRAFSKA SKALA — utility klase ───────────────────────────────── */
+/* ── 7. TABELA — profesionalni terminal izgled ───────────────────────────
+   Markup: .vx-table > thead (sticky) + tbody > tr.vx-row (+ .is-selected) */
+.vx-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--vx-t-body); }
+.vx-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--vx-bg-elevated);
+  color: var(--vx-text-secondary);
+  font-size: var(--vx-t-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+  padding: var(--vx-space-3) var(--vx-space-4);
+  border-bottom: 1px solid var(--vx-border-strong);
+  white-space: nowrap;
+}
+.vx-table tbody td {
+  padding: var(--vx-space-3) var(--vx-space-4);
+  border-bottom: 1px solid var(--vx-border);
+  color: var(--vx-text-primary);
+}
+.vx-table tbody tr.vx-row { cursor: pointer; transition: background var(--vx-transition-fast); }
+.vx-table tbody tr.vx-row:hover { background: rgba(255,255,255,0.03); }
+.vx-table tbody tr.vx-row.is-selected {
+  background: rgba(0,212,255,0.06);
+  box-shadow: inset 3px 0 0 var(--vx-accent);
+}
+.vx-table tbody tr:last-child td { border-bottom: none; }
+
+.vx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  font-size: var(--vx-t-caption);
+  font-weight: 600;
+  line-height: 1.4;
+  background: rgba(255,255,255,0.06);
+  color: var(--vx-text-secondary);
+  border: 1px solid var(--vx-border);
+}
+.vx-badge-success { background: rgba(74,222,128,0.10); color: var(--vx-success); border-color: rgba(74,222,128,0.24); }
+.vx-badge-warning { background: rgba(240,180,41,0.10); color: var(--vx-warning); border-color: rgba(240,180,41,0.24); }
+.vx-badge-danger  { background: rgba(248,113,113,0.10); color: var(--vx-danger); border-color: rgba(248,113,113,0.24); }
+.vx-badge-accent  { background: var(--vx-accent-glow-soft); color: var(--vx-accent); border-color: rgba(0,212,255,0.3); }
+
+.vx-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--vx-border);
+  color: var(--vx-text-secondary);
+  font-size: var(--vx-t-caption);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--vx-transition-fast), border-color var(--vx-transition-fast), color var(--vx-transition-fast);
+}
+.vx-pill:hover { border-color: var(--vx-border-strong); color: var(--vx-text-primary); }
+.vx-pill.is-active {
+  background: var(--vx-accent-glow-soft);
+  border-color: rgba(0,212,255,0.4);
+  color: var(--vx-accent);
+}
+
+/* ── 8. MODAL / COMMAND PALETTE ──────────────────────────────────────────
+   Markup: .vx-modal-overlay > .vx-modal[.vx-modal-palette]
+   Palette variant: .vx-cp-search (top) + .vx-cp-categories (left) + .vx-cp-preview (right) */
+.vx-modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(1,3,8,0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  animation: vx-fade-in var(--vx-transition-slow) var(--vx-ease);
+}
+.vx-modal {
+  background: var(--vx-bg-elevated);
+  border: 1px solid var(--vx-border-strong);
+  border-radius: var(--vx-radius-lg);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,212,255,0.04);
+  animation: vx-modal-in var(--vx-transition-slow) var(--vx-ease);
+}
+@keyframes vx-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vx-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.vx-modal-palette {
+  width: min(760px, 92vw);
+  max-height: 78vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+.vx-cp-search {
+  display: flex; align-items: center; gap: var(--vx-space-3);
+  padding: var(--vx-space-4) var(--vx-space-5);
+  border-bottom: 1px solid var(--vx-border);
+}
+.vx-cp-search input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--vx-text-primary); font-size: 0.95rem; font-family: inherit;
+}
+.vx-cp-search input::placeholder { color: var(--vx-text-secondary); }
+.vx-cp-kbd {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  color: var(--vx-text-secondary);
+  border: 1px solid var(--vx-border-strong);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+.vx-cp-body { display: grid; grid-template-columns: 200px 1fr; min-height: 0; }
+.vx-cp-categories {
+  border-right: 1px solid var(--vx-border);
+  padding: var(--vx-space-3);
+  overflow-y: auto;
+}
+.vx-cp-cat-item {
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--vx-radius-sm);
+  font-size: var(--vx-t-body);
+  color: var(--vx-text-secondary);
+  cursor: pointer;
+  transition: background var(--vx-transition-fast), color var(--vx-transition-fast);
+}
+.vx-cp-cat-item:hover { background: rgba(255,255,255,0.05); color: var(--vx-text-primary); }
+.vx-cp-cat-item.is-active {
+  background: var(--vx-accent-glow-soft);
+  color: var(--vx-accent);
+  font-weight: 600;
+}
+.vx-cp-preview { padding: var(--vx-space-5); overflow-y: auto; }
+
+/* ── 9. SKELETON LOADING ─────────────────────────────────────────────── */
+.vx-skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 37%, rgba(255,255,255,0.04) 63%);
+  background-size: 400% 100%;
+  border-radius: var(--vx-radius-sm);
+  animation: vx-skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes vx-skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── 10. TIPOGRAFSKA SKALA — utility klase ──────────────────────────────── */
 .vx-section-lbl {
   font-size: var(--vx-t-section) !important;
   font-weight: 700 !important;
   color: rgba(255,255,255,0.38) !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.10em !important;
+  letter-spacing: 0.08em !important;
 }
 .vx-heading {
   font-size: var(--vx-t-heading);
   font-weight: 700;
-  color: rgba(255,255,255,0.90);
-  line-height: 1.3;
+  color: var(--vx-text-primary);
+  line-height: 1.4;
 }
 .vx-body-txt {
   font-size: var(--vx-t-body);
   color: rgba(255,255,255,0.72);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 .vx-caption {
   font-size: var(--vx-t-caption);
-  color: rgba(255,255,255,0.35);
-  line-height: 1.45;
+  color: var(--vx-text-secondary);
+  line-height: 1.5;
+}
+.vx-kpi-number {
+  font-family: var(--font-mono, monospace);
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--vx-text-primary);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
 }
 
-/* ── 8. SEMANTIČKE BOJE — utility klase ─────────────────────────────────── */
+/* ── 11. SEMANTIČKE BOJE — utility klase ─────────────────────────────────── */
 .vx-success { color: var(--vx-success) !important; }
 .vx-danger  { color: var(--vx-danger)  !important; }
 .vx-warning { color: var(--vx-warning) !important; }
