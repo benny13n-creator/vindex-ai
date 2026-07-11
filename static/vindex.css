@@ -8989,3 +8989,215 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   border-color: rgba(75,119,232,0.28);
   color: rgba(200,210,255,.85);
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   VINDEX AI — STRUCTURAL COMPONENTS v3.0 (jul 2026)
+   Vindex DataGrid, Vindex Form (floating label), Vindex Timeline, Vindex Kanban,
+   Vindex Chart wrapper. Built once, wired into pages in later phases. Reuses
+   v2.0 --vx-* tokens. NE menja: home screen sfera, dark stil, poslovnu logiku.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── VINDEX DATAGRID ──────────────────────────────────────────────────────
+   Markup:
+   .vx-grid-wrap > .vx-grid-toolbar (search/filters, optional)
+                 > .vx-grid-scroll > table.vx-grid > thead / tbody > tr.vx-grid-row(.is-selected)
+                 > .vx-grid-bulk-bar (shown when rows selected)
+                 > .vx-grid-pager
+                 > .vx-grid-empty (shown when no rows)                                          */
+.vx-grid-wrap { display: flex; flex-direction: column; gap: 0; }
+.vx-grid-toolbar {
+  display: flex; align-items: center; gap: var(--vx-space-3);
+  padding: var(--vx-space-3) 0; flex-wrap: wrap;
+}
+.vx-grid-scroll {
+  overflow: auto;
+  border: 1px solid var(--vx-border);
+  border-radius: var(--vx-radius-md);
+  max-height: 560px;
+}
+table.vx-grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--vx-t-body); }
+table.vx-grid thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--vx-bg-elevated);
+  color: var(--vx-text-secondary);
+  font-size: var(--vx-t-caption);
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  text-align: left; padding: var(--vx-space-3) var(--vx-space-4);
+  border-bottom: 1px solid var(--vx-border-strong);
+  white-space: nowrap;
+}
+table.vx-grid thead th.vx-grid-check-col { width: 36px; }
+table.vx-grid tbody td {
+  padding: var(--vx-space-3) var(--vx-space-4);
+  border-bottom: 1px solid var(--vx-border);
+  color: var(--vx-text-primary);
+  vertical-align: middle;
+}
+table.vx-grid tbody tr.vx-grid-row { cursor: pointer; transition: background var(--vx-transition-fast); }
+table.vx-grid tbody tr.vx-grid-row:hover { background: rgba(255,255,255,0.03); box-shadow: inset 0 0 0 1px rgba(0,212,255,0.08); }
+table.vx-grid tbody tr.vx-grid-row.is-selected { background: rgba(0,212,255,0.06); box-shadow: inset 3px 0 0 var(--vx-accent); }
+table.vx-grid tbody tr:last-child td { border-bottom: none; }
+table.vx-grid input[type="checkbox"] { width: 15px; height: 15px; accent-color: #00d4ff; cursor: pointer; }
+
+.vx-grid-bulk-bar {
+  display: none;
+  align-items: center; gap: var(--vx-space-3);
+  padding: var(--vx-space-2) var(--vx-space-4);
+  background: rgba(0,212,255,0.05);
+  border: 1px solid rgba(0,212,255,0.22);
+  border-top: none;
+  border-radius: 0 0 var(--vx-radius-md) var(--vx-radius-md);
+  font-size: var(--vx-t-caption);
+  color: var(--vx-text-primary);
+}
+.vx-grid-bulk-bar.is-active { display: flex; }
+.vx-grid-bulk-bar strong { color: #00d4ff; }
+
+.vx-grid-pager {
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--vx-space-3);
+  padding: var(--vx-space-3) var(--vx-space-1);
+  font-size: var(--vx-t-caption); color: var(--vx-text-secondary);
+}
+.vx-grid-pager button.vx-btn { height: 30px; padding: 0 0.7rem; font-size: var(--vx-t-caption); }
+
+.vx-grid-empty {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--vx-space-2);
+  padding: var(--vx-space-7) var(--vx-space-4);
+  text-align: center;
+  color: var(--vx-text-secondary);
+}
+.vx-grid-empty.is-active { display: flex; }
+.vx-grid-empty [data-lucide] { width: 40px; height: 40px; color: rgba(0,212,255,0.35); stroke-width: 1.25; }
+.vx-grid-empty-title { font-size: var(--vx-t-heading); font-weight: 700; color: var(--vx-text-primary); }
+.vx-grid-empty-sub { font-size: var(--vx-t-caption); max-width: 320px; line-height: 1.55; }
+
+/* Badge modifiers reused by grid columns (status/prioritet/rizik) */
+.vx-badge-prioritet-visok  { background: rgba(248,113,113,0.10); color: var(--vx-danger); border-color: rgba(248,113,113,0.24); }
+.vx-badge-prioritet-srednji{ background: rgba(240,180,41,0.10);  color: var(--vx-warning); border-color: rgba(240,180,41,0.24); }
+.vx-badge-prioritet-nizak  { background: rgba(74,222,128,0.10);  color: var(--vx-success); border-color: rgba(74,222,128,0.24); }
+
+/* ── VINDEX FORM — floating label, cyan focus glow, inline validation ────
+   Markup: .vx-field > input/select/textarea.vx-f-input(placeholder=" ") + label.vx-f-label
+           optional .vx-f-err (hidden by default, .is-active to show)                          */
+.vx-field { position: relative; margin-bottom: var(--vx-space-4); }
+.vx-f-input {
+  width: 100%; height: 46px; padding: 1.1rem 0.85rem 0.35rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--vx-border);
+  border-radius: var(--vx-radius-sm);
+  color: var(--vx-text-primary);
+  font-size: var(--vx-t-body); font-family: inherit;
+  outline: none; box-sizing: border-box;
+  transition: border-color var(--vx-transition-fast), box-shadow var(--vx-transition-fast);
+}
+textarea.vx-f-input { height: auto; min-height: 96px; padding-top: 1.3rem; resize: vertical; line-height: 1.5; }
+.vx-f-input:focus {
+  border-color: var(--vx-accent-dim);
+  box-shadow: 0 0 0 3px var(--vx-accent-glow-soft), inset 0 0 12px rgba(0,212,255,0.05);
+}
+.vx-f-label {
+  position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
+  font-size: var(--vx-t-body); color: var(--vx-text-secondary);
+  pointer-events: none; transition: all var(--vx-transition-fast);
+  background: transparent;
+}
+.vx-f-input:focus + .vx-f-label,
+.vx-f-input:not(:placeholder-shown) + .vx-f-label {
+  top: 0.62rem; transform: translateY(0);
+  font-size: 0.62rem; color: var(--vx-accent); letter-spacing: 0.03em;
+}
+textarea.vx-f-input:focus + .vx-f-label,
+textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
+.vx-field.has-err .vx-f-input { border-color: rgba(248,113,113,0.55); }
+.vx-field.has-err .vx-f-label { color: var(--vx-danger); }
+.vx-f-err {
+  display: none;
+  font-size: var(--vx-t-caption); color: var(--vx-danger);
+  margin-top: 0.3rem;
+}
+.vx-f-err.is-active { display: block; }
+.vx-field-group { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vx-space-3); }
+.vx-form-section-lbl {
+  font-size: var(--vx-t-section); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--vx-text-secondary);
+  margin: var(--vx-space-5) 0 var(--vx-space-3);
+  padding-bottom: var(--vx-space-2);
+  border-bottom: 1px solid var(--vx-border);
+}
+.vx-form-section-lbl:first-child { margin-top: 0; }
+
+/* ── VINDEX TIMELINE — vertical connector-line list ───────────────────────
+   Markup: .vx-timeline > .vx-tl-item > .vx-tl-dot + .vx-tl-line + .vx-tl-card  */
+.vx-timeline { position: relative; display: flex; flex-direction: column; }
+.vx-tl-item { position: relative; display: flex; gap: var(--vx-space-4); padding-bottom: var(--vx-space-5); }
+.vx-tl-item:last-child { padding-bottom: 0; }
+.vx-tl-item:last-child .vx-tl-line { display: none; }
+.vx-tl-dotcol { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.vx-tl-dot {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--vx-bg-elevated);
+  border: 2px solid rgba(0,212,255,0.6);
+  box-shadow: 0 0 8px rgba(0,212,255,0.25);
+  flex-shrink: 0; margin-top: 3px;
+}
+.vx-tl-dot.is-done { background: #00d4ff; }
+.vx-tl-dot.is-warn { border-color: rgba(240,180,41,0.7); box-shadow: 0 0 8px rgba(240,180,41,0.25); }
+.vx-tl-dot.is-danger { border-color: rgba(248,113,113,0.7); box-shadow: 0 0 8px rgba(248,113,113,0.25); }
+.vx-tl-line { width: 1px; flex: 1; background: var(--vx-border-strong); margin-top: 2px; min-height: 12px; }
+.vx-tl-card { flex: 1; min-width: 0; padding-top: 0; }
+.vx-tl-date { font-size: var(--vx-t-caption); color: var(--vx-text-secondary); font-family: var(--font-mono, monospace); margin-bottom: 0.2rem; }
+.vx-tl-title { font-size: var(--vx-t-body); font-weight: 600; color: var(--vx-text-primary); }
+.vx-tl-sub { font-size: var(--vx-t-caption); color: var(--vx-text-secondary); margin-top: 0.2rem; line-height: 1.5; }
+.vx-tl-group-lbl {
+  font-size: var(--vx-t-section); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--vx-text-secondary);
+  margin: var(--vx-space-4) 0 var(--vx-space-2) calc(11px + var(--vx-space-4));
+}
+.vx-tl-group-lbl:first-child { margin-top: 0; }
+
+/* ── VINDEX KANBAN — status-column board ──────────────────────────────────
+   Markup: .vx-kb-board > .vx-kb-col > .vx-kb-col-hd + .vx-kb-col-body > .vx-kb-card  */
+.vx-kb-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); gap: var(--vx-space-4); overflow-x: auto; padding-bottom: var(--vx-space-2); }
+.vx-kb-col { display: flex; flex-direction: column; min-width: 240px; }
+.vx-kb-col-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--vx-space-2) var(--vx-space-1);
+  font-size: var(--vx-t-caption); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--vx-text-secondary);
+  border-bottom: 1px solid var(--vx-border-strong);
+  margin-bottom: var(--vx-space-3);
+}
+.vx-kb-col-count {
+  font-size: var(--vx-t-caption); color: var(--vx-text-secondary);
+  background: rgba(255,255,255,0.06); border-radius: 999px; padding: 0.05rem 0.5rem;
+}
+.vx-kb-col-body { display: flex; flex-direction: column; gap: var(--vx-space-2); min-height: 60px; }
+.vx-kb-card {
+  background: rgba(13,17,23,0.5);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--vx-border);
+  border-radius: var(--vx-radius-sm);
+  padding: var(--vx-space-3);
+  transition: border-color var(--vx-transition-fast), box-shadow var(--vx-transition-fast);
+}
+.vx-kb-card:hover { border-color: rgba(0,212,255,0.3); box-shadow: 0 0 16px rgba(0,212,255,0.06); }
+.vx-kb-card-title { font-size: var(--vx-t-body); font-weight: 600; color: var(--vx-text-primary); margin-bottom: 0.3rem; }
+.vx-kb-card-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.vx-kb-card-move { display: flex; gap: 0.3rem; margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid var(--vx-border); }
+.vx-kb-move-btn {
+  flex: 1; height: 26px; font-size: 0.65rem; font-family: inherit;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--vx-border);
+  border-radius: 6px; color: var(--vx-text-secondary); cursor: pointer;
+  transition: background var(--vx-transition-fast), border-color var(--vx-transition-fast), color var(--vx-transition-fast);
+}
+.vx-kb-move-btn:hover { background: rgba(0,212,255,0.06); border-color: rgba(0,212,255,0.3); color: #00d4ff; }
+.vx-kb-move-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── VINDEX CHART — Chart.js container wrapper ────────────────────────────
+   Markup: .vx-chart-wrap[style="height:NNNpx"] > canvas                                       */
+.vx-chart-wrap { position: relative; width: 100%; }
+.vx-chart-legend { display: flex; flex-wrap: wrap; gap: var(--vx-space-3); margin-top: var(--vx-space-2); }
+.vx-chart-legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: var(--vx-t-caption); color: var(--vx-text-secondary); }
+.vx-chart-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }

@@ -39,6 +39,11 @@ CDN_RESOURCES = [
         "url":  "https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js",
         "type": "script",
     },
+    {
+        "name": "Chart.js",
+        "url":  "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js",
+        "type": "script",
+    },
 ]
 
 

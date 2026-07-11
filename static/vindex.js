@@ -13736,6 +13736,122 @@ function _piFormatMin(min) {
   return (min/60).toFixed(1) + 'h';
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// VINDEX STRUCTURAL COMPONENTS v3.0 — Chart.js wrapper, Form validation, Grid empty-state
+// Shared helpers for the interior UI structural refactor (jul 2026). Reused across
+// AI Analiza, Naplata/Profitabilnost, Analytics, Klijenti, and any future chart/grid/form.
+// ══════════════════════════════════════════════════════════════════════════
+
+var _vxChartInstances = {};
+var _VX_CHART_TOOLTIP = { backgroundColor: '#0d1117', borderColor: 'rgba(0,212,255,0.3)', borderWidth: 1, titleColor: '#fff', bodyColor: 'rgba(255,255,255,0.8)', padding: 8, cornerRadius: 6, titleFont: { family: "'Plus Jakarta Sans', sans-serif" }, bodyFont: { family: "'Plus Jakarta Sans', sans-serif" } };
+var _VX_CHART_TICKS = { color: 'rgba(255,255,255,0.4)', font: { size: 10, family: "'Plus Jakarta Sans', sans-serif" } };
+
+function _vxChartDestroy(canvasId) {
+  if (_vxChartInstances[canvasId]) { _vxChartInstances[canvasId].destroy(); delete _vxChartInstances[canvasId]; }
+}
+
+/** Bar chart — single series. labels: string[], data: number[] */
+function vxChartBar(canvasId, labels, data, opts) {
+  if (typeof Chart === 'undefined') return null;
+  var el = document.getElementById(canvasId);
+  if (!el) return null;
+  opts = opts || {};
+  _vxChartDestroy(canvasId);
+  var chart = new Chart(el, {
+    type: 'bar',
+    data: { labels: labels, datasets: [{ data: data, backgroundColor: opts.color || 'rgba(0,212,255,0.55)', borderRadius: 3, maxBarThickness: 28 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: _VX_CHART_TOOLTIP },
+      scales: {
+        x: { grid: { display: false }, ticks: _VX_CHART_TICKS },
+        y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: _VX_CHART_TICKS, beginAtZero: true }
+      }
+    }
+  });
+  _vxChartInstances[canvasId] = chart;
+  return chart;
+}
+
+/** Line chart — one or more series. datasets: [{label, data, color, fill}] */
+function vxChartLine(canvasId, labels, datasets, opts) {
+  if (typeof Chart === 'undefined') return null;
+  var el = document.getElementById(canvasId);
+  if (!el) return null;
+  opts = opts || {};
+  _vxChartDestroy(canvasId);
+  var palette = ['#00d4ff', '#4ade80', '#f0b429', '#f87171'];
+  var chart = new Chart(el, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: datasets.map(function(ds, i) {
+        var c = ds.color || palette[i % palette.length];
+        return { label: ds.label || '', data: ds.data, borderColor: c, backgroundColor: c + '22', fill: !!ds.fill, tension: 0.35, pointRadius: 0, borderWidth: 2 };
+      })
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: datasets.length > 1, labels: { color: 'rgba(255,255,255,0.55)', font: { size: 10, family: "'Plus Jakarta Sans', sans-serif" }, boxWidth: 8, usePointStyle: true } },
+        tooltip: _VX_CHART_TOOLTIP
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: _VX_CHART_TICKS },
+        y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: _VX_CHART_TICKS, beginAtZero: true }
+      }
+    }
+  });
+  _vxChartInstances[canvasId] = chart;
+  return chart;
+}
+
+/** Donut chart. labels: string[], data: number[] */
+function vxChartDonut(canvasId, labels, data, opts) {
+  if (typeof Chart === 'undefined') return null;
+  var el = document.getElementById(canvasId);
+  if (!el) return null;
+  opts = opts || {};
+  _vxChartDestroy(canvasId);
+  var palette = opts.colors || ['#00d4ff', '#4ade80', '#f0b429', '#f87171', 'rgba(255,255,255,0.3)'];
+  var chart = new Chart(el, {
+    type: 'doughnut',
+    data: { labels: labels, datasets: [{ data: data, backgroundColor: palette, borderColor: '#0d1117', borderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false }, tooltip: _VX_CHART_TOOLTIP } }
+  });
+  _vxChartInstances[canvasId] = chart;
+  return chart;
+}
+
+/** Vindex Form — inline validation. wrapId = .vx-field container id, errId = .vx-f-err element id */
+function vxFieldSetError(wrapId, errId, message) {
+  var wrap = document.getElementById(wrapId);
+  var errEl = document.getElementById(errId);
+  if (wrap) wrap.classList.add('has-err');
+  if (errEl) { errEl.textContent = message || ''; errEl.classList.add('is-active'); }
+}
+function vxFieldClearError(wrapId, errId) {
+  var wrap = document.getElementById(wrapId);
+  var errEl = document.getElementById(errId);
+  if (wrap) wrap.classList.remove('has-err');
+  if (errEl) errEl.classList.remove('is-active');
+}
+
+/** Vindex DataGrid — empty state toggle. Pass a lucide icon name (e.g. "inbox", "folder-open"). */
+function vxGridEmpty(containerId, icon, title, sub) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  el.classList.add('is-active');
+  el.innerHTML = '<i data-lucide="' + icon + '"></i>'
+    + '<div class="vx-grid-empty-title">' + _htmlEsc(title) + '</div>'
+    + (sub ? '<div class="vx-grid-empty-sub">' + _htmlEsc(sub) + '</div>' : '');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function vxGridEmptyHide(containerId) {
+  var el = document.getElementById(containerId);
+  if (el) el.classList.remove('is-active');
+}
+
 // ── SVG Line chart ────────────────────────────────────────────
 function _piLineChart(timeline, field, color, height) {
   height = height || 60;
