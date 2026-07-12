@@ -14156,8 +14156,8 @@ function _piFormatMin(min) {
 // ══════════════════════════════════════════════════════════════════════════
 
 var _vxChartInstances = {};
-var _VX_CHART_TOOLTIP = { backgroundColor: '#0d1117', borderColor: 'rgba(0,212,255,0.3)', borderWidth: 1, titleColor: '#fff', bodyColor: 'rgba(255,255,255,0.8)', padding: 8, cornerRadius: 6, titleFont: { family: "'Plus Jakarta Sans', sans-serif" }, bodyFont: { family: "'Plus Jakarta Sans', sans-serif" } };
-var _VX_CHART_TICKS = { color: 'rgba(255,255,255,0.4)', font: { size: 10, family: "'Plus Jakarta Sans', sans-serif" } };
+var _VX_CHART_TOOLTIP = { backgroundColor: '#0d1117', borderColor: 'rgba(0,212,255,0.3)', borderWidth: 1, titleColor: '#fff', bodyColor: 'rgba(255,255,255,0.8)', padding: 8, cornerRadius: 4, titleFont: { family: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace" }, bodyFont: { family: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace" } };
+var _VX_CHART_TICKS = { color: 'rgba(255,255,255,0.4)', font: { size: 10, family: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace" } };
 
 function _vxChartDestroy(canvasId) {
   if (_vxChartInstances[canvasId]) { _vxChartInstances[canvasId].destroy(); delete _vxChartInstances[canvasId]; }
@@ -14206,7 +14206,7 @@ function vxChartLine(canvasId, labels, datasets, opts) {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { display: datasets.length > 1, labels: { color: 'rgba(255,255,255,0.55)', font: { size: 10, family: "'Plus Jakarta Sans', sans-serif" }, boxWidth: 8, usePointStyle: true } },
+        legend: { display: datasets.length > 1, labels: { color: 'rgba(255,255,255,0.55)', font: { size: 10, family: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace" }, boxWidth: 8, usePointStyle: true } },
         tooltip: _VX_CHART_TOOLTIP
       },
       scales: {

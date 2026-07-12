@@ -2168,7 +2168,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
   --border-1: rgba(255,255,255,0.06);
   --border-2: rgba(255,255,255,0.10);
   --border-blue: rgba(255,255,255,0.09);
-  --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-xl: 24px;
+  /* --r-* radius tokens: dead here, real (sharp/institucionalno) definition is at ~2726 in the v3 :root block below */
   --t-fast: 0.12s ease; --t-base: 0.22s ease; --t-slow: 0.38s ease;
   --sidebar-icon-w: 48px;
   --topbar-h: 52px;
@@ -4565,7 +4565,11 @@ body.light-theme .wl-input::placeholder { color: rgba(10,18,32,0.28); }
   --icon-ui:         rgba(255,255,255,0.42);
 }
 
-/* Sidebar — 240px labeled layout */
+/* Sidebar — 240px labeled layout. AUTORITATIVNI blok (poslednji u cascade-u, !important pobedjuje
+   ranije). Postoje jos 3 mrtva/nadjacana .vx-sidebar{} + .t-tab{} bloka ranije u fajlu
+   (~1988/2191/2803 i ~2029/2255/2859) iz ranijih redizajn prolaza — namerno ostavljeni netaknuti
+   do Faza 9 late-cleanup prolaza (IA redizajn u toku, treba stabilna bazna linija za diff). Ne
+   menjati ih pre toga — menjaj samo ovaj blok. */
 .vx-sidebar {
   width: 240px !important;
   min-width: 240px !important;
@@ -7962,7 +7966,6 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   --vp-txt-1:         rgba(255,255,255,0.92);
   --vp-txt-2:         rgba(255,255,255,0.48);
   --vp-txt-3:         rgba(255,255,255,0.22);
-  --vp-radius:        7px;
 }
 
 /* -- Eliminacija svih box-shadow glow efekata ------------------------------ */
@@ -8042,7 +8045,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   background: var(--vp-accent-dim) !important;
   border: 1px solid rgba(0,212,255,0.3) !important;
   color: rgba(140,165,255,0.9) !important;
-  border-radius: var(--vp-radius) !important;
+  border-radius: var(--vx-radius-sm) !important;
   font-weight: 600 !important;
   padding: 0.42rem 0.95rem !important;
   font-size: 0.74rem !important;
@@ -8096,7 +8099,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .pred-more-menu {
   background: #0f1117 !important;
   border: 1px solid var(--vp-border-strong) !important;
-  border-radius: var(--vp-radius) !important;
+  border-radius: var(--vx-radius-md) !important;
   box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4) !important;
 }
 .pred-more-menu button {
@@ -8178,7 +8181,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 /* -- Kanban ---------------------------------------------------------------- */
 .kanban-col {
   border: 1px solid var(--vp-border) !important;
-  border-radius: var(--vp-radius) !important;
+  border-radius: var(--vx-radius-md) !important;
   background: var(--vp-surface) !important;
 }
 .kanban-col-hd { border-bottom: 1px solid var(--vp-border) !important; }
@@ -8196,7 +8199,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .crm-kartica {
   border: 1px solid var(--vp-border) !important;
   background: var(--vp-surface) !important;
-  border-radius: var(--vp-radius) !important;
+  border-radius: var(--vx-radius-md) !important;
   transition: border-color 0.12s !important;
 }
 .crm-kartica:hover {
