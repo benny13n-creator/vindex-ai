@@ -1087,6 +1087,10 @@ def _ogranici_pouzdanost(odgovor: str) -> str:
 
 
 def _dodaj_disclaimer(odgovor: str) -> str:
+    # _json_ka_tekst već ugrađuje _SISTEM_NAPOMENA za strukturirani ("---") format —
+    # ne dupliraj drugu napomenu na kraju istog odgovora (jedan disclaimer je dovoljan).
+    if "Ovaj izveštaj je generisan uz pomoć AI" in odgovor:
+        return odgovor
     return odgovor + DISCLAIMER
 
 
@@ -1711,6 +1715,14 @@ Postoji verovatan pravni osnov za [opis zahteva] prema [Zakon] čl. [X], uz ispu
 [Sudska praksa: ako u dostavljenom kontekstu postoji unos koji počinje sa "SUDSKA PRAKSA [", citiraj konkretnu odluku brojem i sudom — npr. "Vrhovni sud, Kzz 754/2025: [kratki citat iz teksta odluke]". Ako takvih unosa NEMA u kontekstu — ovu liniju IZOSTAVI POTPUNO. ZABRANJENO: navoditi raspon ili praksu iz sopstvenog znanja ako nije u kontekstu.]
 [ZABRANJENO: "Imate pravo", "Garantovano", "Osnov je jak" — uvek kondicionalno]
 
+PRIMENA (obavezan deo pravnog zaključka — ne samo "član postoji", nego zašto se primenjuje NA OVAJ slučaj):
+Pod pretpostavkom da postoje elementi navedeni u pitanju:
+✓ [element koji JE potvrđen/naveden u pitanju korisnika]
+✓ [element koji JE potvrđen/naveden u pitanju korisnika]
+[Zakon] čl. [X] može biti osnov za zahtev.
+Trenutno nedostaje (nije navedeno u pitanju):
+- [element koji NIJE potvrđen — konkretno, ne generički]
+
 --- ANALIZA ŠTETE
 • Uzročna veza (ZOO čl. 154): [da li postoji i kako se dokazuje]
 • Materijalna šteta (ZOO čl. 189): [troškovi lečenja, izgubljena zarada, izmakla korist — specificirati]
@@ -1730,7 +1742,11 @@ Na osnovu opisanih okolnosti, okvirna procena prema sudskoj praksi:
    opekotine: 300.000 – 1.500.000 RSD
    telesna povreda sa trajnim posledicama: 600.000 – 3.000.000 RSD
    laka telesna povreda (contusio): 80.000 – 200.000 RSD
-   Ako vrsta povrede nije poznata: "Nije moguće proceniti bez navođenja vrste povrede."]
+   Ako vrsta povrede NIJE poznata iz pitanja — NE piši "nije moguće proceniti" kao mrtav kraj.
+   Umesto toga ispiši TAČNO ovako (checklist format, ohrabruje korisnika da nastavi):
+   "Nedovoljno podataka za procenu.
+   Za procenu potrebno: [ ] vrsta povrede  [ ] trajanje posledica  [ ] intenzitet bolova  [ ] sudska praksa za slične slučajeve.
+   Vindex može izvršiti procenu nakon unosa ovih podataka."]
 • Materijalna šteta: [troškovi lečenja + izgubljena zarada — samo ako navedeni u pitanju, inače izostavi]
 ⚠️ Okvirna procena — konačan iznos utvrđuje sud na osnovu medicinske dokumentacije i veštačenja.
 
@@ -1748,7 +1764,7 @@ Na osnovu opisanih okolnosti, okvirna procena prema sudskoj praksi:
 • Doprinos oštećenog: podeljena odgovornost smanjuje naknadu srazmerno (ZOO čl. 192)
 [ZABRANJENO: "Nije identifikovan poseban izuzetak" — uvek postoje konkretni rizici]
 
---- KADA OVO NE VAŽI
+--- TAČKE RIZIKA
 ⛔ Zastarelost: [koji rok nastupa i od kog datuma se računa]
 ⛔ Nedostatak dokaza: [koji konkretan dokaz nedostaje da bi tužba pala]
 ⛔ Doprinos oštećenog: podeljena odgovornost (ZOO čl. 192) — umanjuje naknadu
@@ -1807,7 +1823,7 @@ Odgovor generiši kao JSON objekat. Mapiranje sekcija → JSON polja:
 "citat_zakona" → sadržaj --- CITAT ZAKONA [RAG] [VERBATIM IZ KONTEKSTA ILI "[—]" — NIKAD FABRICIRAJ]
 "pravni_osnov" → sadržaj --- PRAVNI OSNOV [ISKLJUČIVO VERIFIKOVANO IZ KONTEKSTA]
 "rizici_i_izuzeci" → sadržaj --- RIZICI I IZUZECI
-"kada_ne_vazi" → sadržaj --- KADA OVO NE VAŽI
+"kada_ne_vazi" → sadržaj --- TAČKE RIZIKA
 "procesni_koraci" → sadržaj --- PROCESNI KORACI
 "kljucno_pitanje" → sadržaj --- KLJUČNO PITANJE
 "potrebne_informacije" → sadržaj --- POTREBNE INFORMACIJE
@@ -2314,6 +2330,8 @@ _SUDSKA_PRAKSA_SCHEMA_FIELD = {
             "broj_odluke":          {"type": "string", "description": "FLAT STRING max 50 chars. Broj odluke TAČNO kao u dostavljenom kontekstu."},
             "datum":                {"type": "string", "description": "FLAT STRING max 30 chars. Datum odluke iz konteksta."},
             "pravni_princip":       {"type": "string", "description": "FLAT STRING max 200 chars. JEDNA rečenica — pravni princip/pravilo koje ova odluka ustanovljava (ne prepričavanje činjenica). Prazan string ako se princip ne može izvesti iz konteksta."},
+            "primena_na_predmet":   {"type": "string", "description": "FLAT STRING max 200 chars. JEDNA rečenica — kako se princip iz ove odluke primenjuje na KONKRETNU situaciju iz pitanja korisnika (sinteza, ne citat). Prazan string ako veza nije dovoljno jasna."},
+            "razlika":              {"type": "string", "description": "FLAT STRING max 200 chars. JEDNA rečenica — ključna činjenična razlika između ove odluke i situacije korisnika (npr. šta u pitanju korisnika još nije utvrđeno/dokazano). Prazan string ako nema bitne razlike."},
             "sazetak_relevantnosti": {"type": "string", "description": "FLAT STRING max 400 chars. Zašto je ova odluka relevantna za pitanje. Citiraj samo ono što JESTE u dostavljenom kontekstu."},
         },
         "required": ["sud", "broj_odluke", "sazetak_relevantnosti"],
@@ -2552,7 +2570,7 @@ def _json_ka_tekst(data: dict, tip: str) -> str:
         if data.get("rizici_i_izuzeci"):
             parts += ["", "--- RIZICI I IZUZECI", data["rizici_i_izuzeci"]]
         if data.get("kada_ne_vazi"):
-            parts += ["", "--- KADA OVO NE VAŽI", data["kada_ne_vazi"]]
+            parts += ["", "--- TAČKE RIZIKA", data["kada_ne_vazi"]]
         if data.get("procesni_koraci"):
             parts += ["", "--- PROCESNI KORACI", data["procesni_koraci"]]
     elif tip == "COMPLIANCE":
@@ -2582,12 +2600,18 @@ def _json_ka_tekst(data: dict, tip: str) -> str:
             broj      = (item.get("broj_odluke") or "").strip()
             datum     = (item.get("datum") or "").strip()
             princip   = (item.get("pravni_princip") or "").strip()
+            primena   = (item.get("primena_na_predmet") or "").strip()
+            razlika   = (item.get("razlika") or "").strip()
             sazetak   = (item.get("sazetak_relevantnosti") or "").strip()
             header_parts = [p for p in [sud, broj, datum] if p]
             header = f"{idx}. " + ", ".join(header_parts) if header_parts else f"{idx}. —"
             parts.append(header)
             if princip:
                 parts.append(f"   Pravni princip: {princip}")
+            if primena:
+                parts.append(f"   Primena: {primena}")
+            if razlika:
+                parts.append(f"   Razlika: {razlika}")
             if sazetak:
                 parts.append(f"   {sazetak}")
             parts.append("")
