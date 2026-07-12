@@ -9361,61 +9361,6 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
 .vx-agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vx-space-3); }
 @media (max-width: 560px) { .vx-agent-grid { grid-template-columns: 1fr; } }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   SIDEBAR — TERMINAL IDENTITY (final authority — supersedes every earlier
-   sidebar/tab pass in this file, including the "Linear stil" block). The app
-   shell is the one element visible on every single screen; a soft left-
-   border-on-hover accent is a Linear/Notion/Vercel signature move — replaced
-   here with a flat, instant, solid-block active state and no hover-grown
-   border, closer to a terminal function menu than a consumer SaaS nav.
-   ══════════════════════════════════════════════════════════════════════════ */
-.vx-logo-mark {
-  font-family: 'JetBrains Mono', 'SF Mono', monospace !important;
-  font-size: 1rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.04em !important;
-  text-transform: uppercase !important;
-  color: rgba(255,255,255,0.92) !important;
-}
-.vx-logo-mark em {
-  font-style: normal !important;
-  color: #00d4ff !important;
-}
-
-.t-tab {
-  transition: background 0.08s linear, color 0.08s linear !important;
-}
-.t-tab:hover:not(.active) {
-  background: rgba(255,255,255,0.045) !important;
-  border-left-color: transparent !important;
-  color: rgba(255,255,255,0.75) !important;
-}
-.t-tab.active {
-  background: rgba(0,212,255,0.13) !important;
-  border-left: 3px solid #00d4ff !important;
-  color: #ffffff !important;
-  font-weight: 600 !important;
-}
-.t-tab.active .vx-tab-ico svg { stroke: #00d4ff !important; }
-
-.vx-nav-sub {
-  transition: background 0.08s linear, color 0.08s linear !important;
-}
-.vx-nav-sub:hover {
-  color: rgba(255,255,255,0.88) !important;
-  background: rgba(0,212,255,0.05) !important;
-}
-.vx-nav-sub-dot {
-  border-radius: 1px !important;
-  background: rgba(0,212,255,0.35) !important;
-}
-.vx-nav-sub:hover .vx-nav-sub-dot {
-  background: #00d4ff !important;
-}
-.vx-nav-group-lbl {
-  color: rgba(0,212,255,0.42) !important;
-}
-
 /* ── TOPBAR — flatten glassmorphism blur, solid bar (Bloomberg has no frosted glass) ── */
 .vx-topbar {
   background: #060a14 !important;
