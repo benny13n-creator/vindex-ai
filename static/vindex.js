@@ -9575,15 +9575,15 @@ function notif_render() {
   };
 
   var unreadCount = _notifData.filter(function(n){ return !_notifRead.has(n.id); }).length;
-  var hdr = '<div style="padding:0.45rem 1rem 0.3rem;display:flex;justify-content:space-between;align-items:center;">'
-    +'<span style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);">Obaveštenja'+(unreadCount?' ('+unreadCount+')':'')+'</span>'
-    +'<div style="display:flex;gap:0.5rem;">'
-    +'<button onclick="notif_load()" title="Osveži" style="background:none;border:none;font-size:0.62rem;color:rgba(255,255,255,.35);cursor:pointer;padding:0;">↻</button>'
-    +(unreadCount?'<button onclick="notif_markAllRead()" style="background:none;border:none;font-size:0.62rem;color:rgba(255,255,255,0.72);cursor:pointer;padding:0;">Označi sve</button>':'')
+  var hdr = '<div style="padding:0.65rem 1rem 0.5rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--vx-border);">'
+    +'<span class="vx-section-lbl">Obaveštenja'+(unreadCount?' <span class="vx-badge vx-badge-accent" style="margin-left:.3rem;">'+unreadCount+'</span>':'')+'</span>'
+    +'<div style="display:flex;gap:0.4rem;">'
+    +'<button onclick="notif_load()" title="Osveži" class="vx-btn vx-btn-ghost" style="height:22px;width:22px;padding:0;font-size:0.68rem;">↻</button>'
+    +(unreadCount?'<button onclick="notif_markAllRead()" class="vx-btn vx-btn-ghost" style="height:22px;padding:0 0.5rem;font-size:0.65rem;">Označi sve</button>':'')
     +'</div></div>';
 
   if (!_notifData.length) {
-    dropdown.innerHTML = hdr+'<div style="padding:0.8rem 1rem;font-size:0.75rem;color:rgba(255,255,255,.35);text-align:center;">Nema obaveštenja.</div>';
+    dropdown.innerHTML = hdr+'<div style="padding:1.2rem 1rem;font-size:0.75rem;color:rgba(255,255,255,.35);text-align:center;">Nema obaveštenja.</div>';
     return;
   }
   dropdown.innerHTML = hdr
@@ -9592,13 +9592,14 @@ function notif_render() {
       var pColor = _PRIO_COLOR[n.prioritet]||'rgba(255,255,255,.4)';
       var tipLbl = n.naslov || _TIP_LABEL[n.tip] || 'ℹ Info';
       var bodyTxt = n.naslov ? n.poruka : n.poruka;
-      return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')" style="padding:0.5rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.05);opacity:'+(isRead?'0.45':'1')+';" onmouseover="this.style.background=\'rgba(255,255,255,0.03)\'" onmouseout="this.style.background=\'none\'">'
-        +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.18rem;">'
+      return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')" class="vx-notif-item" style="padding:0.6rem 1rem;cursor:pointer;border-bottom:1px solid var(--vx-border);opacity:'+(isRead?'0.5':'1')+';position:relative;'+(isRead?'':'background:rgba(0,212,255,0.02);')+'">'
+        + (isRead ? '' : '<span style="position:absolute;left:5px;top:1rem;width:5px;height:5px;border-radius:50%;background:#00d4ff;box-shadow:0 0 6px rgba(0,212,255,0.6);"></span>')
+        +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.22rem;padding-left:'+(isRead?'0':'0.6rem')+';">'
         +'<span style="font-size:0.62rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
-        +'<span style="font-size:0.6rem;color:rgba(255,255,255,.28);margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
+        +'<span class="vx-caption" style="margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
         +'</div>'
-        +'<div style="font-size:0.78rem;color:rgba(255,255,255,.82);margin-bottom:0.18rem;line-height:1.4;">'+escHtml(bodyTxt)+'</div>'
-        +(n.predmet_naziv?'<div style="font-size:0.7rem;color:rgba(255,255,255,.4);display:flex;align-items:center;justify-content:space-between;margin-top:.1rem;">'+escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:rgba(255,255,255,0.72);font-size:.68rem;">Otvori →</span>':'')+'</div>':'')
+        +'<div style="font-size:0.78rem;color:rgba(255,255,255,.85);margin-bottom:0.2rem;line-height:1.45;padding-left:'+(isRead?'0':'0.6rem')+';">'+escHtml(bodyTxt)+'</div>'
+        +(n.predmet_naziv?'<div class="vx-caption" style="display:flex;align-items:center;justify-content:space-between;margin-top:.15rem;padding-left:'+(isRead?'0':'0.6rem')+';">'+escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:#00d4ff;font-size:.68rem;">Otvori →</span>':'')+'</div>':'')
         +'</div>';
     }).join('');
 }
@@ -9644,15 +9645,15 @@ function mobNotifOtvori() {
         var isRead = _notifRead.has(n.id);
         var pColor = _PRIO_COLOR[n.prioritet] || 'rgba(255,255,255,.4)';
         var tipLbl = n.naslov || _TIP_LABEL[n.tip] || 'ℹ Info';
-        return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')"'
-          +' style="padding:0.7rem 1rem;cursor:pointer;border-top:1px solid rgba(255,255,255,.06);opacity:'+(isRead?'0.4':'1')+';active-background:rgba(255,255,255,0.04);">'
+        return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')" class="vx-notif-item"'
+          +' style="padding:0.7rem 1rem;cursor:pointer;border-top:1px solid var(--vx-border);opacity:'+(isRead?'0.5':'1')+';">'
           +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">'
           +'<span style="font-size:0.65rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
-          +'<span style="font-size:0.62rem;color:rgba(255,255,255,.28);margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
+          +'<span class="vx-caption" style="margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
           +'</div>'
           +'<div style="font-size:0.82rem;color:rgba(255,255,255,.85);line-height:1.45;">'+escHtml(n.poruka)+'</div>'
-          +(n.predmet_naziv ? '<div style="font-size:0.72rem;color:rgba(255,255,255,.38);margin-top:0.2rem;display:flex;justify-content:space-between;">'
-            +escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:rgba(255,255,255,0.72);">Otvori →</span>':'')+'</div>' : '')
+          +(n.predmet_naziv ? '<div class="vx-caption" style="margin-top:0.2rem;display:flex;justify-content:space-between;">'
+            +escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:#00d4ff;">Otvori →</span>':'')+'</div>' : '')
           +'</div>';
       }).join('');
     }

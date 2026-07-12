@@ -9259,6 +9259,11 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
 .vx-md-summary:hover { background: rgba(0,212,255,0.04); }
 .vx-md-section-body { padding: 0 0.9rem 0.75rem; }
 
+/* ── VINDEX Notification Center (Phase K) ────────────────────────────── */
+.vx-notif-item { transition: background var(--vx-transition-fast, 150ms); }
+.vx-notif-item:hover { background: rgba(0,212,255,0.05) !important; }
+.vx-notif-item:last-child { border-bottom: none !important; }
+
 /* ── PREDMETI — two-column page layout (Phase B) ────────────────────────── */
 .pred-page-grid {
   display: grid;
