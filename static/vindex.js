@@ -2276,6 +2276,45 @@ function settingsLoad() {
   emailNotifLoad();
   kancelarijaLoad();
   billingDugovanjaLoad();
+  confidenceAuditLoad();
+}
+
+// ── AI pouzdanost — Confidence Audit kalibracija ─────────────────────────────
+
+async function confidenceAuditLoad() {
+  var wrap = document.getElementById('confidence-audit-wrap');
+  if (!wrap || !currentSession) return;
+  wrap.innerHTML = '<div style="color:rgba(255,255,255,0.25);font-size:.78rem;">Učitavam...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/audit/kalibracija', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('Greška ' + r.status));
+
+    var pregled = d.pregled || {};
+    if (!pregled.ukupno_preporuka_ikad) {
+      wrap.innerHTML = '<div style="color:rgba(255,255,255,0.3);font-size:.78rem;">Još nema AI preporuka za kalibraciju.</div>';
+      return;
+    }
+
+    var bandLbl = { visoka: 'Visoka', srednja: 'Srednja', niska: 'Niska' };
+    var bandColor = { visoka: '#4ade80', srednja: '#facc15', niska: '#f87171' };
+    var poBandu = d.po_bandu || {};
+    var rows = Object.keys(bandLbl).map(function(b) {
+      var s = poBandu[b];
+      if (!s || s.status === 'nema_podataka' || s.tacnost_procenat === null || s.tacnost_procenat === undefined) {
+        return '<div class="crm-podaci-row"><span class="crm-podaci-lbl">' + bandLbl[b] + ' pouzdanost</span><span class="crm-podaci-val" style="color:rgba(255,255,255,.25);">nema podataka</span></div>';
+      }
+      return '<div class="crm-podaci-row"><span class="crm-podaci-lbl">' + bandLbl[b] + ' pouzdanost</span><span class="crm-podaci-val" style="color:' + bandColor[b] + ';">' + s.tacnost_procenat + '% tačno (' + s.tacnih + '/' + s.total_sa_isohodom + ') — idealno ' + s.idealni_opseg + '</span></div>';
+    }).join('');
+
+    wrap.innerHTML = rows
+      + '<div style="font-size:.65rem;color:rgba(255,255,255,.3);margin-top:.5rem;">Ukupno preporuka: ' + (pregled.ukupno_preporuka_ikad || 0) + ' · Prihvaćeno: ' + (pregled.ukupno_prihvacenih || 0) + (d.brier_score !== undefined && d.brier_score !== null ? ' · Brier score: ' + d.brier_score + ' (' + _htmlEsc(d.brier_ocena || '') + ')' : '') + '</div>'
+      + (d.preporuka_za_akciju ? '<div style="margin-top:.5rem;padding:.5rem .65rem;background:rgba(0,212,255,.05);border-left:2px solid rgba(0,212,255,.35);font-size:.76rem;color:rgba(255,255,255,.68);">' + _htmlEsc(d.preporuka_za_akciju) + '</div>' : '');
+  } catch (e) {
+    wrap.innerHTML = '<div style="color:rgba(255,120,120,0.6);font-size:.78rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
 }
 
 // ── Moj plan — status i upotreba ─────────────────────────────────────────────
@@ -18742,6 +18781,13 @@ async function pred_zatvoriPredmet() {
 
     // Vindex Intelligence — prosledi ishod za ucenje (best-effort, ne blokira)
     _pred_prosediUcenju(activePredmetId, ishod);
+    // Confidence Audit — sinhronizuj ishod u audit log (best-effort, ne blokira)
+    if (currentSession) {
+      fetch(BASE_URL + '/api/audit/sync', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+      }).catch(function(){});
+    }
 
     // Success — update UI
     document.getElementById('pred-zatvori-form').style.display = 'none';
