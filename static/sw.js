@@ -1,7 +1,7 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v29";
+const CACHE_NAME = "vindex-v30";
 
 const PRECACHE = [
   "/offline",
@@ -81,7 +81,10 @@ self.addEventListener("fetch", event => {
       caches.match(event.request).then(cached => {
         if (cached) return cached;
         return fetch(event.request).then(resp => {
-          if (resp.ok) caches.open(CACHE_NAME).then(c => c.put(event.request, resp.clone()));
+          if (resp.ok) {
+            const copy = resp.clone();
+            caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+          }
           return resp;
         }).catch(() => new Response("", { status: 503 }));
       })
@@ -93,7 +96,10 @@ self.addEventListener("fetch", event => {
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).then(resp => {
-        if (resp.ok) caches.open(CACHE_NAME).then(c => c.put(event.request, resp.clone()));
+        if (resp.ok) {
+          const copy = resp.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+        }
         return resp;
       }).catch(() =>
         caches.match(event.request).then(c => c || caches.match("/offline"))
@@ -107,7 +113,10 @@ self.addEventListener("fetch", event => {
     caches.open(CACHE_NAME).then(cache =>
       cache.match(event.request).then(cached => {
         const network = fetch(event.request).then(resp => {
-          if (resp.ok) cache.put(event.request, resp.clone());
+          if (resp.ok) {
+            const copy = resp.clone();
+            cache.put(event.request, copy);
+          }
           return resp;
         }).catch(() => null);
         return cached || network || caches.match("/offline");

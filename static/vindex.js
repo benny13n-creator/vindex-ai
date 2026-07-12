@@ -18414,6 +18414,36 @@ function pred_zatvoriOtvori() {
   var _zeEl = document.getElementById('pred-zatvori-err'); if(_zeEl) _zeEl.style.display = 'none';
   var _ziEl = document.getElementById('pred-zatvori-ishod'); if(_ziEl) _ziEl.value = '';
   var _zzEl = document.getElementById('pred-zatvori-zakljucak'); if(_zzEl) _zzEl.value = '';
+  var _fEl = document.getElementById('pred-zatvori-faktori');
+  if (_fEl) _fEl.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.checked = false; });
+  var _tEl = document.getElementById('pred-zatvori-trajanje'); if(_tEl) _tEl.value = '';
+  var _vEl = document.getElementById('pred-zatvori-vrednost'); if(_vEl) _vEl.value = '';
+}
+
+/* Best-effort: prosledi ishod Vindex Intelligence learning engine-u (case_patterns,
+   outcome_log, lessons) — odvojeno od zatvaranja predmeta, nikad ne blokira niti
+   pokazuje gresku korisniku ako padne. learning.py prihvata samo cetiri ishoda. */
+async function _pred_prosediUcenju(predmetId, ishod) {
+  if (!currentSession) return;
+  if (['pobeda','poraz','nagodba','odustajanje'].indexOf(ishod) === -1) return;
+  var faktori = [];
+  var fEl = document.getElementById('pred-zatvori-faktori');
+  if (fEl) fEl.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb){ faktori.push(cb.value); });
+  var trajanjeRaw = (document.getElementById('pred-zatvori-trajanje') || {}).value;
+  var vrednostRaw = (document.getElementById('pred-zatvori-vrednost') || {}).value;
+  try {
+    await fetch(BASE_URL + '/api/learning/outcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({
+        predmet_id:          predmetId,
+        ishod:                ishod,
+        presudni_faktori:    faktori,
+        trajanje_meseci:      trajanjeRaw ? parseInt(trajanjeRaw, 10) : null,
+        vrednost_spora_rsd:   vrednostRaw ? parseFloat(vrednostRaw) : null,
+      })
+    });
+  } catch (e) { /* best-effort, ne prekida flow zatvaranja */ }
 }
 
 function pred_zatvoriCancel() {
@@ -18443,6 +18473,9 @@ async function pred_zatvoriPredmet() {
     });
     var d = await r.json();
     if (!r.ok) { errEl.textContent = d.detail || 'Greška.'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Potvrdi zatvaranje'; return; }
+
+    // Vindex Intelligence — prosledi ishod za ucenje (best-effort, ne blokira)
+    _pred_prosediUcenju(activePredmetId, ishod);
 
     // Success — update UI
     document.getElementById('pred-zatvori-form').style.display = 'none';

@@ -218,13 +218,12 @@ async def zabeleži_ishod(
         except Exception as e:
             logger.warning("[LEARNING] recommendation_log update greška: %s", e)
 
-    # 4. Ažuriraj status predmeta
-    novi_status = {
-        "pobeda":      "zatvoren_uspesno",
-        "poraz":       "zatvoren_neuspesno",
-        "nagodba":     "zatvoren",
-        "odustajanje": "zatvoren",
-    }.get(req.ishod, "zatvoren")
+    # 4. Ažuriraj status predmeta — uvek "zatvoren" (isti vokabular kao
+    # /api/predmeti/{id}/zatvori); pobeda/poraz se čuvaju u outcome_log/
+    # ishod polju, ne u statusu — status "zatvoren_uspesno"/"zatvoren_neuspesno"
+    # bi tiho slomio svako filtriranje po statusu u ostatku aplikacije
+    # (kanban, liste, pred_load) koje očekuje tačno "zatvoren".
+    novi_status = "zatvoren"
     try:
         await asyncio.to_thread(
             lambda: supa.table("predmeti")
