@@ -197,7 +197,7 @@ var _initialNavDone = false;
 var _cyrillicOn = false;
 var vxNavHistory = [];
 var _vxGoingBack = false;
-var _vxTabLabels = {h:'Pregled dana',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija'};
+var _vxTabLabels = {h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',w:'Web3 & Kripto',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija'};
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
 var _lastRawText = '';
@@ -317,8 +317,6 @@ async function loadCredits() {
       currentUserIsFounder = !!d.is_founder;
       _creditsLoaded    = true;
       _creditsLoadedAt  = Date.now();
-      _updateProTabUI();
-      _updateStratTabUI();
       _updateAdminTabUI();
       updateCreditDisplay();
       if (currentUserIsPro) {
@@ -2162,22 +2160,14 @@ function setTab(el,t){
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  // Ako je AI tool tab aktivan — označi i "Vindex Intelligence" nav dugme kao aktivno
-  // ("s" vise nema ovo potrebno od Faze 3 — ima sopstveno vidljivo dugme; "q" je od
-  // Faze 5 mod unutar aiws, nikad se vise ne prosledjuje kao samostalno t)
-  var _aiTools = {a:1,n:1,t:1,w:1,ob:1};
-  if (_aiTools[t]) {
-    var _ab = document.getElementById('tab-btn-aiws');
-    if (_ab) _ab.classList.add('active');
-  }
-  ['h','n','a','s','p','t','k','w','ob','kal','pi','aiws','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
+  ['h','s','p','k','w','kal','pi','aiws','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Pregled dana',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
+  var lbl={h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',w:'Web3 & Kripto',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  var _noExec = {h:1,t:1,k:1,w:1,ob:1,kal:1,pi:1,dok:1,settings:1,p:1,'zadaci-g':1,fin:1,kanc:1};
+  var _noExec = {h:1,k:1,w:1,kal:1,pi:1,dok:1,settings:1,p:1,'zadaci-g':1,fin:1,kanc:1};
   if (execRow) execRow.style.display = _noExec[t] ? 'none' : '';
   if (credRow) credRow.style.display = _noExec[t] ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
@@ -2293,10 +2283,9 @@ function vxUpdateBreadcrumb(t) {
   var backSep   = document.getElementById('vx-back-sep');
   var pathEl    = document.getElementById('vx-breadcrumb-path');
   if (!pathEl) return;
-  var _aiSubtabs = {a:1,n:1,t:1,w:1};
   var label = _vxTabLabels[t] || t;
   var naPredmetu = (t === 'p' && activePredmetId && activePredmetNaziv);
-  pathEl.textContent = naPredmetu ? '' : (_aiSubtabs[t] ? 'Pravni alati / ' + label : label);
+  pathEl.textContent = naPredmetu ? '' : label;
   if (backLabel) backLabel.textContent = naPredmetu ? ('Nazad na predmet ' + activePredmetNaziv) : 'Nazad';
   if (vxNavHistory.length > 0) {
     if (backBtn) backBtn.classList.add('visible');
@@ -2931,39 +2920,9 @@ function doForgotPasswordFromSettings() {
     });
 }
 
-function _updateProTabUI() {
-  var tabBtn = document.getElementById('tab-btn-n');
-  var badge  = document.getElementById('pro-badge-n');
-  if (!tabBtn) return;
-  if (currentUserIsPro) {
-    tabBtn.classList.remove('locked');
-    if (badge) { badge.textContent = 'PRO'; badge.style.background = ''; }
-    tabBtn.title = 'PRO funkcija — pristup omogućen';
-  } else {
-    tabBtn.classList.add('locked');
-    if (badge) badge.textContent = '\uD83D\uDD12 PRO';
-    tabBtn.title = 'Ova funkcija je dostupna isključivo PRO korisnicima';
-  }
-}
-
 function openProUpgradeModal() {
   var m = document.getElementById('pro-upgrade-modal');
   if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
-}
-
-function _updateStratTabUI() {
-  var tabBtn = document.getElementById('tab-btn-t');
-  var badge  = document.getElementById('pro-badge-t');
-  if (!tabBtn) return;
-  if (currentUserIsPro) {
-    tabBtn.classList.remove('locked');
-    if (badge) { badge.textContent = 'PRO'; badge.style.background = ''; }
-    tabBtn.title = 'PRO funkcija — pristup omogućen';
-  } else {
-    tabBtn.classList.add('locked');
-    if (badge) badge.textContent = 'PRO';
-    tabBtn.title = 'Ova funkcija je dostupna isključivo PRO korisnicima';
-  }
 }
 
 // ── F5 AI STRATEGIJA ──────────────────────────────────────────────────────────
@@ -14476,45 +14435,6 @@ function vxGridEmpty(containerId, icon, title, sub) {
 function vxGridEmptyHide(containerId) {
   var el = document.getElementById(containerId);
   if (el) el.classList.remove('is-active');
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   VINDEX AI — NAMED COMPONENT LIBRARY v5 (editorial rebuild)
-   Vanilla-JS builder funkcije — svaka vraca HTML string, nema build sistem
-   (React/JSX) u ovoj aplikaciji pa "komponenta" ovde znaci dosledno
-   imenovanu funkciju + posvecenu CSS klasu, ne framework component.
-   ══════════════════════════════════════════════════════════════════════ */
-
-/**
- * VxExecutiveHeader — veliki, asimetricni header ekrana/sekcije.
- * opts: { eyebrow, title, sub, meta: [{label,value}], actionsHtml }
- */
-function VxExecutiveHeader(opts) {
-  opts = opts || {};
-  var meta = (opts.meta || []).map(function(m) {
-    return '<div class="vx-exec-meta-item"><div class="vx-exec-meta-label">' + _htmlEsc(m.label) + '</div><div class="vx-exec-meta-value">' + _htmlEsc(String(m.value)) + '</div></div>';
-  }).join('');
-  return '<div class="vx-exec-header">'
-    + '<div>'
-    + (opts.eyebrow ? '<div class="vx-exec-header-eyebrow">' + _htmlEsc(opts.eyebrow) + '</div>' : '')
-    + '<div class="vx-exec-header-title">' + _htmlEsc(opts.title || '') + '</div>'
-    + (opts.sub ? '<div class="vx-exec-header-sub">' + _htmlEsc(opts.sub) + '</div>' : '')
-    + (meta ? '<div class="vx-exec-header-meta">' + meta + '</div>' : '')
-    + '</div>'
-    + (opts.actionsHtml ? '<div class="vx-exec-header-actions">' + opts.actionsHtml + '</div>' : '')
-    + '</div>';
-}
-
-/**
- * VxInsightPanel — narativni AI-uvid/zakljucak, vizuelno razlicit od .vx-card.
- * opts: { id, label, icon, bodyHtml, style }
- */
-function VxInsightPanel(opts) {
-  opts = opts || {};
-  return '<div class="vx-insight-panel"' + (opts.id ? ' id="' + opts.id + '"' : '') + (opts.style ? ' style="' + opts.style + '"' : '') + '>'
-    + (opts.label ? '<div class="vx-insight-label">' + (opts.icon || '◆') + ' ' + _htmlEsc(opts.label) + '</div>' : '')
-    + '<div class="vx-insight-body">' + (opts.bodyHtml || '') + '</div>'
-    + '</div>';
 }
 
 // ── SVG Line chart ────────────────────────────────────────────
