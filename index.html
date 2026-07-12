@@ -276,7 +276,7 @@
           <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ 500 kredita/mes</li>
           <li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ Klijentski portal</li>
         </ul>
-        <button onclick="pricing_kontakt('pro')" style="padding:.7rem;background:linear-gradient(135deg,#00d4ff,#6366f1);border:none;border-radius:2px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Aktivirajte PRO →</button>
+        <button onclick="pricing_kontakt('pro')" style="padding:.7rem;background:#00d4ff;border:none;border-radius:2px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Aktivirajte PRO →</button>
       </div>
       <!-- Kancelarija -->
       <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,0.09);border-radius:3px;padding:1.5rem;display:flex;flex-direction:column;">
@@ -444,7 +444,7 @@
     <div id="vx-unlock-label" style="font-size:1.25rem;font-weight:800;color:#e2e8f0;margin-bottom:.6rem;letter-spacing:-.01em;"></div>
     <div id="vx-unlock-desc" style="font-size:.8rem;color:rgba(255,255,255,.48);line-height:1.7;margin-bottom:1.6rem;max-width:300px;margin-left:auto;margin-right:auto;"></div>
     <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;">
-      <button onclick="_vxPdCloseModal()" style="padding:.55rem 1.4rem;background:linear-gradient(135deg,rgba(255,255,255,0.09),rgba(0,212,255,0.07));border:1px solid rgba(0,212,255,0.30);border-radius:3px;color:rgba(255,255,255,0.72);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;transition:background .15s;">Isprobaj odmah →</button>
+      <button onclick="_vxPdCloseModal()" style="padding:.55rem 1.4rem;background:rgba(0,212,255,0.10);border:1px solid rgba(0,212,255,0.30);border-radius:3px;color:rgba(255,255,255,0.72);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;transition:background .15s;">Isprobaj odmah →</button>
       <button onclick="_vxPdCloseModal()" style="padding:.55rem 1rem;background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:3px;color:rgba(255,255,255,.38);font-size:.82rem;cursor:pointer;font-family:inherit;">Zatvori</button>
     </div>
     <div style="font-size:.62rem;color:rgba(255,255,255,.18);margin-top:1rem;">automatski se zatvara za 8 sekundi</div>
@@ -1189,7 +1189,7 @@
                     <button class="mic-btn" id="mic-pred-cinjenice" type="button" onclick="micToggle('pred-cinjenice')" title="Glasovni unos" style="position:absolute;right:6px;bottom:6px;width:28px;height:28px;min-width:28px;min-height:28px;padding:0;"><i class="fa-solid fa-microphone" style="font-size:0.7rem;"></i></button>
                   </div>
                   <div class="mic-status" id="mic-status-pred-cinjenice"><span class="mic-status-dot"></span><span>Snimam...</span></div>
-                  <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:linear-gradient(135deg,#00d4ff,#1264c4);border:none;border-radius:2px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">Analiziraj predmet</button>
+                  <button onclick="pred_submitProcena()" style="width:100%;margin-top:0.35rem;padding:0.6rem;background:#00d4ff;border:none;border-radius:2px;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;">Analiziraj predmet</button>
                 </details>
                 <div class="pred-section-lbl" style="margin-top:1rem;">Alati u kontekstu predmeta</div>
                 <div class="pred-ai-tool-links">
@@ -1575,7 +1575,7 @@
                       <option value="vodenje">Vođenje — puna kontrola</option>
                     </select>
                     <button onclick="saradnja_dodaj()"
-                      style="padding:.55rem;border:none;border-radius:2px;background:linear-gradient(135deg,#0099cc,rgba(255,255,255,0.72));color:#000;font-weight:700;font-size:.8rem;cursor:pointer;">
+                      style="padding:.55rem;border:none;border-radius:2px;background:#00d4ff;color:#010308;font-weight:700;font-size:.8rem;cursor:pointer;">
                       + Dodaj saradnika
                     </button>
                     <div id="saradnja-forma-err" style="display:none;font-size:.75rem;color:#ff9090;"></div>
@@ -2046,7 +2046,7 @@
                 <input type="number" id="praksa-year-to" inputmode="numeric" placeholder="Do god." min="2000" max="2030" style="width:96px;box-sizing:border-box;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:3px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.65rem 0.9rem;outline:none;">
               </div>
               <div style="display:flex;gap:0.45rem;">
-                <button id="praksa-search-btn" onclick="praksa_search()" style="flex:1;padding:0.78rem;background:linear-gradient(135deg,#00d4ff 0%,#1264c4 100%);border:none;border-radius:3px;color:#fff;font-family:var(--font-ui);font-size:0.82rem;font-weight:600;letter-spacing:0.04em;cursor:pointer;">Pretraži sudsku praksu</button>
+                <button id="praksa-search-btn" onclick="praksa_search()" style="flex:1;padding:0.78rem;background:#00d4ff;border:none;border-radius:3px;color:#fff;font-family:var(--font-ui);font-size:0.82rem;font-weight:600;letter-spacing:0.04em;cursor:pointer;">Pretraži sudsku praksu</button>
                 <button id="praksa-grupisano-btn" onclick="praksa_load_grupisano()" style="padding:0.78rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:3px;color:rgba(255,255,255,0.70);font-family:var(--font-ui);font-size:0.82rem;font-weight:600;cursor:pointer;" title="Grupisanje presuda: Ko dobija?">Za/Protiv</button>
                 <button onclick="praksa_reset_filters()" style="padding:0.78rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:3px;color:rgba(255,255,255,0.45);font-family:var(--font-ui);font-size:0.82rem;cursor:pointer;">Resetuj</button>
               </div>
@@ -2112,7 +2112,7 @@
             <div style="margin-top:1.2rem;padding:1rem;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(255,255,255,0.03));border:1px solid rgba(99,102,241,0.25);border-radius:3px;">
               <div style="font-size:.78rem;font-weight:700;color:rgba(200,180,255,.9);margin-bottom:.3rem;">Kompletna strateška analiza <span class="pro-badge">PRO</span></div>
               <div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.7rem;line-height:1.55;">Jedan klik pokreće svih 6 modula u automatskom redosledu: Pravni Revizor → Analiza rizika → Analizator svedoka → Crveni tim → Sudija → Sinteza. Kompletan strateški izveštaj za 2–3 minuta. Koristi 6 kredita.</div>
-              <button id="strat-ork-btn" onclick="stratOrkestratorPokreni()" style="width:100%;padding:.6rem 1rem;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(0,212,255,0.07));border:1px solid rgba(99,102,241,0.4);border-radius:2px;color:rgba(220,210,255,.9);font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit;">Pokreni kompletnu analizu (6 kredita)</button>
+              <button id="strat-ork-btn" onclick="stratOrkestratorPokreni()" style="width:100%;padding:.6rem 1rem;background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.4);border-radius:2px;color:rgba(220,210,255,.9);font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit;">Pokreni kompletnu analizu (6 kredita)</button>
             </div>
             <div class="strat-rezultat-wrap" id="strat-rezultat-wrap">
               <div class="strat-rezultat-header">
@@ -2480,7 +2480,7 @@
                     <div class="pipeline-preporuka-lbl">Copilot preporuka</div>
                     <div id="pipeline-preporuka-txt"></div>
                   </div>
-                  <button onclick="intakePipelineDone()" style="width:100%;background:linear-gradient(135deg,#00d4ff,#1264c4);border:none;border-radius:2px;color:#fff;font-size:0.85rem;font-weight:600;padding:11px;cursor:pointer;">
+                  <button onclick="intakePipelineDone()" style="width:100%;background:#00d4ff;border:none;border-radius:2px;color:#fff;font-size:0.85rem;font-weight:600;padding:11px;cursor:pointer;">
                     Otvori predmet →
                   </button>
                 </div>
@@ -2517,7 +2517,7 @@
                 <option value="ostalo">Ostalo</option>
               </select>
               <div id="qi-err" style="display:none;color:#ff9090;font-size:0.75rem;margin-top:8px;"></div>
-              <button id="qi-btn" onclick="qiKreiraj()" style="width:100%;margin-top:1rem;background:linear-gradient(135deg,#00d4ff,#1264c4);border:none;border-radius:2px;color:#fff;font-size:0.88rem;font-weight:600;padding:11px;cursor:pointer;">Kreiraj predmet →</button>
+              <button id="qi-btn" onclick="qiKreiraj()" style="width:100%;margin-top:1rem;background:#00d4ff;border:none;border-radius:2px;color:#fff;font-size:0.88rem;font-weight:600;padding:11px;cursor:pointer;">Kreiraj predmet →</button>
             </div>
           </div>
 
@@ -2560,7 +2560,7 @@
               </div>
               <div id="bulk-footer" style="display:none;flex-shrink:0;padding:12px 1.5rem;border-top:1px solid rgba(255,255,255,0.07);display:flex;justify-content:flex-end;gap:10px;">
                 <button onclick="bulkZatvori()" style="padding:9px 18px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.55);font-size:0.84rem;cursor:pointer;">Zatvori</button>
-                <button id="bulk-import-btn" onclick="bulkImportuj()" style="padding:9px 22px;background:linear-gradient(135deg,#00d4ff,#1264c4);border:none;border-radius:2px;color:#fff;font-size:0.84rem;font-weight:600;cursor:pointer;">Uvezi sve</button>
+                <button id="bulk-import-btn" onclick="bulkImportuj()" style="padding:9px 22px;background:#00d4ff;border:none;border-radius:2px;color:#fff;font-size:0.84rem;font-weight:600;cursor:pointer;">Uvezi sve</button>
               </div>
             </div>
           </div>
@@ -2634,7 +2634,7 @@
               <!-- Footer -->
               <div style="padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.06);flex-shrink:0;">
                 <button onclick="onboardingDismiss()" style="background:none;border:none;font-size:0.72rem;color:rgba(255,255,255,0.25);cursor:pointer;padding:4px 0;font-family:inherit;min-height:44px;">Preskoči za sada</button>
-                <button onclick="onboardingStep(1)" style="padding:10px 24px;background:linear-gradient(135deg,rgba(255,255,255,0.72),#0088cc);border:none;border-radius:2px;color:#010308;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;min-height:44px;">Počnimo →</button>
+                <button onclick="onboardingStep(1)" style="padding:10px 24px;background:#00d4ff;border:none;border-radius:2px;color:#010308;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;min-height:44px;">Počnimo →</button>
               </div>
             </div>
           </div>
@@ -3163,7 +3163,7 @@
               </div>
               <div style="display:flex;gap:.5rem;">
                 <button class="settings-btn" onclick="planLoad()">↻ Osveži</button>
-                <button class="settings-btn" onclick="openProModal()" style="background:linear-gradient(135deg,rgba(0,212,255,0.12),rgba(99,102,241,.12));border-color:rgba(0,212,255,0.25);color:rgba(255,255,255,0.72);">⬆ Upgrade plan</button>
+                <button class="settings-btn" onclick="openProModal()" style="background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.25);color:rgba(255,255,255,0.72);">⬆ Upgrade plan</button>
               </div>
             </div>
 
@@ -4125,13 +4125,13 @@
 <!-- VOICE COMMAND MODAL                                            -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <div id="voice-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
-  <div style="background:#0d1117;border:1px solid rgba(138,75,255,.4);border-radius:4px;padding:2rem 2.5rem;width:min(480px,90vw);text-align:center;box-shadow:0 0 60px rgba(138,75,255,.2);">
-    <div id="voice-pulse" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#8a4bff,#5b2fd4);margin:0 auto 1.2rem;display:flex;align-items:center;justify-content:center;font-size:1.8rem;box-shadow:0 0 0 0 rgba(138,75,255,.4);animation:voice-ring 1.5s ease-in-out infinite;"></div>
+  <div style="background:#0d1117;border:1px solid rgba(0,212,255,.4);border-radius:4px;padding:2rem 2.5rem;width:min(480px,90vw);text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.6);">
+    <div id="voice-pulse" style="width:72px;height:72px;border-radius:2px;background:#00d4ff;margin:0 auto 1.2rem;display:flex;align-items:center;justify-content:center;font-size:1.8rem;box-shadow:0 0 0 0 rgba(0,212,255,.4);animation:voice-ring 1.5s ease-in-out infinite;"></div>
     <div style="font-size:1rem;color:#fff;font-weight:600;margin-bottom:.4rem;">Slušam...</div>
-    <div id="voice-transcript" style="min-height:2.5rem;font-size:.85rem;color:rgba(180,150,255,.8);margin:.6rem 0 1rem;font-style:italic;line-height:1.5;">Izgovorite komandu — npr. "otvori predmet Petrović i analiziraj ga"</div>
-    <div id="voice-status" style="font-size:.75rem;color:rgba(138,75,255,.6);margin-bottom:.6rem;"></div>
-    <div id="voice-response" style="display:none;max-height:180px;overflow-y:auto;font-size:.82rem;color:#e2d9ff;text-align:left;background:rgba(138,75,255,.08);border:1px solid rgba(138,75,255,.2);border-radius:2px;padding:.7rem 1rem;margin-bottom:1rem;line-height:1.5;"></div>
-    <button onclick="voice_stop()" style="padding:.55rem 1.4rem;border:1px solid rgba(138,75,255,.4);border-radius:2px;background:rgba(138,75,255,.1);color:#b89aff;font-size:.82rem;cursor:pointer;">✕ Otkaži</button>
+    <div id="voice-transcript" style="min-height:2.5rem;font-size:.85rem;color:rgba(155,215,255,.8);margin:.6rem 0 1rem;font-style:italic;line-height:1.5;">Izgovorite komandu — npr. "otvori predmet Petrović i analiziraj ga"</div>
+    <div id="voice-status" style="font-size:.75rem;color:rgba(0,212,255,.6);margin-bottom:.6rem;"></div>
+    <div id="voice-response" style="display:none;max-height:180px;overflow-y:auto;font-size:.82rem;color:#d9f2ff;text-align:left;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);border-radius:2px;padding:.7rem 1rem;margin-bottom:1rem;line-height:1.5;"></div>
+    <button onclick="voice_stop()" style="padding:.55rem 1.4rem;border:1px solid rgba(0,212,255,.4);border-radius:2px;background:rgba(0,212,255,.1);color:#7fe0ff;font-size:.82rem;cursor:pointer;">✕ Otkaži</button>
   </div>
 </div>
 
@@ -4157,7 +4157,7 @@
     <div id="onboard-step-content"></div>
     <div style="display:flex;justify-content:center;gap:.75rem;margin-top:1.5rem;">
       <button id="onboard-prev" onclick="onboard_prev()" style="padding:.55rem 1.2rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:2px;color:rgba(255,255,255,.7);font-size:14px;cursor:pointer;font-family:inherit;display:none;">← Nazad</button>
-      <button id="onboard-next" onclick="onboard_next()" style="padding:.55rem 1.5rem;background:linear-gradient(135deg,#00d4ff,#6366f1);border:none;border-radius:2px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Nastavi →</button>
+      <button id="onboard-next" onclick="onboard_next()" style="padding:.55rem 1.5rem;background:#00d4ff;border:none;border-radius:2px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Nastavi →</button>
     </div>
     <div style="margin-top:1rem;" id="onboard-dots"></div>
   </div>
@@ -4385,7 +4385,7 @@
       </label>
       <div style="display:flex;gap:.6rem;justify-content:flex-end;">
         <button onclick="tosDecline()" style="padding:.45rem 1rem;font-size:.78rem;border:1px solid rgba(255,255,255,.12);border-radius:2px;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;">Odjavi se</button>
-        <button id="tos-accept-btn" onclick="tosAccept()" disabled style="padding:.45rem 1.4rem;font-size:.78rem;border:none;border-radius:2px;background:rgba(37,99,235,.35);color:rgba(255,255,255,.35);cursor:not-allowed;font-weight:600;transition:all .2s;">Prihvatam ✓</button>
+        <button id="tos-accept-btn" onclick="tosAccept()" disabled style="padding:.45rem 1.4rem;font-size:.78rem;border:none;border-radius:2px;background:rgba(0,212,255,.20);color:rgba(255,255,255,.35);cursor:not-allowed;font-weight:600;transition:all .2s;">Prihvatam ✓</button>
       </div>
     </div>
   </div>

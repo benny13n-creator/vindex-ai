@@ -683,12 +683,12 @@ function tosChkChange() {
   if (!chk || !btn) return;
   if (chk.checked) {
     btn.disabled = false;
-    btn.style.background = 'linear-gradient(135deg,#2563eb,#1d4ed8)';
-    btn.style.color = '#fff';
+    btn.style.background = '#00d4ff';
+    btn.style.color = '#010308';
     btn.style.cursor = 'pointer';
   } else {
     btn.disabled = true;
-    btn.style.background = 'rgba(37,99,235,.35)';
+    btn.style.background = 'rgba(0,212,255,.20)';
     btn.style.color = 'rgba(255,255,255,.35)';
     btn.style.cursor = 'not-allowed';
   }
