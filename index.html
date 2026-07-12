@@ -1366,6 +1366,36 @@
                   <div id="outcome-intel-stats" style="display:none;margin-top:.7rem;display:flex;gap:1rem;flex-wrap:wrap;"></div>
                 </div>
 
+                <!-- Digital Twin — 3-scenario simulacija razvoja predmeta -->
+                <div class="strat-feature-card" onclick="twinPanelShow()" id="twin-card" style="margin-top:.4rem;">
+                  <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-2.8-2.8L7 14"/></svg></div>
+                  <div class="sfc-body">
+                    <div class="sfc-title">Digital Twin — simulacija razvoja <span class="pro-badge">PRO</span></div>
+                    <div class="sfc-desc">AI simulira 3 scenarija razvoja predmeta (optimistički/realni/pesimistički) sa procentima verovatnoće, ključnim tačkama odlučivanja i "šta ako" analizom.</div>
+                  </div>
+                  <div class="sfc-arrow">›</div>
+                </div>
+
+                <!-- Digital Twin rezultat panel -->
+                <div id="twin-panel" style="display:none;margin-top:.5rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:.9rem;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+                    <span style="font-size:.72rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;">Digital Twin</span>
+                    <div style="display:flex;gap:.4rem;align-items:center;">
+                      <button onclick="twinSimulirajPokreni()" id="twin-simuliraj-btn" class="vx-btn vx-btn-secondary" style="height:26px;padding:0 .6rem;font-size:.7rem;">Pokreni simulaciju (3 kredita)</button>
+                      <button onclick="document.getElementById('twin-panel').style.display='none';" style="background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:.8rem;">✕</button>
+                    </div>
+                  </div>
+                  <div id="twin-result-wrap"><div style="color:rgba(255,255,255,.3);font-size:.8rem;">Kliknite "Pokreni simulaciju" da AI generiše 3 scenarija razvoja ovog predmeta.</div></div>
+                  <div style="margin-top:.7rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.06);">
+                    <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:.35rem;">"Šta ako" hipoteza (1 kredit)</div>
+                    <div style="display:flex;gap:.4rem;">
+                      <input type="text" id="twin-hipoteza-input" placeholder="npr. Da smo prihvatili nagodbu od 500.000 RSD..." style="flex:1;padding:.4rem .55rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:#fff;font-size:.74rem;box-sizing:border-box;">
+                      <button onclick="twinStaAkoPokreni()" class="vx-btn vx-btn-secondary">Analiziraj</button>
+                    </div>
+                    <div id="twin-staako-result-wrap" style="margin-top:.5rem;"></div>
+                  </div>
+                </div>
+
               </div><!-- /pred-pane-strategija -->
 
               <!-- ── TAB 5: Rokovi ─────────────────────────────────────── -->

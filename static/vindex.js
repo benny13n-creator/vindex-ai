@@ -16535,6 +16535,80 @@ function outcome_intel_panel_show() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// DIGITAL TWIN — 3-scenario simulacija razvoja predmeta (routers/digital_twin.py)
+// ═══════════════════════════════════════════════════════════════
+
+function twinPanelShow() {
+  var panel = document.getElementById('twin-panel');
+  if (panel) panel.style.display = 'block';
+}
+
+async function twinSimulirajPokreni() {
+  var wrap = document.getElementById('twin-result-wrap');
+  var btn  = document.getElementById('twin-simuliraj-btn');
+  if (!wrap || !activePredmetId || !currentSession) return;
+  if (!currentUserIsPro) { wrap.innerHTML = '<div class="strat-pro-gate">Dostupno samo PRO korisnicima.</div>'; return; }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Simuliram...'; }
+  wrap.innerHTML = '<div class="strat-loading">⏳ AI simulira 3 scenarija razvoja predmeta...</div>';
+  try {
+    var res = await fetch(BASE_URL + '/api/twin/simulacija', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ predmet_id: activePredmetId })
+    });
+    if (res.status === 403) { wrap.innerHTML = '<div class="strat-pro-gate">Dostupno samo PRO korisnicima.</div>'; return; }
+    if (!res.ok) { var errD = await res.json().catch(function(){return{};}); throw new Error(errD.detail || ('Server greška: ' + res.status)); }
+    var d = await res.json();
+    var scenBoja = { 'Optimisticki': '#4ade80', 'Realni': '#93c5fd', 'Pesimisticki': '#f87171' };
+    var scenarijiHtml = (d.scenariji || []).map(function(s) {
+      var c = scenBoja[s.naziv] || '#9ca3af';
+      return '<div style="padding:.7rem .8rem;border-left:2px solid ' + c + ';background:rgba(255,255,255,.02);margin-bottom:.5rem;">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;"><span style="font-size:.85rem;font-weight:700;color:' + c + ';">' + _htmlEsc(s.naziv || '') + '</span><span style="font-size:.78rem;color:rgba(255,255,255,.6);">' + (s.verovatnoca != null ? s.verovatnoca + '%' : '') + (s.procenjeno_trajanje_meseci ? ' · ~' + s.procenjeno_trajanje_meseci + ' mes.' : '') + '</span></div>'
+        + (s.opis ? '<div style="font-size:.78rem;color:rgba(255,255,255,.72);margin-bottom:.35rem;">' + _htmlEsc(s.opis) + '</div>' : '')
+        + _stratListHtml('Ključni rizici', s.kljucni_rizici, '#ffbb70')
+        + _stratListHtml('Preporučene akcije', s.preporucene_akcije, '#4ade80')
+        + '</div>';
+    }).join('');
+    wrap.innerHTML = scenarijiHtml
+      + _stratListHtml('Ključne tačke odlučivanja', d.kljucne_tacke, '#93c5fd')
+      + (d.optimalna_strategija ? '<div style="margin-top:.5rem;padding:.6rem .7rem;background:rgba(0,212,255,.06);border-left:2px solid rgba(0,212,255,.4);font-size:.8rem;color:rgba(255,255,255,.8);"><b>Optimalna strategija:</b> ' + _htmlEsc(d.optimalna_strategija) + '</div>' : '');
+  } catch (e) {
+    wrap.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Osveži simulaciju (3 kredita)'; }
+  }
+}
+
+async function twinStaAkoPokreni() {
+  var inputEl = document.getElementById('twin-hipoteza-input');
+  var wrap = document.getElementById('twin-staako-result-wrap');
+  if (!inputEl || !wrap || !activePredmetId || !currentSession) return;
+  var hipoteza = inputEl.value.trim();
+  if (!hipoteza) { wrap.innerHTML = '<div class="strat-error">Unesite hipotezu.</div>'; return; }
+  if (!currentUserIsPro) { wrap.innerHTML = '<div class="strat-pro-gate">Dostupno samo PRO korisnicima.</div>'; return; }
+
+  wrap.innerHTML = '<div class="strat-loading">⏳ Analiziram uticaj hipoteze...</div>';
+  try {
+    var res = await fetch(BASE_URL + '/api/twin/sta-ako', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ predmet_id: activePredmetId, hipoteza: hipoteza })
+    });
+    if (res.status === 403) { wrap.innerHTML = '<div class="strat-pro-gate">Dostupno samo PRO korisnicima.</div>'; return; }
+    if (!res.ok) { var errD = await res.json().catch(function(){return{};}); throw new Error(errD.detail || ('Server greška: ' + res.status)); }
+    var d = await res.json();
+    wrap.innerHTML = '<div class="vx-card" style="padding:.7rem .8rem;">'
+      + (d.uticaj ? '<div style="font-size:.78rem;color:rgba(255,255,255,.75);margin-bottom:.4rem;">' + _htmlEsc(d.uticaj) + '</div>' : '')
+      + (d.nova_verovatnoca_uspeha != null ? '<div style="font-size:.8rem;font-weight:700;color:#93c5fd;margin-bottom:.35rem;">Nova verovatnoća uspeha: ' + d.nova_verovatnoca_uspeha + '%</div>' : '')
+      + _stratListHtml('Preporučene akcije', d.preporucene_akcije, '#4ade80')
+      + '</div>';
+  } catch (e) {
+    wrap.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // CONFLICT CHECK — ažuriran da zove novi endpoint
 // ═══════════════════════════════════════════════════════════════
 async function crmPokreniKonfliktNovi() {
