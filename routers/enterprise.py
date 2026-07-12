@@ -5,11 +5,29 @@ Vindex AI — routers/enterprise.py
 Enterprise funkcionalnosti: upravljanje timom, firma-nivo statistike,
 delegiranje predmeta, role-based access control.
 
+NAPOMENA (nadjeno pri auditu): ovaj fajl je izvorno pisan protiv tabele
+"firma_clanovi"/"firma_pozivnice" koje nikad nisu migrirane -- svaki poziv
+je vracao 500. U medjuvremenu je routers/kancelarija.py postao STVARNI,
+aktivni tim-management sistem (kancelarije/kancelarija_clanovi, vec ima
+svoj UI u Podesavanja -> Kancelarija). Da bi se izbeglo pravljenje DRUGOG,
+konkurentnog sistema za poziv/uloge/uklanjanje clanova:
+
+  - tim/pozovi, tim/clanovi, tim/{user_id} DELETE, tim/uloge OSTAJU
+    nepopravljeni (jos uvek gadjaju nepostojeci firma_clanovi) -- ta
+    funkcionalnost je u potpunosti pokrivena sa /api/kancelarija/pozovi,
+    /uloga/{clan_id}, /ukloni/{clan_id}. Ne pozivati ove cetiri.
+  - statistike i kapacitet SU popravljeni (_get_firma_id / _get_firma_clan_ids
+    sada citaju iz kancelarije/kancelarija_clanovi) jer nemaju ekvivalent
+    nigde drugde -- prihod/fakture agregacija i pregled zauzetosti tima.
+  - predmet/delegiraj i predmet/delegiranja rade nezavisno od gornjeg
+    (samo predmet_delegiranja tabela, migrirana u 054) -- delegiranje
+    predmeta konkretnom advokatu u firmi nema ekvivalent nigde.
+
 Endpoints:
-  POST   /api/enterprise/tim/pozovi        — pozovi advokata u tim
-  GET    /api/enterprise/tim/clanovi       — lista clanova tima
-  DELETE /api/enterprise/tim/{user_id}     — ukloni clana
-  POST   /api/enterprise/tim/uloge         — dodeli ulogu (admin/advokat/asistent)
+  POST   /api/enterprise/tim/pozovi        — [SUPERSEDED, ne koristiti]
+  GET    /api/enterprise/tim/clanovi       — [SUPERSEDED, ne koristiti]
+  DELETE /api/enterprise/tim/{user_id}     — [SUPERSEDED, ne koristiti]
+  POST   /api/enterprise/tim/uloge         — [SUPERSEDED, ne koristiti]
   GET    /api/enterprise/statistike        — firma-nivo dashboard
   POST   /api/enterprise/predmet/delegiraj — delegiraj predmet advokatu
   GET    /api/enterprise/kapacitet         — pregled zauzetosti advokata
@@ -57,17 +75,53 @@ async def _check_firma_admin(supa, user_id: str) -> dict:
 
 
 async def _get_firma_id(supa, user_id: str) -> str:
-    """Vrati firma_id za korisnika ili podigne 404."""
-    r = await asyncio.to_thread(
-        lambda: supa.table("firma_clanovi")
-            .select("firma_id")
-            .eq("user_id", user_id)
+    """Vrati kancelarija_id za korisnika (kao admin ili aktivan clan) ili podigne 404.
+
+    NAPOMENA: ovaj fajl je originalno pisan protiv tabele "firma_clanovi" koja
+    nikad nije migrirana -- stvarni, aktivni tim-management sistem
+    (routers/kancelarija.py) koristi "kancelarije"/"kancelarija_clanovi".
+    Ispravljeno da cita iz stvarnih tabela umesto da uvek baca 404.
+    """
+    admin_r = await asyncio.to_thread(
+        lambda: supa.table("kancelarije")
+            .select("id")
+            .eq("admin_uid", user_id)
             .maybe_single()
             .execute()
     )
-    if not r.data:
+    if admin_r.data:
+        return admin_r.data["id"]
+
+    member_r = await asyncio.to_thread(
+        lambda: supa.table("kancelarija_clanovi")
+            .select("kancelarija_id")
+            .eq("user_id", user_id)
+            .eq("status", "aktivan")
+            .maybe_single()
+            .execute()
+    )
+    if not member_r.data:
         raise HTTPException(status_code=404, detail="Niste clan nijedne firme.")
-    return r.data["firma_id"]
+    return member_r.data["kancelarija_id"]
+
+
+async def _get_firma_clan_ids(supa, kancelarija_id: str, admin_uid: str) -> list[dict]:
+    """Vrati sve aktivne clanove firme (uloga + user_id), ukljucujuci admina.
+
+    admin_uid nema svoj red u kancelarija_clanovi (vidi routers/kancelarija.py
+    firma_predmeti) -- eksplicitno ga dodajemo na pocetak liste.
+    """
+    r = await asyncio.to_thread(
+        lambda: supa.table("kancelarija_clanovi")
+            .select("user_id, uloga")
+            .eq("kancelarija_id", kancelarija_id)
+            .eq("status", "aktivan")
+            .execute()
+    )
+    clanovi = list(r.data or [])
+    if not any(c.get("user_id") == admin_uid for c in clanovi):
+        clanovi.insert(0, {"user_id": admin_uid, "uloga": "admin"})
+    return clanovi
 
 
 # ── Request modeli ─────────────────────────────────────────────────────────────
@@ -225,13 +279,8 @@ async def firma_statistike(user: dict = Depends(get_current_user)):
 
     firma_id = await _get_firma_id(supa, uid)
 
-    clanovi_r = await asyncio.to_thread(
-        lambda: supa.table("firma_clanovi")
-            .select("user_id, uloga")
-            .eq("firma_id", firma_id)
-            .execute()
-    )
-    clan_ids = [c["user_id"] for c in (clanovi_r.data or [])]
+    clanovi = await _get_firma_clan_ids(supa, firma_id, uid)
+    clan_ids = [c["user_id"] for c in clanovi]
 
     if not clan_ids:
         return {"firma_id": firma_id, "clanovi_count": 0}
@@ -251,14 +300,14 @@ async def firma_statistike(user: dict = Depends(get_current_user)):
         ),
         asyncio.to_thread(
             lambda: supa.table("fakture")
-                .select("user_id, iznos, status")
+                .select("user_id, iznos_sa_pdv, status")
                 .in_("user_id", clan_ids)
                 .execute()
         ),
     )
 
     fakture = fakture_r.data or []
-    ukupan_prihod  = sum(float(f.get("iznos") or 0) for f in fakture)
+    ukupan_prihod  = sum(float(f.get("iznos_sa_pdv") or 0) for f in fakture)
     placene_fakture = sum(1 for f in fakture if f.get("status") == "placena")
 
     # Broj predmeta po statusu
@@ -288,13 +337,7 @@ async def firma_kapacitet(user: dict = Depends(get_current_user)):
 
     firma_id = await _get_firma_id(supa, uid)
 
-    clanovi_r = await asyncio.to_thread(
-        lambda: supa.table("firma_clanovi")
-            .select("user_id, uloga")
-            .eq("firma_id", firma_id)
-            .execute()
-    )
-    clanovi = clanovi_r.data or []
+    clanovi = await _get_firma_clan_ids(supa, firma_id, uid)
 
     if not clanovi:
         return {"kapacitet": []}
