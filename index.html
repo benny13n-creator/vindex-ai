@@ -2800,6 +2800,7 @@
               <button class="vx-pill" data-mode="nacrti" onclick="aiwsSetMode('nacrti',this)">Nacrti podnesaka</button>
               <button class="vx-pill" data-mode="strategija" onclick="aiwsSetMode('strategija',this)">Strategija</button>
               <button class="vx-pill" data-mode="oblasti" onclick="aiwsSetMode('oblasti',this)">Pravne oblasti</button>
+              <button class="vx-pill" data-mode="litigation" onclick="aiwsSetMode('litigation',this)">Litigation Intelligence</button>
             </div>
 
             <div id="aiws-mode-zakon" class="aiws-mode-pane">
@@ -3091,6 +3092,74 @@
                 <div class="strat-rezultat-body" id="strat-rezultat-body"></div>
               </div>
             </div><!-- /aiws-mode-strategija -->
+
+            <div id="aiws-mode-litigation" class="aiws-mode-pane" style="display:none;">
+              <div class="t-guide">
+                <div class="t-guide-icon"><i data-lucide="scale" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
+                <div class="t-guide-text"><span class="t-guide-bold">Litigation Intelligence.</span> Obaveštajni sloj za aktivni predmet — slični slučajevi iz vaše kancelarije, istorija suda/sudije, profil protivničke strane i trendovi ishoda. Za brzu, opštu pretragu sudske prakse koristite tab <b>Sudska praksa</b>.</div>
+              </div>
+              <div id="lit-no-predmet-banner" style="display:none;padding:.7rem .9rem;background:rgba(255,180,0,0.07);border:1px solid rgba(255,180,0,0.22);border-radius:2px;color:#ffd166;font-size:.8rem;margin-bottom:.8rem;">
+                Otvorite predmet (tab Predmeti) da bi rezultati ispod bili personalizovani za taj slučaj.
+              </div>
+
+              <!-- Slični predmeti -->
+              <div class="vx-card" style="padding:.9rem 1rem;margin-bottom:.8rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;">
+                  <div>
+                    <div style="font-size:.8rem;color:rgba(255,255,255,.75);font-weight:700;">Slični predmeti</div>
+                    <div style="font-size:.63rem;color:rgba(0,212,255,0.3);letter-spacing:.04em;">Law Firm Brain — iskustvo kancelarije</div>
+                  </div>
+                  <button onclick="litIntelBrainLoad()" id="lit-brain-load-btn" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,0.12);border-radius:2px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.70);cursor:pointer;">Potraži slične predmete</button>
+                </div>
+                <div style="font-size:.73rem;color:rgba(255,255,255,.35);line-height:1.5;">Pretraga svih prethodnih predmeta kancelarije radi pronalaženja sličnih slučajeva i preporuka na osnovu iskustva.</div>
+                <div id="lit-brain-loading" style="display:none;font-size:.75rem;color:rgba(255,255,255,0.45);margin-top:.5rem;">Pretražujem iskustvo kancelarije...</div>
+                <div id="lit-brain-rezultat" style="display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(0,212,255,0.12);border-radius:2px;padding:.7rem .85rem;font-size:.78rem;color:rgba(200,240,255,.85);line-height:1.65;white-space:pre-wrap;margin-top:.5rem;"></div>
+              </div>
+
+              <!-- Trend ishoda -->
+              <div class="vx-card" style="padding:.9rem 1rem;margin-bottom:.8rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;">
+                  <div>
+                    <div style="font-size:.8rem;color:rgba(255,255,255,.75);font-weight:700;">Trend ishoda</div>
+                    <div style="font-size:.63rem;color:rgba(0,212,255,0.3);letter-spacing:.04em;">Outcome Intelligence</div>
+                  </div>
+                  <button onclick="litIntelOutcomeShow()" id="lit-outcome-load-btn" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,0.12);border-radius:2px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.70);cursor:pointer;">Prikaži trendove</button>
+                </div>
+                <div id="lit-outcome-loading" style="display:none;font-size:.75rem;color:rgba(255,255,255,0.3);margin-top:.5rem;">Analiziram istoriju kancelarije...</div>
+                <div id="lit-outcome-result" style="display:none;font-size:.8rem;white-space:pre-wrap;line-height:1.6;color:#c7d7f0;margin-top:.5rem;"></div>
+                <div id="lit-outcome-stats" style="display:none;margin-top:.7rem;gap:1rem;flex-wrap:wrap;"></div>
+              </div>
+
+              <!-- Sudija i sud -->
+              <div class="vx-card" style="padding:.9rem 1rem;margin-bottom:.8rem;">
+                <div style="font-size:.8rem;color:rgba(255,255,255,.75);font-weight:700;margin-bottom:.1rem;">Sudija i sud <span class="pro-badge">PRO</span></div>
+                <div style="font-size:.63rem;color:rgba(0,212,255,0.3);letter-spacing:.04em;margin-bottom:.5rem;">Judge Intelligence Profiler</div>
+                <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem;">
+                  <input type="text" id="strat-judge-sud" placeholder="Naziv suda (obavezno)" style="flex:2;min-width:160px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:#e6edf3;font-size:.78rem;padding:.5rem .7rem;outline:none;font-family:inherit;">
+                  <input type="text" id="strat-judge-ime" placeholder="Ime sudije (opciono)" style="flex:2;min-width:160px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:#e6edf3;font-size:.78rem;padding:.5rem .7rem;outline:none;font-family:inherit;">
+                  <button onclick="stratJudgeProfile()" style="padding:.5rem .9rem;background:#00d4ff;border:none;border-radius:2px;color:#010308;font-size:.78rem;font-weight:600;cursor:pointer;">Profiliši</button>
+                </div>
+                <div id="strat-judge-result-wrap"></div>
+              </div>
+
+              <!-- Protivnička strana -->
+              <div class="vx-card" style="padding:.9rem 1rem;margin-bottom:.8rem;">
+                <div style="font-size:.8rem;color:rgba(255,255,255,.75);font-weight:700;margin-bottom:.1rem;">Protivnička strana <span class="pro-badge">PRO</span></div>
+                <div style="font-size:.63rem;color:rgba(0,212,255,0.3);letter-spacing:.04em;margin-bottom:.5rem;">Opponent Intelligence</div>
+                <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem;">
+                  <input type="text" id="strat-opponent-naziv" placeholder="Naziv protivničke strane (obavezno)" style="flex:2;min-width:160px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:#e6edf3;font-size:.78rem;padding:.5rem .7rem;outline:none;font-family:inherit;">
+                  <input type="text" id="strat-opponent-adv" placeholder="Advokat / kancelarija (opciono)" style="flex:2;min-width:160px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:#e6edf3;font-size:.78rem;padding:.5rem .7rem;outline:none;font-family:inherit;">
+                  <button onclick="stratOpponentIntel()" style="padding:.5rem .9rem;background:#00d4ff;border:none;border-radius:2px;color:#010308;font-size:.78rem;font-weight:600;cursor:pointer;">Analiziraj</button>
+                </div>
+                <div id="strat-opponent-result-wrap"></div>
+              </div>
+
+              <!-- Cross-referenca ka istraživanju i sudskoj praksi -->
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                <button onclick="aiwsSetMode('zakon', document.querySelector('#aiws-modes .vx-pill[data-mode=zakon]'))" style="flex:1;min-width:180px;padding:.6rem .8rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:2px;color:rgba(255,255,255,0.6);font-size:.76rem;cursor:pointer;font-family:inherit;">→ Istraživanje zakona i argumentacija</button>
+                <button onclick="setTab(document.getElementById('tab-btn-s'),'s')" style="flex:1;min-width:180px;padding:.6rem .8rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:2px;color:rgba(255,255,255,0.6);font-size:.76rem;cursor:pointer;font-family:inherit;">→ Puna pretraga sudske prakse</button>
+              </div>
+            </div><!-- /aiws-mode-litigation -->
 
           </div>
 

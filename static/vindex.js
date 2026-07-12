@@ -2184,7 +2184,7 @@ function setTab(el,t){
   if (t==='pi') piLoad();
   // Sakrij FAB kada korisnik napusti predmete
   if (t !== 'p') { if (typeof pred_fab_hide === 'function') pred_fab_hide(); }
-  if (t==='aiws' && currentUserIsPro && _aiwsMode === 'zakon') { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
+  if (t==='aiws') { var _mb = document.querySelector('#aiws-modes .vx-pill[data-mode="'+_aiwsMode+'"]'); if (typeof aiwsSetMode==='function') aiwsSetMode(_aiwsMode, _mb); }
   if (t==='s') praksa_load_initial();
   if (t==='p') { pred_load(); predFirmaInit(); }
   if (t==='k') ucitajKlijente();
@@ -2223,6 +2223,10 @@ var _AIWS_MODE_TO_TAB = { zakon: 'q', analiza: 'a', nacrti: 'n', strategija: 't'
 function aiwsDispatchTab() {
   return _AIWS_MODE_TO_TAB[_aiwsMode] || 'q';
 }
+// Modovi koji koriste deljeni t-exec-row (execQuery()) — ostali (oblasti,
+// strategija, litigation) imaju sopstveno dugme za pokretanje i ne treba
+// da dele ovaj bar (eps/bodies u execQuery ionako ne znaju za njih).
+var _AIWS_EXEC_LBL = { zakon: 'Pretraži pravnu bazu', analiza: 'Analiziraj dokument', nacrti: 'Generiši nacrt' };
 function aiwsSetMode(mode, btn) {
   _aiwsMode = mode;
   document.querySelectorAll('#aiws-modes .vx-pill').forEach(function(b){ b.classList.remove('is-active'); });
@@ -2230,6 +2234,13 @@ function aiwsSetMode(mode, btn) {
   document.querySelectorAll('.aiws-mode-pane').forEach(function(p){ p.style.display = 'none'; });
   var el = document.getElementById('aiws-mode-' + mode);
   if (el) el.style.display = 'block';
+  var execRow = document.getElementById('t-exec-row');
+  var credRow = document.getElementById('t-credits-row');
+  var btnLbl  = document.getElementById('btn-lbl');
+  var execLbl = _AIWS_EXEC_LBL[mode];
+  if (execRow) execRow.style.display = execLbl ? '' : 'none';
+  if (credRow) credRow.style.display = execLbl ? (credRow.dataset.wasVisible === '1' ? '' : 'none') : 'none';
+  if (btnLbl && execLbl) btnLbl.textContent = execLbl;
   if (typeof _predAutoFill === 'function') {
     if (mode === 'analiza') _predAutoFill('aitxt', false);
     if (mode === 'nacrti')  _predAutoFill('podnesak-opis', false);
@@ -2240,6 +2251,10 @@ function aiwsSetMode(mode, btn) {
     if (typeof ucitajPlaybookStatus === 'function') ucitajPlaybookStatus();
   }
   if (mode === 'oblasti' && typeof oblastiInit === 'function') oblastiInit();
+  if (mode === 'litigation') {
+    var noPred = document.getElementById('lit-no-predmet-banner');
+    if (noPred) noPred.style.display = activePredmetId ? 'none' : 'block';
+  }
   if (mode === 'zakon' && currentUserIsPro) {
     var ip2 = document.getElementById('interni-stavovi-panel');
     if (ip2) ip2.style.display = '';
@@ -16417,6 +16432,72 @@ function brain_load() {
     if (btn) btn.disabled = false;
     rez.textContent = 'Greška: ' + e.message;
     rez.style.display = 'block';
+  });
+}
+
+// Litigation Intelligence (aiws-mode-litigation) — ista logika kao brain_load(),
+// ali cilja sopstvene DOM id-eve da ne bi kolidirala sa pred-pane-ai-analiza kopijom.
+function litIntelBrainLoad() {
+  if (!activePredmetId || !currentSession) { showToast('Otvorite predmet da biste koristili ovu funkciju.', 'info'); return; }
+  var rez = document.getElementById('lit-brain-rezultat');
+  var lod = document.getElementById('lit-brain-loading');
+  var btn = document.getElementById('lit-brain-load-btn');
+  if (!rez) return;
+  rez.style.display = 'none';
+  lod.style.display = 'block';
+  if (btn) btn.disabled = true;
+
+  fetch('/api/precedenti/predmeti/' + activePredmetId, {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    lod.style.display = 'none';
+    if (btn) btn.disabled = false;
+    var tekst = d.analiza || 'Nema podataka.';
+    if (d.ukupno_slicnih > 0) {
+      tekst += '\n\nPronađeno ' + d.ukupno_slicnih + ' sličnih predmeta tipa "' + (d.tip||'') + '" u kancelariji.';
+    }
+    rez.textContent = tekst;
+    rez.style.display = 'block';
+  }).catch(function(e) {
+    lod.style.display = 'none';
+    if (btn) btn.disabled = false;
+    rez.textContent = 'Greška: ' + e.message;
+    rez.style.display = 'block';
+  });
+}
+
+function litIntelOutcomeShow() {
+  var loading = document.getElementById('lit-outcome-loading');
+  var result  = document.getElementById('lit-outcome-result');
+  var stats   = document.getElementById('lit-outcome-stats');
+  if (!loading) return;
+  loading.style.display = 'block';
+  result.style.display  = 'none';
+  stats.style.display   = 'none';
+
+  if (!activePredmetId || !currentSession) {
+    loading.textContent = 'Otvorite predmet da biste videli analizu.';
+    return;
+  }
+
+  fetch('/api/outcome-intel/predmeti/' + activePredmetId, {
+    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    loading.style.display = 'none';
+    result.style.display = 'block';
+    result.textContent = d.analiza || 'Nema podataka.';
+    if (d.ukupno_predmeta) {
+      var shtml = '';
+      shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:2px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:rgba(255,255,255,0.72);">'+d.ukupno_predmeta+'</div><div style="color:rgba(255,255,255,.4);">Ukupno predmeta</div></div>';
+      shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:2px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:#4ade80;">'+d.zatvoreni+'</div><div style="color:rgba(255,255,255,.4);">Zatvorenih</div></div>';
+      if (d.avg_vrednost) {
+        shtml += '<div style="padding:.35rem .7rem;background:rgba(255,255,255,.04);border-radius:2px;font-size:.72rem;text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:#f0c040;">'+Math.round(d.avg_vrednost/1000)+'k</div><div style="color:rgba(255,255,255,.4);">Prosečna vrednost</div></div>';
+      }
+      stats.innerHTML = shtml;
+      stats.style.display = 'flex';
+    }
+  }).catch(function(e) {
+    loading.textContent = 'Greška: ' + e.message;
   });
 }
 
