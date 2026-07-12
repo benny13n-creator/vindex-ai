@@ -537,7 +537,6 @@
         <!-- Skriveni tabovi — funkcionalnost sačuvana, dostupna iz predmeta ili podešavanja -->
         <div class="t-tab vx-hidden-tab" id="tab-btn-notif" onclick="notif_toggleDropdown()"></div>
         <!-- Hidden tabs — all functionality preserved -->
-        <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="pro-badge" id="pro-badge-t" style="display:none">PRO</span></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')"></div>
       </nav>
       <!-- ── Progres do sledećeg otključavanja ─────────────────── -->
@@ -1899,57 +1898,6 @@
             <div id="praksa-grupisano-container" style="display:none;margin-top:0.85rem;"></div>
           </div>
           <!-- TAB: STRATEGIJA (F5) -->
-          <div id="tab-t" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
-            <div class="strat-modul-izbor">
-              <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">Crveni tim</button>
-              <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">Simulator parnice</button>
-              <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">Procena ishoda</button>
-              <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">Analiza rizika</button>
-              <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">Pravni Revizor</button>
-              <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">Analizator svedoka</button>
-              <button class="strat-btn" data-modul="sudija_v2" onclick="stratIzaberiModul('sudija_v2',this)">Sudija v2 — Debata</button>
-              <button class="strat-btn" data-modul="court_predictor" onclick="stratIzaberiModul('court_predictor',this)">Predikcija ishoda</button>
-            </div>
-            <div id="strat-opis" class="strat-opis-box"></div>
-            <div class="strat-input-wrap">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                <label id="strat-input-label" class="strat-label" style="margin-bottom:0;">Opis predmeta</label>
-                <button onclick="_predAutoFill('strat-tekst',true)" title="Popuni iz aktivnog predmeta" style="display:none;font-size:0.68rem;padding:2px 9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:2px;color:rgba(255,255,255,0.55);cursor:pointer;font-family:inherit;white-space:nowrap;" id="btn-autofill-strat">↺ Iz predmeta</button>
-              </div>
-              <!-- Tip postupka (samo za Red Team i Litigation Simulator) -->
-              <div id="strat-tip-wrap" style="margin-bottom:0.5rem;display:none;">
-                <label style="font-size:0.65rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:3px;">Tip postupka</label>
-                <select id="strat-tip-postupka" style="width:100%;background:rgba(13,27,42,0.97);border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:6px 10px;color:rgba(255,255,255,0.8);font-size:0.78rem;outline:none;font-family:inherit;cursor:pointer;">
-                  <option value="gradjansko">Gradjansko / Parnično</option>
-                  <option value="krivicno">Krivično</option>
-                  <option value="upravno">Upravno</option>
-                  <option value="privredno">Privredno</option>
-                  <option value="radno">Radno</option>
-                </select>
-              </div>
-              <textarea id="strat-tekst" class="strat-textarea" placeholder="Unesite detaljan opis predmeta ili tekst dokumenta..." rows="8"></textarea>
-              <div class="strat-char-count"><span id="strat-chars">0</span> karaktera</div>
-            </div>
-            <button class="strat-submit-btn" id="strat-submit-btn" onclick="stratPokreni()">Pokreni analizu</button>
-            <!-- Kompletna strateška analiza — orkestrator svih 6 modula -->
-            <div style="margin-top:1.2rem;padding:1rem;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(255,255,255,0.03));border:1px solid rgba(99,102,241,0.25);border-radius:3px;">
-              <div style="font-size:.78rem;font-weight:700;color:rgba(200,180,255,.9);margin-bottom:.3rem;">Kompletna strateška analiza <span class="pro-badge">PRO</span></div>
-              <div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.7rem;line-height:1.55;">Jedan klik pokreće svih 6 modula u automatskom redosledu: Pravni Revizor → Analiza rizika → Analizator svedoka → Crveni tim → Sudija → Sinteza. Kompletan strateški izveštaj za 2–3 minuta. Koristi 6 kredita.</div>
-              <button id="strat-ork-btn" onclick="stratOrkestratorPokreni()" style="width:100%;padding:.6rem 1rem;background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.4);border-radius:2px;color:rgba(220,210,255,.9);font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit;">Pokreni kompletnu analizu (6 kredita)</button>
-            </div>
-            <div class="strat-rezultat-wrap" id="strat-rezultat-wrap">
-              <div class="strat-rezultat-header">
-                <span class="strat-rezultat-naslov" id="strat-rezultat-naslov"></span>
-                <div style="display:flex;gap:6px;">
-                  <button class="btn-word" onclick="exportujKaoWord(document.getElementById('strat-rezultat-naslov').textContent,document.getElementById('strat-rezultat-body').innerText,'strategija')">Word</button>
-                  <button class="strat-copy-btn" onclick="stratKopiraj()">Kopiraj</button>
-                </div>
-              </div>
-              <div class="strat-rezultat-body" id="strat-rezultat-body"></div>
-            </div>
-          </div>
-
           <!-- CRM Klijenti tab -->
           <div id="tab-k" style="display:none">
             <!-- Lista view -->
@@ -3093,6 +3041,56 @@
                 </div>
               </details>
             </div><!-- /aiws-mode-nacrti -->
+
+            <div id="aiws-mode-strategija" class="aiws-mode-pane" style="display:none;">
+              <div class="strat-modul-izbor">
+                <button class="strat-btn active" data-modul="red_team" onclick="stratIzaberiModul('red_team',this)">Crveni tim</button>
+                <button class="strat-btn" data-modul="litigation" onclick="stratIzaberiModul('litigation',this)">Simulator parnice</button>
+                <button class="strat-btn" data-modul="sudija" onclick="stratIzaberiModul('sudija',this)">Procena ishoda</button>
+                <button class="strat-btn" data-modul="due_diligence" onclick="stratIzaberiModul('due_diligence',this)">Analiza rizika</button>
+                <button class="strat-btn" data-modul="revizor" onclick="stratIzaberiModul('revizor',this)">Pravni Revizor</button>
+                <button class="strat-btn" data-modul="witness" onclick="stratIzaberiModul('witness',this)">Analizator svedoka</button>
+                <button class="strat-btn" data-modul="sudija_v2" onclick="stratIzaberiModul('sudija_v2',this)">Sudija v2 — Debata</button>
+                <button class="strat-btn" data-modul="court_predictor" onclick="stratIzaberiModul('court_predictor',this)">Predikcija ishoda</button>
+              </div>
+              <div id="strat-opis" class="strat-opis-box"></div>
+              <div class="strat-input-wrap">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <label id="strat-input-label" class="strat-label" style="margin-bottom:0;">Opis predmeta</label>
+                  <button onclick="_predAutoFill('strat-tekst',true)" title="Popuni iz aktivnog predmeta" style="display:none;font-size:0.68rem;padding:2px 9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:2px;color:rgba(255,255,255,0.55);cursor:pointer;font-family:inherit;white-space:nowrap;" id="btn-autofill-strat">↺ Iz predmeta</button>
+                </div>
+                <!-- Tip postupka (samo za Red Team i Litigation Simulator) -->
+                <div id="strat-tip-wrap" style="margin-bottom:0.5rem;display:none;">
+                  <label style="font-size:0.65rem;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:3px;">Tip postupka</label>
+                  <select id="strat-tip-postupka" style="width:100%;background:rgba(13,27,42,0.97);border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:6px 10px;color:rgba(255,255,255,0.8);font-size:0.78rem;outline:none;font-family:inherit;cursor:pointer;">
+                    <option value="gradjansko">Gradjansko / Parnično</option>
+                    <option value="krivicno">Krivično</option>
+                    <option value="upravno">Upravno</option>
+                    <option value="privredno">Privredno</option>
+                    <option value="radno">Radno</option>
+                  </select>
+                </div>
+                <textarea id="strat-tekst" class="strat-textarea" placeholder="Unesite detaljan opis predmeta ili tekst dokumenta..." rows="8"></textarea>
+                <div class="strat-char-count"><span id="strat-chars">0</span> karaktera</div>
+              </div>
+              <button class="strat-submit-btn" id="strat-submit-btn" onclick="stratPokreni()">Pokreni analizu</button>
+              <!-- Kompletna strateška analiza — orkestrator svih 6 modula -->
+              <div style="margin-top:1.2rem;padding:1rem;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(255,255,255,0.03));border:1px solid rgba(99,102,241,0.25);border-radius:3px;">
+                <div style="font-size:.78rem;font-weight:700;color:rgba(200,180,255,.9);margin-bottom:.3rem;">Kompletna strateška analiza <span class="pro-badge">PRO</span></div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.7rem;line-height:1.55;">Jedan klik pokreće svih 6 modula u automatskom redosledu: Pravni Revizor → Analiza rizika → Analizator svedoka → Crveni tim → Sudija → Sinteza. Kompletan strateški izveštaj za 2–3 minuta. Koristi 6 kredita.</div>
+                <button id="strat-ork-btn" onclick="stratOrkestratorPokreni()" style="width:100%;padding:.6rem 1rem;background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.4);border-radius:2px;color:rgba(220,210,255,.9);font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit;">Pokreni kompletnu analizu (6 kredita)</button>
+              </div>
+              <div class="strat-rezultat-wrap" id="strat-rezultat-wrap">
+                <div class="strat-rezultat-header">
+                  <span class="strat-rezultat-naslov" id="strat-rezultat-naslov"></span>
+                  <div style="display:flex;gap:6px;">
+                    <button class="btn-word" onclick="exportujKaoWord(document.getElementById('strat-rezultat-naslov').textContent,document.getElementById('strat-rezultat-body').innerText,'strategija')">Word</button>
+                    <button class="strat-copy-btn" onclick="stratKopiraj()">Kopiraj</button>
+                  </div>
+                </div>
+                <div class="strat-rezultat-body" id="strat-rezultat-body"></div>
+              </div>
+            </div><!-- /aiws-mode-strategija -->
 
           </div>
 

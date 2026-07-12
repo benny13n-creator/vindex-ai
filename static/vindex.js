@@ -13989,8 +13989,7 @@ function dokUcitajZaAnalizu(ns, naziv, velicinaKb, dokId) {
   if (ocrW) ocrW.style.display = 'none';
 
   // Prebaci na tab "Analiza dokumenta"
-  var tabBtn = document.getElementById('tab-btn-a');
-  if (tabBtn) setTab(tabBtn, 'a');
+  if (typeof openAITool === 'function') { openAITool('a'); }
   showToast('Dokument učitan — postavite pitanje ili pokrenite analizu.', 'ok');
 }
 
