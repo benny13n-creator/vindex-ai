@@ -176,7 +176,7 @@ async def get_profil(profil_id: str, user=Depends(get_current_user)):
                 .select("*")
                 .eq("id", profil_id)
                 .eq("user_id", user["user_id"])
-                .single()
+                .maybe_single()
                 .execute()
             ),
             asyncio.to_thread(
@@ -257,7 +257,7 @@ async def pokreni_ekstrakciju(profil_id: str, user=Depends(get_current_user)):
                 .select("*")
                 .eq("id", profil_id)
                 .eq("user_id", user["user_id"])
-                .single()
+                .maybe_single()
                 .execute()
             ),
             asyncio.to_thread(

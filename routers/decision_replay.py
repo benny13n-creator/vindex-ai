@@ -77,7 +77,7 @@ async def _gather_timeline_events(supa, predmet_id: str, user_id: str) -> list[d
             .select("naziv, tip, status, oblast_prava, datum_otvaranja, datum_zatvaranja, ishod")
             .eq("id", predmet_id)
             .eq("user_id", user_id)
-            .single()
+            .maybe_single()
             .execute()
         ),
         asyncio.to_thread(

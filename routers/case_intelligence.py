@@ -68,7 +68,7 @@ async def _gather_case_data(supa, predmet_id: str, user_id: str) -> dict:
             .select("naziv, tip, status, oblast_prava, opis, klijent_id, case_dna")
             .eq("id", predmet_id)
             .eq("user_id", user_id)
-            .single()
+            .maybe_single()
             .execute()
         ),
         asyncio.to_thread(
