@@ -11616,131 +11616,168 @@ async function billing_sendEmail(fakturaId) {
 /* ═══════════════════════════════ NEXT BLOCK ═══════════════════════════════ */
 
 
-// ── Global Search (Ctrl+K) ───────────────────────────────────────────────────
+// ── Vindex Command Palette (Ctrl/Cmd+K) ──────────────────────────────────────
+// Jedinstvena implementacija — zamenjuje ranije 2 paralelne (Global Search Ctrl+K
+// i Global Search ⌘K), koje su obe gadjale isti /api/search endpoint ali imale
+// dupliran, konkurentan keydown listener na istom preceniku.
 
-var _srchTimer  = null;
-var _srchFilter = 'sve';
-var _srchFocusIdx = -1;
+var _cmdkOpenState = false;
+var _cmdkTimer     = null;
+var _cmdkVrste     = 'predmeti,klijenti,hronologija,beleske,dokumenti,billing';
+var _cmdkResults   = [];
+var _cmdkFocusIdx  = -1;
+
+var _CMDK_ACTIONS = [
+  { label: 'Novi predmet', sub: 'Otvori wizard za unos predmeta', action: 'intakeOtvori()' },
+  { label: 'Dodaj dokument', sub: 'Otpremi dokument u predmet', action: 'pred_subtabSwitch && activePredmetId ? pred_subtabSwitch("dokumenti") : setTab(document.getElementById("tab-btn-p"),"p")' },
+  { label: 'Pitaj AI', sub: 'Istraži zakon ili sudsku praksu', action: 'openAITool("q")' },
+  { label: 'Novi rok', sub: 'Dodaj ročište ili rok u predmet', action: 'activePredmetId ? pred_subtabSwitch("rokovi") : setTab(document.getElementById("tab-btn-p"),"p")' },
+  { label: 'Pokreni analizu', sub: '6 analiza analiziraju predmet', action: 'pred_launchKompletnaAnaliza ? pred_launchKompletnaAnaliza() : null' },
+  { label: 'Idi na klijenta', sub: 'Pretraži i otvori klijenta', action: 'setTab(document.getElementById("tab-btn-k"),"k")' }
+];
+
+var _CMDK_ICONS = {
+  predmet:     {bg:'rgba(0,212,127,0.10)',   label:'Predmet'},
+  klijent:     {bg:'rgba(255,255,255,0.05)', label:'Klijent'},
+  dokument:    {bg:'rgba(255,200,100,0.10)', label:'Dokument'},
+  billing:     {bg:'rgba(255,255,255,0.05)', label:'Naplata'},
+  hronologija: {bg:'rgba(200,100,255,0.10)', label:'Hronologija'},
+  beleska:     {bg:'rgba(255,255,255,0.06)', label:'Beleška'},
+};
+var _CMDK_ORDER = ['predmeti','klijenti','dokumenti','billing','hronologija','beleske'];
+var _CMDK_TIP_MAP = {predmeti:'predmet',klijenti:'klijent',dokumenti:'dokument',billing:'billing',hronologija:'hronologija',beleske:'beleska'};
+
+function cmdkOpen() {
+  if (!currentSession) return;
+  _cmdkOpenState = true;
+  var overlay = document.getElementById('cmdk-overlay');
+  var inp     = document.getElementById('cmdk-input');
+  if (overlay) overlay.style.display = 'flex';
+  if (inp)     { inp.value = ''; setTimeout(function(){ inp.focus(); }, 60); }
+  _cmdkResults  = [];
+  _cmdkFocusIdx = -1;
+  cmdkRender([]);
+}
+
+function cmdkClose() {
+  _cmdkOpenState = false;
+  var overlay = document.getElementById('cmdk-overlay');
+  if (overlay) overlay.style.display = 'none';
+  if (_cmdkTimer) { clearTimeout(_cmdkTimer); _cmdkTimer = null; }
+  _cmdkFocusIdx = -1;
+}
+
+function cmdkSetFilter(btn) {
+  document.querySelectorAll('#cmdk-filters .vx-pill').forEach(function(b){ b.classList.remove('is-active'); });
+  btn.classList.add('is-active');
+  _cmdkVrste = btn.dataset.vrste;
+  var inp = document.getElementById('cmdk-input');
+  if (inp && inp.value.trim().length >= 2) cmdkQuery(inp.value);
+}
+
+function cmdkQuery(val) {
+  if (_cmdkTimer) clearTimeout(_cmdkTimer);
+  if (!val || val.trim().length < 2) { cmdkRender([]); return; }
+  _cmdkTimer = setTimeout(function(){ _cmdkFetch(val.trim()); }, 260);
+}
+
+async function _cmdkFetch(q) {
+  if (!currentSession) return;
+  var el = document.getElementById('cmdk-results');
+  if (el) el.innerHTML = '<div style="text-align:center;padding:1.5rem;font-size:0.78rem;color:rgba(255,255,255,0.25);">Pretražujem...</div>';
+  try {
+    var url = BASE_URL+'/api/search?q='+encodeURIComponent(q)+'&vrste='+encodeURIComponent(_cmdkVrste)+'&limit=8';
+    var r   = await fetch(url, {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { cmdkRender([]); return; }
+    var d = await r.json();
+    _cmdkResults  = [];
+    _CMDK_ORDER.forEach(function(skupina) {
+      (d[skupina] || []).forEach(function(item) {
+        _cmdkResults.push(Object.assign({}, item, { tip: _CMDK_TIP_MAP[skupina], _skupina: skupina }));
+      });
+    });
+    _cmdkFocusIdx = _cmdkResults.length ? 0 : -1;
+    cmdkRender(_cmdkResults);
+  } catch(e) { cmdkRender([]); }
+}
+
+function cmdkRender(items) {
+  var el = document.getElementById('cmdk-results');
+  if (!el) return;
+  if (!items.length) {
+    var inp = document.getElementById('cmdk-input');
+    var hasQuery = inp && inp.value.trim().length >= 2;
+    if (hasQuery) {
+      el.innerHTML = '<div style="text-align:center;padding:2rem 1rem;font-size:0.78rem;color:rgba(255,255,255,0.2);">Nema rezultata.</div>';
+    } else {
+      el.innerHTML = '<div style="padding:.5rem 1.2rem .2rem;font-size:.62rem;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.1em;">Brze akcije</div>'
+        + _CMDK_ACTIONS.map(function(a) {
+          return '<div class="gs-item" onclick="cmdkClose();(function(){'+a.action+'})()" style="display:flex;align-items:center;gap:.65rem;padding:.5rem 1.2rem;cursor:pointer;">'
+            +'<div style="flex:1;min-width:0;">'
+            +'<div style="font-size:.82rem;color:#e2e8f0;">'+a.label+'</div>'
+            +'<div style="font-size:.7rem;color:rgba(255,255,255,.35);">'+a.sub+'</div>'
+            +'</div></div>';
+        }).join('');
+    }
+    return;
+  }
+  var lastGroup = null, html = '';
+  items.forEach(function(item, i) {
+    if (item._skupina !== lastGroup) {
+      var meta = _CMDK_ICONS[item.tip] || {label:item._skupina};
+      html += '<div style="padding:.5rem 1.2rem .2rem;font-size:.62rem;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.1em;">'+meta.label+'</div>';
+      lastGroup = item._skupina;
+    }
+    var focus = (i === _cmdkFocusIdx) ? 'background:rgba(255,255,255,0.05);' : '';
+    html += '<div class="gs-item" data-idx="'+i+'" onclick="cmdkSelect('+i+')" onmouseover="cmdkFocus('+i+')"'
+      +' style="display:flex;align-items:center;gap:.65rem;padding:.5rem 1.2rem;cursor:pointer;'+focus+'">'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:.82rem;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(item.naziv||'—')+'</div>'
+      +(item.preview ? '<div style="font-size:.7rem;color:rgba(255,255,255,.38);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(item.preview)+'</div>' : '')
+      +'</div></div>';
+  });
+  el.innerHTML = html;
+}
+
+function cmdkFocus(idx) {
+  _cmdkFocusIdx = idx;
+  document.querySelectorAll('#cmdk-results .gs-item[data-idx]').forEach(function(el){
+    el.style.background = (Number(el.dataset.idx) === idx) ? 'rgba(255,255,255,0.05)' : '';
+  });
+}
+
+function cmdkSelect(idx) {
+  var item = _cmdkResults[idx];
+  if (!item) return;
+  cmdkClose();
+  if (item.tip === 'predmet') {
+    setTab(document.getElementById('tab-btn-p'), 'p');
+    setTimeout(function(){ pred_select(item.id); }, 300);
+  } else if (item.tip === 'klijent') {
+    setTab(document.getElementById('tab-btn-k'), 'k');
+    setTimeout(function(){ if (typeof crmOtvoriProfil === 'function') crmOtvoriProfil(item.id); }, 300);
+  } else {
+    var predId = item.meta && item.meta.predmet_id;
+    if (predId) {
+      setTab(document.getElementById('tab-btn-p'), 'p');
+      setTimeout(function(){ pred_select(predId); }, 300);
+    }
+  }
+}
 
 document.addEventListener('keydown', function(e) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); searchOpen(); }
-  if (e.key === 'Escape') searchClose();
-  if (document.getElementById('search-modal-overlay').style.display !== 'none') {
-    if (e.key === 'ArrowDown') { e.preventDefault(); searchMoveFocus(1); }
-    if (e.key === 'ArrowUp')   { e.preventDefault(); searchMoveFocus(-1); }
-    if (e.key === 'Enter')     { e.preventDefault(); searchActivateFocus(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    if (_cmdkOpenState) cmdkClose(); else cmdkOpen();
+    return;
   }
+  if (!_cmdkOpenState) return;
+  if (e.key === 'Escape')   { cmdkClose(); return; }
+  if (!_cmdkResults.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); cmdkFocus(Math.min(_cmdkFocusIdx + 1, _cmdkResults.length - 1)); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); cmdkFocus(Math.max(_cmdkFocusIdx - 1, 0)); }
+  if (e.key === 'Enter' && _cmdkFocusIdx >= 0) { e.preventDefault(); cmdkSelect(_cmdkFocusIdx); }
 });
-
-function searchOpen() {
-  var overlay = document.getElementById('search-modal-overlay');
-  overlay.style.display = 'flex';
-  setTimeout(function() { var inp = document.getElementById('search-input'); if (inp) inp.focus(); }, 60);
-  _srchFocusIdx = -1;
-}
-
-function searchClose() {
-  document.getElementById('search-modal-overlay').style.display = 'none';
-  var inp = document.getElementById('search-input'); if (inp) inp.value = '';
-  document.getElementById('search-results').innerHTML = '<div style="text-align:center;padding:1.5rem;font-size:0.78rem;color:rgba(255,255,255,0.2);">Ukucajte barem 2 karaktera za pretragu</div>';
-  _srchFocusIdx = -1;
-}
-
-function searchChipClick(el) {
-  document.querySelectorAll('.srch-chip').forEach(function(c){ c.classList.remove('srch-chip-active'); });
-  el.classList.add('srch-chip-active');
-  _srchFilter = el.dataset.tip;
-  searchDebounce();
-}
-
-function searchDebounce() {
-  clearTimeout(_srchTimer);
-  _srchTimer = setTimeout(searchRun, 280);
-}
-
-async function searchRun() {
-  var q = (document.getElementById('search-input')||{}).value.trim();
-  var resEl = document.getElementById('search-results');
-  if (!resEl) return;
-  if (q.length < 2) {
-    resEl.innerHTML = '<div style="text-align:center;padding:1.5rem;font-size:0.78rem;color:rgba(255,255,255,0.2);">Ukucajte barem 2 karaktera za pretragu</div>';
-    return;
-  }
-  if (!currentSession) { resEl.innerHTML = '<div style="padding:1rem;font-size:0.78rem;color:rgba(255,255,255,0.3);">Prijavite se.</div>'; return; }
-  resEl.innerHTML = '<div style="text-align:center;padding:1.5rem;font-size:0.78rem;color:rgba(255,255,255,0.25);">Pretražujem...</div>';
-
-  var url = BASE_URL+'/api/search?q='+encodeURIComponent(q)+'&limit=6';
-  if (_srchFilter !== 'sve') url += '&vrste='+encodeURIComponent(_srchFilter);
-
-  try {
-    var r = await fetch(url, {headers:{Authorization:'Bearer '+currentSession.access_token}});
-    var d = await r.json();
-    if (!r.ok) { resEl.innerHTML='<div style="padding:1rem;font-size:0.78rem;color:rgba(255,100,100,0.6);">'+(d.detail||'Greška.')+'</div>'; return; }
-    searchRenderResults(d);
-  } catch(e) { resEl.innerHTML='<div style="padding:1rem;font-size:0.78rem;color:rgba(255,100,100,0.6);">Greška veze.</div>'; }
-}
-
-var _SRCH_ICONS = {
-  predmet:    {icon:'',  bg:'rgba(0,212,127,0.10)', label:'Predmet'},
-  klijent:    {icon:'',  bg:'rgba(255,255,255,0.05)', label:'Klijent'},
-  dokument:   {icon:'',  bg:'rgba(255,200,100,0.10)',label:'Dokument'},
-  billing:    {icon:'',  bg:'rgba(255,255,255,0.05)',  label:'Billing'},
-  hronologija:{icon:'',  bg:'rgba(200,100,255,0.10)',label:'Hronolog.'},
-  beleska:    {icon:'',  bg:'rgba(255,255,255,0.06)',label:'Beleška'},
-};
-var _SRCH_ORDER = ['predmeti','klijenti','dokumenti','billing','hronologija','beleske'];
-var _TIP_MAP    = {predmeti:'predmet',klijenti:'klijent',dokumenti:'dokument',billing:'billing',hronologija:'hronologija',beleske:'beleska'};
-
-function searchRenderResults(d) {
-  var resEl = document.getElementById('search-results');
-  if (!resEl) return;
-  if (!d.ukupno) {
-    resEl.innerHTML='<div style="text-align:center;padding:2rem 1rem;font-size:0.78rem;color:rgba(255,255,255,0.2);">Nema rezultata za „'+escHtml(d.q)+'"</div>';
-    return;
-  }
-  var html = '';
-  _SRCH_ORDER.forEach(function(skupina) {
-    var rows = d[skupina];
-    if (!rows || !rows.length) return;
-    var tipKey = _TIP_MAP[skupina];
-    var meta   = _SRCH_ICONS[tipKey] || {icon:'',bg:'rgba(255,255,255,0.05)',label:skupina};
-    html += '<div class="srch-group-hd">'+meta.label+' ('+rows.length+')</div>';
-    rows.forEach(function(item) {
-      var action = searchBuildAction(item);
-      html += '<div class="srch-item" onclick="'+action+';searchClose()" data-action="'+escHtml(action)+'">'
-        +'<div class="srch-item-icon" style="background:'+meta.bg+'">'+meta.icon+'</div>'
-        +'<div class="srch-item-body">'
-        +'<div class="srch-item-naziv">'+escHtml(item.naziv||'—')+'</div>'
-        +(item.preview ? '<div class="srch-item-prev">'+escHtml(item.preview)+'</div>' : '')
-        +'</div></div>';
-    });
-  });
-  resEl.innerHTML = html;
-  _srchFocusIdx = -1;
-}
-
-function searchBuildAction(item) {
-  var pid = (item.meta||{}).predmet_id;
-  if (item.tip === 'predmet')    return 'openPredmet(\''+item.id+'\')';
-  if (item.tip === 'klijent')    return 'openCrmKlijent && openCrmKlijent(\''+item.id+'\')';
-  if (pid)                       return 'openPredmet(\''+pid+'\')';
-  return 'void 0';
-}
-
-function searchMoveFocus(dir) {
-  var items = document.querySelectorAll('#search-results .srch-item');
-  if (!items.length) return;
-  items.forEach(function(el){ el.classList.remove('srch-focus'); });
-  _srchFocusIdx = Math.max(0, Math.min(items.length-1, _srchFocusIdx + dir));
-  var el = items[_srchFocusIdx];
-  el.classList.add('srch-focus');
-  el.scrollIntoView({block:'nearest'});
-}
-
-function searchActivateFocus() {
-  var el = document.querySelector('#search-results .srch-item.srch-focus');
-  if (el) el.click();
-}
 
 // ── Klijentski portal ────────────────────────────────────────────────────────
 
@@ -13440,166 +13477,6 @@ function emailNotifDeaktivaj() {
   });
 }
 
-// ── Global Search (⌘K) ───────────────────────────────────────────────────────
-
-var _gsOpen      = false;
-var _gsTimer     = null;
-var _gsVrste     = 'predmeti,klijenti,hronologija,beleske,dokumenti,billing';
-var _gsResults   = [];
-var _gsFocusIdx  = -1;
-
-function gsOpen() {
-  if (!currentSession) return;
-  _gsOpen = true;
-  var overlay = document.getElementById('gs-overlay');
-  var modal   = document.getElementById('gs-modal');
-  var inp     = document.getElementById('gs-input');
-  if (overlay) overlay.style.display = '';
-  if (modal)   modal.style.display = '';
-  if (inp)     { inp.value = ''; inp.focus(); }
-  gsRender([]);
-}
-
-function gsClose() {
-  _gsOpen = false;
-  var overlay = document.getElementById('gs-overlay');
-  var modal   = document.getElementById('gs-modal');
-  if (overlay) overlay.style.display = 'none';
-  if (modal)   modal.style.display = 'none';
-  _gsFocusIdx = -1;
-  if (_gsTimer) { clearTimeout(_gsTimer); _gsTimer = null; }
-}
-
-function gsSetFilter(btn) {
-  document.querySelectorAll('.gs-filter').forEach(function(b){
-    b.style.background   = 'transparent';
-    b.style.borderColor  = 'rgba(255,255,255,0.12)';
-    b.style.color        = 'rgba(255,255,255,0.45)';
-    b.classList.remove('active');
-  });
-  btn.style.background  = 'rgba(0,212,255,0.07)';
-  btn.style.borderColor = 'rgba(255,255,255,0.12)';
-  btn.style.color       = 'rgba(255,255,255,0.72)';
-  btn.classList.add('active');
-  _gsVrste = btn.dataset.vrste;
-  var inp = document.getElementById('gs-input');
-  if (inp && inp.value.trim().length >= 2) gsQuery(inp.value);
-}
-
-function gsQuery(val) {
-  if (_gsTimer) clearTimeout(_gsTimer);
-  if (!val || val.trim().length < 2) { gsRender([]); return; }
-  _gsTimer = setTimeout(function(){ _gsFetch(val.trim()); }, 260);
-}
-
-async function _gsFetch(q) {
-  if (!currentSession) return;
-  var resEl = document.getElementById('gs-results');
-  if (resEl) resEl.innerHTML = '<div style="padding:0.8rem 1rem;font-size:0.8rem;color:rgba(255,255,255,0.3);">Tražim...</div>';
-  try {
-    var url = '/api/search?q=' + encodeURIComponent(q) + '&vrste=' + encodeURIComponent(_gsVrste) + '&limit=6';
-    var r   = await fetch(url, {headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    if (!r.ok) { gsRender([]); return; }
-    var d = await r.json();
-    _gsResults  = d.rezultati || [];
-    _gsFocusIdx = _gsResults.length ? 0 : -1;
-    gsRender(_gsResults);
-  } catch(e) { gsRender([]); }
-}
-
-var _GS_ICONS = {predmet:'', klijent:'', dokument:'', billing:'', hronologija:'', beleska:''};
-var _GS_COLORS = {predmet:'rgba(255,255,255,0.72)', klijent:'#4ade80', dokument:'#c9a84c', billing:'#a78bfa', hronologija:'#f97316', beleska:'#94a3b8'};
-
-var _GS_ACTIONS = [
-  { label: 'Novi predmet', sub: 'Otvori wizard za unos predmeta', action: 'intakeOtvori()' },
-  { label: 'Dodaj dokument', sub: 'Otpremi dokument u predmet', action: 'pred_subtabSwitch && activePredmetId ? pred_subtabSwitch("dokumenti") : setTab(document.getElementById("tab-btn-p"),"p")' },
-  { label: 'Pitaj AI', sub: 'Istraži zakon ili sudsku praksu', action: 'openAITool("q")' },
-  { label: 'Novi rok', sub: 'Dodaj ročište ili rok u predmet', action: 'activePredmetId ? pred_subtabSwitch("rokovi") : setTab(document.getElementById("tab-btn-p"),"p")' },
-  { label: 'Pokreni analizu', sub: '6 analiza analiziraju predmet', action: 'pred_launchKompletnaAnaliza ? pred_launchKompletnaAnaliza() : null' },
-  { label: 'Idi na klijenta', sub: 'Pretraži i otvori klijenta', action: 'setTab(document.getElementById("tab-btn-k"),"k")' },
-  { label: 'Pretraži zakone', sub: 'Istraži važeće zakone Srbije', action: 'openAITool("q")' }
-];
-
-function gsRender(items) {
-  var el = document.getElementById('gs-results');
-  if (!el) return;
-  if (!items.length) {
-    var inp = document.getElementById('gs-input');
-    var hasQuery = inp && inp.value.trim().length >= 2;
-    if (hasQuery) {
-      el.innerHTML = '<div style="padding:1.2rem 1rem;font-size:0.8rem;color:rgba(255,255,255,0.3);text-align:center;">Nema rezultata.</div>';
-    } else {
-      el.innerHTML = '<div style="padding:.5rem .6rem .2rem;font-size:.62rem;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.1em;">Brze akcije</div>'
-        + _GS_ACTIONS.map(function(a, i) {
-          return '<div class="gs-item" onclick="gsClose();(function(){'+a.action+'})()" style="display:flex;align-items:center;gap:.65rem;padding:.5rem 1rem;cursor:pointer;border-radius:2px;">'
-            +'<div style="flex:1;min-width:0;">'
-            +'<div style="font-size:.82rem;color:#e2e8f0;">'+a.label+'</div>'
-            +'<div style="font-size:.7rem;color:rgba(255,255,255,.35);">'+a.sub+'</div>'
-            +'</div>'
-            +'</div>';
-        }).join('');
-    }
-    return;
-  }
-  el.innerHTML = items.map(function(item, i){
-    var ico   = _GS_ICONS[item.tip]  || '·';
-    var col   = _GS_COLORS[item.tip] || '#94a3b8';
-    var focus = (i === _gsFocusIdx) ? 'background:rgba(255,255,255,0.05);' : '';
-    return '<div class="gs-item" data-idx="'+i+'" onclick="gsSelect('+i+')" onmouseover="gsFocus('+i+')"'
-      +' style="display:flex;align-items:center;gap:0.65rem;padding:0.55rem 1rem;cursor:pointer;'+focus+'">'
-      +'<span style="font-size:1rem;flex-shrink:0;">'+ico+'</span>'
-      +'<div style="flex:1;min-width:0;">'
-      +'<div style="font-size:0.82rem;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(item.naziv)+'</div>'
-      +(item.preview ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.38);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_htmlEsc(item.preview)+'</div>' : '')
-      +'</div>'
-      +'<span style="font-size:0.62rem;color:'+col+';flex-shrink:0;letter-spacing:.05em;text-transform:uppercase;">'+item.tip+'</span>'
-      +'</div>';
-  }).join('');
-}
-
-function gsFocus(idx) {
-  _gsFocusIdx = idx;
-  document.querySelectorAll('.gs-item').forEach(function(el, i){
-    el.style.background = (i === idx) ? 'rgba(255,255,255,0.05)' : '';
-  });
-}
-
-function gsKeyNav(e) {
-  if (e.key === 'Escape') { gsClose(); return; }
-  if (!_gsResults.length) return;
-  if (e.key === 'ArrowDown') { e.preventDefault(); gsFocus(Math.min(_gsFocusIdx + 1, _gsResults.length - 1)); }
-  if (e.key === 'ArrowUp')   { e.preventDefault(); gsFocus(Math.max(_gsFocusIdx - 1, 0)); }
-  if (e.key === 'Enter' && _gsFocusIdx >= 0) { e.preventDefault(); gsSelect(_gsFocusIdx); }
-}
-
-function gsSelect(idx) {
-  var item = _gsResults[idx];
-  if (!item) return;
-  gsClose();
-  if (item.tip === 'predmet') {
-    setTab(document.getElementById('tab-btn-p'), 'p');
-    setTimeout(function(){ pred_select(item.id); }, 300);
-  } else if (item.tip === 'klijent') {
-    setTab(document.getElementById('tab-btn-k'), 'k');
-    setTimeout(function(){ if(typeof klijentOtvori==='function') klijentOtvori(item.id); }, 400);
-  } else if (item.tip === 'dokument' || item.tip === 'billing' || item.tip === 'hronologija' || item.tip === 'beleska') {
-    var predId = item.meta && item.meta.predmet_id;
-    if (predId) {
-      setTab(document.getElementById('tab-btn-p'), 'p');
-      setTimeout(function(){ pred_select(predId); }, 300);
-    }
-  }
-}
-
-// ⌘K / Ctrl+K keyboard shortcut
-document.addEventListener('keydown', function(e) {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-    e.preventDefault();
-    if (_gsOpen) gsClose(); else gsOpen();
-  }
-  if (e.key === 'Escape' && _gsOpen) gsClose();
-});
-
 // ── Intake Faza 2 — Template predmeti ───────────────────────────────────────
 
 var _intakeTplData = null;
@@ -15041,13 +14918,13 @@ async function _voice_open_predmet(rawQuery) {
       }, 150);
     });
   } else {
-    // Nema rezultata — otvori search modal kao poslednji fallback
+    // Nema rezultata — otvori command palette kao poslednji fallback
     setTab(document.getElementById('tab-btn-p'), 'p');
     setTimeout(function() {
-      searchOpen();
+      cmdkOpen();
       setTimeout(function() {
-        var inp = document.getElementById('search-input');
-        if (inp) { inp.value = rawQuery; searchDebounce(); }
+        var inp = document.getElementById('cmdk-input');
+        if (inp) { inp.value = rawQuery; cmdkQuery(rawQuery); }
         showToast('Odaberite predmet iz liste', 'info');
       }, 100);
     }, 200);
@@ -15170,10 +15047,10 @@ function voice_doAction(action, params) {
 
     case 'search':
       if (params.query) {
-        searchOpen();
+        cmdkOpen();
         setTimeout(function() {
-          var inp = document.getElementById('search-input');
-          if (inp) { inp.value = params.query; inp.dispatchEvent(new Event('input')); searchDebounce(); }
+          var inp = document.getElementById('cmdk-input');
+          if (inp) { inp.value = params.query; cmdkQuery(params.query); }
         }, 80);
       }
       break;
