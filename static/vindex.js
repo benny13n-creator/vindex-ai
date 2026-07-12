@@ -3988,7 +3988,7 @@ function crmZatvoriProfil() {
 }
 
 function crmProfilTab(tab) {
-  ['podaci','aktivni','zavrseni','timeline','dokumenti'].forEach(function(t){
+  ['podaci','aktivni','zavrseni','timeline','dokumenti','komunikacija'].forEach(function(t){
     var btn = document.getElementById('crm-pt-'+t);
     var pane = document.getElementById('crm-pane-'+t);
     if(btn) btn.classList.toggle('active', t===tab);
@@ -3996,6 +3996,85 @@ function crmProfilTab(tab) {
   });
   if (tab === 'timeline' && crmAktivniId) crmUcitajTimeline(crmAktivniId);
   if (tab === 'dokumenti' && crmAktivniId) crmUcitajDokumente(crmAktivniId);
+  if (tab === 'komunikacija' && crmAktivniId) crmUcitajTwin(crmAktivniId);
+}
+
+/* Client Twin — komunikacioni profil klijenta (routers/client_twin.py) */
+async function crmUcitajTwin(klijentId) {
+  var wrap = document.getElementById('crm-twin-wrap');
+  if (!wrap || !currentSession) return;
+  wrap.innerHTML = '<div class="crm-prazno">Učitavam...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/client-twin/' + klijentId, {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('Greška ' + r.status));
+    _crmRenderTwin(klijentId, d.komunikacioni_profil || null, d.br_predmeta, d.updated_at);
+  } catch (e) {
+    wrap.innerHTML = '<div class="crm-prazno">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
+}
+
+function _crmRenderTwin(klijentId, profil, brPredmeta, updatedAt) {
+  var wrap = document.getElementById('crm-twin-wrap');
+  if (!wrap) return;
+  var azurirajBtn = '<button class="vx-btn vx-btn-secondary" onclick="crmAnaliziranjeTwin(\'' + klijentId + '\')" id="crm-twin-analiziraj-btn">'
+    + (profil ? 'Osveži profil' : 'Izgradi komunikacioni profil') + '</button>';
+
+  if (!profil) {
+    wrap.innerHTML = '<div class="crm-prazno" style="margin-bottom:.7rem;">Komunikacioni profil još nije izgrađen — analiziramo istoriju predmeta i beleški da izvučemo konkretne, proverljive preferencije (kanal, učestalost, prioriteti).</div>' + azurirajBtn
+      + '<div id="crm-twin-result" style="margin-top:.8rem;"></div>';
+    return;
+  }
+
+  var polja = [
+    ['Tip izveštaja', profil.tip_izvestaja], ['Učestalost kontakta', profil.ucestalost_kontakta],
+    ['Uključenost u odluke', profil.ukljucenost_u_odluke], ['Preferirani kanal', profil.preferirani_kanal],
+  ];
+  var rows = polja.filter(function(p){ return p[1] && p[1] !== 'nije_poznato'; })
+    .map(function(p){ return '<div class="crm-podaci-row"><span class="crm-podaci-lbl">' + _htmlEsc(p[0]) + '</span><span class="crm-podaci-val">' + _htmlEsc(p[1]) + '</span></div>'; })
+    .join('');
+
+  var zastavice = [
+    profil.uvek_trazi_procenu_troskova ? 'Uvek traži procenu troškova' : null,
+    profil.uvek_trazi_rokove ? 'Uvek traži rokove' : null,
+    profil.pita_za_alternative ? 'Pita za alternative' : null,
+    profil.ocekuje_brze_odgovore ? 'Očekuje brze odgovore' : null,
+  ].filter(Boolean);
+
+  wrap.innerHTML = '<div class="vx-card" style="padding:.9rem 1rem;margin-bottom:.7rem;">'
+    + rows
+    + (profil.prioriteti_pri_izvestavanju && profil.prioriteti_pri_izvestavanju.length
+        ? '<div class="crm-podaci-row"><span class="crm-podaci-lbl">Prioriteti pri izveštavanju</span><span class="crm-podaci-val">' + _htmlEsc(profil.prioriteti_pri_izvestavanju.join(', ')) + '</span></div>' : '')
+    + (zastavice.length ? '<div style="margin-top:.5rem;display:flex;flex-wrap:wrap;gap:.35rem;">' + zastavice.map(function(z){ return '<span class="vx-pill" style="background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.25);">' + _htmlEsc(z) + '</span>'; }).join('') + '</div>' : '')
+    + (profil.konkretne_napomene && profil.konkretne_napomene.length
+        ? '<div style="margin-top:.6rem;"><div class="vx-section-lbl" style="margin-bottom:.3rem;">Konkretne napomene</div><ul style="margin:0;padding-left:1.1rem;">' + profil.konkretne_napomene.map(function(n){ return '<li style="font-size:.78rem;color:rgba(255,255,255,.7);margin-bottom:.2rem;">' + _htmlEsc(n) + '</li>'; }).join('') + '</ul></div>' : '')
+    + '<div style="font-size:.65rem;color:rgba(255,255,255,.3);margin-top:.6rem;">Izvor: ' + _htmlEsc(profil.izvor || (brPredmeta + ' predmeta')) + ' · Pouzdanost: ' + _htmlEsc(profil.pouzdanost || '?') + (updatedAt ? ' · Ažurirano: ' + _htmlEsc(updatedAt.slice(0,10)) : '') + '</div>'
+    + '<div style="font-size:.62rem;color:rgba(255,255,255,.22);margin-top:.3rem;">' + _htmlEsc(profil.disclaimer || 'Preferencije su izvedene iz analiziranih materijala. Uvek proverite direktno sa klijentom.') + '</div>'
+    + '</div>'
+    + azurirajBtn
+    + '<div id="crm-twin-result" style="margin-top:.8rem;"></div>';
+}
+
+async function crmAnaliziranjeTwin(klijentId) {
+  var btn = document.getElementById('crm-twin-analiziraj-btn');
+  var resEl = document.getElementById('crm-twin-result');
+  if (btn) { btn.disabled = true; btn.textContent = 'Analiziram...'; }
+  if (resEl) resEl.innerHTML = '<div class="crm-prazno">⏳ Analiziram istoriju komunikacije...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/client-twin/' + klijentId + '/analiziraj', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('Greška ' + r.status));
+    _crmRenderTwin(klijentId, d.komunikacioni_profil, d.analizirano_predmeta, null);
+    showToast(d.poruka || 'Profil ažuriran.', 'ok');
+  } catch (e) {
+    if (resEl) resEl.innerHTML = '<div class="crm-prazno">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (btn) { btn.disabled = false; btn.textContent = 'Pokušaj ponovo'; }
+  }
 }
 
 function crmRenderPodaci(k) {
