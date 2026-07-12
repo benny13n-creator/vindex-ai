@@ -135,6 +135,11 @@ blockquote.citat-expanded { max-height: none; }
 .hero-procena-value.hp-mid  { color: #f0b429; }
 .hero-procena-value.hp-bad  { color: #f87171; }
 .hero-procena-tag { display: inline-block; font-size: 0.56rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(0,212,255,0.6); background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); border-radius: 2px; padding: 0.1rem 0.4rem; margin-bottom: 0.25rem; }
+.hero-procena-obrazlozenje { font-size: 0.73rem; color: rgba(255,255,255,0.5); line-height: 1.55; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.05); }
+.hero-korak { display: flex; gap: 0.55rem; margin-top: 0.5rem; }
+.hero-korak-broj { flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,212,255,0.12); color: #00d4ff; font-size: 0.65rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.hero-korak-akcija { font-size: 0.8rem; color: rgba(255,255,255,0.88); font-weight: 500; }
+.hero-korak-zasto { font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-top: 0.15rem; }
 /* Sudska praksa — pojedinacne kartice iz --- SUDSKA PRAKSA bloka */
 .resp-sudska-praksa .resp-section-lbl { color: #c9a84c; }
 .resp-sudska-praksa .resp-section-lbl::before { background: #c9a84c; box-shadow: 0 0 5px rgba(201,168,76,0.4); }

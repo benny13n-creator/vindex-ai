@@ -6006,8 +6006,29 @@ function _extractBrzaProcena(rawText, ragMeta) {
   var block = rawText.slice(afterStart, end).replace(/\r/g, '').trim();
   var rest = rawText.slice(0, start) + rawText.slice(end);
 
+  // "STRATEŠKA PREPORUKA:" je multi-line (numerisana lista sa "Zašto:" pod-linijama) —
+  // izdvoji je pre generičkog key:value parsiranja preostalih jednolinijskih polja.
+  var koraci = [];
+  var prepIdx = block.indexOf('STRATEŠKA PREPORUKA:');
+  var singleLineBlock = block;
+  if (prepIdx !== -1) {
+    singleLineBlock = block.slice(0, prepIdx).trim();
+    var prepBlock = block.slice(prepIdx + 'STRATEŠKA PREPORUKA:'.length).trim();
+    prepBlock.split(/\n(?=\d+\.\s)/).forEach(function(item) {
+      var lines = item.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+      if (!lines.length) return;
+      var akcija = lines[0].replace(/^\d+\.\s*/, '');
+      var zasto = '';
+      lines.slice(1).forEach(function(l) {
+        var zm = l.match(/^Zašto:\s*(.+)$/);
+        if (zm) zasto = zm[1];
+      });
+      if (akcija) koraci.push({ akcija: akcija, zasto: zasto });
+    });
+  }
+
   var fields = {};
-  block.split('\n').forEach(function(line) {
+  singleLineBlock.split('\n').forEach(function(line) {
     var m = line.match(/^([^:]+):\s*(.+)$/);
     if (m) fields[m[1].trim()] = m[2].trim();
   });
@@ -6019,7 +6040,9 @@ function _extractBrzaProcena(rawText, ragMeta) {
   if (osnov) rows += '<div class="hero-procena-row"><span class="hero-procena-label">' + (_HP_OSNOV_DOT[osnov]||'') + ' Pravni osnov</span><span class="hero-procena-value ' + (_HP_OSNOV_CLS[osnov] || '') + '">' + escHtml(osnov) + '</span></div>';
   if (snaga) rows += '<div class="hero-procena-row"><span class="hero-procena-label">' + (_HP_SNAGA_DOT[snaga]||'') + ' Snaga osnova</span><span class="hero-procena-value ' + (_HP_SNAGA_CLS[snaga] || '') + '">' + escHtml(snaga) + '</span></div>';
   if (conf && _HP_CONF_LABEL[conf]) rows += '<div class="hero-procena-row"><span class="hero-procena-label">Pouzdanost izvora</span><span class="hero-procena-value ' + _HP_CONF_CLS[conf] + '">' + _HP_CONF_LABEL[conf] + '</span></div>';
-  var heroHtml = '<div class="hero-procena"><div class="hero-procena-title">Vindex AI — status</div>' + rows + '</div>';
+  var heroHtml = '<div class="hero-procena"><div class="hero-procena-title">Vindex AI — status</div>' + rows
+    + (fields['Obrazloženje'] ? '<div class="hero-procena-obrazlozenje">' + escHtml(fields['Obrazloženje']) + '</div>' : '')
+    + '</div>';
 
   if (fields['Glavni rizik'] || fields['Ključni nedostatak']) {
     heroHtml += '<div class="hero-procena" style="margin-top:0.5rem;">'
@@ -6027,8 +6050,15 @@ function _extractBrzaProcena(rawText, ragMeta) {
       + (fields['Ključni nedostatak'] ? '<div class="hero-procena-row"><span class="hero-procena-label">❗ Ključni nedostatak</span><span class="hero-procena-value">' + escHtml(fields['Ključni nedostatak']) + '</span></div>' : '')
       + '</div>';
   }
-  if (fields['STRATEŠKA PREPORUKA']) {
-    heroHtml += '<div class="hero-procena" style="margin-top:0.5rem;"><span class="hero-procena-tag">Strateška preporuka — sledeći potez</span><div style="font-size:0.8rem;color:rgba(255,255,255,0.85);">' + escHtml(fields['STRATEŠKA PREPORUKA']) + '</div></div>';
+  if (koraci.length) {
+    heroHtml += '<div class="hero-procena" style="margin-top:0.5rem;"><span class="hero-procena-tag">Strateška preporuka — sledeći potezi</span>'
+      + koraci.map(function(k, i) {
+        return '<div class="hero-korak"><span class="hero-korak-broj">' + (i+1) + '</span>'
+          + '<div><div class="hero-korak-akcija">' + escHtml(k.akcija) + '</div>'
+          + (k.zasto ? '<div class="hero-korak-zasto">Zašto: ' + escHtml(k.zasto) + '</div>' : '')
+          + '</div></div>';
+      }).join('')
+      + '</div>';
   }
   return { heroHtml: heroHtml, rest: rest };
 }
