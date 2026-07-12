@@ -604,7 +604,7 @@ footer { padding: 2rem 1.5rem; }
 .cyr-toggle-wrap input:checked ~ .cyr-toggle-lbl { color:#e8c97a; }
 /* Document upload P2.6a */
 .upload-dropzone{width:100%;border:2px dashed rgba(255,255,255,0.12);border-radius:14px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s,box-shadow .2s;background:rgba(13,17,23,0.4);margin-top:.7rem;box-sizing:border-box;}
-.upload-dropzone:hover,.upload-dropzone.drag-over,.upload-dropzone:active{border-color:rgba(0,212,255,0.45);background:rgba(0,212,255,0.04);box-shadow:0 0 24px rgba(0,212,255,0.06);}
+.upload-dropzone:hover,.upload-dropzone.drag-over,.upload-dropzone:active{border-color:rgba(0,212,255,0.5);background:rgba(0,212,255,0.03);}
 .upload-zone-icon{font-size:2rem;margin-bottom:.5rem;}
 .upload-zone-text{color:rgba(255,255,255,0.72);font-size:.95rem;font-weight:500;}
 .upload-zone-sub{color:rgba(255,255,255,0.4);font-size:.78rem;margin-top:.3rem;}
@@ -736,7 +736,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .predmet-indicator.show{display:block;}
 .pred-list{display:flex;flex-direction:column;gap:0.5rem;margin-top:0.75rem;max-height:520px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .pred-item{display:flex;align-items:center;gap:0.7rem;padding:0.95rem 1.05rem;min-height:44px;background:rgba(13,17,23,0.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08);border-radius:14px;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s;}
-.pred-item:hover,.pred-item.active{background:rgba(255,255,255,0.045);border-color:rgba(0,212,255,0.35);box-shadow:0 0 22px rgba(0,212,255,0.07);}
+.pred-item:hover,.pred-item.active{background:rgba(255,255,255,0.045);border-color:rgba(0,212,255,0.45);}
 .pred-naziv{flex:1;font-size:0.84rem;color:#e8eaf0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pred-badge{font-size:0.6rem;letter-spacing:0.07em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);}
 .pred-badge.radni{background:rgba(0,212,255,0.08);color:#00d4ff;}
@@ -894,8 +894,8 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .interni-del-btn{margin-top:9px;}
 /* ── Billing module ─────────────────────────────────────────────────────── */
 .billing-timer-bar{background:rgba(13,17,23,0.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--vx-border);border-radius:14px;padding:0.85rem 0.95rem;margin-bottom:0.6rem;}
-.billing-timer-btn-start{width:100%;margin-top:0.5rem;padding:0.5rem;background:linear-gradient(135deg,rgba(0,212,255,0.92),rgba(0,150,200,0.92));border:1px solid rgba(0,212,255,0.55);border-radius:8px;color:#010308;font-size:0.74rem;font-weight:700;cursor:pointer;transition:opacity .15s,box-shadow .15s;font-family:inherit;}
-.billing-timer-btn-start:hover{opacity:.92;box-shadow:0 0 20px rgba(0,212,255,0.28);}
+.billing-timer-btn-start{width:100%;margin-top:0.5rem;padding:0.5rem;background:#00d4ff;border:1px solid rgba(0,212,255,0.55);border-radius:8px;color:#010308;font-size:0.74rem;font-weight:700;cursor:pointer;transition:opacity .15s,box-shadow .15s;font-family:inherit;}
+.billing-timer-btn-start:hover{opacity:.92;}
 .billing-timer-btn-stop{width:100%;margin-top:0.35rem;padding:0.4rem;background:rgba(255,80,80,0.08);border:1px solid rgba(255,80,80,0.2);border-radius:7px;color:#ff9090;font-size:0.72rem;cursor:pointer;transition:all .2s;font-family:inherit;}
 .billing-timer-btn-stop:hover{background:rgba(255,80,80,0.15);}
 .billing-entry-row{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);margin-bottom:0.3rem;transition:background .15s,border-color .15s;}
@@ -2716,17 +2716,18 @@ select option:hover,select option:focus,select option:checked{background-color:r
   --s2: rgba(255,255,255,0.055);
   --s3: rgba(255,255,255,0.08);
 
-  /* Typography */
+  /* Typography — v3: monospace-forward (Bloomberg Terminal/Palantir), osim zakljucanog
+     Pregled dana ekrana (#tab-h ispod redefinise --font-ui nazad na originalni sans-serif) */
   --font-brand: 'Cormorant Garamond', Georgia, serif;
-  --font-ui:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-ui:    'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
   --font-mono:  'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 
-  /* Radii */
-  --r-xs: 3px;
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 20px;
+  /* Radii — v3: ostro/institucionalno, ne meko/zaobljeno */
+  --r-xs: 2px;
+  --r-sm: 2px;
+  --r-md: 3px;
+  --r-lg: 4px;
+  --r-xl: 4px;
 
   /* Transitions */
   --t-fast: 0.10s ease;
@@ -2737,6 +2738,11 @@ select option:hover,select option:focus,select option:checked{background-color:r
   --bar-w:  52px;
   --top-h:  48px;
 }
+
+/* Dashboard (Pregled dana / sfera) je zakljucan ekran — redefiniše --font-ui
+   nazad na originalni sans-serif samo unutar #tab-h, tako da globalna promena
+   na monospace gore ne dira njegovu tipografiju. */
+#tab-h { --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
 
 /* 2. BASE RESET ─────────────────────────────────────────────────── */
 *, *::before, *::after {
@@ -3400,7 +3406,7 @@ textarea.pro-input { min-height: 60px; resize: vertical; }
 .pro-input:focus, .modal-input:focus { border-color: var(--bd-blue); }
 .modal-input:focus {
   border-color: rgba(0,212,255,0.55);
-  box-shadow: 0 0 0 3px rgba(0,212,255,0.14), inset 0 0 12px rgba(0,212,255,0.05);
+  box-shadow: 0 0 0 1px rgba(0,212,255,0.55);
 }
 .pro-input::placeholder, .modal-input::placeholder { color: var(--tx-4); }
 
@@ -3550,7 +3556,7 @@ select.pro-input option { background: var(--surface); }
 .modal-btn {
   width: 100%;
   height: 40px;
-  background: linear-gradient(135deg, rgba(0,212,255,0.92), rgba(0,150,200,0.92));
+  background: #00d4ff;
   border: 1px solid rgba(0,212,255,0.55);
   border-radius: var(--r-sm);
   color: #010308;
@@ -3562,7 +3568,7 @@ select.pro-input option { background: var(--surface); }
   transition: opacity var(--t-fast), box-shadow var(--t-fast);
   margin-top: 4px;
 }
-.modal-btn:hover { opacity: 0.92; box-shadow: 0 0 24px rgba(0,212,255,0.32); }
+.modal-btn:hover { opacity: 0.92; }
 .modal-note {
   font-size: 0.62rem;
   color: var(--tx-4);
@@ -5697,15 +5703,15 @@ i[data-lucide] svg {
   cursor: pointer;
   transition: border-color .2s, background .2s, box-shadow .2s, transform .15s;
 }
-.agent-card:hover { border-color: rgba(0,212,255,0.32); background: rgba(255,255,255,0.035); box-shadow: 0 0 20px rgba(0,212,255,0.06); }
-.agent-card.active { border-color: rgba(0,212,255,0.55); background: rgba(0,212,255,0.05); box-shadow: 0 0 26px rgba(0,212,255,0.12); }
+.agent-card:hover { border-color: rgba(0,212,255,0.45); background: rgba(255,255,255,0.035); }
+.agent-card.active { border-color: rgba(0,212,255,0.7); background: rgba(0,212,255,0.05); }
 .agent-card.is-running {
   border-color: rgba(0,212,255,0.6);
   animation: agent-pulse-glow 1.6s ease-in-out infinite;
 }
 @keyframes agent-pulse-glow {
-  0%, 100% { box-shadow: 0 0 14px rgba(0,212,255,0.10); }
-  50%      { box-shadow: 0 0 34px rgba(0,212,255,0.30); }
+  0%, 100% { border-color: rgba(0,212,255,0.4); }
+  50%      { border-color: rgba(0,212,255,0.9); }
 }
 .agent-icon { font-size:1.6rem; margin-bottom:.5rem; color: var(--vx-text-secondary); }
 .agent-name { font-size:.84rem; font-weight:700; color: var(--vx-text-primary); }
@@ -8144,7 +8150,6 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .pred-list-item:hover, .predmet-item:hover, [class*="pred-item"]:hover {
   border-color: rgba(0,212,255,0.35) !important;
   background: rgba(255,255,255,0.045) !important;
-  box-shadow: 0 0 22px rgba(0,212,255,0.07) !important;
 }
 
 /* -- Status badge unifikacija ---------------------------------------------- */
@@ -8212,7 +8217,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 /* -- Modali — migrirano na cyan akcenat (v2 redesign) ----------------------- */
 .modal {
   border-color: var(--bd-3) !important;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 60px rgba(0,212,255,0.05) !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset !important;
 }
 .modal-badge {
   background: rgba(0,212,255,0.08) !important;
@@ -8220,13 +8225,13 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   border: 1px solid rgba(0,212,255,0.28) !important;
 }
 .modal-btn {
-  background: linear-gradient(135deg, rgba(0,212,255,0.92), rgba(0,150,200,0.92)) !important;
+  background: #00d4ff !important;
   border: 1px solid rgba(0,212,255,0.55) !important;
   color: #010308 !important;
   font-weight: 700 !important;
   letter-spacing: 0 !important;
 }
-.modal-btn:hover { opacity: 0.92 !important; box-shadow: 0 0 24px rgba(0,212,255,0.32) !important; }
+.modal-btn:hover { opacity: 0.92 !important; }
 
 /* -- Doc upload zone ------------------------------------------------------- */
 .dok-drop-zone, [class*="drop-zone"], [class*="dropzone"] {
@@ -8355,8 +8360,8 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   box-shadow: none !important;
 }
 .vx-btn-new:hover { background: var(--vp-hover) !important; border-color: rgba(75,119,232,0.48) !important; }
-.modal-btn { background: linear-gradient(135deg, rgba(0,212,255,0.92), rgba(0,150,200,0.92)) !important; border: 1px solid rgba(0,212,255,0.55) !important; color: #010308 !important; font-weight: 700 !important; box-shadow: none !important; }
-.modal-btn:hover { opacity: 0.92 !important; box-shadow: 0 0 24px rgba(0,212,255,0.32) !important; }
+.modal-btn { background: #00d4ff !important; border: 1px solid rgba(0,212,255,0.55) !important; color: #010308 !important; font-weight: 700 !important; box-shadow: none !important; }
+.modal-btn:hover { opacity: 0.92 !important; }
 
 /* QUICK ACTION BANNER */
 #pred-quick-action {
@@ -8401,14 +8406,14 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 
 /* KARTICE */
 .pred-item { background: rgba(13,17,23,0.5) !important; border-color: rgba(255,255,255,0.08) !important; transition: background 0.2s, border-color 0.2s, box-shadow 0.2s !important; }
-.pred-item:hover, .pred-item.active { background: rgba(255,255,255,0.045) !important; border-color: rgba(0,212,255,0.35) !important; box-shadow: 0 0 22px rgba(0,212,255,0.07) !important; }
+.pred-item:hover, .pred-item.active { background: rgba(255,255,255,0.045) !important; border-color: rgba(0,212,255,0.45) !important; }
 .crm-kartica { border-color: var(--vp-border) !important; background: var(--vp-surface) !important; }
 .crm-kartica:hover { border-color: var(--vp-border-md) !important; background: var(--vp-surface-2) !important; }
 .billing-item { border-color: var(--vp-border) !important; }
 .billing-item:hover { border-color: var(--vp-border-md) !important; }
 .kanban-col  { border-color: rgba(255,255,255,0.08) !important; background: rgba(13,17,23,0.5) !important; }
 .kanban-card { border-color: rgba(255,255,255,0.08) !important; background: rgba(255,255,255,0.02) !important; border-radius: 10px !important; }
-.kanban-card:hover { border-color: rgba(0,212,255,0.32) !important; background: rgba(255,255,255,0.04) !important; box-shadow: 0 0 18px rgba(0,212,255,0.06) !important; }
+.kanban-card:hover { border-color: rgba(0,212,255,0.45) !important; background: rgba(255,255,255,0.04) !important; }
 
 /* BADGES */
 .pred-badge.radni     { background: rgba(0,212,255,0.08) !important; color: #00d4ff !important; border: 1px solid rgba(0,212,255,0.22) !important; }
@@ -8421,7 +8426,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .risk-visok   { color: rgba(200,80,75,0.80)  !important; }
 
 /* MODALI — migrirano na cyan akcenat (v2 redesign), vidi .modal/.modal-badge iznad */
-.modal { border-color: var(--bd-3) !important; box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 60px rgba(0,212,255,0.05) !important; }
+.modal { border-color: var(--bd-3) !important; box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset !important; }
 .modal-badge { background: rgba(0,212,255,0.08) !important; color: #00d4ff !important; border: 1px solid rgba(0,212,255,0.28) !important; }
 
 /* TOASTI */
@@ -8534,13 +8539,13 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   --vx-text-secondary: rgba(255,255,255,0.55);
   --vx-accent:         #00d4ff;
   --vx-accent-dim:     rgba(0,212,255,0.55);
-  --vx-accent-glow:    rgba(0,212,255,0.35);
-  --vx-accent-glow-soft: rgba(0,212,255,0.14);
-  --vx-radius-sm:      8px;
-  --vx-radius-md:      14px;
-  --vx-radius-lg:      18px;
-  --vx-space-1: 4px; --vx-space-2: 8px; --vx-space-3: 12px;
-  --vx-space-4: 16px; --vx-space-5: 24px; --vx-space-6: 32px; --vx-space-7: 48px;
+  --vx-accent-glow:    rgba(0,212,255,0.16);
+  --vx-accent-glow-soft: rgba(0,212,255,0.08);
+  --vx-radius-sm:      2px;
+  --vx-radius-md:      3px;
+  --vx-radius-lg:      4px;
+  --vx-space-1: 3px; --vx-space-2: 6px; --vx-space-3: 8px;
+  --vx-space-4: 10px; --vx-space-5: 14px; --vx-space-6: 18px; --vx-space-7: 24px;
   --vx-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --vx-transition-fast: 150ms var(--vx-ease);
   --vx-transition: 200ms var(--vx-ease);
@@ -8604,13 +8609,12 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 
 /* Primary — retko, jedina akcija sa cyan glow-om na ekranu */
 .vx-btn-primary {
-  background: linear-gradient(135deg, rgba(0,212,255,0.92), rgba(0,150,200,0.92));
+  background: #00d4ff;
   border: 1px solid rgba(0,212,255,0.55);
   color: #011019;
-  box-shadow: 0 0 0 rgba(0,212,255,0);
 }
 .vx-btn-primary:hover:not(:disabled) {
-  box-shadow: 0 0 22px var(--vx-accent-glow), 0 0 4px rgba(0,212,255,0.4);
+  box-shadow: none;
 }
 
 /* Secondary — tamna pozadina + border, standardna akcija */
@@ -8681,7 +8685,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 }
 .vx-card:hover {
   border-color: var(--vx-accent-dim);
-  box-shadow: 0 0 28px rgba(0,212,255,0.08);
+  box-shadow: none;
 }
 .vx-card-title {
   font-size: var(--vx-t-heading);
@@ -8716,7 +8720,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 }
 .vx-input:focus, .vx-select:focus, .vx-textarea:focus {
   border-color: var(--vx-accent-dim);
-  box-shadow: 0 0 0 3px var(--vx-accent-glow-soft), inset 0 0 12px rgba(0,212,255,0.05);
+  box-shadow: 0 0 0 1px var(--vx-accent-dim);
 }
 .vx-input::placeholder, .vx-textarea::placeholder { color: rgba(255,255,255,0.28); }
 .vx-textarea { height: auto; min-height: 88px; padding: 0.65rem 0.85rem; resize: vertical; line-height: 1.5; }
@@ -8830,7 +8834,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   background: var(--vx-bg-elevated);
   border: 1px solid var(--vx-border-strong);
   border-radius: var(--vx-radius-lg);
-  box-shadow: 0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,212,255,0.04);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6);
   animation: vx-modal-in var(--vx-transition-slow) var(--vx-ease);
 }
 @keyframes vx-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -8942,7 +8946,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   width: 100% !important;
   padding: 0.7rem 1rem !important;
   margin-top: 0.5rem !important;
-  background: linear-gradient(135deg, rgba(0,212,255,0.92), rgba(0,150,200,0.92)) !important;
+  background: #00d4ff !important;
   border: 1px solid rgba(0,212,255,0.55) !important;
   border-radius: 10px !important;
   color: #010308 !important;
@@ -8952,9 +8956,8 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   font-family: inherit !important;
   letter-spacing: 0.01em !important;
   transition: opacity 0.15s, box-shadow 0.15s !important;
-  box-shadow: 0 2px 20px rgba(0,212,255,0.18) !important;
 }
-.pred-new-btn:hover { opacity: 0.92 !important; box-shadow: 0 0 30px rgba(0,212,255,0.32) !important; }
+.pred-new-btn:hover { opacity: 0.92 !important; }
 
 /* ── Rad hub: kartice alata predmeta ── */
 .vx-rad-card {
@@ -9109,7 +9112,7 @@ table.vx-grid input[type="checkbox"] { width: 15px; height: 15px; accent-color: 
 textarea.vx-f-input { height: auto; min-height: 96px; padding-top: 1.3rem; resize: vertical; line-height: 1.5; }
 .vx-f-input:focus {
   border-color: var(--vx-accent-dim);
-  box-shadow: 0 0 0 3px var(--vx-accent-glow-soft), inset 0 0 12px rgba(0,212,255,0.05);
+  box-shadow: 0 0 0 1px var(--vx-accent-dim);
 }
 .vx-f-label {
   position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
@@ -9153,7 +9156,7 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
   width: 11px; height: 11px; border-radius: 50%;
   background: var(--vx-bg-elevated);
   border: 2px solid rgba(0,212,255,0.6);
-  box-shadow: 0 0 8px rgba(0,212,255,0.25);
+
   flex-shrink: 0; margin-top: 3px;
 }
 .vx-tl-dot.is-done { background: #00d4ff; }
@@ -9205,7 +9208,7 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
   padding: var(--vx-space-3);
   transition: border-color var(--vx-transition-fast), box-shadow var(--vx-transition-fast);
 }
-.vx-kb-card:hover { border-color: rgba(0,212,255,0.3); box-shadow: 0 0 16px rgba(0,212,255,0.06); }
+.vx-kb-card:hover { border-color: rgba(0,212,255,0.45); }
 .vx-kb-card-title { font-size: var(--vx-t-body); font-weight: 600; color: var(--vx-text-primary); margin-bottom: 0.3rem; }
 .vx-kb-card-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .vx-kb-card-move { display: flex; gap: 0.3rem; margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid var(--vx-border); }
