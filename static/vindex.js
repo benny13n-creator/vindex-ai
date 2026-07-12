@@ -12589,12 +12589,14 @@ async function adminOpsLoad() {
     fetch(BASE_URL + '/api/portal/health', { headers: hdrs }).then(function(r){ return r.json(); }),
     fetch(BASE_URL + '/api/admin/security-overview', { headers: hdrs }).then(function(r){ return r.json(); }),
     fetch(BASE_URL + '/api/admin/analytics/platform?dana=30', { headers: hdrs }).then(function(r){ return r.json(); }),
+    fetch(BASE_URL + '/admin/pi/plans', { headers: hdrs }).then(function(r){ return r.json(); }),
   ]);
   var proof    = results[0].status === 'fulfilled' ? results[0].value : null;
   var apr      = results[1].status === 'fulfilled' ? results[1].value : null;
   var portal   = results[2].status === 'fulfilled' ? results[2].value : null;
   var sec      = results[3].status === 'fulfilled' ? results[3].value : null;
   var platform = results[4].status === 'fulfilled' ? results[4].value : null;
+  var revenue  = results[5].status === 'fulfilled' ? results[5].value : null;
 
   var cards = [];
   cards.push(_adminCard('System Health', proof ? (proof.overall + ' (' + proof.pass_count + '/' + (proof.pass_count + proof.fail_count + proof.warn_count) + ')') : '—',
@@ -12625,7 +12627,18 @@ async function adminOpsLoad() {
         ['Draft accepted rate', (platform.draft_outcomes.accepted_rate_pct != null ? platform.draft_outcomes.accepted_rate_pct + '%' : '—')],
       ];
       var topTabovi = (platform.top_tabovi || []).slice(0, 5).map(function(t){ return t.tab + ' (' + t.count + ')'; }).join(', ') || '—';
-      paEl.innerHTML = _adminAnalyticsGroupLbl('Growth')
+      var revenueHtml = '';
+      if (revenue) {
+        var revenueTiles = [
+          ['MRR', '€' + Math.round(revenue.mrr_eur || 0).toLocaleString('sr-RS')],
+          ['ARR', '€' + Math.round(revenue.arr_eur || 0).toLocaleString('sr-RS')],
+          ['Plaćajući korisnici', (revenue.placajuci || 0) + ' / ' + (revenue.ukupno_korisnika || 0)],
+        ];
+        revenueHtml = _adminAnalyticsGroupLbl('Revenue')
+          + revenueTiles.map(function(t){ return _adminCard(t[0], t[1], 'ok'); }).join('');
+      }
+      paEl.innerHTML = revenueHtml
+        + _adminAnalyticsGroupLbl('Growth')
         + growthTiles.map(function(t){ return _adminCard(t[0], t[1], 'ok'); }).join('')
         + _adminAnalyticsGroupLbl('Adoption')
         + adoptionTiles.map(function(t){ return _adminCard(t[0], t[1], 'ok'); }).join('')
@@ -12762,20 +12775,16 @@ function analyticsRender(d) {
     }).join('');
   }
 
-  // Bar chart aktivnost — hero
-  var chartEl = document.getElementById('analytics-chart');
-  if (chartEl && aktivnost.length) {
-    var maxVal = Math.max.apply(null, aktivnost.map(function(a){ return a.count; })) || 1;
-    chartEl.innerHTML = aktivnost.map(function(a){
-      var pct = Math.round((a.count / maxVal) * 100);
-      var dan = (a.datum || '').slice(5);
-      return '<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:4px;" title="'+a.datum+': '+a.count+' akcija">'
-        +'<div style="width:100%;background:linear-gradient(180deg,rgba(0,212,255,0.55),rgba(0,212,255,0.15));border-radius:3px 3px 0 0;height:'+pct+'%;min-height:'+(a.count?2:0)+'px;"></div>'
-        +'<div style="font-size:0.44rem;color:var(--vx-text-secondary);writing-mode:vertical-lr;transform:rotate(180deg);white-space:nowrap;">'+dan+'</div>'
-        +'</div>';
-    }).join('');
-  } else if (chartEl) {
-    chartEl.innerHTML = '<div style="color:rgba(255,255,255,0.2);font-size:0.75rem;width:100%;text-align:center;">Nema podataka</div>';
+  // Bar chart aktivnost — hero (Chart.js)
+  var chartEmptyEl = document.getElementById('analytics-chart-empty');
+  if (aktivnost.length) {
+    if (chartEmptyEl) chartEmptyEl.style.display = 'none';
+    var chartLabels = aktivnost.map(function(a){ return (a.datum || '').slice(5); });
+    var chartData   = aktivnost.map(function(a){ return a.count; });
+    vxChartBar('analytics-chart', chartLabels, chartData);
+  } else if (chartEmptyEl) {
+    chartEmptyEl.style.display = 'block';
+    _vxChartDestroy('analytics-chart');
   }
 
   // Top funkcije

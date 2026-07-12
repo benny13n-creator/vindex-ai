@@ -3558,7 +3558,10 @@
               <!-- Hero: Aktivnost po danu (bar chart), puna širina -->
               <div class="vx-card" style="margin:0.7rem 0 0.9rem;padding:1.1rem;">
                 <div class="vx-section-lbl" style="margin-bottom:0.6rem;">Aktivnost po danu</div>
-                <div id="analytics-chart" style="display:flex;align-items:flex-end;gap:3px;height:90px;"></div>
+                <div class="vx-chart-wrap" style="height:130px;">
+                  <canvas id="analytics-chart"></canvas>
+                  <div id="analytics-chart-empty" style="display:none;color:rgba(255,255,255,0.2);font-size:0.75rem;width:100%;text-align:center;padding-top:2rem;">Nema podataka</div>
+                </div>
               </div>
               <!-- 4 ključna KPI-ja -->
               <div id="analytics-kpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:1rem;"></div>
