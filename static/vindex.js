@@ -2277,6 +2277,33 @@ function settingsLoad() {
   kancelarijaLoad();
   billingDugovanjaLoad();
   confidenceAuditLoad();
+  learningStatsLoad();
+}
+
+// ── Statistika kancelarije — Learning Stats (court_predictor.py) ────────────
+
+async function learningStatsLoad() {
+  var wrap = document.getElementById('learning-stats-wrap');
+  if (!wrap || !currentSession) return;
+  wrap.innerHTML = '<div style="color:rgba(255,255,255,0.25);font-size:.78rem;">Učitavam...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/predictor/learning-stats', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('Greška ' + r.status));
+
+    var rows = (d.tip_spora_performanse || []).map(function(p) {
+      var c = p.win_rate >= 60 ? '#4ade80' : p.win_rate >= 40 ? '#facc15' : '#f87171';
+      return '<div class="crm-podaci-row"><span class="crm-podaci-lbl">' + _htmlEsc(p.tip) + '</span><span class="crm-podaci-val" style="color:' + c + ';">' + p.win_rate + '% (' + p.uzoraka + ' predmeta)</span></div>';
+    }).join('');
+
+    wrap.innerHTML = '<div style="font-size:.72rem;color:rgba(255,255,255,0.35);margin-bottom:.6rem;line-height:1.5;">' + _htmlEsc(d.poruka || '') + '</div>'
+      + rows
+      + '<div style="font-size:.65rem;color:rgba(255,255,255,.3);margin-top:.5rem;">AI analiza pokrenuto: ' + (d.ukupno_analiza || 0) + ' · Preporuke prihvaćeno: ' + (d.preporuke_prihvaceno || 0) + ' · Odbijeno: ' + (d.preporuke_odbijeno || 0) + '</div>';
+  } catch (e) {
+    wrap.innerHTML = '<div style="color:rgba(255,120,120,0.6);font-size:.78rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
 }
 
 // ── AI pouzdanost — Confidence Audit kalibracija ─────────────────────────────
