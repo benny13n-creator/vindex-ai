@@ -2130,12 +2130,16 @@
           <div id="tab-k" style="display:none">
             <!-- Lista view -->
             <div id="crm-lista-view">
-              <div class="crm-header">
-                <span class="crm-header-title">Klijenti</span>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <div class="vx-exec-header">
+                <div>
+                  <div class="vx-exec-header-eyebrow">Kancelarija</div>
+                  <div class="vx-exec-header-title">Klijenti</div>
+                  <div class="vx-exec-header-sub">Kontakti, konflikt provera i istorija predmeta po klijentu.</div>
+                </div>
+                <div class="vx-exec-header-actions">
                   <button class="crm-add-btn" onclick="crmCheckKonfliktOtvori()" style="background:rgba(255,180,50,0.1);border-color:rgba(255,180,50,0.3);color:#ffd080;">⚠ Konflikt</button>
                   <button class="crm-add-btn" onclick="crmCsvImportOtvori()" style="background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.09);color:rgba(255,255,255,0.65);">CSV</button>
-                  <button class="crm-add-btn" onclick="crmOtvoriFormu()">+ Novi klijent</button>
+                  <button class="vx-btn vx-btn-primary" onclick="crmOtvoriFormu()">+ Novi klijent</button>
                 </div>
               </div>
               <div class="crm-search-row">
@@ -3050,7 +3054,13 @@
 
           <!-- ── PODEŠAVANJA ──────────────────────────────────────────────── -->
           <div id="tab-settings" style="display:none">
-            <div class="settings-header">Podešavanja</div>
+            <div class="vx-exec-header">
+              <div>
+                <div class="vx-exec-header-eyebrow">Kancelarija</div>
+                <div class="vx-exec-header-title">Podešavanja</div>
+                <div class="vx-exec-header-sub">Nalog, kancelarija, integracije i notifikacije.</div>
+              </div>
+            </div>
 
             <!-- EU Data Trust strip -->
             <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;padding:.55rem .75rem;background:rgba(0,0,0,.15);border:1px solid rgba(255,255,255,0.06);border-radius:9px;">
