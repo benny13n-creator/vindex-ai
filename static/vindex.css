@@ -1020,8 +1020,8 @@ select option:hover,select option:focus,select option:checked{background-color:r
 /* ── F8: CRM Klijenti tab ─────────────────────────────────── */
 .crm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .crm-header-title{font-size:0.95rem;font-weight:700;color:#e6edf3;}
-.crm-add-btn{background:rgba(75,119,232,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.72);font-size:0.82rem;font-weight:600;padding:7px 14px;cursor:pointer;}
-.crm-add-btn:hover{background:rgba(255,255,255,0.09);}
+.crm-add-btn{background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.22);border-radius:8px;color:rgba(255,255,255,0.8);font-size:0.82rem;font-weight:600;padding:7px 14px;cursor:pointer;transition:background .15s,border-color .15s;}
+.crm-add-btn:hover{background:rgba(0,212,255,0.1);border-color:rgba(0,212,255,0.4);}
 .crm-search-row{display:flex;gap:8px;margin-bottom:12px;}
 .crm-search{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e6edf3;font-size:0.84rem;padding:8px 12px;}
 .crm-search:focus{outline:none;border-color:rgba(75,119,232,0.28);}

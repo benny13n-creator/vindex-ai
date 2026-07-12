@@ -2121,7 +2121,15 @@
                 <input id="crm-search-input" class="crm-search" type="text" placeholder="Pretraži po imenu..." onkeydown="if(event.key==='Enter')crm_pretrazi()">
                 <button class="crm-search-btn" onclick="crm_pretrazi()">Traži</button>
               </div>
-              <div id="crm-lista"></div>
+              <div class="vx-grid-wrap">
+                <div class="vx-grid-scroll">
+                  <table class="vx-grid">
+                    <thead><tr><th>Ime</th><th>Firma</th><th>Kontakt</th><th>Status</th></tr></thead>
+                    <tbody id="crm-lista"></tbody>
+                  </table>
+                </div>
+                <div id="crm-lista-empty" class="vx-grid-empty"></div>
+              </div>
             </div>
 
             <!-- Profil view (sakriven dok ne izaberete klijenta) -->

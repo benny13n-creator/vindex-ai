@@ -3739,26 +3739,31 @@ var _crmProfilData = null;
 async function ucitajKlijente(pretraga) {
   var lista = document.getElementById('crm-lista');
   if (!lista) return;
-  lista.innerHTML = '<div class="crm-prazno">Učitavam...</div>';
+  lista.innerHTML = '<tr><td colspan="4" style="text-align:center;color:rgba(255,255,255,.3);">Učitavam...</td></tr>';
+  vxGridEmptyHide('crm-lista-empty');
   var url = '/klijenti' + (pretraga ? '?pretraga='+encodeURIComponent(pretraga) : '');
   try {
     var r = await fetch(url, {headers:{'Authorization':'Bearer '+currentSession.access_token}});
     var d = await r.json();
     var klijenti = d.klijenti || [];
     if (!klijenti.length) {
-      lista.innerHTML = '<div style="padding:2rem 0;text-align:center;">'+'<div style="font-size:.82rem;color:rgba(255,255,255,.38);margin-bottom:.9rem;">Nemate klijenata.</div>'+'<button onclick="crmOtvoriFormu()" style="padding:.55rem 1.3rem;background:rgba(75,119,232,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.72);font-size:.78rem;cursor:pointer;font-family:inherit;">+ Dodaj prvog klijenta</button>'+'</div>';
+      lista.innerHTML = '';
+      vxGridEmpty('crm-lista-empty', 'users', 'Nemate klijenata', 'Dodajte prvog klijenta da počnete.');
       return;
     }
+    vxGridEmptyHide('crm-lista-empty');
     lista.innerHTML = klijenti.map(function(k){
-      var sub = [k.firma, k.email, k.telefon].filter(Boolean).join(' · ');
-      return '<div class="crm-kartica" onclick="crmOtvoriProfil(\''+_htmlEsc(k.id)+'\')">'
-        +'<div class="crm-kartica-ime">'+_htmlEsc((k.ime||'')+' '+(k.prezime||''))+'</div>'
-        +(sub ? '<div class="crm-kartica-sub">'+_htmlEsc(sub)+'</div>' : '')
-        +'<div class="crm-kartica-sub" style="margin-top:4px;">'+_htmlEsc(k.status||'aktivan')+'</div>'
-        +'</div>';
+      var kontakt = [k.email, k.telefon].filter(Boolean).join(' · ') || '—';
+      var statusCls = (k.status === 'neaktivan') ? 'vx-badge' : 'vx-badge vx-badge-success';
+      return '<tr class="vx-grid-row" onclick="crmOtvoriProfil(\''+_htmlEsc(k.id)+'\')">'
+        + '<td style="font-weight:600;">'+_htmlEsc((k.ime||'')+' '+(k.prezime||''))+'</td>'
+        + '<td class="vx-caption">'+_htmlEsc(k.firma||'—')+'</td>'
+        + '<td class="vx-caption">'+_htmlEsc(kontakt)+'</td>'
+        + '<td><span class="'+statusCls+'">'+_htmlEsc(k.status||'aktivan')+'</span></td>'
+        + '</tr>';
     }).join('');
   } catch(e) {
-    lista.innerHTML = '<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška pri učitavanju.</div>';
+    lista.innerHTML = '<tr><td colspan="4" style="text-align:center;color:rgba(255,80,80,0.5);">Greška pri učitavanju.</td></tr>';
   }
 }
 
