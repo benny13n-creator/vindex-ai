@@ -2905,7 +2905,14 @@ async function stratPokreni() {
         + '</div>';
     } else if (data.analiza) {
       // Court predictor format
-      if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.analiza);
+      if (bodyEl) {
+        bodyEl.innerHTML = stratFormatirajRezultat(data.analiza);
+        if (_stratAktivniModul === 'court_predictor') {
+          bodyEl.innerHTML += '<div id="strat-battle-report-wrap" style="margin-top:1rem;">'
+            + '<button id="strat-battle-report-btn" class="vx-btn vx-btn-secondary" onclick="stratBattleReport()" style="width:100%;">Generiši Battle Report — kompletna priprema za ročište (3 kredita)</button>'
+            + '</div>';
+        }
+      }
       if (data.krediti_utroseni) showToast('Utroseno ' + data.krediti_utroseni + ' kredita.', 'info');
     } else {
       if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.rezultat || '');
@@ -2915,6 +2922,50 @@ async function stratPokreni() {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   } finally {
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
+  }
+}
+
+/* Battle Report — kompletna strateska priprema pre rocista, nadovezuje se
+   na Court Predictor rezultat (isti opis predmeta, isti tip postupka). */
+async function stratBattleReport() {
+  var tekstEl = document.getElementById('strat-tekst');
+  var tipEl   = document.getElementById('strat-tip-postupka');
+  var wrapEl  = document.getElementById('strat-battle-report-wrap');
+  var btn     = document.getElementById('strat-battle-report-btn');
+  if (!tekstEl || !wrapEl) return;
+
+  if (!currentUserIsPro) {
+    wrapEl.innerHTML = '<div class="strat-pro-gate"><strong>Battle Report</strong> je dostupan samo PRO korisnicima.</div>';
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Generišem Battle Report...'; }
+  wrapEl.innerHTML = '<div class="strat-loading">⏳ Battle Report u pripremi...</div>';
+
+  try {
+    var res = await fetch(BASE_URL + '/api/predictor/battle-report', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '')
+      },
+      body: JSON.stringify({
+        opis_predmeta: tekstEl.value.trim(),
+        tip_postupka:  tipEl ? tipEl.value : 'gradjansko',
+        predmet_id:    (typeof activePredmetId !== 'undefined' ? activePredmetId : null)
+      })
+    });
+    if (res.status === 403) {
+      wrapEl.innerHTML = '<div class="strat-pro-gate"><strong>Battle Report</strong> je dostupan samo PRO korisnicima.</div>';
+      return;
+    }
+    if (!res.ok) throw new Error('Server greška: ' + res.status);
+    var data = await res.json();
+    wrapEl.innerHTML = '<div class="vx-section-lbl" style="margin-bottom:.5rem;">Battle Report</div>'
+      + stratFormatirajRezultat(data.battle_report || data.analiza || data.rezultat || '');
+    if (data.krediti_utroseni) showToast('Utrošeno ' + data.krediti_utroseni + ' kredita.', 'info');
+  } catch (e) {
+    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   }
 }
 
