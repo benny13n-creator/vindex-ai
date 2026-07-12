@@ -505,7 +505,7 @@ async def ai_analiziraj_predmet(
                 .execute()
         ),
         asyncio.to_thread(
-            lambda: supa.table("predmet_rokovi")
+            lambda: supa.table("rokovi")
                 .select("naziv, datum, status")
                 .eq("predmet_id", predmet_id)
                 .gte("datum", danas)
