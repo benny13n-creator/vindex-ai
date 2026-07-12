@@ -9281,3 +9281,82 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
   .pred-page-grid { grid-template-columns: 1fr; }
   .pred-page-side { position: static; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   VINDEX AI — NAMED COMPONENT LIBRARY v5 (editorial rebuild)
+   Vanilla-JS builder funkcije u vindex.js (VxExecutiveHeader, VxInsightPanel)
+   generišu markup koji koristi ove klase. Asimetrični layout, jedan hero po
+   ekranu, bez uniformnih grid-ova jednakih kartica. NE dira zaključani
+   Pregled dana ekran.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── VxExecutiveHeader — veliki, asimetrični header ekrana/sekcije ───────── */
+.vx-exec-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--vx-space-5);
+  padding-bottom: var(--vx-space-4);
+  margin-bottom: var(--vx-space-5);
+  border-bottom: 1px solid var(--vx-border-strong);
+  flex-wrap: wrap;
+}
+.vx-exec-header-eyebrow {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--vx-accent);
+  margin-bottom: 0.45rem;
+}
+.vx-exec-header-title {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--vx-text-primary);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.vx-exec-header-sub {
+  font-size: 0.78rem;
+  color: var(--vx-text-secondary);
+  margin-top: 0.4rem;
+  line-height: 1.55;
+  max-width: 52ch;
+}
+.vx-exec-header-meta { display: flex; gap: var(--vx-space-5); margin-top: var(--vx-space-4); flex-wrap: wrap; }
+.vx-exec-meta-item { display: flex; flex-direction: column; gap: 3px; }
+.vx-exec-meta-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: .08em; color: var(--vx-text-secondary); }
+.vx-exec-meta-value { font-size: 0.9rem; font-weight: 700; color: var(--vx-text-primary); }
+.vx-exec-header-actions { display: flex; gap: var(--vx-space-2); flex-shrink: 0; flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .vx-exec-header { align-items: flex-start; }
+  .vx-exec-header-title { font-size: 1.35rem; }
+}
+
+/* ── VxInsightPanel — narativni AI-uvid, vizuelno razlicit od .vx-card ──── */
+.vx-insight-panel {
+  background: rgba(0,212,255,0.025);
+  border: 1px solid var(--vx-border);
+  border-left: 3px solid var(--vx-accent);
+  padding: var(--vx-space-5);
+  position: relative;
+}
+.vx-insight-label {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.6rem; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--vx-accent); font-weight: 700; margin-bottom: var(--vx-space-3);
+}
+.vx-insight-body { font-size: 0.85rem; line-height: 1.65; color: var(--vx-text-primary); }
+.vx-insight-body p, .vx-insight-body div { margin-bottom: 0.5rem; }
+
+/* ── Asimetrični dvokolonski layout (koristi VxExecutiveHeader/VxInsightPanel) ── */
+.vx-asym-layout { display: grid; grid-template-columns: 1.7fr 1fr; gap: var(--vx-space-5); align-items: start; }
+.vx-asym-side { position: sticky; top: var(--vx-space-3); display: flex; flex-direction: column; gap: var(--vx-space-4); }
+@media (max-width: 900px) {
+  .vx-asym-layout { grid-template-columns: 1fr; }
+  .vx-asym-side { position: static; }
+}
+
+/* ── VxAgentCard — asimetrican grid (2 kolone, ne uniformnih 3) ───────────── */
+.vx-agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vx-space-3); }
+@media (max-width: 560px) { .vx-agent-grid { grid-template-columns: 1fr; } }

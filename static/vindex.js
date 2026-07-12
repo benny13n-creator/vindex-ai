@@ -13901,6 +13901,45 @@ function vxGridEmptyHide(containerId) {
   if (el) el.classList.remove('is-active');
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   VINDEX AI — NAMED COMPONENT LIBRARY v5 (editorial rebuild)
+   Vanilla-JS builder funkcije — svaka vraca HTML string, nema build sistem
+   (React/JSX) u ovoj aplikaciji pa "komponenta" ovde znaci dosledno
+   imenovanu funkciju + posvecenu CSS klasu, ne framework component.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * VxExecutiveHeader — veliki, asimetricni header ekrana/sekcije.
+ * opts: { eyebrow, title, sub, meta: [{label,value}], actionsHtml }
+ */
+function VxExecutiveHeader(opts) {
+  opts = opts || {};
+  var meta = (opts.meta || []).map(function(m) {
+    return '<div class="vx-exec-meta-item"><div class="vx-exec-meta-label">' + _htmlEsc(m.label) + '</div><div class="vx-exec-meta-value">' + _htmlEsc(String(m.value)) + '</div></div>';
+  }).join('');
+  return '<div class="vx-exec-header">'
+    + '<div>'
+    + (opts.eyebrow ? '<div class="vx-exec-header-eyebrow">' + _htmlEsc(opts.eyebrow) + '</div>' : '')
+    + '<div class="vx-exec-header-title">' + _htmlEsc(opts.title || '') + '</div>'
+    + (opts.sub ? '<div class="vx-exec-header-sub">' + _htmlEsc(opts.sub) + '</div>' : '')
+    + (meta ? '<div class="vx-exec-header-meta">' + meta + '</div>' : '')
+    + '</div>'
+    + (opts.actionsHtml ? '<div class="vx-exec-header-actions">' + opts.actionsHtml + '</div>' : '')
+    + '</div>';
+}
+
+/**
+ * VxInsightPanel — narativni AI-uvid/zakljucak, vizuelno razlicit od .vx-card.
+ * opts: { id, label, icon, bodyHtml, style }
+ */
+function VxInsightPanel(opts) {
+  opts = opts || {};
+  return '<div class="vx-insight-panel"' + (opts.id ? ' id="' + opts.id + '"' : '') + (opts.style ? ' style="' + opts.style + '"' : '') + '>'
+    + (opts.label ? '<div class="vx-insight-label">' + (opts.icon || '◆') + ' ' + _htmlEsc(opts.label) + '</div>' : '')
+    + '<div class="vx-insight-body">' + (opts.bodyHtml || '') + '</div>'
+    + '</div>';
+}
+
 // ── SVG Line chart ────────────────────────────────────────────
 function _piLineChart(timeline, field, color, height) {
   height = height || 60;
