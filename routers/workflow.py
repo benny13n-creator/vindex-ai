@@ -159,19 +159,18 @@ async def lista_templatea(
     user:         dict = Depends(get_current_user),
     tip_predmeta: Optional[str] = None,
 ):
-    """Lista predložaka workflow-a za firmu."""
+    """Lista predložaka workflow-a — sistemski predlošci (svima vidljivi) + predlošci firme ako je korisnik član kancelarije."""
     uid  = user["user_id"]
     supa = _get_supa()
     firma = await _get_firma(supa, uid)
-
-    if not firma["kancelarija_id"]:
-        return {"templates": [], "poruka": "Niste član nijedne kancelarije."}
+    kancelarija_id = firma.get("kancelarija_id")
 
     try:
-        q = (supa.table("workflow_templates")
-             .select("*")
-             .eq("kancelarija_id", firma["kancelarija_id"])
-             .eq("aktivan", True))
+        q = supa.table("workflow_templates").select("*").eq("aktivan", True)
+        if kancelarija_id:
+            q = q.or_(f"kancelarija_id.is.null,kancelarija_id.eq.{kancelarija_id}")
+        else:
+            q = q.is_("kancelarija_id", "null")
         if tip_predmeta:
             q = q.eq("tip_predmeta", tip_predmeta)
         r = await asyncio.to_thread(lambda: q.order("naziv").limit(50).execute())
@@ -195,9 +194,18 @@ async def pokreni_workflow(
     uid  = user["user_id"]
     supa = _get_supa()
     firma = await _get_firma(supa, uid)
+    kancelarija_id = firma.get("kancelarija_id")
 
-    if not firma["kancelarija_id"]:
-        raise HTTPException(status_code=403, detail="Niste član nijedne kancelarije.")
+    pred_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id")
+            .eq("id", payload.predmet_id)
+            .eq("user_id", uid)
+            .maybe_single()
+            .execute()
+    )
+    if not pred_r.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 
     # Odredi korake
     koraci = []
@@ -228,7 +236,7 @@ async def pokreni_workflow(
         # Kreiraj instancu
         inst_r = await asyncio.to_thread(
             lambda: supa.table("workflow_instances").insert({
-                "kancelarija_id": firma["kancelarija_id"],
+                "kancelarija_id": kancelarija_id,
                 "predmet_id":     payload.predmet_id,
                 "template_id":    payload.template_id,
                 "naziv":          naziv_wf,
@@ -249,7 +257,7 @@ async def pokreni_workflow(
             rok = (danas + timedelta(days=int(korak.get("rok_dana", 5)))).isoformat()
             steps_insert.append({
                 "workflow_id":     wf_id,
-                "kancelarija_id":  firma["kancelarija_id"],
+                "kancelarija_id":  kancelarija_id,
                 "step_idx":        idx,
                 "naziv":           korak.get("naziv", f"Korak {idx + 1}"),
                 "opis":            korak.get("opis", ""),
@@ -297,19 +305,13 @@ async def workflow_predmeta(
     uid  = user["user_id"]
     supa = _get_supa()
     firma = await _get_firma(supa, uid)
-
-    if not firma["kancelarija_id"]:
-        return {"workflows": []}
+    kancelarija_id = firma.get("kancelarija_id")
 
     try:
+        q = supa.table("workflow_instances").select("*").eq("predmet_id", predmet_id)
+        q = q.eq("kancelarija_id", kancelarija_id) if kancelarija_id else q.eq("kreirao_uid", uid)
         wf_r = await asyncio.to_thread(
-            lambda: supa.table("workflow_instances")
-                .select("*")
-                .eq("predmet_id", predmet_id)
-                .eq("kancelarija_id", firma["kancelarija_id"])
-                .order("started_at", desc=True)
-                .limit(5)
-                .execute()
+            lambda: q.order("started_at", desc=True).limit(5).execute()
         )
         workflows = wf_r.data or []
 
@@ -360,6 +362,15 @@ async def zavrsi_korak(
         step = step_r.data
         wf   = step.get("workflow_instances") or {}
         wf_id = wf.get("id") or step.get("workflow_id")
+
+        firma = await _get_firma(supa, uid)
+        ovlascen = (
+            uid == wf.get("kreirao_uid")
+            or uid == step.get("assigned_uid")
+            or (firma.get("kancelarija_id") and firma["kancelarija_id"] == wf.get("kancelarija_id"))
+        )
+        if not ovlascen:
+            raise HTTPException(status_code=403, detail="Nemate pravo da završite ovaj korak.")
 
         if step.get("status") in ("zavrseno", "preskoceno"):
             raise HTTPException(status_code=400, detail="Korak je već završen.")
@@ -449,23 +460,44 @@ async def eskalacije(
     uid  = user["user_id"]
     supa = _get_supa()
     firma = await _get_firma(supa, uid)
-
-    if not firma["kancelarija_id"]:
-        return {"eskalacije": [], "ukupno": 0}
+    kancelarija_id = firma.get("kancelarija_id")
 
     danas = date.today().isoformat()
     try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("workflow_steps")
-                .select("*, workflow_instances(naziv, predmet_id)")
-                .eq("kancelarija_id", firma["kancelarija_id"])
-                .eq("status", "aktivan")
-                .lt("rok_datum", danas)
-                .order("rok_datum")
-                .limit(50)
-                .execute()
-        )
+        q = (supa.table("workflow_steps")
+             .select("*, workflow_instances(naziv, predmet_id, kreirao_uid)")
+             .eq("status", "aktivan")
+             .lt("rok_datum", danas))
+        if kancelarija_id:
+            q = q.eq("kancelarija_id", kancelarija_id)
+        else:
+            q = q.is_("kancelarija_id", "null").eq("workflow_instances.kreirao_uid", uid)
+        r = await asyncio.to_thread(lambda: q.order("rok_datum").limit(50).execute())
         koraci = r.data or []
+
+        # Solo korisnici: ".eq()" na embedded resource ne filtrira uvek pouzdano
+        # preko PostgREST-a -- dodatni safety filter u Python-u.
+        if not kancelarija_id:
+            koraci = [k for k in koraci if (k.get("workflow_instances") or {}).get("kreirao_uid") == uid]
+
+        predmet_ids = list({
+            (k.get("workflow_instances") or {}).get("predmet_id")
+            for k in koraci if (k.get("workflow_instances") or {}).get("predmet_id")
+        })
+        naziv_map = {}
+        if predmet_ids:
+            pr = await asyncio.to_thread(
+                lambda: supa.table("predmeti").select("id,naziv").in_("id", predmet_ids).execute()
+            )
+            naziv_map = {p["id"]: p.get("naziv") for p in (pr.data or [])}
+
+        assigned_ids = list({k["assigned_uid"] for k in koraci if k.get("assigned_uid")})
+        ime_map = {}
+        if assigned_ids:
+            pr2 = await asyncio.to_thread(
+                lambda: supa.table("profiles").select("id,email").in_("id", assigned_ids).execute()
+            )
+            ime_map = {p["id"]: p.get("email") for p in (pr2.data or [])}
 
         for k in koraci:
             rok = k.get("rok_datum", danas)
@@ -474,6 +506,10 @@ async def eskalacije(
             except Exception:
                 dana_kasnjenja = 0
             k["dana_kasnjenja"] = dana_kasnjenja
+            wf = k.get("workflow_instances") or {}
+            k["predmet_id"] = wf.get("predmet_id")
+            k["predmet_naziv"] = naziv_map.get(wf.get("predmet_id"), "")
+            k["odgovoran"] = ime_map.get(k.get("assigned_uid"), "") or "—"
 
         return {"eskalacije": koraci, "ukupno": len(koraci)}
     except Exception as e:

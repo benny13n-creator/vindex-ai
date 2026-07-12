@@ -1430,6 +1430,27 @@ async def cron_daily(request: Request):
                                            "duration_ms": round((_time.monotonic() - _t_pm) * 1000)}
         _broj_grešaka += 1
 
+    # ── Modul 5: Workflow eskalacije ─────────────────────────────────────────
+    _t_wf = _time.monotonic()
+    try:
+        from routers.workflow import _check_escalations as _wf_cron
+        _wf_r = await asyncio.wait_for(_wf_cron(), timeout=60)
+        _wf_poslato = int(_wf_r.get("eskalacionih_alertova", 0)) if isinstance(_wf_r, dict) else 0
+        _stavke_obradjene += _wf_poslato
+        rezultati["workflow_eskalacije"] = {
+            "eskalacionih_alertova": _wf_poslato,
+            "duration_ms": round((_time.monotonic() - _t_wf) * 1000),
+            "status": "ok",
+        }
+    except asyncio.TimeoutError:
+        rezultati["workflow_eskalacije"] = {"status": "timeout", "greska": "Prekoraceno 60s",
+                                             "duration_ms": round((_time.monotonic() - _t_wf) * 1000)}
+        _broj_grešaka += 1
+    except Exception as _wfe:
+        rezultati["workflow_eskalacije"] = {"status": "greska", "greska": str(_wfe)[:120],
+                                             "duration_ms": round((_time.monotonic() - _t_wf) * 1000)}
+        _broj_grešaka += 1
+
     # ── Heartbeat (uvek se izvršava, bez obzira na greške iznad) ────────────
     _ts = _dt.now(_tz.utc).isoformat()
     _duration_ms = round((_time.monotonic() - _t_start) * 1000)

@@ -2165,14 +2165,14 @@ function setTab(el,t){
     var _ab = document.getElementById('tab-btn-alati');
     if (_ab) _ab.classList.add('active');
   }
-  ['h','q','n','a','s','p','t','k','w','ob','kal','pi','alati','dok','settings'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
+  ['h','q','n','a','s','p','t','k','w','ob','kal','pi','alati','dok','settings','zadaci-g'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Pregled dana',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja'};
+  var lbl={h:'Pregled dana',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  var _noExec = {h:1,t:1,k:1,w:1,ob:1,kal:1,pi:1,alati:1,dok:1,settings:1,p:1};
+  var _noExec = {h:1,t:1,k:1,w:1,ob:1,kal:1,pi:1,alati:1,dok:1,settings:1,p:1,'zadaci-g':1};
   if (execRow) execRow.style.display = _noExec[t] ? 'none' : '';
   if (credRow) credRow.style.display = _noExec[t] ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
@@ -2195,6 +2195,7 @@ function setTab(el,t){
   if (t==='ob') oblastiInit();
   if (t==='kal') kalendarLoad();
   if (t==='settings') settingsLoad();
+  if (t==='zadaci-g') { zadaci_g_load(); workflow_eskalacije_load(); }
   if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'smooth' });
   if (window.lucide) lucide.createIcons();
   // Vrati scroll poziciju taba na koji se vraćamo (posle sinhronog renderovanja sadržaja)
@@ -8929,7 +8930,7 @@ async function pred_bulkAkcija(akcija) {
 }
 
 function pred_subtabSwitch(pane, btn) {
-  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','agenti','graf','zadaci','profitabilnost'];
+  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','agenti','graf','zadaci','profitabilnost','workflow'];
   if (VALID.indexOf(pane) === -1) pane = 'pregled';
   document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
   document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -8976,6 +8977,7 @@ function pred_subtabSwitch(pane, btn) {
   if (pane === 'rokovi'           && activePredmetId) { predRocistaLoad(); timeline_load(); }
   if (pane === 'zadaci'           && activePredmetId) zadaci_load(activePredmetId);
   if (pane === 'profitabilnost'   && activePredmetId) profitabilnost_load(activePredmetId);
+  if (pane === 'workflow'         && activePredmetId) workflow_load(activePredmetId);
   // Merimo koji tabovi se zaista koriste — ovo je naša osnovna metrika korisnosti
   piTrack('predmeti', 'subtab_open', { tab: pane, predmet_id: activePredmetId || null });
   // Auto-fill kontekst predmeta u relevantna polja
@@ -19762,6 +19764,198 @@ async function zadaci_g_load() {
       return;
     }
     _zadaciRenderBoard('zadaci-g-body', d.zadaci || [], { isGlobal: true, showCase: true, emptyHint: 'Nema otvorenih zadataka u kancelariji.' });
+  } catch(e) {
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WORKFLOW ENGINE — koraci predmeta + kasnjenja (tim)
+   ══════════════════════════════════════════════════════════════════ */
+
+function _workflowGoToPredmet(predmetId) {
+  if (!predmetId) return;
+  _dashGoToTab('p');
+  setTimeout(function() {
+    pred_select(predmetId);
+    setTimeout(function() { pred_subtabSwitch('workflow'); }, 200);
+  }, 150);
+}
+
+var _WORKFLOW_TEMPLATE_ICONS = {
+  'Prazan workflow': 'square',
+  'Parnični postupak': 'gavel',
+  'Izvršni postupak': 'landmark',
+  'Žalbeni postupak': 'file-stack',
+};
+
+async function workflow_load(predmetId) {
+  if (!predmetId || !currentSession) return;
+  var el = document.getElementById('workflow-body');
+  if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,.28);font-size:.8rem;">Učitavam...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/workflow/predmet/' + encodeURIComponent(predmetId), {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) { el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška pri učitavanju workflow-a.</div>'; return; }
+    var d = await r.json();
+    var wfs = d.workflows || [];
+    var aktivan = wfs.find(function(w) { return w.status === 'aktivan'; });
+    if (!aktivan) {
+      _workflowRenderPokreni(el, wfs.length > 0);
+      return;
+    }
+    _workflowRenderKoraci(el, aktivan);
+  } catch(e) {
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+function _workflowRenderPokreni(el, imaZavrsenih) {
+  var napomena = imaZavrsenih
+    ? '<div style="font-size:.75rem;color:rgba(255,255,255,.4);margin-bottom:1rem;">Prethodni workflow je završen. Možete pokrenuti novi.</div>'
+    : '<div style="font-size:.75rem;color:rgba(255,255,255,.4);margin-bottom:1rem;">Nema aktivnog workflow-a na ovom predmetu. Izaberite predložak za pokretanje.</div>';
+  el.innerHTML = '<div class="vx-card">' + napomena
+    + '<div id="workflow-predlozi" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.6rem;">'
+    + '<div style="font-size:.72rem;color:rgba(255,255,255,.28);">Učitavam predloške...</div>'
+    + '</div></div>';
+  _workflowUcitajPredloske();
+}
+
+async function _workflowUcitajPredloske() {
+  var el = document.getElementById('workflow-predlozi');
+  if (!el || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/workflow/template/lista', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = r.ok ? await r.json() : { templates: [] };
+    var tpls = d.templates || [];
+    if (!tpls.length) { el.innerHTML = '<div style="font-size:.72rem;color:rgba(255,255,255,.28);">Nema dostupnih predložaka.</div>'; return; }
+    el.innerHTML = tpls.map(function(t) {
+      var icon = _WORKFLOW_TEMPLATE_ICONS[t.naziv] || 'list-checks';
+      return '<div class="vx-card" style="cursor:pointer;text-align:center;padding:1rem .6rem;" onclick="workflow_pokreni(\'' + t.id + '\',\'' + escHtml(t.naziv).replace(/'/g,"\\'") + '\')">'
+        + '<i data-lucide="' + icon + '" style="width:20px;height:20px;color:#00d4ff;margin-bottom:.4rem;"></i>'
+        + '<div style="font-size:.78rem;color:rgba(255,255,255,.85);">' + escHtml(t.naziv) + '</div>'
+        + '</div>';
+    }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch(e) {
+    el.innerHTML = '<div style="color:#f87171;font-size:.72rem;">Greška pri učitavanju predložaka.</div>';
+  }
+}
+
+async function workflow_pokreni(templateId, naziv) {
+  if (!activePredmetId || !currentSession) return;
+  if (!confirm('Pokrenuti workflow "' + naziv + '" na ovom predmetu?')) return;
+  var el = document.getElementById('workflow-body');
+  if (el) el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,.28);font-size:.8rem;">Pokrećem workflow...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/workflow/pokreni', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ predmet_id: activePredmetId, template_id: templateId }),
+    });
+    if (!r.ok) {
+      var errD = await r.json().catch(function(){return {};});
+      showToast(errD.detail || 'Greška pri pokretanju workflow-a.', 'error');
+      workflow_load(activePredmetId);
+      return;
+    }
+    showToast('Workflow pokrenut.', 'ok');
+    workflow_load(activePredmetId);
+  } catch(e) {
+    showToast('Greška veze.', 'error');
+    workflow_load(activePredmetId);
+  }
+}
+
+function _workflowRenderKoraci(el, wf) {
+  var koraci = wf.koraci || [];
+  var danas = new Date().toISOString().slice(0, 10);
+  var html = '<div class="vx-card" style="margin-bottom:.8rem;">'
+    + '<div style="font-size:.78rem;color:rgba(255,255,255,.85);font-weight:600;">' + escHtml(wf.naziv || 'Workflow') + '</div>'
+    + '<div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-top:.2rem;">Pokrenut ' + escHtml((wf.started_at || '').slice(0,10)) + '</div>'
+    + '</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:0;">';
+  koraci.forEach(function(k, idx) {
+    var isActive = k.status === 'aktivan';
+    var isDone = k.status === 'zavrseno';
+    var isEskaliran = k.status === 'eskaliran';
+    var kasni = (isActive || isEskaliran) && k.rok_datum && k.rok_datum < danas;
+    var dotColor = isDone ? '#4ade80' : (kasni ? '#f87171' : (isActive ? '#00d4ff' : 'rgba(255,255,255,.2)'));
+    html += '<div style="display:flex;gap:.7rem;">'
+      + '<div style="display:flex;flex-direction:column;align-items:center;">'
+      + '<div style="width:10px;height:10px;border-radius:50%;background:' + dotColor + ';flex-shrink:0;margin-top:.3rem;"></div>'
+      + (idx < koraci.length - 1 ? '<div style="width:1px;flex:1;background:rgba(255,255,255,.1);min-height:24px;"></div>' : '')
+      + '</div>'
+      + '<div style="flex:1;padding-bottom:1rem;">'
+      + '<div style="font-size:.8rem;color:' + (isDone ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.88)') + ';' + (isDone ? 'text-decoration:line-through;' : '') + '">' + escHtml(k.naziv || '') + '</div>'
+      + (k.opis ? '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:.15rem;">' + escHtml(k.opis) + '</div>' : '')
+      + '<div style="font-size:.7rem;color:' + (kasni ? '#f87171' : 'rgba(255,255,255,.35)') + ';margin-top:.25rem;">'
+      + (k.rok_datum ? ('Rok: ' + escHtml(k.rok_datum) + (kasni ? ' — KASNI' : '')) : '')
+      + '</div>'
+      + (isActive ? '<button onclick="workflow_zavrsiKorak(\'' + k.id + '\')" class="vx-btn vx-btn-primary" style="margin-top:.5rem;height:28px;padding:0 .7rem;font-size:.72rem;">Završi korak</button>' : '')
+      + '</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function workflow_zavrsiKorak(stepId) {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/workflow/step/' + encodeURIComponent(stepId) + '/zavrsi', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({}),
+    });
+    if (!r.ok) {
+      var errD = await r.json().catch(function(){return {};});
+      showToast(errD.detail || 'Greška pri završavanju koraka.', 'error');
+      return;
+    }
+    var d = await r.json();
+    showToast(d.workflow_zavrsen ? 'Workflow završen!' : ('Sledeći korak: ' + (d.sledeci_korak || '')), 'ok');
+    if (activePredmetId) workflow_load(activePredmetId);
+  } catch(e) {
+    showToast('Greška veze.', 'error');
+  }
+}
+
+async function workflow_eskalacije_load() {
+  if (!currentSession) return;
+  var el = document.getElementById('workflow-eskalacije-body');
+  if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,.28);font-size:.8rem;">Učitavam...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/workflow/eskalacije', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) { el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška pri učitavanju kašnjenja.</div>'; return; }
+    var d = await r.json();
+    var lista = d.eskalacije || [];
+    if (!lista.length) {
+      el.innerHTML = '<div style="text-align:center;padding:1.5rem 1rem;color:rgba(255,255,255,.28);font-size:.8rem;">Nema kašnjenja na aktivnim workflow koracima.</div>';
+      return;
+    }
+    var rows = lista.map(function(k) {
+      var predmetLink = k.predmet_id
+        ? '<a onclick="_workflowGoToPredmet(\'' + k.predmet_id + '\')" style="color:#00d4ff;cursor:pointer;">' + escHtml(k.predmet_naziv || 'Predmet') + '</a>'
+        : escHtml(k.predmet_naziv || '—');
+      return '<tr class="vx-row">'
+        + '<td>' + predmetLink + '</td>'
+        + '<td>' + escHtml(k.naziv || '') + '</td>'
+        + '<td style="color:#f87171;">' + (k.dana_kasnjenja || 0) + 'd</td>'
+        + '<td>' + escHtml(k.odgovoran || '—') + '</td>'
+        + '</tr>';
+    }).join('');
+    el.innerHTML = '<div style="overflow-x:auto;"><table class="vx-table"><thead><tr>'
+      + '<th>Predmet</th><th>Korak</th><th>Kasni</th><th>Odgovoran</th>'
+      + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   } catch(e) {
     el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
   }

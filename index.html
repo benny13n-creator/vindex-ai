@@ -831,6 +831,7 @@
                 <button class="pred-subtab-btn pred-tab-primary" id="tab-ai-btn" onclick="pred_subtabSwitch('agenti',this)" title="AI analiza — 6 modula paralelno ili pojedinačna analiza">AI Analiza</button>
                 <button class="pred-subtab-btn pred-tab-primary" id="tab-rokovi-btn" onclick="pred_subtabSwitch('rokovi',this)" title="Ročišta i rokovi ovog predmeta">Rokovi</button>
                 <button class="pred-subtab-btn pred-tab-primary" id="tab-zadaci-btn" onclick="pred_subtabSwitch('zadaci',this)" title="Zadatci i akcije na predmetu">Zadaci</button>
+                <button class="pred-subtab-btn pred-tab-primary" id="tab-workflow-btn" onclick="pred_subtabSwitch('workflow',this)" title="Koraci vođenja predmeta — od pokretanja do zatvaranja">Workflow</button>
                 <button class="pred-subtab-btn pred-tab-primary" id="tab-strategija-btn" onclick="pred_subtabSwitch('strategija',this)" title="Pravna strategija i preporuke">Strategija</button>
                 <button class="pred-subtab-btn pred-tab-primary" id="tab-naplata-btn" onclick="pred_subtabSwitch('naplata',this)" title="Tajmer i naplata predmeta">Naplata</button>
                 <span id="pred-more-wrap" style="position:relative;display:inline-block;">
@@ -1840,6 +1841,17 @@
                   <div style="font-size:.75rem;color:rgba(255,255,255,.28);text-align:center;padding:1.5rem;">Učitavam zadatke...</div>
                 </div>
               </div><!-- /pred-pane-zadaci -->
+
+              <!-- ── TAB: Workflow ──────────────────────────────────── -->
+              <div class="pred-subtab-pane" id="pred-pane-workflow" style="display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
+                  <div class="vx-section-lbl">Workflow predmeta</div>
+                  <button onclick="workflow_load(activePredmetId)" class="vx-btn vx-btn-ghost" style="height:30px;width:30px;padding:0;">↺</button>
+                </div>
+                <div id="workflow-body">
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.28);text-align:center;padding:1.5rem;">Učitavam...</div>
+                </div>
+              </div><!-- /pred-pane-workflow -->
 
               <!-- ── TAB: Profitabilnost ───────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-profitabilnost" style="display:none;">
@@ -2876,6 +2888,13 @@
             </div>
             <div id="zadaci-g-body">
               <div style="text-align:center;padding:2.5rem 1rem 3rem;color:rgba(255,255,255,.28);font-size:.8rem;">Učitavam...</div>
+            </div>
+
+            <div style="margin-top:1.6rem;">
+              <div class="vx-section-lbl" style="margin-bottom:.5rem;">Workflow — kašnjenja</div>
+              <div id="workflow-eskalacije-body">
+                <div style="text-align:center;padding:1.5rem 1rem;color:rgba(255,255,255,.28);font-size:.8rem;">Učitavam...</div>
+              </div>
             </div>
           </div>
 
