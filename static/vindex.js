@@ -325,8 +325,8 @@ async function loadCredits() {
         ucitajApiKljuceve();
         // F7: prikaži PRO panele
         var ip = document.getElementById('interni-stavovi-panel');
-        if (ip && (activeTab === 'q' || activeTab === 'aiws')) ip.style.display = '';
-        if (activeTab === 'n') ucitajPlaybookStatus();
+        if (ip && activeTab === 'aiws' && _aiwsMode === 'zakon') ip.style.display = '';
+        if (activeTab === 'aiws' && _aiwsMode === 'nacrti') ucitajPlaybookStatus();
       }
     } else {
       console.warn('[Vindex] /api/me greška, status:', r.status);
@@ -2184,20 +2184,11 @@ function setTab(el,t){
   if (t==='pi') piLoad();
   // Sakrij FAB kada korisnik napusti predmete
   if (t !== 'p') { if (typeof pred_fab_hide === 'function') pred_fab_hide(); }
-  if (t==='n') {
-    updatePodnesakHint();
-    ucitajPlaybookStatus();
-    _predAutoFill('podnesak-opis', false);
-  }
-  if (t==='t') {
-    _predAutoFill('strat-tekst', false);
-  }
-  if (t==='aiws' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
+  if (t==='aiws' && currentUserIsPro && _aiwsMode === 'zakon') { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
   if (t==='s') praksa_load_initial();
   if (t==='p') { pred_load(); predFirmaInit(); }
   if (t==='k') ucitajKlijente();
   if (t==='w') web3InitTab();
-  if (t==='ob') oblastiInit();
   if (t==='kal') kalendarLoad();
   if (t==='settings') settingsLoad();
   if (t==='zadaci-g') { zadaci_g_load(); workflow_eskalacije_load(); }
@@ -2222,25 +2213,48 @@ function setTab(el,t){
   if (window.mobileNavUpdateActive) mobileNavUpdateActive(t);
 }
 
-// Otvori AI alat iz huba — čuva AI Alati kao aktivan parent
 // ── Vindex Intelligence — mod-svic unutar aiws shell-a ──────────────────────
-// Dok se Faza 6 ne zavrsi, "zakon" je jedini stvarni mod; ostali (a/n/t/ob)
-// dolaze jedan po jedan, isti obrazac.
+// Svi bivsi samostalni AI tool tabovi (q/a/n/t/ob) sada zive kao modovi
+// unutar jednog tab-aiws shell-a. _aiwsMode prati koji je trenutno aktivan —
+// execQuery() i slicne funkcije ga koriste da znaju koji endpoint/UI da
+// koriste kad je activeTab === 'aiws' (jedan tab, vise moguсih ponašanja).
+var _aiwsMode = 'zakon';
+var _AIWS_MODE_TO_TAB = { zakon: 'q', analiza: 'a', nacrti: 'n', strategija: 't', oblasti: 'ob' };
+function aiwsDispatchTab() {
+  return _AIWS_MODE_TO_TAB[_aiwsMode] || 'q';
+}
 function aiwsSetMode(mode, btn) {
+  _aiwsMode = mode;
   document.querySelectorAll('#aiws-modes .vx-pill').forEach(function(b){ b.classList.remove('is-active'); });
   if (btn) btn.classList.add('is-active');
   document.querySelectorAll('.aiws-mode-pane').forEach(function(p){ p.style.display = 'none'; });
   var el = document.getElementById('aiws-mode-' + mode);
   if (el) el.style.display = 'block';
+  if (typeof _predAutoFill === 'function') {
+    if (mode === 'analiza') _predAutoFill('aitxt', false);
+    if (mode === 'nacrti')  _predAutoFill('podnesak-opis', false);
+    if (mode === 'strategija') _predAutoFill('strat-tekst', false);
+  }
+  if (mode === 'nacrti') {
+    if (typeof updatePodnesakHint === 'function') updatePodnesakHint();
+    if (typeof ucitajPlaybookStatus === 'function') ucitajPlaybookStatus();
+  }
+  if (mode === 'oblasti' && typeof oblastiInit === 'function') oblastiInit();
+  if (mode === 'zakon' && currentUserIsPro) {
+    var ip2 = document.getElementById('interni-stavovi-panel');
+    if (ip2) ip2.style.display = '';
+  }
 }
 
-// Mod-svesna preusmerenja — dok se Faza 6 ne zavrsi, samo "q" je stvarni mod
-// unutar Vindex Intelligence (aiws); a/n/t/ob i dalje rade po staroj putanji.
-var _AIWS_MODES = { q: 'zakon' };
+// Mod-svesna preusmerenja — otvori aiws shell i postavi odgovarajuci mod.
+var _AIWS_MODES = { q: 'zakon', a: 'analiza', n: 'nacrti', t: 'strategija', ob: 'oblasti' };
 function openAITool(t) {
   if (_AIWS_MODES[t]) {
+    if ((t === 'n' || t === 't') && !currentUserIsPro) { openProUpgradeModal(); return; }
     var aiwsBtn = document.getElementById('tab-btn-aiws');
     if (aiwsBtn) setTab(aiwsBtn, 'aiws');
+    var modeBtn = document.querySelector('#aiws-modes .vx-pill[data-mode="' + _AIWS_MODES[t] + '"]');
+    aiwsSetMode(_AIWS_MODES[t], modeBtn);
     return;
   }
   var btn = document.getElementById('tab-btn-' + t);
@@ -6819,28 +6833,32 @@ async function execQuery() {
   var execBtn = document.getElementById('exec-btn');
   var orig   = btnLbl.textContent;
 
+  // Kad je activeTab==='aiws', stvarno ponašanje zavisi od trenutno izabranog
+  // moda (Vindex Intelligence sada sadrži 5 bivših samostalnih tabova).
+  var dispatchTab = (activeTab === 'aiws') ? aiwsDispatchTab() : activeTab;
+
   execBtn.disabled = true;
   if (window.micStopAll) micStopAll();
-  btnLbl.textContent = activeTab === 'n' ? 'Generišem nacrt...' : 'Vindex AI pretražuje bazu...';
-  console.log('[Vindex] execQuery: šaljem upit na', activeTab);
-  var _trackFeature = {q:'pravno_istrazivanje',aiws:'pravno_istrazivanje',n:'drafting',a:'dokument',s:'sudska_praksa'}[activeTab]||activeTab;
-  piTrack(_trackFeature,'query',{tab:activeTab});
+  btnLbl.textContent = dispatchTab === 'n' ? 'Generišem nacrt...' : 'Vindex AI pretražuje bazu...';
+  console.log('[Vindex] execQuery: šaljem upit na', dispatchTab);
+  var _trackFeature = {q:'pravno_istrazivanje',n:'drafting',a:'dokument',s:'sudska_praksa'}[dispatchTab]||dispatchTab;
+  piTrack(_trackFeature,'query',{tab:dispatchTab});
   resp.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
   var _wfDiv = document.getElementById('analiza-workflow'); if (_wfDiv) _wfDiv.style.display='none';
   rb.style.whiteSpace = '';
 
-  var currentPitanje = (activeTab === 'q' || activeTab === 'aiws') ? document.getElementById('qi').value : '';
+  var currentPitanje = (dispatchTab === 'q') ? document.getElementById('qi').value : '';
   lastPitanje = currentPitanje;
   var _selectedTip = (document.getElementById('podnesak-tip') || {}).value || '';
   var _nEndpoint = _NACRT_API_TYPES.has(_selectedTip) ? BASE_URL+'/api/nacrt' : BASE_URL+'/api/podnesak';
-  if (activeTab === 's') {
+  if (dispatchTab === 's') {
     _execInProgress = false;
     execBtn.disabled = false;
     btnLbl.textContent = orig;
     return;
   }
-  if (activeTab === 'a') {
+  if (dispatchTab === 'a') {
     _execInProgress = false;
     execBtn.disabled = false;
     btnLbl.textContent = orig;
@@ -6852,12 +6870,11 @@ async function execQuery() {
     }
     return;
   }
-  var eps = { q:BASE_URL+'/api/pitanje', aiws:BASE_URL+'/api/pitanje', n:_nEndpoint, a:BASE_URL+'/api/analiza' };
+  var eps = { q:BASE_URL+'/api/pitanje', n:_nEndpoint, a:BASE_URL+'/api/analiza' };
   var _qBody = { pitanje: currentPitanje, history: conversationHistory.slice(-3) };
   if (activePredmetId) _qBody.predmet_id = activePredmetId;
   var bodies = {
     q: _qBody,
-    aiws: _qBody,
     n: (function(){
       var b = { vrsta: _selectedTip, tip: _selectedTip, opis: document.getElementById('podnesak-opis').value };
       var sn = (document.getElementById('podnesak-sud-naziv') || {}).value;
@@ -6869,7 +6886,7 @@ async function execQuery() {
   };
 
   // ── CHECKLIST FAZA (samo za nacrt tab, pre generisanja) ──────────────────
-  if (activeTab === 'n' && _selectedTip) {
+  if (dispatchTab === 'n' && _selectedTip) {
     var _clOpisVal = (document.getElementById('podnesak-opis') || {}).value || '';
     if (_clOpisVal.trim().length >= 20) {
       try {
@@ -6904,10 +6921,10 @@ async function execQuery() {
 
   try {
     while (true) {
-      var r = await fetch(eps[activeTab], {
+      var r = await fetch(eps[dispatchTab], {
         method:  'POST',
         headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
-        body:    JSON.stringify(bodies[activeTab])
+        body:    JSON.stringify(bodies[dispatchTab])
       });
 
       console.log('[Vindex] execQuery: odgovor status =', r.status, '| pokušaj', _attempt+1);
@@ -6963,8 +6980,8 @@ async function execQuery() {
 
       // Sačuvaj u in-memory i Supabase history
       if (d.odgovor) {
-        var turnQ = (activeTab === 'q' || activeTab === 'aiws') ? currentPitanje : ('[' + activeTab + '] ' + (document.getElementById('podnesak-opis') ? document.getElementById('podnesak-opis').value : '').substring(0,120));
-        if ((activeTab === 'q' || activeTab === 'aiws') && currentPitanje) {
+        var turnQ = (dispatchTab === 'q') ? currentPitanje : ('[' + dispatchTab + '] ' + (document.getElementById('podnesak-opis') ? document.getElementById('podnesak-opis').value : '').substring(0,120));
+        if (dispatchTab === 'q' && currentPitanje) {
           conversationHistory.push({ q: currentPitanje, a: d.odgovor.substring(0, 600) });
           if (conversationHistory.length > 3) conversationHistory.shift();
         }
@@ -6978,7 +6995,7 @@ async function execQuery() {
       }
 
       _lastRawText = text;
-      if (activeTab === 'n') {
+      if (dispatchTab === 'n') {
         // PREVIEW mode za generisani podnesak
         resp.classList.remove('show');
         var previewEl = document.getElementById('podnesak-preview');
@@ -6994,7 +7011,7 @@ async function execQuery() {
       } else {
         resp.classList.add('show'); rb.textContent=''; rb.style.whiteSpace='pre-wrap'; rb.classList.add('resp-cursor');
         var i=0, speed=text.length>600?4:text.length>300?7:12;
-        var _tabAtSend = activeTab;
+        var _tabAtSend = dispatchTab;
         var iv=setInterval(function(){
           if(i>=text.length){
             clearInterval(iv); rb.classList.remove('resp-cursor'); rb.style.whiteSpace='';
@@ -7061,10 +7078,9 @@ function _generateDraftFromQA() {
   var text = _vxLastResponseText || '';
   if (!text) { showToast('Nema teksta za generisanje nacrta.', 'err'); return; }
   // Switch to drafting tab
-  var nBtn = document.getElementById('tab-n') || document.querySelector('[data-tab="n"]');
-  if (nBtn) { nBtn.click(); }
+  if (typeof openAITool === 'function') { openAITool('n'); }
   setTimeout(function() {
-    var opisEl = document.getElementById('opis') || document.querySelector('textarea[name="opis"]');
+    var opisEl = document.getElementById('podnesak-opis');
     if (opisEl) {
       opisEl.value = text.substring(0, 3000);
       opisEl.dispatchEvent(new Event('input'));

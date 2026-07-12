@@ -537,11 +537,8 @@
         <!-- Skriveni tabovi — funkcionalnost sačuvana, dostupna iz predmeta ili podešavanja -->
         <div class="t-tab vx-hidden-tab" id="tab-btn-notif" onclick="notif_toggleDropdown()"></div>
         <!-- Hidden tabs — all functionality preserved -->
-        <div class="t-tab vx-hidden-tab" id="tab-btn-a" onclick="setTab(this,'a')"></div>
-        <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')"><span class="pro-badge" id="pro-badge-n" style="display:none">PRO</span></div>
         <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="pro-badge" id="pro-badge-t" style="display:none">PRO</span></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')"></div>
-        <div class="t-tab vx-hidden-tab" id="tab-btn-ob" onclick="setTab(this,'ob')"></div>
       </nav>
       <!-- ── Progres do sledećeg otključavanja ─────────────────── -->
       <div id="vx-pd-progress" style="display:none;padding:.7rem .9rem .4rem;border-top:1px solid rgba(255,255,255,.06);">
@@ -1848,168 +1845,6 @@
             </div>
 
           </div>
-          <div id="tab-n" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
-            <div class="t-guide">
-              <div class="t-guide-icon"><i data-lucide="file-text" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
-              <div class="t-guide-text"><span class="t-guide-bold">Generišite nacrt podneska.</span> Izaberite tip, opišite stranke i činjenice slobodnim tekstom — sistem ekstraktuje entitete i popunjava zvanični šablon.</div>
-            </div>
-            <input type="hidden" id="podnesak-tip" value="tuzba_naknada_stete">
-            <div class="podnesak-selector">
-              <div class="podnesak-category" style="margin-top:0">PODNESCI — PARNIČNI</div>
-              <button type="button" class="podnesak-option selected" data-value="tuzba_naknada_stete" onclick="_selectPodnesakOption('tuzba_naknada_stete')">Tužba za naknadu štete</button>
-              <button type="button" class="podnesak-option" data-value="tuzba_radni_spor" onclick="_selectPodnesakOption('tuzba_radni_spor')">Tužba — radni spor</button>
-              <button type="button" class="podnesak-option" data-value="tuzba_razvod" onclick="_selectPodnesakOption('tuzba_razvod')">Tužba za razvod braka</button>
-              <button type="button" class="podnesak-option" data-value="zalba_parnicna" onclick="_selectPodnesakOption('zalba_parnicna')">Žalba na presudu (parnica)</button>
-              <button type="button" class="podnesak-option" data-value="zalba_na_presudu" onclick="_selectPodnesakOption('zalba_na_presudu')">Žalba na presudu (nacrt)</button>
-              <button type="button" class="podnesak-option" data-value="zalba_na_resenje" onclick="_selectPodnesakOption('zalba_na_resenje')">Žalba na rešenje</button>
-              <button type="button" class="podnesak-option" data-value="odgovor_na_tuzbu" onclick="_selectPodnesakOption('odgovor_na_tuzbu')">Odgovor na tužbu</button>
-              <button type="button" class="podnesak-option" data-value="prigovor_platni_nalog" onclick="_selectPodnesakOption('prigovor_platni_nalog')">Prigovor na platni nalog</button>
-              <button type="button" class="podnesak-option" data-value="prigovor_izvrsenje" onclick="_selectPodnesakOption('prigovor_izvrsenje')">Prigovor na rešenje o izvršenju</button>
-              <button type="button" class="podnesak-option" data-value="predlog_privremena_mera" onclick="_selectPodnesakOption('predlog_privremena_mera')">Predlog za privremenu meru</button>
-              <button type="button" class="podnesak-option" data-value="predlog_izvrsenje" onclick="_selectPodnesakOption('predlog_izvrsenje')">Predlog za izvršenje</button>
-              <button type="button" class="podnesak-option" data-value="urgencija_sudu" onclick="_selectPodnesakOption('urgencija_sudu')">Urgencija sudu</button>
-              <div class="podnesak-category">KRIVIČNO I UPRAVNO</div>
-              <button type="button" class="podnesak-option" data-value="krivicna_prijava" onclick="_selectPodnesakOption('krivicna_prijava')">Krivična prijava</button>
-              <button type="button" class="podnesak-option" data-value="zalba_krivicna" onclick="_selectPodnesakOption('zalba_krivicna')">Žalba na presudu (krivična)</button>
-              <div class="podnesak-category">DOPISIVANJE I ZAHTEVI</div>
-              <button type="button" class="podnesak-option" data-value="opomena_duznik" onclick="_selectPodnesakOption('opomena_duznik')">Opomena pre tužbe</button>
-              <button type="button" class="podnesak-option" data-value="zahtev_poslodavcu" onclick="_selectPodnesakOption('zahtev_poslodavcu')">Zahtev zaposlenog poslodavcu</button>
-              <button type="button" class="podnesak-option" data-value="obaveštenje_o_otkazu" onclick="_selectPodnesakOption('obaveštenje_o_otkazu')">Obaveštenje o otkazu ugovora</button>
-              <div class="podnesak-category">NACRTI UGOVORA</div>
-              <button type="button" class="podnesak-option" data-value="ugovor_neodredjeno" onclick="_selectPodnesakOption('ugovor_neodredjeno')">Ugovor o radu — neodređeno vreme</button>
-              <button type="button" class="podnesak-option" data-value="ugovor_odredjeno" onclick="_selectPodnesakOption('ugovor_odredjeno')">Ugovor o radu — određeno vreme</button>
-              <button type="button" class="podnesak-option" data-value="aneks" onclick="_selectPodnesakOption('aneks')">Aneks ugovora o radu</button>
-              <button type="button" class="podnesak-option" data-value="sporazumni_raskid" onclick="_selectPodnesakOption('sporazumni_raskid')">Sporazumni raskid radnog odnosa</button>
-              <button type="button" class="podnesak-option" data-value="ugovor_kupoprodaja" onclick="_selectPodnesakOption('ugovor_kupoprodaja')">Ugovor o kupoprodaji</button>
-              <button type="button" class="podnesak-option" data-value="ugovor_zakup" onclick="_selectPodnesakOption('ugovor_zakup')">Ugovor o zakupu nepokretnosti</button>
-              <button type="button" class="podnesak-option" data-value="punomocje" onclick="_selectPodnesakOption('punomocje')">Punomoćje</button>
-            </div>
-            <div id="podnesak-hint" class="podnesak-hint"></div>
-            <!-- Sud selekcija -->
-            <label class="t-label" style="margin-bottom:.3rem;">Sud:</label>
-            <div style="position:relative;margin-bottom:.7rem;">
-              <input type="text" id="podnesak-sud-input" placeholder="Pretražite sud ili ukucajte naziv..." autocomplete="off"
-                style="width:100%;padding:.5rem .75rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:#e6edf3;font-size:.82rem;font-family:inherit;outline:none;box-sizing:border-box;"
-                oninput="_sud_filter(this.value)" onfocus="_sud_dropdown_show()" onblur="setTimeout(_sud_dropdown_hide,200)">
-              <input type="hidden" id="podnesak-sud-naziv" value="">
-              <input type="hidden" id="podnesak-sud-adresa" value="">
-              <div id="podnesak-sud-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:#0c0e14;border:1px solid rgba(255,255,255,0.12);border-radius:0 0 2px 2px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-              <label class="t-label" style="margin-bottom:0;">Opis slučaja (stranke, činjenice, iznosi):</label>
-              <button onclick="_predAutoFill('podnesak-opis',true)" title="Popuni iz aktivnog predmeta" style="display:none;font-size:0.68rem;padding:2px 9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:2px;color:rgba(255,255,255,0.55);cursor:pointer;font-family:inherit;white-space:nowrap;" id="btn-autofill-podnesak">↺ Iz predmeta</button>
-            </div>
-            <div class="mic-input-wrap">
-              <textarea class="t-input" id="podnesak-opis" placeholder="Npr. Tužilac Petar Petrović, ul. Vojvode Mišića 5, Beograd traži naknadu štete od tuženog Jovana Jovanovića zbog saobraćajne nezgode dana 15.03.2024. Pretrpljene su telesne povrede i materijalna šteta u iznosu od 350.000 RSD. Štetnik je isključivo odgovoran..." style="height:100px;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
-              <button class="mic-btn" id="mic-podnesak-opis" type="button" onclick="micToggle('podnesak-opis')" title="Glasovni unos — diktirajte opis slučaja (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
-            </div>
-            <div class="mic-status" id="mic-status-podnesak-opis"><span class="mic-status-dot"></span><span>Snimam... diktirajte činjenice slučaja</span></div>
-            <div class="podnesak-chips-lbl">Brzi unos — kliknite za primer:</div>
-            <div class="podnesak-chips">
-              <span class="podnesak-chip" onclick="fillPodnesakPrimer('tuzba')">Tužba — saobraćajna nezgoda</span>
-              <span class="podnesak-chip" onclick="fillPodnesakPrimer('zalba')">Žalba — odbijen zahtev</span>
-              <span class="podnesak-chip" onclick="fillPodnesakPrimer('izvrsenje')">Izvršenje — neplaćen dug</span>
-            </div>
-
-            <!-- F7: Playbook upravljanje -->
-            <details id="playbook-detalji" class="playbook-panel" style="display:none;">
-              <summary class="playbook-summary">
-                Firmini dokumenti (Playbook)
-                <span class="pro-badge">PRO</span>
-                <span id="playbook-count-badge" class="playbook-count" style="display:none;"></span>
-              </summary>
-              <div class="playbook-body">
-                <p class="playbook-opis">Uploadujte interne dokumente firme (presedani, argumenti, šabloni). Vindex će ih automatski koristiti pri generisanju nacrta.</p>
-                <div class="playbook-upload-zona" id="playbook-drop-zona"
-                     ondragover="event.preventDefault()"
-                     ondrop="playbookDrop(event)">
-                  <input type="file" id="playbook-file-input" multiple
-                         accept=".pdf,.docx,.txt"
-                         style="display:none"
-                         onchange="playbookUploadFajlove(this.files)"/>
-                  <div onclick="document.getElementById('playbook-file-input').click()">
-                    Prevucite fajlove ovde ili <u>kliknite za izbor</u><br>
-                    <small>PDF, DOCX, TXT — max 2MB po fajlu</small>
-                  </div>
-                </div>
-                <div id="playbook-progress" style="display:none;" class="playbook-progress"></div>
-                <div id="playbook-lista" class="playbook-lista"></div>
-                <div class="playbook-akcije">
-                  <button class="playbook-akcija-btn" onclick="ucitajPlaybookStatus()">Osveži</button>
-                  <button class="btn-danger-small" onclick="obrisiSvPlaybook()">Obriši sve</button>
-                </div>
-              </div>
-            </details>
-          </div>
-          <div id="tab-a" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
-            <div class="t-guide">
-              <div class="t-guide-icon"><i data-lucide="file-search" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
-              <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Otpremite ugovor, presudu ili pravni akt — sistem identifikuje pravne rizike i problematične odredbe.</div>
-            </div>
-            <input type="file" id="doc-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="doc_upload_file(this.files[0])">
-            <div id="doc-upload-zone" class="upload-dropzone" onclick="doc_upload_trigger()">
-              <div class="upload-zone-icon"></div>
-              <div class="upload-zone-text">Prevucite ugovor ovde ili kliknite za odabir</div>
-              <div class="upload-zone-sub">Podržani formati: PDF, DOCX (do 25MB)</div>
-            </div>
-            <div id="doc-upload-loading" style="display:none;text-align:center;padding:1.2rem 0;color:rgba(255,255,255,0.55);font-size:.9rem;"><span class="upload-spinner"></span>Otpremanje i obrada dokumenta...</div>
-            <div id="doc-upload-error" style="display:none;padding:.85rem 1rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:3px;color:#ff9090;font-size:.87rem;margin-top:.7rem;"></div>
-            <div id="doc-session-active" style="display:none">
-              <div class="doc-file-card">
-                <div class="doc-file-info">
-                  <span class="doc-file-icon"></span>
-                  <div>
-                    <div id="doc-file-name" style="font-weight:600;font-size:.9rem;color:#fff;word-break:break-all;"></div>
-                    <div id="doc-file-meta" style="font-size:.77rem;color:rgba(255,255,255,0.45);margin-top:2px;"></div>
-                  </div>
-                </div>
-                <button class="doc-remove-btn" onclick="doc_clear_session()">✕ Ukloni</button>
-              </div>
-              <div id="doc-ocr-warning" style="display:none;margin-top:.7rem;padding:.55rem .75rem;background:rgba(255,180,0,0.12);border:1px solid rgba(255,180,0,0.35);border-radius:2px;font-size:.8rem;color:#ffd166;">
-                ⚠️ Skenirani dokument — tekst je prepoznat putem OCR-a. Kvalitet analize može biti niži nego kod digitalnog PDF-a.
-              </div>
-              <label class="t-label" style="margin-top:.9rem;">Postavite pitanje o ovom dokumentu:</label>
-              <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:60px;margin-top:.4rem;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
-              <textarea id="aitxt" style="display:none"></textarea>
-              <div class="rok-datum-wrap" id="rok-datum-wrapper">
-                <span class="rok-datum-label">Datum dokumenta:</span>
-                <input type="text" id="rok-datum-doc" class="rok-datum-inp" placeholder="DD.MM.YYYY" maxlength="10" oninput="doc_rokovi_recalc()">
-                <span class="rok-datum-hint" id="rok-datum-hint"></span>
-              </div>
-              <button class="rokovi-btn" onclick="doc_prikaži_rokove(this)">Prikaži rokove</button>
-              <div id="rokovi-panel" class="rokovi-panel">
-                <div class="rokovi-panel-title">Identifikovani rokovi</div>
-                <div id="rokovi-lista"></div>
-                <button class="btn-ics-all" onclick="sviRokoviUKalendar()" id="btn-ics-all" style="display:none;">Izvezi sve rokove (.ics)</button>
-              </div>
-              <!-- FORENZIČKI AUDIT dugme -->
-              <button class="forensic-audit-btn" id="forensic-audit-btn" onclick="doc_forensic_audit()" style="margin-top:.85rem;">
-                <span id="forensic-btn-lbl">Forenzička analiza dokumenta</span>
-              </button>
-              <div id="forensic-audit-result" style="display:none;margin-top:.9rem;"></div>
-              <!-- ZASTARELOST KALKULATOR Phase 3.6 -->
-              <div class="zast-wrap">
-                <button class="zast-toggle" onclick="zastToggle(this)">⏳ Kalkulator zastarelosti</button>
-                <div class="zast-body" id="zast-body">
-                  <div class="zast-form-row">
-                    <label for="zast-tip">Tip potraživanja</label>
-                    <select id="zast-tip" class="zast-sel" onchange="zastTipChange(this)">
-                      <option value="">— izaberite tip —</option>
-                    </select>
-                    <div class="zast-osnov-hint" id="zast-osnov-hint"></div>
-                  </div>
-                  <div class="zast-form-row">
-                    <label for="zast-datum">Datum početka (DD.MM.YYYY)</label>
-                    <input type="text" id="zast-datum" class="zast-inp" placeholder="01.01.2024" maxlength="10">
-                  </div>
-                  <button class="zast-btn" onclick="kalkulisiZastarelost()">Izračunaj</button>
-                  <div id="zast-rezultat"></div>
-                </div>
-              </div>
-            </div>
-          </div>
           <div id="tab-s" style="display:none">
             <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
             <div class="t-guide">
@@ -2763,46 +2598,6 @@
             </div>
           </div>
 
-          <!-- Phase 5.1: Pravne oblasti — Krivično, Privredno, Radno -->
-          <div id="tab-ob" style="display:none">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
-            <div class="vx-exec-header">
-              <div>
-                <div class="vx-exec-header-eyebrow">Specijalizovani asistenti</div>
-                <div class="vx-exec-header-title">Pravne oblasti</div>
-                <div class="vx-exec-header-sub">Krivično, privredno i radno pravo Republike Srbije</div>
-              </div>
-            </div>
-            <div class="strat-modul-izbor web3-moduli">
-              <button class="strat-btn active" data-oblast="krivicno" onclick="oblastiIzaberiOblast('krivicno',this)">Krivično pravo</button>
-              <button class="strat-btn" data-oblast="privredno" onclick="oblastiIzaberiOblast('privredno',this)">Privredno pravo</button>
-              <button class="strat-btn" data-oblast="radno" onclick="oblastiIzaberiOblast('radno',this)">Radno pravo</button>
-            </div>
-            <div id="ob-opis" class="strat-opis-box web3-opis-box"></div>
-            <div class="strat-input-wrap">
-              <label id="ob-input-label" class="strat-label">Unesite pravno pitanje:</label>
-              <textarea id="ob-tekst" class="strat-textarea" rows="5"
-                placeholder="npr. Koja je kazna za krađu? Koji su uslovi za uslovnu osudu?"
-                oninput="document.getElementById('ob-chars').textContent=this.value.length"></textarea>
-              <div class="strat-char-count"><span id="ob-chars">0</span> karaktera</div>
-            </div>
-            <div class="web3-reference" id="ob-reference">
-              <span>Baza znanja:</span>
-              <span class="web3-ref-badge">KZ čl. 1-368</span>
-              <span class="web3-ref-badge">ZKP postupak</span>
-              <span class="web3-ref-badge">Zaštitne mere</span>
-              <span class="web3-ref-badge">Zastarelost KZ</span>
-            </div>
-            <button class="web3-submit-btn" id="ob-submit-btn" onclick="oblastiPokreni()">Postavi pitanje</button>
-            <div id="ob-rezultat-wrap" class="web3-rezultat-wrap" style="display:none">
-              <div class="web3-rezultat-header">
-                <span id="ob-rezultat-naslov" class="web3-rezultat-naslov"></span>
-                <button class="web3-copy-btn" onclick="oblastiKopiraj()">Kopiraj</button>
-              </div>
-              <div id="ob-rezultat-body" class="web3-rezultat-body"></div>
-            </div>
-          </div>
-
           <!-- ── Globalni zadatci panel ────────────────────────────── -->
           <div id="tab-zadaci-g" style="display:none">
             <div class="vx-exec-header">
@@ -3053,6 +2848,10 @@
             <!-- Mode switcher — jos jedan mod (zakon), ostali dolaze u Fazi 6 -->
             <div id="aiws-modes" style="display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap;">
               <button class="vx-pill is-active" data-mode="zakon" onclick="aiwsSetMode('zakon',this)">Istraživanje zakona</button>
+              <button class="vx-pill" data-mode="analiza" onclick="aiwsSetMode('analiza',this)">Analiza dokumenta</button>
+              <button class="vx-pill" data-mode="nacrti" onclick="aiwsSetMode('nacrti',this)">Nacrti podnesaka</button>
+              <button class="vx-pill" data-mode="strategija" onclick="aiwsSetMode('strategija',this)">Strategija</button>
+              <button class="vx-pill" data-mode="oblasti" onclick="aiwsSetMode('oblasti',this)">Pravne oblasti</button>
             </div>
 
             <div id="aiws-mode-zakon" class="aiws-mode-pane">
@@ -3101,6 +2900,199 @@
               </div>
             </details>
             </div><!-- /aiws-mode-zakon -->
+
+            <div id="aiws-mode-oblasti" class="aiws-mode-pane" style="display:none;">
+              <div class="strat-modul-izbor web3-moduli">
+                <button class="strat-btn active" data-oblast="krivicno" onclick="oblastiIzaberiOblast('krivicno',this)">Krivično pravo</button>
+                <button class="strat-btn" data-oblast="privredno" onclick="oblastiIzaberiOblast('privredno',this)">Privredno pravo</button>
+                <button class="strat-btn" data-oblast="radno" onclick="oblastiIzaberiOblast('radno',this)">Radno pravo</button>
+              </div>
+              <div id="ob-opis" class="strat-opis-box web3-opis-box"></div>
+              <div class="strat-input-wrap">
+                <label id="ob-input-label" class="strat-label">Unesite pravno pitanje:</label>
+                <textarea id="ob-tekst" class="strat-textarea" rows="5"
+                  placeholder="npr. Koja je kazna za krađu? Koji su uslovi za uslovnu osudu?"
+                  oninput="document.getElementById('ob-chars').textContent=this.value.length"></textarea>
+                <div class="strat-char-count"><span id="ob-chars">0</span> karaktera</div>
+              </div>
+              <div class="web3-reference" id="ob-reference">
+                <span>Baza znanja:</span>
+                <span class="web3-ref-badge">KZ čl. 1-368</span>
+                <span class="web3-ref-badge">ZKP postupak</span>
+                <span class="web3-ref-badge">Zaštitne mere</span>
+                <span class="web3-ref-badge">Zastarelost KZ</span>
+              </div>
+              <button class="web3-submit-btn" id="ob-submit-btn" onclick="oblastiPokreni()">Postavi pitanje</button>
+              <div id="ob-rezultat-wrap" class="web3-rezultat-wrap" style="display:none">
+                <div class="web3-rezultat-header">
+                  <span id="ob-rezultat-naslov" class="web3-rezultat-naslov"></span>
+                  <button class="web3-copy-btn" onclick="oblastiKopiraj()">Kopiraj</button>
+                </div>
+                <div id="ob-rezultat-body" class="web3-rezultat-body"></div>
+              </div>
+            </div><!-- /aiws-mode-oblasti -->
+
+            <div id="aiws-mode-analiza" class="aiws-mode-pane" style="display:none;">
+              <div class="t-guide">
+                <div class="t-guide-icon"><i data-lucide="file-search" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
+                <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Otpremite ugovor, presudu ili pravni akt — sistem identifikuje pravne rizike i problematične odredbe.</div>
+              </div>
+              <input type="file" id="doc-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="doc_upload_file(this.files[0])">
+              <div id="doc-upload-zone" class="upload-dropzone" onclick="doc_upload_trigger()">
+                <div class="upload-zone-icon"></div>
+                <div class="upload-zone-text">Prevucite ugovor ovde ili kliknite za odabir</div>
+                <div class="upload-zone-sub">Podržani formati: PDF, DOCX (do 25MB)</div>
+              </div>
+              <div id="doc-upload-loading" style="display:none;text-align:center;padding:1.2rem 0;color:rgba(255,255,255,0.55);font-size:.9rem;"><span class="upload-spinner"></span>Otpremanje i obrada dokumenta...</div>
+              <div id="doc-upload-error" style="display:none;padding:.85rem 1rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:3px;color:#ff9090;font-size:.87rem;margin-top:.7rem;"></div>
+              <div id="doc-session-active" style="display:none">
+                <div class="doc-file-card">
+                  <div class="doc-file-info">
+                    <span class="doc-file-icon"></span>
+                    <div>
+                      <div id="doc-file-name" style="font-weight:600;font-size:.9rem;color:#fff;word-break:break-all;"></div>
+                      <div id="doc-file-meta" style="font-size:.77rem;color:rgba(255,255,255,0.45);margin-top:2px;"></div>
+                    </div>
+                  </div>
+                  <button class="doc-remove-btn" onclick="doc_clear_session()">✕ Ukloni</button>
+                </div>
+                <div id="doc-ocr-warning" style="display:none;margin-top:.7rem;padding:.55rem .75rem;background:rgba(255,180,0,0.12);border:1px solid rgba(255,180,0,0.35);border-radius:2px;font-size:.8rem;color:#ffd166;">
+                  ⚠️ Skenirani dokument — tekst je prepoznat putem OCR-a. Kvalitet analize može biti niži nego kod digitalnog PDF-a.
+                </div>
+                <label class="t-label" style="margin-top:.9rem;">Postavite pitanje o ovom dokumentu:</label>
+                <textarea class="t-input" id="aq" placeholder="Npr. Da li postoji rizik od raskida ugovora?" style="height:60px;margin-top:.4rem;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                <textarea id="aitxt" style="display:none"></textarea>
+                <div class="rok-datum-wrap" id="rok-datum-wrapper">
+                  <span class="rok-datum-label">Datum dokumenta:</span>
+                  <input type="text" id="rok-datum-doc" class="rok-datum-inp" placeholder="DD.MM.YYYY" maxlength="10" oninput="doc_rokovi_recalc()">
+                  <span class="rok-datum-hint" id="rok-datum-hint"></span>
+                </div>
+                <button class="rokovi-btn" onclick="doc_prikaži_rokove(this)">Prikaži rokove</button>
+                <div id="rokovi-panel" class="rokovi-panel">
+                  <div class="rokovi-panel-title">Identifikovani rokovi</div>
+                  <div id="rokovi-lista"></div>
+                  <button class="btn-ics-all" onclick="sviRokoviUKalendar()" id="btn-ics-all" style="display:none;">Izvezi sve rokove (.ics)</button>
+                </div>
+                <!-- FORENZIČKI AUDIT dugme -->
+                <button class="forensic-audit-btn" id="forensic-audit-btn" onclick="doc_forensic_audit()" style="margin-top:.85rem;">
+                  <span id="forensic-btn-lbl">Forenzička analiza dokumenta</span>
+                </button>
+                <div id="forensic-audit-result" style="display:none;margin-top:.9rem;"></div>
+                <!-- ZASTARELOST KALKULATOR Phase 3.6 -->
+                <div class="zast-wrap">
+                  <button class="zast-toggle" onclick="zastToggle(this)">⏳ Kalkulator zastarelosti</button>
+                  <div class="zast-body" id="zast-body">
+                    <div class="zast-form-row">
+                      <label for="zast-tip">Tip potraživanja</label>
+                      <select id="zast-tip" class="zast-sel" onchange="zastTipChange(this)">
+                        <option value="">— izaberite tip —</option>
+                      </select>
+                      <div class="zast-osnov-hint" id="zast-osnov-hint"></div>
+                    </div>
+                    <div class="zast-form-row">
+                      <label for="zast-datum">Datum početka (DD.MM.YYYY)</label>
+                      <input type="text" id="zast-datum" class="zast-inp" placeholder="01.01.2024" maxlength="10">
+                    </div>
+                    <button class="zast-btn" onclick="kalkulisiZastarelost()">Izračunaj</button>
+                    <div id="zast-rezultat"></div>
+                  </div>
+                </div>
+              </div>
+            </div><!-- /aiws-mode-analiza -->
+
+            <div id="aiws-mode-nacrti" class="aiws-mode-pane" style="display:none;">
+              <div class="t-guide">
+                <div class="t-guide-icon"><i data-lucide="file-text" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
+                <div class="t-guide-text"><span class="t-guide-bold">Generišite nacrt podneska.</span> Izaberite tip, opišite stranke i činjenice slobodnim tekstom — sistem ekstraktuje entitete i popunjava zvanični šablon.</div>
+              </div>
+              <input type="hidden" id="podnesak-tip" value="tuzba_naknada_stete">
+              <div class="podnesak-selector">
+                <div class="podnesak-category" style="margin-top:0">PODNESCI — PARNIČNI</div>
+                <button type="button" class="podnesak-option selected" data-value="tuzba_naknada_stete" onclick="_selectPodnesakOption('tuzba_naknada_stete')">Tužba za naknadu štete</button>
+                <button type="button" class="podnesak-option" data-value="tuzba_radni_spor" onclick="_selectPodnesakOption('tuzba_radni_spor')">Tužba — radni spor</button>
+                <button type="button" class="podnesak-option" data-value="tuzba_razvod" onclick="_selectPodnesakOption('tuzba_razvod')">Tužba za razvod braka</button>
+                <button type="button" class="podnesak-option" data-value="zalba_parnicna" onclick="_selectPodnesakOption('zalba_parnicna')">Žalba na presudu (parnica)</button>
+                <button type="button" class="podnesak-option" data-value="zalba_na_presudu" onclick="_selectPodnesakOption('zalba_na_presudu')">Žalba na presudu (nacrt)</button>
+                <button type="button" class="podnesak-option" data-value="zalba_na_resenje" onclick="_selectPodnesakOption('zalba_na_resenje')">Žalba na rešenje</button>
+                <button type="button" class="podnesak-option" data-value="odgovor_na_tuzbu" onclick="_selectPodnesakOption('odgovor_na_tuzbu')">Odgovor na tužbu</button>
+                <button type="button" class="podnesak-option" data-value="prigovor_platni_nalog" onclick="_selectPodnesakOption('prigovor_platni_nalog')">Prigovor na platni nalog</button>
+                <button type="button" class="podnesak-option" data-value="prigovor_izvrsenje" onclick="_selectPodnesakOption('prigovor_izvrsenje')">Prigovor na rešenje o izvršenju</button>
+                <button type="button" class="podnesak-option" data-value="predlog_privremena_mera" onclick="_selectPodnesakOption('predlog_privremena_mera')">Predlog za privremenu meru</button>
+                <button type="button" class="podnesak-option" data-value="predlog_izvrsenje" onclick="_selectPodnesakOption('predlog_izvrsenje')">Predlog za izvršenje</button>
+                <button type="button" class="podnesak-option" data-value="urgencija_sudu" onclick="_selectPodnesakOption('urgencija_sudu')">Urgencija sudu</button>
+                <div class="podnesak-category">KRIVIČNO I UPRAVNO</div>
+                <button type="button" class="podnesak-option" data-value="krivicna_prijava" onclick="_selectPodnesakOption('krivicna_prijava')">Krivična prijava</button>
+                <button type="button" class="podnesak-option" data-value="zalba_krivicna" onclick="_selectPodnesakOption('zalba_krivicna')">Žalba na presudu (krivična)</button>
+                <div class="podnesak-category">DOPISIVANJE I ZAHTEVI</div>
+                <button type="button" class="podnesak-option" data-value="opomena_duznik" onclick="_selectPodnesakOption('opomena_duznik')">Opomena pre tužbe</button>
+                <button type="button" class="podnesak-option" data-value="zahtev_poslodavcu" onclick="_selectPodnesakOption('zahtev_poslodavcu')">Zahtev zaposlenog poslodavcu</button>
+                <button type="button" class="podnesak-option" data-value="obaveštenje_o_otkazu" onclick="_selectPodnesakOption('obaveštenje_o_otkazu')">Obaveštenje o otkazu ugovora</button>
+                <div class="podnesak-category">NACRTI UGOVORA</div>
+                <button type="button" class="podnesak-option" data-value="ugovor_neodredjeno" onclick="_selectPodnesakOption('ugovor_neodredjeno')">Ugovor o radu — neodređeno vreme</button>
+                <button type="button" class="podnesak-option" data-value="ugovor_odredjeno" onclick="_selectPodnesakOption('ugovor_odredjeno')">Ugovor o radu — određeno vreme</button>
+                <button type="button" class="podnesak-option" data-value="aneks" onclick="_selectPodnesakOption('aneks')">Aneks ugovora o radu</button>
+                <button type="button" class="podnesak-option" data-value="sporazumni_raskid" onclick="_selectPodnesakOption('sporazumni_raskid')">Sporazumni raskid radnog odnosa</button>
+                <button type="button" class="podnesak-option" data-value="ugovor_kupoprodaja" onclick="_selectPodnesakOption('ugovor_kupoprodaja')">Ugovor o kupoprodaji</button>
+                <button type="button" class="podnesak-option" data-value="ugovor_zakup" onclick="_selectPodnesakOption('ugovor_zakup')">Ugovor o zakupu nepokretnosti</button>
+                <button type="button" class="podnesak-option" data-value="punomocje" onclick="_selectPodnesakOption('punomocje')">Punomoćje</button>
+              </div>
+              <div id="podnesak-hint" class="podnesak-hint"></div>
+              <!-- Sud selekcija -->
+              <label class="t-label" style="margin-bottom:.3rem;">Sud:</label>
+              <div style="position:relative;margin-bottom:.7rem;">
+                <input type="text" id="podnesak-sud-input" placeholder="Pretražite sud ili ukucajte naziv..." autocomplete="off"
+                  style="width:100%;padding:.5rem .75rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:#e6edf3;font-size:.82rem;font-family:inherit;outline:none;box-sizing:border-box;"
+                  oninput="_sud_filter(this.value)" onfocus="_sud_dropdown_show()" onblur="setTimeout(_sud_dropdown_hide,200)">
+                <input type="hidden" id="podnesak-sud-naziv" value="">
+                <input type="hidden" id="podnesak-sud-adresa" value="">
+                <div id="podnesak-sud-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:#0c0e14;border:1px solid rgba(255,255,255,0.12);border-radius:0 0 2px 2px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <label class="t-label" style="margin-bottom:0;">Opis slučaja (stranke, činjenice, iznosi):</label>
+                <button onclick="_predAutoFill('podnesak-opis',true)" title="Popuni iz aktivnog predmeta" style="display:none;font-size:0.68rem;padding:2px 9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:2px;color:rgba(255,255,255,0.55);cursor:pointer;font-family:inherit;white-space:nowrap;" id="btn-autofill-podnesak">↺ Iz predmeta</button>
+              </div>
+              <div class="mic-input-wrap">
+                <textarea class="t-input" id="podnesak-opis" placeholder="Npr. Tužilac Petar Petrović, ul. Vojvode Mišića 5, Beograd traži naknadu štete od tuženog Jovana Jovanovića zbog saobraćajne nezgode dana 15.03.2024. Pretrpljene su telesne povrede i materijalna šteta u iznosu od 350.000 RSD. Štetnik je isključivo odgovoran..." style="height:100px;" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                <button class="mic-btn" id="mic-podnesak-opis" type="button" onclick="micToggle('podnesak-opis')" title="Glasovni unos — diktirajte opis slučaja (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
+              </div>
+              <div class="mic-status" id="mic-status-podnesak-opis"><span class="mic-status-dot"></span><span>Snimam... diktirajte činjenice slučaja</span></div>
+              <div class="podnesak-chips-lbl">Brzi unos — kliknite za primer:</div>
+              <div class="podnesak-chips">
+                <span class="podnesak-chip" onclick="fillPodnesakPrimer('tuzba')">Tužba — saobraćajna nezgoda</span>
+                <span class="podnesak-chip" onclick="fillPodnesakPrimer('zalba')">Žalba — odbijen zahtev</span>
+                <span class="podnesak-chip" onclick="fillPodnesakPrimer('izvrsenje')">Izvršenje — neplaćen dug</span>
+              </div>
+
+              <!-- F7: Playbook upravljanje -->
+              <details id="playbook-detalji" class="playbook-panel" style="display:none;">
+                <summary class="playbook-summary">
+                  Firmini dokumenti (Playbook)
+                  <span class="pro-badge">PRO</span>
+                  <span id="playbook-count-badge" class="playbook-count" style="display:none;"></span>
+                </summary>
+                <div class="playbook-body">
+                  <p class="playbook-opis">Uploadujte interne dokumente firme (presedani, argumenti, šabloni). Vindex će ih automatski koristiti pri generisanju nacrta.</p>
+                  <div class="playbook-upload-zona" id="playbook-drop-zona"
+                       ondragover="event.preventDefault()"
+                       ondrop="playbookDrop(event)">
+                    <input type="file" id="playbook-file-input" multiple
+                           accept=".pdf,.docx,.txt"
+                           style="display:none"
+                           onchange="playbookUploadFajlove(this.files)"/>
+                    <div onclick="document.getElementById('playbook-file-input').click()">
+                      Prevucite fajlove ovde ili <u>kliknite za izbor</u><br>
+                      <small>PDF, DOCX, TXT — max 2MB po fajlu</small>
+                    </div>
+                  </div>
+                  <div id="playbook-progress" style="display:none;" class="playbook-progress"></div>
+                  <div id="playbook-lista" class="playbook-lista"></div>
+                  <div class="playbook-akcije">
+                    <button class="playbook-akcija-btn" onclick="ucitajPlaybookStatus()">Osveži</button>
+                    <button class="btn-danger-small" onclick="obrisiSvPlaybook()">Obriši sve</button>
+                  </div>
+                </div>
+              </details>
+            </div><!-- /aiws-mode-nacrti -->
 
           </div>
 
