@@ -2818,16 +2818,16 @@
 
           <!-- Faza 1: Centralizovani Kalendar -->
           <div id="tab-kal" style="display:none">
-            <div class="kal-header">
-              <div style="display:flex;align-items:center;gap:0.75rem;">
-                <div class="kal-naslov">Kalendar</div>
-                <!-- View toggle -->
-                <div style="display:flex;gap:2px;background:rgba(255,255,255,0.05);border-radius:2px;padding:2px;">
+            <div class="vx-exec-header">
+              <div>
+                <div class="vx-exec-header-eyebrow">Rokovi i ročišta</div>
+                <div class="vx-exec-header-title">Kalendar</div>
+                <div style="display:flex;gap:2px;background:rgba(255,255,255,0.05);border-radius:2px;padding:2px;margin-top:0.7rem;width:fit-content;">
                   <button id="kal-view-grid-btn" onclick="kalSetView('grid')" style="padding:4px 10px;border:none;border-radius:2px;font-size:0.7rem;cursor:pointer;background:rgba(255,255,255,0.09);color:rgba(255,255,255,0.72);font-family:inherit;">Mesec</button>
                   <button id="kal-view-list-btn" onclick="kalSetView('list')" style="padding:4px 10px;border:none;border-radius:2px;font-size:0.7rem;cursor:pointer;background:transparent;color:rgba(255,255,255,0.4);font-family:inherit;">Lista</button>
                 </div>
               </div>
-              <div class="kal-header-actions">
+              <div class="vx-exec-header-actions">
                 <button class="kal-ics-btn" onclick="kalendarIcsExport()">⬇ .ics</button>
                 <button class="kal-ics-btn" style="background:rgba(66,133,244,0.1);color:#8ab4f8;border-color:rgba(66,133,244,0.3);" onclick="kalendarGoogleExport()">Google</button>
                 <button class="kal-ics-btn" style="background:rgba(0,120,212,0.1);color:#60a5fa;border-color:rgba(0,120,212,0.3);" onclick="kalendarOutlookExport()">Outlook</button>

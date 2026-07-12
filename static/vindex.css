@@ -617,9 +617,9 @@ footer { padding: 2rem 1.5rem; }
 .upload-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.12);border-top-color:rgba(255,255,255,0.72);border-radius:50%;animation:doc-spin .8s linear infinite;vertical-align:middle;margin-right:.4rem;}
 /* Dark theme za select dropdown opcije u Sudska praksa */
 #tab-s select option{background-color:#010308;color:rgba(255,255,255,0.95);padding:8px 12px;}
-#tab-s select option:hover,#tab-s select option:focus,#tab-s select option:checked{background-color:rgba(59,130,246,0.2);color:rgba(255,255,255,1);}
+#tab-s select option:hover,#tab-s select option:focus,#tab-s select option:checked{background-color:rgba(0,212,255,0.2);color:rgba(255,255,255,1);}
 #tab-s select{background-color:#010308;color:rgba(255,255,255,0.95);border:1px solid rgba(255,255,255,0.1);}
-#tab-s select:focus{outline:none;border-color:rgba(59,130,246,0.5);}
+#tab-s select:focus{outline:none;border-color:rgba(0,212,255,0.5);}
 /* Global: ensure all select dropdowns are readable on dark background */
 select{background-color:#131929;color:rgba(255,255,255,0.9);}
 select option{background-color:#131929;color:rgba(255,255,255,0.9);}
@@ -1265,8 +1265,8 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .kal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 0 10px;}
 .kal-naslov{font-size:1.05rem;font-weight:600;color:#e2e8f0;}
 .kal-header-actions{display:flex;gap:8px;}
-.kal-dodaj-btn{background:#00d4ff;color:#fff;border:none;border-radius:2px;padding:6px 14px;font-size:0.82rem;cursor:pointer;font-weight:600;}
-.kal-dodaj-btn:hover{background:#2563eb;}
+.kal-dodaj-btn{background:#00d4ff;color:#010308;border:none;border-radius:2px;padding:6px 14px;font-size:0.82rem;cursor:pointer;font-weight:600;}
+.kal-dodaj-btn:hover{opacity:0.9;}
 .kal-ics-btn{background:rgba(255,255,255,0.07);color:#94a3b8;border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:6px 12px;font-size:0.78rem;cursor:pointer;}
 .kal-ics-btn:hover{background:rgba(255,255,255,0.13);}
 .kal-loading{color:rgba(255,255,255,0.45);font-size:0.88rem;padding:24px 0;text-align:center;}
@@ -1277,16 +1277,16 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .kal-dan-header{background:rgba(255,255,255,0.05);padding:7px 14px;font-size:0.78rem;font-weight:600;color:#94a3b8;letter-spacing:0.03em;text-transform:uppercase;}
 .kal-ev-row{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.15s;}
 .kal-ev-row:last-child{border-bottom:none;}
-.kal-ev-rociste{border-left:3px solid #3b82f6;}
+.kal-ev-rociste{border-left:3px solid #00d4ff;}
 .kal-ev-zast{border-left:3px solid #f87171;}
 .kal-ev-dok{border-left:3px solid #94a3b8;}
 .kal-ev-naslov{font-size:0.9rem;color:#e2e8f0;font-weight:500;}
-.kal-ev-vreme{margin-left:8px;background:rgba(59,130,246,0.18);color:rgba(180,200,255,0.72);border-radius:4px;padding:1px 6px;font-size:0.75rem;}
+.kal-ev-vreme{margin-left:8px;background:rgba(0,212,255,0.14);color:rgba(155,225,255,0.80);border-radius:4px;padding:1px 6px;font-size:0.75rem;}
 .kal-ev-pred{font-size:0.78rem;color:rgba(255,255,255,0.42);margin-top:2px;}
 .kal-ev-detalji{margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .kal-ev-det{font-size:0.75rem;color:rgba(255,255,255,0.5);}
 .kal-ev-status{font-size:0.7rem;padding:1px 7px;border-radius:4px;font-weight:600;}
-.kal-st-zakazano{background:rgba(59,130,246,0.18);color:rgba(180,200,255,0.72);}
+.kal-st-zakazano{background:rgba(0,212,255,0.14);color:rgba(155,225,255,0.80);}
 .kal-st-odrzano{background:rgba(34,197,94,0.15);color:#86efac;}
 .kal-st-odlozeno{background:rgba(251,191,36,0.15);color:#fcd34d;}
 .kal-st-otkazano{background:rgba(239,68,68,0.15);color:#fca5a5;}
