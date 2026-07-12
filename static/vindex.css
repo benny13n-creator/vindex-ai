@@ -124,6 +124,26 @@ blockquote.citat-expanded { max-height: none; }
 .resp-disclaimer .resp-section-lbl::before { background: #f0b429; box-shadow:none; }
 .resp-disclaimer .resp-section-body { font-size: 0.75rem; color: rgba(240,180,41,0.75); font-style: italic; line-height: 1.65; }
 .resp-plain { white-space: pre-wrap; }
+/* Brza procena — hero kartica na vrhu AI odgovora */
+.hero-procena { background: rgba(0,212,255,0.04); border: 1px solid rgba(0,212,255,0.18); border-radius: 3px; padding: 0.85rem 1rem; margin-bottom: 1.1rem; }
+.hero-procena-title { font-family: 'JetBrains Mono', monospace; font-size: 0.56rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(0,212,255,0.65); margin-bottom: 0.55rem; }
+.hero-procena-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.9rem; padding: 0.32rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; }
+.hero-procena-row:last-child { border-bottom: none; }
+.hero-procena-label { color: rgba(255,255,255,0.42); flex-shrink: 0; white-space: nowrap; }
+.hero-procena-value { color: rgba(255,255,255,0.88); text-align: right; font-weight: 500; }
+.hero-procena-value.hp-good { color: #4ade80; }
+.hero-procena-value.hp-mid  { color: #f0b429; }
+.hero-procena-value.hp-bad  { color: #f87171; }
+.hero-procena-tag { display: inline-block; font-size: 0.56rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(0,212,255,0.6); background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); border-radius: 2px; padding: 0.1rem 0.4rem; margin-bottom: 0.25rem; }
+/* Sudska praksa — pojedinacne kartice iz --- SUDSKA PRAKSA bloka */
+.resp-sudska-praksa .resp-section-lbl { color: #c9a84c; }
+.resp-sudska-praksa .resp-section-lbl::before { background: #c9a84c; box-shadow: 0 0 5px rgba(201,168,76,0.4); }
+.praksa-kartica { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 2px; padding: 0.55rem 0.7rem; margin-bottom: 0.5rem; }
+.praksa-kartica:last-child { margin-bottom: 0; }
+.praksa-kartica-hd { font-size: 0.76rem; font-weight: 600; color: rgba(201,168,76,0.9); margin-bottom: 0.3rem; }
+.praksa-kartica-princip { font-size: 0.74rem; color: rgba(255,255,255,0.72); margin-bottom: 0.25rem; }
+.praksa-kartica-princip .pk-lbl { color: rgba(201,168,76,0.7); font-weight: 600; }
+.praksa-kartica-sazetak { font-size: 0.73rem; color: rgba(255,255,255,0.5); line-height: 1.55; }
 /* Novi elementi */
 .trust-badge { font-size:0.78rem; font-weight:600; padding:0.55rem 1rem; border-radius:2px; margin-bottom:1rem; letter-spacing:0.01em; }
 .trust-high { background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.25); color:#4ade80; }

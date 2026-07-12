@@ -5970,7 +5970,71 @@ function _linkGlasnik(val) {
   );
 }
 
+var _HP_OSNOV_CLS = {'POSTOJI':'hp-good', 'DELIMIČNO':'hp-mid', 'NE POSTOJI':'hp-bad', 'NEJASNO':'hp-mid'};
+var _HP_SNAGA_CLS = {'VISOKA':'hp-good', 'SREDNJA':'hp-mid', 'NISKA':'hp-bad'};
+
+/* Izvlači "--- BRZA PROCENA" blok (ako postoji) i vraća {heroHtml, rest}.
+   Uklanja blok iz teksta da se ne bi duplirao kroz generičko sekcija-parsiranje. */
+function _extractBrzaProcena(rawText) {
+  var startKey = '--- BRZA PROCENA';
+  var start = rawText.indexOf(startKey);
+  if (start === -1) return { heroHtml: '', rest: rawText };
+  var afterStart = start + startKey.length;
+  var endMarkers = ['[✓] STATUSNA POTVRDA', '[~] STATUSNA POTVRDA', '[!] STATUSNA POTVRDA'];
+  var end = rawText.length;
+  endMarkers.forEach(function(m) {
+    var idx = rawText.indexOf(m, afterStart);
+    if (idx !== -1 && idx < end) end = idx;
+  });
+  var block = rawText.slice(afterStart, end).replace(/\r/g, '').trim();
+  var rest = rawText.slice(0, start) + rawText.slice(end);
+
+  var fields = {};
+  block.split('\n').forEach(function(line) {
+    var m = line.match(/^([^:]+):\s*(.+)$/);
+    if (m) fields[m[1].trim()] = m[2].trim();
+  });
+  if (!fields['Snaga osnova']) return { heroHtml: '', rest: rawText };
+
+  var osnov = fields['Pravni osnov'] || '';
+  var snaga = fields['Snaga osnova'] || '';
+  var rows = '';
+  if (osnov) rows += '<div class="hero-procena-row"><span class="hero-procena-label">Pravni osnov</span><span class="hero-procena-value ' + (_HP_OSNOV_CLS[osnov] || '') + '">' + escHtml(osnov) + '</span></div>';
+  if (snaga) rows += '<div class="hero-procena-row"><span class="hero-procena-label">Snaga osnova</span><span class="hero-procena-value ' + (_HP_SNAGA_CLS[snaga] || '') + '">' + escHtml(snaga) + '</span></div>';
+  if (fields['Glavni rizik']) rows += '<div class="hero-procena-row"><span class="hero-procena-label">Glavni rizik</span><span class="hero-procena-value">' + escHtml(fields['Glavni rizik']) + '</span></div>';
+  if (fields['Ključni nedostatak']) rows += '<div class="hero-procena-row"><span class="hero-procena-label">Ključni nedostatak</span><span class="hero-procena-value">' + escHtml(fields['Ključni nedostatak']) + '</span></div>';
+  var heroHtml = '<div class="hero-procena"><div class="hero-procena-title">Brza procena</div>' + rows + '</div>';
+  if (fields['STRATEŠKA PREPORUKA']) {
+    heroHtml += '<div class="hero-procena" style="margin-top:-0.6rem;"><span class="hero-procena-tag">Strateška preporuka</span><div style="font-size:0.8rem;color:rgba(255,255,255,0.85);">' + escHtml(fields['STRATEŠKA PREPORUKA']) + '</div></div>';
+  }
+  return { heroHtml: heroHtml, rest: rest };
+}
+
+/* Renderuje "--- SUDSKA PRAKSA" blok (numerisane stavke) kao kartice umesto plain teksta. */
+function _renderSudskaPraksaBlock(val) {
+  var items = val.split(/\n(?=\d+\.\s)/).map(function(s){ return s.trim(); }).filter(Boolean);
+  if (!items.length) return '<div class="resp-section-body">' + escHtml(val).replace(/\n/g,'<br>') + '</div>';
+  var html = items.map(function(item) {
+    var lines = item.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+    var header = (lines[0] || '').replace(/^\d+\.\s*/, '');
+    var princip = '', sazetak = [];
+    lines.slice(1).forEach(function(l) {
+      var pm = l.match(/^Pravni princip:\s*(.+)$/);
+      if (pm) { princip = pm[1]; } else { sazetak.push(l); }
+    });
+    return '<div class="praksa-kartica">'
+      + '<div class="praksa-kartica-hd">' + escHtml(header) + '</div>'
+      + (princip ? '<div class="praksa-kartica-princip"><span class="pk-lbl">Pravni princip:</span> ' + escHtml(princip) + '</div>' : '')
+      + (sazetak.length ? '<div class="praksa-kartica-sazetak">' + escHtml(sazetak.join(' ')) + '</div>' : '')
+      + '</div>';
+  }).join('');
+  return html;
+}
+
 function formatResponse(rawText) {
+  var _bp = _extractBrzaProcena(rawText);
+  var _heroHtml = _bp.heroHtml;
+  rawText = _bp.rest;
   var defs = [
     // ── "--- CAPS" format — svi tipovi (PARNICA, COMPLIANCE, PORESKI, DEFINICIJA) ──
     { key:'[✓] STATUSNA POTVRDA:',              cls:'resp-status-ok',   lbl:'✓ Potvrda citiranja',             icon:'' },
@@ -6002,6 +6066,7 @@ function formatResponse(rawText) {
     { key:'--- KLJUČNO PITANJE',                cls:'resp-kljucno-parnica', lbl:'Ključno pitanje',          icon:'' },
     { key:'--- POTREBNE INFORMACIJE',           cls:'resp-potrebne',    lbl:'📌 Potrebne informacije',          icon:'' },
     { key:'--- MIŠLJENJA MINISTARSTAVA',          cls:'resp-misljenje',   lbl:'📋 Mišljenja ministarstava',       icon:'' },
+    { key:'--- SUDSKA PRAKSA',                  cls:'resp-sudska-praksa', lbl:'⚖️ Sudska praksa',              icon:'' },
     { key:'--- IZVOR',                          cls:'resp-izvor',       lbl:'Izvor',                           icon:'' },
     // ── v2.0 sekcije (emoji + mixed case) ──────────────────────────────────
     { key:'⚡ TL;DR',                      cls:'resp-tldr',        lbl:'TL;DR — Kratak zaključak', icon:'tldr' },
@@ -6054,7 +6119,7 @@ function formatResponse(rawText) {
     return '<div class="resp-nacrt-podnesak">'+highlighted+'</div>';
   }
   var isStructured = defs.some(function(d){ return rawText.indexOf(d.key) !== -1; });
-  if (!isStructured) return '<div class="resp-plain">'+escHtml(rawText)+'</div>';
+  if (!isStructured) return _heroHtml + '<div class="resp-plain">'+escHtml(rawText)+'</div>';
   var found = []; var usedPos = {};
   defs.forEach(function(d){
     var idx = rawText.indexOf(d.key);
@@ -6125,7 +6190,7 @@ function formatResponse(rawText) {
   };
   var _skrivene = _skriveneZaTip[_tipUpita] || {};
 
-  var html = trustBadge;
+  var html = _heroHtml + trustBadge;
   found.forEach(function(s,i){
     var start = s.pos + s.keyLen;
     var end = i+1 < found.length ? found[i+1].pos : rawText.length;
@@ -6180,6 +6245,8 @@ function formatResponse(rawText) {
       } else {
         bodyHtml = _linkGlasnik(val).replace(/\n/g,'<br>');
       }
+    } else if (s.cls === 'resp-sudska-praksa') {
+      bodyHtml = _renderSudskaPraksaBlock(val);
     } else if (s.cls === 'resp-misljenje') {
       // Parse individual ministry opinions — each starts with "Mišljenje ..."
       var _mBlocks = val.split(/(?=Mišljenje\s+)/i).filter(function(b){ return b.trim(); });
@@ -6910,11 +6977,12 @@ function _renderRagConfidence(d) {
               LOW: { label:'Niska relevantnost', bg:'rgba(239,68,68,.13)', color:'#f87171', border:'rgba(239,68,68,.3)' } };
   var meta = map[conf.toUpperCase()] || map.MEDIUM;
   badge.textContent = meta.label;
-  badge.style.cssText = 'display:inline-block;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:4px;letter-spacing:.04em;background:'+meta.bg+';color:'+meta.color+';border:1px solid '+meta.border+';';
+  badge.title = 'Koliko upit semantički odgovara pronađenom zakonskom tekstu — nije procena pravnog ishoda.';
+  badge.style.cssText = 'display:inline-block;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:4px;letter-spacing:.04em;background:'+meta.bg+';color:'+meta.color+';border:1px solid '+meta.border+';cursor:help;';
   var parts = [];
   if (d.top_law) parts.push(d.top_law);
   if (d.top_article) parts.push(d.top_article);
-  if (d.top_score !== undefined) parts.push('skor: ' + Math.round(d.top_score * 100) + '%');
+  if (d.top_score !== undefined) parts.push('relevantnost izvora: ' + Math.round(d.top_score * 100) + '% (semantička podudarnost sa upitom, ne pravna procena)');
   if (parts.length) { src.textContent = 'Najrelevantniji izvor: ' + parts.join(' · '); src.style.display='block'; }
   else src.style.display = 'none';
 }
