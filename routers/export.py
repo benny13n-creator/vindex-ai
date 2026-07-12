@@ -162,7 +162,7 @@ async def get_predmet_pdf_export(predmet_id: str, user: dict = Depends(get_curre
                      .select("*")
                      .eq("id", predmet_id)
                      .eq("user_id", uid)
-                     .single()
+                     .maybe_single()
                      .execute()
     )
     if not predmet_res.data:

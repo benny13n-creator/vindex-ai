@@ -325,7 +325,7 @@ async def post_generiši_ugovor(
                         .select("id, naziv")
                         .eq("id", body.predmet_id)
                         .eq("user_id", uid)
-                        .single()
+                        .maybe_single()
                         .execute()
         )
         if not pred_res.data:

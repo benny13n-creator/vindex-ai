@@ -381,7 +381,7 @@ async def get_case_dna(predmet_id: str, user=Depends(get_current_user)):
                 .select("case_dna,naziv")
                 .eq("id", predmet_id)
                 .eq("user_id", user["user_id"])
-                .single().execute()
+                .maybe_single().execute()
         )
     except Exception as exc:
         raise HTTPException(500, str(exc))
@@ -410,7 +410,7 @@ async def refresh_case_dna(predmet_id: str, user=Depends(get_current_user)):
                 .select("id,naziv,case_dna")
                 .eq("id", predmet_id)
                 .eq("user_id", uid)
-                .single().execute()
+                .maybe_single().execute()
         )
     except Exception:
         raise HTTPException(404, "Predmet nije pronadjen")
@@ -508,7 +508,7 @@ async def get_genome_history(predmet_id: str, user=Depends(get_current_user)):
     try:
         pr = await asyncio.to_thread(
             lambda: supa.table("predmeti").select("id,naziv")
-                .eq("id", predmet_id).eq("user_id", uid).single().execute()
+                .eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
         )
     except Exception:
         raise HTTPException(404, "Predmet nije pronadjen")

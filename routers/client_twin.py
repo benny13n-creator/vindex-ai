@@ -263,7 +263,7 @@ async def get_komunikacioni_profil(klijent_id: str, user=Depends(get_current_use
             .select("*")
             .eq("klijent_id", klijent_id)
             .eq("user_id", user["user_id"])
-            .single()
+            .maybe_single()
             .execute()
         )
         if not row.data:
@@ -291,7 +291,7 @@ async def rucno_azuriraj_profil(klijent_id: str, body: RucnoAzuriranjeRequest, u
             .select("twin_profil")
             .eq("klijent_id", klijent_id)
             .eq("user_id", user["user_id"])
-            .single()
+            .maybe_single()
             .execute()
         )
         if not existing_row.data:
@@ -329,7 +329,7 @@ async def get_savet_za_kontakt(klijent_id: str, user=Depends(get_current_user)):
             .select("twin_profil, updated_at")
             .eq("klijent_id", klijent_id)
             .eq("user_id", user["user_id"])
-            .single()
+            .maybe_single()
             .execute()
         )
         if not row.data or not row.data.get("twin_profil"):

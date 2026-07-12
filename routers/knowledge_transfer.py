@@ -219,7 +219,7 @@ async def dodaj_izvor(profil_id: str, body: DodajIzvorRequest, user=Depends(get_
             .select("id, advokat_ime")
             .eq("id", profil_id)
             .eq("user_id", user["user_id"])
-            .single()
+            .maybe_single()
             .execute()
         )
         if not profil_row.data:
@@ -338,7 +338,7 @@ async def upitaj_znanje(profil_id: str, body: UpitRequest, user=Depends(get_curr
             .select("*")
             .eq("id", profil_id)
             .eq("user_id", user["user_id"])
-            .single()
+            .maybe_single()
             .execute()
         )
         if not profil_row.data:

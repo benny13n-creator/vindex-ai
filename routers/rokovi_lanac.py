@@ -412,7 +412,7 @@ async def post_rokovi_lanac(
                         .select("id, naziv")
                         .eq("id", body.predmet_id)
                         .eq("user_id", uid)
-                        .single()
+                        .maybe_single()
                         .execute()
         )
         if not pred_res.data:

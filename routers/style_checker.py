@@ -265,7 +265,7 @@ async def get_style_analiza(analiza_id: str, user=Depends(get_current_user)):
             .select("*")
             .eq("id", analiza_id)
             .eq("user_id", user["user_id"])
-            .single()
+            .maybe_single()
             .execute()
         )
         if not row.data:

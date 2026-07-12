@@ -168,7 +168,7 @@ async def get_recurring(
         .select("*")
         .eq("id", template_id)
         .eq("user_id", uid)
-        .single()
+        .maybe_single()
         .execute()
     )
     if not res.data:
@@ -194,7 +194,7 @@ async def patch_recurring(
         .select("id")
         .eq("id", template_id)
         .eq("user_id", uid)
-        .single()
+        .maybe_single()
         .execute()
     )
     if not chk.data:
@@ -242,7 +242,7 @@ async def delete_recurring(
         .select("id, aktivan")
         .eq("id", template_id)
         .eq("user_id", uid)
-        .single()
+        .maybe_single()
         .execute()
     )
     if not chk.data:
@@ -279,7 +279,7 @@ async def generisi_iz_sablona(
         .select("*")
         .eq("id", template_id)
         .eq("user_id", uid)
-        .single()
+        .maybe_single()
         .execute()
     )
     if not tpl_res.data:

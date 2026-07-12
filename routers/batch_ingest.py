@@ -260,7 +260,7 @@ async def get_ingest_job(
         lambda: supa.table("ingest_jobs")
                      .select("*")
                      .eq("id", job_id)
-                     .single()
+                     .maybe_single()
                      .execute()
     )
     if not result.data:

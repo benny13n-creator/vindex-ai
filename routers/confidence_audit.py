@@ -130,7 +130,7 @@ async def set_bila_tacna(
             .select("id, confidence_band, oblast_prava, predmet_id")
             .eq("id", recommendation_id)
             .eq("user_id", user["user_id"])
-            .single()
+            .maybe_single()
             .execute()
         )
         if not rec_row.data:

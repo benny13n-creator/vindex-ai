@@ -87,7 +87,7 @@ async def zatvori_predmet(
                     .select("id, naziv, status, opis")
                     .eq("id", predmet_id)
                     .eq("user_id", uid)
-                    .single()
+                    .maybe_single()
                     .execute()
     )
     if not pred_res.data:
@@ -224,7 +224,7 @@ async def get_predmet_ishod(
                     .select("id, naziv, status")
                     .eq("id", predmet_id)
                     .eq("user_id", uid)
-                    .single()
+                    .maybe_single()
                     .execute()
     )
     if not pred_res.data:
