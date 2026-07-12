@@ -9224,6 +9224,41 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
 .vx-chart-legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: var(--vx-t-caption); color: var(--vx-text-secondary); }
 .vx-chart-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
+/* ── VINDEX MD SECTIONS — expand/collapse AI odgovor sekcije (Phase G) ────
+   Markup: <details class="vx-md-section" open><summary class="vx-md-summary">
+           naslov</summary><div class="vx-md-section-body">...</div></details> */
+.vx-md-section {
+  border: 1px solid var(--vx-border);
+  border-radius: var(--vx-radius-sm, 8px);
+  margin-bottom: var(--vx-space-2, 8px);
+  background: rgba(255,255,255,0.015);
+  overflow: hidden;
+}
+.vx-md-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--vx-text-primary, rgba(255,255,255,0.85));
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  user-select: none;
+  transition: background var(--vx-transition-fast, 150ms);
+}
+.vx-md-summary::-webkit-details-marker { display: none; }
+.vx-md-summary::before {
+  content: '▸';
+  color: #00d4ff;
+  font-size: 0.7rem;
+  transition: transform var(--vx-transition-fast, 150ms);
+  flex-shrink: 0;
+}
+.vx-md-section[open] > .vx-md-summary::before { transform: rotate(90deg); }
+.vx-md-summary:hover { background: rgba(0,212,255,0.04); }
+.vx-md-section-body { padding: 0 0.9rem 0.75rem; }
+
 /* ── PREDMETI — two-column page layout (Phase B) ────────────────────────── */
 .pred-page-grid {
   display: grid;

@@ -16207,6 +16207,36 @@ function _mdToHtml(text) {
   return out.join('');
 }
 
+/** Isti markdown render kao _mdToHtml, ali svaka ##/### sekcija postaje expand/collapse blok. */
+function _mdToHtmlCollapsible(text) {
+  if (!text) return '';
+  var lines = text.split('\n');
+  var chunks = [];
+  var current = { header: null, lines: [] };
+  lines.forEach(function(line) {
+    var hm = line.match(/^(#{1,3})\s+(.+)/);
+    if (hm) {
+      if (current.header !== null || current.lines.some(function(l){ return l.trim(); })) chunks.push(current);
+      current = { header: hm[2], lines: [] };
+    } else {
+      current.lines.push(line);
+    }
+  });
+  if (current.header !== null || current.lines.some(function(l){ return l.trim(); })) chunks.push(current);
+
+  var headerCount = chunks.filter(function(c){ return c.header; }).length;
+  if (headerCount < 2) return _mdToHtml(text);
+
+  return chunks.map(function(c) {
+    var bodyHtml = _mdToHtml(c.lines.join('\n'));
+    if (!c.header) return bodyHtml;
+    return '<details class="vx-md-section" open>'
+      + '<summary class="vx-md-summary">' + _htmlEscMd(c.header) + '</summary>'
+      + '<div class="vx-md-section-body">' + bodyHtml + '</div>'
+      + '</details>';
+  }).join('');
+}
+
 var _AGENT_ICONS = {'intake':'','research':'','drafting':'','litigation':'','billing':'','deadline':''};
 var _AGENT_NAMES = {'intake':'Agent za prijem','research':'Agent za istraživanje','drafting':'Agent za pisanje','litigation':'Agent za parnice','billing':'Agent za naplatu','deadline':'Agent za rokove'};
 var _AGENT_PLACEHOLDERS = {
@@ -16301,8 +16331,11 @@ async function agent_run() {
     if (loading) loading.style.display = 'none';
     if (!r.ok) { showToast(d.detail || 'Greška', 'err'); return; }
 
-    if (badge)  badge.textContent  = (_AGENT_ICONS[d.agent]||'▶') + ' ' + (d.naziv||d.agent) + ' odgovorio:';
-    if (result) result.innerHTML   = _mdToHtml(d.odgovor || '—');
+    if (badge) {
+      badge.innerHTML = _htmlEsc((_AGENT_ICONS[d.agent]||'▶') + ' ' + (d.naziv||d.agent) + ' odgovorio:')
+        + (d.rag_korišćen ? ' <span class="vx-badge vx-badge-accent" style="margin-left:.4rem;vertical-align:middle;" title="Odgovor koristi izvore iz pravne baze Vindex-a">📚 izvori iz baze</span>' : '');
+    }
+    if (result) result.innerHTML   = _mdToHtmlCollapsible(d.odgovor || '—');
     if (wrap) {
       wrap.style.display = 'block';
       setTimeout(function() { wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
@@ -16335,6 +16368,12 @@ async function agent_run_parallel() {
   if (loadTxt) loadTxt.textContent = 'Agenti za istraživanje, parnice i prijem rade istovremeno...';
   if (wrap)    wrap.style.display   = 'none';
 
+  var _paraAgentIds = ['research', 'litigation', 'intake'];
+  var paraRunningCards = _paraAgentIds.map(function(id) {
+    return document.querySelector('.agent-card[onclick*="\'' + id + '\'"]');
+  }).filter(Boolean);
+  paraRunningCards.forEach(function(c){ c.classList.add('is-running'); });
+
   try {
     var body = { task: task, agenti: ['research', 'litigation', 'intake'] };
     if (activePredmetId) body.predmet_id = activePredmetId;
@@ -16356,9 +16395,9 @@ async function agent_run_parallel() {
           + '<div style="font-size:.73rem;font-weight:700;color:#f87171;margin-bottom:.3rem;">' + _htmlEsc(res.naziv || res.agent_id) + ' — greška</div>'
           + '<div style="font-size:.75rem;color:rgba(255,255,255,.45);">' + _htmlEsc(res.greska) + '</div></div>';
       } else {
-        html += '<div style="margin-bottom:.8rem;padding:.6rem .8rem;background:rgba(255,255,255,.025);border:1px solid rgba(75,119,232,0.10);border-radius:8px;">'
+        html += '<div class="vx-card" style="margin-bottom:.8rem;border-color:rgba(0,212,255,0.14);">'
           + '<div style="font-size:.73rem;font-weight:700;color:rgba(255,255,255,0.72);margin-bottom:.4rem;">' + _htmlEsc(res.naziv || res.agent_id) + '</div>'
-          + '<div style="font-size:.8rem;line-height:1.6;color:#c7d7f0;">' + _mdToHtml(res.odgovor || '—') + '</div></div>';
+          + '<div style="font-size:.8rem;line-height:1.6;color:#c7d7f0;">' + _mdToHtmlCollapsible(res.odgovor || '—') + '</div></div>';
       }
     });
 
@@ -16373,6 +16412,7 @@ async function agent_run_parallel() {
     showToast('Greška: ' + e.message, 'err');
   } finally {
     if (paraBtn) { paraBtn.disabled = false; paraBtn.textContent = 'Pokreni paralelnu analizu (3 kredita)'; }
+    paraRunningCards.forEach(function(c){ c.classList.remove('is-running'); });
   }
 }
 
