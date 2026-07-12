@@ -9169,6 +9169,15 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
   margin: var(--vx-space-4) 0 var(--vx-space-2) calc(11px + var(--vx-space-4));
 }
 .vx-tl-group-lbl:first-child { margin-top: 0; }
+/* Dokumenti timeline (Phase D) — klikabilna kartica u okviru .vx-tl-item */
+.vx-tl-card.pred-dok-card {
+  background: rgba(13,17,23,0.4);
+  border: 1px solid var(--vx-border);
+  border-radius: var(--vx-radius-sm, 8px);
+  padding: 0.65rem 0.8rem;
+  transition: background var(--vx-transition-fast), border-color var(--vx-transition-fast);
+}
+.vx-tl-card.pred-dok-card:hover { background: rgba(0,212,255,0.04); border-color: rgba(0,212,255,0.32); }
 
 /* ── VINDEX KANBAN — status-column board ──────────────────────────────────
    Markup: .vx-kb-board > .vx-kb-col > .vx-kb-col-hd + .vx-kb-col-body > .vx-kb-card  */

@@ -10234,52 +10234,70 @@ async function pred_loadDetail(id) {
       _caseDnaRender(d.predmet.case_dna, activePredmetId);
     }
 
-    // Dokumenti lista u Dokumenti tabu
+    // Dokumenti lista u Dokumenti tabu — Vindex Timeline, grupisano po datumu
     var dokListEl = document.getElementById('pred-dok-lista');
     if (dokListEl) {
       if (!d.dokumenti || !d.dokumenti.length) {
-        dokListEl.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-top:0.3rem;">Nema dokumenata.</div>';
+        vxGridEmpty('pred-dok-lista', 'file-text', 'Nema dokumenata', 'Otpremite dokument iznad da počnete.');
+        dokListEl.classList.add('vx-grid-empty');
       } else {
+        dokListEl.classList.remove('vx-grid-empty');
+        vxGridEmptyHide('pred-dok-lista');
         var _dokHint = d.dokumenti.length >= 2
-          ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.40);margin-bottom:0.3rem;">Označi 2–5 dokumenata za poređenje (Cross-doc analiza)</div>'
+          ? '<div class="vx-caption" style="margin-bottom:0.5rem;">Označi 2–5 dokumenata za poređenje (Cross-doc analiza)</div>'
           : '';
-        dokListEl.innerHTML = _dokHint + d.dokumenti.map(function(dok, _dokIdx) {
-          var _ns = dok.pinecone_namespace || '';
-          var _kb = dok.velicina_kb || 0;
-          var _hasNs = !!_ns;
-          var _rn = dok.redni_broj || (_dokIdx + 1);
-          var _rnStr = String(_rn).padStart(2, '0');
-          return '<div class="pred-dok-card" id="cdrow-'+escHtml(dok.id||'')+'" data-dok-id="'+escHtml(dok.id||'')+'" data-dok-naziv="'+escHtml(dok.naziv_fajla||'')+'" data-dok-rn="'+_rn+'" '
-            +'onclick="dokUcitajZaAnalizu(\''+escHtml(_ns)+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml(_kb+'')+'\',\''+escHtml(dok.id||'')+'\')" '
-            +'title="Klikni da učitaš u analizu" '
-            +'style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;margin-bottom:0.35rem;background:rgba(255,255,255,0.03);border:1px solid rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+');border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;" '
-            +'onmouseover="this.style.background=\'rgba(75,119,232,0.07)\';this.style.borderColor=\'rgba(75,119,232,0.30)\'" '
-            +'onmouseout="this.style.background=\'rgba(255,255,255,0.03)\';this.style.borderColor=\'rgba(0,212,255,'+(_hasNs?'0.28':'0.1')+')\'">'
-            +'<div style="flex-shrink:0;background:rgba(75,119,232,0.12);color:rgba(255,255,255,0.72);font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.03em;font-family:monospace;">DOK-'+_rnStr+'</div>'
-            +'<i data-lucide="file-text" style="width:16px;height:16px;flex-shrink:0;color:rgba(0,212,255,'+(_hasNs?'0.85':'0.4')+');"></i>'
-            +'<div style="flex:1;min-width:0;">'
-            +'<div style="font-size:0.78rem;font-weight:600;color:'+(_hasNs?'#e2e8f0':'rgba(255,255,255,0.45)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(dok.naziv_fajla||'')+'</div>'
-            +'<div style="font-size:0.65rem;color:rgba(255,255,255,0.32);margin-top:1px;">'+_kb+' KB'
-            +(_hasNs?' • <span style="color:rgba(255,255,255,0.50);">klikni za analizu</span>':' • <span style="color:rgba(255,180,0,0.65);">nije vektorizovan — re-upload</span>')
-            +'</div>'
-            +'</div>'
-            +'<button onclick="event.stopPropagation();dokPreviewOpen(\''+escHtml(dok.id||'')+'\',\''+escHtml(dok.naziv_fajla||'')+'\',\''+escHtml(_kb+'')+'\')" '
-            +'title="Pogledaj sadržaj" '
-            +'style="flex-shrink:0;background:transparent;border:1px solid rgba(255,255,255,0.09);border-radius:5px;color:rgba(255,255,255,0.45);font-size:0.65rem;padding:2px 7px;cursor:pointer;font-family:inherit;">'
-            +'→'
-            +'</button>'
-            +'<input type="checkbox" class="pred-dok-item-cb" onclick="event.stopPropagation()" onchange="crossdoc_toggleDok(this)" title="Označi za cross-doc analizu" '
-            +'style="flex-shrink:0;width:14px;height:14px;cursor:pointer;accent-color:rgba(255,255,255,0.65);">'
-            +'</div>';
-        }).join('');
+        // Sortiraj po datumu opadajuće (najnoviji prvo), zatim grupiši po danu
+        var _sorted = d.dokumenti.slice().sort(function(a, b) {
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        });
+        var _groups = [];
+        var _groupsByKey = {};
+        _sorted.forEach(function(dok) {
+          var key = dok.created_at ? dok.created_at.slice(0, 10) : 'nepoznato';
+          if (!_groupsByKey[key]) {
+            _groupsByKey[key] = { key: key, label: dok.created_at ? _vxFormatDateLabel(dok.created_at) : 'Datum nepoznat', items: [] };
+            _groups.push(_groupsByKey[key]);
+          }
+          _groupsByKey[key].items.push(dok);
+        });
+
+        var html = _dokHint + '<div class="vx-timeline">';
+        _groups.forEach(function(group) {
+          html += '<div class="vx-tl-group-lbl">' + escHtml(group.label) + '</div>';
+          group.items.forEach(function(dok, _i) {
+            var _ns = dok.pinecone_namespace || '';
+            var _kb = dok.velicina_kb || 0;
+            var _hasNs = !!_ns;
+            var _rn = dok.redni_broj || (_sorted.indexOf(dok) + 1);
+            var _rnStr = String(_rn).padStart(2, '0');
+            var _isLast = group === _groups[_groups.length - 1] && _i === group.items.length - 1;
+            html += '<div class="vx-tl-item">'
+              + '<div class="vx-tl-dotcol"><div class="vx-tl-dot' + (_hasNs ? ' is-done' : '') + '"></div>' + (_isLast ? '' : '<div class="vx-tl-line"></div>') + '</div>'
+              + '<div class="vx-tl-card pred-dok-card" id="cdrow-' + escHtml(dok.id || '') + '" data-dok-id="' + escHtml(dok.id || '') + '" data-dok-naziv="' + escHtml(dok.naziv_fajla || '') + '" data-dok-rn="' + _rn + '" '
+              + 'onclick="dokUcitajZaAnalizu(\'' + escHtml(_ns) + '\',\'' + escHtml(dok.naziv_fajla || '') + '\',\'' + escHtml(_kb + '') + '\',\'' + escHtml(dok.id || '') + '\')" '
+              + 'title="Klikni da učitaš u analizu" style="cursor:pointer;display:flex;align-items:center;gap:0.6rem;">'
+              + '<span class="vx-badge vx-badge-accent" style="flex-shrink:0;font-family:var(--font-mono,monospace);">DOK-' + _rnStr + '</span>'
+              + '<i data-lucide="file-text" style="width:15px;height:15px;flex-shrink:0;color:' + (_hasNs ? '#00d4ff' : 'rgba(255,255,255,0.35)') + ';"></i>'
+              + '<div style="flex:1;min-width:0;">'
+              + '<div class="vx-tl-title" style="' + (_hasNs ? '' : 'color:rgba(255,255,255,0.45);') + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(dok.naziv_fajla || '') + '</div>'
+              + '<div class="vx-tl-sub">' + _kb + ' KB'
+              + (_hasNs ? ' • klikni za analizu' : ' • <span style="color:rgba(255,180,0,0.75);">nije vektorizovan — re-upload</span>')
+              + '</div></div>'
+              + '<button onclick="event.stopPropagation();dokPreviewOpen(\'' + escHtml(dok.id || '') + '\',\'' + escHtml(dok.naziv_fajla || '') + '\',\'' + escHtml(_kb + '') + '\')" '
+              + 'title="Pogledaj sadržaj" class="vx-btn vx-btn-ghost" style="flex-shrink:0;height:26px;width:26px;padding:0;">→</button>'
+              + '<input type="checkbox" class="pred-dok-item-cb" onclick="event.stopPropagation()" onchange="crossdoc_toggleDok(this)" title="Označi za cross-doc analizu" '
+              + 'style="flex-shrink:0;width:14px;height:14px;cursor:pointer;accent-color:#00d4ff;">'
+              + '</div></div>';
+          });
+        });
+        html += '</div>';
+        dokListEl.innerHTML = html;
         // Case DNA dugme i panel — ispod liste dokumenata
         var _dnaPanelId = 'case-dna-panel-' + activePredmetId;
-        dokListEl.innerHTML += '<div style="margin-top:0.6rem;">'
-          + '<button onclick="_voice_refresh_case_dna(\''+escHtml(activePredmetId||'')+'\');return false;" '
-          + 'style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(75,119,232,0.12);border-radius:7px;color:rgba(255,255,255,0.72);font-size:0.7rem;padding:0.4rem 0.6rem;cursor:pointer;font-family:inherit;transition:background .15s;letter-spacing:0.02em;" '
-          + 'onmouseover="this.style.background=\'rgba(75,119,232,0.10)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.04)\'">'
+        dokListEl.innerHTML += '<div style="margin-top:0.8rem;">'
+          + '<button onclick="_voice_refresh_case_dna(\''+escHtml(activePredmetId||'')+'\');return false;" class="vx-btn vx-btn-secondary" style="width:100%;">'
           + 'Generiši procenu predmeta</button>'
-          + '<div id="'+_dnaPanelId+'" style="display:none;margin-top:0.5rem;padding:0.65rem 0.8rem;background:rgba(0,0,0,0.3);border:1px solid rgba(75,119,232,0.10);border-radius:8px;"></div>'
+          + '<div id="'+_dnaPanelId+'" class="vx-card" style="display:none;margin-top:0.5rem;"></div>'
           + '</div>';
         if (typeof lucide !== 'undefined') lucide.createIcons();
       }
@@ -13838,6 +13856,20 @@ function vxFieldClearError(wrapId, errId) {
   var errEl = document.getElementById(errId);
   if (wrap) wrap.classList.remove('has-err');
   if (errEl) errEl.classList.remove('is-active');
+}
+
+/** Vindex Timeline — grupni datum-label (Danas/Juče/formatiran datum). iso: ISO datetime string. */
+function _vxFormatDateLabel(iso) {
+  if (!iso) return 'Datum nepoznat';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return 'Datum nepoznat';
+  var now = new Date();
+  var _sameDay = function(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); };
+  if (_sameDay(d, now)) return 'Danas';
+  var yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  if (_sameDay(d, yesterday)) return 'Juče';
+  var _MESECI = ['jan','feb','mar','apr','maj','jun','jul','avg','sep','okt','nov','dec'];
+  return d.getDate() + '. ' + _MESECI[d.getMonth()] + ' ' + d.getFullYear() + '.';
 }
 
 /** Vindex DataGrid — empty state toggle. Pass a lucide icon name (e.g. "inbox", "folder-open"). */
