@@ -25,16 +25,19 @@
 --     predmet_dokumenti), ali dodata za konzistentnost i da ne baca 500
 --   - user_webhooks -- korisnicki webhook-ovi (routers/integracije.py)
 --
--- NAPOMENA: prva verzija ove migracije je imala "REFERENCES auth.users(id)"
--- i "REFERENCES public.predmeti(id)" foreign key-eve, sto je u Supabase SQL
--- Editoru bacalo "operator does not exist: text = uuid". Uzrok nije mogao
--- pouzdano da se locira bez direktnog pristupa bazi (nekoliko tabela u
--- ovom projektu -- npr. kancelarije.admin_uid -- cuva user_id kao TEXT
--- umesto UUID, pa je verovatno negde u lancu FK provere doslo do sudara
--- tipova). Uklonjeni su svi FK constraint-i -- kolone ostaju obican uuid,
--- referencijalni integritet i dalje efektivno postoji kroz RLS
--- (user_id = auth.uid()) i kroz to sto backend uvek koristi service-role
--- key i filtrira po user_id/predmet_id u samom upitu.
+-- NAPOMENA (dva popravljena pokusaja): prva verzija je imala
+-- "REFERENCES auth.users(id)" / "REFERENCES public.predmeti(id)" foreign
+-- key-eve -- uklonjeni (v2), kolone ostaju obican uuid. I dalje ista
+-- greska "operator does not exist: text = uuid" -- verovatan uzrok je da
+-- JEDNA ili VISE od ovih 9 tabela vec postoje u bazi (npr. rucno kreirane
+-- kopiranjem SQL komentara iz odgovarajuceg router fajla, isti obrazac
+-- kao sto se desilo sa waitlist tabelom) sa kolonom user_id tipa TEXT
+-- umesto UUID -- CREATE TABLE IF NOT EXISTS bi to tiho preskocio (ne menja
+-- postojece kolone), ali CREATE POLICY ... USING (user_id = auth.uid())
+-- bi tada pokusavao TEXT = UUID poredjenje. Popravljeno (v3): svako
+-- poredjenje eksplicitno kastuje obe strane na text
+-- (user_id::text = auth.uid()::text), sto radi bez obzira da li je
+-- postojeca kolona uuid ili text.
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.commander_jutarnji (
@@ -48,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.commander_jutarnji (
 ALTER TABLE public.commander_jutarnji ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Korisnik upravlja svojim jutarnjim brifingom" ON public.commander_jutarnji;
 CREATE POLICY "Korisnik upravlja svojim jutarnjim brifingom" ON public.commander_jutarnji
-    FOR ALL USING (user_id = auth.uid());
+    FOR ALL USING (user_id::text = auth.uid()::text);
 
 
 CREATE TABLE IF NOT EXISTS public.commander_analize (
@@ -63,10 +66,10 @@ CREATE INDEX IF NOT EXISTS idx_commander_analize_predmet ON public.commander_ana
 ALTER TABLE public.commander_analize ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Korisnik vidi svoje commander analize" ON public.commander_analize;
 CREATE POLICY "Korisnik vidi svoje commander analize" ON public.commander_analize
-    FOR SELECT USING (user_id = auth.uid());
+    FOR SELECT USING (user_id::text = auth.uid()::text);
 DROP POLICY IF EXISTS "Korisnik upisuje svoje commander analize" ON public.commander_analize;
 CREATE POLICY "Korisnik upisuje svoje commander analize" ON public.commander_analize
-    FOR INSERT WITH CHECK (user_id = auth.uid());
+    FOR INSERT WITH CHECK (user_id::text = auth.uid()::text);
 
 
 CREATE TABLE IF NOT EXISTS public.evidence_grafovi (
@@ -81,7 +84,7 @@ CREATE INDEX IF NOT EXISTS idx_evidence_grafovi_predmet ON public.evidence_grafo
 ALTER TABLE public.evidence_grafovi ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Korisnik upravlja svojim evidence grafovima" ON public.evidence_grafovi;
 CREATE POLICY "Korisnik upravlja svojim evidence grafovima" ON public.evidence_grafovi
-    FOR ALL USING (user_id = auth.uid());
+    FOR ALL USING (user_id::text = auth.uid()::text);
 
 
 CREATE TABLE IF NOT EXISTS public.predmet_genome_history (
@@ -98,10 +101,10 @@ CREATE INDEX IF NOT EXISTS idx_genome_history_predmet ON public.predmet_genome_h
 ALTER TABLE public.predmet_genome_history ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Korisnik vidi istoriju genoma svojih predmeta" ON public.predmet_genome_history;
 CREATE POLICY "Korisnik vidi istoriju genoma svojih predmeta" ON public.predmet_genome_history
-    FOR SELECT USING (user_id = auth.uid());
+    FOR SELECT USING (user_id::text = auth.uid()::text);
 DROP POLICY IF EXISTS "Korisnik upisuje istoriju genoma svojih predmeta" ON public.predmet_genome_history;
 CREATE POLICY "Korisnik upisuje istoriju genoma svojih predmeta" ON public.predmet_genome_history
-    FOR INSERT WITH CHECK (user_id = auth.uid());
+    FOR INSERT WITH CHECK (user_id::text = auth.uid()::text);
 
 
 CREATE TABLE IF NOT EXISTS public.predictor_analize (
@@ -118,10 +121,10 @@ CREATE INDEX IF NOT EXISTS idx_predictor_analize_user ON public.predictor_analiz
 ALTER TABLE public.predictor_analize ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Korisnik vidi svoje predictor analize" ON public.predictor_analize;
 CREATE POLICY "Korisnik vidi svoje predictor analize" ON public.predictor_analize
-    FOR SELECT USING (user_id = auth.uid());
+    FOR SELECT USING (user_id::text = auth.uid()::text);
 DROP POLICY IF EXISTS "Korisnik upisuje svoje predictor analize" ON public.predictor_analize;
 CREATE POLICY "Korisnik upisuje svoje predictor analize" ON public.predictor_analize
-    FOR INSERT WITH CHECK (user_id = auth.uid());
+    FOR INSERT WITH CHECK (user_id::text = auth.uid()::text);
 
 
 CREATE TABLE IF NOT EXISTS public.hearing_briefovi (
@@ -136,7 +139,7 @@ CREATE TABLE IF NOT EXISTS public.hearing_briefovi (
 ALTER TABLE public.hearing_briefovi ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Korisnik upravlja svojim hearing briefovima" ON public.hearing_briefovi;
 CREATE POLICY "Korisnik upravlja svojim hearing briefovima" ON public.hearing_briefovi
-    FOR ALL USING (user_id = auth.uid());
+    FOR ALL USING (user_id::text = auth.uid()::text);
 
 
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
@@ -151,7 +154,7 @@ CREATE INDEX IF NOT EXISTS idx_push_subs_user ON public.push_subscriptions(user_
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Korisnik upravlja svojim push pretplatama" ON public.push_subscriptions;
 CREATE POLICY "Korisnik upravlja svojim push pretplatama" ON public.push_subscriptions
-    FOR ALL USING (user_id = auth.uid());
+    FOR ALL USING (user_id::text = auth.uid()::text);
 
 
 CREATE TABLE IF NOT EXISTS public.uploaded_documents (
@@ -167,7 +170,7 @@ CREATE INDEX IF NOT EXISTS idx_uploaded_documents_user ON public.uploaded_docume
 ALTER TABLE public.uploaded_documents ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Korisnik vidi svoje uploadovane dokumente" ON public.uploaded_documents;
 CREATE POLICY "Korisnik vidi svoje uploadovane dokumente" ON public.uploaded_documents
-    FOR SELECT USING (user_id = auth.uid());
+    FOR SELECT USING (user_id::text = auth.uid()::text);
 
 
 CREATE TABLE IF NOT EXISTS public.user_webhooks (
@@ -184,4 +187,4 @@ CREATE INDEX IF NOT EXISTS idx_user_webhooks_user ON public.user_webhooks(user_i
 ALTER TABLE public.user_webhooks ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Korisnik upravlja svojim webhook-ovima" ON public.user_webhooks;
 CREATE POLICY "Korisnik upravlja svojim webhook-ovima" ON public.user_webhooks
-    FOR ALL USING (user_id = auth.uid());
+    FOR ALL USING (user_id::text = auth.uid()::text);
