@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.onboarding_state (
     updated_at       timestamptz DEFAULT now()
 );
 ALTER TABLE public.onboarding_state ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Korisnik upravlja svojim onboarding stanjem" ON public.onboarding_state;
 CREATE POLICY "Korisnik upravlja svojim onboarding stanjem" ON public.onboarding_state
     FOR ALL USING (user_id = auth.uid());
 
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS public.user_knowledge (
 CREATE INDEX IF NOT EXISTS idx_uk_user    ON public.user_knowledge(user_id);
 CREATE INDEX IF NOT EXISTS idx_uk_predmet ON public.user_knowledge(predmet_id);
 ALTER TABLE public.user_knowledge ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Korisnik upravlja svojom bazom znanja" ON public.user_knowledge;
 CREATE POLICY "Korisnik upravlja svojom bazom znanja" ON public.user_knowledge
     FOR ALL USING (user_id = auth.uid());
 
@@ -70,10 +72,13 @@ CREATE TABLE IF NOT EXISTS public.simulator_partije (
 CREATE INDEX IF NOT EXISTS idx_sim_predmet
     ON public.simulator_partije(predmet_id, created_at DESC);
 ALTER TABLE public.simulator_partije ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Korisnik vidi svoje simulator partije" ON public.simulator_partije;
 CREATE POLICY "Korisnik vidi svoje simulator partije" ON public.simulator_partije
     FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "Korisnik upisuje svoje simulator partije" ON public.simulator_partije;
 CREATE POLICY "Korisnik upisuje svoje simulator partije" ON public.simulator_partije
     FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "Korisnik azurira svoje simulator partije" ON public.simulator_partije;
 CREATE POLICY "Korisnik azurira svoje simulator partije" ON public.simulator_partije
     FOR UPDATE USING (user_id = auth.uid());
 
@@ -88,6 +93,7 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_pretplate (
     created_at       timestamptz DEFAULT now()
 );
 ALTER TABLE public.whatsapp_pretplate ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Korisnik upravlja svojom whatsapp pretplatom" ON public.whatsapp_pretplate;
 CREATE POLICY "Korisnik upravlja svojom whatsapp pretplatom" ON public.whatsapp_pretplate
     FOR ALL USING (user_id = auth.uid());
 
@@ -99,6 +105,7 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_send_log (
 CREATE INDEX IF NOT EXISTS idx_wa_send_log_user
     ON public.whatsapp_send_log(user_id, poslato_at DESC);
 ALTER TABLE public.whatsapp_send_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Korisnik vidi svoj whatsapp log" ON public.whatsapp_send_log;
 CREATE POLICY "Korisnik vidi svoj whatsapp log" ON public.whatsapp_send_log
     FOR SELECT USING (user_id = auth.uid());
 
@@ -121,5 +128,6 @@ CREATE TABLE IF NOT EXISTS public.discovery_queue (
 CREATE INDEX IF NOT EXISTS idx_dq_status  ON public.discovery_queue(status);
 CREATE INDEX IF NOT EXISTS idx_dq_created ON public.discovery_queue(created_at DESC);
 ALTER TABLE public.discovery_queue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role upravlja discovery queue" ON public.discovery_queue;
 CREATE POLICY "Service role upravlja discovery queue" ON public.discovery_queue
     FOR ALL USING (auth.role() = 'service_role');

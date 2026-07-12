@@ -27,8 +27,10 @@ CREATE INDEX IF NOT EXISTS idx_twin_predmet
 
 ALTER TABLE public.twin_simulacije ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Korisnik vidi svoje twin simulacije" ON public.twin_simulacije;
 CREATE POLICY "Korisnik vidi svoje twin simulacije" ON public.twin_simulacije
     FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Korisnik upisuje svoje twin simulacije" ON public.twin_simulacije;
 CREATE POLICY "Korisnik upisuje svoje twin simulacije" ON public.twin_simulacije
     FOR INSERT WITH CHECK (user_id = auth.uid());

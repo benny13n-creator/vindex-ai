@@ -24,11 +24,14 @@ CREATE INDEX IF NOT EXISTS idx_cio_izvestaj_user_datum
 
 ALTER TABLE public.cio_dnevni_izvestaj ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Korisnik vidi svoje CIO izvestaje" ON public.cio_dnevni_izvestaj;
 CREATE POLICY "Korisnik vidi svoje CIO izvestaje" ON public.cio_dnevni_izvestaj
     FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Korisnik upisuje svoje CIO izvestaje" ON public.cio_dnevni_izvestaj;
 CREATE POLICY "Korisnik upisuje svoje CIO izvestaje" ON public.cio_dnevni_izvestaj
     FOR INSERT WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Korisnik azurira svoje CIO izvestaje" ON public.cio_dnevni_izvestaj;
 CREATE POLICY "Korisnik azurira svoje CIO izvestaje" ON public.cio_dnevni_izvestaj
     FOR UPDATE USING (user_id = auth.uid());

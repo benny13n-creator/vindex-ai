@@ -25,8 +25,10 @@ CREATE INDEX IF NOT EXISTS idx_delegiranja_na ON public.predmet_delegiranja(na_u
 
 ALTER TABLE public.predmet_delegiranja ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Korisnik vidi delegacije koje je poslao ili primio" ON public.predmet_delegiranja;
 CREATE POLICY "Korisnik vidi delegacije koje je poslao ili primio" ON public.predmet_delegiranja
     FOR SELECT USING (od_user_id = auth.uid() OR na_user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Korisnik kreira delegacije za svoje predmete" ON public.predmet_delegiranja;
 CREATE POLICY "Korisnik kreira delegacije za svoje predmete" ON public.predmet_delegiranja
     FOR INSERT WITH CHECK (od_user_id = auth.uid());

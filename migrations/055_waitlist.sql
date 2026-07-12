@@ -26,4 +26,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS waitlist_email_idx ON public.waitlist (lower(e
 ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
 
 -- Samo service role cita/pise (API uvek koristi service key, vidi shared/deps.py _get_supa)
+DROP POLICY IF EXISTS "service_only" ON public.waitlist;
 CREATE POLICY "service_only" ON public.waitlist USING (false);
