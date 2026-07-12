@@ -24,11 +24,22 @@
 --     upisuje u kodu -- verovatno mrtva grana pretrage (dokumenti idu u
 --     predmet_dokumenti), ali dodata za konzistentnost i da ne baca 500
 --   - user_webhooks -- korisnicki webhook-ovi (routers/integracije.py)
+--
+-- NAPOMENA: prva verzija ove migracije je imala "REFERENCES auth.users(id)"
+-- i "REFERENCES public.predmeti(id)" foreign key-eve, sto je u Supabase SQL
+-- Editoru bacalo "operator does not exist: text = uuid". Uzrok nije mogao
+-- pouzdano da se locira bez direktnog pristupa bazi (nekoliko tabela u
+-- ovom projektu -- npr. kancelarije.admin_uid -- cuva user_id kao TEXT
+-- umesto UUID, pa je verovatno negde u lancu FK provere doslo do sudara
+-- tipova). Uklonjeni su svi FK constraint-i -- kolone ostaju obican uuid,
+-- referencijalni integritet i dalje efektivno postoji kroz RLS
+-- (user_id = auth.uid()) i kroz to sto backend uvek koristi service-role
+-- key i filtrira po user_id/predmet_id u samom upitu.
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.commander_jutarnji (
     id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id    uuid        NOT NULL,
     datum      date        NOT NULL,
     brifing    jsonb        NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -42,8 +53,8 @@ CREATE POLICY "Korisnik upravlja svojim jutarnjim brifingom" ON public.commander
 
 CREATE TABLE IF NOT EXISTS public.commander_analize (
     id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    predmet_id uuid        NOT NULL REFERENCES public.predmeti(id) ON DELETE CASCADE,
+    user_id    uuid        NOT NULL,
+    predmet_id uuid        NOT NULL,
     analiza    text        NOT NULL,
     tip        text,
     created_at timestamptz NOT NULL DEFAULT now()
@@ -60,8 +71,8 @@ CREATE POLICY "Korisnik upisuje svoje commander analize" ON public.commander_ana
 
 CREATE TABLE IF NOT EXISTS public.evidence_grafovi (
     id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    predmet_id uuid        NOT NULL REFERENCES public.predmeti(id) ON DELETE CASCADE,
-    user_id    uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    predmet_id uuid        NOT NULL,
+    user_id    uuid        NOT NULL,
     podaci     jsonb       NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
@@ -75,8 +86,8 @@ CREATE POLICY "Korisnik upravlja svojim evidence grafovima" ON public.evidence_g
 
 CREATE TABLE IF NOT EXISTS public.predmet_genome_history (
     id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    predmet_id     uuid        NOT NULL REFERENCES public.predmeti(id) ON DELETE CASCADE,
-    user_id        uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    predmet_id     uuid        NOT NULL,
+    user_id        uuid        NOT NULL,
     verzija        int         NOT NULL DEFAULT 1,
     genome_data    jsonb,
     snaga_procent  int,
@@ -95,8 +106,8 @@ CREATE POLICY "Korisnik upisuje istoriju genoma svojih predmeta" ON public.predm
 
 CREATE TABLE IF NOT EXISTS public.predictor_analize (
     id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id       uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    predmet_id    uuid        REFERENCES public.predmeti(id) ON DELETE SET NULL,
+    user_id       uuid        NOT NULL,
+    predmet_id    uuid,
     tip_postupka  text,
     tip_analize   text,
     opis          text,
@@ -115,8 +126,8 @@ CREATE POLICY "Korisnik upisuje svoje predictor analize" ON public.predictor_ana
 
 CREATE TABLE IF NOT EXISTS public.hearing_briefovi (
     id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id       uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    predmet_id    uuid        REFERENCES public.predmeti(id) ON DELETE SET NULL,
+    user_id       uuid        NOT NULL,
+    predmet_id    uuid,
     rociste_naziv text,
     datum         date,
     brief         text,
@@ -130,7 +141,7 @@ CREATE POLICY "Korisnik upravlja svojim hearing briefovima" ON public.hearing_br
 
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
     id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id    uuid        NOT NULL,
     endpoint   text        NOT NULL UNIQUE,
     p256dh     text        NOT NULL,
     auth       text        NOT NULL,
@@ -145,8 +156,8 @@ CREATE POLICY "Korisnik upravlja svojim push pretplatama" ON public.push_subscri
 
 CREATE TABLE IF NOT EXISTS public.uploaded_documents (
     id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id        uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    predmet_id     uuid        REFERENCES public.predmeti(id) ON DELETE SET NULL,
+    user_id        uuid        NOT NULL,
+    predmet_id     uuid,
     naziv_fajla    text,
     tip_fajla      text,
     extracted_text text,
@@ -161,7 +172,7 @@ CREATE POLICY "Korisnik vidi svoje uploadovane dokumente" ON public.uploaded_doc
 
 CREATE TABLE IF NOT EXISTS public.user_webhooks (
     id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id    uuid        NOT NULL,
     naziv      text,
     url        text        NOT NULL,
     secret     text,
