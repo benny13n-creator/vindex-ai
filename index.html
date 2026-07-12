@@ -713,6 +713,14 @@
 
           <!-- ── F5: PREDMETI TAB ──────────────────────────────────────────── -->
           <div id="tab-p" style="display:none">
+            <!-- VxExecutiveHeader -->
+            <div class="vx-exec-header">
+              <div>
+                <div class="vx-exec-header-eyebrow">Radni prostor</div>
+                <div class="vx-exec-header-title">Predmeti</div>
+                <div class="vx-exec-header-sub">Upravljajte predmetima, dodajte beleške i pratite istoriju razgovora po predmetu.</div>
+              </div>
+            </div>
             <!-- Hero: portfolio stats -->
             <div id="portfolio-strip" style="display:none;margin-bottom:1.1rem;">
               <div id="portfolio-kpi" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.55rem;"></div>
@@ -721,10 +729,6 @@
             <div class="pred-page-grid">
               <!-- ── Glavna kolona: lista predmeta ─────────────────────── -->
               <div class="pred-page-main">
-                <div class="t-guide">
-                  <div class="t-guide-icon"><i data-lucide="briefcase" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
-                  <div class="t-guide-text"><span class="t-guide-bold">Moji predmeti</span> — upravljajte predmetima, dodajte beleške i pratite istoriju razgovora po predmetu.</div>
-                </div>
                 <button class="pred-new-btn" onclick="intakeOtvori()">Otvori novi predmet</button>
                 <div style="font-size:0.62rem;color:rgba(255,255,255,.32);text-align:center;margin-top:0.3rem;">Vodićemo vas kroz 5 koraka i automatski popuniti podatke iz dokumentacije.</div>
                 <div id="pred-dashboard-alert" style="display:none;font-size:0.65rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:6px;color:#ffbb70;letter-spacing:.03em;"></div>
@@ -758,7 +762,14 @@
                     <button id="kanban-view-btn-kanban" class="vx-seg-btn" onclick="kanban_setView('kanban')">⬛ Kanban</button>
                   </div>
                 </div>
-                <div id="pred-list" class="pred-list"></div>
+                <div id="pred-list-wrap" class="vx-grid-wrap">
+                  <div class="vx-grid-scroll" style="max-height:560px;">
+                    <table class="vx-grid">
+                      <thead><tr><th class="vx-grid-check-col"></th><th>Predmet</th><th>Tip</th><th>Status</th><th>Rizik</th><th>Rokovi</th><th></th></tr></thead>
+                      <tbody id="pred-list"></tbody>
+                    </table>
+                  </div>
+                </div>
                 <!-- ── Case Pipeline Kanban ──────────────────────────────── -->
                 <div id="pred-kanban-view" style="display:none;"></div>
               </div>

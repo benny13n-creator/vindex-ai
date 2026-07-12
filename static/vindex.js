@@ -8269,19 +8269,18 @@ function pred_renderList() {
   var el = document.getElementById('pred-list');
   if (!el) return;
   if (!_predmeti.length) {
-    el.innerHTML = '<div style="padding:2rem 1rem;text-align:center;">'
-      + '<div style="font-size:2.5rem;margin-bottom:.8rem;opacity:.3;"></div>'
+    el.innerHTML = '<tr><td colspan="7" style="padding:2rem 1rem;text-align:center;">'
       + '<div style="font-size:.95rem;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:.4rem;">Još uvek nemate predmeta</div>'
       + '<div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-bottom:1.2rem;line-height:1.6;">Dodajte prvog klijenta, zatim kreirajte predmet.<br>Ceo proces traje manje od 2 minuta.</div>'
-      + '<button onclick="intakeOtvori()" style="padding:.55rem 1.4rem;background:rgba(75,119,232,0.10);border:1px solid rgba(75,119,232,0.28);border-radius:8px;color:rgba(255,255,255,0.72);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;">+ Kreiraj prvi predmet</button>'
+      + '<button onclick="intakeOtvori()" class="vx-btn vx-btn-secondary">+ Kreiraj prvi predmet</button>'
       + '<div style="margin-top:1.5rem;display:flex;flex-direction:column;gap:.5rem;text-align:left;max-width:240px;margin-left:auto;margin-right:auto;">'
-      + '<div style="font-size:.68rem;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.2rem;">Kako to radi</div>'
+      + '<div class="vx-section-lbl" style="margin-bottom:.2rem;">Kako to radi</div>'
       + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:rgba(255,255,255,0.72);font-weight:700;flex-shrink:0;">1.</span> Dodajte klijenta (Klijenti u meniju)</div>'
       + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:rgba(255,255,255,0.72);font-weight:700;flex-shrink:0;">2.</span> Kliknite + Kreiraj prvi predmet</div>'
       + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:rgba(255,255,255,0.72);font-weight:700;flex-shrink:0;">3.</span> Opišite predmet i dodajte dokumente</div>'
       + '<div style="font-size:.75rem;color:rgba(255,255,255,.4);display:flex;gap:.5rem;align-items:flex-start;"><span style="color:rgba(255,255,255,0.72);font-weight:700;flex-shrink:0;">4.</span> Pokrenite analizu — dobijate procenu</div>'
       + '</div>'
-      + '</div>';
+      + '</td></tr>';
     return;
   }
 
@@ -8301,30 +8300,29 @@ function pred_renderList() {
 
   el.innerHTML = list.map(function(p){
     var tipCls  = p.tip === 'radni' ? 'radni' : p.tip === 'privredni' ? 'privredni' : '';
-    var active  = p.id === activePredmetId ? ' active' : '';
+    var active  = p.id === activePredmetId ? ' is-selected' : '';
     var statusCls = p.status === 'aktivan' ? 'pred-status-aktivan' : 'pred-status-zatvoren';
     var statusLbl = (p.status || 'aktivan').toUpperCase();
     var di = _dashboardData[p.id] || {};
-    var rizikHtml = '';
+    var rizikHtml = '—';
     if (di.rizik_nivo) {
       var rColor = _RIZIK_COLOR[di.rizik_nivo] || 'rgba(255,255,255,.4)';
-      rizikHtml = '<span style="font-size:0.58rem;font-weight:700;color:'+rColor+';margin-left:0.3rem;letter-spacing:.04em;">'+di.rizik_nivo.toUpperCase()+'</span>';
+      rizikHtml = '<span style="font-size:0.68rem;font-weight:700;color:'+rColor+';letter-spacing:.04em;">'+di.rizik_nivo.toUpperCase()+'</span>';
     }
-    var rokHtml = '';
+    var rokHtml = '—';
     if (di.urgentni_rokovi_count && di.urgentni_rokovi_count > 0) {
-      rokHtml = '<span style="font-size:0.58rem;color:#ffbb70;margin-left:0.25rem;" title="Hitnih rokova: '+di.urgentni_rokovi_count+'">'+di.urgentni_rokovi_count+'</span>';
+      rokHtml = '<span style="font-size:0.7rem;color:#ffbb70;font-weight:700;" title="Hitnih rokova: '+di.urgentni_rokovi_count+'">'+di.urgentni_rokovi_count+'</span>';
     }
     var chked = _selectedPredmeti.has(p.id) ? ' checked' : '';
-    return '<div class="pred-item'+active+'" data-predmet-id="'+p.id+'" onclick="pred_select(\''+p.id+'\')" style="cursor:pointer;">'
-      +'<input type="checkbox" class="pred-chk"'+chked+' style="margin:0;cursor:pointer;flex-shrink:0;" onclick="event.stopPropagation();pred_toggleOznaci(\''+p.id+'\')">'
-      +'<span class="pred-naziv" style="flex:1;">'+escHtml(p.naziv)+'</span>'
-      +'<span style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">'
-      +'<span class="pred-badge '+tipCls+'" style="margin-right:0.25rem;">'+escHtml(p.tip)+'</span>'
-      +'<span class="'+statusCls+'" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span>'
-      +rizikHtml+rokHtml
-      +'<span style="font-size:0.7rem;color:rgba(255,255,255,0.45);font-weight:600;margin-left:0.3rem;">Otvori →</span>'
-      +'</span>'
-      +'</div>';
+    return '<tr class="vx-grid-row'+active+'" data-predmet-id="'+p.id+'" onclick="pred_select(\''+p.id+'\')">'
+      +'<td onclick="event.stopPropagation()"><input type="checkbox" class="pred-chk"'+chked+' onclick="pred_toggleOznaci(\''+p.id+'\')"></td>'
+      +'<td style="font-weight:600;">'+escHtml(p.naziv)+'</td>'
+      +'<td><span class="pred-badge '+tipCls+'">'+escHtml(p.tip)+'</span></td>'
+      +'<td><span class="'+statusCls+'" style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span></td>'
+      +'<td>'+rizikHtml+'</td>'
+      +'<td>'+rokHtml+'</td>'
+      +'<td class="vx-caption">Otvori →</td>'
+      +'</tr>';
   }).join('');
   // Proveri otključavanja posle svakog renderovanja liste
   setTimeout(_vxPdCheckUnlocks, 100);
@@ -8667,7 +8665,7 @@ var _TIP_SR = {
 };
 
 function kanban_setView(mode) {
-  var lista   = document.getElementById('pred-list');
+  var lista   = document.getElementById('pred-list-wrap');
   var detail  = document.getElementById('pred-detail');
   var kanban  = document.getElementById('pred-kanban-view');
   var btnL    = document.getElementById('kanban-view-btn-lista');
