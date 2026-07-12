@@ -2963,9 +2963,14 @@ async function stratPokreni() {
             + '<input type="text" id="strat-opponent-adv" placeholder="Advokatska kancelarija (opciono)" style="flex:1;min-width:160px;padding:.4rem .55rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:#fff;font-size:.74rem;box-sizing:border-box;">'
             + '<button class="vx-btn vx-btn-secondary" onclick="stratOpponentIntel()">Obaveštajni profil protivnika (2 kredita)</button>'
             + '</div>'
+            + '<div id="strat-predictor-argrep-wrap" style="margin-top:.4rem;">'
+            + '<textarea id="strat-argrep-lista" placeholder="Argumenti koje planirate da koristite — po jedan u redu" rows="3" style="width:100%;padding:.4rem .55rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:#fff;font-size:.74rem;box-sizing:border-box;resize:vertical;margin-bottom:.35rem;"></textarea>'
+            + '<button class="vx-btn vx-btn-secondary" onclick="stratArgumentReputation()" style="width:100%;">Proveri reputaciju argumenata (2 kredita)</button>'
+            + '</div>'
             + '<div id="strat-judge-result-wrap" style="margin-top:.6rem;"></div>'
             + '<div id="strat-opponent-result-wrap" style="margin-top:.6rem;"></div>'
-            + '<div id="strat-confidence-result-wrap" style="margin-top:.6rem;"></div>';
+            + '<div id="strat-confidence-result-wrap" style="margin-top:.6rem;"></div>'
+            + '<div id="strat-argrep-result-wrap" style="margin-top:.6rem;"></div>';
         }
       }
       if (data.krediti_utroseni) showToast('Utroseno ' + data.krediti_utroseni + ' kredita.', 'info');
@@ -3138,6 +3143,47 @@ async function stratOpponentIntel() {
       + _stratListHtml('Snage', a.snage, '#f87171')
       + (d.preporucena_taktika ? '<div style="margin-top:.5rem;padding:.6rem .7rem;background:rgba(0,212,255,.06);border-left:2px solid rgba(0,212,255,.4);font-size:.8rem;color:rgba(255,255,255,.8);">' + _htmlEsc(d.preporucena_taktika) + '</div>' : '')
       + _stratListHtml('Upozorenja', d.upozorenja, '#ffbb70')
+      + '</div>';
+  } catch (e) {
+    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
+}
+
+/* Argument Reputation Engine */
+async function stratArgumentReputation() {
+  var listaEl = document.getElementById('strat-argrep-lista');
+  var tipEl   = document.getElementById('strat-tip-postupka');
+  var wrapEl  = document.getElementById('strat-argrep-result-wrap');
+  if (!listaEl || !wrapEl) return;
+  if (!currentUserIsPro) { wrapEl.innerHTML = '<div class="strat-pro-gate">Dostupno samo PRO korisnicima.</div>'; return; }
+  var argumenti = listaEl.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+  if (!argumenti.length) { wrapEl.innerHTML = '<div class="strat-error">Unesite bar jedan argument (po jedan u redu).</div>'; return; }
+
+  wrapEl.innerHTML = '<div class="strat-loading">⏳ Proveravam reputaciju argumenata...</div>';
+  try {
+    var res = await fetch(BASE_URL + '/api/predictor/argument-reputation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') },
+      body: JSON.stringify({ tip_spora: _STRAT_TIP_TO_SPORA[tipEl ? tipEl.value : 'gradjansko'] || 'parnicno', argumenti: argumenti })
+    });
+    if (res.status === 403) { wrapEl.innerHTML = '<div class="strat-pro-gate">Dostupno samo PRO korisnicima.</div>'; return; }
+    if (!res.ok) throw new Error('Server greška: ' + res.status);
+    var d = await res.json();
+    var bojaHex = { zelena: '#4ade80', 'žuta': '#facc15', zuta: '#facc15', crvena: '#f87171' };
+    var stavke = (d.argumenti_analiza || []).map(function(a) {
+      var bh = bojaHex[a.boja] || '#9ca3af';
+      return '<div style="padding:.6rem .7rem;border-left:2px solid ' + bh + ';background:rgba(255,255,255,.02);margin-bottom:.4rem;">'
+        + '<div style="display:flex;justify-content:space-between;gap:.5rem;"><span style="font-size:.8rem;color:rgba(255,255,255,.85);flex:1;">' + _htmlEsc(a.argument || '') + '</span><span style="font-size:.85rem;font-weight:800;color:' + bh + ';flex-shrink:0;">' + (a.uspesnost_procena != null ? a.uspesnost_procena + '%' : '?') + '</span></div>'
+        + (a.obrazlozenje ? '<div style="font-size:.74rem;color:rgba(255,255,255,.5);margin-top:.25rem;">' + _htmlEsc(a.obrazlozenje) + '</div>' : '')
+        + (a.preporuka ? '<div style="font-size:.74rem;color:rgba(155,225,255,.8);margin-top:.25rem;">→ ' + _htmlEsc(a.preporuka) + '</div>' : '')
+        + '</div>';
+    }).join('');
+    wrapEl.innerHTML = '<div class="vx-card" style="padding:.9rem 1rem;">'
+      + (d.ukupna_snaga != null ? '<div style="font-size:.85rem;font-weight:700;color:#fff;margin-bottom:.5rem;">Ukupna snaga argumentacije: ' + d.ukupna_snaga + '%</div>' : '')
+      + stavke
+      + _stratListHtml('Slabosti', d.slabosti, '#f87171')
+      + (d.preporuceni_redosled && d.preporuceni_redosled.length ? '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:#93c5fd;font-weight:700;margin:.5rem 0 .25rem;">Preporučeni redosled</div><div style="font-size:.78rem;color:rgba(255,255,255,.7);">' + d.preporuceni_redosled.map(_htmlEsc).join(' → ') + '</div>' : '')
+      + _stratListHtml('Alternativni argumenti', d.alternativni_argumenti, '#4ade80')
       + '</div>';
   } catch (e) {
     wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
