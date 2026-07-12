@@ -16,7 +16,7 @@
 .resp-citat .resp-section-body { color: rgba(232,201,122,0.88); font-style: normal; }
 /* Citat — novi blockquote stil (bez italic) */
 .citat-clan-title { font-weight: 700; font-size: 0.83rem; color: #e8c97a; margin-bottom: 0.5rem; letter-spacing: 0.02em; }
-blockquote.citat-blockquote { font-style: normal; border-left: 3px solid rgba(232,201,122,0.55); padding: 0.6rem 0.9rem; margin: 0; background: rgba(232,201,122,0.04); border-radius: 0 6px 6px 0; color: rgba(232,201,122,0.82); font-size: 0.84rem; line-height: 1.75; }
+blockquote.citat-blockquote { font-style: normal; border-left: 3px solid rgba(232,201,122,0.55); padding: 0.6rem 0.9rem; margin: 0; background: rgba(232,201,122,0.04); border-radius: 0 2px 2px 0; color: rgba(232,201,122,0.82); font-size: 0.84rem; line-height: 1.75; }
 blockquote.citat-collapsed { max-height: 4.8em; overflow: hidden; position: relative; }
 blockquote.citat-collapsed::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2em; background:linear-gradient(transparent, rgba(18,20,32,0.95)); pointer-events:none; }
 blockquote.citat-expanded { max-height: none; }
@@ -35,7 +35,7 @@ blockquote.citat-expanded { max-height: none; }
 .resp-lanac .resp-section-lbl::before { background: #a78bfa; box-shadow:none; }
 .resp-lanac .resp-section-body { color: rgba(200,185,255,0.9); font-size: 0.84rem; line-height: 1.75; border-left: 2px solid rgba(167,139,250,0.3); padding-left: 0.9rem; }
 /* ── Phase 3.2: Ratio decidendi ─────────────────────────────────────────────── */
-.ratio-box { display:none; margin-top:0.5rem; padding:0.5rem 0.75rem; background:rgba(167,139,250,0.06); border-left:2px solid rgba(167,139,250,0.4); border-radius:0 6px 6px 0; }
+.ratio-box { display:none; margin-top:0.5rem; padding:0.5rem 0.75rem; background:rgba(167,139,250,0.06); border-left:2px solid rgba(167,139,250,0.4); border-radius:0 2px 2px 0; }
 .ratio-lbl { font-family:'JetBrains Mono',monospace; font-size:0.48rem; letter-spacing:0.18em; text-transform:uppercase; color:rgba(167,139,250,0.55); margin-bottom:0.22rem; }
 .ratio-text { font-family:var(--font-serif); font-size:0.82rem; color:rgba(200,185,255,0.85); line-height:1.72; font-style:italic; }
 .ratio-text::before { content:'\201C'; color:rgba(167,139,250,0.5); font-size:1rem; line-height:0; vertical-align:-0.22em; margin-right:0.1em; }
@@ -692,7 +692,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .strat-btn{padding:7px 14px;border-radius:2px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5);cursor:pointer;font-size:0.83rem;font-family:var(--font-ui);transition:all .2s;min-height:36px;}
 .strat-btn.active{border-color:rgba(0,212,255,0.35);color:rgba(255,255,255,0.72);background:rgba(255,255,255,0.05);}
 .strat-btn:hover:not(.active){border-color:rgba(255,255,255,0.22);color:rgba(255,255,255,0.75);}
-.strat-opis-box{font-size:0.82rem;color:rgba(255,255,255,0.48);background:rgba(255,255,255,0.02);border-left:3px solid rgba(0,212,255,0.28);padding:9px 13px;border-radius:0 7px 7px 0;margin-bottom:13px;line-height:1.55;}
+.strat-opis-box{font-size:0.82rem;color:rgba(255,255,255,0.48);background:rgba(255,255,255,0.02);border-left:3px solid rgba(0,212,255,0.28);padding:9px 13px;border-radius:0 2px 2px 0;margin-bottom:13px;line-height:1.55;}
 .strat-label{font-size:0.83rem;color:rgba(255,255,255,0.45);display:block;margin-bottom:6px;}
 .strat-input-wrap{margin-bottom:11px;}
 .strat-textarea{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.03);color:#e6edf3;border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:11px 13px;font-size:0.86rem;resize:vertical;line-height:1.55;font-family:var(--font-ui);min-height:140px;}
@@ -6980,7 +6980,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
     right: 0 !important;
     width: 100% !important;
     transform: none !important;
-    border-radius: 0 0 12px 12px !important;
+    border-radius: 0 0 3px 3px !important;
     max-height: 85dvh !important;
   }
 }
@@ -7269,7 +7269,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
     top: 0 !important; left: 0 !important; right: 0 !important;
     width: 100% !important;
     transform: none !important;
-    border-radius: 0 0 14px 14px !important;
+    border-radius: 0 0 3px 3px !important;
     max-height: 88dvh !important;
     z-index: 9001 !important;
   }

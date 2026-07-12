@@ -19354,7 +19354,7 @@ async function profitabilnost_load(predmetId) {
           + escHtml(d.ai_preporuka)
           + '</div>';
       }
-      statusEl.innerHTML = '<div style="padding:.5rem .7rem;background:rgba(0,0,0,.2);border-left:3px solid ' + ocenaColor + ';border-radius:0 7px 7px 0;">'
+      statusEl.innerHTML = '<div style="padding:.5rem .7rem;background:rgba(0,0,0,.2);border-left:3px solid ' + ocenaColor + ';border-radius:0 2px 2px 0;">'
         + '<div style="font-size:.78rem;color:' + ocenaColor + ';font-weight:600;">' + ocenaTekst + '</div>'
         + preporukaHtml
         + '</div>';
