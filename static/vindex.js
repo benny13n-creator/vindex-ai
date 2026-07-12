@@ -9593,7 +9593,7 @@ function notif_render() {
       var tipLbl = n.naslov || _TIP_LABEL[n.tip] || 'ℹ Info';
       var bodyTxt = n.naslov ? n.poruka : n.poruka;
       return '<div onclick="notif_click(this,\''+escHtml(n.id)+'\',\''+escHtml(n.predmet_id||'')+'\')" class="vx-notif-item" style="padding:0.6rem 1rem;cursor:pointer;border-bottom:1px solid var(--vx-border);opacity:'+(isRead?'0.5':'1')+';position:relative;'+(isRead?'':'background:rgba(0,212,255,0.02);')+'">'
-        + (isRead ? '' : '<span style="position:absolute;left:5px;top:1rem;width:5px;height:5px;border-radius:50%;background:#00d4ff;box-shadow:0 0 6px rgba(0,212,255,0.6);"></span>')
+        + (isRead ? '' : '<span style="position:absolute;left:5px;top:1rem;width:5px;height:5px;border-radius:50%;background:#00d4ff;"></span>')
         +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.22rem;padding-left:'+(isRead?'0':'0.6rem')+';">'
         +'<span style="font-size:0.62rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
         +'<span class="vx-caption" style="margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
