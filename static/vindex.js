@@ -9244,7 +9244,12 @@ async function pred_bulkAkcija(akcija) {
 }
 
 function pred_subtabSwitch(pane, btn) {
-  var VALID = ['pregled','dokumenti','ai-analiza','strategija','rokovi','naplata','komunikacija','saradnja','timeline','dokazi','agenti','graf','zadaci','profitabilnost','workflow'];
+  var VALID = ['pregled','dokumenti','strategija','rokovi','naplata','komunikacija','saradnja','timeline','agenti','graf','zadaci','profitabilnost','workflow'];
+  // Legacy/retired panes (ccc, ai-analiza, dokazi, timeline) mapiraju se na svog naslednika —
+  // normalizuj pre VALID provere da stari hash-linkovi/istorija i dalje rade ispravno.
+  var _legacyMap = { ccc:'pregled', 'ai-analiza':'agenti', dokazi:'agenti', timeline:'rokovi' };
+  var _wasLegacy = !!_legacyMap[pane];
+  if (_legacyMap[pane]) pane = _legacyMap[pane];
   if (VALID.indexOf(pane) === -1) pane = 'pregled';
   document.querySelectorAll('.pred-subtab-pane').forEach(function(p) { p.style.display = 'none'; });
   document.querySelectorAll('.pred-subtab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -9254,11 +9259,9 @@ function pred_subtabSwitch(pane, btn) {
     btn.classList.add('active');
   } else {
     // Pametna aktivacija: sekundarni paneovi (dostupni samo kroz "Više") aktiviraju taj tab
-    var _morePanes = ['komunikacija','saradnja','graf','dokazi','profitabilnost'];
-    // Legacy/retired panes (ccc, ai-analiza, timeline, rad, finansije) mapiraju se na svog naslednika
-    var _legacyMap = { ccc:'pregled', 'ai-analiza':'agenti', timeline:'rokovi' };
-    if (_legacyMap[pane]) {
-      var successorBtn = document.querySelector('.pred-subtab-btn[onclick*="\'' + _legacyMap[pane] + '\'"]');
+    var _morePanes = ['komunikacija','saradnja','graf','profitabilnost'];
+    if (_wasLegacy) {
+      var successorBtn = document.querySelector('.pred-subtab-btn[onclick*="\'' + pane + '\'"]');
       if (successorBtn) successorBtn.classList.add('active');
     } else if (_morePanes.indexOf(pane) > -1) {
       var moreBtn = document.getElementById('pred-more-btn');
@@ -9285,7 +9288,7 @@ function pred_subtabSwitch(pane, btn) {
   if (typeof lucide !== 'undefined') lucide.createIcons();
   // Lazy-load tabovi
   if (pane === 'saradnja'         && activePredmetId) saradnja_load(activePredmetId);
-  if (pane === 'dokazi'           && activePredmetId) evidence_load();
+  if (pane === 'agenti'           && activePredmetId) evidence_load();
   if (pane === 'graf'             && activePredmetId) kg_load();
   if (pane === 'pregled'          && activePredmetId) ccc_load();
   if (pane === 'rokovi'           && activePredmetId) { predRocistaLoad(); timeline_load(); }
@@ -9295,7 +9298,6 @@ function pred_subtabSwitch(pane, btn) {
   // Merimo koji tabovi se zaista koriste — ovo je naša osnovna metrika korisnosti
   piTrack('predmeti', 'subtab_open', { tab: pane, predmet_id: activePredmetId || null });
   // Auto-fill kontekst predmeta u relevantna polja
-  if (pane === 'ai-analiza') _predAutoFill('pred-cinjenice', false);
   if (pane === 'agenti')     _predAutoFill('agent-task-input', false);
   if (pane === 'strategija') _predAutoFill('strat-tekst', false);
 }
@@ -9563,6 +9565,18 @@ function pred_select(id) {
   var predmetObj = _predmeti.find(function(p){ return p.id === id; }) || null;
   var naziv = predmetObj ? predmetObj.naziv : '';
   if (id !== activePredmetId) _copilotHistory = [];
+  // Case DNA panel je vezan za jedan static mount ("case-dna-panel-mount") koji
+  // _caseDnaRender preimenuje u "case-dna-panel-{predmetId}" pri prvom renderu za
+  // taj predmet (vidi _caseDnaRender). Pri promeni predmeta vrati mount na
+  // neutralno stanje da sledeci render zna gde da se zakaci.
+  if (id !== activePredmetId) {
+    var _dnaOld = document.querySelector('[id^="case-dna-panel-"]');
+    if (_dnaOld && _dnaOld.id !== 'case-dna-panel-mount') {
+      _dnaOld.id = 'case-dna-panel-mount';
+      _dnaOld.style.display = 'none';
+      _dnaOld.innerHTML = '';
+    }
+  }
   activePredmetId    = id;
   activePredmetNaziv = naziv;
   pred_renderList();
@@ -10989,13 +11003,8 @@ async function pred_loadDetail(id) {
         });
         html += '</div>';
         dokListEl.innerHTML = html;
-        // Case DNA dugme i panel — ispod liste dokumenata
-        var _dnaPanelId = 'case-dna-panel-' + activePredmetId;
-        dokListEl.innerHTML += '<div style="margin-top:0.8rem;">'
-          + '<button onclick="_voice_refresh_case_dna(\''+escHtml(activePredmetId||'')+'\');return false;" class="vx-btn vx-btn-secondary" style="width:100%;">'
-          + 'Generiši procenu predmeta</button>'
-          + '<div id="'+_dnaPanelId+'" class="vx-card" style="display:none;margin-top:0.5rem;"></div>'
-          + '</div>';
+        // Case DNA panel je od Faze 8 premesten u pred-pane-agenti ("AI Analiza")
+        // kao flagship hero — vidi case-dna-panel-mount i _caseDnaRender().
         if (typeof lucide !== 'undefined') lucide.createIcons();
       }
     }
@@ -15626,7 +15635,8 @@ var _genomeDnaCache = {};
 // Prikaz Case Genome panela u predmet prikazu
 function _caseDnaRender(dna, predmetId) {
   _genomeDnaCache[predmetId] = dna;
-  var el = document.getElementById('case-dna-panel-' + predmetId);
+  var el = document.getElementById('case-dna-panel-' + predmetId) || document.getElementById('case-dna-panel-mount');
+  if (el && el.id === 'case-dna-panel-mount') el.id = 'case-dna-panel-' + predmetId;
   if (!el) return;
   if (!dna || !Object.keys(dna).length || dna.greska) { el.style.display = 'none'; return; }
 
@@ -15818,9 +15828,37 @@ function _caseDnaRender(dna, predmetId) {
     html += '<div style="color:#fde68a;margin-top:0.2rem;font-size:0.68rem;">'+escHtml(u)+'</div>';
   });
 
+  // ── Preporučeni sledeći koraci — sinteza iz najslabije tačke, strategije i
+  // najhitnijih nedostajućih stavki (nema posebnog polja u case_dna, ovo je
+  // izvedeno na frontendu iz postojećih podataka) ────────────────────────────
+  var koraci = [];
+  if (nt.preporuka) koraci.push(nt.preporuka);
+  ned.filter(function(n){ return n.hitnost === 'kriticno'; }).slice(0,2).forEach(function(n){
+    var t = n.dokument ? ('Pribaviti: ' + n.dokument) : null;
+    if (t && koraci.indexOf(t) === -1) koraci.push(t);
+  });
+  if (strat.primarni_cilj && koraci.length < 3) koraci.push(strat.primarni_cilj);
+  if (koraci.length) {
+    html += '<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.07);">';
+    html += '<div style="color:rgba(255,255,255,0.35);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.3rem;">PREPORUČENI SLEDEĆI KORACI</div>';
+    koraci.slice(0,3).forEach(function(k, i){
+      html += '<div style="display:flex;gap:0.4rem;margin-bottom:2px;"><span style="color:#00d4ff;font-weight:700;min-width:1rem;">'+(i+1)+'.</span><span style="color:rgba(255,255,255,0.68);">'+escHtml(k)+'</span></div>';
+    });
+    html += '</div>';
+  }
+
   // ── Zaključak ─────────────────────────────────────────────────────────────
   if (dna.zakljucak) {
     html += '<div style="margin-top:0.45rem;padding-top:0.35rem;border-top:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);font-style:italic;font-size:0.68rem;">'+escHtml(dna.zakljucak)+'</div>';
+  }
+
+  // ── Pouzdanost (proxy: kompletnost genoma) + izvori ────────────────────────
+  var relZak = gi.relevantni_zakoni || [];
+  if (komp || relZak.length) {
+    html += '<div style="margin-top:0.4rem;padding-top:0.35rem;border-top:1px solid rgba(255,255,255,0.05);display:flex;gap:0.6rem;flex-wrap:wrap;align-items:baseline;">';
+    if (komp) html += '<span style="font-size:0.6rem;color:rgba(255,255,255,0.3);">Pouzdanost genoma: <span style="color:'+kc+';font-weight:700;">'+escHtml(komp)+'</span></span>';
+    if (relZak.length) html += '<span style="font-size:0.6rem;color:rgba(255,255,255,0.3);">Izvori: '+relZak.slice(0,4).map(escHtml).join(' · ')+'</span>';
+    html += '</div>';
   }
 
   html += '</div>';
