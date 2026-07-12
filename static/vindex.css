@@ -270,7 +270,7 @@ blockquote.citat-expanded { max-height: none; }
 /* ── Settings modal ──────────────────────────────────────────────────────── */
 .settings-btn { background:none; border:1px solid rgba(255,255,255,0.1); border-radius:2px; color:rgba(255,255,255,0.45); font-size:0.85rem; padding:0.3rem 0.55rem; cursor:pointer; transition:all 0.18s; margin-right:0.5rem; }
 .settings-btn:hover { color:#fff; border-color:rgba(255,255,255,0.3); }
-.settings-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9000; display:none; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+.settings-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9000; display:none; align-items:center; justify-content:center; backdrop-filter: none; }
 .settings-modal-overlay.open { display:flex; }
 .settings-modal { background:#0f0f1a; border:1px solid rgba(255,255,255,0.1); border-radius:3px; padding:2rem; width:min(480px,92vw); position:relative; }
 .settings-modal h3 { font-size:1rem; font-weight:600; color:#fff; margin:0 0 1.2rem; }
@@ -322,7 +322,7 @@ blockquote.citat-expanded { max-height: none; }
 
 /* ── FLOATING PREVIEW CARDS ──────────────────────────────────────────────── */
 .preview-stack { position: relative; width: 100%; height: 300px; }
-.pcard { position: absolute; background: rgba(1,5,14,0.92); border: 1px solid rgba(255,255,255,0.07); border-radius: 3px; padding: 1.1rem 1.35rem; backdrop-filter: blur(18px); box-shadow: 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05); }
+.pcard { position: absolute; background: rgba(1,5,14,0.92); border: 1px solid rgba(255,255,255,0.07); border-radius: 3px; padding: 1.1rem 1.35rem; backdrop-filter: none; box-shadow: 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05); }
 .pcard-1 { width: 235px; top: 10px; left: 0; transform: rotate(-5deg); z-index: 1; animation: fp1 6s ease-in-out infinite; border-color: rgba(255,255,255,0.10); }
 .pcard-2 { width: 218px; top: 80px; left: 60px; transform: rotate(3deg); z-index: 3; animation: fp2 5s ease-in-out infinite 0.5s; border-color: rgba(74,222,128,0.18); }
 .pcard-3 { width: 225px; top: 165px; left: 15px; transform: rotate(-2deg); z-index: 2; animation: fp3 7s ease-in-out infinite 1s; border-color: rgba(201,168,76,0.25); }
@@ -535,7 +535,7 @@ footer { padding: 2rem 1.5rem; }
 .auth-form-hint { font-size: 0.78rem; color: rgba(255,255,255,0.45); line-height: 1.65; margin: 0; }
 /* ── Toast notifikacije ──────────────────────────────────────────────────── */
 .toast-container { position: fixed; bottom: 1.8rem; left: 50%; transform: translateX(-50%); z-index: 99999; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; }
-.toast { background: rgba(14,14,26,0.96); border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; padding: 0.6rem 1.3rem; font-size: 0.78rem; color: rgba(255,255,255,0.8); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em; backdrop-filter: blur(12px); animation: toast-in 0.22s ease; max-width: 380px; text-align: center; white-space: nowrap; }
+.toast { background: rgba(14,14,26,0.96); border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; padding: 0.6rem 1.3rem; font-size: 0.78rem; color: rgba(255,255,255,0.8); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em; backdrop-filter: none; animation: toast-in 0.22s ease; max-width: 380px; text-align: center; white-space: nowrap; }
 .toast.toast-ok  { border-color: rgba(74,222,128,0.35); color: #4ade80; }
 .toast.toast-err { border-color: rgba(248,113,113,0.35); color: #f87171; }
 .toast.toast-info { border-color: rgba(0,212,255,0.25); color: rgba(255,255,255,0.72); }
@@ -735,7 +735,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .predmet-indicator{display:none;font-size:0.7rem;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.72);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:2px;padding:0.25rem 0.7rem;margin-bottom:0.5rem;letter-spacing:0.03em;}
 .predmet-indicator.show{display:block;}
 .pred-list{display:flex;flex-direction:column;gap:0.5rem;margin-top:0.75rem;max-height:520px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-.pred-item{display:flex;align-items:center;gap:0.7rem;padding:0.95rem 1.05rem;min-height:44px;background:rgba(13,17,23,0.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08);border-radius:4px;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s;}
+.pred-item{display:flex;align-items:center;gap:0.7rem;padding:0.95rem 1.05rem;min-height:44px;background:rgba(13,17,23,0.5);backdrop-filter: none;-webkit-backdrop-filter: none;border:1px solid rgba(255,255,255,0.08);border-radius:4px;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s;}
 .pred-item:hover,.pred-item.active{background:rgba(255,255,255,0.045);border-color:rgba(0,212,255,0.45);}
 .pred-naziv{flex:1;font-size:0.84rem;color:#e8eaf0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pred-badge{font-size:0.6rem;letter-spacing:0.07em;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);}
@@ -893,7 +893,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .interni-score{float:right;font-size:0.74rem;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.72);padding:2px 6px;border-radius:2px;}
 .interni-del-btn{margin-top:9px;}
 /* ── Billing module ─────────────────────────────────────────────────────── */
-.billing-timer-bar{background:rgba(13,17,23,0.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--vx-border);border-radius:4px;padding:0.85rem 0.95rem;margin-bottom:0.6rem;}
+.billing-timer-bar{background:rgba(13,17,23,0.5);backdrop-filter: none;-webkit-backdrop-filter: none;border:1px solid var(--vx-border);border-radius:4px;padding:0.85rem 0.95rem;margin-bottom:0.6rem;}
 .billing-timer-btn-start{width:100%;margin-top:0.5rem;padding:0.5rem;background:#00d4ff;border:1px solid rgba(0,212,255,0.55);border-radius:2px;color:#010308;font-size:0.74rem;font-weight:700;cursor:pointer;transition:opacity .15s,box-shadow .15s;font-family:inherit;}
 .billing-timer-btn-start:hover{opacity:.92;}
 .billing-timer-btn-stop{width:100%;margin-top:0.35rem;padding:0.4rem;background:rgba(255,80,80,0.08);border:1px solid rgba(255,80,80,0.2);border-radius:2px;color:#ff9090;font-size:0.72rem;cursor:pointer;transition:all .2s;font-family:inherit;}
@@ -1466,8 +1466,8 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .settings-section {
   margin-bottom: 1.4rem;
   background: rgba(13,17,23,0.4);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 3px;
   padding: 1.1rem 1.25rem;
@@ -2628,7 +2628,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 /* Quick Actions overlay */
 .vx2-qa-overlay {
   display: none; position: fixed; inset: 0; z-index: 850;
-  background: rgba(1,3,8,0.78); backdrop-filter: blur(5px);
+  background: rgba(1,3,8,0.78); backdrop-filter: none;
   align-items: center; justify-content: center;
 }
 .vx2-qa-overlay.open { display: flex; }
@@ -2967,8 +2967,8 @@ body {
   padding: 0 16px !important;
   gap: 10px !important;
   background: rgba(6,13,26,0.9) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   flex-shrink: 0 !important;
   z-index: 20 !important;
   position: relative !important;
@@ -3486,8 +3486,8 @@ select.pro-input option { background: var(--surface); }
   inset: 0;
   z-index: 900;
   background: rgba(1,3,8,0.82);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   align-items: center;
   justify-content: center;
 }
@@ -3703,8 +3703,8 @@ select.pro-input option { background: var(--surface); }
   inset: 0;
   z-index: 850;
   background: rgba(1,3,8,0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   align-items: center;
   justify-content: center;
 }
@@ -4123,8 +4123,8 @@ select.pro-input option { background: var(--surface); }
   padding: 0 32px;
   border-bottom: 1px solid var(--bd-1);
   background: rgba(1,3,8,0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   flex-shrink: 0;
 }
 
@@ -4349,7 +4349,7 @@ select.pro-input option { background: var(--surface); }
 .wl-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.72);
   z-index: 3100; display: none; align-items: center; justify-content: center;
-  backdrop-filter: blur(6px);
+  backdrop-filter: none;
 }
 .wl-overlay.open { display: flex; }
 .wl-modal {
@@ -5426,8 +5426,8 @@ i[data-lucide] svg {
   border-bottom: 1px solid rgba(255,255,255,0.07);
   margin-bottom: 0;
   background: rgba(1,3,8,0.88);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .pred-hub-hdr-top {
   display: flex;
@@ -5464,8 +5464,8 @@ i[data-lucide] svg {
   top: 58px;
   z-index: 5;
   background: rgba(1,3,8,0.88);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .pred-subtab-nav::-webkit-scrollbar { display: none; }
 .pred-subtab-btn {
@@ -5694,8 +5694,8 @@ i[data-lucide] svg {
 /* ── Multi-Agent — premium AI specijalist kartice ───────────────────────── */
 .agent-card {
   background: rgba(13,17,23,0.5);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 3px;
   padding: 1.1rem;
@@ -5832,8 +5832,8 @@ i[data-lucide] svg {
     height: 60px;
     background: rgba(10,20,35,0.98);
     border-top: 1px solid rgba(0,212,255,0.12);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     z-index: 9999;
     align-items: stretch;
     justify-content: space-around;
@@ -6543,7 +6543,7 @@ body.light-theme .dok-nav-label { color: rgba(10,18,32,0.82) !important; }
 body.light-theme .dok-nav-sub { color: rgba(10,18,32,0.35) !important; }
 
 /* ── Svetla tema: Topbar / global search ─────────────────────── */
-body.light-theme .vx-topbar { background: rgba(255,255,255,0.97) !important; border-bottom: 1px solid rgba(10,18,32,0.08) !important; backdrop-filter: blur(8px) !important; }
+body.light-theme .vx-topbar { background: rgba(255,255,255,0.97) !important; border-bottom: 1px solid rgba(10,18,32,0.08) !important; backdrop-filter: none !important; }
 body.light-theme .vx-global-search { background: rgba(10,18,32,0.04) !important; border-color: rgba(10,18,32,0.10) !important; }
 body.light-theme .vx-search-ph { color: rgba(10,18,32,0.38) !important; }
 body.light-theme .vx-search-icon,
@@ -6879,7 +6879,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
     right: 0 !important;
     z-index: 100 !important;
     background: rgba(6,13,26,0.97) !important;
-    backdrop-filter: blur(20px) !important;
+    backdrop-filter: none !important;
   }
   .vx-body {
     order: 1 !important;
@@ -7473,7 +7473,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .onboarding-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(4px);
+  backdrop-filter: none;
   display: flex; align-items: center; justify-content: center;
   z-index: 10000;
 }
@@ -8674,8 +8674,8 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 /* ── 5. KARD KOMPONENTA — translucent, blur, hover glow ─────────────────── */
 .vx-card {
   background: rgba(13,17,23,0.55);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--vx-border);
   border-radius: var(--vx-radius-md);
   padding: var(--vx-space-5);
@@ -8824,8 +8824,8 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .vx-modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
   background: rgba(1,3,8,0.72);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   display: flex; align-items: center; justify-content: center;
   animation: vx-fade-in var(--vx-transition-slow) var(--vx-ease);
 }
@@ -9201,7 +9201,7 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
 .vx-kb-col-body { display: flex; flex-direction: column; gap: var(--vx-space-2); min-height: 60px; }
 .vx-kb-card {
   background: rgba(13,17,23,0.5);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
   border: 1px solid var(--vx-border);
   border-radius: var(--vx-radius-sm);
   padding: var(--vx-space-3);
@@ -9414,4 +9414,15 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
 }
 .vx-nav-group-lbl {
   color: rgba(0,212,255,0.42) !important;
+}
+
+/* ── TOPBAR — flatten glassmorphism blur, solid bar (Bloomberg has no frosted glass) ── */
+.vx-topbar {
+  background: #060a14 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.vx-global-search:hover {
+  border-color: rgba(0,212,255,0.4) !important;
+  background: rgba(0,212,255,0.05) !important;
 }
