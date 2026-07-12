@@ -1779,17 +1779,26 @@
                   <button onclick="profitabilnost_load(activePredmetId)" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);cursor:pointer;">↺</button>
                 </div>
                 <!-- ROI kartica -->
-                <div id="profit-roi-card" style="margin-bottom:.8rem;padding:.8rem 1rem;border-radius:10px;border:1px solid rgba(75,119,232,0.10);background:rgba(255,255,255,0.03);">
-                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);margin-bottom:.5rem;">Finansijski pregled</div>
-                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;" id="profit-kpi-grid">
-                    <div style="text-align:center;"><div style="font-size:1.3rem;font-weight:700;color:#4ade80;" id="profit-naplaceno">—</div><div style="font-size:.65rem;color:rgba(255,255,255,.38);">Naplaćeno RSD</div></div>
-                    <div style="text-align:center;"><div style="font-size:1.3rem;font-weight:700;color:#fbbf24;" id="profit-nenaplaceno">—</div><div style="font-size:.65rem;color:rgba(255,255,255,.38);">Nenaplaćeno RSD</div></div>
-                    <div style="text-align:center;"><div style="font-size:1.3rem;font-weight:700;" id="profit-sati">—</div><div style="font-size:.65rem;color:rgba(255,255,255,.38);">Ukupno sati</div></div>
+                <div id="profit-roi-card" class="vx-card" style="margin-bottom:.8rem;">
+                  <div class="vx-section-lbl" style="margin-bottom:.6rem;">Finansijski pregled</div>
+                  <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+                    <div class="vx-chart-wrap" style="width:120px;height:120px;flex-shrink:0;">
+                      <canvas id="profit-donut-chart"></canvas>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;flex:1;min-width:220px;" id="profit-kpi-grid">
+                      <div style="text-align:center;"><div class="vx-kpi-number" style="font-size:1.3rem;color:#4ade80;" id="profit-naplaceno">—</div><div class="vx-caption">Naplaćeno RSD</div></div>
+                      <div style="text-align:center;"><div class="vx-kpi-number" style="font-size:1.3rem;color:#fbbf24;" id="profit-nenaplaceno">—</div><div class="vx-caption">Nenaplaćeno RSD</div></div>
+                      <div style="text-align:center;"><div class="vx-kpi-number" style="font-size:1.3rem;" id="profit-sati">—</div><div class="vx-caption">Ukupno sati</div></div>
+                    </div>
                   </div>
-                  <div style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;">
-                    <span style="font-size:.7rem;color:rgba(255,255,255,.4);">Satnica:</span>
+                  <div class="vx-chart-legend" style="margin-top:.7rem;">
+                    <span class="vx-chart-legend-item"><span class="vx-chart-legend-dot" style="background:#4ade80;"></span>Fakturisano</span>
+                    <span class="vx-chart-legend-item"><span class="vx-chart-legend-dot" style="background:#fbbf24;"></span>Nefakturisano</span>
+                  </div>
+                  <div style="margin-top:.7rem;display:flex;align-items:center;gap:.5rem;">
+                    <span class="vx-caption">Satnica:</span>
                     <span style="font-size:.8rem;font-weight:600;color:rgba(255,255,255,0.72);" id="profit-satnica">— RSD/h</span>
-                    <span style="font-size:.7rem;color:rgba(255,255,255,.4);margin-left:.5rem;">Naplativost:</span>
+                    <span class="vx-caption" style="margin-left:.5rem;">Naplativost:</span>
                     <span style="font-size:.8rem;font-weight:600;" id="profit-naplativost">— %</span>
                   </div>
                 </div>

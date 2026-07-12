@@ -19283,6 +19283,12 @@ async function profitabilnost_load(predmetId) {
       naplEl.style.color = naplPct >= 80 ? '#4ade80' : (naplPct >= 50 ? '#fbbf24' : '#f87171');
     }
 
+    var fakturisano   = fin.fakturisano_rsd || 0;
+    var nefakturisano = fin.nefakturisano_rsd || fin.nenaplaceno_rsd || 0;
+    if (fakturisano || nefakturisano) {
+      vxChartDonut('profit-donut-chart', ['Fakturisano', 'Nefakturisano'], [fakturisano, nefakturisano], { colors: ['#4ade80', '#fbbf24'] });
+    }
+
     // Status ocena + AI preporuka
     var ocena = d.ocena || '';
     if (statusEl && ocena) {
