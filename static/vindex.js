@@ -5972,10 +5972,11 @@ function _linkGlasnik(val) {
 
 var _HP_OSNOV_CLS = {'POSTOJI':'hp-good', 'DELIMIČNO':'hp-mid', 'NE POSTOJI':'hp-bad', 'NEJASNO':'hp-mid'};
 var _HP_OSNOV_DOT = {'POSTOJI':'🟢', 'DELIMIČNO':'🟡', 'NE POSTOJI':'🔴', 'NEJASNO':'🟡'};
-var _HP_SNAGA_CLS = {'VISOKA':'hp-good', 'SREDNJA':'hp-mid', 'NISKA':'hp-bad'};
-var _HP_SNAGA_DOT = {'VISOKA':'🟢', 'SREDNJA':'🟡', 'NISKA':'🔴'};
+var _HP_SNAGA_CLS = {'VISOKA':'hp-good', 'SREDNJA':'hp-mid', 'NISKA':'hp-bad', 'POTPUNA':'hp-good', 'DELIMIČNA':'hp-mid', 'NEDOVOLJNA':'hp-bad', 'NIZAK':'hp-good', 'SREDNJI':'hp-mid', 'VISOK':'hp-bad'};
+var _HP_SNAGA_DOT = {'VISOKA':'🟢', 'SREDNJA':'🟡', 'NISKA':'🔴', 'POTPUNA':'🟢', 'DELIMIČNA':'🟡', 'NEDOVOLJNA':'🔴', 'NIZAK':'🟢', 'SREDNJI':'🟡', 'VISOK':'🔴'};
 var _HP_CONF_LABEL = {HIGH:'VISOKA', MEDIUM:'SREDNJA', LOW:'NISKA'};
 var _HP_CONF_CLS   = {HIGH:'hp-good', MEDIUM:'hp-mid', LOW:'hp-bad'};
+var _HP_PRIO_CLS   = {'KRITIČNO':'hp-bad', 'VAŽNO':'hp-mid', 'KORISNO':'hp-good'};
 
 /* Izvlači "--- BRZA PROCENA" blok (ako postoji) i vraća {heroHtml, rest}.
    Uklanja blok iz teksta da se ne bi duplirao kroz generičko sekcija-parsiranje.
@@ -6018,12 +6019,15 @@ function _extractBrzaProcena(rawText, ragMeta) {
       var lines = item.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
       if (!lines.length) return;
       var akcija = lines[0].replace(/^\d+\.\s*/, '');
+      var prioritet = '';
+      var pm = akcija.match(/^(.*)\s*\[([A-ZŠĐČĆŽ]+)\]$/);
+      if (pm) { akcija = pm[1].trim(); prioritet = pm[2]; }
       var zasto = '';
       lines.slice(1).forEach(function(l) {
         var zm = l.match(/^Zašto:\s*(.+)$/);
         if (zm) zasto = zm[1];
       });
-      if (akcija) koraci.push({ akcija: akcija, zasto: zasto });
+      if (akcija) koraci.push({ akcija: akcija, zasto: zasto, prioritet: prioritet });
     });
   }
 
@@ -6032,13 +6036,17 @@ function _extractBrzaProcena(rawText, ragMeta) {
     var m = line.match(/^([^:]+):\s*(.+)$/);
     if (m) fields[m[1].trim()] = m[2].trim();
   });
-  if (!fields['Snaga osnova']) return { heroHtml: '', rest: rawText };
+  if (!fields['Pravna utemeljenost']) return { heroHtml: '', rest: rawText };
 
   var osnov = fields['Pravni osnov'] || '';
-  var snaga = fields['Snaga osnova'] || '';
+  var utemeljenost = fields['Pravna utemeljenost'] || '';
+  var dokazi = fields['Dokazna potpunost'] || '';
+  var procRizik = fields['Procesni rizik'] || '';
   var rows = '';
   if (osnov) rows += '<div class="hero-procena-row"><span class="hero-procena-label">' + (_HP_OSNOV_DOT[osnov]||'') + ' Pravni osnov</span><span class="hero-procena-value ' + (_HP_OSNOV_CLS[osnov] || '') + '">' + escHtml(osnov) + '</span></div>';
-  if (snaga) rows += '<div class="hero-procena-row"><span class="hero-procena-label">' + (_HP_SNAGA_DOT[snaga]||'') + ' Snaga osnova</span><span class="hero-procena-value ' + (_HP_SNAGA_CLS[snaga] || '') + '">' + escHtml(snaga) + '</span></div>';
+  if (utemeljenost) rows += '<div class="hero-procena-row"><span class="hero-procena-label">' + (_HP_SNAGA_DOT[utemeljenost]||'') + ' Pravna utemeljenost</span><span class="hero-procena-value ' + (_HP_SNAGA_CLS[utemeljenost] || '') + '">' + escHtml(utemeljenost) + '</span></div>';
+  if (dokazi) rows += '<div class="hero-procena-row"><span class="hero-procena-label">' + (_HP_SNAGA_DOT[dokazi]||'') + ' Dokazna potpunost</span><span class="hero-procena-value ' + (_HP_SNAGA_CLS[dokazi] || '') + '">' + escHtml(dokazi) + '</span></div>';
+  if (procRizik) rows += '<div class="hero-procena-row"><span class="hero-procena-label">' + (_HP_SNAGA_DOT[procRizik]||'') + ' Procesni rizik</span><span class="hero-procena-value ' + (_HP_SNAGA_CLS[procRizik] || '') + '">' + escHtml(procRizik) + '</span></div>';
   if (conf && _HP_CONF_LABEL[conf]) rows += '<div class="hero-procena-row"><span class="hero-procena-label">Pouzdanost izvora</span><span class="hero-procena-value ' + _HP_CONF_CLS[conf] + '">' + _HP_CONF_LABEL[conf] + '</span></div>';
   var heroHtml = '<div class="hero-procena"><div class="hero-procena-title">Vindex AI — status</div>' + rows
     + (fields['Obrazloženje'] ? '<div class="hero-procena-obrazlozenje">' + escHtml(fields['Obrazloženje']) + '</div>' : '')
@@ -6053,8 +6061,9 @@ function _extractBrzaProcena(rawText, ragMeta) {
   if (koraci.length) {
     heroHtml += '<div class="hero-procena" style="margin-top:0.5rem;"><span class="hero-procena-tag">Strateška preporuka — sledeći potezi</span>'
       + koraci.map(function(k, i) {
+        var prioBadge = k.prioritet ? '<span class="hero-korak-prio ' + (_HP_PRIO_CLS[k.prioritet]||'') + '">' + escHtml(k.prioritet) + '</span>' : '';
         return '<div class="hero-korak"><span class="hero-korak-broj">' + (i+1) + '</span>'
-          + '<div><div class="hero-korak-akcija">' + escHtml(k.akcija) + '</div>'
+          + '<div><div class="hero-korak-akcija">' + escHtml(k.akcija) + prioBadge + '</div>'
           + (k.zasto ? '<div class="hero-korak-zasto">Zašto: ' + escHtml(k.zasto) + '</div>' : '')
           + '</div></div>';
       }).join('')

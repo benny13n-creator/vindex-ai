@@ -956,8 +956,27 @@ def _verifikuj_pravne_greske(odgovor: str) -> tuple[bool, str]:
 
 # ─── Fallback za detektovanu pravnu grešku ───────────────────────────────────
 
+_CYR_TO_LAT = {
+    "а":"a","б":"b","в":"v","г":"g","д":"d","ђ":"đ","е":"e","ж":"ž","з":"z","и":"i",
+    "ј":"j","к":"k","л":"l","љ":"lj","м":"m","н":"n","њ":"nj","о":"o","п":"p","р":"r",
+    "с":"s","т":"t","ћ":"ć","у":"u","ф":"f","х":"h","ц":"c","ч":"č","џ":"dž","ш":"š",
+}
+_CYR_TO_LAT.update({k.upper(): (v[0].upper() + v[1:] if len(v) > 1 else v.upper()) for k, v in _CYR_TO_LAT.items()})
+_CYR_RE = re.compile("[" + "".join(_CYR_TO_LAT.keys()) + "]")
+
+
+def _cirilica_u_latinicu(tekst: str) -> str:
+    """Odbrambena mera: aplikacija je isključivo latinična — ako neki izvor (retrieved
+    dokument, model) ubaci ćirilicu (npr. broj sudske odluke), transliteruj je da ne
+    ostane mešano pismo u odgovoru."""
+    if not tekst or not _CYR_RE.search(tekst):
+        return tekst
+    return _CYR_RE.sub(lambda m: _CYR_TO_LAT.get(m.group(0), m.group(0)), tekst)
+
+
 def _srpski_termini(odgovor: str) -> str:
     """Zamenjuje kolokvijalnosti srpskim pravnim terminima (bez blokiranja)."""
+    odgovor = _cirilica_u_latinicu(odgovor)
     zamene = [
         (r"\bukoliko\b", "ako"),
         (r"\bstoga\b", "zbog toga"),
@@ -1424,11 +1443,20 @@ OBAVEZNI FORMAT — TAČNO OVAJ REDOSLED
 
 [BRZA PROCENA — popuni PRVO, pre svega ostalog. Ovo je sažetak koji advokat čita za 10 sekundi
 pre nego što pročita ostatak. Svako polje JEDNA rečenica, konkretno za OVAJ slučaj, ne generički.
-brza_procena_snaga je SNAGA pravnog osnova na osnovu dostupnih činjenica — NIKAD ne formuliši ovo
-kao predviđanje ishoda postupka. brza_procena_obrazlozenje MORA konkretno objasniti TU ocenu —
-koji element JE potvrđen i koji NEDOSTAJE — 2-3 konkretna fragmenta, ne prazna fraza.
+TRI ODVOJENE OSE — ne mešaj ih, mogu biti različite (npr. "odličan zakon, slabi dokazi"):
+- brza_procena_pravna_utemeljenost: da li ZAKON/INSTITUT postoji i primenjuje se — NIKAD ne
+  formuliši kao predviđanje ishoda postupka.
+- brza_procena_dokazna_potpunost: da li činjenice/dokazi NAVEDENI U PITANJU (ne uopšteno) dovoljno
+  potkrepljuju osnov.
+- brza_procena_procesni_rizik: koliko je neizvestan SAM POSTUPAK (rokovi, procesne prepreke).
+brza_procena_obrazlozenje MORA konkretno objasniti TE tri ocene — koji element JE potvrđen i koji
+NEDOSTAJE — 2-3 konkretna fragmenta, ne prazna fraza.
 brza_procena_koraci je STRATEŠKA PREPORUKA — 1-3 koraka PO PRIORITETU (prvi = najhitniji), svaki
-sa kratkim "zašto" objašnjenjem — praktičan predlog akcije, ne pravni zaključak.]
+sa "prioritet" (kriticno/vazno/korisno) i kratkim "zašto" objašnjenjem — praktičan predlog akcije,
+ne pravni zaključak.
+ZABRANJENE apsolutne formulacije u CELOM odgovoru (ne samo Brza procena): "visoka šansa", "jak
+predmet", "nema bitne razlike" bez ograde. Ako činjenice nisu poznate, reci to eksplicitno (npr.
+umesto "nema bitne razlike" piši "činjenično stanje nije potpuno poznato").]
 
 [STATUSNA POTVRDA — izaberi TAČNO JEDNU od tri linije:]
 [✓] STATUSNA POTVRDA: Doslovno citiran — član direktno pronađen u bazi zakona RS.
@@ -1496,11 +1524,13 @@ Odgovor generiši kao JSON objekat. Mapiranje sekcija → JSON polja:
 "statusna_potvrda_status" → "ok"|"warn"|"err"  (ok=[✓], warn=[~], err=[!])
 "statusna_potvrda_tekst" → tekst statusne potvrde
 "brza_procena_osnov" → "postoji"|"delimicno"|"ne_postoji"|"nejasno"
-"brza_procena_snaga" → "visoka"|"srednja"|"niska" (snaga osnova, NE predviđanje ishoda)
+"brza_procena_pravna_utemeljenost" → "visoka"|"srednja"|"niska" (da li zakon/institut postoji)
+"brza_procena_dokazna_potpunost" → "potpuna"|"delimicna"|"nedovoljna" (da li ima dovoljno činjenica)
+"brza_procena_procesni_rizik" → "nizak"|"srednji"|"visok" (neizvesnost samog postupka)
 "brza_procena_rizik" → jedna rečenica, najveći konkretan rizik
 "brza_procena_nedostatak" → jedna rečenica, ključni nedostajući dokaz/informacija
-"brza_procena_obrazlozenje" → 2-3 fragmenta, ZAŠTO je snaga osnova ovakva (šta potvrđeno/šta nedostaje)
-"brza_procena_koraci" → niz 1-3 {akcija, zasto} objekata, PO PRIORITETU (STRATEŠKA PREPORUKA)
+"brza_procena_obrazlozenje" → 2-3 fragmenta, ZAŠTO su gornje tri ocene ovakve (šta potvrđeno/šta nedostaje)
+"brza_procena_koraci" → niz 1-3 {akcija, zasto, prioritet} objekata, PO PRIORITETU (STRATEŠKA PREPORUKA)
 "hijerarhija_izvora" → sadržaj --- HIJERARHIJA IZVORA
 "pravni_zakljucak" → sadržaj --- PRAVNI ZAKLJUČAK
 "analiza_uskladjenosti" → sadržaj --- ANALIZA USKLAĐENOSTI
@@ -1555,11 +1585,20 @@ OBAVEZNI FORMAT — TAČNO OVAJ REDOSLED
 
 [BRZA PROCENA — popuni PRVO, pre svega ostalog. Ovo je sažetak koji advokat čita za 10 sekundi
 pre nego što pročita ostatak. Svako polje JEDNA rečenica, konkretno za OVAJ slučaj, ne generički.
-brza_procena_snaga je SNAGA pravnog osnova na osnovu dostupnih činjenica — NIKAD ne formuliši ovo
-kao predviđanje ishoda postupka. brza_procena_obrazlozenje MORA konkretno objasniti TU ocenu —
-koji element JE potvrđen i koji NEDOSTAJE — 2-3 konkretna fragmenta, ne prazna fraza.
+TRI ODVOJENE OSE — ne mešaj ih, mogu biti različite (npr. "odličan zakon, slabi dokazi"):
+- brza_procena_pravna_utemeljenost: da li ZAKON/INSTITUT postoji i primenjuje se — NIKAD ne
+  formuliši kao predviđanje ishoda postupka.
+- brza_procena_dokazna_potpunost: da li činjenice/dokazi NAVEDENI U PITANJU (ne uopšteno) dovoljno
+  potkrepljuju osnov.
+- brza_procena_procesni_rizik: koliko je neizvestan SAM POSTUPAK (rokovi, procesne prepreke).
+brza_procena_obrazlozenje MORA konkretno objasniti TE tri ocene — koji element JE potvrđen i koji
+NEDOSTAJE — 2-3 konkretna fragmenta, ne prazna fraza.
 brza_procena_koraci je STRATEŠKA PREPORUKA — 1-3 koraka PO PRIORITETU (prvi = najhitniji), svaki
-sa kratkim "zašto" objašnjenjem — praktičan predlog akcije, ne pravni zaključak.]
+sa "prioritet" (kriticno/vazno/korisno) i kratkim "zašto" objašnjenjem — praktičan predlog akcije,
+ne pravni zaključak.
+ZABRANJENE apsolutne formulacije u CELOM odgovoru (ne samo Brza procena): "visoka šansa", "jak
+predmet", "nema bitne razlike" bez ograde. Ako činjenice nisu poznate, reci to eksplicitno (npr.
+umesto "nema bitne razlike" piši "činjenično stanje nije potpuno poznato").]
 
 [STATUSNA POTVRDA — izaberi TAČNO JEDNU od tri linije:]
 [✓] STATUSNA POTVRDA: Doslovno citiran — član direktno pronađen u bazi zakona RS.
@@ -1625,11 +1664,13 @@ Odgovor generiši kao JSON objekat. Mapiranje sekcija → JSON polja:
 "statusna_potvrda_status" → "ok"|"warn"|"err"  (ok=[✓], warn=[~], err=[!])
 "statusna_potvrda_tekst" → tekst statusne potvrde
 "brza_procena_osnov" → "postoji"|"delimicno"|"ne_postoji"|"nejasno"
-"brza_procena_snaga" → "visoka"|"srednja"|"niska" (snaga osnova, NE predviđanje ishoda)
+"brza_procena_pravna_utemeljenost" → "visoka"|"srednja"|"niska" (da li zakon/institut postoji)
+"brza_procena_dokazna_potpunost" → "potpuna"|"delimicna"|"nedovoljna" (da li ima dovoljno činjenica)
+"brza_procena_procesni_rizik" → "nizak"|"srednji"|"visok" (neizvesnost samog postupka)
 "brza_procena_rizik" → jedna rečenica, najveći konkretan rizik
 "brza_procena_nedostatak" → jedna rečenica, ključni nedostajući dokaz/informacija
-"brza_procena_obrazlozenje" → 2-3 fragmenta, ZAŠTO je snaga osnova ovakva (šta potvrđeno/šta nedostaje)
-"brza_procena_koraci" → niz 1-3 {akcija, zasto} objekata, PO PRIORITETU (STRATEŠKA PREPORUKA)
+"brza_procena_obrazlozenje" → 2-3 fragmenta, ZAŠTO su gornje tri ocene ovakve (šta potvrđeno/šta nedostaje)
+"brza_procena_koraci" → niz 1-3 {akcija, zasto, prioritet} objekata, PO PRIORITETU (STRATEŠKA PREPORUKA)
 "hijerarhija_izvora" → sadržaj --- HIJERARHIJA IZVORA
 "pravni_zakljucak" → sadržaj --- PRAVNI ZAKLJUČAK
 "analiza_poreske_obaveze" → sadržaj --- ANALIZA PORESKE OBAVEZE
@@ -1694,13 +1735,23 @@ OBAVEZNI FORMAT — 13 SEKCIJA U TAČNOM REDOSLEDU
 
 [BRZA PROCENA — popuni PRVO, pre svega ostalog. Ovo je sažetak koji advokat čita za 10 sekundi
 pre nego što pročita ostatak. Svako polje JEDNA rečenica, konkretno za OVAJ slučaj, ne generički.
-brza_procena_snaga je SNAGA pravnog osnova na osnovu dostupnih činjenica — NIKAD ne formuliši ovo
-kao predviđanje ishoda suđenja (npr. NIKAD "verovatnoća pobede", uvek "snaga osnova na osnovu
-dostupnog"). brza_procena_obrazlozenje MORA konkretno objasniti TU ocenu — koji element JE
+TRI ODVOJENE OSE — ne mešaj ih, mogu biti različite (npr. "odličan zakon, slabi dokazi"):
+- brza_procena_pravna_utemeljenost: da li ZAKON/INSTITUT postoji i primenjuje se — NIKAD ne
+  formuliši kao predviđanje ishoda suđenja (npr. NIKAD "verovatnoća pobede", uvek "zakon/institut
+  postoji na osnovu dostupnog").
+- brza_procena_dokazna_potpunost: da li činjenice/dokazi NAVEDENI U PITANJU (ne uopšteno) dovoljno
+  potkrepljuju osnov.
+- brza_procena_procesni_rizik: koliko je neizvestan SAM POSTUPAK (rokovi, procesne prepreke,
+  teret dokazivanja).
+brza_procena_obrazlozenje MORA konkretno objasniti TE tri ocene — koji element JE
 potvrđen (npr. "pravni osnov postoji, praksa potvrđuje institut") i koji NEDOSTAJE (npr.
 "nedostaju činjenice o intenzitetu posledica") — ne prazna fraza, uvek 2-3 konkretna fragmenta.
 brza_procena_koraci je STRATEŠKA PREPORUKA — 1-3 koraka PO PRIORITETU (prvi = najhitniji), svaki
-sa kratkim "zašto" objašnjenjem — praktičan predlog akcije, ne pravni zaključak.]
+sa "prioritet" (kriticno/vazno/korisno) i kratkim "zašto" objašnjenjem — praktičan predlog akcije,
+ne pravni zaključak.
+ZABRANJENE apsolutne formulacije u CELOM odgovoru (ne samo Brza procena): "visoka šansa", "jak
+predmet", "nema bitne razlike" bez ograde. Ako činjenice nisu poznate, reci to eksplicitno (npr.
+umesto "nema bitne razlike" piši "činjenično stanje nije potpuno poznato").]
 
 [STATUSNA POTVRDA — izaberi TAČNO JEDNU od tri linije:]
 [✓] STATUSNA POTVRDA: Doslovno citiran — član direktno pronađen u bazi zakona RS.
@@ -1793,9 +1844,15 @@ Na osnovu opisanih okolnosti, okvirna procena prema sudskoj praksi:
   • [Za telesne povrede: medicinska dokumentacija + nalaz ovlašćenog lekara/veštaka — obavezno]
 
 (3) REDOSLED POSTUPKA
-  Korak 0: PROVERI SOLVENTNOST tuženog — bez imovine za izvršenje, presuda je beskorisna.
-  Korak 1: Prijava osiguravajućem društvu + pokušaj mirnog vansudskog rešenja.
-  Korak 2: Medijacija (Zakon o medijaciji, Sl. glasnik RS br. 55/2014) — brže i jeftinije.
+  [Ovo je ILUSTRATIVAN redosled za štetne/odštetne sporove — PRILAGODI ga stvarnoj vrsti spora
+  iz pitanja (ugovorni spor, radni spor, itd. imaju drugačiji redosled). Ne ponavljaj korake koji
+  se ne primenjuju na konkretno pitanje.]
+  Korak 0 (samo za odštetne zahteve sa poznatim štetnikom): PROVERI SOLVENTNOST tuženog — bez
+  imovine za izvršenje, presuda je beskorisna.
+  Korak 1 (samo ako postoji osiguranje): Prijava osiguravajućem društvu + pokušaj mirnog
+  vansudskog rešenja.
+  Korak 2: Medijacija (Zakon o medijaciji, Sl. glasnik RS br. 55/2014) — brže i jeftinije, kad je
+  primenjivo na vrstu spora.
   Korak 3: Tužba pred nadležnim sudom — krajnja mera.
 
 --- KLJUČNO PITANJE
@@ -1821,11 +1878,13 @@ Odgovor generiši kao JSON objekat. Mapiranje sekcija → JSON polja:
 "statusna_potvrda_status" → "ok"|"warn"|"err"  (ok=[✓], warn=[~], err=[!])
 "statusna_potvrda_tekst" → tekst statusne potvrde
 "brza_procena_osnov" → "postoji"|"delimicno"|"ne_postoji"|"nejasno"
-"brza_procena_snaga" → "visoka"|"srednja"|"niska" (snaga osnova, NE predviđanje ishoda)
+"brza_procena_pravna_utemeljenost" → "visoka"|"srednja"|"niska" (da li zakon/institut postoji)
+"brza_procena_dokazna_potpunost" → "potpuna"|"delimicna"|"nedovoljna" (da li ima dovoljno činjenica)
+"brza_procena_procesni_rizik" → "nizak"|"srednji"|"visok" (neizvesnost samog postupka)
 "brza_procena_rizik" → jedna rečenica, najveći konkretan rizik
 "brza_procena_nedostatak" → jedna rečenica, ključni nedostajući dokaz/informacija
-"brza_procena_obrazlozenje" → 2-3 fragmenta, ZAŠTO je snaga osnova ovakva (šta potvrđeno/šta nedostaje)
-"brza_procena_koraci" → niz 1-3 {akcija, zasto} objekata, PO PRIORITETU (STRATEŠKA PREPORUKA)
+"brza_procena_obrazlozenje" → 2-3 fragmenta, ZAŠTO su gornje tri ocene ovakve (šta potvrđeno/šta nedostaje)
+"brza_procena_koraci" → niz 1-3 {akcija, zasto, prioritet} objekata, PO PRIORITETU (STRATEŠKA PREPORUKA)
 "hijerarhija_izvora" → sadržaj --- HIJERARHIJA IZVORA
 "pravni_zakljucak" → sadržaj --- PRAVNI ZAKLJUČAK
 "analiza_stete" → sadržaj --- ANALIZA ŠTETE
@@ -2341,7 +2400,7 @@ _SUDSKA_PRAKSA_SCHEMA_FIELD = {
             "datum":                {"type": "string", "description": "FLAT STRING max 30 chars. Datum odluke iz konteksta."},
             "pravni_princip":       {"type": "string", "description": "FLAT STRING max 200 chars. JEDNA rečenica — pravni princip/pravilo koje ova odluka ustanovljava (ne prepričavanje činjenica). Prazan string ako se princip ne može izvesti iz konteksta."},
             "primena_na_predmet":   {"type": "string", "description": "FLAT STRING max 200 chars. JEDNA rečenica — kako se princip iz ove odluke primenjuje na KONKRETNU situaciju iz pitanja korisnika (sinteza, ne citat). Prazan string ako veza nije dovoljno jasna."},
-            "razlika":              {"type": "string", "description": "FLAT STRING max 200 chars. JEDNA rečenica — ključna činjenična razlika između ove odluke i situacije korisnika (npr. šta u pitanju korisnika još nije utvrđeno/dokazano). Prazan string ako nema bitne razlike."},
+            "razlika":              {"type": "string", "description": "FLAT STRING max 200 chars. JEDNA rečenica — ključna činjenična razlika između ove odluke i situacije korisnika. AKO činjenice o predmetu korisnika NISU poznate/navedene — NE piši 'nema bitne razlike' (to je prejaka tvrdnja bez podataka), nego eksplicitno 'Činjenično stanje predmeta nije potpuno poznato — [koji konkretan podatak nedostaje, npr. intenzitet/trajanje posledica]'. Prazan string SAMO ako je situacija identična u svim bitnim elementima."},
             "sazetak_relevantnosti": {"type": "string", "description": "FLAT STRING max 400 chars. Zašto je ova odluka relevantna za pitanje. Citiraj samo ono što JESTE u dostavljenom kontekstu."},
         },
         "required": ["sud", "broj_odluke", "sazetak_relevantnosti"],
@@ -2359,10 +2418,11 @@ _BRZA_PROCENA_KORACI_SCHEMA_FIELD = {
     "items": {
         "type": "object",
         "properties": {
-            "akcija": {"type": "string", "description": "FLAT STRING max 100 chars. Kratka imperativna akcija (npr. 'Pribaviti medicinsku dokumentaciju')."},
-            "zasto":  {"type": "string", "description": "FLAT STRING max 150 chars. JEDNA rečenica — zašto je ovaj korak bitan/prvi (npr. 'Bez nje je teško dokazati intenzitet posledica')."},
+            "akcija":    {"type": "string", "description": "FLAT STRING max 100 chars. Kratka imperativna akcija (npr. 'Pribaviti medicinsku dokumentaciju')."},
+            "zasto":     {"type": "string", "description": "FLAT STRING max 150 chars. JEDNA rečenica — zašto je ovaj korak bitan/prvi (npr. 'Bez nje je teško dokazati intenzitet posledica')."},
+            "prioritet": {"type": "string", "description": "TAČNO jedna od: 'kriticno' | 'vazno' | 'korisno'. 'kriticno' = bez ovoga se osnov/zahtev teško može potkrepiti; 'korisno' = poboljšava poziciju ali nije presudno."},
         },
-        "required": ["akcija", "zasto"],
+        "required": ["akcija", "zasto", "prioritet"],
     },
     "minItems": 1,
     "maxItems": 3,
@@ -2383,7 +2443,9 @@ _JSON_SCHEMA_PARNICA = {
                 "statusna_potvrda_status": {"type": "string"},
                 "statusna_potvrda_tekst":  {"type": "string"},
                 "brza_procena_osnov":      {"type": "string", "description": "TAČNO jedna od: 'postoji' | 'delimicno' | 'ne_postoji' | 'nejasno'. Da li pravni osnov postoji na osnovu konteksta."},
-                "brza_procena_snaga":      {"type": "string", "description": "TAČNO jedna od: 'visoka' | 'srednja' | 'niska'. SNAGA pravnog osnova na osnovu dostupnih činjenica/dokaza — NIJE garancija ishoda postupka (nikad ne predviđaj ishod suda)."},
+                "brza_procena_pravna_utemeljenost": {"type": "string", "description": "TAČNO jedna od: 'visoka' | 'srednja' | 'niska'. Da li ZAKON/INSTITUT postoji i primenjuje se na ovu vrstu slučaja — NIJE isto što i uspeh spora, NIJE garancija ishoda."},
+                "brza_procena_dokazna_potpunost":    {"type": "string", "description": "TAČNO jedna od: 'potpuna' | 'delimicna' | 'nedovoljna'. Da li činjenice/dokazi NAVEDENI U PITANJU dovoljno potkrepljuju osnov — nezavisno od toga da li zakon postoji."},
+                "brza_procena_procesni_rizik":       {"type": "string", "description": "TAČNO jedna od: 'nizak' | 'srednji' | 'visok'. Koliko je neizvestan/rizičan SAM POSTUPAK (rokovi, procesne prepreke, teret dokazivanja) — nezavisno od pravne utemeljenosti."},
                 "brza_procena_obrazlozenje": {"type": "string", "description": "FLAT STRING max 250 chars. ZAŠTO je snaga osnova ovakva kakva je — kratko, 2-3 fragmenta razdvojena tačkom (npr. 'Pravni osnov postoji (ZOO čl. 200). Sudska praksa potvrđuje institut. Nedostaju činjenice o intenzitetu posledica.'). Ovo je obrazloženje ocene, ne ponavljanje analize."},
                 "brza_procena_rizik":      {"type": "string", "description": "FLAT STRING max 150 chars. JEDNA rečenica — najveći konkretan rizik za ovaj slučaj (izvučeno iz analize ispod, ne nov sadržaj)."},
                 "brza_procena_nedostatak": {"type": "string", "description": "FLAT STRING max 150 chars. JEDNA rečenica — ključna nedostajuća informacija ili dokaz bez kog se slučaj ne može pouzdano oceniti. Prazan string ako ništa ne nedostaje."},
@@ -2404,7 +2466,9 @@ _JSON_SCHEMA_PARNICA = {
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
-                "brza_procena_osnov", "brza_procena_snaga", "brza_procena_obrazlozenje",
+                "brza_procena_osnov", "brza_procena_pravna_utemeljenost",
+                "brza_procena_dokazna_potpunost", "brza_procena_procesni_rizik",
+                "brza_procena_obrazlozenje",
                 "brza_procena_rizik", "brza_procena_nedostatak", "brza_procena_koraci",
                 "hijerarhija_izvora", "pravni_zakljucak",
                 "analiza_stete", "citat_zakona", "pravni_osnov",
@@ -2426,7 +2490,9 @@ _JSON_SCHEMA_COMPLIANCE = {
                 "statusna_potvrda_status": {"type": "string"},
                 "statusna_potvrda_tekst":  {"type": "string"},
                 "brza_procena_osnov":      {"type": "string", "description": "TAČNO jedna od: 'postoji' | 'delimicno' | 'ne_postoji' | 'nejasno'. Da li pravni osnov postoji na osnovu konteksta."},
-                "brza_procena_snaga":      {"type": "string", "description": "TAČNO jedna od: 'visoka' | 'srednja' | 'niska'. SNAGA pravnog osnova na osnovu dostupnih činjenica/dokaza — NIJE garancija ishoda postupka (nikad ne predviđaj ishod suda)."},
+                "brza_procena_pravna_utemeljenost": {"type": "string", "description": "TAČNO jedna od: 'visoka' | 'srednja' | 'niska'. Da li ZAKON/INSTITUT postoji i primenjuje se na ovu vrstu slučaja — NIJE isto što i uspeh spora, NIJE garancija ishoda."},
+                "brza_procena_dokazna_potpunost":    {"type": "string", "description": "TAČNO jedna od: 'potpuna' | 'delimicna' | 'nedovoljna'. Da li činjenice/dokazi NAVEDENI U PITANJU dovoljno potkrepljuju osnov — nezavisno od toga da li zakon postoji."},
+                "brza_procena_procesni_rizik":       {"type": "string", "description": "TAČNO jedna od: 'nizak' | 'srednji' | 'visok'. Koliko je neizvestan/rizičan SAM POSTUPAK (rokovi, procesne prepreke, teret dokazivanja) — nezavisno od pravne utemeljenosti."},
                 "brza_procena_obrazlozenje": {"type": "string", "description": "FLAT STRING max 250 chars. ZAŠTO je snaga osnova ovakva kakva je — kratko, 2-3 fragmenta razdvojena tačkom (npr. 'Pravni osnov postoji (ZOO čl. 200). Sudska praksa potvrđuje institut. Nedostaju činjenice o intenzitetu posledica.'). Ovo je obrazloženje ocene, ne ponavljanje analize."},
                 "brza_procena_rizik":      {"type": "string", "description": "FLAT STRING max 150 chars. JEDNA rečenica — najveći konkretan rizik za ovaj slučaj (izvučeno iz analize ispod, ne nov sadržaj)."},
                 "brza_procena_nedostatak": {"type": "string", "description": "FLAT STRING max 150 chars. JEDNA rečenica — ključna nedostajuća informacija ili dokaz bez kog se slučaj ne može pouzdano oceniti. Prazan string ako ništa ne nedostaje."},
@@ -2445,7 +2511,9 @@ _JSON_SCHEMA_COMPLIANCE = {
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
-                "brza_procena_osnov", "brza_procena_snaga", "brza_procena_obrazlozenje",
+                "brza_procena_osnov", "brza_procena_pravna_utemeljenost",
+                "brza_procena_dokazna_potpunost", "brza_procena_procesni_rizik",
+                "brza_procena_obrazlozenje",
                 "brza_procena_rizik", "brza_procena_nedostatak", "brza_procena_koraci",
                 "hijerarhija_izvora", "pravni_zakljucak",
                 "analiza_uskladjenosti", "citat_zakona", "pravni_osnov",
@@ -2467,7 +2535,9 @@ _JSON_SCHEMA_PORESKI = {
                 "statusna_potvrda_status": {"type": "string"},
                 "statusna_potvrda_tekst":  {"type": "string"},
                 "brza_procena_osnov":      {"type": "string", "description": "TAČNO jedna od: 'postoji' | 'delimicno' | 'ne_postoji' | 'nejasno'. Da li pravni osnov postoji na osnovu konteksta."},
-                "brza_procena_snaga":      {"type": "string", "description": "TAČNO jedna od: 'visoka' | 'srednja' | 'niska'. SNAGA pravnog osnova na osnovu dostupnih činjenica/dokaza — NIJE garancija ishoda postupka (nikad ne predviđaj ishod suda)."},
+                "brza_procena_pravna_utemeljenost": {"type": "string", "description": "TAČNO jedna od: 'visoka' | 'srednja' | 'niska'. Da li ZAKON/INSTITUT postoji i primenjuje se na ovu vrstu slučaja — NIJE isto što i uspeh spora, NIJE garancija ishoda."},
+                "brza_procena_dokazna_potpunost":    {"type": "string", "description": "TAČNO jedna od: 'potpuna' | 'delimicna' | 'nedovoljna'. Da li činjenice/dokazi NAVEDENI U PITANJU dovoljno potkrepljuju osnov — nezavisno od toga da li zakon postoji."},
+                "brza_procena_procesni_rizik":       {"type": "string", "description": "TAČNO jedna od: 'nizak' | 'srednji' | 'visok'. Koliko je neizvestan/rizičan SAM POSTUPAK (rokovi, procesne prepreke, teret dokazivanja) — nezavisno od pravne utemeljenosti."},
                 "brza_procena_obrazlozenje": {"type": "string", "description": "FLAT STRING max 250 chars. ZAŠTO je snaga osnova ovakva kakva je — kratko, 2-3 fragmenta razdvojena tačkom (npr. 'Pravni osnov postoji (ZOO čl. 200). Sudska praksa potvrđuje institut. Nedostaju činjenice o intenzitetu posledica.'). Ovo je obrazloženje ocene, ne ponavljanje analize."},
                 "brza_procena_rizik":      {"type": "string", "description": "FLAT STRING max 150 chars. JEDNA rečenica — najveći konkretan rizik za ovaj slučaj (izvučeno iz analize ispod, ne nov sadržaj)."},
                 "brza_procena_nedostatak": {"type": "string", "description": "FLAT STRING max 150 chars. JEDNA rečenica — ključna nedostajuća informacija ili dokaz bez kog se slučaj ne može pouzdano oceniti. Prazan string ako ništa ne nedostaje."},
@@ -2486,7 +2556,9 @@ _JSON_SCHEMA_PORESKI = {
             },
             "required": [
                 "statusna_potvrda_status", "statusna_potvrda_tekst",
-                "brza_procena_osnov", "brza_procena_snaga", "brza_procena_obrazlozenje",
+                "brza_procena_osnov", "brza_procena_pravna_utemeljenost",
+                "brza_procena_dokazna_potpunost", "brza_procena_procesni_rizik",
+                "brza_procena_obrazlozenje",
                 "brza_procena_rizik", "brza_procena_nedostatak", "brza_procena_koraci",
                 "hijerarhija_izvora", "pravni_zakljucak",
                 "analiza_poreske_obaveze", "citat_zakona", "pravni_osnov",
@@ -2545,7 +2617,10 @@ _SISTEM_NAPOMENA = (
 _BRZA_PROCENA_OSNOV_LABEL = {
     "postoji": "POSTOJI", "delimicno": "DELIMIČNO", "ne_postoji": "NE POSTOJI", "nejasno": "NEJASNO",
 }
-_BRZA_PROCENA_SNAGA_LABEL = {"visoka": "VISOKA", "srednja": "SREDNJA", "niska": "NISKA"}
+_BRZA_PROCENA_UTEMELJENOST_LABEL = {"visoka": "VISOKA", "srednja": "SREDNJA", "niska": "NISKA"}
+_BRZA_PROCENA_DOKAZI_LABEL = {"potpuna": "POTPUNA", "delimicna": "DELIMIČNA", "nedovoljna": "NEDOVOLJNA"}
+_BRZA_PROCENA_RIZIK_LABEL = {"nizak": "NIZAK", "srednji": "SREDNJI", "visok": "VISOK"}
+_BRZA_PROCENA_PRIORITET_LABEL = {"kriticno": "KRITIČNO", "vazno": "VAŽNO", "korisno": "KORISNO"}
 
 
 def _json_ka_tekst(data: dict, tip: str) -> str:
@@ -2556,10 +2631,18 @@ def _json_ka_tekst(data: dict, tip: str) -> str:
 
     parts: list[str] = []
 
-    if data.get("brza_procena_snaga"):
+    if data.get("brza_procena_pravna_utemeljenost"):
         osnov = _BRZA_PROCENA_OSNOV_LABEL.get(data.get("brza_procena_osnov", ""), data.get("brza_procena_osnov", "—"))
-        snaga = _BRZA_PROCENA_SNAGA_LABEL.get(data.get("brza_procena_snaga", ""), data.get("brza_procena_snaga", "—"))
-        parts += ["--- BRZA PROCENA", f"Pravni osnov: {osnov}", f"Snaga osnova: {snaga}"]
+        utemeljenost = _BRZA_PROCENA_UTEMELJENOST_LABEL.get(data.get("brza_procena_pravna_utemeljenost", ""), data.get("brza_procena_pravna_utemeljenost", "—"))
+        dokazi = _BRZA_PROCENA_DOKAZI_LABEL.get(data.get("brza_procena_dokazna_potpunost", ""), data.get("brza_procena_dokazna_potpunost", "—"))
+        rizik_proc = _BRZA_PROCENA_RIZIK_LABEL.get(data.get("brza_procena_procesni_rizik", ""), data.get("brza_procena_procesni_rizik", "—"))
+        parts += [
+            "--- BRZA PROCENA",
+            f"Pravni osnov: {osnov}",
+            f"Pravna utemeljenost: {utemeljenost}",
+            f"Dokazna potpunost: {dokazi}",
+            f"Procesni rizik: {rizik_proc}",
+        ]
         if data.get("brza_procena_obrazlozenje"):
             parts.append(f"Obrazloženje: {data['brza_procena_obrazlozenje']}")
         if data.get("brza_procena_rizik"):
@@ -2574,9 +2657,11 @@ def _json_ka_tekst(data: dict, tip: str) -> str:
                     continue
                 akcija = (korak.get("akcija") or "").strip()
                 zasto  = (korak.get("zasto") or "").strip()
+                prio   = _BRZA_PROCENA_PRIORITET_LABEL.get(korak.get("prioritet", ""), "")
                 if not akcija:
                     continue
-                parts.append(f"{idx}. {akcija}")
+                prio_tag = f" [{prio}]" if prio else ""
+                parts.append(f"{idx}. {akcija}{prio_tag}")
                 if zasto:
                     parts.append(f"   Zašto: {zasto}")
         parts.append("")
