@@ -8589,11 +8589,10 @@ function pred_subtabSwitch(pane, btn) {
   if (typeof lucide !== 'undefined') lucide.createIcons();
   // Lazy-load tabovi
   if (pane === 'saradnja'         && activePredmetId) saradnja_load(activePredmetId);
-  if (pane === 'timeline'         && activePredmetId) timeline_load();
   if (pane === 'dokazi'           && activePredmetId) evidence_load();
   if (pane === 'graf'             && activePredmetId) kg_load();
   if (pane === 'pregled'          && activePredmetId) ccc_load();
-  if (pane === 'rokovi'           && activePredmetId) predRocistaLoad();
+  if (pane === 'rokovi'           && activePredmetId) { predRocistaLoad(); timeline_load(); }
   if (pane === 'zadaci'           && activePredmetId) zadaci_load(activePredmetId);
   if (pane === 'profitabilnost'   && activePredmetId) profitabilnost_load(activePredmetId);
   // Merimo koji tabovi se zaista koriste — ovo je naša osnovna metrika korisnosti

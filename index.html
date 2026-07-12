@@ -1099,25 +1099,8 @@
                   <div id="portal-uploads-list" style="font-size:.72rem;color:rgba(255,255,255,0.3);">—</div>
                 </div>
 
-                <!-- Praćenje statusa — portal.sud.rs (spojeno iz bivšeg "Alatke" taba) -->
-                <div style="margin-top:1rem;">
-                  <button onclick="portalToggleSection(this)" class="vx-btn vx-btn-secondary" style="width:100%;justify-content:space-between;">
-                    <span>Praćenje statusa — portal.sud.rs</span><span id="portal-chevron">▼</span>
-                  </button>
-                  <div id="portal-section" class="vx-card" style="margin-top:.4rem;display:none;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.55rem;">
-                      <span class="vx-section-lbl">Notifikacija kad sud promeni status</span>
-                      <button onclick="portalUcitajListu()" class="vx-btn vx-btn-ghost" style="height:26px;width:26px;padding:0;">↺</button>
-                    </div>
-                    <div class="vx-caption" style="margin-bottom:.55rem;">Vindex periodično proverava javno dostupne podatke sa Portala sudova. Dostupnost i učestalost promena zavise od izvora podataka.</div>
-                    <div id="portal-lista" style="font-size:.75rem;color:rgba(255,255,255,.35);margin-bottom:.55rem;min-height:20px;"></div>
-                    <div style="display:flex;flex-direction:column;gap:.4rem;">
-                      <input id="portal-broj" class="vx-input" type="text" placeholder="Broj predmeta (npr. P 123/2024)">
-                      <input id="portal-sud"  class="vx-input" type="text" placeholder="Naziv suda (npr. Osnovni sud u Beogradu)">
-                      <button onclick="portalDodajPraceni()" class="vx-btn vx-btn-primary">+ Prati ovaj predmet</button>
-                    </div>
-                  </div>
-                </div>
+                <!-- Praćenje statusa — portal.sud.rs živi u Rokovi panu (ista funkcija je
+                     već postojala tamo — izbegnuto duplirano #portal-section/#portal-broj id). -->
 
                 <!-- Globalni alati iz konteksta predmeta -->
                 <div style="margin-top:1.1rem;padding-top:.9rem;border-top:1px solid var(--vx-border);">
@@ -1357,12 +1340,15 @@
                 <!-- ── Zakazana ročišta predmeta ─────────────────────── -->
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
                   <div class="pred-section-lbl" style="margin-bottom:0;display:flex;align-items:center;gap:.4rem;">Zakazana ročišta <span style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.4);font-size:.6rem;display:inline-flex;align-items:center;justify-content:center;cursor:default;" title="Unesite datum ročišta klikom na + Zakaži. Sistem vas podseća 24h unapred. Ispod ročišta je Priprema za ročište — brifing pred suđenje.">?</span></div>
-                  <button onclick="rocisteOtvoriFormu(activePredmetId)" style="padding:.28rem .7rem;font-size:.72rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.11);border-radius:6px;color:rgba(255,255,255,0.72);cursor:pointer;font-family:inherit;">+ Zakaži</button>
+                  <button onclick="rocisteOtvoriFormu(activePredmetId)" class="vx-btn vx-btn-secondary" style="height:30px;padding:0 0.7rem;font-size:0.72rem;">+ Zakaži</button>
                 </div>
                 <div id="pred-rocista-list" style="margin-bottom:.9rem;"></div>
                 <div class="pred-section-lbl">Hronologija i rokovi</div>
-                <div id="pred-hronologija-wrap">
-                  <div id="pred-hronologija-list" style="margin-top:0.3rem;"></div>
+                <div id="timeline-container" style="margin-top:0.3rem;">
+                  <div style="color:rgba(255,255,255,.3);font-size:.8rem;">Učitavam hronologiju...</div>
+                </div>
+                <div id="pred-hronologija-wrap" style="display:none;">
+                  <div id="pred-hronologija-list"></div>
                 </div>
 
                 <!-- ── ZPP Lanac Rokova ─────────────────────────────── -->
@@ -1378,7 +1364,7 @@
                     <div id="lanac-tip-opis" style="font-size:0.6rem;color:rgba(255,255,255,0.32);margin-bottom:0.4rem;min-height:0.75rem;line-height:1.35;"></div>
                     <div style="display:flex;gap:0.3rem;margin-bottom:0.4rem;">
                       <input id="lanac-datum" class="t-input" type="date" style="flex:1;font-size:0.72rem;" title="Datum prijema/dostave akta">
-                      <button onclick="lanac_kalkulisi()" style="padding:0 0.9rem;background:rgba(75,119,232,0.07);border:1px solid rgba(255,255,255,0.10);border-radius:7px;color:rgba(255,255,255,0.72);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Izračunaj</button>
+                      <button onclick="lanac_kalkulisi()" class="vx-btn vx-btn-secondary" style="padding:0 0.9rem;white-space:nowrap;">Izračunaj</button>
                     </div>
                     <div id="lanac-result"></div>
                   </div>
@@ -1402,7 +1388,7 @@
                         <option value="radni">Radni (ZOR)</option>
                       </select>
                     </div>
-                    <button id="hcc-btn" onclick="hccGeneriši()" style="width:100%;padding:0.6rem;background:linear-gradient(135deg,rgba(75,119,232,0.07),rgba(0,180,255,0.08));border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.75);font-size:0.78rem;font-weight:700;cursor:pointer;letter-spacing:.04em;">Generiši pripremu za ročište (3 kredita)</button>
+                    <button id="hcc-btn" onclick="hccGeneriši()" class="vx-btn vx-btn-primary" style="width:100%;letter-spacing:.02em;">Generiši pripremu za ročište (3 kredita)</button>
                     <div id="hcc-loading" style="display:none;text-align:center;padding:1rem 0;color:rgba(255,255,255,0.45);font-size:0.8rem;"><span class="upload-spinner"></span> Analiziram predmet i generišem brifing...</div>
                     <div id="hcc-error" style="display:none;margin-top:0.4rem;padding:0.5rem 0.75rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:7px;color:#ff9090;font-size:0.75rem;"></div>
                     <div id="hcc-result" style="display:none;margin-top:0.5rem;"></div>
@@ -1735,16 +1721,8 @@
                 </div>
               </div><!-- /pred-pane-agenti -->
 
-              <!-- ── TAB: Timeline ─────────────────────────────────────── -->
-              <div class="pred-subtab-pane" id="pred-pane-timeline" style="display:none;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
-                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Hronologija predmeta</div>
-                  <button onclick="timeline_load()" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,0.12);border-radius:6px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.72);cursor:pointer;">↺ Osveži</button>
-                </div>
-                <div id="timeline-container">
-                  <div style="color:rgba(255,255,255,.3);font-size:.8rem;">Učitavam hronologiju...</div>
-                </div>
-              </div><!-- /pred-pane-timeline -->
+              <!-- "Timeline" tab ukinut — #timeline-container (Intelligence Timeline) sada
+                   živi unutar Rokovi pana, vidi "Hronologija i rokovi" sekciju. -->
 
               <!-- ── TAB: Dokazi (Trezor dokaza) ──────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-dokazi" style="display:none;">

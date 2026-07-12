@@ -6810,8 +6810,8 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .itl-badge-neu { background:rgba(167,139,250,.12); color:#c4b5fd; border:1px solid rgba(167,139,250,.25); }
 .itl-score { font-family:'JetBrains Mono',monospace; font-size:.72rem; font-weight:700; }
 .itl-filters { display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:.7rem; }
-.itl-filter-btn { font-size:.62rem; padding:.18rem .5rem; border-radius:4px; border:1px solid rgba(255,255,255,.1); background:transparent; color:rgba(255,255,255,.38); cursor:pointer; letter-spacing:.03em; transition:all .15s; }
-.itl-filter-btn.active { background:rgba(75,119,232,0.07); border-color:rgba(255,255,255,0.12); color:rgba(255,255,255,0.72); }
+.itl-filter-btn { font-size:.62rem; padding:.22rem .6rem; border-radius:999px; border:1px solid rgba(255,255,255,.1); background:transparent; color:rgba(255,255,255,.4); cursor:pointer; letter-spacing:.03em; transition:background .15s,border-color .15s,color .15s; }
+.itl-filter-btn.active { background:rgba(0,212,255,0.08); border-color:rgba(0,212,255,0.4); color:#00d4ff; }
 .itl-empty { color:rgba(255,255,255,.25); font-size:.8rem; text-align:center; padding:1.5rem 0; }
 /* Evidence styles */
 .evidence-dok-card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-radius:8px; padding:.5rem .75rem; margin-bottom:.4rem; display:flex; gap:.6rem; align-items:flex-start; }
