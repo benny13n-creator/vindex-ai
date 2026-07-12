@@ -486,6 +486,14 @@
           <i data-lucide="check-square" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Zadatci</span>
         </div>
+        <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
+          <i data-lucide="library" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Dokumenti</span>
+        </div>
+        <div class="t-tab" id="tab-btn-s" onclick="setTab(this,'s')">
+          <i data-lucide="scale" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Sudska praksa</span>
+        </div>
         <div class="t-tab" id="tab-btn-kal-cal" onclick="setTab(this,'kal');setTimeout(function(){if(typeof kalSetView==='function')kalSetView('grid');},120)">
           <i data-lucide="calendar" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Kalendar</span>
@@ -495,9 +503,6 @@
         <div class="vx-nav-group-lbl">Alati</div>
         <div class="vx-nav-sub" onclick="openAITool('q')" title="Postavite pitanje o zakonu — sistem pretražuje sve važeće zakone Srbije">
           <span class="vx-nav-sub-dot"></span>Istraživanje zakona
-        </div>
-        <div class="vx-nav-sub" onclick="openAITool('s')" title="Pronađite presude sudova koje su relevantne za vaš slučaj">
-          <span class="vx-nav-sub-dot"></span>Sudska praksa
         </div>
         <div class="vx-nav-sub" onclick="openAITool('n')" title="Generišite tužbu, žalbu, ugovor ili drugi pravni podnesak">
           <span class="vx-nav-sub-dot"></span>Nacrti podnesaka
@@ -522,12 +527,10 @@
         </div>
         <!-- Skriveni tabovi — funkcionalnost sačuvana, dostupna iz predmeta ili podešavanja -->
         <div class="t-tab vx-hidden-tab" id="tab-btn-notif" onclick="notif_toggleDropdown()"></div>
-        <div class="t-tab vx-hidden-tab" id="tab-btn-dok" onclick="setTab(this,'dok')"></div>
         <!-- Hidden tabs — all functionality preserved -->
         <div class="t-tab vx-hidden-tab" id="tab-btn-alati" onclick="setTab(this,'alati')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-q" onclick="setTab(this,'q')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-a" onclick="setTab(this,'a')"></div>
-        <div class="t-tab vx-hidden-tab" id="tab-btn-s" onclick="setTab(this,'s')"></div>
         <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')"><span class="pro-badge" id="pro-badge-n" style="display:none">PRO</span></div>
         <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="pro-badge" id="pro-badge-t" style="display:none">PRO</span></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')"></div>
