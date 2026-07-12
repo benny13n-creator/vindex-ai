@@ -2772,9 +2772,12 @@
           <!-- Phase 5.1: Pravne oblasti — Krivično, Privredno, Radno -->
           <div id="tab-ob" style="display:none">
             <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
-            <div class="web3-header">
-              <div class="web3-naslov">Pravne oblasti</div>
-              <div class="web3-podnaslov">Specijalizovani pravni asistenti za krivično, privredno i radno pravo RS</div>
+            <div class="vx-exec-header">
+              <div>
+                <div class="vx-exec-header-eyebrow">Specijalizovani asistenti</div>
+                <div class="vx-exec-header-title">Pravne oblasti</div>
+                <div class="vx-exec-header-sub">Krivično, privredno i radno pravo Republike Srbije</div>
+              </div>
             </div>
             <div class="strat-modul-izbor web3-moduli">
               <button class="strat-btn active" data-oblast="krivicno" onclick="oblastiIzaberiOblast('krivicno',this)">Krivično pravo</button>
@@ -2808,12 +2811,15 @@
 
           <!-- ── Globalni zadatci panel ────────────────────────────── -->
           <div id="tab-zadaci-g" style="display:none">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;">
+            <div class="vx-exec-header">
               <div>
-                <div style="font-size:.88rem;font-weight:700;color:rgba(255,255,255,.9);">Zadatci tima</div>
-                <div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.15rem;">Svi otvoreni zadatci kancelarije — za zadatke pojedinačnog predmeta, otvorite ga i idite na tab Zadaci</div>
+                <div class="vx-exec-header-eyebrow">Kancelarija</div>
+                <div class="vx-exec-header-title">Zadaci tima</div>
+                <div class="vx-exec-header-sub">Svi otvoreni zadaci kancelarije — za zadatke pojedinačnog predmeta, otvorite ga i idite na tab Zadaci.</div>
               </div>
-              <button onclick="zadaci_g_load()" class="vx-btn vx-btn-ghost" style="height:30px;width:30px;padding:0;">↺</button>
+              <div class="vx-exec-header-actions">
+                <button onclick="zadaci_g_load()" class="vx-btn vx-btn-ghost" style="height:30px;width:30px;padding:0;">↺</button>
+              </div>
             </div>
             <div id="zadaci-g-body">
               <div style="text-align:center;padding:2.5rem 1rem 3rem;color:rgba(255,255,255,.28);font-size:.8rem;">Učitavam...</div>
