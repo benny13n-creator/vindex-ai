@@ -1046,7 +1046,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .crm-tip-btn{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.5);font-size:0.82rem;padding:8px;cursor:pointer;transition:all 0.15s;}
 .crm-tip-btn.active{background:rgba(0,212,255,0.10);border-color:rgba(0,212,255,0.28);color:rgba(255,255,255,0.72);font-weight:600;}
 .crm-modal-actions{display:flex;gap:8px;margin-top:16px;}
-.crm-save-btn{flex:1;background:linear-gradient(135deg,#00d4ff,#1264c4);border:none;border-radius:2px;color:#fff;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
+.crm-save-btn{flex:1;background:#00d4ff;border:none;border-radius:2px;color:#010308;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
 .crm-cancel-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.6);font-size:0.85rem;padding:10px 16px;cursor:pointer;}
 .crm-panel{position:fixed;top:0;right:0;height:100vh;width:520px;max-width:100vw;background:#161b22;border-left:1px solid rgba(255,255,255,0.12);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);z-index:2001;}
 .crm-overlay.open .crm-panel{transform:translateX(0);}
@@ -1076,7 +1076,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .intake-panel-header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .intake-panel-body{flex:1;min-height:0;overflow-y:auto;padding:20px 22px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent;}
 .intake-panel-footer{flex-shrink:0;display:flex;gap:10px;padding:14px 22px;border-top:1px solid rgba(255,255,255,0.07);background:#0d1117;}
-.intake-panel-footer .intake-next-btn{flex:1;background:linear-gradient(135deg,#00d4ff,#1264c4);border:none;border-radius:2px;color:#fff;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
+.intake-panel-footer .intake-next-btn{flex:1;background:#00d4ff;border:none;border-radius:2px;color:#010308;font-size:0.85rem;font-weight:600;padding:10px;cursor:pointer;}
 .intake-panel-footer .intake-next-btn:disabled{opacity:0.4;cursor:not-allowed;}
 .intake-panel-footer .intake-back-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.55);font-size:0.85rem;padding:10px 16px;cursor:pointer;}
 .intake-step-heading{font-size:0.77rem;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;padding-bottom:7px;border-bottom:1px solid rgba(255,255,255,0.06);}
@@ -1145,7 +1145,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .web3-opis-box{border-left-color:#C9A84C!important;}
 .web3-reference{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:0.78rem;color:rgba(255,255,255,0.4);}
 .web3-ref-badge{background:rgba(201,168,76,0.15);color:#C9A84C;border:1px solid rgba(201,168,76,0.3);padding:2px 8px;border-radius:3px;font-size:0.72rem;}
-.web3-submit-btn{width:100%;background:linear-gradient(135deg,#00d4ff,#1264c4);border:none;border-radius:2px;color:#fff;font-size:0.88rem;font-weight:600;padding:11px;cursor:pointer;margin-bottom:12px;}
+.web3-submit-btn{width:100%;background:#00d4ff;border:none;border-radius:2px;color:#010308;font-size:0.88rem;font-weight:600;padding:11px;cursor:pointer;margin-bottom:12px;}
 .web3-submit-btn:hover{opacity:0.9;}
 .web3-submit-btn:disabled{opacity:0.5;cursor:not-allowed;}
 .web3-rezultat-wrap{display:none;border:1px solid rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
@@ -1339,10 +1339,10 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .analiza-dokaz-body{padding:10px 14px;font-size:0.84rem;line-height:1.65;color:rgba(255,255,255,0.65);}
 .analiza-plain{font-size:0.85rem;line-height:1.65;color:rgba(255,255,255,0.65);padding:4px 0;}
 /* ── Forenzički audit (Executive Report) ── */
-.forensic-audit-btn{width:100%;padding:.82rem 1.2rem;background:linear-gradient(135deg,rgba(168,74,255,0.22) 0%,rgba(100,40,200,0.3) 100%);border:1px solid rgba(168,74,255,0.45);border-radius:3px;color:#d4a0ff;font-family:var(--font-ui);font-size:.85rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:opacity .2s;}
+.forensic-audit-btn{width:100%;padding:.82rem 1.2rem;background:rgba(0,212,255,0.14);border:1px solid rgba(0,212,255,0.45);border-radius:3px;color:#7fe0ff;font-family:var(--font-ui);font-size:.85rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:opacity .2s;}
 .forensic-audit-btn:hover{opacity:.8;}
 .forensic-audit-btn:disabled{opacity:.5;cursor:not-allowed;}
-.fa-header{background:rgba(20,20,40,.7);border:1px solid rgba(168,74,255,.3);border-radius:3px;padding:14px 16px;margin-bottom:10px;}
+.fa-header{background:rgba(20,26,40,.7);border:1px solid rgba(0,212,255,.25);border-radius:3px;padding:14px 16px;margin-bottom:10px;}
 .fa-score-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
 .fa-score-circle{width:64px;height:64px;border-radius:50%;border:3px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.3rem;font-weight:800;}
 .fa-score-circle.fa-score-low{border-color:#68d391;color:#68d391;}
@@ -4404,8 +4404,8 @@ select.pro-input option { background: var(--surface); }
 .wl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .wl-submit {
   width: 100%; margin-top: 20px; padding: 12px;
-  background: linear-gradient(135deg, #0099bb, #006a8a);
-  border: none; border-radius: 3px; color: #fff;
+  background: #00d4ff;
+  border: none; border-radius: 3px; color: #010308;
   font-size: 15px; font-weight: 700; cursor: pointer;
   font-family: inherit; letter-spacing: 0.02em;
   transition: opacity 0.18s, box-shadow 0.18s;
@@ -5542,7 +5542,7 @@ i[data-lucide] svg {
   font-size: .8rem !important;
 }
 .pred-tab-primary.active {
-  background: linear-gradient(135deg, rgba(255,255,255,0.09), rgba(167,139,250,.12)) !important;
+  background: rgba(0,212,255,0.10) !important;
   border-color: rgba(0,212,255,0.35) !important;
   color: #c7dff7 !important;
 }
@@ -6716,10 +6716,10 @@ body.light-theme [style*="background:#0c0e12"] { background: #ffffff !important;
 body.light-theme [style*="border:1px solid rgba(255,255,255"] { border-color: rgba(10,18,32,0.12) !important; }
 
 /* ── Svetla tema: Strategic Orchestrator sekcija ──────────────── */
-body.light-theme #strat-ork-btn { background: linear-gradient(135deg,rgba(74,74,200,0.08),rgba(255,255,255,0.03)) !important; border-color: rgba(74,74,200,0.25) !important; color: rgba(74,74,200,0.9) !important; }
+body.light-theme #strat-ork-btn { background: rgba(74,74,200,0.06) !important; border-color: rgba(74,74,200,0.25) !important; color: rgba(74,74,200,0.9) !important; }
 body.light-theme #strat-ork-btn:disabled { color: rgba(100,100,200,0.5) !important; }
 /* ── Svetla tema: Paralelna analiza + HCC brzi pristup ─────────── */
-body.light-theme #agent-para-btn { background: linear-gradient(135deg,rgba(255,255,255,0.04),rgba(99,102,241,0.05)) !important; border-color: rgba(255,255,255,0.10) !important; color: rgba(14,80,160,0.9) !important; }
+body.light-theme #agent-para-btn { background: rgba(14,80,160,0.05) !important; border-color: rgba(255,255,255,0.10) !important; color: rgba(14,80,160,0.9) !important; }
 body.light-theme #agent-para-btn:disabled { color: rgba(14,80,160,0.4) !important; }
 
 /* ── Svetla tema: Akcentovane boje — ostaju ──────────────────── */
@@ -8651,7 +8651,8 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 /* Uniformizacija CRM/Intake postojećih dugmadi */
 .crm-save-btn,
 .intake-panel-footer .intake-next-btn {
-  background: linear-gradient(135deg, #00d4ff, #1264c4) !important;
+  background: #00d4ff !important;
+  color: #010308 !important;
   border: none !important;
   border-radius: var(--vx-input-radius) !important;
   font-weight: 600 !important;
