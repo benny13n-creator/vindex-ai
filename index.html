@@ -490,6 +490,10 @@
           <i data-lucide="library" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Dokumenti</span>
         </div>
+        <div class="t-tab" id="tab-btn-aiws" onclick="setTab(this,'aiws')">
+          <i data-lucide="sparkles" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Vindex Intelligence</span>
+        </div>
         <div class="t-tab" id="tab-btn-s" onclick="setTab(this,'s')">
           <i data-lucide="scale" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Sudska praksa</span>
@@ -536,8 +540,6 @@
         <!-- Skriveni tabovi — funkcionalnost sačuvana, dostupna iz predmeta ili podešavanja -->
         <div class="t-tab vx-hidden-tab" id="tab-btn-notif" onclick="notif_toggleDropdown()"></div>
         <!-- Hidden tabs — all functionality preserved -->
-        <div class="t-tab vx-hidden-tab" id="tab-btn-alati" onclick="setTab(this,'alati')"></div>
-        <div class="t-tab vx-hidden-tab" id="tab-btn-q" onclick="setTab(this,'q')"></div>
         <div class="t-tab vx-hidden-tab" id="tab-btn-a" onclick="setTab(this,'a')"></div>
         <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-n" onclick="setTab(this,'n')"><span class="pro-badge" id="pro-badge-n" style="display:none">PRO</span></div>
         <div class="t-tab vx-hidden-tab t-tab-pro" id="tab-btn-t" onclick="setTab(this,'t')"><span class="pro-badge" id="pro-badge-t" style="display:none">PRO</span></div>
@@ -644,53 +646,6 @@
       </div>
     <div class="vx-panels-wrap">
           <div id="chat-hist" class="chat-hist"></div>
-          <div id="tab-q">
-            <button class="t-tool-back" onclick="setTab(document.getElementById('tab-btn-alati'),'alati')"><span class="t-tool-back-arrow">←</span> Pravni alati</button>
-            <div id="predmet-indicator" class="predmet-indicator"></div>
-            <div class="t-guide">
-              <div class="t-guide-icon"><i data-lucide="search" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
-              <div class="t-guide-text"><span class="t-guide-bold">Postavite pravno pitanje</span> na srpskom jeziku. Sistem pretražuje Svi važeći zakoni Republike Srbije i vraća tačan zakon, član i citat za manje od 10 sekundi.</div>
-            </div>
-            <div class="t-chips-lbl">Primeri pitanja — kliknite za popunjavanje:</div>
-            <div class="t-chips">
-              <span class="t-chip" onclick="fillQ('Naknada nematerijalne štete')">Nematerijalna šteta</span>
-              <span class="t-chip" onclick="fillQ('Uslovi za otkaz ugovora o radu')">Otkaz radnog odnosa</span>
-              <span class="t-chip" onclick="fillQ('Razvod braka i starateljstvo nad detetom')">Razvod i starateljstvo</span>
-              <span class="t-chip" onclick="fillQ('Zastarelost potraživanja naknade štete')">Zastarelost</span>
-            </div>
-            <label class="t-label">Vaše pravno pitanje:</label>
-            <div class="mic-input-wrap">
-              <textarea class="t-input" id="qi" placeholder="Npr. Koji su uslovi za naknadu nematerijalne štete?" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
-              <button class="mic-btn" id="mic-qi" type="button" onclick="micToggle('qi')" title="Glasovni unos — kliknite da diktirate (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
-            </div>
-            <div class="mic-status" id="mic-status-qi"><span class="mic-status-dot"></span><span>Snimam... govorite na srpskom</span></div>
-
-            <!-- F7: Interni stavovi firme -->
-            <details id="interni-stavovi-panel" class="interni-panel" style="display:none;">
-              <summary class="interni-summary">
-                Interni stavovi firme
-                <span class="pro-badge">PRO</span>
-              </summary>
-              <div class="interni-body">
-                <p class="interni-opis">Čuvajte interne pravne stavove i argumente firme. Dodajte ih ovde i pretražujte pored zakona i sudske prakse.</p>
-                <div class="interni-forma">
-                  <input type="text" id="interni-naslov" class="interni-input"
-                         placeholder="Naslov stava (npr. 'Tumačenje čl. 179 ZR — otpremnina')"/>
-                  <textarea id="interni-tekst" class="interni-input" rows="4"
-                            placeholder="Tekst internog pravnog stava ili argumenta..." style="resize:vertical;line-height:1.5;"></textarea>
-                  <button class="interni-submit-btn" onclick="dodajInterniStav()">+ Dodaj stav</button>
-                </div>
-                <hr style="border:none;border-top:1px solid rgba(255,255,255,0.07);margin:10px 0;"/>
-                <div class="interni-search-row">
-                  <input type="text" id="interni-upit" class="interni-input"
-                         placeholder="Pretražite interne stavove..."/>
-                  <button class="interni-search-btn" onclick="pretraziInterneStavove()">Pretraži</button>
-                </div>
-                <div id="interni-rezultati"></div>
-                <button class="btn-danger-small interni-del-btn" onclick="obrisiSveInterneStavove()">Obriši sve stavove</button>
-              </div>
-            </details>
-          </div>
 
           <!-- ── KONTROLNI CENTAR TAB ─────────────────────────────────────── -->
           <div id="tab-h" style="display:none">
@@ -3083,12 +3038,12 @@
           </div>
 
           <!-- ── AI ALATI HUB ─────────────────────────────────────────────── -->
-          <div id="tab-alati" style="display:block">
+          <div id="tab-aiws" style="display:none">
             <!-- Hub header -->
             <div class="hub-hd">
               <div class="hub-hd-left">
                 <div class="hub-eyebrow">Vindex AI — Pravna Inteligencija</div>
-                <h2 class="hub-title">Pravni alati.</h2>
+                <h2 class="hub-title">Vindex Intelligence.</h2>
               </div>
               <div class="hub-hd-right">
                 <div class="hub-stat-pair">
@@ -3098,22 +3053,60 @@
               </div>
             </div>
 
-            <!-- SEKCIJA A: Globalno istrazivanje -->
-            <div class="aic3-layout">
-              <div class="aic3-input-section">
-                <div class="aic3-eyebrow">Globalno istrazivanje</div>
-                <textarea id="aic3-q" class="aic3-textarea"
-                  placeholder="Unesite pravno pitanje, naziv zakona, ili temu za istrazivanje..."
-                  rows="5"
-                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aic3_submit();}"></textarea>
-                <div class="aic3-submit-row">
-                  <button id="aic3-btn" class="aic3-submit-btn" onclick="aic3_submit()">
-                    <i data-lucide="file-search" style="width:14px;height:14px;"></i>
-                    Istrazi
-                  </button>
+            <!-- Mode switcher — jos jedan mod (zakon), ostali dolaze u Fazi 6 -->
+            <div id="aiws-modes" style="display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap;">
+              <button class="vx-pill is-active" data-mode="zakon" onclick="aiwsSetMode('zakon',this)">Istraživanje zakona</button>
+            </div>
+
+            <div id="aiws-mode-zakon" class="aiws-mode-pane">
+            <div id="predmet-indicator" class="predmet-indicator"></div>
+            <div class="t-guide">
+              <div class="t-guide-icon"><i data-lucide="search" style="width:24px;height:24px;color:rgba(255,255,255,0.45);stroke-width:1.5;"></i></div>
+              <div class="t-guide-text"><span class="t-guide-bold">Postavite pravno pitanje</span> na srpskom jeziku. Sistem pretražuje Svi važeći zakoni Republike Srbije i vraća tačan zakon, član i citat za manje od 10 sekundi.</div>
+            </div>
+            <div class="t-chips-lbl">Primeri pitanja — kliknite za popunjavanje:</div>
+            <div class="t-chips">
+              <span class="t-chip" onclick="fillQ('Naknada nematerijalne štete')">Nematerijalna šteta</span>
+              <span class="t-chip" onclick="fillQ('Uslovi za otkaz ugovora o radu')">Otkaz radnog odnosa</span>
+              <span class="t-chip" onclick="fillQ('Razvod braka i starateljstvo nad detetom')">Razvod i starateljstvo</span>
+              <span class="t-chip" onclick="fillQ('Zastarelost potraživanja naknade štete')">Zastarelost</span>
+            </div>
+            <label class="t-label">Vaše pravno pitanje:</label>
+            <div class="mic-input-wrap">
+              <textarea class="t-input" id="qi" placeholder="Npr. Koji su uslovi za naknadu nematerijalne štete?" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+              <button class="mic-btn" id="mic-qi" type="button" onclick="micToggle('qi')" title="Glasovni unos — kliknite da diktirate (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
+            </div>
+            <div class="mic-status" id="mic-status-qi"><span class="mic-status-dot"></span><span>Snimam... govorite na srpskom</span></div>
+
+            <!-- F7: Interni stavovi firme -->
+            <details id="interni-stavovi-panel" class="interni-panel" style="display:none;">
+              <summary class="interni-summary">
+                Interni stavovi firme
+                <span class="pro-badge">PRO</span>
+              </summary>
+              <div class="interni-body">
+                <p class="interni-opis">Čuvajte interne pravne stavove i argumente firme. Dodajte ih ovde i pretražujte pored zakona i sudske prakse.</p>
+                <div class="interni-forma">
+                  <input type="text" id="interni-naslov" class="interni-input"
+                         placeholder="Naslov stava (npr. 'Tumačenje čl. 179 ZR — otpremnina')"/>
+                  <textarea id="interni-tekst" class="interni-input" rows="4"
+                            placeholder="Tekst internog pravnog stava ili argumenta..." style="resize:vertical;line-height:1.5;"></textarea>
+                  <button class="interni-submit-btn" onclick="dodajInterniStav()">+ Dodaj stav</button>
                 </div>
-                <div id="aic3-result" class="aic3-result"></div>
+                <hr style="border:none;border-top:1px solid rgba(255,255,255,0.07);margin:10px 0;"/>
+                <div class="interni-search-row">
+                  <input type="text" id="interni-upit" class="interni-input"
+                         placeholder="Pretražite interne stavove..."/>
+                  <button class="interni-search-btn" onclick="pretraziInterneStavove()">Pretraži</button>
+                </div>
+                <div id="interni-rezultati"></div>
+                <button class="btn-danger-small interni-del-btn" onclick="obrisiSveInterneStavove()">Obriši sve stavove</button>
               </div>
+            </details>
+            </div><!-- /aiws-mode-zakon -->
+
+            <!-- SEKCIJA A: brze akcije ka ostalim modovima/alatima -->
+            <div class="aic3-layout" style="grid-template-columns:1fr;">
               <div class="aic3-actions-section">
                 <div class="aic3-global-lbl">Brze akcije</div>
                 <div class="aic3-global-grid">
@@ -4219,7 +4212,7 @@
   <div style="width:36px;height:4px;background:rgba(255,255,255,0.18);border-radius:2px;margin:10px auto 16px;"></div>
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 12px 20px;">
     <!-- Red 1: AI alati -->
-    <button class="mob-more-btn" onclick="mobileMoreGo('q')">
+    <button class="mob-more-btn" onclick="mobileMoreGo('aiws')">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <span>Istraži zakon</span>
     </button>
@@ -4244,13 +4237,17 @@
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
       <span>Šabloni</span>
     </button>
-    <button class="mob-more-btn" onclick="mobileMoreGo('alati')">
-      <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-      <span>Svi alati</span>
-    </button>
     <button class="mob-more-btn" onclick="mobileMoreGo('dok')">
       <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       <span>Baza znanja</span>
+    </button>
+    <button class="mob-more-btn" onclick="mobileMoreGo('fin')">
+      <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      <span>Finansije</span>
+    </button>
+    <button class="mob-more-btn" onclick="mobileMoreGo('kanc')">
+      <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1m-6 4h1m4 0h1"/></svg>
+      <span>Kancelarija</span>
     </button>
     <!-- Red 3: Upravljanje -->
     <button class="mob-more-btn" onclick="mobileMoreGo('pi')">

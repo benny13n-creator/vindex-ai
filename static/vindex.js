@@ -122,7 +122,7 @@
 
 var BASE_URL   = window.location.origin;
 var STRIPE_URL = ''; // Set to your Stripe checkout or pricing page URL
-var activeTab = 'q';
+var activeTab = 'h';
 
 /* ── Zaštita od deljenja naloga — session management ─────────────────────── */
 var _VX_DEVICE_ID = (function() {
@@ -197,7 +197,7 @@ var _initialNavDone = false;
 var _cyrillicOn = false;
 var vxNavHistory = [];
 var _vxGoingBack = false;
-var _vxTabLabels = {h:'Pregled dana',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja'};
+var _vxTabLabels = {h:'Pregled dana',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija'};
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
 var _lastRawText = '';
@@ -288,8 +288,8 @@ async function initAuth() {
     } else {
       userCredits = 0; _creditsLoaded = false; _creditsLoadedAt = 0; _chatHistoryRows = [];
       var ch=document.getElementById('chat-hist'); if(ch){ch.innerHTML='';ch.style.display='none';}
-      var alatiTab = document.getElementById('tab-btn-alati');
-      if (alatiTab) setTab(alatiTab, 'alati');
+      var alatiTab = document.getElementById('tab-btn-aiws');
+      if (alatiTab) setTab(alatiTab, 'aiws');
     }
     updateAuthUI();
   });
@@ -325,7 +325,7 @@ async function loadCredits() {
         ucitajApiKljuceve();
         // F7: prikaži PRO panele
         var ip = document.getElementById('interni-stavovi-panel');
-        if (ip && activeTab === 'q') ip.style.display = '';
+        if (ip && (activeTab === 'q' || activeTab === 'aiws')) ip.style.display = '';
         if (activeTab === 'n') ucitajPlaybookStatus();
       }
     } else {
@@ -953,14 +953,12 @@ drawBg();
   draw();
 })();
 
-/* fillQ */
+/* fillQ — primeri pitanja (chips) unutar Vindex Intelligence / zakon moda */
 function fillQ(q) {
-  document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
-  var qtab = document.querySelector('.t-tab[onclick*="\'q\'"]');
-  if (qtab) qtab.classList.add('active');
-  ['q','n','a','s'].forEach(function(id){document.getElementById('tab-'+id).style.display='none';});
-  document.getElementById('tab-q').style.display = 'block';
-  activeTab = 'q';
+  if (activeTab !== 'aiws') {
+    var aiwsBtn = document.getElementById('tab-btn-aiws');
+    if (aiwsBtn) setTab(aiwsBtn, 'aiws');
+  }
   document.getElementById('btn-lbl').textContent = 'Pretraži pravnu bazu';
   document.getElementById('resp').classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
@@ -2142,6 +2140,11 @@ document.querySelectorAll('.r').forEach(function(el){revObs.observe(el);});
 /* TABS */
 var _vxScrollPositions = {};
 function setTab(el,t){
+  // Legacy alias — "alati" (Pravni alati hub) je postao "aiws" (Vindex Intelligence).
+  // tab-btn-alati ostaje u DOM-u kao skriveni shim jer ga dashboard (zakljucan kod)
+  // i dalje direktno referencira po id-ju — ovde ga preusmeravamo na pravo dugme.
+  if (t === 'alati') { t = 'aiws'; el = document.getElementById('tab-btn-aiws') || el; }
+  if (!el) return;
   // PRO gate — tabovi "n" i "t" zahtevaju PRO status
   if ((t === 'n' || t === 't' || t === 'w') && !currentUserIsPro) {
     openProUpgradeModal();
@@ -2159,20 +2162,22 @@ function setTab(el,t){
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  // Ako je AI tool tab aktivan — označi i "AI Alati" nav dugme kao aktivno
-  var _aiTools = {q:1,a:1,n:1,s:1,t:1,w:1,ob:1};
+  // Ako je AI tool tab aktivan — označi i "Vindex Intelligence" nav dugme kao aktivno
+  // ("s" vise nema ovo potrebno od Faze 3 — ima sopstveno vidljivo dugme; "q" je od
+  // Faze 5 mod unutar aiws, nikad se vise ne prosledjuje kao samostalno t)
+  var _aiTools = {a:1,n:1,t:1,w:1,ob:1};
   if (_aiTools[t]) {
-    var _ab = document.getElementById('tab-btn-alati');
+    var _ab = document.getElementById('tab-btn-aiws');
     if (_ab) _ab.classList.add('active');
   }
-  ['h','q','n','a','s','p','t','k','w','ob','kal','pi','alati','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
+  ['h','n','a','s','p','t','k','w','ob','kal','pi','aiws','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Pregled dana',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
+  var lbl={h:'Pregled dana',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  var _noExec = {h:1,t:1,k:1,w:1,ob:1,kal:1,pi:1,alati:1,dok:1,settings:1,p:1,'zadaci-g':1,fin:1,kanc:1};
+  var _noExec = {h:1,t:1,k:1,w:1,ob:1,kal:1,pi:1,dok:1,settings:1,p:1,'zadaci-g':1,fin:1,kanc:1};
   if (execRow) execRow.style.display = _noExec[t] ? 'none' : '';
   if (credRow) credRow.style.display = _noExec[t] ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
@@ -2187,7 +2192,7 @@ function setTab(el,t){
   if (t==='t') {
     _predAutoFill('strat-tekst', false);
   }
-  if (t==='q' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
+  if (t==='aiws' && currentUserIsPro) { var ip = document.getElementById('interni-stavovi-panel'); if (ip) ip.style.display = ''; }
   if (t==='s') praksa_load_initial();
   if (t==='p') { pred_load(); predFirmaInit(); }
   if (t==='k') ucitajKlijente();
@@ -2218,7 +2223,26 @@ function setTab(el,t){
 }
 
 // Otvori AI alat iz huba — čuva AI Alati kao aktivan parent
+// ── Vindex Intelligence — mod-svic unutar aiws shell-a ──────────────────────
+// Dok se Faza 6 ne zavrsi, "zakon" je jedini stvarni mod; ostali (a/n/t/ob)
+// dolaze jedan po jedan, isti obrazac.
+function aiwsSetMode(mode, btn) {
+  document.querySelectorAll('#aiws-modes .vx-pill').forEach(function(b){ b.classList.remove('is-active'); });
+  if (btn) btn.classList.add('is-active');
+  document.querySelectorAll('.aiws-mode-pane').forEach(function(p){ p.style.display = 'none'; });
+  var el = document.getElementById('aiws-mode-' + mode);
+  if (el) el.style.display = 'block';
+}
+
+// Mod-svesna preusmerenja — dok se Faza 6 ne zavrsi, samo "q" je stvarni mod
+// unutar Vindex Intelligence (aiws); a/n/t/ob i dalje rade po staroj putanji.
+var _AIWS_MODES = { q: 'zakon' };
 function openAITool(t) {
+  if (_AIWS_MODES[t]) {
+    var aiwsBtn = document.getElementById('tab-btn-aiws');
+    if (aiwsBtn) setTab(aiwsBtn, 'aiws');
+    return;
+  }
   var btn = document.getElementById('tab-btn-' + t);
   if (btn) setTab(btn, t);
 }
@@ -2240,7 +2264,7 @@ function vxUpdateBreadcrumb(t) {
   var backSep   = document.getElementById('vx-back-sep');
   var pathEl    = document.getElementById('vx-breadcrumb-path');
   if (!pathEl) return;
-  var _aiSubtabs = {q:1,a:1,n:1,s:1,t:1,w:1};
+  var _aiSubtabs = {a:1,n:1,t:1,w:1};
   var label = _vxTabLabels[t] || t;
   var naPredmetu = (t === 'p' && activePredmetId && activePredmetNaziv);
   pathEl.textContent = naPredmetu ? '' : (_aiSubtabs[t] ? 'Pravni alati / ' + label : label);
@@ -6662,14 +6686,14 @@ async function execQuery() {
   if (window.micStopAll) micStopAll();
   btnLbl.textContent = activeTab === 'n' ? 'Generišem nacrt...' : 'Vindex AI pretražuje bazu...';
   console.log('[Vindex] execQuery: šaljem upit na', activeTab);
-  var _trackFeature = {q:'pravno_istrazivanje',n:'drafting',a:'dokument',s:'sudska_praksa'}[activeTab]||activeTab;
+  var _trackFeature = {q:'pravno_istrazivanje',aiws:'pravno_istrazivanje',n:'drafting',a:'dokument',s:'sudska_praksa'}[activeTab]||activeTab;
   piTrack(_trackFeature,'query',{tab:activeTab});
   resp.classList.remove('show');
   document.getElementById('podnesak-preview').style.display='none';
   var _wfDiv = document.getElementById('analiza-workflow'); if (_wfDiv) _wfDiv.style.display='none';
   rb.style.whiteSpace = '';
 
-  var currentPitanje = activeTab === 'q' ? document.getElementById('qi').value : '';
+  var currentPitanje = (activeTab === 'q' || activeTab === 'aiws') ? document.getElementById('qi').value : '';
   lastPitanje = currentPitanje;
   var _selectedTip = (document.getElementById('podnesak-tip') || {}).value || '';
   var _nEndpoint = _NACRT_API_TYPES.has(_selectedTip) ? BASE_URL+'/api/nacrt' : BASE_URL+'/api/podnesak';
@@ -6691,11 +6715,12 @@ async function execQuery() {
     }
     return;
   }
-  var eps = { q:BASE_URL+'/api/pitanje', n:_nEndpoint, a:BASE_URL+'/api/analiza' };
+  var eps = { q:BASE_URL+'/api/pitanje', aiws:BASE_URL+'/api/pitanje', n:_nEndpoint, a:BASE_URL+'/api/analiza' };
   var _qBody = { pitanje: currentPitanje, history: conversationHistory.slice(-3) };
   if (activePredmetId) _qBody.predmet_id = activePredmetId;
   var bodies = {
     q: _qBody,
+    aiws: _qBody,
     n: (function(){
       var b = { vrsta: _selectedTip, tip: _selectedTip, opis: document.getElementById('podnesak-opis').value };
       var sn = (document.getElementById('podnesak-sud-naziv') || {}).value;
@@ -6801,8 +6826,8 @@ async function execQuery() {
 
       // Sačuvaj u in-memory i Supabase history
       if (d.odgovor) {
-        var turnQ = activeTab === 'q' ? currentPitanje : ('[' + activeTab + '] ' + (document.getElementById('podnesak-opis') ? document.getElementById('podnesak-opis').value : '').substring(0,120));
-        if (activeTab === 'q' && currentPitanje) {
+        var turnQ = (activeTab === 'q' || activeTab === 'aiws') ? currentPitanje : ('[' + activeTab + '] ' + (document.getElementById('podnesak-opis') ? document.getElementById('podnesak-opis').value : '').substring(0,120));
+        if ((activeTab === 'q' || activeTab === 'aiws') && currentPitanje) {
           conversationHistory.push({ q: currentPitanje, a: d.odgovor.substring(0, 600) });
           if (conversationHistory.length > 3) conversationHistory.shift();
         }
@@ -9796,7 +9821,7 @@ function mobileNavGo(t) {
 
 function mobileNavUpdateActive(t) {
   var aiTabs = ['n', 'a', 's', 'w'];
-  var moreTabs = ['q', 'dok', 'pi', 'alati', 'settings', 'n', 's', 'a', 't'];
+  var moreTabs = ['aiws', 'dok', 'pi', 'settings', 'n', 's', 'a', 't', 'fin', 'kanc'];
   var highlight = aiTabs.indexOf(t) !== -1 ? 'q' : t;
   var inMore = moreTabs.indexOf(t) !== -1;
   Object.keys(_mobNavMap).forEach(function(key) {
@@ -14004,8 +14029,8 @@ function onboardingStep(step) {
   } else if (step === 2) {
     intakeOtvori();
   } else if (step === 3) {
-    var tabBtn = document.getElementById('tab-btn-q');
-    if (tabBtn) setTab(tabBtn, 'q');
+    var tabBtn = document.getElementById('tab-btn-aiws');
+    if (tabBtn) setTab(tabBtn, 'aiws');
     setTimeout(function(){
       var inp = document.getElementById('qi');
       if (inp) inp.focus();
@@ -15104,8 +15129,8 @@ function voice_doAction(action, params) {
     case 'ask_question':
       var txt = params.text || '';
       if (!txt) { showToast('Nisam razumeo pitanje', 'warn'); break; }
-      // Navigiraj na AI Istraživanje (tab 'q') i postavi pitanje
-      setTab(document.getElementById('tab-btn-q'), 'q');
+      // Navigiraj na Vindex Intelligence (zakon mod) i postavi pitanje
+      setTab(document.getElementById('tab-btn-aiws'), 'aiws');
       setTimeout(function() {
         var inp = document.getElementById('qi');
         if (!inp) return;
