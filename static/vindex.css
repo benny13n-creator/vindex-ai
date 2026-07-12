@@ -898,7 +898,8 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .billing-timer-btn-start:hover{opacity:.92;box-shadow:0 0 20px rgba(0,212,255,0.28);}
 .billing-timer-btn-stop{width:100%;margin-top:0.35rem;padding:0.4rem;background:rgba(255,80,80,0.08);border:1px solid rgba(255,80,80,0.2);border-radius:7px;color:#ff9090;font-size:0.72rem;cursor:pointer;transition:all .2s;font-family:inherit;}
 .billing-timer-btn-stop:hover{background:rgba(255,80,80,0.15);}
-.billing-entry-row{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border-radius:7px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);margin-bottom:0.3rem;}
+.billing-entry-row{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);margin-bottom:0.3rem;transition:background .15s,border-color .15s;}
+.billing-entry-row:hover{background:rgba(0,212,255,0.03);border-color:rgba(0,212,255,0.15);}
 .billing-entry-main{flex:1;min-width:0;}
 .billing-entry-opis{font-size:0.78rem;color:rgba(255,255,255,0.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .billing-entry-meta{font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:0.1rem;}
