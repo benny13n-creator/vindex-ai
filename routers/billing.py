@@ -12,6 +12,7 @@ GET    /billing/timer/aktivan            — aktivni tajmer
 GET    /billing/tarifa                   — lista AKS tarife sa RSD iznosima
 GET    /billing/tarifa/{sifra}           — jedna stavka
 POST   /billing/faktura                  — kreiraj fakturu iz odabranih radnji
+GET    /billing/faktura                  — lista svih faktura (Finansije)
 GET    /billing/faktura/{id}/pdf         — PDF fakture
 PATCH  /billing/faktura/{id}/status      — promeni status fakture
 GET    /billing/pregled                  — mesecni pregled naplativosti
@@ -778,6 +779,26 @@ async def faktura_status_update(
     if not r.data:
         raise HTTPException(status_code=404, detail="Faktura nije pronađena.")
     return {"success": True, "status": body.status}
+
+
+@router.get("/faktura")
+@limiter.limit("30/minute")
+async def faktura_lista(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    status: Optional[str] = None,
+    limit: int = 100,
+):
+    """Lista svih faktura korisnika (Finansije — cross-case pregled)."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+
+    q = supa.table("fakture").select("*").eq("user_id", uid)
+    if status:
+        q = q.eq("status", status)
+    r = await _db(lambda: q.order("created_at", desc=True).limit(min(limit, 200)).execute())
+    fakture = r.data or []
+    return {"fakture": fakture, "ukupno": len(fakture)}
 
 
 @router.get("/pregled")

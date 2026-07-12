@@ -2165,14 +2165,14 @@ function setTab(el,t){
     var _ab = document.getElementById('tab-btn-alati');
     if (_ab) _ab.classList.add('active');
   }
-  ['h','q','n','a','s','p','t','k','w','ob','kal','pi','alati','dok','settings','zadaci-g'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
+  ['h','q','n','a','s','p','t','k','w','ob','kal','pi','alati','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Pregled dana',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci'};
+  var lbl={h:'Pregled dana',q:'Istraživanje zakona',n:'Nacrti podnesaka',a:'Analiza dokumenta',s:'Sudska praksa',p:'Predmeti',t:'Strategija',k:'Klijenti',w:'Web3 & Kripto',ob:'Pravne oblasti',kal:'Rokovi i ročišta',pi:'Product Intelligence',alati:'Pravni alati',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  var _noExec = {h:1,t:1,k:1,w:1,ob:1,kal:1,pi:1,alati:1,dok:1,settings:1,p:1,'zadaci-g':1};
+  var _noExec = {h:1,t:1,k:1,w:1,ob:1,kal:1,pi:1,alati:1,dok:1,settings:1,p:1,'zadaci-g':1,fin:1,kanc:1};
   if (execRow) execRow.style.display = _noExec[t] ? 'none' : '';
   if (credRow) credRow.style.display = _noExec[t] ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
@@ -2196,6 +2196,8 @@ function setTab(el,t){
   if (t==='kal') kalendarLoad();
   if (t==='settings') settingsLoad();
   if (t==='zadaci-g') { zadaci_g_load(); workflow_eskalacije_load(); }
+  if (t==='fin')  finLoad();
+  if (t==='kanc') { kancelarijaLoad(); kancStatistikaLoad(); kancWorkflowTemplatesLoad(); }
   if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'smooth' });
   if (window.lucide) lucide.createIcons();
   // Vrati scroll poziciju taba na koji se vraćamo (posle sinhronog renderovanja sadržaja)
@@ -2275,8 +2277,7 @@ function settingsLoad() {
   sef_loadSettings();
   sms_loadProfil();
   emailNotifLoad();
-  kancelarijaLoad();
-  billingDugovanjaLoad();
+  // kancelarijaLoad()/billingDugovanjaLoad() premesteni u tab-kanc/tab-fin (Faza 4 IA redizajna)
   confidenceAuditLoad();
   learningStatsLoad();
 }
@@ -2476,6 +2477,76 @@ async function billingDugovanjaLoad() {
   }
 }
 
+// ── Finansije (tab-fin) ────────────────────────────────────────────────────
+async function finLoad() {
+  if (!currentSession) return;
+  billingDugovanjaLoad();
+  _finKpiLoad();
+  _finChartLoad();
+  _finFaktureLoad();
+}
+
+async function _finKpiLoad() {
+  var el = document.getElementById('fin-kpi');
+  if (!el || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/billing/pregled', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) return;
+    var d = await r.json();
+    var fmt = function(n){ return Math.round(n||0).toLocaleString('sr-RS') + ' RSD'; };
+    el.innerHTML = [
+      {label:'Uneseno ('+(d.mesec||'')+')', val: fmt(d.ukupno_unoseno)},
+      {label:'Obračunato', val: fmt(d.obracunato)},
+      {label:'Fakturisano', val: fmt(d.fakturisano)},
+      {label:'Naplaćeno', val: fmt(d.naplaceno), color:'#4ade80'},
+    ].map(function(k){
+      return '<div class="vx-card" style="text-align:center;padding:.7rem .5rem;">'
+        +'<div style="font-size:1rem;font-weight:700;color:'+(k.color||'#e2e8f0')+';">'+k.val+'</div>'
+        +'<div style="font-size:.62rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;">'+k.label+'</div>'
+        +'</div>';
+    }).join('');
+  } catch(e) {}
+}
+
+async function _finChartLoad() {
+  if (typeof Chart === 'undefined' || !currentSession) return;
+  try {
+    var today = new Date();
+    var od = today.getFullYear() + '-01-01';
+    var r = await fetch(BASE_URL + '/billing/report/po-tipu?od=' + od + '&do=' + today.toISOString().slice(0,10), {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) return;
+    var d = await r.json();
+    var rows = d.po_tipu || [];
+    if (!rows.length) return;
+    vxChartBar('fin-chart-tip', rows.map(function(t){ return t.tip || 'ostalo'; }), rows.map(function(t){ return t.iznos_rsd || 0; }));
+  } catch(e) {}
+}
+
+async function _finFaktureLoad() {
+  var el = document.getElementById('fin-fakture-lista');
+  if (!el || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/billing/faktura?limit=30', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { el.innerHTML = '<div style="color:#f87171;font-size:.75rem;">Greška pri učitavanju.</div>'; return; }
+    var d = await r.json();
+    var fakture = d.fakture || [];
+    if (!fakture.length) { el.innerHTML = '<div style="text-align:center;padding:1.2rem;color:rgba(255,255,255,.28);font-size:.78rem;">Nema faktura.</div>'; return; }
+    var statusColor = {nacrt:'rgba(255,255,255,.4)', poslata:'#89c8ff', placena:'#4ade80', otkazana:'#f87171'};
+    el.innerHTML = '<div style="overflow-x:auto;"><table class="vx-table"><thead><tr><th>Broj</th><th>Klijent</th><th>Iznos</th><th>Status</th></tr></thead><tbody>'
+      + fakture.map(function(f){
+        var col = statusColor[f.status] || 'rgba(255,255,255,.5)';
+        return '<tr class="vx-row">'
+          +'<td>'+_htmlEsc(f.broj_fakture||'')+'</td>'
+          +'<td>'+_htmlEsc(f.klijent_naziv||'—')+'</td>'
+          +'<td>'+Math.round(f.iznos_sa_pdv||0).toLocaleString('sr-RS')+' RSD</td>'
+          +'<td><span class="vx-badge" style="color:'+col+';border-color:'+col+';">'+_htmlEsc(f.status||'')+'</span></td>'
+          +'</tr>';
+      }).join('') + '</tbody></table></div>';
+  } catch(e) {
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;">Greška: '+_htmlEsc(e.message)+'</div>';
+  }
+}
+
 // ── SMS / WhatsApp notifikacije ───────────────────────────────────────────────
 function _smsMsg(txt, color) {
   var el = document.getElementById('sms-msg');
@@ -2622,6 +2693,66 @@ function _kancRenderClanovi(clanovi, isAdmin) {
       +'<span style="font-size:0.65rem;color:'+stColor+';padding:1px 5px;border-radius:3px;border:1px solid '+stColor+'33;">'+stLabel+'</span>'
       +actions+'</div>';
   }).join('');
+}
+
+async function kancStatistikaLoad() {
+  var el = document.getElementById('kanc-statistika-body');
+  if (!el || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/enterprise/statistike', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.3);">Kreirajte ili se pridružite kancelariji da vidite statistiku.</div>'; return; }
+    var d = await r.json();
+    if (!d.clanovi_count) { el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.3);">Nema članova.</div>'; return; }
+    var fmt = function(n){ return Math.round(n||0).toLocaleString('sr-RS') + ' RSD'; };
+    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.5rem;">'
+      + [
+        {label:'Članova', val:d.clanovi_count},
+        {label:'Predmeta', val:d.predmeti_ukupno},
+        {label:'Klijenata', val:d.klijenti_ukupno},
+        {label:'Prihod (fakture)', val:fmt(d.fakture_prihod)},
+      ].map(function(k){
+        return '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:2px;padding:.5rem;text-align:center;">'
+          +'<div style="font-size:.9rem;font-weight:700;color:#e2e8f0;">'+k.val+'</div>'
+          +'<div style="font-size:.6rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;">'+k.label+'</div></div>';
+      }).join('') + '</div>';
+
+    var r2 = await fetch(BASE_URL + '/api/enterprise/kapacitet', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (r2.ok) {
+      var d2  = await r2.json();
+      var kap = d2.kapacitet || [];
+      if (kap.length) {
+        var roleLabels = {admin:'Administrator', partner:'Partner', saradnik:'Saradnik', citanje:'Samo čitanje'};
+        html += '<div style="margin-top:.7rem;">' + kap.map(function(k){
+          return '<div style="display:flex;justify-content:space-between;padding:.3rem .1rem;font-size:.75rem;border-bottom:1px solid rgba(255,255,255,.05);">'
+            +'<span style="color:rgba(255,255,255,.6);">'+_htmlEsc(roleLabels[k.uloga]||k.uloga||'')+'</span>'
+            +'<span style="color:rgba(255,255,255,.8);">'+(k.aktivnih_predmeta||0)+' aktivnih predmeta</span></div>';
+        }).join('') + '</div>';
+      }
+    }
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:.75rem;color:#f87171;">Greška.</div>';
+  }
+}
+
+async function kancWorkflowTemplatesLoad() {
+  var el = document.getElementById('kanc-workflow-templates');
+  if (!el || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/workflow/template/lista', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.3);">Nema dostupnih predložaka.</div>'; return; }
+    var d = await r.json();
+    var tpls = d.templates || [];
+    if (!tpls.length) { el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.3);">Nema dostupnih predložaka.</div>'; return; }
+    el.innerHTML = tpls.map(function(t){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .1rem;border-bottom:1px solid rgba(255,255,255,.05);">'
+        +'<span style="font-size:.78rem;color:rgba(255,255,255,.75);">'+_htmlEsc(t.naziv||'')+'</span>'
+        +(t.kancelarija_id ? '' : '<span style="font-size:.62rem;color:rgba(255,255,255,.3);">sistemski</span>')
+        +'</div>';
+    }).join('') + '<div style="font-size:.68rem;color:rgba(255,255,255,.3);margin-top:.5rem;">Kreiranje sopstvenih predložaka dolazi uskoro — predlošci se pokreću kroz Workflow tab na predmetu.</div>';
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:.75rem;color:#f87171;">Greška.</div>';
+  }
 }
 
 async function kancelarijaKreiraj() {
