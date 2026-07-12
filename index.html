@@ -1746,27 +1746,28 @@
               <!-- ── TAB: Zadatci ──────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-zadaci" style="display:none;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
-                  <div style="font-size:.75rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Zadatci predmeta</div>
+                  <div class="vx-section-lbl">Zadatci predmeta</div>
                   <div style="display:flex;gap:.4rem;">
-                    <button onclick="zadaci_ai_analize()" style="padding:.3rem .8rem;font-size:.72rem;border:1px solid rgba(167,139,250,.3);border-radius:6px;background:rgba(167,139,250,.08);color:#a78bfa;cursor:pointer;">AI analiza</button>
-                    <button onclick="zadaci_load(activePredmetId)" style="padding:.3rem .7rem;font-size:.72rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);cursor:pointer;">↺</button>
+                    <button onclick="zadaci_ai_analize()" class="vx-btn vx-btn-secondary" style="height:30px;padding:0 0.7rem;font-size:0.72rem;">AI analiza</button>
+                    <button onclick="zadaci_load(activePredmetId)" class="vx-btn vx-btn-ghost" style="height:30px;width:30px;padding:0;">↺</button>
                   </div>
                 </div>
                 <!-- Forma za novi zadatak -->
-                <div id="zadaci-form" style="margin-bottom:.8rem;padding:.65rem .8rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:9px;">
-                  <input id="zadaci-naziv" type="text" class="t-input" placeholder="Naziv zadatka..." style="font-size:.8rem;margin-bottom:.4rem;width:100%;box-sizing:border-box;" />
+                <div id="zadaci-form" class="vx-card" style="margin-bottom:1rem;">
+                  <input id="zadaci-naziv" type="text" class="vx-input" placeholder="Naziv zadatka..." style="margin-bottom:.5rem;" />
                   <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-                    <select id="zadaci-prioritet" class="t-input" style="font-size:.75rem;flex:1;min-width:100px;">
+                    <select id="zadaci-prioritet" class="vx-select" style="flex:1;min-width:120px;">
                       <option value="normalan">Normalan prioritet</option>
-                      <option value="hitan">Hitan</option>
-                      <option value="nizak">Nizak</option>
+                      <option value="hitno">Hitno</option>
+                      <option value="visoko">Visoko</option>
+                      <option value="nisko">Nisko</option>
                     </select>
-                    <input id="zadaci-rok" type="date" class="t-input" style="font-size:.75rem;flex:1;min-width:120px;" />
-                    <button onclick="zadaci_kreiraj()" style="padding:.4rem .9rem;font-size:.78rem;border:none;border-radius:7px;background:linear-gradient(135deg,rgba(255,255,255,0.10),rgba(99,102,241,.2));color:rgba(255,255,255,0.72);cursor:pointer;font-weight:600;">+ Dodaj</button>
+                    <input id="zadaci-rok" type="date" class="vx-input" style="flex:1;min-width:130px;" />
+                    <button onclick="zadaci_kreiraj()" class="vx-btn vx-btn-primary">+ Dodaj</button>
                   </div>
                 </div>
-                <!-- Lista zadataka -->
-                <div id="zadaci-lista" style="display:flex;flex-direction:column;gap:.35rem;">
+                <!-- Kanban tabla -->
+                <div id="zadaci-lista">
                   <div style="font-size:.75rem;color:rgba(255,255,255,.28);text-align:center;padding:1.5rem;">Učitavam zadatke...</div>
                 </div>
               </div><!-- /pred-pane-zadaci -->
@@ -2763,16 +2764,13 @@
           <div id="tab-zadaci-g" style="display:none">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;">
               <div>
-                <div style="font-size:.88rem;font-weight:700;color:rgba(255,255,255,.9);">Zadatci</div>
-                <div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.15rem;">Zadatci su vezani za svaki predmet posebno</div>
+                <div style="font-size:.88rem;font-weight:700;color:rgba(255,255,255,.9);">Zadatci tima</div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.15rem;">Svi otvoreni zadatci kancelarije — za zadatke pojedinačnog predmeta, otvorite ga i idite na tab Zadaci</div>
               </div>
+              <button onclick="zadaci_g_load()" class="vx-btn vx-btn-ghost" style="height:30px;width:30px;padding:0;">↺</button>
             </div>
             <div id="zadaci-g-body">
-              <div style="text-align:center;padding:2.5rem 1rem 3rem;">
-                <div style="font-size:1.4rem;color:rgba(255,255,255,.08);margin-bottom:.9rem;">[ ]</div>
-                <div style="font-size:.82rem;color:rgba(255,255,255,.38);line-height:1.6;margin-bottom:1.2rem;">Zadatci su vezani za svaki predmet posebno.<br>Izaberite predmet i otvorite tab <strong style="color:rgba(255,255,255,.62);">Alatke</strong> da vidite i dodajete zadatke.</div>
-                <button onclick="setTab(document.getElementById('tab-btn-p'),'p')" style="padding:.52rem 1.3rem;background:rgba(75,119,232,0.12);border:1px solid rgba(75,119,232,0.30);border-radius:7px;color:rgba(155,175,255,.9);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .12s;">Idi na Predmete</button>
-              </div>
+              <div style="text-align:center;padding:2.5rem 1rem 3rem;color:rgba(255,255,255,.28);font-size:.8rem;">Učitavam...</div>
             </div>
           </div>
 

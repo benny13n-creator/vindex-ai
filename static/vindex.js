@@ -19030,6 +19030,75 @@ function evidenceGraph_otvoriModal(predmetId) {
    ══════════════════════════════════════════════════════════════════ */
 var _zadaciPredmetId = null;
 
+/* ── Vindex Kanban — Zadaci (Phase F) ────────────────────────────────────
+   Kolone prate backend statuse (routers/zadaci.py _VALIDNI_STATUSI):
+   otvoreno → u_toku → ceka → zavrseno (+ otkazano kao akcija na kartici) */
+var _ZADACI_KOLONE = [
+  { status: 'otvoreno', label: 'Za uraditi' },
+  { status: 'u_toku',   label: 'U toku' },
+  { status: 'ceka',     label: 'Čeka' },
+  { status: 'zavrseno', label: 'Završeno' },
+];
+var _ZADACI_PRIORITET_BADGE = {
+  hitno:    'vx-badge-danger',
+  visoko:   'vx-badge-warning',
+  normalan: '',
+  nisko:    '',
+};
+
+function _zadaciCardHtml(z, opts) {
+  opts = opts || {};
+  var idx = _ZADACI_KOLONE.findIndex(function(k){ return k.status === (z.status || 'otvoreno'); });
+  if (idx === -1) idx = 0;
+  var badgeCls = _ZADACI_PRIORITET_BADGE[z.prioritet] || '';
+  var rok = z.rok_datum ? '<span class="vx-caption">📅 ' + escHtml(z.rok_datum) + '</span>' : '';
+  var caseLbl = '';
+  if (opts.showCase && z.predmet_id) {
+    var p = (typeof _predmeti !== 'undefined' ? _predmeti : []).find(function(pp){ return pp.id === z.predmet_id; });
+    caseLbl = '<div class="vx-caption" style="margin-bottom:.3rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(p ? p.naziv : 'Predmet') + '</div>';
+  }
+  var moveLeft  = idx > 0 ? '<button class="vx-kb-move-btn" onclick="zadaci_setStatus(\'' + escHtml(z.id) + '\',\'' + _ZADACI_KOLONE[idx-1].status + '\',' + (opts.isGlobal ? 'true' : 'false') + ')">‹</button>' : '';
+  var moveRight = idx < _ZADACI_KOLONE.length - 1 ? '<button class="vx-kb-move-btn" onclick="zadaci_setStatus(\'' + escHtml(z.id) + '\',\'' + _ZADACI_KOLONE[idx+1].status + '\',' + (opts.isGlobal ? 'true' : 'false') + ')">›</button>' : '';
+  return '<div class="vx-kb-card">'
+    + caseLbl
+    + '<div class="vx-kb-card-title">' + escHtml(z.naziv || '') + '</div>'
+    + '<div class="vx-kb-card-meta">'
+    + (badgeCls ? '<span class="vx-badge ' + badgeCls + '">' + escHtml(z.prioritet || '') + '</span>' : '<span class="vx-badge">' + escHtml(z.prioritet || 'normalan') + '</span>')
+    + rok
+    + '</div>'
+    + '<div class="vx-kb-card-move">'
+    + moveLeft + moveRight
+    + '<button class="vx-kb-move-btn" onclick="zadaci_obrisi(\'' + escHtml(z.id) + '\',' + (opts.isGlobal ? 'true' : 'false') + ')" title="Obriši">✕</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function _zadaciRenderBoard(containerId, zadaci, opts) {
+  opts = opts || {};
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var vidljivi = zadaci.filter(function(z){ return z.status !== 'otkazano'; });
+  if (!vidljivi.length) {
+    vxGridEmpty(containerId, 'list-checks', 'Nema zadataka', opts.emptyHint || 'Dodajte prvi zadatak ili koristite AI analizu.');
+    return;
+  }
+  vxGridEmptyHide(containerId);
+  var byStatus = {};
+  _ZADACI_KOLONE.forEach(function(k){ byStatus[k.status] = []; });
+  vidljivi.forEach(function(z){ (byStatus[z.status || 'otvoreno'] || byStatus.otvoreno).push(z); });
+  var html = '<div class="vx-kb-board">';
+  _ZADACI_KOLONE.forEach(function(k) {
+    var items = byStatus[k.status] || [];
+    html += '<div class="vx-kb-col">'
+      + '<div class="vx-kb-col-hd"><span>' + k.label + '</span><span class="vx-kb-col-count">' + items.length + '</span></div>'
+      + '<div class="vx-kb-col-body">'
+      + (items.length ? items.map(function(z){ return _zadaciCardHtml(z, opts); }).join('') : '')
+      + '</div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
 async function zadaci_load(predmetId) {
   _zadaciPredmetId = predmetId;
   var el = document.getElementById('zadaci-lista');
@@ -19042,27 +19111,7 @@ async function zadaci_load(predmetId) {
     if (!r.ok) { el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška pri učitavanju zadataka.</div>'; return; }
     var d = await r.json();
     var lista = d.zadaci || d || [];
-    if (!lista.length) {
-      el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.28);text-align:center;padding:1.5rem;">Nema zadataka. Dodajte prvi ili koristite AI analizu.</div>';
-      return;
-    }
-    var _pColors = { hitan: '#f87171', normalan: 'rgba(255,255,255,0.72)', nizak: 'rgba(255,255,255,.35)' };
-    el.innerHTML = lista.map(function(z) {
-      var done = z.status === 'zavrseno';
-      var pColor = _pColors[z.prioritet] || _pColors.normalan;
-      var rok = z.rok_datum ? ('<span style="font-size:.65rem;color:rgba(255,255,255,.35);">' + z.rok_datum + '</span>') : '';
-      return '<div style="display:flex;align-items:flex-start;gap:.5rem;padding:.55rem .7rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,' + (done ? '.04' : '.08') + ');border-radius:8px;opacity:' + (done ? '.5' : '1') + ';">'
-        + '<input type="checkbox" ' + (done ? 'checked' : '') + ' style="margin-top:2px;accent-color:#4ade80;cursor:pointer;" onchange="zadaci_toggleStatus(\'' + z.id + '\',this)">'
-        + '<div style="flex:1;min-width:0;">'
-        + '<div style="font-size:.8rem;font-weight:600;color:rgba(255,255,255,.85);' + (done ? 'text-decoration:line-through;' : '') + '">' + escHtml(z.naziv || '') + '</div>'
-        + '<div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;">'
-        + '<span style="font-size:.65rem;font-weight:700;color:' + pColor + ';">' + escHtml(z.prioritet || 'normalan') + '</span>'
-        + rok
-        + '</div>'
-        + '</div>'
-        + '<button onclick="zadaci_obrisi(\'' + z.id + '\')" style="flex-shrink:0;background:transparent;border:none;color:rgba(255,80,80,.4);cursor:pointer;font-size:.85rem;padding:0 .2rem;" title="Obriši">✕</button>'
-        + '</div>';
-    }).join('');
+    _zadaciRenderBoard('zadaci-lista', lista, { isGlobal: false, emptyHint: 'Dodajte prvi zadatak ili koristite AI analizu.' });
   } catch(e) {
     el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
   }
@@ -19088,29 +19137,50 @@ async function zadaci_kreiraj() {
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
-async function zadaci_toggleStatus(id, cb) {
+async function zadaci_setStatus(id, noviStatus, isGlobal) {
   if (!currentSession) return;
-  var noviStatus = cb.checked ? 'zavrseno' : 'na_cekanju';
   try {
-    await fetch(BASE_URL + '/api/zadaci/' + encodeURIComponent(id) + '/status', {
+    var r = await fetch(BASE_URL + '/api/zadaci/' + encodeURIComponent(id) + '/status', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
       body: JSON.stringify({ status: noviStatus })
     });
-    zadaci_load(_zadaciPredmetId);
+    if (!r.ok) { showToast('Greška pri ažuriranju statusa.', 'error'); return; }
+    if (isGlobal) zadaci_g_load(); else zadaci_load(_zadaciPredmetId);
   } catch(e) { showToast('Greška pri ažuriranju statusa.', 'error'); }
 }
 
-async function zadaci_obrisi(id) {
+async function zadaci_obrisi(id, isGlobal) {
   if (!confirm('Obrisati ovaj zadatak?') || !currentSession) return;
   try {
     await fetch(BASE_URL + '/api/zadaci/' + encodeURIComponent(id), {
       method: 'DELETE',
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
     });
-    zadaci_load(_zadaciPredmetId);
+    if (isGlobal) zadaci_g_load(); else zadaci_load(_zadaciPredmetId);
     showToast('Zadatak obrisan.', 'ok');
   } catch(e) { showToast('Greška.', 'error'); }
+}
+
+async function zadaci_g_load() {
+  if (!currentSession) return;
+  var el = document.getElementById('zadaci-g-body');
+  if (!el) return;
+  el.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.28);text-align:center;padding:1.5rem;">Učitavam zadatke...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/zadaci/tim', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) { el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška pri učitavanju zadataka.</div>'; return; }
+    var d = await r.json();
+    if (d.poruka && !(d.zadaci || []).length) {
+      vxGridEmpty('zadaci-g-body', 'users', 'Nema tima', d.poruka);
+      return;
+    }
+    _zadaciRenderBoard('zadaci-g-body', d.zadaci || [], { isGlobal: true, showCase: true, emptyHint: 'Nema otvorenih zadataka u kancelariji.' });
+  } catch(e) {
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
+  }
 }
 
 async function zadaci_ai_analize() {
