@@ -3158,7 +3158,7 @@ body {
   cursor: pointer;
   transition: opacity var(--t-fast), box-shadow var(--t-fast);
 }
-.t-exec:hover { opacity: 0.88; box-shadow: 0 0 20px rgba(0,212,255,0.25); }
+.t-exec:hover { opacity: 0.88; }
 
 .cyr-toggle-wrap {
   display: flex;
