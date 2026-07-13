@@ -197,7 +197,7 @@ var _initialNavDone = false;
 var _cyrillicOn = false;
 var vxNavHistory = [];
 var _vxGoingBack = false;
-var _vxTabLabels = {h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',w:'Web3 & Kripto',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija'};
+var _vxTabLabels = {h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',w:'Digitalna imovina & Usklađenost',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija'};
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
 var currentUserDigitalnaImovinaAktivirano = false;
@@ -2166,7 +2166,7 @@ function setTab(el,t){
   ['h','s','p','k','w','kal','pi','aiws','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',w:'Web3 & Kripto',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
+  var lbl={h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',w:'Digitalna imovina & Usklađenost',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
