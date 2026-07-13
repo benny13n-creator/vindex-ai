@@ -11,8 +11,10 @@ sadržajni layout koji spaja tri modula u jedan dokument:
 """
 from __future__ import annotations
 
-from datetime import datetime
+import subprocess
+from datetime import datetime, timezone
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 from reportlab.lib import colors
@@ -71,6 +73,18 @@ def _fmt_ts(ts: int | None) -> str:
 def _section_header(story: list, naslov: str, s: dict):
     story.append(Paragraph(naslov, s["section"]))
     story.append(HRFlowable(width="100%", thickness=0.5, color=_GREY, spaceAfter=6))
+
+
+def _get_git_hash() -> str:
+    """Isti pristup kao api.py._get_git_hash — namerno dupliran (ne uvožen iz
+    api.py) da se izbegne kružni import (api.py → routers → dossier_pdf.py)."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(Path(__file__).resolve().parent), stderr=subprocess.DEVNULL, timeout=3,
+        ).decode().strip()
+    except Exception:
+        return "nepoznata"
 
 
 def generisi_dossier_pdf(kontekst: dict[str, Any]) -> bytes:
@@ -257,6 +271,25 @@ def generisi_dossier_pdf(kontekst: dict[str, Any]) -> bytes:
             story.append(Paragraph("Nedostatak podataka / ograničenja provere", s["label"]))
             for n in nalazi["nedostatak_podataka"]:
                 story.append(Paragraph(f"• {n.get('opis', '')}", s["meta"]))
+
+    # ── Metodologija — audit trail: čime/kada/kojom verzijom je izveštaj rađen ──
+    story.append(Spacer(1, 16))
+    story.append(Paragraph("Metodologija", s["label"]))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=_GREY, spaceAfter=4))
+    metodologija = []
+    if kontekst.get("wallet"):
+        metodologija += [
+            "Izvor blockchain podataka: Etherscan API V2",
+            "Izvor sankcionih podataka: OFAC SDN lista",
+            "Obuhvat: Ethereum mainnet",
+            "Maksimalan broj analiziranih transakcija: 1000",
+        ]
+    metodologija += [
+        f"Datum generisanja izveštaja: {datetime.now(timezone.utc).isoformat()}",
+        f"Verzija sistema: Vindex AI (build {_get_git_hash()})",
+    ]
+    for m in metodologija:
+        story.append(Paragraph(f"• {m}", s["meta"]))
 
     # ── Disclaimer / Footer ──────────────────────────────────────────────────
     story.append(Spacer(1, 20))
