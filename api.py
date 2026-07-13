@@ -2211,6 +2211,7 @@ async def me(user: dict = Depends(get_current_user)):
             "credits_total":     9999 if founder else BESPLATNI_KREDITI,
             "is_pro":            profil["is_pro"],
             "is_founder":        founder,
+            "digitalna_imovina_aktivirano": profil.get("digitalna_imovina_aktivirano", False),
         }
     except Exception as exc:
         logger.exception("Greška u /api/me za korisnika %s", user.get("user_id"))
@@ -2296,6 +2297,24 @@ async def require_pro(user: dict = Depends(get_current_user)) -> dict:
         )
     user["is_pro"] = True
     return user
+
+
+@app.post("/api/settings/digitalna-imovina/aktiviraj")
+async def aktiviraj_digitalnu_imovinu(user: dict = Depends(require_pro)):
+    """Aktivira add-on modul 'Digitalna imovina & Usklađenost' za PRO korisnika.
+    Nema pravu naplatu iza sebe (Stripe nije integrisan) — samo perzistira
+    izbor korisnika da uključi modul u AI Radni Prostor."""
+    try:
+        await asyncio.to_thread(
+            lambda: _get_supa().table("profiles")
+                .update({"digitalna_imovina_aktivirano": True})
+                .eq("id", user["user_id"])
+                .execute()
+        )
+        return {"aktivirano": True}
+    except Exception as exc:
+        logger.exception("Greška pri aktivaciji digitalna_imovina za %s", user.get("user_id"))
+        raise HTTPException(status_code=500, detail=f"Greška pri aktivaciji: {exc!r}")
 
 
 @app.get("/api/debug")

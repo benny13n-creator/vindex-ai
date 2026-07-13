@@ -200,6 +200,7 @@ var _vxGoingBack = false;
 var _vxTabLabels = {h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',w:'Web3 & Kripto',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija'};
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
+var currentUserDigitalnaImovinaAktivirano = false;
 var _lastRawText = '';
 
 function toggleCyrillic() {
@@ -315,6 +316,8 @@ async function loadCredits() {
       TOTAL_CREDITS     = d.credits_total || 15;
       currentUserIsPro     = !!d.is_pro;
       currentUserIsFounder = !!d.is_founder;
+      currentUserDigitalnaImovinaAktivirano = !!d.digitalna_imovina_aktivirano;
+      if (typeof _dimRenderAiwsPill === 'function') _dimRenderAiwsPill();
       _creditsLoaded    = true;
       _creditsLoadedAt  = Date.now();
       _updateAdminTabUI();

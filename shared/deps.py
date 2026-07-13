@@ -360,7 +360,28 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
             user_id, type(exc).__name__, str(exc)[:200],
         )
 
-    return {"credits_remaining": credits_remaining, "is_pro": _is_pro(email, is_pro_db)}
+    # ── Korak 3: digitalna_imovina_aktivirano — odvojen, izolovan poziv (ne sme
+    # da obori is_pro čitanje ako migracija 060 još nije pokrenuta na serveru) ─
+    digitalna_imovina_aktivirano = False
+    try:
+        dim_res = (
+            supa.table("profiles")
+            .select("digitalna_imovina_aktivirano")
+            .eq("id", user_id)
+            .execute()
+        )
+        digitalna_imovina_aktivirano = bool((dim_res.data or [{}])[0].get("digitalna_imovina_aktivirano", False))
+    except Exception as exc:
+        logger.debug(
+            "[PROFILE] digitalna_imovina_aktivirano nije dostupno za uid=%.8s (migracija 060?) — %s",
+            user_id, type(exc).__name__,
+        )
+
+    return {
+        "credits_remaining": credits_remaining,
+        "is_pro": _is_pro(email, is_pro_db),
+        "digitalna_imovina_aktivirano": digitalna_imovina_aktivirano,
+    }
 
 
 def _get_credits(user_id: str) -> int:
