@@ -75,8 +75,12 @@ def _make_supa(predmet=None, not_found=False):
         if name == "predmeti":
             if not_found:
                 sel.eq.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data=None)
+                sel.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(data=None)
             else:
                 sel.eq.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
+                    data=predmet or SAMPLE_PREDMET
+                )
+                sel.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(
                     data=predmet or SAMPLE_PREDMET
                 )
         elif name == "predmet_dokumenti":

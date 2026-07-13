@@ -187,7 +187,7 @@ def test_t5_json_ka_tekst_parnica_sections():
     assert "--- PROCESNI KORACI" in tekst, "T5 FAIL: missing --- PROCESNI KORACI"
     assert "--- PROCENA VREDNOSTI ZAHTEVA" in tekst, "T5 FAIL: missing --- PROCENA VREDNOSTI ZAHTEVA"
     assert "--- RIZICI I IZUZECI" in tekst, "T5 FAIL: missing --- RIZICI I IZUZECI"
-    assert "--- KADA OVO NE VAŽI" in tekst, "T5 FAIL: missing --- KADA OVO NE VAŽI"
+    assert "--- TAČKE RIZIKA" in tekst, "T5 FAIL: missing --- TAČKE RIZIKA"
 
 
 # ─── T6: _json_ka_tekst COMPLIANCE → type-specific sections present ───────────

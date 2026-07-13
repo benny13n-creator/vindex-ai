@@ -84,6 +84,7 @@ def _make_supa_recurring(tpl=None, tpl_list=None, faktura_row=None):
             sel.eq.return_value.order.return_value.execute.return_value  = MagicMock(data=tpl_list or [SAMPLE_TPL])
             sel.eq.return_value.order.return_value.eq.return_value.execute.return_value = MagicMock(data=tpl_list or [SAMPLE_TPL])
             sel.eq.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data=tpl_data)
+            sel.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(data=tpl_data)
             sel.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[tpl_data])
 
         elif name == "fakture":
@@ -215,6 +216,7 @@ def test_get_recurring_200(client):
 def test_get_recurring_not_found():
     supa = _make_supa_recurring(tpl=None)
     supa.table("recurring_templates").select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data=None)
+    supa.table("recurring_templates").select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(data=None)
     api.app.dependency_overrides[get_current_user] = lambda: FAKE_USER
     with patch("routers.recurring._get_supa", return_value=supa):
         c = TestClient(api.app, raise_server_exceptions=False)
@@ -297,6 +299,7 @@ def test_generisi_not_found_404():
     supa = _make_supa_recurring()
     # Override da vrati None za template
     supa.table("recurring_templates").select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data=None)
+    supa.table("recurring_templates").select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(data=None)
     api.app.dependency_overrides[get_current_user] = lambda: FAKE_USER
     with patch("routers.recurring._get_supa", return_value=supa):
         c = TestClient(api.app, raise_server_exceptions=False)

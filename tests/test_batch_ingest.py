@@ -62,6 +62,9 @@ def _make_supa(job_data: dict | None = None):
         sel.eq.return_value.single.return_value.execute.return_value = MagicMock(
             data=job_data
         )
+        sel.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(
+            data=job_data
+        )
         tbl.select.return_value = sel
         return tbl
 

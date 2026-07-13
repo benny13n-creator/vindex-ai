@@ -37,6 +37,7 @@ def _build_supa(pred: dict | None, insert_ok: bool = True):
             single = MagicMock()
             single.execute.return_value.data = pred
             t.select.return_value.eq.return_value.eq.return_value.single.return_value = single
+            t.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value = single
         elif name == "predmet_hronologija":
             ins = MagicMock()
             if insert_ok:

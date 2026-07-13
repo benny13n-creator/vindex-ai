@@ -34,10 +34,13 @@ def _build_supa(pred: dict | None, hron_rows: list[dict] | None = None):
     def _table(name):
         t = MagicMock()
         if name == "predmeti":
-            # single() chain: .select.eq.eq.single.execute
+            # Ruter koristi .maybe_single() (vraca None kad nista nije nadjeno,
+            # umesto da baci izuzetak kao stari .single()) — mokuj oba da
+            # test ne zavisi od toga koju od dve metode kod trenutno zove.
             single_chain = MagicMock()
             single_chain.execute.return_value.data = pred
             t.select.return_value.eq.return_value.eq.return_value.single.return_value = single_chain
+            t.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value = single_chain
             # update() chain
             upd_chain = MagicMock()
             upd_chain.execute.return_value.data = [pred] if pred else []
