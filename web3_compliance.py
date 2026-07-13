@@ -620,3 +620,126 @@ def aml_kyc_auditor_sync(tekst_politike: str, api_key: str) -> dict:
     nivo = audit_data.get("uskladenost_nivo", "")
     objasnjenje = f"AML/KYC usklađenost: {skor}/100 — {nivo}"
     return {"audit_data": audit_data, "objasnjenje": objasnjenje, "raw": raw}
+
+
+# ── Documentation Health Score ────────────────────────────────────────────────
+# Samo-procena spremnosti dokumentacije digitalne imovine za regulatorni/bankarski
+# due diligence. NIJE RAG-grounded — ovo je strukturna/organizaciona procena
+# (šta korisnik ima vs. šta obično traži banka/regulator), ne interpretacija
+# konkretnog člana zakona, pa citation guard ovde nije potreban.
+
+_DOC_HEALTH_SYSTEM = """Ti si ekspert za regulatorni i bankarski due diligence u oblasti digitalne imovine.
+Korisnik opisuje kakvu dokumentaciju poseduje o svojoj kripto imovini i transakcijama.
+Tvoj zadatak je da oceniš SPREMNOST te dokumentacije za eventualni upit banke, regulatora
+ili poreske uprave — ne da daš poresko ili pravno mišljenje o samim transakcijama.
+
+Oceni tačno ovih 6 kategorija:
+- kyc_dokumentacija (max 20): lična dokumenta, verifikacija identiteta na berzama
+- exchange_istorija (max 15): izvodi/exports transakcione istorije sa berzi (CEX)
+- bankovni_trag (max 20): bankovni izvodi koji povezuju fiat uplate/isplate sa kripto aktivnošću
+- wallet_evidencija (max 20): evidencija o sopstvenim wallet adresama i kontroli nad njima
+- poreska_rezidentnost (max 10): jasnoća poreske rezidentnosti u periodu sticanja/otuđenja
+- dokazi_sticanja (max 15): dokazi o TRENUTKU i NAČINU sticanja svake veće pozicije (kupovina, mining, airdrop, poklon...)
+
+Odgovori ISKLJUČIVO u JSON formatu (bez teksta pre ili posle):
+```json
+{
+  "ukupni_skor": 0,
+  "kategorije": {
+    "kyc_dokumentacija": {"skor": 0, "max": 20, "status": "ok|warning|danger", "komentar": ""},
+    "exchange_istorija": {"skor": 0, "max": 15, "status": "ok|warning|danger", "komentar": ""},
+    "bankovni_trag": {"skor": 0, "max": 20, "status": "ok|warning|danger", "komentar": ""},
+    "wallet_evidencija": {"skor": 0, "max": 20, "status": "ok|warning|danger", "komentar": ""},
+    "poreska_rezidentnost": {"skor": 0, "max": 10, "status": "ok|warning|danger", "komentar": ""},
+    "dokazi_sticanja": {"skor": 0, "max": 15, "status": "ok|warning|danger", "komentar": ""}
+  },
+  "skor_nivo": "NIZAK|SREDNJI|VISOK",
+  "kriticni_nedostaci": [],
+  "preporuke": []
+}
+```
+
+PRAVILO ZA "kriticni_nedostaci": prvi element MORA biti NAJVEĆI pojedinačni rizik, formulisan
+konkretno i sa posledicom — po uzoru na: "Najveći rizik je nemogućnost povezivanja sredstava na
+wallet adresi X sa dokumentovanim izvorom sticanja." Ne generička fraza — imenuj TAČNO koja
+kategorija/situacija iz opisa korisnika predstavlja najveći problem.
+
+skor_nivo: NIZAK (0-39), SREDNJI (40-69), VISOK (70-100)
+
+VAŽNO: Ovo je procena ORGANIZACIONE spremnosti dokumentacije, ne poresko ili pravno mišljenje.
+Ne izmišljaj zakonske reference — ako pomeneš obavezu, formuliši je kao opštepoznatu praksu
+(npr. "banke uobičajeno traže...") a ne kao citat konkretnog člana zakona."""
+
+
+def documentation_health_score_sync(opis_dokumentacije: str, api_key: str) -> dict:
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.1,
+        max_tokens=1500,
+        timeout=90.0,
+        messages=[
+            {"role": "system", "content": _DOC_HEALTH_SYSTEM},
+            {"role": "user",   "content": f"Opis posedovane dokumentacije o kripto imovini:\n\n{opis_dokumentacije}"},
+        ],
+    )
+    raw = (resp.choices[0].message.content or "").strip()
+    health_data = _parsiraj_json_iz_odgovora(raw)
+    skor = health_data.get("ukupni_skor", "?")
+    nivo = health_data.get("skor_nivo", "")
+    objasnjenje = f"Spremnost dokumentacije: {skor}/100 — {nivo}"
+    return {"health_data": health_data, "objasnjenje": objasnjenje, "raw": raw}
+
+
+# ── Exchange Reporting Simulator ──────────────────────────────────────────────
+# NAMERNO bez RAG-a nad web3_zdi_mca namespacom (ta baza pokriva ZDI+MiCA, ne
+# CARF/DAC8/CRS) i BEZ citiranja konkretnih članova CARF/DAC8 — ti dokumenti
+# nisu ingestovani u bazu, pa bi svaki citat bio izmišljen. Umesto toga: opšte,
+# javno poznate kategorije transakcija koje međunarodni okviri za izveštavanje
+# (CARF/DAC8/CRS generalno) tipično posmatraju, sa jasnim disclaimerom.
+
+_EXCHANGE_SIM_SYSTEM = """Ti si edukativni asistent za opšte obrasce regulatornog izveštavanja
+u oblasti digitalne imovine (u duhu CARF — OECD Crypto-Asset Reporting Framework, i DAC8 — EU
+direktiva o administrativnoj saradnji). NEMAŠ pristup punom tekstu CARF/DAC8 dokumenata, pa:
+
+- NIKAD ne citiraj konkretan član/paragraf CARF ili DAC8 teksta — ti brojevi ti nisu dostupni.
+- NIKAD ne tvrdi da je nešto "obavezno prijaviti" u konkretnoj jurisdikciji — implementacija
+  CARF/DAC8 se razlikuje po zemlji i vremenskom okviru primene.
+- Govori u kategorijama transakcija koje ovi okviri OPŠTE POSMATRAJU (javno poznato, ne
+  jurisdikciono specifično), na primer:
+  • kupovina kripto imovine za fiat valutu
+  • prodaja kripto imovine za fiat valutu
+  • razmena kripto imovine za drugu kripto imovinu (crypto-to-crypto)
+  • povlačenje (withdraw) na self-custody wallet
+  • uplata (deposit) sa self-custody wallet-a
+  • transakcija sa nepoznatim identitetom druge strane (peer-to-peer, DEX bez KYC-a)
+
+Za svaki scenario koji korisnik opiše: klasifikuj koje od gornjih kategorija transakcija su
+prisutne, objasni ZAŠTO je ta kategorija tipično od interesa za izveštavanje (u opštem smislu),
+i jasno označi šta NIJE poznato/predvidivo bez uvida u lokalnu implementaciju.
+
+OBAVEZAN završetak SVAKOG odgovora, tačno ovim tekstom:
+
+---
+⚠️ Ovo je opšta regulatorna edukacija zasnovana na javno poznatim obrascima međunarodnog
+izveštavanja o kripto imovini (CARF/DAC8/CRS koncepti), NE poreski ili pravni savet, i NE
+zvanično tumačenje CARF ili DAC8 teksta. Konkretna obaveza izveštavanja zavisi od jurisdikcije,
+statusa platforme i datuma primene lokalnih propisa — konsultujte poreskog savetnika ili
+advokata pre donošenja odluka."""
+
+
+def exchange_reporting_simulator_sync(opis_scenarija: str, api_key: str) -> str:
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.1,
+        max_tokens=1500,
+        timeout=90.0,
+        messages=[
+            {"role": "system", "content": _EXCHANGE_SIM_SYSTEM},
+            {"role": "user",   "content": f"Scenario transakcija za analizu:\n\n{opis_scenarija}"},
+        ],
+    )
+    return (resp.choices[0].message.content or "").strip()

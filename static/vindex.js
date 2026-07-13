@@ -4726,6 +4726,22 @@ var WEB3_MODULI = {
     min:         20,
     maxChars:    50000,
     btnText:     'Analiziraj ugovor'
+  },
+  health_score: {
+    naziv:       'Documentation Health Score',
+    endpoint:    '/web3/health-score',
+    opis:        'Ocenjuje spremnost vaše dokumentacije za regulatorni ili bankarski due diligence u 6 kategorija: KYC dokumentacija, exchange istorija, bankovni trag, wallet evidencija, poreska rezidentnost, dokazi o sticanju. Identifikuje najveći pojedinačni rizik.',
+    label:       'Opišite kakvu dokumentaciju posedujete o vašoj kripto imovini',
+    placeholder: 'Npr: Imam KYC verifikaciju na Binance i Kraken nalozima. Imam bankovne izvode za većinu fiat uplata od 2021. Nemam evidenciju kada sam prvi put povukao sredstva na self-custody wallet niti dokaz porekla za poziciju stečenu 2019...',
+    min:         30
+  },
+  reporting_simulator: {
+    naziv:       'Exchange Reporting Simulator',
+    endpoint:    '/web3/reporting-simulator',
+    opis:        'Edukativna simulacija: koje kategorije transakcija su tipično od interesa za međunarodne okvire izveštavanja (CARF/DAC8/CRS koncepti). Opšta regulatorna edukacija, ne poreski savet — pogledajte disclaimer u odgovoru.',
+    label:       'Opišite scenario transakcija',
+    placeholder: 'Npr: Kupio sam Bitcoin za evre na Binance-u, zamenio deo za Ethereum, i povukao sve na hardverski wallet. Šta bi od ovoga bilo tipično relevantno za izveštavanje?',
+    min:         20
   }
 };
 var _web3AktivniModul = 'web3_pretraga';
@@ -4848,6 +4864,7 @@ async function web3Pokreni() {
     if (bodyEl) {
       if (data.modul === 'smart_contract') bodyEl.innerHTML = web3RenderSmartContract(data);
       else if (data.modul === 'mica_score') bodyEl.innerHTML = web3RenderScore(data.score_data, data.objasnjenje, 'mica');
+      else if (data.modul === 'health_score') bodyEl.innerHTML = web3RenderScore(data.health_data, data.objasnjenje, 'health');
       else if (data.modul === 'license_check') bodyEl.innerHTML = web3RenderLicense(data.license_data, data.objasnjenje);
       else if (data.modul === 'aml_audit') bodyEl.innerHTML = web3RenderAudit(data.audit_data, data.objasnjenje);
       else if (data.modul === 'web3_pretraga') {
@@ -5009,7 +5026,13 @@ var _w3KatNazivi = {
   izvestavanje_sumljivih: 'Izveštavanje sumnjivih',
   cuvanje_dokumentacije: 'Čuvanje dokumentacije',
   obuka_zaposlenih: 'Obuka zaposlenih',
-  interna_kontrola: 'Interna kontrola'
+  interna_kontrola: 'Interna kontrola',
+  kyc_dokumentacija: 'KYC dokumentacija',
+  exchange_istorija: 'Exchange istorija',
+  bankovni_trag: 'Bankovni trag',
+  wallet_evidencija: 'Wallet evidencija',
+  poreska_rezidentnost: 'Poreska rezidentnost',
+  dokazi_sticanja: 'Dokazi o sticanju'
 };
 
 function _web3RenderKategorije(kategorije) {

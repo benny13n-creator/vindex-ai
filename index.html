@@ -2489,19 +2489,34 @@
             <div class="vx-exec-header">
               <div>
                 <div class="vx-exec-header-eyebrow">Digitalna imovina</div>
-                <div class="vx-exec-header-title">Web3 & Kripto usklađenost</div>
-                <div class="vx-exec-header-sub">Pravna analiza zasnovana na ZDI (Srbija) i MiCA (EU 2023/1114)</div>
+                <div class="vx-exec-header-title">Digitalna imovina & Usklađenost</div>
+                <div class="vx-exec-header-sub">Pravna i regulatorna analiza digitalne imovine — ZDI (Srbija), MiCA (EU 2023/1114), i spremnost za due diligence.</div>
               </div>
             </div>
+            <div class="vx-section-lbl" style="margin:.2rem 0 .5rem;">MiCA & ZDI</div>
             <div class="strat-modul-izbor web3-moduli">
               <button class="strat-btn active" data-modul="web3_pretraga" onclick="web3IzaberiModul('web3_pretraga',this)">ZDI/MiCA Pretraga</button>
               <button class="strat-btn" data-modul="compliance_check" onclick="web3IzaberiModul('compliance_check',this)">Provera uskladenosti</button>
               <button class="strat-btn" data-modul="whitepaper_check" onclick="web3IzaberiModul('whitepaper_check',this)">Analiza projekta</button>
               <button class="strat-btn" data-modul="mica_score" onclick="web3IzaberiModul('mica_score',this)">MiCA ocena</button>
-              <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">Provera licence</button>
+              <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">Provera licence / klasifikacija</button>
+            </div>
+            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">AML/KYC & Ugovori</div>
+            <div class="strat-modul-izbor web3-moduli">
               <button class="strat-btn" data-modul="aml_audit" onclick="web3IzaberiModul('aml_audit',this)">AML/KYC Revizija</button>
               <button class="strat-btn" data-modul="smart_contract" onclick="web3IzaberiModul('smart_contract',this)">Pametni Ugovor</button>
             </div>
+            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">Spremnost za due diligence</div>
+            <div class="strat-modul-izbor web3-moduli">
+              <button class="strat-btn" data-modul="health_score" onclick="web3IzaberiModul('health_score',this)">Dokumentacioni Health Score</button>
+              <button class="strat-btn" data-modul="reporting_simulator" onclick="web3IzaberiModul('reporting_simulator',this)">Reporting Simulator</button>
+            </div>
+            <details class="vx-manual-compare" style="margin-top:1rem;">
+              <summary>🔒 Na mapi puta — CARF/DAC8 Readiness, Wallet Provenance, Source of Funds, Cross-Jurisdiction Tax</summary>
+              <div style="padding:.7rem .2rem .3rem;font-size:.76rem;color:rgba(255,255,255,.45);line-height:1.6;">
+                Ova četiri modula čekaju ili ingestovanje regulatornog sadržaja (CARF/DAC8/jurisdikcije) ili integraciju sa spoljnim blockchain data provajderom (wallet istorija) — oba su odluke van pukog kodiranja, u pripremi.
+              </div>
+            </details>
             <div id="web3-opis" class="strat-opis-box web3-opis-box"></div>
             <div class="strat-input-wrap">
               <label id="web3-input-label" class="strat-label"></label>

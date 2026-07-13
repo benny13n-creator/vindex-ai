@@ -2,15 +2,22 @@
 """
 Vindex AI — routers/web3.py
 
-F11: Web3/MiCA Compliance moduli (PRO only)
+F11: Digitalna imovina & Usklađenost moduli (PRO only)
   F11.1 — Web3 pretraga (ZDI/MiCA namespace)
   F11.2 — Compliance checker
   F11.3 — Whitepaper analiza
   F11.4 — MiCA Readiness Score
   F11.5 — ZDI License Checker
   F11.6 — AML/KYC Auditor
+  F11.7 — Documentation Health Score (spremnost za due diligence, ne RAG-grounded)
+  F11.8 — Exchange Reporting Simulator (opšta CARF/DAC8-tipa edukacija, ne RAG-grounded,
+          namerno bez citiranja konkretnih članova — ti dokumenti nisu ingestovani)
 
 F12: Smart Contract Legal Analyzer (PRO, 5 kredita)
+
+Na mapi puta (blokirano na sadržaj/spoljni API, ne na kod — vidi audit sesije):
+  CARF/DAC8 Readiness Analyzer, Wallet Provenance Report, Source-of-Funds paket,
+  Cross-Jurisdiction Crypto Tax Intelligence.
 """
 import asyncio
 import os
@@ -28,6 +35,8 @@ from web3_compliance import (
     mica_readiness_score_sync as _mica_readiness_score,
     zdi_license_checker_sync as _zdi_license_checker,
     aml_kyc_auditor_sync as _aml_kyc_auditor,
+    documentation_health_score_sync as _documentation_health_score,
+    exchange_reporting_simulator_sync as _exchange_reporting_simulator,
 )
 
 router = APIRouter()
@@ -162,6 +171,47 @@ async def post_aml_audit(req: StrategijaRequest, request: Request, user: dict = 
     except Exception:
         logger.exception("[F11] aml_audit greška")
         raise HTTPException(status_code=500, detail="Greška pri AML/KYC auditu. Pokušajte ponovo.")
+
+
+@router.post("/web3/health-score")  # F11.7
+@limiter.limit("5/minute")
+async def post_documentation_health_score(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.7 — Documentation Health Score: spremnost dokumentacije za regulatorni/bankarski due diligence (PRO)."""
+    if len(req.tekst.strip()) < 30:
+        raise HTTPException(status_code=422, detail="Opis dokumentacije mora imati najmanje 30 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "health_score", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _documentation_health_score, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {
+            "health_data": rezultat["health_data"],
+            "objasnjenje": rezultat["objasnjenje"],
+            "modul": "health_score",
+            "credits_remaining": max(preostalo, 0),
+        }
+    except Exception:
+        logger.exception("[F11] health_score greška")
+        raise HTTPException(status_code=500, detail="Greška pri proceni spremnosti dokumentacije. Pokušajte ponovo.")
+
+
+@router.post("/web3/reporting-simulator")  # F11.8
+@limiter.limit("10/minute")
+async def post_reporting_simulator(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.8 — Exchange Reporting Simulator: opšta edukacija o obrascima CARF/DAC8-tipa izveštavanja (PRO)."""
+    if len(req.tekst.strip()) < 20:
+        raise HTTPException(status_code=422, detail="Opis scenarija mora imati najmanje 20 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "reporting_simulator", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _exchange_reporting_simulator, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "reporting_simulator", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F11] reporting_simulator greška")
+        raise HTTPException(status_code=500, detail="Greška pri simulaciji izveštavanja. Pokušajte ponovo.")
 
 
 # ── F12: Smart Contract Legal Analyzer ───────────────────────────────────────
