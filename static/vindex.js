@@ -2287,10 +2287,10 @@ function _dimOpenModul() {
 
 /* ── Digitalna imovina — nivo 2 (kartice/sekundarni alati -> podskup modula) ─── */
 var DIM_CARDS = {
-  regulatorna: { title: 'Regulatorna analiza', modules: ['web3_pretraga', 'compliance_check', 'mica_score', 'license_check'] },
-  carf:        { title: 'CARF/DAC8',           modules: ['jurisdikcije', 'jurisdikcija_analiza', 'carf_dac8_readiness', 'csv_import'] },
-  wallet:      { title: 'Wallet & Sankcije',    modules: ['ofac_screening', 'wallet_provenance'] },
-  sof:         { title: 'Source of Funds',      modules: ['health_score', 'source_of_funds_dossier'] }
+  due_diligence: { title: 'Due Diligence',         modules: ['health_score'] },
+  regulatorna:   { title: 'Regulatory Review',     modules: ['web3_pretraga', 'compliance_check', 'mica_score', 'license_check', 'jurisdikcije', 'jurisdikcija_analiza', 'carf_dac8_readiness', 'csv_import'] },
+  wallet:        { title: 'Wallet Risk Assessment', modules: ['ofac_screening', 'wallet_provenance'] },
+  sof:           { title: 'Source of Funds',        modules: ['source_of_funds_dossier'] }
 };
 var DIM_MODUL_LABELS = {
   web3_pretraga:           'ZDI/MiCA Pretraga',
@@ -2439,7 +2439,7 @@ function dimModuleCardRender() {
   if (!badge || !action) return;
 
   if (!currentUserIsPro) {
-    badge.textContent = '🔒 ZAKLJUČANO';
+    badge.textContent = 'ZAKLJUČANO';
     badge.style.background = 'rgba(255,255,255,.06)';
     badge.style.color = 'rgba(255,255,255,.4)';
     action.innerHTML = '<button class="settings-btn" onclick="openProUpgradeModal()">Aktiviraj modul</button>';

@@ -3104,7 +3104,7 @@
                 <div>
                   <div class="vx-exec-header-eyebrow">Digitalna imovina</div>
                   <div class="vx-exec-header-title">Digitalna imovina & Usklađenost</div>
-                  <div class="vx-exec-header-sub">Regulatorna analiza digitalne imovine, AML/KYC, CARF/DAC8 spremnost i due diligence.</div>
+                  <div class="vx-exec-header-sub">Due diligence, regulatorna provera, wallet risk assessment i source-of-funds dokumentacija za banke, advokatske kancelarije i compliance timove.</div>
                 </div>
               </div>
 
@@ -3121,27 +3121,27 @@
 
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.7rem;margin-bottom:1.2rem;">
                 <div class="vx-card" style="padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
-                  <div style="font-size:1.1rem;">⚖</div>
-                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">Regulatorna analiza</div>
-                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">ZDI/MiCA pretraga, provera usklađenosti, MiCA Score, License Check</div>
+                  <i data-lucide="file-search" style="width:18px;height:18px;color:rgba(255,255,255,.5);" stroke-width="1.6"></i>
+                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">Due Diligence</div>
+                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">Provera porekla i dokumentacione spremnosti digitalne imovine</div>
+                  <button class="vx-btn vx-btn-ghost" style="align-self:flex-start;" onclick="dimOpenCard('due_diligence')">Otvori</button>
+                </div>
+                <div class="vx-card" style="padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
+                  <i data-lucide="scale" style="width:18px;height:18px;color:rgba(255,255,255,.5);" stroke-width="1.6"></i>
+                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">Regulatory Review</div>
+                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">CARF, DAC8, MiCA, ZDI — pretraga, usklađenost i spremnost za izveštavanje</div>
                   <button class="vx-btn vx-btn-ghost" style="align-self:flex-start;" onclick="dimOpenCard('regulatorna')">Otvori</button>
                 </div>
                 <div class="vx-card" style="padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
-                  <div style="font-size:1.1rem;">🌐</div>
-                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">CARF/DAC8</div>
-                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">Jurisdikcije, Readiness analiza, CSV Import (Binance/Kraken)</div>
-                  <button class="vx-btn vx-btn-ghost" style="align-self:flex-start;" onclick="dimOpenCard('carf')">Otvori</button>
-                </div>
-                <div class="vx-card" style="padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
-                  <div style="font-size:1.1rem;">🔍</div>
-                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">Wallet & Sankcije</div>
-                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">OFAC screening, Wallet Provenance, coverage i risk nalazi</div>
+                  <i data-lucide="shield-alert" style="width:18px;height:18px;color:rgba(255,255,255,.5);" stroke-width="1.6"></i>
+                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">Wallet Risk Assessment</div>
+                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">Wallet provenance i OFAC sankciona provera adresa</div>
                   <button class="vx-btn vx-btn-ghost" style="align-self:flex-start;" onclick="dimOpenCard('wallet')">Otvori</button>
                 </div>
                 <div class="vx-card" style="padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
-                  <div style="font-size:1.1rem;">📄</div>
+                  <i data-lucide="file-check-2" style="width:18px;height:18px;color:rgba(255,255,255,.5);" stroke-width="1.6"></i>
                   <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">Source of Funds</div>
-                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">Documentation Score, PDF Dossier za banku/compliance tim</div>
+                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">PDF dosije porekla sredstava za banku ili regulatora</div>
                   <button class="vx-btn vx-btn-ghost" style="align-self:flex-start;" onclick="dimOpenCard('sof')">Otvori</button>
                 </div>
               </div>
@@ -3414,14 +3414,23 @@
             <!-- ── Pretplate i moduli — enterprise compliance add-on ───────── -->
             <div class="settings-section" id="moduli-section">
               <div class="settings-section-hd"><span>Pretplate i moduli</span></div>
-              <div id="dim-module-card" style="border:1px solid rgba(255,255,255,0.08);border-radius:3px;padding:.9rem 1rem;">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.65rem;">
+              <div id="dim-module-card" style="border:1px solid rgba(255,255,255,0.08);border-radius:3px;padding:1rem 1.1rem;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.15rem;">
                   <div>
-                    <div style="font-size:.85rem;font-weight:700;color:rgba(255,255,255,0.85);margin-bottom:.3rem;">Digitalna imovina & Usklađenost</div>
-                    <div style="font-size:.74rem;color:rgba(255,255,255,0.45);line-height:1.5;">CARF/DAC8 · OFAC Screening · Wallet Provenance · AML/KYC · Source-of-Funds · MiCA i ZDI regulatorna analiza</div>
+                    <div style="font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,212,255,0.65);margin-bottom:.25rem;">Enterprise Add-on</div>
+                    <div style="font-size:.9rem;font-weight:700;color:rgba(255,255,255,0.85);">Digitalna imovina & Usklađenost</div>
                   </div>
                   <span id="dim-status-badge" style="flex-shrink:0;font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;"></span>
                 </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.25rem .75rem;margin:.75rem 0;">
+                  <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ CARF/DAC8</div>
+                  <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ OFAC Screening</div>
+                  <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ Wallet Provenance</div>
+                  <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ Source-of-Funds</div>
+                  <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ Documentation Health</div>
+                  <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ Regulatory Intelligence</div>
+                </div>
+                <div style="font-size:.7rem;color:rgba(255,255,255,0.35);margin-bottom:.8rem;">Za: advokatske kancelarije · banke · compliance timove · finansijske institucije</div>
                 <div id="dim-action-wrap"></div>
               </div>
             </div>
