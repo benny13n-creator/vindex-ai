@@ -172,6 +172,15 @@ def generisi_dossier_pdf(kontekst: dict[str, Any]) -> bytes:
     wallet = kontekst.get("wallet")
     if wallet:
         _section_header(story, "3. PROVERA NOVČANIKA (WALLET PROVENANCE)", s)
+
+        # Ograničenja analize — UVEK prvo, pre adrese i pre bilo kog nalaza.
+        ogranicenja = wallet.get("ogranicenja_analize") or []
+        if ogranicenja:
+            story.append(Paragraph("Ograničenja analize", s["label"]))
+            for o in ogranicenja:
+                story.append(Paragraph(f"• {o}", s["meta"]))
+            story.append(Spacer(1, 6))
+
         story.append(Paragraph(f"Adresa: {wallet.get('adresa', '—')}", s["label"]))
         story.append(Spacer(1, 4))
 

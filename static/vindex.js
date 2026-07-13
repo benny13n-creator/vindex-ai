@@ -5102,6 +5102,16 @@ async function web3WalletProvenance() {
     var html = '';
     var nalazi = d.nalazi || {sankcioni: [], analiticki: [], nedostatak_podataka: []};
 
+    // Ograničenja analize — UVEK prvo, pre bilo kog nalaza (ono što pravni tim
+    // mora da vidi pre svega ostalog, ne u sitnoj fusnoti na dnu)
+    if (d.ogranicenja_analize && d.ogranicenja_analize.length) {
+      html += '<div class="vx-card" style="padding:.6rem .8rem;margin-bottom:.8rem;border-left:2px solid rgba(255,187,112,.6);">'
+        + '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,187,112,.85);font-weight:700;margin-bottom:.35rem;">Ograničenja analize</div>'
+        + '<ul style="margin:0;padding-left:1.1rem;font-size:.74rem;color:rgba(255,255,255,.65);line-height:1.5;">'
+        + d.ogranicenja_analize.map(function(o) { return '<li>' + _htmlEsc(o) + '</li>'; }).join('')
+        + '</ul></div>';
+    }
+
     if (nalazi.sankcioni.length) {
       html += '<div class="strat-error" style="margin-bottom:.6rem;">⚠ ' + nalazi.sankcioni.length + ' sankcioni nalaz(a) — vidi ispod.</div>';
     } else {

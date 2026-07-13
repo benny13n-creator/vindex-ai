@@ -58,6 +58,18 @@ CONFIDENCE_NISKA = "NISKA"
 
 _KONTAKT_PRAG_HEURISTIKA = 300  # proizvoljan prag — heuristika, nije kalibrisan model
 
+# ── Ograničenja analize — fiksna lista, uvek na vrhu izveštaja (UI + PDF) ────
+# Ono što pravni/compliance tim mora da vidi PRE bilo kog nalaza, ne posle,
+# ne u sitnom fusnoti tekstu. Vidi feedback sesije 2026-07-13.
+OGRANICENJA_ANALIZE = [
+    "Analiza je trenutno ograničena na Ethereum mrežu (mainnet).",
+    "Proveravaju se isključivo direktni (1-hop) kontakti novčanika — sredstva se ne "
+    "prate kroz više transakcija unazad (multi-hop).",
+    "Rezultat NE predstavlja potpunu blockchain forenzičku analizu.",
+    "Ne vrši se identifikacija vlasnika novčanika niti atribucija entiteta, osim putem "
+    "javno dostupnih oznaka i zvaničnih sankcionih lista (OFAC SDN).",
+]
+
 
 class WalletProvenanceRequest(BaseModel):
     adresa: str = Field(..., min_length=42, max_length=42)
@@ -255,6 +267,7 @@ async def sakupi_wallet_provenance(adresa: str) -> dict:
     return {
         "modul": "wallet_provenance",
         "adresa": adresa,
+        "ogranicenja_analize": OGRANICENJA_ANALIZE,
         "coverage": {
             "lanac": "Ethereum (mainnet)",
             "izvor": "Etherscan API V2",
