@@ -239,7 +239,7 @@ def _verify_token(token: str) -> Optional[dict]:
         except JWTError as e:
             logger.warning("HS256 decode greška: %s", e)
 
-    # Korak 2b: ES256 sa hardkodovanim javnim ključem (JWKS offline)
+    # Korak 2b: ES256 sa hardkodovanim javnim ključem (brzo, bez mreže)
     if alg in ("RS256", "ES256"):
         from jose import jwk as jose_jwk
         _SUPABASE_JWK = {
@@ -259,9 +259,65 @@ def _verify_token(token: str) -> Optional[dict]:
                 return payload
             logger.warning("ES256 hardkod: decode OK ali nema sub")
         except JWTError as e:
-            logger.warning("ES256 hardkod greška: %s", e)
+            logger.warning("ES256 hardkod greška (%s) — pokušavam živi JWKS fallback", e)
+            # Hardkodovani ključ je snapshot — ako ga Supabase ikad rotira, ovaj
+            # put se sam oporavlja umesto da ODJAVI SVE korisnike odjednom.
+            payload = _verify_via_live_jwks(token, alg)
+            if payload:
+                return payload
 
     logger.warning("_verify_token: svi koraci neuspešni — vraćam None")
+    return None
+
+
+_jwks_cache: dict = {"keys": None, "fetched_at": 0.0}
+_JWKS_CACHE_TTL = 3600  # 1h — dovoljno retko da ne opterecuje Supabase, dovoljno cesto da se sam-izleci
+
+
+def _verify_via_live_jwks(token: str, alg: str) -> Optional[dict]:
+    """
+    Fallback za slucaj da je hardkodovani _SUPABASE_JWK zastareo (Supabase
+    rotirao potpisni kljuc). Preuzima /.well-known/jwks.json uzivo, kesira
+    ga _JWKS_CACHE_TTL sekundi da ne udara Supabase na svaki zahtev, i
+    pokusava da verifikuje token protiv SVIH kljuceva u odgovoru.
+    """
+    import time
+    from jose import jwk as jose_jwk
+
+    if not SUPABASE_URL:
+        return None
+
+    now = time.time()
+    keys = _jwks_cache["keys"]
+    if keys is None or (now - _jwks_cache["fetched_at"]) > _JWKS_CACHE_TTL:
+        try:
+            import requests
+            resp = requests.get(f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json", timeout=5)
+            resp.raise_for_status()
+            keys = resp.json().get("keys", [])
+            _jwks_cache["keys"] = keys
+            _jwks_cache["fetched_at"] = now
+            logger.info("[JWKS] Živi ključevi preuzeti (%d) — keširano %ds", len(keys), _JWKS_CACHE_TTL)
+        except Exception as exc:
+            logger.error("[JWKS] Preuzimanje uživo neuspešno: %s", exc)
+            return None
+
+    for jwk_dict in (keys or []):
+        try:
+            pub = jose_jwk.construct(jwk_dict)
+            payload = jose_jwt.decode(
+                token, pub,
+                algorithms=[jwk_dict.get("alg", alg)],
+                options={"verify_aud": False},
+            )
+            if payload.get("sub"):
+                logger.info("[JWKS] Token verifikovan preko živog ključa kid=%s", jwk_dict.get("kid", "?"))
+                return payload
+        except JWTError:
+            continue
+        except Exception as exc:
+            logger.warning("[JWKS] Greška pri pokušaju sa kid=%s: %s", jwk_dict.get("kid", "?"), exc)
+            continue
     return None
 
 
@@ -308,33 +364,53 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
     supa = _get_supa()
 
     # ── Korak 1: credits iz user_credits ──────────────────────────────────────
+    # Jedan retry na prolaznu grešku baze — bez njega, jedan mrežni hiccup
+    # izgleda korisniku identično kao "potrošeni krediti" (lažan paywall).
     credits_remaining: int = 0
-    try:
-        credits_res = (
-            supa.table("user_credits")
-            .select("credits_remaining")
-            .eq("user_id", user_id)
-            .execute()
-        )
-        credits_rows = credits_res.data or []
-        if credits_rows:
-            credits_remaining = credits_rows[0].get("credits_remaining", 0)
-            logger.debug("[CREDITS] uid=%.8s credits=%d", user_id, credits_remaining)
-        else:
-            # Row missing — auto-heal (trigger bi trebalo da ga kreira, ovo je safety net)
-            logger.warning(
-                "[CREDITS] user_credits red ne postoji za uid=%.8s — auto-heal: upisujem 15",
-                user_id,
+    _read_ok = False
+    for _attempt in (1, 2):
+        try:
+            credits_res = (
+                supa.table("user_credits")
+                .select("credits_remaining")
+                .eq("user_id", user_id)
+                .execute()
             )
-            supa.table("user_credits").insert(
-                {"user_id": user_id, "credits_remaining": BESPLATNI_KREDITI}
-            ).execute()
-            credits_remaining = BESPLATNI_KREDITI
-    except Exception as exc:
-        logger.error(
-            "[CREDITS] GREŠKA pri čitanju user_credits za uid=%.8s — %s: %r\n"
-            "  >>> Proverite da li je supabase_setup.sql pokrenut u Supabase Dashboard! <<<",
-            user_id, type(exc).__name__, str(exc)[:300],
+            credits_rows = credits_res.data or []
+            if credits_rows:
+                credits_remaining = credits_rows[0].get("credits_remaining", 0)
+                logger.debug("[CREDITS] uid=%.8s credits=%d", user_id, credits_remaining)
+            else:
+                # Row missing — auto-heal (trigger bi trebalo da ga kreira, ovo je safety net)
+                logger.warning(
+                    "[CREDITS] user_credits red ne postoji za uid=%.8s — auto-heal: upisujem 15",
+                    user_id,
+                )
+                supa.table("user_credits").insert(
+                    {"user_id": user_id, "credits_remaining": BESPLATNI_KREDITI}
+                ).execute()
+                credits_remaining = BESPLATNI_KREDITI
+            _read_ok = True
+            break
+        except Exception as exc:
+            if _attempt == 1:
+                logger.warning(
+                    "[CREDITS] uid=%.8s pokušaj 1/2 neuspešan (%s) — ponavljam odmah",
+                    user_id, type(exc).__name__,
+                )
+                continue
+            logger.error(
+                "[CREDITS] GREŠKA pri čitanju user_credits za uid=%.8s — %s: %r\n"
+                "  >>> Proverite da li je supabase_setup.sql pokrenut u Supabase Dashboard! <<<",
+                user_id, type(exc).__name__, str(exc)[:300],
+            )
+    if not _read_ok:
+        # Oba pokušaja neuspešna — prava infrastrukturna greška, ne "korisnik
+        # nema kredita". Ne gutamo je u lažnu nulu; neka poziv endpointa
+        # eksplicitno padne umesto da tiho prikaže pogrešan paywall.
+        raise HTTPException(
+            status_code=503,
+            detail="Trenutno ne možemo proveriti vaše kredite. Pokušajte ponovo za par sekundi.",
         )
 
     # ── Korak 2: is_pro iz profiles ───────────────────────────────────────────

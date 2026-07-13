@@ -402,7 +402,10 @@ async def briefing_cron(request: Request):
     cron_secret = os.getenv("BRIEFING_CRON_SECRET", "")
     x_secret    = request.headers.get("X-Cron-Secret", "")
 
-    if cron_secret and x_secret != cron_secret:
+    # Fail CLOSED: ako promenljiva nije podešena na serveru, endpoint mora
+    # ostati zaključan (ne "otvoren za sve") — ranije bi prazan cron_secret
+    # tiho preskočio proveru.
+    if not cron_secret or x_secret != cron_secret:
         raise HTTPException(status_code=403, detail="Neovlašćen pristup.")
 
     supa = _get_supa()
@@ -663,7 +666,8 @@ async def nightly_intelligence_run(request: Request):
     """
     cron_secret = os.getenv("BRIEFING_CRON_SECRET", "")
     x_secret    = request.headers.get("X-Cron-Secret", "")
-    if cron_secret and x_secret != cron_secret:
+    # Fail CLOSED: prazan cron_secret vise ne otvara endpoint za sve.
+    if not cron_secret or x_secret != cron_secret:
         from fastapi import HTTPException as _HTTPException
         raise _HTTPException(status_code=403, detail="Neovlašćen pristup.")
 

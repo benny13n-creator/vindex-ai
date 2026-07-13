@@ -299,32 +299,49 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
     supa = _get_supa()
 
     # ── Korak 1: credits iz user_credits ──────────────────────────────────────
+    # Jedan retry na prolaznu grešku baze — bez njega, jedan mrežni hiccup
+    # izgleda korisniku identično kao "potrošeni krediti" (lažan paywall).
     credits_remaining: int = 0
-    try:
-        credits_res = (
-            supa.table("user_credits")
-            .select("credits_remaining")
-            .eq("user_id", user_id)
-            .execute()
-        )
-        credits_rows = credits_res.data or []
-        if credits_rows:
-            credits_remaining = credits_rows[0].get("credits_remaining", 0)
-            logger.debug("[CREDITS] uid=%.8s credits=%d", user_id, credits_remaining)
-        else:
-            logger.warning(
-                "[CREDITS] user_credits red ne postoji za uid=%.8s — auto-heal: upisujem 15",
-                user_id,
+    _read_ok = False
+    for _attempt in (1, 2):
+        try:
+            credits_res = (
+                supa.table("user_credits")
+                .select("credits_remaining")
+                .eq("user_id", user_id)
+                .execute()
             )
-            supa.table("user_credits").insert(
-                {"user_id": user_id, "credits_remaining": BESPLATNI_KREDITI}
-            ).execute()
-            credits_remaining = BESPLATNI_KREDITI
-    except Exception as exc:
-        logger.error(
-            "[CREDITS] GREŠKA pri čitanju user_credits za uid=%.8s — %s: %r\n"
-            "  >>> Proverite da li je supabase_setup.sql pokrenut u Supabase Dashboard! <<<",
-            user_id, type(exc).__name__, str(exc)[:300],
+            credits_rows = credits_res.data or []
+            if credits_rows:
+                credits_remaining = credits_rows[0].get("credits_remaining", 0)
+                logger.debug("[CREDITS] uid=%.8s credits=%d", user_id, credits_remaining)
+            else:
+                logger.warning(
+                    "[CREDITS] user_credits red ne postoji za uid=%.8s — auto-heal: upisujem 15",
+                    user_id,
+                )
+                supa.table("user_credits").insert(
+                    {"user_id": user_id, "credits_remaining": BESPLATNI_KREDITI}
+                ).execute()
+                credits_remaining = BESPLATNI_KREDITI
+            _read_ok = True
+            break
+        except Exception as exc:
+            if _attempt == 1:
+                logger.warning(
+                    "[CREDITS] uid=%.8s pokušaj 1/2 neuspešan (%s) — ponavljam odmah",
+                    user_id, type(exc).__name__,
+                )
+                continue
+            logger.error(
+                "[CREDITS] GREŠKA pri čitanju user_credits za uid=%.8s — %s: %r\n"
+                "  >>> Proverite da li je supabase_setup.sql pokrenut u Supabase Dashboard! <<<",
+                user_id, type(exc).__name__, str(exc)[:300],
+            )
+    if not _read_ok:
+        raise HTTPException(
+            status_code=503,
+            detail="Trenutno ne možemo proveriti vaše kredite. Pokušajte ponovo za par sekundi.",
         )
 
     # ── Korak 2: is_pro iz profiles ───────────────────────────────────────────
@@ -450,10 +467,10 @@ async def require_credits(user: dict = Depends(get_current_user)) -> dict:
     if monthly_used >= monthly_limit:
         if is_pro_user:
             msg = (f"Iskoristili ste {PRO_MESECNI_KREDITI} mesečnih pitanja. "
-                   "Kontaktirajte nas za Firm plan.")
+                   "Kontaktirajte nas za Kancelarija plan.")
         else:
             msg = (f"Iskoristili ste {BASIC_MESECNI_KREDITI} mesečnih pitanja. "
-                   "Pređite na PRO za 600 pitanja mesečno.")
+                   f"Pređite na PRO za {PRO_MESECNI_KREDITI} pitanja mesečno.")
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail={"code": "MONTHLY_LIMIT", "message": msg, "credits_remaining": 0},
@@ -469,7 +486,7 @@ async def require_credits(user: dict = Depends(get_current_user)) -> dict:
                 "code": "NO_CREDITS",
                 "message": (
                     "Iskoristili ste besplatne upite. "
-                    "Pređite na Basic paket (19€) za neograničen pristup."
+                    "Pređite na PRO paket za mnogo više upita mesečno."
                 ),
                 "credits_remaining": 0,
             },

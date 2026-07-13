@@ -289,6 +289,17 @@ async def generisi_iz_sablona(
     if not tpl.get("aktivan"):
         raise HTTPException(status_code=409, detail="Šablon je deaktiviran — ne može generisati fakturu.")
 
+    # Validiraj sledeci_datum PRE kreiranja fakture — ako je prazan/neispravan,
+    # bolje jasna 422 greška ovde nego 500 posle sto je faktura vec upisana
+    # (sto bi ostavilo fakturu bez azuriranog sledeceg datuma u sablonu).
+    try:
+        trenutni_datum = date.fromisoformat(tpl["sledeci_datum"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(
+            status_code=422,
+            detail="Šablon nema ispravan 'sledeći datum' — proverite i ispravite šablon pre generisanja fakture.",
+        )
+
     faktura_row = _build_faktura_row(tpl, uid)
     fak_res = await _db(
         lambda: supa.table("fakture").insert(faktura_row).execute()
@@ -297,10 +308,7 @@ async def generisi_iz_sablona(
         raise HTTPException(status_code=500, detail="Greška pri kreiranju fakture.")
 
     faktura    = fak_res.data[0]
-    novi_datum = _next_datum(
-        date.fromisoformat(tpl["sledeci_datum"]),
-        tpl["ucestalost"]
-    )
+    novi_datum = _next_datum(trenutni_datum, tpl["ucestalost"])
 
     await _db(
         lambda: supa.table("recurring_templates")

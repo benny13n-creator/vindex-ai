@@ -563,7 +563,8 @@ async def eskalacije_cron(request: Request):
     """
     cron_secret = os.getenv("BRIEFING_CRON_SECRET", "")
     x_secret    = request.headers.get("X-Cron-Secret", "")
-    if cron_secret and x_secret != cron_secret:
+    # Fail CLOSED: prazan cron_secret vise ne otvara endpoint za sve.
+    if not cron_secret or x_secret != cron_secret:
         raise HTTPException(status_code=403, detail="Neovlašćen pristup.")
 
     try:
