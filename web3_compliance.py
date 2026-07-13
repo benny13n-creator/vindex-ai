@@ -11,6 +11,7 @@ import os
 logger = logging.getLogger(__name__)
 
 _WEB3_NAMESPACE = "web3_zdi_mca"
+_CARF_DAC8_NAMESPACE = "carf_dac8"
 
 # ── Citiranje — zajednička pravila ────────────────────────────────────────────
 
@@ -740,6 +741,289 @@ def exchange_reporting_simulator_sync(opis_scenarija: str, api_key: str) -> str:
         messages=[
             {"role": "system", "content": _EXCHANGE_SIM_SYSTEM},
             {"role": "user",   "content": f"Scenario transakcija za analizu:\n\n{opis_scenarija}"},
+        ],
+    )
+    return (resp.choices[0].message.content or "").strip()
+
+
+# ── CARF/DAC8 Readiness Analyzer ────────────────────────────────────────────────
+# RAG-grounded nad "carf_dac8" namespacom (scripts/ingest_carf_dac8.py). Citation
+# guard je ODVOJEN od _verifikuj_citat_clanova() jer CARF/DAC8 koriste drugaciji
+# citatni oblik ("CARF Section II", "DAC8 Article 8ad", "DAC8 Annex VI Section III")
+# umesto "ZDI čl. X" — provera je na nivou Section/Article oznake, ne broja clana.
+
+_CARF_DAC8_REF_PATTERN = __import__("re").compile(
+    r'(CARF|DAC8)\s+(Section\s+[IVX]+|Article\s+\w+|Annex\s+VI\s+Section\s+[IVX]+)',
+    __import__("re").IGNORECASE,
+)
+
+
+def _verifikuj_citat_carf_dac8(odgovor: str, chunks: list) -> str:
+    """
+    Code-level citation guard za CARF/DAC8 odgovore. Za svaku referencu oblika
+    "CARF Section X" ili "DAC8 Article/Annex VI Section X" proverava da li se
+    TAČNO ta oznaka pojavljuje verbatim u retrieved chunkovima. Ako ne — uklanja
+    konkretnu oznaku i ostavlja samo naziv propisa (CARF/DAC8), isti princip kao
+    postojeci ZDI guard: nikad ne dozvoli halucinaciju konkretne reference.
+    """
+    import re as _re
+    if not chunks or not odgovor:
+        return odgovor
+
+    chunk_combined = " ".join(chunks)
+    flagged: list[str] = []
+
+    def _check(m: _re.Match) -> str:
+        propis = m.group(1)
+        oznaka = m.group(2)
+        full = m.group(0)
+        # Trazi oznaku (npr. "Section II" ili "Article 8ad") verbatim u chunkovima
+        if _re.search(_re.escape(oznaka), chunk_combined, _re.IGNORECASE):
+            return full
+        flagged.append(full)
+        return propis + " [oznaka nije u bazi]"
+
+    result = _CARF_DAC8_REF_PATTERN.sub(_check, odgovor)
+
+    if flagged:
+        logger.warning("[CARF_DAC8_CITAT_GUARD] Uklonjene halucinacije: %s", ", ".join(flagged))
+    return result
+
+
+_CARF_DAC8_READINESS_SYSTEM = """Ti si ekspert za CARF (OECD Crypto-Asset Reporting Framework) i
+DAC8 (EU direktiva 2023/2226) — medjunarodne okvire za automatsku razmenu poreskih podataka o
+kripto-imovini. Odgovaraš ISKLJUCIVO na osnovu dostavljenih izvoda iz CARF/DAC8 baze.
+
+APSOLUTNE ZABRANE:
+1. NIKADA ne citiras "Section X" ili "Article X" oznaku koja se ne pojavljuje verbatim u
+   dostavljenom tekstu.
+2. NIKADA ne tvrdis da je nesto "obavezno prijaviti" u KONKRETNOJ jurisdikciji van onoga sto je
+   eksplicitno u dostavljenom kontekstu — implementacija CARF/DAC8 se razlikuje po zemlji.
+3. Ako pitanje pominje Srbiju: budi precizan da Srbija TRENUTNO NIJE na OECD listi jurisdikcija
+   koje su preuzele CARF obavezu (osim ako dostavljeni kontekst kaze drugacije).
+4. NIKADA ne mesaj CARF i DAC8 kao da su identicni — DAC8 je EU-specificna transpozicija CARF-a,
+   sa dodatnim EU mehanizmima (MiCA autorizacija, TIN rokovi, advokatska privilegija).
+
+Struktura odgovora (obavezna):
+
+--- STATUS PROPISA
+[Da li se pitanje odnosi na CARF, DAC8, ili oba — jednom recenicom.]
+
+--- ANALIZA
+[Direktan odgovor na pitanje korisnika, zasnovan STROGO na dostavljenom kontekstu. Ako kontekst
+ne pokriva pitanje, reci to eksplicitno umesto da nagadjas.]
+
+--- IZVOR
+[Section/Article oznaka ISKLJUCIVO ako se pojavljuje verbatim u dostavljenom kontekstu. Ako nije
+dostupna, piši "opšti kontekst CARF/DAC8 baze" bez izmišljene oznake.]
+
+--- ŠTA JOŠ NIJE POZNATO
+[Šta ovo pitanje zahteva a NIJE pokriveno dostavljenim kontekstom — budi iskren o granicama.]
+
+⚠️ Ovo je opšta regulatorna analiza zasnovana na CARF/DAC8 tekstu, NE poreski ili pravni savet.
+Implementacija se razlikuje po jurisdikciji i vremenskom okviru primene — konsultujte poreskog
+savetnika ili advokata pre donošenja odluka."""
+
+
+def carf_dac8_readiness_sync(upit: str, api_key: str) -> str:
+    """
+    RAG pretraga nad carf_dac8 namespacom + GPT-4o odgovor. Isti obrazac kao
+    web3_pretraga_sync, ciljano na CARF/DAC8 umesto ZDI/MiCA.
+
+    NAPOMENA: namespace "carf_dac8" mora biti popunjen preko
+    scripts/ingest_carf_dac8.py pre nego sto ova funkcija moze vratiti smislene
+    rezultate — ako namespace nema podataka, kontekst ostaje prazan i odgovor
+    to eksplicitno navodi umesto da halucinira.
+    """
+    from openai import OpenAI as _OAI
+    from app.services.retrieve import _get_index, _ugradi_query
+
+    chunks: list[str] = []
+    kontekst = "Nema relevantnih odredbi u bazi."
+    max_score = 0.0
+
+    try:
+        vec = _ugradi_query(upit)
+        idx = _get_index()
+        res = idx.query(
+            vector=vec,
+            top_k=8,
+            namespace=_CARF_DAC8_NAMESPACE,
+            include_metadata=True,
+        )
+        matches = res.matches if hasattr(res, "matches") else []
+        if matches:
+            max_score = max(float(m.score) for m in matches)
+        chunks = [
+            m.metadata.get("tekst", "").strip()
+            for m in matches
+            if float(m.score) >= 0.50 and m.metadata.get("tekst", "").strip()
+        ]
+        chunks_sa_izvorom = [
+            f"[{m.metadata.get('propis', 'CARF/DAC8')} — {m.metadata.get('naslov', '')}]: "
+            f"{m.metadata.get('tekst', '').strip()}"
+            for m in matches
+            if float(m.score) >= 0.50 and m.metadata.get("tekst", "").strip()
+        ]
+        if chunks_sa_izvorom:
+            kontekst = "\n\n".join(chunks_sa_izvorom)
+        else:
+            kontekst = "Nema relevantnih odredbi u bazi za ovo pitanje."
+    except Exception as e:
+        logger.warning("[CARF_DAC8] Pinecone pretraga neuspešna: %s", e)
+        kontekst = "Baza trenutno nije dostupna."
+        chunks = []
+
+    client = _OAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.05,
+        max_tokens=2000,
+        timeout=90.0,
+        messages=[
+            {"role": "system", "content": _CARF_DAC8_READINESS_SYSTEM},
+            {"role": "user", "content": (
+                f"IZVODI IZ CARF/DAC8 BAZE:\n{kontekst}\n\n"
+                f"PITANJE KORISNIKA: {upit}\n\n"
+                f"PODSETNIK: Section/Article oznaku pišeš ISKLJUČIVO ako se pojavljuje verbatim "
+                f"u izvodu iznad."
+            )},
+        ],
+    )
+    odgovor = (resp.choices[0].message.content or "").strip()
+    odgovor = _verifikuj_citat_carf_dac8(odgovor, chunks)
+
+    if max_score < 0.55 and chunks:
+        odgovor += (
+            "\n\n⚠️ Napomena o pouzdanosti: Za ovo pitanje nisu pronađeni visoko relevantni "
+            "izvodi iz CARF/DAC8 baze (max relevantnost: {:.0%}). Odgovor se delimično zasniva "
+            "na opštem kontekstu — preporučujemo konsultaciju sa poreskim savetnikom.".format(max_score)
+        )
+    elif not chunks:
+        odgovor += (
+            "\n\n⚠️ Baza CARF/DAC8 izvora trenutno nema pokrivenost za ovo pitanje ili nije "
+            "dostupna. Odgovor ne treba smatrati pouzdanim bez dodatne provere."
+        )
+
+    return odgovor
+
+
+# ── Cross-Jurisdiction Tax Intelligence ─────────────────────────────────────────
+# Strukturirana referentna baza, NE RAG — cinjenice direktno iz zvanicnog OECD
+# dokumenta (Global Forum CARF commitments lista), preuzetog i procitanog
+# 2026-07-13. Azurirati rucno kad OECD objavi novu verziju (par puta godisnje,
+# izvor: oecd.org/.../commitments-carf.pdf).
+
+CARF_JURISDIKCIJE = {
+    # talas 2027 (46 jurisdikcija, prva razmena podataka do 2027)
+    "Austrija": {"talas": 2027, "eu": True}, "Belgija": {"talas": 2027, "eu": True},
+    "Brazil": {"talas": 2027, "eu": False}, "Bugarska": {"talas": 2027, "eu": True},
+    "Kajmanska ostrva": {"talas": 2027, "eu": False}, "Cile": {"talas": 2027, "eu": False},
+    "Kolumbija": {"talas": 2027, "eu": False}, "Hrvatska": {"talas": 2027, "eu": True},
+    "Ceska": {"talas": 2027, "eu": True}, "Danska": {"talas": 2027, "eu": True},
+    "Estonija": {"talas": 2027, "eu": True}, "Farska ostrva": {"talas": 2027, "eu": False},
+    "Finska": {"talas": 2027, "eu": True}, "Francuska": {"talas": 2027, "eu": True},
+    "Nemacka": {"talas": 2027, "eu": True}, "Grcka": {"talas": 2027, "eu": True},
+    "Guernsey": {"talas": 2027, "eu": False}, "Madjarska": {"talas": 2027, "eu": True},
+    "Island": {"talas": 2027, "eu": False}, "Indonezija": {"talas": 2027, "eu": False},
+    "Irska": {"talas": 2027, "eu": True}, "Ostrvo Man": {"talas": 2027, "eu": False},
+    "Italija": {"talas": 2027, "eu": True}, "Japan": {"talas": 2027, "eu": False},
+    "Jersey": {"talas": 2027, "eu": False}, "Kazahstan": {"talas": 2027, "eu": False},
+    "Juzna Koreja": {"talas": 2027, "eu": False}, "Letonija": {"talas": 2027, "eu": True},
+    "Lihtenstajn": {"talas": 2027, "eu": False}, "Litvanija": {"talas": 2027, "eu": True},
+    "Luksemburg": {"talas": 2027, "eu": True}, "Malta": {"talas": 2027, "eu": True},
+    "Holandija": {"talas": 2027, "eu": True}, "Novi Zeland": {"talas": 2027, "eu": False},
+    "Norveska": {"talas": 2027, "eu": False}, "Poljska": {"talas": 2027, "eu": True},
+    "Portugalija": {"talas": 2027, "eu": True}, "Rumunija": {"talas": 2027, "eu": True},
+    "San Marino": {"talas": 2027, "eu": False}, "Slovacka": {"talas": 2027, "eu": True},
+    "Slovenija": {"talas": 2027, "eu": True}, "Juzna Afrika": {"talas": 2027, "eu": False},
+    "Spanija": {"talas": 2027, "eu": True}, "Svedska": {"talas": 2027, "eu": True},
+    "Uganda": {"talas": 2027, "eu": False}, "Velika Britanija": {"talas": 2027, "eu": False},
+    # talas 2028 (29 jurisdikcija)
+    "Australija": {"talas": 2028, "eu": False}, "Azerbejdzan": {"talas": 2028, "eu": False},
+    "Bahami": {"talas": 2028, "eu": False}, "Bahrein": {"talas": 2028, "eu": False},
+    "Barbados": {"talas": 2028, "eu": False}, "Belize": {"talas": 2028, "eu": False},
+    "Bermuda": {"talas": 2028, "eu": False}, "Devicanska ostrva (Britanska)": {"talas": 2028, "eu": False},
+    "Kanada": {"talas": 2028, "eu": False}, "Kostarika": {"talas": 2028, "eu": False},
+    "Kipar": {"talas": 2028, "eu": True}, "Gibraltar": {"talas": 2028, "eu": False},
+    "Hongkong": {"talas": 2028, "eu": False}, "Izrael": {"talas": 2028, "eu": False},
+    "Kenija": {"talas": 2028, "eu": False}, "Malezija": {"talas": 2028, "eu": False},
+    "Mauricijus": {"talas": 2028, "eu": False}, "Meksiko": {"talas": 2028, "eu": False},
+    "Mongolija": {"talas": 2028, "eu": False}, "Nigerija": {"talas": 2028, "eu": False},
+    "Panama": {"talas": 2028, "eu": False}, "Filipini": {"talas": 2028, "eu": False},
+    "Sveti Vinsent i Grenadini": {"talas": 2028, "eu": False}, "Sejseli": {"talas": 2028, "eu": False},
+    "Singapur": {"talas": 2028, "eu": False}, "Svajcarska": {"talas": 2028, "eu": False},
+    "Tajland": {"talas": 2028, "eu": False}, "Turska": {"talas": 2028, "eu": False},
+    "Ujedinjeni Arapski Emirati": {"talas": 2028, "eu": False},
+    # talas 2029 (1 jurisdikcija)
+    "Sjedinjene Americke Drzave": {"talas": 2029, "eu": False},
+    # identifikovano kao relevantno, JOS NIJE preuzeta obaveza (5 jurisdikcija)
+    "Argentina": {"talas": None, "eu": False, "napomena": "Pristupila Joint Statement — namera da preuzme obavezu do 2027, jos nije formalna."},
+    "El Salvador": {"talas": None, "eu": False, "napomena": "Identifikovano kao relevantno, obaveza jos nije preuzeta."},
+    "Gruzija": {"talas": None, "eu": False, "napomena": "Identifikovano kao relevantno, obaveza jos nije preuzeta."},
+    "Indija": {"talas": None, "eu": False, "napomena": "U procesu politickog opredeljenja, ocekuje se skoro preuzimanje obaveze."},
+    "Vijetnam": {"talas": None, "eu": False, "napomena": "Identifikovano kao relevantno, obaveza jos nije preuzeta."},
+}
+
+_CARF_JURISDIKCIJE_IZVOR = (
+    "OECD Global Forum, 'Jurisdictions committed to implement the Crypto-Asset "
+    "Reporting Framework (CARF)', poslednje ažuriranje 23. jun 2026."
+)
+_CARF_JURISDIKCIJE_AZURIRANO = "2026-06-23"
+
+
+def carf_jurisdikcije_lista() -> dict:
+    """Vraca kompletnu strukturiranu listu — bez AI, cista referentna baza."""
+    return {
+        "jurisdikcije": CARF_JURISDIKCIJE,
+        "izvor": _CARF_JURISDIKCIJE_IZVOR,
+        "azurirano": _CARF_JURISDIKCIJE_AZURIRANO,
+        "napomena_srbija": (
+            "Srbija se ne pojavljuje ni na jednoj od gornjih lista (46+29+1+5=81 "
+            "jurisdikcija) — trenutno formalno nema CARF obavezu izvestavanja."
+        ),
+    }
+
+
+_JURISDIKCIJA_ANALIZA_SYSTEM = """Ti si asistent za opštu edukaciju o statusu CARF/DAC8 obaveza
+po jurisdikcijama. Dobijaš STRUKTURIRANE PODATKE (ne slobodan tekst) o statusu jurisdikcija iz
+zvanične OECD liste, i pitanje korisnika o konkretnoj jurisdikciji ili scenariju.
+
+PRAVILA:
+1. Odgovaraj ISKLJUČIVO na osnovu dostavljenih strukturiranih podataka — ne izmišljaj datume ili
+   statuse jurisdikcija koje nisu u podacima.
+2. Ako korisnik pita o jurisdikciji koja NIJE u dostavljenim podacima, reci eksplicitno da ta
+   jurisdikcija nije na OECD listi (što znači da trenutno nema CARF obavezu — ali to ne znači
+   da nema DRUGE poreske obaveze, samo da nije deo CARF/DAC8 razmene).
+3. Za Srbiju: uvek naglasi da Srbija trenutno nije na listi.
+4. Objasni praktičnu posledicu: ako korisnik koristi CASP provajdera REGISTROVANOG u jurisdikciji
+   sa CARF obavezom, ta obaveza se primenjuje kroz tog provajdera, bez obzira na status
+   korisnikove sopstvene jurisdikcije prebivališta.
+
+Završi odgovor sa: "⚠️ Ovo je opšta informacija o statusu jurisdikcija, ne poreski savet. Status
+se menja — proveri aktuelnu OECD listu pre donošenja odluka."""
+
+
+def jurisdikcija_analiza_sync(pitanje: str, api_key: str) -> str:
+    """Non-RAG — koristi CARF_JURISDIKCIJE dict direktno kao kontekst (strukturirani podaci,
+    ne slobodan tekst iz baze), pa nema potrebe za citation guard-om nad brojevima clanova."""
+    from openai import OpenAI as _OAI
+    import json as _json
+
+    client = _OAI(api_key=api_key)
+    podaci_tekst = _json.dumps(CARF_JURISDIKCIJE, ensure_ascii=False, indent=1)
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.1,
+        max_tokens=1200,
+        timeout=60.0,
+        messages=[
+            {"role": "system", "content": _JURISDIKCIJA_ANALIZA_SYSTEM},
+            {"role": "user", "content": (
+                f"STRUKTURIRANI PODACI (OECD CARF status po jurisdikciji, azurirano "
+                f"{_CARF_JURISDIKCIJE_AZURIRANO}):\n{podaci_tekst}\n\n"
+                f"PITANJE: {pitanje}"
+            )},
         ],
     )
     return (resp.choices[0].message.content or "").strip()

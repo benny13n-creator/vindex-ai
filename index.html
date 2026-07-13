@@ -2510,13 +2510,24 @@
             <div class="strat-modul-izbor web3-moduli">
               <button class="strat-btn" data-modul="health_score" onclick="web3IzaberiModul('health_score',this)">Dokumentacioni Health Score</button>
               <button class="strat-btn" data-modul="reporting_simulator" onclick="web3IzaberiModul('reporting_simulator',this)">Reporting Simulator</button>
+              <button class="strat-btn" data-modul="carf_dac8_readiness" onclick="web3IzaberiModul('carf_dac8_readiness',this)">CARF/DAC8 Readiness</button>
+              <button class="strat-btn" data-modul="source_of_funds_dossier" onclick="web3IzaberiModul('source_of_funds_dossier',this)">Source-of-Funds Dossier</button>
             </div>
-            <details class="vx-manual-compare" style="margin-top:1rem;">
-              <summary>🔒 Na mapi puta — CARF/DAC8 Readiness, Wallet Provenance, Source of Funds, Cross-Jurisdiction Tax</summary>
-              <div style="padding:.7rem .2rem .3rem;font-size:.76rem;color:rgba(255,255,255,.45);line-height:1.6;">
-                Ova četiri modula čekaju ili ingestovanje regulatornog sadržaja (CARF/DAC8/jurisdikcije) ili integraciju sa spoljnim blockchain data provajderom (wallet istorija) — oba su odluke van pukog kodiranja, u pripremi.
-              </div>
-            </details>
+            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">Poresko izveštavanje po jurisdikciji</div>
+            <div class="strat-modul-izbor web3-moduli">
+              <button class="strat-btn" data-modul="jurisdikcije" onclick="web3IzaberiModul('jurisdikcije',this)">CARF Jurisdikcije (besplatno)</button>
+              <button class="strat-btn" data-modul="jurisdikcija_analiza" onclick="web3IzaberiModul('jurisdikcija_analiza',this)">Pitanje o jurisdikciji</button>
+            </div>
+            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">Provera novčanika i sankcije</div>
+            <div class="strat-modul-izbor web3-moduli">
+              <button class="strat-btn" data-modul="ofac_screening" onclick="web3IzaberiModul('ofac_screening',this)">OFAC Provera adresa (besplatno)</button>
+              <button class="strat-btn" data-modul="wallet_provenance" onclick="web3IzaberiModul('wallet_provenance',this)">Wallet Provenance</button>
+            </div>
+            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">Uvoz podataka</div>
+            <div class="strat-modul-izbor web3-moduli">
+              <button class="strat-btn" data-modul="csv_import" onclick="web3IzaberiModul('csv_import',this)">Uvoz CSV (Binance/Kraken)</button>
+            </div>
+
             <div id="web3-opis" class="strat-opis-box web3-opis-box"></div>
             <div class="strat-input-wrap">
               <label id="web3-input-label" class="strat-label"></label>
@@ -2537,6 +2548,77 @@
                 <button class="web3-copy-btn" onclick="web3Kopiraj()">Kopiraj</button>
               </div>
               <div id="web3-rezultat-body" class="web3-rezultat-body"></div>
+            </div>
+
+            <!-- F11.10a: CARF Jurisdikcije — besplatna referentna lista -->
+            <div id="web3-panel-jurisdikcije" style="display:none">
+              <div id="web3-opis-jurisdikcije" class="strat-opis-box web3-opis-box">Zvanična OECD lista jurisdikcija koje su preuzele obavezu CARF razmene podataka o kripto-imovini, po talasima primene. Besplatno, bez trošenja kredita.</div>
+              <button class="web3-submit-btn" id="web3-jurisdikcije-btn" onclick="web3JurisdikcijeLoad()">Prikaži listu jurisdikcija</button>
+              <div id="web3-jurisdikcije-rezultat" class="web3-rezultat-wrap" style="display:none;">
+                <div class="web3-rezultat-header"><span class="web3-rezultat-naslov">CARF Jurisdikcije</span></div>
+                <div id="web3-jurisdikcije-body" class="web3-rezultat-body"></div>
+              </div>
+            </div>
+
+            <!-- F14: OFAC Provera adresa — besplatno -->
+            <div id="web3-panel-ofac" style="display:none">
+              <div class="strat-opis-box web3-opis-box">Provera adresa digitalne imovine protiv zvanične OFAC SDN liste (Ministarstvo finansija SAD). Unesite jednu adresu po redu, do 25 adresa. Besplatno, bez trošenja kredita.</div>
+              <div class="strat-input-wrap">
+                <label class="strat-label">Adrese (jedna po redu)</label>
+                <textarea id="web3-ofac-adrese" class="strat-textarea" rows="6" placeholder="0x...&#10;1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"></textarea>
+              </div>
+              <button class="web3-submit-btn" id="web3-ofac-btn" onclick="web3OfacProveri()">Proveri adrese</button>
+              <div id="web3-ofac-rezultat" class="web3-rezultat-wrap" style="display:none;">
+                <div class="web3-rezultat-header"><span class="web3-rezultat-naslov">OFAC Provera</span></div>
+                <div id="web3-ofac-body" class="web3-rezultat-body"></div>
+              </div>
+            </div>
+
+            <!-- F15: Wallet Provenance -->
+            <div id="web3-panel-wallet" style="display:none">
+              <div class="strat-opis-box web3-opis-box">Starost i istorija aktivnosti Ethereum novčanika, plus unakrsna provera svih direktnih kontakata protiv OFAC SDN liste. Zahteva ETHERSCAN_API_KEY na serveru.</div>
+              <div class="strat-input-wrap">
+                <label class="strat-label">Ethereum adresa novčanika</label>
+                <input type="text" id="web3-wallet-adresa" class="vx-input" placeholder="0x..." style="width:100%;" />
+              </div>
+              <button class="web3-submit-btn" id="web3-wallet-btn" onclick="web3WalletProvenance()">Proveri novčanik</button>
+              <div id="web3-wallet-rezultat" class="web3-rezultat-wrap" style="display:none;">
+                <div class="web3-rezultat-header"><span class="web3-rezultat-naslov">Wallet Provenance</span></div>
+                <div id="web3-wallet-body" class="web3-rezultat-body"></div>
+              </div>
+            </div>
+
+            <!-- F16: Source-of-Funds Dossier — PDF -->
+            <div id="web3-panel-dossier" style="display:none">
+              <div class="strat-opis-box web3-opis-box">Generiše PDF izveštaj koji spaja Dokumentacioni Health Score, CARF/DAC8 kontekst i (opciono) Wallet Provenance u jedan dokument. Košta 2 kredita.</div>
+              <div class="strat-input-wrap">
+                <label class="strat-label">Opišite kakvu dokumentaciju posedujete o vašoj kripto imovini</label>
+                <textarea id="web3-dossier-opis" class="strat-textarea" rows="5" placeholder="Npr: Imam KYC verifikaciju na Binance i Kraken nalozima..."></textarea>
+              </div>
+              <div class="strat-input-wrap">
+                <label class="strat-label">Pitanje za CARF/DAC8 sekciju (opciono)</label>
+                <textarea id="web3-dossier-carf" class="strat-textarea" rows="2" placeholder="Ostavite prazno za opšti pregled obaveza izveštavanja."></textarea>
+              </div>
+              <div class="strat-input-wrap">
+                <label class="strat-label">Ethereum adresa za Wallet Provenance sekciju (opciono)</label>
+                <input type="text" id="web3-dossier-wallet" class="vx-input" placeholder="0x... (ostavite prazno da preskočite)" style="width:100%;" />
+              </div>
+              <button class="web3-submit-btn" id="web3-dossier-btn" onclick="web3DossierGeneriraj()">Generiši dossier (PDF, 2 kredita)</button>
+              <div id="web3-dossier-poruka" style="margin-top:.6rem;font-size:.8rem;"></div>
+            </div>
+
+            <!-- F13: CSV Import — Binance/Kraken -->
+            <div id="web3-panel-csv" style="display:none">
+              <div class="strat-opis-box web3-opis-box">Uvezite CSV export sa Binance-a (Transaction History) ili Kraken-a (Ledger History) — klasifikuje transakcije po CARF/DAC8 kategorijama. Bez AI poziva, bez trošenja kredita.</div>
+              <div class="strat-input-wrap">
+                <label class="strat-label">CSV fajl</label>
+                <input type="file" id="web3-csv-fajl" accept=".csv" class="vx-input" style="width:100%;" />
+              </div>
+              <button class="web3-submit-btn" id="web3-csv-btn" onclick="web3CsvUvoz()">Analiziraj CSV</button>
+              <div id="web3-csv-rezultat" class="web3-rezultat-wrap" style="display:none;">
+                <div class="web3-rezultat-header"><span class="web3-rezultat-naslov">CSV Analiza</span></div>
+                <div id="web3-csv-body" class="web3-rezultat-body"></div>
+              </div>
             </div>
           </div>
 

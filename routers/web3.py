@@ -26,7 +26,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
-from shared.deps import _audit, _deduct_credit, _deduct_n_credits, _get_supa, _is_founder, require_pro
+from shared.deps import _audit, _deduct_credit, _deduct_n_credits, _get_supa, _is_founder, require_pro, get_current_user
 from shared.rate import limiter
 from web3_compliance import (
     web3_pretraga_sync as _web3_pretraga,
@@ -37,6 +37,9 @@ from web3_compliance import (
     aml_kyc_auditor_sync as _aml_kyc_auditor,
     documentation_health_score_sync as _documentation_health_score,
     exchange_reporting_simulator_sync as _exchange_reporting_simulator,
+    carf_dac8_readiness_sync as _carf_dac8_readiness,
+    carf_jurisdikcije_lista as _carf_jurisdikcije_lista,
+    jurisdikcija_analiza_sync as _jurisdikcija_analiza,
 )
 
 router = APIRouter()
@@ -212,6 +215,49 @@ async def post_reporting_simulator(req: StrategijaRequest, request: Request, use
     except Exception:
         logger.exception("[F11] reporting_simulator greška")
         raise HTTPException(status_code=500, detail="Greška pri simulaciji izveštavanja. Pokušajte ponovo.")
+
+
+@router.post("/web3/carf-readiness")  # F11.9
+@limiter.limit("10/minute")
+async def post_carf_dac8_readiness(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.9 — CARF/DAC8 Readiness Analyzer (PRO). RAG-grounded nad carf_dac8 namespacom."""
+    if len(req.tekst.strip()) < 15:
+        raise HTTPException(status_code=422, detail="Pitanje mora imati najmanje 15 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "carf_dac8_readiness", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _carf_dac8_readiness, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "carf_dac8_readiness", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F11] carf_dac8_readiness greška")
+        raise HTTPException(status_code=500, detail="Greška pri CARF/DAC8 analizi. Pokušajte ponovo.")
+
+
+@router.get("/web3/jurisdikcije")  # F11.10a
+async def get_carf_jurisdikcije(user: dict = Depends(get_current_user)):
+    """F11.10a — Cross-Jurisdiction Tax Intelligence: cista referentna lista, bez AI troška.
+    Dostupno svim ulogovanim korisnicima (ne PRO-gated — nema AI kredita)."""
+    return _carf_jurisdikcije_lista()
+
+
+@router.post("/web3/jurisdikcija-analiza")  # F11.10b
+@limiter.limit("15/minute")
+async def post_jurisdikcija_analiza(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+    """F11.10b — AI kontekst o statusu jurisdikcije/scenarija (PRO, non-RAG, koristi strukturirane podatke)."""
+    if len(req.tekst.strip()) < 10:
+        raise HTTPException(status_code=422, detail="Pitanje mora imati najmanje 10 karaktera.")
+    asyncio.create_task(_audit(user["user_id"], "jurisdikcija_analiza", ""))
+    try:
+        rezultat = await asyncio.to_thread(
+            _jurisdikcija_analiza, req.tekst, os.getenv("OPENAI_API_KEY", "")
+        )
+        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        return {"rezultat": rezultat, "modul": "jurisdikcija_analiza", "credits_remaining": max(preostalo, 0)}
+    except Exception:
+        logger.exception("[F11] jurisdikcija_analiza greška")
+        raise HTTPException(status_code=500, detail="Greška pri analizi jurisdikcije. Pokušajte ponovo.")
 
 
 # ── F12: Smart Contract Legal Analyzer ───────────────────────────────────────

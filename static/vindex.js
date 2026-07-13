@@ -4742,20 +4742,68 @@ var WEB3_MODULI = {
     label:       'Opišite scenario transakcija',
     placeholder: 'Npr: Kupio sam Bitcoin za evre na Binance-u, zamenio deo za Ethereum, i povukao sve na hardverski wallet. Šta bi od ovoga bilo tipično relevantno za izveštavanje?',
     min:         20
+  },
+  carf_dac8_readiness: {
+    naziv:       'CARF/DAC8 Readiness',
+    endpoint:    '/web3/carf-readiness',
+    opis:        'RAG-pretraga nad ingestovanim CARF (OECD) i DAC8 (EU direktiva 2023/2226) tekstom — konkretna pitanja o obavezama izveštavanja, definicijama i primeni. Citira samo članove/sekcije koji su stvarno u bazi.',
+    label:       'Vaše pitanje o CARF ili DAC8',
+    placeholder: 'Npr: Da li DAC8 predviđa izuzetak za advokate? Koji je prag za Reportable Retail Payment Transaction po CARF-u?',
+    min:         15
+  },
+  jurisdikcija_analiza: {
+    naziv:       'Pitanje o jurisdikciji',
+    endpoint:    '/web3/jurisdikcija-analiza',
+    opis:        'AI kontekst nad strukturiranom listom CARF jurisdikcija (koje zemlje, kad počinju razmenu). Koristi se za pitanja tipa "šta ovo znači za mene", ne za samu listu — za listu koristite "CARF Jurisdikcije".',
+    label:       'Vaše pitanje o statusu jurisdikcije',
+    placeholder: 'Npr: Da li Srbija ima obavezu CARF izveštavanja? Šta znači da je zemlja u talasu 2027?',
+    min:         10
   }
+};
+
+var WEB3_CUSTOM_PANELI = ['jurisdikcije', 'ofac_screening', 'wallet_provenance', 'source_of_funds_dossier', 'csv_import'];
+var WEB3_PANEL_ID = {
+  jurisdikcije: 'web3-panel-jurisdikcije',
+  ofac_screening: 'web3-panel-ofac',
+  wallet_provenance: 'web3-panel-wallet',
+  source_of_funds_dossier: 'web3-panel-dossier',
+  csv_import: 'web3-panel-csv'
 };
 var _web3AktivniModul = 'web3_pretraga';
 
 function web3InitTab() {
-  var m = WEB3_MODULI[_web3AktivniModul];
-  var opisEl  = document.getElementById('web3-opis');
-  var labelEl = document.getElementById('web3-input-label');
-  var txtEl   = document.getElementById('web3-tekst');
-  if (opisEl)  opisEl.textContent  = m.opis;
-  if (labelEl) labelEl.textContent = m.label;
-  if (txtEl)   txtEl.placeholder   = m.placeholder;
-  document.querySelectorAll('.web3-moduli .strat-btn').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.modul === _web3AktivniModul);
+  var btn = document.querySelector('.web3-moduli .strat-btn[data-modul="' + _web3AktivniModul + '"]');
+  web3IzaberiModul(_web3AktivniModul, btn);
+}
+
+function _web3HideStandardPanel() {
+  var opisEl    = document.getElementById('web3-opis');
+  var inputWrap = document.querySelector('#tab-w > .strat-input-wrap');
+  var refEl     = document.querySelector('#tab-w > .web3-reference');
+  var submitBtn = document.getElementById('web3-submit-btn');
+  var wrapEl    = document.getElementById('web3-rezultat-wrap');
+  if (opisEl)    opisEl.style.display    = 'none';
+  if (inputWrap) inputWrap.style.display = 'none';
+  if (refEl)     refEl.style.display     = 'none';
+  if (submitBtn) submitBtn.style.display = 'none';
+  if (wrapEl)    wrapEl.style.display    = 'none';
+}
+
+function _web3ShowStandardPanel() {
+  var opisEl    = document.getElementById('web3-opis');
+  var inputWrap = document.querySelector('#tab-w > .strat-input-wrap');
+  var refEl     = document.querySelector('#tab-w > .web3-reference');
+  var submitBtn = document.getElementById('web3-submit-btn');
+  if (opisEl)    opisEl.style.display    = '';
+  if (inputWrap) inputWrap.style.display = '';
+  if (refEl)     refEl.style.display     = '';
+  if (submitBtn) submitBtn.style.display = '';
+}
+
+function _web3HideAllCustomPaneli() {
+  WEB3_CUSTOM_PANELI.forEach(function(key) {
+    var el = document.getElementById(WEB3_PANEL_ID[key]);
+    if (el) el.style.display = 'none';
   });
 }
 
@@ -4763,6 +4811,18 @@ function web3IzaberiModul(modul, btn) {
   _web3AktivniModul = modul;
   document.querySelectorAll('.web3-moduli .strat-btn').forEach(function(b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
+
+  if (WEB3_CUSTOM_PANELI.indexOf(modul) !== -1) {
+    _web3HideStandardPanel();
+    _web3HideAllCustomPaneli();
+    var panel = document.getElementById(WEB3_PANEL_ID[modul]);
+    if (panel) panel.style.display = 'block';
+    return;
+  }
+
+  _web3HideAllCustomPaneli();
+  _web3ShowStandardPanel();
+
   var m = WEB3_MODULI[modul];
   var opisEl    = document.getElementById('web3-opis');
   var labelEl   = document.getElementById('web3-input-label');
@@ -4908,6 +4968,266 @@ function web3Kopiraj() {
     var btn = document.querySelector('.web3-copy-btn');
     if (btn) { btn.textContent = '✓ Kopirano'; setTimeout(function() { btn.textContent = 'Kopiraj'; }, 2000); }
   });
+}
+
+function _web3AuthHeaders() {
+  return {'Authorization':'Bearer '+(currentSession ? currentSession.access_token : '')};
+}
+
+/* ── F11.10a: CARF Jurisdikcije — besplatna lista ─────────────────────────── */
+async function web3JurisdikcijeLoad() {
+  var btn = document.getElementById('web3-jurisdikcije-btn');
+  var wrap = document.getElementById('web3-jurisdikcije-rezultat');
+  var bodyEl = document.getElementById('web3-jurisdikcije-body');
+  if (!currentUser) { openModal(); return; }
+  btn.disabled = true; btn.textContent = 'Učitavam...';
+  if (wrap) wrap.style.display = 'block';
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ Učitavam listu...</div>';
+  try {
+    var res = await fetch('/web3/jurisdikcije', {headers: _web3AuthHeaders()});
+    if (!res.ok) throw new Error('Server greška: ' + res.status);
+    var data = await res.json();
+    var jur = data.jurisdikcije || {};
+    var redovi = Object.keys(jur).map(function(naziv) {
+      var v = jur[naziv];
+      return {naziv: naziv, talas: v.talas, eu: v.eu, napomena: v.napomena || ''};
+    });
+    redovi.sort(function(a, b) {
+      if (a.talas === b.talas) return a.naziv.localeCompare(b.naziv);
+      if (a.talas === null) return 1;
+      if (b.talas === null) return -1;
+      return a.talas - b.talas;
+    });
+    var html = '';
+    if (data.napomena_srbija) {
+      html += '<div class="strat-error" style="margin-bottom:.8rem;">' + _htmlEsc(data.napomena_srbija) + '</div>';
+    }
+    html += '<table class="vx-table" style="width:100%;font-size:.8rem;"><thead><tr><th>Jurisdikcija</th><th>Prvi izveštaj</th><th>EU</th></tr></thead><tbody>';
+    redovi.forEach(function(r) {
+      html += '<tr><td>' + _htmlEsc(r.naziv) + '</td><td>' + (r.talas || 'Nije preuzeta obaveza') + '</td><td>' + (r.eu ? '✓' : '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    if (data.izvor) html += '<div class="strat-meta" style="margin-top:.6rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(data.izvor) + '</div>';
+    if (bodyEl) bodyEl.innerHTML = html;
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Prikaži listu jurisdikcija';
+  }
+}
+
+/* ── F14: OFAC Provera adresa ──────────────────────────────────────────────── */
+async function web3OfacProveri() {
+  var txtEl = document.getElementById('web3-ofac-adrese');
+  var btn = document.getElementById('web3-ofac-btn');
+  var wrap = document.getElementById('web3-ofac-rezultat');
+  var bodyEl = document.getElementById('web3-ofac-body');
+  if (!currentUser) { openModal(); return; }
+  var adrese = (txtEl.value || '').split('\n').map(function(a) { return a.trim(); }).filter(Boolean);
+  if (!adrese.length) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Unesite bar jednu adresu.</div>';
+    if (wrap) wrap.style.display = 'block';
+    return;
+  }
+  if (adrese.length > 25) adrese = adrese.slice(0, 25);
+  btn.disabled = true; btn.textContent = 'Proveravam...';
+  if (wrap) wrap.style.display = 'block';
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ Proveravam protiv OFAC SDN liste...</div>';
+  try {
+    var res = await fetch('/web3/ofac-screening', {
+      method: 'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, _web3AuthHeaders()),
+      body: JSON.stringify({adrese: adrese})
+    });
+    if (!res.ok) { var errData = {}; try { errData = await res.json(); } catch(e2) {} throw new Error(errData.detail || ('Server greška: ' + res.status)); }
+    var data = await res.json();
+    var html = '';
+    if (data.broj_pogodaka > 0) {
+      html += '<div class="strat-error" style="margin-bottom:.6rem;">⚠ ' + data.broj_pogodaka + ' adresa je pronađeno na OFAC SDN listi!</div>';
+    } else {
+      html += '<div class="web3-ok" style="display:block;margin-bottom:.6rem;">✓ Nijedna adresa nije pronađena na OFAC SDN listi.</div>';
+    }
+    html += '<table class="vx-table" style="width:100%;font-size:.8rem;"><thead><tr><th>Adresa</th><th>Status</th><th>Entitet / Programi</th></tr></thead><tbody>';
+    data.rezultati.forEach(function(r) {
+      var status = r.sankcionisano ? '<span class="web3-error-item">SANKCIONISANO</span>' : '<span class="web3-ok">Čisto</span>';
+      var detalj = r.sankcionisano ? (_htmlEsc(r.entitet) + ' (' + (r.programi||[]).join(', ') + ')') : '—';
+      html += '<tr><td style="word-break:break-all;">' + _htmlEsc(r.adresa) + '</td><td>' + status + '</td><td>' + detalj + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div class="strat-meta" style="margin-top:.6rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(data.napomena || '') + '</div>';
+    if (bodyEl) bodyEl.innerHTML = html;
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Proveri adrese';
+  }
+}
+
+/* ── F15: Wallet Provenance ────────────────────────────────────────────────── */
+async function web3WalletProvenance() {
+  var inputEl = document.getElementById('web3-wallet-adresa');
+  var btn = document.getElementById('web3-wallet-btn');
+  var wrap = document.getElementById('web3-wallet-rezultat');
+  var bodyEl = document.getElementById('web3-wallet-body');
+  if (!currentUser) { openModal(); return; }
+  if (!currentUserIsPro) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">Wallet Provenance je dostupan samo PRO korisnicima.</div>';
+    if (wrap) wrap.style.display = 'block';
+    return;
+  }
+  var adresa = (inputEl.value || '').trim();
+  if (!/^0x[a-fA-F0-9]{40}$/.test(adresa)) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Unesite validnu Ethereum adresu (0x + 40 hex karaktera).</div>';
+    if (wrap) wrap.style.display = 'block';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Proveravam...';
+  if (wrap) wrap.style.display = 'block';
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ Preuzimam istoriju sa Ethereum mreže...</div>';
+  try {
+    var res = await fetch('/web3/wallet-provenance', {
+      method: 'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, _web3AuthHeaders()),
+      body: JSON.stringify({adresa: adresa})
+    });
+    if (!res.ok) { var errData = {}; try { errData = await res.json(); } catch(e2) {} throw new Error(errData.detail || ('Server greška: ' + res.status)); }
+    var d = await res.json();
+    var html = '';
+    if (d.novcanik_sankcionisan) {
+      var det = d.novcanik_sankcije_detalji || {};
+      html += '<div class="strat-error" style="margin-bottom:.6rem;">⚠ OVAJ NOVČANIK JE NA OFAC SDN LISTI — ' + _htmlEsc(det.entitet||'') + ' (' + (det.programi||[]).join(', ') + ')</div>';
+    } else {
+      html += '<div class="web3-ok" style="display:block;margin-bottom:.6rem;">✓ Novčanik nije na OFAC SDN listi.</div>';
+    }
+    html += '<table class="vx-table" style="width:100%;font-size:.8rem;"><tbody>';
+    html += '<tr><td>Balans</td><td>' + d.balans_eth + ' ETH</td></tr>';
+    html += '<tr><td>Starost novčanika</td><td>' + (d.starost_dana !== null ? d.starost_dana + ' dana' : '—') + '</td></tr>';
+    html += '<tr><td>ETH transakcija</td><td>' + d.broj_eth_transakcija + '</td></tr>';
+    html += '<tr><td>Token transakcija</td><td>' + d.broj_token_transakcija + '</td></tr>';
+    html += '<tr><td>Jedinstveni kontakti</td><td>' + d.broj_jedinstvenih_kontakata + '</td></tr>';
+    html += '<tr><td>Ukupno poslato</td><td>' + d.ukupno_poslato_eth + ' ETH</td></tr>';
+    html += '<tr><td>Ukupno primljeno</td><td>' + d.ukupno_primljeno_eth + ' ETH</td></tr>';
+    html += '</tbody></table>';
+    var sank = d.sankcionisani_direktni_kontakti || [];
+    if (sank.length) {
+      html += '<div class="strat-error" style="margin:.6rem 0 .3rem;">⚠ ' + sank.length + ' direktnih kontakata na OFAC SDN listi:</div>';
+      sank.forEach(function(k) {
+        html += '<div class="web3-error-item" style="display:block;margin-bottom:.3rem;">• ' + _htmlEsc(k.adresa) + ' — ' + _htmlEsc(k.entitet) + ' (' + (k.programi||[]).join(', ') + ')</div>';
+      });
+    }
+    if (d.upozorenje_limit) html += '<div class="strat-meta" style="margin-top:.5rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(d.upozorenje_limit) + '</div>';
+    html += '<div class="strat-meta" style="margin-top:.5rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(d.napomena || '') + '</div>';
+    if (bodyEl) bodyEl.innerHTML = html;
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Proveri novčanik';
+  }
+}
+
+/* ── F16: Source-of-Funds Dossier (PDF) ───────────────────────────────────── */
+async function web3DossierGeneriraj() {
+  var opisEl = document.getElementById('web3-dossier-opis');
+  var carfEl = document.getElementById('web3-dossier-carf');
+  var walletEl = document.getElementById('web3-dossier-wallet');
+  var btn = document.getElementById('web3-dossier-btn');
+  var poruka = document.getElementById('web3-dossier-poruka');
+  if (!currentUser) { openModal(); return; }
+  if (!currentUserIsPro) {
+    if (poruka) poruka.innerHTML = '<span class="strat-pro-gate">Source-of-Funds Dossier je dostupan samo PRO korisnicima.</span>';
+    return;
+  }
+  var opis = (opisEl.value || '').trim();
+  if (opis.length < 30) {
+    if (poruka) poruka.innerHTML = '<span style="color:rgba(255,80,80,0.85);">Opis dokumentacije mora imati najmanje 30 karaktera.</span>';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Generišem dossier...';
+  if (poruka) poruka.innerHTML = '⏳ Generišem PDF (2 AI analize + wallet provera)...';
+  try {
+    var res = await fetch('/web3/source-of-funds-dossier', {
+      method: 'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, _web3AuthHeaders()),
+      body: JSON.stringify({
+        opis_dokumentacije: opis,
+        carf_pitanje: (carfEl.value || '').trim(),
+        wallet_adresa: (walletEl.value || '').trim()
+      })
+    });
+    if (res.status === 402) {
+      var errData = {}; try { errData = await res.json(); } catch(e2) {}
+      var errMsg = (errData.detail && errData.detail.message) ? errData.detail.message : 'Nemate dovoljno kredita.';
+      if (poruka) poruka.innerHTML = '<span style="color:rgba(255,80,80,0.85);">' + _htmlEsc(errMsg) + '</span>';
+      return;
+    }
+    if (!res.ok) { var errData2 = {}; try { errData2 = await res.json(); } catch(e3) {} throw new Error(errData2.detail || ('Server greška: ' + res.status)); }
+    var kreditiHeader = res.headers.get('X-Credits-Remaining');
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'vindex_source_of_funds_dossier.pdf';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (poruka) poruka.innerHTML = '<span class="web3-ok">✓ Dossier generisan i preuzet.</span>';
+    if (kreditiHeader !== null && typeof userCredits !== 'undefined') {
+      userCredits = parseInt(kreditiHeader, 10);
+      if (typeof updateCreditDisplay === 'function') updateCreditDisplay();
+    }
+  } catch(e) {
+    if (poruka) poruka.innerHTML = '<span style="color:rgba(255,80,80,0.85);">Greška: ' + _htmlEsc(e.message) + '</span>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Generiši dossier (PDF, 2 kredita)';
+  }
+}
+
+/* ── F13: CSV Import — Binance/Kraken ─────────────────────────────────────── */
+async function web3CsvUvoz() {
+  var fileEl = document.getElementById('web3-csv-fajl');
+  var btn = document.getElementById('web3-csv-btn');
+  var wrap = document.getElementById('web3-csv-rezultat');
+  var bodyEl = document.getElementById('web3-csv-body');
+  if (!currentUser) { openModal(); return; }
+  if (!currentUserIsPro) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">CSV Import je dostupan samo PRO korisnicima.</div>';
+    if (wrap) wrap.style.display = 'block';
+    return;
+  }
+  var fajl = fileEl.files && fileEl.files[0];
+  if (!fajl) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Izaberite CSV fajl.</div>';
+    if (wrap) wrap.style.display = 'block';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Analiziram...';
+  if (wrap) wrap.style.display = 'block';
+  if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">⏳ Analiziram CSV fajl...</div>';
+  try {
+    var fd = new FormData();
+    fd.append('file', fajl);
+    var res = await fetch('/csv-import/analiziraj', {
+      method: 'POST',
+      headers: _web3AuthHeaders(),
+      body: fd
+    });
+    if (!res.ok) { var errData = {}; try { errData = await res.json(); } catch(e2) {} throw new Error((errData.detail) || ('Server greška: ' + res.status)); }
+    var d = await res.json();
+    var html = '<div class="strat-label" style="margin-bottom:.4rem;">Platforma: ' + _htmlEsc(d.platforma_detektovana) + ' • Ukupno transakcija: ' + d.ukupno_transakcija + '</div>';
+    (d.upozorenja || []).forEach(function(u) {
+      html += '<div class="strat-error" style="margin-bottom:.4rem;">⚠ ' + _htmlEsc(u) + '</div>';
+    });
+    html += '<table class="vx-table" style="width:100%;font-size:.8rem;"><thead><tr><th>Kategorija</th><th>Broj</th></tr></thead><tbody>';
+    Object.keys(d.statistika_po_kategoriji || {}).forEach(function(k) {
+      var s = d.statistika_po_kategoriji[k];
+      html += '<tr><td>' + _htmlEsc(s.labela) + '</td><td>' + s.broj + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div class="strat-meta" style="margin-top:.6rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(d.napomena || '') + '</div>';
+    if (bodyEl) bodyEl.innerHTML = html;
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Analiziraj CSV';
+  }
 }
 
 /* ── Phase 5.1: Pravne oblasti ──────────────────────────────────────────── */

@@ -540,6 +540,10 @@ app.include_router(klijenti_router)
 from routers.zastarelost import router as zastarelost_router
 from routers.strategija  import router as strategija_router
 from routers.web3        import router as web3_router
+from routers.csv_import  import router as csv_import_router
+from routers.ofac_screening import router as ofac_router
+from routers.wallet_provenance import router as wallet_provenance_router
+from routers.source_of_funds import router as source_of_funds_router
 from routers.interni     import router as interni_router
 from routers.push        import router as push_router
 from routers.export      import router as export_router
@@ -627,6 +631,10 @@ from routers.status_page           import router as status_page_router
 app.include_router(zastarelost_router)
 app.include_router(strategija_router)
 app.include_router(web3_router)
+app.include_router(csv_import_router)
+app.include_router(ofac_router)
+app.include_router(wallet_provenance_router)
+app.include_router(source_of_funds_router)
 app.include_router(interni_router)
 app.include_router(push_router)
 app.include_router(export_router)
