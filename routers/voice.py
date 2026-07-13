@@ -267,6 +267,7 @@ start_timer         — pokreni tajmer naplate (params: {})
 stop_timer          — zaustavi tajmer (params: {})
 show_dashboard      — idi na početnu/dashboard (params: {})
 show_klijenti       — idi na klijente (params: {})
+open_digitalna_imovina — otvori modul Digitalna imovina & Usklađenost (params: {})
 red_team            — red team strategija (params: {})
 hearing_prep        — priprema za ročište (params: {})
 search              — pretraži (params: {query: string})
@@ -292,6 +293,7 @@ PRAVILA MAPIRANJA (precizno!):
 - "pokreni tajmer" / "počni naplatu" / "start tajmer" → start_timer
 - "zaustavi tajmer" / "stop tajmer" → stop_timer
 - "idi na dashboard" / "početna" / "komandni centar" → show_dashboard
+- "otvori digitalnu imovinu" / "idi na kripto usklađenost" / "otvori CARF DAC8" → open_digitalna_imovina
 - "postavi pitanje" / konkretno pravno pitanje → ask_question({text: celo pitanje})
 - "napravi tužbu/žalbu/ugovor/podnesak" → generate_document({tip: odgovarajući tip})
 - "sačuvaj PDF" / "exportuj PDF" / "izbaci PDF" / "generiši PDF" → export_pdf

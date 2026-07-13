@@ -2163,7 +2163,7 @@ function setTab(el,t){
   }
   document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
   el.classList.add('active');
-  ['h','s','p','k','w','kal','pi','aiws','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
+  ['h','s','p','k','kal','pi','aiws','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
   var lbl={h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
@@ -2266,6 +2266,9 @@ function aiwsSetMode(mode, btn) {
     if (ip2) ip2.style.display = '';
   }
   if (mode === 'digitalna_imovina' && typeof dimBackToOverview === 'function') dimBackToOverview();
+  if (typeof vxUpdateBreadcrumb === 'function' && activeTab === 'aiws') {
+    vxUpdateBreadcrumb('aiws', mode === 'digitalna_imovina' ? 'Digitalna imovina & Usklađenost' : null);
+  }
 }
 
 /* ── Digitalna imovina & Usklađenost — AIWS pill vidljivost + otvaranje ─── */
@@ -2381,7 +2384,7 @@ function vxGoBack() {
   }
 }
 
-function vxUpdateBreadcrumb(t) {
+function vxUpdateBreadcrumb(t, modeSuffix) {
   var backBtn   = document.getElementById('vx-back-btn');
   var backLabel = document.getElementById('vx-back-label');
   var backSep   = document.getElementById('vx-back-sep');
@@ -2389,7 +2392,7 @@ function vxUpdateBreadcrumb(t) {
   if (!pathEl) return;
   var label = _vxTabLabels[t] || t;
   var naPredmetu = (t === 'p' && activePredmetId && activePredmetNaziv);
-  pathEl.textContent = naPredmetu ? '' : label;
+  pathEl.textContent = naPredmetu ? '' : (modeSuffix ? (label + ' › ' + modeSuffix) : label);
   if (backLabel) backLabel.textContent = naPredmetu ? ('Nazad na predmet ' + activePredmetNaziv) : 'Nazad';
   if (vxNavHistory.length > 0) {
     if (backBtn) backBtn.classList.add('visible');
@@ -10488,7 +10491,7 @@ function mobileNavGo(t) {
 }
 
 function mobileNavUpdateActive(t) {
-  var aiTabs = ['n', 'a', 's', 'w'];
+  var aiTabs = ['n', 'a', 's'];
   var moreTabs = ['aiws', 'dok', 'pi', 'settings', 'n', 's', 'a', 't', 'fin', 'kanc'];
   var highlight = aiTabs.indexOf(t) !== -1 ? 'q' : t;
   var inMore = moreTabs.indexOf(t) !== -1;
@@ -12459,7 +12462,8 @@ var _CMDK_ACTIONS = [
   { label: 'Pitaj AI', sub: 'Istraži zakon ili sudsku praksu', action: 'openAITool("q")' },
   { label: 'Novi rok', sub: 'Dodaj ročište ili rok u predmet', action: 'activePredmetId ? pred_subtabSwitch("rokovi") : setTab(document.getElementById("tab-btn-p"),"p")' },
   { label: 'Pokreni analizu', sub: '6 analiza analiziraju predmet', action: 'pred_launchKompletnaAnaliza ? pred_launchKompletnaAnaliza() : null' },
-  { label: 'Idi na klijenta', sub: 'Pretraži i otvori klijenta', action: 'setTab(document.getElementById("tab-btn-k"),"k")' }
+  { label: 'Idi na klijenta', sub: 'Pretraži i otvori klijenta', action: 'setTab(document.getElementById("tab-btn-k"),"k")' },
+  { label: 'Digitalna imovina & Usklađenost', sub: 'CARF/DAC8, OFAC, Wallet Provenance, MiCA/ZDI', action: '_dimOpenModul()' }
 ];
 
 var _CMDK_ICONS = {
@@ -15884,6 +15888,10 @@ function voice_doAction(action, params) {
 
     case 'show_klijenti':
       setTab(document.getElementById('tab-btn-k'), 'k');
+      break;
+
+    case 'open_digitalna_imovina':
+      if (typeof _dimOpenModul === 'function') _dimOpenModul();
       break;
 
     case 'search':
