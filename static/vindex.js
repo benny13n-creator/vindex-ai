@@ -13704,6 +13704,61 @@ async function adminOpsLoad() {
 
   adminNotifLoad();
   adminBetaLoad();
+  adminPineconeLoad();
+}
+
+function _fmtBytes(bytes) {
+  if (bytes == null) return '—';
+  var gb = bytes / (1024 * 1024 * 1024);
+  if (gb >= 0.1) return gb.toFixed(2) + ' GB';
+  var mb = bytes / (1024 * 1024);
+  return mb.toFixed(1) + ' MB';
+}
+
+async function adminPineconeLoad() {
+  if (!currentSession || !currentUserIsFounder) return;
+  var sumEl = document.getElementById('admin-pinecone-summary');
+  var tblEl = document.getElementById('admin-pinecone-table');
+  if (sumEl) sumEl.textContent = 'Učitavam...';
+  try {
+    var r = await fetch(BASE_URL + '/api/admin/pinecone-capacity', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('Server greška: ' + r.status));
+
+    var totalBytes = (d.namespaces || []).reduce(function(s, n) { return s + n.estimated_bytes; }, 0);
+    if (sumEl) sumEl.textContent = d.total_vector_count.toLocaleString('sr-RS') + ' vektora ukupno · ~' + _fmtBytes(totalBytes) + ' (donja granica, bez metapodataka)';
+
+    if (tblEl) {
+      var rows = (d.namespaces || []).map(function(n) {
+        var trend = (d.trend_po_namespace || {})[n.namespace] || [];
+        var deltaTxt = '—';
+        if (trend.length >= 2) {
+          var prvi = trend[0].vector_count, poslednji = trend[trend.length - 1].vector_count;
+          var delta = poslednji - prvi;
+          var dana = trend.length;
+          deltaTxt = (delta >= 0 ? '+' : '') + delta.toLocaleString('sr-RS') + ' (' + dana + 'd)';
+        }
+        return '<tr>'
+          + '<td style="padding:3px 8px 3px 0;color:rgba(255,255,255,0.8);">' + _htmlEsc(n.namespace) + '</td>'
+          + '<td style="padding:3px 8px;text-align:right;color:rgba(255,255,255,0.65);">' + n.vector_count.toLocaleString('sr-RS') + '</td>'
+          + '<td style="padding:3px 8px;text-align:right;color:rgba(255,255,255,0.5);">' + _fmtBytes(n.estimated_bytes) + '</td>'
+          + '<td style="padding:3px 0 3px 8px;text-align:right;color:rgba(255,255,255,0.45);">' + deltaTxt + '</td>'
+          + '</tr>';
+      }).join('');
+      tblEl.innerHTML = '<table style="width:100%;border-collapse:collapse;">'
+        + '<thead><tr style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,0.3);">'
+        + '<th style="text-align:left;padding:2px 8px 4px 0;">Namespace</th>'
+        + '<th style="text-align:right;padding:2px 8px 4px;">Vektora</th>'
+        + '<th style="text-align:right;padding:2px 8px 4px;">Veličina</th>'
+        + '<th style="text-align:right;padding:2px 0 4px 8px;">Trend</th>'
+        + '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+  } catch(e) {
+    if (sumEl) sumEl.textContent = '';
+    if (tblEl) tblEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);font-size:0.72rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
 }
 
 async function adminNotifLoad() {

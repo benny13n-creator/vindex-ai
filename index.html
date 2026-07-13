@@ -3688,7 +3688,7 @@
                 <button class="settings-btn" onclick="lawListLoad()" id="law-list-btn">Lista</button>
               </div>
               <div style="font-size:.75rem;color:rgba(255,255,255,0.4);margin-bottom:10px;line-height:1.5;">
-                Upload PDF zakona (selektabilan tekst). Automatski se chunka, embeduje i dodaje u Pinecone <code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px;">default</code> namespace.
+                Upload PDF zakona (selektabilan tekst). Automatski se chunka, embeduje i dodaje u Pinecone <code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px;">zakoni_rs</code> namespace.
               </div>
               <div style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:10px;">
                 <input type="text" id="law-naziv-input" placeholder="Naziv zakona (npr. Zakon o privrednim društvima)" maxlength="300"
@@ -3747,6 +3747,15 @@
               <div style="margin-top:1rem;">
                 <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;">Platform Analytics (svi korisnici, 30 dana)</div>
                 <div id="admin-platform-analytics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.5rem;"></div>
+              </div>
+
+              <div style="margin-top:1rem;">
+                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;display:flex;align-items:center;justify-content:space-between;">
+                  <span>Pinecone Capacity</span>
+                  <button class="settings-btn" onclick="adminPineconeLoad()" style="font-size:0.65rem;padding:2px 8px;">↻</button>
+                </div>
+                <div id="admin-pinecone-summary" style="font-size:0.72rem;color:rgba(255,255,255,0.45);margin-bottom:0.5rem;"></div>
+                <div id="admin-pinecone-table" style="font-size:0.75rem;"></div>
               </div>
             </div>
 

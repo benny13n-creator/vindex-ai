@@ -1,0 +1,54 @@
+{
+  "total_vector_count": 153016,
+  "dimension": 3072,
+  "namespaces": {
+    "pred_17d3edb4c74847109a58bd23b1385dcc": {
+      "vector_count": 5,
+      "estimated_bytes": 61440
+    },
+    "zakoni_rs": {
+      "vector_count": 10100,
+      "estimated_bytes": 124108800
+    },
+    "misljenja": {
+      "vector_count": 74,
+      "estimated_bytes": 909312
+    },
+    "pred_26904a63c3134f708c55f2f913fa40b6": {
+      "vector_count": 5,
+      "estimated_bytes": 61440
+    },
+    "pred_c41b9afc28c04349ba98fd515a23626f": {
+      "vector_count": 5,
+      "estimated_bytes": 61440
+    },
+    "carf_dac8": {
+      "vector_count": 17,
+      "estimated_bytes": 208896
+    },
+    "pred_7d7e8e141e0a45f3995a3b6d0bdb7c21": {
+      "vector_count": 5,
+      "estimated_bytes": 61440
+    },
+    "pred_c326f5bbddbd4a578c6fc534b6fec981": {
+      "vector_count": 5,
+      "estimated_bytes": 61440
+    },
+    "sudska_praksa": {
+      "vector_count": 116494,
+      "estimated_bytes": 1431478272
+    },
+    "__default__": {
+      "vector_count": 25822,
+      "estimated_bytes": 317300736
+    },
+    "pred_dfe8d28812144d80a19b58ca76ca95d8": {
+      "vector_count": 5,
+      "estimated_bytes": 61440
+    },
+    "web3_zdi_mca": {
+      "vector_count": 479,
+      "estimated_bytes": 5885952
+    }
+  }
+}

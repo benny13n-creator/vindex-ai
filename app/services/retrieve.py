@@ -615,6 +615,10 @@ CONFIDENCE_MEDIUM_THRESHOLD = 0.52
 PRAKSA_CONFIDENCE_HIGH_THRESHOLD   = 0.65
 PRAKSA_CONFIDENCE_MEDIUM_THRESHOLD = 0.56
 
+# Namespace for general Serbian law corpus (renamed from Pinecone's unnamed
+# default namespace 2026-07-13 — see migrations/050 for the operational rationale)
+_ZAKONI_NS = "zakoni_rs"
+
 # Namespace for VKS case-law vectors (Phase 1.2 ingest)
 _PRAKSA_NS = "sudska_praksa"
 
@@ -706,7 +710,7 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
     vektor = _ugradi_query(query)
     filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
     try:
-        matches = index.query(vector=vektor, top_k=k, include_metadata=True, filter=filter_dict).matches
+        matches = index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
         if not matches:
             logger.warning("[PINECONE] Prazni rezultati za query='%s' filter=%s", query[:60], filter_zakon)
         return matches
@@ -719,7 +723,7 @@ def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = Non
     index = _get_index()
     filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
     try:
-        return index.query(vector=vektor, top_k=k, include_metadata=True, filter=filter_dict).matches
+        return index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
     except Exception:
         logger.exception("Greška u pretraga_vec")
         return []
@@ -798,6 +802,7 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list
         return index.query(
             vector=vektor,
             top_k=10,
+            namespace=_ZAKONI_NS,
             include_metadata=True,
             filter=filter_dict,
         ).matches

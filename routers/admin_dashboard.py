@@ -14,11 +14,13 @@ Endpoints (svi founder-only):
   GET  /api/admin/beta-users                  — spisak beta korisnika
   POST /api/admin/beta-users                  — dodaj beta korisnika (invite)
   GET  /api/admin/security-overview           — vidljivost postojećih bezbednosnih slojeva
+  GET  /api/admin/pinecone-capacity            — vektora/procenjena veličina po namespace-u + nedeljni trend
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -243,4 +245,102 @@ async def security_overview(request: Request, user: dict = Depends(get_current_u
         "security_events_24h":        await _count("security_events", created_at_gte=od_24h),
         "ai_forensics_24h":           await _count("ai_forensics", started_at_gte=od_24h),
         "napomena": "Read-only pregled postojećih bezbednosnih slojeva (Wave 1/2). Nema nove bezbednosne logike u ovom sprintu.",
+    }
+
+
+# ─── Pinecone Capacity Monitoring ───────────────────────────────────────────
+# Broj vektora i procenjena veličina po namespace-u + nedeljni trend rasta.
+# Snapshot se upisuje pri svakoj poseti (najviše jednom dnevno po namespace-u
+# preko UNIQUE(snapshot_date, namespace) + upsert) — nema potrebe za posebnim
+# cron job-om da bi se prikupljala istorija.
+
+def _pinecone_index():
+    from pinecone import Pinecone
+    api_key = os.getenv("PINECONE_API_KEY", "").strip()
+    if not api_key:
+        raise HTTPException(status_code=503, detail="PINECONE_API_KEY nije konfigurisan.")
+    pc = Pinecone(api_key=api_key)
+    host = os.getenv("PINECONE_HOST", "").strip()
+    if host:
+        return pc.Index(host=host)
+    return pc.Index(os.getenv("PINECONE_INDEX_NAME", "vindex-ai").strip())
+
+
+@router.get("/pinecone-capacity")
+@limiter.limit("20/minute")
+async def pinecone_capacity(request: Request, user: dict = Depends(get_current_user)):
+    """Broj vektora + procenjena veličina po namespace-u, plus nedeljni trend rasta
+    (iz istorijskih snapshot-ova). Upisuje današnji snapshot ako još ne postoji."""
+    _require_founder(user)
+
+    try:
+        idx = await asyncio.to_thread(_pinecone_index)
+        stats = await asyncio.to_thread(idx.describe_index_stats)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[ADMIN] pinecone-capacity greška: %s", e)
+        raise HTTPException(status_code=502, detail="Greška pri čitanju Pinecone statistike.")
+
+    dimenzija = stats.get("dimension") or 3072
+    bytes_po_vektoru = dimenzija * 4  # float32 — ne uključuje metapodatke (procena je donja granica)
+
+    namespaces = []
+    for naziv, info in (stats.get("namespaces") or {}).items():
+        broj = info.get("vector_count", 0)
+        namespaces.append({
+            "namespace": naziv,
+            "vector_count": broj,
+            "estimated_bytes": broj * bytes_po_vektoru,
+        })
+    namespaces.sort(key=lambda n: -n["vector_count"])
+
+    supa = _get_supa()
+    danas = datetime.now(timezone.utc).date().isoformat()
+
+    def _snapshot():
+        rows = [{
+            "snapshot_date": danas,
+            "namespace": n["namespace"],
+            "vector_count": n["vector_count"],
+            "estimated_bytes": n["estimated_bytes"],
+        } for n in namespaces]
+        if rows:
+            supa.table("pinecone_capacity_snapshots").upsert(
+                rows, on_conflict="snapshot_date,namespace"
+            ).execute()
+
+    try:
+        await asyncio.to_thread(_snapshot)
+    except Exception as e:
+        logger.warning("[ADMIN] pinecone-capacity snapshot upis neuspešan (nastavljam): %s", e)
+
+    trend = {}
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).date().isoformat()
+        r = await asyncio.to_thread(
+            lambda: supa.table("pinecone_capacity_snapshots")
+                .select("snapshot_date,namespace,vector_count,estimated_bytes")
+                .gte("snapshot_date", cutoff)
+                .order("snapshot_date", desc=False)
+                .execute()
+        )
+        for row in (r.data or []):
+            trend.setdefault(row["namespace"], []).append({
+                "datum": row["snapshot_date"],
+                "vector_count": row["vector_count"],
+                "estimated_bytes": row["estimated_bytes"],
+            })
+    except Exception as e:
+        logger.warning("[ADMIN] pinecone-capacity trend čitanje neuspešno: %s", e)
+
+    return {
+        "total_vector_count": stats.get("total_vector_count", 0),
+        "dimension": dimenzija,
+        "namespaces": namespaces,
+        "trend_po_namespace": trend,
+        "napomena": (
+            "Procenjena veličina je DONJA granica (samo sirovi vektori, float32) — "
+            "stvarna potrošnja prostora je veća zbog metapodataka. Koristi za trend, ne za tačan limit."
+        ),
     }

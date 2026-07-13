@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Vindex AI — routers/law_upload.py
-Law database expansion: admin upload Serbian law PDFs → Pinecone default namespace.
+Law database expansion: admin upload Serbian law PDFs → Pinecone zakoni_rs namespace.
 
 POST /api/admin/law/upload   — upload PDF zakona, kreira ingest job u pozadini
 GET  /api/admin/law/lista    — lista ingested zakona iz law_docs tabele
@@ -88,7 +88,7 @@ def _upsert(vectors: list[dict]) -> None:
     from pinecone import Pinecone
     pc  = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
     idx = pc.Index(os.environ.get("PINECONE_INDEX", "vindex-ai"))
-    idx.upsert(vectors=vectors, namespace="default")
+    idx.upsert(vectors=vectors, namespace="zakoni_rs")
 
 
 def _now() -> str:
