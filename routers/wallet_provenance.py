@@ -26,6 +26,7 @@ import logging
 import os
 import re
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -42,6 +43,20 @@ logger = logging.getLogger("vindex.wallet_provenance")
 _ETHERSCAN_BASE = "https://api.etherscan.io/v2/api"
 _ETH_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
 _MAX_TX_PREGLED = 1000  # Etherscan Free tier limit po pozivu (od 1.7.2026)
+
+# ── Confidence model (auditabilnost — vidi feedback sesije 2026-07-13) ──────
+# VISOKA  — direktno pronađena na OFAC SDN listi (deterministički pogodak).
+# SREDNJA — direktan (1-hop) kontakt sa adresom koja JE na OFAC listi.
+# NISKA   — heuristička opservacija o obrascu ponašanja (npr. neuobičajeno
+#           visok broj kontakata) — NIJE nalaz o sankcijama, samo analitički
+#           signal koji sam analitičar treba dalje da proceni. Danas je jedina
+#           populisana heuristika broj kontakata; arhitektura je spremna za
+#           dodatne (npr. CEX tagging) kad bude postojao pouzdan izvor podataka.
+CONFIDENCE_VISOKA = "VISOKA"
+CONFIDENCE_SREDNJA = "SREDNJA"
+CONFIDENCE_NISKA = "NISKA"
+
+_KONTAKT_PRAG_HEURISTIKA = 300  # proizvoljan prag — heuristika, nije kalibrisan model
 
 
 class WalletProvenanceRequest(BaseModel):
@@ -179,15 +194,82 @@ async def sakupi_wallet_provenance(adresa: str) -> dict:
         if (t.get("to") or "").lower() == adresa_lower and t.get("isError") == "0"
     )
 
+    limit_dostignut = len(eth_txs) >= _MAX_TX_PREGLED or len(token_txs) >= _MAX_TX_PREGLED
     tx_prikazano_upozorenje = (
         f"Prikazano poslednjih {_MAX_TX_PREGLED} transakcija (Etherscan Free tier limit) — "
         f"stariji novčanici sa mnogo aktivnosti mogu imati dodatnu, ovde neprikazanu istoriju."
-        if len(eth_txs) >= _MAX_TX_PREGLED or len(token_txs) >= _MAX_TX_PREGLED else None
+        if limit_dostignut else None
     )
+
+    # ── Nalazi — razdvojeni po vrsti, NE svi pod "rizik" (auditabilnost) ────
+    sankcioni_nalazi = []
+    if novcanik_sankcionisan:
+        sankcioni_nalazi.append({
+            "tip": "novcanik_na_ofac_listi",
+            "confidence": CONFIDENCE_VISOKA,
+            "opis": (
+                f"Novčanik je direktno pronađen na trenutno učitanoj OFAC SDN listi — "
+                f"entitet: {novcanik_sankcionisan['entitet']}, "
+                f"programi: {', '.join(novcanik_sankcionisan['programi'])}."
+            ),
+            "detalji": novcanik_sankcionisan,
+        })
+    for k in sankcionisani_kontakti:
+        sankcioni_nalazi.append({
+            "tip": "direktan_kontakt_sa_sankcionisanom_adresom",
+            "confidence": CONFIDENCE_SREDNJA,
+            "opis": (
+                f"Direktan (1-hop) kontakt sa adresom na OFAC SDN listi — "
+                f"{k['entitet']} ({', '.join(k['programi'])}), "
+                f"{k['broj_transakcija_sa_ovim_novcanikom']} transakcija sa ovim novčanikom."
+            ),
+            "detalji": k,
+        })
+
+    analiticki_nalazi = []
+    if len(kontakti) > _KONTAKT_PRAG_HEURISTIKA:
+        analiticki_nalazi.append({
+            "tip": "visok_broj_kontakata",
+            "confidence": CONFIDENCE_NISKA,
+            "opis": (
+                f"{len(kontakti)} jedinstvenih kontakata u analiziranom periodu — neuobičajeno "
+                f"visoko za pojedinačni novčanik, može ukazivati na agregatorsku/exchange aktivnost "
+                f"ili visok obim transakcija. Ovo je heuristička opservacija (prag: "
+                f"{_KONTAKT_PRAG_HEURISTIKA}), NE nalaz o sankcijama — zahteva dalju procenu analitičara."
+            ),
+        })
+
+    nedostatak_podataka_nalazi = [{
+        "tip": "samo_direktni_kontakti",
+        "opis": (
+            "Provera pokriva samo direktne (1-hop) kontakte novčanika — ne prati sredstva "
+            "kroz više transakcija unazad (multi-hop)."
+        ),
+    }]
+    if tx_prikazano_upozorenje:
+        nedostatak_podataka_nalazi.append({
+            "tip": "transakcijski_limit",
+            "opis": tx_prikazano_upozorenje,
+        })
 
     return {
         "modul": "wallet_provenance",
         "adresa": adresa,
+        "coverage": {
+            "lanac": "Ethereum (mainnet)",
+            "izvor": "Etherscan API V2",
+            "analizirano_eth_transakcija": len(eth_txs),
+            "analizirano_token_transakcija": len(token_txs),
+            "limit_dostignut": limit_dostignut,
+            "poslednje_osvezavanje": datetime.now(timezone.utc).isoformat(),
+        },
+        "nalazi": {
+            "sankcioni": sankcioni_nalazi,
+            "analiticki": analiticki_nalazi,
+            "nedostatak_podataka": nedostatak_podataka_nalazi,
+        },
+        # Zadržana ravna polja radi jednostavnog prikaza (tabela/summary) —
+        # nalazi iznad su izvor istine za bilo kakvu compliance/audit odluku.
         "novcanik_sankcionisan": bool(novcanik_sankcionisan),
         "novcanik_sankcije_detalji": novcanik_sankcionisan,
         "sankcionisani_direktni_kontakti": sankcionisani_kontakti,
@@ -203,9 +285,10 @@ async def sakupi_wallet_provenance(adresa: str) -> dict:
         "upozorenje_limit": tx_prikazano_upozorenje,
         "napomena": (
             "Provera pokriva samo Ethereum mainnet i DIREKTNE (1-hop) kontakte novčanika — "
-            "ne prati sredstva kroz više transakcija unazad (multi-hop). Odsustvo pogotka NE "
-            "znači da su sredstva 'čista' — samo da nema poznatog direktnog kontakta sa OFAC "
-            "SDN listom. Ovo nije pravni savet niti zamena za profesionalni AML/sankcijski program."
+            "ne prati sredstva kroz više transakcija unazad (multi-hop). Odsustvo poklapanja NE "
+            "predstavlja potvrdu da su sredstva bez rizika — samo da nema poznatog poklapanja sa "
+            "trenutno učitanom OFAC SDN listom. Ovo nije pravni savet niti zamena za profesionalni "
+            "AML/sankcijski program."
         ),
     }
 

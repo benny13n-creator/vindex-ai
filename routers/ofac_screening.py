@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import threading
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -94,11 +95,23 @@ async def post_ofac_screening(
         else:
             rezultati.append({"adresa": adresa, "sankcionisano": False})
 
+    try:
+        poslednje_azuriranje = datetime.fromtimestamp(
+            os.path.getmtime(_DATA_PATH), tz=timezone.utc
+        ).isoformat()
+    except OSError:
+        poslednje_azuriranje = None
+
     return {
         "modul": "ofac_screening",
         "rezultati": rezultati,
         "broj_pogodaka": broj_pogodaka,
         "izvor": podaci.get("izvor"),
+        "coverage": {
+            "izvor": podaci.get("izvor"),
+            "analizirano_adresa": len(req.adrese),
+            "poslednje_azuriranje_baze": poslednje_azuriranje,
+        },
         "napomena": (
             "Provera je izvršena protiv zvanične OFAC SDN liste digitalne imovine. "
             "Odsustvo pogotka NE znači da adresa nema drugi pravni ili reputacioni rizik — "

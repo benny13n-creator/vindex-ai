@@ -5045,16 +5045,23 @@ async function web3OfacProveri() {
     if (data.broj_pogodaka > 0) {
       html += '<div class="strat-error" style="margin-bottom:.6rem;">⚠ ' + data.broj_pogodaka + ' adresa je pronađeno na OFAC SDN listi!</div>';
     } else {
-      html += '<div class="web3-ok" style="display:block;margin-bottom:.6rem;">✓ Nijedna adresa nije pronađena na OFAC SDN listi.</div>';
+      html += '<div class="web3-ok" style="display:block;margin-bottom:.6rem;">✓ Nisu pronađena poklapanja sa trenutno učitanom OFAC SDN listom.</div>';
     }
     html += '<table class="vx-table" style="width:100%;font-size:.8rem;"><thead><tr><th>Adresa</th><th>Status</th><th>Entitet / Programi</th></tr></thead><tbody>';
     data.rezultati.forEach(function(r) {
-      var status = r.sankcionisano ? '<span class="web3-error-item">SANKCIONISANO</span>' : '<span class="web3-ok">Čisto</span>';
+      var status = r.sankcionisano ? '<span class="web3-error-item">SANKCIONISANO</span>' : '<span class="web3-ok">Bez poklapanja</span>';
       var detalj = r.sankcionisano ? (_htmlEsc(r.entitet) + ' (' + (r.programi||[]).join(', ') + ')') : '—';
       html += '<tr><td style="word-break:break-all;">' + _htmlEsc(r.adresa) + '</td><td>' + status + '</td><td>' + detalj + '</td></tr>';
     });
     html += '</tbody></table>';
-    html += '<div class="strat-meta" style="margin-top:.6rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(data.napomena || '') + '</div>';
+    if (data.coverage) {
+      var cov = data.coverage;
+      html += '<div class="strat-meta" style="margin-top:.6rem;font-size:.72rem;opacity:.55;border-top:1px solid rgba(255,255,255,.08);padding-top:.4rem;">'
+        + '<b>Coverage:</b> analizirano ' + cov.analizirano_adresa + ' adresa · izvor: ' + _htmlEsc(cov.izvor || '—')
+        + (cov.poslednje_azuriranje_baze ? ' · poslednje ažuriranje baze: ' + new Date(cov.poslednje_azuriranje_baze).toLocaleString('sr-RS') : '')
+        + '</div>';
+    }
+    html += '<div class="strat-meta" style="margin-top:.4rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(data.napomena || '') + '</div>';
     if (bodyEl) bodyEl.innerHTML = html;
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
@@ -5093,29 +5100,57 @@ async function web3WalletProvenance() {
     if (!res.ok) { var errData = {}; try { errData = await res.json(); } catch(e2) {} throw new Error(errData.detail || ('Server greška: ' + res.status)); }
     var d = await res.json();
     var html = '';
-    if (d.novcanik_sankcionisan) {
-      var det = d.novcanik_sankcije_detalji || {};
-      html += '<div class="strat-error" style="margin-bottom:.6rem;">⚠ OVAJ NOVČANIK JE NA OFAC SDN LISTI — ' + _htmlEsc(det.entitet||'') + ' (' + (det.programi||[]).join(', ') + ')</div>';
+    var nalazi = d.nalazi || {sankcioni: [], analiticki: [], nedostatak_podataka: []};
+
+    if (nalazi.sankcioni.length) {
+      html += '<div class="strat-error" style="margin-bottom:.6rem;">⚠ ' + nalazi.sankcioni.length + ' sankcioni nalaz(a) — vidi ispod.</div>';
     } else {
-      html += '<div class="web3-ok" style="display:block;margin-bottom:.6rem;">✓ Novčanik nije na OFAC SDN listi.</div>';
+      html += '<div class="web3-ok" style="display:block;margin-bottom:.6rem;">✓ Nisu pronađena poklapanja sa trenutno učitanom OFAC SDN listom.</div>';
     }
+
+    // Coverage — analizirano/izvor/osvežavanje, za auditabilnost pred bankom/compliance timom
+    if (d.coverage) {
+      var cov = d.coverage;
+      html += '<div class="vx-card" style="padding:.5rem .7rem;margin-bottom:.6rem;font-size:.72rem;color:rgba(255,255,255,.55);">'
+        + '<b style="color:rgba(255,255,255,.7);">Coverage:</b> '
+        + 'analizirano ' + cov.analizirano_eth_transakcija + ' ETH + ' + cov.analizirano_token_transakcija + ' token transakcija'
+        + ' · lanac: ' + _htmlEsc(cov.lanac) + ' · izvor: ' + _htmlEsc(cov.izvor)
+        + (cov.limit_dostignut ? ' · <span style="color:rgba(255,187,112,.85);">limit dostignut</span>' : '')
+        + ' · osveženo: ' + new Date(cov.poslednje_osvezavanje).toLocaleString('sr-RS')
+        + '</div>';
+    }
+
     html += '<table class="vx-table" style="width:100%;font-size:.8rem;"><tbody>';
     html += '<tr><td>Balans</td><td>' + d.balans_eth + ' ETH</td></tr>';
     html += '<tr><td>Starost novčanika</td><td>' + (d.starost_dana !== null ? d.starost_dana + ' dana' : '—') + '</td></tr>';
-    html += '<tr><td>ETH transakcija</td><td>' + d.broj_eth_transakcija + '</td></tr>';
-    html += '<tr><td>Token transakcija</td><td>' + d.broj_token_transakcija + '</td></tr>';
     html += '<tr><td>Jedinstveni kontakti</td><td>' + d.broj_jedinstvenih_kontakata + '</td></tr>';
-    html += '<tr><td>Ukupno poslato</td><td>' + d.ukupno_poslato_eth + ' ETH</td></tr>';
-    html += '<tr><td>Ukupno primljeno</td><td>' + d.ukupno_primljeno_eth + ' ETH</td></tr>';
+    html += '<tr><td>Ukupno poslato / primljeno</td><td>' + d.ukupno_poslato_eth + ' / ' + d.ukupno_primljeno_eth + ' ETH</td></tr>';
     html += '</tbody></table>';
-    var sank = d.sankcionisani_direktni_kontakti || [];
-    if (sank.length) {
-      html += '<div class="strat-error" style="margin:.6rem 0 .3rem;">⚠ ' + sank.length + ' direktnih kontakata na OFAC SDN listi:</div>';
-      sank.forEach(function(k) {
-        html += '<div class="web3-error-item" style="display:block;margin-bottom:.3rem;">• ' + _htmlEsc(k.adresa) + ' — ' + _htmlEsc(k.entitet) + ' (' + (k.programi||[]).join(', ') + ')</div>';
+
+    function _confBadge(c) {
+      var boja = c === 'VISOKA' ? 'rgba(255,100,100,.85)' : (c === 'SREDNJA' ? 'rgba(255,187,112,.85)' : 'rgba(255,255,255,.5)');
+      return '<span style="font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border:1px solid ' + boja + ';color:' + boja + ';border-radius:3px;margin-right:.4rem;">' + c + '</span>';
+    }
+
+    if (nalazi.sankcioni.length) {
+      html += '<div class="strat-label" style="margin:.7rem 0 .3rem;">Sankcioni nalazi</div>';
+      nalazi.sankcioni.forEach(function(n) {
+        html += '<div class="web3-error-item" style="display:block;margin-bottom:.4rem;">' + _confBadge(n.confidence) + _htmlEsc(n.opis) + '</div>';
       });
     }
-    if (d.upozorenje_limit) html += '<div class="strat-meta" style="margin-top:.5rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(d.upozorenje_limit) + '</div>';
+    if (nalazi.analiticki.length) {
+      html += '<div class="strat-label" style="margin:.7rem 0 .3rem;">Analitički nalazi (heuristika, ne sankcioni nalaz)</div>';
+      nalazi.analiticki.forEach(function(n) {
+        html += '<div style="display:block;margin-bottom:.4rem;color:rgba(255,255,255,.65);">' + _confBadge(n.confidence) + _htmlEsc(n.opis) + '</div>';
+      });
+    }
+    if (nalazi.nedostatak_podataka.length) {
+      html += '<div class="strat-label" style="margin:.7rem 0 .3rem;">Nedostatak podataka / ograničenja provere</div>';
+      nalazi.nedostatak_podataka.forEach(function(n) {
+        html += '<div class="strat-meta" style="display:block;margin-bottom:.3rem;font-size:.72rem;opacity:.65;">• ' + _htmlEsc(n.opis) + '</div>';
+      });
+    }
+
     html += '<div class="strat-meta" style="margin-top:.5rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(d.napomena || '') + '</div>';
     if (bodyEl) bodyEl.innerHTML = html;
   } catch(e) {

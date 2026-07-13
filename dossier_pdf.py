@@ -175,15 +175,30 @@ def generisi_dossier_pdf(kontekst: dict[str, Any]) -> bytes:
         story.append(Paragraph(f"Adresa: {wallet.get('adresa', '—')}", s["label"]))
         story.append(Spacer(1, 4))
 
-        if wallet.get("novcanik_sankcionisan"):
-            detalji = wallet.get("novcanik_sankcije_detalji") or {}
+        nalazi = wallet.get("nalazi") or {"sankcioni": [], "analiticki": [], "nedostatak_podataka": []}
+
+        if nalazi.get("sankcioni"):
             story.append(Paragraph(
-                f"⚠ UPOZORENJE: Ovaj novčanik JE na OFAC SDN listi — entitet: "
-                f"{detalji.get('entitet', '?')}, programi: {', '.join(detalji.get('programi', []))}.",
+                f"⚠ {len(nalazi['sankcioni'])} sankcioni nalaz(a) — vidi detalje ispod.",
                 s["risk_item"],
             ))
         else:
-            story.append(Paragraph("✓ Novčanik nije pronađen na OFAC SDN listi.", s["body"]))
+            story.append(Paragraph(
+                "✓ Nisu pronađena poklapanja sa trenutno učitanom OFAC SDN listom.", s["body"]
+            ))
+
+        # Coverage — auditabilnost: šta je tačno analizirano, čime, i kada
+        cov = wallet.get("coverage") or {}
+        if cov:
+            cov_txt = (
+                f"Coverage: analizirano {cov.get('analizirano_eth_transakcija', '?')} ETH + "
+                f"{cov.get('analizirano_token_transakcija', '?')} token transakcija · "
+                f"lanac: {cov.get('lanac', '?')} · izvor: {cov.get('izvor', '?')}"
+                + (" · limit dostignut" if cov.get("limit_dostignut") else "")
+                + f" · osveženo: {cov.get('poslednje_osvezavanje', '?')}"
+            )
+            story.append(Paragraph(cov_txt, s["meta"]))
+        story.append(Spacer(1, 4))
 
         tbl_data = [["Metrika", "Vrednost"]]
         tbl_data.append(["Balans (ETH)", f"{wallet.get('balans_eth', '?')} ETH"])
@@ -212,20 +227,27 @@ def generisi_dossier_pdf(kontekst: dict[str, Any]) -> bytes:
         story.append(tbl)
         story.append(Spacer(1, 8))
 
-        sankcionisani = wallet.get("sankcionisani_direktni_kontakti") or []
-        if sankcionisani:
-            story.append(Paragraph(
-                f"⚠ {len(sankcionisani)} DIREKTNIH KONTAKATA na OFAC SDN listi:", s["label"]
-            ))
-            for k in sankcionisani:
-                story.append(Paragraph(
-                    f"• {k.get('adresa')} — {k.get('entitet')} "
-                    f"({', '.join(k.get('programi', []))}) — "
-                    f"{k.get('broj_transakcija_sa_ovim_novcanikom')} transakcija",
-                    s["risk_item"],
-                ))
+        if nalazi.get("sankcioni"):
+            story.append(Paragraph("Sankcioni nalazi", s["label"]))
+            for n in nalazi["sankcioni"]:
+                story.append(Paragraph(f"[{n.get('confidence', '?')}] {n.get('opis', '')}", s["risk_item"]))
+            story.append(Spacer(1, 4))
         else:
-            story.append(Paragraph("✓ Nijedan direktan kontakt nije pronađen na OFAC SDN listi.", s["body"]))
+            story.append(Paragraph(
+                "✓ Nijedan direktan kontakt sa adresom na OFAC SDN listi nije pronađen.", s["body"]
+            ))
+            story.append(Spacer(1, 4))
+
+        if nalazi.get("analiticki"):
+            story.append(Paragraph("Analitički nalazi (heuristika, ne sankcioni nalaz)", s["label"]))
+            for n in nalazi["analiticki"]:
+                story.append(Paragraph(f"[{n.get('confidence', '?')}] {n.get('opis', '')}", s["body"]))
+            story.append(Spacer(1, 4))
+
+        if nalazi.get("nedostatak_podataka"):
+            story.append(Paragraph("Nedostatak podataka / ograničenja provere", s["label"]))
+            for n in nalazi["nedostatak_podataka"]:
+                story.append(Paragraph(f"• {n.get('opis', '')}", s["meta"]))
 
     # ── Disclaimer / Footer ──────────────────────────────────────────────────
     story.append(Spacer(1, 20))
