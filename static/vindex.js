@@ -2220,6 +2220,20 @@ function aiwsDispatchTab() {
 // da dele ovaj bar (eps/bodies u execQuery ionako ne znaju za njih).
 var _AIWS_EXEC_LBL = { zakon: 'Pretraži pravnu bazu', analiza: 'Analiziraj dokument', nacrti: 'Generiši nacrt' };
 function aiwsSetMode(mode, btn) {
+  if (mode === 'digitalna_imovina' && !currentUserDigitalnaImovinaAktivirano) {
+    // Defensivna provera — pill ne bi trebalo da bude vidljiv/klikabilan bez
+    // aktivacije, ali direktan deep-link (hash/konzola) ne sme da zaobiđe gate.
+    var stBtn = document.getElementById('tab-btn-settings');
+    if (stBtn) setTab(stBtn, 'settings');
+    if (!currentUserIsPro) {
+      if (typeof openProUpgradeModal === 'function') openProUpgradeModal();
+    } else {
+      if (typeof showToast === 'function') showToast('Aktivirajte modul u Podešavanjima da biste ga koristili.', 'info');
+      var ms = document.getElementById('moduli-section');
+      if (ms && ms.scrollIntoView) setTimeout(function(){ ms.scrollIntoView({behavior:'smooth', block:'center'}); }, 150);
+    }
+    return;
+  }
   _aiwsMode = mode;
   document.querySelectorAll('#aiws-modes .vx-pill').forEach(function(b){ b.classList.remove('is-active'); });
   if (btn) btn.classList.add('is-active');
@@ -2251,6 +2265,21 @@ function aiwsSetMode(mode, btn) {
     var ip2 = document.getElementById('interni-stavovi-panel');
     if (ip2) ip2.style.display = '';
   }
+  if (mode === 'digitalna_imovina' && typeof web3InitTab === 'function') web3InitTab();
+}
+
+/* ── Digitalna imovina & Usklađenost — AIWS pill vidljivost + otvaranje ─── */
+function _dimRenderAiwsPill() {
+  var pill = document.getElementById('aiws-pill-dim');
+  if (!pill) return;
+  pill.style.display = currentUserDigitalnaImovinaAktivirano ? '' : 'none';
+}
+
+function _dimOpenModul() {
+  var aiwsBtn = document.getElementById('tab-btn-aiws');
+  if (aiwsBtn) setTab(aiwsBtn, 'aiws');
+  var pillBtn = document.querySelector('#aiws-modes .vx-pill[data-mode="digitalna_imovina"]');
+  aiwsSetMode('digitalna_imovina', pillBtn);
 }
 
 // Mod-svesna preusmerenja — otvori aiws shell i postavi odgovarajuci mod.
