@@ -2265,7 +2265,7 @@ function aiwsSetMode(mode, btn) {
     var ip2 = document.getElementById('interni-stavovi-panel');
     if (ip2) ip2.style.display = '';
   }
-  if (mode === 'digitalna_imovina' && typeof web3InitTab === 'function') web3InitTab();
+  if (mode === 'digitalna_imovina' && typeof dimBackToOverview === 'function') dimBackToOverview();
 }
 
 /* ── Digitalna imovina & Usklađenost — AIWS pill vidljivost + otvaranje ─── */
@@ -2280,6 +2280,79 @@ function _dimOpenModul() {
   if (aiwsBtn) setTab(aiwsBtn, 'aiws');
   var pillBtn = document.querySelector('#aiws-modes .vx-pill[data-mode="digitalna_imovina"]');
   aiwsSetMode('digitalna_imovina', pillBtn);
+}
+
+/* ── Digitalna imovina — nivo 2 (kartice/sekundarni alati -> podskup modula) ─── */
+var DIM_CARDS = {
+  regulatorna: { title: 'Regulatorna analiza', modules: ['web3_pretraga', 'compliance_check', 'mica_score', 'license_check'] },
+  carf:        { title: 'CARF/DAC8',           modules: ['jurisdikcije', 'jurisdikcija_analiza', 'carf_dac8_readiness', 'csv_import'] },
+  wallet:      { title: 'Wallet & Sankcije',    modules: ['ofac_screening', 'wallet_provenance'] },
+  sof:         { title: 'Source of Funds',      modules: ['health_score', 'source_of_funds_dossier'] }
+};
+var DIM_MODUL_LABELS = {
+  web3_pretraga:           'ZDI/MiCA Pretraga',
+  compliance_check:        'Provera usklađenosti',
+  mica_score:              'MiCA ocena',
+  license_check:           'Provera licence / klasifikacija',
+  jurisdikcije:            'CARF Jurisdikcije (besplatno)',
+  jurisdikcija_analiza:    'Pitanje o jurisdikciji',
+  carf_dac8_readiness:     'CARF/DAC8 Readiness',
+  csv_import:              'Uvoz CSV (Binance/Kraken)',
+  ofac_screening:          'OFAC Provera adresa (besplatno)',
+  wallet_provenance:       'Wallet Provenance',
+  health_score:            'Dokumentacioni Health Score',
+  source_of_funds_dossier: 'Source-of-Funds Dossier',
+  whitepaper_check:        'AI analiza projekta',
+  aml_audit:               'AML/KYC Revizija',
+  smart_contract:          'Pametni Ugovor',
+  reporting_simulator:     'Reporting Simulator'
+};
+
+function _dimEnterLevel2(title, modules, initialModul) {
+  var l1 = document.getElementById('dim-level1');
+  var l2 = document.getElementById('dim-level2');
+  if (l1) l1.style.display = 'none';
+  if (l2) l2.style.display = 'block';
+  var titleEl = document.getElementById('dim-level2-title');
+  if (titleEl) titleEl.textContent = title;
+  var btnRow = document.getElementById('dim-level2-buttons');
+  if (btnRow) {
+    btnRow.innerHTML = modules.map(function(m) {
+      return '<button class="strat-btn" data-modul="' + m + '" onclick="web3IzaberiModul(\'' + m + '\',this)">' + (DIM_MODUL_LABELS[m] || m) + '</button>';
+    }).join('');
+  }
+  var firstBtn = btnRow ? btnRow.querySelector('.strat-btn[data-modul="' + initialModul + '"]') : null;
+  web3IzaberiModul(initialModul, firstBtn);
+}
+
+function dimOpenCard(cardKey) {
+  var card = DIM_CARDS[cardKey];
+  if (!card) return;
+  _dimEnterLevel2(card.title, card.modules, card.modules[0]);
+}
+
+function dimOpenModul(modKey) {
+  _dimEnterLevel2(DIM_MODUL_LABELS[modKey] || '', [modKey], modKey);
+}
+
+function dimBackToOverview() {
+  var l1 = document.getElementById('dim-level1');
+  var l2 = document.getElementById('dim-level2');
+  if (l2) l2.style.display = 'none';
+  if (l1) l1.style.display = 'block';
+}
+
+function dimHeroAnaliziraj() {
+  var input = document.getElementById('dim-hero-input');
+  var val = input ? input.value.trim() : '';
+  if (!val) { if (typeof showToast === 'function') showToast('Unesite pitanje.', 'info'); return; }
+  dimOpenCard('regulatorna');
+  var ta = document.getElementById('web3-tekst');
+  var charsEl = document.getElementById('web3-chars');
+  if (ta) ta.value = val;
+  if (charsEl) charsEl.textContent = val.length;
+  if (input) input.value = '';
+  if (typeof web3Pokreni === 'function') web3Pokreni();
 }
 
 // Mod-svesna preusmerenja — otvori aiws shell i postavi odgovarajuci mod.
@@ -4852,15 +4925,10 @@ var WEB3_PANEL_ID = {
 };
 var _web3AktivniModul = 'web3_pretraga';
 
-function web3InitTab() {
-  var btn = document.querySelector('.web3-moduli .strat-btn[data-modul="' + _web3AktivniModul + '"]');
-  web3IzaberiModul(_web3AktivniModul, btn);
-}
-
 function _web3HideStandardPanel() {
   var opisEl    = document.getElementById('web3-opis');
-  var inputWrap = document.querySelector('#tab-w > .strat-input-wrap');
-  var refEl     = document.querySelector('#tab-w > .web3-reference');
+  var inputWrap = document.getElementById('web3-standard-input-wrap');
+  var refEl     = document.getElementById('web3-standard-reference');
   var submitBtn = document.getElementById('web3-submit-btn');
   var wrapEl    = document.getElementById('web3-rezultat-wrap');
   if (opisEl)    opisEl.style.display    = 'none';
@@ -4872,8 +4940,8 @@ function _web3HideStandardPanel() {
 
 function _web3ShowStandardPanel() {
   var opisEl    = document.getElementById('web3-opis');
-  var inputWrap = document.querySelector('#tab-w > .strat-input-wrap');
-  var refEl     = document.querySelector('#tab-w > .web3-reference');
+  var inputWrap = document.getElementById('web3-standard-input-wrap');
+  var refEl     = document.getElementById('web3-standard-reference');
   var submitBtn = document.getElementById('web3-submit-btn');
   if (opisEl)    opisEl.style.display    = '';
   if (inputWrap) inputWrap.style.display = '';

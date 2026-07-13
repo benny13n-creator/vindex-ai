@@ -3103,55 +3103,83 @@
             </div><!-- /aiws-mode-litigation -->
 
             <div id="aiws-mode-digitalna_imovina" class="aiws-mode-pane" style="display:none;">
-            <div class="vx-exec-header">
-              <div>
-                <div class="vx-exec-header-eyebrow">Digitalna imovina</div>
-                <div class="vx-exec-header-title">Digitalna imovina & Usklađenost</div>
-                <div class="vx-exec-header-sub">Pravna i regulatorna analiza digitalne imovine — ZDI (Srbija), MiCA (EU 2023/1114), i spremnost za due diligence.</div>
+
+            <!-- ═══ LEVEL 1 — Hero + primarne kartice (landing prikaz moda) ═══ -->
+            <div id="dim-level1">
+              <div class="vx-exec-header" style="margin-bottom:1.1rem;">
+                <div>
+                  <div class="vx-exec-header-eyebrow">Digitalna imovina</div>
+                  <div class="vx-exec-header-title">Digitalna imovina & Usklađenost</div>
+                  <div class="vx-exec-header-sub">Regulatorna analiza digitalne imovine, AML/KYC, CARF/DAC8 spremnost i due diligence.</div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:.5rem;margin-bottom:.6rem;">
+                <input type="text" id="dim-hero-input" class="vx-input" style="flex:1;" placeholder="Postavite pitanje o ZDI, MiCA ili regulativi digitalne imovine…" onkeydown="if(event.key==='Enter')dimHeroAnaliziraj()">
+                <button class="vx-btn vx-btn-primary" onclick="dimHeroAnaliziraj()" style="flex-shrink:0;">Analiziraj</button>
+              </div>
+              <div class="web3-reference" style="margin-bottom:1.3rem;">
+                <span class="web3-ref-badge">ZDI</span>
+                <span class="web3-ref-badge">MiCA</span>
+                <span class="web3-ref-badge">CARF/DAC8</span>
+                <span class="web3-ref-badge">OFAC</span>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.7rem;margin-bottom:1.2rem;">
+                <div class="vx-card" style="padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
+                  <div style="font-size:1.1rem;">⚖</div>
+                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">Regulatorna analiza</div>
+                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">ZDI/MiCA pretraga, provera usklađenosti, MiCA Score, License Check</div>
+                  <button class="vx-btn vx-btn-ghost" style="align-self:flex-start;" onclick="dimOpenCard('regulatorna')">Otvori</button>
+                </div>
+                <div class="vx-card" style="padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
+                  <div style="font-size:1.1rem;">🌐</div>
+                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">CARF/DAC8</div>
+                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">Jurisdikcije, Readiness analiza, CSV Import (Binance/Kraken)</div>
+                  <button class="vx-btn vx-btn-ghost" style="align-self:flex-start;" onclick="dimOpenCard('carf')">Otvori</button>
+                </div>
+                <div class="vx-card" style="padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
+                  <div style="font-size:1.1rem;">🔍</div>
+                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">Wallet & Sankcije</div>
+                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">OFAC screening, Wallet Provenance, coverage i risk nalazi</div>
+                  <button class="vx-btn vx-btn-ghost" style="align-self:flex-start;" onclick="dimOpenCard('wallet')">Otvori</button>
+                </div>
+                <div class="vx-card" style="padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
+                  <div style="font-size:1.1rem;">📄</div>
+                  <div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.85);">Source of Funds</div>
+                  <div style="font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;flex:1;">Documentation Score, PDF Dossier za banku/compliance tim</div>
+                  <button class="vx-btn vx-btn-ghost" style="align-self:flex-start;" onclick="dimOpenCard('sof')">Otvori</button>
+                </div>
+              </div>
+
+              <details style="margin-bottom:1rem;">
+                <summary style="cursor:pointer;font-size:.74rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.05em;padding:.3rem 0;">Napredni AI alati</summary>
+                <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem;">
+                  <button class="strat-btn" onclick="dimOpenModul('whitepaper_check')">AI analiza projekta</button>
+                  <button class="strat-btn" onclick="dimOpenModul('aml_audit')">AML/KYC revizija</button>
+                  <button class="strat-btn" onclick="dimOpenModul('smart_contract')">Pametni ugovori</button>
+                  <button class="strat-btn" onclick="dimOpenModul('reporting_simulator')">Exchange Reporting Simulator</button>
+                </div>
+              </details>
+
+              <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:.6rem;font-size:.68rem;color:rgba(255,255,255,.3);">
+                Na mapi puta: Cross-border reporting · Enhanced provenance · Additional blockchain support
               </div>
             </div>
-            <div class="vx-section-lbl" style="margin:.2rem 0 .5rem;">MiCA & ZDI</div>
-            <div class="strat-modul-izbor web3-moduli">
-              <button class="strat-btn active" data-modul="web3_pretraga" onclick="web3IzaberiModul('web3_pretraga',this)">ZDI/MiCA Pretraga</button>
-              <button class="strat-btn" data-modul="compliance_check" onclick="web3IzaberiModul('compliance_check',this)">Provera uskladenosti</button>
-              <button class="strat-btn" data-modul="whitepaper_check" onclick="web3IzaberiModul('whitepaper_check',this)">Analiza projekta</button>
-              <button class="strat-btn" data-modul="mica_score" onclick="web3IzaberiModul('mica_score',this)">MiCA ocena</button>
-              <button class="strat-btn" data-modul="license_check" onclick="web3IzaberiModul('license_check',this)">Provera licence / klasifikacija</button>
-            </div>
-            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">AML/KYC & Ugovori</div>
-            <div class="strat-modul-izbor web3-moduli">
-              <button class="strat-btn" data-modul="aml_audit" onclick="web3IzaberiModul('aml_audit',this)">AML/KYC Revizija</button>
-              <button class="strat-btn" data-modul="smart_contract" onclick="web3IzaberiModul('smart_contract',this)">Pametni Ugovor</button>
-            </div>
-            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">Spremnost za due diligence</div>
-            <div class="strat-modul-izbor web3-moduli">
-              <button class="strat-btn" data-modul="health_score" onclick="web3IzaberiModul('health_score',this)">Dokumentacioni Health Score</button>
-              <button class="strat-btn" data-modul="reporting_simulator" onclick="web3IzaberiModul('reporting_simulator',this)">Reporting Simulator</button>
-              <button class="strat-btn" data-modul="carf_dac8_readiness" onclick="web3IzaberiModul('carf_dac8_readiness',this)">CARF/DAC8 Readiness</button>
-              <button class="strat-btn" data-modul="source_of_funds_dossier" onclick="web3IzaberiModul('source_of_funds_dossier',this)">Source-of-Funds Dossier</button>
-            </div>
-            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">Poresko izveštavanje po jurisdikciji</div>
-            <div class="strat-modul-izbor web3-moduli">
-              <button class="strat-btn" data-modul="jurisdikcije" onclick="web3IzaberiModul('jurisdikcije',this)">CARF Jurisdikcije (besplatno)</button>
-              <button class="strat-btn" data-modul="jurisdikcija_analiza" onclick="web3IzaberiModul('jurisdikcija_analiza',this)">Pitanje o jurisdikciji</button>
-            </div>
-            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">Provera novčanika i sankcije</div>
-            <div class="strat-modul-izbor web3-moduli">
-              <button class="strat-btn" data-modul="ofac_screening" onclick="web3IzaberiModul('ofac_screening',this)">OFAC Provera adresa (besplatno)</button>
-              <button class="strat-btn" data-modul="wallet_provenance" onclick="web3IzaberiModul('wallet_provenance',this)">Wallet Provenance</button>
-            </div>
-            <div class="vx-section-lbl" style="margin:1rem 0 .5rem;">Uvoz podataka</div>
-            <div class="strat-modul-izbor web3-moduli">
-              <button class="strat-btn" data-modul="csv_import" onclick="web3IzaberiModul('csv_import',this)">Uvoz CSV (Binance/Kraken)</button>
-            </div>
+
+            <!-- ═══ LEVEL 2 — skopovan prikaz jedne kartice/alata ═══ -->
+            <div id="dim-level2" style="display:none;">
+              <button class="t-tool-back" onclick="dimBackToOverview()"><span class="t-tool-back-arrow">←</span> Digitalna imovina & Usklađenost</button>
+              <div id="dim-level2-title" class="vx-section-lbl" style="margin:.6rem 0 .5rem;"></div>
+              <div id="dim-level2-buttons" class="strat-modul-izbor web3-moduli"></div>
 
             <div id="web3-opis" class="strat-opis-box web3-opis-box"></div>
-            <div class="strat-input-wrap">
+            <div id="web3-standard-input-wrap" class="strat-input-wrap">
               <label id="web3-input-label" class="strat-label"></label>
               <textarea id="web3-tekst" class="strat-textarea" rows="7" placeholder=""></textarea>
               <div class="strat-char-count"><span id="web3-chars">0</span> karaktera</div>
             </div>
-            <div class="web3-reference">
+            <div id="web3-standard-reference" class="web3-reference">
               <span>Baza znanja:</span>
               <span class="web3-ref-badge">ZDI čl. 1-146</span>
               <span class="web3-ref-badge">MiCA EU 2023/1114</span>
@@ -3237,6 +3265,7 @@
                 <div id="web3-csv-body" class="web3-rezultat-body"></div>
               </div>
             </div>
+            </div><!-- /dim-level2 -->
             </div><!-- /aiws-mode-digitalna_imovina -->
 
           </div>
