@@ -9978,6 +9978,13 @@ function mobileMoreZatvori() {
 
 function mobileMoreGo(t) {
   mobileMoreZatvori();
+  // a/n/t/ob vise nisu samostalni tabovi (Faza 6) — otvori ih kao mod unutar
+  // Vindex Intelligence umesto trazenja obrisanog tab-btn-{t}.
+  if (typeof _AIWS_MODES !== 'undefined' && _AIWS_MODES[t]) {
+    openAITool(t);
+    mobileNavUpdateActive('aiws');
+    return;
+  }
   var btn = document.getElementById('tab-btn-' + t);
   if (btn) setTab(btn, t);
   mobileNavUpdateActive(t);
@@ -15385,7 +15392,13 @@ async function _voice_load_docs_by_number(numbers) {
 }
 
 // Regenerise Procena predmeta za aktivni predmet
+var _caseDnaRefreshInProgress = false;
 async function _voice_refresh_case_dna(predmetId) {
+  if (_caseDnaRefreshInProgress) return;  // spreci duplo pokretanje na duplom kliku
+  _caseDnaRefreshInProgress = true;
+  var btn = document.getElementById('case-dna-refresh-btn');
+  var origLbl = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generišem procenu... (obično 15–20s)'; }
   showToast('Generišem procenu predmeta...', 'info');
   try {
     var resp = await fetch('/api/predmeti/' + predmetId + '/case-dna/refresh', {
@@ -15404,6 +15417,9 @@ async function _voice_refresh_case_dna(predmetId) {
     _caseDnaRender(dna, predmetId);
   } catch(e) {
     showToast('Greška pri generisanju Procena predmeta', 'error');
+  } finally {
+    _caseDnaRefreshInProgress = false;
+    if (btn) { btn.disabled = false; btn.textContent = origLbl; }
   }
 }
 

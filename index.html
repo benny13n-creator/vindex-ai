@@ -184,7 +184,7 @@
       <li> Zero-persistence protokol — dokumenti se ne čuvaju na serveru</li>
     </ul>
     <button class="modal-btn pro-upgrade-cta" onclick="closeProUpgradeModal();openProModal();">Pogledajte planove i cene &rarr;</button>
-    <p style="font-size:0.68rem;color:rgba(255,255,255,0.22);margin-top:0.8rem;">14 dana besplatno · Bez kreditne kartice · Otkazivanje u svakom trenutku.</p>
+    <p style="font-size:0.68rem;color:rgba(255,255,255,0.22);margin-top:0.8rem;">Pošaljite zahtev — aktiviramo vaš PRO nalog ručno, obično isti dan.</p>
   </div>
 </div>
 
@@ -507,14 +507,10 @@
           <span class="vx-tab-lbl">Kancelarija</span>
         </div>
         <div class="vx-nav-sep"></div>
-        <!-- ── Alati — kad treba nešto istražiti ili napisati ── -->
+        <!-- ── Alati — Nacrti podnesaka/Analiza dokumenta uklonjeni odavde (Faza
+             beta-audit): duplirali su iste pilule vec dostupne u Vindex
+             Intelligence, sto je zbunjivalo navigaciju ("dva mesta za istu stvar"). -->
         <div class="vx-nav-group-lbl">Alati</div>
-        <div class="vx-nav-sub" onclick="openAITool('n')" title="Generišite tužbu, žalbu, ugovor ili drugi pravni podnesak">
-          <span class="vx-nav-sub-dot"></span>Nacrti podnesaka
-        </div>
-        <div class="vx-nav-sub" onclick="openAITool('a')" title="Otpremite PDF ili DOCX — analizira dokument i izvlači ključne informacije">
-          <span class="vx-nav-sub-dot"></span>Analiza dokumenta
-        </div>
         <div class="vx-nav-sub" onclick="docTplOpen()" style="color:#86efac;" title="Gotovi šabloni dokumenata — prilagodite i preuzmite">
           <span class="vx-nav-sub-dot" style="background:#86efac;"></span>Šabloni dokumenata
         </div>
@@ -1573,6 +1569,7 @@
                 <div class="vx-section-lbl" style="margin:1rem 0 .4rem;">Case Intelligence</div>
                 <div style="margin-bottom:1.2rem;">
                   <button onclick="_voice_refresh_case_dna(activePredmetId);return false;" id="case-dna-refresh-btn" class="vx-btn vx-btn-secondary" style="width:100%;">Generiši / osveži procenu predmeta</button>
+                  <div style="font-size:.66rem;color:rgba(255,255,255,.28);text-align:center;margin-top:.35rem;">Obično traje 15–20 sekundi — AI čita sve dokumente predmeta.</div>
                   <div id="case-dna-panel-mount" class="vx-card" style="display:none;margin-top:.6rem;"></div>
                 </div>
 
