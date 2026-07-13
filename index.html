@@ -519,10 +519,6 @@
           <span class="vx-nav-sub-dot"></span>Portfolio kancelarije
         </div>
         <div class="vx-nav-sep" style="margin-top:24px !important;"></div>
-        <div class="t-tab t-tab-pro" id="tab-btn-w" onclick="setTab(this,'w')">
-          <i data-lucide="coins" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Digitalna imovina & Usklađenost <span class="pro-badge" id="pro-badge-w" style="display:none">PRO</span></span>
-        </div>
         <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')">
           <i data-lucide="settings" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Podešavanja</span>
@@ -3384,6 +3380,21 @@
               <div style="display:flex;gap:.5rem;">
                 <button class="settings-btn" onclick="planLoad()">↻ Osveži</button>
                 <button class="settings-btn" onclick="openProModal()" style="background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.25);color:rgba(255,255,255,0.72);">⬆ Upgrade plan</button>
+              </div>
+            </div>
+
+            <!-- ── Pretplate i moduli — enterprise compliance add-on ───────── -->
+            <div class="settings-section" id="moduli-section">
+              <div class="settings-section-hd"><span>Pretplate i moduli</span></div>
+              <div id="dim-module-card" style="border:1px solid rgba(255,255,255,0.08);border-radius:3px;padding:.9rem 1rem;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.65rem;">
+                  <div>
+                    <div style="font-size:.85rem;font-weight:700;color:rgba(255,255,255,0.85);margin-bottom:.3rem;">Digitalna imovina & Usklađenost</div>
+                    <div style="font-size:.74rem;color:rgba(255,255,255,0.45);line-height:1.5;">CARF/DAC8 · OFAC Screening · Wallet Provenance · AML/KYC · Source-of-Funds · MiCA i ZDI regulatorna analiza</div>
+                  </div>
+                  <span id="dim-status-badge" style="flex-shrink:0;font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;"></span>
+                </div>
+                <div id="dim-action-wrap"></div>
               </div>
             </div>
 

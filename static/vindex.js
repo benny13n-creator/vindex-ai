@@ -197,7 +197,7 @@ var _initialNavDone = false;
 var _cyrillicOn = false;
 var vxNavHistory = [];
 var _vxGoingBack = false;
-var _vxTabLabels = {h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',w:'Digitalna imovina & Usklađenost',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija'};
+var _vxTabLabels = {h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija'};
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
 var currentUserDigitalnaImovinaAktivirano = false;
@@ -2147,7 +2147,7 @@ function setTab(el,t){
   if (t === 'alati') { t = 'aiws'; el = document.getElementById('tab-btn-aiws') || el; }
   if (!el) return;
   // PRO gate — tabovi "n" i "t" zahtevaju PRO status
-  if ((t === 'n' || t === 't' || t === 'w') && !currentUserIsPro) {
+  if ((t === 'n' || t === 't') && !currentUserIsPro) {
     openProUpgradeModal();
     return;
   }
@@ -2166,11 +2166,11 @@ function setTab(el,t){
   ['h','s','p','k','w','kal','pi','aiws','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
-  var lbl={h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',w:'Digitalna imovina & Usklađenost',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
+  var lbl={h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
   var execRow = document.getElementById('t-exec-row');
   var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
-  var _noExec = {h:1,k:1,w:1,kal:1,pi:1,dok:1,settings:1,p:1,'zadaci-g':1,fin:1,kanc:1};
+  var _noExec = {h:1,k:1,kal:1,pi:1,dok:1,settings:1,p:1,'zadaci-g':1,fin:1,kanc:1};
   if (execRow) execRow.style.display = _noExec[t] ? 'none' : '';
   if (credRow) credRow.style.display = _noExec[t] ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
   if (t==='h') dash_load();
@@ -2181,7 +2181,6 @@ function setTab(el,t){
   if (t==='s') praksa_load_initial();
   if (t==='p') { pred_load(); predFirmaInit(); }
   if (t==='k') ucitajKlijente();
-  if (t==='w') web3InitTab();
   if (t==='kal') kalendarLoad();
   if (t==='settings') settingsLoad();
   if (t==='zadaci-g') { zadaci_g_load(); workflow_eskalacije_load(); }
@@ -2325,6 +2324,56 @@ function settingsLoad() {
   // kancelarijaLoad()/billingDugovanjaLoad() premesteni u tab-kanc/tab-fin (Faza 4 IA redizajna)
   confidenceAuditLoad();
   learningStatsLoad();
+  dimModuleCardRender();
+}
+
+/* ── Digitalna imovina & Usklađenost — aktivacija add-on modula ─────────── */
+function dimModuleCardRender() {
+  var badge  = document.getElementById('dim-status-badge');
+  var action = document.getElementById('dim-action-wrap');
+  if (!badge || !action) return;
+
+  if (!currentUserIsPro) {
+    badge.textContent = '🔒 ZAKLJUČANO';
+    badge.style.background = 'rgba(255,255,255,.06)';
+    badge.style.color = 'rgba(255,255,255,.4)';
+    action.innerHTML = '<button class="settings-btn" onclick="openProUpgradeModal()">Aktiviraj modul</button>';
+    return;
+  }
+  if (!currentUserDigitalnaImovinaAktivirano) {
+    badge.textContent = 'DOSTUPNO';
+    badge.style.background = 'rgba(0,212,255,.12)';
+    badge.style.color = 'rgba(0,212,255,.85)';
+    action.innerHTML = '<button class="settings-btn" id="dim-activate-btn" onclick="dimAktivirajModul()" style="background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.25);color:rgba(255,255,255,0.72);">Aktiviraj modul</button>';
+    return;
+  }
+  badge.textContent = '✓ AKTIVNO';
+  badge.style.background = 'rgba(74,222,128,.12)';
+  badge.style.color = 'rgba(74,222,128,.85)';
+  action.innerHTML = '<button class="settings-btn" onclick="' + (typeof _dimOpenModul === 'function' ? '_dimOpenModul()' : '') + '">Otvori modul</button>';
+}
+
+async function dimAktivirajModul() {
+  if (!currentSession) return;
+  var btn = document.getElementById('dim-activate-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Aktiviram...'; }
+  try {
+    var r = await fetch(BASE_URL + '/api/settings/digitalna-imovina/aktiviraj', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) {
+      var errData = {}; try { errData = await r.json(); } catch(e2) {}
+      throw new Error(errData.detail || ('Server greška: ' + r.status));
+    }
+    currentUserDigitalnaImovinaAktivirano = true;
+    if (typeof _dimRenderAiwsPill === 'function') _dimRenderAiwsPill();
+    dimModuleCardRender();
+    showToast('Modul aktiviran — dostupan je u Vindex Intelligence.', 'success');
+  } catch(e) {
+    showToast('Greška: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Aktiviraj modul'; }
+  }
 }
 
 // ── Statistika kancelarije — Learning Stats (court_predictor.py) ────────────
