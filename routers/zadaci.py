@@ -90,7 +90,7 @@ async def _get_firma_info(supa, uid: str) -> dict:
             lambda: supa.table("kancelarija_clanovi")
                 .select("kancelarija_id, uloga")
                 .eq("user_id", uid)
-                .eq("status", "aktivan")
+                .eq("status", "ACTIVE")
                 .maybe_single()
                 .execute()
         )

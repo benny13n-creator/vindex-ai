@@ -66,7 +66,7 @@ async def _get_kancelarija_id(supa, uid: str) -> Optional[str]:
             lambda: supa.table("kancelarija_clanovi")
                 .select("kancelarija_id")
                 .eq("user_id", uid)
-                .eq("status", "aktivan")
+                .eq("status", "ACTIVE")
                 .maybe_single()
                 .execute()
         )

@@ -1,18 +1,28 @@
 # -*- coding: utf-8 -*-
 """
 Vindex AI — routers/kancelarija.py
-Phase 5.4: Multi-user firm account + role management.
+Phase 5.4 + Faza 71: Multi-user firm account + seat lifecycle.
+
+Seat model (5 stanja, migracija 067) — vidi shared/seats.py za punu formulu
+i pravila prelaza:
+    ACTIVE / INVITED  — troše mesto
+    PENDING / SUSPENDED / REMOVED — ne troše mesto
 
 Endpointi:
-  GET  /api/kancelarija/moja           — info o firmi + lista članova
+  GET  /api/kancelarija/moja           — info o firmi + lista članova (ACTIVE/INVITED/SUSPENDED)
   POST /api/kancelarija/kreiraj        — kreiraj novu firmu
   PUT  /api/kancelarija/naziv          — preimenuj firmu (samo admin)
-  POST /api/kancelarija/pozovi         — pozovi člana po emailu (samo admin)
+  GET  /api/kancelarija/mesta          — pregled iskorišćenosti mesta (samo admin)
+  GET  /api/kancelarija/istorija       — audit log promena članstva (samo admin)
+  POST /api/kancelarija/pozovi         — pozovi člana po emailu (samo admin, proverava slobodno mesto)
   POST /api/kancelarija/prihvati       — prihvati pozivnicu (po email matchu)
   POST /api/kancelarija/odbij          — odbij pozivnicu
-  DELETE /api/kancelarija/ukloni/{id}  — ukloni člana (samo admin)
+  POST /api/kancelarija/suspenduj/{id} — privremeno isključi člana (samo admin)
+  POST /api/kancelarija/reaktiviraj/{id} — vrati suspendovanog člana (samo admin, proverava slobodno mesto)
+  DELETE /api/kancelarija/ukloni/{id}  — ukloni člana — soft-delete, status=REMOVED (samo admin)
   PUT  /api/kancelarija/uloga/{id}     — promeni ulogu (samo admin)
-  DELETE /api/kancelarija/napusti      — napusti firmu (ne-admin)
+  DELETE /api/kancelarija/napusti      — napusti firmu — soft-delete, status=REMOVED (ne-admin)
+  GET  /api/kancelarija/predmeti       — predmeti svih ACTIVE članova
 """
 from __future__ import annotations
 
@@ -26,11 +36,25 @@ from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared.seats import SeatService
 
 logger = logging.getLogger("vindex.kancelarija")
 router = APIRouter(tags=["kancelarija"])
 
-from shared.rbac import ULOGE, ULOGA_LABELS
+# Firma-membership uloge — NAMERNO odvojene od shared.rbac.ULOGE (koje su za
+# širi RBAC sistem: admin/partner/advokat/pripravnik/administracija/citanje,
+# nema "saradnik"). Pronađeno pri Fazi 71 testiranju: kancelarija.py je ranije
+# uvozio shared.rbac.ULOGE za validaciju, ali frontend (index.html invite
+# dropdown) i PozovReq default nude "partner"/"saradnik"/"citanje" — "saradnik"
+# nikad nije bio validan po toj listi, pa je svaki poziv sa podrazumevanom
+# ulogom tiho padao na 422. Ovo je taj tačan skup koji frontend stvarno nudi.
+ULOGE = ("admin", "partner", "saradnik", "citanje")
+ULOGA_LABELS = {
+    "admin":    "Administrator",
+    "partner":  "Partner",
+    "saradnik": "Saradnik",
+    "citanje":  "Samo čitanje",
+}
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -45,12 +69,12 @@ def _get_firma_for_admin(supa, uid: str) -> Optional[dict]:
 
 
 def _get_firma_for_member(supa, uid: str, email: str) -> Optional[dict]:
-    """Returns kancelarija_clanovi row where user_id matches (aktivan member)."""
+    """Returns kancelarija_clanovi row where user_id matches AND status=ACTIVE."""
     res = (
         supa.table("kancelarija_clanovi")
         .select("*, kancelarije(*)")
         .eq("user_id", uid)
-        .eq("status", "aktivan")
+        .eq("status", "ACTIVE")
         .maybe_single()
         .execute()
     )
@@ -64,14 +88,15 @@ def _require_firma_admin(supa, uid: str) -> dict:
     return firma
 
 
-def _get_clanovi(supa, kancelarija_id: str) -> list[dict]:
-    res = (
+def _get_clanovi(supa, kancelarija_id: str, ukljuci_uklonjene: bool = False) -> list[dict]:
+    q = (
         supa.table("kancelarija_clanovi")
         .select("*")
         .eq("kancelarija_id", kancelarija_id)
-        .order("invited_at")
-        .execute()
     )
+    if not ukljuci_uklonjene:
+        q = q.neq("status", "REMOVED")
+    res = q.order("invited_at").execute()
     return res.data or []
 
 
@@ -141,7 +166,7 @@ async def moja_kancelarija(
                     supa.table("kancelarija_clanovi")
                     .select("*, kancelarije(*)")
                     .eq("email", email)
-                    .eq("status", "pending")
+                    .eq("status", "INVITED")
                     .maybe_single()
                     .execute()
                 )
@@ -169,12 +194,13 @@ async def moja_kancelarija(
             },
             "clanovi": [
                 {
-                    "id":         c["id"],
-                    "email":      c["email"],
-                    "uloga":      c["uloga"],
+                    "id":          c["id"],
+                    "email":       c["email"],
+                    "uloga":       c["uloga"],
                     "uloga_label": ULOGA_LABELS.get(c["uloga"], c["uloga"]),
-                    "status":     c["status"],
-                    "joined_at":  c.get("joined_at"),
+                    "status":      c["status"],
+                    "joined_at":   c.get("joined_at"),
+                    "suspended_at": c.get("suspended_at"),
                 }
                 for c in clanovi
             ],
@@ -235,6 +261,47 @@ async def promeni_naziv(
     return await asyncio.to_thread(_rename)
 
 
+@router.get("/api/kancelarija/mesta")
+@limiter.limit("60/minute")
+async def pregled_mesta(
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Administrativni pregled iskorišćenosti mesta — samo admin firme."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+    firma = await asyncio.to_thread(_require_firma_admin, supa, uid)
+    return await SeatService.get_seat_summary(firma["id"], uid)
+
+
+@router.get("/api/kancelarija/istorija")
+@limiter.limit("30/minute")
+async def istorija_mesta(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    limit: int = 100,
+):
+    """Audit log svake promene članstva — samo admin firme. Trajan zapis,
+    izvor istine za sporove oko broja korisnika."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+    firma = await asyncio.to_thread(_require_firma_admin, supa, uid)
+
+    def _fetch():
+        res = (
+            supa.table("kancelarija_seat_audit")
+            .select("*")
+            .eq("kancelarija_id", firma["id"])
+            .order("created_at", desc=True)
+            .limit(min(limit, 500))
+            .execute()
+        )
+        return res.data or []
+
+    events = await asyncio.to_thread(_fetch)
+    return {"firma_id": firma["id"], "events": events}
+
+
 @router.post("/api/kancelarija/pozovi", status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/minute")
 async def pozovi_clana(
@@ -243,11 +310,14 @@ async def pozovi_clana(
     user: dict = Depends(get_current_user),
 ):
     uid  = user["user_id"]
+    email = (user.get("email") or "").lower()
     supa = _get_supa()
 
-    def _invite():
-        firma = _require_firma_admin(supa, uid)
-        existing = (
+    firma = await asyncio.to_thread(_require_firma_admin, supa, uid)
+    await SeatService.assert_seat_available(firma["id"], uid)
+
+    def _find_existing():
+        return (
             supa.table("kancelarija_clanovi")
             .select("id, status")
             .eq("kancelarija_id", firma["id"])
@@ -255,35 +325,48 @@ async def pozovi_clana(
             .maybe_single()
             .execute()
         )
-        if existing.data:
-            st = existing.data.get("status")
-            if st in ("pending", "aktivan"):
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Korisnik '{req.email}' je već {st} član firme."
-                )
-            # Resend invite if previously declined
-            supa.table("kancelarija_clanovi").update({
-                "uloga":      req.uloga,
-                "status":     "pending",
-                "invited_by": uid,
-                "invited_at": _now(),
-                "joined_at":  None,
-            }).eq("id", existing.data["id"]).execute()
-            return {"ok": True, "action": "reinvited", "email": req.email}
 
-        supa.table("kancelarija_clanovi").insert({
+    existing = await asyncio.to_thread(_find_existing)
+
+    if existing.data:
+        st = existing.data.get("status")
+        if st in ("INVITED", "ACTIVE", "PENDING", "SUSPENDED"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Korisnik '{req.email}' je već {st} član firme."
+            )
+        # st == "REMOVED" — re-invite reuses the same row (audit trail keeps
+        # the full history: original REMOVED transition stays on record).
+        await SeatService.transition(
+            kancelarija_id=firma["id"], clan_id=existing.data["id"], clan_email=req.email,
+            actor_uid=uid, actor_email=email, action="invite",
+            from_status="REMOVED", to_status="INVITED",
+            extra_fields={
+                "uloga": req.uloga, "invited_by": uid, "invited_at": _now(),
+                "joined_at": None, "removed_at": None, "removed_reason": None,
+            },
+        )
+        return {"ok": True, "action": "reinvited", "email": req.email}
+
+    def _insert():
+        res = supa.table("kancelarija_clanovi").insert({
             "kancelarija_id": firma["id"],
             "email":          req.email,
             "uloga":          req.uloga,
-            "status":         "pending",
+            "status":         "INVITED",
             "invited_by":     uid,
             "invited_at":     _now(),
         }).execute()
-        logger.info("[KANCELARIJA] Poziv poslan: %s -> %s uloga=%s", uid[:8], req.email, req.uloga)
-        return {"ok": True, "action": "invited", "email": req.email, "uloga": req.uloga}
+        return res.data[0] if res.data else {}
 
-    return await asyncio.to_thread(_invite)
+    new_row = await asyncio.to_thread(_insert)
+    await SeatService.transition(
+        kancelarija_id=firma["id"], clan_id=new_row.get("id"), clan_email=req.email,
+        actor_uid=uid, actor_email=email, action="invite",
+        from_status=None, to_status="INVITED",
+    )
+    logger.info("[KANCELARIJA] Poziv poslan: %s -> %s uloga=%s", uid[:8], req.email, req.uloga)
+    return {"ok": True, "action": "invited", "email": req.email, "uloga": req.uloga}
 
 
 @router.post("/api/kancelarija/prihvati")
@@ -296,26 +379,28 @@ async def prihvati_pozivnicu(
     email = (user.get("email") or "").lower()
     supa  = _get_supa()
 
-    def _accept():
-        pending = (
+    def _find():
+        return (
             supa.table("kancelarija_clanovi")
             .select("*")
             .eq("email", email)
-            .eq("status", "pending")
+            .eq("status", "INVITED")
             .maybe_single()
             .execute()
         )
-        if not pending.data:
-            raise HTTPException(status_code=404, detail="Nema čekajuće pozivnice za vaš email.")
-        supa.table("kancelarija_clanovi").update({
-            "status":    "aktivan",
-            "user_id":   uid,
-            "joined_at": _now(),
-        }).eq("id", pending.data["id"]).execute()
-        logger.info("[KANCELARIJA] Pozivnica prihvaćena: %s firma=%s", email, pending.data["kancelarija_id"])
-        return {"ok": True, "kancelarija_id": pending.data["kancelarija_id"]}
 
-    return await asyncio.to_thread(_accept)
+    pending = await asyncio.to_thread(_find)
+    if not pending.data:
+        raise HTTPException(status_code=404, detail="Nema čekajuće pozivnice za vaš email.")
+
+    await SeatService.transition(
+        kancelarija_id=pending.data["kancelarija_id"], clan_id=pending.data["id"], clan_email=email,
+        actor_uid=uid, actor_email=email, action="accept",
+        from_status="INVITED", to_status="ACTIVE",
+        extra_fields={"user_id": uid, "joined_at": _now()},
+    )
+    logger.info("[KANCELARIJA] Pozivnica prihvaćena: %s firma=%s", email, pending.data["kancelarija_id"])
+    return {"ok": True, "kancelarija_id": pending.data["kancelarija_id"]}
 
 
 @router.post("/api/kancelarija/odbij")
@@ -324,24 +409,112 @@ async def odbij_pozivnicu(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
+    uid   = user["user_id"]
     email = (user.get("email") or "").lower()
     supa  = _get_supa()
 
-    def _decline():
-        pending = (
+    def _find():
+        return (
             supa.table("kancelarija_clanovi")
-            .select("id")
+            .select("id, kancelarija_id")
             .eq("email", email)
-            .eq("status", "pending")
+            .eq("status", "INVITED")
             .maybe_single()
             .execute()
         )
-        if not pending.data:
-            raise HTTPException(status_code=404, detail="Nema čekajuće pozivnice.")
-        supa.table("kancelarija_clanovi").update({"status": "odbijen"}).eq("id", pending.data["id"]).execute()
-        return {"ok": True}
 
-    return await asyncio.to_thread(_decline)
+    pending = await asyncio.to_thread(_find)
+    if not pending.data:
+        raise HTTPException(status_code=404, detail="Nema čekajuće pozivnice.")
+
+    await SeatService.transition(
+        kancelarija_id=pending.data["kancelarija_id"], clan_id=pending.data["id"], clan_email=email,
+        actor_uid=uid, actor_email=email, action="decline",
+        from_status="INVITED", to_status="REMOVED",
+        extra_fields={"removed_reason": "declined", "removed_at": _now()},
+    )
+    return {"ok": True}
+
+
+@router.post("/api/kancelarija/suspenduj/{clan_id}")
+@limiter.limit("20/minute")
+async def suspenduj_clana(
+    request: Request,
+    clan_id: str,
+    user: dict = Depends(get_current_user),
+):
+    uid   = user["user_id"]
+    email = (user.get("email") or "").lower()
+    supa  = _get_supa()
+    firma = await asyncio.to_thread(_require_firma_admin, supa, uid)
+
+    def _find():
+        return (
+            supa.table("kancelarija_clanovi")
+            .select("id, email, status, user_id")
+            .eq("id", clan_id)
+            .eq("kancelarija_id", firma["id"])
+            .maybe_single()
+            .execute()
+        )
+
+    row = await asyncio.to_thread(_find)
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Član nije pronađen u vašoj firmi.")
+    if row.data.get("status") != "ACTIVE":
+        raise HTTPException(status_code=400, detail=f"Član nije aktivan (trenutno: {row.data.get('status')}) — ne može se suspendovati.")
+
+    await SeatService.transition(
+        kancelarija_id=firma["id"], clan_id=clan_id, clan_email=row.data["email"],
+        actor_uid=uid, actor_email=email, action="suspend",
+        from_status="ACTIVE", to_status="SUSPENDED",
+        extra_fields={"suspended_at": _now()},
+    )
+    logger.info("[KANCELARIJA] Suspendovan: %s u firmi %s", row.data["email"], firma["id"])
+    return {"ok": True}
+
+
+@router.post("/api/kancelarija/reaktiviraj/{clan_id}")
+@limiter.limit("20/minute")
+async def reaktiviraj_clana(
+    request: Request,
+    clan_id: str,
+    user: dict = Depends(get_current_user),
+):
+    uid   = user["user_id"]
+    email = (user.get("email") or "").lower()
+    supa  = _get_supa()
+    firma = await asyncio.to_thread(_require_firma_admin, supa, uid)
+
+    def _find():
+        return (
+            supa.table("kancelarija_clanovi")
+            .select("id, email, status")
+            .eq("id", clan_id)
+            .eq("kancelarija_id", firma["id"])
+            .maybe_single()
+            .execute()
+        )
+
+    row = await asyncio.to_thread(_find)
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Član nije pronađen u vašoj firmi.")
+    if row.data.get("status") != "SUSPENDED":
+        raise HTTPException(status_code=400, detail=f"Član nije suspendovan (trenutno: {row.data.get('status')}).")
+
+    # SUSPENDED ne troši mesto — reaktivacija ga vraća na ACTIVE koje troši,
+    # pa mora ponovo da prođe proveru kapaciteta (drugi pozivi/prijave su se
+    # mogli desiti dok je bio suspendovan).
+    await SeatService.assert_seat_available(firma["id"], uid)
+
+    await SeatService.transition(
+        kancelarija_id=firma["id"], clan_id=clan_id, clan_email=row.data["email"],
+        actor_uid=uid, actor_email=email, action="reactivate",
+        from_status="SUSPENDED", to_status="ACTIVE",
+        extra_fields={"suspended_at": None},
+    )
+    logger.info("[KANCELARIJA] Reaktiviran: %s u firmi %s", row.data["email"], firma["id"])
+    return {"ok": True}
 
 
 @router.delete("/api/kancelarija/ukloni/{clan_id}")
@@ -351,28 +524,37 @@ async def ukloni_clana(
     clan_id: str,
     user: dict = Depends(get_current_user),
 ):
-    uid  = user["user_id"]
-    supa = _get_supa()
+    uid   = user["user_id"]
+    email = (user.get("email") or "").lower()
+    supa  = _get_supa()
+    firma = await asyncio.to_thread(_require_firma_admin, supa, uid)
 
-    def _remove():
-        firma = _require_firma_admin(supa, uid)
-        row = (
+    def _find():
+        return (
             supa.table("kancelarija_clanovi")
-            .select("id, email, user_id")
+            .select("id, email, status, user_id")
             .eq("id", clan_id)
             .eq("kancelarija_id", firma["id"])
             .maybe_single()
             .execute()
         )
-        if not row.data:
-            raise HTTPException(status_code=404, detail="Član nije pronađen u vašoj firmi.")
-        if row.data.get("user_id") == uid:
-            raise HTTPException(status_code=400, detail="Ne možete ukloniti sebe. Koristite 'Napusti firmu'.")
-        supa.table("kancelarija_clanovi").delete().eq("id", clan_id).execute()
-        logger.info("[KANCELARIJA] Uklonjen: %s iz firme %s", row.data.get("email"), firma["id"])
-        return {"ok": True}
 
-    return await asyncio.to_thread(_remove)
+    row = await asyncio.to_thread(_find)
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Član nije pronađen u vašoj firmi.")
+    if row.data.get("user_id") == uid:
+        raise HTTPException(status_code=400, detail="Ne možete ukloniti sebe. Koristite 'Napusti firmu'.")
+    if row.data.get("status") == "REMOVED":
+        raise HTTPException(status_code=400, detail="Član je već uklonjen.")
+
+    await SeatService.transition(
+        kancelarija_id=firma["id"], clan_id=clan_id, clan_email=row.data["email"],
+        actor_uid=uid, actor_email=email, action="remove",
+        from_status=row.data["status"], to_status="REMOVED",
+        extra_fields={"removed_reason": "removed_by_admin", "removed_at": _now(), "suspended_at": None},
+    )
+    logger.info("[KANCELARIJA] Uklonjen: %s iz firme %s", row.data.get("email"), firma["id"])
+    return {"ok": True}
 
 
 @router.put("/api/kancelarija/uloga/{clan_id}")
@@ -390,7 +572,7 @@ async def promeni_ulogu(
         firma = _require_firma_admin(supa, uid)
         row = (
             supa.table("kancelarija_clanovi")
-            .select("id, email")
+            .select("id, email, status")
             .eq("id", clan_id)
             .eq("kancelarija_id", firma["id"])
             .maybe_single()
@@ -398,6 +580,8 @@ async def promeni_ulogu(
         )
         if not row.data:
             raise HTTPException(status_code=404, detail="Član nije pronađen u vašoj firmi.")
+        if row.data.get("status") == "REMOVED":
+            raise HTTPException(status_code=400, detail="Ne može se menjati uloga uklonjenog člana.")
         supa.table("kancelarija_clanovi").update({"uloga": req.uloga}).eq("id", clan_id).execute()
         return {"ok": True, "uloga": req.uloga}
 
@@ -414,28 +598,35 @@ async def napusti_kancelariju(
     email = (user.get("email") or "").lower()
     supa  = _get_supa()
 
-    def _leave():
-        firma_admin = _get_firma_for_admin(supa, uid)
-        if firma_admin:
-            raise HTTPException(
-                status_code=400,
-                detail="Administrator ne može napustiti firmu. Prenesite vlasništvo ili obrišite firmu."
-            )
-        row = (
+    firma_admin = await asyncio.to_thread(_get_firma_for_admin, supa, uid)
+    if firma_admin:
+        raise HTTPException(
+            status_code=400,
+            detail="Administrator ne može napustiti firmu. Prenesite vlasništvo ili obrišite firmu."
+        )
+
+    def _find():
+        return (
             supa.table("kancelarija_clanovi")
-            .select("id")
+            .select("id, kancelarija_id")
             .eq("user_id", uid)
-            .eq("status", "aktivan")
+            .eq("status", "ACTIVE")
             .maybe_single()
             .execute()
         )
-        if not row.data:
-            raise HTTPException(status_code=404, detail="Niste član nijedne firme.")
-        supa.table("kancelarija_clanovi").delete().eq("id", row.data["id"]).execute()
-        logger.info("[KANCELARIJA] %s napustio kancelariju.", email)
-        return {"ok": True}
 
-    return await asyncio.to_thread(_leave)
+    row = await asyncio.to_thread(_find)
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Niste član nijedne firme.")
+
+    await SeatService.transition(
+        kancelarija_id=row.data["kancelarija_id"], clan_id=row.data["id"], clan_email=email,
+        actor_uid=uid, actor_email=email, action="leave",
+        from_status="ACTIVE", to_status="REMOVED",
+        extra_fields={"removed_reason": "left_voluntarily", "removed_at": _now()},
+    )
+    logger.info("[KANCELARIJA] %s napustio kancelariju.", email)
+    return {"ok": True}
 
 
 @router.get("/api/kancelarija/predmeti")
@@ -475,7 +666,7 @@ async def firma_predmeti(
             supa.table("kancelarija_clanovi")
             .select("user_id, email, uloga")
             .eq("kancelarija_id", kancelarija_id)
-            .eq("status", "aktivan")
+            .eq("status", "ACTIVE")
             .execute()
         )
         clanovi = clanovi_res.data or []

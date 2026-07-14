@@ -2878,16 +2878,32 @@ async function kancelarijaLoad() {
       if (invPanel)  invPanel.style.display  = isAdmin ? '' : 'none';
       if (leavePanel) leavePanel.style.display = isAdmin ? 'none' : '';
       _kancRenderClanovi(d.clanovi || [], isAdmin);
+      if (isAdmin) _kancLoadMestaSummary();
     }
   } catch(e) { _kancShow('no-firma'); }
+}
+
+async function _kancLoadMestaSummary() {
+  var el = document.getElementById('kancelarija-mesta-summary');
+  if (!el || !currentSession) return;
+  try {
+    var r = await fetch('/api/kancelarija/mesta', {headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { el.style.display = 'none'; return; }
+    var d = await r.json();
+    el.style.display = '';
+    var boja = d.available_seats <= 0 ? '#f87171' : (d.available_seats <= 1 ? '#f97316' : '#4ade80');
+    el.innerHTML = 'Mesta: <span style="color:'+boja+';font-weight:600;">'+d.used_seats+'/'+d.total_allowed_seats+'</span> zauzeto'
+      + (d.extra_seats_purchased > 0 ? ' ('+d.base_included_seats+' uključeno + '+d.extra_seats_purchased+' dodatno)' : ' (uključeno u '+d.tier+' tarifu)')
+      + (d.available_seats <= 0 ? ' — nema slobodnih, dokupite mesto za nove pozive' : '');
+  } catch(e) { el.style.display = 'none'; }
 }
 
 function _kancRenderClanovi(clanovi, isAdmin) {
   var list = document.getElementById('kancelarija-clanovi-list');
   if (!list) return;
   if (!clanovi.length) { list.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.3);">Nema članova.</div>'; return; }
-  var statusLabels = {pending:'Čeka', aktivan:'Aktivan', odbijen:'Odbijen'};
-  var statusColors = {pending:'#c9a84c', aktivan:'#4ade80', odbijen:'#f87171'};
+  var statusLabels = {INVITED:'Čeka', ACTIVE:'Aktivan', SUSPENDED:'Suspendovan', PENDING:'Na čekanju'};
+  var statusColors = {INVITED:'#c9a84c', ACTIVE:'#4ade80', SUSPENDED:'#f97316', PENDING:'#c9a84c'};
   list.innerHTML = clanovi.map(function(c){
     var stColor = statusColors[c.status] || '#aaa';
     var stLabel = statusLabels[c.status] || c.status;
@@ -2896,8 +2912,13 @@ function _kancRenderClanovi(clanovi, isAdmin) {
       var roleOpts = ['partner','saradnik','citanje'].map(function(u){
         return '<option value="'+u+'"'+(c.uloga===u?' selected':'')+'>'+({partner:'Partner',saradnik:'Saradnik',citanje:'Čitanje'}[u]||u)+'</option>';
       }).join('');
-      actions = '<select onchange="kancPromeniUlogu(\''+c.id+'\',this.value)" style="background:rgba(13,27,42,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:2px;padding:2px 5px;color:rgba(255,255,255,0.8);font-size:0.72rem;outline:none;font-family:inherit;cursor:pointer;">'+roleOpts+'</select>'
-        +'<button onclick="kancUkloni(\''+c.id+'\',\''+c.email+'\')" style="background:none;border:1px solid rgba(239,68,68,0.3);border-radius:2px;padding:2px 7px;color:#f87171;font-size:0.72rem;cursor:pointer;font-family:inherit;">×</button>';
+      actions = '<select onchange="kancPromeniUlogu(\''+c.id+'\',this.value)" style="background:rgba(13,27,42,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:2px;padding:2px 5px;color:rgba(255,255,255,0.8);font-size:0.72rem;outline:none;font-family:inherit;cursor:pointer;">'+roleOpts+'</select>';
+      if (c.status === 'ACTIVE') {
+        actions += '<button onclick="kancSuspenduj(\''+c.id+'\',\''+c.email+'\')" style="background:none;border:1px solid rgba(249,115,22,0.3);border-radius:2px;padding:2px 7px;color:#f97316;font-size:0.72rem;cursor:pointer;font-family:inherit;">Suspenduj</button>';
+      } else if (c.status === 'SUSPENDED') {
+        actions += '<button onclick="kancReaktiviraj(\''+c.id+'\',\''+c.email+'\')" style="background:none;border:1px solid rgba(74,222,128,0.3);border-radius:2px;padding:2px 7px;color:#4ade80;font-size:0.72rem;cursor:pointer;font-family:inherit;">Reaktiviraj</button>';
+      }
+      actions += '<button onclick="kancUkloni(\''+c.id+'\',\''+c.email+'\')" style="background:none;border:1px solid rgba(239,68,68,0.3);border-radius:2px;padding:2px 7px;color:#f87171;font-size:0.72rem;cursor:pointer;font-family:inherit;">×</button>';
     }
     return '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.45rem;background:rgba(255,255,255,0.03);border-radius:2px;">'
       +'<span style="flex:1;font-size:0.78rem;color:rgba(255,255,255,0.8);">'+c.email+'</span>'
@@ -3036,6 +3057,26 @@ function kancUkloni(clanId, email) {
       await kancelarijaLoad();
     } catch(e) { showToast('Greška mreže.', 'err'); }
   });
+}
+
+function kancSuspenduj(clanId, email) {
+  if (!currentSession) return;
+  _vxConfirm('Suspendovati ' + email + '? Neće moći da pristupa dok se ne reaktivira.', async function() {
+    try {
+      var r = await fetch('/api/kancelarija/suspenduj/'+clanId, {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+      if (!r.ok) { var d=await r.json(); showToast((d.detail && d.detail.message) || d.detail || 'Greška.', 'err'); return; }
+      await kancelarijaLoad();
+    } catch(e) { showToast('Greška mreže.', 'err'); }
+  });
+}
+
+async function kancReaktiviraj(clanId, email) {
+  if (!currentSession) return;
+  try {
+    var r = await fetch('/api/kancelarija/reaktiviraj/'+clanId, {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) { var d=await r.json(); showToast((d.detail && d.detail.message) || d.detail || 'Greška.', 'err'); return; }
+    await kancelarijaLoad();
+  } catch(e) { showToast('Greška mreže.', 'err'); }
 }
 
 async function kancPromeniUlogu(clanId, uloga) {
