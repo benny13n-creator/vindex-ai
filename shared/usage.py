@@ -196,11 +196,18 @@ class UsageService:
         email: str,
         feature: str,
         *,
+        multiplier: int = 1,
         tokens_prompt: Optional[int] = None,
         tokens_completion: Optional[int] = None,
         latency_ms: Optional[int] = None,
     ) -> int:
         """
+        multiplier: za operacije koje su N puta skuplje od registrovane bazne
+        cene (npr. strategija/kompletna-analiza pokreće 6 modula = 6x cena
+        jednog modula) — bez potrebe za posebnim feature_key redom u bazi za
+        svaku takvu varijantu. Broji se kao JEDNA upotreba za dnevni/mesečni
+        limit (jedan poziv), ali troši multiplier x krediti.
+
         Proverava cooldown, dnevni/mesečni limit, zatim atomično oduzima
         kredite — SVE vrednosti (osim opcione telemetrije) čitane iz
         feature_registry (Admin Feature Console), NIKAD prosleđene kao
@@ -216,7 +223,7 @@ class UsageService:
         budžeta ili je cooldown aktivan.
         """
         policy = await get_policy(feature)
-        credits = float(policy.get("krediti") or 0)
+        credits = float(policy.get("krediti") or 0) * max(multiplier, 1)
         dnevni_limit = policy.get("dnevni_limit")
         mesecni_limit = policy.get("mesecni_limit")
         cooldown = policy.get("cooldown_seconds")
