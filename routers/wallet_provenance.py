@@ -118,7 +118,7 @@ async def sakupi_wallet_provenance(adresa: str) -> dict:
         raise HTTPException(
             status_code=503,
             detail=(
-                "Wallet Provenance servis nije konfigurisan (ETHERSCAN_API_KEY). "
+                "Wallet Risk Assessment servis nije konfigurisan (ETHERSCAN_API_KEY). "
                 "Besplatan Etherscan API ključ se dobija na etherscan.io/apis — kontaktirajte administratora."
             ),
         )

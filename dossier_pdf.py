@@ -106,7 +106,7 @@ def generisi_dossier_pdf(kontekst: dict[str, Any]) -> bytes:
     story = []
 
     # ── Header ────────────────────────────────────────────────────────────────
-    story.append(Paragraph("VINDEX AI — DIGITALNA IMOVINA & USKLAĐENOST", s["header_title"]))
+    story.append(Paragraph("VINDEX AI - DIGITALNA IMOVINA & USKLAĐENOST", s["header_title"]))
     story.append(Paragraph(f"Generisano: {datetime.now().strftime('%d.%m.%Y %H:%M')}", s["header_date"]))
     story.append(HRFlowable(width="100%", thickness=1.5, color=_TEAL, spaceAfter=10))
 
@@ -185,7 +185,7 @@ def generisi_dossier_pdf(kontekst: dict[str, Any]) -> bytes:
     # ── 3. Wallet Provenance (opciono) ───────────────────────────────────────
     wallet = kontekst.get("wallet")
     if wallet:
-        _section_header(story, "3. PROVERA NOVČANIKA (WALLET PROVENANCE)", s)
+        _section_header(story, "3. PROVERA NOVČANIKA (WALLET RISK ASSESSMENT)", s)
 
         # Ograničenja analize — UVEK prvo, pre adrese i pre bilo kog nalaza.
         ogranicenja = wallet.get("ogranicenja_analize") or []

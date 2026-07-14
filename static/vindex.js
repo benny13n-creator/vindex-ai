@@ -2267,7 +2267,7 @@ function aiwsSetMode(mode, btn) {
   }
   if (mode === 'digitalna_imovina' && typeof dimBackToOverview === 'function') dimBackToOverview();
   if (typeof vxUpdateBreadcrumb === 'function' && activeTab === 'aiws') {
-    vxUpdateBreadcrumb('aiws', mode === 'digitalna_imovina' ? 'Digitalna imovina & Usklađenost' : null);
+    vxUpdateBreadcrumb('aiws', mode === 'digitalna_imovina' ? 'Vindex AI - Digitalna imovina & usklađenost' : null);
   }
 }
 
@@ -2302,7 +2302,7 @@ var DIM_MODUL_LABELS = {
   carf_dac8_readiness:     'CARF/DAC8 Readiness',
   csv_import:              'Uvoz CSV (Binance/Kraken)',
   ofac_screening:          'OFAC Provera adresa (besplatno)',
-  wallet_provenance:       'Wallet Provenance',
+  wallet_provenance:       'Wallet Risk Assessment',
   health_score:            'Dokumentacioni Health Score',
   source_of_funds_dossier: 'Source-of-Funds Dossier',
   whitepaper_check:        'AI analiza projekta',
@@ -5230,7 +5230,7 @@ async function web3WalletProvenance() {
   var bodyEl = document.getElementById('web3-wallet-body');
   if (!currentUser) { openModal(); return; }
   if (!currentUserIsPro) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">Wallet Provenance je dostupan samo PRO korisnicima.</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-pro-gate">Wallet Risk Assessment je dostupan samo PRO korisnicima.</div>';
     if (wrap) wrap.style.display = 'block';
     return;
   }
@@ -12463,7 +12463,7 @@ var _CMDK_ACTIONS = [
   { label: 'Novi rok', sub: 'Dodaj ročište ili rok u predmet', action: 'activePredmetId ? pred_subtabSwitch("rokovi") : setTab(document.getElementById("tab-btn-p"),"p")' },
   { label: 'Pokreni analizu', sub: '6 analiza analiziraju predmet', action: 'pred_launchKompletnaAnaliza ? pred_launchKompletnaAnaliza() : null' },
   { label: 'Idi na klijenta', sub: 'Pretraži i otvori klijenta', action: 'setTab(document.getElementById("tab-btn-k"),"k")' },
-  { label: 'Digitalna imovina & Usklađenost', sub: 'CARF/DAC8, OFAC, Wallet Provenance, MiCA/ZDI', action: '_dimOpenModul()' }
+  { label: 'Vindex AI - Digitalna imovina & usklađenost', sub: 'CARF/DAC8, OFAC, Wallet Risk Assessment, MiCA/ZDI', action: '_dimOpenModul()' }
 ];
 
 var _CMDK_ICONS = {

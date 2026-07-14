@@ -2735,7 +2735,7 @@
               <button class="vx-pill" data-mode="strategija" onclick="aiwsSetMode('strategija',this)">Strategija</button>
               <button class="vx-pill" data-mode="oblasti" onclick="aiwsSetMode('oblasti',this)">Pravne oblasti</button>
               <button class="vx-pill" data-mode="litigation" onclick="aiwsSetMode('litigation',this)">Litigation Intelligence</button>
-              <button class="vx-pill" data-mode="digitalna_imovina" id="aiws-pill-dim" onclick="aiwsSetMode('digitalna_imovina',this)" style="display:none;">Digitalna imovina & Usklađenost</button>
+              <button class="vx-pill" data-mode="digitalna_imovina" id="aiws-pill-dim" onclick="aiwsSetMode('digitalna_imovina',this)" style="display:none;">Vindex AI - Digitalna imovina & usklađenost</button>
             </div>
 
             <div id="aiws-mode-zakon" class="aiws-mode-pane">
@@ -3103,7 +3103,7 @@
               <div class="vx-exec-header" style="margin-bottom:1.1rem;">
                 <div>
                   <div class="vx-exec-header-eyebrow">Digitalna imovina</div>
-                  <div class="vx-exec-header-title">Digitalna imovina & Usklađenost</div>
+                  <div class="vx-exec-header-title">Vindex AI - Digitalna imovina & usklađenost</div>
                   <div class="vx-exec-header-sub">Due diligence, regulatorna provera, wallet risk assessment i source-of-funds dokumentacija za banke, advokatske kancelarije i compliance timove.</div>
                 </div>
               </div>
@@ -3163,7 +3163,7 @@
 
             <!-- ═══ LEVEL 2 — skopovan prikaz jedne kartice/alata ═══ -->
             <div id="dim-level2" style="display:none;">
-              <button class="t-tool-back" onclick="dimBackToOverview()"><span class="t-tool-back-arrow">←</span> Digitalna imovina & Usklađenost</button>
+              <button class="t-tool-back" onclick="dimBackToOverview()"><span class="t-tool-back-arrow">←</span> Vindex AI - Digitalna imovina & usklađenost</button>
               <div id="dim-level2-title" class="vx-section-lbl" style="margin:.6rem 0 .5rem;"></div>
               <div id="dim-level2-buttons" class="strat-modul-izbor web3-moduli"></div>
 
@@ -3222,14 +3222,14 @@
               </div>
               <button class="web3-submit-btn" id="web3-wallet-btn" onclick="web3WalletProvenance()">Proveri novčanik</button>
               <div id="web3-wallet-rezultat" class="web3-rezultat-wrap" style="display:none;">
-                <div class="web3-rezultat-header"><span class="web3-rezultat-naslov">Wallet Provenance</span></div>
+                <div class="web3-rezultat-header"><span class="web3-rezultat-naslov">Wallet Risk Assessment</span></div>
                 <div id="web3-wallet-body" class="web3-rezultat-body"></div>
               </div>
             </div>
 
             <!-- F16: Source-of-Funds Dossier — PDF -->
             <div id="web3-panel-dossier" style="display:none">
-              <div class="strat-opis-box web3-opis-box">Generiše PDF izveštaj koji spaja Dokumentacioni Health Score, CARF/DAC8 kontekst i (opciono) Wallet Provenance u jedan dokument. Košta 2 kredita.</div>
+              <div class="strat-opis-box web3-opis-box">Generiše PDF izveštaj koji spaja Dokumentacioni Health Score, CARF/DAC8 kontekst i (opciono) Wallet Risk Assessment u jedan dokument. Košta 2 kredita.</div>
               <div class="strat-input-wrap">
                 <label class="strat-label">Opišite kakvu dokumentaciju posedujete o vašoj kripto imovini</label>
                 <textarea id="web3-dossier-opis" class="strat-textarea" rows="5" placeholder="Npr: Imam KYC verifikaciju na Binance i Kraken nalozima..."></textarea>
@@ -3239,7 +3239,7 @@
                 <textarea id="web3-dossier-carf" class="strat-textarea" rows="2" placeholder="Ostavite prazno za opšti pregled obaveza izveštavanja."></textarea>
               </div>
               <div class="strat-input-wrap">
-                <label class="strat-label">Ethereum adresa za Wallet Provenance sekciju (opciono)</label>
+                <label class="strat-label">Ethereum adresa za Wallet Risk Assessment sekciju (opciono)</label>
                 <input type="text" id="web3-dossier-wallet" class="vx-input" placeholder="0x... (ostavite prazno da preskočite)" style="width:100%;" />
               </div>
               <button class="web3-submit-btn" id="web3-dossier-btn" onclick="web3DossierGeneriraj()">Generiši dossier (PDF, 2 kredita)</button>
@@ -3417,15 +3417,15 @@
               <div id="dim-module-card" style="border:1px solid rgba(255,255,255,0.08);border-radius:3px;padding:1rem 1.1rem;">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.15rem;">
                   <div>
-                    <div style="font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,212,255,0.65);margin-bottom:.25rem;">Enterprise Add-on</div>
-                    <div style="font-size:.9rem;font-weight:700;color:rgba(255,255,255,0.85);">Digitalna imovina & Usklađenost</div>
+                    <div style="font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,212,255,0.65);margin-bottom:.25rem;">Compliance Suite</div>
+                    <div style="font-size:.9rem;font-weight:700;color:rgba(255,255,255,0.85);">Vindex AI - Digitalna imovina & usklađenost</div>
                   </div>
                   <span id="dim-status-badge" style="flex-shrink:0;font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;"></span>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.25rem .75rem;margin:.75rem 0;">
                   <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ CARF/DAC8</div>
                   <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ OFAC Screening</div>
-                  <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ Wallet Provenance</div>
+                  <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ Wallet Risk Assessment</div>
                   <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ Source-of-Funds</div>
                   <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ Documentation Health</div>
                   <div style="font-size:.74rem;color:rgba(255,255,255,0.55);">✓ Regulatory Intelligence</div>
