@@ -324,7 +324,7 @@ async def region_rokovi(
     request: Request,
     tip_roka: str,
     zemlja:   str,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("region_ai")),
 ):
     """AI generisani procesni rokovi za određenu zemlju (prilagođeni lokalni zakoni)."""
     z = zemlja.upper()
@@ -354,6 +354,8 @@ async def region_rokovi(
             temperature=0.2,
         )
     )
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "region_ai")
 
     return {
         "tip_roka": tip_roka,

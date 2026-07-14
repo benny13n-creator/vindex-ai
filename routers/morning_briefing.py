@@ -376,7 +376,7 @@ async def get_daily_briefing(
 @limiter.limit("3/hour")
 async def send_briefing_email(
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("morning_briefing")),
 ):
     """Pošalji briefing emailom na adresu korisnika."""
     uid        = user["user_id"]
@@ -388,6 +388,8 @@ async def send_briefing_email(
     supa     = _get_supa()
     briefing = await _generiši_briefing(uid, supa)
     sent     = await _pošalji_briefing_email(user_email, briefing)
+
+    await UsageService.consume(uid, user_email, "morning_briefing")
 
     return {"ok": sent, "email": user_email, "datum": briefing["datum"]}
 
