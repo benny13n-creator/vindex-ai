@@ -14012,6 +14012,9 @@ async function adminFeatureRegistryLoad() {
   }
 }
 
+var _FR_PRIORITY_COLOR = { HIGH: '#4ade80', MEDIUM: 'rgba(255,255,255,.4)', LOW: '#fbbf24' };
+var _FR_STATUS_COLOR = { ACTIVE: 'rgba(255,255,255,.3)', BETA: '#00d4ff', DEPRECATED: '#f87171', INTERNAL: '#a78bfa', COMING_SOON: '#fbbf24' };
+
 function adminFeatureRegistryRender() {
   var tblEl = document.getElementById('admin-feature-registry-table');
   if (!tblEl) return;
@@ -14028,16 +14031,38 @@ function adminFeatureRegistryRender() {
       var lbl = p || '— (addon-only)';
       return '<option value="' + p + '"' + (f.minimum_plan === p || (!f.minimum_plan && !p) ? ' selected' : '') + '>' + lbl + '</option>';
     }).join('');
-    return '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);' + (f.aktivno ? '' : 'opacity:.4;') + '">'
-      + '<td style="padding:4px 6px 4px 0;color:rgba(255,255,255,0.82);white-space:nowrap;">' + _htmlEsc(f.naziv) + '<div style="font-size:.6rem;color:rgba(255,255,255,.3);">' + _htmlEsc(key) + '</div></td>'
+    var priority = f.priority || 'MEDIUM';
+    var stat = f.status || 'ACTIVE';
+    var badges = '<span style="font-size:.56rem;color:' + (_FR_PRIORITY_COLOR[priority] || '#888') + ';border:1px solid currentColor;border-radius:2px;padding:0 3px;margin-right:3px;">' + priority + '</span>'
+      + (stat !== 'ACTIVE' ? '<span style="font-size:.56rem;color:' + (_FR_STATUS_COLOR[stat] || '#888') + ';border:1px solid currentColor;border-radius:2px;padding:0 3px;">' + stat + '</span>' : '');
+    var mainRow = '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);' + (f.aktivno ? '' : 'opacity:.4;') + '">'
+      + '<td style="padding:4px 6px 4px 0;color:rgba(255,255,255,0.82);white-space:nowrap;">' + _htmlEsc(f.naziv) + '<div style="font-size:.6rem;color:rgba(255,255,255,.3);margin-top:1px;">' + _htmlEsc(key) + '</div><div style="margin-top:2px;">' + badges + '</div></td>'
       + '<td style="padding:4px 6px;"><select id="fr-plan-' + key + '" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px;">' + planOpts + '</select></td>'
       + '<td style="padding:4px 6px;"><input id="fr-addon-' + key + '" value="' + _htmlEsc(f.addon || '') + '" placeholder="—" style="width:80px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></td>'
       + '<td style="padding:4px 6px;"><input id="fr-krediti-' + key + '" type="number" step="0.5" value="' + (f.krediti != null ? f.krediti : 0) + '" style="width:48px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></td>'
       + '<td style="padding:4px 6px;"><input id="fr-dnevni-' + key + '" type="number" value="' + (f.dnevni_limit != null ? f.dnevni_limit : '') + '" placeholder="∞" style="width:48px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></td>'
       + '<td style="padding:4px 6px;"><input id="fr-mesecni-' + key + '" type="number" value="' + (f.mesecni_limit != null ? f.mesecni_limit : '') + '" placeholder="∞" style="width:48px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></td>'
       + '<td style="padding:4px 6px;text-align:center;"><button onclick="adminFeatureRegistryToggle(\'' + key + '\')" class="vx-btn vx-btn-ghost" style="height:22px;padding:0 0.4rem;font-size:0.62rem;">' + (f.aktivno ? 'Ugasi' : 'Upali') + '</button></td>'
-      + '<td style="padding:4px 0 4px 6px;"><button onclick="adminFeatureRegistrySave(\'' + key + '\')" class="settings-btn" style="font-size:0.65rem;padding:2px 8px;">Sačuvaj</button></td>'
-      + '</tr>';
+      + '<td style="padding:4px 0 4px 6px;white-space:nowrap;">'
+      + '<button onclick="adminFeatureRegistrySave(\'' + key + '\')" class="settings-btn" style="font-size:0.65rem;padding:2px 8px;">Sačuvaj</button> '
+      + '<button onclick="adminFeatureRegistryToggleMore(\'' + key + '\')" class="vx-btn vx-btn-ghost" style="height:22px;padding:0 0.4rem;font-size:0.62rem;">Više ▾</button>'
+      + '</td></tr>';
+
+    var moreRow = '<tr id="fr-more-' + key + '" style="display:none;background:rgba(255,255,255,0.015);">'
+      + '<td colspan="8" style="padding:6px 6px 10px 0;">'
+      + '<div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;">'
+      + '<div><label style="display:block;font-size:.58rem;color:rgba(255,255,255,.35);margin-bottom:2px;">Cooldown (s)</label><input id="fr-cooldown-' + key + '" type="number" value="' + (f.cooldown_seconds != null ? f.cooldown_seconds : '') + '" placeholder="—" style="width:60px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></div>'
+      + '<div><label style="display:block;font-size:.58rem;color:rgba(255,255,255,.35);margin-bottom:2px;">Prioritet</label><select id="fr-priority-' + key + '" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px;">' + ['HIGH','MEDIUM','LOW'].map(function(p){ return '<option value="'+p+'"'+(priority===p?' selected':'')+'>'+p+'</option>'; }).join('') + '</select></div>'
+      + '<div><label style="display:block;font-size:.58rem;color:rgba(255,255,255,.35);margin-bottom:2px;">Status</label><select id="fr-status-' + key + '" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px;">' + ['ACTIVE','BETA','DEPRECATED','INTERNAL','COMING_SOON'].map(function(s){ return '<option value="'+s+'"'+(stat===s?' selected':'')+'>'+s+'</option>'; }).join('') + '</select></div>'
+      + '<div><label style="display:block;font-size:.58rem;color:rgba(255,255,255,.35);margin-bottom:2px;">Vidljivost</label><select id="fr-visible-' + key + '" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px;">' + ['visible','hidden','internal','enterprise_only'].map(function(v){ return '<option value="'+v+'"'+((f.visible||'visible')===v?' selected':'')+'>'+v+'</option>'; }).join('') + '</select></div>'
+      + '<div><label style="display:block;font-size:.58rem;color:rgba(255,255,255,.35);margin-bottom:2px;">Verzija</label><input id="fr-version-' + key + '" value="' + _htmlEsc(f.version || 'v1') + '" style="width:44px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></div>'
+      + '<div><label style="display:block;font-size:.58rem;color:rgba(255,255,255,.35);margin-bottom:2px;">Procenjen trošak ($)</label><input id="fr-cost-' + key + '" type="number" step="0.001" value="' + (f.estimated_cost_usd != null ? f.estimated_cost_usd : '') + '" placeholder="—" style="width:60px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></div>'
+      + '<button onclick="adminFeatureRegistryHistory(\'' + key + '\')" class="vx-btn vx-btn-ghost" style="height:24px;padding:0 0.5rem;font-size:0.62rem;">Istorija izmena</button>'
+      + '</div>'
+      + '<div id="fr-history-' + key + '" style="display:none;margin-top:.5rem;font-size:.65rem;color:rgba(255,255,255,.5);max-height:160px;overflow-y:auto;"></div>'
+      + '</td></tr>';
+
+    return mainRow + moreRow;
   }).join('');
 
   tblEl.innerHTML = '<table style="width:100%;border-collapse:collapse;">'
@@ -14053,6 +14078,39 @@ function adminFeatureRegistryRender() {
     + '</tr></thead><tbody>' + (rows || '<tr><td colspan="8" style="padding:8px 0;color:rgba(255,255,255,.3);">Nema rezultata.</td></tr>') + '</tbody></table>';
 }
 
+function adminFeatureRegistryToggleMore(key) {
+  var row = document.getElementById('fr-more-' + key);
+  if (row) row.style.display = (row.style.display === 'none') ? 'table-row' : 'none';
+}
+
+async function adminFeatureRegistryHistory(key) {
+  if (!currentSession) return;
+  var el = document.getElementById('fr-history-' + key);
+  if (!el) return;
+  if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = 'Učitavam...';
+  try {
+    var r = await fetch(BASE_URL + '/api/admin/feature-registry/' + encodeURIComponent(key) + '/audit', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('Server greška: ' + r.status));
+    var ist = d.istorija || [];
+    if (!ist.length) { el.innerHTML = 'Nema zabeleženih izmena.'; return; }
+    el.innerHTML = ist.map(function(h) {
+      var kada = new Date(h.changed_at).toLocaleString('sr-RS');
+      return '<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);">'
+        + '<span style="color:rgba(255,255,255,.35);">' + kada + ' · ' + _htmlEsc(h.changed_by) + '</span><br>'
+        + '<span style="color:rgba(255,80,80,.6);">' + _htmlEsc(JSON.stringify(h.old_values)) + '</span> → '
+        + '<span style="color:rgba(74,222,128,.7);">' + _htmlEsc(JSON.stringify(h.new_values)) + '</span>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<span style="color:rgba(255,100,100,0.5);">Greška: ' + _htmlEsc(e.message) + '</span>';
+  }
+}
+
 async function adminFeatureRegistrySave(key) {
   if (!currentSession) return;
   var planEl = document.getElementById('fr-plan-' + key);
@@ -14060,6 +14118,12 @@ async function adminFeatureRegistrySave(key) {
   var kreditiEl = document.getElementById('fr-krediti-' + key);
   var dnevniEl = document.getElementById('fr-dnevni-' + key);
   var mesecniEl = document.getElementById('fr-mesecni-' + key);
+  var cooldownEl = document.getElementById('fr-cooldown-' + key);
+  var priorityEl = document.getElementById('fr-priority-' + key);
+  var statusEl = document.getElementById('fr-status-' + key);
+  var visibleEl = document.getElementById('fr-visible-' + key);
+  var versionEl = document.getElementById('fr-version-' + key);
+  var costEl = document.getElementById('fr-cost-' + key);
 
   var payload = {
     krediti: kreditiEl.value === '' ? 0 : parseFloat(kreditiEl.value),
@@ -14068,6 +14132,14 @@ async function adminFeatureRegistrySave(key) {
   if (addonEl.value.trim()) { payload.addon = addonEl.value.trim(); } else { payload.ukloni_addon = true; }
   if (dnevniEl.value !== '') { payload.dnevni_limit = parseInt(dnevniEl.value, 10); } else { payload.ukloni_dnevni_limit = true; }
   if (mesecniEl.value !== '') { payload.mesecni_limit = parseInt(mesecniEl.value, 10); } else { payload.ukloni_mesecni_limit = true; }
+  if (cooldownEl) {
+    if (cooldownEl.value !== '') { payload.cooldown_seconds = parseInt(cooldownEl.value, 10); } else { payload.ukloni_cooldown = true; }
+  }
+  if (priorityEl) payload.priority = priorityEl.value;
+  if (statusEl) payload.status = statusEl.value;
+  if (visibleEl) payload.visible = visibleEl.value;
+  if (versionEl && versionEl.value.trim()) payload.version = versionEl.value.trim();
+  if (costEl && costEl.value !== '') payload.estimated_cost_usd = parseFloat(costEl.value);
 
   try {
     var r = await fetch(BASE_URL + '/api/admin/feature-registry/' + encodeURIComponent(key), {

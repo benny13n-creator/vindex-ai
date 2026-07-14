@@ -360,6 +360,12 @@ class FeatureRegistryUpdate(BaseModel):
     krediti_po_minutu: Optional[float] = None
     dnevni_limit: Optional[int] = None
     mesecni_limit: Optional[int] = None
+    cooldown_seconds: Optional[int] = None
+    priority: Optional[str] = Field(default=None, description="HIGH/MEDIUM/LOW")
+    estimated_cost_usd: Optional[float] = None
+    version: Optional[str] = None
+    status: Optional[str] = Field(default=None, description="ACTIVE/BETA/DEPRECATED/INTERNAL/COMING_SOON")
+    visible: Optional[str] = Field(default=None, description="visible/hidden/internal/enterprise_only")
     ai_model: Optional[str] = None
     aktivno: Optional[bool] = None
     opis: Optional[str] = None
@@ -367,8 +373,29 @@ class FeatureRegistryUpdate(BaseModel):
     # "polje nije poslato" od "polje je namerno None" bez ovoga.
     ukloni_dnevni_limit: bool = False
     ukloni_mesecni_limit: bool = False
+    ukloni_cooldown: bool = False
     ukloni_addon: bool = False
     ukloni_minimum_plan: bool = False
+
+
+_VALID_STATUS = ("ACTIVE", "BETA", "DEPRECATED", "INTERNAL", "COMING_SOON")
+_VALID_VISIBLE = ("visible", "hidden", "internal", "enterprise_only")
+_VALID_PRIORITY = ("HIGH", "MEDIUM", "LOW")
+
+
+async def _write_audit(feature_key: str, changed_by: str, old_values: dict, new_values: dict) -> None:
+    try:
+        await asyncio.to_thread(
+            lambda: _get_supa().table("feature_registry_audit").insert({
+                "feature_key": feature_key,
+                "changed_by": changed_by,
+                "old_values": old_values,
+                "new_values": new_values,
+            }).execute()
+        )
+    except Exception as exc:
+        # Migracija 065 možda nije pokrenuta na ovom okruženju — ne blokiraj izmenu zbog toga.
+        logger.warning("[ADMIN] feature_registry_audit upis neuspešan (non-fatal): %s", exc)
 
 
 @router.get("/feature-registry")
@@ -382,6 +409,26 @@ async def feature_registry_list(request: Request, user: dict = Depends(get_curre
     return {"features": policies, "ukupno": len(policies)}
 
 
+@router.get("/feature-registry/{feature_key}/audit")
+@limiter.limit("60/minute")
+async def feature_registry_audit_history(feature_key: str, request: Request, user: dict = Depends(get_current_user), limit: int = 50):
+    """Istorija izmena jedne funkcije — trajno, nikad se ne briše."""
+    _require_founder(user)
+    limit = min(max(limit, 1), 200)
+    try:
+        res = await asyncio.to_thread(
+            lambda: _get_supa().table("feature_registry_audit")
+                .select("*")
+                .eq("feature_key", feature_key)
+                .order("changed_at", desc=True)
+                .limit(limit)
+                .execute()
+        )
+        return {"feature_key": feature_key, "istorija": res.data or []}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Greška: {exc!r}")
+
+
 @router.patch("/feature-registry/{feature_key}")
 @limiter.limit("30/minute")
 async def feature_registry_update(
@@ -391,14 +438,16 @@ async def feature_registry_update(
     user: dict = Depends(get_current_user),
 ):
     """Menja politiku jedne funkcije. Odmah invalidira keš — promena je
-    aktivna na sledećem pozivu bilo kog korisnika, bez deploy-a/restarta."""
+    aktivna na sledećem pozivu bilo kog korisnika, bez deploy-a/restarta.
+    Svaka izmena ostaje trajno u feature_registry_audit."""
     _require_founder(user)
     from shared.feature_registry import invalidate
 
     updates: dict = {}
     for field in ("naziv", "kategorija", "minimum_plan", "addon", "krediti",
                   "krediti_po_minutu", "dnevni_limit", "mesecni_limit",
-                  "ai_model", "aktivno", "opis"):
+                  "cooldown_seconds", "priority", "estimated_cost_usd",
+                  "version", "status", "visible", "ai_model", "aktivno", "opis"):
         val = getattr(payload, field)
         if val is not None:
             updates[field] = val
@@ -406,6 +455,8 @@ async def feature_registry_update(
         updates["dnevni_limit"] = None
     if payload.ukloni_mesecni_limit:
         updates["mesecni_limit"] = None
+    if payload.ukloni_cooldown:
+        updates["cooldown_seconds"] = None
     if payload.ukloni_addon:
         updates["addon"] = None
     if payload.ukloni_minimum_plan:
@@ -413,9 +464,26 @@ async def feature_registry_update(
 
     if not updates:
         raise HTTPException(status_code=400, detail="Nema izmena u zahtevu.")
-    if updates.get("minimum_plan") not in (None,) and updates.get("minimum_plan") not in ("basic", "professional", "enterprise"):
-        if "minimum_plan" in updates and updates["minimum_plan"] is not None:
-            raise HTTPException(status_code=400, detail="minimum_plan mora biti basic/professional/enterprise ili null.")
+    if "minimum_plan" in updates and updates["minimum_plan"] is not None and updates["minimum_plan"] not in ("basic", "professional", "enterprise"):
+        raise HTTPException(status_code=400, detail="minimum_plan mora biti basic/professional/enterprise ili null.")
+    if "priority" in updates and updates["priority"] not in _VALID_PRIORITY:
+        raise HTTPException(status_code=400, detail=f"priority mora biti jedno od: {_VALID_PRIORITY}.")
+    if "status" in updates and updates["status"] not in _VALID_STATUS:
+        raise HTTPException(status_code=400, detail=f"status mora biti jedno od: {_VALID_STATUS}.")
+    if "visible" in updates and updates["visible"] not in _VALID_VISIBLE:
+        raise HTTPException(status_code=400, detail=f"visible mora biti jedno od: {_VALID_VISIBLE}.")
+
+    try:
+        old_res = await asyncio.to_thread(
+            lambda: _get_supa().table("feature_registry").select("*").eq("feature_key", feature_key).maybe_single().execute()
+        )
+        if not old_res.data:
+            raise HTTPException(status_code=404, detail=f"Feature '{feature_key}' nije pronađen u Registry-ju.")
+        old_values = {k: old_res.data.get(k) for k in updates}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Greška pri čitanju stare vrednosti: {exc!r}")
 
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
     updates["updated_by"] = user.get("email", "")
@@ -436,6 +504,7 @@ async def feature_registry_update(
         raise HTTPException(status_code=500, detail=f"Greška pri izmeni: {exc!r}")
 
     invalidate()
+    await _write_audit(feature_key, user.get("email", ""), old_values, {k: v for k, v in updates.items() if k not in ("updated_at", "updated_by")})
     logger.info("[ADMIN] feature_registry['%s'] izmenjen od %s: %s", feature_key, user.get("email"), updates)
     return {"feature_key": feature_key, "azurirano": updates}
 
@@ -460,5 +529,6 @@ async def feature_registry_toggle(feature_key: str, request: Request, user: dict
             .execute()
     )
     invalidate()
+    await _write_audit(feature_key, user.get("email", ""), {"aktivno": current.get("aktivno", True)}, {"aktivno": novo_stanje})
     logger.warning("[ADMIN] feature_registry['%s'] aktivno=%s (od %s)", feature_key, novo_stanje, user.get("email"))
     return {"feature_key": feature_key, "aktivno": novo_stanje}

@@ -28,10 +28,21 @@ _CACHE: dict[str, dict] = {}
 _CACHE_LOADED_AT: float = 0.0
 _CACHE_TTL_S = 60.0
 
+_DEPS_CACHE: dict[str, list[str]] = {}
+_DEPS_CACHE_LOADED_AT: float = 0.0
+
 
 def _load_sync() -> dict[str, dict]:
     res = _get_supa().table("feature_registry").select("*").execute()
     return {row["feature_key"]: row for row in (res.data or [])}
+
+
+def _load_deps_sync() -> dict[str, list[str]]:
+    res = _get_supa().table("feature_dependencies").select("feature_key, depends_on").execute()
+    out: dict[str, list[str]] = {}
+    for row in (res.data or []):
+        out.setdefault(row["feature_key"], []).append(row["depends_on"])
+    return out
 
 
 async def _ensure_loaded(force: bool = False) -> None:
@@ -57,6 +68,20 @@ async def _ensure_loaded(force: bool = False) -> None:
                 raise
 
 
+async def _ensure_deps_loaded(force: bool = False) -> None:
+    global _DEPS_CACHE, _DEPS_CACHE_LOADED_AT
+    now = time.monotonic()
+    if force or (now - _DEPS_CACHE_LOADED_AT) > _CACHE_TTL_S:
+        try:
+            _DEPS_CACHE = await asyncio.to_thread(_load_deps_sync)
+            _DEPS_CACHE_LOADED_AT = now
+        except Exception as exc:
+            logger.debug(
+                "[FEATURE_REGISTRY] Zavisnosti nisu učitane (migracija 065 pokrenuta?) — %s",
+                type(exc).__name__,
+            )
+
+
 async def get_policy(feature_key: str) -> dict:
     """Vraća politiku za feature_key. Baca RuntimeError ako feature_key nije
     registrovan u bazi — namerno glasno, ne tiho (sprečava tihu propusnost)."""
@@ -76,12 +101,21 @@ async def get_all_policies() -> list[dict]:
     return list(_CACHE.values())
 
 
+async def get_dependencies(feature_key: str) -> list[str]:
+    """Vraća listu feature_key-eva od kojih feature_key zavisi (feature_dependencies
+    tabela, migracija 065). Prazna lista ako nema zavisnosti ili tabela ne postoji."""
+    await _ensure_deps_loaded()
+    return _DEPS_CACHE.get(feature_key, [])
+
+
 def invalidate() -> None:
     """Poziva Admin Feature Console posle svake izmene — sledeći get_policy()
     poziv će forsirano osvežiti keš iz baze."""
-    global _CACHE_LOADED_AT
+    global _CACHE_LOADED_AT, _DEPS_CACHE_LOADED_AT
     _CACHE_LOADED_AT = 0.0
+    _DEPS_CACHE_LOADED_AT = 0.0
 
 
 async def force_reload() -> None:
     await _ensure_loaded(force=True)
+    await _ensure_deps_loaded(force=True)

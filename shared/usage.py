@@ -4,22 +4,27 @@ Vindex AI — shared/usage.py
 
 UsageService — odvojen sloj od PermissionService. PermissionService odgovara
 "ima li nalog PRAVO da pristupi funkciji" (tarifa/addon); UsageService
-odgovara "da li ima BUDžET da je iskoristi ovog meseca/danas" (krediti,
-dnevni/mesečni limit) — sve čitano iz feature_registry (migracija 064), NE
-prosleđeno kao parametar iz endpoint-a.
+odgovara "da li ima BUDžET/PRAVO UČESTALOSTI da je iskoristi SADA" (krediti,
+dnevni/mesečni limit, cooldown) — sve čitano iz feature_registry (migracije
+064/065), NE prosleđeno kao parametar iz endpoint-a.
 
-Upotreba u routeru — DVA ODVOJENA poziva, tim redosledom:
+Upotreba u routeru — DVA ODVOJENA poziva, tim redosledom. feature_key je
+RAW STRING (isti kao feature_registry.feature_key) — namerno nema Python
+FEATURE_* konstanti, to bi bio drugi izvor istine pored baze:
 
     from shared.permissions import PermissionService
     from shared.usage import UsageService
-    from shared.features import FEATURE_CASE_DNA
 
     @router.post("/api/case-dna/refresh")
     async def refresh(
-        user: dict = Depends(PermissionService.require(FEATURE_CASE_DNA)),
+        user: dict = Depends(PermissionService.require("case_dna")),
     ):
         ... (generiši AI odgovor) ...
-        await UsageService.consume(user["user_id"], user["email"], FEATURE_CASE_DNA)
+        await UsageService.consume(user["user_id"], user["email"], "case_dna")
+
+Opciona telemetrija (tokens_prompt/tokens_completion/latency_ms) se popunjava
+POSTEPENO kako se svaki endpoint ožičava — nije obavezna, feature_usage_log
+red se piše i bez nje (samo ta polja ostaju NULL dok se ne doda).
 
 Endpoint NE zna koliko feature košta — to je Registry-jeva odgovornost.
 Ne prikazuje tehničke detalje (OpenAI tokene, broj poziva modelu) nikad
@@ -31,6 +36,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import date, datetime, timezone
+from typing import Optional
 
 from fastapi import HTTPException, status
 
@@ -57,7 +63,7 @@ def _month_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
-async def _get_usage_row(user_id: str, feature: str) -> dict | None:
+async def _get_usage_row(user_id: str, feature: str) -> Optional[dict]:
     def _q():
         return (
             _get_supa()
@@ -94,6 +100,30 @@ async def _get_monthly_count(user_id: str, feature: str) -> int:
     except Exception as exc:
         logger.warning("[USAGE] _get_monthly_count greška (non-fatal): %s", exc)
         return 0
+
+
+async def _seconds_since_last_call(user_id: str, feature: str) -> Optional[float]:
+    def _q():
+        return (
+            _get_supa()
+            .table("feature_usage_log")
+            .select("created_at")
+            .eq("user_id", user_id)
+            .eq("feature_key", feature)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+    try:
+        res = await asyncio.to_thread(_q)
+        rows = res.data or []
+        if not rows:
+            return None
+        last = datetime.fromisoformat(rows[0]["created_at"].replace("Z", "+00:00"))
+        return (datetime.now(timezone.utc) - last).total_seconds()
+    except Exception as exc:
+        logger.warning("[USAGE] _seconds_since_last_call greška (non-fatal): %s", exc)
+        return None
 
 
 async def _increment_usage(user_id: str, feature: str, credits_spent: float) -> None:
@@ -135,26 +165,78 @@ async def _increment_usage(user_id: str, feature: str, credits_spent: float) -> 
         logger.warning("[USAGE] _increment_usage greška (non-fatal): %s", exc)
 
 
+async def _log_usage_event(
+    user_id: str, feature: str, credits_spent: float, ai_model: Optional[str],
+    estimated_cost_usd: Optional[float], tokens_prompt: Optional[int],
+    tokens_completion: Optional[int], latency_ms: Optional[int],
+) -> None:
+    def _insert():
+        _get_supa().table("feature_usage_log").insert({
+            "user_id": user_id,
+            "feature_key": feature,
+            "krediti_potroseni": credits_spent,
+            "ai_model": ai_model,
+            "estimated_cost_usd": estimated_cost_usd,
+            "tokens_prompt": tokens_prompt,
+            "tokens_completion": tokens_completion,
+            "latency_ms": latency_ms,
+        }).execute()
+    try:
+        await asyncio.to_thread(_insert)
+    except Exception as exc:
+        # Analitika je best-effort — nikad ne blokira korisnika (migracija 065
+        # možda još nije pokrenuta na ovom okruženju).
+        logger.debug("[USAGE] _log_usage_event greška (non-fatal): %s", exc)
+
+
 class UsageService:
     @staticmethod
-    async def consume(user_id: str, email: str, feature: str) -> int:
+    async def consume(
+        user_id: str,
+        email: str,
+        feature: str,
+        *,
+        tokens_prompt: Optional[int] = None,
+        tokens_completion: Optional[int] = None,
+        latency_ms: Optional[int] = None,
+    ) -> int:
         """
-        Proverava dnevni/mesečni limit, zatim atomično oduzima kredite —
-        SVE vrednosti čitane iz feature_registry (Admin Feature Console),
-        NIKAD prosleđene kao parametar. Founder nikad ne plaća i ne trpi
-        dnevni/mesečni limit (samo aktivno=false kill-switch ga zaustavlja,
-        to je provereno u PermissionService pre ovog poziva).
+        Proverava cooldown, dnevni/mesečni limit, zatim atomično oduzima
+        kredite — SVE vrednosti (osim opcione telemetrije) čitane iz
+        feature_registry (Admin Feature Console), NIKAD prosleđene kao
+        parametar. Founder nikad ne plaća i ne trpi cooldown/limite (samo
+        aktivno=false kill-switch ga zaustavlja, to je provereno u
+        PermissionService pre ovog poziva).
+
+        tokens_prompt/tokens_completion/latency_ms su OPCIONI — endpoint ih
+        prosleđuje ako ih ima (za feature_analytics), izostavljanje ne menja
+        gejtovanje.
 
         Vraća preostali broj kredita. Baca HTTPException(402/429) ako nema
-        budžeta.
+        budžeta ili je cooldown aktivan.
         """
         policy = await get_policy(feature)
         credits = float(policy.get("krediti") or 0)
         dnevni_limit = policy.get("dnevni_limit")
         mesecni_limit = policy.get("mesecni_limit")
+        cooldown = policy.get("cooldown_seconds")
+        ai_model = policy.get("ai_model")
+        est_cost = policy.get("estimated_cost_usd")
 
         if _is_founder(email):
             return FOUNDER_BALANCE
+
+        if cooldown:
+            elapsed = await _seconds_since_last_call(user_id, feature)
+            if elapsed is not None and elapsed < cooldown:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail={
+                        "code": "COOLDOWN",
+                        "feature": feature,
+                        "message": f"Sačekajte {round(cooldown - elapsed)}s pre sledećeg poziva ove funkcije.",
+                    },
+                )
 
         if dnevni_limit is not None:
             row = await _get_usage_row(user_id, feature)
@@ -214,6 +296,10 @@ class UsageService:
             preostalo = await asyncio.to_thread(_get_credits, user_id)
 
         await _increment_usage(user_id, feature, credits)
+        await _log_usage_event(
+            user_id, feature, credits, ai_model, est_cost,
+            tokens_prompt, tokens_completion, latency_ms,
+        )
         return preostalo
 
     @staticmethod
