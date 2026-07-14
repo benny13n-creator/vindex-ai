@@ -115,6 +115,23 @@ def _safe(r) -> list:
     return r.data or []
 
 
+def _tier_distribution_and_mrr(profiles: list[dict], tier_rows: dict[str, dict]) -> tuple[dict, float]:
+    """Shared by pi_plans and pi_revenue_intelligence — efektivna tarifa
+    (uzima u obzir istek Legacy Professional statusa) grupisana po tier_key,
+    MRR procenjena isključivo iz tier_config cena (nikad hardkodovano)."""
+    dist: dict[str, int] = {"basic": 0, "professional": 0, "enterprise": 0}
+    mrr_eur = 0.0
+    for p in profiles:
+        pt = effective_tier(p)
+        dist[pt] = dist.get(pt, 0) + 1
+        tier_row = tier_rows.get(pt, {})
+        mrr_eur += float(tier_row.get("monthly_price_eur") or 0)
+        extra_seat_price = tier_row.get("extra_seat_price_eur")
+        if extra_seat_price:
+            mrr_eur += (p.get("subscription_seats_extra") or 0) * float(extra_seat_price)
+    return dist, mrr_eur
+
+
 def _compute_sessions(events: list[dict]) -> tuple[int, float, list[float]]:
     """
     Group events per user into 30-minute sessions.
@@ -580,19 +597,7 @@ async def pi_plans(
     profiles = _safe(profiles_r)
     onboard  = _safe(onboard_r)
 
-    # Plan distribution — efektivna tarifa (uzima u obzir istek Legacy Professional
-    # statusa, ista logika koja gejtuje pristup funkcijama).
-    dist: dict[str, int] = {"basic": 0, "professional": 0, "enterprise": 0}
-    mrr_eur = 0.0
-    for p in profiles:
-        pt = effective_tier(p)
-        dist[pt] = dist.get(pt, 0) + 1
-        tier_row = tier_rows.get(pt, {})
-        mrr_eur += float(tier_row.get("monthly_price_eur") or 0)
-        extra_seat_price = tier_row.get("extra_seat_price_eur")
-        if extra_seat_price:
-            mrr_eur += (p.get("subscription_seats_extra") or 0) * float(extra_seat_price)
-
+    dist, mrr_eur = _tier_distribution_and_mrr(profiles, tier_rows)
     total_profiles = len(profiles)
 
     # Monthly AI usage totals — svi feature_key-evi, ne samo stara 3 bucketa.
@@ -639,4 +644,228 @@ async def pi_plans(
         },
         "onboarding_emails":  ob_counts,
         "onboarding_rates":   ob_pct,
+    }
+
+
+# ─── Revenue Intelligence ────────────────────────────────────────────────────
+# Faza: Revenue Intelligence (Priority #3, posle Tier Configuration + Feature
+# Registry credit_multiplier — founder-ov eksplicitan redosled).
+#
+# POŠTENO O PODACIMA (pre bilo koje brojke ispod): feature_usage/
+# feature_usage_log su u trenutku pisanja ovog endpointa imali NULA redova —
+# nijedan korisnik nije okinuo AI poziv kroz novi PermissionService/
+# UsageService sistem otkad je uveden u ovoj sesiji. To znači cost/profit/
+# per-feature sekcije će iskreno prikazivati 0/prazno dok se ne nakupi
+# stvarna upotreba — NAMERNO, ne fabrikuje se nijedna cifra. Revenue/MRR
+# sekcija JESTE stvarna već sada (dolazi iz profiles.subscription_type,
+# nezavisno od AI upotrebe).
+#
+# Conversion Funnel ispod NIJE prava stopa konverzije (Basic→Professional→
+# Enterprise tokom vremena) — takva stopa zahteva istoriju promena tarife
+# po nalogu, koja danas ne postoji nigde u bazi (profiles.subscription_type
+# je samo TRENUTNO stanje). Vraća se trenutna distribucija sa eksplicitnom
+# napomenom, ne lažna "stopa konverzije".
+
+_USD_TO_EUR_APPROX = 0.93  # gruba, fiksna procena (ne live FX feed) — samo
+# za red veličine u Gross Profit prikazu, ne za knjigovodstvo.
+
+
+def _days_in_month(d: date) -> int:
+    import calendar
+    return calendar.monthrange(d.year, d.month)[1]
+
+
+@router.get("/admin/pi/revenue-intelligence")
+@limiter.limit("20/minute")
+async def pi_revenue_intelligence(
+    request: Request,
+    user: dict = Depends(_require_admin),
+):
+    """Revenue Today/MTD/MRR/ARR/Projected, AI Cost breakdown, Gross Profit/
+    Margin, profit(cost) po funkciji, conversion snapshot, upgrade candidates,
+    unused features — sve iz stvarnih tabela (profiles/tier_config/
+    feature_registry/feature_usage/feature_usage_log), nula fabrikovanih brojeva."""
+    supa = _get_supa()
+    now = datetime.now(timezone.utc)
+    ym = now.strftime("%Y-%m")
+    today_iso = now.date().isoformat()
+
+    from shared.tier_config import get_all_tiers
+    from shared.feature_registry import get_all_policies
+
+    tier_rows_list, policies, profiles_r = await asyncio.gather(
+        get_all_tiers(),
+        get_all_policies(),
+        asyncio.to_thread(
+            lambda: supa.table("profiles")
+            .select("id, subscription_type, subscription_expires_at, subscription_seats_extra")
+            .execute()
+        ),
+    )
+    tier_rows = {t["tier_key"]: t for t in tier_rows_list}
+    policy_by_key = {p["feature_key"]: p for p in policies}
+    profiles = _safe(profiles_r)
+
+    # ── 1. Revenue ────────────────────────────────────────────────────────
+    dist, mrr_eur = _tier_distribution_and_mrr(profiles, tier_rows)
+    arr_eur = mrr_eur * 12
+    dim = _days_in_month(now.date())
+    daily_run_rate_eur = mrr_eur / dim if dim else 0.0
+    mtd_run_rate_eur = daily_run_rate_eur * now.day
+
+    # ── 2. AI Cost (feature_usage_log, migracija 065 — per-poziv telemetrija) ──
+    log_month_r = await asyncio.to_thread(
+        lambda: supa.table("feature_usage_log")
+        .select("feature_key, ai_model, estimated_cost_usd, krediti_potroseni, created_at")
+        .gte("created_at", f"{ym}-01T00:00:00")
+        .execute()
+    )
+    log_today_r = await asyncio.to_thread(
+        lambda: supa.table("feature_usage_log")
+        .select("estimated_cost_usd")
+        .gte("created_at", f"{today_iso}T00:00:00")
+        .execute()
+    )
+    log_rows_mtd = _safe(log_month_r)
+    log_rows_today = _safe(log_today_r)
+
+    ai_cost_mtd_usd = sum(float(r.get("estimated_cost_usd") or 0) for r in log_rows_mtd)
+    ai_cost_today_usd = sum(float(r.get("estimated_cost_usd") or 0) for r in log_rows_today)
+
+    cost_by_model: dict[str, float] = defaultdict(float)
+    cost_by_feature: dict[str, dict] = defaultdict(lambda: {"cost_usd": 0.0, "krediti": 0.0, "pozivi": 0})
+    for r in log_rows_mtd:
+        model = r.get("ai_model") or "nepoznat"
+        cost = float(r.get("estimated_cost_usd") or 0)
+        cost_by_model[model] += cost
+        fk = r.get("feature_key") or "?"
+        bucket = cost_by_feature[fk]
+        bucket["cost_usd"] += cost
+        bucket["krediti"] += float(r.get("krediti_potroseni") or 0)
+        bucket["pozivi"] += 1
+
+    # ── 3. Gross Profit / Margin ─────────────────────────────────────────────
+    ai_cost_mtd_eur = ai_cost_mtd_usd * _USD_TO_EUR_APPROX
+    gross_profit_eur = mrr_eur - ai_cost_mtd_eur
+    net_margin_pct = round(gross_profit_eur / mrr_eur * 100, 1) if mrr_eur else None
+
+    # ── 4/5. Profit(trošak) po funkciji — revenue se NE deli po funkciji (flat
+    # pretplata, ne pay-per-use), pa "profit po funkciji" ovde znači: trošak +
+    # broj poziva + krediti_potroseni po feature_key, rangirano — NE tvrdimo
+    # tačnu $ dobit po funkciji jer bi to zahtevalo proizvoljnu alokaciju
+    # pretplatarskog prihoda na funkcije, što nije merena činjenica.
+    feature_cost_ranking = []
+    for fk, bucket in cost_by_feature.items():
+        pol = policy_by_key.get(fk, {})
+        feature_cost_ranking.append({
+            "feature_key": fk,
+            "naziv": pol.get("naziv", fk),
+            "pozivi_ovaj_mesec": bucket["pozivi"],
+            "trosak_usd": round(bucket["cost_usd"], 4),
+            "krediti_potroseni": round(bucket["krediti"], 2),
+        })
+    top_expensive = sorted(feature_cost_ranking, key=lambda x: -x["trosak_usd"])[:10]
+    top_by_credits = sorted(feature_cost_ranking, key=lambda x: -x["krediti_potroseni"])[:10]
+
+    # ── 6. Conversion — trenutna distribucija, NE stopa konverzije (vidi napomenu gore) ──
+    conversion_snapshot = {
+        "distribucija": dist,
+        "napomena": (
+            "Ovo je TRENUTNO stanje naloga po tarifi, ne stopa konverzije tokom "
+            "vremena — profiles.subscription_type ne čuva istoriju promena, "
+            "potrebna je nova subscription_history tabela pre nego što prava "
+            "stopa konverzije (Basic→Professional→Enterprise) postane merljiva."
+        ),
+    }
+
+    # ── 7. Upgrade candidates — korisnik blizu mesečnog limita neke funkcije ──
+    usage_month_r = await asyncio.to_thread(
+        lambda: supa.table("feature_usage")
+        .select("user_id, feature_key, broj_koriscenja")
+        .eq("mesec", ym)
+        .execute()
+    )
+    usage_by_user: dict[str, list[dict]] = defaultdict(list)
+    for r in _safe(usage_month_r):
+        usage_by_user[r["user_id"]].append(r)
+
+    profile_by_id = {p["id"]: p for p in profiles}
+    _TIER_UP = {"basic": "professional", "professional": "enterprise"}
+    upgrade_candidates = []
+    for uid, rows in usage_by_user.items():
+        profil = profile_by_id.get(uid, {})
+        current_tier = effective_tier(profil) if profil else "basic"
+        next_tier = _TIER_UP.get(current_tier)
+        for r in rows:
+            fk = r.get("feature_key")
+            pol = policy_by_key.get(fk, {})
+            limit = pol.get("mesecni_limit")
+            used = r.get("broj_koriscenja") or 0
+            if limit and used / limit >= 0.8:
+                upgrade_candidates.append({
+                    "user_id": uid,
+                    "feature_key": fk,
+                    "iskoriscenost_pct": round(used / limit * 100, 1),
+                    "trenutna_tarifa": current_tier,
+                    "predlog_tarife": next_tier,
+                })
+    upgrade_candidates.sort(key=lambda x: -x["iskoriscenost_pct"])
+
+    # ── 8. Unused features — aktivne funkcije bez ijednog poziva u poslednjih 30 dana ──
+    cutoff = (now - timedelta(days=30)).date().isoformat()
+    usage_30d_r = await asyncio.to_thread(
+        lambda: supa.table("feature_usage")
+        .select("feature_key")
+        .gte("dan", cutoff)
+        .execute()
+    )
+    used_recently = {r["feature_key"] for r in _safe(usage_30d_r)}
+    unused_features = [
+        {"feature_key": p["feature_key"], "naziv": p.get("naziv", p["feature_key"])}
+        for p in policies
+        if p.get("status") == "ACTIVE" and p.get("krediti", 0) and p["feature_key"] not in used_recently
+    ]
+
+    return {
+        "generisano_at": now.isoformat(),
+        "revenue": {
+            "mrr_eur": round(mrr_eur, 2),
+            "arr_eur": round(arr_eur, 2),
+            "dnevni_run_rate_eur": round(daily_run_rate_eur, 2),
+            "mtd_run_rate_eur": round(mtd_run_rate_eur, 2),
+            "projected_mrr_eur": round(mrr_eur + sum(
+                (tier_rows.get(c["predlog_tarife"], {}).get("monthly_price_eur", 0)
+                 - tier_rows.get(c["trenutna_tarifa"], {}).get("monthly_price_eur", 0))
+                for c in upgrade_candidates if c["predlog_tarife"]
+            ), 2),
+            "napomena": (
+                "Run-rate procene iz tier_config cena, NE stvarno naplaćen novac — "
+                "Stripe nije integrisan. projected_mrr_eur = mrr_eur + potencijal ako "
+                "SVI upgrade_candidates pređu na sledeću tarifu (scenario, ne predikcija)."
+            ),
+        },
+        "ai_cost": {
+            "danas_usd": round(ai_cost_today_usd, 4),
+            "mtd_usd": round(ai_cost_mtd_usd, 4),
+            "po_modelu": {k: round(v, 4) for k, v in cost_by_model.items()},
+            "napomena": (
+                "Samo feature_usage_log.estimated_cost_usd (OpenAI poziv, po feature_registry "
+                "proceni) — Pinecone/embedding/Whisper troškovi nisu posebno instrumentisani "
+                "kao odvojene stavke, uključeni su u estimated_cost_usd procenu po funkciji gde je uneta."
+            ),
+        },
+        "profit": {
+            "gross_profit_eur": round(gross_profit_eur, 2),
+            "net_margin_pct": net_margin_pct,
+            "napomena": f"AI trošak konvertovan iz USD po fiksnoj proceni {_USD_TO_EUR_APPROX} (ne live kurs) — red veličine, ne knjigovodstvo.",
+        },
+        "top_profitabilne_funkcije": top_by_credits,
+        "top_skupe_funkcije": top_expensive,
+        "conversion": conversion_snapshot,
+        "upgrade_candidates": upgrade_candidates[:50],
+        "unused_features": unused_features,
+        "unused_features_napomena": (
+            f"{len(unused_features)} od {len([p for p in policies if p.get('status')=='ACTIVE'])} "
+            "aktivnih funkcija bez poziva u poslednjih 30 dana."
+        ),
     }
