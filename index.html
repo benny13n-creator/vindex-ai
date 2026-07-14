@@ -465,7 +465,8 @@
         <span class="vx-logo-mark">Vindex <em>AI</em></span>
       </div>
       <nav class="vx-nav" id="t-tabs-el">
-        <!-- ── Osnovna navigacija — 3 stvari koje advokat koristi svaki dan ── -->
+        <!-- ── Grupa 1: Dnevni rad ── -->
+        <div class="vx-nav-group-lbl" style="margin-top:10px !important;">Dnevni rad</div>
         <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')">
           <i data-lucide="layout-dashboard" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Pregled dana</span>
@@ -482,18 +483,10 @@
           <i data-lucide="clock" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Rokovi</span>
         </div>
-        <div class="t-tab" id="tab-btn-zadaci-g" onclick="setTab(this,'zadaci-g')">
-          <i data-lucide="check-square" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Zadatci</span>
-        </div>
-        <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
-          <i data-lucide="library" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Dokumenti</span>
-        </div>
-        <div class="t-tab" id="tab-btn-doctpl" onclick="docTplOpen()">
-          <i data-lucide="file-plus" class="vx-tab-ico"></i>
-          <span class="vx-tab-lbl">Šabloni dokumenata</span>
-        </div>
+        <div class="vx-nav-sep"></div>
+
+        <!-- ── Grupa 2: Znanje i AI ── -->
+        <div class="vx-nav-group-lbl">Znanje i AI</div>
         <div class="t-tab" id="tab-btn-aiws" onclick="setTab(this,'aiws')">
           <i data-lucide="sparkles" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Vindex Intelligence</span>
@@ -501,6 +494,24 @@
         <div class="t-tab" id="tab-btn-s" onclick="setTab(this,'s')">
           <i data-lucide="scale" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Sudska praksa</span>
+        </div>
+        <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
+          <i data-lucide="library" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Dokumenti</span>
+        </div>
+        <!-- Nacrti podnesaka/Analiza dokumenta se ne dupliraju ovde (Faza beta-audit) —
+             vec dostupni u Vindex Intelligence, izbegava "dva mesta za istu stvar". -->
+        <div class="t-tab" id="tab-btn-doctpl" onclick="docTplOpen()">
+          <i data-lucide="file-plus" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Šabloni dokumenata</span>
+        </div>
+        <div class="vx-nav-sep"></div>
+
+        <!-- ── Grupa 3: Poslovanje ── -->
+        <div class="vx-nav-group-lbl">Poslovanje</div>
+        <div class="t-tab" id="tab-btn-zadaci-g" onclick="setTab(this,'zadaci-g')">
+          <i data-lucide="check-square" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Zadatci</span>
         </div>
         <div class="t-tab" id="tab-btn-fin" onclick="setTab(this,'fin')">
           <i data-lucide="banknote" class="vx-tab-ico"></i>
@@ -510,15 +521,12 @@
           <i data-lucide="building-2" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Kancelarija</span>
         </div>
-        <div class="vx-nav-sep"></div>
-        <!-- ── Alati — Nacrti podnesaka/Analiza dokumenta uklonjeni odavde (Faza
-             beta-audit): duplirali su iste pilule vec dostupne u Vindex
-             Intelligence, sto je zbunjivalo navigaciju ("dva mesta za istu stvar"). -->
-        <div class="vx-nav-group-lbl">Alati</div>
-        <div class="vx-nav-sub" onclick="setTab(document.getElementById('tab-btn-pi'),'pi')" title="Pregled poslovanja — prihodi, produktivnost i KPI kancelarije">
-          <span class="vx-nav-sub-dot"></span>Portfolio kancelarije
+        <div class="t-tab" onclick="setTab(document.getElementById('tab-btn-pi'),'pi')" title="Pregled poslovanja — prihodi, produktivnost i KPI kancelarije">
+          <i data-lucide="bar-chart-3" class="vx-tab-ico"></i>
+          <span class="vx-tab-lbl">Portfolio kancelarije</span>
         </div>
-        <div class="vx-nav-sep" style="margin-top:24px !important;"></div>
+        <div class="vx-nav-sep"></div>
+
         <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')">
           <i data-lucide="settings" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Podešavanja</span>
