@@ -1892,11 +1892,14 @@ def serve_portal():
 
 
 @app.get("/api/portal/predmet")
-async def portal_predmet_data(token: str):
+@limiter.limit("20/minute")
+async def portal_predmet_data(request: Request, token: str):
     """
     Vraća podatke o predmetu za klijentski portal.
-    Zaštićen vremenskim tokenom iz privremeni_pristup tabele.
-    Nije potrebna autentifikacija — pristup je kontrolisan tokenom.
+    Zaštićen vremenskim tokenom iz privremeni_pristup tabele (secrets.token_urlsafe(32),
+    generisan u routers/saradnja.py — kriptografski jak, 256-bit entropija).
+    Nije potrebna autentifikacija — pristup je kontrolisan tokenom. Rate limit je
+    dodatna odbrana u dubini (defense-in-depth), ne osnovna zaštita.
     """
     from datetime import datetime, timezone
 

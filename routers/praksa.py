@@ -483,7 +483,7 @@ def _uporedi_sync(dn_a: str, dn_b: str) -> dict:
 
 @router.post("/api/praksa/search")
 @limiter.limit("30/minute")
-async def praksa_search(req: PraksaSearchReq, request: Request):
+async def praksa_search(req: PraksaSearchReq, request: Request, user: dict = Depends(get_current_user)):
     """Faceted case-law search over sudska_praksa Pinecone namespace."""
     if req.matter and req.matter not in _VALID_MATTERS:
         return JSONResponse(
@@ -522,7 +522,7 @@ async def praksa_search(req: PraksaSearchReq, request: Request):
 
 @router.post("/api/praksa/ratio")
 @limiter.limit("20/minute")
-async def praksa_ratio(req: RatioReq, request: Request):
+async def praksa_ratio(req: RatioReq, request: Request, user: dict = Depends(get_current_user)):
     """Phase 3.2: Batch extract/serve ratio decidendi with Supabase caching."""
     if not req.decisions:
         return {"ratios": {}}
@@ -608,7 +608,7 @@ async def get_sudovi():
 
 @router.get("/api/sudska-praksa/grupisano")
 @limiter.limit("20/minute")
-async def sudska_praksa_grupisano(query: str, request: Request):
+async def sudska_praksa_grupisano(query: str, request: Request, user: dict = Depends(get_current_user)):
     """Phase 3.1: Retrieve top-10 decisions grouped by outcome (tuzilac/tuzeni/mesovito)."""
     q = (query or "").strip()
     if not q:

@@ -8048,7 +8048,7 @@ async function praksa_search() {
   if (praksa_last_req.year_to)   body.year_to   = praksa_last_req.year_to;
   try {
     var r = await fetch(BASE_URL + '/api/praksa/search', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') }, body: JSON.stringify(body)
     });
     if (!r.ok) {
       var ed = {}; try { ed = await r.json(); } catch(e) {}
@@ -8082,7 +8082,7 @@ async function praksa_load_more() {
   btn.textContent = 'Učitavam…'; btn.disabled = true;
   try {
     var r = await fetch(BASE_URL + '/api/praksa/search', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') }, body: JSON.stringify(body)
     });
     if (r.ok) {
       var data = await r.json();
@@ -8252,7 +8252,7 @@ async function praksa_fetch_ratios(decisions, startIdx) {
   try {
     var r = await fetch(BASE_URL + '/api/praksa/ratio', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') },
       body: JSON.stringify({ decisions: payload.map(function(p) {
         return { decision_number: p.decision_number, text: p.text };
       }) }),
@@ -8304,7 +8304,9 @@ async function praksa_load_grupisano() {
   var btn = document.getElementById('praksa-grupisano-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Analiziram…'; }
   try {
-    var r = await fetch(BASE_URL + '/api/sudska-praksa/grupisano?query=' + encodeURIComponent(q));
+    var r = await fetch(BASE_URL + '/api/sudska-praksa/grupisano?query=' + encodeURIComponent(q), {
+      headers: { 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') }
+    });
     document.getElementById('praksa-grupisano-loading').style.display = 'none';
     if (!r.ok) {
       var ed = {}; try { ed = await r.json(); } catch(e) {}
@@ -8416,7 +8418,7 @@ function praksa_render_grupisano(data) {
       try {
         var r = await fetch(BASE_URL + '/api/praksa/ratio', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') },
           body: JSON.stringify({ decisions: payload }),
         });
         if (!r.ok) {
