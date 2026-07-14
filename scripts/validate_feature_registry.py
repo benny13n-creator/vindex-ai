@@ -44,6 +44,7 @@ VALID_PLANS = {"basic", "professional", "enterprise"}
 VALID_STATUS = {"ACTIVE", "BETA", "DEPRECATED", "INTERNAL", "COMING_SOON"}
 VALID_VISIBLE = {"visible", "hidden", "internal", "enterprise_only"}
 VALID_PRIORITY = {"HIGH", "MEDIUM", "LOW"}
+VALID_FEATURE_TYPE = {"FOUNDATION", "SUBSCRIPTION", "ADDON", "INTERNAL"}
 
 
 def _validate_row(row: dict) -> list[tuple[str, str]]:
@@ -95,6 +96,18 @@ def _validate_row(row: dict) -> list[tuple[str, str]]:
 
     if not row.get("opis"):
         findings.append(("INFO", f"[{key}] opis je prazan (dokumentacija za Admin Console)"))
+
+    feature_type = row.get("feature_type")
+    if feature_type and feature_type not in VALID_FEATURE_TYPE:
+        findings.append(("FATAL", f"[{key}] feature_type='{feature_type}' nije validan {VALID_FEATURE_TYPE}"))
+    if feature_type == "FOUNDATION" and krediti:
+        findings.append(("WARNING", f"[{key}] feature_type=FOUNDATION ali krediti={krediti} > 0 — osnovna funkcionalnost ne bi trebalo da troši kredite"))
+    if feature_type == "ADDON" and addon is None:
+        findings.append(("WARNING", f"[{key}] feature_type=ADDON ali addon polje je NULL — nejasno koji dodatak otključava ovo"))
+
+    chargeable = row.get("chargeable")
+    if chargeable is False and krediti:
+        findings.append(("FATAL", f"[{key}] chargeable=false ali krediti={krediti} > 0 — kontradiktorno, Registry tvrdi i da se naplaćuje i da se ne naplaćuje"))
 
     return findings
 

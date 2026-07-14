@@ -367,6 +367,8 @@ class FeatureRegistryUpdate(BaseModel):
     version: Optional[str] = None
     status: Optional[str] = Field(default=None, description="ACTIVE/BETA/DEPRECATED/INTERNAL/COMING_SOON")
     visible: Optional[str] = Field(default=None, description="visible/hidden/internal/enterprise_only")
+    feature_type: Optional[str] = Field(default=None, description="FOUNDATION/SUBSCRIPTION/ADDON/INTERNAL — određuje da li se funkcija uopšte pojavljuje u Pricing tabeli i gde")
+    chargeable: Optional[bool] = None
     ai_model: Optional[str] = None
     aktivno: Optional[bool] = None
     opis: Optional[str] = None
@@ -382,6 +384,7 @@ class FeatureRegistryUpdate(BaseModel):
 _VALID_STATUS = ("ACTIVE", "BETA", "DEPRECATED", "INTERNAL", "COMING_SOON")
 _VALID_VISIBLE = ("visible", "hidden", "internal", "enterprise_only")
 _VALID_PRIORITY = ("HIGH", "MEDIUM", "LOW")
+_VALID_FEATURE_TYPE = ("FOUNDATION", "SUBSCRIPTION", "ADDON", "INTERNAL")
 
 
 async def _write_audit(feature_key: str, changed_by: str, old_values: dict, new_values: dict) -> None:
@@ -448,7 +451,8 @@ async def feature_registry_update(
     for field in ("naziv", "kategorija", "minimum_plan", "addon", "krediti",
                   "krediti_po_minutu", "credit_multiplier", "dnevni_limit", "mesecni_limit",
                   "cooldown_seconds", "priority", "estimated_cost_usd",
-                  "version", "status", "visible", "ai_model", "aktivno", "opis"):
+                  "version", "status", "visible", "feature_type", "chargeable",
+                  "ai_model", "aktivno", "opis"):
         val = getattr(payload, field)
         if val is not None:
             updates[field] = val
@@ -473,6 +477,8 @@ async def feature_registry_update(
         raise HTTPException(status_code=400, detail=f"status mora biti jedno od: {_VALID_STATUS}.")
     if "visible" in updates and updates["visible"] not in _VALID_VISIBLE:
         raise HTTPException(status_code=400, detail=f"visible mora biti jedno od: {_VALID_VISIBLE}.")
+    if "feature_type" in updates and updates["feature_type"] not in _VALID_FEATURE_TYPE:
+        raise HTTPException(status_code=400, detail=f"feature_type mora biti jedno od: {_VALID_FEATURE_TYPE}.")
 
     try:
         old_res = await asyncio.to_thread(
