@@ -295,6 +295,31 @@
         <button onclick="pricing_kontakt('kancelarija')" style="padding:.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);border-radius:2px;color:rgba(255,255,255,0.70);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;">Kontaktirajte nas →</button>
       </div>
     </div>
+
+    <!-- ── Vindex AI - Digitalna imovina & usklađenost — zaseban proizvod,
+         namerno vizuelno odvojen od gornje 3 tarife (nije PRO funkcija) ─── -->
+    <div style="border-top:1px solid rgba(255,255,255,.08);margin:.5rem 0 1.5rem;padding-top:1.5rem;">
+      <div style="text-align:center;margin-bottom:1rem;">
+        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(167,139,250,.75);margin-bottom:.4rem;">Zaseban proizvod — nije deo gornjih tarifa</div>
+        <div style="font-size:1.15rem;font-weight:800;color:#fff;">Vindex AI - Digitalna imovina & usklađenost</div>
+        <div style="font-size:.78rem;color:rgba(255,255,255,.45);margin-top:.3rem;">CARF/DAC8 · OFAC Screening · Wallet Risk Assessment · Source-of-Funds · Documentation Health · Regulatory Intelligence</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
+        <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.25);border-radius:3px;padding:1.3rem;display:flex;flex-direction:column;">
+          <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(167,139,250,.85);margin-bottom:.5rem;">Samostalno</div>
+          <div style="font-size:1.7rem;font-weight:800;color:#fff;">79 <span style="font-size:.95rem;font-weight:400;color:rgba(255,255,255,.4);">€/mes</span></div>
+          <div style="font-size:.74rem;color:rgba(255,255,255,.45);margin:.5rem 0 1rem;line-height:1.5;">Bez ostatka platforme. Za banke, brokerske kuće, fondove, custody provajdere, računovođe i revizore kojima ne treba ostatak Vindex AI platforme.</div>
+          <button onclick="pricing_kontakt('digitalna_imovina_standalone')" style="margin-top:auto;padding:.7rem;background:#a78bfa;border:none;border-radius:2px;color:#1a0a2e;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Zatražite pristup →</button>
+        </div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:1.3rem;display:flex;flex-direction:column;">
+          <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:.5rem;">Dodatak uz PRO</div>
+          <div style="font-size:1.7rem;font-weight:800;color:#fff;">39 <span style="font-size:.95rem;font-weight:400;color:rgba(255,255,255,.4);">€/mes</span></div>
+          <div style="font-size:.74rem;color:rgba(255,255,255,.45);margin:.5rem 0 1rem;line-height:1.5;">Već imate Vindex AI PRO ili Kancelarija nalog? Dodajte modul uz postojeću pretplatu, bez potrebe za novim nalogom.</div>
+          <button onclick="pricing_kontakt('digitalna_imovina_addon')" style="margin-top:auto;padding:.7rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:rgba(255,255,255,0.72);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;">Zatražite aktivaciju →</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Bezbednost traka -->
     <div style="display:flex;flex-wrap:wrap;gap:.55rem;justify-content:center;margin-bottom:1rem;">
       <div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .7rem;background:rgba(0,120,212,0.08);border:1px solid rgba(0,120,212,0.22);border-radius:4px;">
@@ -466,7 +491,7 @@
       </div>
       <nav class="vx-nav" id="t-tabs-el">
         <!-- ── Grupa 1: Dnevni rad ── -->
-        <div class="vx-nav-group-lbl" style="margin-top:10px !important;">Dnevni rad</div>
+        <div class="vx-nav-group-lbl" id="nav-grp-1" style="margin-top:10px !important;">Dnevni rad</div>
         <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')">
           <i data-lucide="layout-dashboard" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Pregled dana</span>
@@ -483,10 +508,10 @@
           <i data-lucide="clock" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Rokovi</span>
         </div>
-        <div class="vx-nav-sep"></div>
+        <div class="vx-nav-sep" id="nav-sep-1"></div>
 
         <!-- ── Grupa 2: Znanje i AI ── -->
-        <div class="vx-nav-group-lbl">Znanje i AI</div>
+        <div class="vx-nav-group-lbl" id="nav-grp-2">Znanje i AI</div>
         <div class="t-tab" id="tab-btn-aiws" onclick="setTab(this,'aiws')">
           <i data-lucide="sparkles" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Vindex Intelligence</span>
@@ -505,10 +530,10 @@
           <i data-lucide="file-plus" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Šabloni dokumenata</span>
         </div>
-        <div class="vx-nav-sep"></div>
+        <div class="vx-nav-sep" id="nav-sep-2"></div>
 
         <!-- ── Grupa 3: Poslovanje ── -->
-        <div class="vx-nav-group-lbl">Poslovanje</div>
+        <div class="vx-nav-group-lbl" id="nav-grp-3">Poslovanje</div>
         <div class="t-tab" id="tab-btn-zadaci-g" onclick="setTab(this,'zadaci-g')">
           <i data-lucide="check-square" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Zadatci</span>
@@ -521,11 +546,11 @@
           <i data-lucide="building-2" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Kancelarija</span>
         </div>
-        <div class="t-tab" onclick="setTab(document.getElementById('tab-btn-pi'),'pi')" title="Pregled poslovanja — prihodi, produktivnost i KPI kancelarije">
+        <div class="t-tab" id="tab-btn-pi-nav" onclick="setTab(document.getElementById('tab-btn-pi'),'pi')" title="Pregled poslovanja — prihodi, produktivnost i KPI kancelarije">
           <i data-lucide="bar-chart-3" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Portfolio kancelarije</span>
         </div>
-        <div class="vx-nav-sep"></div>
+        <div class="vx-nav-sep" id="nav-sep-3"></div>
 
         <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')">
           <i data-lucide="settings" class="vx-tab-ico"></i>
@@ -3419,7 +3444,8 @@
               </div>
             </div>
 
-            <!-- ── Pretplate i moduli — enterprise compliance add-on ───────── -->
+            <!-- ── Pretplate i moduli — zasebna tarifa (79€ standalone / 39€ dodatak
+                 uz PRO), nema besplatne samostalne aktivacije ─────────────── -->
             <div class="settings-section" id="moduli-section">
               <div class="settings-section-hd"><span>Pretplate i moduli</span></div>
               <div id="dim-module-card" style="border:1px solid rgba(255,255,255,0.08);border-radius:3px;padding:1rem 1.1rem;">

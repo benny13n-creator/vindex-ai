@@ -201,6 +201,7 @@ var _vxTabLabels = {h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti'
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
 var currentUserDigitalnaImovinaAktivirano = false;
+var currentUserDigitalnaImovinaStandalone = false;
 var _lastRawText = '';
 
 function toggleCyrillic() {
@@ -317,7 +318,9 @@ async function loadCredits() {
       currentUserIsPro     = !!d.is_pro;
       currentUserIsFounder = !!d.is_founder;
       currentUserDigitalnaImovinaAktivirano = !!d.digitalna_imovina_aktivirano;
+      currentUserDigitalnaImovinaStandalone = !!d.digitalna_imovina_standalone;
       if (typeof _dimRenderAiwsPill === 'function') _dimRenderAiwsPill();
+      if (currentUserDigitalnaImovinaStandalone && typeof _dimApplyStandaloneRestriction === 'function') _dimApplyStandaloneRestriction();
       _creditsLoaded    = true;
       _creditsLoadedAt  = Date.now();
       _updateAdminTabUI();
@@ -2278,6 +2281,37 @@ function _dimRenderAiwsPill() {
   pill.style.display = currentUserDigitalnaImovinaAktivirano ? '' : 'none';
 }
 
+/* ── Standalone tarifa (79€/mes) — sakriva ostatak platforme, korisnik
+   vidi SAMO Vindex AI - Digitalna imovina & usklađenost + Podešavanja ── */
+var _dimStandaloneApplied = false;
+function _dimApplyStandaloneRestriction() {
+  ['nav-grp-1', 'tab-btn-h', 'tab-btn-p', 'tab-btn-k', 'tab-btn-kal', 'nav-sep-1',
+   'nav-grp-2', 'tab-btn-s', 'tab-btn-dok', 'tab-btn-doctpl', 'nav-sep-2',
+   'nav-grp-3', 'tab-btn-zadaci-g', 'tab-btn-fin', 'tab-btn-kanc', 'tab-btn-pi-nav', 'nav-sep-3'
+  ].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.querySelectorAll('#aiws-modes .vx-pill').forEach(function(p) {
+    if (p.id !== 'aiws-pill-dim') p.style.display = 'none';
+  });
+  var eyebrow = document.querySelector('#tab-aiws .hub-eyebrow');
+  var title   = document.querySelector('#tab-aiws .hub-title');
+  var stats   = document.querySelector('#tab-aiws .hub-stat-pair');
+  if (eyebrow) eyebrow.textContent = 'Vindex AI';
+  if (title)   title.textContent   = 'Digitalna imovina & usklađenost.';
+  if (stats)   stats.style.display = 'none';
+
+  if (!_dimStandaloneApplied && activeTab === 'h') {
+    var aiwsBtn = document.getElementById('tab-btn-aiws');
+    if (aiwsBtn) {
+      setTab(aiwsBtn, 'aiws');
+      aiwsSetMode('digitalna_imovina', document.getElementById('aiws-pill-dim'));
+    }
+  }
+  _dimStandaloneApplied = true;
+}
+
 function _dimOpenModul() {
   var aiwsBtn = document.getElementById('tab-btn-aiws');
   if (aiwsBtn) setTab(aiwsBtn, 'aiws');
@@ -2432,52 +2466,30 @@ function settingsLoad() {
   dimModuleCardRender();
 }
 
-/* ── Digitalna imovina & Usklađenost — aktivacija add-on modula ─────────── */
+/* ── Digitalna imovina & Usklađenost — zasebna tarifa, ne PRO funkcija ───
+   79€/mes standalone (bez ostatka platforme) ili 39€/mes kao dodatak uz
+   postojeći PRO. Nema samostalne besplatne aktivacije — sve ide preko
+   kontakt-toka (pricing_kontakt), isto kao Solo/PRO/Kancelarija tarife,
+   osnivač ručno aktivira nalog. ────────────────────────────────────────── */
 function dimModuleCardRender() {
   var badge  = document.getElementById('dim-status-badge');
   var action = document.getElementById('dim-action-wrap');
   if (!badge || !action) return;
 
-  if (!currentUserIsPro) {
-    badge.textContent = 'ZAKLJUČANO';
-    badge.style.background = 'rgba(255,255,255,.06)';
-    badge.style.color = 'rgba(255,255,255,.4)';
-    action.innerHTML = '<button class="settings-btn" onclick="openProUpgradeModal()">Aktiviraj modul</button>';
+  if (currentUserDigitalnaImovinaAktivirano) {
+    badge.textContent = currentUserDigitalnaImovinaStandalone ? '✓ AKTIVNO (Standalone)' : '✓ AKTIVNO (Dodatak)';
+    badge.style.background = 'rgba(74,222,128,.12)';
+    badge.style.color = 'rgba(74,222,128,.85)';
+    action.innerHTML = '<button class="settings-btn" onclick="' + (typeof _dimOpenModul === 'function' ? '_dimOpenModul()' : '') + '">Otvori modul</button>';
     return;
   }
-  if (!currentUserDigitalnaImovinaAktivirano) {
-    badge.textContent = 'DOSTUPNO';
-    badge.style.background = 'rgba(0,212,255,.12)';
-    badge.style.color = 'rgba(0,212,255,.85)';
-    action.innerHTML = '<button class="settings-btn" id="dim-activate-btn" onclick="dimAktivirajModul()" style="background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.25);color:rgba(255,255,255,0.72);">Aktiviraj modul</button>';
-    return;
-  }
-  badge.textContent = '✓ AKTIVNO';
-  badge.style.background = 'rgba(74,222,128,.12)';
-  badge.style.color = 'rgba(74,222,128,.85)';
-  action.innerHTML = '<button class="settings-btn" onclick="' + (typeof _dimOpenModul === 'function' ? '_dimOpenModul()' : '') + '">Otvori modul</button>';
-}
-
-async function dimAktivirajModul() {
-  if (!currentSession) return;
-  var btn = document.getElementById('dim-activate-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Aktiviram...'; }
-  try {
-    var r = await fetch(BASE_URL + '/api/settings/digitalna-imovina/aktiviraj', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
-    });
-    if (!r.ok) {
-      var errData = {}; try { errData = await r.json(); } catch(e2) {}
-      throw new Error(errData.detail || ('Server greška: ' + r.status));
-    }
-    currentUserDigitalnaImovinaAktivirano = true;
-    if (typeof _dimRenderAiwsPill === 'function') _dimRenderAiwsPill();
-    dimModuleCardRender();
-    showToast('Modul aktiviran — dostupan je u Vindex Intelligence.', 'success');
-  } catch(e) {
-    showToast('Greška: ' + e.message, 'error');
-    if (btn) { btn.disabled = false; btn.textContent = 'Aktiviraj modul'; }
+  badge.textContent = 'DOSTUPNO';
+  badge.style.background = 'rgba(0,212,255,.12)';
+  badge.style.color = 'rgba(0,212,255,.85)';
+  if (currentUserIsPro) {
+    action.innerHTML = '<button class="settings-btn" onclick="pricing_kontakt(\'digitalna_imovina_addon\')" style="background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.25);color:rgba(255,255,255,0.72);">Zatražite aktivaciju — 39€/mes</button>';
+  } else {
+    action.innerHTML = '<button class="settings-btn" onclick="openProModal()" style="background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.25);color:rgba(255,255,255,0.72);">Pogledajte cene — od 39€/mes</button>';
   }
 }
 
@@ -7799,10 +7811,18 @@ function closeProModal() {
   document.getElementById('pro-modal').classList.remove('open');
 }
 async function pricing_kontakt(plan) {
-  var labels = { solo: 'Solo', pro: 'PRO', kancelarija: 'Kancelarija' };
-  var emails = { solo: 'Počnite besplatno', pro: 'Aktivirajte PRO', kancelarija: 'Kontaktirajte nas' };
+  var labels = { solo: 'Solo', pro: 'PRO', kancelarija: 'Kancelarija',
+    digitalna_imovina_standalone: 'Vindex AI - Digitalna imovina & usklađenost (79€/mes, samostalno)',
+    digitalna_imovina_addon: 'Vindex AI - Digitalna imovina & usklađenost (39€/mes, dodatak uz PRO)' };
   var subject = encodeURIComponent('Vindex AI ' + (labels[plan] || plan) + ' plan');
-  var body = encodeURIComponent('Zdravo,\n\nZainteresovan sam za ' + (labels[plan] || plan) + ' plan.\n\nMoje ime: \nBroj advokata: \nBroj korisnika: ');
+  var body;
+  if (plan === 'digitalna_imovina_standalone') {
+    body = encodeURIComponent('Zdravo,\n\nZainteresovan sam za samostalnu tarifu Vindex AI - Digitalna imovina & usklađenost (79€/mesečno).\n\nNaziv institucije: \nTip institucije (banka/brokerska kuća/fond/custody provajder/računovodstvo/revizija/drugo): \nBroj korisnika: ');
+  } else if (plan === 'digitalna_imovina_addon') {
+    body = encodeURIComponent('Zdravo,\n\nVeć imam Vindex AI PRO nalog i zainteresovan sam da dodam Vindex AI - Digitalna imovina & usklađenost (39€/mesečno).\n\nMoje ime: \nEmail naloga: ');
+  } else {
+    body = encodeURIComponent('Zdravo,\n\nZainteresovan sam za ' + (labels[plan] || plan) + ' plan.\n\nMoje ime: \nBroj advokata: \nBroj korisnika: ');
+  }
   try {
     if (currentSession) {
       await fetch(BASE_URL + '/api/feedback', {

@@ -377,10 +377,27 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
             user_id, type(exc).__name__,
         )
 
+    # ── Korak 4: digitalna_imovina_standalone — isto izolovano (migracija 062) ──
+    digitalna_imovina_standalone = False
+    try:
+        dim_sa_res = (
+            supa.table("profiles")
+            .select("digitalna_imovina_standalone")
+            .eq("id", user_id)
+            .execute()
+        )
+        digitalna_imovina_standalone = bool((dim_sa_res.data or [{}])[0].get("digitalna_imovina_standalone", False))
+    except Exception as exc:
+        logger.debug(
+            "[PROFILE] digitalna_imovina_standalone nije dostupno za uid=%.8s (migracija 062?) — %s",
+            user_id, type(exc).__name__,
+        )
+
     return {
         "credits_remaining": credits_remaining,
         "is_pro": _is_pro(email, is_pro_db),
         "digitalna_imovina_aktivirano": digitalna_imovina_aktivirano,
+        "digitalna_imovina_standalone": digitalna_imovina_standalone,
     }
 
 
