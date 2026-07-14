@@ -84,7 +84,8 @@ async def test_plan_status_reads_only_new_system():
     with patch("routers.plans._get_supa", return_value=supa), \
          patch("routers.plans._ensure_profile", return_value=profile_row), \
          patch("routers.plans.UsageService.balance", new_callable=AsyncMock, return_value=42), \
-         patch("routers.plans.get_all_policies", new_callable=AsyncMock, return_value=policies):
+         patch("routers.plans.get_all_policies", new_callable=AsyncMock, return_value=policies), \
+         patch("routers.plans.get_tier", new_callable=AsyncMock, return_value={"tier_key": "professional", "display_name": "Professional"}):
         result = await plan_status(user=_user())
 
     assert result["plan"] == "professional"
@@ -111,7 +112,8 @@ async def test_plan_status_reflects_basic_tier():
     with patch("routers.plans._get_supa", return_value=supa), \
          patch("routers.plans._ensure_profile", return_value=profile_row), \
          patch("routers.plans.UsageService.balance", new_callable=AsyncMock, return_value=5), \
-         patch("routers.plans.get_all_policies", new_callable=AsyncMock, return_value=[]):
+         patch("routers.plans.get_all_policies", new_callable=AsyncMock, return_value=[]), \
+         patch("routers.plans.get_tier", new_callable=AsyncMock, return_value={"tier_key": "basic", "display_name": "Basic"}):
         result = await plan_status(user=_user())
 
     assert result["plan"] == "basic"
@@ -122,9 +124,11 @@ async def test_plan_status_reflects_basic_tier():
 def test_plan_status_module_has_no_old_system_functions():
     """_get_plan/_get_usage/PLAN_LIMITS/_resolve_plan/_get_limits were the
     old-system readers — confirms they were actually deleted, not just
-    unreachable."""
+    unreachable. _plan_display_name/PLAN_PRICES were the Tier Configuration-
+    era hardcoded readers, deleted when tier_config took over."""
     import routers.plans as plans_mod
-    for name in ("_get_plan", "_get_usage", "PLAN_LIMITS", "_resolve_plan", "_get_limits", "_PLAN_ALIAS"):
+    for name in ("_get_plan", "_get_usage", "PLAN_LIMITS", "_resolve_plan", "_get_limits",
+                 "_PLAN_ALIAS", "_plan_display_name", "PLAN_PRICES"):
         assert not hasattr(plans_mod, name), f"routers.plans still defines {name} — old system not fully removed"
 
 
@@ -215,7 +219,14 @@ async def test_pi_plans_distribution_from_profiles_subscription_type():
         return _make_chain([])
     supa.table = MagicMock(side_effect=_table)
 
-    with patch("routers.product_intelligence._get_supa", return_value=supa):
+    tier_rows = [
+        {"tier_key": "basic", "monthly_price_eur": 29, "extra_seat_price_eur": None},
+        {"tier_key": "professional", "monthly_price_eur": 79, "extra_seat_price_eur": None},
+        {"tier_key": "enterprise", "monthly_price_eur": 249, "extra_seat_price_eur": 49},
+    ]
+
+    with patch("routers.product_intelligence._get_supa", return_value=supa), \
+         patch("shared.tier_config.get_all_tiers", new_callable=AsyncMock, return_value=tier_rows):
         result = await pi_plans(_req(), user=_user())
 
     assert result["plan_distribucija"] == {"basic": 2, "professional": 1, "enterprise": 1}

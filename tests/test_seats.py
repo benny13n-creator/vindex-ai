@@ -9,7 +9,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 
 from fastapi import HTTPException
 
@@ -17,6 +17,27 @@ from fastapi import HTTPException
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+# Faza (Tier Configuration): shared.seats.get_seat_summary() reads included
+# seats from shared.tier_config.get_tier(), not a hardcoded dict anymore.
+# Autouse fixture supplies the same numbers the old BASE_INCLUDED_SEATS dict
+# had, so every existing test's assertions stay meaningful without touching
+# each one's own patch block — the wiring itself is verified separately by
+# test_seat_summary_uses_tier_config_not_hardcoded below.
+_TIER_LOOKUP = {
+    "basic":        {"tier_key": "basic", "included_seats": 1},
+    "professional": {"tier_key": "professional", "included_seats": 1},
+    "enterprise":   {"tier_key": "enterprise", "included_seats": 3},
+}
+
+
+@pytest.fixture(autouse=True)
+def _mock_tier_config():
+    async def _get_tier(tier_key):
+        return _TIER_LOOKUP[tier_key]
+    with patch("shared.seats.get_tier", side_effect=_get_tier):
+        yield
 
 
 def _make_supa(profile: dict, clanovi: list, audit_insert_raises=False):
@@ -249,11 +270,27 @@ def test_seat_consuming_statuses_exactly_active_and_invited():
     assert set(SEAT_CONSUMING_STATUSES) == {"ACTIVE", "INVITED"}
 
 
-def test_base_included_seats_enterprise_is_3():
-    """Locks in the 3-included-seats constant from migration 063's own
-    comment ('3 uključena u Enterprise') — a silent change here would be a
-    pricing regression, not a refactor."""
-    from shared.seats import BASE_INCLUDED_SEATS
-    assert BASE_INCLUDED_SEATS["enterprise"] == 3
-    assert BASE_INCLUDED_SEATS["basic"] == 1
-    assert BASE_INCLUDED_SEATS["professional"] == 1
+def test_seats_module_has_no_hardcoded_tier_seat_dict():
+    """BASE_INCLUDED_SEATS was the old hardcoded dict — confirms it was
+    actually deleted (Tier Configuration migration), not just unreachable."""
+    import shared.seats as seats_mod
+    assert not hasattr(seats_mod, "BASE_INCLUDED_SEATS"), \
+        "shared.seats still defines BASE_INCLUDED_SEATS — tier_config wiring not complete"
+
+
+@pytest.mark.anyio
+async def test_seat_summary_uses_tier_config_not_hardcoded():
+    """Proves get_seat_summary() actually reads included_seats from
+    get_tier() rather than any hardcoded fallback — uses a deliberately
+    unusual value (7) that could not come from anywhere else."""
+    from shared.seats import SeatService
+    supa = _make_supa(
+        profile={"subscription_type": "enterprise", "subscription_seats_extra": 0},
+        clanovi=[],
+    )
+    with patch("shared.seats._get_supa", return_value=supa), \
+         patch("shared.seats.get_tier", new_callable=AsyncMock, return_value={"tier_key": "enterprise", "included_seats": 7}):
+        s = await SeatService.get_seat_summary("kanc-1", "admin-1")
+
+    assert s["base_included_seats"] == 7
+    assert s["total_allowed_seats"] == 7

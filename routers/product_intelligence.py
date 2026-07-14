@@ -555,16 +555,18 @@ async def pi_plans(
     ažuriran otkad je UsageService preuzeo kredit-tracking (Faza 70), pa je
     ovaj dashboard do sada prikazivao lažnu distribuciju (100% "free") i
     trajno-nula AI usage brojeve founderu.
+
+    Faza Tier Configuration: cena tarife/dodatnog mesta se čita iz tier_config
+    (migracija 068), ne iz hardkodovanog Python dict-a — founder menja cenu
+    preko Admin Console-a, ovaj dashboard je odmah usklađen. I dalje nije
+    Stripe-knjigovodstvo (Stripe nije integrisan) — mrr_eur ostaje procena
+    zasnovana na tier_config cenama, ne stvarnoj naplati.
     """
     supa  = _get_supa()
     ym    = datetime.now(timezone.utc).strftime("%Y-%m")
 
-    # Provizorna cena po tarifi — 29€/79€/249€ (+49€/dodatno mesto na Enterprise),
-    # cifre iz founder-ovog originalnog spec-a za novi sistem. NIJE Stripe-verifikovana
-    # živa cena (Stripe još nije integrisan) — ovo je procena, ne knjigovodstvo.
-    # Konačan izvor istine za cenu dolazi u Fazi 73 (tier restructuring/pricing modal).
-    _TIER_PRICE_EUR = {"basic": 29, "professional": 79, "enterprise": 249}
-    _ENTERPRISE_SEAT_EUR = 49
+    from shared.tier_config import get_all_tiers
+    tier_rows = {t["tier_key"]: t for t in await get_all_tiers()}
 
     profiles_r, onboard_r = await asyncio.gather(
         asyncio.to_thread(
@@ -585,9 +587,11 @@ async def pi_plans(
     for p in profiles:
         pt = effective_tier(p)
         dist[pt] = dist.get(pt, 0) + 1
-        mrr_eur += _TIER_PRICE_EUR.get(pt, 0)
-        if pt == "enterprise":
-            mrr_eur += (p.get("subscription_seats_extra") or 0) * _ENTERPRISE_SEAT_EUR
+        tier_row = tier_rows.get(pt, {})
+        mrr_eur += float(tier_row.get("monthly_price_eur") or 0)
+        extra_seat_price = tier_row.get("extra_seat_price_eur")
+        if extra_seat_price:
+            mrr_eur += (p.get("subscription_seats_extra") or 0) * float(extra_seat_price)
 
     total_profiles = len(profiles)
 
@@ -627,7 +631,7 @@ async def pi_plans(
         "placajuci":          dist["professional"] + dist["enterprise"],
         "mrr_eur":            round(mrr_eur, 2),
         "arr_eur":            round(mrr_eur * 12, 2),
-        "mrr_napomena":       "Procena po tarifi (29/79/249€ + 49€/dodatno Enterprise mesto) — Stripe još nije live, ovo nije knjigovodstveni prihod.",
+        "mrr_napomena":       "Procena po cenama iz tier_config (Admin Console) — Stripe još nije live, ovo nije knjigovodstveni prihod.",
         "ai_usage_ovaj_mesec": {
             "ukupno_poziva":    total_calls,
             "ukupno_kredita":   round(total_krediti, 2),

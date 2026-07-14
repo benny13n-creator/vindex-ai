@@ -358,6 +358,7 @@ class FeatureRegistryUpdate(BaseModel):
     addon: Optional[str] = None
     krediti: Optional[float] = None
     krediti_po_minutu: Optional[float] = None
+    credit_multiplier: Optional[float] = Field(default=None, description="Faktor množenja bazne cene za skuplje varijante iste funkcije (npr. 6 za kompletnu analizu). 1 = bez množenja.")
     dnevni_limit: Optional[int] = None
     mesecni_limit: Optional[int] = None
     cooldown_seconds: Optional[int] = None
@@ -445,7 +446,7 @@ async def feature_registry_update(
 
     updates: dict = {}
     for field in ("naziv", "kategorija", "minimum_plan", "addon", "krediti",
-                  "krediti_po_minutu", "dnevni_limit", "mesecni_limit",
+                  "krediti_po_minutu", "credit_multiplier", "dnevni_limit", "mesecni_limit",
                   "cooldown_seconds", "priority", "estimated_cost_usd",
                   "version", "status", "visible", "ai_model", "aktivno", "opis"):
         val = getattr(payload, field)
@@ -532,3 +533,128 @@ async def feature_registry_toggle(feature_key: str, request: Request, user: dict
     await _write_audit(feature_key, user.get("email", ""), {"aktivno": current.get("aktivno", True)}, {"aktivno": novo_stanje})
     logger.warning("[ADMIN] feature_registry['%s'] aktivno=%s (od %s)", feature_key, novo_stanje, user.get("email"))
     return {"feature_key": feature_key, "aktivno": novo_stanje}
+
+
+# ─── Admin Tier Config Console ───────────────────────────────────────────────
+# Jedini način da se promeni cena/uključena mesta tarife — NIKAD izmena koda.
+# Isti obrazac kao Admin Feature Console iznad (migracija 068).
+
+class TierConfigUpdate(BaseModel):
+    display_name: Optional[str] = None
+    monthly_price_eur: Optional[float] = None
+    yearly_price_eur: Optional[float] = None
+    included_seats: Optional[int] = None
+    extra_seat_price_eur: Optional[float] = None
+    max_devices: Optional[int] = None
+    description: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+    ukloni_yearly_price: bool = False
+    ukloni_extra_seat_price: bool = False
+    ukloni_max_devices: bool = False
+
+
+async def _write_tier_audit(tier_key: str, changed_by: str, old_values: dict, new_values: dict) -> None:
+    try:
+        await asyncio.to_thread(
+            lambda: _get_supa().table("tier_config_audit").insert({
+                "tier_key": tier_key,
+                "changed_by": changed_by,
+                "old_values": old_values,
+                "new_values": new_values,
+            }).execute()
+        )
+    except Exception as exc:
+        logger.warning("[ADMIN] tier_config_audit upis neuspešan (non-fatal): %s", exc)
+
+
+@router.get("/tier-config")
+@limiter.limit("60/minute")
+async def tier_config_list(request: Request, user: dict = Depends(get_current_user)):
+    """Sve 3 tarife sa trenutnom cenom — Admin Tier Config tabela."""
+    _require_founder(user)
+    from shared.tier_config import get_all_tiers
+    tiers = await get_all_tiers()
+    return {"tiers": tiers, "ukupno": len(tiers)}
+
+
+@router.get("/tier-config/{tier_key}/audit")
+@limiter.limit("30/minute")
+async def tier_config_audit_log(tier_key: str, request: Request, user: dict = Depends(get_current_user)):
+    _require_founder(user)
+    res = await asyncio.to_thread(
+        lambda: _get_supa().table("tier_config_audit")
+            .select("*")
+            .eq("tier_key", tier_key)
+            .order("changed_at", desc=True)
+            .limit(50)
+            .execute()
+    )
+    return {"tier_key": tier_key, "istorija": res.data or []}
+
+
+@router.patch("/tier-config/{tier_key}")
+@limiter.limit("30/minute")
+async def tier_config_update(
+    tier_key: str,
+    payload: TierConfigUpdate,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Menja cenu/mesta jedne tarife. Odmah invalidira keš — promena je aktivna
+    na sledećem pozivu bilo kog korisnika (Pricing modal, Settings, Product
+    Intelligence, SeatService), bez deploy-a/restarta. Svaka izmena ostaje
+    trajno u tier_config_audit."""
+    _require_founder(user)
+    from shared.tier_config import invalidate
+
+    updates: dict = {}
+    for field in ("display_name", "monthly_price_eur", "yearly_price_eur", "included_seats",
+                  "extra_seat_price_eur", "max_devices", "description", "sort_order", "is_active"):
+        val = getattr(payload, field)
+        if val is not None:
+            updates[field] = val
+    if payload.ukloni_yearly_price:
+        updates["yearly_price_eur"] = None
+    if payload.ukloni_extra_seat_price:
+        updates["extra_seat_price_eur"] = None
+    if payload.ukloni_max_devices:
+        updates["max_devices"] = None
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nema izmena u zahtevu.")
+
+    try:
+        old_res = await asyncio.to_thread(
+            lambda: _get_supa().table("tier_config").select("*").eq("tier_key", tier_key).maybe_single().execute()
+        )
+        if not old_res.data:
+            raise HTTPException(status_code=404, detail=f"Tarifa '{tier_key}' nije pronađena u tier_config.")
+        old_values = {k: old_res.data.get(k) for k in updates}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Greška pri čitanju stare vrednosti: {exc!r}")
+
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    updates["updated_by"] = user.get("email", "")
+
+    try:
+        res = await asyncio.to_thread(
+            lambda: _get_supa().table("tier_config")
+                .update(updates)
+                .eq("tier_key", tier_key)
+                .execute()
+        )
+        if not res.data:
+            raise HTTPException(status_code=404, detail=f"Tarifa '{tier_key}' nije pronađena u tier_config.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[ADMIN] tier_config update greška za %s", tier_key)
+        raise HTTPException(status_code=500, detail=f"Greška pri izmeni: {exc!r}")
+
+    invalidate()
+    await _write_tier_audit(tier_key, user.get("email", ""), old_values, {k: v for k, v in updates.items() if k not in ("updated_at", "updated_by")})
+    logger.info("[ADMIN] tier_config['%s'] izmenjen od %s: %s", tier_key, user.get("email"), updates)
+    return {"tier_key": tier_key, "azurirano": updates}

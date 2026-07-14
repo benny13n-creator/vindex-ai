@@ -254,7 +254,9 @@ async def kreiraj_simulaciju(
     except Exception:
         logger.warning("[TWIN] Cuvanje simulacije u bazu nije uspelo — nastavlja se.")
 
-    preostalo = await UsageService.consume(uid, email, "digital_twin", multiplier=3)
+    # multiplier čita se iz feature_registry.credit_multiplier (migracija 069,
+    # Admin Console editabilno) — ne hardkoduje se ovde.
+    preostalo = await UsageService.consume(uid, email, "digital_twin")
 
     return {
         "scenariji":            scenariji,
@@ -332,7 +334,12 @@ async def sta_ako_analiza(
     except Exception:
         logger.warning("[TWIN] Cuvanje sta-ako analize u bazu nije uspelo — nastavlja se.")
 
-    preostalo = await UsageService.consume(uid, email, "digital_twin")
+    # sta_ako analiza je jeftinija varijanta iste feature_key (1x, ne 3x kao
+    # kreiraj_simulaciju) — explicitan multiplier=1 override je namerno
+    # HARDKODOVAN ovde: "1" znači "tačno bazna cena, bez množenja", to je
+    # definiciono tačno (ne poslovna odluka koju bi trebalo Admin Console da
+    # menja), za razliku od kreiraj_simulaciju's 3x koji sad dolazi iz Registry-ja.
+    preostalo = await UsageService.consume(uid, email, "digital_twin", multiplier=1)
 
     return {
         "uticaj":                  uticaj,

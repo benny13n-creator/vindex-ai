@@ -303,8 +303,9 @@ async def nova_partija(
         logger.exception("[Simulator] Greška pri kreiranju partije")
         raise HTTPException(status_code=500, detail="Greška pri snimanju partije.")
 
-    # Oduzmi 2 kredita
-    preostalo = await UsageService.consume(uid, email, "strategy_simulator", multiplier=2)
+    # multiplier čita se iz feature_registry.credit_multiplier (migracija 069,
+    # Admin Console editabilno) — ne hardkoduje se ovde.
+    preostalo = await UsageService.consume(uid, email, "strategy_simulator")
 
     return {
         "partija_id": partija_id,
@@ -395,8 +396,9 @@ async def sledeci_potez(
         logger.exception("[Simulator] Greška pri snimanju poteza")
         raise HTTPException(status_code=500, detail="Greška pri snimanju poteza.")
 
-    # Oduzmi 1 kredit
-    preostalo = await UsageService.consume(uid, email, "strategy_simulator")
+    # Oduzmi 1 kredit — eksplicitan multiplier=1 override, nova_partija je
+    # jedina varijanta koja koristi feature_registry.credit_multiplier (2x).
+    preostalo = await UsageService.consume(uid, email, "strategy_simulator", multiplier=1)
 
     # Izvuci relevantna polja za odgovor
     protivnikovi = analiza.get("protivnikovi_odgovori", [])

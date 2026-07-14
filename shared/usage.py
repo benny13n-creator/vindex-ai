@@ -196,7 +196,7 @@ class UsageService:
         email: str,
         feature: str,
         *,
-        multiplier: int = 1,
+        multiplier: Optional[int] = None,
         tokens_prompt: Optional[int] = None,
         tokens_completion: Optional[int] = None,
         latency_ms: Optional[int] = None,
@@ -207,6 +207,14 @@ class UsageService:
         jednog modula) — bez potrebe za posebnim feature_key redom u bazi za
         svaku takvu varijantu. Broji se kao JEDNA upotreba za dnevni/mesečni
         limit (jedan poziv), ali troši multiplier x krediti.
+
+        Podrazumevano (multiplier=None) čita se feature_registry.credit_multiplier
+        (migracija 069, Admin Console editabilno, isti izvor kao krediti) —
+        NIKAD hardkodovano u pozivaocu. Eksplicitan multiplier= je rezervisan
+        ISKLJUČIVO za DINAMIČKE slučajeve gde je faktor izračunat u runtime-u
+        i nema smisla u statičnoj tabeli (npr. multi_agent.py-jev broj stvarno
+        pozvanih agenata) — ne za poslovne odluke koje bi trebalo da budu
+        Admin Console-editabilne bez deploy-a.
 
         Proverava cooldown, dnevni/mesečni limit, zatim atomično oduzima
         kredite — SVE vrednosti (osim opcione telemetrije) čitane iz
@@ -223,7 +231,8 @@ class UsageService:
         budžeta ili je cooldown aktivan.
         """
         policy = await get_policy(feature)
-        credits = float(policy.get("krediti") or 0) * max(multiplier, 1)
+        effective_multiplier = multiplier if multiplier is not None else policy.get("credit_multiplier", 1)
+        credits = float(policy.get("krediti") or 0) * max(float(effective_multiplier or 1), 1)
         dnevni_limit = policy.get("dnevni_limit")
         mesecni_limit = policy.get("mesecni_limit")
         cooldown = policy.get("cooldown_seconds")

@@ -72,7 +72,11 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
             red_team_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context,
             req.tip_postupka or "gradjansko"
         )
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
+        # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
+        # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
+        # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
+        # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F5] red_team greška")
@@ -91,7 +95,11 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
         rezultat = await asyncio.to_thread(
             litigation_simulator_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
         )
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
+        # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
+        # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
+        # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
+        # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "litigation", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F5] litigation greška")
@@ -110,7 +118,11 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
         rezultat = await asyncio.to_thread(
             ai_judge_mode_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
         )
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
+        # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
+        # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
+        # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
+        # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "sudija", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F5] sudija greška")
@@ -144,7 +156,11 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
         rezultat = await asyncio.to_thread(
             due_diligence_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _zakon_context
         )
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
+        # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
+        # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
+        # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
+        # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F5] due_diligence greška")
@@ -162,7 +178,11 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
         rezultat = await asyncio.to_thread(
             pravni_revizor_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
+        # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
+        # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
+        # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
+        # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "revizor", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F7] pravni_revizor greška")
@@ -180,7 +200,11 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
         rezultat = await asyncio.to_thread(
             witness_analyzer_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
+        # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
+        # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
+        # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
+        # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "witness", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F9] witness_analyzer greška")
@@ -198,7 +222,11 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
         rezultat = await asyncio.to_thread(
             ai_judge_v2_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
+        # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
+        # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
+        # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
+        # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {
             "tuzilac":  rezultat["tuzilac"],
             "branilac": rezultat["branilac"],
@@ -249,7 +277,9 @@ async def post_kompletna_analiza(
             req.iskazi_svedoka,
         )
         asyncio.create_task(log_cost_to_db(uid, "kompletna_analiza"))
-        await UsageService.consume(uid, email, "strategija", multiplier=6)
+        # multiplier čita se iz feature_registry.credit_multiplier (migracija 069,
+        # Admin Console editabilno) — ne hardkoduje se ovde.
+        await UsageService.consume(uid, email, "strategija")
         return {**rezultat, "modul": "kompletna_analiza", "credits_deducted": 6}
 
     jid = create_job(uid, "kompletna_analiza")
@@ -339,7 +369,8 @@ async def strategija_v2_analiza(
         )
         analiza = _json.loads(resp.choices[0].message.content or "{}")
         asyncio.create_task(log_cost_to_db(uid, "strategija_v2"))
-        preostalo = await UsageService.consume(uid, email, "strategija")
+        # Pojedinačan poziv (bazna cena) — vidi napomenu iznad o multiplier=1 override-u.
+        preostalo = await UsageService.consume(uid, email, "strategija", multiplier=1)
         return {
             **analiza,
             "modul": "strategija_v2",

@@ -37,16 +37,9 @@ from typing import Optional
 from fastapi import HTTPException, status as http_status
 
 from shared.deps import _get_supa
+from shared.tier_config import get_tier
 
 logger = logging.getLogger("vindex.seats")
-
-# Samo enterprise tarifa ima multi-seat koncept — basic/professional su
-# single-user po dizajnu (jedan nalog = jedan korisnik, bez tim funkcije).
-BASE_INCLUDED_SEATS: dict[str, int] = {
-    "basic": 1,
-    "professional": 1,
-    "enterprise": 3,
-}
 
 SEAT_CONSUMING_STATUSES = ("ACTIVE", "INVITED")
 
@@ -92,7 +85,8 @@ class SeatService:
 
         tier = profile.get("subscription_type") or "basic"
         extra = int(profile.get("subscription_seats_extra") or 0)
-        base = BASE_INCLUDED_SEATS.get(tier, 1)
+        tier_row = await get_tier(tier)
+        base = tier_row.get("included_seats", 1)
         total_allowed = base + extra
 
         breakdown = {"ACTIVE": 0, "INVITED": 0, "PENDING": 0, "SUSPENDED": 0, "REMOVED": 0}
