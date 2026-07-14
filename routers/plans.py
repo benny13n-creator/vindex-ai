@@ -119,22 +119,6 @@ PLAN_LIMITS = {
 # Backward compat alias-i
 _PLAN_ALIAS = {"advokat": "starter", "firma": "enterprise"}
 
-# Overage cene (EUR) za starter plan ako korisnik pređe limit
-OVERAGE_PRICE = {
-    "ai_queries":       0.12,
-    "doc_analyses":     0.40,
-    "nacrti":           0.30,
-    "court_predictor":  0.50,
-    "battle_reports":   1.00,
-    "hearing_prep":     0.25,
-    "commander":        0.50,
-    "simulator":        0.40,
-    "digital_twin":     0.80,
-    "evidence_graph":   0.60,
-    # Stari resursi — backward compat
-    "strategies":       1.50,
-}
-
 
 def _year_month() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
@@ -294,86 +278,9 @@ def _plan_display_name(pt: str) -> str:
     return names.get(pt, pt.capitalize())
 
 
-async def enforce_and_increment(user_id: str, resource: str):
-    """
-    Prati upotrebu i (kada ENFORCE_LIMITS=true) blokira na limitu.
-
-    ENFORCE_LIMITS=false (default dok Stripe nije live):
-      - Tracking uvek radi
-      - Blokiranje ne radi
-
-    ENFORCE_LIMITS=true (posle Stripe integracije):
-      - Blokira free/starter na limitu sa 402 greškom
-      - Pro beleži upotrebu bez blokiranja (generozniji limiti)
-      - Enterprise: uvek neograničeno
-    """
-    try:
-        await _enforce_and_increment_inner(user_id, resource)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        import logging as _lg
-        _lg.getLogger("vindex.plans").warning(
-            "[ENFORCE] DB tracking greška (non-fatal) uid=%.8s res=%s: %s",
-            user_id, resource, exc
-        )
-
-
-async def _enforce_and_increment_inner(user_id: str, resource: str):
-    ym = _year_month()
-    plan = await _get_plan(user_id)
-    usage = await _get_usage(user_id, ym)
-    pt = _resolve_plan(plan["plan_type"])
-    limits = _get_limits(pt)
-
-    limit = limits.get(resource)
-    used = usage.get(resource, 0)
-    sb = _get_supa()
-
-    # Inkrementiraj usage
-    async def _inc():
-        await asyncio.to_thread(
-            lambda: sb.table("korisnik_usage").upsert(
-                {"user_id": user_id, "year_month": ym, resource: used + 1},
-                on_conflict="user_id,year_month",
-            ).execute()
-        )
-
-    if limit is None:
-        # Neograničeno
-        await _inc()
-        return
-
-    if used < limit or not _ENFORCE_LIMITS:
-        await _inc()
-        return
-
-    # Limit prekoračen i enforce je aktivan
-    price = OVERAGE_PRICE.get(resource, 0.50)
-    plan_display = _plan_display_name(pt)
-    raise HTTPException(
-        status_code=402,
-        detail={
-            "error":        "limit_exceeded",
-            "resource":     resource,
-            "used":         used,
-            "limit":        limit,
-            "plan":         pt,
-            "upgrade_hint": (
-                f"Dostigli ste mesečni limit za plan {plan_display}. "
-                f"Nadogradite plan ili platite po upotrebi (€{price}/jedinica)."
-            ),
-            "upgrade_url":  "/pricing",
-        },
-    )
-
-
-async def check_feature_access(user_id: str, feature: str) -> bool:
-    """
-    Proveri da li korisnik ima pristup određenom feature-u na svom planu.
-    Vraća True/False. Ne baca izuzetak — pozivalac odlučuje šta da radi.
-    """
-    plan = await _get_plan(user_id)
-    pt = _resolve_plan(plan["plan_type"])
-    limits = _get_limits(pt)
-    return bool(limits.get(feature, False))
+# Faza 72 čišćenje: enforce_and_increment/_enforce_and_increment_inner/
+# check_feature_access su obrisane — nula pozivalaca bilo gde u kodu (potvrđeno
+# grep-om pre brisanja). PermissionService/UsageService (migracije 063-066) su
+# preuzeli SVU gejt/kredit logiku; ova tri su bila mrtav kod od Faze 70's
+# wiring talasa (svi pozivi enforce_and_increment su uklonjeni iz pozivalaca
+# tada, ali same funkcije nisu obrisane iz ovog fajla do sada).
