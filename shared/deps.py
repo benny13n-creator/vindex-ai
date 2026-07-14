@@ -393,11 +393,39 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
             user_id, type(exc).__name__,
         )
 
+    # ── Korak 5: entitlement sistem — subscription_type/addons/expires_at/seats
+    # (migracija 063) — izolovano, isti bezbedan pattern kao gornji koraci ──────
+    subscription_type = "basic"
+    addons: list = []
+    subscription_expires_at = None
+    subscription_seats_extra = 0
+    try:
+        sub_res = (
+            supa.table("profiles")
+            .select("subscription_type, addons, subscription_expires_at, subscription_seats_extra")
+            .eq("id", user_id)
+            .execute()
+        )
+        row = (sub_res.data or [{}])[0]
+        subscription_type = row.get("subscription_type") or "basic"
+        addons = row.get("addons") or []
+        subscription_expires_at = row.get("subscription_expires_at")
+        subscription_seats_extra = row.get("subscription_seats_extra") or 0
+    except Exception as exc:
+        logger.debug(
+            "[PROFILE] entitlement kolone nisu dostupne za uid=%.8s (migracija 063?) — %s",
+            user_id, type(exc).__name__,
+        )
+
     return {
         "credits_remaining": credits_remaining,
         "is_pro": _is_pro(email, is_pro_db),
         "digitalna_imovina_aktivirano": digitalna_imovina_aktivirano,
         "digitalna_imovina_standalone": digitalna_imovina_standalone,
+        "subscription_type": subscription_type,
+        "addons": addons,
+        "subscription_expires_at": subscription_expires_at,
+        "subscription_seats_extra": subscription_seats_extra,
     }
 
 
