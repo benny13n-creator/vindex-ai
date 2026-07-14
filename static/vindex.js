@@ -3313,7 +3313,7 @@ async function stratPokreni() {
             + '<div id="strat-argrep-result-wrap" style="margin-top:.6rem;"></div>';
         }
       }
-      if (data.krediti_utroseni) showToast('Utroseno ' + data.krediti_utroseni + ' kredita.', 'info');
+      if (data.credits_remaining != null) showToast('Preostalo ' + data.credits_remaining + ' kredita.', 'info');
     } else {
       if (bodyEl) bodyEl.innerHTML = stratFormatirajRezultat(data.rezultat || '');
     }
@@ -3363,7 +3363,7 @@ async function stratBattleReport() {
     var data = await res.json();
     wrapEl.innerHTML = '<div class="vx-section-lbl" style="margin-bottom:.5rem;">Battle Report</div>'
       + stratFormatirajRezultat(data.battle_report || data.analiza || data.rezultat || '');
-    if (data.krediti_utroseni) showToast('Utrošeno ' + data.krediti_utroseni + ' kredita.', 'info');
+    if (data.credits_remaining != null) showToast('Preostalo ' + data.credits_remaining + ' kredita.', 'info');
   } catch (e) {
     wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
   }
