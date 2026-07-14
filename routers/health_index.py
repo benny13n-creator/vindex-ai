@@ -12,7 +12,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from openai import AsyncOpenAI
 
-from shared.deps import _get_supa, get_current_user
+from shared.deps import _get_supa
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health_index"])
@@ -361,7 +363,7 @@ async def _compute_inst_risk(uid: str, supa, aktivni: list) -> list[dict]:
 @router.get("/api/firm/health-index")
 async def get_health_index(
     force: bool = False,
-    user=Depends(get_current_user),
+    user=Depends(PermissionService.require("health_index")),
 ):
     uid = user["user_id"]
 
@@ -392,4 +394,7 @@ async def get_health_index(
     }
 
     _CACHE[uid] = {"ts": datetime.utcnow(), "data": result}
+
+    await UsageService.consume(uid, user.get("email", ""), "health_index")
+
     return result

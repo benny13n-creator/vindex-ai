@@ -23,6 +23,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.case_intelligence")
 router = APIRouter(prefix="/api/intelligence", tags=["case_intelligence"])
@@ -296,7 +298,7 @@ def _build_context_text(data: dict) -> str:
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/predmeti/{predmet_id}/briefing")
-async def case_intelligence_briefing(predmet_id: str, user=Depends(get_current_user)):
+async def case_intelligence_briefing(predmet_id: str, user=Depends(PermissionService.require("case_intelligence"))):
     """Sintetizuje sve module u jednu preporuku za predmet.
 
     Ulancava: Lessons Learned → Firm DNA → Knowledge Profile →
@@ -345,6 +347,8 @@ async def case_intelligence_briefing(predmet_id: str, user=Depends(get_current_u
             )
         except Exception:
             pass
+
+        await UsageService.consume(user["user_id"], user.get("email", ""), "case_intelligence")
 
         return {
             "predmet_id": predmet_id,

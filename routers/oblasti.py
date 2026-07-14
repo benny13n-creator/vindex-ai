@@ -25,8 +25,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from shared.deps import _get_supa, get_current_user
+from shared.deps import _get_supa
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.oblasti")
 router = APIRouter(tags=["oblasti"])
@@ -310,9 +312,11 @@ async def _oblast_endpoint(
 ) -> dict:
     if not req.pitanje.strip():
         raise HTTPException(status_code=422, detail="Pitanje ne može biti prazno.")
-    return await asyncio.to_thread(
+    rezultat = await asyncio.to_thread(
         _ask_oblast_sync, req.pitanje, oblast_kljuc, req.history
     )
+    await UsageService.consume(user["user_id"], user.get("email", ""), "oblasti")
+    return rezultat
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
@@ -322,7 +326,7 @@ async def _oblast_endpoint(
 async def pitanje_krivicno(
     req: OblastPitanjeReq,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("oblasti")),
 ):
     """
     Krivično pravo Q&A — KZ (Krivični zakonik) + ZKP (Zakonik o krivičnom postupku).
@@ -336,7 +340,7 @@ async def pitanje_krivicno(
 async def pitanje_privredno(
     req: OblastPitanjeReq,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("oblasti")),
 ):
     """
     Privredno pravo Q&A — ZPD + ZOO (privredni) + Zakon o stečaju.
@@ -350,7 +354,7 @@ async def pitanje_privredno(
 async def pitanje_radno(
     req: OblastPitanjeReq,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("oblasti")),
 ):
     """
     Radno pravo Q&A — ZR (Zakon o radu) + ZBZO (Bezbednost i zdravlje na radu).

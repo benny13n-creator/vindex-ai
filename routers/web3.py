@@ -26,7 +26,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
-from shared.deps import _audit, _deduct_credit, _deduct_n_credits, _get_supa, _is_founder, require_pro, get_current_user
+from shared.deps import _audit, _get_supa
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 from shared.rate import limiter
 from web3_compliance import (
     web3_pretraga_sync as _web3_pretraga,
@@ -55,7 +57,7 @@ class StrategijaRequest(BaseModel):
 
 @router.post("/web3/pretraga")  # F11.1
 @limiter.limit("10/minute")
-async def post_web3_pretraga(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_web3_pretraga(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_regulatory_review"))):
     """F11.1 — Web3/MiCA RAG pretraga nad ZDI + MiCA namespacom (PRO)."""
     if len(req.tekst.strip()) < 10:
         raise HTTPException(status_code=422, detail="Upit mora imati najmanje 10 karaktera.")
@@ -64,7 +66,7 @@ async def post_web3_pretraga(req: StrategijaRequest, request: Request, user: dic
         rezultat = await asyncio.to_thread(
             _web3_pretraga, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "web3_pretraga", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F11] web3_pretraga greška")
@@ -73,7 +75,7 @@ async def post_web3_pretraga(req: StrategijaRequest, request: Request, user: dic
 
 @router.post("/web3/compliance")  # F11.2
 @limiter.limit("5/minute")
-async def post_compliance_check(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_compliance_check(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_regulatory_review"))):
     """F11.2 — Web3 Compliance Checker (ZDI + MiCA) (PRO)."""
     if len(req.tekst.strip()) < 30:
         raise HTTPException(status_code=422, detail="Opis aktivnosti mora imati najmanje 30 karaktera.")
@@ -82,7 +84,7 @@ async def post_compliance_check(req: StrategijaRequest, request: Request, user: 
         rezultat = await asyncio.to_thread(
             _compliance_check, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "compliance_check", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F11] compliance_check greška")
@@ -91,7 +93,7 @@ async def post_compliance_check(req: StrategijaRequest, request: Request, user: 
 
 @router.post("/web3/whitepaper")  # F11.3
 @limiter.limit("5/minute")
-async def post_whitepaper_check(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_whitepaper_check(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_whitepaper_analysis"))):
     """F11.3 — Whitepaper analiza po ZDI + MiCA zahtevima (PRO)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Whitepaper mora imati najmanje 100 karaktera.")
@@ -100,7 +102,7 @@ async def post_whitepaper_check(req: StrategijaRequest, request: Request, user: 
         rezultat = await asyncio.to_thread(
             _whitepaper_check, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_whitepaper_analysis")
         return {"rezultat": rezultat, "modul": "whitepaper_check", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F11] whitepaper_check greška")
@@ -109,7 +111,7 @@ async def post_whitepaper_check(req: StrategijaRequest, request: Request, user: 
 
 @router.post("/web3/mica-score")  # F11.4
 @limiter.limit("5/minute")
-async def post_mica_score(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_mica_score(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_regulatory_review"))):
     """F11.4 — MiCA Readiness Score — scoring projekta po MiCA/ZDI (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis projekta mora imati najmanje 50 karaktera.")
@@ -118,7 +120,7 @@ async def post_mica_score(req: StrategijaRequest, request: Request, user: dict =
         rezultat = await asyncio.to_thread(
             _mica_readiness_score, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {
             "score_data": rezultat["score_data"],
             "objasnjenje": rezultat["objasnjenje"],
@@ -132,7 +134,7 @@ async def post_mica_score(req: StrategijaRequest, request: Request, user: dict =
 
 @router.post("/web3/license-check")  # F11.5
 @limiter.limit("10/minute")
-async def post_license_check(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_license_check(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_regulatory_review"))):
     """F11.5 — ZDI License Checker — provera potrebnih dozvola (PRO)."""
     if len(req.tekst.strip()) < 20:
         raise HTTPException(status_code=422, detail="Opis aktivnosti mora imati najmanje 20 karaktera.")
@@ -141,7 +143,7 @@ async def post_license_check(req: StrategijaRequest, request: Request, user: dic
         rezultat = await asyncio.to_thread(
             _zdi_license_checker, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {
             "license_data": rezultat["license_data"],
             "objasnjenje": rezultat["objasnjenje"],
@@ -155,7 +157,7 @@ async def post_license_check(req: StrategijaRequest, request: Request, user: dic
 
 @router.post("/web3/aml-audit")  # F11.6
 @limiter.limit("5/minute")
-async def post_aml_audit(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_aml_audit(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_aml_audit"))):
     """F11.6 — AML/KYC Auditor — audit usklađenosti politike (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Tekst politike mora imati najmanje 50 karaktera.")
@@ -164,7 +166,7 @@ async def post_aml_audit(req: StrategijaRequest, request: Request, user: dict = 
         rezultat = await asyncio.to_thread(
             _aml_kyc_auditor, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_aml_audit")
         return {
             "audit_data": rezultat["audit_data"],
             "objasnjenje": rezultat["objasnjenje"],
@@ -178,7 +180,7 @@ async def post_aml_audit(req: StrategijaRequest, request: Request, user: dict = 
 
 @router.post("/web3/health-score")  # F11.7
 @limiter.limit("5/minute")
-async def post_documentation_health_score(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_documentation_health_score(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_due_diligence"))):
     """F11.7 — Documentation Health Score: spremnost dokumentacije za regulatorni/bankarski due diligence (PRO)."""
     if len(req.tekst.strip()) < 30:
         raise HTTPException(status_code=422, detail="Opis dokumentacije mora imati najmanje 30 karaktera.")
@@ -187,7 +189,7 @@ async def post_documentation_health_score(req: StrategijaRequest, request: Reque
         rezultat = await asyncio.to_thread(
             _documentation_health_score, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_due_diligence")
         return {
             "health_data": rezultat["health_data"],
             "objasnjenje": rezultat["objasnjenje"],
@@ -201,7 +203,7 @@ async def post_documentation_health_score(req: StrategijaRequest, request: Reque
 
 @router.post("/web3/reporting-simulator")  # F11.8
 @limiter.limit("10/minute")
-async def post_reporting_simulator(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_reporting_simulator(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_reporting_simulator"))):
     """F11.8 — Exchange Reporting Simulator: opšta edukacija o obrascima CARF/DAC8-tipa izveštavanja (PRO)."""
     if len(req.tekst.strip()) < 20:
         raise HTTPException(status_code=422, detail="Opis scenarija mora imati najmanje 20 karaktera.")
@@ -210,7 +212,7 @@ async def post_reporting_simulator(req: StrategijaRequest, request: Request, use
         rezultat = await asyncio.to_thread(
             _exchange_reporting_simulator, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_reporting_simulator")
         return {"rezultat": rezultat, "modul": "reporting_simulator", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F11] reporting_simulator greška")
@@ -219,7 +221,7 @@ async def post_reporting_simulator(req: StrategijaRequest, request: Request, use
 
 @router.post("/web3/carf-readiness")  # F11.9
 @limiter.limit("10/minute")
-async def post_carf_dac8_readiness(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_carf_dac8_readiness(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_regulatory_review"))):
     """F11.9 — CARF/DAC8 Readiness Analyzer (PRO). RAG-grounded nad carf_dac8 namespacom."""
     if len(req.tekst.strip()) < 15:
         raise HTTPException(status_code=422, detail="Pitanje mora imati najmanje 15 karaktera.")
@@ -228,7 +230,7 @@ async def post_carf_dac8_readiness(req: StrategijaRequest, request: Request, use
         rezultat = await asyncio.to_thread(
             _carf_dac8_readiness, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "carf_dac8_readiness", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F11] carf_dac8_readiness greška")
@@ -236,7 +238,7 @@ async def post_carf_dac8_readiness(req: StrategijaRequest, request: Request, use
 
 
 @router.get("/web3/jurisdikcije")  # F11.10a
-async def get_carf_jurisdikcije(user: dict = Depends(get_current_user)):
+async def get_carf_jurisdikcije(user: dict = Depends(PermissionService.require("da_regulatory_review"))):
     """F11.10a — Cross-Jurisdiction Tax Intelligence: cista referentna lista, bez AI troška.
     Dostupno svim ulogovanim korisnicima (ne PRO-gated — nema AI kredita)."""
     return _carf_jurisdikcije_lista()
@@ -244,7 +246,7 @@ async def get_carf_jurisdikcije(user: dict = Depends(get_current_user)):
 
 @router.post("/web3/jurisdikcija-analiza")  # F11.10b
 @limiter.limit("15/minute")
-async def post_jurisdikcija_analiza(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_jurisdikcija_analiza(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("da_regulatory_review"))):
     """F11.10b — AI kontekst o statusu jurisdikcije/scenarija (PRO, non-RAG, koristi strukturirane podatke)."""
     if len(req.tekst.strip()) < 10:
         raise HTTPException(status_code=422, detail="Pitanje mora imati najmanje 10 karaktera.")
@@ -253,7 +255,7 @@ async def post_jurisdikcija_analiza(req: StrategijaRequest, request: Request, us
         rezultat = await asyncio.to_thread(
             _jurisdikcija_analiza, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "jurisdikcija_analiza", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F11] jurisdikcija_analiza greška")
@@ -480,7 +482,7 @@ class SmartContractReq(BaseModel):
 async def post_analiziraj_ugovor(
     req: SmartContractReq,
     request: Request,
-    user: dict = Depends(require_pro),
+    user: dict = Depends(PermissionService.require("da_smart_contract")),
 ):
     """F12 — Smart Contract Legal Analyzer: Solidity izvorni kod → strukturirana pravna analiza (PRO, 5 kredita)."""
     import re as _re
@@ -495,22 +497,8 @@ async def post_analiziraj_ugovor(
         )
 
     email = user.get("email", "")
-    if not _is_founder(email):
-        from shared.deps import _get_credits
-        credits = await asyncio.to_thread(_get_credits, user["user_id"])
-        if credits < 5:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    "code": "NO_CREDITS",
-                    "message": "Nemate dovoljno kredita za ovu analizu. Potrebno je 5 kredita.",
-                    "credits_remaining": credits,
-                },
-            )
-        # Deduciraj kredite PRE GPT poziva (isti pattern kao u /api/pitanje)
-        preostalo = await asyncio.to_thread(_deduct_n_credits, user["user_id"], email, 5)
-    else:
-        preostalo = 9999
+    # Deduciraj kredite PRE GPT poziva (isti pattern kao u /api/pitanje)
+    preostalo = await UsageService.consume(user["user_id"], email, "da_smart_contract")
 
     solidity_version  = _sc_extract_version(source)
     contract_name     = _sc_extract_name(source)

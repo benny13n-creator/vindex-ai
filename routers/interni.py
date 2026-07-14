@@ -9,7 +9,8 @@ import asyncio
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from shared.deps import require_pro
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 from shared.rate import limiter
 from interni_stavovi import (
     ingest_stav as _ingest_stav,
@@ -31,23 +32,25 @@ class InterniPretraga(BaseModel):
 
 @router.post("/interni-stavovi/dodaj")  # F7.2
 @limiter.limit("20/minute")
-async def post_dodaj_stav(req: InterniStavRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_dodaj_stav(req: InterniStavRequest, request: Request, user: dict = Depends(PermissionService.require("interni_stavovi"))):
     """F7.2 — Dodaj interni pravni stav firme (PRO)."""
     count = await asyncio.to_thread(_ingest_stav, user["user_id"], req.naslov, req.tekst)
+    await UsageService.consume(user["user_id"], user.get("email", ""), "interni_stavovi")
     return {"vektori": count, "naslov": req.naslov}
 
 
 @router.post("/interni-stavovi/pretraga")  # F7.2
 @limiter.limit("30/minute")
-async def post_pretraga_stavova(req: InterniPretraga, request: Request, user: dict = Depends(require_pro)):
+async def post_pretraga_stavova(req: InterniPretraga, request: Request, user: dict = Depends(PermissionService.require("interni_stavovi"))):
     """F7.2 — Pretraži interne stavove firme (PRO)."""
     rezultati = await asyncio.to_thread(_search_stavovi, user["user_id"], req.upit)
+    await UsageService.consume(user["user_id"], user.get("email", ""), "interni_stavovi")
     return {"rezultati": rezultati, "ukupno": len(rezultati)}
 
 
 @router.delete("/interni-stavovi/obrisi-sve")  # F7.2
 @limiter.limit("5/minute")
-async def delete_svi_stavovi(request: Request, user: dict = Depends(require_pro)):
+async def delete_svi_stavovi(request: Request, user: dict = Depends(PermissionService.require("interni_stavovi"))):
     """F7.2 — Obriši sve interne stavove korisnika (PRO)."""
     count = await asyncio.to_thread(_obrisi_stavove, user["user_id"])
     return {"obrisano_vektora": count}

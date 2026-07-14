@@ -30,6 +30,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.client_twin")
 router = APIRouter(prefix="/api/client-twin", tags=["client_twin"])
@@ -131,7 +133,7 @@ async def _get_klijent_materijali(supa, klijent_id: str, user_id: str) -> dict:
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/{klijent_id}/analiziraj")
-async def analiziraj_komunikacioni_profil(klijent_id: str, user=Depends(get_current_user)):
+async def analiziraj_komunikacioni_profil(klijent_id: str, user=Depends(PermissionService.require("client_twin"))):
     """Gradi komunikacioni profil klijenta iz istorije predmeta i beleska."""
     supa = _get_supa()
     try:
@@ -203,6 +205,8 @@ async def analiziraj_komunikacioni_profil(klijent_id: str, user=Depends(get_curr
                 }).execute()
             )
             akcija = "kreiran"
+
+        await UsageService.consume(user["user_id"], user.get("email", ""), "client_twin")
 
         return {
             "klijent_id": klijent_id,
@@ -320,8 +324,12 @@ async def rucno_azuriraj_profil(klijent_id: str, body: RucnoAzuriranjeRequest, u
 
 
 @router.get("/{klijent_id}/savet")
-async def get_savet_za_kontakt(klijent_id: str, user=Depends(get_current_user)):
-    """Konkretne preporuke za sledeci kontakt sa klijentom na osnovu komunikacionog profila."""
+async def get_savet_za_kontakt(klijent_id: str, user=Depends(PermissionService.require("client_twin"))):
+    """Konkretne preporuke za sledeci kontakt sa klijentom na osnovu komunikacionog profila.
+
+    Ne poziva AI direktno (izvodi se deterministicki iz vec sacuvanog twin_profil-a) —
+    gejtovano samo kroz PermissionService (pristup), bez UsageService.consume() poziva.
+    """
     supa = _get_supa()
     try:
         row = await asyncio.to_thread(

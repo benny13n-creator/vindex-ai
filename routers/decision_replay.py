@@ -20,6 +20,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.decision_replay")
 router = APIRouter(prefix="/api/predmeti", tags=["decision_replay"])
@@ -247,7 +249,7 @@ async def get_timeline(predmet_id: str, user=Depends(get_current_user)):
 
 
 @router.get("/{predmet_id}/replay")
-async def decision_replay(predmet_id: str, user=Depends(get_current_user)):
+async def decision_replay(predmet_id: str, user=Depends(PermissionService.require("decision_replay"))):
     """Decision Replay — AI rekonstruise tok predmeta i identifikuje kriticne momente.
 
     Odgovara na: 'Zasto smo izgubili predmet?'
@@ -297,6 +299,8 @@ async def decision_replay(predmet_id: str, user=Depends(get_current_user)):
         )
 
         analiza = json.loads(resp.choices[0].message.content)
+
+        await UsageService.consume(user["user_id"], user.get("email", ""), "decision_replay")
 
         return {
             "predmet_id": predmet_id,

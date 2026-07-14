@@ -288,7 +288,7 @@ async def test_endpoint_success():
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
-         patch("routers.hearing_cc._deduct_n_credits", return_value=97) as mock_deduct, \
+         patch("routers.hearing_cc.UsageService.consume", new_callable=AsyncMock, return_value=97) as mock_deduct, \
          patch("openai.AsyncOpenAI") as mock_oai_cls:
 
         mock_oai = MagicMock()
@@ -302,7 +302,6 @@ async def test_endpoint_success():
             body=body,
             request=_req(),
             user=_user(),
-            _cred={"credits_remaining": 100},
         )
 
     assert result["ok"] is True
@@ -311,7 +310,7 @@ async def test_endpoint_success():
     assert result["datum_rocista"] == "2026-07-15"
     assert result["brifing"]["hearing_score"] == 78
     assert result["krediti_preostalo"] == 97
-    mock_deduct.assert_called_once_with(UID, EMAIL, 3)
+    mock_deduct.assert_called_once_with(UID, EMAIL, "hearing_prep")
 
 
 @pytest.mark.anyio
@@ -327,7 +326,7 @@ async def test_endpoint_deducts_3_credits():
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
-         patch("routers.hearing_cc._deduct_n_credits", return_value=50) as mock_deduct, \
+         patch("routers.hearing_cc.UsageService.consume", new_callable=AsyncMock, return_value=50) as mock_deduct, \
          patch("openai.AsyncOpenAI") as mock_oai_cls:
 
         mock_oai = MagicMock()
@@ -335,11 +334,11 @@ async def test_endpoint_deducts_3_credits():
         mock_oai_cls.return_value = mock_oai
 
         body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="krivicni")
-        await hearing_command_center(body=body, request=_req(), user=_user(), _cred={})
+        await hearing_command_center(body=body, request=_req(), user=_user())
 
     mock_deduct.assert_called_once()
     args = mock_deduct.call_args[0]
-    assert args[2] == 3
+    assert args[2] == "hearing_prep"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -358,7 +357,7 @@ async def test_endpoint_404_missing_predmet():
 
         body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="upravni")
         with pytest.raises(HTTPException) as exc_info:
-            await hearing_command_center(body=body, request=_req(), user=_user(), _cred={})
+            await hearing_command_center(body=body, request=_req(), user=_user())
 
     assert exc_info.value.status_code == 404
 
@@ -386,7 +385,7 @@ async def test_endpoint_503_on_openai_error():
 
         body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="privredni")
         with pytest.raises(HTTPException) as exc_info:
-            await hearing_command_center(body=body, request=_req(), user=_user(), _cred={})
+            await hearing_command_center(body=body, request=_req(), user=_user())
 
     assert exc_info.value.status_code == 503
 
@@ -414,7 +413,7 @@ async def test_endpoint_503_on_invalid_json():
 
         body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="radni")
         with pytest.raises(HTTPException) as exc_info:
-            await hearing_command_center(body=body, request=_req(), user=_user(), _cred={})
+            await hearing_command_center(body=body, request=_req(), user=_user())
 
     assert exc_info.value.status_code == 503
 
@@ -437,7 +436,7 @@ async def test_endpoint_all_tip_postupka(tip):
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
-         patch("routers.hearing_cc._deduct_n_credits", return_value=90), \
+         patch("routers.hearing_cc.UsageService.consume", new_callable=AsyncMock, return_value=90), \
          patch("openai.AsyncOpenAI") as mock_oai_cls:
 
         mock_oai = MagicMock()
@@ -445,7 +444,7 @@ async def test_endpoint_all_tip_postupka(tip):
         mock_oai_cls.return_value = mock_oai
 
         body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka=tip)
-        result = await hearing_command_center(body=body, request=_req(), user=_user(), _cred={})
+        result = await hearing_command_center(body=body, request=_req(), user=_user())
 
     assert result["ok"] is True
     assert result["tip_postupka"] == tip
@@ -483,7 +482,7 @@ async def test_brifing_has_all_12_sections():
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
-         patch("routers.hearing_cc._deduct_n_credits", return_value=90), \
+         patch("routers.hearing_cc.UsageService.consume", new_callable=AsyncMock, return_value=90), \
          patch("openai.AsyncOpenAI") as mock_oai_cls:
 
         mock_oai = MagicMock()
@@ -491,7 +490,7 @@ async def test_brifing_has_all_12_sections():
         mock_oai_cls.return_value = mock_oai
 
         body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="gradjanski")
-        result = await hearing_command_center(body=body, request=_req(), user=_user(), _cred={})
+        result = await hearing_command_center(body=body, request=_req(), user=_user())
 
     brifing = result["brifing"]
     expected_keys = {
@@ -517,7 +516,7 @@ async def test_hearing_score_in_response():
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
-         patch("routers.hearing_cc._deduct_n_credits", return_value=90), \
+         patch("routers.hearing_cc.UsageService.consume", new_callable=AsyncMock, return_value=90), \
          patch("openai.AsyncOpenAI") as mock_oai_cls:
 
         mock_oai = MagicMock()
@@ -525,6 +524,6 @@ async def test_hearing_score_in_response():
         mock_oai_cls.return_value = mock_oai
 
         body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="gradjanski")
-        result = await hearing_command_center(body=body, request=_req(), user=_user(), _cred={})
+        result = await hearing_command_center(body=body, request=_req(), user=_user())
 
     assert result["brifing"]["hearing_score"] == 92

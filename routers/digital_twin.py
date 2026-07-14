@@ -36,15 +36,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from shared.deps import (
-    _deduct_credit,
-    _deduct_n_credits,
-    _get_credits,
-    _get_supa,
-    _is_founder,
-    get_current_user,
-)
+from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.digital_twin")
 router = APIRouter(prefix="/api/twin", tags=["digital_twin"])
@@ -203,28 +198,15 @@ def _build_kontekst_tekst(ctx: dict, strategija_promena: Optional[str] = None) -
 async def kreiraj_simulaciju(
     req: SimulacijaRequest,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("digital_twin")),
 ):
     """
     Digital Twin — simulira 3 scenarija razvoja predmeta sa procentima verovatnoce,
-    kljucnim tackama odlucivanja i optimalnom strategijom. Kosta 3 kredita.
+    kljucnim tackama odlucivanja i optimalnom strategijom.
     """
     uid   = user["user_id"]
     email = user.get("email", "")
     supa  = _get_supa()
-
-    # Provera kredita pre GPT poziva (founder uvek prolazi)
-    if not _is_founder(email):
-        krediti = await asyncio.to_thread(_get_credits, uid)
-        if krediti < 3:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    "code":              "NO_CREDITS",
-                    "message":           f"Digital Twin simulacija zahteva 3 kredita. Trenutno imate {krediti}.",
-                    "credits_remaining": krediti,
-                },
-            )
 
     ctx = await _dohvati_kontekst_predmeta(supa, req.predmet_id, uid)
     kontekst_tekst = _build_kontekst_tekst(ctx, req.strategija_promena)
@@ -272,14 +254,13 @@ async def kreiraj_simulaciju(
     except Exception:
         logger.warning("[TWIN] Cuvanje simulacije u bazu nije uspelo — nastavlja se.")
 
-    # Oduzmi 3 kredita
-    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 3)
+    preostalo = await UsageService.consume(uid, email, "digital_twin", multiplier=3)
 
     return {
         "scenariji":            scenariji,
         "kljucne_tacke":        kljucne_tacke,
         "optimalna_strategija": optimalna_strategija,
-        "credits_remaining":    max(int(preostalo), 0),
+        "credits_remaining":    preostalo,
     }
 
 
@@ -290,11 +271,11 @@ async def kreiraj_simulaciju(
 async def sta_ako_analiza(
     req: StaAkoRequest,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("digital_twin")),
 ):
     """
     'Sta ako' analiza — GPT-4o analizira uticaj hipoteze na predmet
-    i racuna novu verovatnocu uspeha. Kosta 1 kredit.
+    i racuna novu verovatnocu uspeha.
     """
     uid   = user["user_id"]
     email = user.get("email", "")
@@ -351,14 +332,13 @@ async def sta_ako_analiza(
     except Exception:
         logger.warning("[TWIN] Cuvanje sta-ako analize u bazu nije uspelo — nastavlja se.")
 
-    # Oduzmi 1 kredit
-    preostalo = await asyncio.to_thread(_deduct_credit, uid, email)
+    preostalo = await UsageService.consume(uid, email, "digital_twin")
 
     return {
         "uticaj":                  uticaj,
         "nova_verovatnoca_uspeha": nova_verovatnoca,
         "preporucene_akcije":      preporucene_akcije,
-        "credits_remaining":       max(int(preostalo), 0),
+        "credits_remaining":       preostalo,
     }
 
 

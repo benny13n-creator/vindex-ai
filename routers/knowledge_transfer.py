@@ -28,6 +28,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.knowledge_transfer")
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge_transfer"])
@@ -247,7 +249,7 @@ async def dodaj_izvor(profil_id: str, body: DodajIzvorRequest, user=Depends(get_
 
 
 @router.post("/profili/{profil_id}/ekstrakcija")
-async def pokreni_ekstrakciju(profil_id: str, user=Depends(get_current_user)):
+async def pokreni_ekstrakciju(profil_id: str, user=Depends(PermissionService.require("knowledge_transfer"))):
     """Auto-ekstrakcija znanja iz svih izvora — azurira top_argumenti i taktike profila."""
     supa = _get_supa()
     try:
@@ -309,6 +311,8 @@ async def pokreni_ekstrakciju(profil_id: str, user=Depends(get_current_user)):
             }).eq("id", profil_id).execute()
         )
 
+        await UsageService.consume(user["user_id"], user.get("email", ""), "knowledge_transfer")
+
         return {
             "profil_id": profil_id,
             "advokat_ime": profil["advokat_ime"],
@@ -329,7 +333,7 @@ async def pokreni_ekstrakciju(profil_id: str, user=Depends(get_current_user)):
 
 
 @router.post("/profili/{profil_id}/upitaj")
-async def upitaj_znanje(profil_id: str, body: UpitRequest, user=Depends(get_current_user)):
+async def upitaj_znanje(profil_id: str, body: UpitRequest, user=Depends(PermissionService.require("knowledge_transfer"))):
     """Upituje bazu znanja partnera. 'Kako bi [partner] pristupio ovom slucaju?'"""
     supa = _get_supa()
     try:
@@ -385,6 +389,8 @@ async def upitaj_znanje(profil_id: str, body: UpitRequest, user=Depends(get_curr
                 "kontekst": {"predmet_kontekst": body.kontekst} if body.kontekst else {},
             }).execute()
         )
+
+        await UsageService.consume(user["user_id"], user.get("email", ""), "knowledge_transfer")
 
         return {
             "profil_ime": profil["advokat_ime"],

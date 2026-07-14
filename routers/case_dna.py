@@ -21,6 +21,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.case_genome")
 router = APIRouter(prefix="/api/predmeti", tags=["case_dna"])
@@ -399,7 +401,7 @@ async def get_case_dna(predmet_id: str, user=Depends(get_current_user)):
 
 
 @router.post("/{predmet_id}/case-dna/refresh")
-async def refresh_case_dna(predmet_id: str, user=Depends(get_current_user)):
+async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.require("case_dna"))):
     """Regenerise Case Genome iz svih dokumenata predmeta."""
     supa = _get_supa()
     uid = user["user_id"]
@@ -443,6 +445,9 @@ async def refresh_case_dna(predmet_id: str, user=Depends(get_current_user)):
         }
 
     genome = await _extract_genome(docs)
+
+    if not genome.get("greska"):
+        await UsageService.consume(uid, user.get("email", ""), "case_dna")
 
     # Auto-versioning
     nova_verzija = stari_verzija + 1
@@ -540,7 +545,7 @@ class CompareDoksReq(BaseModel):
 
 
 @router.post("/{predmet_id}/case-dna/compare")
-async def compare_docs(predmet_id: str, req: CompareDoksReq, user=Depends(get_current_user)):
+async def compare_docs(predmet_id: str, req: CompareDoksReq, user=Depends(PermissionService.require("case_dna"))):
     """Uporedjuje dva dokumenta po rednom broju i vraca analizu razlika."""
     if len(req.numbers) < 2:
         raise HTTPException(400, "Potrebna su tacno 2 redna broja dokumenta")
@@ -596,6 +601,8 @@ async def compare_docs(predmet_id: str, req: CompareDoksReq, user=Depends(get_cu
         analiza = json.loads(resp.choices[0].message.content or "{}")
     except Exception as exc:
         raise HTTPException(500, f"AI analiza greška: {exc}")
+
+    await UsageService.consume(uid, user.get("email", ""), "case_dna")
 
     return {
         "predmet_id": predmet_id,

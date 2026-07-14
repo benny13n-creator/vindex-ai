@@ -9,7 +9,9 @@ Analizira sve zatvorene predmete istog tipa i vraća statističke uvide.
 import asyncio
 import logging
 from fastapi import APIRouter, Depends, HTTPException
-from shared.deps import _get_supa, get_current_user
+from shared.deps import _get_supa
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.outcome_intel")
 router = APIRouter(prefix="/api/outcome-intel", tags=["outcome_intel"])
@@ -35,7 +37,7 @@ Budi konkretan sa brojevima. Srpski jezik. Bez generalizacija. Max 200 reči uku
 
 
 @router.get("/predmeti/{predmet_id}")
-async def get_outcome_intel(predmet_id: str, user=Depends(get_current_user)):
+async def get_outcome_intel(predmet_id: str, user=Depends(PermissionService.require("outcome_intel"))):
     supa = _get_supa()
     uid  = user["user_id"]
 
@@ -223,6 +225,8 @@ Prosečna fakturisana vrednost: {avg_vrednost:,} RSD
             linija.append(f"\n🏆 FAKTORI USPEHA\n'{top_win[0]}' prisutan u {int(top_win[1]/max(1,len(pobede))*100)}% pobeda")
         linija.append(f"\n💡 PREPORUKA\nOsigurajte ključne dokumente od prvog dana predmeta.")
         analiza = "\n".join(linija)
+
+    await UsageService.consume(uid, user.get("email", ""), "outcome_intel")
 
     return {
         "analiza":         analiza,

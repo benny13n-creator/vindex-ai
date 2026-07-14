@@ -36,6 +36,8 @@ from klijenti.permissions import (
 from klijenti.audit import Akcija, log_event, get_client_ip
 from security.crypto import encrypt_field, decrypt_field, is_encrypted, generate_storage_key
 from shared.deps import _get_supa, _is_founder, _verify_token
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.klijenti")
 
@@ -1127,6 +1129,7 @@ async def intake_wizard(req: IntakeWizardReq, request: Request):
     - Potrebne informacije za dalje
     """
     user = await _auth_from_request(request)
+    user = await PermissionService.require("intake_ai")(user)
     import openai as _oai
 
     client = _oai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
@@ -1169,6 +1172,8 @@ async def intake_wizard(req: IntakeWizardReq, request: Request):
     except Exception as e:
         logger.error("[INTAKE-WIZARD] OpenAI greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri generisanju preporuka.")
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "intake_ai")
 
     asyncio.create_task(log_event(
         supa=_get_supa(),

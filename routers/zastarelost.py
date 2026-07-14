@@ -17,7 +17,9 @@ from fastapi.responses import Response as _Resp
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 router = APIRouter()
 
@@ -354,7 +356,7 @@ class GuardianRequest(BaseModel):
 async def deadline_guardian(
     request: Request,
     payload: GuardianRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("zastarelost_guardian")),
 ):
     """
     AI Deadline Guardian: analizira rok i generiše konkretan lanac akcija
@@ -423,6 +425,9 @@ async def deadline_guardian(
     )
 
     analiza = resp.choices[0].message.content.strip()
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "zastarelost_guardian")
+
     hitnost = (
         "kritično" if dani_do_roka <= 3 else
         "hitno"    if dani_do_roka <= 7 else
@@ -444,7 +449,7 @@ async def deadline_guardian(
 
 @router.post("/api/rokovi/guardian/scan")
 async def guardian_scan(
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("zastarelost_guardian")),
 ):
     """
     Skenira sve aktivne rokove korisnika u narednih 30 dana i vraća
@@ -454,6 +459,8 @@ async def guardian_scan(
     supa = _get_supa()
     danas     = _date.today()
     za_30d    = danas + _td(days=30)
+
+    await UsageService.consume(uid, user.get("email", ""), "zastarelost_guardian")
 
     rokovi_r = await asyncio.to_thread(
         lambda: supa.table("rokovi")

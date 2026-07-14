@@ -18,10 +18,11 @@ from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from shared.deps import _audit, _deduct_credit, _deduct_n_credits, _get_credits, _is_founder, require_pro
+from shared.deps import _audit
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.rate import limiter
-from routers.plans import enforce_and_increment
 from strategija import (
     red_team_analiza_sync,
     litigation_simulator_sync,
@@ -60,11 +61,10 @@ async def _fetch_praksa_ctx(tekst: str, k: int = 3) -> str:
 
 @router.post("/strategija/red-team")  # F5.1
 @limiter.limit("5/minute")
-async def post_red_team(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_red_team(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F5.1 — Red Team analiza predmeta iz perspektive protivne strane (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
-    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "red_team", ""))
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
@@ -72,7 +72,7 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
             red_team_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context,
             req.tip_postupka or "gradjansko"
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
         return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F5] red_team greška")
@@ -81,18 +81,17 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
 
 @router.post("/strategija/litigation")  # F5.2
 @limiter.limit("5/minute")
-async def post_litigation(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_litigation(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F5.2 — Litigation Simulator — procena ishoda sa % verovatnoće (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
-    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "litigation", ""))
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         rezultat = await asyncio.to_thread(
             litigation_simulator_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
         return {"rezultat": rezultat, "modul": "litigation", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F5] litigation greška")
@@ -101,18 +100,17 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
 
 @router.post("/strategija/sudija")  # F5.3
 @limiter.limit("5/minute")
-async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F5.3 — AI Sudija — neutralna sudska perspektiva (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
-    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "ai_sudija", ""))
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         rezultat = await asyncio.to_thread(
             ai_judge_mode_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
         return {"rezultat": rezultat, "modul": "sudija", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F5] sudija greška")
@@ -136,18 +134,17 @@ async def _fetch_zakon_ctx(tekst: str, k: int = 4) -> str:
 
 @router.post("/strategija/due-diligence")  # F5.4
 @limiter.limit("5/minute")
-async def post_due_diligence(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_due_diligence(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F5.4 — Due Diligence analiza dokumenta sa RAG zakonskim kontekstom (PRO)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
-    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "due_diligence", ""))
     _zakon_context = await _fetch_zakon_ctx(req.tekst)
     try:
         rezultat = await asyncio.to_thread(
             due_diligence_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _zakon_context
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
         return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F5] due_diligence greška")
@@ -156,17 +153,16 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
 
 @router.post("/strategija/revizor")  # F7.1
 @limiter.limit("5/minute")
-async def post_revizor(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_revizor(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F7.1 — AI Pravni Revizor — pregled dokumenta sa predlozima izmena (PRO)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
-    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "pravni_revizor", ""))
     try:
         rezultat = await asyncio.to_thread(
             pravni_revizor_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
         return {"rezultat": rezultat, "modul": "revizor", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F7] pravni_revizor greška")
@@ -175,17 +171,16 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
 
 @router.post("/strategija/witness")  # F9.1
 @limiter.limit("5/minute")
-async def post_witness(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_witness(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F9.1 — AI Witness Analyzer — analiza iskaza/svedočenja (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Iskaz mora imati najmanje 50 karaktera.")
-    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "witness_analyzer", ""))
     try:
         rezultat = await asyncio.to_thread(
             witness_analyzer_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
         return {"rezultat": rezultat, "modul": "witness", "credits_remaining": max(preostalo, 0)}
     except Exception:
         logger.exception("[F9] witness_analyzer greška")
@@ -194,17 +189,16 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
 
 @router.post("/strategija/sudija-v2")  # F9.2
 @limiter.limit("3/minute")
-async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = Depends(require_pro)):
+async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F9.2 — AI Judge v2 — tužilac vs branilac → sudija (PRO, 3-round chain)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 100 karaktera.")
-    await enforce_and_increment(user["user_id"], "strategies")
     asyncio.create_task(_audit(user["user_id"], "sudija_v2", ""))
     try:
         rezultat = await asyncio.to_thread(
             ai_judge_v2_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija")
         return {
             "tuzilac":  rezultat["tuzilac"],
             "branilac": rezultat["branilac"],
@@ -229,7 +223,7 @@ async def post_kompletna_analiza(
     req: OrkestratorRequest,
     request: Request,
     background_tasks: BackgroundTasks,
-    user: dict = Depends(require_pro),
+    user: dict = Depends(PermissionService.require("strategija")),
 ):
     """
     F10 — Strateški Orkestrator — 6 sekvencijalnih analiza (PRO, 6 kredita, 8 GPT-4o poziva).
@@ -243,19 +237,6 @@ async def post_kompletna_analiza(
     uid   = user["user_id"]
     email = user.get("email", "")
 
-    if not _is_founder(email):
-        credits_pre = await asyncio.to_thread(_get_credits, uid)
-        if credits_pre < 6:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    "code": "NO_CREDITS",
-                    "message": f"Kompletna analiza zahteva 6 kredita. Trenutno imate {credits_pre}. Dopunite kredit paket.",
-                    "credits_remaining": credits_pre,
-                },
-            )
-
-    await enforce_and_increment(uid, "strategies")
     asyncio.create_task(_audit(uid, "kompletna_analiza", ""))
 
     async def _run_analiza():
@@ -268,7 +249,7 @@ async def post_kompletna_analiza(
             req.iskazi_svedoka,
         )
         asyncio.create_task(log_cost_to_db(uid, "kompletna_analiza"))
-        await asyncio.to_thread(_deduct_n_credits, uid, email, 6)
+        await UsageService.consume(uid, email, "strategija", multiplier=6)
         return {**rezultat, "modul": "kompletna_analiza", "credits_deducted": 6}
 
     jid = create_job(uid, "kompletna_analiza")
@@ -324,7 +305,7 @@ class StrategijaV2Request(BaseModel):
 async def strategija_v2_analiza(
     req: StrategijaV2Request,
     request: Request,
-    user: dict = Depends(require_pro),
+    user: dict = Depends(PermissionService.require("strategija")),
 ):
     """
     Strategija V2 — strukturiran JSON output sa procenom uspeha, rizicima,
@@ -335,7 +316,6 @@ async def strategija_v2_analiza(
 
     uid   = user["user_id"]
     email = user.get("email", "")
-    await enforce_and_increment(uid, "strategies")
     asyncio.create_task(_audit(uid, "strategija_v2", ""))
 
     user_msg = f"Opis predmeta:\n{req.opis_predmeta}"
@@ -359,7 +339,7 @@ async def strategija_v2_analiza(
         )
         analiza = _json.loads(resp.choices[0].message.content or "{}")
         asyncio.create_task(log_cost_to_db(uid, "strategija_v2"))
-        preostalo = await asyncio.to_thread(_deduct_credit, uid, email)
+        preostalo = await UsageService.consume(uid, email, "strategija")
         return {
             **analiza,
             "modul": "strategija_v2",

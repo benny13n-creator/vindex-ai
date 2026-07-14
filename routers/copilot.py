@@ -30,9 +30,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from shared.deps import _get_supa, get_current_user, require_credits, _deduct_credit
+from shared.deps import _get_supa
+from shared.permissions import PermissionService
 from shared.rate import limiter
-from routers.plans import enforce_and_increment
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.copilot")
 router = APIRouter(tags=["copilot"])
@@ -990,7 +991,7 @@ async def _handle_radni_spor(poruka: str, predmet_ctx: str, user: dict, history:
 async def copilot_chat(
     req: CopilotReq,
     request: Request,
-    user: dict = Depends(require_credits),
+    user: dict = Depends(PermissionService.require("copilot")),
 ):
     """
     Vindex Copilot — orkestrator svih modula.
@@ -1000,7 +1001,7 @@ async def copilot_chat(
     email    = user.get("email", "")
     predmet_ctx = ""
 
-    await enforce_and_increment(uid, "ai_queries")
+    await UsageService.consume(uid, email, "copilot")
 
     if req.predmet_id:
         predmet_ctx = await _load_predmet_context(req.predmet_id, uid)
@@ -1035,9 +1036,6 @@ async def copilot_chat(
 
     handler = handlers.get(intent, handlers["OSTALO"])
     result  = await handler()
-
-    if not user.get("credit_pre_deducted"):
-        await asyncio.to_thread(_deduct_credit, uid, email)
 
     return {
         "intent":        intent,

@@ -21,7 +21,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
 
-from shared.deps import _get_supa, get_current_user
+from shared.deps import _get_supa
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.conflict_check")
 router = APIRouter(prefix="/api/conflict-check", tags=["conflict_check"])
@@ -116,7 +118,7 @@ class ConflictReq(BaseModel):
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
 @router.post("")
-async def check_conflict(req: ConflictReq, user=Depends(get_current_user)):
+async def check_conflict(req: ConflictReq, user=Depends(PermissionService.require("conflict_check"))):
     """
     4-slojna fuzzy provera konflikta interesa.
     Sloj 1: predmeti.tuzilac / tuzeni
@@ -345,6 +347,8 @@ async def check_conflict(req: ConflictReq, user=Depends(get_current_user)):
 
     logger.info("[CONFLICT] user=%s termini=%s status=%s konflikata=%d visoki=%d rapidfuzz=%s",
                 uid[:8], termini, final_status, len(konflikti), len(visoki), _RAPIDFUZZ)
+
+    await UsageService.consume(uid, user.get("email", ""), "conflict_check")
 
     return {
         "status":    final_status,

@@ -21,7 +21,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.intake")
 router = APIRouter(tags=["intake"])
@@ -124,11 +126,13 @@ class IntakeKreirajReq(BaseModel):
 async def intake_ekstrakcija(
     body: EkstrakcijReq,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("intake_ai")),
 ):
     """Ekstrahuje ključne podatke za novi predmet iz opisa problema i opcionalnih nalaza."""
     nalazi = body.analiza_results or []
     result = await _call_ekstrakcija(body.opis_problema, nalazi)
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "intake_ai")
 
     return {
         "predlog_naziva_predmeta": result.get("predlog_naziva_predmeta") or "Novi predmet",

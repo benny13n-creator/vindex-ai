@@ -26,7 +26,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.morning_briefing")
 router = APIRouter(tags=["morning-briefing"])
@@ -345,13 +347,15 @@ async def _pošalji_briefing_email(to_email: str, briefing: dict, ime: str = "")
 @limiter.limit("10/minute")
 async def get_daily_briefing(
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("morning_briefing")),
 ):
     """Generiši i vrati personalizovani jutarnji briefing (on-demand)."""
     uid  = user["user_id"]
     supa = _get_supa()
 
     briefing = await _generiši_briefing(uid, supa)
+
+    await UsageService.consume(uid, user.get("email", ""), "morning_briefing")
 
     try:
         await asyncio.to_thread(
@@ -841,7 +845,7 @@ async def get_urgency_stats(
 @limiter.limit("20/minute")
 async def today_focus(
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("morning_briefing")),
 ):
     """
     Centralni dnevni fokus — agregira sve u jedan odgovor.
@@ -1100,5 +1104,7 @@ async def today_focus(
         )
     except Exception as e:
         logger.debug("[TODAY_FOCUS] cache upsert greška: %s", e)
+
+    await UsageService.consume(uid, user.get("email", ""), "morning_briefing")
 
     return payload

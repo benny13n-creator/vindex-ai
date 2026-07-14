@@ -496,6 +496,8 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 # so a single dependency_overrides entry covers all routes (api.py + all router modules).
 from shared.deps import require_credits, _refund_one_credit, _increment_monthly_usage, _get_monthly_usage
 from shared.cost import begin_cost_tracking, log_cost_to_db
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 
 # ─── App ──────────────────────────────────────────────────────────────────────
@@ -2556,12 +2558,16 @@ async def _session_sacuvaj(supa, session_id: str, user_id: str, uloga: str, sadr
 
 @app.post("/api/pitanje")
 @limiter.limit("30/minute")
-async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(require_credits)):
+async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(PermissionService.require("ai_pravna_pitanja"))):
     """Pravno istraživanje — pretražuje bazu zakona."""
     try:
         qh = _q_hash(req.pitanje)
         logger.info("Pitanje [uid=%.8s] [q=%s]", user["user_id"], qh)
         asyncio.create_task(_audit(user["user_id"], "pitanje", qh))
+
+        # Atomično oduzmi kredit PRE agent poziva (isti timing kao stari require_credits
+        # pre-deduction) — refunduje se ispod ako je odgovor iz keša ili blokiran.
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
 
         # ── Prompt injection detekcija ────────────────────────────────────────
         from security.prompt_guard import analyze as _guard_analyze
@@ -2648,24 +2654,11 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
             response_text=rezultat.get("data", ""),
             latency_ms=latency_ms,
         )
-        # require_credits already pre-deducted 1 credit atomically
-        is_pre_deducted = user.get("credit_pre_deducted", False)
-        should_deduct = (
-            not is_pre_deducted
-            and rezultat.get("status") == "success"
-            and not rezultat.get("blocked", False)
-            and not rezultat.get("from_cache", False)
-        )
-        if should_deduct:
-            preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
-        elif is_pre_deducted and (rezultat.get("from_cache") or rezultat.get("blocked")):
-            # Cache hit or blocked — refund the pre-deducted credit
-            await asyncio.to_thread(_refund_one_credit, user["user_id"])
-            preostalo = user.get("credits_remaining", 0) + 1
-        elif is_pre_deducted:
-            preostalo = user.get("credits_remaining", 0)
-        else:
-            preostalo = await asyncio.to_thread(_get_credits, user["user_id"])
+        # UsageService.consume() already pre-deducted the credit above (same timing as the
+        # old require_credits pre-deduction) — refund on cache-hit/blocked, exactly as before.
+        if rezultat.get("from_cache", False) or rezultat.get("blocked", False):
+            await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+            preostalo = preostalo + 1
 
         # F5.4: persist Q&A turn to predmet_istorija
         if predmet_id and rezultat.get("status") == "success" and not rezultat.get("blocked"):
@@ -2704,7 +2697,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(requir
 
 @app.post("/api/pitanje/stream")
 @limiter.limit("10/minute")
-async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends(require_credits)):
+async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends(PermissionService.require("ai_pravna_pitanja"))):
     """
     SSE streaming verzija /api/pitanje.
     Retrieval se izvršava normalno, zatim se GPT-4o odgovor stream-uje
@@ -2732,6 +2725,10 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
     asyncio.create_task(_audit(user["user_id"], "pitanje_stream", qh))
     _stream_firma_ns = await _get_firma_namespace(user["user_id"])
     _stream_extra_ns = [_stream_firma_ns] if _stream_firma_ns else None
+
+    # Atomično oduzmi kredit PRE agent poziva (isti timing kao stari require_credits
+    # pre-deduction) — refunduje se ispod ako je odgovor iz keša ili blokiran.
+    _stream_preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
 
     async def _event_generator():
         # Commit 4/T1: Guard-complete pipeline — all Commits (1+2+3) run inside ask_agent
@@ -2770,25 +2767,13 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 chunk = data_text[i:i + _CHUNK]
                 yield f"data: {chunk.replace(chr(10), chr(92) + 'n')}\n\n"
 
-            # Conditional deduction — require_credits already pre-deducted
-            _pre = user.get("credit_pre_deducted", False)
-            _should_deduct = (
-                not _pre
-                and rezultat.get("status") == "success"
-                and not rezultat.get("blocked", False)
-                and not rezultat.get("from_cache", False)
-            )
-            if _should_deduct:
-                preostalo = await asyncio.to_thread(
-                    _deduct_credit, user["user_id"], user.get("email", "")
-                )
-            elif _pre and (rezultat.get("from_cache") or rezultat.get("blocked")):
-                await asyncio.to_thread(_refund_one_credit, user["user_id"])
-                preostalo = user.get("credits_remaining", 0) + 1
-            elif _pre:
-                preostalo = user.get("credits_remaining", 0)
-            else:
-                preostalo = await asyncio.to_thread(_get_credits, user["user_id"])
+            # UsageService.consume() already pre-deducted the credit above (same timing as
+            # the old require_credits pre-deduction) — refund on cache-hit/blocked, exactly
+            # as before.
+            preostalo = _stream_preostalo
+            if rezultat.get("from_cache", False) or rezultat.get("blocked", False):
+                await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+                preostalo = preostalo + 1
 
             yield "data: [DONE]\n\n"
             yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
@@ -3597,6 +3582,12 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
     """F5.3 — Structured legal case assessment via GPT-4o."""
     from openai import OpenAI as _OAI
     user = _require_auth(authorization)
+    # _require_auth returns a plain object (not a dict) — PermissionService.require()
+    # expects a dict it can read/mutate, so build one and invoke the dependency callable
+    # manually (Depends() default is only resolved by FastAPI's DI, calling it directly
+    # with an explicit `user=` kwarg just runs the function body against that dict).
+    _entitlement_user = {"user_id": user.id, "email": user.email}
+    await PermissionService.require("procena")(user=_entitlement_user)
     body = await request.json()
     cinjenice = (body.get("cinjenice") or "").strip()
     if not cinjenice:
@@ -3705,6 +3696,8 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
         logger.exception("[PROCENA] GPT-4o greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju procene. Pokušajte ponovo.")
 
+    await UsageService.consume(_entitlement_user["user_id"], _entitlement_user["email"], "procena")
+
     # Phase 3.4 — Append Section 22: Pinecone-retrieved relevant court decisions
     if procena_tekst:
         try:
@@ -3767,6 +3760,12 @@ async def predmet_upload_auto_analyze(
     from uploaded_doc.session import generate_session_id, expires_at_iso
 
     user = _require_auth(authorization)
+    # _require_auth returns a plain object (not a dict) — PermissionService.require()
+    # expects a dict it can read/mutate, so build one and invoke the dependency callable
+    # manually (Depends() default is only resolved by FastAPI's DI, calling it directly
+    # with an explicit `user=` kwarg just runs the function body against that dict).
+    _entitlement_user = {"user_id": user.id, "email": user.email}
+    await PermissionService.require("predmet_upload_ai")(user=_entitlement_user)
 
     # Validate ownership
     pred_row = _get_supa().table("predmeti").select("id,naziv,tip").eq("id", predmet_id).eq("user_id", user.id).single().execute()
@@ -4073,6 +4072,10 @@ async def predmet_upload_auto_analyze(
         return_exceptions=True,
     )
 
+    # Jedan consume() poziv za celokupnu upload-triggered AI analizu (3 paralelna
+    # potpoziva iznad broje se kao JEDNA upotreba ove funkcije, ne tri).
+    await UsageService.consume(_entitlement_user["user_id"], _entitlement_user["email"], "predmet_upload_ai")
+
     # ── Process procena ───────────────────────────────────────────────────────
     procena_tekst = ""
     if not isinstance(_pr, Exception):
@@ -4276,7 +4279,7 @@ async def predmet_hronologija_get(
 async def predmet_ai_preporuka(
     predmet_id: str,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("predmet_ai_preporuka")),
 ):
     """
     Analizira stanje predmeta i vraća AI preporuku:
@@ -4342,6 +4345,7 @@ async def predmet_ai_preporuka(
         logger.error("[AI-PREPORUKA] greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri generisanju preporuke.")
 
+    await UsageService.consume(user["user_id"], user.get("email", ""), "predmet_ai_preporuka")
     return {"predmet_id": predmet_id, "preporuka": preporuka}
 
 
@@ -4402,7 +4406,7 @@ async def predmet_dokument_preview(
 async def predmet_workspace(
     predmet_id: str,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("predmet_workspace_ai")),
 ):
     """
     Jedinstveni Case Workspace — sve što je potrebno za predmet u jednom pozivu.
@@ -4557,6 +4561,8 @@ async def predmet_workspace(
         cockpit_raw = {}
     if isinstance(praksa_preview, Exception):
         praksa_preview = []
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "predmet_workspace_ai")
 
     # Step 6b: Risk history — compare today vs previous snapshot
     import json as _json_risk

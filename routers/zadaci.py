@@ -34,7 +34,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.zadaci")
 router = APIRouter(prefix="/api/zadaci", tags=["zadaci"])
@@ -445,7 +447,7 @@ async def zadaci_statistika(
 async def ai_analiziraj_predmet(
     predmet_id: str,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("zadaci_ai")),
 ):
     """
     AI analizira predmet i automatski kreira zadatke za nedostajuće stavke.
@@ -589,6 +591,8 @@ async def ai_analiziraj_predmet(
             ai_zadaci.append({"naziv": "Fakturisati nenaplaćene stavke", "opis": f"Nefakturisano: {nefakturisano_rsd:,.0f} RSD", "prioritet": "visoko"})
         if not docs:
             ai_zadaci.append({"naziv": "Uneti dokumenta u predmet", "opis": "Predmet nema priloženih dokumenata.", "prioritet": "normalan"})
+
+    await UsageService.consume(uid, user.get("email", ""), "zadaci_ai")
 
     if not ai_zadaci:
         return {"ok": True, "kreirano": 0, "poruka": "Predmet je uredan — nema kritičnih zadataka.", "zadaci": []}

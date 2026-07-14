@@ -26,6 +26,8 @@ from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.style_checker")
 router = APIRouter(prefix="/api/style", tags=["style_checker"])
@@ -85,7 +87,7 @@ class AnalizujRequest(BaseModel):
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/profil/gradi")
-async def gradi_stil_profil(body: GradiProfilRequest, user=Depends(get_current_user)):
+async def gradi_stil_profil(body: GradiProfilRequest, user=Depends(PermissionService.require("style_checker"))):
     """Gradi firminski stil profil iz uzoraka dokumenata (min 1, preporučeno 5+)."""
     try:
         import openai
@@ -124,6 +126,7 @@ async def gradi_stil_profil(body: GradiProfilRequest, user=Depends(get_current_u
         )
 
         profil = row.data[0] if row.data else {}
+        await UsageService.consume(user["user_id"], user.get("email", ""), "style_checker")
         return {
             "profil_id": profil.get("id"),
             "naziv": body.naziv,
@@ -159,7 +162,7 @@ async def get_stil_profil(user=Depends(get_current_user)):
 
 
 @router.post("/analiziraj")
-async def analiziraj_stil(body: AnalizujRequest, user=Depends(get_current_user)):
+async def analiziraj_stil(body: AnalizujRequest, user=Depends(PermissionService.require("style_checker"))):
     """Analizira dokument prema firmskom stilu. Vraca skor (0-100) i konkretne predloge."""
     supa = _get_supa()
     try:
@@ -216,6 +219,7 @@ async def analiziraj_stil(body: AnalizujRequest, user=Depends(get_current_user))
 
         ocena = "Odlicno" if skor >= 90 else ("Dobro" if skor >= 70 else ("Potrebne korekcije" if skor >= 50 else "Znacajne devijacije"))
 
+        await UsageService.consume(user["user_id"], user.get("email", ""), "style_checker")
         return {
             "analiza_id": analiza_id,
             "skor": skor,
@@ -324,7 +328,7 @@ Samo JSON. Srpski jezik. Budi konkretan, ne apstraktan."""
 
 
 @router.get("/evolucija")
-async def get_style_evolucija(user=Depends(get_current_user)):
+async def get_style_evolucija(user=Depends(PermissionService.require("style_checker"))):
     """Style Evolution: kako se stil firme menjao kroz vreme.
 
     Poredi sve istorijske profile i identifikuje trendove:
@@ -417,6 +421,7 @@ async def get_style_evolucija(user=Depends(get_current_user)):
 
         analiza = json.loads(resp.choices[0].message.content)
 
+        await UsageService.consume(user["user_id"], user.get("email", ""), "style_checker")
         return {
             "profila_ukupno": len(profili),
             "period": {

@@ -9,7 +9,7 @@ before import so no live connections are needed.
 import sys
 import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 import pytest
 
 # ─── Pre-import environment + module mocks ───────────────────────────────────
@@ -34,12 +34,50 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import api  # noqa: E402 — must come after mocks
 from fastapi.testclient import TestClient
 
-# Override require_credits so tests don't need a real JWT.
-# Routers import require_credits from shared.deps, so we override that object.
-from shared.deps import require_credits as _shared_require_credits
+# Override get_current_user so tests don't need a real JWT.
+# /api/dokument/upload now uses PermissionService.require("document_analysis"),
+# whose inner dependency closure resolves user via shared.deps.get_current_user —
+# overriding that (not the retired require_credits) satisfies the route. get_policy()
+# still runs its kill-switch check even for this user, so feature_registry must also
+# be seeded — see fixture below.
+#
+# NOTE: this user is NOT relied on to be treated as founder. shared.deps.FOUNDER_EMAILS
+# is read from os.environ ONCE at shared.deps import time — whichever test file in the
+# full suite happens to import it first wins, so a same-file "is founder" assumption is
+# order-dependent and unsafe. Instead PermissionService's tier/addon lookup
+# (shared.permissions._ensure_profile, imported by name into that module) is patched
+# directly, which works regardless of founder status or import order.
+from shared.deps import require_credits as _shared_require_credits, get_current_user as _shared_get_current_user
 _FAKE_USER = {"user_id": "test-user-id", "email": "test@test.com", "role": "pro"}
-api.app.dependency_overrides[_shared_require_credits] = lambda: _FAKE_USER
-api.app.dependency_overrides[api.require_credits]     = lambda: _FAKE_USER
+_FAKE_PROFILE = {
+    "credits_remaining": 100, "is_pro": True,
+    "subscription_type": "enterprise", "addons": [], "subscription_expires_at": None,
+}
+
+import time as _time
+import shared.feature_registry as _fr
+
+
+@pytest.fixture(autouse=True)
+def _restore_overrides():
+    """api.app.dependency_overrides is process-global — several other test files
+    (test_search.py, test_portfolio.py, etc.) pop get_current_user in their own
+    autouse teardown, which silently wipes any override set once at import time.
+    Re-asserting before every test (matching this codebase's established idiom)
+    keeps this file order-independent regardless of collection order."""
+    api.app.dependency_overrides[_shared_require_credits] = lambda: _FAKE_USER
+    api.app.dependency_overrides[api.require_credits]     = lambda: _FAKE_USER
+    api.app.dependency_overrides[_shared_get_current_user] = lambda: _FAKE_USER
+    _fr._CACHE["document_analysis"] = {
+        "feature_key": "document_analysis", "aktivno": True, "status": "ACTIVE",
+        "addon": None, "minimum_plan": None, "krediti": 1,
+        "dnevni_limit": None, "mesecni_limit": None, "cooldown_seconds": None,
+        "ai_model": "gpt-4o", "estimated_cost_usd": 0.01,
+    }
+    _fr._CACHE_LOADED_AT = _time.monotonic()
+    with patch("shared.permissions._ensure_profile", return_value=_FAKE_PROFILE):
+        yield
+    api.app.dependency_overrides.pop(_shared_get_current_user, None)
 
 client = TestClient(api.app, raise_server_exceptions=True)
 
@@ -63,7 +101,8 @@ def test_upload_docx_happy_path():
     from uploaded_doc.api_models import UploadResponse
 
     with patch("uploaded_doc.ingest.ingest_session", return_value=9), \
-         patch("uploaded_doc.cleanup.cleanup_expired", return_value={"namespaces_deleted": 0, "chunks_deleted": 0, "namespaces_inspected": 0}):
+         patch("uploaded_doc.cleanup.cleanup_expired", return_value={"namespaces_deleted": 0, "chunks_deleted": 0, "namespaces_inspected": 0}), \
+         patch("shared.usage.UsageService.consume", new_callable=AsyncMock, return_value=10):
         with open(UGOVOR_DOCX, "rb") as f:
             resp = client.post(
                 "/api/dokument/upload",
@@ -86,7 +125,8 @@ def test_upload_docx_happy_path():
 
 def test_upload_pdf_happy_path():
     with patch("uploaded_doc.ingest.ingest_session", return_value=9), \
-         patch("uploaded_doc.cleanup.cleanup_expired", return_value={"namespaces_deleted": 0, "chunks_deleted": 0, "namespaces_inspected": 0}):
+         patch("uploaded_doc.cleanup.cleanup_expired", return_value={"namespaces_deleted": 0, "chunks_deleted": 0, "namespaces_inspected": 0}), \
+         patch("shared.usage.UsageService.consume", new_callable=AsyncMock, return_value=10):
         with open(UGOVOR_PDF, "rb") as f:
             resp = client.post(
                 "/api/dokument/upload",

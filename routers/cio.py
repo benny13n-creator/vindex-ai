@@ -21,6 +21,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.cio")
 router = APIRouter(prefix="/api/cio", tags=["cio"])
@@ -305,7 +307,7 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/daily")
-async def cio_daily(user=Depends(get_current_user)):
+async def cio_daily(user=Depends(PermissionService.require("cio"))):
     """Vraca dnevni CIO izvestaj. Generise se jednom i kesira 6 sati."""
     uid  = user["user_id"]
     supa = _get_supa()
@@ -343,6 +345,11 @@ async def cio_daily(user=Depends(get_current_user)):
         logger.error("[CIO] daily greška: %s", e)
         raise HTTPException(500, f"CIO greška: {e}")
 
+    # _generiši_cio_izvestaj vraca rano (bez GPT poziva) kad portfolio nema Genome
+    # modela — predmeta_analizirano ostaje 0 u tom slucaju, ne naplacuj kredit tada.
+    if izvestaj.get("predmeta_analizirano"):
+        await UsageService.consume(uid, user.get("email", ""), "cio")
+
     # Snimi
     try:
         await asyncio.to_thread(
@@ -365,7 +372,7 @@ async def cio_daily(user=Depends(get_current_user)):
 
 
 @router.post("/run")
-async def cio_run(user=Depends(get_current_user)):
+async def cio_run(user=Depends(PermissionService.require("cio"))):
     """Forsira regenerisanje CIO izvestaja — ignoriše kes."""
     uid  = user["user_id"]
     supa = _get_supa()
@@ -376,6 +383,9 @@ async def cio_run(user=Depends(get_current_user)):
     except Exception as e:
         logger.error("[CIO] run greška: %s", e)
         raise HTTPException(500, f"CIO greška: {e}")
+
+    if izvestaj.get("predmeta_analizirano"):
+        await UsageService.consume(uid, user.get("email", ""), "cio")
 
     danes_iso = date.today().isoformat()
     try:

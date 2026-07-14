@@ -38,7 +38,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.knowledge_base")
 router = APIRouter(tags=["knowledge_base"])
@@ -147,7 +149,7 @@ class KnowledgeUpdateReq(BaseModel):
 async def knowledge_save(
     body: KnowledgeSaveReq,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("knowledge_base")),
 ):
     """Sačuvaj belešku u ličnu bazu znanja (+ auto-tagovanje + Pinecone embedding)."""
     uid  = user["user_id"]
@@ -184,6 +186,7 @@ async def knowledge_save(
         )
 
     logger.info("[KNOWLEDGE] Beleška sačuvana: user=%.8s id=%s tagovi=%s", uid, entry_id, tagovi)
+    await UsageService.consume(user["user_id"], user.get("email", ""), "knowledge_base")
     return {"ok": True, "id": entry_id, "naslov": body.naslov, "tagovi": tagovi}
 
 
@@ -193,7 +196,7 @@ async def knowledge_search(
     request: Request,
     q: str,
     limit: int = 10,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("knowledge_base")),
 ):
     """Semantička pretraga korisnikovih beleški u Pinecone kb_{user_id} namespace-u."""
     uid = user["user_id"]
@@ -228,8 +231,11 @@ async def knowledge_search(
                     "score":      round(m.score, 3),
                 })
 
+        await UsageService.consume(user["user_id"], user.get("email", ""), "knowledge_base")
         return {"results": items, "query": q, "total": len(items)}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("[KNOWLEDGE] Search greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri pretraživanju.")

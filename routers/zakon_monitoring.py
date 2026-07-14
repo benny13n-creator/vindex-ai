@@ -37,7 +37,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user, _is_founder
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.zakon_monitoring")
 router = APIRouter(prefix="/api/zakon-monitoring", tags=["zakon-monitoring"])
@@ -402,7 +404,7 @@ async def zakoni_moji_predmeti(
 async def impact_analiza(
     predmet_id: str,
     request:    Request,
-    user:       dict = Depends(get_current_user),
+    user:       dict = Depends(PermissionService.require("zakon_monitoring")),
 ):
     """
     Dubinska analiza uticaja promena zakona na konkretni predmet.
@@ -521,6 +523,8 @@ async def impact_analiza(
         import json as _json
         ai_result = _json.loads(resp.choices[0].message.content or "{}")
         rizik = ai_result.get("rizik", "nizak")
+
+        await UsageService.consume(uid, user.get("email", ""), "zakon_monitoring")
 
         # Alert ako visok rizik
         alertova = 0

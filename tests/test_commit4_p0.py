@@ -75,17 +75,21 @@ def test_t1_stream_generator_uses_ask_agent():
 
 # ─── T2: stream _event_generator has _get_credits ─────────────────────────────
 
-def test_t2_stream_generator_has_get_credits():
+def test_t2_stream_generator_refunds_on_no_deduct_branch():
     """
-    _event_generator must call _get_credits for the no-deduct branch
-    (when blocked=True or status=error).
+    _event_generator pre-deducts via UsageService.consume() before streaming starts
+    (so the credit is reserved even if the client disconnects mid-stream), then must
+    call UsageService.refund() for the no-deduct branch (cache-hit/blocked) rather
+    than charging the user for a response that wasn't a fresh AI answer.
     """
     start = _API_SRC.find("async def _event_generator():")
     end = _API_SRC.find("return StreamingResponse(", start)
     body = _API_SRC[start:end]
 
-    assert "_get_credits" in body, \
-        "T2 FAIL: _event_generator must call _get_credits for non-deduction path"
+    assert "UsageService.refund" in body, \
+        "T2 FAIL: _event_generator must call UsageService.refund for non-deduction path"
+    assert "from_cache" in body and "blocked" in body, \
+        "T2 FAIL: refund must be conditioned on from_cache/blocked, not unconditional"
 
 
 # ─── T3: /api/register has rate limit decorator ───────────────────────────────

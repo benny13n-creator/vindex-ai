@@ -20,8 +20,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
-from shared.deps import _get_supa, get_current_user
+from shared.deps import _get_supa
 from shared.rate import limiter
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.api")
 router = APIRouter()
@@ -135,7 +137,7 @@ def _cross_doc_sync(
 async def cross_doc_analiza(
     req: CrossDocReq,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("cross_doc")),
 ):
     """
     Višedokumentna pravna analiza.
@@ -148,6 +150,7 @@ async def cross_doc_analiza(
             req.pravno_pitanje,
             req.kontekst,
         )
+        await UsageService.consume(user["user_id"], user.get("email", ""), "cross_doc")
         return result
     except Exception:
         logger.exception("Greška u /api/analiza/cross-doc")
@@ -170,7 +173,7 @@ class CrossDocPredmetReq(BaseModel):
 async def cross_doc_predmet(
     req: CrossDocPredmetReq,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("cross_doc")),
 ):
     """
     Cross-doc v1: uzima IDs dokumenata predmeta, rekonstruiše tekst iz Pinecone
@@ -236,6 +239,7 @@ async def cross_doc_predmet(
             req.pravno_pitanje,
             None,
         )
+        await UsageService.consume(user["user_id"], user.get("email", ""), "cross_doc")
         return result
     except Exception:
         logger.exception("Greška u /api/analiza/cross-doc/predmet")

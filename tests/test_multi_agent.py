@@ -15,6 +15,16 @@ def anyio_backend():
     return "asyncio"
 
 
+@pytest.fixture(autouse=True)
+def _mock_usage_service():
+    """Testi zovu route funkcije direktno (bez FastAPI Depends), pa endpoint-ovo
+    await UsageService.consume(...) u telu funkcije izvršava se stvarno protiv
+    feature_registry, koja nije seed-ovana u test okruženju. Patch sprečava
+    RuntimeError iz get_policy() i drži testove fokusirane na multi-agent logiku."""
+    with patch("shared.usage.UsageService.consume", new_callable=AsyncMock, return_value=10):
+        yield
+
+
 def _user():
     return {"user_id": "dddd0000-0000-0000-0000-000000000004", "email": "test@vindex.rs"}
 

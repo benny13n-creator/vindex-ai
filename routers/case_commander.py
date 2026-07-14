@@ -21,8 +21,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from shared.deps import _get_supa, get_current_user
+from shared.deps import _get_supa
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.case_commander")
 router = APIRouter(tags=["case-commander"])
@@ -176,7 +178,7 @@ def _formatiraj_kontekst(ctx: dict, dodatni: str = "") -> str:
 async def commander_analiza(
     request: Request,
     payload: CommanderRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("case_commander")),
 ):
     """
     Kompletna AI analiza predmeta — Chief of Staff izvestaj.
@@ -223,6 +225,8 @@ async def commander_analiza(
     except Exception:
         pass
 
+    await UsageService.consume(uid, user.get("email", ""), "case_commander")
+
     return {
         "analiza":       analiza,
         "predmet_id":    payload.predmet_id,
@@ -237,7 +241,7 @@ async def commander_analiza(
 async def commander_quick_check(
     request: Request,
     payload: CommanderRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("case_commander")),
 ):
     """
     Brza provera predmeta — 3 najhitnija upozorenja za 15-20 sek.
@@ -279,6 +283,8 @@ async def commander_quick_check(
         if u.strip() and len(u.strip()) > 10
     ][:3]
 
+    await UsageService.consume(uid, user.get("email", ""), "case_commander")
+
     return {
         "upozorenja":    upozorenja,
         "predmet_id":    payload.predmet_id,
@@ -291,7 +297,7 @@ async def commander_quick_check(
 async def commander_checklist(
     request: Request,
     payload: ChecklistRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("case_commander")),
 ):
     """
     Generise proceduranu checklist za predmet.
@@ -345,6 +351,8 @@ async def commander_checklist(
                 "text":      l[5:].strip(),
                 "completed": "[x]" in l.lower(),
             })
+
+    await UsageService.consume(uid, user.get("email", ""), "case_commander")
 
     return {
         "checklist_tekst": checklist_tekst,
@@ -522,7 +530,7 @@ Pravila: Budi konkretan. Ako nema stvarnih nalaza, vrati praznu listu. Ekavica o
 
 @router.get("/api/commander/jutarnji")
 async def commander_jutarnji(
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("case_commander")),
 ):
     """
     AI Command Center jutarnji brifing — srce platforme.
@@ -570,6 +578,10 @@ async def commander_jutarnji(
     n       = len(podaci["predmeti"])
     analiza = await _cross_case_analiza(podaci, ime)
 
+    # _cross_case_analiza vraca rano (bez GPT poziva) kada n == 0 — ne naplacuj kredit tada.
+    if n > 0:
+        await UsageService.consume(uid, user.get("email", ""), "case_commander")
+
     if n == 0:
         poruka = "Još uvek nemaš aktivnih predmeta. Dodaj prvi predmet da bi AI Command Center počeo da radi."
     elif n == 1:
@@ -600,9 +612,9 @@ async def commander_jutarnji(
 
 @router.post("/api/commander/jutarnji/refresh")
 async def commander_jutarnji_refresh(
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("case_commander")),
 ):
-    """Briše keš za danas i generiše novi brifing."""
+    """Briše keš za danas i generiše novi brifing (redirect na GET, koji naplacuje kredit)."""
     from datetime import date
     from fastapi.responses import RedirectResponse
 

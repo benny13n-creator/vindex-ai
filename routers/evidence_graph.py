@@ -21,14 +21,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from shared.deps import (
-    _get_supa,
-    _get_credits,
-    _deduct_n_credits,
-    _is_founder,
-    get_current_user,
-)
+from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.evidence_graph")
 router = APIRouter(prefix="/api/evidence-graph", tags=["evidence_graph"])
@@ -169,7 +165,7 @@ class DodajCvorRequest(BaseModel):
 async def generisi_graf(
     req: GenerisiRequest,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("evidence_graph")),
 ):
     """
     AI ekstrakcija Evidence Grafa za predmet (2 kredita).
@@ -191,19 +187,6 @@ async def generisi_graf(
     if not pr.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronadjen.")
     predmet = pr.data[0]
-
-    # ── Provera kredita (pre AI poziva, osim za foundere) ─────────────────────
-    if not _is_founder(email):
-        krediti = await asyncio.to_thread(_get_credits, uid)
-        if krediti < 2:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    "code": "NO_CREDITS",
-                    "message": f"Generisanje grafa zahteva 2 kredita. Trenutno imate {krediti}. Dopunite kredit paket.",
-                    "credits_remaining": krediti,
-                },
-            )
 
     # ── Paralelno dohvatanje podataka ─────────────────────────────────────────
     dok_r, kom_r, rok_r = await asyncio.gather(
@@ -254,8 +237,8 @@ async def generisi_graf(
         logger.error("[EG] Greska pri cuvanju grafa: %s", e)
         # Nastavljamo — vracamo graf cak i ako cuvanje nije uspelo
 
-    # ── Oduzimanje 2 kredita ──────────────────────────────────────────────────
-    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 2)
+    # ── Trošenje kredita (iznos čita registar za "evidence_graph") ────────────
+    preostalo = await UsageService.consume(uid, email, "evidence_graph")
 
     return {
         "nodes":            graf.get("nodes", []),

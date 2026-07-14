@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
 from fastapi import Security
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 def get_supa(): return _get_supa()
 require_user = get_current_user
@@ -207,7 +209,7 @@ async def delete_dokaz(predmet_id: str, dokaz_id: str, user=Depends(require_user
 
 
 @router.post("/predmeti/{predmet_id}/reklasifikuj/{dok_id}")
-async def reklasifikuj(predmet_id: str, dok_id: str, user=Depends(require_user)):
+async def reklasifikuj(predmet_id: str, dok_id: str, user=Depends(PermissionService.require("evidence"))):
     """Pokreće reklasifikaciju dokumenta (ako je auto-klasifikacija bila loša)."""
     import asyncio
     supa = get_supa()
@@ -230,4 +232,5 @@ async def reklasifikuj(predmet_id: str, dok_id: str, user=Depends(require_user))
     asyncio.create_task(
         asyncio.to_thread(klasifikuj_i_sacuvaj, predmet_id, dok_id, d.get("naziv_fajla", ""), "", uid)
     )
+    await UsageService.consume(user["user_id"], user.get("email", ""), "evidence")
     return {"ok": True, "poruka": "Reklasifikacija pokrenuta u pozadini."}

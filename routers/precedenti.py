@@ -9,6 +9,8 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 def get_supa(): return _get_supa()
 require_user = get_current_user
@@ -32,7 +34,7 @@ Maksimum 500 reči. Srpski jezik."""
 
 
 @router.get("/predmeti/{predmet_id}")
-async def get_precedenti(predmet_id: str, user=Depends(require_user)):
+async def get_precedenti(predmet_id: str, user=Depends(PermissionService.require("precedenti"))):
     """
     Law Firm Brain: pronalazi slične predmete iz kancelarije i vraća naučene lekcije.
     """
@@ -136,6 +138,8 @@ async def get_precedenti(predmet_id: str, user=Depends(require_user)):
     except Exception as exc:
         logger.warning("[BRAIN] GPT greška: %s", exc)
         analiza = f"Pronađeno {len(slicni)} sličnih predmeta. AI analiza trenutno nedostupna."
+    else:
+        await UsageService.consume(user["user_id"], user.get("email", ""), "precedenti")
 
     return {
         "analiza":          analiza,

@@ -11,7 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.rate import limiter
 from pydantic import BaseModel
 from typing import Optional
-from shared.deps import _get_supa, get_current_user, _deduct_credit, _is_founder
+from shared.deps import _get_supa
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.multi_agent")
 router = APIRouter(prefix="/api/agents", tags=["agents"])
@@ -336,7 +338,7 @@ async def lista_agenata():
 
 @router.post("/run")
 @limiter.limit("15/minute")
-async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_user)):
+async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionService.require("multi_agent"))):
     """Pokreće izabrani agent ili automatski bira najprikladniji."""
     supa = _get_supa()
     uid  = user["user_id"]
@@ -367,18 +369,6 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
         raise HTTPException(status_code=400, detail=f"Nepoznat agent: {agent_id}")
 
     agent_cfg = _AGENTS[agent_id]
-
-    # ── Credit check before OpenAI (fail fast) ───────────────────────────────
-    _email_early = user.get("email", "")
-    if not _is_founder(_email_early):
-        try:
-            cr = supa.table("user_credits").select("credits_remaining").eq("user_id", uid).execute()
-            if cr.data and (cr.data[0].get("credits_remaining") or 0) <= 0:
-                raise HTTPException(status_code=402, detail="Nema dovoljno kredita. Dopunite nalog.")
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.warning("[AGENT] credit-check greška: %s", exc)
 
     # ── Dohvati kontekst predmeta ────────────────────────────────────────────
     predmet_ctx = ""
@@ -600,11 +590,9 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(get_current_us
         logger.error("[AGENT] GPT greška: %s", exc)
         raise HTTPException(status_code=503, detail="AI servis trenutno nedostupan.")
 
-    # ── Credit deduction (founder bypass) ────────────────────────────────────
-    import asyncio as _aio2
+    # ── Credit deduction ──────────────────────────────────────────────────────
     email = user.get("email", "")
-    if not _is_founder(email):
-        await _aio2.to_thread(_deduct_credit, uid, email)
+    await UsageService.consume(uid, email, "multi_agent")
 
     logger.info("[AGENT] user=%s agent=%s predmet=%s rag=%s", uid[:8], agent_id, req.predmet_id or "-", bool(rag_ctx))
 
@@ -638,7 +626,7 @@ class ParalelnaReq(BaseModel):
 
 @router.post("/run-parallel")
 @limiter.limit("5/minute")
-async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(get_current_user)):
+async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(PermissionService.require("multi_agent"))):
     """Pokreće 3 agenta istovremeno i vraća konsolidovani izveštaj."""
     import asyncio as _aio
     from openai import AsyncOpenAI
@@ -653,21 +641,7 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(get_cur
     if not agenti_ids:
         agenti_ids = ["research", "litigation", "intake"]
 
-    # Kredit provera — potrebno N kredita (jedan po agentu)
     n_needed = len(agenti_ids)
-    if not _is_founder(email):
-        try:
-            cr = supa.table("user_credits").select("credits_remaining").eq("user_id", uid).execute()
-            curr = (cr.data[0].get("credits_remaining") or 0) if cr.data else 0
-            if curr < n_needed:
-                raise HTTPException(
-                    status_code=402,
-                    detail=f"Paralelna analiza zahteva {n_needed} kredita. Trenutno imate {curr}.",
-                )
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.warning("[PARA] credit-check greška: %s", exc)
 
     # Dohvati kontekst predmeta
     predmet_ctx = ""
@@ -738,10 +712,8 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(get_cur
     # Pokreni sve agente istovremeno
     rezultati = await _aio.gather(*[_pozovi_agenta(a) for a in agenti_ids])
 
-    # Oduzmi kredite
-    if not _is_founder(email):
-        for _ in range(n_needed):
-            await _aio.to_thread(_deduct_credit, uid, email)
+    # Oduzmi kredite — N kredita, jedan po agentu
+    await UsageService.consume(uid, email, "multi_agent", multiplier=n_needed)
 
     logger.info("[PARA] uid=%s agenti=%s predmet=%s", uid[:8], agenti_ids, req.predmet_id or "-")
 
@@ -763,7 +735,7 @@ class PipelineReq(BaseModel):
 
 @router.post("/pipeline")
 @limiter.limit("3/minute")
-async def run_pipeline(req: PipelineReq, request: Request, user=Depends(get_current_user)):
+async def run_pipeline(req: PipelineReq, request: Request, user=Depends(PermissionService.require("multi_agent"))):
     """Sekvencijalni pipeline: output svakog agenta postaje input sledećeg."""
     import asyncio as _aio
     from fastapi import Request as _Req
@@ -777,20 +749,9 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(get_curr
     uid   = user["user_id"]
     email = user.get("email", "")
 
-    # Kredit provera
-    if not _is_founder(email):
-        try:
-            cr = supa.table("user_credits").select("credits_remaining").eq("user_id", uid).execute()
-            curr = (cr.data[0].get("credits_remaining") or 0) if cr.data else 0
-            if curr < len(pipeline):
-                raise HTTPException(
-                    status_code=402,
-                    detail=f"Pipeline zahteva {len(pipeline)} kredita. Trenutno imate {curr}.",
-                )
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.warning("[PIPELINE] credit-check greška: %s", exc)
+    # Kredit provera: svaki korak poziva run_agent() interno, koji sam
+    # naplaćuje preko UsageService.consume() — nema posebne naplate ovde
+    # (izbegava duplu naplatu po koraku).
 
     results = []
     accumulated_ctx = req.opis

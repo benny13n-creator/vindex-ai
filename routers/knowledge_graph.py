@@ -9,7 +9,9 @@ import asyncio
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.knowledge_graph")
 router = APIRouter(prefix="/api/knowledge-graph", tags=["knowledge_graph"])
@@ -17,7 +19,7 @@ router = APIRouter(prefix="/api/knowledge-graph", tags=["knowledge_graph"])
 
 @router.get("/predmeti/{predmet_id}")
 @limiter.limit("20/minute")
-async def get_knowledge_graph(predmet_id: str, request: Request, user=Depends(get_current_user)):
+async def get_knowledge_graph(predmet_id: str, request: Request, user=Depends(PermissionService.require("knowledge_graph"))):
     """Vraća nodes i edges za Knowledge Graph predmeta."""
     supa = _get_supa()
     uid = user["user_id"]
@@ -200,4 +202,5 @@ async def get_knowledge_graph(predmet_id: str, request: Request, user=Depends(ge
         edges.append({"from": f"predmet_{predmet_id}", "to": zid,
                       "label": "pravni osnov", "strength": "strong"})
 
+    await UsageService.consume(user["user_id"], user.get("email", ""), "knowledge_graph")
     return {"nodes": nodes, "edges": edges, "predmet_naziv": predmet.get("naziv", "")}

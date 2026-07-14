@@ -22,7 +22,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.region")
 router = APIRouter(tags=["region"])
@@ -245,7 +247,7 @@ async def get_region_podrska(user: dict = Depends(get_current_user)):
 async def region_ai_savet(
     request: Request,
     payload: RegionSavetRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("region_ai")),
 ):
     """AI pravni savet prilagođen pravu određene zemlje u regionu. 1 kredit."""
     zemlja = payload.zemlja.upper()
@@ -283,6 +285,8 @@ async def region_ai_savet(
     )
 
     odgovor = resp.choices[0].message.content.strip()
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "region_ai")
 
     return {
         "odgovor":      odgovor,

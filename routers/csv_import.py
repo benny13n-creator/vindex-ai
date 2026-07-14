@@ -24,7 +24,8 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from shared.deps import get_current_user, require_pro
+from shared.deps import get_current_user
+from shared.permissions import PermissionService
 
 router = APIRouter()
 logger = logging.getLogger("vindex.csv_import")
@@ -182,7 +183,7 @@ _KATEGORIJA_LABELE = {
 @router.post("/csv-import/analiziraj")  # F13.1
 async def post_csv_analiziraj(
     file: UploadFile = File(...),
-    user: dict = Depends(require_pro),
+    user: dict = Depends(PermissionService.require("da_regulatory_review")),
 ):
     """
     F13.1 — Upload CSV exporta (Binance ili Kraken), vraća klasifikovan pregled

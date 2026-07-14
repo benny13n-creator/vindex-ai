@@ -15,9 +15,10 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel, Field, field_validator
 
-from shared.deps import _deduct_credit, _get_supa, get_current_user, require_credits
+from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
-from routers.plans import enforce_and_increment
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.api")
 router = APIRouter()
@@ -146,7 +147,7 @@ def _fetch_session_tekst(session_id: str, namespace_prefix: str = "tmp_") -> str
 async def dokument_upload(
     request: Request,
     file: UploadFile = File(...),
-    user: dict = Depends(require_credits),
+    user: dict = Depends(PermissionService.require("document_analysis")),
 ):
     """Upload a legal document (PDF or DOCX), chunk it, and ingest into a
     temporary Pinecone namespace. Returns session_id for Phase 2.3 retrieval."""
@@ -236,8 +237,7 @@ async def dokument_upload(
 
         asyncio.create_task(_background_cleanup())
 
-        if not user.get("credit_pre_deducted"):
-            await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        await UsageService.consume(user["user_id"], user.get("email", ""), "document_analysis")
 
         base_resp = UploadResponse(
             session_id=session_id,
@@ -290,7 +290,7 @@ async def dokument_cleanup(
 
 
 @router.post("/api/dokument/pitanje")
-async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require_credits)):
+async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(PermissionService.require("document_analysis"))):
     """Ask a question about an uploaded document session."""
     from main import ask_agent
     from uploaded_doc.session import validate_session
@@ -310,16 +310,13 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require
     if not session_valid:
         raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
 
-    await enforce_and_increment(user["user_id"], "doc_analyses")
-
     rezultat = await asyncio.to_thread(
         ask_agent,
         body.pitanje,
         body.history,
         [f"{ns_prefix}{body.session_id}"],
     )
-    if not user.get("credit_pre_deducted"):
-        await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+    await UsageService.consume(user["user_id"], user.get("email", ""), "document_analysis")
     return rezultat
 
 
@@ -328,7 +325,7 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(require
 async def dokument_analiza(
     body: DokumentAnalizaReq,
     request: Request,
-    user: dict = Depends(require_credits),
+    user: dict = Depends(PermissionService.require("document_analysis")),
 ):
     """
     Forenzički Legal Audit — 10-slojni sistem.
@@ -353,8 +350,6 @@ async def dokument_analiza(
     if not tekst or len(tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Dokument je prazan ili previše kratak za analizu")
 
-    await enforce_and_increment(user["user_id"], "doc_analyses")
-
     try:
         segmented = await asyncio.to_thread(segment_document, tekst)
         logger.info("[ANALIZA] segment_document: type=%s segments=%d chars=%d",
@@ -371,10 +366,7 @@ async def dokument_analiza(
     if rezultat.get("status") != "success":
         raise HTTPException(status_code=502, detail="AI analiza trenutno nedostupna. Pokušajte ponovo.")
 
-    if not user.get("credit_pre_deducted"):
-        preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
-    else:
-        preostalo = user.get("credits_remaining", 0)
+    preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "document_analysis")
 
     return {
         "status":           "success",
@@ -411,7 +403,7 @@ async def klasifikuj_sesiju(
 
 @router.post("/api/dokument/rokovi")
 @limiter.limit("20/minute")
-async def dokument_rokovi(body: RokoviRequest, request: Request, user: dict = Depends(require_credits)):
+async def dokument_rokovi(body: RokoviRequest, request: Request, user: dict = Depends(PermissionService.require("document_analysis"))):
     """Phase 4.1 — Ekstrakcija rokova + kalkulacija datuma. Ne troši kredit."""
     from uploaded_doc.deadline_parser import ekstrahuj_rokove, _extract_datum_dokumenta
 

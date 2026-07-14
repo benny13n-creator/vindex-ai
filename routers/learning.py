@@ -23,7 +23,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.learning")
 router = APIRouter(prefix="/api/learning", tags=["learning"])
@@ -377,7 +379,7 @@ async def recommendation_feedback(
 async def slicni_predmeti(
     predmet_id: str,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("learning")),
 ):
     """
     Collective Intelligence — nađi slične zatvorene predmete iz firmine istorije.
@@ -443,6 +445,7 @@ async def slicni_predmeti(
     )
 
     rangirani = []
+    _ai_koriscen = False
     try:
         from openai import OpenAI
         oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
@@ -470,6 +473,8 @@ async def slicni_predmeti(
             for p in sa_ishodom[:5]
             if p.get("tip") == predmet.get("tip")
         ]
+    else:
+        _ai_koriscen = True
 
     # Enrich sa outcome podacima
     predmet_by_prefix = {p["id"][:8]: p for p in sa_ishodom}
@@ -508,6 +513,9 @@ async def slicni_predmeti(
             + (f", {top_names[0]} je bio presudni faktor u pobedama." if top_names else ".")
         )
 
+    if _ai_koriscen:
+        await UsageService.consume(user["user_id"], user.get("email", ""), "learning")
+
     return {
         "slicni_predmeti":     result,
         "ukupno_slicnih":      len(result),
@@ -521,7 +529,7 @@ async def slicni_predmeti(
 @limiter.limit("5/minute")
 async def performance_report(
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("learning")),
 ):
     """
     Firmina statistika učenja — win rate po tipu spora, top faktori uspeha,
@@ -651,6 +659,8 @@ async def performance_report(
         except Exception as e:
             logger.warning("[LEARNING] GPT performance report greška: %s", e)
             ai_uvid = f"Na osnovu {ukupno} zatvorenih predmeta, globalni win rate je {win_rate_total}%."
+        else:
+            await UsageService.consume(user["user_id"], user.get("email", ""), "learning")
 
     return {
         "ukupno_predmeta_sa_ishodom": len(outcomes),
@@ -668,7 +678,7 @@ async def performance_report(
 async def generisi_lekcije(
     predmet_id: str,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("learning")),
 ):
     """
     Generiše i čuva Lessons Learned posle zatvorenog predmeta.
@@ -709,6 +719,8 @@ async def generisi_lekcije(
     )
 
     sacuvano = await learning.save_lessons(uid, predmet_id, lekcije, tip_spora)
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "learning")
 
     return {
         "ok":         True,
@@ -833,7 +845,7 @@ async def get_sve_lekcije(
 async def counterfactual_analiza(
     req: CounterfactualRequest,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("learning")),
 ):
     """
     Što-ako analiza: 'Da smo prihvatili nagodbu od 50.000 RSD, šta bi se desilo?'
@@ -853,6 +865,8 @@ async def counterfactual_analiza(
         odgovor=req.odgovor,
         komentar=req.komentar,
     )
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "learning")
 
     return {
         "ok":           True,
@@ -941,7 +955,7 @@ async def get_firm_dna(
 @limiter.limit("2/minute")
 async def refresh_firm_dna(
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("learning")),
 ):
     """
     Ponovo ekstrahuje Firm DNA iz celokupne istorije kancelarije.
@@ -958,6 +972,8 @@ async def refresh_firm_dna(
             "poruka":  "Potrebno je najmanje 3 zatvorena predmeta sa poznatim ishodima za Firm DNA ekstrakciju.",
             "obrasci": [],
         }
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "learning")
 
     return {
         "ok":              True,

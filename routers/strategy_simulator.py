@@ -41,13 +41,11 @@ from pydantic import BaseModel, Field
 
 from shared.deps import (
     _audit,
-    _deduct_credit,
-    _deduct_n_credits,
-    _get_credits,
     _get_supa,
-    _is_founder,
     get_current_user,
 )
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 from shared.rate import limiter
 
 logger = logging.getLogger("vindex.strategy_simulator")
@@ -199,7 +197,7 @@ def _dohvati_partiju(supa, partija_id: str, user_id: str) -> dict:
 async def nova_partija(
     req: NovaPartijaRequest,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("strategy_simulator")),
 ) -> dict[str, Any]:
     """
     Kreira novu simulaciju za predmet.
@@ -209,19 +207,6 @@ async def nova_partija(
     uid = user["user_id"]
     email = user.get("email", "")
     supa = _get_supa()
-
-    # Provera kredita (2 potrebna)
-    if not _is_founder(email):
-        krediti = await asyncio.to_thread(_get_credits, uid)
-        if krediti < 2:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    "code": "NO_CREDITS",
-                    "message": f"Nova partija zahteva 2 kredita. Trenutno imate {krediti}.",
-                    "credits_remaining": krediti,
-                },
-            )
 
     # Dohvati predmet
     predmet = await asyncio.to_thread(_dohvati_predmet, supa, req.predmet_id, uid)
@@ -319,7 +304,7 @@ async def nova_partija(
         raise HTTPException(status_code=500, detail="Greška pri snimanju partije.")
 
     # Oduzmi 2 kredita
-    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 2)
+    preostalo = await UsageService.consume(uid, email, "strategy_simulator", multiplier=2)
 
     return {
         "partija_id": partija_id,
@@ -339,7 +324,7 @@ async def nova_partija(
 async def sledeci_potez(
     req: SledeciPotezRequest,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("strategy_simulator")),
 ) -> dict[str, Any]:
     """
     Novi potez u postojecoj partiji.
@@ -349,19 +334,6 @@ async def sledeci_potez(
     uid = user["user_id"]
     email = user.get("email", "")
     supa = _get_supa()
-
-    # Provera kredita
-    if not _is_founder(email):
-        krediti = await asyncio.to_thread(_get_credits, uid)
-        if krediti < 1:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    "code": "NO_CREDITS",
-                    "message": "Nema dovoljno kredita za sledeci potez.",
-                    "credits_remaining": 0,
-                },
-            )
 
     # Dohvati partiju i istoriju
     partija = await asyncio.to_thread(_dohvati_partiju, supa, req.partija_id, uid)
@@ -424,7 +396,7 @@ async def sledeci_potez(
         raise HTTPException(status_code=500, detail="Greška pri snimanju poteza.")
 
     # Oduzmi 1 kredit
-    preostalo = await asyncio.to_thread(_deduct_credit, uid, email)
+    preostalo = await UsageService.consume(uid, email, "strategy_simulator")
 
     # Izvuci relevantna polja za odgovor
     protivnikovi = analiza.get("protivnikovi_odgovori", [])

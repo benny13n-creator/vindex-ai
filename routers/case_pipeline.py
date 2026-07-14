@@ -14,7 +14,9 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.case_pipeline")
 router = APIRouter(tags=["case_pipeline"])
@@ -25,7 +27,7 @@ router = APIRouter(tags=["case_pipeline"])
 async def run_pipeline(
     predmet_id: str,
     request:    Request,
-    user:       dict = Depends(get_current_user),
+    user:       dict = Depends(PermissionService.require("case_pipeline")),
 ):
     """
     Triggers the 9-step post-wizard automation pipeline for a predmet.
@@ -50,6 +52,7 @@ async def run_pipeline(
     try:
         from services.case_pipeline import run_case_pipeline
         result = await run_case_pipeline(predmet_id, uid)
+        await UsageService.consume(uid, user.get("email", ""), "case_pipeline")
         return result.to_dict()
     except ValueError as ve:
         raise HTTPException(status_code=404, detail=str(ve))

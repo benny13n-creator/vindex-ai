@@ -21,7 +21,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user as require_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.voice")
 router = APIRouter(prefix="/api/voice", tags=["voice"])
@@ -371,7 +373,7 @@ async def voice_transcribe(
     request: Request,
     audio: UploadFile = File(...),
     language: str = "sr",
-    user=Depends(require_user),
+    user=Depends(PermissionService.require("voice")),
 ):
     """
     Prima audio blob (webm/mp4/wav/ogg) od MediaRecorder-a i vraća transkript
@@ -416,6 +418,7 @@ async def voice_transcribe(
         )
         transkript = (response.text or "").strip()
         logger.info("[VOICE/STT] uid=%.8s %d chars", user["user_id"], len(transkript))
+        await UsageService.consume(user["user_id"], user.get("email", ""), "voice")
         return {"transkript": transkript, "language": lang, "chars": len(transkript)}
 
     except Exception as exc:
@@ -431,7 +434,7 @@ class VoiceTtsReq(BaseModel):
 
 @router.post("/tts")
 @limiter.limit("40/minute")
-async def voice_tts(req: VoiceTtsReq, request: Request, user=Depends(require_user)):
+async def voice_tts(req: VoiceTtsReq, request: Request, user=Depends(PermissionService.require("voice"))):
     """Generiše MP3 audio iz teksta pomoću OpenAI TTS (višejezičan — srpski radi ispravno)."""
     from fastapi.responses import Response as _Resp
     from openai import OpenAI
@@ -451,6 +454,7 @@ async def voice_tts(req: VoiceTtsReq, request: Request, user=Depends(require_use
                 response_format="mp3",
             )
         )
+        await UsageService.consume(user["user_id"], user.get("email", ""), "voice")
         return _Resp(content=resp.content, media_type="audio/mpeg",
                      headers={"Cache-Control": "no-store"})
     except Exception as exc:
@@ -470,7 +474,7 @@ class VoiceCommandReq(BaseModel):
 async def voice_command(
     req: VoiceCommandReq,
     request: Request,
-    user=Depends(require_user),
+    user=Depends(PermissionService.require("voice")),
 ):
     """
     Glasovna komanda ili upit.
@@ -484,12 +488,14 @@ async def voice_command(
 
     logger.info("[VOICE] uid=%.8s text='%s'", uid, text[:120])
 
-    # Stop reč → odmah zatvori bez API poziva
+    # Stop reč → odmah zatvori bez API poziva (bez trošenja kredita)
     if _is_stop(text):
         return {
             "type": "command", "actions": [{"action": "stop_voice", "params": {}, "wait_ms": 0}],
             "odgovor": "Doviđenja.", "action": "stop_voice", "params": {}, "followup": None,
         }
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "voice")
 
     # Pitanje sa upitnim rečima → Query mod
     if _is_query(text):

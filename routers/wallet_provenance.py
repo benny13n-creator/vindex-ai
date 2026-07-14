@@ -34,7 +34,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from routers.ofac_screening import _load as _ofac_load
-from shared.deps import _audit, require_pro
+from shared.deps import _audit
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 from shared.rate import limiter
 
 router = APIRouter()
@@ -309,8 +311,11 @@ async def sakupi_wallet_provenance(adresa: str) -> dict:
 @router.post("/web3/wallet-provenance")  # F15.1
 @limiter.limit("10/minute")
 async def post_wallet_provenance(
-    req: WalletProvenanceRequest, request: Request, user: dict = Depends(require_pro)
+    req: WalletProvenanceRequest, request: Request,
+    user: dict = Depends(PermissionService.require("da_wallet_risk_assessment")),
 ):
     """F15.1 — Wallet Provenance v1: starost/aktivnost novčanika + OFAC provera direktnih kontakata (PRO)."""
     asyncio.create_task(_audit(user["user_id"], "wallet_provenance", ""))
-    return await sakupi_wallet_provenance(req.adresa)
+    rezultat = await sakupi_wallet_provenance(req.adresa)
+    await UsageService.consume(user["user_id"], user.get("email", ""), "da_wallet_risk_assessment")
+    return rezultat

@@ -15,11 +15,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
-from shared.deps import (
-    _audit, _deduct_credit, _get_credits, _get_supa, _q_hash,
-    get_current_user, require_credits, require_pro,
-)
+from shared.deps import _audit, _get_supa, _q_hash, get_current_user
 from shared.rate import limiter
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 from main import ask_analiza, _skini_pii
 from drafting.router import generate_draft as _drafting_generate
@@ -167,7 +166,7 @@ async def get_courts():
 async def playbook_upload(
     request: Request,
     file: UploadFile = File(...),
-    user: dict = Depends(require_pro),
+    user: dict = Depends(PermissionService.require("drafting")),
 ):
     """P4.4 — Upload firm playbook (TXT or DOCX). Ne troši kredit."""
     from pathlib import Path as _Path
@@ -209,7 +208,7 @@ async def playbook_upload(
 
 @router.delete("/api/playbook")
 @limiter.limit("10/minute")
-async def playbook_delete(request: Request, user: dict = Depends(require_pro)):
+async def playbook_delete(request: Request, user: dict = Depends(PermissionService.require("drafting"))):
     """P4.4 — Briše ceo playbook korisnika iz Pinecone."""
     from drafting.playbook import delete_playbook
     deleted = await asyncio.to_thread(delete_playbook, user["user_id"])
@@ -218,7 +217,7 @@ async def playbook_delete(request: Request, user: dict = Depends(require_pro)):
 
 @router.get("/api/playbook/status")
 @limiter.limit("30/minute")
-async def playbook_status(request: Request, user: dict = Depends(require_pro)):
+async def playbook_status(request: Request, user: dict = Depends(PermissionService.require("drafting"))):
     """P4.4 — Vraća status playbook-a: da li postoji i koliko chunks ima."""
     def _check():
         try:
@@ -236,7 +235,7 @@ async def playbook_status(request: Request, user: dict = Depends(require_pro)):
 
 @router.post("/api/nacrt")
 @limiter.limit("10/minute")
-async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_pro)):
+async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(PermissionService.require("drafting"))):
     """Generisanje nacrta pravnog dokumenta (strukturirani šablon)."""
     logger.info("Nacrt [uid=%.8s] vrsta=%s", user["user_id"], req.vrsta)
     asyncio.create_task(_audit(user["user_id"], f"nacrt:{req.vrsta}", ""))
@@ -252,10 +251,7 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_pr
             response_text=rezultat.get("data", ""),
             latency_ms=latency_ms,
         )
-        if not user.get("credit_pre_deducted"):
-            preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
-        else:
-            preostalo = user.get("credits_remaining", 0)
+        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
         logger.exception("Greška u /api/nacrt")
@@ -267,7 +263,7 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(require_pr
 
 @router.post("/api/analiza")
 @limiter.limit("10/minute")
-async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(require_credits)):
+async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(PermissionService.require("drafting"))):
     """Analiza pravnog dokumenta."""
     qh = _q_hash(req.pitanje)
     logger.info("Analiza [uid=%.8s] [q=%s]", user["user_id"], qh)
@@ -284,13 +280,10 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(requir
             latency_ms=latency_ms,
         )
         is_blocked = (rezultat.get("data") or "").startswith("[!] ANALIZA BLOKIRANA")
-        should_deduct = (not user.get("credit_pre_deducted") and rezultat.get("status") == "success" and not is_blocked)
-        if should_deduct:
-            preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
-        elif user.get("credit_pre_deducted"):
-            preostalo = user.get("credits_remaining", 0)
+        if rezultat.get("status") == "success" and not is_blocked:
+            preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
         else:
-            preostalo = await asyncio.to_thread(_get_credits, user["user_id"])
+            preostalo = await UsageService.balance(user["user_id"], user.get("email", ""))
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception:
         logger.exception("Neočekivana greška u /api/analiza")
@@ -318,7 +311,7 @@ _FORMAT_INSTRUKCIJA = {
 
 @router.post("/api/sazmi")
 @limiter.limit("10/minute")
-async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(require_credits)):
+async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(PermissionService.require("drafting"))):
     """Generiše verziju odgovora na 'ljudskom' jeziku za klijenta (email/viber/pisano)."""
     from openai import OpenAI as _OAI
     try:
@@ -346,8 +339,7 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(require_cr
             ],
         )
         tekst = resp.choices[0].message.content.strip()
-        if not user.get("credit_pre_deducted"):
-            await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+        await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
         return {"status": "ok", "sazetak": tekst, "format": req.format}
     except Exception:
         logger.exception("Greška u /api/sazmi")
@@ -379,7 +371,7 @@ async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
 
 @router.post("/api/podnesak")
 @limiter.limit("5/minute")
-async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(require_pro)):
+async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(PermissionService.require("drafting"))):
     """
     Generiše nacrt sudskog podneska u dva koraka:
     1. Ekstrakcija entiteta iz slobodnog opisa (GPT-4o-mini, brzo)
@@ -498,7 +490,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
 
     nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
 
-    await asyncio.to_thread(_deduct_credit, user["user_id"], user.get("email", ""))
+    await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
 
     return {
         "status":  "success",
@@ -510,7 +502,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(requ
 
 @router.post("/api/nacrti/checklist")
 @limiter.limit("20/minute")
-async def nacrti_checklist(req: NacrtChecklistReq, request: Request, user: dict = Depends(require_pro)):
+async def nacrti_checklist(req: NacrtChecklistReq, request: Request, user: dict = Depends(PermissionService.require("drafting"))):
     """
     Faza 1 — Checklist analiza.
 
@@ -531,6 +523,7 @@ async def nacrti_checklist(req: NacrtChecklistReq, request: Request, user: dict 
         logger.error("NacrtChecklist GPT error [q=%s]: %s", log_id, e)
         raise HTTPException(status_code=502, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
 
+    await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
     return rezultat
 
 

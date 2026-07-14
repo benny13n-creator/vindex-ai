@@ -18,6 +18,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 from services.confidence_auditor import (
     calculate_calibration,
     get_explainable_recommendation,
@@ -33,7 +35,7 @@ class BilaTacnaRequest(BaseModel):
 
 
 @router.get("/kalibracija")
-async def get_kalibracija(user=Depends(get_current_user)):
+async def get_kalibracija(user=Depends(PermissionService.require("confidence_audit"))):
     """Kalibracija AI pouzdanosti po confidence bandu.
 
     Odgovara na: 'Kada sam rekao VISOKO, koliko puta sam bio u pravu?'
@@ -41,7 +43,11 @@ async def get_kalibracija(user=Depends(get_current_user)):
     """
     supa = _get_supa()
     try:
-        return await calculate_calibration(supa, user["user_id"])
+        rezultat = await calculate_calibration(supa, user["user_id"])
+        await UsageService.consume(user["user_id"], user.get("email", ""), "confidence_audit")
+        return rezultat
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -65,7 +71,7 @@ async def get_preporuke_statistika(
     confidence_band: Optional[str] = None,
     oblast_prava: Optional[str] = None,
     limit: int = 50,
-    user=Depends(get_current_user),
+    user=Depends(PermissionService.require("confidence_audit")),
 ):
     """Lista preporuka sa confidence bandom i isohodom. Podrzava filtriranje."""
     supa = _get_supa()
@@ -90,6 +96,8 @@ async def get_preporuke_statistika(
         tacnih = sum(1 for p in preporuke if p.get("bila_tacna"))
         sa_explainability = sum(1 for p in preporuke if p.get("izbori_tezina") and p["izbori_tezina"].get("ukupno_izvora", 0) > 0)
 
+        await UsageService.consume(user["user_id"], user.get("email", ""), "confidence_audit")
+
         return {
             "preporuke": preporuke,
             "statistika": {
@@ -99,19 +107,25 @@ async def get_preporuke_statistika(
                 "sa_explainability": sa_explainability,
             },
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, str(e))
 
 
 @router.get("/explainable/{recommendation_id}")
-async def get_explainable(recommendation_id: str, user=Depends(get_current_user)):
+async def get_explainable(recommendation_id: str, user=Depends(PermissionService.require("confidence_audit"))):
     """Objasnjava odakle dolazi preporuka: 40% interna / 30% RAG / 20% zakon / 10% AI.
 
     Vraca komponente sa procentima i dominantni izvor.
     """
     supa = _get_supa()
     try:
-        return await get_explainable_recommendation(supa, recommendation_id, user["user_id"])
+        rezultat = await get_explainable_recommendation(supa, recommendation_id, user["user_id"])
+        await UsageService.consume(user["user_id"], user.get("email", ""), "confidence_audit")
+        return rezultat
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, str(e))
 

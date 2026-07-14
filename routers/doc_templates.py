@@ -22,6 +22,8 @@ from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.doc_templates")
 router = APIRouter(prefix="/api/doc-templates", tags=["doc_templates"])
@@ -126,7 +128,7 @@ async def lista_sablona(request: Request, user: dict = Depends(get_current_user)
 async def generisi_dokument(
     request: Request,
     req: GenerisuReq,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("document_templates")),
 ):
     """Generiše pravni dokument iz šablona koristeći GPT-4o."""
     sablon = next((s for s in _SABLONI if s["id"] == req.sablon_id), None)
@@ -165,6 +167,7 @@ async def generisi_dokument(
         raise HTTPException(status_code=502, detail="Generisanje dokumenta trenutno nije dostupno.")
 
     logger.info("[DOC-TPL] sablon=%s uid=%.8s", req.sablon_id, user["user_id"])
+    await UsageService.consume(user["user_id"], user.get("email", ""), "document_templates")
     return {
         "ok":       True,
         "sablon_id": req.sablon_id,

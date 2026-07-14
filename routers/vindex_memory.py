@@ -23,7 +23,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.memory")
 router = APIRouter(tags=["vindex-memory"])
@@ -168,7 +170,7 @@ async def memory_pretraga(
     q: str,
     tip: Optional[str] = None,
     limit: int = 10,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("vindex_memory")),
 ):
     """Semanticka pretraga kroz celokupnu memoriju korisnika."""
     uid = user["user_id"]
@@ -220,8 +222,12 @@ async def memory_pretraga(
             if m.score >= 0.35
         ]
 
+        await UsageService.consume(user["user_id"], user.get("email", ""), "vindex_memory")
+
         return {"rezultati": items, "query": q, "ukupno": len(items)}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Memory pretraga greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri pretraživanju memorije.")
@@ -232,7 +238,7 @@ async def memory_pretraga(
 async def memory_sugestija(
     request: Request,
     payload: SugestijaRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("vindex_memory")),
 ):
     """
     Analizira tekuci dokument i na osnovu istorije kancelarije
@@ -333,6 +339,8 @@ Budi konkretan. Navedi clanove zakona, argumente, rizike. Pisi u ekavici."""
 
     if not sugestije:
         sugestije = [sugestije_tekst]
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "vindex_memory")
 
     return {
         "sugestije":          sugestije,

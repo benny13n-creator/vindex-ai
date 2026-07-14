@@ -29,8 +29,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel
 
-from shared.deps import _get_supa, get_current_user, _deduct_credit, _is_founder
+from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.profitabilnost")
 router = APIRouter(prefix="/api/profitabilnost", tags=["profitabilnost"])
@@ -285,7 +287,7 @@ async def profitabilnost_pregled(
 @limiter.limit("5/hour")
 async def profitabilnost_ai_analiza(
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("profitabilnost_ai")),
 ):
     """
     AI analiza: koji tipovi predmeta su najprofitabilniji, šta optimizovati.
@@ -305,6 +307,8 @@ async def profitabilnost_ai_analiza(
 
     if len(predmeti) < 3:
         return {"analiza": "Nedovoljno podataka za analizu. Potrebno je minimum 3 predmeta sa billing unosima."}
+
+    await UsageService.consume(uid, email, "profitabilnost_ai")
 
     # Agregiraj po tipu
     by_tip: dict[str, dict] = {}
@@ -350,13 +354,6 @@ async def profitabilnost_ai_analiza(
         analiza = resp.choices[0].message.content.strip()
     except Exception as e:
         analiza = f"Greška pri AI analizi: {e}"
-
-    if not _is_founder(email):
-        try:
-            from shared.deps import _deduct_credit as _dc
-            await asyncio.to_thread(lambda: _dc(uid))
-        except Exception:
-            pass
 
     return {
         "analiza": analiza,

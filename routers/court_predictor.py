@@ -22,8 +22,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from shared.deps import _get_supa, _deduct_n_credits, _refund_one_credit, _is_founder, get_current_user
+from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 try:
     from app.services.retrieve import _pretraga_praksa, _ugradi_query
@@ -70,9 +72,9 @@ Format odgovora mora biti strukturiran i sadrzati:
 async def prediktuj_ishod(
     request: Request,
     payload: PredictorRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("court_predictor")),
 ):
-    """AI predviđanje ishoda sudskog postupka. Kosta 2 kredita."""
+    """AI predviđanje ishoda sudskog postupka."""
     uid   = user["user_id"]
     email = user.get("email", "")
     supa  = _get_supa()
@@ -82,10 +84,6 @@ async def prediktuj_ishod(
 
     if payload.tip_postupka not in ["gradjansko", "krivicno", "radno", "upravno", "privredno"]:
         raise HTTPException(status_code=400, detail="Nepoznat tip postupka.")
-
-    # Dedukt kredita PRE AI poziva
-    if not _is_founder(email):
-        await asyncio.to_thread(lambda: _deduct_n_credits(uid, email, 2))
 
     dokazi_txt = "\n".join([f"- {d}" for d in payload.dokazi]) if payload.dokazi else "Nisu navedeni"
 
@@ -139,19 +137,18 @@ Analiziraj i daj strukturisano predvidjanje ishoda sa procentom sanse za uspeh."
         except Exception:
             pass
 
+        preostalo = await UsageService.consume(uid, email, "court_predictor")
+
         return {
             "analiza":           analiza,
             "tip_postupka":      payload.tip_postupka,
-            "krediti_utroseni":  2,
+            "credits_remaining": preostalo,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Court predictor greška: %s", e)
-        if not _is_founder(email):
-            await asyncio.to_thread(lambda: _refund_one_credit(uid))
-            await asyncio.to_thread(lambda: _refund_one_credit(uid))
         raise HTTPException(status_code=500, detail=f"Greška pri analizi: {str(e)}")
 
 
@@ -205,11 +202,11 @@ Ekavica. Direktan ton. Bez uvoda i zakljucka — samo analiza."""
 async def battle_report(
     request: Request,
     payload: BattleReportRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("court_predictor")),
 ):
     """
     Battle Report: kompletna strateška analiza pre ročišta.
-    Analizira sudiju, protivnika, slabosti i strategiju. Kosta 3 kredita.
+    Analizira sudiju, protivnika, slabosti i strategiju.
     """
     uid   = user["user_id"]
     email = user.get("email", "")
@@ -220,9 +217,6 @@ async def battle_report(
 
     if payload.tip_postupka not in ["gradjansko", "krivicno", "radno", "upravno", "privredno"]:
         raise HTTPException(status_code=400, detail="Nepoznat tip postupka.")
-
-    if not _is_founder(email):
-        await asyncio.to_thread(lambda: _deduct_n_credits(uid, email, 3))
 
     dokazi_txt = "\n".join([f"- {d}" for d in payload.dokazi]) if payload.dokazi else "Nisu navedeni"
 
@@ -275,21 +269,19 @@ Napravi kompletan Battle Report."""
         except Exception:
             pass
 
+        preostalo = await UsageService.consume(uid, email, "court_predictor")
+
         return {
             "battle_report":      report,
             "tip_postupka":       payload.tip_postupka,
             "sud":                payload.sud,
-            "krediti_utroseni":   3,
+            "credits_remaining":  preostalo,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Battle report greška: %s", e)
-        if not _is_founder(email):
-            await asyncio.to_thread(lambda: _refund_one_credit(uid))
-            await asyncio.to_thread(lambda: _refund_one_credit(uid))
-            await asyncio.to_thread(lambda: _refund_one_credit(uid))
         raise HTTPException(status_code=500, detail=f"Greška pri generisanju: {str(e)}")
 
 
@@ -331,10 +323,10 @@ Koncizan, direktan, praktican. Ekavica."""
 async def hearing_prep_brief(
     request: Request,
     payload: HearingPrepRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("court_predictor")),
 ):
     """
-    Auto-brief za ročište — 1 stranica, sve što treba znati pre ulaska u sudnicu. 1 kredit.
+    Auto-brief za ročište — 1 stranica, sve što treba znati pre ulaska u sudnicu.
     """
     uid   = user["user_id"]
     email = user.get("email", "")
@@ -342,9 +334,6 @@ async def hearing_prep_brief(
 
     if not payload.opis_predmeta or len(payload.opis_predmeta) < 20:
         raise HTTPException(status_code=400, detail="Opis predmeta je prekratak.")
-
-    if not _is_founder(email):
-        await asyncio.to_thread(lambda: _deduct_n_credits(uid, email, 1))
 
     podnesak_txt = (
         f"\nPoslednji podnesak / belezka:\n{payload.poslednji_podnesak[:1000]}"
@@ -389,19 +378,19 @@ Tip: {payload.tip_postupka}
             except Exception:
                 pass
 
+        preostalo = await UsageService.consume(uid, email, "court_predictor")
+
         return {
             "brief":              brief,
             "rociste_naziv":      payload.rociste_naziv,
             "datum_rocista":      payload.datum_rocista,
-            "krediti_utroseni":   1,
+            "credits_remaining":  preostalo,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Hearing prep greška: %s", e)
-        if not _is_founder(email):
-            await asyncio.to_thread(lambda: _refund_one_credit(uid))
         raise HTTPException(status_code=500, detail=f"Greška pri generisanju: {str(e)}")
 
 
@@ -494,11 +483,10 @@ Pravila:
 async def argument_reputation(
     request: Request,
     payload: ArgumentReputationRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("court_predictor")),
 ):
     """
     Argument Reputation Engine — procenjuje uspešnost argumenata na osnovu 54k+ srpskih odluka.
-    Kosta 2 kredita.
     """
     uid   = user["user_id"]
     email = user.get("email", "")
@@ -580,13 +568,13 @@ async def argument_reputation(
     except Exception:
         pass
 
-    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 2)
+    preostalo = await UsageService.consume(uid, email, "court_predictor")
 
     return {
         **rezultat,
         "tip_spora":         payload.tip_spora,
         "rag_dostupan":      _RAG_AVAILABLE and bool(rag_kontekst),
-        "credits_remaining": max(int(preostalo or 0), 0),
+        "credits_remaining": preostalo,
     }
 
 
@@ -629,10 +617,10 @@ Odgovori SAMO validnim JSON-om:
 async def judge_profile(
     request: Request,
     payload: JudgeProfileRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("court_predictor")),
 ):
     """
-    Judge Intelligence Profiler — analiza suda/sudije iz 54k+ srpskih odluka. 2 kredita.
+    Judge Intelligence Profiler — analiza suda/sudije iz 54k+ srpskih odluka.
     """
     uid   = user["user_id"]
     email = user.get("email", "")
@@ -707,11 +695,11 @@ async def judge_profile(
     except Exception:
         pass
 
-    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 2)
+    preostalo = await UsageService.consume(uid, email, "court_predictor")
 
     return {
         **rezultat,
-        "credits_remaining": max(int(preostalo or 0), 0),
+        "credits_remaining": preostalo,
     }
 
 
@@ -755,10 +743,10 @@ Odgovori SAMO validnim JSON-om:
 async def opponent_intel(
     request: Request,
     payload: OpponentIntelRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("court_predictor")),
 ):
     """
-    Opponent Intelligence — analiza protivne strane iz sudske prakse i internog CRM-a. 2 kredita.
+    Opponent Intelligence — analiza protivne strane iz sudske prakse i internog CRM-a.
     """
     uid   = user["user_id"]
     email = user.get("email", "")
@@ -850,13 +838,13 @@ async def opponent_intel(
     except Exception:
         pass
 
-    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 2)
+    preostalo = await UsageService.consume(uid, email, "court_predictor")
 
     return {
         **rezultat,
         "ima_internih_predmeta": bool(interni_kontekst),
         "rag_dostupan":          _RAG_AVAILABLE and bool(rag_kontekst),
-        "credits_remaining":     max(int(preostalo or 0), 0),
+        "credits_remaining":     preostalo,
     }
 
 
@@ -932,12 +920,11 @@ def _calc_confidence_nivo(
 async def confidence_check(
     request: Request,
     payload: ConfidenceCheckRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("court_predictor")),
 ):
     """
     Confidence Calibration — ne vraća samo procenat nego strukturirani dokaz:
     VISOKO POVERENJE: 194 slična predmeta, 17 VKS presuda, win rate 73%.
-    2 kredita.
     """
     uid   = user["user_id"]
     email = user.get("email", "")
@@ -1057,9 +1044,7 @@ async def confidence_check(
     except Exception:
         pass
 
-    # Oduzmi 2 kredita
-    if not _is_founder(email):
-        await asyncio.to_thread(_deduct_n_credits, uid, email, 2)
+    preostalo = await UsageService.consume(uid, email, "court_predictor")
 
     return {
         "nivo_pouzdanosti":   nivo,
@@ -1075,6 +1060,7 @@ async def confidence_check(
             "vks_presuda":     vks_hits,
         },
         "poruka_korisniku":   poruka,
+        "credits_remaining":  preostalo,
     }
 
 

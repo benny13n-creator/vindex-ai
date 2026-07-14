@@ -21,7 +21,9 @@ from pydantic import BaseModel, Field, field_validator
 
 from dossier_pdf import generisi_dossier_pdf
 from routers.wallet_provenance import _ETH_ADDRESS_RE, sakupi_wallet_provenance
-from shared.deps import _audit, _deduct_n_credits, _is_founder, require_pro
+from shared.deps import _audit
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 from shared.rate import limiter
 from web3_compliance import (
     carf_dac8_readiness_sync as _carf_dac8_readiness,
@@ -62,25 +64,12 @@ class DossierRequest(BaseModel):
 @router.post("/web3/source-of-funds-dossier")  # F16.1
 @limiter.limit("5/minute")
 async def post_source_of_funds_dossier(
-    req: DossierRequest, request: Request, user: dict = Depends(require_pro)
+    req: DossierRequest, request: Request,
+    user: dict = Depends(PermissionService.require("da_source_of_funds")),
 ):
     """F16.1 — Source-of-Funds Compliance Dossier: PDF izveštaj (PRO, 2 kredita)."""
     email = user.get("email", "")
-    if not _is_founder(email):
-        from shared.deps import _get_credits
-        credits = await asyncio.to_thread(_get_credits, user["user_id"])
-        if credits < 2:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    "code": "NO_CREDITS",
-                    "message": "Nemate dovoljno kredita za dossier. Potrebno je 2 kredita.",
-                    "credits_remaining": credits,
-                },
-            )
-        preostalo = await asyncio.to_thread(_deduct_n_credits, user["user_id"], email, 2)
-    else:
-        preostalo = 9999
+    preostalo = await UsageService.consume(user["user_id"], email, "da_source_of_funds")
 
     asyncio.create_task(_audit(user["user_id"], "source_of_funds_dossier", ""))
 

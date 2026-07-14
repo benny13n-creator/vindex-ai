@@ -12,13 +12,26 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-128bit")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-dummy")
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 from starlette.requests import Request as StarletteRequest
 
 
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def _mock_usage_service():
+    """Testi pozivaju route funkcije direktno (bez FastAPI Depends), pa
+    endpoint-ovo eksplicitno await UsageService.consume(...) u telu funkcije
+    izvršava se stvarno. feature_registry tabela nije seed-ovana u test okruženju
+    (nema pravu Supabase konekciju), pa bez ovog patch-a get_policy() baca
+    RuntimeError za svaki feature_key. Ovo NE testira UsageService/Registry —
+    to je pokriveno posebnim testovima za shared/usage.py — ovde samo osigurava
+    da testovi ostanu fokusirani na GPT/oblast logiku koju stvarno provjeravaju."""
+    with patch("shared.usage.UsageService.consume", new_callable=AsyncMock, return_value=10):
+        yield
 
 
 def _fake_request(path="/api/oblasti/krivicno"):

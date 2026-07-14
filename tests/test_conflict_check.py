@@ -6,11 +6,21 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def _mock_usage_service():
+    """Testi zovu route funkcije direktno (bez FastAPI Depends), pa endpoint-ovo
+    await UsageService.consume(...) u telu funkcije izvršava se stvarno protiv
+    feature_registry, koja nije seed-ovana u test okruženju. Patch sprečava
+    RuntimeError iz get_policy() i drži testove fokusirane na conflict-check logiku."""
+    with patch("shared.usage.UsageService.consume", new_callable=AsyncMock, return_value=10):
+        yield
 
 
 def _user():

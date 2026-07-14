@@ -29,7 +29,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.memory_graph")
 router = APIRouter(prefix="/api/memory-graph", tags=["memory-graph"])
@@ -200,7 +202,7 @@ async def entitet_veze(
 @limiter.limit("10/minute")
 async def graph_upit(
     request: Request,
-    user:    dict = Depends(get_current_user),
+    user:    dict = Depends(PermissionService.require("memory_graph")),
     q:       str  = "",
 ):
     """
@@ -266,12 +268,16 @@ async def graph_upit(
             ],
         )
 
+        await UsageService.consume(user["user_id"], user.get("email", ""), "memory_graph")
+
         return {
             "odgovor":           resp.choices[0].message.content.strip(),
             "ivice_pronadjene":  len(ivice),
             "napomena":          "Odgovor baziran na eksplicitnim vezama u grafu kancelarije.",
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -281,7 +287,7 @@ async def graph_upit(
 async def graf_preporuka(
     predmet_id: str,
     request:    Request,
-    user:       dict = Depends(get_current_user),
+    user:       dict = Depends(PermissionService.require("memory_graph")),
 ):
     """
     Na osnovu predmeta i grafa preporučuje strategiju.
@@ -369,6 +375,8 @@ async def graf_preporuka(
                 },
             ],
         )
+
+        await UsageService.consume(user["user_id"], user.get("email", ""), "memory_graph")
 
         return {
             "predmet":         predmet,

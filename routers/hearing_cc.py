@@ -18,10 +18,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
-from shared.deps import (
-    _audit, _deduct_n_credits, _get_supa,
-    get_current_user, require_credits, require_pro,
-)
+from shared.deps import _audit, _get_supa, get_current_user
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.rate import limiter
 
@@ -246,8 +245,7 @@ def _build_prompt(ctx: dict, datum_rocista: str, tip_postupka: str) -> str:
 async def hearing_command_center(
     body: HearingCCReq,
     request: Request,
-    user: dict = Depends(require_pro),
-    _cred: dict = Depends(require_credits),
+    user: dict = Depends(PermissionService.require("hearing_prep")),
 ):
     uid   = user["user_id"]
     email = user.get("email", "")
@@ -287,9 +285,7 @@ async def hearing_command_center(
     except json.JSONDecodeError:
         raise HTTPException(status_code=503, detail="Neispravan odgovor AI servisa.")
 
-    # require_credits već pre-deductovao 1 atomično — oduzmi samo 2 više
-    n_extra = 2 if _cred.get("credit_pre_deducted") else 3
-    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, n_extra)
+    preostalo = await UsageService.consume(uid, email, "hearing_prep")
     asyncio.create_task(log_cost_to_db(uid, "hearing_command_center"))
     asyncio.create_task(_audit(uid, "hearing_command_center", body.predmet_id[:16]))
 
@@ -326,8 +322,7 @@ class CrossExamRequest(BaseModel):
 async def cross_examination(
     body: CrossExamRequest,
     request: Request,
-    user: dict = Depends(require_pro),
-    _cred: dict = Depends(require_credits),
+    user: dict = Depends(PermissionService.require("hearing_prep")),
 ):
     """Generiše listu pitanja za unakrsno ispitivanje svedoka/veštaka (1 kredit)."""
     uid   = user["user_id"]
@@ -382,7 +377,7 @@ Odgovori ISKLJUČIVO na srpskom jeziku."""
 
     pitanja = (resp.choices[0].message.content or "").strip()
 
-    preostalo = await asyncio.to_thread(_deduct_n_credits, uid, email, 0 if _cred.get("credit_pre_deducted") else 1)
+    preostalo = await UsageService.consume(uid, email, "hearing_prep")
     asyncio.create_task(_audit(uid, "cross_examination", body.predmet_id[:16]))
 
     logger.info("[CrossExam] uid=%.8s predmet=%s tip=%s", uid, body.predmet_id, body.tip_postupka)

@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from shared.deps import _get_supa, get_current_user
 from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.matter_intel")
 router = APIRouter(prefix="/api/matter-intel", tags=["matter_intel"])
@@ -276,7 +278,7 @@ def _semafor(score: int) -> str:
 async def get_uncertainty_dashboard(
     predmet_id: str,
     request: Request,
-    user=Depends(get_current_user),
+    user=Depends(PermissionService.require("matter_intel")),
 ):
     """
     Uncertainty Dashboard — semafor sistem po 5 dimenzija rizika.
@@ -432,6 +434,8 @@ async def get_uncertainty_dashboard(
     except Exception as e:
         logger.debug("[UNCERTAINTY] AI greška: %s", e)
 
+    await UsageService.consume(uid, user.get("email", ""), "matter_intel")
+
     return {
         "uncertainty_score": uncertainty_score,
         "semafor":           _semafor(uncertainty_score),
@@ -480,7 +484,7 @@ async def preflight_check(
     predmet_id: str,
     body: PreflightRequest,
     request: Request,
-    user=Depends(get_current_user),
+    user=Depends(PermissionService.require("matter_intel")),
 ):
     """
     Pre-Flight Check — provera spremnosti pre podneska, ročišta, nagodbe ili žalbe.
@@ -588,6 +592,8 @@ async def preflight_check(
     except Exception as e:
         logger.error("[PREFLIGHT] AI greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri generisanju Pre-Flight Check-a.")
+
+    await UsageService.consume(uid, user.get("email", ""), "matter_intel")
 
     # Snimi u predmet_istorija (idempotentno, best-effort)
     try:

@@ -45,6 +45,8 @@ from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user, _is_founder
 from shared.rate import limiter
+from shared.permissions import PermissionService
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.corrections")
 router = APIRouter(prefix="/api/corrections", tags=["corrections"])
@@ -242,7 +244,7 @@ async def _get_kancelarija_id(supa, uid: str) -> Optional[str]:
 async def capture_correction(
     request: Request,
     payload: CorrectionRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("corrections")),
 ):
     """
     Nevidljivo hvatanje korekcije AI outputa.
@@ -308,6 +310,8 @@ async def capture_correction(
     if kancelarija_id:
         asyncio.create_task(_maybe_update_style_profile(kancelarija_id, supa))
 
+    await UsageService.consume(uid, user.get("email", ""), "corrections")
+
     return {
         "ok": True,
         "captured": True,
@@ -320,7 +324,7 @@ async def capture_correction(
 @router.post("/analyze")
 async def analyze_corrections(
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("corrections")),
 ):
     """
     Agregiraj neprocesirane korekcije u firm_style_profile.
@@ -334,6 +338,7 @@ async def analyze_corrections(
         raise HTTPException(status_code=400, detail="Kancelarija nije pronađena.")
 
     result = await _update_style_profile(kancelarija_id, supa)
+    await UsageService.consume(uid, user.get("email", ""), "corrections")
     return result
 
 
