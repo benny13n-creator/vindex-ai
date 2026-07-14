@@ -1,14 +1,20 @@
 import asyncio
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
-from shared.deps import _get_supa, get_current_user
+from fastapi import APIRouter, Depends
+from shared.deps import _get_supa, _ensure_profile, get_current_user
+from shared.feature_registry import get_all_policies
+from shared.permissions import effective_tier
+from shared.usage import UsageService
 
 router = APIRouter(prefix="/api/plan", tags=["plan"])
 
-import os as _os
-_ENFORCE_LIMITS = _os.getenv("ENFORCE_LIMITS", "false").lower() == "true"
-
-# ── Cene (EUR) ────────────────────────────────────────────────────────────────
+# ── Cene (EUR) — javni /info endpoint, statična marketing lista, ne čita bazu.
+# NAMERNO nedirano u Fazi 72.5 (potpuno uklanjanje korisnik_plan/korisnik_usage
+# zavisnosti) — ova lista i dalje koristi stare nazive tarifa (free/starter/
+# pro/enterprise), koje treba uskladiti sa profiles.subscription_type
+# (basic/professional/enterprise) kad se radi Faza 73 (tier restructuring,
+# pricing modal, javna prezentacija) — ne pre toga, eksplicitna founder-ova
+# odluka da se te dve stvari ne mešaju u istoj promeni.
 PLAN_PRICES = {
     "free":       {"monthly": 0,    "annual": 0},
     "starter":    {"monthly": 29,   "annual": 23.20},   # 20% popust
@@ -16,211 +22,83 @@ PLAN_PRICES = {
     "enterprise": {"monthly": 130,  "annual": 104.00},
 }
 
-# ── Mesečni limiti (None = neograničeno) ──────────────────────────────────────
-PLAN_LIMITS = {
-    "free": {
-        "ai_queries":       5,
-        "doc_analyses":     1,
-        "nacrti":           0,
-        "court_predictor":  0,
-        "battle_reports":   0,
-        "hearing_prep":     0,
-        "commander":        0,
-        "simulator":        0,
-        "digital_twin":     0,
-        "evidence_graph":   0,
-        "memory_unosi":     0,
-        "predmeti_max":     3,
-        "klijenti_max":     5,
-        "seats":            1,
-        # Feature flags
-        "morning_briefing": False,
-        "whatsapp_viber":   False,
-        "google_calendar":  False,
-        "webhooks":         False,
-        "enterprise_tim":   False,
-        "vindex_memory":    False,
-        "regional":         False,
-    },
-    "starter": {
-        "ai_queries":       100,
-        "doc_analyses":     20,
-        "nacrti":           15,
-        "court_predictor":  5,
-        "battle_reports":   2,
-        "hearing_prep":     5,
-        "commander":        10,
-        "simulator":        3,
-        "digital_twin":     2,
-        "evidence_graph":   2,
-        "memory_unosi":     100,
-        "predmeti_max":     50,
-        "klijenti_max":     None,
-        "seats":            1,
-        "morning_briefing": True,
-        "whatsapp_viber":   False,
-        "google_calendar":  False,
-        "webhooks":         False,
-        "enterprise_tim":   False,
-        "vindex_memory":    True,
-        "regional":         True,
-    },
-    "pro": {
-        "ai_queries":       500,
-        "doc_analyses":     75,
-        "nacrti":           60,
-        "court_predictor":  20,
-        "battle_reports":   8,
-        "hearing_prep":     None,
-        "commander":        None,
-        "simulator":        None,
-        "digital_twin":     10,
-        "evidence_graph":   10,
-        "memory_unosi":     1000,
-        "predmeti_max":     None,
-        "klijenti_max":     None,
-        "seats":            2,
-        "morning_briefing": True,
-        "whatsapp_viber":   True,
-        "google_calendar":  True,
-        "webhooks":         False,
-        "enterprise_tim":   False,
-        "vindex_memory":    True,
-        "regional":         True,
-    },
-    "enterprise": {
-        "ai_queries":       None,
-        "doc_analyses":     None,
-        "nacrti":           None,
-        "court_predictor":  None,
-        "battle_reports":   None,
-        "hearing_prep":     None,
-        "commander":        None,
-        "simulator":        None,
-        "digital_twin":     None,
-        "evidence_graph":   None,
-        "memory_unosi":     None,
-        "predmeti_max":     None,
-        "klijenti_max":     None,
-        "seats":            5,
-        "morning_briefing": True,
-        "whatsapp_viber":   True,
-        "google_calendar":  True,
-        "webhooks":         True,
-        "enterprise_tim":   True,
-        "vindex_memory":    True,
-        "regional":         True,
-    },
-    # Backward compatibility — stari nazivi planova
-    "advokat":    None,  # -> starter
-    "firma":      None,  # -> enterprise
-}
-
-# Backward compat alias-i
-_PLAN_ALIAS = {"advokat": "starter", "firma": "enterprise"}
-
 
 def _year_month() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
-def _resolve_plan(plan_type: str) -> str:
-    """Resolvuje stare nazive planova u nove."""
-    return _PLAN_ALIAS.get(plan_type, plan_type)
-
-
-def _get_limits(plan_type: str) -> dict:
-    resolved = _resolve_plan(plan_type)
-    limits = PLAN_LIMITS.get(resolved)
-    if limits is None:
-        return PLAN_LIMITS["free"]
-    return limits
-
-
-async def _get_plan(user_id: str) -> dict:
+async def _monthly_usage_by_feature(user_id: str) -> dict[str, dict]:
+    """Agregira feature_usage (dnevni redovi, migracija 064) na mesečni nivo po
+    feature_key — feature_usage.mesec je već upisan po redu upravo da ovo bude
+    jedan .eq() upit umesto range-upita po datumu."""
     sb = _get_supa()
-    res = await asyncio.to_thread(
-        lambda: sb.table("korisnik_plan").select("*").eq("user_id", user_id).maybe_single().execute()
-    )
-    if res.data:
-        return res.data
-    return {"plan_type": "free", "seats": 1, "billing_cycle": "monthly"}
+    ym = _year_month()
 
-
-async def _get_usage(user_id: str, year_month: str) -> dict:
-    sb = _get_supa()
-    res = await asyncio.to_thread(
-        lambda: sb.table("korisnik_usage")
-            .select("*")
+    def _fetch():
+        return (
+            sb.table("feature_usage")
+            .select("feature_key, broj_koriscenja, krediti_potroseni")
             .eq("user_id", user_id)
-            .eq("year_month", year_month)
-            .maybe_single()
+            .eq("mesec", ym)
             .execute()
-    )
-    defaults = {
-        "ai_queries": 0, "doc_analyses": 0, "nacrti": 0,
-        "court_predictor": 0, "battle_reports": 0, "hearing_prep": 0,
-        "commander": 0, "simulator": 0, "digital_twin": 0, "evidence_graph": 0,
-        # backward compat
-        "strategies": 0,
-        "overage_queries": 0, "overage_docs": 0, "overage_strategies": 0,
-    }
-    if res.data:
-        return {**defaults, **res.data}
-    return defaults
+        )
+
+    rows = (await asyncio.to_thread(_fetch)).data or []
+    agg: dict[str, dict] = {}
+    for r in rows:
+        fk = r.get("feature_key")
+        if not fk:
+            continue
+        bucket = agg.setdefault(fk, {"broj_koriscenja": 0, "krediti_potroseni": 0.0})
+        bucket["broj_koriscenja"] += r.get("broj_koriscenja") or 0
+        bucket["krediti_potroseni"] += float(r.get("krediti_potroseni") or 0)
+    return agg
 
 
 @router.get("/status")
 async def plan_status(user=Depends(get_current_user)):
+    """
+    Stvarno stanje naloga — ISKLJUČIVO iz entitlement sistema (migracije
+    063-066): profiles.subscription_type/addons/subscription_expires_at,
+    feature_registry, feature_usage. Nikakvo čitanje iz korisnik_plan/
+    korisnik_usage (obrisan sistem, Faza 72.5) — to je bila potpuno odvojena,
+    nikad ažurirana tabela otkad je UsageService preuzeo kredit-tracking.
+    """
     user_id = user["user_id"]
-    ym = _year_month()
-    plan = await _get_plan(user_id)
-    usage = await _get_usage(user_id, ym)
-    pt = _resolve_plan(plan["plan_type"])
-    limits = _get_limits(pt)
-    prices = PLAN_PRICES.get(pt, PLAN_PRICES["free"])
+    email = user.get("email", "")
 
-    def _usage_item(resource):
-        used = usage.get(resource, 0)
-        limit = limits.get(resource)
-        pct = None if limit is None else round(used / limit * 100) if limit > 0 else 100
-        return {"used": used, "limit": limit, "pct": pct}
+    profil = await asyncio.to_thread(_ensure_profile, user_id, email)
+    pt = effective_tier(profil)
+    ym = _year_month()
+
+    credits_remaining, usage_agg, policies = await asyncio.gather(
+        UsageService.balance(user_id, email),
+        _monthly_usage_by_feature(user_id),
+        get_all_policies(),
+    )
+    policy_by_key = {p["feature_key"]: p for p in policies}
+
+    usage_this_month = []
+    for fk, agg in sorted(usage_agg.items(), key=lambda kv: -kv[1]["krediti_potroseni"]):
+        pol = policy_by_key.get(fk, {})
+        usage_this_month.append({
+            "feature_key":       fk,
+            "naziv":             pol.get("naziv", fk),
+            "broj_koriscenja":   agg["broj_koriscenja"],
+            "krediti_potroseni": agg["krediti_potroseni"],
+            "dnevni_limit":      pol.get("dnevni_limit"),
+            "mesecni_limit":     pol.get("mesecni_limit"),
+        })
 
     return {
-        "plan":           pt,
-        "plan_display":   _plan_display_name(pt),
-        "seats":          plan.get("seats", 1),
-        "billing_cycle":  plan.get("billing_cycle", "monthly"),
-        "year_month":     ym,
-        "enforce_active": _ENFORCE_LIMITS,
-        "prices":         prices,
-        "features": {
-            "morning_briefing": limits.get("morning_briefing", False),
-            "whatsapp_viber":   limits.get("whatsapp_viber", False),
-            "google_calendar":  limits.get("google_calendar", False),
-            "webhooks":         limits.get("webhooks", False),
-            "enterprise_tim":   limits.get("enterprise_tim", False),
-            "vindex_memory":    limits.get("vindex_memory", False),
-            "regional":         limits.get("regional", False),
-        },
-        "usage": {
-            "ai_queries":      _usage_item("ai_queries"),
-            "doc_analyses":    _usage_item("doc_analyses"),
-            "nacrti":          _usage_item("nacrti"),
-            "court_predictor": _usage_item("court_predictor"),
-            "battle_reports":  _usage_item("battle_reports"),
-            "hearing_prep":    _usage_item("hearing_prep"),
-            "commander":       _usage_item("commander"),
-            "simulator":       _usage_item("simulator"),
-            "digital_twin":    _usage_item("digital_twin"),
-            "evidence_graph":  _usage_item("evidence_graph"),
-        },
-        "limits": {
-            "predmeti_max":  limits.get("predmeti_max"),
-            "klijenti_max":  limits.get("klijenti_max"),
-            "memory_unosi":  limits.get("memory_unosi"),
-            "seats":         limits.get("seats", 1),
-        },
+        "plan":                     pt,
+        "plan_display":             _plan_display_name(pt),
+        "addons":                   profil.get("addons") or [],
+        "subscription_expires_at":  profil.get("subscription_expires_at"),
+        "subscription_seats_extra": profil.get("subscription_seats_extra", 0),
+        "credits_remaining":        credits_remaining,
+        "year_month":               ym,
+        "usage_this_month":         usage_this_month,
     }
 
 
@@ -270,9 +148,8 @@ async def plan_info():
 
 def _plan_display_name(pt: str) -> str:
     names = {
-        "free": "Besplatno",
-        "starter": "Starter",
-        "pro": "Pro",
+        "basic": "Basic",
+        "professional": "Professional",
         "enterprise": "Enterprise",
     }
     return names.get(pt, pt.capitalize())

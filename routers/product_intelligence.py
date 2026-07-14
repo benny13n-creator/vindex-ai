@@ -26,6 +26,7 @@ from shared.deps import (
     get_current_user,
 )
 from shared.rate import limiter
+from shared.permissions import effective_tier
 
 logger = logging.getLogger("vindex.pi")
 router = APIRouter(tags=["product_intelligence"])
@@ -547,45 +548,63 @@ async def pi_plans(
     request: Request,
     user: dict = Depends(_require_admin),
 ):
-    """Plan distribucija, MRR procena, AI usage ovog meseca, onboarding email stats."""
-    from datetime import datetime, timezone
+    """Plan distribucija, MRR procena, AI usage ovog meseca, onboarding email stats.
+
+    Faza 72.5: ISKLJUČIVO profiles.subscription_type (grupisano) + feature_usage
+    (agregirano) — korisnik_plan/korisnik_usage su obrisan izvor, nikad
+    ažuriran otkad je UsageService preuzeo kredit-tracking (Faza 70), pa je
+    ovaj dashboard do sada prikazivao lažnu distribuciju (100% "free") i
+    trajno-nula AI usage brojeve founderu.
+    """
     supa  = _get_supa()
-    now   = datetime.now(timezone.utc)
-    ym    = now.strftime("%Y-%m")
+    ym    = datetime.now(timezone.utc).strftime("%Y-%m")
 
-    _PLAN_PRICE_EUR = {"free": 0, "advokat": 19, "pro": 39, "firma": 59}
+    # Provizorna cena po tarifi — 29€/79€/249€ (+49€/dodatno mesto na Enterprise),
+    # cifre iz founder-ovog originalnog spec-a za novi sistem. NIJE Stripe-verifikovana
+    # živa cena (Stripe još nije integrisan) — ovo je procena, ne knjigovodstvo.
+    # Konačan izvor istine za cenu dolazi u Fazi 73 (tier restructuring/pricing modal).
+    _TIER_PRICE_EUR = {"basic": 29, "professional": 79, "enterprise": 249}
+    _ENTERPRISE_SEAT_EUR = 49
 
-    plans_r, usage_r, profiles_r, onboard_r = await asyncio.gather(
-        asyncio.to_thread(lambda: supa.table("korisnik_plan").select("plan_type, seats, billing_cycle").execute()),
-        asyncio.to_thread(lambda: supa.table("korisnik_usage").select("ai_queries, doc_analyses, strategies").eq("year_month", ym).execute()),
-        asyncio.to_thread(lambda: supa.table("profiles").select("id, registered_at, created_at").execute()),
+    profiles_r, onboard_r = await asyncio.gather(
+        asyncio.to_thread(
+            lambda: supa.table("profiles")
+            .select("id, subscription_type, subscription_expires_at, subscription_seats_extra, registered_at, created_at")
+            .execute()
+        ),
         asyncio.to_thread(lambda: supa.table("onboarding_email_log").select("tip").execute()),
         return_exceptions=True,
     )
-
-    plans    = _safe(plans_r)
-    usages   = _safe(usage_r)
     profiles = _safe(profiles_r)
     onboard  = _safe(onboard_r)
 
-    # Plan distribution
-    dist: dict[str, int] = {"free": 0, "advokat": 0, "pro": 0, "firma": 0}
+    # Plan distribution — efektivna tarifa (uzima u obzir istek Legacy Professional
+    # statusa, ista logika koja gejtuje pristup funkcijama).
+    dist: dict[str, int] = {"basic": 0, "professional": 0, "enterprise": 0}
     mrr_eur = 0.0
-    for p in plans:
-        pt    = p.get("plan_type", "free")
-        seats = p.get("seats", 1) or 1
-        mult  = 0.8 if p.get("billing_cycle") == "yearly" else 1.0
+    for p in profiles:
+        pt = effective_tier(p)
         dist[pt] = dist.get(pt, 0) + 1
-        mrr_eur += _PLAN_PRICE_EUR.get(pt, 0) * seats * mult
+        mrr_eur += _TIER_PRICE_EUR.get(pt, 0)
+        if pt == "enterprise":
+            mrr_eur += (p.get("subscription_seats_extra") or 0) * _ENTERPRISE_SEAT_EUR
 
-    # Free users = profiles not in korisnik_plan
     total_profiles = len(profiles)
-    dist["free"] = max(0, total_profiles - sum(dist[k] for k in ["advokat", "pro", "firma"]))
 
-    # Monthly AI usage totals
-    total_queries    = sum(u.get("ai_queries", 0) or 0 for u in usages)
-    total_docs       = sum(u.get("doc_analyses", 0) or 0 for u in usages)
-    total_strategies = sum(u.get("strategies", 0) or 0 for u in usages)
+    # Monthly AI usage totals — svi feature_key-evi, ne samo stara 3 bucketa.
+    usage_r = await asyncio.to_thread(
+        lambda: supa.table("feature_usage")
+        .select("feature_key, broj_koriscenja, krediti_potroseni")
+        .eq("mesec", ym)
+        .execute()
+    )
+    usage_rows = _safe(usage_r)
+    total_calls   = sum(u.get("broj_koriscenja", 0) or 0 for u in usage_rows)
+    total_krediti = sum(float(u.get("krediti_potroseni") or 0) for u in usage_rows)
+    by_feature: dict[str, int] = defaultdict(int)
+    for u in usage_rows:
+        by_feature[u.get("feature_key", "?")] += u.get("broj_koriscenja", 0) or 0
+    top_features = sorted(by_feature.items(), key=lambda kv: -kv[1])[:5]
 
     # Onboarding email stats
     ob_counts: dict[str, int] = {"welcome": 0, "day1": 0, "day3": 0}
@@ -605,13 +624,14 @@ async def pi_plans(
     return {
         "plan_distribucija":  dist,
         "ukupno_korisnika":   reg_total,
-        "placajuci":          dist["advokat"] + dist["pro"] + dist["firma"],
+        "placajuci":          dist["professional"] + dist["enterprise"],
         "mrr_eur":            round(mrr_eur, 2),
         "arr_eur":            round(mrr_eur * 12, 2),
+        "mrr_napomena":       "Procena po tarifi (29/79/249€ + 49€/dodatno Enterprise mesto) — Stripe još nije live, ovo nije knjigovodstveni prihod.",
         "ai_usage_ovaj_mesec": {
-            "ai_queries":   total_queries,
-            "doc_analyses": total_docs,
-            "strategies":   total_strategies,
+            "ukupno_poziva":    total_calls,
+            "ukupno_kredita":   round(total_krediti, 2),
+            "top_5_funkcija":   [{"feature_key": k, "broj_koriscenja": v} for k, v in top_features],
         },
         "onboarding_emails":  ob_counts,
         "onboarding_rates":   ob_pct,

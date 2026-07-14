@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
+from shared.permissions import effective_tier
 from shared.rate import limiter
 
 logger = logging.getLogger("vindex.gdpr")
@@ -127,8 +128,21 @@ async def gdpr_export(request: Request, user: dict = Depends(get_current_user)):
     supa = _get_supa()
 
     def _fetch():
-        profile_r = supa.table("profiles").select("id,email,full_name,created_at").eq("id", uid).maybe_single().execute()
-        plan_r    = supa.table("korisnik_plan").select("*").eq("user_id", uid).maybe_single().execute()
+        profile_r = (
+            supa.table("profiles")
+            .select("id,email,full_name,created_at,subscription_type,addons,subscription_expires_at,subscription_seats_extra")
+            .eq("id", uid).maybe_single().execute()
+        )
+        profil = profile_r.data or {}
+        # Stvarna pretplata — ISKLJUČIVO iz profiles.subscription_type (Faza 72.5:
+        # korisnik_plan je obrisan izvor, nikad ažuriran otkad je UsageService
+        # preuzeo kredit-tracking, GDPR izvoz ne sme prikazati zastarelu tarifu).
+        plan = {
+            "tarifa":                    effective_tier(profil),
+            "addons":                    profil.get("addons") or [],
+            "subscription_expires_at":   profil.get("subscription_expires_at"),
+            "subscription_seats_extra":  profil.get("subscription_seats_extra", 0),
+        }
         predm_r   = supa.table("predmeti").select("id,naziv,status,tip_spora,created_at").eq("user_id", uid).execute()
         billing_r = supa.table("billing_entries").select("datum,opis,iznos_rsd,obracunato").eq("user_id", uid).order("datum").execute()
         email_r   = supa.table("korisnik_email_notif").select("aktivan,dan_7,dan_3,dan_1,nedeljni").eq("user_id", uid).maybe_single().execute()
@@ -137,8 +151,8 @@ async def gdpr_export(request: Request, user: dict = Depends(get_current_user)):
         return {
             "export_datum":   datetime.now(timezone.utc).isoformat(),
             "napomena":       "Određena polja (JMBG, pasoš, PIB) čuvaju se enkriptovana i nisu uključena u ovaj izvoz zbog bezbednosti.",
-            "profil":         profile_r.data or {},
-            "plan":           plan_r.data or {},
+            "profil":         {k: v for k, v in profil.items() if k in ("id", "email", "full_name", "created_at")},
+            "plan":           plan,
             "predmeti":       predm_r.data or [],
             "billing_stavke": billing_r.data or [],
             "email_podesavanja": email_r.data or {},

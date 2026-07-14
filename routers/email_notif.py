@@ -715,20 +715,25 @@ async def onboarding_cron(request: Request, user: dict = Depends(_require_cron_o
                 lambda: supa.table("onboarding_email_log").select("id").eq("user_id", uid).eq("tip", "day1").limit(1).execute()
             )
             if not dup.data:
-                # Proveri korišćenje AI od registracije (ne od tekućeg meseca — fix day1 bug)
-                reg_iso = reg_at.isoformat()
+                # Proveri korišćenje AI od registracije (ne od tekućeg meseca — fix day1 bug).
+                # Faza 72.5: feature_usage (migracija 064, potvrđeno živa na produkciji),
+                # NE korisnik_usage (obrisan izvor — ta tabela nema čak ni created_at
+                # kolonu koju je ovaj upit ranije tražio, pa je provera uvek vraćala
+                # prazno/lažno "nije koristio AI" za svakog korisnika). feature_usage_log
+                # (migracija 065) bi bio precizniji izvor ali migracija još nije
+                # primenjena na produkciju (potvrđeno scripts/audit_deployment_consistency.py)
+                # — feature_usage.dan >= datum registracije je ekvivalentna provera na
+                # tabeli koja stvarno postoji i piše se od svakog UsageService.consume() poziva.
+                reg_dan = reg_at.date().isoformat()
                 usage_r = await asyncio.to_thread(
-                    lambda: supa.table("korisnik_usage")
-                    .select("ai_queries, doc_analyses, strategies")
+                    lambda: supa.table("feature_usage")
+                    .select("broj_koriscenja")
                     .eq("user_id", uid)
-                    .gte("created_at", reg_iso)
+                    .gte("dan", reg_dan)
+                    .limit(1)
                     .execute()
                 )
-                rows_usage = usage_r.data or []
-                total_ai = sum(
-                    (r.get("ai_queries") or 0) + (r.get("doc_analyses") or 0) + (r.get("strategies") or 0)
-                    for r in rows_usage
-                )
+                total_ai = sum((r.get("broj_koriscenja") or 0) for r in (usage_r.data or []))
                 if total_ai == 0:
                     try:
                         html = _onboarding_day1_html(email, user_id=uid)

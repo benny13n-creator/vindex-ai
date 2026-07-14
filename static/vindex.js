@@ -2565,8 +2565,11 @@ async function planLoad() {
   var wrap  = document.getElementById('plan-usage-wrap');
   if (!wrap) return;
 
-  var PLAN_LABELS = {free:'Free', advokat:'Advokat', pro:'PRO', firma:'Firma'};
-  var PLAN_COLORS = {free:'rgba(255,255,255,.45)', advokat:'#4aa8ff', pro:'#a78bfa', firma:'#c9a84c'};
+  // Faza 72.5: /api/plan/status čita isključivo iz profiles.subscription_type
+  // + feature_registry + feature_usage — nazivi tarifa su basic/professional/
+  // enterprise (stvarni sistem), ne stari free/advokat/pro/firma.
+  var PLAN_LABELS = {basic:'Basic', professional:'Professional', enterprise:'Enterprise'};
+  var PLAN_COLORS = {basic:'rgba(255,255,255,.45)', professional:'#4aa8ff', enterprise:'#c9a84c'};
 
   try {
     var r = await fetch(BASE_URL + '/api/plan/status', {
@@ -2575,8 +2578,8 @@ async function planLoad() {
     if (!r.ok) { wrap.innerHTML = ''; return; }
     var d = await r.json();
 
-    var planName = d.plan || 'free';
-    var label    = PLAN_LABELS[planName] || planName;
+    var planName = d.plan || 'basic';
+    var label    = d.plan_display || PLAN_LABELS[planName] || planName;
     var color    = PLAN_COLORS[planName] || '#fff';
 
     if (badge) {
@@ -2587,44 +2590,35 @@ async function planLoad() {
     var planVal = document.getElementById('settings-plan-val');
     if (planVal) planVal.textContent = label;
 
-    var usage  = d.usage  || {};
-    var overage = d.overage || {};
-    var fields = [
-      {key:'ai_queries',   label:'Upiti'},
-      {key:'doc_analyses', label:'Analize dokumenata'},
-      {key:'strategies',   label:'Strategije'},
-    ];
-
     var html = '';
-    for (var i = 0; i < fields.length; i++) {
-      var f    = fields[i];
-      var u    = usage[f.key] || {};
-      var used  = u.used  || 0;
-      var limit = u.limit;
 
-      var barHtml;
-      if (limit === null) {
-        barHtml = '<div style="font-size:.68rem;color:#4ade80;margin-top:2px;">∞ neograničeno</div>';
-      } else if (!limit) {
-        barHtml = '<div style="font-size:.68rem;color:rgba(255,255,255,.25);margin-top:2px;">nije u ovom planu</div>';
-      } else {
-        var pct = Math.min(100, Math.round(used / limit * 100));
-        var barColor = pct >= 90 ? '#f87171' : pct >= 70 ? '#fb923c' : '#00d4ff';
-        barHtml = '<div style="background:rgba(255,255,255,.07);border-radius:4px;height:4px;overflow:hidden;margin-top:4px;">'
-          + '<div style="height:100%;width:'+pct+'%;background:'+barColor+';border-radius:4px;transition:width .3s;"></div>'
-          + '</div>'
-          + '<div style="font-size:.63rem;color:rgba(255,255,255,.3);margin-top:2px;">'+used+' / '+limit+'</div>';
-      }
+    html += '<div style="margin-bottom:.5rem;">'
+      + '<div style="font-size:.71rem;color:rgba(255,255,255,.5);">Preostalo kredita ovog meseca</div>'
+      + '<div style="font-size:1.1rem;font-weight:600;color:#00d4ff;margin-top:2px;">'+(d.credits_remaining != null ? d.credits_remaining : '—')+'</div>'
+      + '</div>';
 
-      html += '<div style="margin-bottom:.5rem;">'
-        + '<div style="font-size:.71rem;color:rgba(255,255,255,.5);">'+f.label+'</div>'
-        + barHtml
-        + '</div>';
+    if (d.addons && d.addons.length) {
+      html += '<div style="font-size:.68rem;color:rgba(255,255,255,.4);margin-bottom:.5rem;">Dodaci: '+d.addons.join(', ')+'</div>';
     }
 
-    var totalOverage = (overage.queries||0) + (overage.docs||0) + (overage.strategies||0);
-    if (totalOverage > 0) {
-      html += '<div style="margin-top:.35rem;padding:.3rem .5rem;background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.2);border-radius:2px;font-size:.7rem;color:#fb923c;">⚠ Overage: '+totalOverage+' jedinica iznad plana</div>';
+    if (d.subscription_expires_at) {
+      var expDate = new Date(d.subscription_expires_at);
+      html += '<div style="font-size:.68rem;color:#fb923c;margin-bottom:.5rem;">Tarifa ističe: '+expDate.toLocaleDateString('sr-RS')+'</div>';
+    }
+
+    var usageList = d.usage_this_month || [];
+    if (usageList.length) {
+      html += '<div style="font-size:.68rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin:.4rem 0 .3rem;">Korišćeno ovog meseca</div>';
+      for (var i = 0; i < Math.min(usageList.length, 8); i++) {
+        var u = usageList[i];
+        var limitTxt = u.mesecni_limit != null ? (' / ' + u.mesecni_limit) : (u.dnevni_limit != null ? (' (dnevni limit ' + u.dnevni_limit + ')') : '');
+        html += '<div style="display:flex;justify-content:space-between;font-size:.71rem;color:rgba(255,255,255,.55);margin-bottom:.2rem;">'
+          + '<span>'+_htmlEsc(u.naziv || u.feature_key)+'</span>'
+          + '<span style="color:rgba(255,255,255,.35);">'+u.broj_koriscenja+limitTxt+'</span>'
+          + '</div>';
+      }
+    } else {
+      html += '<div style="font-size:.7rem;color:rgba(255,255,255,.25);">Još niste koristili AI funkcije ovog meseca.</div>';
     }
 
     var ym = d.year_month || '';
