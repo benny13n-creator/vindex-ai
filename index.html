@@ -3840,6 +3840,22 @@
                 <div id="admin-pinecone-summary" style="font-size:0.72rem;color:rgba(255,255,255,0.45);margin-bottom:0.5rem;"></div>
                 <div id="admin-pinecone-table" style="font-size:0.75rem;"></div>
               </div>
+
+              <!-- ── Feature Registry — jedini način izmene tarifa/cena/limita, bez koda ── -->
+              <div style="margin-top:1.2rem;border-top:1px solid rgba(255,255,255,0.06);padding-top:1rem;">
+                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.35);margin-bottom:0.4rem;display:flex;align-items:center;justify-content:space-between;">
+                  <span>Feature Registry — cene, tarife i limiti</span>
+                  <button class="settings-btn" onclick="adminFeatureRegistryLoad()" style="font-size:0.65rem;padding:2px 8px;">↻</button>
+                </div>
+                <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-bottom:.5rem;">Izmene su odmah aktivne za sve korisnike — bez restarta platforme.</div>
+                <div style="display:flex;gap:.35rem;margin-bottom:.5rem;">
+                  <select id="fr-filter-kategorija" onchange="adminFeatureRegistryRender()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:3px 6px;color:rgba(255,255,255,0.7);font-size:0.7rem;font-family:inherit;">
+                    <option value="">Sve kategorije</option>
+                  </select>
+                  <input id="fr-filter-search" oninput="adminFeatureRegistryRender()" placeholder="Pretraži po nazivu..." style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:3px 7px;color:rgba(255,255,255,0.8);font-size:0.72rem;font-family:inherit;">
+                </div>
+                <div id="admin-feature-registry-table" style="max-height:520px;overflow-y:auto;font-size:0.73rem;"></div>
+              </div>
             </div>
 
             <!-- ── USAGE ANALYTICS (samo osnivač) ──────────────────────── -->

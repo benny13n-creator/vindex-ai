@@ -344,3 +344,121 @@ async def pinecone_capacity(request: Request, user: dict = Depends(get_current_u
             "stvarna potrošnja prostora je veća zbog metapodataka. Koristi za trend, ne za tačan limit."
         ),
     }
+
+
+# ─── Admin Feature Console ──────────────────────────────────────────────────
+# Jedini način da se promeni tarifa/addon/cena/limit funkcije — NIKAD izmena
+# koda. Svaka izmena odmah invalidira feature_registry keš (shared/
+# feature_registry.py) tako da je vidljiva na sledećem pozivu, bez restarta.
+
+class FeatureRegistryUpdate(BaseModel):
+    naziv: Optional[str] = None
+    kategorija: Optional[str] = None
+    minimum_plan: Optional[str] = Field(default=None, description="basic/professional/enterprise ili null za addon-only")
+    addon: Optional[str] = None
+    krediti: Optional[float] = None
+    krediti_po_minutu: Optional[float] = None
+    dnevni_limit: Optional[int] = None
+    mesecni_limit: Optional[int] = None
+    ai_model: Optional[str] = None
+    aktivno: Optional[bool] = None
+    opis: Optional[str] = None
+    # Eksplicitni "obriši ovo ograničenje" flag-ovi — Pydantic ne razlikuje
+    # "polje nije poslato" od "polje je namerno None" bez ovoga.
+    ukloni_dnevni_limit: bool = False
+    ukloni_mesecni_limit: bool = False
+    ukloni_addon: bool = False
+    ukloni_minimum_plan: bool = False
+
+
+@router.get("/feature-registry")
+@limiter.limit("60/minute")
+async def feature_registry_list(request: Request, user: dict = Depends(get_current_user)):
+    """Sva 69 funkcija sa trenutnom politikom — Admin Feature Console tabela."""
+    _require_founder(user)
+    from shared.feature_registry import get_all_policies
+    policies = await get_all_policies()
+    policies.sort(key=lambda p: (p.get("kategorija") or "", p.get("feature_key") or ""))
+    return {"features": policies, "ukupno": len(policies)}
+
+
+@router.patch("/feature-registry/{feature_key}")
+@limiter.limit("30/minute")
+async def feature_registry_update(
+    feature_key: str,
+    payload: FeatureRegistryUpdate,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Menja politiku jedne funkcije. Odmah invalidira keš — promena je
+    aktivna na sledećem pozivu bilo kog korisnika, bez deploy-a/restarta."""
+    _require_founder(user)
+    from shared.feature_registry import invalidate
+
+    updates: dict = {}
+    for field in ("naziv", "kategorija", "minimum_plan", "addon", "krediti",
+                  "krediti_po_minutu", "dnevni_limit", "mesecni_limit",
+                  "ai_model", "aktivno", "opis"):
+        val = getattr(payload, field)
+        if val is not None:
+            updates[field] = val
+    if payload.ukloni_dnevni_limit:
+        updates["dnevni_limit"] = None
+    if payload.ukloni_mesecni_limit:
+        updates["mesecni_limit"] = None
+    if payload.ukloni_addon:
+        updates["addon"] = None
+    if payload.ukloni_minimum_plan:
+        updates["minimum_plan"] = None
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nema izmena u zahtevu.")
+    if updates.get("minimum_plan") not in (None,) and updates.get("minimum_plan") not in ("basic", "professional", "enterprise"):
+        if "minimum_plan" in updates and updates["minimum_plan"] is not None:
+            raise HTTPException(status_code=400, detail="minimum_plan mora biti basic/professional/enterprise ili null.")
+
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    updates["updated_by"] = user.get("email", "")
+
+    try:
+        res = await asyncio.to_thread(
+            lambda: _get_supa().table("feature_registry")
+                .update(updates)
+                .eq("feature_key", feature_key)
+                .execute()
+        )
+        if not res.data:
+            raise HTTPException(status_code=404, detail=f"Feature '{feature_key}' nije pronađen u Registry-ju.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[ADMIN] feature-registry update greška za %s", feature_key)
+        raise HTTPException(status_code=500, detail=f"Greška pri izmeni: {exc!r}")
+
+    invalidate()
+    logger.info("[ADMIN] feature_registry['%s'] izmenjen od %s: %s", feature_key, user.get("email"), updates)
+    return {"feature_key": feature_key, "azurirano": updates}
+
+
+@router.post("/feature-registry/{feature_key}/toggle")
+@limiter.limit("30/minute")
+async def feature_registry_toggle(feature_key: str, request: Request, user: dict = Depends(get_current_user)):
+    """Brzi kill-switch — uključi/isključi funkciju za SVE korisnike (uključujući foundera)."""
+    _require_founder(user)
+    from shared.feature_registry import get_policy, invalidate
+
+    try:
+        current = await get_policy(feature_key)
+    except RuntimeError:
+        raise HTTPException(status_code=404, detail=f"Feature '{feature_key}' nije pronađen u Registry-ju.")
+
+    novo_stanje = not current.get("aktivno", True)
+    await asyncio.to_thread(
+        lambda: _get_supa().table("feature_registry")
+            .update({"aktivno": novo_stanje, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": user.get("email", "")})
+            .eq("feature_key", feature_key)
+            .execute()
+    )
+    invalidate()
+    logger.warning("[ADMIN] feature_registry['%s'] aktivno=%s (od %s)", feature_key, novo_stanje, user.get("email"))
+    return {"feature_key": feature_key, "aktivno": novo_stanje}

@@ -13925,6 +13925,7 @@ async function adminOpsLoad() {
   adminNotifLoad();
   adminBetaLoad();
   adminPineconeLoad();
+  adminFeatureRegistryLoad();
 }
 
 function _fmtBytes(bytes) {
@@ -13978,6 +13979,124 @@ async function adminPineconeLoad() {
   } catch(e) {
     if (sumEl) sumEl.textContent = '';
     if (tblEl) tblEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);font-size:0.72rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
+}
+
+/* ── Feature Registry — Admin Feature Console ─────────────────────────────
+   Jedini UI za izmenu tarifa/cena/limita funkcija. Ne diraj shared/features.py
+   za ovo — sve živi u feature_registry tabeli, ovaj panel je jedini urednik. */
+var _frFeatures = [];
+
+async function adminFeatureRegistryLoad() {
+  if (!currentSession || !currentUserIsFounder) return;
+  var tblEl = document.getElementById('admin-feature-registry-table');
+  if (tblEl) tblEl.innerHTML = '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Učitavam...</div>';
+  try {
+    var r = await fetch(BASE_URL + '/api/admin/feature-registry', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('Server greška: ' + r.status));
+    _frFeatures = d.features || [];
+
+    var katEl = document.getElementById('fr-filter-kategorija');
+    if (katEl) {
+      var kategorije = Array.from(new Set(_frFeatures.map(function(f){ return f.kategorija; }))).sort();
+      katEl.innerHTML = '<option value="">Sve kategorije</option>' + kategorije.map(function(k) {
+        return '<option value="' + _htmlEsc(k) + '">' + _htmlEsc(k) + '</option>';
+      }).join('');
+    }
+    adminFeatureRegistryRender();
+  } catch(e) {
+    if (tblEl) tblEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);font-size:0.72rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+  }
+}
+
+function adminFeatureRegistryRender() {
+  var tblEl = document.getElementById('admin-feature-registry-table');
+  if (!tblEl) return;
+  var kat = (document.getElementById('fr-filter-kategorija') || {}).value || '';
+  var q = ((document.getElementById('fr-filter-search') || {}).value || '').toLowerCase().trim();
+
+  var rows = _frFeatures.filter(function(f) {
+    if (kat && f.kategorija !== kat) return false;
+    if (q && (f.naziv || '').toLowerCase().indexOf(q) === -1 && (f.feature_key || '').toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  }).map(function(f) {
+    var key = f.feature_key;
+    var planOpts = ['', 'basic', 'professional', 'enterprise'].map(function(p) {
+      var lbl = p || '— (addon-only)';
+      return '<option value="' + p + '"' + (f.minimum_plan === p || (!f.minimum_plan && !p) ? ' selected' : '') + '>' + lbl + '</option>';
+    }).join('');
+    return '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);' + (f.aktivno ? '' : 'opacity:.4;') + '">'
+      + '<td style="padding:4px 6px 4px 0;color:rgba(255,255,255,0.82);white-space:nowrap;">' + _htmlEsc(f.naziv) + '<div style="font-size:.6rem;color:rgba(255,255,255,.3);">' + _htmlEsc(key) + '</div></td>'
+      + '<td style="padding:4px 6px;"><select id="fr-plan-' + key + '" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px;">' + planOpts + '</select></td>'
+      + '<td style="padding:4px 6px;"><input id="fr-addon-' + key + '" value="' + _htmlEsc(f.addon || '') + '" placeholder="—" style="width:80px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></td>'
+      + '<td style="padding:4px 6px;"><input id="fr-krediti-' + key + '" type="number" step="0.5" value="' + (f.krediti != null ? f.krediti : 0) + '" style="width:48px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></td>'
+      + '<td style="padding:4px 6px;"><input id="fr-dnevni-' + key + '" type="number" value="' + (f.dnevni_limit != null ? f.dnevni_limit : '') + '" placeholder="∞" style="width:48px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></td>'
+      + '<td style="padding:4px 6px;"><input id="fr-mesecni-' + key + '" type="number" value="' + (f.mesecni_limit != null ? f.mesecni_limit : '') + '" placeholder="∞" style="width:48px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.75);font-size:0.68rem;font-family:inherit;padding:2px 4px;"></td>'
+      + '<td style="padding:4px 6px;text-align:center;"><button onclick="adminFeatureRegistryToggle(\'' + key + '\')" class="vx-btn vx-btn-ghost" style="height:22px;padding:0 0.4rem;font-size:0.62rem;">' + (f.aktivno ? 'Ugasi' : 'Upali') + '</button></td>'
+      + '<td style="padding:4px 0 4px 6px;"><button onclick="adminFeatureRegistrySave(\'' + key + '\')" class="settings-btn" style="font-size:0.65rem;padding:2px 8px;">Sačuvaj</button></td>'
+      + '</tr>';
+  }).join('');
+
+  tblEl.innerHTML = '<table style="width:100%;border-collapse:collapse;">'
+    + '<thead><tr style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.03em;color:rgba(255,255,255,0.3);">'
+    + '<th style="text-align:left;padding:2px 6px 4px 0;">Funkcija</th>'
+    + '<th style="text-align:left;padding:2px 6px 4px;">Min. tarifa</th>'
+    + '<th style="text-align:left;padding:2px 6px 4px;">Addon</th>'
+    + '<th style="text-align:left;padding:2px 6px 4px;">Krediti</th>'
+    + '<th style="text-align:left;padding:2px 6px 4px;">Dnevno</th>'
+    + '<th style="text-align:left;padding:2px 6px 4px;">Mesečno</th>'
+    + '<th style="text-align:center;padding:2px 6px 4px;">Aktivno</th>'
+    + '<th style="padding:2px 0 4px 6px;"></th>'
+    + '</tr></thead><tbody>' + (rows || '<tr><td colspan="8" style="padding:8px 0;color:rgba(255,255,255,.3);">Nema rezultata.</td></tr>') + '</tbody></table>';
+}
+
+async function adminFeatureRegistrySave(key) {
+  if (!currentSession) return;
+  var planEl = document.getElementById('fr-plan-' + key);
+  var addonEl = document.getElementById('fr-addon-' + key);
+  var kreditiEl = document.getElementById('fr-krediti-' + key);
+  var dnevniEl = document.getElementById('fr-dnevni-' + key);
+  var mesecniEl = document.getElementById('fr-mesecni-' + key);
+
+  var payload = {
+    krediti: kreditiEl.value === '' ? 0 : parseFloat(kreditiEl.value),
+  };
+  if (planEl.value) { payload.minimum_plan = planEl.value; } else { payload.ukloni_minimum_plan = true; }
+  if (addonEl.value.trim()) { payload.addon = addonEl.value.trim(); } else { payload.ukloni_addon = true; }
+  if (dnevniEl.value !== '') { payload.dnevni_limit = parseInt(dnevniEl.value, 10); } else { payload.ukloni_dnevni_limit = true; }
+  if (mesecniEl.value !== '') { payload.mesecni_limit = parseInt(mesecniEl.value, 10); } else { payload.ukloni_mesecni_limit = true; }
+
+  try {
+    var r = await fetch(BASE_URL + '/api/admin/feature-registry/' + encodeURIComponent(key), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify(payload)
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('Server greška: ' + r.status));
+    showToast('Sačuvano — promena je odmah aktivna.', 'success');
+    adminFeatureRegistryLoad();
+  } catch(e) {
+    showToast('Greška: ' + e.message, 'error');
+  }
+}
+
+async function adminFeatureRegistryToggle(key) {
+  if (!currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/admin/feature-registry/' + encodeURIComponent(key) + '/toggle', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ('Server greška: ' + r.status));
+    showToast(key + ': ' + (d.aktivno ? 'uključeno' : 'isključeno'), d.aktivno ? 'success' : 'info');
+    adminFeatureRegistryLoad();
+  } catch(e) {
+    showToast('Greška: ' + e.message, 'error');
   }
 }
 
