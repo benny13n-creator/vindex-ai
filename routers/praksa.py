@@ -17,7 +17,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _get_supa, get_current_user
+from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.api")
 router = APIRouter()
@@ -654,7 +656,7 @@ class ArgumentMapReq(BaseModel):
 async def argument_map(
     req: ArgumentMapReq,
     request: Request,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(PermissionService.require("sudska_praksa")),
 ):
     """
     Argument Mapping — klasifikuje sudsku praksu u ZA/PROTIV/NEUTRALNO za dati argument.
@@ -718,6 +720,9 @@ async def argument_map(
         return min(99, round(sum(scores) / len(scores) * 100))
 
     total = len(za) + len(protiv) + len(neutral)
+
+    await UsageService.consume(user["user_id"], user.get("email", ""), "sudska_praksa")
+
     return {
         "argument":    req.argument,
         "za_mene":     za,
