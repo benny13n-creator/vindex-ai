@@ -369,6 +369,7 @@ class FeatureRegistryUpdate(BaseModel):
     visible: Optional[str] = Field(default=None, description="visible/hidden/internal/enterprise_only")
     feature_type: Optional[str] = Field(default=None, description="FOUNDATION/SUBSCRIPTION/ADDON/INTERNAL — određuje da li se funkcija uopšte pojavljuje u Pricing tabeli i gde")
     chargeable: Optional[bool] = None
+    business_group_id: Optional[str] = Field(default=None, description="UUID poslovne celine (business_groups.id) za Pricing Modal Nivo 1 karticu — NULL za FOUNDATION/COMING_SOON funkcije")
     ai_model: Optional[str] = None
     aktivno: Optional[bool] = None
     opis: Optional[str] = None
@@ -379,6 +380,7 @@ class FeatureRegistryUpdate(BaseModel):
     ukloni_cooldown: bool = False
     ukloni_addon: bool = False
     ukloni_minimum_plan: bool = False
+    ukloni_business_group: bool = False
 
 
 _VALID_STATUS = ("ACTIVE", "BETA", "DEPRECATED", "INTERNAL", "COMING_SOON")
@@ -452,7 +454,7 @@ async def feature_registry_update(
                   "krediti_po_minutu", "credit_multiplier", "dnevni_limit", "mesecni_limit",
                   "cooldown_seconds", "priority", "estimated_cost_usd",
                   "version", "status", "visible", "feature_type", "chargeable",
-                  "ai_model", "aktivno", "opis"):
+                  "business_group_id", "ai_model", "aktivno", "opis"):
         val = getattr(payload, field)
         if val is not None:
             updates[field] = val
@@ -466,6 +468,8 @@ async def feature_registry_update(
         updates["addon"] = None
     if payload.ukloni_minimum_plan:
         updates["minimum_plan"] = None
+    if payload.ukloni_business_group:
+        updates["business_group_id"] = None
 
     if not updates:
         raise HTTPException(status_code=400, detail="Nema izmena u zahtevu.")
@@ -664,3 +668,116 @@ async def tier_config_update(
     await _write_tier_audit(tier_key, user.get("email", ""), old_values, {k: v for k, v in updates.items() if k not in ("updated_at", "updated_by")})
     logger.info("[ADMIN] tier_config['%s'] izmenjen od %s: %s", tier_key, user.get("email"), updates)
     return {"tier_key": tier_key, "azurirano": updates}
+
+
+# ─── Admin Business Groups Console ──────────────────────────────────────────
+# Jedini način da se promeni poslovna celina (Pricing Modal Nivo 1 kartica) —
+# NIKAD izmena koda. Isti obrazac kao Admin Tier Config Console (migracija 071).
+
+class BusinessGroupUpdate(BaseModel):
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    display_order: Optional[int] = None
+    visible: Optional[bool] = None
+    ukloni_icon: bool = False
+
+
+async def _write_business_group_audit(group_key: str, changed_by: str, old_values: dict, new_values: dict) -> None:
+    try:
+        await asyncio.to_thread(
+            lambda: _get_supa().table("business_groups_audit").insert({
+                "group_key": group_key,
+                "changed_by": changed_by,
+                "old_values": old_values,
+                "new_values": new_values,
+            }).execute()
+        )
+    except Exception as exc:
+        logger.warning("[ADMIN] business_groups_audit upis neuspešan (non-fatal): %s", exc)
+
+
+@router.get("/business-groups")
+@limiter.limit("60/minute")
+async def business_groups_list(request: Request, user: dict = Depends(get_current_user)):
+    """Svih 7 poslovnih celina — Admin Business Groups tabela."""
+    _require_founder(user)
+    from shared.business_groups import get_all_groups
+    groups = await get_all_groups()
+    return {"groups": groups, "ukupno": len(groups)}
+
+
+@router.get("/business-groups/{group_key}/audit")
+@limiter.limit("30/minute")
+async def business_groups_audit_log(group_key: str, request: Request, user: dict = Depends(get_current_user)):
+    _require_founder(user)
+    res = await asyncio.to_thread(
+        lambda: _get_supa().table("business_groups_audit")
+            .select("*")
+            .eq("group_key", group_key)
+            .order("changed_at", desc=True)
+            .limit(50)
+            .execute()
+    )
+    return {"group_key": group_key, "istorija": res.data or []}
+
+
+@router.patch("/business-groups/{group_key}")
+@limiter.limit("30/minute")
+async def business_groups_update(
+    group_key: str,
+    payload: BusinessGroupUpdate,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Menja naziv/opis/redosled/vidljivost jedne poslovne celine. Odmah
+    invalidira keš — promena je aktivna na sledećem pozivu Pricing Modala,
+    bez deploy-a/restarta. Svaka izmena ostaje trajno u business_groups_audit."""
+    _require_founder(user)
+    from shared.business_groups import invalidate
+
+    updates: dict = {}
+    for field in ("display_name", "description", "icon", "display_order", "visible"):
+        val = getattr(payload, field)
+        if val is not None:
+            updates[field] = val
+    if payload.ukloni_icon:
+        updates["icon"] = None
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nema izmena u zahtevu.")
+
+    try:
+        old_res = await asyncio.to_thread(
+            lambda: _get_supa().table("business_groups").select("*").eq("key", group_key).maybe_single().execute()
+        )
+        if not old_res.data:
+            raise HTTPException(status_code=404, detail=f"Grupa '{group_key}' nije pronađena u business_groups.")
+        old_values = {k: old_res.data.get(k) for k in updates}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Greška pri čitanju stare vrednosti: {exc!r}")
+
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    updates["updated_by"] = user.get("email", "")
+
+    try:
+        res = await asyncio.to_thread(
+            lambda: _get_supa().table("business_groups")
+                .update(updates)
+                .eq("key", group_key)
+                .execute()
+        )
+        if not res.data:
+            raise HTTPException(status_code=404, detail=f"Grupa '{group_key}' nije pronađena u business_groups.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[ADMIN] business_groups update greška za %s", group_key)
+        raise HTTPException(status_code=500, detail=f"Greška pri izmeni: {exc!r}")
+
+    invalidate()
+    await _write_business_group_audit(group_key, user.get("email", ""), old_values, {k: v for k, v in updates.items() if k not in ("updated_at", "updated_by")})
+    logger.info("[ADMIN] business_groups['%s'] izmenjen od %s: %s", group_key, user.get("email"), updates)
+    return {"group_key": group_key, "azurirano": updates}

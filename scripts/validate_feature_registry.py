@@ -109,6 +109,19 @@ def _validate_row(row: dict) -> list[tuple[str, str]]:
     if chargeable is False and krediti:
         findings.append(("FATAL", f"[{key}] chargeable=false ali krediti={krediti} > 0 — kontradiktorno, Registry tvrdi i da se naplaćuje i da se ne naplaćuje"))
 
+    business_group_id = row.get("business_group_id")
+    if (feature_type in ("SUBSCRIPTION", "ADDON") and status == "ACTIVE"
+            and (visible or "visible") == "visible" and not business_group_id):
+        findings.append((
+            "FATAL",
+            f"[{key}] feature_type={feature_type}, status=ACTIVE, visible ali business_group_id je prazan "
+            f"— funkcija se ne pojavljuje ni u jednoj Pricing Modal kartici",
+        ))
+    if feature_type == "FOUNDATION" and business_group_id:
+        findings.append(("WARNING", f"[{key}] feature_type=FOUNDATION ali business_group_id je postavljen — FOUNDATION se nikad ne prikazuje u Pricing-u, dodela grupe je bez efekta"))
+    if status == "COMING_SOON" and business_group_id:
+        findings.append(("WARNING", f"[{key}] status=COMING_SOON ali business_group_id je postavljen — nedovršena funkcija se nikad ne prikazuje u Pricing-u, dodela grupe je bez efekta"))
+
     return findings
 
 

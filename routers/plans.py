@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
+from shared.business_groups import get_all_groups
 from shared.deps import _get_supa, _ensure_profile, get_current_user
 from shared.feature_registry import get_all_policies
 from shared.permissions import effective_tier
@@ -112,6 +113,54 @@ async def plan_info():
             if t.get("is_active", True)
         ]
     }
+
+
+@router.get("/pricing-matrix")
+async def pricing_matrix():
+    """Javni endpoint — Pricing Modal Nivo 1/Nivo 2 struktura. IZVEDENA u
+    trenutku upita spajanjem feature_registry + business_groups (migracija
+    071) — nikad zaseban 'pricing_matrix' red, jer bi to bio drugi izvor
+    istine. Dodavanje nove funkcije = jedan INSERT u feature_registry sa
+    postavljenim business_group_id, ovaj endpoint je automatski prikazuje,
+    bez izmene koda.
+
+    Samo feature_type IN (SUBSCRIPTION, ADDON), status=ACTIVE, visible=visible
+    i sa dodeljenom business_group_id ulaze u matricu — FOUNDATION (uvek
+    dostupno, nije razlog za kupovinu) i COMING_SOON (nije izgrađeno, nikad
+    se ne reklamira) su namerno isključeni."""
+    groups, policies = await asyncio.gather(get_all_groups(), get_all_policies())
+    groups_by_id = {g["id"]: g for g in groups}
+
+    by_group: dict[str, list[dict]] = {g["key"]: [] for g in groups if g.get("visible", True)}
+    for p in policies:
+        if p.get("feature_type") not in ("SUBSCRIPTION", "ADDON"):
+            continue
+        if p.get("status") != "ACTIVE" or p.get("visible") != "visible":
+            continue
+        group = groups_by_id.get(p.get("business_group_id"))
+        if not group or group["key"] not in by_group:
+            continue
+        by_group[group["key"]].append({
+            "feature_key":  p["feature_key"],
+            "naziv":        p.get("naziv", p["feature_key"]),
+            "opis":         p.get("opis"),
+            "minimum_plan": p.get("minimum_plan"),
+            "addon":        p.get("addon"),
+            "krediti":      p.get("krediti"),
+        })
+
+    grupe = []
+    for g in sorted((g for g in groups if g.get("visible", True)), key=lambda g: g.get("display_order", 0)):
+        funkcije = sorted(by_group.get(g["key"], []), key=lambda f: f["naziv"])
+        grupe.append({
+            "key":            g["key"],
+            "naziv":          g.get("display_name", g["key"]),
+            "opis":           g.get("description"),
+            "broj_funkcija":  len(funkcije),
+            "funkcije":       funkcije,
+        })
+
+    return {"grupe": grupe}
 
 
 # Faza 72 čišćenje: enforce_and_increment/_enforce_and_increment_inner/
