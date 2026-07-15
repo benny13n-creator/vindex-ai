@@ -7864,6 +7864,7 @@ async function pgLoadGroups() {
   if (_pgCache) { pgRenderGroups(_pgCache); return; }
   try {
     var r = await fetch(BASE_URL + '/api/plan/pricing-matrix');
+    if (!r.ok) throw new Error('pricing-matrix HTTP ' + r.status);
     var data = await r.json();
     _pgCache = data.grupe || [];
     pgRenderGroups(_pgCache);
