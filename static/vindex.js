@@ -7888,18 +7888,40 @@ function pgRenderCard(g) {
     return '<span style="font-size:.68rem;padding:.25rem .55rem;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:2px;color:rgba(255,255,255,.7);">' + _pgEsc(f.naziv) + '</span>';
   }).join('');
 
+  var isDigitalAssets = g.key === 'digitalna_imovina';
   var addonCta = '';
-  if (g.key === 'digitalna_imovina') {
+  if (isDigitalAssets) {
     addonCta = '<div style="display:flex;gap:.5rem;margin-top:.7rem;">' +
-      '<button onclick="event.stopPropagation();pricing_kontakt(\'digitalna_imovina_standalone\')" style="flex:1;padding:.5rem;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);border-radius:2px;color:#c4b5fd;font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit;">79€/mes samostalno</button>' +
+      '<button onclick="event.stopPropagation();pricing_kontakt(\'digitalna_imovina_standalone\')" style="flex:1;padding:.5rem;background:rgba(167,139,250,.16);border:1px solid rgba(167,139,250,.4);border-radius:2px;color:#c4b5fd;font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit;">79€/mes samostalno</button>' +
       '<button onclick="event.stopPropagation();pricing_kontakt(\'digitalna_imovina_addon\')" style="flex:1;padding:.5rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:2px;color:rgba(255,255,255,.65);font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit;">39€/mes dodatak</button>' +
       '</div>';
   }
 
+  // Digitalna imovina je izdvojena kao poseban modul, ne standardni addon —
+  // regionalni diferencijator (retko koja AI legal platforma ima CARF/DAC8/
+  // MiCA/AML/Wallet Risk/Source of Funds pod jednim krovom). Vizuelno se
+  // izdvaja: širi na 2 kolone, ljubičasti akcent, eyebrow oznaka, badge-ovi
+  // sa regulatornim okvirima na vrhu kartice.
+  var frameworkBadges = '';
+  if (isDigitalAssets) {
+    frameworkBadges = '<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.7rem;">' +
+      ['MiCA', 'CARF', 'DAC8', 'AML/KYC', 'Wallet Risk', 'Source of Funds'].map(function(fw) {
+        return '<span style="font-size:.64rem;padding:.2rem .5rem;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);border-radius:2px;color:#c4b5fd;font-weight:600;">' + fw + '</span>';
+      }).join('') + '</div>';
+  }
+  var eyebrow = isDigitalAssets
+    ? '<div style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(167,139,250,.8);margin-bottom:.4rem;">Poseban modul platforme</div>'
+    : '';
+  var cardStyle = isDigitalAssets
+    ? 'grid-column:span 2;background:rgba(167,139,250,.05);border:1px solid rgba(167,139,250,.28);border-radius:3px;padding:1.2rem;display:flex;flex-direction:column;'
+    : 'background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:3px;padding:1.2rem;display:flex;flex-direction:column;';
+
   return '' +
-    '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:3px;padding:1.2rem;display:flex;flex-direction:column;">' +
+    '<div style="' + cardStyle + '">' +
+      eyebrow +
+      frameworkBadges +
       '<div style="font-size:.95rem;font-weight:800;color:#fff;margin-bottom:.35rem;">' + _pgEsc(g.naziv) + '</div>' +
-      '<div style="font-size:.8rem;color:#00d4ff;font-weight:600;line-height:1.4;margin-bottom:.6rem;">' + _pgEsc(g.tagline) + '</div>' +
+      '<div style="font-size:.8rem;color:' + (isDigitalAssets ? '#c4b5fd' : '#00d4ff') + ';font-weight:600;line-height:1.4;margin-bottom:.6rem;">' + _pgEsc(g.tagline) + '</div>' +
       '<div style="font-size:.74rem;color:rgba(255,255,255,.55);line-height:1.55;margin-bottom:.7rem;">' + _pgEsc(g.opis) + '</div>' +
       '<div style="font-size:.72rem;color:rgba(255,255,255,.8);margin-bottom:.7rem;"><strong style="color:#4ade80;">Rezultat:</strong> ' + _pgEsc(g.rezultat) + '</div>' +
       (bestFor ? '<div style="font-size:.65rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.2rem;">Najveću vrednost ostvaruju</div><ul style="list-style:none;padding:0;margin:0 0 .8rem;">' + bestFor + '</ul>' : '') +
