@@ -28,6 +28,16 @@ trigger), `Superseded` (replaced by a later ADR — none yet).
 | [0014](0014-document-lineage-confidence-gated.md) | Lineage edges are confidence-scored and reviewable, never auto-asserted | Accepted |
 | [0015](0015-target-state-scoped.md) | Target-state tracking, scoped to dimensions where "target" has meaning | Accepted |
 | [0016](0016-intent-engine-deferred.md) | Intent-driven orchestration layer deferred | Deferred |
+| [0017](0017-automation-safety-levels.md) | Automation Safety Levels — permission scales with cost of being wrong, not model confidence | Accepted |
+
+See also [`../ENGINEERING_PRINCIPLES.md`](../ENGINEERING_PRINCIPLES.md) —
+standing rules (starting with "every AI decision must degrade gracefully")
+that apply across ADRs rather than living in any single one.
+
+**Architecture frozen as of ADR-0017.** Revisions 1–3 plus this ADR set are
+the design baseline. Further design iteration should wait for real usage
+data from the phases actually shipping — see the roadmap in the source
+design review (§25) for phase sequencing, starting at Phase 0.
 
 Source design review: internal architecture document, revisions 1–3,
 2026-07-15.
