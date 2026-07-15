@@ -4,6 +4,15 @@ Vindex AI 2.0 — services/event_bus.py
 
 In-memory pub/sub Event Bus za reaktivnu arhitekturu.
 Svaki događaj u sistemu triggeruje handlere bez blokiranja głównog toka.
+
+Faza 0 Smart Intake Engine-a (ADR-0001, dizajn review §6/§26.4) dodaje
+durable outbox sloj ispod ovog in-memory bus-a: publish()/publish_async()
+ostaju iste (in-process, fire-and-forget dispatch handlerima), ali
+dispatch_pending_events() dole čita 'events' tabelu (outbox — pisanu u
+istoj Postgres transakciji kao promenu koja je izazvala, npr. preko
+enqueue_intake_job RPC) i pokreće handlere preko istog registry-ja. Restart/
+redeploy pre nego što je handler pozvan više NE gubi događaj — nedispečovan
+red ostaje u bazi dok ga poller ne obradi.
 """
 from __future__ import annotations
 
@@ -28,6 +37,12 @@ class EventType(str, Enum):
     STRATEGIJA_GENERISANA  = "strategija_generisana"
     ANALIZA_ZAHTEVANA      = "analiza_zahtevana"
     HEALTH_SCORE_PROMENJEN = "health_score_promenjen"
+    # Faza 0 Smart Intake — job lifecycle, NE AI ponašanje (klasifikacija/
+    # ekstrakcija dolaze u Fazi 1). Vrednosti moraju biti IDENTIČNE stringu
+    # koji enqueue_intake_job RPC upisuje u events.event_type.
+    DOCUMENT_JOB_ENQUEUED  = "DocumentJobEnqueued"
+    DOCUMENT_JOB_COMPLETED = "DocumentJobCompleted"
+    DOCUMENT_JOB_FAILED    = "DocumentJobFailed"
 
 
 # ─── Event dataclass ──────────────────────────────────────────────────────────
@@ -205,3 +220,82 @@ def emit(
         predmet_id = predmet_id,
         payload    = payload or {},
     ))
+
+
+# ─── Durable outbox dispatch (Faza 0, ADR-0001) ────────────────────────────────
+# Poller — čita nedispečovane redove iz 'events' tabele (migracija 073) i
+# pokreće ih kroz isti in-memory handler registry. Redovi se pišu u istoj
+# Postgres transakciji kao promena koja ih je izazvala (npr. enqueue_intake_job
+# RPC) — "publish" u smislu ovog fajla znači "handler pozvan", ne "događaj
+# zabeležen"; beleženje je već trajno urađeno pre nego što ovaj poller ikad
+# pokrene.
+
+DISPATCH_BATCH_SIZE = 50
+
+
+async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict[str, int]:
+    """Čita do batch_size nedispečovanih redova iz 'events', pokreće handlere
+    preko bus.publish_async(), i markira dispatched_at. Best-effort po redu —
+    greška na jednom redu ne sme da blokira ostale u batch-u. Namerno se ne
+    poziva iz FastAPI request handlera — pokreće ga periodičan worker/cron
+    (Faza 0 infrastruktura, van ovog fajla)."""
+    from shared.deps import _get_supa
+
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("events")
+            .select("*")
+            .is_("dispatched_at", "null")
+            .order("created_at")
+            .limit(batch_size)
+            .execute()
+    )
+    rows = res.data or []
+    dispatched, errored, unknown_type = 0, 0, 0
+
+    for row in rows:
+        row_id = row["id"]
+        raw_type = row.get("event_type")
+        try:
+            event_type = EventType(raw_type)
+        except ValueError:
+            logger.warning("[EVENT_BUS] dispatch: nepoznat event_type '%s' (red=%s) — markiram dispečovanim, nema handlera koji bi ga obradio.", raw_type, str(row_id)[:8])
+            unknown_type += 1
+            await _mark_dispatched(supa, row_id)
+            continue
+
+        event = Event(
+            type       = event_type,
+            user_id    = row.get("user_id") or "",
+            predmet_id = row.get("predmet_id"),
+            payload    = row.get("payload") or {},
+        )
+        try:
+            await bus.publish_async(event)
+            await _mark_dispatched(supa, row_id)
+            dispatched += 1
+        except Exception as exc:
+            errored += 1
+            logger.error("[EVENT_BUS] dispatch greška za red=%s tip=%s: %s", str(row_id)[:8], raw_type, exc)
+            await asyncio.to_thread(
+                lambda: supa.table("events")
+                    .update({
+                        "dispatch_attempts": (row.get("dispatch_attempts") or 0) + 1,
+                        "last_error": str(exc)[:500],
+                    })
+                    .eq("id", row_id)
+                    .execute()
+            )
+
+    if rows:
+        logger.info("[EVENT_BUS] dispatch batch: %d obrađeno, %d dispečovano, %d nepoznat tip, %d grešaka", len(rows), dispatched, unknown_type, errored)
+    return {"obradjeno": len(rows), "dispecovano": dispatched, "nepoznat_tip": unknown_type, "greske": errored}
+
+
+async def _mark_dispatched(supa, row_id: str) -> None:
+    await asyncio.to_thread(
+        lambda: supa.table("events")
+            .update({"dispatched_at": datetime.now(timezone.utc).isoformat()})
+            .eq("id", row_id)
+            .execute()
+    )
