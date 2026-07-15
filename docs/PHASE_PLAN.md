@@ -31,17 +31,53 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Restart-safety — `claimed_at` + `reap_stale_jobs()`: a job stuck in an in-progress status past a staleness threshold is requeued through the normal retry/dead-letter path, never permanently stuck
 - [x] End-to-end restart-safety test (simulated crash mid-processing, confirm no lost events / effectively-once) — `tests/test_intake_e2e_restart.py`, drives the real production code (not a reimplementation) against an in-memory fake of the Postgres RPC surface. Honest limitation documented in the test's own docstring: this proves the orchestration logic, not the real Postgres row-locking guarantees — those need the live migration run to verify for real.
 
-**Phase 0 — Definition of Done: met**, with one caveat. All 5 items the
-founder required are done and green (44 new tests, full suite 1528/1528).
-The caveat: migration 073 has not been run against the live database yet —
-everything above is proven correct in isolation, not yet proven against
-production Supabase. That's the one thing this implementation genuinely
-cannot self-certify; only running it can.
+**Phase 0 — Definition of Done: met, verified live against production Supabase (2026-07-15).**
 
-Migration `073_intake_foundations.sql` written — **not yet run** (user runs
-migrations himself, per standing project rule). Includes the `intake-
-dokumenti` storage bucket insert. See commits for this phase for exact file
-list.
+Migration 073 ran into three real bugs on first execution — found and
+fixed via founder-run diagnostics, not guessed:
+1. `CREATE POLICY` has no `IF NOT EXISTS` in Postgres (unlike `CREATE
+   TABLE`) — any re-run of the file aborted on the first policy statement.
+   Fixed with `DROP POLICY IF EXISTS` before each of the 5 policies.
+2. `CREATE TABLE IF NOT EXISTS` doesn't add columns to a table that already
+   exists — `intake_jobs` was created before `claimed_at` existed in the
+   file, so it was silently missing. Fixed with an explicit `ALTER TABLE
+   ADD COLUMN IF NOT EXISTS` (same pattern as migration 072).
+3. `claim_intake_job` was the only one of 4 RPCs missing `SECURITY
+   DEFINER` — its `UPDATE ... RETURNING` silently returned empty under RLS
+   even though the write succeeded, making a successful claim look like
+   "no job found." Found live: 11 test jobs stuck in `preprocessing`.
+
+**Live verification performed** (direct against production Supabase, real
+RPCs, real `IntakeWorker`, real `dispatch_pending_events` — not mocks):
+- 5 consecutive enqueue→claim→complete cycles: 5/5 correct
+- Full acceptance sequence (upload → 202-equivalent in 327ms → queue depth
+  → autonomous worker claim → complete → audit trail → outbox → dispatch →
+  heartbeat → queue depth back to 0): 10/10 steps passed
+- Chaos/restart-safety test (upload → claim → simulated crash → reap →
+  reclaim by a second worker → complete → dispatch): 11/11 checks passed,
+  exactly one `DocumentJobCompleted` event despite the crash, zero events
+  left undispatched, complete audit trail (`job_created` → `job_retry_
+  scheduled` → `job_completed`)
+- Performance baseline: 20 sequential uploads, enqueue latency 88–287ms
+  (avg 110ms). Throughput measurement was inconclusive due to a counting
+  artifact in the benchmark script itself, not re-run — noted honestly
+  rather than reported with false confidence. Worth redoing properly
+  before Phase 1A if throughput becomes a real question.
+- Housekeeping: found and killed 3 orphaned local dev server processes
+  left running from earlier in the session — one of them was actively
+  racing the verification scripts for the same jobs, which is what
+  originally made the SECURITY DEFINER bug look non-deterministic.
+
+Migration `073_intake_foundations.sql` **run successfully** against
+production Supabase. Includes the `intake-dokumenti` storage bucket
+insert. See commits for this phase for exact file list and bug fixes.
+
+**Not yet verified:** the actual HTTP layer (`POST /api/smart-intake/
+documents` with real multipart upload + encryption + Storage write, `GET
+/api/smart-intake/admin/health` with real founder auth) — all live testing
+above went through the service layer directly (`shared/intake_queue.py`,
+`shared/intake_worker.py`, `services/event_bus.py`), not through FastAPI
++ auth. Worth a real HTTP-level smoke test before Phase 1A ships.
 
 ## Phase 1 — Smart Intake
 **Goal: documents become classified, matched, reviewable.**
