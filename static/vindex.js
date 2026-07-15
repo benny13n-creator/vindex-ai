@@ -7841,10 +7841,107 @@ function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.
 /* PRICING MODAL */
 function openProModal() {
   document.getElementById('pro-modal').classList.add('open');
+  ptLoadTiers();
   pgLoadGroups();
 }
 function closeProModal() {
   document.getElementById('pro-modal').classList.remove('open');
+}
+
+/* Pricing Modal — tarifne kartice (Basic/Professional/Enterprise), IZVEDENO
+   iz GET /api/plan/info (tier_config, migracija 068) — jedini izvor cene/
+   naziva/uključenih mesta. Do 2026-07-16 ove kartice su bile hardkodovane
+   (stari nazivi Solo/PRO/Kancelarija, RSD cene) i nisu se slagale sa onim
+   što tier_config stvarno obračunava — promena cene u Admin Feature Console-u
+   se sad ODMAH vidi ovde, nema drugog mesta gde bi moglo da ostane staro.
+   Marketing bullet-i ispod (_PT_BULLETS) su OPISNA kopija, ne brojevi koji se
+   naplaćuju — svaki broj koji SE naplaćuje (cena, uključena mesta, cena
+   dodatnog mesta) dolazi isključivo iz API odgovora. */
+var _ptCache = null;
+
+var _PT_BULLETS = {
+  basic: [
+    'Osnovne AI funkcije za pojedinačnog advokata',
+    'RAG pretraga sudske prakse i zakona',
+    'Nacrti i analiza dokumenata',
+    'SEF e-faktura',
+  ],
+  professional: [
+    'Sve iz Basic tarife',
+    'PRO strategija moduli (Red Team analiza, simulacije ishoda)',
+    'Tim od 6 specijalizovanih AI agenata',
+    'Klijentski portal',
+  ],
+  enterprise: [
+    'Sve iz Professional tarife',
+    'Dedicirani server, SLA ugovor',
+    'Onboarding i obuka tima, API pristup',
+    'Prilagođena integracija',
+  ],
+};
+
+function _ptEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function ptLoadTiers() {
+  var grid = document.getElementById('pricing-tiers-grid');
+  if (!grid) return;
+  if (_ptCache) { ptRenderTiers(_ptCache); return; }
+  try {
+    var r = await fetch(BASE_URL + '/api/plan/info');
+    if (!r.ok) throw new Error('plan/info HTTP ' + r.status);
+    var data = await r.json();
+    _ptCache = data.planovi || [];
+    ptRenderTiers(_ptCache);
+  } catch (e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1rem;font-size:.78rem;color:rgba(255,255,255,.35);">Trenutno nedostupno.</div>';
+  }
+}
+
+function ptRenderTiers(planovi) {
+  var grid = document.getElementById('pricing-tiers-grid');
+  if (!grid) return;
+  grid.innerHTML = planovi.map(ptRenderCard).join('');
+}
+
+function ptRenderCard(t) {
+  var isPopular = t.id === 'professional';
+  var priceLabel = t.cena_mesecno ? (t.cena_mesecno + ' <span style="font-size:1rem;font-weight:400;color:rgba(255,255,255,.4);">€/mes</span>')
+                                   : 'Kontakt <span style="font-size:1rem;font-weight:400;color:rgba(255,255,255,.4);">cena</span>';
+  var savingsPct = '';
+  if (t.cena_mesecno && t.cena_godisnje_mesecno) {
+    var pct = Math.round((1 - (t.cena_godisnje_mesecno / t.cena_mesecno)) * 100);
+    if (pct > 0) savingsPct = 'Godišnja pretplata — uštedite ' + pct + '%';
+  }
+  var seats = 'Uključeno: ' + (t.ukljucena_mesta || 1) + (t.ukljucena_mesta === 1 ? ' korisnik' : ' korisnika');
+  if (t.cena_dodatnog_mesta) seats += ' · dodatno mesto ' + t.cena_dodatnog_mesta + '€/mes';
+
+  var bullets = (_PT_BULLETS[t.id] || []).map(function(b) {
+    return '<li style="font-size:.78rem;color:rgba(255,255,255,.7);">✓ ' + _ptEsc(b) + '</li>';
+  }).join('');
+
+  var cardStyle = isPopular
+    ? 'background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.28);border-radius:3px;padding:1.5rem;display:flex;flex-direction:column;position:relative;'
+    : 'background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:1.5rem;display:flex;flex-direction:column;';
+  var badge = isPopular
+    ? '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#00d4ff;color:#000;font-size:.65rem;font-weight:700;letter-spacing:.08em;padding:.2rem .7rem;border-radius:3px;">NAJPOPULARNIJI</div>'
+    : '';
+  var ctaLabel = t.id === 'enterprise' ? 'Kontaktirajte nas →' : ('Aktivirajte ' + _ptEsc(t.naziv) + ' →');
+  var ctaStyle = isPopular
+    ? 'padding:.7rem;background:#00d4ff;border:none;border-radius:2px;color:#010308;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;'
+    : 'padding:.7rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:rgba(255,255,255,0.72);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;';
+
+  return '' +
+    '<div style="' + cardStyle + '">' +
+      badge +
+      '<div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:' + (isPopular ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,.4)') + ';margin-bottom:.5rem;">' + _ptEsc(t.naziv) + '</div>' +
+      '<div style="font-size:2rem;font-weight:800;color:#fff;">' + priceLabel + '</div>' +
+      '<div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-bottom:.4rem;">' + _ptEsc(savingsPct) + '</div>' +
+      '<div style="font-size:.72rem;color:rgba(255,255,255,.45);margin-bottom:1rem;">' + _ptEsc(seats) + '</div>' +
+      '<ul style="list-style:none;padding:0;margin:0 0 1.2rem;flex:1;display:flex;flex-direction:column;gap:.5rem;">' + bullets + '</ul>' +
+      '<button onclick="pricing_kontakt(\'' + t.id + '\')" style="' + ctaStyle + '">' + ctaLabel + '</button>' +
+    '</div>';
 }
 
 /* Pricing Modal — poslovne celine (Nivo 1/Nivo 2), IZVEDENO iz
@@ -7943,7 +8040,7 @@ function pgToggleExpand(btn) {
   if (arrow) arrow.textContent = open ? '→' : '↓';
 }
 async function pricing_kontakt(plan) {
-  var labels = { solo: 'Solo', pro: 'PRO', kancelarija: 'Kancelarija',
+  var labels = { basic: 'Basic', professional: 'Professional', enterprise: 'Enterprise',
     digitalna_imovina_standalone: 'Vindex AI - Digitalna imovina & usklađenost (79€/mes, samostalno)',
     digitalna_imovina_addon: 'Vindex AI - Digitalna imovina & usklađenost (39€/mes, dodatak uz PRO)' };
   var subject = encodeURIComponent('Vindex AI ' + (labels[plan] || plan) + ' plan');
@@ -7965,7 +8062,7 @@ async function pricing_kontakt(plan) {
     }
   } catch(e) {}
   window.open('mailto:kontakt@vindex.ai?subject=' + subject + '&body=' + body);
-  if (plan !== 'kancelarija') {
+  if (plan !== 'enterprise') {
     closeProModal();
     showToast('Otvoren je vaš email klijent. Pošaljite nam poruku i aktiviraćemo vaš plan!');
   }
@@ -15670,9 +15767,16 @@ function _piRenderPlans(pl) {
 
   // Plan distribucija bars
   h += '<div style="font-size:0.55rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:0.5rem;">Distribucija planova</div>';
-  var planColors = {free:'rgba(148,163,184,0.4)', advokat:'rgba(255,255,255,0.45)', pro:'rgba(201,168,76,0.7)', firma:'rgba(139,92,246,0.7)'};
-  var planLabels = {free:'Besplatno', advokat:'Advokat €19', pro:'Pro €39', firma:'Firma €59'};
-  ['free','advokat','pro','firma'].forEach(function(pt){
+  // NAPOMENA (2026-07-16): ovde su do sada bili STARI tier ključevi
+  // (free/advokat/pro/firma) koji se ne poklapaju sa onim što backend
+  // stvarno šalje (dist je uvek {basic,professional,enterprise} —
+  // routers/product_intelligence.py::_tier_distribution_and_mrr) — ova
+  // traka je tiho prikazivala 0% za sve tarife otkad je tier_config
+  // (migracija 068) zamenio stari sistem. Nazivi/cene ispod dolaze iz
+  // tier_config preko istog dist objekta, ne iz nezavisnog izvora.
+  var planColors = {basic:'rgba(148,163,184,0.4)', professional:'rgba(201,168,76,0.7)', enterprise:'rgba(139,92,246,0.7)'};
+  var planLabels = {basic:'Basic', professional:'Professional', enterprise:'Enterprise'};
+  ['basic','professional','enterprise'].forEach(function(pt){
     var n = dist[pt] || 0;
     var pct = total > 0 ? Math.round(n/total*100) : 0;
     h += '<div class="pi-feat-row" style="margin-bottom:0.3rem;">';
