@@ -14,11 +14,21 @@ would take the entire request down with it.
 
 ## Decision
 
-`POST /api/intake/documents` accepts a multipart batch and returns
+`POST /api/smart-intake/documents` accepts a multipart batch and returns
 `202 Accepted` with a `job_id` per file immediately. All processing
 (preprocess → classify → extract → match → enrich) happens in background
-workers against a durable job record. Clients poll `GET /api/intake/jobs/{id}`
-or subscribe via SSE.
+workers against a durable job record. Clients poll
+`GET /api/smart-intake/jobs/{id}` or subscribe via SSE.
+
+**Amendment (Phase 0 implementation, 2026-07-15):** originally specified as
+`/api/intake/documents`. During implementation, `routers/intake.py` was
+found to already own the entire `/api/intake/*` namespace — a pre-existing,
+live CRM Intake Wizard (`/api/intake/ekstrakcija`, `/kreiraj`,
+`/conflict-check`, `/templates`, `/bulk-import`, `/history`) with no
+relation to document intake. Same word, unrelated feature. Renamed to
+`/api/smart-intake/*` (`routers/smart_intake.py`) to avoid colliding with a
+live system, per the standing rule that an ADR gets formally amended rather
+than silently deviated from during implementation.
 
 ## Alternatives Considered
 

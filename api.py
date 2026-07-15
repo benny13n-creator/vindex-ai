@@ -558,6 +558,7 @@ from routers.analytics     import router as analytics_router
 from routers.portfolio     import router as portfolio_router
 from routers.notifications import router as notifications_router
 from routers.intake        import router as intake_router
+from routers.smart_intake  import router as smart_intake_router
 from routers.import_klijenti import router as import_klijenti_router
 from routers.billing       import router as billing_router
 from routers.tarife        import router as tarife_router
@@ -649,6 +650,7 @@ app.include_router(analytics_router)
 app.include_router(portfolio_router)
 app.include_router(notifications_router)
 app.include_router(intake_router)
+app.include_router(smart_intake_router)
 app.include_router(import_klijenti_router)
 app.include_router(billing_router)
 app.include_router(tarife_router)
@@ -772,6 +774,34 @@ async def _warm_connections():
         except Exception as exc:
             logger.warning("Startup warming neuspešan (nije fatalno): %s", exc)
     await asyncio.to_thread(_warm)
+
+
+@app.on_event("startup")
+async def _start_smart_intake_background_loops():
+    """Smart Intake Engine, Faza 0 (docs/adr/ADR-0001/ADR-0002) — pokreće
+    IntakeWorker (claim/process/complete/fail/reap petlju) i durable event
+    bus dispatch loop. Oba dele event loop sa HTTP serverom — nema zaseban
+    proces u Fazi 0 (ADR-0002)."""
+    try:
+        from shared.intake_worker import start_worker
+        from services.event_bus import start_dispatch_loop
+        start_worker()
+        start_dispatch_loop()
+    except Exception as exc:
+        logger.error("[STARTUP] Smart Intake pozadinske petlje nisu pokrenute (nije fatalno za ostatak app-a): %s", exc)
+
+
+@app.on_event("shutdown")
+async def _stop_smart_intake_background_loops():
+    """Graceful shutdown — signalizira obema petljama da stanu POSLE
+    trenutnog tick-a, nikad usred obrade jednog posla/dispatch batch-a."""
+    try:
+        from shared.intake_worker import stop_worker
+        from services.event_bus import stop_dispatch_loop
+        await stop_worker()
+        await stop_dispatch_loop()
+    except Exception as exc:
+        logger.warning("[SHUTDOWN] Smart Intake pozadinske petlje nisu čisto zaustavljene: %s", exc)
 
 
 @app.exception_handler(Exception)

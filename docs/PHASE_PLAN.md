@@ -19,17 +19,29 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done
 ## Phase 0 — Foundations
 **Goal: make upload reliable and durable. No AI behavior changes yet.**
 
-- [x] Persistent Event Bus (outbox pattern) — `services/event_bus.py::dispatch_pending_events`, migration 073 (`events` table) — [ADR-0001](adr/0001-async-ingest-job-queue.md), design review §7/§26.4
+- [x] Persistent Event Bus (outbox pattern) — `services/event_bus.py::dispatch_pending_events` + `DispatchLoop`, migration 073 (`events` table) — [ADR-0001](adr/0001-async-ingest-job-queue.md), design review §7/§26.4
 - [x] Persistent Job Queue (`intake_jobs`, Postgres-backed, `claim_intake_job` RPC) — `shared/intake_queue.py` — [ADR-0002](adr/0002-postgres-job-queue.md)
 - [x] Upload transaction — `enqueue_intake_job` RPC (job + audit + outbox event atomic, migration 073)
-- [x] Retry mechanism (exponential backoff, dead-letter at max_attempts) — `shared/intake_queue.py::mark_job_failed`
+- [x] Retry mechanism (exponential backoff, dead-letter at max_attempts) — `shared/intake_queue.py::mark_job_failed` + `fail_intake_job` RPC (atomic)
 - [x] Audit log (`intake_audit_log`, append-only) — `shared/intake_queue.py::write_audit`
-- [ ] Wire a periodic worker to call `dispatch_pending_events()` (cron/background task — not yet scheduled anywhere)
-- [ ] `POST /api/intake/documents` endpoint wiring `enqueue_job()` to real file storage (currently: queue/outbox plumbing exists, no HTTP endpoint calls it yet)
+- [x] Worker scheduling — `shared/intake_worker.py::IntakeWorker` (idempotent claim→process→complete/fail, graceful shutdown, periodic reaping of stale claimed jobs, heartbeat)
+- [x] Periodic dispatch of outbox events — `services/event_bus.py::DispatchLoop`
+- [x] Upload endpoint — `POST /api/smart-intake/documents` (`routers/smart_intake.py`) — **note:** originally specced as `/api/intake/documents` (ADR-0001); renamed after discovering `/api/intake/*` already belongs to the live CRM Intake Wizard (`routers/intake.py`, unrelated feature, same word). Formally amended in ADR-0001, not silently changed.
+- [x] Operational observability — `GET /api/smart-intake/admin/health` (queue depth, oldest pending, failed/retrying, outbox backlog, dispatch latency, worker heartbeats) — `intake_queue_metrics` / `events_outbox_metrics` views
+- [x] Restart-safety — `claimed_at` + `reap_stale_jobs()`: a job stuck in an in-progress status past a staleness threshold is requeued through the normal retry/dead-letter path, never permanently stuck
+- [x] End-to-end restart-safety test (simulated crash mid-processing, confirm no lost events / effectively-once) — `tests/test_intake_e2e_restart.py`, drives the real production code (not a reimplementation) against an in-memory fake of the Postgres RPC surface. Honest limitation documented in the test's own docstring: this proves the orchestration logic, not the real Postgres row-locking guarantees — those need the live migration run to verify for real.
+
+**Phase 0 — Definition of Done: met**, with one caveat. All 5 items the
+founder required are done and green (44 new tests, full suite 1528/1528).
+The caveat: migration 073 has not been run against the live database yet —
+everything above is proven correct in isolation, not yet proven against
+production Supabase. That's the one thing this implementation genuinely
+cannot self-certify; only running it can.
 
 Migration `073_intake_foundations.sql` written — **not yet run** (user runs
-migrations himself, per standing project rule). 15 new tests, full suite
-green. See commit for this phase for exact file list.
+migrations himself, per standing project rule). Includes the `intake-
+dokumenti` storage bucket insert. See commits for this phase for exact file
+list.
 
 ## Phase 1 — Smart Intake
 **Goal: documents become classified, matched, reviewable.**

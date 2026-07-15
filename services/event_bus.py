@@ -299,3 +299,64 @@ async def _mark_dispatched(supa, row_id: str) -> None:
             .eq("id", row_id)
             .execute()
     )
+
+
+# ─── Periodic dispatch loop (Faza 0) ────────────────────────────────────────────
+# dispatch_pending_events() postojalo je bez ičega da ga periodično poziva —
+# founder je eksplicitno primetio da je to "infrastruktura koja postoji ali
+# se ne koristi". Ista graceful start/stop disciplina kao shared/
+# intake_worker.py::IntakeWorker, namerno zaseban od njega — dispatch loop
+# nema veze sa intake_jobs specifično, servira SVE evente kroz event bus.
+
+_DISPATCH_POLL_INTERVAL_S = 3.0
+
+
+class DispatchLoop:
+    def __init__(self, poll_interval_s: float = _DISPATCH_POLL_INTERVAL_S) -> None:
+        self.poll_interval_s = poll_interval_s
+        self._shutdown = asyncio.Event()
+        self._task: asyncio.Task | None = None
+
+    def start(self) -> None:
+        if self._task is not None:
+            return
+        self._shutdown.clear()
+        self._task = asyncio.create_task(self._run())
+        logger.info("[EVENT_BUS] dispatch loop pokrenut (poll=%.1fs)", self.poll_interval_s)
+
+    async def stop(self, timeout_s: float = 15.0) -> None:
+        self._shutdown.set()
+        if self._task is not None:
+            try:
+                await asyncio.wait_for(self._task, timeout=timeout_s)
+            except asyncio.TimeoutError:
+                logger.warning("[EVENT_BUS] dispatch loop nije stao u %.0fs — otkazujem task.", timeout_s)
+                self._task.cancel()
+            self._task = None
+        logger.info("[EVENT_BUS] dispatch loop zaustavljen.")
+
+    async def _run(self) -> None:
+        while not self._shutdown.is_set():
+            try:
+                result = await dispatch_pending_events()
+                did_work = result["obradjeno"] > 0
+            except Exception:
+                logger.exception("[EVENT_BUS] dispatch loop neočekivana greška — nastavlja, ne obara worker.")
+                did_work = False
+
+            if not did_work:
+                try:
+                    await asyncio.wait_for(self._shutdown.wait(), timeout=self.poll_interval_s)
+                except asyncio.TimeoutError:
+                    pass
+
+
+dispatch_loop = DispatchLoop()
+
+
+def start_dispatch_loop() -> None:
+    dispatch_loop.start()
+
+
+async def stop_dispatch_loop() -> None:
+    await dispatch_loop.stop()

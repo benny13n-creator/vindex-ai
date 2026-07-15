@@ -22,7 +22,7 @@ def anyio_backend():
 
 def _make_chain(data):
     chain = MagicMock()
-    for attr in ["select", "eq", "update", "insert", "order", "limit", "is_", "maybe_single"]:
+    for attr in ["select", "eq", "update", "insert", "upsert", "order", "limit", "is_", "in_", "lt", "maybe_single"]:
         setattr(chain, attr, MagicMock(return_value=chain))
     chain.execute = MagicMock(return_value=MagicMock(data=data))
     return chain
@@ -110,73 +110,52 @@ async def test_claim_next_job_rejects_invalid_status():
 # ═══════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.anyio
-async def test_mark_job_completed_updates_status_and_audits():
+async def test_mark_job_completed_calls_atomic_rpc():
     from shared import intake_queue as iq
 
-    calls = []
-    def _table(name):
-        calls.append(name)
-        return _make_chain([{"id": "job-1"}])
     supa = MagicMock()
-    supa.table = MagicMock(side_effect=_table)
+    supa.rpc = MagicMock(return_value=_make_chain(None))
 
     with patch("shared.intake_queue._get_supa", return_value=supa):
         await iq.mark_job_completed("job-1")
 
-    assert "intake_jobs" in calls
-    assert "intake_audit_log" in calls
+    supa.rpc.assert_called_once_with("complete_intake_job", {"p_job_id": "job-1"})
 
 
 @pytest.mark.anyio
 async def test_mark_job_failed_schedules_retry_below_max_attempts():
     from shared import intake_queue as iq
 
-    updates = []
-    def _table(name):
-        chain = _make_chain([{"id": "job-1"}])
-        if name == "intake_jobs":
-            orig_update = chain.update
-            def _capture_update(payload):
-                updates.append(payload)
-                return chain
-            chain.update = MagicMock(side_effect=_capture_update)
-        return chain
     supa = MagicMock()
-    supa.table = MagicMock(side_effect=_table)
+    supa.rpc = MagicMock(return_value=_make_chain(None))
 
     with patch("shared.intake_queue._get_supa", return_value=supa):
         await iq.mark_job_failed("job-1", "OCR timeout", attempts=1, max_attempts=5)
 
-    assert len(updates) == 1
-    assert updates[0]["status"] == "received"
-    assert updates[0]["attempts"] == 2
-    assert "next_retry_at" in updates[0]
-    assert updates[0]["last_error"] == "OCR timeout"
+    supa.rpc.assert_called_once()
+    call_name, call_args = supa.rpc.call_args[0]
+    assert call_name == "fail_intake_job"
+    assert call_args["p_job_id"] == "job-1"
+    assert call_args["p_new_attempts"] == 2
+    assert call_args["p_max_attempts"] == 5
+    assert call_args["p_next_retry_at"] is not None
+    assert call_args["p_error"] == "OCR timeout"
 
 
 @pytest.mark.anyio
 async def test_mark_job_failed_dead_letters_at_max_attempts():
     from shared import intake_queue as iq
 
-    updates = []
-    def _table(name):
-        chain = _make_chain([{"id": "job-1"}])
-        if name == "intake_jobs":
-            def _capture_update(payload):
-                updates.append(payload)
-                return chain
-            chain.update = MagicMock(side_effect=_capture_update)
-        return chain
     supa = MagicMock()
-    supa.table = MagicMock(side_effect=_table)
+    supa.rpc = MagicMock(return_value=_make_chain(None))
 
     with patch("shared.intake_queue._get_supa", return_value=supa):
         await iq.mark_job_failed("job-1", "OCR timeout", attempts=4, max_attempts=5)
 
-    assert len(updates) == 1
-    assert updates[0]["status"] == "failed"
-    assert updates[0]["attempts"] == 5
-    assert "next_retry_at" not in updates[0]
+    call_name, call_args = supa.rpc.call_args[0]
+    assert call_name == "fail_intake_job"
+    assert call_args["p_new_attempts"] == 5
+    assert call_args["p_next_retry_at"] is None
 
 
 @pytest.mark.anyio
@@ -201,6 +180,104 @@ async def test_write_audit_swallows_errors():
     supa.table = MagicMock(side_effect=Exception("db down"))
     with patch("shared.intake_queue._get_supa", return_value=supa):
         await iq.write_audit("job-1", "job_created", "system")  # must not raise
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# shared/intake_queue.py — reaper (restart-safety)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_reap_stale_jobs_requeues_stuck_job():
+    from shared import intake_queue as iq
+
+    stale_row = {"id": "job-stuck", "attempts": 0, "max_attempts": 5}
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain([stale_row]))
+    supa.rpc = MagicMock(return_value=_make_chain(None))
+
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        reaped = await iq.reap_stale_jobs(stale_after_seconds=300)
+
+    assert reaped == 1
+    # reap_stale_jobs delegates to mark_job_failed -> fail_intake_job RPC
+    supa.rpc.assert_called_once()
+    call_name, call_args = supa.rpc.call_args[0]
+    assert call_name == "fail_intake_job"
+    assert call_args["p_job_id"] == "job-stuck"
+
+
+@pytest.mark.anyio
+async def test_reap_stale_jobs_noop_when_nothing_stuck():
+    from shared import intake_queue as iq
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain([]))
+    supa.rpc = MagicMock(return_value=_make_chain(None))
+
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        reaped = await iq.reap_stale_jobs()
+
+    assert reaped == 0
+    supa.rpc.assert_not_called()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# shared/intake_queue.py — metrics + heartbeat (operational observability)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_get_queue_metrics_returns_view_row():
+    from shared import intake_queue as iq
+    metrics_row = {"queue_depth": 3, "failed_count": 1, "retrying_count": 0}
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain([metrics_row]))
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        metrics = await iq.get_queue_metrics()
+    assert metrics["queue_depth"] == 3
+
+
+@pytest.mark.anyio
+async def test_get_outbox_metrics_returns_view_row():
+    from shared import intake_queue as iq
+    metrics_row = {"undispatched_backlog": 2}
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain([metrics_row]))
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        metrics = await iq.get_outbox_metrics()
+    assert metrics["undispatched_backlog"] == 2
+
+
+@pytest.mark.anyio
+async def test_record_heartbeat_upserts():
+    from shared import intake_queue as iq
+    supa = MagicMock()
+    chain = _make_chain(None)
+    supa.table = MagicMock(return_value=chain)
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        await iq.record_heartbeat("worker-1", jobs_processed=10, jobs_failed=1)
+    chain.upsert.assert_called_once()
+    payload = chain.upsert.call_args[0][0]
+    assert payload["worker_id"] == "worker-1"
+    assert payload["jobs_processed"] == 10
+
+
+@pytest.mark.anyio
+async def test_record_heartbeat_swallows_errors():
+    from shared import intake_queue as iq
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=Exception("db down"))
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        await iq.record_heartbeat("worker-1", 0, 0)  # must not raise
+
+
+@pytest.mark.anyio
+async def test_get_worker_heartbeats_returns_rows():
+    from shared import intake_queue as iq
+    rows = [{"worker_id": "w1"}, {"worker_id": "w2"}]
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain(rows))
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        result = await iq.get_worker_heartbeats()
+    assert len(result) == 2
 
 
 # ═══════════════════════════════════════════════════════════════════════════
