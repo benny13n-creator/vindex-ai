@@ -2,8 +2,8 @@
 """
 Tests for scripts/intake_accuracy_benchmark.py's comparison/aggregation
 logic. These use ONLY synthetic values to prove the harness computes
-correctly — never presented as real accuracy data (see golden_dataset/
-README.md: the real dataset ships empty on purpose).
+correctly — never presented as real accuracy data (see evaluation/lec/
+README.md: the real Legal Evaluation Corpus ships empty on purpose).
 """
 import sys, os, importlib.util
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -168,3 +168,60 @@ def test_aggregate_missing_agreement_field_defaults_to_agreed():
     summary = mod._aggregate([doc])
     assert summary["sporne_anotacije"] == 0
     assert summary["ekstrakcija_tacnost_po_polju"]["case_number"] == 1.0
+
+
+def test_aggregate_disagreement_details_carry_error_source():
+    mod = _load_module()
+    doc = _doc("d1", "a_clean_digital", "easy", False, agreement=False)
+    doc["error_source"] = "ground_truth"
+    summary = mod._aggregate([doc])
+    assert summary["sporne_anotacije_detalji"] == [{"document_id": "d1", "error_source": "ground_truth"}]
+
+
+def test_stability_no_previous_run_reports_no_comparison():
+    mod = _load_module()
+    current = {"ekstrakcija_tacnost_po_polju": {"deadline": 0.98}, "klasifikacija_tacnost": 0.97}
+    result = mod._stability(current, None)
+    assert result["najveci_pad"] is None
+    assert result["ukupna_promena_pp"] is None
+
+
+def test_stability_flags_largest_per_entity_drop_even_if_headline_stable():
+    mod = _load_module()
+    # Headline accuracy barely moves (96.8 -> 96.7) but deadline collapses (98 -> 84)
+    # — this is exactly the founder's "prosek to sakrije" scenario.
+    previous = {
+        "ekstrakcija_tacnost_po_polju": {"deadline": 0.98, "case_number": 0.99},
+        "klasifikacija_tacnost": 0.968,
+    }
+    current = {
+        "ekstrakcija_tacnost_po_polju": {"deadline": 0.84, "case_number": 0.985},
+        "klasifikacija_tacnost": 0.967,
+    }
+    result = mod._stability(current, previous)
+    assert result["najveci_pad"]["entity_type"] == "deadline"
+    assert result["najveci_pad"]["pad_pp"] == 14.0
+    assert result["ukupna_promena_pp"] == -0.1
+
+
+def test_stability_improvement_is_not_reported_as_a_drop():
+    mod = _load_module()
+    previous = {"ekstrakcija_tacnost_po_polju": {"deadline": 0.80}, "klasifikacija_tacnost": 0.9}
+    current = {"ekstrakcija_tacnost_po_polju": {"deadline": 0.95}, "klasifikacija_tacnost": 0.95}
+    result = mod._stability(current, previous)
+    assert result["najveci_pad"] is None
+    assert result["ukupna_promena_pp"] == 5.0
+
+
+def test_read_lec_version_missing_file_returns_none(tmp_path, monkeypatch):
+    mod = _load_module()
+    monkeypatch.setattr(mod, "VERSION_PATH", tmp_path / "does_not_exist")
+    assert mod._read_lec_version() is None
+
+
+def test_read_lec_version_reads_stripped_content(tmp_path, monkeypatch):
+    mod = _load_module()
+    version_file = tmp_path / "VERSION"
+    version_file.write_text("v1\n", encoding="utf-8")
+    monkeypatch.setattr(mod, "VERSION_PATH", version_file)
+    assert mod._read_lec_version() == "v1"

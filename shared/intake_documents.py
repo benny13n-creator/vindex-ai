@@ -22,6 +22,14 @@ logger = logging.getLogger("vindex.intake_documents")
 
 AUTO_ACCEPT_THRESHOLD = 0.90
 
+# Deljen vokabular sa evaluation/lec/ i evaluation/hall_of_shame/ anotacijama
+# (founder, LEC feedback 2026-07-15) — KOJI SLOJ je stvarno uzrok greške, ne
+# samo "šta" je ispravljeno (to je correction_reason, slobodan tekst).
+ERROR_SOURCES = (
+    "ocr", "parser", "regex", "heuristics", "llm",
+    "ground_truth", "human_annotation", "unknown",
+)
+
 
 async def create_document(
     intake_job_id: str,
@@ -94,6 +102,7 @@ async def write_processing_outcome(
     user_corrected: bool = False,
     fields_corrected: Optional[list[str]] = None,
     correction_reason: Optional[str] = None,
+    error_source: Optional[str] = None,
 ) -> None:
     """Founder-ov eksplicitan zahtev — upisuje se posle SVAKOG obrađenog
     dokumenta. Best-effort: greška ovde ne sme da obori obradu (ovo je
@@ -102,7 +111,16 @@ async def write_processing_outcome(
     correction_reason (Validation Sprint, drugi krug feedbacka) — OPCIONO
     slobodno objašnjenje "zašto", ne samo "šta" je ispravljeno ("Datum
     presude nije rok za žalbu"). Namerno opciono — ne sme da doda trenje na
-    10-sekundnu ispravku tako što bi postalo obavezno polje."""
+    10-sekundnu ispravku tako što bi postalo obavezno polje.
+
+    error_source (LEC feedback, treći krug) — OPCIONO, kategorička
+    klasifikacija KOG SLOJA je stvarno kriv (ERROR_SOURCES) — fail-soft:
+    nevalidna vrednost se loguje i tiho odbacuje (postaje None), ne obara
+    upis, jer je constraint na DB nivou samo dodatna zaštita, ne treba da
+    obori proizvodni tok zbog jednog lošeg parametra."""
+    if error_source is not None and error_source not in ERROR_SOURCES:
+        logger.warning("[INTAKE_DOCUMENTS] nepoznat error_source '%s' za job=%s — odbačen", error_source, intake_job_id[:8])
+        error_source = None
     try:
         supa = _get_supa()
         await asyncio.to_thread(
@@ -114,6 +132,7 @@ async def write_processing_outcome(
                 "user_corrected": user_corrected,
                 "fields_corrected": fields_corrected or [],
                 "correction_reason": correction_reason,
+                "error_source": error_source,
                 "processing_time_ms": processing_time_ms,
             }).execute()
         )
@@ -147,7 +166,7 @@ async def get_job_result(intake_job_id: str) -> dict:
     return {"document": document, "entities": entities, "review": review}
 
 
-async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str, reason: Optional[str] = None) -> dict:
+async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str, reason: Optional[str] = None, error_source: Optional[str] = None) -> dict:
     """Ovo je '10-sekundna ispravka' iz proizvodnog Definition of Done —
     original value se NIKAD ne briše (corrected_value je dodatak), reviewed
     postaje true, i piše se NOV processing_outcomes red sa user_corrected=
@@ -156,7 +175,10 @@ async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str,
     reason (Validation Sprint) — OPCIONO, "zašto" ne samo "šta". Ostaje
     opciono namerno: obavezno polje bi pretvorilo "ispravku za 10 sekundi"
     u formular, što bi poništilo tačno ono što Faza 1A Definition of Done
-    traži."""
+    traži.
+
+    error_source (LEC feedback, treći krug) — OPCIONO, KOJI SLOJ je kriv
+    (ERROR_SOURCES) — isto opciono iz istog razloga."""
     supa = _get_supa()
 
     old_res = await asyncio.to_thread(
@@ -187,6 +209,7 @@ async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str,
         user_corrected=True,
         fields_corrected=[entity["entity_type"]],
         correction_reason=reason,
+        error_source=error_source,
     )
 
     logger.info("[INTAKE_DOCUMENTS] entity corrected: %s (%s) od %s", entity_id[:8], entity["entity_type"], resolved_by)

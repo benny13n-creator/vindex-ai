@@ -209,6 +209,7 @@ async def correct_entity(
     request: Request,
     corrected_value: str = Body(..., embed=True),
     reason: str = Body(default=None, embed=True),
+    error_source: str = Body(default=None, embed=True),
     user: dict = Depends(get_current_user),
 ):
     """Proizvodni Definition of Done: "ispravka za deset sekundi." Original
@@ -219,9 +220,18 @@ async def correct_entity(
     feedbacka) — "Datum presude nije rok za žalbu" je mnogo korisniji
     materijal od gole činjenice da je polje ispravljeno, ali obavezno polje
     bi pretvorilo 10-sekundnu ispravku u formular — namerno ostaje
-    opciono."""
+    opciono. `error_source` je takođe OPCIONO (LEC feedback, treći krug,
+    2026-07-15) — kategorička klasifikacija KOG SLOJA je kriv (ocr/parser/
+    regex/heuristics/llm/ground_truth/human_annotation/unknown), isti
+    vokabular kao evaluation/lec/ i evaluation/hall_of_shame/ anotacije,
+    tako da se posle šest meseci realne upotrebe može agregirati "gde
+    stvarno gubimo vreme" umesto da svaki correction_reason ostane
+    slobodan tekst koji se ne može grupisati."""
     try:
-        result = await intake_documents.correct_entity(entity_id, corrected_value, user.get("email", user["user_id"]), reason=reason)
+        result = await intake_documents.correct_entity(
+            entity_id, corrected_value, user.get("email", user["user_id"]),
+            reason=reason, error_source=error_source,
+        )
     except ValueError:
         raise HTTPException(status_code=404, detail="Stavka nije pronađena.")
     return result
@@ -252,7 +262,7 @@ async def intake_accuracy(request: Request, user: dict = Depends(_require_founde
     Ovo su OPERATIVNI KPI-jevi iz stvarne upotrebe (OCR uspešnost, review
     polja po dokumentu, stopa ispravki, LLM fallback %, vreme obrade) —
     NIJE isto što i tačnost naspram ground truth-a, za to postoji
-    scripts/intake_accuracy_benchmark.py protiv golden_dataset/. Iskreno
+    scripts/intake_accuracy_benchmark.py protiv evaluation/lec/. Iskreno
     prazno stanje ispod praga uzorka, nikad izmišljen broj koji izgleda
     precizan a nije (isti princip kao Revenue Intelligence)."""
     from shared.intake_accuracy import get_office_accuracy_kpis

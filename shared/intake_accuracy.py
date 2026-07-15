@@ -6,8 +6,9 @@ Smart Intake Engine — Validation Sprint (founder, 2026-07-15). Live
 operational KPIs computed from existing data (intake_documents,
 extracted_entities, intake_review_queue, intake_processing_outcomes) — NOT
 ground-truth accuracy (that's scripts/intake_accuracy_benchmark.py against
-golden_dataset/, a genuinely different claim: "the system found something
-confidently" vs "the system found the RIGHT thing").
+evaluation/lec/ — the Legal Evaluation Corpus — a genuinely different
+claim: "the system found something confidently" vs "the system found the
+RIGHT thing").
 
 Computed in Python over raw rows, not a SQL view (unlike Faza 0's
 intake_queue_metrics/events_outbox_metrics) — deliberately, to avoid a

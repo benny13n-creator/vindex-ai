@@ -182,6 +182,55 @@ async def test_correct_entity_reason_defaults_to_none():
 
 
 @pytest.mark.anyio
+async def test_correct_entity_passes_optional_error_source_to_outcome():
+    from shared import intake_documents as idoc
+
+    entity = {"id": "e1", "document_id": "doc-1", "entity_type": "deadline", "value": None, "confidence": 0.0}
+    doc = {"intake_job_id": "job-1", "document_type": "judgment"}
+
+    outcome_inserts = []
+    def _table(name):
+        if name == "extracted_entities":
+            return _make_chain(entity)
+        if name == "intake_documents":
+            return _make_chain(doc)
+        if name == "intake_processing_outcomes":
+            chain = _make_chain(None)
+            def _capture_insert(payload):
+                outcome_inserts.append(payload)
+                return chain
+            chain.insert = MagicMock(side_effect=_capture_insert)
+            return chain
+        return _make_chain(None)
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        await idoc.correct_entity("e1", "15.12.2026", "advokat@primer.rs", error_source="parser")
+
+    assert outcome_inserts[0]["error_source"] == "parser"
+
+
+@pytest.mark.anyio
+async def test_write_processing_outcome_rejects_unknown_error_source():
+    from shared import intake_documents as idoc
+
+    outcome_inserts = []
+    supa = MagicMock()
+    chain = _make_chain(None)
+    def _capture_insert(payload):
+        outcome_inserts.append(payload)
+        return chain
+    chain.insert = MagicMock(side_effect=_capture_insert)
+    supa.table = MagicMock(return_value=chain)
+
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        await idoc.write_processing_outcome("job-1", "judgment", 0.9, {}, 1200, error_source="not_a_real_source")
+
+    assert outcome_inserts[0]["error_source"] is None  # fail-soft: nevalidna vrednost se tiho odbacuje, upis se ne obara
+
+
+@pytest.mark.anyio
 async def test_correct_entity_raises_when_entity_missing():
     from shared import intake_documents as idoc
     supa = MagicMock()

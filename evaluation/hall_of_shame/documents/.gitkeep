@@ -1,0 +1,5 @@
+Stvarni dokumenti koji su pripadali jednom Hall of Shame incidentu (vidi
+../incidents.json). Skladišti se ovde onaj TAČAN fajl koji je izazvao
+problem — ne rekonstrukcija, ne sličan primer. Referenciraj ga po
+document_ref polju u incidents.json (isti obrazac kao evaluation/lec/ —
+putanja je izvor istine, ne slobodan opis).

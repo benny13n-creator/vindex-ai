@@ -174,15 +174,15 @@ stvarno ponašanje korisnika").
 
 - [x] **Accuracy Benchmark harness** — `scripts/intake_accuracy_benchmark.py`,
       runs the real production `classify()`/`extract_all_entities()` (not a
-      reimplementation) against `golden_dataset/`, reports per-entity-type
+      reimplementation) against `evaluation/lec/` (Legal Evaluation Corpus —
+      renamed from `golden_dataset/`, see below), reports per-entity-type
       accuracy, appends to `docs/accuracy_history.json` so every future run
       shows the delta against the last (`git log -p` on that file is the
-      accuracy changelog founder asked for). `golden_dataset/` ships
-      **empty on purpose** — populating it with ~100 judgments/~100
-      lawsuits/~100 powers of attorney (real, anonymized where needed) plus
+      accuracy changelog founder asked for). `evaluation/lec/` ships
+      **empty on purpose** — populating it with real documents plus
       hand-verified ground truth is the founder's own task, not something
       that can be fabricated and still mean anything. See
-      `golden_dataset/README.md` for the annotation format.
+      `evaluation/lec/README.md` for the annotation format.
 - [x] **Office Accuracy Dashboard** — `GET /api/smart-intake/admin/
       accuracy` (`shared/intake_accuracy.py`), computed live from existing
       `intake_processing_outcomes`/`intake_review_queue`/`extracted_
@@ -198,7 +198,7 @@ stvarno ponašanje korisnika").
       kancelarija_id` isn't populated anywhere yet (design review §26.9,
       same known gap noted since Phase 0's upload endpoint) — deferred
       until office-scoped review queues are actually built.
-- [ ] Populate `golden_dataset/` with real documents + run the benchmark —
+- [ ] Populate `evaluation/lec/` with real documents + run the benchmark —
       **founder's task**, not something to build further from here.
 
 **Golden Dataset v2 (same day, second round of ML-practice feedback):**
@@ -233,7 +233,46 @@ is right from the first real run instead of needing a rework later:
   Deliberately optional — a required field would turn the "10-second fix"
   into a form, which would undo Phase 1A's own Definition of Done.
 
-See `golden_dataset/README.md` for the full annotation schema.
+See `evaluation/lec/README.md` for the full annotation schema.
+
+**LEC v1 — Legal Evaluation Corpus rename + Error Source + Stability + Hall
+of Shame (same day, third round of founder feedback — evaluation-process
+reframe, not a design revision):** Founder's framing: "Više ne gradiš AI
+proizvod. Gradiš AI evaluacioni sistem" — and that deserves a name that
+signals a versioned product, not a static file.
+
+- **Renamed `golden_dataset/` → `evaluation/lec/`** (git history preserved
+  via `git mv`), with `VERSION` (currently `v1`) and `CHANGELOG.md` —
+  future meaningful batches of documents/annotations/schema changes are
+  LEC v2, v3, etc., recorded there.
+- **`error_source`** (optional, both sides) — categorical classification
+  of *which layer* is actually at fault: `ocr` / `parser` / `regex` /
+  `heuristics` / `llm` / `ground_truth` / `human_annotation` / `unknown`.
+  Added to `intake_processing_outcomes` (migration 074, amended before
+  first run — same CHECK-constraint taxonomy as the annotation-side
+  field) and to the LEC annotation schema for disagreement documents.
+  Founder's reasoning: `correction_reason` free text answers "what was
+  wrong"; `error_source` answers "where do I actually spend engineering
+  time" in an aggregatable way once real volume exists — might be OCR,
+  might be the regex, might not be the AI at all.
+- **Stability KPI** — `scripts/intake_accuracy_benchmark.py::_stability()`
+  computes the single largest per-entity accuracy drop against the
+  previous recorded run, surfaced separately from the headline number.
+  Founder's point: 96.8% → 96.7% is noise; `deadline` 98% → 84% is a real
+  regression a blended average would hide.
+- **`evaluation/hall_of_shame/`** — new companion corpus (`README.md` +
+  `incidents.json`, ships empty) for documents that didn't just score
+  low-confidence but *broke* the system: wrong deadline auto-accepted,
+  total OCR failure, >5 manual corrections on one document. Different
+  question from LEC ("how accurate on average") — this is "what are the
+  specific failures, and did we fix them."
+- **Sourcing advice captured in `evaluation/lec/README.md`**: ask 3-5
+  offices for ~20 judgments + 20 lawsuits + 10 powers of attorney each
+  (~150 total) rather than one office for 300 — diversity of court/style/
+  scan quality matters more than raw volume for a trustworthy benchmark.
+
+Still zero new AI functionality — schema, harness, and process only, per
+the founder's standing instruction.
 
 ## Phase 2 — Living Case
 **Goal: case state becomes visible and historical.**

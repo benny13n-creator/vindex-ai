@@ -1,17 +1,36 @@
-# Smart Intake Golden Dataset
+# Legal Evaluation Corpus (LEC)
 
-This is the benchmark the founder asked for in the Validation Sprint
-(2026-07-15, refined 2026-07-15 with a second round of ML-practice
-feedback): real documents, manually verified ground truth, measured
-against the actual production classification/extraction code — not unit
-tests with synthetic fixtures. Unit tests prove the code runs. This proves
-the AI is *accurate*, and gives every future change a number to move.
+Formerly "golden_dataset" — renamed by the founder (2026-07-15) with a
+specific reason: "Golden Dataset" sounds like something static you collect
+once. This is a *product*, with versions (see [CHANGELOG.md](CHANGELOG.md),
+currently `v1` — see [VERSION](VERSION)): LEC v1 → v2 → v3, each adding
+documents, edge cases, annotations, and refined `correction_reason`/
+`error_source` patterns. Real documents, manually verified ground truth,
+measured against the actual production classification/extraction code —
+not unit tests with synthetic fixtures. Unit tests prove the code runs.
+This proves the AI is *accurate*, and gives every future change a number
+to move.
 
 **This directory ships empty on purpose.** Nothing in here was fabricated
 to look like real accuracy data — that would defeat the entire point.
 Founder's own framing: "Nemam ground truth, dakle nemam benchmark. To je
 naučno ispravno." Populating this is the founder's own task, not
 something the assistant can do for him.
+
+See also [`evaluation/hall_of_shame/`](../hall_of_shame/README.md) — the
+companion corpus of documents that spectacularly *broke* the system,
+kept separate from this one because "hard but handled correctly" (goes
+here) and "actually broke something" (goes there) answer different
+questions.
+
+## Sourcing advice (founder, 2026-07-15) — breadth over volume
+
+Don't ask one office for 300 documents. Ask 3-5 offices for ~20 judgments +
+20 lawsuits + 10 powers of attorney each (~150 documents total). Different
+courts, writing styles, stamps, and scan equipment produce a far more
+representative corpus than one office's internal consistency — and it's
+exactly that diversity (not raw count) that this benchmark needs to be
+trustworthy.
 
 ## Three datasets, not one
 
@@ -44,6 +63,7 @@ One entry per document in `annotations.json`:
       "annotator": "MJ",
       "reviewed_by": "AK",
       "agreement": true,
+      "error_source": null,
       "beleska": "Rok za žalbu pomenut u fusnoti, ne u glavnom tekstu — lako se previdi.",
       "expected": {
         "document_type": "judgment",
@@ -83,6 +103,16 @@ One entry per document in `annotations.json`:
   se dva advokata ne slažu oko roka, onda AI možda nije pogrešio. Ground
   truth je pogrešan." Treating every mismatch as an AI failure when some
   are genuinely ambiguous ground truth would understate real accuracy.
+- **`error_source`** *(optional, second round of feedback, 2026-07-15)* —
+  when a document is hard to annotate or the annotators disagree, note
+  *where the difficulty actually comes from*: one of `ocr`, `parser`,
+  `regex`, `heuristics`, `llm`, `ground_truth`, `human_annotation`,
+  `unknown`. Example: two advocates disagreeing on a deadline reading →
+  `error_source: "ground_truth"`, because the source of the problem isn't
+  the AI at all. This is the annotation-side twin of the production
+  `error_source` field (see below) — same taxonomy, same reason for
+  existing: six months from now, "where should I actually spend time" is
+  a very different question from "is accuracy up or down."
 - **`beleska`** *(optional)* — why this document is hard, or why a
   particular value is the correct one when it isn't obvious. This is
   annotation-time context, not the same thing as a production correction
@@ -120,20 +150,42 @@ reimplementation — and compares against `annotations.json`. Reports:
 - **Disagreement documents flagged separately** — mismatches on
   `agreement: false` documents are reported but excluded from the headline
   accuracy number, since the ground truth itself is contested there
+- **Stability** (see below) — not just "is accuracy up or down," but "did
+  any single entity type quietly collapse while the average looked fine"
 
-Appends to `docs/accuracy_history.json` so every future run shows the
-delta against the last one (`git log -p docs/accuracy_history.json` is the
-accuracy changelog).
+Appends to `docs/accuracy_history.json`, tagged with the LEC `VERSION` at
+run time, so every future run shows the delta against the last one
+(`git log -p docs/accuracy_history.json` is the accuracy changelog).
 
-## Production correction reason (related, but a different mechanism)
+## Stability KPI
+
+Founder's point (2026-07-15): overall accuracy moving from 96.8% to 96.7%
+is noise. `deadline` accuracy moving from 98% to 84% is not — and a
+blended average will hide exactly that. The benchmark computes, per run,
+the single largest per-entity-type accuracy drop versus the previous
+recorded run, and surfaces it explicitly (`stabilnost.najveci_pad`) rather
+than only reporting the headline number moving a fraction of a point.
+A large single-entity drop between two LEC versions is a stronger signal
+to investigate than a small headline movement — and via `error_source`
+(production or annotation), a regression can usually be traced to a
+specific layer (OCR / parser / regex / heuristics / LLM / ground truth)
+before touching any AI code.
+
+## Production correction reason & error source (related, different mechanism)
 
 When a lawyer corrects a low-confidence field in the live product
 (`POST /api/smart-intake/entities/{id}/correct`), they can *optionally*
-supply a `reason` — captured into `intake_processing_outcomes` alongside
-`user_corrected`/`fields_corrected`. That's a different signal from
-`beleska` above: it's "why did production get this specific instance
-wrong," accumulated at real usage scale, not annotation-time context on a
-curated benchmark set. Both matter; neither replaces the other.
+supply a `reason` and an `error_source` — captured into
+`intake_processing_outcomes` alongside `user_corrected`/
+`fields_corrected`. That's a different signal from `beleska`/`error_source`
+above: it's "why did production get this specific instance wrong,"
+accumulated at real usage scale, not annotation-time context on a curated
+benchmark set. Both matter; neither replaces the other. The shared
+taxonomy (`ocr` / `parser` / `regex` / `heuristics` / `llm` /
+`ground_truth` / `human_annotation` / `unknown`) is deliberate: six months
+of production `error_source` data answers "where do I actually spend
+engineering time" — maybe it's not the AI, maybe it's OCR, maybe it's the
+regex, maybe it's the annotation process itself.
 
 ## What this does NOT replace
 

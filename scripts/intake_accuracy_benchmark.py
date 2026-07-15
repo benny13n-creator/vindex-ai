@@ -2,15 +2,19 @@
 """
 Vindex AI — scripts/intake_accuracy_benchmark.py
 
-Smart Intake Engine — Validation Sprint (founder, 2026-07-15; refined same
-day with ML-practice feedback). Runs the REAL production classification/
-extraction code (shared/intake_classify.py, shared/intake_extract.py — not
-a reimplementation) against golden_dataset/, compares to hand-verified
-ground truth, and reports accuracy broken down by entity type, by dataset
-(A clean digital / B typical Serbian reality / C nightmare), and by
-per-document difficulty (easy/medium/hard/nightmare) — a single blended
-average hides exactly where the system struggles, which is the point of
-having three deliberately different collections instead of one.
+Smart Intake Engine — Validation Sprint (founder, 2026-07-15; refined twice
+same day, first with ML-practice feedback, then with an evaluation-process
+reframe). Runs the REAL production classification/extraction code
+(shared/intake_classify.py, shared/intake_extract.py — not a
+reimplementation) against evaluation/lec/ (the "Legal Evaluation Corpus" —
+renamed from "golden_dataset": founder's point is that this is a versioned
+product, not a static file — see evaluation/lec/README.md), compares to
+hand-verified ground truth, and reports accuracy broken down by entity
+type, by dataset (A clean digital / B typical Serbian reality / C
+nightmare), and by per-document difficulty (easy/medium/hard/nightmare) —
+a single blended average hides exactly where the system struggles, which
+is the point of having three deliberately different collections instead
+of one.
 
 Documents with `agreement: false` (two annotators disagreed on the ground
 truth itself) are reported SEPARATELY, not folded into the headline
@@ -18,12 +22,25 @@ accuracy number — a mismatch there may mean the ground truth is contested,
 not that the extraction was wrong. Founder's framing: "Ako se dva advokata
 ne slažu oko roka, onda AI možda nije pogrešio. Ground truth je pogrešan."
 
+Third round of founder feedback (2026-07-15) added two more things this
+script does:
+- **Stability, not just accuracy**: a small headline movement (96.8% →
+  96.7%) can hide a large single-entity collapse (deadline 98% → 84%).
+  Every run computes the largest per-entity accuracy drop against the
+  previous recorded run and surfaces it explicitly, tagged with the LEC
+  `VERSION` at the time of each run.
+- **error_source on disagreement documents**: when annotators disagree,
+  the annotation can optionally say *why* (ocr/parser/regex/heuristics/
+  llm/ground_truth/human_annotation/unknown) — same taxonomy as production
+  `intake_processing_outcomes.error_source` — surfaced in the report
+  instead of just a bare disagreement count.
+
 This is deliberately separate from the unit test suite: unit tests prove
 the code executes correctly against fixtures. This proves the AI gets the
-right answer against real documents. "1574 testova prolazi" and "case
+right answer against real documents. "1581 testova prolazi" and "case
 number accuracy 98.7%" are different claims — this script produces the
-second one, honestly, only once golden_dataset/ has real content (see
-golden_dataset/README.md — it ships empty on purpose, nothing here is
+second one, honestly, only once evaluation/lec/ has real content (see
+evaluation/lec/README.md — it ships empty on purpose, nothing here is
 fabricated to look like real accuracy data).
 
 Usage:
@@ -51,13 +68,21 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv  # noqa: E402
 load_dotenv(dotenv_path=ROOT / ".env")
 
-GOLDEN_DIR = ROOT / "golden_dataset"
-DOCUMENTS_DIR = GOLDEN_DIR / "documents"
-ANNOTATIONS_PATH = GOLDEN_DIR / "annotations.json"
+LEC_DIR = ROOT / "evaluation" / "lec"
+DOCUMENTS_DIR = LEC_DIR / "documents"
+ANNOTATIONS_PATH = LEC_DIR / "annotations.json"
+VERSION_PATH = LEC_DIR / "VERSION"
 HISTORY_PATH = ROOT / "docs" / "accuracy_history.json"
 
 _DATASET_FOLDERS = ("a_clean_digital", "b_typical_serbian", "c_nightmare")
 _DIFFICULTY_ORDER = ("easy", "medium", "hard", "nightmare")
+_ERROR_SOURCES = ("ocr", "parser", "regex", "heuristics", "llm", "ground_truth", "human_annotation", "unknown")
+
+
+def _read_lec_version() -> str | None:
+    if not VERSION_PATH.exists():
+        return None
+    return VERSION_PATH.read_text(encoding="utf-8").strip() or None
 
 # Free-text fields (LLM-extracted) get lenient substring comparison — exact
 # phrasing/declension varies in Serbian ("Osnovni sud" vs "Osnovnog suda").
@@ -86,8 +111,8 @@ def _values_match(entity_type: str, expected: str, actual: str) -> bool:
 
 def _derive_dataset(filename: str) -> str | None:
     """dataset se NE unosi ručno u annotations.json — izvodi se iz toga u
-    kom podfolderu fajl fizički živi (golden_dataset/README.md). Jedan manji
-    izvor greške pri prikupljanju pod vremenskim pritiskom."""
+    kom podfolderu fajl fizički živi (evaluation/lec/README.md). Jedan
+    manji izvor greške pri prikupljanju pod vremenskim pritiskom."""
     prefix = filename.split("/", 1)[0] if "/" in filename else None
     return prefix if prefix in _DATASET_FOLDERS else None
 
@@ -99,12 +124,17 @@ async def _run_one(doc: dict) -> dict:
 
     filename = doc["filename"]
     path = DOCUMENTS_DIR / filename
+    error_source = doc.get("error_source")
+    if error_source is not None and error_source not in _ERROR_SOURCES:
+        error_source = None  # nepoznata vrednost u annotations.json se tiho odbacuje, ne obara benchmark
+
     meta = {
         "document_id": doc["document_id"],
         "filename": filename,
         "dataset": _derive_dataset(filename),
         "difficulty": doc.get("difficulty"),
         "agreement": doc.get("agreement", True),  # nedostaje polje = pretpostavka da je jedan anotator dovoljan (True), ne da se ne slažu
+        "error_source": error_source,
     }
 
     if not path.exists():
@@ -169,9 +199,16 @@ def _aggregate(results: list[dict]) -> dict:
     scoreable = [r for r in results if "error" not in r]
 
     # Sporne anotacije (dva anotatora se nisu složila) — izveštava se
-    # ODVOJENO, ne meša sa AI greškama (vidi modul docstring).
+    # ODVOJENO, ne meša sa AI greškama (vidi modul docstring). error_source
+    # (kad je popunjen) govori DA LI je razlog stvarno ground_truth (obično
+    # jeste, kod neslaganja anotatora) ili nešto drugo — zadržava se po
+    # dokumentu, ne samo broj.
     disagreement = [r for r in scoreable if r.get("agreement") is False]
     agreed = [r for r in scoreable if r.get("agreement") is not False]
+    disagreement_detalji = [
+        {"document_id": r["document_id"], "error_source": r.get("error_source")}
+        for r in disagreement
+    ]
 
     by_dataset = {}
     for ds in _DATASET_FOLDERS:
@@ -198,6 +235,7 @@ def _aggregate(results: list[dict]) -> dict:
         "obrađeno": len(scoreable),
         "greske_ocr": len(errors),
         "sporne_anotacije": len(disagreement),
+        "sporne_anotacije_detalji": disagreement_detalji,
         "klasifikacija_tacnost": _classification_accuracy(agreed),
         "ekstrakcija_tacnost_po_polju": _score_entities(agreed),
         "po_dataset_setu": by_dataset,
@@ -205,9 +243,45 @@ def _aggregate(results: list[dict]) -> dict:
     }
 
 
-def _print_report(summary: dict, previous: dict | None) -> None:
+def _stability(current: dict, previous: dict | None) -> dict:
+    """Founder-ov treći krug feedbacka (2026-07-15): headline tačnost koja
+    padne za 0.1pp je šum. Jedan entitet koji padne sa 98% na 84% nije —
+    prosek to sakrije. Računa NAJVEĆI pad po tipu entiteta između ovog i
+    prethodno zabeleženog run-a, ne samo ukupnu promenu."""
+    if previous is None:
+        return {"najveci_pad": None, "ukupna_promena_pp": None, "napomena": "nema prethodnog run-a za poređenje"}
+
+    cur_fields = current.get("ekstrakcija_tacnost_po_polju", {})
+    prev_fields = previous.get("ekstrakcija_tacnost_po_polju", {})
+
+    najveci_pad = None
+    for entity_type, cur_acc in cur_fields.items():
+        prev_acc = prev_fields.get(entity_type)
+        if cur_acc is None or prev_acc is None:
+            continue
+        drop_pp = round((prev_acc - cur_acc) * 100, 2)
+        if drop_pp <= 0:
+            continue  # nema pada (isto ili poboljšanje) — ne prijavljuje se kao "najveći pad"
+        if najveci_pad is None or drop_pp > najveci_pad["pad_pp"]:
+            najveci_pad = {
+                "entity_type": entity_type,
+                "prethodna_tacnost": prev_acc,
+                "trenutna_tacnost": cur_acc,
+                "pad_pp": drop_pp,
+            }
+
+    cur_overall = current.get("klasifikacija_tacnost")
+    prev_overall = previous.get("klasifikacija_tacnost")
+    ukupna_promena_pp = round((cur_overall - prev_overall) * 100, 2) if cur_overall is not None and prev_overall is not None else None
+
+    return {"najveci_pad": najveci_pad, "ukupna_promena_pp": ukupna_promena_pp}
+
+
+def _print_report(summary: dict, previous: dict | None, stability: dict) -> None:
     print("=" * 70)
-    print("SMART INTAKE — ACCURACY BENCHMARK (golden_dataset/)")
+    verzija = summary.get("lec_verzija")
+    verzija_suffix = f", LEC {verzija}" if verzija else ""
+    print(f"SMART INTAKE — ACCURACY BENCHMARK (evaluation/lec/{verzija_suffix})")
     print("=" * 70)
     print(f"  Dokumenata: {summary['ukupno_dokumenata']}  (obrađeno: {summary['obrađeno']}, OCR greške: {summary['greske_ocr']}, sporne anotacije: {summary['sporne_anotacije']})")
     if summary["klasifikacija_tacnost"] is not None:
@@ -248,6 +322,24 @@ def _print_report(summary: dict, previous: dict | None) -> None:
         print()
         print(f"  ⚠ {summary['sporne_anotacije']} dokumenata sa agreement=false — isključeno iz gornjih brojeva.")
         print("    Neslaganje anotatora ne znači nužno da je AI pogrešio — proveriti ground truth.")
+        for d in summary.get("sporne_anotacije_detalji", []):
+            izvor = d.get("error_source") or "nije navedeno"
+            print(f"      - {d['document_id']}: error_source={izvor}")
+
+    print()
+    print("  Stabilnost (vs prethodni run):")
+    najveci_pad = stability.get("najveci_pad")
+    if najveci_pad:
+        e = najveci_pad
+        print(f"    ⚠ NAJVEĆI PAD: {e['entity_type']} {e['prethodna_tacnost']*100:.1f}% → {e['trenutna_tacnost']*100:.1f}% (-{e['pad_pp']:.1f}pp)")
+    elif stability.get("napomena"):
+        print(f"    {stability['napomena']}")
+    else:
+        print("    Nijedan entitet nije opao u odnosu na prethodni run.")
+    if stability.get("ukupna_promena_pp") is not None:
+        promena = stability["ukupna_promena_pp"]
+        strelica = "↑" if promena > 0 else ("↓" if promena < 0 else "=")
+        print(f"    Ukupna klasifikacija: {strelica}{abs(promena):.1f}pp (headline broj — vidi gore za pravu sliku po entitetu)")
 
     print("=" * 70)
 
@@ -261,13 +353,14 @@ def main() -> int:
     dokumenti = annotations.get("dokumenti", [])
 
     if not dokumenti:
-        print("[INFO] golden_dataset/annotations.json je prazan — nema šta da se meri.")
-        print("       Vidi golden_dataset/README.md za format anotacija (3 dataset-a, difficulty, agreement).")
+        print("[INFO] evaluation/lec/annotations.json je prazan — nema šta da se meri.")
+        print("       Vidi evaluation/lec/README.md za format anotacija (3 dataset-a, difficulty, agreement, error_source).")
         print("       Ovo je OČEKIVANO stanje dok se ne dodaju stvarni dokumenti — nije greška.")
         return 0
 
     results = asyncio.run(_run_all(dokumenti))
     summary = _aggregate(results)
+    summary["lec_verzija"] = _read_lec_version()
 
     previous = None
     if HISTORY_PATH.exists():
@@ -275,7 +368,10 @@ def main() -> int:
         if history:
             previous = history[-1]["summary"]
 
-    _print_report(summary, previous)
+    stability = _stability(summary, previous)
+    summary["stabilnost"] = stability
+
+    _print_report(summary, previous, stability)
 
     if "--no-save" not in sys.argv:
         _append_history(summary)
