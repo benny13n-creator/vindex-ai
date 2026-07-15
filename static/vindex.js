@@ -7841,9 +7841,83 @@ function toggleAnnual(){annual=!annual;document.getElementById('tog').classList.
 /* PRICING MODAL */
 function openProModal() {
   document.getElementById('pro-modal').classList.add('open');
+  pgLoadGroups();
 }
 function closeProModal() {
   document.getElementById('pro-modal').classList.remove('open');
+}
+
+/* Pricing Modal — poslovne celine (Nivo 1/Nivo 2), IZVEDENO iz
+   GET /api/plan/pricing-matrix. Nema hardkodovanog teksta/liste funkcija
+   ovde — sve dolazi iz business_groups + feature_registry (migracije
+   071/072). Dodavanje nove funkcije u Registry = automatski se pojavljuje
+   ovde, bez izmene ovog fajla. */
+var _pgCache = null;
+
+function _pgEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function pgLoadGroups() {
+  var grid = document.getElementById('pricing-groups-grid');
+  if (!grid) return;
+  if (_pgCache) { pgRenderGroups(_pgCache); return; }
+  try {
+    var r = await fetch(BASE_URL + '/api/plan/pricing-matrix');
+    var data = await r.json();
+    _pgCache = data.grupe || [];
+    pgRenderGroups(_pgCache);
+  } catch (e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1rem;font-size:.78rem;color:rgba(255,255,255,.35);">Trenutno nedostupno.</div>';
+  }
+}
+
+function pgRenderGroups(grupe) {
+  var grid = document.getElementById('pricing-groups-grid');
+  if (!grid) return;
+  grid.innerHTML = grupe.map(pgRenderCard).join('');
+}
+
+function pgRenderCard(g) {
+  var bestFor = (g.najvecu_vrednost_ostvaruju || []).map(function(x) {
+    return '<li style="font-size:.72rem;color:rgba(255,255,255,.6);padding:.1rem 0;">• ' + _pgEsc(x) + '</li>';
+  }).join('');
+
+  var pills = (g.funkcije || []).map(function(f) {
+    return '<span style="font-size:.68rem;padding:.25rem .55rem;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:2px;color:rgba(255,255,255,.7);">' + _pgEsc(f.naziv) + '</span>';
+  }).join('');
+
+  var addonCta = '';
+  if (g.key === 'digitalna_imovina') {
+    addonCta = '<div style="display:flex;gap:.5rem;margin-top:.7rem;">' +
+      '<button onclick="event.stopPropagation();pricing_kontakt(\'digitalna_imovina_standalone\')" style="flex:1;padding:.5rem;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);border-radius:2px;color:#c4b5fd;font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit;">79€/mes samostalno</button>' +
+      '<button onclick="event.stopPropagation();pricing_kontakt(\'digitalna_imovina_addon\')" style="flex:1;padding:.5rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:2px;color:rgba(255,255,255,.65);font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit;">39€/mes dodatak</button>' +
+      '</div>';
+  }
+
+  return '' +
+    '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:3px;padding:1.2rem;display:flex;flex-direction:column;">' +
+      '<div style="font-size:.95rem;font-weight:800;color:#fff;margin-bottom:.35rem;">' + _pgEsc(g.naziv) + '</div>' +
+      '<div style="font-size:.8rem;color:#00d4ff;font-weight:600;line-height:1.4;margin-bottom:.6rem;">' + _pgEsc(g.tagline) + '</div>' +
+      '<div style="font-size:.74rem;color:rgba(255,255,255,.55);line-height:1.55;margin-bottom:.7rem;">' + _pgEsc(g.opis) + '</div>' +
+      '<div style="font-size:.72rem;color:rgba(255,255,255,.8);margin-bottom:.7rem;"><strong style="color:#4ade80;">Rezultat:</strong> ' + _pgEsc(g.rezultat) + '</div>' +
+      (bestFor ? '<div style="font-size:.65rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.2rem;">Najveću vrednost ostvaruju</div><ul style="list-style:none;padding:0;margin:0 0 .8rem;">' + bestFor + '</ul>' : '') +
+      addonCta +
+      '<button onclick="pgToggleExpand(this)" style="margin-top:.8rem;padding:.5rem .7rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:2px;color:rgba(255,255,255,.65);font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;">' +
+        '<span>' + g.broj_funkcija + ' funkcija</span><span class="pg-arrow">→</span>' +
+      '</button>' +
+      '<div class="pg-pills" style="display:none;flex-wrap:wrap;gap:.35rem;margin-top:.7rem;padding-top:.7rem;border-top:1px solid rgba(255,255,255,.06);">' + pills + '</div>' +
+    '</div>';
+}
+
+function pgToggleExpand(btn) {
+  var card = btn.closest('div');
+  var pills = card.querySelector('.pg-pills');
+  var arrow = btn.querySelector('.pg-arrow');
+  if (!pills) return;
+  var open = pills.style.display !== 'none';
+  pills.style.display = open ? 'none' : 'flex';
+  if (arrow) arrow.textContent = open ? '→' : '↓';
 }
 async function pricing_kontakt(plan) {
   var labels = { solo: 'Solo', pro: 'PRO', kancelarija: 'Kancelarija',

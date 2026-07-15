@@ -296,27 +296,17 @@
       </div>
     </div>
 
-    <!-- ── Vindex AI - Digitalna imovina & usklađenost — zaseban proizvod,
-         namerno vizuelno odvojen od gornje 3 tarife (nije PRO funkcija) ─── -->
+    <!-- ── Poslovna vrednost platforme — 7 poslovnih celina, IZVEDENO iz
+         GET /api/plan/pricing-matrix (business_groups + feature_registry,
+         migracije 071/072). Nema hardkodovanog teksta ovde — sadržaj se
+         renderuje u pgRenderGroups() (static/vindex.js). Digitalna imovina
+         je jedna od 7 kartica (G7), sa svojom 79€/39€ CTA logikom ─── -->
     <div style="border-top:1px solid rgba(255,255,255,.08);margin:.5rem 0 1.5rem;padding-top:1.5rem;">
       <div style="text-align:center;margin-bottom:1rem;">
-        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(167,139,250,.75);margin-bottom:.4rem;">Zaseban proizvod — nije deo gornjih tarifa</div>
-        <div style="font-size:1.15rem;font-weight:800;color:#fff;">Vindex AI - Digitalna imovina & usklađenost</div>
-        <div style="font-size:.78rem;color:rgba(255,255,255,.45);margin-top:.3rem;">CARF/DAC8 · OFAC Screening · Wallet Risk Assessment · Source-of-Funds · Documentation Health · Regulatory Intelligence</div>
+        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,212,255,.65);">Poslovna vrednost platforme</div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
-        <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.25);border-radius:3px;padding:1.3rem;display:flex;flex-direction:column;">
-          <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(167,139,250,.85);margin-bottom:.5rem;">Samostalno</div>
-          <div style="font-size:1.7rem;font-weight:800;color:#fff;">79 <span style="font-size:.95rem;font-weight:400;color:rgba(255,255,255,.4);">€/mes</span></div>
-          <div style="font-size:.74rem;color:rgba(255,255,255,.45);margin:.5rem 0 1rem;line-height:1.5;">Bez ostatka platforme. Za banke, brokerske kuće, fondove, custody provajdere, računovođe i revizore kojima ne treba ostatak Vindex AI platforme.</div>
-          <button onclick="pricing_kontakt('digitalna_imovina_standalone')" style="margin-top:auto;padding:.7rem;background:#a78bfa;border:none;border-radius:2px;color:#1a0a2e;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Zatražite pristup →</button>
-        </div>
-        <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:1.3rem;display:flex;flex-direction:column;">
-          <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:.5rem;">Dodatak uz PRO</div>
-          <div style="font-size:1.7rem;font-weight:800;color:#fff;">39 <span style="font-size:.95rem;font-weight:400;color:rgba(255,255,255,.4);">€/mes</span></div>
-          <div style="font-size:.74rem;color:rgba(255,255,255,.45);margin:.5rem 0 1rem;line-height:1.5;">Već imate Vindex AI PRO ili Kancelarija nalog? Dodajte modul uz postojeću pretplatu, bez potrebe za novim nalogom.</div>
-          <button onclick="pricing_kontakt('digitalna_imovina_addon')" style="margin-top:auto;padding:.7rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:rgba(255,255,255,0.72);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;">Zatražite aktivaciju →</button>
-        </div>
+      <div id="pricing-groups-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;">
+        <div style="grid-column:1/-1;text-align:center;padding:1rem;font-size:.78rem;color:rgba(255,255,255,.35);">Učitavanje…</div>
       </div>
     </div>
 

@@ -153,11 +153,14 @@ async def pricing_matrix():
     for g in sorted((g for g in groups if g.get("visible", True)), key=lambda g: g.get("display_order", 0)):
         funkcije = sorted(by_group.get(g["key"], []), key=lambda f: f["naziv"])
         grupe.append({
-            "key":            g["key"],
-            "naziv":          g.get("display_name", g["key"]),
-            "opis":           g.get("description"),
-            "broj_funkcija":  len(funkcije),
-            "funkcije":       funkcije,
+            "key":                       g["key"],
+            "naziv":                     g.get("display_name", g["key"]),
+            "tagline":                   g.get("tagline"),
+            "opis":                      g.get("description"),
+            "rezultat":                  g.get("value_statement"),
+            "najvecu_vrednost_ostvaruju": g.get("best_for") or [],
+            "broj_funkcija":             len(funkcije),
+            "funkcije":                  funkcije,
         })
 
     return {"grupe": grupe}

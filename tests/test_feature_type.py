@@ -146,7 +146,7 @@ def test_chargeable_false_with_zero_credits_is_clean():
         "feature_key": "firm_memory", "naziv": "Law Firm Brain", "kategorija": "znanje",
         "minimum_plan": "professional", "addon": None, "krediti": 0, "status": "ACTIVE",
         "visible": "visible", "priority": "MEDIUM", "opis": "x",
-        "feature_type": "SUBSCRIPTION", "chargeable": False,
+        "feature_type": "SUBSCRIPTION", "chargeable": False, "business_group_id": "g5",
     }
     findings = mod._validate_row(row)
     assert not any(sev == "FATAL" for sev, msg in findings)
