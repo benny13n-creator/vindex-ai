@@ -186,12 +186,21 @@ COMMENT ON FUNCTION public.enqueue_intake_job IS
 -- semantiku direktno — otuda RPC. Vraća najstariji claimable red i odmah
 -- ga prebacuje u sledeći status, atomski, bez race condition-a između dva
 -- konkurentna workera.
+--
+-- POPRAVKA: SECURITY DEFINER je nedostajao ovde (postojao je na ostale 3 RPC
+-- funkcije, propušten baš ovde). Bez njega, UPDATE ... RETURNING podleže RLS
+-- SELECT politici pozivajućeg konteksta — sam UPDATE uspe (status se stvarno
+-- menja), ali RETURNING tiho vrati prazan red ako RLS ne dozvoli vidljivost,
+-- pa Python klijent vidi "nema posla" iako je posao stvarno claim-ovan.
+-- Otkriveno uživo: 11 poslova zaglavljeno u 'preprocessing' dok je claim
+-- klijentu izgledao kao da ne radi.
 
 CREATE OR REPLACE FUNCTION public.claim_intake_job(
     p_from_status TEXT,
     p_to_status   TEXT
 ) RETURNS SETOF public.intake_jobs
 LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
 BEGIN
     RETURN QUERY
