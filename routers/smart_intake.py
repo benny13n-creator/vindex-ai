@@ -2,8 +2,10 @@
 """
 Vindex AI — routers/smart_intake.py
 
-Smart Intake Engine, Faza 0 (docs/adr/ADR-0001, ADR-0002) — POST /api/
-smart-intake/documents.
+Smart Intake Engine — POST /api/smart-intake/documents (upload), GET
+.../jobs/{id} (proizvodni Definition of Done: tip + Confidence Graph +
+tačna polja za proveru u JEDNOM pozivu), POST .../entities/{id}/correct
+(10-sekundna ispravka), GET .../admin/health.
 
 NAPOMENA O NAZIVU PUTANJE: ADR-0001 je originalno specificirao
 `/api/intake/documents`. Pri implementaciji je otkriveno da `/api/intake/*`
@@ -22,11 +24,11 @@ putanja od prvog dana — bez feature-flag grananja između dva paralelna
 sistema (founder eksplicitno zabranio: "ako uvodiš novu putanju, uvedi je
 potpuno").
 
-Faza 0 kontrakt: upload perzistuje fajl (enkriptovano, isti obrazac kao
-klijenti/router.py Trezor) i vraća 202 + job_id ODMAH — obrada (danas no-op,
-Faza 1 dodaje OCR/klasifikaciju/ekstrakciju) se dešava u pozadini preko
-shared/intake_worker.py. Ako upload i dalje čeka obradu pre odgovora,
-cela poenta queue arhitekture je izgubljena.
+Upload kontrakt (nepromenjen od Faze 0): perzistuje fajl (enkriptovano,
+isti obrazac kao klijenti/router.py Trezor) i vraća 202 + job_id ODMAH —
+prava obrada (Faza 1A: OCR → klasifikacija → ekstrakcija, shared/
+intake_worker.py) dešava se u pozadini. Ako upload i dalje čeka obradu pre
+odgovora, cela poenta queue arhitekture je izgubljena.
 """
 from __future__ import annotations
 
@@ -38,11 +40,11 @@ import os
 import uuid
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile, File
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
 from shared.rate import limiter
-from shared import intake_queue
+from shared import intake_documents, intake_queue
 
 logger = logging.getLogger("vindex.smart_intake")
 router = APIRouter(prefix="/api/smart-intake", tags=["smart_intake"])
@@ -77,10 +79,10 @@ async def intake_documents(
     files: List[UploadFile] = File(...),
     user: dict = Depends(get_current_user),
 ):
-    """Batch upload — 202 + job_id po fajlu ODMAH, obrada u pozadini preko
-    IntakeWorker-a (shared/intake_worker.py). Nikad sinhrono čeka OCR/
-    klasifikaciju (Faza 1) niti čak današnji no-op _process() — to je cela
-    poenta Postgres-backed queue-a (ADR-0002)."""
+    """Batch upload — 202 + job_id po fajlu ODMAH, obrada (OCR/klasifikacija/
+    ekstrakcija) u pozadini preko IntakeWorker-a (shared/intake_worker.py).
+    Nikad sinhrono čeka tu obradu — to je cela poenta Postgres-backed
+    queue-a (ADR-0002)."""
     if not files:
         raise HTTPException(status_code=422, detail="Nijedan fajl nije poslat.")
 
@@ -128,6 +130,23 @@ async def intake_documents(
             results.append({"filename": f.filename, "ok": False, "greska": "Greška pri prijemu dokumenta."})
             continue
 
+        # Best-effort follow-up upis (original_filename/mime_type) — NIJE deo
+        # atomske enqueue_intake_job RPC transakcije (ADR-0001), namerno: to
+        # bi značilo menjanje potpisa RPC-a koji je već pokrenut u produkciji
+        # (migracija 073). Ova dva polja su pomoćna metapodatka za Fazu 1A
+        # (extract() treba ekstenziju fajla), ne kritičan put za queue
+        # pouzdanost — ako ovaj upis padne, posao i dalje postoji i biće
+        # obrađen (extractor pada na .pdf kao razuman podrazumevani izbor).
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("intake_jobs")
+                    .update({"original_filename": f.filename, "mime_type": f.content_type})
+                    .eq("id", job_id)
+                    .execute()
+            )
+        except Exception as exc:
+            logger.warning("[SMART_INTAKE] filename/mime upis neuspešan (non-fatal) za job=%s: %s", job_id[:8], exc)
+
         results.append({"filename": f.filename, "ok": True, "job_id": job_id})
 
     logger.info("[SMART_INTAKE] batch upload: %d fajlova, %d uspešno prijavljeno", len(files), sum(1 for r in results if r["ok"]))
@@ -137,12 +156,15 @@ async def intake_documents(
 @router.get("/jobs/{job_id}")
 @limiter.limit("60/minute")
 async def intake_job_status(job_id: str, request: Request, user: dict = Depends(get_current_user)):
-    """Poll status jednog posla — RLS (migracija 073) već ograničava na
-    sopstvene poslove za ne-service_role upite, ali eksplicitna provera ovde
-    daje jasnu 404 poruku umesto praznog reda."""
+    """Proizvodni Definition of Done (Faza 1A) — advokat u JEDNOM pozivu
+    vidi: status posla, tip dokumenta, SVAKI izvučen podatak sa sopstvenom
+    pouzdanošću (Confidence Graph), i — ako postoji nesigurnost — TAČNO
+    koja polja treba da pogleda, ne ceo dokument. RLS (migracija 073) već
+    ograničava na sopstvene poslove za ne-service_role upite; eksplicitna
+    provera ovde daje jasnu 404 poruku umesto praznog reda."""
     res = await asyncio.to_thread(
         lambda: _get_supa().table("intake_jobs")
-            .select("id, status, source, attempts, last_error, created_at, completed_at")
+            .select("id, status, source, attempts, last_error, created_at, completed_at, original_filename")
             .eq("id", job_id)
             .eq("uploaded_by", user["user_id"])
             .maybe_single()
@@ -150,7 +172,54 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
     )
     if not res.data:
         raise HTTPException(status_code=404, detail="Posao nije pronađen.")
-    return res.data
+    job = res.data
+
+    result = await intake_documents.get_job_result(job_id)
+    document = result["document"]
+    entities = result["entities"]
+    review = result["review"]
+
+    entiteti_view = [{
+        "entity_type": e["entity_type"],
+        "value": e.get("corrected_value") or e["value"],
+        "confidence": e["confidence"],
+        "needs_review": (not e["reviewed"]) and e["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD,
+        "corrected": e["reviewed"],
+    } for e in entities]
+
+    return {
+        "job": job,
+        "dokument": {
+            "tip": document["document_type"] if document else None,
+            "tip_pouzdanost": document["classification_confidence"] if document else None,
+            "ocr_koriscen": document["ocr_used"] if document else None,
+        } if document else None,
+        "entiteti": entiteti_view,
+        "potrebna_provera": {
+            "razlog": review["reason"],
+            "polja": review["low_confidence_fields"],
+        } if review else None,
+    }
+
+
+@router.post("/entities/{entity_id}/correct")
+@limiter.limit("60/minute")
+async def correct_entity(
+    entity_id: str,
+    request: Request,
+    corrected_value: str = Body(..., embed=True),
+    user: dict = Depends(get_current_user),
+):
+    """Proizvodni Definition of Done: "ispravka za deset sekundi." Original
+    vrednost se NIKAD ne briše (corrected_value je dodatak, ne prepisivanje)
+    — i piše se u intake_processing_outcomes sa user_corrected=true, jer je
+    ovo tačno podatak koji founder eksplicitno traži za buduće podešavanje
+    pragova/heuristika."""
+    try:
+        result = await intake_documents.correct_entity(entity_id, corrected_value, user.get("email", user["user_id"]))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Stavka nije pronađena.")
+    return result
 
 
 @router.get("/admin/health")

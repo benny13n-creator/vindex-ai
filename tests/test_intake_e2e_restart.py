@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import uuid
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 
 @pytest.fixture
@@ -269,8 +269,13 @@ async def test_e2e_worker_crash_mid_processing_no_lost_events_effectively_once()
         fake.jobs[job_id]["next_retry_at"] = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
 
         # 5. Worker B (the restarted process) claims and completes it.
+        # _process() is the Phase 1A pipeline (classify/extract/persist,
+        # tested separately in test_intake_worker_phase1a.py) — this
+        # scenario is about queue/outbox restart-safety, so _process is
+        # mocked to a no-op here, matching this test's original Phase 0 scope.
         worker_b = IntakeWorker(worker_id="worker-B", reap_every_n_ticks=1000)
-        did_work = await worker_b._tick()
+        with patch.object(IntakeWorker, "_process", new=AsyncMock()):
+            did_work = await worker_b._tick()
         assert did_work is True
         assert fake.jobs[job_id]["status"] == "completed"
         assert worker_b.jobs_processed == 1

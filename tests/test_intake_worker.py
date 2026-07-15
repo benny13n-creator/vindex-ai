@@ -25,7 +25,12 @@ async def test_tick_processes_claimed_job_and_completes():
     w = IntakeWorker(worker_id="test-worker")
     job = {"id": "job-1", "attempts": 0, "max_attempts": 5}
 
+    # _process() is the Phase 1A pipeline (classify/extract/persist) — this
+    # test is about tick/queue lifecycle, not pipeline internals, so _process
+    # itself is mocked (see tests/test_intake_worker_phase1a.py for pipeline
+    # coverage).
     with patch("shared.intake_worker.intake_queue.claim_next_job", new=AsyncMock(return_value=job)), \
+         patch.object(IntakeWorker, "_process", new=AsyncMock()), \
          patch("shared.intake_worker.intake_queue.mark_job_completed", new=AsyncMock()) as mock_complete, \
          patch("shared.intake_worker.intake_queue.mark_job_failed", new=AsyncMock()) as mock_failed, \
          patch("shared.intake_worker.intake_queue.record_heartbeat", new=AsyncMock()) as mock_hb:

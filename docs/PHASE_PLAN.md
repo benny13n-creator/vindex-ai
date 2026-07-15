@@ -79,15 +79,75 @@ above went through the service layer directly (`shared/intake_queue.py`,
 `shared/intake_worker.py`, `services/event_bus.py`), not through FastAPI
 + auth. Worth a real HTTP-level smoke test before Phase 1A ships.
 
-## Phase 1 — Smart Intake
-**Goal: documents become classified, matched, reviewable.**
+## Phase 1A — Classify, Extract, Confidence Graph, Review Queue
+**Founder's product Definition of Done (verbatim intent, not technical):**
+upload one judgment → in under a minute see it classified, key data
+extracted, deadline found, confidence clearly shown per field — and if
+something is uncertain, see ONLY the uncertain fields (typically 1-2, not
+20), fixable in ~10 seconds. Deliberately narrower than the original
+design review's Phase 1: **no case-matching** (`predmet_id` stays NULL
+through all of 1A) — founder's explicit scope cut, added later.
 
-- [ ] OCR pipeline (extend existing extractor — deskew/perspective/denoise)
-- [ ] Metadata extraction — [ADR-0003](adr/0003-hybrid-extraction.md) (regex-first, LLM-fallback)
-- [ ] Classification (12-type taxonomy, hybrid heuristic+LLM)
-- [ ] Confidence Graph — [ADR-0005](adr/0005-confidence-graph.md)
-- [ ] Review Queue (office-scoped) — design review §26.9
-- [ ] Folders as views — [ADR-0004](adr/0004-folders-as-views.md)
+- [x] OCR — reuses existing `uploaded_doc/extractor.py` as-is (no deskew/
+      perspective-correction added yet — deliberately deferred until real
+      usage shows OCR quality is actually the bottleneck, matching the
+      founder's "real usage over more engineering" principle for this phase)
+- [x] Classification — `shared/intake_classify.py`, hybrid: Cyrillic+Latin
+      keyword heuristics first (12-type taxonomy), LLM fallback only when
+      heuristic finds nothing — [ADR-0003](adr/0003-hybrid-extraction.md) pattern
+- [x] Metadata extraction — `shared/intake_extract.py`: `case_number`/
+      `amount` regex (Serbian formats, Cyrillic+Latin), `deadline` reuses
+      existing `uploaded_doc/deadline_parser.py` (not reimplemented),
+      `judge`/`plaintiff`/`defendant`/`court`/`law_cited` via one LLM call
+- [x] Confidence Graph — `extracted_entities` table (migration 074), every
+      field independently scored — [ADR-0005](adr/0005-confidence-graph.md)
+- [x] Review Queue — `intake_review_queue`, `low_confidence_fields` lists
+      ONLY the specific uncertain field names, not "review this document"
+- [x] Processing outcomes capture — founder's explicit request,
+      `intake_processing_outcomes` (migration 074): document_type,
+      ocr_confidence, entity_confidence, user_corrected, fields_corrected,
+      processing_time_ms, written after every document and every correction
+- [x] 10-second correction flow — `POST /api/smart-intake/entities/{id}/
+      correct`: original value never deleted, `corrected_value` added,
+      writes a fresh `intake_processing_outcomes` row with
+      `user_corrected=true` (the tuning data founder asked for)
+- [x] Results view — `GET /api/smart-intake/jobs/{id}` returns document
+      type + every entity with confidence + exactly which fields (if any)
+      need review, in one call
+- [ ] Folders as views — [ADR-0004](adr/0004-folders-as-views.md) — not in this narrower 1A scope, deferred to when case-matching returns
+
+**Real bug found and fixed via live testing** (not caught by unit tests,
+since it required a real bilingual Cyrillic/Latin legal text): a test
+judgment ("П 341/26", judge/court/parties/amount/deadline all present)
+initially extracted `deadline = 03.06.2026` (the judgment's own date)
+instead of `15.11.2026` (the actual appeal deadline). Root cause was two
+layers deep in the reused `deadline_parser.py`: (1) its category keyword
+matching (`_kategorija`) was Latin-only, so Cyrillic "жалба" never matched
+"zalba" and silently fell back to "ostalo"; (2) even after fixing that, the
+100-char context window meant both dates in a short paragraph could share
+the same category, so a same-category first-match still picked the wrong
+one. Fixed with a second signal: prefer a category-matched deadline that
+also has `istekao=False` (not already expired) — the operative deadline is
+essentially always in the future relative to the judgment's own date.
+Regression tests added (`test_extract_deadline_cyrillic_zalba_category_
+recognized`, `test_extract_deadline_prefers_legally_significant_date_
+over_first_mentioned`).
+
+**Live-verified** (real OpenAI calls, realistic Cyrillic judgment text,
+not a unit-test fixture): classification correct (`judgment`, heuristic,
+0.85, 0ms — no LLM call needed), all 8 Confidence Graph entities extracted
+correctly (case number, amount, deadline, judge, plaintiff, defendant,
+court, law_cited), only `law_cited` below the 90% auto-accept threshold —
+matching the founder's "1-2 uncertain fields, not 20" bar. Classification+
+extraction: ~3.9s total (dominated by one LLM call for the 5 free-text
+fields).
+
+**Not yet live-verified:** the full pipeline through real encrypted
+Storage + `IntakeWorker._process()` end-to-end (only the classify/extract
+logic itself was live-tested directly; the storage download/decrypt/OCR
+path is unit-tested with mocks but not run against a real uploaded file
+yet), and the HTTP layer (`POST /api/smart-intake/documents` → poll →
+correct) with real auth.
 
 ## Phase 2 — Living Case
 **Goal: case state becomes visible and historical.**

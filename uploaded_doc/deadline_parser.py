@@ -44,12 +44,20 @@ _REDNI = {
 }
 
 # ─── Kategorije ───────────────────────────────────────────────────────────────
+# Ćirilica MORA biti paralelno navedena — srpski pravni dokumenti (presude,
+# rešenja) su često isključivo na ćirilici, a bez ovoga _kategorija() nikad
+# ne prepoznaje "жалба"/"тужба"/itd., pa sve ćirilične kategorije tiho padaju
+# na "ostalo". Otkriveno uživo (Faza 1A): rok za žalbu na ćiriličnoj presudi
+# je pogrešno biran kao "ostalo" umesto "zalba", što je uzrokovalo da se
+# datum PRESUDE (prvi pomenut) izabere umesto stvarnog roka za žalbu
+# (pomenut kasnije, u odeljku pravne pouke) — shared/intake_extract.py
+# preferira ne-"ostalo" kategorije baš zbog ovog scenarija.
 _KATEGORIJE: list[tuple[str, str]] = [
-    (r"zastar",                         "zastarelost"),
-    (r"otkaz|otkazn",                   "otkaz"),
-    (r"žalb|zalb|žalba",                "zalba"),
-    (r"podnes|tužb|tuzb|tužilac|tuzilac", "podnesak"),
-    (r"uplat|isplat|plat",              "isplata"),
+    (r"zastar|застар",                                              "zastarelost"),
+    (r"otkaz|otkazn|отказ|отказн",                                  "otkaz"),
+    (r"žalb|zalb|žalba|жалб",                                       "zalba"),
+    (r"podnes|tužb|tuzb|tužilac|tuzilac|поднес|тужб|тужилац|тужилаца", "podnesak"),
+    (r"uplat|isplat|plat|уплат|исплат|плат",                        "isplata"),
 ]
 
 _CONTEXT_RADIUS = 100  # chars on each side

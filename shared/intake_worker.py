@@ -2,28 +2,31 @@
 """
 Vindex AI — shared/intake_worker.py
 
-Smart Intake Engine, Faza 0 — worker koji claim-uje/obrađuje/završava
-poslove iz intake_jobs (shared/intake_queue.py, ADR-0002). Ovo NIJE
-"privremeni worker" — founder je eksplicitno tražio da bude idempotentan,
-restart-safe, graceful-shutdown, health-check friendly i metrics friendly
-od prvog dana, ne kao naknadno dotoerivanje kada Faza 1 doda pravu AI
-obradu.
+Smart Intake Engine — worker koji claim-uje/obrađuje/završava poslove iz
+intake_jobs (shared/intake_queue.py, ADR-0002). Ovo NIJE "privremeni
+worker" — founder je eksplicitno tražio da bude idempotentan, restart-safe,
+graceful-shutdown, health-check friendly i metrics friendly od prvog dana.
 
-Faza 0 _process() je namerno no-op — dokazuje da queue → claim → process →
-outbox → dispatch → ack petlja radi PRE nego što Faza 1 stavi OCR/
-klasifikaciju/ekstrakciju na to mesto. Menjati samo _process(), nikad
+Faza 1A _process(): decrypt+OCR → klasifikacija (shared/intake_classify.py)
+→ ekstrakcija Confidence Graph-a (shared/intake_extract.py) → review queue
+routing (< 90% confidence, ADR-0005) → processing_outcomes (founder-ov
+eksplicitan zahtev za buduće podešavanje). Menjati samo _process(), nikad
 petlju/shutdown/heartbeat/reap logiku oko njega — to bi bilo tačno ono
 "malo odstupanje od ADR-a" koje je founder izričito zabranio.
 """
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import os
 import socket
+import tempfile
+import time
 import uuid
+from pathlib import Path
 
-from shared import intake_queue
+from shared import intake_documents, intake_queue
 
 logger = logging.getLogger("vindex.intake_worker")
 
@@ -123,15 +126,126 @@ class IntakeWorker:
         return True
 
     async def _process(self, job: dict) -> None:
-        """Faza 0 — namerno no-op. Dokazuje da je infrastruktura (queue/
-        outbox/audit/retry/reap) ispravna PRE nego što Faza 1 ovde doda
-        pravu obradu (OCR → klasifikacija → ekstrakcija → case-match).
-        Kada Faza 1 stigne: svaka stage-funkcija ovde mora ostati
-        idempotentna — mark_job_completed je idempotentna po konstrukciji,
-        ali stage logika (npr. "kreiraj dokaz u bazi") to mora biti eksplicitno
-        (npr. upsert na content_sha256, ne insert) jer reap+retry znači da se
-        _process() MOŽE pozvati više puta nad istim poslom."""
-        pass
+        """Faza 1A: decrypt+OCR → klasifikacija → ekstrakcija → review
+        routing → processing_outcomes. Idempotentnost: ako je reap+retry
+        pozvao ovo dvaput za isti posao (prethodni pokušaj je pao POSLE
+        upisa dokumenta ali PRE mark_job_completed), rani izlaz — ne piše
+        drugi intake_documents/extracted_entities red za isti posao."""
+        job_id = job["id"]
+        t_start = time.monotonic()
+
+        existing = await intake_documents.get_job_result(job_id)
+        if existing["document"] is not None:
+            logger.info("[INTAKE_WORKER] job=%s već ima dokument (verovatno reap posle delimične obrade) — preskačem ponovnu obradu.", job_id[:8])
+            return
+
+        raw_bytes = await self._download_and_decrypt(job["storage_path"])
+
+        suffix = self._guess_suffix(job.get("original_filename"), job.get("mime_type"))
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(raw_bytes)
+            tmp_path = Path(tmp.name)
+        try:
+            text, is_scanned, ocr_used = await asyncio.to_thread(self._extract_text, tmp_path)
+        finally:
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+        if is_scanned:
+            # Fail-soft (docs/ENGINEERING_PRINCIPLES.md) — OCR neuspeh NIJE
+            # tranzijentna greška koju retry rešava (ista slika, isti
+            # rezultat), pa se NE baca exception (što bi pokrenulo retry
+            # petlju). Umesto toga: dokument se čuva sa document_type='other'
+            # i confidence=0, review queue dobija jasan razlog, posao se
+            # ipak završava normalno — advokat vidi "OCR nije uspeo" odmah,
+            # ne posle 5 pokušaja i nekoliko minuta eksponencijalnog backoff-a.
+            document_id = await intake_documents.create_document(
+                job_id, "other", 0.0, "heuristic", ocr_confidence=0.0, ocr_used=True,
+            )
+            await intake_documents.create_review_queue_entry(job_id, document_id, "ocr_failed", [])
+            await intake_documents.write_processing_outcome(
+                job_id, "other", 0.0, {}, int((time.monotonic() - t_start) * 1000),
+            )
+            return
+
+        classification = await self._classify(text)
+        entities = await self._extract_entities(text)
+
+        document_id = await intake_documents.create_document(
+            job_id,
+            classification["document_type"],
+            classification["confidence"],
+            classification["method"],
+            ocr_confidence=(0.6 if ocr_used else None),  # OCR bez eksplicitnog skora danas — konzervativna fiksna vrednost dok extractor ne vraća pravi confidence (poznato ograničenje, ne skriveno)
+            ocr_used=ocr_used,
+        )
+        entity_rows = await intake_documents.insert_entities(document_id, entities)
+
+        low_confidence_fields = [
+            e["entity_type"] for e in entities
+            if e["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD
+        ]
+        if classification["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD:
+            low_confidence_fields = ["document_type"] + low_confidence_fields
+        if low_confidence_fields:
+            await intake_documents.create_review_queue_entry(job_id, document_id, "low_confidence_extraction", low_confidence_fields)
+
+        entity_confidence_map = {e["entity_type"]: e["confidence"] for e in entities}
+        processing_time_ms = int((time.monotonic() - t_start) * 1000)
+        await intake_documents.write_processing_outcome(
+            job_id, classification["document_type"],
+            (0.6 if ocr_used else None), entity_confidence_map, processing_time_ms,
+        )
+        logger.info(
+            "[INTAKE_WORKER] job=%s obrađen: tip=%s (%.2f) low_confidence=%s (%dms)",
+            job_id[:8], classification["document_type"], classification["confidence"], low_confidence_fields, processing_time_ms,
+        )
+
+    async def _download_and_decrypt(self, storage_path: str) -> bytes:
+        """Isti Trezor obrazac kao klijenti/router.py — preuzmi enkriptovan
+        blob iz Supabase Storage, dekriptuj AESGCM-om."""
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        from security.crypto import _get_field_key
+        from shared.deps import _get_supa
+
+        supa = _get_supa()
+        bucket = supa.storage.from_("intake-dokumenti")
+        raw_encrypted = await asyncio.to_thread(lambda: bucket.download(storage_path))
+
+        key = _get_field_key()
+        blob_raw = base64.urlsafe_b64decode(raw_encrypted + b"==")
+        nonce, ct = blob_raw[:12], blob_raw[12:]
+        aesgcm = AESGCM(key)
+        return aesgcm.decrypt(nonce, ct, None)
+
+    @staticmethod
+    def _guess_suffix(original_filename: str | None, mime_type: str | None) -> str:
+        if original_filename:
+            suffix = Path(original_filename).suffix.lower()
+            if suffix in (".pdf", ".docx", ".txt"):
+                return suffix
+        if mime_type == "application/pdf":
+            return ".pdf"
+        if mime_type == "text/plain":
+            return ".txt"
+        return ".pdf"  # najčešći slučaj u praksi (skenirane presude) — razuman podrazumevani izbor
+
+    @staticmethod
+    def _extract_text(path: Path) -> tuple[str, bool, bool]:
+        from uploaded_doc.extractor import extract
+        return extract(path)
+
+    @staticmethod
+    async def _classify(text: str) -> dict:
+        from shared.intake_classify import classify
+        return await classify(text)
+
+    @staticmethod
+    async def _extract_entities(text: str) -> list[dict]:
+        from shared.intake_extract import extract_all_entities
+        return await extract_all_entities(text)
 
 
 # ─── Singleton — deli se sa FastAPI startup/shutdown hook-ovima ────────────────
