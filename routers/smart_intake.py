@@ -238,3 +238,17 @@ async def intake_health(request: Request, user: dict = Depends(_require_founder)
         "outbox": outbox_metrics,
         "workeri": heartbeats,
     }
+
+
+@router.get("/admin/accuracy")
+@limiter.limit("30/minute")
+async def intake_accuracy(request: Request, user: dict = Depends(_require_founder)):
+    """Validation Sprint (founder, 2026-07-15) — Office Accuracy Dashboard.
+    Ovo su OPERATIVNI KPI-jevi iz stvarne upotrebe (OCR uspešnost, review
+    polja po dokumentu, stopa ispravki, LLM fallback %, vreme obrade) —
+    NIJE isto što i tačnost naspram ground truth-a, za to postoji
+    scripts/intake_accuracy_benchmark.py protiv golden_dataset/. Iskreno
+    prazno stanje ispod praga uzorka, nikad izmišljen broj koji izgleda
+    precizan a nije (isti princip kao Revenue Intelligence)."""
+    from shared.intake_accuracy import get_office_accuracy_kpis
+    return await get_office_accuracy_kpis()

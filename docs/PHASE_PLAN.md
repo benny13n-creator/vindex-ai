@@ -149,6 +149,58 @@ path is unit-tested with mocks but not run against a real uploaded file
 yet), and the HTTP layer (`POST /api/smart-intake/documents` → poll →
 correct) with real auth.
 
+## Validation Sprint (not "Phase 1B" — deliberately, founder's framing)
+**Goal: prove the existing functionality saves real time, not add more of
+it.** Founder's read on the situation, 2026-07-15: "pre nekoliko nedelja
+rizik projekta bio je 'da li arhitektura može da izdrži?' Danas je rizik
+postao: 'koliko precizno sistem razume pravne dokumente u stvarnom radu
+advokata?'" — infrastructure risk is mostly retired; domain-accuracy risk
+is now the real one. No new AI functionality until real usage data says
+where it's actually needed (explicitly NOT Case Memory/Lineage/Semantic
+Dedup yet — "ako ih sada implementiraš, optimizovaćeš pretpostavke, ne
+stvarno ponašanje korisnika").
+
+**Founder's KPI targets** (measured two different ways — see below):
+
+| KPI | Target | Measured by |
+|---|---|---|
+| OCR uspešnost na digitalnim PDF | >98% | Office Accuracy Dashboard (live) |
+| Tačnost broja predmeta | >99% | Accuracy Benchmark (ground truth) |
+| Tačnost rokova | >95% | Accuracy Benchmark (ground truth) |
+| Prosečan broj review polja | <2 po dokumentu | Office Accuracy Dashboard (live) |
+| Prosečno vreme ispravke | <10s | Office Accuracy Dashboard (live, approximate) |
+| LLM fallback | <15% dokumenata | Office Accuracy Dashboard (live) |
+| Upload → rezultat | <30s | Office Accuracy Dashboard (live, worker time only — doesn't include queue wait or HTTP round-trip) |
+
+- [x] **Accuracy Benchmark harness** — `scripts/intake_accuracy_benchmark.py`,
+      runs the real production `classify()`/`extract_all_entities()` (not a
+      reimplementation) against `golden_dataset/`, reports per-entity-type
+      accuracy, appends to `docs/accuracy_history.json` so every future run
+      shows the delta against the last (`git log -p` on that file is the
+      accuracy changelog founder asked for). `golden_dataset/` ships
+      **empty on purpose** — populating it with ~100 judgments/~100
+      lawsuits/~100 powers of attorney (real, anonymized where needed) plus
+      hand-verified ground truth is the founder's own task, not something
+      that can be fabricated and still mean anything. See
+      `golden_dataset/README.md` for the annotation format.
+- [x] **Office Accuracy Dashboard** — `GET /api/smart-intake/admin/
+      accuracy` (`shared/intake_accuracy.py`), computed live from existing
+      `intake_processing_outcomes`/`intake_review_queue`/`extracted_
+      entities` — no new migration needed. Honest empty-state below a
+      5-document sample size (same discipline as Revenue Intelligence),
+      not a number that looks precise before it means anything. Explicitly
+      NOT the same claim as the benchmark: this measures operational
+      behavior (confidence, corrections, LLM usage, timing), not accuracy
+      against ground truth — a confident wrong answer and an honest "not
+      sure" both show up differently here than in the benchmark.
+- [ ] Per-office breakdown (`kancelarija_id` filter) — plumbing exists in
+      `get_office_accuracy_kpis(kancelarija_id=...)` but `intake_jobs.
+      kancelarija_id` isn't populated anywhere yet (design review §26.9,
+      same known gap noted since Phase 0's upload endpoint) — deferred
+      until office-scoped review queues are actually built.
+- [ ] Populate `golden_dataset/` with real documents + run the benchmark —
+      **founder's task**, not something to build further from here.
+
 ## Phase 2 — Living Case
 **Goal: case state becomes visible and historical.**
 
