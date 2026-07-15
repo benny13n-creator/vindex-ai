@@ -201,6 +201,40 @@ stvarno ponašanje korisnika").
 - [ ] Populate `golden_dataset/` with real documents + run the benchmark —
       **founder's task**, not something to build further from here.
 
+**Golden Dataset v2 (same day, second round of ML-practice feedback):**
+one flat dataset with one blended accuracy number hides where the system
+actually breaks. Refined before any real documents exist, so the harness
+is right from the first real run instead of needing a rework later:
+
+- **Three collections, not one** — `documents/a_clean_digital/` (Word→PDF,
+  isolates parser/classification quality from OCR noise),
+  `documents/b_typical_serbian/` (scans, stamps, ordinary resolution —
+  what actually arrives most days), `documents/c_nightmare/` (deliberately
+  hard: cropped/rotated/smudged/handwritten/mixed-script/two-judgments-in-
+  one-PDF/phone-photo — the real floor, not the polite case). `dataset` is
+  **derived from the subfolder a file lives in**, never typed by hand —
+  one less thing to get wrong while collecting under time pressure.
+- **`difficulty` field** (easy/medium/hard/nightmare) — a separate axis
+  from `dataset` (a Dataset B document can still be easy). Benchmark now
+  reports accuracy broken down by both dataset and difficulty tier, not
+  one flat average.
+- **`annotator`/`reviewed_by`/`agreement`** — founder's insight: "ako se
+  dva advokata ne slažu oko roka, onda AI možda nije pogrešio, ground
+  truth je pogrešan." Documents with `agreement: false` are reported
+  separately, excluded from the headline accuracy number — a disagreement
+  between annotators means the ground truth itself is contested, not that
+  the extraction failed.
+- **`beleska`** (optional) — why a document/value is hard, for dataset
+  curation context.
+- **`correction_reason`** (migration 074, amended before first run —
+  `intake_processing_outcomes.correction_reason`, optional) — when a
+  lawyer corrects a field in production, they can now optionally say
+  *why* ("datum presude nije rok za žalbu"), not just *what* changed.
+  Deliberately optional — a required field would turn the "10-second fix"
+  into a form, which would undo Phase 1A's own Definition of Done.
+
+See `golden_dataset/README.md` for the full annotation schema.
+
 ## Phase 2 — Living Case
 **Goal: case state becomes visible and historical.**
 

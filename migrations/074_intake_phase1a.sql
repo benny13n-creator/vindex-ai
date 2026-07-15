@@ -124,12 +124,21 @@ CREATE TABLE IF NOT EXISTS public.intake_processing_outcomes (
     entity_confidence      JSONB NOT NULL DEFAULT '{}'::jsonb,
     user_corrected         BOOLEAN NOT NULL DEFAULT false,
     fields_corrected       TEXT[] NOT NULL DEFAULT '{}',
+    correction_reason       TEXT,
     processing_time_ms     INTEGER,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 COMMENT ON TABLE public.intake_processing_outcomes IS
     'Founder-ov eksplicitan zahtev (Faza 1A) — upisuje se posle SVAKOG obrađenog dokumenta, ne za analitiku danas nego za fino podešavanje pragova/heuristika/UX-a kada se nakupi realan volumen. Append-only, nikad UPDATE — ako korisnik naknadno ispravi entitet posle inicijalnog upisa, dodaje se NOV red preko routers/smart_intake.py korekcionog endpoint-a, stari red ostaje netaknut.';
+COMMENT ON COLUMN public.intake_processing_outcomes.correction_reason IS
+    'OPCIONO, slobodan tekst — "zašto" je advokat ispravio ovo polje, ne samo "šta" (Validation Sprint, founder-ov drugi krug feedbacka, 2026-07-15). "Datum presude nije rok za žalbu" je mnogo korisniji materijal za buduće podešavanje heuristika od same činjenice da je polje ispravljeno. Namerno opciono — ne sme da doda trenje na "10-sekundnu ispravku" (Faza 1A Definition of Done) tako što bi je učinio obaveznom.';
+
+-- Lekcija iz migracije 073 primenjena UNAPRED, ne posle greške: CREATE TABLE
+-- IF NOT EXISTS ne dodaje kolonu na tabelu koja možda već postoji ako je
+-- ova migracija delimično pokrenuta pre ove izmene. Bezbedno i ako tabela
+-- tek sada nastaje (kolona već postoji iz CREATE TABLE iznad — no-op).
+ALTER TABLE public.intake_processing_outcomes ADD COLUMN IF NOT EXISTS correction_reason TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_intake_processing_outcomes_job ON public.intake_processing_outcomes(intake_job_id);
 

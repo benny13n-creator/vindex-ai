@@ -208,15 +208,20 @@ async def correct_entity(
     entity_id: str,
     request: Request,
     corrected_value: str = Body(..., embed=True),
+    reason: str = Body(default=None, embed=True),
     user: dict = Depends(get_current_user),
 ):
     """Proizvodni Definition of Done: "ispravka za deset sekundi." Original
     vrednost se NIKAD ne briše (corrected_value je dodatak, ne prepisivanje)
     — i piše se u intake_processing_outcomes sa user_corrected=true, jer je
     ovo tačno podatak koji founder eksplicitno traži za buduće podešavanje
-    pragova/heuristika."""
+    pragova/heuristika. `reason` je OPCIONO (Validation Sprint, drugi krug
+    feedbacka) — "Datum presude nije rok za žalbu" je mnogo korisniji
+    materijal od gole činjenice da je polje ispravljeno, ali obavezno polje
+    bi pretvorilo 10-sekundnu ispravku u formular — namerno ostaje
+    opciono."""
     try:
-        result = await intake_documents.correct_entity(entity_id, corrected_value, user.get("email", user["user_id"]))
+        result = await intake_documents.correct_entity(entity_id, corrected_value, user.get("email", user["user_id"]), reason=reason)
     except ValueError:
         raise HTTPException(status_code=404, detail="Stavka nije pronađena.")
     return result

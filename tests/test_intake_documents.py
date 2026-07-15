@@ -121,6 +121,67 @@ async def test_correct_entity_preserves_original_writes_corrected():
 
 
 @pytest.mark.anyio
+async def test_correct_entity_passes_optional_reason_to_outcome():
+    from shared import intake_documents as idoc
+
+    entity = {"id": "e1", "document_id": "doc-1", "entity_type": "deadline", "value": None, "confidence": 0.0}
+    doc = {"intake_job_id": "job-1", "document_type": "judgment"}
+
+    outcome_inserts = []
+    def _table(name):
+        if name == "extracted_entities":
+            return _make_chain(entity)
+        if name == "intake_documents":
+            return _make_chain(doc)
+        if name == "intake_processing_outcomes":
+            chain = _make_chain(None)
+            def _capture_insert(payload):
+                outcome_inserts.append(payload)
+                return chain
+            chain.insert = MagicMock(side_effect=_capture_insert)
+            return chain
+        return _make_chain(None)
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        await idoc.correct_entity("e1", "15.12.2026", "advokat@primer.rs", reason="Datum presude nije rok za žalbu.")
+
+    assert len(outcome_inserts) == 1
+    assert outcome_inserts[0]["correction_reason"] == "Datum presude nije rok za žalbu."
+
+
+@pytest.mark.anyio
+async def test_correct_entity_reason_defaults_to_none():
+    from shared import intake_documents as idoc
+
+    entity = {"id": "e1", "document_id": "doc-1", "entity_type": "deadline", "value": None, "confidence": 0.0}
+    doc = {"intake_job_id": "job-1", "document_type": "judgment"}
+
+    outcome_inserts = []
+    def _table(name):
+        if name == "extracted_entities":
+            return _make_chain(entity)
+        if name == "intake_documents":
+            return _make_chain(doc)
+        if name == "intake_processing_outcomes":
+            chain = _make_chain(None)
+            def _capture_insert(payload):
+                outcome_inserts.append(payload)
+                return chain
+            chain.insert = MagicMock(side_effect=_capture_insert)
+            return chain
+        return _make_chain(None)
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        await idoc.correct_entity("e1", "15.12.2026", "advokat@primer.rs")  # no reason passed
+
+    assert outcome_inserts[0]["correction_reason"] is None
+
+
+@pytest.mark.anyio
 async def test_correct_entity_raises_when_entity_missing():
     from shared import intake_documents as idoc
     supa = MagicMock()

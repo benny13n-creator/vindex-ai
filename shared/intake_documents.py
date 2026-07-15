@@ -93,10 +93,16 @@ async def write_processing_outcome(
     processing_time_ms: int,
     user_corrected: bool = False,
     fields_corrected: Optional[list[str]] = None,
+    correction_reason: Optional[str] = None,
 ) -> None:
     """Founder-ov eksplicitan zahtev — upisuje se posle SVAKOG obrađenog
     dokumenta. Best-effort: greška ovde ne sme da obori obradu (ovo je
-    podatak za buduće podešavanje, ne kritičan put)."""
+    podatak za buduće podešavanje, ne kritičan put).
+
+    correction_reason (Validation Sprint, drugi krug feedbacka) — OPCIONO
+    slobodno objašnjenje "zašto", ne samo "šta" je ispravljeno ("Datum
+    presude nije rok za žalbu"). Namerno opciono — ne sme da doda trenje na
+    10-sekundnu ispravku tako što bi postalo obavezno polje."""
     try:
         supa = _get_supa()
         await asyncio.to_thread(
@@ -107,6 +113,7 @@ async def write_processing_outcome(
                 "entity_confidence": entity_confidence,
                 "user_corrected": user_corrected,
                 "fields_corrected": fields_corrected or [],
+                "correction_reason": correction_reason,
                 "processing_time_ms": processing_time_ms,
             }).execute()
         )
@@ -140,11 +147,16 @@ async def get_job_result(intake_job_id: str) -> dict:
     return {"document": document, "entities": entities, "review": review}
 
 
-async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str) -> dict:
+async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str, reason: Optional[str] = None) -> dict:
     """Ovo je '10-sekundna ispravka' iz proizvodnog Definition of Done —
     original value se NIKAD ne briše (corrected_value je dodatak), reviewed
     postaje true, i piše se NOV processing_outcomes red sa user_corrected=
-    true (founder-ov zahtev: ovo je zlato za buduće podešavanje pragova)."""
+    true (founder-ov zahtev: ovo je zlato za buduće podešavanje pragova).
+
+    reason (Validation Sprint) — OPCIONO, "zašto" ne samo "šta". Ostaje
+    opciono namerno: obavezno polje bi pretvorilo "ispravku za 10 sekundi"
+    u formular, što bi poništilo tačno ono što Faza 1A Definition of Done
+    traži."""
     supa = _get_supa()
 
     old_res = await asyncio.to_thread(
@@ -174,6 +186,7 @@ async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str)
         processing_time_ms=0,
         user_corrected=True,
         fields_corrected=[entity["entity_type"]],
+        correction_reason=reason,
     )
 
     logger.info("[INTAKE_DOCUMENTS] entity corrected: %s (%s) od %s", entity_id[:8], entity["entity_type"], resolved_by)

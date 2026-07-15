@@ -2,15 +2,25 @@
 """
 Vindex AI — scripts/intake_accuracy_benchmark.py
 
-Smart Intake Engine — Validation Sprint (founder, 2026-07-15). Runs the
-REAL production classification/extraction code (shared/intake_classify.py,
-shared/intake_extract.py — not a reimplementation) against
-golden_dataset/, compares to hand-verified ground truth, and reports
-per-entity-type accuracy.
+Smart Intake Engine — Validation Sprint (founder, 2026-07-15; refined same
+day with ML-practice feedback). Runs the REAL production classification/
+extraction code (shared/intake_classify.py, shared/intake_extract.py — not
+a reimplementation) against golden_dataset/, compares to hand-verified
+ground truth, and reports accuracy broken down by entity type, by dataset
+(A clean digital / B typical Serbian reality / C nightmare), and by
+per-document difficulty (easy/medium/hard/nightmare) — a single blended
+average hides exactly where the system struggles, which is the point of
+having three deliberately different collections instead of one.
+
+Documents with `agreement: false` (two annotators disagreed on the ground
+truth itself) are reported SEPARATELY, not folded into the headline
+accuracy number — a mismatch there may mean the ground truth is contested,
+not that the extraction was wrong. Founder's framing: "Ako se dva advokata
+ne slažu oko roka, onda AI možda nije pogrešio. Ground truth je pogrešan."
 
 This is deliberately separate from the unit test suite: unit tests prove
 the code executes correctly against fixtures. This proves the AI gets the
-right answer against real documents. "1563 testova prolazi" and "case
+right answer against real documents. "1574 testova prolazi" and "case
 number accuracy 98.7%" are different claims — this script produces the
 second one, honestly, only once golden_dataset/ has real content (see
 golden_dataset/README.md — it ships empty on purpose, nothing here is
@@ -46,6 +56,9 @@ DOCUMENTS_DIR = GOLDEN_DIR / "documents"
 ANNOTATIONS_PATH = GOLDEN_DIR / "annotations.json"
 HISTORY_PATH = ROOT / "docs" / "accuracy_history.json"
 
+_DATASET_FOLDERS = ("a_clean_digital", "b_typical_serbian", "c_nightmare")
+_DIFFICULTY_ORDER = ("easy", "medium", "hard", "nightmare")
+
 # Free-text fields (LLM-extracted) get lenient substring comparison — exact
 # phrasing/declension varies in Serbian ("Osnovni sud" vs "Osnovnog suda").
 # Structured fields (regex-extracted) must match closely after normalization
@@ -71,6 +84,14 @@ def _values_match(entity_type: str, expected: str, actual: str) -> bool:
     return exp_n == act_n
 
 
+def _derive_dataset(filename: str) -> str | None:
+    """dataset se NE unosi ručno u annotations.json — izvodi se iz toga u
+    kom podfolderu fajl fizički živi (golden_dataset/README.md). Jedan manji
+    izvor greške pri prikupljanju pod vremenskim pritiskom."""
+    prefix = filename.split("/", 1)[0] if "/" in filename else None
+    return prefix if prefix in _DATASET_FOLDERS else None
+
+
 async def _run_one(doc: dict) -> dict:
     from shared.intake_classify import classify
     from shared.intake_extract import extract_all_entities
@@ -78,15 +99,23 @@ async def _run_one(doc: dict) -> dict:
 
     filename = doc["filename"]
     path = DOCUMENTS_DIR / filename
+    meta = {
+        "document_id": doc["document_id"],
+        "filename": filename,
+        "dataset": _derive_dataset(filename),
+        "difficulty": doc.get("difficulty"),
+        "agreement": doc.get("agreement", True),  # nedostaje polje = pretpostavka da je jedan anotator dovoljan (True), ne da se ne slažu
+    }
+
     if not path.exists():
-        return {"document_id": doc["document_id"], "error": f"fajl nije pronađen: {filename}"}
+        return {**meta, "error": f"fajl nije pronađen: {filename}"}
 
     text, is_scanned, ocr_used = await asyncio.to_thread(extract_text, path)
     if is_scanned:
-        return {"document_id": doc["document_id"], "error": "OCR neuspešan — dokument izostavljen iz merenja tačnosti (to je zaseban KPI, ne accuracy)"}
+        return {**meta, "error": "OCR neuspešan — dokument izostavljen iz merenja tačnosti (to je zaseban KPI, ne accuracy)"}
 
     expected = doc.get("expected", {})
-    result = {"document_id": doc["document_id"], "filename": filename}
+    result = dict(meta)
 
     klasa = await classify(text)
     result["document_type"] = {
@@ -114,35 +143,65 @@ async def _run_one(doc: dict) -> dict:
     return result
 
 
-def _aggregate(results: list[dict]) -> dict:
-    valid = [r for r in results if "error" not in r]
-    errors = [r for r in results if "error" in r]
-
-    doc_type_scored = [r for r in valid if r["document_type"]["match"] is not None]
-    doc_type_accuracy = (
-        sum(1 for r in doc_type_scored if r["document_type"]["match"]) / len(doc_type_scored)
-        if doc_type_scored else None
-    )
-
+def _score_entities(results: list[dict]) -> dict:
     per_entity: dict[str, dict] = {}
-    for r in valid:
-        for entity_type, e in r["entities"].items():
+    for r in results:
+        for entity_type, e in r.get("entities", {}).items():
             bucket = per_entity.setdefault(entity_type, {"correct": 0, "total": 0})
             bucket["total"] += 1
             if e["match"]:
                 bucket["correct"] += 1
-
-    per_entity_accuracy = {
+    return {
         entity_type: round(b["correct"] / b["total"], 4) if b["total"] else None
         for entity_type, b in per_entity.items()
     }
 
+
+def _classification_accuracy(results: list[dict]) -> float | None:
+    scored = [r for r in results if r.get("document_type", {}).get("match") is not None]
+    if not scored:
+        return None
+    return round(sum(1 for r in scored if r["document_type"]["match"]) / len(scored), 4)
+
+
+def _aggregate(results: list[dict]) -> dict:
+    errors = [r for r in results if "error" in r]
+    scoreable = [r for r in results if "error" not in r]
+
+    # Sporne anotacije (dva anotatora se nisu složila) — izveštava se
+    # ODVOJENO, ne meša sa AI greškama (vidi modul docstring).
+    disagreement = [r for r in scoreable if r.get("agreement") is False]
+    agreed = [r for r in scoreable if r.get("agreement") is not False]
+
+    by_dataset = {}
+    for ds in _DATASET_FOLDERS:
+        subset = [r for r in agreed if r.get("dataset") == ds]
+        if subset:
+            by_dataset[ds] = {
+                "broj_dokumenata": len(subset),
+                "klasifikacija_tacnost": _classification_accuracy(subset),
+                "ekstrakcija_tacnost_po_polju": _score_entities(subset),
+            }
+
+    by_difficulty = {}
+    for diff in _DIFFICULTY_ORDER:
+        subset = [r for r in agreed if r.get("difficulty") == diff]
+        if subset:
+            all_matches = [e["match"] for r in subset for e in r.get("entities", {}).values()]
+            by_difficulty[diff] = {
+                "broj_dokumenata": len(subset),
+                "ukupna_tacnost": round(sum(all_matches) / len(all_matches), 4) if all_matches else None,
+            }
+
     return {
         "ukupno_dokumenata": len(results),
-        "obrađeno": len(valid),
+        "obrađeno": len(scoreable),
         "greske_ocr": len(errors),
-        "klasifikacija_tacnost": round(doc_type_accuracy, 4) if doc_type_accuracy is not None else None,
-        "ekstrakcija_tacnost_po_polju": per_entity_accuracy,
+        "sporne_anotacije": len(disagreement),
+        "klasifikacija_tacnost": _classification_accuracy(agreed),
+        "ekstrakcija_tacnost_po_polju": _score_entities(agreed),
+        "po_dataset_setu": by_dataset,
+        "po_tezini": by_difficulty,
     }
 
 
@@ -150,11 +209,12 @@ def _print_report(summary: dict, previous: dict | None) -> None:
     print("=" * 70)
     print("SMART INTAKE — ACCURACY BENCHMARK (golden_dataset/)")
     print("=" * 70)
-    print(f"  Dokumenata: {summary['ukupno_dokumenata']}  (obrađeno: {summary['obrađeno']}, OCR greške: {summary['greske_ocr']})")
+    print(f"  Dokumenata: {summary['ukupno_dokumenata']}  (obrađeno: {summary['obrađeno']}, OCR greške: {summary['greske_ocr']}, sporne anotacije: {summary['sporne_anotacije']})")
     if summary["klasifikacija_tacnost"] is not None:
-        print(f"  Klasifikacija: {summary['klasifikacija_tacnost']*100:.1f}%")
+        print(f"  Klasifikacija (ukupno): {summary['klasifikacija_tacnost']*100:.1f}%")
+
     print()
-    print("  Ekstrakcija po polju:")
+    print("  Ekstrakcija po polju (ukupno):")
     prev_fields = (previous or {}).get("ekstrakcija_tacnost_po_polju", {})
     for entity_type, acc in sorted(summary["ekstrakcija_tacnost_po_polju"].items()):
         if acc is None:
@@ -167,6 +227,28 @@ def _print_report(summary: dict, previous: dict | None) -> None:
             arrow = "↑" if delta > 0 else ("↓" if delta < 0 else "=")
             line += f"   ({prev_acc*100:.1f}% → {acc*100:.1f}%, {arrow}{abs(delta):.1f})"
         print(line)
+
+    if summary["po_dataset_setu"]:
+        print()
+        print("  Po dataset-u (A čist digitalni / B tipična realnost / C nightmare):")
+        for ds, stats in summary["po_dataset_setu"].items():
+            kt = stats["klasifikacija_tacnost"]
+            print(f"    {ds:18} n={stats['broj_dokumenata']:<4} klasifikacija={f'{kt*100:.1f}%' if kt is not None else 'n/a'}")
+
+    if summary["po_tezini"]:
+        print()
+        print("  Po težini (easy/medium/hard/nightmare):")
+        for diff in _DIFFICULTY_ORDER:
+            stats = summary["po_tezini"].get(diff)
+            if stats:
+                acc = stats["ukupna_tacnost"]
+                print(f"    {diff:12} n={stats['broj_dokumenata']:<4} tačnost={f'{acc*100:.1f}%' if acc is not None else 'n/a'}")
+
+    if summary["sporne_anotacije"]:
+        print()
+        print(f"  ⚠ {summary['sporne_anotacije']} dokumenata sa agreement=false — isključeno iz gornjih brojeva.")
+        print("    Neslaganje anotatora ne znači nužno da je AI pogrešio — proveriti ground truth.")
+
     print("=" * 70)
 
 
@@ -180,7 +262,7 @@ def main() -> int:
 
     if not dokumenti:
         print("[INFO] golden_dataset/annotations.json je prazan — nema šta da se meri.")
-        print("       Vidi golden_dataset/README.md za format anotacija.")
+        print("       Vidi golden_dataset/README.md za format anotacija (3 dataset-a, difficulty, agreement).")
         print("       Ovo je OČEKIVANO stanje dok se ne dodaju stvarni dokumenti — nije greška.")
         return 0
 
