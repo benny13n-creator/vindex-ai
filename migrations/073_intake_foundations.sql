@@ -3,6 +3,13 @@
 -- ============================================================================
 -- Pokrenuti u: Supabase Dashboard → SQL Editor, posle 072.
 --
+-- POPRAVKA (posle prvog pokretanja): CREATE TABLE/CREATE OR REPLACE FUNCTION
+-- su idempotentni, ali CREATE POLICY nije (Postgres nema CREATE POLICY IF
+-- NOT EXISTS) — svaki DROP POLICY IF EXISTS ispred CREATE POLICY ispod je
+-- zato dodat da ceo fajl bude bezbedan za ponovno pokretanje od početka do
+-- kraja. Ovo je stvarni uzrok zašto je prvo pokretanje stalo na pola (na
+-- prvoj CREATE POLICY liniji pri ponovnom pokušaju), ne PostgREST cache.
+--
 -- Kontekst: Faza 0 implementacije Smart Intake Engine-a (docs/adr/, dizajn
 -- zamrznut kao bazelin — ne menjati bez formalnog ADR-a). Cilj Faze 0:
 -- učiniti upload pouzdanim i trajnim, BEZ ikakve promene AI ponašanja —
@@ -52,6 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_events_undispatched
     ON public.events(created_at) WHERE dispatched_at IS NULL;
 
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "events_service_role" ON public.events;
 CREATE POLICY "events_service_role" ON public.events
     FOR ALL USING (auth.role() = 'service_role');
 
@@ -91,8 +99,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_intake_jobs_idempotency
     ON public.intake_jobs(idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 ALTER TABLE public.intake_jobs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "intake_jobs_service_role" ON public.intake_jobs;
 CREATE POLICY "intake_jobs_service_role" ON public.intake_jobs
     FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "intake_jobs_owner_read" ON public.intake_jobs;
 CREATE POLICY "intake_jobs_owner_read" ON public.intake_jobs
     FOR SELECT USING (auth.role() = 'authenticated' AND uploaded_by = auth.uid()::text);
 
@@ -114,6 +124,7 @@ CREATE INDEX IF NOT EXISTS idx_intake_audit_job
     ON public.intake_audit_log(intake_job_id, at DESC);
 
 ALTER TABLE public.intake_audit_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "intake_audit_log_service_role" ON public.intake_audit_log;
 CREATE POLICY "intake_audit_log_service_role" ON public.intake_audit_log
     FOR ALL USING (auth.role() = 'service_role');
 -- Namerno NEMA UPDATE/DELETE politike — append-only.
@@ -282,6 +293,7 @@ COMMENT ON TABLE public.intake_worker_heartbeat IS
     'Jedan red po worker procesu (worker_id = hostname:pid ili UUID pri startu). Worker upisuje/osvežava svoj red na svaki tick. Health endpoint (GET /api/admin/intake/health) čita ovo da pokaže da li je bar jedan worker živ.';
 
 ALTER TABLE public.intake_worker_heartbeat ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "intake_worker_heartbeat_service_role" ON public.intake_worker_heartbeat;
 CREATE POLICY "intake_worker_heartbeat_service_role" ON public.intake_worker_heartbeat
     FOR ALL USING (auth.role() = 'service_role');
 
