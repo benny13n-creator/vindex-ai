@@ -86,6 +86,13 @@ CREATE TABLE IF NOT EXISTS public.intake_jobs (
     completed_at       TIMESTAMPTZ
 );
 
+-- CREATE TABLE IF NOT EXISTS iznad ne dodaje kolone na tabelu koja već
+-- postoji (npr. iz ranijeg delimičnog pokretanja pre nego što je claimed_at
+-- dodat) — otuda eksplicitan ALTER TABLE, isti obrazac kao migracija 072
+-- (business_groups.tagline). Ovo je stvarni uzrok greške "column claimed_at
+-- does not exist" pri prethodnom pokušaju.
+ALTER TABLE public.intake_jobs ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+
 COMMENT ON TABLE public.intake_jobs IS
     'Postgres-backed job queue (ADR-0002) — status JE queue-a. Workeri claim-uju preko claim_intake_job() RPC, nikad direktnim UPDATE-om (race condition bez FOR UPDATE SKIP LOCKED, koji PostgREST ne izlaže).';
 COMMENT ON COLUMN public.intake_jobs.idempotency_key IS
