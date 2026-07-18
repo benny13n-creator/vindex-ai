@@ -1,8 +1,10 @@
 # Case Genome — Reality Validation Report
 
-Status (2026-07-18): **Deo 1 (sintetička kalibracija) završen.** Deo 2 (5-10
-stvarnih anonimizovanih predmeta) čeka founder-a da obezbedi dokumenta —
-okvir za to je izgrađen i spreman (`scripts/genome_case_dna_evaluate.py`),
+Status (2026-07-18): **Deo 1 (sintetička kalibracija) završen. Reliability
+Patch (strength calibration + citation v2) implementiran i re-testiran na
+istom 6-slučajnom regresionom skupu — videti Dodatak na kraju.** Deo 2
+(5-10 stvarnih anonimizovanih predmeta) čeka founder-a da obezbedi
+dokumenta — okvir je izgrađen i spreman (`scripts/genome_case_dna_evaluate.py`),
 nije pokrenut.
 
 Ovaj izveštaj NE tvrdi da je Genome spreman za produkciju na osnovu
@@ -208,6 +210,14 @@ odobrenja bi bila destruktivna akcija van obima ovog zadatka. Predlažem da
 se zadrže dok se ne odluči da li služe kao referentni regresioni skup za
 buduće bootstrap runove, ili da se obrišu.
 
+**Ažurirano posle Reliability Patch pre/posle runa (videti Dodatak):**
++6 dodatnih `[KALIBRACIJA]` test predmeta (POSLE-zakrpe verzije istih 6
+slučajeva). Ukupno **14 test predmeta** u produkciji. Eksplicitno
+zadržano po instrukciji "Keep the calibration cases as a regression
+dataset. Do not delete them." — originalnih 6 (PRE) i novih 6 (POSLE) su
+sada oba deo regresionog skupa, namerno razdvojena kao dva odvojena
+snapshot-a istog test-scenarija, ne zamenjena jedni drugima.
+
 ---
 
 ## Deo 2 — Validacija na stvarnim anonimizovanim predmetima (PENDING)
@@ -255,3 +265,97 @@ proširenja Verification Layer-a — 6 sintetičkih slučajeva je dovoljno da se
 otkrije PROBLEM (uspešno je), nije dovoljno da se opravda KAKO ga rešiti.
 Faza 2 (Smart Intake instrumentacija) je nezavisna od ovih nalaza i može
 teći paralelno bez rizika. Odluka je founder-ova.
+
+---
+
+## Dodatak — Reliability Patch: rezultati pre/posle (2026-07-18)
+
+Posle odluke da se NE ide na Fazu 2 niti na redizajn arhitekture, nego na
+malu reliability zakrpu ograničenu na ova dva potvrđena nalaza (Genome
+Strength Calibration + Legal Citation Verification v2), isti skup od 6
+sintetičkih slučajeva je pušten ponovo — **ista definicija predmeta
+(`scripts/genome_synthetic_cases.py`, nepromenjena), novih 6 predmeta
+kreirano preko istog harness-a**, originalnih 6 zadržano kao regresioni
+skup (nisu obrisani, nisu dirani).
+
+### Genome Strength Calibration — pre/posle
+
+| Slučaj | Procenat PRE | Procenat POSLE | Kategorija PRE | Kategorija POSLE |
+|---|---|---|---|---|
+| CASE-A | 65 | **80** | srednja | **jaka** |
+| CASE-B | 65 | **35** | srednja | srednja |
+| CASE-C | 65 | **45** | srednja | srednja |
+| CASE-D | 65 | **50** | srednja | srednja |
+| CASE-E | 65 | **40** | srednja | srednja |
+| CASE-F | 65 | **75** | srednja | **jaka** |
+
+**Raspon PRE: 65–65 (0 poena, 1 jedinstvena vrednost od 6).
+Raspon POSLE: 35–80 (45 poena, 6 od 6 jedinstvenih vrednosti).** Direktna
+potvrda zahteva "slični slučajevi ne smeju automatski dobiti identičan
+skor" — svih 6 slučajeva sada ima različit procenat, izveden iz
+`snaga_faktori` koje je GPT vec ekstrahovao (potvrđeno kao specifične po
+predmetu u originalnom izveštaju), ne iz GPT-ovog samo-prijavljenog broja.
+
+**Interna neslaganja (hard flag "procenat protivreči snaga_faktori"):
+2/6 PRE (CASE-B, CASE-D) → 0/6 POSLE.** Očekivano i strukturno garantovano
+— procenat se sada RAČUNA iz istih faktora koje provera proverava, pa
+neslaganje više nije moguće po konstrukciji, ne samo statistički ređe.
+
+**CASE-E (namerno oskudan dosije, `genome_kompletnost: "niska"`)** — novi
+kompletnost-penal (-15) se stvarno pojavljuje kao vidljiv, objašnjiv faktor
+u `snaga_faktori` ("Kompletnost dokaznog materijala"), ne kao skriveno
+podešavanje — potvrđeno u sirovom JSON odgovoru.
+
+**Preostalo ograničenje, iskreno prijavljeno:** kategorija (jaka/srednja/
+slaba) je i dalje delimično zbijena oko "srednja" (4 od 6 u ovom rundu) —
+ovo je posledica pragova (75+ jaka, <35 slaba) na umerenim iznosima
+faktora koje GPT tipično vraća (retko preko ±20 po faktoru), ne bug u
+formuli. Sam **procenat** (koji nosi stvaran signal) sada varira potpuno
+razumno; 3-kategorijska etiketa i dalje kompresuje srednji opseg. Nije
+adresiranо u ovoj zakrpi (van obima — instrukcija je bila "preserve
+existing Genome schema", menjanje pragova je manja odluka koja bi
+zahtevala sopstvenu evidenciju o tome koji pragovi advokatima najviše
+znače).
+
+### Legal Citation Verification v2 — pre/posle
+
+**Na regresionom skupu od 6 slučajeva: 0 novih hard flagova u oba runda.**
+Ovo je OČEKIVAN, ne razočaravajući rezultat — nijedan od stvarno citiranih
+brojeva članova (179, 180, 262, 195, 147, 52, 21...) nije van namerno
+širokih/konzervativnih generičkih granica (≤1200 za obične zakone, ≤250 za
+Ustav). Provera je dizajnirana da hvata OČIGLEDNO nemoguće brojeve, ne da
+potvrđuje da svaki prihvatljiv broj stvarno postoji (to bi zahtevalo pravni
+korpus/graf, eksplicitno van obima). 6 sintetičkih slučajeva nikad nije
+sadržalo namerno apsurdan broj člana, pa ni PRE ni POSLE zakrpe nema šta da
+se uhvati na ovom skupu — to je nedostatak regresionog skupa, ne dokaz da
+provera ne radi.
+
+**Mehanizam je nezavisno potvrđen jediničnim testom** (van 6-slučajnog
+skupa, kako je i traženo — "run the same 6 synthetic cases", ne dodavanje
+7.): `ZOO čl. 9999` → hard flag; `Ustav čl. 300` → hard flag (Ustav ima
+nižu granicu); `Zakon o radu čl. 179 stav 2` → soft napomena da stav nivo
+nije proveravan, ne hard blokada. Sve u
+`tests/test_genome_validator.py` (6 novih testova za ovu funkciju).
+
+**Nuspojava vredna pomena:** pošto hard-flag za snaga-neslaganje više ne
+postoji (strukturno nemoguć), i pošto nijedan od 6 slučajeva nije pogodio
+novu clan-broj granicu, **`verifikacija_odluka` je "approve_with_warning"
+za svih 6 slučajeva POSLE zakrpe** (nasuprot mešavini approve/
+require_review/approve_with_warning PRE). Ovo NIJE regresija u smislu da
+se nešto prestalo proveravati — soft flagovi (nepotvrđeni nazivi zakona)
+su i dalje prisutni u svih 6 — nego je posledica toga što je jedina
+kategorija koja je PRE generisala "require_review" (snaga-neslaganje) sada
+strukturno eliminisana.
+
+### Zaključak dodatka
+
+Oba nalaza iz glavnog izveštaja su adresirana u okviru dozvoljenog obima
+(bez redizajna arhitekture, bez Genome šema izmene, bez pravnog grafa/nove
+reasoning mašine). Genome Strength Calibration nalaz je **rešen i
+verifikovano popravljen** — merljivo, na istom skupu. Legal Citation
+Verification v2 je **implementiran i jedinično verifikovan**, ali 6-slučajni
+regresioni skup strukturno ne može da pokaže pozitivnu detekciju (nema
+namerno apsurdan broj člana u skupu) — vredno napomene za founder-a ako
+želi da doda 1 kalibracioni slučaj sa namerno izmišljenim brojem člana radi
+potpunije regresione pokrivenosti, ili da se osloni na jedinične testove
+kao dovoljan dokaz mehanizma dok Deo 2 (stvarni predmeti) ne stigne.
