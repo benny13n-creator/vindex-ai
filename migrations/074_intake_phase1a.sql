@@ -135,10 +135,6 @@ CREATE TABLE IF NOT EXISTS public.intake_processing_outcomes (
 
 COMMENT ON TABLE public.intake_processing_outcomes IS
     'Founder-ov eksplicitan zahtev (Faza 1A) — upisuje se posle SVAKOG obrađenog dokumenta, ne za analitiku danas nego za fino podešavanje pragova/heuristika/UX-a kada se nakupi realan volumen. Append-only, nikad UPDATE — ako korisnik naknadno ispravi entitet posle inicijalnog upisa, dodaje se NOV red preko routers/smart_intake.py korekcionog endpoint-a, stari red ostaje netaknut.';
-COMMENT ON COLUMN public.intake_processing_outcomes.correction_reason IS
-    'OPCIONO, slobodan tekst — "zašto" je advokat ispravio ovo polje, ne samo "šta" (Validation Sprint, founder-ov drugi krug feedbacka, 2026-07-15). "Datum presude nije rok za žalbu" je mnogo korisniji materijal za buduće podešavanje heuristika od same činjenice da je polje ispravljeno. Namerno opciono — ne sme da doda trenje na "10-sekundnu ispravku" (Faza 1A Definition of Done) tako što bi je učinio obaveznom.';
-COMMENT ON COLUMN public.intake_processing_outcomes.error_source IS
-    'OPCIONO, kategorička klasifikacija KOJI SLOJ je stvarno uzrok greške (founder, LEC feedback 2026-07-15) — isti vokabular kao evaluation/lec/ i evaluation/hall_of_shame/ anotacije, namerno deljen. Primer: pogrešan rok jer je parser izabrao datum presude → error_source=parser (ne llm). Neprepoznat sudija zbog lošeg skena → error_source=ocr. Dva advokata se ne slažu oko roka → error_source=ground_truth. Bez ovoga, correction_reason je slobodan tekst koji se ne može agregirati u "gde stvarno gubimo vreme" posle šest meseci realne upotrebe.';
 
 -- Lekcija iz migracije 073 primenjena UNAPRED, ne posle greške: CREATE TABLE
 -- IF NOT EXISTS ne dodaje kolonu na tabelu koja možda već postoji ako je
@@ -146,24 +142,31 @@ COMMENT ON COLUMN public.intake_processing_outcomes.error_source IS
 -- tek sada nastaje (kolona već postoji iz CREATE TABLE iznad — no-op).
 ALTER TABLE public.intake_processing_outcomes ADD COLUMN IF NOT EXISTS correction_reason TEXT;
 
--- NAPOMENA (ispravljeno 2026-07-19): originalna verzija je dodavala
--- error_source kolonu (ADD COLUMN) i njeno CHECK ograničenje (DO $$ blok
--- ispod) kao DVE odvojene naredbe. Founder je pri pokretanju dobio
--- "column error_source does not exist" — Supabase SQL Editor izvršava ceo
--- unet tekst kao JEDNU transakciju, i DO $$ blok koji referencira
--- error_source u CHECK izrazu nije "video" kolonu dodatu par linija iznad
--- u istom izvršavanju, pa je cela transakcija (uključujući uspešan ADD
--- COLUMN) povučena nazad. Ispravka: kolona i CHECK ograničenje se dodaju u
--- JEDNOJ atomskoj ALTER TABLE naredbi — nema više zavisnosti od vidljivosti
--- kolone unutar iste transakcije. I dalje bezbedno za ponovno pokretanje:
--- "ADD COLUMN IF NOT EXISTS" preskače CEO dodatak (uključujući CHECK) ako
--- kolona već postoji (npr. iz CREATE TABLE iznad, kad tabela tek nastaje).
+-- NAPOMENA (ispravljeno 2026-07-19, DRUGI pokušaj): originalna verzija je
+-- dodavala error_source kolonu (ADD COLUMN) i njeno CHECK ograničenje kao
+-- DVE odvojene naredbe (DO $$ blok) — prvi pokušaj ispravke ih je spojio u
+-- JEDNU atomsku ALTER TABLE naredbu, ali greška je i dalje ostala. Pravi
+-- uzrok: COMMENT ON COLUMN ... error_source naredba (ranije ovde, ODMAH
+-- posle CREATE TABLE-a iznad) referencirala je error_source PRE nego što
+-- je ADD COLUMN ikad stigao da se izvrši — ako tabela već postoji (kao
+-- ovde, napravljena ranijom verzijom fajla bez error_source), CREATE TABLE
+-- IF NOT EXISTS je no-op, kolona ne postoji, i COMMENT ON COLUMN pada tu,
+-- mnogo pre nego što skripta uopšte stigne do ADD COLUMN linije ispod.
+-- Ispravka: COMMENT ON COLUMN za error_source (i correction_reason, iz
+-- istog razloga) premešten OVDE, POSLE ADD COLUMN naredbi — redosled u
+-- fajlu mora pratiti redosled izvršavanja, ne redosled definicije u
+-- CREATE TABLE-u iznad.
 ALTER TABLE public.intake_processing_outcomes
     ADD COLUMN IF NOT EXISTS error_source TEXT
     CHECK (error_source IN (
         'ocr', 'parser', 'regex', 'heuristics', 'llm',
         'ground_truth', 'human_annotation', 'unknown'
     ));
+
+COMMENT ON COLUMN public.intake_processing_outcomes.correction_reason IS
+    'OPCIONO, slobodan tekst — "zašto" je advokat ispravio ovo polje, ne samo "šta" (Validation Sprint, founder-ov drugi krug feedbacka, 2026-07-15). "Datum presude nije rok za žalbu" je mnogo korisniji materijal za buduće podešavanje heuristika od same činjenice da je polje ispravljeno. Namerno opciono — ne sme da doda trenje na "10-sekundnu ispravku" (Faza 1A Definition of Done) tako što bi je učinio obaveznom.';
+COMMENT ON COLUMN public.intake_processing_outcomes.error_source IS
+    'OPCIONO, kategorička klasifikacija KOJI SLOJ je stvarno uzrok greške (founder, LEC feedback 2026-07-15) — isti vokabular kao evaluation/lec/ i evaluation/hall_of_shame/ anotacije, namerno deljen. Primer: pogrešan rok jer je parser izabrao datum presude → error_source=parser (ne llm). Neprepoznat sudija zbog lošeg skena → error_source=ocr. Dva advokata se ne slažu oko roka → error_source=ground_truth. Bez ovoga, correction_reason je slobodan tekst koji se ne može agregirati u "gde stvarno gubimo vreme" posle šest meseci realne upotrebe.';
 
 CREATE INDEX IF NOT EXISTS idx_intake_processing_outcomes_job ON public.intake_processing_outcomes(intake_job_id);
 
