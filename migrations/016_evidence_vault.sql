@@ -9,8 +9,15 @@ ALTER TABLE public.predmet_dokumenti
   ADD COLUMN IF NOT EXISTS klasifikovan_at   TIMESTAMPTZ;
 
 -- Index for filtering by document type
-CREATE INDEX IF NOT EXISTS idx_pdok_tip ON public.predmet_dokumenti (tip_dokaza)
-  WHERE deleted_at IS NULL;
+-- NAPOMENA (ispravljeno 2026-07-19): originalna verzija je imala
+-- "WHERE deleted_at IS NULL" — kopiran obrazac sa predmet_dokazi indeksa
+-- ispod (koja STVARNO ima deleted_at, definisanu u ovoj istoj migraciji),
+-- pogresno primenjen na predmet_dokumenti, koja tu kolonu nikad nije imala
+-- niti je ova migracija dodaje. Uzrok gresci "column deleted_at does not
+-- exist" pri pokretanju. Kolona se ne dodaje ovde jer predmet_dokumenti
+-- soft-delete koncept ne koristi nigde u kodu — dodavanje bi bilo nova
+-- funkcionalnost, ne ispravka.
+CREATE INDEX IF NOT EXISTS idx_pdok_tip ON public.predmet_dokumenti (tip_dokaza);
 
 -- Evidence items — specific facts/claims extracted from documents
 CREATE TABLE IF NOT EXISTS public.predmet_dokazi (
