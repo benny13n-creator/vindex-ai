@@ -150,3 +150,25 @@ async def test_matter_intel_404():
         with pytest.raises(HTTPException) as exc:
             await get_matter_intel("ghost-id", _user())
     assert exc.value.status_code == 404
+
+
+# ── Faza 2.2 cleanup (2026-07-18): _d consolidated from two identical local
+# closures into one module-level function — behavior-preserving, same body.
+
+def test_d_returns_empty_list_for_exception():
+    from routers.matter_intel import _d
+    assert _d(Exception("boom")) == []
+
+
+def test_d_returns_data_for_normal_response():
+    from routers.matter_intel import _d
+    resp = MagicMock()
+    resp.data = [{"id": 1}, {"id": 2}]
+    assert _d(resp) == [{"id": 1}, {"id": 2}]
+
+
+def test_d_returns_empty_list_when_data_is_none():
+    from routers.matter_intel import _d
+    resp = MagicMock()
+    resp.data = None
+    assert _d(resp) == []

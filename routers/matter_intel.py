@@ -4,7 +4,8 @@ Matter Intelligence Dashboard — AI ocena zdravlja predmeta.
 
 GET /api/matter-intel/predmeti/{predmet_id}
 Vraća: snaga_dokaza, procesni_rizik, nedostajuci_dokazi, predstojeći_rokovi,
-       sledeca_radnja (GPT-4o-mini), health_score (0-100)
+       sledeca_radnja (rule-based, ne GPT — videti _compute_next_action),
+       health_score (0-100)
 """
 import asyncio
 import logging
@@ -17,6 +18,14 @@ from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.matter_intel")
 router = APIRouter(prefix="/api/matter-intel", tags=["matter_intel"])
+
+
+def _d(r):
+    """Koerzija asyncio.gather(..., return_exceptions=True) rezultata u listu —
+    Exception ili prazan .data postaju []. Bila je duplirana kao identican
+    lokalni closure na dva mesta u ovom fajlu (Faza 2.2 cleanup, 2026-07-18);
+    sada jedna deljena funkcija, ponasanje nepromenjeno."""
+    return (r.data if not isinstance(r, Exception) else []) or []
 
 _INTEL_SYSTEM = """Ti si pravni asistent koji analizira stanje predmeta.
 
@@ -229,7 +238,10 @@ def _compute_trend(supa, predmet_id: str, now: datetime) -> str:
 
 
 def _compute_next_action(predmet: dict, snaga: str, nedostajuci: list, predstojeći: int, kriticni: int) -> str:
-    """GPT-4o-mini formuliše sledeću konkretnu radnju."""
+    """Rule-based formulacija sledece konkretne radnje — deterministicko
+    if/elif stablo, nema GPT poziva (docstring ranije pogresno tvrdio
+    suprotno, ispravljeno Faza 2.2 cleanup-om 2026-07-18; videti inline
+    komentar ispod koji je vec ispravno opisivao ponasanje)."""
     _TIPOVI_SR = {
         "parnicno":"parničnom","krivicno":"krivičnom","radno":"radnom",
         "upravno":"upravnom","porodicno":"porodičnom","privredno":"privrednom",
@@ -319,9 +331,6 @@ async def get_uncertainty_dashboard(
         ).eq("predmet_id", predmet_id).limit(50).execute()),
         return_exceptions=True,
     )
-
-    def _d(r):
-        return (r.data if not isinstance(r, Exception) else []) or []
 
     dokumenti = _d(dok_r)
     rokovi    = _d(rok_r)
@@ -525,9 +534,6 @@ async def preflight_check(
         ).eq("predmet_id", predmet_id).order("datum_iso", desc=True).limit(20).execute()),
         return_exceptions=True,
     )
-
-    def _d(r):
-        return (r.data if not isinstance(r, Exception) else []) or []
 
     dokumenti = _d(dok_r)
     rokovi    = _d(rok_r)

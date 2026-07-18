@@ -34,7 +34,7 @@ from strategija import (
     orkestrator_kompletna_analiza_sync,
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/strategija")
 
 logger = __import__("logging").getLogger("vindex.api")
 
@@ -59,7 +59,7 @@ async def _fetch_praksa_ctx(tekst: str, k: int = 3) -> str:
     return ""
 
 
-@router.post("/strategija/red-team")  # F5.1
+@router.post("/red-team")  # F5.1
 @limiter.limit("5/minute")
 async def post_red_team(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F5.1 — Red Team analiza predmeta iz perspektive protivne strane (PRO)."""
@@ -83,7 +83,7 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
 
 
-@router.post("/strategija/litigation")  # F5.2
+@router.post("/litigation")  # F5.2
 @limiter.limit("5/minute")
 async def post_litigation(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F5.2 — Litigation Simulator — procena ishoda sa % verovatnoće (PRO)."""
@@ -106,7 +106,7 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
         raise HTTPException(status_code=500, detail="Greška pri generisanju simulacije. Pokušajte ponovo.")
 
 
-@router.post("/strategija/sudija")  # F5.3
+@router.post("/sudija")  # F5.3
 @limiter.limit("5/minute")
 async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F5.3 — AI Sudija — neutralna sudska perspektiva (PRO)."""
@@ -144,7 +144,7 @@ async def _fetch_zakon_ctx(tekst: str, k: int = 4) -> str:
     return ""
 
 
-@router.post("/strategija/due-diligence")  # F5.4
+@router.post("/due-diligence")  # F5.4
 @limiter.limit("5/minute")
 async def post_due_diligence(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F5.4 — Due Diligence analiza dokumenta sa RAG zakonskim kontekstom (PRO)."""
@@ -167,7 +167,7 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
 
 
-@router.post("/strategija/revizor")  # F7.1
+@router.post("/revizor")  # F7.1
 @limiter.limit("5/minute")
 async def post_revizor(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F7.1 — AI Pravni Revizor — pregled dokumenta sa predlozima izmena (PRO)."""
@@ -189,7 +189,7 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
         raise HTTPException(status_code=500, detail="Greška pri generisanju revizije. Pokušajte ponovo.")
 
 
-@router.post("/strategija/witness")  # F9.1
+@router.post("/witness")  # F9.1
 @limiter.limit("5/minute")
 async def post_witness(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F9.1 — AI Witness Analyzer — analiza iskaza/svedočenja (PRO)."""
@@ -211,7 +211,7 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
         raise HTTPException(status_code=500, detail="Greška pri analizi iskaza. Pokušajte ponovo.")
 
 
-@router.post("/strategija/sudija-v2")  # F9.2
+@router.post("/sudija-v2")  # F9.2
 @limiter.limit("3/minute")
 async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = Depends(PermissionService.require("strategija"))):
     """F9.2 — AI Judge v2 — tužilac vs branilac → sudija (PRO, 3-round chain)."""
@@ -245,7 +245,7 @@ class OrkestratorRequest(BaseModel):
     iskazi_svedoka: Optional[List[str]] = Field(None, description="Opcioni iskazi svedoka za Witness Analyzer")
 
 
-@router.post("/strategija/kompletna-analiza")  # F10
+@router.post("/kompletna-analiza")  # F10
 @limiter.limit("10/hour")
 async def post_kompletna_analiza(
     req: OrkestratorRequest,
@@ -330,7 +330,7 @@ class StrategijaV2Request(BaseModel):
     stranke: Optional[str] = Field(default=None, max_length=500)
 
 
-@router.post("/strategija/v2/analiza")
+@router.post("/v2/analiza")
 @limiter.limit("5/minute")
 async def strategija_v2_analiza(
     req: StrategijaV2Request,
