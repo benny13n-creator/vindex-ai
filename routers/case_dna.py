@@ -25,7 +25,7 @@ from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
 from shared.usage import UsageService
 from services.event_bus import EventType
-from shared.genome_validator import verify_genome
+from shared.genome_validator import verify_genome, compute_snaga_score
 
 logger = logging.getLogger("vindex.case_genome")
 router = APIRouter(prefix="/api/predmeti", tags=["case_dna"])
@@ -73,7 +73,7 @@ Vrati SAMO validan JSON (bez markdown):
   ],
   "argumenti_za": ["Konkretan argument sa dokazom koji ide u korist klijenta"],
   "argumenti_protiv": ["Konkretan argument koji ide protiv klijenta ili slabost predmeta"],
-  "snaga_predmeta_procent": 65,
+  "snaga_predmeta_procent": 0,
   "snaga_faktori": [
     {"faktor": "Naziv faktora (npr. Pisani dokazi)", "uticaj": "+18", "opis": "Zasto ovaj faktor doprinosi snazi predmeta"},
     {"faktor": "Kontradikcije u dokazima", "uticaj": "-8", "opis": "Zasto ovaj faktor slabi predmet"}
@@ -116,7 +116,10 @@ Vrati SAMO validan JSON (bez markdown):
 
 STROGA PRAVILA:
 - Izvlaci SAMO ono sto pise u dokumentima. Nikad ne izmisljaj.
-- snaga_predmeta_procent = 0-100 (50 = neutralno, 75+ = jaka, <35 = slaba)
+- snaga_predmeta_procent = 0-100 (50 = neutralno, 75+ = jaka, <35 = slaba). Vrednost 0
+  u primeru iznad je PLACEHOLDER, ne ciljna vrednost — IZRACUNAJ pravu vrednost iz
+  cinjenica OVOG predmeta. Dva razlicita predmeta sa razlicitim dokazima MORAJU dobiti
+  razlicit procenat — nikad ne vracaj isti broj po navici ili default.
 - snaga_faktori: min 3 faktora, max 8. SVAKI sa realnim uticajem (+ili-). Zbir treba da objasni snaga_predmeta_procent.
 - heatmap: svaka dimenzija 0-100. 0=nema podataka, 50=delimicno, 95=odlicno dokumentovano.
 - dokazi_rang: sortiraj od najjaceg do najslabijeg. Ukljuci SVE dokumente iz predmeta.
@@ -188,6 +191,14 @@ async def _extract_genome(docs: list[dict]) -> dict:
         raw = (resp.choices[0].message.content or "").strip()
         result = json.loads(raw)
         result["_genome_docs_count"] = len(parts)
+        # Reliability Patch (2026-07-18) — snaga_predmeta_procent/snaga_predmeta se
+        # RACUNAJU backend-om iz snaga_faktori, ne uzima se GPT-ovo samo-prijavljeno
+        # broj (anchoring bug otkriven Reality Validation batch-om — videti
+        # shared/genome_validator.py compute_snaga_score() docstring za detalje).
+        skor = compute_snaga_score(result)
+        result["snaga_predmeta_procent"] = skor["snaga_predmeta_procent"]
+        result["snaga_predmeta"] = skor["snaga_predmeta"]
+        result["snaga_faktori"] = skor["snaga_faktori"]
         return result
     except Exception as exc:
         logger.warning("[GENOME] Ekstrakcija greška: %s", exc)

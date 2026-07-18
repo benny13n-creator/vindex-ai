@@ -19,6 +19,27 @@ Namerno iskljuceno iz v1 (nije zaboravljeno, procenjeno i odlozeno):
   visok rizik laznih pozitiva (OCR varijante, srpska deklinacija imena).
 - datumi_kljucni/rokovi_kriticni tekstualno poklapanje — visok rizik
   laznih pozitiva (datumi se cesto preformatiraju u ekstrakciji).
+
+v2 dodaci (Reliability Patch, 2026-07-18, posle CASE_GENOME_REALITY_
+VALIDATION_REPORT.md nalaza na 6 sintetickih predmeta):
+
+1. compute_snaga_score() — snaga_predmeta_procent/snaga_predmeta se sada
+   RACUNAJU backend-om iz snaga_faktori, ne uzimaju se GPT-ovo samo-
+   prijavljenu vrednost. Uzrok originalnog nalaza (svih 6 predmeta vratilo
+   IDENTICNIH 65%/"srednja"): sistem prompt u case_dna.py je imao
+   BUKVALAN brojcani primer ("snaga_predmeta_procent": 65) u JSON sablonu
+   — GPT anchor-uje/kopira taj primer umesto da racuna po predmetu (poznat
+   prompt-anchoring bug, potvrdjen time sto se identican obrazac ponovio u
+   svih 6 slucajeva na temperaturi 0.1). Isti obrazac (backend racuna
+   score, ne trazi se od LLM-a) vec postoji u analiza/validator.py Sloj 10
+   (compute_executive_summary) — ovo je nastavak istog principa, ne nova
+   ideja.
+2. _validate_clan_brojevi() — proverava da broj clana u pravnim citatima
+   nije OCIGLEDNO nemoguc (generic gornja granica po tipu zakona), NE
+   potvrdjuje da tacan clan stvarno postoji (to bi zahtevalo pravni
+   korpus/graf, eksplicitno van obima — "Do not build a graph database,
+   do not create a new legal reasoning engine"). Ako je naveden stav,
+   dodaje se transparentna napomena da stav nivo nije proveravan.
 """
 from __future__ import annotations
 
@@ -27,6 +48,31 @@ import time
 from typing import Any
 
 from analiza.validator import validate_law_refs
+
+_CLAN_PATTERN = re.compile(r"(?:čl\.?|clan|član)\s*0*(\d+)", re.IGNORECASE)
+_STAV_PATTERN = re.compile(r"stav\w*\s*0*(\d+)", re.IGNORECASE)
+
+# Namerno siroke/konzervativne aproksimacije, NE precizna pravna baza po
+# zakonu — precizne granice po svakom zakonu bi zahtevale pravni korpus/
+# graf (eksplicitno van obima v2). Cilj je da uhvati OCIGLEDNO nemoguc broj
+# clana (npr. izmisljen clan 5000), ne da potvrdi da tacan broj postoji —
+# ta granica ostaje 'nepotvrdjeno' (soft), isto kao ranije.
+_USTAV_MAX_CLAN_APPROX = 250
+_ZAKON_MAX_CLAN_APPROX = 1200
+
+
+def _neto_uticaj(faktori: list[dict]) -> int:
+    """Zbir svih uticaj vrednosti iz snaga_faktori (npr. '+18', '-8' -> 18, -8).
+    Deljeno izmedju compute_snaga_score i _validate_snaga_konzistentnost."""
+    neto = 0
+    for f in faktori:
+        if not isinstance(f, dict):
+            continue
+        try:
+            neto += int(str(f.get("uticaj", "0")).replace("+", ""))
+        except (ValueError, TypeError):
+            continue
+    return neto
 
 _DOK_PATTERN = re.compile(r"DOK-0*(\d+)", re.IGNORECASE)
 
@@ -89,6 +135,90 @@ def _validate_relevantni_zakoni(genome: dict) -> list[dict]:
     return flags
 
 
+def _validate_clan_brojevi(genome: dict) -> tuple[list[dict], list[dict]]:
+    """v2 (Reliability Patch, 2026-07-18) — proverava da broj clana u
+    relevantni_zakoni citatima nije OCIGLEDNO nemoguc za tip zakona (Ustav
+    ima znatno manje clanova od obicnog zakona). NE potvrdjuje da tacan
+    clan stvarno postoji — to bi zahtevalo pravni korpus/graf, van obima.
+    Ako je naveden i stav/paragraf, dodaje se soft napomena da taj nivo
+    nije proveravan (transparentno, ne cutke ignorisano)."""
+    hard: list[dict] = []
+    soft: list[dict] = []
+    zakoni = ((genome.get("pravna_teorija") or {}).get("relevantni_zakoni")) or []
+    for z in zakoni:
+        if not z:
+            continue
+        m = _CLAN_PATTERN.search(z)
+        if not m:
+            continue
+        broj = int(m.group(1))
+        is_ustav = "ustav" in z.lower()
+        gornja_granica = _USTAV_MAX_CLAN_APPROX if is_ustav else _ZAKON_MAX_CLAN_APPROX
+        if broj <= 0 or broj > gornja_granica:
+            hard.append({
+                "polje": "pravna_teorija.relevantni_zakoni",
+                "razlog": f"'{z}' navodi član {broj}, van uobičajenog opsega za ovaj tip zakona (0 < član <= {gornja_granica}) — verovatno izmišljen broj.",
+                "stavka": z,
+            })
+        stav_m = _STAV_PATTERN.search(z)
+        if stav_m:
+            soft.append({
+                "polje": "pravna_teorija.relevantni_zakoni",
+                "razlog": f"'{z}' navodi stav {stav_m.group(1)} — nivo stava nije proveravan (van obima v2, samo broj člana).",
+                "stavka": z,
+            })
+    return hard, soft
+
+
+def compute_snaga_score(genome: dict) -> dict:
+    """v2 (Reliability Patch, 2026-07-18) — backend-racunata, objasnjiva
+    zamena za GPT-ovo samo-prijavljeno snaga_predmeta_procent/snaga_predmeta.
+
+    Zasto: Reality Validation batch (6 sintetickih predmeta, 2026-07-18)
+    pokazao je da SVIH 6 predmeta vraca IDENTICNIH 65%/"srednja" bez obzira
+    na dramaticno razlicit sadrzaj predmeta — uzrok je bio bukvalan brojcani
+    primer u system promptu koji GPT anchor-uje/kopira. Ovde se procenat
+    RACUNA iz vec ekstrahovanih snaga_faktori (koji SU specificni po
+    predmetu, potvrdjeno istim batch-om), ne trazi se od LLM-a — isti
+    princip kao analiza/validator.py Sloj 10 (compute_executive_summary).
+
+    Formula: baseline 50 (neutralno, ista konvencija kao STROGA PRAVILA u
+    system promptu) + neto uticaj snaga_faktori, umanjeno za penal ako je
+    genome_kompletnost niska (nedovoljno dokaza za pouzdanu procenu — ovaj
+    penal je i sam dodat kao vidljiv, objasnjiv faktor, ne skriveno
+    podesavanje). Kategorija (jaka/srednja/slaba) izvedena iz istog broja
+    prema vec postojecim pragovima (75+ jaka, <35 slaba, izmedju srednja).
+
+    Vraca {"snaga_predmeta_procent": int, "snaga_predmeta": str,
+    "snaga_faktori": list} — snaga_faktori se vraca NAZAD (mozda sa dodatim
+    kompletnost-penalom) da explainability ostane tacna za konacan broj."""
+    raw_faktori = genome.get("snaga_faktori")
+    faktori = list(raw_faktori) if isinstance(raw_faktori, list) else []
+
+    if genome.get("genome_kompletnost") == "niska":
+        faktori.append({
+            "faktor": "Kompletnost dokaznog materijala",
+            "uticaj": "-15",
+            "opis": "Genome kompletnost ocenjena kao niska — nedovoljno dokumenata za pouzdanu procenu snage predmeta.",
+        })
+
+    neto = _neto_uticaj(faktori)
+    procent = max(0, min(100, 50 + neto))
+
+    if procent >= 75:
+        kategorija = "jaka"
+    elif procent < 35:
+        kategorija = "slaba"
+    else:
+        kategorija = "srednja"
+
+    return {
+        "snaga_predmeta_procent": procent,
+        "snaga_predmeta": kategorija,
+        "snaga_faktori": faktori,
+    }
+
+
 def _validate_snaga_konzistentnost(genome: dict) -> tuple[list[dict], list[dict]]:
     """Interna konzistentnost (ne provenance protiv dokumenata):
     - snaga_predmeta_procent ne sme da protivreci neto smeru snaga_faktori.
@@ -100,12 +230,7 @@ def _validate_snaga_konzistentnost(genome: dict) -> tuple[list[dict], list[dict]
     procent = genome.get("snaga_predmeta_procent")
     faktori = genome.get("snaga_faktori") or []
     if isinstance(procent, (int, float)) and faktori:
-        neto = 0
-        for f in faktori:
-            try:
-                neto += int(str(f.get("uticaj", "0")).replace("+", ""))
-            except (ValueError, TypeError):
-                continue
+        neto = _neto_uticaj(faktori)
         if procent >= 65 and neto < 0:
             hard.append({
                 "polje": "snaga_predmeta_procent",
@@ -161,6 +286,13 @@ def verify_genome(genome: dict, docs: list[dict]) -> dict[str, Any]:
         k_hard, k_soft = _validate_snaga_konzistentnost(genome)
         hard.extend(k_hard)
         soft.extend(k_soft)
+    except Exception:
+        pass
+
+    try:
+        c_hard, c_soft = _validate_clan_brojevi(genome)
+        hard.extend(c_hard)
+        soft.extend(c_soft)
     except Exception:
         pass
 

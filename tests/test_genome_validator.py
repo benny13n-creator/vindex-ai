@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Tests for Case Genome Faza 1.3 (90-dnevni plan, 2026-07-18):
+Tests for Case Genome Faza 1.3 (90-dnevni plan, 2026-07-18) i Reliability
+Patch v2 (2026-07-18, posle CASE_GENOME_REALITY_VALIDATION_REPORT.md):
 shared/genome_validator.py — advisory, non-blocking, deterministic
-verification layer. Nula GPT poziva, nula I/O — svi testovi su cisti
-unit testovi bez mock-ovanja baze/mreze.
+verification layer PLUS compute_snaga_score() backend scoring. Nula GPT
+poziva, nula I/O — svi testovi su cisti unit testovi bez mock-ovanja
+baze/mreze.
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from shared.genome_validator import verify_genome
+from shared.genome_validator import verify_genome, compute_snaga_score
 
 
 def _docs(*nazivi_i_brojevi):
@@ -188,3 +190,101 @@ def test_reports_latency_as_nonnegative_number():
     result = verify_genome({"dokazi_rang": []}, [])
     assert isinstance(result["provereno_u_ms"], (int, float))
     assert result["provereno_u_ms"] >= 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# v2 — compute_snaga_score (Reliability Patch, 2026-07-18)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_compute_snaga_score_baseline_with_no_faktori():
+    result = compute_snaga_score({})
+    assert result["snaga_predmeta_procent"] == 50  # baseline, neto=0
+    assert result["snaga_predmeta"] == "srednja"
+
+
+def test_compute_snaga_score_derives_from_faktori_sum():
+    genome = {"snaga_faktori": [{"uticaj": "+20"}, {"uticaj": "+15"}, {"uticaj": "-5"}]}
+    result = compute_snaga_score(genome)
+    assert result["snaga_predmeta_procent"] == 80  # 50 + 30
+    assert result["snaga_predmeta"] == "jaka"  # >= 75
+
+
+def test_compute_snaga_score_weak_case_gets_slaba():
+    genome = {"snaga_faktori": [{"uticaj": "-10"}, {"uticaj": "-10"}]}
+    result = compute_snaga_score(genome)
+    assert result["snaga_predmeta_procent"] == 30  # 50 - 20
+    assert result["snaga_predmeta"] == "slaba"  # < 35
+
+
+def test_compute_snaga_score_clamps_to_0_100():
+    genome_high = {"snaga_faktori": [{"uticaj": "+500"}]}
+    assert compute_snaga_score(genome_high)["snaga_predmeta_procent"] == 100
+    genome_low = {"snaga_faktori": [{"uticaj": "-500"}]}
+    assert compute_snaga_score(genome_low)["snaga_predmeta_procent"] == 0
+
+
+def test_compute_snaga_score_low_completeness_adds_visible_penalty_factor():
+    genome = {"snaga_faktori": [{"faktor": "Pisani dokazi", "uticaj": "+20"}],
+              "genome_kompletnost": "niska"}
+    result = compute_snaga_score(genome)
+    # 50 + 20 - 15 (kompletnost penal) = 55
+    assert result["snaga_predmeta_procent"] == 55
+    # penal mora biti VIDLJIV u vracenim faktorima, ne skriveno podesavanje
+    assert any("kompletnost" in f.get("faktor", "").lower() for f in result["snaga_faktori"])
+
+
+def test_compute_snaga_score_different_faktori_give_different_scores():
+    """Direktan test zahteva iz Reliability Patch instrukcije: 'slicni slucajevi
+    ne smeju automatski dobiti identican skor'."""
+    slab = compute_snaga_score({"snaga_faktori": [{"uticaj": "-15"}, {"uticaj": "-10"}]})
+    jak = compute_snaga_score({"snaga_faktori": [{"uticaj": "+20"}, {"uticaj": "+15"}]})
+    assert slab["snaga_predmeta_procent"] != jak["snaga_predmeta_procent"]
+    assert slab["snaga_predmeta"] != jak["snaga_predmeta"]
+
+
+def test_compute_snaga_score_never_raises_on_malformed_input():
+    result = compute_snaga_score({"snaga_faktori": "nije lista", "genome_kompletnost": 12345})
+    assert 0 <= result["snaga_predmeta_procent"] <= 100
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# v2 — _validate_clan_brojevi / Legal Citation Verification v2
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_clan_broj_absurdno_visok_je_hard_flag():
+    genome = {"pravna_teorija": {"relevantni_zakoni": ["ZOO čl. 9999"]}}
+    result = verify_genome(genome, [])
+    assert result["odluka"] == "require_review"
+    assert any("9999" in f["razlog"] for f in result["hard_flags"])
+
+
+def test_clan_broj_normalan_ne_flaguje_kao_hard():
+    genome = {"pravna_teorija": {"relevantni_zakoni": ["ZOO čl. 262"]}}
+    result = verify_genome(genome, [])
+    assert all("navodi član" not in f["razlog"] for f in result["hard_flags"])
+
+
+def test_clan_broj_ustav_ima_niziu_granicu_od_obicnog_zakona():
+    # 300 je van opsega za Ustav (max ~250) ali unutar opsega za obican zakon (max 1200)
+    ustav = verify_genome({"pravna_teorija": {"relevantni_zakoni": ["Ustav čl. 300"]}}, [])
+    zakon = verify_genome({"pravna_teorija": {"relevantni_zakoni": ["ZOO čl. 300"]}}, [])
+    assert any("300" in f["razlog"] for f in ustav["hard_flags"])
+    assert not any("navodi član 300" in f["razlog"] for f in zakon["hard_flags"])
+
+
+def test_clan_broj_sa_stavom_dodaje_soft_napomenu():
+    genome = {"pravna_teorija": {"relevantni_zakoni": ["Zakon o radu čl. 179 stav 2"]}}
+    result = verify_genome(genome, [])
+    assert any("stav" in f["razlog"].lower() for f in result["soft_flags"])
+
+
+def test_clan_broj_bez_clana_ne_baca_ni_ne_flaguje():
+    genome = {"pravna_teorija": {"relevantni_zakoni": ["Zakon o radu"]}}
+    result = verify_genome(genome, [])
+    assert result["odluka"] in ("approve", "approve_with_warning")
+
+
+def test_clan_broj_nula_ili_negativan_je_hard_flag():
+    genome = {"pravna_teorija": {"relevantni_zakoni": ["ZOO čl. 0"]}}
+    result = verify_genome(genome, [])
+    assert any("0" in f["stavka"] for f in result["hard_flags"])

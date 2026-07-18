@@ -322,3 +322,70 @@ async def test_run_genome_background_skips_verification_on_extraction_error():
     passed_genome = mock_emit.call_args[0][3]
     assert "_verifikacija" not in passed_genome
     assert mock_emit.call_args.kwargs["verifikacija_odluka"] is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Reliability Patch v2 (2026-07-18) — _extract_genome overrides GPT's
+# self-reported snaga_predmeta_procent/snaga_predmeta with compute_snaga_score()
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_extract_genome_overrides_gpt_reported_snaga_with_computed_value():
+    """Regresioni test za tacan bug otkriven Reality Validation batch-om:
+    GPT je anchor-ovao na primer iz prompta (65) bez obzira na predmet.
+    _extract_genome mora da IGNORISE GPT-ov broj i racuna svoj iz
+    snaga_faktori koje je GPT vratio."""
+    from routers import case_dna as cd
+
+    # GPT vraca anchor-ovanih 65% ali njegovi sopstveni faktori impliciraju
+    # potpuno drugaciji broj (50 + 30 = 80) — tacno obrazac vidjen u batch-u
+    gpt_json = (
+        '{"snaga_predmeta_procent": 65, "snaga_predmeta": "srednja", '
+        '"snaga_faktori": [{"faktor": "Pisani dokazi", "uticaj": "+20", "opis": "x"}, '
+        '{"faktor": "Svedoci", "uticaj": "+10", "opis": "y"}]}'
+    )
+    fake_response = MagicMock()
+    fake_response.choices = [MagicMock(message=MagicMock(content=gpt_json))]
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=fake_response)
+
+    docs = [{"redni_broj": 1, "naziv_fajla": "a.pdf", "tip_dokaza": None,
+             "velicina_kb": 5, "tekst_sadrzaj": "neki tekst dokumenta"}]
+
+    with patch("openai.AsyncOpenAI", return_value=fake_client):
+        result = await cd._extract_genome(docs)
+
+    # GPT je rekao 65/srednja — backend mora da ignorise to i racuna 80/jaka
+    assert result["snaga_predmeta_procent"] == 80
+    assert result["snaga_predmeta"] == "jaka"
+
+
+@pytest.mark.anyio
+async def test_extract_genome_different_faktori_produce_different_scores():
+    """Dva razlicita GPT odgovora (razliciti snaga_faktori) moraju dati
+    razlicit konacan procenat — direktno testira zahtev 'slicni slucajevi
+    ne smeju automatski dobiti identican skor'."""
+    from routers import case_dna as cd
+
+    def _make_response(faktori_json: str) -> MagicMock:
+        content = f'{{"snaga_predmeta_procent": 65, "snaga_faktori": {faktori_json}}}'
+        resp = MagicMock()
+        resp.choices = [MagicMock(message=MagicMock(content=content))]
+        return resp
+
+    docs = [{"redni_broj": 1, "naziv_fajla": "a.pdf", "tip_dokaza": None,
+             "velicina_kb": 5, "tekst_sadrzaj": "tekst"}]
+
+    fake_client_weak = MagicMock()
+    fake_client_weak.chat.completions.create = AsyncMock(
+        return_value=_make_response('[{"uticaj": "-15"}, {"uticaj": "-10"}]'))
+    with patch("openai.AsyncOpenAI", return_value=fake_client_weak):
+        weak = await cd._extract_genome(docs)
+
+    fake_client_strong = MagicMock()
+    fake_client_strong.chat.completions.create = AsyncMock(
+        return_value=_make_response('[{"uticaj": "+20"}, {"uticaj": "+15"}]'))
+    with patch("openai.AsyncOpenAI", return_value=fake_client_strong):
+        strong = await cd._extract_genome(docs)
+
+    assert weak["snaga_predmeta_procent"] != strong["snaga_predmeta_procent"]
