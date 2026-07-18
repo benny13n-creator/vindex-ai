@@ -39,14 +39,35 @@ Trail, refactoring, testovi, versioning).
 **Rule C (metrika):** ništa nije završeno dok nije merljivo — svaka
 implementacija mora imati najmanje jednu pre/posle metriku uspeha.
 
-**Novo naspram Bible-a — pravilo dva izvora:** funkcionalnost se razvija
-tek kad postoje **najmanje dva nezavisna izvora dokaza** koji se poklapaju.
-Primer: pilot kaže "nedostaje automatsko prepoznavanje rokova" + telemetrija
-pokazuje 80% korisnika ručno dodaje rokove → dva nezavisna izvora → dokaz
-postoji → implementacija počinje. Jedan izvor sam po sebi nije dovoljan.
+**Evidence Matrix (v1.1, formalizovano 2026-07-19) — zamenjuje apstraktno
+"dva nezavisna izvora" konkretnim bodovanjem:**
 
-Odbija se: ako nešto zvuči zanimljivo i tehnički je moguće, ali nijedan
-korisnik nije pokazao potrebu.
+| Izvor | Bodovi |
+|---|---|
+| Pilot feedback | 1 |
+| LEC nalaz | 1 |
+| Hall of Shame incident | 1 |
+| Telemetrija | 1 |
+| Više kancelarija nezavisno traži isto | 2 |
+| Kritičan bug | automatski prolazi (vidi Emergency Rule ispod) |
+
+Funkcionalnost ide u razvoj tek sa **≥2 boda** iz tabele — kombinacija bilo
+koja dva izvora, ili jedan izvor "više kancelarija" koji sam nosi 2 boda.
+Primer: pilot kaže "nedostaje automatsko prepoznavanje rokova" (1 bod) +
+telemetrija pokazuje 80% korisnika ručno dodaje rokove (1 bod) = 2 boda →
+implementacija počinje.
+
+Odbija se: ako nešto zvuči zanimljivo i tehnički je moguće, ali ne dostiže
+2 boda.
+
+**Emergency Rule — jedini izuzetak od Evidence Matrix-a:** kritičan blocker
+prijavljen od strane pilot kancelarije ("bez ovoga ne možemo da radimo")
+preskače matricu u potpunosti i ulazi odmah, bez čekanja na drugi izvor.
+Ovo NIJE isto što i BUG oznaka iz triaže ispod (koja znači "postojeća
+funkcija ne radi tačno") — Emergency Rule pokriva slučaj gde NEDOSTAJUĆA
+funkcionalnost čini pilot kancelariju nesposobnom da uopšte koristi
+proizvod za svoj tekući posao. Retko, namerno usko definisano — ne koristiti
+za "bilo bi jako korisno da postoji X".
 
 ---
 
