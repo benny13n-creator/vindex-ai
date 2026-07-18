@@ -44,6 +44,7 @@ async def test_emit_genome_event_inserts_row_with_correct_payload():
     genome = {"verzija": 3, "snaga_predmeta_procent": 62}
     corr_id = await cd._emit_genome_event(
         supa, "predmet-1", "user-1", genome, "manual_refresh", prev_verzija=2,
+        verifikacija_odluka="approve_with_warning",
     )
 
     supa.table.assert_called_once_with("events")
@@ -57,6 +58,7 @@ async def test_emit_genome_event_inserts_row_with_correct_payload():
     assert payload["prev_verzija"] == 2
     assert payload["snaga_predmeta_procent"] == 62
     assert payload["trigger"] == "manual_refresh"
+    assert payload["verifikacija_odluka"] == "approve_with_warning"
     # correlation_id: generisan u funkciji, deljen sa 1.2 audit metadata preko istog stringa
     assert payload["correlation_id"] == corr_id
     assert len(corr_id) == 36  # UUID4 string oblik, ne prazan/None
@@ -145,6 +147,7 @@ async def test_on_genome_updated_writes_audit_row_with_correct_mapping():
             "snaga_predmeta_procent": 71,
             "trigger": "rociste_trigger",
             "correlation_id": "corr-123",
+            "verifikacija_odluka": "require_review",
         },
     )
 
@@ -167,6 +170,7 @@ async def test_on_genome_updated_writes_audit_row_with_correct_mapping():
     assert meta["prev_verzija"] == 4
     assert meta["snaga_predmeta_procent"] == 71
     assert meta["correlation_id"] == "corr-123"
+    assert meta["verifikacija_odluka"] == "require_review"
 
 
 @pytest.mark.anyio
@@ -248,3 +252,73 @@ async def test_run_genome_background_threads_explicit_trigger():
     emit_args = mock_emit.call_args
     assert emit_args[0][4] == "rociste_trigger"
     assert emit_args.kwargs["prev_verzija"] == 4
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Faza 1.3 — routers/case_dna.py — verify_genome() wiring
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_run_genome_background_computes_and_threads_verifikacija():
+    """Faza 1.3: _run_genome_background mora da pozove verify_genome() nad
+    stvarno ekstrahovanim genomom, upise rezultat u genome['_verifikacija'],
+    i prosledi odluku u _emit_genome_event (ne samo da postoji funkcija)."""
+    from routers import case_dna as cd
+
+    old_genome = {"verzija": 1, "snaga_predmeta_procent": 50}
+    # dokazi_rang referencira dokument koji ne postoji medju docs -> hard flag
+    extracted = {
+        "snaga_predmeta_procent": 60,
+        "dokazi_rang": [{"naziv": "nepostojeci.pdf", "snaga_score": 70, "zvezdice": 4}],
+    }
+    docs = [{"id": "d1", "naziv_fajla": "a.pdf", "redni_broj": 1,
+             "tekst_sadrzaj": "tekst", "velicina_kb": 10}]
+
+    def _table(name):
+        if name == "predmeti":
+            return _make_chain({"case_dna": old_genome})
+        if name == "predmet_dokumenti":
+            return _make_chain(docs)
+        return _make_chain(None)
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("routers.case_dna._get_supa", return_value=supa), \
+         patch("routers.case_dna._extract_genome", new=AsyncMock(return_value=extracted)), \
+         patch("routers.case_dna._save_genome_history", new=AsyncMock()), \
+         patch("routers.case_dna._emit_genome_event", new=AsyncMock(return_value="corr")) as mock_emit:
+        await cd._run_genome_background("predmet-1", "user-1", 50, trigger="upload_trigger")
+
+    passed_genome = mock_emit.call_args[0][3]
+    assert passed_genome["_verifikacija"]["odluka"] == "require_review"
+    assert mock_emit.call_args.kwargs["verifikacija_odluka"] == "require_review"
+
+
+@pytest.mark.anyio
+async def test_run_genome_background_skips_verification_on_extraction_error():
+    """Ako _extract_genome vrati gresku, nema smisla verifikovati prazan/
+    nepotpun rezultat — genome['_verifikacija'] se ne sme postaviti."""
+    from routers import case_dna as cd
+
+    old_genome = {"verzija": 1}
+    docs = [{"id": "d1", "naziv_fajla": "a.pdf", "redni_broj": 1,
+             "tekst_sadrzaj": "tekst", "velicina_kb": 10}]
+
+    def _table(name):
+        if name == "predmeti":
+            return _make_chain({"case_dna": old_genome})
+        if name == "predmet_dokumenti":
+            return _make_chain(docs)
+        return _make_chain(None)
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("routers.case_dna._get_supa", return_value=supa), \
+         patch("routers.case_dna._extract_genome", new=AsyncMock(return_value={"greska": "OpenAI down"})), \
+         patch("routers.case_dna._save_genome_history", new=AsyncMock()), \
+         patch("routers.case_dna._emit_genome_event", new=AsyncMock(return_value="corr")) as mock_emit:
+        await cd._run_genome_background("predmet-1", "user-1", None, trigger="upload_trigger")
+
+    passed_genome = mock_emit.call_args[0][3]
+    assert "_verifikacija" not in passed_genome
+    assert mock_emit.call_args.kwargs["verifikacija_odluka"] is None

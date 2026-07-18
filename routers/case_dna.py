@@ -25,6 +25,7 @@ from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
 from shared.usage import UsageService
 from services.event_bus import EventType
+from shared.genome_validator import verify_genome
 
 logger = logging.getLogger("vindex.case_genome")
 router = APIRouter(prefix="/api/predmeti", tags=["case_dna"])
@@ -306,7 +307,7 @@ async def _save_genome_history(
 
 async def _emit_genome_event(
     supa, predmet_id: str, uid: str, genome: dict, trigger: str,
-    prev_verzija: Optional[int] = None,
+    prev_verzija: Optional[int] = None, verifikacija_odluka: Optional[str] = None,
 ) -> str:
     """Upisuje GenomeUpdated event u durable outbox ('events' tabela) — Faza 1.1,
     90-dnevni plan 2026-07-18. Zove se SAMO posle uspesnog upisa case_dna kolone.
@@ -322,6 +323,10 @@ async def _emit_genome_event(
     korelacija između outbox eventa i audit_immutable zapisa (1.2) pravi ovde,
     jednom, i deli se u oba payload-a preko istog stringa. Vraca korelacioni ID
     (koristan pozivaocu za logovanje/debug, nije obavezan da se koristi).
+
+    verifikacija_odluka (Faza 1.3): approve/approve_with_warning/require_review
+    iz shared/genome_validator.verify_genome() — prosledjuje se ovde umesto da
+    1.3 pravi sopstveni audit poziv, produzava vec postojeci 1.1/1.2 cevovod.
     """
     correlation_id = str(uuid.uuid4())
     try:
@@ -336,6 +341,7 @@ async def _emit_genome_event(
                     "snaga_predmeta_procent": genome.get("snaga_predmeta_procent"),
                     "trigger": trigger,
                     "correlation_id": correlation_id,
+                    "verifikacija_odluka": verifikacija_odluka,
                 },
             }).execute()
         )
@@ -388,6 +394,10 @@ async def _run_genome_background(
         # Auto-versioning
         genome["verzija"] = stari_verzija + 1
 
+        # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
+        if not genome.get("greska"):
+            genome["_verifikacija"] = verify_genome(genome, docs)
+
         # Snimi stari u istoriju
         await _save_genome_history(supa, predmet_id, uid, stari_genome, trigger)
 
@@ -399,7 +409,10 @@ async def _run_genome_background(
                 .execute()
         )
 
-        await _emit_genome_event(supa, predmet_id, uid, genome, trigger, prev_verzija=stari_verzija)
+        await _emit_genome_event(
+            supa, predmet_id, uid, genome, trigger, prev_verzija=stari_verzija,
+            verifikacija_odluka=genome.get("_verifikacija", {}).get("odluka"),
+        )
 
         # Genome Intelligence Delta — pametni alert sa svim promenama
         delta_obj = _compute_delta(stari_genome, genome)
@@ -510,6 +523,10 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
     nova_verzija = stari_verzija + 1
     genome["verzija"] = nova_verzija
 
+    # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
+    if not genome.get("greska"):
+        genome["_verifikacija"] = verify_genome(genome, docs)
+
     # Snimi stari Genome u istoriju
     await _save_genome_history(supa, predmet_id, uid, stari_genome, "manual_refresh")
 
@@ -527,7 +544,10 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
         _update_ok = False
 
     if _update_ok:
-        await _emit_genome_event(supa, predmet_id, uid, genome, "manual_refresh", prev_verzija=stari_verzija)
+        await _emit_genome_event(
+            supa, predmet_id, uid, genome, "manual_refresh", prev_verzija=stari_verzija,
+            verifikacija_odluka=genome.get("_verifikacija", {}).get("odluka"),
+        )
 
     # Genome Intelligence Delta — pametni alert + response
     novi_procent = genome.get("snaga_predmeta_procent")

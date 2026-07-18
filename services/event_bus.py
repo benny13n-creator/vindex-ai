@@ -166,6 +166,10 @@ async def on_genome_updated(event: Event) -> None:
                 "prev_verzija":            payload.get("prev_verzija"),
                 "snaga_predmeta_procent":  payload.get("snaga_predmeta_procent"),
                 "correlation_id":          payload.get("correlation_id"),
+                # Faza 1.3 — verify_genome() odluka (approve/approve_with_warning/
+                # require_review); require_review je status na sacuvanom Genome-u,
+                # ne blokada snimanja.
+                "verifikacija_odluka":     payload.get("verifikacija_odluka"),
             },
         )
         logger.info("[EventBus] on_genome_updated: audit upisan predmet=%s v%s",
