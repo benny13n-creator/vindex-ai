@@ -185,6 +185,20 @@ delove sistema (chat, pravno istraživanje, agenti koji citiraju zakone).
 Oba su bitna — redosled je po tome šta je jeftinije i niže-rizično prvo, ne
 po tome šta je "manje bitno".
 
+**Strateška napomena (2026-07-18, founder):** tehnički redosled ostaje —
+ovo se NE ubrzava ispred Faze 1. Ali status ove stavke za tržišnu
+validaciju (pilot sa 3-5 kancelarija, poslovna traka) je **visok rizik**,
+ne "manje bitno, čeka red". Razlog: kad advokat pita "zašto je ova
+strategija dobra" i dobije odgovor oslonjen na slabu ili nedostajuću sudsku
+praksu/zakonski izvor, to ne šteti samo tom jednom odgovoru — šteti
+poverenju advokata u ceo sistem, uključujući Genome i sve što je pouzdano
+izgrađeno u Fazi 1. Ako se pilot pokrene pre nego što se Faza 3 makar
+delimično reši, prezentovati pilot kancelarijama sa jasnom slikom koji
+pravni izvori su trenutno pouzdani (echr, kzk, ustavni — jedina 3 uspešno
+ingest-ovana u poslednjem log-u) i koji nisu, umesto da se korpus predstavi
+kao gotov. Ovo ne menja Fazu 1-3 redosled — menja kako se Faza 3 status
+komunicira dok se čeka na red.
+
 ### 3.1 — Dijagnoza i stabilizacija ingestion-a
 
 **Klasifikacija:** Rule B (popravka postojeće infrastrukture, ne nova
