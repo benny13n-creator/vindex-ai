@@ -145,21 +145,25 @@ COMMENT ON COLUMN public.intake_processing_outcomes.error_source IS
 -- ova migracija delimično pokrenuta pre ove izmene. Bezbedno i ako tabela
 -- tek sada nastaje (kolona već postoji iz CREATE TABLE iznad — no-op).
 ALTER TABLE public.intake_processing_outcomes ADD COLUMN IF NOT EXISTS correction_reason TEXT;
-ALTER TABLE public.intake_processing_outcomes ADD COLUMN IF NOT EXISTS error_source TEXT;
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conname = 'intake_processing_outcomes_error_source_check'
-    ) THEN
-        ALTER TABLE public.intake_processing_outcomes
-            ADD CONSTRAINT intake_processing_outcomes_error_source_check
-            CHECK (error_source IN (
-                'ocr', 'parser', 'regex', 'heuristics', 'llm',
-                'ground_truth', 'human_annotation', 'unknown'
-            ));
-    END IF;
-END $$;
+
+-- NAPOMENA (ispravljeno 2026-07-19): originalna verzija je dodavala
+-- error_source kolonu (ADD COLUMN) i njeno CHECK ograničenje (DO $$ blok
+-- ispod) kao DVE odvojene naredbe. Founder je pri pokretanju dobio
+-- "column error_source does not exist" — Supabase SQL Editor izvršava ceo
+-- unet tekst kao JEDNU transakciju, i DO $$ blok koji referencira
+-- error_source u CHECK izrazu nije "video" kolonu dodatu par linija iznad
+-- u istom izvršavanju, pa je cela transakcija (uključujući uspešan ADD
+-- COLUMN) povučena nazad. Ispravka: kolona i CHECK ograničenje se dodaju u
+-- JEDNOJ atomskoj ALTER TABLE naredbi — nema više zavisnosti od vidljivosti
+-- kolone unutar iste transakcije. I dalje bezbedno za ponovno pokretanje:
+-- "ADD COLUMN IF NOT EXISTS" preskače CEO dodatak (uključujući CHECK) ako
+-- kolona već postoji (npr. iz CREATE TABLE iznad, kad tabela tek nastaje).
+ALTER TABLE public.intake_processing_outcomes
+    ADD COLUMN IF NOT EXISTS error_source TEXT
+    CHECK (error_source IN (
+        'ocr', 'parser', 'regex', 'heuristics', 'llm',
+        'ground_truth', 'human_annotation', 'unknown'
+    ));
 
 CREATE INDEX IF NOT EXISTS idx_intake_processing_outcomes_job ON public.intake_processing_outcomes(intake_job_id);
 
