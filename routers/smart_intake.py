@@ -316,6 +316,31 @@ class FinalizeReq(BaseModel):
     klijent_ime_override: Optional[str] = Field(default=None, max_length=200)
 
 
+def _compute_finalize_wait_s(job: dict) -> Optional[float]:
+    """Faza 2.1 (90-dnevni plan, 2026-07-18) — sekunde izmedju job.completed_at
+    i trenutka finalize poziva. None ako completed_at nedostaje (ne
+    pretpostavlja 0 — odsustvo podatka nije isto sto i trenutna finalizacija)."""
+    completed_at_raw = job.get("completed_at")
+    if not completed_at_raw:
+        return None
+    try:
+        from datetime import datetime, timezone
+        completed_dt = datetime.fromisoformat(completed_at_raw.replace("Z", "+00:00"))
+        return (datetime.now(timezone.utc) - completed_dt).total_seconds()
+    except Exception:
+        return None
+
+
+def _count_corrected_entities(entities: list[dict]) -> int:
+    """Faza 2.1 — broj entiteta gde je advokat stvarno promenio vrednost pre
+    finalize-a (corrected_value postavljen I razlicit od originalnog value),
+    ne samo pregledan (reviewed)."""
+    return sum(
+        1 for e in entities
+        if e.get("corrected_value") and e.get("corrected_value") != e.get("value")
+    )
+
+
 @router.post("/jobs/{job_id}/finalize")
 @limiter.limit("20/minute")
 async def finalize_intake_job(
@@ -333,7 +358,7 @@ async def finalize_intake_job(
 
     job_res = await asyncio.to_thread(
         lambda: supa.table("intake_jobs")
-            .select("id, status, storage_path, original_filename, mime_type, predmet_id")
+            .select("id, status, storage_path, original_filename, mime_type, predmet_id, completed_at")
             .eq("id", job_id)
             .eq("uploaded_by", uid)
             .maybe_single()
@@ -354,6 +379,14 @@ async def finalize_intake_job(
     entities = result["entities"]
     if not document:
         raise HTTPException(status_code=409, detail="Klasifikacija nije dostupna za ovaj posao.")
+
+    # Faza 2.1 instrumentacija (90-dnevni plan, 2026-07-18) — MERI, ne
+    # pretpostavlja, da li advokat menja izvucene podatke pre finalize-a ili
+    # samo potvrdjuje kako jeste. Rule B (ne menja UX/API), proizvodi Rule A
+    # dokaz za buducu odluku o auto-finalize. Ne blokira finalize ako
+    # bilo koji deo ovoga padne.
+    finalize_wait_s = _compute_finalize_wait_s(job)
+    entities_corrected = _count_corrected_entities(entities)
 
     value_map = {
         e["entity_type"]: (e.get("corrected_value") or e.get("value"))
@@ -555,7 +588,16 @@ async def finalize_intake_job(
         from routers.analytics import _track_event
         asyncio.create_task(_track_event(
             uid, "novi_predmet_flow", "smart_intake_completed",
-            predmet_id=predmet_id, metadata={"job_id": job_id, "document_type": doc_type},
+            predmet_id=predmet_id,
+            metadata={
+                "job_id": job_id,
+                "document_type": doc_type,
+                # Faza 2.1 instrumentacija — vidi komentar iznad. finalize_wait_s
+                # None ako completed_at nedostaje (ne pretpostavlja 0).
+                "finalize_wait_s": round(finalize_wait_s, 1) if finalize_wait_s is not None else None,
+                "entities_total": len(entities),
+                "entities_corrected": entities_corrected,
+            },
         ))
     except Exception:
         pass
