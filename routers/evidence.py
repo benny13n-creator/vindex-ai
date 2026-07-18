@@ -82,7 +82,14 @@ def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
 
 
 def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: str, user_id: str) -> None:
-    """Poziva se u pozadini posle uploada. Klasifikuje i upisuje u predmet_dokumenti."""
+    """Poziva se u pozadini posle uploada. Klasifikuje i upisuje u predmet_dokumenti.
+
+    Reliability fix (2026-07-19, posle migracija 016/074): predmet_dokumenti
+    update i predmet_dokazi insert su ranije delili JEDAN try/except — ako bi
+    prvi pao (npr. buduci schema gap kao onaj koji je upravo ispravljen),
+    drugi se NIKAD ne bi ni pokusao, iako su nezavisni upisi. Razdvojeno u
+    dva bloka, isti obrazac kao vec dokazan u api.py-jevom document insert-u:
+    delimican neuspeh vise ne blokira sve."""
     import json
     supa = get_supa()
     rezultat = _klasifikuj_dokument(naziv, tekst)
@@ -95,8 +102,13 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
             "klasifikovan_at": "now()",
         }).eq("id", dokument_id).execute()
         logger.info("[EVIDENCE] Klasifikovan dokument=%s tip=%s", dokument_id, rezultat.get("tip_dokaza"))
+    except Exception as exc:
+        logger.warning("[EVIDENCE] Greška pri upisu klasifikacije predmet_dokumenti: %s", exc)
 
-        # Upiši ključne činjenice kao predmet_dokazi
+    try:
+        # Upiši ključne činjenice kao predmet_dokazi — nezavisno od gornjeg
+        # bloka: cak i ako predmet_dokumenti update padne, kljucne cinjenice
+        # su i dalje vredne upisati ako je predmet_dokazi tabela zdrava.
         cinjenice = rezultat.get("kljucne_cinjenice", [])
         pravni_elm = rezultat.get("pravni_elementi", [])
         rows = []
@@ -114,7 +126,7 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
             supa.table("predmet_dokazi").insert(rows).execute()
             logger.info("[EVIDENCE] Upisano %d činjenica za predmet=%s", len(rows), predmet_id)
     except Exception as exc:
-        logger.warning("[EVIDENCE] Greška pri upisu klasifikacije: %s", exc)
+        logger.warning("[EVIDENCE] Greška pri upisu predmet_dokazi: %s", exc)
 
 
 @router.get("/predmeti/{predmet_id}")
