@@ -420,15 +420,21 @@ async def _run_genome_background(
             verzija = genome.get("verzija", 1)
             tekst = _delta_alert_text(delta_obj, verzija, trigger)
             snaga_d = abs(delta_obj.get("snaga_delta", 0))
-            hitnost = "hitan" if snaga_d >= 15 or delta_obj.get("kontr_nove", 0) > 1 else "normalan"
+            hitnost = "hitna" if snaga_d >= 15 or delta_obj.get("kontr_nove", 0) > 1 else "normalna"
             try:
+                # Kolone potvrdjene naspram zive seme (Reality Validation batch,
+                # 2026-07-18): 'tekst_alerta'/'tip_alerta'/'hitnost' NISU postojali —
+                # stvarna sema je naslov/opis/tip/urgentnost (ista kao ostali
+                # proactive_alerts insert-i u services/event_bus.py). Feature je bio
+                # 100% neuspesan (PGRST204 na svakom pozivu) otkad je napisan.
                 await asyncio.to_thread(
                     lambda: supa.table("proactive_alerts").insert({
                         "user_id": uid,
                         "predmet_id": predmet_id,
-                        "tekst_alerta": tekst,
-                        "tip_alerta": "genome_change",
-                        "hitnost": hitnost,
+                        "naslov": f"Genome ažuriran — v{verzija}",
+                        "opis": tekst,
+                        "tip": "genome_change",
+                        "urgentnost": hitnost,
                         "procitana": False,
                     }).execute()
                 )
@@ -556,14 +562,15 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
     if _delta_significant(delta_obj):
         alert_msg = _delta_alert_text(delta_obj, nova_verzija, "manual_refresh")
         snaga_d = abs(delta_obj.get("snaga_delta", 0))
-        hitnost = "hitan" if snaga_d >= 15 or delta_obj.get("kontr_nove", 0) > 1 else "normalan"
+        hitnost = "hitna" if snaga_d >= 15 or delta_obj.get("kontr_nove", 0) > 1 else "normalna"
         try:
             await asyncio.to_thread(
                 lambda: supa.table("proactive_alerts").insert({
                     "user_id": uid, "predmet_id": predmet_id,
-                    "tekst_alerta": alert_msg,
-                    "tip_alerta": "genome_change",
-                    "hitnost": hitnost,
+                    "naslov": f"Genome ažuriran — v{nova_verzija}",
+                    "opis": alert_msg,
+                    "tip": "genome_change",
+                    "urgentnost": hitnost,
                     "procitana": False,
                 }).execute()
             )
