@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-Tests for Case Genome Faza 1.1 (90-dnevni plan, 2026-07-18):
-routers/case_dna.py's _emit_genome_event i services/event_bus.py's
-EventType.GENOME_UPDATED durable-outbox round-trip.
+Tests for Case Genome Faza 1.1 + 1.2 (90-dnevni plan, 2026-07-18):
 
-Faza 1.1 namerno ne dodaje handler za GENOME_UPDATED (to je 1.2, Genome
-Audit Trail — zaseban zadatak) — ovi testovi pokrivaju samo da event
-insert radi i da dispatch_pending_events() prepoznaje novi tip bez greske,
-ne šta se dešava kad neko na njega pretplati handler.
+Faza 1.1 — routers/case_dna.py's _emit_genome_event i
+           services/event_bus.py's EventType.GENOME_UPDATED durable-outbox.
+Faza 1.2 — services/event_bus.py's on_genome_updated handler (prvi stvaran
+           potrošač GENOME_UPDATED eventa) i _run_genome_background-ov novi
+           'trigger' parametar (ispravka: pre 1.2 je funkcija UVEK pisala
+           'upload_trigger' bez obzira na stvarnog pozivaoca).
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 
 
 @pytest.fixture
@@ -23,14 +23,14 @@ def anyio_backend():
 
 def _make_chain(data):
     chain = MagicMock()
-    for attr in ["select", "eq", "update", "insert", "upsert", "order", "limit", "is_", "in_", "lt", "maybe_single"]:
+    for attr in ["select", "eq", "update", "insert", "upsert", "order", "limit", "is_", "in_", "lt", "single", "maybe_single"]:
         setattr(chain, attr, MagicMock(return_value=chain))
     chain.execute = MagicMock(return_value=MagicMock(data=data))
     return chain
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# routers/case_dna.py — _emit_genome_event
+# Faza 1.1 — routers/case_dna.py — _emit_genome_event
 # ═══════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.anyio
@@ -42,7 +42,9 @@ async def test_emit_genome_event_inserts_row_with_correct_payload():
     supa.table = MagicMock(return_value=chain)
 
     genome = {"verzija": 3, "snaga_predmeta_procent": 62}
-    await cd._emit_genome_event(supa, "predmet-1", "user-1", genome, "manual_refresh")
+    corr_id = await cd._emit_genome_event(
+        supa, "predmet-1", "user-1", genome, "manual_refresh", prev_verzija=2,
+    )
 
     supa.table.assert_called_once_with("events")
     chain.insert.assert_called_once()
@@ -50,24 +52,25 @@ async def test_emit_genome_event_inserts_row_with_correct_payload():
     assert row["event_type"] == "GenomeUpdated"
     assert row["user_id"] == "user-1"
     assert row["predmet_id"] == "predmet-1"
-    assert row["payload"] == {
-        "verzija": 3,
-        "snaga_predmeta_procent": 62,
-        "trigger": "manual_refresh",
-    }
+    payload = row["payload"]
+    assert payload["verzija"] == 3
+    assert payload["prev_verzija"] == 2
+    assert payload["snaga_predmeta_procent"] == 62
+    assert payload["trigger"] == "manual_refresh"
+    # correlation_id: generisan u funkciji, deljen sa 1.2 audit metadata preko istog stringa
+    assert payload["correlation_id"] == corr_id
+    assert len(corr_id) == 36  # UUID4 string oblik, ne prazan/None
 
 
 @pytest.mark.anyio
-async def test_emit_genome_event_uses_correct_trigger_label_per_caller():
-    """1.1 checklist zahtev: trigger u payload-u, ne samo u audit metadata (1.2)."""
+async def test_emit_genome_event_prev_verzija_defaults_to_none():
+    """Prvi ikad refresh predmeta nema staru verziju."""
     from routers import case_dna as cd
-
     chain = _make_chain(None)
     supa = MagicMock()
     supa.table = MagicMock(return_value=chain)
-
     await cd._emit_genome_event(supa, "p", "u", {"verzija": 1}, "upload_trigger")
-    assert chain.insert.call_args[0][0]["payload"]["trigger"] == "upload_trigger"
+    assert chain.insert.call_args[0][0]["payload"]["prev_verzija"] is None
 
 
 @pytest.mark.anyio
@@ -82,7 +85,7 @@ async def test_emit_genome_event_swallows_errors():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# services/event_bus.py — EventType.GENOME_UPDATED durable-outbox round-trip
+# Faza 1.1 — services/event_bus.py — EventType.GENOME_UPDATED
 # ═══════════════════════════════════════════════════════════════════════════
 
 def test_genome_updated_event_type_value_is_stable():
@@ -93,11 +96,12 @@ def test_genome_updated_event_type_value_is_stable():
 
 
 @pytest.mark.anyio
-async def test_dispatch_pending_events_recognizes_genome_updated_with_no_handlers():
-    """Faza 1.2 (audit trail) jos ne postoji — 0 handlera registrovanih za
-    GENOME_UPDATED je OČEKIVANO stanje posle 1.1 samog. Dispatch i dalje mora
-    da prepozna tip (ne sme da padne u 'nepoznat_tip' granu) i da markira red
-    kao dispecovan."""
+async def test_dispatch_pending_events_recognizes_genome_updated_type():
+    """Posle 1.2 postoji registrovan handler (on_genome_updated) za ovaj tip —
+    ovaj test ne proverava handler logiku samu (to radi test ispod), samo da
+    dispatch prepoznaje tip (ne pada u 'nepoznat_tip') i markira dispecovanim
+    cak i ako handler-ov sopstveni DB poziv (audit_immutable insert) nije
+    mock-ovan ovde (log_action sam guta svoje greske, videti shared/audit_immutable.py)."""
     from services import event_bus as eb
 
     row = {"id": "evt-genome-1", "event_type": "GenomeUpdated", "user_id": "u-1",
@@ -121,3 +125,126 @@ async def test_dispatch_pending_events_recognizes_genome_updated_with_no_handler
     assert result["nepoznat_tip"] == 0
     assert result["dispecovano"] == 1
     assert any("dispatched_at" in m for m in marked)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Faza 1.2 — services/event_bus.py — on_genome_updated (Genome Audit Trail)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_on_genome_updated_writes_audit_row_with_correct_mapping():
+    from services.event_bus import Event, EventType, on_genome_updated
+
+    event = Event(
+        type=EventType.GENOME_UPDATED,
+        user_id="user-1",
+        predmet_id="predmet-1",
+        payload={
+            "verzija": 5,
+            "prev_verzija": 4,
+            "snaga_predmeta_procent": 71,
+            "trigger": "rociste_trigger",
+            "correlation_id": "corr-123",
+        },
+    )
+
+    captured = {}
+    async def _fake_log_action(**kwargs):
+        captured.update(kwargs)
+        return "audit-row-1"
+
+    with patch("shared.audit_immutable.log_action", side_effect=_fake_log_action):
+        await on_genome_updated(event)
+
+    assert captured["action"] == "genome_refresh"
+    assert captured["user_id"] == "user-1"
+    assert captured["resource_type"] == "predmet"
+    assert captured["resource_id"] == "predmet-1"
+    meta = captured["metadata"]
+    assert meta["trigger"] == "rociste_trigger"
+    assert meta["agent"] == "case_dna_extractor"
+    assert meta["verzija"] == 5
+    assert meta["prev_verzija"] == 4
+    assert meta["snaga_predmeta_procent"] == 71
+    assert meta["correlation_id"] == "corr-123"
+
+
+@pytest.mark.anyio
+async def test_on_genome_updated_swallows_errors():
+    from services.event_bus import Event, EventType, on_genome_updated
+    event = Event(type=EventType.GENOME_UPDATED, user_id="u", predmet_id="p", payload={})
+    with patch("shared.audit_immutable.log_action", side_effect=Exception("db down")):
+        await on_genome_updated(event)  # ne sme da baci
+
+
+@pytest.mark.anyio
+async def test_dispatch_pending_events_genome_updated_triggers_real_audit_write():
+    """End-to-end: outbox red → dispatch_pending_events() → REGISTROVANI
+    on_genome_updated handler (ne rucno prosledjen kao u drugim dispatch
+    testovima) → log_action() poziv. Dokazuje da je 1.2 stvarno povezan na
+    bus singleton, ne samo da funkcija postoji izolovano."""
+    from services import event_bus as eb
+
+    row = {"id": "evt-genome-2", "event_type": "GenomeUpdated", "user_id": "u-1",
+           "predmet_id": "p-1",
+           "payload": {"verzija": 2, "prev_verzija": 1, "trigger": "manual_refresh",
+                       "snaga_predmeta_procent": 55, "correlation_id": "corr-abc"},
+           "dispatch_attempts": 0}
+
+    def _table(name):
+        return _make_chain([row] if name == "events" else [])
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    captured = {}
+    async def _fake_log_action(**kwargs):
+        captured.update(kwargs)
+        return "audit-1"
+
+    with patch("shared.deps._get_supa", return_value=supa), \
+         patch("shared.audit_immutable.log_action", side_effect=_fake_log_action):
+        result = await eb.dispatch_pending_events()
+
+    assert result["dispecovano"] == 1
+    assert captured.get("action") == "genome_refresh"
+    assert captured.get("metadata", {}).get("verzija") == 2
+    assert captured.get("metadata", {}).get("correlation_id") == "corr-abc"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Faza 1.2 — routers/case_dna.py — _run_genome_background trigger threading
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_run_genome_background_threads_explicit_trigger():
+    """Pre 1.2: funkcija je UVEK pisala 'upload_trigger' bez obzira na
+    pozivaoca (poznata greska iz Faze 1.1 checklist-a). Posle 1.2:
+    rocista.py/smart_intake.py prosledjuju tacnu vrednost — ovaj test
+    proverava da se ta vrednost stvarno prenosi do _save_genome_history i
+    _emit_genome_event, ne samo da parametar postoji."""
+    from routers import case_dna as cd
+
+    old_genome = {"verzija": 4, "snaga_predmeta_procent": 50}
+    docs = [{"id": "d1", "naziv_fajla": "a.pdf", "redni_broj": 1,
+             "tekst_sadrzaj": "tekst", "velicina_kb": 10}]
+
+    def _table(name):
+        if name == "predmeti":
+            return _make_chain({"case_dna": old_genome})
+        if name == "predmet_dokumenti":
+            return _make_chain(docs)
+        return _make_chain(None)
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("routers.case_dna._get_supa", return_value=supa), \
+         patch("routers.case_dna._extract_genome", new=AsyncMock(return_value={"snaga_predmeta_procent": 55})), \
+         patch("routers.case_dna._save_genome_history", new=AsyncMock()) as mock_hist, \
+         patch("routers.case_dna._emit_genome_event", new=AsyncMock(return_value="corr")) as mock_emit:
+        await cd._run_genome_background("predmet-1", "user-1", 50, trigger="rociste_trigger")
+
+    assert mock_hist.call_args[0][-1] == "rociste_trigger"
+    # _emit_genome_event(supa, predmet_id, uid, genome, trigger, prev_verzija=stari_verzija)
+    emit_args = mock_emit.call_args
+    assert emit_args[0][4] == "rociste_trigger"
+    assert emit_args.kwargs["prev_verzija"] == 4

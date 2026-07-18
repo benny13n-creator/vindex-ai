@@ -3925,7 +3925,7 @@ async def predmet_upload_auto_analyze(
                     .eq("id", predmet_id).eq("user_id", str(user.id)).execute()
                 _sg = ((_stari_g.data or [{}])[0].get("case_dna") or {})
                 _sp = _sg.get("snaga_predmeta_procent") if isinstance(_sg, dict) else None
-                await _run_genome_background(predmet_id, str(user.id), _sp)
+                await _run_genome_background(predmet_id, str(user.id), _sp, trigger="upload_trigger")
             except Exception as _ge:
                 logger.warning("[GENOME] Auto-refresh bg greška: %s", _ge)
         asyncio.create_task(_genome_bg())

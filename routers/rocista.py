@@ -158,7 +158,7 @@ async def kreiraj_rociste(
                 .eq("id", _pred_id).eq("user_id", _uid).single().execute()
             )
             _sp = ((_pred_r.data or {}).get("case_dna") or {}).get("snaga_predmeta_procent")
-            await _run_genome_background(_pred_id, _uid, _sp)
+            await _run_genome_background(_pred_id, _uid, _sp, trigger="rociste_trigger")
         except Exception as _e:
             logger.debug("[ROCISTE] Genome bg greška: %s", _e)
     asyncio.create_task(_rociste_genome_bg())

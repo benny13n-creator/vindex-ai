@@ -146,6 +146,34 @@ async def on_health_score_promenjen(event: Event) -> None:
         logger.warning("[EventBus] on_health_score_promenjen greška: %s", exc)
 
 
+async def on_genome_updated(event: Event) -> None:
+    """Faza 1.2 (90-dnevni plan, 2026-07-18) — prvi stvaran potrošač GENOME_UPDATED
+    eventa. Upisuje audit_immutable red (hash-chain, nepromenjiv) za svaku Genome
+    promenu — ko/kada su vec kolone log_action()-a, zasto/agent/pre-posle/
+    korelacija idu u metadata (log_action nema dedikovane kolone za njih)."""
+    try:
+        from shared.audit_immutable import log_action
+        payload = event.payload or {}
+        await log_action(
+            action        = "genome_refresh",
+            user_id       = event.user_id,
+            resource_type = "predmet",
+            resource_id   = event.predmet_id,
+            metadata      = {
+                "trigger":                 payload.get("trigger"),
+                "agent":                   "case_dna_extractor",
+                "verzija":                 payload.get("verzija"),
+                "prev_verzija":            payload.get("prev_verzija"),
+                "snaga_predmeta_procent":  payload.get("snaga_predmeta_procent"),
+                "correlation_id":          payload.get("correlation_id"),
+            },
+        )
+        logger.info("[EventBus] on_genome_updated: audit upisan predmet=%s v%s",
+                    event.predmet_id, payload.get("verzija"))
+    except Exception as exc:
+        logger.warning("[EventBus] on_genome_updated greška: %s", exc)
+
+
 # ─── EventBus klasa ───────────────────────────────────────────────────────────
 
 HandlerType = Callable[[Event], Coroutine[Any, Any, None]]
@@ -166,6 +194,7 @@ class EventBus:
         self.subscribe(EventType.PREDMET_KREIRAN,        on_predmet_kreiran)
         self.subscribe(EventType.DOKUMENT_UPLOADOVAN,    on_dokument_uploadovan)
         self.subscribe(EventType.HEALTH_SCORE_PROMENJEN, on_health_score_promenjen)
+        self.subscribe(EventType.GENOME_UPDATED,          on_genome_updated)
 
     def subscribe(self, event_type: EventType, handler: HandlerType) -> None:
         """Registruje async handler za dati tip događaja."""

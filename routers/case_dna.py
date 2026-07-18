@@ -15,6 +15,7 @@ import asyncio
 import json
 import logging
 import os
+import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -230,9 +231,10 @@ def _compute_delta(old_g: dict, new_g: dict) -> dict:
 def _delta_alert_text(delta: dict, verzija: int, trigger: str) -> str:
     """Formatira delta u konkretan alert tekst koji opisuje SVE sto se promenilo."""
     _TRIGGER_LABEL = {
-        "upload_trigger":   "novi dokument",
-        "rociste_trigger":  "novo rociste",
-        "manual_refresh":   "rucni refresh",
+        "upload_trigger":         "novi dokument",
+        "rociste_trigger":        "novo rociste",
+        "manual_refresh":         "rucni refresh",
+        "smart_intake_finalize":  "smart intake finalizacija",
     }
     trig_label = _TRIGGER_LABEL.get(trigger, trigger)
     lines = [f"Genome v{verzija} azuriran — {trig_label}."]
@@ -302,7 +304,10 @@ async def _save_genome_history(
         logger.warning("[GENOME] History save greška: %s", exc)
 
 
-async def _emit_genome_event(supa, predmet_id: str, uid: str, genome: dict, trigger: str) -> None:
+async def _emit_genome_event(
+    supa, predmet_id: str, uid: str, genome: dict, trigger: str,
+    prev_verzija: Optional[int] = None,
+) -> str:
     """Upisuje GenomeUpdated event u durable outbox ('events' tabela) — Faza 1.1,
     90-dnevni plan 2026-07-18. Zove se SAMO posle uspesnog upisa case_dna kolone.
 
@@ -311,7 +316,14 @@ async def _emit_genome_event(supa, predmet_id: str, uid: str, genome: dict, trig
     emit() ovde bi izazvao da se isti handler pokrene dvaput (odmah in-memory i
     ponovo pri dispatch-u). Greska u upisu eventa NIKAD ne sme da obori glavni
     zahtev — isti princip kao _save_genome_history iznad.
+
+    correlation_id (Faza 1.2): generise se ovde, ne u bazi — Event dataclass u
+    services/event_bus.py ne nosi DB-generisani 'events.id' kroz dispatch, pa se
+    korelacija između outbox eventa i audit_immutable zapisa (1.2) pravi ovde,
+    jednom, i deli se u oba payload-a preko istog stringa. Vraca korelacioni ID
+    (koristan pozivaocu za logovanje/debug, nije obavezan da se koristi).
     """
+    correlation_id = str(uuid.uuid4())
     try:
         await asyncio.to_thread(
             lambda: supa.table("events").insert({
@@ -320,17 +332,32 @@ async def _emit_genome_event(supa, predmet_id: str, uid: str, genome: dict, trig
                 "predmet_id": predmet_id,
                 "payload": {
                     "verzija": genome.get("verzija"),
+                    "prev_verzija": prev_verzija,
                     "snaga_predmeta_procent": genome.get("snaga_predmeta_procent"),
                     "trigger": trigger,
+                    "correlation_id": correlation_id,
                 },
             }).execute()
         )
     except Exception as exc:
         logger.warning("[GENOME] Event emit greška (nije kritično): %s", exc)
+    return correlation_id
 
 
-async def _run_genome_background(predmet_id: str, uid: str, stari_procent: Optional[int] = None):
-    """Poziva se u pozadini posle uploada. Regenerise Genome i kreira alert ako se snaga promenila."""
+async def _run_genome_background(
+    predmet_id: str, uid: str, stari_procent: Optional[int] = None,
+    trigger: str = "upload_trigger",
+):
+    """Poziva se u pozadini posle uploada/rocista/smart-intake finalize-a.
+    Regenerise Genome i kreira alert ako se snaga promenila.
+
+    trigger (Faza 1.2, 90-dnevni plan 2026-07-18): default 'upload_trigger'
+    cuva stari default za pozivaoce koji ga ne prosledjuju eksplicitno, ali
+    api.py/rocista.py/smart_intake.py sada svi prosledjuju tacnu vrednost —
+    pre ovoga je funkcija UVEK pisala 'upload_trigger' bez obzira na stvarnog
+    pozivaoca (poznata greska iz Faze 1.1 checklist-a, sada ispravljena jer
+    audit trail (1.2) prvi put cini pogresnu oznaku problemom usklađenosti,
+    ne samo internom netačnošću)."""
     supa = _get_supa()
     try:
         # Ucitaj stari Genome za historiju
@@ -362,7 +389,7 @@ async def _run_genome_background(predmet_id: str, uid: str, stari_procent: Optio
         genome["verzija"] = stari_verzija + 1
 
         # Snimi stari u istoriju
-        await _save_genome_history(supa, predmet_id, uid, stari_genome, "upload_trigger")
+        await _save_genome_history(supa, predmet_id, uid, stari_genome, trigger)
 
         await asyncio.to_thread(
             lambda: supa.table("predmeti")
@@ -372,13 +399,13 @@ async def _run_genome_background(predmet_id: str, uid: str, stari_procent: Optio
                 .execute()
         )
 
-        await _emit_genome_event(supa, predmet_id, uid, genome, "upload_trigger")
+        await _emit_genome_event(supa, predmet_id, uid, genome, trigger, prev_verzija=stari_verzija)
 
         # Genome Intelligence Delta — pametni alert sa svim promenama
         delta_obj = _compute_delta(stari_genome, genome)
         if _delta_significant(delta_obj):
             verzija = genome.get("verzija", 1)
-            tekst = _delta_alert_text(delta_obj, verzija, "upload_trigger")
+            tekst = _delta_alert_text(delta_obj, verzija, trigger)
             snaga_d = abs(delta_obj.get("snaga_delta", 0))
             hitnost = "hitan" if snaga_d >= 15 or delta_obj.get("kontr_nove", 0) > 1 else "normalan"
             try:
@@ -500,7 +527,7 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
         _update_ok = False
 
     if _update_ok:
-        await _emit_genome_event(supa, predmet_id, uid, genome, "manual_refresh")
+        await _emit_genome_event(supa, predmet_id, uid, genome, "manual_refresh", prev_verzija=stari_verzija)
 
     # Genome Intelligence Delta — pametni alert + response
     novi_procent = genome.get("snaga_predmeta_procent")

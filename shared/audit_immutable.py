@@ -46,6 +46,8 @@ AUDITABLE_ACTIONS: set[str] = {
     "admin_access", "user_role_change", "firm_settings_change",
     # AI operacije (samo metadata, ne sadržaj)
     "ai_analiza_complete", "ai_kompletna_analiza_complete",
+    # Case Genome (Faza 1.2, 90-dnevni plan 2026-07-18)
+    "genome_refresh",
     # Bezbednosni događaji
     "injection_attempt_blocked", "rate_limit_exceeded",
     "suspicious_access", "api_key_rotation",

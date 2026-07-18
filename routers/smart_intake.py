@@ -37,10 +37,15 @@ import base64
 import hashlib
 import logging
 import os
+import re
+import tempfile
 import uuid
+from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile, File
+from pydantic import BaseModel, Field
+from typing import Optional
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
 from shared.rate import limiter
@@ -74,7 +79,7 @@ def _encrypt(raw: bytes) -> bytes:
 
 @router.post("/documents", status_code=202)
 @limiter.limit("20/minute")
-async def intake_documents(
+async def upload_intake_documents(
     request: Request,
     files: List[UploadFile] = File(...),
     user: dict = Depends(get_current_user),
@@ -170,7 +175,7 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
             .maybe_single()
             .execute()
     )
-    if not res.data:
+    if not res or not res.data:
         raise HTTPException(status_code=404, detail="Posao nije pronađen.")
     job = res.data
 
@@ -180,6 +185,7 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
     review = result["review"]
 
     entiteti_view = [{
+        "entity_id": e["id"],
         "entity_type": e["entity_type"],
         "value": e.get("corrected_value") or e["value"],
         "confidence": e["confidence"],
@@ -267,3 +273,301 @@ async def intake_accuracy(request: Request, user: dict = Depends(_require_founde
     precizan a nije (isti princip kao Revenue Intelligence)."""
     from shared.intake_accuracy import get_office_accuracy_kpis
     return await get_office_accuracy_kpis()
+
+
+# ─── Finalize: Smart Intake job → stvaran predmet ──────────────────────────────
+# Founder direktiva (2026-07-16): "Iz dokumenta" mora da zavrsi kreiranjem
+# STVARNOG predmeta, ne samo prikazom klasifikacije. Faza 1A migracija
+# (074) je namerno ostavila dokument nepovezan sa predmet_id — ovaj
+# endpoint je tacka gde se ta veza konacno pravi, tek kad advokat potvrdi.
+
+_DOC_TYPE_LABELS = {
+    "lawsuit": "tužba", "response": "odgovor na tužbu", "appeal": "žalba",
+    "judgment": "presuda", "contract": "ugovor", "invoice": "faktura",
+    "power_of_attorney": "punomoćje", "evidence": "dokaz", "email": "email",
+    "court_decision": "sudska odluka", "enforcement": "izvršenje",
+    "legal_opinion": "pravno mišljenje", "other": "dokument",
+}
+
+_DEADLINE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_DEADLINE_DATE_SR_RE = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})$")
+
+
+def _deadline_to_iso(value: str) -> Optional[str]:
+    """shared/intake_extract.py::extract_deadline reuse-uje uploaded_doc/
+    deadline_parser.py, koji vraća 'konkretan_datum' u DD.MM.YYYY formatu
+    (srpska konvencija za prikaz) — NE ISO. Otkriveno 2026-07-16 pravim
+    end-to-end testom: prvobitna verzija ovog fajla je prihvatala samo
+    YYYY-MM-DD i cutke odbacivala svaki stvaran rok."""
+    if not value:
+        return None
+    if _DEADLINE_DATE_RE.match(value):
+        return value
+    m = _DEADLINE_DATE_SR_RE.match(value)
+    if m:
+        dd, mm, yyyy = m.groups()
+        return f"{yyyy}-{mm}-{dd}"
+    return None
+
+
+class FinalizeReq(BaseModel):
+    naziv: Optional[str] = Field(default=None, max_length=200)
+    klijent_strana: Optional[str] = Field(default=None, max_length=20)  # "plaintiff" | "defendant" | None
+    klijent_ime_override: Optional[str] = Field(default=None, max_length=200)
+
+
+@router.post("/jobs/{job_id}/finalize")
+@limiter.limit("20/minute")
+async def finalize_intake_job(
+    job_id: str,
+    request: Request,
+    body: FinalizeReq,
+    user: dict = Depends(get_current_user),
+):
+    """Pretvara zavrsen Smart Intake posao u stvaran predmet — ovo je tacno
+    obecanje iz UI-ja ("Otpremi tuzbu... i Vindex automatski kreira
+    predmet"). Idempotentno: ako je posao vec finalizovan (intake_jobs.
+    predmet_id popunjen), vraca postojeci predmet umesto da pravi duplikat."""
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    job_res = await asyncio.to_thread(
+        lambda: supa.table("intake_jobs")
+            .select("id, status, storage_path, original_filename, mime_type, predmet_id")
+            .eq("id", job_id)
+            .eq("uploaded_by", uid)
+            .maybe_single()
+            .execute()
+    )
+    if not job_res or not job_res.data:
+        raise HTTPException(status_code=404, detail="Posao nije pronađen.")
+    job = job_res.data
+
+    if job.get("predmet_id"):
+        return {"ok": True, "predmet_id": job["predmet_id"], "already_finalized": True}
+
+    if job["status"] != "completed":
+        raise HTTPException(status_code=409, detail=f"Posao još nije obrađen (status: {job['status']}).")
+
+    result = await intake_documents.get_job_result(job_id)
+    document = result["document"]
+    entities = result["entities"]
+    if not document:
+        raise HTTPException(status_code=409, detail="Klasifikacija nije dostupna za ovaj posao.")
+
+    value_map = {
+        e["entity_type"]: (e.get("corrected_value") or e.get("value"))
+        for e in entities
+        if (e.get("corrected_value") or e.get("value"))
+    }
+
+    doc_type = document.get("document_type") or "other"
+    tip_labela = _DOC_TYPE_LABELS.get(doc_type, "dokument")
+
+    # ── Naziv predmeta ───────────────────────────────────────────────────────
+    if body.naziv and body.naziv.strip():
+        naziv = body.naziv.strip()[:200]
+    elif value_map.get("plaintiff") and value_map.get("defendant"):
+        naziv = f"{value_map['plaintiff']} protiv {value_map['defendant']}"[:200]
+    elif value_map.get("case_number"):
+        naziv = f"Predmet {value_map['case_number']}"[:200]
+    elif job.get("original_filename"):
+        naziv = Path(job["original_filename"]).stem[:200]
+    else:
+        naziv = f"Predmet iz dokumenta ({tip_labela})"
+
+    opis_delovi = [f"Kreirano iz dokumenta ({tip_labela}) putem Smart Intake."]
+    if value_map.get("case_number"):
+        opis_delovi.append(f"Broj predmeta: {value_map['case_number']}")
+    if value_map.get("court"):
+        opis_delovi.append(f"Sud/organ: {value_map['court']}")
+    if value_map.get("judge"):
+        opis_delovi.append(f"Sudija: {value_map['judge']}")
+    if value_map.get("law_cited"):
+        opis_delovi.append(f"Zakon: {value_map['law_cited']}")
+    if value_map.get("amount"):
+        opis_delovi.append(f"Iznos: {value_map['amount']}")
+
+    pred_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti").insert({
+            "user_id": uid,
+            "naziv":   naziv,
+            "opis":    "\n".join(opis_delovi),
+            "tip":     "opsti",
+            "status":  "aktivan",
+        }).execute()
+    )
+    if not pred_r.data:
+        raise HTTPException(status_code=500, detail="Kreiranje predmeta nije uspelo.")
+    predmet_id = pred_r.data[0]["id"]
+
+    # ── Klijent (best-effort, ne obara finalize ako padne) ──────────────────
+    klijent_ime = (body.klijent_ime_override or "").strip()
+    if not klijent_ime and body.klijent_strana in ("plaintiff", "defendant"):
+        klijent_ime = (value_map.get(body.klijent_strana) or "").strip()
+    if klijent_ime:
+        try:
+            existing = await asyncio.to_thread(
+                lambda: supa.table("klijenti")
+                    .select("id")
+                    .eq("user_id", uid)
+                    .ilike("ime", klijent_ime[:100])
+                    .neq("status", "soft_deleted")
+                    .limit(1)
+                    .execute()
+            )
+            if existing.data:
+                klijent_id = existing.data[0]["id"]
+            else:
+                kl_res = await asyncio.to_thread(
+                    lambda: supa.table("klijenti").insert({
+                        "user_id": uid,
+                        "ime":     klijent_ime[:100],
+                        "tip":     "fizicko_lice",
+                        "status":  "aktivan",
+                    }).execute()
+                )
+                klijent_id = kl_res.data[0]["id"] if kl_res.data else None
+            if klijent_id:
+                # NAPOMENA (otkriveno 2026-07-16 pravim testom): predmet_klijenti
+                # NEMA kolonu user_id, iako je routers/intake.py (stari wizard,
+                # intake_kreiraj I intake_bulk_import) tu kolonu slao ovoj tabeli
+                # ovaj citav niz vremena — PGRST204 na svakom pozivu, cutke
+                # progutano. predmet_klijenti ima 0 redova u produkciji zbog
+                # ovoga. Ne diram routers/intake.py (eksplicitna instrukcija),
+                # ali OVAJ insert namerno ne salje user_id.
+                await asyncio.to_thread(
+                    lambda: supa.table("predmet_klijenti").insert({
+                        "predmet_id":     predmet_id,
+                        "klijent_id":     klijent_id,
+                        "uloga_klijenta": "stranka",
+                    }).execute()
+                )
+        except Exception as exc:
+            logger.warning("[SMART_INTAKE] klijent link greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+
+    # ── Rok (ako je deadline izvučen sa dovoljnom pouzdanošću) ──────────────
+    rok_dodat = False
+    deadline_iso = _deadline_to_iso(value_map.get("deadline") or "")
+    if deadline_iso:
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("predmet_hronologija").insert({
+                    "predmet_id": predmet_id,
+                    "user_id":    uid,
+                    "dogadjaj":   f"Rok — {tip_labela}",
+                    "datum":      deadline_iso,
+                    "datum_iso":  deadline_iso,
+                    "vaznost":    "važan",
+                    "akter":      "Smart Intake",
+                }).execute()
+            )
+            rok_dodat = True
+        except Exception as exc:
+            logger.warning("[SMART_INTAKE] rok insert greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+
+    # ── Dokument: decrypt → tekst → chunk → Pinecone → predmet_dokumenti ────
+    doc_linked = False
+    try:
+        from uploaded_doc.chunker import chunk_document
+        from uploaded_doc.extractor import extract
+        from uploaded_doc.ingest import ingest_session
+        from uploaded_doc.session import generate_session_id
+        from shared.intake_worker import worker as _intake_worker
+
+        raw_bytes = await _intake_worker._download_and_decrypt(job["storage_path"])
+        suffix = Path(job.get("original_filename") or "").suffix.lower() or ".pdf"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(raw_bytes)
+            tmp_path = Path(tmp.name)
+        try:
+            text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
+        finally:
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+        if text and text.strip():
+            source_meta = {
+                "source_filename": job.get("original_filename") or "dokument",
+                "source_format":   suffix.lstrip("."),
+                "source_sha256":   hashlib.sha256(raw_bytes).hexdigest(),
+                "is_scanned":      is_scanned,
+                "session_id":      "__local__",
+            }
+            manifest = await asyncio.to_thread(chunk_document, text, source_meta)
+            session_id = generate_session_id()
+            pinecone_ok = True
+            try:
+                await asyncio.to_thread(ingest_session, manifest, session_id, namespace_prefix="pred_")
+            except Exception as pe:
+                logger.warning("[SMART_INTAKE] Pinecone ingest neuspešan (non-fatal) predmet=%s: %s", predmet_id, str(pe)[:150])
+                pinecone_ok = False
+
+            _dok_row_base = {
+                "predmet_id":         predmet_id,
+                "user_id":            uid,
+                "naziv_fajla":        job.get("original_filename") or "dokument",
+                "storage_path":       f"session/{session_id}",
+                "pinecone_namespace": f"pred_{session_id}",
+                "status":             "indeksirano" if pinecone_ok else "sacuvano",
+                "velicina_kb":        max(1, len(raw_bytes) // 1024),
+                "redni_broj":         1,
+            }
+            # tip_dokaza/klasifikovan_at (migracija 016) i tekst_sadrzaj su
+            # opcioni po istom obrascu kao api.py predmet upload — probaj
+            # najbogatiju varijantu prvo, padaj na osnovnu ako kolone/migracija
+            # nedostaju, nikad ne izgubi ceo dokument zbog jedne kolone.
+            dok_ins = None
+            for extra in (
+                {**_dok_row_base, "tip_dokaza": doc_type, "klasifikovan_at": "now()", "tekst_sadrzaj": text[:100_000]},
+                {**_dok_row_base, "tekst_sadrzaj": text[:100_000]},
+                _dok_row_base,
+            ):
+                try:
+                    dok_ins = await asyncio.to_thread(
+                        lambda r=extra: supa.table("predmet_dokumenti").insert(r).execute()
+                    )
+                    break
+                except Exception as dok_exc:
+                    logger.debug("[SMART_INTAKE] predmet_dokumenti insert varijanta neuspešna, probam sledeću: %s", dok_exc)
+            doc_linked = bool(dok_ins and dok_ins.data)
+    except Exception as exc:
+        logger.warning("[SMART_INTAKE] dokument link/ingest greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+
+    # ── Case Genome auto-refresh (isti obrazac kao api.py predmet upload) ───
+    if doc_linked:
+        async def _genome_bg():
+            await asyncio.sleep(3)
+            try:
+                from routers.case_dna import _run_genome_background
+                await _run_genome_background(predmet_id, uid, None, trigger="smart_intake_finalize")
+            except Exception as ge:
+                logger.warning("[SMART_INTAKE] Genome auto-refresh greška: %s", ge)
+        asyncio.create_task(_genome_bg())
+
+    await asyncio.to_thread(
+        lambda: supa.table("intake_jobs").update({"predmet_id": predmet_id}).eq("id", job_id).execute()
+    )
+
+    try:
+        from routers.analytics import _track_event
+        asyncio.create_task(_track_event(
+            uid, "novi_predmet_flow", "smart_intake_completed",
+            predmet_id=predmet_id, metadata={"job_id": job_id, "document_type": doc_type},
+        ))
+    except Exception:
+        pass
+
+    logger.info("[SMART_INTAKE] finalize job=%s -> predmet=%s klijent=%s rok=%s dok=%s",
+                job_id[:8], predmet_id, bool(klijent_ime), rok_dodat, doc_linked)
+
+    return {
+        "ok":          True,
+        "predmet_id":  predmet_id,
+        "naziv":       naziv,
+        "klijent_dodat": bool(klijent_ime),
+        "rok_dodat":     rok_dodat,
+        "dokument_povezan": doc_linked,
+    }
