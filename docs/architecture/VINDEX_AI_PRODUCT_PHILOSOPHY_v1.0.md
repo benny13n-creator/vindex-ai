@@ -12,7 +12,7 @@ uklapaju u ono što Vindex AI jeste.
 **Metodološka napomena, važna za poverenje u ovaj dokument:** delovi ispod
 su ili (a) direktan citat/rezime odluka koje su već eksplicitno donete u
 ovom projektu — obeleženo, sa izvorom — ili (b) moja sinteza iz mnogo malih
-odluka u opšti princip — obeleženo kao sinteza. Deo 7 na kraju je lista
+odluka u opšti princip — obeleženo kao sinteza. Deo 8 na kraju je lista
 pitanja gde sinteza nije dovoljna — tamo treba tvoja eksplicitna potvrda,
 ne moja pretpostavka. Ne izmišljam vrednosti koje nisi izrazio.
 
@@ -106,7 +106,7 @@ ambiciozne ideje — odbija da ih gradi PRE dokaza da su potrebne.
 ## 4. "AI koji pomaže advokatu" vs "AI koji odlučuje umesto advokata"
 
 Ovo je najvažnije pitanje u dokumentu i ono gde je razlika između sinteze i
-tvoje eksplicitne potvrde najbitnija — vidi i Deo 7.
+tvoje eksplicitne potvrde najbitnija — vidi i Deo 8.
 
 **Ono što JE potvrđeno kroz stvarne odluke:**
 
@@ -185,7 +185,7 @@ koji budući predlog:
    nad nečim što jača moat, pri jednakom Evidence skoru.
 3. **Da li ostavlja konačnu odluku advokatu?** Ako predlog uključuje
    autonomnu akciju sa pravnom/finansijskom posledicom bez ljudskog
-   pregleda — stoji, čeka posebnu odluku (videti Deo 4/7), ne ide u
+   pregleda — stoji, čeka posebnu odluku (videti Deo 4/8), ne ide u
    normalan razvoj tok.
 4. **Da li dolazi sa objašnjivošću i audit tragom ugrađenim od početka,
    ili se to planira "kasnije"?** Explainability/audit "kasnije" istorijski
@@ -201,7 +201,22 @@ reši, ne generalno "razmotrićemo kasnije".
 
 ---
 
-## 7. Otvorena pitanja — traže tvoju potvrdu, ne moju pretpostavku
+## 7. The One Sentence Test
+
+Direktan founder-ov dodatak (2026-07-19), ne sinteza — najkraća moguća
+verzija Dela 6, za trenutke kad nema vremena za pet tačaka:
+
+> Da li ovo čini Vindex AI najboljim operativnim sistemom za advokate, ili
+> ga pretvara u još jedan skup nepovezanih AI funkcija?
+
+Ako je odgovor ovo drugo — funkcionalnost ne ulazi u proizvod. Bez
+izuzetka, bez "ali je tehnički zanimljivo", bez "ali korisnik je pitao
+jednom". Ovo je prvi, najbrži filter — Deo 6 je detaljna verzija za kad
+odgovor na ovu rečenicu nije odmah očigledan.
+
+---
+
+## 8. Otvorena pitanja — traže tvoju potvrdu, ne moju pretpostavku
 
 Ovo nije formalnost. Sledeći delovi su moja najbolja sinteza iz onoga što
 je do sada rečeno, ali NISU citat tvoje eksplicitne odluke u tim tačnim
