@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
 from shared.usage import UsageService
+from services.event_bus import EventType
 
 logger = logging.getLogger("vindex.case_genome")
 router = APIRouter(prefix="/api/predmeti", tags=["case_dna"])
@@ -301,6 +302,33 @@ async def _save_genome_history(
         logger.warning("[GENOME] History save greška: %s", exc)
 
 
+async def _emit_genome_event(supa, predmet_id: str, uid: str, genome: dict, trigger: str) -> None:
+    """Upisuje GenomeUpdated event u durable outbox ('events' tabela) — Faza 1.1,
+    90-dnevni plan 2026-07-18. Zove se SAMO posle uspesnog upisa case_dna kolone.
+
+    Namerno ne zove services.event_bus.emit()/bus.publish() — dispatch_pending_events()
+    ce sam procitati ovaj red iz 'events' i pokrenuti handlere kad-tad; direktan
+    emit() ovde bi izazvao da se isti handler pokrene dvaput (odmah in-memory i
+    ponovo pri dispatch-u). Greska u upisu eventa NIKAD ne sme da obori glavni
+    zahtev — isti princip kao _save_genome_history iznad.
+    """
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("events").insert({
+                "event_type": EventType.GENOME_UPDATED.value,
+                "user_id": uid,
+                "predmet_id": predmet_id,
+                "payload": {
+                    "verzija": genome.get("verzija"),
+                    "snaga_predmeta_procent": genome.get("snaga_predmeta_procent"),
+                    "trigger": trigger,
+                },
+            }).execute()
+        )
+    except Exception as exc:
+        logger.warning("[GENOME] Event emit greška (nije kritično): %s", exc)
+
+
 async def _run_genome_background(predmet_id: str, uid: str, stari_procent: Optional[int] = None):
     """Poziva se u pozadini posle uploada. Regenerise Genome i kreira alert ako se snaga promenila."""
     supa = _get_supa()
@@ -343,6 +371,8 @@ async def _run_genome_background(predmet_id: str, uid: str, stari_procent: Optio
                 .eq("user_id", uid)
                 .execute()
         )
+
+        await _emit_genome_event(supa, predmet_id, uid, genome, "upload_trigger")
 
         # Genome Intelligence Delta — pametni alert sa svim promenama
         delta_obj = _compute_delta(stari_genome, genome)
@@ -456,6 +486,7 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
     # Snimi stari Genome u istoriju
     await _save_genome_history(supa, predmet_id, uid, stari_genome, "manual_refresh")
 
+    _update_ok = True
     try:
         await asyncio.to_thread(
             lambda: supa.table("predmeti")
@@ -466,6 +497,10 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
         )
     except Exception as exc:
         logger.warning("[GENOME] Snimanje greška: %s", exc)
+        _update_ok = False
+
+    if _update_ok:
+        await _emit_genome_event(supa, predmet_id, uid, genome, "manual_refresh")
 
     # Genome Intelligence Delta — pametni alert + response
     novi_procent = genome.get("snaga_predmeta_procent")

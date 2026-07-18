@@ -37,6 +37,11 @@ class EventType(str, Enum):
     STRATEGIJA_GENERISANA  = "strategija_generisana"
     ANALIZA_ZAHTEVANA      = "analiza_zahtevana"
     HEALTH_SCORE_PROMENJEN = "health_score_promenjen"
+    # Faza 1 Case Genome reliability (90-dnevni plan, 2026-07-18, stavka 1.1)
+    # — upisuje se SAMO u durable outbox ('events' tabela, direktan insert iz
+    # routers/case_dna.py), nikad kroz Python emit()/bus.publish() direktno,
+    # da dispatch_pending_events() ne pokrene isti handler dvaput.
+    GENOME_UPDATED         = "GenomeUpdated"
     # Faza 0 Smart Intake — job lifecycle, NE AI ponašanje (klasifikacija/
     # ekstrakcija dolaze u Fazi 1). Vrednosti moraju biti IDENTIČNE stringu
     # koji enqueue_intake_job RPC upisuje u events.event_type.
