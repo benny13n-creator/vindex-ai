@@ -97,6 +97,14 @@ praćenje).** Ovo se dodaje u ADR kao nova stavka:
 
 **Integration Coverage: 4/6 = 67%**
 
+**Kritični koraci (definicija: bez ovog koraka, advokat doživljava tok
+kao SLOMLJEN ili OBMANJUJUĆ, ne samo "manje automatizovan"):**
+klasifikacija ✅, Evidence Vault upis ✅, Genome regeneracija ✅ — sve
+3 kritične stavke rade. `PredmetKreiran` event, pipeline, audit su
+infrastruktura/dopuna — vredne, ali njihovo odsustvo ne čini flow
+neupotrebljivim za advokata danas.
+**Critical Coverage: 3/3 = 100%.**
+
 ### CONTRACT 02 — Upload presude
 
 | Element | Specifikacija | Status danas |
@@ -115,6 +123,20 @@ namerno: ovo je tok koji najdirektnije testira "operativni sistem"
 obećanje, i najviše zavisi od Faza 1 preduslova (D1, D2) koji se ne
 smeju preskočiti.
 
+**Kritični koraci:** za razliku od ostala 3 toka, OVDE je razlika
+između kritičnog i dopunskog koraka mala — ovo je serijski lanac gde
+svaki korak blokira sledeći (pogrešna klasifikacija → pogrešan predlog
+→ pogrešan rok, bez obzira da li Guardian/task/notifikacija rade).
+Kritični: prepoznavanje tačnog tipa ✅❌, datum dostave ❌, predlog ZPP
+događaja ❌, potvrda-korak ❌, deterministička kalkulacija (katalog
+postoji, nepovezan) ⚠️, jedinstven izvor istine ❌ — 6 kritičnih
+stavki, samo kalkulacija delimično postoji.
+**Critical Coverage: 1/6 = 17%** — i dalje nisko, ali VIŠE od raw
+Coverage (10%), jer su neke od "lakših" nekritičnih stavki (Guardian
+registracija, task, notifikacija) čak i praznije od kritičnog jezgra.
+**Zaključak: ovaj tok je slomljen i na kritičnom nivou, ne samo na
+nivou dopune — potvrđuje da mora ići poslednji, tek posle D1/D2.**
+
 ### CONTRACT 03 — Dodavanje ročišta
 
 | Element | Specifikacija | Status danas |
@@ -129,6 +151,15 @@ smeju preskočiti.
 | **Koji test potvrđuje gotovost** | Unos ročišta → provera hronologije → provera Genome verzije → provera da Guardian "zna" za ovaj datum → provera da je podsetnik zakazan → provera audit reda | Test ne postoji |
 
 **Integration Coverage: 2/7 = 29%**
+
+**Kritični koraci:** hronologija upis ✅, Genome refresh ✅, podsetnik
+pre ročišta ❌ (propušten podsetnik = stvaran rizik za advokata, ne
+samo neprijatnost) — 3 kritične stavke, 2 rade. Sinhronizacija sa
+rok-izvorom, Guardian registracija, dashboard vidljivost, audit su
+dopuna za OVAJ tok specifično (arhitektonski su i dalje bitni, ali
+njihovo odsustvo ne čini "dodavanje ročišta" samo po sebi slomljenim
+za korisnika danas).
+**Critical Coverage: 2/3 = 67%.**
 
 ### CONTRACT 04 — Zatvaranje predmeta
 
@@ -147,6 +178,16 @@ smeju preskočiti.
 NEPROVERENO** — ne "ne radi", nego "nije provereno u ovoj sesiji".
 Ovaj broj se NE sme tretirati kao konačan bez live-sistem provere.
 
+**Kritični koraci:** strukturisan ishod upisan ✅ (osnovni "da li je
+zatvaranje uopšte upisano" test), audit trag za zatvaranje ⚠️
+neprovereno, ali tretiran kao KRITIČAN (compliance rizik, ne dopuna —
+isti razlog kao D22 opšte). Benchmark doprinos, style profile,
+firm statistika su dopuna (vredne za proizvod dugoročno, ne za
+neposredno advokatovo iskustvo zatvaranja OVOG predmeta).
+**Critical Coverage: 1/2 = 50%** — niže nego što bi se očekivalo od
+naizgled "najgotovijeg" toka, upravo zato što je audit stavka tretirana
+ozbiljno, ne kozmetički.
+
 ---
 
 ## Deo C — Integration Coverage (matematika, ne procena)
@@ -156,15 +197,43 @@ obaveznih koraka definisanih u odgovarajućem Ugovoru) × 100.
 "Neprovereno" se računa kao 0 dok se ne potvrdi (konzervativno, u duhu
 Rule C — ne pretpostavljati).
 
-| Tok | Potvrđeno / Ukupno | Coverage | Neprovereno (odvojeno od "ne radi") |
+**Metodološka dopuna (2026-07-19, founderov zahtev):** svaki korak ne
+vredi isto. Coverage sam po sebi može biti visok a da sistem i dalje
+nije upotrebljiv za pilot (npr. 90% Coverage sa svim kritičnim koracima
+nedostajućim). Zato se svaki korak u Delu B dodatno taguje **KRITIČAN**
+(bez njega je tok SLOMLJEN ili OBMANJUJUĆ za advokata, ne samo manje
+automatizovan) ili **dopuna** (vredan, ali odsustvo ne čini tok
+neupotrebljivim danas). Critical Coverage = ista formula, samo nad
+podskupom kritičnih koraka.
+
+| Tok | Coverage | Critical Coverage | Neprovereno |
 |---|---|---|---|
-| CONTRACT 01 — Upload tužbe | 4/6 | **67%** | 0 |
-| CONTRACT 02 — Upload presude | 1/10 | **10%** | 0 |
-| CONTRACT 03 — Dodavanje ročišta | 2/7 | **29%** | 1 (audit stavka) |
-| CONTRACT 04 — Zatvaranje predmeta | 2/5 | **40%** | 3 (style profile, firm stat, audit) |
+| CONTRACT 01 — Upload tužbe | 4/6 = **67%** | 3/3 = **100%** | 0 |
+| CONTRACT 02 — Upload presude | 1/10 = **10%** | 1/6 = **17%** | 0 |
+| CONTRACT 03 — Dodavanje ročišta | 2/7 = **29%** | 2/3 = **67%** | 1 (audit stavka) |
+| CONTRACT 04 — Zatvaranje predmeta | 2/5 = **40%** | 1/2 = **50%** | 3 (style profile, firm stat, audit) |
+
+**Čitanje ove tabele, direktno:** Tok 1 je VEĆ danas dovoljno dobar za
+osnovno pilot iskustvo (100% kritično) iako Coverage izgleda nepotpuno
+(67%) — infrastrukturni dug (D3/D9/D22) ne sprečava advokata da danas
+dobije vrednost. Tok 3 je blizu (67% kritično). **Tok 2 je jedini gde
+je Critical Coverage i dalje nizak (17%) — potvrđuje, matematički, ono
+što je Deo B već rekao rečima: ovo je tok koji mora ići poslednji, i
+mora ići tek posle D1/D2.** Tok 4 (50% kritično) je iznenađujuće niže
+od "izgleda skoro gotovo" utiska — jer je audit trag za zatvaranje
+tretiran kao kritičan, ne kozmetičan.
 
 **Agregatni KPI (ponderisan po broju koraka, ne prost prosek toka):**
-(4+1+2+2) / (6+10+7+5) = **9/28 = 32%**
+(4+1+2+2) / (6+10+7+5) = **9/28 = 32% Coverage**
+(3+1+2+1) / (3+6+3+2) = **7/14 = 50% Critical Coverage**
+
+**Oba broja se prate odvojeno od sada.** Coverage meri ukupnu
+integraciju (uključujući infrastrukturu/compliance/dopunu). Critical
+Coverage meri da li je sistem DANAS dovoljno pouzdan za pilot korisnika
+po toku. Cilj pre bilo kog šireg pilot poziva: Critical Coverage 100%
+za tokove koji se aktivno demonstriraju (Tok 1 već jeste; Tok 3 blizu;
+Tok 4 treba proveriti 3 nepoznate stavke pre suda; Tok 2 ne
+demonstrirati u pilotu dok Critical Coverage ne pređe bar 80%).
 
 **Prost prosek toka (sekundarna referenca, manje precizan jer tretira
 svaki tok kao jednako "težak" bez obzira na broj koraka):** (67+10+29+40)/4

@@ -105,6 +105,14 @@ organizuje šta čeka na redu KAD freeze prestane.
   su gotovi, samo treba pronaći ispravna mesta za `emit()` poziv
   (verovatno u rok-related i Genome-related kodu). Nezavisno od D1-D2.
 
+### D25 (novo, `VINDEX_OPERATIONAL_GAP_REGISTER.md`). Emitovati `ROCISTE_ZAKAZANO`
+
+- **Kontekst:** definisan u enum-u, nema registrovan handler niti se
+  emituje — isti obrazac kao D3/D5, otkriven odvojeno pri izradi
+  CONTRACT 03 (Dodavanje ročišta).
+- **Status: Deferred (posle beta feedback-a).** Nizak effort, nezavisno
+  od ostalih D-stavki.
+
 ---
 
 ## Faza 3 — Deterministički motor
@@ -316,6 +324,37 @@ granice, ponovljene kroz sve audite ove sesije:
   Ovo je Product Philosophy Deo 4 granica, ne privremeno ograničenje —
   ponovljena eksplicitno u D6/D7/D12 dizajnu ("advokat potvrđuje ili
   menja predlog", direktan citat iz korisnikovog Faza 4 predloga).
+
+### D20.1 (novo, trajna arhitektonska smernica). Jedan poslovni koncept = jedan izvor istine
+
+Founderova formulacija, direktan citat: *"Ako postoje dva: problem.
+Ako postoje tri: ozbiljan problem. Ako postoje četiri: arhitektonski
+dug koji će se stalno vraćati."* D21 (tri paralelna rok-koncepta) i D23
+(lifecycle status naspram Kanban statusa) su dva NEZAVISNA otkrića istog
+obrasca — dovoljno da se ovaj obrazac formalizuje kao STALNO PRAVILO za
+evaluaciju svakog budućeg predloga, ne samo za rokove/status:
+
+- **Jedan izvor istine za rokove** (D21 — trenutno tri: `predmet_
+  hronologija`, `rokovi` tabela, `zadaci.rok_datum` — nerešeno).
+- **Jedan izvor istine za status predmeta** (D23 — trenutno najmanje
+  dva: Kanban `_KANBAN_FAZE`, plus predloženi lifecycle status ako se
+  usvoji bez usklađivanja — nerešeno).
+- **Jedan izvor istine za životni ciklus predmeta** (deo D23/D24
+  diskusije — Case Genome `genome_kompletnost` je TREĆI kandidat koji
+  delimično preklapa "koliko je predmet zreo/spreman").
+- **Jedan izvor istine za događaje** (event bus `events` tabela — ovo
+  već JESTE jedinstveno, `services/event_bus.py`, nema paralelnih
+  event-log sistema pronađenih — pozitivan primer da se pravilo može
+  ispoštovati).
+
+**Praktična primena za svaki budući predlog:** pre nego što se doda
+NOVO polje/tabela/status koje opisuje nešto što sistem već negde prati
+(rok, status, prioritet, "spremnost"), prvo proveriti da li već postoji
+izvor istine za taj koncept. Ako postoji — novi mehanizam mora biti
+PROJEKCIJA tog izvora (izveden prikaz), ne zasebna evidencija. Ako
+provera pokaže DVA ili više postojećih izvora za isti koncept — to je
+samo po sebi nalaz vredan D-broja u ovom registru, pre nego što se
+razmišlja o trećem.
 
 ---
 
