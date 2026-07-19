@@ -3225,13 +3225,24 @@ function stratIzaberiModul(modul, btn) {
   // Prikaži tip_postupka dropdown za Red Team, Litigation Simulator i Court Predictor
   var tipWrap = document.getElementById('strat-tip-wrap');
   if (tipWrap) tipWrap.style.display = (modul === 'red_team' || modul === 'litigation' || modul === 'court_predictor') ? 'block' : 'none';
-  // Sakrij prethodni rezultat i resetuj polje
+  // Sakrij prethodni rezultat
   var wrapEl = document.getElementById('strat-rezultat-wrap');
-  var tekstEl = document.getElementById('strat-tekst');
-  var charsEl = document.getElementById('strat-chars');
   if (wrapEl) wrapEl.style.display = 'none';
-  if (tekstEl) tekstEl.value = '';
-  if (charsEl) charsEl.textContent = '0';
+  // P0.1 (2026-07-19, SENIOR_LAWYER_SIMULATION_REPORT.md): svi moduli, ne
+  // samo "Kompletna analiza", sada popunjavaju kontekst predmeta ako je
+  // otvoren unutar predmeta — ranije je ovde stajalo tekstEl.value = '',
+  // što je direktno kršilo tekst "čitaju vaše dokumente automatski" na
+  // Strategija pod-tabu (index.html). Van predmet-konteksta (npr. ulaz
+  // direktno iz globalnog aiws taba bez otvorenog predmeta), polje se i
+  // dalje prazni — nema šta da se ubaci.
+  if (activePredmetId) {
+    _predAutoFill('strat-tekst', false);
+  } else {
+    var tekstEl = document.getElementById('strat-tekst');
+    var charsEl = document.getElementById('strat-chars');
+    if (tekstEl) tekstEl.value = '';
+    if (charsEl) charsEl.textContent = '0';
+  }
 }
 
 async function stratPokreni() {
@@ -9589,6 +9600,20 @@ function _buildPredmetKontekst() {
     lines.push('');
     lines.push('Opis slučaja:');
     lines.push(p.opis.trim());
+  }
+
+  // P0.1 (2026-07-19): ako Genome već postoji za ovaj predmet, ubaci
+  // snagu predmeta i najslabiju tačku — deo istog "sistem već zna
+  // rizike" obećanja, ne samo osnovni podaci o strankama.
+  var genome = window._genomeDnaCache && window._genomeDnaCache[p.id];
+  if (genome) {
+    if (typeof genome.snaga_predmeta_procent === 'number') {
+      lines.push('');
+      lines.push('Snaga predmeta (Case Genome procena): ' + genome.snaga_predmeta_procent + '%');
+    }
+    if (genome.najslabija_tacka && genome.najslabija_tacka.rizik) {
+      lines.push('Najslabija tačka: ' + genome.najslabija_tacka.rizik);
+    }
   }
 
   return lines.join('\n');
@@ -16664,6 +16689,86 @@ function _caseDnaRender(dna, predmetId) {
   var S = 'style="';
   var html = '<div style="font-size:0.72rem;color:#e2e8f0;line-height:1.5;">';
 
+  // ── PREGLED — "partner level summary" (P0.3, 2026-07-19,
+  // SENIOR_LAWYER_SIMULATION_REPORT.md). Sadržaj se NE menja — isti podaci
+  // koji se koriste dole u "ZAŠTO X%", "NAJSLABIJA TAČKA" i "PREPORUČENI
+  // SLEDEĆI KORACI" sekcijama, samo se prva stavka svake prikazuje ovde
+  // odmah, pre 9+ detaljnih sekcija. Founder: "Advokat prvo želi odgovor
+  // 'Šta da radim?', ne 'Pokaži mi strukturu podataka.'"
+  var _sumProcent = dna.snaga_predmeta_procent;
+  var _sumStatusTxt = null, _sumStatusColor = null;
+  if (typeof _sumProcent === 'number') {
+    if (_sumProcent >= 65) { _sumStatusTxt = 'Povoljna pozicija'; _sumStatusColor = '#4ade80'; }
+    else if (_sumProcent >= 40) { _sumStatusTxt = 'Srednji rizik'; _sumStatusColor = '#fbbf24'; }
+    else { _sumStatusTxt = 'Visok rizik'; _sumStatusColor = '#f87171'; }
+  }
+  var _sumFaktori = Array.isArray(dna.snaga_faktori) ? dna.snaga_faktori : [];
+  var _sumNajjaci = null, _sumNajjaciVal = -Infinity;
+  var _sumNajslabijiFaktor = null, _sumNajslabijiVal = Infinity;
+  _sumFaktori.forEach(function(f){
+    var v = parseInt(((f && f.uticaj) || '').replace(/[^-\d]/g,''), 10);
+    if (isNaN(v)) return;
+    if (v > _sumNajjaciVal) { _sumNajjaciVal = v; _sumNajjaci = f; }
+    if (v < _sumNajslabijiVal) { _sumNajslabijiVal = v; _sumNajslabijiFaktor = f; }
+  });
+  var _sumSlabostTxt = (dna.najslabija_tacka && dna.najslabija_tacka.rizik)
+    ? dna.najslabija_tacka.rizik
+    : ((_sumNajslabijiFaktor && _sumNajslabijiVal < 0) ? _sumNajslabijiFaktor.faktor : null);
+  var _sumAkcijaTxt = null;
+  if (dna.najslabija_tacka && dna.najslabija_tacka.preporuka) {
+    _sumAkcijaTxt = dna.najslabija_tacka.preporuka;
+  } else {
+    var _sumNedKrit = (Array.isArray(dna.nedostaje) ? dna.nedostaje : []).filter(function(n){ return n && n.hitnost === 'kriticno'; })[0];
+    if (_sumNedKrit && _sumNedKrit.dokument) _sumAkcijaTxt = 'Pribaviti: ' + _sumNedKrit.dokument;
+    else if (dna.strategija && dna.strategija.primarni_cilj) _sumAkcijaTxt = dna.strategija.primarni_cilj;
+  }
+  var _sumHasContent = !!(_sumStatusTxt || _sumNajjaci || _sumSlabostTxt || _sumAkcijaTxt);
+  html += '<div style="margin-bottom:0.7rem;padding-bottom:0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);">';
+  if (_sumHasContent) {
+    html += '<div style="color:rgba(255,255,255,0.32);font-size:0.58rem;letter-spacing:0.08em;margin-bottom:0.35rem;">PREGLED</div>';
+    if (_sumStatusTxt) html += '<div style="margin-bottom:3px;"><span style="color:rgba(255,255,255,0.4);font-size:0.62rem;">Status: </span><span style="color:'+_sumStatusColor+';font-weight:700;">'+escHtml(_sumStatusTxt)+'</span></div>';
+    if (_sumNajjaci) html += '<div style="margin-bottom:3px;"><span style="color:rgba(255,255,255,0.4);font-size:0.62rem;">Najveća snaga: </span><span style="color:rgba(255,255,255,0.78);">'+escHtml(_sumNajjaci.faktor||'')+'</span></div>';
+    if (_sumSlabostTxt) html += '<div style="margin-bottom:3px;"><span style="color:rgba(255,255,255,0.4);font-size:0.62rem;">Najveća slabost: </span><span style="color:rgba(255,255,255,0.78);">'+escHtml(_sumSlabostTxt)+'</span></div>';
+    if (_sumAkcijaTxt) html += '<div><span style="color:rgba(255,255,255,0.4);font-size:0.62rem;">Sledeća akcija: </span><span style="color:#93c5fd;">'+escHtml(_sumAkcijaTxt)+'</span></div>';
+  }
+  // Toggle je UVEK renderovan, bez obzira da li summary ima sadržaj —
+  // inače (kad nema nijedne od 4 stavke) detaljna sekcija ostaje trajno
+  // skrivena bez načina da se otvori (nađeno u self-review-u).
+  html += '<button onclick="_genomDetaljiToggle(\''+escHtml(predmetId||'')+'\')" id="genom-detalji-toggle-'+escHtml(predmetId||'')+'" style="'+(_sumHasContent?'margin-top:0.5rem;':'')+'font-size:0.62rem;color:rgba(0,212,255,0.5);background:none;border:none;cursor:pointer;padding:0;font-family:inherit;">'+(_sumHasContent?'Detaljna analiza →':'← Sakrij detalje')+'</button>';
+  html += '</div>';
+
+  // ── AI Provera — Genome Verification Layer narativ (P0-1, 2026-07-19,
+  // konsolidovano u JEDAN red posle self-review-a — dva stalna reda su
+  // dodavala cognitive load koji plan nije predvideo). Proces ("AI je
+  // proverio sopstvenu procenu") je i dalje prisutan, ali kao title
+  // tooltip na istom redu, isti obrazac kao 65+ postojećih title= atributa
+  // u aplikaciji, ne novi tekst blok. Ako _verifikacija ne postoji (stariji
+  // Genome zapisi pre Faze 1.3), ne prikazuje se ništa. NAMERNO ostaje
+  // IZVAN collapsible "detalji" wrappera (P0.3) — sakriti trust signal
+  // iza klika bi poništilo razlog zašto je uopšte napravljen vidljivim. ──
+  var ver = dna._verifikacija;
+  if (ver && ver.odluka) {
+    var verFlags = (ver.hard_flags||[]).concat(ver.soft_flags||[]);
+    var verN = verFlags.length;
+    var verTitle = 'AI je analizirao predmet i proverio sopstvenu procenu.';
+    html += '<div style="margin-bottom:0.6rem;font-size:0.65rem;">';
+    if (ver.odluka === 'approve' || !verN) {
+      html += '<div style="color:#4ade80;font-weight:600;" title="'+escHtml(verTitle)+'">✓ AI provera: nema upozorenja</div>';
+    } else {
+      html += '<div style="color:#fbbf24;font-weight:600;cursor:pointer;" title="'+escHtml(verTitle)+'" onclick="_genomVerifToggle(\''+escHtml(predmetId||'')+'\')" id="genom-verif-toggle-'+escHtml(predmetId||'')+'">⚠ AI provera: '+verN+' '+(verN===1?'upozorenje':'upozorenja')+' — pogledajte pre oslanjanja na ovu procenu <span style="opacity:.5;">(prikaži)</span></div>';
+      html += '<div id="genom-verif-detalji-'+escHtml(predmetId||'')+'" style="display:none;margin-top:3px;padding-left:0.6rem;border-left:2px solid rgba(251,191,36,0.3);">';
+      verFlags.slice(0,8).forEach(function(f){
+        html += '<div style="color:rgba(255,255,255,0.5);margin-bottom:2px;">• '+escHtml(f.razlog||'')+'</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Ako nema summary sadržaja, nema šta da se sažme — detaljna sekcija
+  // se onda podrazumevano prikazuje otvorena (ništa se ne gubi iz vida).
+  html += '<div id="genome-detalji-'+escHtml(predmetId||'')+'" style="display:'+(_sumHasContent?'none':'block')+';">';
+
   // ── Header: identitet + verzija + kompletnost ─────────────────────────────
   var gi = dna.pravna_teorija || {};
   var verzija = dna.verzija ? ' <span style="font-size:0.58rem;opacity:0.5;font-weight:400;">v'+dna.verzija+'</span>' : '';
@@ -16687,32 +16792,6 @@ function _caseDnaRender(dna, predmetId) {
     html += '<div style="height:5px;background:rgba(255,255,255,0.08);border-radius:3px;">';
     html += '<div style="height:5px;width:'+Math.min(procent,100)+'%;background:'+barColor+';border-radius:3px;transition:width .6s ease;"></div>';
     html += '</div></div>';
-  }
-
-  // ── AI Provera — Genome Verification Layer narativ (P0-1, 2026-07-19,
-  // konsolidovano u JEDAN red posle self-review-a — dva stalna reda su
-  // dodavala cognitive load koji plan nije predvideo). Proces ("AI je
-  // proverio sopstvenu procenu") je i dalje prisutan, ali kao title
-  // tooltip na istom redu, isti obrazac kao 65+ postojećih title= atributa
-  // u aplikaciji, ne novi tekst blok. Ako _verifikacija ne postoji (stariji
-  // Genome zapisi pre Faze 1.3), ne prikazuje se ništa. ──────────────────
-  var ver = dna._verifikacija;
-  if (ver && ver.odluka) {
-    var verFlags = (ver.hard_flags||[]).concat(ver.soft_flags||[]);
-    var verN = verFlags.length;
-    var verTitle = 'AI je analizirao predmet i proverio sopstvenu procenu.';
-    html += '<div style="margin-bottom:0.5rem;font-size:0.65rem;">';
-    if (ver.odluka === 'approve' || !verN) {
-      html += '<div style="color:#4ade80;font-weight:600;" title="'+escHtml(verTitle)+'">✓ AI provera: nema upozorenja</div>';
-    } else {
-      html += '<div style="color:#fbbf24;font-weight:600;cursor:pointer;" title="'+escHtml(verTitle)+'" onclick="_genomVerifToggle(\''+escHtml(predmetId||'')+'\')" id="genom-verif-toggle-'+escHtml(predmetId||'')+'">⚠ AI provera: '+verN+' '+(verN===1?'upozorenje':'upozorenja')+' — pogledajte pre oslanjanja na ovu procenu <span style="opacity:.5;">(prikaži)</span></div>';
-      html += '<div id="genom-verif-detalji-'+escHtml(predmetId||'')+'" style="display:none;margin-top:3px;padding-left:0.6rem;border-left:2px solid rgba(251,191,36,0.3);">';
-      verFlags.slice(0,8).forEach(function(f){
-        html += '<div style="color:rgba(255,255,255,0.5);margin-bottom:2px;">• '+escHtml(f.razlog||'')+'</div>';
-      });
-      html += '</div>';
-    }
-    html += '</div>';
   }
 
   // ── Explainable score — snaga faktori ────────────────────────────────────
@@ -16909,9 +16988,20 @@ function _caseDnaRender(dna, predmetId) {
     html += '</div>';
   }
 
+  html += '</div>'; // zatvara genome-detalji wrapper (P0.3)
   html += '</div>';
   el.innerHTML = html;
   el.style.display = 'block';
+}
+
+// Otvori/zatvori detaljnu analizu ispod PREGLED summary-ja (P0.3)
+function _genomDetaljiToggle(predmetId) {
+  var det = document.getElementById('genome-detalji-'+predmetId);
+  var btn = document.getElementById('genom-detalji-toggle-'+predmetId);
+  if (!det) return;
+  var open = det.style.display !== 'none';
+  det.style.display = open ? 'none' : 'block';
+  if (btn) btn.textContent = open ? 'Detaljna analiza →' : '← Sakrij detalje';
 }
 
 // Otvori/zatvori listu upozorenja iz Genome Verification Layer-a (P0-1)
