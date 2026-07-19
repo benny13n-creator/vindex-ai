@@ -16765,6 +16765,29 @@ function _caseDnaRender(dna, predmetId) {
     html += '</div>';
   }
 
+  // ── AI ograničenja — "na čemu se zasniva ova analiza" (T1.3/P0.5,
+  // Trust Layer v1, 2026-07-19). Founder: "AI zna šta nema" gradi
+  // poverenje više od bilo koje procene. Sve iz dna._analiza_osnov
+  // (brojanje postojećih podataka, ne nova AI procena) i postojećeg
+  // dna.nedostaje polja — nula novih AI poziva. Uvek vidljivo, van
+  // collapsible dela, isto obrazloženje kao AI Provera. ─────────────────
+  // Self-review (2026-07-19): prvobitna verzija je slagala do 8 redova
+  // (3 osnov reda + naslov + do 4 nedostaje stavke) — treći "uvek
+  // vidljiv" blok posle PREGLED+AI Provera, tačno onaj cognitive load
+  // problem koji je prethodna runda rešila. Sažeto na 2 reda max.
+  var osn = dna._analiza_osnov;
+  var nedostajeList = Array.isArray(dna.nedostaje) ? dna.nedostaje : [];
+  if (osn || nedostajeList.length) {
+    var osnDelovi = [];
+    if (osn && typeof osn.dokumenata === 'number') osnDelovi.push(osn.dokumenata+' '+(osn.dokumenata===1?'dokument':'dokumenata'));
+    if (osn && typeof osn.cinjenica === 'number') osnDelovi.push(osn.cinjenica+' '+(osn.cinjenica===1?'činjenica':'činjenica'));
+    if (osn && typeof osn.pravnih_elemenata === 'number') osnDelovi.push(osn.pravnih_elemenata+' '+(osn.pravnih_elemenata===1?'pravni element':'pravnih elemenata'));
+    html += '<div style="margin-bottom:0.5rem;font-size:0.63rem;">';
+    if (osnDelovi.length) html += '<div style="color:rgba(255,255,255,0.45);">Na osnovu: ✓ '+osnDelovi.join(' · ✓ ')+'</div>';
+    if (nedostajeList.length) html += '<div style="color:rgba(255,255,255,0.35);">Nedostaje: ○ '+nedostajeList.slice(0,4).map(function(n){ return escHtml(n.dokument||''); }).join(' · ○ ')+'</div>';
+    html += '</div>';
+  }
+
   // Ako nema summary sadržaja, nema šta da se sažme — detaljna sekcija
   // se onda podrazumevano prikazuje otvorena (ništa se ne gubi iz vida).
   html += '<div id="genome-detalji-'+escHtml(predmetId||'')+'" style="display:'+(_sumHasContent?'none':'block')+';">';
@@ -16856,6 +16879,10 @@ function _caseDnaRender(dna, predmetId) {
       html += '<span style="color:'+sc_c+';font-weight:700;min-width:2rem;font-size:0.63rem;">'+sc+'</span>';
       html += '<span style="color:rgba(255,255,255,0.55);flex:1;font-size:0.63rem;">'+escHtml((d.naziv||'').slice(0,30));
       if (d.razlog) html += '<br><span class="vx-clamp-2" style="color:rgba(255,255,255,0.3);font-size:0.6rem;" title="Klikni za pun tekst" onclick="this.classList.toggle(\'vx-clamp-2\')">'+escHtml(d.razlog)+'</span>';
+      // T2.2 (P1.2, Trust Layer v1): rnStr (DOK-XX) je već izvor — ranije
+      // sitan monospace prefiks levo, lako se previdi. Dodat eksplicitan
+      // "Osnov:" red, isti podatak, jasnije obeležen kao izvor.
+      if (rnStr) html += '<br><span style="color:rgba(255,255,255,0.28);font-size:0.58rem;">Osnov: '+escHtml(rnStr)+'</span>';
       html += '</span></div>';
     });
     html += '</div>';
@@ -16869,6 +16896,19 @@ function _caseDnaRender(dna, predmetId) {
     html += '<div style="margin-bottom:0.5rem;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.25);border-left:3px solid '+ntBorderColor+';border-radius:2px;padding:0.35rem 0.5rem;">';
     html += '<div style="color:#f87171;font-size:0.62rem;letter-spacing:0.06em;margin-bottom:2px;">NAJSLABIJA TAČKA · '+ntKrit+'/100</div>';
     html += '<div style="color:#fca5a5;font-weight:600;">'+escHtml(nt.rizik)+'</div>';
+    // T3 (Trust Layer v1, 2026-07-19): "Sigurnost procene" — namerno
+    // GLOBALNA vrednost (genome_kompletnost, već postoji), ne
+    // po-tvrdnji granularna ocena — granularna bi zahtevala nov GPT
+    // poziv po tvrdnji, isti rizik profil kao odloženi P1.3. "Na osnovu"
+    // NAMERNO izostavljeno ovde — GPT još ne generiše self-referentnu
+    // vezu za najslabija_tacka (P1.3, odloženo do stvarnih predmeta).
+    // Bolje bez "Na osnovu" nego izmišljen "Na osnovu".
+    if (komp) {
+      html += '<div style="color:'+kc+';font-size:0.62rem;margin-top:3px;">Sigurnost procene: '+escHtml(komp.charAt(0).toUpperCase()+komp.slice(1))+'</div>';
+      if (komp !== 'visoka') {
+        html += '<div style="color:rgba(255,255,255,0.4);font-size:0.6rem;">Potrebna provera advokata.</div>';
+      }
+    }
     if (nt.preporuka) {
       html += '<div style="color:rgba(255,255,255,0.5);margin-top:2px;font-size:0.65rem;">→ '+escHtml(nt.preporuka)+'</div>';
     }
@@ -16943,9 +16983,15 @@ function _caseDnaRender(dna, predmetId) {
     html += '<div style="margin:0.4rem 0 0.1rem;color:#f87171;font-size:0.6rem;letter-spacing:0.06em;">⚠ KONTRADIKCIJE ('+kontr.length+')</div>';
     kontr.slice(0,3).forEach(function(k){
       var tc = k.tezina === 'kriticna' ? '#fca5a5' : '#fdba74';
-      html += '<div style="color:'+tc+';margin-bottom:1px;">• '+escHtml(k.opis||'')
-        +(k.lokacija_1 ? ' <span style="opacity:.4;font-size:.6rem;">['+escHtml(k.lokacija_1)+'↔'+escHtml(k.lokacija_2||'')+']</span>' : '')
-        +'</div>';
+      html += '<div style="color:'+tc+';margin-bottom:1px;">• '+escHtml(k.opis||'')+'</div>';
+      // T2.1 (P1.1, Trust Layer v1): eksplicitna "Osnov:" labela — podatak
+      // već postoji (routers/case_dna.py kontradikcije šema), samo bio
+      // sitno prikazan kao opaque sufiks. Ako lokacija nije popunjena
+      // (GPT nije siguran), ne prikazuje se ništa — bolje bez izvora
+      // nego lažni izvor.
+      if (k.lokacija_1) {
+        html += '<div style="color:rgba(255,255,255,0.35);font-size:0.6rem;margin-bottom:2px;margin-left:0.6rem;">Osnov: '+escHtml(k.lokacija_1)+' ↔ '+escHtml(k.lokacija_2||'')+'</div>';
+      }
     });
   }
 

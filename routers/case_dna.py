@@ -127,6 +127,10 @@ STROGA PRAVILA:
 - najslabija_tacka.kriticnost = 0-100 (100 = moze da unisti predmet).
 - strategija.scenariji: min 2, max 5 realnih scenarija.
 - nedostaje: samo ono sto ZAISTA nedostaje za dokazivanje. Prazna lista ako su svi kljucni dokazi prisutni.
+- kontradikcije.lokacija_1/lokacija_2: navedi TACAN "DOK-XX str.Y" SAMO ako je
+  strana eksplicitno vidljiva u tekstu dokumenta. Ako strana nije jasna,
+  navedi samo "DOK-XX" bez broja strane. Ako ni dokument nije jasan, ostavi
+  polje prazno — NIKAD ne nagadjaj ili izmisljaj lokaciju.
 - Srpski jezik. Ekavica obligatna — nikad ijekavica.
 - genome_kompletnost = visoka ako imas 3+ dokumenata sa jasnim cinjenicama."""
 
@@ -316,6 +320,34 @@ async def _save_genome_history(
         logger.warning("[GENOME] History save greška: %s", exc)
 
 
+async def _compute_analiza_osnov(supa, predmet_id: str, docs: list[dict]) -> dict:
+    """T1.3 / P0.5 (Trust Layer v1, 2026-07-19) — "AI ograničenja" panel:
+    na čemu se TAČNO zasniva ova analiza, ne procena nego brojanje
+    postojećih podataka. dokumenata/pravnih_elemenata dolaze iz docs
+    liste koja je vec ucitana za _extract_genome (nula dodatnih upita).
+    cinjenica dolazi iz predmet_dokazi (Evidence Vault, klasifikuj_i_sacuvaj)
+    — jedan lagan COUNT upit, isti obrazac kao corrections.py._maybe_update_
+    style_profile. Nikad ne baca izuzetak — advisory podatak, ne sme oboriti
+    Genome regeneraciju ako padne."""
+    try:
+        pravnih_n = sum(len(d.get("pravni_elementi") or []) for d in docs)
+        cnt = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokazi")
+                .select("id", count="exact")
+                .eq("predmet_id", predmet_id)
+                .is_("deleted_at", "null")
+                .execute()
+        )
+        return {
+            "dokumenata": len(docs),
+            "cinjenica": cnt.count or 0,
+            "pravnih_elemenata": pravnih_n,
+        }
+    except Exception as exc:
+        logger.warning("[GENOME] Analiza osnov greška (nije kritično): %s", exc)
+        return {"dokumenata": len(docs)}
+
+
 async def _emit_genome_event(
     supa, predmet_id: str, uid: str, genome: dict, trigger: str,
     prev_verzija: Optional[int] = None, verifikacija_odluka: Optional[str] = None,
@@ -391,7 +423,7 @@ async def _run_genome_background(
 
         dok_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb")
+                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb,pravni_elementi")
                 .eq("predmet_id", predmet_id)
                 .order("redni_broj")
                 .limit(10).execute()
@@ -408,6 +440,7 @@ async def _run_genome_background(
         # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
         if not genome.get("greska"):
             genome["_verifikacija"] = verify_genome(genome, docs)
+            genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
 
         # Snimi stari u istoriju
         await _save_genome_history(supa, predmet_id, uid, stari_genome, trigger)
@@ -514,7 +547,7 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
     try:
         dok_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb")
+                .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb,pravni_elementi")
                 .eq("predmet_id", predmet_id)
                 .order("redni_broj")
                 .limit(10).execute()
@@ -543,6 +576,7 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
     # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
     if not genome.get("greska"):
         genome["_verifikacija"] = verify_genome(genome, docs)
+        genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
 
     # Snimi stari Genome u istoriju
     await _save_genome_history(supa, predmet_id, uid, stari_genome, "manual_refresh")
