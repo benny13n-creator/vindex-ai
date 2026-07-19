@@ -14,6 +14,12 @@ dokument u nizu — USTAV PROCESA (kako se rad organizuje po tokovima, ne
 modulima; Definition of Done po toku; obavezno end-to-end testiranje).
 Taj dokument je otkrio D21/D22 ispod, prvi put registrovane ovde.
 
+**Druga dopuna (2026-07-19):** `VINDEX_OPERATING_SYSTEM_CONTRACTS.md`
+je sedmi dokument — UGOVOR (precizna specifikacija po toku: trigger/
+event/servisi/podaci/UI/audit/test, plus matematički izračunata
+Integration Coverage po toku — 67%/10%/29%/40%, ponderisan agregat 32%).
+Taj dokument je otkrio D23/D24 ispod.
+
 **Pravilo održavanja:** kad pilot feedback stigne, ažurira se OVAJ
 dokument (status promena, nova odluka dodata) — ne pišu se novi
 paralelni audit dokumenti za iste teme. Ako se otvori potpuno nova tema
@@ -164,6 +170,27 @@ organizuje šta čeka na redu KAD freeze prestane.
 - **Status: Blocked — kandidat za HITAN izuzetak od Beta Freeze-a,
   isti razlog kao D10/D11** (compliance rizik postoji nezavisno od
   pilot signala, ne nova funkcionalnost). Founderova odluka.
+
+### D23. Usklađivanje predloženog "predmet kao mašina stanja" sa postojećim Kanban statusom (novo, `VINDEX_OPERATING_SYSTEM_CONTRACTS.md`)
+
+- **Kontekst:** predložen 13-stanja lifecycle (Kreiran→...→Arhiviran)
+  za predmet je mnogo granularniji od postojećeg Kanban `_KANBAN_FAZE`
+  (5 faza) i ne poklapa se 1:1. Uvođenje novog statusa BEZ usklađivanja
+  bi stvorilo ČETVRTI paralelni "status predmeta" izvor istine (uz
+  Kanban, uz Genome `genome_kompletnost`, uz D21 rok-koncepte) — isti
+  tip problema kao D21.
+- **Status: Blocked (zavisi od pilota + arhitektonske odluke).** Ne
+  implementirati pre nego što se eksplicitno odluči: da li novi
+  lifecycle ZAMENJUJE Kanban, da li se Kanban IZVODI iz lifecycle-a, ili
+  ostaju namerno odvojeni sa jasnom podelom svrhe.
+
+### D24. Ne postoji `EventType` ni koncept za zatvaranje/pravosnažnost predmeta
+
+- **Kontekst:** za razliku od ostalih "nedostajućih" eventova (koji BAR
+  postoje kao definicija u enum-u), za "predmet zatvoren"/"predmet
+  postao pravosnažan" ne postoji čak ni definicija.
+- **Status: Blocked (zavisi od D23).** Definisati tek kad se odluči
+  kako se ovo stanje uopšte modeluje.
 
 ---
 
