@@ -9,6 +9,11 @@ i `NOVI_PREDMET_CHOOSER_ANALYSIS.md` da bi se rekonstruisalo šta je već
 odlučeno. Ti dokumenti ostaju kao dubinski dokaz iza svake odluke ovde
 — ovaj dokument je INDEKS ODLUKA, ne zamena za njihov detalj.
 
+**Dopuna (2026-07-19):** `VINDEX_INTEGRATION_MASTER_PLAN.md` je šesti
+dokument u nizu — USTAV PROCESA (kako se rad organizuje po tokovima, ne
+modulima; Definition of Done po toku; obavezno end-to-end testiranje).
+Taj dokument je otkrio D21/D22 ispod, prvi put registrovane ovde.
+
 **Pravilo održavanja:** kad pilot feedback stigne, ažurira se OVAJ
 dokument (status promena, nova odluka dodata) — ne pišu se novi
 paralelni audit dokumenti za iste teme. Ako se otvori potpuno nova tema
@@ -134,6 +139,31 @@ organizuje šta čeka na redu KAD freeze prestane.
   (dodatni GPT troškovi po predmetu, treba meriti).
 - **Status: Deferred (posle beta feedback-a), zavisi tehnički od D3
   ali se meri nezavisno.**
+
+### D21. Jedinstven izvor istine za rokove (novo, `VINDEX_INTEGRATION_MASTER_PLAN.md`)
+
+- **Kontekst:** reorganizacija po tokovima (ne modulima) otkrila je
+  TRI paralelna, nesinhronizovana "rok" koncepta: `predmet_hronologija`
+  (piše ZPP lanac/follow-up/GPT ekstrakcija), `rokovi` tabela (čita je
+  Guardian + 6 drugih modula, nijedan pisac nađen), `zadaci.rok_datum`
+  (sopstveni rok pojedinačnog zadatka, potpuno nezavisan).
+- **Status: Blocked (zavisi od D2, prethodi D6/D7/D8 sadržajno).** Pre
+  nego što se ijedna veza iz D6-D9 implementira sa STVARNIM sadržajem,
+  mora se odlučiti koji izvor postaje jedini — arhitektonska odluka,
+  ne detalj, utiče na redosled cele Faze 3.
+
+### D22. Core audit trail akcije (formalizovano iz Roadmap-a)
+
+- **Kontekst:** od 24 dozvoljene akcije u `AUDITABLE_ACTIONS`, samo 3
+  se stvarno pozivaju. `predmet_create`, `dokument_upload`,
+  `klijent_create`, `login_success/failed` nikad ne ostavljaju trag,
+  uprkos GDPR referenci u kodu. Dodatno potvrđeno u Integration Master
+  Plan-u: `audit_immutable` tabelu **ništa nikad ne čita nazad**
+  (0 poziva van `log_action` definicije) — čak i kad bi se popunila,
+  nema Analytics/dashboard koji bi je iskoristio.
+- **Status: Blocked — kandidat za HITAN izuzetak od Beta Freeze-a,
+  isti razlog kao D10/D11** (compliance rizik postoji nezavisno od
+  pilot signala, ne nova funkcionalnost). Founderova odluka.
 
 ---
 
