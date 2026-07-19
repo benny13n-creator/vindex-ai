@@ -1466,7 +1466,7 @@ function _dashRender(d,bd,inboxData){
   html+='<div class="kc-topbar-right">';
   html+='<div class="kc-search" title="Globalna pretraga — dolazi uskoro"><span class="kc-search-icon">⌕</span><span class="kc-search-ph">Pretraži predmete, klijente...</span><span class="kc-search-kbd">⌘K</span></div>';
   html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(74,168,255,.25);border-radius:7px;background:rgba(74,168,255,.07);color:#89c8ff;cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">Izveštaj</button>';
-  html+='<button class="kc-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
+  html+='<button class="kc-new-btn" onclick="novPredmetOtvori()">+ Novi predmet</button>';
   html+='</div></div>';
 
   // ── LAW FIRM HEALTH INDEX — hero element, puni se async ───────
@@ -1896,7 +1896,7 @@ _dashRender = function(d, bd, inboxData) {
 
   /* ── 2. QUICK ACTIONS — 4 kartice ─────────────────────────── */
   html += '<div class="kc-qa-bar">';
-  html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase');
+  html += '<button class="kc-qa-btn" onclick="novPredmetOtvori()">'+_kcIco('briefcase');
   html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi predmet</div><div class="kc-qa-btn-desc">Kreiraj novi predmet</div></div></button>';
   html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus');
   html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi klijent</div><div class="kc-qa-btn-desc">Dodaj novog klijenta</div></div></button>';
@@ -12766,7 +12766,7 @@ var _cmdkResults   = [];
 var _cmdkFocusIdx  = -1;
 
 var _CMDK_ACTIONS = [
-  { label: 'Novi predmet', sub: 'Otvori wizard za unos predmeta', action: 'intakeOtvori()' },
+  { label: 'Novi predmet', sub: 'Iz dokumenta ili ručni unos', action: 'novPredmetOtvori()' },
   { label: 'Dodaj dokument', sub: 'Otpremi dokument u predmet', action: 'pred_subtabSwitch && activePredmetId ? pred_subtabSwitch("dokumenti") : setTab(document.getElementById("tab-btn-p"),"p")' },
   { label: 'Pitaj AI', sub: 'Istraži zakon ili sudsku praksu', action: 'openAITool("q")' },
   { label: 'Novi rok', sub: 'Dodaj ročište ili rok u predmet', action: 'activePredmetId ? pred_subtabSwitch("rokovi") : setTab(document.getElementById("tab-btn-p"),"p")' },
@@ -19462,6 +19462,359 @@ var _iDirty       = false;
 var _iSearchTimer = null;
 
 var _INTAKE_STEP_LABELS = ['Klijent','Opis problema','Dokumenti','Analiza','Predlog'];
+
+// ─── Novi predmet — chooser (Iz dokumenta = primarni AI tok, Ručni unos = fallback) ───
+// Founder direktiva (2026-07-16): Smart Intake se dodaje kao PARALELNI tok,
+// pozicioniran kao primarni, ne kao "beta"/"eksperimentalno". Stari CRM
+// wizard (intakeOtvori, iznad) ostaje netaknut kao fallback dok se ne
+// prikupi ≥50 realnih korišćenja i metrika neuspeha (event tracking ispod).
+
+function novPredmetOtvori() {
+  if (!currentSession) { openModal(); return; }
+  var ov = document.getElementById('np-chooser-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'np-chooser-overlay';
+    ov.className = 'vx-modal-overlay';
+    ov.setAttribute('onclick', "if(event.target===this)npChooserClose()");
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML =
+    '<div class="vx-modal" style="width:min(560px,92vw);padding:1.5rem;" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;">' +
+        '<div style="font-size:1.02rem;font-weight:600;color:var(--vx-text-primary);">Novi predmet</div>' +
+        '<button class="vx-modal-close" onclick="npChooserClose()">&#x2715;</button>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:.6rem;">' +
+        _npChoiceCard('file-up', 'Iz dokumenta', 'Otpremite tužbu, rešenje ili ugovor i Vindex automatski kreira predmet.', 'npChooseSmart()') +
+        _npChoiceCard('list-checks', 'Ručni unos', 'Klasično kreiranje predmeta korak po korak.', 'npChooseManual()') +
+      '</div>' +
+    '</div>';
+  ov.style.display = 'flex';
+  if (window.lucide) lucide.createIcons();
+}
+
+function _npChoiceCard(icon, title, desc, onclickFn) {
+  return '<button onclick="' + onclickFn + '" style="display:flex;align-items:flex-start;gap:.75rem;text-align:left;padding:.9rem 1rem;background:var(--vx-bg-elevated);border:1px solid var(--vx-border-strong);border-radius:var(--vx-radius-lg);color:var(--vx-text-primary);cursor:pointer;font-family:inherit;transition:border-color .15s;" ' +
+    'onmouseover="this.style.borderColor=\'var(--vx-accent)\'" onmouseout="this.style.borderColor=\'var(--vx-border-strong)\'">' +
+    '<i data-lucide="' + icon + '" style="flex-shrink:0;margin-top:2px;width:18px;height:18px;color:var(--vx-accent);"></i>' +
+    '<div><div style="font-size:.88rem;font-weight:600;margin-bottom:2px;">' + title + '</div>' +
+    '<div style="font-size:.76rem;color:var(--vx-text-secondary);line-height:1.4;">' + desc + '</div></div>' +
+    '</button>';
+}
+
+function npChooserClose() {
+  var ov = document.getElementById('np-chooser-overlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function npChooseManual() {
+  npChooserClose();
+  piTrack('novi_predmet_flow', 'manual_intake_selected');
+  intakeOtvori();
+}
+
+function npChooseSmart() {
+  npChooserClose();
+  piTrack('novi_predmet_flow', 'smart_intake_started');
+  smartIntakeOtvori();
+}
+
+// ─── Smart Intake — "Iz dokumenta" upload-first tok ────────────────────────────
+var _siState = { jobId: null, pollTimer: null, pollAttempts: 0, entities: [], document: null, finalized: false };
+
+function smartIntakeOtvori() {
+  _siState = { jobId: null, pollTimer: null, pollAttempts: 0, entities: [], document: null, finalized: false };
+  var ov = _siEnsureOverlay();
+  _siRenderUpload();
+  ov.style.display = 'flex';
+}
+
+function _siEnsureOverlay() {
+  var ov = document.getElementById('si-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'si-overlay';
+    ov.className = 'vx-modal-overlay';
+    ov.setAttribute('onclick', "if(event.target===this)siClose()");
+    document.body.appendChild(ov);
+  }
+  return ov;
+}
+
+function _siShell(bodyHtml) {
+  return '<div class="vx-modal" style="width:min(620px,94vw);max-height:86vh;overflow-y:auto;padding:1.5rem;" onclick="event.stopPropagation()">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;">' +
+      '<div style="font-size:1.02rem;font-weight:600;color:var(--vx-text-primary);">Novi predmet — iz dokumenta</div>' +
+      '<button class="vx-modal-close" onclick="siClose()">&#x2715;</button>' +
+    '</div>' + bodyHtml + '</div>';
+}
+
+function _siLoadingHtml(label) {
+  return '<div class="pipeline-loading" style="padding:2.6rem 1rem;">' +
+    '<div class="pipeline-spinner"></div>' +
+    '<div style="font-size:.84rem;color:rgba(255,255,255,0.55);">' + label + '</div>' +
+  '</div>';
+}
+
+function siClose() {
+  if (_siState.pollTimer) { clearTimeout(_siState.pollTimer); _siState.pollTimer = null; }
+  if (!_siState.finalized && _siState.jobId) {
+    piTrack('novi_predmet_flow', 'smart_intake_abandoned', {job_id: _siState.jobId});
+  }
+  var ov = document.getElementById('si-overlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function siFallbackManual() {
+  if (_siState.jobId) {
+    piTrack('novi_predmet_flow', 'manual_after_smart_failure', {job_id: _siState.jobId});
+  } else {
+    piTrack('novi_predmet_flow', 'manual_intake_selected');
+  }
+  _siState.finalized = true; // spreči duplirani 'abandoned' event iz siClose()
+  siClose();
+  intakeOtvori();
+}
+
+function _siRenderUpload() {
+  var ov = document.getElementById('si-overlay');
+  ov.innerHTML = _siShell(
+    '<div id="si-dropzone" onclick="document.getElementById(\'si-file-input\').click()" ' +
+      'ondragover="event.preventDefault();this.style.borderColor=\'var(--vx-accent)\'" ' +
+      'ondragleave="this.style.borderColor=\'var(--vx-border-strong)\'" ' +
+      'ondrop="event.preventDefault();this.style.borderColor=\'var(--vx-border-strong)\';siFileChosen(event.dataTransfer.files[0])" ' +
+      'style="border:1px dashed var(--vx-border-strong);border-radius:var(--vx-radius-lg);padding:2.4rem 1rem;text-align:center;cursor:pointer;">' +
+      '<i data-lucide="upload-cloud" style="width:26px;height:26px;color:var(--vx-text-secondary);margin-bottom:.6rem;"></i>' +
+      '<div style="font-size:.86rem;color:var(--vx-text-primary);margin-bottom:.25rem;">Prevucite dokument ovde ili kliknite da izaberete</div>' +
+      '<div style="font-size:.72rem;color:var(--vx-text-secondary);">PDF, DOCX ili TXT — do 25MB</div>' +
+    '</div>' +
+    '<input type="file" id="si-file-input" accept=".pdf,.docx,.txt" style="display:none" onchange="siFileChosen(this.files[0])">' +
+    '<div style="margin-top:1rem;text-align:center;">' +
+      '<button onclick="siFallbackManual()" style="background:none;border:none;color:var(--vx-text-secondary);font-size:.74rem;cursor:pointer;text-decoration:underline;font-family:inherit;">Radije ručni unos</button>' +
+    '</div>'
+  );
+  if (window.lucide) lucide.createIcons();
+}
+
+function _siRenderError(msg) {
+  var ov = document.getElementById('si-overlay');
+  ov.innerHTML = _siShell(
+    '<div style="text-align:center;padding:1.5rem 1rem;">' +
+      '<div style="font-size:.84rem;color:rgba(255,110,110,0.85);margin-bottom:1.2rem;">' + escHtml(msg) + '</div>' +
+      '<button onclick="siFallbackManual()" style="padding:.55rem 1.3rem;background:rgba(0,212,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:rgba(255,255,255,0.72);font-size:.78rem;cursor:pointer;font-family:inherit;margin-right:.5rem;">Pokušaj ručno</button>' +
+      '<button onclick="_siRenderUpload()" style="padding:.55rem 1.3rem;background:none;border:1px solid var(--vx-border-strong);border-radius:2px;color:var(--vx-text-secondary);font-size:.78rem;cursor:pointer;font-family:inherit;">Pokušaj ponovo</button>' +
+    '</div>'
+  );
+}
+
+async function siFileChosen(file) {
+  if (!file) return;
+  var ov = document.getElementById('si-overlay');
+  ov.innerHTML = _siShell(_siLoadingHtml('Otpremam dokument...'));
+
+  try {
+    var fd = new FormData();
+    fd.append('files', file);
+    var r = await fetch(BASE_URL + '/api/smart-intake/documents', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: fd
+    });
+    var data = await r.json();
+    var rez = (data.rezultati || [])[0];
+    if (!r.ok || !rez || !rez.ok) {
+      throw new Error((rez && rez.greska) || 'Greška pri otpremanju dokumenta.');
+    }
+    _siState.jobId = rez.job_id;
+    ov.innerHTML = _siShell(_siLoadingHtml('Obrađujem dokument — klasifikacija i ekstrakcija podataka...'));
+    _siState.pollAttempts = 0;
+    _siPoll();
+  } catch (e) {
+    _siRenderError(e.message || 'Greška pri otpremanju dokumenta.');
+  }
+}
+
+async function _siPoll() {
+  if (!_siState.jobId) return;
+  _siState.pollAttempts++;
+  if (_siState.pollAttempts > 40) { // ~80s na 2s interval — razuman gornji limit za sinhrono čekanje u UI-ju
+    _siRenderError('Obrada traje duže nego obično. Dokument je i dalje u redu za obradu — pokušajte ponovo za koji trenutak, ili nastavite ručno.');
+    return;
+  }
+  try {
+    var r = await fetch(BASE_URL + '/api/smart-intake/jobs/' + _siState.jobId, {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    var data = await r.json();
+    if (!r.ok) throw new Error('Greška pri proveri statusa.');
+
+    var status = data.job && data.job.status;
+    if (status === 'failed') {
+      _siRenderError((data.job && data.job.last_error) || 'Obrada dokumenta nije uspela.');
+      return;
+    }
+    if (status === 'completed') {
+      _siState.document = data.dokument;
+      _siState.entities = data.entiteti || [];
+      _siRenderResult(data);
+      return;
+    }
+    _siState.pollTimer = setTimeout(_siPoll, 2000);
+  } catch (e) {
+    _siState.pollTimer = setTimeout(_siPoll, 2000);
+  }
+}
+
+var _SI_DOC_TYPE_LABELS = {
+  lawsuit: 'Tužba', response: 'Odgovor na tužbu', appeal: 'Žalba', judgment: 'Presuda',
+  contract: 'Ugovor', invoice: 'Faktura', power_of_attorney: 'Punomoćje', evidence: 'Dokaz',
+  email: 'Email', court_decision: 'Sudska odluka', enforcement: 'Izvršenje',
+  legal_opinion: 'Pravno mišljenje', other: 'Dokument'
+};
+var _SI_ENTITY_LABELS = {
+  case_number: 'Broj predmeta', judge: 'Sudija', plaintiff: 'Tužilac', defendant: 'Tuženi',
+  court: 'Sud/organ', deadline: 'Rok', amount: 'Iznos', law_cited: 'Zakon'
+};
+
+// T1.1/T1.2 (Trust Layer v1, 2026-07-19): kategorijski prikaz confidence-a,
+// NAMERNO ne "AI preciznost/accuracy" — confidence nije isto što i
+// tačnost, founderova eksplicitna korekcija. Isti pragovi kao postojeći
+// AUTO_ACCEPT_THRESHOLD=0.90 na backendu (shared/intake_documents.py),
+// samo dodaje srednji stepen za nijansu koju binarni needs_review nema.
+// T1.1/T1.2 (Trust Layer v1, dovršeno 2026-07-19 posle founderove
+// revizije formata): jedan kompaktan "Analiza dokumenta" blok umesto
+// per-polje dekoracije — manje vizuelnog šuma, isti podatak. NAMERNO
+// izostavljeno: OCR confidence (nije stvarno mereno, vidi
+// KNOWN_RELIABILITY_RISKS.md/TRUST_LAYER_IMPLEMENTATION_PLAN.md P0.3),
+// "AI preciznost/accuracy" formulacija (confidence nije tačnost).
+function _siConfidenceLabel(conf) {
+  if (typeof conf !== 'number') return null;
+  var pct = Math.round(conf * 100);
+  if (conf >= 0.90) return { tekst: 'Visoka sigurnost', preporuka: 'Automatski prihvatljivo', boja: '#4ade80', pct: pct };
+  if (conf >= 0.70) return { tekst: 'Srednja sigurnost', preporuka: 'Preporučena provera', boja: '#fbbf24', pct: pct };
+  return { tekst: 'Niska sigurnost', preporuka: 'Potrebna provera', boja: '#f87171', pct: pct };
+}
+
+function _siRenderResult(data) {
+  var ov = document.getElementById('si-overlay');
+  var doc = data.dokument || {};
+  var tipLabel = _SI_DOC_TYPE_LABELS[doc.tip] || 'Dokument';
+  var entiteti = data.entiteti || [];
+
+  var hasPlaintiff = entiteti.some(function(e){ return e.entity_type === 'plaintiff' && e.value; });
+  var hasDefendant = entiteti.some(function(e){ return e.entity_type === 'defendant' && e.value; });
+
+  var html = '<div style="margin-bottom:1rem;padding:.7rem .9rem;background:var(--vx-bg-elevated);border:1px solid var(--vx-border-strong);border-radius:var(--vx-radius-lg);">' +
+    '<div style="font-size:.68rem;color:var(--vx-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Prepoznat tip dokumenta</div>' +
+    '<div style="font-size:.92rem;font-weight:600;color:var(--vx-text-primary);">' + escHtml(tipLabel) + '</div>' +
+  '</div>';
+
+  // "Analiza dokumenta" — jedan sažet blok, 3 reda max: Vrsta/Entiteti/
+  // Status. Entiteti = prosek confidence-a preko svih izvučenih polja
+  // (jedan broj, ne po-polje dekoracija). Status koristi NAJGORU od dve
+  // vrednosti — konzervativno, ne optimistički prosek.
+  var tipConf = _siConfidenceLabel(doc.tip_pouzdanost);
+  var entScores = entiteti.map(function(e){ return e.confidence; }).filter(function(c){ return typeof c === 'number'; });
+  var entAvg = entScores.length ? entScores.reduce(function(a,b){ return a+b; }, 0) / entScores.length : null;
+  var entConf = _siConfidenceLabel(entAvg);
+  var statusConf = (tipConf && entConf) ? _siConfidenceLabel(Math.min(doc.tip_pouzdanost, entAvg)) : (tipConf || entConf);
+  if (tipConf || entConf) {
+    html += '<div style="margin-bottom:1rem;padding:.7rem .9rem;background:var(--vx-bg-elevated);border:1px solid var(--vx-border-strong);border-radius:var(--vx-radius-lg);font-size:.78rem;">';
+    html += '<div style="font-size:.68rem;color:var(--vx-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">Analiza dokumenta</div>';
+    if (tipConf) html += '<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:var(--vx-text-secondary);">Vrsta dokumenta</span><span style="color:'+tipConf.boja+';font-weight:600;">'+tipConf.pct+'% sigurnost</span></div>';
+    if (entConf) html += '<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:var(--vx-text-secondary);">Entiteti</span><span style="color:'+entConf.boja+';font-weight:600;">'+entConf.pct+'% sigurnost</span></div>';
+    if (statusConf) html += '<div style="display:flex;justify-content:space-between;margin-top:.35rem;padding-top:.35rem;border-top:1px solid var(--vx-border-strong);"><span style="color:var(--vx-text-secondary);">Status</span><span style="color:'+statusConf.boja+';font-weight:600;">'+statusConf.preporuka+'</span></div>';
+    html += '</div>';
+  }
+
+  if (entiteti.length) {
+    html += '<div style="font-size:.7rem;color:var(--vx-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">Izvučeni podaci</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:1.1rem;">';
+    entiteti.forEach(function(e){
+      var label = _SI_ENTITY_LABELS[e.entity_type] || e.entity_type;
+      var needsReview = e.needs_review;
+      html += '<div style="display:flex;align-items:center;gap:.6rem;padding:.4rem .6rem;border-radius:var(--vx-radius-sm);' +
+        (needsReview ? 'background:rgba(255,180,60,0.06);border:1px solid rgba(255,180,60,0.22);' : 'background:transparent;') + '">' +
+        '<div style="width:110px;flex-shrink:0;font-size:.74rem;color:var(--vx-text-secondary);">' + escHtml(label) +
+          (needsReview ? ' <span title="Niska pouzdanost — proverite">⚠</span>' : '') + '</div>' +
+        '<input type="text" id="si-ent-' + e.entity_type + '" value="' + escHtml(e.value || '') + '" placeholder="—" ' +
+          'style="flex:1;background:rgba(255,255,255,0.03);border:1px solid var(--vx-border-strong);border-radius:var(--vx-radius-sm);color:var(--vx-text-primary);font-size:.78rem;padding:.3rem .5rem;font-family:inherit;">' +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
+  if (hasPlaintiff || hasDefendant) {
+    html += '<div style="font-size:.7rem;color:var(--vx-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">Koga zastupate?</div>';
+    html += '<div style="display:flex;gap:.5rem;margin-bottom:1.2rem;flex-wrap:wrap;">';
+    if (hasPlaintiff) html += '<label style="display:flex;align-items:center;gap:.35rem;font-size:.78rem;color:var(--vx-text-primary);cursor:pointer;"><input type="radio" name="si-klijent-strana" value="plaintiff">Tužioca</label>';
+    if (hasDefendant) html += '<label style="display:flex;align-items:center;gap:.35rem;font-size:.78rem;color:var(--vx-text-primary);cursor:pointer;"><input type="radio" name="si-klijent-strana" value="defendant">Tuženog</label>';
+    html += '<label style="display:flex;align-items:center;gap:.35rem;font-size:.78rem;color:var(--vx-text-secondary);cursor:pointer;"><input type="radio" name="si-klijent-strana" value="" checked>Preskoči</label>';
+    html += '</div>';
+  }
+
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding-top:.4rem;border-top:1px solid var(--vx-border-strong);">' +
+    '<button onclick="siFallbackManual()" style="background:none;border:none;color:var(--vx-text-secondary);font-size:.74rem;cursor:pointer;text-decoration:underline;font-family:inherit;">Radije ručni unos</button>' +
+    '<button id="si-finalize-btn" onclick="siFinalize()" style="padding:.6rem 1.4rem;background:var(--vx-accent);border:none;border-radius:var(--vx-radius-sm);color:#00131a;font-weight:600;font-size:.82rem;cursor:pointer;font-family:inherit;">Kreiraj predmet</button>' +
+  '</div>';
+
+  ov.innerHTML = _siShell(html);
+}
+
+async function siFinalize() {
+  var btn = document.getElementById('si-finalize-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Kreiram predmet...'; }
+
+  // Primeni sve ručne ispravke pre finalize-a (best-effort, 10-sekundna ispravka)
+  var correctPromises = (_siState.entities || []).map(function(e) {
+    var input = document.getElementById('si-ent-' + e.entity_type);
+    if (!input) return Promise.resolve();
+    var newVal = input.value.trim();
+    if (newVal === (e.value || '')) return Promise.resolve();
+    return _siCorrectEntityId(e, newVal);
+  });
+  try { await Promise.all(correctPromises); } catch (e) {}
+
+  var strana = null;
+  var radios = document.getElementsByName('si-klijent-strana');
+  for (var i = 0; i < radios.length; i++) {
+    if (radios[i].checked && radios[i].value) { strana = radios[i].value; break; }
+  }
+
+  try {
+    var r = await fetch(BASE_URL + '/api/smart-intake/jobs/' + _siState.jobId + '/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ klijent_strana: strana })
+    });
+    var data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.detail || 'Kreiranje predmeta nije uspelo.');
+
+    _siState.finalized = true;
+    showToast('Predmet kreiran: ' + data.naziv, 'success');
+    siClose();
+    intakeHistOtvoriPredmet(data.predmet_id);
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Kreiraj predmet'; }
+    showToast(e.message || 'Kreiranje predmeta nije uspelo.', 'error');
+  }
+}
+
+async function _siCorrectEntityId(entity, correctedValue) {
+  // entity_id nije u GET /jobs/{id} odgovoru (samo entity_type/value) — nadji
+  // ga preko istog odgovora ako je prosleđen, inače preskoči (finalize svejedno
+  // koristi vrednost iz input polja preko naziva/opisa, ovo je samo za
+  // Confidence Graph istoriju ispravki).
+  if (!entity.entity_id) return;
+  try {
+    await fetch(BASE_URL + '/api/smart-intake/entities/' + entity.entity_id + '/correct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ corrected_value: correctedValue })
+    });
+  } catch (e) {}
+}
 
 function intakeOtvori() {
   if (!currentSession) { openModal(); return; }
