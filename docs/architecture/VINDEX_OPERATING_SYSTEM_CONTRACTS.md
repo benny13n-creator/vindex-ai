@@ -206,12 +206,33 @@ automatizovan) ili **dopuna** (vredan, ali odsustvo ne čini tok
 neupotrebljivim danas). Critical Coverage = ista formula, samo nad
 podskupom kritičnih koraka.
 
-| Tok | Coverage | Critical Coverage | Neprovereno |
-|---|---|---|---|
-| CONTRACT 01 — Upload tužbe | 4/6 = **67%** | 3/3 = **100%** | 0 |
-| CONTRACT 02 — Upload presude | 1/10 = **10%** | 1/6 = **17%** | 0 |
-| CONTRACT 03 — Dodavanje ročišta | 2/7 = **29%** | 2/3 = **67%** | 1 (audit stavka) |
-| CONTRACT 04 — Zatvaranje predmeta | 2/5 = **40%** | 1/2 = **50%** | 3 (style profile, firm stat, audit) |
+**Treća dimenzija — Verified Coverage (dodato 2026-07-19, founderov
+zahtev):** "radi u kodu" ≠ "dokazano radi end-to-end". Verified znači
+sve troje: (1) prošao automatizovan test, (2) prošao ručni test, (3)
+prošao realan pilot scenario. Dok bilo šta od ta tri nedostaje, korak
+NE dobija Verified poen — bez obzira koliko je implementacija sama po
+sebi ispravna. Ovo sprečava da se nešto proglasi "gotovim" samo zato
+što je napisano.
+
+**Danas, 2026-07-19: Verified Coverage = 0% za sva 4 toka, bez
+izuzetka.** Ovo nije greška u računu — Beta Freeze je na snazi, nijedna
+G-stavka nije zatvorena, nijedan E2E test nije napisan ni pokrenut,
+nijedan pilot scenario se nije desio. Ova nula je tačna i namerna
+polazna tačka, ne propust.
+
+| Tok | Coverage | Critical Coverage | Verified Coverage | Neprovereno |
+|---|---|---|---|---|
+| CONTRACT 01 — Upload tužbe | 4/6 = **67%** | 3/3 = **100%** | **0%** | 0 |
+| CONTRACT 02 — Upload presude | 1/10 = **10%** | 1/6 = **17%** | **0%** | 0 |
+| CONTRACT 03 — Dodavanje ročišta | 2/7 = **29%** | 2/3 = **67%** | **0%** | 1 (audit stavka) |
+| CONTRACT 04 — Zatvaranje predmeta | 2/5 = **40%** | 1/2 = **50%** | **0%** | 3 (style profile, firm stat, audit) |
+
+**Kako Verified Coverage raste:** SAMO kad se G-stavka iz
+`VINDEX_OPERATIONAL_GAP_REGISTER.md` zatvori PO protokolu definisanom
+tamo (diff + test dokaz + KPI ažuriran) — nikad ručnim upisom broja bez
+dokaza. Dok Verified zaostaje značajno za Coverage, to je zdrav signal
+da je nešto implementirano ali nedovoljno testirano — treba zatvoriti
+taj jaz PRE nego što se pređe na sledeći gap, ne posle.
 
 **Čitanje ove tabele, direktno:** Tok 1 je VEĆ danas dovoljno dobar za
 osnovno pilot iskustvo (100% kritično) iako Coverage izgleda nepotpuno

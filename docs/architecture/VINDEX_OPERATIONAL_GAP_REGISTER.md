@@ -55,6 +55,42 @@ dubok dokaz (file:line) za svaki red je tamo, ne ponovljen ovde.
 - Novi gap otkriven u budućoj implementaciji dobija sledeći slobodan
   G-broj (G-026+) — ne prepravlja se numeracija postojećih.
 
+## Protokol zatvaranja G-stavke (2026-07-19, founderov zahtev — obavezan format)
+
+Rad se od sada ne zadaje kao "implementiraj feature" — zadaje se kao
+**"zatvori G-XXX"**. Kad je G-stavka zatvorena, izveštaj MORA sadržati
+svih 6 elemenata, ne manje:
+
+1. **Diff** — tačna izmena koda.
+2. **Koji CONTRACT je promenjen** — koja tabela/red u
+   `VINDEX_OPERATING_SYSTEM_CONTRACTS.md` Deo B se ažurira.
+3. **Koji KPI se promenio** — novi Coverage/Critical Coverage/Verified
+   Coverage brojevi, sa računicom (ne samo novi broj — stara i nova
+   vrednost).
+4. **Koji testovi su pokrenuti** — automatizovan test rezultat, ručni
+   test opis, (kad primenjivo) pilot scenario status.
+5. **Koje G-stavke su zatvorene** — može biti više od jedne ako je
+   izmena rešila lančanu zavisnost.
+6. **Potvrda da nisu otvorene nove G-stavke slučajno** — ili
+   eksplicitna lista ako jesu (novi gap otkriven tokom rada je
+   normalan i očekivan ishod, ne greška — ali mora biti prijavljen, ne
+   prećutan).
+
+Zatvaranje bez svih 6 elemenata se ne broji kao zatvaranje — status
+ostaje Open dok izveštaj nije kompletan.
+
+## Pravilo redosleda rada (founderov zahtev)
+
+**Dok postoji Open G-stavka koja prekida OSNOVNI operativni tok** (bilo
+koja stavka bez "Needs verification" oznake, u bilo kom od 4
+CONTRACT-a) **, ne razvija se nijedna nova funkcija.** Redosled je:
+zatvori prekid → dokaži da radi (Verified Coverage raste) → ažuriraj
+KPI → tek onda sledeći prekid. Ovo ne znači da se nikad više ne dodaju
+nove mogućnosti — znači da G-registar ima prioritet nad svakim novim
+predlogom dok je bar jedna osnovna stavka Open. Redosled zatvaranja
+prati zavisnosti već utvrđene u `VINDEX_2_1_ARCHITECTURE_ROADMAP.md`
+Deo E (infrastruktura → semantička preciznost → povezivanje).
+
 ## Kad je ovaj registar "gotov"
 
 Kad nema više Open/Blocked/Needs-verification stavki — u tom trenutku
