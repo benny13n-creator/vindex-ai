@@ -9403,3 +9403,14 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
   border-color: rgba(0,212,255,0.4) !important;
   background: rgba(0,212,255,0.05) !important;
 }
+
+/* ── vx-clamp-2 — Case Genome objašnjivost (P0-5, 2026-07-19): puno
+   objašnjenje se ne seče na tvrd broj karaktera, nego skuplja na 2 reda
+   sa native ellipsis; klik na tekst prikazuje ostatak. ─────────────────── */
+.vx-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+}

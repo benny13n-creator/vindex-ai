@@ -169,6 +169,22 @@ je viđen da pobeđuje u sukobu sa drugim prioritetima (brzinom, ambicijom,
 7. **Regionalni, ne generički identitet.** Srpski jezik (ekavica
    obligatorna), srpsko/regionalno pravo, Bloomberg-stil vizuelni jezik —
    Vindex AI ne izgleda niti zvuči kao prevod globalnog proizvoda.
+8. **Svaki UI element mora opravdati svoje postojanje.** Direktan
+   founder-ov dodatak (2026-07-19, iz UX audita). Nova komponenta sme da
+   postoji samo ako: povećava poverenje, ubrzava rad, sprečava grešku,
+   ili vodi korisnika ka sledećem koraku. Ako odgovor na sva četiri pitanja
+   je "ne" — element ne ulazi u proizvod, bez obzira koliko izgleda
+   dobro. Praktična posledica: svaka nova komponenta u implementaciji mora
+   imati par — šta je UKLONJENO ili pojednostavljeno da bi napravilo
+   mesta za nju. "Dodali smo X, nismo ništa uklonili" je signal da UI
+   postaje kompleksniji, ne bolji.
+9. **UX je gotov tek kad korisnik ne mora da razmišlja, ne mora da
+   pogađa, ne mora da pamti.** Direktan founder-ov dodatak (2026-07-19,
+   "Pravilo 0"). Lep izgled nije završen posao. Test za svaku UX
+   izmenu: da li korisnik u tom trenutku zna šta se dešava i šta je
+   sledeći korak, bez potrebe da nagađa ili se seti nečega sa drugog
+   ekrana? Ako ne — izmena nije gotova, bez obzira koliko vizuelno
+   uglađena izgleda.
 
 ---
 

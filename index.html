@@ -1548,7 +1548,7 @@
                 <div class="vx-section-lbl" style="margin:1rem 0 .4rem;">Case Intelligence</div>
                 <div style="margin-bottom:1.2rem;">
                   <button onclick="_voice_refresh_case_dna(activePredmetId);return false;" id="case-dna-refresh-btn" class="vx-btn vx-btn-secondary" style="width:100%;">Generiši / osveži procenu predmeta</button>
-                  <div style="font-size:.66rem;color:rgba(255,255,255,.28);text-align:center;margin-top:.35rem;">Obično traje 15–20 sekundi — AI čita sve dokumente predmeta.</div>
+                  <div id="case-dna-refresh-hint" style="font-size:.66rem;color:rgba(255,255,255,.28);text-align:center;margin-top:.35rem;">Obično traje 15–20 sekundi — AI čita sve dokumente predmeta.</div>
                   <div id="case-dna-panel-mount" class="vx-card" style="display:none;margin-top:.6rem;"></div>
                 </div>
 
@@ -1869,7 +1869,7 @@
                 <div class="vx-exec-header-actions">
                   <button class="crm-add-btn" onclick="crmCheckKonfliktOtvori()" style="background:rgba(255,180,50,0.1);border-color:rgba(255,180,50,0.3);color:#ffd080;">⚠ Konflikt</button>
                   <button class="crm-add-btn" onclick="crmCsvImportOtvori()" style="background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.09);color:rgba(255,255,255,0.65);">CSV</button>
-                  <button class="vx-btn vx-btn-primary" onclick="crmOtvoriFormu()">+ Novi klijent</button>
+                  <button id="crm-novi-klijent-btn" class="vx-btn vx-btn-primary" onclick="crmOtvoriFormu()">+ Novi klijent</button>
                 </div>
               </div>
               <div class="crm-search-row">

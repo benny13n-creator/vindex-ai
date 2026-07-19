@@ -3585,10 +3585,34 @@ function _strat6ModuliHtml(elapsedSec, gotovo) {
     + '</div>';
 }
 
+// P0-4 (2026-07-19): rotirajuće faze za pojedinačni modul (ne 6-modulni
+// orkestrator, koji već ima tačan _strat6ModuliHtml checklist). Fraze su
+// KONKRETNE radnje, ne generičko "Molimo sačekajte" — founder: bitno je da
+// korisnik zna DA sistem radi i ŠTA otprilike radi. Ne mora pratiti stvaran
+// progres, samo mora rotirati dovoljno da se razlikuje od "zaglavljeno".
+var _STRAT_SINGLE_FAZE = [
+  'Analiziram dokumente...',
+  'Upoređujem sudsku praksu...',
+  'Simuliram strategije...',
+  'Formiram preporuku...'
+];
+function _stratSingleModulHtml(elapsedSec) {
+  var idx = Math.min(_STRAT_SINGLE_FAZE.length - 1, Math.floor((elapsedSec || 0) / 20));
+  var pct = Math.min(92, Math.round((elapsedSec || 0) / 75 * 100));
+  return '<div class="strat-loading">'
+    + '<div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin-bottom:.6rem;">'
+    +   '<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#00d4ff,#6366f1);border-radius:2px;transition:width .5s ease;"></div>'
+    + '</div>'
+    + '<div style="color:rgba(150,200,255,0.9);font-size:.78rem;">⏳ ' + _STRAT_SINGLE_FAZE[idx] + '</div>'
+    + '<small>' + (elapsedSec ? elapsedSec+'s proteklo' : 'Pokrenuto') + '</small>'
+    + '</div>';
+}
+
 // Polling za async AI poslove (HTTP 202 pattern)
-async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel) {
+async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel, isOrkestrator) {
   var _resetLabel = resetLabel || 'Pokreni analizu';
   var elapsed = 0;
+  var _brokenByError = false;
   while (elapsed < 180) { // max 3 minuta
     await new Promise(function(r){ setTimeout(r, 4000); });
     elapsed += 4;
@@ -3596,7 +3620,7 @@ async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel) {
       var r = await fetch(BASE_URL + '/api/jobs/' + jobId, {
         headers: { 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') }
       });
-      if (!r.ok) { if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška pri proveri statusa.</div>'; break; }
+      if (!r.ok) { if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška pri proveri statusa.</div>'; _brokenByError = true; break; }
       var j = await r.json();
       if (j.status === 'done') {
         var d = j.result || {};
@@ -3610,11 +3634,20 @@ async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel) {
         return;
       }
       // pending/running — ažuriraj prikaz
-      if (bodyEl) bodyEl.innerHTML = _strat6ModuliHtml(elapsed, false);
+      if (bodyEl) bodyEl.innerHTML = isOrkestrator ? _strat6ModuliHtml(elapsed, false) : _stratSingleModulHtml(elapsed);
     } catch(e) {
       if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+      _brokenByError = true;
       break;
     }
+  }
+  // P0-4: isteklo 180s bez 'done'/'error' — eksplicitna poruka umesto tihog
+  // vraćanja u prvobitno stanje (ranije bi dugme prosto postalo klikabilno
+  // opet bez ijedne reči, izgledalo kao da se sistem zaglavio). Ne prepisuje
+  // poruku ako je petlja prekinuta zbog stvarne greške (ta poruka je već
+  // tačnija i prikazana iznad).
+  if (!_brokenByError && bodyEl) {
+    bodyEl.innerHTML = '<div class="strat-error">Analiza traje duže nego obično. Sačekajte malo ili pokušajte ponovo.</div>';
   }
   if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = _resetLabel; }
 }
@@ -3662,7 +3695,7 @@ async function stratOrkestratorPokreni() {
     if (res.status === 202) {
       var jobData = await res.json();
       if (bodyEl) bodyEl.innerHTML = '<div class="strat-loading">Analiza pokrenuta (ID: '+jobData.job_id.slice(0,8)+'...)<br><small>6 modula u toku — pratimo napredak...</small></div>';
-      await strat_job_poll(jobData.job_id, bodyEl, orkBtn, _resetLabel);
+      await strat_job_poll(jobData.job_id, bodyEl, orkBtn, _resetLabel, true);
       return;
     }
     if (res.status === 402) {
@@ -15193,7 +15226,10 @@ function onboardingStep(step) {
     var tabBtn = document.getElementById('tab-btn-k');
     if (tabBtn) setTab(tabBtn, 'k');
     setTimeout(function(){
-      var addBtn = document.querySelector('.crm-add-btn');
+      // P0-2 (2026-07-19): koristi ID, ne .crm-add-btn klasu — ta klasa
+      // pripada "Konflikt"/"CSV" dugmadima, ne "+ Novi klijent" dugmetu,
+      // pa je querySelector ranije pogađao pogrešno dugme (prvi match).
+      var addBtn = document.getElementById('crm-novi-klijent-btn');
       if (addBtn) addBtn.click();
     }, 400);
   } else if (step === 2) {
@@ -16653,6 +16689,32 @@ function _caseDnaRender(dna, predmetId) {
     html += '</div></div>';
   }
 
+  // ── AI Provera — Genome Verification Layer narativ (P0-1, 2026-07-19,
+  // konsolidovano u JEDAN red posle self-review-a — dva stalna reda su
+  // dodavala cognitive load koji plan nije predvideo). Proces ("AI je
+  // proverio sopstvenu procenu") je i dalje prisutan, ali kao title
+  // tooltip na istom redu, isti obrazac kao 65+ postojećih title= atributa
+  // u aplikaciji, ne novi tekst blok. Ako _verifikacija ne postoji (stariji
+  // Genome zapisi pre Faze 1.3), ne prikazuje se ništa. ──────────────────
+  var ver = dna._verifikacija;
+  if (ver && ver.odluka) {
+    var verFlags = (ver.hard_flags||[]).concat(ver.soft_flags||[]);
+    var verN = verFlags.length;
+    var verTitle = 'AI je analizirao predmet i proverio sopstvenu procenu.';
+    html += '<div style="margin-bottom:0.5rem;font-size:0.65rem;">';
+    if (ver.odluka === 'approve' || !verN) {
+      html += '<div style="color:#4ade80;font-weight:600;" title="'+escHtml(verTitle)+'">✓ AI provera: nema upozorenja</div>';
+    } else {
+      html += '<div style="color:#fbbf24;font-weight:600;cursor:pointer;" title="'+escHtml(verTitle)+'" onclick="_genomVerifToggle(\''+escHtml(predmetId||'')+'\')" id="genom-verif-toggle-'+escHtml(predmetId||'')+'">⚠ AI provera: '+verN+' '+(verN===1?'upozorenje':'upozorenja')+' — pogledajte pre oslanjanja na ovu procenu <span style="opacity:.5;">(prikaži)</span></div>';
+      html += '<div id="genom-verif-detalji-'+escHtml(predmetId||'')+'" style="display:none;margin-top:3px;padding-left:0.6rem;border-left:2px solid rgba(251,191,36,0.3);">';
+      verFlags.slice(0,8).forEach(function(f){
+        html += '<div style="color:rgba(255,255,255,0.5);margin-bottom:2px;">• '+escHtml(f.razlog||'')+'</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
   // ── Explainable score — snaga faktori ────────────────────────────────────
   var sf = dna.snaga_faktori || [];
   if (sf.length) {
@@ -16665,7 +16727,7 @@ function _caseDnaRender(dna, predmetId) {
       html += '<div style="display:flex;gap:0.35rem;align-items:flex-start;margin-bottom:1px;">';
       html += '<span style="color:'+uc+';font-weight:700;min-width:2.5rem;font-size:0.68rem;">'+escHtml(uStr)+'</span>';
       html += '<span style="color:rgba(255,255,255,0.65);flex:1;">'+escHtml(f.faktor||'');
-      if (f.opis) html += '<span style="color:rgba(255,255,255,0.35);"> — '+escHtml(f.opis.slice(0,70))+'</span>';
+      if (f.opis) html += '<span class="vx-clamp-2" style="color:rgba(255,255,255,0.35);" title="Klikni za pun tekst" onclick="this.classList.toggle(\'vx-clamp-2\')"> — '+escHtml(f.opis)+'</span>';
       html += '</span></div>';
     });
     html += '</div>';
@@ -16714,7 +16776,7 @@ function _caseDnaRender(dna, predmetId) {
       html += '<span style="color:'+sc_c+';font-size:0.63rem;min-width:2.6rem;">'+zvStr+'</span>';
       html += '<span style="color:'+sc_c+';font-weight:700;min-width:2rem;font-size:0.63rem;">'+sc+'</span>';
       html += '<span style="color:rgba(255,255,255,0.55);flex:1;font-size:0.63rem;">'+escHtml((d.naziv||'').slice(0,30));
-      if (d.razlog) html += '<br><span style="color:rgba(255,255,255,0.3);font-size:0.6rem;">'+escHtml(d.razlog.slice(0,60))+'</span>';
+      if (d.razlog) html += '<br><span class="vx-clamp-2" style="color:rgba(255,255,255,0.3);font-size:0.6rem;" title="Klikni za pun tekst" onclick="this.classList.toggle(\'vx-clamp-2\')">'+escHtml(d.razlog)+'</span>';
       html += '</span></div>';
     });
     html += '</div>';
@@ -16769,7 +16831,7 @@ function _caseDnaRender(dna, predmetId) {
       html += '<div style="margin-bottom:2px;display:flex;gap:0.3rem;align-items:flex-start;">';
       html += '<span style="color:'+hc+';font-size:0.62rem;min-width:4.5rem;">['+escHtml(n.hitnost||'')+ ']</span>';
       html += '<span style="color:rgba(255,255,255,0.65);">'+escHtml(n.dokument||'');
-      if (n.opis) html += '<br><span style="color:rgba(255,255,255,0.3);font-size:0.6rem;">'+escHtml(n.opis.slice(0,70))+'</span>';
+      if (n.opis) html += '<br><span class="vx-clamp-2" style="color:rgba(255,255,255,0.3);font-size:0.6rem;" title="Klikni za pun tekst" onclick="this.classList.toggle(\'vx-clamp-2\')">'+escHtml(n.opis)+'</span>';
       html += '</span></div>';
     });
     html += '</div>';
@@ -16825,7 +16887,8 @@ function _caseDnaRender(dna, predmetId) {
   if (strat.primarni_cilj && koraci.length < 3) koraci.push(strat.primarni_cilj);
   if (koraci.length) {
     html += '<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.07);">';
-    html += '<div style="color:rgba(255,255,255,0.35);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.3rem;">PREPORUČENI SLEDEĆI KORACI</div>';
+    html += '<div style="color:rgba(255,255,255,0.35);font-size:0.6rem;letter-spacing:0.07em;margin-bottom:0.1rem;">PREPORUČENI SLEDEĆI KORACI</div>';
+    html += '<div style="color:rgba(255,255,255,0.22);font-size:0.57rem;font-style:italic;margin-bottom:0.3rem;">generisano na osnovu gornjih podataka</div>';
     koraci.slice(0,3).forEach(function(k, i){
       html += '<div style="display:flex;gap:0.4rem;margin-bottom:2px;"><span style="color:#00d4ff;font-weight:700;min-width:1rem;">'+(i+1)+'.</span><span style="color:rgba(255,255,255,0.68);">'+escHtml(k)+'</span></div>';
     });
@@ -16849,6 +16912,19 @@ function _caseDnaRender(dna, predmetId) {
   html += '</div>';
   el.innerHTML = html;
   el.style.display = 'block';
+}
+
+// Otvori/zatvori listu upozorenja iz Genome Verification Layer-a (P0-1)
+function _genomVerifToggle(predmetId) {
+  var det = document.getElementById('genom-verif-detalji-'+predmetId);
+  var lbl = document.getElementById('genom-verif-toggle-'+predmetId);
+  if (!det) return;
+  var open = det.style.display !== 'none';
+  det.style.display = open ? 'none' : 'block';
+  if (lbl) {
+    var span = lbl.querySelector('span');
+    if (span) span.textContent = open ? '(prikaži)' : '(sakrij)';
+  }
 }
 
 // Otvori/zatvori Genome historiju inline ispod panela
@@ -18608,8 +18684,57 @@ function pred_upload_trigger() {
   if (inp) inp.click();
 }
 
+// P0-3 (2026-07-19): posle uploada backend pokreće Genome regeneraciju u
+// pozadini (fire-and-forget, vidi api.py _genome_bg) bez ijednog signala
+// frontendu kad je gotovo. Ovo je namerno LAGANO rešenje — koristi POSTOJEĆI
+// hint tekst ispod "Generiši/osveži" dugmeta (case-dna-refresh-hint), ne
+// dodaje novu komponentu (Princip 8: "šta uklanjamo" — ovde ništa novo, samo
+// privremeno menja tekst već postojećeg elementa). Poll svakih 15s do 90s;
+// ako predmet promeni verziju, _caseDnaRender ga sam osvežava i ovde samo
+// vraćamo hint na podrazumevani tekst. Ako korisnik promeni predmet u
+// međuvremenu, interval se tiho zaustavlja.
+var _genomeBgWatchTimer = null;
+function _genomeBackgroundWatch(predmetId, verzijaPre) {
+  if (!predmetId || !currentSession) return;
+  if (_genomeBgWatchTimer) { clearInterval(_genomeBgWatchTimer); _genomeBgWatchTimer = null; }
+  var hint = document.getElementById('case-dna-refresh-hint');
+  var defaultHint = 'Obično traje 15–20 sekundi — AI čita sve dokumente predmeta.';
+  var busyHint = '⏳ AI analiza u toku — dokument se obrađuje (obično 15–90s). Prikaz će se osvežiti automatski, ne morate ništa da radite.';
+  if (hint) hint.textContent = busyHint;
+  var attempts = 0, maxAttempts = 6; // 6 × 15s = 90s gornji limit
+  _genomeBgWatchTimer = setInterval(async function () {
+    attempts++;
+    if (predmetId !== activePredmetId) { // korisnik napustio predmet
+      clearInterval(_genomeBgWatchTimer); _genomeBgWatchTimer = null;
+      if (hint) hint.textContent = defaultHint;
+      return;
+    }
+    try {
+      var r = await fetch(BASE_URL + '/api/predmeti/' + predmetId + '/case-dna', {
+        headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+      });
+      if (r.ok) {
+        var d = await r.json();
+        var novaVerzija = d && d.case_dna ? d.case_dna.verzija : null;
+        if (novaVerzija && novaVerzija !== verzijaPre) {
+          clearInterval(_genomeBgWatchTimer); _genomeBgWatchTimer = null;
+          if (hint) hint.textContent = defaultHint;
+          _caseDnaRender(d.case_dna, predmetId);
+          return;
+        }
+      }
+    } catch (e) { /* tiho — sledeći pokušaj ili gornji limit */ }
+    if (attempts >= maxAttempts) {
+      clearInterval(_genomeBgWatchTimer); _genomeBgWatchTimer = null;
+      if (hint) hint.textContent = defaultHint; // manuelni refresh i dalje radi
+    }
+  }, 15000);
+}
+
 async function pred_upload_doc(file) {
   if (!file || !activePredmetId || !currentSession) return;
+  var _predmetIdZaWatch = activePredmetId;
+  var _verzijaPreUploada = (_genomeDnaCache[activePredmetId] || {}).verzija || null;
   var ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
   var zone    = document.getElementById('pred-upload-zone');
   var loading = document.getElementById('pred-upload-loading');
@@ -18681,6 +18806,7 @@ async function pred_upload_doc(file) {
     pred_loadDetail(activePredmetId);
     pred_loadHronologija(activePredmetId);
     setTimeout(function(){ pred_loadHronologija(activePredmetId); }, 3500);
+    _genomeBackgroundWatch(_predmetIdZaWatch, _verzijaPreUploada);
   } catch(e) {
     if (loading) loading.style.display = 'none';
     if (zone) zone.style.display = '';
