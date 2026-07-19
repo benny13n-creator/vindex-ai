@@ -7,7 +7,10 @@ DoD, testiranje). **Ovaj dokument je UGOVOR** — precizna, neopoziva
 specifikacija šta svaki tok MORA sadržati da bi se smatrao gotovim, plus
 matematička (ne procenjena) mera koliko je danas ispunjen.
 
-**Nijedna linija koda nije menjana. Beta Freeze i dalje na snazi.**
+**Status (ažurirano 2026-07-19, isti dan): Beta Freeze zamenjen Fazom A
+— Internal Integration Sprint (`VINDEX_OPERATIONAL_GAP_REGISTER.md`).
+Kod SME da se menja, isključivo za zatvaranje G-stavki — bez novih
+funkcija/UX/AI modula.**
 
 **Svrha ugovora, direktnim rečima:** posle ovog dokumenta više nije
 moguće reći "implementirao sam Deadline Guardian" a da niko ne primeti
@@ -93,7 +96,7 @@ praćenje).** Ovo se dodaje u ADR kao nova stavka:
 | **Koji podaci moraju nastati** | `predmet_dokumenti` red; `predmet_dokazi` redovi; `case_dna` kolona; `audit_immutable` red za `predmet_create`+`dokument_upload` | ✅✅✅ nastaju; ❌ audit ne (D22) |
 | **Šta korisnik mora videti** | Potvrda uploada; "AI analiza u toku" status; Case Genome panel automatski | ✅✅✅ sve radi (P0-3, Trust Layer runda) |
 | **Šta audit mora sadržati** | Ko je kreirao predmet, kada; koji dokument otpremljen, kada | ❌ ne sadrži ništa (D22) |
-| **Koji test potvrđuje gotovost** | E2E test: kreiraj predmet → otpremi dokument → proveri (1) `PredmetKreiran` red u outbox tabeli, (2) `run_case_pipeline` izvršen (proverljivo kroz `predmet_istorija` upis), (3) `audit_immutable` ima 2 nova reda, (4) Genome regenerisan | Test ne postoji — kad se napiše, danas bi pao na (1),(2),(3) |
+| **Koji test potvrđuje gotovost** | E2E test: kreiraj predmet → otpremi dokument → proveri (1) `PredmetKreiran` red u outbox tabeli, (2) `run_case_pipeline` izvršen (proverljivo kroz `predmet_istorija` upis), (3) `audit_immutable` ima 2 nova reda, (4) Genome regenerisan | **Test NAPISAN I POKRENUT 2026-07-19** (`scripts/contract01_e2e_verify.py`, Faza A Internal Integration Sprint) — pao na (1),(2),(3) kako je predviđeno, prošao na (4) |
 
 **Integration Coverage: 4/6 = 67%**
 
@@ -104,6 +107,19 @@ klasifikacija ✅, Evidence Vault upis ✅, Genome regeneracija ✅ — sve
 infrastruktura/dopuna — vredne, ali njihovo odsustvo ne čini flow
 neupotrebljivim za advokata danas.
 **Critical Coverage: 3/3 = 100%.**
+
+**Verified Coverage: 3/3 = 100% ZA KRITIČNE korake** (potvrđeno
+stvarnim E2E pokretanjem protiv produkcijske baze, 2026-07-19, predmet_id
+`47dc4817-89f3-4748-9eee-cb247a22892c`, obeležen `[INTEGRACIJA-TEST]`,
+zadržan kao trajan regresioni slučaj — nije obrisan). Rezultat: 1
+`predmet_dokumenti` red, 3 `predmet_dokazi` reda (Evidence Vault),
+Genome verzija 1 sa `_verifikacija.odluka = "approve_with_warning"` —
+Verification Layer je ISPRAVNO uhvatio soft flag ("ZOO čl. 262" nije
+prepoznat kao poznat zakon, sumnjiv navod za radni spor), `GenomeUpdated`
+event red postoji, `audit_immutable` `genome_refresh` red postoji.
+Ukupno vreme: 38.8s. **Verified Coverage za ostatak toka (D3/D9/D22)
+ostaje 0% — nepromenjeno, ovi koraci nisu ni pokušani jer G-001/G-002/
+G-003 nisu zatvorene.**
 
 ### CONTRACT 02 — Upload presude
 
@@ -214,25 +230,32 @@ NE dobija Verified poen — bez obzira koliko je implementacija sama po
 sebi ispravna. Ovo sprečava da se nešto proglasi "gotovim" samo zato
 što je napisano.
 
-**Danas, 2026-07-19: Verified Coverage = 0% za sva 4 toka, bez
-izuzetka.** Ovo nije greška u računu — Beta Freeze je na snazi, nijedna
-G-stavka nije zatvorena, nijedan E2E test nije napisan ni pokrenut,
-nijedan pilot scenario se nije desio. Ova nula je tačna i namerna
-polazna tačka, ne propust.
+**Status posle Faza A prvog dana (2026-07-19):** Verified zahteva SVA
+TRI potvrde — automatizovan test, ručni test, realan pilot scenario.
+Do sada je za CONTRACT 01 kritične korake prošao SAMO automatizovan
+test (`scripts/contract01_e2e_verify.py`, stvaran E2E protiv
+produkcije) — ručni test i pilot scenario još nisu urađeni. Zato
+formalni Verified Coverage % ostaje 0 (metodologija se ne menja da bi
+broj izgledao bolje), ALI dodata je "Automatizovan test" kolona kao
+vodeći indikator napretka, odvojeno od pune Verified oznake.
 
-| Tok | Coverage | Critical Coverage | Verified Coverage | Neprovereno |
-|---|---|---|---|---|
-| CONTRACT 01 — Upload tužbe | 4/6 = **67%** | 3/3 = **100%** | **0%** | 0 |
-| CONTRACT 02 — Upload presude | 1/10 = **10%** | 1/6 = **17%** | **0%** | 0 |
-| CONTRACT 03 — Dodavanje ročišta | 2/7 = **29%** | 2/3 = **67%** | **0%** | 1 (audit stavka) |
-| CONTRACT 04 — Zatvaranje predmeta | 2/5 = **40%** | 1/2 = **50%** | **0%** | 3 (style profile, firm stat, audit) |
+| Tok | Coverage | Critical Coverage | Automatizovan test (kritični koraci) | Verified Coverage | Neprovereno |
+|---|---|---|---|---|---|
+| CONTRACT 01 — Upload tužbe | 4/6 = **67%** | 3/3 = **100%** | **3/3 PASS (2026-07-19)** | **0%** (nedostaje ručni test + pilot) | 0 |
+| CONTRACT 02 — Upload presude | 1/10 = **10%** | 1/6 = **17%** | Nije pokušano | **0%** | 0 |
+| CONTRACT 03 — Dodavanje ročišta | 2/7 = **29%** | 2/3 = **67%** | Nije pokušano | **0%** | 1 (audit stavka) |
+| CONTRACT 04 — Zatvaranje predmeta | 2/5 = **40%** | 1/2 = **50%** | Nije pokušano | **0%** | 3 (style profile, firm stat, audit) |
 
 **Kako Verified Coverage raste:** SAMO kad se G-stavka iz
 `VINDEX_OPERATIONAL_GAP_REGISTER.md` zatvori PO protokolu definisanom
 tamo (diff + test dokaz + KPI ažuriran) — nikad ručnim upisom broja bez
 dokaza. Dok Verified zaostaje značajno za Coverage, to je zdrav signal
 da je nešto implementirano ali nedovoljno testirano — treba zatvoriti
-taj jaz PRE nego što se pređe na sledeći gap, ne posle.
+taj jaz PRE nego što se pređe na sledeći gap, ne posle. CONTRACT 01
+kritičnih koraka će dobiti pun Verified status kad se doda: (a) jedan
+ručni prolazak kroz UI od strane foundera (ne samo API test), (b)
+prisustvo u stvarnom pilot sastanku sa advokatom (Deo 4,
+`TRUST_LAYER_BETA_FREEZE_2026-07-19.md`).
 
 **Čitanje ove tabele, direktno:** Tok 1 je VEĆ danas dovoljno dobar za
 osnovno pilot iskustvo (100% kritično) iako Coverage izgleda nepotpuno
@@ -298,6 +321,7 @@ CONTRACT 02 dobije stvaran sadržaj), tek onda širenje automatizacije
 (D4, D6, D7, D8, D21). Nijedan Ugovor iznad se ne implementira
 "odjednom" — svaka stavka u tabeli je zaseban, testabilan korak.
 
-**Ništa od ovoga se ne implementira dok Beta Freeze traje.** Ovaj
-dokument je specifikacija spremna za implementaciju KAD founder da
-signal da je pilot feedback stigao — ne pre.
+**Ažurirano (2026-07-19):** Faza A — Internal Integration Sprint je u
+toku. Implementacija ide REDOSLEDOM iznad, jedan G-broj po jedan, po
+protokolu zatvaranja definisanom u `VINDEX_OPERATIONAL_GAP_REGISTER.md`
+— ne kao pripremljena specifikacija koja čeka budući signal.

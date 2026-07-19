@@ -4,6 +4,29 @@
 NIJE analiza — ovo je operativna radna lista. Founderova formulacija:
 posle ovog dokumenta, rad se prati kao "zatvaram G-003", ne "radim D6".
 
+**STATUS PROMENJEN (2026-07-19, isti dan):** stari "Beta Freeze" (nema
+koda dok ne stigne pilot feedback) je ZAMENJEN sa **Faza A — Internal
+Integration Sprint**. Cilj: zatvoriti pilot-kritične G-stavke, dokazati
+kroz Verified Coverage, TEK ONDA pozvati beta korisnike — ne čekati
+pasivno. Kod SME da se menja sada, ali isključivo za zatvaranje G-stavki
+iz ovog registra — bez novih funkcija, bez UX promena, bez novih AI
+modula (founderova eksplicitna ograda za Fazu A).
+
+**Pilot-kritični filter (prvi korak Faze A, urađen 2026-07-19):**
+stvaran pilot scenario (`TRUST_LAYER_BETA_FREEZE_2026-07-19.md`, Deo 4
+— otvori predmet→upload→AI obrada→Genome→advokat ocenjuje) mapira se
+**isključivo na CONTRACT 01 (Upload tužbe)**. Nijedan G-004 do G-025
+(Tok 2/3/4) nije na kritičnoj putanji ZA OVAJ KONKRETAN pilot scenario
+— vredni su, ali ne blokiraju start. G-001/G-002/G-003 (Tok 1) su
+takođe NE-blokirajući za scenario (Tok 1 kritični koraci su već ✅ u
+kodu) — pravi nedostatak nije bio kod, nego DOKAZ. **Prva akcija Faze A
+zato nije bila zatvaranje G-001, nego pisanje i pokretanje stvarnog E2E
+testa za CONTRACT 01** (`scripts/contract01_e2e_verify.py`) — rezultat:
+sva 3 kritična koraka PROŠLA (klasifikacija, Evidence Vault, Genome
+regeneracija sa ispravno funkcionalnim Verification Layer-om), potvrđeno
+protiv produkcijske baze. Detalji u `VINDEX_OPERATING_SYSTEM_
+CONTRACTS.md` CONTRACT 01 sekciji.
+
 **Kolone:** ID | Tok | Prekid | Uzrok | Rešenje (D-broj u
 `VINDEX_2_1_ARCHITECTURE_ROADMAP.md`) | Status.
 
@@ -103,6 +126,14 @@ modula" po definiciji iz `VINDEX_INTEGRATION_MASTER_PLAN.md`.
 **Poslednja napomena, founderova, vredna ponavljanja ovde direktno:**
 sledeći pravi pomak nije novi dokument. Sledeći pravi pomak je trenutak
 kad prvi red u ovoj tabeli pređe iz Open u Closed. Ovaj registar se
-ažurira posle svake implementacione runde (kad Beta Freeze prestane) —
-ne piše se deveti planski dokument dok se bar par ovih redova ne
-zatvori.
+ažurira posle svake implementacione runde (Faza A je u toku, ne čeka se
+freeze) — ne piše se deveti planski dokument dok se bar par ovih redova
+ne zatvori.
+
+**Update 2026-07-19 (isti dan, prva akcija Faze A):** CONTRACT 01
+kritični koraci (klasifikacija, Evidence Vault, Genome regeneracija)
+DOBILI su automatizovan E2E dokaz (`scripts/contract01_e2e_verify.py`,
+stvaran predmet u produkciji, sva 3 PASS). Ovo NE zatvara G-001/G-002/
+G-003 (ti se odnose na infrastrukturu koja nije bila deo ovog testa) —
+ali daje prvi realan Verified Coverage podatak od 0% polazne tačke.
+Detalji u `VINDEX_OPERATING_SYSTEM_CONTRACTS.md` CONTRACT 01.

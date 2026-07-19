@@ -26,6 +26,13 @@ paralelni audit dokumenti za iste teme. Ako se otvori potpuno nova tema
 (ne produbljivanje postojeće), novi audit dokument je opravdan, ali
 njegov zaključak treba da se svede u red ovde.
 
+**STATUS PROMENJEN (2026-07-19, isti dan):** "Deferred (posle beta
+feedback-a)" u ovom dokumentu se sada čita kao "čeka red u Fazi A
+Internal Integration Sprint" (`VINDEX_OPERATIONAL_GAP_REGISTER.md`),
+ne "čeka pasivno da freeze prestane". Beta Freeze u starom obliku
+("nema koda dok ne stigne pilot feedback") je zamenjen — implementacija
+je u toku, ograničena na zatvaranje G-stavki, bez novih funkcija.
+
 **Status legenda:**
 - **Accepted** — odluka doneta, spremna za implementaciju čim freeze
   dozvoli (ili već implementirana).
