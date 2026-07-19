@@ -150,6 +150,28 @@ biti da se popunjava na drugi način — ali ovo NIJE potvrđeno kao radno u
 ovoj analizi. **Otvori predmet sa bar jednom fakturom i proveri lično
 pre nego što ovo pokažeš advokatu.**
 
+### Korak: Zatvaranje predmeta
+
+**ISPRAVKA (2026-07-19, nakon `OPERATING_SYSTEM_CONNECTIVITY_AUDIT.md`):**
+prethodna verzija ovog dokumenta je tvrdila da ne postoji poseban
+"Zatvori predmet" proces — to je bilo netačno, ispravljeno posle
+dubljeg audita.
+
+- **Šta korisnik vidi:** namenski "Zatvori predmet" tok
+  (`routers/predmeti_close.py`, `PATCH /api/predmeti/{id}/zatvori`) sa
+  strukturisanim ishodom — pobeda/poraz/nagodba/odustajanje/odbačena/
+  ostalo. Povezano dugme u UI ("Potvrdi zatvaranje",
+  `pred_zatvoriPredmet()`).
+- **Vrednost:** ishod predmeta se beleži strukturisano, ne kao slobodan
+  tekst — korisno za buduću statistiku uspešnosti.
+- **Backend proces:** upisuje hronologija zapis o zatvaranju i anonimni
+  benchmark doprinos.
+- **AI modul:** nijedan — čisto strukturiran unos.
+- **Šta korisnik treba da razume:** ovo je pravi, namenski proces, ne
+  samo Kanban prevlačenje. Kanban tabla (opisana ispod) postoji
+  ODVOJENO kao vizuelni pregled faza predmeta — može se koristiti
+  paralelno, ali formalno zatvaranje ide kroz ovaj namenski tok.
+
 ### Korak: Status predmeta (Kanban)
 
 - **Šta korisnik vidi:** opciona Kanban tabla (prekidač lista/kanban) sa
@@ -159,11 +181,12 @@ pre nego što ovo pokažeš advokatu.**
   samo pojedinačnog predmeta.
 - **Backend proces:** drag-and-drop menja status polje predmeta (`POST
   /api/predmeti/bulk` za grupne akcije, ili pojedinačna izmena statusa).
+  **Napomena:** promena statusa na "Završen" ovde NE pokreće formalni
+  zatvaranje-tok iznad — to su dva nezavisna mehanizma.
 - **AI modul:** nijedan — čisto ručno upravljanje.
-- **Šta korisnik treba da razume:** **ne postoji poseban "Zatvori
-  predmet" čarobnjak** — predmet se "završava" prevlačenjem na "Završen"
-  kolonu. Ako advokat pita "kako zatvaram predmet", ovo je tačan
-  odgovor, ne izmišljaj formalniji proces koji ne postoji.
+- **Šta korisnik treba da razume:** za brz pregled portfolija koristi
+  Kanban; za formalno zatvaranje sa ishodom koristi namenski
+  "Zatvori predmet" tok opisan iznad.
 
 ---
 
@@ -546,7 +569,7 @@ konačnu odluku.
 □ Znam odgovoriti na "da li je ovo tačno" pitanje bez preterivanja u oba pravca
 □ Proverio sam naplata pod-tab pre demoa (poznat otvoren rizik)
 □ Imam pripremljen digitalni (ne skeniran) PDF dokument spreman za upload
-□ Znam kako se predmet "zatvara" (Kanban → Završen, ne poseban wizard)
+□ Znam kako se predmet "zatvara" (namenski "Zatvori predmet" tok sa ishodom — ne samo Kanban)
 ```
 
 ## Najteža pitanja koja advokat može postaviti — pripremljeni odgovori
