@@ -896,7 +896,7 @@ async def intake_history(
 
     r = await asyncio.to_thread(
         lambda: supa.table("predmeti")
-            .select("id, naziv, status, tip, created_at, predmet_klijenti(klijenti(ime, prezime, naziv_kompanije))")
+            .select("id, naziv, status, tip, created_at, predmet_klijenti(klijenti(ime, prezime, firma))")
             .eq("user_id", uid)
             .order("created_at", desc=True)
             .limit(max(1, min(limit, 30)))
@@ -909,8 +909,8 @@ async def intake_history(
         veze = p.get("predmet_klijenti") or []
         if veze:
             k = veze[0].get("klijenti") or {}
-            if k.get("naziv_kompanije"):
-                klijent = k["naziv_kompanije"]
+            if k.get("firma"):
+                klijent = k["firma"]
             elif k.get("prezime"):
                 klijent = f"{(k.get('ime') or '').strip()} {k['prezime']}".strip()
 

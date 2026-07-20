@@ -10393,7 +10393,7 @@ function pred_select(id) {
   var detail = document.getElementById('pred-detail');
   if (detail) {
     detail.classList.add('show');
-    setTimeout(function(){ detail.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
+    setTimeout(function(){ detail.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
   }
   var nazivEl = document.getElementById('pred-detail-naziv');
   if (nazivEl) nazivEl.textContent = naziv;

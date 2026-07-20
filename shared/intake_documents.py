@@ -146,10 +146,16 @@ async def get_job_result(intake_job_id: str) -> dict:
     3 zasebna poziva sa frontenda."""
     supa = _get_supa()
 
+    # NAPOMENA: instalirana verzija postgrest-py (2.28.3) vraća goli None iz
+    # maybe_single().execute() kad nema redova (ne response objekat sa
+    # .data=None) — otkriveno 2026-07-16 pravim end-to-end testom (worker je
+    # cutke padao na SVAKOM poslu na ovoj tacnoj liniji, idempotency check na
+    # pocetku _process()). `res.data if res else None` je obavezno svuda
+    # gde se maybe_single() koristi u ovom fajlu, ne kozmeticka izmena.
     doc_res = await asyncio.to_thread(
         lambda: supa.table("intake_documents").select("*").eq("intake_job_id", intake_job_id).maybe_single().execute()
     )
-    document = doc_res.data
+    document = doc_res.data if doc_res else None
     if not document:
         return {"document": None, "entities": [], "review": None}
 
@@ -161,7 +167,7 @@ async def get_job_result(intake_job_id: str) -> dict:
     review_res = await asyncio.to_thread(
         lambda: supa.table("intake_review_queue").select("*").eq("intake_job_id", intake_job_id).is_("resolved_at", "null").maybe_single().execute()
     )
-    review = review_res.data
+    review = review_res.data if review_res else None
 
     return {"document": document, "entities": entities, "review": review}
 
@@ -184,7 +190,7 @@ async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str,
     old_res = await asyncio.to_thread(
         lambda: supa.table("extracted_entities").select("*").eq("id", entity_id).maybe_single().execute()
     )
-    if not old_res.data:
+    if not old_res or not old_res.data:
         raise ValueError(f"extracted_entities red '{entity_id}' nije pronađen.")
     entity = old_res.data
 
@@ -198,7 +204,7 @@ async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str,
     doc_res = await asyncio.to_thread(
         lambda: supa.table("intake_documents").select("intake_job_id,document_type").eq("id", entity["document_id"]).maybe_single().execute()
     )
-    doc = doc_res.data or {}
+    doc = (doc_res.data if doc_res else None) or {}
 
     await write_processing_outcome(
         intake_job_id=doc.get("intake_job_id", ""),
