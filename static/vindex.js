@@ -10391,10 +10391,7 @@ function pred_select(id) {
   pred_loadDetail(id);
   pred_updateIndicator();
   var detail = document.getElementById('pred-detail');
-  if (detail) {
-    detail.classList.add('show');
-    setTimeout(function(){ detail.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
-  }
+  if (detail) detail.classList.add('show');
   var nazivEl = document.getElementById('pred-detail-naziv');
   if (nazivEl) nazivEl.textContent = naziv;
   if (predmetObj) {
@@ -10405,6 +10402,12 @@ function pred_select(id) {
   var targetSubtab = _aicPendingSubtab || 'pregled';
   _aicPendingSubtab = null;
   pred_subtabSwitch(targetSubtab);
+  // Scroll MORA da se desi POSLE pred_subtabSwitch — ono ima svoj setTimeout(50)
+  // koji skroluje subtab-nav u vidno polje; ako se ovaj scrollIntoView zakaze
+  // ranije/istovremeno, dva poziva se utrkuju i korisnik zavrsi na nepredvidivoj
+  // poziciji (izgleda kao da klik nije ništa uradio). 120ms garantuje da je ovaj
+  // poslednji, pa on odredjuje konacnu poziciju.
+  if (detail) setTimeout(function(){ detail.scrollIntoView({behavior:'smooth', block:'start'}); }, 120);
   // Auto-load Matter Intelligence bar (u Pregledu)
   setTimeout(function(){ matter_intel_load(); }, 400);
   var terminal = document.querySelector('.terminal');
