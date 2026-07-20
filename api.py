@@ -4452,14 +4452,17 @@ async def predmet_workspace(
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
     # Step 2: Parallel fetch of all related data
-    (beleske_r, istorija_r, dokumenti_r, hronologija_r, komentari_r, pk_r, rocista_ws_r) = await asyncio.gather(
+    (beleske_r, istorija_r, dokumenti_r, hronologija_r, komentari_r, pk_r, rocista_ws_r, dokazi_ws_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(50).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor,confidence,created_at").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(30).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,velicina_kb,created_at,pinecone_namespace,redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("*").eq("predmet_id", predmet_id).order("datum_iso", desc=False).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_komentari").select("*").eq("predmet_id", predmet_id).order("kreirano", desc=True).limit(50).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_klijenti").select("klijent_id,uloga_klijenta,napomena").eq("predmet_id", predmet_id).execute()),
-        asyncio.to_thread(lambda: supa.table("rocista").select("id").eq("predmet_id", predmet_id).eq("user_id", uid).execute()),
+        # 'datum' dodat (G-027) — potreban calculate_procesni_rizik za predstojeci/kriticni racun,
+        # ranije se ovde selektovalo samo 'id' jer je CRS koristio samo broj rocista.
+        asyncio.to_thread(lambda: supa.table("rocista").select("id,datum").eq("predmet_id", predmet_id).eq("user_id", uid).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
     )
 
     # Step 3: Resolve linked klijenti
@@ -4512,15 +4515,32 @@ async def predmet_workspace(
         if h.get("vaznost") == "kritičan" and (h.get("datum_iso") or "") >= today_iso
     ]
 
+    # Step 5b: Procesni rizik — G-027/AR-01 jedini deterministicki izvor istine.
+    # Racunat OVDE (ne u GPT promptu) jer Cockpit vise ne sme da odredjuje nivo
+    # rizika sam — samo ga prikazuje i (preko GPT-a) objasnjava zasto.
+    from services.risk_engine import calculate_procesni_rizik as _calc_rizik
+    from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS_WS
+
+    _deterministic_risk = _calc_rizik(
+        dokazi=(dokazi_ws_r.data if not isinstance(dokazi_ws_r, Exception) else []) or [],
+        dokumenti=dokumenti_r.data or [],
+        rocista=rocista_ws_r.data or [],
+        tip_predmeta=pred.data.get("tip") or "ostalo",
+        expected_docs=_EXPECTED_DOCS_WS,
+    )
+
     # Step 6: Parallel — praksa preview + cockpit AI
     import os as _os_ws, json as _json_ws
     from openai import AsyncOpenAI as _OAI_ws
 
     _COCKPIT_SYSTEM = (
-        "Ti si pravni asistent. Na osnovu podataka predmeta vrati ISKLJUČIVO JSON bez teksta van JSON-a:\n"
+        "Ti si pravni asistent. Procesni rizik predmeta je VEC IZRACUNAT "
+        "determinstickim sistemom i dat ti je u kontekstu — NE odredjuj ga sam, "
+        "samo objasni ZASTO je takav (faktori_plus/faktori_minus). "
+        "Vrati ISKLJUČIVO JSON bez teksta van JSON-a:\n"
         '{"ai_sazetak": str (maks 100 reči, konkretan opis stanja predmeta),\n'
         ' "sledeca_akcija": {"opis": str, "rok": str, "prioritet": "hitan|normalan|odlozen"},\n'
-        ' "procena_rizika": {"nivo": "visok|srednji|nizak", "faktori_plus": [str], "faktori_minus": [str]}}\n'
+        ' "rizik_objasnjenje": {"faktori_plus": [str], "faktori_minus": [str]}}\n'
         "Ne koristi opšte fraze. Budi konkretan."
     )
 
@@ -4543,7 +4563,11 @@ async def predmet_workspace(
                 f"Protivna strana: {_protivna_str or 'nema'}\n"
                 f"Dokumenti: {', '.join(d.get('naziv_fajla','') for d in (dokumenti_r.data or [])[:5]) or 'nema'}\n"
                 f"Poslednje beleske: {' | '.join((b.get('sadrzaj') or '')[:80] for b in (beleske_r.data or [])[:3]) or 'nema'}\n"
-                f"Rokovi: {' | '.join((h.get('dogadjaj','') or '')[:80] + ' (' + (h.get('datum_iso','') or '') + ')' for h in (hronologija_r.data or [])[:5]) or 'nema'}"
+                f"Rokovi: {' | '.join((h.get('dogadjaj','') or '')[:80] + ' (' + (h.get('datum_iso','') or '') + ')' for h in (hronologija_r.data or [])[:5]) or 'nema'}\n"
+                f"Procesni rizik (vec izracunat, ne menjaj): {_deterministic_risk['nivo']} "
+                f"— snaga dokaza: {_deterministic_risk['snaga_dokaza']}, "
+                f"nedostajucih dokaza: {_deterministic_risk['nedostajuci_count']}, "
+                f"kriticnih rokova (≤7 dana): {_deterministic_risk['kriticni_rokovi']}"
             )
             resp = await oai.chat.completions.create(
                 model="gpt-4o-mini", temperature=0.1, max_tokens=700,
@@ -4592,54 +4616,56 @@ async def predmet_workspace(
 
     await UsageService.consume(user["user_id"], user.get("email", ""), "predmet_workspace_ai")
 
-    # Step 6b: Risk history — compare today vs previous snapshot
+    # Step 6b: Risk history — compare today vs previous snapshot.
+    # G-027: izvor nivoa je SAD _deterministic_risk (jedini izvor istine), ne
+    # vise cockpit_raw — GPT vise ne odredjuje nivo, samo faktori_plus/minus.
     import json as _json_risk
-    _rizik_info = cockpit_raw.get("procena_rizika", {}) if isinstance(cockpit_raw, dict) else {}
-    _rizik_nivo = _rizik_info.get("nivo", "")
-    if _rizik_nivo:
-        _today_tag = f"[Rizik] {today_iso}"
-        try:
-            _prev_risk_r = await asyncio.to_thread(
-                lambda: supa.table("predmet_istorija")
-                    .select("odgovor,created_at,pitanje")
-                    .eq("predmet_id", predmet_id)
-                    .eq("user_id", uid)
-                    .like("pitanje", "[Rizik]%")
-                    .order("created_at", desc=True)
-                    .limit(3)
-                    .execute()
-            )
-            _prev_records = _prev_risk_r.data or []
-            _today_saved  = any(r.get("pitanje","") == _today_tag for r in _prev_records)
-            _prev_other   = next((r for r in _prev_records if r.get("pitanje","") != _today_tag), None)
-            if _prev_other:
-                try:
-                    _prev_data = _json_risk.loads(_prev_other.get("odgovor","{}"))
-                    _prev_nivo = _prev_data.get("nivo","")
-                    if _prev_nivo and _prev_nivo != _rizik_nivo:
-                        cockpit_raw.setdefault("procena_rizika", {})["promena"] = {
-                            "prethodni":     _prev_nivo,
-                            "trenutni":      _rizik_nivo,
-                            "datum_promene": _prev_other.get("created_at",""),
-                        }
-                except Exception:
-                    pass
-            if not _today_saved:
-                asyncio.create_task(asyncio.to_thread(
-                    lambda: supa.table("predmet_istorija").insert({
-                        "predmet_id": predmet_id,
-                        "user_id":    uid,
-                        "pitanje":    _today_tag,
-                        "odgovor":    _json_risk.dumps({
-                            "nivo":          _rizik_nivo,
-                            "faktori_plus":  _rizik_info.get("faktori_plus", []),
-                            "faktori_minus": _rizik_info.get("faktori_minus", []),
-                        }, ensure_ascii=False),
-                        "confidence": "MEDIUM",
-                    }).execute()
-                ))
-        except Exception as _re:
-            logger.warning("[WORKSPACE-RISK-HISTORY] greška: %s", _re)
+    _rizik_objasnjenje = cockpit_raw.get("rizik_objasnjenje", {}) if isinstance(cockpit_raw, dict) else {}
+    _rizik_nivo = _deterministic_risk["nivo"].lower()
+    _rizik_promena = None
+    _today_tag = f"[Rizik] {today_iso}"
+    try:
+        _prev_risk_r = await asyncio.to_thread(
+            lambda: supa.table("predmet_istorija")
+                .select("odgovor,created_at,pitanje")
+                .eq("predmet_id", predmet_id)
+                .eq("user_id", uid)
+                .like("pitanje", "[Rizik]%")
+                .order("created_at", desc=True)
+                .limit(3)
+                .execute()
+        )
+        _prev_records = _prev_risk_r.data or []
+        _today_saved  = any(r.get("pitanje","") == _today_tag for r in _prev_records)
+        _prev_other   = next((r for r in _prev_records if r.get("pitanje","") != _today_tag), None)
+        if _prev_other:
+            try:
+                _prev_data = _json_risk.loads(_prev_other.get("odgovor","{}"))
+                _prev_nivo = _prev_data.get("nivo","")
+                if _prev_nivo and _prev_nivo != _rizik_nivo:
+                    _rizik_promena = {
+                        "prethodni":     _prev_nivo,
+                        "trenutni":      _rizik_nivo,
+                        "datum_promene": _prev_other.get("created_at",""),
+                    }
+            except Exception:
+                pass
+        if not _today_saved:
+            asyncio.create_task(asyncio.to_thread(
+                lambda: supa.table("predmet_istorija").insert({
+                    "predmet_id": predmet_id,
+                    "user_id":    uid,
+                    "pitanje":    _today_tag,
+                    "odgovor":    _json_risk.dumps({
+                        "nivo":          _rizik_nivo,
+                        "faktori_plus":  _rizik_objasnjenje.get("faktori_plus", []),
+                        "faktori_minus": _rizik_objasnjenje.get("faktori_minus", []),
+                    }, ensure_ascii=False),
+                    "confidence": "MEDIUM",
+                }).execute()
+            ))
+    except Exception as _re:
+        logger.warning("[WORKSPACE-RISK-HISTORY] greška: %s", _re)
 
     # Step 7: Rokovi po hitnosti
     _VAZNOST_ORDER = {"kritičan": 0, "bitan": 1, "normalan": 2, "ostalo": 3}
@@ -4709,9 +4735,16 @@ async def predmet_workspace(
         "cockpit": {
             "ai_sazetak":          cockpit_raw.get("ai_sazetak", ""),
             "sledeca_akcija":      cockpit_raw.get("sledeca_akcija", {}),
-            "procena_rizika":      cockpit_raw.get("procena_rizika", {}),
+            # G-027/AR-01: nivo dolazi ISKLJUČIVO iz _deterministic_risk (isti
+            # izvor kao Matter Intelligence Bar) — GPT samo popunjava
+            # faktori_plus/minus (objašnjenje), nikad sam ne bira nivo.
+            "procena_rizika": {
+                "nivo":          _deterministic_risk["nivo"].lower(),
+                "faktori_plus":  _rizik_objasnjenje.get("faktori_plus", []),
+                "faktori_minus": _rizik_objasnjenje.get("faktori_minus", []),
+            },
             "poslednja_aktivnost": poslednja_aktivnost,
-            "rizik_promena":       cockpit_raw.get("procena_rizika", {}).get("promena"),
+            "rizik_promena":       _rizik_promena,
         },
         "case_ready_score":   _crs,
         "checklist":          _checklist,

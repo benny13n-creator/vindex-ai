@@ -363,6 +363,47 @@ provera pokaže DVA ili više postojećih izvora za isti koncept — to je
 samo po sebi nalaz vredan D-broja u ovom registru, pre nego što se
 razmišlja o trećem.
 
+### AR-01 (novo, trajno arhitektonsko pravilo, 2026-07-20). LLM nikad ne određuje poslovno stanje
+
+Otkriveno kroz G-027 (Matter Intelligence i Cockpit su nezavisno
+računali "procesni rizik" — empirijski potvrđeno 16/16 predmeta, GPT je
+vraćao "srednji" bez ikakve varijanse dok je deterministička formula
+ispravno pratila stvarne podatke). Founderova formulacija, direktan
+citat:
+
+> "LLM nikada ne određuje poslovno stanje sistema. LLM može da: objasni,
+> sumira, predloži, napiše, upozori. Ali ne određuje: rizik, status,
+> rok, kompletiranost, prioritet. To određuje deterministički sloj."
+
+Ovo NIJE D-stavka sa statusom (Accepted/Deferred/Blocked) — kao ni
+D20.1, ovo je STALNO pravilo za evaluaciju svakog budućeg predloga koji
+uključuje LLM izlaz:
+
+- **Sme:** objašnjenje ("zašto je rizik visok"), sažetak, predlog
+  sledećeg koraka kao TEKST, upozorenje, nacrt dokumenta.
+- **Ne sme:** da bude JEDINI izvor za rizik, status, rok, spremnost/
+  kompletiranost, prioritet — ta polja moraju imati deterministički
+  izračunat izvor istine; LLM ih najviše INTERPRETIRA već izračunatu
+  vrednost, nikad je ne izmišlja iznova.
+- Isti princip kao Trust Layer (izvori/citati) i Deterministic
+  Intelligence Framework ([[project_deterministic_intelligence_framework]])
+  — G-027 je treći nezavisan nalaz istog obrasca, sada eksplicitno
+  imenovan kao opšte pravilo umesto da se otkriva iznova po polju.
+
+**Poznati preostali slučajevi koji krše AR-01 (otkriveni usput tokom
+G-027 popravke, NE popravljeni — zasebne stavke, van obima te popravke):**
+- Cockpit `sledeca_akcija.prioritet` ("hitan/normalan/odložen") — GPT i
+  dalje sam bira prioritet. Isti obrazac kao procena_rizika je bila,
+  nije još adresiran.
+- Case Genome i drugi moduli koji vraćaju "prioritet"/"hitnost" polja
+  direktno iz GPT odgovora — nije sistematski popisano, vredi budući
+  audit ako se AR-01 primenjuje šire od ovog jednog fixa.
+
+**Praktična primena:** svaki budući predlog koji dodaje polje sa GPT
+kao jedinim izvorom za rizik/status/rok/spremnost/prioritet treba
+odbiti u toj formi — tražiti deterministički sloj ispod, LLM samo iznad
+njega kao objašnjenje.
+
 ---
 
 ## Redosled kad Beta Freeze prestane (predlog, ne konačna odluka)

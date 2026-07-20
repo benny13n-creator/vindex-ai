@@ -61,7 +61,9 @@ dubok dokaz (file:line) za svaki red je tamo, ne ponovljen ovde.
 | G-024 | Arhitektonski (svi tokovi) | Predloženi 13-stanja lifecycle nije usklađen sa Kanban statusom | Dva nezavisna "status predmeta" koncepta ako se lifecycle uvede bez odluke | D23 | **Blocker za bilo koju lifecycle implementaciju** |
 | G-025 | Arhitektonski | "Žalba" i "Pravosnažno" nemaju definisan tok/ugovor | Van obima 4 postojeća CONTRACT-a | D24 | Open, čeka D23 |
 | G-026 | Arhitektonski (frontend) | `#t-credits-row` (credit panel vidljivost) povremeno se prikazuje na tabovima gde ne treba (npr. Rokovi), otkriveno ručnim prolazom CONTRACT 01 | Tri nezavisna pisca istog `style.display` — `updateAuthUI()` (bezuslovno, bez provere `activeTab`), `setTab()`, `aiwsSetMode()`; `updateAuthUI()` se poziva iz async Supabase `onAuthStateChange` callback-a koji može razrešiti posle navigacije i prepisati `setTab()`-ovo sakrivanje. Isti obrazac kao D21/D23 (kršenje "jedan poslovni koncept = jedan izvor istine"), sada na frontend UI-state, ne na podacima. | D20.1 (princip; nema poseban D-broj) | Open, **ne blokira CONTRACT 01** |
-| G-027 | Arhitektonski (poslovna logika, Pregled predmeta) | Matter Intelligence Bar "Procesni rizik"/"Ocena zdravlja" i Cockpit "Procena rizika" prikazuju DVA različita rizika za isti predmet — EMPIRIJSKI POTVRĐENO (`scripts/g027_risk_validation.py`, 16/16 predmeta founder naloga, real API pozivi) | Matter Intel (`routers/matter_intel.py:115-134`) računa rizik determinističkom formulom. Cockpit (`api.py:4519-4559`) traži od GPT-4o-mini da SAM izmisli nivo iz slobodnog teksta. **Nalaz: Cockpit je vratio "srednji" za SVIH 16/16 predmeta bez izuzetka — nula varijanse — dok je Matter varirao (15× Visok, 1× Srednji) prateći stvarne razlike u podacima.** Cockpit trenutno ne nosi diskriminativan signal u ovom uzorku. Case Ready Score potvrđeno NIJE deo problema — varirao je nezavisno (20/35/50) prateći kompletnost, ne rizik. Krši princip "LLM predlaže, backend računa broj" ([[project_deterministic_intelligence_framework]]). | D20.1 (princip) + Deterministic Intelligence Framework | **CONFIRMED (Scenario A) — blokira spajanje dok se ne odluči da Cockpit preuzima Matter-ov broj; Cockpit-ovo "uvek srednji" ponašanje je dodatni, zaseban nalaz vredan provere pre fixa** |
+| G-027 | Arhitektonski (poslovna logika, Pregled predmeta) | Matter Intelligence Bar i Cockpit su nezavisno računali "procesni rizik" za isti predmet | Ekstrahovano u `services/risk_engine.py::calculate_procesni_rizik` — jedini deterministički izvor istine. `routers/matter_intel.py` ga poziva (ponašanje nepromenjeno). `api.py` `/workspace` endpoint ga poziva PRE GPT poziva; Cockpit-ov prompt (`_COCKPIT_SYSTEM`) više ne pita GPT za nivo — dobija ga kao dat kontekst i vraća samo `rizik_objasnjenje` (faktori_plus/minus). | D20.1 + **AR-01 (novo, formalizovano ovom stavkom)** | **CLOSED (2026-07-20)** |
+| G-028 | Bug, otkriven usput tokom G-027 popravke | Matter Intel/risk engine `nedostajuci_dokazi` uvek vraća pun spisak očekivanih dokumenata bez obzira na stvarne upload-ove | `predmet_dokumenti` upiti (i u starom `matter_intel.py` i u novom `workspace` endpoint-u) selektuju `naziv_fajla,status` — NIKAD `tip_dokaza` — pa je `postojeci_tipovi` uvek prazan skup. Objašnjava zašto je u G-027 uzorku `nedostajuci_count` bio konstantno 2 za svih 16 predmeta bez obzira na broj/tip dokumenata. | — (nema D-broj, čist bug) | Open, **needs verification da li je select namerno ovakav ili previd**, ne blokira ništa |
+| G-029 | AR-01 (novo pravilo) povreda, otkriven usput tokom G-027 popravke | Cockpit `sledeca_akcija.prioritet` ("hitan/normalan/odložen") i dalje GPT sam bira, isti obrazac kao rizik pre popravke | `api.py` `_COCKPIT_SYSTEM` i dalje traži od GPT-a da vrati `prioritet` kao slobodan izbor, bez determinističkog izvora ispod | AR-01 | Open, **nije proveravano empirijski kao G-027 (nema dokaz da se prioritet stvarno razlikuje po pozivima) — proveriti pre popravke, ista disciplina kao G-027** |
 
 **Napomena uz G-026:** `credRow.dataset.wasVisible` se čita na 2 mesta
 (`static/vindex.js:2178`, `:2251`) ali se **nigde ne postavlja** — mrtav
@@ -116,6 +118,34 @@ nužno reprezentativno), ali NE objašnjava Cockpit-ovu nultu varijansu —
 je i dalje dobio "srednji" od Cockpit-a, isto kao ostatak. **Zaključak:
 Scenario A potvrđen — isti koncept, dva nekomunicirajuća izvora —
 implementacija čeka founderovu odluku.**
+
+**ZATVORENO (2026-07-20)** — founder odobrio implementaciju sa izmenjenom
+specifikacijom (ne "Cockpit preuzima Matter broj" nego "jedinstven
+servis, oba su potrošači") i formalizovao AR-01 kao trajno pravilo.
+G-item closure protokol:
+1. **Diff:** novi `services/risk_engine.py` (ekstrakcija, ponašanje
+   nepromenjeno); `routers/matter_intel.py` sada poziva servis umesto
+   inline računa; `api.py` `/workspace` računa rizik PRE GPT poziva,
+   `_COCKPIT_SYSTEM` prompt promenjen da GPT vraća `rizik_objasnjenje`
+   (faktori_plus/minus) umesto `procena_rizika.nivo`; risk-history
+   poređenje (Step 6b) sada čita iz determinističkog izvora.
+2. **CONTRACT red:** CONTRACT 01 nepromenjen (Cockpit/Matter Intel nisu
+   deo CONTRACT 01 kritične putanje) — ovo je Pregled predmeta UI
+   kvalitet, ne Tok 1 blocking stavka.
+3. **KPI:** Coverage/Critical Coverage brojevi nepromenjeni (G-027 nije
+   bio na CONTRACT listi). Novi pokazatelj uveden ovom stavkom: Cockpit/
+   Matter Risk slaganje 0/16 (0%) → 16/16 (100%) posle fixa.
+4. **Testovi pokrenuti:** `scripts/g027_risk_validation.py` ponovo
+   pokrenut posle izmene, real API pozivi (in-process ASGI, isto kao
+   CONTRACT01 harness) na svih 16 predmeta founder naloga. Rezultat:
+   Matter i Cockpit se slažu na 16/16 (100%, bilo 1/16 pre fixa i to
+   slučajno). Ručni test u UI-ju NIJE urađen (čeka founderov sledeći
+   ručni prolaz).
+5. **G-stavke zatvorene:** G-027.
+6. **Nove G-stavke otvorene usput (nisu tiho prećutane):** G-028
+   (`tip_dokaza` select bug — needs verification), G-029 (Cockpit
+   `sledeca_akcija.prioritet` — ista AR-01 povreda, neprovereno
+   empirijski, van obima ove popravke).
 
 ---
 
