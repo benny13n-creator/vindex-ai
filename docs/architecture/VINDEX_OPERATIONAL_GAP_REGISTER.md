@@ -61,7 +61,7 @@ dubok dokaz (file:line) za svaki red je tamo, ne ponovljen ovde.
 | G-024 | Arhitektonski (svi tokovi) | Predloženi 13-stanja lifecycle nije usklađen sa Kanban statusom | Dva nezavisna "status predmeta" koncepta ako se lifecycle uvede bez odluke | D23 | **Blocker za bilo koju lifecycle implementaciju** |
 | G-025 | Arhitektonski | "Žalba" i "Pravosnažno" nemaju definisan tok/ugovor | Van obima 4 postojeća CONTRACT-a | D24 | Open, čeka D23 |
 | G-026 | Arhitektonski (frontend) | `#t-credits-row` (credit panel vidljivost) povremeno se prikazuje na tabovima gde ne treba (npr. Rokovi), otkriveno ručnim prolazom CONTRACT 01 | Tri nezavisna pisca istog `style.display` — `updateAuthUI()` (bezuslovno, bez provere `activeTab`), `setTab()`, `aiwsSetMode()`; `updateAuthUI()` se poziva iz async Supabase `onAuthStateChange` callback-a koji može razrešiti posle navigacije i prepisati `setTab()`-ovo sakrivanje. Isti obrazac kao D21/D23 (kršenje "jedan poslovni koncept = jedan izvor istine"), sada na frontend UI-state, ne na podacima. | D20.1 (princip; nema poseban D-broj) | Open, **ne blokira CONTRACT 01** |
-| G-027 | Arhitektonski (poslovna logika, Pregled predmeta) | Matter Intelligence Bar "Procesni rizik"/"Ocena zdravlja" i Cockpit "Procena rizika" prikazuju DVA različita rizika za isti predmet — otkriveno proverom pre planiranog UI spajanja tri skor-widgeta | Matter Intel (`routers/matter_intel.py:115-134`) računa rizik determinističkom formulom (poeni na osnovu snage/nedostajućih dokaza/kritičnih rokova → Nizak/Srednji/Visok, health=100-rizik). Cockpit (`api.py:4519-4559`, `_fetch_cockpit_ai`) traži od GPT-4o-mini da SAM izmisli "visok/srednji/nizak" iz slobodnog teksta — dve potpuno nezavisne, nekomunicirajuće putanje za isti poslovni koncept. Krši već usvojen princip "LLM predlaže, backend računa broj" ([[project_deterministic_intelligence_framework]]). **Case Ready Score NIJE deo ovog problema** — to je odvojen, legitiman koncept (kompletnost predmeta, ne rizik), deterministički (`services/case_pipeline.py::calculate_case_ready_score`), ne treba ga spajati sa rizikom. | D20.1 (princip) + Deterministic Intelligence Framework | Open, **blokira planirano spajanje UI skor-widgeta — ne spajati dok se ne odluči koja procena rizika je merodavna** |
+| G-027 | Arhitektonski (poslovna logika, Pregled predmeta) | Matter Intelligence Bar "Procesni rizik"/"Ocena zdravlja" i Cockpit "Procena rizika" prikazuju DVA različita rizika za isti predmet — EMPIRIJSKI POTVRĐENO (`scripts/g027_risk_validation.py`, 16/16 predmeta founder naloga, real API pozivi) | Matter Intel (`routers/matter_intel.py:115-134`) računa rizik determinističkom formulom. Cockpit (`api.py:4519-4559`) traži od GPT-4o-mini da SAM izmisli nivo iz slobodnog teksta. **Nalaz: Cockpit je vratio "srednji" za SVIH 16/16 predmeta bez izuzetka — nula varijanse — dok je Matter varirao (15× Visok, 1× Srednji) prateći stvarne razlike u podacima.** Cockpit trenutno ne nosi diskriminativan signal u ovom uzorku. Case Ready Score potvrđeno NIJE deo problema — varirao je nezavisno (20/35/50) prateći kompletnost, ne rizik. Krši princip "LLM predlaže, backend računa broj" ([[project_deterministic_intelligence_framework]]). | D20.1 (princip) + Deterministic Intelligence Framework | **CONFIRMED (Scenario A) — blokira spajanje dok se ne odluči da Cockpit preuzima Matter-ov broj; Cockpit-ovo "uvek srednji" ponašanje je dodatni, zaseban nalaz vredan provere pre fixa** |
 
 **Napomena uz G-026:** `credRow.dataset.wasVisible` se čita na 2 mesta
 (`static/vindex.js:2178`, `:2251`) ali se **nigde ne postavlja** — mrtav
@@ -72,6 +72,50 @@ otvori "frontend state ownership" tema, prva sumnja treba biti da ovaj
 obrazac (više funkcija piše isti DOM-vidljivost bez jednog vlasnika)
 postoji i na drugim deljenim elementima van tab-kontejnera — nije
 provereno, samo označeno kao verovatno.
+
+**Empirijska validacija G-027 (2026-07-20)** — pre bilo kakve
+implementacije, pokrenut je `scripts/g027_risk_validation.py`: real API
+pozivi (in-process ASGI, isti harness obrazac kao CONTRACT01 E2E test)
+na GET `/api/matter-intel/predmeti/{id}` i GET `/api/predmeti/{id}/workspace`
+za svih 16 predmeta na founder nalogu (14 iz [KALIBRACIJA] batch-a
+2026-07-18, 1 CONTRACT01 test predmet, 1 realan predmet bez dokumenata).
+Sirovi rezultati: `vindex_scraper_output/g027_validation.json` (van repo-a).
+
+| Distribucija | Vrednosti |
+|---|---|
+| Matter Risk (16 predmeta) | Visok ×15, Srednji ×1 |
+| Cockpit Risk (16 predmeta) | srednji ×16 (**nula varijanse**) |
+| Case Ready Score | 35 ×13, 20 ×2, 50 ×1 |
+
+Četiri pitanja iz protokola:
+1. **Koliko često se razlikuju?** 15/16 (93.75%) — jedino "poklapanje"
+   (predmet `47dc4817`, Matter=Srednji/Cockpit=srednji) je slučajno, jer
+   je Cockpit izlaz konstantan bez obzira na predmet.
+2. **Sistematska ili slučajna razlika?** Sistematska, jednosmerna:
+   Cockpit gotovo nikad ne odstupa od "srednji" (16/16), dok Matter
+   prati stvarne razlike u `snaga_dokaza`/nedostajućim dokazima/
+   kritičnim rokovima. Ovo NIJE šum — Cockpit trenutno ne nosi
+   diskriminativan signal u ovom uzorku (dodatni nalaz, ne isto što i
+   G-027 sam po sebi — vredi zaseban prompt/temperature pregled pre
+   fixa, ne samo "preuzmi Matter-ov broj").
+3. **Isti koncept ili različiti?** Nameravaju da budu isti (isti naziv,
+   ista 3-stepena skala) — Case Ready Score potvrđeno NIJE deo ovog
+   problema, varirao je nezavisno (checklist kompletnosti, ne rizik).
+4. **Da li korisnik razume razliku?** Ne — isti naziv polja
+   ("Procena rizika"/"Procesni rizik"), ista terminologija, čak i
+   case-mismatch (veliko/malo slovo), bez ikakvog objašnjenja da su to
+   dva odvojena izvora.
+
+**Bitna ograda uzorka:** 15/16 predmeta dele poreklo (14 sintetički
+KALIBRACIJA batch, sličnog stila; 1 test predmet) — nema širokog realnog
+uzorka iz prakse. `snaga_dokaza = "Nema dokaza"` za 14/16 (Evidence
+Vault prazan za KALIBRACIJA batch iako `predmet_dokumenti` ima 1-4 reda
+po predmetu) — ovo objašnjava VISOKU Matter stopu (artefakt uzorka, ne
+nužno reprezentativno), ali NE objašnjava Cockpit-ovu nultu varijansu —
+čak i jedini predmet sa drugačijim `snaga_dokaza` (47dc4817, "Srednja")
+je i dalje dobio "srednji" od Cockpit-a, isto kao ostatak. **Zaključak:
+Scenario A potvrđen — isti koncept, dva nekomunicirajuća izvora —
+implementacija čeka founderovu odluku.**
 
 ---
 
