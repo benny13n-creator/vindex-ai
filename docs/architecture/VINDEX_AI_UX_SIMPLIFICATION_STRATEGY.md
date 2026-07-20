@@ -5,6 +5,23 @@ Implementacija čeka završetak CONTRACT 01 ručnog prolaza (aktivan
 sprint plan) — ovaj dokument je strategija za POSLE toga, ne sledeći
 zadatak.
 
+**ISPRAVKA REDOSLEDA (2026-07-20, founderova odluka posle prvog čitanja
+— pročitati PRE Implementation Roadmap sekcije ispod):** Top 10 #2
+("Sledeća akcija" ima 4 nekomunicirajuća sistema) je pogrešno
+klasifikovan kao Sprint 3 UI zahvat. To je ARHITEKTONSKA odluka, mora
+ići PRE bilo kog UI sprinta, ne posle Dashboard/Sidebar/Pregled
+izmena — "nema smisla dizajnirati savršen ekran ako iza njega postoje
+četiri različita mozga." Formalizovano kao **G-030 "Next Action Source
+of Truth Audit"** u `VINDEX_OPERATIONAL_GAP_REGISTER.md`, sa
+founderovom tačnom empirijskom metodologijom (tabela 4 sistema × 5
+kolona, 20 predmeta, A/B/C test slaganja) — **ista disciplina kao
+G-027: prvo dokaz, tek onda izbor arhitekture, ne birati "pobednika"
+unapred**. Ispravljen redosled: **CONTRACT 01 → Sprint 2A (Decision
+Architecture, G-030, NE UI) → Sprint 2B (UX Simplification, sve ispod
+u ovom dokumentu)**. Roadmap sekcija ispod NIJE prepravljena da ovo
+odražava (istorijski dokument) — G-030 zapis u Gap Registru je izvor
+istine za redosled, ne ova stranica.
+
 **Odnos prema `VINDEX_UX_SIMPLIFICATION_AUDIT_2026-07-20.md`:** taj
 dokument (napisan par sati ranije istog dana) je stranica-po-stranicu
 audit sa 8-pitanja rubrikom i file:line dokazima. Ovaj dokument koristi

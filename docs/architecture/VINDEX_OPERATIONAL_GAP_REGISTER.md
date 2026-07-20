@@ -64,6 +64,48 @@ dubok dokaz (file:line) za svaki red je tamo, ne ponovljen ovde.
 | G-027 | Arhitektonski (poslovna logika, Pregled predmeta) | Matter Intelligence Bar i Cockpit su nezavisno računali "procesni rizik" za isti predmet | Ekstrahovano u `services/risk_engine.py::calculate_procesni_rizik` — jedini deterministički izvor istine. `routers/matter_intel.py` ga poziva (ponašanje nepromenjeno). `api.py` `/workspace` endpoint ga poziva PRE GPT poziva; Cockpit-ov prompt (`_COCKPIT_SYSTEM`) više ne pita GPT za nivo — dobija ga kao dat kontekst i vraća samo `rizik_objasnjenje` (faktori_plus/minus). | D20.1 + **AR-01 (novo, formalizovano ovom stavkom)** | **CLOSED (2026-07-20)** |
 | G-028 | Bug, otkriven usput tokom G-027 popravke | Matter Intel/risk engine `nedostajuci_dokazi` uvek vraća pun spisak očekivanih dokumenata bez obzira na stvarne upload-ove | `predmet_dokumenti` upiti (i u starom `matter_intel.py` i u novom `workspace` endpoint-u) selektuju `naziv_fajla,status` — NIKAD `tip_dokaza` — pa je `postojeci_tipovi` uvek prazan skup. Objašnjava zašto je u G-027 uzorku `nedostajuci_count` bio konstantno 2 za svih 16 predmeta bez obzira na broj/tip dokumenata. | — (nema D-broj, čist bug) | Open, **needs verification da li je select namerno ovakav ili previd**, ne blokira ništa |
 | G-029 | AR-01 (novo pravilo) povreda, otkriven usput tokom G-027 popravke | Cockpit `sledeca_akcija.prioritet` ("hitan/normalan/odložen") i dalje GPT sam bira, isti obrazac kao rizik pre popravke | `api.py` `_COCKPIT_SYSTEM` i dalje traži od GPT-a da vrati `prioritet` kao slobodan izbor, bez determinističkog izvora ispod | AR-01 | Open, **nije proveravano empirijski kao G-027 (nema dokaz da se prioritet stvarno razlikuje po pozivima) — proveriti pre popravke, ista disciplina kao G-027** |
+| G-030 | Arhitektonski (poslovna logika, "sledeći korak") | ČETIRI nezavisna sistema predlažu "sledeću akciju" za isti predmet — Cockpit `sledeca_akcija`, Matter Intel `sledeca_radnja`, Case Ready Score `copilot_preporuka`, `workflow.py::sledeci_korak` — nijedan ne zna za ostale (poznato od `VINDEX_INTEGRATION_MASTER_PLAN.md` nalaza #7, sada prvi put ocenjeno kao P0 u `VINDEX_AI_UX_SIMPLIFICATION_STRATEGY.md`) | Isti obrazac kao G-027 pre popravke — organski rast, svaki sistem dodat u drugoj fazi razvoja, nikad konsolidovan | AR-01 + D20.1 | **Open — NAJVIŠI prioritet posle CONTRACT 01, PRE bilo kog UI sprinta. Empirijska validacija OBAVEZNA pre bilo kog izbora "pobednika" — ista disciplina kao G-027, ne birati arhitekturu unapred.** |
+
+**Napomena uz G-030 (radni naziv "Next Action Source of Truth Audit",
+2026-07-20, founderova tačna metodologija — zapisana ovde da se ne
+izgubi/rekonstruiše u budućoj sesiji):**
+
+Pre bilo kakve arhitektonske odluke (koji sistem postaje "master"),
+napraviti tabelu za svaki od 4 sistema:
+
+| Sistem | Šta predlaže | Na osnovu čega | Koliko često | Testirano? |
+|---|---|---|---|---|
+| Cockpit (`api.py` `_fetch_cockpit_ai`, `sledeca_akcija`) | | | | |
+| Matter Intelligence (`matter_intel.py`, `_compute_next_action`, `sledeca_radnja`) | | | | |
+| Case Ready Score (`services/case_pipeline.py`, `copilot_preporuka`) | | | | |
+| `workflow.py::sledeci_korak` | | | | |
+
+Zatim uzeti ~20 predmeta (mešano, ne slučajno): jednostavan predmet,
+komplikovan predmet, nedostatak dokaza, blizu roka, završen predmet —
+i za svaki proveriti da li 4 sistema **(A) govore isto, (B) dopunjuju
+se, (C) sukobljavaju se**. Tek POSLE ove tabele razmatrati arhitekturu.
+
+**Founderova hipoteza (EKSPLICITNO označena kao hipoteza, ne odluka):**
+`workflow.py` (deterministički, operativni događaji — dokument
+uploadovan → analiza završena → nedostaje dokaz → predlog) postaje
+kostur ("Action Engine"), GPT sloj (Cockpit) objašnjava ZAŠTO, ne ŠTA.
+Isti oblik rešenja kao G-027 (`Risk Engine → jedan rizik → AI
+objašnjenje`), sada za "sledeću akciju". **Ne birati ovu hipotezu kao
+odluku pre tabele/20-predmeta provere — ista greška koja je izbegnuta
+pre G-027 ne sme se sada napraviti ovde.**
+
+**Redosled rada, founderov korigovan roadmap (2026-07-20):**
+1. CONTRACT 01 ručni prolaz (aktivan, nezavršen).
+2. **Sprint 2A — Decision Architecture (G-030 audit → izbor izvora
+   istine → uklanjanje paralelnih sistema). Ne UI.**
+3. Sprint 2B — UX Simplification (Dashboard/Sidebar/Pregled/AI modovi,
+   iz `VINDEX_AI_UX_SIMPLIFICATION_STRATEGY.md`).
+
+Razlog za ovaj redosled, founderov citat: "Nema smisla dizajnirati
+savršen ekran ako iza njega postoje četiri različita 'mozga'."
+`VINDEX_AI_UX_SIMPLIFICATION_STRATEGY.md` Roadmap sekcija (Sprint 3)
+je ZASTARELA u delu koji tretira "Sledeća akcija" konsolidaciju kao UI
+zahvat posle Dashboard-a — G-030 mora ići PRE, ne posle, kao Sprint 2A.
 
 **Napomena uz G-026:** `credRow.dataset.wasVisible` se čita na 2 mesta
 (`static/vindex.js:2178`, `:2251`) ali se **nigde ne postavlja** — mrtav
