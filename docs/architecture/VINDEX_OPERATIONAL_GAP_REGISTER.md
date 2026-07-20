@@ -60,6 +60,17 @@ dubok dokaz (file:line) za svaki red je tamo, ne ponovljen ovde.
 | G-023 | Zatvaranje predmeta | Audit za `predmet_close` — **neprovereno** | Prisustvo u `AUDITABLE_ACTIONS` nije potvrđeno | D22 | **Needs verification** |
 | G-024 | Arhitektonski (svi tokovi) | Predloženi 13-stanja lifecycle nije usklađen sa Kanban statusom | Dva nezavisna "status predmeta" koncepta ako se lifecycle uvede bez odluke | D23 | **Blocker za bilo koju lifecycle implementaciju** |
 | G-025 | Arhitektonski | "Žalba" i "Pravosnažno" nemaju definisan tok/ugovor | Van obima 4 postojeća CONTRACT-a | D24 | Open, čeka D23 |
+| G-026 | Arhitektonski (frontend) | `#t-credits-row` (credit panel vidljivost) povremeno se prikazuje na tabovima gde ne treba (npr. Rokovi), otkriveno ručnim prolazom CONTRACT 01 | Tri nezavisna pisca istog `style.display` — `updateAuthUI()` (bezuslovno, bez provere `activeTab`), `setTab()`, `aiwsSetMode()`; `updateAuthUI()` se poziva iz async Supabase `onAuthStateChange` callback-a koji može razrešiti posle navigacije i prepisati `setTab()`-ovo sakrivanje. Isti obrazac kao D21/D23 (kršenje "jedan poslovni koncept = jedan izvor istine"), sada na frontend UI-state, ne na podacima. | D20.1 (princip; nema poseban D-broj) | Open, **ne blokira CONTRACT 01** |
+
+**Napomena uz G-026:** `credRow.dataset.wasVisible` se čita na 2 mesta
+(`static/vindex.js:2178`, `:2251`) ali se **nigde ne postavlja** — mrtav
+uslov, znak nedovršenog refaktorisanja ove vidljivost-logike. Forenzika
+je namerno zaustavljena na ovom jednom slučaju (founderov zahtev — dalja
+istraga je nov posao, ne nastavak trenutnog). Ako se u budućoj sesiji
+otvori "frontend state ownership" tema, prva sumnja treba biti da ovaj
+obrazac (više funkcija piše isti DOM-vidljivost bez jednog vlasnika)
+postoji i na drugim deljenim elementima van tab-kontejnera — nije
+provereno, samo označeno kao verovatno.
 
 ---
 
