@@ -37,7 +37,7 @@ dubok dokaz (file:line) za svaki red je tamo, ne ponovljen ovde.
 |---|---|---|---|---|---|
 | G-001 | Upload tužbe | `PredmetKreiran` se ne emituje | Event nikad pozvan iz standardnog "+ Novi predmet" puta (`api.py::kreiraj_predmet`, `POST /api/predmeti` — ne `routers/intake.py` kako je prvobitno navedeno; ispravljeno posle provere `static/vindex.js::pred_kreiraj()`) | D3 | **Closed + Verified** (commit `8f54f54`/`5bcc226`, produkcijski dokaz 2026-07-21, `CONTRACT_01_PRODUCTION_VERIFICATION.md`) |
 | G-002 | Upload tužbe | `run_case_pipeline()` se ne pokreće za standardni put | Zavisi od G-001 | D9 | **Closed + Verified** (posledica G-001 fix-a — `on_predmet_kreiran` handler, već registrovan u `services/event_bus.py`, sada stvarno prima event i poziva `run_case_pipeline()`) |
-| G-003 | Upload tužbe | Audit ne beleži kreiranje predmeta/upload dokumenta | `predmet_create`/`dokument_upload` nikad pozvani | D22 | Open |
+| G-003 | Upload tužbe | Audit ne beleži kreiranje predmeta/upload dokumenta | `predmet_create`/`dokument_upload` nikad pozvani | D22 v1 | **Closed + Verified — samo predmet/document creation audit coverage, NE kompletan audit sistem** (commit `b84fd4b`/`bb4388b`, produkcijski dokaz 2026-07-21, `CONTRACT_01_PRODUCTION_VERIFICATION.md` Addendum). Tamper-evidence provera, retention politika, user attribution kroz SVE tokove (~19-21 od 24 `AUDITABLE_ACTIONS` i dalje nikad pozvano), export, compliance format — sve i dalje van obima, nije D22 v1 tvrdio da ih rešava |
 | G-004 | Upload presude | Klasifikator ne razlikuje tužbu/žalbu/odgovor na tužbu | Sve u kategoriji `podnesak` | D1 | Open |
 | G-005 | Upload presude | Klasifikator ne razlikuje presudu/rešenje | Sve u kategoriji `sudska_odluka` | D1 | Open |
 | G-006 | Upload presude | Datum dostave/prijema se ne hvata pouzdano | Nema polje/logiku za ekstrakciju tog datuma specifično | D2 | Open |
@@ -314,3 +314,35 @@ Detalji u `VINDEX_OPERATING_SYSTEM_CONTRACTS.md` CONTRACT 01.
 6. **Nove G-stavke:** nijedna. Jedan sitan test-harness bug nađen i
    popravljen (Windows cp1252 stdout, ne sistemski bug) — nije dobio
    G-broj jer nije production kod, samo test tooling.
+
+**Update 2026-07-21 (isti dan) — G-003 zatvorena i VERIFIKOVANA
+produkcijski, commit `b84fd4b`/`bb4388b` — D22 v1 SAMO, eksplicitno
+ograničen obim:**
+1. **Diff:** `api.py::kreiraj_predmet` i `api.py::predmet_upload_auto_
+   analyze` sada zovu `shared.audit_immutable.log_action("predmet_
+   create", ...)` / `log_action("dokument_upload", ...)`. Oba imena
+   akcije već postoje u `AUDITABLE_ACTIONS`, nikad ranije pozvani —
+   nijedna nova tabela/šema/event tip. `scripts/contract01_e2e_verify.py`
+   check 6 prošireno da asertuje TAČNU akciju + korelaciju resursa
+   (ne samo postojanje reda) — usput otkriven i popravljen bug:
+   `audit_immutable.metadata` se vraća kao JSON string (snimljen preko
+   `json.dumps()`), ne parsiran dict.
+2. **CONTRACT promenjen:** `VINDEX_INTEGRATION_MASTER_PLAN.md` Tok 1,
+   7. DoD stavka (Audit) — sada takođe zaokružena.
+3. **KPI:** Integration Coverage CONTRACT 01 ostaje **6/6=100%** za
+   originalnih 6 DoD stavki (namerno NIJE promenjen imenilac — D22 je
+   7. stavka formalizovana POSLE originalnog brojanja, videti Master
+   Plan). Agregatni KPI (9/28, 11/28) takođe namerno nepromenjen iz
+   istog razloga — izbegava se prepravljanje imenioca unazad preko
+   više dokumenata bez punog ponovnog računanja svih 4 ugovora.
+4. **Testovi:** treći produkcijski run (`predmet_id ab37c832...`),
+   svih 7 provera PASS (uključujući sada i #6). Puni dokaz:
+   `CONTRACT_01_PRODUCTION_VERIFICATION.md` Addendum.
+5. **G-stavke zatvorene:** G-003 (D22 v1).
+6. **Nove G-stavke:** nijedna — ali eksplicitno NIJE zatvoreno (ostaju
+   Open, van obima D22 v1, ne tvrditi suprotno u budućim sesijama):
+   tamper-evidence provera (`verify_chain_integrity()` postoji,
+   NIJE pozvana ovim testom), retention politika, user attribution kroz
+   SVE tokove (~19-21 od 24 `AUDITABLE_ACTIONS` i dalje nikad pozvano —
+   ovaj fix pokriva TAČNO 2 od njih), export audit traga, compliance
+   format.

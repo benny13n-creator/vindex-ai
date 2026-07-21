@@ -194,17 +194,22 @@ Upload → OCR → Klasifikacija+Ekstrakcija → Evidence Vault → Case Genome
   videti `CONTRACT_01_PRODUCTION_VERIFICATION.md`)
 - [x] `run_case_pipeline()` pokrenut automatski (D9 — **zatvoreno i
   VERIFIKOVANO produkcijski**, ista verifikacija kao D3, posledica istog fix-a)
-- [ ] Audit red upisan za `predmet_create` i `dokument_upload` (ADR D-stavka
-  nije eksplicitno brojana u originalnom 4/6 — **dodati kao D22**: core audit akcije
-  nedostaju, već pomenuto u Roadmap-u kao P0 stavka #5, formalizovati
-  ovde kao zaseban broj — i dalje Open, van obima D3/D9 fix-a)
+- [x] Audit red upisan za `predmet_create` i `dokument_upload` (D22 v1 —
+  **zatvoreno i VERIFIKOVANO produkcijski**, commit `b84fd4b`/`bb4388b`,
+  2026-07-21 — 7. stavka, formalizovana posle originalnog 4/6 brojanja.
+  SAMO ova dva dogadjaja — tamper-evidence provera/retention/user
+  attribution kroz ostale ~19-21 od 24 `AUDITABLE_ACTIONS`/export/
+  compliance format i dalje van obima, NE tvrditi da je D22 "gotov" u
+  širem smislu)
 - [x] Korisnik vidi rezultat (Genome panel) bez ručnog osvežavanja (već ✅ živo)
 
-**Status toka: 6/6 živo za originalnih 6 DoD stavki (100%) — D3/D9
-zatvoreni i verifikovani produkcijski 2026-07-21. Audit stavka (D22,
-formalizovana kao 7. stavka posle originalnog brojanja) ostaje Open —
-tok danas RADI end-to-end za predmet/pipeline lanac, ali NE beleži ko/
-kada je predmet kreiran/dokument otpremljen.**
+**Status toka: 6/6 živo za originalnih 6 DoD stavki (100%), PLUS 7.
+stavka (D22 v1, Audit) sada takođe zatvorena i verifikovana
+produkcijski 2026-07-21 — Tok 1 danas RADI end-to-end za predmet→
+pipeline→audit lanac. D22 v1 pokriva samo predmet/document creation;
+šira audit zrelost (integritet/retention/ostali tokovi/export/
+compliance) ostaje van obima, videti `VINDEX_OPERATIONAL_GAP_
+REGISTER.md` G-003 Update 2026-07-21.**
 
 ### Tok 2 — Upload presude (klasifikovan procesni dokument → rok)
 
@@ -370,7 +375,9 @@ je danas kolekcija modula sa jednim potpuno živim end-to-end lancem
 
 **Update 2026-07-21:** Tok 1: **6/6** originalnih DoD stavki (D3+D9
 zatvoreni i produkcijski verifikovani, `CONTRACT_01_PRODUCTION_
-VERIFICATION.md`). 7. stavka (Audit, D22, formalizovana posle
-originalnog brojanja) ostaje Open — Tok 1 je sada prvi tok koji
-funkcioniše end-to-end za predmet→pipeline lanac, ali ne za audit
-zapisivanje. Preostala tri toka nepromenjena.
+VERIFICATION.md`). **Update isti dan, kasnije:** 7. stavka (Audit, D22
+v1) takođe zatvorena i verifikovana produkcijski — Tok 1 je sada prvi
+tok koji funkcioniše end-to-end za predmet→pipeline→audit lanac, na
+originalnih 6 + formalizovanu 7. stavku. D22 v1 je namerno uzan (samo
+predmet_create/dokument_upload) — šira audit zrelost ostaje van obima.
+Preostala tri toka nepromenjena.
