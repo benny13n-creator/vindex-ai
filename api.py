@@ -2991,7 +2991,20 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
         "tip":     body.get("tip", "opsti"),
         "status":  "aktivan",
     }).execute()
-    return {"predmet": row.data[0]}
+    novi_predmet = row.data[0]
+
+    # D3 (VINDEX_2_1_ARCHITECTURE_ROADMAP.md) — emituje PredmetKreiran za standardni
+    # "+ Novi predmet" tok. Aktivira postojeći case_pipeline (services/case_pipeline.py)
+    # kroz vec registrovan on_predmet_kreiran handler (services/event_bus.py) — nema
+    # novog agenta niti nove event arhitekture, samo povezuje vec izgradjen lanac.
+    try:
+        from services.event_bus import emit, EventType
+        emit(EventType.PREDMET_KREIRAN, user_id=user.id, predmet_id=novi_predmet["id"],
+             payload={"naziv": naziv, "tip": body.get("tip", "opsti")})
+    except Exception as _pe:
+        logger.warning("[PIPELINE] PredmetKreiran emit greška: %s", _pe)
+
+    return {"predmet": novi_predmet}
 
 
 @app.get("/api/predmeti")
