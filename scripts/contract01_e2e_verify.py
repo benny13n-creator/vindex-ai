@@ -3,7 +3,9 @@
 CONTRACT 01 (Upload tuzbe) — E2E Verified Coverage check, Faza A
 Internal Integration Sprint (2026-07-19). Extended 2026-07-21 (G-001/
 G-002 closure, commit 8f54f54) to actually check checks 4/5 instead of
-hardcoding False.
+hardcoding False. Extended again same day (G-003/D22 closure, commit
+b84fd4b) to actually check check 6 (audit_immutable rows for
+predmet_create/dokument_upload) instead of hardcoding False.
 
 Reuses the Reality Validation harness (genome_case_dna_evaluate.run_batch)
 to produce REAL evidence for the "Koji test potvrdjuje gotovost" row of
@@ -117,6 +119,40 @@ async def main():
         dz = supa.table("predmet_dokazi").select("id,tvrdnja,kategorija").eq("predmet_id", predmet_id).execute()
         dokazi = dz.data or []
 
+    # D22 check: audit_immutable rows for predmet_create/dokument_upload
+    # (api.py::kreiraj_predmet / predmet_upload_auto_analyze, commit b84fd4b).
+    # Fire-and-forget asyncio.create_task, not outbox-backed -- essentially
+    # immediate, but poll briefly for eventual-consistency safety.
+    audit_predmet_create = None
+    audit_dokument_upload = None
+    if predmet_id:
+        deadline = time.monotonic() + 15.0
+        while time.monotonic() < deadline and not (audit_predmet_create and audit_dokument_upload):
+            if not audit_predmet_create:
+                ac = supa.table("audit_immutable").select("action,resource_id,created_at") \
+                    .eq("resource_type", "predmet").eq("resource_id", predmet_id) \
+                    .eq("action", "predmet_create").limit(1).execute()
+                if ac.data:
+                    audit_predmet_create = ac.data[0]
+            if not audit_dokument_upload:
+                au = supa.table("audit_immutable").select("action,resource_id,created_at,metadata") \
+                    .eq("resource_type", "dokument").eq("action", "dokument_upload") \
+                    .order("created_at", desc=True).limit(5).execute()
+                for row in (au.data or []):
+                    # metadata je snimljen preko json.dumps() (shared/audit_immutable.py::
+                    # _build_and_insert) -- vraca se kao STRING, ne parsiran dict.
+                    raw_md = row.get("metadata")
+                    try:
+                        import json as _json2
+                        md = _json2.loads(raw_md) if isinstance(raw_md, str) else (raw_md or {})
+                    except Exception:
+                        md = {}
+                    if md.get("predmet_id") == predmet_id:
+                        audit_dokument_upload = row
+                        break
+            if not (audit_predmet_create and audit_dokument_upload):
+                await asyncio.sleep(2.0)
+
     # D3/D9 check: poll predmet_istorija for the pipeline's own completion
     # marker (services/case_pipeline.py::_step_istorija writes '[Pipeline] <date>'
     # unconditionally once all 9 steps finish). Pipeline starts at predmet-create
@@ -161,7 +197,7 @@ async def main():
         "3. Case Genome regeneracija automatska (case_dna sa verzijom)": bool(r.get("genome")),
         "4. PREDMET_KREIRAN event emitovan (D3, zakljuceno iz #5)": pipeline_ran,
         "5. run_case_pipeline pokrenut (D9)": pipeline_ran,
-        "6. Audit red za predmet_create/dokument_upload (D22)": False,  # poznato: ne belezi se, van obima D3/D9 fix-a
+        "6. Audit red za predmet_create/dokument_upload (D22)": bool(audit_predmet_create and audit_dokument_upload),
         "7. Pipeline AI izlaz nije prazan (bar 1 GPT korak SUCCESS)": ai_output_nonempty,
     }
     for k, v in checks.items():
@@ -172,6 +208,8 @@ async def main():
     print(f"  genome _verifikacija: {(r.get('genome') or {}).get('_verifikacija', {}).get('odluka')}")
     print(f"  GenomeUpdated event red: {'DA' if r.get('event_row') else 'NE'}")
     print(f"  audit_immutable (genome_refresh) red: {'DA' if r.get('audit_row') else 'NE'}")
+    print(f"  audit_immutable (predmet_create) red: {'DA' if audit_predmet_create else 'NE'}")
+    print(f"  audit_immutable (dokument_upload) red: {'DA' if audit_dokument_upload else 'NE'}")
     print(f"  predmet_dokazi (Evidence Vault) redova: {len(dokazi)}")
     if pipeline_steps:
         print(f"  pipeline koraci: {pipeline_steps.get('uspesno')} uspesno / "
@@ -186,8 +224,10 @@ async def main():
 
     print(f"\n  CONTRACT 01 Verified koraci (od kriticnih 1-3): "
           f"{sum(1 for k in list(checks)[:3] if checks[k])}/3")
-    print(f"  CONTRACT 01 Verified koraci (D3/D9, novo 2026-07-21): "
+    print(f"  CONTRACT 01 Verified koraci (D3/D9, verifikovano 2026-07-21): "
           f"{sum(1 for k in list(checks)[3:5] if checks[k])}/2")
+    print(f"  CONTRACT 01 Verified koraci (D22, novo): "
+          f"{1 if checks[list(checks)[5]] else 0}/1")
 
 
 if __name__ == "__main__":
