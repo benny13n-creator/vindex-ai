@@ -91,8 +91,8 @@ praćenje).** Ovo se dodaje u ADR kao nova stavka:
 |---|---|---|
 | **Trigger** | Advokat otprema prvi dokument u novokreiran predmet | — |
 | **Šta ulazi** | PDF/DOCX (digitalni ili skeniran — OCR fallback automatski) | ✅ radi |
-| **Koji event mora nastati** | `PREDMET_KREIRAN` (pri kreiranju predmeta) + `DOKUMENT_UPLOADOVAN` (pri uploadu) | ❌ nijedan se ne emituje (D3) |
-| **Koji servisi moraju biti pozvani** | OCR fallback (`uploaded_doc/extractor.py`); Evidence Vault klasifikacija (`routers/evidence.py::klasifikuj_i_sacuvaj`); Case Genome ekstrakcija (`routers/case_dna.py::_run_genome_background`); `run_case_pipeline()` (`services/case_pipeline.py`) | ✅✅✅ rade; ❌ pipeline se ne poziva (D9, zavisi od D3) |
+| **Koji event mora nastati** | `PREDMET_KREIRAN` (pri kreiranju predmeta) + `DOKUMENT_UPLOADOVAN` (pri uploadu) | ✅ `PredmetKreiran` se sada emituje iz `api.py::kreiraj_predmet` (D3 zatvoreno, commit `8f54f54`, 2026-07-21); ❌ `DokumentUploadovan` i dalje se ne emituje — van obima ove izmene |
+| **Koji servisi moraju biti pozvani** | OCR fallback (`uploaded_doc/extractor.py`); Evidence Vault klasifikacija (`routers/evidence.py::klasifikuj_i_sacuvaj`); Case Genome ekstrakcija (`routers/case_dna.py::_run_genome_background`); `run_case_pipeline()` (`services/case_pipeline.py`) | ✅✅✅✅ sve rade — `run_case_pipeline()` se sada poziva preko već registrovanog `on_predmet_kreiran` handlera (D9 zatvoreno kao posledica D3 fix-a) |
 | **Koji podaci moraju nastati** | `predmet_dokumenti` red; `predmet_dokazi` redovi; `case_dna` kolona; `audit_immutable` red za `predmet_create`+`dokument_upload` | ✅✅✅ nastaju; ❌ audit ne (D22) |
 | **Šta korisnik mora videti** | Potvrda uploada; "AI analiza u toku" status; Case Genome panel automatski | ✅✅✅ sve radi (P0-3, Trust Layer runda) |
 | **Šta audit mora sadržati** | Ko je kreirao predmet, kada; koji dokument otpremljen, kada | ❌ ne sadrži ništa (D22) |
@@ -120,6 +120,24 @@ event red postoji, `audit_immutable` `genome_refresh` red postoji.
 Ukupno vreme: 38.8s. **Verified Coverage za ostatak toka (D3/D9/D22)
 ostaje 0% — nepromenjeno, ovi koraci nisu ni pokušani jer G-001/G-002/
 G-003 nisu zatvorene.**
+
+**Update 2026-07-21 (commit `8f54f54`):** G-001 i G-002 zatvorene u
+kodu (D3/D9) — `api.py::kreiraj_predmet` sada emituje `PredmetKreiran`,
+koji preko već registrovanog `on_predmet_kreiran` handlera
+(`services/event_bus.py`) pokreće `run_case_pipeline()`. Diff izolovan
+i pušten odvojeno od nepovezane, ranije nekomitovane izmene u istom
+fajlu (`/bezbednosni-list` ruta). **Automatizovan test za OVU konkretnu
+izmenu NIJE ponovo pokrenut** — postojeći `pytest` na
+`tests/test_intake_phase0.py` (22/22 prošlo) potvrđuje da event bus
+mehanizam sam po sebi radi, ali `scripts/contract01_e2e_verify.py` nije
+ponovo izvršen da potvrdi da `PredmetKreiran` red stvarno nastaje u
+`events` tabeli i da `run_case_pipeline` stvarno upisuje
+`predmet_istorija` red za novokreiran predmet kroz `POST /api/predmeti`
+konkretno. **Integration/Verified Coverage brojevi za CONTRACT 01 se NE
+menjaju ovde** — ostavljeno formalnom zatvaranju (proširiti
+`contract01_e2e_verify.py` da kreira predmet kroz `POST /api/predmeti`,
+ne samo upload, i proveri `events`/`predmet_istorija` redove) pre nego
+što se G-001/G-002 tretiraju kao Verified, ne samo Closed-u-kodu.
 
 ### CONTRACT 02 — Upload presude
 

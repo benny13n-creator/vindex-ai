@@ -35,8 +35,8 @@ dubok dokaz (file:line) za svaki red je tamo, ne ponovljen ovde.
 
 | ID | Tok | Prekid | Uzrok | Rešenje | Status |
 |---|---|---|---|---|---|
-| G-001 | Upload tužbe | `PredmetKreiran` se ne emituje | Event nikad pozvan iz `routers/intake.py` | D3 | Open |
-| G-002 | Upload tužbe | `run_case_pipeline()` se ne pokreće za standardni put | Zavisi od G-001 | D9 | Open |
+| G-001 | Upload tužbe | `PredmetKreiran` se ne emituje | Event nikad pozvan iz standardnog "+ Novi predmet" puta (`api.py::kreiraj_predmet`, `POST /api/predmeti` — ne `routers/intake.py` kako je prvobitno navedeno; ispravljeno posle provere `static/vindex.js::pred_kreiraj()`) | D3 | **Closed** (commit `8f54f54`, 2026-07-21) |
+| G-002 | Upload tužbe | `run_case_pipeline()` se ne pokreće za standardni put | Zavisi od G-001 | D9 | **Closed** (posledica G-001 fix-a — `on_predmet_kreiran` handler, već registrovan u `services/event_bus.py`, sada stvarno prima event i poziva `run_case_pipeline()`) |
 | G-003 | Upload tužbe | Audit ne beleži kreiranje predmeta/upload dokumenta | `predmet_create`/`dokument_upload` nikad pozvani | D22 | Open |
 | G-004 | Upload presude | Klasifikator ne razlikuje tužbu/žalbu/odgovor na tužbu | Sve u kategoriji `podnesak` | D1 | Open |
 | G-005 | Upload presude | Klasifikator ne razlikuje presudu/rešenje | Sve u kategoriji `sudska_odluka` | D1 | Open |
@@ -264,4 +264,27 @@ DOBILI su automatizovan E2E dokaz (`scripts/contract01_e2e_verify.py`,
 stvaran predmet u produkciji, sva 3 PASS). Ovo NE zatvara G-001/G-002/
 G-003 (ti se odnose na infrastrukturu koja nije bila deo ovog testa) —
 ali daje prvi realan Verified Coverage podatak od 0% polazne tačke.
+
+**Update 2026-07-21 — G-001, G-002 zatvorene (kod), commit `8f54f54`:**
+1. **Diff:** `api.py::kreiraj_predmet` (`POST /api/predmeti`) sada
+   poziva `services.event_bus.emit(EventType.PREDMET_KREIRAN, ...)`
+   posle uspešnog insert-a u `predmeti`. Nijedan nov event tip, nijedan
+   nov handler — `on_predmet_kreiran` je već postojao i bio registrovan
+   (`services/event_bus.py:98-107,198`), samo nikad nije bio pozvan za
+   ovaj (jedini live) put.
+2. **CONTRACT promenjen:** `VINDEX_OPERATING_SYSTEM_CONTRACTS.md`,
+   CONTRACT 01, redovi "Koji event mora nastati" i "Koji servisi moraju
+   biti pozvani".
+3. **KPI:** namerno NIJE promenjen u ovoj rundi — videti napomenu u
+   Contracts dokumentu ("Update 2026-07-21") zašto Verified Coverage
+   ostaje netaknut dok se `contract01_e2e_verify.py` ne proširi da
+   pokrije `POST /api/predmeti` konkretno.
+4. **Testovi:** `pytest tests/test_intake_phase0.py` (22/22 prošlo,
+   event bus mehanizam nepromenjen); `python -c "import ast; ..."`
+   sintaksna provera; ručni import test za `services.event_bus`. **Nije**
+   pokrenut novi E2E test protiv produkcije za ovu konkretnu izmenu.
+5. **G-stavke zatvorene:** G-001 (D3), G-002 (D9, lančana posledica).
+6. **Nove G-stavke:** nijedna otvorena slučajno. G-003 (audit za
+   `predmet_create`/`dokument_upload`, D22) ostaje Open — namerno van
+   obima ove izmene, nije dirano.
 Detalji u `VINDEX_OPERATING_SYSTEM_CONTRACTS.md` CONTRACT 01.
