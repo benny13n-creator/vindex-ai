@@ -98,7 +98,7 @@ praćenje).** Ovo se dodaje u ADR kao nova stavka:
 | **Šta audit mora sadržati** | Ko je kreirao predmet, kada; koji dokument otpremljen, kada | ❌ ne sadrži ništa (D22) |
 | **Koji test potvrđuje gotovost** | E2E test: kreiraj predmet → otpremi dokument → proveri (1) `PredmetKreiran` red u outbox tabeli, (2) `run_case_pipeline` izvršen (proverljivo kroz `predmet_istorija` upis), (3) `audit_immutable` ima 2 nova reda, (4) Genome regenerisan | **Test NAPISAN I POKRENUT 2026-07-19** (`scripts/contract01_e2e_verify.py`, Faza A Internal Integration Sprint) — pao na (1),(2),(3) kako je predviđeno, prošao na (4) |
 
-**Integration Coverage: 4/6 = 67%**
+**Integration Coverage: 6/6 = 100%** (bilo 4/6=67% pre 2026-07-21 — videti Update ispod)
 
 **Kritični koraci (definicija: bez ovog koraka, advokat doživljava tok
 kao SLOMLJEN ili OBMANJUJUĆ, ne samo "manje automatizovan"):**
@@ -121,23 +121,37 @@ Ukupno vreme: 38.8s. **Verified Coverage za ostatak toka (D3/D9/D22)
 ostaje 0% — nepromenjeno, ovi koraci nisu ni pokušani jer G-001/G-002/
 G-003 nisu zatvorene.**
 
-**Update 2026-07-21 (commit `8f54f54`):** G-001 i G-002 zatvorene u
+**Update 2026-07-21 (commit `8f54f54`, kod):** G-001 i G-002 zatvorene u
 kodu (D3/D9) — `api.py::kreiraj_predmet` sada emituje `PredmetKreiran`,
 koji preko već registrovanog `on_predmet_kreiran` handlera
 (`services/event_bus.py`) pokreće `run_case_pipeline()`. Diff izolovan
 i pušten odvojeno od nepovezane, ranije nekomitovane izmene u istom
-fajlu (`/bezbednosni-list` ruta). **Automatizovan test za OVU konkretnu
-izmenu NIJE ponovo pokrenut** — postojeći `pytest` na
-`tests/test_intake_phase0.py` (22/22 prošlo) potvrđuje da event bus
-mehanizam sam po sebi radi, ali `scripts/contract01_e2e_verify.py` nije
-ponovo izvršen da potvrdi da `PredmetKreiran` red stvarno nastaje u
-`events` tabeli i da `run_case_pipeline` stvarno upisuje
-`predmet_istorija` red za novokreiran predmet kroz `POST /api/predmeti`
-konkretno. **Integration/Verified Coverage brojevi za CONTRACT 01 se NE
-menjaju ovde** — ostavljeno formalnom zatvaranju (proširiti
-`contract01_e2e_verify.py` da kreira predmet kroz `POST /api/predmeti`,
-ne samo upload, i proveri `events`/`predmet_istorija` redove) pre nego
-što se G-001/G-002 tretiraju kao Verified, ne samo Closed-u-kodu.
+fajlu (`/bezbednosni-list` ruta).
+
+**Update 2026-07-21 (commit `5bcc226`, produkcijska verifikacija):**
+`scripts/contract01_e2e_verify.py` prošireno da stvarno proveri (4)/(5)
+umesto hardkodovanog `False`, pokrenuto DVA PUTA protiv produkcije —
+puna evidencija u `CONTRACT_01_PRODUCTION_VERIFICATION.md`. **Sve 3
+supstantivne provere (klasifikacija/predmet_dokumenti postoje kao ulaz,
+`PredmetKreiran`→`run_case_pipeline` izvrsen, AI izlaz nije prazan)
+PROŠLE na oba predmeta** (`b3f7eae5...`, `87b76dc2...`, oba `[E2E
+CONTRACT01] Test predmet 2026-07-21`). Jedini incident: prvi run je
+srušio SAMO stdout prikaz testa (Windows cp1252 vs srpska slova) POSLE
+svih supstantivnih upisa — test-harness bug, ne sistemski bug,
+popravljen u istom commit-u, potvrdjeno drugim čistim run-om.
+
+**Integration Coverage: 6/6 = 100%** za originalnih 6 DoD stavki
+(`VINDEX_INTEGRATION_MASTER_PLAN.md` Tok 1) — bilo 4/6=67%.
+**Critical Coverage: 3/3 = 100%** (nepromenjeno — D3/D9/D22 nikad nisu
+bili u kritičnoj definiciji).
+**Verified Coverage: 6/6 = 100%** za originalnih 6 DoD stavki (bilo
+3/6=50% posmatrano na taj nacin, ili "3/3 za kriticne + 0% za ostatak"
+kako je ranije formulisano) — D3/D9 sada dokazano rade end-to-end
+produkcijski, ne samo postoje u kodu.
+
+**D22 (audit red za predmet_create/dokument_upload) ostaje potpuno van
+ovoga — 7. stavka, formalizovana posle originalnog 4/6/6/6 brojanja,
+i dalje Open, nikad tvrdjena kao deo ovog fix-a.**
 
 ### CONTRACT 02 — Upload presude
 
@@ -275,19 +289,20 @@ ručni prolazak kroz UI od strane foundera (ne samo API test), (b)
 prisustvo u stvarnom pilot sastanku sa advokatom (Deo 4,
 `TRUST_LAYER_BETA_FREEZE_2026-07-19.md`).
 
-**Čitanje ove tabele, direktno:** Tok 1 je VEĆ danas dovoljno dobar za
-osnovno pilot iskustvo (100% kritično) iako Coverage izgleda nepotpuno
-(67%) — infrastrukturni dug (D3/D9/D22) ne sprečava advokata da danas
-dobije vrednost. Tok 3 je blizu (67% kritično). **Tok 2 je jedini gde
-je Critical Coverage i dalje nizak (17%) — potvrđuje, matematički, ono
-što je Deo B već rekao rečima: ovo je tok koji mora ići poslednji, i
+**Čitanje ove tabele, direktno (ažurirano 2026-07-21):** Tok 1 je sada
+6/6=100% Coverage I 100% kritično — D3/D9 zatvoreni i produkcijski
+verifikovani (`CONTRACT_01_PRODUCTION_VERIFICATION.md`), jedina
+preostala rupa je D22 (audit), formalizovan kao 7. stavka posle
+originalnog brojanja. Tok 3 je blizu (67% kritično). **Tok 2 je jedini
+gde je Critical Coverage i dalje nizak (17%) — potvrđuje, matematički,
+ono što je Deo B već rekao rečima: ovo je tok koji mora ići poslednji, i
 mora ići tek posle D1/D2.** Tok 4 (50% kritično) je iznenađujuće niže
 od "izgleda skoro gotovo" utiska — jer je audit trag za zatvaranje
 tretiran kao kritičan, ne kozmetičan.
 
 **Agregatni KPI (ponderisan po broju koraka, ne prost prosek toka):**
-(4+1+2+2) / (6+10+7+5) = **9/28 = 32% Coverage**
-(3+1+2+1) / (3+6+3+2) = **7/14 = 50% Critical Coverage**
+(6+1+2+2) / (6+10+7+5) = **11/28 = 39% Coverage** (bilo 9/28=32% pre 2026-07-21)
+(3+1+2+1) / (3+6+3+2) = **7/14 = 50% Critical Coverage** (nepromenjeno — D3/D9/D22 nikad nisu bili kritični)
 
 **Oba broja se prate odvojeno od sada.** Coverage meri ukupnu
 integraciju (uključujući infrastrukturu/compliance/dopunu). Critical
@@ -298,10 +313,10 @@ Tok 4 treba proveriti 3 nepoznate stavke pre suda; Tok 2 ne
 demonstrirati u pilotu dok Critical Coverage ne pređe bar 80%).
 
 **Prost prosek toka (sekundarna referenca, manje precizan jer tretira
-svaki tok kao jednako "težak" bez obzira na broj koraka):** (67+10+29+40)/4
-= 36.5%.
+svaki tok kao jednako "težak" bez obzira na broj koraka):** (100+10+29+40)/4
+= 44.75% (bilo 36.5% pre 2026-07-21).
 
-**Preporuka: koristiti ponderisani KPI (32%) kao primarni "Vindex OS
+**Preporuka: koristiti ponderisani KPI (39%) kao primarni "Vindex OS
 Coverage" broj od sada.** Ovo postaje merljiva metrika napretka —
 zamenjuje broj endpointa/commitova/LOC kao pokazatelj da li se sistem
 približava "operativni sistem" cilju.

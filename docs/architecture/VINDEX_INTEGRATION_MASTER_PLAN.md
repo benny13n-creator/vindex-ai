@@ -186,18 +186,25 @@ Upload → OCR → Klasifikacija+Ekstrakcija → Evidence Vault → Case Genome
 ```
 
 **DoD:**
-- [ ] Klasifikacija automatska (već ✅ živo)
-- [ ] Evidence Vault upis automatski (već ✅ živo)
-- [ ] Case Genome regeneracija automatska (već ✅ živo)
-- [ ] `PREDMET_KREIRAN` emitovan pri kreiranju predmeta (D3 — **nedostaje**)
-- [ ] `run_case_pipeline()` pokrenut automatski (D9 — **nedostaje**)
+- [x] Klasifikacija automatska (već ✅ živo)
+- [x] Evidence Vault upis automatski (već ✅ živo)
+- [x] Case Genome regeneracija automatska (već ✅ živo)
+- [x] `PREDMET_KREIRAN` emitovan pri kreiranju predmeta (D3 — **zatvoreno i
+  VERIFIKOVANO produkcijski**, commit `8f54f54`/`5bcc226`, 2026-07-21 —
+  videti `CONTRACT_01_PRODUCTION_VERIFICATION.md`)
+- [x] `run_case_pipeline()` pokrenut automatski (D9 — **zatvoreno i
+  VERIFIKOVANO produkcijski**, ista verifikacija kao D3, posledica istog fix-a)
 - [ ] Audit red upisan za `predmet_create` i `dokument_upload` (ADR D-stavka
-  nije eksplicitno brojana ranije — **dodati kao D22**: core audit akcije
+  nije eksplicitno brojana u originalnom 4/6 — **dodati kao D22**: core audit akcije
   nedostaju, već pomenuto u Roadmap-u kao P0 stavka #5, formalizovati
-  ovde kao zaseban broj)
-- [ ] Korisnik vidi rezultat (Genome panel) bez ručnog osvežavanja (već ✅ živo)
+  ovde kao zaseban broj — i dalje Open, van obima D3/D9 fix-a)
+- [x] Korisnik vidi rezultat (Genome panel) bez ručnog osvežavanja (već ✅ živo)
 
-**Status toka: 4/6 živo, 2 nedostaju — NIJE gotov po definiciji iz ovog dokumenta.**
+**Status toka: 6/6 živo za originalnih 6 DoD stavki (100%) — D3/D9
+zatvoreni i verifikovani produkcijski 2026-07-21. Audit stavka (D22,
+formalizovana kao 7. stavka posle originalnog brojanja) ostaje Open —
+tok danas RADI end-to-end za predmet/pipeline lanac, ali NE beleži ko/
+kada je predmet kreiran/dokument otpremljen.**
 
 ### Tok 2 — Upload presude (klasifikovan procesni dokument → rok)
 
@@ -360,3 +367,10 @@ ROADMAP.md`.
 Tok 4: 2/5 potvrđeno + 3 neprovereno. **Nijedan tok nije gotov. Sistem
 je danas kolekcija modula sa jednim potpuno živim end-to-end lancem
 (Genome regeneracija) i nula potpuno živih operativnih tokova.**
+
+**Update 2026-07-21:** Tok 1: **6/6** originalnih DoD stavki (D3+D9
+zatvoreni i produkcijski verifikovani, `CONTRACT_01_PRODUCTION_
+VERIFICATION.md`). 7. stavka (Audit, D22, formalizovana posle
+originalnog brojanja) ostaje Open — Tok 1 je sada prvi tok koji
+funkcioniše end-to-end za predmet→pipeline lanac, ali ne za audit
+zapisivanje. Preostala tri toka nepromenjena.

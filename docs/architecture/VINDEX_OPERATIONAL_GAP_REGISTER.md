@@ -35,8 +35,8 @@ dubok dokaz (file:line) za svaki red je tamo, ne ponovljen ovde.
 
 | ID | Tok | Prekid | Uzrok | Rešenje | Status |
 |---|---|---|---|---|---|
-| G-001 | Upload tužbe | `PredmetKreiran` se ne emituje | Event nikad pozvan iz standardnog "+ Novi predmet" puta (`api.py::kreiraj_predmet`, `POST /api/predmeti` — ne `routers/intake.py` kako je prvobitno navedeno; ispravljeno posle provere `static/vindex.js::pred_kreiraj()`) | D3 | **Closed** (commit `8f54f54`, 2026-07-21) |
-| G-002 | Upload tužbe | `run_case_pipeline()` se ne pokreće za standardni put | Zavisi od G-001 | D9 | **Closed** (posledica G-001 fix-a — `on_predmet_kreiran` handler, već registrovan u `services/event_bus.py`, sada stvarno prima event i poziva `run_case_pipeline()`) |
+| G-001 | Upload tužbe | `PredmetKreiran` se ne emituje | Event nikad pozvan iz standardnog "+ Novi predmet" puta (`api.py::kreiraj_predmet`, `POST /api/predmeti` — ne `routers/intake.py` kako je prvobitno navedeno; ispravljeno posle provere `static/vindex.js::pred_kreiraj()`) | D3 | **Closed + Verified** (commit `8f54f54`/`5bcc226`, produkcijski dokaz 2026-07-21, `CONTRACT_01_PRODUCTION_VERIFICATION.md`) |
+| G-002 | Upload tužbe | `run_case_pipeline()` se ne pokreće za standardni put | Zavisi od G-001 | D9 | **Closed + Verified** (posledica G-001 fix-a — `on_predmet_kreiran` handler, već registrovan u `services/event_bus.py`, sada stvarno prima event i poziva `run_case_pipeline()`) |
 | G-003 | Upload tužbe | Audit ne beleži kreiranje predmeta/upload dokumenta | `predmet_create`/`dokument_upload` nikad pozvani | D22 | Open |
 | G-004 | Upload presude | Klasifikator ne razlikuje tužbu/žalbu/odgovor na tužbu | Sve u kategoriji `podnesak` | D1 | Open |
 | G-005 | Upload presude | Klasifikator ne razlikuje presudu/rešenje | Sve u kategoriji `sudska_odluka` | D1 | Open |
@@ -288,3 +288,29 @@ ali daje prvi realan Verified Coverage podatak od 0% polazne tačke.
    `predmet_create`/`dokument_upload`, D22) ostaje Open — namerno van
    obima ove izmene, nije dirano.
 Detalji u `VINDEX_OPERATING_SYSTEM_CONTRACTS.md` CONTRACT 01.
+
+**Update 2026-07-21 — G-001, G-002 VERIFIKOVANE produkcijski, commit
+`5bcc226`:**
+1. **Diff:** `scripts/contract01_e2e_verify.py` prošireno da stvarno
+   proveri checks 4/5/7 (bili hardkodovani `False`) — poll na
+   `predmet_istorija` za `[Pipeline]` sumarni red; ispravljen i UTF-8
+   stdout bug na Windows konzoli koji je srušio prvi run POSLE svih
+   supstantivnih provera.
+2. **CONTRACT promenjen:** `VINDEX_OPERATING_SYSTEM_CONTRACTS.md`
+   CONTRACT 01 (Integration/Critical/Verified Coverage + agregatni KPI);
+   `VINDEX_INTEGRATION_MASTER_PLAN.md` Tok 1 DoD checkboxes.
+3. **KPI:** Integration Coverage CONTRACT 01 4/6=67% → **6/6=100%**.
+   Agregatni Coverage (4 ugovora) 9/28=32% → **11/28=39%**. Critical
+   Coverage nepromenjen (7/14=50%, D3/D9 nisu bili u kritičnoj
+   definiciji). Puna računica u Contracts dokumentu.
+4. **Testovi:** `scripts/contract01_e2e_verify.py` pokrenut DVA PUTA
+   protiv produkcije (predmet_id `b3f7eae5...` i `87b76dc2...`, oba
+   `[E2E CONTRACT01] Test predmet 2026-07-21`) — svih 7 provera
+   PASS/POZNATO kako je očekivano (1-5,7 PASS; 6/D22 FAIL/POZNATO,
+   namerno van obima). Puni dokaz: `CONTRACT_01_PRODUCTION_
+   VERIFICATION.md` (novi dokument).
+5. **G-stavke zatvorene (sada VERIFIED, ne samo Closed-u-kodu):**
+   G-001 (D3), G-002 (D9).
+6. **Nove G-stavke:** nijedna. Jedan sitan test-harness bug nađen i
+   popravljen (Windows cp1252 stdout, ne sistemski bug) — nije dobio
+   G-broj jer nije production kod, samo test tooling.
