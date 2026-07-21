@@ -3004,6 +3004,23 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
     except Exception as _pe:
         logger.warning("[PIPELINE] PredmetKreiran emit greška: %s", _pe)
 
+    # D22 v1 (VINDEX_OPERATIONAL_GAP_REGISTER.md G-003) — minimalni audit trag:
+    # ko je kreirao predmet, kada, preko kog API poziva. 'predmet_create' je vec
+    # u AUDITABLE_ACTIONS (shared/audit_immutable.py) od ranije, nikad pozvano —
+    # samo povezuje postojecu infrastrukturu, ne gradi novu.
+    try:
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            "predmet_create",
+            user_id=user.id,
+            resource_type="predmet",
+            resource_id=novi_predmet["id"],
+            ip=request.client.host if request.client else None,
+            metadata={"naziv": naziv, "tip": body.get("tip", "opsti"), "source": "api"},
+        ))
+    except Exception as _ae:
+        logger.warning("[AUDIT] predmet_create log greška: %s", _ae)
+
     return {"predmet": novi_predmet}
 
 
@@ -3914,6 +3931,22 @@ async def predmet_upload_auto_analyze(
         _dok_id = (_ins.data or [{}])[0].get("id")
     except Exception:
         logger.warning("[P1.1] predmet_dokumenti insert failed for predmet=%s", predmet_id)
+
+    # D22 v1 (VINDEX_OPERATIONAL_GAP_REGISTER.md G-003) — isti obrazac kao
+    # predmet_create iznad. 'dokument_upload' je vec u AUDITABLE_ACTIONS.
+    if _dok_id:
+        try:
+            from shared.audit_immutable import log_action
+            asyncio.create_task(log_action(
+                "dokument_upload",
+                user_id=user.id,
+                resource_type="dokument",
+                resource_id=_dok_id,
+                ip=request.client.host if request.client else None,
+                metadata={"predmet_id": predmet_id, "naziv_fajla": file.filename or "dokument"},
+            ))
+        except Exception as _ae:
+            logger.warning("[AUDIT] dokument_upload log greška: %s", _ae)
 
     # Auto-classify document in background (Evidence Vault)
     if _dok_id:
