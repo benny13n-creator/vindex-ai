@@ -259,6 +259,83 @@ organizuje šta čeka na redu KAD freeze prestane.
 
 ---
 
+## Faza 5 — Case Genome Integration Sync (dodato 2026-07-22)
+
+Poreklo: `CASE_GENOME_FULL_INTEGRATION_COMPLETION` masterprompt (2026-07-22)
+tretiran ne kao dozvola za refaktoring, nego kao checklist za preostale
+integracione gapove — founderova eksplicitna odluka istog dana: "Izvuci
+iz masterprompta samo one stavke koje predstavljaju integraciju
+postojećih komponenti, bez proširenja funkcionalnosti i bez kršenja
+D20." Sve četiri stavke ispod su POVEZIVANJE postojećeg koda — nijedna
+ne dodaje nov event tip, nov AI agent, niti menja poslovnu logiku.
+Masterprompt-ove stavke koje BI kršile D20 (Faza 6 Learning Loop,
+Faza 3 "blokiraj invalid Genome" kao promena poslovne logike) su
+eksplicitno IZOSTAVLJENE ovde, ne tiho zaboravljene — vidi napomenu na
+kraju ove sekcije.
+
+### D26 (novo, `VINDEX_OPERATIONAL_GAP_REGISTER.md` G-031). `health_index.py` čita nepostojeća Genome polja
+
+- **Kontekst:** `routers/health_index.py:272` — `genome.get("ishod") or
+  genome.get("preporucena_akcija", "")`. Nijedno od ta dva polja ne
+  postoji u Genome šemi (`routers/case_dna.py:39-115`) — izraz uvek
+  vraća `""`, tiho lomi "ishod zatvorenog predmeta" signal koji Health
+  Index pokušava da izračuna (`health_index.py:252-289`).
+- **Status: Accepted, PRIORITET 1 (founder, 2026-07-22).** Čist bug fix
+  — najmanji mogući scope, nula nove logike.
+
+### D27 (novo, G-032). `require_review` verifikacija nema potrošača
+
+- **Kontekst:** `shared/genome_validator.py::verify_genome()` računa
+  `odluka: require_review` kad se nađe hard-flag, upisuje se u audit
+  metadata (`services/event_bus.py::on_genome_updated`), ali ništa ne
+  reaguje na tu vrednost — nema alert, nema notifikaciju.
+- **Status: Accepted, PRIORITET 2 (posle D26).** Rešenje ponovo
+  koristi POSTOJEĆI `proactive_alerts` mehanizam (isti obrazac kao
+  `genome_change` alert u `routers/case_dna.py`) — nula novog eventa,
+  nula novog AI-ja.
+
+### D28 (novo, G-033). Strategy Simulator nema audit trag niti genome_version referencu
+
+- **Kontekst:** `routers/strategy_simulator.py` — potvrđeno grep-om,
+  nula poziva `log_action`/`audit_immutable` u celom fajlu. Genome
+  verzija (`_g.get('verzija',1)`) se koristi samo inline u GPT prompt
+  tekstu (`strategy_simulator.py:230`), nikad se ne upisuje na
+  `simulator_partije` red za kasniju sledljivost.
+- **Status: Accepted, PRIORITET 3 (posle D27).** `ai_analiza_complete`
+  je već u `AUDITABLE_ACTIONS` allowlist-i, nikad pozvan iz ovog fajla
+  — isti obrazac kao D22 (aktiviranje postojeće, nekorišćene akcije).
+  `genome_verzija` kolona na `simulator_partije` je šema-dopuna, ne
+  nova poslovna logika.
+
+### D29 (novo, G-034). Genome risk signali naspram `risk_engine.py` — analiza, NE odluka
+
+- **Kontekst:** `services/risk_engine.py::calculate_procesni_rizik`
+  (deterministički izvor rizika posle G-027 fix-a) ima nula referenci
+  na `case_dna`/genome — potvrđeno grep-om. Genome nezavisno računa
+  sopstvene rizik-signale (`najslabija_tacka.kriticnost`,
+  `snaga_predmeta_procent`). Isti oblik obrasca kao G-027 (Cockpit vs.
+  Matter Intel "procesni rizik").
+- **Status: Blocked — čeka empirijsku analizu, NE Accepted za
+  implementaciju.** Founderovo eksplicitno pravilo (isto kao G-027,
+  2026-07-22): "izgleda kao duplikat" ≠ "dokazano duplikat". Sledeći
+  korak je skript analogan `scripts/g027_risk_validation.py` koji
+  poredi Genome i Risk Engine signale na realnom uzorku predmeta —
+  TEK POSLE toga sledi odluka (spoji/razlikuj/ne diraj), ne pre.
+
+**Eksplicitno IZOSTAVLJENO iz ove sekcije (masterprompt stavke koje
+zadiru u D20 teritoriju, ne tiho zaboravljene):** Faza 6 (Learning Loop
+konekcija — `learning_engine`/`confidence_calibrator`/`lessons_learned`
+dobijaju ulaze koji MENJAJU buduće ponašanje sistema, čak i u
+"defanzivnom" obliku koji masterprompt predlaže); Faza 3 (Genome
+Validation kao HARD BLOKADA umesto trenutnog advisory-only dizajna —
+ovo bi bila promena poslovne logike, ne povezivanje postojećeg koda,
+`shared/genome_validator.py`'s sopstveni dizajn dokument eksplicitno
+kaže "require_review je status, ne blokada"). Oba čekaju zasebnu,
+eksplicitnu founderovu odluku pre nego što se uopšte razmatraju —
+nisu deo D26-D29 rada.
+
+---
+
 ## Meta-odluke — Trust Layer i arhitektonske granice
 
 ### D15. Smart Intake confidence prikaz (T1.1/T1.2)
