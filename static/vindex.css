@@ -777,8 +777,15 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .ist-item{font-size:0.77rem;border:1px solid rgba(255,255,255,0.06);border-radius:2px;padding:0.55rem 0.75rem;margin-bottom:0.35rem;}
 .ist-q{color:rgba(255,255,255,0.45);margin-bottom:0.2rem;font-size:0.72rem;}
 .ist-a{color:rgba(255,255,255,0.78);line-height:1.5;}
+/* ── Procena predmeta — spojen scorecard (UX Gap Report Top10 #3, 2026-07-22) ──
+   Cockpit / dokazna statistika (bivši Matter Intel bar) / Spremnost (Case Ready
+   Score) sada dele JEDAN border/background/border-radius umesto tri odvojene
+   kartice — svaka sekcija zadržava sopstvenu display:none/block JS logiku
+   nepromenjenu, ovo je čisto vizuelno spajanje. */
+.pred-scorecard{margin:.55rem 0 .2rem;border:1px solid rgba(255,255,255,0.07);border-radius:3px;background:rgba(255,255,255,0.02);overflow:hidden;}
+.pred-scorecard-section{padding:.65rem .9rem;border-top:1px solid rgba(255,255,255,0.05);}
 /* ── Cockpit panel ─────────────────────────────────────────── */
-.pred-cockpit{margin:.55rem 0 .2rem;border:1px solid rgba(255,255,255,0.07);border-radius:3px;background:rgba(255,255,255,0.02);overflow:hidden;}
+.pred-cockpit{overflow:hidden;}
 .pck-sazetak-row{display:flex;gap:.6rem;align-items:flex-start;padding:.7rem .9rem;border-bottom:1px solid rgba(255,255,255,0.05);}
 .pck-ai-icon{font-size:.95rem;flex-shrink:0;margin-top:.05rem;opacity:.8;}
 .pck-sazetak-text{font-size:.81rem;color:rgba(255,255,255,.82);line-height:1.5;flex:1;}
