@@ -143,6 +143,20 @@ def test_next_action_no_evidence():
     assert any("dokaz" in p["problem"].lower() for p in result)
 
 
+# ── T7b: identify_case_problems — tip_predmeta se koristi (regresija: parametar
+# je ranije bio primljen ali nikad koriscen u telu funkcije, ispravljeno u
+# brutal-audit prolazu 2026-07-22) ────────────────────────────────────────────
+
+def test_next_action_uses_tip_predmeta_for_phrasing():
+    from services.risk_engine import identify_case_problems
+    rizik = {"kriticni_rokovi": 0, "snaga_dokaza": "Nema dokaza", "nedostajuci_dokazi": [],
+              "predstojeći_rokovi": 0}
+    radno = identify_case_problems(rizik, "radno")
+    ostalo = identify_case_problems(rizik, "ostalo")
+    assert any("radni predmet" in p["problem"] for p in radno)
+    assert not any("radni predmet" in p["problem"] for p in ostalo)
+
+
 # ── T8: 404 na nepostojeći predmet ───────────────────────────────────────────
 
 @pytest.mark.anyio

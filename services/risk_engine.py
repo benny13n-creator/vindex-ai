@@ -125,6 +125,12 @@ _NEDOSTAJUCI_LABELS = {
     "javna_isprava": "javnu ispravu", "vestacki_nalaz": "nalaz veštaka",
 }
 
+_TIPOVI_SR = {
+    "parnicno": "parnični", "krivicno": "krivični", "radno": "radni",
+    "upravno": "upravni", "porodicno": "porodični", "privredno": "privredni",
+    "nepokretnosti": "predmet nepokretnosti", "ostalo": "predmet",
+}
+
 
 def identify_case_problems(rizik: dict[str, Any], tip_predmeta: str) -> list[dict[str, str]]:
     """
@@ -154,8 +160,10 @@ def identify_case_problems(rizik: dict[str, Any], tip_predmeta: str) -> list[dic
         })
 
     if rizik.get("snaga_dokaza") == "Nema dokaza":
+        tip_sr = _TIPOVI_SR.get(tip_predmeta, "predmet")
         problemi.append({
-            "problem": "Nema uploadovanih dokaza za predmet",
+            "problem": f"Nema uploadovanih dokaza za {tip_sr} predmet" if tip_sr != "predmet"
+                       else "Nema uploadovanih dokaza za predmet",
             "ozbiljnost": "kritican",
         })
 

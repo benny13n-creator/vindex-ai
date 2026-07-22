@@ -3,7 +3,7 @@
 Intelligence Timeline — "život predmeta"
 Agregira događaje iz tabela u jedan hronološki tok.
 
-Core Consolidation Sec 1.6 (2026-07-22): ovo JE Timeline pilona (Faza 4)
+Core Consolidation Sec 1.6 (2026-07-22): ovo JE Timeline stub (Faza 4)
 — otkriveno tokom implementacije da vec postoji kao ova ruta, umesto
 kako je originalni plan pretpostavljao ("treba izgraditi novi endpoint").
 Prosireno da ukljuci audit_immutable (hash-lancani, compliance-relevantan

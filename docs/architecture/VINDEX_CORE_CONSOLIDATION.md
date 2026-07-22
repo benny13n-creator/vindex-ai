@@ -76,18 +76,18 @@ Each entry below states the concept, the declared owner, current violators (veri
 
 ---
 
-## Faza 2 — Elimination Table (preview — nothing deleted yet)
+## Faza 2 — Elimination Table (executed 2026-07-22, Sec 1.1–1.6)
 
-| Koncept | Owner | Ostali implementacije | Akcija |
+| Koncept | Owner | Ostali implementacije | Status |
 |---|---|---|---|
-| Rizik | `risk_engine.py` | case pipeline's own GPT risk snapshot | Repoint to call `risk_engine.py`; DELETE the independent GPT call |
-| Sledeća akcija | *(no owner — concept removed)* | Cockpit `sledeca_akcija`, Case Ready Score `copilot_preporuka`, dead `_INTEL_SYSTEM` prompt | DELETE all three; replace surfaces with Administrativni status + Otkriveni problemi |
-| Case Genome | `case_dna.py` | Evidence Vault's parallel `predmet_dokazi` truth, case pipeline's disconnected mini-strategy/risk output | Convert to event-sourced writes into Genome; DELETE parallel truths once migrated |
-| Dokument | *(pending pilot)* | Pipeline A / B / C | Assign interim ownership now; DELETE the two losers after pilot comparison |
-| Rokovi | Deadline Engine *(to be built)* | Genome's `rokovi_kriticni` extraction, case pipeline's own deadline extraction | Design Deadline Engine; DELETE the duplicate extraction path |
-| Istorija / Audit | Timeline API *(to be built)* | `predmet_hronologija`, `audit_immutable` (both kept, unified under one query surface) | Build unified Timeline API over both; no table deletion, query-layer consolidation only |
+| Rizik | `risk_engine.py` | case pipeline's own GPT risk snapshot | **Done.** `_step_risk_snapshot` now calls `calculate_procesni_rizik` directly; the independent GPT call is gone. Commit `96a44ac`. |
+| Sledeća akcija | *(no owner — concept removed)* | Cockpit `sledeca_akcija`, Case Ready Score `copilot_preporuka`, dead `_INTEL_SYSTEM` prompt, Matter Intel's own `_compute_next_action` | **Done.** All replaced by the single `identify_case_problems()` function; dead prompt deleted; UI surfaces (Cockpit card, `pred-crs-copilot`) now render deterministic output. Commit `96a44ac`. G-029 and G-030 closed in the Gap Register as a result. |
+| Case Genome | `case_dna.py` | Evidence Vault's parallel `predmet_dokazi` truth | **Done, narrower scope than planned.** `_extract_genome` now takes already-classified Evidence Vault facts as prompt context (`_fetch_dokazi_kontekst`). Commit `0c786fd`. **Not done** (explicitly out of scope, documented): case pipeline's mini-strategy/risk output still doesn't write back into Genome — this is a smaller residual item, not the "largest single item" originally assumed. |
+| Dokument | *(interim, still pilot-gated)* | Pipeline A / B / C | **Interim ownership assigned, no merge** — exactly as planned. Each file now documents its real scope and a freeze on new overlapping types. Commit `998e26f`. Resolution stays pilot-gated per explicit founder instruction. |
+| Rokovi | `predmet_hronologija` (de facto, not a new engine) | Genome's `rokovi_kriticni` extraction, case pipeline's own deadline extraction | **Storage unified, extraction deliberately NOT unified.** A dedicated Deadline Engine was scoped and rejected — case pipeline's step3 runs before documents exist, so it cannot read from Genome at that point in the lifecycle; the two extraction paths read genuinely different source material at different times. What shipped: `_sync_rokovi_to_hronologija` writes Genome-derived deadlines into the same calendar table case pipeline already uses. Commit `8f714e1`. |
+| Istorija / Audit | `routers/intelligence_timeline.py` (pre-existing, not built new) | `predmet_hronologija`, `audit_immutable` | **Done — corrected the plan.** A unified Timeline endpoint already existed (`GET /api/predmeti/{id}/intelligence-timeline`, 5 sources). `audit_immutable` was the one missing source; added as a 6th. Building a new endpoint would have been a duplicate-implementation mistake, caught before it happened. Commit `7cd24d6`. |
 
-No row in this table is executed by this document. Each becomes its own review-gated implementation item (§ Sequencing).
+All six rows closed 2026-07-22. Brutal-audit verification pass (same day) found and fixed one defect (`identify_case_problems`'s `tip_predmeta` parameter was accepted but never used) and corrected several planning assumptions in this document to match what was actually built (see each row above) — see the audit's own findings in the final report delivered to the founder.
 
 ---
 
@@ -154,4 +154,6 @@ Do not walk the codebase asking "what looks redundant, delete it." That is dange
 
 Talas 1 (single sources of truth) → Talas 2 (remove parallel implementations) → Talas 3 (architecture cleanup: deprecation, dead code, dead routes, dead prompts, unused tables/columns — only after confirming non-use) → Talas 4 (RLS verification, E2E tests on core flows, OCR/Genome performance tests, UX polish, pilot with real lawyers — pilot is now the *last* step, not the first).
 
-This document does not execute Talas 1. It defines what Talas 1 must produce. The next step is choosing which single item from §1 (Faza 1) to implement first, under the same one-item-at-a-time, review-gated discipline used for every G-item closed so far in this project — the founder overrode *when* consolidation happens relative to the pilot, not *how carefully* each change is made.
+**Talas 1 status: complete (2026-07-22).** All six §1 items closed and verified — see the Faza 2 Elimination Table above for exact outcomes, including two places where implementation corrected the original plan (Sec 1.3's scope was narrower than assumed; Sec 1.6 discovered a pre-existing Timeline endpoint instead of building a new one) and one place where a planned unification was deliberately rejected for a documented reason (Sec 1.5's Deadline Engine — timing constraint, not an oversight).
+
+**Talas 2 (remove parallel implementations)** is largely already achieved as a side effect of Talas 1 for risk and next-action (there is nothing left to remove — the parallel implementations were deleted outright, not just repointed). Document drafting (§1.4) remains the one deliberately-deferred exception. **Talas 3 and Talas 4 have not been started** and are the logical next step whenever the founder chooses to continue.
