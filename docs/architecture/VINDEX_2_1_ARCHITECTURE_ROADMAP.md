@@ -315,11 +315,18 @@ kraju ove sekcije.
   verzija (`_g.get('verzija',1)`) se koristi samo inline u GPT prompt
   tekstu (`strategy_simulator.py:230`), nikad se ne upisuje na
   `simulator_partije` red za kasniju sledljivost.
-- **Status: Accepted, PRIORITET 3 (posle D27).** `ai_analiza_complete`
-  je već u `AUDITABLE_ACTIONS` allowlist-i, nikad pozvan iz ovog fajla
-  — isti obrazac kao D22 (aktiviranje postojeće, nekorišćene akcije).
-  `genome_verzija` kolona na `simulator_partije` je šema-dopuna, ne
-  nova poslovna logika.
+- **Status: Closed (commit `c592464`, 2026-07-22).** `ai_analiza_complete`
+  aktivirana (već bila u `AUDITABLE_ACTIONS`, nikad pozvana) — isti
+  obrazac kao D22. `genome_verzija` NIJE postala nova kolona (izbegnuta
+  migracija) — čuva se u već-postojećem `istorija` JSONB polju i audit
+  metadata. Kritično svojstvo: `genome_verzija` je SNAPSHOT stvarno
+  korišćen za tu simulaciju (isti `_g` već učitan pre GPT poziva), ne
+  "trenutna verzija u trenutku pisanja audit zapisa" — izbegnuta race
+  condition. `sledeci_potez` namerno NE dobija `genome_verzija` (ne čita
+  Genome uopšte) — nema fabrikovane sledljivosti. Verification: Unit +
+  Integration verified (`tests/test_strategy_simulator_audit.py`, 5
+  testova). Production E2E: Not required (pasivan observability zadatak,
+  nula promene ponašanja/AI poziva/poslovne logike).
 
 ### D29 (novo, G-034). Genome risk signali naspram `risk_engine.py` — analiza, NE odluka
 
