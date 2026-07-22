@@ -263,17 +263,50 @@ async def _compute_weak_signals(uid: str, supa) -> list[dict]:
 
     signals = []
 
+    # G-031 (D26, VINDEX_OPERATIONAL_GAP_REGISTER.md) — bila je ovde:
+    # genome.get("ishod") / genome.get("preporucena_akcija") -- NIJEDNO polje
+    # ne postoji u Genome semi (routers/case_dna.py:39-115), pa je 'ishod' UVEK
+    # bio "" i signal nikad nije mogao da pogodi. Stvaran ishod (pobeda/poraz/
+    # nagodba/odustajanje/odbacena/ostalo) se ne belezi u Genome uopste -- upisan
+    # je kao tekst u predmet_hronologija od strane routers/predmeti_close.py::
+    # zatvori_predmet ("Predmet zatvoren — Ishod: <label>"). Isti parsing obrazac
+    # kao routers/predmeti_close.py::get_predmet_ishod, samo bulk umesto po jednom
+    # predmetu (jedan upit za sve zatvorene predmete, ne N+1).
+    closed_ids = [p["id"] for p in closed if p.get("id")]
+    ishod_po_predmetu: dict = {}
+    if closed_ids:
+        try:
+            hron_r = await asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+                .select("predmet_id,dogadjaj,datum")
+                .in_("predmet_id", closed_ids)
+                .eq("user_id", uid)
+                .ilike("dogadjaj", "Predmet zatvoren%")
+                .order("datum", desc=True)
+                .execute())
+            for row in (hron_r.data or []):
+                pid = row.get("predmet_id")
+                dogadjaj = row.get("dogadjaj") or ""
+                if pid in ishod_po_predmetu or "Ishod:" not in dogadjaj:
+                    continue  # prvi (najnoviji, zbog desc sortiranja) pobeđuje
+                ishod_po_predmetu[pid] = dogadjaj.split("Ishod:", 1)[1].strip().lower()
+        except Exception as exc:
+            logger.warning("[HealthIndex] weak_signals ishod upit greška: %s", exc)
+
+    # Labele iz routers/predmeti_close.py::_ISHOD_LABEL, lowercased -- "poraz" i
+    # "tužba odbačena" su jedini nedvosmisleno nepovoljni ishodi. Nagodba/
+    # odustajanje su namerno izostavljeni (mogu biti strateški dobar potez, ne
+    # automatski "loš" ishod).
+    _NEPOVOLJNI_ISHODI = {"poraz", "tužba odbačena"}
+
     # Signal 1: Tip predmeta sa lošim ishodom
     tip_counter: dict = {}
     for p in closed:
         tip = p.get("tip", "opsti")
-        genome = p.get("case_dna") or {}
-        if not isinstance(genome, dict): continue
-        ishod = genome.get("ishod") or genome.get("preporucena_akcija", "")
+        ishod = ishod_po_predmetu.get(p.get("id"), "")
         if tip not in tip_counter:
             tip_counter[tip] = {"ukupno": 0, "lose": 0}
         tip_counter[tip]["ukupno"] += 1
-        if any(w in str(ishod).lower() for w in ["neuspeh", "odbijen", "izgubljen", "povuci"]):
+        if ishod in _NEPOVOLJNI_ISHODI:
             tip_counter[tip]["lose"] += 1
 
     for tip, cnt in tip_counter.items():
