@@ -280,8 +280,16 @@ kraju ove sekcije.
   postoji u Genome šemi (`routers/case_dna.py:39-115`) — izraz uvek
   vraća `""`, tiho lomi "ishod zatvorenog predmeta" signal koji Health
   Index pokušava da izračuna (`health_index.py:252-289`).
-- **Status: Accepted, PRIORITET 1 (founder, 2026-07-22).** Čist bug fix
-  — najmanji mogući scope, nula nove logike.
+- **Status: Closed (commit `aae1c54`/`ac667a9`, 2026-07-22).** Stvaran
+  izvor istine je `predmet_hronologija`, ne Genome — Genome nikad nije
+  ni imao ovaj koncept u šemi. Fix reuse-uje postojeći parser iz
+  `routers/predmeti_close.py::get_predmet_ishod`. Founderov review
+  otkrio dodatni edge case (reopen→reclose, `datum` je korisnički
+  zadato polje, ne pouzdan sort ključ) — ispravljeno da koristi
+  `created_at`. Verification: Unit verified (3 testa,
+  `tests/test_health_index_weak_signals.py`), Production E2E: Not
+  required (deterministički read-path, nema event/pipeline/audit/AI
+  stranu — founderova eksplicitna ocena).
 
 ### D27 (novo, G-032). `require_review` verifikacija nema potrošača
 
