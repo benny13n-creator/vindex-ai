@@ -1,7 +1,17 @@
 # -*- coding: utf-8 -*-
 """
 Intelligence Timeline — "život predmeta"
-Agregira događaje iz 5 tabela u jedan hronološki tok.
+Agregira događaje iz tabela u jedan hronološki tok.
+
+Core Consolidation Sec 1.6 (2026-07-22): ovo JE Timeline pilona (Faza 4)
+— otkriveno tokom implementacije da vec postoji kao ova ruta, umesto
+kako je originalni plan pretpostavljao ("treba izgraditi novi endpoint").
+Prosireno da ukljuci audit_immutable (hash-lancani, compliance-relevantan
+log) kao 6. izvor — jedina preostala "istorija" tabela koja ranije nije
+bila deo ovog toka. Nijedna tabela nije spojena/izmenjena — ovo ostaje
+CISTO query-sloj objedinjavanje, sa razlogom: predmet_hronologija i
+audit_immutable imaju razlicite garancije (jedna je tamper-evident,
+druga nije) i ne smeju se stopiti u jednu tabelu.
 """
 import logging
 from datetime import datetime
@@ -14,6 +24,19 @@ logger = logging.getLogger("vindex.intel_timeline")
 router = APIRouter(prefix="/api/predmeti", tags=["intelligence_timeline"])
 
 _MESECI = ["", "jan", "feb", "mar", "apr", "maj", "jun", "jul", "avg", "sep", "okt", "nov", "dec"]
+
+_AUDIT_LABELS = {
+    "predmet_create": "Predmet kreiran (audit zapis)",
+    "predmet_update": "Predmet izmenjen (audit zapis)",
+    "predmet_delete": "Predmet obrisan (audit zapis)",
+    "predmet_view": "Predmet otvoren (audit zapis)",
+    "dokument_upload": "Dokument otpremljen (audit zapis)",
+    "dokument_delete": "Dokument obrisan (audit zapis)",
+    "dokument_view": "Dokument pregledan (audit zapis)",
+    "dokument_download": "Dokument preuzet (audit zapis)",
+    "ai_analiza_complete": "AI analiza završena (audit zapis)",
+    "genome_refresh": "Case Genome osvežen (audit zapis)",
+}
 
 
 def _fmt(iso: Optional[str]) -> str:
@@ -57,11 +80,14 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
     })
 
     # 2) Dokumenti
+    dokument_ids: list[str] = []
     try:
         dok_r = supa.table("predmet_dokumenti").select(
-            "naziv_fajla,created_at,velicina_kb"
+            "id,naziv_fajla,created_at,velicina_kb"
         ).eq("predmet_id", predmet_id).eq("user_id", uid).order("created_at").execute()
         for d in dok_r.data or []:
+            if d.get("id"):
+                dokument_ids.append(d["id"])
             cr_d = d.get("created_at") or ""
             kb = d.get("velicina_kb") or 0
             events.append({
@@ -158,7 +184,37 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
     except Exception as e:
         logger.warning("[ITL] genome_history: %s", e)
 
-    # 6) Predmet zatvoren
+    # 6) Audit trail (hash-lančani, compliance-relevantan log) — Core
+    # Consolidation Sec 1.6 (2026-07-22). resource_id za "predmet_*" akcije
+    # je predmet_id direktno; za "dokument_*" akcije je resource_id ID
+    # dokumenta, zato koristimo dokument_ids sakupljene u koraku 2.
+    try:
+        audit_r = supa.table("audit_immutable").select(
+            "action,created_at,resource_type,resource_id"
+        ).eq("resource_type", "predmet").eq("resource_id", predmet_id).execute()
+        audit_rows = list(audit_r.data or [])
+        if dokument_ids:
+            audit_dok_r = supa.table("audit_immutable").select(
+                "action,created_at,resource_type,resource_id"
+            ).eq("resource_type", "dokument").in_("resource_id", dokument_ids).execute()
+            audit_rows += list(audit_dok_r.data or [])
+
+        for a in audit_rows:
+            cr_a = a.get("created_at") or ""
+            action = a.get("action") or ""
+            events.append({
+                "tip": "audit",
+                "datum_iso": cr_a,
+                "datum_label": _fmt(cr_a),
+                "naslov": _AUDIT_LABELS.get(action, action),
+                "detalj": "Nepromenjiv zapis (hash-lanac)",
+                "ikona": "🔒",
+                "boja": "#8a8f98",
+            })
+    except Exception as e:
+        logger.warning("[ITL] audit_immutable: %s", e)
+
+    # 7) Predmet zatvoren
     if predmet.get("status") == "zatvoren":
         all_tmp = sorted(events, key=_sort_key)
         last_iso = all_tmp[-1]["datum_iso"] if all_tmp else cr

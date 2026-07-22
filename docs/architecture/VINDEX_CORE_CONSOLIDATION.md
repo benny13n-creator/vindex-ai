@@ -67,10 +67,12 @@ Each entry below states the concept, the declared owner, current violators (veri
 - **What was done instead (real, shipped fix):** `routers/case_dna.py::_sync_rokovi_to_hronologija` — every Genome refresh now writes its `rokovi_kriticni` findings into `predmet_hronologija` (deduplicated by `(dogadjaj, datum_iso)`), the same table case_pipeline's step3 already uses. This makes `predmet_hronologija` the de facto single deadline calendar in practice — a document-derived deadline is no longer a dead end. The two *extraction* mechanisms remain separate (correctly, given the timing constraint above); the *storage* is now unified.
 - **Still open:** `rocista` (hearings) remains a third, separate table by design (different concept — a hearing is not a generic deadline) and is unaffected by this change.
 
-### 1.6 Audit / Istorija (Timeline)
+### 1.6 Audit / Istorija (Timeline) — done, corrected the original plan
 
-- **Current state — two non-competing but non-unified concepts:** `predmet_hronologija` (general case timeline, written from many places) and `shared/audit_immutable.py` (hash-chained, compliance-relevant actions only, narrow coverage — a minority of its own 24-action allowlist is actually called).
-- **Target:** one Timeline API that both read from. This does not mean collapsing the hash-chain into the general timeline (their guarantees are different — one is tamper-evident, one is not) — it means one query surface, not four (`history`/`log`/`event`/`timeline` scattered across routers, per the founder's framing).
+- **Correction found during implementation:** the original plan assumed a unified Timeline API needed to be built from scratch. It already existed — `GET /api/predmeti/{predmet_id}/intelligence-timeline` (`routers/intelligence_timeline.py`), aggregating 5 sources (predmet creation, `predmet_dokumenti`, `rocista`, `predmet_hronologija`, `predmet_genome_history`) into one sorted, icon/color-coded feed. This is the Timeline pillar (Faza 4) — it just wasn't named as such before. Building a second one would have been the exact mistake this whole consolidation exists to prevent.
+- **What was actually missing:** `audit_immutable` (the hash-chained, compliance-relevant log) was the one source not yet merged into this feed. Added as a 6th source: `predmet_*`-scoped actions match `resource_id = predmet_id` directly; `dokument_*`-scoped actions (whose `resource_id` is the *document* id, not the predmet id) are matched via the document id list already collected for the "Dokumenti" section, avoiding a second round-trip design and any JSON-metadata filtering.
+- **What was deliberately not done:** the hash-chain integrity mechanism (`verify_chain_integrity`) is untouched — the two tables keep their different guarantees (tamper-evident vs. not); this is a read-layer merge only, matching the founder's own framing ("one query surface, not four").
+- **Coverage note carried forward, not solved here:** `audit_immutable`'s own allowlist is still only partially wired (Part 9/14 of the forensic audit) — this section surfaces whatever *is* logged, it does not increase what gets logged.
 
 ---
 
