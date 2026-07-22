@@ -30,7 +30,7 @@ Every frontend file is **byte-for-byte identical** to its state when both source
 |---|---|---|---|---|---|---|
 | 1 | Dashboard: 4 independent AI-narrative sources (Health Index/CC Briefing/Jutarnji brifing/CIO) | Merge into one "today" block, one voice | **NOT IMPLEMENTED** | `vindex.js:1158,1262,1625,16543` unchanged (file identical) | P0 | Sprint 3 — requires backend "which source is master" decision first, same discipline as G-027 |
 | 2 | "Sledeća akcija" — 4 non-communicating systems (Cockpit/Matter Intel/CRS/`workflow.py`) | Consolidate to one source of truth | **NOT IMPLEMENTED** — and its blocking prerequisite (**G-030**) is also still `Open` | `VINDEX_OPERATIONAL_GAP_REGISTER.md` G-030 row, unchanged | P0 | G-030 empirical validation (same method as G-027) must happen before *any* code — this is a product decision, not a UI task |
-| 3 | Pregled predmeta: 3 score-widgets (data unified by G-027, display isn't) | Visually merge into one display | **PARTIALLY IMPLEMENTED** — data layer done (G-027, already shipped before this doc), UI consolidation not done | `index.html:766-1054` unchanged | P1 | Pure display work, no new backend decision needed — genuinely ready to implement whenever a UI sprint starts |
+| 3 | Pregled predmeta: 3 score-widgets (data unified by G-027, display isn't) | Visually merge into one display | **IMPLEMENTED (2026-07-22, commit `c91e0de`)** | `index.html:811-920`, `static/vindex.css` `.pred-scorecard`/`.pred-scorecard-section` — one shared border/background, `mi-rizik`/`mi-sledeca` hidden (data-level duplicates, kept in DOM so `matter_intel_load()` needs zero JS changes — confirmed 0-line diff on `static/vindex.js`) | P1 | **Closed.** Verified via isolated HTML fragment + actual `pred_renderCockpit`/`pred_renderCaseReadyScore` functions run under Playwright, 0 JS errors, screenshot-confirmed at desktop and mobile width. "Sledeća akcija" consolidation intentionally NOT touched — remains G-030, a separate unresolved decision. |
 | 4 | Sidebar: 13 items vs. 5 on mobile | Reorganize to 4 primary + 2 grouped sections | **NOT IMPLEMENTED** | Sidebar markup unchanged | P1 | Touches every page, needs regression testing — correctly scoped as Sprint 2 |
 | 5 | AI hub: 7 mode-pills before first question | Group less-used modes, or let system infer intent | **NOT IMPLEMENTED** | `index.html:2715-2722` (`aiws-modes`) unchanged | P1 (P2 for renaming only) | Sprint 3 — larger architectural shell change |
 | 6 | "Dokumenti" top-level tab, redirect-only | Remove as nav item | **NOT IMPLEMENTED** | `index.html:3252-3281` (`tab-dok`) unchanged | P2 | Lowest-risk item in the entire roadmap — pure dead-navigation removal, zero dependencies |
@@ -46,10 +46,10 @@ Every frontend file is **byte-for-byte identical** to its state when both source
 | Sprint | Items | Implemented | Partially | Not implemented |
 |---|---|---|---|---|
 | Sprint 1 (lowest risk) | 4 (remove Dokumenti tab, remove fake search/animation, move admin sections behind "Više alata", consolidate Rokovi export buttons) | 0 | 0 | 4 (**0%**) |
-| Sprint 2 (medium risk) | 3 (merge 3 score-widgets, sidebar reorg, G-026 fix) | 0 | 0 (G-027 data-fix predates this doc, already counted as pre-existing) | 3 (**0%**) |
+| Sprint 2 (medium risk) | 3 (merge 3 score-widgets, sidebar reorg, G-026 fix) | **1** (score-widget merge, 2026-07-22) | 0 | 2 (**33%**) |
 | Sprint 3 (higher risk) | 5 (Dashboard consolidation, Sledeća akcija consolidation, AI hub grouping, modal unification, Podešavanja disclosure) | 0 | 0 | 5 (**0%**) |
 
-**Total: 0/12 roadmap items implemented (0%).**
+**Total: 1/12 roadmap items implemented (8%).** First item closed same day as this report, per founder's explicit "Track B, item 1" prioritization (isolated, measurable, low risk, immediately visible) — see `VINDEX_OPERATIONAL_GAP_REGISTER.md` for the closure record if one is added.
 
 ## P0/P1/P2 Open Items (carried forward unchanged from source docs)
 
