@@ -3,6 +3,20 @@
 Vindex AI — routers/drafting.py
 
 Nacrti, analiza, sazmi, feedback, podnesci, AI paralegal pipeline
+
+Core Consolidation Sec 1.4 (2026-07-22) — interim ownership (NOT merged,
+pilot-gated by explicit founder decision): this file hosts TWO of the
+three drafting surfaces. POST /api/nacrt (line ~236) wraps
+drafting.router.generate_draft (drafting/router.py) unchanged — the quick
+single-shot path. POST /api/podnesak (line ~372) is this file's OWN
+generation logic against templates/podnesci.py's TIPOVI/SABLONI, RAG-
+augmented (sudska praksa retrieval, see rag_upit below) and tied to an
+open predmet — richer context than /api/nacrt. 6 of podnesci.py's 12
+types duplicate drafting/templates.py's TEMPLATES under the same type
+keys with different template text (tuzba_naknada_stete, tuzba_radni_spor,
+tuzba_razvod, prigovor_platni_nalog, krivicna_prijava,
+predlog_privremena_mera) — known, tracked duplication, not an oversight.
+Do not resolve by intuition; see VINDEX_CORE_CONSOLIDATION.md Sec 1.4.
 """
 import asyncio
 import json

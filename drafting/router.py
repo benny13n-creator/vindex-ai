@@ -2,6 +2,21 @@
 """
 Drafting router — generate_draft(vrsta, opis) → dict.
 Uses GPT-4o for field extraction; then fills the template deterministically.
+
+Core Consolidation Sec 1.4 (2026-07-22) — interim ownership (NOT merged,
+pilot-gated by explicit founder decision, unlike every other item in
+VINDEX_CORE_CONSOLIDATION.md): this module owns the QUICK single-shot
+draft path (POST /api/nacrt, wrapped by routers/drafting.py) — short
+description in, deterministic template fill out, no case/RAG context.
+6 of its 17 types (TEMPLATES in drafting/templates.py) are duplicated by
+templates/podnesci.py (routers/drafting.py's POST /api/podnesak path)
+under the SAME type keys with DIFFERENT template text — known, tracked
+duplication, not an oversight. Do not resolve by intuition; the founder's
+explicit instruction is an empirical pilot comparison decides which
+survives. A third, unrelated freeform pipeline also exists
+(routers/doc_templates.py, POST /api/doc-templates/generisi) — freeze on
+adding new types there that duplicate this module's or podnesci.py's
+types (see VINDEX_CORE_CONSOLIDATION.md Sec 1.4 / forensic audit Part 15 Q8).
 """
 from __future__ import annotations
 

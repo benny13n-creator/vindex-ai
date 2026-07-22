@@ -52,9 +52,13 @@ Each entry below states the concept, the declared owner, current violators (veri
 
 ### 1.4 Dokumenti (Document drafting) — **explicit exception, stays empirical**
 
-- **Current state:** three independent, non-communicating pipelines — `/api/nacrt` (`drafting/router.py`), `/api/podnesak` (`routers/drafting.py`), `/api/doc-templates/generisi` (`routers/doc_templates.py`) — with 6+ directly duplicated document types and no shared code.
-- **Founder's instruction, preserved as-is:** do not merge now. First, assign each pipeline explicit, non-overlapping ownership (by type or by scope) so at minimum they stop silently duplicating. After pilot data exists, one survives — chosen empirically, same discipline as G-027/G-030/G-034, not by intuition.
-- **This is the one concept on this map still gated on real usage data**, per the founder's own words: *"Prvo: A, B, C dobijaju ownership. Posle pilota: preživljava jedan."*
+- **Status: interim ownership assigned 2026-07-22 (docstrings only, no merge, no code deletion).**
+- **Corrected architecture** (found during implementation — more precise than the original forensic audit's "three independent siblings" framing): `drafting/router.py` is a plain business-logic module (no FastAPI router of its own); `routers/drafting.py` imports and wraps it at `POST /api/nacrt`, AND separately hosts its own `POST /api/podnesak` logic against `templates/podnesci.py`. So there are two route-hosting files, not three, but three genuinely distinct generation mechanisms:
+  - **`POST /api/nacrt`** (`drafting/router.py` + `drafting/templates.py`, 17 types) — quick single-shot draft, no case/RAG context, deterministic template fill.
+  - **`POST /api/podnesak`** (`routers/drafting.py` + `templates/podnesci.py`, 12 types) — RAG-augmented (sudska praksa retrieval), tied to an open predmet, deterministic template fill. **6 types are exact duplicates of `/api/nacrt`'s registry** (`tuzba_naknada_stete`, `tuzba_radni_spor`, `tuzba_razvod`, `prigovor_platni_nalog`, `krivicna_prijava`, `predlog_privremena_mera`) — same type key, different template text, no shared code.
+  - **`POST /api/doc-templates/generisi`** (`routers/doc_templates.py`, 7 types) — fully freeform GPT-4o, no deterministic assembly step at all. Its 7 templates use different id strings (`tuzba-opstinska` vs `tuzba_naknada_stete`) but every one conceptually overlaps with the other two registries.
+- **What "interim ownership" means here, concretely:** each file now carries a header docstring stating its actual distinct scope (context depth, RAG vs. no-RAG, deterministic vs. freeform) and an explicit freeze — no new template type may be added to any of the three registries if that type already exists in another. This is documentation, not a merge: it stops the duplication from *growing*, it does not resolve what already exists.
+- **Founder's instruction, preserved as-is:** do not merge now, do not pick a winner. After pilot data exists, one survives — chosen empirically, same discipline as G-027/G-030/G-034, not by intuition. *"Prvo: A, B, C dobijaju ownership. Posle pilota: preživljava jedan."*
 
 ### 1.5 Rokovi (Deadlines)
 

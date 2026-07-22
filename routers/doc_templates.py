@@ -9,6 +9,20 @@ Endpoints:
   GET  /api/doc-templates/lista       — lista dostupnih šablona
   POST /api/doc-templates/generisi    — generiše dokument iz šablona (GPT-4o)
   POST /api/doc-templates/sacuvaj     — čuva generisani dokument u predmet_dokumenti
+
+Core Consolidation Sec 1.4 (2026-07-22) — interim ownership (NOT merged,
+pilot-gated by explicit founder decision): this is the THIRD, fully
+FREEFORM drafting surface — no deterministic template-fill step at all,
+GPT-4o generates the entire document body from a prompt-embedded template
+(_SABLONI below). All 7 of its templates conceptually overlap with
+drafting/templates.py and/or templates/podnesci.py under DIFFERENT id
+strings (e.g. "tuzba-opstinska" here vs "tuzba_naknada_stete" in the
+other two) — same real-world document, three different generation
+mechanisms. FROZEN: do not add a new template here whose "tip" already
+exists in drafting/templates.py or templates/podnesci.py — that would
+compound the exact duplication this section tracks. See
+VINDEX_CORE_CONSOLIDATION.md Sec 1.4 for the full picture; resolution is
+an explicit empirical pilot comparison, not a unilateral pick.
 """
 from __future__ import annotations
 
