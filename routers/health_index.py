@@ -276,18 +276,26 @@ async def _compute_weak_signals(uid: str, supa) -> list[dict]:
     ishod_po_predmetu: dict = {}
     if closed_ids:
         try:
+            # Sortiranje po created_at (TIMESTAMPTZ, insert-redosled), NE po
+            # 'datum' -- 'datum' je TEXT polje koje POZIVALAC bira
+            # (zatvori_predmet prima 'datum_zatvaranja' kao opcioni parametar),
+            # pa nije garantovano monotono sa stvarnim redosledom zatvaranja.
+            # Predmet MOŽE biti ponovo otvoren (PATCH /api/predmeti/{id} dozvoljava
+            # proizvoljnu promenu 'status', bez provere prelaza) i ponovo zatvoren,
+            # sto ostavlja VISE "Predmet zatvoren" zapisa za isti predmet_id --
+            # created_at garantovano odrazava koji je zapis STVARNO poslednji.
             hron_r = await asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-                .select("predmet_id,dogadjaj,datum")
+                .select("predmet_id,dogadjaj,created_at")
                 .in_("predmet_id", closed_ids)
                 .eq("user_id", uid)
                 .ilike("dogadjaj", "Predmet zatvoren%")
-                .order("datum", desc=True)
+                .order("created_at", desc=True)
                 .execute())
             for row in (hron_r.data or []):
                 pid = row.get("predmet_id")
                 dogadjaj = row.get("dogadjaj") or ""
                 if pid in ishod_po_predmetu or "Ishod:" not in dogadjaj:
-                    continue  # prvi (najnoviji, zbog desc sortiranja) pobeđuje
+                    continue  # prvi (najnoviji po created_at) pobeđuje
                 ishod_po_predmetu[pid] = dogadjaj.split("Ishod:", 1)[1].strip().lower()
         except Exception as exc:
             logger.warning("[HealthIndex] weak_signals ishod upit greška: %s", exc)

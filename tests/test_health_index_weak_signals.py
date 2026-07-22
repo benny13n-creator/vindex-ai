@@ -108,3 +108,57 @@ async def test_weak_signals_ignores_neutral_outcomes():
     signals = await hi._compute_weak_signals("user-1", supa)
 
     assert not any("nepovoljan" in s["tekst"] for s in signals), signals
+
+
+@pytest.mark.anyio
+async def test_weak_signals_uses_latest_closure_after_reopen():
+    """A predmet can be reopened (PATCH /api/predmeti/{id} allows an
+    unrestricted status change) and closed again, leaving MULTIPLE
+    'Predmet zatvoren' hronologija rows for the same predmet_id. The most
+    recent closure must win -- and 'most recent' means created_at (true
+    insertion order), not 'datum' (a caller-suppliable, non-monotonic text
+    field -- zatvori_predmet accepts an explicit datum_zatvaranja). This
+    test deliberately gives the OLDER row a later 'datum' to prove datum
+    is not used for ordering."""
+    from routers import health_index as hi
+
+    closed = [
+        {"id": f"p{i}", "tip": "radni_spor", "oblast": "radno",
+         "status": "zatvoren", "created_at": "2026-01-01", "case_dna": None}
+        for i in range(8)
+    ]
+    hron_rows = []
+    for i in range(8):
+        # First closure: lost, backdated 'datum' is actually LATER than the
+        # real (second) closure's 'datum' -- proves datum isn't the sort key.
+        hron_rows.append({
+            "predmet_id": f"p{i}", "dogadjaj": "Predmet zatvoren — Ishod: Poraz",
+            "datum": "2026-09-01", "created_at": "2026-06-01T10:00:00Z",
+        })
+        # Reopened, then closed again: actually the true latest event, wins.
+        hron_rows.append({
+            "predmet_id": f"p{i}", "dogadjaj": "Predmet zatvoren — Ishod: Pobeda",
+            "datum": "2026-01-15", "created_at": "2026-07-20T10:00:00Z",
+        })
+
+    predmeti_chain = _make_chain(closed)
+    # _make_chain's .execute() ignores .order(), so return rows pre-sorted by
+    # created_at desc, exactly as the real order("created_at", desc=True) call
+    # would produce -- the code under test must still pick correctly by NOT
+    # re-sorting on 'datum' and by taking the first-seen (already-latest) row.
+    hron_rows_sorted = sorted(hron_rows, key=lambda r: r["created_at"], reverse=True)
+    hron_chain = _make_chain(hron_rows_sorted)
+    supa = MagicMock()
+    def _table(name):
+        if name == "predmeti":
+            return predmeti_chain
+        if name == "predmet_hronologija":
+            return hron_chain
+        return _make_chain([])
+    supa.table = MagicMock(side_effect=_table)
+
+    signals = await hi._compute_weak_signals("user-1", supa)
+
+    # All 8 predmeti's true latest outcome is "Pobeda" -- zero should be
+    # counted as unfavorable, even though a 'Poraz' row exists for each.
+    assert not any("nepovoljan" in s["tekst"] for s in signals), signals
