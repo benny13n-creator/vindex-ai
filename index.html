@@ -810,14 +810,16 @@
 </div>
               <!-- UX Gap Report Top10 #3 (2026-07-22) — Matter Intel / Cockpit / Case Ready Score
                    spojeni u JEDAN vizuelni blok (zajednicki border/background/border-radius),
-                   umesto tri odvojene kartice. Svaki deo zadrzava SOPSTVENU vidljivost/JS logiku
-                   nepromenjenu (nijedan element ID, nijedna funkcija nije dirana) -- ovo je cisto
-                   CSS/struktura spajanje, ne backend/logika izmena. Rizik ("Procena rizika" kartica)
-                   i Spremnost (Case Ready Score) ostaju DVA jasno odvojena koncepta, ne tri
-                   konkurentska prikaza (data layer vec spojen preko G-027). "Sledeća akcija" NIJE
-                   dirana/spajana ovde -- to je G-030, poseban, jos neresen zadatak; mi-sledeca tekst
-                   je sakriven (ne obrisan) da ne stoji doslovno pored Cockpit-ove "Sledeća akcija"
-                   kartice kao drugi, drugaciji odgovor na isto pitanje. -->
+                   umesto tri odvojene kartice. Rizik ("Procena rizika" kartica) i Spremnost
+                   (Case Ready Score) ostaju DVA jasno odvojena koncepta (data layer vec spojen
+                   preko G-027). "Sledeća akcija" karticа je Core Consolidation Sec 1.2
+                   (2026-07-22) preimenovana u "Otkriveni problemi" -- GPT vise ne predlaze
+                   sledeci korak (ranije jedina preostala AR-01 povreda u Cockpit-u, G-029);
+                   sadrzaj sada dolazi iskljucivo iz services.risk_engine.identify_case_problems,
+                   isti algoritam koji otkriveni_problemi API polje (matter-intel endpoint) i
+                   Case Ready Score (pred-crs-copilot) takodje koriste; matter-intel-bar ostaje
+                   sakriven u celini (display:none na wrapperu), mi-sledeca DOM element uklonjen
+                   jer backend vise ne salje odgovarajuce polje (sledeca_radnja obrisano). -->
               <div class="pred-scorecard">
               <!-- Cockpit panel — AI procena na vrhu -->
               <div id="pred-cockpit" class="pred-cockpit">
@@ -829,9 +831,9 @@
                   </div>
                   <div class="pck-cards">
                     <div class="pck-card">
-                      <div class="pck-card-lbl">Sledeća akcija</div>
+                      <div class="pck-card-lbl">Otkriveni problemi</div>
                       <div id="pck-akcija-opis" class="pck-card-val">—</div>
-                      <div id="pck-akcija-rok" class="pck-card-sub"></div>
+                      <div id="pck-akcija-list" class="pck-card-sub"></div>
                       <div id="pck-akcija-prio" class="pck-prio-badge" style="display:none;"></div>
                     </div>
                     <div class="pck-card">
@@ -879,7 +881,6 @@
                   </div>
                   <div style="display:none;">
                     <div id="mi-rizik"></div>
-                    <div id="mi-sledeca"></div>
                   </div>
                   <div id="mi-sparkline-wrap" style="display:none;margin-top:.55rem;padding:.45rem .6rem;background:rgba(255,255,255,.03);border-radius:2px;">
                     <div style="font-size:.6rem;color:rgba(255,255,255,.35);margin-bottom:.3rem;">Trend zdravlja (30 dana)</div>

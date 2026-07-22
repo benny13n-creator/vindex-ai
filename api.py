@@ -4575,6 +4575,15 @@ async def predmet_workspace(
         expected_docs=_EXPECTED_DOCS_WS,
     )
 
+    # Otkriveni problemi — Core Consolidation Sec 1.2 (2026-07-22): jedini
+    # algoritam za "sledecu akciju" u celoj platformi (services.risk_engine.
+    # identify_case_problems). Cockpit vise ne pusta GPT da SAM smisli
+    # sledecu akciju/prioritet — GPT ostaje samo za ai_sazetak (slobodan
+    # opis) i rizik_objasnjenje (zasto je rizik takav), obe cisto
+    # objasnjavajuce, ne odlucujuce (AR-01).
+    from services.risk_engine import identify_case_problems as _identify_problems
+    _otkriveni_problemi = _identify_problems(_deterministic_risk, pred.data.get("tip") or "ostalo")
+
     # Step 6: Parallel — praksa preview + cockpit AI
     import os as _os_ws, json as _json_ws
     from openai import AsyncOpenAI as _OAI_ws
@@ -4583,9 +4592,10 @@ async def predmet_workspace(
         "Ti si pravni asistent. Procesni rizik predmeta je VEC IZRACUNAT "
         "determinstickim sistemom i dat ti je u kontekstu — NE odredjuj ga sam, "
         "samo objasni ZASTO je takav (faktori_plus/faktori_minus). "
+        "Otkriveni problemi predmeta su TAKODJE vec determinsticki izracunati — "
+        "ne predlazi sledecu akciju, to nije tvoj posao. "
         "Vrati ISKLJUČIVO JSON bez teksta van JSON-a:\n"
         '{"ai_sazetak": str (maks 100 reči, konkretan opis stanja predmeta),\n'
-        ' "sledeca_akcija": {"opis": str, "rok": str, "prioritet": "hitan|normalan|odlozen"},\n'
         ' "rizik_objasnjenje": {"faktori_plus": [str], "faktori_minus": [str]}}\n'
         "Ne koristi opšte fraze. Budi konkretan."
     )
@@ -4780,7 +4790,12 @@ async def predmet_workspace(
         "sudska_praksa_preview": praksa_preview,
         "cockpit": {
             "ai_sazetak":          cockpit_raw.get("ai_sazetak", ""),
-            "sledeca_akcija":      cockpit_raw.get("sledeca_akcija", {}),
+            # Core Consolidation Sec 1.2 (2026-07-22): "sledeca_akcija" GPT
+            # polje uklonjeno — bilo je jedina preostala AR-01 povreda u
+            # Cockpit-u (prioritet je bio potpuno GPT-odlucen, ranije G-029).
+            # otkriveni_problemi je sada JEDINI izvor za ovu povrsinu, isti
+            # algoritam kao Matter Intel i Case Ready Score.
+            "otkriveni_problemi":  _otkriveni_problemi,
             # G-027/AR-01: nivo dolazi ISKLJUČIVO iz _deterministic_risk (isti
             # izvor kao Matter Intelligence Bar) — GPT samo popunjava
             # faktori_plus/minus (objašnjenje), nikad sam ne bira nivo.

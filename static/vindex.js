@@ -10465,16 +10465,32 @@ function pred_renderCockpit(cockpit, urgentni) {
   var sazEl = document.getElementById('pck-sazetak-text');
   if (sazEl) sazEl.textContent = cockpit.ai_sazetak || '';
 
-  var sa = cockpit.sledeca_akcija || {};
+  // Otkriveni problemi — Core Consolidation Sec 1.2 (2026-07-22). Deterministicka
+  // lista (services.risk_engine.identify_case_problems), ne GPT predlog. Ovo NIJE
+  // savet, ovo je analiza -- advokat odlucuje sta da radi sa njom.
+  var problemi = cockpit.otkriveni_problemi || [];
   var opEl = document.getElementById('pck-akcija-opis');
-  if (opEl) opEl.textContent = sa.opis || '—';
-  var rokEl = document.getElementById('pck-akcija-rok');
-  if (rokEl) rokEl.textContent = sa.rok ? 'Rok: ' + sa.rok : '';
+  if (opEl) {
+    opEl.textContent = problemi.length
+      ? (problemi.length + (problemi.length === 1 ? ' otkriven problem' : ' otkrivena problema'))
+      : 'Nema otkrivenih problema';
+  }
+  var listEl = document.getElementById('pck-akcija-list');
+  if (listEl) {
+    listEl.innerHTML = problemi.slice(0, 3).map(function(p) {
+      return '<div>&middot; ' + escHtml(p.problem || '') + '</div>';
+    }).join('');
+  }
   var prioEl = document.getElementById('pck-akcija-prio');
-  if (prioEl && sa.prioritet) {
-    prioEl.textContent = sa.prioritet === 'hitan' ? '⚠ HITNO' : sa.prioritet;
-    prioEl.className = 'pck-prio-badge ' + sa.prioritet;
-    prioEl.style.display = 'inline-block';
+  if (prioEl) {
+    var imaKriticni = problemi.some(function(p) { return p.ozbiljnost === 'kritican'; });
+    if (imaKriticni) {
+      prioEl.textContent = '⚠ KRITIČNO';
+      prioEl.className = 'pck-prio-badge hitan';
+      prioEl.style.display = 'inline-block';
+    } else {
+      prioEl.style.display = 'none';
+    }
   }
 
   var rz = cockpit.procena_rizika || {};
@@ -17791,11 +17807,10 @@ function matter_intel_load() {
       else trendEl.style.display = 'none';
     } else if (trendEl) { trendEl.style.display = 'none'; }
 
-    var sl = document.getElementById('mi-sledeca');
-    if (d.sledeca_radnja && sl) {
-      sl.style.display = 'block';
-      sl.innerHTML = '<b>Preporučena radnja:</b> ' + _htmlEsc(d.sledeca_radnja.replace('SLEDEĆA RADNJA: ','').split('\n')[0]);
-    }
+    // mi-sledeca (Preporučena radnja) uklonjen — Core Consolidation Sec 1.2
+    // (2026-07-22): backend vise ne salje sledeca_radnja (obrisan
+    // _compute_next_action), isti podatak sad zivi u Cockpit "Otkriveni
+    // problemi" kartici (identify_case_problems, jedini algoritam).
 
     // ── Sparkline trend zdravlja ─────────────────────────────────────────────
     var spWrap = document.getElementById('mi-sparkline-wrap');

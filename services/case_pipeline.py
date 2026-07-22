@@ -485,7 +485,13 @@ async def _step_hcc(supa, predmet_id: str, user_id: str,
 async def _step_risk_snapshot(supa, predmet_id: str, user_id: str,
                                predmet: dict) -> StepResult:
     """
-    STEP 7: Generate initial risk snapshot using GPT-4o-mini.
+    STEP 7: Risk snapshot — sourced EXCLUSIVELY from services.risk_engine
+    (Core Consolidation Sec 1.1, 2026-07-22). This step used to run its own
+    independent GPT-4o-mini call from just naziv/tip/opis; that produced a
+    second, disconnected "risk" number that could disagree with the
+    deterministic risk_engine.py value shown everywhere else (Matter Intel,
+    Cockpit). There is now exactly one algorithm for procesni rizik in the
+    whole product — this step reads it, it never computes its own.
     Idempotent: skips if today's [Rizik] entry already exists.
     """
     try:
@@ -502,43 +508,44 @@ async def _step_risk_snapshot(supa, predmet_id: str, user_id: str,
             return StepResult("risk_snapshot", StepStatus.SUCCESS,
                               "Risk snapshot već postoji za danas (idempotent)")
 
-        naziv = (predmet.get("naziv") or "").strip()
-        opis  = (predmet.get("opis")  or "")[:1000]
-        tip   = (predmet.get("tip")   or "opsti")
+        from services.risk_engine import calculate_procesni_rizik
+        from shared.constants import EXPECTED_DOCS
 
-        oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
-        _system = (
-            "Na osnovu opisa predmeta proceni rizik. Vrati ISKLJUČIVO JSON: "
-            '{"nivo":"visok|srednji|nizak","faktori_plus":["str"],"faktori_minus":["str"]} '
-            "Max 3 faktora po listi. Srpski ekavica."
+        dokazi_r, dok_r, rok_r = await asyncio.gather(
+            asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
+                "snaga,kategorija,pravni_element"
+            ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+            asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
+                "tip_dokaza"
+            ).eq("predmet_id", predmet_id).execute()),
+            asyncio.to_thread(lambda: supa.table("rocista").select(
+                "datum"
+            ).eq("predmet_id", predmet_id).execute()),
+            return_exceptions=True,
         )
-        r = await asyncio.wait_for(
-            oai.chat.completions.create(
-                model="gpt-4o-mini", temperature=0, max_tokens=300,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": _system},
-                    {"role": "user",   "content": f"Predmet: {naziv}\nTip: {tip}\nOpis: {opis}"},
-                ],
-            ),
-            timeout=20.0,
+        tip = (predmet.get("tip") or "ostalo")
+        rizik = calculate_procesni_rizik(
+            dokazi=_safe_data(dokazi_r), dokumenti=_safe_data(dok_r),
+            rocista=_safe_data(rok_r), tip_predmeta=tip,
+            expected_docs=EXPECTED_DOCS,
         )
-        raw  = (r.choices[0].message.content or "{}").strip()
-        data = json.loads(raw)
-        nivo = data.get("nivo", "srednji")
-        if nivo not in ("visok", "srednji", "nizak"):
-            nivo = "srednji"
+        nivo = rizik["nivo"].lower()
+        data = {
+            "nivo": nivo,
+            "faktori_plus":  [],
+            "faktori_minus": rizik["nedostajuci_dokazi"][:3],
+        }
 
         await asyncio.to_thread(lambda: supa.table("predmet_istorija").insert({
             "predmet_id": predmet_id,
             "user_id":    user_id,
             "pitanje":    today_tag,
             "odgovor":    json.dumps(data, ensure_ascii=False),
-            "confidence": "MEDIUM",
+            "confidence": "HIGH",
         }).execute())
         return StepResult("risk_snapshot", StepStatus.SUCCESS,
                           f"Rizik: {nivo}",
-                          {"nivo": nivo, "data": data})
+                          {"nivo": nivo, "data": data, "rizik": rizik, "tip": tip})
     except Exception as exc:
         logger.warning("[PIPELINE][step7] greška: %s", exc)
         return StepResult("risk_snapshot", StepStatus.FAILED, str(exc)[:120])
@@ -548,51 +555,59 @@ async def _step_copilot_preporuka(supa, predmet_id: str, user_id: str,
                                    predmet: dict, step3: StepResult,
                                    step7: StepResult) -> StepResult:
     """
-    STEP 8: Generate initial Copilot advice based on pipeline state.
+    STEP 8: Otkriveni problemi — deterministicki, isti algoritam kao Cockpit
+    i Matter Intel (Core Consolidation Sec 1.2, 2026-07-22).
+
+    Ranije: nezavisan GPT-4o-mini poziv koji je "predlagao" 2-3 akcione
+    preporuke iz samo naziva/opisa predmeta — treca nezavisna implementacija
+    istog koncepta ("sledeca akcija") koju je forensic audit istog dana
+    otkrio. Sada: services.risk_engine.identify_case_problems, ista funkcija
+    koju koriste Cockpit i Matter Intel. "preporuka" naziv polja je zadrzan
+    (frontend kompatibilnost, pred-crs-copilot prikaz) — sadrzaj je sada
+    deterministicka lista problema, ne GPT recenica.
     """
     try:
-        naziv = (predmet.get("naziv") or "").strip()
-        opis  = (predmet.get("opis")  or "")[:800]
-        tip   = (predmet.get("tip")   or "opsti")
+        from services.risk_engine import calculate_procesni_rizik, identify_case_problems
+        from shared.constants import EXPECTED_DOCS
 
-        rizik_nivo = step7.data.get("nivo", "srednji") if step7.ok else "srednji"
-        rok_count  = step3.data.get("inserted", 0) if step3.ok else 0
+        tip = (predmet.get("tip") or "ostalo")
+        rizik = step7.data.get("rizik") if step7.ok else None
+        if rizik is None:
+            # step7 je preskocen (idempotent hit) ili nije uspeo — izracunaj
+            # sam, ISTOM funkcijom, ne izmisljaj drugaciji broj.
+            dokazi_r, dok_r, rok_r = await asyncio.gather(
+                asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
+                    "snaga,kategorija,pravni_element"
+                ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+                asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
+                    "tip_dokaza"
+                ).eq("predmet_id", predmet_id).execute()),
+                asyncio.to_thread(lambda: supa.table("rocista").select(
+                    "datum"
+                ).eq("predmet_id", predmet_id).execute()),
+                return_exceptions=True,
+            )
+            rizik = calculate_procesni_rizik(
+                dokazi=_safe_data(dokazi_r), dokumenti=_safe_data(dok_r),
+                rocista=_safe_data(rok_r), tip_predmeta=tip,
+                expected_docs=EXPECTED_DOCS,
+            )
 
-        _context = (
-            f"Predmet: {naziv} | Tip: {tip} | Rizik: {rizik_nivo}\n"
-            f"Opis: {opis}\n"
-            f"Rokovi pronađeni: {rok_count}"
-        )
-
-        oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
-        _system = (
-            "Ti si Vindex Copilot — AI pravni asistent. "
-            "Generiši 2-3 konkretne akcione preporuke za advokata koji je upravo otvorio ovaj predmet. "
-            "Format: kratke rečenice, bez numeracije, ISKLJUČIVO srpska ekavica (ZABRANJENA ijekavica: procjena→procena, savjet→savet, rješen→rešen, mjesto→mesto), max 100 reči. "
-            "Preporuke moraju biti specifične za ovaj predmet, ne opšte."
-        )
-        r = await asyncio.wait_for(
-            oai.chat.completions.create(
-                model="gpt-4o-mini", temperature=0.3, max_tokens=200,
-                messages=[
-                    {"role": "system", "content": _system},
-                    {"role": "user",   "content": _context},
-                ],
-            ),
-            timeout=20.0,
-        )
-        preporuka = (r.choices[0].message.content or "").strip()
-        if not preporuka:
-            preporuka = "Proverite dokumentaciju i rokove predmeta."
+        problemi = identify_case_problems(rizik, tip)
+        if problemi:
+            preporuka = " | ".join(p["problem"] for p in problemi[:3])
+        else:
+            preporuka = "Nema otkrivenih problema — predmet uredan po dostupnim proverama."
 
         return StepResult("copilot_preporuka", StepStatus.SUCCESS,
-                          "Inicijalni savet generisan",
-                          {"preporuka": preporuka})
+                          "Otkriveni problemi izračunati",
+                          {"preporuka": preporuka, "otkriveni_problemi": problemi})
     except Exception as exc:
         logger.warning("[PIPELINE][step8] greška: %s", exc)
         return StepResult("copilot_preporuka", StepStatus.FAILED,
                           str(exc)[:120],
-                          {"preporuka": "Proverite dokumentaciju i rokove predmeta."})
+                          {"preporuka": "Proverite dokumentaciju i rokove predmeta.",
+                           "otkriveni_problemi": []})
 
 
 async def _step_istorija(supa, predmet_id: str, user_id: str,

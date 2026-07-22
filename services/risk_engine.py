@@ -116,3 +116,66 @@ def calculate_procesni_rizik(
         "predstojeći_rokovi": predstojeći,
         "kriticni_rokovi": kriticni,
     }
+
+
+_NEDOSTAJUCI_LABELS = {
+    "sudska_odluka": "sudsku odluku/presudu", "podnesak": "podnesak stranke",
+    "ugovor": "relevantni ugovor", "dopis": "pisanu komunikaciju",
+    "medicinska_dokumentacija": "medicinski nalaz", "finansijska_dokumentacija": "finansijsku dokumentaciju",
+    "javna_isprava": "javnu ispravu", "vestacki_nalaz": "nalaz veštaka",
+}
+
+
+def identify_case_problems(rizik: dict[str, Any], tip_predmeta: str) -> list[dict[str, str]]:
+    """
+    Otkriveni problemi — jedini deterministicki izvor "sledece akcije" u
+    celoj platformi (Core Consolidation Sec 1.2, 2026-07-22).
+
+    Zamenjuje TRI nezavisne implementacije koje su ranije nezavisno
+    "predlagale" sledeci korak (Cockpit sledeca_akcija/GPT, Matter Intel
+    _compute_next_action/rule-based, Case Ready Score copilot_preporuka/GPT)
+    jednom listom konkretnih, proverljivih nalaza. Ovo NIJE savet — ovo je
+    analiza cinjenicnog stanja predmeta. Advokat odlucuje sta da radi sa tim.
+
+    Ulaz je vec-izracunat `calculate_procesni_rizik()` recnik (jedini izvor
+    tih brojeva, AR-01) — ova funkcija ne racuna nista novo o riziku, samo
+    ga interpretira u listu problema.
+
+    Vraca listu {"problem": str, "ozbiljnost": "kritican"|"vazan"|"info"},
+    prazna lista = nema otkrivenih problema (predmet cist po ovim proverama).
+    """
+    problemi: list[dict[str, str]] = []
+
+    kriticni = rizik.get("kriticni_rokovi", 0)
+    if kriticni > 0:
+        problemi.append({
+            "problem": f"{kriticni} kritičan rok(a) u narednih 7 dana",
+            "ozbiljnost": "kritican",
+        })
+
+    if rizik.get("snaga_dokaza") == "Nema dokaza":
+        problemi.append({
+            "problem": "Nema uploadovanih dokaza za predmet",
+            "ozbiljnost": "kritican",
+        })
+
+    for t in (rizik.get("nedostajuci_dokazi") or [])[:3]:
+        problemi.append({
+            "problem": f"Nedostaje {_NEDOSTAJUCI_LABELS.get(t, t)} u spisu",
+            "ozbiljnost": "vazan",
+        })
+
+    predstojeci = rizik.get("predstojeći_rokovi", 0)
+    if predstojeci >= 3:
+        problemi.append({
+            "problem": f"{predstojeci} predstojećih rokova u narednih 30 dana — nije prioritizovano",
+            "ozbiljnost": "vazan",
+        })
+
+    if rizik.get("snaga_dokaza") == "Slaba":
+        problemi.append({
+            "problem": "Dokazi slabe snage — nedostaje veštačenje ili dodatni svedoci",
+            "ozbiljnost": "info",
+        })
+
+    return problemi

@@ -120,22 +120,27 @@ async def test_health_score_bounds():
     assert 5 <= result["health_score"] <= 95
 
 
-# ── T6: _compute_next_action — kritičan rok → hitna poruka ───────────────────
+# ── T6: identify_case_problems — kritičan rok → kritičan problem ─────────────
+# (Core Consolidation Sec 1.2, 2026-07-22 — zamenjuje obrisani _compute_next_action;
+#  jedina preostala implementacija "sledece akcije" u celoj platformi.)
 
 def test_next_action_critical_deadline():
-    from routers.matter_intel import _compute_next_action
-    result = _compute_next_action({"tip": "radno"}, "Jaka", [], 1, 2)
-    assert "SLEDEĆA RADNJA" in result
-    assert "2" in result or "kritičan" in result.lower()
+    from services.risk_engine import identify_case_problems
+    rizik = {"kriticni_rokovi": 2, "snaga_dokaza": "Jaka", "nedostajuci_dokazi": [],
+              "predstojeći_rokovi": 1}
+    result = identify_case_problems(rizik, "radno")
+    assert any(p["ozbiljnost"] == "kritican" for p in result)
+    assert any("2" in p["problem"] for p in result)
 
 
-# ── T7: _compute_next_action — bez dokaza ────────────────────────────────────
+# ── T7: identify_case_problems — bez dokaza ──────────────────────────────────
 
 def test_next_action_no_evidence():
-    from routers.matter_intel import _compute_next_action
-    result = _compute_next_action({"tip": "parnicno"}, "Nema dokaza", [], 0, 0)
-    assert "SLEDEĆA RADNJA" in result
-    assert "dokaz" in result.lower() or "uploadov" in result.lower()
+    from services.risk_engine import identify_case_problems
+    rizik = {"kriticni_rokovi": 0, "snaga_dokaza": "Nema dokaza", "nedostajuci_dokazi": [],
+              "predstojeći_rokovi": 0}
+    result = identify_case_problems(rizik, "parnicno")
+    assert any("dokaz" in p["problem"].lower() for p in result)
 
 
 # ── T8: 404 na nepostojeći predmet ───────────────────────────────────────────

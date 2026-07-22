@@ -4,8 +4,9 @@ Matter Intelligence Dashboard — AI ocena zdravlja predmeta.
 
 GET /api/matter-intel/predmeti/{predmet_id}
 Vraća: snaga_dokaza, procesni_rizik, nedostajuci_dokazi, predstojeći_rokovi,
-       sledeca_radnja (rule-based, ne GPT — videti _compute_next_action),
-       health_score (0-100)
+       otkriveni_problemi (deterministicki, services.risk_engine.identify_case_problems
+       — jedini algoritam za "sledecu akciju" u celoj platformi, Core
+       Consolidation Sec 1.2, 2026-07-22), health_score (0-100)
 """
 import asyncio
 import logging
@@ -15,7 +16,7 @@ from shared.deps import _get_supa, get_current_user
 from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
 from shared.permissions import PermissionService
 from shared.usage import UsageService
-from services.risk_engine import calculate_procesni_rizik
+from services.risk_engine import calculate_procesni_rizik, identify_case_problems
 
 logger = logging.getLogger("vindex.matter_intel")
 router = APIRouter(prefix="/api/matter-intel", tags=["matter_intel"])
@@ -27,15 +28,6 @@ def _d(r):
     lokalni closure na dva mesta u ovom fajlu (Faza 2.2 cleanup, 2026-07-18);
     sada jedna deljena funkcija, ponasanje nepromenjeno."""
     return (r.data if not isinstance(r, Exception) else []) or []
-
-_INTEL_SYSTEM = """Ti si pravni asistent koji analizira stanje predmeta.
-
-Na osnovu datih podataka, u 2 rečenice formuliši KONKRETNU SLEDEĆU RADNJU advokata.
-Budi direktan i specifičan. Srpski jezik. Bez uvoda.
-
-Format:
-SLEDEĆA RADNJA: [konkretna akcija]
-RAZLOG: [kratko objašnjenje zašto]"""
 
 
 @router.get("/predmeti/{predmet_id}")
@@ -87,8 +79,8 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
     rizik_boja      = _rizik["boja"]
     health          = _rizik["health_score"]
 
-    # ── Sledeća radnja (GPT) ─────────────────────────────────────────────────
-    sledeca_radnja = _compute_next_action(predmet, snaga_label, nedostajuci, predstojeći, kriticni)
+    # ── Otkriveni problemi — Core Consolidation Sec 1.2, jedini algoritam ─────
+    otkriveni_problemi = identify_case_problems(_rizik, tip)
 
     # ── Trend aktivnosti + Health log — paralelno ────────────────────────────
     trend, health_history = await asyncio.gather(
@@ -107,7 +99,7 @@ async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
         "predstojeći_rokovi": predstojeći,
         "kriticni_rokovi":    kriticni,
         "health_score":       health,
-        "sledeca_radnja":     sledeca_radnja,
+        "otkriveni_problemi": otkriveni_problemi,
         "trend":              trend,
         "health_history":     health_history,
     }
@@ -188,39 +180,6 @@ def _compute_trend(supa, predmet_id: str, now: datetime) -> str:
         return "stagnira"
     except Exception:
         return None
-
-
-def _compute_next_action(predmet: dict, snaga: str, nedostajuci: list, predstojeći: int, kriticni: int) -> str:
-    """Rule-based formulacija sledece konkretne radnje — deterministicko
-    if/elif stablo, nema GPT poziva (docstring ranije pogresno tvrdio
-    suprotno, ispravljeno Faza 2.2 cleanup-om 2026-07-18; videti inline
-    komentar ispod koji je vec ispravno opisivao ponasanje)."""
-    _TIPOVI_SR = {
-        "parnicno":"parničnom","krivicno":"krivičnom","radno":"radnom",
-        "upravno":"upravnom","porodicno":"porodičnom","privredno":"privrednom",
-        "nepokretnosti":"predmetu nepokretnosti","ostalo":"predmetu",
-    }
-    tip_sr = _TIPOVI_SR.get(predmet.get("tip","ostalo"), "predmetu")
-
-    # Brza rule-based preporuka (bez GPT troškova za svaki otvoreni predmet)
-    if kriticni > 0:
-        return f"SLEDEĆA RADNJA: Hitno pregledati {kriticni} kritičan rok(a) u narednih 7 dana.\nRAZLOG: Propuštanje procesnog roka je nepopravljiva šteta."
-    if snaga == "Nema dokaza":
-        return f"SLEDEĆA RADNJA: Prikupiti i uploadovati početne dokaze za {tip_sr} predmet.\nRAZLOG: Bez ikakvih dokaza nije moguće izgraditi strategiju odbrane."
-    if nedostajuci:
-        _LABELS = {
-            "sudska_odluka":"sudsku odluku/presudu", "podnesak":"podnesak stranke",
-            "ugovor":"relevantni ugovor", "dopis":"pisanu komunikaciju",
-            "medicinska_dokumentacija":"medicinski nalaz", "finansijska_dokumentacija":"finansijsku dokumentaciju",
-            "javna_isprava":"javnu ispravu", "vestacki_nalaz":"nalaz veštaka",
-        }
-        prvi = _LABELS.get(nedostajuci[0], nedostajuci[0])
-        return f"SLEDEĆA RADNJA: Pribaviti {prvi} koji nedostaje u spisu.\nRAZLOG: Ovaj dokument je tipično ključan za {tip_sr} predmet."
-    if predstojeći >= 3:
-        return f"SLEDEĆA RADNJA: Napraviti plan za {predstojeći} predstojeća roka — prioritizovati po hitnosti.\nRAZLOG: Više paralelnih rokova povećava rizik od propuštanja."
-    if snaga == "Slaba":
-        return "SLEDEĆA RADNJA: Razmotriti mogućnost nalaza veštaka ili pribavljanja dodatnih svedoka.\nRAZLOG: Trenutni dokazi su slabe snage i ne pružaju dovoljnu osnovu za tužbu."
-    return "SLEDEĆA RADNJA: Pokrenuti AI strategijsku analizu predmeta (Strategija tab).\nRAZLOG: Predmet ima solidnu osnovu — vreme je za konkretnu pravnu strategiju."
 
 
 # ─── Uncertainty Dashboard ───────────────────────────────────────────────────

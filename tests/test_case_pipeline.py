@@ -406,25 +406,51 @@ async def test_step7_idempotent():
 
 @pytest.mark.anyio
 async def test_step7_success():
+    """Core Consolidation Sec 1.1 (2026-07-22): risk_snapshot je sada
+    services.risk_engine.calculate_procesni_rizik, ne nezavisan GPT poziv —
+    ista funkcija/isti rezultat kao Matter Intel i Cockpit za identican
+    ulaz. 3x jaka dokaza + tip 'ostalo' (max 2 ocekivana dokumenta, nikad
+    +15 penal) + nema kriticnih rokova => deterministicki 'Nizak'."""
     from services.case_pipeline import _step_risk_snapshot, StepStatus
-    supa = _supa_by_table(predmet_istorija=[])
-    oai = _oai_mock('{"nivo":"srednji","faktori_plus":["Jak dokaz"],"faktori_minus":["Kratak rok"]}')
-    with patch("services.case_pipeline.AsyncOpenAI", return_value=oai):
-        result = await _step_risk_snapshot(
-            supa, PID, UID,
-            {"naziv": "Radni spor", "opis": "Klijent otpušten bez razloga.", "tip": "radni"},
-        )
+    supa = _supa_by_table(
+        predmet_istorija=[],
+        predmet_dokazi=[{"snaga": "jaka"}, {"snaga": "jaka"}, {"snaga": "jaka"}],
+        predmet_dokumenti=[],
+        rocista=[],
+    )
+    result = await _step_risk_snapshot(
+        supa, PID, UID,
+        {"naziv": "Radni spor", "opis": "Klijent otpušten bez razloga.", "tip": "ostalo"},
+    )
     assert result.status == StepStatus.SUCCESS
-    assert result.data["nivo"] == "srednji"
+    assert result.data["nivo"] == "nizak"
+    assert "rizik" in result.data  # puni recnik dostupan step8-u, ne samo nivo
+
+
+@pytest.mark.anyio
+async def test_step7_no_evidence_is_visok_not_invented():
+    """Bez dokaza/dokumenata/rocista deterministicka formula vraca 'visok'
+    (ukupno==0 dokaza => +20 na skor) — ne GPT-ovu procenu na osnovu
+    naziva/opisa predmeta, koja vise ne postoji u ovom koraku."""
+    from services.case_pipeline import _step_risk_snapshot, StepStatus
+    supa = _supa_by_table(predmet_istorija=[], predmet_dokazi=[], predmet_dokumenti=[], rocista=[])
+    result = await _step_risk_snapshot(
+        supa, PID, UID,
+        {"naziv": "Test", "opis": "Opis", "tip": "opsti"},
+    )
+    assert result.status == StepStatus.SUCCESS
+    assert result.data["nivo"] == "visok"
 
 
 @pytest.mark.anyio
 async def test_step7_fails_gracefully():
+    """Greska u deterministickom sloju (npr. calculate_procesni_rizik) i
+    dalje mora da vrati FAILED, ne da propadne nekontrolisano — resilience
+    zahtev je nepromenjen, samo je izvor greske sad drugaciji (nema vise
+    OpenAI poziva u ovom koraku)."""
     from services.case_pipeline import _step_risk_snapshot, StepStatus
-    supa = _supa_by_table(predmet_istorija=[])
-    oai = MagicMock()
-    oai.chat.completions.create = AsyncMock(side_effect=RuntimeError("Network error"))
-    with patch("services.case_pipeline.AsyncOpenAI", return_value=oai):
+    supa = _supa_by_table(predmet_istorija=[], predmet_dokazi=[], predmet_dokumenti=[], rocista=[])
+    with patch("services.risk_engine.calculate_procesni_rizik", side_effect=RuntimeError("boom")):
         result = await _step_risk_snapshot(
             supa, PID, UID,
             {"naziv": "Test", "opis": "Opis", "tip": "opsti"},
@@ -437,38 +463,61 @@ async def test_step7_fails_gracefully():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.anyio
-async def test_step8_success():
+async def test_step8_uses_step7_rizik_directly():
+    """Core Consolidation Sec 1.2 (2026-07-22): kad step7 uspe i nosi puni
+    'rizik' recnik, step8 GA KORISTI direktno — ne pravi drugi upit, ne
+    poziva GPT, isti algoritam (identify_case_problems) kao Cockpit/Matter
+    Intel. Kriticni rok => otkriveni_problemi sadrzi kritican nalaz."""
     from services.case_pipeline import _step_copilot_preporuka, StepResult, StepStatus
     supa = MagicMock()
-    oai = _oai_mock("Pribavite medicinsko veštačenje. Proverite rokove za žalbu.")
+    rizik = {"nivo": "visok", "snaga_dokaza": "Nema dokaza", "nedostajuci_dokazi": [],
+              "predstojeći_rokovi": 0, "kriticni_rokovi": 2}
     step3 = StepResult("ekstrakcija_rokova", StepStatus.SUCCESS, "", {"inserted": 1})
-    step7 = StepResult("risk_snapshot", StepStatus.SUCCESS, "", {"nivo": "nizak", "data": {}})
-    with patch("services.case_pipeline.AsyncOpenAI", return_value=oai):
-        result = await _step_copilot_preporuka(
-            supa, PID, UID,
-            {"naziv": "Test", "opis": "Klijent traži naknadu.", "tip": "opsti"},
-            step3, step7,
-        )
+    step7 = StepResult("risk_snapshot", StepStatus.SUCCESS, "", {"nivo": "visok", "rizik": rizik, "tip": "opsti"})
+    result = await _step_copilot_preporuka(
+        supa, PID, UID,
+        {"naziv": "Test", "opis": "Klijent traži naknadu.", "tip": "opsti"},
+        step3, step7,
+    )
     assert result.status == StepStatus.SUCCESS
     assert "preporuka" in result.data
-    assert len(result.data["preporuka"]) > 5
+    assert len(result.data["otkriveni_problemi"]) >= 2  # kriticni rok + nema dokaza
+    assert any(p["ozbiljnost"] == "kritican" for p in result.data["otkriveni_problemi"])
+
+
+@pytest.mark.anyio
+async def test_step8_self_queries_when_step7_unavailable():
+    """Kad je step7 preskocen (idempotent hit) ili neuspesan, step8 sam
+    racuna rizik ISTOM funkcijom (calculate_procesni_rizik) umesto da
+    izmisli drugaciji broj ili padne."""
+    from services.case_pipeline import _step_copilot_preporuka, StepResult, StepStatus
+    supa = _supa_by_table(predmet_dokazi=[], predmet_dokumenti=[], rocista=[])
+    step3 = StepResult("ekstrakcija_rokova", StepStatus.SKIPPED)
+    step7 = StepResult("risk_snapshot", StepStatus.FAILED)
+    result = await _step_copilot_preporuka(
+        supa, PID, UID,
+        {"naziv": "Test", "opis": "Opis", "tip": "opsti"},
+        step3, step7,
+    )
+    assert result.status == StepStatus.SUCCESS
+    assert result.data.get("preporuka")
 
 
 @pytest.mark.anyio
 async def test_step8_fallback_on_error():
+    """Genuina greska (npr. baza nedostupna) i dalje mora da vrati FAILED sa
+    bezbednim fallback tekstom, ne da propadne nekontrolisano."""
     from services.case_pipeline import _step_copilot_preporuka, StepResult, StepStatus
     supa = MagicMock()
-    oai = MagicMock()
-    oai.chat.completions.create = AsyncMock(side_effect=RuntimeError("error"))
     step3 = StepResult("ekstrakcija_rokova", StepStatus.SKIPPED)
     step7 = StepResult("risk_snapshot", StepStatus.FAILED)
-    with patch("services.case_pipeline.AsyncOpenAI", return_value=oai):
+    with patch("services.risk_engine.calculate_procesni_rizik", side_effect=RuntimeError("boom")):
         result = await _step_copilot_preporuka(
             supa, PID, UID,
             {"naziv": "Test", "opis": "Opis", "tip": "opsti"},
             step3, step7,
         )
-    # Even on failure, fallback preporuka is returned
+    assert result.status == StepStatus.FAILED
     assert result.data.get("preporuka")
 
 
