@@ -47,6 +47,7 @@ from shared.deps import (
 from shared.permissions import PermissionService
 from shared.usage import UsageService
 from shared.rate import limiter
+from shared.audit_immutable import log_action
 
 logger = logging.getLogger("vindex.strategy_simulator")
 
@@ -214,6 +215,9 @@ async def nova_partija(
 
     # Dohvati Case Genome — centralni model predmeta
     genome_ctx = ""
+    _g: dict = {}  # G-033 (D28): inicijalizovano OVDE (ne samo unutar try-a) da
+    # referenca ispod (genome_verzija) bude bezbedna i kad upit padne pre nego
+    # sto se _g ikad dodeli -- pre ove izmene nista nije citalo _g van try bloka.
     try:
         _gr = await asyncio.to_thread(
             lambda: supa.table("predmeti")
@@ -256,6 +260,15 @@ async def nova_partija(
     except Exception:
         pass
 
+    # G-033 (D28, VINDEX_OPERATIONAL_GAP_REGISTER.md) — koja Genome VERZIJA je
+    # STVARNO korišćena za ovu simulaciju. Isti _g koji je vec ucitan iznad za
+    # genome_ctx (NE nov upit) -- ovo je snapshot koji je zaista poslat GPT-u,
+    # ne "trenutna verzija u bazi u trenutku pisanja audit zapisa" (te dve
+    # vrednosti bi mogle da se razlikuju ako neko drugo osvezi Genome u
+    # medjuvremenu). None ako Genome nije postojao/imao gresku -- namerno se
+    # NE fabrikuje default vrednost (npr. 1) kad genom stvarno nije korišćen.
+    genome_verzija = _g.get("verzija") if _g and not _g.get("greska") else None
+
     # Pripremi poruku za GPT
     user_msg = (
         f"PREDMET: {predmet.get('naziv', 'Nepoznato')}\n"
@@ -292,6 +305,7 @@ async def nova_partija(
         "tip": "nova_partija",
         "moja_strategija": req.moja_strategija,
         "analiza": analiza,
+        "genome_verzija": genome_verzija,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -307,6 +321,23 @@ async def nova_partija(
     # Admin Console editabilno) — ne hardkoduje se ovde.
     preostalo = await UsageService.consume(uid, email, "strategy_simulator")
 
+    # G-033 (D28) — audit trag za USPESNO zavrsenu simulaciju (posle uspesnog
+    # GPT poziva I uspesnog snimanja partije, ne pre). 'ai_analiza_complete'
+    # je vec u AUDITABLE_ACTIONS (shared/audit_immutable.py), nikad pozvan iz
+    # ovog fajla. Fire-and-forget preko asyncio.create_task, isti obrazac kao
+    # postojeci _audit() poziv iznad -- nikad ne blokira niti menja odgovor.
+    asyncio.create_task(log_action(
+        "ai_analiza_complete",
+        user_id=uid,
+        resource_type="simulator_partija",
+        resource_id=partija_id,
+        metadata={
+            "predmet_id": req.predmet_id,
+            "genome_verzija": genome_verzija,
+            "trigger": "nova_partija",
+        },
+    ))
+
     return {
         "partija_id": partija_id,
         "analiza": {
@@ -316,6 +347,7 @@ async def nova_partija(
             "zabrane": analiza.get("zabrane", []),
             "rizik_score": analiza.get("rizik_score", 5),
         },
+        "genome_verzija": genome_verzija,
         "credits_remaining": max(preostalo, 0),
     }
 
@@ -399,6 +431,25 @@ async def sledeci_potez(
     # Oduzmi 1 kredit — eksplicitan multiplier=1 override, nova_partija je
     # jedina varijanta koja koristi feature_registry.credit_multiplier (2x).
     preostalo = await UsageService.consume(uid, email, "strategy_simulator", multiplier=1)
+
+    # G-033 (D28) — audit trag za USPESNO zavrsen potez, isti obrazac kao
+    # nova_partija iznad. NAMERNO nema 'genome_verzija' polja ovde -- ovaj
+    # endpoint ne cita Genome uopste (kontekst se gradi iskljucivo iz istorije
+    # prethodnih poteza, videti kontekst_txt iznad), pa bi dodavanje verzije
+    # ovde bilo lazna sledljivost ka necemu sto stvarno nije koriscno za ovu
+    # konkretnu analizu (founderovo eksplicitno pravilo, 2026-07-22: "ne
+    # izmisljaj genome_verziju ako se ne moze pouzdano odrediti").
+    asyncio.create_task(log_action(
+        "ai_analiza_complete",
+        user_id=uid,
+        resource_type="simulator_partija",
+        resource_id=req.partija_id,
+        metadata={
+            "predmet_id": partija.get("predmet_id"),
+            "trigger": "sledeci_potez",
+            "redni_broj": redni_broj,
+        },
+    ))
 
     # Izvuci relevantna polja za odgovor
     protivnikovi = analiza.get("protivnikovi_odgovori", [])
