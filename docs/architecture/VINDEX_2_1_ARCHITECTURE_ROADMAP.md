@@ -297,10 +297,16 @@ kraju ove sekcije.
   `odluka: require_review` kad se nađe hard-flag, upisuje se u audit
   metadata (`services/event_bus.py::on_genome_updated`), ali ništa ne
   reaguje na tu vrednost — nema alert, nema notifikaciju.
-- **Status: Accepted, PRIORITET 2 (posle D26).** Rešenje ponovo
-  koristi POSTOJEĆI `proactive_alerts` mehanizam (isti obrazac kao
+- **Status: Closed (commit `9ed7679`, 2026-07-22).** Rešenje reuse-uje
+  POSTOJEĆI `proactive_alerts` mehanizam (isti obrazac kao
   `genome_change` alert u `routers/case_dna.py`) — nula novog eventa,
-  nula novog AI-ja.
+  nula novog AI-ja. Alert nastaje SAMO na prelaz u `require_review`
+  (dedup preko poređenja starog/novog `_verifikacija.odluka`), ne na
+  svaki refresh dok isti problem traje. Verification: Unit + Integration
+  verified (`tests/test_case_dna_verifikacija_alert.py`, 4 testa —
+  false→true/true→true/true→false→true životni ciklus). Production E2E:
+  Not required (deterministička integracija, nema AI/event/side-effect
+  promene — founderova eksplicitna ocena, ista kategorija kao D26).
 
 ### D28 (novo, G-033). Strategy Simulator nema audit trag niti genome_version referencu
 
