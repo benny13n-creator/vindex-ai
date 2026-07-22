@@ -2,7 +2,16 @@
 """
 Vindex AI — Case Genome (Single Source of Truth)
 
-Centralni zivi model predmeta. SVE ostale AI funkcije citaju Genome pre analize.
+Centralni zivi model predmeta — jedini vlasnik istine o predmetu (Core
+Consolidation Sec 1.3, 2026-07-22). Napomena za citaoca: docstring je
+ranije tvrdio da SVE ostale AI funkcije citaju Genome pre analize — to
+NIJE bilo tacno (case_pipeline.py, learning_engine.py i confidence
+calibrator nemaju nijednu referencu), forensic audit isti dan potvrdio
+gresku kodom. Ispravljena, proverljiva tvrdnja: Evidence Vault
+(predmet_dokazi) sada TECE U Genome kao kontekst pri ekstrakciji
+(_extract_genome dokazi param) — Genome vise ne ignoriše vec-klasifikovane
+činjenice. Ostali potrošači (case pipeline, learning engine) ostaju van
+obima ove izmene, evidentirano u docs/architecture/VINDEX_CORE_CONSOLIDATION.md.
 Ekstrakcija: pravna teorija, stranke, finansije, strategija, kontradikcije, snaga (0-100%),
 explainable score, heat map, ranked evidence, war plan, weakest point, missing evidence.
 
@@ -151,8 +160,35 @@ Srpski. Ekavica."""
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-async def _extract_genome(docs: list[dict]) -> dict:
-    """GPT-4o ekstrakcija Case Genome iz liste dokumenata."""
+async def _fetch_dokazi_kontekst(supa, predmet_id: str) -> list[dict]:
+    """Core Consolidation Sec 1.3 (2026-07-22) — Case Genome je jedini
+    vlasnik istine o predmetu; Evidence Vault (predmet_dokazi) vise ne sme
+    da bude paralelna, neuporedjena istina. Vraca vec-klasifikovane
+    kljucne cinjenice (routers/evidence.py::klasifikuj_i_sacuvaj) da bi
+    _extract_genome mogao da ih koristi kao kontekst umesto da ih tiho
+    ignorise. Nikad ne baca — advisory kontekst, ne sme oboriti ekstrakciju."""
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokazi")
+                .select("tvrdnja,kategorija,pravni_element")
+                .eq("predmet_id", predmet_id)
+                .is_("deleted_at", "null")
+                .limit(20)
+                .execute()
+        )
+        return r.data or []
+    except Exception as exc:
+        logger.warning("[GENOME] Dokazi kontekst greška (nije kritično): %s", exc)
+        return []
+
+
+async def _extract_genome(docs: list[dict], dokazi: Optional[list[dict]] = None) -> dict:
+    """GPT-4o ekstrakcija Case Genome iz liste dokumenata.
+
+    dokazi (Core Consolidation Sec 1.3): vec-klasifikovane kljucne
+    cinjenice iz Evidence Vault-a (predmet_dokazi), prosledjene kao
+    dodatni kontekst — GPT vise ne izvlaci cinjenice IZOLOVANO od onoga
+    sto je Evidence Vault vec utvrdio o istim dokumentima."""
     if not docs:
         return {}
 
@@ -178,6 +214,21 @@ async def _extract_genome(docs: list[dict]) -> dict:
         return {"greska": "Nijedan dokument nema tekst za analizu"}
 
     combined = "\n\n".join(parts)
+
+    if dokazi:
+        dokazi_lines = []
+        for d in dokazi[:20]:
+            tvrdnja = (d.get("tvrdnja") or "").strip()
+            if not tvrdnja:
+                continue
+            elm = f" [{d.get('pravni_element')}]" if d.get("pravni_element") else ""
+            dokazi_lines.append(f"- {tvrdnja}{elm}")
+        if dokazi_lines:
+            combined += (
+                "\n\n[EVIDENCE VAULT — već klasifikovane ključne činjenice iz ovih dokumenata, "
+                "koristi kao dodatni kontekst, ne izmišljaj nove ako se ne poklapaju sa tekstom]\n"
+                + "\n".join(dokazi_lines)
+            )
 
     try:
         from openai import AsyncOpenAI
@@ -481,7 +532,8 @@ async def _run_genome_background(
         if not docs:
             return
 
-        genome = await _extract_genome(docs)
+        dokazi_ctx = await _fetch_dokazi_kontekst(supa, predmet_id)
+        genome = await _extract_genome(docs, dokazi=dokazi_ctx)
 
         # Auto-versioning
         genome["verzija"] = stari_verzija + 1
@@ -616,7 +668,8 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
             "docs_analizirano": 0,
         }
 
-    genome = await _extract_genome(docs)
+    dokazi_ctx = await _fetch_dokazi_kontekst(supa, predmet_id)
+    genome = await _extract_genome(docs, dokazi=dokazi_ctx)
 
     if not genome.get("greska"):
         await UsageService.consume(uid, user.get("email", ""), "case_dna")

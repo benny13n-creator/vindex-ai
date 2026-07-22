@@ -389,3 +389,70 @@ async def test_extract_genome_different_faktori_produce_different_scores():
         strong = await cd._extract_genome(docs)
 
     assert weak["snaga_predmeta_procent"] != strong["snaga_predmeta_procent"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Core Consolidation Sec 1.3 (2026-07-22) — Case Genome jedini vlasnik istine:
+# Evidence Vault (predmet_dokazi) mora teci u Genome ekstrakciju kao kontekst,
+# ne ostati paralelna, neuporedjena istina.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_extract_genome_includes_evidence_vault_facts_in_prompt():
+    """Kad se prosledi 'dokazi' (vec-klasifikovane cinjenice iz
+    routers/evidence.py::klasifikuj_i_sacuvaj), _extract_genome MORA da ih
+    ukljuci u tekst poslat GPT-u — ranije su bile tiho ignorisane (forensic
+    audit 2026-07-22 nalaz: 'Genome nikad ne cita predmet_dokazi')."""
+    from routers import case_dna as cd
+
+    fake_response = MagicMock()
+    fake_response.choices = [MagicMock(message=MagicMock(content='{"snaga_faktori": []}'))]
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=fake_response)
+
+    docs = [{"redni_broj": 1, "naziv_fajla": "a.pdf", "tip_dokaza": None,
+             "velicina_kb": 5, "tekst_sadrzaj": "tekst dokumenta"}]
+    dokazi = [{"tvrdnja": "Tuženi je otkazao ugovor bez upozorenja",
+               "kategorija": "cinjenica", "pravni_element": "uzročna veza"}]
+
+    with patch("openai.AsyncOpenAI", return_value=fake_client):
+        await cd._extract_genome(docs, dokazi=dokazi)
+
+    sent_messages = fake_client.chat.completions.create.call_args.kwargs["messages"]
+    user_content = sent_messages[-1]["content"]
+    assert "EVIDENCE VAULT" in user_content
+    assert "Tuženi je otkazao ugovor bez upozorenja" in user_content
+    assert "uzročna veza" in user_content
+
+
+@pytest.mark.anyio
+async def test_extract_genome_works_without_dokazi_arg():
+    """Nazad-kompatibilnost: pozivi bez 'dokazi' (ili sa praznom listom)
+    rade identicno kao pre ove izmene — dokazi je opcioni kontekst, ne
+    obavezan ulaz."""
+    from routers import case_dna as cd
+
+    fake_response = MagicMock()
+    fake_response.choices = [MagicMock(message=MagicMock(content='{"snaga_faktori": []}'))]
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=fake_response)
+
+    docs = [{"redni_broj": 1, "naziv_fajla": "a.pdf", "tip_dokaza": None,
+             "velicina_kb": 5, "tekst_sadrzaj": "tekst dokumenta"}]
+
+    with patch("openai.AsyncOpenAI", return_value=fake_client):
+        result = await cd._extract_genome(docs)
+
+    assert "greska" not in result
+    sent_messages = fake_client.chat.completions.create.call_args.kwargs["messages"]
+    assert "EVIDENCE VAULT" not in sent_messages[-1]["content"]
+
+
+@pytest.mark.anyio
+async def test_fetch_dokazi_kontekst_never_raises():
+    """Advisory kontekst — pad upita ne sme oboriti Genome ekstrakciju."""
+    from routers import case_dna as cd
+    supa = MagicMock()
+    supa.table.side_effect = RuntimeError("db down")
+    result = await cd._fetch_dokazi_kontekst(supa, "pred-1")
+    assert result == []
