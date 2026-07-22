@@ -69,7 +69,7 @@ dubok dokaz (file:line) za svaki red je tamo, ne ponovljen ovde.
 | G-032 | Case Genome sinhronizacija (isti masterprompt) | `verify_genome()`-ov `require_review` ishod se računa i upisuje u audit metadata, ali ništa ne reaguje na njega (nema alert) | "Half-wired" sistem — validator → audit → ništa | D27 | **Closed** (commit `9ed7679`) — **Verification: Unit + Integration verified (povezuje dva postojeća podsistema — validator i `proactive_alerts` — ponašanje kroz više stanja: False→True/True→True/True→False/False→True potvrđeno testovima). Production E2E: Not required (deterministička integracija postojećeg izlaza u postojeću infrastrukturu, nema novih AI poziva, nema promene event lanca, nema novih spoljašnjih side-effect-ova).** Alert koristi STVARNE `hard_flags` razloge (do 5, ne izmišljen "confidence %" — eksplicitno test-om zabranjen regres). 4 unit testa, 1666/1666 ukupno prolazi. |
 | G-033 | Case Genome sinhronizacija (isti masterprompt) | Strategy Simulator (`routers/strategy_simulator.py`) nema nijedan `log_action`/`audit_immutable` poziv, niti čuva koji `genome_verzija` je korišćen na `simulator_partije` redu | Za 6 meseci niko ne može odgovoriti "koji Genome je informisao ovu strategiju" | D28 | **Closed** (commit `c592464`) — **Verification: Unit + Integration verified (5 testova, `tests/test_strategy_simulator_audit.py` — snapshot vs. current-version race condition izbegnuta, audit samo na uspeh, response oblik nepromenjen, `sledeci_potez` namerno bez fabrikovane verzije). Production E2E: Not required. Reason: Passive observability enhancement. No business logic changes. Snapshot traceability verified.** `genome_verzija` NIJE nova kolona (izbegnuta migracija) — čuva se u postojećem `istorija` JSONB polju (`simulator_partije`) i audit metadata, ne zahteva šema promenu. 1671/1671 ukupno prolazi. |
 | G-035 | Backlog (predloženo tokom G-033 review-a, 2026-07-22 — NE za implementaciju sada) | Ne postoji jedinstven pregled koje funkcije čitaju Genome i čuvaju `genome_version` za sledljivost, naspram onih koje ne čuvaju | Za 6 meseci bi se isto pitanje (G-031/G-032/G-033 tip) ručno ponovo istraživalo po modulu | — (backlog, bez D-broja dok se ne odobri) | **Backlog — "Traceability Coverage Matrix": tabela Feature × Reads Genome × Persists genome_version, po uzoru na G-030 Next Action matricu. Ne implementirati dok founder eksplicitno ne zatraži.** |
-| G-034 | Case Genome sinhronizacija (isti masterprompt) | `services/risk_engine.py::calculate_procesni_rizik` ima nula referenci na Genome, iako Genome nezavisno računa sopstvene rizik-signale (`najslabija_tacka`, `snaga_predmeta_procent`) — isti oblik kao G-027 | Moguć "dva sistema, jedan koncept" duplikat — NIJE dokazano | D29 | **Open, PRIORITET 4 — ANALITIČKI zadatak, ne implementacija. Empirijska provera (skript analogan `scripts/g027_risk_validation.py`) MORA prethoditi bilo kakvoj odluci o spajanju — "izgleda kao duplikat" ≠ "dokazano duplikat"** |
+| G-034 | Case Genome sinhronizacija (isti masterprompt) | `services/risk_engine.py::calculate_procesni_rizik` ima nula referenci na Genome, iako Genome nezavisno računa sopstvene rizik-signale (`najslabija_tacka`, `snaga_predmeta_procent`) — isti oblik kao G-027 | Moguć "dva sistema, jedan koncept" duplikat — NIJE dokazano | D29 | **Resolved — Evidence insufficient. Decision: No implementation.** (`scripts/g034_risk_validation.py`, 2026-07-22, 19 predmeta/17 uporedivo). Zaključak C od 3 dozvoljena (A=isti koncept / B=povezane-ali-razlicite dimenzije / C=nedovoljno dokaza): 0 "Nizak" slucajeva u uzorku (hipoteza netestabilna na 2/3 opsega), "Visok" grupa verovatno sadrzi duplikate iz sintetickih test predmeta (6/13 identicnih vrednosti 65%/89), i 2 kontradiktorna outlier-a (`e0a54af1` 80%/Visok, `7faf7d8e` 75%/Visok). **Vredan arhitektonski signal (ne dokaz, ali smer):** 2 "Visok" predmeta nemaju NIKAKAV Genome podatak, sto znaci da `risk_engine` dolazi do "Visok" bez Genome ulaza uopste — podrzava Hipotezu A (risk_engine meri proceduralni rizik: rokovi/nedostajuci dokumenti/faza postupka; Genome meri snagu dokaza/argumentacije — RAZLICITI koncepti) naspram Hipoteze B (risk_engine bi trebalo da koristi Genome ali ne koristi). Ne zatvarati kao implementacioni zadatak dok se ne pojavi 100+ realnih (ne sintetickih) predmeta za ponovnu proveru. |
 
 **Napomena uz G-030 (radni naziv "Next Action Source of Truth Audit",
 2026-07-20, founderova tačna metodologija — zapisana ovde da se ne
@@ -351,3 +351,31 @@ ograničen obim:**
    SVE tokove (~19-21 od 24 `AUDITABLE_ACTIONS` i dalje nikad pozvano —
    ovaj fix pokriva TAČNO 2 od njih), export audit traga, compliance
    format.
+
+## G-034 ZATVOREN kao "Resolved — Evidence insufficient" (2026-07-22)
+
+Poslednja stavka Case Genome integracione serije (G-031 do G-034,
+izvučene iz `CASE_GENOME_FULL_INTEGRATION_COMPLETION` masterprompta).
+Za razliku od G-031/G-032/G-033 (implementirano i verifikovano), G-034
+je zatvoren BEZ implementacije — empirijska analiza
+(`scripts/g034_risk_validation.py`) nije potvrdila hipotezu da Genome i
+`risk_engine.py` mere isti koncept. Status namerno NIJE "Open" (to bi
+sugerisalo da nešto čeka implementaciju) — **Status: Resolved, Decision:
+No implementation, Reason: Insufficient evidence.** Ne otvarati ponovo
+dok se ne pojavi 100+ realnih (ne sintetičkih) predmeta za noviju
+proveru iste hipoteze.
+
+**Founderova eksplicitna ocena metodologije:** "Da je Claude ili bilo ko
+drugi želeo da 'ugura' implementaciju, mogao je vrlo lako napisati
+'Postoji korelacija, predlažem spajanje.' Umesto toga, analiza je
+ostala verna podacima." — zaključak C (nedovoljno dokaza) tretiran kao
+**podjednako vredan ishod** kao A ili B, ne kao neuspeh analize.
+
+**Founderova eksplicitna preporuka za sledeću sesiju, izneta posle
+zatvaranja G-034:** dalje traženje skrivenih Case Genome integracionih
+gapova NIJE preporučeno — ne zato što sigurno ne postoje, nego zato što
+cena traženja raste dok verovatnoća novog G-031/G-032 nalaza opada.
+**Case Genome se tretira kao arhitektonski konsolidovan u meri u kojoj
+postoje dokazi.** Sledeći izvor saznanja o eventualnim novim
+integracionim problemima su realni pilot predmeti, ne dalja statička
+analiza koda.

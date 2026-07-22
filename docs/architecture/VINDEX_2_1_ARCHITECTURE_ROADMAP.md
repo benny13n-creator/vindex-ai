@@ -336,12 +336,22 @@ kraju ove sekcije.
   sopstvene rizik-signale (`najslabija_tacka.kriticnost`,
   `snaga_predmeta_procent`). Isti oblik obrasca kao G-027 (Cockpit vs.
   Matter Intel "procesni rizik").
-- **Status: Blocked — čeka empirijsku analizu, NE Accepted za
-  implementaciju.** Founderovo eksplicitno pravilo (isto kao G-027,
-  2026-07-22): "izgleda kao duplikat" ≠ "dokazano duplikat". Sledeći
-  korak je skript analogan `scripts/g027_risk_validation.py` koji
-  poredi Genome i Risk Engine signale na realnom uzorku predmeta —
-  TEK POSLE toga sledi odluka (spoji/razlikuj/ne diraj), ne pre.
+- **Status: Resolved — Evidence insufficient. Decision: No
+  implementation (2026-07-22).** `scripts/g034_risk_validation.py`
+  pokrenut protiv 19 realnih predmeta (17 uporedivo). Zaključak C (od 3
+  dozvoljena: A=isti koncept, B=povezane-ali-razlicite dimenzije,
+  C=nedovoljno dokaza) — razlozi: nula "Nizak" slucajeva (hipoteza
+  netestabilna na 2/3 opsega rizika), verovatno duplirani sintetički
+  test predmeti u "Visok" grupi (6/13 identičnih vrednosti), 2
+  kontradiktorna outlier-a. **Arhitektonski signal vredan pamćenja (ne
+  dokaz, samo smer):** 2 "Visok" predmeta nemaju NIKAKAV Genome
+  podatak — `risk_engine` dolazi do "Visok" bez Genome ulaza uopšte,
+  što ide u prilog Hipotezi A (risk_engine meri proceduralni rizik:
+  rokovi/nedostajući dokumenti/faza postupka; Genome meri snagu
+  dokaza/argumentacije — RAZLIČITI koncepti), ne Hipotezi B (risk_engine
+  bi trebalo da koristi Genome ali ne koristi). NIJE dokazano ni jedno
+  ni drugo — samo C. Ne otvarati ponovo dok se ne pojavi 100+ realnih
+  (ne sintetičkih) predmeta.
 
 **Eksplicitno IZOSTAVLJENO iz ove sekcije (masterprompt stavke koje
 zadiru u D20 teritoriju, ne tiho zaboravljene):** Faza 6 (Learning Loop
