@@ -456,3 +456,80 @@ async def test_fetch_dokazi_kontekst_never_raises():
     supa.table.side_effect = RuntimeError("db down")
     result = await cd._fetch_dokazi_kontekst(supa, "pred-1")
     assert result == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Core Consolidation Sec 1.5 (2026-07-22) — Genome rokovi_kriticni sync u
+# predmet_hronologija (stvarna kalendar tabela, ranije nikad ne upisivano).
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _chain_dna(select_data):
+    c = MagicMock()
+    for m in ['select', 'eq', 'is_', 'limit', 'order', 'execute', 'insert']:
+        setattr(c, m, MagicMock(return_value=c))
+    r = MagicMock(); r.data = select_data
+    c.execute = MagicMock(return_value=r)
+    return c
+
+
+@pytest.mark.anyio
+async def test_sync_rokovi_inserts_active_deadline():
+    from routers import case_dna as cd
+    supa = MagicMock()
+    supa.table.return_value = _chain_dna([])  # nema postojecih zapisa
+    genome = {"rokovi_kriticni": [
+        {"naziv": "Žalbeni rok", "datum": "2026-08-15", "opis": "Propuštanje gubi pravo na žalbu", "status": "aktivan"},
+    ]}
+    n = await cd._sync_rokovi_to_hronologija(supa, "pred-1", "uid-1", genome)
+    assert n == 1
+    insert_call = supa.table.return_value.insert.call_args[0][0]
+    assert insert_call["datum_iso"] == "2026-08-15"
+    assert insert_call["vaznost"] == "kritičan"
+    assert insert_call["akter"] == "Genome (AI)"
+
+
+@pytest.mark.anyio
+async def test_sync_rokovi_skips_non_active_status():
+    from routers import case_dna as cd
+    supa = MagicMock()
+    supa.table.return_value = _chain_dna([])
+    genome = {"rokovi_kriticni": [
+        {"naziv": "Rok", "datum": "2026-01-01", "opis": "x", "status": "prosao"},
+        {"naziv": "Rok2", "datum": None, "opis": "y", "status": "nepoznat"},
+    ]}
+    n = await cd._sync_rokovi_to_hronologija(supa, "pred-1", "uid-1", genome)
+    assert n == 0
+
+
+@pytest.mark.anyio
+async def test_sync_rokovi_deduplicates_against_existing():
+    from routers import case_dna as cd
+    supa = MagicMock()
+    # Postojeci zapis sa istim (dogadjaj, datum_iso) — ne sme se duplirati
+    supa.table.return_value = _chain_dna([
+        {"dogadjaj": "Žalbeni rok: Propuštanje gubi pravo na žalbu", "datum_iso": "2026-08-15"},
+    ])
+    genome = {"rokovi_kriticni": [
+        {"naziv": "Žalbeni rok", "datum": "2026-08-15", "opis": "Propuštanje gubi pravo na žalbu", "status": "aktivan"},
+    ]}
+    n = await cd._sync_rokovi_to_hronologija(supa, "pred-1", "uid-1", genome)
+    assert n == 0
+
+
+@pytest.mark.anyio
+async def test_sync_rokovi_never_raises_on_db_error():
+    from routers import case_dna as cd
+    supa = MagicMock()
+    supa.table.side_effect = RuntimeError("db down")
+    genome = {"rokovi_kriticni": [{"naziv": "Rok", "datum": "2026-08-15", "status": "aktivan"}]}
+    n = await cd._sync_rokovi_to_hronologija(supa, "pred-1", "uid-1", genome)
+    assert n == 0
+
+
+@pytest.mark.anyio
+async def test_sync_rokovi_empty_list_is_noop():
+    from routers import case_dna as cd
+    supa = MagicMock()
+    n = await cd._sync_rokovi_to_hronologija(supa, "pred-1", "uid-1", {"rokovi_kriticni": []})
+    assert n == 0
+    supa.table.assert_not_called()

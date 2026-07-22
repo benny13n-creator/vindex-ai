@@ -493,6 +493,57 @@ async def _emit_genome_event(
     return correlation_id
 
 
+async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: dict) -> int:
+    """Core Consolidation Sec 1.5 (2026-07-22) — Genome-ekstraktovani
+    rokovi_kriticni su ranije ziveli SAMO u case_dna jsonb koloni, nikad
+    upisani u predmet_hronologija (stvarna, vec-koriscena kalendar tabela
+    — Cockpit-ov 'Hitni rokovi' i case_pipeline._step_kalendar je citaju).
+    Rezultat: rok koji Genome pronadje u dokumentu bio je nevidljiv svuda
+    drugde u aplikaciji. Ovo ga upisuje u hronologiju — deduplicirano po
+    (datum_iso, dogadjaj) da ponovljeni Genome refresh ne pravi duplikate.
+    Advisory/best-effort: greska ovde nikad ne sme oboriti Genome upis."""
+    rokovi = genome.get("rokovi_kriticni") or []
+    if not rokovi:
+        return 0
+    try:
+        postojeci_r = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija")
+                .select("dogadjaj,datum_iso")
+                .eq("predmet_id", predmet_id)
+                .execute()
+        )
+        postojeci = {(r.get("dogadjaj",""), r.get("datum_iso","")) for r in (postojeci_r.data or [])}
+    except Exception as exc:
+        logger.warning("[GENOME] Sync rokovi — čitanje hronologije greška: %s", exc)
+        return 0
+
+    upisano = 0
+    for r in rokovi[:10]:
+        if r.get("status") != "aktivan":
+            continue
+        datum = (r.get("datum") or "")[:10]
+        if not datum or len(datum) != 10:
+            continue
+        naziv = (r.get("naziv") or "Rok").strip()
+        dogadjaj = f"{naziv}: {(r.get('opis') or '').strip()}"[:200] if r.get("opis") else naziv[:200]
+        if (dogadjaj, datum) in postojeci:
+            continue
+        try:
+            await asyncio.to_thread(lambda dg=dogadjaj, dt=datum: supa.table("predmet_hronologija").insert({
+                "predmet_id": predmet_id,
+                "user_id":    uid,
+                "dogadjaj":   dg,
+                "datum":      dt,
+                "datum_iso":  dt,
+                "vaznost":    "kritičan",
+                "akter":      "Genome (AI)",
+            }).execute())
+            upisano += 1
+        except Exception as exc:
+            logger.warning("[GENOME] Sync rokovi — insert greška: %s", exc)
+    return upisano
+
+
 async def _run_genome_background(
     predmet_id: str, uid: str, stari_procent: Optional[int] = None,
     trigger: str = "upload_trigger",
@@ -542,6 +593,7 @@ async def _run_genome_background(
         if not genome.get("greska"):
             genome["_verifikacija"] = verify_genome(genome, docs)
             genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
+            await _sync_rokovi_to_hronologija(supa, predmet_id, uid, genome)
 
         # Snimi stari u istoriju
         await _save_genome_history(supa, predmet_id, uid, stari_genome, trigger)
@@ -682,6 +734,7 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
     if not genome.get("greska"):
         genome["_verifikacija"] = verify_genome(genome, docs)
         genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
+        await _sync_rokovi_to_hronologija(supa, predmet_id, uid, genome)
 
     # Snimi stari Genome u istoriju
     await _save_genome_history(supa, predmet_id, uid, stari_genome, "manual_refresh")
