@@ -367,11 +367,33 @@ function updateCreditDisplay() {
   }
 }
 
+// G-026 (VINDEX_OPERATIONAL_GAP_REGISTER.md) — jedinstven vlasnik odluke da li
+// #t-credits-row treba da bude vidljiv. Ranije su TRI nezavisna pisca
+// (updateAuthUI/setTab/aiwsSetMode) direktno postavljala credRow.style.display;
+// updateAuthUI je to radila BEZUSLOVNO (bez provere activeTab), pozvana iz
+// async Supabase onAuthStateChange callback-a koji moze razresiti POSLE
+// navigacije i prepisati setTab()-ovo sakrivanje -- otud red povremeno
+// "iskace" na tabovima gde ne treba (npr. Rokovi). setTab/aiwsSetMode su
+// dodatno gejtovale prikaz na credRow.dataset.wasVisible, koje se NIGDE u
+// kodu ne postavlja (potvrdjeno grep-om) -- mrtav uslov, njihova grana za
+// PRIKAZIVANJE je bila nedostizna (uvek 'none' u praksi). Ovde se taj mrtav
+// uslov uklanja i sve tri funkcije sada pozivaju JEDNU deljenu proveru.
+var _CREDITS_ROW_TABS = { s: 1, aiws: 1 }; // jedina dva taba gde red ima smisla
+function _creditsRowShouldShow() {
+  if (!currentUser) return false;
+  if (!_CREDITS_ROW_TABS[activeTab]) return false;
+  if (activeTab === 'aiws') return !!(typeof _AIWS_EXEC_LBL !== 'undefined' && _AIWS_EXEC_LBL[_aiwsMode]);
+  return true; // 's' (sudska praksa)
+}
+function _syncCreditsRowVisibility() {
+  var credRow = document.getElementById('t-credits-row');
+  if (credRow) credRow.style.display = _creditsRowShouldShow() ? 'flex' : 'none';
+}
+
 function updateAuthUI() {
   var navUser  = document.getElementById('nav-user');
   var navCta   = document.getElementById('nav-cta-btn');
   var navEmail = document.getElementById('nav-user-email');
-  var tRow     = document.getElementById('t-credits-row');
   var shell    = document.getElementById('vx-shell');
   var landing  = document.getElementById('vx-landing');
 
@@ -379,7 +401,6 @@ function updateAuthUI() {
     if (navUser)  navUser.style.display  = 'flex';
     if (navCta)   navCta.style.display   = 'none';
     if (navEmail) navEmail.textContent   = currentUser.email || '';
-    if (tRow)     tRow.style.display     = 'flex';
     if (shell)    shell.style.display    = 'flex';
     if (landing)  landing.style.display  = 'none';
     document.body.style.overflowY = 'hidden';
@@ -387,11 +408,11 @@ function updateAuthUI() {
   } else {
     if (navUser)  navUser.style.display  = 'none';
     if (navCta)   navCta.style.display   = '';
-    if (tRow)     tRow.style.display     = 'none';
     if (shell)    shell.style.display    = 'none';
     if (landing)  landing.style.display  = 'flex';
     document.body.style.overflowY = 'auto';
   }
+  _syncCreditsRowVisibility();
 }
 
 // ─── Auth modal ───────────────────────────────────────────────────────────────
@@ -2171,11 +2192,10 @@ function setTab(el,t){
   activeTab=t;
   var lbl={h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja','zadaci-g':'Zadatci',fin:'Finansije',kanc:'Kancelarija'};
   var execRow = document.getElementById('t-exec-row');
-  var credRow = document.getElementById('t-credits-row');
   var respEl  = document.getElementById('resp');
   var _noExec = {h:1,k:1,kal:1,pi:1,dok:1,settings:1,p:1,'zadaci-g':1,fin:1,kanc:1};
   if (execRow) execRow.style.display = _noExec[t] ? 'none' : '';
-  if (credRow) credRow.style.display = _noExec[t] ? 'none' : (credRow.dataset.wasVisible === '1' ? '' : 'none');
+  _syncCreditsRowVisibility(); // G-026 -- activeTab je vec postavljen iznad (linija 2192)
   if (t==='h') dash_load();
   if (t==='pi') piLoad();
   // Sakrij FAB kada korisnik napusti predmete
@@ -2244,11 +2264,10 @@ function aiwsSetMode(mode, btn) {
   var el = document.getElementById('aiws-mode-' + mode);
   if (el) el.style.display = 'block';
   var execRow = document.getElementById('t-exec-row');
-  var credRow = document.getElementById('t-credits-row');
   var btnLbl  = document.getElementById('btn-lbl');
   var execLbl = _AIWS_EXEC_LBL[mode];
   if (execRow) execRow.style.display = execLbl ? '' : 'none';
-  if (credRow) credRow.style.display = execLbl ? (credRow.dataset.wasVisible === '1' ? '' : 'none') : 'none';
+  _syncCreditsRowVisibility(); // G-026 -- _aiwsMode je vec postavljen iznad (linija 2260)
   if (btnLbl && execLbl) btnLbl.textContent = execLbl;
   if (typeof _predAutoFill === 'function') {
     if (mode === 'analiza') _predAutoFill('aitxt', false);
