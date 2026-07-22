@@ -299,6 +299,55 @@ def _delta_significant(delta: dict) -> bool:
     )
 
 
+def _verifikacija_alert_text(verifikacija: dict, verzija: int) -> str:
+    """G-032 (D27) — formatira require_review razlog(e) u konkretan alert tekst.
+    Koristi SAMO podatke koji vec postoje u verify_genome() rezultatu (hard_flags
+    razlozi) — ne izmislja "confidence %" ili drugu vrednost koja se stvarno ne
+    racuna nigde."""
+    razlozi = [f.get("razlog", "") for f in (verifikacija.get("hard_flags") or []) if f.get("razlog")]
+    lines = [f"Genome v{verzija} zahteva pregled advokata pre korišćenja — automatska provera je pronašla problem(e) koje ne može sama da razreši."]
+    for r in razlozi[:5]:
+        lines.append(f"  • {r}")
+    return "\n".join(lines)
+
+
+async def _maybe_alert_require_review(
+    supa, predmet_id: str, uid: str, stari_genome: dict, genome: dict,
+) -> None:
+    """G-032 (D27, VINDEX_OPERATIONAL_GAP_REGISTER.md) — verify_genome()'s
+    'require_review' odluka se ranije racunala i upisivala u audit (Faza 1.2/1.3),
+    ali nista nije reagovalo na nju — signal bez potrosaca ("half-wired").
+
+    Kreira proactive_alert SAMO na PRELAZ u require_review (staro != require_review,
+    novo == require_review) — ne na svaki refresh dok isti problem i dalje postoji,
+    da ne spamuje "review needed" iznova i iznova ako je predmet vec jednom
+    obelezen a razlog se nije promenio. Ako se stanje vrati na require_review POSLE
+    perioda gde nije bilo — to je novi (drugi) problem, dobija nov alert.
+
+    Reuse-uje POSTOJECI proactive_alerts mehanizam (isti obrazac kao genome_change
+    alert iznad/ispod) — nula novog eventa, nula novog AI-ja, cisto signal covek,
+    ne akcija sistema (genome se i dalje uvek cuva, verzija i dalje uvek raste,
+    ovo ne blokira niti menja nista drugo)."""
+    nova_v = genome.get("_verifikacija") or {}
+    stara_v = stari_genome.get("_verifikacija") or {} if isinstance(stari_genome, dict) else {}
+    if nova_v.get("odluka") != "require_review" or stara_v.get("odluka") == "require_review":
+        return
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("proactive_alerts").insert({
+                "user_id": uid,
+                "predmet_id": predmet_id,
+                "naslov": f"Genome v{genome.get('verzija', 1)} zahteva pregled",
+                "opis": _verifikacija_alert_text(nova_v, genome.get("verzija", 1)),
+                "tip": "genome_verification_required",
+                "urgentnost": "visoka",
+                "procitana": False,
+            }).execute()
+        )
+    except Exception as ve:
+        logger.warning("[GENOME] Verifikacija alert greška: %s", ve)
+
+
 async def _save_genome_history(
     supa, predmet_id: str, uid: str, old_genome: dict, trigger: str = "manual"
 ) -> None:
@@ -485,6 +534,9 @@ async def _run_genome_background(
             except Exception as ae:
                 logger.warning("[GENOME] Alert insert greška: %s", ae)
 
+        # G-032 (D27) — require_review signal sada ima potrošača
+        await _maybe_alert_require_review(supa, predmet_id, uid, stari_genome, genome)
+
         logger.info("[GENOME] bg refresh predmet=%s docs=%d snaga=%s%% v%s",
                     predmet_id, len(docs), genome.get("snaga_predmeta_procent"), genome.get("verzija"))
     except Exception as exc:
@@ -621,6 +673,10 @@ async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.requi
             )
         except Exception:
             pass
+
+    # G-032 (D27) — require_review signal sada ima potrošača
+    if _update_ok:
+        await _maybe_alert_require_review(supa, predmet_id, uid, stari_genome, genome)
 
     logger.info("[GENOME] refresh predmet=%s docs=%d snaga=%s%% v%s",
                 predmet_id, len(docs), novi_procent, nova_verzija)
