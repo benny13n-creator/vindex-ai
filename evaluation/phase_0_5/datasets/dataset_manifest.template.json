@@ -1,0 +1,13 @@
+{
+  "_napomena": "Founder popunjava predmet_id vrednosti rucno, kurirano po profilu (2026-07-23: 'Ne sme biti automatski odabran. Ako uzmes samo prvih 30, mozes dobiti potpuno iskrivljenu sliku.'). Kopirati ovaj fajl u dataset_manifest.json (bez .template) pre pokretanja run.py. Sinteticki/kalibracioni predmeti (npr. stari KALIBRACIJA batch) su EKSPLICITNO iskljuceni -- ista lekcija kao G-027 empirijska validacija.",
+  "predmeti": [
+    {"predmet_id": "", "profile": "jednostavan_gradjanski_spor"},
+    {"predmet_id": "", "profile": "slozen_gradjanski_spor"},
+    {"predmet_id": "", "profile": "radni_spor"},
+    {"predmet_id": "", "profile": "izvrsni_postupak"},
+    {"predmet_id": "", "profile": "porodicni_predmet"},
+    {"predmet_id": "", "profile": "kontradiktorni_dokazi"},
+    {"predmet_id": "", "profile": "slaba_dokumentacija"},
+    {"predmet_id": "", "profile": "velika_kolicina_dokumentacije"}
+  ]
+}

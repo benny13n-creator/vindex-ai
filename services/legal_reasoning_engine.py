@@ -22,13 +22,16 @@ Phase 0 binding constraints (founder, 2026-07-23):
     touched by this module — that migration is explicitly Phase 1, not
     Phase 0 (docs/architecture/LEGAL_REASONING_ARCHITECTURE.md Sec 1/12).
 
-Known Phase 0 simplification, stated plainly rather than hidden: retrieval
-verification (retrieval_agreement, Sec 10a) is a substring match against
-the text chunks app.services.retrieve.retrieve_documents() already
-returns, not a structured per-citation lookup — the public retrieval API
-does not expose a full per-hit (law, article, score) list, only top-1
-metadata plus raw text chunks. Narrower than the target design, real
-rather than fabricated precision.
+Retrieval verification (retrieval_agreement, Sec 10a) is IDENTITY-based
+(fixed 2026-07-23, founder review — Phase 0's first cut used substring
+text matching, correctly flagged as not legally explicable: "zašto je
+confidence pao / substring nije pronađena" is not an answer a lawyer can
+act on). Citations are built exclusively from retrieve.py's own
+_build_izvori() output (deduplicated {zakon, clan, score} per actually-
+retrieved statute hit) — a chain can only cite a SOURCE-n that maps to a
+real retrieved citation; anything else is dropped before it reaches the
+graph. retrieval_agreement is then the retrieved score of the specific
+citation used, not a guess.
 """
 from __future__ import annotations
 
@@ -117,7 +120,24 @@ async def _fetch_legal_sources(query: str) -> tuple[list[str], dict]:
         return [], {}
 
 
-def _build_reasoning_prompt(genome: dict, facts: list[dict], sources: list[str]) -> str:
+def _izvori_from_meta(retrieval_meta: dict) -> list[dict]:
+    """retrieve.py already builds a deduplicated, IDENTITY-based source list
+    (_build_izvori: {zakon, clan, score} per actually-retrieved statute hit)
+    — this was already being computed and thrown away in the first Phase 0
+    cut, which fell back to substring-matching raw text instead. Fixed
+    2026-07-23 per founder review: citation identity, not text overlap."""
+    return retrieval_meta.get("izvori") or []
+
+
+def _build_reasoning_prompt(genome: dict, facts: list[dict], izvori: list[dict], context_docs: list[str]) -> str:
+    """Citations (SOURCE-n) are built EXCLUSIVELY from `izvori` — real,
+    identity-based (zakon, clan, score) tuples from retrieve.py, never from
+    free text. `context_docs` (raw retrieved passages) is given separately,
+    unlabeled, as background reading only — GPT may use it to understand
+    the law, but can only CITE using a SOURCE-n id, and every SOURCE-n id
+    maps to one real, already-retrieved citation. A citation GPT invents
+    that isn't in this list has no valid SOURCE-n to attach to and is
+    dropped downstream (generate_reasoning_graph's chain validation)."""
     teorija = genome.get("pravna_teorija") or {}
     identitet = teorija.get("pravni_identitet", "")
 
@@ -126,12 +146,19 @@ def _build_reasoning_prompt(genome: dict, facts: list[dict], sources: list[str])
         + (f" [{f['pravni_element']}]" if f.get("pravni_element") else "")
         for i, f in enumerate(facts)
     ]
-    source_lines = [f"SOURCE-{i+1}: {s.strip()[:600]}" for i, s in enumerate(sources)]
+    source_lines = [
+        f"SOURCE-{i+1}: {iz.get('zakon','')} čl. {iz.get('clan','')}"
+        for i, iz in enumerate(izvori)
+    ]
+    context_block = "\n\n".join(d.strip()[:500] for d in context_docs[:4]) if context_docs else ""
 
     return (
         f"Predmet: {identitet or 'nepoznat identitet'}\n\n"
         f"CINJENICE:\n" + ("\n".join(fact_lines) if fact_lines else "(nema cinjenica u Evidence Vault-u)") + "\n\n"
-        f"DOSTUPNI PRAVNI IZVORI:\n" + ("\n".join(source_lines) if source_lines else "(nema pronadjenih izvora)")
+        f"DOSTUPNI PRAVNI IZVORI (citiraj ISKLJUCIVO ove SOURCE-n identifikatore):\n"
+        + ("\n".join(source_lines) if source_lines else "(nema pronadjenih izvora)") + "\n\n"
+        f"PRAVNI KONTEKST (za razumevanje, NE za citiranje — citiraj samo SOURCE-n gore):\n"
+        + (context_block if context_block else "(nema dodatnog konteksta)")
     )
 
 
@@ -157,16 +184,27 @@ async def _call_reasoning_gpt(prompt: str) -> dict:
         return {"chains": [], "greska": str(exc)[:200]}
 
 
-def _retrieval_agreement(cited_source_texts: list[str], retrieval_docs: list[str]) -> float:
-    """Coarse, honest check (Phase 0 simplification, see module docstring):
-    does the cited source text appear as a substring of what was actually
-    retrieved? Not a precise per-citation lookup — retrieve_documents()
-    does not expose structured per-hit metadata for every result."""
-    if not cited_source_texts:
+def _retrieval_agreement(cited_izvori: list[dict]) -> float:
+    """Identity-based, not substring-based (fixed 2026-07-23 per founder
+    review of the first Phase 0 cut — see LEGAL_REASONING_ARCHITECTURE.md
+    Sec "Phase 0.5", which made this a hard requirement before any
+    calibration numbers can be trusted). Every citation reaching this
+    function is, by construction, one of retrieve.py's own _build_izvori()
+    entries — GPT cannot cite a SOURCE-n that wasn't actually retrieved
+    (generate_reasoning_graph drops any chain referencing an unknown
+    SOURCE-n before this is ever called). So the question this answers is
+    not "was it retrieved" (guaranteed) but "how strongly" — the average
+    of the cited sources' own retrieval scores (Cohere/cosine, from
+    retrieve.py, already in a 0-1-ish range).
+
+    Founder's own bar for why this matters: a lawyer asking "why did
+    confidence drop" gets "this article's retrieval match was weak"
+    (Reasoning Node -> Evidence ID -> Legal Source ID -> Retrieved
+    Citation ID, all traceable) — never "substring nije pronađena"."""
+    if not cited_izvori:
         return 0.0
-    combined = " ".join(retrieval_docs).lower()
-    hits = sum(1 for t in cited_source_texts if t.strip().lower()[:80] in combined)
-    return round(hits / len(cited_source_texts), 3)
+    scores = [max(0.0, min(1.0, float(iz.get("score", 0.0)))) for iz in cited_izvori]
+    return round(sum(scores) / len(scores), 3)
 
 
 def _precedent_support(retrieval_meta: dict) -> float:
@@ -226,7 +264,8 @@ async def generate_reasoning_graph(predmet_id: str, user_id: str) -> dict:
     teorija = genome.get("pravna_teorija") or {}
     query_parts = [teorija.get("pravni_identitet", ""), teorija.get("osnov_odgovornosti", "")]
     query = " ".join(p for p in query_parts if p).strip() or (predmet.get("opis") or predmet.get("naziv") or "")
-    sources, retrieval_meta = await _fetch_legal_sources(query) if query else ([], {})
+    context_docs, retrieval_meta = await _fetch_legal_sources(query) if query else ([], {})
+    izvori = _izvori_from_meta(retrieval_meta)
 
     # ── Verzija (Sec 5a — versioned, not overwritten in place) ────────────────
     prev_r = await asyncio.to_thread(
@@ -256,12 +295,12 @@ async def generate_reasoning_graph(predmet_id: str, user_id: str) -> dict:
         return {"greska": "Neuspesan upis reasoning_graph header reda"}
 
     try:
-        prompt = _build_reasoning_prompt(genome, facts, sources)
+        prompt = _build_reasoning_prompt(genome, facts, izvori, context_docs)
         gpt_result = await _call_reasoning_gpt(prompt)
         chains = gpt_result.get("chains") or []
 
         facts_by_ref = {f"FACT-{i+1}": f for i, f in enumerate(facts)}
-        sources_by_ref = {f"SOURCE-{i+1}": s for i, s in enumerate(sources)}
+        izvori_by_ref = {f"SOURCE-{i+1}": iz for i, iz in enumerate(izvori)}
 
         nodes_created = {"Fact": 0, "LegalElement": 0, "Norm": 0, "Claim": 0}
         edges_created = 0
@@ -273,7 +312,7 @@ async def generate_reasoning_graph(predmet_id: str, user_id: str) -> dict:
 
         for chain in chains:
             chain_facts = [f for f in (chain.get("facts") or []) if f in facts_by_ref]
-            chain_norms = [s for s in (chain.get("norms") or []) if s in sources_by_ref]
+            chain_norms = [s for s in (chain.get("norms") or []) if s in izvori_by_ref]
             if not chain_facts or not chain_norms or not chain.get("claim"):
                 continue  # Sec: every claim must have >=1 fact and >=1 norm — enforced here too, not just prompt-side
 
@@ -308,17 +347,24 @@ async def generate_reasoning_graph(predmet_id: str, user_id: str) -> dict:
 
             for sref in chain_norms:
                 if sref not in source_node_ids:
-                    s_text = sources_by_ref[sref]
-                    n = await asyncio.to_thread(lambda s=s_text: supa.table("reasoning_nodes").insert({
+                    iz = izvori_by_ref[sref]
+                    label = f"{iz.get('zakon','')} čl. {iz.get('clan','')}"
+                    n = await asyncio.to_thread(lambda label=label: supa.table("reasoning_nodes").insert({
                         "graph_id": graph_id, "predmet_id": predmet_id, "user_id": user_id,
-                        "node_type": "Norm", "label": s[:300],
+                        "node_type": "Norm", "label": label[:300],
                     }).execute())
                     source_node_ids[sref] = (n.data or [{}])[0].get("id")
                     nodes_created["Norm"] += 1
-                    await asyncio.to_thread(lambda node_id=source_node_ids[sref]: supa.table("reasoning_sources").insert({
+                    # Identity-based provenance (fixed 2026-07-23): THIS
+                    # source's own zakon/clan/score, not a blanket top-1
+                    # value copied onto every Norm node regardless of which
+                    # citation it actually is — that was a real bug in the
+                    # first Phase 0 cut, caught in the same review pass
+                    # that flagged retrieval_agreement's substring matching.
+                    await asyncio.to_thread(lambda node_id=source_node_ids[sref], iz=iz: supa.table("reasoning_sources").insert({
                         "node_id": node_id, "predmet_id": predmet_id, "user_id": user_id,
-                        "zakon": retrieval_meta.get("top_law"), "clan": retrieval_meta.get("top_article"),
-                        "retrieval_score": retrieval_meta.get("top_score"),
+                        "zakon": iz.get("zakon"), "clan": iz.get("clan"),
+                        "retrieval_score": iz.get("score"),
                     }).execute())
                 await asyncio.to_thread(lambda a=le_id, b=source_node_ids[sref]: supa.table("reasoning_edges").insert({
                     "graph_id": graph_id, "predmet_id": predmet_id, "user_id": user_id,
@@ -340,12 +386,12 @@ async def generate_reasoning_graph(predmet_id: str, user_id: str) -> dict:
                 }).execute())
                 edges_created += 1
 
-            cited_source_texts = [sources_by_ref[s] for s in chain_norms]
+            cited_izvori = [izvori_by_ref[s] for s in chain_norms]
             n_facts_total = len(chain.get("facts") or [])
             evidence_coverage = (len(chain_facts) / n_facts_total) if n_facts_total else 0.0
             conf = compute_confidence(
                 evidence_coverage=evidence_coverage,
-                retrieval_agreement=_retrieval_agreement(cited_source_texts, sources),
+                retrieval_agreement=_retrieval_agreement(cited_izvori),
                 precedent_support=_precedent_support(retrieval_meta),
                 model_certainty=float(chain.get("model_certainty") or 0.0),
             )

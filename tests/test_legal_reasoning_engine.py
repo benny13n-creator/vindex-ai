@@ -69,23 +69,36 @@ def test_compute_confidence_returns_all_components_not_just_total():
 # _retrieval_agreement / _precedent_support — deterministic helper checks
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_retrieval_agreement_full_match():
+def test_retrieval_agreement_uses_own_retrieval_score():
+    """Identity-based (fixed 2026-07-23, founder review): agreement is the
+    average retrieval score of the SPECIFIC citations used, not a text
+    overlap guess. Every citation reaching this function is already
+    guaranteed real (generate_reasoning_graph drops unknown SOURCE-n
+    refs before this is called) -- this answers 'how strongly', not
+    'was it retrieved'."""
     from services.legal_reasoning_engine import _retrieval_agreement
-    docs = ["Član 154 Zakona o obligacionim odnosima propisuje odgovornost za štetu."]
-    cited = ["Član 154 Zakona o obligacionim odnosima propisuje"]
-    assert _retrieval_agreement(cited, docs) == 1.0
+    cited = [{"zakon": "ZOO", "clan": "154", "score": 0.9}, {"zakon": "ZPP", "clan": "195", "score": 0.7}]
+    assert _retrieval_agreement(cited) == 0.8
 
 
-def test_retrieval_agreement_no_match_is_zero():
+def test_retrieval_agreement_clamps_scores_to_0_1():
     from services.legal_reasoning_engine import _retrieval_agreement
-    docs = ["Nešto potpuno nepovezano."]
-    cited = ["Član 999 nepostojeći zakon"]
-    assert _retrieval_agreement(cited, docs) == 0.0
+    cited = [{"zakon": "X", "clan": "1", "score": 1.5}, {"zakon": "Y", "clan": "2", "score": -0.3}]
+    assert _retrieval_agreement(cited) == 0.5  # clamp(1.5)=1.0, clamp(-0.3)=0.0 -> avg 0.5
 
 
 def test_retrieval_agreement_empty_citations_is_zero():
     from services.legal_reasoning_engine import _retrieval_agreement
-    assert _retrieval_agreement([], ["neki tekst"]) == 0.0
+    assert _retrieval_agreement([]) == 0.0
+
+
+def test_izvori_from_meta_reads_retrieve_py_structured_list():
+    """retrieve.py already builds this (_build_izvori) -- LRE must reuse
+    it, not reimplement retrieval verification."""
+    from services.legal_reasoning_engine import _izvori_from_meta
+    meta = {"izvori": [{"zakon": "ZOR", "clan": "179", "score": 0.85}]}
+    assert _izvori_from_meta(meta) == [{"zakon": "ZOR", "clan": "179", "score": 0.85}]
+    assert _izvori_from_meta({}) == []
 
 
 def test_precedent_support_averages_praksa_scores():
@@ -104,22 +117,34 @@ def test_precedent_support_no_matches_is_zero():
 # _build_reasoning_prompt — no free text generation instructions leak in
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_build_reasoning_prompt_includes_facts_and_sources():
+def test_build_reasoning_prompt_includes_facts_and_identity_based_sources():
     from services.legal_reasoning_engine import _build_reasoning_prompt
     genome = {"pravna_teorija": {"pravni_identitet": "Radni spor — otkaz bez razloga"}}
     facts = [{"tvrdnja": "Tuženi je otkazao ugovor bez upozorenja", "pravni_element": "uzročna veza"}]
-    sources = ["Član 179 Zakona o radu propisuje razloge za otkaz."]
-    prompt = _build_reasoning_prompt(genome, facts, sources)
+    izvori = [{"zakon": "Zakon o radu", "clan": "179", "score": 0.8}]
+    prompt = _build_reasoning_prompt(genome, facts, izvori, context_docs=[])
     assert "FACT-1" in prompt
     assert "Tuženi je otkazao ugovor" in prompt
     assert "SOURCE-1" in prompt
-    assert "Član 179" in prompt
+    assert "Zakon o radu" in prompt and "179" in prompt
     assert "Radni spor" in prompt
+
+
+def test_build_reasoning_prompt_sources_are_identity_not_raw_text():
+    """Regression guard for the exact bug the founder flagged: SOURCE-n
+    must be built from structured izvori (zakon+clan), never from raw
+    retrieved text chunks."""
+    from services.legal_reasoning_engine import _build_reasoning_prompt
+    izvori = [{"zakon": "ZOO", "clan": "154", "score": 0.9}]
+    context_docs = ["Ovo je dugačak isečak teksta koji NE sme postati citatni identitet."]
+    prompt = _build_reasoning_prompt({}, [], izvori, context_docs)
+    assert "SOURCE-1: ZOO čl. 154" in prompt
+    assert "dugačak isečak" not in prompt.split("SOURCE-1")[1].split("PRAVNI KONTEKST")[0]
 
 
 def test_build_reasoning_prompt_handles_empty_facts_and_sources():
     from services.legal_reasoning_engine import _build_reasoning_prompt
-    prompt = _build_reasoning_prompt({}, [], [])
+    prompt = _build_reasoning_prompt({}, [], [], [])
     assert "nema cinjenica" in prompt
     assert "nema pronadjenih izvora" in prompt
 
@@ -205,7 +230,10 @@ async def test_generate_returns_no_prose_only_structured_data():
 
     with patch("shared.deps._get_supa", return_value=supa), \
          patch("services.legal_reasoning_engine._call_reasoning_gpt", new=AsyncMock(return_value=gpt_response)), \
-         patch("services.legal_reasoning_engine._fetch_legal_sources", new=AsyncMock(return_value=(["Član 179 Zakona o radu"], {}))):
+         patch("services.legal_reasoning_engine._fetch_legal_sources", new=AsyncMock(return_value=(
+             ["Član 179 Zakona o radu propisuje razloge za otkaz."],
+             {"izvori": [{"zakon": "Zakon o radu", "clan": "179", "score": 0.8}]},
+         ))):
         result = await generate_reasoning_graph(PID, UID)
 
     assert "greska" not in result or not result.get("greska")
