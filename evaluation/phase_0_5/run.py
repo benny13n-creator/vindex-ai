@@ -99,8 +99,16 @@ def _lre_analysis_text(nodes: list[dict], edges: list[dict], confidence_rows: li
     return {"claims": claims}
 
 
-async def _run_one(predmet_id: str, profile: str, founder_user_id: str, supa) -> dict:
+async def _run_one(case_entry: dict, founder_user_id: str, supa) -> dict:
+    """case_entry is one manifest row -- predmet_id, profile, plus the
+    founder-requested metadata (complexity, ground_truth_available,
+    reviewer) that flows through unchanged into the blinded output for
+    later profile/complexity breakdown (compare.py), without affecting
+    the blind A/B assignment itself."""
     from services.legal_reasoning_engine import generate_reasoning_graph
+
+    predmet_id = case_entry["predmet_id"]
+    profile = case_entry.get("profile", "nepoznat")
 
     pred_r = supa.table("predmeti").select("id,naziv,case_dna").eq("id", predmet_id).eq(
         "user_id", founder_user_id).maybe_single().execute()
@@ -122,11 +130,16 @@ async def _run_one(predmet_id: str, profile: str, founder_user_id: str, supa) ->
         "node_id,confidence_total").eq("predmet_id", predmet_id).execute().data or [])
     lre_analysis = _lre_analysis_text(nodes, edges, confidence_rows)
 
+    # True randomness, not derived from predmet_id (founder review,
+    # 2026-07-23) -- see metrics.py::assign_blind_labels docstring.
     assignment = assign_blind_labels(predmet_id)
     content_by_source = {"genome": genome_analysis, "lre": lre_analysis}
     blinded = {
         "predmet_id": predmet_id,
         "profile": profile,
+        "complexity": case_entry.get("complexity"),
+        "ground_truth_available": case_entry.get("ground_truth_available", False),
+        "reviewer": case_entry.get("reviewer", ""),
         "naziv_maskiran": True,  # naziv predmeta se namerno NE upisuje ovde
         "Analysis A": content_by_source[assignment.label_to_source["A"]],
         "Analysis B": content_by_source[assignment.label_to_source["B"]],
@@ -160,9 +173,22 @@ async def main(manifest_path: str):
         print("Prazan manifest -- nista za pokretanje. Popuni evaluation/phase_0_5/datasets/ pre pokretanja.")
         return
 
+    selection_method = manifest.get("selection_method")
+    if selection_method != "prvih_30_novih_po_kategoriji":
+        print(
+            "UPOZORENJE: manifest.selection_method nije 'prvih_30_novih_po_kategoriji' "
+            f"(nadjeno: {selection_method!r}). Founder pravilo (2026-07-23): dataset mora "
+            "biti prvih N NOVIH predmeta po kategoriji, ne rucno 'zanimljivih'/'najboljih' "
+            "slucajeva -- to je selection bias. Nastavlja se, ali ovo mora biti namerna odluka."
+        )
+
+    if any(not c.get("predmet_id") for c in cases):
+        print("Manifest ima prazne predmet_id vrednosti -- popuni sve pre pokretanja. Prekid.")
+        return
+
     results = []
     for c in cases:
-        r = await _run_one(c["predmet_id"], c.get("profile", "nepoznat"), founder_user_id, supa)
+        r = await _run_one(c, founder_user_id, supa)
         print(json.dumps(r, ensure_ascii=False))
         results.append(r)
 

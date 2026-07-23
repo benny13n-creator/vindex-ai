@@ -24,13 +24,24 @@ def test_assign_blind_labels_covers_both_sources_exactly_once():
     assert set(a.label_to_source.values()) == {"genome", "lre"}
 
 
-def test_assign_blind_labels_is_reproducible_per_predmet_id():
-    """Not a security requirement -- a debugging convenience only. The
-    real run always persists the key file rather than relying on this."""
+def test_assign_blind_labels_explicit_seed_is_reproducible():
+    """Reproducibility is a TEST-ONLY convenience via an explicit seed --
+    the real (unseeded) path uses SystemRandom precisely so it is NOT
+    derivable from predmet_id (founder review, 2026-07-23: deriving the
+    assignment from the case id is itself a guessable pattern)."""
     from evaluation.phase_0_5.metrics import assign_blind_labels
-    a1 = assign_blind_labels("pred-fixed-id")
-    a2 = assign_blind_labels("pred-fixed-id")
+    a1 = assign_blind_labels("pred-fixed-id", seed=42)
+    a2 = assign_blind_labels("pred-fixed-id", seed=42)
     assert a1.label_to_source == a2.label_to_source
+
+
+def test_assign_blind_labels_not_derived_from_predmet_id():
+    """The SAME predmet_id, called repeatedly WITHOUT a seed, must not
+    always produce the same A/B assignment -- otherwise the id itself
+    would leak the pattern. True randomness, not case-id-seeded."""
+    from evaluation.phase_0_5.metrics import assign_blind_labels
+    results = {assign_blind_labels("pred-same-id-every-time").label_to_source["A"] for _ in range(30)}
+    assert len(results) == 2  # both outcomes occur across 30 calls on the SAME id
 
 
 def test_assign_blind_labels_varies_across_cases():
@@ -184,6 +195,41 @@ def test_compare_skips_unscored_cases(tmp_path, monkeypatch):
     assert result["scored_cases"] == 0
     assert "pred-x" in result["unscored_cases"]
     assert "NEDOVOLJNO PODATAKA" in result["gate_verdict"]
+
+
+def test_compare_produces_per_profile_matrix_not_just_overall_average(tmp_path, monkeypatch):
+    """Founder review, 2026-07-23: 'Ne bih gledao samo prosek... mozda ces
+    otkriti da je LRE fantastican u jednoj oblasti, a los u drugoj.' Two
+    cases with the SAME overall average but opposite per-profile results
+    must show that split, not just a canceled-out overall number."""
+    import evaluation.phase_0_5.compare as compare_mod
+    blinded_dir = tmp_path / "blinded"
+    keys_dir = tmp_path / "keys"
+    blinded_dir.mkdir()
+    keys_dir.mkdir()
+    monkeypatch.setattr(compare_mod, "BLINDED_DIR", blinded_dir)
+    monkeypatch.setattr(compare_mod, "KEYS_DIR", keys_dir)
+
+    def _write_with_profile(predmet_id, profile, label_to_source, scores):
+        _write_case(blinded_dir, keys_dir, predmet_id, label_to_source, scores, preferred_label="tie")
+        # patch in the profile field (helper above doesn't take one)
+        path = blinded_dir / f"{predmet_id}.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["profile"] = profile
+        path.write_text(json.dumps(data), encoding="utf-8")
+
+    # radni_spor: LRE wins big. porodicni: Genome wins big. Overall average cancels out.
+    _write_with_profile("pred-1", "radni_spor", {"A": "genome", "B": "lre"},
+                         {"A": {"korisnost_za_podnesak": 2}, "B": {"korisnost_za_podnesak": 5}})
+    _write_with_profile("pred-2", "porodicni", {"A": "genome", "B": "lre"},
+                         {"A": {"korisnost_za_podnesak": 5}, "B": {"korisnost_za_podnesak": 2}})
+
+    result = compare_mod.reveal_and_aggregate()
+    assert result["metrics"]["korisnost_za_podnesak"]["winner"] is None  # overall: 3.5 vs 3.5, cancels out
+
+    matrix = result["profile_matrix"]
+    assert matrix["radni_spor"]["korisnost_za_podnesak"]["winner"] == "lre"
+    assert matrix["porodicni"]["korisnost_za_podnesak"]["winner"] == "genome"
 
 
 def test_compare_lower_is_better_metric_picks_correct_winner(tmp_path, monkeypatch):

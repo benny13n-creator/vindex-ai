@@ -1,13 +1,22 @@
 {
-  "_napomena": "Founder popunjava predmet_id vrednosti rucno, kurirano po profilu (2026-07-23: 'Ne sme biti automatski odabran. Ako uzmes samo prvih 30, mozes dobiti potpuno iskrivljenu sliku.'). Kopirati ovaj fajl u dataset_manifest.json (bez .template) pre pokretanja run.py. Sinteticki/kalibracioni predmeti (npr. stari KALIBRACIJA batch) su EKSPLICITNO iskljuceni -- ista lekcija kao G-027 empirijska validacija.",
+  "_napomena": "Founder popunjava predmet_id vrednosti rucno, kurirano po profilu (2026-07-23: 'Ne sme biti automatski odabran. Ako uzmes samo prvih 30, mozes dobiti potpuno iskrivljenu sliku.'). HARD RULE (founder review, isti dan): kada pilot pocne, uzmi PRVIH 30 NOVIH predmeta koji upadaju u ove kategorije -- NE 'najzanimljivije', NE 'najbolje', NE 'one gde ocekujes da AI zablista'. To je selection bias, ne kuriranje. selection_method polje ispod postoji da ovo pravilo ne bude prepusteno secanju.",
+  "selection_method": "prvih_30_novih_po_kategoriji",
   "predmeti": [
-    {"predmet_id": "", "profile": "jednostavan_gradjanski_spor"},
-    {"predmet_id": "", "profile": "slozen_gradjanski_spor"},
-    {"predmet_id": "", "profile": "radni_spor"},
-    {"predmet_id": "", "profile": "izvrsni_postupak"},
-    {"predmet_id": "", "profile": "porodicni_predmet"},
-    {"predmet_id": "", "profile": "kontradiktorni_dokazi"},
-    {"predmet_id": "", "profile": "slaba_dokumentacija"},
-    {"predmet_id": "", "profile": "velika_kolicina_dokumentacije"}
-  ]
+    {"predmet_id": "", "profile": "jednostavan_gradjanski_spor", "complexity": null, "ground_truth_available": false, "reviewer": ""},
+    {"predmet_id": "", "profile": "slozen_gradjanski_spor", "complexity": null, "ground_truth_available": false, "reviewer": ""},
+    {"predmet_id": "", "profile": "radni_spor", "complexity": null, "ground_truth_available": false, "reviewer": ""},
+    {"predmet_id": "", "profile": "izvrsni_postupak", "complexity": null, "ground_truth_available": false, "reviewer": ""},
+    {"predmet_id": "", "profile": "porodicni_predmet", "complexity": null, "ground_truth_available": false, "reviewer": ""},
+    {"predmet_id": "", "profile": "kontradiktorni_dokazi", "complexity": null, "ground_truth_available": false, "reviewer": ""},
+    {"predmet_id": "", "profile": "slaba_dokumentacija", "complexity": null, "ground_truth_available": false, "reviewer": ""},
+    {"predmet_id": "", "profile": "velika_kolicina_dokumentacije", "complexity": null, "ground_truth_available": false, "reviewer": ""}
+  ],
+  "_polja": {
+    "_napomena_naziv": "predmet_id (ne case_id) namerno -- ostaje ISTI naziv koji cela ostala baza/kod koristi za ovaj koncept; uvodjenje drugog naziva za isti entitet je tacno onaj obrazac (jedan koncept, dva imena) koji je Core Consolidation sprint uklonio.",
+    "predmet_id": "predmet_id iz predmeti tabele",
+    "profile": "jedna od 8 kategorija iznad -- moze biti vise predmeta po kategoriji",
+    "complexity": "1-5, subjektivna procena foundera/advokata pre evaluacije (koristi se za matricu po tipu/slozenosti, ne za predikciju rezultata)",
+    "ground_truth_available": "da li postoji pravosnazna presuda/ishod za ovaj predmet -- ako da, moze se koristiti kao dodatna, jaca provera tacnosti van same lawyer-review ocene",
+    "reviewer": "ime advokata koji ocenjuje ovaj konkretan predmet -- vise ocenjivaca je ok, ali mora biti zabelezeno ko je ocenio sta"
+  }
 }

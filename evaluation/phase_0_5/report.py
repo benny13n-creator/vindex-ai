@@ -48,6 +48,22 @@ def render(result: dict) -> str:
     pref = result["preferred_for_drafting"]
     lines.append(f"Preferencija za izradu podneska — Genome: {pref.get('genome', 0)}, LRE: {pref.get('lre', 0)}, Nerešeno: {pref.get('tie', 0)}")
     lines.append("")
+
+    profile_matrix = result.get("profile_matrix") or {}
+    if profile_matrix:
+        lines.append("-" * 70)
+        lines.append("MATRICA PO TIPU PREDMETA — prosek nije dovoljan (founder review 2026-07-23):")
+        lines.append("'možda ćeš otkriti da je LRE fantastičan u jednoj oblasti, a loš u drugoj.'")
+        lines.append("-" * 70)
+        for profile, metrics in sorted(profile_matrix.items()):
+            lines.append(f"\n  {profile}:")
+            for key, m in metrics.items():
+                g = "—" if m["genome_avg"] is None else f"{m['genome_avg']:.2f}"
+                l = "—" if m["lre_avg"] is None else f"{m['lre_avg']:.2f}"
+                w = m["winner"] or "—"
+                lines.append(f"    {m['label'][:40]:<40} Genome={g:>6}  LRE={l:>6}  ({w})")
+        lines.append("")
+
     lines.append(f"VERDIKT (mehanicko čitanje brojeva, ne automatska odluka): {result['gate_verdict']}")
     lines.append("=" * 70)
     return "\n".join(lines)

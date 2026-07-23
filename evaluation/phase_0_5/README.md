@@ -53,11 +53,46 @@ identity-based (fixed 2026-07-23) before these numbers mean anything —
 methodology cannot change mid-experiment. If retrieval scoring changes
 again, restart Phase 0.5 from case #1, don't patch results in place.
 
+## Dataset selection rule (binding, founder 2026-07-23)
+
+**Do not hand-pick "interesting" or "best" cases.** When the pilot
+starts: take the **first 30 new cases** that fall into the profile
+categories in `datasets/dataset_manifest.template.json`, in the order
+they arrive — not the ones you expect the AI to shine on. Picking
+favorable cases is selection bias, and it invalidates the whole
+comparison. The manifest's `selection_method` field exists so this rule
+is recorded, not left to memory — `run.py` prints a warning if it isn't
+set to `"prvih_30_novih_po_kategoriji"`.
+
+## Reading the result — don't stop at the overall average
+
+`report.py` prints a per-profile breakdown matrix, not just one number.
+Founder: *"Možda ćeš otkriti da je LRE fantastičan u jednoj oblasti, a
+loš u drugoj. To je mnogo vrednije nego jedna ukupna ocena."* A tie in
+the overall average can hide a real, actionable pattern in the matrix.
+
+## When LRE loses a case
+
+Log it in `FAILURE_LOG.md` — not as a bug report, but as *why* it lost
+(reasoning category, not stack trace). This is the input future
+engineering work actually needs; an averaged score alone doesn't tell
+you what to fix.
+
+## After scoring is complete
+
+Fill in `PHASE_0_5_DECISION.md` — three possible outcomes (GO / GO WITH
+FIXES / NO GO), criteria fixed *before* looking at results, so the
+decision isn't made on enthusiasm. Same discipline as this project's
+other decision-model documents (e.g. `docs/architecture/
+G030_NEXT_ACTION_DECISION_MODEL.md`).
+
 ## Files
 
-- `metrics.py` — the 7 scored dimensions + blind-label assignment.
+- `metrics.py` — the 7 scored dimensions + blind-label assignment (true randomness, not derived from predmet_id).
 - `run.py` — generates blinded comparisons from a curated manifest.
-- `compare.py` — reveals labels after scoring, aggregates.
-- `report.py` — renders `compare.py`'s output as a readable table.
+- `compare.py` — reveals labels after scoring, aggregates overall AND per-profile.
+- `report.py` — renders `compare.py`'s output as a readable table + matrix.
+- `FAILURE_LOG.md` — why LRE (or Genome) lost specific cases, not a bug list.
+- `PHASE_0_5_DECISION.md` — GO / GO WITH FIXES / NO GO, criteria fixed in advance.
 - `datasets/` — manifests (curated, not committed with real predmet_ids — see `.gitignore`).
 - `outputs/` — blinded comparisons + keys + scores (real case data — never committed, see `.gitignore`).

@@ -58,11 +58,18 @@ class BlindAssignment:
 
 def assign_blind_labels(predmet_id: str, seed: int | None = None) -> BlindAssignment:
     """Randomly decides whether Genome or LRE is 'Analysis A' for this
-    case. Seeded per-call by predmet_id unless an explicit seed is given,
-    so re-running the assignment for the same case without a saved key
-    file is still reproducible for debugging — but the real run always
-    persists the key file (run.py) rather than relying on reproducibility."""
-    rng = random.Random(seed if seed is not None else predmet_id)
+    case. Uses SystemRandom (true randomness) by default — NOT seeded
+    from predmet_id, per founder review (2026-07-23): deriving the
+    assignment from the case id is itself a pattern an evaluator could,
+    in principle, learn or guess across many cases ("da nijedan evaluator
+    ne moze intuitivno da pogodi obrazac"). The mapping is persisted to
+    the key file (run.py) the moment it's generated — it does not need to
+    be reproducible from predmet_id alone, and deliberately isn't.
+
+    An explicit `seed` is still accepted for tests (determinism there is
+    a test-quality concern, not a blind-design concern — nothing in a
+    unit test is being evaluated by a lawyer)."""
+    rng = random.SystemRandom() if seed is None else random.Random(seed)
     sources = ["genome", "lre"]
     rng.shuffle(sources)
     return BlindAssignment(predmet_id=predmet_id, label_to_source={"A": sources[0], "B": sources[1]})

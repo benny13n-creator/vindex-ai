@@ -51,12 +51,38 @@ def _is_scored(score_sheet: dict) -> bool:
     return True
 
 
+def _avg(vals: list) -> float | None:
+    return round(sum(vals) / len(vals), 2) if vals else None
+
+
+def _summarize_metrics(per_source_totals: dict[str, dict[str, list]]) -> dict:
+    metric_summary = {}
+    for m in METRICS:
+        key = m["key"]
+        if key == "promenilo_odluku_advokata":
+            continue  # tracked separately (boolean, not averaged)
+        g_avg = _avg(per_source_totals["genome"][key])
+        l_avg = _avg(per_source_totals["lre"][key])
+        lower_better = key in _LOWER_IS_BETTER
+        winner = None
+        if g_avg is not None and l_avg is not None and g_avg != l_avg:
+            winner = ("genome" if g_avg < l_avg else "lre") if lower_better else ("genome" if g_avg > l_avg else "lre")
+        metric_summary[key] = {"label": m["label"], "genome_avg": g_avg, "lre_avg": l_avg,
+                                "lower_is_better": lower_better, "winner": winner}
+    return metric_summary
+
+
 def reveal_and_aggregate() -> dict:
     """Returns per-source (genome/lre) aggregate scores + how often each
     metric favored which source + how often the analysis changed the
     lawyer's reasoning (the founder's added metric, tracked separately --
-    it's the most direct value signal, not just another averaged number)."""
+    it's the most direct value signal, not just another averaged number)
+    + a PER-PROFILE breakdown matrix (founder review, 2026-07-23: "Nemoj
+    gledati samo prosek... mozda ces otkriti da je LRE fantastican u
+    jednoj oblasti, a los u drugoj. To je mnogo vrednije nego jedna
+    ukupna ocena.") -- an overall average can hide exactly this."""
     per_source_totals: dict[str, dict[str, list]] = {"genome": {k: [] for k in METRIC_KEYS}, "lre": {k: [] for k in METRIC_KEYS}}
+    per_profile_totals: dict[str, dict[str, dict[str, list]]] = {}
     preferred_counts = {"genome": 0, "lre": 0, "tie": 0}
     changed_reasoning_counts = {"genome": 0, "lre": 0}
     scored_cases = 0
@@ -78,6 +104,8 @@ def reveal_and_aggregate() -> dict:
 
         scored_cases += 1
         label_to_source = key["label_to_source"]  # {"A": "genome"|"lre", "B": ...}
+        profile = blinded.get("profile", "nepoznat")
+        per_profile_totals.setdefault(profile, {"genome": {k: [] for k in METRIC_KEYS}, "lre": {k: [] for k in METRIC_KEYS}})
 
         for label, source in label_to_source.items():
             scores = score_sheet["scores"][label]
@@ -94,6 +122,7 @@ def reveal_and_aggregate() -> dict:
                         changed_reasoning_counts[source] += 1
                 elif isinstance(val, (int, float)):
                     per_source_totals[source][metric_key].append(val)
+                    per_profile_totals[profile][source][metric_key].append(val)
 
         preferred = score_sheet.get("preferred_label")
         if preferred in label_to_source:
@@ -101,27 +130,17 @@ def reveal_and_aggregate() -> dict:
         elif preferred == "tie":
             preferred_counts["tie"] += 1
 
-    def _avg(vals: list) -> float | None:
-        return round(sum(vals) / len(vals), 2) if vals else None
-
-    metric_summary = {}
-    for m in METRICS:
-        key = m["key"]
-        if key == "promenilo_odluku_advokata":
-            continue  # tracked separately below, boolean not averaged
-        g_avg = _avg(per_source_totals["genome"][key])
-        l_avg = _avg(per_source_totals["lre"][key])
-        lower_better = key in _LOWER_IS_BETTER
-        winner = None
-        if g_avg is not None and l_avg is not None and g_avg != l_avg:
-            winner = ("genome" if g_avg < l_avg else "lre") if lower_better else ("genome" if g_avg > l_avg else "lre")
-        metric_summary[key] = {"label": m["label"], "genome_avg": g_avg, "lre_avg": l_avg,
-                                "lower_is_better": lower_better, "winner": winner}
+    metric_summary = _summarize_metrics(per_source_totals)
+    profile_matrix = {
+        profile: _summarize_metrics(totals)
+        for profile, totals in per_profile_totals.items()
+    }
 
     return {
         "scored_cases": scored_cases,
         "unscored_cases": unscored_cases,
         "metrics": metric_summary,
+        "profile_matrix": profile_matrix,
         "preferred_for_drafting": preferred_counts,
         "changed_lawyer_reasoning": changed_reasoning_counts,
         "gate_verdict": _gate_verdict(metric_summary, scored_cases),
