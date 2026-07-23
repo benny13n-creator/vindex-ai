@@ -11,7 +11,7 @@
 
 | ID | Item | ROI | Risk Reduction | Complexity |
 |---|---|---|---|---|
-| SEC-001 | Fix ownership check on `predmet_beleske`/`predmet_istorija` insert; audit and fix any sibling endpoints with the same gap | Very High | Closes a confirmed, reproducible cross-tenant data-injection vulnerability | Low (isolated patch) → Medium (full sweep) |
+| SEC-001 | ~~Fix ownership check on `predmet_beleske`/`predmet_istorija` insert; audit and fix any sibling endpoints with the same gap~~ **DONE 2026-07-23** — fixed, full 24-endpoint sweep completed (no siblings found), 6 regression tests added, commit pending | Very High | Closed a confirmed, reproducible cross-tenant data-injection vulnerability | Low (isolated patch), full sweep took longer than the patch itself but found nothing else |
 | SEC-011 | Register `SlowAPIMiddleware` so `default_limits` actually applies app-wide | Very High | Potentially closes rate-limiting gap on ~30% of all routes with a one-line change | Trivial |
 | SEC-003 | Wrap all GPT call sites in existing `prompt_guard.wrap_for_ai()`; extend `analyze()` blocking to document-ingestion paths | Very High | Closes the largest AI-safety gap using code that already exists | Low–Medium |
 | SEC-002 | Founder decision + fix on GDPR erasure scope (real anonymization vs. corrected user-facing claim) | Very High | Removes a materially false compliance claim; legal exposure | Medium (decision) + Small–Medium (implementation) |

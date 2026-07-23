@@ -3236,6 +3236,14 @@ async def update_kanban_faza(predmet_id: str, request: Request, authorization: s
 @limiter.limit("30/minute")
 async def dodaj_belesku(predmet_id: str, request: Request, authorization: str = Header(None)):
     user = _require_auth(authorization)
+    # SEC-001 fix (2026-07-23): predmet_id came from the URL and was never
+    # verified to belong to the caller before this insert — any authenticated
+    # user could write a note into another user's case file. Same ownership
+    # check already used by the sibling GET for this exact resource
+    # (get_predmet, api.py:3161) and by update_predmet (api.py:3220).
+    pred = _get_supa().table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user.id).single().execute()
+    if not pred.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
     body = await request.json()
     sadrzaj = (body.get("sadrzaj") or "").strip()
     if not sadrzaj:
@@ -3260,6 +3268,11 @@ async def obrisi_belesku(predmet_id: str, beleska_id: str, request: Request, aut
 @limiter.limit("30/minute")
 async def sacuvaj_istoriju(predmet_id: str, request: Request, authorization: str = Header(None)):
     user = _require_auth(authorization)
+    # SEC-001 fix (2026-07-23): same gap as dodaj_belesku above — predmet_id
+    # from the URL was never verified against the caller before this insert.
+    pred = _get_supa().table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user.id).single().execute()
+    if not pred.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
     body = await request.json()
     _get_supa().table("predmet_istorija").insert({
         "predmet_id": predmet_id,
