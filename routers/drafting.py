@@ -185,7 +185,7 @@ async def playbook_upload(
     """P4.4 — Upload firm playbook (TXT or DOCX). Ne troši kredit."""
     from pathlib import Path as _Path
     import tempfile
-    from uploaded_doc.extractor import extract_docx, extract_txt
+    from uploaded_doc.extractor import DocumentSafetyLimitExceeded, extract_docx, extract_txt
 
     suffix = _Path(file.filename or "").suffix.lower()
     if suffix not in {".txt", ".docx"}:
@@ -201,10 +201,16 @@ async def playbook_upload(
             tmp.write(raw)
             tmp_path = _Path(tmp.name)
 
-        if suffix == ".docx":
-            tekst, _ = await asyncio.to_thread(extract_docx, tmp_path)
-        else:
-            tekst, _ = await asyncio.to_thread(extract_txt, tmp_path)
+        try:
+            if suffix == ".docx":
+                tekst, _ = await asyncio.to_thread(extract_docx, tmp_path)
+            else:
+                tekst, _ = await asyncio.to_thread(extract_txt, tmp_path)
+        except DocumentSafetyLimitExceeded:
+            raise HTTPException(
+                status_code=413,
+                detail="Fajl je odbijen — sadržaj posle raspakivanja prelazi bezbednosni limit.",
+            )
 
         if not tekst or not tekst.strip():
             raise HTTPException(status_code=422, detail="Fajl je prazan ili nečitljiv")

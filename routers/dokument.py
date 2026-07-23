@@ -158,7 +158,7 @@ async def dokument_upload(
     from uploaded_doc.api_models import UploadResponse
     from uploaded_doc.chunker import chunk_document
     from uploaded_doc.cleanup import cleanup_expired
-    from uploaded_doc.extractor import extract
+    from uploaded_doc.extractor import DocumentSafetyLimitExceeded, extract
     from uploaded_doc.ingest import ingest_session
     from uploaded_doc.session import generate_session_id, expires_at_iso, ttl_seconds_remaining
 
@@ -181,7 +181,13 @@ async def dokument_upload(
             tmp.write(raw)
             tmp_path = _Path(tmp.name)
 
-        text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
+        try:
+            text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
+        except DocumentSafetyLimitExceeded:
+            raise HTTPException(
+                status_code=413,
+                detail="Fajl je odbijen — sadržaj posle raspakivanja prelazi bezbednosni limit.",
+            )
 
         if is_scanned:
             raise HTTPException(

@@ -6,9 +6,21 @@ Field-level encryption (AES-256-GCM) i password hashing (Argon2id).
 
 HARD RULES (ne sme se menjati):
   - JMBG, pasoš, PIB → encrypt_field() PRE upisa u bazu, NIKAD plaintext
-  - Lozinke → hash_password()/verify_password() — NIKAD bcrypt/sha
   - Ključ iz FIELD_ENCRYPTION_KEY env var (32-byte, base64url)
   - Storage putanje → generate_storage_key() — randomizovani UUID, nikad ime fajla
+
+SEC-023 (2026-07-23) — status hash_password()/verify_password():
+  Stvarna autentifikacija korisnika je u potpunosti delegirana Supabase Auth-u
+  (spoljni servis, sopstveni password-hashing van ove aplikacije) — ove dve
+  funkcije NEMAJU nijedno pozivno mesto van ovog fajla (potvrđeno grep-om
+  celog repoa). Implementacija je ispravna (OWASP 2024 parametri) i ostaje u
+  kodu kao spreman, testiran Argon2id primitiv za slučajeve kada ovoj
+  aplikaciji direktno zatreba lokalno heširanje osetljive vrednosti izvan
+  Supabase Auth toka (npr. hash dugotrajnog API/integracionog tokena pre
+  upisa u bazu) — NE za login lozinke korisnika, koje ostaju u nadležnosti
+  Supabase Auth-a. Ne navoditi ovo javno kao "kako login lozinke rade danas"
+  (videti docs/security/PUBLIC_SECURITY_CLAIMS.md, Lista B) dok se stvarno
+  ne poveže na neki konkretan poziv.
 
 Generisanje ključa (jednom, na serveru):
   python -c "import secrets,base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
@@ -214,7 +226,9 @@ def generate_storage_key() -> str:
 
 def hash_password(plaintext: str) -> str:
     """
-    Argon2id hash lozinke. NIKAD bcrypt, NIKAD sha.
+    Argon2id heš proizvoljne osetljive vrednosti (token, lokalni sekret) —
+    NIKAD za korisničke login lozinke, koje su u nadležnosti Supabase Auth-a
+    (videti SEC-023 napomenu na vrhu ovog fajla).
 
     Parametri po OWASP preporuci (2024):
       time_cost=2, memory_cost=65536 (64MB), parallelism=2

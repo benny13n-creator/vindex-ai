@@ -32,6 +32,7 @@ import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from security.html_sanitize import sanitize_text as _sanitize_text
 from shared.deps import _get_supa, get_current_user, _is_founder
 from shared.rate import limiter
 
@@ -127,7 +128,10 @@ async def _scrape_portal_status(broj_predmeta: str, sud_naziv: str) -> dict:
 
         status = _extrahuj_status(resp.text)
         return {
-            "status": status,
+            # SEC-008 — status potiče iz scraping-a spoljašnjeg portala
+            # (portal.sud.rs); sanitizovan PRE nego što uđe u praceni_predmeti
+            # i kasnije stigne do court-portal vidžeta na frontendu.
+            "status": _sanitize_text(status),
             "datum": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "greska": None if status else "Status nije pronađen — format portala se promenio.",
             "kind": "ok" if status else "error",
@@ -432,7 +436,12 @@ def _current_status_update(result: dict, promena: bool, prev_consecutive_failure
     """Gradi update dict za praceni_predmeti na osnovu ishoda provere, uklj. backoff brojac."""
     now_iso = datetime.now(timezone.utc).isoformat()
     kind = result.get("kind", "error")
-    update = {"poslednja_provera": now_iso, "last_error": result.get("greska")}
+    # SEC-008 — last_error je polje sa originalnog XSS nalaza (court-portal
+    # widget, static/vindex.js:21735). Sanitizovano ovde takođe (ne samo
+    # 'status' iznad) jer 'greska' može u budućnosti da nosi dinamički
+    # sadržaj (npr. deo odgovora servera), ne samo današnje hardkodovane
+    # poruke — defense-in-depth, ne pretpostavka da će tako uvek ostati.
+    update = {"poslednja_provera": now_iso, "last_error": _sanitize_text(result.get("greska"))}
     if kind in ("unavailable", "error"):
         update["current_status"]        = kind
         update["consecutive_failures"]  = (prev_consecutive_failures or 0) + 1

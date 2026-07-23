@@ -3861,7 +3861,7 @@ async def predmet_upload_auto_analyze(
 
     from uploaded_doc.chunker import chunk_document
     from uploaded_doc.cleanup import cleanup_expired
-    from uploaded_doc.extractor import extract
+    from uploaded_doc.extractor import DocumentSafetyLimitExceeded, extract
     from uploaded_doc.ingest import ingest_session
     from uploaded_doc.session import generate_session_id, expires_at_iso
 
@@ -3894,7 +3894,17 @@ async def predmet_upload_auto_analyze(
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(raw)
             tmp_path = _Path(tmp.name)
-        text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
+        try:
+            text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
+        except DocumentSafetyLimitExceeded as _dsle:
+            logger.warning(
+                "[SEC-007] Upload odbijen (safety limit) predmet=%s filename=%r razlog=%s",
+                predmet_id, file.filename, _dsle.reason,
+            )
+            raise HTTPException(
+                status_code=413,
+                detail="Fajl je odbijen — sadržaj posle raspakivanja prelazi bezbednosni limit.",
+            )
         if is_scanned:
             raise HTTPException(
                 status_code=422,
