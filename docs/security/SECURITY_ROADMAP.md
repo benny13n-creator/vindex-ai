@@ -27,7 +27,7 @@
 
 | ID | Item | ROI | Risk Reduction | Complexity |
 |---|---|---|---|---|
-| SEC-005 | Migrate rate limiter + anomaly detection to Redis (already a dependency) | High | Restores real effective rate limits and anomaly-baseline accuracy across all 4 workers | Medium |
+| SEC-005 | ~~Migrate rate limiter + anomaly detection to Redis~~ **RATE LIMITER DONE 2026-07-23** — fail-open (`in_memory_fallback_enabled` + `swallow_errors`), tested against the exact original incident type (`redis.ResponseError`); anomaly detection's own Redis migration remains open, smaller, separate follow-on | High | Restores real effective rate limits across all 4 workers when `REDIS_URL` is set (production activation not verified from repo) | Medium |
 | SEC-010 | Add `@limiter.limit()` to all AI-cost-bearing and PII-touching routes currently undecorated (klijenti/router.py, legal_reasoning.py, case_dna.py, health_index.py, intelligence_timeline.py) | High | Closes direct cost-abuse and brute-force surface on sensitive routes | Low |
 | SEC-006 | Disclose PII-masking scope accurately now (docs/claims); scope NER-based name/address masking as separate follow-on work | Medium (disclosure) / High (eventual fix) | Prevents overstated privacy claims now; real exposure reduction later | Low (disclosure) / Large (fix) |
 | SEC-007 | Add decompressed-size check before DOCX parsing | High | Closes a real, concrete DoS vector | Low |

@@ -15,7 +15,6 @@ from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Str
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
-from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
@@ -512,16 +511,13 @@ logger.info("PINECONE_API_KEY set : %s", bool(os.getenv("PINECONE_API_KEY", ""))
 logger.info("PINECONE_HOST       : %r", os.getenv("PINECONE_HOST", ""))
 logger.info("OPENAI_API_KEY set   : %s", bool(os.getenv("OPENAI_API_KEY", "")))
 
-# REDIS_URL ostaje samo za info (health check) — rate limiter UVEK in-memory.
-# Razlog: Upstash free tier (256MB) može prekoračiti kvotu; redis.ResponseError
-# iz slowapi dekoratora ruši sve rute pre nego što se endpoint body izvrši,
-# zaobilazeći sve try/except blokove unutar endpointa.
-_REDIS_URL = os.getenv("REDIS_URL", "").strip()
-logger.info("Rate limiter: in-memory (single-worker; REDIS_URL=%s)", bool(_REDIS_URL))
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["60/hour"],
-)
+# SEC-005 (2026-07-23): Redis-backed rate limiting is now fail-open, closing
+# the gap that previously forced this to be permanently in-memory — see
+# shared/rate.py's module docstring for the full incident history and why
+# swallow_errors + in_memory_fallback_enabled are both required, not just one.
+from shared.rate import _REDIS_URL, build_limiter
+logger.info("Rate limiter: %s (REDIS_URL=%s)", "Redis fail-open" if _REDIS_URL else "in-memory", bool(_REDIS_URL))
+limiter = build_limiter(get_remote_address)
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
 

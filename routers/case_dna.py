@@ -27,11 +27,12 @@ import os
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
+from shared.rate import limiter
 from shared.usage import UsageService
 from services.event_bus import EventType
 from shared.genome_validator import verify_genome, compute_snaga_score
@@ -677,7 +678,8 @@ async def get_case_dna(predmet_id: str, user=Depends(get_current_user)):
 
 
 @router.post("/{predmet_id}/case-dna/refresh")
-async def refresh_case_dna(predmet_id: str, user=Depends(PermissionService.require("case_dna"))):
+@limiter.limit("10/minute")
+async def refresh_case_dna(predmet_id: str, request: Request, user=Depends(PermissionService.require("case_dna"))):
     """Regenerise Case Genome iz svih dokumenata predmeta."""
     supa = _get_supa()
     uid = user["user_id"]
@@ -841,7 +843,8 @@ class CompareDoksReq(BaseModel):
 
 
 @router.post("/{predmet_id}/case-dna/compare")
-async def compare_docs(predmet_id: str, req: CompareDoksReq, user=Depends(PermissionService.require("case_dna"))):
+@limiter.limit("10/minute")
+async def compare_docs(predmet_id: str, req: CompareDoksReq, request: Request, user=Depends(PermissionService.require("case_dna"))):
     """Uporedjuje dva dokumenta po rednom broju i vraca analizu razlika."""
     if len(req.numbers) < 2:
         raise HTTPException(400, "Potrebna su tacno 2 redna broja dokumenta")

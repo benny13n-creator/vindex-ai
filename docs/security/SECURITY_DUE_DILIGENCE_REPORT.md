@@ -309,6 +309,30 @@ Scored 0–100 per category. This is a synthesis judgment informed by the findin
 
 ---
 
+## Score Update — 2026-07-23, post P0/P1/P2 sprints
+
+**This section re-scores using the identical 11-category methodology above — same synthesis judgment, same evidence-based approach, recomputed from scratch against the current codebase, not adjusted toward a target.** The original table is kept unmodified above as the historical baseline; this section is additive.
+
+| Category | Baseline | Updated | What changed |
+|---|---|---|---|
+| Authentication | 65 | 67 | SEC-023 label corrected (Argon2id docstring no longer misrepresents what governs live login) — minor, no behavior change |
+| Authorization | 55 | 72 | SEC-001 closed, verified twice (regression tests + re-run), full 24-endpoint sweep held. Capped below 85+: the pattern-consolidation work in `AUTHORIZATION_PATTERN_RECOMMENDATION.md` (unifying ~15+ independently-invented ownership-check call sites into one canonical dependency) remains analysis-only, not implemented — the *class* of risk SEC-001 came from isn't structurally eliminated, only its one confirmed instance |
+| Encryption | 60 | 60 | Unchanged — **SEC-009 (plaintext PII path on bulk CSV/XLSX import) was not addressed this cycle**, remains open at HIGH severity |
+| Audit | 65 | 68 | New `injection_attempt_blocked` immutable audit logging added as part of SEC-003 |
+| Privacy | 20 | 48 | The specific disqualifying false claim (SEC-002's erasure message) is now accurate — real, material improvement. Capped well below "good": the underlying retention *policy* is still undefined by design (explicit founder decision to defer it), and **SEC-031 (`auth.users` cascade — potential irreversible loss of case/financial records) remains completely unmitigated in production** — no `RESTRICT` migration written or run, still at Architecture-Approved-pending-Production-Reality-Gate. A privacy score cannot credibly ignore an acknowledged, undisputed, unmitigated catastrophic-data-loss architectural risk |
+| AI Security | 30 | 72 | SEC-003 fully closed — all 130 (not ~50) GPT call sites structurally protected via one SDK-level patch, verified by 12 dedicated tests plus the full suite. The single largest score movement in this update, because it was the single largest, most mechanically-fixable gap. Capped below 85+: PII masking (SEC-006, numeric-only) and citation verification (SEC-012, plausibility-only) gaps are untouched this cycle |
+| Cloud Security | 45 | 52 | SEC-005's fail-open Redis capability is implemented and tested against the exact original incident (`redis.ResponseError`), but **whether `REDIS_URL` is actually configured in the live production environment is unverified from this repository** — the code capability exists; its production activation does not follow automatically. SEC-004 (service-role key bypasses RLS entirely — total key blast radius by design) is an unchanged architectural fact, not something this cycle's work touched or could touch without a much larger change |
+| Application Security | 45 | 68 | SEC-001 (IDOR), SEC-007 (zip-bomb), and SEC-008's confirmed XSS instance are all closed with tests. Capped below 80+: the full ~418-site client-side `.innerHTML=` sweep (SEC-008's larger, separately-tracked item) was not attempted, and CSP's `unsafe-inline` reliance (SEC-014) is untouched |
+| Infrastructure | 55 | 55 | Untouched this cycle |
+| Observability | 55 | 57 | Minor — new audit log events from SEC-003/SEC-007 |
+| Compliance Readiness | 20 | 38 | The single most disqualifying issue (SEC-002's false claim) is resolved. Still far from "compliant": SEC-031 is exactly the kind of finding a real technical/legal due-diligence reviewer would treat as material and would expect to see disclosed, not omitted; SEC-009's open plaintext-PII path is a live compliance-relevant gap; no formal Data Retention Policy exists yet (explicitly deferred, tracked in `DATA_INTEGRITY_INITIATIVE.md`-adjacent work) |
+
+**Updated weighted overall: ~60/100** (simple mean of the above, consistent with how the ~45 baseline was computed; not a target being reverse-engineered — see `docs/security/EXECUTIVE_SECURITY_SUMMARY.md` for the full reasoning and the disclosed path from 60 to 90+).
+
+**Why this isn't higher, stated plainly:** the two largest possible score movements this cycle both landed as scored — AI Security (30→72) and Application Security/Authorization (closing SEC-001) — because they were the two categories with confirmed, live, closeable findings. Privacy and Compliance Readiness moved less than might be expected given SEC-002 closed, specifically *because* SEC-031 was discovered during this same work and remains a real, disclosed, unmitigated risk in exactly those two categories. A score that went to 90+ without SEC-031, SEC-009, and the retention policy being resolved would not be an honest reflection of current risk — it would be counting the fixes and ignoring what was found in the process of making them.
+
+---
+
 ## Final Assessment
 
 **Can Vindex AI honestly claim to be enterprise-grade secure today? No.** Not because any single domain is unusually weak for a company at this stage — several domains (audit trail integrity, DR runbook existence, crypto primitive correctness, SQL injection resistance, CORS configuration) are genuinely strong, in some cases better than typical for this company size. The disqualifying factors are two **confirmed, live, evidence-based CRITICAL findings**: a reproducible cross-tenant data-injection vulnerability (SEC-001) and a GDPR erasure endpoint whose user-facing claim is not supported by what the code actually does (SEC-002) — plus a CRITICAL-severity gap in the product's core AI safety surface (SEC-003). None of these are hypothetical or "best practice" gaps; all three are demonstrated, with file:line evidence, to be true today.

@@ -16,17 +16,19 @@ must not generate user-facing text.
 import asyncio
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from shared.deps import _get_supa, get_current_user
 from services.legal_reasoning_engine import generate_reasoning_graph
+from shared.deps import _get_supa, get_current_user
+from shared.rate import limiter
 
 logger = logging.getLogger("vindex.legal_reasoning_router")
 router = APIRouter(prefix="/api/predmeti", tags=["legal_reasoning"])
 
 
 @router.post("/{predmet_id}/reasoning-graph/generate")
-async def reasoning_graph_generate(predmet_id: str, user=Depends(get_current_user)):
+@limiter.limit("10/minute")
+async def reasoning_graph_generate(predmet_id: str, request: Request, user=Depends(get_current_user)):
     uid = user["user_id"]
     result = await generate_reasoning_graph(predmet_id, uid)
     if result.get("greska") and "graph_id" not in result:
