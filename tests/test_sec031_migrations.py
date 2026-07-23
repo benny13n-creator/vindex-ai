@@ -1,42 +1,36 @@
 # -*- coding: utf-8 -*-
 """
-SEC-031 — migration file structural verification.
+SEC-031 — migration file structural verification (v2, name-agnostic).
 
 HONEST SCOPE, stated up front: this test suite does NOT execute the
 migration against a real Postgres instance. This development environment
 has no Docker, no local Postgres, and no psycopg2 (verified directly, not
 assumed) — there is no way to genuinely "spin up the schema and confirm it
-migrates without errors or data loss" from here. Claiming otherwise would
-repeat exactly the kind of unverified claim this whole SEC-031 workstream
-has been built to avoid.
+migrates without errors or data loss" from here.
 
-What this suite DOES verify, mechanically and reproducibly:
-  1. migrations/077_sec031_restrict_auth_users_cascade.sql exists and
-     contains EXACTLY the 19 (table, column) pairs approved in
-     docs/security/SEC031_MIGRATION_DRY_RUN.md SS2 — cross-checked against
-     that document's own SQL code block, not hand-copied twice.
-  2. Every constraint follows the DROP -> ADD ... NOT VALID -> VALIDATE
-     three-step pattern (the production-safe, minimal-lock form).
-  3. Every ADD CONSTRAINT targets auth.users(id) with ON DELETE RESTRICT
-     (never CASCADE, never any other table).
-  4. The file contains a complete, symmetric ROLLBACK section restoring
-     ON DELETE CASCADE for the identical 19 pairs.
-  5. The file contains NO data-mutating statement anywhere (no INSERT,
-     UPDATE, DELETE, TRUNCATE, or DROP TABLE) outside of comments — a
-     mechanical proof that this migration cannot lose data by construction,
-     not just a claim about intent.
-  6. The migration is split into multiple transactions (BEGIN/COMMIT
-     pairs), matching SEC031_MIGRATION_DRY_RUN.md SS3's revised
-     recommendation to bound how long auth.users itself is locked.
-
-Actually running this against production (or even a staging Postgres) is
-explicitly the founder's own Production Reality Gate step — see
-docs/security/SEC031_MIGRATION_DRY_RUN.md and
-docs/security/SEC031_PRODUCTION_ASSUMPTIONS.md. This suite closes the gap
-between "a human read the SQL and it looked right" and "the SQL is
-mechanically proven to match the approved, peer-reviewed plan" — it does
-not and cannot close the gap between "matches the plan" and "actually
-works against the real database."
+REVISION NOTE (v2 -> v3): v1 of this migration hardcoded constraint names
+(`<table>_<column>_fkey`, the Postgres default for an unnamed inline FK).
+The FIRST real production run failed exactly as the plan's own §1 caveat
+predicted: `predmet_delegiranja_od_user_id_fkey` did not exist under that
+name in production — a safe, clear "constraint does not exist" error, no
+data touched, the whole transaction (GRUPA 1) rolled back cleanly. v2
+replaced hardcoded names with a `_sec031_fix_fk(table, column, rule)`
+plpgsql function that looks up the ACTUAL constraint name via
+`pg_constraint` — robust to naming, but a follow-up production diagnostic
+query (run against the live database, not this repo) revealed the deeper
+cause: it wasn't a naming mismatch at all. **3 of the original 19
+approved pairs don't exist in production**: `predmet_delegiranja` (both
+columns — its own migration 054 was apparently never run, per that
+file's own header comment), `conversations` (legacy file, apparently
+never run either), and `tos_acceptances` (unexplained — flagged for
+separate investigation, not assumed to be the same "never migrated"
+story as the other two). v3 removes these 3 pairs (4 constraints) from
+the ACTIVE migration — now 15 pairs across 3 transaction groups — while
+keeping them documented in the file as an explicit "ODLOŽENO" (deferred)
+section, not silently dropped from history. This test file's expected
+set was updated to match the confirmed-live 15, with the 4 deferred
+constraints tracked separately so a future re-addition doesn't have to
+rediscover this investigation.
 """
 import re
 from pathlib import Path
@@ -45,18 +39,19 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MIGRATION_PATH = REPO_ROOT / "migrations" / "077_sec031_restrict_auth_users_cascade.sql"
-DRY_RUN_DOC_PATH = REPO_ROOT / "docs" / "security" / "SEC031_MIGRATION_DRY_RUN.md"
 
-# The exact 19 (table, column) pairs approved in SEC031_MIGRATION_SAFETY_PLAN.md
-# / SEC031_MIGRATION_DRY_RUN.md — Tier A, post-peer-review revision.
+# The 15 (table, column) pairs CONFIRMED LIVE in production (2026-07-23
+# diagnostic query against pg_constraint) and included in this migration's
+# active run. Originally 19 were approved in SEC031_MIGRATION_SAFETY_PLAN.md
+# / SEC031_MIGRATION_DRY_RUN.md — 4 constraints (3 pairs' worth, since
+# predmet_delegiranja has 2 columns) turned out not to exist in production
+# at all and are tracked separately in DEFERRED_PAIRS below.
 EXPECTED_TIER_A_PAIRS: set[tuple[str, str]] = {
     ("predmeti", "user_id"),
     ("predmet_dokumenti", "user_id"),
     ("predmet_hronologija", "user_id"),
     ("predmet_beleske", "user_id"),
     ("predmet_istorija", "user_id"),
-    ("predmet_delegiranja", "od_user_id"),
-    ("predmet_delegiranja", "na_user_id"),
     ("fakture", "user_id"),
     ("billing_entries", "user_id"),
     ("timer_sessions", "user_id"),
@@ -66,188 +61,192 @@ EXPECTED_TIER_A_PAIRS: set[tuple[str, str]] = {
     ("praceni_predmeti", "user_id"),
     ("rocista", "user_id"),
     ("smart_contract_analyses", "user_id"),
-    ("tos_acceptances", "user_id"),
     ("user_knowledge", "user_id"),
-    ("conversations", "user_id"),
 }
+
+# Originally approved, confirmed via live production diagnostic (2026-07-23)
+# to NOT exist yet — deliberately excluded from the active migration, kept
+# here so the investigation isn't lost. See the migration file's own
+# "ODLOZENO" section for the reasoning per table.
+DEFERRED_PAIRS: set[tuple[str, str]] = {
+    ("predmet_delegiranja", "od_user_id"),   # table itself never migrated (054)
+    ("predmet_delegiranja", "na_user_id"),   # table itself never migrated (054)
+    ("conversations", "user_id"),            # legacy file, apparently never run
+    ("tos_acceptances", "user_id"),          # unexplained — needs separate investigation
+}
+
+_CALL_PATTERN = re.compile(
+    r"_sec031_fix_fk\(\s*'(\w+)'\s*,\s*'(\w+)'\s*,\s*'(RESTRICT|CASCADE)'\s*\)"
+)
 
 
 def _strip_sql_comments(sql: str) -> str:
-    """Removes '-- ...' line comments so rollback-section pattern matching
-    doesn't accidentally count commented-out statements as active ones."""
     return "\n".join(
         line for line in sql.split("\n")
         if not line.strip().startswith("--")
     )
 
 
-def _active_sql() -> str:
-    return _strip_sql_comments(MIGRATION_PATH.read_text(encoding="utf-8"))
-
-
 def _full_sql() -> str:
     return MIGRATION_PATH.read_text(encoding="utf-8")
 
 
-def _extract_add_constraint_pairs(sql: str, expected_action: str) -> set[tuple[str, str]]:
-    """Parses 'ALTER TABLE <t> ADD CONSTRAINT ... FOREIGN KEY (<c>)
-    REFERENCES auth.users(id) ON DELETE <ACTION>' statements, returns the
-    set of (table, column) pairs found for that specific ON DELETE action."""
-    pattern = re.compile(
-        r"ALTER TABLE (\w+) ADD CONSTRAINT \w+_fkey\s+"
-        r"FOREIGN KEY \((\w+)\) REFERENCES auth\.users\(id\) ON DELETE (\w+)",
-        re.IGNORECASE,
-    )
-    pairs = set()
-    for table, column, action in pattern.findall(sql):
-        if action.upper() == expected_action.upper():
-            pairs.add((table, column))
-    return pairs
+def _active_sql() -> str:
+    """Everything up to (not including) the commented-out ROLLBACK block."""
+    full = _full_sql()
+    return _strip_sql_comments(full.split("-- BEGIN;\n-- SELECT _sec031_fix_fk")[0])
+
+
+def _rollback_sql() -> str:
+    """The commented-out rollback section, uncommented for parsing."""
+    full = _full_sql()
+    marker = "-- BEGIN;\n-- SELECT _sec031_fix_fk"
+    if marker not in full:
+        return ""
+    rollback_raw = marker[3:] + full.split(marker)[1]  # keep the leading 'BEGIN;...'
+    lines = []
+    for line in rollback_raw.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("-- "):
+            lines.append(stripped[3:])
+        elif stripped.startswith("--"):
+            lines.append(stripped[2:])
+        else:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def _extract_calls(sql: str, rule: str) -> set[tuple[str, str]]:
+    return {(t, c) for t, c, r in _CALL_PATTERN.findall(sql) if r == rule}
 
 
 class TestMigrationFileExists:
     def test_migration_file_exists(self):
-        assert MIGRATION_PATH.exists(), (
-            f"Expected {MIGRATION_PATH} — SEC-031 Tier A migration file not found."
+        assert MIGRATION_PATH.exists(), f"Expected {MIGRATION_PATH} not found."
+
+
+class TestHelperFunctionIsNameAgnostic:
+    """Verifies _sec031_fix_fk itself — the one place the find-drop-add-
+    validate logic lives — does NOT hardcode a constraint name anywhere,
+    and does look up the real one via pg_constraint before acting."""
+
+    def test_function_looks_up_constraint_via_pg_constraint(self):
+        full = _full_sql()
+        assert "pg_constraint" in full
+        assert "confrelid = 'auth.users'::regclass" in full
+
+    def test_function_raises_on_missing_constraint_rather_than_silently_skipping(self):
+        full = _full_sql()
+        assert "RAISE EXCEPTION" in full
+
+    def test_function_uses_not_valid_then_validate_pattern(self):
+        full = _full_sql()
+        assert "NOT VALID" in full
+        assert "VALIDATE CONSTRAINT" in full
+
+    def test_no_hardcoded_fkey_suffix_naming_assumption(self):
+        """v1's bug: assuming every constraint is named '<table>_<column>_fkey'.
+        v2 must not reintroduce that assumption anywhere in the active SQL."""
+        active = _active_sql()
+        assert not re.search(r"DROP CONSTRAINT \w+_fkey", active), (
+            "Found a hardcoded '<name>_fkey' DROP CONSTRAINT — this is exactly "
+            "the assumption that failed against real production data."
         )
 
 
 class TestMigrationMatchesApprovedPlan:
-    """Cross-checks the migration file against the approved 19-pair list —
-    not just internal self-consistency, but fidelity to what was actually
-    designed, dry-run, and independently peer-reviewed."""
-
-    def test_active_restrict_statements_match_approved_tier_a_exactly(self):
+    def test_active_calls_match_approved_tier_a_exactly(self):
         active = _active_sql()
-        found = _extract_add_constraint_pairs(active, "RESTRICT")
+        found = _extract_calls(active, "RESTRICT")
         missing = EXPECTED_TIER_A_PAIRS - found
         extra = found - EXPECTED_TIER_A_PAIRS
-        assert not missing, f"Migration is missing approved Tier A constraints: {missing}"
-        assert not extra, (
-            f"Migration adds RESTRICT constraints NOT in the approved Tier A plan: {extra} — "
-            f"any addition beyond the peer-reviewed plan needs its own review, not a silent extra line"
-        )
-        assert len(found) == 19, f"Expected exactly 19 constraints, found {len(found)}"
+        assert not missing, f"Migration is missing confirmed-live pairs: {missing}"
+        assert not extra, f"Migration calls _sec031_fix_fk for pairs NOT in the confirmed-live set: {extra}"
+        assert len(found) == 15, f"Expected exactly 15 RESTRICT calls, found {len(found)}"
 
-    def test_every_restrict_constraint_has_matching_drop_before_it(self):
-        """Structural check: every ADD CONSTRAINT must be preceded by a DROP
-        of the SAME constraint name — proves the file follows the safe
-        drop-then-recreate pattern, not an ADD onto an already-existing
-        differently-configured constraint (which would fail at runtime)."""
+    def test_no_cascade_calls_in_active_migration(self):
         active = _active_sql()
-        add_names = set(re.findall(r"ADD CONSTRAINT (\w+_fkey)", active))
-        drop_names = set(re.findall(r"DROP CONSTRAINT (\w+_fkey)", active))
-        assert add_names == drop_names, (
-            f"Mismatch between DROP and ADD CONSTRAINT names — "
-            f"only in ADD: {add_names - drop_names}, only in DROP: {drop_names - add_names}"
+        assert not _extract_calls(active, "CASCADE"), (
+            "Active (forward) migration section calls _sec031_fix_fk with CASCADE — "
+            "should only appear in the rollback section"
         )
-        assert len(add_names) == 19
 
-    def test_every_added_constraint_is_validated(self):
-        """Every ADD CONSTRAINT ... NOT VALID must be followed by a matching
-        VALIDATE CONSTRAINT — otherwise the constraint exists but is never
-        actually enforced against existing rows."""
+    def test_deferred_pairs_are_not_in_active_migration(self):
+        """The 3 pairs confirmed absent from production (predmet_delegiranja
+        x2, conversations, tos_acceptances) must NOT appear as active
+        _sec031_fix_fk() calls — they were deliberately deferred, not
+        forgotten. If one of these starts appearing here, it means someone
+        re-added it without re-running the existence check first."""
         active = _active_sql()
-        add_names = set(re.findall(r"ADD CONSTRAINT (\w+_fkey)", active))
-        validate_names = set(re.findall(r"VALIDATE CONSTRAINT (\w+_fkey)", active))
-        assert add_names == validate_names, (
-            f"Constraints added but never validated: {add_names - validate_names}"
+        active_pairs = _extract_calls(active, "RESTRICT") | _extract_calls(active, "CASCADE")
+        overlap = active_pairs & DEFERRED_PAIRS
+        assert not overlap, (
+            f"Deferred pair(s) {overlap} found in the ACTIVE migration — "
+            f"these were removed because they don't exist in production yet; "
+            f"re-confirm existence before reintroducing them."
         )
 
-    def test_no_cascade_in_the_active_migration(self):
-        """The whole point of this migration is CASCADE -> RESTRICT — an
-        active (non-rollback, non-comment) CASCADE statement would mean the
-        migration silently does nothing for that table."""
-        active = _active_sql()
-        cascade_pairs = _extract_add_constraint_pairs(active, "CASCADE")
-        assert not cascade_pairs, (
-            f"Active migration section still adds CASCADE (should be RESTRICT) for: {cascade_pairs}"
-        )
-
-    def test_matches_dry_run_document_verbatim(self):
-        """Extracts the SQL code block from SEC031_MIGRATION_DRY_RUN.md SS2
-        itself and confirms the migration file's active RESTRICT statements
-        are the exact same set — catches drift if either document is edited
-        without updating the other."""
-        assert DRY_RUN_DOC_PATH.exists()
-        doc_text = DRY_RUN_DOC_PATH.read_text(encoding="utf-8")
-        doc_restrict_pairs = _extract_add_constraint_pairs(doc_text, "RESTRICT")
-        migration_pairs = _extract_add_constraint_pairs(_active_sql(), "RESTRICT")
-        assert doc_restrict_pairs == migration_pairs, (
-            "Migration file has drifted from the approved dry-run document — "
-            f"doc has {doc_restrict_pairs - migration_pairs} not in migration, "
-            f"migration has {migration_pairs - doc_restrict_pairs} not in doc"
-        )
+    def test_deferred_pairs_are_documented_in_the_file(self):
+        """The deferred pairs must still be mentioned somewhere in the file
+        (the ODLOZENO section) so the investigation isn't silently lost."""
+        full = _full_sql()
+        assert "ODLOZENO" in full or "ODLOŽENO" in full
+        assert "predmet_delegiranja" in full
+        assert "conversations" in full
+        assert "tos_acceptances" in full
 
 
 class TestNoDataMutation:
-    """Mechanical proof (not a claim) that this migration cannot lose data —
-    scans for any statement that touches rows, not just constraint metadata,
-    anywhere in the active (non-comment) SQL."""
-
     @pytest.mark.parametrize("forbidden", ["INSERT INTO", "UPDATE ", "DELETE FROM", "TRUNCATE", "DROP TABLE"])
     def test_no_row_mutating_statements(self, forbidden):
         active = _active_sql().upper()
         assert forbidden.upper() not in active, (
-            f"Found a data-mutating statement ({forbidden!r}) in the active migration — "
-            f"this migration must ONLY change constraint metadata"
+            f"Found a data-mutating statement ({forbidden!r}) in the active migration"
         )
 
 
 class TestRollbackIsComplete:
-    """The rollback section is commented out (not meant to run alongside the
-    forward migration) but must be a complete, symmetric inverse — same 19
-    pairs, CASCADE instead of RESTRICT."""
-
     def test_rollback_section_exists(self):
-        full = _full_sql()
-        assert "ROLLBACK" in full.upper()
+        assert "ROLLBACK" in _full_sql().upper()
 
-    def test_rollback_restores_cascade_for_all_19_pairs(self):
-        full = _full_sql()
-        # Rollback lines are commented ('-- ALTER TABLE ...', '--     FOREIGN
-        # KEY (...)', etc.) — strip a leading '-- ' (or '--' with no space)
-        # from EVERY line in the rollback section so multi-line statements
-        # (ALTER TABLE ... ADD CONSTRAINT ... \n --     FOREIGN KEY ...)
-        # reassemble into matchable SQL, regardless of what each individual
-        # continuation line starts with.
-        rollback_section = full.split("ROLLBACK")[-1]
-        uncommented_lines = []
-        for line in rollback_section.split("\n"):
-            stripped = line.strip()
-            if stripped.startswith("-- "):
-                uncommented_lines.append(stripped[3:])
-            elif stripped.startswith("--"):
-                uncommented_lines.append(stripped[2:])
-            else:
-                uncommented_lines.append(line)
-        uncommented_rollback = "\n".join(uncommented_lines)
-        cascade_pairs = _extract_add_constraint_pairs(uncommented_rollback, "CASCADE")
+    def test_rollback_restores_cascade_for_all_15_active_pairs(self):
+        rollback = _rollback_sql()
+        cascade_pairs = _extract_calls(rollback, "CASCADE")
         missing = EXPECTED_TIER_A_PAIRS - cascade_pairs
         assert not missing, f"Rollback section missing CASCADE restoration for: {missing}"
-        assert len(cascade_pairs) == 19
+        assert len(cascade_pairs) == 15
+
+    def test_rollback_drops_the_helper_function(self):
+        """Cleanup — the helper function shouldn't linger in the schema
+        forever once rollback is complete."""
+        full = _full_sql()
+        rollback_area = full.split("ROLLBACK")[-1]
+        assert "DROP FUNCTION" in rollback_area
 
 
 class TestTransactionSplitting:
-    """SEC031_MIGRATION_DRY_RUN.md SS3's revised recommendation: split into
-    multiple transactions to bound how long auth.users itself is locked,
-    rather than one single 19-constraint transaction."""
-
     def test_forward_migration_uses_multiple_transactions(self):
         active = _active_sql()
         begin_count = len(re.findall(r"^BEGIN;", active, re.MULTILINE))
         commit_count = len(re.findall(r"^COMMIT;", active, re.MULTILINE))
-        assert begin_count == commit_count, "Unbalanced BEGIN/COMMIT pairs in the active migration"
-        assert begin_count >= 2, (
-            f"Expected the migration split into 2+ transactions per the peer-reviewed "
-            f"lock-duration recommendation, found {begin_count}"
-        )
+        assert begin_count == commit_count, "Unbalanced BEGIN/COMMIT pairs"
+        assert begin_count >= 2, f"Expected 2+ transactions, found {begin_count}"
 
-    def test_no_transaction_contains_all_19_constraints(self):
-        """Confirms the split is real, not cosmetic (e.g. one big BEGIN...COMMIT
-        that happens to also have an empty second block)."""
+    def test_no_transaction_contains_all_15_pairs(self):
         active = _active_sql()
         blocks = re.findall(r"BEGIN;(.*?)COMMIT;", active, re.DOTALL)
+        assert blocks, "No BEGIN...COMMIT blocks found"
         for block in blocks:
-            pairs_in_block = _extract_add_constraint_pairs(block, "RESTRICT")
-            assert len(pairs_in_block) < 19, "Found a transaction containing all 19 constraints — split is not real"
+            pairs_in_block = _extract_calls(block, "RESTRICT")
+            assert len(pairs_in_block) < 15, "Found a transaction containing all 15 pairs — split is not real"
+
+
+class TestDiagnosticQueryPresent:
+    """§0's read-only diagnostic query must exist in the file (commented, for
+    manual copy-paste) — this is what should be run before/after each group,
+    and is exactly what surfaced the v1 naming failure in the first place."""
+
+    def test_readonly_diagnostic_query_present(self):
+        full = _full_sql()
+        assert "pg_get_constraintdef" in full
+        assert "SELECT" in full
