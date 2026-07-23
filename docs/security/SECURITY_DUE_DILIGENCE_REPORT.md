@@ -403,6 +403,21 @@ Same day. SEC-035 (6 production tables with no `CREATE TABLE` anywhere in the re
 
 ---
 
+## Score Update 6 — 2026-07-23, SEC-034 fully closed in production
+
+Same day. The founder chose `ON DELETE CASCADE` (consistency with migration 054's original spec; `RESTRICT` would have made any previously-delegated `predmet` permanently undeletable, since no endpoint exists to remove delegation rows first — flagged before implementing, per this project's standing practice). `migrations/079_fix_predmet_delegiranja_fk.sql` was executed against production in the now-established single-step style; a follow-up `pg_constraint` query confirmed all 3 expected foreign keys on `predmet_delegiranja`: `predmet_id→predmeti` (`confdeltype='c'`, CASCADE) plus both `auth.users` FKs still `RESTRICT` (`confdeltype='r'`, untouched from SEC-031).
+
+**SEC-034 is now fully closed**: all 3 concrete instances found by the live diagnostic (`klijenti`, `predmet_komentari`, `predmet_delegiranja.predmet_id`) are fixed and independently production-verified — the second finding this project has carried through the complete 9-stage lifecycle to Closed, after SEC-031.
+
+| Category | Prior | Updated | What changed |
+|---|---|---|---|
+| Infrastructure | 61 | 62 | The last open SEC-034 item is closed — `predmet_delegiranja` now matches its own source-of-truth migration (054) exactly, on all 3 foreign keys, for the first time since that migration was written |
+| All other categories | — | unchanged | This closure is a data-integrity fix on a single table, not an access-control or privacy change — no other category moves |
+
+**Updated weighted overall: ~67/100** (a genuine, small, positive movement — rounds to the same headline figure as Score Update 5, consistent with this document's practice of not rounding up single-category movements at this precision).
+
+---
+
 ## Final Assessment
 
 **Can Vindex AI honestly claim to be enterprise-grade secure today? No.** Not because any single domain is unusually weak for a company at this stage — several domains (audit trail integrity, DR runbook existence, crypto primitive correctness, SQL injection resistance, CORS configuration) are genuinely strong, in some cases better than typical for this company size. The disqualifying factors are two **confirmed, live, evidence-based CRITICAL findings**: a reproducible cross-tenant data-injection vulnerability (SEC-001) and a GDPR erasure endpoint whose user-facing claim is not supported by what the code actually does (SEC-002) — plus a CRITICAL-severity gap in the product's core AI safety surface (SEC-003). None of these are hypothetical or "best practice" gaps; all three are demonstrated, with file:line evidence, to be true today.

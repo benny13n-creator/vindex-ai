@@ -1,6 +1,13 @@
 -- ============================================================================
 -- Vindex AI -- Migracija 079: SEC-034 finalizacija -- predmet_delegiranja.predmet_id FK
 -- ============================================================================
+-- STATUS: USPESNO PRIMENJENA U PRODUKCIJI 2026-07-23. Verifikaciona SELECT
+-- ispod potvrdila je tacno 3/3 FK constrainta na predmet_delegiranja:
+-- predmet_id -> predmeti (confdeltype='c', CASCADE) + oba auth.users FK-a
+-- (confdeltype='r', RESTRICT, iz migracije 077). SEC-034 je ovim u
+-- potpunosti zatvoren -- sva 3 konkretna nalaza (klijenti, predmet_komentari,
+-- predmet_delegiranja.predmet_id) su fixed i potvrdjeni u produkciji.
+--
 -- Pokrenuti u: Supabase Dashboard -> SQL Editor.
 --
 -- KONTEKST: scripts/sec034_live_completeness_check.sql (2026-07-23) je
