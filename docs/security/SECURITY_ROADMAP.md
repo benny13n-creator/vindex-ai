@@ -11,14 +11,15 @@
 
 | ID | Item | ROI | Risk Reduction | Complexity |
 |---|---|---|---|---|
+| SEC-031 | **Impact analysis first (no schema change yet)** on the `ON DELETE CASCADE` chain from `auth.users` through `predmeti`/`klijenti`/`fakture`/evidence/etc. — confirm full cascade graph, confirm whether the GDPR endpoint can trigger it, confirm production migration state, then choose RESTRICT / soft-delete / archive-anonymization | Very High | Addresses a potentially catastrophic, irreversible legal/financial record-loss path — reprioritized above SEC-002 per founder review, since it changes the whole security picture, not just the GDPR-message question | Analysis: Small. Fix: Medium–Large (pending chosen strategy) |
 | SEC-001 | ~~Fix ownership check on `predmet_beleske`/`predmet_istorija` insert; audit and fix any sibling endpoints with the same gap~~ **DONE 2026-07-23** — fixed, full 24-endpoint sweep completed (no siblings found), 6 regression tests added, commit pending | Very High | Closed a confirmed, reproducible cross-tenant data-injection vulnerability | Low (isolated patch), full sweep took longer than the patch itself but found nothing else |
 | SEC-011 | Register `SlowAPIMiddleware` so `default_limits` actually applies app-wide | Very High | Potentially closes rate-limiting gap on ~30% of all routes with a one-line change | Trivial |
 | SEC-003 | Wrap all GPT call sites in existing `prompt_guard.wrap_for_ai()`; extend `analyze()` blocking to document-ingestion paths | Very High | Closes the largest AI-safety gap using code that already exists | Low–Medium |
-| SEC-002 | Founder decision + fix on GDPR erasure scope (real anonymization vs. corrected user-facing claim) | Very High | Removes a materially false compliance claim; legal exposure | Medium (decision) + Small–Medium (implementation) |
+| SEC-002 | Founder decision + fix on GDPR erasure scope (real anonymization vs. corrected user-facing claim). Minimum safe message fix proposed in `docs/security/SEC002_DATA_RETENTION_ANALYSIS.md` §4, ready to apply independent of the larger retention-policy question | Very High | Removes a materially false compliance claim; legal exposure | Medium (decision) + Small–Medium (implementation) |
 | SEC-009 | Route bulk CSV/XLSX client import through `encrypt_field()`, matching the manual-entry path | High | Closes a real "NIKAD plaintext" policy violation | Low |
 | SEC-008 (instance) | Fix the confirmed unescaped `innerHTML` in the court-portal widget | High | Closes a confirmed, exploitable XSS instance | Low |
 
-**Why these six:** each is either a confirmed live issue (SEC-001, SEC-002, SEC-008-instance, SEC-009) or a fix so cheap relative to its potential impact (SEC-011, SEC-003) that sequencing it later has no justification. None require architectural change.
+**Why these seven:** each is either a confirmed live issue (SEC-001, SEC-002, SEC-008-instance, SEC-009), a fix so cheap relative to its potential impact (SEC-011, SEC-003) that sequencing it later has no justification, or — SEC-031 specifically — a newly-discovered risk whose blast radius (irreversible loss of legal/financial records) is high enough to require analysis before anything else proceeds, even though the analysis itself is the only thing authorized right now. None require architectural change to *start*; SEC-031's eventual fix may.
 
 ---
 
@@ -53,6 +54,7 @@
 | SEC-022 | Set and verify explicit JWT audience claim | Low–Medium | Closes a theoretical cross-project token-reuse gap | Low |
 | SEC-024 | Implement multi-key lookup for encryption key rotation | Medium | Enables key rotation without a full re-encryption event | Medium |
 | SEC-026 | Remove/relocate hardcoded JWKS fallback key | Low–Medium | Removes stale-key denial-of-auth risk | Low |
+| SEC-032 | Build a PII field registry (per-field policy: encrypted/hashed/searchable/retention/export) and fix `fakture.klijent_pib` plaintext-vs-`klijenti.pib_encrypted` inconsistency as its first application | Medium | Closes a confirmed non-uniform-protection gap on a real identifier, and prevents the same inconsistency recurring elsewhere | Medium (registry) / Small (this one field) |
 
 ---
 
