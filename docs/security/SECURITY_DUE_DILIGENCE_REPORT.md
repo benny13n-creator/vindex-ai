@@ -388,6 +388,21 @@ Same day as Score Update 3. `scripts/sec034_live_completeness_check.sql` was run
 
 ---
 
+## Score Update 5 — 2026-07-23, SEC-035 documented and resolved
+
+Same day. SEC-035 (6 production tables with no `CREATE TABLE` anywhere in the repository) is now resolved via documentation, not a code change: the founder confirmed the 4 previously-unexplained tables (`agent_runs`, `filter_results`, `jobs`, `system_state`) are legitimate artifacts from early development phases, no longer part of any active code path. This is recorded rather than assumed — the live diagnostic already independently confirmed all 4 are RLS-enabled with zero policies (deny-by-default) and a full-codebase grep already confirmed zero application references, so "documented and resolved" reflects verified state plus founder-supplied provenance, not just a founder assertion taken on faith.
+
+| Category | Prior | Updated | What changed |
+|---|---|---|---|
+| Infrastructure | 60 | 61 | A schema-hygiene unknown (untracked production objects) is now a documented, closed question rather than an open one — small movement because no code changed and the underlying risk was already assessed as Low before this update |
+| All other categories | — | unchanged | This was a documentation closure, not a technical fix — no other category is affected |
+
+**Updated weighted overall: ~67/100** (rounds to the same figure as Score Update 4 — the movement is real but too small to shift the overall number at this precision).
+
+**SEC-034 is not yet fully closed**: the `predmet_delegiranja.predmet_id` foreign key is drafted (`migrations/079_fix_predmet_delegiranja_fk.sql`) but not yet executed, pending a founder decision on `ON DELETE` semantics — the requested `RESTRICT` conflicts with migration 054's original, still-current `CASCADE` design, and `RESTRICT` would make any previously-delegated `predmet` permanently undeletable given the app has no endpoint to remove delegation rows first. This is flagged, not resolved, in this update — no score credit taken for it until it actually lands in production, consistent with this document's standing practice.
+
+---
+
 ## Final Assessment
 
 **Can Vindex AI honestly claim to be enterprise-grade secure today? No.** Not because any single domain is unusually weak for a company at this stage — several domains (audit trail integrity, DR runbook existence, crypto primitive correctness, SQL injection resistance, CORS configuration) are genuinely strong, in some cases better than typical for this company size. The disqualifying factors are two **confirmed, live, evidence-based CRITICAL findings**: a reproducible cross-tenant data-injection vulnerability (SEC-001) and a GDPR erasure endpoint whose user-facing claim is not supported by what the code actually does (SEC-002) — plus a CRITICAL-severity gap in the product's core AI safety surface (SEC-003). None of these are hypothetical or "best practice" gaps; all three are demonstrated, with file:line evidence, to be true today.
