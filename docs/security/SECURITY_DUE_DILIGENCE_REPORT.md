@@ -333,6 +333,19 @@ Scored 0–100 per category. This is a synthesis judgment informed by the findin
 
 ---
 
+## Score Update 2 — 2026-07-23, SEC-009 closed + SEC-031 migration written (not yet run)
+
+| Category | Prior | Updated | What changed |
+|---|---|---|---|
+| Encryption | 60 | 70 | SEC-009 closed — bulk-import PIB now correctly encrypted via the same `encrypt_field()` primitive as the manual path, 4 tests. `SEC-024` (key rotation) remains open, keeping this below 80+ |
+| Privacy | 48 | 52 | Small, deliberate movement — see note below |
+| Compliance Readiness | 38 | 42 | Small, deliberate movement — see note below |
+| All other categories | — | unchanged | Not touched this update |
+
+**Updated weighted overall: ~61/100** — a 1-point movement, not the large jump the SEC-031 engineering work might suggest. **This is the correct, honest result, not an underselling of real work done.** The reasoning, stated plainly because it's easy to get backwards: `migrations/077_sec031_restrict_auth_users_cascade.sql` now exists, is mechanically verified (15 tests) to match the approved, independently-peer-reviewed plan exactly, and is genuinely ready to run — that is real, substantial engineering progress, and it removes execution risk (the file is correct) and review risk (it matches what was approved) from the remaining work. **It does not yet remove the actual risk SEC-031 measures**, which is that a live `auth.users` row can be deleted today and cascade-destroy case/financial data — that risk is a property of the current production database's actual constraints, and this session has no way to change or verify production state (no Docker, no Postgres, no database credentials available in this environment). A score that jumped to 80+ on the strength of a well-written, untested-in-anger migration file would be scoring the *quality of the plan* rather than the *current state of risk* — exactly the mistake this document's entire methodology exists to avoid. The honest path to the next real score movement is a single event: the founder runs `migrations/077_...sql` against production (after their own Production Reality Gate check) and it's confirmed to have taken effect — at that point SEC-031 becomes genuinely closeable, worth a large movement in Privacy and Compliance Readiness specifically, comparable to what SEC-003 contributed to AI Security.
+
+---
+
 ## Final Assessment
 
 **Can Vindex AI honestly claim to be enterprise-grade secure today? No.** Not because any single domain is unusually weak for a company at this stage — several domains (audit trail integrity, DR runbook existence, crypto primitive correctness, SQL injection resistance, CORS configuration) are genuinely strong, in some cases better than typical for this company size. The disqualifying factors are two **confirmed, live, evidence-based CRITICAL findings**: a reproducible cross-tenant data-injection vulnerability (SEC-001) and a GDPR erasure endpoint whose user-facing claim is not supported by what the code actually does (SEC-002) — plus a CRITICAL-severity gap in the product's core AI safety surface (SEC-003). None of these are hypothetical or "best practice" gaps; all three are demonstrated, with file:line evidence, to be true today.

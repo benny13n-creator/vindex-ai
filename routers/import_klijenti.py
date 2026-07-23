@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from security.crypto import encrypt_field
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
@@ -199,7 +200,16 @@ async def import_execute(
         for csv_col, vindex_polje in payload.mapiranje.items():
             if vindex_polje and csv_col in row:
                 val = str(row[csv_col] or "").strip()
-                if val:
+                if not val:
+                    continue
+                if vindex_polje == "pib":
+                    # SEC-009 — isti put kao ručni unos (klijenti/router.py:225):
+                    # PIB je CONFIDENTIAL polje, NIKAD plaintext u bazi. Ranije je
+                    # ovde pisano direktno u "pib" — kolona koja ne postoji u šemi
+                    # (samo pib_encrypted postoji), pa je svaki red sa PIB-om
+                    # tiho padao kao deo neuspešnog batch-a.
+                    klijent["pib_encrypted"] = await asyncio.to_thread(encrypt_field, val)
+                else:
                     klijent[vindex_polje] = val
 
         # Mora imati bar neko ime
