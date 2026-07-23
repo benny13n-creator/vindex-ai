@@ -369,6 +369,25 @@ This is the event Score Update 2 said would trigger the next real movement — i
 
 ---
 
+## Score Update 4 — 2026-07-23, SEC-034 live audit run, 2 of 3 confirmed gaps closed in production
+
+Same day as Score Update 3. `scripts/sec034_live_completeness_check.sql` was run against production and returned RLS/FK/policy/index counts for all 154 `public` tables in one pass — the first time this project has had a complete, live picture of its own schema's protection state, rather than a sample or an assumption.
+
+**What it found and what happened to each item**, in full: `klijenti` and `predmet_komentari` had RLS enabled but zero active policies, despite `supabase_setup.sql` (a legacy file outside `migrations/`, missed by the earlier source-only pass) defining 4 CRUD policies for each. `migrations/078_sec034_klijenti_komentari_policies.sql` copied those definitions verbatim and was executed in production; a follow-up query confirmed exactly 8/8 policies now active. Separately, the live counts also resolved a question Score Update 3 had left explicitly open (assumed, not verified): `predmet_delegiranja` shows `fk_count=2`, one short of the 3 migration 054 defines — confirming its `predmet_id→predmeti` foreign key is genuinely still missing in production, not merely unconfirmed. `tos_acceptances` by contrast is now fully complete on every axis. The remaining tables the live check flagged (`audit_log`, `response_audit`, `case_benchmarks`, `zakoni_monitoring`, `conversations`) all turned out to be either correct-by-design or a harmless dead legacy table — no action needed. A side discovery, tracked as SEC-035: 6 tables in production have no `CREATE TABLE` anywhere in the repository at all; 2 were already known-dead, the other 4 have real data but zero application code references them.
+
+| Category | Prior | Updated | What changed |
+|---|---|---|---|
+| Privacy | 80 | 82 | A confirmed, previously-unknown defense-in-depth gap on `klijenti` (client PII) is now closed and production-verified — genuine but smaller than SEC-031's move, since SEC-004 means app-layer checks were already the actual enforcement boundary for this data, not RLS |
+| Compliance Readiness | 65 | 66 | Small: the live audit is now complete-coverage rather than sample-based, which is itself worth something for a due-diligence document, but doesn't resolve the still-undefined retention policy that's holding this category down |
+| Infrastructure | 58 | 60 | SEC-034's central uncertainty — "how many more tables share this pattern" — is now fully answered (all 154 tables checked, not a sample), and 2 of the 3 concrete items found were fixed and confirmed same-day. Held back from a larger jump by the newly-confirmed `predmet_delegiranja` FK gap and the new SEC-035 schema-provenance finding |
+| All other categories | — | unchanged | Not touched this update |
+
+**Updated weighted overall: ~67/100.**
+
+**Why only +1, given two real production fixes landed**: per this project's own standing rule ("code is ready ≠ risk is reduced" — only verified-from-reach work earns credit), the categories above already priced in SEC-031's much larger production-verified fix at Score Update 3; SEC-034's fixes are real and confirmed, but smaller in blast radius (defense-in-depth on 2 tables where the actual enforcement boundary was already elsewhere, per SEC-004) and partially offset by two things this same audit surfaced: a newly-*confirmed* (not new, but now proven rather than assumed) FK gap on `predmet_delegiranja`, and a brand-new finding (SEC-035) about untracked production schema. Net honest movement: small and positive, not rounded up.
+
+---
+
 ## Final Assessment
 
 **Can Vindex AI honestly claim to be enterprise-grade secure today? No.** Not because any single domain is unusually weak for a company at this stage — several domains (audit trail integrity, DR runbook existence, crypto primitive correctness, SQL injection resistance, CORS configuration) are genuinely strong, in some cases better than typical for this company size. The disqualifying factors are two **confirmed, live, evidence-based CRITICAL findings**: a reproducible cross-tenant data-injection vulnerability (SEC-001) and a GDPR erasure endpoint whose user-facing claim is not supported by what the code actually does (SEC-002) — plus a CRITICAL-severity gap in the product's core AI safety surface (SEC-003). None of these are hypothetical or "best practice" gaps; all three are demonstrated, with file:line evidence, to be true today.

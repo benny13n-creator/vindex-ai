@@ -1,6 +1,12 @@
 -- ============================================================================
 -- Vindex AI -- Migracija 078: SEC-034 -- klijenti + predmet_komentari RLS policies
 -- ============================================================================
+-- STATUS: USPESNO PRIMENJENA U PRODUKCIJI 2026-07-23. Verifikaciona SELECT
+-- ispod potvrdila je tacno 8/8 policy-ja (4 za klijenti, 4 za
+-- predmet_komentari) -- izvrsena u jednoj transakciji, bez greske, bez
+-- ponovnog pokusaja. Vidi docs/security/SECURITY_GAP_REGISTER.md (SEC-034)
+-- za pun narativ.
+--
 -- Pokrenuti u: Supabase Dashboard -> SQL Editor.
 --
 -- KONTEKST: scripts/sec034_live_completeness_check.sql (2026-07-23) je
