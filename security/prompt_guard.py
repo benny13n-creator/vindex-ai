@@ -120,6 +120,24 @@ _HOMOGLYPHS: dict[str, str] = {
 
 # ─── Javni API ────────────────────────────────────────────────────────────────
 
+class PromptInjectionBlocked(Exception):
+    """
+    Podignut kada centralni LLM guard (shared/ai_client.py::_patch_prompt_guard)
+    presretne poziv ka OpenAI čiji 'user'-role sadržaj prelazi BLOCK_THRESHOLD.
+
+    Podignut PRE nego što je ijedan token poslat OpenAI-u — SEC-003 zahteva
+    da napadački sadržaj nikad ne stigne do modela, ne samo da odgovor bude
+    naknadno filtriran.
+    """
+
+    def __init__(self, risk_score: float, flags: list[str]):
+        self.risk_score = risk_score
+        self.flags = flags
+        super().__init__(
+            f"Prompt injection blocked: risk_score={risk_score:.2f} flags={len(flags)}"
+        )
+
+
 class InjectionResult:
     __slots__ = ("text", "risk_score", "flags", "sanitized", "blocked")
 

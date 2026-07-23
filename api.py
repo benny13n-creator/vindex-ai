@@ -23,8 +23,9 @@ BASE_DIR = Path(__file__).parent
 load_dotenv()
 
 # ─── Azure OpenAI patch (mora pre svih router importa) ───────────────────────
-from shared.ai_client import _patch_openai_module
+from shared.ai_client import _patch_openai_module, _patch_prompt_guard
 _patch_openai_module()
+_patch_prompt_guard()  # SEC-003 — centralni Prompt Guard na SVIM GPT pozivima
 
 # ─── Sentry error tracking ────────────────────────────────────────────────────
 def _setup_sentry() -> None:
@@ -810,6 +811,33 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     from starlette.exceptions import HTTPException as _HTTPExc
     if isinstance(exc, _HTTPExc):
         raise exc
+    # SEC-003 — centralni Prompt Guard je blokirao poziv PRE slanja OpenAI-u.
+    # Ovo je fallback za pozivna mesta koja ne hvataju izuzetak eksplicitno
+    # (rute koje eksplicitno hvataju Exception oko GPT poziva i dalje dobijaju
+    # tačan isti bezbednosni ishod — poziv OpenAI-u se nikad nije desio — samo
+    # sa svojim, ne ovim, formatom odgovora).
+    from security.prompt_guard import PromptInjectionBlocked as _PIBlocked
+    if isinstance(exc, _PIBlocked):
+        logger.warning(
+            "[AI_GUARD] Neuhvaćen PromptInjectionBlocked [path=%s] score=%.2f flags=%d",
+            request.url.path, exc.risk_score, len(exc.flags),
+        )
+        try:
+            from shared.audit_immutable import log_action as _imm_log
+            asyncio.create_task(_imm_log(
+                "injection_attempt_blocked",
+                user_id="unknown",  # SDK-nivo patch nema pristup autentifikovanom user_id-ju
+                resource_type=request.url.path,
+                ip=request.client.host if request.client else None,
+                metadata={"score": exc.risk_score, "flags": exc.flags[:5]},
+            ))
+        except Exception:
+            pass
+        _msg = "Zahtev sadrži neodgovarajući sadržaj i nije obrađen."
+        return JSONResponse(
+            status_code=400,
+            content={"greska": _msg, "error": _msg, "status": "error"},
+        )
     # Redis quota/connection error — posebna poruka, ne 500
     try:
         from redis.exceptions import RedisError as _RedisError
@@ -1348,6 +1376,11 @@ def dpa_page():
 @app.get("/ai-disclosure")
 def ai_disclosure_page():
     path = BASE_DIR / "static" / "ai-disclosure.html"
+    return FileResponse(path, headers={"Cache-Control": "public, max-age=3600"})
+
+@app.get("/bezbednosni-list")
+def bezbednosni_list_page():
+    path = BASE_DIR / "static" / "bezbednosni-list.html"
     return FileResponse(path, headers={"Cache-Control": "public, max-age=3600"})
 
 
