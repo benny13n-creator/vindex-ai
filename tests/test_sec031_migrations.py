@@ -8,29 +8,28 @@ has no Docker, no local Postgres, and no psycopg2 (verified directly, not
 assumed) — there is no way to genuinely "spin up the schema and confirm it
 migrates without errors or data loss" from here.
 
-REVISION NOTE (v2 -> v3): v1 of this migration hardcoded constraint names
-(`<table>_<column>_fkey`, the Postgres default for an unnamed inline FK).
-The FIRST real production run failed exactly as the plan's own §1 caveat
-predicted: `predmet_delegiranja_od_user_id_fkey` did not exist under that
-name in production — a safe, clear "constraint does not exist" error, no
-data touched, the whole transaction (GRUPA 1) rolled back cleanly. v2
-replaced hardcoded names with a `_sec031_fix_fk(table, column, rule)`
-plpgsql function that looks up the ACTUAL constraint name via
-`pg_constraint` — robust to naming, but a follow-up production diagnostic
-query (run against the live database, not this repo) revealed the deeper
-cause: it wasn't a naming mismatch at all. **3 of the original 19
-approved pairs don't exist in production**: `predmet_delegiranja` (both
-columns — its own migration 054 was apparently never run, per that
-file's own header comment), `conversations` (legacy file, apparently
-never run either), and `tos_acceptances` (unexplained — flagged for
-separate investigation, not assumed to be the same "never migrated"
-story as the other two). v3 removes these 3 pairs (4 constraints) from
-the ACTIVE migration — now 15 pairs across 3 transaction groups — while
-keeping them documented in the file as an explicit "ODLOŽENO" (deferred)
-section, not silently dropped from history. This test file's expected
-set was updated to match the confirmed-live 15, with the 4 deferred
-constraints tracked separately so a future re-addition doesn't have to
-rediscover this investigation.
+REVISION NOTE (v1 -> v4):
+  v1: hardcoded constraint names (`<table>_<column>_fkey`). Failed on the
+      first real production run — `predmet_delegiranja_od_user_id_fkey`
+      did not exist. Failed safely: GRUPA 1's transaction rolled back
+      cleanly, zero data touched.
+  v2: replaced hardcoded names with `_sec031_fix_fk(table, column, rule)`,
+      a plpgsql function that looks up the actual constraint name via
+      `pg_constraint` instead of assuming a naming convention.
+  v3: a production diagnostic (read-only, run by the founder) revealed the
+      real cause was deeper than naming — 3 of the original 19 approved
+      pairs (4 constraints) didn't exist in production at all:
+      `predmet_delegiranja` (table itself never migrated, per migration
+      054's own header comment), `conversations` (legacy file, apparently
+      never run), and `tos_acceptances` (unexplained at the time). Removed
+      from the active migration (down to 15 pairs), documented in an
+      "ODLOZENO" section rather than silently dropped.
+  v4 (current): migrations 054 and 056 were run in production, so
+      `predmet_delegiranja` and `tos_acceptances` now exist — their pairs
+      are back in the active migration (18 pairs total). `conversations`
+      remains PERMANENTLY excluded — confirmed zero call sites in current
+      code (superseded by `predmet_istorija` long ago) — this is a
+      deliberate, documented exclusion now, not a pending investigation.
 """
 import re
 from pathlib import Path
@@ -40,18 +39,17 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MIGRATION_PATH = REPO_ROOT / "migrations" / "077_sec031_restrict_auth_users_cascade.sql"
 
-# The 15 (table, column) pairs CONFIRMED LIVE in production (2026-07-23
-# diagnostic query against pg_constraint) and included in this migration's
-# active run. Originally 19 were approved in SEC031_MIGRATION_SAFETY_PLAN.md
-# / SEC031_MIGRATION_DRY_RUN.md — 4 constraints (3 pairs' worth, since
-# predmet_delegiranja has 2 columns) turned out not to exist in production
-# at all and are tracked separately in DEFERRED_PAIRS below.
+# The 18 (table, column) pairs CONFIRMED LIVE in production and included in
+# this migration's active run, as of v4 (2026-07-23) — after migrations 054
+# (predmet_delegiranja) and 056 (tos_acceptances) were run in production.
 EXPECTED_TIER_A_PAIRS: set[tuple[str, str]] = {
     ("predmeti", "user_id"),
     ("predmet_dokumenti", "user_id"),
     ("predmet_hronologija", "user_id"),
     ("predmet_beleske", "user_id"),
     ("predmet_istorija", "user_id"),
+    ("predmet_delegiranja", "od_user_id"),
+    ("predmet_delegiranja", "na_user_id"),
     ("fakture", "user_id"),
     ("billing_entries", "user_id"),
     ("timer_sessions", "user_id"),
@@ -61,18 +59,18 @@ EXPECTED_TIER_A_PAIRS: set[tuple[str, str]] = {
     ("praceni_predmeti", "user_id"),
     ("rocista", "user_id"),
     ("smart_contract_analyses", "user_id"),
+    ("tos_acceptances", "user_id"),
     ("user_knowledge", "user_id"),
 }
 
-# Originally approved, confirmed via live production diagnostic (2026-07-23)
-# to NOT exist yet — deliberately excluded from the active migration, kept
-# here so the investigation isn't lost. See the migration file's own
-# "ODLOZENO" section for the reasoning per table.
+# PERMANENTLY excluded — not a pending investigation. `conversations` is
+# defined only in a legacy root-level file (supabase_migration.sql) that was
+# never run against production, and has zero call sites in current
+# application code (chat/Q&A persistence moved to `predmet_istorija` long
+# ago, confirmed in SEC031_FK_GRAPH.md). There is nothing to protect and no
+# reason to resurrect a dead table just to bring it under this migration.
 DEFERRED_PAIRS: set[tuple[str, str]] = {
-    ("predmet_delegiranja", "od_user_id"),   # table itself never migrated (054)
-    ("predmet_delegiranja", "na_user_id"),   # table itself never migrated (054)
-    ("conversations", "user_id"),            # legacy file, apparently never run
-    ("tos_acceptances", "user_id"),          # unexplained — needs separate investigation
+    ("conversations", "user_id"),
 }
 
 _CALL_PATTERN = re.compile(
@@ -162,7 +160,7 @@ class TestMigrationMatchesApprovedPlan:
         extra = found - EXPECTED_TIER_A_PAIRS
         assert not missing, f"Migration is missing confirmed-live pairs: {missing}"
         assert not extra, f"Migration calls _sec031_fix_fk for pairs NOT in the confirmed-live set: {extra}"
-        assert len(found) == 15, f"Expected exactly 15 RESTRICT calls, found {len(found)}"
+        assert len(found) == 18, f"Expected exactly 18 RESTRICT calls, found {len(found)}"
 
     def test_no_cascade_calls_in_active_migration(self):
         active = _active_sql()
@@ -172,23 +170,27 @@ class TestMigrationMatchesApprovedPlan:
         )
 
     def test_deferred_pairs_are_not_in_active_migration(self):
-        """The 3 pairs confirmed absent from production (predmet_delegiranja
-        x2, conversations, tos_acceptances) must NOT appear as active
-        _sec031_fix_fk() calls — they were deliberately deferred, not
-        forgotten. If one of these starts appearing here, it means someone
-        re-added it without re-running the existence check first."""
+        """`conversations` (the one permanently-excluded pair, a dead legacy
+        table) must NOT appear as an active _sec031_fix_fk() call. If it
+        starts appearing here, it means someone tried to resurrect it
+        without re-confirming it's actually needed and actually exists."""
         active = _active_sql()
         active_pairs = _extract_calls(active, "RESTRICT") | _extract_calls(active, "CASCADE")
         overlap = active_pairs & DEFERRED_PAIRS
         assert not overlap, (
-            f"Deferred pair(s) {overlap} found in the ACTIVE migration — "
-            f"these were removed because they don't exist in production yet; "
-            f"re-confirm existence before reintroducing them."
+            f"Permanently-excluded pair(s) {overlap} found in the ACTIVE migration — "
+            f"these were removed because the table doesn't exist and isn't used; "
+            f"re-confirm before reintroducing them."
         )
 
     def test_deferred_pairs_are_documented_in_the_file(self):
-        """The deferred pairs must still be mentioned somewhere in the file
-        (the ODLOZENO section) so the investigation isn't silently lost."""
+        """`conversations` must still be mentioned in the file's ODLOZENO
+        section so the exclusion reasoning isn't silently lost. The other
+        two tables from earlier revisions (predmet_delegiranja,
+        tos_acceptances) are now ACTIVE, not deferred, but still expected
+        to appear in the file (in the active SS section) — this assertion
+        just confirms they weren't accidentally deleted from the file
+        entirely during the v3->v4 edit."""
         full = _full_sql()
         assert "ODLOZENO" in full or "ODLOŽENO" in full
         assert "predmet_delegiranja" in full
@@ -209,12 +211,12 @@ class TestRollbackIsComplete:
     def test_rollback_section_exists(self):
         assert "ROLLBACK" in _full_sql().upper()
 
-    def test_rollback_restores_cascade_for_all_15_active_pairs(self):
+    def test_rollback_restores_cascade_for_all_18_active_pairs(self):
         rollback = _rollback_sql()
         cascade_pairs = _extract_calls(rollback, "CASCADE")
         missing = EXPECTED_TIER_A_PAIRS - cascade_pairs
         assert not missing, f"Rollback section missing CASCADE restoration for: {missing}"
-        assert len(cascade_pairs) == 15
+        assert len(cascade_pairs) == 18
 
     def test_rollback_drops_the_helper_function(self):
         """Cleanup — the helper function shouldn't linger in the schema
@@ -232,13 +234,13 @@ class TestTransactionSplitting:
         assert begin_count == commit_count, "Unbalanced BEGIN/COMMIT pairs"
         assert begin_count >= 2, f"Expected 2+ transactions, found {begin_count}"
 
-    def test_no_transaction_contains_all_15_pairs(self):
+    def test_no_transaction_contains_all_18_pairs(self):
         active = _active_sql()
         blocks = re.findall(r"BEGIN;(.*?)COMMIT;", active, re.DOTALL)
         assert blocks, "No BEGIN...COMMIT blocks found"
         for block in blocks:
             pairs_in_block = _extract_calls(block, "RESTRICT")
-            assert len(pairs_in_block) < 15, "Found a transaction containing all 15 pairs — split is not real"
+            assert len(pairs_in_block) < 18, "Found a transaction containing all 18 pairs — split is not real"
 
 
 class TestDiagnosticQueryPresent:

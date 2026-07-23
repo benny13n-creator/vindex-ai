@@ -1,60 +1,38 @@
 -- ============================================================================
 -- Vindex AI -- Migracija 077: SEC-031 Phase 1 Safety Lock
 -- ON DELETE CASCADE -> RESTRICT na auth.users FK-ovima
--- v3 -- name-agnostic, i svedena na CONFIRMED LIVE constraint-e
+-- v4 -- name-agnostic, 18 potvrdjenih parova (posle 054+056 pokretanja)
 -- ============================================================================
 --
 -- ISTORIJA REVIZIJA:
 --
--- v1 (prvi pokusaj): tvrdo zakucana imena constraint-a
--- (<tabela>_<kolona>_fkey). PALA na prvom pokretanju:
+-- v1: tvrdo zakucana imena constraint-a. PALA na prvom pokretanju --
 -- "predmet_delegiranja_od_user_id_fkey" ne postoji. GRUPA 1 transakcija se
 -- bezbedno vratila, nijedan red podataka nije dotaknut.
 --
 -- v2: zamenjena tvrdo zakucana imena funkcijom _sec031_fix_fk() koja
--- PRONALAZI stvarno ime constraint-a preko pg_constraint umesto da ga
--- pretpostavlja.
+-- PRONALAZI stvarno ime constraint-a preko pg_constraint.
 --
--- v3 (ova verzija) -- POSLE stvarne produkcione dijagnostike (SS0 upit
--- pokrenut i vracen 2026-07-23): potvrdjeno da v2-ov problem NIJE bio samo
--- pogresno ime -- 3 od 19 planiranih (tabela, kolona) parova NE POSTOJE
--- u produkciji uopste (ni tabela, ni constraint):
+-- v3: posle stvarne produkcione dijagnostike, potvrdjeno da 3 od 19
+-- planiranih parova (predmet_delegiranja x2, conversations, tos_acceptances)
+-- NE POSTOJE u produkciji uopste -- uklonjeni iz aktivnog pokretanja (15
+-- parova), dokumentovani u ODLOZENO sekciji.
 --
---   * predmet_delegiranja.od_user_id / na_user_id -- migrations/054_
---     predmet_delegiranja.sql sopstveni komentar kaze "Tabela nikad nije
---     migrirana." Ovo NIJE SEC-031 problem -- to je odvojen, precizno
---     imenovan nalaz (routers/enterprise.py-ova dva endpointa za
---     delegiranje predmeta verovatno ne rade u produkciji uopste, jer im
---     tabela ne postoji). Van obima ove migracije.
+-- v4 (ova verzija, 2026-07-23) -- POSLE pokretanja migracija 054
+-- (predmet_delegiranja) i 056 (tos_acceptances) u produkciji: te dve tabele
+-- sada postoje. Vraceni njihovi parovi u aktivnu listu (18 ukupno).
+-- `conversations` OSTAJE TRAJNO ISKLJUCENA -- legacy tabela, nula poziva u
+-- trenutnom kodu (predmet_istorija je zamenio tu funkciju), nema razloga da
+-- se vraca u zivot samo da bi SEC-031 mogao da je "zastiti".
 --
---   * conversations.user_id -- definisana samo u legacy supabase_migration.sql
---     (ne u glavnoj migrations/ seriji), sumnja izrazena unapred u
---     SEC031_MIGRATION_DRY_RUN.md sada POTVRDJENA -- taj fajl ocigledno
---     nikad nije pokrenut protiv produkcije. Tabela ne postoji, pa nema
---     sta ni da se stiti trenutno.
---
---   * tos_acceptances.user_id -- OVO JE IZNENADJENJE, ne objasnjeno unapred
---     (056_tos_acceptances.sql je normalna, numerisana migracija, ne
---     legacy fajl). Zahteva POSEBNU proveru pre zakljucka -- videti
---     napomenu na dnu ovog fajla. NIJE uklonjeno iz ovog fajla zbog
---     pretpostavke da je "kao i ostala dva" -- uklonjeno iz aktivnog
---     pokretanja SAMO da ne blokira ostatak, dok se razlog ne potvrdi.
---
--- Preostalih 16 (tabela, kolona) parova SU potvrdjeni live u produkciji
--- (SS0 dijagnostika), sa ON DELETE CASCADE, tacno kako je i ocekivano.
--- GRUPA 2 (financial, svih 6) je bez izmene -- vec je bila potpuno tacna
--- i u v1 i v2, jer je za te tabele pretpostavljeno ime bilo tacno.
---
--- DO NOT RUN THIS BLINDLY. Pre ponovnog pokretanja:
---   1. Potvrditi SS0 dijagnostikom (ispod, read-only) da GRUPA 1 iz
---      neuspesnog v1/v2 pokusaja NIJE ostavila delimicno primenjene izmene
---      (transakcija bi trebalo da je sve vratila -- potvrditi, ne
---      pretpostaviti).
---   2. Proveriti da li GRUPA 2 (financial) mozda VEC uspesno prosla u
---      prethodnom pokusaju (v1/v2 su odvojene transakcije -- ako je GRUPA 1
---      pala, GRUPA 2/3 mozda nikad nisu ni pokusane, ili jesu i uspele).
---      SS0 dijagnostika to pokazuje direktno (confdeltype = 'r' znaci vec
---      RESTRICT).
+-- DO NOT RUN THIS BLINDLY. Pre pokretanja:
+--   1. Potvrditi SS0 dijagnostikom (ispod, read-only) TRENUTNO stanje --
+--      posebno da li je GRUPA 2/3 iz ranijeg v1/v2/v3 pokusaja mozda VEC
+--      uspesno prosla (moguce je da je samo GRUPA 1 ikad pala, a GRUPA 2/3
+--      vec bila pokrenuta i uspela u nekom ranijem pokusaju). Ako jesu,
+--      ponovno pokretanje ovog fajla je i dalje bezbedno (funkcija samo
+--      ponovo potvrdjuje isto RESTRICT pravilo -- ne baca gresku ako je
+--      vec RESTRICT), samo suvisno -- ali bolje potvrditi nego pretpostaviti.
 --
 -- Puna forenzicka analiza i nezavisan peer review:
 --   docs/security/SEC031_IMPACT_ANALYSIS.md
@@ -79,15 +57,11 @@
 --   AND contype = 'f'
 -- ORDER BY conrelid::regclass::text, conname;
 --
--- Dodatna provera POSTOJI LI tabela uopste (za predmet_delegiranja,
--- conversations, tos_acceptances -- read-only, ne menja nista):
+-- Dodatna provera (read-only, ne menja nista) -- predmet_delegiranja i
+-- tos_acceptances su POTVRDJENE kao pokrenute (migracije 054 i 056), ova
+-- provera je sad samo za conversations (ocekivano: false, trajno):
 --
--- SELECT
---     'predmet_delegiranja' AS tabela, to_regclass('public.predmet_delegiranja') IS NOT NULL AS postoji
--- UNION ALL
--- SELECT 'conversations', to_regclass('public.conversations') IS NOT NULL
--- UNION ALL
--- SELECT 'tos_acceptances', to_regclass('public.tos_acceptances') IS NOT NULL;
+-- SELECT 'conversations' AS tabela, to_regclass('public.conversations') IS NOT NULL AS postoji;
 
 
 -- ─── Pomocna funkcija: pronadji i promeni ON DELETE pravilo bez oslanjanja ────
@@ -134,14 +108,16 @@ END;
 $BODY$ LANGUAGE plpgsql;
 
 
--- ─── GRUPA 1: Legal core (BEZ predmet_delegiranja i conversations --────────────
--- ─── potvrdjeno ne postoje u produkciji, videti napomenu na vrhu) ─────────────
+-- ─── GRUPA 1: Legal core (predmet_delegiranja VRACENA -- 054 pokrenuta; ───────
+-- ─── conversations OSTAJE ISKLJUCENA -- trajno, ne postoji, ne treba) ─────────
 BEGIN;
 SELECT _sec031_fix_fk('predmeti',             'user_id',     'RESTRICT');
 SELECT _sec031_fix_fk('predmet_dokumenti',    'user_id',     'RESTRICT');
 SELECT _sec031_fix_fk('predmet_hronologija',  'user_id',     'RESTRICT');
 SELECT _sec031_fix_fk('predmet_beleske',      'user_id',     'RESTRICT');
 SELECT _sec031_fix_fk('predmet_istorija',     'user_id',     'RESTRICT');
+SELECT _sec031_fix_fk('predmet_delegiranja',  'od_user_id',  'RESTRICT');
+SELECT _sec031_fix_fk('predmet_delegiranja',  'na_user_id',  'RESTRICT');
 SELECT _sec031_fix_fk('user_knowledge',       'user_id',     'RESTRICT');
 COMMIT;
 
@@ -157,46 +133,31 @@ SELECT _sec031_fix_fk('sef_log',                'user_id', 'RESTRICT');
 COMMIT;
 
 
--- ─── GRUPA 3: Ostali legal/compliance (BEZ tos_acceptances -- videti ──────────
--- ─── napomenu na vrhu, zahteva posebnu proveru pre dodavanja nazad) ───────────
+-- ─── GRUPA 3: Ostali legal/compliance (tos_acceptances VRACENA -- 056 ────────
+-- ─── pokrenuta) ────────────────────────────────────────────────────────────
 BEGIN;
 SELECT _sec031_fix_fk('praceni_predmeti',        'user_id', 'RESTRICT');
 SELECT _sec031_fix_fk('rocista',                 'user_id', 'RESTRICT');
 SELECT _sec031_fix_fk('smart_contract_analyses', 'user_id', 'RESTRICT');
+SELECT _sec031_fix_fk('tos_acceptances',         'user_id', 'RESTRICT');
 COMMIT;
 
 
 -- ============================================================================
--- ODLOZENO -- NE deo ovog pokretanja, cekaju posebnu odluku:
---
---   predmet_delegiranja.od_user_id / na_user_id
---     -> tabela ne postoji u produkciji (migracija 054 nikad pokrenuta).
---        Akcija: ili pokrenuti 054 prvo (ako je funkcija delegiranja
---        predmeta stvarno u upotrebi/planu), ili formalno zatvoriti kao
---        "feature nikad lansiran" i izbaciti iz Tier A liste trajno.
+-- ODLOZENO TRAJNO -- namerno NE deo ovog ili bilo kog buduceg pokretanja:
 --
 --   conversations.user_id
 --     -> tabela ne postoji u produkciji (supabase_migration.sql, legacy
---        fajl, nikad pokrenut). Akcija: potvrditi da se ovaj put zaista
---        nigde ne koristi (vec potvrdjeno u SEC031_FK_GRAPH.md -- 0 poziva
---        u trenutnom kodu), pa formalno izbaciti iz Tier A liste, ili
---        pokrenuti taj legacy fajl ako se ispostavi da JESTE potreban.
---
---   tos_acceptances.user_id
---     -> NEOCEKIVANO odsutna iz produkcije uprkos numerisanoj migraciji
---        056. Zahteva: (a) potvrditi da tabela zaista ne postoji (SS0
---        dodatna provera iznad), (b) ako ne postoji, pokrenuti
---        056_tos_acceptances.sql pre nego sto se ovaj constraint doda,
---        (c) razmotriti da li nepostojanje ove tabele znaci da se
---        korisnicki pristanak na Uslove koriscenja TRENUTNO NE BELEZI
---        NIGDE u produkciji -- odvojeno, potencijalno bitnije pitanje od
---        same SEC-031 zakljucavanja.
+--        fajl, nikad pokrenut). Potvrdjeno u SEC031_FK_GRAPH.md -- 0 poziva
+--        u trenutnom kodu (predmet_istorija je zamenio tu funkciju jos
+--        ranije). Nema razloga da se ova tabela vraca u zivot -- formalno
+--        izbacena iz Tier A liste, ne "ceka odluku".
 -- ============================================================================
 
 
 -- ============================================================================
 -- VERIFIKACIJA POSLE POKRETANJA (read-only) -- ponoviti SS0 upit iznad.
--- 15 redova (GRUPA 1: 6, GRUPA 2: 6, GRUPA 3: 3) mora imati definiciju
+-- 18 redova (GRUPA 1: 8, GRUPA 2: 6, GRUPA 3: 4) mora imati definiciju
 -- koja sadrzi "ON DELETE RESTRICT".
 -- ============================================================================
 
@@ -212,6 +173,8 @@ COMMIT;
 -- SELECT _sec031_fix_fk('predmet_hronologija',  'user_id',     'CASCADE');
 -- SELECT _sec031_fix_fk('predmet_beleske',      'user_id',     'CASCADE');
 -- SELECT _sec031_fix_fk('predmet_istorija',     'user_id',     'CASCADE');
+-- SELECT _sec031_fix_fk('predmet_delegiranja',  'od_user_id',  'CASCADE');
+-- SELECT _sec031_fix_fk('predmet_delegiranja',  'na_user_id',  'CASCADE');
 -- SELECT _sec031_fix_fk('user_knowledge',       'user_id',     'CASCADE');
 -- SELECT _sec031_fix_fk('fakture',                'user_id', 'CASCADE');
 -- SELECT _sec031_fix_fk('billing_entries',        'user_id', 'CASCADE');
@@ -222,6 +185,7 @@ COMMIT;
 -- SELECT _sec031_fix_fk('praceni_predmeti',        'user_id', 'CASCADE');
 -- SELECT _sec031_fix_fk('rocista',                 'user_id', 'CASCADE');
 -- SELECT _sec031_fix_fk('smart_contract_analyses', 'user_id', 'CASCADE');
+-- SELECT _sec031_fix_fk('tos_acceptances',         'user_id', 'CASCADE');
 -- COMMIT;
 --
 -- DROP FUNCTION IF EXISTS _sec031_fix_fk(regclass, text, text);
