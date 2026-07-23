@@ -346,6 +346,29 @@ Scored 0–100 per category. This is a synthesis judgment informed by the findin
 
 ---
 
+## Score Update 3 — 2026-07-23, SEC-031 confirmed in production
+
+This is the event Score Update 2 said would trigger the next real movement — it happened the same day. The founder ran `migrations/077_sec031_restrict_auth_users_cascade.sql` against production directly, with read-only verification after every step. Full record: `docs/security/SEC031_PRODUCTION_EXECUTION_LOG.md`.
+
+**What actually happened, not just "it ran":** the first attempt failed on `predmet_delegiranja` (a table that existed in production in bare, incomplete form — its own migration had silently no-op'd against it, `CREATE TABLE IF NOT EXISTS` skipping the whole body because the table already existed). The transaction rolled back cleanly, zero data touched — the exact safety property this whole workstream was designed around, now proven under a genuine, unplanned failure, not just in a test. The same pattern recurred for `tos_acceptances`. Both were fixed (the underlying migrations run, the missing FKs added to match) and the migration completed. A final comprehensive query confirmed all **18/18** target constraints `RESTRICT` in production.
+
+| Category | Prior | Updated | What changed |
+|---|---|---|---|
+| Privacy | 52 | 80 | The specific, disclosed, catastrophic risk (irreversible cascade-delete of case/financial data via a direct `auth.users` deletion) is now confirmed closed in production, not just designed — the single largest reason this category was held down. Not higher: the underlying data-retention *policy* is still undefined, and SEC-034 (below) is a small, fresh reminder that migration hygiene in this project has real gaps |
+| Compliance Readiness | 42 | 65 | Same core driver as Privacy, plus SEC-009 already closed. Held below Privacy's jump because of two things specific to this category: the retention policy remains genuinely undefined, and the `tos_acceptances` discovery (below) means this project cannot currently state with confidence that all historical users have a valid recorded ToS/AI-consent acceptance — a real, disclosed compliance fact, not just a technical one |
+| Infrastructure | 55 | 58 | Small net-positive: SEC-034 (below) is a real, newly-found gap in migration reliability, but it was discovered specifically *because* this session's own rollback-safe migration design worked exactly as intended under a genuine double failure — a real disaster-recovery-style event handled cleanly is itself evidence for, not against, this category |
+| All other categories | — | unchanged | Not touched this update |
+
+**Updated weighted overall: ~66/100.**
+
+**A new finding surfaced in the course of this closure, disclosed rather than absorbed quietly into the good news: SEC-034.** Both mid-execution failures had the same root cause — a `CREATE TABLE IF NOT EXISTS` migration silently doing nothing when its target table already existed in an incomplete form, with no error and no signal that anything was skipped. This is a distinct pattern from SEC-033 (columns designed without a FK from the start) — SEC-034 is about correctly-written migrations that never actually took effect. Confirmed in exactly 2 places so far; **not yet known how many other tables in the `migrations/*.sql` series might be in the same state** — added to the Gap Register as open, P1, explicitly not yet audited beyond the 2 confirmed instances.
+
+**Separately, the `tos_acceptances` discovery has its own compliance weight independent of SEC-031**: the migration's own header comment explains that its absence meant the ToS/AI-consent status endpoint fail-opened to `accepted=true` on every database error — meaning no user had ever had a valid, recorded consent acceptance in production, silently, until the table was created today as a direct consequence of this investigation. This is now fixed going forward; whether any retroactive action is needed for existing users is a product/legal question, not an engineering one, and is disclosed here rather than left implicit.
+
+**Why 66, not higher, stated plainly**: SEC-031's closure was the single largest remaining lever this document had identified, and it moved the categories it was expected to move, by roughly the amount predicted. The score isn't higher because the rest of the register is unchanged — SEC-004 (service-role bypasses RLS, architectural), SEC-006 (PII masking scope), SEC-010 (rate-limit coverage audit), SEC-012 (citation verification integration), SEC-014 (CSP `unsafe-inline`), SEC-017 (login audit logging), the full P2/P3 backlog, the still-undefined retention policy, SEC-033, and now SEC-034 are all still open. Closing the single most severe item doesn't average out an otherwise-unchanged register — which is exactly the honest arithmetic this methodology is supposed to produce.
+
+---
+
 ## Final Assessment
 
 **Can Vindex AI honestly claim to be enterprise-grade secure today? No.** Not because any single domain is unusually weak for a company at this stage — several domains (audit trail integrity, DR runbook existence, crypto primitive correctness, SQL injection resistance, CORS configuration) are genuinely strong, in some cases better than typical for this company size. The disqualifying factors are two **confirmed, live, evidence-based CRITICAL findings**: a reproducible cross-tenant data-injection vulnerability (SEC-001) and a GDPR erasure endpoint whose user-facing claim is not supported by what the code actually does (SEC-002) — plus a CRITICAL-severity gap in the product's core AI safety surface (SEC-003). None of these are hypothetical or "best practice" gaps; all three are demonstrated, with file:line evidence, to be true today.

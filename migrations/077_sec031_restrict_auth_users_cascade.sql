@@ -2,6 +2,40 @@
 -- Vindex AI -- Migracija 077: SEC-031 Phase 1 Safety Lock
 -- ON DELETE CASCADE -> RESTRICT na auth.users FK-ovima
 -- v4 -- name-agnostic, 18 potvrdjenih parova (posle 054+056 pokretanja)
+--
+-- STATUS: USPESNO PRIMENJENA U PRODUKCIJI 2026-07-23. Svih 18 constraint-a
+-- potvrdjeno ON DELETE RESTRICT direktnim read-only upitom protiv
+-- pg_constraint POSLE pokretanja (ne pretpostavka -- proverio founder,
+-- tri odvojene grupe, svaka potvrdjena posle svog COMMIT-a). Vidi
+-- docs/security/SEC031_PRODUCTION_EXECUTION_LOG.md za pun zapisnik svakog
+-- koraka, ukljucujuci dva neplanirana problema (ispod) i njihova resenja.
+-- ============================================================================
+--
+-- NEPLANIRANI PROBLEMI OTKRIVENI TOKOM PRAVOG POKRETANJA (2026-07-23):
+--
+-- 1) predmet_delegiranja je vec postojala u produkciji PRE pokretanja
+--    migracije 054 -- u golom obliku (samo kolone + PRIMARY KEY, BEZ
+--    ijednog FK-a, RLS-a, policy-ja ili indeksa). Migracija 054 koristi
+--    CREATE TABLE IF NOT EXISTS, pa je celo njeno telo TIHO PRESKOCENO --
+--    iako je "uspesno pokrenuta" (bez greske), nije stvarno ništa uradila.
+--    Otkriveno tek kad je GRUPA 1 pukla na "constraint ne postoji". Rucno
+--    dodata oba FK-a (od_user_id, na_user_id -> auth.users ON DELETE
+--    CASCADE, tacno kako 054 i specifikuje) direktno u produkciji pre
+--    ponovnog pokretanja GRUPE 1 -- vidi izvrsni upit u
+--    SEC031_PRODUCTION_EXECUTION_LOG.md. i dalje NEDOSTAJU na ovoj tabeli:
+--    predmet_id -> predmeti FK, RLS enable, oba policy-ja, oba indeksa --
+--    ODVOJENO OD SEC-031, jos nije zatvoreno, videti napomenu na dnu.
+--
+-- 2) tos_acceptances je isti obrazac -- vec postojala gola (PRIMARY KEY +
+--    UNIQUE(user_id, version), BEZ FK-a ka auth.users), migracija 056 je
+--    tiho preskocena istim mehanizmom. GRUPA 3 pukla, rucno dodat
+--    nedostajuci FK. i dalje NEDOSTAJU: RLS enable, oba policy-ja --
+--    ODVOJENO OD SEC-031, jos nije zatvoreno.
+--
+-- OVO JE NOVI, ODVOJEN NALAZ (SEC-034 u Gap Registeru) -- "IF NOT EXISTS"
+-- migracije mogu izgledati uspesno pokrenute a stvarno ne uraditi nista
+-- ako je tabela vec postojala u nepotpunom obliku. Vredi proveriti da li
+-- postoje jos ovakvi slucajevi u ostatku migrations/ serije.
 -- ============================================================================
 --
 -- ISTORIJA REVIZIJA:
@@ -156,9 +190,10 @@ COMMIT;
 
 
 -- ============================================================================
--- VERIFIKACIJA POSLE POKRETANJA (read-only) -- ponoviti SS0 upit iznad.
--- 18 redova (GRUPA 1: 8, GRUPA 2: 6, GRUPA 3: 4) mora imati definiciju
--- koja sadrzi "ON DELETE RESTRICT".
+-- VERIFIKACIJA POSLE POKRETANJA -- IZVRSENO 2026-07-23, POTVRDJENO.
+-- Svih 18 redova (GRUPA 1: 8, GRUPA 2: 6, GRUPA 3: 4) potvrdjeno
+-- "ON DELETE RESTRICT" direktnim upitom protiv pg_constraint. Pun zapisnik:
+-- docs/security/SEC031_PRODUCTION_EXECUTION_LOG.md
 -- ============================================================================
 
 
