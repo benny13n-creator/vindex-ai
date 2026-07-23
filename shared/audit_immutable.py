@@ -48,6 +48,8 @@ AUDITABLE_ACTIONS: set[str] = {
     "ai_analiza_complete", "ai_kompletna_analiza_complete",
     # Case Genome (Faza 1.2, 90-dnevni plan 2026-07-18)
     "genome_refresh",
+    # Legal Reasoning Engine, Phase 0 (2026-07-23)
+    "reasoning_graph_generated",
     # Bezbednosni događaji
     "injection_attempt_blocked", "rate_limit_exceeded",
     "suspicious_access", "api_key_rotation",

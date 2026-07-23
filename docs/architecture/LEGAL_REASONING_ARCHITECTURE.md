@@ -22,11 +22,17 @@ Restated as a boundary test (same format as `AR-01`):
 
 ---
 
-## 1. The single biggest risk this design must not create
+## 1. The single biggest risk this design must not create — RESOLVED (founder decision, 2026-07-23)
 
-Case Genome's extraction (`routers/case_dna.py::_extract_genome`, `_GENOME_SYSTEM` prompt) **already produces primitive, semi-structured reasoning today**: `argumenti_za`, `argumenti_protiv`, `kontradikcije`, `snaga_faktori` (each with `faktor`/`uticaj`/`opis`) are GPT-4o-generated interpretations of facts, not raw facts themselves. If LRE is bolted on without touching this, Vindex ends up with **two independently GPT-derived reasoning outputs about the same case** — Genome's own argument lists and LRE's Reasoning Graph — which can disagree. That is precisely the "one concept, two owners" bug this whole session has been closing, now at risk of being reintroduced one layer up.
+Case Genome's extraction (`routers/case_dna.py::_extract_genome`, `_GENOME_SYSTEM` prompt) **already produces primitive, semi-structured reasoning today**: `argumenti_za`, `argumenti_protiv`, `kontradikcije`, `snaga_faktori` (each with `faktor`/`uticaj`/`opis`) are GPT-4o-generated interpretations of facts, not raw facts themselves. If LRE is bolted on without touching this, Vindex ends up with **two independently GPT-derived reasoning outputs about the same case** — Genome's own argument lists and LRE's Reasoning Graph — which can disagree.
 
-**This document takes the position that Genome's argument-shaped fields must be deprecated in favor of reading LRE's Reasoning Graph, not run in parallel with it.** This is flagged as an open decision in §11, not silently assumed — it is a real, disruptive change to an existing, production-verified subsystem (Case Genome), and needs explicit sign-off.
+**Decision: responsibility migration, not field deletion.** Genome's existing fields are not deleted now. Going forward, ownership splits cleanly:
+
+| Stays in Genome (describes) | Moves to LRE (concludes) |
+|---|---|
+| facts, entities, evidence, timeline, relationships | arguments, counterarguments, contradictions, legal conclusions, confidence |
+
+**Genome never reasons again. Genome describes. LRE concludes.** This is a clean, permanent responsibility line, not a temporary one. The mechanical migration (Genome's extraction prompt stops generating `argumenti_za`/`argumenti_protiv`/`kontradikcije`, frontend Genome panel stops reading them, LRE becomes the read path instead) is Phase 1 work (§12) — **Phase 0 does not touch Genome's extraction at all**, it is purely additive and unwired, so this decision has no effect on Genome until Phase 1 is explicitly approved.
 
 ## 2. A second thing worth naming before the design: LRE is AI, not deterministic
 
@@ -85,7 +91,32 @@ LRE sits **after** Genome, **before** every "higher" consumer. It does not repla
              | creates (Norm → Claim)
   Every Claim carries: confidence (0–1), source_facts (list), source_norms (list)
   ```
-  This is a genuinely new artifact — it is not a Genome field. Storage question is open, see §11.
+  This is a genuinely new artifact — it is not a Genome field.
+
+  **Storage: RESOLVED (founder decision, 2026-07-23) — relational, not jsonb.** A jsonb blob cannot answer "find every argument based on Article 154," "find every contradiction of type X," "find every claim with confidence < 0.6" without a full-table scan and application-side parsing — unacceptable at scale. Canonical storage is six relational tables (schema in §5b); jsonb may exist only as a derived cache/export, never as the source of truth.
+
+### 5a. Versioning and provenance — added requirement (founder, 2026-07-23)
+
+The Reasoning Graph is not a single artifact overwritten in place — it is a **versioned object**, the same way Genome already is (`predmet_genome_history`), but at node granularity, not whole-object granularity:
+
+```
+Reasoning Graph v1 → advokat dodaje dokaz → Reasoning Graph v2 → nova presuda → Reasoning Graph v3
+```
+
+Every node must carry: when it was created, what triggered its creation/change, and which event produced that trigger. This is not new infrastructure — it reuses the Event Bus (durable outbox, `services/event_bus.py`) and the audit trail (`shared/audit_immutable.py`) exactly as they already exist. Schema support for this is included from Phase 0 onward (not retrofitted later) — see `reasoning_graph.trigger_event`/`verzija` and per-node `created_from_event_id` in §5b.
+
+### 5b. Schema (six tables, per founder's explicit instruction — no jsonb primary storage)
+
+```
+reasoning_graph      — one row per (predmet_id, verzija): header/version record
+reasoning_nodes      — Fact | LegalElement | Norm | Claim rows, typed
+reasoning_edges      — supports | satisfies | creates, references two nodes
+reasoning_evidence   — links a Fact node to its source (predmet_dokazi row / document)
+reasoning_sources    — links a Norm node to its source (retrieve.py hit: statute article, citation)
+reasoning_confidence — one row per Claim node, the weighted formula's components (§10a), not just a number
+```
+
+Full DDL: `migrations/076_legal_reasoning_engine.sql` (written, not run — founder runs migrations, per standing project rule).
 - **A Reasoning Graph Verification layer** (advisory, non-blocking) — same shape as `genome_validator.py`: are cited facts real (exist in Genome/predmet_dokazi)? Are cited articles ones the retrieval engine actually returned (no invented citations)? This is not optional — the retrieval engine's own `LAW_HINTS` calibration work makes hallucinated citations a known, named risk class in this codebase already; LRE inherits that risk and must inherit the mitigation pattern too.
 
 ## 6. APIs changed or added
@@ -112,6 +143,19 @@ Avoiding duplication isn't automatic just because LRE exists — every consumer 
 - **Risk Engine*** (marked with an asterisk in the diagram, §3): `risk_engine.py` is deterministic and reads `predmet_dokazi`/`predmet_dokumenti`/`rocista` directly — it should **not** be rewired to depend on LRE's GPT-derived confidence scores, or it stops being deterministic and AR-01-compliant. It may *display alongside* Reasoning Graph confidence as a separate, clearly-labeled signal, but the two must not merge into one number. Flagged explicitly so this isn't assumed by a future implementer.
 - **Future Argument Graph, Precedent Engine, Draft Engine, Adversarial Review**: each must be built to *consume* the Reasoning Graph as their primary legal-reasoning input, not to independently prompt GPT with raw Genome data the way every current AI feature in this codebase does. This is the actual point of building LRE first — skipping it and building Argument Graph directly against Genome would recreate exactly the fragmentation this document exists to prevent.
 
+### 10a. Confidence formula — RESOLVED (founder decision, 2026-07-23)
+
+Not "GPT says 91%" — that has no value in front of a lawyer. Confidence is a weighted combination of deterministic and AI factors:
+
+```
+confidence = 0.35 × evidence_coverage      (deterministic — computable from Genome/predmet_dokazi)
+           + 0.30 × retrieval_agreement    (deterministic — was the cited Norm actually returned by retrieve.py?)
+           + 0.20 × precedent_support      (deterministic-ish — sudska_praksa namespace hit count/score for this claim)
+           + 0.15 × model_certainty        (AI-reported, GPT's own self-assessment — intentionally the smallest weight)
+```
+
+Three of four components are computable without trusting GPT's self-report; `model_certainty` is capped at 15% specifically so a confident-sounding hallucination cannot dominate the score. Each component is stored separately in `reasoning_confidence` (§5b), not collapsed into the single number until display time — so the formula itself stays auditable and re-weightable without regenerating the graph.
+
 ## 10. How success gets measured
 
 Per the founder's own standard from the Core Consolidation review (real numbers, not descriptions):
@@ -123,18 +167,21 @@ Per the founder's own standard from the Core Consolidation review (real numbers,
 
 ---
 
-## 11. Open decisions — founder sign-off required, not silently resolved here
+## 11. Open decisions — ALL RESOLVED (founder, 2026-07-23)
 
-1. **Does LRE deprecate Genome's `argumenti_za`/`argumenti_protiv`/`kontradikcije`?** This document recommends yes (§1), but that is a real, disruptive change to a production-verified, currently-live feature with its own frontend rendering (`index.html` Genome panel) — needs explicit approval, not implied by this doc.
-2. **Storage for the Reasoning Graph:** new table (`predmet_reasoning_graph`, relational, queryable per-node) vs. a single jsonb blob (simpler, matches Genome's own pattern, harder to query individual claims). Relational is more honest to "verifiable graph" but is a bigger migration.
-3. **Does Strategy Simulator get rewired to consume the Reasoning Graph in the same rollout, or later?** §9 argues it should, eventually — but coupling it to LRE's first release risks destabilizing a subsystem that was just made audit-traceable this session (G-033). Recommend: LRE ships standalone first, Strategy Simulator rewiring is a separate, explicitly-scoped follow-up.
-4. **Confidence score calibration:** a 0–1 confidence number from GPT is only meaningful if it's been checked against real outcomes — otherwise it's decoration that *looks* deterministic (the same trap `compute_snaga_score` was built to fix once already, Sec 1.3 history). Needs an explicit calibration step before confidence scores are shown to a lawyer as anything other than "AI's own estimate, unverified."
+1. **Genome's argument fields:** responsibility migration, not deletion — see §1. Genome describes, LRE concludes. Mechanical migration deferred to Phase 1.
+2. **Storage:** relational, six tables, no jsonb as canonical store — see §5a/§5b.
+3. **Strategy Simulator:** **not touched in Phase 0 or Phase 1.** Founder's framing: *"Simulator je potrošač. LRE je proizvođač. Prvo napravi proizvođača. Tek onda menjaj potrošače."* Moved later in the rollout than originally drafted — see §12.
+4. **Confidence calibration:** weighted formula, not a raw GPT number — see §10a.
 
-## 12. Suggested rollout (phases, not a commitment — sequencing needs founder approval same as everything else this session)
+## 12. Rollout (Phase 0 approved 2026-07-23 — everything after Phase 0 still needs its own explicit go)
 
-1. **Phase 0 — narrowest possible slice:** LRE generates a Reasoning Graph for one case, read-only, not wired into anything, not replacing Genome's existing fields yet. Purely to validate the data model and get real output in front of the founder before any other system depends on it.
-2. **Phase 1:** Decision on §11.1 (deprecate Genome's argument fields or not); wire the Genome panel to read from the Reasoning Graph if yes.
-3. **Phase 2:** Argument Graph / Precedent Engine / Draft Engine / Adversarial Review built as consumers, in the order the founder ranked them (★★★★★ ×4, then Draft Quality Score).
-4. **Phase 3:** Strategy Simulator rewiring (§11.3), only after Phase 2 proves the Reasoning Graph is stable and trusted.
+1. **Phase 0 — APPROVED, implemented 2026-07-23.** One case, read-only, wired to nothing, relational schema live from the start (not retrofitted). **Explicit founder condition, binding for this phase: LRE must not generate any user-facing text. Output is exclusively the internal, structured Reasoning Graph — no prose, not even a summary.** Reason (founder's own): generating text immediately would make it impossible to objectively evaluate reasoning quality in isolation from writing quality; validating the graph first means Draft Engine can later be a pure "translator" of already-validated reasoning into legal language, not a second place where reasoning quality gets silently re-decided.
+   - **Success metric for Phase 0 is not "does it run."** It is: *does LRE produce a materially better reasoning model of the case than Genome's current `argumenti_za`/`kontradikcije` fields do* — judged by the founder against real output, not by test coverage alone.
+   - **Implementation:** `migrations/076_legal_reasoning_engine.sql` (6 tables, written not run — founder runs migrations), `services/legal_reasoning_engine.py` (orchestrator + `compute_confidence` per Sec 10a's exact weights), `routers/legal_reasoning.py` (manual-trigger-only: `POST .../reasoning-graph/generate`, `GET .../reasoning-graph`, `GET .../reasoning-graph/history`), `reasoning_graph_generated` added to `AUDITABLE_ACTIONS`. 17 unit tests, full suite 1704 passed. **Not yet run against a live case** — the migration has to be applied first; that first real run is the actual Phase 0 evaluation moment, not the passing test suite.
+   - **Known Phase 0 simplification, stated not hidden:** `retrieval_agreement` (Sec 10a) is a substring match against retrieved text chunks, not a precise per-citation structured lookup — `app.services.retrieve.retrieve_documents()`'s public return shape only exposes top-1 statute metadata plus raw text, not a full per-hit (law, article, score) list for every result. Real, working, narrower than the target design — flagged so it isn't mistaken for the final precision level.
+2. **Phase 1:** Execute the Genome responsibility migration (§1) — stop generating argument fields in `_extract_genome`, migrate the Genome panel to read from the Reasoning Graph.
+3. **Phase 2:** Argument Graph / Precedent Engine / Draft Engine / Adversarial Review built as consumers, founder's ranked order.
+4. **Phase 3 (moved later than originally drafted):** Strategy Simulator rewiring — explicitly last, after the graph is proven stable across real consumers, not just proven to exist.
 
-Same discipline as every G-item closed this session: one phase at a time, review-gated, no implementation before the founder says go on Phase 0 specifically.
+Same discipline as every G-item closed this session: one phase at a time, review-gated. Phase 0 has a green light. Phase 1 onward does not yet.

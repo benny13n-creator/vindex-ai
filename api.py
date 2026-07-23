@@ -626,6 +626,7 @@ from routers.decision_replay      import router as decision_replay_router
 from routers.case_dna             import router as case_dna_router
 from routers.health_index         import router as health_index_router
 from routers.intelligence_timeline import router as intel_timeline_router
+from routers.legal_reasoning       import router as legal_reasoning_router
 from routers.tos                   import router as tos_router
 from routers.data_export           import router as data_export_router
 from routers.status_page           import router as status_page_router
@@ -717,6 +718,7 @@ app.include_router(decision_replay_router)
 app.include_router(case_dna_router)
 app.include_router(health_index_router)
 app.include_router(intel_timeline_router)
+app.include_router(legal_reasoning_router)
 app.include_router(tos_router)
 app.include_router(data_export_router)
 app.include_router(status_page_router)
