@@ -57,21 +57,24 @@ approx_rows AS (
     FROM pg_stat_user_tables
     WHERE schemaname = 'public'
 )
-SELECT
-    t.table_name,
-    t.rls_enabled,
-    COALESCE(fk.fk_count, 0)      AS fk_count,
-    COALESCE(pol.policy_count, 0) AS policy_count,
-    COALESCE(idx.index_count, 0)  AS index_count,
-    COALESCE(ar.approx_row_count, 0) AS approx_row_count,
-    CASE
-        WHEN NOT t.rls_enabled AND COALESCE(fk.fk_count, 0) = 0 AND COALESCE(pol.policy_count, 0) = 0
-            THEN 'CHECK -- no RLS, no FK, no policy (matches the pre-fix predmet_delegiranja/tos_acceptances shape)'
-        ELSE ''
-    END AS flag
-FROM table_list t
-LEFT JOIN fk_counts    fk  ON fk.conrelid = t.oid
-LEFT JOIN policy_counts pol ON pol.tablename = t.table_name
-LEFT JOIN index_counts  idx ON idx.tablename = t.table_name
-LEFT JOIN approx_rows   ar  ON ar.table_name = t.table_name
-ORDER BY (flag <> '') DESC, t.table_name;
+SELECT report.*
+FROM (
+    SELECT
+        t.table_name,
+        t.rls_enabled,
+        COALESCE(fk.fk_count, 0)      AS fk_count,
+        COALESCE(pol.policy_count, 0) AS policy_count,
+        COALESCE(idx.index_count, 0)  AS index_count,
+        COALESCE(ar.approx_row_count, 0) AS approx_row_count,
+        CASE
+            WHEN NOT t.rls_enabled AND COALESCE(fk.fk_count, 0) = 0 AND COALESCE(pol.policy_count, 0) = 0
+                THEN 'CHECK -- no RLS, no FK, no policy (matches the pre-fix predmet_delegiranja/tos_acceptances shape)'
+            ELSE ''
+        END AS flag
+    FROM table_list t
+    LEFT JOIN fk_counts    fk  ON fk.conrelid = t.oid
+    LEFT JOIN policy_counts pol ON pol.tablename = t.table_name
+    LEFT JOIN index_counts  idx ON idx.tablename = t.table_name
+    LEFT JOIN approx_rows   ar  ON ar.table_name = t.table_name
+) report
+ORDER BY (report.flag <> '') DESC, report.table_name;
