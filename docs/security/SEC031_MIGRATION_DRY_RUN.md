@@ -1,7 +1,8 @@
 # SEC-031 — Migration Dry Run (Phase 1, Tier A)
 
-**Date:** 2026-07-23
+**Date:** 2026-07-23 (revised same day after independent peer review — see `SEC031_PEER_REVIEW_CONSENSUS.md`)
 **Status:** Dry run only. **No executable migration file exists. Nothing in this document has been run.** This is the last plan-stage deliverable before an actual `migrations/0NN_sec031_restrict.sql` file could be written — that file is not authorized by this document.
+**Revision note:** two corrections from independent peer review: (1) §3's original lock analysis incorrectly claimed no lock is taken on `auth.users` — corrected below, it does take one. (2) Two more constraints (`user_knowledge`, `conversations`) added to match the revised Tier A list in `SEC031_MIGRATION_SAFETY_PLAN.md`. Tier A is now 19 constraints across 18 tables (was 17/16).
 
 **Prerequisite, not yet satisfied:** `SEC031_PRODUCTION_ASSUMPTIONS.md` item 1 and item 7 (confirm live constraint state and exact constraint names via the `information_schema` query) should be run and their results compared against what's assumed below **before** any real migration file is written from this dry run.
 
@@ -13,7 +14,7 @@ None of the `CREATE TABLE` statements in this schema specify an explicit `CONSTR
 
 ---
 
-## 2. Exact ALTER TABLE statements — Tier A (17 constraints, 16 tables)
+## 2. Exact ALTER TABLE statements — Tier A (19 constraints, 18 tables)
 
 Pattern used per constraint (the production-safe two-step form, avoiding a long-held `ACCESS EXCLUSIVE` lock during validation):
 
@@ -129,19 +130,36 @@ ALTER TABLE tos_acceptances DROP CONSTRAINT tos_acceptances_user_id_fkey;
 ALTER TABLE tos_acceptances ADD CONSTRAINT tos_acceptances_user_id_fkey
     FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE RESTRICT NOT VALID;
 ALTER TABLE tos_acceptances VALIDATE CONSTRAINT tos_acceptances_user_id_fkey;
+
+-- user_knowledge (added post-peer-review — see revision note above)
+ALTER TABLE user_knowledge DROP CONSTRAINT user_knowledge_user_id_fkey;
+ALTER TABLE user_knowledge ADD CONSTRAINT user_knowledge_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE RESTRICT NOT VALID;
+ALTER TABLE user_knowledge VALIDATE CONSTRAINT user_knowledge_user_id_fkey;
+
+-- conversations (added post-peer-review — defined in the legacy supabase_migration.sql,
+-- not the primary migrations/ series; confirm the table actually exists in production
+-- before including this statement in the real migration file, per
+-- SEC031_PRODUCTION_ASSUMPTIONS.md's new item on this table)
+ALTER TABLE conversations DROP CONSTRAINT conversations_user_id_fkey;
+ALTER TABLE conversations ADD CONSTRAINT conversations_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE RESTRICT NOT VALID;
+ALTER TABLE conversations VALIDATE CONSTRAINT conversations_user_id_fkey;
 ```
 
 ---
 
 ## 3. Expected locks
 
-| Step | Lock | Duration |
-|---|---|---|
-| `DROP CONSTRAINT` | `ACCESS EXCLUSIVE` on the child table | Near-instant — metadata only, no row scan |
-| `ADD CONSTRAINT ... NOT VALID` | `ACCESS EXCLUSIVE` on the child table | Near-instant — `NOT VALID` skips the existing-row check at add time |
-| `VALIDATE CONSTRAINT` | `SHARE UPDATE EXCLUSIVE` on the child table | Proportional to table row count — does **not** block concurrent reads or writes, only blocks other DDL on the same table |
+| Step | Lock on child table | Lock on `auth.users` | Duration |
+|---|---|---|---|
+| `DROP CONSTRAINT` | `ACCESS EXCLUSIVE` | `ShareRowExclusiveLock` (removes the RI trigger on the referenced table) | Near-instant — metadata only, no row scan |
+| `ADD CONSTRAINT ... NOT VALID` | `ACCESS EXCLUSIVE` | `ShareRowExclusiveLock` (installs the RI trigger on the referenced table) | Near-instant — `NOT VALID` skips the existing-row check at add time |
+| `VALIDATE CONSTRAINT` | `SHARE UPDATE EXCLUSIVE` | None | Proportional to table row count — does **not** block concurrent reads or writes, only blocks other DDL on the same table |
 
-No step takes any lock on `auth.users` itself (the lock is always on the table declaring the FK, i.e. the child). **`NOT VERIFIED` against this project's actual production row counts** (`SEC031_PRODUCTION_ASSUMPTIONS.md` item 6) — expected to be sub-second for all 17 constraints given typical early-stage SaaS table sizes, but not measured.
+**Correction (post-peer-review): the original version of this document claimed no lock is taken on `auth.users`. That was wrong.** `DROP`/`ADD CONSTRAINT` for a FK referencing `auth.users(id)` installs or removes a referential-integrity trigger on the **referenced** table — `auth.users` — which takes a `ShareRowExclusiveLock` on it, not just on the child table declaring the FK. `ShareRowExclusiveLock` conflicts with ordinary `ROW EXCLUSIVE` locks, meaning **`auth.users` INSERT/UPDATE/DELETE (i.e., new signups, logins that touch `auth.users`, Supabase Auth's own internal writes) can briefly queue** behind this migration. `VALIDATE CONSTRAINT` itself does not re-lock `auth.users` — only the `DROP`/`ADD` steps do, and each is near-instant, but if all 19 constraints run in a single transaction (as originally proposed), the cumulative lock on `auth.users` is held from the first `ADD CONSTRAINT` until `COMMIT` — not indefinitely, but for the full duration of the transaction, not just each individual statement.
+
+**Revised recommendation**: split Tier A into 2-3 smaller transactions (e.g., by table group) rather than one, specifically to bound how long `auth.users` is write-locked at any single point, and schedule the whole operation during a genuinely low-traffic window — now for the correct, verified reason, not the original (incorrect) "no lock on auth.users at all" reasoning. **`NOT VERIFIED` against this project's actual production row counts** (`SEC031_PRODUCTION_ASSUMPTIONS.md` item 6) — expected to be sub-second per constraint given typical early-stage SaaS table sizes, but not measured; the `auth.users` lock duration in particular is worth measuring on staging before a production run, since it's the one part of this migration that touches a table outside this project's own schema control.
 
 ---
 
@@ -155,7 +173,7 @@ ALTER TABLE predmeti ADD CONSTRAINT predmeti_user_id_fkey
     FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE NOT VALID;
 ALTER TABLE predmeti VALIDATE CONSTRAINT predmeti_user_id_fkey;
 
--- ... identical pattern repeated for all 17 constraints listed in §2,
+-- ... identical pattern repeated for all 19 constraints listed in §2,
 -- substituting ON DELETE CASCADE for ON DELETE RESTRICT.
 ```
 

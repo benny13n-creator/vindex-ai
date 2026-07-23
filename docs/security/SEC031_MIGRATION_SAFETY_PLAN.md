@@ -1,7 +1,8 @@
 # SEC-031 — Migration Safety Plan (Phase 1: Safety Lock)
 
-**Date:** 2026-07-23
+**Date:** 2026-07-23 (revised same day after independent peer review — see `SEC031_PEER_REVIEW_CONSENSUS.md`)
 **Status:** Plan only. **No schema modified by this document — no migration file has been written or run.** This is deliverable #4 in the SEC-031 chain (`SEC031_IMPACT_ANALYSIS.md` → `SEC031_REMEDIATION_DESIGN.md` → this plan →, only after founder sign-off, an actual migration).
+**Revision note:** an independent peer review found two tables missing from the original Tier A list (`user_knowledge`, `conversations`) and a lock-analysis error in the companion dry-run document. Both are corrected below; see `SEC031_PEER_REVIEW_CONSENSUS.md` for the full consensus/conflict record.
 **Scope boundary set by founder:** Phase 1 (this plan) is a **safety lock against catastrophic accidental deletion** — it is explicitly *not* the lifecycle architecture (`SEC031_REMEDIATION_DESIGN.md`), which stays deferred until SEC-002's retention-duration questions are legally confirmed. The two phases do not block each other: Phase 1 can and should proceed now; Phase 2 (lifecycle) waits.
 
 ---
@@ -38,8 +39,15 @@ These are sufficient on their own, per §0's transaction semantics, to make any 
 | `rocista` | `user_id` | Legal (court hearings) | CASCADE | **RESTRICT** |
 | `smart_contract_analyses` | `user_id` | Legal/compliance | CASCADE | **RESTRICT** |
 | `tos_acceptances` | `user_id` | Consent/audit — see note below | CASCADE | **RESTRICT** |
+| `user_knowledge` | `user_id` | Legal (lawyer's personal notes/positions/references) | CASCADE | **RESTRICT** |
+| `conversations` | `user_id` | Legal-adjacent (chat/Q&A history) — see note below | CASCADE | **RESTRICT** |
 
-**16 tables, 17 constraints.** `tos_acceptances` is included even though it's not "legal case" or "financial" in the usual sense: it is evidence that a user actually accepted the Terms of Service at a given time — the same reasoning that keeps `audit_immutable` permanent applies here at a smaller scale (a consent record that can vanish is a consent record that can't later be proven). Flagging this reasoning explicitly since it's a judgment call, not a mechanical categorization.
+**18 tables, 19 constraints** (`predmet_delegiranja` contributes 2 of them). Revised from the original 16/17 after peer review found two gaps:
+
+- **`user_knowledge`** (`migrations/053_orphaned_inline_schemas.sql:47`) was in the impact analysis's own "Legal matter data" set but was left off Tier A by mistake — its `predmet_id` has no FK to `predmeti` at all, so it had no transitive protection either. Confirmed live and actively used (`routers/knowledge_base.py`), not dead code.
+- **`conversations`** (`supabase_migration.sql:81`) was missed entirely in the original analysis because it's defined in a root-level legacy schema file that wasn't part of the original extraction scope. It's confirmed **not written to by any current application code** (chat/Q&A persistence moved to `predmet_istorija`, already Tier A), so this addition is likely protecting a dead table — but whether it holds real historical rows in production is unverified (added to `SEC031_PRODUCTION_ASSUMPTIONS.md`), and given this project's own standard throughout SEC-031 ("don't assume, verify, and err toward protecting rather than assuming irrelevance"), it's included rather than silently dropped.
+
+`tos_acceptances` is included even though it's not "legal case" or "financial" in the usual sense: it is evidence that a user actually accepted the Terms of Service at a given time — the same reasoning that keeps `audit_immutable` permanent applies here at a smaller scale (a consent record that can vanish is a consent record that can't later be proven). Flagging this reasoning explicitly since it's a judgment call, not a mechanical categorization.
 
 ### Tier B — Recommended, but a related and distinct finding from SEC-031's original scope
 
@@ -63,7 +71,7 @@ These are sufficient on their own, per §0's transaction semantics, to make any 
 
 ### Explicitly left as CASCADE — no change recommended
 
-Operational, session, log, notification, and template tables: `user_roles`, `sef_podesavanja`, `recurring_templates`, `email_log`, `usage_events`, `notifications`, `korisnik_sms_profil`, `korisnik_plan`, `korisnik_usage`, `onboarding_email_log`, `apr_lookup_log`, `korisnik_viber_profil`, `notification_log`, `support_tickets`, `cio_dnevni_izvestaj`, `twin_simulacije`, `onboarding_state`, `user_knowledge`, `simulator_partije`, `whatsapp_pretplate`, `whatsapp_send_log`, `aktivne_sesije`, `portal_status_log`, `user_credits`, `predmet_health_log`. None of these hold irreplaceable legal or financial source data; per §0, locking them provides no additional protection once the Tier A tables are RESTRICT (the transaction fails before reaching them anyway, for any account that matters) while narrowing them further would only add operational friction for the rare account that has nothing but disposable data.
+Operational, session, log, notification, and template tables: `user_roles`, `sef_podesavanja`, `recurring_templates`, `email_log`, `usage_events`, `notifications`, `korisnik_sms_profil`, `korisnik_plan`, `korisnik_usage`, `onboarding_email_log`, `apr_lookup_log`, `korisnik_viber_profil`, `notification_log`, `support_tickets`, `cio_dnevni_izvestaj`, `twin_simulacije`, `onboarding_state`, `simulator_partije`, `whatsapp_pretplate`, `whatsapp_send_log`, `aktivne_sesije`, `portal_status_log`, `user_credits`, `predmet_health_log`. None of these hold irreplaceable legal or financial source data; per §0, locking them provides no additional protection once the Tier A tables are RESTRICT (the transaction fails before reaching them anyway, for any account that matters) while narrowing them further would only add operational friction for the rare account that has nothing but disposable data. (`user_knowledge` moved to Tier A after peer review — see §1 above — no longer in this list.)
 
 ### A separate, adjacent finding surfaced while building this plan — `klijenti` has no FK to `auth.users` at all
 
@@ -75,7 +83,7 @@ Operational, session, log, notification, and template tables: `user_roles`, `sef
 
 | Category | Tables | Phase 1 treatment |
 |---|---|---|
-| **Legal records** | `predmeti`, `predmet_dokumenti`, `predmet_hronologija`, `predmet_beleske`, `predmet_istorija`, `predmet_komentari`, `predmet_klijenti`, `predmet_dokazi`, `predmet_delegiranja`, `praceni_predmeti`, `rocista`, `smart_contract_analyses` | Tier A/B — RESTRICT |
+| **Legal records** | `predmeti`, `predmet_dokumenti`, `predmet_hronologija`, `predmet_beleske`, `predmet_istorija`, `predmet_komentari`, `predmet_klijenti`, `predmet_dokazi`, `predmet_delegiranja`, `praceni_predmeti`, `rocista`, `smart_contract_analyses`, `user_knowledge`, `conversations` | Tier A/B — RESTRICT |
 | **Financial records** | `fakture`, `billing_entries`, `timer_sessions`, `tarife`, `tarifne_stavke_custom`, `sef_log` | Tier A/B — RESTRICT |
 | **User profile data** | `profiles`, `user_roles`, `korisnik_sms_profil`, `korisnik_viber_profil`, `whatsapp_pretplate`, `tos_acceptances` | `profiles` stays CASCADE (deleting the identity record on account closure is the *intended* effect, not a risk — nothing else references `profiles` directly, everything else references `auth.users`); `tos_acceptances` moves to RESTRICT as consent evidence (Tier A); the rest stay CASCADE |
 | **Operational data** | `usage_events`, `korisnik_plan`, `korisnik_usage`, `cio_dnevni_izvestaj`, `apr_lookup_log`, `aktivne_sesije`, `support_tickets`, `onboarding_state`, `user_knowledge`, `twin_simulacije`, `simulator_partije`, `sef_podesavanja`, `recurring_templates`, `predmet_health_log`, `user_credits` | Stay CASCADE |
@@ -90,7 +98,7 @@ Postgres has no `ALTER CONSTRAINT ... ON DELETE` form — changing a delete acti
 
 ### Order
 1. **No cross-table ordering dependency exists** — each constraint change is independent (they don't reference each other), so there is no correctness-driven sequence requirement. Recommend, for operational clarity rather than correctness: Tier A first (auth.users-level, the actual SEC-031 fix), Tier B second (predmeti/klijenti-level, the adjacent hardening), as two separate migration files/commits — so Tier A can be deployed and verified independently even if Tier B needs more review time.
-2. Within Tier A, no sub-ordering is required — all 17 constraints can be changed in a single transaction.
+2. Within Tier A, no sub-ordering is required — all 19 constraints can, in principle, be changed in a single transaction. **Revised recommendation after peer review**: since each constraint touching `auth.users` briefly takes a `ShareRowExclusiveLock` on `auth.users` itself (not just the child table — see corrected lock analysis in `SEC031_MIGRATION_DRY_RUN.md` §3), consider splitting Tier A into 2-3 smaller transactions rather than one, purely to minimize how long `auth.users` (and therefore signup/login) is write-locked at any one time. This is a deployment refinement, not a change to which constraints are needed.
 3. Run during a low-traffic window out of caution for lock acquisition, even though the expected lock duration is short — standard practice for any `ACCESS EXCLUSIVE`-taking DDL, `NOT VERIFIED` as strictly necessary at this table size but costs nothing to schedule conservatively.
 
 ### Dependency risk assessment (checked directly, not assumed)
@@ -130,7 +138,7 @@ All six should be written as explicit, isolated regression tests (matching the d
 ## Recommendation summary
 
 1. Phase 1 (this plan, Tier A minimum, Tier B recommended) is independent of and does not need to wait for SEC-002's retention-duration legal questions — it answers "can an accidental delete destroy legal data" (no legal judgment required), not "how long must we keep it" (which does).
-2. 16 tables / 17 constraints (Tier A) are sufficient to close SEC-031 as scoped, due to Postgres's atomic-transaction FK-check behavior (§0) — not a large migration.
+2. 18 tables / 19 constraints (Tier A, revised after peer review) are sufficient to close SEC-031 as scoped, due to Postgres's atomic-transaction FK-check behavior (§0) — still not a large migration.
 3. Zero known application dependency on the current CASCADE behavior — checked directly (codebase grep, test suite grep), not assumed.
 4. Fully reversible — constraint-metadata-only change, no data touched in either direction.
 5. `klijenti`'s missing FK is a related but separate, smaller finding (`SEC-033`) worth its own Gap Register row, not in this plan's scope.
