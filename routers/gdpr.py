@@ -221,6 +221,9 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
 
     return {
         "ok": True,
-        "poruka": "Vaš nalog je anonimizovan. Lični podaci su obrisani iz profila.",
-        "napomena": "Predmeti i dokumenti ostaju u sistemu u anonimizovanom obliku zbog zakonskih obaveza čuvanja."
+        "poruka": "Vaš korisnički nalog je anonimizovan — email i ime uklonjeni su iz profila.",
+        "napomena": (
+            "Predmeti, klijenti i dokumenti nisu anonimizovani ovim postupkom i zadržavaju se "
+            "u skladu sa zakonskom obavezom advokata da čuva spise predmeta (Zakon o advokaturi)."
+        ),
     }

@@ -117,7 +117,8 @@
 <h2>Rokovi čuvanja podataka</h2>
 <table>
   <tr><th>Kategorija podataka</th><th>Rok čuvanja</th><th>Osnov</th></tr>
-  <tr><td>Predmeti i dokumenti</td><td>Brisanje iz produkcione baze: max 30 dana od zahteva.<br>Šifrovane backup kopije: do isteka backup ciklusa (max 30 dana), nakon čega se trajno uklanjaju.<br><small style="color:#64748b;">Obrazloženje: 90-dnevni period od brisanja naloga (produkcija + backup ciklus) daje razuman period za oporavak od slučajnog brisanja uz ograničavanje neaktivne obrade na minimum.</small></td><td>Ugovor</td></tr>
+  <tr><td>Nalog (email, ime)</td><td>Anonimizacija odmah po odobrenom zahtevu za brisanje naloga.</td><td>Ugovor / čl. 17 GDPR</td></tr>
+  <tr><td>Predmeti, klijenti i dokumenti</td><td>Zadržavaju se nepromenjeni nakon brisanja naloga, u skladu sa zakonskom obavezom advokata da čuva spise predmeta. Ne brišu se automatski povodom zahteva za brisanje naloga.<br><small style="color:#64748b;">Obrazloženje: obaveza čuvanja advokatskih spisa (Zakon o advokaturi) postoji nezavisno od statusa korisničkog naloga u Platformi. Brisanje ovih podataka mimo zakonskog roka zahteva poseban, dokumentovan zahtev na privacy@vindex.ai.</small></td><td>Zakon o advokaturi / legitimni interes čuvanja poslovne evidencije</td></tr>
   <tr><td>Embeddings (Pinecone)</td><td>Dok je nalog aktivan</td><td>Ugovor</td></tr>
   <tr><td>AI upiti (OpenAI)</td><td>Max 30 dana</td><td>OpenAI politika</td></tr>
   <tr><td>Fakturisanje i računovodstvo</td><td>10 godina</td><td>Zakon o računovodstvu</td></tr>
@@ -146,8 +147,8 @@
 <ul>
   <li><strong>Pravo na pristup (čl. 26 ZZPL / čl. 15 GDPR):</strong> Uvid u podatke koji se o vama obrađuju</li>
   <li><strong>Pravo na ispravku (čl. 29 ZZPL / čl. 16 GDPR):</strong> Ispravka netačnih podataka</li>
-  <li><strong>Pravo na brisanje (čl. 30 ZZPL / čl. 17 GDPR):</strong> Brisanje naloga i svih podataka u roku od 30 dana</li>
-  <li><strong>Pravo na prenosivost (čl. 36 ZZPL / čl. 20 GDPR):</strong> Export podataka u mašinski čitljivom formatu (JSON/CSV)</li>
+  <li><strong>Pravo na brisanje (čl. 30 ZZPL / čl. 17 GDPR):</strong> Na zahtev, identifikacioni podaci naloga (email, ime) se odmah anonimizuju. Predmeti, klijenti i dokumenti se zadržavaju u skladu sa zakonskom obavezom advokata da čuva spise predmeta — njihovo brisanje se rešava posebnim, dokumentovanim zahtevom</li>
+  <li><strong>Pravo na prenosivost (čl. 36 ZZPL / čl. 20 GDPR):</strong> Export podataka u mašinski čitljivom formatu (JSON), samouslužno putem dugmeta "Export podataka" u podešavanjima. Originalni fajlovi dokumenata dostavljaju se na poseban zahtev na privacy@vindex.ai</li>
   <li><strong>Pravo na prigovor (čl. 37 ZZPL / čl. 21 GDPR):</strong> Prigovor na obradu zasnovanu na legitimnom interesu</li>
   <li><strong>Pravo na povlačenje saglasnosti:</strong> U svakom trenutku, bez uticaja na zakonitost prethodne obrade</li>
 </ul>

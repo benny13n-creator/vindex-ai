@@ -219,7 +219,8 @@
 <h2>11. Politika čuvanja podataka</h2>
 <table>
   <tr><th>Vrsta podataka</th><th>Period čuvanja</th><th>Osnov brisanja</th></tr>
-  <tr><td>Predmeti i klijenti</td><td>Do zahteva za brisanje</td><td>ZZPL čl. 29</td></tr>
+  <tr><td>Nalog (email, ime korisnika)</td><td>Do zahteva za brisanje, zatim anonimizacija</td><td>ZZPL čl. 29</td></tr>
+  <tr><td>Predmeti, klijenti, dokumenti</td><td>Zadržavaju se i posle brisanja naloga — vidi §14.1</td><td>Zakon o advokaturi (obaveza čuvanja spisa)</td></tr>
   <tr><td>Billing zapisi</td><td>7 godina</td><td>Zakon o računovodstvu</td></tr>
   <tr><td>AI Q&A istorija</td><td>2 godine</td><td>Korisnost sistema</td></tr>
   <tr><td>Audit logovi</td><td>90 dana</td><td>Operativna bezbednost</td></tr>
@@ -265,29 +266,35 @@
 <h2>14. Procedura brisanja i izvoza podataka</h2>
 <h3>14.1 Procedura brisanja naloga (GDPR čl. 17)</h3>
 <ol>
-  <li>Korisnik podnosi zahtev na: privacy@vindex.ai ili putem opcije "Izbriši nalog" u podešavanjima</li>
-  <li>Verifikacija identiteta (email potvrda)</li>
-  <li>U roku od 30 dana: brisanje svih predmeta, klijenata, dokumenata, embeddings (Pinecone), korisničkog naloga</li>
-  <li>Izuzeci koji se čuvaju duže: billing zapisi (zakonska obaveza — Zakon o računovodstvu, 10 godina), anonimizovani audit logovi koji ne sadrže poslovni sadržaj</li>
-  <li>Potvrda brisanja šalje se na email korisnika</li>
+  <li>Endpoint <code>DELETE /api/gdpr/account</code> postoji i izvršava anonimizaciju odmah po pozivu, ali trenutno <strong>nije izložen kao samouslužno dugme</strong> u podešavanjima platforme — jedini put je zahtev na privacy@vindex.ai (ili direktan autentifikovan API poziv za tehničke/integracione korisnike)</li>
+  <li>Verifikacija identiteta (email potvrda pošiljaoca zahteva)</li>
+  <li><strong>Po odobrenju zahteva, izvršenje je trenutno (bez čekanja u redu):</strong> identifikacioni podaci naloga (email, ime) se anonimizuju (npr. <code>deleted_xxxxxxxx@deleted.vindex.rs</code>); email notifikacije se deaktiviraju; radnja se upisuje u nepromenjivi audit log</li>
+  <li><strong>Zadržava se nepromenjeno:</strong> predmeti, klijenti i dokumenti povezani sa nalogom — u skladu sa zakonskom obavezom advokata da čuva spise predmeta. Ovi podaci ostaju zaštićeni istim merama enkripcije i kontrole pristupa kao i ranije, ali se ne brišu automatski povodom brisanja naloga</li>
+  <li>Ako korisnik želi i brisanje poslovnih podataka (predmeta/dokumenata) mimo zakonskog roka čuvanja, to se rešava posebnim, pisanim zahtevom na privacy@vindex.ai uz procenu zakonskih obaveza čuvanja pre izvršenja</li>
+  <li>Izuzeci koji se uvek čuvaju duže: billing zapisi (Zakon o računovodstvu, 10 godina), anonimizovani audit logovi</li>
+  <li>Potvrda anonimizacije šalje se na email korisnika</li>
 </ol>
 <h3>14.2 Procedura izvoza podataka (GDPR čl. 20)</h3>
 <ol>
-  <li><strong>Verifikacija identiteta:</strong> Zahtev se pokreće isključivo dok je korisnik prijavljen sa verifikovanim JWT tokenom; za zahteve putem email-a šalje se verifikacioni link na registrovanu adresu pre generisanja arhive</li>
-  <li>Generiše se ZIP arhiva sa: svim predmetima (JSON), svim klijentima (JSON/CSV), svim dokumentima (originalni fajlovi), billing istorijom (CSV)</li>
-  <li><strong>Link za preuzimanje:</strong> Jednokratan (one-time), važi 24 sata, zatim se automatski briše zajedno sa arhivom</li>
-  <li><strong>Zaštita arhive:</strong> ZIP download je dostupan samo autentifikovanom korisniku putem potpisanog URL-a (Supabase Storage signed URL) — nije javno dostupan</li>
-  <li>Alternativno: zahtev na privacy@vindex.ai uz email verifikaciju, odgovor u roku od 30 dana</li>
+  <li><strong>Pristup:</strong> Dugme "Export podataka" u podešavanjima platforme, dostupno isključivo prijavljenom korisniku sa važećim JWT tokenom (<code>GET /api/export/complete</code>)</li>
+  <li><strong>Generisanje:</strong> ZIP arhiva se generiše na zahtev i vraća direktno u istom HTTP odgovoru (streaming) — nema međukoraka čuvanja na serveru niti slanja linka</li>
+  <li><strong>Sadržaj arhive (JSON fajlovi):</strong> predmeti, klijenti, billing stavke, metapodaci dokumenata, beleške, ročišta, hronologija, komentari</li>
+  <li><strong>Nije uključeno:</strong> originalni fajlovi dokumenata (PDF/DOCX) — arhiva sadrži samo njihove metapodatke. Fajlovi se dostavljaju na poseban zahtev na support@vindex.ai</li>
+  <li><strong>Audit:</strong> Svaki kompletan izvoz upisuje se u nepromenjivi audit log (user_id, vreme, format)</li>
+  <li>Dodatno je dostupan i lakši JSON izvoz osnovnih podataka o nalogu putem <code>GET /api/gdpr/export</code> (profil, tarifa, sažetak predmeta, billing, aktivnost) — ograničen na 5 zahteva/min</li>
+  <li>Alternativno, uključujući originalne fajlove dokumenata: zahtev na privacy@vindex.ai uz email verifikaciju, odgovor u roku od 30 dana</li>
 </ol>
-<h3>14.3 Brisanje podataka: produkcija vs. backup</h3>
+<h3>14.3 Šta se dešava sa podacima po brisanju naloga</h3>
 <table>
-  <tr><th>Sloj</th><th>Rok brisanja</th><th>Napomena</th></tr>
-  <tr><td>Produkciona baza (Supabase PostgreSQL)</td><td>Max 30 dana od zahteva</td><td>Hard delete, ne soft delete</td></tr>
-  <tr><td>Storage fajlovi (Supabase S3)</td><td>Max 30 dana od zahteva</td><td>S3 object deletion</td></tr>
-  <tr><td>Pinecone embeddings</td><td>Max 30 dana od zahteva</td><td>Namespace delete po user_id</td></tr>
-  <tr><td>Šifrovane backup kopije</td><td>Do isteka backup ciklusa (max 30 dana od poslednjeg backupa)</td><td>Brišu se automatski po Supabase rolling backup politici; nisu dostupne bez Supabase infrastrukturnog pristupa</td></tr>
-  <tr><td>Aplikacioni logovi (Render.com)</td><td>90 dana od nastanka, automatski</td><td>Sadrže metapodatke (user_id, path, status), ne sadržaj predmeta</td></tr>
+  <tr><th>Kategorija</th><th>Radnja</th><th>Rok</th></tr>
+  <tr><td>Nalog (email, ime)</td><td>Anonimizacija</td><td>Odmah po odobrenom zahtevu</td></tr>
+  <tr><td>Predmeti, klijenti, dokumenti</td><td>Zadržavaju se nepromenjeni (zakonska obaveza čuvanja spisa)</td><td>Do posebnog, dokumentovanog zahteva i pravne procene</td></tr>
+  <tr><td>Pinecone embeddings vezani za predmete</td><td>Zadržavaju se dok su predmeti aktivni u bazi</td><td>Prati status predmeta, ne nalog</td></tr>
+  <tr><td>Privremeni AI upload namespace-i (tmp_*)</td><td>Automatsko brisanje po isteku (nezavisno od statusa naloga)</td><td>Definisano vreme isteka po sesiji</td></tr>
+  <tr><td>Šifrovane backup kopije baze</td><td>Rotiraju se po rolling backup politici; anonimizovan nalog se odražava u sledećem backup ciklusu</td><td>Max 30 dana</td></tr>
+  <tr><td>Aplikacioni logovi (Render.com)</td><td>Automatsko brisanje</td><td>90 dana od nastanka</td></tr>
 </table>
+<p style="font-size:.85rem;color:#64748b;">Napomena: trajno brisanje predmeta, klijenata i dokumenata (nezavisno od zakonskog roka čuvanja) nije samouslužna (self-service) funkcija — zahteva poseban zahtev i pravnu procenu, jer advokatska obaveza čuvanja spisa ne prestaje gašenjem korisničkog naloga u Platformi.</p>
 
 <h2>15. Upravljanje ključevima enkripcije</h2>
 <table>
