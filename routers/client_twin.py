@@ -26,11 +26,12 @@ import logging
 import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
+from shared.rate import limiter
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.client_twin")
@@ -133,7 +134,8 @@ async def _get_klijent_materijali(supa, klijent_id: str, user_id: str) -> dict:
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/{klijent_id}/analiziraj")
-async def analiziraj_komunikacioni_profil(klijent_id: str, user=Depends(PermissionService.require("client_twin"))):
+@limiter.limit("10/minute")
+async def analiziraj_komunikacioni_profil(request: Request, klijent_id: str, user=Depends(PermissionService.require("client_twin"))):
     """Gradi komunikacioni profil klijenta iz istorije predmeta i beleska."""
     supa = _get_supa()
     try:
@@ -225,7 +227,8 @@ async def analiziraj_komunikacioni_profil(klijent_id: str, user=Depends(Permissi
 
 
 @router.get("/dashboard")
-async def twin_dashboard(user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def twin_dashboard(request: Request, user=Depends(get_current_user)):
     """Svi komunikacioni profili, sortirani po datumu azuriranja."""
     supa = _get_supa()
     try:
@@ -258,7 +261,8 @@ async def twin_dashboard(user=Depends(get_current_user)):
 
 
 @router.get("/{klijent_id}")
-async def get_komunikacioni_profil(klijent_id: str, user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_komunikacioni_profil(request: Request, klijent_id: str, user=Depends(get_current_user)):
     """Preuzima komunikacioni profil klijenta."""
     supa = _get_supa()
     try:
@@ -286,7 +290,8 @@ async def get_komunikacioni_profil(klijent_id: str, user=Depends(get_current_use
 
 
 @router.patch("/{klijent_id}")
-async def rucno_azuriraj_profil(klijent_id: str, body: RucnoAzuriranjeRequest, user=Depends(get_current_user)):
+@limiter.limit("20/minute")
+async def rucno_azuriraj_profil(request: Request, klijent_id: str, body: RucnoAzuriranjeRequest, user=Depends(get_current_user)):
     """Rucno azurira specificne preferencije (override AI analize)."""
     supa = _get_supa()
     try:
@@ -324,7 +329,8 @@ async def rucno_azuriraj_profil(klijent_id: str, body: RucnoAzuriranjeRequest, u
 
 
 @router.get("/{klijent_id}/savet")
-async def get_savet_za_kontakt(klijent_id: str, user=Depends(PermissionService.require("client_twin"))):
+@limiter.limit("10/minute")
+async def get_savet_za_kontakt(request: Request, klijent_id: str, user=Depends(PermissionService.require("client_twin"))):
     """Konkretne preporuke za sledeci kontakt sa klijentom na osnovu komunikacionog profila.
 
     Ne poziva AI direktno (izvodi se deterministicki iz vec sacuvanog twin_profil-a) —

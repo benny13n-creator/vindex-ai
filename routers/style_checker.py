@@ -21,7 +21,7 @@ import logging
 import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
@@ -87,7 +87,8 @@ class AnalizujRequest(BaseModel):
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/profil/gradi")
-async def gradi_stil_profil(body: GradiProfilRequest, user=Depends(PermissionService.require("style_checker"))):
+@limiter.limit("10/minute")
+async def gradi_stil_profil(request: Request, body: GradiProfilRequest, user=Depends(PermissionService.require("style_checker"))):
     """Gradi firminski stil profil iz uzoraka dokumenata (min 1, preporučeno 5+)."""
     try:
         import openai
@@ -141,7 +142,8 @@ async def gradi_stil_profil(body: GradiProfilRequest, user=Depends(PermissionSer
 
 
 @router.get("/profil")
-async def get_stil_profil(user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_stil_profil(request: Request, user=Depends(get_current_user)):
     """Preuzima aktuelni firminski stil profil."""
     supa = _get_supa()
     try:
@@ -162,7 +164,8 @@ async def get_stil_profil(user=Depends(get_current_user)):
 
 
 @router.post("/analiziraj")
-async def analiziraj_stil(body: AnalizujRequest, user=Depends(PermissionService.require("style_checker"))):
+@limiter.limit("10/minute")
+async def analiziraj_stil(request: Request, body: AnalizujRequest, user=Depends(PermissionService.require("style_checker"))):
     """Analizira dokument prema firmskom stilu. Vraca skor (0-100) i konkretne predloge."""
     supa = _get_supa()
     try:
@@ -240,7 +243,8 @@ async def analiziraj_stil(body: AnalizujRequest, user=Depends(PermissionService.
 
 
 @router.get("/analize")
-async def get_style_analize(limit: int = 20, predmet_id: Optional[str] = None, user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_style_analize(request: Request, limit: int = 20, predmet_id: Optional[str] = None, user=Depends(get_current_user)):
     """Istorija style analiza za korisnika."""
     supa = _get_supa()
     try:
@@ -260,7 +264,8 @@ async def get_style_analize(limit: int = 20, predmet_id: Optional[str] = None, u
 
 
 @router.get("/analize/{analiza_id}")
-async def get_style_analiza(analiza_id: str, user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_style_analiza(request: Request, analiza_id: str, user=Depends(get_current_user)):
     """Detalji jedne style analize."""
     supa = _get_supa()
     try:
@@ -282,7 +287,8 @@ async def get_style_analiza(analiza_id: str, user=Depends(get_current_user)):
 
 
 @router.delete("/profil")
-async def obrisi_stil_profil(user=Depends(get_current_user)):
+@limiter.limit("20/minute")
+async def obrisi_stil_profil(request: Request, user=Depends(get_current_user)):
     """Brise aktivni firminski profil (reset za izgradnju novog)."""
     supa = _get_supa()
     try:
@@ -328,7 +334,8 @@ Samo JSON. Srpski jezik. Budi konkretan, ne apstraktan."""
 
 
 @router.get("/evolucija")
-async def get_style_evolucija(user=Depends(PermissionService.require("style_checker"))):
+@limiter.limit("20/minute")
+async def get_style_evolucija(request: Request, user=Depends(PermissionService.require("style_checker"))):
     """Style Evolution: kako se stil firme menjao kroz vreme.
 
     Poredi sve istorijske profile i identifikuje trendove:

@@ -18,10 +18,11 @@ import os
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
+from shared.rate import limiter
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.cio")
@@ -307,7 +308,8 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/daily")
-async def cio_daily(user=Depends(PermissionService.require("cio"))):
+@limiter.limit("30/minute")
+async def cio_daily(request: Request, user=Depends(PermissionService.require("cio"))):
     """Vraca dnevni CIO izvestaj. Generise se jednom i kesira 6 sati."""
     uid  = user["user_id"]
     supa = _get_supa()
@@ -372,7 +374,8 @@ async def cio_daily(user=Depends(PermissionService.require("cio"))):
 
 
 @router.post("/run")
-async def cio_run(user=Depends(PermissionService.require("cio"))):
+@limiter.limit("10/minute")
+async def cio_run(request: Request, user=Depends(PermissionService.require("cio"))):
     """Forsira regenerisanje CIO izvestaja — ignoriše kes."""
     uid  = user["user_id"]
     supa = _get_supa()
@@ -409,7 +412,8 @@ async def cio_run(user=Depends(PermissionService.require("cio"))):
 
 
 @router.get("/history")
-async def cio_history(user=Depends(get_current_user), limit: int = 7):
+@limiter.limit("30/minute")
+async def cio_history(request: Request, user=Depends(get_current_user), limit: int = 7):
     """Poslednjih N dana CIO izvestaja."""
     uid  = user["user_id"]
     supa = _get_supa()

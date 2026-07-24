@@ -59,10 +59,11 @@ def _get_real_ip(request: Request) -> str:
 def build_limiter(key_func: Callable[[Request], str], default_limits: list[str] | None = None) -> Limiter:
     """
     Fabrika koja gradi identično konfigurisan Limiter za api.py i za
-    shared.rate — dve odvojene Limiter instance postoje u ovom kodu (pre-
-    postojeća činjenica, ne ovaj fix; api.py definiše svoju sopstvenu, ne
-    uvozi ovu) i obe treba da dobiju istu Redis+fail-open konfiguraciju bez
-    duplirane logike.
+    shared.rate — dve odvojene Limiter instance i dalje postoje u ovom kodu
+    (api.py poziva `build_limiter(_get_real_ip)` da napravi svoju, umesto da
+    uvozi `limiter` odavde direktno — arhitektonska duplikacija, poznata,
+    van obima SEC-005; obe sad koriste isti `_get_real_ip` key_func i istu
+    Redis+fail-open konfiguraciju, samo kroz dve odvojene instance).
     """
     limits = default_limits or _DEFAULT_LIMITS
     if _REDIS_URL:

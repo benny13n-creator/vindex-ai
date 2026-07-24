@@ -8,9 +8,10 @@ Analizira sve zatvorene predmete istog tipa i vraća statističke uvide.
 """
 import asyncio
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.deps import _get_supa
 from shared.permissions import PermissionService
+from shared.rate import limiter
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.outcome_intel")
@@ -37,7 +38,8 @@ Budi konkretan sa brojevima. Srpski jezik. Bez generalizacija. Max 200 reči uku
 
 
 @router.get("/predmeti/{predmet_id}")
-async def get_outcome_intel(predmet_id: str, user=Depends(PermissionService.require("outcome_intel"))):
+@limiter.limit("10/minute")
+async def get_outcome_intel(request: Request, predmet_id: str, user=Depends(PermissionService.require("outcome_intel"))):
     supa = _get_supa()
     uid  = user["user_id"]
 

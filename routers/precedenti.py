@@ -7,9 +7,10 @@ i vraća: uspešne argumente, korišćene presude, ishode, strategije.
 """
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
+from shared.rate import limiter
 from shared.usage import UsageService
 
 def get_supa(): return _get_supa()
@@ -34,7 +35,8 @@ Maksimum 500 reči. Srpski jezik."""
 
 
 @router.get("/predmeti/{predmet_id}")
-async def get_precedenti(predmet_id: str, user=Depends(PermissionService.require("precedenti"))):
+@limiter.limit("10/minute")
+async def get_precedenti(request: Request, predmet_id: str, user=Depends(PermissionService.require("precedenti"))):
     """
     Law Firm Brain: pronalazi slične predmete iz kancelarije i vraća naučene lekcije.
     """

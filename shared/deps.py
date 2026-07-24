@@ -155,11 +155,69 @@ def _jwt_alg(token: str) -> str:
         return "HS256"
 
 
+def verify_token_local(token: str) -> Optional[dict]:
+    """
+    Lokalna, kriptografski verifikovana JWT provera — BEZ Supabase SDK network
+    poziva (nasuprot `_verify_token`, koja prvo pokušava `supa.auth.get_user`).
+
+    SEC-005 (2026-07-24): izdvojeno iz `_verify_token`-a da bi moglo da se
+    pozove iz `api.py`'s `user_rate_limit_middleware`-a za per-user rate
+    limit bucketing, bez udvostručavanja mrežnog poziva ka Supabase-u na
+    SVAKI /api/* zahtev (JWKS fetch je keširan 1h u `_get_jwks_key`, pa ni
+    RS256/ES256 grana ne udara mrežu po zahtevu u praksi).
+
+    Signature verifikacija (HS256 sa JWT_SECRET, ili RS256/ES256 preko JWKS)
+    znači da ovo NIJE naivan, nepotvrđen decode — token sa falsifikovanim
+    `sub` claim-om ovde ne prolazi, isto kao ni u `_verify_token`-u. Razlika
+    je samo u tome što ovde nema Supabase-ovog live revocation/session
+    check-a — dovoljno za rate-limit bucketing (koje korisničke pozive
+    grupisati), NE dovoljno za autorizaciju (to i dalje radi isključivo
+    `get_current_user` niže u lancu, na nivou svake zaštićene rute).
+    """
+    if not token:
+        return None
+
+    alg = _jwt_alg(token)
+
+    # HS256 sa JWT_SECRET
+    if alg == "HS256" and SUPABASE_JWT_SECRET:
+        try:
+            payload = jose_jwt.decode(
+                token, SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                options={"verify_aud": False},
+            )
+            if payload.get("sub"):
+                return payload
+        except JWTError as e:
+            logger.debug("verify_token_local: HS256 decode greška: %s", e)
+
+    # ES256/RS256 — dinamičan JWKS fetch sa 1h cache, fallback na hardkod
+    if alg in ("RS256", "ES256"):
+        from jose import jwk as jose_jwk
+        jwk_to_try = _get_jwks_key(alg)
+        if jwk_to_try:
+            try:
+                pub = jose_jwk.construct(jwk_to_try)
+                payload = jose_jwt.decode(
+                    token, pub,
+                    algorithms=[alg],
+                    options={"verify_aud": False},
+                )
+                if payload.get("sub"):
+                    return payload
+                logger.debug("verify_token_local: JWKS decode OK ali nema sub")
+            except JWTError as e:
+                logger.debug("verify_token_local: JWKS decode greška: %s", e)
+
+    return None
+
+
 def _verify_token(token: str) -> Optional[dict]:
     """
     Verifikuje Supabase token:
     1. Supabase Python SDK (get_user) — najrobusnije
-    2. Lokalni JWT decode (HS256 ili RS256 via JWKS)
+    2. Lokalni JWT decode (HS256 ili RS256 via JWKS) — `verify_token_local`
     """
     if not token:
         return None
@@ -178,39 +236,10 @@ def _verify_token(token: str) -> Optional[dict]:
     except Exception as e:
         logger.warning("Supabase SDK get_user neuspešno: %s", e)
 
-    alg = _jwt_alg(token)
-    logger.info("JWT algoritam: %s", alg)
-
-    # Korak 2a: HS256 sa JWT_SECRET
-    if alg == "HS256" and SUPABASE_JWT_SECRET:
-        try:
-            payload = jose_jwt.decode(
-                token, SUPABASE_JWT_SECRET,
-                algorithms=["HS256"],
-                options={"verify_aud": False},
-            )
-            if payload.get("sub"):
-                return payload
-        except JWTError as e:
-            logger.warning("HS256 decode greška: %s", e)
-
-    # Korak 2b: ES256/RS256 — dinamičan JWKS fetch sa 1h cache, fallback na hardkod
-    if alg in ("RS256", "ES256"):
-        from jose import jwk as jose_jwk
-        jwk_to_try = _get_jwks_key(alg)
-        if jwk_to_try:
-            try:
-                pub = jose_jwk.construct(jwk_to_try)
-                payload = jose_jwt.decode(
-                    token, pub,
-                    algorithms=[alg],
-                    options={"verify_aud": False},
-                )
-                if payload.get("sub"):
-                    return payload
-                logger.warning("JWKS decode OK ali nema sub")
-            except JWTError as e:
-                logger.warning("JWKS decode greška: %s", e)
+    # Korak 2: lokalni decode (HS256 ili JWKS)
+    payload = verify_token_local(token)
+    if payload:
+        return payload
 
     logger.warning("_verify_token: svi koraci neuspešni — vraćam None")
     return None

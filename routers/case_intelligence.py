@@ -19,11 +19,12 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
+from shared.rate import limiter
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.case_intelligence")
@@ -298,7 +299,8 @@ def _build_context_text(data: dict) -> str:
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/predmeti/{predmet_id}/briefing")
-async def case_intelligence_briefing(predmet_id: str, user=Depends(PermissionService.require("case_intelligence"))):
+@limiter.limit("10/minute")
+async def case_intelligence_briefing(request: Request, predmet_id: str, user=Depends(PermissionService.require("case_intelligence"))):
     """Sintetizuje sve module u jednu preporuku za predmet.
 
     Ulancava: Lessons Learned → Firm DNA → Knowledge Profile →
@@ -372,7 +374,8 @@ async def case_intelligence_briefing(predmet_id: str, user=Depends(PermissionSer
 
 
 @router.get("/predmeti/{predmet_id}/briefing/poslednji")
-async def get_poslednji_briefing(predmet_id: str, user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_poslednji_briefing(request: Request, predmet_id: str, user=Depends(get_current_user)):
     """Preuzima poslednji sacuvani intelligence briefing za predmet."""
     supa = _get_supa()
     try:

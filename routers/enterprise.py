@@ -35,10 +35,11 @@ import asyncio
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
+from shared.rate import limiter
 
 logger = logging.getLogger("vindex.enterprise")
 router = APIRouter(tags=["enterprise"])
@@ -105,7 +106,8 @@ class DelegiranjeRequest(BaseModel):
 # ── Statistike i kapacitet ─────────────────────────────────────────────────────
 
 @router.get("/api/enterprise/statistike")
-async def firma_statistike(user: dict = Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def firma_statistike(request: Request, user: dict = Depends(get_current_user)):
     """Firma-nivo dashboard statistike."""
     uid = user["user_id"]
     supa = _get_supa()
@@ -163,7 +165,8 @@ async def firma_statistike(user: dict = Depends(get_current_user)):
 
 
 @router.get("/api/enterprise/kapacitet")
-async def firma_kapacitet(user: dict = Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def firma_kapacitet(request: Request, user: dict = Depends(get_current_user)):
     """Pregled zauzetosti advokata u firmi — broj aktivnih predmeta po advokatu."""
     uid = user["user_id"]
     supa = _get_supa()
@@ -207,7 +210,9 @@ async def firma_kapacitet(user: dict = Depends(get_current_user)):
 # ── Delegiranje predmeta ───────────────────────────────────────────────────────
 
 @router.post("/api/enterprise/predmet/delegiraj")
+@limiter.limit("20/minute")
 async def delegiraj_predmet(
+    request: Request,
     payload: DelegiranjeRequest,
     user: dict = Depends(get_current_user),
 ):
@@ -244,7 +249,8 @@ async def delegiraj_predmet(
 
 
 @router.get("/api/enterprise/predmet/delegiranja")
-async def get_delegiranja(user: dict = Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_delegiranja(request: Request, user: dict = Depends(get_current_user)):
     """Lista predmeta delegiranih od/ka korisniku."""
     uid = user["user_id"]
     supa = _get_supa()

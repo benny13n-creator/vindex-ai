@@ -24,11 +24,12 @@ import logging
 import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
+from shared.rate import limiter
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.knowledge_transfer")
@@ -115,7 +116,8 @@ class UpdateProfilRequest(BaseModel):
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/profili", status_code=201)
-async def kreiraj_profil(body: KreirajProfilRequest, user=Depends(get_current_user)):
+@limiter.limit("20/minute")
+async def kreiraj_profil(request: Request, body: KreirajProfilRequest, user=Depends(get_current_user)):
     """Kreira profil znanja za partnera/seniora."""
     supa = _get_supa()
     try:
@@ -146,7 +148,8 @@ async def kreiraj_profil(body: KreirajProfilRequest, user=Depends(get_current_us
 
 
 @router.get("/profili")
-async def lista_profila(user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def lista_profila(request: Request, user=Depends(get_current_user)):
     """Lista svih profila znanja u firmi."""
     supa = _get_supa()
     try:
@@ -168,7 +171,8 @@ async def lista_profila(user=Depends(get_current_user)):
 
 
 @router.get("/profili/{profil_id}")
-async def get_profil(profil_id: str, user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_profil(request: Request, profil_id: str, user=Depends(get_current_user)):
     """Detalji profila sa brojem izvora i upita."""
     supa = _get_supa()
     try:
@@ -208,7 +212,8 @@ async def get_profil(profil_id: str, user=Depends(get_current_user)):
 
 
 @router.post("/profili/{profil_id}/dodaj-izvor", status_code=201)
-async def dodaj_izvor(profil_id: str, body: DodajIzvorRequest, user=Depends(get_current_user)):
+@limiter.limit("20/minute")
+async def dodaj_izvor(request: Request, profil_id: str, body: DodajIzvorRequest, user=Depends(get_current_user)):
     """Dodaje dokument/tekst kao izvor znanja partnera."""
     validni_tipovi = {"predmet_opis", "podnesak", "strategija", "beleska", "manuelni_unos"}
     if body.tip not in validni_tipovi:
@@ -249,7 +254,8 @@ async def dodaj_izvor(profil_id: str, body: DodajIzvorRequest, user=Depends(get_
 
 
 @router.post("/profili/{profil_id}/ekstrakcija")
-async def pokreni_ekstrakciju(profil_id: str, user=Depends(PermissionService.require("knowledge_transfer"))):
+@limiter.limit("10/minute")
+async def pokreni_ekstrakciju(request: Request, profil_id: str, user=Depends(PermissionService.require("knowledge_transfer"))):
     """Auto-ekstrakcija znanja iz svih izvora — azurira top_argumenti i taktike profila."""
     supa = _get_supa()
     try:
@@ -333,7 +339,8 @@ async def pokreni_ekstrakciju(profil_id: str, user=Depends(PermissionService.req
 
 
 @router.post("/profili/{profil_id}/upitaj")
-async def upitaj_znanje(profil_id: str, body: UpitRequest, user=Depends(PermissionService.require("knowledge_transfer"))):
+@limiter.limit("10/minute")
+async def upitaj_znanje(request: Request, profil_id: str, body: UpitRequest, user=Depends(PermissionService.require("knowledge_transfer"))):
     """Upituje bazu znanja partnera. 'Kako bi [partner] pristupio ovom slucaju?'"""
     supa = _get_supa()
     try:
@@ -410,7 +417,8 @@ async def upitaj_znanje(profil_id: str, body: UpitRequest, user=Depends(Permissi
 
 
 @router.get("/profili/{profil_id}/upiti")
-async def get_istorija_upita(profil_id: str, limit: int = 20, user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_istorija_upita(request: Request, profil_id: str, limit: int = 20, user=Depends(get_current_user)):
     """Istorija upita prema bazi znanja partnera."""
     supa = _get_supa()
     try:
@@ -429,7 +437,8 @@ async def get_istorija_upita(profil_id: str, limit: int = 20, user=Depends(get_c
 
 
 @router.patch("/profili/{profil_id}")
-async def update_profil(profil_id: str, body: UpdateProfilRequest, user=Depends(get_current_user)):
+@limiter.limit("20/minute")
+async def update_profil(request: Request, profil_id: str, body: UpdateProfilRequest, user=Depends(get_current_user)):
     """Azurira profil — deaktivacija, napomene, stil."""
     supa = _get_supa()
     try:

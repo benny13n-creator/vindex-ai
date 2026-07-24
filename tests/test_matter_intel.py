@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone, timedelta
+from starlette.requests import Request
 
 @pytest.fixture
 def anyio_backend():
@@ -17,6 +18,21 @@ def anyio_backend():
 
 def _user():
     return {"user_id": "cccc0000-0000-0000-0000-000000000003", "email": "test@vindex.rs"}
+
+
+def _make_request(ip: str = "203.0.113.5") -> Request:
+    """SEC-005 (2026-07-24): get_matter_intel je sad @limiter.limit-ovan,
+    koji radi isinstance(request, Request) proveru -- realan Request objekat
+    umesto MagicMock-a, isti obrazac kao tests/test_sec009_pii_encryption.py."""
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/api/matter-intel/predmeti/x",
+        "headers": [(b"x-forwarded-for", ip.encode())],
+        "client": (ip, 12345),
+        "query_string": b"",
+    }
+    return Request(scope)
 
 
 PID = "pred-mi-0001"
@@ -53,7 +69,7 @@ async def test_no_evidence_high_risk():
     from routers.matter_intel import get_matter_intel
     supa = _make_supa(_PRED_RADNO)
     with patch("routers.matter_intel._get_supa", return_value=supa):
-        result = await get_matter_intel(PID, _user())
+        result = await get_matter_intel(_make_request(), PID, _user())
     assert result["snaga_dokaza"] == "Nema dokaza"
     assert result["procesni_rizik"] == "Visok"
     assert result["rizik_boja"] == "red"
@@ -70,7 +86,7 @@ async def test_strong_evidence_label():
               {"snaga":"srednja","kategorija":"podnesak","pravni_element":""}]
     supa = _make_supa(_PRED_RADNO, dokazi=dokazi)
     with patch("routers.matter_intel._get_supa", return_value=supa):
-        result = await get_matter_intel(PID, _user())
+        result = await get_matter_intel(_make_request(), PID, _user())
     assert result["snaga_dokaza"] == "Jaka"
     assert result["snaga_pct"] >= 60
 
@@ -85,7 +101,7 @@ async def test_missing_docs_radno():
     dokumenti = [{"tip_dokaza": "ugovor"}]
     supa = _make_supa(_PRED_RADNO, dokumenti=dokumenti)
     with patch("routers.matter_intel._get_supa", return_value=supa):
-        result = await get_matter_intel(PID, _user())
+        result = await get_matter_intel(_make_request(), PID, _user())
     missing = result["nedostajuci_dokazi"]
     assert "ugovor" not in missing
     assert "dopis" in missing
@@ -101,7 +117,7 @@ async def test_critical_deadline_raises_risk():
     rokovi = [{"sud": "Osnovni sud", "datum": sutra, "status": "aktivan"}]
     supa = _make_supa(_PRED_RADNO, rokovi=rokovi)
     with patch("routers.matter_intel._get_supa", return_value=supa):
-        result = await get_matter_intel(PID, _user())
+        result = await get_matter_intel(_make_request(), PID, _user())
     assert result["kriticni_rokovi"] >= 1
     assert result["procesni_rizik"] in ("Srednji", "Visok")
 
@@ -116,7 +132,7 @@ async def test_health_score_bounds():
     rokovi = [{"sud": "Osnovni sud", "datum": sutra, "status": "aktivan"}]
     supa = _make_supa(_PRED_RADNO, rokovi=rokovi)
     with patch("routers.matter_intel._get_supa", return_value=supa):
-        result = await get_matter_intel(PID, _user())
+        result = await get_matter_intel(_make_request(), PID, _user())
     assert 5 <= result["health_score"] <= 95
 
 
@@ -167,7 +183,7 @@ async def test_matter_intel_404():
     supa.table.return_value = _make_chain([])
     with patch("routers.matter_intel._get_supa", return_value=supa):
         with pytest.raises(HTTPException) as exc:
-            await get_matter_intel("ghost-id", _user())
+            await get_matter_intel(_make_request(), "ghost-id", _user())
     assert exc.value.status_code == 404
 
 

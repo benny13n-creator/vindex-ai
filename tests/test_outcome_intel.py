@@ -8,10 +8,26 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
+from starlette.requests import Request
 
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+def _make_request(ip: str = "203.0.113.5") -> Request:
+    """SEC-005 (2026-07-24): get_outcome_intel je sad @limiter.limit-ovan,
+    koji radi isinstance(request, Request) proveru -- realan Request objekat
+    umesto MagicMock-a, isti obrazac kao tests/test_sec009_pii_encryption.py."""
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/api/outcome-intel/predmeti/x",
+        "headers": [(b"x-forwarded-for", ip.encode())],
+        "client": (ip, 12345),
+        "query_string": b"",
+    }
+    return Request(scope)
 
 
 @pytest.fixture(autouse=True)
@@ -57,7 +73,7 @@ async def test_single_predmet_no_history():
     supa = MagicMock()
     supa.table.return_value = _make_chain([_PRED])
     with patch("routers.outcome_intel._get_supa", return_value=supa):
-        result = await get_outcome_intel(PID, _user())
+        result = await get_outcome_intel(_make_request(), PID, _user())
     assert result["ukupno_predmeta"] == 1
     assert "nije" in result["analiza"].lower() or "nema" in result["analiza"].lower() or "jedan" in result["analiza"].lower()
 
@@ -83,7 +99,7 @@ async def test_with_history_calls_gpt():
     mock_client.chat.completions.create.return_value = _mock_gpt("📊 STATISTIKA\nTest analiza.")
     with patch("routers.outcome_intel._get_supa", return_value=supa), \
          patch("openai.OpenAI", return_value=mock_client):
-        result = await get_outcome_intel(PID, _user())
+        result = await get_outcome_intel(_make_request(), PID, _user())
     assert result["ukupno_predmeta"] == 3
     assert result["zatvoreni"] == 2
     assert "STATISTIKA" in result["analiza"] or "Test" in result["analiza"]
@@ -98,7 +114,7 @@ async def test_response_structure():
     supa = MagicMock()
     supa.table.return_value = _make_chain([_PRED])
     with patch("routers.outcome_intel._get_supa", return_value=supa):
-        result = await get_outcome_intel(PID, _user())
+        result = await get_outcome_intel(_make_request(), PID, _user())
     for key in ["analiza", "ukupno_predmeta", "tip"]:
         assert key in result, f"Nedostaje ključ: {key}"
 
@@ -119,7 +135,7 @@ async def test_gpt_error_fallback():
     mock_client.chat.completions.create.side_effect = Exception("API error")
     with patch("routers.outcome_intel._get_supa", return_value=supa), \
          patch("openai.OpenAI", return_value=mock_client):
-        result = await get_outcome_intel(PID, _user())
+        result = await get_outcome_intel(_make_request(), PID, _user())
     # Ne sme da baci exception — mora da vrati fallback
     assert "analiza" in result
     assert len(result["analiza"]) > 10
@@ -135,7 +151,7 @@ async def test_404_unknown_predmet():
     supa.table.return_value = _make_chain([])
     with patch("routers.outcome_intel._get_supa", return_value=supa):
         with pytest.raises(HTTPException) as exc:
-            await get_outcome_intel("ghost-id", _user())
+            await get_outcome_intel(_make_request(), "ghost-id", _user())
     assert exc.value.status_code == 404
 
 
@@ -157,5 +173,5 @@ async def test_avg_vrednost_calculation():
     mock_client.chat.completions.create.return_value = _mock_gpt("📊 Test")
     with patch("routers.outcome_intel._get_supa", return_value=supa), \
          patch("openai.OpenAI", return_value=mock_client):
-        result = await get_outcome_intel(PID, _user())
+        result = await get_outcome_intel(_make_request(), PID, _user())
     assert result["avg_vrednost"] == 100000

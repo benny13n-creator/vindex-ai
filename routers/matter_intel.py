@@ -11,7 +11,8 @@ Vraća: snaga_dokaza, procesni_rizik, nedostajuci_dokazi, predstojeći_rokovi,
 import asyncio
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from shared.rate import limiter
 from shared.deps import _get_supa, get_current_user
 from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
 from shared.permissions import PermissionService
@@ -31,7 +32,8 @@ def _d(r):
 
 
 @router.get("/predmeti/{predmet_id}")
-async def get_matter_intel(predmet_id: str, user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_matter_intel(request: Request, predmet_id: str, user=Depends(get_current_user)):
     supa = _get_supa()
     uid  = user["user_id"]
 
@@ -199,6 +201,7 @@ def _semafor(score: int) -> str:
 
 
 @router.get("/predmeti/{predmet_id}/uncertainty")
+@limiter.limit("20/minute")
 async def get_uncertainty_dashboard(
     predmet_id: str,
     request: Request,
@@ -401,6 +404,7 @@ Svaka kategorija ima 2-4 stavke. Ekavica. Budi konkretan i direktan."""
 
 
 @router.post("/predmeti/{predmet_id}/preflight")
+@limiter.limit("10/minute")
 async def preflight_check(
     predmet_id: str,
     body: PreflightRequest,

@@ -15,7 +15,6 @@ from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Str
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 BASE_DIR = Path(__file__).parent
@@ -494,7 +493,7 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 
 # require_credits is the canonical shared version \u2014 same object as shared.deps.require_credits
 # so a single dependency_overrides entry covers all routes (api.py + all router modules).
-from shared.deps import require_credits, _refund_one_credit, _increment_monthly_usage, _get_monthly_usage
+from shared.deps import require_credits, _refund_one_credit, _increment_monthly_usage, _get_monthly_usage, verify_token_local
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.permissions import PermissionService
 from shared.usage import UsageService
@@ -515,9 +514,17 @@ logger.info("OPENAI_API_KEY set   : %s", bool(os.getenv("OPENAI_API_KEY", "")))
 # the gap that previously forced this to be permanently in-memory — see
 # shared/rate.py's module docstring for the full incident history and why
 # swallow_errors + in_memory_fallback_enabled are both required, not just one.
-from shared.rate import _REDIS_URL, build_limiter
+#
+# SEC-005 (2026-07-24): key_func changed from slowapi's own get_remote_address
+# (reads only request.client.host) to shared.rate._get_real_ip (reads
+# X-Forwarded-For). This app runs behind Render's edge proxy via
+# gunicorn+UvicornWorker with no forwarded_allow_ips/ProxyHeadersMiddleware
+# configured, so request.client.host is the proxy's address, not the real
+# client's — get_remote_address was very likely bucketing all traffic behind
+# the same proxy under one shared identity instead of limiting per client.
+from shared.rate import _REDIS_URL, _get_real_ip, build_limiter
 logger.info("Rate limiter: %s (REDIS_URL=%s)", "Redis fail-open" if _REDIS_URL else "in-memory", bool(_REDIS_URL))
-limiter = build_limiter(get_remote_address)
+limiter = build_limiter(_get_real_ip)
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
 
@@ -886,8 +893,29 @@ _USER_RATE_LOCK = asyncio.Lock()
 _USER_AI_LIMIT    = int(os.getenv("USER_AI_LIMIT_PER_HOUR", "60"))    # AI endpointi
 _USER_API_LIMIT   = int(os.getenv("USER_API_LIMIT_PER_HOUR", "600"))   # svi API endpointi
 
-_AI_ENDPOINTS = {"/api/pitanje", "/api/analiza", "/api/kompletna", "/api/copilot",
-                 "/api/nacrt", "/api/drafting"}
+# SEC-005 (2026-07-24): lista je bila zastarela otkad je pisana — 3 od
+# originalnih 6 unosa ("/api/kompletna", "/api/copilot", "/api/drafting") ne
+# odgovaraju nijednoj stvarno montiranoj ruti (copilot je montiran BEZ
+# "/api" prefiksa, kao "/copilot/chat"). Osveženo da odgovara stvarnim
+# AI-pozivajućim ruterima danas — svaki prefiks ovde odgovara ruteru čiji
+# je kod potvrđeno (grep na openai/chat.completions/gpt-/ai_client) da
+# stvarno zove OpenAI. `enterprise.py` namerno NIJE ovde — ne zove AI
+# uopšte, njegova zaštita je čisto per-route IP limiter (Faza 3), ne ovaj
+# per-user "AI budžet" sat.
+_AI_ENDPOINTS = {
+    "/api/pitanje", "/api/analiza", "/api/nacrt", "/api/sazmi", "/api/podnesak",  # api.py + routers/drafting.py
+    "/copilot/chat",                                                             # routers/copilot.py (bez /api prefiksa)
+    "/api/style",                                                                # routers/style_checker.py
+    "/api/knowledge",                                                            # routers/knowledge_transfer.py
+    "/api/matter-intel",                                                         # routers/matter_intel.py
+    "/replay",                                                                    # routers/decision_replay.py (prefiks deli /api/predmeti sa CRUD rutama, zato uzak substring)
+    "/api/client-twin",                                                          # routers/client_twin.py
+    "/api/cio",                                                                  # routers/cio.py
+    "/api/outcome-intel",                                                        # routers/outcome_intel.py
+    "/api/precedenti",                                                           # routers/precedenti.py
+    "/api/intelligence",                                                        # routers/case_intelligence.py
+    "/api/evidence",                                                             # routers/evidence.py
+}
 
 
 async def _check_user_rate_limit(user_id: str, path: str) -> bool:
@@ -935,12 +963,36 @@ async def user_rate_limit_middleware(request: Request, call_next):
     User-level sliding window rate limiter.
     Dopunjuje IP-based slowapi — štiti od botnet-a koji rotira IP adrese.
     Aktivira se samo na /api/ rutama da ne usporava static fajlove.
+
+    SEC-005 (2026-07-24): ranije je ovaj middleware čitao
+    `request.state.user_id`, koji NIJE NIGDE u kodu bio postavljen —
+    `get_current_user` (FastAPI `Depends`) identitet vraća direktno ruti kao
+    povratnu vrednost, nikad ga ne piše u `request.state`, i čak i da piše,
+    to bi se desilo unutar `call_next(request)` — POSLE ove provere, prekasno
+    da utiče na tekući zahtev. Zbog toga je `uid` uvek bio `None` i ceo ovaj
+    blok (rate limit + anomaly detection) se nikad nije izvršio.
+    Ispravka: middleware sam izvlači i verifikuje token, PRE `call_next`-a,
+    lokalnom (bez Supabase SDK network poziva) proverom potpisa
+    `verify_token_local` — dovoljno da bude otporno na falsifikovan `sub`
+    claim, a ne dodaje drugi mrežni poziv na svaki zahtev (taj se već plaća
+    jednom, u `get_current_user`, za zaštićene rute). Rezultat se upisuje u
+    `request.state.user_id` i za dalju upotrebu nizvodno (npr. logovanje).
     """
     path = request.url.path
     if not path.startswith("/api/"):
         return await call_next(request)
 
-    uid = getattr(request.state, "user_id", None)
+    uid = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[len("Bearer "):].strip()
+        try:
+            payload = verify_token_local(token)
+            uid = payload.get("sub") if payload else None
+        except Exception as e:
+            logger.debug("[RATE] verify_token_local neuspešno: %s", e)
+    request.state.user_id = uid
+
     client_ip = request.client.host if request.client else None
     is_ai = any(ep in path for ep in _AI_ENDPOINTS)
 

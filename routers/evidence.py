@@ -5,12 +5,13 @@ Evidence Vault — automatska klasifikacija dokumenata i matrica dokaza.
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
 from fastapi import Security
 from shared.permissions import PermissionService
+from shared.rate import limiter
 from shared.usage import UsageService
 
 def get_supa(): return _get_supa()
@@ -130,7 +131,8 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
 
 
 @router.get("/predmeti/{predmet_id}")
-async def get_evidence(predmet_id: str, user=Depends(require_user)):
+@limiter.limit("30/minute")
+async def get_evidence(request: Request, predmet_id: str, user=Depends(require_user)):
     """Vraća Evidence Vault za predmet — dokumente sa klasifikacijom i matricu dokaza."""
     import asyncio
     supa = get_supa()
@@ -181,7 +183,8 @@ class DokazReq(BaseModel):
 
 
 @router.post("/predmeti/{predmet_id}/dokaz")
-async def add_dokaz(predmet_id: str, req: DokazReq, user=Depends(require_user)):
+@limiter.limit("20/minute")
+async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depends(require_user)):
     """Manuelno dodaje dokaznu stavku u Evidence Vault."""
     import asyncio
     supa = get_supa()
@@ -210,7 +213,8 @@ async def add_dokaz(predmet_id: str, req: DokazReq, user=Depends(require_user)):
 
 
 @router.delete("/predmeti/{predmet_id}/dokaz/{dokaz_id}")
-async def delete_dokaz(predmet_id: str, dokaz_id: str, user=Depends(require_user)):
+@limiter.limit("20/minute")
+async def delete_dokaz(request: Request, predmet_id: str, dokaz_id: str, user=Depends(require_user)):
     import asyncio
     supa = get_supa()
     uid = user["user_id"]
@@ -221,7 +225,8 @@ async def delete_dokaz(predmet_id: str, dokaz_id: str, user=Depends(require_user
 
 
 @router.post("/predmeti/{predmet_id}/reklasifikuj/{dok_id}")
-async def reklasifikuj(predmet_id: str, dok_id: str, user=Depends(PermissionService.require("evidence"))):
+@limiter.limit("10/minute")
+async def reklasifikuj(request: Request, predmet_id: str, dok_id: str, user=Depends(PermissionService.require("evidence"))):
     """Pokreće reklasifikaciju dokumenta (ako je auto-klasifikacija bila loša)."""
     import asyncio
     supa = get_supa()

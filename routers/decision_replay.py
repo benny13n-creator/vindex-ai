@@ -17,10 +17,11 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
+from shared.rate import limiter
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.decision_replay")
@@ -226,7 +227,8 @@ async def _gather_timeline_events(supa, predmet_id: str, user_id: str) -> list[d
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/{predmet_id}/replay/timeline")
-async def get_timeline(predmet_id: str, user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def get_timeline(request: Request, predmet_id: str, user=Depends(get_current_user)):
     """Hronoloski timeline dogadjaja na predmetu — brzo, bez AI analize."""
     supa = _get_supa()
     try:
@@ -249,7 +251,8 @@ async def get_timeline(predmet_id: str, user=Depends(get_current_user)):
 
 
 @router.get("/{predmet_id}/replay")
-async def decision_replay(predmet_id: str, user=Depends(PermissionService.require("decision_replay"))):
+@limiter.limit("10/minute")
+async def decision_replay(request: Request, predmet_id: str, user=Depends(PermissionService.require("decision_replay"))):
     """Decision Replay — AI rekonstruise tok predmeta i identifikuje kriticne momente.
 
     Odgovara na: 'Zasto smo izgubili predmet?'
