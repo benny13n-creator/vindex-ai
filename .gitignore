@@ -106,3 +106,6 @@ diag_*.json
 # Prevents repo exceeding Render 512MB limit (.git currently 475MB).
 data/sudska_praksa/raw/
 data/sudska_praksa/raw_bilteni/
+
+# Founder Autopilot Agent — generated drafts change on every run, not source.
+scripts/founder_agent/drafts/
