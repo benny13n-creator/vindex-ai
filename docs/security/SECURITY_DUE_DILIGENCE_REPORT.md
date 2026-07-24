@@ -445,6 +445,32 @@ Also fixed in the same pass: a stale `_AI_ENDPOINTS` allowlist (3 of 6 entries m
 
 ---
 
+## Score Update 8 — 2026-07-24, XSS & Input Sanitization Sweep
+
+A read-only analysis phase (no code until the plan was reviewed and approved) found that this codebase had, structurally, almost no server-side HTML sanitization: exactly one field (`portal_monitoring.py`, SEC-008's original scope) was sanitized server-side; every other free-text field — predmet descriptions, client records, comments, hearing notes — was stored exactly as typed, with the entire XSS defense resting on the frontend remembering to escape it correctly everywhere.
+
+Implemented in 4 phases, each gated behind a test run:
+
+**(1) Backend**: `security/html_sanitize.py::sanitize_user_input()` (bleach, strips HTML tags, preserves newlines/markdown) applied via Pydantic `field_validator` to 19 free-text fields across 8 files. A real regression was caught and fixed before the first test ran: a fixed default truncation length would have silently cut off fields allowing up to 80,000 characters.
+
+**(2) Email HTML injection — a confirmed, traceable vulnerability, not theoretical**: `routers/rocista.py`'s `napomena` field (user-typed hearing notes) reached `routers/email_notif.py`'s HTML email templates completely unescaped. A parallel instance of the identical bug was found mid-sweep in `routers/support.py`. Both now `html.escape()` every interpolated field.
+
+**(3) Frontend consolidation**: 8 independently duplicated HTML-escape functions in `static/vindex.js` (some missing quote-escaping, unsafe if ever used inside an HTML attribute) consolidated into one canonical `escHtml()`, with zero changes to the 500+ call sites that use them.
+
+**(4) Targeted sweep — found a second confirmed, real vulnerability**: `firma.naziv`/`adresa`/`pib`/`kontakt` (read from `localStorage`, set by the user in Settings) were interpolated into a PDF-export HTML body with zero escaping, and that body is genuinely rendered as HTML (`container.innerHTML`, plus a download-and-open fallback) — a confirmed stored-XSS path via browser `localStorage`. Fixed, and 6 further duplicate escape implementations the Faza 3 name-based search had missed were found and consolidated in the same pass.
+
+| Category | Prior | Updated | What changed |
+|---|---|---|---|
+| Application Security | 70 | 74 | This is the core category for injection defense, and the gap was structural (a whole class of defense — server-side sanitization — was essentially absent), not one missed spot. Two confirmed, real, previously-unknown vulnerabilities (email HTML injection, PDF stored-XSS via `localStorage`) are now fixed and test-verified. Held below a larger jump because this is code/test-verified, not production-verified — no live confirmation that these exact email/PDF paths behave correctly against real user input in production |
+| AI Security | 74 | 75 | Smaller, secondary movement: the sanitizer now also covers LLM-input fields (`pitanje`), and 2 of the newly-consolidated escape functions (`stratFormatirajRezultat`, `web3FormatirajRezultat`) specifically format AI-generated output for display |
+| All other categories | — | unchanged | Not touched this update |
+
+**Updated weighted overall: ~69/100.**
+
+**Why a modest, not large, move despite 4 completed phases and 58 new tests**: consistent with this document's standing rule, code correctness and test coverage earn real but capped credit — the two confirmed vulnerabilities are fixed at the code level and proven via tests (including tests that actually execute the JavaScript through `node`, not just read the source), but "does this behave correctly against real production traffic" remains an open, disclosed question, the same honest gap every other SEC-0xx item in this register carries until a founder runs a live check.
+
+---
+
 ## Final Assessment
 
 **Can Vindex AI honestly claim to be enterprise-grade secure today? No.** Not because any single domain is unusually weak for a company at this stage — several domains (audit trail integrity, DR runbook existence, crypto primitive correctness, SQL injection resistance, CORS configuration) are genuinely strong, in some cases better than typical for this company size. The disqualifying factors are two **confirmed, live, evidence-based CRITICAL findings**: a reproducible cross-tenant data-injection vulnerability (SEC-001) and a GDPR erasure endpoint whose user-facing claim is not supported by what the code actually does (SEC-002) — plus a CRITICAL-severity gap in the product's core AI safety surface (SEC-003). None of these are hypothetical or "best practice" gaps; all three are demonstrated, with file:line evidence, to be true today.
