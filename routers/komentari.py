@@ -9,8 +9,9 @@ import logging
 from datetime import datetime as _dt, timezone as _tz
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
@@ -21,9 +22,19 @@ router = APIRouter()
 class KomentarRequest(BaseModel):
     tekst: str = Field(..., min_length=1, max_length=2000)
 
+    @field_validator("tekst")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        return sanitize_user_input(v) or ""
+
 
 class KomentarUpdateRequest(BaseModel):
     tekst: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("tekst")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        return sanitize_user_input(v) or ""
 
 
 @router.post("/predmeti/{predmet_id}/komentari")  # F8.1

@@ -15,6 +15,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel, Field, field_validator
 
+from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared.permissions import PermissionService
@@ -40,6 +41,11 @@ class PitanjeDocRequest(BaseModel):
     history:          Optional[List[dict]] = None
     namespace_prefix: Optional[str] = "tmp_"
 
+    @field_validator("pitanje")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        return sanitize_user_input((v or "").strip()) or ""
+
 
 class DokumentAnalizaReq(BaseModel):
     session_id: str = Field("", max_length=128)
@@ -49,7 +55,7 @@ class DokumentAnalizaReq(BaseModel):
     @field_validator("session_id", "tekst", "pitanje")
     @classmethod
     def _trim(cls, v: str) -> str:
-        return (v or "").strip()
+        return sanitize_user_input((v or "").strip()) or ""
 
 
 class RokoviRequest(BaseModel):

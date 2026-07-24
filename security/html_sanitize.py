@@ -31,6 +31,41 @@ _NO_TAGS: list[str] = []
 _NO_ATTRS: dict = {}
 
 
+def sanitize_user_input(value: str | None, max_len: int | None = None) -> str | None:
+    """
+    XSS & Input Sanitization Sweep (2026-07-24) — za SLOBODAN TEKST koji
+    korisnik unosi i koji se kasnije prikazuje (opis predmeta, komentari,
+    napomene, klijent podaci, pitanja) — različito od `sanitize_text` po
+    nameni (ovo je za korisnički rich free-text, ne za sistemski plain-text
+    polja poput scraping statusa), identično po implementaciji.
+
+    NE dira: `\\n` (novi red), markdown sintaksu (`*`, `-`, `#`, `` ` ``,
+    liste) — bleach.clean() menja samo HTML/XML TAGOVE (`<...>`), ne dira
+    obične karaktere van ugaonih zagrada. `"Kupio sam *3* kuce - sve u
+    Beogradu\\n- prva\\n- druga"` prolazi NEPROMENJEN; `"<script>...`
+    biva stripovan na `""`.
+
+    Zašto strip (tags=[]) a ne "safe subset" allowlist: ova polja (opis
+    predmeta, napomene, komentari, klijent podaci) su SVA plain-text po
+    dizajnu na frontendu (rendering ide kroz escHtml()/_htmlEsc(), ne kroz
+    rich-text editor) — legitimna upotreba nikad ne uključuje namerni HTML
+    markup, pa strip je ispravan izbor, isti kao za `sanitize_text`.
+
+    `max_len=None` (podrazumevano) znači BEZ skraćivanja ovde -- za
+    field_validator upotrebu (mode="after"), Pydantic-ovo sopstveno
+    `Field(max_length=...)` na svakom modelu je VEĆ primenilo pravu granicu
+    dužine PRE nego što ovaj validator uopšte dobije vrednost (Pydantic v2
+    proverava field constraints pre "after"-mode validatora). Skraćivanje
+    ovde na fiksan default (npr. 2000) bi tiho odsjeklo polja sa većim
+    dozvoljenim max_length-om (npr. `DokumentAnalizaReq.tekst`, 80000
+    karaktera) -- otkriveno i ispravljeno pre nego što je ijedan test
+    pokrenut. Prosledi eksplicitan `max_len` samo ako ovu funkciju zoveš
+    VAN Pydantic validatora (npr. na raw dict polju u api.py) gde nijedna
+    druga granica dužine već ne postoji.
+    """
+    return sanitize_text(value, max_len=max_len if max_len is not None else 1_000_000)
+
+
 def sanitize_text(value: str | None, max_len: int = 2000) -> str | None:
     """
     Uklanja SVAKI HTML tag/atribut iz vrednosti — namenjeno poljima koja su

@@ -36,8 +36,9 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
+from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
@@ -101,6 +102,11 @@ class DelegiranjeRequest(BaseModel):
     predmet_id: str
     advokat_user_id: str
     napomena: Optional[str] = None
+
+    @field_validator("napomena")
+    @classmethod
+    def _sanitize(cls, v: Optional[str]) -> Optional[str]:
+        return sanitize_user_input(v)
 
 
 # ── Statistike i kapacitet ─────────────────────────────────────────────────────

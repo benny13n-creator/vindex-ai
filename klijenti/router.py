@@ -35,6 +35,7 @@ from klijenti.permissions import (
 )
 from klijenti.audit import Akcija, log_event, get_client_ip
 from security.crypto import encrypt_field, decrypt_field, is_encrypted, generate_storage_key
+from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, _is_founder, _verify_token
 from shared.permissions import PermissionService
 from shared.usage import UsageService
@@ -143,6 +144,15 @@ class KlijentCreateReq(BaseModel):
             raise ValueError(f"pravni_osnov_obrade mora biti jedan od: {sorted(allowed)}")
         return v
 
+    @field_validator("ime", "prezime", "firma", "adresa", "napomena")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        # XSS sweep (2026-07-24) -- klijent podaci se prikazuju kroz
+        # crmRenderPodaci()/_htmlEsc() na frontendu, ali server-side
+        # stripovanje HTML markup-a je defense-in-depth (isti princip kao
+        # security/html_sanitize.py::sanitize_text za portal_monitoring.py).
+        return sanitize_user_input(v) or ""
+
 
 class KlijentUpdateReq(KlijentCreateReq):
     ime: str = Field(default="", max_length=200)
@@ -177,6 +187,11 @@ class KomunikacijaReq(BaseModel):
             raise ValueError(f"tip mora biti jedan od: {sorted(allowed)}")
         return v
 
+    @field_validator("kratak_opis")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        return sanitize_user_input(v) or ""
+
 
 class ConflictCheckReq(BaseModel):
     ime: str = Field(..., min_length=2, max_length=200)
@@ -184,6 +199,11 @@ class ConflictCheckReq(BaseModel):
     firma: str = Field(default="", max_length=300)
     jmbg: str = Field(default="", max_length=15)
     pib: str = Field(default="", max_length=15)
+
+    @field_validator("ime", "prezime", "firma")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        return sanitize_user_input(v) or ""
 
 
 # ─── FAZA 1: Klijent CRUD sa confidential support ────────────────────────────

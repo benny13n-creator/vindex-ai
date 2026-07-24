@@ -21,6 +21,7 @@ from datetime import date as _date
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
+from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
@@ -65,6 +66,16 @@ class RocisteReq(BaseModel):
             raise ValueError("vreme mora biti HH:MM")
         return v
 
+    @field_validator("sud", "sudnica", "broj_predmeta_suda", "napomena")
+    @classmethod
+    def _sanitize(cls, v: Optional[str]) -> Optional[str]:
+        # XSS sweep (2026-07-24): "napomena" ovde je izvor koji
+        # routers/email_notif.py kasnije interpolira direktno u HTML email
+        # šablon (preko "dogadjaj": f"Follow-up ročište: {body.napomena}"
+        # u FollowUpReq ispod) -- nesanitizovan HTML markup u ovom polju je
+        # bio stvaran, sledljiv HTML-injection put do email klijenta.
+        return sanitize_user_input(v)
+
 
 class RocistePatchReq(BaseModel):
     sud:                Optional[str] = Field(None, max_length=300)
@@ -102,6 +113,11 @@ class RocistePatchReq(BaseModel):
         if not re.match(r"^\d{2}:\d{2}$", v):
             raise ValueError("vreme mora biti HH:MM")
         return v
+
+    @field_validator("sud", "sudnica", "broj_predmeta_suda", "napomena")
+    @classmethod
+    def _sanitize(cls, v: Optional[str]) -> Optional[str]:
+        return sanitize_user_input(v)
 
 
 @router.post("/api/rocista")
@@ -230,6 +246,14 @@ class FollowUpReq(BaseModel):
     predmet_id: str           = Field(..., min_length=1, max_length=64)
     napomena:   str           = Field(..., min_length=1, max_length=4000)
     rociste_id: Optional[str] = Field(default=None)
+
+    @field_validator("napomena")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        # Ova vrednost se direktno koristi u "dogadjaj": f"Follow-up
+        # ročište: {body.napomena[:120]}" (linija ispod) -- konfirmisan
+        # izvor HTML-injekcije u email_notif.py pre ove izmene.
+        return sanitize_user_input(v)
 
 
 @router.post("/api/rociste/followup")

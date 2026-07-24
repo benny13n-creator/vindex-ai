@@ -74,6 +74,7 @@ def _setup_prometheus(application) -> None:
 
 # ─── Fail-fast: validacija encryption key PRE nego server podigne ikoji endpoint
 from security.crypto import validate_field_encryption_key as _validate_enc_key
+from security.html_sanitize import sanitize_user_input
 _validate_enc_key()
 
 import time as _time
@@ -1110,7 +1111,7 @@ class PitanjeReq(BaseModel):
     @field_validator("pitanje")
     @classmethod
     def ocisti(cls, v: str) -> str:
-        return v.strip()
+        return sanitize_user_input(v.strip()) or ""
 
 
 
@@ -3064,13 +3065,13 @@ def _require_auth(authorization: Optional[str]) -> object:
 async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
     user = _require_auth(authorization)
     body = await request.json()
-    naziv = (body.get("naziv") or "").strip()
+    naziv = sanitize_user_input((body.get("naziv") or "").strip()) or ""
     if not naziv:
         raise HTTPException(status_code=400, detail="naziv je obavezan")
     row = _get_supa().table("predmeti").insert({
         "user_id": user.id,
         "naziv":   naziv,
-        "opis":    body.get("opis", ""),
+        "opis":    sanitize_user_input(body.get("opis", "")),
         "tip":     body.get("tip", "opsti"),
         "status":  "aktivan",
     }).execute()
@@ -3293,6 +3294,12 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
     }}
     if not allowed:
         raise HTTPException(status_code=400, detail="Nema validnih polja za update")
+    # XSS sweep (2026-07-24): naziv/opis/tuzilac/tuzeni/oblast su slobodan
+    # tekst -- stripuj HTML markup pre upisa (tip/status/rizik/vrednost_spora
+    # su kontrolisane/numeričke vrednosti, ne diramo ih).
+    for _fld in ("naziv", "opis", "tuzilac", "tuzeni", "oblast"):
+        if _fld in allowed:
+            allowed[_fld] = sanitize_user_input(allowed[_fld])
     _get_supa().table("predmeti").update(allowed).eq("id", predmet_id).eq("user_id", user.id).execute()
     return {"ok": True}
 
@@ -3326,7 +3333,7 @@ async def dodaj_belesku(predmet_id: str, request: Request, authorization: str = 
     if not pred.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
     body = await request.json()
-    sadrzaj = (body.get("sadrzaj") or "").strip()
+    sadrzaj = sanitize_user_input((body.get("sadrzaj") or "").strip()) or ""
     if not sadrzaj:
         raise HTTPException(status_code=400, detail="sadrzaj je obavezan")
     row = _get_supa().table("predmet_beleske").insert({

@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
+from security.html_sanitize import sanitize_user_input
 from shared.deps import _audit, _get_supa, _q_hash, get_current_user
 from shared.rate import limiter
 from shared.permissions import PermissionService
@@ -61,7 +62,7 @@ class NacrtReq(BaseModel):
     @field_validator("vrsta", "opis")
     @classmethod
     def ocisti(cls, v: str) -> str:
-        return v.strip()
+        return sanitize_user_input(v.strip()) or ""
 
 
 class AnalizaReq(BaseModel):
@@ -71,13 +72,18 @@ class AnalizaReq(BaseModel):
     @field_validator("tekst", "pitanje")
     @classmethod
     def ocisti(cls, v: str) -> str:
-        return v.strip()
+        return sanitize_user_input(v.strip()) or ""
 
 
 class FeedbackReq(BaseModel):
     pitanje: str = Field("", max_length=2000)
     odgovor: str = Field("", max_length=5000)
     tip:     str = Field("greska", max_length=50)
+
+    @field_validator("pitanje", "odgovor")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        return sanitize_user_input(v) or ""
 
 
 class PodnesakReq(BaseModel):
@@ -102,12 +108,12 @@ class PodnesakReq(BaseModel):
     @field_validator("opis")
     @classmethod
     def ocisti_opis(cls, v: str) -> str:
-        return v.strip()
+        return sanitize_user_input(v.strip()) or ""
 
     @field_validator("sud_naziv", "sud_adresa")
     @classmethod
     def ocisti_sud(cls, v: Optional[str]) -> Optional[str]:
-        return v.strip() if v else None
+        return sanitize_user_input(v.strip()) if v else None
 
 
 class NacrtChecklistReq(BaseModel):
@@ -125,7 +131,7 @@ class NacrtChecklistReq(BaseModel):
     @field_validator("cinjenice")
     @classmethod
     def ocisti_cinjenice(cls, v: str) -> str:
-        return v.strip()
+        return sanitize_user_input(v.strip()) or ""
 
 
 class SazmiReq(BaseModel):

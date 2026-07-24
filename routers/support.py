@@ -22,6 +22,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
+from security.html_sanitize import sanitize_user_input
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
 from shared.rate import limiter
 
@@ -62,7 +63,7 @@ class SupportPoruka(BaseModel):
             raise ValueError("Poruka mora imati najmanje 10 karaktera.")
         if len(v) > 3000:
             raise ValueError("Poruka ne sme biti duža od 3000 karaktera.")
-        return v
+        return sanitize_user_input(v) or ""
 
     @field_validator("kategorija")
     @classmethod
@@ -70,6 +71,11 @@ class SupportPoruka(BaseModel):
         if v not in _KATEGORIJE:
             return "ostalo"
         return v
+
+    @field_validator("kontekst")
+    @classmethod
+    def _kontekst_val(cls, v: Optional[str]) -> Optional[str]:
+        return sanitize_user_input(v) if v else None
 
     @field_validator("screenshot_base64")
     @classmethod
