@@ -5,6 +5,7 @@ Law Firm Brain — cross-case learning.
 Za dati predmet, pronalazi slične zatvorene predmete iz kancelarije
 i vraća: uspešne argumente, korišćene presude, ishode, strategije.
 """
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -123,18 +124,21 @@ async def get_precedenti(request: Request, predmet_id: str, user=Depends(Permiss
     try:
         from openai import OpenAI
         client = OpenAI()
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.3,
-            max_tokens=700,
-            messages=[
-                {"role": "system", "content": _BRAIN_SYSTEM},
-                {"role": "user", "content": (
-                    f"TEKUĆI PREDMET:\n{ctx_predmet}\n\n"
-                    f"SLIČNI PREDMETI IZ KANCELARIJE:{ctx_slicni}"
-                    f"{ctx_istorija}"
-                )},
-            ],
+        # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
+        resp = await asyncio.to_thread(
+            lambda: client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.3,
+                max_tokens=700,
+                messages=[
+                    {"role": "system", "content": _BRAIN_SYSTEM},
+                    {"role": "user", "content": (
+                        f"TEKUĆI PREDMET:\n{ctx_predmet}\n\n"
+                        f"SLIČNI PREDMETI IZ KANCELARIJE:{ctx_slicni}"
+                        f"{ctx_istorija}"
+                    )},
+                ],
+            )
         )
         analiza = (resp.choices[0].message.content or "").strip()
     except Exception as exc:

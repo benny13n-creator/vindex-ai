@@ -355,14 +355,20 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(Permission
             "Počni direktno. Bez uvoda, bez 'Evo sažetka', bez zaglavlja."
         )
         client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.3,
-            max_tokens=600,
-            messages=[
-                {"role": "system", "content": klijent_prompt},
-                {"role": "user",   "content": _skini_pii(req.odgovor[:4000])},
-            ],
+        # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je
+        # ceo event loop (i sve druge konkurentne zahteve na istom workeru) za
+        # trajanje OpenAI poziva -- ostala 3 poziva u ovom fajlu (linije ~443,
+        # 458, 507) su već ispravno await asyncio.to_thread(...)-ovana.
+        resp = await asyncio.to_thread(
+            lambda: client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.3,
+                max_tokens=600,
+                messages=[
+                    {"role": "system", "content": klijent_prompt},
+                    {"role": "user",   "content": _skini_pii(req.odgovor[:4000])},
+                ],
+            )
         )
         tekst = resp.choices[0].message.content.strip()
         await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
@@ -473,7 +479,14 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
     rag_upit = f"{PODNESAK_TIPOVI[req.tip]}: {opis_api[:400]}"
     try:
         from app.services.retrieve import retrieve_documents
-        docs = await asyncio.to_thread(retrieve_documents, rag_upit, 5)
+        # BUG FIX (2026-07-24): retrieve_documents vraća tuple[list[str], dict]
+        # (docs, retrieval_meta), ne samu listu -- pre ove izmene je "docs"
+        # bio ceo tuple, "\n\n".join(docs[:4]) je pucao sa TypeError na dict
+        # elementu, spoljašnji except je to tiho gutao i kontekst je UVEK bio
+        # prazan string. Svaki podnesak generisan pre ove izmene je pisan bez
+        # ijednog stvarnog RAG zakonskog citata, uprkos promptu koji to
+        # eksplicitno traži.
+        docs, _retrieval_meta = await asyncio.to_thread(retrieve_documents, rag_upit, 5)
         kontekst = "\n\n".join(docs[:4]) if docs else ""
     except Exception as exc:
         logger.warning("RAG neuspešan za podnesak [q=%s]: %s", log_id, exc)

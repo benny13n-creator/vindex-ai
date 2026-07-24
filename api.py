@@ -2539,7 +2539,10 @@ async def test_pitanje(q: str, x_admin_key: str = Header(default="")):
         raise HTTPException(status_code=404, detail="Not found")
     from app.services.retrieve import retrieve_documents
     from main import _filtriraj_kontekst
-    docs = retrieve_documents(q, k=10)
+    # BUG FIX (2026-07-24): retrieve_documents vraća (docs, retrieval_meta),
+    # ne samu listu -- ovaj admin dijagnostički endpoint je bio pogođen istom
+    # greškom kao routers/drafting.py's /api/podnesak.
+    docs, _retrieval_meta = retrieve_documents(q, k=10)
     filtrirani = _filtriraj_kontekst(docs)
     return {
         "pitanje": q,
@@ -2595,12 +2598,15 @@ async def rag_test(q: str = "zakon o privrednim drustvima registracija", x_admin
             from app.services.retrieve import retrieve_documents
             import time as _t
             t0 = _t.perf_counter()
-            docs = retrieve_documents(q, k=6)
+            # BUG FIX (2026-07-24): ista greška kao gore -- retrieve_documents
+            # vraća (docs, retrieval_meta) tuple.
+            docs, retrieval_meta = retrieve_documents(q, k=6)
             elapsed = _t.perf_counter() - t0
             out["retrieve"] = {
                 "elapsed_sec": round(elapsed, 2),
                 "docs_count":  len(docs),
                 "docs": [{"index": i, "length": len(d), "preview": d[:400]} for i, d in enumerate(docs)],
+                "retrieval_meta": {k: v for k, v in retrieval_meta.items() if k not in ("doc_passages", "praksa_matches")},
             }
         except Exception as exc:
             out["retrieve"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:400]}"
@@ -3130,7 +3136,16 @@ async def global_search(
 
 
 def _require_auth(authorization: Optional[str]) -> object:
-    """Extract user from Bearer token. Full 3-step verification: SDK → HS256 → ES256."""
+    """
+    Extract user from Bearer token. Full 3-step verification: SDK → HS256 → ES256.
+
+    BUG FIX (2026-07-24): svih 11 poziva ove funkcije su ranije bili sinhroni
+    unutar async def ruta -- _verify_token unutra može da udari Supabase SDK
+    (mrežni poziv) ili živi JWKS fetch (requests.get), oboje blokirajuće.
+    Pozivaoci sada koriste await asyncio.to_thread(_require_auth, authorization).
+    HTTPException podignut unutar thread-a se korektno propagira nazad kroz
+    await (standardno asyncio ponašanje, isti obrazac kao shared/deps.py).
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized")
     token = authorization[len("Bearer "):]
@@ -3152,7 +3167,7 @@ def _require_auth(authorization: Optional[str]) -> object:
 @app.post("/api/predmeti")
 @limiter.limit("30/minute")
 async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     body = await request.json()
     naziv = sanitize_user_input((body.get("naziv") or "").strip()) or ""
     if not naziv:
@@ -3200,7 +3215,7 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
 @app.get("/api/predmeti")
 @limiter.limit("60/minute")
 async def lista_predmeta(request: Request, authorization: str = Header(None)):
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     rows = _get_supa().table("predmeti").select("*").eq("user_id", user.id).order("created_at", desc=True).execute()
     return {"predmeti": rows.data}
 
@@ -3322,7 +3337,7 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
 @app.get("/api/predmeti/{predmet_id}")
 @limiter.limit("60/minute")
 async def get_predmet(predmet_id: str, request: Request, authorization: str = Header(None)):
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     supa = _get_supa()
     row = supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", user.id).single().execute()
     if not row.data:
@@ -3375,7 +3390,7 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
 @app.patch("/api/predmeti/{predmet_id}")
 @limiter.limit("30/minute")
 async def update_predmet(predmet_id: str, request: Request, authorization: str = Header(None)):
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     body = await request.json()
     allowed = {k: v for k, v in body.items() if k in {
         "naziv", "opis", "tip", "status",
@@ -3397,7 +3412,7 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
 @limiter.limit("30/minute")
 async def update_kanban_faza(predmet_id: str, request: Request, authorization: str = Header(None)):
     """Kanban Case Pipeline — premesti predmet u drugu fazu."""
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     body = await request.json()
     faza = (body.get("kanban_faza") or "").strip()
     _VALID = {"inicijalna_procena", "priprema", "aktivan_postupak", "ceka_odluku", "zavrsen"}
@@ -3412,7 +3427,7 @@ async def update_kanban_faza(predmet_id: str, request: Request, authorization: s
 @app.post("/api/predmeti/{predmet_id}/beleske")
 @limiter.limit("30/minute")
 async def dodaj_belesku(predmet_id: str, request: Request, authorization: str = Header(None)):
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     # SEC-001 fix (2026-07-23): predmet_id came from the URL and was never
     # verified to belong to the caller before this insert — any authenticated
     # user could write a note into another user's case file. Same ownership
@@ -3436,7 +3451,7 @@ async def dodaj_belesku(predmet_id: str, request: Request, authorization: str = 
 @app.delete("/api/predmeti/{predmet_id}/beleske/{beleska_id}")
 @limiter.limit("30/minute")
 async def obrisi_belesku(predmet_id: str, beleska_id: str, request: Request, authorization: str = Header(None)):
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     _get_supa().table("predmet_beleske").delete().eq("id", beleska_id).eq("user_id", user.id).execute()
     return {"ok": True}
 
@@ -3444,7 +3459,7 @@ async def obrisi_belesku(predmet_id: str, beleska_id: str, request: Request, aut
 @app.post("/api/predmeti/{predmet_id}/istorija")
 @limiter.limit("30/minute")
 async def sacuvaj_istoriju(predmet_id: str, request: Request, authorization: str = Header(None)):
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     # SEC-001 fix (2026-07-23): same gap as dodaj_belesku above — predmet_id
     # from the URL was never verified against the caller before this insert.
     pred = _get_supa().table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user.id).single().execute()
@@ -3831,7 +3846,7 @@ PRAVILA:
 async def pravna_procena(request: Request, authorization: str = Header(None)):
     """F5.3 — Structured legal case assessment via GPT-4o."""
     from openai import OpenAI as _OAI
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     # _require_auth returns a plain object (not a dict) — PermissionService.require()
     # expects a dict it can read/mutate, so build one and invoke the dependency callable
     # manually (Depends() default is only resolved by FastAPI's DI, calling it directly
@@ -4009,7 +4024,7 @@ async def predmet_upload_auto_analyze(
     from uploaded_doc.ingest import ingest_session
     from uploaded_doc.session import generate_session_id, expires_at_iso
 
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     # _require_auth returns a plain object (not a dict) — PermissionService.require()
     # expects a dict it can read/mutate, so build one and invoke the dependency callable
     # manually (Depends() default is only resolved by FastAPI's DI, calling it directly
@@ -4521,7 +4536,7 @@ async def predmet_hronologija_get(
     authorization: str = Header(None),
 ):
     """Phase 2.2 — Return sorted chronology events for a predmet."""
-    user = _require_auth(authorization)
+    user = await asyncio.to_thread(_require_auth, authorization)
     pred_row = _get_supa().table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user.id).single().execute()
     if not pred_row.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")

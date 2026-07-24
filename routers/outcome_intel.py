@@ -206,14 +206,17 @@ Prosečna fakturisana vrednost: {avg_vrednost:,} RSD
     try:
         from openai import OpenAI
         client = OpenAI()
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.25,
-            max_tokens=500,
-            messages=[
-                {"role": "system", "content": _OUTCOME_SYSTEM},
-                {"role": "user",   "content": ctx},
-            ],
+        # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
+        resp = await asyncio.to_thread(
+            lambda: client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.25,
+                max_tokens=500,
+                messages=[
+                    {"role": "system", "content": _OUTCOME_SYSTEM},
+                    {"role": "user",   "content": ctx},
+                ],
+            )
         )
         analiza = (resp.choices[0].message.content or "").strip()
     except Exception as exc:

@@ -5,6 +5,7 @@ Multi-Agent Orchestration — 6 specijalizovanih AI agenata.
 POST /api/agents/run
 Agenti: intake | research | drafting | litigation | billing | deadline
 """
+import asyncio
 import logging
 import json
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -349,12 +350,15 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
         try:
             from openai import OpenAI
             client = OpenAI()
-            sel = client.chat.completions.create(
-                model="gpt-4o-mini", temperature=0, max_tokens=60,
-                messages=[
-                    {"role": "system", "content": _ROUTER_SYSTEM},
-                    {"role": "user",   "content": req.task},
-                ],
+            # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
+            sel = await asyncio.to_thread(
+                lambda: client.chat.completions.create(
+                    model="gpt-4o-mini", temperature=0, max_tokens=60,
+                    messages=[
+                        {"role": "system", "content": _ROUTER_SYSTEM},
+                        {"role": "user",   "content": req.task},
+                    ],
+                )
             )
             raw = (sel.choices[0].message.content or "").strip()
             if raw.startswith("```"):
@@ -576,14 +580,17 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
     try:
         from openai import OpenAI
         client = OpenAI()
-        resp = client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0.35,
-            max_tokens=2000,
-            messages=[
-                {"role": "system", "content": agent_cfg["system"]},
-                {"role": "user",   "content": user_msg},
-            ],
+        # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
+        resp = await asyncio.to_thread(
+            lambda: client.chat.completions.create(
+                model="gpt-4o",
+                temperature=0.35,
+                max_tokens=2000,
+                messages=[
+                    {"role": "system", "content": agent_cfg["system"]},
+                    {"role": "user",   "content": user_msg},
+                ],
+            )
         )
         odgovor = (resp.choices[0].message.content or "").strip()
     except Exception as exc:

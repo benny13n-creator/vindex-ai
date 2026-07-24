@@ -216,14 +216,17 @@ async def _handle_query(text: str, uid: str, supa) -> dict:
     try:
         from openai import OpenAI
         client = OpenAI()
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0,
-            max_tokens=150,
-            messages=[
-                {"role": "system",  "content": _QUERY_SYSTEM},
-                {"role": "user",    "content": f"Podaci:\n{context}\n\nPitanje: {text}"},
-            ],
+        # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
+        resp = await asyncio.to_thread(
+            lambda: client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0,
+                max_tokens=150,
+                messages=[
+                    {"role": "system",  "content": _QUERY_SYSTEM},
+                    {"role": "user",    "content": f"Podaci:\n{context}\n\nPitanje: {text}"},
+                ],
+            )
         )
         odgovor = (resp.choices[0].message.content or "").strip()
     except Exception as exc:
@@ -320,15 +323,18 @@ async def _handle_command(text: str) -> dict:
     try:
         from openai import OpenAI
         client = OpenAI()
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0,
-            max_tokens=400,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _INTENT_SYSTEM},
-                {"role": "user",   "content": f"Komanda: {text}"},
-            ],
+        # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
+        resp = await asyncio.to_thread(
+            lambda: client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0,
+                max_tokens=400,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _INTENT_SYSTEM},
+                    {"role": "user",   "content": f"Komanda: {text}"},
+                ],
+            )
         )
         raw    = (resp.choices[0].message.content or "").strip()
         parsed = json.loads(raw)

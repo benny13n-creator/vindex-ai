@@ -707,9 +707,14 @@ def _build_izvori(matches: list) -> list[dict]:
 
 def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = None) -> list:
     index = _get_index()
-    vektor = _ugradi_query(query)
     filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
     try:
+        # BUG FIX (2026-07-24): _ugradi_query (OpenAI embeddings poziv) je ranije
+        # stajao IZVAN ovog try bloka -- prolazna greška OpenAI embeddings API-ja
+        # (rate limit, mrežni blip) je bila neuhvaćen izuzetak koji je pucao ceo
+        # poziv, umesto da se, kao svaka druga Pinecone/embedding greška u ovom
+        # fajlu, uhvati i vrati prazna lista.
+        vektor = _ugradi_query(query)
         matches = index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
         if not matches:
             logger.warning("[PINECONE] Prazni rezultati za query='%s' filter=%s", query[:60], filter_zakon)
