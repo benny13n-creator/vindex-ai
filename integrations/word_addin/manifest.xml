@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Vindex AI — MS Word Add-in Manifest
+  KORAK C: Ambient Context & Word/Browser Copilot (2026-07-24)
+
+  OSNOVNI (skeleton) manifest -- pre stvarnog objavljivanja u AppSource ili
+  interne (sideload) distribucije, sledeće MORA biti zamenjeno:
+    - <Id> ispod je placeholder GUID (00000000-...) -- generisati pravi
+      (npr. `uuidgen` ili Office add-in generator) pre bilo kakvog sideload-a.
+    - Sve https://vindex.rs/static/word-addin/... putanje pretpostavljaju
+      da će taskpane.html/commands.html/ikone biti hostovane tu -- te
+      stranice JOŠ NE POSTOJE (nisu deo ovog Koraka C zahteva -- samo
+      manifest + adapter.js komunikacioni sloj).
+    - AppDomains mora tačno odgovarati production domenu.
+
+  Referenca: adapter.js u ovom istom direktorijumu implementira
+  komunikaciju ka Vindex API-ju (POST /api/copilot/ambient/analyze) koju
+  bi taskpane.html pozivao.
+-->
+<OfficeApp
+    xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+    xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+    xsi:type="TaskPaneApp">
+
+  <Id>00000000-0000-0000-0000-000000000000</Id>
+  <Version>0.1.0.0</Version>
+  <ProviderName>Vindex AI</ProviderName>
+  <DefaultLocale>sr-Latn-RS</DefaultLocale>
+  <DisplayName DefaultValue="Vindex AI — Ambient Copilot" />
+  <Description DefaultValue="Ambijentalni pravni asistent: kratki predlozi (članovi zakona, sudska praksa, upozorenja) dok kucate dokument u Word-u." />
+  <IconUrl DefaultValue="https://vindex.rs/static/word-addin/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://vindex.rs/static/word-addin/icon-80.png" />
+  <SupportUrl DefaultValue="https://vindex.rs/podrska" />
+
+  <AppDomains>
+    <AppDomain>https://vindex.rs</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Document" />
+  </Hosts>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://vindex.rs/static/word-addin/taskpane.html" />
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title" />
+            <Description resid="GetStarted.Description" />
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl" />
+          </GetStarted>
+          <FunctionFile resid="Commands.Url" />
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="VindexAmbientGroup">
+                <Label resid="GroupLabel" />
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16" />
+                  <bt:Image size="32" resid="Icon.32x32" />
+                  <bt:Image size="80" resid="Icon.80x80" />
+                </Icon>
+                <Control xsi:type="Button" id="VindexTaskpaneButton">
+                  <Label resid="TaskpaneButton.Label" />
+                  <Supertip>
+                    <Title resid="TaskpaneButton.Label" />
+                    <Description resid="TaskpaneButton.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>VindexAmbientTaskpane</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url" />
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16x16" DefaultValue="https://vindex.rs/static/word-addin/icon-16.png" />
+        <bt:Image id="Icon.32x32" DefaultValue="https://vindex.rs/static/word-addin/icon-32.png" />
+        <bt:Image id="Icon.80x80" DefaultValue="https://vindex.rs/static/word-addin/icon-80.png" />
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://vindex.rs/podrska" />
+        <bt:Url id="Commands.Url" DefaultValue="https://vindex.rs/static/word-addin/commands.html" />
+        <bt:Url id="Taskpane.Url" DefaultValue="https://vindex.rs/static/word-addin/taskpane.html" />
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="Vindex AI Ambient Copilot je spreman" />
+        <bt:String id="GroupLabel" DefaultValue="Vindex AI" />
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Ambient Copilot" />
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Kliknite dugme da otvorite ambijentalne pravne sugestije dok kucate." />
+        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Otvori Vindex AI pravne sugestije za tekući pasus." />
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>
