@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import html
 import logging
 import os
 import smtplib
@@ -94,6 +95,15 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
 
     kat_label = _KATEGORIJE.get(kategorija, "Ostalo")
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    # XSS sweep (2026-07-24): user_email/kontekst/poruka su korisnički
+    # podaci interpolirani direktno u HTML email šablon -- ista klasa buga
+    # kao routers/email_notif.py (SEC-005-adjacent XSS analiza). poruka je
+    # već HTML-stripovana na Pydantic nivou (Faza 1), ali html.escape() ovde
+    # je defense-in-depth za slučaj da ovu funkciju jednog dana pozove neko
+    # ko zaobiđe SupportPoruka model.
+    user_email_safe = html.escape(str(user_email or ""))
+    kontekst_safe = html.escape(str(kontekst)) if kontekst else ""
+    poruka_safe = html.escape(str(poruka or ""))
     rating_row = ""
     if rating:
         rating_row = f"""<tr>
@@ -104,10 +114,10 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
     if kontekst:
         kontekst_row = f"""<tr>
         <td style="padding:8px 0;color:#64748b;font-size:12px;vertical-align:top;">STRANICA</td>
-        <td style="padding:8px 0;color:#e2e8f0;font-size:13px;">{kontekst}</td>
+        <td style="padding:8px 0;color:#e2e8f0;font-size:13px;">{kontekst_safe}</td>
       </tr>"""
 
-    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+    html_body = f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
 <div style="max-width:600px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
   <div style="background:#1e3a5f;padding:20px 28px;border-bottom:1px solid #2a4a7f;">
@@ -118,7 +128,7 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
     <table style="width:100%;border-collapse:collapse;">
       <tr>
         <td style="padding:8px 0;color:#64748b;font-size:12px;width:110px;vertical-align:top;">OD</td>
-        <td style="padding:8px 0;color:#e2e8f0;font-size:13px;">{user_email}</td>
+        <td style="padding:8px 0;color:#e2e8f0;font-size:13px;">{user_email_safe}</td>
       </tr>
       <tr>
         <td style="padding:8px 0;color:#64748b;font-size:12px;vertical-align:top;">KATEGORIJA</td>
@@ -130,12 +140,12 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
       {kontekst_row}
       <tr>
         <td style="padding:8px 0;color:#64748b;font-size:12px;vertical-align:top;">PORUKA</td>
-        <td style="padding:8px 0;color:#e2e8f0;font-size:13px;line-height:1.6;white-space:pre-wrap;">{poruka}</td>
+        <td style="padding:8px 0;color:#e2e8f0;font-size:13px;line-height:1.6;white-space:pre-wrap;">{poruka_safe}</td>
       </tr>
     </table>
   </div>
   <div style="padding:16px 28px;border-top:1px solid #1e293b;font-size:11px;color:#475569;">
-    Vindex AI — Sistem za podršku &middot; Odgovori direktno na ovaj email ili kontaktiraj korisnika na {user_email}
+    Vindex AI — Sistem za podršku &middot; Odgovori direktno na ovaj email ili kontaktiraj korisnika na {user_email_safe}
   </div>
 </div>
 </body></html>"""
@@ -148,7 +158,7 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
             msg["To"]      = to_addr
             msg["Reply-To"] = user_email
             alt = MIMEMultipart("alternative")
-            alt.attach(MIMEText(html, "html", "utf-8"))
+            alt.attach(MIMEText(html_body, "html", "utf-8"))
             msg.attach(alt)
             if screenshot_base64:
                 try:

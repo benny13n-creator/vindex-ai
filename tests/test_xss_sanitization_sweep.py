@@ -244,5 +244,122 @@ class TestApiPyPredmetiHandlersUseSanitizer:
         assert "sanitize_user_input" in snippet
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Faza 2 — email HTML template escaping (routers/email_notif.py + support.py)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_XSS_PAYLOAD = "<script>alert('xss')</script>"
+
+
+class TestEmailNotifTemplatesEscaped:
+    """CONFIRMED finding from the read-only analysis: routers/rocista.py's
+    napomena (user free text) reached these templates' 'dogadjaj' field
+    completely unescaped -- a real, traceable HTML-injection path into an
+    email client. Faza 1 already strips HTML at the source (RocisteReq/
+    FollowUpReq); these tests verify the independent, defense-in-depth
+    escaping at the render site itself."""
+
+    def test_email_html_escapes_dogadjaj_and_datum(self):
+        from routers.email_notif import _email_html
+        out = _email_html(
+            [{"dogadjaj": _XSS_PAYLOAD + "Rok", "datum_iso": _XSS_PAYLOAD}],
+            dana_pre=7,
+        )
+        assert "<script>" not in out
+        assert "&lt;script&gt;" in out
+
+    def test_weekly_digest_html_escapes_user_name(self):
+        from routers.email_notif import _weekly_digest_html
+        out = _weekly_digest_html(
+            user_name=_XSS_PAYLOAD, rokovi=[], rocista=[],
+            aktivnih=1, neplaceno_rsd=0, hitnih=0,
+        )
+        assert "<script>" not in out
+        assert "&lt;script&gt;" in out
+
+    def test_weekly_digest_html_escapes_rok_row_fields(self):
+        from routers.email_notif import _weekly_digest_html
+        out = _weekly_digest_html(
+            user_name="Test", rokovi=[], rocista=[{"sud": _XSS_PAYLOAD, "datum": "2026-08-01"}],
+            aktivnih=1, neplaceno_rsd=0, hitnih=0,
+        )
+        assert "<script>" not in out
+
+    @pytest.mark.parametrize("fn_name", [
+        "_onboarding_welcome_html", "_onboarding_day1_html", "_onboarding_day3_html",
+    ])
+    def test_onboarding_templates_escape_ime(self, fn_name):
+        import routers.email_notif as en
+        fn = getattr(en, fn_name)
+        # email lokalni deo direktno postaje 'ime' -- '<script>' u local-part
+        # nije standardan email, ali funkcija ne sme da padne niti da ga
+        # propusti neescaped ako se ikad desi (npr. malformisan unos).
+        out = fn(f"{_XSS_PAYLOAD}@example.com")
+        assert "<script>" not in out
+
+
+class TestSupportEmailTemplateEscaped:
+    """Paralelna instanca iste klase buga, otkrivena tokom Faze 1 (support.py
+    takodje gradi HTML email f-stringom). Otkrivena i ista imenska kolizija:
+    fajl je koristio lokalnu promenljivu 'html' za string, sto bi se
+    sudarilo sa 'import html' modulom -- preimenovano u 'html_body' pre
+    dodavanja escaping-a."""
+
+    def test_send_support_email_escapes_all_fields(self, monkeypatch):
+        import routers.support as sp
+
+        captured = {}
+
+        class _FakeSMTP:
+            def __init__(self, *a, **kw): pass
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def ehlo(self): pass
+            def starttls(self): pass
+            def login(self, *a): pass
+            def sendmail(self, from_addr, to_addrs, raw_bytes):
+                captured["raw"] = raw_bytes
+
+        monkeypatch.setattr(sp, "_SMTP_HOST", "localhost")
+        monkeypatch.setattr(sp, "FOUNDER_EMAILS", {"founder@example.com"})
+        monkeypatch.setattr(sp.smtplib, "SMTP", _FakeSMTP)
+
+        sp._send_support_email(
+            user_email=_XSS_PAYLOAD + "user@test.com",
+            kategorija="tehnicko",
+            poruka=_XSS_PAYLOAD + "Poruka",
+            kontekst=_XSS_PAYLOAD,
+        )
+        assert "raw" in captured, "SMTP sendmail was never called"
+
+        # Parsiraj pravi MIME poruku i proveri SAMO HTML body deo -- Subject
+        # header legitimno sadrži sirov '<script>' tekst RFC-2047-enkodiran
+        # (base64), što nije XSS rizik (email klijenti ne renderuju Subject
+        # kao HTML) i ne treba da bude deo ove provere.
+        import email as _email_pkg
+        msg = _email_pkg.message_from_bytes(captured["raw"])
+        html_parts = [
+            part.get_payload(decode=True).decode("utf-8", errors="replace")
+            for part in msg.walk()
+            if part.get_content_type() == "text/html"
+        ]
+        assert html_parts, "Nijedan text/html deo nije pronađen u poruci"
+        html_body = "".join(html_parts)
+        assert "<script>" not in html_body
+        assert "&lt;script&gt;" in html_body
+
+    def test_html_body_variable_rename_did_not_break_sending(self, monkeypatch):
+        """Strukturna provera protiv regresije imenske kolizije: fajl ne sme
+        više da ima lokalnu promenljivu bukvalno nazvanu 'html' u
+        _send_support_email (sudarala bi se sa 'import html')."""
+        from pathlib import Path
+        src = (Path(__file__).resolve().parent.parent / "routers" / "support.py").read_text(encoding="utf-8")
+        fn_start = src.find("def _send_support_email(")
+        fn_end = src.find("\ndef ", fn_start + 10)
+        body = src[fn_start:fn_end if fn_end != -1 else fn_start + 3000]
+        assert "html = f\"\"\"" not in body
+        assert "html_body" in body
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

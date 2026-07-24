@@ -17,6 +17,7 @@ Endpoints:
 from __future__ import annotations
 
 import asyncio
+import html
 import logging
 import os
 import smtplib
@@ -97,9 +98,9 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
 
     rows_html = "".join(
         f'<tr><td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;">'
-        f'{r.get("dogadjaj","Rok")}</td>'
+        f'{html.escape(str(r.get("dogadjaj","Rok")))}</td>'
         f'<td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#94a3b8;white-space:nowrap;">'
-        f'{r.get("datum_iso","")}</td></tr>'
+        f'{html.escape(str(r.get("datum_iso","")))}</td></tr>'
         for r in rokovi
     )
 
@@ -328,9 +329,9 @@ def _weekly_digest_html(
         boja = "#ef4444" if r.get("vaznost") == "kritičan" else "#f97316"
         return (
             f'<tr><td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;">'
-            f'{tip} — {r.get("dogadjaj", r.get("sud", "Dogadjaj"))}</td>'
+            f'{tip} — {html.escape(str(r.get("dogadjaj", r.get("sud", "Dogadjaj"))))}</td>'
             f'<td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:{boja};white-space:nowrap;font-weight:600;">'
-            f'{r.get("datum_iso", r.get("datum", ""))}</td></tr>'
+            f'{html.escape(str(r.get("datum_iso", r.get("datum", ""))))}</td></tr>'
         )
 
     all_items = [{"tip": "rokovi", **r} for r in (rokovi or [])] + [{"tip": "rociste", **r} for r in (rocista or [])]
@@ -350,13 +351,14 @@ def _weekly_digest_html(
         )
 
     neplaceno_str = f"{int(neplaceno_rsd):,}".replace(",", ".") if neplaceno_rsd else "0"
+    user_name_safe = html.escape(str(user_name or ""))
 
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
 <div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
   <div style="background:linear-gradient(135deg,#1e3a5f,#0d2744);padding:24px 28px;">
     <div style="font-size:13px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Vindex AI — Nedeljni sažetak</div>
-    <div style="font-size:22px;font-weight:700;color:#fff;">Dobro jutro, {user_name}! 👋</div>
+    <div style="font-size:22px;font-weight:700;color:#fff;">Dobro jutro, {user_name_safe}! 👋</div>
     <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:4px;">Ovo je vaš plan za {period_lbl}</div>
   </div>
   <div style="padding:24px 28px;">
@@ -513,7 +515,7 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_requi
 _APP_URL = "https://vindex.rs"
 
 def _onboarding_welcome_html(email: str, user_id: str = "") -> str:
-    ime = email.split("@")[0].replace(".", " ").title()
+    ime = html.escape(email.split("@")[0].replace(".", " ").title())
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
 <div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
@@ -558,7 +560,7 @@ def _onboarding_welcome_html(email: str, user_id: str = "") -> str:
 
 
 def _onboarding_day1_html(email: str, user_id: str = "") -> str:
-    ime = email.split("@")[0].replace(".", " ").title()
+    ime = html.escape(email.split("@")[0].replace(".", " ").title())
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
 <div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
@@ -588,7 +590,7 @@ def _onboarding_day1_html(email: str, user_id: str = "") -> str:
 
 
 def _onboarding_day3_html(email: str, user_id: str = "") -> str:
-    ime = email.split("@")[0].replace(".", " ").title()
+    ime = html.escape(email.split("@")[0].replace(".", " ").title())
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
 <div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
