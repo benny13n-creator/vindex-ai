@@ -230,18 +230,13 @@ async def dokument_upload(
         session_id = generate_session_id()
         ttl_hours = 24
         try:
-            count, klasifikacija = await asyncio.gather(
-                asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours),
-                _klasifikuj_dokaz(text, file.filename or "dokument"),
-                return_exceptions=False,
-            )
+            count = await asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours)
         except Exception as e:
             _es = str(e)
             if "429" in _es or "storage" in _es.lower() or "Too Many" in _es:
                 # Pinecone pun — nastavi bez RAG, tekst je ekstraktovan
                 logger.warning("[UPLOAD] Pinecone storage pun, nastavljam bez indeksiranja: %s", _es[:120])
                 count = 0
-                klasifikacija = {}
             else:
                 logger.error("[UPLOAD] ingest_session greška: %s", _es, exc_info=True)
                 raise HTTPException(status_code=500, detail=f"Greška pri obradi dokumenta: {_es}")
@@ -256,6 +251,23 @@ async def dokument_upload(
                 logger.warning("[UPLOAD] Background cleanup failed: %s", _ce)
 
         asyncio.create_task(_background_cleanup())
+
+        # FIX (nightly repair, 2026-07-24), Faza 3 item 9: klasifikacija
+        # dokaza je ranije bila deo istog asyncio.gather-a koji je upload
+        # odgovor čekao da završi -- korisnik je čekao GPT poziv koji mu
+        # nije bio odmah potreban. Sad je fire-and-forget, isti obrazac kao
+        # _background_cleanup iznad. Rezultat se NE vraća više u upload
+        # odgovoru (bilo bi nepotpuno/pogrešno vraćati polupopunjen
+        # rezultat) -- POST /api/dokument/klasifikuj-sesija već postoji kao
+        # postojeći, nezavisan način da se klasifikacija dobije na zahtev.
+        async def _background_klasifikacija():
+            try:
+                rezultat = await _klasifikuj_dokaz(text, file.filename or "dokument")
+                logger.info("[UPLOAD] Klasifikacija dovršena session_id=%s: %s", session_id, rezultat.get("tip", "?"))
+            except Exception as _ke:
+                logger.warning("[UPLOAD] Background klasifikacija failed session_id=%s: %s", session_id, _ke)
+
+        asyncio.create_task(_background_klasifikacija())
 
         await UsageService.consume(user["user_id"], user.get("email", ""), "document_analysis")
 
@@ -272,9 +284,12 @@ async def dokument_upload(
                 "Kvalitet analize može biti niži nego kod digitalnog PDF-a."
             ) if ocr_used else "",
         )
-        # Dodaj klasifikaciju na response
         resp_dict = base_resp.model_dump()
-        resp_dict["klasifikacija"] = klasifikacija
+        resp_dict["klasifikacija"] = None
+        resp_dict["klasifikacija_napomena"] = (
+            "Klasifikacija dokumenta se izračunava u pozadini — pozovite "
+            "POST /api/dokument/klasifikuj-sesija sa ovim session_id za rezultat."
+        )
         return resp_dict
 
     finally:
