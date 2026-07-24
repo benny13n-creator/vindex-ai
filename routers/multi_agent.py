@@ -13,7 +13,9 @@ from shared.rate import limiter
 from pydantic import BaseModel
 from typing import Optional
 from shared.deps import _get_supa
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.multi_agent")
@@ -321,6 +323,58 @@ Agenti i kada ih koristiti:
 - deadline: procesni rokovi, zastarelost, kada šta ističe, kalendar rokova"""
 
 
+@llm_retry
+def _pozovi_router_api(client, task: str):
+    """Auto-select ruter poziv (sync OpenAI klijent) -- retry-zaštićen.
+
+    CELINA 3 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške.
+    """
+    return client.chat.completions.create(
+        model="gpt-4o-mini", temperature=0, max_tokens=60,
+        messages=[
+            {"role": "system", "content": _ROUTER_SYSTEM},
+            {"role": "user",   "content": task},
+        ],
+    )
+
+
+@llm_retry
+def _pozovi_agent_api(client, system: str, user_msg: str):
+    """Glavni agent poziv (sync OpenAI klijent) -- retry-zaštićen.
+
+    CELINA 3 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške.
+    """
+    return client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.35,
+        max_tokens=2000,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": user_msg},
+        ],
+    )
+
+
+@llm_retry
+async def _pozovi_para_api(oai, system: str, base_msg: str):
+    """Paralelni agent poziv (async OpenAI klijent) -- retry-zaštićen.
+
+    CELINA 3 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške.
+    """
+    return await oai.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.3,
+        max_tokens=2000,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": base_msg},
+        ],
+    )
+
+
 class AgentReq(BaseModel):
     agent:      Optional[str] = None  # ako None, auto-select
     task:       str
@@ -351,21 +405,14 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             from openai import OpenAI
             client = OpenAI()
             # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
-            sel = await asyncio.to_thread(
-                lambda: client.chat.completions.create(
-                    model="gpt-4o-mini", temperature=0, max_tokens=60,
-                    messages=[
-                        {"role": "system", "content": _ROUTER_SYSTEM},
-                        {"role": "user",   "content": req.task},
-                    ],
-                )
-            )
+            sel = await asyncio.to_thread(_pozovi_router_api, client, req.task)
             raw = (sel.choices[0].message.content or "").strip()
             if raw.startswith("```"):
                 raw = "\n".join(l for l in raw.splitlines() if not l.strip().startswith("```"))
             parsed = json.loads(raw)
             agent_id = parsed.get("agent", "research")
         except Exception as exc:
+            _sentry_capture(exc)
             logger.warning("[AGENT] auto-select greška: %s", exc)
             agent_id = "research"
 
@@ -498,6 +545,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                             ) + "\n"
                         predmet_ctx += "  NAPOMENA: Analiziraj konkretne dokumente. Ne izmisljaj.\n"
         except Exception as exc:
+            _sentry_capture(exc)
             logger.debug("[AGENT] predmet ctx greška: %s", exc)
 
     # ── RAG kontekst za Research + Litigation agenta ──────────────────────────
@@ -521,6 +569,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             else:
                 rag_ctx = "\n\n[NAPOMENA: Baza nije vratila relevantne izvore za ovaj upit — osloni se na opšte zakonske odredbe, bez navođenja konkretnih odluka.]\n"
         except Exception as _re:
+            _sentry_capture(_re)
             logger.warning("[AGENT/research] RAG greška: %s", _re)
 
     # ── Billing kontekst iz DB za Billing agenta ─────────────────────────────
@@ -545,6 +594,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                     f"{stavke}\n"
                 )
         except Exception as _be:
+            _sentry_capture(_be)
             logger.warning("[AGENT/billing] billing ctx greška: %s", _be)
 
     # ── Stvarni rokovi iz predmeta za Deadline agenta ─────────────────────
@@ -572,6 +622,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             if rokovi_list:
                 rokovi_ctx = "\n\nSTVARNI ROKOVI IZ PREDMETA (analizirati ove konkretne rokove):\n" + "\n".join(rokovi_list)
         except Exception as _de:
+            _sentry_capture(_de)
             logger.warning("[AGENT/deadline] rokovi greška: %s", _de)
 
     # ── Pozovi agent ─────────────────────────────────────────────────────────
@@ -581,19 +632,10 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
         from openai import OpenAI
         client = OpenAI()
         # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
-        resp = await asyncio.to_thread(
-            lambda: client.chat.completions.create(
-                model="gpt-4o",
-                temperature=0.35,
-                max_tokens=2000,
-                messages=[
-                    {"role": "system", "content": agent_cfg["system"]},
-                    {"role": "user",   "content": user_msg},
-                ],
-            )
-        )
+        resp = await asyncio.to_thread(_pozovi_agent_api, client, agent_cfg["system"], user_msg)
         odgovor = (resp.choices[0].message.content or "").strip()
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("[AGENT] GPT greška: %s", exc)
         raise HTTPException(status_code=503, detail="AI servis trenutno nedostupan.")
 
@@ -667,6 +709,7 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
                 if p.get("opis"):
                     predmet_ctx += f"Opis: {p['opis'][:400]}\n"
         except Exception as exc:
+            _sentry_capture(exc)
             logger.debug("[PARA] predmet ctx greška: %s", exc)
 
     # RAG za research i litigation
@@ -688,6 +731,7 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
             else:
                 rag_ctx = "\n\n[NAPOMENA: Baza nije vratila relevantne izvore — osloni se na opšte zakonske odredbe, bez navođenja konkretnih odluka.]\n"
         except Exception as _re:
+            _sentry_capture(_re)
             logger.warning("[PARA/rag] greška: %s", _re)
 
     oai = AsyncOpenAI()
@@ -696,15 +740,7 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
     async def _pozovi_agenta(agent_id: str) -> dict:
         cfg = _AGENTS[agent_id]
         try:
-            resp = await oai.chat.completions.create(
-                model="gpt-4o",
-                temperature=0.3,
-                max_tokens=2000,
-                messages=[
-                    {"role": "system", "content": cfg["system"]},
-                    {"role": "user",   "content": base_msg},
-                ],
-            )
+            resp = await _pozovi_para_api(oai, cfg["system"], base_msg)
             return {
                 "agent_id": agent_id,
                 "naziv":    cfg["naziv"],
@@ -713,6 +749,7 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
                 "greska":   None,
             }
         except Exception as exc:
+            _sentry_capture(exc)
             logger.error("[PARA] agent=%s greška: %s", agent_id, exc)
             return {"agent_id": agent_id, "naziv": cfg["naziv"], "ikona": cfg["ikona"], "odgovor": "", "greska": str(exc)[:80]}
 
@@ -790,6 +827,7 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(Permissi
         except HTTPException:
             raise
         except Exception as exc:
+            _sentry_capture(exc)
             logger.error("[PIPELINE] agent=%s korak=%d greška: %s", agent_id, step+1, exc)
             results.append({
                 "korak": step + 1, "agent": agent_id,

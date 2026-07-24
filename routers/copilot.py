@@ -31,14 +31,26 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.copilot")
 router = APIRouter(tags=["copilot"])
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+
+@llm_retry
+async def _pozovi_gpt4o_mini(oai, **kwargs):
+    """Zajednički retry-zaštićeni poziv za sve GPT-4o-mini pozive u Copilot-u.
+
+    FAZA CELINA 3 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške; 400/401 se NE ponavljaju.
+    """
+    return await oai.chat.completions.create(**kwargs)
 
 _INTENT_SYSTEM = """Ti si detektor namere za srpski pravni AI asistent za advokate.
 Na osnovu korisničke poruke, vrati SAMO jednu od sledećih reči (bez ikakvog drugog teksta):
@@ -116,7 +128,8 @@ async def _oai_parse_json(system_prompt: str, user_content: str) -> str:
     """Patchable wrapper za GPT-4o-mini JSON parse pozive."""
     from openai import AsyncOpenAI
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
-    r = await oai.chat.completions.create(
+    r = await _pozovi_gpt4o_mini(
+        oai,
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
@@ -156,7 +169,8 @@ async def _detect_intent(poruka: str) -> str:
     from openai import AsyncOpenAI
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     try:
-        r = await oai.chat.completions.create(
+        r = await _pozovi_gpt4o_mini(
+            oai,
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": _INTENT_SYSTEM},
@@ -167,7 +181,9 @@ async def _detect_intent(poruka: str) -> str:
         )
         intent = (r.choices[0].message.content or "").strip().upper()
         return intent if intent in _INTENT_CHOICES else "OSTALO"
-    except Exception:
+    except Exception as e:
+        _sentry_capture(e)
+        logger.warning("[COPILOT] intent detection greška: %s — fallback PRAVNO_PITANJE", e)
         return "PRAVNO_PITANJE"
 
 
@@ -186,8 +202,8 @@ async def _load_predmet_context(predmet_id: str, user_id: str) -> str:
         if r.data:
             d = r.data
             return f"[Predmet: {d.get('naziv','')} | {d.get('tip','')} | {d.get('status','')}]\n{d.get('opis','')}"
-    except Exception:
-        pass
+    except Exception as e:
+        _sentry_capture(e)
     return ""
 
 
@@ -205,6 +221,7 @@ async def _handle_pravno_pitanje(poruka: str, predmet_ctx: str, user: dict, hist
             odgovor = "Sistem nije mogao da obradi pitanje. Pokušajte ponovo."
         return {"tip": "PRAVNO_PITANJE", "odgovor": odgovor}
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[COPILOT] pravno_pitanje greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri pravnom istraživanju.")
 
@@ -216,6 +233,7 @@ async def _handle_sudska_praksa(poruka: str) -> dict:
         results = await asyncio.to_thread(_rp, poruka, top_k=5)
         return {"tip": "SUDSKA_PRAKSA", "presude": results}
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[COPILOT] sudska_praksa greška: %s — fallback", e)
         return {
             "tip": "SUDSKA_PRAKSA",
@@ -256,8 +274,8 @@ async def _handle_pretraga(poruka: str, user_id: str) -> dict:
                 naziv = row.get("naziv") or row.get("sadrzaj","")[:80] or f"{row.get('ime','')} {row.get('prezime','')}".strip()
                 url = url_prefix + row.get("predmet_id", row.get("id", ""))
                 results.append({"tip": tip, "naziv": naziv, "url": url})
-        except Exception:
-            pass
+        except Exception as e:
+            _sentry_capture(e)
     return {"tip": "PRETRAGA", "rezultati": results}
 
 
@@ -314,7 +332,8 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
     import json as _json
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     try:
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_gpt4o_mini(
+            oai,
             model="gpt-4o-mini", temperature=0.1, max_tokens=1200,
             response_format={"type": "json_object"},
             messages=[
@@ -324,6 +343,7 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
         )
         result = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[COPILOT-ANALIZA] OpenAI greška: %s", e)
         return {"tip": "ANALIZA_PREDMETA", "odgovor": "Greška pri generisanju analize."}
 
@@ -379,6 +399,7 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
                 for m in _matches[:3]
             )
     except Exception as _pe:
+        _sentry_capture(_pe)
         logger.warning("[COPILOT-PLAN] praksa greška: %s", _pe)
 
     _PLAN_SYSTEM = (
@@ -408,7 +429,8 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     import json as _json
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     try:
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_gpt4o_mini(
+            oai,
             model="gpt-4o-mini", temperature=0.1, max_tokens=2000,
             response_format={"type": "json_object"},
             messages=[
@@ -418,6 +440,7 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         )
         result = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[COPILOT-PLAN] OpenAI greška: %s", e)
         return {"tip": "PLAN", "odgovor": "Greška pri generisanju plana."}
 
@@ -447,13 +470,15 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
         f"Danas je {date.today().isoformat()}. Relativne datume pretvori u apsolutne."
     )
     try:
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_gpt4o_mini(
+            oai,
             model="gpt-4o-mini", temperature=0, max_tokens=150,
             response_format={"type": "json_object"},
             messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
         )
         ext = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[COPILOT-ROK] ekstrakcija greška: %s", e)
         return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Nisam uspeo da prepoznam rok. Pokušajte: 'Dodaj rok — ročište 20. jula 2026.'"}
 
@@ -472,6 +497,7 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
             "akter":      "Copilot (AI)",
         }).execute())
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[COPILOT-ROK] insert greška: %s", e)
         return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Greška pri čuvanju roka. Pokušajte ponovo."}
 
@@ -497,14 +523,16 @@ async def _handle_akcija_beleska(poruka: str, predmet_id: str, user_id: str) -> 
         'Vrati ISKLJUČIVO JSON: {"sadrzaj": str}'
     )
     try:
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_gpt4o_mini(
+            oai,
             model="gpt-4o-mini", temperature=0, max_tokens=400,
             response_format={"type": "json_object"},
             messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
         )
         ext     = _json.loads(resp.choices[0].message.content or "{}")
         sadrzaj = (ext.get("sadrzaj") or "").strip()
-    except Exception:
+    except Exception as e:
+        _sentry_capture(e)
         sadrzaj = poruka.strip()
 
     if len(sadrzaj) < 3:
@@ -518,6 +546,7 @@ async def _handle_akcija_beleska(poruka: str, predmet_id: str, user_id: str) -> 
             "sadrzaj":    sadrzaj[:2000],
         }).execute())
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[COPILOT-BELESKA] insert greška: %s", e)
         return {"tip":"KREIRAJ_BELEŠKU","uspeh":False,"odgovor":"Greška pri čuvanju beleške."}
 
@@ -541,13 +570,15 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
         'Vrati ISKLJUČIVO JSON: {"ime_klijenta": str, "uloga": "stranka|protivna_stranka|svedok|ostalo"}'
     )
     try:
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_gpt4o_mini(
+            oai,
             model="gpt-4o-mini", temperature=0, max_tokens=100,
             response_format={"type": "json_object"},
             messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
         )
         ext = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
+        _sentry_capture(e)
         return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Nisam uspeo da prepoznam ime klijenta."}
 
     ime = (ext.get("ime_klijenta") or "").strip()
@@ -564,7 +595,8 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
                 .limit(3)
                 .execute()
         )
-    except Exception:
+    except Exception as e:
+        _sentry_capture(e)
         return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Greška pri pretražvanju klijenta."}
 
     if not (found_r.data):
@@ -588,6 +620,7 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
             "user_id":        user_id,
         }).execute())
     except Exception as e:
+        _sentry_capture(e)
         return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Greška pri povezivanju klijenta."}
 
     return {
@@ -759,7 +792,8 @@ async def _handle_ostalo(poruka: str, predmet_ctx: str) -> dict:
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     ctx_line = f"\nKontekst predmeta: {predmet_ctx}" if predmet_ctx else ""
     try:
-        r = await oai.chat.completions.create(
+        r = await _pozovi_gpt4o_mini(
+            oai,
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": (
@@ -773,6 +807,7 @@ async def _handle_ostalo(poruka: str, predmet_ctx: str) -> dict:
         )
         return {"tip": "OSTALO", "odgovor": r.choices[0].message.content or ""}
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[COPILOT] ostalo greška: %s", e)
         return {"tip": "OSTALO", "odgovor": "Molim precizite pitanje."}
 
@@ -785,6 +820,7 @@ async def _handle_naplati_radnju(poruka: str, predmet_id: str | None, uid: str) 
         raw    = await _oai_parse_json(_NAPLATA_PARSE_SYSTEM, poruka)
         parsed = _json.loads(raw)
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[COPILOT-NAPLATA] parse greška: %s", e)
         parsed = {}
 
@@ -842,6 +878,7 @@ async def _handle_naplati_radnju(poruka: str, predmet_id: str | None, uid: str) 
         )
         kreirana_id = (res.data[0].get("id") if res.data else None)
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[COPILOT-NAPLATA] DB greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri čuvanju radnje.")
 

@@ -497,6 +497,7 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 from shared.deps import require_credits, _refund_one_credit, _increment_monthly_usage, _get_monthly_usage, verify_token_local
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 
@@ -2907,8 +2908,15 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
 async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends(PermissionService.require("ai_pravna_pitanja"))):
     """
     SSE streaming verzija /api/pitanje.
-    Retrieval se izvršava normalno, zatim se GPT-4o odgovor stream-uje
-    chunk po chunk — korisnik vidi izlaz odmah, bez čekanja na kompletan odgovor.
+
+    NAPOMENA (CELINA 3, 2026-07-24): Ovo NIJE token-level streaming direktno iz
+    OpenAI-a. ask_agent() se izvršava do kraja (retrieval + guard/halucinacija
+    provera + LLM poziv) PRE nego što se ijedan bajt pošalje klijentu — tek
+    kompletan, guard-verifikovan odgovor se veštački deli na 80-karakterne
+    delove za SSE isporuku. Ovo je namerna odluka (v. komentar "Guard-complete
+    pipeline" u _event_generator ispod), ne bug: anti-halucinacijski/topic-drift
+    guard mora da vidi ceo odgovor pre nego što bilo šta stigne do korisnika,
+    što pravi token-streaming direktno iz OpenAI-a ne bi dozvoljavao.
 
     SSE format:
       data: <tekst chunk>\n\n
@@ -2925,7 +2933,6 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
         _format_low_response, _format_medium_response,
         DISCLAIMER,
     )
-    from openai import OpenAI as _OAI
 
     qh = _q_hash(req.pitanje)
     logger.info("PitanjeStream [uid=%.8s] [q=%s]", user["user_id"], qh)
@@ -2985,7 +2992,8 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             yield "data: [DONE]\n\n"
             yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
 
-        except Exception:
+        except Exception as _stream_exc:
+            _sentry_capture(_stream_exc)
             logger.exception("Greška u /api/pitanje/stream [q=%s]", qh)
             yield "data: Došlo je do greške. Pokušajte ponovo.\n\n"
             yield "data: [DONE]\n\n"
