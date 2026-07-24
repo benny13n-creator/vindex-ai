@@ -381,12 +381,22 @@ async def timer_start(
         else:
             raise HTTPException(status_code=409, detail="Tajmer je već aktivan. Zaustavite ga pre pokretanja novog.")
 
-    r = await _db(lambda: supa.table("timer_sessions").insert({
-        "user_id":    uid,
-        "predmet_id": body.predmet_id,
-        "opis":       body.opis,
-        "aktivan":    True,
-    }).execute())
+    # Race fix (nightly repair, 2026-07-24): SELECT-pa-INSERT gore nije
+    # atomično -- dva brza poziva mogu oba proći proveru pre commit-a.
+    # Migracija 084 dodaje UNIQUE(user_id) WHERE aktivan=true; drugi upis
+    # ovde dobija 23505 unique-violation umesto da tiho kreira duplikat, i
+    # to se prevodi u ISTI 409 koji SELECT-provera gore već vraća.
+    try:
+        r = await _db(lambda: supa.table("timer_sessions").insert({
+            "user_id":    uid,
+            "predmet_id": body.predmet_id,
+            "opis":       body.opis,
+            "aktivan":    True,
+        }).execute())
+    except Exception as e:
+        if "23505" in str(e) or "duplicate key" in str(e).lower():
+            raise HTTPException(status_code=409, detail="Tajmer je već aktivan. Zaustavite ga pre pokretanja novog.")
+        raise
     if not r.data:
         raise HTTPException(status_code=500, detail="Pokretanje tajmera nije uspelo.")
     return {"success": True, "timer": r.data[0]}
