@@ -240,6 +240,20 @@ async def delegiraj_predmet(
             detail="Predmet nije pronadjen ili nemate pravo delegiranja.",
         )
 
+    # FIX (nightly repair, 2026-07-24): ranije se advokat_user_id prihvatao
+    # bez ikakve provere -- bilo koji string je bio prihvaćen kao validan
+    # cilj delegiranja. Sad se proverava da delegirana osoba STVARNO
+    # pripada istoj firmi kao delegator (isti izvor kao _get_firma_clan_ids
+    # koji koriste statistike/kapacitet iznad).
+    firma_id = await _get_firma_id(supa, uid)
+    clanovi = await _get_firma_clan_ids(supa, firma_id, uid)
+    clan_ids = {c["user_id"] for c in clanovi}
+    if payload.advokat_user_id not in clan_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Advokat kome delegirate mora biti član iste kancelarije.",
+        )
+
     await asyncio.to_thread(
         lambda: supa.table("predmet_delegiranja").insert({
             "predmet_id":      payload.predmet_id,

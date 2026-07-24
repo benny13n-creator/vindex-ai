@@ -3394,7 +3394,26 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
 async def get_predmet(predmet_id: str, request: Request, authorization: str = Header(None)):
     user = await asyncio.to_thread(_require_auth, authorization)
     supa = _get_supa()
-    row = supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", user.id).single().execute()
+    row = supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", user.id).maybe_single().execute()
+    if not row.data:
+        # FIX (nightly repair, 2026-07-24): predmet_delegiranja (routers/
+        # enterprise.py::delegiraj_predmet) je ranije upisivao zapis o
+        # delegiranju koji NIŠTA drugo u kodu nikad nije čitalo za pristup
+        # -- kolega kome je predmet "delegiran" i dalje nije mogao ni da
+        # ga VIDI. Ovo dodaje stvarnu proveru pristupa za READ putanju
+        # (uvid) preko aktivne delegacije -- write akcije (izmena, beleške
+        # itd.) i dalje ostaju gejtovane isključivo na originalnog vlasnika,
+        # namerno, dok se ne donese šira odluka o granicama delegiranog
+        # pristupa.
+        deleg = supa.table("predmet_delegiranja") \
+            .select("id") \
+            .eq("predmet_id", predmet_id) \
+            .eq("na_user_id", user.id) \
+            .eq("status", "aktivno") \
+            .maybe_single().execute()
+        if deleg.data:
+            row = supa.table("predmeti").select("*").eq("id", predmet_id).maybe_single().execute()
+
     if not row.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
