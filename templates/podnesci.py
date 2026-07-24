@@ -1458,6 +1458,63 @@ KRITIČNO: Rok za prigovor je 8 dana od dostave rešenja o izvršenju (ZIO čl. 
 }
 
 
+# ─── FAZA 3 (2026-07-24) — zajednička pravila dodata na SVE tipove ───────────
+# Isti obrazac kao main.py (HALLUCINATION_REFUSAL_TEXT dodat na sve topic
+# promptove) — jedan izvor istine umesto ručnog kopiranja u 12 promptova.
+
+_IZVOR_CITIRANJE_PRAVILO = """
+
+OBAVEZNO CITIRANJE IZVORA (SOURCE-n mapiranje):
+Zakonski kontekst (RAG) koji ti je dostavljen je označen kao [IZVOR-1], [IZVOR-2], itd.
+Kad navodiš konkretan član zakona ili stav sudske prakse koji potiče iz tog konteksta,
+EKSPLICITNO referenciraj odgovarajući identifikator odmah uz navod, npr:
+"čl. 154 ZOO [IZVOR-2]" ili "presuda VKS Rev 123/2020 [IZVOR-1]".
+Ako je zakon/član opštepoznat (osnovne odredbe ZOO, ZPP, ZKP) i NIJE eksplicitno u
+dostavljenom kontekstu, navedi ga BEZ [IZVOR-n] oznake — ne izmišljaj referencu.
+NIKADA ne dodeljuj [IZVOR-n] oznaku navodu koji tim izvorom nije stvarno potkrepljen —
+to je gore od necitiranja, jer stvara lažni utisak provere.
+"""
+
+_STIL_PRAVILA = """
+
+STIL PISANJA — VRHUNSKI ADVOKATSKI NIVO:
+Piši kao vrhunski advokat sa dugogodišnjim iskustvom pred srpskim sudovima —
+ubedljivo, precizno, bez opštih mesta i praznih fraza.
+- Svaka rečenica mora nositi konkretan pravni ili činjenični sadržaj — izbegavaj
+  generičke uvode tipa "Kao što je poznato..." ili "Nesporno je da...".
+- Koristi preciznu pravnu terminologiju (npr. "aktivna legitimacija",
+  "uzročno-posledična veza", "teret dokazivanja") tamo gde je pravno tačna, ne
+  dekorativna.
+- Struktura pasusa: jedan pasus = jedna pravna ili činjenična teza, jasno
+  uvedena i zaokružena zaključkom.
+- Ekavica, isključivo formalni pravni registar — bez kolokvijalizama, bez
+  emocionalnog jezika.
+"""
+
+_PETITUM_PRAVILA = """
+
+PRAVILA ZA TUŽBENI ZAHTEV / PETITUM (kad sekcija to zahteva):
+- Petitum mora biti IZVRŠAN — formulisan tako da sud, ako ga usvoji doslovno,
+  može doneti izvršivu presudu/rešenje bez dodatnog tumačenja.
+- Svaka novčana obaveza mora imati: tačan iznos (ili jasno naznačen
+  placeholder [IZNOS — POPUNITI] ako iznos nije poznat), rok izvršenja, i
+  osnov zatezne kamate ako je primenjivo.
+- Svaka nenovčana obaveza (činidba, uzdržavanje, trpljenje) mora biti opisana
+  konkretnom, merljivom radnjom — ne uopštenim zahtevom.
+- Numeriši tačke petituma ako ih ima više od jedne.
+- Zabranjeno: alternativni ili nejasni zahtevi bez jasnog redosleda prvenstva
+  — ako postoji alternativa, eksplicitno navesti "podredno" / "alternativno".
+"""
+
+for _tip_kljuc in list(OBOGACIVANJE_PROMPTOVI.keys()):
+    OBOGACIVANJE_PROMPTOVI[_tip_kljuc] = (
+        OBOGACIVANJE_PROMPTOVI[_tip_kljuc]
+        + _IZVOR_CITIRANJE_PRAVILO
+        + _STIL_PRAVILA
+        + _PETITUM_PRAVILA
+    )
+
+
 # ─── Funkcija za popunjavanje šablona ────────────────────────────────────────
 def popuni_sablon(tip: str, entiteti: dict, obogacivanje: dict,
                   vks_analiza: str = "") -> str:

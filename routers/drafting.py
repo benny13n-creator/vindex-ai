@@ -35,6 +35,7 @@ from shared.rate import limiter
 from shared.permissions import PermissionService
 from shared.usage import UsageService
 from shared.sentry import capture_exception as _sentry_capture
+from shared.llm_retry import llm_retry
 
 from main import ask_analiza, _skini_pii
 from drafting.router import generate_draft as _drafting_generate
@@ -165,6 +166,128 @@ def _normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None
 def _greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
     logger.warning("API greška %d: %s", status_code, poruka)
     return JSONResponse(status_code=status_code, content={"greska": poruka})
+
+
+def _izvori_kontekst(docs: list[str], limit: int = 4) -> str:
+    """FAZA 3 (2026-07-24): označava svaki RAG dokument kao [IZVOR-n] -- isti
+    identity-based mapping obrazac kao services/legal_reasoning_engine.py
+    (SOURCE-n). Omogućava sistemskom promptu da traži eksplicitno pozivanje
+    na [IZVOR-n] pri navođenju člana/prakse, i critique pass-u da proveri
+    da li je svaki navod stvarno potkrepljen tim izvorom."""
+    if not docs:
+        return ""
+    return "\n\n".join(f"[IZVOR-{i + 1}]\n{d}" for i, d in enumerate(docs[:limit]))
+
+
+# ── FAZA 3 (2026-07-24): Critique & Self-Correction pass za podneske ──────────
+
+_CRITIQUE_SYSTEM = """\
+Ti si strogi glavni advokat (senior partner) koji vrši finalnu proveru nacrta \
+pravnog podneska pre nego što ide advokatu na potpis. Ne pišeš nacrt iznova — \
+proveravaš ga i ispravljaš SAMO ako postoji stvaran problem.
+
+TVOJ ZADATAK IMA DVA DELA:
+
+1. PROVERA HALUCINACIJA:
+Zakonski kontekst dostavljen uz nacrt je označen kao [IZVOR-1], [IZVOR-2], itd.
+Proveri da li nacrt navodi članove zakona, brojeve presuda ili druge pravne
+reference koje NISU potkrepljene tim izvorima. Osnovne, opštepoznate odredbe
+(npr. ZOO čl. 154, ZPP čl. 194) NISU halucinacija ni bez izvora — problem je
+SAMO kad je naveden konkretan, neuobičajen ili sporan broj člana/presude koji
+se ne može potvrditi ni iz izvora ni iz opšteg pravnog znanja.
+
+2. PROVERA OBAVEZNIH FORMALNIH ELEMENATA:
+Proveri da nacrt sadrži: (a) zaglavlje sa nazivom/adresom suda, (b) jasnu
+identifikaciju stranaka, (c) činjenično stanje, (d) pravni osnov sa referencama
+na zakon, (e) dokazni predlog, (f) tužbeni zahtev/petitum (ako je tip podneska
+takav da petitum zahteva) koji je izvršan i nedvosmislen, (g) mesto/datum i
+potpisni blok.
+
+Vrati ISKLJUČIVO validan JSON, bez markdown blokova, bez teksta van JSON-a:
+{
+  "ima_izmisljenih_navoda": true/false,
+  "izmisljeni_navodi": ["kratak opis svakog spornog navoda"],
+  "nedostaju_elementi": ["naziv elementa koji nedostaje ili je nepotpun"],
+  "ispravljen_tekst": "CEO ispravljen tekst nacrta. Ako NEMA problema (oba polja iznad su prazna/false), vrati IDENTIČAN originalni tekst bez ijedne izmene."
+}
+
+STROGA PRAVILA:
+- Ne diraj stilske izbore koji nisu greška — ispravljaj SAMO stvarne probleme
+  (halucinacije, nedostajući obavezni elementi, očigledne pravne greške).
+- Ako ukloniš izmišljen član zakona, zameni ga generičkom formulacijom bez
+  izmišljenog broja ("u skladu sa važećim propisima") ili placeholder-om
+  "[proveriti relevantan član]" — NIKAD ne izmišljaj zamenski broj.
+- "ispravljen_tekst" mora biti KOMPLETAN nacrt od početka do kraja, ne samo
+  izmenjeni delovi ili rezime.
+"""
+
+
+@llm_retry
+async def _pozovi_kriticara(oai_client, nacrt: str, kontekst: str, tip_naziv: str) -> dict:
+    """Retry-ovani deo critique pass-a -- izdvojen kao poseban helper (isti
+    razlog kao services/legal_reasoning_engine.py::_pozovi_reasoning_api):
+    _critique_and_refine_draft ima sopstveni try/except sa fallback-om na
+    originalni nacrt, koji bi inače sakrio grešku od tenacity-ja."""
+    resp = await asyncio.wait_for(
+        asyncio.to_thread(
+            lambda: oai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0,
+                max_tokens=4000,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _CRITIQUE_SYSTEM},
+                    {"role": "user", "content": (
+                        f"VRSTA PODNESKA: {tip_naziv}\n\n"
+                        f"IZVORI (RAG kontekst sa oznakama):\n"
+                        f"{kontekst or '(nema dostavljenih izvora -- oslanjaj se samo na opšte pravno znanje)'}\n\n"
+                        f"NACRT ZA PROVERU:\n{nacrt}"
+                    )},
+                ],
+            )
+        ),
+        timeout=30.0,
+    )
+    raw = (resp.choices[0].message.content or "{}").strip()
+    return json.loads(raw)
+
+
+async def _critique_and_refine_draft(nacrt: str, kontekst: str, tip: str, log_id: str) -> str:
+    """Drugi, brz LLM prolaz nad već generisanim nacrtom: proverava izmišljene
+    članove zakona van [IZVOR-n] konteksta i obavezne formalne elemente
+    podneska, i ispravlja ih ako postoje. Ako je nacrt besprekoran, vraća ga
+    NEIZMENJEN (ignoriše model's "ispravljen_tekst" kad model sam prijavi da
+    nema problema -- izbegava suvišno prepisivanje/drift). Nikad ne baca:
+    svaka greška pada nazad na originalni nacrt umesto da blokira odgovor."""
+    try:
+        from openai import OpenAI as _OAI
+        oai_client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+        tip_naziv = PODNESAK_TIPOVI.get(tip, tip)
+        kritika = await _pozovi_kriticara(oai_client, nacrt, kontekst, tip_naziv)
+
+        izmisljeni = kritika.get("izmisljeni_navodi") or []
+        nedostaje = kritika.get("nedostaju_elementi") or []
+        ima_problema = bool(kritika.get("ima_izmisljenih_navoda")) or bool(izmisljeni) or bool(nedostaje)
+
+        if not ima_problema:
+            return nacrt
+
+        ispravljen = (kritika.get("ispravljen_tekst") or "").strip()
+        if not ispravljen:
+            logger.warning(
+                "Critique pass prijavio probleme ali nije vratio ispravljen tekst [q=%s]", log_id
+            )
+            return nacrt
+
+        logger.info(
+            "Critique pass ispravio nacrt [q=%s]: izmisljeni_navodi=%s nedostaju_elementi=%s",
+            log_id, izmisljeni, nedostaje,
+        )
+        return ispravljen
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.warning("Critique pass neuspešan [q=%s]: %s — vraćam originalni nacrt", log_id, exc)
+        return nacrt
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -495,7 +618,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
         # ijednog stvarnog RAG zakonskog citata, uprkos promptu koji to
         # eksplicitno traži.
         docs, _retrieval_meta = await asyncio.to_thread(retrieve_documents, rag_upit, 5)
-        kontekst = "\n\n".join(docs[:4]) if docs else ""
+        kontekst = _izvori_kontekst(docs)
     except Exception as exc:
         _sentry_capture(exc)
         logger.warning("RAG neuspešan za podnesak [q=%s]: %s", log_id, exc)
@@ -534,10 +657,12 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
         raw_obog = raw_obog.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         obogacivanje: dict = json.loads(raw_obog)
     except (json.JSONDecodeError, Exception) as exc:
+        _sentry_capture(exc)
         logger.warning("Obogaćivanje neuspešno [q=%s]: %s", log_id, exc)
         obogacivanje = {}
 
     nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
+    nacrt = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
 
     await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
 
