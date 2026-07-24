@@ -211,6 +211,22 @@ async def sacuvaj_dokument(
     uid  = user["user_id"]
     supa = _get_supa()
 
+    # SEC-001 fix (nightly repair, 2026-07-24): req.predmet_id ranije nije
+    # bio proveravan pre insert-a -- bilo koji prijavljeni korisnik je mogao
+    # da upiše belešku u TUĐ predmet pogađanjem/dobijanjem njegovog ID-a.
+    # Ista provera vlasništva kao dodaj_belesku (api.py) i svaka druga
+    # {predmet_id}-scoped mutacija u ovom kodu.
+    pred = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id")
+            .eq("id", req.predmet_id)
+            .eq("user_id", uid)
+            .maybe_single()
+            .execute()
+    )
+    if not pred.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("predmet_beleske").insert({
