@@ -13,6 +13,11 @@ Endpoints:
   POST /email-notif/send-reminders    — interni cron trigger (founder only)
   POST /email-notif/onboarding-welcome — šalje welcome email jednom korisniku
   POST /email-notif/onboarding-cron   — cron: šalje day1 i day3 onboarding emailove
+
+SEC-002 (2026-07-24): ovaj fajl više NE definiše /api/cron/daily -- taj
+jedinstveni master dispečer živi isključivo u api.py, koji poziva
+posalji_podsetnike/onboarding_cron/posalji_nedeljni_sazetak direktno kao
+svoje module (vidi napomenu iznad Master cron sekcije, na kraju fajla).
 """
 from __future__ import annotations
 
@@ -785,50 +790,18 @@ async def onboarding_cron(request: Request, user: dict = Depends(_require_cron_o
     return {"poslato": poslato_total, "greske": greske_total}
 
 
-# ─── Master cron endpoint (Railway / Render scheduler) ────────────────────────
-
-@router.post("/api/cron/daily")
-@limiter.limit("10/minute")
-async def cron_daily(request: Request, user: dict = Depends(_require_cron_or_founder)):
-    """
-    Master dnevni cron — poziva se jednom dnevno (07:00) od strane scheduler-a.
-    Autentifikacija: X-Cron-Key header sa CRON_SECRET env varom (bez Bearer tokena).
-
-    Podešavanje na Railway/Render/Vercel:
-      URL: POST https://vindex.rs/api/cron/daily
-      Header: X-Cron-Key: <vrednost CRON_SECRET env var>
-      Raspored: 0 7 * * * (svaki dan u 07:00)
-
-    Pokreće:
-      1. Email podsetnici za rokove (7, 3, 1 dan pre)
-      2. Onboarding email sekvenca (day1, day3)
-      3. Nedeljni sažetak (samo ponedeljkom)
-    """
-
-    from datetime import datetime
-    rezultati: dict = {}
-
-    # 1. Podsetnici za rokove
-    try:
-        r1 = await posalji_podsetnike(request, user)
-        rezultati["podsetnici"] = r1
-    except Exception as e:
-        rezultati["podsetnici"] = {"greska": str(e)}
-
-    # 2. Onboarding sekvenca
-    try:
-        r2 = await onboarding_cron(request, user)
-        rezultati["onboarding"] = r2
-    except Exception as e:
-        rezultati["onboarding"] = {"greska": str(e)}
-
-    # 3. Nedeljni sažetak — samo ponedeljkom
-    if datetime.now().weekday() == 0:
-        try:
-            r3 = await posalji_nedeljni_sazetak(request, user)
-            rezultati["nedeljni_sazetak"] = r3
-        except Exception as e:
-            rezultati["nedeljni_sazetak"] = {"greska": str(e)}
-
-    logger.info("[CRON-DAILY] završeno: %s", rezultati)
-    return {"ok": True, "datum": date.today().isoformat(), "rezultati": rezultati}
+# ─── NAPOMENA (SEC-002, 2026-07-24): "Master cron endpoint" uklonjen ──────────
+#
+# Ovaj fajl je ranije definisao SVOJ /api/cron/daily (identičan path kao
+# api.py's cron_daily, linija ~1464). FastAPI/Starlette dispečer bira PRVI
+# registrovani match; ovaj router se montira (app.include_router) PRE nego
+# što je api.py's cron_daily dekorator izvršen, pa je OVAJ handler tiho
+# "pobeđivao" -- što je značilo da api.py's bogatiji dispečer (idempotency
+# guard, heartbeat, workflow eskalacije, nedeljni zakon_monitoring, memory
+# cleanup) NIKAD nije stvarno izvršen otkad je napisan.
+#
+# Ispravka: ovaj duplirani endpoint je uklonjen. posalji_podsetnike(),
+# onboarding_cron() i posalji_nedeljni_sazetak() (funkcije iznad, i dalje
+# dostupne kao svoje pojedinačne rute za ručno/eksterno okidanje) sada se
+# pozivaju DIREKTNO iz api.py's cron_daily kao Modul 6/7/8 -- api.py je
+# jedini, kanonski POST /api/cron/daily otkad je ova izmena napravljena.

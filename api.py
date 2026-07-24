@@ -1649,6 +1649,95 @@ async def cron_daily(request: Request):
                                              "duration_ms": round((_time.monotonic() - _t_wf) * 1000)}
         _broj_grešaka += 1
 
+    # ── Modul 6/7/8: Email podsetnici / onboarding / nedeljni sažetak ───────
+    # SEC-002 (2026-07-24): ova 3 modula su ranije živela u
+    # routers/email_notif.py's SOPSTVENOM /api/cron/daily -- koji je bio
+    # registrovan PRE ovog handlera (app.include_router na liniji 699) i
+    # zato tiho "pobeđivao" u Starlette-ovom prvi-match rutiranju, što je
+    # značilo da OVAJ, bogatiji dispečer nikad nije stvarno izvršen. Taj
+    # duplirani endpoint je uklonjen; posalji_podsetnike/onboarding_cron/
+    # posalji_nedeljni_sazetak (i dalje dostupne kao svoje pojedinačne rute
+    # za ručno okidanje) sada se pozivaju odavde direktno. Nijedna od te 3
+    # funkcije ne koristi `request`/`user` u svom telu (potvrđeno čitanjem
+    # izvora pre ove izmene) -- prosleđujemo isti `request` koji ovaj
+    # handler već ima, i placeholder `user` istog oblika koji
+    # _require_cron_or_founder sam vraća za X-Cron-Key granu.
+    _cron_user = {"user_id": "cron-scheduler", "email": next(iter(FOUNDER_EMAILS), "")}
+
+    _t_em = _time.monotonic()
+    try:
+        from routers.email_notif import posalji_podsetnike as _email_podsetnici_cron
+        _em_r = await asyncio.wait_for(_email_podsetnici_cron(request, _cron_user), timeout=60)
+        _stavke_obradjene += int((_em_r or {}).get("poslato", 0))
+        rezultati["email_podsetnici"] = {**(_em_r or {}), "status": "ok",
+                                          "duration_ms": round((_time.monotonic() - _t_em) * 1000)}
+    except asyncio.TimeoutError:
+        rezultati["email_podsetnici"] = {"status": "timeout", "greska": "Prekoraceno 60s",
+                                          "duration_ms": round((_time.monotonic() - _t_em) * 1000)}
+        _broj_grešaka += 1
+    except Exception as _eme:
+        rezultati["email_podsetnici"] = {"status": "greska", "greska": str(_eme)[:120],
+                                          "duration_ms": round((_time.monotonic() - _t_em) * 1000)}
+        _broj_grešaka += 1
+
+    _t_ob = _time.monotonic()
+    try:
+        from routers.email_notif import onboarding_cron as _onboarding_cron_fn
+        _ob_r = await asyncio.wait_for(_onboarding_cron_fn(request, _cron_user), timeout=60)
+        _stavke_obradjene += int((_ob_r or {}).get("poslato", 0))
+        rezultati["onboarding"] = {**(_ob_r or {}), "status": "ok",
+                                   "duration_ms": round((_time.monotonic() - _t_ob) * 1000)}
+    except asyncio.TimeoutError:
+        rezultati["onboarding"] = {"status": "timeout", "greska": "Prekoraceno 60s",
+                                    "duration_ms": round((_time.monotonic() - _t_ob) * 1000)}
+        _broj_grešaka += 1
+    except Exception as _obe:
+        rezultati["onboarding"] = {"status": "greska", "greska": str(_obe)[:120],
+                                    "duration_ms": round((_time.monotonic() - _t_ob) * 1000)}
+        _broj_grešaka += 1
+
+    if _dt.now(_tz.utc).weekday() == 0:  # ponedeljak
+        _t_ns = _time.monotonic()
+        try:
+            from routers.email_notif import posalji_nedeljni_sazetak as _nedeljni_sazetak_cron
+            _ns_r = await asyncio.wait_for(_nedeljni_sazetak_cron(request, _cron_user), timeout=60)
+            _stavke_obradjene += int((_ns_r or {}).get("poslato", 0))
+            rezultati["nedeljni_sazetak"] = {**(_ns_r or {}), "status": "ok",
+                                              "duration_ms": round((_time.monotonic() - _t_ns) * 1000)}
+        except asyncio.TimeoutError:
+            rezultati["nedeljni_sazetak"] = {"status": "timeout", "greska": "Prekoraceno 60s",
+                                              "duration_ms": round((_time.monotonic() - _t_ns) * 1000)}
+            _broj_grešaka += 1
+        except Exception as _nse:
+            rezultati["nedeljni_sazetak"] = {"status": "greska", "greska": str(_nse)[:120],
+                                              "duration_ms": round((_time.monotonic() - _t_ns) * 1000)}
+            _broj_grešaka += 1
+    else:
+        rezultati["nedeljni_sazetak"] = {"status": "preskoceno", "razlog": "nije ponedeljak"}
+
+    # ── Modul 9: SEC-002 Data Retention cleanup ──────────────────────────────
+    _t_rt = _time.monotonic()
+    try:
+        from services.retention_service import execute_retention_cleanup
+        _rt_r = await asyncio.wait_for(execute_retention_cleanup(), timeout=60)
+        _rt_summary = (_rt_r or {}).get("_summary", {})
+        _stavke_obradjene += int(_rt_summary.get("ukupno_obrisano", 0))
+        _broj_grešaka += int(_rt_summary.get("greske", 0))
+        rezultati["retention_cleanup"] = {
+            "status": "ok" if not _rt_summary.get("greske") else "delimicno",
+            "obrisano": _rt_summary.get("ukupno_obrisano", 0),
+            "detalji": {k: v for k, v in (_rt_r or {}).items() if k != "_summary"},
+            "duration_ms": round((_time.monotonic() - _t_rt) * 1000),
+        }
+    except asyncio.TimeoutError:
+        rezultati["retention_cleanup"] = {"status": "timeout", "greska": "Prekoraceno 60s",
+                                           "duration_ms": round((_time.monotonic() - _t_rt) * 1000)}
+        _broj_grešaka += 1
+    except Exception as _rte:
+        rezultati["retention_cleanup"] = {"status": "greska", "greska": str(_rte)[:120],
+                                           "duration_ms": round((_time.monotonic() - _t_rt) * 1000)}
+        _broj_grešaka += 1
+
     # ── Heartbeat (uvek se izvršava, bez obzira na greške iznad) ────────────
     _ts = _dt.now(_tz.utc).isoformat()
     _duration_ms = round((_time.monotonic() - _t_start) * 1000)
