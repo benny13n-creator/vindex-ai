@@ -3752,10 +3752,7 @@ async function stratOrkestratorPokreni() {
 
 function stratFormatirajRezultat(tekst) {
   if (!tekst) return '';
-  var escaped = tekst
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  var escaped = escHtml(tekst); // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
   return escaped
     .replace(/^(\d+\.\s+[A-ZŠĐŽČĆА-Я\s]{3,})$/gm, '<span class="strat-sekcija">$1</span>')
     .replace(/^🔴([^\n]+)$/gm, '<span class="strat-kritican">$1</span>')
@@ -5214,7 +5211,7 @@ async function web3Pokreni() {
 
 function web3FormatirajRezultat(tekst) {
   if (!tekst) return '<div class="strat-error">Nema rezultata.</div>';
-  var esc = tekst.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  var esc = escHtml(tekst); // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
   return esc
     .replace(/^(\d+\.\s+[A-ZŠĐČĆŽА-Я][A-ZŠĐČĆŽА-Я\s\/\(\)]{2,})$/gm, '<div class="strat-sekcija">$1</div>')
     .replace(/(✓[^\n]+)/g, '<span class="web3-ok">$1</span>')
@@ -7151,7 +7148,7 @@ function exportPDF(rawText, btn) {
     var val=rawText.slice(start,end).trim();
     var lbl=x.d.lbl;
     if(_cyrillicOn && window.pretvoriUCirilicu){ val=pretvoriUCirilicu(val); lbl=pretvoriUCirilicu(lbl); }
-    return '<div class="pdf-section"><div class="pdf-lbl">'+lbl.toUpperCase()+'</div><div class="pdf-val">'+val.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</div></div>';
+    return '<div class="pdf-section"><div class="pdf-lbl">'+lbl.toUpperCase()+'</div><div class="pdf-val">'+escHtml(val).replace(/\n/g,'<br>')+'</div></div>';
   }).join('');
 
   var css = '@page{size:A4;margin:20mm 22mm;}body{font-family:Arial,sans-serif;font-size:10pt;color:#111;line-height:1.6;margin:0;}'
@@ -7166,10 +7163,15 @@ function exportPDF(rawText, btn) {
     +'.disclaimer{background:#f8f8f8;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:8pt;color:#666;margin-top:20px;font-style:italic;}';
 
   var bodyHtml = '__CSS_REMOVED__'
-    +'<div class="header"><div><div class="firma-naziv">'+(firma.naziv||'Vindex AI')+'</div>'
-    +'<div class="firma-info">'+(firma.adresa?firma.adresa+'<br>':'')+(firma.pib?'PIB: '+firma.pib+'<br>':'')+(firma.kontakt||'')+'</div></div>'
+    // XSS sweep (2026-07-24): firma.* dolazi iz localStorage (korisnik ga
+    // unosi u podešavanjima) i ranije je bio umetnut OVDE bez ikakvog
+    // escaping-a, a bodyHtml se stvarno renderuje kao HTML (container.
+    // innerHTML niže i Blob-HTML fallback koji se otvara u browseru) --
+    // potvrđen stored-XSS put preko localStorage vrednosti korisnika.
+    +'<div class="header"><div><div class="firma-naziv">'+escHtml(firma.naziv||'Vindex AI')+'</div>'
+    +'<div class="firma-info">'+(firma.adresa?escHtml(firma.adresa)+'<br>':'')+(firma.pib?'PIB: '+escHtml(firma.pib)+'<br>':'')+escHtml(firma.kontakt||'')+'</div></div>'
     +'<div class="brand">Generisano putem<br><strong>Vindex AI</strong></div></div>'
-    +'<div class="title">'+title.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'
+    +'<div class="title">'+escHtml(title)+'</div>'
     +'<div class="datum">Datum generisanja: '+datum+'</div>'
     +sectionsHtml
     +'<div class="disclaimer">Ovaj izve\u0161taj je generisan uz pomo\u0107 ve\u0161ta\u010dke inteligencije i slu\u017ei isklju\u010divo kao pomo\u0107no sredstvo u radu. Konsultujte originalni tekst propisa u Slu\u017ebenom glasniku RS. Nije pravni savet.</div>';
@@ -8243,7 +8245,7 @@ function praksa_render_card(d, idx) {
   var mClr = { 'Građanska':'#00d4ff', 'Zaštita prava':'#4ade80', 'Upravna':'#f0b429', 'Krivična':'rgba(255,140,140,0.9)' };
   var bg   = mBg[d.matter]  || 'rgba(255,255,255,0.06)';
   var clr  = mClr[d.matter] || 'rgba(255,255,255,0.45)';
-  var esc = function(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var esc = function(s) { return escHtml(s); }; // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
   var preview  = d.izreka_preview ? esc(d.izreka_preview) : '';
   var dateStr  = d.decision_date ? (d.decision_date+'').substring(0,10) : '';
   var expandId = 'praksa-expand-' + idx;
@@ -8479,8 +8481,7 @@ function _hideCompareLoading() {
 
 function _compareMarkdownToHtml(md) {
   if (!md) return '';
-  var html = md
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  var html = escHtml(md) // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^### (.+)$/gm, '<h2>$1</h2>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -8639,7 +8640,7 @@ async function praksa_load_grupisano() {
 function praksa_render_grupisano(data) {
   var s = data.statistika || {};
   var total = data.total || 1;
-  var esc = function(v) { return (v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  var esc = function(v) { return escHtml(v); }; // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
 
   var pTuzilac  = s.pct_tuzilac  || 0;
   var pTuzeni   = s.pct_tuzeni   || 0;
@@ -20821,7 +20822,7 @@ function ugovor_stampaj() {
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ugovor o zastupanju</title>'
     + '<style>body{font-family:"Courier New",monospace;font-size:11pt;line-height:1.6;padding:2.5cm;max-width:800px;margin:0 auto;color:#111;}pre{white-space:pre-wrap;word-break:break-word;}@media print{body{padding:1.5cm;}button{display:none!important;}}</style>'
     + '</head><body><button onclick="window.print()" style="position:fixed;top:1rem;right:1rem;padding:.5rem 1rem;background:#333;color:#fff;border:none;border-radius:2px;cursor:pointer;">Štampaj / PDF</button>'
-    + '<pre>' + tekst.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>'
+    + '<pre>' + escHtml(tekst) + '</pre>'
     + '</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 400);

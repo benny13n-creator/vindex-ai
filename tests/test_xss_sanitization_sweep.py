@@ -519,5 +519,89 @@ console.log(_inlineMd('<script>x</script> **bold**'));
         assert "<strong>bold</strong>" in out
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Faza 4 — ciljana provera preostalih innerHTML mesta
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFaza4RemainingInnerHtmlSites:
+    """Ciljana provera (ne uzorak) svih innerHTML mesta koja referenciraju
+    poznata korisnička/klijentska polja (opis, napomena, beleska, sadrzaj,
+    komentar, adresa, firma, naziv, tuzilac, ...). Rezultat ove provere:
+    519 ukupno innerHTML mesta, svega par desetina referenciraju ova polja,
+    i SVA su bila već ispravno eskejpovana OSIM jednog konkretnog,
+    značajnog nalaza -- videti test_pdf_export_firma_fields_escaped."""
+
+    def test_pdf_export_firma_fields_escaped(self):
+        """KONKRETAN NALAZ (2026-07-24): firma.naziv/adresa/pib/kontakt
+        (čitani iz localStorage -- korisnik ih unosi u podešavanjima) su
+        bili umetnuti u PDF-export bodyHtml BEZ IKAKVOG escaping-a, a
+        bodyHtml se stvarno renderuje kao HTML (container.innerHTML +
+        Blob-HTML fallback koji se otvara u browseru) -- potvrđen
+        stored-XSS put preko localStorage vrednosti korisnika, drugačiji
+        rendering-kontekst od bilo čega drugog u ovom sweep-u."""
+        src = _vindex_js_source()
+        idx = src.index("firma-naziv\">'+")
+        snippet = src[idx:idx + 60]
+        assert "escHtml(firma.naziv" in snippet
+
+        idx2 = src.index("firma-info\">'+")
+        snippet2 = src[idx2:idx2 + 200]
+        assert "escHtml(firma.adresa)" in snippet2
+        assert "escHtml(firma.pib)" in snippet2
+        assert "escHtml(firma.kontakt" in snippet2
+
+    def test_pdf_section_value_uses_canonical_escape(self):
+        src = _vindex_js_source()
+        idx = src.index('class="pdf-val">')
+        snippet = src[idx:idx + 80]
+        assert "escHtml(val)" in snippet
+        assert ".replace(/&/g" not in snippet
+
+    @pytest.mark.parametrize("fn_name,marker", [
+        ("stratFormatirajRezultat", "escHtml(tekst)"),
+        ("web3FormatirajRezultat", "escHtml(tekst)"),
+        ("_compareMarkdownToHtml", "escHtml(md)"),
+    ])
+    def test_ai_output_formatters_delegate_to_canonical_escape(self, fn_name, marker):
+        """Ove funkcije formatiraju AI-generisani tekst (strategy debate,
+        web3 analiza, document-compare markdown) -- otkrivene tek u Fazi 4
+        jer njihova imena ne sadrže 'esc', pa ih Faza 3's regex-based
+        pretraga (za funkcije imenovane *esc*) nije našla."""
+        src = _vindex_js_source()
+        idx = src.index(f"function {fn_name}(")
+        end = src.index("\n\n", idx)
+        body = src[idx:end]
+        assert marker in body
+        assert ".replace(/&/g" not in body
+
+    def test_praksa_render_functions_delegate_to_canonical_escape(self):
+        src = _vindex_js_source()
+        for fn_name in ["praksa_render_card", "praksa_render_grupisano"]:
+            idx = src.index(f"function {fn_name}(")
+            end = src.index("\n\n", idx)
+            body = src[idx:end]
+            assert "escHtml(" in body
+            assert ".replace(/&/g" not in body
+
+    def test_ugovor_stampaj_escapes_tekst(self):
+        src = _vindex_js_source()
+        idx = src.index("function ugovor_stampaj(")
+        end = src.index("\n\n", idx)
+        body = src[idx:end]
+        assert "escHtml(tekst)" in body
+        assert ".replace(/&/g" not in body
+
+    def test_no_remaining_inline_escape_chains_outside_canonical(self):
+        """Konačna provera: JEDINO mesto u celom fajlu koje sadrži sirovi
+        `.replace(/&/g,...)` lanac je sama kanonska escHtml() definicija --
+        sve drugo mora delegirati."""
+        src = _vindex_js_source()
+        occurrences = src.count(".replace(/&/g")
+        assert occurrences == 1, (
+            f"Očekivano tačno 1 pojavljivanje (kanonska escHtml), nađeno {occurrences} -- "
+            "neko mesto možda ima sopstvenu, nekonsolidovanu escape implementaciju."
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
