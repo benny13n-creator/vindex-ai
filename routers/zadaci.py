@@ -415,27 +415,42 @@ async def zadaci_statistika(
     firma = await _get_firma_info(supa, uid)
     kancelarija_id = firma.get("kancelarija_id")
 
-    moji_r, tim_r = await asyncio.gather(
-        asyncio.to_thread(
+    # FIX (2026-07-24, nightly repair): asyncio.coroutine() je uklonjen u
+    # Python 3.11 -- prethodni fallback `asyncio.coroutine(lambda: ...)()`
+    # je bacao AttributeError ODMAH pri građenju tuple-a za gather(), pre
+    # nego što bi gather uopšte krenuo. To je rušilo OVAJ endpoint za
+    # SVAKOG solo advokata (bez kancelarija_id) -- što je većina korisnika.
+    # Rešenje: kad nema tima, tim_r upit se uopšte ne pravi (nema šta da
+    # se awaituje kao "prazan" ogranak u gather-u).
+    if kancelarija_id:
+        moji_r, tim_r = await asyncio.gather(
+            asyncio.to_thread(
+                lambda: supa.table("zadaci")
+                    .select("status, prioritet, rok_datum")
+                    .eq("dodeljen_uid", uid)
+                    .not_.in_("status", ["zavrseno", "otkazano"])
+                    .execute()
+            ),
+            asyncio.to_thread(
+                lambda: supa.table("zadaci")
+                    .select("status, prioritet, rok_datum, dodeljen_uid")
+                    .eq("kancelarija_id", kancelarija_id)
+                    .not_.in_("status", ["zavrseno", "otkazano"])
+                    .execute()
+            ),
+        )
+    else:
+        moji_r = await asyncio.to_thread(
             lambda: supa.table("zadaci")
                 .select("status, prioritet, rok_datum")
                 .eq("dodeljen_uid", uid)
                 .not_.in_("status", ["zavrseno", "otkazano"])
                 .execute()
-        ),
-        asyncio.to_thread(
-            lambda: supa.table("zadaci")
-                .select("status, prioritet, rok_datum, dodeljen_uid")
-                .eq("kancelarija_id", kancelarija_id)
-                .not_.in_("status", ["zavrseno", "otkazano"])
-                .execute()
-        ) if kancelarija_id else asyncio.coroutine(lambda: type('obj', (object,), {'data': []})())(),
-    )
+        )
+        tim_r = None
 
     moji   = moji_r.data or []
-    timski = tim_r.data  if not isinstance(tim_r, Exception) else []
-    if hasattr(timski, 'data'):
-        timski = timski.data or []
+    timski = (tim_r.data or []) if tim_r is not None else []
 
     return {
         "moji_zadaci": {
