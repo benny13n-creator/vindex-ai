@@ -613,6 +613,7 @@ from routers.evidence             import router as evidence_router
 from routers.evidence_graph       import router as evidence_graph_router
 from routers.voice                import router as voice_router
 from routers.voice_realtime       import router as voice_realtime_router
+from routers.agent_notifications  import router as agent_notifications_router
 from routers.precedenti           import router as precedenti_router
 from routers.knowledge_graph      import router as knowledge_graph_router
 from routers.ccc                  import router as ccc_router
@@ -706,6 +707,7 @@ app.include_router(evidence_router)
 app.include_router(evidence_graph_router)
 app.include_router(voice_router)
 app.include_router(voice_realtime_router)
+app.include_router(agent_notifications_router)
 app.include_router(precedenti_router)
 app.include_router(knowledge_graph_router)
 app.include_router(ccc_router)
@@ -1757,6 +1759,29 @@ async def cron_daily(request: Request):
     except Exception as _rte:
         rezultati["retention_cleanup"] = {"status": "greska", "greska": str(_rte)[:120],
                                            "duration_ms": round((_time.monotonic() - _t_rt) * 1000)}
+        _broj_grešaka += 1
+
+    # ── Modul 10: KORAK B — Autonomni Background Action Agenti (2026-07-24) ─
+    _t_ba = _time.monotonic()
+    try:
+        from workers.background_agents import run_background_agents
+        _ba_r = await asyncio.wait_for(run_background_agents(run_id), timeout=600)
+        _ba_preporuke = sum(
+            int(v.get("preporuke_kreirane", 0)) for v in (_ba_r or {}).get("po_agentu", {}).values()
+        )
+        _stavke_obradjene += _ba_preporuke
+        _broj_grešaka += int((_ba_r or {}).get("greske", 0))
+        rezultati["background_agents"] = {
+            **(_ba_r or {}), "status": "ok",
+            "duration_ms": round((_time.monotonic() - _t_ba) * 1000),
+        }
+    except asyncio.TimeoutError:
+        rezultati["background_agents"] = {"status": "timeout", "greska": "Prekoraceno 600s",
+                                           "duration_ms": round((_time.monotonic() - _t_ba) * 1000)}
+        _broj_grešaka += 1
+    except Exception as _bae:
+        rezultati["background_agents"] = {"status": "greska", "greska": str(_bae)[:120],
+                                           "duration_ms": round((_time.monotonic() - _t_ba) * 1000)}
         _broj_grešaka += 1
 
     # ── Heartbeat (uvek se izvršava, bez obzira na greške iznad) ────────────

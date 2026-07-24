@@ -76,6 +76,8 @@ AUDITABLE_ACTIONS: set[str] = {
     # Bezbednosni događaji
     "injection_attempt_blocked", "rate_limit_exceeded",
     "suspicious_access", "api_key_rotation",
+    # KORAK B — Autonomni Background Action Agenti (2026-07-24)
+    "AGENT_AUTONOMOUS_EXECUTION",
 }
 
 
