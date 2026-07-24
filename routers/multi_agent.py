@@ -425,24 +425,30 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
     predmet_ctx = ""
     if req.predmet_id:
         try:
-            pr = supa.table("predmeti").select(
-                "naziv,tip,status,tuzilac,tuzeni,opis"
-            ).eq("id", req.predmet_id).eq("user_id", uid).execute()
+            pr = await asyncio.to_thread(
+                lambda: supa.table("predmeti").select(
+                    "naziv,tip,status,tuzilac,tuzeni,opis"
+                ).eq("id", req.predmet_id).eq("user_id", uid).execute()
+            )
             if pr.data:
                 p = pr.data[0]
                 try:
-                    dok_res = supa.table("predmet_dokumenti") \
-                        .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb") \
-                        .eq("predmet_id", req.predmet_id) \
-                        .order("redni_broj").limit(10).execute()
+                    dok_res = await asyncio.to_thread(
+                        lambda: supa.table("predmet_dokumenti")
+                            .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb")
+                            .eq("predmet_id", req.predmet_id)
+                            .order("redni_broj").limit(10).execute()
+                    )
                     dok_rows = dok_res.data or []
                     doc_count = len(dok_rows)
                 except Exception:
                     dok_rows = []
                     doc_count = 0
                 try:
-                    rok_data  = supa.table("rocista").select("sud,datum,status") \
-                        .eq("predmet_id", req.predmet_id).order("datum").limit(5).execute()
+                    rok_data = await asyncio.to_thread(
+                        lambda: supa.table("rocista").select("sud,datum,status")
+                            .eq("predmet_id", req.predmet_id).order("datum").limit(5).execute()
+                    )
                     rok_count = len(rok_data.data or [])
                     rok_summary = "; ".join([
                         (r.get("sud","?") + "(" + r.get("datum","")[:10] + ")")
@@ -464,8 +470,10 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                 if dok_rows:
                     # Pokusaj da ucitas i Case Genome za dodatni kontekst
                     try:
-                        genome_r = supa.table("predmeti").select("case_dna") \
-                            .eq("id", req.predmet_id).eq("user_id", uid).execute()
+                        genome_r = await asyncio.to_thread(
+                            lambda: supa.table("predmeti").select("case_dna")
+                                .eq("id", req.predmet_id).eq("user_id", uid).execute()
+                        )
                         genome = (genome_r.data or [{}])[0].get("case_dna") or {}
                     except Exception:
                         genome = {}
@@ -577,9 +585,11 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
     if agent_id == "billing" and req.predmet_id:
         try:
             from datetime import datetime as _dt
-            be = supa.table("billing_entries").select(
-                "opis,kolicina,jedinica,cena_po_jedinici,ukupno,datum,fakturisano"
-            ).eq("predmet_id", req.predmet_id).order("datum", desc=True).limit(30).execute()
+            be = await asyncio.to_thread(
+                lambda: supa.table("billing_entries").select(
+                    "opis,kolicina,jedinica,cena_po_jedinici,ukupno,datum,fakturisano"
+                ).eq("predmet_id", req.predmet_id).order("datum", desc=True).limit(30).execute()
+            )
             if be.data:
                 ukupno_sve = sum(float(r.get("ukupno") or 0) for r in be.data)
                 fakturisano = sum(float(r.get("ukupno") or 0) for r in be.data if r.get("fakturisano"))
@@ -602,9 +612,11 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
     if agent_id == "deadline" and req.predmet_id:
         try:
             from datetime import datetime, timezone as _tz
-            rok_r = supa.table("rocista").select(
-                "sud,datum,status,napomena"
-            ).eq("predmet_id", req.predmet_id).order("datum").limit(20).execute()
+            rok_r = await asyncio.to_thread(
+                lambda: supa.table("rocista").select(
+                    "sud,datum,status,napomena"
+                ).eq("predmet_id", req.predmet_id).order("datum").limit(20).execute()
+            )
             now = datetime.now(_tz.utc)
             rokovi_list = []
             for r in (rok_r.data or []):
@@ -696,9 +708,11 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
     predmet_ctx = ""
     if req.predmet_id:
         try:
-            pr = supa.table("predmeti").select(
-                "naziv,tip,status,tuzilac,tuzeni,opis"
-            ).eq("id", req.predmet_id).eq("user_id", uid).execute()
+            pr = await asyncio.to_thread(
+                lambda: supa.table("predmeti").select(
+                    "naziv,tip,status,tuzilac,tuzeni,opis"
+                ).eq("id", req.predmet_id).eq("user_id", uid).execute()
+            )
             if pr.data:
                 p = pr.data[0]
                 predmet_ctx = (

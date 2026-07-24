@@ -174,3 +174,81 @@ async def test_run_agent_openai_error_503():
         with pytest.raises(HTTPException) as exc:
             await run_agent(req, _req(), _user())
     assert exc.value.status_code == 503
+
+
+# ── T8: NIGHTLY REPAIR (2026-07-24) — event loop liberation regression ──────
+#
+# routers/multi_agent.py had 7 supa.table(...).execute() calls inside async
+# def functions with no asyncio.to_thread wrapper (run_agent + run_parallel),
+# blocking the entire event loop on every DB round trip. This test populates
+# predmet_dokumenti/rocista/case_dna/billing_entries with REAL (non-empty)
+# data so every one of those 7 call sites is actually exercised end-to-end
+# with meaningful content flowing into the LLM prompt -- T6 above only ever
+# saw empty-list fallbacks for those tables, which would not have caught a
+# broken lambda/asyncio.to_thread wiring.
+
+@pytest.mark.anyio
+async def test_run_agent_exercises_all_thread_wrapped_db_calls_with_real_data():
+    from routers.multi_agent import AgentReq, run_agent
+
+    pred_data = [{"naziv": "Radni spor", "tip": "radno", "status": "aktivan",
+                  "tuzilac": "Petar", "tuzeni": "Firma", "opis": "Nezakonit otkaz",
+                  "case_dna": {"snaga_predmeta_procent": 70}}]
+    dok_data = [{"id": "d1", "naziv_fajla": "otkaz.pdf", "redni_broj": 1,
+                 "tekst_sadrzaj": "Rešenje o otkazu ugovora o radu.", "velicina_kb": 120}]
+    rok_data = [{"sud": "Prvi osnovni sud", "datum": "2026-08-01", "status": "zakazano", "napomena": ""}]
+    billing_data = [{"opis": "Sastanak", "kolicina": 2, "jedinica": "h",
+                      "cena_po_jedinici": 5000, "ukupno": 10000, "datum": "2026-07-20", "fakturisano": False}]
+
+    def _table(name):
+        return {
+            "predmeti": _make_chain(pred_data),
+            "predmet_dokumenti": _make_chain(dok_data),
+            "rocista": _make_chain(rok_data),
+            "billing_entries": _make_chain(billing_data),
+        }.get(name, _make_chain([]))
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = _mock_openai_resp("Naplatiti 10.000 RSD.")
+
+    req = AgentReq(agent="billing", task="Koliko naplatiti?", predmet_id="pred-001")
+    with patch("routers.multi_agent._get_supa", return_value=supa), \
+         patch("openai.OpenAI", return_value=mock_client):
+        result = await run_agent(req, _req(), _user())
+
+    assert result["agent"] == "billing"
+    user_msg = mock_client.chat.completions.create.call_args[1]["messages"][1]["content"]
+    assert "Radni spor" in user_msg
+    assert "otkaz.pdf" in user_msg or "DOK-01" in user_msg
+    assert "10.000" in user_msg or "10,000" in user_msg or "Nefakturisano" in user_msg
+
+
+@pytest.mark.anyio
+async def test_run_parallel_exercises_thread_wrapped_predmet_fetch():
+    from routers.multi_agent import ParalelnaReq, run_parallel
+
+    pred_data = [{"naziv": "Ugovorni spor", "tip": "gradjansko", "status": "aktivan",
+                  "tuzilac": "ACME", "tuzeni": "Beta", "opis": "Neispunjenje ugovora"}]
+
+    def _table(name):
+        return _make_chain(pred_data) if name == "predmeti" else _make_chain([])
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+
+    # agenti=["billing"] namerno izbegava RAG granu (research/litigation) --
+    # ovaj test cilja isključivo predmet-context fetch (linija koju smo
+    # obavili asyncio.to_thread-om), ne RAG pipeline.
+    mock_async_client = MagicMock()
+    mock_async_client.chat.completions.create = AsyncMock(return_value=_mock_openai_resp("Analiza gotova."))
+
+    req = ParalelnaReq(agenti=["billing"], task="Analiziraj ugovor", predmet_id="pred-002")
+    with patch("routers.multi_agent._get_supa", return_value=supa), \
+         patch("openai.AsyncOpenAI", return_value=mock_async_client), \
+         patch("shared.usage.UsageService.consume", new_callable=AsyncMock, return_value=10):
+        result = await run_parallel(req, _req(), _user())
+
+    assert "rezultati" in result
+    assert result["rezultati"][0]["odgovor"] == "Analiza gotova."
