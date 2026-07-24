@@ -3,14 +3,13 @@
   Vindex AI — MS Word Add-in Manifest
   KORAK C: Ambient Context & Word/Browser Copilot (2026-07-24)
 
-  OSNOVNI (skeleton) manifest -- pre stvarnog objavljivanja u AppSource ili
+  OSNOVNI (skeleton) manifest — pre stvarnog objavljivanja u AppSource ili
   interne (sideload) distribucije, sledeće MORA biti zamenjeno:
-    - <Id> ispod je placeholder GUID (00000000-...) -- generisati pravi
+    - Id element ispod je placeholder GUID (00000000-...) — generisati pravi
       (npr. `uuidgen` ili Office add-in generator) pre bilo kakvog sideload-a.
     - Sve https://vindex.rs/static/word-addin/... putanje pretpostavljaju
-      da će taskpane.html/commands.html/ikone biti hostovane tu -- te
-      stranice JOŠ NE POSTOJE (nisu deo ovog Koraka C zahteva -- samo
-      manifest + adapter.js komunikacioni sloj).
+      da će taskpane.html/commands.html/ikone biti hostovane tu; taskpane.html
+      sada postoji (Faza 3 item 10), commands.html i ikone i dalje ne.
     - AppDomains mora tačno odgovarati production domenu.
 
   Referenca: adapter.js u ovom istom direktorijumu implementira

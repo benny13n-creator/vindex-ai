@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<!--
+  Vindex AI — Word Add-in Taskpane
+  KORAK C / Nightly repair (2026-07-24), Faza 3 item 10
+
+  Uses adapter.js (same directory) for all Vindex API communication --
+  this file is presentation only. Color/spacing tokens match Vindex's
+  established --vx-* system (static/vindex.css): dark background
+  (#010308/#0d1117), cyan accent (#00d4ff), sharp 2-4px radii, no glow,
+  no generic emoji icons (project convention).
+-->
+<html lang="sr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vindex AI — Ambient Copilot</title>
+
+<!-- Office.js MORA biti učitan sa Microsoft-ovog CDN-a -- Office Add-in
+     runtime zahtev, ne može biti hostovan lokalno. -->
+<script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<script type="text/javascript" src="adapter.js"></script>
+
+<style>
+  :root {
+    --vx-bg-primary:     #010308;
+    --vx-bg-secondary:   #0a1220;
+    --vx-bg-elevated:    #0d1117;
+    --vx-border:         rgba(255,255,255,0.08);
+    --vx-border-strong:  rgba(255,255,255,0.16);
+    --vx-text-primary:   rgba(255,255,255,0.92);
+    --vx-text-secondary: rgba(255,255,255,0.55);
+    --vx-accent:         #00d4ff;
+    --vx-success:        #4ade80;
+    --vx-danger:         #f87171;
+    --vx-warning:        #f0b429;
+    --vx-radius-sm:      2px;
+    --vx-radius-md:      3px;
+    --vx-radius-lg:      4px;
+    --vx-space-2: 6px; --vx-space-3: 8px; --vx-space-4: 10px;
+    --vx-space-5: 14px; --vx-space-6: 18px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--vx-bg-primary);
+    color: var(--vx-text-primary);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+  }
+  #app { display: flex; flex-direction: column; height: 100vh; padding: var(--vx-space-5); }
+
+  .vx-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: var(--vx-space-5);
+    border-bottom: 1px solid var(--vx-border);
+    padding-bottom: var(--vx-space-4);
+  }
+  .vx-title { font-size: 0.92rem; font-weight: 700; letter-spacing: -0.01em; }
+  .vx-subtitle { font-size: 0.68rem; color: var(--vx-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ── Login view ─────────────────────────────────────────────────────── */
+  #view-login { display: none; flex-direction: column; gap: var(--vx-space-4); }
+  #view-login.active { display: flex; }
+  .vx-label { font-size: 0.68rem; color: var(--vx-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+  .vx-input {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: var(--vx-radius-sm);
+    color: var(--vx-text-primary);
+    padding: var(--vx-space-3) var(--vx-space-4);
+    font-size: 0.82rem;
+    font-family: inherit;
+    width: 100%;
+  }
+  .vx-input:focus { outline: none; border-color: var(--vx-accent); }
+
+  .vx-btn {
+    background: rgba(0,212,255,0.10);
+    border: 1px solid var(--vx-accent);
+    color: var(--vx-accent);
+    border-radius: var(--vx-radius-sm);
+    padding: var(--vx-space-3) var(--vx-space-5);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 150ms ease;
+  }
+  .vx-btn:hover { background: rgba(0,212,255,0.18); }
+  .vx-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .vx-btn-ghost {
+    background: transparent;
+    border: 1px solid var(--vx-border);
+    color: var(--vx-text-secondary);
+  }
+  .vx-btn-ghost:hover { border-color: var(--vx-border-strong); color: var(--vx-text-primary); }
+
+  /* ── Main view ──────────────────────────────────────────────────────── */
+  #view-main { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  #view-main.active { display: flex; }
+
+  .vx-toolbar { display: flex; gap: var(--vx-space-3); margin-bottom: var(--vx-space-5); }
+  .vx-toggle-row {
+    display: flex; align-items: center; gap: var(--vx-space-3);
+    font-size: 0.74rem; color: var(--vx-text-secondary);
+    margin-bottom: var(--vx-space-5);
+  }
+
+  .vx-status {
+    font-size: 0.68rem; color: var(--vx-text-secondary);
+    margin-bottom: var(--vx-space-4);
+    min-height: 1em;
+  }
+  .vx-status.error { color: var(--vx-danger); }
+
+  #suggestions { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--vx-space-3); }
+
+  .vx-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-left: 3px solid var(--vx-border-strong);
+    border-radius: var(--vx-radius-md);
+    padding: var(--vx-space-4);
+  }
+  .vx-card.tip-clan_zakona     { border-left-color: var(--vx-accent); }
+  .vx-card.tip-sudska_praksa   { border-left-color: var(--vx-success); }
+  .vx-card.tip-upozorenje      { border-left-color: var(--vx-warning); }
+
+  .vx-card-tip {
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em;
+    font-weight: 700; color: var(--vx-text-secondary); margin-bottom: var(--vx-space-2);
+  }
+  .vx-card.tip-clan_zakona   .vx-card-tip { color: var(--vx-accent); }
+  .vx-card.tip-sudska_praksa .vx-card-tip { color: var(--vx-success); }
+  .vx-card.tip-upozorenje    .vx-card-tip { color: var(--vx-warning); }
+
+  .vx-card-tekst { font-size: 0.82rem; line-height: 1.5; color: var(--vx-text-primary); }
+  .vx-card-izvor {
+    margin-top: var(--vx-space-2);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 0.68rem;
+    color: var(--vx-text-secondary);
+  }
+
+  .vx-empty {
+    color: var(--vx-text-secondary);
+    font-size: 0.78rem;
+    text-align: center;
+    padding: var(--vx-space-6) 0;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="vx-header">
+    <div>
+      <div class="vx-title">Vindex AI</div>
+      <div class="vx-subtitle">Ambient Copilot</div>
+    </div>
+    <button class="vx-btn vx-btn-ghost" id="btn-logout" style="display:none;">Odjava</button>
+  </div>
+
+  <!-- Login view -->
+  <div id="view-login">
+    <label class="vx-label" for="input-token">Vindex API token</label>
+    <input class="vx-input" id="input-token" type="password" placeholder="Nalepite token iz Vindex naloga" />
+    <button class="vx-btn" id="btn-login">Poveži se</button>
+    <div class="vx-status" id="login-status"></div>
+  </div>
+
+  <!-- Main view -->
+  <div id="view-main">
+    <div class="vx-toolbar">
+      <button class="vx-btn" id="btn-analyze">Analiziraj tekući pasus</button>
+      <button class="vx-btn vx-btn-ghost" id="btn-watch">Prati kucanje: isključeno</button>
+    </div>
+    <div class="vx-status" id="main-status"></div>
+    <div id="suggestions">
+      <div class="vx-empty">Nema sugestija još — kliknite "Analiziraj tekući pasus" ili uključite praćenje.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  (function () {
+    "use strict";
+
+    var els = {
+      viewLogin: document.getElementById("view-login"),
+      viewMain: document.getElementById("view-main"),
+      inputToken: document.getElementById("input-token"),
+      btnLogin: document.getElementById("btn-login"),
+      btnLogout: document.getElementById("btn-logout"),
+      loginStatus: document.getElementById("login-status"),
+      btnAnalyze: document.getElementById("btn-analyze"),
+      btnWatch: document.getElementById("btn-watch"),
+      mainStatus: document.getElementById("main-status"),
+      suggestions: document.getElementById("suggestions"),
+    };
+
+    var watcher = null;
+    var watching = false;
+
+    function showView(name) {
+      els.viewLogin.classList.toggle("active", name === "login");
+      els.viewMain.classList.toggle("active", name === "main");
+      els.btnLogout.style.display = name === "main" ? "inline-block" : "none";
+    }
+
+    function renderSuggestions(rezultat) {
+      var sugestije = (rezultat && rezultat.sugestije) || [];
+      if (sugestije.length === 0) {
+        els.suggestions.innerHTML = '<div class="vx-empty">Nema konkretnih sugestija za ovaj pasus.</div>';
+        return;
+      }
+      els.suggestions.innerHTML = sugestije.map(function (s) {
+        var tipLabel = s.tip === "clan_zakona" ? "Član zakona"
+          : s.tip === "sudska_praksa" ? "Sudska praksa"
+          : "Upozorenje";
+        var izvor = s.izvor ? '<div class="vx-card-izvor">' + escapeHtml(s.izvor) + '</div>' : '';
+        return (
+          '<div class="vx-card tip-' + s.tip + '">' +
+            '<div class="vx-card-tip">' + tipLabel + '</div>' +
+            '<div class="vx-card-tekst">' + escapeHtml(s.tekst) + '</div>' +
+            izvor +
+          '</div>'
+        );
+      }).join("");
+    }
+
+    function escapeHtml(str) {
+      var div = document.createElement("div");
+      div.textContent = str || "";
+      return div.innerHTML;
+    }
+
+    function setStatus(el, text, isError) {
+      el.textContent = text || "";
+      el.classList.toggle("error", !!isError);
+    }
+
+    els.btnLogin.addEventListener("click", function () {
+      var token = els.inputToken.value.trim();
+      if (!token) {
+        setStatus(els.loginStatus, "Unesite token.", true);
+        return;
+      }
+      window.VindexAmbientAdapter.setAuthToken(token);
+      setStatus(els.loginStatus, "");
+      showView("main");
+    });
+
+    els.btnLogout.addEventListener("click", function () {
+      window.VindexAmbientAdapter.clearAuthToken();
+      if (watcher) { watcher.stop(); watcher = null; watching = false; }
+      showView("login");
+    });
+
+    els.btnAnalyze.addEventListener("click", function () {
+      setStatus(els.mainStatus, "Analiziram...");
+      window.VindexAmbientAdapter.getCurrentParagraphText()
+        .then(function (tekst) {
+          return window.VindexAmbientAdapter.analyzeParagraph(tekst);
+        })
+        .then(function (rezultat) {
+          setStatus(els.mainStatus, "");
+          renderSuggestions(rezultat);
+        })
+        .catch(function (e) {
+          setStatus(els.mainStatus, e.message || "Greška pri analizi.", true);
+        });
+    });
+
+    els.btnWatch.addEventListener("click", function () {
+      if (watching) {
+        if (watcher) watcher.stop();
+        watcher = null;
+        watching = false;
+        els.btnWatch.textContent = "Prati kucanje: isključeno";
+        return;
+      }
+      watching = true;
+      els.btnWatch.textContent = "Prati kucanje: uključeno";
+      watcher = window.VindexAmbientAdapter.watchParagraphChanges({
+        onSuggestions: function (rezultat) {
+          setStatus(els.mainStatus, "");
+          renderSuggestions(rezultat);
+        },
+        onError: function (e) {
+          setStatus(els.mainStatus, e.message || "Greška pri analizi.", true);
+        },
+      });
+    });
+
+    function init() {
+      var existingToken = window.VindexAmbientAdapter.getAuthToken();
+      showView(existingToken ? "main" : "login");
+    }
+
+    if (typeof Office !== "undefined") {
+      Office.onReady(init);
+    } else {
+      // Van Office okruženja (razvoj/test u pregledaču) -- inicijalizuj odmah.
+      init();
+    }
+  })();
+</script>
+</body>
+</html>
