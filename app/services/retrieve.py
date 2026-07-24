@@ -24,6 +24,8 @@ from langchain_openai import OpenAIEmbeddings
 from openai import OpenAI
 from pinecone import Pinecone
 
+from shared.sentry import capture_exception as _sentry_capture
+
 load_dotenv()
 
 try:
@@ -471,6 +473,7 @@ def _get_index():
             stats = _PINECONE_INDEX.describe_index_stats()
             logger.info("[PINECONE] Index OK — %d vektora", stats.total_vector_count)
         except Exception as _e:
+            _sentry_capture(_e)
             logger.warning("[PINECONE] describe_index_stats neuspešan (nije fatalno): %s", _e)
 
     return _PINECONE_INDEX
@@ -720,6 +723,7 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
             logger.warning("[PINECONE] Prazni rezultati za query='%s' filter=%s", query[:60], filter_zakon)
         return matches
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("[PINECONE] Greška u pretrazi query='%s': %s: %s", query[:60], type(exc).__name__, str(exc)[:200])
         return []
 
@@ -729,7 +733,8 @@ def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = Non
     filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
     try:
         return index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("Greška u pretraga_vec")
         return []
 
@@ -745,6 +750,7 @@ def _pretraga_misljenja(vektor: list[float], k: int = 5) -> list:
             include_metadata=True,
         ).matches
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[MISLJENJA] Pretraga nije uspela: %s", exc)
         return []
 
@@ -760,6 +766,7 @@ def _pretraga_praksa(vektor: list[float], k: int = 5) -> list:
             include_metadata=True,
         ).matches
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[PRAKSA] Pretraga nije uspela: %s", exc)
         return []
 
@@ -775,6 +782,7 @@ def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5) -> list:
             include_metadata=True,
         ).matches
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[NS:%s] Pretraga nije uspela: %s", namespace, exc)
         return []
 
@@ -811,7 +819,8 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list
             include_metadata=True,
             filter=filter_dict,
         ).matches
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("Greška u direktnom fetchu člana %s", label_clana)
         return []
 
@@ -848,6 +857,7 @@ def _dekomponuj_query(query: str) -> list[str]:
             logger.debug("[MULTI_Q] %s", parsed)
             return parsed[:3]
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[MULTI_Q] Dekompozicija nije uspela: %s", e)
     return []
 
@@ -955,6 +965,7 @@ def classify_query_intent(query: str) -> str:
             logger.info("[INTENT] LLM → %s", label)
             return label
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[INTENT] LLM fallback greška: %s", exc)
 
     result = top_label if top_score > 0 else "mixed"
@@ -1006,6 +1017,7 @@ def decompose_query(user_query: str) -> list[str]:
     except json.JSONDecodeError as exc:
         logger.warning("[FIX1_DECOMPOSE] JSON parse greška: %s", exc)
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[FIX1_DECOMPOSE] Nije uspelo: %s", exc)
 
     return [user_query]
@@ -1061,6 +1073,7 @@ def _generiši_hyde(query: str) -> str:
         logger.debug("[HyDE] '%s'", hyde[:100])
         return hyde
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[HyDE] Generisanje nije uspelo: %s", e)
         return ""
 
@@ -1125,6 +1138,7 @@ def _gpt_rerank(query: str, matches: list, k: int = 3) -> list:
                 logger.debug("[GPT_RERANK] top-%d od %d kandidata", len(reranked), len(kandidati))
                 return reranked
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[GPT_RERANK] Greška: %s — fallback na interni skor", exc)
     return kandidati[:k]
 
@@ -1157,6 +1171,7 @@ def _cohere_rerank(query: str, matches: list, k: int = 3) -> list:
         logger.debug("[COHERE] Reranked top-%d", k)
         return reranked
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[COHERE] Reranking nije uspeo: %s — fallback na GPT reranker", e)
         return _gpt_rerank(query, matches, k)
 
@@ -1214,6 +1229,7 @@ def _oceni_relevantnost(query: str, docs: list[str]) -> str:
             return "DELIMIČNO"
         return "RELEVANTNO"
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[CRAG] Ocena relevantnosti nije uspela: %s — pretpostavljam RELEVANTNO", e)
         return "RELEVANTNO"
 
@@ -1255,6 +1271,7 @@ def _prosiri_pretragu_crag(query: str) -> list[str]:
             if candidates:
                 return candidates[:3]
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[CRAG] Proširivanje pretrage nije uspelo: %s", e)
     return []
 
@@ -1304,7 +1321,8 @@ def _izracunaj_skor(
             try:
                 m = re.search(r"\d+", clan_doc or "")
                 if m and 360 <= int(m.group()) <= 395: skor += 70
-            except Exception:
+            except Exception as _exc:
+                _sentry_capture(_exc)
                 pass
 
     if any(x in query_norm for x in ["digital", "kripto", "bitcoin", "usdt", "ethereum", "token", "nft", "blockchain"]):
@@ -1484,7 +1502,8 @@ def _jedan_retrieval_krug(
     for f in as_completed(fjobs):
         try:
             svi_matchevi.extend(f.result())
-        except Exception:
+        except Exception as _exc:
+            _sentry_capture(_exc)
             pass
 
     executor.shutdown(wait=False)
@@ -1494,7 +1513,8 @@ def _jedan_retrieval_krug(
     try:
         for m in f_orig_law.result():
             orig_score_map[m.id] = m.score
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     # Deduplikacija po ID
@@ -1576,12 +1596,14 @@ def retrieve_documents(
     hyde_text = ""
     try:
         sub_queries = f_multi.result(timeout=16.0)
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.info("[MULTI_Q] Timeout ili greška — preskočena")
 
     try:
         hyde_text = f_hyde.result(timeout=13.0)
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.info("[HyDE] Timeout ili greška — preskočena")
 
     # ── Faza 2: Retrieval ─────────────────────────────────────────────────────
@@ -1612,9 +1634,11 @@ def retrieve_documents(
                         if m.id not in vidjeni:
                             vidjeni.add(m.id)
                             matchevi.append(m)
-                except Exception:
+                except Exception as _exc:
+                    _sentry_capture(_exc)
                     pass
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     # ── Faza 3: Re-ranking ────────────────────────────────────────────────────
@@ -1740,7 +1764,8 @@ def retrieve_documents(
                             if m.id not in vidjeni:
                                 vidjeni.add(m.id)
                                 reranked.append(m)
-                    except Exception:
+                    except Exception as _exc:
+                        _sentry_capture(_exc)
                         pass
             reranked = reranked[:k]
         elif zakon is not None:
@@ -1783,6 +1808,7 @@ def retrieve_documents(
                 })
         logger.info("[PRAKSA] %d odluka dodato u kontekst (od %d rezultata)", _added, len(_pm_list))
     except Exception as _pe:
+        _sentry_capture(_pe)
         logger.warning("[PRAKSA] Retrieval greška: %s — nastavlja se bez prakse", _pe)
     finally:
         _praksa_exec.shutdown(wait=False)
@@ -1808,6 +1834,7 @@ def retrieve_documents(
                         })
                 logger.info("[DOC_NS:%s] %d pasusa dodato u kontekst", _ns, len(_ns_matches[:3]))
             except Exception as _de:
+                _sentry_capture(_de)
                 logger.warning("[DOC_NS:%s] Retrieval greška: %s", _ns, _de)
         if _extra_exec is not None:
             _extra_exec.shutdown(wait=False)
@@ -1869,7 +1896,8 @@ def _prosiri_query_gpt_wrapper(query: str) -> list[str]:
         )
         tekst = resp.choices[0].message.content.strip()
         return [q.strip() for q in tekst.split("\n") if q.strip()][:4]
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         return []
 
 
@@ -2305,6 +2333,7 @@ def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
                     d["obraz_text"] = full_text[:3000]
                     logger.info("[GRUPISANO] full-text fetch %r → %d chars", d["decision_number"], len(d["obraz_text"]))
             except Exception as _fe:
+                _sentry_capture(_fe)
                 logger.debug("[GRUPISANO] full-text fetch failed for %r: %s", d["decision_number"], _fe)
 
     grupe: dict = {"tuzilac": [], "tuzeni": [], "mesovito": [], "nepoznato": []}

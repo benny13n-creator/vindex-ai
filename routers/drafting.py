@@ -34,6 +34,7 @@ from shared.deps import _audit, _get_supa, _q_hash, get_current_user
 from shared.rate import limiter
 from shared.permissions import PermissionService
 from shared.usage import UsageService
+from shared.sentry import capture_exception as _sentry_capture
 
 from main import ask_analiza, _skini_pii
 from drafting.router import generate_draft as _drafting_generate
@@ -228,7 +229,8 @@ async def playbook_upload(
         if tmp_path and tmp_path.exists():
             try:
                 tmp_path.unlink()
-            except Exception:
+            except Exception as _exc:
+                _sentry_capture(_exc)
                 pass
 
 
@@ -254,7 +256,8 @@ async def playbook_status(request: Request, user: dict = Depends(PermissionServi
             ns_data = stats.namespaces.get(ns) if hasattr(stats, "namespaces") else None
             count = (ns_data.vector_count if hasattr(ns_data, "vector_count") else 0) if ns_data else 0
             return {"has_playbook": count > 0, "chunk_count": count}
-        except Exception:
+        except Exception as _exc:
+            _sentry_capture(_exc)
             return {"has_playbook": False, "chunk_count": 0}
     return await asyncio.to_thread(_check)
 
@@ -279,7 +282,8 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("Greška u /api/nacrt")
         return _greska_odgovor(
             500,
@@ -311,7 +315,8 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(Permis
         else:
             preostalo = await UsageService.balance(user["user_id"], user.get("email", ""))
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("Neočekivana greška u /api/analiza")
         return _greska_odgovor(
             500,
@@ -373,7 +378,8 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(Permission
         tekst = resp.choices[0].message.content.strip()
         await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
         return {"status": "ok", "sazetak": tekst, "format": req.format}
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("Greška u /api/sazmi")
         return _greska_odgovor(500, "Greška pri generisanju sažetka.")
 
@@ -396,7 +402,8 @@ async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
         )
         logger.info("Feedback [uid=%.8s] tip=%s [q=%s]", user["user_id"], req.tip, qh)
         return {"status": "ok"}
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("Greška u /api/feedback")
         return {"status": "ok"}
 
@@ -473,6 +480,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
             )
             entiteti = _parse_json_safe(ekstr_resp2.choices[0].message.content or "")
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("Ekstrakcija entiteta neuspešna [q=%s]: %s", log_id, exc)
         entiteti = {}
 
@@ -489,6 +497,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
         docs, _retrieval_meta = await asyncio.to_thread(retrieve_documents, rag_upit, 5)
         kontekst = "\n\n".join(docs[:4]) if docs else ""
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("RAG neuspešan za podnesak [q=%s]: %s", log_id, exc)
         kontekst = ""
 
@@ -500,6 +509,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
             vks_kontekst_blok = f"\n\nVKS ORIJENTACIONI KRITERIJUMI:\n{vks['kontekst_tekst']}"
             vks_analiza = vks["analiza_tekst"]
         except Exception as exc:
+            _sentry_capture(exc)
             logger.warning("VKS preporuka neuspešna [q=%s]: %s", log_id, exc)
 
     obog_prompt = OBOGACIVANJE_PROMPTOVI[req.tip]
@@ -697,7 +707,8 @@ async def export_nacrt_docx(
         )
         if r and r.data:
             firma_info = r.data
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     naslov = req.naslov or req.tip or "Nacrt"

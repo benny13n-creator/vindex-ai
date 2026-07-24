@@ -41,6 +41,9 @@ import logging
 import os
 from typing import Any, Optional
 
+from shared.llm_retry import llm_retry
+from shared.sentry import capture_exception as _sentry_capture
+
 logger = logging.getLogger("vindex.legal_reasoning")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -99,6 +102,7 @@ async def _fetch_facts(supa, predmet_id: str) -> list[dict]:
         return [d for d in (r.data or []) if (d.get("tvrdnja") or "").strip()]
     except Exception as exc:
         logger.warning("[LRE] Fetch facts greška: %s", exc)
+        _sentry_capture(exc)
         return []
 
 
@@ -117,6 +121,7 @@ async def _fetch_legal_sources(query: str) -> tuple[list[str], dict]:
         )
     except Exception as exc:
         logger.warning("[LRE] Fetch legal sources greška: %s", exc)
+        _sentry_capture(exc)
         return [], {}
 
 
@@ -162,25 +167,35 @@ def _build_reasoning_prompt(genome: dict, facts: list[dict], izvori: list[dict],
     )
 
 
+@llm_retry
+async def _pozovi_reasoning_api(client, prompt: str):
+    """FAZA 2 (2026-07-24): retry-ovani deo _call_reasoning_gpt -- izdvojen
+    kao poseban helper jer je vanjska funkcija imala sopstveni try/except
+    koji je gutao SVE greške (pa i prolazne), tako da tenacity retry na
+    celoj funkciji nikad ne bi video izuzetak da retry-uje."""
+    return await asyncio.wait_for(
+        client.chat.completions.create(
+            model="gpt-4o", temperature=0.1, max_tokens=2500,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _REASONING_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+        ),
+        timeout=45.0,
+    )
+
+
 async def _call_reasoning_gpt(prompt: str) -> dict:
     try:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-        resp = await asyncio.wait_for(
-            client.chat.completions.create(
-                model="gpt-4o", temperature=0.1, max_tokens=2500,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": _REASONING_SYSTEM},
-                    {"role": "user", "content": prompt},
-                ],
-            ),
-            timeout=45.0,
-        )
+        resp = await _pozovi_reasoning_api(client, prompt)
         raw = (resp.choices[0].message.content or "{}").strip()
         return json.loads(raw)
     except Exception as exc:
         logger.warning("[LRE] GPT poziv greška: %s", exc)
+        _sentry_capture(exc)
         return {"chains": [], "greska": str(exc)[:200]}
 
 
@@ -415,6 +430,7 @@ async def generate_reasoning_graph(predmet_id: str, user_id: str) -> dict:
         }
     except Exception as exc:
         logger.warning("[LRE] Generacija neuspesna: %s", exc)
+        _sentry_capture(exc)
         await asyncio.to_thread(lambda: supa.table("reasoning_graph").update({
             "status": "failed", "greska": str(exc)[:300],
         }).eq("id", graph_id).execute())

@@ -26,6 +26,7 @@ from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.usage import UsageService
+from shared.sentry import capture_exception as _sentry_capture
 
 try:
     from app.services.retrieve import _pretraga_praksa, _ugradi_query
@@ -134,7 +135,8 @@ Analiziraj i daj strukturisano predvidjanje ishoda sa procentom sanse za uspeh."
                     "analiza":      analiza[:5000],
                 }).execute()
             )
-        except Exception:
+        except Exception as _exc:
+            _sentry_capture(_exc)
             pass
 
         preostalo = await UsageService.consume(uid, email, "court_predictor")
@@ -266,7 +268,8 @@ Napravi kompletan Battle Report."""
                     "tip_analize":  "battle_report",
                 }).execute()
             )
-        except Exception:
+        except Exception as _exc:
+            _sentry_capture(_exc)
             pass
 
         preostalo = await UsageService.consume(uid, email, "court_predictor")
@@ -375,7 +378,8 @@ Tip: {payload.tip_postupka}
                         "brief":         brief[:5000],
                     }).execute()
                 )
-            except Exception:
+            except Exception as _exc:
+                _sentry_capture(_exc)
                 pass
 
         preostalo = await UsageService.consume(uid, email, "court_predictor")
@@ -519,6 +523,7 @@ async def argument_reputation(
                     )
             rag_kontekst = "\n\n".join(rag_delovi)
         except Exception as e:
+            _sentry_capture(e)
             logger.warning("[ARG_REP] RAG greška: %s", e)
 
     pouzdanost_napomena = "" if rag_kontekst else "\nNapomena: RAG nije dostupan — analiza bazirana samo na znanju modela."
@@ -565,7 +570,8 @@ async def argument_reputation(
                 "tip_analize":  "argument_reputation",
             }).execute()
         )
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     preostalo = await UsageService.consume(uid, email, "court_predictor")
@@ -643,6 +649,7 @@ async def judge_profile(
                     delovi.append(f"[{court}] {tekst}")
                 rag_kontekst = "\n\n".join(delovi)
         except Exception as e:
+            _sentry_capture(e)
             logger.warning("[JUDGE_PROF] RAG greška: %s", e)
 
     user_msg = (
@@ -692,7 +699,8 @@ async def judge_profile(
                 "tip_analize":  "judge_profile",
             }).execute()
         )
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     preostalo = await UsageService.consume(uid, email, "court_predictor")
@@ -768,7 +776,8 @@ async def opponent_intel(
                 f"- {p.get('naziv','?')} [{p.get('status','?')}]: {(p.get('opis') or '')[:150]}"
                 for p in hist_r.data
             )
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     # RAG pretraga
@@ -787,6 +796,7 @@ async def opponent_intel(
                     delovi.append(f"[{court}] {tekst}")
                 rag_kontekst = "RELEVANTNA SUDSKA PRAKSA:\n" + "\n\n".join(delovi)
         except Exception as e:
+            _sentry_capture(e)
             logger.warning("[OPP_INTEL] RAG greška: %s", e)
 
     user_msg = (
@@ -835,7 +845,8 @@ async def opponent_intel(
                 "tip_analize":  "opponent_intel",
             }).execute()
         )
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     preostalo = await UsageService.consume(uid, email, "court_predictor")
@@ -950,6 +961,7 @@ async def confidence_check(
                 or "VKS" in str(getattr(h, "metadata", {}).get("court", ""))
             )
         except Exception as e:
+            _sentry_capture(e)
             logger.debug("[CONFIDENCE] RAG greška: %s", e)
 
     # Korak 2: Firmini podaci iz case_patterns
@@ -974,6 +986,7 @@ async def confidence_check(
                 "top_faktor": rows[0].get("faktor") if rows else None,
             }
     except Exception as e:
+        _sentry_capture(e)
         logger.debug("[CONFIDENCE] case_patterns greška: %s", e)
 
     # Korak 3: Nivo pouzdanosti
@@ -1015,6 +1028,7 @@ async def confidence_check(
         razlog      = gpt_data.get("razlog_kratko", "")
         kljucni_rizik = gpt_data.get("kljucni_rizik", "")
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[CONFIDENCE] GPT greška: %s", e)
 
     # Korak 5: Compose poruka za korisnika
@@ -1041,7 +1055,8 @@ async def confidence_check(
                 "tip_analize":  "confidence_check",
             }).execute()
         )
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     preostalo = await UsageService.consume(uid, email, "court_predictor")
@@ -1089,7 +1104,8 @@ async def learning_stats(
                 .execute()
         )
         ukupno_analiza = cnt_r.count or 0
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     # Win rate po tipu spora iz case_patterns
@@ -1128,6 +1144,7 @@ async def learning_stats(
             if sve_ukupno > 0:
                 ukupni_win_rate = round(sve_pobede / sve_ukupno * 100, 1)
     except Exception as e:
+        _sentry_capture(e)
         logger.debug("[LEARNING_STATS] case_patterns greška: %s", e)
 
     # Broj recommendation_log unosa (prihvaćene/odbijene preporuke)
@@ -1145,7 +1162,8 @@ async def learning_stats(
                 prihvaceno += 1
             elif r.get("ishod") == "odbijena":
                 odbijeno += 1
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         pass
 
     if ukupni_win_rate is not None:

@@ -18,6 +18,7 @@ from app.services.retrieve import (
     retrieve_sudska_praksa, process_praksa_chunks,
     retrieve_misljenja, process_misljenja_chunks, query_triggers_misljenja,
 )
+from shared.llm_retry import llm_retry
 
 load_dotenv()
 
@@ -2232,6 +2233,7 @@ def ukloni_zabranjeni_tekst(odgovor: str, tip: str) -> str:
     return odgovor.strip()
 
 
+@llm_retry
 def _pozovi_openai(
     system_prompt: str,
     user_content: str,
@@ -2239,7 +2241,11 @@ def _pozovi_openai(
     max_tokens: int = 1000,
     response_format: dict | None = None,
 ) -> str:
-    """OpenAI poziv sa timeoutom i ograničenjem tokena. Baca izuzetak pri grešci."""
+    """OpenAI poziv sa timeoutom i ograničenjem tokena. Baca izuzetak pri grešci.
+
+    FAZA 2 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential backoff-om
+    za rate-limit/5xx/timeout/connection greške; 400/401 se NE ponavljaju.
+    """
     kwargs: dict = {
         "model": model,
         "messages": [

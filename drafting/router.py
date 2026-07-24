@@ -29,6 +29,8 @@ from string import Formatter
 
 from openai import OpenAI
 
+from shared.llm_retry import llm_retry
+
 from .compliance import formatiraj_violations, proveri_uskladjenost
 from .templates import TEMPLATES
 
@@ -44,7 +46,11 @@ def _get_client() -> OpenAI:
     return _client
 
 
+@llm_retry
 def _call_openai(system: str, user: str, max_tokens: int = 2000) -> str:
+    """FAZA 2 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške; 400/401 se
+    NE ponavljaju."""
     r = _get_client().chat.completions.create(
         model="gpt-4o",
         messages=[
