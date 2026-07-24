@@ -20,6 +20,8 @@ from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.usage import UsageService
+from shared.llm_retry import llm_retry
+from shared.sentry import capture_exception as _sentry_capture
 
 logger = logging.getLogger("vindex.api")
 router = APIRouter()
@@ -166,6 +168,7 @@ def _keyword_fallback_sync(
         scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
         return [m for _, _, m in scored[:top_k]]
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[PRAKSA] Keyword fallback greška: %s", e)
         return []
 
@@ -313,6 +316,11 @@ def _get_ratio_from_cache(decision_number: str) -> Optional[str]:
         if r.data:
             return r.data[0]["ratio"]
     except Exception as e:
+        # Napomena: "nema reda u kešu" NE baca ovde (r.data je prazna lista,
+        # obrađeno gornjim if-om) -- ovaj except hvata stvarne greške poziva
+        # (mrežni/DB problem), zato zaslužuje Sentry vidljivost i pored
+        # debug log nivoa.
+        _sentry_capture(e)
         logger.debug("[RATIO] Cache miss/error for %r: %s", decision_number, e)
     return None
 
@@ -324,7 +332,29 @@ def _save_ratio_to_cache(decision_number: str, ratio: str) -> None:
             on_conflict="decision_number",
         ).execute()
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[RATIO] Cache save failed for %r: %s", decision_number, e)
+
+
+@llm_retry
+def _pozovi_ratio_api(tekst_stripped: str) -> str:
+    """CELINA 1 (2026-07-24): retry-ovani deo _extract_ratio_sync -- izdvojen
+    jer vanjska funkcija ima sopstveni try/except koji bi inače sakrio
+    grešku od tenacity-ja (isti obrazac kao main.py::_pozovi_reasoning_api
+    iz Faze 2)."""
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0.1,
+        max_tokens=220,
+        timeout=25.0,
+        messages=[
+            {"role": "system", "content": _RATIO_SYSTEM_PROMPT},
+            {"role": "user",   "content": tekst_stripped[:6000]},
+        ],
+    )
+    return (resp.choices[0].message.content or "").strip()
 
 
 def _extract_ratio_sync(decision_number: str, tekst: str) -> str:
@@ -342,20 +372,10 @@ def _extract_ratio_sync(decision_number: str, tekst: str) -> str:
         logger.info("[RATIO] IZREKA_ONLY %r — tekst: %r", decision_number, tekst_stripped)
         return _IZREKA_ONLY
     try:
-        from openai import OpenAI as _OAI
-        client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.1,
-            max_tokens=220,
-            messages=[
-                {"role": "system", "content": _RATIO_SYSTEM_PROMPT},
-                {"role": "user",   "content": tekst_stripped[:3000]},
-            ],
-        )
-        ratio = (resp.choices[0].message.content or "").strip()
+        ratio = _pozovi_ratio_api(tekst_stripped)
         logger.info("[RATIO] GPT response %r → %r", decision_number, ratio[:120])
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[RATIO] GPT failed for %r: %s", decision_number, e)
         return ""
     if not ratio or "nije dostupno" in ratio.lower():
@@ -427,6 +447,7 @@ def _fetch_decision_chunks(dn: str) -> tuple:
                         "chunk_index": int(md.get("chunk_index") or 0),
                     })
         except Exception as _fe:
+            _sentry_capture(_fe)
             logger.debug("[UPOREDI] ns=%s fetch failed for %r: %s", ns, dn, _fe)
 
     if not all_chunks:
@@ -434,10 +455,42 @@ def _fetch_decision_chunks(dn: str) -> tuple:
 
     _sec_order = {"HEADER": 0, "IZREKA": 1, "OBRAZLOŽENJE": 2}
     all_chunks.sort(key=lambda c: (_sec_order.get(c["section"], 9), c["chunk_index"]))
-    full_text = "\n\n".join(c["text"] for c in all_chunks)[:4500]
+
+    # CELINA 1 (2026-07-24): flat [:4500] posle spajanja HEADER+IZREKA+OBRAZLOŽENJE
+    # je davao prve dve sekcije prioritet SAMO zato što idu prve u redosledu --
+    # za dužu presudu, OBRAZLOŽENJE (obično najduža i pravno najvrednija sekcija
+    # za poređenje dve odluke) je često u potpunosti odsečeno pre nego što uopšte
+    # stigne u prompt. Budžetiranje po sekciji umesto jednog flat cutoff-a.
+    header_txt = " ".join(c["text"] for c in all_chunks if c["section"] == "HEADER").strip()[:500]
+    izreka_txt = " ".join(c["text"] for c in all_chunks if c["section"] == "IZREKA").strip()[:1500]
+    obraz_budget = max(1500, 6000 - len(header_txt) - len(izreka_txt))
+    obraz_txt = " ".join(
+        c["text"] for c in all_chunks if c["section"] not in ("HEADER", "IZREKA")
+    ).strip()[:obraz_budget]
+
+    full_text = "\n\n".join(t for t in (header_txt, izreka_txt, obraz_txt) if t)
     if not meta:
         meta = {"broj": dn, "datum": "", "sud": "", "oblast": ""}
     return meta, full_text
+
+
+@llm_retry
+def _pozovi_uporedi_api(user_msg: str) -> str:
+    """CELINA 1 (2026-07-24): retry-ovani deo _uporedi_sync -- izdvojen jer
+    vanjska funkcija ima sopstveni try/except."""
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.2,
+        max_tokens=1400,
+        timeout=25.0,
+        messages=[
+            {"role": "system", "content": _UPOREDI_SYSTEM_PROMPT},
+            {"role": "user",   "content": user_msg},
+        ],
+    )
+    return (resp.choices[0].message.content or "").strip()
 
 
 def _uporedi_sync(dn_a: str, dn_b: str) -> dict:
@@ -461,19 +514,9 @@ def _uporedi_sync(dn_a: str, dn_b: str) -> dict:
         tekst_b=tekst_b,
     )
     try:
-        from openai import OpenAI as _OAI
-        client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
-        resp = client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0.2,
-            max_tokens=1400,
-            messages=[
-                {"role": "system", "content": _UPOREDI_SYSTEM_PROMPT},
-                {"role": "user",   "content": user_msg},
-            ],
-        )
-        analiza = (resp.choices[0].message.content or "").strip()
+        analiza = _pozovi_uporedi_api(user_msg)
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[UPOREDI] GPT failed: %s", e)
         return {"error": "Greška pri generisanju analize. Pokušajte ponovo."}
 
@@ -515,6 +558,7 @@ async def praksa_search(req: PraksaSearchReq, request: Request, user: dict = Dep
         )
         return result
     except Exception as exc:
+        _sentry_capture(exc)
         logger.exception("Greška u /api/praksa/search")
         return JSONResponse(
             status_code=500,
@@ -533,7 +577,10 @@ async def praksa_ratio(req: RatioReq, request: Request, user: dict = Depends(get
 
     async def _one(d: dict):
         dn   = (d.get("decision_number") or "").strip()
-        text = (d.get("text") or "").strip()[:3000]
+        # CELINA 1 (2026-07-24): 3000 -> 6000 -- za dužu presudu, obrazloženje
+        # (pravno najvredniji deo za ratio decidendi) je često duže od 3000
+        # znakova i bivalo je odsečeno pre nego što stigne do GPT poziva.
+        text = (d.get("text") or "").strip()[:6000]
         if not dn:
             return None, None
         ratio = await asyncio.to_thread(_extract_ratio_sync, dn, text)
@@ -569,7 +616,8 @@ async def praksa_uporedi(
     try:
         result = await asyncio.to_thread(_uporedi_sync, dn_a, dn_b)
         return result
-    except Exception:
+    except Exception as exc:
+        _sentry_capture(exc)
         logger.exception("Greška u /api/praksa/uporedi")
         return JSONResponse(status_code=500, content={"error": "Interna greška servera."})
 
@@ -622,6 +670,7 @@ async def sudska_praksa_grupisano(query: str, request: Request, user: dict = Dep
         result = await asyncio.to_thread(retrieve_grupisano, q, 10)
         return result
     except Exception as exc:
+        _sentry_capture(exc)
         logger.exception("Greška u /api/sudska-praksa/grupisano")
         return JSONResponse(
             status_code=500,
@@ -651,6 +700,24 @@ class ArgumentMapReq(BaseModel):
     q:        Optional[str] = Field(default=None, max_length=400, description="Opcioni query za pretragu prakse (default = argument)")
 
 
+@llm_retry
+async def _pozovi_argument_map_api(oai, argument: str, decisions_text: str) -> str:
+    """CELINA 1 (2026-07-24): retry-ovani deo argument_map -- izdvojen jer
+    endpoint ima sopstveni try/except oko poziva."""
+    resp = await oai.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        max_tokens=2000,
+        timeout=25.0,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": _ARGUMENT_MAP_SYSTEM},
+            {"role": "user",   "content": f"MOJ ARGUMENT:\n{argument}\n\nSUDSKE ODLUKE:{decisions_text}"},
+        ],
+    )
+    return resp.choices[0].message.content or "{}"
+
+
 @router.post("/api/praksa/argument-map")
 @limiter.limit("10/minute")
 async def argument_map(
@@ -669,6 +736,7 @@ async def argument_map(
         from app.services.retrieve import retrieve_sudska_praksa as _rp
         matches = await asyncio.to_thread(_rp, search_q, 15)
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("[ARGUMENT-MAP] Pinecone greška: %s", exc)
         return JSONResponse(status_code=500, content={"error": "Greška pri pretrazi prakse."})
 
@@ -694,18 +762,10 @@ async def argument_map(
     oai = AsyncOpenAI(api_key=_os.getenv("OPENAI_API_KEY", ""))
 
     try:
-        resp = await oai.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0,
-            max_tokens=2000,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _ARGUMENT_MAP_SYSTEM},
-                {"role": "user",   "content": f"MOJ ARGUMENT:\n{req.argument}\n\nSUDSKE ODLUKE:{decisions_text}"},
-            ],
-        )
-        result = _json.loads(resp.choices[0].message.content or "{}")
+        raw = await _pozovi_argument_map_api(oai, req.argument, decisions_text)
+        result = _json.loads(raw)
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("[ARGUMENT-MAP] OpenAI greška: %s", exc)
         return JSONResponse(status_code=500, content={"error": "Greška pri klasifikaciji argumenata."})
 
@@ -760,6 +820,34 @@ class SlicniPredmetiReq(BaseModel):
     top_k:         int           = Field(default=5, ge=1, le=15, description="Broj sličnih predmeta koje treba vratiti")
 
 
+@llm_retry
+def _pozovi_slicni_api(cinjenice: str, pravno_pitanje: Optional[str], decisions_text: str) -> str:
+    """CELINA 1 (2026-07-24): retry-ovani deo _slicni_predmeti_sync -- izdvojen
+    jer vanjska funkcija ima sopstveni try/except sa fallback-om na
+    isključivo-vektorski rezultat."""
+    from openai import OpenAI as _OAI
+    client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        max_tokens=1200,
+        timeout=25.0,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": _SLICNI_SYSTEM},
+            {
+                "role": "user",
+                "content": (
+                    f"MOJ PREDMET:\nČinjenice: {cinjenice}\n"
+                    + (f"Pravno pitanje: {pravno_pitanje}\n" if pravno_pitanje else "")
+                    + f"\nSUDSKE ODLUKE:{decisions_text}"
+                ),
+            },
+        ],
+    )
+    return resp.choices[0].message.content or "{}"
+
+
 def _slicni_predmeti_sync(cinjenice: str, pravno_pitanje: Optional[str], top_k: int) -> dict:
     import json as _json
     from app.services.retrieve import retrieve_sudska_praksa, process_praksa_chunks
@@ -788,28 +876,11 @@ def _slicni_predmeti_sync(cinjenice: str, pravno_pitanje: Optional[str], top_k: 
             f"Tekst: {izreka}\n"
         )
 
-    from openai import OpenAI as _OAI
-    client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
     try:
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0,
-            max_tokens=1200,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _SLICNI_SYSTEM},
-                {
-                    "role": "user",
-                    "content": (
-                        f"MOJ PREDMET:\nČinjenice: {cinjenice}\n"
-                        + (f"Pravno pitanje: {pravno_pitanje}\n" if pravno_pitanje else "")
-                        + f"\nSUDSKE ODLUKE:{decisions_text}"
-                    ),
-                },
-            ],
-        )
-        gpt_result = _json.loads(resp.choices[0].message.content or "{}")
+        raw = _pozovi_slicni_api(cinjenice, pravno_pitanje, decisions_text)
+        gpt_result = _json.loads(raw)
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[SLICNI] GPT greška: %s — vraćam samo vektorski rezultat", exc)
         gpt_result = {"slicni": []}
 
@@ -861,7 +932,8 @@ async def slicni_predmeti(
             req.top_k,
         )
         return result
-    except Exception:
+    except Exception as exc:
+        _sentry_capture(exc)
         logger.exception("Greška u /api/praksa/slicni-predmeti")
         return JSONResponse(
             status_code=500,

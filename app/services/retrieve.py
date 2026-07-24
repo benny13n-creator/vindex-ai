@@ -1565,7 +1565,22 @@ def retrieve_documents(
     label_clana = f"Član {broj_clana}" if broj_clana else None
 
     # ── Faza 0: Embed jedanput ────────────────────────────────────────────────
-    vektor = _ugradi_query(query)
+    # CELINA 1 (2026-07-24): _ugradi_query je ranije stajao neuhvaćen -- prolazna
+    # greška OpenAI embeddings API-ja (rate limit, mrežni blip) je bila neuhvaćen
+    # izuzetak koji ruši ceo poziv, umesto da degradira na LOW-confidence prazan
+    # rezultat kao svaki drugi otkazani izvor u ovom pipeline-u (praksa, HyDE,
+    # multi-query su već fail-soft -- ovaj korak, iako je jedini blokirajući jer
+    # sve ostalo zavisi od vektora, nije bio).
+    try:
+        vektor = _ugradi_query(query)
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.error("[RETRIEVE] Embedding neuspešan za query='%s': %s", query[:60], exc)
+        return [], {
+            "top_score": 0.0, "top_article": "", "top_law": "", "top_text": "",
+            "confidence": "LOW", "confidence_detail": {}, "izvori": [],
+            "doc_passages": [], "praksa_matches": [],
+        }
 
     # ── Faza 0b: Start praksa + extra-ns retrieval in background ─────────────────
     # Conservative design: zakon pipeline is unchanged; additional results are appended
@@ -2042,12 +2057,32 @@ def _fallback_poruka(query: str) -> str:
 
 def retrieve_sudska_praksa(query: str, top_k: int = 10) -> list:
     """
-    T1 — Public function: embed query + search sudska_praksa namespace.
+    T1 — Public function: embed query + search sudska_praksa namespace,
+    re-ranked by Cohere (GPT-4o-mini fallback) for semantic relevance.
+
+    CELINA 1 (2026-07-24): pre ove izmene, praksa retrieval je vraćao top_k
+    rezultata ISKLJUČIVO po cosine similarity -- za razliku od glavnog zakon
+    pipeline-a (retrieve_documents), koji uvek prolazi kroz Cohere/GPT
+    re-rank. Cosine sličnost je slabiji signal relevantnosti od cross-encoder
+    rerank-a, pogotovo za parafrazirana pravna pitanja. Sada se fetch-uje širi
+    kandidatski skup (min. 20) i re-rankira na top_k -- _cohere_rerank vraća
+    ORIGINALNE match objekte (isti .score), samo bolje poređane, pa
+    process_praksa_chunks-ov gate/dedup nastavlja da radi nepromenjeno.
+
     Returns raw Pinecone match objects (with .score and .metadata).
     DOES NOT touch default namespace (zakon) or its retrieval pipeline.
     """
-    vektor = _ugradi_query(query)
-    return _pretraga_praksa(vektor, k=top_k)
+    try:
+        vektor = _ugradi_query(query)
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.warning("[PRAKSA] Embed neuspešan za query='%s': %s", query[:60], exc)
+        return []
+
+    raw = _pretraga_praksa(vektor, k=max(top_k, 20))
+    if not raw:
+        return raw
+    return _cohere_rerank(query, raw, k=top_k)
 
 
 def process_praksa_chunks(chunks: list, k: int = 3) -> list[dict]:
@@ -2258,7 +2293,18 @@ def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
     Phase 3.1: Retrieve top decisions from sudska_praksa, classify outcomes, group.
     Returns {query, total, statistika:{tuzilac,tuzeni,mesovito,nepoznato,pct_*}, grupe:{...}}
     """
-    vektor = _ugradi_query(query)
+    _prazna_grupisano = {
+        "query": query, "total": 0,
+        "statistika": {"tuzilac": 0, "tuzeni": 0, "mesovito": 0, "nepoznato": 0,
+                        "pct_tuzilac": 0, "pct_tuzeni": 0},
+        "grupe": {"tuzilac": [], "tuzeni": [], "mesovito": [], "nepoznato": []},
+    }
+    try:
+        vektor = _ugradi_query(query)
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.error("[GRUPISANO] Embed neuspešan za query='%s': %s", query[:60], exc)
+        return _prazna_grupisano
     index = _get_index()
     res = index.query(
         vector=vektor,

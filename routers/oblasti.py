@@ -29,6 +29,7 @@ from shared.deps import _get_supa
 from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.usage import UsageService
+from shared.llm_retry import llm_retry
 
 logger = logging.getLogger("vindex.oblasti")
 router = APIRouter(tags=["oblasti"])
@@ -167,13 +168,19 @@ def _pii_strip(pitanje: str) -> str:
     return _skini_pii(pitanje)
 
 
+@llm_retry
 def _gpt_call(sistem_prompt: str, user_content: str, max_tokens: int):
+    """CELINA 1 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške; 400/401 se NE
+    ponavljaju. Prethodno bilo bez retry-ja, za razliku od main.py/drafting
+    koji su ovo dobili u Fazi 2."""
     from openai import OpenAI
     client = OpenAI()
     resp = client.chat.completions.create(
         model="gpt-4o",
         temperature=0.1,
         max_tokens=max_tokens,
+        timeout=25.0,
         messages=[
             {"role": "system", "content": sistem_prompt},
             {"role": "user",   "content": user_content},
