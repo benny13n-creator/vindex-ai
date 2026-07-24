@@ -76,7 +76,11 @@ def _izgradj_kontekst(predmet: dict, dokumenti: list, komentari: list, rokovi: l
         for d in dokumenti[:15]:
             naziv = d.get("naziv_fajla") or "Bez naziva"
             tip = d.get("tip_dokaza") or "nepoznat"
-            tekst = (d.get("tekst") or d.get("izvod") or "")[:300]
+            # BUG FIX (2026-07-24): upit koji puni `dokumenti` (generisi_graf,
+            # linija ~195) selektuje kolonu "tekst_sadrzaj" -- "tekst"/"izvod"
+            # ne postoje u tom redu, pa je ovaj izraz UVEK vraćao prazan
+            # string i GPT poziv nikad nije video stvaran sadržaj dokumenata.
+            tekst = (d.get("tekst_sadrzaj") or d.get("tekst") or d.get("izvod") or "")[:300]
             linija = f"- [{tip}] {naziv}"
             if tekst:
                 linija += f": {tekst}"

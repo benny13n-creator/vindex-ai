@@ -371,7 +371,16 @@ async def dokument_analiza(
         raise HTTPException(status_code=500, detail="Greška pri segmentaciji dokumenta")
 
     if segmented.char_count > 12000:
-        logger.info("[ANALIZA] Dugačak dokument (%d ch) — primena multi-pass pristupa", segmented.char_count)
+        # AKCIJA 1 (2026-07-24): prethodna poruka je govorila "primena
+        # multi-pass pristupa", ali ask_analiza_v2 (main.py) radi TAČNO
+        # JEDAN GPT-4o poziv bez obzira na dužinu dokumenta -- za dokumente
+        # iznad ovog praga samo skraćuje svaki segment na max_chars_per_segment
+        # (main.py, trenutno 1800 znakova) pre tog jednog poziva. Poruka je
+        # sada usklađena sa stvarnim ponašanjem, ne sa željenom arhitekturom.
+        logger.info(
+            "[ANALIZA] Dugačak dokument (%d ch, %d segmenata) — segmenti skraćeni pre jednog GPT-4o poziva (nije stvaran multi-pass)",
+            segmented.char_count, segmented.segment_count,
+        )
 
     rezultat = await asyncio.to_thread(ask_analiza_v2, segmented, body.pitanje)
 

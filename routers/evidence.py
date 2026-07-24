@@ -237,7 +237,7 @@ async def reklasifikuj(request: Request, predmet_id: str, dok_id: str, user=Depe
             lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).execute()
         ),
         asyncio.to_thread(
-            lambda: supa.table("predmet_dokumenti").select("naziv_fajla,pinecone_namespace").eq("id", dok_id).eq("user_id", uid).execute()
+            lambda: supa.table("predmet_dokumenti").select("naziv_fajla,pinecone_namespace,tekst_sadrzaj").eq("id", dok_id).eq("user_id", uid).execute()
         ),
     )
     if not pr.data:
@@ -246,8 +246,15 @@ async def reklasifikuj(request: Request, predmet_id: str, dok_id: str, user=Depe
         raise HTTPException(status_code=404, detail="Dokument nije pronađen.")
 
     d = dok.data[0]
+    # BUG FIX (2026-07-24): select nije ni tražio "tekst_sadrzaj", pa je
+    # reklasifikacija UVEK slala prazan string umesto stvarnog teksta
+    # dokumenta -- efektivno nikad nije videla sadržaj koji treba da
+    # reklasifikuje, samo naziv fajla.
     asyncio.create_task(
-        asyncio.to_thread(klasifikuj_i_sacuvaj, predmet_id, dok_id, d.get("naziv_fajla", ""), "", uid)
+        asyncio.to_thread(
+            klasifikuj_i_sacuvaj, predmet_id, dok_id, d.get("naziv_fajla", ""),
+            d.get("tekst_sadrzaj", "") or "", uid,
+        )
     )
     await UsageService.consume(user["user_id"], user.get("email", ""), "evidence")
     return {"ok": True, "poruka": "Reklasifikacija pokrenuta u pozadini."}

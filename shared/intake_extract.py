@@ -44,6 +44,32 @@ _AMOUNT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# AKCIJA 1 (2026-07-24): naziv suda — strukturisan, predvidiv format u
+# srpskim pravnim dokumentima, isti razlog za regex-prvo kao case_number/
+# amount. Dva oblika: sudovi vezani za grad ("Osnovni sud u Beogradu") i
+# nacionalni sudovi bez grada ("Vrhovni kasacioni sud", "Ustavni sud").
+# Namerno NE zamenjuje LLM ekstrakciju za "court" -- samo joj prethodi kao
+# visoko-pouzdan deterministički kandidat (vidi extract_all_entities).
+_COURT_TIP_SA_GRADOM = (
+    r"(?:Prvi\s+osnovni|Drugi\s+osnovni|Treći\s+osnovni|Osnovni|Viši|Apelacioni|"
+    r"Privredni|Prekršajni)"
+)
+# Privredni apelacioni sud i Prekršajni apelacioni sud su pojedinačni,
+# republički sudovi (sedište Beograd) — u praksi se ne navode sa "u Gradu"
+# (za razliku od "Privredni sud u X" / "Prekršajni sud u X", koji jesu
+# vezani za grad i ostaju u _COURT_TIP_SA_GRADOM).
+_COURT_TIP_BEZ_GRADA = r"(?:Vrhovni\s+kasacioni|Privredni\s+apelacioni|Prekršajni\s+apelacioni|Ustavni|Upravni)"
+
+# NAPOMENA: samo tip suda + "sud u" je case-insensitive (?i:...) -- svrha je
+# da pokrije SVA-CAPS zaglavlja ("OSNOVNI SUD U BEOGRADU"). Naziv grada MORA
+# početi velikim slovom (van dometa (?i:...)) da bi regex ostao selektivan —
+# globalni re.IGNORECASE bi ovaj zahtev poništio i dozvolio da bilo koja
+# sledeća reč (npr. običan glagol) bude pogrešno pročitana kao deo naziva.
+_COURT_RE = re.compile(
+    rf"\b(?i:{_COURT_TIP_SA_GRADOM}\s+sud\s+u)\s+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*(?:\s+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*)?"
+    rf"|\b(?i:{_COURT_TIP_BEZ_GRADA}\s+sud)\b"
+)
+
 
 def extract_case_number(text: str) -> tuple[Optional[str], float]:
     """Regex, deterministički — visok confidence kad se poklopi (0.95),
@@ -59,6 +85,18 @@ def extract_amount(text: str) -> tuple[Optional[str], float]:
     if not m:
         return None, 0.0
     return f"{m.group(1)} {m.group(2)}", 0.92
+
+
+def extract_court(text: str) -> tuple[Optional[str], float]:
+    """Regex, deterministički — visok confidence kad se poklopi (0.9).
+    Namerno NE zamenjuje LLM ekstrakciju za "court" u extract_all_entities,
+    samo joj prethodi kao pouzdaniji kandidat kad se poklopi; sudovi koje
+    ovaj (namerno ne-iscrpan) regex ne pokrije i dalje idu preko LLM-a."""
+    m = _COURT_RE.search(text or "")
+    if not m:
+        return None, 0.0
+    naziv = re.sub(r"\s+", " ", m.group(0)).strip()
+    return naziv, 0.9
 
 
 def extract_deadline(text: str) -> tuple[Optional[str], float]:
@@ -118,6 +156,28 @@ PRAVILA:
 3. Jezik: srpska ekavica u eventualnim objašnjenjima (entiteti se prepisuju iz teksta kakvi jesu)."""
 
 
+_LLM_HEAD_CHARS = 4000
+_LLM_TAIL_CHARS = 3000
+
+
+def _kljucne_sekcije(text: str) -> str:
+    """AKCIJA 1 (2026-07-24): bira ključne delove dugačkog dokumenta za LLM
+    ekstrakciju umesto slepog uzimanja prvih 4000 znakova. Sudija je u
+    srpskim sudskim odlukama gotovo uvek u potpisnom bloku na KRAJU
+    dokumenta ("Sudija: ...", "Predsednik veća: ..."), koji je čisto
+    head-only rezanje potpuno propuštalo kod dokumenata dužih od par
+    strana -- polje "judge" je vraćalo null iako je podatak fizički
+    postojao u dokumentu. Šalje početak (zaglavlje, stranke, sud) i kraj
+    (potpis, pravna pouka); kraći dokumenti idu u celosti bez izmena."""
+    text = text or ""
+    if len(text) <= _LLM_HEAD_CHARS + _LLM_TAIL_CHARS:
+        return text
+    head = text[:_LLM_HEAD_CHARS]
+    tail = text[-_LLM_TAIL_CHARS:]
+    izostavljeno = len(text) - _LLM_HEAD_CHARS - _LLM_TAIL_CHARS
+    return f"{head}\n\n[... isečeno {izostavljeno} znakova iz sredine dokumenta ...]\n\n{tail}"
+
+
 async def extract_free_text_entities(text: str) -> dict:
     """LLM ekstrakcija za slobodan tekst — judge/plaintiff/defendant/court/
     law_cited. Vraća {entity_type: (value, confidence)} za svih 5 —
@@ -131,7 +191,7 @@ async def extract_free_text_entities(text: str) -> dict:
     fallback = {t: (None, 0.0) for t in free_text_types}
 
     oai = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
-    excerpt = (text or "")[:4000]
+    excerpt = _kljucne_sekcije(text)
 
     for attempt in range(3):
         try:
@@ -179,8 +239,18 @@ async def extract_all_entities(text: str) -> list[dict]:
     deadline, dl_conf = extract_deadline(text)
     entities.append({"entity_type": "deadline", "value": deadline, "confidence": dl_conf, "extraction_method": "regex"})
 
+    # AKCIJA 1 (2026-07-24): regex kandidat za sud se traži PRE LLM poziva;
+    # kad se poklopi, deterministički je pouzdaniji od slobodnog LLM teksta
+    # (isti princip kao case_number/amount/deadline), pa se koristi umesto
+    # LLM-ovog "court" polja. Kad regex ne pronađe ništa, LLM ostaje jedini
+    # izvor za taj entitet — regex ovde namerno nije iscrpan.
+    court_regex, court_conf = extract_court(text)
+
     free_text = await extract_free_text_entities(text)
     for entity_type, (value, confidence) in free_text.items():
-        entities.append({"entity_type": entity_type, "value": value, "confidence": confidence, "extraction_method": "llm"})
+        if entity_type == "court" and court_regex:
+            entities.append({"entity_type": "court", "value": court_regex, "confidence": court_conf, "extraction_method": "regex"})
+        else:
+            entities.append({"entity_type": entity_type, "value": value, "confidence": confidence, "extraction_method": "llm"})
 
     return entities
