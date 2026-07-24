@@ -361,5 +361,163 @@ class TestSupportEmailTemplateEscaped:
         assert "html_body" in body
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Faza 3 — konsolidacija escape funkcija u static/vindex.js
+# ═══════════════════════════════════════════════════════════════════════════
+
+_VINDEX_JS = None
+
+
+def _vindex_js_source() -> str:
+    global _VINDEX_JS
+    if _VINDEX_JS is None:
+        from pathlib import Path
+        _VINDEX_JS = (Path(__file__).resolve().parent.parent / "static" / "vindex.js").read_text(encoding="utf-8")
+    return _VINDEX_JS
+
+
+_DUPLICATE_ESCAPE_FN_NAMES = ["_htmlEsc", "_ptEsc", "_pgEsc", "_fa_esc", "_htmlEscMd", "_miEsc", "_kalEsc"]
+
+
+class TestEscHtmlConsolidationStructural:
+    """Pre ovog sweep-a postojalo je 8 nezavisnih, dupliranih HTML-escape
+    implementacija u vindex.js (escHtml + 7 varijanti) -- neke bez
+    escaping-a navodnika (nebezbedne u attribute-kontekstu, npr. `data-
+    tuzilac="..."` na liniji ~15028). Sada sve delegiraju jednoj kanonskoj
+    `escHtml()`. Ovi testovi su strukturni (čitaju izvor) -- funkcionalni
+    dokaz je u TestEscHtmlConsolidationRuntime ispod (stvarno izvršava JS
+    preko node-a)."""
+
+    def test_canonical_eschtml_escapes_all_five_chars(self):
+        src = _vindex_js_source()
+        idx = src.index("function escHtml(s)")
+        snippet = src[idx:idx + 400]
+        for ch_pattern in ["&amp;", "&lt;", "&gt;", "&quot;", "&#39;"]:
+            assert ch_pattern in snippet, f"escHtml ne escape-uje {ch_pattern!r}"
+
+    def test_canonical_eschtml_uses_null_check_not_falsy_check(self):
+        """`if (!s) return ''` bi pretvorio 0/false u prazan string --
+        kanonska verzija mora koristiti `s == null` (samo null/undefined)."""
+        src = _vindex_js_source()
+        idx = src.index("function escHtml(s)")
+        snippet = src[idx:idx + 200]
+        assert "s == null" in snippet or "s==null" in snippet
+
+    @pytest.mark.parametrize("fn_name", _DUPLICATE_ESCAPE_FN_NAMES)
+    def test_duplicate_functions_delegate_to_eschtml(self, fn_name):
+        src = _vindex_js_source()
+        idx = src.index(f"function {fn_name}(")
+        # Telo funkcije (do prve '}') mora sadržati poziv escHtml(...), a NE
+        # svoju sopstvenu .replace(/&/...) implementaciju.
+        end = src.index("}", idx)
+        body = src[idx:end + 1]
+        assert "escHtml(" in body, f"{fn_name} više ne delegira escHtml()-u"
+        assert ".replace(/&/g" not in body, f"{fn_name} i dalje ima sopstvenu escape implementaciju"
+
+    def test_local_esc_inside_predmet_summary_delegates(self):
+        """Lokalni `_esc` (unutar jedne funkcije, ne globalni) -- ista
+        provera, drugačiji pattern jer je linija sažeta u jednu."""
+        src = _vindex_js_source()
+        idx = src.index("function _esc(s) {")
+        line_end = src.index("\n", idx)
+        line = src[idx:line_end]
+        assert "escHtml(s)" in line
+        assert ".replace(/&/g" not in line
+
+
+class TestEscHtmlConsolidationRuntime:
+    """Izvršava STVARNI JS (preko node-a, dostupnog u ovom environment-u)
+    da dokaže da sve konsolidovane funkcije zaista produkuju identičan,
+    ispravno eskejpovan izlaz -- ne samo da izvorni kod 'izgleda' ispravno."""
+
+    @pytest.fixture(scope="class")
+    def node_available(self):
+        import shutil
+        if shutil.which("node") is None:
+            pytest.skip("node nije dostupan u ovom environment-u")
+        return True
+
+    def _run_node(self, script: str) -> str:
+        import subprocess
+        result = subprocess.run(
+            ["node", "-e", script],
+            capture_output=True, text=True, timeout=15,
+        )
+        assert result.returncode == 0, f"node greška: {result.stderr}"
+        return result.stdout
+
+    def test_all_escape_functions_produce_identical_output(self, node_available):
+        from pathlib import Path
+        vindex_path = Path(__file__).resolve().parent.parent / "static" / "vindex.js"
+
+        script = f"""
+const fs = require('fs');
+const lines = fs.readFileSync({vindex_path.as_posix()!r}, 'utf8').split('\\n');
+function grabFn(name) {{
+  const idx = lines.findIndex(l => l.startsWith('function ' + name + '('));
+  if (idx === -1) throw new Error('not found: ' + name);
+  let depth = 0, started = false, out = [];
+  for (let i = idx; i < lines.length; i++) {{
+    out.push(lines[i]);
+    for (const ch of lines[i]) {{
+      if (ch === '{{') {{ depth++; started = true; }}
+      if (ch === '}}') depth--;
+    }}
+    if (started && depth === 0) break;
+  }}
+  return out.join('\\n');
+}}
+let src = grabFn('escHtml');
+for (const n of {_DUPLICATE_ESCAPE_FN_NAMES!r}) {{ src += '\\n' + grabFn(n); }}
+eval(src);
+const payload = '<script>alert(1)</script>He said "hi" and it\\'s quoted';
+const names = ['escHtml'].concat({_DUPLICATE_ESCAPE_FN_NAMES!r});
+const results = names.map(n => eval(n)(payload));
+console.log(JSON.stringify(results));
+console.log(JSON.stringify([escHtml(null), escHtml(0), escHtml(false), escHtml(undefined)]));
+"""
+        out = self._run_node(script).strip().splitlines()
+        import json
+        results = json.loads(out[0])
+        assert len(set(results)) == 1, f"Funkcije ne produkuju identičan izlaz: {list(zip(['escHtml'] + _DUPLICATE_ESCAPE_FN_NAMES, results))}"
+        assert "&lt;script&gt;" in results[0]
+        assert "&quot;hi&quot;" in results[0]
+        assert "&#39;s" in results[0]
+
+        edge_cases = json.loads(out[1])
+        assert edge_cases == ["", "0", "false", ""], f"Edge-case ponašanje neočekivano: {edge_cases}"
+
+    def test_markdown_rendering_still_escapes_before_inserting_tags(self, node_available):
+        """_inlineMd (koristi _htmlEscMd -> escHtml) mora i dalje da
+        escape-uje sirov HTML PRE nego što ubaci sopstvene <strong>/<em>/
+        <code> tagove -- konsolidacija ne sme pokvariti markdown rendering."""
+        from pathlib import Path
+        vindex_path = Path(__file__).resolve().parent.parent / "static" / "vindex.js"
+        script = f"""
+const fs = require('fs');
+const lines = fs.readFileSync({vindex_path.as_posix()!r}, 'utf8').split('\\n');
+function grabFn(name) {{
+  const idx = lines.findIndex(l => l.startsWith('function ' + name + '('));
+  if (idx === -1) throw new Error('not found: ' + name);
+  let depth = 0, started = false, out = [];
+  for (let i = idx; i < lines.length; i++) {{
+    out.push(lines[i]);
+    for (const ch of lines[i]) {{
+      if (ch === '{{') {{ depth++; started = true; }}
+      if (ch === '}}') depth--;
+    }}
+    if (started && depth === 0) break;
+  }}
+  return out.join('\\n');
+}}
+eval(grabFn('escHtml') + '\\n' + grabFn('_htmlEscMd') + '\\n' + grabFn('_inlineMd'));
+console.log(_inlineMd('<script>x</script> **bold**'));
+"""
+        out = self._run_node(script).strip()
+        assert "<script>" not in out
+        assert "&lt;script&gt;" in out
+        assert "<strong>bold</strong>" in out
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

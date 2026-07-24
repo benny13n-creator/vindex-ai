@@ -4380,7 +4380,7 @@ async function obrisiSveInterneStavove() {
 }
 
 function _htmlEsc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return escHtml(s); // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
 }
 
 /* ── F8: KOMENTARI ─────────────────────────────────────────── */
@@ -6596,7 +6596,24 @@ function _injectIzmeneBadges(html) {
 }
 
 /* RESPONSE FORMATTER */
-function escHtml(s){ if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// KANONSKA escape funkcija (XSS sweep, 2026-07-24) -- jedino mesto koje
+// definiše HTML-escaping logiku u ovom fajlu. _htmlEsc/_ptEsc/_pgEsc/
+// _fa_esc/_htmlEscMd/_miEsc su ranije bile 6 nezavisnih, dupliranih
+// implementacija (neke bez escaping-a navodnika, potencijalno nebezbedne
+// u attribute-kontekstu) -- sve sada delegiraju ovde, imena/pozivi na
+// svih 500+ mesta u fajlu su nepromenjena.
+// s == null (ne !s) -- čuva 0/false kao "0"/"false" tekst umesto da ih
+// pretvori u prazan string (regresija koju bi !s unela za bilo koji
+// pozivalac koji eskejpuje broj 0 ili boolean false).
+function escHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 var lastPitanje = '';
 
@@ -7944,7 +7961,7 @@ var _PT_BULLETS = {
 };
 
 function _ptEsc(s) {
-  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escHtml(s); // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
 }
 
 async function ptLoadTiers() {
@@ -8015,7 +8032,7 @@ function ptRenderCard(t) {
 var _pgCache = null;
 
 function _pgEsc(s) {
-  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escHtml(s); // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
 }
 
 async function pgLoadGroups() {
@@ -8910,7 +8927,7 @@ function doc_clear_session() {
 
 /* ── Forenzički audit (Executive Report) ───────────────────────── */
 
-function _fa_esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _fa_esc(s){return escHtml(s);} // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
 
 function _fa_severity_class(sev){
   var s=(sev||'').toLowerCase();
@@ -13608,8 +13625,7 @@ function _kalFmtDatum(iso) {
 }
 
 function _kalEsc(str) {
-  if (str == null) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return escHtml(str); // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -14042,7 +14058,7 @@ function hccRenderBrifing(el, b, krediti) {
   function _txt(s) {
     return '<div style="font-size:0.76rem;color:rgba(255,255,255,0.75);line-height:1.55;white-space:pre-wrap;">' + _esc(String(s||'—')) + '</div>';
   }
-  function _esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _esc(s) { return escHtml(s); } // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
   function _sec(icon, title, body) {
     return '<div style="margin-top:0.6rem;padding:0.6rem 0.75rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:2px;">'
       + '<div style="font-size:0.6rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:0.3rem;">' + icon + ' ' + title + '</div>'
@@ -18189,7 +18205,7 @@ var _selectedAgent = null;
 
 // ── Markdown renderer ──────────────────────────────────────────
 function _htmlEscMd(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escHtml(s); // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
 }
 function _inlineMd(text) {
   var t = _htmlEscMd(text);
@@ -19852,7 +19868,7 @@ function _miRsd(v) {
 }
 
 function _miEsc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escHtml(s); // XSS sweep 2026-07-24: delegira kanonskoj escHtml()
 }
 
 async function intakeKlijentSearch(q) {
