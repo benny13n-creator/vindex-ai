@@ -418,6 +418,33 @@ Same day. The founder chose `ON DELETE CASCADE` (consistency with migration 054'
 
 ---
 
+## Score Update 7 — 2026-07-24, SEC-005 round 2 — proxy-IP bug + dead per-user rate limiter fixed
+
+A day after Score Update 6, a strict read-only analysis phase (explicitly requested: no code until the plan was reviewed) on SEC-005 found two further, independent bugs neither round 1 (2026-07-23, Redis fail-open) nor any prior review had caught.
+
+**Nalaz A**: `api.py`'s slowapi `Limiter` used `slowapi.util.get_remote_address` (`request.client.host` only). This app runs behind Render's edge proxy via gunicorn/UvicornWorker with no `forwarded_allow_ips`/`ProxyHeadersMiddleware` configured anywhere — confirmed by reading `gunicorn.conf.py` directly, not assumed — meaning every IP-based limit in `api.py` (~29 routes) was very likely counting the proxy's address, not the real client's. Fixed: switched to `shared.rate._get_real_ip` (reads `X-Forwarded-For`, already correct and already used by 2 routers since round 1, just not by `api.py`'s own `Limiter` instance).
+
+**Nalaz B, more severe**: `user_rate_limit_middleware`'s entire per-user hourly rate limit AND the `security/anomaly_detection.py` layer built on top of it had **never executed once against a real request since either was written**. Root cause, confirmed via a full-codebase grep (not assumed): both read `request.state.user_id`, which nothing anywhere in this codebase ever sets — `get_current_user` returns identity directly to the route handler via FastAPI `Depends`, never touching `request.state`, and structurally could not have helped even if it did, since that happens *inside* `call_next()`, after this middleware's check already ran. This is the same class of defect as SEC-034 (a control that looks live but silently never fires) — in application code this time, not a migration.
+
+The founder's own initial instruction for the fix (set `request.state.user_id` inside `get_current_user`) was flagged as structurally unworkable before implementing, per this project's standing practice, and replaced with the version that actually achieves the intent: a new `verify_token_local()` (`shared/deps.py`, extracted from `_verify_token`'s existing signature-verified HS256/JWKS decode path, deliberately skipping the Supabase SDK network round-trip `_verify_token` already pays once per authenticated request, to avoid doubling that cost) is now called directly inside the middleware, before `call_next`.
+
+Also fixed in the same pass: a stale `_AI_ENDPOINTS` allowlist (3 of 6 entries matched no currently-mounted route — e.g. `/api/copilot` when the real path is `/copilot/chat`), and 40 previously-**completely** unprotected routes across 11 router files that make direct OpenAI calls — `style_checker.py`, `knowledge_transfer.py`, `matter_intel.py`, `evidence.py`, `case_intelligence.py`, `decision_replay.py`, `client_twin.py`, `cio.py`, `outcome_intel.py`, `precedenti.py`, plus `routers/enterprise.py`'s delegation routes — now carry `@limiter.limit(...)`.
+
+**Honest scope of this update, stated plainly**: this is code-verified and test-verified (18 new tests, including a full `TestClient` integration test proving the middleware now actually blocks a 4th request in a configured window for a real signed token — impossible to write before this fix, since `uid` was always `None`). It is **not production-verified** — confirming that `X-Forwarded-For` carries the real client IP on live Render traffic, and that the per-user limiter/anomaly detection actually fire against real production requests, requires a live check this environment cannot perform. Per this document's standing rule, no full production-verified credit is taken for that reason.
+
+| Category | Prior | Updated | What changed |
+|---|---|---|---|
+| Application Security | 68 | 70 | A defense-in-depth layer (per-user rate limit + anomaly detection) that had never fired once since it was written now actually executes — a real, previously-invisible gap between "code exists" and "control works," now closed at the code/test level |
+| AI Security | 72 | 74 | 40 GPT-calling routes that had **zero** rate limiting of any kind (not even the dead per-user layer) now have explicit per-route limits — meaningful cost/abuse-protection improvement, capped below a larger jump because the underlying PII-masking (SEC-006) and citation-verification (SEC-012) gaps from Score Update 1 are untouched |
+| Infrastructure | 62 | 63 | The proxy-IP bug is fixed at the code level; capped to a small movement because whether `X-Forwarded-For` is trustworthy in the actual live Render topology remains unconfirmed from this environment |
+| All other categories | — | unchanged | Not touched this update |
+
+**Updated weighted overall: ~68/100.**
+
+**Why only +1, given 3 categories moved and 40 routes gained protection**: consistent with this document's standing rule — code correctness and test coverage earn real but capped credit; the two live-behavior questions this fix depends on (proxy header trust in production, middleware firing on real traffic) are explicitly disclosed as unconfirmed, not asserted. This mirrors the treatment SEC-031's migration file received before it was actually run in production (Score Update 2: 60→61, a much smaller move than the eventual Score Update 3's 61→66 once production-verified) — the same gap between "correct code" and "confirmed risk reduction" applies here, and the score reflects that gap honestly rather than assuming the live behavior matches the code's intent.
+
+---
+
 ## Final Assessment
 
 **Can Vindex AI honestly claim to be enterprise-grade secure today? No.** Not because any single domain is unusually weak for a company at this stage — several domains (audit trail integrity, DR runbook existence, crypto primitive correctness, SQL injection resistance, CORS configuration) are genuinely strong, in some cases better than typical for this company size. The disqualifying factors are two **confirmed, live, evidence-based CRITICAL findings**: a reproducible cross-tenant data-injection vulnerability (SEC-001) and a GDPR erasure endpoint whose user-facing claim is not supported by what the code actually does (SEC-002) — plus a CRITICAL-severity gap in the product's core AI safety surface (SEC-003). None of these are hypothetical or "best practice" gaps; all three are demonstrated, with file:line evidence, to be true today.
