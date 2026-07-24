@@ -612,6 +612,7 @@ from routers.whatsapp_notif       import router as whatsapp_notif_router
 from routers.evidence             import router as evidence_router
 from routers.evidence_graph       import router as evidence_graph_router
 from routers.voice                import router as voice_router
+from routers.voice_realtime       import router as voice_realtime_router
 from routers.precedenti           import router as precedenti_router
 from routers.knowledge_graph      import router as knowledge_graph_router
 from routers.ccc                  import router as ccc_router
@@ -704,6 +705,7 @@ app.include_router(whatsapp_notif_router)
 app.include_router(evidence_router)
 app.include_router(evidence_graph_router)
 app.include_router(voice_router)
+app.include_router(voice_realtime_router)
 app.include_router(precedenti_router)
 app.include_router(knowledge_graph_router)
 app.include_router(ccc_router)
