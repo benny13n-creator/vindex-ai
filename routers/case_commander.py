@@ -25,6 +25,8 @@ from shared.deps import _get_supa
 from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.usage import UsageService
+from shared.llm_retry import llm_retry
+from shared.sentry import capture_exception as _sentry_capture
 
 logger = logging.getLogger("vindex.case_commander")
 router = APIRouter(tags=["case-commander"])
@@ -93,8 +95,14 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
                 .execute()
         ),
         asyncio.to_thread(
+            # CELINA 2 (2026-07-24): ranije je selektovan SAMO naziv_fajla --
+            # Case Commander je "video" da dokument postoji ali NIKAD njegov
+            # sadržaj, ni u ovom "kompletna analiza" putu ni u jutarnjem
+            # brifingu (_dohvati_sve_predmete_za_analizu ispod). Za "Chief of
+            # Staff" alat koji treba da kaže advokatu šta tačno nedostaje,
+            # ovo je bila potpuna slepa tačka -- dodato tekst_sadrzaj.
             lambda: supa.table("predmet_dokumenti")
-                .select("naziv_fajla, created_at")
+                .select("naziv_fajla, created_at, tekst_sadrzaj")
                 .eq("predmet_id", predmet_id)
                 .limit(20)
                 .execute()
@@ -128,6 +136,13 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
     }
 
 
+# CELINA 2 (2026-07-24): budžet za sadržaj dokumenata u kontekstu -- deljen
+# preko svih dokumenata (ne flat po-dokumentu limit) da bi prva 2-3
+# dokumenta ne pojela ceo budžet i ostavila ostatak potpuno bez sadržaja.
+_KONTEKST_DOK_MAX_TOTAL_CHARS = 8000
+_KONTEKST_DOK_MAX_PER_DOC = 2000
+
+
 def _formatiraj_kontekst(ctx: dict, dodatni: str = "") -> str:
     """Formatira podatke o predmetu u citljiv tekst za AI."""
     p = ctx["predmet"]
@@ -157,8 +172,19 @@ def _formatiraj_kontekst(ctx: dict, dodatni: str = "") -> str:
 
     if ctx["dokumenta"]:
         lines.append(f"\nDOKUMENTA U SISTEMU ({len(ctx['dokumenta'])}):")
+        total_chars = 0
         for d in ctx["dokumenta"][:10]:
-            lines.append(f"  - {d.get('naziv_fajla', 'N/A')}")
+            naziv = d.get("naziv_fajla", "N/A")
+            tekst = (d.get("tekst_sadrzaj") or "").strip()
+            if tekst and total_chars < _KONTEKST_DOK_MAX_TOTAL_CHARS:
+                budzet = min(_KONTEKST_DOK_MAX_PER_DOC, _KONTEKST_DOK_MAX_TOTAL_CHARS - total_chars)
+                izvod = tekst[:budzet]
+                total_chars += len(izvod)
+                lines.append(f"  - {naziv}:\n    {izvod}")
+            elif tekst:
+                lines.append(f"  - {naziv} (sadržaj nije prikazan — dostignut budžet konteksta)")
+            else:
+                lines.append(f"  - {naziv} (bez ekstrahovanog teksta)")
     else:
         lines.append("\nDOKUMENTA: Nema uploadovanih dokumenata")
 
@@ -170,6 +196,21 @@ def _formatiraj_kontekst(ctx: dict, dodatni: str = "") -> str:
         lines.append(f"\nDODATNI KONTEKST OD ADVOKATA: {dodatni}")
 
     return "\n".join(lines)
+
+
+@llm_retry
+def _pozovi_commander_api(oai_client, model: str, messages: list, max_tokens: int, temperature: float) -> str:
+    """CELINA 2 (2026-07-24): zajednički retry-ovani OpenAI poziv za sve
+    Case Commander endpoint-e (analiza/quick-check/checklist)."""
+    resp = oai_client.chat.completions.create(
+        model=model,
+        messages=messages,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        timeout=25.0,
+    )
+    return resp.choices[0].message.content.strip()
+
 
 # ── Endpointi ─────────────────────────────────────────────────────────────────
 
@@ -198,19 +239,19 @@ async def commander_analiza(
     oai   = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     model = "gpt-4o" if payload.tip_analize in ("kompletna", "rizici") else "gpt-4o-mini"
 
-    resp = await asyncio.to_thread(
-        lambda: oai.chat.completions.create(
-            model=model,
-            messages=[
+    try:
+        analiza = await asyncio.to_thread(
+            _pozovi_commander_api, oai, model,
+            [
                 {"role": "system", "content": _COMMANDER_SYSTEM},
                 {"role": "user",   "content": f"Analiziraj sledeci predmet:\n\n{predmet_tekst}"},
             ],
-            max_tokens=1500,
-            temperature=0.3,
+            1500, 0.3,
         )
-    )
-
-    analiza = resp.choices[0].message.content.strip()
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.error("[COMMANDER] Analiza greška: %s", exc)
+        raise HTTPException(status_code=502, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
 
     # Sacuvaj analizu u bazu (ignorisi gresku ako tabela ne postoji)
     try:
@@ -260,10 +301,10 @@ async def commander_quick_check(
     from openai import OpenAI
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-    resp = await asyncio.to_thread(
-        lambda: oai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{
+    try:
+        tekst = await asyncio.to_thread(
+            _pozovi_commander_api, oai, "gpt-4o-mini",
+            [{
                 "role": "user",
                 "content": (
                     "Brza provera predmeta. Navedi TACNO 3 najhitnija upozorenja ili akcije. "
@@ -271,12 +312,12 @@ async def commander_quick_check(
                     + predmet_tekst
                 ),
             }],
-            max_tokens=300,
-            temperature=0.3,
+            300, 0.3,
         )
-    )
-
-    tekst = resp.choices[0].message.content.strip()
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.error("[COMMANDER] Quick-check greška: %s", exc)
+        raise HTTPException(status_code=502, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
     upozorenja = [
         u.strip().lstrip("123456789.-) ")
         for u in tekst.split("\n")
@@ -323,10 +364,10 @@ async def commander_checklist(
     from openai import OpenAI
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-    resp = await asyncio.to_thread(
-        lambda: oai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{
+    try:
+        checklist_tekst = await asyncio.to_thread(
+            _pozovi_commander_api, oai, "gpt-4o-mini",
+            [{
                 "role": "user",
                 "content": (
                     f"Napravi kompletnu proceduralnu checklist za {tip} predmet. "
@@ -336,12 +377,12 @@ async def commander_checklist(
                     + predmet_tekst
                 ),
             }],
-            max_tokens=900,
-            temperature=0.3,
+            900, 0.3,
         )
-    )
-
-    checklist_tekst = resp.choices[0].message.content.strip()
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.error("[COMMANDER] Checklist greška: %s", exc)
+        raise HTTPException(status_code=502, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
 
     stavke = []
     for linija in checklist_tekst.split("\n"):
@@ -425,6 +466,25 @@ async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
     }
 
 
+@llm_retry
+def _pozovi_cross_case_api(oai_client, prompt: str) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo _cross_case_analiza. oai_client
+    je sinhroni OpenAI klijent (isti kao ostatak ovog fajla) -- pozivalac ga
+    dispečuje preko asyncio.to_thread, ne await-uje direktno."""
+    resp = oai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "Ti si AI pravni operativni asistent. Odgovaraš SAMO validnim JSON-om. Ekavica."},
+            {"role": "user",   "content": prompt},
+        ],
+        max_tokens=1500,
+        temperature=0.3,
+        timeout=25.0,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content.strip()
+
+
 async def _cross_case_analiza(podaci: dict, ime_korisnika: str) -> dict:
     """GPT-4o cross-case analiza — rizici, kontradikcije, nepovezani dokumenti, prioritet."""
     from datetime import datetime, timedelta
@@ -494,20 +554,26 @@ Odgovori SAMO validnim JSON-om:
 Pravila: Budi konkretan. Ako nema stvarnih nalaza, vrati praznu listu. Ekavica obavezna. tip mora biti tačno: rizik | kontradikcija | nepovezan_dokument"""
 
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    resp = await asyncio.to_thread(
-        lambda: oai.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "Ti si AI pravni operativni asistent. Odgovaraš SAMO validnim JSON-om. Ekavica."},
-                {"role": "user",   "content": prompt},
-            ],
-            max_tokens=1500,
-            temperature=0.3,
-            response_format={"type": "json_object"},
-        )
-    )
+    try:
+        raw = await asyncio.to_thread(_pozovi_cross_case_api, oai, prompt)
+        analiza = json.loads(raw)
+    except Exception as exc:
+        # CELINA 2 (2026-07-24): ovaj poziv ranije nije imao try/except --
+        # jutarnji brifing ("srce platforme", učitava se za svakog korisnika)
+        # bi pukao sa 500 na SVAKI prolazni GPT hiccup. Fail-soft: vrati
+        # prazan-ali-validan brifing sa eksplicitnom greška zastavicom umesto
+        # da obori ceo endpoint.
+        _sentry_capture(exc)
+        logger.warning("[COMMANDER] Cross-case analiza greška: %s", exc)
+        return {
+            "nalazeni": False,
+            "greska": True,
+            "rezime": "AI analiza trenutno nedostupna — pokušajte ponovo za par minuta.",
+            "nalazi": [],
+            "prioritet": None,
+            "statistike": {"aktivnih": n, "rizika": 0, "kontradikcija": 0, "nepovezanih": 0, "rokova_hitnih": 0},
+        }
 
-    analiza = json.loads(resp.choices[0].message.content.strip())
     nalazi  = analiza.get("nalazi", [])
 
     za_7  = (datetime.now().date() + timedelta(days=7)).isoformat()

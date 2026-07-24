@@ -27,9 +27,16 @@ from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.usage import UsageService
 from shared.sentry import capture_exception as _sentry_capture
+from shared.llm_retry import llm_retry
 
 try:
-    from app.services.retrieve import _pretraga_praksa, _ugradi_query
+    # CELINA 2 (2026-07-24): koristi javni retrieve_sudska_praksa (Celina 1 mu
+    # je dodala Cohere/GPT re-rank prolaz) umesto direktnih niskonivoovskih
+    # _pretraga_praksa/_ugradi_query poziva -- ranije je court_predictor.py
+    # imao sopstvenu, izolovanu RAG logiku koja NIJE dobijala re-rank
+    # poboljšanje niti fail-soft embed guard koje su ostali RAG potrošači
+    # (routers/praksa.py, routers/oblasti.py) dobili u Celini 1.
+    from app.services.retrieve import retrieve_sudska_praksa
     _RAG_AVAILABLE = True
 except ImportError:
     _RAG_AVAILABLE = False
@@ -51,21 +58,73 @@ class PredictorRequest(BaseModel):
 _PREDICTOR_SYSTEM = """Ti si ekspertni pravni analiticar sa 30 godina iskustva u srpskom pravosudju.
 Analiziras pravne predmete i daješ procenu ishoda na osnovu:
 - Vazeceg zakonodavstva Republike Srbije
-- Sudske prakse srpskih sudova
+- Sudske prakse srpskih sudova (dostavljena ispod ako je pronadjena)
 - Jacine i relevantnosti dokaza
 - Procesnih prednosti/nedostataka
 
 STROGO pravilo:
-1. Nikad ne garantuj ishod — uvek navedi procenat i objasni nesigurnost
-2. Procenat iskazuj kao opseg (npr. "55%-70%") sa obrazlozenjem
-3. Navedi kontra-argumente koje suprotna strana moze koristiti
-4. Preporuci konkretne korake za jacanje pozicije
+1. Nikad ne garantuj ishod — uvek navedi procenat KAO OPSEG i objasni nesigurnost.
+2. Navedi kontra-argumente koje suprotna strana moze koristiti.
+3. Preporuci konkretne korake za jacanje pozicije.
+4. Ako je dostavljena sudska praksa ispod, oslanjaj se na nju za konkretne primere;
+   ako NIJE dostavljena, jasno navedi da je procena bazirana na opštem pravnom znanju.
 
-Format odgovora mora biti strukturiran i sadrzati:
-- PROCENA ISHODA (%)
-- KLJUCNI FAKTORI ZA i PROTIV
-- PREPORUCENA STRATEGIJA
-- RIZICI"""
+Odgovori ISKLJUČIVO validnim JSON-om (bez markdown fenci):
+{
+  "procenat_min": 55,
+  "procenat_max": 70,
+  "analiza": "Pun tekst analize sa naslovima PROCENA ISHODA / KLJUCNI FAKTORI ZA i PROTIV / PREPORUCENA STRATEGIJA / RIZICI (markdown ** naslovi dozvoljeni unutar ovog stringa)",
+  "kljucni_faktori_za": ["faktor 1", "faktor 2"],
+  "kljucni_faktori_protiv": ["faktor 1", "faktor 2"],
+  "preporucena_strategija": "konkretna preporuka",
+  "rizici": ["rizik 1", "rizik 2"]
+}
+
+procenat_min/procenat_max: 0-100, min <= max, nikad tacna jedna vrednost bez opsega."""
+
+
+@llm_retry
+def _pozovi_predictor_api(oai_client, user_prompt: str) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo prediktuj_ishod -- izdvojen jer
+    vanjska funkcija ima sopstveni try/except."""
+    resp = oai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _PREDICTOR_SYSTEM},
+            {"role": "user", "content": user_prompt},
+        ],
+        max_tokens=1500,
+        temperature=0.3,
+        timeout=25.0,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content or "{}"
+
+
+def _rag_praksa_blok(query: str, top_k: int) -> str:
+    """CELINA 2 (2026-07-24): zajednički helper -- pretražuje sudsku praksu
+    preko retrieve_sudska_praksa (Celina 1: Cohere/GPT re-rank) i formatira
+    je u tekstualni blok za prompt. Nikad ne baca -- vraća prazan string na
+    grešku, pozivalac dodaje napomenu da RAG nije dostupan."""
+    if not _RAG_AVAILABLE:
+        return ""
+    try:
+        odluke = retrieve_sudska_praksa(query[:300], top_k)
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.warning("[PREDICTOR] RAG greška: %s", exc)
+        return ""
+    if not odluke:
+        return ""
+    delovi = []
+    for m in odluke:
+        meta = getattr(m, "metadata", {}) or {}
+        court = meta.get("court") or meta.get("sud") or "Sud"
+        broj = meta.get("decision_number") or ""
+        tekst = (meta.get("text") or meta.get("parent_text") or "").strip()[:400]
+        if tekst:
+            delovi.append(f"[{court} {broj}] {tekst}")
+    return "\n\n".join(delovi)
 
 
 @router.post("/api/predictor/analiza")
@@ -88,6 +147,13 @@ async def prediktuj_ishod(
 
     dokazi_txt = "\n".join([f"- {d}" for d in payload.dokazi]) if payload.dokazi else "Nisu navedeni"
 
+    # CELINA 2 (2026-07-24): sistemski prompt tvrdi da se analiza bazira na
+    # "sudskoj praksi srpskih sudova", ali ranije nijedan poziv nije stvarno
+    # pretraživao praksu -- procena je bila isključivo iz opšteg znanja
+    # modela. Sada stvarno pretražuje pre nego što tvrdi da je koristila.
+    rag_query = f"{payload.tip_postupka} {payload.cinjenicni_opis}"[:600]
+    rag_kontekst = await asyncio.to_thread(_rag_praksa_blok, rag_query, 6)
+
     user_prompt = f"""PREDMET ZA ANALIZU:
 
 Tip postupka: {payload.tip_postupka.upper()}
@@ -103,26 +169,20 @@ DOSTUPNI DOKAZI:
 
 ARGUMENTI SUPROTNE STRANE:
 {payload.suprotna_strana_argumenti or "Nisu poznati"}
-
-Analiziraj i daj strukturisano predvidjanje ishoda sa procentom sanse za uspeh."""
+""" + (
+        f"\nRELEVANTNA SUDSKA PRAKSA:\n{rag_kontekst}\n"
+        if rag_kontekst else
+        "\nNapomena: nije pronađena relevantna sudska praksa u bazi — procena bazirana na opštem pravnom znanju.\n"
+    ) + "\nAnaliziraj i daj strukturisano predvidjanje ishoda sa procentom sanse za uspeh."
 
     try:
         from openai import OpenAI
         oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": _PREDICTOR_SYSTEM},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_tokens=1500,
-                temperature=0.3,
-            )
-        )
-
-        analiza = resp.choices[0].message.content.strip()
+        raw = await asyncio.to_thread(_pozovi_predictor_api, oai, user_prompt)
+        import json as _json
+        rezultat = _json.loads(raw)
+        analiza = (rezultat.get("analiza") or "").strip()
 
         # Sacuvaj analizu
         try:
@@ -142,14 +202,22 @@ Analiziraj i daj strukturisano predvidjanje ishoda sa procentom sanse za uspeh."
         preostalo = await UsageService.consume(uid, email, "court_predictor")
 
         return {
-            "analiza":           analiza,
-            "tip_postupka":      payload.tip_postupka,
-            "credits_remaining": preostalo,
+            "analiza":                analiza,
+            "procenat_min":           rezultat.get("procenat_min"),
+            "procenat_max":           rezultat.get("procenat_max"),
+            "kljucni_faktori_za":     rezultat.get("kljucni_faktori_za", []),
+            "kljucni_faktori_protiv": rezultat.get("kljucni_faktori_protiv", []),
+            "preporucena_strategija": rezultat.get("preporucena_strategija", ""),
+            "rizici":                 rezultat.get("rizici", []),
+            "rag_dostupan":           bool(rag_kontekst),
+            "tip_postupka":           payload.tip_postupka,
+            "credits_remaining":      preostalo,
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("Court predictor greška: %s", e)
         raise HTTPException(status_code=500, detail=f"Greška pri analizi: {str(e)}")
 
@@ -196,7 +264,28 @@ Format UVEK mora biti:
 - Realisticno (X%-Y%): [najverovatniji ishod]
 - Pesimisticno (X%-Y%): [sta moze poci naopako]
 
+Ako je dostavljena SUDSKA PRAKSA ispod, oslanjaj se na konkretne odluke u
+sekciji ANALIZA SUDA / SUDIJE i KRITICNI FAKTORI; ako nije dostavljena, jasno
+navedi da je ta sekcija bazirana na opštem znanju, ne na konkretnoj praksi.
+
 Ekavica. Direktan ton. Bez uvoda i zakljucka — samo analiza."""
+
+
+@llm_retry
+def _pozovi_battle_report_api(oai_client, user_prompt: str) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo battle_report -- izdvojen jer
+    vanjska funkcija ima sopstveni try/except."""
+    resp = oai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _BATTLE_REPORT_SYSTEM},
+            {"role": "user",   "content": user_prompt},
+        ],
+        max_tokens=2000,
+        temperature=0.3,
+        timeout=25.0,
+    )
+    return resp.choices[0].message.content.strip()
 
 
 @router.post("/api/predictor/battle-report")
@@ -222,6 +311,12 @@ async def battle_report(
 
     dokazi_txt = "\n".join([f"- {d}" for d in payload.dokazi]) if payload.dokazi else "Nisu navedeni"
 
+    # CELINA 2 (2026-07-24): ista popravka kao prediktuj_ishod -- Battle
+    # Report obećava analizu suda/sudije "na osnovu poznatih obrazaca", ali
+    # ranije nikad nije pretraživao sudsku praksu.
+    rag_query = f"{payload.tip_postupka} {payload.sud or ''} {payload.sudija or ''} {payload.opis_predmeta}"[:600]
+    rag_kontekst = await asyncio.to_thread(_rag_praksa_blok, rag_query, 6)
+
     user_prompt = f"""BATTLE REPORT — PRIPREMA ZA POSTUPAK
 
 Tip postupka: {payload.tip_postupka.upper()}
@@ -236,26 +331,16 @@ OPIS PREDMETA:
 
 DOSTUPNI DOKAZI:
 {dokazi_txt}
-
-Napravi kompletan Battle Report."""
+""" + (
+        f"\nSUDSKA PRAKSA:\n{rag_kontekst}\n" if rag_kontekst else
+        "\nNapomena: nije pronađena relevantna sudska praksa u bazi.\n"
+    ) + "\nNapravi kompletan Battle Report."
 
     try:
         from openai import OpenAI
         oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": _BATTLE_REPORT_SYSTEM},
-                    {"role": "user",   "content": user_prompt},
-                ],
-                max_tokens=2000,
-                temperature=0.3,
-            )
-        )
-
-        report = resp.choices[0].message.content.strip()
+        report = await asyncio.to_thread(_pozovi_battle_report_api, oai, user_prompt)
 
         try:
             await asyncio.to_thread(
@@ -278,12 +363,14 @@ Napravi kompletan Battle Report."""
             "battle_report":      report,
             "tip_postupka":       payload.tip_postupka,
             "sud":                payload.sud,
+            "rag_dostupan":       bool(rag_kontekst),
             "credits_remaining":  preostalo,
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("Battle report greška: %s", e)
         raise HTTPException(status_code=500, detail=f"Greška pri generisanju: {str(e)}")
 
@@ -321,6 +408,22 @@ Format:
 Koncizan, direktan, praktican. Ekavica."""
 
 
+@llm_retry
+def _pozovi_hearing_prep_api(oai_client, user_msg: str) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo hearing_prep_brief."""
+    resp = oai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _HEARING_PREP_SYSTEM},
+            {"role": "user",   "content": user_msg},
+        ],
+        max_tokens=1000,
+        temperature=0.4,
+        timeout=25.0,
+    )
+    return resp.choices[0].message.content.strip()
+
+
 @router.post("/api/predictor/hearing-prep")
 @limiter.limit("20/minute")
 async def hearing_prep_brief(
@@ -353,19 +456,7 @@ Tip: {payload.tip_postupka}
         from openai import OpenAI
         oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": _HEARING_PREP_SYSTEM},
-                    {"role": "user",   "content": user_msg},
-                ],
-                max_tokens=1000,
-                temperature=0.4,
-            )
-        )
-
-        brief = resp.choices[0].message.content.strip()
+        brief = await asyncio.to_thread(_pozovi_hearing_prep_api, oai, user_msg)
 
         if payload.predmet_id:
             try:
@@ -394,6 +485,7 @@ Tip: {payload.tip_postupka}
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("Hearing prep greška: %s", e)
         raise HTTPException(status_code=500, detail=f"Greška pri generisanju: {str(e)}")
 
@@ -482,6 +574,23 @@ Pravila:
 - Budi konkretan, ne generički."""
 
 
+@llm_retry
+def _pozovi_arg_reputation_api(oai_client, user_msg: str) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo argument_reputation."""
+    resp = oai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _ARG_REPUTATION_SYSTEM},
+            {"role": "user",   "content": user_msg},
+        ],
+        max_tokens=2000,
+        temperature=0.25,
+        timeout=25.0,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content or "{}"
+
+
 @router.post("/api/predictor/argument-reputation")
 @limiter.limit("5/minute")
 async def argument_reputation(
@@ -508,15 +617,18 @@ async def argument_reputation(
             rag_delovi = []
             for arg in payload.argumenti[:5]:
                 query = f"{payload.tip_spora} {arg} {payload.sud or ''}"
-                vec = await asyncio.to_thread(_ugradi_query, query.strip()[:300])
-                odluke = await asyncio.to_thread(_pretraga_praksa, vec, 4)
+                odluke = await asyncio.to_thread(retrieve_sudska_praksa, query.strip()[:300], 4)
                 if odluke:
                     tekstovi = []
                     for m in odluke:
                         meta = getattr(m, "metadata", {}) or {}
                         court = meta.get("court") or meta.get("sud") or "Sud"
-                        tekst = (getattr(m, "page_content", None) or
-                                 meta.get("tekst") or "")[:400]
+                        # CELINA 2 (2026-07-24) bug fix: metadata ključ je "text"
+                        # (i "parent_text" kao fallback), ne "tekst" -- pinecone
+                        # match objekti takodje nemaju .page_content (to je
+                        # LangChain Document konvencija, ne Pinecone SDK). Ova
+                        # tri poziva su ranije UVEK slala prazan tekst modelu.
+                        tekst = (meta.get("text") or meta.get("parent_text") or "")[:400]
                         tekstovi.append(f"[{court}] {tekst}")
                     rag_delovi.append(
                         f"ARGUMENT: {arg}\nODLUKE ({len(odluke)}):\n" + "\n".join(tekstovi)
@@ -542,20 +654,10 @@ async def argument_reputation(
 
     try:
         import json
-        resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": _ARG_REPUTATION_SYSTEM},
-                    {"role": "user",   "content": user_msg},
-                ],
-                max_tokens=2000,
-                temperature=0.25,
-                response_format={"type": "json_object"},
-            )
-        )
-        rezultat = json.loads(resp.choices[0].message.content or "{}")
+        raw = await asyncio.to_thread(_pozovi_arg_reputation_api, oai, user_msg)
+        rezultat = json.loads(raw)
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[ARG_REP] GPT greška: %s", e)
         raise HTTPException(status_code=500, detail=f"Greška pri analizi: {str(e)}")
 
@@ -618,6 +720,23 @@ Odgovori SAMO validnim JSON-om:
 - Ekavica strogo. Nema ijekavice."""
 
 
+@llm_retry
+def _pozovi_judge_profile_api(oai_client, user_msg: str) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo judge_profile."""
+    resp = oai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _JUDGE_PROFILE_SYSTEM},
+            {"role": "user",   "content": user_msg},
+        ],
+        max_tokens=1500,
+        temperature=0.2,
+        timeout=25.0,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content or "{}"
+
+
 @router.post("/api/predictor/judge-profile")
 @limiter.limit("5/minute")
 async def judge_profile(
@@ -637,15 +756,14 @@ async def judge_profile(
     if _RAG_AVAILABLE:
         try:
             query = f"{payload.sud} {payload.ime_sudije or ''} {payload.tip_postupka} odluka presuda".strip()
-            vec = await asyncio.to_thread(_ugradi_query, query[:300])
-            odluke = await asyncio.to_thread(_pretraga_praksa, vec, 15)
+            odluke = await asyncio.to_thread(retrieve_sudska_praksa, query[:300], 15)
             odluke_count = len(odluke)
             if odluke:
                 delovi = []
                 for m in odluke:
                     meta = getattr(m, "metadata", {}) or {}
                     court = meta.get("court") or meta.get("sud") or payload.sud
-                    tekst = (getattr(m, "page_content", None) or meta.get("tekst") or "")[:500]
+                    tekst = (meta.get("text") or meta.get("parent_text") or "")[:500]
                     delovi.append(f"[{court}] {tekst}")
                 rag_kontekst = "\n\n".join(delovi)
         except Exception as e:
@@ -666,25 +784,15 @@ async def judge_profile(
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     try:
-        resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": _JUDGE_PROFILE_SYSTEM},
-                    {"role": "user",   "content": user_msg},
-                ],
-                max_tokens=1500,
-                temperature=0.2,
-                response_format={"type": "json_object"},
-            )
-        )
-        rezultat = json.loads(resp.choices[0].message.content or "{}")
+        raw = await asyncio.to_thread(_pozovi_judge_profile_api, oai, user_msg)
+        rezultat = json.loads(raw)
         rezultat["ukupno_odluka_analizirano"] = odluke_count
         if not _RAG_AVAILABLE or odluke_count < 5:
             rezultat["pouzdanost_profila"] = "niska"
         elif odluke_count >= 10:
             rezultat["pouzdanost_profila"] = "visoka"
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[JUDGE_PROF] GPT greška: %s", e)
         raise HTTPException(status_code=500, detail=f"Greška pri profilisanju: {str(e)}")
 
@@ -746,6 +854,23 @@ Odgovori SAMO validnim JSON-om:
 - Budi direktan i konkretan, ne generički."""
 
 
+@llm_retry
+def _pozovi_opponent_intel_api(oai_client, user_msg: str) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo opponent_intel."""
+    resp = oai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _OPPONENT_INTEL_SYSTEM},
+            {"role": "user",   "content": user_msg},
+        ],
+        max_tokens=1500,
+        temperature=0.3,
+        timeout=25.0,
+        response_format={"type": "json_object"},
+    )
+    return resp.choices[0].message.content or "{}"
+
+
 @router.post("/api/predictor/opponent-intel")
 @limiter.limit("5/minute")
 async def opponent_intel(
@@ -785,14 +910,13 @@ async def opponent_intel(
     if _RAG_AVAILABLE:
         try:
             query = f"{payload.protivnik_naziv} {payload.protivnicki_adv or ''} {payload.tip_postupka}".strip()
-            vec = await asyncio.to_thread(_ugradi_query, query[:300])
-            odluke = await asyncio.to_thread(_pretraga_praksa, vec, 8)
+            odluke = await asyncio.to_thread(retrieve_sudska_praksa, query[:300], 8)
             if odluke:
                 delovi = []
                 for m in odluke:
                     meta = getattr(m, "metadata", {}) or {}
                     court = meta.get("court") or meta.get("sud") or "Sud"
-                    tekst = (getattr(m, "page_content", None) or meta.get("tekst") or "")[:400]
+                    tekst = (meta.get("text") or meta.get("parent_text") or "")[:400]
                     delovi.append(f"[{court}] {tekst}")
                 rag_kontekst = "RELEVANTNA SUDSKA PRAKSA:\n" + "\n\n".join(delovi)
         except Exception as e:
@@ -815,22 +939,12 @@ async def opponent_intel(
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     try:
-        resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": _OPPONENT_INTEL_SYSTEM},
-                    {"role": "user",   "content": user_msg},
-                ],
-                max_tokens=1500,
-                temperature=0.3,
-                response_format={"type": "json_object"},
-            )
-        )
-        rezultat = json.loads(resp.choices[0].message.content or "{}")
+        raw = await asyncio.to_thread(_pozovi_opponent_intel_api, oai, user_msg)
+        rezultat = json.loads(raw)
         if not rag_kontekst and not interni_kontekst:
             rezultat["pouzdanost"] = "niska"
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[OPP_INTEL] GPT greška: %s", e)
         raise HTTPException(status_code=500, detail=f"Greška pri analizi protivnika: {str(e)}")
 
@@ -926,6 +1040,23 @@ def _calc_confidence_nivo(
         return "NISKO", "crvena", faktori_plus, faktori_minus
 
 
+@llm_retry
+def _pozovi_confidence_api(oai_client, gpt_prompt: str) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo confidence_check."""
+    resp = oai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0.2,
+        max_tokens=150,
+        timeout=25.0,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": "Ti si srpski pravni analitičar. Odgovaraj SAMO validnim JSON-om. Ekavica."},
+            {"role": "user",   "content": gpt_prompt},
+        ],
+    )
+    return resp.choices[0].message.content or "{}"
+
+
 @router.post("/api/predictor/confidence-check")
 @limiter.limit("10/minute")
 async def confidence_check(
@@ -952,8 +1083,7 @@ async def confidence_check(
     vks_hits = 0
     if _RAG_AVAILABLE:
         try:
-            vec  = await asyncio.to_thread(_ugradi_query, payload.opis_predmeta[:600])
-            hits = await asyncio.to_thread(_pretraga_praksa, vec, 20)
+            hits = await asyncio.to_thread(retrieve_sudska_praksa, payload.opis_predmeta[:600], 20)
             rag_hits = len(hits)
             vks_hits = sum(
                 1 for h in hits
@@ -1010,20 +1140,9 @@ async def confidence_check(
             'Odgovori SAMO JSON-om: {"procenat": 65, "razlog_kratko": "...", "kljucni_rizik": "..."}\n'
             "Ekavica. Max 30 reči za razlog."
         )
-        gpt_r = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0.2,
-                max_tokens=150,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": "Ti si srpski pravni analitičar. Odgovaraj SAMO validnim JSON-om. Ekavica."},
-                    {"role": "user",   "content": gpt_prompt},
-                ],
-            )
-        )
+        raw = await asyncio.to_thread(_pozovi_confidence_api, oai, gpt_prompt)
         import json as _json
-        gpt_data    = _json.loads(gpt_r.choices[0].message.content or "{}")
+        gpt_data    = _json.loads(raw)
         procenat    = max(0, min(100, int(gpt_data.get("procenat", 50))))
         razlog      = gpt_data.get("razlog_kratko", "")
         kljucni_rizik = gpt_data.get("kljucni_rizik", "")

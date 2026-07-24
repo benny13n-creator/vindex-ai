@@ -34,6 +34,8 @@ from shared.deps import _get_supa, get_current_user
 from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.usage import UsageService
+from shared.llm_retry import llm_retry
+from shared.sentry import capture_exception as _sentry_capture
 from services.event_bus import EventType
 from shared.genome_validator import verify_genome, compute_snaga_score
 
@@ -183,6 +185,41 @@ async def _fetch_dokazi_kontekst(supa, predmet_id: str) -> list[dict]:
         return []
 
 
+# CELINA 2 (2026-07-24): raniji docs[:8] + tekst[:4500] je za predmet sa
+# >8 dokumenata TIHO ignorisao ostatak (npr. 17 od 25 dokumenata za predmet
+# sa 25 uploadovanih fajlova nikad nisu ni stigli do GPT poziva), i svaki
+# analizirani dokument je bio odsečen na 4500 znakova bez obzira na dužinu.
+# gpt-4o ima ~128k tokena konteksta (~500k znakova) -- ovi limiti su bili
+# mnogo konzervativniji nego što model stvarno zahteva. Budžetiranje sada
+# prati UKUPAN utrošen prostor preko SVIH dokumenata (ne flat po-dokumentu
+# cutoff), i eksplicitno broji koliko je dokumenata/znakova moralo biti
+# izostavljeno da bi Genome mogao da prijavi tu granicu umesto da je
+# tiho sakrije.
+_GENOME_MAX_DOCS = 25
+_GENOME_MAX_CHARS_PER_DOC = 4500
+_GENOME_MAX_TOTAL_CHARS = 60000
+
+
+@llm_retry
+async def _pozovi_genome_api(client, combined: str, broj_dokumenata: int) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo _extract_genome -- izdvojen jer
+    vanjska funkcija ima sopstveni try/except sa fallback-om na {"greska": ...}."""
+    resp = await asyncio.wait_for(
+        client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.1,
+            max_tokens=4000,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _GENOME_SYSTEM},
+                {"role": "user", "content": f"Dokumenti predmeta ({broj_dokumenata} dokumenata):\n\n{combined}"},
+            ],
+        ),
+        timeout=60.0,
+    )
+    return (resp.choices[0].message.content or "").strip()
+
+
 async def _extract_genome(docs: list[dict], dokazi: Optional[list[dict]] = None) -> dict:
     """GPT-4o ekstrakcija Case Genome iz liste dokumenata.
 
@@ -194,7 +231,9 @@ async def _extract_genome(docs: list[dict], dokazi: Optional[list[dict]] = None)
         return {}
 
     parts = []
-    for dok in docs[:8]:
+    total_chars = 0
+    docs_preskoceno = max(0, len(docs) - _GENOME_MAX_DOCS)
+    for dok in docs[:_GENOME_MAX_DOCS]:
         rn = dok.get("redni_broj") or "?"
         naziv = dok.get("naziv_fajla", "dokument")
         tip = dok.get("tip_dokaza") or ""
@@ -202,6 +241,12 @@ async def _extract_genome(docs: list[dict], dokazi: Optional[list[dict]] = None)
         tekst = (dok.get("tekst_sadrzaj") or "").strip()
         if not tekst:
             continue
+        if total_chars >= _GENOME_MAX_TOTAL_CHARS:
+            docs_preskoceno += 1
+            continue
+        budzet = min(_GENOME_MAX_CHARS_PER_DOC, _GENOME_MAX_TOTAL_CHARS - total_chars)
+        deo_teksta = tekst[:budzet]
+        total_chars += len(deo_teksta)
         rn_fmt = f"{int(rn):02d}" if str(rn).isdigit() else "?"
         header = f"[DOK-{rn_fmt}: {naziv}"
         if tip:
@@ -209,7 +254,7 @@ async def _extract_genome(docs: list[dict], dokazi: Optional[list[dict]] = None)
         if kb:
             header += f" | {kb}KB"
         header += "]"
-        parts.append(f"{header}\n{tekst[:4500]}")
+        parts.append(f"{header}\n{deo_teksta}")
 
     if not parts:
         return {"greska": "Nijedan dokument nema tekst za analizu"}
@@ -234,19 +279,10 @@ async def _extract_genome(docs: list[dict], dokazi: Optional[list[dict]] = None)
     try:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0.1,
-            max_tokens=4000,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _GENOME_SYSTEM},
-                {"role": "user", "content": f"Dokumenti predmeta ({len(parts)} dokumenata):\n\n{combined}"},
-            ],
-        )
-        raw = (resp.choices[0].message.content or "").strip()
+        raw = await _pozovi_genome_api(client, combined, len(parts))
         result = json.loads(raw)
         result["_genome_docs_count"] = len(parts)
+        result["_genome_docs_preskoceno"] = docs_preskoceno
         # Reliability Patch (2026-07-18) — snaga_predmeta_procent/snaga_predmeta se
         # RACUNAJU backend-om iz snaga_faktori, ne uzima se GPT-ovo samo-prijavljeno
         # broj (anchoring bug otkriven Reality Validation batch-om — videti
@@ -257,6 +293,7 @@ async def _extract_genome(docs: list[dict], dokazi: Optional[list[dict]] = None)
         result["snaga_faktori"] = skor["snaga_faktori"]
         return result
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[GENOME] Ekstrakcija greška: %s", exc)
         return {"greska": str(exc)}
 
@@ -578,7 +615,7 @@ async def _run_genome_background(
                 .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb,pravni_elementi")
                 .eq("predmet_id", predmet_id)
                 .order("redni_broj")
-                .limit(10).execute()
+                .limit(_GENOME_MAX_DOCS).execute()
         )
         docs = [d for d in (dok_res.data or []) if (d.get("tekst_sadrzaj") or "").strip()]
         if not docs:
@@ -708,7 +745,7 @@ async def refresh_case_dna(predmet_id: str, request: Request, user=Depends(Permi
                 .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb,pravni_elementi")
                 .eq("predmet_id", predmet_id)
                 .order("redni_broj")
-                .limit(10).execute()
+                .limit(_GENOME_MAX_DOCS).execute()
         )
         docs = [d for d in (dok_res.data or []) if (d.get("tekst_sadrzaj") or "").strip()]
     except Exception as exc:
@@ -842,6 +879,25 @@ class CompareDoksReq(BaseModel):
     numbers: list[int]
 
 
+@llm_retry
+async def _pozovi_compare_api(client, part_a: str, part_b: str) -> str:
+    """CELINA 2 (2026-07-24): retry-ovani deo compare_docs."""
+    resp = await asyncio.wait_for(
+        client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.1,
+            max_tokens=1500,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _COMPARE_SYSTEM},
+                {"role": "user", "content": f"Uporedjujem:\n\n{part_a}\n\n---\n\n{part_b}"},
+            ],
+        ),
+        timeout=30.0,
+    )
+    return resp.choices[0].message.content or "{}"
+
+
 @router.post("/{predmet_id}/case-dna/compare")
 @limiter.limit("10/minute")
 async def compare_docs(predmet_id: str, req: CompareDoksReq, request: Request, user=Depends(PermissionService.require("case_dna"))):
@@ -882,23 +938,18 @@ async def compare_docs(predmet_id: str, req: CompareDoksReq, request: Request, u
         tip = dok.get("tip_dokaza") or ""
         tekst = (dok.get("tekst_sadrzaj") or "").strip()
         header = f"[DOK-{int(rn):02d}: {naziv}" + (f" | {tip}" if tip else "") + "]"
-        parts.append(f"{header}\n{tekst[:5000]}")
+        # CELINA 2 (2026-07-24): 5000 -> 10000 -- za poređenje DVA celokupna
+        # dokumenta (ne 8+ dokumenata odjednom kao _extract_genome), gpt-4o
+        # kontekst ima puno prostora za duže ugovore/presude bez sečenja.
+        parts.append(f"{header}\n{tekst[:10000]}")
 
     try:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0.1,
-            max_tokens=1500,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _COMPARE_SYSTEM},
-                {"role": "user", "content": f"Uporedjujem:\n\n{parts[0]}\n\n---\n\n{parts[1]}"},
-            ],
-        )
-        analiza = json.loads(resp.choices[0].message.content or "{}")
+        raw = await _pozovi_compare_api(client, parts[0], parts[1])
+        analiza = json.loads(raw)
     except Exception as exc:
+        _sentry_capture(exc)
         raise HTTPException(500, f"AI analiza greška: {exc}")
 
     await UsageService.consume(uid, user.get("email", ""), "case_dna")
