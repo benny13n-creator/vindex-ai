@@ -310,21 +310,15 @@ def validate_law_refs(parsed: dict) -> dict:
 
 # ─── Orchestrator ─────────────────────────────────────────────────────────────
 
-def run_validation_pipeline(
-    raw_llm: str,
-    segmented_doc: SegmentedDocument,
-    retry_fn=None,
-) -> dict:
+def run_post_parse_validation(parsed: dict, segmented_doc: SegmentedDocument) -> dict:
     """
-    Pokreće ceo validation pipeline.
-    Uvek vraća validan dict — nikad ne baca izuzetak na caller.
+    Isti validacioni lanac kao run_validation_pipeline (excerpt/ref provera,
+    executive summary, law_ref provera), ali za slučajeve gde 'parsed' dict
+    već postoji i ne treba parse_llm_response korak -- npr. AKCIJA 2
+    (2026-07-24) Map-Reduce pipeline u main.py::ask_analiza_v2, čiji je
+    finalni dict sastavljen agregacijom više LLM poziva, ne parsiran iz
+    jednog sirovog odgovora.
     """
-    parsed, is_fallback = parse_llm_response(raw_llm, retry_fn)
-
-    if is_fallback:
-        logger.error("[VALIDATOR] Returning fallback response (parse error)")
-        return parsed
-
     try:
         parsed = validate_clause_excerpts(parsed, segmented_doc)
     except Exception as e:
@@ -350,3 +344,21 @@ def run_validation_pipeline(
         parsed["low_confidence_findings"] = []
 
     return parsed
+
+
+def run_validation_pipeline(
+    raw_llm: str,
+    segmented_doc: SegmentedDocument,
+    retry_fn=None,
+) -> dict:
+    """
+    Pokreće ceo validation pipeline (parse + validacioni lanac).
+    Uvek vraća validan dict — nikad ne baca izuzetak na caller.
+    """
+    parsed, is_fallback = parse_llm_response(raw_llm, retry_fn)
+
+    if is_fallback:
+        logger.error("[VALIDATOR] Returning fallback response (parse error)")
+        return parsed
+
+    return run_post_parse_validation(parsed, segmented_doc)

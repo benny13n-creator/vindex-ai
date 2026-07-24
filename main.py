@@ -19,6 +19,7 @@ from app.services.retrieve import (
     retrieve_misljenja, process_misljenja_chunks, query_triggers_misljenja,
 )
 from shared.llm_retry import llm_retry
+from shared.sentry import capture_exception as _sentry_capture
 
 load_dotenv()
 
@@ -3707,6 +3708,288 @@ APSOLUTNA PRAVILA (kršenje = netačan izveštaj):
 JEZIK: ISKLJUČIVO srpska ekavica, dijakritika obavezna. STROGA ZABRANA ijekavice — zabranjeni oblici: procijeniti→proceniti, procjena→procena, vrijednost→vrednost, rješenje→rešenje, riješiti→rešiti, mjesto→mesto, savjet→savet, vjerovatno→verovatno, prijedlog→predlog, dijelovi→delovi, liječnik→lekar, tijelo→telo, lijek→lek, cijeli→ceo/cela. Pravna terminologija tačna."""
 
 
+# ─── Map-Reduce pipeline za dugačke dokumente (AKCIJA 2, 2026-07-24) ────────
+#
+# Problem koji ovo rešava: pre ove izmene, dokumenti >12000 znakova su i
+# dalje išli kroz JEDAN GPT-4o poziv sa SVAKIM segmentom skraćenim na 1800
+# znakova (stari ask_analiza_v2, main.py:3761) -- rizična klauzula duža od
+# 1800 znakova na, recimo, 80. strani je bila fizički odsečena i model je
+# nikad nije video u celosti. Log poruka je pri tome tvrdila "primena
+# multi-pass pristupa" iako se radio samo jedan poziv (ispravljeno u AKCIJI
+# 1, routers/dokument.py).
+#
+# Sada: MAP prolaz analizira svaki segment sa PUNIM (neisečenim) tekstom u
+# malim batch-evima, paralelno. REDUCE prolaz spaja sve parcijalne nalaze
+# u finalni Executive Report. Nijedan segment se ne gubi zbog dužine
+# dokumenta -- svaki se analizira u celosti u tačno jednom batch-u.
+
+_MAP_BATCH_CHAR_BUDGET = 6000   # ciljna veličina batch-a (znakovi segmenata)
+_MAP_MAX_SEGMENT_CHARS = 6000   # hard cap za POJEDINAČNI predugačak segment
+
+
+def _batch_segments_za_map(segments: list, budget: int = _MAP_BATCH_CHAR_BUDGET) -> list:
+    """Grupiše segmente u batch-eve tako da tekst po batch-u ne pređe budget,
+    čuvajući redosled dokumenta. Segment veći od budget-a dobija SOPSTVENI
+    batch (skraćen na _MAP_MAX_SEGMENT_CHARS uz eksplicitan marker u
+    _map_analiziraj_batch) -- nijedan segment se ne izostavlja u potpunosti,
+    za razliku od starog pristupa koji je SVAKI segment sekao na 1800 znakova."""
+    batches: list = []
+    current: list = []
+    current_len = 0
+    for seg in segments:
+        if not seg.tekst:
+            continue
+        seg_len = len(seg.tekst)
+        if seg_len > budget:
+            if current:
+                batches.append(current)
+                current, current_len = [], 0
+            batches.append([seg])
+            continue
+        if current and current_len + seg_len > budget:
+            batches.append(current)
+            current, current_len = [], 0
+        current.append(seg)
+        current_len += seg_len
+    if current:
+        batches.append(current)
+    return batches
+
+
+_SYSTEM_PROMPT_ANALIZA_MAP = """Ti si iskusan pravni forenzičar za advokate u Srbiji.
+Analiziraš JEDAN DEO (batch segmenata) većeg pravnog dokumenta -- ostali delovi
+se analiziraju u odvojenim pozivima i spajaju kasnije. Zato:
+- NE komentarišeš da li nešto nedostaje u CELOM dokumentu (to radi kasniji korak
+  koji vidi sve delove) -- fokusiraj se ISKLJUČIVO na ono što je STVARNO PRISUTNO
+  u segmentima koje vidiš u ovom pozivu.
+- Svaki segment ima eksplicitan ID (npr. [clause_7]) -- koristi TAČNO taj ID.
+
+Vrati ISKLJUČIVO validan JSON bez markdown fences-ova:
+{
+  "findings": [
+    {
+      "id": "f1",
+      "category": "<pravni_rizik|procesni_rizik|rok|dokazni_problem|neuskladjenost|finansijski>",
+      "severity": "<nizak|srednji|visok|kritican>",
+      "clause_ref": "<ID segmenta iz ovog batch-a ILI null>",
+      "clause_excerpt": "<DOSLOVAN citat, max 200 znakova, ILI null>",
+      "law_ref": "<npr. 'član 178 Zakona o radu' ILI null>",
+      "finding": "<konkretan opis problema>",
+      "suggested_fix": "<predlog izmene ILI null>",
+      "confidence": <0-100>
+    }
+  ],
+  "financial_exposure_items": [
+    {"type": "<ugovorna_kazna|kamata|odsteta|penal>", "clause_ref": "<ID|null>", "amount_or_formula": "<tekst>", "notes": "<tekst>"}
+  ],
+  "litigation_readiness": {
+    "evidence_gaps": [{"issue": "<tekst>", "clause_ref": "<ID|null>"}],
+    "procedural_defects": [{"issue": "<tekst>", "clause_ref": "<ID|null>"}],
+    "deadline_risks": [{"issue": "<tekst>", "deadline_type": "<zastarelost|otkazni_rok|zalbeni_rok|drugi>", "clause_ref": "<ID|null>"}]
+  },
+  "attack_surface": [
+    {"vulnerability": "<kako protivnička strana može napasti ovu odredbu>", "clause_ref": "<ID|null>", "severity": "<nizak|srednji|visok>"}
+  ]
+}
+
+APSOLUTNA PRAVILA (ista kao za pun dokument):
+1. CLAUSE_REF mora biti TAČAN ID iz segmenata koje vidiš, ili null. Ne izmišljaj.
+2. CLAUSE_EXCERPT mora biti DOSLOVAN citat (kopiraj bukvalno) ili null.
+3. LAW_REF: null ako nisi siguran u tačan broj člana. Ne izmišljaj.
+4. CONFIDENCE < 70 -- takav finding IPAK vrati u findings (filtriranje po pouzdanosti radi kasniji korak nad kompletnim spiskom, ne ti ovde).
+5. Ako ovaj deo dokumenta NEMA problema -- vrati prazne liste. Ne izmišljaj probleme da bi "nešto vratio".
+
+JEZIK: ISKLJUČIVO srpska ekavica, dijakritika obavezna. Zabranjena ijekavica."""
+
+
+_SYSTEM_PROMPT_ANALIZA_REDUCE = """Ti si iskusan pravni forenzičar koji sastavlja FINALNI Executive
+Report na osnovu nalaza koji su već izvučeni iz SVIH delova dužeg pravnog dokumenta (analiza je
+rađena po delovima zbog dužine dokumenta, ti dobijaš spisak svih delova i sve već pronađene nalaze).
+
+Tvoj zadatak ima TRI dela:
+1. MISSING_CLAUSES: na osnovu spiska SVIH segmenata dokumenta (ID + naslov) i već pronađenih
+   nalaza, identifikuj koje uobičajene/očekivane klauzule za ovaj tip dokumenta NEDOSTAJU.
+2. LEGACY_TEXT: napiši koherentan rezime CELOG dokumenta (ne samo jednog dela) sa sekcijama
+   PRAVNI OSNOV / ANALIZA / IDENTIFIKOVANI RIZICI / PREPORUKE / POUZDANOST, zasnovan na
+   dostavljenim nalazima.
+3. FINANSIJSKA IZLOŽENOST: na osnovu dostavljene liste finansijskih stavki, proceni
+   max_total_exposure_rsd (broj u dinarima) ako je moguće razumno proceniti, inače null.
+
+KRITIČNO: NE izmišljaj nove findings niti clause_ref vrednosti van onih koje su ti dostavljene
+-- ti SAMO sintetišeš missing_clauses/legacy_text/finansijski rezime, ne dodaješ nove pravne nalaze.
+
+Vrati ISKLJUČIVO validan JSON bez markdown fences-ova:
+{
+  "missing_clauses": [
+    {"clause_name": "<naziv klauzule>", "why_it_matters": "<zašto izostavljanje pravi rizik>", "suggested_text": "<predlog formulacije ILI null>"}
+  ],
+  "legacy_text": "<plain-text rezime: PRAVNI OSNOV, ANALIZA, IDENTIFIKOVANI RIZICI, PREPORUKE, POUZDANOST>",
+  "max_total_exposure_rsd": <broj ILI null>
+}
+
+JEZIK: ISKLJUČIVO srpska ekavica, dijakritika obavezna. Zabranjena ijekavica."""
+
+
+def _map_analiziraj_batch(batch: list, doc_type: str, batch_idx: int, total_batches: int) -> dict:
+    """Jedan MAP poziv -- analizira PODSKUP segmenata sa punim (neisečenim)
+    tekstom (segmenti duži od _MAP_MAX_SEGMENT_CHARS su izuzetak). Nikad ne
+    baca -- greška u jednom batch-u vraća prazan doprinos umesto da obori
+    celu analizu (isti "delimičan neuspeh ne blokira sve" princip kao
+    routers/evidence.py::klasifikuj_i_sacuvaj)."""
+    import json as _json_local
+    from analiza.validator import _strip_fences as _strip
+
+    delovi = []
+    for s in batch:
+        tekst = s.tekst
+        if len(tekst) > _MAP_MAX_SEGMENT_CHARS:
+            tekst = tekst[:_MAP_MAX_SEGMENT_CHARS] + f"... [skraćeno, ukupno {len(s.tekst)} znakova]"
+        naslov_str = f" | {s.naslov}" if s.naslov else ""
+        delovi.append(f"[{s.id}]{naslov_str}\n{tekst}")
+
+    user_content = (
+        f"DEO {batch_idx}/{total_batches} DOKUMENTA [{doc_type.upper()}] "
+        f"— segmenti: {', '.join(s.id for s in batch)}\n\n" + "\n\n".join(delovi)
+    )
+
+    try:
+        raw = _pozovi_openai(
+            _SYSTEM_PROMPT_ANALIZA_MAP, user_content,
+            model="gpt-4o-mini", max_tokens=2000,
+            response_format={"type": "json_object"},
+        )
+        parsed = _json_local.loads(_strip(raw))
+    except Exception as exc:
+        logger.warning("[ANALIZA_V2/MAP] batch %d/%d neuspešan: %s", batch_idx, total_batches, exc)
+        _sentry_capture(exc)
+        parsed = {}
+
+    return {
+        "findings": parsed.get("findings") or [],
+        "financial_exposure_items": parsed.get("financial_exposure_items") or [],
+        "litigation_readiness": parsed.get("litigation_readiness") or {},
+        "attack_surface": parsed.get("attack_surface") or [],
+    }
+
+
+def _reduce_analiza(stripped_doc, all_findings: list, all_fin_items: list,
+                     all_litigation: list, all_attack: list, pitanje_api: str) -> dict:
+    """Jedan REDUCE poziv -- sintetiše missing_clauses/legacy_text/finansijski
+    rezime iz agregiranih MAP nalaza. Ne dodaje nove findings/clause_ref
+    vrednosti (to bi zaobišlo grounding garantovan u MAP koraku)."""
+    import json as _json_local
+    from analiza.validator import _strip_fences as _strip
+
+    toc = "\n".join(
+        f"[{s.id}]" + (f" {s.naslov}" if s.naslov else "")
+        for s in stripped_doc.segments if s.start_offset >= 0
+    )
+
+    # Bound veličinu da REDUCE poziv sam ne postane predugačak za dokumenta
+    # sa mnogo nalaza -- degradiran (skraćen) kontekst je i dalje bolji od
+    # pada celog poziva zbog prekoračenja tokena.
+    findings_json = _json_local.dumps(all_findings, ensure_ascii=False)
+    if len(findings_json) > 8000:
+        findings_json = findings_json[:8000] + '..."[skraćeno]'
+    fin_json = _json_local.dumps(all_fin_items, ensure_ascii=False)[:2000]
+
+    user_content = (
+        (f"SPECIFIČNO PITANJE: {pitanje_api.strip()}\n\n" if pitanje_api.strip() else "")
+        + f"SPISAK SVIH SEGMENATA DOKUMENTA [{stripped_doc.doc_type.upper()}]:\n{toc}\n\n"
+        + f"VEĆ PRONAĐENI NALAZI (iz analize po delovima):\n{findings_json}\n\n"
+        + f"FINANSIJSKE STAVKE:\n{fin_json}"
+    )
+
+    try:
+        raw = _pozovi_openai(
+            _SYSTEM_PROMPT_ANALIZA_REDUCE, user_content,
+            model="gpt-4o", max_tokens=2500,
+            response_format={"type": "json_object"},
+        )
+        parsed = _json_local.loads(_strip(raw))
+    except Exception as exc:
+        logger.warning("[ANALIZA_V2/REDUCE] neuspešan: %s", exc)
+        _sentry_capture(exc)
+        parsed = {}
+
+    litigation_merged = {
+        "applicable": bool(all_litigation),
+        "evidence_gaps": [], "procedural_defects": [], "deadline_risks": [],
+    }
+    for lit in all_litigation:
+        for key in ("evidence_gaps", "procedural_defects", "deadline_risks"):
+            litigation_merged[key].extend(lit.get(key) or [])
+
+    return {
+        "document_type": stripped_doc.doc_type,
+        "findings": all_findings,
+        "missing_clauses": parsed.get("missing_clauses") or [],
+        "financial_exposure": {
+            "max_total_exposure_rsd": parsed.get("max_total_exposure_rsd"),
+            "items": all_fin_items,
+        },
+        "litigation_readiness": litigation_merged,
+        "attack_surface": all_attack,
+        "low_confidence_findings": [],
+        "legacy_text": parsed.get("legacy_text") or "",
+    }
+
+
+def _ask_analiza_v2_map_reduce(stripped_doc, pitanje_api: str) -> dict:
+    """Orkestrira MAP (paralelno, po batch-u segmenata) + REDUCE (jedan
+    sintetizujući poziv) za dokumente >12000 znakova. Vraća dict istog
+    oblika kao run_validation_pipeline (pre validacionog lanca -- taj se
+    primenjuje u ask_analiza_v2 posle poziva ove funkcije, identično za oba
+    puta)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    real_segments = [s for s in stripped_doc.segments if s.start_offset >= 0 and s.tekst]
+    batches = _batch_segments_za_map(real_segments)
+    total_batches = len(batches)
+    logger.info(
+        "[ANALIZA_V2] Map-Reduce: %d segmenata u %d batch-eva (char_count=%d)",
+        len(real_segments), total_batches, stripped_doc.char_count,
+    )
+
+    ordered: list = [None] * total_batches
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {
+            executor.submit(_map_analiziraj_batch, batch, stripped_doc.doc_type, i + 1, total_batches): i
+            for i, batch in enumerate(batches)
+        }
+        for fut in as_completed(futures):
+            idx = futures[fut]
+            try:
+                ordered[idx] = fut.result()
+            except Exception as exc:
+                logger.warning("[ANALIZA_V2/MAP] batch %d exception: %s", idx + 1, exc)
+                _sentry_capture(exc)
+                ordered[idx] = {
+                    "findings": [], "financial_exposure_items": [],
+                    "litigation_readiness": {}, "attack_surface": [],
+                }
+
+    all_findings, all_fin_items, all_litigation, all_attack = [], [], [], []
+    for i, r in enumerate(ordered):
+        r = r or {"findings": [], "financial_exposure_items": [], "litigation_readiness": {}, "attack_surface": []}
+        # Re-prefiksuj finding ID-jeve da budu jedinstveni preko batch-eva
+        # (npr. "f1" iz batch-a 1 i "f1" iz batch-a 2 bi se inače sudarili).
+        for f in r["findings"]:
+            f["id"] = f"b{i + 1}_{f.get('id', 'f')}"
+        all_findings.extend(r["findings"])
+        all_fin_items.extend(r["financial_exposure_items"])
+        if r["litigation_readiness"]:
+            all_litigation.append(r["litigation_readiness"])
+        all_attack.extend(r["attack_surface"])
+
+    logger.info(
+        "[ANALIZA_V2] Map-Reduce agregacija: findings=%d fin_items=%d attack=%d",
+        len(all_findings), len(all_fin_items), len(all_attack),
+    )
+
+    return _reduce_analiza(stripped_doc, all_findings, all_fin_items, all_litigation, all_attack, pitanje_api)
+
+
 def ask_analiza_v2(
     segmented_doc,     # SegmentedDocument
     pitanje: str = "",
@@ -3721,7 +4004,7 @@ def ask_analiza_v2(
     Returns:
         dict sa executive_summary, findings, missing_clauses, itd.
     """
-    from analiza.validator import run_validation_pipeline
+    from analiza.validator import run_validation_pipeline, run_post_parse_validation
     import json as _json
 
     try:
@@ -3757,38 +4040,49 @@ def ask_analiza_v2(
         if pitanje_api.strip():
             user_content += f"SPECIFIČNO PITANJE: {pitanje_api.strip()}\n\n"
 
-        # Za dugačke dokumente: skraćeni prikaz segmenata (max 2000 ch per segment)
-        max_chars = 1800 if stripped_doc.char_count > 12000 else 2500
-        user_content += stripped_doc.to_llm_context(max_chars_per_segment=max_chars)
+        # AKCIJA 2 (2026-07-24): dokumenti >12000 znakova idu kroz pravi
+        # Map-Reduce pipeline (svaki segment analiziran u celosti, ni jedan
+        # se ne seče na 1800 znakova) umesto starog jednog poziva sa
+        # skraćenim segmentima. Kraći dokumenti zadržavaju postojeći,
+        # jednostavniji jedan-poziv put (dovoljno je pouzdan i brži).
+        if stripped_doc.char_count > 12000:
+            result = _ask_analiza_v2_map_reduce(stripped_doc, pitanje_api)
+            result = run_post_parse_validation(result, stripped_doc)
+        else:
+            user_content = ""
+            if pitanje_api.strip():
+                user_content += f"SPECIFIČNO PITANJE: {pitanje_api.strip()}\n\n"
 
-        # Dodaj full_text ako je dokument kraći (za excerpt matching)
-        if stripped_doc.char_count <= 8000:
-            user_content += f"\n\nPUNI TEKST (za reference):\n{tekst_api[:8000]}"
+            user_content += stripped_doc.to_llm_context(max_chars_per_segment=2500)
 
-        logger.debug("[ANALIZA_V2] user_content len=%d", len(user_content))
+            # Dodaj full_text ako je dokument kraći (za excerpt matching)
+            if stripped_doc.char_count <= 8000:
+                user_content += f"\n\nPUNI TEKST (za reference):\n{tekst_api[:8000]}"
 
-        # Pozovi GPT-4o sa JSON mode i povećanim max_tokens
-        raw = _pozovi_openai(
-            SYSTEM_PROMPT_ANALIZA_V2,
-            user_content,
-            model="gpt-4o",
-            max_tokens=4096,
-            response_format={"type": "json_object"},
-        )
-        logger.debug("[ANALIZA_V2] raw len=%d preview: %r", len(raw), raw[:200])
+            logger.debug("[ANALIZA_V2] user_content len=%d", len(user_content))
 
-        # Retry lambda za validator
-        def _retry():
-            return _pozovi_openai(
+            # Pozovi GPT-4o sa JSON mode i povećanim max_tokens
+            raw = _pozovi_openai(
                 SYSTEM_PROMPT_ANALIZA_V2,
-                "Vrati ISKLJUČIVO validan JSON prema šemi. Bez preambule.\n\n" + user_content,
+                user_content,
                 model="gpt-4o",
                 max_tokens=4096,
                 response_format={"type": "json_object"},
             )
+            logger.debug("[ANALIZA_V2] raw len=%d preview: %r", len(raw), raw[:200])
 
-        # Pokreni validation pipeline
-        result = run_validation_pipeline(raw, stripped_doc, retry_fn=_retry)
+            # Retry lambda za validator
+            def _retry():
+                return _pozovi_openai(
+                    SYSTEM_PROMPT_ANALIZA_V2,
+                    "Vrati ISKLJUČIVO validan JSON prema šemi. Bez preambule.\n\n" + user_content,
+                    model="gpt-4o",
+                    max_tokens=4096,
+                    response_format={"type": "json_object"},
+                )
+
+            # Pokreni validation pipeline
+            result = run_validation_pipeline(raw, stripped_doc, retry_fn=_retry)
 
         # Preslikaj document_type iz segmentera ako LLM nije vratio
         if not result.get("document_type"):

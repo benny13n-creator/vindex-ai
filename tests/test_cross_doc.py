@@ -144,19 +144,23 @@ def test_req_model_kratko_pravno_pitanje():
 # ─── _format_dokumenti helper ─────────────────────────────────────────────────
 
 def test_format_dokumenti_sadrzi_nazive():
+    """AKCIJA 2 (2026-07-24): _format_dokumenti sada vraća (tekst, upozorenja)
+    tuple -- drugi element je lista naziva dokumenata koji su uzorkovani
+    zbog dužine (prazna kad su svi dokumenti unutar budžeta)."""
     from routers.cross_doc import DokumentUnos, _format_dokumenti
     docs = [DokumentUnos(**_DOC_A), DokumentUnos(**_DOC_B)]
-    fmt = _format_dokumenti(docs)
+    fmt, upozorenja = _format_dokumenti(docs)
     assert "Ugovor o radu" in fmt
     assert "Interni pravilnik" in fmt
     assert "DOKUMENT 1" in fmt
     assert "DOKUMENT 2" in fmt
+    assert upozorenja == []
 
 
 def test_format_dokumenti_razdvaja_dokumenta():
     from routers.cross_doc import DokumentUnos, _format_dokumenti
     docs = [DokumentUnos(**_DOC_A), DokumentUnos(**_DOC_B)]
-    fmt = _format_dokumenti(docs)
+    fmt, _upozorenja = _format_dokumenti(docs)
     assert "---" in fmt
 
 

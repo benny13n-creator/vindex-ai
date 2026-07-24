@@ -3,6 +3,7 @@
 Evidence Vault — automatska klasifikacija dokumenata i matrica dokaza.
 """
 import logging
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -82,6 +83,69 @@ def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
         }
 
 
+_CHARS_PO_STRANICI = 2500  # gruba procena (12pt font, A4, standardni razmak)
+
+
+def _lociraj_tvrdnju(tekst: str, tvrdnja: str) -> dict:
+    """AKCIJA 2 (2026-07-24): programski pronalazi GDE se tvrdnja nalazi u
+    izvornom dokumentu -- isti substring-matching princip kao
+    analiza/validator.py::validate_clause_excerpts (ne teoretsko poverenje
+    LLM-u), primenjen na Evidence Vault. Ako tvrdnja nije doslovno
+    pronađena (GPT je parafrazirao umesto citirao), vraća sve None --
+    kolone su NULLABLE upravo zbog ovoga (fail-soft, nikad izmišljena
+    lokacija samo da bi polje bilo popunjeno)."""
+    prazno = {"stranica": None, "paragraf": None, "start_offset": None, "end_offset": None}
+    if not tekst or not tvrdnja:
+        return prazno
+
+    probe = re.sub(r"\.{2,}$|…$", "", tvrdnja.strip()).rstrip()[:100]
+    if not probe:
+        return prazno
+
+    # Pokušaj 1: tačan (case-insensitive) substring na ORIGINALNOM tekstu --
+    # daje TAČAN offset kad GPT citira sa istim razmacima kao izvor.
+    pos = tekst.lower().find(probe.lower())
+    if pos >= 0:
+        start_offset, end_offset = pos, pos + len(probe)
+    else:
+        # Pokušaj 2: whitespace-normalizovano pretraživanje (isti obrazac
+        # kao validate_clause_excerpts), sa proporcionalnim mapiranjem
+        # nazad na originalni tekst -- aproksimacija, dovoljno dobra za
+        # "otprilike koja stranica/segment", ne za karakter-precizan offset.
+        try:
+            from analiza.validator import _normalize_ws
+            tekst_norm = _normalize_ws(tekst)
+            probe_norm = _normalize_ws(probe)
+            npos = tekst_norm.find(probe_norm)
+        except Exception:
+            npos = -1
+        if npos < 0:
+            return prazno
+        razmera = len(tekst) / max(len(tekst_norm), 1)
+        start_offset = int(npos * razmera)
+        end_offset = int((npos + len(probe_norm)) * razmera)
+
+    stranica = (start_offset // _CHARS_PO_STRANICI) + 1
+
+    paragraf = None
+    try:
+        from analiza.segmenter import segment_document
+        segmented = segment_document(tekst)
+        for seg in segmented.segments:
+            if seg.start_offset >= 0 and seg.start_offset <= start_offset < seg.end_offset:
+                paragraf = seg.id
+                break
+    except Exception:
+        pass
+
+    return {
+        "stranica": stranica,
+        "paragraf": paragraf,
+        "start_offset": start_offset,
+        "end_offset": end_offset,
+    }
+
+
 def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: str, user_id: str) -> None:
     """Poziva se u pozadini posle uploada. Klasifikuje i upisuje u predmet_dokumenti.
 
@@ -114,6 +178,11 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
         pravni_elm = rezultat.get("pravni_elementi", [])
         rows = []
         for i, c in enumerate(cinjenice[:5]):
+            # AKCIJA 2 (2026-07-24): lokacijsko utemeljenje -- migracija 080
+            # (predmet_dokazi.stranica/paragraf/start_offset/end_offset,
+            # čeka pokretanje). _lociraj_tvrdnju vraća sve None kad tvrdnja
+            # nije doslovno pronađena u tekst-u -- ne izmišljena lokacija.
+            lokacija = _lociraj_tvrdnju(tekst, c)
             rows.append({
                 "predmet_id":    predmet_id,
                 "dokument_id":   dokument_id,
@@ -122,10 +191,31 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
                 "kategorija":    "cinjenica",
                 "snaga":         "srednja",
                 "pravni_element": pravni_elm[i] if i < len(pravni_elm) else None,
+                **lokacija,
             })
         if rows:
-            supa.table("predmet_dokazi").insert(rows).execute()
-            logger.info("[EVIDENCE] Upisano %d činjenica za predmet=%s", len(rows), predmet_id)
+            try:
+                supa.table("predmet_dokazi").insert(rows).execute()
+                logger.info("[EVIDENCE] Upisano %d činjenica za predmet=%s", len(rows), predmet_id)
+            except Exception as exc_grounding:
+                # Migracija 080 (stranica/paragraf/start_offset/end_offset)
+                # možda još nije pokrenuta u produkciji -- degradiraj na
+                # insert bez grounding kolona umesto da izgubi CEO upis dok
+                # migracija ne prođe (fail-soft, isti princip kao ostatak
+                # ove funkcije).
+                logger.warning(
+                    "[EVIDENCE] Insert sa grounding kolonama neuspešan (%s) — pokušavam bez njih",
+                    exc_grounding,
+                )
+                legacy_rows = [
+                    {k: v for k, v in r.items() if k not in ("stranica", "paragraf", "start_offset", "end_offset")}
+                    for r in rows
+                ]
+                supa.table("predmet_dokazi").insert(legacy_rows).execute()
+                logger.info(
+                    "[EVIDENCE] Upisano %d činjenica (bez grounding kolona) za predmet=%s",
+                    len(legacy_rows), predmet_id,
+                )
     except Exception as exc:
         logger.warning("[EVIDENCE] Greška pri upisu predmet_dokazi: %s", exc)
 
