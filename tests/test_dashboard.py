@@ -45,23 +45,29 @@ def _make_chain(data):
 
 
 def _make_cc_supa(predmeti=None, rocista=None, rokovi=None, risks=None,
-                  beleske=None, dokumenti=None, ist_recent=None):
+                  beleske=None, dokumenti=None, ist_recent=None, rokovi_tabela=None):
     """
     Route by table name — safe for concurrent asyncio.gather calls.
     predmet_istorija is queried twice; discriminated by select() fields:
     - risk query selects "odgovor" → returns risks data
     - recent query selects only "predmet_id" → returns ist_recent data
+
+    rokovi_tabela: rows from the separate "rokovi" table (nightly repair,
+    2026-07-24) — distinct from "rokovi" the local variable name (which
+    historically held predmet_hronologija rows; kept as-is to avoid
+    touching every existing call site in this file).
     """
     supa = MagicMock()
     risk_data    = risks      or []
     ist_rec_data = ist_recent or []
 
     table_map = {
-        "predmeti":            predmeti  or [],
-        "rocista":             rocista   or [],
-        "predmet_hronologija": rokovi    or [],
-        "predmet_beleske":     beleske   or [],
-        "predmet_dokumenti":   dokumenti or [],
+        "predmeti":            predmeti      or [],
+        "rocista":             rocista       or [],
+        "predmet_hronologija": rokovi        or [],
+        "predmet_beleske":     beleske       or [],
+        "predmet_dokumenti":   dokumenti     or [],
+        "rokovi":              rokovi_tabela or [],
     }
 
     def _table(name):
@@ -166,6 +172,46 @@ async def test_cc_hitni_rokovi_within_48h():
         result = await command_center(request=_req(), user=_user())
     assert len(result["hitni_rokovi"]) == 1
     assert result["hitni_rokovi"][0]["dogadjaj"] == "Rok za žalbu"
+
+
+@pytest.mark.anyio
+async def test_cc_rokovi_tabela_merged_into_rokovi_7():
+    """NIGHTLY REPAIR (2026-07-24), Faza 2 item 5: a deadline entered via
+    the "rokovi" table (the one AI Deadline Guardian / zastarelost.py
+    reads, and 30+ other modules write to) must now also appear in the
+    Command Center's rokovi_7/hitni_rokovi -- previously ONLY
+    predmet_hronologija rows were shown here, so a deadline entered
+    through any rokovi-writing flow was invisible on the main dashboard."""
+    from routers.dashboard import command_center
+    from datetime import date, timedelta
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    preds = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
+    rokovi_tabela = [{"id": "r1", "naziv": "Žalba na presudu", "datum": tomorrow,
+                       "tip": "zalba_zpp", "predmet_id": PID, "opis": ""}]
+    supa = _make_cc_supa(predmeti=preds, rokovi_tabela=rokovi_tabela)
+    with patch("routers.dashboard._get_supa", return_value=supa):
+        result = await command_center(request=_req(), user=_user())
+
+    assert any(r["dogadjaj"] == "Žalba na presudu" for r in result["rokovi_7_dana"])
+    assert any(r["dogadjaj"] == "Žalba na presudu" for r in result["hitni_rokovi"])
+
+
+@pytest.mark.anyio
+async def test_cc_rokovi_7_merges_both_sources_without_dropping_either():
+    from routers.dashboard import command_center
+    from datetime import date, timedelta
+    in3 = (date.today() + timedelta(days=3)).isoformat()
+    in4 = (date.today() + timedelta(days=4)).isoformat()
+    preds = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
+    hronologija = [{"predmet_id": PID, "dogadjaj": "Iz hronologije", "datum_iso": in3, "vaznost": "srednja"}]
+    rokovi_tabela = [{"id": "r1", "naziv": "Iz rokovi tabele", "datum": in4, "tip": "rok", "predmet_id": PID, "opis": ""}]
+    supa = _make_cc_supa(predmeti=preds, rokovi=hronologija, rokovi_tabela=rokovi_tabela)
+    with patch("routers.dashboard._get_supa", return_value=supa):
+        result = await command_center(request=_req(), user=_user())
+
+    dogadjaji = {r["dogadjaj"] for r in result["rokovi_7_dana"]}
+    assert "Iz hronologije" in dogadjaji
+    assert "Iz rokovi tabele" in dogadjaji
 
 
 @pytest.mark.anyio
@@ -314,6 +360,53 @@ async def test_health_kriticno_no_activity_high_risk():
     assert result["score"] < 50
     assert result["status"] == "kriticno"
     assert len(result["razlozi"]) >= 2
+
+
+@pytest.mark.anyio
+async def test_health_faktori_aktivnost_reports_real_subscore_not_total():
+    """NIGHTLY REPAIR (2026-07-24), Faza 2 item 7: faktori.aktivnost used
+    to be `min(25, score if score <= 25 else 25)` -- a nonsensical
+    re-derivation from the TOTAL score, not the actual 0/25 awarded in the
+    "Aktivnost" step. With activity present but a low total score (high
+    risk, no docs, no rociste), the old code would still have reported
+    aktivnost=25 correctly by coincidence in some cases and wrongly in
+    others -- this test picks a combination where the two diverge."""
+    from routers.dashboard import matter_health_score
+    risk_json = json.dumps({"nivo": "visok"})  # rizik: 0 poena
+    supa = _make_health_supa(
+        pred=[{"id": PID, "status": "aktivan"}],
+        bel=[],                                  # NEMA aktivnosti -> aktivnost poeni = 0
+        risk=[{"odgovor": risk_json}],
+        kom=[],
+        hron=[],
+        dok=[],
+        roc=[],
+    )
+    with patch("routers.dashboard._get_supa", return_value=supa):
+        result = await matter_health_score(predmet_id=PID, request=_req(), user=_user())
+
+    # total score je 25 (samo rokovi-bonus), stari bug bi prijavio
+    # aktivnost=min(25,25)=25 iako aktivnosti NIJE bilo.
+    assert result["faktori"]["aktivnost"] == 0
+
+
+@pytest.mark.anyio
+async def test_health_faktori_aktivnost_reports_25_when_activity_present():
+    from routers.dashboard import matter_health_score
+    risk_json = json.dumps({"nivo": "nizak"})
+    supa = _make_health_supa(
+        pred=[{"id": PID, "status": "aktivan"}],
+        bel=[{"id": "b1"}],                      # ima aktivnosti -> 25 poena
+        risk=[{"odgovor": risk_json}],
+        kom=[],
+        hron=[],
+        dok=[],
+        roc=[],
+    )
+    with patch("routers.dashboard._get_supa", return_value=supa):
+        result = await matter_health_score(predmet_id=PID, request=_req(), user=_user())
+
+    assert result["faktori"]["aktivnost"] == 25
 
 
 @pytest.mark.anyio

@@ -45,10 +45,16 @@ async def command_center(
 
     in_90_iso = (today + timedelta(days=90)).isoformat()
 
-    # ── 9 parallel batch queries ──────────────────────────────────────────────
+    # ── 10 parallel batch queries ─────────────────────────────────────────────
+    # FIX (nightly repair, 2026-07-24): Command Center je ranije čitao SAMO
+    # predmet_hronologija za rokove -- AI Deadline Guardian (routers/
+    # zastarelost.py::guardian_scan) i 30+ drugih modula rade nad ODVOJENOM
+    # "rokovi" tabelom. Rok upisan preko tih puteva se nikad nije pojavljivao
+    # ovde. rokovi_tabela_r dodaje TAJ isti izvor u postojeći paralelni batch
+    # (bez izmene write putanja bilo kog modula) -- v. spajanje ispod.
     (predmeti_r, rocista_r, rokovi_r, risk_r,
      beleske_r, dokumenti_r, ist_recent_r,
-     fakture_r, rocista_buduci_r) = await asyncio.gather(
+     fakture_r, rocista_buduci_r, rokovi_tabela_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,naziv,tip,status,updated_at")
             .eq("user_id", uid)
@@ -103,6 +109,14 @@ async def command_center(
             .gte("datum", today_iso)
             .lte("datum", in_90_iso)
             .order("datum")
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("rokovi")
+            .select("id,naziv,datum,tip,predmet_id,opis")
+            .eq("user_id", uid)
+            .gte("datum", today_iso)
+            .lte("datum", in_7_iso)
+            .order("datum")
+            .limit(100)
             .execute()),
         return_exceptions=True,
     )
@@ -168,6 +182,10 @@ async def command_center(
     ]
 
     # 2. Rokovi 7 dana + hitni (<48h)
+    # Spojeno iz DVA izvora (nightly repair, 2026-07-24): predmet_hronologija
+    # (istorijski dogadjaji/rokovi) I rokovi tabela (ista koju čita AI
+    # Deadline Guardian, routers/zastarelost.py::guardian_scan) -- ranije se
+    # ovde prikazivao samo prvi izvor.
     rokovi_7 = [
         {
             "predmet_id":    h.get("predmet_id", ""),
@@ -175,9 +193,21 @@ async def command_center(
             "dogadjaj":      h.get("dogadjaj", ""),
             "datum_iso":     h.get("datum_iso", ""),
             "vaznost":       h.get("vaznost", ""),
+            "izvor":         "predmet_hronologija",
         }
         for h in _safe(rokovi_r)
+    ] + [
+        {
+            "predmet_id":    g.get("predmet_id", ""),
+            "predmet_naziv": pred_by_id.get(g.get("predmet_id", ""), {}).get("naziv", "—"),
+            "dogadjaj":      g.get("naziv", "") or g.get("opis", "") or "Rok",
+            "datum_iso":     g.get("datum", ""),
+            "vaznost":       g.get("tip", ""),
+            "izvor":         "rokovi",
+        }
+        for g in _safe(rokovi_tabela_r)
     ]
+    rokovi_7.sort(key=lambda r: r.get("datum_iso") or "9999")
     hitni_rokovi = [r for r in rokovi_7 if (r.get("datum_iso") or "9999") <= in_2_iso]
 
     # 3. Visok rizik + pad procene (from risk history)
@@ -341,8 +371,10 @@ async def matter_health_score(
 
     # Aktivnost: 0-25
     if _ok(bel_r) or _ok(kom_r):
-        score += 25
+        aktivnost_poeni = 25
+        score += aktivnost_poeni
     else:
+        aktivnost_poeni = 0
         razlozi.append("Nema aktivnosti (beleška/komentar) u poslednjih 7 dana")
 
     # Procena rizika: 0-25
@@ -406,7 +438,12 @@ async def matter_health_score(
         "status":     status,
         "razlozi":    razlozi,
         "faktori": {
-            "aktivnost":     min(25, score if score <= 25 else 25),
+            # FIX (nightly repair, 2026-07-24): ranije je ovde stajalo
+            # `min(25, score if score <= 25 else 25)` -- besmislena
+            # re-izvedena vrednost iz UKUPNOG skora, ne stvaran broj poena
+            # osvojen u koraku "Aktivnost" iznad. Sada prijavljuje stvarno
+            # osvojene poene (0 ili 25).
+            "aktivnost":     aktivnost_poeni,
             "dokumentacija": dok_count,
             "hitnih_rokova": len(hitni),
             "ima_rociste":   _ok(roc_r),
