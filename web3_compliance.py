@@ -8,7 +8,20 @@ from __future__ import annotations
 import logging
 import os
 
+from shared.llm_retry import llm_retry
+
 logger = logging.getLogger(__name__)
+
+
+@llm_retry
+def _pozovi_web3_api(client, **kwargs):
+    """Zajednički retry-zaštićen poziv za sve GPT-4o pozive u ovom fajlu.
+
+    CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške. Isti propust kao
+    strategija.py -- root-level fajl van routers/ nije bio obuhvaćen ranijim
+    sweep-ovima."""
+    return client.chat.completions.create(**kwargs)
 
 _WEB3_NAMESPACE = "web3_zdi_mca"
 _CARF_DAC8_NAMESPACE = "carf_dac8"
@@ -342,7 +355,8 @@ def web3_pretraga_sync(upit: str, api_key: str) -> str:
         chunks = []
 
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.05,
         max_tokens=2000,
@@ -402,7 +416,8 @@ def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> str:
         logger.warning("[WEB3] Compliance Pinecone neuspešna: %s", e)
 
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=2500,
@@ -423,7 +438,8 @@ def whitepaper_check_sync(tekst_whitepaper: str, api_key: str) -> str:
     """Analiza whitepapera po ZDI i MiCA zahtevima. Bez RAG — samo GPT-4o."""
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=2500,
@@ -490,7 +506,8 @@ skor_nivo: NIZAK (0-39), SREDNJI (40-69), VISOK (70-100)""" + _IZVOR_CITIRANJA_N
 def mica_readiness_score_sync(tekst_projekta: str, api_key: str) -> dict:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=1500,
@@ -545,7 +562,8 @@ POSEBNA PRAVILA — BARTER I RAZMENA:
 def zdi_license_checker_sync(opis_aktivnosti: str, api_key: str) -> dict:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=1000,
@@ -605,7 +623,8 @@ uskladenost_nivo: NIZAK (0-39), SREDNJI (40-69), VISOK (70-100)"""
 def aml_kyc_auditor_sync(tekst_politike: str, api_key: str) -> dict:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=1500,
@@ -675,7 +694,8 @@ Ne izmišljaj zakonske reference — ako pomeneš obavezu, formuliši je kao op�
 def documentation_health_score_sync(opis_dokumentacije: str, api_key: str) -> dict:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=1500,
@@ -733,7 +753,8 @@ advokata pre donošenja odluka."""
 def exchange_reporting_simulator_sync(opis_scenarija: str, api_key: str) -> str:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=1500,
@@ -875,7 +896,8 @@ def carf_dac8_readiness_sync(upit: str, api_key: str) -> str:
         chunks = []
 
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.05,
         max_tokens=2000,
@@ -1012,7 +1034,8 @@ def jurisdikcija_analiza_sync(pitanje: str, api_key: str) -> str:
 
     client = _OAI(api_key=api_key)
     podaci_tekst = _json.dumps(CARF_JURISDIKCIJE, ensure_ascii=False, indent=1)
-    resp = client.chat.completions.create(
+    resp = _pozovi_web3_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=1200,

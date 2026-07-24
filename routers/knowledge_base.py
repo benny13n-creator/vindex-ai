@@ -38,12 +38,40 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.knowledge_base")
 router = APIRouter(tags=["knowledge_base"])
+
+
+@llm_retry
+def _pozovi_kb_embed_api(oai, text: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return oai.embeddings.create(model="text-embedding-3-large", input=text[:8000])
+
+
+@llm_retry
+def _pozovi_kb_tag_api(oai, naslov: str, sadrzaj: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return oai.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{
+            "role": "user",
+            "content": (
+                "Predloži tačno 3 kratka taga (1-2 reči svaki) za ovu pravnu belešku. "
+                "Odgovori SAMO kao JSON lista stringova, bez objašnjenja.\n\n"
+                f"Naslov: {naslov}\nSadržaj: {sadrzaj[:400]}"
+            ),
+        }],
+        max_tokens=60,
+        temperature=0.3,
+    )
 
 
 # ── Pinecone / OpenAI helpers ─────────────────────────────────────────────────
@@ -61,12 +89,7 @@ def _get_oai():
 
 async def _kb_embed(text: str) -> list[float]:
     oai = _get_oai()
-    resp = await asyncio.to_thread(
-        lambda: oai.embeddings.create(
-            model="text-embedding-3-large",
-            input=text[:8000],
-        )
-    )
+    resp = await asyncio.to_thread(_pozovi_kb_embed_api, oai, text)
     return resp.data[0].embedding
 
 
@@ -95,6 +118,7 @@ async def _kb_embed_and_upsert(
         )
         logger.info("[KNOWLEDGE] Pinecone upsert ok: kb_%s_%s", uid[:8], beleska_id)
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[KNOWLEDGE] Pinecone upsert greška: %s", e)
 
 
@@ -102,27 +126,14 @@ async def _kb_auto_tag(sadrzaj: str, naslov: str) -> list[str]:
     """GPT-4o-mini predlaže 3 taga za belešku."""
     try:
         oai = _get_oai()
-        resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{
-                    "role": "user",
-                    "content": (
-                        "Predloži tačno 3 kratka taga (1-2 reči svaki) za ovu pravnu belešku. "
-                        "Odgovori SAMO kao JSON lista stringova, bez objašnjenja.\n\n"
-                        f"Naslov: {naslov}\nSadržaj: {sadrzaj[:400]}"
-                    ),
-                }],
-                max_tokens=60,
-                temperature=0.3,
-            )
-        )
+        resp = await asyncio.to_thread(_pozovi_kb_tag_api, oai, naslov, sadrzaj)
         raw = resp.choices[0].message.content.strip()
         # Ukloni eventualne markdown ```json blokove
         raw = raw.replace("```json", "").replace("```", "").strip()
         tags = json.loads(raw)
         return [str(t).strip()[:30] for t in tags[:3]] if isinstance(tags, list) else []
-    except Exception:
+    except Exception as e:
+        _sentry_capture(e)
         return []
 
 
@@ -173,6 +184,7 @@ async def knowledge_save(
         )
         entry_id = r.data[0]["id"] if r.data else None
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("[KNOWLEDGE] Greška čuvanja beleške: %s", exc)
         raise HTTPException(
             status_code=500,
@@ -237,6 +249,7 @@ async def knowledge_search(
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[KNOWLEDGE] Search greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri pretraživanju.")
 
@@ -269,6 +282,7 @@ async def knowledge_list(
         r = await asyncio.to_thread(lambda: q.execute())
         beleske = r.data or []
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[KNOWLEDGE] Greška listanja beleški: %s", exc)
         return {
             "beleske": [],
@@ -315,6 +329,7 @@ async def knowledge_update(
     except HTTPException:
         raise
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("[KNOWLEDGE] Greška ažuriranja: %s", exc)
         raise HTTPException(status_code=500, detail="Greška pri ažuriranju beleške.")
 
@@ -357,6 +372,7 @@ async def knowledge_delete(
     except HTTPException:
         raise
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("[KNOWLEDGE] Greška brisanja beleške: %s", exc)
         raise HTTPException(status_code=500, detail="Greška pri brisanju beleške.")
 
@@ -371,6 +387,7 @@ async def knowledge_delete(
                 )
             )
         except Exception as e:
+            _sentry_capture(e)
             logger.warning("[KNOWLEDGE] Pinecone delete greška: %s", e)
 
     asyncio.create_task(_delete_from_pinecone())

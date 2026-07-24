@@ -28,12 +28,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.knowledge_transfer")
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge_transfer"])
+
+
+@llm_retry
+async def _pozovi_kt_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(**kwargs)
 
 # ─── Prompts ──────────────────────────────────────────────────────────────────
 
@@ -293,7 +302,8 @@ async def pokreni_ekstrakciju(request: Request, profil_id: str, user=Depends(Per
         import openai
         client = openai.AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        resp = await client.chat.completions.create(
+        resp = await _pozovi_kt_api(
+            client,
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": _EKSTRAKCIJA_SYSTEM},
@@ -334,6 +344,7 @@ async def pokreni_ekstrakciju(request: Request, profil_id: str, user=Depends(Per
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("pokreni_ekstrakciju: %s", e)
         raise HTTPException(500, str(e))
 
@@ -376,7 +387,8 @@ async def upitaj_znanje(request: Request, profil_id: str, body: UpitRequest, use
         if body.kontekst:
             user_msg += f"\n\nKONTEKST PREDMETA:\n{body.kontekst}"
 
-        resp = await client.chat.completions.create(
+        resp = await _pozovi_kt_api(
+            client,
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": _UPIT_SYSTEM},
@@ -412,6 +424,7 @@ async def upitaj_znanje(request: Request, profil_id: str, body: UpitRequest, use
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("upitaj_znanje: %s", e)
         raise HTTPException(500, str(e))
 

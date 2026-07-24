@@ -23,12 +23,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.learning")
 router = APIRouter(prefix="/api/learning", tags=["learning"])
+
+
+@llm_retry
+def _pozovi_learning_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(**kwargs)
 
 # ─── Konstante ────────────────────────────────────────────────────────────────
 
@@ -450,22 +459,23 @@ async def slicni_predmeti(
         from openai import OpenAI
         oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0.1,
-                max_tokens=600,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": "Vraćaš SAMO JSON objekat sa ključem 'rezultati' koji sadrži niz. Ekavica."},
-                    {"role": "user",   "content": prompt},
-                ],
-            )
+            _pozovi_learning_api,
+            oai,
+            model="gpt-4o-mini",
+            temperature=0.1,
+            max_tokens=600,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": "Vraćaš SAMO JSON objekat sa ključem 'rezultati' koji sadrži niz. Ekavica."},
+                {"role": "user",   "content": prompt},
+            ],
         )
         raw = json.loads(resp.choices[0].message.content or "{}")
         rangirani = raw.get("rezultati") or raw.get("slicni") or []
         if isinstance(rangirani, dict):
             rangirani = list(rangirani.values())
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[LEARNING] GPT sličnost greška: %s", e)
         # Fallback: vrati prvih 5 istog tipa
         rangirani = [
@@ -635,28 +645,29 @@ async def performance_report(
             from openai import OpenAI
             oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
             resp = await asyncio.to_thread(
-                lambda: oai.chat.completions.create(
-                    model="gpt-4o-mini",
-                    temperature=0.3,
-                    max_tokens=400,
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                "Analiziraš statistiku advokatske kancelarije i daješ uvide. "
-                                "Vrati JSON: {\"uvid\": \"...\", \"preporuke\": [\"...\", \"...\", \"...\"]}. "
-                                "uvid max 150 reči. preporuke: 3 konkretne akcije. Ekavica strogo."
-                            ),
-                        },
-                        {"role": "user", "content": ctx},
-                    ],
-                )
+                _pozovi_learning_api,
+                oai,
+                model="gpt-4o-mini",
+                temperature=0.3,
+                max_tokens=400,
+                response_format={"type": "json_object"},
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Analiziraš statistiku advokatske kancelarije i daješ uvide. "
+                            "Vrati JSON: {\"uvid\": \"...\", \"preporuke\": [\"...\", \"...\", \"...\"]}. "
+                            "uvid max 150 reči. preporuke: 3 konkretne akcije. Ekavica strogo."
+                        ),
+                    },
+                    {"role": "user", "content": ctx},
+                ],
             )
             parsed = json.loads(resp.choices[0].message.content or "{}")
             ai_uvid   = parsed.get("uvid", "")
             preporuke = parsed.get("preporuke", [])
         except Exception as e:
+            _sentry_capture(e)
             logger.warning("[LEARNING] GPT performance report greška: %s", e)
             ai_uvid = f"Na osnovu {ukupno} zatvorenih predmeta, globalni win rate je {win_rate_total}%."
         else:

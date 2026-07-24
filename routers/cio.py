@@ -21,8 +21,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.cio")
@@ -166,6 +168,22 @@ def _kompaktan_predmet(p: dict, danas: date) -> Optional[dict]:
     }
 
 
+@llm_retry
+async def _pozovi_cio_api(client, user_msg: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _CIO_SYSTEM},
+            {"role": "user",   "content": user_msg[:14000]},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.15,
+        max_tokens=2500,
+    )
+
+
 async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
     """Skenira kompletni portfelj i generise dnevni CIO izvestaj."""
     danas = date.today()
@@ -264,20 +282,12 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
 
     import openai
     client = openai.AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    resp = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": _CIO_SYSTEM},
-            {"role": "user",   "content": user_msg[:14000]},
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.15,
-        max_tokens=2500,
-    )
+    resp = await _pozovi_cio_api(client, user_msg)
 
     try:
         izvestaj = json.loads(resp.choices[0].message.content or "{}")
-    except Exception:
+    except Exception as _je:
+        _sentry_capture(_je)
         izvestaj = {}
 
     # Deterministicke statistike (ne GPT)
@@ -344,6 +354,7 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
     try:
         izvestaj = await _generiši_cio_izvestaj(uid, supa)
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[CIO] daily greška: %s", e)
         raise HTTPException(500, f"CIO greška: {e}")
 
@@ -384,6 +395,7 @@ async def cio_run(request: Request, user=Depends(PermissionService.require("cio"
     try:
         izvestaj = await _generiši_cio_izvestaj(uid, supa)
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[CIO] run greška: %s", e)
         raise HTTPException(500, f"CIO greška: {e}")
 

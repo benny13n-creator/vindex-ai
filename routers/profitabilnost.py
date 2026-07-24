@@ -30,12 +30,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.profitabilnost")
 router = APIRouter(prefix="/api/profitabilnost", tags=["profitabilnost"])
+
+
+@llm_retry
+async def _pozovi_profit_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(**kwargs)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -110,7 +119,8 @@ async def _ai_profitabilnost_preporuka(
         "pošaljite fakturu klijentu do kraja nedelje. Razmotrite podizanje satnice za ovaj tip predmeta.'"
     )
 
-    resp = await oai.chat.completions.create(
+    resp = await _pozovi_profit_api(
+        oai,
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=120,
@@ -333,7 +343,8 @@ async def profitabilnost_ai_analiza(
     try:
         from openai import AsyncOpenAI
         oai = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_profit_api(
+            oai,
             model="gpt-4o-mini",
             temperature=0.3,
             max_tokens=500,
@@ -353,6 +364,7 @@ async def profitabilnost_ai_analiza(
         )
         analiza = resp.choices[0].message.content.strip()
     except Exception as e:
+        _sentry_capture(e)
         analiza = f"Greška pri AI analizi: {e}"
 
     return {

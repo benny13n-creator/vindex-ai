@@ -29,12 +29,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.memory_graph")
 router = APIRouter(prefix="/api/memory-graph", tags=["memory-graph"])
+
+
+@llm_retry
+async def _pozovi_mg_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(**kwargs)
 
 _VALID_TYPES    = {"partner", "klijent", "sudija", "predmet", "argument", "strategija"}
 _VALID_RELACIJE = {"koristio_argument", "pobedio_pred", "izgubio_pred",
@@ -246,7 +255,8 @@ async def graph_upit(
 
         from openai import AsyncOpenAI
         oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_mg_api(
+            oai,
             model="gpt-4o-mini",
             temperature=0.2,
             max_tokens=600,
@@ -279,6 +289,7 @@ async def graph_upit(
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -351,7 +362,8 @@ async def graf_preporuka(
 
         from openai import AsyncOpenAI
         oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_mg_api(
+            oai,
             model="gpt-4o-mini",
             temperature=0.3,
             max_tokens=500,
@@ -388,4 +400,5 @@ async def graf_preporuka(
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         raise HTTPException(status_code=500, detail=str(e))

@@ -30,8 +30,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.client_twin")
@@ -131,6 +133,21 @@ async def _get_klijent_materijali(supa, klijent_id: str, user_id: str) -> dict:
         logger.warning("_get_klijent_materijali: %s", e)
         return {"klijent": {}, "predmeti": [], "beleske": []}
 
+@llm_retry
+async def _pozovi_twin_api(client, materijal_tekst: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _KOMUNIKACIJA_SYSTEM},
+            {"role": "user", "content": materijal_tekst[:8000]}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.2,
+    )
+
+
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/{klijent_id}/analiziraj")
@@ -168,15 +185,7 @@ async def analiziraj_komunikacioni_profil(request: Request, klijent_id: str, use
         import openai
         client = openai.AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": _KOMUNIKACIJA_SYSTEM},
-                {"role": "user", "content": materijal_tekst[:8000]}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.2,
-        )
+        resp = await _pozovi_twin_api(client, materijal_tekst)
 
         profil = json.loads(resp.choices[0].message.content)
 
@@ -222,6 +231,7 @@ async def analiziraj_komunikacioni_profil(request: Request, klijent_id: str, use
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("analiziraj_komunikacioni_profil: %s", e)
         raise HTTPException(500, str(e))
 

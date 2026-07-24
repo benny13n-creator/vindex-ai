@@ -5,6 +5,26 @@ Vindex AI — routers/integracije.py
 Phase 5.5: API za spoljne integracije (Clio, iManage).
 Svi /v1/* endpointi — autentifikacija via X-Vindex-Key header (API ključ).
 Webhook endpointi za Clio i iManage — HMAC/shared-secret validacija.
+
+CELINA 4 (2026-07-24) — webhook duplikacija, dokumentovano ne spojeno:
+Ovaj fajl (F3.7 "Korisnički webhook sistem" ispod, /api/webhooks/*) i
+routers/integrations.py (/api/integrations/webhook/*) su DVA nezavisna,
+potpuno neisprepletena outbound-webhook sistema:
+  - Ova implementacija: tabela `user_webhooks`, dot-notation eventi
+    (_DOZVOLJENI_EVENTI), klijent bira svoj secret, sync urllib.request
+    poziv (asyncio.to_thread), trigger_webhook(event, user_id, data).
+  - integrations.py: tabela `webhooks`, snake_case eventi + "sve" wildcard,
+    server generiše kriptografski secret (secrets.token_hex), native async
+    httpx poziv, trigger_webhook(user_id, event, data) -- OBRNUT REDOSLED
+    ARGUMENATA u odnosu na ovaj fajl, isto ime funkcije.
+Obe trigger_webhook funkcije imaju NULA pozivalaca u celoj bazi koda
+(proveri grep) -- ni jedan registrovan webhook trenutno nikad ne dobija
+event. Nisu spojene jer bi to zahtevalo biranje jedne tabele kao kanonske
+(nepoznat broj postojećih redova u produkciji u obe tabele) -- to je
+namerna odluka da se ne dira baza bez vidljivosti u production podatke,
+isti princip kao VINDEX_CORE_CONSOLIDATION.md Sec 1.4 (drafting). Ako se
+ikad poveže stvaran caller, tada mora biti eksplicitna odluka koja tabela
+i koji potpis funkcije preživljava -- ne tiho importovanje pogrešne.
 """
 from __future__ import annotations
 
@@ -23,7 +43,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 
 logger = logging.getLogger("vindex.integracije")
 router = APIRouter(tags=["integracije"])
@@ -93,10 +115,11 @@ def _retrieve(pitanje: str, k: int = 8):
     return retrieve_documents(pitanje, k=k)
 
 
-def _gpt_analyze(system_prompt: str, user_content: str) -> str:
-    from openai import OpenAI
-    client = OpenAI()
-    resp = client.chat.completions.create(
+@llm_retry
+def _pozovi_integracije_api(client, system_prompt: str, user_content: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(
         model="gpt-4o",
         temperature=0.1,
         max_tokens=1500,
@@ -105,6 +128,12 @@ def _gpt_analyze(system_prompt: str, user_content: str) -> str:
             {"role": "user",    "content": user_content},
         ],
     )
+
+
+def _gpt_analyze(system_prompt: str, user_content: str) -> str:
+    from openai import OpenAI
+    client = OpenAI()
+    resp = _pozovi_integracije_api(client, system_prompt, user_content)
     return resp.choices[0].message.content.strip()
 
 
@@ -190,6 +219,7 @@ async def post_v1_analyze(request: Request, req: AnalyzeReq):
     try:
         result = await asyncio.to_thread(_run_analyze_sync, req.pitanje)
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("v1/analyze error: %s", exc)
         raise HTTPException(status_code=503, detail="Greška u analizi — pokušajte ponovo.")
 
@@ -350,7 +380,12 @@ def _slanje_webhook_sync(url: str, payload: str, secret: Optional[str]) -> None:
 
 
 async def trigger_webhook(event: str, user_id: str, data: dict) -> None:
-    """Šalje webhook notifikaciju svim aktivnim registrovanim endpointima."""
+    """Šalje webhook notifikaciju svim aktivnim registrovanim endpointima.
+
+    NAPOMENA (CELINA 4, 2026-07-24): postoji i routers.integrations.trigger_webhook
+    sa OBRNUTIM redosledom argumenata (user_id, event, data) i drugom tabelom
+    (`webhooks`, ne `user_webhooks`). Ne mešati -- v. docstring modula na vrhu
+    ovog fajla."""
     supa = _get_supa()
     try:
         r = await asyncio.to_thread(

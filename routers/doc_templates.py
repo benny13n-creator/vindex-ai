@@ -35,14 +35,31 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.rate import limiter
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.doc_templates")
 router = APIRouter(prefix="/api/doc-templates", tags=["doc_templates"])
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+
+@llm_retry
+async def _pozovi_doc_template_api(oai, system: str, prompt: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": prompt},
+        ],
+        temperature=0.3,
+        max_tokens=2000,
+    )
 
 
 # ─── Šabloni ──────────────────────────────────────────────────────────────────
@@ -166,17 +183,10 @@ async def generisi_dokument(
     try:
         from openai import AsyncOpenAI
         oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
-        resp = await oai.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user",   "content": prompt},
-            ],
-            temperature=0.3,
-            max_tokens=2000,
-        )
+        resp = await _pozovi_doc_template_api(oai, system, prompt)
         tekst = (resp.choices[0].message.content or "").strip()
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[DOC-TPL] OpenAI greška: %s", e)
         raise HTTPException(status_code=502, detail="Generisanje dokumenta trenutno nije dostupno.")
 
@@ -216,5 +226,6 @@ async def sacuvaj_dokument(
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[DOC-TPL] čuvanje greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri čuvanju dokumenta.")

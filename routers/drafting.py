@@ -55,6 +55,17 @@ router = APIRouter()
 _MAX_PLAYBOOK_BYTES = 2 * 1024 * 1024  # 2 MB
 
 
+@llm_retry
+def _pozovi_drafting_api(client, **kwargs):
+    """Zajednički retry-zaštićen poziv za sync OpenAI pozive u ovom fajlu
+    (sazmi, podnesak ekstrakcija/obogaćivanje).
+
+    CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške.
+    """
+    return client.chat.completions.create(**kwargs)
+
+
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class NacrtReq(BaseModel):
@@ -488,15 +499,15 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(Permission
         # trajanje OpenAI poziva -- ostala 3 poziva u ovom fajlu (linije ~443,
         # 458, 507) su već ispravno await asyncio.to_thread(...)-ovana.
         resp = await asyncio.to_thread(
-            lambda: client.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0.3,
-                max_tokens=600,
-                messages=[
-                    {"role": "system", "content": klijent_prompt},
-                    {"role": "user",   "content": _skini_pii(req.odgovor[:4000])},
-                ],
-            )
+            _pozovi_drafting_api,
+            client,
+            model="gpt-4o-mini",
+            temperature=0.3,
+            max_tokens=600,
+            messages=[
+                {"role": "system", "content": klijent_prompt},
+                {"role": "user",   "content": _skini_pii(req.odgovor[:4000])},
+            ],
         )
         tekst = resp.choices[0].message.content.strip()
         await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
@@ -576,30 +587,30 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
 
     try:
         ekstr_resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0,
-                max_tokens=900,
-                messages=[
-                    {"role": "system", "content": ekstr_prompt},
-                    {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}{sud_ctx}"},
-                ],
-            )
+            _pozovi_drafting_api,
+            oai,
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=900,
+            messages=[
+                {"role": "system", "content": ekstr_prompt},
+                {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}{sud_ctx}"},
+            ],
         )
         raw_json = (ekstr_resp.choices[0].message.content or "").strip()
         entiteti: dict = _parse_json_safe(raw_json)
         if not entiteti:
             logger.warning("Ekstrakcija vratila prazan JSON [q=%s] — retry sa gpt-4o", log_id)
             ekstr_resp2 = await asyncio.to_thread(
-                lambda: oai.chat.completions.create(
-                    model="gpt-4o",
-                    temperature=0,
-                    max_tokens=900,
-                    messages=[
-                        {"role": "system", "content": ekstr_prompt},
-                        {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}\n\nVrati ISKLJUČIVO validan JSON objekat, bez ikakvog drugog teksta."},
-                    ],
-                )
+                _pozovi_drafting_api,
+                oai,
+                model="gpt-4o",
+                temperature=0,
+                max_tokens=900,
+                messages=[
+                    {"role": "system", "content": ekstr_prompt},
+                    {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}\n\nVrati ISKLJUČIVO validan JSON objekat, bez ikakvog drugog teksta."},
+                ],
             )
             entiteti = _parse_json_safe(ekstr_resp2.choices[0].message.content or "")
     except Exception as exc:
@@ -643,15 +654,15 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
     )
     try:
         obog_resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                temperature=0,
-                max_tokens=2500,
-                messages=[
-                    {"role": "system", "content": obog_prompt},
-                    {"role": "user",   "content": obog_user},
-                ],
-            )
+            _pozovi_drafting_api,
+            oai,
+            model="gpt-4o",
+            temperature=0,
+            max_tokens=2500,
+            messages=[
+                {"role": "system", "content": obog_prompt},
+                {"role": "user",   "content": obog_user},
+            ],
         )
         raw_obog = (obog_resp.choices[0].message.content or "").strip()
         raw_obog = raw_obog.removeprefix("```json").removeprefix("```").removesuffix("```").strip()

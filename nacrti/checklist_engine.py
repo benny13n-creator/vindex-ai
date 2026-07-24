@@ -30,9 +30,27 @@ import json
 import logging
 from openai import OpenAI
 from nacrti.checklist_config import get_config, ChecklistElement
+from shared.llm_retry import llm_retry
+from shared.sentry import capture_exception as _sentry_capture
 
 logger = logging.getLogger(__name__)
 _client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+
+
+@llm_retry
+def _pozovi_checklist_api(system: str, prompt: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return _client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        max_tokens=512,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+    )
 
 _SYSTEM = (
     "Ti si pravni asistent koji analizira da li su određeni elementi navedeni u tekstu. "
@@ -78,19 +96,11 @@ def analiziraj_checklist(tip: str, cinjenice: str) -> dict:
     prompt = _build_user_prompt(cinjenice.strip(), elementi)
 
     try:
-        resp = _client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0,
-            max_tokens=512,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _SYSTEM},
-                {"role": "user", "content": prompt},
-            ],
-        )
+        resp = _pozovi_checklist_api(_SYSTEM, prompt)
         raw = resp.choices[0].message.content or "{}"
         gpt_result = json.loads(raw)
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("checklist_engine GPT error: %s", exc)
         raise RuntimeError(f"GPT poziv nije uspeo: {exc}") from exc
 

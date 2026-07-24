@@ -5,6 +5,21 @@ Sve funkcije su sinhroni pozivi — pozivaju se preko asyncio.to_thread u api.py
 """
 from __future__ import annotations
 
+from shared.llm_retry import llm_retry
+
+
+@llm_retry
+def _pozovi_strategija_api(client, **kwargs):
+    """Zajednički retry-zaštićen poziv za sve GPT-4o pozive u ovom fajlu.
+
+    CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške. Ovaj fajl je
+    imao 12 direktnih .completions.create() poziva bez ikakve retry zaštite
+    (najveća koncentracija pronađena u globalnoj proveri) -- propušten iz
+    ranijih sweep-ova jer je strategija.py fajl u root-u projekta, ne
+    routers/strategija.py (koji samo poziva ove funkcije preko asyncio.to_thread)."""
+    return client.chat.completions.create(**kwargs)
+
 # ── Sistemski promptovi ───────────────────────────────────────────────────────
 
 _RED_TEAM_SYSTEM = """Ti si iskusan advokat koji zastupa SUPROTNU stranu u predmetu.
@@ -192,7 +207,8 @@ def red_team_analiza_sync(opis_predmeta: str, api_key: str, pinecone_context: st
     system_prompt = _RED_TEAM_PROMPTS.get(tip_postupka.lower(), _RED_TEAM_SYSTEM)
     ctx_block = f"\nRelevantna sudska praksa i zakonski kontekst iz baze:\n{pinecone_context}\n" if pinecone_context else ""
     tip_label = tip_postupka.upper() if tip_postupka else "GRAĐANSKO"
-    resp = client.chat.completions.create(
+    resp = _pozovi_strategija_api(
+        client,
         model="gpt-4o",
         temperature=0.3,
         max_tokens=2500,
@@ -209,7 +225,8 @@ def litigation_simulator_sync(opis_predmeta: str, api_key: str, pinecone_context
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
     ctx_block = f"\nRelevantna sudska praksa iz baze:\n{pinecone_context}\n" if pinecone_context else ""
-    resp = client.chat.completions.create(
+    resp = _pozovi_strategija_api(
+        client,
         model="gpt-4o",
         temperature=0.2,
         max_tokens=2000,
@@ -226,7 +243,8 @@ def ai_judge_mode_sync(opis_predmeta: str, api_key: str, pinecone_context: str =
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
     ctx_block = f"\nRelevantna sudska praksa iz baze (uzeti u obzir pri analizi):\n{pinecone_context}\n" if pinecone_context else ""
-    resp = client.chat.completions.create(
+    resp = _pozovi_strategija_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=2000,
@@ -243,7 +261,8 @@ def due_diligence_analiza_sync(tekst_dokumenta: str, api_key: str, pinecone_cont
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
     ctx_block = f"\nRELEVANTNI ZAKONI IZ BAZE (citiraj konkretne odredbe):\n{pinecone_context}\n" if pinecone_context else ""
-    resp = client.chat.completions.create(
+    resp = _pozovi_strategija_api(
+        client,
         model="gpt-4o",
         temperature=0.1,
         max_tokens=2800,
@@ -281,7 +300,8 @@ Ne teorišite — daj gotove formulacije za izmene."""
 def pravni_revizor_sync(tekst_dokumenta: str, api_key: str) -> str:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_strategija_api(
+        client,
         model="gpt-4o",
         temperature=0.15,
         max_tokens=2500,
@@ -325,7 +345,8 @@ Budi konkretan — citiraj tačne delove iskaza (u navodnicima) kad identifikuje
 def witness_analyzer_sync(tekst_iskaza: str, api_key: str) -> str:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
-    resp = client.chat.completions.create(
+    resp = _pozovi_strategija_api(
+        client,
         model="gpt-4o",
         temperature=0.2,
         max_tokens=2500,
@@ -391,7 +412,8 @@ def ai_judge_v2_sync(opis_predmeta: str, api_key: str) -> dict:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
 
-    r1 = client.chat.completions.create(
+    r1 = _pozovi_strategija_api(
+        client,
         model="gpt-4o", temperature=0.3, max_tokens=1500, timeout=90.0,
         messages=[
             {"role": "system", "content": _JUDGE_V2_TUZILAC},
@@ -400,7 +422,8 @@ def ai_judge_v2_sync(opis_predmeta: str, api_key: str) -> dict:
     )
     tuzilac = (r1.choices[0].message.content or "").strip()
 
-    r2 = client.chat.completions.create(
+    r2 = _pozovi_strategija_api(
+        client,
         model="gpt-4o", temperature=0.3, max_tokens=1500, timeout=90.0,
         messages=[
             {"role": "system", "content": _JUDGE_V2_BRANILAC},
@@ -412,7 +435,8 @@ def ai_judge_v2_sync(opis_predmeta: str, api_key: str) -> dict:
     )
     branilac = (r2.choices[0].message.content or "").strip()
 
-    r3 = client.chat.completions.create(
+    r3 = _pozovi_strategija_api(
+        client,
         model="gpt-4o", temperature=0.1, max_tokens=2000, timeout=120.0,
         messages=[
             {"role": "system", "content": _JUDGE_V2_PRESUDA},
@@ -593,7 +617,8 @@ def orkestrator_kompletna_analiza_sync(
     client = _OAI(api_key=api_key)
 
     def _gpt_json(system: str, user: str, temperature: float = 0.2, max_tokens: int = 2000) -> dict:
-        resp = client.chat.completions.create(
+        resp = _pozovi_strategija_api(
+        client,
             model="gpt-4o",
             temperature=temperature,
             max_tokens=max_tokens,
@@ -617,7 +642,8 @@ def orkestrator_kompletna_analiza_sync(
             return {"error": "JSON decode failed", "raw": raw[:300], "confidence": "NISKA", "summary": "Korak nije vratio validan JSON."}
 
     def _gpt_text(system: str, user: str, temperature: float = 0.3, max_tokens: int = 1500) -> str:
-        resp = client.chat.completions.create(
+        resp = _pozovi_strategija_api(
+        client,
             model="gpt-4o",
             temperature=temperature,
             max_tokens=max_tokens,

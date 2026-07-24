@@ -23,12 +23,29 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.case_intelligence")
 router = APIRouter(prefix="/api/intelligence", tags=["case_intelligence"])
+
+
+@llm_retry
+async def _pozovi_briefing_api(client, context_text: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _BRIEFING_SYSTEM},
+            {"role": "user", "content": context_text[:10000]}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.2,
+    )
 
 # ─── Prompt ───────────────────────────────────────────────────────────────────
 
@@ -319,15 +336,7 @@ async def case_intelligence_briefing(request: Request, predmet_id: str, user=Dep
         import openai
         client = openai.AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": _BRIEFING_SYSTEM},
-                {"role": "user", "content": context_text[:10000]}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.2,
-        )
+        resp = await _pozovi_briefing_api(client, context_text)
 
         briefing = json.loads(resp.choices[0].message.content)
 
@@ -369,6 +378,7 @@ async def case_intelligence_briefing(request: Request, predmet_id: str, user=Dep
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("case_intelligence_briefing: %s", e)
         raise HTTPException(500, str(e))
 

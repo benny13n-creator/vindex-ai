@@ -16,7 +16,18 @@ from __future__ import annotations
 import logging
 import re
 
+from shared.llm_retry import llm_retry
+from shared.sentry import capture_exception as _sentry_capture
+
 logger = logging.getLogger("vindex.intake_classify")
+
+
+@llm_retry
+async def _pozovi_classify_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške (nezavisno od
+    postojeće 3x JSON-parse retry petlje ispod, koja rešava drugi problem)."""
+    return await oai.chat.completions.create(**kwargs)
 
 DOCUMENT_TYPES = (
     "lawsuit", "response", "appeal", "judgment", "contract", "invoice",
@@ -82,7 +93,8 @@ async def classify_llm(text: str) -> tuple[str, float]:
 
     for attempt in range(3):
         try:
-            r = await oai.chat.completions.create(
+            r = await _pozovi_classify_api(
+                oai,
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": _LLM_SYSTEM},
@@ -103,6 +115,7 @@ async def classify_llm(text: str) -> tuple[str, float]:
         except (json.JSONDecodeError, ValueError) as e:
             logger.warning("[INTAKE_CLASSIFY] parse greška (pokušaj %d/3): %s", attempt + 1, e)
         except Exception as e:
+            _sentry_capture(e)
             logger.error("[INTAKE_CLASSIFY] OpenAI greška: %s", e)
             return "other", 0.0
     logger.error("[INTAKE_CLASSIFY] LLM klasifikacija neuspešna posle 3 pokušaja — 'other' sa confidence=0.")

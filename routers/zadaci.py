@@ -34,12 +34,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.zadaci")
 router = APIRouter(prefix="/api/zadaci", tags=["zadaci"])
+
+
+@llm_retry
+async def _pozovi_zadaci_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(**kwargs)
 
 _VALIDNI_STATUSI  = {"otvoreno", "u_toku", "ceka", "zavrseno", "otkazano"}
 _VALIDNI_PRIORITETI = {"hitno", "visoko", "normalan", "nisko"}
@@ -556,7 +565,8 @@ async def ai_analiziraj_predmet(
     try:
         from openai import AsyncOpenAI
         oai = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_zadaci_api(
+            oai,
             model="gpt-4o-mini",
             temperature=0.2,
             max_tokens=600,
@@ -582,6 +592,7 @@ async def ai_analiziraj_predmet(
         parsed = json.loads(raw)
         ai_zadaci = parsed if isinstance(parsed, list) else parsed.get("zadaci", [])
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[ZADACI_AI] AI analiza nije uspela: %s", e)
         # Fallback: heuristički zadaci
         ai_zadaci = []

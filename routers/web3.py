@@ -27,7 +27,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _audit, _get_supa
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 from shared.rate import limiter
 from web3_compliance import (
@@ -68,7 +70,8 @@ async def post_web3_pretraga(req: StrategijaRequest, request: Request, user: dic
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "web3_pretraga", "credits_remaining": max(preostalo, 0)}
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] web3_pretraga greška")
         raise HTTPException(status_code=500, detail="Greška pri pretrazi ZDI/MiCA baze. Pokušajte ponovo.")
 
@@ -86,7 +89,8 @@ async def post_compliance_check(req: StrategijaRequest, request: Request, user: 
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "compliance_check", "credits_remaining": max(preostalo, 0)}
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] compliance_check greška")
         raise HTTPException(status_code=500, detail="Greška pri compliance analizi. Pokušajte ponovo.")
 
@@ -104,7 +108,8 @@ async def post_whitepaper_check(req: StrategijaRequest, request: Request, user: 
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_whitepaper_analysis")
         return {"rezultat": rezultat, "modul": "whitepaper_check", "credits_remaining": max(preostalo, 0)}
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] whitepaper_check greška")
         raise HTTPException(status_code=500, detail="Greška pri analizi whitepapera. Pokušajte ponovo.")
 
@@ -127,7 +132,8 @@ async def post_mica_score(req: StrategijaRequest, request: Request, user: dict =
             "modul": "mica_score",
             "credits_remaining": max(preostalo, 0),
         }
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] mica_score greška")
         raise HTTPException(status_code=500, detail="Greška pri MiCA scoring analizi. Pokušajte ponovo.")
 
@@ -150,7 +156,8 @@ async def post_license_check(req: StrategijaRequest, request: Request, user: dic
             "modul": "license_check",
             "credits_remaining": max(preostalo, 0),
         }
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] license_check greška")
         raise HTTPException(status_code=500, detail="Greška pri proveri licence. Pokušajte ponovo.")
 
@@ -173,7 +180,8 @@ async def post_aml_audit(req: StrategijaRequest, request: Request, user: dict = 
             "modul": "aml_audit",
             "credits_remaining": max(preostalo, 0),
         }
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] aml_audit greška")
         raise HTTPException(status_code=500, detail="Greška pri AML/KYC auditu. Pokušajte ponovo.")
 
@@ -196,7 +204,8 @@ async def post_documentation_health_score(req: StrategijaRequest, request: Reque
             "modul": "health_score",
             "credits_remaining": max(preostalo, 0),
         }
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] health_score greška")
         raise HTTPException(status_code=500, detail="Greška pri proceni spremnosti dokumentacije. Pokušajte ponovo.")
 
@@ -214,7 +223,8 @@ async def post_reporting_simulator(req: StrategijaRequest, request: Request, use
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_reporting_simulator")
         return {"rezultat": rezultat, "modul": "reporting_simulator", "credits_remaining": max(preostalo, 0)}
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] reporting_simulator greška")
         raise HTTPException(status_code=500, detail="Greška pri simulaciji izveštavanja. Pokušajte ponovo.")
 
@@ -232,7 +242,8 @@ async def post_carf_dac8_readiness(req: StrategijaRequest, request: Request, use
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "carf_dac8_readiness", "credits_remaining": max(preostalo, 0)}
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] carf_dac8_readiness greška")
         raise HTTPException(status_code=500, detail="Greška pri CARF/DAC8 analizi. Pokušajte ponovo.")
 
@@ -257,7 +268,8 @@ async def post_jurisdikcija_analiza(req: StrategijaRequest, request: Request, us
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "jurisdikcija_analiza", "credits_remaining": max(preostalo, 0)}
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F11] jurisdikcija_analiza greška")
         raise HTTPException(status_code=500, detail="Greška pri analizi jurisdikcije. Pokušajte ponovo.")
 
@@ -535,7 +547,10 @@ async def post_analiziraj_ugovor(
         f"--- POČETAK KODA ---\n{source}\n--- KRAJ KODA ---"
     )
 
+    @llm_retry
     def _call_gpt(messages):
+        """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+        backoff-om za rate-limit/5xx/timeout/connection greške."""
         from openai import OpenAI as _OAI
         client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
         resp = client.chat.completions.create(
@@ -563,7 +578,8 @@ async def post_analiziraj_ugovor(
             {"role": "user",   "content": user_msg},
         ]
         raw_content, tokens_used = await asyncio.to_thread(_call_gpt, messages)
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F12] GPT poziv neuspešan")
         raise HTTPException(status_code=500, detail="Greška na serveru. Pokušajte ponovo.")
 
@@ -577,7 +593,8 @@ async def post_analiziraj_ugovor(
             raw_content2, tokens_used2 = await asyncio.to_thread(_call_gpt, retry_messages)
             tokens_used += tokens_used2
             analysis_result = _parse_json(raw_content2)
-        except Exception:
+        except Exception as _exc:
+            _sentry_capture(_exc)
             logger.exception("[F12] Retry GPT neuspešan")
 
     if analysis_result is None:
@@ -642,7 +659,8 @@ async def post_analiziraj_ugovor(
 
     try:
         await asyncio.to_thread(_save)
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[F12] Greška pri čuvanju analize u Supabase — nastavljam")
 
     return {

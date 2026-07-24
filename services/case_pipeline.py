@@ -26,6 +26,15 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 from openai import AsyncOpenAI  # noqa: E402 — after env load
 from shared.deps import _get_supa  # noqa: E402
+from shared.llm_retry import llm_retry  # noqa: E402
+from shared.sentry import capture_exception as _sentry_capture  # noqa: E402
+
+
+@llm_retry
+async def _pozovi_pipeline_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(**kwargs)
 
 
 # ─── Result types ─────────────────────────────────────────────────────────────
@@ -243,7 +252,8 @@ async def _step_ekstrakcija_rokova(supa, predmet_id: str, user_id: str,
             'Ako nema datuma vrati {"rokovi": []}.'
         )
         r = await asyncio.wait_for(
-            oai.chat.completions.create(
+            _pozovi_pipeline_api(
+                oai,
                 model="gpt-4o-mini", temperature=0, max_tokens=400,
                 response_format={"type": "json_object"},
                 messages=[
@@ -313,6 +323,7 @@ async def _step_ekstrakcija_rokova(supa, predmet_id: str, user_id: str,
         return StepResult("ekstrakcija_rokova", StepStatus.SKIPPED,
                           "Nema prepoznatih rokova u opisu predmeta")
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[PIPELINE][step3] greška: %s", exc)
         return StepResult("ekstrakcija_rokova", StepStatus.FAILED, str(exc)[:120])
 
@@ -374,7 +385,8 @@ async def _step_strategija(supa, predmet_id: str, user_id: str,
             "Budi konkretan, bez opštih fraza."
         )
         r = await asyncio.wait_for(
-            oai.chat.completions.create(
+            _pozovi_pipeline_api(
+                oai,
                 model="gpt-4o-mini", temperature=0.2, max_tokens=600,
                 messages=[
                     {"role": "system", "content": _system},
@@ -398,6 +410,7 @@ async def _step_strategija(supa, predmet_id: str, user_id: str,
                           "Inicijalna strategija generisana",
                           {"chars": len(rezultat)})
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[PIPELINE][step5] greška: %s", exc)
         return StepResult("strategija", StepStatus.FAILED, str(exc)[:120])
 
@@ -450,7 +463,8 @@ async def _step_hcc(supa, predmet_id: str, user_id: str,
             "Srpski ekavica, max 150 reči."
         )
         r = await asyncio.wait_for(
-            oai.chat.completions.create(
+            _pozovi_pipeline_api(
+                oai,
                 model="gpt-4o-mini", temperature=0.1, max_tokens=300,
                 messages=[
                     {"role": "system", "content": _system},
@@ -478,6 +492,7 @@ async def _step_hcc(supa, predmet_id: str, user_id: str,
                           f"Pre-brifing za ročište {datum_roc} generisan",
                           {"datum": datum_roc})
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[PIPELINE][step6] greška: %s", exc)
         return StepResult("hcc", StepStatus.FAILED, str(exc)[:120])
 

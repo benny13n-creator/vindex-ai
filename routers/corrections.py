@@ -44,12 +44,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user, _is_founder
+from shared.llm_retry import llm_retry
 from shared.rate import limiter
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.corrections")
 router = APIRouter(prefix="/api/corrections", tags=["corrections"])
+
+
+@llm_retry
+async def _pozovi_correction_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(**kwargs)
 
 
 # ─── Pydantic modeli ──────────────────────────────────────────────────────────
@@ -191,7 +200,8 @@ async def _klasifikuj_korekciju_async(original: str, edited: str) -> str:
         oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
         orig_sample = original[:400]
         edit_sample = edited[:400]
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_correction_api(
+            oai,
             model="gpt-4o-mini",
             temperature=0,
             max_tokens=15,
@@ -207,7 +217,8 @@ async def _klasifikuj_korekciju_async(original: str, edited: str) -> str:
         label = resp.choices[0].message.content.strip().lower().split()[0]
         valid = {"stil", "pravna", "terminoloska", "strukturalna", "partner_preference"}
         return label if label in valid else "stil"
-    except Exception:
+    except Exception as e:
+        _sentry_capture(e)
         return "stil"
 
 
@@ -505,7 +516,8 @@ async def _update_style_profile(kancelarija_id: str, supa) -> dict:
                 )
                 from openai import AsyncOpenAI
                 oai = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-                gpt_r = await oai.chat.completions.create(
+                gpt_r = await _pozovi_correction_api(
+                    oai,
                     model="gpt-4o-mini",
                     temperature=0.2,
                     max_tokens=300,
@@ -528,6 +540,7 @@ async def _update_style_profile(kancelarija_id: str, supa) -> dict:
                     "izbegavane_fraze":   gpt_data.get("izbegavane_fraze", [])[:10],
                 })
             except Exception as e:
+                _sentry_capture(e)
                 logger.debug("[CORRECTIONS] GPT stil greška: %s", e)
 
         # Upsert u firm_style_profile

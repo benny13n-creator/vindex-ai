@@ -24,6 +24,7 @@ from langchain_openai import OpenAIEmbeddings
 from openai import OpenAI
 from pinecone import Pinecone
 
+from shared.llm_retry import llm_retry
 from shared.sentry import capture_exception as _sentry_capture
 
 load_dotenv()
@@ -493,6 +494,17 @@ def _get_client():
     return _CLIENT
 
 
+@llm_retry
+def _pozovi_chat_api(client, **kwargs):
+    """Zajednički retry-zaštićen poziv za sve GPT pozive u retrieve pipeline-u.
+
+    CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške; svaki pozivalac
+    zadržava svoj postojeći try/except fail-soft fallback oko ovog poziva.
+    """
+    return client.chat.completions.create(**kwargs)
+
+
 def _get_cohere():
     global _COHERE_CLIENT
     if not _COHERE_AVAILABLE:
@@ -830,7 +842,8 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list
 def _dekomponuj_query(query: str) -> list[str]:
     """gpt-4o-mini razlaže pitanje na 3 pravna pod-pitanja. Vraća listu stringova."""
     try:
-        resp = _get_client().chat.completions.create(
+        resp = _pozovi_chat_api(
+            _get_client(),
             model="gpt-4o-mini",
             temperature=0,
             max_tokens=300,
@@ -942,7 +955,8 @@ def classify_query_intent(query: str) -> str:
         return top_label
 
     try:
-        resp = _get_client().chat.completions.create(
+        resp = _pozovi_chat_api(
+            _get_client(),
             model="gpt-4o-mini",
             temperature=0,
             max_tokens=10,
@@ -982,7 +996,8 @@ def decompose_query(user_query: str) -> list[str]:
     angles = _INTENT_ANGLES[intent]
 
     try:
-        resp = _get_client().chat.completions.create(
+        resp = _pozovi_chat_api(
+            _get_client(),
             model="gpt-4o-mini",
             temperature=0,
             max_tokens=400,
@@ -1052,7 +1067,8 @@ def _treba_fx1_dekompozicija(query: str) -> bool:
 def _generiši_hyde(query: str) -> str:
     """gpt-4o-mini generiše hipotetički zakonski tekst koji bi odgovorio na pitanje."""
     try:
-        resp = _get_client().chat.completions.create(
+        resp = _pozovi_chat_api(
+            _get_client(),
             model="gpt-4o-mini",
             temperature=0.2,
             max_tokens=150,
@@ -1098,7 +1114,8 @@ def _gpt_rerank(query: str, matches: list, k: int = 3) -> list:
         snippets.append(f"{i + 1}. [{zakon} {clan}] {tekst}")
     doc_str = "\n\n".join(snippets)
     try:
-        resp = _get_client().chat.completions.create(
+        resp = _pozovi_chat_api(
+            _get_client(),
             model="gpt-4o-mini",
             temperature=0,
             max_tokens=80,
@@ -1202,7 +1219,8 @@ def _oceni_relevantnost(query: str, docs: list[str]) -> str:
 
     kontekst = "\n---\n".join(docs[:5])[:4000]
     try:
-        resp = _get_client().chat.completions.create(
+        resp = _pozovi_chat_api(
+            _get_client(),
             model="gpt-4o-mini",
             temperature=0,
             max_tokens=20,
@@ -1239,7 +1257,8 @@ def _oceni_relevantnost(query: str, docs: list[str]) -> str:
 def _prosiri_pretragu_crag(query: str) -> list[str]:
     """Generiše 3 sinonimna upita za DELIMIČNO granu CRAG petlje."""
     try:
-        resp = _get_client().chat.completions.create(
+        resp = _pozovi_chat_api(
+            _get_client(),
             model="gpt-4o-mini",
             temperature=0.3,
             max_tokens=160,

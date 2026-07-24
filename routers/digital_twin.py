@@ -37,12 +37,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.digital_twin")
 router = APIRouter(prefix="/api/twin", tags=["digital_twin"])
+
+
+@llm_retry
+def _pozovi_twin_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(**kwargs)
 
 
 # ── GPT-4o sistem prompt za simulaciju ───────────────────────────────────────
@@ -216,22 +225,24 @@ async def kreiraj_simulaciju(
 
     try:
         resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                temperature=0.3,
-                max_tokens=3000,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": _TWIN_SYSTEM},
-                    {"role": "user",   "content": kontekst_tekst},
-                ],
-            )
+            _pozovi_twin_api,
+            oai,
+            model="gpt-4o",
+            temperature=0.3,
+            max_tokens=3000,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _TWIN_SYSTEM},
+                {"role": "user",   "content": kontekst_tekst},
+            ],
         )
         rezultat = json.loads(resp.choices[0].message.content or "{}")
     except json.JSONDecodeError as je:
+        _sentry_capture(je)
         logger.error("[TWIN] JSON parse greska pri simulaciji: %s", je)
         raise HTTPException(status_code=500, detail="Greska pri parsiranju AI odgovora.")
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[TWIN] Greska pri kreiranju simulacije")
         raise HTTPException(status_code=500, detail="Greska pri generisanju simulacije. Pokusajte ponovo.")
 
@@ -295,22 +306,24 @@ async def sta_ako_analiza(
 
     try:
         resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                temperature=0.3,
-                max_tokens=1000,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": _STA_AKO_SYSTEM},
-                    {"role": "user",   "content": user_msg},
-                ],
-            )
+            _pozovi_twin_api,
+            oai,
+            model="gpt-4o",
+            temperature=0.3,
+            max_tokens=1000,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _STA_AKO_SYSTEM},
+                {"role": "user",   "content": user_msg},
+            ],
         )
         rezultat = json.loads(resp.choices[0].message.content or "{}")
     except json.JSONDecodeError as je:
+        _sentry_capture(je)
         logger.error("[TWIN] JSON parse greska pri sta-ako: %s", je)
         raise HTTPException(status_code=500, detail="Greska pri parsiranju AI odgovora.")
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[TWIN] Greska pri sta-ako analizi")
         raise HTTPException(status_code=500, detail="Greska pri analizi hipoteze. Pokusajte ponovo.")
 

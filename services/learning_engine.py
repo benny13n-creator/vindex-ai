@@ -22,8 +22,17 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from shared.deps import _get_supa
+from shared.llm_retry import llm_retry
+from shared.sentry import capture_exception as _sentry_capture
 
 logger = logging.getLogger("vindex.learning_engine")
+
+
+@llm_retry
+def _pozovi_learning_engine_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return oai.chat.completions.create(**kwargs)
 
 _VALID_ISHODI = {"pobeda", "poraz", "nagodba", "odustajanje", "u_toku"}
 _VALID_TIPOVI = {"strategija", "argument", "preporuka", "sledeca_radnja", "upozorenje"}
@@ -490,16 +499,16 @@ class LearningEngine:
             from openai import OpenAI
             oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
             resp = await asyncio.to_thread(
-                lambda: oai.chat.completions.create(
-                    model="gpt-4o-mini",
-                    temperature=0.3,
-                    max_tokens=800,
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": "Analiziras zatvorene pravne predmete i generises konkretne lekcije. Ekavica strogo. Vracas SAMO JSON."},
-                        {"role": "user", "content": prompt},
-                    ],
-                )
+                _pozovi_learning_engine_api,
+                oai,
+                model="gpt-4o-mini",
+                temperature=0.3,
+                max_tokens=800,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": "Analiziras zatvorene pravne predmete i generises konkretne lekcije. Ekavica strogo. Vracas SAMO JSON."},
+                    {"role": "user", "content": prompt},
+                ],
             )
             raw = json.loads(resp.choices[0].message.content or "{}")
             _VALID_KAT = {"strategija", "procesna", "dokaz", "komunikacija", "finansijska", "ostalo"}
@@ -521,6 +530,7 @@ class LearningEngine:
                 })
             return result
         except Exception as exc:
+            _sentry_capture(exc)
             logger.warning("[LEARNING] generate_lessons_learned greška: %s", exc)
             return []
 
@@ -630,16 +640,16 @@ class LearningEngine:
             from openai import OpenAI
             oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
             resp = await asyncio.to_thread(
-                lambda: oai.chat.completions.create(
-                    model="gpt-4o-mini",
-                    temperature=0.3,
-                    max_tokens=600,
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": "Ti si pravni strateg koji analizira alternativne ishode. Ekavica strogo. Vracas SAMO JSON."},
-                        {"role": "user", "content": prompt},
-                    ],
-                )
+                _pozovi_learning_engine_api,
+                oai,
+                model="gpt-4o-mini",
+                temperature=0.3,
+                max_tokens=600,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": "Ti si pravni strateg koji analizira alternativne ishode. Ekavica strogo. Vracas SAMO JSON."},
+                    {"role": "user", "content": prompt},
+                ],
             )
             parsed = json.loads(resp.choices[0].message.content or "{}")
             result["analiza"] = parsed.get("analiza", "")
@@ -649,6 +659,7 @@ class LearningEngine:
             result["procena_verovatnoce"] = parsed.get("procena_verovatnoce")
             ai_procena_txt = f"{result['analiza']} | {result['verovatni_ishod']}"
         except Exception as exc:
+            _sentry_capture(exc)
             logger.warning("[LEARNING] counterfactual GPT greška: %s", exc)
 
         _VALID_TIP = {"nagodba", "strateski", "takticki", "procesni", "ostalo"}
@@ -728,16 +739,16 @@ class LearningEngine:
             from openai import OpenAI
             oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
             resp = await asyncio.to_thread(
-                lambda: oai.chat.completions.create(
-                    model="gpt-4o",
-                    temperature=0.2,
-                    max_tokens=1000,
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": "Analiziras obrasce advokatske kancelarije. Ekavica strogo. Vracas SAMO JSON."},
-                        {"role": "user", "content": prompt},
-                    ],
-                )
+                _pozovi_learning_engine_api,
+                oai,
+                model="gpt-4o",
+                temperature=0.2,
+                max_tokens=1000,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": "Analiziras obrasce advokatske kancelarije. Ekavica strogo. Vracas SAMO JSON."},
+                    {"role": "user", "content": prompt},
+                ],
             )
             raw = json.loads(resp.choices[0].message.content or "{}")
             obrasci = raw.get("obrasci") or []
@@ -800,6 +811,7 @@ class LearningEngine:
 
             return saved
         except Exception as exc:
+            _sentry_capture(exc)
             logger.warning("[LEARNING] extract_firm_dna greška: %s", exc)
             return []
 

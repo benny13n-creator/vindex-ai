@@ -21,12 +21,35 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user as require_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.voice")
 router = APIRouter(prefix="/api/voice", tags=["voice"])
+
+
+@llm_retry
+def _pozovi_voice_chat_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(**kwargs)
+
+
+@llm_retry
+def _pozovi_whisper_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return oai.audio.transcriptions.create(**kwargs)
+
+
+@llm_retry
+def _pozovi_tts_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.audio.speech.create(**kwargs)
 
 # ── Detekcija tipa: pitanje vs komanda ───────────────────────────────────────
 
@@ -218,18 +241,19 @@ async def _handle_query(text: str, uid: str, supa) -> dict:
         client = OpenAI()
         # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
         resp = await asyncio.to_thread(
-            lambda: client.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0,
-                max_tokens=150,
-                messages=[
-                    {"role": "system",  "content": _QUERY_SYSTEM},
-                    {"role": "user",    "content": f"Podaci:\n{context}\n\nPitanje: {text}"},
-                ],
-            )
+            _pozovi_voice_chat_api,
+            client,
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=150,
+            messages=[
+                {"role": "system",  "content": _QUERY_SYSTEM},
+                {"role": "user",    "content": f"Podaci:\n{context}\n\nPitanje: {text}"},
+            ],
         )
         odgovor = (resp.choices[0].message.content or "").strip()
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[VOICE] query GPT error: %s", exc)
         odgovor = "Nisam mogao da obradim vaš upit. Pokušajte ponovo."
 
@@ -325,20 +349,21 @@ async def _handle_command(text: str) -> dict:
         client = OpenAI()
         # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
         resp = await asyncio.to_thread(
-            lambda: client.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0,
-                max_tokens=400,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": _INTENT_SYSTEM},
-                    {"role": "user",   "content": f"Komanda: {text}"},
-                ],
-            )
+            _pozovi_voice_chat_api,
+            client,
+            model="gpt-4o-mini",
+            temperature=0,
+            max_tokens=400,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _INTENT_SYSTEM},
+                {"role": "user",   "content": f"Komanda: {text}"},
+            ],
         )
         raw    = (resp.choices[0].message.content or "").strip()
         parsed = json.loads(raw)
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[VOICE] command parse error: %s", exc)
         parsed = {
             "actions": [{"action": "ask_question", "params": {"text": text}, "wait_ms": 0}],
@@ -415,12 +440,12 @@ async def voice_transcribe(
         buf.name = filename
 
         response = await asyncio.to_thread(
-            lambda: oai.audio.transcriptions.create(
-                model="whisper-1",
-                file=(filename, buf, content_type),
-                language=lang,
-                prompt="Pravni tekst na srpskom jeziku. Advokat, sud, predmet, tužba, žalba, ročište.",
-            )
+            _pozovi_whisper_api,
+            oai,
+            model="whisper-1",
+            file=(filename, buf, content_type),
+            language=lang,
+            prompt="Pravni tekst na srpskom jeziku. Advokat, sud, predmet, tužba, žalba, ročište.",
         )
         transkript = (response.text or "").strip()
         logger.info("[VOICE/STT] uid=%.8s %d chars", user["user_id"], len(transkript))
@@ -428,6 +453,7 @@ async def voice_transcribe(
         return {"transkript": transkript, "language": lang, "chars": len(transkript)}
 
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("[VOICE/STT] Whisper greška: %s", exc)
         raise HTTPException(status_code=500, detail=f"Transkribovanje nije uspelo: {exc}")
 
@@ -452,18 +478,19 @@ async def voice_tts(req: VoiceTtsReq, request: Request, user=Depends(PermissionS
     try:
         client = OpenAI()
         resp = await asyncio.to_thread(
-            lambda: client.audio.speech.create(
-                model="tts-1",
-                voice="onyx",   # Dubok, profesionalan glas
-                input=text,
-                speed=0.94,
-                response_format="mp3",
-            )
+            _pozovi_tts_api,
+            client,
+            model="tts-1",
+            voice="onyx",   # Dubok, profesionalan glas
+            input=text,
+            speed=0.94,
+            response_format="mp3",
         )
         await UsageService.consume(user["user_id"], user.get("email", ""), "voice")
         return _Resp(content=resp.content, media_type="audio/mpeg",
                      headers={"Cache-Control": "no-store"})
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[VOICE/TTS] OpenAI TTS greška: %s", exc)
         # Vraćamo 204 — frontend će koristiti browser fallback
         return _Resp(status_code=204, content=b"")

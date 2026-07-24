@@ -22,12 +22,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.region")
 router = APIRouter(tags=["region"])
+
+
+@llm_retry
+def _pozovi_region_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(**kwargs)
 
 # ── Podaci o zemljama ─────────────────────────────────────────────────────────
 
@@ -272,8 +281,10 @@ async def region_ai_savet(
     from openai import OpenAI
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-    resp = await asyncio.to_thread(
-        lambda: oai.chat.completions.create(
+    try:
+        resp = await asyncio.to_thread(
+            _pozovi_region_api,
+            oai,
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt + entitet_txt},
@@ -282,7 +293,10 @@ async def region_ai_savet(
             max_tokens=1500,
             temperature=0.3,
         )
-    )
+    except Exception as e:
+        _sentry_capture(e)
+        logger.error("[REGION] AI savet greška: %s", e)
+        raise HTTPException(status_code=503, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
 
     odgovor = resp.choices[0].message.content.strip()
 
@@ -336,8 +350,10 @@ async def region_rokovi(
 
     system = _REGION_SYSTEM_PROMPTS[z]
 
-    resp = await asyncio.to_thread(
-        lambda: oai.chat.completions.create(
+    try:
+        resp = await asyncio.to_thread(
+            _pozovi_region_api,
+            oai,
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system},
@@ -353,7 +369,10 @@ async def region_rokovi(
             max_tokens=300,
             temperature=0.2,
         )
-    )
+    except Exception as e:
+        _sentry_capture(e)
+        logger.error("[REGION] rokovi greška: %s", e)
+        raise HTTPException(status_code=503, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
 
     await UsageService.consume(user["user_id"], user.get("email", ""), "region_ai")
 

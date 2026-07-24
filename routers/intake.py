@@ -21,8 +21,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.intake")
@@ -51,6 +53,14 @@ APSOLUTNA PRAVILA:
 5. potrebni_dokumenti: navedi 2-5 dokumenata tipičnih za ovu vrstu spora."""
 
 
+@llm_retry
+async def _pozovi_intake_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške (retry-loop ispod
+    ostaje odgovoran za JSON-parse greške, ne za transportne)."""
+    return await oai.chat.completions.create(**kwargs)
+
+
 async def _call_ekstrakcija(opis: str, nalazi: list) -> dict:
     from openai import AsyncOpenAI
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
@@ -70,7 +80,8 @@ async def _call_ekstrakcija(opis: str, nalazi: list) -> dict:
     last_exc: Exception | None = None
     for attempt in range(3):
         try:
-            r = await oai.chat.completions.create(
+            r = await _pozovi_intake_api(
+                oai,
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": _EKSTRAKCIJA_SYSTEM},
@@ -86,6 +97,7 @@ async def _call_ekstrakcija(opis: str, nalazi: list) -> dict:
             logger.warning("[INTAKE] JSON parse greška (pokušaj %d/3): %s", attempt + 1, e)
             last_exc = e
         except Exception as e:
+            _sentry_capture(e)
             logger.error("[INTAKE] OpenAI greška: %s", e)
             raise HTTPException(status_code=502, detail="AI ekstrakcija trenutno nedostupna.")
     logger.error("[INTAKE] JSON parse greška posle 3 pokušaja: %s", last_exc)
@@ -519,6 +531,7 @@ async def intake_conflict_check(
                         })
 
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[CONFLICT-CHECK] uid=%.8s greška: %s", uid, e)
 
     # Deduplicate by (tip, predmet_id, klijent_id)

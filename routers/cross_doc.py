@@ -21,12 +21,30 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _get_supa
+from shared.llm_retry import llm_retry
 from shared.rate import limiter
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.api")
 router = APIRouter()
+
+
+@llm_retry
+def _pozovi_cross_doc_api(client, system: str, user_msg: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.1,
+        max_tokens=2000,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": user_msg},
+        ],
+    )
 
 
 # ─── Modeli ───────────────────────────────────────────────────────────────────
@@ -197,22 +215,15 @@ def _cross_doc_sync(
     )
 
     try:
-        resp = client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0.1,
-            max_tokens=2000,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _SYSTEM},
-                {"role": "user",   "content": user_msg},
-            ],
-        )
+        resp = _pozovi_cross_doc_api(client, _SYSTEM, user_msg)
         raw = resp.choices[0].message.content or "{}"
         result = json.loads(raw)
     except json.JSONDecodeError as exc:
+        _sentry_capture(exc)
         logger.warning("[CROSS_DOC] JSON parse greška: %s", exc)
         result = {}
     except Exception as exc:
+        _sentry_capture(exc)
         logger.error("[CROSS_DOC] GPT greška: %s", exc)
         raise
 

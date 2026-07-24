@@ -26,12 +26,28 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.morning_briefing")
 router = APIRouter(tags=["morning-briefing"])
+
+
+@llm_retry
+def _pozovi_briefing_sync_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(**kwargs)
+
+
+@llm_retry
+async def _pozovi_briefing_async_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await client.chat.completions.create(**kwargs)
 
 _SMTP_HOST = os.getenv("EMAIL_SMTP_HOST", "")
 _SMTP_PORT = int(os.getenv("EMAIL_SMTP_PORT", "587"))
@@ -184,12 +200,12 @@ Budi direktan, koncizan, kao iskusan kolega koji te brifuje. Bez praznih reči. 
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     ai_resp = await asyncio.to_thread(
-        lambda: oai.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": ai_prompt}],
-            max_tokens=600,
-            temperature=0.4,
-        )
+        _pozovi_briefing_sync_api,
+        oai,
+        model="gpt-4o",
+        messages=[{"role": "user", "content": ai_prompt}],
+        max_tokens=600,
+        temperature=0.4,
     )
 
     ai_tekst = ai_resp.choices[0].message.content.strip()
@@ -611,19 +627,20 @@ async def _ai_prioritizacija_alertova(alerts: list[dict], ime: str) -> str:
     oai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
     try:
         resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": (
-                    f"Ti si AI asistent advokata {ime}. Na osnovu sledecih upozorenja "
-                    f"napiši kratku prioritizovanu preporuku (max 150 reči, ekavica):\n\n"
-                    + "\n".join(linije)
-                )}],
-                max_tokens=250,
-                temperature=0.3,
-            )
+            _pozovi_briefing_sync_api,
+            oai,
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": (
+                f"Ti si AI asistent advokata {ime}. Na osnovu sledecih upozorenja "
+                f"napiši kratku prioritizovanu preporuku (max 150 reči, ekavica):\n\n"
+                + "\n".join(linije)
+            )}],
+            max_tokens=250,
+            temperature=0.3,
         )
         return resp.choices[0].message.content.strip()
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[NIGHTLY] AI prioritizacija greška: %s", e)
         return "\n".join(linije[:3])
 
@@ -1040,7 +1057,8 @@ async def today_focus(
 
         from openai import AsyncOpenAI
         oai = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_briefing_async_api(
+            oai,
             model="gpt-4o-mini",
             temperature=0.3,
             max_tokens=120,
@@ -1059,6 +1077,7 @@ async def today_focus(
         )
         ai_poruka = (resp.choices[0].message.content or "").strip()
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("[TODAY_FOCUS] GPT greška: %s", e)
         if hitni_rokovi:
             r0 = hitni_rokovi[0]

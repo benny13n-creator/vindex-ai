@@ -17,11 +17,20 @@ from fastapi.responses import Response as _Resp
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 router = APIRouter()
+
+
+@llm_retry
+def _pozovi_guardian_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return oai.chat.completions.create(**kwargs)
 
 # ── Srpski praznici i sudski neradni dani ─────────────────────────────────────
 
@@ -412,8 +421,10 @@ async def deadline_guardian(
     )
 
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    resp = await asyncio.to_thread(
-        lambda: oai.chat.completions.create(
+    try:
+        resp = await asyncio.to_thread(
+            _pozovi_guardian_api,
+            oai,
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -422,7 +433,9 @@ async def deadline_guardian(
             max_tokens=1200,
             temperature=0.3,
         )
-    )
+    except Exception as e:
+        _sentry_capture(e)
+        raise HTTPException(status_code=503, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
 
     analiza = resp.choices[0].message.content.strip()
 

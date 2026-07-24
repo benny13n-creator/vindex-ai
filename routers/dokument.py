@@ -17,8 +17,10 @@ from pydantic import BaseModel, Field, field_validator
 
 from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.rate import limiter
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.api")
@@ -66,6 +68,19 @@ class RokoviRequest(BaseModel):
 
 # ── AI klasifikacija dokaza ───────────────────────────────────────────────────
 
+@llm_retry
+def _pozovi_klasifikacija_api(client, prompt: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=300,
+        temperature=0.2,
+        response_format={"type": "json_object"},
+    )
+
+
 async def _klasifikuj_dokaz(tekst: str, filename: str) -> dict:
     """GPT-4o-mini klasifikuje dokument kao pravni dokaz."""
     try:
@@ -88,17 +103,10 @@ async def _klasifikuj_dokaz(tekst: str, filename: str) -> dict:
             "Odgovori SAMO JSON-om, bez objasnjenja."
         )
 
-        resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=300,
-                temperature=0.2,
-                response_format={"type": "json_object"},
-            )
-        )
+        resp = await asyncio.to_thread(_pozovi_klasifikacija_api, oai, prompt)
         return json.loads(resp.choices[0].message.content)
     except Exception as e:
+        _sentry_capture(e)
         logger.warning("Klasifikacija dokaza greška: %s", e)
         return {
             "tip_dokaza": "ostalo",

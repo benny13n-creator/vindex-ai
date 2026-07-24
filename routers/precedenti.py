@@ -10,8 +10,10 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 def get_supa(): return _get_supa()
@@ -19,6 +21,13 @@ require_user = get_current_user
 
 logger = logging.getLogger("vindex.precedenti")
 router = APIRouter(prefix="/api/precedenti", tags=["precedenti"])
+
+
+@llm_retry
+def _pozovi_precedenti_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(**kwargs)
 
 _BRAIN_SYSTEM = """Ti si pravni analitičar koji analizira iskustvo advokatske kancelarije.
 
@@ -126,22 +135,23 @@ async def get_precedenti(request: Request, predmet_id: str, user=Depends(Permiss
         client = OpenAI()
         # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
         resp = await asyncio.to_thread(
-            lambda: client.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0.3,
-                max_tokens=700,
-                messages=[
-                    {"role": "system", "content": _BRAIN_SYSTEM},
-                    {"role": "user", "content": (
-                        f"TEKUĆI PREDMET:\n{ctx_predmet}\n\n"
-                        f"SLIČNI PREDMETI IZ KANCELARIJE:{ctx_slicni}"
-                        f"{ctx_istorija}"
-                    )},
-                ],
-            )
+            _pozovi_precedenti_api,
+            client,
+            model="gpt-4o-mini",
+            temperature=0.3,
+            max_tokens=700,
+            messages=[
+                {"role": "system", "content": _BRAIN_SYSTEM},
+                {"role": "user", "content": (
+                    f"TEKUĆI PREDMET:\n{ctx_predmet}\n\n"
+                    f"SLIČNI PREDMETI IZ KANCELARIJE:{ctx_slicni}"
+                    f"{ctx_istorija}"
+                )},
+            ],
         )
         analiza = (resp.choices[0].message.content or "").strip()
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[BRAIN] GPT greška: %s", exc)
         analiza = f"Pronađeno {len(slicni)} sličnih predmeta. AI analiza trenutno nedostupna."
     else:

@@ -19,7 +19,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _audit
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.rate import limiter
@@ -37,6 +39,13 @@ from strategija import (
 router = APIRouter(prefix="/strategija")
 
 logger = __import__("logging").getLogger("vindex.api")
+
+
+@llm_retry
+async def _pozovi_strategija_v2_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(**kwargs)
 
 
 class StrategijaRequest(BaseModel):
@@ -357,7 +366,8 @@ async def strategija_v2_analiza(
     oai = AsyncOpenAI(api_key=_os.getenv("OPENAI_API_KEY", ""))
     try:
         begin_cost_tracking()
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_strategija_v2_api(
+            oai,
             model="gpt-4o",
             temperature=0.1,
             max_tokens=3000,
@@ -377,8 +387,10 @@ async def strategija_v2_analiza(
             "credits_remaining": preostalo,
         }
     except _json.JSONDecodeError as je:
+        _sentry_capture(je)
         logger.error("[V2] JSON parse greška: %s", je)
         raise HTTPException(status_code=500, detail="Greška pri parsiranju AI odgovora.")
-    except Exception:
+    except Exception as _exc:
+        _sentry_capture(_exc)
         logger.exception("[V2] strategija_v2 greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju strategije.")

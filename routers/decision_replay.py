@@ -20,8 +20,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.decision_replay")
@@ -224,6 +226,21 @@ async def _gather_timeline_events(supa, predmet_id: str, user_id: str) -> list[d
     return events, (predmet_row.data or {}), (outcome_row.data[0] if outcome_row.data else None)
 
 
+@llm_retry
+async def _pozovi_replay_api(client, timeline_tekst: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _REPLAY_SYSTEM},
+            {"role": "user", "content": timeline_tekst[:9000]}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.3,
+    )
+
+
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/{predmet_id}/replay/timeline")
@@ -291,15 +308,7 @@ async def decision_replay(request: Request, predmet_id: str, user=Depends(Permis
         import openai
         client = openai.AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": _REPLAY_SYSTEM},
-                {"role": "user", "content": timeline_tekst[:9000]}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3,
-        )
+        resp = await _pozovi_replay_api(client, timeline_tekst)
 
         analiza = json.loads(resp.choices[0].message.content)
 
@@ -323,5 +332,6 @@ async def decision_replay(request: Request, predmet_id: str, user=Depends(Permis
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("decision_replay: %s", e)
         raise HTTPException(500, str(e))

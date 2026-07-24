@@ -13,6 +13,13 @@ Endpoints:
   POST   /api/integrations/gcal/callback      — razmeni code za token
   POST   /api/integrations/gcal/sync-rokovi   — exportuj rokove u GCal
   GET    /api/integrations/events             — lista outgoing event tipova
+
+CELINA 4 (2026-07-24) — webhook duplikacija, dokumentovano ne spojeno: v.
+docstring na vrhu routers/integracije.py (F3.7 sekcija) za pun opis. Ukratko:
+routers.integracije.trigger_webhook postoji paralelno, drugačija tabela
+(`user_webhooks`), drugačija signature (event, user_id, data -- obrnut
+redosled u odnosu na ovu funkciju), nula zajedničkih pozivalaca. Ne spajati
+tiho -- v. napomenu u integracije.py.
 """
 from __future__ import annotations
 
@@ -175,7 +182,12 @@ async def test_webhook(
 # ─── Outgoing webhook helper ──────────────────────────────────────────────────
 
 async def trigger_webhook(user_id: str, event: str, data: dict) -> None:
-    """Fire-and-forget: salje event na sve aktivne webhookove korisnika."""
+    """Fire-and-forget: salje event na sve aktivne webhookove korisnika.
+
+    NAPOMENA (CELINA 4, 2026-07-24): postoji i routers.integracije.trigger_webhook
+    sa OBRNUTIM redosledom argumenata (event, user_id, data) i drugom tabelom
+    (`user_webhooks`, ne `webhooks`). Ne mešati -- v. docstring modula na vrhu
+    routers/integracije.py."""
     try:
         supa = _get_supa()
         webhooks_r = await asyncio.to_thread(

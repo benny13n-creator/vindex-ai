@@ -19,7 +19,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _audit, _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.rate import limiter
@@ -28,6 +30,13 @@ logger = logging.getLogger("vindex.hearing_cc")
 router = APIRouter(tags=["hearing_cc"])
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+
+@llm_retry
+async def _pozovi_hcc_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(**kwargs)
 
 # ─── System prompts ───────────────────────────────────────────────────────────
 
@@ -264,7 +273,8 @@ async def hearing_command_center(
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
     try:
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_hcc_api(
+            oai,
             model="gpt-4o",
             temperature=0.1,
             max_tokens=4000,
@@ -276,6 +286,7 @@ async def hearing_command_center(
             ],
         )
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[HCC] OpenAI greška uid=%.8s: %s", uid, e)
         raise HTTPException(status_code=503, detail="AI servis privremeno nedostupan. Pokušajte ponovo.")
 
@@ -361,7 +372,8 @@ Odgovori ISKLJUČIVO na srpskom jeziku."""
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
     try:
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_hcc_api(
+            oai,
             model="gpt-4o",
             temperature=0.2,
             max_tokens=2500,
@@ -372,6 +384,7 @@ Odgovori ISKLJUČIVO na srpskom jeziku."""
             ],
         )
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[CrossExam] OpenAI greška uid=%.8s: %s", uid, e)
         raise HTTPException(status_code=503, detail="AI servis privremeno nedostupan.")
 

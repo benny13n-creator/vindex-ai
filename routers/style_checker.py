@@ -25,12 +25,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.rate import limiter
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.style_checker")
 router = APIRouter(prefix="/api/style", tags=["style_checker"])
+
+
+@llm_retry
+async def _pozovi_style_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await client.chat.completions.create(**kwargs)
 
 # ─── Prompts ──────────────────────────────────────────────────────────────────
 
@@ -96,7 +105,8 @@ async def gradi_stil_profil(request: Request, body: GradiProfilRequest, user=Dep
 
         uzorci_tekst = "\n\n---UZORAK---\n\n".join(body.uzorci[:10])
 
-        resp = await client.chat.completions.create(
+        resp = await _pozovi_style_api(
+            client,
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": _PROFIL_SYSTEM},
@@ -137,6 +147,7 @@ async def gradi_stil_profil(request: Request, body: GradiProfilRequest, user=Dep
         }
 
     except Exception as e:
+        _sentry_capture(e)
         logger.error("gradi_stil_profil: %s", e)
         raise HTTPException(500, str(e))
 
@@ -193,7 +204,8 @@ async def analiziraj_stil(request: Request, body: AnalizujRequest, user=Depends(
             f"DOKUMENT ZA ANALIZU:\n{body.tekst[:8000]}"
         )
 
-        resp = await client.chat.completions.create(
+        resp = await _pozovi_style_api(
+            client,
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": _ANALIZA_SYSTEM},
@@ -238,6 +250,7 @@ async def analiziraj_stil(request: Request, body: AnalizujRequest, user=Depends(
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         logger.error("analiziraj_stil: %s", e)
         raise HTTPException(500, str(e))
 
@@ -416,7 +429,8 @@ async def get_style_evolucija(request: Request, user=Depends(PermissionService.r
         import openai
         client = openai.AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        resp = await client.chat.completions.create(
+        resp = await _pozovi_style_api(
+            client,
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": _EVOLUCIJA_SYSTEM},
@@ -444,5 +458,6 @@ async def get_style_evolucija(request: Request, user=Depends(PermissionService.r
         }
 
     except Exception as e:
+        _sentry_capture(e)
         logger.error("get_style_evolucija: %s", e)
         raise HTTPException(500, str(e))

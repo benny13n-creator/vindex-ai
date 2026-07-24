@@ -496,8 +496,26 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 # so a single dependency_overrides entry covers all routes (api.py + all router modules).
 from shared.deps import require_credits, _refund_one_credit, _increment_monthly_usage, _get_monthly_usage, verify_token_local
 from shared.cost import begin_cost_tracking, log_cost_to_db
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.sentry import capture_exception as _sentry_capture
+
+
+@llm_retry
+def _pozovi_openai_sync_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške. Zajednički helper
+    za preostale direktne sync OpenAI pozive u api.py (pozivalac je odgovoran
+    za asyncio.to_thread ako se poziva iz async def)."""
+    return client.chat.completions.create(**kwargs)
+
+
+@llm_retry
+async def _pozovi_openai_async_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške. Zajednički helper
+    za preostale direktne AsyncOpenAI pozive u api.py."""
+    return await client.chat.completions.create(**kwargs)
 from shared.usage import UsageService
 
 
@@ -2167,18 +2185,18 @@ async def portal_predmet_data(request: Request, token: str):
         naziv  = predmet.get("naziv", "Predmet")
         status = predmet.get("status", "aktivan")
         ai_r   = await asyncio.to_thread(
-            lambda: _oai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content":
-                    f"Napiši kratku, profesionalnu poruku za klijenta o statusu predmeta '{naziv}' "
-                    f"(status: {status}). Jedna do dve rečenice. Bez pravnih saveta. Ekavica. Ne pominjaj AI."}],
-                max_tokens=100,
-                temperature=0.4,
-            )
+            _pozovi_openai_sync_api,
+            _oai,
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content":
+                f"Napiši kratku, profesionalnu poruku za klijenta o statusu predmeta '{naziv}' "
+                f"(status: {status}). Jedna do dve rečenice. Bez pravnih saveta. Ekavica. Ne pominjaj AI."}],
+            max_tokens=100,
+            temperature=0.4,
         )
         ai_status = ai_r.choices[0].message.content.strip()
-    except Exception:
-        pass
+    except Exception as _ai_status_exc:
+        _sentry_capture(_ai_status_exc)
 
     return {
         "naziv":         predmet.get("naziv", "Predmet"),
@@ -3954,7 +3972,12 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
 
     try:
         client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
-        resp = client.chat.completions.create(
+        # BUG FIX (2026-07-24, CELINA 4): sinhroni SDK poziv unutar async def
+        # blokirao je ceo event loop (90s timeout, do 4500 tokena) -- sada
+        # ide preko asyncio.to_thread, isti obrazac kao ostatak fajla.
+        resp = await asyncio.to_thread(
+            _pozovi_openai_sync_api,
+            client,
             model="gpt-4o",
             temperature=0,
             max_tokens=4500,
@@ -3965,7 +3988,8 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
             ],
         )
         procena_tekst = (resp.choices[0].message.content or "").strip()
-    except Exception:
+    except Exception as _procena_exc:
+        _sentry_capture(_procena_exc)
         logger.exception("[PROCENA] GPT-4o greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju procene. Pokušajte ponovo.")
 
@@ -4324,6 +4348,7 @@ async def predmet_upload_auto_analyze(
     _oai_client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
     _hron_user  = f"Dokument: {file.filename or 'dokument'}\n\n{text[:6000]}"
 
+    @llm_retry
     def _call_procena():
         return _oai_client.chat.completions.create(
             model="gpt-4o", temperature=0, max_tokens=max_tok, timeout=60.0,
@@ -4333,6 +4358,7 @@ async def predmet_upload_auto_analyze(
             ],
         )
 
+    @llm_retry
     def _call_hronologija():
         return _oai_client.chat.completions.create(
             model="gpt-4o", temperature=0, max_tokens=1500, timeout=35.0,
@@ -4354,6 +4380,7 @@ async def predmet_upload_auto_analyze(
         "predlog_predmeta: kratki naziv za predmet (max 80 znakova)"
     )
 
+    @llm_retry
     def _call_metapodaci():
         return _oai_client.chat.completions.create(
             model="gpt-4o-mini", temperature=0, max_tokens=600, timeout=25.0,
@@ -4628,7 +4655,8 @@ async def predmet_ai_preporuka(
     )
 
     try:
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_openai_async_api(
+            oai,
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_p},
@@ -4641,6 +4669,7 @@ async def predmet_ai_preporuka(
         import json as _json
         preporuka = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[AI-PREPORUKA] greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri generisanju preporuke.")
 
@@ -4850,7 +4879,8 @@ async def predmet_workspace(
                 f"nedostajucih dokaza: {_deterministic_risk['nedostajuci_count']}, "
                 f"kriticnih rokova (≤7 dana): {_deterministic_risk['kriticni_rokovi']}"
             )
-            resp = await oai.chat.completions.create(
+            resp = await _pozovi_openai_async_api(
+                oai,
                 model="gpt-4o-mini", temperature=0.1, max_tokens=700,
                 response_format={"type": "json_object"},
                 messages=[
@@ -4860,6 +4890,7 @@ async def predmet_workspace(
             )
             return _json_ws.loads(resp.choices[0].message.content or "{}")
         except Exception as _ce:
+            _sentry_capture(_ce)
             logger.warning("[WORKSPACE-COCKPIT] AI greška: %s", _ce)
             return {}
 

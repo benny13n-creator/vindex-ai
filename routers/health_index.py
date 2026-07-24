@@ -13,13 +13,27 @@ from fastapi import APIRouter, Depends, HTTPException
 from openai import AsyncOpenAI
 
 from shared.deps import _get_supa
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health_index"])
 
 _openai = AsyncOpenAI()
+
+
+@llm_retry
+async def _pozovi_chief_partner_api(prompt: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await _openai.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=180,
+        temperature=0.5,
+    )
 _CACHE: dict = {}          # {uid: {score:…, ts:…, chief_partner:…, signals:…}}
 _CACHE_TTL = 3600          # 1 sat
 
@@ -236,14 +250,10 @@ Primer formata:
 3. Prebaciti predmet Nikolić sa A. na B. — preopterećenost."""
 
     try:
-        resp = await _openai.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=180,
-            temperature=0.5,
-        )
+        resp = await _pozovi_chief_partner_api(prompt)
         return resp.choices[0].message.content.strip()
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[ChiefPartner] GPT greška: %s", e)
         return ""
 

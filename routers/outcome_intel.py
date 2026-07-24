@@ -10,12 +10,21 @@ import asyncio
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.deps import _get_supa
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.outcome_intel")
 router = APIRouter(prefix="/api/outcome-intel", tags=["outcome_intel"])
+
+
+@llm_retry
+def _pozovi_outcome_intel_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(**kwargs)
 
 _OUTCOME_SYSTEM = """Ti si pravni analitičar koji analizira obrasce pobeda i poraza iz zatvorenih predmeta advokatske kancelarije u Srbiji.
 
@@ -208,18 +217,19 @@ Prosečna fakturisana vrednost: {avg_vrednost:,} RSD
         client = OpenAI()
         # BUG FIX (2026-07-24): sinhroni SDK poziv unutar async def blokirao je event loop.
         resp = await asyncio.to_thread(
-            lambda: client.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0.25,
-                max_tokens=500,
-                messages=[
-                    {"role": "system", "content": _OUTCOME_SYSTEM},
-                    {"role": "user",   "content": ctx},
-                ],
-            )
+            _pozovi_outcome_intel_api,
+            client,
+            model="gpt-4o-mini",
+            temperature=0.25,
+            max_tokens=500,
+            messages=[
+                {"role": "system", "content": _OUTCOME_SYSTEM},
+                {"role": "user",   "content": ctx},
+            ],
         )
         analiza = (resp.choices[0].message.content or "").strip()
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[OUTCOME] GPT greška: %s", exc)
         linija = [f"📊 STATISTIKA KANCELARIJE"]
         linija.append(f"Tip '{tip}': {len(zatvoreni)} zatvorenih, win rate {win_rate if win_rate is not None else '?'}%")

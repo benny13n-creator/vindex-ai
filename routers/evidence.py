@@ -11,8 +11,10 @@ from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
 from fastapi import Security
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 def get_supa(): return _get_supa()
@@ -53,6 +55,21 @@ Pravni elementi su konkretni uslovi koje ovaj dokument pokriva (npr. "uzročna v
 Vrati SAMO JSON bez markdown fenci."""
 
 
+@llm_retry
+def _pozovi_evidence_api(client, user_msg: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        max_tokens=600,
+        messages=[
+            {"role": "system", "content": _CLASSIFY_SYSTEM},
+            {"role": "user", "content": user_msg},
+        ],
+    )
+
+
 def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
     """GPT-4o-mini klasifikuje dokument. Vraća dict sa tip_dokaza, pravni_elementi, ai_tags, kljucne_cinjenice."""
     try:
@@ -60,20 +77,13 @@ def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
         import json
         client = OpenAI()
         user_msg = f"Naziv dokumenta: {naziv}\n\nTekst (izvod, max 1500 znakova):\n{tekst_izvod[:1500]}"
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0,
-            max_tokens=600,
-            messages=[
-                {"role": "system", "content": _CLASSIFY_SYSTEM},
-                {"role": "user", "content": user_msg},
-            ],
-        )
+        resp = _pozovi_evidence_api(client, user_msg)
         raw = (resp.choices[0].message.content or "").strip()
         if raw.startswith("```"):
             raw = "\n".join(l for l in raw.splitlines() if not l.strip().startswith("```"))
         return json.loads(raw)
     except Exception as exc:
+        _sentry_capture(exc)
         logger.warning("[EVIDENCE] Klasifikacija greška: %s", exc)
         return {
             "tip_dokaza": "ostalo",

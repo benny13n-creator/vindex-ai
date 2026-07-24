@@ -37,12 +37,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user, _is_founder
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.zakon_monitoring")
 router = APIRouter(prefix="/api/zakon-monitoring", tags=["zakon-monitoring"])
+
+
+@llm_retry
+async def _pozovi_zakon_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return await oai.chat.completions.create(**kwargs)
 
 # ─── Konfiguracija ────────────────────────────────────────────────────────────
 
@@ -138,7 +147,8 @@ async def _ai_analiziraj_zakon(naziv: str, url: str = "") -> dict:
             "Ekavica. Sažetak max 150 reči."
         )
 
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_zakon_api(
+            oai,
             model="gpt-4o-mini",
             temperature=0.2,
             max_tokens=400,
@@ -147,6 +157,7 @@ async def _ai_analiziraj_zakon(naziv: str, url: str = "") -> dict:
         )
         return json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
+        _sentry_capture(e)
         logger.debug("[ZAKON] AI analiza greška za '%s': %s", naziv[:50], e)
         return {
             "sazetak": naziv,
@@ -326,6 +337,7 @@ async def get_novi_zakoni(
         )
         return {"zakoni": r.data or [], "od_datuma": od}
     except Exception as e:
+        _sentry_capture(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -396,6 +408,7 @@ async def zakoni_moji_predmeti(
             "period_dana": 30,
         }
     except Exception as e:
+        _sentry_capture(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -493,7 +506,8 @@ async def impact_analiza(
         # AI analiza
         from openai import AsyncOpenAI
         oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
-        resp = await oai.chat.completions.create(
+        resp = await _pozovi_zakon_api(
+            oai,
             model="gpt-4o-mini",
             temperature=0.2,
             max_tokens=1000,
@@ -558,4 +572,5 @@ async def impact_analiza(
     except HTTPException:
         raise
     except Exception as e:
+        _sentry_capture(e)
         raise HTTPException(status_code=500, detail=str(e))

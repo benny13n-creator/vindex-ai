@@ -20,7 +20,18 @@ import logging
 import re
 from typing import Optional
 
+from shared.llm_retry import llm_retry
+from shared.sentry import capture_exception as _sentry_capture
+
 logger = logging.getLogger("vindex.intake_extract")
+
+
+@llm_retry
+async def _pozovi_extract_api(oai, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške (nezavisno od
+    postojeće 3x JSON-parse retry petlje ispod, koja rešava drugi problem)."""
+    return await oai.chat.completions.create(**kwargs)
 
 ENTITY_TYPES = (
     "case_number", "judge", "plaintiff", "defendant",
@@ -195,7 +206,8 @@ async def extract_free_text_entities(text: str) -> dict:
 
     for attempt in range(3):
         try:
-            r = await oai.chat.completions.create(
+            r = await _pozovi_extract_api(
+                oai,
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": _LLM_SYSTEM},
@@ -217,6 +229,7 @@ async def extract_free_text_entities(text: str) -> dict:
         except (json.JSONDecodeError, ValueError, TypeError) as e:
             logger.warning("[INTAKE_EXTRACT] parse greška (pokušaj %d/3): %s", attempt + 1, e)
         except Exception as e:
+            _sentry_capture(e)
             logger.error("[INTAKE_EXTRACT] OpenAI greška: %s", e)
             return fallback
     logger.error("[INTAKE_EXTRACT] LLM ekstrakcija neuspešna posle 3 pokušaja.")

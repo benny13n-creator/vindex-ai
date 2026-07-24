@@ -22,8 +22,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.llm_retry import llm_retry
 from shared.rate import limiter
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
 logger = logging.getLogger("vindex.evidence_graph")
@@ -106,6 +108,22 @@ def _izgradj_kontekst(predmet: dict, dokumenti: list, komentari: list, rokovi: l
     return "\n".join(delovi)
 
 
+@llm_retry
+def _pozovi_eg_api(client, user_msg: str):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0,
+        max_tokens=4000,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user",   "content": user_msg},
+        ],
+    )
+
+
 def _pozovi_gpt(kontekst: str) -> dict:
     """Sinhroni GPT-4o poziv — pokrece se u asyncio.to_thread."""
     from openai import OpenAI
@@ -118,16 +136,7 @@ def _pozovi_gpt(kontekst: str) -> dict:
     )
 
     try:
-        resp = client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0,
-            max_tokens=4000,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user",   "content": user_msg},
-            ],
-        )
+        resp = _pozovi_eg_api(client, user_msg)
         raw = (resp.choices[0].message.content or "").strip()
         # Ukloni eventualne markdown fence
         if raw.startswith("```"):
@@ -142,9 +151,11 @@ def _pozovi_gpt(kontekst: str) -> dict:
             return _PRAZAN_GRAF.copy()
         return rezultat
     except json.JSONDecodeError as e:
+        _sentry_capture(e)
         logger.error("[EG] JSONDecodeError pri parsiranju GPT odgovora: %s", e)
         return _PRAZAN_GRAF.copy()
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[EG] Greska pri GPT-4o pozivu: %s", e)
         return _PRAZAN_GRAF.copy()
 

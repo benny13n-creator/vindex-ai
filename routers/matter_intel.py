@@ -15,12 +15,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.rate import limiter
 from shared.deps import _get_supa, get_current_user
 from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
+from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 from services.risk_engine import calculate_procesni_rizik, identify_case_problems
 
 logger = logging.getLogger("vindex.matter_intel")
 router = APIRouter(prefix="/api/matter-intel", tags=["matter_intel"])
+
+
+@llm_retry
+def _pozovi_matter_intel_api(client, **kwargs):
+    """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
+    backoff-om za rate-limit/5xx/timeout/connection greške."""
+    return client.chat.completions.create(**kwargs)
 
 
 def _d(r):
@@ -340,22 +349,23 @@ async def get_uncertainty_dashboard(
             "Ekavica obavezno. Budi direktan i konkretan."
         )
         resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0.2,
-                max_tokens=300,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": _prompt},
-                    {"role": "user",   "content": _ctx},
-                ],
-            )
+            _pozovi_matter_intel_api,
+            oai,
+            model="gpt-4o-mini",
+            temperature=0.2,
+            max_tokens=300,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _prompt},
+                {"role": "user",   "content": _ctx},
+            ],
         )
         import json as _json
         parsed = _json.loads(resp.choices[0].message.content or "{}")
         ai_analiza = parsed.get("analiza", "")
         preporuke  = parsed.get("preporuke", [])
     except Exception as e:
+        _sentry_capture(e)
         logger.debug("[UNCERTAINTY] AI greška: %s", e)
 
     await UsageService.consume(uid, user.get("email", ""), "matter_intel")
@@ -499,19 +509,20 @@ async def preflight_check(
         from openai import OpenAI
         oai = OpenAI(api_key=_os.environ["OPENAI_API_KEY"])
         resp = await asyncio.to_thread(
-            lambda: oai.chat.completions.create(
-                model="gpt-4o",
-                temperature=0.2,
-                max_tokens=2000,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": _PREFLIGHT_SYSTEM},
-                    {"role": "user",   "content": kontekst},
-                ],
-            )
+            _pozovi_matter_intel_api,
+            oai,
+            model="gpt-4o",
+            temperature=0.2,
+            max_tokens=2000,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _PREFLIGHT_SYSTEM},
+                {"role": "user",   "content": kontekst},
+            ],
         )
         rezultat = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
+        _sentry_capture(e)
         logger.error("[PREFLIGHT] AI greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri generisanju Pre-Flight Check-a.")
 
