@@ -3269,10 +3269,38 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
 
 @app.get("/api/predmeti")
 @limiter.limit("60/minute")
-async def lista_predmeta(request: Request, authorization: str = Header(None)):
+async def lista_predmeta(
+    request: Request,
+    authorization: str = Header(None),
+    limit: int = 200,
+    offset: int = 0,
+):
+    """
+    FIX (nightly repair, 2026-07-24), Faza 3 item 8: ranije je ovaj upit
+    (a) bio sinhron poziv unutar async def bez asyncio.to_thread -- ista
+    klasa bloka event loop-a kao Faza 1 item 2 (routers/multi_agent.py),
+    zatečena ovde dok se dodavala paginacija -- i (b) povlačio SVE
+    predmete korisnika bez ograničenja. limit/offset su opcioni sa
+    velikodušnim podrazumevanim vrednostima (200) koje ne menjaju ponašanje
+    za veliku većinu korisnika (mala/solo advokatska praksa) -- štiti samo
+    protiv neograničenog rasta kod firmi sa dugom istorijom predmeta.
+    select("*") je namerno NEIZMENJEN u ovom prolazu -- suženje kolona bi
+    zahtevalo poznavanje TAČNO kojih polja se frontend oslanja, što nije
+    potvrđeno u ovoj sesiji; menjanje toga bez te potvrde rizikuje da tiho
+    pokvari UI koji čita polje koje bismo izostavili.
+    """
     user = await asyncio.to_thread(_require_auth, authorization)
-    rows = _get_supa().table("predmeti").select("*").eq("user_id", user.id).order("created_at", desc=True).execute()
-    return {"predmeti": rows.data}
+    limit = min(max(limit, 1), 500)
+    offset = max(offset, 0)
+    rows = await asyncio.to_thread(
+        lambda: _get_supa().table("predmeti")
+            .select("*", count="exact")
+            .eq("user_id", user.id)
+            .order("created_at", desc=True)
+            .range(offset, offset + limit - 1)
+            .execute()
+    )
+    return {"predmeti": rows.data, "ukupno": rows.count}
 
 
 @app.get("/api/predmeti/dashboard")

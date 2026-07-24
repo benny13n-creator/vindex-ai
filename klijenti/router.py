@@ -265,14 +265,23 @@ async def list_klijenti(
     request: Request,
     pretraga: str = "",
     status_filter: str = "",
+    limit: int = 200,
+    offset: int = 0,
 ):
-    """Faza 1 — Lista klijenata filtrirana po roli."""
+    """Faza 1 — Lista klijenata filtrirana po roli.
+
+    FIX (nightly repair, 2026-07-24), Faza 3 item 8: ranije bez ograničenja
+    broja rezultata -- limit/offset opcioni, velikodušan podrazumevani
+    limit (200) ne menja ponašanje za veliku većinu korisnika.
+    """
     user = await _auth_from_request(request)
     supa = _get_supa()
+    limit = min(max(limit, 1), 500)
+    offset = max(offset, 0)
 
     def _fetch():
         q = (supa.table("klijenti")
-                 .select("id,tip,ime,prezime,firma,email,telefon,status,aktivan,datum_poslednje_aktivnosti,kreirano")
+                 .select("id,tip,ime,prezime,firma,email,telefon,status,aktivan,datum_poslednje_aktivnosti,kreirano", count="exact")
                  .eq("user_id", user["user_id"]))
         # Isključi soft-deleted
         q = q.neq("status", "soft_deleted")
@@ -280,11 +289,11 @@ async def list_klijenti(
             q = q.or_(f"ime.ilike.%{pretraga}%,prezime.ilike.%{pretraga}%,firma.ilike.%{pretraga}%")
         if status_filter:
             q = q.eq("status", status_filter)
-        return q.order("kreirano", desc=True).execute()
+        return q.order("kreirano", desc=True).range(offset, offset + limit - 1).execute()
 
     res = await asyncio.to_thread(_fetch)
     klijenti = [filter_klijent(k, user["role"]) for k in (res.data or [])]
-    return {"klijenti": klijenti}
+    return {"klijenti": klijenti, "ukupno": res.count}
 
 
 @router.get("/klijenti/retention-check")
