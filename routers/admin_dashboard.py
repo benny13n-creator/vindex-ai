@@ -206,10 +206,23 @@ async def beta_users_add(
 
 # ─── Security overview (samo vidljivost postojećih slojeva, bez nove logike) ──
 
+_TELEMETRY_EVENT_TYPES = (
+    "login_failed", "ocr_error", "rag_error", "suspicious_access",
+    "csp_violation", "rate_limit_exceeded", "injection_attempt_blocked",
+)
+
+
 @router.get("/security-overview")
 @limiter.limit("20/minute")
 async def security_overview(request: Request, user: dict = Depends(get_current_user)):
-    """Read-only pregled statusa postojećih bezbednosnih slojeva (Wave 1/2)."""
+    """Read-only pregled statusa postojećih bezbednosnih slojeva (Wave 1/2).
+
+    CELINA 5 (2026-07-24): prošireno sa agregatnim brojem po event_type
+    (login_failed/ocr_error/rag_error/suspicious_access/...) i inline
+    proverom integriteta audit hash-lanca -- ranije je founder morao da
+    zove GET /api/admin/security/audit-verify posebno da bi dobio taj deo
+    slike. Osnovni napomena-tekst namerno nepromenjen (i dalje read-only,
+    nema nove bezbednosne LOGIKE — samo vidljivosti postojećih signala)."""
     _require_founder(user)
     supa = _get_supa()
     od_24h = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
@@ -240,12 +253,56 @@ async def security_overview(request: Request, user: dict = Depends(get_current_u
     except Exception:
         pass
 
+    # Per-event_type 24h breakdown — jedan upit po tipu (indeksirano na
+    # event_type + created_at, v. migrations/043_security_bulletproof.sql).
+    events_by_type: dict[str, Optional[int]] = {}
+    for et in _TELEMETRY_EVENT_TYPES:
+        events_by_type[et] = await _count("security_events", event_type=et, created_at_gte=od_24h)
+
+    # Inline audit chain integrity — mali limit (brzo, rate-limited endpoint).
+    chain_status = None
+    try:
+        from shared.audit_immutable import verify_chain_integrity
+        chain_status = await verify_chain_integrity(limit=200)
+    except Exception as e:
+        chain_status = {"ok": None, "message": f"provera nije uspela: {e}"}
+
     return {
         "last_chain_anchor_at":       last_anchor,
+        "audit_chain_integrity":      chain_status,
         "security_events_24h":        await _count("security_events", created_at_gte=od_24h),
+        "security_events_by_type_24h": events_by_type,
         "ai_forensics_24h":           await _count("ai_forensics", started_at_gte=od_24h),
-        "napomena": "Read-only pregled postojećih bezbednosnih slojeva (Wave 1/2). Nema nove bezbednosne logike u ovom sprintu.",
+        "napomena": "Read-only pregled postojećih bezbednosnih slojeva (Wave 1/2 + Celina 5 telemetrija). Nema nove bezbednosne logike u ovom sprintu.",
     }
+
+
+@router.get("/security-events")
+@limiter.limit("20/minute")
+async def security_events_list(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    event_type: Optional[str] = None,
+    limit: int = 50,
+):
+    """CELINA 5 (2026-07-24): lista pojedinačnih security_events zapisa (ne
+    samo agregatni brojevi iz /security-overview) -- za drill-down kad
+    founder vidi npr. login_failed_24h=12 i želi da vidi KOJIH 12."""
+    _require_founder(user)
+    supa = _get_supa()
+    limit = min(max(limit, 1), 200)
+
+    try:
+        q = supa.table("security_events").select("*").order("created_at", desc=True).limit(limit)
+        if event_type:
+            q = q.eq("event_type", event_type)
+        r = await asyncio.to_thread(q.execute)
+        rows = r.data or []
+    except Exception as e:
+        logger.error("[ADMIN] security-events greška: %s", e)
+        raise HTTPException(status_code=500, detail="Greška pri čitanju security_events.")
+
+    return {"dogadjaji": rows, "ukupno": len(rows)}
 
 
 # ─── Pinecone Capacity Monitoring ───────────────────────────────────────────

@@ -1,0 +1,95 @@
+name: Security Checks
+
+# CELINA 5 (2026-07-24): Secret scanning + SAST + dependency-vulnerability
+# scanning, per docs/security/STRIDE_THREAT_MODEL.md §7 and
+# docs/security/SECURITY_GAP_REGISTER.md (SEC-036 CI/CD security gap).
+#
+# Enforcement policy (deliberate, not an oversight):
+#   - secret-scan   : BLOCKING. No accepted baseline for secrets — any hit is real.
+#   - sast-core     : BLOCKING, but scoped to live request-serving code
+#                     (api.py, main.py, routers/, shared/, security/, services/,
+#                     app/) and only on HIGH severity. A full bandit sweep of the
+#                     whole repo (incl. one-off scripts/ ingestion tools) currently
+#                     has ~35 pre-existing MEDIUM findings (mostly B310 url-scheme-
+#                     audit and MD5-as-cache-key false positives) that have not all
+#                     been triaged yet — blocking on those today would break CI for
+#                     the whole team without warning. sast-full below tracks them
+#                     visibly instead. Tighten this job's scope over time as the
+#                     MEDIUM backlog is triaged (see sast-full artifact).
+#   - sast-full     : INFORMATIONAL. Whole-repo bandit sweep, never fails the build,
+#                     uploads a JSON artifact for review.
+#   - dependency-scan: BLOCKING via pip-audit, with one documented exception:
+#                     PYSEC-2026-1325 (python-ecdsa timing side-channel) has no
+#                     upstream fix — it's a known, long-standing limitation of pure-
+#                     Python ECDSA (transitively pulled in by python-jose) and is
+#                     accepted as low-practical-risk (remote timing exploitation is
+#                     not realistic here). Re-evaluate if python-jose ever drops the
+#                     ecdsa backend entirely.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install bandit
+        run: pip install bandit
+      - name: Bandit — live request-path code (HIGH severity, blocking)
+        run: |
+          bandit -r api.py main.py routers/ shared/ security/ services/ app/ \
+            -lll -iii -f txt
+
+  sast-full:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install bandit
+        run: pip install bandit
+      - name: Bandit — full repo sweep (informational, never blocks)
+        run: |
+          bandit -r . \
+            --exclude ./tests,./migrations,./data,./vindex_scraper_output,./.git \
+            -f json -o bandit-full-report.json || true
+      - name: Upload bandit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-full-report
+          path: bandit-full-report.json
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: pip-audit — dependency vulnerabilities (blocking, 1 documented exception)
+        run: |
+          pip-audit -r requirements.txt \
+            --ignore-vuln PYSEC-2026-1325

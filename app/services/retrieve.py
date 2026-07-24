@@ -718,6 +718,21 @@ def _build_izvori(matches: list) -> list[dict]:
     return izvori
 
 
+def _log_rag_error(reason: str, namespace: str, detail: str) -> None:
+    """CELINA 5 (2026-07-24): RAG/Pinecone greške su ranije imale samo logger +
+    Sentry (Celina 1/4) -- Sentry nije upit-ljiv iz Admin Dashboard-a bez
+    napuštanja aplikacije. Upisuje u security_events za GET
+    /api/admin/security-overview telemetriju. Sinhrono, best-effort."""
+    try:
+        from api import _get_supa
+        _get_supa().table("security_events").insert({
+            "event_type": "rag_error",
+            "details": {"reason": reason, "namespace": namespace, "detail": detail[:300]},
+        }).execute()
+    except Exception as e:
+        logger.debug("[RAG] security_events upis neuspešan (nije kritično): %s", e)
+
+
 # ─── Pinecone operacije ───────────────────────────────────────────────────────
 
 def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = None) -> list:
@@ -737,6 +752,7 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
     except Exception as exc:
         _sentry_capture(exc)
         logger.error("[PINECONE] Greška u pretrazi query='%s': %s: %s", query[:60], type(exc).__name__, str(exc)[:200])
+        _log_rag_error(type(exc).__name__, _ZAKONI_NS, str(exc))
         return []
 
 
@@ -780,6 +796,7 @@ def _pretraga_praksa(vektor: list[float], k: int = 5) -> list:
     except Exception as exc:
         _sentry_capture(exc)
         logger.warning("[PRAKSA] Pretraga nije uspela: %s", exc)
+        _log_rag_error(type(exc).__name__, _PRAKSA_NS, str(exc))
         return []
 
 

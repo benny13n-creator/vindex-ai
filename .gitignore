@@ -97,6 +97,11 @@ smoke_results_*.json
 *.html.bak
 diag_*.json
 
+# CELINA 5 (2026-07-24): scripts/verify_backup_restore.py je STALNI DR alat
+# (DISASTER_RECOVERY_PLAN.md §6), ne ad-hoc sprint skripta -- izuzet iz
+# gornjeg verify_*.py pravila.
+!scripts/verify_backup_restore.py
+
 # Sudska praksa raw scraping dumps — large HTML/JSON, tracked via Pinecone, not source code.
 # Prevents repo exceeding Render 512MB limit (.git currently 475MB).
 data/sudska_praksa/raw/

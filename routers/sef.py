@@ -123,7 +123,11 @@ def _validate_ubl_xml(xml_str: str) -> tuple[bool, str]:
             return False, f"XML sintaksa greška: {e}"
         _use_lxml = True
     except ImportError:
-        import xml.etree.ElementTree as _ET
+        # CELINA 5 (2026-07-24): stdlib xml.etree je ranjiv na XXE/entity-expansion
+        # napade (Bandit B314) -- defusedxml.ElementTree ima identičan API ali
+        # odbija DOCTYPE/eksterne entitete. UBL XML ovde može poticati iz
+        # korisnički uploadovane fakture pre slanja na SEF.
+        import defusedxml.ElementTree as _ET
         try:
             doc = _ET.fromstring(xml_str if isinstance(xml_str, str) else xml_str.decode("utf-8"))
         except _ET.ParseError as e:

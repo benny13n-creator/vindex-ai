@@ -17,7 +17,7 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt as jose_jwt, JWTError
 from supabase import create_client, Client as SupabaseClient
@@ -245,17 +245,46 @@ def _verify_token(token: str) -> Optional[dict]:
     return None
 
 
+def _client_ip(request: Optional[Request]) -> Optional[str]:
+    if not request or not request.client:
+        return None
+    return request.client.host
+
+
+async def _log_login_failed(reason: str, request: Optional[Request], token_prefix: str = "") -> None:
+    """CELINA 5 (2026-07-24): telemetrija za neuspele logine — 'login_failed' je
+    bio definisan u AUDITABLE_ACTIONS (shared/audit_immutable.py) od ranije, ali
+    nijedno mesto u kodu ga nikad nije pozivalo. Fire-and-forget, nikad ne sme
+    da uspori ili blokira 401 odgovor."""
+    try:
+        from shared.audit_immutable import log_action
+        ip = _client_ip(request)
+        await log_action(
+            "login_failed",
+            resource_type="session",
+            ip=ip,
+            metadata={"reason": reason, "token_prefix": token_prefix},
+        )
+    except Exception as e:
+        logger.debug("[AUTH] login_failed audit greška (nije kritično): %s", e)
+
+
 async def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> dict:
     """FastAPI dependency — verifikuje token i vraća korisničke podatke."""
     if not credentials:
+        asyncio.create_task(_log_login_failed("no_credentials", request))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Prijava je obavezna za korišćenje Vindex AI.",
         )
     payload = await asyncio.to_thread(_verify_token, credentials.credentials)
     if not payload:
+        asyncio.create_task(
+            _log_login_failed("invalid_or_expired_token", request, credentials.credentials[:12])
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Vaša sesija je istekla. Prijavite se ponovo.",

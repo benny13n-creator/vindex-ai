@@ -6,6 +6,22 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+
+def _log_ocr_error(reason: str, filename: str) -> None:
+    """CELINA 5 (2026-07-24): OCR greške su ranije postojale SAMO kao Python
+    logger pozivi (nevidljivi bez pristupa server logovima) -- upisuje u
+    security_events za admin telemetriju (GET /api/admin/security-overview).
+    Sinhrono, best-effort — extract_pdf se već izvršava u asyncio.to_thread
+    workeru pozivaoca, i greška ovde nikad ne sme prekinuti ekstrakciju."""
+    try:
+        from api import _get_supa
+        _get_supa().table("security_events").insert({
+            "event_type": "ocr_error",
+            "details": {"reason": reason, "filename": filename[:200]},
+        }).execute()
+    except Exception as e:
+        logger.debug("[OCR] security_events upis neuspešan (nije kritično): %s", e)
+
 # ─── SEC-007 — zip-bomb / decompression-bomb guard ────────────────────────────
 # .docx is a ZIP archive — python-docx unzips it fully into memory with no
 # built-in limit. A small file on disk can decompress to gigabytes.
@@ -152,10 +168,13 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool]:
             return ocr_text, False, True
         else:
             logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(ocr_text.strip()))
+            _log_ocr_error("insufficient_text", path.name)
     except ImportError as ie:
         logger.warning("[OCR] Potrebni paketi nisu instalirani (%s) — skenirani PDF ne može biti obrađen", ie)
+        _log_ocr_error("missing_dependencies", path.name)
     except Exception as e:
         logger.error("[OCR] Neočekivana greška: %s", e)
+        _log_ocr_error("unexpected_error", path.name)
 
     return "", True, False
 

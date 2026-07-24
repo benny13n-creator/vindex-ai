@@ -106,7 +106,11 @@ def main():
     print(f"PDFova: {len(SRPSKI_PDFS)} (2011-2025)")
 
     total = 0
-    with httpx.Client(headers=HEADERS, follow_redirects=True, verify=False) as client:
+    # CELINA 5 (2026-07-24): verify=False je iskljucivalo TLS sertifikat
+    # verifikaciju (Bandit B501) -- realan MITM rizik za skript koji
+    # preuzima dokumente koji se kasnije ingestuju kao autoritativan
+    # pravni izvor. Uklonjeno; podrazumevana (sigurna) verifikacija sertifikata.
+    with httpx.Client(headers=HEADERS, follow_redirects=True) as client:
         for year, url in SRPSKI_PDFS:
             print(f"\n--- {year} ---")
             n = process_pdf(year, url, client)

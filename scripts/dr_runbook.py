@@ -10,14 +10,23 @@ Pokrenuti:
   python scripts/dr_runbook.py --quick          # Samo connectivity (< 30s)
   python scripts/dr_runbook.py --check backup   # Samo backup provera
 
+CELINA 5 (2026-07-24): zvanični DR plan je sada docs/security/DISASTER_RECOVERY_PLAN.md
+-- ovaj skript je automatizovani ALAT koji implementira deo tog plana (§6), ne
+izvor istine za RPO/RTO brojeve. Ciljevi ispod ažurirani da se poklapaju sa
+zvaničnim planom; pročitati DISASTER_RECOVERY_PLAN.md §2.1 za pošten caveat --
+RPO od 15 minuta zahteva Supabase Point-in-Time Recovery (PITR) da bude
+aktivan, što NIJE potvrđeno iz koda (billing/plan odluka, ne kod odluka).
+Dok se ne potvrdi (v. §8 Verification Log u DRP-u), efektivan RPO je i dalje
+gornja granica dnevnog backup-a (do 24h), ne 15 minuta.
+
 DEFINCIJE:
   RPO (Recovery Point Objective): max gubitak podataka koji je prihvatljiv
-    Vindex cilj: 24 sata (dnevni backup)
-    Enterprise cilj: 4 sata (hourly snapshot)
+    Zvaničan cilj (DISASTER_RECOVERY_PLAN.md): 15 minuta -- zahteva PITR (nepotvrđeno)
+    Potvrđena donja granica bez PITR-a: 24 sata (dnevni Supabase backup)
 
   RTO (Recovery Time Objective): koliko brzo mora biti sistem online
-    Vindex cilj: 4 sata (jedna radna smena)
-    Enterprise cilj: 1 sat
+    Zvaničan cilj (DISASTER_RECOVERY_PLAN.md): 2 sata -- proceduralni cilj, dostižan
+    sa trenutnim alatima (v. DRP §2.2 za obrazloženje izvodljivosti)
 
 SCENARIJI OPORAVKA:
   P0 — Kompletni gubitak (Supabase + Render nedostupni):
@@ -52,6 +61,10 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # Dodaj parent direktorij u path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -64,8 +77,13 @@ except ImportError:
 
 # ─── Konstantne definicije ───────────────────────────────────────────────────
 
+# CELINA 5: RTO_HOURS now matches the official 2h target in
+# docs/security/DISASTER_RECOVERY_PLAN.md §2. RPO_HOURS stays at the
+# confirmed 24h daily-backup floor (not the 0.25h/15min policy target) --
+# claiming 15 minutes here would be an unverified claim; see DRP §2.1.
 RPO_HOURS = 24
-RTO_HOURS = 4
+RPO_TARGET_HOURS = 0.25  # 15 min policy target — requires Supabase PITR, unconfirmed
+RTO_HOURS = 2
 
 INCIDENT_EMAIL_TEMPLATE = """
 Predmet: [Vindex AI] Obaveštenje o tehničkom incidentu
@@ -220,16 +238,20 @@ def check_audit_chain() -> bool:
 
 def check_rpo_rto() -> bool:
     print("\n[RPO / RTO DEFINICIJE]")
-    check("RPO (Recovery Point Objective)", True, f"{RPO_HOURS}h — dnevni Supabase backup")
+    check(
+        "RPO (Recovery Point Objective)", True,
+        f"cilj {RPO_TARGET_HOURS*60:.0f}min (zahteva PITR, nepotvrđeno) — "
+        f"potvrđena donja granica {RPO_HOURS}h (dnevni Supabase backup)",
+    )
     check("RTO (Recovery Time Objective)", True, f"{RTO_HOURS}h — Render rollback + Supabase restore")
-    check("P0 Procedura", True, "Dokumentovana u ovom skriptu (SCENARIJI OPORAVKA)")
+    check("P0 Procedura", True, "docs/security/DISASTER_RECOVERY_PLAN.md §4 (zvaničan plan)")
     check("Kontakti", True, "support@vindex.ai, Render dashboard, Supabase dashboard")
     print()
     print("  NAPOMENA: Ručno testiranje restore procedure:")
     print("    1. Supabase Dashboard → Project Settings → Backups")
     print("    2. Klikni 'Restore' → izaberi test projekat (NE produkciju!)")
     print("    3. Proveri da li su podaci čitljivi i konzistentni")
-    print("    4. Zabeleži rezultat i vreme oporavka")
+    print("    4. Zabeleži rezultat i vreme oporavka u DISASTER_RECOVERY_PLAN.md §8")
     return True
 
 
@@ -245,7 +267,7 @@ def main():
     print("=" * 70)
     print(f"Vindex AI — Disaster Recovery Runbook")
     print(f"Vreme: {datetime.now(timezone.utc).isoformat()}")
-    print(f"RPO cilj: {RPO_HOURS}h  |  RTO cilj: {RTO_HOURS}h")
+    print(f"RPO cilj: {RPO_TARGET_HOURS*60:.0f}min (zahteva PITR) / {RPO_HOURS}h potvrđeno  |  RTO cilj: {RTO_HOURS}h")
     print("=" * 70)
 
     checks_to_run = {

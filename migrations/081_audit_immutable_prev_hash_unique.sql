@@ -1,0 +1,34 @@
+-- Migracija 081 — audit_immutable: UNIQUE(prev_hash) protiv TOCTOU race-a
+-- CELINA 5 (2026-07-24)
+--
+-- Nalaz: shared/audit_immutable.py::_build_and_insert() radi
+-- "pročitaj poslednji entry_hash, pa upiši novi red" kao DVA odvojena
+-- koraka (SELECT pa INSERT), bez transakcione izolacije/zaključavanja.
+-- Kad dva poziva upadnu unutar par milisekundi (potvrđeno: seq=31 i
+-- seq=32, 2026-07-18T21:35:17.682603+00:00 i .68522+00:00 — razlika
+-- 2.6ms), oba pročitaju ISTI "poslednji hash" i oba ga upišu kao svoj
+-- prev_hash, lomeći linearni lanac (ne tampering — v.
+-- docs/security/AUDIT_CHAIN_INCIDENT_2026-07-24.md za pun forenzički
+-- nalaz i dokaz).
+--
+-- Ovaj UNIQUE constraint čini takvu trku NEMOGUĆOM da tiho uspe: drugi
+-- od dva konkurentna upisa dobija unique-violation umesto da tiho upiše
+-- duplirani prev_hash, i aplikacija (shared/audit_immutable.py) ga
+-- ponavlja sa svežim prev_hash-om (retry petlja, v. _build_and_insert).
+--
+-- NAPOMENA: genesis red (_GENESIS_HASH = 64 nule) je JEDINI red kome je
+-- dozvoljeno da ima prev_hash == genesis; ako tabela ikad ostane prazna
+-- i dva reda istovremeno pokušaju da budu genesis, ova ista provera ih
+-- ispravno serijalizuje.
+--
+-- VAŽNO: puni UNIQUE constraint bi PUCAO odmah pri primeni ove migracije,
+-- jer već postojeći par (seq=31, seq=32) ima identičan prev_hash (to je
+-- upravo dokazana istorijska trka koju ova migracija sprečava da se
+-- PONOVI, ne nešto što možemo tiho prepisati -- audit_immutable je
+-- INSERT-only, protect_audit_immutable() trigger iz migracije 043
+-- odbija UPDATE/DELETE i na ovaj red). Zato je ovo DELIMIČNI (partial)
+-- unique indeks koji izuzima samo taj jedan, već dokumentovan istorijski
+-- red (seq=32) -- svi budući redovi (seq > 32) su strogo zaštićeni.
+CREATE UNIQUE INDEX IF NOT EXISTS audit_immutable_prev_hash_unique
+    ON audit_immutable (prev_hash)
+    WHERE seq > 32;

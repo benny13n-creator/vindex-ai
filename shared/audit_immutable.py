@@ -22,12 +22,35 @@ import hashlib
 import json
 import logging
 import os
+import re
 from typing import Any, Optional
 
 logger = logging.getLogger("vindex.audit.immutable")
 
 # Sentinel za "nema prethodnog" — genesis hash
 _GENESIS_HASH = "0" * 64
+
+# CELINA 5 (2026-07-24): Postgres/PostgREST text-serijalizuje timestamptz sa
+# OTKINUTIM nulama na kraju frakcionog dela sekunde (npr. .990920 -> .99092),
+# dok log_action() u trenutku upisa heš-uje pun 6-cifreni Python
+# datetime.isoformat() string. Otkriveno prvim živim pokretanjem
+# scripts/verify_backup_restore.py protiv produkcije 2026-07-24: bilo koji
+# zapis čiji mikrosekundni deo završava nulom lažno prijavljuje
+# "MODIFIKACIJA DETEKTOVANA" iako zapis NIJE menjan -- ovo je greška u
+# verifikaciji (round-trip string mismatch), ne u samom lancu. Dopunjuje se
+# nazad na 6 cifara SAMO za potrebe rehash-a pri verifikaciji; upisani
+# entry_hash zapisi se nikad ne diraju.
+_TS_FRAC_RE = re.compile(r"(\.\d{1,6})(?=(?:[+-]\d{2}:\d{2}|Z)?$)")
+
+
+def _normalize_ts_for_hash(ts: str) -> str:
+    m = _TS_FRAC_RE.search(ts)
+    if not m:
+        return ts
+    digits = m.group(1)[1:]
+    if len(digits) >= 6:
+        return ts
+    return ts[: m.start(1)] + "." + digits.ljust(6, "0") + ts[m.end(1):]
 
 # Akcije koje se UVEK beleže u immutable log
 AUDITABLE_ACTIONS: set[str] = {
@@ -123,6 +146,14 @@ async def verify_chain_integrity(limit: int = 1000) -> dict:
 
 # ─── Interni helpers ──────────────────────────────────────────────────────────
 
+_MAX_INSERT_RETRIES = 5
+
+
+def _is_unique_violation(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "23505" in msg or "duplicate key" in msg
+
+
 def _build_and_insert(
     action: str,
     user_id: Optional[str],
@@ -131,45 +162,63 @@ def _build_and_insert(
     ip: Optional[str],
     metadata: Optional[dict],
 ) -> Optional[str]:
-    """Sinhrono gradi i upisuje zapis u bazu."""
+    """Sinhrono gradi i upisuje zapis u bazu.
+
+    CELINA 5 (2026-07-24): "pročitaj poslednji hash pa upiši" je TOCTOU
+    race pod konkurentnim pozivima -- dokazano na seq=31/32
+    (docs/security/AUDIT_CHAIN_INCIDENT_2026-07-24.md). Migracija 081
+    dodaje delimični UNIQUE(prev_hash) indeks za sve redove nakon seq=32;
+    kad dva poziva upadnu istovremeno, gubitnik dobija 23505
+    unique-violation ovde umesto da tiho upiše duplirani prev_hash --
+    petlja ispod ga hvata i ponavlja sa SVEŽIM prev_hash-om."""
     from api import _get_supa
     supa = _get_supa()
 
-    # Dohvati poslednji hash iz lanca
-    prev_hash = _get_last_hash(supa)
-
-    # Vreme upisa
-    from datetime import datetime, timezone
-    ts = datetime.now(timezone.utc).isoformat()
-
-    # Hash IP adrese (ne čuvamo plaintext IP — privatnost)
     ip_hash = hashlib.sha256((ip or "").encode()).hexdigest()[:16] if ip else None
+    metadata_json = json.dumps(metadata or {})
 
-    # Kalkuliši entry hash
-    entry_hash = _compute_entry_hash(
-        prev_hash=prev_hash,
-        user_id=user_id or "",
-        action=action,
-        ts=ts,
-        resource_type=resource_type or "",
-        resource_id=resource_id or "",
-    )
+    last_exc: Optional[Exception] = None
+    for attempt in range(_MAX_INSERT_RETRIES):
+        prev_hash = _get_last_hash(supa)
 
-    record = {
-        "prev_hash":     prev_hash,
-        "entry_hash":    entry_hash,
-        "user_id":       user_id,
-        "action":        action,
-        "resource_type": resource_type,
-        "resource_id":   str(resource_id)[:255] if resource_id else None,
-        "ip_hash":       ip_hash,
-        "metadata":      json.dumps(metadata or {}),
-        "created_at":    ts,
-    }
+        from datetime import datetime, timezone
+        ts = datetime.now(timezone.utc).isoformat()
 
-    result = supa.table("audit_immutable").insert(record).execute()
-    inserted = (result.data or [{}])[0]
-    return inserted.get("id")
+        entry_hash = _compute_entry_hash(
+            prev_hash=prev_hash,
+            user_id=user_id or "",
+            action=action,
+            ts=ts,
+            resource_type=resource_type or "",
+            resource_id=resource_id or "",
+        )
+
+        record = {
+            "prev_hash":     prev_hash,
+            "entry_hash":    entry_hash,
+            "user_id":       user_id,
+            "action":        action,
+            "resource_type": resource_type,
+            "resource_id":   str(resource_id)[:255] if resource_id else None,
+            "ip_hash":       ip_hash,
+            "metadata":      metadata_json,
+            "created_at":    ts,
+        }
+
+        try:
+            result = supa.table("audit_immutable").insert(record).execute()
+            inserted = (result.data or [{}])[0]
+            return inserted.get("id")
+        except Exception as e:
+            last_exc = e
+            if not _is_unique_violation(e):
+                raise
+            logger.warning(
+                "[AUDIT_IMMUTABLE] prev_hash sudar (konkurentan upis), pokušaj %d/%d — ponavljam",
+                attempt + 1, _MAX_INSERT_RETRIES,
+            )
+
+    raise last_exc  # type: ignore[misc]
 
 
 def _get_last_hash(supa) -> str:
@@ -206,6 +255,19 @@ def _compute_entry_hash(
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+# CELINA 5 (2026-07-24): jedini poznat, forenzički objašnjen prekid lanca
+# do sada -- dokazano TOCTOU race između dva konkurentna upisa, NE
+# tampering (pun nalaz: docs/security/AUDIT_CHAIN_INCIDENT_2026-07-24.md;
+# migracija 081 sprečava ponavljanje). Bez ovog izuzetka bi
+# verify_chain_integrity() TRAJNO stao na seq=32 i nikad ne bi proverio
+# nijedan red posle toga -- čineći alat slep za STVARNI budući tampering.
+# Svaki NOVI, neobjašnjen prekid i dalje tvrdo zaustavlja proveru.
+_KNOWN_EXPLAINED_BREAKS: dict[int, str] = {
+    32: "TOCTOU race dva konkurentna upisa (2026-07-18T21:35:17, razlika "
+        "2.6ms) — oba pročitala isti prev_hash pre commit-a. Nije tampering.",
+}
+
+
 def _verify_chain_sync(limit: int) -> dict:
     """Proverava integritet lanca (sinhrono)."""
     from api import _get_supa
@@ -220,9 +282,10 @@ def _verify_chain_sync(limit: int) -> dict:
     )
     rows = result.data or []
     if not rows:
-        return {"ok": True, "checked": 0, "broken_at_seq": None, "message": "Tabela prazna."}
+        return {"ok": True, "checked": 0, "broken_at_seq": None, "known_breaks": [], "message": "Tabela prazna."}
 
     broken_at = None
+    known_breaks_hit: list[int] = []
     prev_hash = _GENESIS_HASH
 
     for i, row in enumerate(rows):
@@ -230,13 +293,21 @@ def _verify_chain_sync(limit: int) -> dict:
             prev_hash=prev_hash,
             user_id=row.get("user_id") or "",
             action=row.get("action") or "",
-            ts=row.get("created_at") or "",
+            ts=_normalize_ts_for_hash(row.get("created_at") or ""),
             resource_type=row.get("resource_type") or "",
             resource_id=row.get("resource_id") or "",
         )
 
         # Proveri da li prev_hash odgovara
         if row["prev_hash"] != prev_hash:
+            if row["seq"] in _KNOWN_EXPLAINED_BREAKS:
+                logger.warning(
+                    "[AUDIT_IMMUTABLE] Poznat, objašnjen prekid na seq=%d — %s",
+                    row["seq"], _KNOWN_EXPLAINED_BREAKS[row["seq"]],
+                )
+                known_breaks_hit.append(row["seq"])
+                prev_hash = row["entry_hash"]  # re-anchor, nastavi proveru
+                continue
             broken_at = row["seq"]
             logger.error(
                 "[AUDIT_IMMUTABLE] LANAC POLUPAN na seq=%d — prev_hash mismatch",
@@ -260,12 +331,18 @@ def _verify_chain_sync(limit: int) -> dict:
             "ok": False,
             "checked": rows.index(next(r for r in rows if r["seq"] == broken_at)) + 1,
             "broken_at_seq": broken_at,
+            "known_breaks": known_breaks_hit,
             "message": f"Lanac je polupan na seq={broken_at}. Mogući tampering.",
         }
+
+    message = f"Integritet lanca potvrđen za {len(rows)} zapisa."
+    if known_breaks_hit:
+        message += f" ({len(known_breaks_hit)} poznat objašnjen prekid preskočen, v. _KNOWN_EXPLAINED_BREAKS.)"
 
     return {
         "ok": True,
         "checked": len(rows),
         "broken_at_seq": None,
-        "message": f"Integritet lanca potvrđen za {len(rows)} zapisa.",
+        "known_breaks": known_breaks_hit,
+        "message": message,
     }

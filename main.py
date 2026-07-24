@@ -186,7 +186,10 @@ _CACHE_MAX     = 500
 
 
 def _cache_kljuc(pitanje: str) -> str:
-    return hashlib.md5(_normalizuj_za_cache(pitanje).encode()).hexdigest()
+    # usedforsecurity=False: MD5 se ovde koristi samo kao cache ključ
+    # (dedup/lookup), ne za bezbednosnu svrhu — Bandit B324 false-positive
+    # bez ove eksplicitne napomene (CELINA 5, 2026-07-24).
+    return hashlib.md5(_normalizuj_za_cache(pitanje).encode(), usedforsecurity=False).hexdigest()
 
 
 def _normalizuj_za_cache(tekst: str) -> str:
