@@ -16,6 +16,7 @@ functions (posalji_podsetnike, onboarding_cron, posalji_nedeljni_sazetak)
 are now called directly from api.py's dispatcher as new modules, alongside
 the new SEC-002 retention_cleanup module.
 """
+import asyncio
 import os
 from unittest.mock import AsyncMock, patch
 
@@ -80,7 +81,16 @@ def _patch_submodules():
     """Isolates the dispatcher-wiring test from each module's own internal
     complexity -- we're testing that cron_daily calls these and assembles
     the result correctly, not re-testing each module's own logic (already
-    covered by their own test files)."""
+    covered by their own test files).
+
+    NIGHTLY REPAIR (2026-07-24), Faza 3 item 11: workers.background_agents.
+    run_background_agents (Modul 10) was NOT mocked here before -- it ran
+    for real against _FakeSupa/_FakeQuery, which don't implement .not_/.in_,
+    so every call silently failed inside _get_active_user_ids's own
+    try/except and returned an empty result. The dispatcher-level tests
+    passed by accident, never actually exercising Modul 10's wiring. Now
+    explicitly mocked like every other module, so its wiring is genuinely
+    tested below (see TestCronDailyCallsBackgroundAgents)."""
     with patch("routers.workflow._check_escalations", new=AsyncMock(return_value={"proverenih": 5, "eskaliranih": 1})), \
          patch("routers.portal_monitoring.cron_proveri", new=AsyncMock(return_value={"provereno": 3, "promena": 0})), \
          patch("routers.email_notif.posalji_podsetnike", new=AsyncMock(return_value={"poslato": 4, "greske": 0})), \
@@ -94,6 +104,18 @@ def _patch_submodules():
                  "ai_forensics": {"status": "ok", "obrisano": 0},
                  "pinecone_tmp_buffers": {"status": "ok", "namespaces_deleted": 2, "chunks_deleted": 8, "namespaces_inspected": 5},
                  "_summary": {"ukupno_obrisano": 17, "tabele_van_dometa": ["usage_events", "response_audit"], "greske": 0},
+             }),
+         ), \
+         patch(
+             "workers.background_agents.run_background_agents",
+             new=AsyncMock(return_value={
+                 "korisnika_obradjeno": 3,
+                 "org_budzet_iscrpljen": 0,
+                 "po_agentu": {
+                     "court_portal_watcher": {"izvrsenja": 3, "preporuke_kreirane": 1, "greske": 0},
+                     "precedents_radar":     {"izvrsenja": 3, "preporuke_kreirane": 2, "greske": 0},
+                 },
+                 "greske": 0,
              }),
          ):
         yield
@@ -182,6 +204,51 @@ class TestCronDailyCallsAllModules:
         assert body["email_podsetnici"]["status"] == "greska"
         assert body["retention_cleanup"]["status"] == "ok"
         assert body["retention_cleanup"]["obrisano"] == 17
+
+
+class TestCronDailyCallsBackgroundAgents:
+    """NIGHTLY REPAIR (2026-07-24), Faza 3 item 11: Modul 10
+    (workers.background_agents.run_background_agents) was previously
+    UNMOCKED in this file -- it ran for real against the lenient
+    _FakeSupa/_FakeQuery fake, which doesn't implement .not_/.in_, so every
+    call failed silently inside _get_active_user_ids's own try/except and
+    returned an empty result. The dispatcher-level tests above passed
+    "by accident" without ever genuinely exercising Modul 10's wiring.
+    These tests close that gap with an explicit mock (see _patch_submodules)
+    and real assertions on the wiring, matching every other module's
+    coverage in this file."""
+
+    def test_response_includes_background_agents_module(self):
+        client = _client()
+        r = client.post("/api/cron/daily")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["background_agents"]["status"] == "ok"
+        assert body["background_agents"]["korisnika_obradjeno"] == 3
+        assert body["background_agents"]["po_agentu"]["court_portal_watcher"]["preporuke_kreirane"] == 1
+        assert body["background_agents"]["po_agentu"]["precedents_radar"]["preporuke_kreirane"] == 2
+
+    def test_background_agents_failure_does_not_block_other_modules(self):
+        client = _client()
+        with patch("workers.background_agents.run_background_agents",
+                   new=AsyncMock(side_effect=RuntimeError("agent worker crashed"))):
+            r = client.post("/api/cron/daily")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["background_agents"]["status"] == "greska"
+        assert "agent worker crashed" in body["background_agents"]["greska"]
+        # Every other module still ran despite this failure:
+        assert body["email_podsetnici"]["status"] == "ok"
+        assert body["retention_cleanup"]["status"] == "ok"
+        assert body["heartbeat"]["status"] == "ok"
+
+    def test_background_agents_timeout_reported_not_crashed(self):
+        client = _client()
+        with patch("workers.background_agents.run_background_agents",
+                   new=AsyncMock(side_effect=asyncio.TimeoutError())):
+            r = client.post("/api/cron/daily")
+        assert r.status_code == 200
+        assert r.json()["background_agents"]["status"] == "timeout"
 
 
 if __name__ == "__main__":

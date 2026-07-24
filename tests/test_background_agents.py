@@ -295,51 +295,86 @@ def test_run_never_raises_when_rag_search_fails():
 # 3. workers/background_agents.py
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_org_key_solo_when_no_kancelarija_membership():
+def test_resolve_orgs_batched_solo_when_no_kancelarija_membership():
+    """NIGHTLY REPAIR (2026-07-24), Faza 3 item 11: _resolve_orgs_batched
+    replaces the old per-user _org_key_and_members loop with 2 total
+    queries for ALL users, not 1-2 per user."""
     import workers.background_agents as wba
-    membership_chain = _chain(MagicMock(data=None))
+    membership_chain = _chain(MagicMock(data=[]))  # no membership rows for anyone
     supa = MagicMock()
-    supa.table.side_effect = lambda n: membership_chain
+    supa.table.return_value = membership_chain
 
-    org_key, members = asyncio.run(wba._org_key_and_members("u1", supa))
-    assert org_key == "solo:u1"
-    assert members == ["u1"]
+    result = asyncio.run(wba._resolve_orgs_batched(["u1"], supa))
+    assert result["u1"] == ("solo:u1", ["u1"])
 
 
-def test_org_key_kancelarija_when_member():
+def test_resolve_orgs_batched_groups_kancelarija_members_in_two_queries():
     import workers.background_agents as wba
-    membership_chain = _chain(MagicMock(data={"kancelarija_id": "firm1", "clan_id": "u1"}))
-    members_chain = _chain(MagicMock(data=[{"clan_id": "u1"}, {"clan_id": "u2"}]))
+    membership_chain = _chain(MagicMock(data=[{"clan_id": "u1", "kancelarija_id": "firm1"}]))
+    all_members_chain = _chain(MagicMock(data=[
+        {"clan_id": "u1", "kancelarija_id": "firm1"},
+        {"clan_id": "u2", "kancelarija_id": "firm1"},
+    ]))
 
     call_count = {"n": 0}
     def _table(name):
         call_count["n"] += 1
-        return membership_chain if call_count["n"] == 1 else members_chain
+        return membership_chain if call_count["n"] == 1 else all_members_chain
 
     supa = MagicMock()
     supa.table.side_effect = _table
 
-    org_key, members = asyncio.run(wba._org_key_and_members("u1", supa))
+    result = asyncio.run(wba._resolve_orgs_batched(["u1"], supa))
+    org_key, members = result["u1"]
     assert org_key == "kancelarija:firm1"
     assert set(members) == {"u1", "u2"}
+    # Tačno 2 upita ukupno za rezoluciju organizacija, bez obzira na broj korisnika.
+    assert call_count["n"] == 2
 
 
-def test_budget_used_today_counts_usage_events():
+def test_resolve_orgs_batched_mixed_solo_and_team_users_in_one_pass():
     import workers.background_agents as wba
-    chain = _chain(MagicMock(count=7))
-    supa = MagicMock()
-    supa.table.return_value = chain
+    membership_chain = _chain(MagicMock(data=[{"clan_id": "u1", "kancelarija_id": "firm1"}]))
+    all_members_chain = _chain(MagicMock(data=[{"clan_id": "u1", "kancelarija_id": "firm1"}]))
 
-    used = asyncio.run(wba._budget_used_today(["u1", "u2"], supa))
-    assert used == 7
+    call_count = {"n": 0}
+    def _table(name):
+        call_count["n"] += 1
+        return membership_chain if call_count["n"] == 1 else all_members_chain
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+
+    result = asyncio.run(wba._resolve_orgs_batched(["u1", "u2solo"], supa))
+    assert result["u1"][0] == "kancelarija:firm1"
+    assert result["u2solo"] == ("solo:u2solo", ["u2solo"])
+
+
+def test_budget_used_by_org_groups_by_org_and_agent_type():
+    import workers.background_agents as wba
+    usage_chain = _chain(MagicMock(data=[
+        {"user_id": "u1", "action": "court_portal_watcher"},
+        {"user_id": "u1", "action": "court_portal_watcher"},
+        {"user_id": "u2", "action": "precedents_radar"},  # u2 is in the same org as u1
+        {"user_id": "u3", "action": "court_portal_watcher"},  # different org
+    ]))
+    supa = MagicMock()
+    supa.table.return_value = usage_chain
+
+    org_to_members = {"kancelarija:firm1": ["u1", "u2"], "solo:u3": ["u3"]}
+    used = asyncio.run(wba._budget_used_by_org(org_to_members, supa))
+
+    assert used["kancelarija:firm1"]["court_portal_watcher"] == 2
+    assert used["kancelarija:firm1"]["precedents_radar"] == 1
+    assert used["solo:u3"]["court_portal_watcher"] == 1
 
 
 def test_budget_exhausted_skips_agent_execution():
     import workers.background_agents as wba
 
     with patch.object(wba, "_get_active_user_ids", new=AsyncMock(return_value=["u1"])), \
-         patch.object(wba, "_org_key_and_members", new=AsyncMock(return_value=("solo:u1", ["u1"]))), \
-         patch.object(wba, "_budget_used_today", new=AsyncMock(return_value=999)), \
+         patch.object(wba, "_resolve_orgs_batched", new=AsyncMock(return_value={"u1": ("solo:u1", ["u1"])})), \
+         patch.object(wba, "_budget_used_by_org", new=AsyncMock(return_value={"solo:u1": {"court_portal_watcher": 999}})), \
          patch.object(wba, "_agent_registry", return_value={"court_portal_watcher": AsyncMock()}), \
          patch("shared.deps._get_supa", return_value=MagicMock()):
         result = asyncio.run(wba.run_background_agents("run1"))
@@ -358,8 +393,8 @@ def test_run_background_agents_logs_audit_and_usage_on_success():
         audit_calls.append((action, kwargs))
 
     with patch.object(wba, "_get_active_user_ids", new=AsyncMock(return_value=["u1"])), \
-         patch.object(wba, "_org_key_and_members", new=AsyncMock(return_value=("solo:u1", ["u1"]))), \
-         patch.object(wba, "_budget_used_today", new=AsyncMock(return_value=0)), \
+         patch.object(wba, "_resolve_orgs_batched", new=AsyncMock(return_value={"u1": ("solo:u1", ["u1"])})), \
+         patch.object(wba, "_budget_used_by_org", new=AsyncMock(return_value={"solo:u1": {}})), \
          patch.object(wba, "_agent_registry", return_value={"court_portal_watcher": fake_agent}), \
          patch("shared.deps._get_supa", return_value=MagicMock()), \
          patch("shared.audit_immutable.log_action", new=_fake_log_action):
@@ -379,8 +414,10 @@ def test_one_agent_failure_does_not_block_others_or_other_users():
     ok_agent = AsyncMock(return_value={"obradjeno": 1, "preporuke_kreirane": 1, "greske": 0})
 
     with patch.object(wba, "_get_active_user_ids", new=AsyncMock(return_value=["u1", "u2"])), \
-         patch.object(wba, "_org_key_and_members", new=AsyncMock(side_effect=lambda uid, supa: (f"solo:{uid}", [uid]))), \
-         patch.object(wba, "_budget_used_today", new=AsyncMock(return_value=0)), \
+         patch.object(wba, "_resolve_orgs_batched", new=AsyncMock(return_value={
+             "u1": ("solo:u1", ["u1"]), "u2": ("solo:u2", ["u2"]),
+         })), \
+         patch.object(wba, "_budget_used_by_org", new=AsyncMock(return_value={"solo:u1": {}, "solo:u2": {}})), \
          patch.object(wba, "_agent_registry", return_value={"failing": failing_agent, "ok": ok_agent}), \
          patch("shared.deps._get_supa", return_value=MagicMock()), \
          patch("shared.audit_immutable.log_action", new=AsyncMock()):

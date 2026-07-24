@@ -62,57 +62,107 @@ async def _get_active_user_ids(supa) -> list[str]:
         return []
 
 
-async def _org_key_and_members(user_id: str, supa) -> tuple[str, list[str]]:
-    """Vraća (org_key, [user_id, ...članovi]). Solo advokat (bez tima) je
-    sopstvena organizacija -- "solo:{user_id}"."""
-    try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("kancelarija_clanovi")
-                .select("kancelarija_id,clan_id")
-                .eq("clan_id", user_id)
-                .neq("status", "REMOVED")
-                .maybe_single()
-                .execute()
-        )
-        row = r.data
-    except Exception:
-        row = None
+async def _resolve_orgs_batched(user_ids: list[str], supa) -> dict[str, tuple[str, list[str]]]:
+    """Vraća {user_id: (org_key, [clanovi])} za SVE user_ids u DVA upita
+    ukupno, ne po jedan (ili dva) upita PO korisniku.
 
-    if not row or not row.get("kancelarija_id"):
-        return f"solo:{user_id}", [user_id]
+    FIX (nightly repair, 2026-07-24), Faza 3 item 11: prethodna verzija je
+    zvala _org_key_and_members(user_id, supa) unutar for petlje -- 1-2
+    upita PO korisniku (org_cache tada nije davao stvarnu uštedu, jer se
+    svaki user_id u petlji pojavljuje tačno jednom). Sad: (1) jedan upit
+    dohvata kancelarija_id za SVE korisnike odjednom, (2) jedan upit
+    dohvata SVE članove SVIH pronađenih kancelarija odjednom. Solo advokat
+    (bez tima) je i dalje sopstvena organizacija -- "solo:{user_id}"."""
+    result: dict[str, tuple[str, list[str]]] = {}
+    if not user_ids:
+        return result
 
-    kid = row["kancelarija_id"]
     try:
-        members_r = await asyncio.to_thread(
+        membership_r = await asyncio.to_thread(
             lambda: supa.table("kancelarija_clanovi")
-                .select("clan_id")
-                .eq("kancelarija_id", kid)
+                .select("clan_id,kancelarija_id")
+                .in_("clan_id", user_ids)
                 .neq("status", "REMOVED")
                 .execute()
         )
-        members = [m["clan_id"] for m in (members_r.data or []) if m.get("clan_id")]
-    except Exception:
-        members = [user_id]
-
-    return f"kancelarija:{kid}", (members or [user_id])
-
-
-async def _budget_used_today(member_user_ids: list[str], supa) -> int:
-    today_iso = datetime.now(timezone.utc).date().isoformat()
-    try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("usage_events")
-                .select("id", count="exact")
-                .eq("feature", "background_agents")
-                .in_("user_id", member_user_ids)
-                .gte("created_at", today_iso)
-                .execute()
-        )
-        return r.count or 0
+        membership_rows = membership_r.data or []
     except Exception as e:
         _sentry_capture(e)
-        logger.warning("[BACKGROUND_AGENTS] budžet upit neuspešan: %s", e)
-        return 0  # fail-open na budžet proveru -- ne blokira agenta zbog privremene DB greške
+        logger.warning("[BACKGROUND_AGENTS] org membership batch upit neuspešan: %s", e)
+        membership_rows = []
+
+    user_to_kid = {row["clan_id"]: row["kancelarija_id"] for row in membership_rows if row.get("clan_id")}
+    kancelarija_ids = sorted(set(user_to_kid.values()))
+
+    members_by_kid: dict[str, list[str]] = {}
+    if kancelarija_ids:
+        try:
+            all_members_r = await asyncio.to_thread(
+                lambda: supa.table("kancelarija_clanovi")
+                    .select("clan_id,kancelarija_id")
+                    .in_("kancelarija_id", kancelarija_ids)
+                    .neq("status", "REMOVED")
+                    .execute()
+            )
+            for row in (all_members_r.data or []):
+                kid = row.get("kancelarija_id")
+                cid = row.get("clan_id")
+                if kid and cid:
+                    members_by_kid.setdefault(kid, []).append(cid)
+        except Exception as e:
+            _sentry_capture(e)
+            logger.warning("[BACKGROUND_AGENTS] org members batch upit neuspešan: %s", e)
+
+    for uid in user_ids:
+        kid = user_to_kid.get(uid)
+        if not kid:
+            result[uid] = (f"solo:{uid}", [uid])
+        else:
+            members = members_by_kid.get(kid) or [uid]
+            result[uid] = (f"kancelarija:{kid}", members)
+
+    return result
+
+
+async def _budget_used_by_org(org_to_members: dict[str, list[str]], supa) -> dict[str, dict[str, int]]:
+    """Vraća {org_key: {agent_type: broj_izvrsenja_danas}} za SVE organizacije
+    u JEDNOM upitu -- prethodna verzija je pozivala _budget_used_today
+    posebno za SVAKOG (korisnik, agent_type) para (N x M upita). Vraćena
+    mapa se u run_background_agents() dalje uvećava LOKALNO (bez novih
+    upita) kako se svako izvršenje desi u toku ovog run-a."""
+    all_member_ids = sorted({uid for members in org_to_members.values() for uid in members})
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    usage_rows: list[dict] = []
+    if all_member_ids:
+        try:
+            r = await asyncio.to_thread(
+                lambda: supa.table("usage_events")
+                    .select("user_id,action")
+                    .eq("feature", "background_agents")
+                    .in_("user_id", all_member_ids)
+                    .gte("created_at", today_iso)
+                    .execute()
+            )
+            usage_rows = r.data or []
+        except Exception as e:
+            _sentry_capture(e)
+            logger.warning("[BACKGROUND_AGENTS] budžet batch upit neuspešan: %s", e)
+            # fail-open na budžet proveru -- ne blokira agente zbog privremene DB greške
+
+    member_to_org: dict[str, str] = {}
+    for org_key, members in org_to_members.items():
+        for uid in members:
+            member_to_org[uid] = org_key
+
+    used: dict[str, dict[str, int]] = {org_key: {} for org_key in org_to_members}
+    for row in usage_rows:
+        org_key = member_to_org.get(row.get("user_id"))
+        agent_type = row.get("action")
+        if not org_key or not agent_type:
+            continue
+        used[org_key][agent_type] = used[org_key].get(agent_type, 0) + 1
+
+    return used
 
 
 async def _log_execution(user_id: str, agent_type: str, meta: dict, supa) -> None:
@@ -159,18 +209,16 @@ async def run_background_agents(run_id: str) -> dict:
     if not user_ids:
         return rezultat
 
-    org_cache: dict[str, tuple[str, list[str]]] = {}
+    user_to_org = await _resolve_orgs_batched(user_ids, supa)
+    org_to_members = {org_key: members for org_key, members in user_to_org.values()}
+    budzet_po_orgu = await _budget_used_by_org(org_to_members, supa)
 
     for user_id in user_ids:
         rezultat["korisnika_obradjeno"] += 1
-
-        if user_id not in org_cache:
-            org_key, members = await _org_key_and_members(user_id, supa)
-            org_cache[user_id] = (org_key, members)
-        org_key, members = org_cache[user_id]
+        org_key, members = user_to_org[user_id]
 
         for agent_type, agent_fn in registry.items():
-            budzet_potrosen = await _budget_used_today(members, supa)
+            budzet_potrosen = budzet_po_orgu.setdefault(org_key, {}).get(agent_type, 0)
             if budzet_potrosen >= _MAX_AGENT_RUNS_PER_ORG_PER_DAY:
                 rezultat["org_budzet_iscrpljen"] += 1
                 logger.info(
@@ -202,5 +250,8 @@ async def run_background_agents(run_id: str) -> dict:
             rezultat["po_agentu"][agent_type]["greske"] += int(ishod.get("greske", 0) or 0)
 
             await _log_execution(user_id, agent_type, {"run_id": run_id, "ishod": ishod, "org_key": org_key}, supa)
+            # Uvećaj LOKALNO (bez novog upita) da sledeća provera u ovom
+            # istom run-u vidi ažuran potrošeni budžet za ovu organizaciju.
+            budzet_po_orgu[org_key][agent_type] = budzet_po_orgu[org_key].get(agent_type, 0) + 1
 
     return rezultat
