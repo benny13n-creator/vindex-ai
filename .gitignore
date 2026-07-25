@@ -109,3 +109,7 @@ data/sudska_praksa/raw_bilteni/
 
 # Founder Autopilot Agent — generated drafts change on every run, not source.
 scripts/founder_agent/drafts/
+
+# Word Add-in lokalni dev server (2026-07-25) — samopotpisan TLS
+# sertifikat + privatni ključ, generisan po mašini, nikad ne ide u git.
+scripts/word_addin_dev_certs/

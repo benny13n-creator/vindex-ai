@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!--
+  Vindex AI — Word Add-in FunctionFile
+  Referenced by manifest.xml's <FunctionFile resid="Commands.Url" /> --
+  Office loads this for ribbon command registration. Our single button
+  uses a ShowTaskpane action (not ExecuteFunction), so no command
+  functions are actually invoked from here today; this file exists only
+  so the manifest's FunctionFile reference resolves instead of 404ing
+  during sideload/registration.
+-->
+<html lang="sr">
+<head>
+<meta charset="UTF-8" />
+<script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<script type="text/javascript">
+  Office.onReady(function () {
+    // Nema registrovanih ExecuteFunction komandi -- v. napomenu iznad.
+  });
+</script>
+</head>
+<body></body>
+</html>

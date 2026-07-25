@@ -1,20 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Vindex AI — MS Word Add-in Manifest
-  KORAK C: Ambient Context & Word/Browser Copilot (2026-07-24)
+  KORAK C (2026-07-24) + lokalna dev/test verifikacija (2026-07-25)
 
-  OSNOVNI (skeleton) manifest — pre stvarnog objavljivanja u AppSource ili
-  interne (sideload) distribucije, sledeće MORA biti zamenjeno:
+  LOKALNI DEV manifest — URL-ovi ispod NAMERNO pokazuju na
+  https://localhost:8000/word_addin/... za sideload testiranje protiv
+  lokalnog dev servera (v. scripts/run_word_addin_dev.py). PRE bilo kakve
+  produkcione/AppSource distribucije, sledeće MORA biti zamenjeno:
     - Id element ispod je placeholder GUID (00000000-...) — generisati pravi
-      (npr. `uuidgen` ili Office add-in generator) pre bilo kakvog sideload-a.
-    - Sve https://vindex.rs/static/word-addin/... putanje pretpostavljaju
-      da će taskpane.html/commands.html/ikone biti hostovane tu; taskpane.html
-      sada postoji (Faza 3 item 10), commands.html i ikone i dalje ne.
-    - AppDomains mora tačno odgovarati production domenu.
+      (npr. `uuidgen` ili Office add-in generator) pre bilo kakvog javnog
+      sideload-a/objavljivanja.
+    - Sve https://localhost:8000/word_addin/... putanje zameniti sa
+      https://vindex.rs/word_addin/... (ili gde god se app.py-jev
+      /word_addin mount stvarno servira u produkciji).
+    - AppDomains mora tačno odgovarati production domenu (danas sadrži i
+      localhost i vindex.rs radi lokalnog testiranja).
 
-  Referenca: adapter.js u ovom istom direktorijumu implementira
-  komunikaciju ka Vindex API-ju (POST /api/copilot/ambient/analyze) koju
-  bi taskpane.html pozivao.
+  Sve navedene rute (taskpane.html, commands.html, icon-16/32/80.png) SADA
+  POSTOJE u ovom direktorijumu i servira ih api.py preko
+  app.mount("/word_addin", ...), ISTI FastAPI proces koji servira
+  POST /api/copilot/ambient/analyze, namerno (v. taskpane.html's init(),
+  koji koristi window.location.origin kao apiBase — same-origin, nema
+  potrebe za CORS podešavanjem ni lokalno ni u produkciji).
 -->
 <OfficeApp
     xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
@@ -29,12 +36,13 @@
   <DefaultLocale>sr-Latn-RS</DefaultLocale>
   <DisplayName DefaultValue="Vindex AI — Ambient Copilot" />
   <Description DefaultValue="Ambijentalni pravni asistent: kratki predlozi (članovi zakona, sudska praksa, upozorenja) dok kucate dokument u Word-u." />
-  <IconUrl DefaultValue="https://vindex.rs/static/word-addin/icon-32.png" />
-  <HighResolutionIconUrl DefaultValue="https://vindex.rs/static/word-addin/icon-80.png" />
+  <IconUrl DefaultValue="https://localhost:8000/word_addin/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:8000/word_addin/icon-80.png" />
   <SupportUrl DefaultValue="https://vindex.rs/podrska" />
 
   <AppDomains>
     <AppDomain>https://vindex.rs</AppDomain>
+    <AppDomain>https://localhost:8000</AppDomain>
   </AppDomains>
 
   <Hosts>
@@ -42,7 +50,7 @@
   </Hosts>
 
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://vindex.rs/static/word-addin/taskpane.html" />
+    <SourceLocation DefaultValue="https://localhost:8000/word_addin/taskpane.html" />
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>
@@ -91,14 +99,14 @@
 
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://vindex.rs/static/word-addin/icon-16.png" />
-        <bt:Image id="Icon.32x32" DefaultValue="https://vindex.rs/static/word-addin/icon-32.png" />
-        <bt:Image id="Icon.80x80" DefaultValue="https://vindex.rs/static/word-addin/icon-80.png" />
+        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:8000/word_addin/icon-16.png" />
+        <bt:Image id="Icon.32x32" DefaultValue="https://localhost:8000/word_addin/icon-32.png" />
+        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:8000/word_addin/icon-80.png" />
       </bt:Images>
       <bt:Urls>
         <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://vindex.rs/podrska" />
-        <bt:Url id="Commands.Url" DefaultValue="https://vindex.rs/static/word-addin/commands.html" />
-        <bt:Url id="Taskpane.Url" DefaultValue="https://vindex.rs/static/word-addin/taskpane.html" />
+        <bt:Url id="Commands.Url" DefaultValue="https://localhost:8000/word_addin/commands.html" />
+        <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:8000/word_addin/taskpane.html" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GetStarted.Title" DefaultValue="Vindex AI Ambient Copilot je spreman" />

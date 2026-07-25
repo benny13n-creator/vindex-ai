@@ -790,6 +790,20 @@ from fastapi.staticfiles import StaticFiles as _StaticFiles
 if os.path.exists(BASE_DIR / "static"):
     app.mount("/static", _StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
+# MS Word Add-in (taskpane.html, adapter.js, manifest.xml) — servirano sa
+# ISTOG FastAPI app-a kao /api/copilot/ambient/analyze namerno: taskpane.html
+# poziva window.location.origin kao apiBase (v. taskpane.html's init()),
+# tako da je fetch() ka API-ju SAME-ORIGIN i lokalno (https://localhost:8000)
+# i u produkciji (https://vindex.rs) -- nema potrebe za CORS podešavanjem
+# za ovaj tok. Word zahteva HTTPS za sideload-ovane add-in-e (v.
+# scripts/run_word_addin_dev.py za lokalni HTTPS dev server).
+if os.path.exists(BASE_DIR / "integrations" / "word_addin"):
+    app.mount(
+        "/word_addin",
+        _StaticFiles(directory=str(BASE_DIR / "integrations" / "word_addin")),
+        name="word_addin",
+    )
+
 
 @app.on_event("startup")
 async def _warm_connections():

@@ -296,6 +296,12 @@
     });
 
     function init() {
+      // Taskpane.html se servira sa ISTOG FastAPI app-a kao
+      // /api/copilot/ambient/analyze (v. api.py's /word_addin mount) --
+      // window.location.origin je zato ispravan apiBase i lokalno
+      // (https://localhost:8000) i u produkciji (https://vindex.rs), bez
+      // ijedne hardkodovane vrednosti ovde.
+      window.VindexAmbientAdapter.configure({ apiBase: window.location.origin });
       var existingToken = window.VindexAmbientAdapter.getAuthToken();
       showView(existingToken ? "main" : "login");
     }
