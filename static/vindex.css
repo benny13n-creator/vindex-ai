@@ -3616,6 +3616,144 @@ select.pro-input option { background: var(--surface); }
   font-family: var(--font-mono);
 }
 
+/* ── Vindex Live — glasovna komanda (FAB + modal, 2026-07-25) ────────────
+   Levi donji ugao namerno -- #vx-mobile-fab i #pred-fab su desno (v.
+   6804/5887 niže), da se izbegne preklapanje na svim ekranima. */
+#vx-voice-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 2px;
+  background: #00d4ff;
+  border: none;
+  color: #010308;
+  cursor: pointer;
+  z-index: 9990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  transition: opacity .15s;
+}
+#vx-voice-fab:hover { opacity: 0.9; }
+#vx-voice-fab:active { opacity: 0.8; }
+#vx-voice-fab svg { width: 24px; height: 24px; }
+#vx-voice-fab::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 2px;
+  border: 1px solid rgba(0,212,255,0.4);
+  animation: vx-voice-fab-pulse 2.6s ease-out infinite;
+}
+@keyframes vx-voice-fab-pulse {
+  0%   { transform: scale(0.92); opacity: 0.7; }
+  70%  { transform: scale(1.18); opacity: 0; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #vx-voice-fab::before { animation: none; display: none; }
+}
+
+/* Mora biti IZNAD #vx-voice-fab (z-index 9990) i mobilnog bottom sheet-a
+   (10000/10001) inače FAB-ov pulsirajući prsten "probija" kroz otvoren modal. */
+#vx-voice-modal-overlay.vx-voice-modal-overlay { z-index: 10010; }
+.vx-voice-modal { text-align: center; }
+.vx-voice-orb {
+  width: 84px; height: 84px;
+  margin: 0.5rem auto 1.1rem;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.3);
+  color: #00d4ff;
+  transition: background .3s, border-color .3s, color .3s;
+}
+.vx-voice-orb svg { width: 30px; height: 30px; }
+.vx-voice-orb.listening {
+  animation: vx-voice-orb-pulse 1.5s ease-in-out infinite;
+}
+.vx-voice-orb.thinking {
+  border-color: rgba(240,180,41,0.4);
+  color: #f0c040;
+  animation: vx-voice-orb-spin 1.2s linear infinite;
+}
+.vx-voice-orb.speaking {
+  border-color: rgba(74,222,128,0.4);
+  color: #4ade80;
+  animation: vx-voice-orb-pulse 0.8s ease-in-out infinite;
+}
+.vx-voice-orb.error { border-color: rgba(248,113,113,0.4); color: #f87171; }
+@keyframes vx-voice-orb-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,212,255,0.25); }
+  50%      { box-shadow: 0 0 0 12px rgba(0,212,255,0); }
+}
+@keyframes vx-voice-orb-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .vx-voice-orb.listening, .vx-voice-orb.thinking, .vx-voice-orb.speaking { animation: none; }
+}
+
+.vx-voice-status {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--tx-2);
+  letter-spacing: 0.04em;
+  margin-bottom: 1rem;
+}
+.vx-voice-transcript {
+  max-height: 220px;
+  overflow-y: auto;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+.vx-voice-transcript:empty { display: none; }
+.vx-voice-bubble {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 2px;
+  max-width: 92%;
+}
+.vx-voice-bubble.user {
+  align-self: flex-end;
+  background: rgba(255,255,255,0.05);
+  color: var(--tx-2);
+}
+.vx-voice-bubble.assistant {
+  align-self: flex-start;
+  background: rgba(0,212,255,0.06);
+  border: 1px solid rgba(0,212,255,0.15);
+  color: var(--tx-1);
+}
+.vx-voice-confirm {
+  background: rgba(240,180,41,0.06);
+  border: 1px solid rgba(240,180,41,0.25);
+  border-radius: 2px;
+  padding: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+.vx-voice-confirm-text {
+  font-size: 0.8rem;
+  color: var(--tx-1);
+  line-height: 1.55;
+  margin-bottom: 0.7rem;
+}
+.vx-voice-confirm-actions { display: flex; gap: 8px; }
+.vx-voice-confirm-actions .modal-btn { width: auto; flex: 1; height: 40px; }
+.vx-voice-confirm-actions .strat-btn { flex: 1; }
+.vx-voice-stop-btn { width: 100%; margin-top: 4px; }
+
+@media (max-width: 768px) {
+  #vx-voice-fab { bottom: 76px; left: 18px; width: 52px; height: 52px; }
+  #vx-voice-fab svg { width: 22px; height: 22px; }
+}
+
 /* Auth tabs */
 .auth-tabs {
   display: flex;

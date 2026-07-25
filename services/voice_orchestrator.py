@@ -84,6 +84,12 @@ class VoiceOrchestratorSession:
                 "voice": "alloy",
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
+                # Bez ovoga OpenAI ne transkribuje ŠTA JE ADVOKAT IZGOVORIO --
+                # samo sopstveni (asistentov) audio.transcript event postoji po
+                # defaultu. Frontend (vindex.js, VindexLive) prikazuje oba
+                # transkripta u modalu, pa je ovo neophodno, ne kozmetika.
+                "input_audio_transcription": {"model": "whisper-1"},
+                "turn_detection": {"type": "server_vad"},
                 "tools": VOICE_TOOLS,
                 "tool_choice": "auto",
             },

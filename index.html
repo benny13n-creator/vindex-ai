@@ -4287,6 +4287,45 @@
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 
+<!-- ── Vindex Live — glasovna komanda (FAB + modal, 2026-07-25) ─────────
+     iOS/Safari audio unlock i mikrofon logika su u static/vindex.js pod
+     vxLive* funkcijama; backend je routers/voice_realtime.py preko WS
+     /api/voice/realtime/ws (v. services/voice_orchestrator.py). -->
+<button id="vx-voice-fab" onclick="vxLiveOpen()" title="Vindex Live — glasovna komanda" aria-label="Glasovna komanda">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+    <line x1="12" y1="19" x2="12" y2="23"/>
+    <line x1="8" y1="23" x2="16" y2="23"/>
+  </svg>
+</button>
+
+<div id="vx-voice-modal-overlay" class="modal-overlay vx-voice-modal-overlay" onclick="if(event.target===this) vxLiveClose()">
+  <div class="modal vx-voice-modal">
+    <button class="modal-close" onclick="vxLiveClose()">&#x2715;</button>
+    <div class="vx-voice-orb" id="vx-voice-orb">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </div>
+    <div class="vx-voice-status" id="vx-voice-status">Povezujem...</div>
+    <div class="vx-voice-transcript" id="vx-voice-transcript"></div>
+    <div class="vx-voice-confirm" id="vx-voice-confirm" style="display:none;">
+      <div class="vx-voice-confirm-text" id="vx-voice-confirm-text"></div>
+      <div class="vx-voice-confirm-actions">
+        <button type="button" class="modal-btn vx-voice-confirm-yes" onclick="vxLiveConfirm(true)">Da, potvrdi</button>
+        <button type="button" class="strat-btn vx-voice-confirm-no" onclick="vxLiveConfirm(false)">Otkaži</button>
+      </div>
+    </div>
+    <div class="vx-voice-error" id="vx-voice-error" style="display:none;"></div>
+    <button type="button" class="strat-btn vx-voice-stop-btn" id="vx-voice-stop-btn" onclick="vxLiveClose()">Završi razgovor</button>
+    <div class="modal-note">Vindex Live sluša samo dok je ovaj prozor otvoren.</div>
+  </div>
+</div>
+
 <!-- ── Mobile "Više" bottom sheet ─────────────────────────────────────── -->
 <div id="mob-more-overlay" onclick="mobileMoreZatvori()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;backdrop-filter:blur(3px);"></div>
 <div id="mob-more-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0c0e14;border-top:1px solid rgba(0,212,255,0.12);border-radius:4px 4px 0 0;z-index:10001;padding:0 0 env(safe-area-inset-bottom,0);max-height:80vh;overflow-y:auto;">

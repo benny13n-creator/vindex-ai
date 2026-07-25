@@ -16592,6 +16592,363 @@ function voice_doAction(action, params) {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   VINDEX LIVE — glasovna komanda (WebSocket realtime, iOS/Safari-safe)
+   2026-07-25. Dopunjava stariji voice_* (Web Speech API) flow iznad --
+   webkitSpeechRecognition NE POSTOJI na iOS Safari-ju, pa taj stariji flow
+   tamo nikad nije radio. Ovaj se oslanja na routers/voice_realtime.py (WS
+   /api/voice/realtime/ws) koji relay-uje PCM16 audio ka OpenAI Realtime
+   API-ju kroz naš auth/HITL sloj (v. services/voice_orchestrator.py) --
+   radi identično na svakom browseru koji podržava getUserMedia +
+   WebSocket + AudioContext (uključujući iOS Safari).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+var _vxLive = {
+  ws: null,
+  micCtx: null,    // AudioContext za snimanje (mic sample rate, npr. 44.1/48kHz)
+  playCtx: null,   // AudioContext za reprodukciju (24kHz) -- NAMERNO se ne
+                    // zatvara pri vxLiveClose(), v. napomenu u toj funkciji
+  stream: null,
+  source: null,
+  processor: null,
+  silentGain: null,
+  playCursor: 0,
+  state: 'idle',        // idle | connecting | listening | thinking | speaking | error
+  pendingConfirm: null,  // { call_id, tool, args }
+  active: false
+};
+var _vxLiveTranscriptDeltaEl = null;
+var VX_LIVE_SAMPLE_RATE = 24000; // OpenAI Realtime pcm16 ocekuje 24kHz mono
+
+function vxLiveOpen() {
+  if (!currentUser || !currentSession) { openModal(); return; }
+  if (_vxLive.active) return; // već otvoreno
+
+  var overlay = document.getElementById('vx-voice-modal-overlay');
+  if (overlay) { overlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  vxLiveResetUI();
+  vxLiveSetState('connecting', 'Povezujem...');
+
+  // iOS/Safari: AudioContext MORA biti kreiran/otključan SINHRONO unutar
+  // korisnikovog klika (ne posle await-a) -- inače je reprodukcija zvuka
+  // trajno blokirana za ostatak sesije (poznato Safari ograničenje, v.
+  // zadatak #2 iz specifikacije).
+  if (!_vxLiveUnlockAudio()) {
+    vxLiveShowError('Ovaj uređaj/browser ne podržava glasovnu komandu (Web Audio API nedostupan).');
+    return;
+  }
+
+  _vxLive.active = true;
+  _vxLiveConnect().catch(function(e) {
+    vxLiveShowError('Nije moguće pokrenuti glasovnu sesiju. ' + _friendlyErr(e));
+    _vxLive.active = false;
+  });
+}
+
+// Kreira/otključava playback AudioContext i pušta jedan tihi bafer -- v.
+// komentar iznad; ovaj kontekst se namerno čuva između sesija (v.
+// vxLiveClose) da se izbegne ponovno otključavanje pri svakom otvaranju.
+function _vxLiveUnlockAudio() {
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return false;
+  try {
+    if (!_vxLive.playCtx) _vxLive.playCtx = new AC();
+    if (_vxLive.playCtx.state === 'suspended') _vxLive.playCtx.resume();
+    var buf = _vxLive.playCtx.createBuffer(1, 1, _vxLive.playCtx.sampleRate);
+    var src = _vxLive.playCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(_vxLive.playCtx.destination);
+    src.start(0);
+    _vxLive.playCursor = _vxLive.playCtx.currentTime;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function _vxLiveConnect() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    vxLiveShowError('Ovaj browser ne podržava pristup mikrofonu. Na iPhone-u koristite Safari (ne ugrađeni browser druge aplikacije).');
+    _vxLive.active = false;
+    return;
+  }
+  var stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+    });
+  } catch (e) {
+    if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError')) {
+      vxLiveShowError('Mikrofon je blokiran za Vindex AI. Otvorite Podešavanja telefona → Safari → Mikrofon (ili Podešavanja → Vindex AI, ako je instaliran kao aplikacija) i dozvolite pristup, pa pokušajte ponovo.');
+    } else if (e && e.name === 'NotFoundError') {
+      vxLiveShowError('Nije pronađen mikrofon na ovom uređaju.');
+    } else {
+      vxLiveShowError('Nije moguće pristupiti mikrofonu. ' + _friendlyErr(e));
+    }
+    _vxLive.active = false;
+    return;
+  }
+  if (!_vxLive.active) { stream.getTracks().forEach(function(t) { t.stop(); }); return; } // korisnik zatvorio modal dok je čekao dozvolu
+
+  _vxLive.stream = stream;
+
+  var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var token = (currentSession && currentSession.access_token) || '';
+  var ws = new WebSocket(proto + '//' + window.location.host + '/api/voice/realtime/ws?token=' + encodeURIComponent(token));
+  _vxLive.ws = ws;
+
+  ws.onopen = function() {
+    _vxLiveStartCapture(stream);
+    vxLiveSetState('listening', 'Slušam...');
+  };
+  ws.onmessage = function(evt) {
+    var msg;
+    try { msg = JSON.parse(evt.data); } catch (e) { return; }
+    _vxLiveHandleServerMsg(msg);
+  };
+  ws.onerror = function() {
+    vxLiveShowError('Veza sa serverom nije uspela. Proverite internet konekciju i pokušajte ponovo.');
+  };
+  ws.onclose = function(evt) {
+    if (_vxLive.active && evt.code !== 1000) {
+      vxLiveShowError(evt.reason || 'Glasovna sesija je prekinuta.');
+    }
+    _vxLiveTeardownAudio();
+  };
+}
+
+// ScriptProcessorNode je deprecated ali dostupan svuda uključujući sve
+// verzije iOS Safari-ja -- AudioWorklet zahteva zaseban modul-fajl i nema
+// dosledno ponašanje na starijim iOS verzijama, pa je ScriptProcessorNode
+// ovde namerno izabran radi maksimalne kompatibilnosti (zadatak #2).
+function _vxLiveStartCapture(stream) {
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = new AC();
+  _vxLive.micCtx = ctx;
+  var source = ctx.createMediaStreamSource(stream);
+  _vxLive.source = source;
+  var processor = ctx.createScriptProcessor(4096, 1, 1);
+  _vxLive.processor = processor;
+  var silentGain = ctx.createGain();
+  silentGain.gain.value = 0; // sprečava jeku -- korisnik ne treba da čuje sopstveni glas
+  _vxLive.silentGain = silentGain;
+
+  processor.onaudioprocess = function(e) {
+    if (!_vxLive.ws || _vxLive.ws.readyState !== WebSocket.OPEN) return;
+    var input = e.inputBuffer.getChannelData(0);
+    var down = _vxDownsampleBuffer(input, ctx.sampleRate, VX_LIVE_SAMPLE_RATE);
+    var b64 = _vxFloat32ToPCM16Base64(down);
+    if (b64) _vxLive.ws.send(JSON.stringify({ type: 'input_audio', audio: b64 }));
+  };
+
+  source.connect(processor);
+  // Processor mora biti povezan do destination-a da bi onaudioprocess uopšte
+  // pucao u nekim browserima -- silentGain (gain=0) sprečava reprodukciju.
+  processor.connect(silentGain);
+  silentGain.connect(ctx.destination);
+}
+
+function _vxDownsampleBuffer(buffer, inRate, outRate) {
+  if (outRate === inRate) return buffer;
+  var ratio = inRate / outRate;
+  var newLen = Math.round(buffer.length / ratio);
+  var result = new Float32Array(newLen);
+  var offsetResult = 0, offsetBuffer = 0;
+  while (offsetResult < newLen) {
+    var nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+    var accum = 0, count = 0;
+    for (var i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) { accum += buffer[i]; count++; }
+    result[offsetResult] = count ? accum / count : 0;
+    offsetResult++;
+    offsetBuffer = nextOffsetBuffer;
+  }
+  return result;
+}
+
+function _vxFloat32ToPCM16Base64(float32) {
+  var buf = new ArrayBuffer(float32.length * 2);
+  var view = new DataView(buf);
+  for (var i = 0; i < float32.length; i++) {
+    var s = Math.max(-1, Math.min(1, float32[i]));
+    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  var bytes = new Uint8Array(buf);
+  var binary = '';
+  for (var j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+  return btoa(binary);
+}
+
+// Dekoduje base64 PCM16 (24kHz) chunk i zakazuje ga za reprodukciju odmah
+// posle prethodnog chunk-a (gapless streaming playback preko
+// AudioBufferSourceNode start-time zakazivanja, standardni Web Audio obrazac).
+function _vxLivePlayAudioChunk(base64) {
+  if (!base64 || !_vxLive.playCtx) return;
+  var binary = atob(base64);
+  var len = binary.length;
+  var bytes = new Uint8Array(len);
+  for (var i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+  var view = new DataView(bytes.buffer);
+  var sampleCount = len / 2;
+  if (sampleCount < 1) return;
+  var float32 = new Float32Array(sampleCount);
+  for (var j = 0; j < sampleCount; j++) {
+    var s = view.getInt16(j * 2, true);
+    float32[j] = s / (s < 0 ? 0x8000 : 0x7fff);
+  }
+  var ctx = _vxLive.playCtx;
+  var buffer = ctx.createBuffer(1, sampleCount, VX_LIVE_SAMPLE_RATE);
+  buffer.copyToChannel(float32, 0);
+  var src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(ctx.destination);
+  var startAt = Math.max(_vxLive.playCursor, ctx.currentTime);
+  src.start(startAt);
+  _vxLive.playCursor = startAt + buffer.duration;
+}
+
+function _vxLiveHandleServerMsg(msg) {
+  var t = msg.type;
+  if (t === 'output_audio') {
+    vxLiveSetState('speaking', 'Odgovaram...');
+    _vxLivePlayAudioChunk(msg.audio);
+  } else if (t === 'vindex.confirmation_required') {
+    vxLiveShowConfirm(msg.call_id, msg.tool, msg.args || {});
+  } else if (t === 'vindex.error') {
+    vxLiveShowError(_vxLiveHumanizeServerError(msg.detail));
+  } else if (t === 'input_audio_buffer.speech_started') {
+    vxLiveSetState('listening', 'Slušam...');
+  } else if (t === 'input_audio_buffer.speech_stopped') {
+    vxLiveSetState('thinking', 'Analiziram...');
+  } else if (t === 'conversation.item.input_audio_transcription.completed') {
+    if (msg.transcript) vxLiveAppendTranscript('user', msg.transcript);
+  } else if (t === 'response.audio_transcript.delta') {
+    vxLiveAppendTranscriptDelta('assistant', msg.delta || '');
+  } else if (t === 'response.audio_transcript.done') {
+    _vxLiveTranscriptDeltaEl = null;
+  } else if (t === 'response.done') {
+    if (!_vxLive.pendingConfirm) vxLiveSetState('listening', 'Slušam...');
+  }
+  // ostali OpenAI Realtime eventi (session.created, response.created...) se
+  // tiho ignorišu -- nisu relevantni za ovaj UI.
+}
+
+function _vxLiveHumanizeServerError(detail) {
+  if (!detail) return 'Došlo je do greške. Pokušajte ponovo.';
+  if (typeof detail === 'string') return detail;
+  return 'Glasovni servis je prijavio grešku. Pokušajte ponovo.';
+}
+
+function vxLiveAppendTranscript(who, text) {
+  var wrap = document.getElementById('vx-voice-transcript');
+  if (!wrap || !text) return;
+  var b = document.createElement('div');
+  b.className = 'vx-voice-bubble ' + (who === 'user' ? 'user' : 'assistant');
+  b.textContent = text;
+  wrap.appendChild(b);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function vxLiveAppendTranscriptDelta(who, delta) {
+  var wrap = document.getElementById('vx-voice-transcript');
+  if (!wrap || !delta) return;
+  if (!_vxLiveTranscriptDeltaEl) {
+    _vxLiveTranscriptDeltaEl = document.createElement('div');
+    _vxLiveTranscriptDeltaEl.className = 'vx-voice-bubble ' + (who === 'user' ? 'user' : 'assistant');
+    wrap.appendChild(_vxLiveTranscriptDeltaEl);
+  }
+  _vxLiveTranscriptDeltaEl.textContent += delta;
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function vxLiveShowConfirm(callId, tool, args) {
+  _vxLive.pendingConfirm = { call_id: callId, tool: tool, args: args || {} };
+  vxLiveSetState('idle', 'Potrebna potvrda');
+  var box = document.getElementById('vx-voice-confirm');
+  var txt = document.getElementById('vx-voice-confirm-text');
+  if (txt) txt.textContent = _vxLiveHumanizeConfirm(tool, args || {});
+  if (box) box.style.display = '';
+}
+
+function _vxLiveHumanizeConfirm(tool, args) {
+  if (tool === 'dodaj_belesku') {
+    var predmet = (typeof _predmeti !== 'undefined' && _predmeti ? _predmeti : []).find(function(p) { return p.id === args.predmet_id; });
+    var naziv = predmet ? (predmet.naziv || 'predmet') : 'predmet (ID: ' + (args.predmet_id || '?') + ')';
+    return 'Da li da dodam belešku u "' + naziv + '": "' + (args.sadrzaj || '') + '"?';
+  }
+  return 'Potvrdite akciju: ' + tool;
+}
+
+function vxLiveConfirm(approved) {
+  var box = document.getElementById('vx-voice-confirm');
+  if (box) box.style.display = 'none';
+  if (_vxLive.ws && _vxLive.ws.readyState === WebSocket.OPEN && _vxLive.pendingConfirm) {
+    _vxLive.ws.send(JSON.stringify({
+      type: 'vindex.confirm_tool_call',
+      call_id: _vxLive.pendingConfirm.call_id,
+      approved: !!approved
+    }));
+  }
+  _vxLive.pendingConfirm = null;
+  vxLiveSetState('thinking', 'Analiziram...');
+}
+
+function vxLiveSetState(state, text) {
+  _vxLive.state = state;
+  var orb = document.getElementById('vx-voice-orb');
+  var statusEl = document.getElementById('vx-voice-status');
+  if (orb) orb.className = 'vx-voice-orb' + (state && state !== 'idle' ? ' ' + state : '');
+  if (statusEl && text) statusEl.textContent = text;
+}
+
+function vxLiveShowError(msg) {
+  vxLiveSetState('error', 'Greška');
+  var el = document.getElementById('vx-voice-error');
+  if (el) showUserError(msg, { el: el, retry: function() { vxLiveClose(); vxLiveOpen(); } });
+}
+
+function vxLiveResetUI() {
+  var wrap = document.getElementById('vx-voice-transcript');
+  if (wrap) wrap.innerHTML = '';
+  var err = document.getElementById('vx-voice-error');
+  if (err) { err.style.display = 'none'; err.innerHTML = ''; }
+  var box = document.getElementById('vx-voice-confirm');
+  if (box) box.style.display = 'none';
+  _vxLiveTranscriptDeltaEl = null;
+  _vxLive.pendingConfirm = null;
+}
+
+function vxLiveClose() {
+  var wasActive = _vxLive.active;
+  _vxLive.active = false;
+  if (_vxLive.ws) {
+    var ws = _vxLive.ws;
+    _vxLive.ws = null;
+    try {
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'vindex.stop' }));
+      ws.close(1000);
+    } catch (e) { /* veza već zatvorena -- bezbedno ignorisati */ }
+  }
+  _vxLiveTeardownAudio();
+  var overlay = document.getElementById('vx-voice-modal-overlay');
+  if (overlay) { overlay.classList.remove('open'); document.body.style.overflow = ''; }
+  if (wasActive) vxLiveSetState('idle', 'Povezujem...');
+}
+
+// NAPOMENA: _vxLive.playCtx se OVDE namerno NE zatvara (samo mic-strana) --
+// iOS zahteva da se svaki NOV AudioContext otključa unutar korisnikovog
+// gesta (v. _vxLiveUnlockAudio); čuvanjem istog playCtx-a između sesija,
+// drugo i treće otvaranje modala rade odmah bez ponovnog "tap to unlock" koraka.
+function _vxLiveTeardownAudio() {
+  if (_vxLive.stream) {
+    _vxLive.stream.getTracks().forEach(function(t) { t.stop(); });
+    _vxLive.stream = null;
+  }
+  if (_vxLive.processor) { try { _vxLive.processor.disconnect(); } catch (e) {} _vxLive.processor = null; }
+  if (_vxLive.source) { try { _vxLive.source.disconnect(); } catch (e) {} _vxLive.source = null; }
+  if (_vxLive.silentGain) { try { _vxLive.silentGain.disconnect(); } catch (e) {} _vxLive.silentGain = null; }
+  if (_vxLive.micCtx) { try { _vxLive.micCtx.close(); } catch (e) {} _vxLive.micCtx = null; }
+}
+
 // Ucitava dokumente po rednom broju (DOK-01, DOK-02...) iz aktivnog predmeta
 async function _voice_load_docs_by_number(numbers) {
   if (!activePredmetId) return;
