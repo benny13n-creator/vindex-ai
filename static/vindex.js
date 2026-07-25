@@ -468,7 +468,7 @@ async function wl_submit() {
       btn.textContent = 'Prijavite se za rani pristup';
     }
   } catch(e) {
-    showToast('Greška mreže. Proverite konekciju.', 'err');
+    showToast('Veza sa serverom nije uspela. Proverite internet konekciju i pokušajte ponovo.', 'err');
     btn.disabled = false;
     btn.textContent = 'Prijavite se za rani pristup';
   }
@@ -491,8 +491,11 @@ function togglePw(inputId, btn) {
 function showToast(msg, type, duration) {
   var c = document.getElementById('toast-container');
   if (!c) return;
+  // 'error' je istorijski korišćen na 47 poziva a CSS klasa je .toast-err
+  // (v. vindex.css:569) -- bez ove normalizacije ti toast-ovi izlaze bez boje.
+  var normType = type === 'error' ? 'err' : type;
   var t = document.createElement('div');
-  t.className = 'toast' + (type ? ' toast-' + type : '');
+  t.className = 'toast' + (normType ? ' toast-' + normType : '');
   t.style.whiteSpace = 'pre-wrap';
   t.textContent = msg;
   c.appendChild(t);
@@ -501,6 +504,43 @@ function showToast(msg, type, duration) {
     t.style.opacity = '0';
     setTimeout(function() { t.remove(); }, 380);
   }, duration || 3200);
+}
+
+// Centralna funkcija za greške vidljive korisniku -- ljudski jezik + konkretno
+// uputstvo umesto sirovih generičkih poruka ("Greška.") ili _friendlyErr(e) poruka
+// (v. docs/architecture/VINDEX_UI_UX_USABILITY_ANALYSIS_2026-07-25.md #2/#3).
+// opts.el   -- ako je prosleđen DOM element, greška se ispisuje unutar njega
+//              (zamena za postojeći innerHTML='<div>...</div>' obrazac)
+//              umesto kao toast.
+// opts.retry -- opciona funkcija; ako je prosleđena (i koristi se opts.el),
+//              dodaje dugme "Pokušaj ponovo".
+function showUserError(message, opts) {
+  opts = opts || {};
+  var text = message || 'Radnja nije uspela. Pokušajte ponovo.';
+  if (opts.el) {
+    var retryBtnHtml = opts.retry ? '<button type="button" class="vx-error-retry-btn">Pokušaj ponovo</button>' : '';
+    opts.el.innerHTML = '<div class="vx-error-inline">' + _htmlEsc(text) + retryBtnHtml + '</div>';
+    opts.el.style.display = '';
+    if (opts.retry) {
+      var btn = opts.el.querySelector('.vx-error-retry-btn');
+      if (btn) btn.addEventListener('click', opts.retry);
+    }
+    return;
+  }
+  showToast(text, 'err', opts.duration);
+}
+
+// Mapira sirove JS/mrežne poruke (e.message) na razumljivu rečenicu na srpskom
+// -- korisnik ne treba da vidi "Failed to fetch" ili "NetworkError...".
+function _friendlyErr(e) {
+  var raw = (e && e.message) ? String(e.message) : String(e || '');
+  if (/Failed to fetch|NetworkError|Load failed|ERR_INTERNET|ERR_CONNECTION/i.test(raw)) {
+    return 'Veza sa serverom nije uspela. Proverite internet konekciju i pokušajte ponovo.';
+  }
+  if (/timeout|timed out/i.test(raw)) {
+    return 'Server predugo ne odgovara. Pokušajte ponovo za par trenutaka.';
+  }
+  return 'Radnja nije uspela. Pokušajte ponovo, a ako se greška ponovi kontaktirajte podršku.';
 }
 
 function setAuthMode(mode) {
@@ -642,7 +682,7 @@ async function doRegister() {
       return;
     }
   } catch(e) {
-    _setAuthError('Greška mreže. Pokušajte ponovo.');
+    _setAuthError('Veza sa serverom nije uspela. Proverite internet konekciju i pokušajte ponovo.');
     btn.textContent = 'Registruj se'; btn.disabled = false;
     return;
   }
@@ -771,7 +811,7 @@ async function exportSviPodaci() {
     URL.revokeObjectURL(url);
     showToast('Export preuzet!', 'success');
   } catch(e) {
-    showToast('Greška pri exportu: ' + e.message, 'error');
+    showToast('Greška pri exportu: ' + _friendlyErr(e), 'error');
   } finally {
     if (btn) { btn.textContent = 'Preuzmi ZIP'; btn.disabled = false; }
   }
@@ -851,7 +891,7 @@ async function saveTurnToSupabase(userMsg, assistantMsg) {
       { user_id:uid, session_id:currentChatSessionId, role:'user',      content:_piiFilter(userMsg).substring(0,2000),      tab:activeTab },
       { user_id:uid, session_id:currentChatSessionId, role:'assistant', content:_piiFilter(assistantMsg).substring(0,3000), tab:activeTab }
     ]);
-  } catch(e) { console.warn('[Vindex] saveTurn:', e.message); }
+  } catch(e) { console.warn('[Vindex] saveTurn:', _friendlyErr(e)); }
 }
 
 async function loadChatHistory() {
@@ -874,7 +914,7 @@ async function loadChatHistory() {
     }
     if (conversationHistory.length > 3) conversationHistory = conversationHistory.slice(-3);
     renderChatHistory(_chatHistoryRows);
-  } catch(e) { console.warn('[Vindex] loadHistory:', e.message); }
+  } catch(e) { console.warn('[Vindex] loadHistory:', _friendlyErr(e)); }
 }
 
 function renderChatHistory(rows) {
@@ -2534,7 +2574,7 @@ async function learningStatsLoad() {
       + rows
       + '<div style="font-size:.65rem;color:rgba(255,255,255,.3);margin-top:.5rem;">AI analiza pokrenuto: ' + (d.ukupno_analiza || 0) + ' · Preporuke prihvaćeno: ' + (d.preporuke_prihvaceno || 0) + ' · Odbijeno: ' + (d.preporuke_odbijeno || 0) + '</div>';
   } catch (e) {
-    wrap.innerHTML = '<div style="color:rgba(255,120,120,0.6);font-size:.78rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrap.innerHTML = '<div style="color:rgba(255,120,120,0.6);font-size:.78rem;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -2572,7 +2612,7 @@ async function confidenceAuditLoad() {
       + '<div style="font-size:.65rem;color:rgba(255,255,255,.3);margin-top:.5rem;">Ukupno preporuka: ' + (pregled.ukupno_preporuka_ikad || 0) + ' · Prihvaćeno: ' + (pregled.ukupno_prihvacenih || 0) + (d.brier_score !== undefined && d.brier_score !== null ? ' · Brier score: ' + d.brier_score + ' (' + _htmlEsc(d.brier_ocena || '') + ')' : '') + '</div>'
       + (d.preporuka_za_akciju ? '<div style="margin-top:.5rem;padding:.5rem .65rem;background:rgba(0,212,255,.05);border-left:2px solid rgba(0,212,255,.35);font-size:.76rem;color:rgba(255,255,255,.68);">' + _htmlEsc(d.preporuka_za_akciju) + '</div>' : '');
   } catch (e) {
-    wrap.innerHTML = '<div style="color:rgba(255,120,120,0.6);font-size:.78rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrap.innerHTML = '<div style="color:rgba(255,120,120,0.6);font-size:.78rem;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -2697,7 +2737,7 @@ async function billingDugovanjaLoad() {
         +'</div>';
     }).join('');
   } catch(e) {
-    if (listEl) listEl.innerHTML = '<div style="font-size:0.75rem;color:#f87171;">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (listEl) listEl.innerHTML = '<div style="font-size:0.75rem;color:#f87171;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -2767,7 +2807,7 @@ async function _finFaktureLoad() {
           +'</tr>';
       }).join('') + '</tbody></table></div>';
   } catch(e) {
-    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;">Greška: '+_htmlEsc(e.message)+'</div>';
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;">Greška: '+_htmlEsc(_friendlyErr(e))+'</div>';
   }
 }
 
@@ -2976,7 +3016,7 @@ async function kancStatistikaLoad() {
     }
     el.innerHTML = html;
   } catch(e) {
-    el.innerHTML = '<div style="font-size:.75rem;color:#f87171;">Greška.</div>';
+    el.innerHTML = '<div style="font-size:.75rem;color:#f87171;">Radnja nije uspela. Pokušajte ponovo.</div>';
   }
 }
 
@@ -2996,7 +3036,7 @@ async function kancWorkflowTemplatesLoad() {
         +'</div>';
     }).join('') + '<div style="font-size:.68rem;color:rgba(255,255,255,.3);margin-top:.5rem;">Kreiranje sopstvenih predložaka dolazi uskoro — predlošci se pokreću kroz Workflow tab na predmetu.</div>';
   } catch(e) {
-    el.innerHTML = '<div style="font-size:.75rem;color:#f87171;">Greška.</div>';
+    el.innerHTML = '<div style="font-size:.75rem;color:#f87171;">Radnja nije uspela. Pokušajte ponovo.</div>';
   }
 }
 
@@ -3011,11 +3051,11 @@ async function kancelarijaKreiraj() {
       body: JSON.stringify({naziv: inp.value.trim()})
     });
     var d = await r.json();
-    if (!r.ok) { if(errEl){errEl.textContent=d.detail||'Greška.';errEl.style.display='';} return; }
+    if (!r.ok) { if(errEl){errEl.textContent=d.detail||'Radnja nije uspela. Pokušajte ponovo.';errEl.style.display='';} return; }
     if (errEl) errEl.style.display = 'none';
     inp.value = '';
     await kancelarijaLoad();
-  } catch(e) { if(errEl){errEl.textContent='Greška mreže.';errEl.style.display='';} }
+  } catch(e) { if(errEl){errEl.textContent='Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.';errEl.style.display='';} }
 }
 
 async function kancPrihvati() {
@@ -3023,9 +3063,9 @@ async function kancPrihvati() {
   var errEl = document.getElementById('kancelarija-pending-err');
   try {
     var r = await fetch('/api/kancelarija/prihvati', {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    if (!r.ok) { var d=await r.json(); if(errEl){errEl.textContent=d.detail||'Greška.';errEl.style.display='';} return; }
+    if (!r.ok) { var d=await r.json(); if(errEl){errEl.textContent=d.detail||'Radnja nije uspela. Pokušajte ponovo.';errEl.style.display='';} return; }
     await kancelarijaLoad();
-  } catch(e) { if(errEl){errEl.textContent='Greška mreže.';errEl.style.display='';} }
+  } catch(e) { if(errEl){errEl.textContent='Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.';errEl.style.display='';} }
 }
 
 function kancOdbij() {
@@ -3051,14 +3091,14 @@ async function kancPozovi() {
     });
     var d = await r.json();
     if (!r.ok) {
-      if(stEl){stEl.textContent=d.detail||'Greška.';stEl.style.color='#f87171';stEl.style.display='';}
+      if(stEl){stEl.textContent=d.detail||'Radnja nije uspela. Pokušajte ponovo.';stEl.style.color='#f87171';stEl.style.display='';}
     } else {
       if(stEl){stEl.textContent='Poziv poslat na '+emailInp.value.trim();stEl.style.color='#4ade80';stEl.style.display='';}
       emailInp.value = '';
       await kancelarijaLoad();
     }
     setTimeout(function(){ if(stEl) stEl.style.display='none'; }, 4000);
-  } catch(e) { if(stEl){stEl.textContent='Greška mreže.';stEl.style.color='#f87171';stEl.style.display='';} }
+  } catch(e) { if(stEl){stEl.textContent='Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.';stEl.style.color='#f87171';stEl.style.display='';} }
 }
 
 function kancUkloni(clanId, email) {
@@ -3066,9 +3106,9 @@ function kancUkloni(clanId, email) {
   _vxConfirm('Ukloniti ' + email + ' iz firme?', async function() {
     try {
       var r = await fetch('/api/kancelarija/ukloni/'+clanId, {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-      if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
+      if (!r.ok) { var d=await r.json(); showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.', 'err'); return; }
       await kancelarijaLoad();
-    } catch(e) { showToast('Greška mreže.', 'err'); }
+    } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'err'); }
   });
 }
 
@@ -3077,9 +3117,9 @@ function kancSuspenduj(clanId, email) {
   _vxConfirm('Suspendovati ' + email + '? Neće moći da pristupa dok se ne reaktivira.', async function() {
     try {
       var r = await fetch('/api/kancelarija/suspenduj/'+clanId, {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-      if (!r.ok) { var d=await r.json(); showToast((d.detail && d.detail.message) || d.detail || 'Greška.', 'err'); return; }
+      if (!r.ok) { var d=await r.json(); showToast((d.detail && d.detail.message) || d.detail || 'Radnja nije uspela. Pokušajte ponovo.', 'err'); return; }
       await kancelarijaLoad();
-    } catch(e) { showToast('Greška mreže.', 'err'); }
+    } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'err'); }
   });
 }
 
@@ -3087,9 +3127,9 @@ async function kancReaktiviraj(clanId, email) {
   if (!currentSession) return;
   try {
     var r = await fetch('/api/kancelarija/reaktiviraj/'+clanId, {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    if (!r.ok) { var d=await r.json(); showToast((d.detail && d.detail.message) || d.detail || 'Greška.', 'err'); return; }
+    if (!r.ok) { var d=await r.json(); showToast((d.detail && d.detail.message) || d.detail || 'Radnja nije uspela. Pokušajte ponovo.', 'err'); return; }
     await kancelarijaLoad();
-  } catch(e) { showToast('Greška mreže.', 'err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'err'); }
 }
 
 async function kancPromeniUlogu(clanId, uloga) {
@@ -3099,8 +3139,8 @@ async function kancPromeniUlogu(clanId, uloga) {
       method:'PUT', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
       body: JSON.stringify({uloga: uloga})
     });
-    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); await kancelarijaLoad(); }
-  } catch(e) { showToast('Greška mreže.', 'err'); }
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.', 'err'); await kancelarijaLoad(); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'err'); }
 }
 
 function kancRename() {
@@ -3112,9 +3152,9 @@ function kancRename() {
         method:'PUT', headers:{'Authorization':'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
         body: JSON.stringify({naziv: novi.trim()})
       });
-      if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
+      if (!r.ok) { var d=await r.json(); showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.', 'err'); return; }
       await kancelarijaLoad();
-    } catch(e) { showToast('Greška mreže.', 'err'); }
+    } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'err'); }
   });
 }
 
@@ -3123,9 +3163,9 @@ function kancOstavi() {
   _vxConfirm('Napustiti firmu? Izgubićete pristup svim deljenim predmetima.', async function() {
     try {
       var r = await fetch('/api/kancelarija/napusti', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-      if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.', 'err'); return; }
+      if (!r.ok) { var d=await r.json(); showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.', 'err'); return; }
       await kancelarijaLoad();
-    } catch(e) { showToast('Greška mreže.', 'err'); }
+    } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'err'); }
   });
 }
 
@@ -3384,7 +3424,7 @@ async function stratPokreni() {
     }
 
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
   }
@@ -3430,7 +3470,7 @@ async function stratBattleReport() {
       + stratFormatirajRezultat(data.battle_report || data.analiza || data.rezultat || '');
     if (data.credits_remaining != null) showToast('Preostalo ' + data.credits_remaining + ' kredita.', 'info');
   } catch (e) {
-    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -3475,7 +3515,7 @@ async function stratConfidenceCheck() {
       + _stratListHtml('Faktori PROTIV', d.faktori_minus, '#f87171')
       + '</div>';
   } catch (e) {
-    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Proveri pouzdanost predikcije (1 kredit)'; }
   }
@@ -3513,7 +3553,7 @@ async function stratJudgeProfile() {
       + (d.upozorenje ? '<div style="font-size:.66rem;color:rgba(255,255,255,.3);margin-top:.4rem;">' + _htmlEsc(d.upozorenje) + '</div>' : '')
       + '</div>';
   } catch (e) {
-    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -3550,7 +3590,7 @@ async function stratOpponentIntel() {
       + _stratListHtml('Upozorenja', d.upozorenja, '#ffbb70')
       + '</div>';
   } catch (e) {
-    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -3591,7 +3631,7 @@ async function stratArgumentReputation() {
       + _stratListHtml('Alternativni argumenti', d.alternativni_argumenti, '#4ade80')
       + '</div>';
   } catch (e) {
-    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -3638,6 +3678,31 @@ function _stratSingleModulHtml(elapsedSec) {
     + '</div>';
 }
 
+// Isti princip kao _STRAT_SINGLE_FAZE ("KONKRETNE radnje, ne generičko
+// 'Molimo sačekajte'"), primenjen na BRZE (3-5s) AI pozive koji do sada
+// nisu imali nikakav vizuelni indikator napretka dok korisnik čeka (v.
+// docs/architecture/VINDEX_UI_UX_USABILITY_ANALYSIS_2026-07-25.md #3).
+var _QUICK_AI_FAZE = [
+  'Pretražujem propise...',
+  'Proveravam sudsku praksu...',
+  'Formiram odgovor...'
+];
+// Upisuje rotirajuću frazu u el i vraća interval handle za _quickAiLoadingStop.
+function _quickAiLoadingStart(el) {
+  if (!el) return null;
+  var idx = 0;
+  el.innerHTML = '<div class="strat-loading"><div class="_qal-txt" style="color:rgba(150,200,255,0.9);font-size:.78rem;">⏳ ' + _QUICK_AI_FAZE[0] + '</div></div>';
+  var txtEl = el.querySelector('._qal-txt');
+  var handle = setInterval(function() {
+    idx = (idx + 1) % _QUICK_AI_FAZE.length;
+    if (txtEl) txtEl.textContent = '⏳ ' + _QUICK_AI_FAZE[idx];
+  }, 1400);
+  return handle;
+}
+function _quickAiLoadingStop(handle) {
+  if (handle) clearInterval(handle);
+}
+
 // Polling za async AI poslove (HTTP 202 pattern)
 async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel, isOrkestrator) {
   var _resetLabel = resetLabel || 'Pokreni analizu';
@@ -3666,7 +3731,7 @@ async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel, isOrkestrato
       // pending/running — ažuriraj prikaz
       if (bodyEl) bodyEl.innerHTML = isOrkestrator ? _strat6ModuliHtml(elapsed, false) : _stratSingleModulHtml(elapsed);
     } catch(e) {
-      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+      if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
       _brokenByError = true;
       break;
     }
@@ -3743,7 +3808,7 @@ async function stratOrkestratorPokreni() {
     var data = await res.json();
     if (bodyEl) bodyEl.innerHTML = (data.modul === 'kompletna_analiza' || (data.koraci && data.sinteza)) ? renderKompletnaAnaliza(data) : stratFormatirajRezultat(data.rezultat || JSON.stringify(data, null, 2));
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     if (orkBtn) { orkBtn.disabled = false; orkBtn.textContent = _resetLabel; }
     piTrack('ai_analysis','completed',{tip:'kompletna'});
@@ -3994,7 +4059,7 @@ async function exportujKaoWord(naslov, tekst, tip) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } catch(e) {
-    showToast('Greška pri exportu: ' + e.message, 'err');
+    showToast('Greška pri exportu: ' + _friendlyErr(e), 'err');
   }
 }
 
@@ -4051,7 +4116,7 @@ async function kreirajApiKljuc() {
     display.style.display = 'block';
     document.getElementById('api-kljuc-naziv').value = '';
     await ucitajApiKljuceve();
-  } catch(e) { showToast('Greška: ' + e.message, 'err'); }
+  } catch(e) { showToast('Greška: ' + _friendlyErr(e), 'err'); }
 }
 
 async function opoziviApiKljuc(id) {
@@ -4209,7 +4274,7 @@ async function feedbackSubmit() {
     if (typeof piTrack === 'function') piTrack('feedback', 'submitted', {rating: _feedbackRating || null, kontekst: body.kontekst});
     feedbackClose();
   } catch(e) {
-    showToast('Slanje nije uspelo: ' + e.message, 'error');
+    showToast('Slanje nije uspelo: ' + _friendlyErr(e), 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Pošaljite'; }
   }
@@ -4269,7 +4334,7 @@ async function playbookUploadFajlove(files) {
         await new Promise(function(r){setTimeout(r,2000);});
       }
     } catch(e) {
-      if (progress) { progress.textContent = 'Greška: ' + e.message; }
+      if (progress) { progress.textContent = 'Greška: ' + _friendlyErr(e); }
       await new Promise(function(r){setTimeout(r,2000);});
     }
   }
@@ -4296,7 +4361,7 @@ async function obrisiSvPlaybook() {
     });
     if (res.ok) { await ucitajPlaybookStatus(); showToast('Playbook obrisan'); }
     else showToast('Greška pri brisanju.', 'err');
-  } catch(e) { showToast('Greška: ' + e.message, 'err'); }
+  } catch(e) { showToast('Greška: ' + _friendlyErr(e), 'err'); }
 }
 
 // ── F7 INTERNI STAVOVI ────────────────────────────────────────────────────────
@@ -4323,9 +4388,9 @@ async function dodajInterniStav() {
       document.getElementById('interni-naslov').value = '';
       document.getElementById('interni-tekst').value  = '';
     } else {
-      showToast(data.detail || 'Greška.', 'err');
+      showToast(data.detail || 'Radnja nije uspela. Pokušajte ponovo.', 'err');
     }
-  } catch(e) { showToast('Greška: ' + e.message, 'err'); }
+  } catch(e) { showToast('Greška: ' + _friendlyErr(e), 'err'); }
 }
 
 async function pretraziInterneStavove() {
@@ -4359,7 +4424,7 @@ async function pretraziInterneStavove() {
         '</div>';
     }).join('');
   } catch(e) {
-    div.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    div.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -4373,7 +4438,7 @@ async function obrisiSveInterneStavove() {
     });
     if (res.ok) showToast('✓ Svi interni stavovi obrisani.');
     else showToast('Greška pri brisanju.', 'err');
-  } catch(e) { showToast('Greška: ' + e.message, 'err'); }
+  } catch(e) { showToast('Greška: ' + _friendlyErr(e), 'err'); }
 }
 
 function _htmlEsc(s) {
@@ -4496,7 +4561,7 @@ async function crmOtvoriProfil(klijentId) {
     crmRenderPredmeti(d.aktivni_predmeti || [], d.zavrseni_predmeti || []);
     crmUcitajTarifu(klijentId);
   } catch(e) {
-    document.getElementById('crm-podaci-javni').innerHTML = '<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška.</div>';
+    showUserError('Nije moguće učitati profil klijenta. ' + _friendlyErr(e), { el: document.getElementById('crm-podaci-javni') });
   }
   crmProfilTab('podaci');
 }
@@ -4532,7 +4597,7 @@ async function crmUcitajTwin(klijentId) {
     if (!r.ok) throw new Error(d.detail || ('Greška ' + r.status));
     _crmRenderTwin(klijentId, d.komunikacioni_profil || null, d.br_predmeta, d.updated_at);
   } catch (e) {
-    wrap.innerHTML = '<div class="crm-prazno">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrap.innerHTML = '<div class="crm-prazno">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -4592,7 +4657,7 @@ async function crmAnaliziranjeTwin(klijentId) {
     _crmRenderTwin(klijentId, d.komunikacioni_profil, d.analizirano_predmeta, null);
     showToast(d.poruka || 'Profil ažuriran.', 'ok');
   } catch (e) {
-    if (resEl) resEl.innerHTML = '<div class="crm-prazno">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (resEl) resEl.innerHTML = '<div class="crm-prazno">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
     if (btn) { btn.disabled = false; btn.textContent = 'Pokušaj ponovo'; }
   }
 }
@@ -4640,7 +4705,7 @@ async function crmOtkrijPoverljivo() {
     else { pane.innerHTML = items.map(function(i){ return '<div class="crm-podaci-row"><span class="crm-podaci-lbl">'+_htmlEsc(i[0])+'</span><span class="crm-podaci-val" style="font-family:monospace;color:#ffd080;">'+_htmlEsc(i[1])+'</span></div>'; }).join(''); }
     pane.style.display = 'block';
     btn.textContent = 'Sakrij poverljive podatke';
-  } catch(e) { alert('Greška.'); btn.textContent='Prikaži poverljive podatke'; }
+  } catch(e) { showUserError('Nije moguće prikazati poverljive podatke. ' + _friendlyErr(e)); btn.textContent='Prikaži poverljive podatke'; }
   btn.disabled = false;
 }
 
@@ -4655,7 +4720,7 @@ async function crmUcitajTimeline(klijentId) {
     el.innerHTML = events.map(function(ev){
       return '<div class="crm-timeline-item"><div class="crm-tl-ikona">'+(ev.ikona||'')+'</div><div class="crm-tl-body"><div class="crm-tl-datum">'+_htmlEsc((ev.datum||'').slice(0,16).replace('T',' '))+'</div><div class="crm-tl-opis">'+_htmlEsc(ev.opis||ev.tip||'')+'</div></div></div>';
     }).join('');
-  } catch(e) { el.innerHTML='<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška.</div>'; }
+  } catch(e) { showUserError('Nije moguće učitati istoriju aktivnosti. ' + _friendlyErr(e), { el: el }); }
 }
 
 async function crmUcitajDokumente(klijentId) {
@@ -4673,7 +4738,7 @@ async function crmUcitajDokumente(klijentId) {
         +'<a href="/klijenti/'+_htmlEsc(klijentId)+'/dokumenti/'+_htmlEsc(doc.id)+'/download" class="crm-btn-edit" style="text-decoration:none;" target="_blank">⬇ Preuzmi</a>'
         +'</div>';
     }).join('');
-  } catch(e) { el.innerHTML='<div class="crm-prazno" style="color:rgba(255,80,80,0.5);">Greška.</div>'; }
+  } catch(e) { showUserError('Nije moguće učitati dokumenta klijenta. ' + _friendlyErr(e), { el: el }); }
 }
 
 var _crmDirty = false;
@@ -4795,11 +4860,11 @@ async function crmSacuvaj() {
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
       body: JSON.stringify(payload)
     });
-    if (!r.ok) { var err=await r.json(); alert('Greška: '+(err.detail||r.status)); return; }
+    if (!r.ok) { var err=await r.json(); showUserError('Čuvanje nije uspelo: ' + (err.detail || 'proverite unete podatke i pokušajte ponovo.')); return; }
     crmZatvoriFormu();
     if (editId && crmAktivniId === editId) crmOtvoriProfil(editId);
     else ucitajKlijente();
-  } catch(e) { alert('Greška pri čuvanju.'); }
+  } catch(e) { showUserError('Čuvanje nije uspelo. ' + _friendlyErr(e)); }
 }
 
 async function crmUredi(klijentId) {
@@ -4818,7 +4883,7 @@ async function crmUredi(klijentId) {
     if (document.getElementById('crm-f-osnov')) document.getElementById('crm-f-osnov').value = k.pravni_osnov_obrade || 'legitimni_interes';
     crmSetTip(k.tip || 'fizicko_lice');
     crmOtvoriFormu(klijentId);
-  } catch(e) { alert('Greška pri učitavanju klijenta.'); }
+  } catch(e) { showUserError('Nije moguće učitati podatke klijenta. ' + _friendlyErr(e)); }
 }
 
 async function crmObrisi(klijentId) {
@@ -4900,7 +4965,7 @@ async function crmCsvPosalji() {
     }
     if (res) res.style.display = '';
   } catch(e) {
-    if (res) { res.style.display = ''; res.innerHTML = '<span style="color:#f87171;">Greška mreže: ' + _htmlEsc(e.message) + '</span>'; }
+    if (res) { res.style.display = ''; showUserError('Uvoz klijenata nije uspeo. ' + _friendlyErr(e), { el: res }); }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Uvezi klijente'; }
   }
@@ -4928,7 +4993,7 @@ async function crmPokreniKonflikt() {
       var detalji = (d.details||[]).map(function(c){ return '<div style="margin-top:6px;font-size:0.78rem;">⚠ '+_htmlEsc(c.detalji)+'</div>'; }).join('');
       rezultat.innerHTML = '<div class="crm-conflict-warn"><b>⚠ Pronađen potencijalni sukob!</b>'+detalji+'</div>';
     }
-  } catch(e) { rezultat.innerHTML='<span style="color:rgba(255,80,80,0.7);">Greška pri provjeri.</span>'; }
+  } catch(e) { showUserError('Provera sukoba interesa nije uspela. ' + _friendlyErr(e), { el: rezultat, retry: function(){ crmPokreniKonflikt(); } }); }
 }
 
 /* ── F11: WEB3 / COMPLIANCE ──────────────────────────────── */
@@ -5010,7 +5075,7 @@ var WEB3_MODULI = {
   carf_dac8_readiness: {
     naziv:       'CARF/DAC8 Readiness',
     endpoint:    '/web3/carf-readiness',
-    opis:        'RAG-pretraga nad ingestovanim CARF (OECD) i DAC8 (EU direktiva 2023/2226) tekstom — konkretna pitanja o obavezama izveštavanja, definicijama i primeni. Citira samo članove/sekcije koji su stvarno u bazi.',
+    opis:        'Pretraga kroz tekst CARF (OECD) i DAC8 (EU direktiva 2023/2226) — konkretna pitanja o obavezama izveštavanja, definicijama i primeni. Citira samo članove/sekcije koji su stvarno u bazi.',
     label:       'Vaše pitanje o CARF ili DAC8',
     placeholder: 'Npr: Da li DAC8 predviđa izuzetak za advokate? Koji je prag za Reportable Retail Payment Transaction po CARF-u?',
     min:         15
@@ -5202,7 +5267,7 @@ async function web3Pokreni() {
       else bodyEl.innerHTML = web3FormatirajRezultat(data.rezultat || '');
     }
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     btn.disabled = false;
     btn.textContent = (WEB3_MODULI[_web3AktivniModul] && WEB3_MODULI[_web3AktivniModul].btnText) || 'Analiziraj';
@@ -5269,7 +5334,7 @@ async function web3JurisdikcijeLoad() {
     if (data.izvor) html += '<div class="strat-meta" style="margin-top:.6rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(data.izvor) + '</div>';
     if (bodyEl) bodyEl.innerHTML = html;
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     btn.disabled = false; btn.textContent = 'Prikaži listu jurisdikcija';
   }
@@ -5323,7 +5388,7 @@ async function web3OfacProveri() {
     html += '<div class="strat-meta" style="margin-top:.4rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(data.napomena || '') + '</div>';
     if (bodyEl) bodyEl.innerHTML = html;
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     btn.disabled = false; btn.textContent = 'Proveri adrese';
   }
@@ -5423,7 +5488,7 @@ async function web3WalletProvenance() {
     html += '<div class="strat-meta" style="margin-top:.5rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(d.napomena || '') + '</div>';
     if (bodyEl) bodyEl.innerHTML = html;
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     btn.disabled = false; btn.textContent = 'Proveri novčanik';
   }
@@ -5478,7 +5543,7 @@ async function web3DossierGeneriraj() {
       if (typeof updateCreditDisplay === 'function') updateCreditDisplay();
     }
   } catch(e) {
-    if (poruka) poruka.innerHTML = '<span style="color:rgba(255,80,80,0.85);">Greška: ' + _htmlEsc(e.message) + '</span>';
+    if (poruka) poruka.innerHTML = '<span style="color:rgba(255,80,80,0.85);">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</span>';
   } finally {
     btn.disabled = false; btn.textContent = 'Generiši dossier (PDF, 2 kredita)';
   }
@@ -5528,7 +5593,7 @@ async function web3CsvUvoz() {
     html += '<div class="strat-meta" style="margin-top:.6rem;font-size:.72rem;opacity:.6;">' + _htmlEsc(d.napomena || '') + '</div>';
     if (bodyEl) bodyEl.innerHTML = html;
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     btn.disabled = false; btn.textContent = 'Analiziraj CSV';
   }
@@ -5605,7 +5670,7 @@ async function oblastiPokreni() {
     if (bodyEl) bodyEl.innerHTML = web3FormatirajRezultat(data.data || '');
     if (wrapEl) wrapEl.scrollIntoView({behavior:'smooth', block:'start'});
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     btn.disabled = false; btn.textContent = 'Postavi pitanje';
   }
@@ -6770,7 +6835,7 @@ function formatResponse(rawText, ragMeta) {
     { key:'--- ANALIZA ŠTETE',                  cls:'resp-steta',       lbl:'Analiza štete',                 icon:'steta' },
     { key:'--- ANALIZA',                        cls:'resp-steta',       lbl:'Analiza',                       icon:'steta' },
     { key:'--- PROCENA VREDNOSTI ZAHTEVA',      cls:'resp-procena',     lbl:'Procena vrednosti zahteva',     icon:'' },
-    { key:'--- CITAT ZAKONA',                   cls:'resp-citat',       lbl:'📖 Citat zakona [RAG]',            icon:'citat' },
+    { key:'--- CITAT ZAKONA',                   cls:'resp-citat',       lbl:'📖 Citat zakona',            icon:'citat' },
     { key:'--- PRAVNI OSNOV',                   cls:'resp-pravni-osnov',lbl:'Pravni osnov',                  icon:'osnov' },
     // Specifičnije RIZICI sekcije pre generičke
     { key:'--- RIZICI I ROKOVI',                cls:'resp-rizici',      lbl:'⚠️ Rizici i rokovi',              icon:'rizici' },
@@ -6889,7 +6954,7 @@ function formatResponse(rawText, ragMeta) {
   }
 
     var isHigh = pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1;
-  var verifiedBadge = isHigh ? '<span class="rag-verified">✓ RAG</span>' : '';
+  var verifiedBadge = isHigh ? '<span class="rag-verified">✓ Potvrđeno u bazi propisa</span>' : '';
 
   // Detekcija tipa upita na osnovu HIJERARHIJA IZVORA sekcije — za dinamički prikaz
   var _tipUpita = 'obligaciono';
@@ -7688,7 +7753,7 @@ async function execQuery() {
     }
   } catch(e) {
     resp.classList.add('show'); rb.style.whiteSpace='pre-wrap';
-    rb.textContent = 'Došlo je do greške: '+(e.message||'API nije dostupan. Proverite internet vezu i pokušajte ponovo.');
+    rb.textContent = 'Došlo je do greške: '+(_friendlyErr(e)||'API nije dostupan. Proverite internet vezu i pokušajte ponovo.');
   } finally {
     _execInProgress = false;
     execBtn.disabled = false;
@@ -7944,7 +8009,7 @@ var _ptCache = null;
 var _PT_BULLETS = {
   basic: [
     'Osnovne AI funkcije za pojedinačnog advokata',
-    'RAG pretraga sudske prakse i zakona',
+    'Pretraga kroz celu bazu zakona i sudske prakse',
     'Nacrti i analiza dokumenata',
     'SEF e-faktura',
   ],
@@ -8500,7 +8565,7 @@ function _renderCompareResult(data) {
 
 function _showCompareError(msg) {
   _hideCompareLoading();
-  document.getElementById('compare-result').innerHTML = '<div class="compare-error">' + (msg || 'Greška.') + '</div>';
+  document.getElementById('compare-result').innerHTML = '<div class="compare-error">' + (msg || 'Radnja nije uspela. Pokušajte ponovo.') + '</div>';
 }
 
 async function _doCompare(dnA, dnB) {
@@ -9320,7 +9385,7 @@ async function dodajUKalendar(naslov, datumIso, opis) {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
   } catch(e) {
-    alert('Greška pri generisanju ICS fajla: ' + e.message);
+    showUserError('Nije moguće izvesti rok u kalendar. ' + _friendlyErr(e));
   }
 }
 
@@ -9344,7 +9409,7 @@ async function sviRokoviUKalendar() {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
   } catch(e) {
-    alert('Greška: ' + e.message);
+    showUserError('Nije moguće izvesti sve rokove u kalendar. ' + _friendlyErr(e));
   }
 }
 
@@ -9430,7 +9495,7 @@ async function kalkulisiZastarelost() {
       '<div class="zast-status">' + statusTxt + '</div>' +
       napHtml + icsBtnHtml + '</div>';
   } catch(e) {
-    rezDiv.innerHTML = '<div class="rok-alert rok-hitno" style="display:block;margin-top:.5rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+    rezDiv.innerHTML = '<div class="rok-alert rok-hitno" style="display:block;margin-top:.5rem;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -9800,7 +9865,7 @@ async function predFirmaLoad() {
         +'<span style="font-size:0.62rem;color:rgba(0,212,255,0.30);white-space:nowrap;flex-shrink:0;">@'+_htmlEsc(owner)+'</span>'
         +'</div>';
     }).join('');
-  } catch(e) { if(listEl) listEl.innerHTML = '<div style="color:#f87171;font-size:0.73rem;">Greška mreže.</div>'; }
+  } catch(e) { if(listEl) listEl.innerHTML = '<div style="color:#f87171;font-size:0.73rem;">Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.</div>'; }
 }
 
 function pred_renderList() {
@@ -10080,12 +10145,12 @@ async function pred_bulkAkcija(akcija) {
       body: JSON.stringify({predmet_ids: ids, akcija: akcija})
     });
     var d = await r.json();
-    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     showToast(d.poruka,'ok');
     _selectedPredmeti.clear();
     pred_updateBulkBar();
     pred_fetchList();
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 function pred_subtabSwitch(pane, btn) {
@@ -10307,7 +10372,7 @@ async function kanban_drop(e, novaFaza) {
     });
     if (!r.ok) { showToast('Greška pri čuvanju faze.', 'err'); }
   } catch(err) {
-    showToast('Greška veze.', 'err');
+    showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'err');
   }
 }
 function kanban_openPredmet(id) {
@@ -10350,8 +10415,9 @@ async function aic3_submit() {
   if (!q) return;
   var btn = document.getElementById('aic3-btn');
   var resultEl = document.getElementById('aic3-result');
-  if (btn) { btn.disabled = true; btn.textContent = 'Istrazujem...'; }
-  if (resultEl) { resultEl.className = 'aic3-result'; resultEl.textContent = ''; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Istražujem...'; }
+  if (resultEl) { resultEl.className = 'aic3-result show'; }
+  var _loadHandle = _quickAiLoadingStart(resultEl);
   try {
     var r = await fetch(BASE_URL + '/api/pitanje', {
       method: 'POST',
@@ -10366,11 +10432,11 @@ async function aic3_submit() {
     if (!r.ok) {
       var errText = d.greska || d.error
         || (typeof d.detail === 'string' ? d.detail : null)
-        || ('Greška servera (' + r.status + ')');
+        || ('Server trenutno ne odgovara (greška ' + r.status + '). Pokušajte ponovo za par trenutaka.');
       if (resultEl) { resultEl.textContent = errText; resultEl.classList.add('show'); }
       return;
     }
-    var text = d.odgovor !== undefined ? d.odgovor : (d.greska || d.error || 'Greška: prazan odgovor servera.');
+    var text = d.odgovor !== undefined ? d.odgovor : (d.greska || d.error || 'Server nije vratio odgovor. Pokušajte ponovo.');
     var parsed = (typeof formatResponse === 'function') ? formatResponse(text, d) : null;
     if (resultEl) {
       if (parsed && parsed.trim()) { resultEl.innerHTML = parsed; resultEl.style.whiteSpace = ''; }
@@ -10378,11 +10444,12 @@ async function aic3_submit() {
       resultEl.classList.add('show');
     }
   } catch (err) {
-    if (resultEl) { resultEl.textContent = 'Greska: ' + (err.message || 'nepoznata'); resultEl.classList.add('show'); }
+    if (resultEl) { showUserError('Pitanje nije poslato. ' + _friendlyErr(err), { el: resultEl }); resultEl.classList.add('show'); }
   } finally {
+    _quickAiLoadingStop(_loadHandle);
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="file-search" style="width:14px;height:14px;"></i> Istrazi';
+      btn.innerHTML = '<i data-lucide="file-search" style="width:14px;height:14px;"></i> Istraži';
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
   }
@@ -10736,7 +10803,7 @@ async function saradnja_ukloni(saradnikUid, predmetId, btn) {
       BASE_URL + '/api/saradnja/ukloni/' + encodeURIComponent(predmetId) + '/' + encodeURIComponent(saradnikUid),
       {method: 'DELETE', headers: {'Authorization': 'Bearer ' + currentSession.access_token}}
     );
-    if (!r.ok) { var d = await r.json(); showToast(d.detail || 'Greška.', 'error'); if (btn) { btn.disabled=false; btn.textContent='✕'; } return; }
+    if (!r.ok) { var d = await r.json(); showToast(d.detail || 'Radnja nije uspela. Pokušajte ponovo.', 'error'); if (btn) { btn.disabled=false; btn.textContent='✕'; } return; }
     showToast('Saradnik uklonjen.', 'success');
     saradnja_load(predmetId);
   } catch(e) {
@@ -11071,7 +11138,7 @@ async function opposing_load() {
       badge.textContent = d.ukupno_protivnika;
       badge.style.display = 'inline';
     }
-  } catch(e) { panel.innerHTML='<div style="color:rgba(255,100,100,0.5);font-size:0.68rem;">Greška veze.</div>'; }
+  } catch(e) { panel.innerHTML='<div style="color:rgba(255,100,100,0.5);font-size:0.68rem;">Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.</div>'; }
 }
 
 function opposing_render(d, panel) {
@@ -12082,7 +12149,7 @@ async function predmetPdfExport(btn) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } catch(e) {
-    alert('Greška pri generisanju PDF-a: ' + e.message);
+    showUserError('Nije moguće generisati PDF izveštaj. ' + _friendlyErr(e));
   } finally {
     if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'PDF Izveštaj'; }
   }
@@ -12106,13 +12173,13 @@ async function pred_kreiraj() {
       body: JSON.stringify({ naziv: naziv, opis: document.getElementById('pred-new-opis').value, tip: document.getElementById('pred-new-tip').value })
     });
     var d = await r.json();
-    if (!r.ok) { if (errEl) { errEl.textContent=d.detail||'Greška.'; errEl.style.display='block'; } return; }
+    if (!r.ok) { if (errEl) { errEl.textContent=d.detail||'Radnja nije uspela. Pokušajte ponovo.'; errEl.style.display='block'; } return; }
     pred_closeNewModal();
     await pred_load();
     if (d.predmet) pred_select(d.predmet.id, d.predmet.naziv);
     setTab(document.getElementById('tab-btn-p'), 'p');
   } catch(e) {
-    if (errEl) { errEl.textContent='Greška veze.'; errEl.style.display='block'; }
+    if (errEl) { errEl.textContent='Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.'; errEl.style.display='block'; }
   }
 }
 
@@ -12535,7 +12602,7 @@ async function billing_timerStart_() {
     _billing_startClockTick();
     billing_renderTimerBar(true, true);
     showToast('Tajmer pokrenut.','ok');
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 async function billing_timerStop_() {
@@ -12545,7 +12612,7 @@ async function billing_timerStop_() {
       body: JSON.stringify({kreiraj_entry: true})
     });
     var d = await r.json();
-    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     if (_billingTimerInterval) { clearInterval(_billingTimerInterval); _billingTimerInterval = null; }
     _billingTimerSessionId = null;
     _billingTimerStart     = null;
@@ -12553,7 +12620,7 @@ async function billing_timerStop_() {
     var hStr = (d.trajanje_h||0) < 1 ? Math.round((d.trajanje_h||0)*60)+' min' : (d.trajanje_h||0).toFixed(2)+' h';
     showToast('Tajmer zaustavljen — '+hStr+'. Radnja dodata.','ok');
     await billing_loadEntries();
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 function billing_tipChange() {
@@ -12593,13 +12660,13 @@ async function billing_addEntry() {
       body: JSON.stringify(body)
     });
     var d = await r.json();
-    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     document.getElementById('billing-opis').value  = '';
     document.getElementById('billing-iznos').value = '';
     document.getElementById('billing-tarifa-sel').value = '';
     showToast('Radnja dodata.','ok');
     await billing_loadEntries();
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
   finally { if (addBtn) addBtn.disabled = false; }
 }
 
@@ -12607,10 +12674,10 @@ async function billing_deleteEntry(entryId) {
   if (!confirm('Obrisati radnju?') || !currentSession) return;
   try {
     var r = await fetch(BASE_URL+'/billing/entries/'+entryId, {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     showToast('Radnja obrisana.','ok');
     await billing_loadEntries();
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 function billing_generateFakturaPanel() {
@@ -12658,7 +12725,7 @@ async function billing_doGenerateFaktura() {
       })
     });
     var d = await r.json();
-    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     var fakt = d.faktura;
     var pdfUrl = BASE_URL+'/billing/faktura/'+fakt.id+'/pdf';
     var barEl = document.getElementById('billing-faktura-bar');
@@ -12670,7 +12737,7 @@ async function billing_doGenerateFaktura() {
       +'</div>';
     showToast('Faktura br. '+fakt.broj_fakture+' kreirana.','ok');
     await billing_loadEntries();
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
   finally { if (btn) { btn.disabled=false; btn.textContent='Kreiraj fakturu'; } }
 }
 
@@ -12713,7 +12780,7 @@ async function billing_loadRecurring() {
         +'<button onclick="billing_deactivateRecurring(\''+escHtml(t.id)+'\','+t.aktivan+')" style="padding:0.2rem 0.4rem;background:none;border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.3);font-size:0.67rem;cursor:pointer;font-family:inherit;" title="'+(t.aktivan?'Deaktiviraj':'Aktiviraj')+'">'+(t.aktivan?'⏸':'▶')+'</button>'
         +'</div>';
     }).join('');
-  } catch(e) { listEl.innerHTML='<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Greška.</div>'; }
+  } catch(e) { listEl.innerHTML='<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);">Radnja nije uspela. Pokušajte ponovo.</div>'; }
 }
 
 function billing_showRecurringForm() {
@@ -12745,14 +12812,14 @@ async function billing_saveRecurring() {
                             predmet_id:_billingPredmetId||null})
     });
     var d = await r.json();
-    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     showToast('Šablon kreiran.','ok');
     document.getElementById('recurring-form').style.display='none';
     document.getElementById('btn-new-recurring').style.display='';
     // reset form
     ['rec-naziv','rec-opis'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
     billing_loadRecurring();
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 async function billing_generiši(templateId) {
@@ -12765,11 +12832,11 @@ async function billing_generiši(templateId) {
       headers:{Authorization:'Bearer '+currentSession.access_token}
     });
     var d = await r.json();
-    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     showToast('Faktura generisana. Sledeći datum: '+d.sledeci_datum,'ok');
     billing_loadRecurring();
     billing_loadEntries();
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
   finally { if (btn) { btn.disabled=false; btn.textContent='Generiši'; } }
 }
 
@@ -12782,10 +12849,10 @@ async function billing_deactivateRecurring(templateId, currently_active) {
       headers:{Authorization:'Bearer '+currentSession.access_token,'Content-Type':'application/json'},
       body: JSON.stringify({aktivan:aktivan})
     });
-    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     showToast(aktivan?'Šablon aktiviran.':'Šablon deaktiviran.','ok');
     billing_loadRecurring();
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 async function billing_sendEmail(fakturaId) {
@@ -12801,7 +12868,7 @@ async function billing_sendEmail(fakturaId) {
     if (!r.ok) { showToast(d.detail||'Greška slanja.','err'); return; }
     showToast('Email poslat na '+d.poslato_na,'ok');
     if (btn) btn.textContent='✓ Poslato';
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
   finally { if (btn && btn.textContent!=='✓ Poslato') { btn.disabled=false; btn.textContent='✉ Pošalji email'; } }
 }
 
@@ -13006,7 +13073,7 @@ async function portal_generateLink() {
       body: JSON.stringify({klijent_email: email||null, valjanost_dana: days})
     });
     var d = await r.json();
-    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     _portalCurrentUrl = d.portal_url;
     var urlEl = document.getElementById('portal-url-text');
     if (urlEl) urlEl.textContent = d.portal_url;
@@ -13016,7 +13083,7 @@ async function portal_generateLink() {
     if (resEl)  resEl.style.display  = 'block';
     showToast('Portal link kreiran (važi '+days+' dana).','ok');
     await portal_loadTokens();
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
   finally { if (btn) { btn.disabled=false; btn.textContent='Generiši link'; } }
 }
 
@@ -13063,7 +13130,7 @@ async function portal_revokeToken(tokenId) {
     if (!r.ok) { showToast('Greška pri opozivanju.','err'); return; }
     showToast('Link opozvan.','ok');
     await portal_loadTokens();
-  } catch(e) { showToast('Greška.','err'); }
+  } catch(e) { showToast('Radnja nije uspela. Pokušajte ponovo.','err'); }
 }
 
 async function portal_loadUploads() {
@@ -13076,7 +13143,7 @@ async function portal_loadUploads() {
       headers:{Authorization:'Bearer '+currentSession.access_token}
     });
     var d = await r.json();
-    if (!r.ok) { listEl.textContent = d.detail || 'Greška.'; return; }
+    if (!r.ok) { listEl.textContent = d.detail || 'Radnja nije uspela. Pokušajte ponovo.'; return; }
     var upl = d.uploadi || [];
     if (!upl.length) { listEl.innerHTML = '<div style="color:rgba(255,255,255,.25);">Nema dostavljenih dokumenata.</div>'; return; }
     listEl.innerHTML = upl.map(function(u){
@@ -13098,7 +13165,7 @@ async function portal_loadUploads() {
         +'</div>'
         +'</div>';
     }).join('');
-  } catch(e) { listEl.textContent = 'Greška veze.'; }
+  } catch(e) { listEl.textContent = 'Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.'; }
 }
 
 async function portal_oznacPregledano(uploadId) {
@@ -13120,7 +13187,7 @@ async function portal_obrisiUpload(uploadId) {
     if (!r.ok) { showToast('Greška pri brisanju.','err'); return; }
     showToast('Dokument obrisan.','ok');
     await portal_loadUploads();
-  } catch(e) { showToast('Greška.','err'); }
+  } catch(e) { showToast('Radnja nije uspela. Pokušajte ponovo.','err'); }
 }
 
 // ── Portal klijentski view ────────────────────────────────────────────────────
@@ -13284,7 +13351,7 @@ async function portal_uploadFajl() {
       if (napEl) napEl.value = '';
     }
   } catch(e) {
-    if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Greška veze. Pokušajte ponovo.'; }
+    if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Veza sa serverom nije uspela. Proverite internet konekciju i pokušajte ponovo.'; }
   } finally {
     if (btn) { btn.textContent = '⬆ Pošalji dokument'; }
   }
@@ -13348,14 +13415,14 @@ async function sef_saveSettings() {
       body: JSON.stringify(body)
     });
     var d = await r.json();
-    if (!r.ok) { showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     showToast('SEF podešavanja sačuvana.','ok');
     var msg = document.getElementById('sef-save-msg');
     if (msg) { msg.style.display='flex'; setTimeout(function(){ msg.style.display='none'; }, 3000); }
     await sef_loadSettings();
     var apiEl = document.getElementById('sef-apikey');
     if (apiEl) apiEl.value = '';
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
   finally { if (btn) { btn.disabled=false; btn.textContent='Sačuvaj SEF'; } }
 }
 
@@ -13370,7 +13437,7 @@ async function sef_posalji(fakturaId) {
     var d = await r.json();
     if (!r.ok) { showToast((d.detail||'SEF greška.'),'err'); return; }
     showToast('✓ SEF ID: '+d.sef_id+' — '+d.sef_status,'ok');
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 async function sef_preuzmiXml(fakturaId) {
@@ -13395,7 +13462,7 @@ async function sef_preuzmiXml(fakturaId) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showToast('UBL XML preuzet: '+fname,'ok');
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 async function sef_prikaziLog(fakturaId) {
@@ -13414,7 +13481,7 @@ async function sef_prikaziLog(fakturaId) {
         + (l.greska ? '\n   Greška: '+l.greska : '');
     }).join('\n');
     alert('SEF log (poslednih ' + log.length + '):\n\n' + txt);
-  } catch(e) { showToast('Greška veze.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 // ── Billing Izveštaji ────────────────────────────────────────────────────────
@@ -13446,9 +13513,9 @@ async function billing_openReport(tip) {
   try {
     var r = await fetch(url, {headers:{Authorization:'Bearer '+currentSession.access_token}});
     var d = await r.json();
-    if (!r.ok) { resEl.innerHTML='<div style="color:rgba(255,100,100,0.7);">'+(d.detail||'Greška.')+'</div>'; return; }
+    if (!r.ok) { resEl.innerHTML='<div style="color:rgba(255,100,100,0.7);">'+(d.detail||'Radnja nije uspela. Pokušajte ponovo.')+'</div>'; return; }
     resEl.innerHTML = billing_renderReport(tip, d);
-  } catch(e) { resEl.innerHTML='<div style="color:rgba(255,100,100,0.7);">Greška veze.</div>'; }
+  } catch(e) { resEl.innerHTML='<div style="color:rgba(255,100,100,0.7);">Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.</div>'; }
 }
 
 function billing_renderReport(tip, d) {
@@ -13973,7 +14040,7 @@ function rocisteSnimi() {
     kalendarLoad();
     if (activePredmetId) predRocistaLoad();
   })
-  .catch(function() { grEl.textContent = 'Mrežna greška.'; grEl.style.display = ''; });
+  .catch(function() { grEl.textContent = 'Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.'; grEl.style.display = ''; });
 }
 
 function rocisteObrisi(id) {
@@ -13987,7 +14054,7 @@ function rocisteObrisi(id) {
     if (r.ok) { showToast('Ročište obrisano.', 'ok'); kalendarLoad(); }
     else showToast('Greška pri brisanju.', 'err');
   })
-  .catch(function() { showToast('Mrežna greška.', 'err'); });
+  .catch(function() { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'err'); });
 }
 
 
@@ -14033,7 +14100,7 @@ async function hccGeneriši() {
     hccRenderBrifing(resEl, data.brifing, data.krediti_preostalo);
     resEl.style.display = '';
   } catch(e) {
-    errEl.textContent = 'Mrežna greška. Proverite vezu.';
+    errEl.textContent = 'Veza sa serverom nije uspela. Proverite internet konekciju i pokušajte ponovo.';
     errEl.style.display = '';
   } finally {
     btn.disabled = false;
@@ -14320,7 +14387,7 @@ async function adminPineconeLoad() {
     }
   } catch(e) {
     if (sumEl) sumEl.textContent = '';
-    if (tblEl) tblEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);font-size:0.72rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (tblEl) tblEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);font-size:0.72rem;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -14350,7 +14417,7 @@ async function adminFeatureRegistryLoad() {
     }
     adminFeatureRegistryRender();
   } catch(e) {
-    if (tblEl) tblEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);font-size:0.72rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (tblEl) tblEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);font-size:0.72rem;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -14449,7 +14516,7 @@ async function adminFeatureRegistryHistory(key) {
         + '</div>';
     }).join('');
   } catch(e) {
-    el.innerHTML = '<span style="color:rgba(255,100,100,0.5);">Greška: ' + _htmlEsc(e.message) + '</span>';
+    el.innerHTML = '<span style="color:rgba(255,100,100,0.5);">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</span>';
   }
 }
 
@@ -14494,7 +14561,7 @@ async function adminFeatureRegistrySave(key) {
     showToast('Sačuvano — promena je odmah aktivna.', 'success');
     adminFeatureRegistryLoad();
   } catch(e) {
-    showToast('Greška: ' + e.message, 'error');
+    showToast('Greška: ' + _friendlyErr(e), 'error');
   }
 }
 
@@ -14510,7 +14577,7 @@ async function adminFeatureRegistryToggle(key) {
     showToast(key + ': ' + (d.aktivno ? 'uključeno' : 'isključeno'), d.aktivno ? 'success' : 'info');
     adminFeatureRegistryLoad();
   } catch(e) {
-    showToast('Greška: ' + e.message, 'error');
+    showToast('Greška: ' + _friendlyErr(e), 'error');
   }
 }
 
@@ -14543,7 +14610,7 @@ async function adminNotifLoad() {
         + (n.error_message ? '<div style="font-size:0.62rem;color:rgba(255,100,100,0.5);">' + _htmlEsc(n.error_message) + '</div>' : '')
         + '</div>' + retryBtn + '</div>';
     }).join('');
-  } catch(e) { listEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);">Greška.</div>'; }
+  } catch(e) { listEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);">Radnja nije uspela. Pokušajte ponovo.</div>'; }
 }
 
 async function adminNotifRetry(id, btn) {
@@ -14576,7 +14643,7 @@ async function adminBetaLoad() {
         + '<span style="color:' + boja + ';">' + _htmlEsc(b.status || '') + '</span>'
         + '</div>';
     }).join('');
-  } catch(e) { listEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);">Greška.</div>'; }
+  } catch(e) { listEl.innerHTML = '<div style="color:rgba(255,100,100,0.5);">Radnja nije uspela. Pokušajte ponovo.</div>'; }
 }
 
 async function adminBetaAdd() {
@@ -14594,7 +14661,7 @@ async function adminBetaAdd() {
     input.value = '';
     showToast('Beta korisnik dodat.', 'success');
     adminBetaLoad();
-  } catch(e) { showToast('Greška.', 'error'); }
+  } catch(e) { showToast('Radnja nije uspela. Pokušajte ponovo.', 'error'); }
 }
 
 /* ── Usage Analytics Dashboard ──────────────────────────────────────────────── */
@@ -14709,7 +14776,7 @@ async function lawUploadRun() {
       body: formData
     });
     var d = await r.json();
-    if (!r.ok) { _lawStatus(d.detail || 'Greška.', '#f87171'); }
+    if (!r.ok) { _lawStatus(d.detail || 'Radnja nije uspela. Pokušajte ponovo.', '#f87171'); }
     else {
       _lawStatus('✓ Ingest pokrenut za "' + naziv + '". Pratite status ispod.', '#4ade80');
       if (nazivInp) nazivInp.value = '';
@@ -14717,7 +14784,7 @@ async function lawUploadRun() {
       if (pdfInp)   pdfInp.value = '';
       await lawListLoad();
     }
-  } catch(e) { _lawStatus('Greška mreže.', '#f87171'); }
+  } catch(e) { _lawStatus('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', '#f87171'); }
   finally { btn.disabled = false; btn.textContent = '⬆ Upload'; }
 }
 
@@ -14760,9 +14827,9 @@ async function lawDelete(docId, naziv) {
   if (!confirm('Soft-delete "' + naziv + '"?\n(Vektori u Pinecone ostaju — kontaktirajte admina za puno brisanje.)')) return;
   try {
     var r = await fetch('/api/admin/law/' + docId, {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Greška.','err'); return; }
+    if (!r.ok) { var d=await r.json(); showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     await lawListLoad();
-  } catch(e) { showToast('Greška mreže.','err'); }
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
 /* ── Corpus Admin — auto-scraper ─────────────────────────────────────────── */
@@ -14800,7 +14867,7 @@ async function corpusDiscoverRun() {
       }
     }
   } catch(e) {
-    if (result) result.innerHTML = '<div style="color:#f87171;">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (result) result.innerHTML = '<div style="color:#f87171;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     btn.disabled = false; btn.textContent = 'Traži nove biltene';
   }
@@ -14831,7 +14898,7 @@ async function corpusListDiscovered() {
     });
     if (result) result.innerHTML = html;
   } catch(e) {
-    if (result) result.innerHTML = '<div style="color:#f87171;">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (result) result.innerHTML = '<div style="color:#f87171;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -14890,10 +14957,10 @@ async function emailNotifSacuvaj() {
       body: JSON.stringify({aktivan:true, dan_7: d7?!!d7.checked:true, dan_3: d3?!!d3.checked:true, dan_1: d1?!!d1.checked:true, nedeljni: !!(document.getElementById('en-nedeljni')||{}).checked})
     });
     var d = await r.json();
-    if (!r.ok) { _enMsg(d.detail||'Greška.','#f87171'); return; }
+    if (!r.ok) { _enMsg(d.detail||'Radnja nije uspela. Pokušajte ponovo.','#f87171'); return; }
     _enMsg('✓ Email notifikacije aktivirane.');
     await emailNotifLoad();
-  } catch(e) { _enMsg('Greška mreže.','#f87171'); }
+  } catch(e) { _enMsg('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','#f87171'); }
 }
 
 async function emailNotifTest() {
@@ -14901,9 +14968,9 @@ async function emailNotifTest() {
   try {
     var r = await fetch('/email-notif/test', {method:'POST', headers:{'Authorization':'Bearer '+currentSession.access_token}});
     var d = await r.json();
-    if (!r.ok) { _enMsg(d.detail||'Greška.','#f87171'); return; }
+    if (!r.ok) { _enMsg(d.detail||'Radnja nije uspela. Pokušajte ponovo.','#f87171'); return; }
     _enMsg('✓ Test email poslat na ' + d.poslato_na);
-  } catch(e) { _enMsg('Greška mreže.','#f87171'); }
+  } catch(e) { _enMsg('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','#f87171'); }
 }
 
 function emailNotifDeaktivaj() {
@@ -14913,7 +14980,7 @@ function emailNotifDeaktivaj() {
       await fetch('/email-notif/profil', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
       _enMsg('Email notifikacije deaktivirane.');
       await emailNotifLoad();
-    } catch(e) { _enMsg('Greška mreže.','#f87171'); }
+    } catch(e) { _enMsg('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','#f87171'); }
   });
 }
 
@@ -15229,7 +15296,7 @@ async function docTplGeneriši() {
     if (txtEl) txtEl.value = d.sadrzaj || '';
     if (resultWr) resultWr.style.display = 'block';
   } catch(e) {
-    showToast('Greška: ' + e.message, 'error');
+    showToast('Greška: ' + _friendlyErr(e), 'error');
   } finally {
     if (loadEl)  loadEl.style.display = 'none';
     if (genBtn)  genBtn.style.display = 'flex';
@@ -15258,7 +15325,7 @@ async function docTplSacuvaj() {
     var d = await r.json();
     if (!r.ok) { showToast(d.detail || 'Greška', 'error'); return; }
     showToast('Dokument sačuvan uz predmet!', 'success');
-  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+  } catch(e) { showToast('Greška: ' + _friendlyErr(e), 'error'); }
 }
 
 // ── Onboarding Welcome Flow ──────────────────────────────────────────────────
@@ -15360,7 +15427,7 @@ function wl_admin_load() {
     _wlAdminData = d.prijave || [];
     _wl_admin_render(d);
   }).catch(function(e) {
-    if (emptyEl) emptyEl.textContent = 'Greška: ' + e.message;
+    if (emptyEl) emptyEl.textContent = 'Greška: ' + _friendlyErr(e);
   });
 }
 
@@ -15428,7 +15495,7 @@ function wl_admin_set_status(id, status) {
     var entry = _wlAdminData.find(function(p) { return p.id === id; });
     if (entry) entry.status = status;
   }).catch(function(e) {
-    showToast('Greška: ' + e.message, 'err');
+    showToast('Greška: ' + _friendlyErr(e), 'err');
     wl_admin_load();
   });
 }
@@ -16184,7 +16251,7 @@ function voice_start() {
   try {
     _voiceRec.start();
   } catch(e) {
-    showToast('Nije moguće pokrenuti mikrofon: ' + e.message, 'err');
+    showToast('Nije moguće pokrenuti mikrofon: ' + _friendlyErr(e), 'err');
     _voice_close_modal();
   }
 }
@@ -16270,7 +16337,7 @@ function voice_execute(text) {
     }
   }).catch(function(e) {
     _voice_close_modal();
-    showToast('Greška glasovne komande: ' + e.message, 'err');
+    showToast('Greška glasovne komande: ' + _friendlyErr(e), 'err');
   });
 }
 
@@ -17306,7 +17373,7 @@ async function _voice_compare_docs(predmetId, numbers) {
     }, 300);
     showToast('Poređenje završeno', 'ok');
   } catch(e) {
-    showToast('Greška pri poređenju dokumenata: '+e.message, 'error');
+    showToast('Greška pri poređenju dokumenata: '+_friendlyErr(e), 'error');
   }
 }
 
@@ -17470,7 +17537,7 @@ function timeline_load() {
     }
     _itlRender(container, events);
   }).catch(function(e) {
-    container.innerHTML = '<div style="color:#ff9090;font-size:.8rem;">Greška: ' + escHtml(e.message) + '</div>';
+    container.innerHTML = '<div style="color:#ff9090;font-size:.8rem;">Greška: ' + escHtml(_friendlyErr(e)) + '</div>';
   });
 }
 
@@ -17663,7 +17730,7 @@ function evidence_load() {
       }).join('');
     }
   }).catch(function(e) {
-    if (dokDiv) dokDiv.innerHTML = '<div style="color:#ff9090;font-size:.8rem;">Greška: ' + e.message + '</div>';
+    if (dokDiv) dokDiv.innerHTML = '<div style="color:#ff9090;font-size:.8rem;">Greška: ' + _friendlyErr(e) + '</div>';
   });
 }
 
@@ -17720,7 +17787,7 @@ function brain_load() {
   }).catch(function(e) {
     lod.style.display = 'none';
     if (btn) btn.disabled = false;
-    rez.textContent = 'Greška: ' + e.message;
+    rez.textContent = 'Greška: ' + _friendlyErr(e);
     rez.style.display = 'block';
   });
 }
@@ -17751,7 +17818,7 @@ function litIntelBrainLoad() {
   }).catch(function(e) {
     lod.style.display = 'none';
     if (btn) btn.disabled = false;
-    rez.textContent = 'Greška: ' + e.message;
+    rez.textContent = 'Greška: ' + _friendlyErr(e);
     rez.style.display = 'block';
   });
 }
@@ -17787,7 +17854,7 @@ function litIntelOutcomeShow() {
       stats.style.display = 'flex';
     }
   }).catch(function(e) {
-    loading.textContent = 'Greška: ' + e.message;
+    loading.textContent = 'Greška: ' + _friendlyErr(e);
   });
 }
 
@@ -17882,7 +17949,7 @@ function ccc_load() {
   }).then(function(r){ return r.json(); }).then(function(d) {
     _ccc_render(container, d);
   }).catch(function(e){
-    container.innerHTML = '<div style="padding:1rem;color:#f87171;">Greška: ' + e.message + '</div>';
+    container.innerHTML = '<div style="padding:1rem;color:#f87171;">Greška: ' + _friendlyErr(e) + '</div>';
   });
 }
 
@@ -18077,7 +18144,7 @@ function outcome_intel_panel_show() {
       stats.style.gap = '.5rem';
     }
   }).catch(function(e) {
-    if (loading) loading.textContent = 'Greška: ' + e.message;
+    if (loading) loading.textContent = 'Greška: ' + _friendlyErr(e);
   });
 }
 
@@ -18121,7 +18188,7 @@ async function twinSimulirajPokreni() {
       + _stratListHtml('Ključne tačke odlučivanja', d.kljucne_tacke, '#93c5fd')
       + (d.optimalna_strategija ? '<div style="margin-top:.5rem;padding:.6rem .7rem;background:rgba(0,212,255,.06);border-left:2px solid rgba(0,212,255,.4);font-size:.8rem;color:rgba(255,255,255,.8);"><b>Optimalna strategija:</b> ' + _htmlEsc(d.optimalna_strategija) + '</div>' : '');
   } catch (e) {
-    wrap.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrap.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Osveži simulaciju (3 kredita)'; }
   }
@@ -18151,7 +18218,7 @@ async function twinStaAkoPokreni() {
       + _stratListHtml('Preporučene akcije', d.preporucene_akcije, '#4ade80')
       + '</div>';
   } catch (e) {
-    wrap.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(e.message) + '</div>';
+    wrap.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -18192,7 +18259,7 @@ async function crmPokreniKonfliktNovi() {
     }
     if (rez) rez.innerHTML = html;
   } catch(e) {
-    if (rez) rez.innerHTML = '<div style="color:#f87171;font-size:.82rem;">Greška: ' + _htmlEsc(e.message) + '</div>';
+    if (rez) rez.innerHTML = '<div style="color:#f87171;font-size:.82rem;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -18394,7 +18461,7 @@ async function agent_run() {
     if (typeof piTrack === 'function') piTrack('ai_analysis', 'completed', {agent: d.agent || _selectedAgent || 'auto'});
   } catch(e) {
     if (loading) loading.style.display = 'none';
-    showToast('Greška: ' + e.message, 'err');
+    showToast('Greška: ' + _friendlyErr(e), 'err');
   } finally {
     runningCards.forEach(function(c){ c.classList.remove('is-running'); });
   }
@@ -18460,7 +18527,7 @@ async function agent_run_parallel() {
     }
   } catch(e) {
     if (loading) loading.style.display = 'none';
-    showToast('Greška: ' + e.message, 'err');
+    showToast('Greška: ' + _friendlyErr(e), 'err');
   } finally {
     if (paraBtn) { paraBtn.disabled = false; paraBtn.textContent = 'Pokreni paralelnu analizu (3 kredita)'; }
     paraRunningCards.forEach(function(c){ c.classList.remove('is-running'); });
@@ -18493,7 +18560,7 @@ function kg_load() {
   .then(function(r){ return r.json(); })
   .then(function(data){ _kg_render(container, tooltip, data); })
   .catch(function(e){
-    container.innerHTML = '<div style="padding:2rem;text-align:center;color:#f87171;">Greška pri učitavanju grafa: ' + e.message + '</div>';
+    container.innerHTML = '<div style="padding:2rem;text-align:center;color:#f87171;">Greška pri učitavanju grafa: ' + _friendlyErr(e) + '</div>';
   });
 }
 
@@ -20172,7 +20239,7 @@ async function _intakeKreiraj() {
     // Background: load predmeti list
     pred_load();
   } catch(e) {
-    errEl.textContent = 'Greška veze.';
+    errEl.textContent = 'Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.';
     errEl.style.display = 'block';
     nextBtn.disabled = false;
     nextBtn.textContent = 'Kreiraj predmet';
@@ -20306,13 +20373,13 @@ async function qiKreiraj() {
       })
     });
     var d = await r.json();
-    if (!r.ok) { errEl.textContent = d.detail || 'Greška.'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Kreiraj predmet →'; return; }
+    if (!r.ok) { errEl.textContent = d.detail || 'Radnja nije uspela. Pokušajte ponovo.'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Kreiraj predmet →'; return; }
     qiZatvori();
     showToast('✓ Predmet "' + naziv + '" kreiran!', 'ok');
     pred_load();
     if (d.predmet_id) pred_select(d.predmet_id);
   } catch(e) {
-    errEl.textContent = 'Greška veze.'; errEl.style.display = 'block';
+    errEl.textContent = 'Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.'; errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = 'Kreiraj predmet →';
   }
 }
@@ -20450,7 +20517,7 @@ async function bulkImportuj() {
     btn.textContent = '✓ Uvoz završen';
     if (d.uspeh > 0) { pred_load(); showToast('✓ Uvezeno ' + d.uspeh + ' predmeta', 'ok'); }
   } catch(e) {
-    progTxt.textContent = 'Greška veze. Pokušajte ponovo.';
+    progTxt.textContent = 'Veza sa serverom nije uspela. Proverite internet konekciju i pokušajte ponovo.';
     btn.disabled = false; btn.textContent = 'Uvezi sve';
   }
 }
@@ -20521,7 +20588,7 @@ async function pred_zatvoriPredmet() {
       })
     });
     var d = await r.json();
-    if (!r.ok) { errEl.textContent = d.detail || 'Greška.'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Potvrdi zatvaranje'; return; }
+    if (!r.ok) { errEl.textContent = d.detail || 'Radnja nije uspela. Pokušajte ponovo.'; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Potvrdi zatvaranje'; return; }
 
     // Vindex Intelligence — prosledi ishod za ucenje (best-effort, ne blokira)
     _pred_prosediUcenju(activePredmetId, ishod);
@@ -20553,7 +20620,7 @@ async function pred_zatvoriPredmet() {
     // Outcome Intelligence feedback — pokreni u pozadini
     _outcome_feedback_show(activePredmetId);
   } catch(e) {
-    errEl.textContent = 'Greška veze.';
+    errEl.textContent = 'Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.';
     errEl.style.display = 'block';
     btn.disabled = false;
     btn.textContent = 'Potvrdi zatvaranje';
@@ -20693,7 +20760,7 @@ async function pred_rokokiGeneriši(sacuvaj) {
       rezEl.style.display = 'block';
     }
   } catch(e) {
-    if (errEl) { errEl.textContent = 'Mrežna greška.'; errEl.style.display = 'block'; }
+    if (errEl) { errEl.textContent = 'Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.'; errEl.style.display = 'block'; }
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -20781,7 +20848,7 @@ async function ugovor_generiši(sacuvaj) {
       if (info) { info.textContent = 'Poslednji: Ugovor br. ' + d.broj + ' · ' + d.datum_zakljucenja + ' · Sačuvano u hronologiji'; info.style.display = 'block'; }
     }
   } catch(e) {
-    errEl.textContent = 'Mrežna greška.'; errEl.style.display = 'block';
+    errEl.textContent = 'Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.'; errEl.style.display = 'block';
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -21294,7 +21361,7 @@ async function zadaci_load(predmetId) {
     var lista = d.zadaci || d || [];
     _zadaciRenderBoard('zadaci-lista', lista, { isGlobal: false, emptyHint: 'Dodajte prvi zadatak ili koristite AI analizu.' });
   } catch(e) {
-    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -21315,7 +21382,7 @@ async function zadaci_kreiraj() {
     if (inp) inp.value = '';
     zadaci_load(_zadaciPredmetId);
     showToast('Zadatak dodat.', 'ok');
-  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+  } catch(e) { showToast('Greška: ' + _friendlyErr(e), 'error'); }
 }
 
 async function zadaci_setStatus(id, noviStatus, isGlobal) {
@@ -21340,7 +21407,7 @@ async function zadaci_obrisi(id, isGlobal) {
     });
     if (isGlobal) zadaci_g_load(); else zadaci_load(_zadaciPredmetId);
     showToast('Zadatak obrisan.', 'ok');
-  } catch(e) { showToast('Greška.', 'error'); }
+  } catch(e) { showToast('Radnja nije uspela. Pokušajte ponovo.', 'error'); }
 }
 
 async function zadaci_g_load() {
@@ -21360,7 +21427,7 @@ async function zadaci_g_load() {
     }
     _zadaciRenderBoard('zadaci-g-body', d.zadaci || [], { isGlobal: true, showCase: true, emptyHint: 'Nema otvorenih zadataka u kancelariji.' });
   } catch(e) {
-    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -21403,7 +21470,7 @@ async function workflow_load(predmetId) {
     }
     _workflowRenderKoraci(el, aktivan);
   } catch(e) {
-    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -21461,7 +21528,7 @@ async function workflow_pokreni(templateId, naziv) {
     showToast('Workflow pokrenut.', 'ok');
     workflow_load(activePredmetId);
   } catch(e) {
-    showToast('Greška veze.', 'error');
+    showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'error');
     workflow_load(activePredmetId);
   }
 }
@@ -21516,7 +21583,7 @@ async function workflow_zavrsiKorak(stepId) {
     showToast(d.workflow_zavrsen ? 'Workflow završen!' : ('Sledeći korak: ' + (d.sledeci_korak || '')), 'ok');
     if (activePredmetId) workflow_load(activePredmetId);
   } catch(e) {
-    showToast('Greška veze.', 'error');
+    showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'error');
   }
 }
 
@@ -21552,7 +21619,7 @@ async function workflow_eskalacije_load() {
       + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
     if (typeof lucide !== 'undefined') lucide.createIcons();
   } catch(e) {
-    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(e.message) + '</div>';
+    el.innerHTML = '<div style="color:#f87171;font-size:.75rem;padding:.5rem;">Greška: ' + escHtml(_friendlyErr(e)) + '</div>';
   }
 }
 
@@ -21700,7 +21767,7 @@ async function profitabilnost_load(predmetId) {
 
   } catch(e) {
     var bEl = document.getElementById('profit-bench-text');
-    if (bEl) bEl.textContent = 'Greška: ' + e.message;
+    if (bEl) bEl.textContent = 'Greška: ' + _friendlyErr(e);
   }
 }
 
@@ -21788,7 +21855,7 @@ async function portalDodajPraceni() {
     showToast('Predmet dodat na praćenje.', 'success');
     if (typeof piTrack === 'function') piTrack('portal', 'tracking_enabled', {broj_predmeta: broj});
     portalUcitajListu();
-  } catch(e) { showToast('Greška.', 'error'); }
+  } catch(e) { showToast('Radnja nije uspela. Pokušajte ponovo.', 'error'); }
 }
 
 async function portalManualUpdate(praceniId, btn) {
@@ -21819,5 +21886,5 @@ async function portalUkloni(praceniId) {
     });
     showToast('Predmet uklonjen sa praćenja.', 'ok');
     portalUcitajListu();
-  } catch(e) { showToast('Greška.', 'error'); }
+  } catch(e) { showToast('Radnja nije uspela. Pokušajte ponovo.', 'error'); }
 }
