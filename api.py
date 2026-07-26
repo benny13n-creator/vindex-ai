@@ -4239,6 +4239,7 @@ async def predmet_upload_auto_analyze(
     # trajni namespace nikad neće biti obrisan njime.
     _pinecone_ok = True
     try:
+        from shared.vector_origin import ORIGIN_CLIENT_DOC, now_iso as _now_iso
         count = await asyncio.to_thread(
             ingest_session, manifest, session_id,
             namespace_override=_owner_ns,
@@ -4246,6 +4247,13 @@ async def predmet_upload_auto_analyze(
                 "predmet_id": predmet_id,
                 "kancelarija_id": _kancelarija_id or "",
                 "type": "case_doc",
+                # Institutional Memory V2 (2026-07-26) STUB 2/3 -- v.
+                # shared/vector_origin.py za origin/decay semantiku.
+                "origin": ORIGIN_CLIENT_DOC,
+                "parent_id": "",
+                "origin_chain": [ORIGIN_CLIENT_DOC],
+                "created_at": _now_iso(),
+                "golden_template": False,
             },
         )
     except Exception as _pe:

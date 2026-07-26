@@ -71,10 +71,10 @@ def _pozovi_drafting_api(client, **kwargs):
 class NacrtReq(BaseModel):
     vrsta: str = Field(..., min_length=2, max_length=200)
     opis:  str = Field(..., min_length=10, max_length=5000)
-    # Institutional Learning & RAG Audit (2026-07-26) #3: opciono -- ako je
-    # prosleđen, generisani nacrt se tretira kao FINALIZOVAN za taj predmet
-    # i indeksira se kao draft_final (v. _index_finalized_draft niže).
-    # Bez ovoga ponašanje je nepromenjeno (samo generiši i vrati tekst).
+    # Institutional Memory V2 (2026-07-26): opciono -- ako je prosleđen,
+    # generisani nacrt ide u staging_memory na advokatsku overu (v.
+    # _stage_draft_for_review niže) umesto da se odmah zaboravi. Bez ovoga
+    # ponašanje je nepromenjeno (samo generiši i vrati tekst).
     predmet_id: Optional[str] = Field(None, max_length=100)
 
     @field_validator("vrsta", "opis")
@@ -186,89 +186,128 @@ def _greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
     return JSONResponse(status_code=status_code, content={"greska": poruka})
 
 
-async def _index_finalized_draft(user: dict, predmet_id: str, tip: str, naziv: str, tekst: str) -> None:
-    """Institutional Learning & RAG Audit (2026-07-26) #3 — feedback loop za
-    AI-generisane nacrte. Pre ove funkcije, /api/nacrt i /api/podnesak su
-    generisali tekst i vraćali ga BEZ IKAKVOG traga u Pinecone-u -- sistem je
-    "zaboravljao" svaku tužbu/žalbu koju je ikad napisao. Ovde se finalizovan
-    nacrt (predmet_id eksplicitno prosleđen od strane klijenta -- v.
-    NacrtReq/PodnesakReq.predmet_id) chunk-uje i indeksira pod istim
-    vlasnik-namespace šemom kao uploadovani dokumenti (v. api.py's
-    /api/predmeti/{id}/upload), sa type="draft_final" da se razlikuje od
-    type="case_doc".
-
-    Namerno fire-and-forget (pozvano preko asyncio.create_task, ne await-
-    ovano u endpoint-u) -- embedding ne sme da uspori odgovor korisniku, i
-    greška ovde NIKAD ne sme da utiče na već generisan i vraćen nacrt."""
+# Institutional Memory Architecture V2 (2026-07-26), STUB 1 — Quality Gate &
+# Staging Memory. ZAMENJUJE raniju _index_finalized_draft (Institutional
+# Learning & RAG Audit, 2026-07-25), koja je AI-generisan nacrt indeksirala
+# DIREKTNO u kancelarija_{id}/user_{id} Pinecone namespace čim je predmet_id
+# prosleđen -- to je tačno "toksično učenje" rizik koji V2 sprečava: nikad
+# više se sirov, neproveren AI tekst ne upisuje u glavnu bazu znanja.
+# Sada: finalizovan nacrt ide u staging_memory (migracija 088) sa
+# automatskim Quality Gate skorom (services/quality_gate.py) i čeka
+# eksplicitnu advokatsku potvrdu (v. POST /api/staging/{id}/approve) PRE
+# nego što ijedan vektor uđe u Pinecone.
+async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: str, tekst: str) -> None:
+    """Fire-and-forget (asyncio.create_task) -- ne sme da uspori odgovor
+    korisniku niti da greška ovde ikad utiče na već generisan i vraćen nacrt."""
     try:
         supa = _get_supa()
         pred_row = await asyncio.to_thread(
             lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user["user_id"]).maybe_single().execute()
         )
         if not pred_row.data:
-            logger.warning("[DRAFT_INDEX] predmet_id=%s ne pripada korisniku — preskočeno", predmet_id)
+            logger.warning("[STAGING] predmet_id=%s ne pripada korisniku — preskočeno", predmet_id)
             return
 
-        from uploaded_doc.chunker import chunk_document
-        from uploaded_doc.ingest import ingest_session
-        from uploaded_doc.session import generate_session_id
-        from shared.kancelarija_utils import get_kancelarija_id, rag_owner_namespace
+        from services.quality_gate import evaluate_draft_quality
+        from shared.kancelarija_utils import get_kancelarija_id
 
-        source_meta = {
-            "source_filename": f"Nacrt — {naziv}",
-            "source_format": "txt",
-            "source_sha256": "",
-            "is_scanned": False,
-            "session_id": "__local__",
-        }
-        manifest = await asyncio.to_thread(chunk_document, tekst, source_meta)
-        if manifest.total_chunks == 0:
-            return
-
+        quality = await evaluate_draft_quality(tekst, tip)
         kancelarija_id = await get_kancelarija_id(supa, user["user_id"])
-        owner_ns = rag_owner_namespace(user["user_id"], kancelarija_id)
-        session_id = generate_session_id()
-
-        pinecone_ok = True
-        try:
-            await asyncio.to_thread(
-                ingest_session, manifest, session_id,
-                namespace_override=owner_ns,
-                extra_metadata={
-                    "predmet_id": predmet_id,
-                    "kancelarija_id": kancelarija_id or "",
-                    "type": "draft_final",
-                },
-            )
-        except Exception as pe:
-            logger.warning("[DRAFT_INDEX] Pinecone ingest neuspešan predmet=%s: %s", predmet_id, str(pe)[:150])
-            pinecone_ok = False
-
-        try:
-            _rn_res = await asyncio.to_thread(
-                lambda: supa.table("predmet_dokumenti").select("redni_broj").eq("predmet_id", predmet_id).order("redni_broj", desc=True).limit(1).execute()
-            )
-            next_rn = int((_rn_res.data or [{}])[0].get("redni_broj") or 0) + 1
-        except Exception:
-            next_rn = 1
 
         await asyncio.to_thread(
-            lambda: supa.table("predmet_dokumenti").insert({
-                "predmet_id": predmet_id,
+            lambda: supa.table("staging_memory").insert({
                 "user_id": user["user_id"],
-                "naziv_fajla": f"AI Nacrt — {naziv}",
-                "storage_path": f"draft/{session_id}",
-                "pinecone_namespace": owner_ns,
-                "status": "indeksirano" if pinecone_ok else "sacuvano",
-                "velicina_kb": max(1, len(tekst.encode("utf-8")) // 1024),
-                "redni_broj": next_rn,
-                "tekst_sadrzaj": tekst[:100_000],
+                "kancelarija_id": kancelarija_id,
+                "predmet_id": predmet_id,
+                "tip": tip,
+                "naziv": naziv,
+                "tekst": tekst,
+                "confidence_score": quality["confidence_score"],
+                "quality_detail": quality["detail"],
             }).execute()
         )
-        logger.info("[DRAFT_INDEX] predmet=%s tip=%s ns=%s ok=%s", predmet_id, tip, owner_ns, pinecone_ok)
+        logger.info(
+            "[STAGING] predmet=%s tip=%s confidence=%.2f -- čeka advokatsku potvrdu",
+            predmet_id, tip, quality["confidence_score"],
+        )
     except Exception as exc:
         _sentry_capture(exc)
-        logger.warning("[DRAFT_INDEX] neuspešno (non-fatal) predmet=%s: %s", predmet_id, exc)
+        logger.warning("[STAGING] neuspešno (non-fatal) predmet=%s: %s", predmet_id, exc)
+
+
+_APPROVAL_CONFIDENCE_THRESHOLD = 0.85
+
+
+async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
+    """Poziva se SAMO iz POST /api/staging/{id}/approve, i SAMO ako
+    is_lawyer_approved=True I confidence_score >= 0.85 (oba uslova, v.
+    migracija 088). Indeksira pod origin=LAWYER_VERIFIED (ne AI_GENERATED --
+    upravo je prošao ljudsku overu), sa parent_id/origin_chain koji čuvaju
+    da je tekst NASTAO kao AI_GENERATED pre nego što je postao
+    LAWYER_VERIFIED (STUB 2 -- lineage protiv AI-to-AI degeneracije: budući
+    retrieval uvek zna da je ovo poreklo bilo AI, ne izvorni advokatski rad
+    od nule). Vraća True ako je Pinecone upis uspeo."""
+    from uploaded_doc.chunker import chunk_document
+    from uploaded_doc.ingest import ingest_session
+    from uploaded_doc.session import generate_session_id
+    from shared.kancelarija_utils import rag_owner_namespace
+    from shared.vector_origin import ORIGIN_LAWYER_VERIFIED, ORIGIN_AI_GENERATED, now_iso
+
+    predmet_id = staging_row["predmet_id"]
+    user_id = staging_row["user_id"]
+    kancelarija_id = staging_row.get("kancelarija_id")
+    tekst = staging_row["tekst"]
+    naziv = staging_row.get("naziv") or staging_row.get("tip") or "Nacrt"
+
+    source_meta = {
+        "source_filename": f"Nacrt — {naziv}", "source_format": "txt",
+        "source_sha256": "", "is_scanned": False, "session_id": "__local__",
+    }
+    manifest = await asyncio.to_thread(chunk_document, tekst, source_meta)
+    if manifest.total_chunks == 0:
+        return False
+
+    owner_ns = rag_owner_namespace(user_id, kancelarija_id)
+    session_id = generate_session_id()
+
+    try:
+        await asyncio.to_thread(
+            ingest_session, manifest, session_id,
+            namespace_override=owner_ns,
+            extra_metadata={
+                "predmet_id": predmet_id,
+                "kancelarija_id": kancelarija_id or "",
+                "type": "draft_final",
+                "origin": ORIGIN_LAWYER_VERIFIED,
+                "parent_id": staging_row["id"],
+                "origin_chain": [ORIGIN_AI_GENERATED, ORIGIN_LAWYER_VERIFIED],
+                "created_at": now_iso(),
+                "golden_template": False,
+            },
+        )
+    except Exception as pe:
+        logger.warning("[STAGING_PROMOTE] Pinecone ingest neuspešan predmet=%s: %s", predmet_id, str(pe)[:150])
+        return False
+
+    try:
+        _rn_res = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").select("redni_broj").eq("predmet_id", predmet_id).order("redni_broj", desc=True).limit(1).execute()
+        )
+        next_rn = int((_rn_res.data or [{}])[0].get("redni_broj") or 0) + 1
+    except Exception:
+        next_rn = 1
+
+    await asyncio.to_thread(
+        lambda: supa.table("predmet_dokumenti").insert({
+            "predmet_id": predmet_id, "user_id": user_id,
+            "naziv_fajla": f"AI Nacrt (odobren) — {naziv}",
+            "storage_path": f"draft/{session_id}",
+            "pinecone_namespace": owner_ns, "status": "indeksirano",
+            "velicina_kb": max(1, len(tekst.encode("utf-8")) // 1024),
+            "redni_broj": next_rn, "tekst_sadrzaj": tekst[:100_000],
+        }).execute()
+    )
+    return True
 
 
 def _izvori_kontekst(docs: list[str], limit: int = 4) -> str:
@@ -508,7 +547,7 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
         if req.predmet_id and isinstance(rezultat, dict) and rezultat.get("status") == "success" and rezultat.get("data"):
-            asyncio.create_task(_index_finalized_draft(user, req.predmet_id, req.vrsta, req.vrsta, rezultat["data"]))
+            asyncio.create_task(_stage_draft_for_review(user, req.predmet_id, req.vrsta, req.vrsta, rezultat["data"]))
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception as _exc:
         _sentry_capture(_exc)
@@ -772,7 +811,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
     await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
 
     if req.predmet_id and nacrt:
-        asyncio.create_task(_index_finalized_draft(user, req.predmet_id, req.tip, PODNESAK_TIPOVI[req.tip], nacrt))
+        asyncio.create_task(_stage_draft_for_review(user, req.predmet_id, req.tip, PODNESAK_TIPOVI[req.tip], nacrt))
 
     return {
         "status":  "success",
@@ -959,3 +998,87 @@ async def export_nacrt_docx(
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ─── Institutional Memory V2 (2026-07-26) — Staging Memory review endpoints ──
+
+@router.get("/api/staging/predmet/{predmet_id}")
+@limiter.limit("30/minute")
+async def staging_list_za_predmet(predmet_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Lista nacrta koji čekaju (ili su prošli) advokatsku overu za dati predmet."""
+    supa = _get_supa()
+    r = await asyncio.to_thread(
+        lambda: supa.table("staging_memory")
+            .select("id,tip,naziv,confidence_score,is_lawyer_approved,status,pinecone_indexed,created_at")
+            .eq("predmet_id", predmet_id)
+            .eq("user_id", user["user_id"])
+            .order("created_at", desc=True)
+            .execute()
+    )
+    return {"stavke": r.data or []}
+
+
+@router.post("/api/staging/{staging_id}/approve")
+@limiter.limit("20/minute")
+async def staging_approve(staging_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Eksplicitna advokatska potvrda (STUB 1.3). NUŽAN ali NE DOVOLJAN uslov
+    za ulazak u Pinecone -- promocija se dešava SAMO ako je i
+    confidence_score >= 0.85 (v. _promote_staged_draft_to_pinecone)."""
+    supa = _get_supa()
+    row_res = await asyncio.to_thread(
+        lambda: supa.table("staging_memory").select("*").eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
+    )
+    if not row_res.data:
+        raise HTTPException(status_code=404, detail="Nacrt na čekanju nije pronađen.")
+    staging_row = row_res.data
+
+    from shared.vector_origin import now_iso
+    update_fields = {
+        "is_lawyer_approved": True,
+        "approved_by": user["user_id"],
+        "approved_at": now_iso(),
+        "status": "approved",
+    }
+
+    promoted = False
+    if float(staging_row.get("confidence_score") or 0) >= _APPROVAL_CONFIDENCE_THRESHOLD:
+        try:
+            promoted = await _promote_staged_draft_to_pinecone(supa, {**staging_row, **update_fields})
+        except Exception as exc:
+            _sentry_capture(exc)
+            logger.warning("[STAGING_APPROVE] promocija neuspešna staging_id=%s: %s", staging_id, exc)
+            promoted = False
+
+    update_fields["pinecone_indexed"] = promoted
+    await asyncio.to_thread(
+        lambda: supa.table("staging_memory").update(update_fields).eq("id", staging_id).execute()
+    )
+
+    if promoted:
+        return {"status": "approved", "indexed": True, "poruka": "Nacrt odobren i dodat u bazu znanja kancelarije."}
+    return {
+        "status": "approved", "indexed": False,
+        "poruka": (
+            "Nacrt je označen kao odobren, ali confidence_score "
+            f"({staging_row.get('confidence_score')}) je ispod praga {_APPROVAL_CONFIDENCE_THRESHOLD} "
+            "za automatski ulazak u bazu znanja kancelarije."
+        ),
+    }
+
+
+@router.post("/api/staging/{staging_id}/reject")
+@limiter.limit("20/minute")
+async def staging_reject(staging_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Advokat odbija nacrt -- nikad ne ulazi u Pinecone, ostaje samo istorijski
+    zapis u staging_memory (audit trail — zašto je nešto odbijeno)."""
+    supa = _get_supa()
+    row_res = await asyncio.to_thread(
+        lambda: supa.table("staging_memory").select("id").eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
+    )
+    if not row_res.data:
+        raise HTTPException(status_code=404, detail="Nacrt na čekanju nije pronađen.")
+
+    await asyncio.to_thread(
+        lambda: supa.table("staging_memory").update({"status": "rejected", "is_lawyer_approved": False}).eq("id", staging_id).execute()
+    )
+    return {"status": "rejected", "indexed": False}

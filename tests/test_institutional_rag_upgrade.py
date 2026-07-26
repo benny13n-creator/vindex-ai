@@ -3,7 +3,10 @@
 Tests for the Institutional Learning & RAG Audit (2026-07-26) upgrade:
   1. Pinecone namespace refactor (kancelarija_{id}/user_{id} + metadata)
   2. Cross-case retrieval with same-case prioritization
-  3. Auto-indexing of finalized AI drafts (type=draft_final)
+
+(Section 3, auto-indexing of finalized AI drafts, was superseded by
+Institutional Memory Architecture V2's staging_memory gate -- see
+tests/test_institutional_memory_v2.py.)
 
 See docs/INTELLIGENCE_AND_RAG_AUDIT.md for the audit this implements.
 """
@@ -11,9 +14,7 @@ import asyncio
 import os
 import sys
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -332,77 +333,12 @@ class TestCrossCaseRetrieval:
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 5. routers/drafting.py — auto-index finalized drafts (draft_final)
+#
+# SUPERSEDED (2026-07-26, Institutional Memory Architecture V2): the direct
+# "_index_finalized_draft" function this class tested no longer exists --
+# indexing a fresh AI draft straight into the kancelarija Pinecone namespace
+# with zero human review was exactly the "toxic learning" risk V2 was built
+# to close. It's been replaced by a staging_memory gate
+# (_stage_draft_for_review + POST /api/staging/{id}/approve, both in
+# routers/drafting.py), covered by tests/test_institutional_memory_v2.py.
 # ═══════════════════════════════════════════════════════════════════════════
-
-class TestIndexFinalizedDraft:
-    def test_skips_when_predmet_not_owned_by_user(self):
-        from routers.drafting import _index_finalized_draft
-
-        supa = MagicMock()
-        supa.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = \
-            MagicMock(data=None)
-
-        with patch("routers.drafting._get_supa", return_value=supa), \
-             patch("uploaded_doc.ingest.ingest_session") as mock_ingest:
-            asyncio.run(_index_finalized_draft({"user_id": "u1"}, "not-mine", "tuzba_naknada_stete", "Tužba", "Tekst nacrta."))
-
-        mock_ingest.assert_not_called()
-
-    def test_indexes_as_draft_final_when_owned(self):
-        from routers.drafting import _index_finalized_draft
-
-        supa = MagicMock()
-
-        def _table(name):
-            m = MagicMock()
-            if name == "predmeti":
-                m.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = \
-                    MagicMock(data={"id": "pred-1"})
-            elif name == "predmet_dokumenti":
-                m.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = \
-                    MagicMock(data=[])
-                m.insert.return_value.execute.return_value = MagicMock(data=[{"id": "dok-1"}])
-            return m
-
-        supa.table.side_effect = _table
-
-        with patch("routers.drafting._get_supa", return_value=supa), \
-             patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value="kanc-1")), \
-             patch("uploaded_doc.ingest.ingest_session", return_value=1) as mock_ingest:
-            asyncio.run(_index_finalized_draft(
-                {"user_id": "u1"}, "pred-1", "tuzba_naknada_stete", "Tužba za naknadu štete", "Puni tekst finalizovanog nacrta.",
-            ))
-
-        mock_ingest.assert_called_once()
-        call_kwargs = mock_ingest.call_args.kwargs
-        assert call_kwargs["namespace_override"] == "kancelarija_kanc-1"
-        assert call_kwargs["extra_metadata"]["type"] == "draft_final"
-        assert call_kwargs["extra_metadata"]["predmet_id"] == "pred-1"
-
-    def test_pinecone_failure_does_not_raise(self):
-        """Fire-and-forget guarantee: even if ingest_session raises, this must
-        never propagate (it runs via asyncio.create_task, uncaught here would
-        be a silently-swallowed-but-logged exception at worst -- but the
-        function itself must not raise when awaited directly, as this test does)."""
-        from routers.drafting import _index_finalized_draft
-
-        supa = MagicMock()
-
-        def _table(name):
-            m = MagicMock()
-            if name == "predmeti":
-                m.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = \
-                    MagicMock(data={"id": "pred-1"})
-            elif name == "predmet_dokumenti":
-                m.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = \
-                    MagicMock(data=[])
-                m.insert.return_value.execute.return_value = MagicMock(data=[{"id": "dok-1"}])
-            return m
-
-        supa.table.side_effect = _table
-
-        with patch("routers.drafting._get_supa", return_value=supa), \
-             patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
-             patch("uploaded_doc.ingest.ingest_session", side_effect=RuntimeError("pinecone down")):
-            # Should not raise:
-            asyncio.run(_index_finalized_draft({"user_id": "u1"}, "pred-1", "tip", "Naziv", "Tekst."))

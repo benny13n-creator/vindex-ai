@@ -536,6 +536,7 @@ async def finalize_intake_job(
             # vlasnik-znanja namespace kao api.py's predmet upload (v. tamo
             # za punu napomenu) -- zamenjuje pred_{session_id}.
             from shared.kancelarija_utils import get_kancelarija_id as _get_kid, rag_owner_namespace as _rag_ns
+            from shared.vector_origin import ORIGIN_CLIENT_DOC, now_iso as _now_iso
             _kancelarija_id = await _get_kid(supa, uid)
             _owner_ns = _rag_ns(uid, _kancelarija_id)
             try:
@@ -546,6 +547,12 @@ async def finalize_intake_job(
                         "predmet_id": predmet_id,
                         "kancelarija_id": _kancelarija_id or "",
                         "type": "case_doc",
+                        # Institutional Memory V2 (2026-07-26) STUB 2/3.
+                        "origin": ORIGIN_CLIENT_DOC,
+                        "parent_id": "",
+                        "origin_chain": [ORIGIN_CLIENT_DOC],
+                        "created_at": _now_iso(),
+                        "golden_template": False,
                     },
                 )
             except Exception as pe:

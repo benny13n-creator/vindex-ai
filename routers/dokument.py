@@ -230,7 +230,17 @@ async def dokument_upload(
         session_id = generate_session_id()
         ttl_hours = 24
         try:
-            count = await asyncio.to_thread(ingest_session, manifest, session_id, ttl_hours)
+            # Institutional Memory V2 (2026-07-26) STUB 2: origin metadata i
+            # ovde, iako ovaj tmp_* namespace ostaje potpuno nepromenjen
+            # (ad-hoc, 24h TTL, van kancelarija_{id}/user_{id} šeme -- v.
+            # Institutional Learning & RAG Audit #1) -- svaki vektor u
+            # Pinecone-u treba da nosi origin, ne samo trajni case_doc/
+            # draft_final.
+            from shared.vector_origin import ORIGIN_CLIENT_DOC
+            count = await asyncio.to_thread(
+                ingest_session, manifest, session_id, ttl_hours,
+                extra_metadata={"origin": ORIGIN_CLIENT_DOC},
+            )
         except Exception as e:
             _es = str(e)
             if "429" in _es or "storage" in _es.lower() or "Too Many" in _es:

@@ -62,3 +62,22 @@ def format_doc_passages(passages: list[dict]) -> str:
     """Format a list of passage dicts (with 'formatted' key) for combined output."""
     parts = [p["formatted"] for p in passages if p.get("formatted")]
     return "\n\n---\n\n".join(parts)
+
+
+# Institutional Memory Architecture V2 (2026-07-26), STUB 4 — Explainable
+# Retrieval / hijerarhija izvora. Prepended u kontekst (v.
+# app/services/retrieve.py) kad god su prisutni kancelarija_{id}/user_{id}
+# rezultati (KORISNIKOV DOKUMENT pasusi) pored zakona/prakse -- LLM mora
+# eksplicitno znati da prethodno iskustvo kancelarije NIJE isti nivo dokaza
+# kao zakon/sudska praksa, pogotovo za NOVI predmet.
+ORIGIN_HIERARCHY_INSTRUCTIONS = (
+    "HIJERARHIJA IZVORA (obavezno poštovati pri odgovaranju):\n"
+    "  PRIMAT 1 — Zvaničan zakon/Ustav: jedini neoboriv izvor pravnog osnova.\n"
+    "  PRIMAT 2 — Zvanična sudska praksa: jak, ali ne apsolutan autoritet — "
+    "  citiraj kao presedan, ne kao zakonsku normu.\n"
+    "  PRIMAT 3 — Prethodno iskustvo kancelarije (pasusi označeni "
+    "'KORISNIKOV DOKUMENT'): koristi ISKLJUČIVO kao stilski/stručni "
+    "  orijentir (kako je kancelarija ranije formulisala sličnu situaciju) — "
+    "  NIKAD kao neoborivu činjenicu ili pravni osnov za NOVI predmet, čak "
+    "  ni kada dolazi iz ranijeg predmeta iste kancelarije."
+)

@@ -718,6 +718,37 @@ def _build_izvori(matches: list) -> list[dict]:
     return izvori
 
 
+def _build_match_breakdown(izvori: list[dict], praksa_matches: list[dict], doc_passages: list[dict]) -> list[dict]:
+    """Institutional Memory Architecture V2 (2026-07-26), STUB 4 —
+    Explainable Retrieval. Objašnjava ZAŠTO je svaki izvor prikazan, umesto
+    da korisnik/LLM dobije samo tekst bez konteksta odakle dolazi."""
+    from shared.vector_origin import origin_label as _origin_label, ORIGIN_LAW, ORIGIN_COURT
+
+    breakdown: list[dict] = []
+    for izv in izvori:
+        breakdown.append({
+            "matched_by_law_article": f"{izv.get('zakon', '')} — Član {izv.get('clan', '')}".strip(" —") or None,
+            "matched_by_fact_pattern": round(izv.get("score", 0.0) * 100, 1),
+            "matched_by_court": None,
+            "origin_label": _origin_label(ORIGIN_LAW),
+        })
+    for pm in praksa_matches:
+        breakdown.append({
+            "matched_by_law_article": None,
+            "matched_by_fact_pattern": round(pm.get("score", 0.0) * 100, 1),
+            "matched_by_court": pm.get("court") or None,
+            "origin_label": _origin_label(ORIGIN_COURT),
+        })
+    for dp in doc_passages:
+        breakdown.append({
+            "matched_by_law_article": dp.get("article_label") or None,
+            "matched_by_fact_pattern": round(dp.get("score", 0.0) * 100, 1),
+            "matched_by_court": None,
+            "origin_label": _origin_label(dp.get("origin")),
+        })
+    return breakdown
+
+
 def _log_rag_error(reason: str, namespace: str, detail: str) -> None:
     """CELINA 5 (2026-07-24): RAG/Pinecone greške su ranije imale samo logger +
     Sentry (Celina 1/4) -- Sentry nije upit-ljiv iz Admin Dashboard-a bez
@@ -1628,7 +1659,7 @@ def retrieve_documents(
         return [], {
             "top_score": 0.0, "top_article": "", "top_law": "", "top_text": "",
             "confidence": "LOW", "confidence_detail": {}, "izvori": [],
-            "doc_passages": [], "praksa_matches": [],
+            "doc_passages": [], "praksa_matches": [], "match_breakdown": [],
         }
 
     # ── Faza 0b: Start praksa + extra-ns retrieval in background ─────────────────
@@ -1925,35 +1956,62 @@ def retrieve_documents(
     # relevantniji od bilo čega drugog.
     if _kanc_future is not None:
         from app.services.doc_formatter import format_doc_passage
+        from shared.vector_origin import origin_weight as _origin_weight, freshness_weight as _freshness_weight, ORIGIN_AI_GENERATED
         _SAME_CASE_BOOST = 0.05
         try:
             _kanc_matches = _kanc_future.result(timeout=5.0)
             _boosted = []
             for _pm in _kanc_matches:
                 _m = _pm.metadata or {}
+                _origin = _m.get("origin")
+                # STUB 2 defense-in-depth: AI_GENERATED ne bi trebalo NIKAD da
+                # dospe ovde (staging_memory gate ga sprečava na ingest strani,
+                # v. routers/drafting.py) -- ako bi ipak, potpuno se isključuje
+                # iz retrievala umesto da samo dobije nizak skor.
+                if _origin == ORIGIN_AI_GENERATED:
+                    continue
                 _je_isti_predmet = bool(current_predmet_id) and _m.get("predmet_id") == current_predmet_id
-                _boosted_score = float(getattr(_pm, "score", 0.0)) + (_SAME_CASE_BOOST if _je_isti_predmet else 0.0)
-                _boosted.append((_boosted_score, _je_isti_predmet, _pm))
+
+                # STUB 3: Final Score = Vector Similarity x Freshness Weight x Origin Weight
+                _raw_score = float(getattr(_pm, "score", 0.0))
+                _fresh_w = _freshness_weight(
+                    origin=_origin, created_at=_m.get("created_at"),
+                    golden_template=bool(_m.get("golden_template")),
+                    valid_until=_m.get("valid_until"), status=_m.get("status"),
+                )
+                _origin_w = _origin_weight(_origin)
+                _weighted_score = _raw_score * _fresh_w * _origin_w
+                _final_score = _weighted_score + (_SAME_CASE_BOOST if _je_isti_predmet else 0.0)
+                _boosted.append((_final_score, _je_isti_predmet, _pm))
             _boosted.sort(key=lambda t: t[0], reverse=True)
 
+            _kanc_dodato = 0
             for _score, _isti, _pm in _boosted[:5]:
                 _pf = format_doc_passage(_pm, same_case=_isti)
                 if _pf and len(_pf.strip()) > 50:
                     docs.append(_pf)
+                    _kanc_dodato += 1
                     _m = _pm.metadata or {}
                     _doc_passages_raw.append({
                         "namespace": kancelarija_namespace,
                         "predmet_id": _m.get("predmet_id") or None,
                         "same_case": _isti,
                         "doc_type": _m.get("type") or None,
+                        "origin": _m.get("origin") or None,
                         "chunk_index": int(_m.get("chunk_index", 0)),
                         "article_label": _m.get("article_label") or None,
                         "text_snippet": (_m.get("text") or "")[:200],
                         "score": _score,
                     })
+            if _kanc_dodato:
+                # STUB 4 -- hijerarhija se dodaje SAMO kad stvarno postoji
+                # "kancelarijsko iskustvo" u kontekstu (nema svrhe kad je
+                # kontekst čist zakon/praksa).
+                from app.services.doc_formatter import ORIGIN_HIERARCHY_INSTRUCTIONS
+                docs.insert(0, ORIGIN_HIERARCHY_INSTRUCTIONS)
             logger.info(
                 "[KANC_NS:%s] %d pasusa dodato u kontekst (od %d rezultata)",
-                kancelarija_namespace, len(_boosted[:5]), len(_kanc_matches),
+                kancelarija_namespace, _kanc_dodato, len(_kanc_matches),
             )
         except Exception as _ke:
             _sentry_capture(_ke)
@@ -1977,6 +2035,7 @@ def retrieve_documents(
             query[:80], os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX),
         )
 
+    _izvori = _build_izvori(reranked)
     retrieval_meta = {
         "top_score":          _top_score,
         "top_article":        _top_article,
@@ -1984,9 +2043,12 @@ def retrieve_documents(
         "top_text":           _top_text,
         "confidence":         get_confidence_level(_top_score),
         "confidence_detail":  _calculate_confidence(_top_score, len(reranked), query),
-        "izvori":             _build_izvori(reranked),
+        "izvori":             _izvori,
         "doc_passages":       _doc_passages_raw,
         "praksa_matches":     _praksa_matches_raw,
+        # Institutional Memory Architecture V2 (2026-07-26) STUB 4 —
+        # Explainable Retrieval ("Zašto mi prikazuješ ovaj dokument?").
+        "match_breakdown":    _build_match_breakdown(_izvori, _praksa_matches_raw, _doc_passages_raw),
     }
     logger.info(
         "[RETRIEVE] confidence=%s score=%.4f article=%s law=%s",
