@@ -284,22 +284,81 @@ potvrđeno u repou:**
 
 ---
 
+## PROGRAM 4: Security Validation (Validacija i Dokazivanje Kontrola)
+
+**Odnos prema Program 1:** Program 1.1 i 1.4 definišu **prvo, jednokratno
+izvršenje** dve od ove četiri prakse (prvi pentest, prvi pun restore
+drill) — to su jednokratni ciljevi sa krajnjim rokom. Program 4 definiše
+**trajni, ponavljajući ritam** koji počinje POSLE tog prvog izvršenja i
+nikad se ne završava. Da ne bi postojale dve verzije iste stvari u ovom
+dokumentu: **1.1/1.4 = "uradi prvi put", 4.1/4.3 = "onda ponavljaj
+zauvek, sa vlasnikom i dokazom po ciklusu."** Tabletop (4.2) i
+privilege/audit review (4.4) nemaju prethodnika u Program 1 — ovo je
+u potpunosti nov posao.
+
+### 4.1 Godišnji Eksterni Pen-Test (ponavljajući ritam)
+
+| | |
+|---|---|
+| **Owner** | Founder (komercijalni ugovor, ponavlja se svake godine) |
+| **Rok** | Prvi ciklus: Q4 2026 (v. §1.1 za opseg/preduslove). Svaki naredni ciklus: ista kalendarska sezona, +12 meseci od prethodnog potpisanog izveštaja |
+| **Definition of Done** | Ponavljajuća stavka u `docs/SECURITY_MATURITY_DASHBOARD.md` §1 koja pokazuje datum POSLEDNJEG potpisanog eksternog izveštaja — ako je stariji od 12 meseci + 30 dana, status automatski postaje 🟡 do ugovaranja sledećeg ciklusa |
+| **Napomena** | Opseg, preduslovi (migracija 088 pre prvog pentesta) i DoD za SAM čin testiranja već su definisani u §1.1 — ne ponavljati ovde. Ovaj unos postoji da formalizuje da se §1.1 ne dešava jednom i zaboravi, već postaje trajna godišnja obaveza sa vidljivim "datum poslednjeg testa" poljem |
+
+### 4.2 Kvartalne Tabletop Vežbe (IRP Walkthrough)
+
+| | |
+|---|---|
+| **Owner** | Founder (jedini učesnik — v. §0.3 realnost jednog operatora; tabletop za tim od jedne osobe znači strukturiran samostalan walkthrough, ne grupna simulacija) |
+| **Rok** | Prvi walkthrough: Q4 2026 (posle Chaos Drill prvog kruga, §1.4/§4.3 — realnije je prvo dokazati da restore fizički radi, pa onda uvežbati P0/P1 odluke oko njega). Zatim kvartalno, fiksni kalendar (jan/apr/jul/okt) |
+| **Definition of Done** | Za SVAKI kvartal: (a) jedan P0 i jedan P1 scenario iz `docs/SECURITY_MATURITY_DASHBOARD.md` §2.1 (SSRF, IDOR, ili RLS/namespace breach) odigran kroz `docs/INCIDENT_RESPONSE_PLAN.md`'s Prvih-30-Minuta playbook, korak po korak, sa štopericom; (b) popunjen Post-Mortem Template (IRP §4, 5 Whys) kao da se incident STVARNO desio, uključujući gde bi tačno playbook zapeo za tim od jedne osobe; (c) rezultat (šta je zapelo, šta je nedostajalo) upisan kao nova stavka u `docs/security/SECURITY_GAP_REGISTER.md` ako otkrije prazninu — tabletop koji ne pronađe nijedan nedostatak posle prvog kruga treba tretirati sa sumnjom (znak da scenario nije bio dovoljno realan), ne kao uspeh |
+| **Napomena** | Scenariji i njihovo obrazloženje već definisani u Maturity Dashboard §2.1 — ovaj unos ne ponavlja listu, samo dodaje kvartalni ritam + obaveznu vezu ka IRP post-mortem šablonu kao format izlaza vežbe |
+
+### 4.3 Mesečni Chaos Drills & DR Live Restore Testovi (ponavljajući ritam)
+
+| | |
+|---|---|
+| **Owner** | Founder (jedini operator sa produkcionim pristupom) |
+| **Rok** | Prvi PUN restore-iz-backup-a na ne-produkcionom Supabase projektu: kraj Q3 2026 (v. §1.4 — identičan cilj, ne dupliran ovde). Mesečni chaos drill ritam (Pinecone outage/LLM timeout/Supabase degradation, §Dashboard 2.2) počinje odmah posle prvog punog restore-a i traje trajno |
+| **Definition of Done** | Za SVAKI mesec: (a) jedan scenario iz Dashboard §2.2 rotiran (ne isti scenario svaki put); (b) upisan rezultat u DRP §8 Verification Log sa datumom, scenariom, i da li je RTO ≤ 2h cilj ispunjen; (c) svaki treći ciklus (kvartalno) MORA biti pun restore-from-backup na test projektu, ne samo `verify_backup_restore.py`'s read-only provera — read-only provera dokazuje konekciju, ne da backup fajl STVARNO može da postane radna baza |
+| **Napomena** | Ovo NE zamenjuje §1.4 — §1.4 je "prvi put, stvarno" milestone; §4.3 je "onda zauvek, na kalendar" obaveza. Bez ovog unosa, §1.4 bi ostao jednokratan dokaz koji zastari za par meseci |
+
+### 4.4 Periodični Review API Ključeva, Privilegija i Audit Logova
+
+| | |
+|---|---|
+| **Owner** | Founder (jedini nalog sa pristupom Render env varijablama i Supabase admin panelu) |
+| **Rok** | Kvartalno, isti kalendar kao §4.2 (jan/apr/jul/okt) |
+| **Definition of Done** | Za svaki kvartal, upisan kratak nalaz (3 stavke, u `docs/security/SECURITY_GAP_REGISTER.md` kao "Q_ 2026 Privilege Review" red ili slično) koji potvrđuje: (a) `FOUNDER_EMAILS`/`PRO_EMAILS` env varijable u Render-u (v. `shared/deps.py:33-47`) sadrže SAMO trenutno validne email adrese — nijedna email adresa bivšeg saradnika/partnera; (b) `kancelarija_clanovi` tabela (migracija 018, role admin/partner/saradnik/citanje) nema aktivnih članstava za korisnike koji više ne treba da imaju pristup toj kancelariji; (c) `security_events`/audit log tabele pregledane za anomalije van perioda aktivnog incidenta (npr. neuobičajen broj failed-login pokušaja, pristup van uobičajenih sati) — ne samo retroaktivno tokom istrage, već kao rutinska provera |
+| **Trenutno stanje (provereno, ne pretpostavljeno)** | **Ovo je u potpunosti nov posao — ne postoji nijedan skript ni ranija praksa.** Provereno (`grep` kroz `scripts/`): nijedan postojeći skript ne čita niti izveštava o `kancelarija_clanovi` članstvima ili `FOUNDER_EMAILS`/`PRO_EMAILS` sadržaju. Privilegija na founder/PRO nivou u ovom kodu je **isključivo env-var lista email adresa** (`shared/deps.py::_is_founder`/`is_pro`), ne DB-driven RBAC tabela — što znači da "review" ovde bukvalno znači: otvoriti Render dashboard i pročitati listu, ne pokrenuti kod |
+
+---
+
 ## DODATAK: Odbranjivi Bezbednosni Narativ (javne poruke)
 
-**Princip:** svaka rečenica ispod mora biti direktno potkrepljena
-commit-om, testom, ili audit dokumentom naveden pored nje — ne
-marketinška fraza koja "zvuči dobro". Ako se ne može potkrepiti,
-**ne ide u javnu komunikaciju.**
+**Ovaj addendum je zamenjen `docs/EVIDENCE_BASED_CLAIMS_POLICY.md`**
+(kreiran 2026-07-26) kao jedinstveni izvor istine za koje javne/
+marketinške tvrdnje su dozvoljene i koji je minimalan dokaz za svaku —
+u skladu sa "1 koncept = 1 vlasnik = 1 istina" principom
+(`docs/architecture/VINDEX_CORE_CONSOLIDATION.md`). Tabela ispod je
+ISTORIJSKI snapshot (2026-07-26, pre konsolidacije) — za trenutno važeću
+politiku i kompletnu listu tvrdnji/dokaza/zabrana, koristiti isključivo
+novi dokument.
+
+<details>
+<summary>Istorijski snapshot tabele (pre konsolidacije u Claims Policy)</summary>
 
 | Poruka (za javnu upotrebu, npr. Trust Center/sales) | Dokaz |
 |---|---|
 | "Svaki AI-generisan nacrt prolazi kroz automatsku proveru kvaliteta i **zahteva eksplicitnu potvrdu advokata** pre nego što postane deo baze znanja kancelarije." | `routers/drafting.py::_stage_draft_for_review`/`_promote_staged_draft_to_pinecone`, `tests/test_institutional_memory_v2.py` (21 testova) |
-| "Podaci jedne kancelarije su tehnički odvojeni od podataka drugih kancelarija u AI pretrazi." | `shared/kancelarija_utils.py::rag_owner_namespace`, cross-case test `test_returns_document_from_past_case_in_same_kancelarija` — **napomena za internu upotrebu, NE za javnu tvrdnju bez ograde**: ovo opisuje Pinecone namespace izolaciju, NE tvrdi da je RLS jedini/dovoljan mehanizam (SEC-004 arhitektonska činjenica — javna formulacija mora biti precizna, ne uopštena "imamo RLS" tvrdnja koja bi bila netačna) |
+| "Podaci jedne kancelarije su tehnički odvojeni od podataka drugih kancelarija u AI pretrazi." | `shared/kancelarija_utils.py::rag_owner_namespace`, cross-case test `test_returns_document_from_past_case_in_same_kancelarija` |
 | "Naš bezbednosni pipeline automatski skenira svaki commit za otkrivene tajne, poznate ranjivosti u zavisnostima, i bezbednosne obrasce u kodu." | `.github/workflows/security.yml` (Gitleaks/Bandit/pip-audit/Semgrep, svih 6 job-ova, `docs/SECURITY_SPRINT_PHASE1.md`) |
-| "Imamo dokumentovan, testiran plan za odgovor na bezbednosne incidente sa definisanim vremenima odziva." | `docs/INCIDENT_RESPONSE_PLAN.md` — **ograda za javnu verziju**: ne tvrditi da je plan "testiran u praksi" dok Chaos Drill (§Program 1.4) stvarno ne bude izvršen bar jednom — do tada, formulacija mora biti "definisan i dokumentovan", ne "dokazano funkcioniše pod pritiskom" |
-| "Sprovodimo redovnu internu bezbednosnu reviziju." | Tačno, opsežna istorija u `docs/security/` (SEC-001 do SEC-036) |
-| ~~"Nezavisno bezbednosno sertifikovani"~~ / ~~"Penetration tested"~~ | **NE KORISTITI dok Program 1.1 stvarno ne bude završen.** Ovo je tačno ono što ovaj roadmap postoji da promeni — koristiti ovu formulaciju danas bi bilo lažno predstavljanje, čak i ako je namera iskrena |
-| ~~"SOC 2 / ISO 27001 usklađeni"~~ | **Ne pominjati** — nijedan dokument u ovom repou ne pominje bilo koji formalni compliance framework kao cilj; ako founder želi ovo kao budući cilj, to je zaseban, veći poduhvat (kontrole, dokumentacija, eksterni auditor) koji nije obuhvaćen ovim roadmap-om i ne treba ga implicirati dok se eksplicitno ne odluči |
+| "Imamo dokumentovan, testiran plan za odgovor na bezbednosne incidente sa definisanim vremenima odziva." | `docs/INCIDENT_RESPONSE_PLAN.md` |
+| "Sprovodimo redovnu internu bezbednosnu reviziju." | `docs/security/` (SEC-001 do SEC-036) |
+| ~~"Nezavisno bezbednosno sertifikovani"~~ / ~~"Penetration tested"~~ | Zabranjeno dok §1.1/§4.1 stvarno ne bude završeno |
+| ~~"SOC 2 / ISO 27001 usklađeni"~~ | Zabranjeno, van obima ovog roadmap-a |
+
+</details>
 
 ---
 
@@ -318,7 +377,10 @@ pre pisanja ovog dokumenta (ne pretpostavljeno):
 `static/dpa.html`, `static/bezbednosni-list.html`, `privacy.html`,
 `routers/drafting.py`, `shared/kancelarija_utils.py`,
 `docs/INSTITUTIONAL_MEMORY_V2_IMPLEMENTATION.md`,
-`docs/SECURITY_SPRINT_PHASE1.md` — svih 20 potvrđeno postojećih.
+`docs/SECURITY_SPRINT_PHASE1.md`, `docs/EVIDENCE_BASED_CLAIMS_POLICY.md`,
+`docs/architecture/VINDEX_CORE_CONSOLIDATION.md`, `shared/deps.py`
+(FOUNDER_EMAILS/PRO_EMAILS, linije 33-47), `migrations/018_kancelarija.sql`,
+`tests/test_sec001_predmet_ownership.py` — svih 24 potvrđeno postojećih.
 
 ### Pytest suite
 
