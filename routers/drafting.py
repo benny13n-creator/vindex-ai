@@ -71,6 +71,11 @@ def _pozovi_drafting_api(client, **kwargs):
 class NacrtReq(BaseModel):
     vrsta: str = Field(..., min_length=2, max_length=200)
     opis:  str = Field(..., min_length=10, max_length=5000)
+    # Institutional Learning & RAG Audit (2026-07-26) #3: opciono -- ako je
+    # prosleđen, generisani nacrt se tretira kao FINALIZOVAN za taj predmet
+    # i indeksira se kao draft_final (v. _index_finalized_draft niže).
+    # Bez ovoga ponašanje je nepromenjeno (samo generiši i vrati tekst).
+    predmet_id: Optional[str] = Field(None, max_length=100)
 
     @field_validator("vrsta", "opis")
     @classmethod
@@ -104,6 +109,8 @@ class PodnesakReq(BaseModel):
     opis:       str           = Field(..., min_length=20, max_length=5000)
     sud_naziv:  Optional[str] = Field(None, max_length=200)
     sud_adresa: Optional[str] = Field(None, max_length=300)
+    # Institutional Learning & RAG Audit (2026-07-26) #3 — v. NacrtReq.predmet_id.
+    predmet_id: Optional[str] = Field(None, max_length=100)
 
     @field_validator("tip")
     @classmethod
@@ -177,6 +184,91 @@ def _normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None
 def _greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
     logger.warning("API greška %d: %s", status_code, poruka)
     return JSONResponse(status_code=status_code, content={"greska": poruka})
+
+
+async def _index_finalized_draft(user: dict, predmet_id: str, tip: str, naziv: str, tekst: str) -> None:
+    """Institutional Learning & RAG Audit (2026-07-26) #3 — feedback loop za
+    AI-generisane nacrte. Pre ove funkcije, /api/nacrt i /api/podnesak su
+    generisali tekst i vraćali ga BEZ IKAKVOG traga u Pinecone-u -- sistem je
+    "zaboravljao" svaku tužbu/žalbu koju je ikad napisao. Ovde se finalizovan
+    nacrt (predmet_id eksplicitno prosleđen od strane klijenta -- v.
+    NacrtReq/PodnesakReq.predmet_id) chunk-uje i indeksira pod istim
+    vlasnik-namespace šemom kao uploadovani dokumenti (v. api.py's
+    /api/predmeti/{id}/upload), sa type="draft_final" da se razlikuje od
+    type="case_doc".
+
+    Namerno fire-and-forget (pozvano preko asyncio.create_task, ne await-
+    ovano u endpoint-u) -- embedding ne sme da uspori odgovor korisniku, i
+    greška ovde NIKAD ne sme da utiče na već generisan i vraćen nacrt."""
+    try:
+        supa = _get_supa()
+        pred_row = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user["user_id"]).maybe_single().execute()
+        )
+        if not pred_row.data:
+            logger.warning("[DRAFT_INDEX] predmet_id=%s ne pripada korisniku — preskočeno", predmet_id)
+            return
+
+        from uploaded_doc.chunker import chunk_document
+        from uploaded_doc.ingest import ingest_session
+        from uploaded_doc.session import generate_session_id
+        from shared.kancelarija_utils import get_kancelarija_id, rag_owner_namespace
+
+        source_meta = {
+            "source_filename": f"Nacrt — {naziv}",
+            "source_format": "txt",
+            "source_sha256": "",
+            "is_scanned": False,
+            "session_id": "__local__",
+        }
+        manifest = await asyncio.to_thread(chunk_document, tekst, source_meta)
+        if manifest.total_chunks == 0:
+            return
+
+        kancelarija_id = await get_kancelarija_id(supa, user["user_id"])
+        owner_ns = rag_owner_namespace(user["user_id"], kancelarija_id)
+        session_id = generate_session_id()
+
+        pinecone_ok = True
+        try:
+            await asyncio.to_thread(
+                ingest_session, manifest, session_id,
+                namespace_override=owner_ns,
+                extra_metadata={
+                    "predmet_id": predmet_id,
+                    "kancelarija_id": kancelarija_id or "",
+                    "type": "draft_final",
+                },
+            )
+        except Exception as pe:
+            logger.warning("[DRAFT_INDEX] Pinecone ingest neuspešan predmet=%s: %s", predmet_id, str(pe)[:150])
+            pinecone_ok = False
+
+        try:
+            _rn_res = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokumenti").select("redni_broj").eq("predmet_id", predmet_id).order("redni_broj", desc=True).limit(1).execute()
+            )
+            next_rn = int((_rn_res.data or [{}])[0].get("redni_broj") or 0) + 1
+        except Exception:
+            next_rn = 1
+
+        await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").insert({
+                "predmet_id": predmet_id,
+                "user_id": user["user_id"],
+                "naziv_fajla": f"AI Nacrt — {naziv}",
+                "storage_path": f"draft/{session_id}",
+                "pinecone_namespace": owner_ns,
+                "status": "indeksirano" if pinecone_ok else "sacuvano",
+                "velicina_kb": max(1, len(tekst.encode("utf-8")) // 1024),
+                "redni_broj": next_rn,
+                "tekst_sadrzaj": tekst[:100_000],
+            }).execute()
+        )
+        logger.info("[DRAFT_INDEX] predmet=%s tip=%s ns=%s ok=%s", predmet_id, tip, owner_ns, pinecone_ok)
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.warning("[DRAFT_INDEX] neuspešno (non-fatal) predmet=%s: %s", predmet_id, exc)
 
 
 def _izvori_kontekst(docs: list[str], limit: int = 4) -> str:
@@ -415,6 +507,8 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
             latency_ms=latency_ms,
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
+        if req.predmet_id and isinstance(rezultat, dict) and rezultat.get("status") == "success" and rezultat.get("data"):
+            asyncio.create_task(_index_finalized_draft(user, req.predmet_id, req.vrsta, req.vrsta, rezultat["data"]))
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception as _exc:
         _sentry_capture(_exc)
@@ -676,6 +770,9 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
     nacrt = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
 
     await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
+
+    if req.predmet_id and nacrt:
+        asyncio.create_task(_index_finalized_draft(user, req.predmet_id, req.tip, PODNESAK_TIPOVI[req.tip], nacrt))
 
     return {
         "status":  "success",

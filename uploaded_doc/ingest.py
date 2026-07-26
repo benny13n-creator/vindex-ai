@@ -40,19 +40,32 @@ def ingest_session(
     session_id: str,
     ttl_hours: int = 24,
     namespace_prefix: str = _TMP_NS_PREFIX,
+    namespace_override: Optional[str] = None,
+    extra_metadata: Optional[dict] = None,
 ) -> int:
-    """Embed chunks and upsert to <prefix><session_id> Pinecone namespace.
+    """Embed chunks and upsert to a Pinecone namespace.
 
-    Use namespace_prefix='pred_' for permanent predmet documents (cleanup_expired
-    only deletes tmp_* namespaces). Default prefix 'tmp_' is for temporary sessions.
+    Default behavior (namespace_override=None) is UNCHANGED: namespace is
+    <namespace_prefix><session_id>. Use namespace_prefix='pred_' for permanent
+    predmet documents (cleanup_expired only deletes tmp_* namespaces).
+    Default prefix 'tmp_' is for temporary sessions.
+
+    namespace_override / extra_metadata (Institutional Learning & RAG Audit,
+    2026-07-26, stavka #1): kad je namespace_override prosleđen, koristi se
+    UMESTO <prefix><session_id> -- ovo je kanal za novu "vlasnik znanja"
+    šemu (kancelarija_{id} / user_{id}, v. shared/kancelarija_utils.py)
+    koja zamenjuje raniju per-upload nasumičnu pred_{session_id} šemu.
+    extra_metadata (npr. {"predmet_id":..., "kancelarija_id":..., "type":
+    "case_doc"}) se dodaje u metadata SVAKOG vektora, da omogući metadata
+    filter pri pretrazi unutar deljenog namespace-a.
 
     Returns the number of vectors upserted. Raises on API errors.
     """
     if manifest.total_chunks == 0:
         return 0
 
-    namespace = f"{namespace_prefix}{session_id}"
-    exp_iso = expires_at_iso(ttl_hours) if namespace_prefix == _TMP_NS_PREFIX else ""
+    namespace = namespace_override if namespace_override else f"{namespace_prefix}{session_id}"
+    exp_iso = expires_at_iso(ttl_hours) if (not namespace_override and namespace_prefix == _TMP_NS_PREFIX) else ""
 
     embeddings_client = _get_embeddings_client()
     index = _get_pinecone_index()
@@ -74,6 +87,8 @@ def ingest_session(
             "token_count": chunk.token_count,
             "expires_at": exp_iso,
         }
+        if extra_metadata:
+            metadata.update(extra_metadata)
         records.append({
             "id": chunk.chunk_id,
             "values": vec,

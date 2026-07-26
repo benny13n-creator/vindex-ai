@@ -532,8 +532,22 @@ async def finalize_intake_job(
             manifest = await asyncio.to_thread(chunk_document, text, source_meta)
             session_id = generate_session_id()
             pinecone_ok = True
+            # Institutional Learning & RAG Audit (2026-07-26) #1: isti
+            # vlasnik-znanja namespace kao api.py's predmet upload (v. tamo
+            # za punu napomenu) -- zamenjuje pred_{session_id}.
+            from shared.kancelarija_utils import get_kancelarija_id as _get_kid, rag_owner_namespace as _rag_ns
+            _kancelarija_id = await _get_kid(supa, uid)
+            _owner_ns = _rag_ns(uid, _kancelarija_id)
             try:
-                await asyncio.to_thread(ingest_session, manifest, session_id, namespace_prefix="pred_")
+                await asyncio.to_thread(
+                    ingest_session, manifest, session_id,
+                    namespace_override=_owner_ns,
+                    extra_metadata={
+                        "predmet_id": predmet_id,
+                        "kancelarija_id": _kancelarija_id or "",
+                        "type": "case_doc",
+                    },
+                )
             except Exception as pe:
                 logger.warning("[SMART_INTAKE] Pinecone ingest neuspešan (non-fatal) predmet=%s: %s", predmet_id, str(pe)[:150])
                 pinecone_ok = False
@@ -543,7 +557,7 @@ async def finalize_intake_job(
                 "user_id":            uid,
                 "naziv_fajla":        job.get("original_filename") or "dokument",
                 "storage_path":       f"session/{session_id}",
-                "pinecone_namespace": f"pred_{session_id}",
+                "pinecone_namespace": _owner_ns,
                 "status":             "indeksirano" if pinecone_ok else "sacuvano",
                 "velicina_kb":        max(1, len(raw_bytes) // 1024),
                 "redni_broj":         1,

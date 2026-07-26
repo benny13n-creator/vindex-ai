@@ -800,16 +800,17 @@ def _pretraga_praksa(vektor: list[float], k: int = 5) -> list:
         return []
 
 
-def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5) -> list:
-    """Query an arbitrary named Pinecone namespace. Used for tmp_* doc namespaces."""
+def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5, filter: Optional[dict] = None) -> list:
+    """Query an arbitrary named Pinecone namespace. Used for tmp_* doc namespaces
+    and (Institutional Learning & RAG Audit, 2026-07-26) for the kancelarija_{id}/
+    user_{id} owner-scope namespace — `filter` is the Pinecone metadata filter
+    (e.g. {"type": {"$in": ["case_doc", "draft_final"]}})."""
     index = _get_index()
     try:
-        return index.query(
-            vector=vektor,
-            top_k=k,
-            namespace=namespace,
-            include_metadata=True,
-        ).matches
+        kwargs = {"vector": vektor, "top_k": k, "namespace": namespace, "include_metadata": True}
+        if filter:
+            kwargs["filter"] = filter
+        return index.query(**kwargs).matches
     except Exception as exc:
         _sentry_capture(exc)
         logger.warning("[NS:%s] Pretraga nije uspela: %s", namespace, exc)
@@ -1570,6 +1571,8 @@ def retrieve_documents(
     query: str,
     k: int = 6,
     extra_namespaces: Optional[list] = None,
+    kancelarija_namespace: Optional[str] = None,
+    current_predmet_id: Optional[str] = None,
 ) -> tuple[list[str], dict]:
     """
     Agentic RAG pipeline — svi 5 sprintova.
@@ -1586,6 +1589,16 @@ def retrieve_documents(
         extra_namespaces: optional list of additional Pinecone namespaces to query
             in parallel (e.g. ["tmp_<session_id>"] for uploaded-document context).
             Existing callers pass nothing — behavior is identical.
+        kancelarija_namespace: optional owner-scope namespace (kancelarija_{id}
+            or user_{id}, v. shared/kancelarija_utils.py) — Institutional
+            Learning & RAG Audit (2026-07-26) #2. Kad je prosleđen, pretražuje
+            SVE trajne case_doc/draft_final dokumente tog vlasnika (svi
+            predmeti, ne samo trenutni) i daje prioritet rezultatima iz
+            current_predmet_id kroz score boost, ne kroz hard filter — ostali
+            predmeti iste kancelarije i dalje mogu da se pojave u kontekstu.
+        current_predmet_id: predmet_id trenutnog predmeta, koristi se samo uz
+            kancelarija_namespace za prioritizaciju/labelovanje ("ovaj predmet"
+            vs. "raniji predmet iz kancelarije").
 
     Returns:
         (docs, retrieval_meta) where retrieval_meta has:
@@ -1631,6 +1644,19 @@ def retrieve_documents(
         _extra_exec = ThreadPoolExecutor(max_workers=len(extra_namespaces))
         for _ns in extra_namespaces:
             _extra_futures[_ns] = _extra_exec.submit(_pretraga_ns, vektor, _ns, 5)
+
+    # Institutional Learning & RAG Audit (2026-07-26) #2 — cross-case kancelarija
+    # pretraga. Zaseban executor od _extra_exec iznad: taj mehanizam je za
+    # ad-hoc tmp_* dokument-analizu (bez filtera), ovaj je za trajno
+    # case_doc/draft_final znanje istog vlasnika, sa metadata filterom.
+    _kanc_exec = None
+    _kanc_future = None
+    if kancelarija_namespace:
+        _kanc_exec = ThreadPoolExecutor(max_workers=1)
+        _kanc_future = _kanc_exec.submit(
+            _pretraga_ns, vektor, kancelarija_namespace, 8,
+            {"type": {"$in": ["case_doc", "draft_final"]}},
+        )
 
     # ── Faza 1: Query transformation (paralel) ────────────────────────────────
     # FIX-1: use intent-aware decomposition for complex queries;
@@ -1889,6 +1915,52 @@ def retrieve_documents(
                 logger.warning("[DOC_NS:%s] Retrieval greška: %s", _ns, _de)
         if _extra_exec is not None:
             _extra_exec.shutdown(wait=False)
+
+    # Kancelarija (cross-case) pasusi — Institutional Learning & RAG Audit
+    # (2026-07-26) #2. Rezultati iz OSTALIH predmeta istog vlasnika se NE
+    # filtriraju napolje (cilj je upravo institucionalno pamćenje kroz
+    # predmete) — umesto toga, matchevi iz current_predmet_id dobijaju score
+    # boost pre sortiranja, tako da trenutni predmet ostaje prioritet kad oba
+    # postoje, a raniji predmeti i dalje mogu da uđu u kontekst ako su
+    # relevantniji od bilo čega drugog.
+    if _kanc_future is not None:
+        from app.services.doc_formatter import format_doc_passage
+        _SAME_CASE_BOOST = 0.05
+        try:
+            _kanc_matches = _kanc_future.result(timeout=5.0)
+            _boosted = []
+            for _pm in _kanc_matches:
+                _m = _pm.metadata or {}
+                _je_isti_predmet = bool(current_predmet_id) and _m.get("predmet_id") == current_predmet_id
+                _boosted_score = float(getattr(_pm, "score", 0.0)) + (_SAME_CASE_BOOST if _je_isti_predmet else 0.0)
+                _boosted.append((_boosted_score, _je_isti_predmet, _pm))
+            _boosted.sort(key=lambda t: t[0], reverse=True)
+
+            for _score, _isti, _pm in _boosted[:5]:
+                _pf = format_doc_passage(_pm, same_case=_isti)
+                if _pf and len(_pf.strip()) > 50:
+                    docs.append(_pf)
+                    _m = _pm.metadata or {}
+                    _doc_passages_raw.append({
+                        "namespace": kancelarija_namespace,
+                        "predmet_id": _m.get("predmet_id") or None,
+                        "same_case": _isti,
+                        "doc_type": _m.get("type") or None,
+                        "chunk_index": int(_m.get("chunk_index", 0)),
+                        "article_label": _m.get("article_label") or None,
+                        "text_snippet": (_m.get("text") or "")[:200],
+                        "score": _score,
+                    })
+            logger.info(
+                "[KANC_NS:%s] %d pasusa dodato u kontekst (od %d rezultata)",
+                kancelarija_namespace, len(_boosted[:5]), len(_kanc_matches),
+            )
+        except Exception as _ke:
+            _sentry_capture(_ke)
+            logger.warning("[KANC_NS:%s] Retrieval greška: %s", kancelarija_namespace, _ke)
+        finally:
+            if _kanc_exec is not None:
+                _kanc_exec.shutdown(wait=False)
 
     elapsed = _time.perf_counter() - t0
     logger.info(

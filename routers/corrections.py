@@ -44,6 +44,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user, _is_founder
+from shared.kancelarija_utils import get_kancelarija_id as _get_kancelarija_id
 from shared.llm_retry import llm_retry
 from shared.rate import limiter
 from shared.permissions import PermissionService
@@ -222,30 +223,8 @@ async def _klasifikuj_korekciju_async(original: str, edited: str) -> str:
         return "stil"
 
 
-async def _get_kancelarija_id(supa, uid: str) -> Optional[str]:
-    """Pronalazi kancelarija_id za datog korisnika."""
-    try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("kancelarija_clanovi")
-                .select("kancelarija_id")
-                .eq("user_id", uid)
-                .eq("status", "ACTIVE")
-                .maybe_single()
-                .execute()
-        )
-        if r.data:
-            return r.data.get("kancelarija_id")
-        # Može biti admin
-        r2 = await asyncio.to_thread(
-            lambda: supa.table("kancelarije")
-                .select("id")
-                .eq("admin_uid", uid)
-                .maybe_single()
-                .execute()
-        )
-        return r2.data.get("id") if r2.data else None
-    except Exception:
-        return None
+# _get_kancelarija_id je konsolidovano u shared/kancelarija_utils.py
+# (2026-07-26) -- v. import iznad.
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────

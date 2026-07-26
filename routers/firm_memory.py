@@ -39,6 +39,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.kancelarija_utils import get_kancelarija_id as _get_kancelarija_id
 from shared.rate import limiter
 
 logger = logging.getLogger("vindex.firm_memory")
@@ -50,29 +51,9 @@ _VAZNOSTI     = {"visoka", "normalna", "niska"}
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
-
-async def _get_kancelarija_id(supa, uid: str) -> Optional[str]:
-    try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("kancelarije")
-                .select("id")
-                .eq("admin_uid", uid)
-                .maybe_single()
-                .execute()
-        )
-        if r.data:
-            return r.data["id"]
-        r2 = await asyncio.to_thread(
-            lambda: supa.table("kancelarija_clanovi")
-                .select("kancelarija_id")
-                .eq("user_id", uid)
-                .eq("status", "ACTIVE")
-                .maybe_single()
-                .execute()
-        )
-        return r2.data.get("kancelarija_id") if r2.data else None
-    except Exception:
-        return None
+# _get_kancelarija_id je konsolidovano u shared/kancelarija_utils.py
+# (2026-07-26) -- v. import iznad. Alias zadržan da se ne menja svaki
+# poziv u ovom fajlu.
 
 
 def _now() -> str:

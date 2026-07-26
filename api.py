@@ -4167,6 +4167,14 @@ async def predmet_upload_auto_analyze(
     predmet_naziv = pred_row.data.get("naziv", "")
     predmet_tip   = pred_row.data.get("tip", "opsti")
 
+    # Institutional Learning & RAG Audit (2026-07-26) #1: vlasnik-znanja
+    # namespace (kancelarija_{id} ako korisnik pripada kancelariji, inače
+    # user_{user.id}) -- zamenjuje raniju pred_{session_id} šemu koja je
+    # svaki dokument slala u sopstveni izolovani, neagregabilni namespace.
+    from shared.kancelarija_utils import get_kancelarija_id as _get_kid, rag_owner_namespace as _rag_ns
+    _kancelarija_id = await _get_kid(_get_supa(), user.id)
+    _owner_ns = _rag_ns(user.id, _kancelarija_id)
+
     # File guards
     suffix = _Path(file.filename or "").suffix.lower()
     if file.content_type not in _ALLOWED_MIMES or suffix not in _ALLOWED_SUFFIXES:
@@ -4225,13 +4233,20 @@ async def predmet_upload_auto_analyze(
         raise HTTPException(status_code=422, detail="Dokument je prazan.")
 
     session_id = generate_session_id()
-    # Predmet dokumenti su trajni — koristimo 'pred_' prefix da cleanup_expired
-    # (koji brise samo 'tmp_*') nikad ne obrise ove vektore iz Pinecone-a.
+    # Predmet dokumenti su trajni -- koriste _owner_ns (kancelarija_{id}/
+    # user_{id}), ne 'pred_' + nasumičan session_id (v. napomena iznad).
+    # cleanup_expired i dalje briše samo 'tmp_*' namespace-ove, pa ovaj
+    # trajni namespace nikad neće biti obrisan njime.
     _pinecone_ok = True
     try:
         count = await asyncio.to_thread(
             ingest_session, manifest, session_id,
-            namespace_prefix="pred_"
+            namespace_override=_owner_ns,
+            extra_metadata={
+                "predmet_id": predmet_id,
+                "kancelarija_id": _kancelarija_id or "",
+                "type": "case_doc",
+            },
         )
     except Exception as _pe:
         _pe_str = str(_pe)
@@ -4263,7 +4278,10 @@ async def predmet_upload_auto_analyze(
             "user_id":             user.id,
             "naziv_fajla":         file.filename or "dokument",
             "storage_path":        f"session/{session_id}",
-            "pinecone_namespace":  f"pred_{session_id}",
+            # Deljeni namespace (v. napomena iznad) -- vise dokumenata istog
+            # vlasnika deli isti namespace, razlikuju se preko predmet_id
+            # metadata filtera, ne preko odvojenih namespace-ova.
+            "pinecone_namespace":  _owner_ns,
             "status":              "indeksirano" if _pinecone_ok else "sacuvano",
             "velicina_kb":         max(1, len(raw) // 1024),
             "redni_broj":          _next_rn,
@@ -4367,8 +4385,18 @@ async def predmet_upload_auto_analyze(
     _rag_meta: dict = {}
     try:
         from app.services.retrieve import retrieve_documents as _retrieve
+        # Institutional Learning & RAG Audit (2026-07-26) #2: kancelarija_namespace
+        # + current_predmet_id daju ovoj auto-analizi pristup ranijim predmetima
+        # istog vlasnika (kancelarije ili solo korisnika), sa prioritetom na
+        # TRENUTNI predmet -- v. app/services/retrieve.py.
         _rag_docs, _rag_meta = await asyncio.wait_for(
-            asyncio.to_thread(_retrieve, _rag_query, 3),
+            asyncio.to_thread(
+                lambda: _retrieve(
+                    _rag_query, 3,
+                    kancelarija_namespace=_owner_ns,
+                    current_predmet_id=predmet_id,
+                )
+            ),
             timeout=4.0,
         )
         if _rag_docs:
