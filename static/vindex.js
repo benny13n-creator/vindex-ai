@@ -10383,12 +10383,41 @@ function kanban_openPredmet(id) {
   }
 }
 
+// UI/UX Simplification (2026-07-26, docs/UI_UX_SIMPLIFICATION_PLAN.md §3.3):
+// klik na karticu i dalje navigira na drugi top-level tab (aiws) -- to je
+// namerno NEPROMENJENO ovim taskom (Opcija A, nizak rizik -- puna
+// in-context integracija je Opcija B, poseban sprint). Ono što JESTE
+// promenjeno: korisnik sada dobija jasnu, imenovanu najavu PRE skoka,
+// umesto tihog "cela aplikacija se promenila" osećaja.
 function pred_openStrat(modul) {
+  var _naziv = (typeof STRAT_MODULI !== 'undefined' && STRAT_MODULI[modul] && STRAT_MODULI[modul].naziv) || modul;
+  showToast('Otvaram: ' + _naziv + '…', 'info');
   openAITool('t');
   setTimeout(function() {
     var btn = document.querySelector('.strat-btn[data-modul="'+modul+'"]');
     if (btn) stratIzaberiModul(modul, btn);
   }, 150);
+}
+
+// FAZA 3 prečica (Opcija A, plan §1.2) -- otvara Nacrti/Podnesci tab
+// (openAITool('n') mapira na aiws 'nacrt' mod) uz istu najavu kao gore.
+function pred_openDraftEngine() {
+  showToast('Otvaram: Nacrti & Podnesci…', 'info');
+  openAITool('n');
+}
+
+// Radni tok po fazama predmeta (2026-07-26, plan §1.3) -- lokalni tab-switch
+// unutar "Pregled predmeta -> Strategija" pod-taba, isti obrazac kao
+// pred_subtabSwitch/oblastiIzaberiOblast (toggle active + toggle display).
+function predStratPhaseSwitch(phase, btn) {
+  document.querySelectorAll('.vx-phase-panel').forEach(function(p) {
+    p.style.display = (p.getAttribute('data-phase-panel') === phase) ? '' : 'none';
+  });
+  document.querySelectorAll('.vx-phase-tab').forEach(function(b) {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  if (btn) { btn.classList.add('active'); btn.setAttribute('aria-selected', 'true'); }
 }
 
 function pred_launchKompletnaAnaliza() {

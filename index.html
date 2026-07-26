@@ -1125,7 +1125,7 @@
                 </div>
 
                 <!-- Istaknuto: najsveobuhvatnija analiza kao hero akcija -->
-                <div class="vx-insight-panel" style="margin-bottom:1.2rem;cursor:pointer;" onclick="pred_openStrat('kompletna_analiza')">
+                <div class="vx-insight-panel vx-insight-hero" style="margin-bottom:1.2rem;cursor:pointer;" onclick="pred_launchKompletnaAnaliza()">
                   <div class="vx-insight-label">◆ Preporučeno <span class="pro-badge">PRO</span></div>
                   <div class="vx-insight-body">
                     <div style="font-size:1rem;font-weight:700;color:var(--vx-text-primary);margin-bottom:.35rem;">Kompletna analiza predmeta</div>
@@ -1133,60 +1133,25 @@
                   </div>
                 </div>
 
-                <!-- KATEGORIJA: ANALIZA RIZIKA -->
-                <div class="vx-section-lbl" style="margin-bottom:.4rem;">Analiza i procena</div>
-                <div style="display:grid;gap:.45rem;margin-bottom:.85rem;">
-                  <div class="strat-feature-card" onclick="pred_openStrat('red_team')">
-                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
-                    <div class="sfc-body">
-                      <div class="sfc-title">Analiza crvenog tima <span class="pro-badge">PRO</span></div>
-                      <div class="sfc-desc">Sistem preuzima ulogu protivničkog advokata i napada vašu argumentaciju. Otkriva slabe tačke pre suđenja.</div>
-                    </div>
-                    <div class="sfc-arrow">›</div>
-                  </div>
+                <!-- Radni tok po fazama predmeta (2026-07-26, docs/UI_UX_SIMPLIFICATION_PLAN.md §1) -->
+                <div class="vx-phase-tabs" role="tablist">
+                  <button class="vx-phase-tab active" data-phase="1" onclick="predStratPhaseSwitch('1',this)" role="tab" aria-selected="true">
+                    <span class="vx-phase-num">1</span> Intake &amp; Analiza
+                  </button>
+                  <button class="vx-phase-tab" data-phase="2" onclick="predStratPhaseSwitch('2',this)" role="tab" aria-selected="false">
+                    <span class="vx-phase-num">2</span> Strategija &amp; Svedoci
+                  </button>
+                  <button class="vx-phase-tab" data-phase="3" onclick="predStratPhaseSwitch('3',this)" role="tab" aria-selected="false">
+                    <span class="vx-phase-num">3</span> Izrada Nacrta
+                  </button>
+                  <button class="vx-phase-tab" data-phase="4" onclick="predStratPhaseSwitch('4',this)" role="tab" aria-selected="false">
+                    <span class="vx-phase-num">4</span> Simulacija Suda
+                  </button>
                 </div>
 
-                <!-- KATEGORIJA: SIMULACIJA SUDA -->
-                <div class="vx-section-lbl" style="margin-bottom:.4rem;">Simulacija suda</div>
-                <div style="display:grid;gap:.45rem;margin-bottom:.85rem;">
-                  <div class="strat-feature-card" onclick="pred_openStrat('sudija')">
-                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M5 21h14"/><path d="M4 12h16"/><path d="M4 7l8-4 8 4"/></svg></div>
-                    <div class="sfc-body">
-                      <div class="sfc-title">Sudija — procena ishoda <span class="pro-badge">PRO</span></div>
-                      <div class="sfc-desc">Simulira sudijsku odluku na osnovu vaših argumenata, dokaza i relevantne prakse. Dobijate obrazloženu presudu.</div>
-                    </div>
-                    <div class="sfc-arrow">›</div>
-                  </div>
-                  <div class="strat-feature-card" onclick="pred_openStrat('sudija_v2')">
-                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="1"/><polyline points="3 7 12 2 21 7"/></svg></div>
-                    <div class="sfc-body">
-                      <div class="sfc-title">Simulacija sudskog postupka <span class="pro-badge">PRO</span></div>
-                      <div class="sfc-desc">Detaljna simulacija celog postupka: pitanja suda, argumenti protivnika, replika. Priprema za svaki scenario.</div>
-                    </div>
-                    <div class="sfc-arrow">›</div>
-                  </div>
-                  <div class="strat-feature-card" onclick="pred_openStrat('litigation')">
-                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-                    <div class="sfc-body">
-                      <div class="sfc-title">Simulacija parničnog postupka <span class="pro-badge">PRO</span></div>
-                      <div class="sfc-desc">Kompletna simulacija od tužbe do presude — identifikuje procesne zamke i prilike za poboljšanje taktike.</div>
-                    </div>
-                    <div class="sfc-arrow">›</div>
-                  </div>
-                </div>
-
-                <!-- KATEGORIJA: DOKUMENTI I SVEDOCI -->
-                <div class="vx-section-lbl" style="margin-bottom:.4rem;">Dokumenti i svedoci</div>
-                <div style="display:grid;gap:.45rem;margin-bottom:.85rem;">
-                  <div class="strat-feature-card" onclick="pred_openStrat('witness')">
-                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-                    <div class="sfc-body">
-                      <div class="sfc-title">Analiza svedoka <span class="pro-badge">PRO</span></div>
-                      <div class="sfc-desc">Analizira iskaze svedoka, otkriva kontradikcije, predlaže pitanja za unakrsno ispitivanje na sudu.</div>
-                    </div>
-                    <div class="sfc-arrow">›</div>
-                  </div>
-                  <div class="strat-feature-card" onclick="pred_openStrat('revizor')">
+                <!-- FAZA 1: INTAKE & ANALIZA -->
+                <div class="vx-phase-panel" data-phase-panel="1">
+                  <div class="strat-feature-card" data-tip="pisanje" onclick="pred_openStrat('revizor')">
                     <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg></div>
                     <div class="sfc-body">
                       <div class="sfc-title">Revizija dokumenta <span class="pro-badge">PRO</span></div>
@@ -1194,7 +1159,7 @@
                     </div>
                     <div class="sfc-arrow">›</div>
                   </div>
-                  <div class="strat-feature-card" onclick="pred_openStrat('due_diligence')">
+                  <div class="strat-feature-card" data-tip="analitika" onclick="pred_openStrat('due_diligence')">
                     <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
                     <div class="sfc-body">
                       <div class="sfc-title">Analiza rizika <span class="pro-badge">PRO</span></div>
@@ -1204,20 +1169,94 @@
                   </div>
                 </div>
 
-                <!-- KATEGORIJA: PRIPREMA ZA ROČIŠTE -->
-                <div class="vx-section-lbl" style="margin-bottom:.4rem;">Priprema za ročište</div>
-                <div class="strat-feature-card" onclick="pred_subtabSwitch('rokovi')" style="margin-bottom:.85rem;">
-                  <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                  <div class="sfc-body">
-                    <div class="sfc-title">Hearing Command Center <span class="pro-badge">PRO</span></div>
-                    <div class="sfc-desc">Borbeni brifing pred ročište: teret dokazivanja, nedostajući dokazi, analiza svedoka, procesni rizici. Score pripremljenosti 0-100.</div>
+                <!-- FAZA 2: STRATEGIJA & SVEDOCI -->
+                <div class="vx-phase-panel" data-phase-panel="2" style="display:none;">
+                  <div class="strat-feature-card" data-tip="analitika" onclick="pred_openStrat('red_team')">
+                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Analiza crvenog tima <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Sistem preuzima ulogu protivničkog advokata i napada vašu argumentaciju. Otkriva slabe tačke pre suđenja.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
                   </div>
-                  <div class="sfc-arrow">›</div>
+                  <div class="strat-feature-card" data-tip="analitika" onclick="pred_openStrat('witness')">
+                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Analiza svedoka <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Analizira iskaze svedoka, otkriva kontradikcije, predlaže pitanja za unakrsno ispitivanje na sudu.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
                 </div>
 
-                <!-- KATEGORIJA: INTELIGENCIJA KANCELARIJE -->
-                <div class="vx-section-lbl" style="margin-bottom:.4rem;margin-top:.6rem;">Inteligencija kancelarije</div>
-                <div class="strat-feature-card" onclick="outcome_intel_panel_show()" id="outcome-intel-card" style="margin-bottom:.4rem;">
+                <!-- FAZA 3: IZRADA NACRTA — prečica ka Nacrti/Podnesci (Opcija A, docs/UI_UX_SIMPLIFICATION_PLAN.md §1.2) -->
+                <div class="vx-phase-panel" data-phase-panel="3" style="display:none;">
+                  <div class="strat-feature-card" data-tip="pisanje" onclick="pred_openDraftEngine()">
+                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Otvori Nacrti &amp; Podnesci</div>
+                      <div class="sfc-desc">Generisanje tužbi, žalbi, ugovora i drugih podnesaka na osnovu pravnog osnova i činjenica predmeta.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                </div>
+
+                <!-- FAZA 4: SIMULACIJA SUDA -->
+                <div class="vx-phase-panel" data-phase-panel="4" style="display:none;">
+                  <div class="strat-feature-card" data-tip="simulacija" onclick="pred_openStrat('sudija')">
+                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M5 21h14"/><path d="M4 12h16"/><path d="M4 7l8-4 8 4"/></svg></div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Sudija — procena ishoda <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Simulira sudijsku odluku na osnovu vaših argumenata, dokaza i relevantne prakse. Dobijate obrazloženu presudu.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" data-tip="simulacija" onclick="pred_openStrat('sudija_v2')">
+                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="1"/><polyline points="3 7 12 2 21 7"/></svg></div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Simulacija sudskog postupka <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Detaljna simulacija celog postupka: pitanja suda, argumenti protivnika, replika. Priprema za svaki scenario.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" data-tip="simulacija" onclick="pred_openStrat('litigation')">
+                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Simulacija parničnog postupka <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Kompletna simulacija od tužbe do presude — identifikuje procesne zamke i prilike za poboljšanje taktike.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" data-tip="simulacija" onclick="pred_openStrat('court_predictor')">
+                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Predikcija ishoda <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Statistička procena šansi za uspeh (%) na osnovu srpske sudske prakse, dokaza i argumenta.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" data-tip="simulacija" onclick="pred_subtabSwitch('rokovi')">
+                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Hearing Command Center <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">Borbeni brifing pred ročište: teret dokazivanja, nedostajući dokazi, analiza svedoka, procesni rizici. Score pripremljenosti 0-100.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                  <div class="strat-feature-card" data-tip="simulacija" onclick="twinPanelShow()" id="twin-card">
+                    <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-2.8-2.8L7 14"/></svg></div>
+                    <div class="sfc-body">
+                      <div class="sfc-title">Digital Twin — simulacija razvoja <span class="pro-badge">PRO</span></div>
+                      <div class="sfc-desc">AI simulira 3 scenarija razvoja predmeta (optimistički/realni/pesimistički) sa procentima verovatnoće, ključnim tačkama odlučivanja i "šta ako" analizom.</div>
+                    </div>
+                    <div class="sfc-arrow">›</div>
+                  </div>
+                </div>
+
+                <!-- INTELIGENCIJA KANCELARIJE — van 4 faze (nije korak u životnom ciklusu
+                     JEDNOG predmeta, cross-case statistika; v. plan §1.1) -->
+                <div class="vx-section-lbl" style="margin-bottom:.4rem;margin-top:.9rem;">Inteligencija kancelarije</div>
+                <div class="strat-feature-card" data-tip="analitika" onclick="outcome_intel_panel_show()" id="outcome-intel-card" style="margin-bottom:.4rem;">
                   <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
                   <div class="sfc-body">
                     <div class="sfc-title">Analiza uspeha kancelarije <span class="pro-badge">PRO</span></div>
@@ -1237,15 +1276,7 @@
                   <div id="outcome-intel-stats" style="display:none;margin-top:.7rem;display:flex;gap:1rem;flex-wrap:wrap;"></div>
                 </div>
 
-                <!-- Digital Twin — 3-scenario simulacija razvoja predmeta -->
-                <div class="strat-feature-card" onclick="twinPanelShow()" id="twin-card" style="margin-top:.4rem;">
-                  <div class="sfc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-2.8-2.8L7 14"/></svg></div>
-                  <div class="sfc-body">
-                    <div class="sfc-title">Digital Twin — simulacija razvoja <span class="pro-badge">PRO</span></div>
-                    <div class="sfc-desc">AI simulira 3 scenarija razvoja predmeta (optimistički/realni/pesimistički) sa procentima verovatnoće, ključnim tačkama odlučivanja i "šta ako" analizom.</div>
-                  </div>
-                  <div class="sfc-arrow">›</div>
-                </div>
+                <!-- Digital Twin trigger kartica premeštena u FAZA 4 panel iznad (twin-card id ostaje jedinstven, samo tamo) -->
 
                 <!-- Digital Twin rezultat panel -->
                 <div id="twin-panel" style="display:none;margin-top:.5rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:.9rem;">
