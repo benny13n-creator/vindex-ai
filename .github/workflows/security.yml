@@ -25,6 +25,23 @@ name: Security Checks
 #                     accepted as low-practical-risk (remote timing exploitation is
 #                     not realistic here). Re-evaluate if python-jose ever drops the
 #                     ecdsa backend entirely.
+#
+# SECURITY & PRODUCTION SPRINT — Opcija A (2026-07-26): added semgrep-core/
+# semgrep-full, same core/full split as bandit above, same rationale:
+#   - semgrep-core: BLOCKING, scoped to live request-serving code, ERROR
+#                     severity only (p/security-audit + p/python rulesets, no
+#                     Semgrep account/token required for these public registry
+#                     configs). Verified 0 findings at this scope/severity as
+#                     of 2026-07-26 (one real hit, a dead `import
+#                     xml.etree.ElementTree` in routers/sef.py's _find()
+#                     helper that Semgrep's use-defused-xml rule flagged —
+#                     the import was never referenced, the actual XML parse
+#                     already goes through lxml's default-safe parser or
+#                     defusedxml.ElementTree; removed as dead code, not a
+#                     real XXE exposure). Safe to start BLOCKING immediately.
+#   - semgrep-full  : INFORMATIONAL. Whole-repo sweep (all severities, wider
+#                     rule set), never fails the build, uploads a JSON
+#                     artifact for review — same pattern as sast-full.
 
 on:
   push:
@@ -93,3 +110,39 @@ jobs:
         run: |
           pip-audit -r requirements.txt \
             --ignore-vuln PYSEC-2026-1325
+
+  semgrep-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Semgrep — live request-path code (ERROR severity, blocking)
+        run: |
+          semgrep scan --config=p/security-audit --config=p/python \
+            --severity=ERROR --error \
+            api.py main.py routers/ shared/ security/ services/ app/
+
+  semgrep-full:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Semgrep — full repo sweep (informational, never blocks)
+        run: |
+          semgrep scan --config=p/security-audit --config=p/python \
+            --exclude=tests --exclude=migrations --exclude=data --exclude=vindex_scraper_output \
+            --json --output=semgrep-full-report.json . || true
+      - name: Upload semgrep report
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-full-report
+          path: semgrep-full-report.json

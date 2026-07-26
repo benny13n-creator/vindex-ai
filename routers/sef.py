@@ -142,12 +142,15 @@ def _validate_ubl_xml(xml_str: str) -> tuple[bool, str]:
     errors = []
 
     def _find(path: str):
-        if _use_lxml:
-            from lxml import etree as _et
-            return doc.find(path, ns)
-        else:
-            import xml.etree.ElementTree as _ET
-            return doc.find(path, ns)
+        # `doc` je već parsiran gore (lxml ili defusedxml.ElementTree, u
+        # zavisnosti od _use_lxml) -- .find() je poziv na taj već postojeći
+        # objekat, ne novi parse. Security sprint (2026-07-26): uklonjeni
+        # mrtvi `import xml.etree.ElementTree`/`lxml.etree` u obe grane ove
+        # funkcije (nijedan nije bio referenciran) -- taj mrtvi
+        # `xml.etree.ElementTree` import je bio jedini pogodak Semgrep
+        # use-defused-xml pravila u ovom fajlu; stvarni parse na oba puta
+        # već koristi bezbednu putanju (lxml default-safe parser / defusedxml).
+        return doc.find(path, ns)
 
     if _find(".//cbc:ID") is None:
         errors.append("Nedostaje cbc:ID (broj fakture)")
