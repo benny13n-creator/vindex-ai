@@ -1,6 +1,14 @@
 -- ============================================================
--- Migracija 045 — Portal.sud.rs monitoring (praćenje statusa predmeta)
+-- Migracija 086 — Portal.sud.rs monitoring (praćenje statusa predmeta)
 -- Pokrenuti u Supabase Dashboard → SQL Editor
+--
+-- NAPOMENA (2026-07-26, Production Readiness Report 2026-07-25 #3):
+-- ovaj fajl je originalno bio supabase_migrations/045_portal_monitoring.sql
+-- -- broj 045 se kolizionirao sa migrations/045_firm_intelligence.sql
+-- (odvojen, stariji fajl, i dalje na broju 045). Sadržaj je nepromenjen,
+-- samo premešten u jedinstveni migrations/ direktorijum i prenumerisan
+-- na sledeći slobodan broj. Ako je ovo VEĆ pokrenuto u produkciji pod
+-- starim imenom, nema potrebe za ponovnim pokretanjem -- SQL je isti.
 -- ============================================================
 
 -- Tabela praćenih predmeta

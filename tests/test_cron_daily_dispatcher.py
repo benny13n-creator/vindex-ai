@@ -30,6 +30,14 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-fake")
 os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
 os.environ.setdefault("PINECONE_HOST", "https://fake.pinecone.io")
 os.environ.setdefault("FOUNDER_EMAILS", "founder@example.com")
+# Fail-closed auth (Production Readiness Report 2026-07-25, stavka #1):
+# /api/cron/daily sada ODBIJA zahtev bez ispravnog X-Cron-Secret header-a,
+# čak i kad je BRIEFING_CRON_SECRET nepodešen (ranije se to tiho preskakalo
+# -- upravo taj propust je ova izmena zatvorila). Testovi ispod namerno
+# šalju ispravan header da bi mogli da testiraju dispečer/modul logiku,
+# ne auth (auth ponašanje ima svoj test u test_cron_daily_failclosed_auth.py).
+os.environ.setdefault("BRIEFING_CRON_SECRET", "test-cron-secret")
+_CRON_HEADERS = {"X-Cron-Secret": os.environ["BRIEFING_CRON_SECRET"]}
 
 
 class _FakeResult:
@@ -127,6 +135,13 @@ def _client():
     return TestClient(app)
 
 
+def _post_cron_daily(client):
+    """Svi pozivi ka /api/cron/daily u ovom fajlu idu preko ovoga -- jedno
+    mesto koje šalje ispravan X-Cron-Secret, umesto da se header ponavlja
+    na svakom od 8 poziva u fajlu."""
+    return client.post("/api/cron/daily", headers=_CRON_HEADERS)
+
+
 class TestRoutingCollisionFixed:
     def test_exactly_one_handler_registered(self):
         from api import app
@@ -159,7 +174,7 @@ class TestCronDailyCallsAllModules:
 
     def test_response_includes_all_new_modules(self):
         client = _client()
-        r = client.post("/api/cron/daily")
+        r = _post_cron_daily(client)
         assert r.status_code == 200
         body = r.json()
         assert body["email_podsetnici"]["poslato"] == 4
@@ -170,7 +185,7 @@ class TestCronDailyCallsAllModules:
 
     def test_nedeljni_sazetak_is_ok_or_skipped_never_crashes(self):
         client = _client()
-        r = client.post("/api/cron/daily")
+        r = _post_cron_daily(client)
         body = r.json()
         assert body["nedeljni_sazetak"]["status"] in ("ok", "preskoceno")
         if body["nedeljni_sazetak"]["status"] == "ok":
@@ -183,7 +198,7 @@ class TestCronDailyCallsAllModules:
         client = _client()
         with patch("services.retention_service.execute_retention_cleanup",
                    new=AsyncMock(side_effect=RuntimeError("boom"))):
-            r = client.post("/api/cron/daily")
+            r = _post_cron_daily(client)
         assert r.status_code == 200
         body = r.json()
         assert body["retention_cleanup"]["status"] == "greska"
@@ -198,7 +213,7 @@ class TestCronDailyCallsAllModules:
         client = _client()
         with patch("routers.email_notif.posalji_podsetnike",
                    new=AsyncMock(side_effect=RuntimeError("smtp down"))):
-            r = client.post("/api/cron/daily")
+            r = _post_cron_daily(client)
         assert r.status_code == 200
         body = r.json()
         assert body["email_podsetnici"]["status"] == "greska"
@@ -220,7 +235,7 @@ class TestCronDailyCallsBackgroundAgents:
 
     def test_response_includes_background_agents_module(self):
         client = _client()
-        r = client.post("/api/cron/daily")
+        r = _post_cron_daily(client)
         assert r.status_code == 200
         body = r.json()
         assert body["background_agents"]["status"] == "ok"
@@ -232,7 +247,7 @@ class TestCronDailyCallsBackgroundAgents:
         client = _client()
         with patch("workers.background_agents.run_background_agents",
                    new=AsyncMock(side_effect=RuntimeError("agent worker crashed"))):
-            r = client.post("/api/cron/daily")
+            r = _post_cron_daily(client)
         assert r.status_code == 200
         body = r.json()
         assert body["background_agents"]["status"] == "greska"
@@ -246,7 +261,7 @@ class TestCronDailyCallsBackgroundAgents:
         client = _client()
         with patch("workers.background_agents.run_background_agents",
                    new=AsyncMock(side_effect=asyncio.TimeoutError())):
-            r = client.post("/api/cron/daily")
+            r = _post_cron_daily(client)
         assert r.status_code == 200
         assert r.json()["background_agents"]["status"] == "timeout"
 

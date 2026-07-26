@@ -1,5 +1,5 @@
 -- ============================================================================
--- Vindex AI — Migracija 050: Pinecone Capacity Monitoring
+-- Vindex AI — Migracija 087: Pinecone Capacity Monitoring
 -- ============================================================================
 -- Pokrenuti u: Supabase Dashboard → SQL Editor, posle 049.
 --
@@ -8,6 +8,14 @@
 -- (nedeljno/mesečno) i ranu detekciju približavanja storage limitu.
 -- Snapshot se upisuje pri svakoj poseti admin panela (najviše jednom dnevno
 -- po namespace-u, preko UNIQUE constraint-a + upsert).
+--
+-- NAPOMENA (2026-07-26, Production Readiness Report 2026-07-25 #3): ovaj
+-- fajl je originalno bio migrations/050_pinecone_capacity_monitoring.sql --
+-- broj 050 se kolizionirao sa migrations/050_cio_dnevni_izvestaj.sql
+-- (stariji fajl, komitovan dan ranije, ostaje na broju 050). Sadržaj
+-- nepromenjen, samo prenumerisano na sledeći slobodan broj. Ako je ovo VEĆ
+-- pokrenuto u produkciji pod starim imenom, nema potrebe za ponovnim
+-- pokretanjem -- SQL je isti.
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.pinecone_capacity_snapshots (

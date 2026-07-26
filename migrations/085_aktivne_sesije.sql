@@ -1,6 +1,14 @@
 -- ============================================================
--- Migracija 044 — Zaštita od deljenja naloga (session limiting)
+-- Migracija 085 — Zaštita od deljenja naloga (session limiting)
 -- Pokrenuti u Supabase Dashboard → SQL Editor
+--
+-- NAPOMENA (2026-07-26, Production Readiness Report 2026-07-25 #3):
+-- ovaj fajl je originalno bio supabase_migrations/044_aktivne_sesije.sql
+-- -- broj 044 se kolizionirao sa migrations/044_anomaly_detection.sql
+-- (odvojen, stariji fajl, i dalje na broju 044). Sadržaj je nepromenjen,
+-- samo premešten u jedinstveni migrations/ direktorijum i prenumerisan
+-- na sledeći slobodan broj. Ako je ovo VEĆ pokrenuto u produkciji pod
+-- starim imenom, nema potrebe za ponovnim pokretanjem -- SQL je isti.
 -- ============================================================
 
 -- Tabela aktivnih sesija

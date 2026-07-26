@@ -144,11 +144,15 @@ async def test_cron_proveri_checks_stale_predmet():
 
 @pytest.mark.anyio
 async def test_cron_daily_module_failure_does_not_block_heartbeat(monkeypatch):
-    monkeypatch.delenv("BRIEFING_CRON_SECRET", raising=False)
+    # Fail-closed auth (Production Readiness Report 2026-07-25, stavka #1):
+    # ovaj test proverava izolaciju grešaka MODULA, ne auth -- zato mora
+    # proslediti VALIDAN X-Cron-Secret, a ne osloniti se na (sada uklonjen)
+    # fail-open ponašanje kad BRIEFING_CRON_SECRET nedostaje.
+    monkeypatch.setenv("BRIEFING_CRON_SECRET", "test-cron-secret")
     import api
 
     class _FakeReq:
-        headers = {}
+        headers = {"X-Cron-Secret": "test-cron-secret"}
 
     supa = _make_supa()
 
