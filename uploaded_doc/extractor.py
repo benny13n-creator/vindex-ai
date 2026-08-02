@@ -92,6 +92,52 @@ def _check_docx_zip_safety(path: Path) -> None:
 # DoS, already recommended separately as SEC-027.
 MAX_PDF_PAGES = 500
 
+# ─── Mission 001 (Night Shift M-001, 2026-08-02) — image decompression-bomb
+# guard, same reasoning as SEC-007's DOCX check: a small JPEG/PNG can declare
+# pixel dimensions that decompress to gigabytes in memory. PIL exposes the
+# declared size via .size BEFORE decoding pixel data, so this check runs
+# before Image.load()/any OCR preprocessing touches the pixel buffer.
+MAX_IMAGE_PIXELS = 40_000_000  # ~40MP — comfortably above any real phone/scanner photo (typical: 8-24MP)
+
+
+def _ocr_image(img, ocr_lang: str) -> str:
+    """Shared OCR call — used by both extract_pdf's scanned-page loop and
+    extract_image, so the two never silently drift (same preprocessing, same
+    language fallback, same timeout). Caller passes an already-opened PIL
+    Image; this does not open/close files."""
+    import pytesseract
+
+    img = img.convert("L")
+    from PIL import ImageEnhance, ImageFilter
+    img = ImageEnhance.Contrast(img).enhance(2.0)
+    img = img.filter(ImageFilter.MedianFilter(size=3))
+    try:
+        return pytesseract.image_to_string(img, lang=ocr_lang, timeout=45).strip()
+    except Exception:
+        try:
+            return pytesseract.image_to_string(img, lang="eng", timeout=30).strip()
+        except Exception:
+            return ""
+
+
+def _detect_ocr_lang() -> str:
+    """Same Cyrillic/Latin/English fallback logic extract_pdf already used —
+    factored out so extract_image doesn't duplicate it."""
+    import pytesseract
+
+    try:
+        available_langs = pytesseract.get_languages(config="")
+    except Exception:
+        available_langs = []
+
+    if "srp" in available_langs and "srp_latn" in available_langs:
+        return "srp+srp_latn+eng"
+    elif "srp_latn" in available_langs:
+        return "srp_latn+eng"
+    elif "srp" in available_langs:
+        return "srp+eng"
+    return "eng"
+
 
 def extract_pdf(path: Path) -> tuple[str, bool, bool]:
     """Return (text, is_scanned, ocr_used).
@@ -123,25 +169,9 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool]:
     try:
         import io
         import fitz  # pymupdf
-        import pytesseract
-        from PIL import Image, ImageEnhance, ImageFilter
+        from PIL import Image
 
-        # Detect available Tesseract languages for Serbian support
-        try:
-            available_langs = pytesseract.get_languages(config="")
-        except Exception:
-            available_langs = []
-
-        # Prefer Cyrillic (srp) + Latin (srp_latn) + English
-        if "srp" in available_langs and "srp_latn" in available_langs:
-            ocr_lang = "srp+srp_latn+eng"
-        elif "srp_latn" in available_langs:
-            ocr_lang = "srp_latn+eng"
-        elif "srp" in available_langs:
-            ocr_lang = "srp+eng"
-        else:
-            ocr_lang = "eng"
-
+        ocr_lang = _detect_ocr_lang()
         logger.info("[OCR] Pokrenuti OCR za %s — jezik: %s", path.name, ocr_lang)
 
         doc = fitz.open(str(path))
@@ -149,18 +179,10 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool]:
         for page_num, page in enumerate(doc):
             pixmap = page.get_pixmap(dpi=300)
             img = Image.open(io.BytesIO(pixmap.tobytes("png")))
-            img = img.convert("L")
-            img = ImageEnhance.Contrast(img).enhance(2.0)
-            img = img.filter(ImageFilter.MedianFilter(size=3))
-            try:
-                page_text = pytesseract.image_to_string(img, lang=ocr_lang, timeout=45)
-            except Exception:
-                try:
-                    page_text = pytesseract.image_to_string(img, lang="eng", timeout=30)
-                except Exception as e2:
-                    logger.warning("[OCR] Stranica %d neuspešna: %s", page_num + 1, e2)
-                    page_text = ""
-            ocr_pages.append(page_text.strip())
+            page_text = _ocr_image(img, ocr_lang)
+            if not page_text:
+                logger.warning("[OCR] Stranica %d neuspešna", page_num + 1)
+            ocr_pages.append(page_text)
 
         ocr_text = "\n\n".join(p for p in ocr_pages if p)
         if len(ocr_text.strip()) > 100:
@@ -215,6 +237,67 @@ def extract_txt(path: Path) -> tuple[str, bool, bool]:
     return text, False, False
 
 
+# Suffixes extract_image() handles — a photographed/scanned document with no
+# separate PDF wrapper (Mission 001 / Night Shift M-001, 2026-08-02: the
+# single most-requested real intake case — a client photographs a served
+# document and sends the photo directly).
+IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png")
+
+
+def extract_image(path: Path) -> tuple[str, bool, bool]:
+    """Return (text, is_scanned, ocr_used) for a standalone photographed/
+    scanned image — same return contract as extract_pdf, so callers (the
+    intake worker, api.py's auto-analyze upload) don't need to special-case
+    images. Every image goes through OCR (there is no "has a text layer"
+    case the way a born-digital PDF has); is_scanned=True only means OCR
+    itself failed to extract meaningful text, matching extract_pdf's own
+    <100-chars-total threshold exactly, so downstream code (the intake
+    worker's is_scanned branch, the review-queue routing) treats a failed
+    image OCR identically to a failed PDF OCR."""
+    from PIL import Image
+
+    try:
+        with Image.open(path) as probe:
+            probe.verify()
+        # verify() invalidates the image object for further use (Pillow's own
+        # documented behavior) -- reopen for the actual pixel-dimension check
+        # and OCR pass below.
+        with Image.open(path) as img:
+            width, height = img.size
+            if width * height > MAX_IMAGE_PIXELS:
+                raise DocumentSafetyLimitExceeded(
+                    f"image is {width}x{height} ({width * height} pixels, max {MAX_IMAGE_PIXELS})"
+                )
+    except DocumentSafetyLimitExceeded:
+        raise
+    except Exception as e:
+        logger.warning("[OCR] Nevalidna slika %s: %s", path.name, e)
+        _log_ocr_error("invalid_image", path.name)
+        return "", True, False
+
+    try:
+        ocr_lang = _detect_ocr_lang()
+        logger.info("[OCR] Pokrenuti OCR za %s — jezik: %s", path.name, ocr_lang)
+        with Image.open(path) as img:
+            text = _ocr_image(img, ocr_lang)
+    except ImportError as ie:
+        logger.warning("[OCR] Potrebni paketi nisu instalirani (%s) — slika ne može biti obrađena", ie)
+        _log_ocr_error("missing_dependencies", path.name)
+        return "", True, False
+    except Exception as e:
+        logger.error("[OCR] Neočekivana greška: %s", e)
+        _log_ocr_error("unexpected_error", path.name)
+        return "", True, False
+
+    if len(text) > 100:
+        logger.info("[OCR] Uspešno — %d karaktera", len(text))
+        return text, False, True
+
+    logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(text))
+    _log_ocr_error("insufficient_text", path.name)
+    return "", True, False
+
+
 def extract(path: Path) -> tuple[str, bool, bool]:
     suffix = path.suffix.lower()
     if suffix == ".pdf":
@@ -223,4 +306,6 @@ def extract(path: Path) -> tuple[str, bool, bool]:
         return extract_docx(path)
     if suffix == ".txt":
         return extract_txt(path)
+    if suffix in IMAGE_SUFFIXES:
+        return extract_image(path)
     raise ValueError(f"Unsupported file format: {suffix!r}")

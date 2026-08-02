@@ -222,14 +222,23 @@ class IntakeWorker:
 
     @staticmethod
     def _guess_suffix(original_filename: str | None, mime_type: str | None) -> str:
+        # Mission 001 / Night Shift M-001 (2026-08-02): image suffixes added
+        # here too, not just in uploaded_doc/extractor.py -- extract() dispatches
+        # on this guessed suffix, so a .jpg/.png job that fell through to the
+        # ".pdf" default below would have pypdf try to parse a JPEG as a PDF
+        # and fail every retry attempt identically (not a transient failure).
         if original_filename:
             suffix = Path(original_filename).suffix.lower()
-            if suffix in (".pdf", ".docx", ".txt"):
+            if suffix in (".pdf", ".docx", ".txt", ".jpg", ".jpeg", ".png"):
                 return suffix
         if mime_type == "application/pdf":
             return ".pdf"
         if mime_type == "text/plain":
             return ".txt"
+        if mime_type in ("image/jpeg", "image/jpg"):
+            return ".jpg"
+        if mime_type == "image/png":
+            return ".png"
         return ".pdf"  # najčešći slučaj u praksi (skenirane presude) — razuman podrazumevani izbor
 
     @staticmethod

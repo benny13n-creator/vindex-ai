@@ -57,6 +57,18 @@ router = APIRouter(prefix="/api/smart-intake", tags=["smart_intake"])
 _MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB, isti limit kao /api/dokument/upload
 _STORAGE_BUCKET = "intake-dokumenti"
 
+# Mission 001 / Night Shift M-001 (2026-08-02): this endpoint previously did
+# NO suffix/extension validation at all -- any file was silently accepted,
+# enqueued, and only failed deep in the background worker (shared/
+# intake_worker.py) with an opaque error, several seconds/minutes after the
+# lawyer already closed the upload dialog. Validating here means an
+# unsupported file gets a clear, immediate rejection instead. Kept in sync
+# with uploaded_doc/extractor.py's IMAGE_SUFFIXES + its .pdf/.docx/.txt
+# dispatch -- .doc is deliberately NOT included (SEC-028: accepted-but-
+# unhandled by the extractor, a separately tracked, pre-existing bug this
+# mission does not touch).
+_ALLOWED_UPLOAD_SUFFIXES = {".pdf", ".docx", ".txt", ".jpg", ".jpeg", ".png"}
+
 
 async def _require_founder(user: dict = Depends(get_current_user)) -> dict:
     if (user.get("email") or "").lower() not in FOUNDER_EMAILS:
@@ -95,6 +107,14 @@ async def upload_intake_documents(
     results = []
 
     for f in files:
+        suffix = Path(f.filename or "").suffix.lower()
+        if suffix not in _ALLOWED_UPLOAD_SUFFIXES:
+            results.append({
+                "filename": f.filename, "ok": False,
+                "greska": "Nepodržan format fajla. Podržano: PDF, DOCX, TXT, JPG, PNG.",
+            })
+            continue
+
         raw = await f.read()
         if len(raw) > _MAX_UPLOAD_BYTES:
             results.append({"filename": f.filename, "ok": False, "greska": "Fajl je prevelik (max 25MB)."})
