@@ -218,6 +218,85 @@ async def test_intake_kreiraj_with_rok():
     assert "predmet_hronologija" in insert_calls
 
 
+# ── Night Shift M-013 (2026-08-02): intake_kreiraj must trigger the Case Pipeline ──
+
+@pytest.mark.anyio
+async def test_intake_kreiraj_triggers_case_pipeline():
+    """User scenario: a lawyer creates a case via the primary AI-assisted flow
+    (POST /api/intake/kreiraj) -- the 9-step Case Pipeline must run in the
+    background afterward, the same way it already does for
+    POST /api/intake/from-template and POST /api/predmeti (M-002 finding:
+    this was the one major case-creation path missing the trigger)."""
+    from routers.intake import IntakeKreirajReq, intake_kreiraj
+
+    new_predmet = {
+        "id": "pred-pipeline-001",
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "naziv": "Radni spor Jovanović",
+        "opis": "",
+        "tip": "radni",
+        "status": "aktivan",
+    }
+    mock_supa = MagicMock()
+    mock_supa.table.return_value.insert.return_value.execute.return_value.data = [new_predmet]
+
+    req = IntakeKreirajReq(klijent_id="kl-pipeline-001", naziv="Radni spor Jovanović")
+    mock_request = _fake_request()
+
+    captured_coro = {}
+
+    def _capture_create_task(coro, *a, **kw):
+        captured_coro["coro"] = coro
+        return MagicMock()  # stand-in Task object, never actually scheduled by the event loop here
+
+    with patch("routers.intake._get_supa", return_value=mock_supa), \
+         patch("asyncio.create_task", side_effect=_capture_create_task), \
+         patch("services.case_pipeline.run_case_pipeline", new=AsyncMock()) as mock_pipeline:
+        result = await intake_kreiraj(req, mock_request, _fake_user())
+        assert "coro" in captured_coro, "intake_kreiraj must schedule a background pipeline task"
+        await captured_coro["coro"]  # run what create_task would have scheduled
+
+    assert result["predmet_id"] == "pred-pipeline-001"
+    mock_pipeline.assert_awaited_once_with("pred-pipeline-001", "00000000-0000-0000-0000-000000000001")
+
+
+@pytest.mark.anyio
+async def test_intake_kreiraj_pipeline_failure_does_not_break_response():
+    """The pipeline trigger is fire-and-forget -- if it raises, the case
+    creation response must already have been returned successfully (this
+    mirrors post_from_template's existing, established error-handling
+    pattern for the same call)."""
+    from routers.intake import IntakeKreirajReq, intake_kreiraj
+
+    new_predmet = {
+        "id": "pred-pipeline-002",
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "naziv": "Ugovorni spor",
+        "opis": "",
+        "tip": "opsti",
+        "status": "aktivan",
+    }
+    mock_supa = MagicMock()
+    mock_supa.table.return_value.insert.return_value.execute.return_value.data = [new_predmet]
+
+    req = IntakeKreirajReq(klijent_id="kl-pipeline-002", naziv="Ugovorni spor")
+    mock_request = _fake_request()
+
+    captured_coro = {}
+
+    def _capture_create_task(coro, *a, **kw):
+        captured_coro["coro"] = coro
+        return MagicMock()
+
+    with patch("routers.intake._get_supa", return_value=mock_supa), \
+         patch("asyncio.create_task", side_effect=_capture_create_task), \
+         patch("services.case_pipeline.run_case_pipeline", new=AsyncMock(side_effect=RuntimeError("boom"))):
+        result = await intake_kreiraj(req, mock_request, _fake_user())
+        await captured_coro["coro"]  # must not raise -- caught and logged inside _run_pipeline
+
+    assert result["success"] is True
+
+
 def test_ekstrakcija_req_min_length():
     """EkstrakcijReq rejects descriptions shorter than 20 characters."""
     from pydantic import ValidationError

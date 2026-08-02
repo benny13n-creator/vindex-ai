@@ -338,6 +338,21 @@ async def intake_kreiraj(
 
     logger.info("[INTAKE] predmet=%s uid=%.8s rok=%s docs=%d billing=%s tpl_hron=%d",
                 predmet_id, uid, rok_dodat, docs_linked, billing_kreiran, tpl_hron_dodat)
+
+    # Night Shift M-013 (2026-08-02): pokreni Case Pipeline u pozadini, isti
+    # obrazac kao post_from_template (routers/intake.py) i POST /api/predmeti
+    # (api.py) -- ovo je bio jedini glavni predmet-creation put bez ovog
+    # okidača (M-002 nalaz), a ujedno i najkorišćeniji AI-assisted put po
+    # Bojan Workflow Gap Analysis-i.
+    async def _run_pipeline() -> None:
+        try:
+            from services.case_pipeline import run_case_pipeline
+            await run_case_pipeline(predmet_id, uid)
+        except Exception as _pe:
+            logger.warning("[INTAKE] pipeline greška predmet=%s: %s", predmet_id, _pe)
+
+    asyncio.create_task(_run_pipeline())
+
     return {
         "success":          True,
         "predmet_id":       predmet_id,
