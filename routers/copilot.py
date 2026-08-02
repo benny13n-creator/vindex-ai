@@ -606,8 +606,16 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
     naziv = ((kl.get("ime","")+" "+kl.get("prezime","")).strip()) or kl.get("firma","")
     uloga = ext.get("uloga","stranka")
 
+    # Night Shift M-012 (2026-08-02): predmet_klijenti has no `id` column
+    # (composite PK: predmet_id, klijent_id -- see supabase_setup.sql) and no
+    # `user_id` column either (ownership derived transitively via
+    # predmet_id -> predmeti.user_id, per Mission 001's architecture
+    # decision, 2026-08-02). Both bugs found here, same root cause as
+    # Mission 001's 5 fixed call sites -- this is a 6th, missed during that
+    # sweep because that mission checked this SELECT's column but not this
+    # INSERT's payload.
     existing = await asyncio.to_thread(
-        lambda: supa.table("predmet_klijenti").select("id").eq("predmet_id",predmet_id).eq("klijent_id",kl["id"]).execute()
+        lambda: supa.table("predmet_klijenti").select("predmet_id").eq("predmet_id",predmet_id).eq("klijent_id",kl["id"]).execute()
     )
     if existing.data:
         return {"tip":"POVEZI_KLIJENTA","uspeh":True,"odgovor":f"{naziv} je već vezan za ovaj predmet."}
@@ -617,7 +625,6 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
             "predmet_id":     predmet_id,
             "klijent_id":     kl["id"],
             "uloga_klijenta": uloga,
-            "user_id":        user_id,
         }).execute())
     except Exception as e:
         _sentry_capture(e)
