@@ -213,7 +213,6 @@ def _verify_token(token: str) -> Optional[dict]:
     try:
         supa = _get_supa()
         resp = supa.auth.get_user(token)
-        logger.info("SDK get_user resp: %s", resp)
         if resp and resp.user and resp.user.id:
             return {
                 "sub":   resp.user.id,
