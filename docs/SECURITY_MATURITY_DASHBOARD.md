@@ -42,6 +42,32 @@ statusa jer je provera repozitorijuma pokazala drugačije stvarno stanje
 
 ---
 
+## 1a. Blueprint Capability Cross-Reference
+
+**Added 2026-08-01**, per `docs/architecture/VINDEX_TRUST_ARCHITECTURE_BLUEPRINT.md` (the new
+governing constitution) and its companion
+`docs/architecture/VINDEX_TRUST_ARCHITECTURE_TRACEABILITY.md`. This table adds the metadata the
+Blueprint requires (Blueprint Capability, Architectural Owner, Regression Risk, Complexity,
+Verification Strategy) to the rows already defined in §1 above — **it does not duplicate their
+Status/Mehanizam/Dokaz columns**, only cross-references by row name. Capability numbers refer to
+Blueprint §1.9 (1 Auth/authz · 2 Data classification & protection · 3 Case/document-level access
+control · 4 AI Governance Layer · 5 Prompt-injection defense · 6 Forensic audit of AI decisions ·
+7 Controlled external-AI use · 8 Backup & recovery · 9 Anomaly detection · 10 Traceability).
+
+| Oblast (§1 row) | Blueprint Capability | Architectural Owner | Regression Risk | Complexity | Verification Strategy |
+|---|---|---|---|---|---|
+| Data Isolation — Ownership Checks | 3 | Backend/API (router + `api.py` maintainer) | Low — isolated, already regression-tested | Done | `tests/test_sec001_predmet_ownership.py`, re-run every release |
+| Data Isolation — RLS kao strukturni mehanizam | 1, 3 (architectural) | Database/Infra (Supabase project owner) | Low to build the proposed next step (additive test, no behavior change) | Medium — see Program P3, `VINDEX_TRUST_ARCHITECTURE_TRACEABILITY.md` Part 3 | Automated test asserting every mutating predmet/klijent/dokument route filters by `user_id` (not yet built) |
+| DevSecOps Pipeline | 5, 9, 10 | CI/CD (GitHub Actions owner) | Low | Done | `.github/workflows/security.yml` — self-verifying on every push/PR |
+| AI Output Protection & Quality Gate | 4 (bridge — not a full AI Governance Layer), 6, 7 | AI/Backend (`services/quality_gate.py` owner) | Medium — migration 088 not yet applied in production; running it is the regression-risk-bearing step | Small (run the migration) | `scripts/audit_deployment_consistency.py` pre-check + `tests/test_institutional_memory_v2.py` re-run post-migration |
+| Incident Response Readiness | 10 (process) | Founder (sole operator) | N/A — process document | N/A | Tabletop/Chaos drill execution per §2 below |
+| Production Migration Integrity (SEC-031) | 8, 2 | Database/Infra (founder) | None — closed, production-verified | Done | `pg_constraint` query already run; re-verify only if schema touched again |
+| Data Retention & GDPR (SEC-002) | 2, 8 | Backend (`services/retention_service.py` owner) | Low | Small remaining (retention period decision for 2 tables) | Live cron-cycle observation in Render logs (pending founder action) |
+| Disaster Recovery | 8 | Founder (sole on-call/infra) | N/A | Medium — Chaos Drill never executed; PITR status unconfirmed | `scripts/dr_runbook.py --check` + `scripts/verify_backup_restore.py`, monthly cadence per DRP §6 |
+| External Security Assessment | All (independent validation) | Founder (procurement decision) | N/A | Large — external vendor engagement | N/A until commissioned |
+
+---
+
 ## 2. Operativni Ritam Vežbi (Drill Calendar & Framework)
 
 ### 2.1 Tabletop Exercises — Kvartalno
@@ -129,6 +155,8 @@ pretpostavljeni):
 | `scripts/dr_runbook.py` | ✅ postoji |
 | `scripts/audit_deployment_consistency.py` | ✅ postoji |
 | `tests/test_rls.py` (iz originalnog nacrta zahteva) | ❌ **NE postoji — uklonjeno iz table, zamenjeno tačnom referencom** |
+| `docs/architecture/VINDEX_TRUST_ARCHITECTURE_BLUEPRINT.md` | ✅ postoji (dodato 2026-08-01) — governing doc, vidi §1a iznad |
+| `docs/architecture/VINDEX_TRUST_ARCHITECTURE_TRACEABILITY.md` | ✅ postoji (dodato 2026-08-01) — Phase 1/3/4 traceability matrix i dependency graph |
 
 **Pytest suite:** ovaj dokument je čista dokumentacija (nula izmena
 koda) — pun pytest suite pokrenut radi potvrde, ne pretpostavke:
