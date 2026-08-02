@@ -28,7 +28,7 @@ FAKE_USER = {"user_id": "uid-001", "email": "a@test.rs", "role": "pro"}
 
 SAMPLE_PREDMET = {"id": "p-001", "naziv": "Tužba Petrović", "opis": "Naknada štete", "tip": "gradjansko", "status": "aktivan"}
 SAMPLE_KLIJENT = {"id": "kl-001", "ime": "Nikola", "prezime": "Petrović", "naziv_firme": None, "email": "n@test.rs", "pib": "123456789"}
-SAMPLE_DOK     = {"id": "d-001", "naziv_fajla": "ugovor_petrovic.pdf", "predmet_id": "p-001", "tip_fajla": "pdf", "created_at": "2026-01-01"}
+SAMPLE_DOK     = {"id": "d-001", "naziv_fajla": "ugovor_petrovic.pdf", "predmet_id": "p-001", "status": "indeksirano", "tekst_sadrzaj": "Ugovor izmedju Petrović i ABC d.o.o.", "created_at": "2026-01-01"}
 SAMPLE_BILLING = {"id": "b-001", "opis": "Konsultacija Petrović", "iznos_rsd": 7500.0, "predmet_id": "p-001", "datum": "2026-06-01"}
 SAMPLE_HRON    = {"id": "h-001", "predmet_id": "p-001", "dogadjaj": "Prijem tužbe Petrović", "datum_iso": "2026-01-15", "vaznost": "kritičan"}
 SAMPLE_BELESKA = {"id": "be-001", "predmet_id": "p-001", "sadrzaj": "Klijent Petrović želi hitno rešenje.", "created_at": "2026-01-16T10:00:00"}
@@ -79,7 +79,7 @@ def _make_supa(predmeti=None, klijenti=None, dokumenti=None, billing=None, hron=
             sel.limit.return_value = sel
             sel.execute.return_value = MagicMock(data=kls)
 
-        elif name == "uploaded_documents":
+        elif name == "predmet_dokumenti":
             docs = dokumenti if dokumenti is not None else [SAMPLE_DOK]
             sel.eq.return_value = sel
             sel.or_.return_value = sel
@@ -340,3 +340,66 @@ def test_search_hronologija_prazni_pids():
     supa = _make_supa(predmeti=[])
     res  = _search_hronologija(supa, "uid-001", "tužba", 5)
     assert res == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Night Shift M-003 (2026-08-02): search must reach predmet_dokumenti, not the
+# dead uploaded_documents table (migrations/057_active_orphaned_tables.sql's
+# own comment: that table has zero writers anywhere in the codebase).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_search_dokumenti_queries_predmet_dokumenti_not_dead_table():
+    """The table search actually reads must be predmet_dokumenti -- the one
+    Smart Intake's finalize path (routers/smart_intake.py) actually writes
+    into. uploaded_documents (dead, zero writers) must not be the query
+    target any more."""
+    from routers.search import _search_dokumenti
+
+    queried_tables = []
+    supa = MagicMock()
+
+    def _table(name):
+        queried_tables.append(name)
+        t = MagicMock()
+        t.select.return_value.eq.return_value.or_.return_value.limit.return_value.execute.return_value.data = [SAMPLE_DOK]
+        return t
+
+    supa.table.side_effect = _table
+    res = _search_dokumenti(supa, "uid-001", "ugovor", 5)
+
+    assert queried_tables == ["predmet_dokumenti"]
+    assert "uploaded_documents" not in queried_tables
+    assert res[0]["tip"] == "dokument"
+
+
+def test_search_finds_document_by_content_from_smart_intake_path():
+    """User scenario: a lawyer searches for a case using a phrase that only
+    appears in a document's OCR/extracted text, ingested through Smart
+    Intake's finalize endpoint (which writes into predmet_dokumenti.tekst_sadrzaj,
+    not uploaded_documents). Before this fix, this search would have
+    returned nothing, regardless of which upload path the document came
+    through, because uploaded_documents never receives a row from any code
+    path."""
+    from routers.search import _search_dokumenti
+
+    doc_from_smart_intake = {
+        "id": "d-si-001",
+        "naziv_fajla": "presuda.pdf",
+        "predmet_id": "p-001",
+        "status": "indeksirano",
+        "tekst_sadrzaj": "Osnovni sud u Beogradu, rok za žalbu 15 dana od dostavljanja.",
+        "created_at": "2026-08-02",
+    }
+    supa = _make_supa(dokumenti=[doc_from_smart_intake])
+    res = _search_dokumenti(supa, "uid-001", "žalbu", 5)
+
+    assert len(res) == 1
+    assert res[0]["id"] == "d-si-001"
+    assert "žalbu" in res[0]["preview"] or "sud" in res[0]["preview"].lower()
+
+
+def test_search_dokumenti_preview_uses_text_content():
+    from routers.search import _search_dokumenti
+    supa = _make_supa()
+    res = _search_dokumenti(supa, "uid-001", "ugovor", 5)
+    assert "Petrović" in res[0]["preview"] or "ABC" in res[0]["preview"]

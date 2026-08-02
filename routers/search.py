@@ -76,11 +76,20 @@ def _search_klijenti(supa, uid: str, q: str, limit: int) -> list[dict]:
 
 
 def _search_dokumenti(supa, uid: str, q: str, limit: int) -> list[dict]:
+    # Night Shift M-003 (2026-08-02): this used to query `uploaded_documents`,
+    # which migrations/057_active_orphaned_tables.sql's own comment confirms
+    # has zero writers anywhere in the codebase ("nigde se ne upisuje u
+    # kodu -- verovatno mrtva grana pretrage") -- so this branch has never
+    # returned a real result for any document, regardless of upload path.
+    # Case documents actually live in predmet_dokumenti.tekst_sadrzaj (the
+    # column every AI/analysis consumer already reads -- case_dna.py,
+    # evidence.py, drafting.py, multi_agent.py, etc.), which is what a
+    # document uploaded through Smart Intake's finalize path is linked into.
     q2 = q.replace("%", "")
-    r  = (supa.table("uploaded_documents")
-          .select("id, naziv_fajla, predmet_id, tip_fajla, created_at")
+    r  = (supa.table("predmet_dokumenti")
+          .select("id, naziv_fajla, predmet_id, status, tekst_sadrzaj, created_at")
           .eq("user_id", uid)
-          .or_(f"naziv_fajla.ilike.%{q2}%,extracted_text.ilike.%{q2}%")
+          .or_(f"naziv_fajla.ilike.%{q2}%,tekst_sadrzaj.ilike.%{q2}%")
           .limit(limit)
           .execute())
     return [
@@ -88,7 +97,7 @@ def _search_dokumenti(supa, uid: str, q: str, limit: int) -> list[dict]:
             "tip":       "dokument",
             "id":        row["id"],
             "naziv":     row.get("naziv_fajla") or "",
-            "preview":   row.get("tip_fajla") or "",
+            "preview":   (row.get("tekst_sadrzaj") or "")[:100] or (row.get("status") or ""),
             "meta":      {"predmet_id": row.get("predmet_id")},
         }
         for row in (r.data or [])
