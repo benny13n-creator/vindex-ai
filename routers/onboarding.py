@@ -233,7 +233,7 @@ async def kreiraj_demo_predmet(
             await asyncio.to_thread(
                 lambda: supa.table("predmet_klijenti").insert({
                     "predmet_id": predmet_id, "klijent_id": klijent_id,
-                    "uloga_klijenta": "stranka", "user_id": uid,
+                    "uloga_klijenta": "stranka",
                 }).execute()
             )
         except Exception as e:

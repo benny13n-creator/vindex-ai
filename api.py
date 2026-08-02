@@ -5243,7 +5243,7 @@ async def predmet_confirm_links(
         try:
             existing = await asyncio.to_thread(
                 lambda _kid=kl_id: supa.table("predmet_klijenti")
-                    .select("id")
+                    .select("predmet_id")
                     .eq("predmet_id", predmet_id)
                     .eq("klijent_id", _kid)
                     .execute()
@@ -5254,7 +5254,6 @@ async def predmet_confirm_links(
                         "predmet_id":     predmet_id,
                         "klijent_id":     _kid,
                         "uloga_klijenta": req.uloga,
-                        "user_id":        uid,
                     }).execute()
                 )
             linked.append(kl_id)

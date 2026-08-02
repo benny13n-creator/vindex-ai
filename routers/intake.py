@@ -197,7 +197,6 @@ async def intake_kreiraj(
                 "predmet_id":     predmet_id,
                 "klijent_id":     body.klijent_id,
                 "uloga_klijenta": "stranka",
-                "user_id":        uid,
             }).execute()
         )
     except Exception as e:
@@ -741,7 +740,6 @@ async def post_from_template(
                 lambda: supa.table("predmet_klijenti").insert({
                     "predmet_id":     predmet_id,
                     "klijent_id":     body.klijent_id,
-                    "user_id":        uid,
                     "uloga_klijenta": "stranka",
                 }).execute()
             )
@@ -873,15 +871,21 @@ async def intake_bulk_import(
                 raise ValueError("Kreiranje predmeta nije uspelo")
             predmet_id = pr_res.data[0]["id"]
 
-            # Poveži klijenta
-            await asyncio.to_thread(
-                lambda: supa.table("predmet_klijenti").insert({
-                    "predmet_id":     predmet_id,
-                    "klijent_id":     klijent_id,
-                    "user_id":        uid,
-                    "uloga_klijenta": "stranka",
-                }).execute()
-            )
+            # Poveži klijenta. Ako ovaj insert padne, predmet je već kreiran (iznad) --
+            # kompenzujući delete spreči orphan predmet bez veze sa klijentom (Mission 001, 2026-08-02).
+            try:
+                await asyncio.to_thread(
+                    lambda: supa.table("predmet_klijenti").insert({
+                        "predmet_id":     predmet_id,
+                        "klijent_id":     klijent_id,
+                        "uloga_klijenta": "stranka",
+                    }).execute()
+                )
+            except Exception:
+                await asyncio.to_thread(
+                    lambda: supa.table("predmeti").delete().eq("id", predmet_id).execute()
+                )
+                raise
 
             uspeh.append({"red": i + 1, "predmet_id": predmet_id, "naziv": red.naziv_predmeta})
 
