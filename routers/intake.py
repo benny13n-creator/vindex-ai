@@ -394,28 +394,28 @@ class ConflictCheckIntakeReq(BaseModel):
     pib:                str = Field(default="", max_length=15)
 
 
-@router.post("/api/intake/conflict-check")
-@limiter.limit("30/minute")
-async def intake_conflict_check(
-    body: ConflictCheckIntakeReq,
-    request: Request,
-    user: dict = Depends(get_current_user),
-):
-    """
-    Provera sukoba interesa pre otvaranja predmeta.
+async def _run_conflict_check(
+    uid: str, novi_klijent_ime: str, novi_klijent_firma: str = "",
+    protivna_strana: str = "", pib: str = "",
+) -> dict:
+    """Jezgro provere sukoba interesa. Izdvojeno iz POST /api/intake/conflict-check
+    (Zero-Touch Case investigation, 2026-08-03, BETA-002/Scenario 5) da bi ga
+    Smart Intake finalize (routers/smart_intake.py) mogao pozvati direktno --
+    bez Request/rate-limiter-a koji HTTP endpoint zahteva, i bez duplirane
+    logike (Rule Zero). Ponašanje NEPROMENJENO za postojeći endpoint, čist
+    premeštaj tela funkcije.
 
     Proverava tri scenarija:
     1. `protivna_strana` je već vaš klijent → BLOKIRAJUCI
     2. `novi_klijent_ime` je već na suprotnoj strani nekog vašeg predmeta → BLOKIRAJUCI
     3. `novi_klijent_ime` već postoji kao klijent (duplikat) → UPOZORENJE
     """
-    uid  = user["user_id"]
     supa = _get_supa()
 
-    q_novi    = _norm(f"{body.novi_klijent_ime} {body.novi_klijent_firma}".strip())
-    q_novi_i  = _norm(body.novi_klijent_ime)
-    q_firma   = _norm(body.novi_klijent_firma) if body.novi_klijent_firma else ""
-    q_protiv  = _norm(body.protivna_strana) if body.protivna_strana else ""
+    q_novi    = _norm(f"{novi_klijent_ime} {novi_klijent_firma}".strip())
+    q_novi_i  = _norm(novi_klijent_ime)
+    q_firma   = _norm(novi_klijent_firma) if novi_klijent_firma else ""
+    q_protiv  = _norm(protivna_strana) if protivna_strana else ""
 
     conflicts: list[dict] = []
 
@@ -495,7 +495,7 @@ async def intake_conflict_check(
                         conflicts.append({
                             "tip":          "opposing_already_client",
                             "severity":     "BLOKIRAJUCI",
-                            "opis":         f"'{body.protivna_strana}' je vaš postojeći klijent ('{display_name}', uloga: {uloga}) u predmetu '{pred_naziv}'.",
+                            "opis":         f"'{protivna_strana}' je vaš postojeći klijent ('{display_name}', uloga: {uloga}) u predmetu '{pred_naziv}'.",
                             "predmet_id":   pred_id,
                             "predmet_naziv": pred_naziv,
                             "klijent_id":   cid,
@@ -507,7 +507,7 @@ async def intake_conflict_check(
                         conflicts.append({
                             "tip":          "client_is_opposing",
                             "severity":     "BLOKIRAJUCI",
-                            "opis":         f"'{body.novi_klijent_ime}' se već pojavljuje kao suprotna strana ('{display_name}', uloga: {uloga}) u predmetu '{pred_naziv}'.",
+                            "opis":         f"'{novi_klijent_ime}' se već pojavljuje kao suprotna strana ('{display_name}', uloga: {uloga}) u predmetu '{pred_naziv}'.",
                             "predmet_id":   pred_id,
                             "predmet_naziv": pred_naziv,
                             "klijent_id":   cid,
@@ -538,7 +538,7 @@ async def intake_conflict_check(
                         conflicts.append({
                             "tip":          "opposing_in_predmet_text",
                             "severity":     "UPOZORENJE",
-                            "opis":         f"'{body.protivna_strana}' se pojavljuje kao {which} u predmetu '{pred.get('naziv', '')}'. Proverite da li postoji sukob.",
+                            "opis":         f"'{protivna_strana}' se pojavljuje kao {which} u predmetu '{pred.get('naziv', '')}'. Proverite da li postoji sukob.",
                             "predmet_id":   pred["id"],
                             "predmet_naziv": pred.get("naziv", ""),
                             "klijent_id":   None,
@@ -581,6 +581,22 @@ async def intake_conflict_check(
         "conflicts":         unique_conflicts[:20],
         "preporuka":         preporuka,
     }
+
+
+@router.post("/api/intake/conflict-check")
+@limiter.limit("30/minute")
+async def intake_conflict_check(
+    body: ConflictCheckIntakeReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Provera sukoba interesa pre otvaranja predmeta (CRM Intake Wizard,
+    ime-prvo tok). Jezgro logike je u _run_conflict_check -- vidi tamo za
+    tri proverena scenarija."""
+    return await _run_conflict_check(
+        user["user_id"], body.novi_klijent_ime, body.novi_klijent_firma,
+        body.protivna_strana, body.pib,
+    )
 
 
 # ─── Phase 6.2 — Template predmeti ───────────────────────────────────────────
