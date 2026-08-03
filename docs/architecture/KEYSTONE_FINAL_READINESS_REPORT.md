@@ -25,15 +25,25 @@ was accurate only for its own 36-row scope), Reliability Score **~75–80%**, Fa
 
 Two further findings raise the severity bar beyond anything found in prior missions:
 
-1. **Critical — GDPR account deletion does not delete case data.** `routers/gdpr.py::gdpr_delete_account`
-   only anonymizes the login profile; `predmeti`, `klijenti`, `predmet_dokumenti` (full document text),
-   Pinecone vectors, and Storage files all remain fully intact and attributable via the unchanged
-   `user_id`. This corrects a prior mission's inaccurate characterization of `services/retention_service.py`
-   as "the GDPR-driven deletion mechanism" — that service only does scheduled TTL cleanup of *operational*
-   logs (security_events, ai_forensics, Pinecone tmp buffers), unrelated to user-initiated erasure. **Not
-   fixed this mission** — a real cascading-delete implementation touching a lawyer's actual case/client
-   data is a founder policy decision (retention exceptions for billing/legal obligations?), not a
-   "clearly localized" fix Keystone's own First Rule permits without that decision.
+1. **Critical, narrowed by a correction (Mission Olympus, 2026-08-04) — GDPR account deletion does not
+   delete case data, but the case/client/document retention itself is disclosed with a stated legal
+   basis, not a silent gap.** `routers/gdpr.py::gdpr_delete_account` only anonymizes the login profile;
+   `predmeti`, `klijenti`, `predmet_dokumenti` (full document text), Pinecone vectors, and Storage files
+   all remain fully intact and attributable via the unchanged `user_id`. **Read directly (Mission
+   Olympus's Regulatory Compliance Verification Agent backtest, `routers/gdpr.py:222-228`): the endpoint's
+   own response already discloses this to the user explicitly** — *"Predmeti, klijenti i dokumenti nisu
+   anonimizovani ovim postupkom i zadržavaju se u skladu sa zakonskom obavezom advokata da čuva spise
+   predmeta (Zakon o advokaturi)"* — a stated legal basis (a lawyer's statutory duty to retain case files)
+   that plausibly falls under GDPR Article 17(3)(b)'s legal-obligation exception, not an undisclosed
+   violation. **The genuinely open, narrower gap**: that disclosure covers case-file records under a
+   legal-hold rationale, but says nothing about — and that rationale does not obviously extend to —
+   Pinecone vectors and Storage files, which are derived technical artifacts with no independent
+   legal-retention justification of their own and are not mentioned in the user-facing disclosure at all.
+   This corrects a prior mission's inaccurate characterization of `services/retention_service.py` as "the
+   GDPR-driven deletion mechanism" — that service only does scheduled TTL cleanup of *operational* logs
+   (security_events, ai_forensics, Pinecone tmp buffers), unrelated to user-initiated erasure. **Not fixed
+   this mission** — closing the Pinecone/Storage gap, or extending the disclosure to cover it, is a
+   founder policy decision, not a "clearly localized" fix.
 2. **Critical/High — multi-worker duplicate Event Bus dispatch.** Production runs 4 gunicorn workers by
    default (`gunicorn.conf.py`); each runs its own independent `DispatchLoop` polling the same `events`
    outbox every 3s with a plain, unclaimed `SELECT`. Two workers can select and process the same
@@ -78,7 +88,7 @@ Full methodology and evidence: `.vindex_ai_team/decisions/2026-08-04_keystone_ph
 
 | Metric | Target | Prior self-reported figure | **Keystone fresh figure** | Verdict |
 |---|---|---|---|---|
-| Intelligence Connectivity Score (ICS) | — (first measurement) | not previously computed | **~34–39%** | Genome/Strategy/Task Engine mostly don't feed each other |
+| Intelligence Connectivity Score (ICS) | ≥90% (Nexus) | **Correction (Mission Olympus, 2026-08-04): this was wrongly reported as "first measurement" — Project Nexus (2026-08-03) already established ICS at 62.5% (20/32 verified connections) using a rigorous, cited connection ledger (`docs/architecture/NEXUS_ICS_SCORE.md`), one day before this mission.** | **~34–39%** (different, cruder methodology — not directly comparable to Nexus's connection-ledger figure) | Genome/Strategy/Task Engine mostly don't feed each other. **Methodology gap, not necessarily a real decline**: Keystone's Phase 2 fork did not know Nexus's ledger existed and derived its own, less rigorous ICS estimate. Future ICS measurements should extend Nexus's own connection ledger (append rows, keep the same exclusion criteria) rather than re-deriving the metric from scratch each mission — exactly the discipline `NEXUS_ICS_SCORE.md`'s own "Recomputation note" already prescribes. |
 | Critical Intelligence Coverage (CIC) | — (first measurement) | not previously computed | **~68%** | Drafting is the only flow scoring 6/6 on all sub-checks |
 | Audit Link Coverage | ≥95% | 78% (Migration, 36-row scope) | **~39%** (full 76-call-site scope) | **REVISES DOWN** — Migration's figure was accurate for its own narrower scope, not the full system |
 | Provenance Coverage | ≥95% | 58–75% (Atlas) | **~87%** | Close, but `retrieval_query`/`retrieved_context_ids` ("source references" — the single most important field for a legal-RAG product) are populated by **zero** call sites, including core `ask_agent` |
@@ -113,8 +123,14 @@ Timeline, Search, Briefing, Copilot, Risk Analysis's live computation, the Audit
   isn't persisted anywhere Timeline/Dashboard would surface it later. This is an architectural/product
   characteristic, not a bug — flagged as a roadmap item (`KEYSTONE-002`), not fixed (First Rule: no new
   features).
-- **Firm Brain and Memory Graph are confirmed fully isolated islands** — a repo-wide grep found zero other
-  module calls into either router. No golden-path step feeds them; a lawyer must manually populate both.
+- **Memory Graph is confirmed fully isolated** — a repo-wide grep found zero other module calls into it.
+  No golden-path step feeds it; a lawyer must manually populate it. **Correction (Mission Olympus,
+  2026-08-04): the parallel claim about Firm Brain was wrong.** `api.py::_fetch_firm_memory_context`
+  (called at `api.py:2916` and `api.py:3020`) is a real, narrow consumer that reads Firm Brain's
+  institutional-memory tables directly into Copilot/RAG context — Firm Brain is a one-way *source* feeding
+  Copilot, not an isolated island. Caught by the new Workflow Integrity Agent (30)'s backtest, itself a
+  concrete demonstration of the value this governance layer is meant to add (see
+  `docs/architecture/OLYMPUS_BACKTEST_VALIDATION_REPORT.md`).
 - **Two silent-failure spots**: document classification and Genome refresh both run as fire-and-forget
   background tasks with only a log line on failure — no alert, no durable audit-of-failure entry (unlike
   the pattern Phoenix already proved for nightly alerts). Tracked as `KEYSTONE-003` — not fixed this
@@ -274,7 +290,7 @@ suite both green — see Test Results below.
 
 | # | Severity | Description | Impact | Evidence | Recommendation | Decision |
 |---|---|---|---|---|---|---|
-| K-1 | **Critical** | GDPR account deletion doesn't cascade to case/client/document data, Pinecone vectors, or Storage files | Real compliance/legal-liability exposure for a legal-tech product holding confidential client data under Article 17 erasure obligations | `routers/gdpr.py::gdpr_delete_account`; Phase 6 investigation | Founder must decide retention-exception scope (billing/legal-hold obligations?) before a real cascading delete is implemented | **Founder decision required — not fixed this mission** |
+| K-1 | **High (narrowed from Critical, Mission Olympus 2026-08-04)** | GDPR account deletion doesn't cascade to Pinecone vectors or Storage files — case/client/document retention is disclosed with a stated legal basis (Zakon o advokaturi), not a silent gap, but that disclosure doesn't cover vectors/storage | Compliance exposure narrower than first reported — vectors/storage have no independent retention justification and aren't mentioned in the user-facing disclosure | `routers/gdpr.py::gdpr_delete_account:222-228`; Phase 6 investigation; Regulatory Compliance Verification Agent backtest | Founder decides whether to extend the disclosure to cover vectors/storage, and whether/how to actually purge them | **Founder decision required — not fixed this mission** |
 | K-2 | Critical (mitigated, migration pending) | Multi-worker Event Bus duplicate dispatch | Duplicate `proactive_alerts`/audit rows under real production concurrency (4 gunicorn workers) | `services/event_bus.py`; Phase 1/4 investigation | Run `migrations/091_event_bus_atomic_claim.sql` | **Fixed in code + tests this mission; residual risk remains live until the founder runs the migration** |
 | K-3 | High | Strategy Engine's litigation win-probability % is raw, ungrounded LLM output with zero validation | Highest-stakes number in the app, presented with no backend confidence check — reputational/trust risk if a lawyer relies on it | Phase 5 investigation | Apply the Deterministic Intelligence Framework pattern (backend-computed score) | **Flagged — `KEYSTONE-004`, not fixed (feature-level work)** |
 | K-4 | High | Voice Orchestrator bypasses the AI wrapper entirely — no correlation_id/provenance | Breaks the "100% wrapper coverage" claim; voice sessions are unauditable | `services/voice_orchestrator.py`; Phase 1 investigation | Wire provenance capture into the Realtime API integration | **Flagged — `KEYSTONE-001`, not fixed (real dev work)** |
@@ -333,17 +349,19 @@ Keystone's own decision framework:
 Link ~39%, Provenance ~87%, Failure Recovery ~65–75%) — 🟢 is not supportable. There is no active data
 loss, no active cross-tenant breach, and the core golden path (predmet creation → upload → Genome →
 Search → Briefing → Copilot) functions correctly end-to-end with genuine, tested reliability engineering
-behind it across 6 missions. But there **is** one Critical, unresolved compliance gap (K-1, GDPR erasure)
-and one High-severity "unreliable AI conclusion" risk (K-3, Strategy Engine's ungrounded percentage) that
+behind it across 6 missions. But there **are** two unresolved High-severity risks — a narrower-than-first-reported compliance gap
+(K-1, GDPR erasure — Pinecone/Storage specifically, not the whole case/client/document set, which is
+already disclosed with a stated legal basis) and an "unreliable AI conclusion" risk (K-3, Strategy
+Engine's ungrounded percentage) — that
 Keystone's own NOT READY criteria name explicitly — so 🔴 has real support too.
 
 **Decision: 🟡 READY WITH ACCEPTED RISKS — conditional on the founder explicitly accepting, in writing,
 these named risks before opening a closed beta**:
 
-1. **K-1 (GDPR erasure)** — any deletion request during the beta must be handled manually/operationally
-   until a real cascading delete exists. A closed beta with a small number of known, consenting pilot
-   users is a materially different exposure than a public launch, but this must be a conscious decision,
-   not a silent gap.
+1. **K-1 (GDPR erasure, narrowed)** — the case/client/document retention itself is already disclosed with
+   a stated legal basis, not a hidden gap; the founder should decide whether Pinecone vectors and Storage
+   files (the actually-undisclosed part) need manual purging on a deletion request during the beta, or
+   whether extending the existing disclosure to mention them is sufficient for now.
 2. **K-3 (Strategy Engine confidence)** — pilot users must be told this specific number is not
    independently validated, or the feature should be hidden/caveated for the beta cohort until fixed.
 3. **K-2 (Event Bus race)** — the founder should run `migrations/091_event_bus_atomic_claim.sql` before

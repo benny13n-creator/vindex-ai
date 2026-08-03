@@ -494,8 +494,8 @@ own scope stated — this is a denominator correction, not a claim that prior wo
 
 | Metric | Target | Prior figure (scope) | **Keystone fresh figure (full-system scope)** |
 |---|---|---|---|
-| Intelligence Connectivity Score (ICS) | — (first measurement) | not previously computed | **~34–39%** |
-| Critical Intelligence Coverage (CIC) | — (first measurement) | not previously computed | **~68%** |
+| Intelligence Connectivity Score (ICS) | ≥90% | **62.5%→65.6% (Project Nexus/Sentinel, rigorous 32-connection ledger)** — corrected here (Mission Olympus, 2026-08-04); this section originally, wrongly, called it "first measurement" | **~34–39%** (different, cruder methodology — not directly comparable; future measurements should extend Nexus's own ledger, not re-derive it) |
+| Critical Intelligence Coverage (CIC) | >95% | **77.1% (Project Sentinel, first baseline)** — same correction as ICS above | **~68%** (different methodology/scope — not directly comparable) |
 | Audit Link Coverage | ≥95% | 78% (Migration, 36-row hand-curated scope) | **~39%** (76 call sites / 55 files) |
 | Provenance Coverage | ≥95% | 58–75% (Atlas) | **~87%** (but "source references" field: 0% populated anywhere) |
 | Replay Coverage | ≥95% | not previously computed at this granularity | **~100%** technical/correlation level, **~39%** full business-content level |
@@ -534,3 +534,30 @@ but there is no active data loss, no active cross-tenant breach, and the core go
 correctly end-to-end with genuine, tested reliability engineering behind it across all 6 missions this
 engagement. The decision is conditional on the founder explicitly accepting these named risks for a
 **closed** beta (small, trusted, consenting cohort) — not a green light for public launch or GA.
+
+---
+
+## Mission Olympus (2026-08-04) — Enterprise AI Governance Layer
+
+**Methodology note**: this section measures the governance layer *itself*, not Vindex AI the product —
+see `.vindex_ai_team/GOVERNANCE_METRICS.md` for the full methodology behind each number below.
+
+| Metric | Value |
+|---|---|
+| Implemented agents | 19 new charter files (`agents/16_*.md`–`34_*.md`), all confirmed to exist and match `AGENT_CATALOG.md` |
+| Roles actively participating in the governance board | 21 (19 new + Agents 05/14 reused by reference) |
+| Total roles across both organizations | 34 (15 pre-existing + 19 new) |
+| Responsibility coverage | 20 / 20 founder-named roles = 100% |
+| Responsibility overlaps | 0 |
+| Uncovered areas | 0 |
+| Defined review gates | 26 distinct gate-holding roles (7 pre-existing + 19 new) |
+| Automated (fixed-enum) quality checks | 22 of 26 gate-holding roles (4 produce narrative-only output by design) |
+| Backtest result | 14 of 19 new agents (74%) confirmed WOULD CATCH a real historical finding against Nexus/Sentinel/Atlas/Ledger/Phoenix/Keystone evidence; 3 honestly have no historical precedent yet; 1 partially validated |
+| Corrections produced by the backtest itself | 3 — Keystone's "Firm Brain fully isolated" claim (wrong), Keystone's K-1 GDPR severity/scope (over-broad), Agent 18's own charter (missing query-completeness check) |
+| Estimated development-quality impact | **Not synthesized as a percentage** — per this mission's own `GOVERNANCE_METRICS.md` rule against inventing one without a controlled before/after comparison. Reported instead as the 3 concrete, dated corrections above: real, falsifiable evidence of impact. |
+
+**Recommendation**: phased rollout, not blanket enablement — see
+`docs/architecture/OLYMPUS_BACKTEST_VALIDATION_REPORT.md` for the full per-agent breakdown. 12 agents
+ready for mandatory use now; 1 partially ready; 2 informational-only pending baseline data; 1 in a
+calibration period. **Full mandatory nightly use was explicitly deferred by the founder's own closing
+instruction pending this validation — this section is that validation, not a decision to enable.**

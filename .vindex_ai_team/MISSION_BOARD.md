@@ -324,12 +324,15 @@ scope than reality: an unfiltered grep found 76 AI call sites across 55 files (v
 hand-curated inventories Atlas/Ledger/Migration/Phoenix all used), revising Audit Link Coverage down to
 ~39% system-wide. Found and fixed the multi-worker Event Bus duplicate-dispatch race (production runs 4
 gunicorn workers, each with an independent unclaimed-poll `DispatchLoop`) via a new `claim_pending_events`
-RPC mirroring migration 073's proven `claim_intake_job` pattern. Found one Critical, unresolved finding:
-`routers/gdpr.py::gdpr_delete_account` doesn't actually delete case/client/document data — corrects a
-prior mission's inaccurate characterization of `services/retention_service.py` as "the GDPR deletion
-mechanism" (it only does operational-log TTL cleanup). Final Beta Gate decision: 🟡 **READY WITH ACCEPTED
-RISKS**, conditional on the founder explicitly accepting the GDPR gap and Strategy Engine's ungrounded
-confidence-percentage risk for a closed beta. Full report:
+RPC mirroring migration 073's proven `claim_intake_job` pattern. Found one High-severity, unresolved
+finding: `routers/gdpr.py::gdpr_delete_account` doesn't cascade to Pinecone vectors/Storage files —
+**narrowed from an initial Critical framing by Mission Olympus's 2026-08-04 backtest**, which found the
+case/client/document retention is already disclosed with a stated legal basis (Zakon o advokaturi), not a
+silent gap; the real open gap is specifically vectors/storage. Corrects a prior mission's inaccurate
+characterization of `services/retention_service.py` as "the GDPR deletion mechanism" (it only does
+operational-log TTL cleanup). Final Beta Gate decision: 🟡 **READY WITH ACCEPTED RISKS**, conditional on
+the founder explicitly accepting the GDPR gap and Strategy Engine's ungrounded confidence-percentage risk
+for a closed beta. Full report:
 `docs/architecture/KEYSTONE_FINAL_READINESS_REPORT.md`. Investigations:
 `decisions/2026-08-04_keystone_phase1_architecture_freeze_INVESTIGATION.md`,
 `decisions/2026-08-04_keystone_phase2_metrics_INVESTIGATION.md`,
@@ -341,15 +344,52 @@ confidence-percentage risk for a closed beta. Full report:
 
 | ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
 |---|---|---|---|---|---|---|
-| KEYSTONE-CRITICAL | GDPR account deletion doesn't cascade to case/client/document data, Pinecone vectors, or Storage files | 0 | Founder decision on retention-exception scope (billing/legal-hold obligations?) | Medium-Large | **FOUNDER DECISION REQUIRED** | See Risk Register item K-1. Not a "clearly localized" fix — touches real lawyer case data irreversibly, needs explicit scope sign-off before implementation. |
+| KEYSTONE-CRITICAL | GDPR account deletion doesn't cascade to Pinecone vectors or Storage files (narrowed from the whole case/client/document set — see K-1's Mission Olympus correction) | 0 | Founder decision on whether/how to purge vectors/storage, or extend the existing disclosure to cover them | Medium | **FOUNDER DECISION REQUIRED** | See Risk Register item K-1 (now High, not Critical). Not a "clearly localized" fix — touches real data irreversibly, needs explicit scope sign-off before implementation. |
 | KEYSTONE-001 | Voice Orchestrator (`services/voice_orchestrator.py`) bypasses the canonical AI wrapper entirely | 1 | none | Medium-Large | TODO | Raw WebSocket to OpenAI's Realtime API — no correlation_id/case_context/provenance capture for voice sessions. Breaks the "100% wrapper coverage" claim for this one feature. |
-| KEYSTONE-002 | Genome → Strategy/Risk/Tasks connectivity gap; Firm Brain/Memory Graph are fully isolated islands | 2 | Founder decision — is deeper auto-connection desired, or is lawyer-initiated by design? | Large (architecture) | NEEDS_SCOPING — founder decision | The 9-step Case Pipeline auto-fires once at case creation (before documents exist) and never re-runs; Strategy Engine output isn't persisted for Timeline/Dashboard. Not a bug — a product-design question. |
+| KEYSTONE-002 | Genome → Strategy/Risk/Tasks connectivity gap; Memory Graph is fully isolated (Firm Brain has one narrow real consumer, corrected by Mission Olympus — see below) | 2 | Founder decision — is deeper auto-connection desired, or is lawyer-initiated by design? | Large (architecture) | NEEDS_SCOPING — founder decision | The 9-step Case Pipeline auto-fires once at case creation (before documents exist) and never re-runs; Strategy Engine output isn't persisted for Timeline/Dashboard. Not a bug — a product-design question. |
 | KEYSTONE-003 | Document classification and Genome refresh background-task failures are log-only, no durable audit/alert | 3 | none (proven pattern exists) | Small-Medium | TODO | Apply Phoenix's own nightly-alert retry+durable-audit pattern (`nightly_alert_insert_failed`) to these two background paths — same shape, not new infrastructure. |
 | KEYSTONE-004 | Strategy Engine's litigation win-probability % is raw, ungrounded LLM output with zero validation | 1 | Founder decision — apply Deterministic Intelligence Framework pattern? | Medium-Large | TODO — highest-priority non-Critical item | The single riskiest AI-quality finding in the app: no backend confidence computation, no citation-grounding check, on the number a lawyer cares about most. |
 | KEYSTONE-005 | Genome analysis not flagged stale after a case-defining field edit | 4 | none | Small (UX) | TODO — explicitly UX, deferred past this mission | Editing `tip`/`rizik` gives instant save confirmation but the AI analysis below silently stays unmarked as potentially outdated. |
 | KEYSTONE-006 | Genome background-regen watcher silently times out after 90s with no error state | 5 | none | Small (UX) | TODO — explicitly UX, deferred past this mission | Reverts to default hint text with no failure signal; manual refresh still works. |
 | KEYSTONE-007 | Run `migrations/091_event_bus_atomic_claim.sql` in production | 1 | Founder runs migrations himself | Small | NEEDS_SCOPING — founder action | Until run, the multi-worker Event Bus duplicate-dispatch race (this mission's code fix is inert without it) remains exactly as exposed as before this mission. |
 | KEYSTONE-008 | Predmet-creation endpoint has no idempotency key; Client creation uses the older `audit_log` mechanism with no dedup | 4 | Founder decision on idempotency-key design | Medium | NEEDS_SCOPING | Client-side retry could double-create a case; rapid double-submit on client creation isn't deduped. |
+
+## Mission Olympus (2026-08-04) — Enterprise AI Governance Layer
+
+Founder's Master Prompt: "Enterprise AI Governance Layer" — builds a permanent, standing 6-layer,
+19-new-agent Enterprise Review Board (`AI_GOVERNANCE_ARCHITECTURE.md`) that reviews *completed changes*
+before merge, complementing (not duplicating) the pre-existing 15-role feature-development organization
+(`ORG_CHART.md`). 21 roles actively participate (19 new + Agents 05/14 reused by reference); 34 roles
+total across both organizations. 8 required governance documents written:
+`AI_GOVERNANCE_ARCHITECTURE.md`, `AGENT_CATALOG.md`, `AGENT_RESPONSIBILITY_MATRIX.md`,
+`REVIEW_PIPELINE.md`, `QUALITY_GATES.md`, `AGENT_COMMUNICATION_PROTOCOL.md`,
+`DECISION_ESCALATION_POLICY.md`, `GOVERNANCE_METRICS.md`.
+
+Per the founder's own explicit closing instruction, **not wired into mandatory nightly use yet** — first
+backtested against 6 historical missions (Nexus, Sentinel, Atlas, Ledger, Phoenix, Keystone). Result: 14
+of 19 new agents confirmed WOULD CATCH a real historical finding; 3 honestly have no historical precedent
+(LEC v1 benchmark corpus empty; no mission ever measured performance/cost; Legal Domain Expert never
+existed before); 1 partially validated. The backtest itself produced **3 genuine corrections to
+already-published reports** — Keystone's "Firm Brain fully isolated" claim was wrong (a real consumer
+exists, `api.py::_fetch_firm_memory_context`), Keystone's K-1 GDPR finding was more nuanced than reported
+(the retention is disclosed with a stated legal basis; the real gap is narrower — Pinecone/Storage
+specifically), and Agent 18's own charter had a real gap (no query-completeness check), fixed during
+validation. Full report: `docs/architecture/OLYMPUS_BACKTEST_VALIDATION_REPORT.md`. Investigations:
+`decisions/2026-08-04_olympus_backtest_engineering_board.md`,
+`decisions/2026-08-04_olympus_backtest_ai_legal_board.md`,
+`decisions/2026-08-04_olympus_backtest_product_platform_board.md`.
+
+**Recommendation, phased, not blanket**: 12 agents (17, 18, 19, 20, 23, 26, 27, 28, 29, 30, 31, 33) ready
+for mandatory use now; Agent 21 partially ready (1 of 3 sub-domains validated); Agents 24, 32 enabled
+informational-only until they have real baseline data; Agent 25 in a calibration period.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| OLYMPUS-001 | Wire the 12 backtest-validated agents (17,18,19,20,23,26,27,28,29,30,31,33) into the actual nightly mission workflow | 1 | Founder decision on rollout timing | Medium | TODO — founder decision | Currently documented, charter-complete, and backtest-validated, but not yet actually invoked as a standing gate on any real change since this mission ended. |
+| OLYMPUS-002 | Populate `evaluation/lec/` with real, sourced documents so Agent 24 (AI Evaluation & Benchmark) has something to measure | 2 | Founder — explicitly the founder's own stated task, not fabricable by an agent | Medium | NEEDS_SCOPING — founder action | `evaluation/lec/annotations.json` ships empty by design ("Nemam ground truth, dakle nemam benchmark. To je naučno ispravno.") — until populated, Agent 24 can only validate its own harness, not measure real precision/regression. |
+| OLYMPUS-003 | Establish a first performance/cost baseline so Agent 32 has something to compare future changes against | 3 | none (Atlas's `ai_forensics.latency_ms` already has raw data to start from) | Medium | TODO | Zero historical mission ever measured latency/throughput/cost — Agent 32's first invocations should establish a baseline, not gate a merge against nothing. |
+| OLYMPUS-004 | Resolve Agent 16's cross-board sequencing gap (Consulted-relationship ordering in Phase G1) before operationalizing the pipeline for real | 4 | none | Small | TODO | Noted in the Director's own charter and `REVIEW_PIPELINE.md` — not blocking, but a real scoping gap for whoever wires this pipeline into an actual workflow. |
+| OLYMPUS-005 | Exercise Agent 21's untested sub-domains (cross-version stability, cross-module contradiction) on a real future case | 5 | none | Medium | TODO | Internal-consistency sub-domain is validated; the other two have zero historical exercise — first real invocation should treat findings as provisional. |
 
 ## Explicit exclusions from autonomous scope (per the Master Prompt's own Stop Conditions)
 
