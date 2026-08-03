@@ -99,3 +99,29 @@ place. Two full nights of wiring fixes (LZ-001/002, ZTC-001/002/003) improved a 
 quality without ever checking whether the pipeline's *input* (the upload button) was reachable from
 the product. Worth a standing check in any future mission of this shape: before deep-wiring a
 backend pipeline's internals, confirm the frontend actually calls it.
+
+---
+
+## 2026-08-03 (Operation Invisible Features, BETA-003)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 2 (IF-001 GDPR self-service account deletion, IF-002 per-case AI Briefing) |
+| Bugs fixed | 0 — this run's charter was reachability, not correctness; nothing was broken, it was unreachable |
+| New bugs discovered | 0 code bugs. 1 tooling defect: the repo's own `scripts/audit_routers.py` has a `/health`-substring false negative (masked Smart Intake from the prior mission) and dynamic-path false positives (`oblasti`, `ugovor_zastupanja` wrongly flagged dead) — documented, not fixed (out of this mission's scope) |
+| New bugs discovered (product) | 2 real duplicate-feature pairs found: client CSV import (safer flow is the dead one), WhatsApp notifications (dedicated system is the dead one, simpler flag-based one is live) — both escalated as founder decisions, not resolved unilaterally |
+| Blockers correctly escalated | 3 — `IF-003` (which CSV import flow should be live), `IF-004` (retire vs. reconnect WhatsApp subscriptions), `IF-005` (Memory Graph has no automatic way to populate itself — shipping a query UI alone would show a permanently empty result) |
+| Regressions introduced | 0 — no backend code changed this run; full suite re-run anyway per this mission's own Phase 7 requirement: 2306 passed, 1 skipped, 0 failed (unchanged) |
+| Test pass rate | 2306/2307 (99.96%), unchanged — frontend-only changes have no automated test harness in this repo (verified via `node --check` for syntax validity only) |
+| Beta blockers removed | 0 scenario state-flips — this run's value is orthogonal to the Beta Critical Path scenarios (self-service compliance rights, case-level AI recommendation), not double-counted against them |
+| Security findings resolved | 0 new SEC-XXX items. Adjacent finding: `IF-001` closes a public-facing compliance gap (a whitepaper promise with no button) — recorded here for completeness, not filed as a SEC-XXX since none was open |
+| Founder decisions required | 3 (`IF-003`, `IF-004`, `IF-005`) |
+
+**Notable pattern, first occurrence this run:** unlike every prior mission this multi-night engagement,
+this run's two completed missions required **zero backend changes** — both were cases of already-
+correct, already-tested backend code with genuinely no frontend caller at all. The actual engineering
+work was verification (is this really unreachable, is the "obvious" fix actually a duplicate of
+something already live) rather than implementation — the GDPR export check and the CIO/case-
+intelligence distinction both would have produced a shipped duplicate if skipped. Worth treating
+"verify it's not secretly already covered" as a mandatory step before wiring anything flagged by a
+census, not an optional nicety.
