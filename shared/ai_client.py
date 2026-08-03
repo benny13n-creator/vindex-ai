@@ -110,6 +110,161 @@ def _extract_user_text(messages) -> str:
     return "\n".join(p for p in parts if p)
 
 
+def _caller_hint(depth: int = 2) -> str:
+    # Dijagnostika: koji fajl/funkcija je pozvao create() — korisno u
+    # logovima kad se poziv blokira, s obzirom da patch ne zna koja je
+    # ruta u pitanju (to je upravo poenta — ne zavisi od pozivnog mesta).
+    # Mission Atlas (2026-08-03): isti mehanizam sada služi i kao automatski
+    # 'module_name'/'operation_name' za AI Provenance kad pozivno mesto nije
+    # eksplicitno postavilo shared/ai_provenance.py's case_context().
+    try:
+        frame = inspect.stack()[depth]
+        return f"{frame.filename.split(os.sep)[-1]}:{frame.function}:{frame.lineno}"
+    except Exception:
+        return "unknown"
+
+
+def _client_provider_name(self) -> str:
+    """'azure' ako je resurs vezan za AzureOpenAI/AsyncAzureOpenAI klijenta,
+    inace 'openai' — cita se preko resursa._client, standardni openai SDK
+    atribut (Completions/Embeddings instanca uvek drzi referencu na svog
+    roditeljskog klijenta)."""
+    try:
+        client = getattr(self, "_client", None)
+        if client is not None and "Azure" in type(client).__name__:
+            return "azure"
+    except Exception:
+        pass
+    return "openai"
+
+
+# Mission Atlas (2026-08-03): _orig_create/_orig_acreate/_orig_embed/
+# _orig_aembed su namerno modulskog nivoa (ne closure lokali unutar
+# _patch_prompt_guard) da bi testovi mogli da ih monkeypatch-uju direktno
+# (unittest.mock.patch("shared.ai_client._orig_create", ...)) i simuliraju
+# uspesan odgovor bez pravog mrežnog poziva — bez ovoga, provenance-capture
+# logika (koja treba PRAVI response objekat da izvuce model/tokene/sadržaj)
+# ne bi bila testabilna bez stvarnog OpenAI pristupa.
+_orig_create = None
+_orig_acreate = None
+_orig_embed = None
+_orig_aembed = None
+
+
+def _capture_chat_provenance(self, kwargs: dict, response, latency_ms: int, error: Exception | None = None) -> None:
+    """Gradi i (fire-and-forget, fail-soft) upisuje provenance zapis za JEDAN
+    chat.completions.create poziv. Nikad ne baca — greška ovde ne sme
+    da utiče na AI poziv koji je vec zavrsen (uspesno ili neuspesno)."""
+    try:
+        import asyncio
+        from shared import ai_provenance as _prov
+        from security.ai_forensics import log_provenance_from_wrapper
+
+        ctx = _prov.current_context()
+        messages = kwargs.get("messages") or []
+        system_text = "\n".join(
+            (m.get("content") if isinstance(m, dict) else getattr(m, "content", "")) or ""
+            for m in messages
+            if (m.get("role") if isinstance(m, dict) else getattr(m, "role", None)) == "system"
+        )
+        user_text = _extract_user_text(messages)
+
+        output_text = None
+        token_in = token_out = None
+        model_reported = kwargs.get("model")
+        if response is not None:
+            try:
+                output_text = (response.choices[0].message.content or "") if response.choices else ""
+            except Exception:
+                output_text = None
+            usage = getattr(response, "usage", None)
+            if usage is not None:
+                token_in = getattr(usage, "prompt_tokens", None)
+                token_out = getattr(usage, "completion_tokens", None)
+            model_reported = getattr(response, "model", None) or model_reported
+
+        record_kwargs = dict(
+            module_name=ctx.get("module_name") or _caller_hint(depth=3),
+            operation_name=ctx.get("operation_name"),
+            model_provider=_client_provider_name(self),
+            model_name=model_reported or "unknown",
+            system_prompt_hash=_prov.sha256_text(system_text),
+            user_prompt_hash=_prov.sha256_text(user_text),
+            token_usage_input=token_in,
+            token_usage_output=token_out,
+            latency_ms=latency_ms,
+            output_hash=_prov.sha256_text(output_text) if output_text else None,
+            correlation_id=ctx.get("correlation_id") or _prov.new_correlation_id(),
+            parent_event_id=ctx.get("parent_event_id"),
+            user_id=ctx.get("user_id"),
+            tenant_id=ctx.get("tenant_id"),
+            predmet_id=ctx.get("predmet_id"),
+            document_id=ctx.get("document_id"),
+            knowledge_sources=ctx.get("knowledge_sources"),
+            retrieved_context_ids=ctx.get("retrieved_context_ids"),
+            retrieval_query=ctx.get("retrieval_query"),
+            status="error" if error else "success",
+            error_message=str(error)[:500] if error else None,
+        )
+
+        coro = log_provenance_from_wrapper(**record_kwargs)
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(coro)
+        except RuntimeError:
+            asyncio.run(coro)
+    except Exception as exc:
+        logger.debug("[AI_PROVENANCE] capture greška (nije kritično): %s", exc)
+
+
+def _capture_embedding_provenance(self, kwargs: dict, response, latency_ms: int, error: Exception | None = None) -> None:
+    """Isto kao _capture_chat_provenance, za Embeddings.create — nema
+    system/user razdvajanje ni izlazni tekst (vektor nije 'odgovor' u istom
+    smislu), pa se hashuje ulazni tekst i broje tokeni ako su dostupni."""
+    try:
+        import asyncio
+        from shared import ai_provenance as _prov
+        from security.ai_forensics import log_provenance_from_wrapper
+
+        ctx = _prov.current_context()
+        input_val = kwargs.get("input")
+        input_text = input_val if isinstance(input_val, str) else "\n".join(str(x) for x in (input_val or []))
+
+        token_in = None
+        model_reported = kwargs.get("model")
+        if response is not None:
+            usage = getattr(response, "usage", None)
+            if usage is not None:
+                token_in = getattr(usage, "prompt_tokens", None)
+            model_reported = getattr(response, "model", None) or model_reported
+
+        coro = log_provenance_from_wrapper(
+            module_name=ctx.get("module_name") or _caller_hint(depth=3),
+            operation_name=ctx.get("operation_name") or "embedding",
+            model_provider=_client_provider_name(self),
+            model_name=model_reported or "unknown",
+            user_prompt_hash=_prov.sha256_text(input_text),
+            token_usage_input=token_in,
+            latency_ms=latency_ms,
+            correlation_id=ctx.get("correlation_id") or _prov.new_correlation_id(),
+            parent_event_id=ctx.get("parent_event_id"),
+            user_id=ctx.get("user_id"),
+            tenant_id=ctx.get("tenant_id"),
+            predmet_id=ctx.get("predmet_id"),
+            document_id=ctx.get("document_id"),
+            retrieval_query=ctx.get("retrieval_query"),
+            status="error" if error else "success",
+            error_message=str(error)[:500] if error else None,
+        )
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(coro)
+        except RuntimeError:
+            asyncio.run(coro)
+    except Exception as exc:
+        logger.debug("[AI_PROVENANCE] embedding capture greška (nije kritično): %s", exc)
+
+
 def _patch_prompt_guard() -> None:
     """
     SEC-003 — presreće Completions.create/AsyncCompletions.create na nivou
@@ -121,8 +276,14 @@ def _patch_prompt_guard() -> None:
     Ako je 'user'-role sadržaj poziva iznad BLOCK_THRESHOLD (security/
     prompt_guard.py::analyze), poziv OpenAI-u se NIKAD ne izvršava —
     PromptInjectionBlocked se podiže pre _orig_create/_orig_acreate.
+
+    Mission Atlas (2026-08-03): isti presretnuti sloj sada dodatno beleži AI
+    Provenance (shared/ai_provenance.py + security/ai_forensics.py) na SVAKI
+    poziv koji stigne do OpenAI-a — isti "jedan ulaz, jedna implementacija"
+    princip kao SEC-003, primenjen na sledljivost umesto bezbednosti. Ovo je
+    NAMERNO isti patch point, ne paralelan mehanizam.
     """
-    global _guard_patched
+    global _guard_patched, _orig_create, _orig_acreate, _orig_embed, _orig_aembed
     if _guard_patched:
         return
 
@@ -142,16 +303,6 @@ def _patch_prompt_guard() -> None:
     _orig_create = Completions.create
     _orig_acreate = AsyncCompletions.create
 
-    def _caller_hint() -> str:
-        # Dijagnostika: koji fajl/funkcija je pozvao create() — korisno u
-        # logovima kad se poziv blokira, s obzirom da patch ne zna koja je
-        # ruta u pitanju (to je upravo poenta — ne zavisi od pozivnog mesta).
-        try:
-            frame = inspect.stack()[2]
-            return f"{frame.filename.split(os.sep)[-1]}:{frame.function}:{frame.lineno}"
-        except Exception:
-            return "unknown"
-
     def _guarded_create(self, *args, **kwargs):
         text = _extract_user_text(kwargs.get("messages"))
         if text:
@@ -162,7 +313,15 @@ def _patch_prompt_guard() -> None:
                     _caller_hint(), result.risk_score, len(result.flags),
                 )
                 raise PromptInjectionBlocked(result.risk_score, result.flags)
-        return _orig_create(self, *args, **kwargs)
+        import time
+        _t0 = time.monotonic()
+        try:
+            response = _orig_create(self, *args, **kwargs)
+        except Exception as exc:
+            _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
+            raise
+        _capture_chat_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
+        return response
 
     async def _guarded_acreate(self, *args, **kwargs):
         text = _extract_user_text(kwargs.get("messages"))
@@ -175,12 +334,55 @@ def _patch_prompt_guard() -> None:
                     _caller_hint(), result.risk_score, len(result.flags),
                 )
                 raise PromptInjectionBlocked(result.risk_score, result.flags)
-        return await _orig_acreate(self, *args, **kwargs)
+        import time
+        _t0 = time.monotonic()
+        try:
+            response = await _orig_acreate(self, *args, **kwargs)
+        except Exception as exc:
+            _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
+            raise
+        _capture_chat_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
+        return response
 
     Completions.create = _guarded_create
     AsyncCompletions.create = _guarded_acreate
+
+    try:
+        from openai.resources.embeddings import AsyncEmbeddings, Embeddings
+
+        _orig_embed = Embeddings.create
+        _orig_aembed = AsyncEmbeddings.create
+
+        def _tracked_embed(self, *args, **kwargs):
+            import time
+            _t0 = time.monotonic()
+            try:
+                response = _orig_embed(self, *args, **kwargs)
+            except Exception as exc:
+                _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
+                raise
+            _capture_embedding_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
+            return response
+
+        async def _tracked_aembed(self, *args, **kwargs):
+            import time
+            _t0 = time.monotonic()
+            try:
+                response = await _orig_aembed(self, *args, **kwargs)
+            except Exception as exc:
+                _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
+                raise
+            _capture_embedding_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
+            return response
+
+        Embeddings.create = _tracked_embed
+        AsyncEmbeddings.create = _tracked_aembed
+    except Exception as exc:
+        logger.warning("[AI_PROVENANCE] Embeddings provenance patch neuspešan (nije kritično): %s", exc)
+
     _guard_patched = True
     logger.info(
         "[AI_GUARD] Prompt Guard presreo Completions.create/AsyncCompletions.create "
-        "— svi GPT pozivi u aplikaciji sada strukturno zaštićeni (SEC-003)"
+        "— svi GPT pozivi u aplikaciji sada strukturno zaštićeni (SEC-003) i "
+        "beleže AI Provenance (Mission Atlas)"
     )

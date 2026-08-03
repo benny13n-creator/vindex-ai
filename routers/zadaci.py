@@ -642,31 +642,36 @@ async def ai_analiziraj_predmet(
     # AI analiza
     try:
         from openai import AsyncOpenAI
+        from shared.ai_provenance import case_context as _ai_case_ctx
         oai = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        resp = await _pozovi_zadaci_api(
-            oai,
-            model="gpt-4o-mini",
-            temperature=0.2,
-            max_tokens=600,
-            messages=[{
-                "role": "user",
-                "content": (
-                    "Ti si asistent advokatske kancelarije. Analiziraj sledeći predmet i identifikuj "
-                    "konkretne zadatke koji nedostaju ili su hitni.\n\n"
-                    + kontekst
-                    + "\n\nVrati SAMO JSON listu zadataka koji treba kreirati:\n"
-                    '[{"naziv": "...", "opis": "...", "prioritet": "hitno|visoko|normalan|nisko"}]\n\n'
-                    "Pravila:\n"
-                    "- Za nedostajuće dokumente/dokaze i kritične rokove: koristi ISKLJUČIVO nalaze iz "
-                    "POZNATI PROBLEMI iznad (već su deterministički provereni) — ne nagađaj iz naziva "
-                    "fajlova da li dokument (npr. punomoćje) postoji ili ne, taj nalaz je gore ako je stvaran.\n"
-                    "- Ako je predmet neaktivan >14 dana → zadatak 'Proveriti status predmeta' (normalan)\n"
-                    "- Ako ima nefakturisanog >50000 RSD → zadatak 'Fakturisati nenaplaćene stavke' (visoko)\n"
-                    "- Max 5 zadataka. Ekavica. Samo konkretni, akcioni zadaci."
-                )
-            }],
-            response_format={"type": "json_object"},
-        )
+        with _ai_case_ctx(
+            predmet_id=predmet_id, module_name="zadaci", operation_name="ai_analiziraj_predmet",
+            knowledge_sources=[p["problem"] for p in _otkriveni_problemi],
+        ):
+            resp = await _pozovi_zadaci_api(
+                oai,
+                model="gpt-4o-mini",
+                temperature=0.2,
+                max_tokens=600,
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        "Ti si asistent advokatske kancelarije. Analiziraj sledeći predmet i identifikuj "
+                        "konkretne zadatke koji nedostaju ili su hitni.\n\n"
+                        + kontekst
+                        + "\n\nVrati SAMO JSON listu zadataka koji treba kreirati:\n"
+                        '[{"naziv": "...", "opis": "...", "prioritet": "hitno|visoko|normalan|nisko"}]\n\n'
+                        "Pravila:\n"
+                        "- Za nedostajuće dokumente/dokaze i kritične rokove: koristi ISKLJUČIVO nalaze iz "
+                        "POZNATI PROBLEMI iznad (već su deterministički provereni) — ne nagađaj iz naziva "
+                        "fajlova da li dokument (npr. punomoćje) postoji ili ne, taj nalaz je gore ako je stvaran.\n"
+                        "- Ako je predmet neaktivan >14 dana → zadatak 'Proveriti status predmeta' (normalan)\n"
+                        "- Ako ima nefakturisanog >50000 RSD → zadatak 'Fakturisati nenaplaćene stavke' (visoko)\n"
+                        "- Max 5 zadataka. Ekavica. Samo konkretni, akcioni zadaci."
+                    )
+                }],
+                response_format={"type": "json_object"},
+            )
         raw = resp.choices[0].message.content or "[]"
         parsed = json.loads(raw)
         ai_zadaci = parsed if isinstance(parsed, list) else parsed.get("zadaci", [])

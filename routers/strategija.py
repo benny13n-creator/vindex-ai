@@ -77,10 +77,12 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
     asyncio.create_task(_audit(user["user_id"], "red_team", ""))
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
-        rezultat = await asyncio.to_thread(
-            red_team_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context,
-            req.tip_postupka or "gradjansko"
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="strategija", operation_name="red_team"):
+            rezultat = await asyncio.to_thread(
+                red_team_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context,
+                req.tip_postupka or "gradjansko"
+            )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
@@ -101,9 +103,11 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
     asyncio.create_task(_audit(user["user_id"], "litigation", ""))
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
-        rezultat = await asyncio.to_thread(
-            litigation_simulator_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="strategija", operation_name="litigation"):
+            rezultat = await asyncio.to_thread(
+                litigation_simulator_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
+            )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
@@ -124,9 +128,11 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
     asyncio.create_task(_audit(user["user_id"], "ai_sudija", ""))
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
-        rezultat = await asyncio.to_thread(
-            ai_judge_mode_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="strategija", operation_name="ai_sudija"):
+            rezultat = await asyncio.to_thread(
+                ai_judge_mode_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
+            )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
@@ -162,9 +168,11 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
     asyncio.create_task(_audit(user["user_id"], "due_diligence", ""))
     _zakon_context = await _fetch_zakon_ctx(req.tekst)
     try:
-        rezultat = await asyncio.to_thread(
-            due_diligence_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _zakon_context
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="strategija", operation_name="due_diligence"):
+            rezultat = await asyncio.to_thread(
+                due_diligence_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _zakon_context
+            )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
@@ -184,9 +192,11 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "pravni_revizor", ""))
     try:
-        rezultat = await asyncio.to_thread(
-            pravni_revizor_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="strategija", operation_name="pravni_revizor"):
+            rezultat = await asyncio.to_thread(
+                pravni_revizor_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+            )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
@@ -206,9 +216,11 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
         raise HTTPException(status_code=422, detail="Iskaz mora imati najmanje 50 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "witness_analyzer", ""))
     try:
-        rezultat = await asyncio.to_thread(
-            witness_analyzer_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="strategija", operation_name="witness_analyzer"):
+            rezultat = await asyncio.to_thread(
+                witness_analyzer_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+            )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
@@ -228,9 +240,11 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 100 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "sudija_v2", ""))
     try:
-        rezultat = await asyncio.to_thread(
-            ai_judge_v2_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="strategija", operation_name="sudija_v2"):
+            rezultat = await asyncio.to_thread(
+                ai_judge_v2_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+            )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
@@ -278,13 +292,15 @@ async def post_kompletna_analiza(
 
     async def _run_analiza():
         begin_cost_tracking()
-        rezultat = await asyncio.to_thread(
-            orkestrator_kompletna_analiza_sync,
-            req.opis_predmeta,
-            os.getenv("OPENAI_API_KEY", ""),
-            req.dokumenti,
-            req.iskazi_svedoka,
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="strategija", operation_name="kompletna_analiza"):
+            rezultat = await asyncio.to_thread(
+                orkestrator_kompletna_analiza_sync,
+                req.opis_predmeta,
+                os.getenv("OPENAI_API_KEY", ""),
+                req.dokumenti,
+                req.iskazi_svedoka,
+            )
         asyncio.create_task(log_cost_to_db(uid, "kompletna_analiza"))
         # multiplier čita se iz feature_registry.credit_multiplier (migracija 069,
         # Admin Console editabilno) — ne hardkoduje se ovde.
@@ -366,17 +382,19 @@ async def strategija_v2_analiza(
     oai = AsyncOpenAI(api_key=_os.getenv("OPENAI_API_KEY", ""))
     try:
         begin_cost_tracking()
-        resp = await _pozovi_strategija_v2_api(
-            oai,
-            model="gpt-4o",
-            temperature=0.1,
-            max_tokens=3000,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _V2_SYSTEM},
-                {"role": "user",   "content": user_msg},
-            ],
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="strategija", operation_name="strategija_v2"):
+            resp = await _pozovi_strategija_v2_api(
+                oai,
+                model="gpt-4o",
+                temperature=0.1,
+                max_tokens=3000,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _V2_SYSTEM},
+                    {"role": "user",   "content": user_msg},
+                ],
+            )
         analiza = _json.loads(resp.choices[0].message.content or "{}")
         asyncio.create_task(log_cost_to_db(uid, "strategija_v2"))
         # Pojedinačan poziv (bazna cena) — vidi napomenu iznad o multiplier=1 override-u.

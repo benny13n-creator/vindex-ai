@@ -361,17 +361,22 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
 
     from openai import AsyncOpenAI
     import json as _json
+    from shared.ai_provenance import case_context as _ai_case_ctx
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     try:
-        resp = await _pozovi_gpt4o_mini(
-            oai,
-            model="gpt-4o-mini", temperature=0.1, max_tokens=1200,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _SYNTH_SYSTEM},
-                {"role": "user",   "content": ctx},
-            ],
-        )
+        with _ai_case_ctx(
+            predmet_id=predmet_id, module_name="copilot", operation_name="analiza_predmeta",
+            knowledge_sources=([d.get("naziv_fajla") for d in dok] if dok else []),
+        ):
+            resp = await _pozovi_gpt4o_mini(
+                oai,
+                model="gpt-4o-mini", temperature=0.1, max_tokens=1200,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _SYNTH_SYSTEM},
+                    {"role": "user",   "content": ctx},
+                ],
+            )
         result = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
         _sentry_capture(e)

@@ -686,7 +686,10 @@ async def _do_genome_refresh(
             return
 
         dokazi_ctx = await _fetch_dokazi_kontekst(supa, predmet_id)
-        genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata)
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(predmet_id=predmet_id, module_name="case_dna", operation_name="genome_extraction",
+                          knowledge_sources=[d.get("id") for d in docs]):
+            genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata)
         if genome.get("_genome_docs_preskoceno"):
             logger.warning(
                 "[GENOME] predmet=%s: %d dokumenata IZOSTAVLJENO iz analize (ukupno=%s, analizirano=%d)",
@@ -837,7 +840,10 @@ async def refresh_case_dna(predmet_id: str, request: Request, user=Depends(Permi
         }
 
     dokazi_ctx = await _fetch_dokazi_kontekst(supa, predmet_id)
-    genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata)
+    from shared.ai_provenance import case_context as _ai_case_ctx
+    with _ai_case_ctx(predmet_id=predmet_id, module_name="case_dna", operation_name="genome_extraction",
+                      knowledge_sources=[d.get("id") for d in docs]):
+        genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata)
 
     if not genome.get("greska"):
         await UsageService.consume(uid, user.get("email", ""), "case_dna")

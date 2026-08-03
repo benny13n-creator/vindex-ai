@@ -197,16 +197,21 @@ Napiši briefing u sledećem formatu:
 Budi direktan, koncizan, kao iskusan kolega koji te brifuje. Bez praznih reči. Ekavica."""
 
     from openai import OpenAI
+    from shared.ai_provenance import case_context as _ai_case_ctx
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-    ai_resp = await asyncio.to_thread(
-        _pozovi_briefing_sync_api,
-        oai,
-        model="gpt-4o",
-        messages=[{"role": "user", "content": ai_prompt}],
-        max_tokens=600,
-        temperature=0.4,
-    )
+    with _ai_case_ctx(
+        module_name="morning_briefing", operation_name="daily_briefing",
+        knowledge_sources=[p.get("id") for p in predmeti],
+    ):
+        ai_resp = await asyncio.to_thread(
+            _pozovi_briefing_sync_api,
+            oai,
+            model="gpt-4o",
+            messages=[{"role": "user", "content": ai_prompt}],
+            max_tokens=600,
+            temperature=0.4,
+        )
 
     ai_tekst = ai_resp.choices[0].message.content.strip()
 

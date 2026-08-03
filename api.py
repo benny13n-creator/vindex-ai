@@ -3121,6 +3121,14 @@ def _require_auth(authorization: Optional[str]) -> object:
             or ""
         )
 
+    # Mission Atlas (2026-08-03) — same AI Provenance request-context stamp
+    # as shared/deps.py::get_current_user, for api.py's own manual-auth style.
+    try:
+        from shared.ai_provenance import set_request_context
+        set_request_context(user_id=payload.get("sub"))
+    except Exception:
+        pass
+
     return _AuthUser()
 
 

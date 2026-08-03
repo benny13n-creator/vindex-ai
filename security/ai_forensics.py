@@ -165,6 +165,116 @@ def _persist_sync(data: dict) -> None:
         logger.debug("[FORENSICS] sync persist greška: %s", e)
 
 
+# ─── Mission Atlas (2026-08-03) — canonical-wrapper provenance sink ──────────
+# ForensicsRecord/log_ai_call_sync above were designed for explicit, per-call-
+# site instrumentation and were never actually wired into any of the ~130 AI
+# call sites (confirmed: zero imports of this module anywhere else in the
+# repo before this mission) — the table and hashing design were correct, they
+# were simply never connected. log_provenance_from_wrapper is the sink the
+# canonical wrapper (shared/ai_client.py's already-patched Completions.create/
+# AsyncCompletions.create/Embeddings.create) calls automatically on every AI
+# call, structurally, the same way SEC-003's prompt guard already does — no
+# per-call-site wiring required for the fields a wrapper CAN see (model,
+# tokens, latency, hashes). Case/user context (fields a global SDK-level
+# patch cannot see on its own) comes from shared/ai_provenance.py's context
+# vars, read here as `ctx`.
+#
+# Column set here is a superset of the original 043 migration's ai_forensics
+# table — see migrations/<pending>_ai_provenance_extension.sql (drafted, NOT
+# applied; founder runs migrations himself per this project's standing rule).
+# Extra columns are additive (ADD COLUMN IF NOT EXISTS), so this function is
+# safe to call before that migration runs too: unknown-column inserts would
+# fail loudly against a real Postgres schema, so _persist_provenance only
+# includes a column if the caller actually supplied a value for it, keeping
+# pre-migration environments from erroring on every AI call.
+
+async def log_provenance_from_wrapper(
+    *,
+    module_name: str,
+    operation_name: Optional[str] = None,
+    model_provider: str,
+    model_name: str,
+    model_version: Optional[str] = None,
+    system_prompt_hash: Optional[str] = None,
+    user_prompt_hash: Optional[str] = None,
+    prompt_version: Optional[str] = None,
+    token_usage_input: Optional[int] = None,
+    token_usage_output: Optional[int] = None,
+    latency_ms: Optional[int] = None,
+    output_hash: Optional[str] = None,
+    confidence_score: Optional[float] = None,
+    hallucination_check_result: Optional[str] = None,
+    correlation_id: Optional[str] = None,
+    parent_event_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    predmet_id: Optional[str] = None,
+    document_id: Optional[str] = None,
+    knowledge_sources: Optional[list] = None,
+    retrieved_context_ids: Optional[list] = None,
+    retrieval_query: Optional[str] = None,
+    audit_reference: Optional[str] = None,
+    status: str = "success",
+    error_message: Optional[str] = None,
+) -> None:
+    """Fail-soft, fire-and-forget insert — a provenance-logging bug must
+    never break a real AI call, same contract as every other function here."""
+    record = {
+        "user_id":                    user_id,
+        "endpoint":                   module_name,          # legacy column, kept populated for BEFORE-migration compatibility
+        "model":                      model_name,            # legacy column, same reason
+        "prompt_hash":                user_prompt_hash,       # legacy column, closest equivalent
+        "started_at":                 _utcnow(),
+        "latency_ms":                 latency_ms,
+        "response_hash":              output_hash,
+        "tokens_prompt":               token_usage_input,
+        "tokens_completion":           token_usage_output,
+        "prompt_version":              prompt_version or "1.0",
+        "module_name":                module_name,
+        "operation_name":              operation_name,
+        "model_provider":              model_provider,
+        "model_version":               model_version,
+        "system_prompt_hash":           system_prompt_hash,
+        "user_prompt_hash":             user_prompt_hash,
+        "confidence_score":            confidence_score,
+        "hallucination_check_result":  hallucination_check_result,
+        "correlation_id":              correlation_id,
+        "parent_event_id":             parent_event_id,
+        "tenant_id":                   tenant_id,
+        "predmet_id":                  predmet_id,
+        "document_id":                 document_id,
+        "knowledge_sources":           knowledge_sources or [],
+        "retrieved_context_ids":       retrieved_context_ids or [],
+        "retrieval_query":             retrieval_query,
+        "audit_reference":             audit_reference,
+        "status":                     status,
+        "error_message":               error_message,
+    }
+    # Legacy-only subset — columns that already exist in the 043 migration,
+    # so this still writes REAL rows before the founder runs the extension
+    # migration (same "try wide, fall back to narrow" idiom already used
+    # elsewhere in this repo for schema-pending columns, e.g.
+    # api.py's predmet_dokumenti tekst_sadrzaj insert).
+    _legacy_keys = {
+        "user_id", "endpoint", "model", "prompt_hash", "started_at",
+        "latency_ms", "response_hash", "tokens_prompt", "tokens_completion",
+        "prompt_version",
+    }
+    legacy_record = {k: v for k, v in record.items() if k in _legacy_keys}
+
+    try:
+        from api import _get_supa
+        supa = _get_supa()
+        safe = {k: (json.dumps(v) if isinstance(v, list) else v) for k, v in record.items() if v is not None}
+        try:
+            await asyncio.to_thread(lambda: supa.table("ai_forensics").insert(safe).execute())
+        except Exception:
+            safe_legacy = {k: v for k, v in safe.items() if k in legacy_record}
+            await asyncio.to_thread(lambda: supa.table("ai_forensics").insert(safe_legacy).execute())
+    except Exception as e:
+        logger.debug("[FORENSICS] provenance persist greška (nije kritično): %s", e)
+
+
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _sha256(text: str) -> str:

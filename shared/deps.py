@@ -295,6 +295,17 @@ async def get_current_user(
         or ""
     )
     logger.debug("get_current_user: sub=%s email=%s", payload.get("sub", "?")[:8], email)
+    # Mission Atlas (2026-08-03) — AI Provenance request context. Every
+    # Depends(get_current_user)-protected endpoint already resolves the user
+    # here; stamping it into shared/ai_provenance.py's request-scoped
+    # contextvar lets the canonical AI wrapper (shared/ai_client.py) attach
+    # "who triggered this AI call" without any of the ~130 AI call sites
+    # needing to pass user_id through explicitly.
+    try:
+        from shared.ai_provenance import set_request_context
+        set_request_context(user_id=payload.get("sub"))
+    except Exception:
+        pass
     return {"user_id": payload.get("sub"), "email": email}
 
 
