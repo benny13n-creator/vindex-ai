@@ -481,3 +481,56 @@ mission ("work as an independent engineer trying to break the system, not the au
 their own code") is the direct cause of this mission's headline finding — a confirmation-oriented pass
 over the same code would very plausibly have re-stated Sentinel/Ledger's "GENOME_UPDATED is fully durable"
 claim rather than tracing one more layer into `asyncio.gather`'s actual semantics.
+
+---
+
+## Mission Keystone (2026-08-04) — Final Pre-Beta Readiness Validation
+
+**Methodology note, this mission's own governing rule**: *"Ne koristi stare brojeve. Izmeri ponovo."*
+(Don't use old numbers. Measure again.) Every figure below comes from a fresh count against current code
+(7 independent, parallel investigation forks), not from copying a prior mission's self-reported number.
+Where a fresh count meaningfully diverges from a prior figure, both are shown, with the prior figure's
+own scope stated — this is a denominator correction, not a claim that prior work was wrong.
+
+| Metric | Target | Prior figure (scope) | **Keystone fresh figure (full-system scope)** |
+|---|---|---|---|
+| Intelligence Connectivity Score (ICS) | — (first measurement) | not previously computed | **~34–39%** |
+| Critical Intelligence Coverage (CIC) | — (first measurement) | not previously computed | **~68%** |
+| Audit Link Coverage | ≥95% | 78% (Migration, 36-row hand-curated scope) | **~39%** (76 call sites / 55 files) |
+| Provenance Coverage | ≥95% | 58–75% (Atlas) | **~87%** (but "source references" field: 0% populated anywhere) |
+| Replay Coverage | ≥95% | not previously computed at this granularity | **~100%** technical/correlation level, **~39%** full business-content level |
+| Reliability Score | ≥90% | implied ~100% for Phoenix's touched flows | **~75–80%** (full module population) |
+| Failure Recovery Coverage | 100% | implied high (Phoenix) | **~65–75%** (~75% of modules never chaos-tested by any mission) |
+
+**Why the divergence**: Phase 2's fresh, unfiltered grep for AI call sites found 76 across 55 files —
+roughly 41 live, mounted production routers (case_commander, matter_intel, memory_graph, multi_agent,
+praksa, precedenti, health_index, digital_twin, and more) that every prior mission's hand-curated ~36-row
+inventory never counted, despite being registered, non-dead code. This is a scope correction: every prior
+mission's fixes are re-verified intact; the measured system was simply smaller than the real one.
+
+**Fixes this mission**:
+- Multi-worker Event Bus duplicate-dispatch race (production's default 4 gunicorn workers each ran an
+  independent, unclaimed `DispatchLoop` poll against the same outbox) — closed via a new
+  `claim_pending_events()` RPC (migration 091, drafted not run) mirroring migration 073's proven
+  `claim_intake_job` pattern, with a safe pre-migration fallback.
+- `routers/dokument.py::dokument_pitanje` — a second, real, previously-uncounted `ask_agent` call path,
+  migrated onto the canonical stack (case_context + log_action).
+
+**New Critical finding, not fixed this mission (founder decision required)**: GDPR account deletion
+(`routers/gdpr.py::gdpr_delete_account`) doesn't cascade to case/client/document data, Pinecone vectors,
+or Storage files — only the login profile is anonymized. Corrects a prior mission's inaccurate
+characterization of `services/retention_service.py` as "the GDPR deletion mechanism" (it only does
+operational-log TTL cleanup, unrelated to user-initiated erasure).
+
+**Test results**: 8 new tests (`tests/test_keystone_readiness_validation.py`), 10 pre-existing tests
+updated (mock adjustments to simulate the pre-migration-091 state across 5 files) — all passing.
+236-test targeted regression sweep green. Full repository suite: see
+`docs/architecture/KEYSTONE_FINAL_READINESS_REPORT.md` for the exact count at merge time.
+
+**Final Beta Gate decision**: 🟡 **READY WITH ACCEPTED RISKS** — none of the 7 numeric targets are met
+under the honest full-system denominator, and there is one unresolved Critical finding (GDPR erasure) and
+one High-severity "unreliable AI conclusion" risk (Strategy Engine's ungrounded confidence percentage) —
+but there is no active data loss, no active cross-tenant breach, and the core golden path functions
+correctly end-to-end with genuine, tested reliability engineering behind it across all 6 missions this
+engagement. The decision is conditional on the founder explicitly accepting these named risks for a
+**closed** beta (small, trusted, consenting cohort) — not a green light for public launch or GA.

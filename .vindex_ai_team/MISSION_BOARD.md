@@ -312,8 +312,44 @@ risky this session" caution.
 |---|---|---|---|---|---|---|
 | PHOENIX-001 | Event Bus dead-letter rows have no operator-facing surface | 1 | none | Small-Medium | TODO | `MAX_DISPATCH_ATTEMPTS=5` dead-lettering (this mission's own new mechanism) durably records a permanently-failing handler's row with a `"DEAD_LETTER after N attempts: ..."` marker and a `logger.critical` line, but nothing alerts a human — an engineer must know to query the `events` table. A cron digest or a `proactive_alerts` row (mirroring `on_document_job_failed`'s own precedent) would close this cheaply, using an existing pattern rather than new infrastructure. |
 | PHOENIX-002 | `nightly_alert_insert_failed` audit entries have no operator-facing surface | 2 | none | Small | TODO | Same shape as PHOENIX-001 — this mission's fix makes a lost critical alert durably recorded (`shared/audit_immutable.py`), but no human is notified. Same fix pattern applies (cron digest, or a `proactive_alerts` row for the on-call engineer/founder, not the affected lawyer). |
-| PHOENIX-003 | Re-verify Timeline, Deadlines, Firm Brain, Anthropic, and File Storage failure-recovery posture | 3 | none | Medium (investigation) | NEEDS_SCOPING | Explicitly not re-verified this mission (out of the 4 forks' scope) — Phase 5's Recovery Matrix leaves these unscored rather than guessing. Should be a future investigation-only pass before any Reliability Score claim can honestly cover 100% of Phase 1's named systems. |
+| PHOENIX-003 | Re-verify Timeline, Deadlines, Firm Brain, Anthropic, and File Storage failure-recovery posture | 3 | none | Medium (investigation) | **PARTIALLY RESOLVED (2026-08-04, Mission Keystone)** | Anthropic resolved: confirmed zero usage anywhere in the codebase (no SDK import, no key var, no model string) — reclassified N/A, not a gap. File Storage, OCR timeout, Timeline/Deadlines/Firm Brain failure posture still not independently re-verified by any mission — see `KEYSTONE_FINAL_READINESS_REPORT.md`'s Risk Register item K-14. |
 | PHOENIX-004 | Pinecone ghost-vector cleanup on the aborted-upload path | 4 | none | Small-Medium | TODO | Known, named since Project Sentinel (`api.py:4249-4251`'s own comment) — a vector ingested before a `predmet_dokumenti` insert failure is never cleaned up. Not attempted this mission (different scope: request-path reliability, not post-hoc cleanup) but now explicitly tracked as its own item rather than living only as an inline comment. |
+
+## Mission Keystone (2026-08-04) — Final Pre-Beta Readiness Validation
+
+Founder's Master Prompt: "Final Pre-Beta Readiness Validation" — the 6th and final mission of this
+session's engagement. Explicit mandate to challenge, not confirm, prior work. Fresh, full-system
+re-measurement (Phase 2) found every prior mission's coverage metric was computed against a narrower
+scope than reality: an unfiltered grep found 76 AI call sites across 55 files (vs. the ~36-row
+hand-curated inventories Atlas/Ledger/Migration/Phoenix all used), revising Audit Link Coverage down to
+~39% system-wide. Found and fixed the multi-worker Event Bus duplicate-dispatch race (production runs 4
+gunicorn workers, each with an independent unclaimed-poll `DispatchLoop`) via a new `claim_pending_events`
+RPC mirroring migration 073's proven `claim_intake_job` pattern. Found one Critical, unresolved finding:
+`routers/gdpr.py::gdpr_delete_account` doesn't actually delete case/client/document data — corrects a
+prior mission's inaccurate characterization of `services/retention_service.py` as "the GDPR deletion
+mechanism" (it only does operational-log TTL cleanup). Final Beta Gate decision: 🟡 **READY WITH ACCEPTED
+RISKS**, conditional on the founder explicitly accepting the GDPR gap and Strategy Engine's ungrounded
+confidence-percentage risk for a closed beta. Full report:
+`docs/architecture/KEYSTONE_FINAL_READINESS_REPORT.md`. Investigations:
+`decisions/2026-08-04_keystone_phase1_architecture_freeze_INVESTIGATION.md`,
+`decisions/2026-08-04_keystone_phase2_metrics_INVESTIGATION.md`,
+`decisions/2026-08-04_keystone_phase3_golden_path_INVESTIGATION.md`,
+`decisions/2026-08-04_keystone_phase4_chaos_INVESTIGATION.md`,
+`decisions/2026-08-04_keystone_phase5_ai_quality_INVESTIGATION.md`,
+`decisions/2026-08-04_keystone_phase6_security_INVESTIGATION.md`,
+`decisions/2026-08-04_keystone_phase7_beta_user_simulation_INVESTIGATION.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| KEYSTONE-CRITICAL | GDPR account deletion doesn't cascade to case/client/document data, Pinecone vectors, or Storage files | 0 | Founder decision on retention-exception scope (billing/legal-hold obligations?) | Medium-Large | **FOUNDER DECISION REQUIRED** | See Risk Register item K-1. Not a "clearly localized" fix — touches real lawyer case data irreversibly, needs explicit scope sign-off before implementation. |
+| KEYSTONE-001 | Voice Orchestrator (`services/voice_orchestrator.py`) bypasses the canonical AI wrapper entirely | 1 | none | Medium-Large | TODO | Raw WebSocket to OpenAI's Realtime API — no correlation_id/case_context/provenance capture for voice sessions. Breaks the "100% wrapper coverage" claim for this one feature. |
+| KEYSTONE-002 | Genome → Strategy/Risk/Tasks connectivity gap; Firm Brain/Memory Graph are fully isolated islands | 2 | Founder decision — is deeper auto-connection desired, or is lawyer-initiated by design? | Large (architecture) | NEEDS_SCOPING — founder decision | The 9-step Case Pipeline auto-fires once at case creation (before documents exist) and never re-runs; Strategy Engine output isn't persisted for Timeline/Dashboard. Not a bug — a product-design question. |
+| KEYSTONE-003 | Document classification and Genome refresh background-task failures are log-only, no durable audit/alert | 3 | none (proven pattern exists) | Small-Medium | TODO | Apply Phoenix's own nightly-alert retry+durable-audit pattern (`nightly_alert_insert_failed`) to these two background paths — same shape, not new infrastructure. |
+| KEYSTONE-004 | Strategy Engine's litigation win-probability % is raw, ungrounded LLM output with zero validation | 1 | Founder decision — apply Deterministic Intelligence Framework pattern? | Medium-Large | TODO — highest-priority non-Critical item | The single riskiest AI-quality finding in the app: no backend confidence computation, no citation-grounding check, on the number a lawyer cares about most. |
+| KEYSTONE-005 | Genome analysis not flagged stale after a case-defining field edit | 4 | none | Small (UX) | TODO — explicitly UX, deferred past this mission | Editing `tip`/`rizik` gives instant save confirmation but the AI analysis below silently stays unmarked as potentially outdated. |
+| KEYSTONE-006 | Genome background-regen watcher silently times out after 90s with no error state | 5 | none | Small (UX) | TODO — explicitly UX, deferred past this mission | Reverts to default hint text with no failure signal; manual refresh still works. |
+| KEYSTONE-007 | Run `migrations/091_event_bus_atomic_claim.sql` in production | 1 | Founder runs migrations himself | Small | NEEDS_SCOPING — founder action | Until run, the multi-worker Event Bus duplicate-dispatch race (this mission's code fix is inert without it) remains exactly as exposed as before this mission. |
+| KEYSTONE-008 | Predmet-creation endpoint has no idempotency key; Client creation uses the older `audit_log` mechanism with no dedup | 4 | Founder decision on idempotency-key design | Medium | NEEDS_SCOPING | Client-side retry could double-create a case; rapid double-submit on client creation isn't deduped. |
 
 ## Explicit exclusions from autonomous scope (per the Master Prompt's own Stop Conditions)
 
