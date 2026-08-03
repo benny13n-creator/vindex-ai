@@ -4475,12 +4475,24 @@ async def predmet_upload_auto_analyze(
             ],
         )
 
-    _pr, _hr, _meta = await asyncio.gather(
-        asyncio.to_thread(_call_procena),
-        asyncio.to_thread(_call_hronologija),
-        asyncio.to_thread(_call_metapodaci),
-        return_exceptions=True,
-    )
+    # Mission Migration (2026-08-03) -- Canonical AI Infrastructure Adoption:
+    # wraps the 3 parallel GPT calls in explicit case_context() so their
+    # ai_forensics rows carry predmet_id/document_id (previously only the
+    # request-level correlation_id was inherited automatically, per Mission
+    # Ledger's default). asyncio.to_thread() copies the current contextvars
+    # context into its executor thread, so this contextvar is visible inside
+    # each of the 3 synchronous _call_*() functions above.
+    from shared.ai_provenance import case_context as _ai_case_ctx
+    with _ai_case_ctx(
+        predmet_id=predmet_id, document_id=_dok_id, module_name="api_upload",
+        operation_name="procena_hronologija_metapodaci",
+    ):
+        _pr, _hr, _meta = await asyncio.gather(
+            asyncio.to_thread(_call_procena),
+            asyncio.to_thread(_call_hronologija),
+            asyncio.to_thread(_call_metapodaci),
+            return_exceptions=True,
+        )
 
     # Jedan consume() poziv za celokupnu upload-triggered AI analizu (3 paralelna
     # potpoziva iznad broje se kao JEDNA upotreba ove funkcije, ne tri).
@@ -4630,6 +4642,18 @@ async def predmet_upload_auto_analyze(
     predlozi_povezivanja = sorted(_seen_al.values(), key=lambda x: -x["pouzdanost"])
 
     asyncio.create_task(asyncio.to_thread(cleanup_expired))
+
+    # Mission Migration (2026-08-03) -- Canonical AI Infrastructure Adoption:
+    # dedicated audit entry for "AI analyzed this document," distinct from
+    # the raw "dokument_upload" audit above (that one records the upload
+    # act; this records the AI decision act) -- correlation_id auto-inherits
+    # from the request context.
+    if procena_tekst:
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            action="dokument_ai_analiza_complete", user_id=user.id,
+            resource_type="predmet_dokumenti", resource_id=_dok_id,
+        ))
 
     return {
         "session_id":          session_id,

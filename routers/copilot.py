@@ -473,22 +473,32 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
 
     from openai import AsyncOpenAI
     import json as _json
+    from shared.ai_provenance import case_context as _ai_case_ctx
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     try:
-        resp = await _pozovi_gpt4o_mini(
-            oai,
-            model="gpt-4o-mini", temperature=0.1, max_tokens=2000,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _PLAN_SYSTEM},
-                {"role": "user",   "content": ctx},
-            ],
-        )
+        with _ai_case_ctx(predmet_id=predmet_id, module_name="copilot", operation_name="plan_predmeta"):
+            resp = await _pozovi_gpt4o_mini(
+                oai,
+                model="gpt-4o-mini", temperature=0.1, max_tokens=2000,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": _PLAN_SYSTEM},
+                    {"role": "user",   "content": ctx},
+                ],
+            )
         result = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
         _sentry_capture(e)
         logger.error("[COPILOT-PLAN] OpenAI greška: %s", e)
         return {"tip": "PLAN", "odgovor": "Greška pri generisanju plana."}
+
+    # Mission Migration (2026-08-03) -- Audit Link Coverage: trajan audit trag,
+    # correlation_id automatski nasleđen (v. case_context iznad).
+    from shared.audit_immutable import log_action
+    asyncio.create_task(log_action(
+        action="copilot_plan_predmeta", user_id=user_id,
+        resource_type="predmet", resource_id=predmet_id,
+    ))
 
     return {
         "tip":              "PLAN",
@@ -516,12 +526,14 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
         f"Danas je {date.today().isoformat()}. Relativne datume pretvori u apsolutne."
     )
     try:
-        resp = await _pozovi_gpt4o_mini(
-            oai,
-            model="gpt-4o-mini", temperature=0, max_tokens=150,
-            response_format={"type": "json_object"},
-            messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(predmet_id=predmet_id, module_name="copilot", operation_name="akcija_rok"):
+            resp = await _pozovi_gpt4o_mini(
+                oai,
+                model="gpt-4o-mini", temperature=0, max_tokens=150,
+                response_format={"type": "json_object"},
+                messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
+            )
         ext = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
         _sentry_capture(e)
@@ -547,6 +559,12 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
         logger.error("[COPILOT-ROK] insert greška: %s", e)
         return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Greška pri čuvanju roka. Pokušajte ponovo."}
 
+    from shared.audit_immutable import log_action
+    asyncio.create_task(log_action(
+        action="copilot_dodaj_rok", user_id=user_id,
+        resource_type="predmet", resource_id=predmet_id,
+    ))
+
     return {
         "tip":     "DODAJ_ROK",
         "uspeh":   True,
@@ -569,12 +587,14 @@ async def _handle_akcija_beleska(poruka: str, predmet_id: str, user_id: str) -> 
         'Vrati ISKLJUČIVO JSON: {"sadrzaj": str}'
     )
     try:
-        resp = await _pozovi_gpt4o_mini(
-            oai,
-            model="gpt-4o-mini", temperature=0, max_tokens=400,
-            response_format={"type": "json_object"},
-            messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(predmet_id=predmet_id, module_name="copilot", operation_name="akcija_beleska"):
+            resp = await _pozovi_gpt4o_mini(
+                oai,
+                model="gpt-4o-mini", temperature=0, max_tokens=400,
+                response_format={"type": "json_object"},
+                messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
+            )
         ext     = _json.loads(resp.choices[0].message.content or "{}")
         sadrzaj = (ext.get("sadrzaj") or "").strip()
     except Exception as e:
@@ -596,6 +616,12 @@ async def _handle_akcija_beleska(poruka: str, predmet_id: str, user_id: str) -> 
         logger.error("[COPILOT-BELESKA] insert greška: %s", e)
         return {"tip":"KREIRAJ_BELEŠKU","uspeh":False,"odgovor":"Greška pri čuvanju beleške."}
 
+    from shared.audit_immutable import log_action
+    asyncio.create_task(log_action(
+        action="copilot_kreiraj_belesku", user_id=user_id,
+        resource_type="predmet", resource_id=predmet_id,
+    ))
+
     preview = sadrzaj[:80] + ("…" if len(sadrzaj)>80 else "")
     return {
         "tip":     "KREIRAJ_BELEŠKU",
@@ -616,12 +642,14 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
         'Vrati ISKLJUČIVO JSON: {"ime_klijenta": str, "uloga": "stranka|protivna_stranka|svedok|ostalo"}'
     )
     try:
-        resp = await _pozovi_gpt4o_mini(
-            oai,
-            model="gpt-4o-mini", temperature=0, max_tokens=100,
-            response_format={"type": "json_object"},
-            messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(predmet_id=predmet_id, module_name="copilot", operation_name="akcija_povezi_klijenta"):
+            resp = await _pozovi_gpt4o_mini(
+                oai,
+                model="gpt-4o-mini", temperature=0, max_tokens=100,
+                response_format={"type": "json_object"},
+                messages=[{"role":"system","content":_EX_SYS},{"role":"user","content":poruka}],
+            )
         ext = _json.loads(resp.choices[0].message.content or "{}")
     except Exception as e:
         _sentry_capture(e)
@@ -675,6 +703,12 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
     except Exception as e:
         _sentry_capture(e)
         return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Greška pri povezivanju klijenta."}
+
+    from shared.audit_immutable import log_action
+    asyncio.create_task(log_action(
+        action="copilot_povezi_klijenta", user_id=user_id,
+        resource_type="predmet", resource_id=predmet_id,
+    ))
 
     return {
         "tip":        "POVEZI_KLIJENTA",
@@ -845,19 +879,21 @@ async def _handle_ostalo(poruka: str, predmet_ctx: str) -> dict:
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     ctx_line = f"\nKontekst predmeta: {predmet_ctx}" if predmet_ctx else ""
     try:
-        r = await _pozovi_gpt4o_mini(
-            oai,
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": (
-                    "Ti si pravni asistent za srpsko pravo. Daj kratak, konkretan odgovor. "
-                    "Ako ne znaš tačan zakon, kaži to otvoreno." + ctx_line
-                )},
-                {"role": "user", "content": poruka},
-            ],
-            temperature=0.2,
-            max_tokens=600,
-        )
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="copilot", operation_name="ostalo"):
+            r = await _pozovi_gpt4o_mini(
+                oai,
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": (
+                        "Ti si pravni asistent za srpsko pravo. Daj kratak, konkretan odgovor. "
+                        "Ako ne znaš tačan zakon, kaži to otvoreno." + ctx_line
+                    )},
+                    {"role": "user", "content": poruka},
+                ],
+                temperature=0.2,
+                max_tokens=600,
+            )
         return {"tip": "OSTALO", "odgovor": r.choices[0].message.content or ""}
     except Exception as e:
         _sentry_capture(e)
@@ -870,7 +906,9 @@ async def _handle_naplati_radnju(poruka: str, predmet_id: str | None, uid: str) 
     import json as _json
 
     try:
-        raw    = await _oai_parse_json(_NAPLATA_PARSE_SYSTEM, poruka)
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(predmet_id=predmet_id, module_name="copilot", operation_name="naplati_radnju"):
+            raw = await _oai_parse_json(_NAPLATA_PARSE_SYSTEM, poruka)
         parsed = _json.loads(raw)
     except Exception as e:
         _sentry_capture(e)
@@ -934,6 +972,12 @@ async def _handle_naplati_radnju(poruka: str, predmet_id: str | None, uid: str) 
         _sentry_capture(e)
         logger.error("[COPILOT-NAPLATA] DB greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri čuvanju radnje.")
+
+    from shared.audit_immutable import log_action
+    asyncio.create_task(log_action(
+        action="copilot_naplati_radnju", user_id=uid,
+        resource_type="billing_entry", resource_id=kreirana_id,
+    ))
 
     sati_prikaz = f" ({sati}h)" if sati else ""
     return {

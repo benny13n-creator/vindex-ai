@@ -86,6 +86,15 @@ AUDITABLE_ACTIONS: set[str] = {
     # Sentinel's SENT-004 / Mission Atlas's ATLAS-006, sada zatvoreno.
     "strategija_generisana", "copilot_analiza_predmeta",
     "zadaci_ai_analiza_complete", "briefing_generisan",
+    # Mission Migration (2026-08-03) — Canonical AI Infrastructure Adoption.
+    # Preostali Copilot handleri koji mutiraju stvarne podatke na osnovu AI
+    # ekstrakcije (rok/beleška/klijent/naplata/plan) + Court Predictor,
+    # Drafting, Evidence klasifikacija, upload AI analiza — isti obrazac kao
+    # iznad, samo prošireno na sledeći sloj AI funkcionalnosti.
+    "copilot_plan_predmeta", "copilot_dodaj_rok", "copilot_kreiraj_belesku",
+    "copilot_povezi_klijenta", "copilot_naplati_radnju",
+    "court_predictor_analiza", "drafting_generisan",
+    "evidence_klasifikacija", "dokument_ai_analiza_complete",
 }
 
 

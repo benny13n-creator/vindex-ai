@@ -167,7 +167,15 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
     delimican neuspeh vise ne blokira sve."""
     import json
     supa = get_supa()
-    rezultat = _klasifikuj_dokument(naziv, tekst)
+    # Mission Migration (2026-08-03) -- Canonical AI Infrastructure Adoption:
+    # case_context() works from a plain sync function too (not just async) --
+    # this runs inside asyncio.to_thread(klasifikuj_i_sacuvaj, ...), which
+    # copies the caller's contextvars into the executor thread, so this
+    # nested context correctly layers predmet_id/document_id on top of
+    # whatever request-level correlation_id the upload endpoint already set.
+    from shared.ai_provenance import case_context as _ai_case_ctx
+    with _ai_case_ctx(predmet_id=predmet_id, document_id=dokument_id, module_name="evidence", operation_name="klasifikacija"):
+        rezultat = _klasifikuj_dokument(naziv, tekst)
 
     try:
         supa.table("predmet_dokumenti").update({
@@ -177,6 +185,17 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
             "klasifikovan_at": "now()",
         }).eq("id", dokument_id).execute()
         logger.info("[EVIDENCE] Klasifikovan dokument=%s tip=%s", dokument_id, rezultat.get("tip_dokaza"))
+        # klasifikuj_i_sacuvaj is a plain sync function invoked via
+        # asyncio.to_thread() from a worker thread with NO running event
+        # loop of its own -- asyncio.create_task() would raise RuntimeError
+        # here (unlike shared/ai_client.py's async capture path). Use
+        # log_action_sync instead, the same sync-context sibling
+        # shared/audit_immutable.py already provides for exactly this case.
+        from shared.audit_immutable import log_action_sync
+        log_action_sync(
+            action="evidence_klasifikacija", user_id=user_id,
+            resource_type="predmet_dokumenti", resource_id=dokument_id,
+        )
     except Exception as exc:
         logger.warning("[EVIDENCE] Greška pri upisu klasifikacije predmet_dokumenti: %s", exc)
 

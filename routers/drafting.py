@@ -230,6 +230,17 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
             "[STAGING] predmet=%s tip=%s confidence=%.2f -- čeka advokatsku potvrdu",
             predmet_id, tip, quality["confidence_score"],
         )
+        # Mission Migration (2026-08-03) -- Canonical AI Infrastructure
+        # Adoption: durable audit entry for the drafting decision, carrying
+        # quality_gate's already-computed confidence_score in metadata (the
+        # one AI feature in this codebase with a real confidence signal
+        # already available, per Mission Atlas's ATLAS-002 finding).
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            action="drafting_generisan", user_id=user["user_id"],
+            resource_type="predmet", resource_id=predmet_id,
+            metadata={"tip": tip, "confidence_score": quality["confidence_score"]},
+        ))
     except Exception as exc:
         _sentry_capture(exc)
         logger.warning("[STAGING] neuspešno (non-fatal) predmet=%s: %s", predmet_id, exc)

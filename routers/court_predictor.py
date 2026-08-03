@@ -177,9 +177,11 @@ ARGUMENTI SUPROTNE STRANE:
 
     try:
         from openai import OpenAI
+        from shared.ai_provenance import case_context as _ai_case_ctx
         oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        raw = await asyncio.to_thread(_pozovi_predictor_api, oai, user_prompt)
+        with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="prediktuj_ishod"):
+            raw = await asyncio.to_thread(_pozovi_predictor_api, oai, user_prompt)
         import json as _json
         rezultat = _json.loads(raw)
         analiza = (rezultat.get("analiza") or "").strip()
@@ -195,6 +197,11 @@ ARGUMENTI SUPROTNE STRANE:
                     "analiza":      analiza[:5000],
                 }).execute()
             )
+            from shared.audit_immutable import log_action
+            asyncio.create_task(log_action(
+                action="court_predictor_analiza", user_id=uid,
+                resource_type="predmet", resource_id=payload.predmet_id,
+            ))
         except Exception as _exc:
             _sentry_capture(_exc)
             pass
@@ -338,9 +345,11 @@ DOSTUPNI DOKAZI:
 
     try:
         from openai import OpenAI
+        from shared.ai_provenance import case_context as _ai_case_ctx
         oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        report = await asyncio.to_thread(_pozovi_battle_report_api, oai, user_prompt)
+        with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="battle_report"):
+            report = await asyncio.to_thread(_pozovi_battle_report_api, oai, user_prompt)
 
         try:
             await asyncio.to_thread(
@@ -353,6 +362,11 @@ DOSTUPNI DOKAZI:
                     "tip_analize":  "battle_report",
                 }).execute()
             )
+            from shared.audit_immutable import log_action
+            asyncio.create_task(log_action(
+                action="court_predictor_analiza", user_id=uid,
+                resource_type="predmet", resource_id=payload.predmet_id,
+            ))
         except Exception as _exc:
             _sentry_capture(_exc)
             pass
@@ -454,9 +468,11 @@ Tip: {payload.tip_postupka}
 
     try:
         from openai import OpenAI
+        from shared.ai_provenance import case_context as _ai_case_ctx
         oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-        brief = await asyncio.to_thread(_pozovi_hearing_prep_api, oai, user_msg)
+        with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="hearing_prep"):
+            brief = await asyncio.to_thread(_pozovi_hearing_prep_api, oai, user_msg)
 
         if payload.predmet_id:
             try:
@@ -469,6 +485,11 @@ Tip: {payload.tip_postupka}
                         "brief":         brief[:5000],
                     }).execute()
                 )
+                from shared.audit_immutable import log_action
+                asyncio.create_task(log_action(
+                    action="court_predictor_analiza", user_id=uid,
+                    resource_type="predmet", resource_id=payload.predmet_id,
+                ))
             except Exception as _exc:
                 _sentry_capture(_exc)
                 pass
@@ -650,11 +671,13 @@ async def argument_reputation(
     )
 
     from openai import OpenAI
+    from shared.ai_provenance import case_context as _ai_case_ctx
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     try:
         import json
-        raw = await asyncio.to_thread(_pozovi_arg_reputation_api, oai, user_msg)
+        with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="argument_reputation"):
+            raw = await asyncio.to_thread(_pozovi_arg_reputation_api, oai, user_msg)
         rezultat = json.loads(raw)
     except Exception as e:
         _sentry_capture(e)
@@ -672,6 +695,11 @@ async def argument_reputation(
                 "tip_analize":  "argument_reputation",
             }).execute()
         )
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            action="court_predictor_analiza", user_id=uid,
+            resource_type="predmet", resource_id=payload.predmet_id,
+        ))
     except Exception as _exc:
         _sentry_capture(_exc)
         pass
@@ -781,10 +809,12 @@ async def judge_profile(
 
     from openai import OpenAI
     import json
+    from shared.ai_provenance import case_context as _ai_case_ctx
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     try:
-        raw = await asyncio.to_thread(_pozovi_judge_profile_api, oai, user_msg)
+        with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="judge_profile"):
+            raw = await asyncio.to_thread(_pozovi_judge_profile_api, oai, user_msg)
         rezultat = json.loads(raw)
         rezultat["ukupno_odluka_analizirano"] = odluke_count
         if not _RAG_AVAILABLE or odluke_count < 5:
@@ -807,6 +837,11 @@ async def judge_profile(
                 "tip_analize":  "judge_profile",
             }).execute()
         )
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            action="court_predictor_analiza", user_id=uid,
+            resource_type="predmet", resource_id=payload.predmet_id,
+        ))
     except Exception as _exc:
         _sentry_capture(_exc)
         pass
@@ -936,10 +971,12 @@ async def opponent_intel(
 
     from openai import OpenAI
     import json
+    from shared.ai_provenance import case_context as _ai_case_ctx
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     try:
-        raw = await asyncio.to_thread(_pozovi_opponent_intel_api, oai, user_msg)
+        with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="opponent_intel"):
+            raw = await asyncio.to_thread(_pozovi_opponent_intel_api, oai, user_msg)
         rezultat = json.loads(raw)
         if not rag_kontekst and not interni_kontekst:
             rezultat["pouzdanost"] = "niska"
@@ -959,6 +996,11 @@ async def opponent_intel(
                 "tip_analize":  "opponent_intel",
             }).execute()
         )
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            action="court_predictor_analiza", user_id=uid,
+            resource_type="predmet", resource_id=payload.predmet_id,
+        ))
     except Exception as _exc:
         _sentry_capture(_exc)
         pass
@@ -1140,7 +1182,9 @@ async def confidence_check(
             'Odgovori SAMO JSON-om: {"procenat": 65, "razlog_kratko": "...", "kljucni_rizik": "..."}\n'
             "Ekavica. Max 30 reči za razlog."
         )
-        raw = await asyncio.to_thread(_pozovi_confidence_api, oai, gpt_prompt)
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="confidence_check"):
+            raw = await asyncio.to_thread(_pozovi_confidence_api, oai, gpt_prompt)
         import json as _json
         gpt_data    = _json.loads(raw)
         procenat    = max(0, min(100, int(gpt_data.get("procenat", 50))))
@@ -1174,6 +1218,11 @@ async def confidence_check(
                 "tip_analize":  "confidence_check",
             }).execute()
         )
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            action="court_predictor_analiza", user_id=uid,
+            resource_type="predmet", resource_id=payload.predmet_id,
+        ))
     except Exception as _exc:
         _sentry_capture(_exc)
         pass
