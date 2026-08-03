@@ -201,8 +201,8 @@ Investigations: `decisions/2026-08-03_nexus_module_inventory_source_of_truth_INV
 | NEX-001 | Eliminate `routers/ccc.py`'s duplicate, silently-diverging health-score formula + fix its missing-`tip_dokaza` bug | 1 | none | Small | **DONE** | Delegates to the canonical `services/risk_engine.py::calculate_procesni_rizik` instead of a local reimplementation. **Completed 2026-08-03** — see `docs/architecture/NEXUS_ORCHESTRATION_REPORT.md`. Confirmed real Phase-5 violation: two live endpoints could report two different `health_score` values for the same case under the identical field name. 2 new tests + 2 rewritten (imported a now-deleted function), 11 total in `test_ccc.py`. |
 | NEX-002 | Ground `routers/zadaci.py::ai_analiziraj_predmet`'s AI task creation in the canonical `identify_case_problems` | 2 | none | Medium | **DONE** | Was a 5th independent, side-effect-producing GPT-based missing-document detector bypassing the platform's declared sole deterministic algorithm. Now folds the deterministic finding into its GPT prompt (and its GPT-failure fallback path) instead of independently guessing from raw filenames. 3 new tests. |
 | NEX-003 | Fix Case Genome refresh's false-success-toast on genuine LLM failure | 3 | none | Small | **DONE** | Frontend never checked `dna.greska` before choosing a toast — a lawyer saw a green "success" notification on a real failure. Pure frontend fix, no backend change. |
-| NEX-004 | Resolve `PREDMET_KREIRAN`'s Event Bus durability gap | 4 | Verify `run_case_pipeline` idempotency first | Medium | NEEDS_SCOPING | The one true in-process-only `emit()` call site in the repo — no durable outbox row, unlike every other event type. Highest-priority open item per `NEXUS_BETA_READINESS_REPORT.md`. Not fixed blind: making it durable risks double-firing the Case Pipeline unless idempotency is verified first. |
-| NEX-005 | New `DOCUMENT_JOB_FAILED` handler | 5 | none | Small-Medium | NEEDS_SCOPING | Emitted on every failed OCR/classification job, zero handler exists. Needs new handler logic, one step past pure orchestration. |
+| NEX-004 | Resolve `PREDMET_KREIRAN`'s Event Bus durability gap | 4 | Verify `run_case_pipeline` idempotency first | Medium | **DONE (2026-08-03, Project Sentinel)** | Idempotency verified (`_step_ekstrakcija_rokova`'s marker-based dedup); `api.py::kreiraj_predmet` now writes directly to the durable `events` outbox instead of calling `emit()`, mirroring `_emit_genome_event`'s already-proven pattern. See `SENTINEL_ORCHESTRATION_REPORT.md` Fix 3. `ROK_KRITICAN`/`HEALTH_SCORE_PROMENJEN` share the same class of gap but were NOT converted — see SENT-001 below. |
+| NEX-005 | New `DOCUMENT_JOB_FAILED` handler | 5 | none | Small-Medium | **DONE (2026-08-03, Project Sentinel)** | `on_document_job_failed` added to `services/event_bus.py`, subscribed in `_register_defaults()` — resolves the job owner via `intake_jobs.uploaded_by` (the outbox event row itself carries no `user_id`) and writes a `proactive_alerts` row. See `SENTINEL_ORCHESTRATION_REPORT.md` Fix 4. |
 | NEX-006 | AI action provenance strategy (`model`/`prompt version`/`output hash`, captured nowhere in the repo) | 6 | none | Large (schema decision) | NEEDS_SCOPING — founder decision | Uniform gap across all 6 audited AI call sites. Needs a founder-level decision on how much provenance infrastructure to build. |
 | NEX-007 | Fold Case Genome/AI Briefing into an existing hallucination guardrail (Quality Gate's citation check, or Legal Reasoning Engine's SOURCE-n constraint) | 7 | none | Medium | TODO | Both of the highest-visibility AI outputs trust GPT-4o's own output on prompt instruction alone; two structurally-stronger guardrails exist elsewhere, unused here. |
 | NEX-008 | Outcome Intelligence + Judge/Court Predictor read Case Genome (same pattern as Copilot/Firm Brain, Project Synapse) | 8 | none | Small-Medium | TODO | Reconfirmed same gap; well-precedented, low-risk future mission. |
@@ -215,6 +215,36 @@ M-004 ──> M-006 (timeline has nothing new to show without multi-event data)
 M-002, M-003, M-005, M-009, M-010, M-012 ── no dependencies, immediately eligible
 M-008, M-011 ── NEEDS_SCOPING, not eligible until converted to a real TODO with evidence
 ```
+
+## Project Sentinel (2026-08-03) — SENT missions
+
+Founder's Master Prompt: "Pre-Beta Reliability, Trust & Operational Integrity Mission" — deliberate
+follow-on to Project Nexus (which answered "do the modules cooperate?"); this mission answers "can the
+system survive real law-office operation without losing data, silent errors, or false AI conclusions?"
+Full report: `docs/architecture/SENTINEL_RELIABILITY_TRUST_REPORT.md` (Phase 7 E2E verification, Phase 8
+metrics — ICS/CIC/Reliability Score/Provenance Coverage/Failure Recovery Coverage, Phase 9 Beta Gate,
+full findings list, final recommendation). Implementation record: `SENTINEL_ORCHESTRATION_REPORT.md`.
+Investigations: `decisions/2026-08-03_sentinel_critical_flows_INVESTIGATION.md`,
+`decisions/2026-08-03_sentinel_event_bus_hardening_INVESTIGATION.md`,
+`decisions/2026-08-03_sentinel_failure_recovery_INVESTIGATION.md`,
+`decisions/2026-08-03_sentinel_source_of_truth_recheck_INVESTIGATION.md`,
+`decisions/2026-08-03_sentinel_provenance_hallucination_INVESTIGATION.md`.
+
+Also closed **NEX-004** and **NEX-005** (see above) — both scoped by Project Nexus, unblocked and
+implemented this mission.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| SENT-001 | Convert `ROK_KRITICAN`/`HEALTH_SCORE_PROMENJEN` to durable outbox | 1 | Verify `matter_intel.py`'s alert-dedup is safe under durable retry (a naive conversion could double-insert an alert) | Medium | NEEDS_SCOPING | Same non-durable-emit exposure `PREDMET_KREIRAN` had — NOT converted this mission per the investigation's own explicit recommendation to verify dedup safety first. |
+| SENT-002 | Ground Morning Briefing in `calculate_procesni_rizik`/`identify_case_problems` | 2 | none | Medium-Large | NEEDS_SCOPING | Proven fix pattern exists (Task Engine, Project Nexus) but Briefing fans out across up to 20 active cases per request — not a single-case surgical fix, needs its own scoped pass. |
+| SENT-003 | Strategy Engine persistence (link legal conclusions to `predmet_id`) | 3 | Founder decision: should every Strategy Engine call require a case context? | Large (architecture) | NEEDS_SCOPING — founder decision | 8 endpoints currently discard every output on response; not linked to Timeline/Genome/Firm Brain. |
+| SENT-004 | Widen `AUDITABLE_ACTIONS` + wire Strategy Engine/Copilot/Briefing/Case Pipeline/Task Engine into durable audit | 4 | Founder decision on which actions warrant durable hash-chained provenance | Medium-Large | NEEDS_SCOPING — founder decision | Audit mechanism itself works correctly; the allowlist just excludes most of the platform's actual AI call sites. |
+| SENT-005 | Unify the 3 independent hallucination-guard patterns (`quality_gate.py`, Task Engine's prompt-grounding, ~50 ad hoc JSON-parse-only sites) into one shared layer | 5 | Design decision: which pattern becomes canonical | Large (new shared infrastructure) | NEEDS_SCOPING — founder decision | Highest-exposure gap: `routers/copilot.py`'s free-text chat has no grounding/citation check at all. |
+| SENT-006 | AI Provenance shared schema (`model`/`prompt version`/`duration`/`sources used`) | 6 | Founder decision on schema investment | Large | NEEDS_SCOPING — founder decision | Same item as NEX-006, rescoped: confirmed larger than originally estimated (53 files / 20+ features, not 6). |
+| SENT-007 | Document-level contradiction detection within a case | 7 | none | Large (new capability) | TODO — out of "connect, don't build" mandate | No existing mechanism to extend; would be new capability, correctly not attempted this mission. |
+| SENT-008 | Upload idempotency via `source_sha256` | 8 | Product decision: silently skip duplicate? show existing doc? merge? | Medium | NEEDS_SCOPING — product decision | Hash is already computed and discarded; retry-after-timeout currently duplicates the entire upload pipeline. |
+| SENT-009 | Genome background-refresh durability (the *trigger*, not the `GENOME_UPDATED` event itself) | 9 | none | Medium-Large | TODO | 4 separate fire-and-forget entry points; a crash between upload and refresh completion silently drops the Genome update. |
+| SENT-010 | Confirm Firm Brain auto-population intent | 10 | Founder confirmation | Small (once scoped) | NEEDS_SCOPING — founder decision | Manual-save-only entry points confirmed at medium confidence; may be deliberate (lawyer-curated knowledge), needs explicit confirmation either way. |
 
 ## Explicit exclusions from autonomous scope (per the Master Prompt's own Stop Conditions)
 
