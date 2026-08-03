@@ -125,3 +125,29 @@ something already live) rather than implementation — the GDPR export check and
 intelligence distinction both would have produced a shipped duplicate if skipped. Worth treating
 "verify it's not secretly already covered" as a mandatory step before wiring anything flagged by a
 census, not an optional nicety.
+
+---
+
+## 2026-08-03 (Operation Lawyer Day, BETA-004)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 1 (LD-001 — photo upload fix on the reachable path) |
+| Bugs fixed | 1 — but a significant one: a previously-*claimed*-fixed Beta Critical Path blocker (Night Shift M-001's "photo upload works end to end") was found to still be broken for real users, because the fix landed on an unreachable endpoint |
+| New bugs discovered | 1 (the above, counted once as a workflow, not per line changed) + 6 smaller P2/P3 gaps found and deliberately NOT fixed per this mission's own "only implement P0/P1" instruction (no true batch upload / no dedup on the reachable path / no hearing-prep export bundle / no audit-log viewer / archiving not reachable from case-detail / team comments missing from search) |
+| Blockers correctly escalated | 1 — Smart Intake's missing frontend entry point, re-confirmed as still the dominant open item, not re-litigated as a new finding |
+| Regressions introduced | 0 — full suite re-run: 2311 passed, 1 skipped, 0 failed (was 2306 before this mission) |
+| Test pass rate | 2311/2312 (99.96%) |
+| Beta blockers removed | 1 scenario **corrected**, not newly removed — Beta Critical Path scenario #3 ("upload PDF or photo") was marked closed 2026-08-02 but wasn't true for the reachable path; it is now |
+| Security findings resolved | 0 |
+| Founder decisions required | 0 new this run — LD-002 through LD-006 are P2/P3 backlog items needing no founder judgment call, just future prioritization |
+
+**Notable pattern, most consequential of this whole engagement**: this is the first mission to run a
+full end-to-end simulation rather than investigate a single subsystem — and it found that a previous
+mission's own "fixed" claim was wrong in practice, not in principle. The lesson generalizes past this
+specific bug: **verifying a fix requires tracing which endpoint the frontend actually calls for that
+scenario, not just confirming the code that was changed is correct.** Every subsystem-level
+investigation this engagement has run (Night Shift, Lawyer Zero, Autonomous Law Office, Invisible
+Features) was individually careful — this mission's value came specifically from simulating the
+connected, cross-subsystem path a real user follows, which no single-subsystem investigation could have
+caught.

@@ -111,6 +111,23 @@ connect what already exists — forbidden from building new backend capability. 
 | IF-005 | Memory Graph — decide how relationships get populated before any UI is safe to ship | 5 | none | — (product/architecture decision) | **NEEDS_SCOPING — founder decision required** | See blocker report §3. The single most interesting dead feature found (`GET /api/memory-graph/upit` — cross-case argument/outcome queries), but `memory_graph_edges` has exactly one writer (an also-dead manual-entry endpoint) — shipping a query box alone would show every real user a permanently empty graph. Needs a decision: manual population UX (needs its own UI too), or automatic extraction from case data (new AI logic, explicitly out of this mission's scope). |
 | IF-006 | Remaining confirmed-dead routers, unranked | 6 | none | Unknown per-item | TODO (needs individual assessment) | `agent_notifications`, `knowledge_hygiene`, `knowledge_transfer`, `region`, `strategy_simulator`, `style_checker` — all real, all genuinely unreachable, none individually assessed for relative lawyer value this run. `auto_discovery` is admin-only by design (lower lawyer-facing priority regardless). `status_page` needs one direct follow-up read of `static/status.html`'s own script before its true status is confirmed. |
 
+## Operation Lawyer Day (2026-08-03) — LD missions
+
+Founder's Master Prompt (BETA-004): simulate a complete real law-office workday inside Vindex AI,
+minute by minute, to answer one question — can a lawyer work an entire day without leaving the
+platform? Full simulation: `docs/product/LAWYER_DAY_REPORT.md`. Root-cause analyses of every
+interruption found: `docs/product/WORKFLOW_INTERRUPTION_REPORT.md`. Hidden-feature findings:
+`docs/product/HIDDEN_FEATURES_REPORT.md`. Engagement-wide trajectory: `docs/product/BETA_PROGRESS.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| LD-001 | Fix photo upload on the actually-reachable upload path (`api.py`, not Smart Intake) | 1 | none | Small | **DONE** | `POST /api/predmeti/{id}/upload`'s `_ALLOWED_MIMES`/`_ALLOWED_SUFFIXES` widened to accept `.jpg/.jpeg/.png`, mirroring Smart Intake's already-proven allowlist. **Completed 2026-08-03** — see `decisions/2026-08-03_LD-001_photo_upload_reachable_path_MISSION_REVIEW.md`. Corrects Night Shift M-001's "photo upload now works end to end" claim, which was only true for the unreachable Smart Intake path — a real lawyer could not upload a phone photo anywhere in the app until this fix. 5 new tests, 2311 total green. |
+| LD-002 | Hearing-prep export bundle | 2 | none | Medium | NEEDS_SCOPING (P2, not implemented per mission's own "only P0/P1" rule) | No single feature bundles judge/opponent research + Case Genome/Briefing + deadlines + drafted documents into one export. Every underlying piece already works — pure aggregation UI. See `WORKFLOW_INTERRUPTION_REPORT.md` Finding #5. |
+| LD-003 | Lawyer-facing audit/activity log viewer | 3 | none | Small-Medium | TODO (P2/P3, not implemented) | `shared/audit_immutable.py`'s log is written but never rendered anywhere in the UI. See Finding #6. |
+| LD-004 | Case archiving button inside case-detail view | 4 | none | Small | TODO (P2/P3, not implemented) | Currently only reachable via bulk-select from the case list. See Finding #7. |
+| LD-005 | Duplicate-file detection on the reachable upload path | 5 | none | Small | TODO (P2, not implemented) | Smart Intake has exact-hash dedup; `api.py`'s reachable per-case upload does not. See Finding #4. |
+| LD-006 | Team comments (`predmet_komentari`) missing from global search | 6 | none | Small | TODO (P3, not implemented) | Confirmed NOT a duplicate of `predmet_beleske` (private notes) — both serve distinct, intentional purposes per the UI's own copy. Only the search-coverage gap is real. See Finding #8. |
+
 ## Dependency graph (for the "eligible" check)
 
 ```
