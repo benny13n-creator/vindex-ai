@@ -102,10 +102,13 @@ surfaced.
   times).
 - **New Beta blockers removed**: 1 (`BL-001`, the cross-tenant task leak).
 - **Remaining Beta blockers**: 5, all founder-decision-gated, none guessed at.
-- **Files changed this mission**: `routers/zadaci.py` (the fix), `tests/test_beta_lockdown_zadaci_predmet_idor.py` (new), plus 8 new/updated documentation files (`FEATURE_COMPLETION_MATRIX.md`, `BLOCKER_REPORT.md`, `WORKFLOW_GAPS.md`, `CURRENT_STATE.md`, `RELEASE_READINESS.md`, `HIDDEN_FEATURES_REPORT.md` [updated], `BETA_LOCKDOWN_REPORT.md` [this file], `.vindex_ai_team/decisions/2026-08-03_beta_lockdown_isolation_audit_search_INVESTIGATION.md`, `.vindex_ai_team/MISSION_BOARD.md`, `.vindex_ai_team/METRICS.md`).
-- **Commit hash**: recorded in the final commit for this mission — see repository log
-  (`git log -1 --format=%H` immediately after this mission's commit); this document is written
-  immediately before that commit, per the mission's own ordering of final steps (tests → metrics/memory
-  → executive summary → commit → push).
-- **Pushed to `main`**: yes, per this mission's explicit instruction — see repository remote for
-  confirmation.
+- **Files changed this mission**: 13 files, 969 insertions(+), 1 deletion(-) — `routers/zadaci.py` (the
+  fix), `tests/test_beta_lockdown_zadaci_predmet_idor.py` (new, 129 lines), plus 11 new/updated
+  documentation files (`FEATURE_COMPLETION_MATRIX.md`, `BLOCKER_REPORT.md`, `WORKFLOW_GAPS.md`,
+  `CURRENT_STATE.md`, `RELEASE_READINESS.md`, `HIDDEN_FEATURES_REPORT.md` [updated], this file, the
+  `BL-001` mission review, the isolation/audit investigation doc, `MISSION_BOARD.md`, `METRICS.md`).
+- **Commit hash**: `de19c65189e3e224775aed8966756484a86eda90`.
+- **Pushed to `main`**: yes, per this mission's explicit instruction, along with the 22 preceding local
+  commits from tonight's 5 earlier operations (Night Shift through Lawyer Day) — all individually
+  tested and regression-verified at the time each was committed, and reconfirmed once more by this
+  mission's own final full-suite run before pushing.
